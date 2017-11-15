@@ -1128,24 +1128,8 @@ ble_gap_master_in_progress(void)
     return ble_gap_master.op != BLE_GAP_OP_NULL;
 }
 
-/**
- * Attempts to complete the master connection process in response to a
- * "connection complete" event from the controller.  If the master connection
- * FSM is in a state that can accept this event, and the peer device address is
- * valid, the master FSM is reset and success is returned.
- *
- * @param addr_type             The address type of the peer; one of the
- *                                  following values:
- *                                  o    BLE_ADDR_TYPE_PUBLIC
- *                                  o    BLE_ADDR_TYPE_RANDOM
- * @param addr                  The six-byte address of the connection peer.
- *
- * @return                      0 if the connection complete event was
- *                                  accepted;
- *                              BLE_HS_ENOENT if the event does not apply.
- */
 static int
-ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
+ble_gap_accept_master_conn(void)
 {
     int rc;
 
@@ -1172,24 +1156,8 @@ ble_gap_accept_master_conn(uint8_t addr_type, uint8_t *addr)
     return rc;
 }
 
-/**
- * Attempts to complete the slave connection process in response to a
- * "connection complete" event from the controller.  If the slave connection
- * FSM is in a state that can accept this event, and the peer device address is
- * valid, the master FSM is reset and success is returned.
- *
- * @param addr_type             The address type of the peer; one of the
- *                                  following values:
- *                                  o    BLE_ADDR_TYPE_PUBLIC
- *                                  o    BLE_ADDR_TYPE_RANDOM
- * @param addr                  The six-byte address of the connection peer.
- *
- * @return                      0 if the connection complete event was
- *                                  accepted;
- *                              BLE_HS_ENOENT if the event does not apply.
- */
 static int
-ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
+ble_gap_accept_slave_conn(void)
 {
     int rc;
 
@@ -1354,14 +1322,14 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
     switch (evt->role) {
     case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
-        rc = ble_gap_accept_master_conn(evt->peer_addr_type, evt->peer_addr);
+        rc = ble_gap_accept_master_conn();
         if (rc != 0) {
             return rc;
         }
         break;
 
     case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-        rc = ble_gap_accept_slave_conn(evt->peer_addr_type, evt->peer_addr);
+        rc = ble_gap_accept_slave_conn();
         if (rc != 0) {
             return rc;
         }
