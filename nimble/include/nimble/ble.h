@@ -31,6 +31,9 @@ extern "C" {
 #include "os/os.h"
 #include "syscfg/syscfg.h"
 
+/* The number of advertising instances */
+#define BLE_ADV_INSTANCES    (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) + 1)
+
 /* BLE encryption block definitions */
 #define BLE_ENC_BLOCK_SIZE       (16)
 

@@ -609,7 +609,7 @@ ble_ll_adv_rd_max_adv_data_len(uint8_t *rspbuf, uint8_t *rsplen)
 static int
 ble_ll_adv_rd_sup_adv_sets(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    rspbuf[0] = BLE_LL_ADV_INSTANCES;
+    rspbuf[0] = BLE_ADV_INSTANCES;
     *rsplen = BLE_HCI_RD_NR_SUP_ADV_SETS;
     return BLE_ERR_SUCCESS;
 }
