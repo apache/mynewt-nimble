@@ -634,10 +634,10 @@ ble_gap_master_reset_state(void)
 }
 
 static void
-ble_gap_slave_reset_state(void)
+ble_gap_slave_reset_state(uint8_t instance)
 {
-    ble_gap_slave[0].op = BLE_GAP_OP_NULL;
-    ble_gap_slave[0].exp_set = 0;
+    ble_gap_slave[instance].op = BLE_GAP_OP_NULL;
+    ble_gap_slave[instance].exp_set = 0;
 
     ble_hs_timer_resched();
 }
@@ -669,25 +669,26 @@ ble_gap_master_extract_state(struct ble_gap_master_state *out_state,
 }
 
 static void
-ble_gap_slave_extract_cb(ble_gap_event_fn **out_cb, void **out_cb_arg)
+ble_gap_slave_extract_cb(uint8_t instance,
+                         ble_gap_event_fn **out_cb, void **out_cb_arg)
 {
     ble_hs_lock();
 
-    *out_cb = ble_gap_slave[0].cb;
-    *out_cb_arg = ble_gap_slave[0].cb_arg;
-    ble_gap_slave_reset_state();
+    *out_cb = ble_gap_slave[instance].cb;
+    *out_cb_arg = ble_gap_slave[instance].cb_arg;
+    ble_gap_slave_reset_state(instance);
 
     ble_hs_unlock();
 }
 
 static void
-ble_gap_adv_finished(void)
+ble_gap_adv_finished(uint8_t instance)
 {
     struct ble_gap_event event;
     ble_gap_event_fn *cb;
     void *cb_arg;
 
-    ble_gap_slave_extract_cb(&cb, &cb_arg);
+    ble_gap_slave_extract_cb(instance, &cb, &cb_arg);
     if (cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_ADV_COMPLETE;
@@ -1157,14 +1158,21 @@ ble_gap_accept_master_conn(void)
 }
 
 static int
-ble_gap_accept_slave_conn(void)
+ble_gap_adv_active_instance(uint8_t instance)
+{
+    /* Assume read is atomic; mutex not necessary. */
+    return ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV;
+}
+
+static int
+ble_gap_accept_slave_conn(uint8_t instance)
 {
     int rc;
 
-    if (!ble_gap_adv_active()) {
+    if (!ble_gap_adv_active_instance(instance)) {
         rc = BLE_HS_ENOENT;
     } else {
-        if (ble_gap_slave[0].connectable) {
+        if (ble_gap_slave[instance].connectable) {
             rc = 0;
         } else {
             rc = BLE_HS_ENOENT;
@@ -1307,7 +1315,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
 
         case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
             if (ble_gap_adv_active()) {
-                ble_gap_adv_finished();
+                ble_gap_adv_finished(0);
             }
             break;
 
@@ -1329,7 +1337,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         break;
 
     case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-        rc = ble_gap_accept_slave_conn();
+        rc = ble_gap_accept_slave_conn(0);
         if (rc != 0) {
             return rc;
         }
@@ -1358,7 +1366,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         conn->bhc_cb = ble_gap_slave[0].cb;
         conn->bhc_cb_arg = ble_gap_slave[0].cb_arg;
         conn->bhc_our_addr_type = ble_gap_slave[0].our_addr_type;
-        ble_gap_slave_reset_state();
+        ble_gap_slave_reset_state(0);
     }
 
     conn->bhc_peer_addr.type = evt->peer_addr_type;
@@ -1522,10 +1530,10 @@ ble_gap_slave_timer(void)
     }
 
     /* Clear the timer and cancel the current procedure. */
-    ble_gap_slave_reset_state();
+    ble_gap_slave_reset_state(0);
 
     /* Indicate to application that advertising has stopped. */
-    ble_gap_adv_finished();
+    ble_gap_adv_finished(0);
 
     return BLE_HS_FOREVER;
 }
@@ -1806,7 +1814,7 @@ ble_gap_adv_stop_no_lock(void)
         goto done;
     }
 
-    ble_gap_slave_reset_state();
+    ble_gap_slave_reset_state(0);
 
     rc = 0;
 
@@ -2254,7 +2262,7 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
 
     rc = ble_gap_adv_enable_tx(1, direct_addr != NULL);
     if (rc != 0) {
-        ble_gap_slave_reset_state();
+        ble_gap_slave_reset_state(0);
         goto done;
     }
 
@@ -2453,8 +2461,7 @@ ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields)
 int
 ble_gap_adv_active(void)
 {
-    /* Assume read is atomic; mutex not necessary. */
-    return ble_gap_slave[0].op == BLE_GAP_OP_S_ADV;
+    return ble_gap_adv_active_instance(0);
 }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
