@@ -145,16 +145,15 @@ struct ble_gap_mesh_state {
 struct ble_gap_slave_state {
     uint8_t op;
 
-    unsigned exp_set:1;
+    unsigned int our_addr_type:2;
+    unsigned int exp_set:1;
+    unsigned int preempted:1;  /** Set to 1 if advertising was preempted. */
+    unsigned int connectable:1;
+
     os_time_t exp_os_ticks;
 
-    uint8_t conn_mode;
-    unsigned our_addr_type:2;
     ble_gap_event_fn *cb;
     void *cb_arg;
-
-    /** Set to 1 if advertising was preempted. */
-    uint8_t preempted:1;
 };
 
 static bssnz_t struct ble_gap_slave_state ble_gap_slave[BLE_ADV_INSTANCES];
@@ -1197,23 +1196,10 @@ ble_gap_accept_slave_conn(uint8_t addr_type, uint8_t *addr)
     if (!ble_gap_adv_active()) {
         rc = BLE_HS_ENOENT;
     } else {
-        switch (ble_gap_slave[0].conn_mode) {
-        case BLE_GAP_CONN_MODE_NON:
-            rc = BLE_HS_ENOENT;
-            break;
-
-        case BLE_GAP_CONN_MODE_UND:
+        if (ble_gap_slave[0].connectable) {
             rc = 0;
-            break;
-
-        case BLE_GAP_CONN_MODE_DIR:
-            rc = 0;
-            break;
-
-        default:
-            BLE_HS_DBG_ASSERT(0);
+        } else {
             rc = BLE_HS_ENOENT;
-            break;
         }
     }
 
@@ -2283,8 +2269,13 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
 
     ble_gap_slave[0].cb = cb;
     ble_gap_slave[0].cb_arg = cb_arg;
-    ble_gap_slave[0].conn_mode = adv_params->conn_mode;
     ble_gap_slave[0].our_addr_type = own_addr_type;
+
+    if (adv_params->conn_mode != BLE_GAP_CONN_MODE_NON) {
+        ble_gap_slave[0].connectable = 1;
+    } else {
+        ble_gap_slave[0].connectable = 0;
+    }
 
     rc = ble_gap_adv_params_tx(own_addr_type, direct_addr, adv_params);
     if (rc != 0) {
