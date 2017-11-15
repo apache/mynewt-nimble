@@ -142,7 +142,7 @@ struct ble_gap_mesh_state {
  * The state of the in-progress slave connection.  If no slave connection is
  * currently in progress, then the op field is set to BLE_GAP_OP_NULL.
  */
-static bssnz_t struct {
+struct ble_gap_slave_state {
     uint8_t op;
 
     unsigned exp_set:1;
@@ -155,7 +155,9 @@ static bssnz_t struct {
 
     /** Set to 1 if advertising was preempted. */
     uint8_t preempted:1;
-} ble_gap_slave;
+};
+
+static bssnz_t struct ble_gap_slave_state ble_gap_slave;
 
 struct ble_gap_update_entry {
     SLIST_ENTRY(ble_gap_update_entry) next;
