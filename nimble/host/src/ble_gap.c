@@ -149,7 +149,6 @@ static bssnz_t struct {
     os_time_t exp_os_ticks;
 
     uint8_t conn_mode;
-    uint8_t disc_mode;
     unsigned our_addr_type:2;
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -2283,7 +2282,6 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
     ble_gap_slave.cb = cb;
     ble_gap_slave.cb_arg = cb_arg;
     ble_gap_slave.conn_mode = adv_params->conn_mode;
-    ble_gap_slave.disc_mode = adv_params->disc_mode;
     ble_gap_slave.our_addr_type = own_addr_type;
 
     rc = ble_gap_adv_params_tx(own_addr_type, direct_addr, adv_params);
