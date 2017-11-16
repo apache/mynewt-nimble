@@ -175,13 +175,15 @@ void bt_mesh_adv_update(void)
 	os_eventq_put(&adv_queue, &ev);
 }
 
-struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
-				   u8_t xmit_int, s32_t timeout)
+struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
+					     enum bt_mesh_adv_type type,
+					     u8_t xmit_count, u8_t xmit_int,
+					     s32_t timeout)
 {
     struct os_mbuf *adv_data;
     struct bt_mesh_adv *adv;
 
-    adv_data = os_mbuf_get_pkthdr(&adv_os_mbuf_pool, sizeof(struct bt_mesh_adv));
+    adv_data = os_mbuf_get_pkthdr(pool, sizeof(struct bt_mesh_adv));
     if (!adv_data) {
         return NULL;
     }
@@ -195,6 +197,14 @@ struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
     adv->ref_cnt = 1;
     adv->ev.ev_arg = adv_data;
     return adv_data;
+}
+
+struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
+				   u8_t xmit_int, s32_t timeout)
+{
+	return bt_mesh_adv_create_from_pool(&adv_os_mbuf_pool,
+					    type, xmit_count,
+					    xmit_int, timeout);
 }
 
 void bt_mesh_adv_send(struct os_mbuf *buf, bt_mesh_adv_func_t sent)
