@@ -369,7 +369,9 @@ syscfg.defs:
 
     BLE_MESH:
         description: >
-            Enable Bluetooth Mesh	
+            This option enables Bluetooth Mesh support. The specific
+            features that are available may depend on other features
+            that have been enabled in the stack, such as GATT support.
         value: 0
 
 syscfg.vals.BLE_MESH:
