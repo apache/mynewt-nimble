@@ -21,6 +21,7 @@
 #define _MESH_GLUE_
 
 #include <assert.h>
+#include <errno.h>
 
 #include "syscfg/syscfg.h"
 
@@ -135,6 +136,12 @@
 #define K_SECONDS(s)   K_MSEC((s) * MSEC_PER_SEC)
 #define K_MINUTES(m)   K_SECONDS((m) * 60)
 #define K_HOURS(h)     K_MINUTES((h) * 60)
+
+#ifndef BIT
+#define BIT(n)  (1UL << (n))
+#endif
+
+#define BIT_MASK(n) (BIT(n) - 1)
 
 #define BT_GAP_ADV_FAST_INT_MIN_1               0x0030  /* 30 ms    */
 #define BT_GAP_ADV_FAST_INT_MAX_1               0x0060  /* 60 ms    */
@@ -327,6 +334,8 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_LPN_ESTABLISHMENT BLE_MESH_LPN_ESTABLISHMENT
 #define CONFIG_BT_MESH_LPN_AUTO BLE_MESH_LPN_AUTO
 #define CONFIG_BLUETOOTH_MESH_LPN_GROUPS MYNEWT_VAL(BLE_MESH_LPN_GROUPS)
+#define CONFIG_BT_MESH_MODEL_KEY_COUNT MYNEWT_VAL(BLE_MESH_MODEL_KEY_COUNT)
+#define CONFIG_BT_MESH_MODEL_GROUP_COUNT MYNEWT_VAL(BLE_MESH_MODEL_GROUP_COUNT)
 #define IS_ENABLED(config) MYNEWT_VAL(config)
 
 #endif
