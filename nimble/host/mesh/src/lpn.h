@@ -23,7 +23,7 @@ static inline bool
 bt_mesh_lpn_established(void)
 {
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
-    return (bt_mesh.lpn.state >= BT_MESH_LPN_ESTABLISHED);
+	return bt_mesh.lpn.established;
 #else
     return false;
 #endif
@@ -48,8 +48,16 @@ static inline bool bt_mesh_lpn_waiting_update(void)
 #endif
 }
 
-void
-bt_mesh_lpn_friend_poll(void);
+static inline bool bt_mesh_lpn_timer(void)
+{
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER) && MYNEWT_VAL(BLE_MESH_LPN_AUTO)
+	return (bt_mesh.lpn.state == BT_MESH_LPN_TIMER);
+#else
+	return false;
+#endif
+}
+
+void bt_mesh_lpn_friend_poll(void);
 
 void
 bt_mesh_lpn_msg_received(struct bt_mesh_net_rx *rx);

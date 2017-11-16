@@ -145,6 +145,35 @@ syscfg.defs:
            Enable this option to be able to act as a Low Power Node.
         value: 0
 
+    BLE_MESH_LPN_ESTABLISHMENT:
+        description: >
+           Perform the Friendship establishment using low power, with
+           the help of a reduced scan duty cycle. The downside of this
+           is that the node may miss out on messages intended for it
+           until it has successfully set up Friendship with a Friend
+           node.
+        value: 1
+
+    BLE_MESH_LPN_AUTO:
+        description: >
+           Automatically enable LPN functionality once provisioned and start
+           looking for Friend nodes. If this option is disabled LPN mode
+           needs to be manually enabled by calling bt_mesh_lpn_set(true).
+           node.
+        value: 1
+
+    BLE_MESH_LPN_AUTO_TIMEOUT:
+        description: >
+           Time in seconds from the last received message, that the node
+           will wait before starting to look for Friend nodes.
+        value: 15
+
+    BLE_MESH_LPN_RETRY_TIMEOUT:
+        description: >
+           Time in seconds between Friend Requests, if a previous Friend
+           Request did not receive any acceptable Friend Offers.
+        value: 8
+
     BLE_MESH_LPN_RSSI_FACTOR:
         description: >
             The contribution of the RSSI measured by the Friend node used

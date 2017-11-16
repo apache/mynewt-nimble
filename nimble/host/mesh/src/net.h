@@ -139,9 +139,10 @@ struct bt_mesh_lpn
     {
         BT_MESH_LPN_DISABLED, /* LPN feature is disabled */
         BT_MESH_LPN_CLEAR, /* Clear in progress */
+		BT_MESH_LPN_TIMER,        /* Waiting for auto timer expiry */
         BT_MESH_LPN_ENABLED, /* LPN enabled, but no Friend */
+		BT_MESH_LPN_REQ_WAIT,     /* Wait before scanning for offers */
         BT_MESH_LPN_WAIT_OFFER, /* Friend Req sent */
-        BT_MESH_LPN_ESTABLISHING, /* First Friend Poll sent */
         BT_MESH_LPN_ESTABLISHED, /* Friendship established */
         BT_MESH_LPN_RECV_DELAY, /* Poll sent, waiting ReceiveDelay */
         BT_MESH_LPN_WAIT_UPDATE, /* Waiting for Update or message */
@@ -164,10 +165,11 @@ struct bt_mesh_lpn
 
     s32_t poll_timeout;
 
-    u8_t groups_changed :1, /* Friend Subscription List needs updating */
-    pending_poll :1, /* Poll to be sent after subscription */
-    disable :1, /* Disable LPN after clearing */
-    fsn :1; /* Friend Sequence Number */
+	u8_t  groups_changed:1, /* Friend Subscription List needs updating */
+	      pending_poll:1,   /* Poll to be sent after subscription */
+	      disable:1,        /* Disable LPN after clearing */
+	      fsn:1,            /* Friend Sequence Number */
+	      established:1;    /* Friendship established */
 
     /* Friend Queue Size */
     u8_t queue_size;
