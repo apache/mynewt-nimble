@@ -29,8 +29,17 @@ bt_mesh_lpn_established(void)
 #endif
 }
 
-static inline bool
-bt_mesh_lpn_waiting_update(void)
+static inline bool bt_mesh_lpn_match(u16_t addr)
+{
+#if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
+	if (bt_mesh_lpn_established()) {
+		return (addr == bt_mesh.lpn.frnd);
+	}
+#endif
+	return false;
+}
+
+static inline bool bt_mesh_lpn_waiting_update(void)
 {
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
     return (bt_mesh.lpn.state == BT_MESH_LPN_WAIT_UPDATE);
