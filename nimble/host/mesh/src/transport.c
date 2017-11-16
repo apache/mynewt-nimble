@@ -560,13 +560,6 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t mic_size,
 
 		rx->ctx.app_idx = key->app_idx;
 
-		if (is_replay(rx)) {
-			BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
-				rx->ctx.addr, rx->dst, rx->seq);
-			err = -EINVAL;
-			goto done;
-		}
-
 		bt_mesh_model_recv(rx, sdu);
 		goto done;
 	}
@@ -782,6 +775,12 @@ static int trans_unseg(struct os_mbuf *buf, struct bt_mesh_net_rx *rx,
 
 	if (buf->om_len < 1) {
 		BT_ERR("Too small unsegmented PDU");
+		return -EINVAL;
+	}
+
+	if (rx->local_match && is_replay(rx)) {
+		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
+			rx->ctx.addr, rx->dst, rx->seq);
 		return -EINVAL;
 	}
 
@@ -1172,6 +1171,14 @@ found_rx:
 	}
 
 	BT_DBG("Complete SDU");
+
+	if (net_rx->local_match && is_replay(net_rx)) {
+		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
+			net_rx->ctx.addr, net_rx->dst, net_rx->seq);
+		/* Clear the segment's bit */
+		rx->block &= ~BIT(seg_o);
+		return -EINVAL;
+	}
 
 	*pdu_type = BT_MESH_FRIEND_PDU_COMPLETE;
 
