@@ -749,8 +749,8 @@ int bt_mesh_proxy_gatt_disable(void)
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
 
-		if (clients->conn_handle && (client->filter_type == WHITELIST ||
-				      client->filter_type == BLACKLIST)) {
+		if (client->conn_handle && (client->filter_type == WHITELIST ||
+					client->filter_type == BLACKLIST)) {
 			client->filter_type = NONE;
 		}
 	}
