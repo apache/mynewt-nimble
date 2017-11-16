@@ -492,11 +492,14 @@ struct bt_mesh_prov
 {
     const u8_t *uuid;
 
-    u8_t *static_val;u8_t static_val_len;
+    const u8_t *static_val;
+    u8_t static_val_len;
 
-    u8_t output_size;u16_t output_actions;
+    u8_t output_size;
+    u16_t output_actions;
 
-    u8_t input_size;u16_t input_actions;
+    u8_t input_size;
+    u16_t input_actions;
 
     int
     (*output_number)(bt_mesh_output_action act, u32_t num);
