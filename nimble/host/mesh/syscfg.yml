@@ -237,7 +237,7 @@ syscfg.defs:
         description: >
             Minimum number of buffers available to be stored for each 
             local Friend Queue.
-        value: 4
+        value: 16
         
     BLE_MESH_FRIEND_SUB_LIST_SIZE:
         description: >
@@ -249,7 +249,7 @@ syscfg.defs:
         description: >
             Number of Low Power Nodes the Friend can have a Friendship
             with simultaneously.
-        value: 1
+        value: 2
 
     BLE_MESH_FRIEND_SEG_RX:
         description: >
