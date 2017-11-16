@@ -43,14 +43,12 @@
 
 #define POLL_RETRY_TIMEOUT        K_MSEC(100)
 
-#define REQ_ATTEMPTS(lpn) ((lpn)->poll_timeout < K_SECONDS(3) ? 2 : 4)
+#define REQ_RETRY_DURATION(lpn)  (4 * (LPN_RECV_DELAY + (lpn)->adv_duration + \
+				       (lpn)->recv_win + POLL_RETRY_TIMEOUT))
 
-#define REQ_RETRY_DURATION(lpn)  (REQ_ATTEMPTS(lpn) * \
-				  (LPN_RECV_DELAY + (lpn)->recv_win + \
-				   POLL_RETRY_TIMEOUT))
-
-#define POLL_TIMEOUT(lpn)   ((MYNEWT_VAL(BLE_MESH_LPN_POLL_TIMEOUT) * 100) - \
+#define POLL_TIMEOUT_MAX(lpn)   ((MYNEWT_VAL(BLE_MESH_LPN_POLL_TIMEOUT) * 100) - \
 			     REQ_RETRY_DURATION(lpn))
+#define REQ_ATTEMPTS(lpn)     (POLL_TIMEOUT_MAX(lpn) < K_SECONDS(3) ? 2 : 4)
 
 #define CLEAR_ATTEMPTS        2
 
@@ -99,7 +97,7 @@ static inline void lpn_set_state(int state)
 
 static void clear_friendship(bool disable);
 
-static void friend_clear_sent(struct os_mbuf *buf, int err)
+static void friend_clear_sent(struct os_mbuf *buf, u16_t duration, int err)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
@@ -118,7 +116,7 @@ static void friend_clear_sent(struct os_mbuf *buf, int err)
 	}
 
 	lpn_set_state(BT_MESH_LPN_CLEAR);
-	k_delayed_work_submit(&bt_mesh.lpn.timer, FRIEND_REQ_TIMEOUT);
+	k_delayed_work_submit(&lpn->timer, duration + FRIEND_REQ_TIMEOUT);
 }
 
 static int send_friend_clear(void)
@@ -193,7 +191,7 @@ static void clear_friendship(bool disable)
 	k_delayed_work_submit(&lpn->timer, FRIEND_REQ_RETRY_TIMEOUT);
 }
 
-static void friend_req_sent(struct os_mbuf *buf, int err)
+static void friend_req_sent(struct os_mbuf *buf, u16_t duration, int err)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
@@ -282,7 +280,7 @@ static inline void group_clear(atomic_t *target, atomic_t *source)
 #endif
 }
 
-static void req_sent(struct os_mbuf *buf, int err)
+static void req_sent(struct os_mbuf *buf, u16_t duration, int err)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
@@ -298,6 +296,7 @@ static void req_sent(struct os_mbuf *buf, int err)
 	}
 
 	lpn->req_attempts++;
+	lpn->adv_duration = duration;
 
 	if (lpn->established || IS_ENABLED(CONFIG_BT_MESH_LPN_ESTABLISHMENT)) {
 		lpn_set_state(BT_MESH_LPN_RECV_DELAY);
@@ -308,7 +307,8 @@ static void req_sent(struct os_mbuf *buf, int err)
 				      LPN_RECV_DELAY - SCAN_LATENCY);
 	} else {
 		k_delayed_work_submit(&lpn->timer,
-				      LPN_RECV_DELAY + lpn->recv_win);
+				      LPN_RECV_DELAY + duration +
+				      lpn->recv_win);
 	}
 }
 
@@ -721,7 +721,8 @@ static void lpn_timeout(struct os_event *work)
 		break;
 	case BT_MESH_LPN_REQ_WAIT:
 		bt_mesh_scan_enable();
-		k_delayed_work_submit(&lpn->timer, FRIEND_REQ_SCAN);
+		k_delayed_work_submit(&lpn->timer,
+				      lpn->adv_duration + FRIEND_REQ_SCAN);
 		lpn_set_state(BT_MESH_LPN_WAIT_OFFER);
 		break;
 	case BT_MESH_LPN_WAIT_OFFER:
@@ -754,10 +755,11 @@ static void lpn_timeout(struct os_event *work)
 		clear_friendship(false);
 		break;
 	case BT_MESH_LPN_RECV_DELAY:
+		k_delayed_work_submit(&lpn->timer,
+				      lpn->adv_duration + SCAN_LATENCY +
+				      lpn->recv_win);
 		bt_mesh_scan_enable();
 		lpn_set_state(BT_MESH_LPN_WAIT_UPDATE);
-		k_delayed_work_submit(&lpn->timer,
-				      lpn->recv_win + SCAN_LATENCY);
 		break;
 	case BT_MESH_LPN_WAIT_UPDATE:
 		update_timeout(lpn);
@@ -803,12 +805,13 @@ static s32_t poll_timeout(struct bt_mesh_lpn *lpn)
 {
 	/* If we're waiting for segment acks keep polling at high freq */
 	if (bt_mesh_tx_in_progress()) {
-		return min(POLL_TIMEOUT(lpn), K_SECONDS(1));
+		return min(POLL_TIMEOUT_MAX(lpn), K_SECONDS(1));
 	}
 
-	if (lpn->poll_timeout < POLL_TIMEOUT(lpn)) {
+	if (lpn->poll_timeout < POLL_TIMEOUT_MAX(lpn)) {
 		lpn->poll_timeout *= 2;
-		lpn->poll_timeout = min(lpn->poll_timeout, POLL_TIMEOUT(lpn));
+		lpn->poll_timeout = min(lpn->poll_timeout,
+					POLL_TIMEOUT_MAX(lpn));
 	}
 
 	BT_DBG("Poll Timeout is %ums", lpn->poll_timeout);
@@ -925,7 +928,7 @@ int bt_mesh_lpn_friend_update(struct bt_mesh_net_rx *rx,
 		BT_INFO("Friendship established with 0x%04x", lpn->frnd);
 
 		/* Set initial poll timeout */
-		lpn->poll_timeout = min(POLL_TIMEOUT(lpn), K_SECONDS(1));
+		lpn->poll_timeout = min(POLL_TIMEOUT_MAX(lpn), K_SECONDS(1));
 	}
 
 	friend_response_received(lpn);

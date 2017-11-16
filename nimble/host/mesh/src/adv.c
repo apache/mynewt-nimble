@@ -59,13 +59,13 @@ static const u8_t adv_type[] = {
 };
 
 
-static inline void adv_sent(struct os_mbuf *buf, int err)
+static inline void adv_sent(struct os_mbuf *buf, u16_t duration, int err)
 {
 	if (BT_MESH_ADV(buf)->busy) {
 		BT_MESH_ADV(buf)->busy = 0;
 
 		if (BT_MESH_ADV(buf)->sent) {
-			BT_MESH_ADV(buf)->sent(buf, err);
+			BT_MESH_ADV(buf)->sent(buf, duration, err);
 		}
 	}
 
@@ -99,7 +99,7 @@ static inline void adv_send(struct os_mbuf *buf)
     param.conn_mode = BLE_GAP_CONN_MODE_NON;
 
     err = bt_le_adv_start(&param, &ad, 1, NULL, 0);
-    adv_sent(buf, err);
+	adv_sent(buf, duration, err);
     if (err) {
         BT_ERR("Advertising failed: err %d", err);
         return;

@@ -24,8 +24,8 @@ enum bt_mesh_adv_type
     BT_MESH_ADV_PROV, BT_MESH_ADV_DATA, BT_MESH_ADV_BEACON,
 };
 
-typedef void
-(*bt_mesh_adv_func_t)(struct os_mbuf *adv_data, int err);
+typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, u16_t duration,
+				   int err);
 
 struct bt_mesh_adv
 {
