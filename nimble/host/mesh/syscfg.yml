@@ -259,6 +259,11 @@ syscfg.defs:
             messages from when the messages are going into the Friend queue.
         value: 1
 
+    BLE_MESH_CFG_CLI:
+        description: >
+            Enable support for the configuration client model.
+        value: 0
+
     BLE_MESH_DEBUG:
         description: >
             Use this option to enable debug logs for the Bluetooth
