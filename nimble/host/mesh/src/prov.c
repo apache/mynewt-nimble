@@ -228,6 +228,10 @@ static void reset_link(void)
 
 	prov_clear_tx();
 
+	if (prov->link_close) {
+		prov->link_close();
+	}
+
 	/* Clear everything except the retransmit delayed work config */
 	memset(&link, 0, offsetof(struct prov_link, tx.retransmit));
 
@@ -1181,6 +1185,10 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
+	if (prov->link_open) {
+		prov->link_open();
+	}
+
 	link.id = rx->link_id;
 	atomic_set_bit(link.flags, LINK_ACTIVE);
 	net_buf_simple_init(link.rx.buf, 0);
@@ -1484,6 +1492,10 @@ int bt_mesh_pb_gatt_open(uint16_t conn_handle)
 	link.conn_handle = conn_handle;
 	link.expect = PROV_INVITE;
 
+	if (prov->link_open) {
+		prov->link_open();
+	}
+
 	return 0;
 }
 
@@ -1502,6 +1514,12 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 	if (link.conf_inputs[0]) {
 		bt_mesh_attention(NULL, 0);
 	}
+
+	if (prov->link_close) {
+		prov->link_close();
+	}
+
+	bt_conn_unref(link.conn);
 
 	pub_key = atomic_test_bit(link.flags, LOCAL_PUB_KEY);
 	memset(&link, 0, sizeof(link));
