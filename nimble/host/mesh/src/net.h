@@ -124,6 +124,14 @@ struct bt_mesh_friend {
 
 	sys_slist_t queue;
 	u32_t queue_size;
+
+	/* Friend Clear Procedure */
+	struct {
+		u32_t start;                  /* Clear Procedure start */
+		u16_t frnd;                   /* Previous Friend's address */
+		u16_t repeat_sec;             /* Repeat timeout in seconds */
+		struct k_delayed_work timer;  /* Repeat timer */
+	} clear;
 };
 
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
