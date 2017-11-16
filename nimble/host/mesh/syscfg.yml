@@ -200,7 +200,7 @@ syscfg.defs:
             sending a request and listening for a response. This delay
             allows the Friend node time to prepare the response. The value
             is in units of milliseconds.
-        value: 20
+        value: 100
 
     BLE_MESH_LPN_POLL_TIMEOUT:
         description: >
