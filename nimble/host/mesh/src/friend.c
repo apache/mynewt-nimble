@@ -95,12 +95,15 @@ static void discard_buffer(void)
 
 static struct os_mbuf *friend_buf_alloc(u16_t src)
 {
+	u8_t xmit = bt_mesh_net_transmit_get();
 	struct os_mbuf *buf;
 
 	do {
 		buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool,
 						   BT_MESH_ADV_DATA,
-						   0, 0, K_NO_WAIT);
+						   BT_MESH_TRANSMIT_COUNT(xmit),
+						   BT_MESH_TRANSMIT_INT(xmit),
+						   K_NO_WAIT);
 		if (!buf) {
 			discard_buffer();
 		}
