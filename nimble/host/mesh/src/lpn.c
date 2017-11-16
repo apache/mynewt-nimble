@@ -23,6 +23,7 @@
 #include "transport.h"
 #include "access.h"
 #include "beacon.h"
+#include "foundation.h"
 #include "lpn.h"
 
 #if MYNEWT_VAL(BLE_MESH_LPN_AUTO)
@@ -131,6 +132,7 @@ static int send_friend_clear(void)
 		.sub = &bt_mesh.sub[0],
 		.ctx = &ctx,
 		.src = bt_mesh_primary_addr(),
+		.xmit = bt_mesh_net_transmit_get(),
 	};
 	struct bt_mesh_ctl_friend_clear req = {
 		.lpn_addr    = sys_cpu_to_be16(tx.src),
@@ -225,6 +227,7 @@ static int send_friend_req(struct bt_mesh_lpn *lpn)
 		.sub = &bt_mesh.sub[0],
 		.ctx = &ctx,
 		.src = bt_mesh_primary_addr(),
+		.xmit = bt_mesh_net_transmit_get(),
 	};
 	struct bt_mesh_ctl_friend_req req = {
 		.criteria    = LPN_CRITERIA,
@@ -325,6 +328,7 @@ static int send_friend_poll(void)
 		.sub = &bt_mesh.sub[0],
 		.ctx = &ctx,
 		.src = bt_mesh_primary_addr(),
+		.xmit = bt_mesh_net_transmit_get(),
 	};
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 	u8_t fsn = lpn->fsn;
@@ -616,6 +620,7 @@ static bool sub_update(u8_t op)
 		.sub = &bt_mesh.sub[0],
 		.ctx = &ctx,
 		.src = bt_mesh_primary_addr(),
+		.xmit = bt_mesh_net_transmit_get(),
 	};
 	struct bt_mesh_ctl_friend_sub req;
 	size_t i, g;
