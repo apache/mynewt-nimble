@@ -67,6 +67,7 @@ static u16_t msg_cache_next;
 
 /* Singleton network context (the implementation only supports one) */
 struct bt_mesh_net bt_mesh = {
+	.local_queue = SYS_SLIST_STATIC_INIT(bt_mesh.local_queue),
 	.sub = {
 		[0 ... (MYNEWT_VAL(BLE_MESH_SUBNET_COUNT) - 1)] = {
 			.net_idx = BT_MESH_KEY_UNUSED,
@@ -718,7 +719,7 @@ static void bt_mesh_net_local(struct os_event *work)
 {
 	struct os_mbuf *buf;
 
-	while ((buf = net_buf_get(&bt_mesh.local_queue, K_NO_WAIT))) {
+	while ((buf = net_buf_slist_get(&bt_mesh.local_queue))) {
 		BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 		bt_mesh_net_recv(buf, 0, BT_MESH_NET_IF_LOCAL);
 		net_buf_unref(buf);
@@ -823,7 +824,7 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	/* Deliver to local network interface if necessary */
 	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
 	    bt_mesh_elem_find(tx->ctx->addr)) {
-		net_buf_put(&bt_mesh.local_queue, net_buf_ref(buf));
+		net_buf_slist_put(&bt_mesh.local_queue, net_buf_ref(buf));
 		if (cb) {
 			cb(buf, 0, 0);
 		}
@@ -1220,6 +1221,5 @@ void bt_mesh_net_init(void)
 {
 	k_delayed_work_init(&bt_mesh.ivu_complete, ivu_complete);
 
-	os_eventq_init(&bt_mesh.local_queue);
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 }

@@ -212,12 +212,11 @@ struct bt_mesh_net
     pending_update :1, /* Update blocked by SDU in progress */
     valid :1; /* 0 if unused */
 
-    s64_t last_update; /* Time since last IV Update change */
+	s64_t last_update; /* Time since last IV Update change */
 
-    /* Local network interface */
-    struct os_callout local_work;
-    struct os_eventq local_queue;
-    struct os_event local_ev;
+	/* Local network interface */
+	struct os_callout local_work;
+	sys_slist_t local_queue;
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
     /* Friend state, unique for each LPN that we're Friends for */
