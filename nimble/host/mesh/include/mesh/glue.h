@@ -126,6 +126,8 @@
         assert(code);             \
     } while (0);
 
+#define __ASSERT_NO_MSG(test) __ASSERT(test, "")
+
 #define __packed    __attribute__((__packed__))
 
 #define MSEC_PER_SEC   (1000)
@@ -316,5 +318,10 @@ static inline unsigned int find_msb_set(u32_t op)
 
     return 32 - __builtin_clz(op);
 }
+
+#define CONFIG_BT_MESH_FRIEND_QUEUE_SIZE MYNEWT_VAL(BLE_MESH_FRIEND_QUEUE_SIZE)
+#define CONFIG_BT_MESH_FRIEND_RECV_WIN MYNEWT_VAL(BLE_MESH_FRIEND_RECV_WIN)
+#define CONFIG_BT_MESH_FRIEND BLE_MESH_FRIEND
+#define IS_ENABLED(config) MYNEWT_VAL(config)
 
 #endif

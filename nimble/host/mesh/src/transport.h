@@ -9,6 +9,8 @@
 #include "syscfg/syscfg.h"
 #include "mesh/mesh.h"
 
+#define TRANS_SEQ_AUTH_NVAL 0xffffffffffffffff
+
 #define BT_MESH_TX_SEG_COUNT (MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT) - 3)
 #define BT_MESH_TX_SDU_MAX (BT_MESH_TX_SEG_COUNT * 12)
 
@@ -71,6 +73,7 @@ struct bt_mesh_ctl_friend_clear_confirm
     u16_t lpn_counter;
 }__attribute__((__packed__));
 
+#define BT_MESH_FRIEND_SUB_MIN_LEN (1 + 2)
 struct bt_mesh_ctl_friend_sub
 {
     u8_t xact;
@@ -91,9 +94,8 @@ bt_mesh_tx_in_progress(void);
 void
 bt_mesh_rx_reset(void);
 
-int
-bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
-                 size_t data_len, bt_mesh_adv_func_t cb);
+int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
+                    size_t data_len, u64_t *seq_auth, bt_mesh_adv_func_t cb);
 
 int
 bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,

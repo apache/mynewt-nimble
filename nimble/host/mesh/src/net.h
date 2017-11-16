@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include "mesh/mesh.h"
+#include "mesh/slist.h"
 
 struct bt_mesh_app_key
 {
@@ -90,21 +91,40 @@ struct bt_mesh_rpl
     u32_t seq;
 };
 
-struct bt_mesh_friend
-{
-    u16_t lpn;
-    u8_t recv_delay;
-    u8_t fsn :1, send_last :1, send_offer :1, send_update :1;
-    s32_t poll_to;
-    u16_t lpn_counter;
-    u16_t counter;
-    s8_t rssi;
+#if MYNEWT_VAL(BLE_MESH_FRIEND)
+#define FRIEND_SEG_RX MYNEWT_VAL(BLE_MESH_FRIEND_SEG_RX)
+#define FRIEND_SUB_LIST_SIZE MYNEWT_VAL(BLE_MESH_FRIEND_SUB_LIST_SIZE)
+#else
+#define FRIEND_SEG_RX 0
+#define FRIEND_SUB_LIST_SIZE 0
+#endif
 
-    struct k_delayed_work timer;
+struct bt_mesh_friend {
+	u16_t lpn;
+	u8_t  recv_delay;
+	u8_t  fsn:1,
+	      send_last:1,
+	      sec_update:1,
+	      pending_buf:1,
+	      established:1;
+	s32_t poll_to;
+	u16_t lpn_counter;
+	u16_t counter;
 
-    struct os_mbuf *last;
-    /* TU BYLO KFIFO*/
-    struct os_eventq queue;
+	u16_t net_idx;
+
+	u16_t sub_list[FRIEND_SUB_LIST_SIZE];
+
+	struct k_delayed_work timer;
+
+	struct bt_mesh_friend_seg {
+		sys_slist_t queue;
+	} seg[FRIEND_SEG_RX];
+
+	struct os_mbuf *last;
+
+	sys_slist_t queue;
+	u32_t queue_size;
 };
 
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
@@ -183,7 +203,8 @@ struct bt_mesh_net
     struct os_event local_ev;
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
-    struct bt_mesh_friend frnd; /* Friend state */
+    /* Friend state, unique for each LPN that we're Friends for */
+    struct bt_mesh_friend frnd[MYNEWT_VAL(BLE_MESH_FRIEND_LPN_COUNT)];
 #endif
 
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
@@ -212,17 +233,18 @@ enum bt_mesh_net_if
 };
 
 /* Decoding context for Network/Transport data */
-struct bt_mesh_net_rx
-{
-    struct bt_mesh_subnet *sub;
-    struct bt_mesh_msg_ctx ctx;
-    u32_t seq; /* Sequence Number */
-    u16_t dst; /* Destination address */
-    u8_t old_iv :1, /* iv_index - 1 was used */
-    new_key :1, /* Data was encrypted with updated key */
-    ctl :1, /* Network Control */
-    net_if :2; /* Network interface */
-    s8_t rssi;
+struct bt_mesh_net_rx {
+	struct bt_mesh_subnet *sub;
+	struct bt_mesh_msg_ctx ctx;
+	u32_t  seq;            /* Sequence Number */
+	u16_t  dst;            /* Destination address */
+	u8_t   old_iv:1,       /* iv_index - 1 was used */
+	       new_key:1,      /* Data was encrypted with updated key */
+	       ctl:1,          /* Network Control */
+	       net_if:2,       /* Network interface */
+	       local_match:1,  /* Matched a local element */
+	       friend_match:1; /* Matched an LPN we're friends for */
+	s8_t   rssi;
 };
 
 /* Encoding context for Network/Transport data */

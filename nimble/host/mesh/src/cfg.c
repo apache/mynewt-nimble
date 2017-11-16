@@ -26,6 +26,7 @@
 #include "beacon.h"
 #include "proxy.h"
 #include "foundation.h"
+#include "friend.h"
 
 #define DEFAULT_TTL 7
 
@@ -96,7 +97,8 @@ static void hb_send(struct bt_mesh_model *model)
 
 	BT_DBG("InitTTL %u feat 0x%04x", cfg->hb_pub.ttl, feat);
 
-	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb), NULL);
+	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb),
+			 NULL, NULL);
 }
 
 static int comp_add_elem(struct os_mbuf *buf, struct bt_mesh_elem *elem,
@@ -2113,6 +2115,10 @@ static void net_key_del(struct bt_mesh_model *model,
 		}
 	}
 
+	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
+		bt_mesh_friend_clear_net_idx(del_idx);
+	}
+
 	memset(sub, 0, sizeof(*sub));
 	sub->net_idx = BT_MESH_KEY_UNUSED;
 
@@ -2538,6 +2544,10 @@ static void friend_set(struct bt_mesh_model *model,
 
 	if (MYNEWT_VAL(BLE_MESH_FRIEND)) {
 		cfg->frnd = buf->om_data[0];
+
+		if (cfg->frnd == BT_MESH_FRIEND_DISABLED) {
+			bt_mesh_friend_clear_net_idx(BT_MESH_KEY_ANY);
+		}
 	}
 
 	sub = bt_mesh_subnet_get(cfg->hb_pub.net_idx);

@@ -22,6 +22,7 @@
 #include "crypto.h"
 #include "beacon.h"
 #include "foundation.h"
+#include "friend.h"
 
 #define UNPROVISIONED_INTERVAL    (K_SECONDS(5))
 #define PROVISIONED_INTERVAL      (K_SECONDS(10))
@@ -238,8 +239,8 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 	u8_t *data, *net_id, *auth;
 	struct bt_mesh_subnet *sub;
 	u32_t iv_index;
+	bool new_key, kr_change, iv_change;
 	u8_t flags;
-	bool new_key;
 
 	if (buf->om_len < 21) {
 		BT_ERR("Too short secure beacon (len %u)", buf->om_len);
@@ -292,11 +293,22 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 		bt_mesh_beacon_ivu_initiator(false);
 	}
 
-	bt_mesh_iv_update(iv_index, BT_MESH_IV_UPDATE(flags));
+	iv_change = bt_mesh_iv_update(iv_index, BT_MESH_IV_UPDATE(flags));
 
-	if (bt_mesh_kr_update(sub, BT_MESH_KEY_REFRESH(flags), new_key)) {
+	kr_change = bt_mesh_kr_update(sub, BT_MESH_KEY_REFRESH(flags), new_key);
+	if (kr_change) {
 		bt_mesh_net_beacon_update(sub);
 	}
+
+#if MYNEWT_VAL(BLE_MESH_FRIEND)
+	if (iv_change || kr_change) {
+		if (iv_change) {
+			bt_mesh_friend_sec_update(BT_MESH_KEY_ANY);
+		} else {
+			bt_mesh_friend_sec_update(sub->net_idx);
+		}
+	}
+#endif
 
 update_stats:
 	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED &&

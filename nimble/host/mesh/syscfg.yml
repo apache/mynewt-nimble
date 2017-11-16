@@ -197,7 +197,7 @@ syscfg.defs:
     BLE_MESH_FRIEND:
         description: >
             Enable this option to be able to act as a Friend Node.
-        value: 1
+        value: 0
 
     BLE_MESH_FRIEND_RECV_WIN:
         description: >
@@ -206,19 +206,28 @@ syscfg.defs:
         
     BLE_MESH_FRIEND_QUEUE_SIZE:
         description: >
-            Queue Size available on the Friend node.
-        value: 16
+            Minimum number of buffers available to be stored for each 
+            local Friend Queue.
+        value: 4
         
     BLE_MESH_FRIEND_SUB_LIST_SIZE:
         description: >
             Size of the Subscription List that can be supported by a
             Friend node for a Low Power node.
-        value: 16
+        value: 3
         
     BLE_MESH_FRIEND_LPN_COUNT:
         description: >
             Number of Low Power Nodes the Friend can have a Friendship
             with simultaneously.
+        value: 1
+
+    BLE_MESH_FRIEND_SEG_RX:
+        description: >
+            Number of incomplete segment lists that we track for each LPN
+            that we are Friends for. In other words, this determines how
+            many elements we can simultaneously be receiving segmented
+            messages from when the messages are going into the Friend queue.
         value: 1
 
     BLE_MESH_DEBUG:
