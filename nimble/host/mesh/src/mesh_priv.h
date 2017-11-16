@@ -16,7 +16,6 @@
 #define BT_MESH_ADDR_IS_VIRTUAL(addr) ((addr) >= 0x8000 && (addr) < 0xc000)
 #define BT_MESH_ADDR_IS_RFU(addr) ((addr) >= 0xff00 && (addr) <= 0xfffb)
 
-bool
-bt_mesh_is_provisioned(void);
+bool bt_mesh_is_provisioned(void);
 
 #endif

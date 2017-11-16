@@ -115,39 +115,34 @@
 #define STATUS_UNSPECIFIED                 0x10
 #define STATUS_INVALID_BINDING             0x11
 
-int
-bt_mesh_conf_init(struct bt_mesh_model *model, bool primary);
-int
-bt_mesh_health_init(struct bt_mesh_model *model, bool primary);
+int bt_mesh_conf_init(struct bt_mesh_model *model, bool primary);
+int bt_mesh_health_init(struct bt_mesh_model *model, bool primary);
 
-void
-bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat);
+void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat);
 
-void
-bt_mesh_attention(struct bt_mesh_model *model, u8_t time);
+void bt_mesh_attention(struct bt_mesh_model *model, u8_t time);
 
-u8_t *
-bt_mesh_label_uuid_get(u16_t addr);
+u8_t *bt_mesh_label_uuid_get(u16_t addr);
 
 /* Transmission count (N + 1) */
 #define TRANSMIT_COUNT(transmit) (((transmit) & (u8_t)BIT_MASK(3)))
 /* Returns transmission interval in milliseconds */
 #define TRANSMIT_INT(transmit) ((((transmit) >> 3) + 1) * 10)
 
-u8_t
-bt_mesh_net_transmit_get(void);
-u8_t
-bt_mesh_relay_get(void);
-u8_t
-bt_mesh_friend_get(void);
-u8_t
-bt_mesh_relay_retransmit_get(void);
-u8_t
-bt_mesh_beacon_get(void);
-u8_t
-bt_mesh_gatt_proxy_get(void);
-u8_t
-bt_mesh_default_ttl_get(void);
+u8_t bt_mesh_net_transmit_get(void);
+u8_t bt_mesh_relay_get(void);
+u8_t bt_mesh_friend_get(void);
+u8_t bt_mesh_relay_retransmit_get(void);
+u8_t bt_mesh_beacon_get(void);
+u8_t bt_mesh_gatt_proxy_get(void);
+u8_t bt_mesh_default_ttl_get(void);
+
+static inline void key_idx_pack(struct os_mbuf *buf,
+				u16_t idx1, u16_t idx2)
+{
+	net_buf_simple_add_le16(buf, idx1 | ((idx2 & 0x00f) << 12));
+	net_buf_simple_add_u8(buf, idx2 >> 4);
+}
 
 static inline void key_idx_unpack(struct os_mbuf *buf,
 				  u16_t *idx1, u16_t *idx2)
@@ -155,13 +150,6 @@ static inline void key_idx_unpack(struct os_mbuf *buf,
 	*idx1 = sys_get_le16(&buf->om_data[0]) & 0xfff;
 	*idx2 = sys_get_le16(&buf->om_data[1]) >> 4;
 	net_buf_simple_pull(buf, 3);
-}
-
-static inline void key_idx_pack(struct os_mbuf *buf,
-				u16_t idx1, u16_t idx2)
-{
-	net_buf_simple_add_le16(buf, idx1 | ((idx2 & 0x00f) << 12));
-	net_buf_simple_add_u8(buf, idx2 >> 4);
 }
 
 #endif

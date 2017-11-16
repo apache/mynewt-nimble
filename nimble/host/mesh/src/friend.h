@@ -42,9 +42,9 @@ int bt_mesh_friend_clear(struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
 int bt_mesh_friend_clear_cfm(struct bt_mesh_net_rx *rx,
 			     struct os_mbuf *buf);
 int bt_mesh_friend_sub_add(struct bt_mesh_net_rx *rx,
-                          struct os_mbuf *buf);
+			   struct os_mbuf *buf);
 int bt_mesh_friend_sub_rem(struct bt_mesh_net_rx *rx,
-                          struct os_mbuf *buf);
+			   struct os_mbuf *buf);
 
 int bt_mesh_friend_init(void);
 

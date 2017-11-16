@@ -86,8 +86,8 @@ static inline int bt_mesh_session_key(const u8_t dhkey[32],
 }
 
 static inline int bt_mesh_prov_nonce(const u8_t dhkey[32],
-				      const u8_t prov_salt[16],
-				      u8_t nonce[13])
+				     const u8_t prov_salt[16],
+				     u8_t nonce[13])
 {
 	u8_t tmp[16];
 	int err;

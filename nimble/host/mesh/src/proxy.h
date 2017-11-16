@@ -26,7 +26,7 @@ int bt_mesh_proxy_gatt_disable(void);
 
 void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub);
 
-struct os_mbuf * bt_mesh_proxy_get_buf(void);
+struct os_mbuf *bt_mesh_proxy_get_buf(void);
 
 s32_t bt_mesh_proxy_adv_start(void);
 void bt_mesh_proxy_adv_stop(void);

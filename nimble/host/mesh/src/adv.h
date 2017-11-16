@@ -21,7 +21,9 @@
 
 enum bt_mesh_adv_type
 {
-    BT_MESH_ADV_PROV, BT_MESH_ADV_DATA, BT_MESH_ADV_BEACON,
+	BT_MESH_ADV_PROV,
+	BT_MESH_ADV_DATA,
+	BT_MESH_ADV_BEACON,
 };
 
 typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, u16_t duration,
@@ -29,32 +31,34 @@ typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, u16_t duration,
 
 struct bt_mesh_adv
 {
-    bt_mesh_adv_func_t sent;
-    u8_t type :2, busy :1;
-    u8_t count :3, adv_int :5;
-    union
-    {
-        /* Generic User Data */
-        u8_t user_data[2];
+	bt_mesh_adv_func_t sent;
+	u8_t 	type :2,
+		busy :1;
+	u8_t 	count :3,
+		adv_int :5;
+	union
+	{
+		/* Generic User Data */
+		u8_t user_data[2];
 
-        /* Address, used e.g. for Friend Queue messages */
-        u16_t addr;
+		/* Address, used e.g. for Friend Queue messages */
+		u16_t addr;
 
-        /* For transport layer segment sending */
-        struct
-        {
-            u8_t tx_id;
+		/* For transport layer segment sending */
+		struct
+		{
+			u8_t tx_id;
 			u8_t attempts;
-        } seg;
-    };
+		} seg;
+	};
 
-    int ref_cnt;
-    struct os_event ev;
+	int ref_cnt;
+	struct os_event ev;
 };
 
 /* xmit_count: Number of retransmissions, i.e. 0 == 1 transmission */
 struct os_mbuf * bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
-                                    u8_t xmit_int, s32_t timeout);
+				    u8_t xmit_int, s32_t timeout);
 
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 					     enum bt_mesh_adv_type type,

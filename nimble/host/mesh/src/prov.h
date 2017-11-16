@@ -13,26 +13,18 @@
 #include "mesh/mesh.h"
 #include "../src/ble_hs_conn_priv.h"
 
-void
-bt_mesh_pb_adv_recv(struct os_mbuf *buf);
+void bt_mesh_pb_adv_recv(struct os_mbuf *buf);
 
-bool
-bt_prov_active(void);
+bool bt_prov_active(void);
 
-int
-bt_mesh_pb_gatt_open(uint16_t conn_handle);
-int
-bt_mesh_pb_gatt_close(uint16_t conn_handle);
-int
-bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf);
+int bt_mesh_pb_gatt_open(uint16_t conn_handle);
+int bt_mesh_pb_gatt_close(uint16_t conn_handle);
+int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf);
 
-const u8_t *
-bt_mesh_prov_get_uuid(void);
+const u8_t *bt_mesh_prov_get_uuid(void);
 
-int
-bt_mesh_prov_init(const struct bt_mesh_prov *prov);
+int bt_mesh_prov_init(const struct bt_mesh_prov *prov);
 
-void
-bt_mesh_prov_reset_link(void);
+void bt_mesh_prov_reset_link(void);
 
 #endif
