@@ -37,21 +37,6 @@ static struct label {
 	u8_t  uuid[16];
 } labels[MYNEWT_VAL(BLE_MESH_LABEL_COUNT)];
 
-static inline void key_idx_unpack(struct os_mbuf *buf,
-				  u16_t *idx1, u16_t *idx2)
-{
-	*idx1 = sys_get_le16(&buf->om_data[0]) & 0xfff;
-	*idx2 = sys_get_le16(&buf->om_data[1]) >> 4;
-	net_buf_simple_pull(buf, 3);
-}
-
-static inline void key_idx_pack(struct os_mbuf *buf,
-				u16_t idx1, u16_t idx2)
-{
-	net_buf_simple_add_le16(buf, idx1 | ((idx2 & 0x00f) << 12));
-	net_buf_simple_add_u8(buf, idx2 >> 4);
-}
-
 static void hb_send(struct bt_mesh_model *model)
 {
 

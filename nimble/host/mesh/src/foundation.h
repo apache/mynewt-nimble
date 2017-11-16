@@ -149,4 +149,19 @@ bt_mesh_gatt_proxy_get(void);
 u8_t
 bt_mesh_default_ttl_get(void);
 
+static inline void key_idx_unpack(struct os_mbuf *buf,
+				  u16_t *idx1, u16_t *idx2)
+{
+	*idx1 = sys_get_le16(&buf->om_data[0]) & 0xfff;
+	*idx2 = sys_get_le16(&buf->om_data[1]) >> 4;
+	net_buf_simple_pull(buf, 3);
+}
+
+static inline void key_idx_pack(struct os_mbuf *buf,
+				u16_t idx1, u16_t idx2)
+{
+	net_buf_simple_add_le16(buf, idx1 | ((idx2 & 0x00f) << 12));
+	net_buf_simple_add_u8(buf, idx2 >> 4);
+}
+
 #endif
