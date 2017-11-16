@@ -26,9 +26,6 @@
 extern "C" {
 #endif
 
-/* The number of advertising instances */
-#define BLE_LL_ADV_INSTANCES    (MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES + 1)
-
 /*
  * ADV event timing
  *      T_advEvent = advInterval + advDelay

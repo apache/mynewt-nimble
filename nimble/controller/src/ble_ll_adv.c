@@ -156,7 +156,7 @@ ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
 }
 
 /* The advertising state machine global object */
-struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
+struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
@@ -1577,7 +1577,7 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
     int rc;
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_LL_ADV_INSTANCES) {
+    if (instance >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1628,7 +1628,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
     uint8_t off = 0;
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_LL_ADV_INSTANCES) {
+    if (instance >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1721,7 +1721,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
     uint8_t off = 0;
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_LL_ADV_INSTANCES) {
+    if (instance >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1835,7 +1835,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint8_t scan_req_notif;
     int8_t tx_power;
 
-    if (cmdbuf[0] >= BLE_LL_ADV_INSTANCES) {
+    if (cmdbuf[0] >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2063,7 +2063,7 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (sets > BLE_LL_ADV_INSTANCES) {
+    if (sets > BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2073,7 +2073,7 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
         }
 
         /* disable all instances */
-        for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+        for (i = 0; i < BLE_ADV_INSTANCES; i++) {
             ble_ll_adv_set_enable(i, 0, 0, 0);
         }
 
@@ -2083,7 +2083,7 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
     set = (void *) cmd;
     /* validate instances */
     for (i = 0; i < sets; i++) {
-        if (set->handle >= BLE_LL_ADV_INSTANCES) {
+        if (set->handle >= BLE_ADV_INSTANCES) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
@@ -2126,7 +2126,7 @@ ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance)
 {
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_LL_ADV_INSTANCES) {
+    if (instance >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2161,7 +2161,7 @@ ble_ll_adv_remove(uint8_t instance)
      * Should we allow any value for instance ID?
      */
 
-    if (instance >= BLE_LL_ADV_INSTANCES) {
+    if (instance >= BLE_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2186,7 +2186,7 @@ ble_ll_adv_clear_all(void)
 {
     int i;
 
-    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
         if (g_ble_ll_adv_sm[i].adv_enabled) {
             return BLE_ERR_CMD_DISALLOWED;
         }
@@ -2985,7 +2985,7 @@ ble_ll_adv_can_chg_whitelist(void)
     int i;
 
     rc = 1;
-    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
         advsm = &g_ble_ll_adv_sm[i];
         if (advsm->adv_enabled &&
             (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
@@ -3086,7 +3086,7 @@ ble_ll_adv_reset(void)
     int i;
     struct ble_ll_adv_sm *advsm;
 
-    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
         /* Stop advertising state machine */
         advsm = &g_ble_ll_adv_sm[i];
         ble_ll_adv_sm_stop(advsm);
@@ -3141,7 +3141,7 @@ ble_ll_adv_init(void)
     int i;
 
     /* Set default advertising parameters */
-    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
         g_ble_ll_adv_sm[i].adv_instance = i;
         ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }

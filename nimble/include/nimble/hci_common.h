@@ -892,7 +892,7 @@ struct hci_ext_adv_params
     uint8_t peer_addr_type;
     uint8_t peer_addr[6];
     uint8_t filter_policy;
-    uint8_t tx_power;
+    int8_t tx_power;
     uint8_t primary_phy;
     uint8_t max_skip;
     uint8_t secondary_phy;
