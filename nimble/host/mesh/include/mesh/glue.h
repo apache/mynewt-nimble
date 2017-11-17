@@ -339,4 +339,22 @@ static inline unsigned int find_msb_set(u32_t op)
 #define IS_ENABLED(config) MYNEWT_VAL(config)
 #define printk console_printf
 
+#define k_sem os_sem
+
+static inline void k_sem_init(struct k_sem *sem, unsigned int initial_count,
+			      unsigned int limit)
+{
+	os_sem_init(sem, initial_count);
+}
+
+static inline int k_sem_take(struct k_sem *sem, s32_t timeout)
+{
+	return - os_sem_pend(sem, timeout);
+}
+
+static inline void k_sem_give(struct k_sem *sem)
+{
+	os_sem_release(sem);
+}
+
 #endif
