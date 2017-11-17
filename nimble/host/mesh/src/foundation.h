@@ -116,7 +116,7 @@
 #define STATUS_INVALID_BINDING             0x11
 
 int bt_mesh_cfg_srv_init(struct bt_mesh_model *model, bool primary);
-int bt_mesh_health_init(struct bt_mesh_model *model, bool primary);
+int bt_mesh_health_srv_init(struct bt_mesh_model *model, bool primary);
 
 int bt_mesh_cfg_cli_init(struct bt_mesh_model *model, bool primary);
 

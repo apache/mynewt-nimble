@@ -35,13 +35,13 @@
 #endif
 
 /* Health Server context of the primary element */
-struct bt_mesh_health *health_srv;
+struct bt_mesh_health_srv *health_srv;
 
 static void health_get_registered(struct bt_mesh_model *mod,
 				  u16_t company_id,
 				  struct os_mbuf *msg)
 {
-	struct bt_mesh_health *srv = mod->user_data;
+	struct bt_mesh_health_srv *srv = mod->user_data;
 	u8_t fault_count;
 	u8_t *test_id;
 	int err;
@@ -73,7 +73,7 @@ static void health_get_registered(struct bt_mesh_model *mod,
 static size_t health_get_current(struct bt_mesh_model *mod,
 				 struct os_mbuf *msg)
 {
-	struct bt_mesh_health *srv = mod->user_data;
+	struct bt_mesh_health_srv *srv = mod->user_data;
 	const struct bt_mesh_comp *comp;
 	u8_t *test_id, *company_ptr;
 	u16_t company_id;
@@ -135,7 +135,7 @@ static void health_fault_clear_unrel(struct bt_mesh_model *model,
 				     struct bt_mesh_msg_ctx *ctx,
 				     struct os_mbuf *buf)
 {
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 	u16_t company_id;
 
 	company_id = net_buf_simple_pull_le16(buf);
@@ -152,7 +152,7 @@ static void health_fault_clear(struct bt_mesh_model *model,
 			       struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = NET_BUF_SIMPLE(HEALTH_STATUS_SIZE);
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 	u16_t company_id;
 
 	company_id = net_buf_simple_pull_le16(buf);
@@ -176,7 +176,7 @@ static void health_fault_test_unrel(struct bt_mesh_model *model,
 				    struct bt_mesh_msg_ctx *ctx,
 				    struct os_mbuf *buf)
 {
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 	const struct bt_mesh_comp *comp;
 	u16_t company_id;
 	u8_t test_id;
@@ -203,7 +203,7 @@ static void health_fault_test(struct bt_mesh_model *model,
 			      struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = NET_BUF_SIMPLE(HEALTH_STATUS_SIZE);
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 	u16_t company_id;
 	u8_t test_id;
 	int rc;
@@ -238,7 +238,7 @@ static void send_attention_status(struct bt_mesh_model *model,
 {
 	/* Needed size: opcode (2 bytes) + msg + MIC */
 	struct os_mbuf *msg = NET_BUF_SIMPLE(2 + 1 + 4);
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 	u8_t time;
 
 	time = k_delayed_work_remaining_get(&srv->attention.timer) / 1000;
@@ -336,7 +336,7 @@ static void health_period_set(struct bt_mesh_model *model,
 	send_health_period_status(model, ctx);
 }
 
-const struct bt_mesh_model_op bt_mesh_health_op[] = {
+const struct bt_mesh_model_op bt_mesh_health_srv_op[] = {
 	{ OP_HEALTH_FAULT_GET,         2,   health_fault_get },
 	{ OP_HEALTH_FAULT_CLEAR,       2,   health_fault_clear },
 	{ OP_HEALTH_FAULT_CLEAR_UNREL, 2,   health_fault_clear_unrel },
@@ -390,7 +390,7 @@ int bt_mesh_fault_update(struct bt_mesh_elem *elem)
 
 static void attention_off(struct os_event *work)
 {
-	struct bt_mesh_health *srv = work->ev_arg;
+	struct bt_mesh_health_srv *srv = work->ev_arg;
 	BT_DBG("");
 
 	if (srv->attention.off) {
@@ -398,9 +398,9 @@ static void attention_off(struct os_event *work)
 	}
 }
 
-int bt_mesh_health_init(struct bt_mesh_model *model, bool primary)
+int bt_mesh_health_srv_init(struct bt_mesh_model *model, bool primary)
 {
-	struct bt_mesh_health *srv = model->user_data;
+	struct bt_mesh_health_srv *srv = model->user_data;
 
 	if (!srv) {
 		if (!primary) {
@@ -425,7 +425,7 @@ int bt_mesh_health_init(struct bt_mesh_model *model, bool primary)
 
 void bt_mesh_attention(struct bt_mesh_model *model, u8_t time)
 {
-	struct bt_mesh_health *srv;
+	struct bt_mesh_health_srv *srv;
 
 	BT_DBG("bt_mesh_attention");
 	if (!model) {
