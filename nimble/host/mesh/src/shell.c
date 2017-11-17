@@ -569,6 +569,43 @@ struct shell_cmd_help cmd_relay_help = {
 	NULL, "[val: off, on] [count: 0-7] [interval: 0-32]", NULL
 };
 
+static int cmd_app_key_add(int argc, char *argv[])
+{
+	u8_t val[16] = { [0 ... 15] = 0xcc, };
+	u16_t key_net_idx, key_app_idx;
+	u8_t status;
+	int err;
+
+	if (argc < 3) {
+		return -EINVAL;
+	}
+
+	key_net_idx = strtoul(argv[1], NULL, 0);
+	key_app_idx = strtoul(argv[2], NULL, 0);
+
+	/* TODO: decode key value that's given in hex */
+
+	err = bt_mesh_cfg_app_key_add(net_idx, dst, key_net_idx, key_app_idx,
+				      val, &status);
+	if (err) {
+		printk("Unable to send App Key Add (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("AppKeyAdd failed with status 0x%02x\n", status);
+	} else {
+		printk("AppKey added, NetKeyIndex 0x%04x AppKeyIndex 0x%04x\n",
+		       key_net_idx, key_app_idx);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_app_key_add_help = {
+	NULL, "<NetKeyIndex> <AppKeyIndex> <val>", NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "reset", cmd_reset, NULL },
@@ -588,6 +625,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "friend", cmd_friend, &cmd_friend_help },
 	{ "gatt-proxy", cmd_gatt_proxy, &cmd_gatt_proxy_help },
 	{ "relay", cmd_relay, &cmd_relay_help },
+	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
 	{ NULL, NULL, NULL}
 };
 
