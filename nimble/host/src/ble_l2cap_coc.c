@@ -476,6 +476,10 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     ble_hs_unlock();
 }
 
+/**
+ * Transmits a packet over a connection-oriented channel.  This function only
+ * consumes the supplied mbuf on success.
+ */
 int
 ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
 {
@@ -487,11 +491,11 @@ ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
         return BLE_HS_EBUSY;
     }
 
-    tx->sdu = sdu_tx;
-
     if (OS_MBUF_PKTLEN(sdu_tx) > tx->mtu) {
         return BLE_HS_EBADDATA;
     }
+
+    tx->sdu = sdu_tx;
 
     return ble_l2cap_coc_continue_tx(chan);
 }
