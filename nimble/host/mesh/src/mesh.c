@@ -89,6 +89,10 @@ bt_mesh_provision(const u8_t net_key[16], u16_t net_idx, u8_t flags,
         bt_mesh_friend_init();
     }
 
+    if (MYNEWT_VAL(BLE_MESH_PROV)) {
+        bt_mesh_prov_complete(net_idx, addr);
+    }
+
     return 0;
 }
 

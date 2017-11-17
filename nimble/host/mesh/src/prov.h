@@ -27,6 +27,7 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov);
 
 void bt_mesh_prov_reset_link(void);
 
+void bt_mesh_prov_complete(u16_t net_idx, u16_t addr);
 void bt_mesh_prov_reset(void);
 
 #endif

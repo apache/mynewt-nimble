@@ -1066,12 +1066,8 @@ static void prov_data(const u8_t *data)
 
 	bt_mesh_provision(pdu, net_idx, flags, iv_index, 0, addr, dev_key);
 
-	if (prov->complete) {
-		prov->complete(net_idx, addr);
-	}
-
 done:
-    os_mbuf_free_chain(msg);
+	os_mbuf_free_chain(msg);
 }
 
 static void prov_complete(const u8_t *data)
@@ -1544,14 +1540,20 @@ bool bt_prov_active(void)
 
 int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 {
-	int err;
 	static struct bt_pub_key_cb pub_key_cb = {
 		.func = pub_key_ready,
 	};
+	int err;
+
 #if !(MYNEWT_VAL(BLE_MESH_PB_GATT))
 	rx_buf = NET_BUF_SIMPLE(65);
 
 #endif
+
+	if (!prov_info) {
+		BT_ERR("No provisioning context provided");
+		return -EINVAL;
+	}
 
 	err = bt_pub_key_gen(&pub_key_cb);
 	if (err) {
@@ -1584,6 +1586,13 @@ void bt_mesh_prov_reset_link(void) {
     net_buf_simple_init(rx_buf, 0);
     link.rx.buf = rx_buf;
 #endif
+}
+
+void bt_mesh_prov_complete(u16_t net_idx, u16_t addr)
+{
+	if (prov->complete) {
+		prov->complete(net_idx, addr);
+	}
 }
 
 void bt_mesh_prov_reset(void)
