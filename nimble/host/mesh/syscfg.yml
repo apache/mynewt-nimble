@@ -264,6 +264,12 @@ syscfg.defs:
             Enable support for the configuration client model.
         value: 0
 
+    BLE_MESH_SHELL:
+        description: >
+            Activate shell module that provides Bluetooth Mesh commands to
+            the console.
+        value: 0
+
     BLE_MESH_DEBUG:
         description: >
             Use this option to enable debug logs for the Bluetooth

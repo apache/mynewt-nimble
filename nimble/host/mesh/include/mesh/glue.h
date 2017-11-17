@@ -337,5 +337,6 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_MODEL_KEY_COUNT MYNEWT_VAL(BLE_MESH_MODEL_KEY_COUNT)
 #define CONFIG_BT_MESH_MODEL_GROUP_COUNT MYNEWT_VAL(BLE_MESH_MODEL_GROUP_COUNT)
 #define IS_ENABLED(config) MYNEWT_VAL(config)
+#define printk console_printf
 
 #endif

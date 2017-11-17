@@ -26,6 +26,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "proxy.h"
+#include "shell.h"
 #include "mesh_priv.h"
 
 u8_t g_mesh_addr_type;
@@ -204,6 +205,10 @@ bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
     /* Enable unprovisioned beacon sending */
 
     bt_mesh_beacon_enable();
+#endif
+
+#if (MYNEWT_VAL(BLE_MESH_SHELL))
+    mesh_shell_init();
 #endif
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
