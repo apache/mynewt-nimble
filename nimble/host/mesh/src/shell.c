@@ -648,6 +648,49 @@ struct shell_cmd_help cmd_mod_app_bind_help = {
 	NULL, "<addr> <AppIndex> <Model ID> [Company ID]", NULL
 };
 
+static int cmd_mod_sub_add(int argc, char *argv[])
+{
+	u16_t elem_addr, sub_addr, mod_id, cid;
+	u8_t status;
+	int err;
+
+	if (argc < 4) {
+		return -EINVAL;
+	}
+
+	elem_addr = strtoul(argv[1], NULL, 0);
+	sub_addr = strtoul(argv[2], NULL, 0);
+	mod_id = strtoul(argv[3], NULL, 0);
+
+	if (argc > 4) {
+		cid = strtoul(argv[3], NULL, 0);
+		err = bt_mesh_cfg_mod_sub_add_vnd(net_idx, dst, elem_addr,
+						  sub_addr, mod_id, cid,
+						  &status);
+	} else {
+		err = bt_mesh_cfg_mod_sub_add(net_idx, dst, elem_addr,
+					      sub_addr, mod_id, &status);
+	}
+
+	if (err) {
+		printk("Unable to send Model Subscription Add (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Model Subscription Add failed with status 0x%02x\n",
+		       status);
+	} else {
+		printk("Model subscription was successful\n");
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_mod_sub_add_help = {
+	NULL, "<elem addr> <sub addr> <Model ID> [Company ID]", NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "reset", cmd_reset, NULL },
@@ -669,6 +712,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "relay", cmd_relay, &cmd_relay_help },
 	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
 	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
+	{ "mod-sub-add", cmd_mod_sub_add, &cmd_mod_sub_add_help },
 	{ NULL, NULL, NULL}
 };
 
