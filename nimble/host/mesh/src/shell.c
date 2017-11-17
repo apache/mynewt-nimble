@@ -20,7 +20,7 @@ static u16_t local = BT_MESH_ADDR_UNASSIGNED;
 static u16_t dst = BT_MESH_ADDR_UNASSIGNED;
 static u16_t net_idx;
 
-static struct bt_mesh_cfg cfg_srv = {
+static struct bt_mesh_cfg_srv cfg_srv = {
 	.relay = BT_MESH_RELAY_DISABLED,
 	.beacon = BT_MESH_BEACON_DISABLED,
 #if MYNEWT_VAL(BLE_MESH_FRIEND)

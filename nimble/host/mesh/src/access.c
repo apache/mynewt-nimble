@@ -29,10 +29,10 @@ static u16_t dev_primary_addr;
 static const struct {
 	const u16_t id;
 	int (*const init)(struct bt_mesh_model *model, bool primary);
-} model_init[] = {
-	{ BT_MESH_MODEL_ID_CFG_SRV, bt_mesh_conf_init },
+} const model_init[] = {
+	{ BT_MESH_MODEL_ID_CFG_SRV, bt_mesh_cfg_srv_init },
 	{ BT_MESH_MODEL_ID_HEALTH_SRV, bt_mesh_health_init },
-#if defined(CONFIG_BT_MESH_CFG_CLI)
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 	{ BT_MESH_MODEL_ID_CFG_CLI, bt_mesh_cfg_cli_init },
 #endif
 };
