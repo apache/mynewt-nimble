@@ -84,8 +84,6 @@ ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_2_val_handle ==
                       ble_gatts_read_test_chr_2_def_handle + 1);
 
-    ble_gatts_start();
-
     ble_hs_test_util_create_conn(2, ble_gatts_read_test_peer_addr, NULL, NULL);
 
     if (out_conn_handle != NULL) {
