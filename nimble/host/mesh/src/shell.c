@@ -16,6 +16,8 @@
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 
+#define CID_NVAL 0xffff
+
 /* Default net, app & dev key values, unless otherwise specified */
 static const u8_t default_key[16] = {
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -725,6 +727,133 @@ struct shell_cmd_help cmd_mod_sub_add_help = {
 	NULL, "<elem addr> <sub addr> <Model ID> [Company ID]", NULL
 };
 
+static int mod_pub_get(u16_t addr, u16_t mod_id, u16_t cid)
+{
+	struct bt_mesh_cfg_mod_pub pub;
+	u8_t status;
+	int err;
+
+	if (cid == CID_NVAL) {
+		err = bt_mesh_cfg_mod_pub_get(net.net_idx, net.dst, addr,
+					      mod_id, &pub, &status);
+	} else {
+		err = bt_mesh_cfg_mod_pub_get_vnd(net.net_idx, net.dst, addr,
+						  mod_id, cid, &pub, &status);
+	}
+
+	if (err) {
+		printk("Model Publication Get failed (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Model Publication Get failed (status 0x%02x)\n",
+		       status);
+		return 0;
+	}
+
+	printk("Model Publication for Element 0x%04x, Model 0x%04x:\n"
+	       "\tPublish Address:                0x%04x\n"
+	       "\tAppKeyIndex:                    0x%04x\n"
+	       "\tCredential Flag:                %u\n"
+	       "\tPublishTTL:                     %u\n"
+	       "\tPublishPeriod:                  0x%02x\n"
+	       "\tPublishRetransmitCount:         %u\n"
+	       "\tPublishRetransmitIntervalSteps: %u\n",
+	       addr, mod_id, pub.addr, pub.app_idx, pub.cred_flag, pub.ttl,
+	       pub.period, BT_MESH_TRANSMIT_COUNT(pub.transmit),
+	       BT_MESH_TRANSMIT_INT(pub.transmit));
+
+	return 0;
+}
+
+static int mod_pub_set(u16_t addr, u16_t mod_id, u16_t cid, char *argv[])
+{
+	struct bt_mesh_cfg_mod_pub pub;
+	u8_t status, count, interval;
+	int err;
+
+	pub.addr = strtoul(argv[0], NULL, 0);
+	pub.app_idx = strtoul(argv[1], NULL, 0);
+	pub.cred_flag = str2bool(argv[2]);
+	pub.ttl = strtoul(argv[3], NULL, 0);
+	pub.period = strtoul(argv[4], NULL, 0);
+
+	count = strtoul(argv[5], NULL, 0);
+	if (count > 7) {
+		printk("Invalid retransmit count\n");
+		return -EINVAL;
+	}
+
+	interval = strtoul(argv[6], NULL, 0);
+	if (interval > 31) {
+		printk("Invalid retransmit interval\n");
+		return -EINVAL;
+	}
+
+	pub.transmit = BT_MESH_TRANSMIT(count, interval);
+
+	if (cid == CID_NVAL) {
+		err = bt_mesh_cfg_mod_pub_set(net.net_idx, net.dst, addr,
+					      mod_id, &pub, &status);
+	} else {
+		err = bt_mesh_cfg_mod_pub_set_vnd(net.net_idx, net.dst, addr,
+						  mod_id, cid, &pub, &status);
+	}
+
+	if (err) {
+		printk("Model Publication Set failed (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Model Publication Set failed (status 0x%02x)\n",
+		       status);
+	} else {
+		printk("Model Publication successfully set\n");
+	}
+
+	return 0;
+}
+
+static int cmd_mod_pub(int argc, char *argv[])
+{
+	u16_t addr, mod_id, cid;
+
+	if (argc < 3) {
+		return -EINVAL;
+	}
+
+	addr = strtoul(argv[1], NULL, 0);
+	mod_id = strtoul(argv[2], NULL, 0);
+
+	argc -= 3;
+	argv += 3;
+
+	if (argc == 1 || argc == 8) {
+		cid = strtoul(argv[0], NULL, 0);
+		argc--;
+		argv++;
+	} else {
+		cid = CID_NVAL;
+	}
+
+	if (argc > 0) {
+		if (argc < 7) {
+			return -EINVAL;
+		}
+
+		return mod_pub_set(addr, mod_id, cid, argv);
+	} else {
+		return mod_pub_get(addr, mod_id, cid);
+	}
+}
+
+struct shell_cmd_help cmd_mod_pub_help = {
+	NULL, "<addr> <mod id> [cid] [<PubAddr> "
+	"<AppKeyIndex> <cred> <ttl> <period> <count> <interval>]" , NULL
+};
+
 static int hb_sub_get(int argc, char *argv[])
 {
 	u8_t status, period, count, min, max;
@@ -1021,6 +1150,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "relay", cmd_relay, &cmd_relay_help },
 	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
 	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
+	{ "mod-pub", cmd_mod_pub, &cmd_mod_pub_help },
 	{ "mod-sub-add", cmd_mod_sub_add, &cmd_mod_sub_add_help },
 	{ "hb-sub", cmd_hb_sub, &cmd_hb_sub_help },
 	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
