@@ -160,6 +160,10 @@ int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
     return ble_l2cap_sig_disconnect(chan);
 }
 
+/**
+ * Transmits a packet over an L2CAP channel.  This function only consumes the
+ * supplied mbuf on success.
+ */
 int
 ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
