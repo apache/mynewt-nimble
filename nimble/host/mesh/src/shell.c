@@ -760,15 +760,40 @@ struct shell_cmd_help cmd_hb_sub_set_help = {
 	NULL, "<src> <dst> <period>", NULL
 };
 
-static int cmd_hb_pub_set(int argc, char *argv[])
+static int hb_pub_get(int argc, char *argv[])
 {
 	u8_t status, count, period, ttl;
 	u16_t pub_dst, feat, pub_net_idx;
 	int err;
 
-	if (argc < 7) {
-		return -EINVAL;
+	err = bt_mesh_cfg_hb_pub_get(net.net_idx, net.dst, &pub_dst, &count,
+				     &period, &ttl, &feat, &pub_net_idx,
+				     &status);
+	if (err) {
+		printk("Heartbeat Publication Get failed (err %d)\n", err);
+		return 0;
 	}
+
+	if (status) {
+		printk("Heartbeat Publication Get failed (status 0x%02x)\n",
+		       status);
+		return 0;
+	}
+
+	printk("Heartbeat publication:\n");
+	printk("\tdst 0x%04x count 0x%02x period 0x%02x\n",
+	       pub_dst, count, period);
+	printk("\tttl 0x%02x feat 0x%04x net_idx 0x%04x\n",
+	       ttl, feat, pub_net_idx);
+
+	return 0;
+}
+
+static int hb_pub_set(int argc, char *argv[])
+{
+	u8_t status, count, period, ttl;
+	u16_t pub_dst, feat, pub_net_idx;
+	int err;
 
 	pub_dst = strtoul(argv[1], NULL, 0);
 	count = strtoul(argv[2], NULL, 0);
@@ -794,7 +819,20 @@ static int cmd_hb_pub_set(int argc, char *argv[])
 	return 0;
 }
 
-struct shell_cmd_help cmd_hb_pub_set_help = {
+static int cmd_hb_pub(int argc, char *argv[])
+{
+	if (argc > 1) {
+		if (argc < 7) {
+			return -EINVAL;
+		}
+
+		return hb_pub_set(argc, argv);
+	} else {
+		return hb_pub_get(argc, argv);
+	}
+}
+
+struct shell_cmd_help cmd_hb_pub_help = {
 	NULL, "<dst> <count> <period> <ttl> <features> <NetKeyIndex>" , NULL
 };
 
@@ -911,7 +949,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
 	{ "mod-sub-add", cmd_mod_sub_add, &cmd_mod_sub_add_help },
 	{ "hb-sub-set", cmd_hb_sub_set, &cmd_hb_sub_set_help },
-	{ "hb-pub-set", cmd_hb_pub_set, &cmd_hb_pub_set_help },
+	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
 	{ NULL, NULL, NULL}
 };
 
