@@ -16,6 +16,12 @@
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 
+/* Default net, app & dev key values, unless otherwise specified */
+static const u8_t default_key[16] = {
+	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+};
+
 static struct {
 	u16_t local;
 	u16_t dst;
@@ -600,7 +606,6 @@ struct shell_cmd_help cmd_relay_help = {
 
 static int cmd_app_key_add(int argc, char *argv[])
 {
-	u8_t val[16] = { [0 ... 15] = 0xcc, };
 	u16_t key_net_idx, key_app_idx;
 	u8_t status;
 	int err;
@@ -615,7 +620,7 @@ static int cmd_app_key_add(int argc, char *argv[])
 	/* TODO: decode key value that's given in hex */
 
 	err = bt_mesh_cfg_app_key_add(net.net_idx, net.dst, key_net_idx,
-				      key_app_idx, val, &status);
+				      key_app_idx, default_key, &status);
 	if (err) {
 		printk("Unable to send App Key Add (err %d)\n", err);
 		return 0;
@@ -844,6 +849,38 @@ static int cmd_pb_gatt(int argc, char *argv[])
 }
 #endif /* CONFIG_BT_MESH_PB_GATT */
 
+static int cmd_provision(int argc, char *argv[])
+{
+	u16_t net_idx, addr;
+	u32_t iv_index;
+	int err;
+
+	if (argc < 3) {
+		return -EINVAL;
+	}
+
+	net_idx = strtoul(argv[1], NULL, 0);
+	addr = strtoul(argv[2], NULL, 0);
+
+	if (argc > 3) {
+		iv_index = strtoul(argv[1], NULL, 0);
+	} else {
+		iv_index = 0;
+	}
+
+	err = bt_mesh_provision(default_key, net_idx, 0, iv_index, 0, addr,
+				default_key);
+	if (err) {
+		printk("Provisioning failed (err %d)\n", err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_provision_help = {
+	NULL, "<NetKeyIndex> <addr> [IVIndex]" , NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
@@ -855,6 +892,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "reset", cmd_reset, NULL },
 	{ "input-num", cmd_input_num, &cmd_input_num_help },
 	{ "input-str", cmd_input_str, &cmd_input_str_help },
+	{ "provision", cmd_provision, &cmd_provision_help },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	{ "lpn", cmd_lpn, &cmd_lpn_help },
 #endif
