@@ -231,12 +231,12 @@ static int cmd_reset(int argc, char *argv[])
 	return 0;
 }
 
-#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 static bool str2bool(const char *str)
 {
 	return (!strcmp(str, "on") || !strcmp(str, "enable"));
 }
 
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 static int cmd_lpn(int argc, char *argv[])
 {
 	static bool enabled;
@@ -412,6 +412,33 @@ struct shell_cmd_help cmd_netidx_help = {
 	NULL, "[NetIdx]", NULL
 };
 
+static int cmd_beacon(int argc, char *argv[])
+{
+	u8_t status;
+	int err;
+
+	if (argc < 2) {
+		err = bt_mesh_cfg_beacon_get(net_idx, dst, &status);
+	} else {
+		u8_t val = str2bool(argv[1]);
+
+		err = bt_mesh_cfg_beacon_set(net_idx, dst, val, &status);
+	}
+
+	if (err) {
+		printk("Unable to send Beacon Get/Set message (err %d)\n", err);
+		return 0;
+	}
+
+	printk("Beacon state is 0x%02x\n", status);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_beacon_help = {
+	NULL, "[val: off, on]", NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "reset", cmd_reset, NULL },
@@ -426,6 +453,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "dst", cmd_dst, &cmd_dst_help },
 	{ "netidx", cmd_netidx, &cmd_netidx_help },
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
+	{ "beacon", cmd_beacon, &cmd_beacon_help },
 	{ NULL, NULL, NULL}
 };
 
