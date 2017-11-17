@@ -72,7 +72,7 @@ static void prov_complete(u16_t addr)
 	dst = addr;
 }
 
-static int output_number(bt_mesh_output_action action, uint32_t number)
+static int output_number(bt_mesh_output_action_t action, uint32_t number)
 {
 	printk("OOB Number: %lu\n", number);
 	return 0;
@@ -84,7 +84,7 @@ static int output_string(const char *str)
 	return 0;
 }
 
-static bt_mesh_input_action input_act;
+static bt_mesh_input_action_t input_act;
 static u8_t input_size;
 
 static int cmd_input_num(int argc, char *argv[])
@@ -153,7 +153,7 @@ struct shell_cmd_help cmd_input_str_help = {
 	NULL, "<string>", NULL
 };
 
-static int input(bt_mesh_input_action act, u8_t size)
+static int input(bt_mesh_input_action_t act, u8_t size)
 {
 	switch (act) {
 	case BT_MESH_ENTER_NUMBER:
