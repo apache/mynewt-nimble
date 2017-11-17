@@ -114,7 +114,7 @@ bt_mesh_reset(void)
     k_delayed_work_cancel(&bt_mesh.ivu_complete);
 
     if ((MYNEWT_VAL(BLE_MESH_LOW_POWER))) {
-        bt_mesh_lpn_disable();
+        bt_mesh_lpn_disable(true);
     }
 
     if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
