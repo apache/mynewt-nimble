@@ -229,7 +229,7 @@ static void reset_link(void)
 	prov_clear_tx();
 
 	if (prov->link_close) {
-		prov->link_close();
+		prov->link_close(BT_MESH_PROV_ADV);
 	}
 
 	/* Clear everything except the retransmit delayed work config */
@@ -1186,7 +1186,7 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 	}
 
 	if (prov->link_open) {
-		prov->link_open();
+		prov->link_open(BT_MESH_PROV_ADV);
 	}
 
 	link.id = rx->link_id;
@@ -1493,7 +1493,7 @@ int bt_mesh_pb_gatt_open(uint16_t conn_handle)
 	link.expect = PROV_INVITE;
 
 	if (prov->link_open) {
-		prov->link_open();
+		prov->link_open(BT_MESH_PROV_GATT);
 	}
 
 	return 0;
@@ -1516,7 +1516,7 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 	}
 
 	if (prov->link_close) {
-		prov->link_close();
+		prov->link_close(BT_MESH_PROV_GATT);
 	}
 
 	bt_conn_unref(link.conn);
@@ -1585,4 +1585,12 @@ void bt_mesh_prov_reset_link(void) {
     link.rx.buf = rx_buf;
 #endif
 }
+
+void bt_mesh_prov_reset(void)
+{
+	if (prov->reset) {
+		prov->reset();
+	}
+}
+
 #endif //MYNEWT_VAL(BLE_MESH_PROV) == 1

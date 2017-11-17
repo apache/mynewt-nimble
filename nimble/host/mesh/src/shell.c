@@ -23,12 +23,12 @@ static u16_t net_idx;
 static struct bt_mesh_cfg cfg_srv = {
 	.relay = BT_MESH_RELAY_DISABLED,
 	.beacon = BT_MESH_BEACON_DISABLED,
-#if defined(CONFIG_BT_MESH_FRIEND)
+#if MYNEWT_VAL(BLE_MESH_FRIEND)
 	.frnd = BT_MESH_FRIEND_DISABLED,
 #else
 	.frnd = BT_MESH_FRIEND_NOT_SUPPORTED,
 #endif
-#if defined(CONFIG_BT_MESH_GATT_PROXY)
+#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 	.gatt_proxy = BT_MESH_GATT_PROXY_DISABLED,
 #else
 	.gatt_proxy = BT_MESH_GATT_PROXY_NOT_SUPPORTED,
@@ -70,6 +70,11 @@ static void prov_complete(u16_t addr)
 	printk("Local node provisioned, primary address 0x%04x\n", addr);
 	local = addr;
 	dst = addr;
+}
+
+static void prov_reset(void)
+{
+	printk("The local node has been reset and needs reprovisioning\n");
 }
 
 static int output_number(bt_mesh_output_action_t action, uint32_t number)
@@ -175,14 +180,26 @@ static int input(bt_mesh_input_action_t act, u8_t size)
 	return 0;
 }
 
-static void link_open(void)
+static const char *bearer2str(bt_mesh_prov_bearer_t bearer)
 {
-	printk("Provisioning link opened\n");
+	switch (bearer) {
+	case BT_MESH_PROV_ADV:
+		return "PB-ADV";
+	case BT_MESH_PROV_GATT:
+		return "PB-GATT";
+	default:
+		return "unknown";
+	}
 }
 
-static void link_close(void)
+static void link_open(bt_mesh_prov_bearer_t bearer)
 {
-	printk("Provisioning link closed\n");
+	printk("Provisioning link opened on %s\n", bearer2str(bearer));
+}
+
+static void link_close(bt_mesh_prov_bearer_t bearer)
+{
+	printk("Provisioning link closed on %s\n", bearer2str(bearer));
 }
 
 static const u8_t static_val[] = {
@@ -194,6 +211,7 @@ static const struct bt_mesh_prov prov = {
 	.link_open = link_open,
 	.link_close = link_close,
 	.complete = prov_complete,
+	.reset = prov_reset,
 	.static_val = static_val,
 	.static_val_len = sizeof(static_val),
 	.output_size = 6,
@@ -726,8 +744,65 @@ struct shell_cmd_help cmd_hb_sub_set_help = {
 	NULL, "<src> <dst> <period>", NULL
 };
 
+#if MYNEWT_VAL(BLE_MESH_PROV)
+static int cmd_pb(bt_mesh_prov_bearer_t bearer, int argc, char *argv[])
+{
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	if (str2bool(argv[1])) {
+		err = bt_mesh_prov_enable(bearer);
+		if (err) {
+			printk("Failed to enable %s\n (err %d)",
+			       bearer2str(bearer), err);
+		} else {
+			printk("%s enabled\n", bearer2str(bearer));
+		}
+	} else {
+		err = bt_mesh_prov_disable(bearer);
+		if (err) {
+			printk("Failed to disable %s (err %d)\n",
+			       bearer2str(bearer), err);
+		} else {
+			printk("%s disabled\n", bearer2str(bearer));
+		}
+	}
+
+	return 0;
+
+}
+
+struct shell_cmd_help cmd_pb_help = {
+	NULL, "<val: off, on>", NULL
+};
+
+#endif
+
+#if MYNEWT_VAL(BLE_MESH_PB_ADV)
+static int cmd_pb_adv(int argc, char *argv[])
+{
+	return cmd_pb(BT_MESH_PROV_ADV, argc, argv);
+}
+#endif /* CONFIG_BT_MESH_PB_ADV */
+
+#if MYNEWT_VAL(BLE_MESH_PB_GATT)
+static int cmd_pb_gatt(int argc, char *argv[])
+{
+	return cmd_pb(BT_MESH_PROV_GATT, argc, argv);
+}
+#endif /* CONFIG_BT_MESH_PB_GATT */
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
+#if MYNEWT_VAL(BLE_MESH_PB_ADV)
+	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
+#endif
+#if MYNEWT_VAL(BLE_MESH_PB_GATT)
+	{ "pb-gatt", cmd_pb_gatt, &cmd_pb_help },
+#endif
 	{ "reset", cmd_reset, NULL },
 	{ "input-num", cmd_input_num, &cmd_input_num_help },
 	{ "input-str", cmd_input_str, &cmd_input_str_help },
