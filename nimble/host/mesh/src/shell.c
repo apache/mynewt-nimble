@@ -725,15 +725,37 @@ struct shell_cmd_help cmd_mod_sub_add_help = {
 	NULL, "<elem addr> <sub addr> <Model ID> [Company ID]", NULL
 };
 
-static int cmd_hb_sub_set(int argc, char *argv[])
+static int hb_sub_get(int argc, char *argv[])
+{
+	u8_t status, period, count, min, max;
+	u16_t src, dst;
+	int err;
+
+	err = bt_mesh_cfg_hb_sub_get(net.net_idx, net.dst, &src, &dst, &period,
+				     &count, &min, &max, &status);
+	if (err) {
+		printk("Heartbeat Subscription Get failed (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Heartbeat Subscription Get failed (status 0x%02x)\n",
+		       status);
+		return 0;
+	}
+
+	printk("Heartbeat subscription:\n");
+	printk("\tsrc 0x%04x dst 0x%04x period 0x%02x\n", src, dst, period);
+	printk("\tcount 0x%02x min 0x%02x max 0x%02x\n", count, min, max);
+
+	return 0;
+}
+
+static int hb_sub_set(int argc, char *argv[])
 {
 	u8_t status, period;
 	u16_t sub_src, sub_dst;
 	int err;
-
-	if (argc < 4) {
-		return -EINVAL;
-	}
 
 	sub_src = strtoul(argv[1], NULL, 0);
 	sub_dst = strtoul(argv[2], NULL, 0);
@@ -756,7 +778,20 @@ static int cmd_hb_sub_set(int argc, char *argv[])
 	return 0;
 }
 
-struct shell_cmd_help cmd_hb_sub_set_help = {
+static int cmd_hb_sub(int argc, char *argv[])
+{
+	if (argc > 1) {
+		if (argc < 4) {
+			return -EINVAL;
+		}
+
+		return hb_sub_set(argc, argv);
+	} else {
+		return hb_sub_get(argc, argv);
+	}
+}
+
+struct shell_cmd_help cmd_hb_sub_help = {
 	NULL, "<src> <dst> <period>", NULL
 };
 
@@ -948,7 +983,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
 	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
 	{ "mod-sub-add", cmd_mod_sub_add, &cmd_mod_sub_add_help },
-	{ "hb-sub-set", cmd_hb_sub_set, &cmd_hb_sub_set_help },
+	{ "hb-sub", cmd_hb_sub, &cmd_hb_sub_help },
 	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
 	{ NULL, NULL, NULL}
 };
