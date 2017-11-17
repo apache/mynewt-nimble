@@ -271,6 +271,20 @@ struct shell_cmd_help cmd_lpn_help = {
 	NULL, "<value: off, on>", NULL
 };
 
+#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
+static int cmd_ident(int argc, char *argv[])
+{
+	int err;
+
+	err = bt_mesh_proxy_identity_enable();
+	if (err) {
+		printk("Failed advertise using Node Identity (err %d)\n", err);
+	}
+
+	return 0;
+}
+#endif /* MESH_GATT_PROXY */
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "reset", cmd_reset, NULL },
@@ -278,6 +292,9 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "input-str", cmd_input_str, &cmd_input_str_help },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	{ "lpn", cmd_lpn, &cmd_lpn_help },
+#endif
+#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
+	{ "ident", cmd_ident, NULL },
 #endif
 	{ NULL, NULL, NULL}
 };
