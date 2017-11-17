@@ -17,6 +17,8 @@
 
 #include "foundation.h"
 
+#define CID_NVAL 0xffff
+
 struct comp_data {
 	u8_t *status;
 	struct os_mbuf *comp;
@@ -171,7 +173,6 @@ struct mod_app_param {
 	u16_t elem_addr;
 	u16_t mod_app_idx;
 	u16_t mod_id;
-	bool vnd;
 	u16_t cid;
 };
 
@@ -182,7 +183,6 @@ static void mod_app_status(struct bt_mesh_model *model,
 	u16_t elem_addr, mod_app_idx, mod_id, cid;
 	struct mod_app_param *param;
 	u8_t status;
-	bool vnd;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -198,19 +198,17 @@ static void mod_app_status(struct bt_mesh_model *model,
 	mod_app_idx = net_buf_simple_pull_le16(buf);
 
 	if (buf->om_len >= 4) {
-		vnd = true;
 		cid = net_buf_simple_pull_le16(buf);
 	} else {
-		vnd = false;
-		cid = 0;
+		cid = CID_NVAL;
 	}
 
 	mod_id = net_buf_simple_pull_le16(buf);
 
 	param = cli->op_param;
 	if (param->elem_addr != elem_addr ||
-	    param->mod_app_idx != mod_app_idx || param->vnd != vnd ||
-	    param->mod_id != mod_id || param->cid != cid) {
+	    param->mod_app_idx != mod_app_idx || param->mod_id != mod_id ||
+	    param->cid != cid) {
 		BT_WARN("Model App Status parameters did not match");
 		return;
 	}
@@ -225,7 +223,6 @@ struct mod_sub_param {
 	u16_t elem_addr;
 	u16_t sub_addr;
 	u16_t mod_id;
-	bool vnd;
 	u16_t cid;
 };
 
@@ -236,7 +233,6 @@ static void mod_sub_status(struct bt_mesh_model *model,
 	u16_t elem_addr, sub_addr, mod_id, cid;
 	struct mod_sub_param *param;
 	u8_t status;
-	bool vnd;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -252,19 +248,17 @@ static void mod_sub_status(struct bt_mesh_model *model,
 	sub_addr = net_buf_simple_pull_le16(buf);
 
 	if (buf->om_len >= 4) {
-		vnd = true;
 		cid = net_buf_simple_pull_le16(buf);
 	} else {
-		vnd = false;
-		cid = 0;
+		cid = CID_NVAL;
 	}
 
 	mod_id = net_buf_simple_pull_le16(buf);
 
 	param = cli->op_param;
 	if (param->elem_addr != elem_addr ||
-	    param->sub_addr != sub_addr || param->vnd != vnd ||
-	    param->mod_id != mod_id || param->cid != cid) {
+	    param->sub_addr != sub_addr || param->mod_id != mod_id ||
+	    param->cid != cid) {
 		BT_WARN("Model Subscription Status parameters did not match");
 		return;
 	}
@@ -676,8 +670,9 @@ int bt_mesh_cfg_app_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
 	return err;
 }
 
-int mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t mod_app_idx,
-		 u16_t mod_id, bool vnd, u16_t cid, u8_t *status)
+static int mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
+			u16_t mod_app_idx, u16_t mod_id, u16_t cid,
+			u8_t *status)
 {
 	struct os_mbuf*msg = NET_BUF_SIMPLE(2 + 8 + 4);
 	struct bt_mesh_msg_ctx ctx = {
@@ -691,7 +686,6 @@ int mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t mod_app_idx,
 		.elem_addr = elem_addr,
 		.mod_app_idx = mod_app_idx,
 		.mod_id = mod_id,
-		.vnd = vnd,
 		.cid = cid,
 	};
 	int err;
@@ -705,7 +699,7 @@ int mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t mod_app_idx,
 	net_buf_simple_add_le16(msg, elem_addr);
 	net_buf_simple_add_le16(msg, mod_app_idx);
 
-	if (vnd) {
+	if (cid != CID_NVAL) {
 		net_buf_simple_add_le16(msg, cid);
 	}
 
@@ -736,19 +730,23 @@ int bt_mesh_cfg_mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			     u16_t mod_app_idx, u16_t mod_id, u8_t *status)
 {
 	return mod_app_bind(net_idx, addr, elem_addr, mod_app_idx, mod_id,
-			    false, 0, status);
+			    CID_NVAL, status);
 }
 
 int bt_mesh_cfg_mod_app_bind_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				 u16_t mod_app_idx, u16_t mod_id, u16_t cid,
 				 u8_t *status)
 {
-	return mod_app_bind(net_idx, addr, elem_addr, mod_app_idx, mod_id,
-			    true, cid, status);
+	if (cid == CID_NVAL) {
+		return -EINVAL;
+	}
+
+	return mod_app_bind(net_idx, addr, elem_addr, mod_app_idx, mod_id, cid,
+			    status);
 }
 
-int mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t sub_addr,
-		u16_t mod_id, bool vnd, u16_t cid, u8_t *status)
+static int mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr,
+		       u16_t sub_addr, u16_t mod_id, u16_t cid, u8_t *status)
 {
 	struct os_mbuf*msg = NET_BUF_SIMPLE(2 + 8 + 4);
 	struct bt_mesh_msg_ctx ctx = {
@@ -762,7 +760,6 @@ int mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t sub_addr,
 		.elem_addr = elem_addr,
 		.sub_addr = sub_addr,
 		.mod_id = mod_id,
-		.vnd = vnd,
 		.cid = cid,
 	};
 	int err;
@@ -776,7 +773,7 @@ int mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr, u16_t sub_addr,
 	net_buf_simple_add_le16(msg, elem_addr);
 	net_buf_simple_add_le16(msg, sub_addr);
 
-	if (vnd) {
+	if (cid != CID_NVAL) {
 		net_buf_simple_add_le16(msg, cid);
 	}
 
@@ -807,15 +804,19 @@ int bt_mesh_cfg_mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			    u16_t sub_addr, u16_t mod_id, u8_t *status)
 {
 	return mod_sub_add(net_idx, addr, elem_addr, sub_addr, mod_id,
-			   false, 0, status);
+			   CID_NVAL, status);
 }
 
 int bt_mesh_cfg_mod_sub_add_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				 u16_t sub_addr, u16_t mod_id, u16_t cid,
 				 u8_t *status)
 {
-	return mod_sub_add(net_idx, addr, elem_addr, sub_addr, mod_id,
-			   true, cid, status);
+	if (cid == CID_NVAL) {
+		return -EINVAL;
+	}
+
+	return mod_sub_add(net_idx, addr, elem_addr, sub_addr, mod_id, cid,
+			   status);
 }
 
 int bt_mesh_cfg_hb_sub_set(u16_t net_idx, u16_t addr, u16_t src, u16_t dst,
