@@ -954,8 +954,47 @@ struct shell_cmd_help cmd_provision_help = {
 	NULL, "<NetKeyIndex> <addr> [IVIndex]" , NULL
 };
 
+int cmd_timeout(int argc, char *argv[])
+{
+	s32_t timeout;
+
+	if (argc < 2) {
+		timeout = bt_mesh_cfg_cli_timeout_get();
+		if (timeout == K_FOREVER) {
+			printk("Message timeout: forever\n");
+		} else {
+			printk("Message timeout: %lu seconds\n",
+			       timeout / 1000);
+		}
+
+		return 0;
+	}
+
+	timeout = strtol(argv[1], NULL, 0);
+	if (timeout < 0 || timeout > (INT32_MAX / 1000)) {
+		timeout = K_FOREVER;
+	} else {
+		timeout = timeout * 1000;
+	}
+
+	bt_mesh_cfg_cli_timeout_set(timeout);
+	if (timeout == K_FOREVER) {
+		printk("Message timeout: forever\n");
+	} else {
+		printk("Message timeout: %lu seconds\n",
+		       timeout / 1000);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_timeout_help = {
+	NULL, "[timeout in seconds]", NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
+	{ "timeout", cmd_timeout, &cmd_timeout_help },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
 	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
 #endif
