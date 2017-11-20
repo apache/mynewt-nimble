@@ -22,7 +22,6 @@
 #include <errno.h>
 #include "bsp/bsp.h"
 #include "os/os.h"
-#include "mem/mem.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_hci.h"
@@ -172,7 +171,9 @@ struct ble_gap_snapshot {
     void *cb_arg;
 };
 
-static void *ble_gap_update_entry_mem;
+static os_membuf_t ble_gap_update_entry_mem[
+                        OS_MEMPOOL_SIZE(BLE_GAP_MAX_UPDATE_ENTRIES,
+                                        sizeof (struct ble_gap_update_entry))];
 static struct os_mempool ble_gap_update_entry_pool;
 static struct ble_gap_update_entry_list ble_gap_update_entries;
 
@@ -4413,18 +4414,16 @@ ble_gap_init(void)
 {
     int rc;
 
-    free(ble_gap_update_entry_mem);
-
     memset(&ble_gap_master, 0, sizeof ble_gap_master);
     memset(ble_gap_slave, 0, sizeof ble_gap_slave);
 
     SLIST_INIT(&ble_gap_update_entries);
 
-    rc = mem_malloc_mempool(&ble_gap_update_entry_pool,
-                            BLE_GAP_MAX_UPDATE_ENTRIES,
-                            sizeof (struct ble_gap_update_entry),
-                            "ble_gap_update",
-                            &ble_gap_update_entry_mem);
+    rc = os_mempool_init(&ble_gap_update_entry_pool,
+                         BLE_GAP_MAX_UPDATE_ENTRIES,
+                         sizeof (struct ble_gap_update_entry),
+                         ble_gap_update_entry_mem,
+                         "ble_gap_update");
     switch (rc) {
     case 0:
         break;
@@ -4446,8 +4445,5 @@ ble_gap_init(void)
     return 0;
 
 err:
-    free(ble_gap_update_entry_mem);
-    ble_gap_update_entry_mem = NULL;
-
     return rc;
 }
