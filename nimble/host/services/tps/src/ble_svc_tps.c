@@ -41,10 +41,10 @@ static const struct ble_gatt_svc_def ble_svc_tps_defs[] = {
     {
         /*** Service: Tx Power Service. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16(BLE_SVC_TPS_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_SVC_TPS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /*** Characteristic: Tx Power Level. */
-            .uuid = BLE_UUID16(BLE_SVC_TPS_CHR_UUID16_TX_POWER_LEVEL),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_TPS_CHR_UUID16_TX_POWER_LEVEL),
             .access_cb = ble_svc_tps_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
