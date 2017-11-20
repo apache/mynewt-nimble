@@ -174,6 +174,9 @@ ble_hci_emspi_tx_chunk(const uint8_t *data, int len, int *out_bytes_txed)
     uint8_t buf_size;
     int rc;
 
+    /* Silence spurious "may be used uninitialized" warning. */
+    *out_bytes_txed = 0;
+
     ble_hci_emspi_initiate_write();
 
     rc = ble_hci_emspi_write_hdr(BLE_HCI_EMSPI_OP_TX, &buf_size);
@@ -182,7 +185,6 @@ ble_hci_emspi_tx_chunk(const uint8_t *data, int len, int *out_bytes_txed)
     }
 
     if (buf_size == 0) {
-        *out_bytes_txed = 0;
         rc = 0;
         goto done;
     }
