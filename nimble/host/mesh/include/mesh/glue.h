@@ -340,8 +340,13 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_GATT BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PB_ADV BLE_MESH_PB_ADV
 #define CONFIG_BT_MESH_PROV BLE_MESH_PROV
+#define CONFIG_BT_MESH_ADV_BUF_COUNT MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT)
 #define IS_ENABLED(config) MYNEWT_VAL(config)
 #define printk console_printf
+
+#define CONTAINER_OF(ptr, type, field) \
+	((type *)(((char *)(ptr)) - offsetof(type, field)))
+
 
 #define k_sem os_sem
 
@@ -359,6 +364,21 @@ static inline int k_sem_take(struct k_sem *sem, s32_t timeout)
 static inline void k_sem_give(struct k_sem *sem)
 {
 	os_sem_release(sem);
+}
+
+/* Helpers to access the storage array, since we don't have access to its
+ * type at this point anymore.
+ */
+
+#define BUF_SIZE(pool) (pool->omp_pool->mp_block_size)
+
+static inline int net_buf_id(struct os_mbuf *buf)
+{
+	struct os_mbuf_pool *pool = buf->om_omp;
+	u8_t *pool_start = (u8_t *)pool->omp_pool->mp_membuf_addr;
+	u8_t *buf_ptr = (u8_t *)buf;
+
+	return (buf_ptr - pool_start) / BUF_SIZE(pool);
 }
 
 #endif

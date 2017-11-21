@@ -43,6 +43,9 @@ struct os_mbuf_pool friend_os_mbuf_pool;
 static struct os_mempool friend_buf_mempool;
 
 
+#define FRIEND_ADV(buf)     CONTAINER_OF(BT_MESH_ADV(buf), \
+					 struct friend_adv, adv)
+
 struct friend_pdu_info {
 	u16_t  src;
 	u16_t  dst;
@@ -55,22 +58,14 @@ struct friend_pdu_info {
 	u32_t  iv_index;
 };
 
-static u64_t buf_seq_auth[FRIEND_BUF_COUNT];
+static struct friend_adv {
+	struct bt_mesh_adv adv;
+	u64_t seq_auth;
+} adv_pool[FRIEND_BUF_COUNT];
 
-/* Helpers to access the storage array, since we don't have access to its
- * type at this point anymore.
- */
-
-#define BUF_SIZE(pool) (pool->omp_pool->mp_block_size)
-
-
-int net_buf_id(struct os_mbuf *buf)
+static struct bt_mesh_adv *adv_alloc(int id)
 {
-	struct os_mbuf_pool *pool = buf->om_omp;
-	u8_t *pool_start = (u8_t *)pool->omp_pool->mp_membuf_addr;
-	u8_t *buf_ptr = (u8_t *)buf;
-
-	return (buf_ptr - pool_start) / BUF_SIZE(pool);
+	return &adv_pool[id].adv;
 }
 
 static void discard_buffer(void)
@@ -99,7 +94,7 @@ static struct os_mbuf *friend_buf_alloc(u16_t src)
 	struct os_mbuf *buf;
 
 	do {
-		buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool,
+		buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool, adv_alloc,
 						   BT_MESH_ADV_DATA,
 						   BT_MESH_TRANSMIT_COUNT(xmit),
 						   BT_MESH_TRANSMIT_INT(xmit),
@@ -110,7 +105,7 @@ static struct os_mbuf *friend_buf_alloc(u16_t src)
 	} while (!buf);
 
 	BT_MESH_ADV(buf)->addr = src;
-	buf_seq_auth[net_buf_id(buf)] = TRANS_SEQ_AUTH_NVAL;
+	FRIEND_ADV(buf)->seq_auth = TRANS_SEQ_AUTH_NVAL;
 
 	BT_DBG("allocated buf %p", buf);
 
@@ -902,7 +897,7 @@ static struct bt_mesh_friend_seg *get_seg(struct bt_mesh_friend *frnd,
 		struct os_mbuf *buf = (void *)sys_slist_peek_head(&seg->queue);
 
 		if (buf && BT_MESH_ADV(buf)->addr == src &&
-		    buf_seq_auth[net_buf_id(buf)] == *seq_auth) {
+		    FRIEND_ADV(buf)->seq_auth == *seq_auth) {
 			return seg;
 		}
 
@@ -919,6 +914,7 @@ static void enqueue_friend_pdu(struct bt_mesh_friend *frnd,
 			       struct os_mbuf *buf)
 {
 	struct bt_mesh_friend_seg *seg;
+	struct friend_adv *adv;
 
 	BT_DBG("type %u", type);
 
@@ -931,8 +927,8 @@ static void enqueue_friend_pdu(struct bt_mesh_friend *frnd,
 		return;
 	}
 
-	seg = get_seg(frnd, BT_MESH_ADV(buf)->addr,
-		      &buf_seq_auth[net_buf_id(buf)]);
+	adv = FRIEND_ADV(buf);
+	seg = get_seg(frnd, BT_MESH_ADV(buf)->addr, &adv->seq_auth);
 	if (!seg) {
 		BT_ERR("No free friend segment RX contexts for 0x%04x",
 		       BT_MESH_ADV(buf)->addr);
@@ -955,7 +951,7 @@ static void enqueue_friend_pdu(struct bt_mesh_friend *frnd,
 		struct os_mbuf_pkthdr *mp;
 		SYS_SLIST_FOR_EACH_CONTAINER(&seg->queue, mp,) {
 			m = OS_MBUF_PKTHDR_TO_MBUF(mp);
-			buf_seq_auth[net_buf_id(m)] = TRANS_SEQ_AUTH_NVAL;
+			FRIEND_ADV(m)->seq_auth = TRANS_SEQ_AUTH_NVAL;
 			frnd->queue_size++;
 		}
 
@@ -1084,7 +1080,7 @@ static void friend_purge_old_ack(struct bt_mesh_friend *frnd, u64_t *seq_auth,
 		struct os_mbuf *buf = (void *)cur;
 
 		if (BT_MESH_ADV(buf)->addr == src &&
-		    buf_seq_auth[net_buf_id(buf)] == *seq_auth) {
+		    FRIEND_ADV(buf)->seq_auth == *seq_auth) {
 			BT_DBG("Removing old ack from Friend Queue");
 
 			sys_slist_remove(&frnd->queue, prev, cur);
@@ -1133,7 +1129,7 @@ static void friend_lpn_enqueue_rx(struct bt_mesh_friend *frnd,
 	}
 
 	if (seq_auth) {
-		buf_seq_auth[net_buf_id(buf)] = *seq_auth;
+		FRIEND_ADV(buf)->seq_auth = *seq_auth;
 	}
 
 	enqueue_friend_pdu(frnd, type, buf);
@@ -1174,7 +1170,7 @@ static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,
 	}
 
 	if (seq_auth) {
-		buf_seq_auth[net_buf_id(buf)] = *seq_auth;
+		FRIEND_ADV(buf)->seq_auth = *seq_auth;
 	}
 
 	enqueue_friend_pdu(frnd, type, buf);
@@ -1312,7 +1308,7 @@ void bt_mesh_friend_clear_incomplete(struct bt_mesh_subnet *sub, u16_t src,
 				continue;
 			}
 
-			if (buf_seq_auth[net_buf_id(buf)] != *seq_auth) {
+			if (FRIEND_ADV(buf)->seq_auth != *seq_auth) {
 				continue;
 			}
 

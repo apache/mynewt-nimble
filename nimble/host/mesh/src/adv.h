@@ -12,12 +12,16 @@
 /* Maximum advertising data payload for a single data type */
 #include "mesh/mesh.h"
 
-#define BT_MESH_ADV_DATA_SIZE 31
-#define BT_MESH_ADV_USER_DATA_SIZE (sizeof(struct os_mbuf_pkthdr) + \
-                                    sizeof(struct bt_mesh_adv)) + \
-                                    sizeof(struct os_mbuf)
+#define BT_MESH_ADV(om) (*(struct bt_mesh_adv **) OS_MBUF_USRHDR(om))
 
-#define BT_MESH_ADV(om) ((struct bt_mesh_adv *) OS_MBUF_USRHDR(om))
+#define BT_MESH_ADV_DATA_SIZE 31
+
+/* The user data is a pointer (4 bytes) to struct bt_mesh_adv */
+#define BT_MESH_ADV_USER_DATA_SIZE 4
+
+#define BT_MESH_MBUF_HEADER_SIZE (sizeof(struct os_mbuf_pkthdr) + \
+                                    BT_MESH_ADV_USER_DATA_SIZE +\
+				    sizeof(struct os_mbuf))
 
 enum bt_mesh_adv_type
 {
@@ -56,11 +60,14 @@ struct bt_mesh_adv
 	struct os_event ev;
 };
 
+typedef struct bt_mesh_adv *(*bt_mesh_adv_alloc_t)(int id);
+
 /* xmit_count: Number of retransmissions, i.e. 0 == 1 transmission */
 struct os_mbuf * bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
 				    u8_t xmit_int, s32_t timeout);
 
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
+					     bt_mesh_adv_alloc_t get_id,
 					     enum bt_mesh_adv_type type,
 					     u8_t xmit_count, u8_t xmit_int,
 					     s32_t timeout);

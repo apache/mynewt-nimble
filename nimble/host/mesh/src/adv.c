@@ -47,7 +47,7 @@ extern u8_t g_mesh_addr_type;
 
 static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
         MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
-        BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE)];
+        BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
 
 struct os_mbuf_pool adv_os_mbuf_pool;
 static struct os_mempool adv_buf_mempool;
@@ -58,6 +58,13 @@ static const u8_t adv_type[] = {
     [BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
 };
 
+
+static struct bt_mesh_adv adv_pool[CONFIG_BT_MESH_ADV_BUF_COUNT];
+
+static struct bt_mesh_adv *adv_alloc(int id)
+{
+	return &adv_pool[id];
+}
 
 static inline void adv_sent(struct os_mbuf *buf, u16_t duration, int err)
 {
@@ -176,35 +183,37 @@ void bt_mesh_adv_update(void)
 }
 
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
+					     bt_mesh_adv_alloc_t get_id,
 					     enum bt_mesh_adv_type type,
 					     u8_t xmit_count, u8_t xmit_int,
 					     s32_t timeout)
 {
-    struct os_mbuf *adv_data;
+    struct os_mbuf *buf;
     struct bt_mesh_adv *adv;
 
-    adv_data = os_mbuf_get_pkthdr(pool, sizeof(struct bt_mesh_adv));
-    if (!adv_data) {
+    buf = os_mbuf_get_pkthdr(pool, sizeof(struct bt_mesh_adv));
+    if (!buf) {
         return NULL;
     }
 
-    adv = BT_MESH_ADV(adv_data);
+    adv = get_id(net_buf_id(buf));
+    BT_MESH_ADV(buf) = adv;
+
     memset(adv, 0, sizeof(*adv));
 
     adv->type = type;
     adv->count = xmit_count;
     adv->adv_int = xmit_int;
     adv->ref_cnt = 1;
-    adv->ev.ev_arg = adv_data;
-    return adv_data;
+    adv->ev.ev_arg = buf;
+    return buf;
 }
 
 struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
 				   u8_t xmit_int, s32_t timeout)
 {
-	return bt_mesh_adv_create_from_pool(&adv_os_mbuf_pool,
-					    type, xmit_count,
-					    xmit_int, timeout);
+	return bt_mesh_adv_create_from_pool(&adv_os_mbuf_pool, adv_alloc, type,
+					    xmit_count, xmit_int, timeout);
 }
 
 void bt_mesh_adv_send(struct os_mbuf *buf, bt_mesh_adv_func_t sent)
@@ -279,12 +288,12 @@ void bt_mesh_adv_init(void)
     assert(pstack);
 
     rc = os_mempool_init(&adv_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
-    BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE,
+    BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
                          adv_buf_mem, "adv_buf_pool");
     assert(rc == 0);
 
     rc = os_mbuf_pool_init(&adv_os_mbuf_pool, &adv_buf_mempool,
-                           BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE,
+                           BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
                            MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT));
     assert(rc == 0);
 
