@@ -661,7 +661,7 @@ do_update:
 }
 
 int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
-		       bool new_key, const struct bt_mesh_adv_cb *cb,
+		       bool new_key, const struct bt_mesh_send_cb *cb,
 		       void *cb_data)
 {
 	const u8_t *enc, *priv;
@@ -791,7 +791,7 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 }
 
 int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
-		     const struct bt_mesh_adv_cb *cb, void *cb_data)
+		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	int err;
 
@@ -821,12 +821,12 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 			 * through the Mesh Proxy.
 			 */
 			if (cb) {
-				if (cb->send_start) {
-					cb->send_start(0, 0, cb_data);
+				if (cb->start) {
+					cb->start(0, 0, cb_data);
 				}
 
-				if (cb->send_end) {
-					cb->send_end(0, cb_data);
+				if (cb->end) {
+					cb->end(0, cb_data);
 				}
 			}
 
@@ -838,12 +838,12 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	/* Deliver to local network interface if necessary */
 	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
 	    bt_mesh_elem_find(tx->ctx->addr)) {
-		if (cb && cb->send_start) {
-			cb->send_start(0, 0, cb_data);
+		if (cb && cb->start) {
+			cb->start(0, 0, cb_data);
 		}
 		net_buf_slist_put(&bt_mesh.local_queue, net_buf_ref(buf));
-		if (cb && cb->send_end) {
-			cb->send_end(0, cb_data);
+		if (cb && cb->end) {
+			cb->end(0, cb_data);
 		}
 		k_work_submit(&bt_mesh.local_work);
 	} else {

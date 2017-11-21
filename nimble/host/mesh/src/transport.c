@@ -59,7 +59,7 @@ static struct seg_tx {
 	u8_t                     seg_n:5,       /* Last segment index */
 				 new_key:1;     /* New/old key */
 	u8_t                     nack_count;    /* Number of unacked segs */
-	bt_mesh_cb_t             cb;
+	const struct bt_mesh_send_cb *cb;
 	void                    *cb_data;
 	struct k_delayed_work    retransmit; /* Retransmit timer */
 } seg_tx[MYNEWT_VAL(BLE_MESH_TX_SEG_MSG_COUNT)];
@@ -91,7 +91,8 @@ void bt_mesh_set_hb_sub_dst(u16_t addr)
 }
 
 static int send_unseg(struct bt_mesh_net_tx *tx, u8_t aid,
-		      struct os_mbuf *sdu)
+		      struct os_mbuf *sdu,
+		      const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	struct os_mbuf *buf;
 
@@ -128,7 +129,7 @@ static int send_unseg(struct bt_mesh_net_tx *tx, u8_t aid,
 		}
 	}
 
-	return bt_mesh_net_send(tx, buf, NULL, NULL);
+	return bt_mesh_net_send(tx, buf, cb, cb_data);
 }
 
 bool bt_mesh_tx_in_progress(void)
@@ -183,8 +184,8 @@ static void seg_tx_reset(struct seg_tx *tx)
 
 static inline void seg_tx_complete(struct seg_tx *tx, int err)
 {
-	if (tx->cb) {
-		tx->cb(err, tx->cb_data);
+	if (tx->cb && tx->cb->end) {
+		tx->cb->end(err, tx->cb_data);
 	}
 
 	seg_tx_reset(tx);
@@ -197,8 +198,8 @@ static void seg_sent(int err, void *user_data)
 	k_delayed_work_submit(&tx->retransmit, SEG_RETRANSMIT_TIMEOUT);
 }
 
-static const struct bt_mesh_adv_cb seg_sent_cb = {
-	.send_end = seg_sent,
+static const struct bt_mesh_send_cb seg_sent_cb = {
+	.end = seg_sent,
 };
 
 static void seg_tx_send_unacked(struct seg_tx *tx)
@@ -243,7 +244,7 @@ static void seg_retransmit(struct os_event *work)
 
 static int send_seg(struct bt_mesh_net_tx *net_tx, u8_t aid,
 		    u8_t mic_len, struct os_mbuf *sdu,
-		    bt_mesh_cb_t cb, void *cb_data)
+		    const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	u8_t seg_hdr, seg_o;
 	u16_t seq_zero;
@@ -382,7 +383,7 @@ struct bt_mesh_app_key *bt_mesh_app_key_find(u16_t app_idx)
 }
 
 int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
-		       bt_mesh_cb_t cb, void *cb_data)
+		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	bool seg = (msg->om_len > 11 || cb);
 	const u8_t *key;
@@ -441,7 +442,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 		return send_seg(tx, aid, mic_len, msg, cb, cb_data);
 	}
 
-	return send_unseg(tx, aid, msg);
+	return send_unseg(tx, aid, msg, cb, cb_data);
 }
 
 static bool is_replay(struct bt_mesh_net_rx *rx)
@@ -822,7 +823,7 @@ static inline s32_t ack_timeout(struct seg_rx *rx)
 
 int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		     size_t data_len, u64_t *seq_auth,
-		     const struct bt_mesh_adv_cb *cb, void *cb_data)
+		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	struct os_mbuf *buf;
 

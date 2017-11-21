@@ -67,25 +67,25 @@ static struct bt_mesh_adv *adv_alloc(int id)
 }
 
 static inline void adv_send_start(u16_t duration, int err,
-				  const struct bt_mesh_adv_cb *cb,
+				  const struct bt_mesh_send_cb *cb,
 				  void *cb_data)
 {
-	if (cb && cb->send_start) {
-		cb->send_start(duration, err, cb_data);
+	if (cb && cb->start) {
+		cb->start(duration, err, cb_data);
 	}
 }
 
-static inline void adv_send_end(int err, const struct bt_mesh_adv_cb *cb,
+static inline void adv_send_end(int err, const struct bt_mesh_send_cb *cb,
 				void *cb_data)
 {
-	if (cb && cb->send_end) {
-		cb->send_end(err, cb_data);
+	if (cb && cb->end) {
+		cb->end(err, cb_data);
 	}
 }
 
 static inline void adv_send(struct os_mbuf *buf)
 {
-	const struct bt_mesh_adv_cb *cb = BT_MESH_ADV(buf)->cb;
+	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
 	void *cb_data = BT_MESH_ADV(buf)->cb_data;
     /* XXX: For BT5 we could have better adv interval */
     const s32_t adv_int_min =  ADV_INT_DEFAULT;
@@ -223,7 +223,7 @@ struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
 					    xmit_count, xmit_int, timeout);
 }
 
-void bt_mesh_adv_send(struct os_mbuf *buf, const struct bt_mesh_adv_cb *cb,
+void bt_mesh_adv_send(struct os_mbuf *buf, const struct bt_mesh_send_cb *cb,
 		      void *cb_data)
 {
 	BT_DBG("buf %p, type 0x%02x len %u: %s", buf, BT_MESH_ADV(buf)->type, buf->om_len,

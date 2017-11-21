@@ -87,10 +87,10 @@ void bt_mesh_rx_reset(void);
 
 int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		     size_t data_len, u64_t *seq_auth,
-		     const struct bt_mesh_adv_cb *cb, void *cb_data);
+		     const struct bt_mesh_send_cb *cb, void *cb_data);
 
 int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
-		       bt_mesh_cb_t cb, void *cb_data);
+		       const struct bt_mesh_send_cb *cb, void *cb_data);
 
 int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx);
 

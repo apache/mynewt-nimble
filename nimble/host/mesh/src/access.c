@@ -444,7 +444,7 @@ void bt_mesh_model_msg_init(struct os_mbuf *msg, u32_t opcode)
 static int model_send(struct bt_mesh_model *model,
 		      struct bt_mesh_msg_ctx *ctx,
 		      int flags, struct os_mbuf *msg,
-		      bt_mesh_cb_t cb, void *cb_data)
+		      const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	struct bt_mesh_net_tx tx = {
 		.sub = bt_mesh_subnet_get(ctx->net_idx),
@@ -483,8 +483,8 @@ static int model_send(struct bt_mesh_model *model,
 
 int bt_mesh_model_send(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
-		       struct os_mbuf *msg, bt_mesh_cb_t cb,
-		       void *cb_data)
+		       struct os_mbuf *msg,
+		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	return model_send(model, ctx, 0, msg, cb, cb_data);
 }

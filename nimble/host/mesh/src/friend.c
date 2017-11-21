@@ -617,8 +617,8 @@ static void friend_clear_sent(int err, void *user_data)
 	frnd->clear.repeat_sec *= 2;
 }
 
-static const struct bt_mesh_adv_cb clear_sent_cb = {
-	.send_end = friend_clear_sent,
+static const struct bt_mesh_send_cb clear_sent_cb = {
+	.end = friend_clear_sent,
 };
 
 static void send_friend_clear(struct bt_mesh_friend *frnd)
@@ -986,9 +986,9 @@ static void buf_send_end(int err, void *user_data)
 static void friend_timeout(struct os_event *work)
 {
 	struct bt_mesh_friend *frnd = work->ev_arg;
-	static const struct bt_mesh_adv_cb buf_sent_cb = {
-		.send_start = buf_send_start,
-		.send_end = buf_send_end,
+	static const struct bt_mesh_send_cb buf_sent_cb = {
+		.start = buf_send_start,
+		.end = buf_send_end,
 	};
 
 	__ASSERT_NO_MSG(frnd->pending_buf == 0);
