@@ -235,6 +235,10 @@ int
 ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
                                        const struct hci_ext_adv_params *params,
                                        uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_ext_adv_remove(uint8_t handle,
+                                       uint8_t *cmd, int cmd_len);
 #endif
 
 int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,

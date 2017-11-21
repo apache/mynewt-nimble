@@ -1560,6 +1560,16 @@ ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
 
     return 0;
 }
+int
+ble_hs_hci_cmd_build_le_ext_adv_remove(uint8_t handle,
+                                       uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_REMOVE_ADV_SET_LEN);
+
+    cmd[0] = handle;
+
+    return 0;
+}
 #endif
 
 static int

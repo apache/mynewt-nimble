@@ -2653,7 +2653,43 @@ ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data)
 int
 ble_gap_ext_adv_remove(uint8_t instance)
 {
-    return -1;
+    uint8_t buf[BLE_HCI_LE_REMOVE_ADV_SET_LEN];
+    uint16_t opcode;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    if (!ble_gap_slave[instance].configured) {
+        ble_hs_unlock();
+        return BLE_HS_EALREADY;
+    }
+
+    if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
+        ble_hs_unlock();
+        return BLE_HS_EBUSY;
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_REMOVE_ADV_SET);
+
+    rc = ble_hs_hci_cmd_build_le_ext_adv_remove(instance, buf, sizeof(buf));
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    memset(&ble_gap_slave[instance], 0, sizeof(struct ble_gap_slave_state));
+    ble_hs_unlock();
+
+    return 0;
 }
 
 #endif
