@@ -154,6 +154,7 @@ struct ble_gap_slave_state {
     unsigned int scannable:1;
     unsigned int directed:1;
     unsigned int legacy_pdu:1;
+    unsigned int rnd_addr_set:1;
 
     os_time_t exp_os_ticks;
 
@@ -2504,15 +2505,50 @@ ble_gap_ext_adv_configure(uint8_t instance,
     return 0;
 }
 
+static int
+ble_gap_ext_adv_set_addr_no_lock(uint8_t instance, const uint8_t *addr)
+{
+    uint8_t buf[BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN];
+    int rc;
+
+    rc = ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(instance, addr, buf,
+                                                         sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                     BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR),
+                                     buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    ble_gap_slave[instance].rnd_addr_set = 1;
+
+    return 0;
+}
+
 int
 ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
 {
-    return -1;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES || addr->type != BLE_ADDR_RANDOM) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    rc = ble_gap_ext_adv_set_addr_no_lock(instance, addr->val);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
 ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
 {
+    const uint8_t *rnd_addr;
     uint8_t buf[6];
     struct hci_ext_adv_set set;
     uint16_t opcode;
@@ -2536,6 +2572,51 @@ ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
     if (ble_gap_slave[instance].directed && duration > 1280) {
         ble_hs_unlock();
         return BLE_HS_EINVAL;
+    }
+
+    /* verify own address type if random address for instance wasn't explicitly
+     * set
+     */
+    switch (ble_gap_slave[instance].our_addr_type) {
+    case BLE_OWN_ADDR_RANDOM:
+    case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
+        if (ble_gap_slave[instance].rnd_addr_set) {
+            break;
+        }
+        /* fall through */
+    case BLE_OWN_ADDR_PUBLIC:
+    case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
+    default:
+        rc = ble_hs_id_use_addr(ble_gap_slave[instance].our_addr_type);
+        if (rc) {
+            ble_hs_unlock();
+            return BLE_HS_EINVAL;
+        }
+        break;
+    }
+
+    /* fallback to ID static random address if using random address and instance
+     * wasn't configured with own address
+     */
+    if (!ble_gap_slave[instance].rnd_addr_set) {
+        switch (ble_gap_slave[instance].our_addr_type) {
+        case BLE_OWN_ADDR_RANDOM:
+        case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
+            rc = ble_hs_id_addr(BLE_ADDR_RANDOM, &rnd_addr, NULL);
+            if (rc != 0) {
+                ble_hs_unlock();
+                return rc;
+            }
+
+            rc = ble_gap_ext_adv_set_addr_no_lock(instance, rnd_addr);
+            if (rc != 0) {
+                ble_hs_unlock();
+                return rc;
+            }
+            break;
+        default:
+            break;
+        }
     }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE);
