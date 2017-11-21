@@ -1046,6 +1046,16 @@ struct hci_le_phy_upd_complete
     uint8_t rx_phy;
 };
 
+/* LE Advertising Set Terminated subevent*/
+struct hci_le_adv_set_terminated
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint8_t adv_handle;
+    uint16_t conn_handle;
+    uint8_t completed_events;
+};
+
 #define BLE_HCI_DATA_HDR_SZ                 4
 #define BLE_HCI_DATA_HANDLE(handle_pb_bc)   (((handle_pb_bc) & 0x0fff) >> 0)
 #define BLE_HCI_DATA_PB(handle_pb_bc)       (((handle_pb_bc) & 0x3000) >> 12)

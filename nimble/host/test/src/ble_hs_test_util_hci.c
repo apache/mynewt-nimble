@@ -539,7 +539,7 @@ ble_hs_test_util_hci_rx_conn_cancel_evt(void)
     evt.status = BLE_ERR_UNK_CONN_ID;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
 
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);
 }
 
