@@ -1168,7 +1168,9 @@ ble_gap_accept_slave_conn(uint8_t instance)
 {
     int rc;
 
-    if (!ble_gap_adv_active_instance(instance)) {
+    if (instance >= BLE_ADV_INSTANCES) {
+       rc = BLE_HS_ENOENT;
+    } else if (!ble_gap_adv_active_instance(instance)) {
         rc = BLE_HS_ENOENT;
     } else {
         if (ble_gap_slave[instance].connectable) {
@@ -1236,6 +1238,14 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
 
     ble_gap_disc_report(desc);
 }
+
+void
+ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
+{
+    /* TODO extended GAP event with conn handle and adv instance */
+
+    ble_gap_adv_finished(evt->adv_handle);
+}
 #endif
 
 static int
@@ -1261,9 +1271,10 @@ ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
 
 /**
  * Processes an incoming connection-complete HCI event.
+ * instance parameter is valid only for slave connection.
  */
 int
-ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
+ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
 {
 #if !NIMBLE_BLE_CONNECT
     return BLE_HS_ENOTSUP;
@@ -1313,9 +1324,12 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
             break;
 
         case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
+/* with ext advertising this is send from set terminated event */
+#if !MYNEWT_VAL(BLE_EXT_ADV)
             if (ble_gap_adv_active()) {
                 ble_gap_adv_finished(0);
             }
+#endif
             break;
 
         default:
@@ -1336,7 +1350,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         break;
 
     case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-        rc = ble_gap_accept_slave_conn(0);
+        rc = ble_gap_accept_slave_conn(instance);
         if (rc != 0) {
             return rc;
         }
@@ -1362,9 +1376,9 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt)
         conn->bhc_our_addr_type = ble_gap_master.conn.our_addr_type;
         ble_gap_master_reset_state();
     } else {
-        conn->bhc_cb = ble_gap_slave[0].cb;
-        conn->bhc_cb_arg = ble_gap_slave[0].cb_arg;
-        conn->bhc_our_addr_type = ble_gap_slave[0].our_addr_type;
+        conn->bhc_cb = ble_gap_slave[instance].cb;
+        conn->bhc_cb_arg = ble_gap_slave[instance].cb_arg;
+        conn->bhc_our_addr_type = ble_gap_slave[instance].our_addr_type;
         ble_gap_slave_reset_state(0);
     }
 

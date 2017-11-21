@@ -242,7 +242,7 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
     memcpy(evt.local_rpa, our_rpa, 6);
     memcpy(evt.peer_rpa, peer_rpa, 6);
 
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
 
     evt2.subevent_code = BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT;

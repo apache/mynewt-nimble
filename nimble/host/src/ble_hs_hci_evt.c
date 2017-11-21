@@ -50,6 +50,7 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_dir_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_phy_update_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_ext_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_rd_rem_used_feat_complete;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_adv_set_terminated;
 
 /* Statistics */
 struct host_hci_stats
@@ -101,6 +102,8 @@ static const struct ble_hs_hci_evt_le_dispatch_entry
     { BLE_HCI_LE_SUBEV_EXT_ADV_RPT, ble_hs_hci_evt_le_ext_adv_rpt },
     { BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT,
             ble_hs_hci_evt_le_rd_rem_used_feat_complete },
+    { BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED,
+            ble_hs_hci_evt_le_adv_set_terminated },
 };
 
 #define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
@@ -300,12 +303,15 @@ ble_hs_hci_evt_le_meta(uint8_t event_code, uint8_t *data, int len)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static struct hci_le_conn_complete pend_conn_complete;
+#endif
+
 static int
 ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
 {
     struct hci_le_conn_complete evt;
     int extended_offset = 0;
-    int rc;
 
     if (len < BLE_HCI_LE_CONN_COMPLETE_LEN) {
         return BLE_HS_ECONTROLLER;
@@ -348,12 +354,14 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
         }
     }
 
-    rc = ble_gap_rx_conn_complete(&evt);
-    if (rc != 0) {
-        return rc;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    if (evt.role == BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
+    /* store this until we get set terminated event with adv handle */
+        memcpy(&pend_conn_complete, &evt, sizeof(evt));
+        return 0;
     }
-
-    return 0;
+#endif
+    return ble_gap_rx_conn_complete(&evt, 0xff);
 }
 
 static int
@@ -591,6 +599,32 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         params += 1;
     }
 #endif
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_adv_set_terminated(uint8_t subevent, uint8_t *data, int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    struct hci_le_adv_set_terminated evt;
+
+    if (len < BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.subevent_code = data[0];
+    evt.status = data[1];
+    evt.adv_handle = data[2];
+    evt.conn_handle = get_le16(data + 3);
+    evt.completed_events = data[5];
+
+    if (evt.status == 0) {
+        /* ignore return code as we need to terminate advertising set anyway */
+        ble_gap_rx_conn_complete(&pend_conn_complete, evt.adv_handle);
+    }
+    ble_gap_rx_adv_set_terminated(&evt);
+#endif
+
     return 0;
 }
 
