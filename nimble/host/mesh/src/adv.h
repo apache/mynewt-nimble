@@ -31,27 +31,23 @@ enum bt_mesh_adv_type
 };
 
 typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, u16_t duration,
-				   int err);
+				   int err, void *user_data);
 
 struct bt_mesh_adv
 {
 	bt_mesh_adv_func_t sent;
-	u8_t 	type :2,
-		busy :1;
-	u8_t 	count :3,
-		adv_int :5;
-	union
-	{
-		/* Generic User Data */
-		u8_t user_data[2];
+	void *user_data;
 
+	u8_t      type:2,
+		  busy:1;
+	u8_t      count:3,
+		  adv_int:5;
+	union {
 		/* Address, used e.g. for Friend Queue messages */
 		u16_t addr;
 
 		/* For transport layer segment sending */
-		struct
-		{
-			u8_t tx_id;
+		struct {
 			u8_t attempts;
 		} seg;
 	};
@@ -72,7 +68,8 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 					     u8_t xmit_count, u8_t xmit_int,
 					     s32_t timeout);
 
-void bt_mesh_adv_send(struct os_mbuf *buf, bt_mesh_adv_func_t sent);
+void bt_mesh_adv_send(struct os_mbuf *buf, bt_mesh_adv_func_t sent,
+		      void *user_data);
 
 void bt_mesh_adv_update(void);
 

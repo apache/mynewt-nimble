@@ -128,7 +128,7 @@ static int send_unseg(struct bt_mesh_net_tx *tx, u8_t aid,
 		}
 	}
 
-	return bt_mesh_net_send(tx, buf, NULL);
+	return bt_mesh_net_send(tx, buf, NULL, NULL);
 }
 
 bool bt_mesh_tx_in_progress(void)
@@ -190,9 +190,10 @@ static inline void seg_tx_complete(struct seg_tx *tx, int err)
 	seg_tx_reset(tx);
 }
 
-static void seg_sent(struct os_mbuf *buf, u16_t duration, int err)
+static void seg_sent(struct os_mbuf *buf, u16_t duration, int err,
+		     void *user_data)
 {
-	struct seg_tx *tx = &seg_tx[BT_MESH_ADV(buf)->seg.tx_id];
+	struct seg_tx *tx = user_data;
 
 	k_delayed_work_submit(&tx->retransmit,
 			      duration + SEG_RETRANSMIT_TIMEOUT);
@@ -222,7 +223,8 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 
 		BT_DBG("resending %u/%u", i, tx->seg_n);
 
-		err = bt_mesh_net_resend(tx->sub, seg, tx->new_key, seg_sent);
+		err = bt_mesh_net_resend(tx->sub, seg, tx->new_key, seg_sent,
+					 tx);
 		if (err) {
 			BT_ERR("Sending segment failed");
 			seg_tx_complete(tx, -EIO);
@@ -307,7 +309,6 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, u8_t aid,
 			return -ENOBUFS;
 		}
 
-		BT_MESH_ADV(seg)->seg.tx_id = tx - seg_tx;
 		BT_MESH_ADV(seg)->seg.attempts = SEG_RETRANSMIT_ATTEMPTS;
 
 		net_buf_reserve(seg, BT_MESH_NET_HDR_LEN);
@@ -347,7 +348,7 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, u8_t aid,
 
 		BT_DBG("Sending %u/%u", seg_o, tx->seg_n);
 
-		err = bt_mesh_net_send(net_tx, seg, seg_sent);
+		err = bt_mesh_net_send(net_tx, seg, seg_sent, tx);
 		if (err) {
 			BT_ERR("Sending segment failed");
 			seg_tx_reset(tx);
@@ -818,7 +819,8 @@ static inline s32_t ack_timeout(struct seg_rx *rx)
 }
 
 int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
-		     size_t data_len, u64_t *seq_auth, bt_mesh_adv_func_t cb)
+		     size_t data_len, u64_t *seq_auth, bt_mesh_adv_func_t cb,
+		     void *user_data)
 {
 	struct os_mbuf *buf;
 
@@ -833,8 +835,6 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		BT_ERR("Out of transport buffers");
 		return -ENOBUFS;
 	}
-
-	BT_MESH_ADV(buf)->addr = tx->ctx->addr;
 
 	net_buf_reserve(buf, BT_MESH_NET_HDR_LEN);
 
@@ -854,7 +854,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		}
 	}
 
-	return bt_mesh_net_send(tx, buf, cb);
+	return bt_mesh_net_send(tx, buf, cb, user_data);
 }
 
 static int send_ack(struct bt_mesh_subnet *sub, u16_t src, u16_t dst,
@@ -894,7 +894,7 @@ static int send_ack(struct bt_mesh_subnet *sub, u16_t src, u16_t dst,
 	sys_put_be32(block, &buf[2]);
 
 	return bt_mesh_ctl_send(&tx, TRANS_CTL_OP_ACK, buf, sizeof(buf),
-				NULL, NULL);
+				NULL, NULL, NULL);
 }
 
 static void seg_rx_reset(struct seg_rx *rx)
