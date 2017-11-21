@@ -2729,16 +2729,205 @@ ble_gap_ext_adv_stop(uint8_t instance)
     return rc;
 }
 
+
+static int
+ble_gap_ext_adv_set_data_validate(uint8_t instance, struct os_mbuf *data)
+{
+    uint16_t len = OS_MBUF_PKTLEN(data);
+
+    if (!ble_gap_slave[instance].configured) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* not allowed with directed advertising */
+    if (ble_gap_slave[instance].directed) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* always allowed with legacy PDU but limited to legacy length */
+    if (ble_gap_slave[instance].legacy_pdu) {
+        if (len > BLE_HS_ADV_MAX_SZ) {
+            return BLE_HS_EINVAL;
+        }
+
+        return 0;
+    }
+
+    /* if already advertising, data must fit in single HCI command */
+    if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
+        if (len > min(MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE), 251)) {
+            return EINVAL;
+        }
+    }
+
+    /* not allowed with scannable advertising */
+    if (ble_gap_slave[instance].scannable) {
+        return BLE_HS_EINVAL;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
+{
+    /* in that case we always fit all data in single HCI command */
+#if MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) <= BLE_HCI_MAX_EXT_ADV_DATA_LEN
+    static uint8_t buf[BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + \
+                       MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)];
+    uint16_t len = OS_MBUF_PKTLEN(data);
+    int rc;
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, opcode);
+
+    rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
+                                    BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE,
+                                    0, data, len, buf, sizeof(buf));
+    if (rc) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
+                                       BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
+#else
+    static uint8_t buf[BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + \
+                       BLE_HCI_MAX_EXT_ADV_DATA_LEN];
+    uint16_t len = OS_MBUF_PKTLEN(data);
+    uint16_t off = 0;
+    uint8_t op;
+    int rc;
+
+    opcode =  BLE_HCI_OP(BLE_HCI_OGF_LE, opcode);
+
+    /* complete data */
+    if (len <= BLE_HCI_MAX_EXT_ADV_DATA_LEN) {
+        rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
+                                    BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE,
+                                    0, data, len, buf,sizeof(buf));
+        if (rc) {
+            return rc;
+        }
+
+        return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
+                                        BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
+    }
+
+    /* first fragment  */
+    op = BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST;
+
+    do {
+        rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance, op, 0, data,
+                                                  BLE_HCI_MAX_EXT_ADV_DATA_LEN,
+                                                  buf, sizeof(buf));
+        if (rc) {
+            return rc;
+        }
+        rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
+        if (rc) {
+            return rc;
+        }
+
+        len -= BLE_HCI_MAX_EXT_ADV_DATA_LEN;
+        off += BLE_HCI_MAX_EXT_ADV_DATA_LEN;
+        op = BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT;
+    } while (len > BLE_HCI_MAX_EXT_ADV_DATA_LEN);
+
+    /* last fragment */
+    rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
+                                        BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST,
+                                        0, data, len, buf, sizeof(buf));
+    if (rc) {
+        return rc;
+    }
+
+    return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
+                                       BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
+#endif
+}
+
 int
 ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data)
 {
-    return -1;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    rc = ble_gap_ext_adv_set_data_validate(instance, data);
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    rc = ble_gap_ext_adv_set(instance, BLE_HCI_OCF_LE_SET_EXT_ADV_DATA, data);
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
+static int
+ble_gap_ext_adv_rsp_set_validate(uint8_t instance,  struct os_mbuf *data)
+{
+    uint16_t len = OS_MBUF_PKTLEN(data);
+
+    if (!ble_gap_slave[instance].configured) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* not allowed with directed advertising */
+    if (ble_gap_slave[instance].directed) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* only allowed with scannable advertising */
+    if (!ble_gap_slave[instance].scannable) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* with legacy PDU limited to legacy length */
+    if (ble_gap_slave[instance].legacy_pdu) {
+        if (len > BLE_HS_ADV_MAX_SZ) {
+            return BLE_HS_EINVAL;
+        }
+
+        return 0;
+    }
+
+    /* if already advertising, data must fit in single HCI command */
+    if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
+        if (len > min(MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE), 251)) {
+            return EINVAL;
+        }
+    }
+
+    return 0;
 }
 
 int
 ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data)
 {
-    return -1;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    rc = ble_gap_ext_adv_rsp_set_validate(instance, data);
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    rc = ble_gap_ext_adv_set(instance, BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA,
+                             data);
+
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
