@@ -150,6 +150,10 @@ struct ble_gap_slave_state {
     unsigned int preempted:1;  /** Set to 1 if advertising was preempted. */
     unsigned int connectable:1;
 
+    unsigned int configured:1; /** If instance is configured */
+    unsigned int scannable:1;
+    unsigned int directed:1;
+
     os_time_t exp_os_ticks;
 
     ble_gap_event_fn *cb;
@@ -2538,7 +2542,53 @@ ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
 int
 ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
 {
-    return -1;
+    uint8_t buf[6];
+    struct hci_ext_adv_set set;
+    uint16_t opcode;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    if (!ble_gap_slave[instance].configured) {
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    if (ble_gap_slave[instance].op != BLE_GAP_OP_NULL) {
+        ble_hs_unlock();
+        return  BLE_HS_EALREADY;
+    }
+
+    if (ble_gap_slave[instance].directed && duration > 1280) {
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE);
+
+    set.handle = instance;
+    set.duration = duration;
+    set.events = max_events;
+
+    rc = ble_hs_hci_cmd_build_le_ext_adv_enable(1, 1, &set, buf, sizeof(buf));
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    ble_gap_slave[instance].op = BLE_GAP_OP_S_ADV;
+
+    ble_hs_unlock();
+    return 0;
 }
 
 int
