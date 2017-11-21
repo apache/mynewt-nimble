@@ -680,6 +680,41 @@ int ble_gap_adv_set_tx_power(int8_t tx_power);
 int ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy);
 #endif
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+struct ble_gap_ext_adv_params {
+    unsigned int connectable:1;
+    unsigned int scannable:1;
+    unsigned int directed:1;
+    unsigned int high_duty_directed:1;
+    unsigned int legacy_pdu:1;
+    unsigned int anonymous:1;
+    unsigned int include_tx_power:1;
+    unsigned int scan_req_notif:1;
+
+    uint32_t itvl_min;
+    uint32_t itvl_max;
+    uint8_t channel_map;
+    uint8_t own_addr_type;
+    ble_addr_t peer;
+    uint8_t filter_policy;
+    uint8_t primary_phy;
+    uint8_t secondary_phy;
+    int8_t tx_power;
+    uint8_t sid;
+};
+
+int ble_gap_ext_adv_configure(uint8_t instance,
+                              const struct ble_gap_ext_adv_params *params,
+                              int8_t *selected_tx_power,
+                              ble_gap_event_fn *cb, void *cb_arg);
+int ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr);
+int ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events);
+int ble_gap_ext_adv_stop(uint8_t instance);
+int ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data);
+int ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data);
+int ble_gap_ext_adv_remove(uint8_t instance);
+#endif
+
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_event_fn *cb, void *cb_arg);

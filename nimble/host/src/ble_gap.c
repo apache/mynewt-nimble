@@ -2519,6 +2519,52 @@ ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy)
 
     return 0;
 }
+
+int
+ble_gap_ext_adv_configure(uint8_t instance,
+                          const struct ble_gap_ext_adv_params *params,
+                          int8_t *selected_tx_power,
+                          ble_gap_event_fn *cb, void *cb_arg)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_stop(uint8_t instance)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data)
+{
+    return -1;
+}
+
+int
+ble_gap_ext_adv_remove(uint8_t instance)
+{
+    return -1;
+}
+
 #endif
 
 /*****************************************************************************
