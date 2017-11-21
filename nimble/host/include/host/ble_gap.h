@@ -372,11 +372,19 @@ struct ble_gap_event {
             /**
              * The reason the advertise procedure stopped.  Typical reason
              * codes are:
-             *     o 0: Duration expired.
+             *     o 0: Terminated due to connection.
+             *     o BLE_HS_ETIMEOUT: Duration expired.
              *     o BLE_HS_EPREEMPTED: Host aborted procedure to configure a
              *       peer's identity.
              */
             int reason;
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+            /** Advertising instance */
+            uint8_t instance;
+            /** The handle of the relevant connection - valid if reason=0 */
+            uint16_t conn_handle;
+#endif
         } adv_complete;
 
         /**

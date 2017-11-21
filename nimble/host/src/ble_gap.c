@@ -682,7 +682,7 @@ ble_gap_slave_extract_cb(uint8_t instance,
 }
 
 static void
-ble_gap_adv_finished(uint8_t instance)
+ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle)
 {
     struct ble_gap_event event;
     ble_gap_event_fn *cb;
@@ -692,7 +692,11 @@ ble_gap_adv_finished(uint8_t instance)
     if (cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_ADV_COMPLETE;
-        event.adv_complete.reason = 0;
+        event.adv_complete.reason = reason;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        event.adv_complete.instance = instance;
+        event.adv_complete.conn_handle = conn_handle;
+#endif
         cb(&event, cb_arg);
     }
 }
@@ -1243,9 +1247,20 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
 void
 ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
 {
-    /* TODO extended GAP event with conn handle and adv instance */
+    uint16_t conn_handle;
+    int reason;
 
-    ble_gap_adv_finished(evt->adv_handle);
+    /* Currently spec allows only 0x3c and 0x43 when advertising was stopped
+     * due to timeout or events limit, mp this for timeout error for now */
+    if (evt->status) {
+        reason = BLE_HS_ETIMEOUT;
+        conn_handle = 0;
+    } else {
+        reason = 0;
+        conn_handle = evt->conn_handle;
+    }
+
+    ble_gap_adv_finished(evt->adv_handle, reason, conn_handle);
 }
 #endif
 
@@ -1328,7 +1343,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
 /* with ext advertising this is send from set terminated event */
 #if !MYNEWT_VAL(BLE_EXT_ADV)
             if (ble_gap_adv_active()) {
-                ble_gap_adv_finished(0);
+                ble_gap_adv_finished(0, 0, 0);
             }
 #endif
             break;
@@ -1547,7 +1562,7 @@ ble_gap_slave_timer(void)
     ble_gap_slave_reset_state(0);
 
     /* Indicate to application that advertising has stopped. */
-    ble_gap_adv_finished(0);
+    ble_gap_adv_finished(0, BLE_HS_ETIMEOUT, 0);
 
     return BLE_HS_FOREVER;
 }
@@ -4619,6 +4634,11 @@ ble_gap_preempt_done(void)
     if (adv_preempted) {
         event.type = BLE_GAP_EVENT_ADV_COMPLETE;
         event.adv_complete.reason = BLE_HS_EPREEMPTED;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        /* TODO instance */
+        event.adv_complete.instance = 0;
+        event.adv_complete.conn_handle = 0;
+#endif
         ble_gap_call_event_cb(&event, slave_cb, slave_arg);
     }
 
