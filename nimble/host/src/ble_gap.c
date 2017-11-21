@@ -2355,18 +2355,6 @@ ble_gap_adv_active(void)
 }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-int
-ble_gap_adv_set_tx_power(int8_t tx_power)
-{
-    return BLE_HS_ENOTSUP;
-}
-
-int
-ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy)
-{
-    return BLE_HS_ENOTSUP;
-}
-
 static int
 ble_gap_ext_adv_params_tx(uint8_t instance,
                           const struct ble_gap_ext_adv_params *params,
