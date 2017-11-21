@@ -617,10 +617,21 @@ ble_gap_call_conn_event_cb(struct ble_gap_event *event, uint16_t conn_handle)
 static bool
 ble_gap_is_preempted(void)
 {
+    int i;
+
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
-    return ble_gap_slave[0].preempted ||
-           ble_gap_master.preempted_op != BLE_GAP_OP_NULL;
+    if (ble_gap_master.preempted_op != BLE_GAP_OP_NULL) {
+        return true;
+    }
+
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_slave[i].preempted) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void
@@ -1395,7 +1406,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
         conn->bhc_cb = ble_gap_slave[instance].cb;
         conn->bhc_cb_arg = ble_gap_slave[instance].cb_arg;
         conn->bhc_our_addr_type = ble_gap_slave[instance].our_addr_type;
-        ble_gap_slave_reset_state(0);
+        ble_gap_slave_reset_state(instance);
     }
 
     conn->bhc_peer_addr.type = evt->peer_addr_type;
@@ -2658,27 +2669,20 @@ ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
     return 0;
 }
 
-int
-ble_gap_ext_adv_stop(uint8_t instance)
+static int
+ble_gap_ext_adv_stop_no_lock(uint8_t instance)
 {
     uint8_t buf[6];
     struct hci_ext_adv_set set;
     uint16_t opcode;
     int rc;
 
-    if (instance >= BLE_ADV_INSTANCES) {
-        return BLE_HS_EINVAL;
-    }
-
-    ble_hs_lock();
     if (!ble_gap_slave[instance].configured) {
-        ble_hs_unlock();
         return BLE_HS_EINVAL;
     }
 
     if (ble_gap_slave[instance].op != BLE_GAP_OP_S_ADV) {
-        ble_hs_unlock();
-        return BLE_HS_EINVAL;
+        return BLE_HS_EALREADY;
     }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE);
@@ -2689,20 +2693,33 @@ ble_gap_ext_adv_stop(uint8_t instance)
 
     rc = ble_hs_hci_cmd_build_le_ext_adv_enable(0, 1, &set, buf, sizeof(buf));
     if (rc != 0) {
-        ble_hs_unlock();
         return rc;
     }
 
     rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
     if (rc != 0) {
-        ble_hs_unlock();
         return rc;
     }
 
     ble_gap_slave[instance].op = BLE_GAP_OP_NULL;
 
-    ble_hs_unlock();
     return 0;
+}
+
+int
+ble_gap_ext_adv_stop(uint8_t instance)
+{
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    rc = ble_gap_ext_adv_stop_no_lock(instance);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
@@ -4563,18 +4580,29 @@ void
 ble_gap_preempt(void)
 {
     int rc;
+    int i;
 
     (void)rc;
+    (void) i;
 
     ble_hs_lock();
 
     BLE_HS_DBG_ASSERT(!ble_gap_is_preempted());
 
 #if NIMBLE_BLE_ADVERTISE
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        rc = ble_gap_ext_adv_stop_no_lock(i);
+        if (rc == 0) {
+            ble_gap_slave[i].preempted = 1;
+        }
+    }
+#else
     rc = ble_gap_adv_stop_no_lock();
     if (rc == 0) {
         ble_gap_slave[0].preempted = 1;
     }
+#endif
 #endif
 
 #if NIMBLE_BLE_CONNECT
@@ -4599,27 +4627,36 @@ ble_gap_preempt(void)
  * initiaited.  This function should only be called after a call to
  * `ble_gap_preempt()`.
  */
+
+static struct os_mutex preempt_done_mutex;
+
 void
 ble_gap_preempt_done(void)
 {
     struct ble_gap_event event;
     ble_gap_event_fn *master_cb;
-    ble_gap_event_fn *slave_cb;
     void *master_arg;
-    void *slave_arg;
     int disc_preempted;
-    int adv_preempted;
+    int i;
+    static struct {
+        ble_gap_event_fn *cb;
+        void *arg;
+    } slaves[BLE_ADV_INSTANCES];
 
-    adv_preempted = 0;
     disc_preempted = 0;
+
+    /* protects slaves from accessing by multiple threads */
+    os_mutex_pend(&preempt_done_mutex, 0xFFFFFFFF);
+    memset(slaves, 0, sizeof(slaves));
 
     ble_hs_lock();
 
-    if (ble_gap_slave[0].preempted) {
-        ble_gap_slave[0].preempted = 0;
-        adv_preempted = 1;
-        slave_cb = ble_gap_slave[0].cb;
-        slave_arg = ble_gap_slave[0].cb_arg;
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_slave[i].preempted) {
+            ble_gap_slave[i].preempted = 0;
+            slaves[i].cb = ble_gap_slave[i].cb;
+            slaves[i].arg = ble_gap_slave[i].cb_arg;
+        }
     }
 
     if (ble_gap_master.preempted_op == BLE_GAP_OP_M_DISC) {
@@ -4631,16 +4668,19 @@ ble_gap_preempt_done(void)
 
     ble_hs_unlock();
 
-    if (adv_preempted) {
-        event.type = BLE_GAP_EVENT_ADV_COMPLETE;
-        event.adv_complete.reason = BLE_HS_EPREEMPTED;
+    event.type = BLE_GAP_EVENT_ADV_COMPLETE;
+    event.adv_complete.reason = BLE_HS_EPREEMPTED;
+
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (slaves[i].cb) {
 #if MYNEWT_VAL(BLE_EXT_ADV)
-        /* TODO instance */
-        event.adv_complete.instance = 0;
-        event.adv_complete.conn_handle = 0;
+            event.adv_complete.instance = i;
+            event.adv_complete.conn_handle = i;
 #endif
-        ble_gap_call_event_cb(&event, slave_cb, slave_arg);
+            ble_gap_call_event_cb(&event, slaves[i].cb, slaves[i].arg);
+        }
     }
+    os_mutex_release(&preempt_done_mutex);
 
     if (disc_preempted) {
         event.type = BLE_GAP_EVENT_DISC_COMPLETE;
@@ -4662,6 +4702,8 @@ ble_gap_init(void)
 
     memset(&ble_gap_master, 0, sizeof ble_gap_master);
     memset(ble_gap_slave, 0, sizeof ble_gap_slave);
+
+    os_mutex_init(&preempt_done_mutex);
 
     SLIST_INIT(&ble_gap_update_entries);
 
