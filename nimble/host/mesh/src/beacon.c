@@ -16,7 +16,7 @@
 #include "host/ble_hs_log.h"
 
 #include "adv.h"
-#include <mesh_priv.h>
+#include "mesh_priv.h"
 #include "net.h"
 #include "prov.h"
 #include "crypto.h"
