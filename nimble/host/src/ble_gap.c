@@ -153,6 +153,7 @@ struct ble_gap_slave_state {
     unsigned int configured:1; /** If instance is configured */
     unsigned int scannable:1;
     unsigned int directed:1;
+    unsigned int legacy_pdu:1;
 
     os_time_t exp_os_ticks;
 
@@ -2524,13 +2525,187 @@ ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy)
     return 0;
 }
 
+static int
+ble_gap_ext_adv_params_tx(uint8_t instance,
+                          const struct ble_gap_ext_adv_params *params,
+                          int8_t *selected_tx_power)
+
+{
+    struct hci_ext_adv_params hci_adv_params;
+    uint8_t buf[BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN];
+    uint8_t rsp;
+    int rc;
+
+    memset(&hci_adv_params, 0, sizeof(hci_adv_params));
+
+    if (params->connectable) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE;
+    }
+    if (params->scannable) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
+    }
+    if (params->directed) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED;
+        hci_adv_params.peer_addr_type = params->peer.type;
+        memcpy(hci_adv_params.peer_addr, params->peer.val, 6);
+    }
+    if (params->high_duty_directed) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED;
+    }
+    if (params->legacy_pdu) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
+    }
+    if (params->anonymous) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV;
+    }
+    if (params->include_tx_power) {
+        hci_adv_params.properties |= BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR;
+    }
+
+    /* Fill optional fields if application did not specify them. */
+    if (params->itvl_min == 0 && params->itvl_max == 0) {
+        /* TODO for now limited to legacy values*/
+        hci_adv_params.min_interval = BLE_GAP_ADV_FAST_INTERVAL1_MIN;
+        hci_adv_params.max_interval = BLE_GAP_ADV_FAST_INTERVAL2_MAX;
+
+    } else {
+        hci_adv_params.min_interval = params->itvl_min;
+        hci_adv_params.max_interval = params->itvl_max;
+    }
+
+    if (params->channel_map == 0) {
+        hci_adv_params.chan_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP;
+    } else {
+        hci_adv_params.chan_map = params->channel_map;
+    }
+
+    /* Zero is the default value for filter policy and high duty cycle */
+    hci_adv_params.filter_policy = params->filter_policy;
+    hci_adv_params.tx_power = params->tx_power;
+
+    if (params->legacy_pdu) {
+        hci_adv_params.primary_phy = BLE_HCI_LE_PHY_1M;
+        hci_adv_params.secondary_phy = BLE_HCI_LE_PHY_1M;
+    } else {
+        hci_adv_params.primary_phy = params->primary_phy;
+        hci_adv_params.secondary_phy = params->secondary_phy;
+    }
+
+    hci_adv_params.own_addr_type = params->own_addr_type;
+    hci_adv_params.max_skip = 0;
+    hci_adv_params.sid = params->sid;
+    hci_adv_params.scan_req_notif = params->scan_req_notif;
+
+    rc = ble_hs_hci_cmd_build_le_ext_adv_params(instance, &hci_adv_params,
+                                                buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_hci_cmd_tx(
+            BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM),
+            buf, sizeof(buf), &rsp, 1, NULL);
+
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (selected_tx_power) {
+        *selected_tx_power = rsp;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_ext_adv_params_validate(const struct ble_gap_ext_adv_params *params)
+{
+    if (!params) {
+        return BLE_HS_EINVAL;
+    }
+
+    if (params->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* Don't allow connectable advertising if we won't be able to allocate
+     * a new connection.
+     */
+    if (params->connectable && !ble_hs_conn_can_alloc()) {
+        return BLE_HS_ENOMEM;
+    }
+
+    if (params->legacy_pdu) {
+        /* not allowed for legacy PDUs */
+        if (params->anonymous || params->include_tx_power) {
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    if (params->directed) {
+        if (params->scannable) {
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    if (!params->legacy_pdu) {
+        /* not allowed for extended advertising PDUs */
+        if (params->connectable && params->scannable) {
+            return BLE_HS_EINVAL;
+        }
+
+        /* HD directed advertising allowed only for legacy PDUs */
+        if (params->high_duty_directed) {
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 int
 ble_gap_ext_adv_configure(uint8_t instance,
                           const struct ble_gap_ext_adv_params *params,
                           int8_t *selected_tx_power,
                           ble_gap_event_fn *cb, void *cb_arg)
 {
-    return -1;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return EINVAL;
+    }
+
+    rc = ble_gap_ext_adv_params_validate(params);
+    if (rc) {
+        return rc;
+    }
+
+    ble_hs_lock();
+
+    /* TODO should we allow to reconfigure existing instance? */
+    if (ble_gap_slave[instance].configured) {
+        ble_hs_unlock();
+        return ENOMEM;
+    }
+
+    rc = ble_gap_ext_adv_params_tx(instance, params, selected_tx_power);
+    if (rc) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    ble_gap_slave[instance].configured = 1;
+    ble_gap_slave[instance].cb = cb;
+    ble_gap_slave[instance].cb_arg = cb_arg;
+    ble_gap_slave[instance].our_addr_type = params->own_addr_type;
+
+    ble_gap_slave[instance].connectable = params->connectable;
+    ble_gap_slave[instance].scannable = params->scannable;
+    ble_gap_slave[instance].directed = params->directed;
+    ble_gap_slave[instance].legacy_pdu = params->legacy_pdu;
+
+    ble_hs_unlock();
+    return 0;
 }
 
 int
