@@ -317,10 +317,11 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		       bool proxy);
 
 int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
-		     bt_mesh_adv_func_t cb, void *user_data);
+		     const struct bt_mesh_adv_cb *cb, void *cb_data);
 
 int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
-		       bool new_key, bt_mesh_adv_func_t cb, void *user_data);
+		       bool new_key, const struct bt_mesh_adv_cb *cb,
+		       void *cb_data);
 
 int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf);

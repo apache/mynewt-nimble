@@ -183,8 +183,7 @@ static const struct bt_mesh_prov *prov;
 static void close_link(u8_t err, u8_t reason);
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
-static void buf_sent(struct os_mbuf *buf, u16_t duration, int err,
-		     void *user_data)
+static void buf_sent(int err, void *user_data)
 {
 	BT_DBG("buf_sent");
 
@@ -192,9 +191,12 @@ static void buf_sent(struct os_mbuf *buf, u16_t duration, int err,
 		return;
 	}
 
-	k_delayed_work_submit(&link.tx.retransmit,
-			      duration + RETRANSMIT_TIMEOUT);
+	k_delayed_work_submit(&link.tx.retransmit, RETRANSMIT_TIMEOUT);
 }
+
+static struct bt_mesh_adv_cb buf_sent_cb = {
+	.send_end = buf_sent,
+};
 
 static void free_segments(void)
 {
@@ -272,8 +274,7 @@ static struct os_mbuf *adv_buf_create(void)
 
 static u8_t pending_ack = XACT_NVAL;
 
-static void ack_complete(struct os_mbuf *buf, u16_t duration, int err,
-			 void *user_data)
+static void ack_complete(u16_t duration, int err, void *user_data)
 {
 	BT_DBG("xact %u complete", (u8_t)pending_ack);
 	pending_ack = XACT_NVAL;
@@ -281,7 +282,10 @@ static void ack_complete(struct os_mbuf *buf, u16_t duration, int err,
 
 static void gen_prov_ack_send(u8_t xact_id)
 {
-	bt_mesh_adv_func_t complete;
+	static const struct bt_mesh_adv_cb cb = {
+		.send_start = ack_complete,
+	};
+	const struct bt_mesh_adv_cb *complete;
 	struct os_mbuf *buf;
 
 	BT_DBG("xact_id %u", xact_id);
@@ -298,7 +302,7 @@ static void gen_prov_ack_send(u8_t xact_id)
 
 	if (pending_ack == XACT_NVAL) {
 		pending_ack = xact_id;
-		complete = ack_complete;
+		complete = &cb;
 	} else {
 		complete = NULL;
 	}
@@ -327,7 +331,7 @@ static void send_reliable(void)
 		if (i + 1 < ARRAY_SIZE(link.tx.buf) && link.tx.buf[i + 1]) {
 			bt_mesh_adv_send(buf, NULL, NULL);
 		} else {
-			bt_mesh_adv_send(buf, buf_sent, NULL);
+			bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
 		}
 	}
 }
@@ -1158,7 +1162,7 @@ static void prov_retransmit(struct os_event *work)
 		if (i + 1 < ARRAY_SIZE(link.tx.buf) && link.tx.buf[i + 1]) {
 			bt_mesh_adv_send(buf, NULL, NULL);
 		} else {
-			bt_mesh_adv_send(buf, buf_sent, NULL);
+			bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
 		}
 
 	}
