@@ -817,6 +817,19 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
 		if (bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
 		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
+			/* Notify completion if this only went
+			 * through the Mesh Proxy.
+			 */
+			if (cb) {
+				if (cb->send_start) {
+					cb->send_start(0, 0, cb_data);
+				}
+
+				if (cb->send_end) {
+					cb->send_end(0, cb_data);
+				}
+			}
+
 			err = 0;
 			goto done;
 		}
