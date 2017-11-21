@@ -684,11 +684,6 @@ int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-int ble_gap_adv_set_tx_power(int8_t tx_power);
-int ble_gap_adv_set_phys(uint8_t primary_phy, uint8_t secondary_phy);
-#endif
-
-#if MYNEWT_VAL(BLE_EXT_ADV)
 struct ble_gap_ext_adv_params {
     unsigned int connectable:1;
     unsigned int scannable:1;
