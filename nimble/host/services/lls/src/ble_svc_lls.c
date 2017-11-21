@@ -19,11 +19,13 @@
 
 #include <assert.h>
 #include <string.h>
+#include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/lls/ble_svc_lls.h"
 
 /* Callback function */
-static ble_svc_lls_event_fn *cb_fn; 
+static ble_svc_lls_event_fn *ble_svc_lls_cb_fn;
+
 /* Alert level */
 static uint8_t ble_svc_lls_alert_level;
 
@@ -42,10 +44,10 @@ static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
     {
         /*** Service: Link Loss Service (LLS). */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16(BLE_SVC_LLS_UUID16),
+        .uuid = BLE_UUID16_DECLARE(BLE_SVC_LLS_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) { {
             /*** Characteristic: Alert Level. */
-            .uuid = BLE_UUID16(BLE_SVC_LLS_CHR_UUID16_ALERT_LEVEL),
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_LLS_CHR_UUID16_ALERT_LEVEL),
             .access_cb = ble_svc_lls_access,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
         }, {
@@ -132,7 +134,7 @@ void
 ble_svc_lls_on_gap_disconnect(int reason)
 {
     if (reason == BLE_HS_HCI_ERR(BLE_ERR_CONN_SPVN_TMO)) {
-            cb_fn(ble_svc_lls_alert_level);
+            ble_svc_lls_cb_fn(ble_svc_lls_alert_level);
     } 
 }
 
@@ -165,37 +167,26 @@ ble_svc_lls_alert_level_set(uint8_t alert_level)
     return 0;
 }
 
+void
+ble_svc_lls_set_cb(ble_svc_lls_event_fn *cb)
+{
+    ble_svc_lls_cb_fn = cb;
+}
+
 /**
- * Initialize the LLS. The developer must specify the event function
- * callback for the LLS to function properly.
- *
- * @param initial_alert_level       The initial alert value to set
- * @param cb                        The callback function to call when 
- *                                      connection has been lost due to 
- *                                      link loss
+ * Initialize the IAS package.
  */
-int
-ble_svc_lls_init(struct ble_hs_cfg *cfg, uint8_t initial_alert_level,
-                 ble_svc_lls_event_fn *cb)
+void
+ble_svc_lls_init(void)
 {
     int rc;
-
-    if (!cb) {
-        return BLE_HS_EINVAL;
-    }
     
-    ble_svc_lls_alert_level = initial_alert_level;
-    cb_fn = cb;
+    /* Ensure this function only gets called by sysinit. */
+    SYSINIT_ASSERT_ACTIVE();
 
-    rc = ble_gatts_count_cfg(ble_svc_lls_defs, cfg);
-    if (rc != 0) {
-        return rc;
-    }
+    rc = ble_gatts_count_cfg(ble_svc_lls_defs);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_lls_defs);
-    if (rc != 0) {
-        return rc;
-    }
-    
-    return 0;
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
