@@ -146,7 +146,6 @@ struct ble_gap_slave_state {
     uint8_t op;
 
     unsigned int our_addr_type:2;
-    unsigned int exp_set:1;
     unsigned int preempted:1;  /** Set to 1 if advertising was preempted. */
     unsigned int connectable:1;
 
@@ -156,7 +155,11 @@ struct ble_gap_slave_state {
     unsigned int legacy_pdu:1;
     unsigned int rnd_addr_set:1;
 
+/* timer is used only with legacy advertising */
+#if !MYNEWT_VAL(BLE_EXT_ADV)
+    unsigned int exp_set:1;
     os_time_t exp_os_ticks;
+#endif
 
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -323,6 +326,7 @@ ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
     }
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                 const struct ble_gap_adv_params *adv_params)
@@ -341,6 +345,7 @@ ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                adv_params->itvl_min,
                adv_params->itvl_max);
 }
+#endif
 
 /*****************************************************************************
  * $snapshot                                                                 *
@@ -648,9 +653,11 @@ static void
 ble_gap_slave_reset_state(uint8_t instance)
 {
     ble_gap_slave[instance].op = BLE_GAP_OP_NULL;
-    ble_gap_slave[instance].exp_set = 0;
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
+    ble_gap_slave[instance].exp_set = 0;
     ble_hs_timer_resched();
+#endif
 }
 
 static bool
@@ -855,6 +862,7 @@ ble_gap_master_ticks_until_exp(void)
     return 0;
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static uint32_t
 ble_gap_slave_ticks_until_exp(void)
 {
@@ -874,6 +882,7 @@ ble_gap_slave_ticks_until_exp(void)
     /* Timer just expired. */
     return 0;
 }
+#endif
 
 /**
  * Finds the update procedure that expires soonest.
@@ -930,6 +939,7 @@ ble_gap_master_set_timer(uint32_t ticks_from_now)
     ble_hs_timer_resched();
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_slave_set_timer(uint32_t ticks_from_now)
 {
@@ -938,6 +948,7 @@ ble_gap_slave_set_timer(uint32_t ticks_from_now)
 
     ble_hs_timer_resched();
 }
+#endif
 
 /**
  * Called when an error is encountered while the master-connection-fsm is
@@ -1548,6 +1559,7 @@ ble_gap_master_timer(void)
     return BLE_HS_FOREVER;
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static int32_t
 ble_gap_slave_timer(void)
 {
@@ -1577,6 +1589,7 @@ ble_gap_slave_timer(void)
 
     return BLE_HS_FOREVER;
 }
+#endif
 
 static int32_t
 ble_gap_update_timer(void)
@@ -1654,13 +1667,18 @@ ble_gap_timer(void)
 {
     int32_t update_ticks;
     int32_t master_ticks;
-    int32_t slave_ticks;
+    int32_t min_ticks;
 
     master_ticks = ble_gap_master_timer();
-    slave_ticks = ble_gap_slave_timer();
     update_ticks = ble_gap_update_timer();
 
-    return min(min(master_ticks, slave_ticks), update_ticks);
+    min_ticks = min(master_ticks, update_ticks);
+
+#if !MYNEWT_VAL(BLE_EXT_ADV)
+    min_ticks = min(min_ticks, ble_gap_slave_timer());
+#endif
+
+    return min_ticks;
 }
 
 /*****************************************************************************
@@ -1875,7 +1893,7 @@ ble_gap_adv_stop(void)
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static int
 ble_gap_adv_type(const struct ble_gap_adv_params *adv_params)
 {
@@ -2052,6 +2070,7 @@ ble_gap_adv_validate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     return 0;
 }
+#endif
 
 /**
  * Initiates advertising.
@@ -2091,8 +2110,7 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
 {
 #if !NIMBLE_BLE_ADVERTISE || MYNEWT_VAL(BLE_EXT_ADV)
     return BLE_HS_ENOTSUP;
-#endif
-
+#else
     uint32_t duration_ticks;
     int rc;
 
@@ -2164,6 +2182,7 @@ done:
         STATS_INC(ble_gap_stats, adv_start_fail);
     }
     return rc;
+#endif
 }
 
 /**
