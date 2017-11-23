@@ -264,6 +264,11 @@ syscfg.defs:
             Enable support for the configuration client model.
         value: 0
 
+    BLE_MESH_HEALTH_CLI:
+        description: >
+            Enable support for the health client model.
+        value: 0
+
     BLE_MESH_SHELL:
         description: >
             Activate shell module that provides Bluetooth Mesh commands to
@@ -354,6 +359,7 @@ syscfg.defs:
 
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
+    BLE_MESH_HEALTH_CLI: 1
 
 syscfg.vals.BLE_MESH_GATT_PROXY:
     BLE_MESH_PROXY: 1

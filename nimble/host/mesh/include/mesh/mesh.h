@@ -24,6 +24,10 @@
 #include "cfg_cli.h"
 #endif
 
+#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
+#include "health_cli.h"
+#endif
+
 #if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 #include "proxy.h"
 #endif
