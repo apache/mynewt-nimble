@@ -129,6 +129,7 @@ struct prov_link {
 	u8_t  conf_inputs[145];  /* ConfirmationInputs */
 	u8_t  prov_salt[16];     /* Provisioning Salt */
 
+#if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	u32_t id;                /* Link ID */
 
 	struct {
@@ -140,7 +141,6 @@ struct prov_link {
 		struct os_mbuf *buf;
 	} rx;
 
-#if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	struct {
 		/* Start timestamp of the transaction */
 		s64_t start;
@@ -227,7 +227,7 @@ static void prov_clear_tx(void)
 
 static void reset_link(void)
 {
-    atomic_clear_bit(link.flags, LINK_ACTIVE);
+	atomic_clear_bit(link.flags, LINK_ACTIVE);
 
 	prov_clear_tx();
 
@@ -388,7 +388,7 @@ static int prov_send_adv(struct os_mbuf *msg)
 	u8_t seg_len, seg_id;
 	u8_t xact_id;
 
-	BT_DBG("prov_send_adv len %u: %s", msg->om_len, bt_hex(msg->om_data, msg->om_len));
+	BT_DBG("len %u: %s", msg->om_len, bt_hex(msg->om_data, msg->om_len));
 
 	prov_clear_tx();
 
@@ -451,7 +451,7 @@ static int prov_send_adv(struct os_mbuf *msg)
 static int prov_send_gatt(struct os_mbuf *msg)
 {
 	if (!link.conn_handle) {
-	    BT_ERR("No connection handle!?");
+		BT_ERR("No connection handle!?");
 		return -ENOTCONN;
 	}
 
@@ -481,12 +481,12 @@ static void prov_buf_init(struct os_mbuf *buf, u8_t type)
 
 static void prov_send_fail_msg(u8_t err)
 {
-    struct os_mbuf *buf = PROV_BUF(2);
+	struct os_mbuf *buf = PROV_BUF(2);
 
-    prov_buf_init(buf, PROV_FAILED);
-    net_buf_simple_add_u8(buf, err);
-    prov_send(buf);
-    os_mbuf_free_chain(buf);
+	prov_buf_init(buf, PROV_FAILED);
+	net_buf_simple_add_u8(buf, err);
+	prov_send(buf);
+	os_mbuf_free_chain(buf);
 }
 
 static void prov_invite(const u8_t *data)
@@ -883,7 +883,7 @@ static void send_pub_key(void)
 
 	memcpy(&link.conf_inputs[81], &buf->om_data[1], 64);
 
-    BT_DBG("Local Public Key: %s", bt_hex(&buf->om_data[1], 64));
+	BT_DBG("Local Public Key: %s", bt_hex(&buf->om_data[1], 64));
 
 	prov_send(buf);
 
@@ -1133,7 +1133,7 @@ static void prov_retransmit(struct os_event *work)
 {
 	int i;
 
-	BT_DBG("prov_retransmit");
+	BT_DBG("");
 
 	if (!atomic_test_bit(link.flags, LINK_ACTIVE)) {
 		BT_WARN("Link not active");
@@ -1411,7 +1411,7 @@ static void gen_prov_recv(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-    BT_INFO("prov_action: %d", GPCF(rx->gpc));
+	BT_INFO("prov_action: %d", GPCF(rx->gpc));
 	gen_prov[GPCF(rx->gpc)].func(rx, buf);
 }
 

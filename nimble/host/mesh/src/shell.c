@@ -365,15 +365,15 @@ static const struct bt_mesh_prov prov = {
 static int cmd_init(int argc, char *argv[])
 {
 	int err;
-    ble_addr_t addr;
+	ble_addr_t addr;
 
-    /* Use NRPA */
-    err = ble_hs_id_gen_rnd(1, &addr);
-    assert(err == 0);
-    err = ble_hs_id_set_rnd(addr.val);
-    assert(err == 0);
+	/* Use NRPA */
+	err = ble_hs_id_gen_rnd(1, &addr);
+	assert(err == 0);
+	err = ble_hs_id_set_rnd(addr.val);
+	assert(err == 0);
 
-    err = bt_mesh_init(addr.type, &prov, &comp);
+	err = bt_mesh_init(addr.type, &prov, &comp);
 	if (err) {
 		printk("Mesh initialization failed (err %d)\n", err);
 	}

@@ -1047,7 +1047,6 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	struct os_mbuf *buf;
 	u8_t nid, transmit;
 
-
 	if (rx->net_if != BT_MESH_NET_IF_LOCAL && rx->ctx.recv_ttl <= 1) {
 		return;
 	}
