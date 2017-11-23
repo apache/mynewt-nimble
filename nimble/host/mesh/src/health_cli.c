@@ -73,8 +73,35 @@ static void health_fault_status(struct bt_mesh_model *model,
 	k_sem_give(&health_cli->op_sync);
 }
 
+static void health_current_status(struct bt_mesh_model *model,
+				  struct bt_mesh_msg_ctx *ctx,
+				  struct os_mbuf *buf)
+{
+	struct bt_mesh_health_cli *cli = model->user_data;
+	u8_t test_id;
+	u16_t cid;
+
+	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
+	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
+	       bt_hex(buf->om_data, buf->om_len));
+
+	test_id = net_buf_simple_pull_u8(buf);
+	cid = net_buf_simple_pull_le16(buf);
+
+	BT_DBG("Test ID 0x%02x Company ID 0x%04x Fault Count %u",
+	       test_id, cid, buf->om_len);
+
+	if (!cli->current_status) {
+		BT_WARN("No Current Status callback available");
+		return;
+	}
+
+	cli->current_status(cli, ctx->addr, test_id, cid, buf->om_data, buf->om_len);
+}
+
 const struct bt_mesh_model_op bt_mesh_health_cli_op[] = {
 	{ OP_HEALTH_FAULT_STATUS,    3,   health_fault_status },
+	{ OP_HEALTH_CURRENT_STATUS,  3,   health_current_status },
 	BT_MESH_MODEL_OP_END,
 };
 
