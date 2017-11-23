@@ -649,18 +649,11 @@ static void send_friend_clear(struct bt_mesh_friend *frnd)
 static void clear_timeout(struct os_event *work)
 {
 	struct bt_mesh_friend *frnd = work->ev_arg;
-	u32_t now, duration;
+	u32_t duration;
 
 	BT_DBG("LPN 0x%04x (old) Friend 0x%04x", frnd->lpn, frnd->clear.frnd);
 
-	now = k_uptime_get_32();
-	/* Handle time wrap-around due to 32-bit limit */
-	if (now < frnd->clear.start) {
-		duration = (UINT32_MAX - frnd->clear.start) + now;
-	} else {
-		duration = now - frnd->clear.start;
-	}
-
+	duration = k_uptime_get_32() - frnd->clear.start;
 	if (duration > 2 * frnd->poll_to) {
 		BT_DBG("Clear Procedure timer expired");
 		frnd->clear.frnd = BT_MESH_ADDR_UNASSIGNED;
