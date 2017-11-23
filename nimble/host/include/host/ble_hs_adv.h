@@ -158,6 +158,9 @@ struct ble_hs_adv_fields {
 
 #define BLE_HS_ADV_SVC_DATA_UUID128_MIN_LEN     16
 
+int ble_hs_adv_set_fields_mbuf(const struct ble_hs_adv_fields *adv_fields,
+                               struct os_mbuf *om);
+
 int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
                           uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
 

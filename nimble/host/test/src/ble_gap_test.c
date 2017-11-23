@@ -860,7 +860,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_good)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, peer_addr.val, 6);
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -1008,7 +1008,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
     evt.status = BLE_ERR_CONN_ACCEPT_TMO;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
 
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure failed connect was reported to application. */
@@ -1055,7 +1055,7 @@ ble_gap_test_util_conn_cancel(uint8_t hci_status)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
 
@@ -1134,7 +1134,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
     memcpy(evt.peer_addr, peer_addr, 6);
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -1492,7 +1492,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
             evt.connection_handle = 2;
             evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
             memcpy(evt.peer_addr, peer_addr->val, 6);
-            rc = ble_gap_rx_conn_complete(&evt);
+            rc = ble_gap_rx_conn_complete(&evt, 0);
             TEST_ASSERT(rc == 0);
 
             if (connect_status == 0 ||
@@ -2773,7 +2773,7 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure the GAP event was triggered. */
