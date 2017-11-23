@@ -154,6 +154,21 @@ static int check_cli(void)
 	return 0;
 }
 
+static int cli_wait(void *param, u32_t op)
+{
+	int err;
+
+	health_cli->op_param = param;
+	health_cli->op_pending = op;
+
+	err = k_sem_take(&health_cli->op_sync, msg_timeout);
+
+	health_cli->op_pending = 0;
+	health_cli->op_param = NULL;
+
+	return err;
+}
+
 int bt_mesh_health_period_get(u16_t net_idx, u16_t addr, u16_t app_idx,
 			      u8_t *divisor)
 {
@@ -182,15 +197,7 @@ int bt_mesh_health_period_get(u16_t net_idx, u16_t addr, u16_t app_idx,
 		return err;
 	}
 
-	health_cli->op_param = &param;
-	health_cli->op_pending = OP_HEALTH_PERIOD_STATUS;
-
-	err = k_sem_take(&health_cli->op_sync, msg_timeout);
-
-	health_cli->op_pending = 0;
-	health_cli->op_param = NULL;
-
-	return err;
+	return cli_wait(&param, OP_HEALTH_PERIOD_STATUS);
 }
 
 int bt_mesh_health_period_set(u16_t net_idx, u16_t addr, u16_t app_idx,
@@ -231,15 +238,7 @@ int bt_mesh_health_period_set(u16_t net_idx, u16_t addr, u16_t app_idx,
 		return 0;
 	}
 
-	health_cli->op_param = &param;
-	health_cli->op_pending = OP_HEALTH_PERIOD_STATUS;
-
-	err = k_sem_take(&health_cli->op_sync, msg_timeout);
-
-	health_cli->op_pending = 0;
-	health_cli->op_param = NULL;
-
-	return err;
+	return cli_wait(&param, OP_HEALTH_PERIOD_STATUS);
 }
 
 int bt_mesh_health_fault_test(u16_t net_idx, u16_t addr, u16_t app_idx,
@@ -285,15 +284,7 @@ int bt_mesh_health_fault_test(u16_t net_idx, u16_t addr, u16_t app_idx,
 		return 0;
 	}
 
-	health_cli->op_param = &param;
-	health_cli->op_pending = OP_HEALTH_FAULT_STATUS;
-
-	err = k_sem_take(&health_cli->op_sync, msg_timeout);
-
-	health_cli->op_pending = 0;
-	health_cli->op_param = NULL;
-
-	return err;
+	return cli_wait(&param, OP_HEALTH_FAULT_STATUS);
 }
 
 int bt_mesh_health_fault_clear(u16_t net_idx, u16_t addr, u16_t app_idx,
@@ -338,15 +329,7 @@ int bt_mesh_health_fault_clear(u16_t net_idx, u16_t addr, u16_t app_idx,
 		return 0;
 	}
 
-	health_cli->op_param = &param;
-	health_cli->op_pending = OP_HEALTH_FAULT_STATUS;
-
-	err = k_sem_take(&health_cli->op_sync, msg_timeout);
-
-	health_cli->op_pending = 0;
-	health_cli->op_param = NULL;
-
-	return err;
+	return cli_wait(&param, OP_HEALTH_FAULT_STATUS);
 }
 
 int bt_mesh_health_fault_get(u16_t net_idx, u16_t addr, u16_t app_idx,
@@ -382,15 +365,7 @@ int bt_mesh_health_fault_get(u16_t net_idx, u16_t addr, u16_t app_idx,
 		return err;
 	}
 
-	health_cli->op_param = &param;
-	health_cli->op_pending = OP_HEALTH_FAULT_STATUS;
-
-	err = k_sem_take(&health_cli->op_sync, msg_timeout);
-
-	health_cli->op_pending = 0;
-	health_cli->op_param = NULL;
-
-	return err;
+	return cli_wait(&param, OP_HEALTH_FAULT_STATUS);
 }
 
 s32_t bt_mesh_health_cli_timeout_get(void)
