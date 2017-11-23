@@ -1341,6 +1341,61 @@ struct shell_cmd_help cmd_fault_get_help = {
 	NULL, "<Company ID>", NULL
 };
 
+static int cmd_fault_clear(int argc, char *argv[])
+{
+	u8_t faults[32];
+	size_t fault_count;
+	u8_t test_id;
+	u16_t cid;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	cid = strtoul(argv[1], NULL, 0);
+	fault_count = sizeof(faults);
+
+	err = bt_mesh_health_fault_clear(net.net_idx, net.dst, net.app_idx,
+					 cid, &test_id, faults, &fault_count);
+	if (err) {
+		printk("Failed to send Health Fault Clear (err %d)\n", err);
+	} else {
+		show_faults(test_id, cid, faults, fault_count);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_fault_clear_help = {
+	NULL, "<Company ID>", NULL
+};
+
+static int cmd_fault_clear_unack(int argc, char *argv[])
+{
+	u16_t cid;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	cid = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_health_fault_clear(net.net_idx, net.dst, net.app_idx,
+					 cid, NULL, NULL, NULL);
+	if (err) {
+		printk("Health Fault Clear Unacknowledged failed (err %d)\n",
+		       err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_fault_clear_unack_help = {
+	NULL, "<Company ID>", NULL
+};
+
 static int cmd_add_fault(int argc, char *argv[])
 {
 	u8_t fault_id;
@@ -1461,6 +1516,8 @@ static const struct shell_cmd mesh_commands[] = {
 
 	/* Health Client Model Operations */
 	{ "fault-get", cmd_fault_get, &cmd_fault_get_help },
+	{ "fault-clear", cmd_fault_clear, &cmd_fault_clear_help },
+	{ "fault-clear-unack", cmd_fault_clear_unack, &cmd_fault_clear_unack_help },
 
 	/* Health Server Model Operations */
 	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
