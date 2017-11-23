@@ -239,7 +239,10 @@ static void send_attention_status(struct bt_mesh_model *model,
 
 	net_buf_simple_add_u8(msg, time);
 
-	bt_mesh_model_send(model, ctx, msg, NULL, NULL);
+	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+		BT_ERR("Unable to send Attention Status");
+	}
+
 	os_mbuf_free_chain(msg);
 }
 
@@ -286,7 +289,10 @@ static void send_health_period_status(struct bt_mesh_model *model,
 
 	net_buf_simple_add_u8(msg, model->pub->period_div);
 
-	bt_mesh_model_send(model, ctx, msg, NULL, NULL);
+	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+		BT_ERR("Unable to send Health Period Status");
+	}
+
 	os_mbuf_free_chain(msg);
 }
 
