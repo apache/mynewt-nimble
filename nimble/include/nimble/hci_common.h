@@ -491,6 +491,9 @@ extern "C" {
 #define BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN  (0x0010)
 
 /* --- LE set extended advertising data (OCF 0x0037) */
+#define BLE_HCI_MAX_EXT_ADV_DATA_LEN                (251)
+#define BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN            (4)
+
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT        (0)
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST      (1)
@@ -499,6 +502,9 @@ extern "C" {
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED  (4)
 
 /* --- LE set extended scan response data (OCF 0x0038) */
+#define BLE_HCI_MAX_EXT_SCAN_RSP_DATA_LEN           (251)
+#define BLE_HCI_SET_EXT_SCAN_RSP_DATA_HDR_LEN       (4)
+
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN        BLE_HCI_VARIABLE_LEN
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT        (0)
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST      (1)
@@ -1044,6 +1050,16 @@ struct hci_le_phy_upd_complete
     uint16_t connection_handle;
     uint8_t tx_phy;
     uint8_t rx_phy;
+};
+
+/* LE Advertising Set Terminated subevent*/
+struct hci_le_adv_set_terminated
+{
+    uint8_t subevent_code;
+    uint8_t status;
+    uint8_t adv_handle;
+    uint16_t conn_handle;
+    uint8_t completed_events;
 };
 
 #define BLE_HCI_DATA_HDR_SZ                 4

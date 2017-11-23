@@ -1471,8 +1471,8 @@ ble_hs_hci_cmd_build_le_ext_adv_set_random_addr(uint8_t handle,
 
 int
 ble_hs_hci_cmd_build_le_ext_adv_data(uint8_t handle, uint8_t operation,
-                                     uint8_t frag_pref,
-                                     const uint8_t *data, uint8_t data_len,
+                                     uint8_t frag_pref, struct os_mbuf *data,
+                                     uint8_t data_len,
                                      uint8_t *cmd, int cmd_len)
 {
     BLE_HS_DBG_ASSERT(cmd_len >= 4 + data_len);
@@ -1481,24 +1481,7 @@ ble_hs_hci_cmd_build_le_ext_adv_data(uint8_t handle, uint8_t operation,
     cmd[1] = operation;
     cmd[2] = frag_pref;
     cmd[3] = data_len;
-    memcpy(cmd + 4, data, data_len);
-
-    return 0;
-}
-
-int
-ble_hs_hci_cmd_build_le_ext_adv_scan_rsp(uint8_t handle, uint8_t operation,
-                                         uint8_t frag_pref,
-                                         const uint8_t *data, uint8_t data_len,
-                                         uint8_t *cmd, int cmd_len)
-{
-    BLE_HS_DBG_ASSERT(cmd_len >= 4 + data_len);
-
-    cmd[0] = handle;
-    cmd[1] = operation;
-    cmd[2] = frag_pref;
-    cmd[3] = data_len;
-    memcpy(cmd + 4, data, data_len);
+    os_mbuf_copydata(data, 0, data_len, cmd + 4);
 
     return 0;
 }
@@ -1557,6 +1540,16 @@ ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
     cmd[22] = params->secondary_phy;
     cmd[23] = params->sid;
     cmd[24] = params->scan_req_notif;
+
+    return 0;
+}
+int
+ble_hs_hci_cmd_build_le_ext_adv_remove(uint8_t handle,
+                                       uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_REMOVE_ADV_SET_LEN);
+
+    cmd[0] = handle;
 
     return 0;
 }

@@ -154,7 +154,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     memcpy(evt.peer_addr, addr.val, 6);
-    rc = ble_gap_rx_conn_complete(&evt);
+    rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
 
     /* The connection should now be created. */
@@ -316,7 +316,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 1;
     memcpy(conn_evt.peer_addr, addr1.val, 6);
-    rc = ble_gap_rx_conn_complete(&conn_evt);
+    rc = ble_gap_rx_conn_complete(&conn_evt, 0);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
@@ -330,7 +330,7 @@ ble_gap_terminate_test_task_handler(void *arg)
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 2;
     memcpy(conn_evt.peer_addr, addr2.val, 6);
-    rc = ble_gap_rx_conn_complete(&conn_evt);
+    rc = ble_gap_rx_conn_complete(&conn_evt, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT_FATAL(ble_os_test_misc_conn_exists(1));
