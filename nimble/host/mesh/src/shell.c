@@ -74,6 +74,24 @@ health_pub_init(void)
 static struct bt_mesh_cfg_cli cfg_cli = {
 };
 
+void show_faults(u8_t test_id, u16_t cid, u8_t *faults, size_t fault_count)
+{
+	size_t i;
+
+	if (!fault_count) {
+		printk("Health Test ID 0x%02x Company ID 0x%04x: no faults\n",
+		       test_id, cid);
+		return;
+	}
+
+	printk("Health Test ID 0x%02x Company ID 0x%04x Fault Count %zu:\n",
+	       test_id, cid, fault_count);
+
+	for (i = 0; i < fault_count; i++) {
+		printk("\t0x%02x\n", faults[i]);
+	}
+}
+
 static struct bt_mesh_health_cli health_cli = {
 };
 
@@ -1205,6 +1223,36 @@ struct shell_cmd_help cmd_timeout_help = {
 	NULL, "[timeout in seconds]", NULL
 };
 
+static int cmd_fault_get(int argc, char *argv[])
+{
+	u8_t faults[32];
+	size_t fault_count;
+	u8_t test_id;
+	u16_t cid;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	cid = strtoul(argv[1], NULL, 0);
+	fault_count = sizeof(faults);
+
+	err = bt_mesh_health_fault_get(net.net_idx, net.dst, net.app_idx, cid,
+				       &test_id, faults, &fault_count);
+	if (err) {
+		printk("Failed to send Health Fault Get (err %d)\n", err);
+	} else {
+		show_faults(test_id, cid, faults, fault_count);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_fault_get_help = {
+	NULL, "<Company ID>", NULL
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
@@ -1227,6 +1275,8 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "dst", cmd_dst, &cmd_dst_help },
 	{ "netidx", cmd_netidx, &cmd_netidx_help },
 	{ "appidx", cmd_appidx, &cmd_appidx_help },
+
+	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
 	{ "beacon", cmd_beacon, &cmd_beacon_help },
 	{ "ttl", cmd_ttl, &cmd_ttl_help},
@@ -1240,6 +1290,10 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "mod-sub-del", cmd_mod_sub_del, &cmd_mod_sub_del_help },
 	{ "hb-sub", cmd_hb_sub, &cmd_hb_sub_help },
 	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
+
+	/* Health Client Model Operations */
+	{ "fault-get", cmd_fault_get, &cmd_fault_get_help },
+
 	{ NULL, NULL, NULL}
 };
 
