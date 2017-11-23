@@ -577,12 +577,17 @@ bool bt_mesh_iv_update(u32_t iv_index, bool iv_update)
 			BT_DBG("Already in IV Update in Progress state");
 			return false;
 		}
-	} else  {
+	} else {
 		/* We're currently in Normal mode */
+
+		if (iv_index == bt_mesh.iv_index) {
+			BT_DBG("Same IV Index in normal mode");
+			return false;
+		}
 
 		if (iv_index < bt_mesh.iv_index ||
 		    iv_index > bt_mesh.iv_index + 42) {
-			BT_ERR("IV Index out of sync: " "0x%08x != 0x%08x",
+			BT_ERR("IV Index out of sync: 0x%08x != 0x%08x",
 			       iv_index, bt_mesh.iv_index);
 			return false;
 		}
@@ -596,14 +601,13 @@ bool bt_mesh_iv_update(u32_t iv_index, bool iv_update)
 		}
 
 		if (iv_index == bt_mesh.iv_index + 1 && !iv_update) {
-			BT_WARN("Ignoring new index in normal mode",
-				iv_index, bt_mesh.iv_index);
+			BT_WARN("Ignoring new index in normal mode");
 			return false;
 		}
 
 		if (!iv_update) {
 			/* Nothing to do */
-			BT_DBG("Already in Normal mode");
+			BT_DBG("Already in Normal state");
 			return false;
 		}
 
@@ -657,7 +661,7 @@ do_update:
 		}
 	}
 
-	return false;
+	return true;
 }
 
 int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
