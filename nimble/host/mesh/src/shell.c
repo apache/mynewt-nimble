@@ -1454,6 +1454,76 @@ struct shell_cmd_help cmd_fault_test_unack_help = {
 	NULL, "<Company ID> <Test ID>", NULL
 };
 
+static int cmd_period_get(int argc, char *argv[])
+{
+	u8_t divisor;
+	int err;
+
+	err = bt_mesh_health_period_get(net.net_idx, net.dst, net.app_idx,
+					&divisor);
+	if (err) {
+		printk("Failed to send Health Period Get (err %d)\n", err);
+	} else {
+		printk("Health FastPeriodDivisor: %u\n", divisor);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_period_get_help = {
+	NULL, "", NULL
+};
+
+static int cmd_period_set(int argc, char *argv[])
+{
+	u8_t divisor, updated_divisor;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	divisor = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_health_period_set(net.net_idx, net.dst, net.app_idx,
+					divisor, &updated_divisor);
+	if (err) {
+		printk("Failed to send Health Period Set (err %d)\n", err);
+	} else {
+		printk("Health FastPeriodDivisor: %u\n", updated_divisor);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_period_set_help = {
+	NULL, "<divisor>", NULL
+};
+
+static int cmd_period_set_unack(int argc, char *argv[])
+{
+	u8_t divisor;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	divisor = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_health_period_set(net.net_idx, net.dst, net.app_idx,
+					divisor, NULL);
+	if (err) {
+		printk("Failed to send Health Period Set (err %d)\n", err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_period_set_unack_help = {
+	NULL, "<divisor>", NULL
+};
+
 static int cmd_add_fault(int argc, char *argv[])
 {
 	u8_t fault_id;
@@ -1578,6 +1648,9 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "fault-clear-unack", cmd_fault_clear_unack, &cmd_fault_clear_unack_help },
 	{ "fault-test", cmd_fault_test, &cmd_fault_test_help },
 	{ "fault-test-unack", cmd_fault_test_unack, &cmd_fault_test_unack_help },
+	{ "period-get", cmd_period_get, &cmd_period_get_help },
+	{ "period-set", cmd_period_set, &cmd_period_set_help },
+	{ "period-set-unack", cmd_period_set_unack, &cmd_period_set_unack_help },
 
 	/* Health Server Model Operations */
 	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
