@@ -49,7 +49,6 @@
 #define u64_t   uint64_t
 #define s64_t   int64_t
 #define s32_t   int32_t
-typedef size_t ssize_t;
 
 /** @brief Helper to declare elements of bt_data arrays
  *

@@ -31,4 +31,4 @@ pkg.deps:
     - net/nimble/host
 
 pkg.init:
-    ble_svc_ans_init: 300
+    ble_svc_ans_init: 303
