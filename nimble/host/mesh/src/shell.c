@@ -9,6 +9,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_MESH_SHELL)
+
 #include <stdlib.h>
 #include <errno.h>
 #include "shell/shell.h"
@@ -1222,3 +1226,5 @@ void mesh_shell_init(void)
 	health_pub_init();
 	shell_register("mesh", mesh_commands);
 }
+
+#endif

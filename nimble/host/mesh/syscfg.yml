@@ -351,7 +351,9 @@ syscfg.defs:
         description: >
             Device UUID
         value: ((uint8_t[16]){0x11, 0x22, 0})
-        
+
+syscfg.vals.BLE_MESH_SHELL:
+    BLE_MESH_CFG_CLI: 1
 
 syscfg.vals.BLE_MESH_GATT_PROXY:
     BLE_MESH_PROXY: 1

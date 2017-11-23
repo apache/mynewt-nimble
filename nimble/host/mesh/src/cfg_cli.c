@@ -6,14 +6,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <string.h>
-#include <errno.h>
-#include <stdbool.h>
-
 #include "syscfg/syscfg.h"
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
+
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 #include "mesh/mesh.h"
 
+#include <string.h>
+#include <errno.h>
+#include <stdbool.h>
 
 #include "foundation.h"
 
@@ -1297,3 +1298,5 @@ int bt_mesh_cfg_cli_init(struct bt_mesh_model *model, bool primary)
 
 	return 0;
 }
+
+#endif
