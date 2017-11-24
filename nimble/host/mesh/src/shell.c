@@ -901,7 +901,7 @@ static int cmd_app_key_add(int argc, char *argv[])
 }
 
 struct shell_cmd_help cmd_app_key_add_help = {
-	NULL, "<NetKeyIndex> <AppKeyIndex> <val>", NULL
+	NULL, "<NetKeyIndex> <AppKeyIndex> [val]", NULL
 };
 
 static int cmd_mod_app_bind(int argc, char *argv[])
@@ -1693,10 +1693,6 @@ static int cmd_period_get(int argc, char *argv[])
 	return 0;
 }
 
-struct shell_cmd_help cmd_period_get_help = {
-	NULL, "", NULL
-};
-
 static int cmd_period_set(int argc, char *argv[])
 {
 	u8_t divisor, updated_divisor;
@@ -1762,10 +1758,6 @@ static int cmd_attention_get(int argc, char *argv[])
 
 	return 0;
 }
-
-struct shell_cmd_help cmd_attention_get_help = {
-	NULL, "", NULL
-};
 
 static int cmd_attention_set(int argc, char *argv[])
 {
@@ -1946,10 +1938,10 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "fault-clear-unack", cmd_fault_clear_unack, &cmd_fault_clear_unack_help },
 	{ "fault-test", cmd_fault_test, &cmd_fault_test_help },
 	{ "fault-test-unack", cmd_fault_test_unack, &cmd_fault_test_unack_help },
-	{ "period-get", cmd_period_get, &cmd_period_get_help },
+	{ "period-get", cmd_period_get, NULL },
 	{ "period-set", cmd_period_set, &cmd_period_set_help },
 	{ "period-set-unack", cmd_period_set_unack, &cmd_period_set_unack_help },
-	{ "attention-get", cmd_attention_get, &cmd_attention_get_help },
+	{ "attention-get", cmd_attention_get, NULL },
 	{ "attention-set", cmd_attention_set, &cmd_attention_set_help },
 	{ "attention-set-unack", cmd_attention_set_unack, &cmd_attention_set_unack_help },
 
