@@ -374,7 +374,7 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 	}
 
 	if (bt_mesh_lpn_established()) {
-		bt_mesh_lpn_friend_poll();
+		bt_mesh_lpn_poll();
 	}
 
 	return 0;

@@ -362,25 +362,6 @@ static const struct bt_mesh_prov prov = {
 	.input = input,
 };
 
-static int cmd_init(int argc, char *argv[])
-{
-	int err;
-	ble_addr_t addr;
-
-	/* Use NRPA */
-	err = ble_hs_id_gen_rnd(1, &addr);
-	assert(err == 0);
-	err = ble_hs_id_set_rnd(addr.val);
-	assert(err == 0);
-
-	err = bt_mesh_init(addr.type, &prov, &comp);
-	if (err) {
-		printk("Mesh initialization failed (err %d)\n", err);
-	}
-
-	return 0;
-}
-
 static int cmd_reset(int argc, char *argv[])
 {
 	bt_mesh_reset();
@@ -432,11 +413,61 @@ static int cmd_lpn(int argc, char *argv[])
 
 	return 0;
 }
-#endif /* MESH_LOW_POWER */
+
+static int cmd_poll(int argc, char *argv[])
+{
+	int err;
+
+	err = bt_mesh_lpn_poll();
+	if (err) {
+		printk("Friend Poll failed (err %d)\n", err);
+	}
+
+	return 0;
+}
+
+static void lpn_cb(u16_t friend_addr, bool established)
+{
+	if (established) {
+		printk("Friendship (as LPN) established to Friend 0x%04x\n",
+		       friend_addr);
+	} else {
+		printk("Friendship (as LPN) lost with Friend 0x%04x\n",
+		       friend_addr);
+	}
+}
 
 struct shell_cmd_help cmd_lpn_help = {
 	NULL, "<value: off, on>", NULL
 };
+
+#endif /* MESH_LOW_POWER */
+
+static int cmd_init(int argc, char *argv[])
+{
+	int err;
+	ble_addr_t addr;
+
+	/* Use NRPA */
+	err = ble_hs_id_gen_rnd(1, &addr);
+	assert(err == 0);
+	err = ble_hs_id_set_rnd(addr.val);
+	assert(err == 0);
+
+	err = bt_mesh_init(addr.type, &prov, &comp);
+	if (err) {
+		printk("Mesh initialization failed (err %d)\n", err);
+	}
+
+	printk("Mesh initialized\n");
+	printk("Use \"pb-adv on\" or \"pb-gatt on\" to enable advertising\n");
+
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+	bt_mesh_lpn_set_cb(lpn_cb);
+#endif
+
+	return 0;
+}
 
 #if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 static int cmd_ident(int argc, char *argv[])
@@ -1689,6 +1720,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "provision", cmd_provision, &cmd_provision_help },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	{ "lpn", cmd_lpn, &cmd_lpn_help },
+	{ "poll", cmd_poll, NULL },
 #endif
 #if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 	{ "ident", cmd_ident, NULL },
