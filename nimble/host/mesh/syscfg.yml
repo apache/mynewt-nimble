@@ -208,8 +208,18 @@ syscfg.defs:
             consecutive requests sent by the Low Power node. If no
             requests are received by the Friend node before the
             PollTimeout timer expires, then the friendship is considered
-            terminated. The value is in units of 100 milliseconds.
-        value: 100
+            terminated. The value is in units of 100 milliseconds, so e.g.
+            a value of 300 means 3 seconds.
+        value: 300
+
+    BLE_MESH_LPN_INIT_POLL_TIMEOUT:
+        description: >
+            The initial value of the PollTimeout timer when Friendship
+            gets established for the first time. After this the timeout
+            will gradually grow toward the actual PollTimeout, doubling
+            in value for each iteration. The value is in units of 100
+            milliseconds, so e.g. a value of 300 means 3 seconds.
+        value: MYNEWT_VAL_BLE_MESH_LPN_POLL_TIMEOUT
         
     BLE_MESH_LPN_SCAN_LATENCY:
         description: >
