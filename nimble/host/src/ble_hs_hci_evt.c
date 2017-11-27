@@ -361,7 +361,7 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
         return 0;
     }
 #endif
-    return ble_gap_rx_conn_complete(&evt, 0xff);
+    return ble_gap_rx_conn_complete(&evt, 0);
 }
 
 static int
