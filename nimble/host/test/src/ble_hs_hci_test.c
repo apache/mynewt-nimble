@@ -85,13 +85,14 @@ TEST_CASE(ble_hs_hci_test_rssi)
 
 TEST_CASE(ble_hs_hci_acl_one_conn)
 {
-    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2] = { 0 };
+    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2];
     struct hci_disconn_complete evt;
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     uint8_t data[256];
     int rc;
     int i;
 
+    memset(ncpe, 0, sizeof(ncpe));
     for (i = 0; i < sizeof data; i++) {
         data[i] = i;
     }
@@ -168,7 +169,7 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
 
 TEST_CASE(ble_hs_hci_acl_two_conn)
 {
-    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2] = { 0 };
+    struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2];
     const struct ble_hs_conn *conn1;
     const struct ble_hs_conn *conn2;
     uint8_t peer_addr1[6] = { 1, 2, 3, 4, 5, 6 };
@@ -177,6 +178,7 @@ TEST_CASE(ble_hs_hci_acl_two_conn)
     int rc;
     int i;
 
+    memset(ncpe, 0, sizeof(ncpe));
     for (i = 0; i < sizeof data; i++) {
         data[i] = i;
     }
