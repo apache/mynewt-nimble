@@ -70,6 +70,9 @@ extern "C" {
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK       (0x0001)
 #define BLE_HCI_OCF_CB_RESET                (0x0003)
 #define BLE_HCI_OCF_CB_READ_TX_PWR          (0x002D)
+#define BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC  (0x0031)
+#define BLE_HCI_OCF_CB_HOST_BUF_SIZE        (0x0033)
+#define BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS   (0x0035)
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK2      (0x0063)
 #define BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO     (0x007B)
 #define BLE_HCI_OCF_CB_WR_AUTH_PYLD_TMO     (0x007C)
@@ -172,6 +175,21 @@ extern "C" {
 
 /* --- Set event mask (OGF 0x03, OCF 0x0001 --- */
 #define BLE_HCI_SET_EVENT_MASK_LEN          (8)
+
+/* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
+#define BLE_HCI_CTLR_TO_HOST_FC_LEN         (1)
+
+#define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)
+#define BLE_HCI_CTLR_TO_HOST_FC_ACL         (1)
+#define BLE_HCI_CTLR_TO_HOST_FC_SYNC        (2)
+#define BLE_HCI_CTLR_TO_HOST_FC_BOTH        (3)
+
+/* --- Host buffer size (OGF 0x03, OCF 0x0033) --- */
+#define BLE_HCI_HOST_BUF_SIZE_LEN           (7)
+
+/* --- Host number of completed packets (OGF 0x03, OCF 0x0035) --- */
+#define BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN  (1)
+#define BLE_HCI_HOST_NUM_COMP_PKTS_ENT_LEN  (4)
 
 /* --- Read BD_ADDR (OGF 0x04, OCF 0x0009 --- */
 #define BLE_HCI_IP_RD_BD_ADDR_ACK_PARAM_LEN (6)
@@ -785,6 +803,23 @@ extern "C" {
 #define BLE_HCI_LE_ENH_CONN_COMPLETE_LEN    (31)
 
 /*--- Shared data structures ---*/
+
+/* Host buffer size (OGF=0x03, OCF=0x0033) */
+struct hci_host_buf_size
+{
+    uint16_t acl_pkt_len;
+    uint8_t sync_pkt_len;
+    uint16_t num_acl_pkts;
+    uint16_t num_sync_pkts;
+};
+
+/* Host number of completed packets (OGF=0x03, OCF=0x0035) */
+struct hci_host_num_comp_pkts_entry
+{
+    uint16_t conn_handle;
+    uint16_t num_pkts;
+};
+
 /* Read local version information (OGF=0x0004, OCF=0x0001) */
 struct hci_loc_ver_info
 {

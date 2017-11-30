@@ -1021,6 +1021,7 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     ble_sm_connection_broken(conn_handle);
     ble_gatts_connection_broken(conn_handle);
     ble_gattc_connection_broken(conn_handle);
+    ble_hs_flow_connection_broken(conn_handle);;
 
     ble_hs_atomic_conn_delete(conn_handle);
 

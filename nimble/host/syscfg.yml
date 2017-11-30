@@ -374,5 +374,34 @@ syscfg.defs:
             that have been enabled in the stack, such as GATT support.
         value: 0
 
+    # Flow control settings.
+    BLE_HS_FLOW_CTRL:
+        description: >
+            Whether to enable host-side flow control.  This should only be
+            enabled in host-only setups (i.e., not combined-host-controller).
+        value: 0
+
+    BLE_HS_FLOW_CTRL_ITVL:
+        description: >
+            The interval, in milliseconds, that the host should provide
+            number-of-completed-packets updates to the controller.
+        value: 1000
+
+    BLE_HS_FLOW_CTRL_THRESH:
+        description: >
+            If the number of data buffers available to the controller falls to
+            this number, immediately send a number-of-completed-packets event.
+            The free buffer count is calculated as follows:
+            (total-acl-bufs - bufs-freed-since-last-num-completed-event).
+        value: 2
+
+    BLE_HS_FLOW_CTRL_TX_ON_DISCONNECT:
+        description: >
+            If enabled, the host will immediately transmit a
+            host-number-of-completed-packets command whenever a connection
+            terminates.  This behavior is not required by the standard, but is
+            a necessary workaround when interfacing with some controllers.
+        value: 0
+
 syscfg.vals.BLE_MESH:
     BLE_SM_SC: 1

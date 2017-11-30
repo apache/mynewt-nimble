@@ -21,6 +21,8 @@
 #define H_HCI_TRANSPORT_
 
 #include <inttypes.h>
+#include "os/os_mempool.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -124,6 +126,19 @@ uint8_t *ble_hci_trans_buf_alloc(int type);
  * @param buf                   The buffer to free.
  */
 void ble_hci_trans_buf_free(uint8_t *buf);
+
+/**
+ * Configures a callback to get executed whenever an ACL data packet is freed.
+ * The function is called immediately before the free occurs.
+ *
+ * @param cb                    The callback to configure.
+ * @param arg                   An optional argument to pass to the callback.
+ *
+ * @return                      0 on success;
+ *                              BLE_ERR_UNSUPPORTED if the transport does not
+ *                                  support this operation.
+ */
+int ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg);
 
 /**
  * Configures the HCI transport to operate with a controller.  The transport

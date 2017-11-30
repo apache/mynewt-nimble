@@ -99,8 +99,6 @@ int ble_hs_hci_evt_process(uint8_t *data);
 uint16_t ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf);
 void ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len,
                               void *buf);
-int ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len,
-                        const void *cmddata);
 int ble_hs_hci_cmd_send_buf(uint16_t opcode, void *buf, uint8_t buf_len);
 void ble_hs_hci_cmd_build_set_event_mask(uint64_t event_mask,
                                          uint8_t *dst, int dst_len);
@@ -142,6 +140,11 @@ int ble_hs_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr,
                                              uint8_t addr_type,
                                              uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_reset(void);
+int ble_hs_hci_cmd_tx_set_ctlr_to_host_fc(uint8_t fc_enable);
+int ble_hs_hci_cmd_tx_host_buf_size(const struct hci_host_buf_size *cmd);
+int ble_hs_hci_cmd_build_host_num_comp_pkts_entry(
+    const struct hci_host_num_comp_pkts_entry *entry,
+    uint8_t *dst, int dst_len);
 int ble_hs_hci_cmd_read_adv_pwr(void);
 int ble_hs_hci_cmd_le_create_conn_cancel(void);
 int ble_hs_hci_cmd_build_le_conn_update(const struct hci_conn_update *hcu,

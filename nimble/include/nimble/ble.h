@@ -150,6 +150,9 @@ struct ble_mbuf_hdr
 #define BLE_MBUF_MEMBLOCK_OVERHEAD      \
     (sizeof(struct os_mbuf) + BLE_MBUF_PKTHDR_OVERHEAD)
 
+/* Length of host user header.  Only contains the peer's connection handle. */
+#define BLE_MBUF_HS_HDR_LEN     (2)
+
 #define BLE_DEV_ADDR_LEN        (6)
 extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];

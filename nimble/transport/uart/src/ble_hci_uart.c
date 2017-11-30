@@ -93,7 +93,7 @@ static struct os_mempool ble_hci_uart_pkt_pool;
 static void *ble_hci_uart_pkt_buf;
 
 static struct os_mbuf_pool ble_hci_uart_acl_mbuf_pool;
-static struct os_mempool ble_hci_uart_acl_pool;
+static struct os_mempool_ext ble_hci_uart_acl_pool;
 static void *ble_hci_uart_acl_buf;
 
 /**
@@ -165,13 +165,17 @@ static struct os_mbuf *
 ble_hci_trans_acl_buf_alloc(void)
 {
     struct os_mbuf *m;
+    uint8_t usrhdr_len;
 
-    /*
-     * XXX: note that for host only there would be no need to allocate
-     * a user header. Address this later.
-     */
-    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool,
-                           sizeof(struct ble_mbuf_hdr));
+#if MYNEWT_VAL(BLE_DEVICE)
+    usrhdr_len = sizeof(struct ble_mbuf_hdr);
+#elif MYNEWT_VAL(BLE_HS_FLOW_CTRL)
+    usrhdr_len = BLE_MBUF_HS_HDR_LEN;
+#else
+    usrhdr_len = 0;
+#endif
+
+    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool, usrhdr_len);
     return m;
 }
 
@@ -950,6 +954,22 @@ ble_hci_trans_buf_free(uint8_t *buf)
 }
 
 /**
+ * Configures a callback to get executed whenever an ACL data packet is freed.
+ * The function is called in lieu of actually freeing the packet.
+ *
+ * @param cb                    The callback to configure.
+ *
+ * @return                      0 on success.
+ */
+int
+ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
+{
+    ble_hci_uart_acl_pool.mpe_put_cb = cb;
+    ble_hci_uart_acl_pool.mpe_put_arg = arg;
+    return 0;
+}
+
+/**
  * Resets the HCI UART transport to a clean state.  Frees all buffers and
  * reconfigures the UART.
  *
@@ -1020,15 +1040,17 @@ ble_hci_uart_init(void)
     acl_block_size = acl_data_length + BLE_MBUF_MEMBLOCK_OVERHEAD +
         BLE_HCI_DATA_HDR_SZ;
     acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
-    rc = mem_malloc_mempool(&ble_hci_uart_acl_pool,
-                            MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                            acl_block_size,
-                            "ble_hci_uart_acl_pool",
-                            &ble_hci_uart_acl_buf);
+    rc = mem_malloc_mempool_ext(&ble_hci_emspi_acl_pool,
+                                MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                                acl_block_size,
+                                "ble_hci_uart_acl_pool",
+                                &ble_hci_uart_acl_buf);
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool, &ble_hci_uart_acl_pool,
-                           acl_block_size, MYNEWT_VAL(BLE_ACL_BUF_COUNT));
+    rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool,
+                           &ble_hci_uart_acl_pool.mpe_mp,
+                           acl_block_size,
+                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     /*

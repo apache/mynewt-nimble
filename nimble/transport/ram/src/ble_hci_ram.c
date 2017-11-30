@@ -168,6 +168,16 @@ ble_hci_trans_buf_free(uint8_t *buf)
     }
 }
 
+/**
+ * Unsupported; the RAM transport does not have a dedicated ACL data packet
+ * pool.
+ */
+int
+ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
+{
+    return BLE_ERR_UNSUPPORTED;
+}
+
 static void
 ble_hci_ram_free_mem(void)
 {

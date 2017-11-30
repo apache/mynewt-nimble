@@ -39,6 +39,7 @@
 #include "ble_l2cap_coc_priv.h"
 #include "ble_sm_priv.h"
 #include "ble_hs_adv_priv.h"
+#include "ble_hs_flow_priv.h"
 #include "ble_hs_pvcy_priv.h"
 #include "ble_hs_id_priv.h"
 #include "ble_uuid_priv.h"
@@ -117,6 +118,8 @@ int ble_hs_misc_restore_irks(void);
 
 int ble_hs_locked_by_cur_task(void);
 int ble_hs_is_parent_task(void);
+void ble_hs_lock_nested(void);
+void ble_hs_unlock_nested(void);
 void ble_hs_lock(void);
 void ble_hs_unlock(void);
 void ble_hs_hw_error(uint8_t hw_code);

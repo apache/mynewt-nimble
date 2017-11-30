@@ -280,5 +280,8 @@ ble_hs_startup_go(void)
 
     ble_hs_pvcy_set_our_irk(NULL);
 
+    /* If flow control is enabled, configure the controller to use it. */
+    ble_hs_flow_startup();
+
     return 0;
 }

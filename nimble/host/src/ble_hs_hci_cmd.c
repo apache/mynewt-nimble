@@ -66,7 +66,7 @@ ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len, void *buf)
     u8ptr[2] = len;
 }
 
-int
+static int
 ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
 {
     uint8_t *buf;
@@ -532,6 +532,51 @@ ble_hs_hci_cmd_reset(void)
                                0, NULL);
 }
 
+/** Set controller to host flow control (OGF 0x03, OCF 0x0031). */
+int
+ble_hs_hci_cmd_tx_set_ctlr_to_host_fc(uint8_t fc_enable)
+{
+    if (fc_enable > BLE_HCI_CTLR_TO_HOST_FC_BOTH) {
+        return BLE_HS_EINVAL;
+    }
+
+    return ble_hs_hci_cmd_tx_empty_ack(
+        BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                   BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC),
+        &fc_enable, 1);
+}
+
+/* Host buffer size (OGF 0x03, OCF 0x0033). */
+int
+ble_hs_hci_cmd_tx_host_buf_size(const struct hci_host_buf_size *cmd)
+{
+    uint8_t buf[BLE_HCI_HOST_BUF_SIZE_LEN];
+
+    put_le16(buf + 0, cmd->acl_pkt_len);
+    buf[2] = cmd->sync_pkt_len;
+    put_le16(buf + 3, cmd->num_acl_pkts);
+    put_le16(buf + 5, cmd->num_sync_pkts);
+
+    return ble_hs_hci_cmd_tx_empty_ack(
+        BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_HOST_BUF_SIZE),
+        buf, sizeof buf);
+}
+
+/* Host number of completed packets (OGF 0x03, OCF 0x0035). */
+int
+ble_hs_hci_cmd_build_host_num_comp_pkts_entry(
+    const struct hci_host_num_comp_pkts_entry *entry,
+    uint8_t *dst, int dst_len)
+{
+    if (dst_len < BLE_HCI_HOST_NUM_COMP_PKTS_ENT_LEN) {
+        return BLE_HS_EMSGSIZE;
+    }
+
+    put_le16(dst + 0, entry->conn_handle);
+    put_le16(dst + 2, entry->num_pkts);
+
+    return 0;
+}
 
 /**
  * Read the transmit power level used for LE advertising channel packets.

@@ -65,6 +65,14 @@ struct ble_hs_conn {
      */
     uint16_t bhc_outstanding_pkts;
 
+#if MYNEWT_VAL(BLE_HS_FLOW_CTRL)
+    /**
+     * Count of packets received over this connection that have been processed
+     * and freed.
+     */
+    uint16_t bhc_completed_pkts;
+#endif
+
     /** Queue of outgoing packets that could not be sent. */
     STAILQ_HEAD(, os_mbuf_pkthdr) bhc_tx_q;
 

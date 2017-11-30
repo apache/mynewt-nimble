@@ -149,12 +149,13 @@ ble_hs_is_parent_task(void)
            os_sched_get_current_task() == ble_hs_parent_task;
 }
 
+/**
+ * Locks the BLE host mutex.  Nested locks allowed.
+ */
 void
-ble_hs_lock(void)
+ble_hs_lock_nested(void)
 {
     int rc;
-
-    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
@@ -167,14 +168,16 @@ ble_hs_lock(void)
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
+/**
+ * Unlocks the BLE host mutex.  Nested locks allowed.
+ */
 void
-ble_hs_unlock(void)
+ble_hs_unlock_nested(void)
 {
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     if (!os_started()) {
-        BLE_HS_DBG_ASSERT(ble_hs_dbg_mutex_locked);
         ble_hs_dbg_mutex_locked = 0;
         return;
     }
@@ -182,6 +185,37 @@ ble_hs_unlock(void)
 
     rc = os_mutex_release(&ble_hs_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
+}
+
+/**
+ * Locks the BLE host mutex.  Nested locks not allowed.
+ */
+void
+ble_hs_lock(void)
+{
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+    if (!os_started()) {
+        BLE_HS_DBG_ASSERT(!ble_hs_dbg_mutex_locked);
+    }
+#endif
+
+    ble_hs_lock_nested();
+}
+
+/**
+ * Unlocks the BLE host mutex.  Nested locks not allowed.
+ */
+void
+ble_hs_unlock(void)
+{
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+    if (!os_started()) {
+        BLE_HS_DBG_ASSERT(ble_hs_dbg_mutex_locked);
+    }
+#endif
+
+    ble_hs_unlock_nested();
 }
 
 void
@@ -214,8 +248,7 @@ ble_hs_wakeup_tx_conn(struct ble_hs_conn *conn)
             /* Controller is at capacity.  This packet will be the first to
              * get transmitted next time around.
              */
-            STAILQ_INSERT_HEAD(&conn->bhc_tx_q, OS_MBUF_PKTHDR(om),
-                               omp_next);
+            STAILQ_INSERT_HEAD(&conn->bhc_tx_q, OS_MBUF_PKTHDR(om), omp_next);
             return BLE_HS_EAGAIN;
         }
     }
@@ -578,6 +611,11 @@ static int
 ble_hs_rx_data(struct os_mbuf *om, void *arg)
 {
     int rc;
+
+    /* If flow control is enabled, mark this packet with its corresponding
+     * connection handle.
+     */
+    ble_hs_flow_fill_acl_usrhdr(om);
 
     rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
     if (rc != 0) {
