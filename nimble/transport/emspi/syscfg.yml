@@ -20,12 +20,15 @@
 
 syscfg.defs:
     BLE_HCI_EMSPI:
-        description: 'Indicates that the emspi HCI transport is present.'
+        description: 'Indicates that the emspi host HCI transport is present.'
         value: 1
         restrictions:
             # XXX: This package only builds with the apollo2 MCU.
             # MCU-dependencies need to be removed.
             - MCU_APOLLO2
+
+            # This is a host-only transport.
+            - BLE_HOST
 
     BLE_HCI_EVT_HI_BUF_COUNT:
         description: 'Number of high-priority event buffers.'

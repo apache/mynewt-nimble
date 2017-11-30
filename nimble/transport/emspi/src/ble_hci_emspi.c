@@ -603,13 +603,7 @@ ble_hci_emspi_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
 }
 
 /**
- * Sends an HCI event from the controller to the host.
- *
- * @param cmd                   The HCI event to send.  This buffer must be
- *                                  allocated via ble_hci_trans_buf_alloc().
- *
- * @return                      0 on success;
- *                              A BLE_ERR_[...] error code on failure.
+ * Unsupported.  This is a host-only transport.
  */
 int
 ble_hci_trans_ll_evt_tx(uint8_t *cmd)
@@ -618,12 +612,7 @@ ble_hci_trans_ll_evt_tx(uint8_t *cmd)
 }
 
 /**
- * Sends ACL data from controller to host.
- *
- * @param om                    The ACL data packet to send.
- *
- * @return                      0 on success;
- *                              A BLE_ERR_[...] error code on failure.
+ * Unsupported.  This is a host-only transport.
  */
 int
 ble_hci_trans_ll_acl_tx(struct os_mbuf *om)
@@ -708,7 +697,7 @@ ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
                      ble_hci_trans_rx_acl_fn *acl_cb,
                      void *acl_arg)
 {
-    /* XXX: Unimplemented. */
+    /* Unsupported. */
     assert(0);
 }
 
