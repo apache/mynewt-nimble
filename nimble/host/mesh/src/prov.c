@@ -1521,7 +1521,7 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 		prov->link_close(BT_MESH_PROV_GATT);
 	}
 
-	bt_conn_unref(link.conn);
+//	bt_conn_unref(conn_handle);
 
 	pub_key = atomic_test_bit(link.flags, LOCAL_PUB_KEY);
 	memset(&link, 0, sizeof(link));

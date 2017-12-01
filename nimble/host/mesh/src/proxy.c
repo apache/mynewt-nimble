@@ -746,7 +746,7 @@ int bt_mesh_proxy_gatt_enable(void)
 
 void bt_mesh_proxy_gatt_disconnect(void)
 {
-	uint16_t handle;
+	int rc;
 	int i;
 
 	BT_DBG("");
@@ -757,14 +757,16 @@ void bt_mesh_proxy_gatt_disconnect(void)
 		if (client->conn_handle && (client->filter_type == WHITELIST ||
 					    client->filter_type == BLACKLIST)) {
 			client->filter_type = NONE;
-			bt_conn_disconnect(client->conn,
-					   BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+			rc = ble_gap_terminate(client->conn_handle,
+			                       BLE_ERR_REM_USER_CONN_TERM);
+			assert(rc == 0);
 		}
 	}
 }
 
 int bt_mesh_proxy_gatt_disable(void)
 {
+	uint16_t handle;
 	int rc;
 
 	BT_DBG("");
@@ -1096,7 +1098,7 @@ s32_t bt_mesh_proxy_adv_start(void)
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 	if (!bt_mesh_is_provisioned()) {
-		const struct bt_le_adv_param *param;
+		const struct ble_gap_adv_params *param;
 
 		if (prov_fast_adv) {
 			param = &fast_adv_param;
