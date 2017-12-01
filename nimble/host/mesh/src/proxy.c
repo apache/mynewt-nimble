@@ -733,13 +733,32 @@ int bt_mesh_proxy_gatt_enable(void)
 	return 0;
 }
 
-int bt_mesh_proxy_gatt_disable(void)
+void bt_mesh_proxy_gatt_disconnect(void)
 {
 	uint16_t handle;
-	int rc;
 	int i;
 
 	BT_DBG("");
+
+	for (i = 0; i < ARRAY_SIZE(clients); i++) {
+		struct bt_mesh_proxy_client *client = &clients[i];
+
+		if (client->conn_handle && (client->filter_type == WHITELIST ||
+					    client->filter_type == BLACKLIST)) {
+			client->filter_type = NONE;
+			bt_conn_disconnect(client->conn,
+					   BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+		}
+	}
+}
+
+int bt_mesh_proxy_gatt_disable(void)
+{
+	int rc;
+
+	BT_DBG("");
+
+	bt_mesh_proxy_gatt_disconnect();
 
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_VAL), &handle);
 	assert(rc == 0);
@@ -748,15 +767,6 @@ int bt_mesh_proxy_gatt_disable(void)
 	ble_svc_gatt_changed(svc_handles.proxy_h, 0xffff);
 
 	gatt_svc = MESH_GATT_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		struct bt_mesh_proxy_client *client = &clients[i];
-
-		if (client->conn_handle && (client->filter_type == WHITELIST ||
-					    client->filter_type == BLACKLIST)) {
-			client->filter_type = NONE;
-		}
-	}
 
 	return 0;
 }
