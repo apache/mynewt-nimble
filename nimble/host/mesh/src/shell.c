@@ -192,7 +192,7 @@ static struct bt_mesh_health_cli health_cli = {
 	.current_status = health_current_status,
 };
 
-static const u8_t dev_uuid[16] = { 0xdd, 0xdd };
+static u8_t dev_uuid[16] = { 0xdd, 0xdd };
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
@@ -426,6 +426,32 @@ static int cmd_static_oob(int argc, char *argv[])
 
 struct shell_cmd_help cmd_static_oob_help = {
 	NULL, "[val: 1-16 hex values]", NULL
+};
+
+static int cmd_uuid(int argc, char *argv[])
+{
+	u8_t uuid[16];
+	size_t len;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	len = hex2bin(argv[1], uuid, sizeof(uuid));
+	if (len < 1) {
+		return -EINVAL;
+	}
+
+	memcpy(dev_uuid, uuid, len);
+	memset(dev_uuid + len, 0, sizeof(dev_uuid) - len);
+
+	printk("Device UUID set\n");
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_uuid_help = {
+	NULL, "<UUID: 1-16 hex values>", NULL
 };
 
 static int cmd_reset(int argc, char *argv[])
@@ -1967,6 +1993,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "pb-gatt", cmd_pb_gatt, &cmd_pb_help },
 #endif
 	{ "reset", cmd_reset, NULL },
+	{ "uuid", cmd_uuid, &cmd_uuid_help },
 	{ "input-num", cmd_input_num, &cmd_input_num_help },
 	{ "input-str", cmd_input_str, &cmd_input_str_help },
 	{ "static-oob", cmd_static_oob, &cmd_static_oob_help },
