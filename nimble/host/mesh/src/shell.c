@@ -22,6 +22,7 @@
 
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
+#include "mesh_priv.h"
 #include "transport.h"
 #include "foundation.h"
 
@@ -697,6 +698,25 @@ static int cmd_net_send(int argc, char *argv[])
 struct shell_cmd_help cmd_net_send_help = {
 	NULL, "<hex string>", NULL
 };
+
+static int cmd_iv_update(int argc, char *argv[])
+{
+	if (!bt_mesh_is_provisioned()) {
+		printk("Not yet provisioned!\n");
+		return 0;
+	}
+
+	if (bt_mesh.iv_update) {
+		printk("Transitioning to IV Update Normal state\n");
+		bt_mesh_iv_update(bt_mesh.iv_index, false);
+	} else {
+		printk("Transitioning to IV Update In Progress state\n");
+		bt_mesh_iv_update(bt_mesh.iv_index + 1, true);
+		printk("New IV Index 0x%08lx\n", bt_mesh.iv_index);
+	}
+
+	return 0;
+}
 
 static int cmd_beacon(int argc, char *argv[])
 {
@@ -1913,7 +1933,9 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "netidx", cmd_netidx, &cmd_netidx_help },
 	{ "appidx", cmd_appidx, &cmd_appidx_help },
 
+	/* Commands which access internal APIs, for testing only */
 	{ "net-send", cmd_net_send, &cmd_net_send_help },
+	{ "iv-update", cmd_iv_update, NULL },
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
