@@ -211,6 +211,37 @@ static const struct bt_mesh_comp comp = {
 	.elem_count = ARRAY_SIZE(elements),
 };
 
+static u8_t hex2val(char c)
+{
+	if (c >= '0' && c <= '9') {
+		return c - '0';
+	} else if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	} else if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	} else {
+		return 0;
+	}
+}
+
+static size_t hex2bin(const char *hex, u8_t *bin, size_t bin_len)
+{
+	size_t len = 0;
+
+	while (*hex && len < bin_len) {
+		bin[len] = hex2val(*hex++) << 4;
+
+		if (!*hex) {
+			len++;
+			break;
+		}
+
+		bin[len++] |= hex2val(*hex++);
+	}
+
+	return len;
+}
+
 static void prov_complete(u16_t net_idx, u16_t addr)
 {
 	printk("Local node provisioned, net_idx 0x%04x address 0x%04x\n",
@@ -350,18 +381,16 @@ static void link_close(bt_mesh_prov_bearer_t bearer)
 	printk("Provisioning link closed on %s\n", bearer2str(bearer));
 }
 
-static const u8_t static_val[] = {
-	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
-};
+static u8_t static_val[16];
 
-static const struct bt_mesh_prov prov = {
+static struct bt_mesh_prov prov = {
 	.uuid = dev_uuid,
 	.link_open = link_open,
 	.link_close = link_close,
 	.complete = prov_complete,
 	.reset = prov_reset,
-	.static_val = static_val,
-	.static_val_len = sizeof(static_val),
+	.static_val = NULL,
+	.static_val_len = 0,
 	.output_size = 6,
 	.output_actions = (BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
 	.output_number = output_number,
@@ -369,6 +398,34 @@ static const struct bt_mesh_prov prov = {
 	.input_size = 6,
 	.input_actions = (BT_MESH_ENTER_NUMBER | BT_MESH_ENTER_STRING),
 	.input = input,
+};
+
+static int cmd_static_oob(int argc, char *argv[])
+{
+	if (argc < 2) {
+		prov.static_val = NULL;
+		prov.static_val_len = 0;
+	} else {
+		prov.static_val_len = hex2bin(argv[1], static_val, 16);
+		if (prov.static_val_len) {
+			prov.static_val = static_val;
+		} else {
+			prov.static_val = NULL;
+		}
+	}
+
+	if (prov.static_val) {
+		printk("Static OOB value set (length %u)\n",
+		       prov.static_val_len);
+	} else {
+		printk("Static OOB value cleared\n");
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_static_oob_help = {
+	NULL, "[val: 1-16 hex values]", NULL
 };
 
 static int cmd_reset(int argc, char *argv[])
@@ -381,37 +438,6 @@ static int cmd_reset(int argc, char *argv[])
 static bool str2bool(const char *str)
 {
 	return (!strcmp(str, "on") || !strcmp(str, "enable"));
-}
-
-static u8_t hex2val(char c)
-{
-	if (c >= '0' && c <= '9') {
-		return c - '0';
-	} else if (c >= 'a' && c <= 'f') {
-		return c - 'a' + 10;
-	} else if (c >= 'A' && c <= 'F') {
-		return c - 'A' + 10;
-	} else {
-		return 0;
-	}
-}
-
-static size_t hex2bin(const char *hex, u8_t *bin, size_t bin_len)
-{
-	size_t len = 0;
-
-	while (*hex && len < bin_len) {
-		bin[len] = hex2val(*hex++) << 4;
-
-		if (!*hex) {
-			len++;
-			break;
-		}
-
-		bin[len++] |= hex2val(*hex++);
-	}
-
-	return len;
 }
 
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
@@ -1943,6 +1969,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "reset", cmd_reset, NULL },
 	{ "input-num", cmd_input_num, &cmd_input_num_help },
 	{ "input-str", cmd_input_str, &cmd_input_str_help },
+	{ "static-oob", cmd_static_oob, &cmd_static_oob_help },
 	{ "provision", cmd_provision, &cmd_provision_help },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	{ "lpn", cmd_lpn, &cmd_lpn_help },
