@@ -119,6 +119,10 @@ void bt_mesh_reset(void)
 		bt_mesh_lpn_disable(true);
 	}
 
+	if ((MYNEWT_VAL(BLE_MESH_FRIEND))) {
+		bt_mesh_friend_clear_net_idx(BT_MESH_KEY_ANY);
+	}
+
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
 		bt_mesh_proxy_gatt_disable();
 	}
