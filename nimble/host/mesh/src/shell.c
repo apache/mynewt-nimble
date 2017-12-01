@@ -18,6 +18,7 @@
 #include "shell/shell.h"
 #include "console/console.h"
 #include "mesh/mesh.h"
+#include "mesh/main.h"
 #include "mesh/glue.h"
 
 /* Private includes for raw Network & Transport layer access */
@@ -701,22 +702,40 @@ struct shell_cmd_help cmd_net_send_help = {
 
 static int cmd_iv_update(int argc, char *argv[])
 {
-	if (!bt_mesh_is_provisioned()) {
-		printk("Not yet provisioned!\n");
-		return 0;
+	if (bt_mesh_iv_update()) {
+		printk("Transitioned to IV Update In Progress state\n");
+	} else {
+		printk("Transitioned to IV Update Normal state\n");
 	}
 
-	if (bt_mesh.iv_update) {
-		printk("Transitioning to IV Update Normal state\n");
-		bt_mesh_iv_update(bt_mesh.iv_index, false);
-	} else {
-		printk("Transitioning to IV Update In Progress state\n");
-		bt_mesh_iv_update(bt_mesh.iv_index + 1, true);
-		printk("New IV Index 0x%08lx\n", bt_mesh.iv_index);
-	}
+	printk("IV Index is 0x%08lx\n", bt_mesh.iv_index);
 
 	return 0;
 }
+
+static int cmd_iv_update_test(int argc, char *argv[])
+{
+	bool enable;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	enable = str2bool(argv[1]);
+	if (enable) {
+		printk("Enabling IV Update test mode\n");
+	} else {
+		printk("Disabling IV Update test mode\n");
+	}
+
+	bt_mesh_iv_update_test(enable);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_iv_update_test_help = {
+	NULL, "<value: off, on>", NULL
+};
 
 static int cmd_beacon(int argc, char *argv[])
 {
@@ -1936,6 +1955,7 @@ static const struct shell_cmd mesh_commands[] = {
 	/* Commands which access internal APIs, for testing only */
 	{ "net-send", cmd_net_send, &cmd_net_send_help },
 	{ "iv-update", cmd_iv_update, NULL },
+	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },

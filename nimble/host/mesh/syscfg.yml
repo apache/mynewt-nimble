@@ -370,6 +370,7 @@ syscfg.defs:
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
     BLE_MESH_HEALTH_CLI: 1
+    BLE_MESH_IV_UPDATE_TEST: 1
 
 syscfg.vals.BLE_MESH_GATT_PROXY:
     BLE_MESH_PROXY: 1

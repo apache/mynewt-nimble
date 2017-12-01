@@ -562,7 +562,30 @@ void bt_mesh_rpl_reset(void)
 	}
 }
 
-bool bt_mesh_iv_update(u32_t iv_index, bool iv_update)
+#if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
+void bt_mesh_iv_update_test(bool enable)
+{
+	bt_mesh.ivu_test = enable;
+}
+
+bool bt_mesh_iv_update(void)
+{
+	if (!bt_mesh_is_provisioned()) {
+		BT_ERR("Not yet provisioned");
+		return false;
+	}
+
+	if (bt_mesh.iv_update) {
+		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
+	} else {
+		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
+	}
+
+	return bt_mesh.iv_update;
+}
+#endif /* CONFIG_BT_MESH_IV_UPDATE_TEST */
+
+bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 {
 	int i;
 
@@ -621,7 +644,7 @@ bool bt_mesh_iv_update(u32_t iv_index, bool iv_update)
 		}
 	}
 
-	if (!(MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST))) {
+	if (!MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST) || !bt_mesh.ivu_test) {
 		s64_t delta = k_uptime_get() - bt_mesh.last_update;
 
 		if (delta < K_HOURS(96)) {
@@ -713,7 +736,7 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 
 	if (!bt_mesh.iv_update && bt_mesh.seq > IV_UPDATE_SEQ_LIMIT) {
 		bt_mesh_beacon_ivu_initiator(true);
-		bt_mesh_iv_update(bt_mesh.iv_index + 1, true);
+		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 		bt_mesh_friend_sec_update(BT_MESH_KEY_ANY);
@@ -1243,7 +1266,7 @@ static void ivu_complete(struct os_event *work)
 	BT_DBG("");
 
 	bt_mesh_beacon_ivu_initiator(true);
-	bt_mesh_iv_update(bt_mesh.iv_index, false);
+	bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 }
 
 void bt_mesh_net_init(void)
