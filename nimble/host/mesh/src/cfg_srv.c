@@ -2250,6 +2250,7 @@ static void node_identity_set(struct bt_mesh_model *model,
 
 		if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
 			sub->node_id = node_id;
+			sub->node_id_start = node_id ? k_uptime_get_32() : 0;
 			bt_mesh_adv_update();
 		}
 
