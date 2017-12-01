@@ -790,7 +790,6 @@ static s32_t offer_delay(struct bt_mesh_friend *frnd, s8_t rssi, u8_t crit)
 int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	struct bt_mesh_ctl_friend_req *msg = (void *)buf->om_data;
-	struct bt_mesh_subnet *sub = rx->sub;
 	struct bt_mesh_friend *frnd = NULL;
 	u16_t old_friend;
 	u32_t poll_to;
@@ -879,7 +878,8 @@ init_friend:
 	k_delayed_work_submit(&frnd->timer,
 			      offer_delay(frnd, rx->rssi, msg->criteria));
 
-	friend_cred_create(sub, frnd->lpn, frnd->lpn_counter, frnd->counter);
+	friend_cred_create(rx->sub, frnd->lpn, frnd->lpn_counter,
+			   frnd->counter);
 
 	enqueue_offer(frnd, rx->rssi);
 
