@@ -850,8 +850,12 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	BT_DBG("encoded %u bytes: %s", buf->om_len,
 		   bt_hex(buf->om_data, buf->om_len));
 
-	/* Deliver to GATT Proxy Clients if necessary */
-	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
+	/* Deliver to GATT Proxy Clients if necessary. Mesh spec 3.4.5.2:
+	 * "The output filter of the interface connected to advertising or
+	 * GATT bearers shall drop all messages with TTL value set to 1."
+	 */
+	if (MYNEWT_VAL(BLE_MESH_GATT_PROXY) &&
+	    tx->ctx->send_ttl != 1) {
 		if (bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
 		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
 			/* Notify completion if this only went
@@ -883,7 +887,12 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 			cb->end(0, cb_data);
 		}
 		k_work_submit(&bt_mesh.local_work);
-	} else {
+	} else if (tx->ctx->send_ttl != 1) {
+		/* Deliver to to the advertising network interface. Mesh spec
+		 * 3.4.5.2: "The output filter of the interface connected to
+		 * advertising or GATT bearers shall drop all messages with
+		 * TTL value set to 1."
+		 */
 		bt_mesh_adv_send(buf, cb, cb_data);
 	}
 
@@ -1080,8 +1089,20 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	struct os_mbuf *buf;
 	u8_t nid, transmit;
 
-	if (rx->net_if != BT_MESH_NET_IF_LOCAL && rx->ctx.recv_ttl <= 1) {
-		return;
+	if (rx->net_if == BT_MESH_NET_IF_LOCAL) {
+		/* Locally originated PDUs with TTL=1 will only be delivered
+		 * to local elements as per Mesh Profile 1.0 section 3.4.5.2:
+		 * "The output filter of the interface connected to
+		 * advertising or GATT bearers shall drop all messages with
+		 * TTL value set to 1."
+		 */
+		if (rx->ctx.recv_ttl == 1) {
+			return;
+		}
+	} else {
+		if (rx->ctx.recv_ttl <= 1) {
+			return;
+		}
 	}
 
 	if (rx->net_if == BT_MESH_NET_IF_ADV &&
