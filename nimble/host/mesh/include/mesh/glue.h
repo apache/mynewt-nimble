@@ -341,6 +341,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_ADV BLE_MESH_PB_ADV
 #define CONFIG_BT_MESH_PROV BLE_MESH_PROV
 #define CONFIG_BT_MESH_ADV_BUF_COUNT MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT)
+#define CONFIG_BT_MESH_NODE_ID_TIMEOUT MYNEWT_VAL(BLE_MESH_NODE_ID_TIMEOUT)
 #define IS_ENABLED(config) MYNEWT_VAL(config)
 #define printk console_printf
 

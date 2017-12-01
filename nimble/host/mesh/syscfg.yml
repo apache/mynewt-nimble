@@ -44,12 +44,21 @@ syscfg.defs:
         value: 1
 
     BLE_MESH_GATT_PROXY:
-        descruption: >
+        description: >
             This option enables support for the Mesh GATT Proxy Service,
             i.e. the ability to act as a proxy between a Mesh GATT Client
             and a Mesh network.
         value: 1
-    
+
+    BLE_MESH_NODE_ID_TIMEOUT:
+        description: >
+            This option determines for how long the local node advertises
+            using Node Identity. The given value is in seconds. The
+            specification limits this to 60 seconds, and implies that to
+            be the appropriate value as well, so just leaving this as the
+            default is the safest option.
+        value: 60
+
     BLE_MESH_PROXY_FILTER_SIZE:
         descryption: >
             This option specifies how many Proxy Filter entries the local
