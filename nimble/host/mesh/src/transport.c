@@ -1375,3 +1375,9 @@ void bt_mesh_trans_init(void)
 		k_delayed_work_add_arg(&seg_rx[i].ack, &seg_rx[i]);
 	}
 }
+
+void bt_mesh_rpl_clear(void)
+{
+	BT_DBG("");
+	memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
+}
