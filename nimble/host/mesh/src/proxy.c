@@ -940,7 +940,7 @@ static const struct bt_data prov_sd[] = {
 #endif /* PB_GATT */
 
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-static s64_t node_id_start;
+static u32_t node_id_start;
 
 #define ID_TYPE_NET  0x00
 #define ID_TYPE_NODE 0x01
@@ -1040,11 +1040,11 @@ static s32_t gatt_proxy_advertise(void)
 	}
 
 	if (node_id_start) {
-		s64_t active = k_uptime_get() - node_id_start;
+		u32_t active = k_uptime_get_32() - node_id_start;
 
 		if (active < NODE_ID_TIMEOUT) {
 			remaining = NODE_ID_TIMEOUT - active;
-			BT_DBG("Node ID active for %lld ms, %d ms remaining",
+			BT_DBG("Node ID active for %u ms, %u ms remaining",
 			       active, remaining);
 		} else {
 			sub->node_id = BT_MESH_NODE_IDENTITY_STOPPED;
@@ -1056,7 +1056,7 @@ static s32_t gatt_proxy_advertise(void)
 	if (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING) {
 		proxy_adv_param = &fast_adv_param;
 		if (node_id_adv(sub) == 0 && !node_id_start) {
-			node_id_start = k_uptime_get();
+			node_id_start = k_uptime_get_32();
 			remaining = NODE_ID_TIMEOUT;
 		}
 	} else if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
