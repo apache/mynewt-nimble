@@ -506,7 +506,8 @@ static bool is_replay(struct bt_mesh_net_rx *rx)
 				return true;
 			}
 
-			if (rpl->seq < rx->seq) {
+			if ((!rx->old_iv && rpl->old_iv) ||
+			    rpl->seq < rx->seq) {
 				rpl->seq = rx->seq;
 				rpl->old_iv = rx->old_iv;
 				return false;
