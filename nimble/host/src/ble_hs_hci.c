@@ -28,7 +28,7 @@
 #include "ble_hs_dbg_priv.h"
 #include "ble_monitor_priv.h"
 
-#define BLE_HCI_CMD_TIMEOUT     (OS_TICKS_PER_SEC)
+#define BLE_HCI_CMD_TIMEOUT     ((OS_TICKS_PER_SEC) * 2)
 
 static struct os_mutex ble_hs_hci_mutex;
 static struct os_sem ble_hs_hci_sem;
