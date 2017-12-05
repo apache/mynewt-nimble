@@ -198,7 +198,7 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
 
-	buf = os_mbuf_get_pkthdr(pool, sizeof(struct bt_mesh_adv));
+	buf = os_mbuf_get_pkthdr(pool, BT_MESH_ADV_USER_DATA_SIZE);
 	if (!buf) {
 		return NULL;
 	}
