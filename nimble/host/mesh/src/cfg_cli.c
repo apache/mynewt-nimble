@@ -151,7 +151,7 @@ static void app_key_status(struct bt_mesh_model *model,
 	       bt_hex(buf->om_data, buf->om_len));
 
 	if (cli->op_pending != OP_APP_KEY_STATUS) {
-		BT_WARN("Unexpected Relay Status message");
+		BT_WARN("Unexpected App Key Status message");
 		return;
 	}
 
