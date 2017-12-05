@@ -471,7 +471,7 @@ ble_att_rx(struct ble_l2cap_chan *chan)
     int rc;
 
     conn_handle = ble_l2cap_get_conn_handle(chan);
-    if (!conn_handle) {
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         return BLE_HS_ENOTCONN;
     }
 

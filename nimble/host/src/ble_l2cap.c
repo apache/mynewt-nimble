@@ -135,7 +135,7 @@ uint16_t
 ble_l2cap_get_conn_handle(struct ble_l2cap_chan *chan)
 {
     if (!chan) {
-        return 0;
+        return BLE_HS_CONN_HANDLE_NONE;
     }
 
     return chan->conn_handle;
