@@ -36,7 +36,7 @@
 #define FRIEND_BUF_COUNT ((MYNEWT_VAL(BLE_MESH_FRIEND_QUEUE_SIZE) + 1) * MYNEWT_VAL(BLE_MESH_FRIEND_LPN_COUNT))
 
 static os_membuf_t friend_buf_mem[OS_MEMPOOL_SIZE(
-		MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
+		FRIEND_BUF_COUNT,
 		BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE)];
 
 struct os_mbuf_pool friend_os_mbuf_pool;
@@ -1042,14 +1042,14 @@ int bt_mesh_friend_init(void)
 	int rc;
 	int i;
 
-	rc = os_mempool_init(&friend_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
-			BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE,
+	rc = os_mempool_init(&friend_buf_mempool, FRIEND_BUF_COUNT,
+			BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
 			friend_buf_mem, "friend_buf_pool");
 	assert(rc == 0);
 
 	rc = os_mbuf_pool_init(&friend_os_mbuf_pool, &friend_buf_mempool,
-			BT_MESH_ADV_DATA_SIZE + BT_MESH_ADV_USER_DATA_SIZE,
-			MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT));
+			BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
+			FRIEND_BUF_COUNT);
 	assert(rc == 0);
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.frnd); i++) {
