@@ -584,6 +584,8 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 	return len;
 }
 
+static int conn_count;
+
 static void proxy_connected(uint16_t conn_handle)
 {
 	struct bt_mesh_proxy_client *client;
@@ -591,13 +593,15 @@ static void proxy_connected(uint16_t conn_handle)
 
 	BT_INFO("conn_handle %d", conn_handle);
 
+	conn_count++;
+
 	/* Since we use ADV_OPT_ONE_TIME */
 	proxy_adv_enabled = false;
 
-#if MYNEWT_VAL(BLE_MAX_CONNECTIONS) > 1
 	/* Try to re-enable advertising in case it's possible */
-	bt_mesh_adv_update();
-#endif
+	if (conn_count < CONFIG_BT_MAX_CONN) {
+		bt_mesh_adv_update();
+	}
 
 	for (client = NULL, i = 0; i < ARRAY_SIZE(clients); i++) {
 		if (!clients[i].conn_handle) {
@@ -622,6 +626,8 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 	int i;
 
 	BT_INFO("conn_handle %d reason %d", conn_handle, reason);
+
+	conn_count--;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
@@ -1119,6 +1125,11 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	int subnet_count;
 
 	BT_DBG("");
+
+	if (conn_count == CONFIG_BT_MAX_CONN) {
+		BT_WARN("Connectable advertising deferred (max connections)");
+		return remaining;
+	}
 
 	if (!sub) {
 		BT_WARN("No subnets to advertise on");
