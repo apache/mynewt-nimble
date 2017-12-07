@@ -19,6 +19,7 @@
 
 #include "mesh/glue.h"
 #include "adv.h"
+#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 
 extern u8_t g_mesh_addr_type;
 
@@ -172,6 +173,7 @@ net_buf_simple_add_le16(struct os_mbuf *om, uint16_t val)
 {
     val = htole16(val);
     os_mbuf_append(om, &val, sizeof(val));
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -179,6 +181,7 @@ net_buf_simple_add_be16(struct os_mbuf *om, uint16_t val)
 {
     val = htobe16(val);
     os_mbuf_append(om, &val, sizeof(val));
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -186,12 +189,14 @@ net_buf_simple_add_be32(struct os_mbuf *om, uint32_t val)
 {
     val = htobe32(val);
     os_mbuf_append(om, &val, sizeof(val));
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
 net_buf_simple_add_u8(struct os_mbuf *om, uint8_t val)
 {
     os_mbuf_append(om, &val, 1);
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -207,6 +212,7 @@ net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val)
     if (om->om_pkthdr_len) {
         OS_MBUF_PKTHDR(om)->omp_len += 2;
     }
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -222,6 +228,7 @@ net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val)
     if (om->om_pkthdr_len) {
         OS_MBUF_PKTHDR(om)->omp_len += 2;
     }
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -237,6 +244,7 @@ net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val)
     if (om->om_pkthdr_len) {
         OS_MBUF_PKTHDR(om)->omp_len += 1;
     }
+    ASSERT_NOT_CHAIN(om);
 }
 
 void
@@ -251,6 +259,7 @@ net_buf_add_zeros(struct os_mbuf *om, uint8_t len)
     if(rc) {
         assert(0);
     }
+    ASSERT_NOT_CHAIN(om);
 }
 
 void *
@@ -263,7 +272,12 @@ net_buf_simple_pull(struct os_mbuf *om, uint8_t len)
 void*
 net_buf_simple_add(struct os_mbuf *om, uint8_t len)
 {
-    return os_mbuf_extend(om, len);
+    void * tmp;
+
+    tmp = os_mbuf_extend(om, len);
+    ASSERT_NOT_CHAIN(om);
+
+    return tmp;
 }
 
 bool

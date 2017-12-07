@@ -26,7 +26,6 @@
 #include "syscfg/syscfg.h"
 
 #include "os/os_mbuf.h"
-#include "os/os_mbuf.h"
 #include "os/os_callout.h"
 #include "os/os_eventq.h"
 
@@ -128,6 +127,13 @@
     } while (0);
 
 #define __ASSERT_NO_MSG(test) __ASSERT(test, "")
+
+/* Mesh is designed to not use mbuf chains */
+#if BT_DBG_ENABLED
+#define ASSERT_NOT_CHAIN(om) assert(SLIST_NEXT(om, om_next) == NULL)
+#else
+#define ASSERT_NOT_CHAIN(om) (void)(om)
+#endif
 
 #define __packed    __attribute__((__packed__))
 
