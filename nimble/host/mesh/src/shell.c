@@ -967,6 +967,48 @@ struct shell_cmd_help cmd_relay_help = {
 	NULL, "[val: off, on] [count: 0-7] [interval: 0-32]", NULL
 };
 
+static int cmd_net_key_add(int argc, char *argv[])
+{
+	u8_t key_val[16];
+	u16_t key_net_idx;
+	u8_t status;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	key_net_idx = strtoul(argv[1], NULL, 0);
+
+	if (argc > 2) {
+		size_t len;
+
+		len = hex2bin(argv[3], key_val, sizeof(key_val));
+		memset(key_val, 0, sizeof(key_val) - len);
+	} else {
+		memcpy(key_val, default_key, sizeof(key_val));
+	}
+
+	err = bt_mesh_cfg_net_key_add(net.net_idx, net.dst, key_net_idx,
+				      key_val, &status);
+	if (err) {
+		printk("Unable to send NetKey Add (err %d)\n", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("NetKeyAdd failed with status 0x%02x\n", status);
+	} else {
+		printk("NetKey added with NetKey Index 0x%03x\n", key_net_idx);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_net_key_add_help = {
+	NULL, "<NetKeyIndex> [val]", NULL
+};
+
 static int cmd_app_key_add(int argc, char *argv[])
 {
 	u8_t key_val[16];
@@ -2036,6 +2078,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "friend", cmd_friend, &cmd_friend_help },
 	{ "gatt-proxy", cmd_gatt_proxy, &cmd_gatt_proxy_help },
 	{ "relay", cmd_relay, &cmd_relay_help },
+	{ "net-key-add", cmd_net_key_add, &cmd_net_key_add_help },
 	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
 	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
 	{ "mod-pub", cmd_mod_pub, &cmd_mod_pub_help },
