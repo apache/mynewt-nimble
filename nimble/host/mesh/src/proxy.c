@@ -417,6 +417,18 @@ void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
 	}
 }
 
+void bt_mesh_proxy_identity_start(struct bt_mesh_subnet *sub)
+{
+	sub->node_id = BT_MESH_NODE_IDENTITY_RUNNING;
+	sub->node_id_start = k_uptime_get_32();
+}
+
+void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub)
+{
+	sub->node_id = BT_MESH_NODE_IDENTITY_STOPPED;
+	sub->node_id_start = 0;
+}
+
 int bt_mesh_proxy_identity_enable(void)
 {
 	/* FIXME: Add support for multiple subnets */
@@ -440,8 +452,7 @@ int bt_mesh_proxy_identity_enable(void)
 		return 0;
 	}
 
-	sub->node_id = BT_MESH_NODE_IDENTITY_RUNNING;
-	sub->node_id_start = k_uptime_get_32();
+	bt_mesh_proxy_identity_start(sub);
 	bt_mesh_adv_update();
 
 	return 0;
@@ -1114,8 +1125,7 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 			       active, remaining);
 			node_id_adv(sub);
 		} else {
-			sub->node_id = BT_MESH_NODE_IDENTITY_STOPPED;
-			sub->node_id_start = 0;
+			bt_mesh_proxy_identity_stop(sub);
 			BT_DBG("Node ID stopped");
 		}
 	}
