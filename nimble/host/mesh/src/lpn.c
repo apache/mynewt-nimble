@@ -311,7 +311,7 @@ static void req_sent(u16_t duration, int err, void *user_data)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-#if defined(CONFIG_BT_MESH_DEBUG_LOW_POWER)
+#if BT_DBG_ENABLED
 	BT_DBG("req 0x%02x duration %u err %d state %s",
 	       lpn->sent_req, duration, err, state2str(lpn->state));
 #endif

@@ -1013,8 +1013,8 @@ static int net_decrypt(struct bt_mesh_subnet *sub, const u8_t *enc,
 	return bt_mesh_net_decrypt(enc, buf, BT_MESH_NET_IVI_RX(rx), false);
 }
 
-#if (defined(CONFIG_BT_MESH_LOW_POWER) || \
-     defined(CONFIG_BT_MESH_FRIEND))
+#if (MYNEWT_VAL(BLE_MESH_LOW_POWER) || \
+     MYNEWT_VAL(BLE_MESH_FRIEND))
 static int friend_decrypt(struct bt_mesh_subnet *sub, const u8_t *data,
 			  size_t data_len, struct bt_mesh_net_rx *rx,
 			  struct os_mbuf *buf)
@@ -1067,8 +1067,8 @@ static bool net_find_and_decrypt(const u8_t *data, size_t data_len,
 			continue;
 		}
 
-#if (defined(CONFIG_BT_MESH_LOW_POWER) || \
-     defined(CONFIG_BT_MESH_FRIEND))
+#if (MYNEWT_VAL(BLE_MESH_LOW_POWER) || \
+     MYNEWT_VAL(BLE_MESH_FRIEND))
 		if (!friend_decrypt(sub, data, data_len, rx, buf)) {
 			rx->friend_cred = 1;
 			rx->ctx.net_idx = sub->net_idx;
