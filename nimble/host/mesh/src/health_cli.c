@@ -21,6 +21,7 @@
 #include "transport.h"
 #include "access.h"
 #include "foundation.h"
+#include "mesh/health_cli.h"
 
 static s32_t msg_timeout = K_SECONDS(2);
 
