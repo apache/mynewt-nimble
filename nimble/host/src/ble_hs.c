@@ -313,7 +313,10 @@ ble_hs_sync(void)
 
     if (rc == 0) {
         rc = ble_hs_misc_restore_irks();
-        assert(rc == 0);
+        if (rc != 0) {
+            BLE_HS_LOG(INFO, "Failed to restore IRKs from store; status=%d",
+                       rc);
+        }
 
         if (ble_hs_cfg.sync_cb != NULL) {
             ble_hs_cfg.sync_cb();
