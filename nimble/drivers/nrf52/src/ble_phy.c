@@ -24,7 +24,7 @@
 #include "os/os.h"
 #include "ble/xcvr.h"
 #include "bsp/cmsis_nvic.h"
-#include "hal/hal_gpio.h"
+// XXX #include "hal/hal_gpio.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"

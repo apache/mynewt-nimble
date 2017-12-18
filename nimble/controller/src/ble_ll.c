@@ -1460,9 +1460,9 @@ ble_ll_init(void)
     lldata->ll_supp_features = features;
 
     /* Initialize the LL task */
-    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
-                 MYNEWT_VAL(BLE_LL_PRIO), OS_WAIT_FOREVER, g_ble_ll_stack,
-                 BLE_LL_STACK_SIZE);
+//    os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
+//                 MYNEWT_VAL(BLE_LL_PRIO), OS_WAIT_FOREVER, g_ble_ll_stack,
+//                 BLE_LL_STACK_SIZE);
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),

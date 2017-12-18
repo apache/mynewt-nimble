@@ -38,7 +38,6 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_gpio.h"
 
 /* XXX: TODO
  * 1) Need to look at advertising and scan request PDUs. Do I allocate these

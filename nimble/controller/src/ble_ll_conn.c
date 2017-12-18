@@ -40,7 +40,6 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_gpio.h"
 
 #if (BLETEST_THROUGHPUT_TEST == 1)
 extern void bletest_completed_pkt(uint16_t handle);
