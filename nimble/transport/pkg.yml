@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/transport
+pkg.name: nimble/transport
 pkg.description: Meta-package for NimBLE HCI transport
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -26,17 +26,17 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps.BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
-    - net/nimble/transport/ram
-    - net/nimble/controller
+    - nimble/transport/ram
+    - nimble/controller
 
 pkg.deps.BLE_HCI_TRANSPORT_EMSPI:
-    - net/nimble/transport/emspi
+    - nimble/transport/emspi
 
 pkg.deps.BLE_HCI_TRANSPORT_RAM:
-    - net/nimble/transport/ram
+    - nimble/transport/ram
 
 pkg.deps.BLE_HCI_TRANSPORT_SOCKET:
-    - net/nimble/transport/socket
+    - nimble/transport/socket
 
 pkg.deps.BLE_HCI_TRANSPORT_UART:
-    - net/nimble/transport/uart
+    - nimble/transport/uart

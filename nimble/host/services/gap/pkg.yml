@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/services/gap
+pkg.name: nimble/host/services/gap
 pkg.description: Implements the GAP Service. 
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -28,7 +28,7 @@ pkg.keywords:
     - gap
 
 pkg.deps:
-    - net/nimble/host
+    - nimble/host
 
 pkg.init:
     ble_svc_gap_init: 301

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: hw/drivers/nimble/native
+pkg.name: nimble/drivers/native
 pkg.description: BLE driver for simulations.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -27,4 +27,4 @@ pkg.keywords:
 
 pkg.apis: ble_driver
 pkg.deps:
-    - net/nimble/controller
+    - nimble/controller

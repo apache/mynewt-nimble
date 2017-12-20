@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/transport/uart
+pkg.name: nimble/transport/uart
 pkg.description: XXX
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -26,10 +26,10 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
-    - hw/hal
-    - kernel/os
-    - net/nimble
-    - util/mem
+    - "@apache-mynewt-core/hw/hal"
+    - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/util/mem"
+    - nimble
 
 pkg.apis:
     - ble_transport

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-pkg.name: net/nimble/host/test
+pkg.name: nimble/host/test
 pkg.type: unittest
 pkg.description: "NimBLE host unit tests."
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
@@ -23,12 +23,12 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - test/testutil
-    - net/nimble/host
-    - net/nimble/host/store/config
+    - "@apache-mynewt-core/test/testutil"
+    - nimble/host
+    - nimble/host/store/config
 
 pkg.deps.SELFTEST:
-    - sys/console/stub
-    - sys/log/full
-    - sys/stats/stub
-    - net/nimble/transport/ram
+    - "@apache-mynewt-core/sys/console/stub"
+    - "@apache-mynewt-core/sys/log/full"
+    - "@apache-mynewt-core/sys/stats/stub"
+    - nimble/transport/ram
