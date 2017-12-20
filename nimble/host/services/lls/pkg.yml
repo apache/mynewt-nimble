@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/services/lls
+pkg.name: nimble/host/services/lls
 pkg.description: Link Loss Service Implementation.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -28,7 +28,7 @@ pkg.keywords:
     - nimble
 
 pkg.deps:
-    - net/nimble/host
+    - nimble/host
 
 pkg.init:
     ble_svc_lls_init: 303

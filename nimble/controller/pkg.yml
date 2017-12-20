@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/controller
+pkg.name: nimble/controller
 pkg.description: Controller side of the nimble Bluetooth Smart stack.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -31,8 +31,8 @@ pkg.req_apis:
     - stats
 
 pkg.deps:
-    - kernel/os
-    - net/nimble
+    - "@apache-mynewt-core/kernel/os"
+    - nimble
 
 pkg.init:
     ble_ll_init: 250
