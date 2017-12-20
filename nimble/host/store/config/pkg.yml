@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/store/config
+pkg.name: nimble/host/store/config
 pkg.description: sys/config-based persistence layer for the NimBLE host.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -28,11 +28,11 @@ pkg.keywords:
     - persistence
 
 pkg.deps:
-    - encoding/base64
-    - net/nimble/host
+    - "@apache-mynewt-core/encoding/base64"
+    - nimble/host
 
 pkg.deps.BLE_STORE_CONFIG_PERSIST:
-    - sys/config
+    - "@apache-mynewt-core/sys/config"
 
 pkg.init:
     ble_store_config_init: 500

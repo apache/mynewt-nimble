@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/util
+pkg.name: nimble/host/util
 pkg.description: Supplementary utilities for the NimBLE host
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -26,4 +26,4 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
-    - net/nimble/host
+    - nimble/host

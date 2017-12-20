@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/mesh
+pkg.name: nimble/host/mesh
 pkg.description: Bluetooth Mesh
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -27,11 +27,11 @@ pkg.keywords:
     - mesh
 
 pkg.deps:
-    - kernel/os
-    - net/nimble
-    - util/mem
-    - net/nimble/host  
-    - crypto/tinycrypt
+    - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/util/mem"
+    - "@apache-mynewt-core/crypto/tinycrypt"
+    - nimble
+    - nimble/host  
 
 pkg.req_apis:
     - log

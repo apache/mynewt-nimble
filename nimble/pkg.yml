@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble
+pkg.name: nimble
 pkg.description: Generic functionality for the nimble Bluetooth Smart stack; used by both the controller and the host.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -26,4 +26,4 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
-    - kernel/os
+    - "@apache-mynewt-core/kernel/os"

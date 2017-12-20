@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: net/nimble/host/store/ram
+pkg.name: nimble/host/store/ram
 pkg.description: >
     DEPRECATED; for a RAM-only BLE store, use store/config and set
     BLE_STORE_CONFIG_PERSIST to 0.  RAM-based persistence layer for the NimBLE
@@ -31,7 +31,7 @@ pkg.keywords:
     - persistence
 
 pkg.deps:
-    - net/nimble/host
+    - nimble/host
 
 pkg.init:
     ble_store_ram_init: 500
