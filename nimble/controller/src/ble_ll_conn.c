@@ -2511,10 +2511,17 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
             ble_ll_hci_ev_le_csa(connsm);
 #endif
-        }
 
-        /* Initiate features exchange */
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+            /*
+             * Initiate features exchange
+             *
+             * XXX we do this only as a master as it was observed that sending
+             * LL_SLAVE_FEATURE_REQ after connection breaks some recent iPhone
+             * models; for slave just assume master will initiate features xchg
+             * if it has some additional features to use.
+             */
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+        }
     }
 
     return rc;
