@@ -1432,6 +1432,66 @@ done:
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+int ble_ll_sched_dtm(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    os_sr_t sr;
+    struct ble_ll_sched_item *entry;
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Nothing in schedule. Schedule as soon as possible
+         * If we are here it means sch has been added to the scheduler */
+        rc = 0;
+        goto done;
+    }
+
+    /* Try to find slot for test. */
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        /* We can insert if before entry in list */
+        if (sch->end_time <= entry->start_time) {
+            rc = 0;
+            TAILQ_INSERT_BEFORE(entry, sch, link);
+            sch->enqueued = 1;
+            break;
+        }
+
+        /* Check for overlapping events. For now drop if it overlaps with
+         * anything. We can make it smarter later on
+         */
+        if (ble_ll_sched_is_overlap(sch, entry)) {
+            OS_EXIT_CRITICAL(sr);
+            return -1;
+        }
+    }
+
+    if (!entry) {
+        rc = 0;
+        TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 1;
+    }
+
+done:
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_xcvr_rfclk_timer_start(sch->start_time);
+#endif
+
+    OS_EXIT_CRITICAL(sr);
+
+    /* Restart timer */
+    assert(sch != NULL);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+#endif
 /**
  * Stop the scheduler
  *

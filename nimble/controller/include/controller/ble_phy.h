@@ -240,6 +240,11 @@ static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
     return phy_mode;
 }
 
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+void ble_phy_enable_dtm(void);
+void ble_phy_disable_dtm(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

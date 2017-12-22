@@ -73,6 +73,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_SCAN      (2)
 #define BLE_LL_SCHED_TYPE_CONN      (3)
 #define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
+#define BLE_LL_SCHED_TYPE_DTM       (5)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -194,6 +195,10 @@ void ble_ll_sched_stop(void);
 #ifdef BLE_XCVR_RFCLK
 /* Check if RF clock needs to be restarted */
 void ble_ll_sched_rfclk_chk_restart(void);
+#endif
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #endif
 
 #ifdef __cplusplus

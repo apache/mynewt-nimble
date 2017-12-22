@@ -42,6 +42,10 @@
 #include "controller/ble_ll_xcvr.h"
 #include "ble_ll_conn_priv.h"
 
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#include <ble_ll_dtm_priv.h>
+#endif
+
 /* XXX:
  *
  * 1) use the sanity task!
@@ -569,6 +573,11 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_INITIATING:
             ble_ll_conn_init_wfr_timer_exp();
             break;
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+        case BLE_LL_STATE_DTM:
+            ble_ll_dtm_wfr_timer_exp();
+            break;
+#endif
         default:
             break;
         }
@@ -658,6 +667,12 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
 
     crcok = BLE_MBUF_HDR_CRC_OK(hdr);
     connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_CONNECTION);
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+    /* Reuse connection stats for DTM */
+    connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_DTM);
+#endif
+
     if (crcok) {
         if (connection_data) {
             STATS_INC(ble_ll_stats, rx_data_pdu_crc_ok);
@@ -730,6 +745,11 @@ ble_ll_rx_pkt_in(void)
         case BLE_LL_STATE_INITIATING:
             ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+        case BLE_LL_STATE_DTM:
+            ble_ll_dtm_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
         default:
             /* Any other state should never occur */
             STATS_INC(ble_ll_stats, bad_ll_state);
@@ -856,6 +876,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
         break;
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+    case BLE_LL_STATE_DTM:
+        rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
+        break;
+#endif
     default:
         /* Should not be in this state! */
         rc = -1;
@@ -895,6 +920,13 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
                ((uint16_t)rxhdr->rxinfo.flags << 8) | rxbuf[1],
                rxhdr->beg_cputime);
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_DTM) {
+        rc = ble_ll_dtm_rx_isr_end(rxbuf, rxhdr);
+        return rc;
+    }
+#endif
 
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CONNECTION) {
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
@@ -1178,6 +1210,10 @@ ble_ll_reset(void)
 
     /* Stop any advertising */
     ble_ll_adv_reset();
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+    ble_ll_dtm_reset();
+#endif
 
     /* FLush all packets from Link layer queues */
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_tx_pkt_q);

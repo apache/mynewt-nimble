@@ -283,6 +283,11 @@ syscfg.defs:
             be used.
         value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
 
+    BLE_LL_DIRECT_TEST_MODE:
+        description: >
+             Enables HCI Test commands needed for Bluetooth SIG certification
+        value: 0
+
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
