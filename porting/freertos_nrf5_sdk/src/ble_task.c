@@ -132,25 +132,11 @@ on_sync_cb(void)
 }
 
 static void
-task_func(void *param)
+dftl_task(void *param)
 {
-    int rc;
-
-    rc = hal_timer_init(0, NULL);
-    assert(rc == 0);
-    rc = hal_timer_init(5, NULL);
-    assert(rc == 0);
-    rc = os_cputime_init(MYNEWT_VAL(OS_CPUTIME_FREQ));
-    assert(rc == 0);
-
-    nimble_init();
-
-    ble_hs_cfg.sync_cb = on_sync_cb;
-
-    ble_svc_gap_device_name_set(gap_name);
-    ble_svc_ias_set_cb(ias_event_cb);
-
-    nimble_run();
+    while (1) {
+        os_eventq_run(os_eventq_dflt_get());
+    }
 }
 
 static void led_tmr_func(void *param)
@@ -163,13 +149,40 @@ static void led_tmr_func(void *param)
 
 void start_nimble(void)
 {
+    int rc;
+
     void ble_ll_task(void *arg);
 
-    led_tmr_h = xTimerCreate("led", 500, pdTRUE, NULL, led_tmr_func);
+    /*
+     * XXX initialize some stuff required by controller; we need to move this
+     * somewhere later
+     */
+    rc = hal_timer_init(0, NULL);
+    assert(rc == 0);
+    rc = hal_timer_init(5, NULL);
+    assert(rc == 0);
+    rc = os_cputime_init(MYNEWT_VAL(OS_CPUTIME_FREQ));
+    assert(rc == 0);
 
-    xTaskCreate(task_func, "nimble", configMINIMAL_STACK_SIZE + 400,
+    /* Execute sysinit port */
+    nimble_port_sysinit();
+
+    /* Configure Nimble host */
+    ble_hs_cfg.sync_cb = on_sync_cb;
+
+    ble_svc_gap_device_name_set(gap_name);
+    ble_svc_ias_set_cb(ias_event_cb);
+
+    /* Create task which handles default event queue */
+    xTaskCreate(dftl_task, "dflt", configMINIMAL_STACK_SIZE + 400,
+                NULL, 1, &task_h);
+
+    /*
+     * XXX create LL task; in Mynewt this is done in sysinit but for now this
+     * is commented out there due to missing porting layer for task creation
+     */
+    xTaskCreate(ble_ll_task, "ll", configMINIMAL_STACK_SIZE + 100,
                 NULL, 2, &task_h);
 
-    xTaskCreate(ble_ll_task, "ll", configMINIMAL_STACK_SIZE + 100,
-                NULL, 0, &task_h);
+    led_tmr_h = xTimerCreate("led", 500, pdTRUE, NULL, led_tmr_func);
 }

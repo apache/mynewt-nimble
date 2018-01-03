@@ -30,7 +30,7 @@
 #include "controller/ble_ll.h"
 
 void
-nimble_init(void)
+nimble_port_sysinit(void)
 {
     void os_msys_init(void);
     void ble_hci_ram_pkg_init(void);
@@ -49,17 +49,4 @@ nimble_init(void)
     ble_svc_tps_init();
     ble_store_ram_init();
     sysinit_end();
-}
-
-void
-nimble_run(void)
-{
-    while (1) {
-        struct os_event *ev;
-
-        ev = os_eventq_get(os_eventq_dflt_get());
-        assert(ev->ev_cb != NULL);
-
-        ev->ev_cb(ev);
-    }
 }

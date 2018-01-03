@@ -24,9 +24,7 @@
 extern "C" {
 #endif
 
-void nimble_init(void);
-
-void nimble_run(void);
+void nimble_port_sysinit(void);
 
 #ifdef __cplusplus
 }
