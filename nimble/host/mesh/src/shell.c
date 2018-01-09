@@ -193,7 +193,7 @@ static struct bt_mesh_health_cli health_cli = {
 	.current_status = health_current_status,
 };
 
-static u8_t dev_uuid[16] = { 0xdd, 0xdd };
+static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
@@ -2108,11 +2108,16 @@ static const struct shell_cmd mesh_commands[] = {
 
 	{ NULL, NULL, NULL}
 };
+#endif
 
-void mesh_shell_init(void)
+void ble_mesh_shell_init(void)
 {
+#if !(MYNEWT_VAL(BLE_MESH_SHELL))
+	return;
+#endif
+
+	/* Initialize health pub message */
 	health_pub_init();
+
 	shell_register("mesh", mesh_commands);
 }
-
-#endif

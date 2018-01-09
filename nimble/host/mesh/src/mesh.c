@@ -246,10 +246,6 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	bt_mesh_beacon_enable();
 #endif
 
-#if (MYNEWT_VAL(BLE_MESH_SHELL))
-	mesh_shell_init();
-#endif
-
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 	bt_mesh_proxy_prov_enable();
 #endif
