@@ -11,7 +11,6 @@
 #include <string.h>
 
 #include "mesh/mesh.h"
-#include "mesh/testing.h"
 #include "mesh_priv.h"
 
 #include "syscfg/syscfg.h"
@@ -26,6 +25,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "transport.h"
+#include "testing.h"
 
 #define AID_MASK                    ((u8_t)(BIT_MASK(6)))
 
