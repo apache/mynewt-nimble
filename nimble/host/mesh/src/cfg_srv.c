@@ -27,6 +27,7 @@
 #include "proxy.h"
 #include "foundation.h"
 #include "friend.h"
+#include "testing.h"
 
 #define DEFAULT_TTL 7
 
@@ -2396,6 +2397,10 @@ static void mod_app_bind(struct bt_mesh_model *model,
 
 	status = mod_bind(mod, key_app_idx);
 
+	if (IS_ENABLED(CONFIG_BT_TESTING) && status == STATUS_SUCCESS) {
+		bt_test_mesh_model_bound(ctx->addr, mod, key_app_idx);
+	}
+
 send_status:
 	BT_DBG("status 0x%02x", status);
 	create_mod_app_status(msg, mod, vnd, elem_addr, key_app_idx, status,
@@ -2439,6 +2444,10 @@ static void mod_app_unbind(struct bt_mesh_model *model,
 	}
 
 	status = mod_unbind(mod, key_app_idx);
+
+	if (IS_ENABLED(CONFIG_BT_TESTING) && status == STATUS_SUCCESS) {
+		bt_test_mesh_model_unbound(ctx->addr, mod, key_app_idx);
+	}
 
 send_status:
 	BT_DBG("status 0x%02x", status);
