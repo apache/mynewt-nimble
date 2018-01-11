@@ -131,6 +131,7 @@ struct prov_link {
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	u32_t id;                /* Link ID */
+#endif
 
 	struct {
 		u8_t  id;        /* Transaction ID */
@@ -154,7 +155,6 @@ struct prov_link {
 		/* Retransmit timer */
 		struct k_delayed_work retransmit;
 	} tx;
-#endif
 };
 
 struct prov_rx {
