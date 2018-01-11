@@ -73,3 +73,14 @@ void bt_test_mesh_prov_invalid_bearer(u8_t opcode)
 		}
 	}
 }
+
+void bt_test_mesh_trans_incomp_timer_exp(void)
+{
+	struct bt_test_cb *cb;
+
+	SYS_SLIST_FOR_EACH_CONTAINER(&cb_slist, cb, node) {
+		if (cb->mesh_trans_incomp_timer_exp) {
+			cb->mesh_trans_incomp_timer_exp();
+		}
+	}
+}
