@@ -21,6 +21,7 @@
 #include "mesh/mesh.h"
 #include "mesh/main.h"
 #include "mesh/glue.h"
+#include "mesh/testing.h"
 
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
@@ -28,6 +29,7 @@
 #include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
+#include "testing.h"
 
 #define CID_NVAL   0xffff
 #define CID_LOCAL  0x0002
@@ -2092,6 +2094,12 @@ struct shell_cmd_help cmd_del_fault_help = {
 	NULL, "[Fault ID]", NULL
 };
 
+static int cmd_print_credentials(int argc, char *argv[])
+{
+	bt_test_print_credentials();
+	return 0;
+}
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
@@ -2127,6 +2135,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "lpn-subscribe", cmd_lpn_subscribe, &cmd_lpn_subscribe_help },
 	{ "lpn-unsubscribe", cmd_lpn_unsubscribe, &cmd_lpn_unsubscribe_help },
 #endif
+	{ "print-credentials", cmd_print_credentials, NULL },
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
