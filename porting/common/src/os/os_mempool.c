@@ -102,7 +102,7 @@ os_mempool_init(struct os_mempool *mp, int blocks, int block_size,
         /* Blocks need to be sized properly and memory buffer should be
          * aligned
          */
-        if (((uint32_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
+        if (((uintptr_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
             return OS_MEM_NOT_ALIGNED;
         }
     }
@@ -113,7 +113,7 @@ os_mempool_init(struct os_mempool *mp, int blocks, int block_size,
     mp->mp_num_free = blocks;
     mp->mp_min_free = blocks;
     mp->mp_num_blocks = blocks;
-    mp->mp_membuf_addr = (uint32_t)membuf;
+    mp->mp_membuf_addr = (uintptr_t)membuf;
     mp->name = name;
     os_mempool_poison(membuf, true_block_size);
     SLIST_FIRST(mp) = membuf;
@@ -175,24 +175,24 @@ os_mempool_is_sane(const struct os_mempool *mp)
 int
 os_memblock_from(const struct os_mempool *mp, const void *block_addr)
 {
-    uint32_t true_block_size;
-    uint32_t baddr32;
-    uint32_t end;
+    uint32_t  true_block_size;
+    uintptr_t baddr_ptr;
+    uint32_t  end;
 
-    _Static_assert(sizeof block_addr == sizeof baddr32,
+    _Static_assert(sizeof block_addr == sizeof baddr_ptr,
                    "Pointer to void must be 32-bits.");
 
-    baddr32 = (uint32_t)block_addr;
+    baddr_ptr = (uintptr_t)block_addr;
     true_block_size = OS_MEMPOOL_TRUE_BLOCK_SIZE(mp);
     end = mp->mp_membuf_addr + (mp->mp_num_blocks * true_block_size);
 
     /* Check that the block is in the memory buffer range. */
-    if ((baddr32 < mp->mp_membuf_addr) || (baddr32 >= end)) {
+    if ((baddr_ptr < mp->mp_membuf_addr) || (baddr_ptr >= end)) {
         return 0;
     }
 
     /* All freed blocks should be on true block size boundaries! */
-    if (((baddr32 - mp->mp_membuf_addr) % true_block_size) != 0) {
+    if (((baddr_ptr - mp->mp_membuf_addr) % true_block_size) != 0) {
         return 0;
     }
 

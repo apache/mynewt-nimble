@@ -21,7 +21,7 @@
 #define _OS_FAULT_H
 
 #ifdef __cplusplus
-extern "c" {
+extern "C" {
 #endif
 
 void __assert_func(const char *, int, const char *, const char *)
