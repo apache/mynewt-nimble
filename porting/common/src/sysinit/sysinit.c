@@ -17,12 +17,14 @@
  * under the License.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <limits.h>
 #include "os/os_fault.h"
 #include "syscfg/syscfg.h"
 #include "sysinit/sysinit.h"
+
 
 static void
 sysinit_dflt_panic_cb(const char *file, int line, const char *func,
@@ -34,7 +36,8 @@ sysinit_dflt_panic_cb(const char *file, int line, const char *func,
     }
 #endif
 
-    __assert_func(file, line, func, expr);
+    __assert_fail(msg, file, line, func);
+    //__assert_func(file, line, func, expr);
 }
 
 sysinit_panic_fn *sysinit_panic_cb = sysinit_dflt_panic_cb;
