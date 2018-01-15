@@ -1040,7 +1040,7 @@ ble_hci_uart_init(void)
     acl_block_size = acl_data_length + BLE_MBUF_MEMBLOCK_OVERHEAD +
         BLE_HCI_DATA_HDR_SZ;
     acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
-    rc = mem_malloc_mempool_ext(&ble_hci_emspi_acl_pool,
+    rc = mem_malloc_mempool_ext(&ble_hci_uart_acl_pool,
                                 MYNEWT_VAL(BLE_ACL_BUF_COUNT),
                                 acl_block_size,
                                 "ble_hci_uart_acl_pool",
