@@ -415,14 +415,10 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         return ble_ll_adv_legacy_pdu_make(advsm, m);
     }
 
-    pdulen = 1; /* ext hdr len + AdvMode */
+    pdulen = BLE_LL_EXT_ADV_HDR_LEN;
 
-    ext_hdr_len = 0;
-
-    /* TODO for now always add flags */
-    ext_hdr_len += 1;
+    ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE;
     ext_hdr_flags = 0;
-
 
     if (ble_ll_adv_active_chanset_is_sec(advsm)) {
         pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
