@@ -286,6 +286,9 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_TYPE_AUX_CHAIN_IND      BLE_ADV_PDU_TYPE_ADV_EXT_IND
 #define BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP    (8)
 
+/* Extended Header Length (6b) + AdvMode (2b) */
+#define BLE_LL_EXT_ADV_HDR_LEN          (1)
+
 #define BLE_LL_EXT_ADV_ADVA_BIT         (0)
 #define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
 #define BLE_LL_EXT_ADV_RFU_BIT          (2)
@@ -294,6 +297,7 @@ struct ble_dev_addr
 #define BLE_LL_EXT_ADV_SYNC_INFO_BIT    (5)
 #define BLE_LL_EXT_ADV_TX_POWER_BIT     (6)
 
+#define BLE_LL_EXT_ADV_FLAGS_SIZE       (1)
 #define BLE_LL_EXT_ADV_ADVA_SIZE        (6)
 #define BLE_LL_EXT_ADV_TARGETA_SIZE     (6)
 #define BLE_LL_EXT_ADV_DATA_INFO_SIZE   (2)

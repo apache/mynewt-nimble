@@ -349,43 +349,45 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
  *
  */
 static uint8_t
-ble_ll_adv_secondary_pdu_len(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_secondary_pdu_payload_len(struct ble_ll_adv_sm *advsm)
 {
-    uint8_t pdulen;
+    uint8_t len;
 
-    pdulen = 2 + BLE_LL_PDU_HDR_LEN + BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE +
+          BLE_LL_EXT_ADV_DATA_INFO_SIZE;
 
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
             advsm->adv_len) {
-        pdulen += advsm->adv_len;
+        len += advsm->adv_len;
     }
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
-        pdulen += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) ||
             (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE)) {
-        pdulen += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        len += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
 
-    return pdulen;
+    return len;
 }
 
 static uint8_t
-ble_ll_adv_aux_scan_rsp_len(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_aux_scan_rsp_payload_len(struct ble_ll_adv_sm *advsm)
 {
-    uint8_t pdulen;
+    uint8_t len;
 
-    pdulen = 2 + BLE_LL_PDU_HDR_LEN + BLE_LL_EXT_ADV_ADVA_SIZE;
+    len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE +
+          BLE_LL_EXT_ADV_ADVA_SIZE;
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
-        pdulen += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
-    pdulen += advsm->scan_rsp_len;
+    len += advsm->scan_rsp_len;
 
-    return pdulen;
+    return len;
 }
 
 /**
@@ -1090,7 +1092,7 @@ ble_ll_adv_secondary_set_sched(struct ble_ll_adv_sm *advsm)
     advsm->adv_secondary_chan = rand() % BLE_PHY_NUM_DATA_CHANS;
 
     /* Set end time to maximum time this schedule item may take */
-    max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_secondary_pdu_len(advsm),
+    max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_secondary_pdu_payload_len(advsm),
                                        advsm->sec_phy);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
@@ -1106,7 +1108,7 @@ ble_ll_adv_secondary_set_sched(struct ble_ll_adv_sm *advsm)
                      ble_ll_pdu_tx_time_get(12, advsm->sec_phy)  +
                      BLE_LL_IFS +
                      /* AUX_SCAN_RSP */
-                     ble_ll_pdu_tx_time_get(ble_ll_adv_aux_scan_rsp_len(advsm),
+                     ble_ll_pdu_tx_time_get(ble_ll_adv_aux_scan_rsp_payload_len(advsm),
                                             advsm->sec_phy);
     }
 
