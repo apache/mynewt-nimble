@@ -573,7 +573,7 @@ ble_att_svr_write_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-static int
+int
 ble_att_svr_tx_error_rsp(uint16_t conn_handle, struct os_mbuf *txom,
                          uint8_t req_op, uint16_t handle, uint8_t error_code)
 {

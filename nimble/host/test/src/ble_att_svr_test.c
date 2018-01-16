@@ -2052,6 +2052,32 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 }
 
+TEST_CASE(ble_att_svr_test_unsupported_req)
+{
+    uint16_t conn_handle;
+    int rc;
+    uint8_t buf[] = {0x3f, 0x00, 0x00, 0x01, 0x02, 0x03};
+
+    conn_handle = ble_att_svr_test_misc_init(0);
+
+    /* Put handle into buf */
+    (*(uint16_t *)&buf[1]) = htole16(conn_handle);
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+    ble_hs_test_util_verify_tx_err_rsp(0x3f, 0,
+                                       BLE_ATT_ERR_REQ_NOT_SUPPORTED);
+
+    /* Check for no response when unknown command is sent */
+    buf[0] = 0x4f;
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+                                                    buf, sizeof buf);
+    TEST_ASSERT(rc != 0);
+
+    /* Ensure no response sent. */
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     /* When checking for mbuf leaks, ensure no stale prep entries. */
@@ -2077,6 +2103,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_notify();
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();
+    ble_att_svr_test_unsupported_req();
 }
 
 int
