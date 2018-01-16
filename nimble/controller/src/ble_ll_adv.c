@@ -633,19 +633,14 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
         return ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
     }
 
-    /* ext hdr len + SCAN_RSP */
-    pdulen = 1 + advsm->scan_rsp_len;
-
-    /* flags, adva and optional TX power */
-    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE;
+    ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE + BLE_LL_EXT_ADV_ADVA_SIZE;
     ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
         ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
-        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
-    pdulen += ext_hdr_len;
+    pdulen = BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len + advsm->scan_rsp_len;
 
     /* Obtain scan response buffer */
     m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
