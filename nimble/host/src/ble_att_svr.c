@@ -258,7 +258,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     if (is_read) {
         if (!(entry->ha_flags & BLE_ATT_F_READ)) {
             *out_att_err = BLE_ATT_ERR_READ_NOT_PERMITTED;
-            return BLE_HS_ENOTSUP;
+            return BLE_HS_EREJECT;
         }
 
         enc = entry->ha_flags & BLE_ATT_F_READ_ENC;
@@ -267,7 +267,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     } else {
         if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
             *out_att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
-            return BLE_HS_ENOTSUP;
+            return BLE_HS_EREJECT;
         }
 
         enc = entry->ha_flags & BLE_ATT_F_WRITE_ENC;
@@ -1957,7 +1957,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     if (!ble_att_svr_is_valid_read_group_type(&uuid.u)) {
         att_err = BLE_ATT_ERR_UNSUPPORTED_GROUP;
         err_handle = start_handle;
-        rc = BLE_HS_ENOTSUP;
+        rc = BLE_HS_EREJECT;
         goto done;
     }
 

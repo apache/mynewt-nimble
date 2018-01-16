@@ -1043,7 +1043,7 @@ TEST_CASE(ble_att_svr_test_write)
 
     rc = ble_hs_test_util_rx_att_write_req(conn_handle, attr_handle,
                                            attr_val, sizeof attr_val);
-    TEST_ASSERT(rc == BLE_HS_ENOTSUP);
+    TEST_ASSERT(rc == BLE_HS_EREJECT);
     ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
                                        attr_handle,
                                        BLE_ATT_ERR_WRITE_NOT_PERMITTED);
