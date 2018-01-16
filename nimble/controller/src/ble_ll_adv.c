@@ -709,15 +709,13 @@ ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
     uint8_t     hdr;
     struct os_mbuf *m;
 
-    /* ext hdr len */
-    pdulen = 1;
-
     /* flags,AdvA and TargetA */
-    ext_hdr_len = 1 + BLE_LL_EXT_ADV_ADVA_SIZE + BLE_LL_EXT_ADV_TARGETA_SIZE;
+    ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE + BLE_LL_EXT_ADV_ADVA_SIZE +
+                  BLE_LL_EXT_ADV_TARGETA_SIZE;
     ext_hdr_flags = (1 << BLE_LL_EXT_ADV_ADVA_BIT);
     ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
 
-    pdulen += ext_hdr_len;
+    pdulen = BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
 
     /* Obtain scan response buffer */
     m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
