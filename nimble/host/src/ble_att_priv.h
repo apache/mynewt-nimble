@@ -222,6 +222,9 @@ int ble_att_svr_init(void);
 void ble_att_svr_hide_range(uint16_t start_handle, uint16_t end_handle);
 void ble_att_svr_restore_range(uint16_t start_handle, uint16_t end_handle);
 
+int ble_att_svr_tx_error_rsp(uint16_t conn_handle, struct os_mbuf *txom,
+                             uint8_t req_op, uint16_t handle,
+                             uint8_t error_code);
 /*** $clt */
 
 /** An information-data entry in a find information response. */

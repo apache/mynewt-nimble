@@ -461,6 +461,22 @@ ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
     return mtu;
 }
 
+static void
+ble_att_rx_handle_unknown_request(uint8_t op, uint16_t conn_handle,
+                                  struct os_mbuf **om)
+{
+    /* If this is command (bit6 is set to 1), do nothing */
+    if (op & 0x40) {
+        return;
+    }
+
+    os_mbuf_adj(*om, OS_MBUF_PKTLEN(*om));
+    ble_att_svr_tx_error_rsp(conn_handle, *om, op, 0,
+                             BLE_ATT_ERR_REQ_NOT_SUPPORTED);
+
+    *om = NULL;
+}
+
 static int
 ble_att_rx(struct ble_l2cap_chan *chan)
 {
@@ -485,7 +501,8 @@ ble_att_rx(struct ble_l2cap_chan *chan)
 
     entry = ble_att_rx_dispatch_entry_find(op);
     if (entry == NULL) {
-        return BLE_HS_EINVAL;
+        ble_att_rx_handle_unknown_request(op, conn_handle, om);
+        return BLE_HS_ENOTSUP;
     }
 
     ble_att_inc_rx_stat(op);
@@ -495,6 +512,9 @@ ble_att_rx(struct ble_l2cap_chan *chan)
 
     rc = entry->bde_fn(conn_handle, om);
     if (rc != 0) {
+        if (rc == BLE_HS_ENOTSUP) {
+            ble_att_rx_handle_unknown_request(op, conn_handle, om);
+        }
         return rc;
     }
 
