@@ -31,6 +31,9 @@
 #define CID_NVAL   0xffff
 #define CID_LOCAL  0x0002
 
+/* Vendor Model data */
+#define VND_MODEL_ID_1 0x1234
+
 /* Default net, app & dev key values, unless otherwise specified */
 static const u8_t default_key[16] = {
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -202,8 +205,13 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_HEALTH_CLI(&health_cli),
 };
 
+static struct bt_mesh_model vnd_models[] = {
+	BT_MESH_MODEL_VND(CID_LOCAL, VND_MODEL_ID_1, BT_MESH_MODEL_NO_OPS, NULL,
+			  NULL),
+};
+
 static struct bt_mesh_elem elements[] = {
-	BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE),
+	BT_MESH_ELEM(0, root_models, vnd_models),
 };
 
 static const struct bt_mesh_comp comp = {
