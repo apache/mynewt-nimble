@@ -1186,7 +1186,7 @@ ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,
                                       uint8_t mod_idx,
                                       uint8_t *dst, uint16_t dst_len)
 {
-    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_LE_ENH_RCVR_TEST_LEN);
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_LE_ENH_RX_TEST_LEN);
 
     return ble_hs_hci_cmd_body_le_enhanced_recv_test(rx_chan, phy, mod_idx, dst);
 }
@@ -1221,7 +1221,7 @@ ble_hs_hci_cmd_build_le_enh_trans_test(uint8_t tx_chan, uint8_t test_data_len,
                                        uint8_t packet_payload_idx, uint8_t phy,
                                        uint8_t *dst, uint16_t dst_len)
 {
-    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_LE_ENH_TRANS_TEST_LEN);
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_LE_ENH_TX_TEST_LEN);
 
     return ble_hs_hci_cmd_body_le_enhanced_trans_test(tx_chan, test_data_len,
                                                       packet_payload_idx,

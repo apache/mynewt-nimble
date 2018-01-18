@@ -138,8 +138,8 @@ extern "C" {
 #define BLE_HCI_OCF_LE_RD_PHY                       (0x0030)
 #define BLE_HCI_OCF_LE_SET_DEFAULT_PHY              (0x0031)
 #define BLE_HCI_OCF_LE_SET_PHY                      (0x0032)
-#define BLE_HCI_OCF_LE_ENH_RCVR_TEST                (0x0033)
-#define BLE_HCI_OCF_LE_ENH_TRANS_TEST               (0x0034)
+#define BLE_HCI_OCF_LE_ENH_RX_TEST                  (0x0033)
+#define BLE_HCI_OCF_LE_ENH_TX_TEST                  (0x0034)
 #define BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR         (0x0035)
 #define BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM            (0x0036)
 #define BLE_HCI_OCF_LE_SET_EXT_ADV_DATA             (0x0037)
@@ -478,13 +478,13 @@ extern "C" {
 #define BLE_HCI_LE_PHY_CODED_S8_PREF                (0x0002)
 
 /* --- LE enhanced receiver test (OCF 0x0033) */
-#define BLE_HCI_LE_ENH_RCVR_TEST_LEN                (3)
+#define BLE_HCI_LE_ENH_RX_TEST_LEN                  (3)
 #define BLE_HCI_LE_PHY_1M                           (1)
 #define BLE_HCI_LE_PHY_2M                           (2)
 #define BLE_HCI_LE_PHY_CODED                        (3)
 
 /* --- LE enhanced transmitter test (OCF 0x0034) */
-#define BLE_HCI_LE_ENH_TRANS_TEST_LEN               (4)
+#define BLE_HCI_LE_ENH_TX_TEST_LEN                  (4)
 #define BLE_HCI_LE_PHY_CODED_S8                     (3)
 #define BLE_HCI_LE_PHY_CODED_S2                     (4)
 

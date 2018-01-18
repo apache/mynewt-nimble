@@ -78,8 +78,8 @@ const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS] =
     BLE_HCI_LE_RD_PHY_LEN,              /* 0x0030: read maximum default PHY */
     BLE_HCI_LE_SET_DEFAULT_PHY_LEN,     /* 0x0031: set default PHY */
     BLE_HCI_LE_SET_PHY_LEN,             /* 0x0032: set PHY */
-    BLE_HCI_LE_ENH_RCVR_TEST_LEN,       /* 0x0033: enhanced receiver test */
-    BLE_HCI_LE_ENH_TRANS_TEST_LEN,      /* 0x0034: enhanced transmitter test */
+    BLE_HCI_LE_ENH_RX_TEST_LEN,       /* 0x0033: enhanced receiver test */
+    BLE_HCI_LE_ENH_TX_TEST_LEN,      /* 0x0034: enhanced transmitter test */
     BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN,/* 0x0035: set adv. set random address */
     BLE_HCI_LE_SET_EXT_ADV_PARAM_LEN,   /* 0x0036: set ext. adv params */
     BLE_HCI_LE_SET_EXT_ADV_DATA_LEN,    /* 0x0037: set ext. adv. data */
