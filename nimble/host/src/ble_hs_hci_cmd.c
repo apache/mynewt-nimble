@@ -173,6 +173,12 @@ ble_hs_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
         return -1;
     }
 
+/* When build with nimBLE controller we know it is BT5 compliant so no need
+ * to limit non-connectable advertising interval
+ */
+#if MYNEWT_VAL(BLE_DEVICE)
+    itvl = BLE_HCI_ADV_ITVL_MIN;
+#else
     /* Make sure interval is valid for advertising type. */
     if ((adv->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) ||
         (adv->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND)) {
@@ -180,6 +186,7 @@ ble_hs_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
     } else {
         itvl = BLE_HCI_ADV_ITVL_MIN;
     }
+#endif
 
     /* Do not check if high duty-cycle directed */
     if (adv->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
