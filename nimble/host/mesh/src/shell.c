@@ -25,6 +25,7 @@
 
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
+#include "access.h"
 #include "mesh_priv.h"
 #include "lpn.h"
 #include "transport.h"
@@ -2100,6 +2101,50 @@ static int cmd_print_credentials(int argc, char *argv[])
 	return 0;
 }
 
+static void print_comp_elem(struct bt_mesh_elem *elem,
+			    bool primary)
+{
+	struct bt_mesh_model *mod;
+	int i;
+
+	printk("Loc: %u\n", elem->loc);
+	printk("Model count: %u\n", elem->model_count);
+	printk("Vnd model count: %u\n", elem->vnd_model_count);
+
+	for (i = 0; i < elem->model_count; i++) {
+		mod = &elem->models[i];
+		printk("  Model: %u\n", i);
+		printk("    ID: 0x%04x\n", mod->id);
+		printk("    Opcode: 0x%08lx\n", mod->op->opcode);
+	}
+
+	for (i = 0; i < elem->vnd_model_count; i++) {
+		mod = &elem->vnd_models[i];
+		printk("  Vendor model: %u\n", i);
+		printk("    Company: 0x%04x\n", mod->vnd.company);
+		printk("    ID: 0x%04x\n", mod->vnd.id);
+		printk("    Opcode: 0x%08lx\n", mod->op->opcode);
+	}
+}
+
+static int cmd_print_composition_data(int argc, char *argv[])
+{
+	const struct bt_mesh_comp *comp;
+	int i;
+
+	comp = bt_mesh_comp_get();
+
+	printk("CID: %u\n", comp->cid);
+	printk("PID: %u\n", comp->pid);
+	printk("VID: %u\n", comp->vid);
+
+	for (i = 0; i < comp->elem_count; i++) {
+		print_comp_elem(&comp->elem[i], i == 0);
+	}
+
+	return 0;
+}
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
@@ -2136,6 +2181,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "lpn-unsubscribe", cmd_lpn_unsubscribe, &cmd_lpn_unsubscribe_help },
 #endif
 	{ "print-credentials", cmd_print_credentials, NULL },
+	{ "print-composition-data", cmd_print_composition_data, NULL },
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
