@@ -39,7 +39,6 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
 #include "ble_ll_conn_priv.h"
-#include "hal/hal_gpio.h"
 
 /*
  * XXX:
