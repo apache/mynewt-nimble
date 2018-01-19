@@ -25,6 +25,7 @@
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
 #include "mesh_priv.h"
+#include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
 
@@ -790,6 +791,50 @@ static int cmd_rpl_clear(int argc, char *argv[])
 	bt_mesh_rpl_clear();
 	return 0;
 }
+
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+static int cmd_lpn_subscribe(int argc, char *argv[])
+{
+	u16_t address;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	address = strtoul(argv[1], NULL, 0);
+
+	printk("address 0x%04x", address);
+
+	bt_mesh_lpn_group_add(address);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_lpn_subscribe_help = {
+	NULL, "<addr>", NULL
+};
+
+static int cmd_lpn_unsubscribe(int argc, char *argv[])
+{
+	u16_t address;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	address = strtoul(argv[1], NULL, 0);
+
+	printk("address 0x%04x", address);
+
+	bt_mesh_lpn_group_del(&address, 1);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_lpn_unsubscribe_help = {
+	NULL, "<addr>", NULL
+};
+#endif
 
 static int cmd_iv_update_test(int argc, char *argv[])
 {
@@ -2078,6 +2123,10 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "iv-update", cmd_iv_update, NULL },
 	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
 	{ "rpl-clear", cmd_rpl_clear, NULL },
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+	{ "lpn-subscribe", cmd_lpn_subscribe, &cmd_lpn_subscribe_help },
+	{ "lpn-unsubscribe", cmd_lpn_unsubscribe, &cmd_lpn_unsubscribe_help },
+#endif
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
