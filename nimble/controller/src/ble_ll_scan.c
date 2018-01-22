@@ -2147,7 +2147,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #endif
             /* XXX: TODO assume we are on correct phy */
             ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
-            rc = ble_phy_tx(scansm->scan_req_pdu, BLE_PHY_TRANSITION_TX_RX);
+            rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, scansm->scan_req_pdu,
+                            BLE_PHY_TRANSITION_TX_RX);
 
             if (rc == 0) {
                 /* Set "waiting for scan response" flag */

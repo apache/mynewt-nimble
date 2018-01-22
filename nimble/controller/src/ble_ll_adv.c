@@ -276,13 +276,15 @@ ble_ll_adv_final_chan(struct ble_ll_adv_sm *advsm)
  *
  * @param advsm Pointer to advertisement state machine
  */
-static void
-ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
+static uint8_t
+ble_ll_adv_legacy_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
+    struct ble_ll_adv_sm *advsm;
     uint8_t     adv_data_len;
-    uint8_t     *dptr;
     uint8_t     pdulen;
     uint8_t     pdu_type;
+
+    advsm = pducb_arg;
 
     /* assume this is not a direct ind */
     adv_data_len = ADV_DATA_LEN(advsm);
@@ -324,11 +326,9 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
-    /* Get the advertising PDU and initialize it*/
-    ble_ll_mbuf_init(m, pdulen, pdu_type);
+    *hdr_byte = pdu_type;
 
     /* Construct advertisement */
-    dptr = m->om_data;
     memcpy(dptr, advsm->adva, BLE_DEV_ADDR_LEN);
     dptr += BLE_DEV_ADDR_LEN;
 
@@ -341,6 +341,8 @@ ble_ll_adv_legacy_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     if (adv_data_len != 0) {
         os_mbuf_copydata(advsm->adv_data, 0, adv_data_len, dptr);
     }
+
+    return pdulen;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -395,10 +397,10 @@ ble_ll_adv_aux_scan_rsp_payload_len(struct ble_ll_adv_sm *advsm)
 /**
  * Create the advertising PDU
  */
-static void
-ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
+static uint8_t
+ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
-    uint8_t *dptr;
+    struct ble_ll_adv_sm *advsm;
     uint8_t pdulen;
     uint8_t pdu_type;
 
@@ -413,10 +415,12 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     uint8_t ext_hdr_flags;
     uint32_t offset;
 
+    advsm = pducb_arg;
+
     assert(advsm->adv_data);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        return ble_ll_adv_legacy_pdu_make(advsm, m);
+        return ble_ll_adv_legacy_pdu_make(dptr, advsm, hdr_byte);
     }
 
     pdulen = BLE_LL_EXT_ADV_HDR_LEN;
@@ -504,10 +508,7 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
     /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
 
-    ble_ll_mbuf_init(m, pdulen, pdu_type);
-
-    /* Construct advertisement */
-    dptr = m->om_data;
+    *hdr_byte = pdu_type;
 
     /* ext hdr len and adv mode */
     dptr[0] = ext_hdr_len | (adv_mode << 6);
@@ -563,24 +564,21 @@ ble_ll_adv_pdu_make(struct ble_ll_adv_sm *advsm, struct os_mbuf *m)
         os_mbuf_copydata(advsm->adv_data, 0, ADV_DATA_LEN(advsm), dptr);
         dptr += ADV_DATA_LEN(advsm);
     }
+
+    return pdulen;
 }
 #endif
 
-static struct os_mbuf *
-ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
+static uint8_t
+ble_ll_adv_scan_rsp_legacy_pdu_make(uint8_t *dptr, void *pducb_arg,
+                                    uint8_t *hdr_byte)
 {
+    struct ble_ll_adv_sm *advsm;
     uint8_t     scan_rsp_len;
-    uint8_t     *dptr;
     uint8_t     pdulen;
     uint8_t     hdr;
-    struct os_mbuf *m;
 
-    /* Obtain scan response buffer */
-    m = os_msys_get_pkthdr(BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN + BLE_DEV_ADDR_LEN,
-                           sizeof(struct ble_mbuf_hdr));
-    if (!m) {
-        return NULL;
-    }
+    advsm = pducb_arg;
 
     /* Make sure that the length is valid */
     scan_rsp_len = advsm->scan_rsp_len;
@@ -593,7 +591,7 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
-    ble_ll_mbuf_init(m, pdulen, hdr);
+    *hdr_byte = hdr;
 
     /*
      * The adva in this packet will be the same one that was being advertised
@@ -604,13 +602,12 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
      */
 
     /* Construct scan response */
-    dptr = m->om_data;
     memcpy(dptr, advsm->adva, BLE_DEV_ADDR_LEN);
     if (scan_rsp_len != 0) {
         memcpy(dptr + BLE_DEV_ADDR_LEN, advsm->scan_rsp_data, scan_rsp_len);
     }
 
-    return m;
+    return pdulen;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -619,18 +616,19 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(struct ble_ll_adv_sm *advsm)
  *
  * @param advsm
  */
-static struct os_mbuf *
-ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
+static uint8_t
+ble_ll_adv_scan_rsp_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
-    uint8_t     *dptr;
+    struct ble_ll_adv_sm *advsm;
     uint8_t     pdulen;
     uint8_t     ext_hdr_len;
     uint8_t     ext_hdr_flags;
     uint8_t     hdr;
-    struct os_mbuf *m;
+
+    advsm = pducb_arg;
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        return ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
+        return ble_ll_adv_scan_rsp_legacy_pdu_make(dptr, pducb_arg, hdr_byte);
     }
 
     ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE + BLE_LL_EXT_ADV_ADVA_SIZE;
@@ -642,22 +640,13 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
 
     pdulen = BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len + advsm->scan_rsp_len;
 
-    /* Obtain scan response buffer */
-    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
-    if (!m) {
-        return NULL;
-    }
-
     /* Set BLE transmit header */
     hdr = BLE_ADV_PDU_TYPE_AUX_SCAN_RSP;
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
-    ble_ll_mbuf_init(m, pdulen, hdr);
-
-    /* Construct scan response */
-    dptr = m->om_data;
+    *hdr_byte = hdr;
 
     /* ext hdr len and adv mode (00b) */
     dptr[0] = ext_hdr_len;
@@ -685,24 +674,31 @@ ble_ll_adv_scan_rsp_pdu_make(struct ble_ll_adv_sm *advsm)
     memcpy(dptr, advsm->scan_rsp_data, advsm->scan_rsp_len);
     dptr += advsm->scan_rsp_len;
 
-    return m;
+    return pdulen;
 }
+
+struct aux_conn_rsp_data {
+    struct ble_ll_adv_sm *advsm;
+    uint8_t *peer;
+    uint8_t rxadd;
+};
 
 /**
  * Create a AUX connect response PDU
  *
  * @param advsm
  */
-static struct os_mbuf *
-ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
-                                 uint8_t rxadd)
+static uint8_t
+ble_ll_adv_aux_conn_rsp_pdu_make(uint8_t *dptr, void *pducb_arg,
+                                 uint8_t *hdr_byte)
 {
-    uint8_t     *dptr;
+    struct aux_conn_rsp_data *rsp_data;
     uint8_t     pdulen;
     uint8_t     ext_hdr_len;
     uint8_t     ext_hdr_flags;
     uint8_t     hdr;
-    struct os_mbuf *m;
+
+    rsp_data = pducb_arg;
 
     /* flags,AdvA and TargetA */
     ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE + BLE_LL_EXT_ADV_ADVA_SIZE +
@@ -712,22 +708,13 @@ ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
 
     pdulen = BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
 
-    /* Obtain scan response buffer */
-    m = os_msys_get_pkthdr(pdulen, sizeof(struct ble_mbuf_hdr));
-    if (!m) {
-        return NULL;
-    }
-
     /* Set BLE transmit header */
-    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rxadd;
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rsp_data->rxadd;
+    if (rsp_data->advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_MASK;
     }
 
-    ble_ll_mbuf_init(m, pdulen, hdr);
-
-    /* Construct connect response */
-    dptr = m->om_data;
+    *hdr_byte = hdr;
 
     /* ext hdr len and adv mode (00b) */
     dptr[0] = ext_hdr_len;
@@ -737,13 +724,13 @@ ble_ll_adv_aux_conn_rsp_pdu_make(struct ble_ll_adv_sm *advsm, uint8_t *peer,
     dptr[0] = ext_hdr_flags;
     dptr += 1;
 
-    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+    memcpy(dptr, rsp_data->advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
     dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
 
-    memcpy(dptr, peer, BLE_LL_EXT_ADV_TARGETA_SIZE);
+    memcpy(dptr, rsp_data->peer, BLE_LL_EXT_ADV_TARGETA_SIZE);
     dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
 
-    return m;
+    return pdulen;
 }
 #endif
 
@@ -821,7 +808,6 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
-    struct os_mbuf *adv_pdu;
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -884,23 +870,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
     }
 
-    /* Get an advertising mbuf (packet header)  */
-    adv_pdu = os_msys_get_pkthdr(BLE_ADV_LEGACY_MAX_PKT_LEN,
-                                 sizeof(struct ble_mbuf_hdr));
-    if (!adv_pdu) {
-        ble_phy_disable();
-        goto adv_tx_done;
-    }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_ll_adv_pdu_make(advsm, adv_pdu);
-#else
-    ble_ll_adv_legacy_pdu_make(advsm, adv_pdu);
-#endif
-
     /* Transmit advertisement */
-    rc = ble_phy_tx(adv_pdu, end_trans);
-    os_mbuf_free_chain(adv_pdu);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    rc = ble_phy_tx(ble_ll_adv_pdu_make, advsm, end_trans);
+#else
+    rc = ble_phy_tx(ble_ll_adv_legacy_pdu_make, advsm, end_trans);
+#endif
     if (rc) {
         goto adv_tx_done;
     }
@@ -977,7 +952,6 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
-    struct os_mbuf *adv_pdu;
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -1031,19 +1005,8 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
     }
 
-    /* Get an advertising mbuf (packet header)  */
-    adv_pdu = os_msys_get_pkthdr(BLE_ADV_LEGACY_MAX_PKT_LEN,
-                                 sizeof(struct ble_mbuf_hdr));
-    if (!adv_pdu) {
-        ble_phy_disable();
-        goto adv_tx_done;
-    }
-
-    ble_ll_adv_pdu_make(advsm, adv_pdu);
-
     /* Transmit advertisement */
-    rc = ble_phy_tx(adv_pdu, end_trans);
-    os_mbuf_free_chain(adv_pdu);
+    rc = ble_phy_tx(ble_ll_adv_pdu_make, advsm, end_trans);
     if (rc) {
         goto adv_tx_done;
     }
@@ -2241,7 +2204,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     uint8_t *peer;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_adv_sm *advsm;
-    struct os_mbuf *rsp;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct aux_conn_rsp_data rsp_data;
+#endif
 
     /* See if adva in the request (scan or connect) matches what we sent */
     advsm = g_ble_ll_cur_adv_sm;
@@ -2303,25 +2268,25 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     rc = -1;
 
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
+        /* XXX TODO: assume we do not need to change phy mode */
+        ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF) {
             ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
                                              peer_addr_type);
         }
 
-        rsp = ble_ll_adv_scan_rsp_pdu_make(advsm);
+        rc = ble_phy_tx(ble_ll_adv_scan_rsp_pdu_make, advsm,
+                        BLE_PHY_TRANSITION_NONE);
 #else
-        rsp = ble_ll_adv_scan_rsp_legacy_pdu_make(advsm);
+        rc = ble_phy_tx(ble_ll_adv_scan_rsp_legacy_pdu_make, advsm,
+                        BLE_PHY_TRANSITION_NONE);
 #endif
-        if (rsp) {
-            /* XXX TODO: assume we do not need to change phy mode */
-            ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
-            if (!rc) {
-                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
-                STATS_INC(ble_ll_stats, scan_rsp_txg);
-            }
-            os_mbuf_free_chain(rsp);
+
+        if (!rc) {
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_RSP_TXD;
+            STATS_INC(ble_ll_stats, scan_rsp_txg);
         }
     } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
         /*
@@ -2340,17 +2305,16 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
         }
 
         /* use remote address used over the air */
-        rsp = ble_ll_adv_aux_conn_rsp_pdu_make(advsm,
-                                               rxbuf + BLE_LL_PDU_HDR_LEN,
-                                               rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
-        if (rsp) {
-            ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-            rc = ble_phy_tx(rsp, BLE_PHY_TRANSITION_NONE);
-            if (!rc) {
-                advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
-                STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
-            }
-            os_mbuf_free_chain(rsp);
+        rsp_data.advsm = advsm;
+        rsp_data.peer = rxbuf + BLE_LL_PDU_HDR_LEN;
+        rsp_data.rxadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
+
+        ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
+        rc = ble_phy_tx(ble_ll_adv_aux_conn_rsp_pdu_make, &rsp_data,
+                        BLE_PHY_TRANSITION_NONE);
+        if (!rc) {
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+            STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
         }
 #endif
     }

@@ -67,6 +67,8 @@ struct ble_phy_statistics
 
 struct ble_phy_statistics g_ble_phy_stats;
 
+static uint8_t g_ble_phy_tx_buf[BLE_PHY_MAX_PDU_LEN];
+
 /* XCVR object to emulate transceiver */
 struct xcvr_data
 {
@@ -413,12 +415,10 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
 
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 {
+    uint8_t hdr_byte;
     int rc;
-
-    /* Better have a pdu! */
-    assert(txpdu != NULL);
 
     if (ble_phy_state_get() != BLE_PHY_STATE_IDLE) {
         ble_phy_disable();
@@ -439,8 +439,8 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     /* Set phy state to transmitting and count packet statistics */
     g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
     ++g_ble_phy_stats.tx_good;
-    g_ble_phy_stats.tx_bytes += OS_MBUF_PKTHDR(txpdu)->omp_len +
-        BLE_LL_PDU_HDR_LEN;
+    g_ble_phy_stats.tx_bytes += pducb(g_ble_phy_tx_buf, pducb_arg, &hdr_byte) +
+                                BLE_LL_PDU_HDR_LEN;
     rc = BLE_ERR_SUCCESS;
 
     return rc;

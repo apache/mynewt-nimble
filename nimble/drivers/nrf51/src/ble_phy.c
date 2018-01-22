@@ -1084,26 +1084,21 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 }
 
 int
-ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 {
     int rc;
     uint8_t *dptr;
     uint8_t payload_len;
+    uint8_t payload_off;
+    uint8_t hdr_byte;
     uint32_t state;
     uint32_t shortcuts;
-    struct ble_mbuf_hdr *ble_hdr;
-
-    /* Better have a pdu! */
-    assert(txpdu != NULL);
 
     /*
      * This check is to make sure that the radio is not in a state where
      * it is moving to disabled state. If so, let it get there.
      */
     nrf_wait_disabled();
-
-    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
-    payload_len = ble_hdr->txinfo.pyld_len;
 
     /*
      * XXX: Although we may not have to do this here, I clear all the PPI
@@ -1119,10 +1114,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     if (g_ble_phy_data.phy_encrypted) {
         /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
-        dptr[0] = ble_hdr->txinfo.hdr_byte;
-        dptr[1] = payload_len;
-        dptr[2] = 0;
-        dptr += 3;
+        payload_off = 3;
 
         NRF_CCM->SHORTS = 1;
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
@@ -1141,9 +1133,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 #endif
         /* RAM representation has S0 and LENGTH fields (2 bytes) */
         dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-        dptr[0] = ble_hdr->txinfo.hdr_byte;
-        dptr[1] = payload_len;
-        dptr += 2;
+        payload_off = 2;
     }
 #else
 
@@ -1155,9 +1145,7 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
 
     /* RAM representation has S0 and LENGTH fields (2 bytes) */
     dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-    dptr[0] = ble_hdr->txinfo.hdr_byte;
-    dptr[1] = payload_len;
-    dptr += 2;
+    payload_off = 2;
 #endif
 
     NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_tx_buf[0];
@@ -1175,17 +1163,25 @@ ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans)
     NRF_RADIO->SHORTS = shortcuts;
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
 
-    /* Set transmitted payload length */
-    g_ble_phy_data.phy_tx_pyld_len = payload_len;
+    /* Set PDU payload */
+    payload_len = pducb(&dptr[payload_off], pducb_arg, &hdr_byte);
+
+    /* Set PDU header */
+    dptr[0] = hdr_byte;
+    dptr[1] = payload_len;
+    if (payload_off > 2) {
+        dptr[2] = 0;
+    }
 
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
 
+    /* Set transmitted payload length */
+    g_ble_phy_data.phy_tx_pyld_len = payload_len;
+
     /* If we already started transmitting, abort it! */
     state = NRF_RADIO->STATE;
     if (state != RADIO_STATE_STATE_Tx) {
-        /* Copy data from mbuf into transmit buffer */
-        os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset, payload_len, dptr);
 
         /* Set phy state to transmitting and count packet statistics */
         g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
