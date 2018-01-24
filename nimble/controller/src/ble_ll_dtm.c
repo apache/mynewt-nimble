@@ -26,6 +26,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
+#include "controller/ble_ll_xcvr.h"
 #include "ble_ll_dtm_priv.h"
 
 struct dtm_ctx {
@@ -184,7 +185,9 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
         return BLE_LL_SCHED_STATE_DONE;
     }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
     ble_phy_mode_set(ctx->phy_mode, ctx->phy_mode);
+#endif
     ble_phy_set_txend_cb(ble_ll_dtm_tx_done, ctx);
     ble_phy_txpwr_set(0);
 
@@ -302,7 +305,9 @@ ble_ll_dtm_rx_start(void)
                          BLE_DTM_CRC);
     assert(rc == 0);
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
     ble_phy_mode_set(g_ble_ll_dtm_ctx.phy_mode, g_ble_ll_dtm_ctx.phy_mode);
+#endif
 
     rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                    g_ble_ll_sched_offset_ticks, 0);
@@ -368,15 +373,19 @@ ble_ll_dtm_tx_test(uint8_t *cmdbuf, bool enhanced)
         case BLE_HCI_LE_PHY_1M:
             phy_mode = BLE_PHY_MODE_1M;
             break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
         case BLE_HCI_LE_PHY_2M:
             phy_mode = BLE_PHY_MODE_2M;
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
         case BLE_HCI_LE_PHY_CODED_S8:
             phy_mode = BLE_PHY_MODE_CODED_125KBPS;
             break;
         case BLE_HCI_LE_PHY_CODED_S2:
             phy_mode = BLE_PHY_MODE_CODED_500KBPS;
             break;
+#endif
         default:
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -409,12 +418,16 @@ int ble_ll_dtm_rx_test(uint8_t *cmdbuf, bool enhanced)
         case BLE_HCI_LE_PHY_1M:
             phy_mode = BLE_PHY_MODE_1M;
             break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
         case BLE_HCI_LE_PHY_2M:
             phy_mode = BLE_PHY_MODE_2M;
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
         case BLE_HCI_LE_PHY_CODED:
             phy_mode = BLE_PHY_MODE_CODED_500KBPS;
             break;
+#endif
         default:
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
