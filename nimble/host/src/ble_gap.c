@@ -2795,7 +2795,6 @@ ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
     static uint8_t buf[BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + \
                        BLE_HCI_MAX_EXT_ADV_DATA_LEN];
     uint16_t len = OS_MBUF_PKTLEN(data);
-    uint16_t off = 0;
     uint8_t op;
     int rc;
 
@@ -2829,8 +2828,9 @@ ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
             return rc;
         }
 
+        os_mbuf_adj(data, BLE_HCI_MAX_EXT_ADV_DATA_LEN);
+
         len -= BLE_HCI_MAX_EXT_ADV_DATA_LEN;
-        off += BLE_HCI_MAX_EXT_ADV_DATA_LEN;
         op = BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT;
     } while (len > BLE_HCI_MAX_EXT_ADV_DATA_LEN);
 
