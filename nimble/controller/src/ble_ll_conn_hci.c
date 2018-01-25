@@ -810,6 +810,20 @@ ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
+    /*
+     * Start control procedure if we did not receive peer's features and did not
+     * start procedure already.
+     */
+    if (!connsm->csmflags.cfbit.rxd_features &&
+                !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+        if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
+            !(ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT)) {
+                return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+    }
+
     connsm->csmflags.cfbit.pending_hci_rd_features = 1;
 
     return BLE_ERR_SUCCESS;
