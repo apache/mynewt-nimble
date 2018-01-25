@@ -162,7 +162,6 @@ ble_ll_dtm_tx_done(void *arg)
     if (!ctx->evt.ev_cb) {
         return;
     }
-    ctx->num_of_packets++;
     /* Reschedule event in LL context */
     os_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
 
