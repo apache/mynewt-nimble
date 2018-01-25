@@ -106,8 +106,11 @@ int ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
 /* Set the transmit end callback and argument */
 void ble_phy_set_txend_cb(ble_phy_tx_end_func txend_cb, void *arg);
 
+typedef uint8_t (*ble_phy_tx_pducb_t)(uint8_t *dptr, void *pducb_arg,
+                                      uint8_t *hdr_byte);
+
 /* Place the PHY into transmit mode */
-int ble_phy_tx(struct os_mbuf *txpdu, uint8_t end_trans);
+int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans);
 
 /* Place the PHY into receive mode */
 int ble_phy_rx(void);
