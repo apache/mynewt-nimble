@@ -314,6 +314,12 @@ ble_ll_dtm_rx_start(void)
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
+#ifdef BLE_XCVR_RFCLK
+    if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
+        ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+    }
+#endif
+
     return 0;
 }
 
