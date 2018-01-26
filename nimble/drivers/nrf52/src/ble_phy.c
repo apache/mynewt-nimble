@@ -134,8 +134,10 @@ static const uint8_t g_ble_phy_chan_freq[BLE_PHY_NUM_CHANS] = {
     66, 68, 70, 72, 74, 76, 78,  2, 26, 80, /* 30-39 */
 };
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 /* packet start offsets (in usecs) */
 static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = { 376, 40, 24, 376 };
+#endif
 
 /* Various radio timings */
 /* Radio ramp-up times in usecs (fast mode) */

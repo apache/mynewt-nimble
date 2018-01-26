@@ -1292,7 +1292,6 @@ ble_phy_txpwr_get(void)
 int
 ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
-    uint8_t freq;
     uint32_t prefix;
 
     assert(chan < BLE_PHY_NUM_CHANS);
