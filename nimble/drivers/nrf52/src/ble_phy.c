@@ -78,6 +78,20 @@ extern uint32_t g_nrf_irk_list[];
 #define NRF_TX_PWR_MAX_DBM      (4)
 #define NRF_TX_PWR_MIN_DBM      (-40)
 
+/* NRF_RADIO->PCNF0 configuration values */
+#define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
+                                (RADIO_PCNF0_S1INCL_Msk) | \
+                                (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos) | \
+                                (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos)
+#define NRF_PCNF0_1M            (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos)
+#define NRF_PCNF0_2M            (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos)
+#define NRF_PCNF0_CODED         (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) | \
+                                (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) | \
+                                (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos)
+
 /* BLE PHY data structure */
 struct ble_phy_obj
 {
@@ -93,10 +107,8 @@ struct ble_phy_obj
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
     uint8_t phy_bcc_offset;
-    uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODE];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
-    uint32_t phy_pcnf0;
     struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
@@ -113,6 +125,17 @@ static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 /* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
+
+/* RF center frequency for each channel index (offset from 2400 MHz) */
+static const uint8_t g_ble_phy_chan_freq[BLE_PHY_NUM_CHANS] = {
+     4,  6,  8, 10, 12, 14, 16, 18, 20, 22, /* 0-9 */
+    24, 28, 30, 32, 34, 36, 38, 40, 42, 44, /* 10-19 */
+    46, 48, 50, 52, 54, 56, 58, 60, 62, 64, /* 20-29 */
+    66, 68, 70, 72, 74, 76, 78,  2, 26, 80, /* 30-39 */
+};
+
+/* packet start offsets (in usecs) */
+static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = { 376, 40, 24, 376 };
 
 /* Various radio timings */
 /* Radio ramp-up times in usecs (fast mode) */
@@ -222,7 +245,7 @@ struct nrf_ccm_data g_nrf_ccm_data;
 uint32_t
 ble_phy_mode_pdu_start_off(int phy_mode)
 {
-    return g_ble_phy_data.phy_mode_pkt_start_off[phy_mode];
+    return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
 void
@@ -245,24 +268,16 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
 
     if (cur_phy_mode == BLE_PHY_MODE_1M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
-            (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos);
+        NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
     } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
-            (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos);
+        NRF_RADIO->PCNF0 = NRF_PCNF0_2M;
     } else if (cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
-            (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
-            (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) |
-            (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos);
+        NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
     } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
-        NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0 |
-            (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) |
-            (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) |
-            (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos);
+        NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
     } else {
         assert(0);
     }
@@ -1145,12 +1160,6 @@ ble_phy_init(void)
 {
     int rc;
 
-    /* Set packet start offsets for various phys */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_1M] = 40;  /* 40 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_2M] = 24;  /* 24 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_125KBPS] = 376;  /* 376 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_500KBPS] = 376;  /* 376 usecs */
-
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
     g_ble_phy_data.phy_txtorx_phy_mode = BLE_PHY_MODE_1M;
@@ -1184,11 +1193,7 @@ ble_phy_init(void)
 
     /* Set configuration registers */
     NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-    g_ble_phy_data.phy_pcnf0 = (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos)    |
-                               RADIO_PCNF0_S1INCL_Msk                       |
-                               (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos)        |
-                               (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos);
-    NRF_RADIO->PCNF0 = g_ble_phy_data.phy_pcnf0;
+    NRF_RADIO->PCNF0 = NRF_PCNF0;
 
     /* XXX: should maxlen be 251 for encryption? */
     NRF_RADIO->PCNF1 = NRF_MAXLEN |
@@ -1467,9 +1472,8 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     if (g_ble_phy_data.phy_encrypted) {
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
-        ++dptr;
         pktptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-        NRF_CCM->SHORTS = 1;
+        NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
         NRF_CCM->INPTR = (uint32_t)dptr;
         NRF_CCM->OUTPTR = (uint32_t)pktptr;
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
@@ -1481,12 +1485,10 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
 #endif
         dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-        ++dptr;
         pktptr = dptr;
     }
 #else
     dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-    ++dptr;
     pktptr = dptr;
 #endif
 
@@ -1647,8 +1649,6 @@ ble_phy_txpwr_get(void)
 int
 ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
-    uint8_t freq;
-
     assert(chan < BLE_PHY_NUM_CHANS);
 
     /* Check for valid channel range */
@@ -1656,44 +1656,15 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Get correct frequency */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        if (chan < 11) {
-            /* Data channel 0 starts at 2404. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
-                   (BLE_PHY_CHAN_SPACING_MHZ * chan);
-        } else {
-            /* Data channel 11 starts at 2428. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
-                   (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
-        }
+    /* Set current access address */
+    ble_phy_set_access_addr(access_addr);
 
-        /* Set current access address */
-        ble_phy_set_access_addr(access_addr);
-
-        /* Configure crcinit */
-        NRF_RADIO->CRCINIT = crcinit;
-    } else {
-        if (chan == 37) {
-            freq = BLE_PHY_CHAN_SPACING_MHZ;
-        } else if (chan == 38) {
-            /* This advertising channel is at 2426 MHz */
-            freq = BLE_PHY_CHAN_SPACING_MHZ * 13;
-        } else {
-            /* This advertising channel is at 2480 MHz */
-            freq = BLE_PHY_CHAN_SPACING_MHZ * 40;
-        }
-
-        /* Set current access address */
-        ble_phy_set_access_addr(access_addr);
-
-        /* Configure crcinit */
-        NRF_RADIO->CRCINIT = crcinit;
-    }
+    /* Configure crcinit */
+    NRF_RADIO->CRCINIT = crcinit;
 
     /* Set the frequency and the data whitening initial value */
     g_ble_phy_data.phy_chan = chan;
-    NRF_RADIO->FREQUENCY = freq;
+    NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[chan];
     NRF_RADIO->DATAWHITEIV = chan;
 
     ble_ll_log(BLE_LL_LOG_ID_PHY_SETCHAN, chan, freq, access_addr);
