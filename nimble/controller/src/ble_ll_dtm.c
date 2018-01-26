@@ -35,8 +35,8 @@ struct dtm_ctx {
     uint16_t num_of_packets;
     uint32_t itvl_ticks;
     int active;
-    int chan;
-    int phy_mode;
+    uint8_t rf_channel;
+    uint8_t phy_mode;
     struct os_mbuf *om;
     struct os_event evt;
     struct ble_ll_sched_item sch;
@@ -116,6 +116,12 @@ static const uint8_t g_ble_ll_dtm_prbs15_data[] =
     0xba, 0x22, 0x61, 0x0e, 0xbd, 0xcd, 0xc2
 };
 
+static const uint8_t channel_rf_to_index[] = {
+        37,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 38, 11 ,12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+        34, 35, 36, 39
+};
+
 #define BLE_DTM_SYNC_WORD          (0x71764129)
 #define BLE_DTM_CRC                (0x555555)
 
@@ -178,7 +184,8 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
         return BLE_LL_SCHED_STATE_DONE;
     }
 
-    rc = ble_phy_setchan(ctx->chan, BLE_DTM_SYNC_WORD, BLE_DTM_CRC);
+    rc = ble_phy_setchan(channel_rf_to_index[ctx->rf_channel],
+                                            BLE_DTM_SYNC_WORD, BLE_DTM_CRC);
     if (rc != 0) {
         assert(0);
         return BLE_LL_SCHED_STATE_DONE;
@@ -225,8 +232,8 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len, int phy_mode)
 }
 
 static int
-ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len, int chan,
-                         int phy_mode)
+ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
+                         uint8_t rf_channel, uint8_t phy_mode)
 {
     int rc = 0;
     uint8_t byte_pattern;
@@ -237,7 +244,7 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len, int chan,
     assert(g_ble_ll_dtm_ctx.om);
 
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
-    g_ble_ll_dtm_ctx.chan = chan;
+    g_ble_ll_dtm_ctx.rf_channel = rf_channel;
 
     /* Set BLE transmit header */
     ble_ll_mbuf_init(g_ble_ll_dtm_ctx.om, len, packet_payload);
@@ -300,8 +307,8 @@ ble_ll_dtm_rx_start(void)
 {
     int rc;
 
-    rc = ble_phy_setchan(g_ble_ll_dtm_ctx.chan, BLE_DTM_SYNC_WORD,
-                         BLE_DTM_CRC);
+    rc = ble_phy_setchan(channel_rf_to_index[g_ble_ll_dtm_ctx.rf_channel],
+                         BLE_DTM_SYNC_WORD, BLE_DTM_CRC);
     assert(rc == 0);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
@@ -318,10 +325,10 @@ ble_ll_dtm_rx_start(void)
 }
 
 static int
-ble_ll_dtm_rx_create_ctx(int chan, int phy_mode)
+ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
 {
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
-    g_ble_ll_dtm_ctx.chan = chan;
+    g_ble_ll_dtm_ctx.rf_channel = rf_channel;
     g_ble_ll_dtm_ctx.active = 1;
 
     if (ble_ll_dtm_rx_start() != 0) {
