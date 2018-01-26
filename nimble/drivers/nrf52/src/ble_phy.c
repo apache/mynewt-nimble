@@ -1471,7 +1471,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     if (g_ble_phy_data.phy_encrypted) {
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
-        ++dptr;
         pktptr = (uint8_t *)&g_ble_phy_tx_buf[0];
         NRF_CCM->SHORTS = 1;
         NRF_CCM->INPTR = (uint32_t)dptr;
@@ -1486,12 +1485,10 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
 #endif
         dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-        ++dptr;
         pktptr = dptr;
     }
 #else
     dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-    ++dptr;
     pktptr = dptr;
 #endif
 
