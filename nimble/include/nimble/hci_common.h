@@ -420,7 +420,7 @@ extern "C" {
 #define BLE_HCI_SET_DATALEN_TX_OCTETS_MIN   (0x001b)
 #define BLE_HCI_SET_DATALEN_TX_OCTETS_MAX   (0x00fb)
 #define BLE_HCI_SET_DATALEN_TX_TIME_MIN     (0x0148)
-#define BLE_HCI_SET_DATALEN_TX_TIME_MAX     (0x0848)
+#define BLE_HCI_SET_DATALEN_TX_TIME_MAX     (0x4290)
 
 /* --- LE read suggested default data length (OCF 0x0023) */
 #define BLE_HCI_RD_SUGG_DATALEN_RSPLEN      (4)
