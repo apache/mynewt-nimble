@@ -113,6 +113,14 @@ static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
 
+/* RF center frequency for each channel index (offset from 2400 MHz) */
+static const uint8_t g_ble_phy_chan_freq[BLE_PHY_NUM_CHANS] = {
+     4,  6,  8, 10, 12, 14, 16, 18, 20, 22, /* 0-9 */
+    24, 28, 30, 32, 34, 36, 38, 40, 42, 44, /* 10-19 */
+    46, 48, 50, 52, 54, 56, 58, 60, 62, 64, /* 20-29 */
+    66, 68, 70, 72, 74, 76, 78,  2, 26, 80, /* 30-39 */
+};
+
 /* packet start offsets (in usecs) */
 static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = { 376, 40, 24, 376 };
 
@@ -1637,8 +1645,6 @@ ble_phy_txpwr_get(void)
 int
 ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 {
-    uint8_t freq;
-
     assert(chan < BLE_PHY_NUM_CHANS);
 
     /* Check for valid channel range */
@@ -1646,44 +1652,15 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
         return BLE_PHY_ERR_INV_PARAM;
     }
 
-    /* Get correct frequency */
-    if (chan < BLE_PHY_NUM_DATA_CHANS) {
-        if (chan < 11) {
-            /* Data channel 0 starts at 2404. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
-                   (BLE_PHY_CHAN_SPACING_MHZ * chan);
-        } else {
-            /* Data channel 11 starts at 2428. 0 - 10 are contiguous */
-            freq = (BLE_PHY_DATA_CHAN0_FREQ_MHZ - 2400) +
-                   (BLE_PHY_CHAN_SPACING_MHZ * (chan + 1));
-        }
+    /* Set current access address */
+    ble_phy_set_access_addr(access_addr);
 
-        /* Set current access address */
-        ble_phy_set_access_addr(access_addr);
-
-        /* Configure crcinit */
-        NRF_RADIO->CRCINIT = crcinit;
-    } else {
-        if (chan == 37) {
-            freq = BLE_PHY_CHAN_SPACING_MHZ;
-        } else if (chan == 38) {
-            /* This advertising channel is at 2426 MHz */
-            freq = BLE_PHY_CHAN_SPACING_MHZ * 13;
-        } else {
-            /* This advertising channel is at 2480 MHz */
-            freq = BLE_PHY_CHAN_SPACING_MHZ * 40;
-        }
-
-        /* Set current access address */
-        ble_phy_set_access_addr(access_addr);
-
-        /* Configure crcinit */
-        NRF_RADIO->CRCINIT = crcinit;
-    }
+    /* Configure crcinit */
+    NRF_RADIO->CRCINIT = crcinit;
 
     /* Set the frequency and the data whitening initial value */
     g_ble_phy_data.phy_chan = chan;
-    NRF_RADIO->FREQUENCY = freq;
+    NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[chan];
     NRF_RADIO->DATAWHITEIV = chan;
 
     ble_ll_log(BLE_LL_LOG_ID_PHY_SETCHAN, chan, freq, access_addr);
