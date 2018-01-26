@@ -1476,7 +1476,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | ble_phy_get_ccm_datarate();
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-        NRF_CCM->TASKS_KSGEN = 1;
     } else {
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
@@ -1491,6 +1490,21 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     pktptr = dptr;
 #endif
 
+    /* Set PDU payload */
+    payload_len = pducb(&dptr[3], pducb_arg, &hdr_byte);
+
+    /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
+    dptr[0] = hdr_byte;
+    dptr[1] = payload_len;
+    dptr[2] = 0;
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+    /* Start key-stream generation and encryption (via short) */
+    if (g_ble_phy_data.phy_encrypted) {
+        NRF_CCM->TASKS_KSGEN = 1;
+    }
+#endif
+
     NRF_RADIO->PACKETPTR = (uint32_t)pktptr;
 
     /* Clear the ready, end and disabled events */
@@ -1502,14 +1516,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
     NRF_RADIO->SHORTS = shortcuts;
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
-
-    /* Set PDU payload */
-    payload_len = pducb(&dptr[3], pducb_arg, &hdr_byte);
-
-    /* RAM representation has S0, LENGTH and S1 fields. (3 bytes) */
-    dptr[0] = hdr_byte;
-    dptr[1] = payload_len;
-    dptr[2] = 0;
 
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
