@@ -93,7 +93,6 @@ struct ble_phy_obj
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
     uint8_t phy_bcc_offset;
-    uint16_t phy_mode_pkt_start_off[BLE_PHY_NUM_MODE];
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     uint32_t phy_pcnf0;
@@ -113,6 +112,9 @@ static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 /* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
+
+/* packet start offsets (in usecs) */
+static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = { 376, 40, 24, 376 };
 
 /* Various radio timings */
 /* Radio ramp-up times in usecs (fast mode) */
@@ -222,7 +224,7 @@ struct nrf_ccm_data g_nrf_ccm_data;
 uint32_t
 ble_phy_mode_pdu_start_off(int phy_mode)
 {
-    return g_ble_phy_data.phy_mode_pkt_start_off[phy_mode];
+    return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
 void
@@ -1144,12 +1146,6 @@ int
 ble_phy_init(void)
 {
     int rc;
-
-    /* Set packet start offsets for various phys */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_1M] = 40;  /* 40 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_2M] = 24;  /* 24 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_125KBPS] = 376;  /* 376 usecs */
-    g_ble_phy_data.phy_mode_pkt_start_off[BLE_PHY_MODE_CODED_500KBPS] = 376;  /* 376 usecs */
 
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
