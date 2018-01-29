@@ -69,3 +69,44 @@ application is built and flashed as other examples in nRF5 SDK:
     $ make -C porting/freertos_nrf5_sdk flash
 ````
 
+### Linux
+
+1. Build the sample application
+
+```no-highlight
+   cd porting/linux
+   make
+```
+
+2. Run the sample application
+
+First insert a USB Bluetooth dongle.  These are typically BLE 4.0 capable.
+
+Verify the dongle is connected with hciconfig:
+
+```no-highlight
+   $ hciconfig
+hci0:	Type: BR/EDR  Bus: USB
+	BD Address: 00:1B:DC:06:62:5E  ACL MTU: 310:10  SCO MTU: 64:8
+	DOWN
+	RX bytes:5470 acl:0 sco:0 events:40 errors:0
+	TX bytes:5537 acl:176 sco:0 commands:139 errors:1
+```
+
+Then run the application built in step one.  The application is configured
+in sysconfig.h to use hci0.
+
+```no-highlight
+   cd porting/linux
+   sudo ./_build/nimble_linux.out
+```
+
+3. Build and run the unit tests
+
+The Operating System Abstraction Layer (OSAL) used to port Nimble to Linux
+has a suite of unit tests.
+
+```no-highlight
+   cd tests/unit/porting/os
+   make test
+```

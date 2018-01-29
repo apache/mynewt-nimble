@@ -56,6 +56,8 @@
 #define HCI_CHANNEL_RAW		0
 #define HCI_CHANNEL_USER	1
 #define HCIDEVUP	_IOW('H', 201, int)
+#define HCIDEVDOWN	_IOW('H', 202, int)
+#define HCIDEVRESET	_IOW('H', 203, int)
 #define HCIGETDEVLIST	_IOR('H', 210, int)
 
 struct sockaddr_hci {
@@ -488,6 +490,10 @@ ble_hci_sock_config(void)
         goto err;
     }
 
+    // HCI User Channel requires exclusive access to the device.
+    // The device has to be down at the time of binding.
+    ioctl(s, HCIDEVDOWN, shci.hci_dev);
+
     rc = bind(s, (struct sockaddr *)&shci, sizeof(shci));
     if (rc) {
         dprintf(1, "bind() failed %d\n", errno);
@@ -733,14 +739,14 @@ ble_hci_sock_init_task(void)
     pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
     assert(pstack);
 
-    os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
-                 MYNEWT_VAL(BLE_SOCK_TASK_PRIO), OS_WAIT_FOREVER, pstack,
-                 BLE_SOCK_STACK_SIZE);
-
     os_eventq_init(&ble_hci_sock_state.evq);
     os_callout_stop(&ble_hci_sock_state.timer);
     os_callout_init(&ble_hci_sock_state.timer, &ble_hci_sock_state.evq,
                     ble_hci_sock_rx_ev, NULL);
+
+    os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
+                 MYNEWT_VAL(BLE_SOCK_TASK_PRIO), OS_WAIT_FOREVER, pstack,
+                 BLE_SOCK_STACK_SIZE);
 }
 
 /**

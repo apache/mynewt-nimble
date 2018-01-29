@@ -157,19 +157,29 @@ static int
 ble_hs_startup_le_set_evmask_tx(void)
 {
     uint8_t buf[BLE_HCI_SET_LE_EVENT_MASK_LEN];
-    int rc;
+    int rc = -1;
+    uint64_t versions[] = {
+        0x00000000000F1A7F,   // Try v5.0 first,
+        0x000000000000027F,   // then v4.2,
+        0x000000000000003F,   // then v4.1,
+        0x000000000000001F,   // and finally v4.0.
+    };
 
     /**
      * Enable the following LE events:
+     *                        ===== BLE 4.0 ====
      *     0x0000000000000001 LE Connection Complete Event
      *     0x0000000000000002 LE Advertising Report Event
      *     0x0000000000000004 LE Connection Update Complete Event
      *     0x0000000000000008 LE Read Remote Used Features Complete Event
      *     0x0000000000000010 LE Long Term Key Request Event
+     *                        ===== BLE 4.1 ====
      *     0x0000000000000020 LE Remote Connection Parameter Request Event
+     *                        ===== BLE 4.2 ====
      *     0x0000000000000040 LE Data Length Change Event
      *     0x0000000000000200 LE Enhanced Connection Complete Event
      *     0x0000000000000400 LE Directed Advertising Report Event
+     *                        ===== BLE 5.0 ====
      *     0x0000000000000800 LE PHY Update Complete Event
      *     0x0000000000001000 LE Extended Advertising Report Event
      *     0x0000000000010000 LE Extended Scan Timeout Event
@@ -177,15 +187,17 @@ ble_hs_startup_le_set_evmask_tx(void)
      *     0x0000000000040000 LE Scan Request Received Event
      *     0x0000000000080000 LE Channel Selection Algorithm Event
      */
-    ble_hs_hci_cmd_build_le_set_event_mask(0x00000000000F1A7F, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                                BLE_HCI_OCF_LE_SET_EVENT_MASK),
-                                     buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
+
+    for (int i = 0; i < sizeof(versions); i++)
+    {
+        ble_hs_hci_cmd_build_le_set_event_mask(versions[i], buf, sizeof buf);
+	rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+						    BLE_HCI_OCF_LE_SET_EVENT_MASK),
+					 buf, sizeof(buf));
+	if (rc == 0) return rc;
     }
 
-    return 0;
+    return rc;
 }
 
 static int

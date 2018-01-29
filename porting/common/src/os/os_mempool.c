@@ -37,7 +37,7 @@ STAILQ_HEAD(, os_mempool) g_os_mempool_list =
     STAILQ_HEAD_INITIALIZER(g_os_mempool_list);
 
 #if MYNEWT_VAL(OS_MEMPOOL_POISON)
-static uint32_t os_mem_poison = 0xde7ec7ed;
+static uintptr_t os_mem_poison = 0xde7ec7ed;
 
 static void
 os_mempool_poison(void *start, int sz)
@@ -175,12 +175,12 @@ os_mempool_is_sane(const struct os_mempool *mp)
 int
 os_memblock_from(const struct os_mempool *mp, const void *block_addr)
 {
-    uint32_t  true_block_size;
+    uintptr_t true_block_size;
     uintptr_t baddr_ptr;
-    uint32_t  end;
+    uintptr_t end;
 
     _Static_assert(sizeof block_addr == sizeof baddr_ptr,
-                   "Pointer to void must be 32-bits.");
+                   "Pointer to void must be native word size.");
 
     baddr_ptr = (uintptr_t)block_addr;
     true_block_size = OS_MEMPOOL_TRUE_BLOCK_SIZE(mp);
