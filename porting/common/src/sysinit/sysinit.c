@@ -36,8 +36,11 @@ sysinit_dflt_panic_cb(const char *file, int line, const char *func,
     }
 #endif
 
+#ifdef __linux__
     __assert_fail(msg, file, line, func);
-    //__assert_func(file, line, func, expr);
+#else
+    __assert_func(file, line, func, expr);
+#endif
 }
 
 sysinit_panic_fn *sysinit_panic_cb = sysinit_dflt_panic_cb;
