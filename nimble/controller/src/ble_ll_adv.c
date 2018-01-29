@@ -417,8 +417,6 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
     advsm = pducb_arg;
 
-    assert(advsm->adv_data);
-
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         return ble_ll_adv_legacy_pdu_make(dptr, advsm, hdr_byte);
     }
