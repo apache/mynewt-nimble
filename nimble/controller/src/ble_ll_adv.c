@@ -118,6 +118,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF       0x04
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x08
 #define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x30 /* use helpers! */
+#define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x40
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -1538,6 +1539,10 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
 
     advsm = &g_ble_ll_adv_sm[instance];
 
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1702,6 +1707,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
             }
         }
 
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED:
@@ -1717,7 +1723,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
         advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
-        /* TODO mark adv data as complete? */
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
         /* fall through */
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT:
         if (!advsm->adv_data) {
@@ -1749,6 +1755,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
         break;
 #endif
     default:
