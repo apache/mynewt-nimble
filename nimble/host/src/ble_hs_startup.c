@@ -200,9 +200,10 @@ ble_hs_startup_set_evmask_tx(void)
      *     0x0000000000000080 Encryption Change Event
      *     0x0000000000008000 Hardware Error Event
      *     0x0000000002000000 Data Buffer Overflow Event
+     *     0x0000800000000000 Encryption Key Refresh Complete Event
      *     0x2000000000000000 LE Meta-Event
      */
-    ble_hs_hci_cmd_build_set_event_mask(0x2000000002008090, buf, sizeof buf);
+    ble_hs_hci_cmd_build_set_event_mask(0x2000800002008090, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
                                                 BLE_HCI_OCF_CB_SET_EVENT_MASK),
                                      buf, sizeof(buf));
