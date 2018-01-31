@@ -27,10 +27,16 @@
 #include "net.h"
 #include "access.h"
 #include "mesh_priv.h"
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+#include "model_srv.h"
+#include "model_cli.h"
+#include "light_model.h"
+#endif
 #include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
 #include "testing.h"
+#include "model_cli.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -172,9 +178,8 @@ static struct bt_mesh_model_pub health_pub;
 static void
 health_pub_init(void)
 {
-    health_pub.msg  = BT_MESH_HEALTH_FAULT_MSG(CUR_FAULTS_MAX);
+	health_pub.msg  = BT_MESH_HEALTH_FAULT_MSG(CUR_FAULTS_MAX);
 }
-
 
 static struct bt_mesh_cfg_cli cfg_cli = {
 };
@@ -209,18 +214,35 @@ static struct bt_mesh_health_cli health_cli = {
 	.current_status = health_current_status,
 };
 
-static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+static struct bt_mesh_model_pub gen_onoff_pub;
+static struct bt_mesh_model_pub gen_level_pub;
+static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {
+	.get = light_model_gen_onoff_get,
+	.set = light_model_gen_onoff_set,
+};
+static struct bt_mesh_gen_level_srv_cb gen_level_srv_cb = {
+	.get = light_model_gen_level_get,
+	.set = light_model_gen_level_set,
+};
+#endif
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
 	BT_MESH_MODEL_CFG_CLI(&cfg_cli),
 	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
 	BT_MESH_MODEL_HEALTH_CLI(&health_cli),
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+	BT_MESH_MODEL_GEN_ONOFF_SRV(&gen_onoff_srv_cb, &gen_onoff_pub),
+	BT_MESH_MODEL_GEN_ONOFF_CLI(),
+	BT_MESH_MODEL_GEN_LEVEL_SRV(&gen_level_srv_cb, &gen_level_pub),
+	BT_MESH_MODEL_GEN_LEVEL_CLI(),
+#endif
 };
 
 static struct bt_mesh_model vnd_models[] = {
-	BT_MESH_MODEL_VND(CID_VENDOR, VND_MODEL_ID_1, BT_MESH_MODEL_NO_OPS, NULL,
-			  NULL),
+	BT_MESH_MODEL_VND(CID_VENDOR, VND_MODEL_ID_1,
+			  BT_MESH_MODEL_NO_OPS, NULL, NULL),
 };
 
 static struct bt_mesh_elem elements[] = {
@@ -402,6 +424,8 @@ static void link_close(bt_mesh_prov_bearer_t bearer)
 {
 	printk("Provisioning link closed on %s\n", bearer2str(bearer));
 }
+
+static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
 
 static u8_t static_val[16];
 
@@ -2116,6 +2140,143 @@ struct shell_cmd_help cmd_del_fault_help = {
 	NULL, "[Fault ID]", NULL
 };
 
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+static int cmd_gen_onoff_get(int argc, char *argv[])
+{
+	u8_t state;
+	int err;
+
+	err = bt_mesh_gen_onoff_get(net.net_idx, net.dst, net.app_idx,
+				    &state);
+	if (err) {
+		printk("Failed to send Generic OnOff Get (err %d)\n", err);
+	} else {
+		printk("Gen OnOff State %d\n", state);
+	}
+
+	return 0;
+}
+
+static int cmd_gen_onoff_set(int argc, char *argv[])
+{
+	u8_t state;
+	u8_t val;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	val = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_gen_onoff_set(net.net_idx, net.dst, net.app_idx,
+				    val, &state);
+	if (err) {
+		printk("Failed to send Generic OnOff Get (err %d)\n", err);
+	} else {
+		printk("Gen OnOff State %d\n", state);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_gen_onoff_set_help = {
+	NULL, "<0|1>", NULL
+};
+
+static int cmd_gen_onoff_set_unack(int argc, char *argv[])
+{
+	u8_t val;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	val = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_gen_onoff_set(net.net_idx, net.dst, net.app_idx,
+				    val, NULL);
+	if (err) {
+		printk("Failed to send Generic OnOff Get (err %d)\n", err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_gen_onoff_set_unack_help = {
+	NULL, "<0|1>", NULL
+};
+
+static int cmd_gen_level_get(int argc, char *argv[])
+{
+	s16_t state;
+	int err;
+
+	err = bt_mesh_gen_level_get(net.net_idx, net.dst, net.app_idx,
+				    &state);
+	if (err) {
+		printk("Failed to send Generic Level Get (err %d)\n", err);
+	} else {
+		printk("Gen Level State %d\n", state);
+	}
+
+	return 0;
+}
+
+static int cmd_gen_level_set(int argc, char *argv[])
+{
+	s16_t state;
+	s16_t val;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	val = (s16_t)strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_gen_level_set(net.net_idx, net.dst, net.app_idx,
+				    val, &state);
+	if (err) {
+		printk("Failed to send Generic Level Get (err %d)\n", err);
+	} else {
+		printk("Gen Level State %d\n", state);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_gen_level_set_help = {
+	NULL, "<level>", NULL
+};
+
+static int cmd_gen_level_set_unack(int argc, char *argv[])
+{
+	s16_t val;
+	int err;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	val = (s16_t)strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_gen_level_set(net.net_idx, net.dst, net.app_idx,
+				    val, NULL);
+	if (err) {
+		printk("Failed to send Generic Level Get (err %d)\n", err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_gen_level_set_unack_help = {
+	NULL, "<level>", NULL
+};
+
+#endif /* MYNEWT_VAL(BLE_MESH_SHELL_MODELS) */
+
 static int cmd_print_credentials(int argc, char *argv[])
 {
 	bt_test_print_credentials();
@@ -2239,6 +2400,16 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
 	{ "del-fault", cmd_del_fault, &cmd_del_fault_help },
 
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+	/* Generic Client Model Operations */
+	{ "gen-onoff-get", cmd_gen_onoff_get, NULL },
+	{ "gen-onoff-set", cmd_gen_onoff_set, &cmd_gen_onoff_set_help },
+	{ "gen-onoff-set-unack", cmd_gen_onoff_set_unack, &cmd_gen_onoff_set_unack_help },
+	{ "gen-level-get", cmd_gen_level_get, NULL },
+	{ "gen-level-set", cmd_gen_level_set, &cmd_gen_level_set_help },
+	{ "gen-level-set-unack", cmd_gen_level_set_unack, &cmd_gen_level_set_unack_help },
+#endif
+
 	{ NULL, NULL, NULL}
 };
 
@@ -2271,5 +2442,10 @@ void ble_mesh_shell_init(void)
 	bt_mesh_shell_task_init();
 	shell_evq_set(&mesh_shell_queue);
 	shell_register("mesh", mesh_commands);
+
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+	light_model_init();
+#endif
+
 #endif
 }
