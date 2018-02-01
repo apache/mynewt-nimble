@@ -2741,8 +2741,8 @@ ble_gap_ext_adv_set_data_validate(uint8_t instance, struct os_mbuf *data)
         return BLE_HS_EINVAL;
     }
 
-    /* not allowed with directed advertising */
-    if (ble_gap_slave[instance].directed) {
+    /* not allowed with directed advertising for legacy*/
+    if (ble_gap_slave[instance].legacy_pdu && ble_gap_slave[instance].directed) {
         return BLE_HS_EINVAL;
     }
 
