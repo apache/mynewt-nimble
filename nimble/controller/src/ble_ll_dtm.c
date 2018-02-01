@@ -298,6 +298,8 @@ schedule:
     rc = ble_ll_sched_dtm(sch);
     assert(rc == 0);
 
+    ble_phy_enable_dtm();
+
     g_ble_ll_dtm_ctx.active = 1;
     return 0;
 }
@@ -336,6 +338,8 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
         return 1;
     }
 
+    ble_phy_enable_dtm();
+
     return 0;
 }
 
@@ -352,6 +356,7 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     OS_EXIT_CRITICAL(sr);
 
     ble_phy_disable();
+    ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 #ifdef BLE_XCVR_RFCLK
     ble_ll_xcvr_rfclk_stop();

@@ -1800,7 +1800,9 @@ ble_phy_resolv_list_disable(void)
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
 void ble_phy_enable_dtm(void)
 {
-    /* Disable whitening as per Bluetooth v5.0 Vol 6. Part F. 4.1.1*/
+    /* When DTM is enabled we need to disable whitening as per
+     * Bluetooth v5.0 Vol 6. Part F. 4.1.1
+     */
     NRF_RADIO->PCNF1 &= ~RADIO_PCNF1_WHITEEN_Msk;
 }
 
