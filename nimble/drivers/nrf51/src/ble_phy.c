@@ -274,10 +274,20 @@ nrf_wait_disabled(void)
 {
     uint32_t state;
 
-    state = NRF_RADIO->STATE;
+    /*
+     * RX and TX states have the same values except for 3rd bit (0=RX, 1=TX) so
+     * we use RX symbols only.
+     */
+    state = NRF_RADIO->STATE & 0x07;
+
     if (state != RADIO_STATE_STATE_Disabled) {
-        if ((state == RADIO_STATE_STATE_RxDisable) ||
-            (state == RADIO_STATE_STATE_TxDisable)) {
+        /* If PHY is in idle state for whatever reason, disable it now */
+        if (state == RADIO_STATE_STATE_RxIdle) {
+            NRF_RADIO->TASKS_DISABLE = 1;
+            STATS_INC(ble_phy_stats, radio_state_errs);
+        }
+
+        if (state == RADIO_STATE_STATE_RxDisable) {
             /* This will end within a short time (6 usecs). Just poll */
             while (NRF_RADIO->STATE == state) {
                 /* If this fails, something is really wrong. Should last
