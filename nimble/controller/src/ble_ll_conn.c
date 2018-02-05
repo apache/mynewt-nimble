@@ -3788,11 +3788,9 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         /*  XXX: TODO need to check with phy update procedure.
                          *  There are limitations if we have started update */
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
-                        if (rem_bytes > connsm->eff_max_tx_octets) {
-                            txhdr->txinfo.pyld_len = connsm->eff_max_tx_octets;
-                        } else {
-                            txhdr->txinfo.pyld_len = rem_bytes;
-                        }
+                        /* Adjust payload for max TX time and octets */
+                        rem_bytes = ble_ll_conn_adjust_pyld_len(connsm, rem_bytes);
+                        txhdr->txinfo.pyld_len = rem_bytes;
                     }
                 }
             }
