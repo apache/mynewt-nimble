@@ -66,6 +66,7 @@ syscfg.defs:
 
     BLE_SOCK_TASK_PRIO:
         description: 'Priority of the HCI socket task.'
+        type: task_priority
         value: 9
 
     BLE_SOCK_STACK_SIZE:

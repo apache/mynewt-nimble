@@ -85,6 +85,7 @@ syscfg.defs:
 
     BLE_HCI_EMSPI_PRIO:
         description: The priority of the emspi task.
+        type: task_priority
         value: 5
 
     BLE_HCI_EMSPI_STACK_SIZE:
