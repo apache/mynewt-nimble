@@ -1480,7 +1480,7 @@ done:
     sch = TAILQ_FIRST(&g_ble_ll_sched_q);
 
 #ifdef BLE_XCVR_RFCLK
-        ble_ll_xcvr_rfclk_timer_start(sch->start_time);
+    ble_ll_xcvr_rfclk_timer_start(sch->start_time);
 #endif
 
     OS_EXIT_CRITICAL(sr);
