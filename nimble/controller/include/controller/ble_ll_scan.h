@@ -226,7 +226,7 @@ int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
 
 /* Called to parse extended advertising*/
 struct ble_ll_ext_adv;
-int ble_ll_scan_parse_ext_adv(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
+int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
                               struct ble_ll_ext_adv *parsed_evt);
 
 void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);

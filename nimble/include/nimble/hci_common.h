@@ -241,9 +241,10 @@ extern "C" {
 #define BLE_HCI_ADV_SCAN_RSP_MASK           (0x0008)
 #define BLE_HCI_ADV_LEGACY_MASK             (0x0010)
 
-#define BLE_HCI_ADV_COMPLETED               (0x00)
-#define BLE_HCI_ADV_INCOMPLETE              (0x01)
-#define BLE_HCI_ADV_CORRUPTED               (0x10)
+#define BLE_HCI_ADV_DATA_STATUS_COMPLETE    (0x0000)
+#define BLE_HCI_ADV_DATA_STATUS_INCOMPLETE  (0x0020)
+#define BLE_HCI_ADV_DATA_STATUS_TRUNCATED   (0x0040)
+#define BLE_HCI_ADV_DATA_STATUS_MASK        (0x0060)
 
 /* Own address types */
 #define BLE_HCI_ADV_OWN_ADDR_PUBLIC         (0)
