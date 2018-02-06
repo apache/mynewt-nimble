@@ -745,7 +745,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
         } else {
             evtype = BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP;
         }
-        adv_data_len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+        adv_data_len = rxbuf[1];
         adv_data_len -= BLE_DEV_ADDR_LEN;
         event_len = BLE_HCI_LE_ADV_RPT_MIN_LEN + adv_data_len;
         os_mbuf_adj(om, BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN);

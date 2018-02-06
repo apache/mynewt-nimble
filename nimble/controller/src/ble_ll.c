@@ -935,7 +935,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 
     /* Get advertising PDU type and length */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-    len = rxbuf[1] & BLE_ADV_PDU_HDR_LEN_MASK;
+    len = rxbuf[1];
 
     /* If the CRC checks, make sure lengths check! */
     badpkt = 0;

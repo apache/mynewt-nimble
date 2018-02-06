@@ -259,7 +259,6 @@ struct ble_dev_addr
 #define BLE_ADV_PDU_HDR_CHSEL_MASK          (0x20)
 #define BLE_ADV_PDU_HDR_TXADD_MASK          (0x40)
 #define BLE_ADV_PDU_HDR_RXADD_MASK          (0x80)
-#define BLE_ADV_PDU_HDR_LEN_MASK            (0x3F)
 
 /* Advertising channel PDU types */
 #define BLE_ADV_PDU_TYPE_ADV_IND            (0)
