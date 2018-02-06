@@ -71,6 +71,3 @@ syscfg.defs:
     BLE_SOCK_STACK_SIZE:
         description: 'Size of the HCI socket stack (units=words).'
         value: 80
-
-syscfg.vals.BLE_EXT_ADV:
-    BLE_HCI_EVT_BUF_SIZE: 274
