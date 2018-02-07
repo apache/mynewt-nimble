@@ -1444,6 +1444,13 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         break;
 #endif
+    case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
+	/* That should not happen according to Bluetooth 5.0 Vol6 Part B, 5.1.9
+	 * However we need this workaround as there are devices on the market
+	 * which do send LL_REJECT on LL_LENGTH_REQ when collision happens
+	 */
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
+        break;
     default:
         break;
     }
