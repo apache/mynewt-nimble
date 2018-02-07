@@ -1542,6 +1542,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 
     if (rc == BLE_LL_SCHED_STATE_DONE) {
         ble_ll_event_send(&connsm->conn_ev_end);
+        ble_phy_disable();
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         g_ble_ll_conn_cur_sm = NULL;
     }
