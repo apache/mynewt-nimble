@@ -36,6 +36,8 @@
 #define ADV_INT_DEFAULT  K_MSEC(100)
 #define ADV_INT_FAST     K_MSEC(20)
 
+static s32_t adv_int_min =  ADV_INT_DEFAULT;
+
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
  */
@@ -87,8 +89,6 @@ static inline void adv_send(struct os_mbuf *buf)
 {
 	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
 	void *cb_data = BT_MESH_ADV(buf)->cb_data;
-	/* XXX: For BT5 we could have better adv interval */
-	const s32_t adv_int_min =  ADV_INT_DEFAULT;
 	struct ble_gap_adv_params param = { 0 };
 	u16_t duration, adv_int;
 	struct bt_mesh_adv *adv = BT_MESH_ADV(buf);
@@ -311,6 +311,11 @@ void bt_mesh_adv_init(void)
 	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
 		     MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER, pstack,
 		     ADV_STACK_SIZE);
+
+	/* For BT5 controllers we can have fast advertising interval */
+	if (ble_hs_hci_get_hci_version() >= BLE_HCI_VER_BCS_5_0) {
+	    adv_int_min = ADV_INT_FAST;
+	}
 }
 
 int
