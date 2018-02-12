@@ -37,6 +37,7 @@ static uint8_t *ble_hs_hci_ack;
 static uint16_t ble_hs_hci_buf_sz;
 static uint8_t ble_hs_hci_max_pkts;
 static uint32_t ble_hs_hci_sup_feat;
+static uint8_t ble_hs_hci_version;
 
 /**
  * The number of available ACL transmit buffers on the controller.  This
@@ -544,6 +545,18 @@ uint32_t
 ble_hs_hci_get_le_supported_feat(void)
 {
     return ble_hs_hci_sup_feat;
+}
+
+void
+ble_hs_hci_set_hci_version(uint8_t hci_version)
+{
+    ble_hs_hci_version = hci_version;
+}
+
+uint8_t
+ble_hs_hci_get_hci_version(void)
+{
+    return ble_hs_hci_version;
 }
 
 void

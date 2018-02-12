@@ -80,6 +80,8 @@ void ble_hs_hci_init(void);
 
 void ble_hs_hci_set_le_supported_feat(uint32_t feat);
 uint32_t ble_hs_hci_get_le_supported_feat(void);
+void ble_hs_hci_set_hci_version(uint8_t hci_version);
+uint8_t ble_hs_hci_get_hci_version(void);
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 typedef int ble_hs_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);

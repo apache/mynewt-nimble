@@ -24,6 +24,33 @@
 #include "ble_hs_priv.h"
 
 static int
+ble_hs_startup_le_read_local_ver_tx(void)
+{
+    uint8_t ack_params[BLE_HCI_RD_LOC_VER_INFO_RSPLEN];
+    uint8_t ack_params_len;
+    uint8_t hci_version;
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS,
+                                      BLE_HCI_OCF_IP_RD_LOCAL_VER),
+                           NULL,0, ack_params, sizeof ack_params,
+                           &ack_params_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (ack_params_len != BLE_HCI_RD_LOC_VER_INFO_RSPLEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    /* For now we are interested only in HCI Version */
+    hci_version = ack_params[0];
+    ble_hs_hci_set_hci_version(hci_version);
+
+    return 0;
+}
+
+static int
 ble_hs_startup_le_read_sup_f_tx(void)
 {
     uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
@@ -247,6 +274,11 @@ ble_hs_startup_go(void)
     int rc;
 
     rc = ble_hs_startup_reset_tx();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_startup_le_read_local_ver_tx();
     if (rc != 0) {
         return rc;
     }
