@@ -263,6 +263,24 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
     assert(scansm->backoff_count <= 256);
 }
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+static void
+ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
+{
+    uint32_t now;
+
+    now = os_time_get();
+    if ((int32_t)(now - scansm->scan_nrpa_timer) >= 0) {
+        /* Generate new NRPA */
+        ble_ll_rand_data_get(scansm->scan_nrpa, BLE_DEV_ADDR_LEN);
+        scansm->scan_nrpa[5] &= ~0xc0;
+
+        /* We'll use the same timeout as for RPA rotation */
+        scansm->scan_nrpa_timer = now + ble_ll_resolv_get_rpa_tmo();
+    }
+}
+#endif
+
 /**
  * ble ll scan req pdu make
  *
@@ -318,11 +336,22 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
             }
         }
 
+        /*
+         * If advertising device is on our resolving list, we use RPA generated
+         * using Local IRK from resolving list entry as ScanA. In other case,
+         * we use NRPA as ScanA as allowed by spec to prevent our device from
+         * being tracked when doing an active scan (see Core 5.0, Vol 6, Part B,
+         * section 6.3).
+         */
         if (rl) {
             ble_ll_resolv_gen_priv_addr(rl, 1, rpa);
             scana = rpa;
-            pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        } else {
+            ble_ll_scan_refresh_nrpa(scansm);
+            scana = scansm->scan_nrpa;
         }
+
+        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 #endif
 
@@ -3042,6 +3071,11 @@ ble_ll_scan_init(void)
     scansm->phy_data[PHY_UNCODED].phy = BLE_PHY_1M;
 #if (BLE_LL_SCAN_PHY_NUMBER == 2)
     scansm->phy_data[PHY_CODED].phy = BLE_PHY_CODED;
+#endif
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    /* Make sure we'll generate new NRPA if necessary */
+    scansm->scan_nrpa_timer = os_time_get();
 #endif
 
     /* Initialize scanning timer */
