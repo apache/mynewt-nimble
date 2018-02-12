@@ -252,6 +252,12 @@ ble_hs_test_util_hci_ack_set_startup(void)
         },
         {
             .opcode = ble_hs_hci_util_opcode_join(
+             BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOCAL_VER),
+            .evt_params = { 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+            .evt_params_len = 8,
+        },
+        {
+            .opcode = ble_hs_hci_util_opcode_join(
                 BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK),
         },
         {

@@ -125,7 +125,7 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Discard startup HCI commands. */
-    ble_hs_test_util_hci_out_adj(12);
+    ble_hs_test_util_hci_out_adj(13);
 }
 
 static void
