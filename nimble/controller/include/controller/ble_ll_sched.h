@@ -152,10 +152,12 @@ int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
 int ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm);
 
 struct ble_ll_adv_sm;
-typedef void ble_ll_sched_adv_new_cb(struct ble_ll_adv_sm *advsm, uint32_t sch_start);
+typedef void ble_ll_sched_adv_new_cb(struct ble_ll_adv_sm *advsm,
+                                     uint32_t sch_start, void *arg);
 
 /* Schedule a new advertising event */
-int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb);
+int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
+                         ble_ll_sched_adv_new_cb cb, void *arg);
 
 /* Reschedule an advertising event */
 int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,

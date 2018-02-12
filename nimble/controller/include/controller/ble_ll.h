@@ -240,8 +240,9 @@ struct ble_dev_addr
 #define BLE_LL_ACC_ADDR_LEN     (4)
 #define BLE_LL_CRC_LEN          (3)
 #define BLE_LL_PDU_HDR_LEN      (2)
+#define BLE_LL_MAX_PAYLOAD_LEN  (255)
 #define BLE_LL_MIN_PDU_LEN      (BLE_LL_PDU_HDR_LEN)
-#define BLE_LL_MAX_PDU_LEN      (257)
+#define BLE_LL_MAX_PDU_LEN      ((BLE_LL_PDU_HDR_LEN) + (BLE_LL_MAX_PAYLOAD_LEN))
 #define BLE_LL_CRCINIT_ADV      (0x555555)
 
 /* Access address for advertising channels */
