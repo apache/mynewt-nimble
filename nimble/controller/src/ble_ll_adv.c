@@ -186,6 +186,38 @@ static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hd
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+static void
+ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
+{
+    ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                          advsm->adva, 1);
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                              advsm->initiator_addr, 0);
+        if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+        } else {
+            if (advsm->own_addr_type & 1) {
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+            } else {
+                advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
+            }
+        }
+    }
+
+    /* May have to reset txadd bit */
+    if (ble_ll_is_rpa(advsm->adva, 1)) {
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+    } else {
+        if (advsm->own_addr_type & 1) {
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+        } else {
+            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+        }
+    }
+}
+
 /**
  * Called to change advertisers ADVA and INITA (for directed advertisements)
  * as an advertiser needs to adhere to the resolvable private address generation
@@ -208,38 +240,14 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 {
     uint32_t now;
 
-    if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        now = os_time_get();
-        if ((int32_t)(now - advsm->adv_rpa_timer) >= 0) {
-            ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                                  advsm->adva, 1);
+    if (advsm->own_addr_type < BLE_HCI_ADV_OWN_ADDR_PRIV_PUB) {
+        return;
+    }
 
-            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-                ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                                      advsm->initiator_addr, 0);
-                if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
-                    advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
-                } else {
-                    if (advsm->own_addr_type & 1) {
-                        advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
-                    } else {
-                        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
-                    }
-                }
-            }
-            advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
-
-            /* May have to reset txadd bit */
-            if (ble_ll_is_rpa(advsm->adva, 1)) {
-                advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
-            } else {
-                if (advsm->own_addr_type & 1) {
-                    advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
-                } else {
-                    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
-                }
-            }
-        }
+    now = os_time_get();
+    if ((int32_t)(now - advsm->adv_rpa_timer) >= 0) {
+        ble_ll_adv_rpa_update(advsm);
+        advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
     }
 }
 #endif
@@ -1619,9 +1627,11 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         }
     }
 
-    /* This will generate an RPA for both initiator addr and adva */
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-    ble_ll_adv_chk_rpa_timeout(advsm);
+    /* This will generate an RPA for both initiator addr and adva */
+    if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+        ble_ll_adv_rpa_update(advsm);
+    }
 #endif
 
     /* Set flag telling us that advertising is enabled */
