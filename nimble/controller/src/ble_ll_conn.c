@@ -2728,6 +2728,11 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
             }
         }
 
+        /*
+         * If peer in on resolving list, we use RPA generated with Local IRK
+         * from resolving list entry. In other case, we need to use our identity
+         * address (see  Core 5.0, Vol 6, Part B, section 6.4).
+         */
         if (rl) {
             hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
             ble_ll_resolv_gen_priv_addr(rl, 1, dptr);
