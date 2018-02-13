@@ -202,8 +202,6 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
     uint8_t new_irk[16];
     int rc;
 
-    memset(new_irk, 0, sizeof(new_irk));
-
     if (irk != NULL) {
         memcpy(new_irk, irk, 16);
     } else {
