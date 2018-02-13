@@ -229,12 +229,16 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
             return rc;
         }
 
-        /* Push a null address identity to the controller.  The controller uses
-         * this entry to generate an RPA when we do advertising with
-         * own-addr-type = rpa.
+        /*
+         * Add local IRK entry with 00:00:00:00:00:00 address. This entry will
+         * be used to generate RPA for non-directed advertising if own_addr_type
+         * is set to rpa_pub since we use all-zero address as peer addres in
+         * such case. Peer IRK should be left all-zero since this is not for an
+         * actual peer.
          */
         memset(tmp_addr, 0, 6);
-        rc = ble_hs_pvcy_add_entry(tmp_addr, 0, ble_hs_pvcy_irk);
+        memset(new_irk, 0, 16);
+        rc = ble_hs_pvcy_add_entry(tmp_addr, 0, new_irk);
         if (rc != 0) {
             return rc;
         }
