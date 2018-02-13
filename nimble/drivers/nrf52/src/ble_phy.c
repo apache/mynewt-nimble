@@ -100,6 +100,7 @@ struct ble_phy_obj
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
+    uint8_t phy_transition_late;
     uint8_t phy_rx_started;
     uint8_t phy_encrypted;
     uint8_t phy_privacy;
@@ -893,6 +894,24 @@ ble_phy_rx_end_isr(void)
     NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
 
     /*
+     * XXX: Hack warning!
+     *
+     * It may happen (during flash erase) that CPU is stopped for a moment and
+     * TIMER0 already counted past CC[0]. In such case we will be stuck waiting
+     * for TX to start since EVENTS_COMPARE[0] will not happen any time soon.
+     * For now let's set a flag denoting that we are late in RX-TX transition so
+     * ble_phy_tx() will fail - this allows everything to cleanup nicely without
+     * the need for extra handling in many places.
+     *
+     * Note: CC[3] is used only for wfr which we do not need here.
+     */
+    NRF_TIMER0->TASKS_CAPTURE[3] = 1;
+    if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
+        NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk;
+        g_ble_phy_data.phy_transition_late = 1;
+    }
+
+    /*
      * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
      * that is not sent over the air but is present here. Simply move the
      * data pointer to deal with it. Fix this later.
@@ -1078,6 +1097,8 @@ ble_phy_isr(void)
     if ((irq_en & RADIO_INTENCLR_END_Msk) && NRF_RADIO->EVENTS_END) {
         ble_phy_rx_end_isr();
     }
+
+    g_ble_phy_data.phy_transition_late = 0;
 
     /* Ensures IRQ is cleared */
     irq_en = NRF_RADIO->SHORTS;
@@ -1454,6 +1475,12 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     uint8_t hdr_byte;
     uint32_t state;
     uint32_t shortcuts;
+
+    if (g_ble_phy_data.phy_transition_late) {
+        ble_phy_disable();
+        STATS_INC(ble_phy_stats, tx_late);
+        return BLE_PHY_ERR_TX_LATE;
+    }
 
     /*
      * This check is to make sure that the radio is not in a state where
