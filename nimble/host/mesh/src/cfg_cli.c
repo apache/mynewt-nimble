@@ -25,7 +25,7 @@ struct comp_data {
 	struct os_mbuf *comp;
 };
 
-static s32_t msg_timeout = K_SECONDS(2);
+static s32_t msg_timeout = K_SECONDS(5);
 
 static struct bt_mesh_cfg_cli *cli;
 
