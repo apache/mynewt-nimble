@@ -32,6 +32,13 @@
 #include "foundation.h"
 #include "testing.h"
 
+/* This should be higher priority (lower value) than main task priority */
+#define BLE_MESH_SHELL_TASK_PRIO 126
+#define BLE_MESH_SHELL_STACK_SIZE 768
+
+struct os_task mesh_shell_task;
+static struct os_eventq mesh_shell_queue;
+
 #define CID_NVAL   0xffff
 #define CID_LOCAL  0x0002
 
@@ -2220,6 +2227,25 @@ static const struct shell_cmd mesh_commands[] = {
 
 	{ NULL, NULL, NULL}
 };
+
+static void mesh_shell_thread(void *args)
+{
+	while (1) {
+		os_eventq_run(&mesh_shell_queue);
+	}
+}
+
+static void bt_mesh_shell_task_init(void)
+{
+	os_stack_t *pstack;
+
+	pstack = malloc(sizeof(os_stack_t) * BLE_MESH_SHELL_STACK_SIZE);
+	os_eventq_init(&mesh_shell_queue);
+
+	os_task_init(&mesh_shell_task, "mesh_sh", mesh_shell_thread, NULL,
+		     BLE_MESH_SHELL_TASK_PRIO, OS_WAIT_FOREVER, pstack,
+		     BLE_MESH_SHELL_STACK_SIZE);
+}
 #endif
 
 void ble_mesh_shell_init(void)
@@ -2231,5 +2257,9 @@ void ble_mesh_shell_init(void)
 	/* Initialize health pub message */
 	health_pub_init();
 
+	/* Shell and other mesh clients should use separate task to
+	   avoid deadlocks with mesh message processing queue */
+	bt_mesh_shell_task_init();
+	shell_evq_set(&mesh_shell_queue);
 	shell_register("mesh", mesh_commands);
 }
