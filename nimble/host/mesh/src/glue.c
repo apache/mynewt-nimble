@@ -505,3 +505,92 @@ bt_mesh_register_gatt(void)
     bt_mesh_proxy_svcs_register();
 #endif
 }
+
+void net_buf_slist_init(struct net_buf_slist_t *list)
+{
+	STAILQ_INIT(list);
+}
+
+bool net_buf_slist_is_empty(struct net_buf_slist_t *list)
+{
+	return STAILQ_EMPTY(list);
+}
+
+struct os_mbuf *net_buf_slist_peek_head(struct net_buf_slist_t *list)
+{
+	struct os_mbuf_pkthdr *pkthdr;
+
+	/* Get mbuf pointer from packet header pointer */
+	pkthdr = STAILQ_FIRST(list);
+	if (!pkthdr) {
+		return NULL;
+	}
+
+	return OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+}
+
+struct os_mbuf *net_buf_slist_peek_next(struct os_mbuf *buf)
+{
+	struct os_mbuf_pkthdr *pkthdr;
+
+	/* Get mbuf pointer from packet header pointer */
+	pkthdr = OS_MBUF_PKTHDR(buf);
+	pkthdr = STAILQ_NEXT(pkthdr, omp_next);
+	if (!pkthdr) {
+		return NULL;
+	}
+
+	return OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+}
+
+struct os_mbuf *net_buf_slist_get(struct net_buf_slist_t *list)
+{
+	os_sr_t sr;
+	struct os_mbuf *m;
+
+	m = net_buf_slist_peek_head(list);
+	if (!m) {
+		return NULL;
+	}
+
+	/* Remove from queue */
+	OS_ENTER_CRITICAL(sr);
+	STAILQ_REMOVE_HEAD(list, omp_next);
+	OS_EXIT_CRITICAL(sr);
+	return m;
+}
+
+void net_buf_slist_put(struct net_buf_slist_t *list, struct os_mbuf *buf)
+{
+	struct os_mbuf_pkthdr *pkthdr;
+
+	pkthdr = OS_MBUF_PKTHDR(buf);
+	STAILQ_INSERT_TAIL(list, pkthdr, omp_next);
+}
+
+void net_buf_slist_remove(struct net_buf_slist_t *list, struct os_mbuf *prev,
+			  struct os_mbuf *cur)
+{
+	struct os_mbuf_pkthdr *pkthdr, *cur_pkthdr;
+
+	cur_pkthdr = OS_MBUF_PKTHDR(cur);
+
+	STAILQ_FOREACH(pkthdr, list, omp_next) {
+		if (cur_pkthdr == pkthdr) {
+			STAILQ_REMOVE(list, cur_pkthdr, os_mbuf_pkthdr, omp_next);
+			break;
+		}
+	}
+}
+
+void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
+			       struct net_buf_slist_t *list_to_append)
+{
+	struct os_mbuf_pkthdr *pkthdr;
+
+	STAILQ_FOREACH(pkthdr, list_to_append, omp_next) {
+		STAILQ_INSERT_TAIL(list, pkthdr, omp_next);
+	}
+
+	STAILQ_INIT(list);
+}

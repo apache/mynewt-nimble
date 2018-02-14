@@ -75,7 +75,7 @@ static u16_t msg_cache_next;
 
 /* Singleton network context (the implementation only supports one) */
 struct bt_mesh_net bt_mesh = {
-	.local_queue = SYS_SLIST_STATIC_INIT(bt_mesh.local_queue),
+	.local_queue = STAILQ_HEAD_INITIALIZER(bt_mesh.local_queue),
 	.sub = {
 		[0 ... (MYNEWT_VAL(BLE_MESH_SUBNET_COUNT) - 1)] = {
 			.net_idx = BT_MESH_KEY_UNUSED,
@@ -1351,4 +1351,5 @@ void bt_mesh_net_init(void)
 	k_delayed_work_init(&bt_mesh.ivu_complete, ivu_complete);
 
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
+	net_buf_slist_init(&bt_mesh.local_queue);
 }
