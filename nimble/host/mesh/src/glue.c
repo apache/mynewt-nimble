@@ -370,12 +370,12 @@ k_delayed_work_remaining_get (struct k_delayed_work *w)
 
     OS_ENTER_CRITICAL(sr);
 
-    t = os_callout_remaining_ticks(&w->work, os_cputime_get32());
+    t = os_callout_remaining_ticks(&w->work, os_time_get());
 
     OS_EXIT_CRITICAL(sr);
 
     /* We should return ms */
-    return os_cputime_ticks_to_usecs(t) / 1000;
+    return t / OS_TICKS_PER_SEC * 1000;
 }
 
 int64_t k_uptime_get(void)
