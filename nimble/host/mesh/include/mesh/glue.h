@@ -342,6 +342,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_ADV               BLE_MESH_PB_ADV
 #define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
+#define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)

@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "mesh/mesh.h"
+#include "mesh/testing.h"
 #include "mesh_priv.h"
 
 #include "syscfg/syscfg.h"
@@ -1271,6 +1272,11 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);
 
 	BT_DBG("Payload %s", bt_hex(buf->om_data, buf->om_len));
+
+	if (IS_ENABLED(CONFIG_BT_TESTING)) {
+		bt_test_mesh_net_recv(rx->ctx.recv_ttl, rx->ctl, rx->ctx.addr,
+				      rx->dst, buf->om_data, buf->om_len);
+	}
 
 	/* If LPN mode is enabled messages are only accepted when we've
 	 * requested the Friend to send them. The messages must also
