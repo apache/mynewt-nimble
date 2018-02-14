@@ -784,7 +784,7 @@ ble_phy_get_cur_rx_phy_mode(void)
 
     phy = g_ble_phy_data.phy_cur_phy_mode;
 
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     /*
      * For Coded PHY mode can be set to either codings since actual coding is
      * set in packet header. However, here we need actual coding of received
@@ -793,12 +793,7 @@ ble_phy_get_cur_rx_phy_mode(void)
      */
     if ((phy == BLE_PHY_MODE_CODED_125KBPS) ||
                                     (phy == BLE_PHY_MODE_CODED_500KBPS)) {
-        /*
-         * XXX CI field value is bits [2:1] in NRF_RADIO->PDUSTAT which is
-         *     available in nrfx for nrf52840 only - it's NRF_RADIO->RESERVED7[0]
-         *     for other nrf52 vairants.
-         */
-        phy = NRF_RADIO->PDUSTAT & 0x06 ?
+        phy = NRF_RADIO->PDUSTAT & RADIO_PDUSTAT_CISTAT_Msk ?
                                    BLE_PHY_MODE_CODED_500KBPS :
                                    BLE_PHY_MODE_CODED_125KBPS;
     }
