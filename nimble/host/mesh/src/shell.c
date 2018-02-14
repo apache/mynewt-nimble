@@ -40,7 +40,7 @@ struct os_task mesh_shell_task;
 static struct os_eventq mesh_shell_queue;
 
 #define CID_NVAL   0xffff
-#define CID_LOCAL  0x0002
+#define CID_VENDOR  0x05C3
 
 /* Vendor Model data */
 #define VND_MODEL_ID_1 0x1234
@@ -105,7 +105,7 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
 	printk("Sending current faults\n");
 
 	*test_id = 0x00;
-	*company_id = CID_LOCAL;
+	*company_id = CID_VENDOR;
 
 	get_faults(cur_faults, sizeof(cur_faults), faults, fault_count);
 
@@ -115,7 +115,7 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
 static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
 			 u8_t *test_id, u8_t *faults, u8_t *fault_count)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		printk("Faults requested for unknown Company ID 0x%04x\n", cid);
 		return -EINVAL;
 	}
@@ -131,7 +131,7 @@ static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
 
 static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		return -EINVAL;
 	}
 
@@ -143,7 +143,7 @@ static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
 static int fault_test(struct bt_mesh_model *model, uint8_t test_id,
 		      uint16_t cid)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		return -EINVAL;
 	}
 
@@ -217,7 +217,7 @@ static struct bt_mesh_model root_models[] = {
 };
 
 static struct bt_mesh_model vnd_models[] = {
-	BT_MESH_MODEL_VND(CID_LOCAL, VND_MODEL_ID_1, BT_MESH_MODEL_NO_OPS, NULL,
+	BT_MESH_MODEL_VND(CID_VENDOR, VND_MODEL_ID_1, BT_MESH_MODEL_NO_OPS, NULL,
 			  NULL),
 };
 
@@ -226,7 +226,7 @@ static struct bt_mesh_elem elements[] = {
 };
 
 static const struct bt_mesh_comp comp = {
-	.cid = CID_LOCAL,
+	.cid = CID_VENDOR,
 	.elem = elements,
 	.elem_count = ARRAY_SIZE(elements),
 };
