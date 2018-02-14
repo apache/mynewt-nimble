@@ -340,7 +340,9 @@ k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms)
 {
     uint32_t ticks;
 
-    os_time_ms_to_ticks(ms, &ticks);
+    if (os_time_ms_to_ticks(ms, &ticks) != 0) {
+        assert(0);
+    }
     os_callout_reset(&w->work, ticks);
 }
 
