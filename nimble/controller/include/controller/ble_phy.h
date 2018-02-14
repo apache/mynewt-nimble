@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) && !MYNEWT_VAL(BSP_NRF52840)
-#error LE 2M PHY can only be enabled on nRF52840
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) && !(MYNEWT_VAL(BSP_NRF52) || MYNEWT_VAL(BSP_NRF52840))
+#error LE 2M PHY can only be enabled on nRF52xxx
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) && !MYNEWT_VAL(BSP_NRF52840)

@@ -275,12 +275,14 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
     } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_2M;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     } else if (cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
     } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
+#endif
     } else {
         assert(0);
     }
@@ -578,10 +580,12 @@ ble_phy_get_ccm_datarate(void)
         return CCM_MODE_DATARATE_1Mbit << CCM_MODE_DATARATE_Pos;
     case BLE_PHY_MODE_2M:
         return CCM_MODE_DATARATE_2Mbit << CCM_MODE_DATARATE_Pos;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case BLE_PHY_MODE_CODED_125KBPS:
         return CCM_MODE_DATARATE_125Kbps << CCM_MODE_DATARATE_Pos;
     case BLE_PHY_MODE_CODED_500KBPS:
         return CCM_MODE_DATARATE_500Kbps << CCM_MODE_DATARATE_Pos;
+#endif
     }
 
     assert(0);
