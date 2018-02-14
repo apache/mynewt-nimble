@@ -791,12 +791,12 @@ ble_phy_get_cur_rx_phy_mode(void)
                                     (phy == BLE_PHY_MODE_CODED_500KBPS)) {
         /*
          * XXX CI field value is bits [2:1] in NRF_RADIO->PDUSTAT which is
-         *     available in SDK v14.0 - it's NRF_RADIO->RESERVED7[0] in
-         *     SDK v11.0 so let's use it for now
+         *     available in nrfx for nrf52840 only - it's NRF_RADIO->RESERVED7[0]
+         *     for other nrf52 vairants.
          */
-        phy = NRF_RADIO->RESERVED7[0] & 0x06 ?
-                                        BLE_PHY_MODE_CODED_500KBPS :
-                                        BLE_PHY_MODE_CODED_125KBPS;
+        phy = NRF_RADIO->PDUSTAT & 0x06 ?
+                                   BLE_PHY_MODE_CODED_500KBPS :
+                                   BLE_PHY_MODE_CODED_125KBPS;
     }
 #endif
 
