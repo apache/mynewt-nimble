@@ -564,18 +564,30 @@ struct shell_cmd_help cmd_lpn_help = {
 
 #endif /* MESH_LOW_POWER */
 
+static int check_addr_unassigned(uint8_t addr[BLE_DEV_ADDR_LEN])
+{
+	return memcmp(addr, (uint8_t[BLE_DEV_ADDR_LEN]){0, 0, 0, 0, 0, 0},
+			BLE_DEV_ADDR_LEN) == 0;
+}
+
 static int cmd_init(int argc, char *argv[])
 {
 	int err;
 	ble_addr_t addr;
 
-	/* Use NRPA */
-	err = ble_hs_id_gen_rnd(1, &addr);
-	assert(err == 0);
-	err = ble_hs_id_set_rnd(addr.val);
-	assert(err == 0);
+	if (check_addr_unassigned(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
+		/* Use NRPA */
+		err = ble_hs_id_gen_rnd(1, &addr);
+		assert(err == 0);
+		err = ble_hs_id_set_rnd(addr.val);
+		assert(err == 0);
 
-	err = bt_mesh_init(addr.type, &prov, &comp);
+		err = bt_mesh_init(addr.type, &prov, &comp);
+	}
+	else {
+		err = bt_mesh_init(0, &prov, &comp);
+	}
+
 	if (err) {
 		printk("Mesh initialization failed (err %d)\n", err);
 	}
