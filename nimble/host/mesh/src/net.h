@@ -22,7 +22,7 @@
 
 #include <stdbool.h>
 #include "mesh/mesh.h"
-#include "mesh/slist.h"
+#include "mesh/glue.h"
 
 struct bt_mesh_app_key {
 	u16_t net_idx;
@@ -103,12 +103,12 @@ struct bt_mesh_friend {
 	struct k_delayed_work timer;
 
 	struct bt_mesh_friend_seg {
-		sys_slist_t queue;
+		struct net_buf_slist_t queue;
 	} seg[FRIEND_SEG_RX];
 
 	struct os_mbuf *last;
 
-	sys_slist_t queue;
+	struct net_buf_slist_t queue;
 	u32_t queue_size;
 
 	/* Friend Clear Procedure */
@@ -201,7 +201,7 @@ struct bt_mesh_net {
 
 	/* Local network interface */
 	struct os_callout local_work;
-	sys_slist_t local_queue;
+	struct net_buf_slist_t local_queue;
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 	/* Friend state, unique for each LPN that we're Friends for */

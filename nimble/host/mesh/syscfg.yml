@@ -371,6 +371,11 @@ syscfg.defs:
             Procedure and lets the state be changed at any time.
         value: 0
 
+    BLE_MESH_TESTING:
+        description: >
+            This option enables testing API.
+        value: 0
+
     BLE_MESH_DEV_UUID:
         description: >
             Device UUID

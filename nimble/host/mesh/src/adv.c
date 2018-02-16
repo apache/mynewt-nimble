@@ -258,7 +258,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, s8_t rssi,
 			return;
 		}
 
-		if (len > buf->om_len || buf->om_len < 1) {
+		if (len > buf->om_len) {
 			BT_WARN("AD malformed");
 			return;
 		}

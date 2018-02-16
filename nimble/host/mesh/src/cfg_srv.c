@@ -27,12 +27,14 @@
 #include "proxy.h"
 #include "foundation.h"
 #include "friend.h"
+#include "testing.h"
 
 #define DEFAULT_TTL 7
 
 static struct bt_mesh_cfg_srv *conf;
 
 static struct label {
+	u16_t ref;
 	u16_t addr;
 	u8_t  uuid[16];
 } labels[MYNEWT_VAL(BLE_MESH_LABEL_COUNT)];
@@ -344,11 +346,9 @@ static u8_t mod_unbind(struct bt_mesh_model *model, u16_t key_idx)
 			_mod_pub_set(model, BT_MESH_ADDR_UNASSIGNED,
 				     0, 0, 0, 0, 0);
 		}
-
-		return STATUS_SUCCESS;
 	}
 
-	return STATUS_CANNOT_BIND;
+	return STATUS_SUCCESS;
 }
 
 static struct bt_mesh_app_key *app_key_alloc(u16_t app_idx)
@@ -1115,37 +1115,22 @@ send_status:
 }
 
 #if MYNEWT_VAL(BLE_MESH_LABEL_COUNT) > 0
-static u16_t va_find(u8_t *label_uuid, struct label **free_slot)
+static u8_t va_add(u8_t *label_uuid, u16_t *addr)
 {
+	struct label *free_slot = NULL;
 	int i;
 
-	if (free_slot) {
-		*free_slot = NULL;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(labels); i++) {
-		if (!BT_MESH_ADDR_IS_VIRTUAL(labels[i].addr)) {
-			if (free_slot) {
-				*free_slot = &labels[i];
-			}
+		if (!labels[i].ref) {
+			free_slot = &labels[i];
 			continue;
 		}
 
 		if (!memcmp(labels[i].uuid, label_uuid, 16)) {
-			return labels[i].addr;
+			*addr = labels[i].addr;
+			labels[i].ref++;
+			return STATUS_SUCCESS;
 		}
-	}
-
-	return BT_MESH_ADDR_UNASSIGNED;
-}
-
-static u8_t va_add(u8_t *label_uuid, u16_t *addr)
-{
-	struct label *free_slot;
-
-	*addr = va_find(label_uuid, &free_slot);
-	if (*addr != BT_MESH_ADDR_UNASSIGNED) {
-		return STATUS_SUCCESS;
 	}
 
 	if (!free_slot) {
@@ -1156,10 +1141,57 @@ static u8_t va_add(u8_t *label_uuid, u16_t *addr)
 		return STATUS_UNSPECIFIED;
 	}
 
+	free_slot->ref = 1;
 	free_slot->addr = *addr;
 	memcpy(free_slot->uuid, label_uuid, 16);
 
 	return STATUS_SUCCESS;
+}
+
+static u8_t va_del(u8_t *label_uuid, u16_t *addr)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(labels); i++) {
+		if (!memcmp(labels[i].uuid, label_uuid, 16)) {
+			if (addr) {
+				*addr = labels[i].addr;
+			}
+
+			labels[i].ref--;
+			return STATUS_SUCCESS;
+		}
+	}
+
+	if (addr) {
+		*addr = BT_MESH_ADDR_UNASSIGNED;
+	}
+
+	return STATUS_CANNOT_REMOVE;
+}
+
+static void mod_sub_list_clear(struct bt_mesh_model *mod)
+{
+	u8_t *label_uuid;
+	int i;
+
+	/* Unref stored labels related to this model */
+	for (i = 0; i < ARRAY_SIZE(mod->groups); i++) {
+		if (!BT_MESH_ADDR_IS_VIRTUAL(mod->groups[i])) {
+			continue;
+		}
+
+		label_uuid = bt_mesh_label_uuid_get(mod->groups[i]);
+		if (!label_uuid) {
+			BT_ERR("Label UUID not found");
+			continue;
+		}
+
+		va_del(label_uuid, NULL);
+	}
+
+	/* Clear all subscriptions (0x0000 is the unassigned address) */
+	memset(mod->groups, 0, sizeof(mod->groups));
 }
 
 static void mod_pub_va_set(struct bt_mesh_model *model,
@@ -1226,6 +1258,12 @@ send_status:
 			    status, mod_id);
 }
 #else
+static void mod_sub_list_clear(struct bt_mesh_model *mod)
+{
+	/* Clear all subscriptions (0x0000 is the unassigned address) */
+	memset(mod->groups, 0, sizeof(mod->groups));
+}
+
 static void mod_pub_va_set(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf *buf)
@@ -1464,8 +1502,7 @@ static void mod_sub_overwrite(struct bt_mesh_model *model,
 		bt_mesh_lpn_group_del(mod->groups, ARRAY_SIZE(mod->groups));
 	}
 
-	/* Clear all subscriptions (0x0000 is the unassigned address) */
-	memset(mod->groups, 0, sizeof(mod->groups));
+	mod_sub_list_clear(mod);
 
 	if (ARRAY_SIZE(mod->groups) > 0) {
 		mod->groups[0] = sub_addr;
@@ -1519,8 +1556,7 @@ static void mod_sub_del_all(struct bt_mesh_model *model,
 		bt_mesh_lpn_group_del(mod->groups, ARRAY_SIZE(mod->groups));
 	}
 
-	/* Clear all subscriptions (0x0000 is the unassigned address) */
-	memset(mod->groups, 0, sizeof(mod->groups));
+	mod_sub_list_clear(mod);
 
 	status = STATUS_SUCCESS;
 
@@ -1750,10 +1786,13 @@ static void mod_sub_va_del(struct bt_mesh_model *model,
 		goto send_status;
 	}
 
-	sub_addr = va_find(label_uuid, NULL);
+	status = va_del(label_uuid, &sub_addr);
 	if (sub_addr == BT_MESH_ADDR_UNASSIGNED) {
-		status = STATUS_CANNOT_REMOVE;
 		goto send_status;
+	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
+		bt_mesh_lpn_group_del(&sub_addr, 1);
 	}
 
 	match = bt_mesh_model_find_group(mod, sub_addr);
@@ -1807,8 +1846,7 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 		bt_mesh_lpn_group_del(mod->groups, ARRAY_SIZE(mod->groups));
 	}
 
-	/* Clear all subscriptions (0x0000 is the unassigned address) */
-	memset(mod->groups, 0, sizeof(mod->groups));
+	mod_sub_list_clear(mod);
 
 	if (ARRAY_SIZE(mod->groups) > 0) {
 		status = va_add(label_uuid, &sub_addr);
@@ -2359,6 +2397,10 @@ static void mod_app_bind(struct bt_mesh_model *model,
 
 	status = mod_bind(mod, key_app_idx);
 
+	if (IS_ENABLED(CONFIG_BT_TESTING) && status == STATUS_SUCCESS) {
+		bt_test_mesh_model_bound(ctx->addr, mod, key_app_idx);
+	}
+
 send_status:
 	BT_DBG("status 0x%02x", status);
 	create_mod_app_status(msg, mod, vnd, elem_addr, key_app_idx, status,
@@ -2402,6 +2444,10 @@ static void mod_app_unbind(struct bt_mesh_model *model,
 	}
 
 	status = mod_unbind(mod, key_app_idx);
+
+	if (IS_ENABLED(CONFIG_BT_TESTING) && status == STATUS_SUCCESS) {
+		bt_test_mesh_model_unbound(ctx->addr, mod, key_app_idx);
+	}
 
 send_status:
 	BT_DBG("status 0x%02x", status);
@@ -2860,7 +2906,7 @@ static void heartbeat_pub_set(struct bt_mesh_model *model,
 
 	cfg->hb_pub.dst = dst;
 	cfg->hb_pub.period = param->period_log;
-	cfg->hb_pub.feat = feat;
+	cfg->hb_pub.feat = feat & BT_MESH_FEAT_SUPPORTED;
 	cfg->hb_pub.net_idx = idx;
 
 	if (dst == BT_MESH_ADDR_UNASSIGNED) {

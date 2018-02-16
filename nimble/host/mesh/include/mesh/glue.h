@@ -28,6 +28,7 @@
 #include "os/os_mbuf.h"
 #include "os/os_callout.h"
 #include "os/os_eventq.h"
+#include "os/queue.h"
 
 #include "atomic.h"
 #include "nimble/ble.h"
@@ -341,6 +342,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_ADV               BLE_MESH_PB_ADV
 #define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
+#define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
@@ -393,5 +395,23 @@ static inline int net_buf_id(struct os_mbuf *buf)
 
 	return (buf_ptr - pool_start) / BUF_SIZE(pool);
 }
+
+/* XXX: We should not use os_mbuf_pkthdr chains to represent a list of
+ * packets, this is a hack. For now this is not an issue, because mesh
+ * does not use os_mbuf chains. We should change this in the future.
+ */
+STAILQ_HEAD(net_buf_slist_t, os_mbuf_pkthdr);
+
+void net_buf_slist_init(struct net_buf_slist_t *list);
+bool net_buf_slist_is_empty(struct net_buf_slist_t *list);
+struct os_mbuf *net_buf_slist_peek_head(struct net_buf_slist_t *list);
+struct os_mbuf *net_buf_slist_peek_next(struct os_mbuf *buf);
+struct os_mbuf *net_buf_slist_get(struct net_buf_slist_t *list);
+void net_buf_slist_put(struct net_buf_slist_t *list, struct os_mbuf *buf);
+void net_buf_slist_remove(struct net_buf_slist_t *list, struct os_mbuf *prev,
+			  struct os_mbuf *cur);
+void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
+			       struct net_buf_slist_t *list_to_append);
+#define NET_BUF_SLIST_FOR_EACH_NODE(head, var) STAILQ_FOREACH(var, head, omp_next)
 
 #endif

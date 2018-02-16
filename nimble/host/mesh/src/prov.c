@@ -26,6 +26,7 @@
 #include "foundation.h"
 #include "proxy.h"
 #include "prov.h"
+#include "testing.h"
 
 /* 3 transmissions, 20ms interval */
 #define PROV_XMIT_COUNT        2
@@ -1236,6 +1237,11 @@ static void gen_prov_ctl(struct prov_rx *rx, struct os_mbuf *buf)
 		break;
 	default:
 		BT_ERR("Unknown bearer opcode: 0x%02x", BEARER_CTL(rx->gpc));
+
+		if (IS_ENABLED(CONFIG_BT_TESTING)) {
+			bt_test_mesh_prov_invalid_bearer(BEARER_CTL(rx->gpc));
+		}
+
 		return;
 	}
 }
