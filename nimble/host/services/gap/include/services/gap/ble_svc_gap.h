@@ -40,6 +40,8 @@ int ble_svc_gap_device_name_set(const char *name);
 int ble_svc_gap_device_appearance(void);
 int ble_svc_gap_device_appearance_set(const uint16_t appearance);
 
+void ble_svc_gap_init(void);
+
 #ifdef __cplusplus
 }
 #endif
