@@ -37,8 +37,8 @@ struct ble_hs_cfg;
 
 const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
-
-void ble_svc_gap_init(void);
+int ble_svc_gap_device_appearance(void);
+int ble_svc_gap_device_appearance_set(const uint16_t appearance);
 
 #ifdef __cplusplus
 }
