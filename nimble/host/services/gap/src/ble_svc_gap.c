@@ -23,12 +23,16 @@
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/gap/ble_svc_gap.h"
+#include "os/endian.h"
 
 /* XXX: This should be configurable. */
 #define BLE_SVC_GAP_NAME_MAX_LEN    31
 
 static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] = "nimble";
-static uint16_t ble_svc_gap_appearance;
+static const uint8_t ble_svc_gap_appearance[2] = {
+     (MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) & 0xFF,
+     ((MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) >> 8) & 0xFF
+};
 static uint8_t ble_svc_gap_privacy_flag;
 static uint8_t ble_svc_gap_reconnect_addr[6];
 static uint8_t ble_svc_gap_pref_conn_params[8];
@@ -150,18 +154,10 @@ ble_svc_gap_device_name_set(const char *name)
     return 0;
 }
 
-int
+uint16_t
 ble_svc_gap_device_appearance(void)
 {
-  return ble_svc_gap_appearance;
-}
-
-int
-ble_svc_gap_device_appearance_set(const uint16_t appearance)
-{
-  ble_svc_gap_appearance = appearance;
-  
-  return 0;
+  return get_le16(ble_svc_gap_appearance);
 }
 
 void

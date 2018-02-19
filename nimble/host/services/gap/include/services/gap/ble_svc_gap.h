@@ -33,12 +33,13 @@ struct ble_hs_cfg;
 #define BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR               0x2a03
 #define BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS      0x2a04
 
-#define BLE_SVC_GAP_APPEARANCE_GEN_COMPUTER                 128
+#define BLE_SVC_GAP_APPEARANCE_GEN_UNKNOWN                         0
+#define BLE_SVC_GAP_APPEARANCE_GEN_COMPUTER                        128
+#define BLE_SVC_GAP_APPEARANCE_CYC_SPEED_AND_CADENCE_SENSOR        1157          
 
 const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
-int ble_svc_gap_device_appearance(void);
-int ble_svc_gap_device_appearance_set(const uint16_t appearance);
+uint16_t ble_svc_gap_device_appearance(void);
 
 void ble_svc_gap_init(void);
 
