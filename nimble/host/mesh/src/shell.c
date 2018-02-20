@@ -2262,9 +2262,7 @@ static void bt_mesh_shell_task_init(void)
 
 void ble_mesh_shell_init(void)
 {
-#if !(MYNEWT_VAL(BLE_MESH_SHELL))
-	return;
-#endif
+#if (MYNEWT_VAL(BLE_MESH_SHELL))
 
 	/* Initialize health pub message */
 	health_pub_init();
@@ -2274,4 +2272,5 @@ void ble_mesh_shell_init(void)
 	bt_mesh_shell_task_init();
 	shell_evq_set(&mesh_shell_queue);
 	shell_register("mesh", mesh_commands);
+#endif
 }
