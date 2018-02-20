@@ -287,6 +287,7 @@ void k_delayed_work_cancel(struct k_delayed_work *w);
 void k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms);
 int64_t k_uptime_get(void);
 u32_t k_uptime_get_32(void);
+void k_sleep(int32_t duration);
 void k_work_submit(struct os_callout *w);
 void k_work_add_arg(struct os_callout *w, void *arg);
 void k_delayed_work_add_arg(struct k_delayed_work *w, void *arg);
