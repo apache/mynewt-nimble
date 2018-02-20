@@ -23,7 +23,7 @@
 #include "foundation.h"
 #include "mesh/health_cli.h"
 
-static s32_t msg_timeout = K_SECONDS(2);
+static s32_t msg_timeout = K_SECONDS(5);
 
 static struct bt_mesh_health_cli *health_cli;
 

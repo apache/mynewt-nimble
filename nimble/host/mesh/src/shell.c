@@ -21,15 +21,29 @@
 #include "mesh/mesh.h"
 #include "mesh/main.h"
 #include "mesh/glue.h"
+#include "mesh/testing.h"
 
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
+#include "access.h"
 #include "mesh_priv.h"
+#include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
+#include "testing.h"
+
+/* This should be higher priority (lower value) than main task priority */
+#define BLE_MESH_SHELL_TASK_PRIO 126
+#define BLE_MESH_SHELL_STACK_SIZE 768
+
+struct os_task mesh_shell_task;
+static struct os_eventq mesh_shell_queue;
 
 #define CID_NVAL   0xffff
-#define CID_LOCAL  0x0002
+#define CID_VENDOR  0x05C3
+
+/* Vendor Model data */
+#define VND_MODEL_ID_1 0x1234
 
 /* Default net, app & dev key values, unless otherwise specified */
 static const u8_t default_key[16] = {
@@ -91,7 +105,7 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
 	printk("Sending current faults\n");
 
 	*test_id = 0x00;
-	*company_id = CID_LOCAL;
+	*company_id = CID_VENDOR;
 
 	get_faults(cur_faults, sizeof(cur_faults), faults, fault_count);
 
@@ -101,7 +115,7 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
 static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
 			 u8_t *test_id, u8_t *faults, u8_t *fault_count)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		printk("Faults requested for unknown Company ID 0x%04x\n", cid);
 		return -EINVAL;
 	}
@@ -117,7 +131,7 @@ static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
 
 static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		return -EINVAL;
 	}
 
@@ -129,7 +143,7 @@ static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
 static int fault_test(struct bt_mesh_model *model, uint8_t test_id,
 		      uint16_t cid)
 {
-	if (cid != CID_LOCAL) {
+	if (cid != CID_VENDOR) {
 		return -EINVAL;
 	}
 
@@ -193,7 +207,7 @@ static struct bt_mesh_health_cli health_cli = {
 	.current_status = health_current_status,
 };
 
-static u8_t dev_uuid[16] = { 0xdd, 0xdd };
+static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
@@ -202,12 +216,17 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_HEALTH_CLI(&health_cli),
 };
 
+static struct bt_mesh_model vnd_models[] = {
+	BT_MESH_MODEL_VND(CID_VENDOR, VND_MODEL_ID_1, BT_MESH_MODEL_NO_OPS, NULL,
+			  NULL),
+};
+
 static struct bt_mesh_elem elements[] = {
-	BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE),
+	BT_MESH_ELEM(0, root_models, vnd_models),
 };
 
 static const struct bt_mesh_comp comp = {
-	.cid = CID_LOCAL,
+	.cid = CID_VENDOR,
 	.elem = elements,
 	.elem_count = ARRAY_SIZE(elements),
 };
@@ -545,18 +564,30 @@ struct shell_cmd_help cmd_lpn_help = {
 
 #endif /* MESH_LOW_POWER */
 
+static int check_addr_unassigned(uint8_t addr[BLE_DEV_ADDR_LEN])
+{
+	return memcmp(addr, (uint8_t[BLE_DEV_ADDR_LEN]){0, 0, 0, 0, 0, 0},
+			BLE_DEV_ADDR_LEN) == 0;
+}
+
 static int cmd_init(int argc, char *argv[])
 {
 	int err;
 	ble_addr_t addr;
 
-	/* Use NRPA */
-	err = ble_hs_id_gen_rnd(1, &addr);
-	assert(err == 0);
-	err = ble_hs_id_set_rnd(addr.val);
-	assert(err == 0);
+	if (check_addr_unassigned(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
+		/* Use NRPA */
+		err = ble_hs_id_gen_rnd(1, &addr);
+		assert(err == 0);
+		err = ble_hs_id_set_rnd(addr.val);
+		assert(err == 0);
 
-	err = bt_mesh_init(addr.type, &prov, &comp);
+		err = bt_mesh_init(addr.type, &prov, &comp);
+	}
+	else {
+		err = bt_mesh_init(0, &prov, &comp);
+	}
+
 	if (err) {
 		printk("Mesh initialization failed (err %d)\n", err);
 	}
@@ -782,6 +813,50 @@ static int cmd_rpl_clear(int argc, char *argv[])
 	bt_mesh_rpl_clear();
 	return 0;
 }
+
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+static int cmd_lpn_subscribe(int argc, char *argv[])
+{
+	u16_t address;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	address = strtoul(argv[1], NULL, 0);
+
+	printk("address 0x%04x", address);
+
+	bt_mesh_lpn_group_add(address);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_lpn_subscribe_help = {
+	NULL, "<addr>", NULL
+};
+
+static int cmd_lpn_unsubscribe(int argc, char *argv[])
+{
+	u16_t address;
+
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	address = strtoul(argv[1], NULL, 0);
+
+	printk("address 0x%04x", address);
+
+	bt_mesh_lpn_group_del(&address, 1);
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_lpn_unsubscribe_help = {
+	NULL, "<addr>", NULL
+};
+#endif
 
 static int cmd_iv_update_test(int argc, char *argv[])
 {
@@ -2039,6 +2114,56 @@ struct shell_cmd_help cmd_del_fault_help = {
 	NULL, "[Fault ID]", NULL
 };
 
+static int cmd_print_credentials(int argc, char *argv[])
+{
+	bt_test_print_credentials();
+	return 0;
+}
+
+static void print_comp_elem(struct bt_mesh_elem *elem,
+			    bool primary)
+{
+	struct bt_mesh_model *mod;
+	int i;
+
+	printk("Loc: %u\n", elem->loc);
+	printk("Model count: %u\n", elem->model_count);
+	printk("Vnd model count: %u\n", elem->vnd_model_count);
+
+	for (i = 0; i < elem->model_count; i++) {
+		mod = &elem->models[i];
+		printk("  Model: %u\n", i);
+		printk("    ID: 0x%04x\n", mod->id);
+		printk("    Opcode: 0x%08lx\n", mod->op->opcode);
+	}
+
+	for (i = 0; i < elem->vnd_model_count; i++) {
+		mod = &elem->vnd_models[i];
+		printk("  Vendor model: %u\n", i);
+		printk("    Company: 0x%04x\n", mod->vnd.company);
+		printk("    ID: 0x%04x\n", mod->vnd.id);
+		printk("    Opcode: 0x%08lx\n", mod->op->opcode);
+	}
+}
+
+static int cmd_print_composition_data(int argc, char *argv[])
+{
+	const struct bt_mesh_comp *comp;
+	int i;
+
+	comp = bt_mesh_comp_get();
+
+	printk("CID: %u\n", comp->cid);
+	printk("PID: %u\n", comp->pid);
+	printk("VID: %u\n", comp->vid);
+
+	for (i = 0; i < comp->elem_count; i++) {
+		print_comp_elem(&comp->elem[i], i == 0);
+	}
+
+	return 0;
+}
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
@@ -2070,6 +2195,12 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "iv-update", cmd_iv_update, NULL },
 	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
 	{ "rpl-clear", cmd_rpl_clear, NULL },
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+	{ "lpn-subscribe", cmd_lpn_subscribe, &cmd_lpn_subscribe_help },
+	{ "lpn-unsubscribe", cmd_lpn_unsubscribe, &cmd_lpn_unsubscribe_help },
+#endif
+	{ "print-credentials", cmd_print_credentials, NULL },
+	{ "print-composition-data", cmd_print_composition_data, NULL },
 
 	/* Configuration Client Model operations */
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
@@ -2109,10 +2240,38 @@ static const struct shell_cmd mesh_commands[] = {
 	{ NULL, NULL, NULL}
 };
 
-void mesh_shell_init(void)
+static void mesh_shell_thread(void *args)
 {
-	health_pub_init();
-	shell_register("mesh", mesh_commands);
+	while (1) {
+		os_eventq_run(&mesh_shell_queue);
+	}
 }
 
+static void bt_mesh_shell_task_init(void)
+{
+	os_stack_t *pstack;
+
+	pstack = malloc(sizeof(os_stack_t) * BLE_MESH_SHELL_STACK_SIZE);
+	os_eventq_init(&mesh_shell_queue);
+
+	os_task_init(&mesh_shell_task, "mesh_sh", mesh_shell_thread, NULL,
+		     BLE_MESH_SHELL_TASK_PRIO, OS_WAIT_FOREVER, pstack,
+		     BLE_MESH_SHELL_STACK_SIZE);
+}
 #endif
+
+void ble_mesh_shell_init(void)
+{
+#if !(MYNEWT_VAL(BLE_MESH_SHELL))
+	return;
+#endif
+
+	/* Initialize health pub message */
+	health_pub_init();
+
+	/* Shell and other mesh clients should use separate task to
+	   avoid deadlocks with mesh message processing queue */
+	bt_mesh_shell_task_init();
+	shell_evq_set(&mesh_shell_queue);
+	shell_register("mesh", mesh_commands);
+}
