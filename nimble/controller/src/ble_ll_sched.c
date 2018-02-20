@@ -402,6 +402,8 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
             assert(0);
         }
     }
+    earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
+                      BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
     itvl_t = connsm->conn_itvl_ticks;
 
     /* We have to find a place for this schedule */
@@ -630,6 +632,8 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
             assert(0);
         }
     }
+    earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
+                      BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
     earliest_end = earliest_start + dur;
     itvl_t = connsm->conn_itvl_ticks;
 
