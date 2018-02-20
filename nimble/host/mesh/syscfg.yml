@@ -104,6 +104,7 @@ syscfg.defs:
     BLE_MESH_ADV_TASK_PRIO:
         description: >
             Advertising task prio (FIXME)
+        type: task_priority
         value: 9
 
     BLE_MESH_MSG_CACHE_SIZE:
