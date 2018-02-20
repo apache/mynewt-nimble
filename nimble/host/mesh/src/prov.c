@@ -1477,6 +1477,7 @@ int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf)
 	type = net_buf_simple_pull_u8(buf);
 	if (type != PROV_FAILED && type != link.expect) {
 		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, link.expect);
+		prov_send_fail_msg(PROV_ERR_UNEXP_PDU);
 		return -EINVAL;
 	}
 
