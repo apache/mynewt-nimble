@@ -1540,9 +1540,9 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 }
 #endif /* MYNEWT_VAL(BLE_MESH_PB_GATT) */
 
-const u8_t *bt_mesh_prov_get_uuid(void)
+const struct bt_mesh_prov *bt_mesh_prov_get(void)
 {
-	return prov->uuid;
+	return prov;
 }
 
 bool bt_prov_active(void)

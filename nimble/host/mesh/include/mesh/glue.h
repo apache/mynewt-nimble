@@ -97,6 +97,7 @@
 #define BT_DATA_SOLICIT32               0x1f /* Solicit UUIDs, 32-bit */
 #define BT_DATA_SVC_DATA32              0x20 /* Service data, 32-bit UUID */
 #define BT_DATA_SVC_DATA128             0x21 /* Service data, 128-bit UUID */
+#define BT_DATA_URI                     0x24 /* URI */
 #define BT_DATA_MESH_PROV               0x29 /* Mesh Provisioning PDU */
 #define BT_DATA_MESH_MESSAGE            0x2a /* Mesh Networking PDU */
 #define BT_DATA_MESH_BEACON             0x2b /* Mesh Beacon */
@@ -356,6 +357,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_MODEL_KEY_COUNT      MYNEWT_VAL(BLE_MESH_MODEL_KEY_COUNT)
 #define CONFIG_BT_MESH_NODE_ID_TIMEOUT      MYNEWT_VAL(BLE_MESH_NODE_ID_TIMEOUT)
 #define CONFIG_BT_MAX_CONN                  MYNEWT_VAL(BLE_MAX_CONNECTIONS)
+#define CONFIG_BT_DEVICE_NAME               "nimble-mesh"
 
 #define printk console_printf
 

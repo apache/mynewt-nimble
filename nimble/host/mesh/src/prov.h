@@ -21,7 +21,7 @@ int bt_mesh_pb_gatt_open(uint16_t conn_handle);
 int bt_mesh_pb_gatt_close(uint16_t conn_handle);
 int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf);
 
-const u8_t *bt_mesh_prov_get_uuid(void);
+const struct bt_mesh_prov *bt_mesh_prov_get(void);
 
 int bt_mesh_prov_init(const struct bt_mesh_prov *prov);
 

@@ -55,9 +55,10 @@ struct os_mbuf_pool adv_os_mbuf_pool;
 static struct os_mempool adv_buf_mempool;
 
 static const u8_t adv_type[] = {
-	[BT_MESH_ADV_PROV] = BLE_HS_ADV_TYPE_MESH_PROV,
-	[BT_MESH_ADV_DATA] = BLE_HS_ADV_TYPE_MESH_MESSAGE,
+	[BT_MESH_ADV_PROV]   = BLE_HS_ADV_TYPE_MESH_PROV,
+	[BT_MESH_ADV_DATA]   = BLE_HS_ADV_TYPE_MESH_MESSAGE,
 	[BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
+	[BT_MESH_ADV_URI]    = BLE_HS_ADV_TYPE_URI,
 };
 
 
