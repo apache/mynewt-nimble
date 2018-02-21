@@ -79,7 +79,7 @@ syscfg.defs:
             Determines the maximum rate at which the controller will send the
             number of completed packets event to the host. Rate is in os time
             ticks.
-        value: '((2000 * OS_TICKS_PER_SEC) / 1000)'
+        value: '(2 * OS_TICKS_PER_SEC)'
 
     BLE_LL_MFRG_ID:
         description: >
