@@ -44,6 +44,12 @@ static struct os_mempool friend_buf_mempool;
 #define FRIEND_ADV(buf)     CONTAINER_OF(BT_MESH_ADV(buf), \
 					 struct friend_adv, adv)
 
+/* PDUs from Friend to the LPN should only be transmitted once with the
+ * smallest possible interval (20ms).
+ */
+#define FRIEND_XMIT_COUNT   0
+#define FRIEND_XMIT_INT     20
+
 struct friend_pdu_info {
 	u16_t  src;
 	u16_t  dst;
@@ -87,15 +93,13 @@ static void discard_buffer(void)
 
 static struct os_mbuf *friend_buf_alloc(u16_t src)
 {
-	u8_t xmit = bt_mesh_net_transmit_get();
 	struct os_mbuf *buf;
 
 	do {
 		buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool, adv_alloc,
 						   BT_MESH_ADV_DATA,
-						   BT_MESH_TRANSMIT_COUNT(xmit),
-						   BT_MESH_TRANSMIT_INT(xmit),
-						   K_NO_WAIT);
+						   FRIEND_XMIT_COUNT,
+						   FRIEND_XMIT_INT, K_NO_WAIT);
 		if (!buf) {
 			discard_buffer();
 		}
