@@ -27,8 +27,6 @@ extern "C" {
 #define BLE_SVC_GAP_UUID16                                  0x1800
 #define BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME                  0x2a00
 #define BLE_SVC_GAP_CHR_UUID16_APPEARANCE                   0x2a01
-#define BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG             0x2a02
-#define BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR               0x2a03
 #define BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS      0x2a04
 
 #define BLE_SVC_GAP_APPEARANCE_GEN_UNKNOWN                         0

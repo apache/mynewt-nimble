@@ -33,8 +33,6 @@ static const uint8_t ble_svc_gap_appearance[2] = {
      (MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) & 0xFF,
      ((MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) >> 8) & 0xFF
 };
-static uint8_t ble_svc_gap_privacy_flag;
-static uint8_t ble_svc_gap_reconnect_addr[6];
 static uint8_t ble_svc_gap_pref_conn_params[8];
 
 static int
@@ -56,16 +54,6 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
             .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            /*** Characteristic: Peripheral Privacy Flag. */
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            /*** Characteristic: Reconnection Address. */
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_WRITE,
         }, {
             /*** Characteristic: Peripheral Preferred Connection Parameters. */
             .uuid =
@@ -104,21 +92,6 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = os_mbuf_append(ctxt->om, &ble_svc_gap_appearance,
                             sizeof ble_svc_gap_appearance);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-
-    case BLE_SVC_GAP_CHR_UUID16_PERIPH_PRIV_FLAG:
-        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_privacy_flag,
-                            sizeof ble_svc_gap_privacy_flag);
-        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-
-    case BLE_SVC_GAP_CHR_UUID16_RECONNECT_ADDR:
-        assert(ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR);
-        if (OS_MBUF_PKTLEN(ctxt->om) != sizeof ble_svc_gap_reconnect_addr) {
-            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-        }
-        ble_hs_mbuf_to_flat(ctxt->om, ble_svc_gap_reconnect_addr,
-                            sizeof ble_svc_gap_reconnect_addr, NULL);
-        return 0;
 
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
