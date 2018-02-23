@@ -30,10 +30,8 @@
 
 static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] =
         MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME);
-static const uint8_t ble_svc_gap_appearance[2] = {
-     (MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) & 0xFF,
-     ((MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE)) >> 8) & 0xFF
-};
+static const uint16_t ble_svc_gap_appearance =
+        MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE);
 static uint8_t ble_svc_gap_pref_conn_params[8];
 
 static int
@@ -83,6 +81,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
+    uint16_t appearance = htole16(ble_svc_gap_appearance);
 #if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
     uint8_t central_ar = MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION);
 #endif
@@ -100,8 +99,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
 
     case BLE_SVC_GAP_CHR_UUID16_APPEARANCE:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_appearance,
-                            sizeof ble_svc_gap_appearance);
+        rc = os_mbuf_append(ctxt->om, &appearance, sizeof(appearance));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS:
@@ -148,7 +146,7 @@ ble_svc_gap_device_name_set(const char *name)
 uint16_t
 ble_svc_gap_device_appearance(void)
 {
-  return get_le16(ble_svc_gap_appearance);
+  return ble_svc_gap_appearance;
 }
 
 void
