@@ -19,6 +19,11 @@
 # Package: net/nimble/host/services/gap
 
 syscfg.defs:
+    BLE_SVC_GAP_DEVICE_NAME:
+        description: >
+            Default value for "Device Name" characteristics, unless overwritten
+            by application.
+        value: '"nimble"'
     BLE_SVC_GAP_APPEARANCE:
         description: 'Device appearance'
         value: 0
