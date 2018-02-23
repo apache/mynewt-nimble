@@ -27,6 +27,30 @@ syscfg.defs:
     BLE_SVC_GAP_APPEARANCE:
         description: 'Device appearance'
         value: 0
+
+    # Setting all values for PPCP to '0' will disable characteristic!
+    BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL:
+        description: >
+            Value of "minimum connection interval" of PPCP characteristic as
+            defined by Core specification 5.0, Vol 3, Part C, section 12.3.
+        value: 0
+    BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL:
+        description: >
+            Value of "maximum connection interval" of PPCP characteristic as
+            defined by Core specification 5.0, Vol 3, Part C, section 12.3.
+        value: 0
+    BLE_SVC_GAP_PPCP_SLAVE_LATENCY:
+        description: >
+            Value of "slave latency" of PPCP characteristic as  defined by Core
+            specification 5.0, Vol 3, Part C, section 12.3.
+        value: 0
+    BLE_SVC_GAP_PPCP_SUPERVISION_TMO:
+        description: >
+            Value of "connection supervision timeout multiplier" of PPCP
+            characteristic as defined by Core specification 5.0, Vol 3, Part C,
+            section 12.3.
+        value: 0
+
     BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION:
         description: >
             Value of "Central Address Resolution" characteristics, as defined

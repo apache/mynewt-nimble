@@ -25,6 +25,13 @@
 #include "services/gap/ble_svc_gap.h"
 #include "os/endian.h"
 
+#define PPCP_ENABLED \
+    MYNEWT_VAL(BLE_ROLE_PERIPHERAL) && \
+    (MYNEWT_VAL(BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL) || \
+     MYNEWT_VAL(BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL) || \
+     MYNEWT_VAL(BLE_SVC_GAP_PPCP_SLAVE_LATENCY) || \
+     MYNEWT_VAL(BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
+
 /* XXX: This should be configurable. */
 #define BLE_SVC_GAP_NAME_MAX_LEN    31
 
@@ -32,7 +39,6 @@ static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] =
         MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME);
 static const uint16_t ble_svc_gap_appearance =
         MYNEWT_VAL(BLE_SVC_GAP_APPEARANCE);
-static uint8_t ble_svc_gap_pref_conn_params[8];
 
 static int
 ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -54,7 +60,7 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
-#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if PPCP_ENABLED
             /*** Characteristic: Peripheral Preferred Connection Parameters. */
             .uuid =
                 BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
@@ -87,6 +93,14 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
 #if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
     uint8_t central_ar = MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION);
 #endif
+#if PPCP_ENABLED
+    uint16_t ppcp[4] = {
+        htole16(MYNEWT_VAL(BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL)),
+        htole16(MYNEWT_VAL(BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL)),
+        htole16(MYNEWT_VAL(BLE_SVC_GAP_PPCP_SLAVE_LATENCY)),
+        htole16(MYNEWT_VAL(BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
+    };
+#endif
     int rc;
 
     uuid16 = ble_uuid_u16(ctxt->chr->uuid);
@@ -104,11 +118,10 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = os_mbuf_append(ctxt->om, &appearance, sizeof(appearance));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
-#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if PPCP_ENABLED
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        rc = os_mbuf_append(ctxt->om, &ble_svc_gap_pref_conn_params,
-                            sizeof ble_svc_gap_pref_conn_params);
+        rc = os_mbuf_append(ctxt->om, &ppcp, sizeof(ppcp));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 #endif
 
