@@ -54,12 +54,14 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
+#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
             /*** Characteristic: Peripheral Preferred Connection Parameters. */
             .uuid =
                 BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
+#endif
 #if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
             /*** Characteristic: Central Address Resolution. */
             .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION),
@@ -102,11 +104,13 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = os_mbuf_append(ctxt->om, &appearance, sizeof(appearance));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
+#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
     case BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
         rc = os_mbuf_append(ctxt->om, &ble_svc_gap_pref_conn_params,
                             sizeof ble_svc_gap_pref_conn_params);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+#endif
 
 #if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
     case BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION:
