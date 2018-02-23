@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-struct ble_hs_cfg;
-
 #define BLE_SVC_GAP_UUID16                                  0x1800
 #define BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME                  0x2a00
 #define BLE_SVC_GAP_CHR_UUID16_APPEARANCE                   0x2a01
