@@ -41,6 +41,7 @@ void ble_svc_gap_set_chr_changed_cb(ble_svc_gap_chr_changed_fn *cb);
 const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
 uint16_t ble_svc_gap_device_appearance(void);
+int ble_svc_gap_device_appearance_set(uint16_t appearance);
 
 void ble_svc_gap_init(void);
 
