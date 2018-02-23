@@ -35,6 +35,8 @@
 /* XXX: This should be configurable. */
 #define BLE_SVC_GAP_NAME_MAX_LEN    31
 
+static ble_svc_gap_chr_changed_fn *ble_svc_gap_chr_changed_cb_fn;
+
 static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] =
         MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME);
 static const uint16_t ble_svc_gap_appearance =
@@ -53,7 +55,12 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
             /*** Characteristic: Device Name. */
             .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME),
             .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ,
+            .flags = BLE_GATT_CHR_F_READ |
+#if MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) >= 0
+                     BLE_GATT_CHR_F_WRITE |
+                     MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) |
+#endif
+                     0,
         }, {
             /*** Characteristic: Appearance. */
             .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
@@ -85,6 +92,46 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
 };
 
 static int
+ble_svc_gap_device_name_read_access(struct ble_gatt_access_ctxt *ctxt)
+{
+    int rc;
+
+    rc = os_mbuf_append(ctxt->om, ble_svc_gap_name, strlen(ble_svc_gap_name));
+
+    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+static int
+ble_svc_gap_device_name_write_access(struct ble_gatt_access_ctxt *ctxt)
+{
+#if MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) < 0
+    assert(0);
+    return 0;
+#else
+    uint16_t om_len;
+    int rc;
+
+    om_len = OS_MBUF_PKTLEN(ctxt->om);
+    if (om_len > BLE_SVC_GAP_NAME_MAX_LEN) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    rc = ble_hs_mbuf_to_flat(ctxt->om, ble_svc_gap_name, om_len, NULL);
+    if (rc != 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    ble_svc_gap_name[om_len] = '\0';
+
+    if (ble_svc_gap_chr_changed_cb_fn) {
+        ble_svc_gap_chr_changed_cb_fn(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME);
+    }
+
+    return rc;
+#endif
+}
+
+static int
 ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
@@ -108,10 +155,14 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
 
     switch (uuid16) {
     case BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME:
-        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-        rc = os_mbuf_append(ctxt->om, ble_svc_gap_name,
-                            strlen(ble_svc_gap_name));
-        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            rc = ble_svc_gap_device_name_read_access(ctxt);
+        } else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            rc = ble_svc_gap_device_name_write_access(ctxt);
+        } else {
+            assert(0);
+        }
+        return rc;
 
     case BLE_SVC_GAP_CHR_UUID16_APPEARANCE:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
@@ -164,6 +215,12 @@ uint16_t
 ble_svc_gap_device_appearance(void)
 {
   return ble_svc_gap_appearance;
+}
+
+void
+ble_svc_gap_set_chr_changed_cb(ble_svc_gap_chr_changed_fn *cb)
+{
+    ble_svc_gap_chr_changed_cb_fn = cb;
 }
 
 void

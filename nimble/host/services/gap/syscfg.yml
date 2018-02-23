@@ -24,6 +24,15 @@ syscfg.defs:
             Default value for "Device Name" characteristics, unless overwritten
             by application.
         value: '"nimble"'
+    BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM:
+        description: >
+            Defines permissions for writing "Device Name" characteristics. Can
+            be zero to allow write without extra permissions or combination of:
+                BLE_GATT_CHR_F_WRITE_ENC
+                BLE_GATT_CHR_F_WRITE_AUTHEN
+                BLE_GATT_CHR_F_WRITE_AUTHOR
+            Set to '-1' to make characteristic read only.
+        value: -1
     BLE_SVC_GAP_APPEARANCE:
         description: 'Device appearance'
         value: 0
