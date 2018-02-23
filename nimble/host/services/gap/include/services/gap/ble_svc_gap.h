@@ -35,7 +35,7 @@ struct ble_hs_cfg;
 
 #define BLE_SVC_GAP_APPEARANCE_GEN_UNKNOWN                         0
 #define BLE_SVC_GAP_APPEARANCE_GEN_COMPUTER                        128
-#define BLE_SVC_GAP_APPEARANCE_CYC_SPEED_AND_CADENCE_SENSOR        1157          
+#define BLE_SVC_GAP_APPEARANCE_CYC_SPEED_AND_CADENCE_SENSOR        1157
 
 const char *ble_svc_gap_device_name(void);
 int ble_svc_gap_device_name_set(const char *name);
