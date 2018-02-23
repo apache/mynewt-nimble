@@ -22,3 +22,9 @@ syscfg.defs:
     BLE_SVC_GAP_APPEARANCE:
         description: 'Device appearance'
         value: 0
+    BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION:
+        description: >
+            Value of "Central Address Resolution" characteristics, as defined
+            by Core specification 5.0, Vol 3, Part C, section 12.
+            Set to '-1' to disable.
+        value: -1

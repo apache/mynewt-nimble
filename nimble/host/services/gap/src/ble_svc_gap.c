@@ -61,6 +61,13 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
             .access_cb = ble_svc_gap_access,
             .flags = BLE_GATT_CHR_F_READ,
         }, {
+#if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
+            /*** Characteristic: Central Address Resolution. */
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION),
+            .access_cb = ble_svc_gap_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
+#endif
             0, /* No more characteristics in this service. */
         } },
     },
@@ -75,6 +82,9 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
+#if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
+    uint8_t central_ar = MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION);
+#endif
     int rc;
 
     uuid16 = ble_uuid_u16(ctxt->chr->uuid);
@@ -98,6 +108,13 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
         rc = os_mbuf_append(ctxt->om, &ble_svc_gap_pref_conn_params,
                             sizeof ble_svc_gap_pref_conn_params);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+
+#if MYNEWT_VAL(BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
+    case BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION:
+        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
+        rc = os_mbuf_append(ctxt->om, &central_ar, sizeof(central_ar));
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+#endif
 
     default:
         assert(0);
