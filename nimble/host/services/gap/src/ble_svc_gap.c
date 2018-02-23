@@ -32,8 +32,8 @@
      MYNEWT_VAL(BLE_SVC_GAP_PPCP_SLAVE_LATENCY) || \
      MYNEWT_VAL(BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
 
-/* XXX: This should be configurable. */
-#define BLE_SVC_GAP_NAME_MAX_LEN    31
+#define BLE_SVC_GAP_NAME_MAX_LEN \
+    MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH)
 
 static ble_svc_gap_chr_changed_fn *ble_svc_gap_chr_changed_cb_fn;
 

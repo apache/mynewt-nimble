@@ -33,6 +33,9 @@ syscfg.defs:
                 BLE_GATT_CHR_F_WRITE_AUTHOR
             Set to '-1' to make characteristic read only.
         value: -1
+    BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH:
+        description: Maximum length for "Device Name" characteristics
+        value: 31
     BLE_SVC_GAP_APPEARANCE:
         description: 'Device appearance'
         value: 0
