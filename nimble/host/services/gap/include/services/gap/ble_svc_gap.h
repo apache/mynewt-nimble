@@ -20,6 +20,8 @@
 #ifndef H_BLE_SVC_GAP_
 #define H_BLE_SVC_GAP_
 
+#include <inttypes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
