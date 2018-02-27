@@ -1179,7 +1179,14 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 	}
 
 	if (atomic_test_bit(link.flags, LINK_ACTIVE)) {
-		BT_WARN("Ignoring bearer open: link already active");
+		/* Send another link ack if the provisioner missed the last */
+		if (link.id == rx->link_id && link.expect == PROV_INVITE) {
+			BT_DBG("Resending link ack");
+			bearer_ctl_send(LINK_ACK, NULL, 0);
+		} else {
+			BT_WARN("Ignoring bearer open: link already active");
+		}
+
 		return;
 	}
 
@@ -1470,6 +1477,7 @@ int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf)
 	type = net_buf_simple_pull_u8(buf);
 	if (type != PROV_FAILED && type != link.expect) {
 		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, link.expect);
+		prov_send_fail_msg(PROV_ERR_UNEXP_PDU);
 		return -EINVAL;
 	}
 
@@ -1540,9 +1548,9 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 }
 #endif /* MYNEWT_VAL(BLE_MESH_PB_GATT) */
 
-const u8_t *bt_mesh_prov_get_uuid(void)
+const struct bt_mesh_prov *bt_mesh_prov_get(void)
 {
-	return prov->uuid;
+	return prov;
 }
 
 bool bt_prov_active(void)

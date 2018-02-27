@@ -150,7 +150,10 @@ static int secure_beacon_send(void)
 static int unprovisioned_beacon_send(void)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
+	const struct bt_mesh_prov *prov;
+	u8_t uri_hash[16] = { 0 };
 	struct os_mbuf *buf;
+	u16_t oob_info;
 
 	BT_DBG("unprovisioned_beacon_send");
 
@@ -161,14 +164,43 @@ static int unprovisioned_beacon_send(void)
 		return -ENOBUFS;
 	}
 
-	net_buf_add_u8(buf, BEACON_TYPE_UNPROVISIONED);
-	net_buf_add_mem(buf, bt_mesh_prov_get_uuid(), 16);
+	prov = bt_mesh_prov_get();
 
-	/* OOB Info (2 bytes) + URI Hash (4 bytes) */
-	net_buf_add_zeros(buf, 2 + 4);
+	net_buf_add_u8(buf, BEACON_TYPE_UNPROVISIONED);
+	net_buf_add_mem(buf, prov->uuid, 16);
+
+	if (prov->uri && bt_mesh_s1(prov->uri, uri_hash) == 0) {
+		oob_info = prov->oob_info | BT_MESH_PROV_OOB_URI;
+	} else {
+		oob_info = prov->oob_info;
+	}
+
+	net_buf_add_be16(buf, oob_info);
+	net_buf_add_mem(buf, uri_hash, 4);
 
 	bt_mesh_adv_send(buf, NULL, NULL);
 	net_buf_unref(buf);
+
+	if (prov->uri) {
+		size_t len;
+
+		buf = bt_mesh_adv_create(BT_MESH_ADV_URI, UNPROV_XMIT_COUNT,
+					 UNPROV_XMIT_INT, K_NO_WAIT);
+		if (!buf) {
+			BT_ERR("Unable to allocate URI buffer");
+			return -ENOBUFS;
+		}
+
+		len = strlen(prov->uri);
+		if (net_buf_tailroom(buf) < len) {
+			BT_WARN("Too long URI to fit advertising data");
+		} else {
+			net_buf_add_mem(buf, prov->uri, len);
+			bt_mesh_adv_send(buf, NULL, NULL);
+		}
+
+		net_buf_unref(buf);
+	}
 
 #endif /* MYNEWT_VAL(BLE_MESH_PB_ADV) */
 	return 0;

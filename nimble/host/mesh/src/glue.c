@@ -391,6 +391,11 @@ u32_t k_uptime_get_32(void)
     return k_uptime_get();
 }
 
+void k_sleep(int32_t duration)
+{
+    os_time_delay(OS_TICKS_PER_SEC * duration / 1000);
+}
+
 static uint8_t pub[64];
 static uint8_t priv[32];
 static bool has_pub = false;
