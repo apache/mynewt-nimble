@@ -613,7 +613,7 @@ static void lpn_group_del(u16_t group)
 
 static inline int group_popcount(atomic_t *target)
 {
-#if CONFIG_BLUETOOTH_MESH_LPN_GROUPS > 32
+#if CONFIG_BT_MESH_LPN_GROUPS > 32
 	int i, count = 0;
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.lpn.added); i++) {

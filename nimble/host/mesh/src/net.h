@@ -121,7 +121,7 @@ struct bt_mesh_friend {
 };
 
 #if (MYNEWT_VAL(BLE_MESH_LOW_POWER))
-#define LPN_GROUPS MYNEWT_VAL(BLE_MESH_LOW_POWER)
+#define LPN_GROUPS CONFIG_BT_MESH_LPN_GROUPS
 #else
 #define LPN_GROUPS 0
 #endif
