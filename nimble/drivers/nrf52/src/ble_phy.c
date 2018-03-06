@@ -1443,6 +1443,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 int
 ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
+    bool late = false;
     int rc = 0;
 
     /* XXX: This should not be necessary, but paranoia is good! */
@@ -1451,16 +1452,29 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     if (ble_phy_set_start_time(cputime, rem_usecs, false) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
+
+        /*
+         * Disable PPI so ble_phy_rx() will start RX immediately after
+         * configuring receiver.
+         */
         NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
-        NRF_RADIO->TASKS_RXEN = 1;
-        rc = BLE_PHY_ERR_RX_LATE;
+        late = true;
     } else {
         /* Enable PPI to automatically start RXEN */
         NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
-
-        /* Start rx */
-        rc = ble_phy_rx();
     }
+
+    /* Start rx */
+    rc = ble_phy_rx();
+
+    /*
+     * If we enabled receiver but were late, let's return proper error code so
+     * caller can handle this.
+     */
+    if (!rc && late) {
+        rc = BLE_PHY_ERR_RX_LATE;
+    }
+
     return rc;
 }
 
