@@ -1001,7 +1001,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
         rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                        g_ble_ll_sched_offset_ticks, 0);
     }
-    if (!rc) {
+    if (!rc || rc == BLE_PHY_ERR_RX_LATE) {
         /* Enable/disable whitelisting */
         if (scanphy->scan_filt_policy & 1) {
             ble_ll_whitelist_enable();
