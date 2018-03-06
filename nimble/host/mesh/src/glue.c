@@ -491,6 +491,22 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
         return err;
     }
 
+    if (sd) {
+        buf_len = 0;
+
+        err = set_ad(sd, sd_len, buf, &buf_len);
+        if (err) {
+            BT_ERR("Advertising failed: err %d", err);
+            return err;
+        }
+
+        err = ble_gap_adv_rsp_set_data(buf, buf_len);
+        if (err != 0) {
+            BT_ERR("Advertising failed: err %d", err);
+            return err;
+        }
+    }
+
     err = ble_gap_adv_start(g_mesh_addr_type, NULL, BLE_HS_FOREVER, param,
                             NULL, NULL);
     if (err) {
