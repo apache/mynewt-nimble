@@ -1813,7 +1813,9 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
     /* check if type of advertising support scan rsp */
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
     }
 
     switch (operation) {
