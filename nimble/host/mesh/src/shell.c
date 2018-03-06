@@ -65,7 +65,7 @@ static struct {
 
 static struct bt_mesh_cfg_srv cfg_srv = {
 	.relay = BT_MESH_RELAY_DISABLED,
-	.beacon = BT_MESH_BEACON_DISABLED,
+	.beacon = BT_MESH_BEACON_ENABLED,
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 	.frnd = BT_MESH_FRIEND_DISABLED,
 #else
