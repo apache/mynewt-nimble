@@ -2874,7 +2874,8 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
                                 struct ble_ll_scan_sm **sm)
 {
     struct ble_ll_scan_sm *scansm;
-    struct ble_ll_scan_params *scanphy;
+    struct ble_ll_scan_params *uncoded;
+    struct ble_ll_scan_params *coded;
     struct hci_ext_conn_params *params;
     int rc;
 
@@ -2886,28 +2887,40 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
 
     if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
         params = &hcc->params[0];
-        scanphy = &scansm->phy_data[PHY_UNCODED];
+        uncoded = &scansm->phy_data[PHY_UNCODED];
 
-        scanphy->scan_itvl = params->scan_itvl;
-        scanphy->scan_window = params->scan_window;
-        scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
-        scanphy->scan_filt_policy = hcc->filter_policy;
+        uncoded->scan_itvl = params->scan_itvl;
+        uncoded->scan_window = params->scan_window;
+        uncoded->scan_type = BLE_SCAN_TYPE_INITIATE;
+        uncoded->scan_filt_policy = hcc->filter_policy;
         scansm->cur_phy = PHY_UNCODED;
     }
 
     if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
         params = &hcc->params[2];
-        scanphy = &scansm->phy_data[PHY_CODED];
+        coded = &scansm->phy_data[PHY_CODED];
 
-        scanphy->scan_itvl = params->scan_itvl;
-        scanphy->scan_window = params->scan_window;
-        scanphy->scan_type = BLE_SCAN_TYPE_INITIATE;
-        scanphy->scan_filt_policy = hcc->filter_policy;
+        coded->scan_itvl = params->scan_itvl;
+        coded->scan_window = params->scan_window;
+        coded->scan_type = BLE_SCAN_TYPE_INITIATE;
+        coded->scan_filt_policy = hcc->filter_policy;
         if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
             scansm->cur_phy = PHY_CODED;
         } else {
             scansm->next_phy = PHY_CODED;
         }
+    }
+
+    /* If host request for continuous scan if 2 PHYs are requested, we split
+     * time on two
+     */
+    if ((scansm->next_phy != PHY_NOT_CONFIGURED) &&
+                ((uncoded->scan_itvl == uncoded->scan_window) ||
+                (coded->scan_itvl == coded-> scan_window))) {
+
+        uncoded->scan_itvl *= 2;
+        coded-> scan_itvl = uncoded->scan_itvl;
+        coded->scan_window = uncoded->scan_window;
     }
 
     rc = ble_ll_scan_sm_start(scansm);
