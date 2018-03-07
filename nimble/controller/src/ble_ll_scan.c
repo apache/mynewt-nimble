@@ -1379,7 +1379,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
     case BLE_LL_STATE_ADV:
     case BLE_LL_STATE_CONNECTION:
          start_scan = 0;
-        break;
+         break;
     case BLE_LL_STATE_INITIATING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
