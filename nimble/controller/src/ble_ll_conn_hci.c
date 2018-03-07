@@ -279,8 +279,8 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
      * have completed but there are data packets in the controller buffers
      * (i.e. enqueued in a connection state machine).
      */
-    if ((uint32_t)(g_ble_ll_last_num_comp_pkt_evt - os_time_get()) <
-         (MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE) * OS_TICKS_PER_SEC)) {
+    if ((int32_t)(os_time_get() - g_ble_ll_last_num_comp_pkt_evt) <
+                                            MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE)) {
         /*
          * If this connection has completed packets, send an event right away.
          * We do this to increase throughput but we dont want to search the
@@ -354,8 +354,7 @@ skip_conn:
     }
 
     if (event_sent) {
-        g_ble_ll_last_num_comp_pkt_evt = os_time_get() +
-            (MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE) * OS_TICKS_PER_SEC);
+        g_ble_ll_last_num_comp_pkt_evt = os_time_get();
     }
 }
 
