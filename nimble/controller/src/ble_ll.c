@@ -217,7 +217,8 @@ static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 #endif
 
 struct os_task g_ble_ll_task;
-os_stack_t g_ble_ll_stack[BLE_LL_STACK_SIZE];
+
+OS_TASK_STACK_DEFINE(g_ble_ll_stack, BLE_LL_STACK_SIZE);
 
 /** Our global device address (public) */
 uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
