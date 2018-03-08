@@ -45,6 +45,7 @@ static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
  * an increased call stack whenever it's used.
  */
 #define ADV_STACK_SIZE 768
+OS_TASK_STACK_DEFINE(g_blemesh_stack, ADV_STACK_SIZE);
 
 struct os_task adv_task;
 static struct os_eventq adv_queue;
@@ -294,11 +295,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, s8_t rssi,
 
 void bt_mesh_adv_init(void)
 {
-	os_stack_t *pstack;
 	int rc;
-
-	pstack = malloc(sizeof(os_stack_t) * ADV_STACK_SIZE);
-	assert(pstack);
 
 	rc = os_mempool_init(&adv_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
 			     BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
@@ -313,8 +310,8 @@ void bt_mesh_adv_init(void)
 	os_eventq_init(&adv_queue);
 
 	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
-		     MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER, pstack,
-		     ADV_STACK_SIZE);
+	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
+	             g_blemesh_stack, ADV_STACK_SIZE);
 
 	/* For BT5 controllers we can have fast advertising interval */
 	if (ble_hs_hci_get_hci_version() >= BLE_HCI_VER_BCS_5_0) {

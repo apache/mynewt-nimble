@@ -36,6 +36,8 @@
 #define BLE_MESH_SHELL_TASK_PRIO 126
 #define BLE_MESH_SHELL_STACK_SIZE 768
 
+OS_TASK_STACK_DEFINE(g_blemesh_shell_stack, BLE_MESH_SHELL_STACK_SIZE);
+
 struct os_task mesh_shell_task;
 static struct os_eventq mesh_shell_queue;
 
@@ -2249,13 +2251,10 @@ static void mesh_shell_thread(void *args)
 
 static void bt_mesh_shell_task_init(void)
 {
-	os_stack_t *pstack;
-
-	pstack = malloc(sizeof(os_stack_t) * BLE_MESH_SHELL_STACK_SIZE);
 	os_eventq_init(&mesh_shell_queue);
 
 	os_task_init(&mesh_shell_task, "mesh_sh", mesh_shell_thread, NULL,
-		     BLE_MESH_SHELL_TASK_PRIO, OS_WAIT_FOREVER, pstack,
+		     BLE_MESH_SHELL_TASK_PRIO, OS_WAIT_FOREVER, g_blemesh_shell_stack,
 		     BLE_MESH_SHELL_STACK_SIZE);
 }
 #endif
