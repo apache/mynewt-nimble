@@ -27,7 +27,7 @@
 #include "nimble/nimble_opt.h"
 #include "nrf51_bitfields.h"
 #include "controller/ble_hw.h"
-#include "bsp/cmsis_nvic.h"
+#include "mcu/cmsis_nvic.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)

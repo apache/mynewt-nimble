@@ -27,7 +27,7 @@
 #include "nimble/nimble_opt.h"
 #include "nrf52_bitfields.h"
 #include "controller/ble_hw.h"
-#include "bsp/cmsis_nvic.h"
+#include "mcu/cmsis_nvic.h"
 #include "os/os_trace_api.h"
 
 /* Total number of resolving list elements */
