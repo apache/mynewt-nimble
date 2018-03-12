@@ -19,19 +19,12 @@
 
 #include <assert.h>
 #include <string.h>
-#include <math.h>
-
-/* Some ambiq SDK headers use `OVERFLOW` as an identifier.  This is a macro
- * that is leaked by some versions of math.h.
- */
-#undef OVERFLOW
 
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "host/ble_hs.h"
 #include "host/ble_gap.h"
 #include "services/ans/ble_svc_ans.h"
-
 
 /* Max length of new alert info string */
 #define BLE_SVC_ANS_INFO_STR_MAX_LEN        18
@@ -349,7 +342,7 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
     uint8_t cat_bit_mask; 
     
     if (cat_id < BLE_SVC_ANS_CAT_NUM) {
-        cat_bit_mask = pow(2, cat_id);
+        cat_bit_mask = 1 << cat_id;
     } else {
         return BLE_HS_EINVAL;
     }
