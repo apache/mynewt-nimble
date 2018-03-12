@@ -2453,8 +2453,15 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         break;
     case BLE_LL_CTRL_REJECT_IND_EXT:
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
-            connsm->reject_reason = txpdu->om_data[2];
-            connsm->csmflags.cfbit.host_expects_upd_event = 1;
+            /* If rejecting opcode is BLE_LL_CTRL_PROC_CONN_PARAM_REQ and
+             * reason is LMP collision that means we are master on the link and
+             * peer wanted to start procedure which we already started.
+             * Let's wait for response and do not close procedure. */
+            if (txpdu->om_data[1] == BLE_LL_CTRL_CONN_PARM_REQ &&
+                            txpdu->om_data[2] != BLE_ERR_LMP_COLLISION) {
+                connsm->reject_reason = txpdu->om_data[2];
+                connsm->csmflags.cfbit.host_expects_upd_event = 1;
+            }
         }
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
         if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
