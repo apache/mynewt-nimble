@@ -311,7 +311,9 @@ ble_ll_dtm_rx_start(void)
 
     rc = ble_phy_setchan(channel_rf_to_index[g_ble_ll_dtm_ctx.rf_channel],
                          BLE_DTM_SYNC_WORD, BLE_DTM_CRC);
-    assert(rc == 0);
+    if (rc) {
+        return rc;
+    }
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
     ble_phy_mode_set(g_ble_ll_dtm_ctx.phy_mode, g_ble_ll_dtm_ctx.phy_mode);
@@ -319,7 +321,9 @@ ble_ll_dtm_rx_start(void)
 
     rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                    g_ble_ll_sched_offset_ticks, 0);
-    assert(rc == 0);
+    if (rc && rc != BLE_PHY_ERR_RX_LATE) {
+        return rc;
+    }
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
