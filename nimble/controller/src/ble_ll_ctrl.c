@@ -1500,7 +1500,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     return rsp_opcode;
 }
 
-static void
+void
 ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
 {
     if (!(connsm->conn_features & BLE_LL_FEAT_DATA_LEN_EXT)) {

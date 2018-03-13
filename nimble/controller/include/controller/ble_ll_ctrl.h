@@ -277,6 +277,7 @@ void ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
 int ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status);
 void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm);
+void ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm);
 
 #ifdef __cplusplus
 }
