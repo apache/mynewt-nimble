@@ -65,7 +65,7 @@ static struct {
 
 static struct bt_mesh_cfg_srv cfg_srv = {
 	.relay = BT_MESH_RELAY_DISABLED,
-	.beacon = BT_MESH_BEACON_DISABLED,
+	.beacon = BT_MESH_BEACON_ENABLED,
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 	.frnd = BT_MESH_FRIEND_DISABLED,
 #else
@@ -413,11 +413,11 @@ static struct bt_mesh_prov prov = {
 	.reset = prov_reset,
 	.static_val = NULL,
 	.static_val_len = 0,
-	.output_size = 6,
-	.output_actions = (BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
+	.output_size = 4,
+	.output_actions = (BT_MESH_BLINK | BT_MESH_BEEP | BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
 	.output_number = output_number,
 	.output_string = output_string,
-	.input_size = 6,
+	.input_size = 4,
 	.input_actions = (BT_MESH_ENTER_NUMBER | BT_MESH_ENTER_STRING),
 	.input = input,
 };
