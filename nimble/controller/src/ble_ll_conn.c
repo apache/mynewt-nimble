@@ -3615,7 +3615,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t rem_bytes;
     uint8_t opcode = 0;
     uint8_t rx_pyld_len;
-    uint32_t endtime;
+    uint32_t begtime;
     uint32_t add_usecs;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
@@ -3652,7 +3652,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * but for the 32768 crystal we add the time it takes to send the packet
      * to the 'additional usecs' field to save some calculations.
      */
-    endtime = rxhdr->beg_cputime;
+    begtime = rxhdr->beg_cputime;
 #if BLE_LL_BT5_PHY_SUPPORTED
     rx_phy_mode = connsm->phy_data.rx_phy_mode;
 #else
@@ -3687,7 +3687,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         connsm->cons_rxd_bad_crc = 0;
 
         /* Set last valid received pdu time (resets supervision timer) */
-        connsm->last_rxd_pdu_cputime = endtime;
+        connsm->last_rxd_pdu_cputime = begtime +
+                                        os_cputime_usecs_to_ticks(add_usecs);
 
         /*
          * Check for valid LLID before proceeding. We have seen some weird
@@ -3834,7 +3835,7 @@ chk_rx_terminate_ind:
     if (rx_pyld_len && CONN_F_ENCRYPTED(connsm)) {
         rx_pyld_len += BLE_LL_DATA_MIC_LEN;
     }
-    if (reply && ble_ll_conn_can_send_next_pdu(connsm, endtime, add_usecs)) {
+    if (reply && ble_ll_conn_can_send_next_pdu(connsm, begtime, add_usecs)) {
         rc = ble_ll_conn_tx_data_pdu(connsm);
     }
 
