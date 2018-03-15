@@ -566,10 +566,16 @@ struct shell_cmd_help cmd_lpn_help = {
 
 #endif /* MESH_LOW_POWER */
 
-static int check_addr_unassigned(uint8_t addr[BLE_DEV_ADDR_LEN])
+static int check_pub_addr_unassigned(void)
 {
-	return memcmp(addr, (uint8_t[BLE_DEV_ADDR_LEN]){0, 0, 0, 0, 0, 0},
-			BLE_DEV_ADDR_LEN) == 0;
+#ifdef ARCH_sim
+	return 0;
+#else
+	uint8_t zero_addr[BLE_DEV_ADDR_LEN] = { 0 };
+
+	return memcmp(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
+		      zero_addr, BLE_DEV_ADDR_LEN) == 0;
+#endif
 }
 
 static int cmd_init(int argc, char *argv[])
@@ -577,7 +583,7 @@ static int cmd_init(int argc, char *argv[])
 	int err;
 	ble_addr_t addr;
 
-	if (check_addr_unassigned(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
+	if (check_pub_addr_unassigned()) {
 		/* Use NRPA */
 		err = ble_hs_id_gen_rnd(1, &addr);
 		assert(err == 0);
