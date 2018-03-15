@@ -28,7 +28,7 @@
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
-#include "nrf51_bitfields.h"
+#include "nrfx.h"
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 

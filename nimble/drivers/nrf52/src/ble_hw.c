@@ -25,7 +25,7 @@
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
-#include "nrf52_bitfields.h"
+#include "nrfx.h"
 #include "controller/ble_hw.h"
 #include "mcu/cmsis_nvic.h"
 #include "os/os_trace_api.h"
