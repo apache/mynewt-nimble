@@ -48,6 +48,18 @@ static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask2[BLE_HCI_SET_EVENT_MASK_LEN];
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+enum {
+    BT5_NOT_CONFIGURED,
+    BT5_DISABLED,
+    BT5_ENABLED
+};
+/* If host start uses BT 5.0 commands, he should stick to it.
+ * Same is valid for legacy commands
+ */
+uint8_t g_ble_ll_bt5_usage = BT5_NOT_CONFIGURED;
+#endif
+
 /**
  * ll hci get num cmd pkts
  *
@@ -624,6 +636,41 @@ ble_ll_ext_adv_set_remove(uint8_t *cmd)
     return ble_ll_adv_remove(cmd[0]);
 }
 
+static bool
+ble_ll_is_valid_bt5_usage(uint8_t ocf)
+{
+    switch(ocf) {
+    case BLE_HCI_OCF_LE_CREATE_CONN:
+    case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
+    case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
+    case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
+    case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
+        /* For legacy commands make sure BT5 commands was not used before */
+        if (g_ble_ll_bt5_usage == BT5_ENABLED) {
+            return false;
+        }
+        g_ble_ll_bt5_usage = BT5_DISABLED;
+        break;
+    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_DATA:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA:
+        /* For BT5 commands make sure legacy commands was not used before */
+        if (g_ble_ll_bt5_usage == BT5_DISABLED) {
+            return false;
+        }
+        g_ble_ll_bt5_usage = BT5_ENABLED;
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
 #endif
 
 /**
@@ -659,6 +706,13 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     if (len != cmdlen && cmdlen != BLE_HCI_VARIABLE_LEN) {
         goto ll_hci_le_cmd_exit;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (!ble_ll_is_valid_bt5_usage(ocf)) {
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto ll_hci_le_cmd_exit;
+    }
+#endif
 
     /*
      * The command response pointer points into the same buffer as the
