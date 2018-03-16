@@ -100,11 +100,11 @@ void bt_test_print_credentials(void)
 
 	for (i = 0; i < MYNEWT_VAL(BLE_MESH_SUBNET_COUNT); ++i)
 	{
-		if (bt_mesh.app_keys[i].net_idx == BT_MESH_KEY_UNUSED) {
+		sub = &bt_mesh.sub[i];
+
+		if (sub->net_idx == BT_MESH_KEY_UNUSED) {
 			continue;
 		}
-
-		sub = &bt_mesh.sub[i];
 
 		console_printf("Subnet: %d\n", i);
 		console_printf("\tNetKeyIdx: %04x\n",

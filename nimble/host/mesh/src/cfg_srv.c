@@ -28,6 +28,7 @@
 #include "foundation.h"
 #include "friend.h"
 #include "testing.h"
+#include "store.h"
 
 #define DEFAULT_TTL 7
 
@@ -447,6 +448,8 @@ static u8_t app_key_set(u16_t net_idx, u16_t app_idx, const u8_t val[16],
 	key->app_idx = app_idx;
 	memcpy(keys->val, val, 16);
 
+	bt_mesh_store_app_key_set(key);
+
 	return STATUS_SUCCESS;
 }
 
@@ -515,6 +518,8 @@ static void _mod_unbind(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 static void _app_key_del(struct bt_mesh_app_key *key)
 {
 	bt_mesh_model_foreach(_mod_unbind, &key->app_idx);
+
+	bt_mesh_store_app_key_del(key);
 
 	key->net_idx = BT_MESH_KEY_UNUSED;
 	memset(key->keys, 0, sizeof(key->keys));

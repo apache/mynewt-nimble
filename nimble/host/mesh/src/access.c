@@ -27,7 +27,6 @@
 #endif
 
 static const struct bt_mesh_comp *dev_comp;
-static u16_t dev_primary_addr;
 
 static const struct {
 	const u16_t id;
@@ -282,7 +281,7 @@ void bt_mesh_comp_provision(u16_t addr)
 {
 	int i;
 
-	dev_primary_addr = addr;
+	bt_mesh.dev_primary_addr = addr;
 
 	BT_DBG("addr 0x%04x elem_count %zu", addr, dev_comp->elem_count);
 
@@ -300,14 +299,14 @@ void bt_mesh_comp_unprovision(void)
 {
 	BT_DBG("");
 
-	dev_primary_addr = BT_MESH_ADDR_UNASSIGNED;
+	bt_mesh.dev_primary_addr = BT_MESH_ADDR_UNASSIGNED;
 
 	bt_mesh_model_foreach(mod_init, NULL);
 }
 
 u16_t bt_mesh_primary_addr(void)
 {
-	return dev_primary_addr;
+	return bt_mesh.dev_primary_addr;
 }
 
 u16_t *bt_mesh_model_find_group(struct bt_mesh_model *mod, u16_t addr)

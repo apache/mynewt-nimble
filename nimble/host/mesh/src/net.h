@@ -199,6 +199,9 @@ struct bt_mesh_net {
 
 	s64_t last_update;       /* Time since last IV Update change */
 
+    	bool provisioned;
+    	u16_t dev_primary_addr;
+
 	/* Local network interface */
 	struct os_callout local_work;
 	struct net_buf_slist_t local_queue;
@@ -268,6 +271,9 @@ extern struct bt_mesh_net bt_mesh;
 
 int bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys,
 			    const u8_t key[16]);
+
+int bt_mesh_subnet_create(struct bt_mesh_subnet *sub, u16_t idx,
+			  u8_t flags, const u8_t key[16]);
 
 int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		       u32_t iv_index);

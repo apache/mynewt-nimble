@@ -438,24 +438,10 @@ int bt_mesh_net_beacon_update(struct bt_mesh_subnet *sub)
 				   bt_mesh.iv_index, sub->auth);
 }
 
-int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
-		       u32_t iv_index)
+int bt_mesh_subnet_create(struct bt_mesh_subnet *sub, u16_t idx,
+			  u8_t flags, const u8_t key[16])
 {
-	struct bt_mesh_subnet *sub;
 	int err;
-
-	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
-
-	BT_DBG("NetKey %s", bt_hex(key, 16));
-
-	if (bt_mesh.valid) {
-		return -EALREADY;
-	}
-
-	memset(msg_cache, 0, sizeof(msg_cache));
-	msg_cache_next = 0;
-
-	sub = &bt_mesh.sub[0];
 
 	sub->kr_flag = BT_MESH_KEY_REFRESH(flags);
 	if (sub->kr_flag) {
@@ -472,7 +458,6 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		}
 	}
 
-	bt_mesh.valid = 1;
 	sub->net_idx = idx;
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
@@ -481,14 +466,38 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		sub->node_id = BT_MESH_NODE_IDENTITY_NOT_SUPPORTED;
 	}
 
+	/* Make sure we have valid beacon data to be sent */
+	bt_mesh_net_beacon_update(sub);
+
+	return 0;
+}
+
+int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
+		       u32_t iv_index)
+{
+	struct bt_mesh_subnet *sub;
+
+	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
+
+	BT_DBG("NetKey %s", bt_hex(key, 16));
+
+	if (bt_mesh.valid) {
+		return -EALREADY;
+	}
+
+	memset(msg_cache, 0, sizeof(msg_cache));
+	msg_cache_next = 0;
+
+	bt_mesh.valid = 1;
 	bt_mesh.iv_index = iv_index;
 	bt_mesh.iv_update = BT_MESH_IV_UPDATE(flags);
 
 	/* Set initial IV Update procedure state time-stamp */
 	bt_mesh.last_update = k_uptime_get();
 
-	/* Make sure we have valid beacon data to be sent */
-	bt_mesh_net_beacon_update(sub);
+	sub = &bt_mesh.sub[0];
+
+	bt_mesh_subnet_create(sub, idx, flags, key);
 
 	return 0;
 }
