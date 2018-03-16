@@ -34,7 +34,7 @@ pkg.deps:
     - nimble/host  
 
 pkg.deps.BLE_MESH_SHELL:
-    - sys/shell
+    - "@apache-mynewt-core/sys/shell"
 
 pkg.req_apis:
     - log
