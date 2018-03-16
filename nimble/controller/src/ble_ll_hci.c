@@ -48,6 +48,14 @@ static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask2[BLE_HCI_SET_EVENT_MASK_LEN];
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static enum {
+    ADV_MODE_ANY,
+    ADV_MODE_LEGACY,
+    ADV_MODE_EXT,
+} hci_adv_mode;
+#endif
+
 /**
  * ll hci get num cmd pkts
  *
@@ -624,6 +632,49 @@ ble_ll_ext_adv_set_remove(uint8_t *cmd)
     return ble_ll_adv_remove(cmd[0]);
 }
 
+static bool
+ble_ll_is_valid_adv_mode(uint8_t ocf)
+{
+    /*
+     * If, since the last power-on or reset, the Host has ever issued a legacy
+     * advertising command and then issues an extended advertising command, or
+     * has ever issued an extended advertising command and then issues a legacy
+     * advertising command, the Controller shall return the error code Command
+     * Disallowed (0x0C).
+    */
+
+    switch(ocf) {
+    case BLE_HCI_OCF_LE_CREATE_CONN:
+    case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
+    case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
+    case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
+    case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
+        if (hci_adv_mode == ADV_MODE_EXT) {
+            return false;
+        }
+
+        hci_adv_mode = ADV_MODE_LEGACY;
+        break;
+    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_DATA:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA:
+        if (hci_adv_mode == ADV_MODE_LEGACY) {
+            return false;
+        }
+
+        hci_adv_mode = ADV_MODE_EXT;
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
 #endif
 
 /**
@@ -659,6 +710,13 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
     if (len != cmdlen && cmdlen != BLE_HCI_VARIABLE_LEN) {
         goto ll_hci_le_cmd_exit;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (!ble_ll_is_valid_adv_mode(ocf)) {
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto ll_hci_le_cmd_exit;
+    }
+#endif
 
     /*
      * The command response pointer points into the same buffer as the
@@ -1239,4 +1297,9 @@ ble_ll_hci_init(void)
 
     /* Set page 2 to 0 */
     memset(g_ble_ll_hci_event_mask2, 0, BLE_HCI_SET_EVENT_MASK_LEN);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* after reset both legacy and extended advertising commands are allowed */
+    hci_adv_mode = ADV_MODE_ANY;
+#endif
 }
