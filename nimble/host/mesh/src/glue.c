@@ -19,9 +19,30 @@
 
 #include "mesh/glue.h"
 #include "adv.h"
+
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+#define BT_MESH_ADV_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES))
+
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+/* Note that BLE_MULTI_ADV_INSTANCES contains number of additional instances.
+ * Instance 0 is always there
+ */
+#if MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) < 1
+#error "Mesh needs at least BLE_MULTI_ADV_INSTANCES set to 1"
+#endif
+#define BT_MESH_ADV_PROXY_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) - 1)
+#endif /* BLE_MESH_PROXY */
+#endif /* BLE_EXT_ADV */
+
 extern u8_t g_mesh_addr_type;
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+#define BLE_ADV_PB_ADV_IDX          (0)
+#define BLE_ADV_PB_GATT_IDX         (1)
+static struct ble_gap_adv_params ble_adv_cur_conf[2];
+#endif
 
 const char *
 bt_hex(const void *buf, size_t len)
@@ -471,16 +492,168 @@ set_ad(const struct bt_data *ad, size_t ad_len, u8_t *buf, u8_t *buf_len)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static void
+ble_adv_copy_to_ext_param(struct ble_gap_ext_adv_params *ext_param,
+                          const struct ble_gap_adv_params *param)
+{
+    memset(ext_param, 0, sizeof(*ext_param));
+
+    ext_param->legacy_pdu = 1;
+    ext_param->scannable = 1;
+
+    if (param->conn_mode != BLE_GAP_CONN_MODE_NON) {
+        ext_param->connectable = 1;
+    }
+
+    ext_param->itvl_max = param->itvl_max;
+    ext_param->itvl_min = param->itvl_min;
+    ext_param->channel_map = param->channel_map;
+    ext_param->high_duty_directed = param->high_duty_cycle;
+}
+
+static int
+ble_adv_conf_adv_instance(const struct ble_gap_adv_params *param, int *instance)
+{
+    struct ble_gap_ext_adv_params ext_params;
+    struct ble_gap_adv_params *cur_conf;
+    int err = 0;
+
+    if (param->conn_mode == BLE_GAP_CONN_MODE_NON) {
+        *instance = BT_MESH_ADV_INST;
+        cur_conf = &ble_adv_cur_conf[BLE_ADV_PB_ADV_IDX];
+    } else {
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+        *instance = BT_MESH_ADV_PROXY_INST;
+        cur_conf = &ble_adv_cur_conf[BLE_ADV_PB_GATT_IDX];
+#else
+        assert(0);
+#endif
+    }
+
+    /* Checking interval max as it has to be in place if instance was configured
+     * before.
+     */
+    if (cur_conf->itvl_max == 0) {
+        goto configure;
+    }
+
+    if (memcmp(param, cur_conf, sizeof(*cur_conf)) == 0) {
+        /* Same parameters - skip reconfiguring */
+        goto done;
+    }
+
+    ble_gap_ext_adv_stop(*instance);
+    err = ble_gap_ext_adv_remove(*instance);
+    if (err) {
+        assert(0);
+        goto done;
+    }
+
+configure:
+    ble_adv_copy_to_ext_param(&ext_params, param);
+
+    err  = ble_gap_ext_adv_configure(*instance, &ext_params, 0,
+                                            ble_adv_gap_mesh_cb, NULL);
+    if (!err) {
+        memcpy(cur_conf, param, sizeof(*cur_conf));
+    }
+
+done:
+    return err;
+}
+
 int
 bt_le_adv_start(const struct ble_gap_adv_params *param,
                 const struct bt_data *ad, size_t ad_len,
                 const struct bt_data *sd, size_t sd_len)
 {
-#if MYNEWT_VAL(BLE_EXT_ADV)
-    uint8_t buf[MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)];
-#else
+    struct os_mbuf *data;
+    int instance;
+    int err;
     uint8_t buf[BLE_HS_ADV_MAX_SZ];
-#endif
+    uint8_t buf_len = 0;
+
+    err = ble_adv_conf_adv_instance(param, &instance);
+    if (err) {
+        return err;
+    }
+
+    if (ad_len > 0) {
+        err = set_ad(ad, ad_len, buf, &buf_len);
+        if (err) {
+            return err;
+        }
+
+        /* For now let's use msys pool. We are not putting more then legacy */
+        data = os_msys_get_pkthdr(BLE_HS_ADV_MAX_SZ, 0);
+        if (!data) {
+            return OS_ENOMEM;
+        }
+
+        err = os_mbuf_append(data, buf, buf_len);
+        if (err) {
+            goto error;
+        }
+
+        err = ble_gap_ext_adv_set_data(instance, data);
+        if (err) {
+            return err;
+        }
+
+        data = NULL;
+    }
+
+    if (sd_len > 0) {
+        buf_len = 0;
+
+        err = set_ad(sd, sd_len, buf, &buf_len);
+        if (err) {
+            return err;
+        }
+
+        /* For now let's use msys pool. We are not putting more then legace*/
+        data = os_msys_get_pkthdr(BLE_HS_ADV_MAX_SZ, 0);
+        if (!data) {
+            return OS_ENOMEM;
+        }
+
+        err = os_mbuf_append(data, buf, buf_len);
+        if (err) {
+            goto error;
+        }
+
+        err = ble_gap_ext_adv_rsp_set_data(instance, data);
+        if (err) {
+            goto error;
+        }
+    }
+
+    /*TODO: We could use duration and max events in the future */
+    err = ble_gap_ext_adv_start(instance, 0, 0);
+    return err;
+
+error:
+    if (data) {
+        os_mbuf_free_chain(data);
+    }
+
+    return err;
+}
+
+int bt_le_adv_stop(void)
+{
+	return ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
+}
+
+#else
+
+int
+bt_le_adv_start(const struct ble_gap_adv_params *param,
+                const struct bt_data *ad, size_t ad_len,
+                const struct bt_data *sd, size_t sd_len)
+{
+    uint8_t buf[BLE_HS_ADV_MAX_SZ];
     uint8_t buf_len = 0;
     int err;
 
@@ -519,6 +692,13 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
 
     return 0;
 }
+
+int bt_le_adv_stop(void)
+{
+	return ble_gap_adv_stop();
+}
+
+#endif
 
 #if MYNEWT_VAL(BLE_MESH_PROXY)
 int bt_mesh_proxy_svcs_register(void);
