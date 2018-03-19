@@ -133,6 +133,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x08
 #define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x30 /* use helpers! */
 #define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x40
+#define BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT    0x80
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -2188,6 +2189,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
     }
 
+    advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT;
+
     rspbuf[0] = advsm->adv_txpwr;
     *rsplen = 1;
 
@@ -3000,7 +3003,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
          * AUX is done.
          */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+                        (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
             ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
                                                   advsm->adv_instance, 0, 0);
 
@@ -3040,7 +3044,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
          * AUX is done.
          */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+                        (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
             ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                                   advsm->adv_instance, 0,
                                                   advsm->events);
@@ -3130,8 +3135,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_scan_chk_resume();
 
     /* Check if advertising timed out */
-    if (advsm->duration &&
-        aux->start_time >= advsm->adv_end_time) {
+    if ((advsm->duration && aux->start_time >= advsm->adv_end_time) &&
+                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
                                               advsm->adv_instance, 0, 0);
 
@@ -3150,7 +3155,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         return;
     }
 
-    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
+    if ((advsm->events_max && (advsm->events >= advsm->events_max)) &&
+                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                               advsm->adv_instance, 0,
                                               advsm->events);
@@ -3243,8 +3249,10 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT) {
+        ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
                                           connsm->conn_handle, advsm->events);
+    }
 #endif
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
