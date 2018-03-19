@@ -337,7 +337,6 @@ struct ble_ll_conn_sm
 #define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
 #define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
 #define CONN_F_CSA2_SUPP(csm)       ((csm)->csmflags.cfbit.csa2_supp)
-#define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
 #define CONN_F_HOST_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.host_phy_update)
 #define CONN_F_PHY_UPDATE_SCHED(csm) ((csm)->csmflags.cfbit.phy_update_sched)
 #define CONN_F_CTRLR_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.ctrlr_phy_update)
