@@ -46,6 +46,7 @@
 #define u8_t    uint8_t
 #define s8_t    int8_t
 #define u16_t   uint16_t
+#define s16_t   int16_t
 #define u32_t   uint32_t
 #define u64_t   uint64_t
 #define s64_t   int64_t

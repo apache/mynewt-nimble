@@ -22,6 +22,9 @@
 #include "transport.h"
 #include "access.h"
 #include "foundation.h"
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+#include "model_cli.h"
+#endif
 
 static const struct bt_mesh_comp *dev_comp;
 static u16_t dev_primary_addr;
@@ -37,6 +40,10 @@ static const struct {
 #endif
 #if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 	{ BT_MESH_MODEL_ID_HEALTH_CLI, bt_mesh_health_cli_init },
+#endif
+#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+	{ BT_MESH_MODEL_ID_GEN_ONOFF_CLI, bt_mesh_gen_model_cli_init },
+	{ BT_MESH_MODEL_ID_GEN_LEVEL_CLI, bt_mesh_gen_model_cli_init },
 #endif
 };
 

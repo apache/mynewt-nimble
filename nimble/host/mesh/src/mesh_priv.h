@@ -16,6 +16,19 @@
 #define BT_MESH_ADDR_IS_VIRTUAL(addr) ((addr) >= 0x8000 && (addr) < 0xc000)
 #define BT_MESH_ADDR_IS_RFU(addr) ((addr) >= 0xff00 && (addr) <= 0xfffb)
 
+#define OP_GEN_ONOFF_GET		BT_MESH_MODEL_OP_2(0x82, 0x01)
+#define OP_GEN_ONOFF_SET		BT_MESH_MODEL_OP_2(0x82, 0x02)
+#define OP_GEN_ONOFF_SET_UNACK		BT_MESH_MODEL_OP_2(0x82, 0x03)
+#define OP_GEN_ONOFF_STATUS		BT_MESH_MODEL_OP_2(0x82, 0x04)
+#define OP_GEN_LEVEL_GET		BT_MESH_MODEL_OP_2(0x82, 0x05)
+#define OP_GEN_LEVEL_SET		BT_MESH_MODEL_OP_2(0x82, 0x06)
+#define OP_GEN_LEVEL_SET_UNACK		BT_MESH_MODEL_OP_2(0x82, 0x07)
+#define OP_GEN_LEVEL_STATUS		BT_MESH_MODEL_OP_2(0x82, 0x08)
+#define OP_GEN_DELTA_SET		BT_MESH_MODEL_OP_2(0x82, 0x09)
+#define OP_GEN_DELTA_SET_UNACK		BT_MESH_MODEL_OP_2(0x82, 0x0a)
+#define OP_GEN_MOVE_SET		BT_MESH_MODEL_OP_2(0x82, 0x0b)
+#define OP_GEN_MOVE_SET_UNACK		BT_MESH_MODEL_OP_2(0x82, 0x0c)
+
 bool bt_mesh_is_provisioned(void);
 
 #endif

@@ -382,6 +382,12 @@ syscfg.defs:
             Device UUID
         value: ((uint8_t[16]){0x11, 0x22, 0})
 
+    BLE_MESH_SHELL_MODELS:
+        description: >
+            Include implementation of some demo models.
+            This requires pwm0, pwm1, pwm2 and pwm3 devices.
+        value: 0
+
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
     BLE_MESH_HEALTH_CLI: 1
