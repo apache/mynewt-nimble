@@ -385,7 +385,6 @@ syscfg.defs:
     BLE_MESH_SHELL_MODELS:
         description: >
             Include implementation of some demo models.
-            This requires pwm0, pwm1, pwm2 and pwm3 devices.
         value: 0
 
 syscfg.vals.BLE_MESH_SHELL:

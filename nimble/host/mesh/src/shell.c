@@ -28,15 +28,14 @@
 #include "access.h"
 #include "mesh_priv.h"
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-#include "model_srv.h"
-#include "model_cli.h"
+#include "mesh/model_srv.h"
+#include "mesh/model_cli.h"
 #include "light_model.h"
 #endif
 #include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
 #include "testing.h"
-#include "model_cli.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -223,6 +222,7 @@ static struct bt_mesh_health_cli health_cli = {
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 static struct bt_mesh_model_pub gen_onoff_pub;
 static struct bt_mesh_model_pub gen_level_pub;
+static struct bt_mesh_model_pub light_lightness_pub;
 static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {
 	.get = light_model_gen_onoff_get,
 	.set = light_model_gen_onoff_set,
@@ -231,6 +231,26 @@ static struct bt_mesh_gen_level_srv_cb gen_level_srv_cb = {
 	.get = light_model_gen_level_get,
 	.set = light_model_gen_level_set,
 };
+static struct bt_mesh_light_lightness_srv_cb light_lightness_srv_cb = {
+	.get = light_model_light_lightness_get,
+	.set = light_model_light_lightness_set,
+};
+
+void bt_mesh_set_gen_onoff_srv_cb(struct bt_mesh_gen_onoff_srv_cb *gen_onoff_cb)
+{
+	gen_onoff_srv_cb = *gen_onoff_cb;
+}
+
+void bt_mesh_set_gen_level_srv_cb(struct bt_mesh_gen_level_srv_cb *gen_level_cb)
+{
+	gen_level_srv_cb = *gen_level_cb;
+}
+
+void bt_mesh_set_light_lightness_srv_cb(struct bt_mesh_light_lightness_srv_cb *light_lightness_cb)
+{
+	light_lightness_srv_cb = *light_lightness_cb;
+}
+
 #endif
 
 static struct bt_mesh_model root_models[] = {
@@ -247,6 +267,7 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_GEN_ONOFF_CLI(),
 	BT_MESH_MODEL_GEN_LEVEL_SRV(&gen_level_srv_cb, &gen_level_pub),
 	BT_MESH_MODEL_GEN_LEVEL_CLI(),
+	BT_MESH_MODEL_LIGHT_LIGHTNESS_SRV(&light_lightness_srv_cb, &light_lightness_pub),
 #endif
 };
 
@@ -2472,10 +2493,6 @@ void ble_mesh_shell_init(void)
 	bt_mesh_shell_task_init();
 	shell_evq_set(&mesh_shell_queue);
 	shell_register("mesh", mesh_commands);
-
-#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-	light_model_init();
-#endif
 
 #endif
 }
