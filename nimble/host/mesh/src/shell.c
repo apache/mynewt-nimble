@@ -438,11 +438,11 @@ static struct bt_mesh_prov prov = {
 	.static_val = NULL,
 	.static_val_len = 0,
 	.output_size = 4,
-	.output_actions = (BT_MESH_BLINK | BT_MESH_BEEP | BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
+	.output_actions = (BT_MESH_BLINK | BT_MESH_BEEP | BT_MESH_DISPLAY_NUMBER),
 	.output_number = output_number,
 	.output_string = output_string,
 	.input_size = 4,
-	.input_actions = (BT_MESH_ENTER_NUMBER | BT_MESH_ENTER_STRING),
+	.input_actions = 0,
 	.input = input,
 };
 
