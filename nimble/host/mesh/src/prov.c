@@ -1567,7 +1567,6 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 
 #if !(MYNEWT_VAL(BLE_MESH_PB_GATT))
 	rx_buf = NET_BUF_SIMPLE(65);
-
 #endif
 
 	if (!prov_info) {
@@ -1587,9 +1586,7 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 	k_delayed_work_init(&link.tx.retransmit, prov_retransmit);
 	link.rx.prev_id = XACT_NVAL;
 
-#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	link.rx.buf = bt_mesh_proxy_get_buf();
-#else
+#if !(MYNEWT_VAL(BLE_MESH_PB_GATT))
 	net_buf_simple_init(rx_buf, 0);
 	link.rx.buf = rx_buf;
 #endif

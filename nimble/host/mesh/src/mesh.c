@@ -220,15 +220,18 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 		return err;
 	}
 
-	if (MYNEWT_VAL(BLE_MESH_PROV)) {
-		err = bt_mesh_prov_init(prov);
-		if (err) {
-			return err;
-		}
+#if (MYNEWT_VAL(BLE_MESH_PROV))
+	err = bt_mesh_prov_init(prov);
+	if (err) {
+		return err;
 	}
+#endif
 
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
 	bt_mesh_proxy_init();
+#endif
+
+#if (MYNEWT_VAL(BLE_MESH_PROV))
 	/* Need this to proper link.rx.buf allocation */
 	bt_mesh_prov_reset_link();
 #endif
