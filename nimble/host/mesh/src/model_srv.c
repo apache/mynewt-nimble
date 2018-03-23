@@ -24,7 +24,7 @@ static void gen_onoff_status(struct bt_mesh_model *model,
 		cb->get(model, state);
 	}
 
-	BT_DBG("state: %d", state);
+	BT_DBG("state: %d", *state);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Send status failed");
@@ -81,7 +81,7 @@ static void gen_level_status(struct bt_mesh_model *model,
 		cb->get(model, level);
 	}
 
-	BT_DBG("level: %d", level);
+	BT_DBG("level: %d", *level);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Send status failed");
