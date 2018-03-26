@@ -24,7 +24,7 @@
 #include "ble_hs_priv.h"
 
 static int
-ble_hs_startup_le_read_local_ver_tx(void)
+ble_hs_startup_read_local_ver_tx(void)
 {
     uint8_t ack_params[BLE_HCI_RD_LOC_VER_INFO_RSPLEN];
     uint8_t ack_params_len;
@@ -53,7 +53,7 @@ ble_hs_startup_le_read_local_ver_tx(void)
 static int
 ble_hs_startup_le_read_sup_f_tx(void)
 {
-    uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
+    uint8_t ack_params[BLE_HCI_RD_LE_LOC_SUPP_FEAT_RSPLEN];
     uint8_t ack_params_len;
     uint32_t feat;
     int rc;
@@ -66,7 +66,7 @@ ble_hs_startup_le_read_sup_f_tx(void)
         return rc;
     }
 
-    if (ack_params_len != BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN) {
+    if (ack_params_len != BLE_HCI_RD_LE_LOC_SUPP_FEAT_RSPLEN) {
         return BLE_HS_ECONTROLLER;
     }
 
@@ -278,7 +278,7 @@ ble_hs_startup_go(void)
         return rc;
     }
 
-    rc = ble_hs_startup_le_read_local_ver_tx();
+    rc = ble_hs_startup_read_local_ver_tx();
     if (rc != 0) {
         return rc;
     }

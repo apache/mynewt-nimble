@@ -203,9 +203,13 @@ extern "C" {
 #define BLE_HCI_WR_AUTH_PYLD_TMO_LEN        (2)
 
 /* --- Read local version information (OGF 0x04, OCF 0x0001) --- */
-/* NOTE: does not include status field in command complete event! */
-#define BLE_HCI_RD_LOC_VER_INFO_RSPLEN      (8)
-#define BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN      (64)
+#define BLE_HCI_RD_LOC_VER_INFO_RSPLEN      (8) /* No status byte. */
+
+/* --- Read local supported command (OGF 0x04, OCF 0x0002) --- */
+#define BLE_HCI_RD_LOC_SUPP_CMD_RSPLEN      (64) /* No status byte. */
+
+/* --- Read local supported features (OGF 0x04, OCF 0x0003) --- */
+#define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN     (8) /* No status byte. */
 
 /* --- Read RSSI (OGF 0x05, OCF 0x0005) --- */
 #define BLE_HCI_READ_RSSI_LEN               (2)
@@ -219,7 +223,7 @@ extern "C" {
 #define BLE_HCI_RD_BUF_SIZE_RSPLEN          (3) /* No status byte. */
 
 /* --- LE read local supported features (OCF 0x0003) --- */
-#define BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN     (8)
+#define BLE_HCI_RD_LE_LOC_SUPP_FEAT_RSPLEN  (8) /* No status byte. */
 
 /* --- LE set random address (OCF 0x0005) */
 #define BLE_HCI_SET_RAND_ADDR_LEN           (6)
