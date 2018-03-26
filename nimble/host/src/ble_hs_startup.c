@@ -23,6 +23,38 @@
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 
+#if !MYNEWT_VAL(BLE_DEVICE)
+static int
+ble_hs_startup_read_sup_f_tx(void)
+{
+    uint8_t ack_params[BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN];
+    uint8_t ack_params_len;
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS,
+                                      BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT),
+                           NULL,0, ack_params, sizeof ack_params,
+                           &ack_params_len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (ack_params_len != BLE_HCI_RD_LOC_SUPP_FEAT_RSPLEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    /* for now we don't use it outside of init sequence so check this here
+     * LE Supported (Controller) byte 4, bit 6
+     */
+    if (!(ack_params[4] & 0x60)) {
+        BLE_HS_LOG(ERROR, "Controller doesn't support LE\n");
+        return BLE_HS_ECONTROLLER;
+    }
+
+    return 0;
+}
+#endif
+
 static int
 ble_hs_startup_read_local_ver_tx(void)
 {
@@ -232,7 +264,7 @@ ble_hs_startup_le_set_evmask_tx(void)
         mask |= 0x00000000000f1800;
     }
 
-    ble_hs_hci_cmd_build_le_set_event_mask(0x00000000000F1A7F, buf, sizeof buf);
+    ble_hs_hci_cmd_build_le_set_event_mask(mask, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                                 BLE_HCI_OCF_LE_SET_EVENT_MASK),
                                      buf, sizeof(buf));
@@ -316,8 +348,13 @@ ble_hs_startup_go(void)
     /* we need to check this only if using external controller */
 #if !MYNEWT_VAL(BLE_DEVICE)
     if (ble_hs_hci_get_hci_version() < BLE_HCI_VER_BCS_4_0) {
-        BLE_HS_LOG(ERROR, "Required controller version is 4.0 (6)");
+        BLE_HS_LOG(ERROR, "Required controller version is 4.0 (6)\n");
         return BLE_HS_ECONTROLLER;
+    }
+
+    rc = ble_hs_startup_read_sup_f_tx();
+    if (rc != 0) {
+        return rc;
     }
 #endif
 

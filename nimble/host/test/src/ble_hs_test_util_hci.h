@@ -24,6 +24,9 @@
 extern "C" {
 #endif
 
+/* leave this as macro so it may be used for static const initialization */
+#define ble_hs_hci_util_opcode_join(ogf, ocf) (((ogf) << 10) | (ocf))
+
 #define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
 struct ble_hs_test_util_hci_ack {
     uint16_t opcode;
@@ -60,11 +63,13 @@ void ble_hs_test_util_hci_ack_set(uint16_t opcode, uint8_t status);
 void ble_hs_test_util_hci_ack_append_params(uint16_t opcode, uint8_t status,
                                             void *params, uint8_t params_len);
 void ble_hs_test_util_hci_ack_append(uint16_t opcode, uint8_t status);
-void ble_hs_test_util_hci_ack_set_seq(struct ble_hs_test_util_hci_ack *acks);
+void ble_hs_test_util_hci_ack_set_seq(const struct ble_hs_test_util_hci_ack *acks);
 void ble_hs_test_util_hci_ack_set_startup(void);
 void ble_hs_test_util_hci_ack_set_disc(uint8_t own_addr_type,
                                        int fail_idx, uint8_t fail_status);
 void ble_hs_test_util_hci_ack_set_disconnect(uint8_t hci_status);
+
+int ble_hs_test_util_hci_startup_seq_cnt(void);
 
 /* $verify tx */
 void ble_hs_test_util_hci_verify_tx_add_irk(uint8_t addr_type,

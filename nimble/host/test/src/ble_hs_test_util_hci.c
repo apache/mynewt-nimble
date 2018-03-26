@@ -226,8 +226,81 @@ ble_hs_test_util_hci_ack_append(uint16_t opcode, uint8_t status)
     ble_hs_test_util_hci_ack_append_params(opcode, status, NULL, 0);
 }
 
+static const struct ble_hs_test_util_hci_ack hci_startup_seq[] = {
+    {
+        .opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
+                                              BLE_HCI_OCF_CB_RESET),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+         BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOCAL_VER),
+        .evt_params = { 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+        .evt_params_len = 8,
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+         BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT),
+        .evt_params = { 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00},
+        .evt_params_len = 8,
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK2),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EVENT_MASK),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
+        /* Use a very low buffer size (20) to test fragmentation.
+         * Use a large num-pkts (200) to prevent controller buf exhaustion.
+         */
+        .evt_params = { 0x14, 0x00, 200 },
+        .evt_params_len = 3,
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
+        .evt_params = { 0 },
+        .evt_params_len = 8,
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BD_ADDR),
+        .evt_params = BLE_HS_TEST_UTIL_PUB_ADDR_VAL,
+        .evt_params_len = 6,
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+    },
+    { 0 }
+};
+
 void
-ble_hs_test_util_hci_ack_set_seq(struct ble_hs_test_util_hci_ack *acks)
+ble_hs_test_util_hci_ack_set_seq(const struct ble_hs_test_util_hci_ack *acks)
 {
     int i;
 
@@ -239,78 +312,20 @@ ble_hs_test_util_hci_ack_set_seq(struct ble_hs_test_util_hci_ack *acks)
     ble_hs_hci_set_phony_ack_cb(ble_hs_test_util_hci_ack_cb);
 }
 
+int
+ble_hs_test_util_hci_startup_seq_cnt(void)
+{
+    /* last element is terminator, don't count it*/
+    return sizeof(hci_startup_seq)/sizeof(hci_startup_seq[0]) - 1;
+}
+
 void
 ble_hs_test_util_hci_ack_set_startup(void)
 {
     /* Receive acknowledgements for the startup sequence.  We sent the
      * corresponding requests when the host task was started.
      */
-    ble_hs_test_util_hci_ack_set_seq(((struct ble_hs_test_util_hci_ack[]) {
-        {
-            .opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_CTLR_BASEBAND,
-                                                  BLE_HCI_OCF_CB_RESET),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-             BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOCAL_VER),
-            .evt_params = { 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-            .evt_params_len = 8,
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_SET_EVENT_MASK2),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EVENT_MASK),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_BUF_SIZE),
-            /* Use a very low buffer size (20) to test fragmentation.
-             * Use a large num-pkts (200) to prevent controller buf exhaustion.
-             */
-            .evt_params = { 0x14, 0x00, 200 },
-            .evt_params_len = 3,
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_LOC_SUPP_FEAT),
-            .evt_params = { 0 },
-            .evt_params_len = 8,
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BD_ADDR),
-            .evt_params = BLE_HS_TEST_UTIL_PUB_ADDR_VAL,
-            .evt_params_len = 6,
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
-        },
-        {
-            .opcode = ble_hs_hci_util_opcode_join(
-                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
-        },
-        { 0 }
-    }));
+    ble_hs_test_util_hci_ack_set_seq(hci_startup_seq);
 }
 
 void

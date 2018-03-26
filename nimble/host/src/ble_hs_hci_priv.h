@@ -96,9 +96,8 @@ int ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
                                  uint16_t tx_time);
 int ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
                                    struct hci_data_hdr *out_hdr);
-
 int ble_hs_hci_evt_process(uint8_t *data);
-uint16_t ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf);
+
 void ble_hs_hci_cmd_write_hdr(uint8_t ogf, uint16_t ocf, uint8_t len,
                               void *buf);
 int ble_hs_hci_cmd_send_buf(uint16_t opcode, void *buf, uint8_t buf_len);
