@@ -21,7 +21,6 @@
 #include <assert.h>
 #include <string.h>
 #include "os/os.h"
-#include "console/console.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_monitor.h"

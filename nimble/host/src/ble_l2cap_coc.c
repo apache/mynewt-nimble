@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include "console/console.h"
 #include "nimble/ble.h"
 #include "ble_hs_priv.h"
 #include "ble_l2cap_priv.h"

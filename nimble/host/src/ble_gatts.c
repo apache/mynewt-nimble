@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 #include <string.h>
-#include "console/console.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "host/ble_store.h"
