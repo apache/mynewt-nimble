@@ -23,12 +23,6 @@
 #include "ble_hs_priv.h"
 
 uint16_t
-ble_hs_hci_util_opcode_join(uint8_t ogf, uint16_t ocf)
-{
-    return (ogf << 10) | ocf;
-}
-
-uint16_t
 ble_hs_hci_util_handle_pb_bc_join(uint16_t handle, uint8_t pb, uint8_t bc)
 {
     BLE_HS_DBG_ASSERT(handle <= 0x0fff);
