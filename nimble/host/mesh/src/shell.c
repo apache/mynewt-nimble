@@ -633,7 +633,7 @@ static int check_pub_addr_unassigned(void)
 #endif
 }
 
-static int cmd_init(int argc, char *argv[])
+int cmd_init(int argc, char *argv[])
 {
 	int err;
 	ble_addr_t addr;

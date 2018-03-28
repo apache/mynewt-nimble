@@ -14,6 +14,8 @@
 
 #include "net.h"
 #include "testing.h"
+#include "access.h"
+#include "foundation.h"
 
 static sys_slist_t cb_slist;
 
@@ -151,4 +153,21 @@ void bt_test_print_credentials(void)
 		console_printf("\tPrivKey: %s\n",
 			       bt_hex(priv, 16));
 	}
+}
+
+int bt_test_shell_init(void)
+{
+	return cmd_init(0, NULL);
+}
+
+int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, u16_t key_idx, u16_t id)
+{
+	struct bt_mesh_model *found_model;
+
+	found_model = bt_mesh_model_find(model->elem, id);
+	if (!found_model) {
+		return STATUS_INVALID_MODEL;
+	}
+
+	return mod_bind(found_model, key_idx);
 }
