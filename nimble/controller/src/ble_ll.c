@@ -1043,7 +1043,7 @@ ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     struct ble_mbuf_hdr *ble_hdr;
 
     txpdu = pducb_arg;
-    assert(txpdu);
+    BLE_LL_ASSERT(txpdu);
     ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
 
     os_mbuf_copydata(txpdu, ble_hdr->txinfo.offset, ble_hdr->txinfo.pyld_len,
@@ -1342,7 +1342,7 @@ ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
         /* S=2 => 2 * 8 = 16 usecs per byte */
         usecs = payload_len << 4;
     } else {
-        assert(0);
+        BLE_LL_ASSERT(0);
     }
 
     usecs += g_ble_ll_pdu_header_tx_time[phy_mode];
@@ -1360,7 +1360,7 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
     uint32_t header_tx_time;
     uint16_t octets;
 
-    assert(phy_mode < BLE_PHY_NUM_MODE);
+    BLE_LL_ASSERT(phy_mode < BLE_PHY_NUM_MODE);
 
     header_tx_time = g_ble_ll_pdu_header_tx_time[phy_mode];
 
@@ -1395,7 +1395,7 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
         /* S=2 => 2 * 8 = 16 usecs per byte */
         octets = usecs >> 4;
     } else {
-        assert(0);
+        BLE_LL_ASSERT(0);
     }
 
     /* see comment at the beginning */
@@ -1436,7 +1436,7 @@ ble_ll_init(void)
 #ifdef BLE_XCVR_RFCLK
     /* Settling time of crystal, in ticks */
     xtal_ticks = MYNEWT_VAL(BLE_XTAL_SETTLE_TIME);
-    assert(xtal_ticks != 0);
+    BLE_LL_ASSERT(xtal_ticks != 0);
     g_ble_ll_data.ll_xtal_ticks = os_cputime_usecs_to_ticks(xtal_ticks);
 
     /* Initialize rf clock timer */

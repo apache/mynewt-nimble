@@ -401,3 +401,23 @@ ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status)
     return rc;
 }
 #endif
+
+void
+ble_ll_hci_ev_send_vendor_err(char *file, uint32_t line)
+{
+    uint8_t *evbuf;
+    uint8_t file_len = strlen(file);
+
+    evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    if (!evbuf) {
+        return;
+    }
+
+    evbuf[0] = BLE_HCI_EVCODE_VENDOR_DEBUG;
+    evbuf[1] = file_len + sizeof(line) + 1;
+    /* Debug id for future use */
+    evbuf[2] = 0x00;
+    memcpy(&evbuf[3], file, file_len);
+    put_le32(&evbuf[3] + file_len, line);
+    ble_ll_hci_event_send(evbuf);
+}

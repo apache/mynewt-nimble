@@ -87,7 +87,7 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local)
     struct ble_encryption_block ecb;
     uint8_t *addr;
 
-    assert(rl != NULL);
+    BLE_LL_ASSERT(rl != NULL);
 
     if (local) {
         addr = rl->rl_local_rpa;
@@ -307,7 +307,7 @@ ble_ll_resolv_list_add(uint8_t *cmdbuf)
      * already checked if there is room for it.
      */
     rc = ble_hw_resolv_list_add(rl->rl_peer_irk);
-    assert (rc == BLE_ERR_SUCCESS);
+    BLE_LL_ASSERT (rc == BLE_ERR_SUCCESS);
 
     /* generate a local and peer RPAs now, those will be updated by timer
      * when resolution is enabled
@@ -344,7 +344,7 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
     /* Remove from IRK records */
     position = ble_ll_is_on_resolv_list(ident_addr, addr_type);
     if (position) {
-        assert(position <= g_ble_ll_resolv_data.rl_cnt);
+        BLE_LL_ASSERT(position <= g_ble_ll_resolv_data.rl_cnt);
 
         memmove(&g_ble_ll_resolv_list[position - 1],
                 &g_ble_ll_resolv_list[position],
@@ -521,8 +521,8 @@ ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
 {
     os_sr_t sr;
 
-    assert(rl != NULL);
-    assert(addr != NULL);
+    BLE_LL_ASSERT(rl != NULL);
+    BLE_LL_ASSERT(addr != NULL);
 
     OS_ENTER_CRITICAL(sr);
     if (local) {

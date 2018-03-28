@@ -136,7 +136,7 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan)
     struct os_mbuf *m;
 
     m = ble_ll_scan_get_pdu();
-    assert(m != NULL);
+    BLE_LL_ASSERT(m != NULL);
 
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
@@ -1010,7 +1010,7 @@ done:
 static void
 ble_ll_conn_hci_cancel_conn_complete_event(void)
 {
-    assert(g_ble_ll_conn_comp_ev);
+    BLE_LL_ASSERT(g_ble_ll_conn_comp_ev);
 
     ble_ll_conn_comp_event_send(NULL, BLE_ERR_UNK_CONN_ID,
                                 g_ble_ll_conn_comp_ev, NULL);
@@ -1094,7 +1094,7 @@ ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf)
                     rc = BLE_ERR_CMD_DISALLOWED;
                 } else {
                     /* This control procedure better not be pending! */
-                    assert(CONN_F_TERMINATE_STARTED(connsm) == 0);
+                    BLE_LL_ASSERT(CONN_F_TERMINATE_STARTED(connsm) == 0);
 
                     /* Record the disconnect reason */
                     connsm->disconnect_reason = reason;

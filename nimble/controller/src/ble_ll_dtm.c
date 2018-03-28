@@ -156,7 +156,7 @@ ble_ll_dtm_event(struct ble_npl_event *evt) {
 
     ble_ll_dtm_set_next(ctx);
     rc = ble_ll_sched_dtm(&ctx->sch);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 }
 
 static void
@@ -188,7 +188,7 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(channel_rf_to_index[ctx->rf_channel],
                                             BLE_DTM_SYNC_WORD, BLE_DTM_CRC);
     if (rc != 0) {
-        assert(0);
+        BLE_LL_ASSERT(0);
         return BLE_LL_SCHED_STATE_DONE;
     }
 
@@ -202,10 +202,10 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 
     /*XXX Maybe reschedule if too late */
     rc = ble_phy_tx_set_start_time(sch->start_time, sch->remainder);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
     rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, ctx->om, BLE_PHY_TRANSITION_NONE);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
@@ -242,7 +242,7 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
 
     /* MSYS is big enough to get continues memory */
     g_ble_ll_dtm_ctx.om = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
-    assert(g_ble_ll_dtm_ctx.om);
+    BLE_LL_ASSERT(g_ble_ll_dtm_ctx.om);
 
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
@@ -297,7 +297,7 @@ schedule:
 
     /* Set some start point for TX packets */
     rc = ble_ll_sched_dtm(sch);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
     ble_phy_enable_dtm();
 
@@ -345,7 +345,7 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
     g_ble_ll_dtm_ctx.active = 1;
 
     if (ble_ll_dtm_rx_start() != 0) {
-        assert(0);
+        BLE_LL_ASSERT(0);
         return 1;
     }
 
@@ -489,7 +489,7 @@ ble_ll_dtm_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     if (ble_ll_dtm_rx_start() != 0) {
-        assert(0);
+        BLE_LL_ASSERT(0);
     }
 }
 
@@ -517,7 +517,7 @@ void
 ble_ll_dtm_wfr_timer_exp(void)
 {
     /* Should not be needed */
-    assert(0);
+    BLE_LL_ASSERT(0);
 }
 
 
