@@ -146,7 +146,8 @@ int ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf);
 int ble_ll_conn_create(uint8_t *cmdbuf);
 int ble_ll_conn_hci_update(uint8_t *cmdbuf);
 int ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf);
-int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply);
+int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply,
+                                uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_create_cancel(void);
 void ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,

@@ -931,7 +931,8 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
+ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply,
+                            uint8_t *rspbuf, uint8_t *rsplen)
 {
     int rc;
     uint8_t ble_err;
@@ -942,18 +943,19 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     struct os_mbuf *om;
     struct ble_ll_conn_sm *connsm;
 
+    handle = get_le16(cmdbuf);
+
     /* See if we support this feature */
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
-        return BLE_ERR_UNKNOWN_HCI_CMD;
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        goto done;
     }
-
-    /* If no connection handle exit with error */
-    handle = get_le16(cmdbuf);
 
     /* If we dont have a handle we cant do anything */
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
-        return BLE_ERR_UNK_CONN_ID;
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
     }
 
     /* Make sure connection parameters are valid if this is a positive reply */
@@ -992,6 +994,9 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
            some state to tell us this happened */
     }
 
+done:
+    put_le16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t);
     return rc;
 }
 

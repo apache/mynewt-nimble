@@ -765,10 +765,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
-        rc = ble_ll_conn_hci_param_reply(cmdbuf, 0);
+        rc = ble_ll_conn_hci_param_reply(cmdbuf, 0, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
-        rc = ble_ll_conn_hci_param_reply(cmdbuf, 1);
+        rc = ble_ll_conn_hci_param_reply(cmdbuf, 1, rspbuf, rsplen);
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
     case BLE_HCI_OCF_LE_SET_DATA_LEN:
