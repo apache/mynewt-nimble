@@ -2005,6 +2005,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 int
 ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
+    int rc;
     uint8_t adv_filter_policy;
     uint8_t adv_chanmask;
     uint8_t own_addr_type;
@@ -2018,15 +2019,17 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint8_t sec_phy;
     uint8_t sid;
     uint8_t scan_req_notif;
-    int8_t tx_power;
+    int8_t tx_power = 0;
 
     if (cmdbuf[0] >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     advsm = &g_ble_ll_adv_sm[cmdbuf[0]];
     if (advsm->adv_enabled) {
-        return BLE_ERR_CMD_DISALLOWED;
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto done;
     }
 
     props = get_le16(&cmdbuf[1]);
@@ -2035,13 +2038,15 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     adv_itvl_max = cmdbuf[8] << 16 | cmdbuf[7] << 8 | cmdbuf[6];
 
     if (props & ~BLE_HCI_LE_SET_EXT_ADV_PROP_MASK) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         if (ADV_DATA_LEN(advsm) > BLE_ADV_LEGACY_DATA_MAX_LEN ||
             SCAN_RSP_DATA_LEN(advsm) > BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
 
         /* if legacy bit is set possible values are limited */
@@ -2053,12 +2058,14 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN:
             break;
         default:
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
     } else {
         /* HD directed advertising allowed only on legacy PDUs */
         if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
 
         /* if ext advertising PDUs are used then it shall not be both
@@ -2066,7 +2073,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
          */
         if ((props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) &&
             (props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
     }
 
@@ -2076,7 +2084,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         if (ADV_DATA_LEN(advsm) || SCAN_RSP_DATA_LEN(advsm)) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
 
         /* Ignore min/max interval */
@@ -2091,13 +2100,15 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
         (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
         (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     /* There are only three adv channels, so check for any outside the range */
     adv_chanmask = cmdbuf[9];
     if (((adv_chanmask & 0xF8) != 0) || (adv_chanmask == 0)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     /* Check own and peer address type */
@@ -2106,7 +2117,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
     if ((own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
         (peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
@@ -2117,7 +2129,8 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 #else
     /* If we dont support privacy some address types wont work */
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        return BLE_ERR_UNSUPPORTED;
+        rc = BLE_ERR_UNSUPPORTED;
+        goto done;
     }
 #endif
 
@@ -2125,29 +2138,36 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     /* Check filter policy (valid only for undirected */
     if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
          adv_filter_policy > BLE_HCI_ADV_FILT_MAX) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     pri_phy = cmdbuf[20];
     if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_CODED) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     sec_phy = cmdbuf[22];
     if (sec_phy != BLE_HCI_LE_PHY_1M && sec_phy != BLE_HCI_LE_PHY_2M &&
             sec_phy != BLE_HCI_LE_PHY_CODED) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     sid = cmdbuf[23];
     if (sid > 0x0f) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     scan_req_notif = cmdbuf[24];
     if (scan_req_notif > 0x01) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
+
+    rc = BLE_ERR_SUCCESS;
 
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
@@ -2191,10 +2211,12 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
     advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT;
 
-    rspbuf[0] = advsm->adv_txpwr;
+done:
+    /* Update TX power */
+    rspbuf[0] = ble_phy_txpower_round(tx_power);
     *rsplen = 1;
 
-    return 0;
+    return rc;
 }
 
 int
