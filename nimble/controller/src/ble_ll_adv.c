@@ -1323,7 +1323,9 @@ ble_ll_adv_halt(void)
 
         os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+            os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        }
 #endif
 
         ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
