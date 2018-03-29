@@ -251,22 +251,46 @@ ble_phy_mode_pdu_start_off(int phy_mode)
     return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
+#if MYNEWT_VAL(BSP_NRF52840)
+static inline bool
+ble_phy_mode_is_coded(uint8_t phy_mode)
+{
+    return (phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
+           (phy_mode == BLE_PHY_MODE_CODED_500KBPS);
+}
+
+static void
+ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
+{
+    bool new_coded = ble_phy_mode_is_coded(new_phy_mode);
+    bool cur_coded = ble_phy_mode_is_coded(g_ble_phy_data.phy_cur_phy_mode);
+
+    /*
+     * Workaround should be applied only when switching to/from LE Coded PHY
+     * so no need to apply it every time.
+
+     * nRF52840 Engineering A Errata v1.2
+     * [164] RADIO: Low sensitivity in long range mode
+     */
+    if (new_coded == cur_coded) {
+        return;
+    }
+
+    if (new_coded) {
+        *(volatile uint32_t *)0x4000173C |= 0x80000000;
+        *(volatile uint32_t *)0x4000173C =
+                        ((*(volatile uint32_t *)0x4000173C & 0xFFFFFF00) | 0x5C);
+    } else {
+        *(volatile uint32_t *)0x4000173C &= ~0x80000000;
+    }
+}
+#endif
+
 void
 ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
 {
 #if MYNEWT_VAL(BSP_NRF52840)
-    /*
-     * nRF52840 Engineering A Errata v1.2
-     * [164] RADIO: Low sensitivity in long range mode
-     */
-    if ((new_phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
-                                (new_phy_mode == BLE_PHY_MODE_CODED_500KBPS)) {
-        *(volatile uint32_t *)0x4000173C |= 0x80000000;
-        *(volatile uint32_t *)0x4000173C = ((*(volatile uint32_t *)0x4000173C &
-                                            0xFFFFFF00) | 0x5C);
-    } else {
-        *(volatile uint32_t *)0x4000173C &= ~0x80000000;
-    }
+    ble_phy_apply_nrf52840_errata(new_phy_mode);
 #endif
 
     switch (new_phy_mode) {
