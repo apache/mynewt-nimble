@@ -269,21 +269,28 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
     }
 #endif
 
-    if (cur_phy_mode == BLE_PHY_MODE_1M) {
+    switch (cur_phy_mode) {
+    case BLE_PHY_MODE_1M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
-    } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
+        break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    case BLE_PHY_MODE_2M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_2M;
+        break;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+    case BLE_PHY_MODE_CODED_125KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
-    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        break;
+    case BLE_PHY_MODE_CODED_500KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
+        break;
 #endif
-    } else {
+    default:
         assert(0);
     }
 
