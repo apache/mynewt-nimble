@@ -266,22 +266,34 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
     bool cur_coded = ble_phy_mode_is_coded(g_ble_phy_data.phy_cur_phy_mode);
 
     /*
-     * Workaround should be applied only when switching to/from LE Coded PHY
-     * so no need to apply it every time.
-
+     * Workarounds should be applied only when switching to/from LE Coded PHY
+     * so no need to apply them every time.
+     *
      * nRF52840 Engineering A Errata v1.2
      * [164] RADIO: Low sensitivity in long range mode
+     *
+     * nRF52840 Rev 1 Errata
+     * [191] RADIO: High packet error rate in BLE Long Range mode
      */
     if (new_coded == cur_coded) {
         return;
     }
 
     if (new_coded) {
+        /* [164] */
         *(volatile uint32_t *)0x4000173C |= 0x80000000;
         *(volatile uint32_t *)0x4000173C =
                         ((*(volatile uint32_t *)0x4000173C & 0xFFFFFF00) | 0x5C);
+        /* [191] */
+        *(volatile uint32_t *) 0x40001740 =
+                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFF00FF) |
+                        0x80000000 | (((uint32_t)(196)) << 8);
     } else {
+        /* [164] */
         *(volatile uint32_t *)0x4000173C &= ~0x80000000;
+        /* [191] */
+        *(volatile uint32_t *) 0x40001740 =
+                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFFFFFF);
     }
 }
 #endif
