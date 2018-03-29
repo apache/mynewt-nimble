@@ -252,15 +252,15 @@ ble_phy_mode_pdu_start_off(int phy_mode)
 }
 
 void
-ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
+ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
 {
 #if MYNEWT_VAL(BSP_NRF52840)
     /*
      * nRF52840 Engineering A Errata v1.2
      * [164] RADIO: Low sensitivity in long range mode
      */
-    if ((cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
-                                (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS)) {
+    if ((new_phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
+                                (new_phy_mode == BLE_PHY_MODE_CODED_500KBPS)) {
         *(volatile uint32_t *)0x4000173C |= 0x80000000;
         *(volatile uint32_t *)0x4000173C = ((*(volatile uint32_t *)0x4000173C &
                                             0xFFFFFF00) | 0x5C);
@@ -269,7 +269,7 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
     }
 #endif
 
-    switch (cur_phy_mode) {
+    switch (new_phy_mode) {
     case BLE_PHY_MODE_1M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
@@ -294,8 +294,8 @@ ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
         assert(0);
     }
 
-    g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
-    g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
+    g_ble_phy_data.phy_cur_phy_mode = new_phy_mode;
+    g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
 }
 #endif
 
