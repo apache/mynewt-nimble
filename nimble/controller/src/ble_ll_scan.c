@@ -758,12 +758,12 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
 
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
         inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-        if (!(inita[5] & 0x40)) {
-            /* Let's ignore it if address is not resolvable */
-            return;
+        if ((inita[5] & 0x40)) {
+            /* For resolvable we send separate event */
+            subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+        } else {
+            subev = BLE_HCI_LE_SUBEV_ADV_RPT;
         }
-
-        subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
         evtype = BLE_HCI_ADV_RPT_EVTYPE_DIR_IND;
         event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
         adv_data_len = 0;
