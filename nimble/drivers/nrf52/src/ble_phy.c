@@ -301,6 +301,11 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
 void
 ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
 {
+    if (new_phy_mode == g_ble_phy_data.phy_cur_phy_mode) {
+        g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
+        return;
+    }
+
 #if MYNEWT_VAL(BSP_NRF52840)
     ble_phy_apply_nrf52840_errata(new_phy_mode);
 #endif
