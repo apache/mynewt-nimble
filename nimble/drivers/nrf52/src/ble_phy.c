@@ -1309,9 +1309,19 @@ ble_phy_init(void)
 int
 ble_phy_rx(void)
 {
-    /* Check radio state */
+    /*
+     * Check radio state.
+     *
+     * In case radio is now disabling we'll wait for it to finish, but if for
+     * any reason it's just in idle state we proceed with RX as usual since
+     * nRF52 radio can ramp-up from idle state as well.
+     *
+     * Note that TX and RX states values are the same except for 3rd bit so we
+     * can make a shortcut here when checking for idle state.
+     */
     nrf_wait_disabled();
-    if (NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) {
+    if ((NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) &&
+            ((NRF_RADIO->STATE & 0x07) != RADIO_STATE_STATE_RxIdle)) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
