@@ -325,11 +325,18 @@ conn_parm_req_do_indicate:
      * need to know before we indicate to the host that they are acceptable.
      */
     if (indicate) {
+        /* If Host masked out Remote Connection Parameter Request Event, we need to
+         * send Reject back to the remote device
+         */
+        if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ)){
+            ble_err = BLE_ERR_UNSUPP_REM_FEATURE;
+            goto conn_param_pdu_exit;
+        }
+
         /*
          * Send event to host. At this point we leave and wait to get
          * an answer.
          */
-        /* XXX: what about masked out event? */
         ble_ll_hci_ev_rem_conn_parm_req(connsm, req);
         connsm->host_reply_opcode = opcode;
         connsm->csmflags.cfbit.awaiting_host_reply = 1;
@@ -1500,7 +1507,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     return rsp_opcode;
 }
 
-static void
+void
 ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
 {
     if (!(connsm->conn_features & BLE_LL_FEAT_DATA_LEN_EXT)) {

@@ -931,7 +931,8 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
+ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply,
+                            uint8_t *rspbuf, uint8_t *rsplen)
 {
     int rc;
     uint8_t ble_err;
@@ -942,18 +943,19 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
     struct os_mbuf *om;
     struct ble_ll_conn_sm *connsm;
 
+    handle = get_le16(cmdbuf);
+
     /* See if we support this feature */
     if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
-        return BLE_ERR_UNKNOWN_HCI_CMD;
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        goto done;
     }
-
-    /* If no connection handle exit with error */
-    handle = get_le16(cmdbuf);
 
     /* If we dont have a handle we cant do anything */
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
-        return BLE_ERR_UNK_CONN_ID;
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
     }
 
     /* Make sure connection parameters are valid if this is a positive reply */
@@ -992,6 +994,9 @@ ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int positive_reply)
            some state to tell us this happened */
     }
 
+done:
+    put_le16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t);
     return rc;
 }
 
@@ -1248,27 +1253,30 @@ ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     connsm = ble_ll_conn_find_active_conn(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
-    } else {
-        txoctets = get_le16(cmdbuf + 2);
-        txtime = get_le16(cmdbuf + 4);
-
-        /* Make sure it is valid */
-        if (!ble_ll_chk_txrx_octets(txoctets) ||
-            !ble_ll_chk_txrx_time(txtime)) {
-            rc = BLE_ERR_INV_HCI_CMD_PARMS;
-        } else {
-            rc = BLE_ERR_SUCCESS;
-        }
-
-        /* XXX: should I check against max supported? I think so */
-
-        /*
-         * XXX: For now; we will simply ignore what the host asks as we are
-         * allowed to do so by the spec. If we implement this and something
-         * changes we need to send data length change event.
-         */
+        goto done;
     }
 
+    txoctets = get_le16(cmdbuf + 2);
+    txtime = get_le16(cmdbuf + 4);
+
+    /* Make sure it is valid */
+    if (!ble_ll_chk_txrx_octets(txoctets) ||
+        !ble_ll_chk_txrx_time(txtime)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    rc = BLE_ERR_SUCCESS;
+    if (connsm->max_tx_time != txtime ||
+        connsm->max_tx_octets != txoctets) {
+
+        connsm->max_tx_time = txtime;
+        connsm->max_tx_octets = txoctets;
+
+        ble_ll_ctrl_initiate_dle(connsm);
+    }
+
+done:
     put_le16(rspbuf, handle);
     *rsplen = sizeof(uint16_t);
     return rc;
