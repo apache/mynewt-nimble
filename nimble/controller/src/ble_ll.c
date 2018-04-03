@@ -498,17 +498,33 @@ ble_ll_is_valid_random_addr(uint8_t *addr)
  * @return int 0: success
  */
 int
-ble_ll_set_random_addr(uint8_t *addr)
+ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
 {
-    int rc;
+    /* If the Host issues this command when scanning or legacy advertising is
+     * enabled, the Controller shall return the error code Command Disallowed.
+     *
+     * Test specification extends this also to initiating.
+     */
 
-    rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    if (ble_ll_is_valid_random_addr(addr)) {
-        memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
-        rc = BLE_ERR_SUCCESS;
+    if (g_ble_ll_conn_create_sm || ble_ll_scan_enabled() ||
+                                (!hci_adv_ext && ble_ll_adv_enabled())) {
+        return BLE_ERR_CMD_DISALLOWED;
     }
 
-    return rc;
+    if (!ble_ll_is_valid_random_addr(addr)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
+
+    /* For instance 0 we need same address if legacy advertising might be
+     * used. If extended advertising is in use than this command doesn't
+     * affect instance 0.
+     */
+    if (!hci_adv_ext)
+        ble_ll_adv_set_random_addr(addr, 0);
+
+    return BLE_ERR_SUCCESS;
 }
 
 /**
