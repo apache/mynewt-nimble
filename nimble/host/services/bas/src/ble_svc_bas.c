@@ -26,7 +26,7 @@
 #include "host/ble_gap.h"
 #include "services/bas/ble_svc_bas.h"
 
-/* Charachteristic value handles */
+/* Characteristic value handles */
 #if MYNEWT_VAL(BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE) > 0
 static uint16_t ble_svc_bas_battery_handle;
 #endif
