@@ -18,7 +18,7 @@
 #
 
 pkg.name: nimble/host/services/ias
-pkg.description: Immidiate Alert Service Implementation.
+pkg.description: Immediate Alert Service Implementation.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
