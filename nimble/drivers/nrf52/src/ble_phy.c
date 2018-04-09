@@ -251,44 +251,92 @@ ble_phy_mode_pdu_start_off(int phy_mode)
     return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
-void
-ble_phy_mode_set(int cur_phy_mode, int txtorx_phy_mode)
-{
 #if MYNEWT_VAL(BSP_NRF52840)
+static inline bool
+ble_phy_mode_is_coded(uint8_t phy_mode)
+{
+    return (phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
+           (phy_mode == BLE_PHY_MODE_CODED_500KBPS);
+}
+
+static void
+ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
+{
+    bool new_coded = ble_phy_mode_is_coded(new_phy_mode);
+    bool cur_coded = ble_phy_mode_is_coded(g_ble_phy_data.phy_cur_phy_mode);
+
     /*
+     * Workarounds should be applied only when switching to/from LE Coded PHY
+     * so no need to apply them every time.
+     *
      * nRF52840 Engineering A Errata v1.2
      * [164] RADIO: Low sensitivity in long range mode
+     *
+     * nRF52840 Rev 1 Errata
+     * [191] RADIO: High packet error rate in BLE Long Range mode
      */
-    if ((cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
-                                (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS)) {
-        *(volatile uint32_t *)0x4000173C |= 0x80000000;
-        *(volatile uint32_t *)0x4000173C = ((*(volatile uint32_t *)0x4000173C &
-                                            0xFFFFFF00) | 0x5C);
-    } else {
-        *(volatile uint32_t *)0x4000173C &= ~0x80000000;
+    if (new_coded == cur_coded) {
+        return;
     }
+
+    if (new_coded) {
+        /* [164] */
+        *(volatile uint32_t *)0x4000173C |= 0x80000000;
+        *(volatile uint32_t *)0x4000173C =
+                        ((*(volatile uint32_t *)0x4000173C & 0xFFFFFF00) | 0x5C);
+        /* [191] */
+        *(volatile uint32_t *) 0x40001740 =
+                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFF00FF) |
+                        0x80000000 | (((uint32_t)(196)) << 8);
+    } else {
+        /* [164] */
+        *(volatile uint32_t *)0x4000173C &= ~0x80000000;
+        /* [191] */
+        *(volatile uint32_t *) 0x40001740 =
+                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFFFFFF);
+    }
+}
 #endif
 
-    if (cur_phy_mode == BLE_PHY_MODE_1M) {
+void
+ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
+{
+    if (new_phy_mode == g_ble_phy_data.phy_cur_phy_mode) {
+        g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
+        return;
+    }
+
+#if MYNEWT_VAL(BSP_NRF52840)
+    ble_phy_apply_nrf52840_errata(new_phy_mode);
+#endif
+
+    switch (new_phy_mode) {
+    case BLE_PHY_MODE_1M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
-    } else if (cur_phy_mode == BLE_PHY_MODE_2M) {
+        break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    case BLE_PHY_MODE_2M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_2M;
+        break;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
+    case BLE_PHY_MODE_CODED_125KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
-    } else if (cur_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        break;
+    case BLE_PHY_MODE_CODED_500KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
+        break;
 #endif
-    } else {
+    default:
         assert(0);
     }
 
-    g_ble_phy_data.phy_cur_phy_mode = (uint8_t)cur_phy_mode;
-    g_ble_phy_data.phy_txtorx_phy_mode = (uint8_t)txtorx_phy_mode;
+    g_ble_phy_data.phy_cur_phy_mode = new_phy_mode;
+    g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
 }
 #endif
 

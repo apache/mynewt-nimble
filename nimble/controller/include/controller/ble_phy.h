@@ -215,7 +215,7 @@ void ble_phy_resolv_list_disable(void);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
 uint32_t ble_phy_mode_pdu_start_off(int phy);
-void ble_phy_mode_set(int cur_phy, int txtorx_phy);
+void ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode);
 #else
 #define ble_phy_mode_pdu_start_off(phy)     (40)
 
