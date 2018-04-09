@@ -280,20 +280,28 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
     }
 
     if (new_coded) {
+#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_164)
         /* [164] */
         *(volatile uint32_t *)0x4000173C |= 0x80000000;
         *(volatile uint32_t *)0x4000173C =
                         ((*(volatile uint32_t *)0x4000173C & 0xFFFFFF00) | 0x5C);
+#endif
+#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_191)
         /* [191] */
         *(volatile uint32_t *) 0x40001740 =
                         ((*((volatile uint32_t *) 0x40001740)) & 0x7FFF00FF) |
                         0x80000000 | (((uint32_t)(196)) << 8);
+#endif
     } else {
+#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_164)
         /* [164] */
         *(volatile uint32_t *)0x4000173C &= ~0x80000000;
+#endif
+#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_191)
         /* [191] */
         *(volatile uint32_t *) 0x40001740 =
                         ((*((volatile uint32_t *) 0x40001740)) & 0x7FFFFFFF);
+#endif
     }
 }
 #endif

@@ -52,3 +52,21 @@ syscfg.defs:
             state when wfr timer expires.
             This can be used to check if wfr is calculated properly.
         value: -1
+
+    BLE_PHY_NRF52840_ERRATA_164:
+        description: >
+            Enable workaround for anomaly 164 found in nRF52840.
+            "[164] RADIO: Low selectivity in long range mode"
+            This shall be only enabled for:
+            - nRF52840 Engineering A
+        value: 0
+
+    BLE_PHY_NRF52840_ERRATA_191:
+        description: >
+            Enable workaround for anomaly 191 found in nRF52840.
+            "[191] RADIO: High packet error rate in BLE Long Range mode"
+            This shall be only enabled for:
+            - nRF52840 Engineering B
+            - nRF52840 Engineering C
+            - nRF52840 Rev 1 (final silicon)
+        value: 1
