@@ -3352,13 +3352,19 @@ ble_ll_adv_reset(void)
 }
 
 /* Called to determine if advertising is enabled.
- *
- * NOTE: this currently only applies to the default advertising index.
  */
 uint8_t
 ble_ll_adv_enabled(void)
 {
-    return g_ble_ll_adv_sm[0].adv_enabled;
+    int i;
+
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (g_ble_ll_adv_sm[i].adv_enabled) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static void

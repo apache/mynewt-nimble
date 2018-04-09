@@ -447,7 +447,7 @@ void ble_ll_event_send(struct os_event *ev);
 void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);
 
 /* Set random address */
-int ble_ll_set_random_addr(uint8_t *addr);
+int ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext);
 
 /* Enable wait for response timer */
 void ble_ll_wfr_enable(uint32_t cputime);
