@@ -524,7 +524,7 @@ ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
      */
     if (!hci_adv_ext)
         ble_ll_adv_set_random_addr(addr, 0);
-#endif;
+#endif
 
     return BLE_ERR_SUCCESS;
 }
