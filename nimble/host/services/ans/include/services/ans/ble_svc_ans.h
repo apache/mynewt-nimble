@@ -25,7 +25,7 @@ struct ble_hs_cfg;
 /* 16 Bit Alert Notification Service UUID */
 #define BLE_SVC_ANS_UUID16                                  0x1811
 
-/* 16 Bit Alert Notification Servivce Characteristic UUIDs */
+/* 16 Bit Alert Notification Service Characteristic UUIDs */
 #define BLE_SVC_ANS_CHR_UUID16_SUP_NEW_ALERT_CAT            0x2a47
 #define BLE_SVC_ANS_CHR_UUID16_NEW_ALERT                    0x2a46
 #define BLE_SVC_ANS_CHR_UUID16_SUP_UNR_ALERT_CAT            0x2a48
@@ -70,7 +70,7 @@ struct ble_hs_cfg;
 #define BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE             4
 #define BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE             5
 
-/* Error Defeinitions */
+/* Error Definitions */
 #define BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED                   0xA0
 
 void ble_svc_ans_on_gap_connect(uint16_t conn_handle);

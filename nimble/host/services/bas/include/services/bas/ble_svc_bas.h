@@ -23,7 +23,7 @@
 /* 16 Bit Battery Service UUID */
 #define BLE_SVC_BAS_UUID16                                   0x180F
 
-/* 16 Bit Alert Notification Servivce Characteristic UUIDs */
+/* 16 Bit Battery Service Characteristic UUIDs */
 #define BLE_SVC_BAS_CHR_UUID16_BATTERY_LEVEL                 0x2A19
 
 void ble_svc_bas_on_gap_connect(uint16_t conn_handle);
