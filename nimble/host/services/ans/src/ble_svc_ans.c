@@ -46,7 +46,7 @@ static uint8_t ble_svc_ans_alert_not_ctrl_pt[2];
 static uint8_t ble_svc_ans_new_alert_cnt[BLE_SVC_ANS_CAT_NUM];
 static uint8_t ble_svc_ans_unr_alert_cnt[BLE_SVC_ANS_CAT_NUM];
 
-/* Charachteristic value handles */
+/* Characteristic value handles */
 static uint16_t ble_svc_ans_new_alert_val_handle;
 static uint16_t ble_svc_ans_unr_alert_val_handle;
 
