@@ -739,7 +739,11 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_hci_le_read_local_features(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_RAND_ADDR:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         rc = ble_ll_set_random_addr(cmdbuf, hci_adv_mode == ADV_MODE_EXT);
+#else
+        rc = ble_ll_set_random_addr(cmdbuf, false);
+#endif
         break;
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
         rc = ble_ll_adv_set_adv_params(cmdbuf);
