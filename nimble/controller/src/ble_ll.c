@@ -517,12 +517,14 @@ ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
 
     memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* For instance 0 we need same address if legacy advertising might be
      * used. If extended advertising is in use than this command doesn't
      * affect instance 0.
      */
     if (!hci_adv_ext)
         ble_ll_adv_set_random_addr(addr, 0);
+#endif;
 
     return BLE_ERR_SUCCESS;
 }
