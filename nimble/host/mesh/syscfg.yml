@@ -40,7 +40,7 @@ syscfg.defs:
     BLE_MESH_PB_GATT:
         description: >
            Enable this option to allow the device to be provisioned over
-           the advertising bearer.
+           the GATT bearer.
         value: 1
 
     BLE_MESH_GATT_PROXY:
