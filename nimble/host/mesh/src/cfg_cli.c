@@ -163,7 +163,9 @@ static void net_key_status(struct bt_mesh_model *model,
 		return;
 	}
 
-	*param->status = status;
+	if (param->status) {
+		*param->status = status;
+	}
 
 	k_sem_give(&cli->op_sync);
 }
@@ -200,7 +202,9 @@ static void app_key_status(struct bt_mesh_model *model,
 		return;
 	}
 
-	*param->status = status;
+	if (param->status) {
+		*param->status = status;
+	}
 
 	k_sem_give(&cli->op_sync);
 }
@@ -250,7 +254,9 @@ static void mod_app_status(struct bt_mesh_model *model,
 		return;
 	}
 
-	*param->status = status;
+	if (param->status) {
+		*param->status = status;
+	}
 
 	k_sem_give(&cli->op_sync);
 }
