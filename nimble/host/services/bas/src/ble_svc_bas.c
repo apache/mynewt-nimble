@@ -133,8 +133,6 @@ ble_svc_bas_battery_level_set(uint8_t level) {
 
 /**
  * Initialize the Battery Service.
- * 
- * @return 0 on success, non-zero error code otherwise.
  */
 void
 ble_svc_bas_init(void)
