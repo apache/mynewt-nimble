@@ -443,8 +443,6 @@ ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
  * 
  * XXX: We should technically be able to change the new alert and
  *      unread alert catagories when we have no active connections.
- * 
- * @return 0 on success, non-zero error code otherwise.
  */
 void
 ble_svc_ans_init(void)
