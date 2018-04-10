@@ -148,12 +148,11 @@ void bt_mesh_reset(void)
 
 	bt_mesh_comp_unprovision();
 
-	bt_mesh.iv_index = 0;
-	bt_mesh.seq = 0;
-	bt_mesh.iv_update = 0;
-	bt_mesh.pending_update = 0;
-	bt_mesh.valid = 0;
-	bt_mesh.last_update = 0;
+	bt_mesh_net_set_iv_index(0, false);
+	bt_mesh_net_set_sequence_number(0);
+	bt_mesh_net_set_pending_update(false);
+	bt_mesh_net_set_valid(false);
+	bt_mesh_net_set_last_update(0);
 	bt_mesh.ivu_initiator = 0;
 
 	k_delayed_work_cancel(&bt_mesh.ivu_complete);

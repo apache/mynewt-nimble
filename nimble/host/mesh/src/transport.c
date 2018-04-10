@@ -176,13 +176,13 @@ static void seg_tx_reset(struct seg_tx *tx)
 
 	tx->nack_count = 0;
 
-	if (bt_mesh.pending_update) {
+	if (bt_mesh_net_get_pending_update()) {
 		BT_DBG("Proceding with pending IV Update");
-		bt_mesh.pending_update = 0;
+		bt_mesh_net_set_pending_update(false);
 		/* bt_mesh_net_iv_update() will re-enable the flag if this
 		 * wasn't the only transfer.
 		 */
-		if (bt_mesh_net_iv_update(bt_mesh.iv_index, false)) {
+		if (bt_mesh_net_iv_update(bt_mesh_net_get_iv_index(NULL), false)) {
 			bt_mesh_net_sec_update(NULL);
 		}
 	}
@@ -322,7 +322,7 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 	tx->dst = net_tx->ctx->addr;
 	tx->seg_n = (sdu->om_len - 1) / 12;
 	tx->nack_count = tx->seg_n + 1;
-	tx->seq_auth = SEQ_AUTH(BT_MESH_NET_IVI_TX, bt_mesh.seq);
+	tx->seq_auth = SEQ_AUTH(BT_MESH_NET_IVI_TX, bt_mesh_net_get_sequence_number());
 	tx->sub = net_tx->sub;
 	tx->new_key = net_tx->sub->kr_flag;
 	tx->cb = cb;
@@ -480,7 +480,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 
 	err = bt_mesh_app_encrypt(key, tx->ctx->app_idx == BT_MESH_KEY_DEV,
 				  tx->aszmic, msg, ad, tx->src,
-				  tx->ctx->addr, bt_mesh.seq,
+				  tx->ctx->addr, bt_mesh_net_get_sequence_number(),
 				  BT_MESH_NET_IVI_TX);
 	if (err) {
 		return err;
