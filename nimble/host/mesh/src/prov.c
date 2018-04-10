@@ -1073,6 +1073,13 @@ static void prov_data(const u8_t *data)
 
 	bt_mesh_provision(pdu, net_idx, flags, iv_index, 0, addr, dev_key);
 
+#if MYNEWT_VAL(BLE_MESH_PB_GATT) && MYNEWT_VAL(BLE_MESH_GATT_PROXY)
+	/* After PB-GATT provisioning we should start advertising
+	 * using Node Identity.
+	 */
+	bt_mesh_proxy_identity_enable();
+#endif
+
 done:
 	os_mbuf_free_chain(msg);
 }

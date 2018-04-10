@@ -133,7 +133,7 @@ void bt_test_print_credentials(void)
 
 	for (i = 0; i < MYNEWT_VAL(BLE_MESH_SUBNET_COUNT); ++i)
 	{
-		if (bt_mesh.app_keys[i].net_idx == BT_MESH_KEY_UNUSED) {
+		if (bt_mesh.sub[i].net_idx == BT_MESH_KEY_UNUSED) {
 			continue;
 		}
 
