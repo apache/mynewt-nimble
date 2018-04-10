@@ -692,7 +692,8 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
  *              256 gets added to the return value.
  */
 static int
-ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
+ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
+                                            ble_ll_hci_post_cmd_complete_cb *cb)
 {
     int rc;
     uint8_t cmdlen;
@@ -772,7 +773,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         rc = ble_ll_conn_create(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
-        rc = ble_ll_conn_create_cancel();
+        rc = ble_ll_conn_create_cancel(cb);
         break;
     case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
         rc = ble_ll_whitelist_clear();
@@ -1166,6 +1167,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     uint8_t *cmdbuf;
     uint16_t opcode;
     uint16_t ocf;
+    ble_ll_hci_post_cmd_complete_cb post_cb = NULL;
 
     /* The command buffer is the event argument */
     cmdbuf = (uint8_t *)ev->ev_arg;
@@ -1193,7 +1195,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
         rc = ble_ll_hci_status_params_cmd_proc(cmdbuf, ocf, &rsplen);
         break;
     case BLE_HCI_OGF_LE:
-        rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen);
+        rc = ble_ll_hci_le_cmd_proc(cmdbuf, ocf, &rsplen, &post_cb);
         break;
     default:
         /* XXX: Need to support other OGF. For now, return unsupported */
@@ -1229,6 +1231,11 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
 
     /* Send the event (events cannot be masked) */
     ble_ll_hci_event_send(cmdbuf);
+
+    /* Call post callback if set by command handler */
+    if (post_cb) {
+        post_cb();
+    }
 }
 
 /**

@@ -246,6 +246,11 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             put_le16(evdata + 2, connsm->slave_latency);
             put_le16(evdata + 4, connsm->supervision_tmo);
             evdata[6] = connsm->master_sca;
+        } else {
+            /* zero remaining bytes of event (2 bytes used for subevent opcode
+             * and status)
+             **/
+            memset(&evbuf[4], 0, evbuf[1] - 2);
         }
         ble_ll_hci_event_send(evbuf);
     }
@@ -1000,6 +1005,19 @@ done:
     return rc;
 }
 
+/* this is called from same context after cmd complete is send so it is
+ * safe to use g_ble_ll_conn_comp_ev
+ */
+static void
+ble_ll_conn_hci_cancel_conn_complete_event(void)
+{
+    assert(g_ble_ll_conn_comp_ev);
+
+    ble_ll_conn_comp_event_send(NULL, BLE_ERR_UNK_CONN_ID,
+                                g_ble_ll_conn_comp_ev, NULL);
+    g_ble_ll_conn_comp_ev = NULL;
+}
+
 /**
  * Called when HCI command to cancel a create connection command has been
  * received.
@@ -1009,12 +1027,11 @@ done:
  * @return int
  */
 int
-ble_ll_conn_create_cancel(void)
+ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
 {
     int rc;
     struct ble_ll_conn_sm *connsm;
 
-    /* XXX: BUG! I send the event before the command complete. Not good. */
     /*
      * If we receive this command and we have not got a connection
      * create command, we have to return disallowed. The spec does not say
@@ -1027,6 +1044,9 @@ ble_ll_conn_create_cancel(void)
         g_ble_ll_conn_create_sm = NULL;
         ble_ll_scan_sm_stop(1);
         ble_ll_conn_end(connsm, BLE_ERR_UNK_CONN_ID);
+
+        *post_cmd_cb = ble_ll_conn_hci_cancel_conn_complete_event;
+
         rc = BLE_ERR_SUCCESS;
     } else {
         /* If we are not attempting to create a connection*/

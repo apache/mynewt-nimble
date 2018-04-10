@@ -59,6 +59,9 @@ extern "C" {
 #define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     \
     ((((uint32_t)(x)) * 10 * OS_TICKS_PER_SEC) / 1000)
 
+
+typedef void (*ble_ll_hci_post_cmd_complete_cb)(void);
+
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params
 {
@@ -148,7 +151,7 @@ int ble_ll_conn_hci_update(uint8_t *cmdbuf);
 int ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf);
 int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply,
                                 uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_conn_create_cancel(void);
+int ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb);
 void ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                                  uint8_t *evbuf, struct ble_ll_adv_sm *advsm);
