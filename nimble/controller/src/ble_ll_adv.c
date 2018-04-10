@@ -3270,15 +3270,15 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    ble_ll_hci_ev_le_csa(connsm);
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT) {
         ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
                                           connsm->conn_handle, advsm->events);
     }
-#endif
-
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
-    ble_ll_hci_ev_le_csa(connsm);
 #endif
 }
 
