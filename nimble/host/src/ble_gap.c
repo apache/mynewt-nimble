@@ -1326,60 +1326,50 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
 
     STATS_INC(ble_gap_stats, rx_conn_complete);
 
-    /* Apply the event to the existing connection if it exists. */
-    if (evt->status != BLE_ERR_UNK_CONN_ID &&
-        ble_hs_atomic_conn_flags(evt->connection_handle, NULL) == 0) {
-
-        /* XXX: Does this ever happen? */
-
-        if (evt->status != 0) {
-            ble_gap_conn_broken(evt->connection_handle,
-                                BLE_HS_HCI_ERR(evt->status));
-        }
-        return 0;
-    }
-
-    /* This event refers to a new connection. */
-
+    /* in that case *only* status field is valid so we determine role
+     * based on error code
+     */
     if (evt->status != BLE_ERR_SUCCESS) {
-        /* Determine the role from the status code. */
-        if (evt->status == BLE_ERR_DIR_ADV_TMO) {
-            evt->role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
-        }
-
-        switch (evt->role) {
-        case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:
-            if (ble_gap_master_in_progress()) {
-                if (evt->status == BLE_ERR_UNK_CONN_ID) {
-                    /* Connect procedure successfully cancelled. */
-                    if (ble_gap_master.preempted_op == BLE_GAP_OP_M_CONN) {
-                        ble_gap_master_failed(BLE_HS_EPREEMPTED);
-                    } else {
-                        ble_gap_master_connect_cancelled();
-                    }
-                } else {
-                    ble_gap_master_failed(BLE_HS_HCI_ERR(evt->status));
-                }
-            }
-            break;
-
-        case BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE:
-/* with ext advertising this is send from set terminated event */
+        switch (evt->status) {
+        case BLE_ERR_DIR_ADV_TMO:
+            /* slave role (HD directed advertising)
+             *
+             * with ext advertising this is send from set terminated event
+             */
 #if !MYNEWT_VAL(BLE_EXT_ADV)
             if (ble_gap_adv_active()) {
                 ble_gap_adv_finished(0, 0, 0);
             }
 #endif
             break;
-
+        case BLE_ERR_UNK_CONN_ID:
+            /* master role */
+            if (ble_gap_master_in_progress()) {
+                /* Connect procedure successfully cancelled. */
+                if (ble_gap_master.preempted_op == BLE_GAP_OP_M_CONN) {
+                    ble_gap_master_failed(BLE_HS_EPREEMPTED);
+                } else {
+                    ble_gap_master_connect_cancelled();
+                }
+            }
+            break;
         default:
-            BLE_HS_LOG(INFO, "controller reported invalid role in connection "
-                             " complete event: %d", evt->role);
+            /* this should never happen, unless controller is broken */
+            BLE_HS_LOG(INFO, "controller reported invalid error code in conn"
+                             "complete event: %u", evt->status);
+            assert(0);
             break;
         }
-
         return 0;
     }
+
+    /* Apply the event to the existing connection if it exists. */
+    if (ble_hs_atomic_conn_flags(evt->connection_handle, NULL) == 0) {
+        /* XXX: Does this ever happen? */
+        return 0;
+    }
+
+    /* This event refers to a new connection. */
 
     switch (evt->role) {
     case BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER:

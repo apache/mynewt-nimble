@@ -2070,7 +2070,6 @@ ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
 void
 ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
-    uint8_t *evbuf;
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
@@ -2136,21 +2135,16 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     }
 
     /*
-     * We need to send a disconnection complete event or a connection complete
-     * event when the connection ends. We send a connection complete event
-     * only when we were told to cancel the connection creation. If the
-     * ble error is "success" it means that the reset command was received
-     * and we should not send an event
+     * We need to send a disconnection complete event. Connection Complete for
+     * canceling connection creation is sent from LE Create Connection Cancel
+     * Command handler.
+     *
+     * If the ble error is "success" it means that the reset command was
+     * received and we should not send an event.
      */
-    if (ble_err) {
-
-        if ((connsm->csmflags.cfbit.terminate_ind_rxd == 0) &&
-            (ble_err == BLE_ERR_UNK_CONN_ID)) {
-            evbuf = ble_ll_init_get_conn_comp_ev();
-            ble_ll_conn_comp_event_send(connsm, ble_err, evbuf, NULL);
-        } else {
-            ble_ll_disconn_comp_event_send(connsm, ble_err);
-        }
+    if (ble_err && (ble_err != BLE_ERR_UNK_CONN_ID ||
+                                connsm->csmflags.cfbit.terminate_ind_rxd)) {
+        ble_ll_disconn_comp_event_send(connsm, ble_err);
     }
 
     /*
