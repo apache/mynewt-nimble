@@ -82,19 +82,55 @@ static ble_hci_trans_rx_acl_fn *ble_hci_uart_rx_acl_cb;
 static void *ble_hci_uart_rx_acl_arg;
 
 static struct os_mempool ble_hci_uart_evt_hi_pool;
-static void *ble_hci_uart_evt_hi_buf;
+static os_membuf_t ble_hci_uart_evt_hi_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
+
 static struct os_mempool ble_hci_uart_evt_lo_pool;
-static void *ble_hci_uart_evt_lo_buf;
+static os_membuf_t ble_hci_uart_evt_lo_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
 
 static struct os_mempool ble_hci_uart_cmd_pool;
-static void *ble_hci_uart_cmd_buf;
-
-static struct os_mempool ble_hci_uart_pkt_pool;
-static void *ble_hci_uart_pkt_buf;
+static os_membuf_t ble_hci_uart_cmd_buf[
+	OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
+];
 
 static struct os_mbuf_pool ble_hci_uart_acl_mbuf_pool;
 static struct os_mempool_ext ble_hci_uart_acl_pool;
-static void *ble_hci_uart_acl_buf;
+
+/*
+ * The MBUF payload size must accommodate the HCI data header size plus the
+ * maximum ACL data packet length. The ACL block size is the size of the
+ * mbufs we will allocate.
+ */
+#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
+                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
+                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
+
+static os_membuf_t ble_hci_uart_acl_buf[
+	OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                        ACL_BLOCK_SIZE)
+];
+
+/**
+ * A packet to be sent over the UART.  This can be a command, an event, or ACL
+ * data.
+ */
+struct ble_hci_uart_pkt {
+    STAILQ_ENTRY(ble_hci_uart_pkt) next;
+    void *data;
+    uint8_t type;
+};
+
+static struct os_mempool ble_hci_uart_pkt_pool;
+static os_membuf_t ble_hci_uart_pkt_buf[
+        OS_MEMPOOL_SIZE(BLE_HCI_UART_EVT_COUNT + 1 +
+                        MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
+                        sizeof (struct ble_hci_uart_pkt))
+];
 
 /**
  * An incoming or outgoing command or event.
@@ -113,16 +149,6 @@ struct ble_hci_uart_acl {
     uint8_t *dptr;       /* Pointer to where bytes should be placed */
     uint16_t len;        /* Target size when buf is considered complete */
     uint16_t rxd_bytes;  /* current count of bytes received for packet */
-};
-
-/**
- * A packet to be sent over the UART.  This can be a command, an event, or ACL
- * data.
- */
-struct ble_hci_uart_pkt {
-    STAILQ_ENTRY(ble_hci_uart_pkt) next;
-    void *data;
-    uint8_t type;
 };
 
 /**
@@ -152,8 +178,6 @@ static struct {
     };
     STAILQ_HEAD(, ble_hci_uart_pkt) tx_pkts; /* Packet queue to send to UART */
 } ble_hci_uart_state;
-
-static uint16_t ble_hci_uart_max_acl_datalen;
 
 /**
  * Allocates a buffer (mbuf) for ACL operation.
@@ -617,7 +641,7 @@ ble_hci_uart_rx_acl(uint8_t data)
          * Data portion cannot exceed data length of acl buffer. If it does
          * this is considered to be a loss of sync.
          */
-        if (pktlen > ble_hci_uart_max_acl_datalen) {
+        if (pktlen > MYNEWT_VAL(BLE_ACL_BUF_SIZE)) {
             os_mbuf_free_chain(ble_hci_uart_state.rx_acl.buf);
 #if MYNEWT_VAL(BLE_DEVICE)
             ble_hci_uart_sync_lost();
@@ -1023,33 +1047,21 @@ ble_hci_trans_reset(void)
 void
 ble_hci_uart_init(void)
 {
-    int acl_data_length;
-    int acl_block_size;
     int rc;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
-    /*
-     * The MBUF payload size must accommodate the HCI data header size plus the
-     * maximum ACL data packet length. The ACL block size is the size of the
-     * mbufs we will allocate.
-     */
-    acl_data_length = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
-    ble_hci_uart_max_acl_datalen = acl_data_length;
-    acl_block_size = acl_data_length + BLE_MBUF_MEMBLOCK_OVERHEAD +
-        BLE_HCI_DATA_HDR_SZ;
-    acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
-    rc = mem_malloc_mempool_ext(&ble_hci_uart_acl_pool,
-                                MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                                acl_block_size,
-                                "ble_hci_uart_acl_pool",
-                                &ble_hci_uart_acl_buf);
+    rc = os_mempool_ext_init(&ble_hci_uart_acl_pool,
+                             MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                             ACL_BLOCK_SIZE,
+                             ble_hci_uart_acl_buf,
+                             "ble_hci_uart_acl_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool,
                            &ble_hci_uart_acl_pool.mpe_mp,
-                           acl_block_size,
+                           ACL_BLOCK_SIZE,
                            MYNEWT_VAL(BLE_ACL_BUF_COUNT));
     SYSINIT_PANIC_ASSERT(rc == 0);
 
@@ -1059,25 +1071,25 @@ ble_hci_uart_init(void)
      * outstanding command. We decided to keep this a pool in case we allow
      * allow the controller to handle more than one outstanding command.
      */
-    rc = mem_malloc_mempool(&ble_hci_uart_cmd_pool,
-                            1,
-                            BLE_HCI_TRANS_CMD_SZ,
-                            "ble_hci_uart_cmd_pool",
-                            &ble_hci_uart_cmd_buf);
+    rc = os_mempool_init(&ble_hci_uart_cmd_pool,
+                         1,
+                         BLE_HCI_TRANS_CMD_SZ,
+                         ble_hci_uart_cmd_buf,
+                         "ble_hci_uart_cmd_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = mem_malloc_mempool(&ble_hci_uart_evt_hi_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_uart_evt_hi_pool",
-                            &ble_hci_uart_evt_hi_buf);
+    rc = os_mempool_init(&ble_hci_uart_evt_hi_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         ble_hci_uart_evt_hi_buf,
+                         "ble_hci_uart_evt_hi_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = mem_malloc_mempool(&ble_hci_uart_evt_lo_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_uart_evt_lo_pool",
-                            &ble_hci_uart_evt_lo_buf);
+    rc = os_mempool_init(&ble_hci_uart_evt_lo_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         ble_hci_uart_evt_lo_buf,
+                         "ble_hci_uart_evt_lo_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     /*
@@ -1086,12 +1098,12 @@ ble_hci_uart_init(void)
      * and lo), the number of command buffers (currently 1) and the total
      * number of buffers that the controller could possibly hand to the host.
      */
-    rc = mem_malloc_mempool(&ble_hci_uart_pkt_pool,
-                            BLE_HCI_UART_EVT_COUNT + 1 +
-                                MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
-                            sizeof (struct ble_hci_uart_pkt),
-                            "ble_hci_uart_pkt_pool",
-                            &ble_hci_uart_pkt_buf);
+    rc = os_mempool_init(&ble_hci_uart_pkt_pool,
+                         BLE_HCI_UART_EVT_COUNT + 1 +
+                         MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
+                         sizeof (struct ble_hci_uart_pkt),
+                         ble_hci_uart_pkt_buf,
+                         "ble_hci_uart_pkt_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_hci_uart_config();

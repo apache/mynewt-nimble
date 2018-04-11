@@ -145,16 +145,38 @@ STATS_NAME_END(hci_sock_stats)
 struct os_task ble_sock_task;
 
 static struct os_mempool ble_hci_sock_evt_hi_pool;
-static void *ble_hci_sock_evt_hi_buf;
+static os_membuf_t ble_hci_sock_evt_hi_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
+
 static struct os_mempool ble_hci_sock_evt_lo_pool;
-static void *ble_hci_sock_evt_lo_buf;
+static os_membuf_t ble_hci_sock_evt_lo_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
 
 static struct os_mempool ble_hci_sock_cmd_pool;
-static void *ble_hci_sock_cmd_buf;
+static os_membuf_t ble_hci_sock_cmd_buf[
+        OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
+];
 
-static struct os_mbuf_pool ble_hci_sock_acl_mbuf_pool;
 static struct os_mempool ble_hci_sock_acl_pool;
-static void *ble_hci_sock_acl_buf;
+static struct os_mbuf_pool ble_hci_sock_acl_mbuf_pool;
+
+#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
+                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
+                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
+/*
+ * The MBUF payload size must accommodate the HCI data header size plus the
+ * maximum ACL data packet length. The ACL block size is the size of the
+ * mbufs we will allocate.
+ */
+
+static os_membuf_t ble_hci_sock_acl_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                        ACL_BLOCK_SIZE)
+];
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_sock_rx_cmd_cb;
 static void *ble_hci_sock_rx_cmd_arg;
@@ -752,8 +774,6 @@ ble_hci_sock_init_task(void)
 void
 ble_hci_sock_init(void)
 {
-    int acl_data_length;
-    int acl_block_size;
     int rc;
 
     /* Ensure this function only gets called by sysinit. */
@@ -765,25 +785,16 @@ ble_hci_sock_init(void)
     ble_hci_sock_init_task();
     ble_hci_sock_state.ev.ev_cb = ble_hci_sock_rx_ev;
 
-    /*
-     * The MBUF payload size must accommodate the HCI data header size plus the
-     * maximum ACL data packet length. The ACL block size is the size of the
-     * mbufs we will allocate.
-     */
-    acl_data_length = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
-    acl_block_size = acl_data_length + BLE_MBUF_MEMBLOCK_OVERHEAD +
-                     BLE_HCI_DATA_HDR_SZ;
-    acl_block_size = OS_ALIGN(acl_block_size, OS_ALIGNMENT);
-    rc = mem_malloc_mempool(&ble_hci_sock_acl_pool,
-                            MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                            acl_block_size,
-                            "ble_hci_sock_acl_pool",
-                            &ble_hci_sock_acl_buf);
+    rc = os_mempool_init(&ble_hci_sock_acl_pool,
+                         MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                         ACL_BLOCK_SIZE,
+                         ble_hci_sock_acl_buf,
+                         "ble_hci_sock_acl_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = os_mbuf_pool_init(&ble_hci_sock_acl_mbuf_pool,
                            &ble_hci_sock_acl_pool,
-                           acl_block_size,
+                           ACL_BLOCK_SIZE,
                            MYNEWT_VAL(BLE_ACL_BUF_COUNT));
     SYSINIT_PANIC_ASSERT(rc == 0);
 
@@ -793,32 +804,32 @@ ble_hci_sock_init(void)
      * outstanding command. We decided to keep this a pool in case we allow
      * allow the controller to handle more than one outstanding command.
      */
-    rc = mem_malloc_mempool(&ble_hci_sock_cmd_pool,
-                            1,
-                            BLE_HCI_TRANS_CMD_SZ,
-                            "ble_hci_sock_cmd_pool",
-                            &ble_hci_sock_cmd_buf);
+    rc = os_mempool_init(&ble_hci_sock_cmd_pool,
+                         1,
+                         BLE_HCI_TRANS_CMD_SZ,
+                         &ble_hci_sock_cmd_buf,
+                         "ble_hci_sock_cmd_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = mem_malloc_mempool(&ble_hci_sock_evt_hi_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_sock_evt_hi_pool",
-                            &ble_hci_sock_evt_hi_buf);
+    rc = os_mempool_init(&ble_hci_sock_evt_hi_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         &ble_hci_sock_evt_hi_buf,
+                         "ble_hci_sock_evt_hi_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = mem_malloc_mempool(&ble_hci_sock_evt_lo_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_sock_evt_lo_pool",
-                            &ble_hci_sock_evt_lo_buf);
+    rc = os_mempool_init(&ble_hci_sock_evt_lo_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         ble_hci_sock_evt_lo_buf,
+                         "ble_hci_sock_evt_lo_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_hci_sock_config();
     SYSINIT_PANIC_ASSERT_MSG(rc == 0, "Failure configuring socket HCI");
 
     rc = stats_init_and_reg(STATS_HDR(hci_sock_stats),
-                          STATS_SIZE_INIT_PARMS(hci_sock_stats, STATS_SIZE_32),
-                          STATS_NAME_INIT_PARMS(hci_sock_stats), "hci_socket");
+                            STATS_SIZE_INIT_PARMS(hci_sock_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(hci_sock_stats), "hci_socket");
     SYSINIT_PANIC_ASSERT(rc == 0);
 }

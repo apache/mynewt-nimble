@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-int ble_hci_ram_init(void);
+void ble_hci_ram_init(void);
 
 #ifdef __cplusplus
 }
