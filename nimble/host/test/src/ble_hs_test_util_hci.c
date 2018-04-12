@@ -577,7 +577,8 @@ ble_hs_test_util_hci_rx_conn_cancel_evt(void)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
-    evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
+    /* test if host correctly ignores other fields if status is error */
+    evt.connection_handle = 0x0fff;
 
     rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);

@@ -993,6 +993,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
 {
     static const ble_addr_t peer_addr = {BLE_ADDR_PUBLIC, {1, 2, 3, 4, 5, 6}};
     struct hci_le_conn_complete evt;
+    struct hci_disconn_complete disc_evt;
     int rc;
 
     ble_gap_test_util_init();
@@ -1005,8 +1006,11 @@ TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
     /* Controller indicates failure via connect complete event. */
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
-    evt.status = BLE_ERR_CONN_ACCEPT_TMO;
+    evt.status = BLE_ERR_SUCCESS;
+    evt.connection_handle = 6;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
+    evt.peer_addr_type = BLE_ADDR_PUBLIC;
+    memcpy(evt.peer_addr, peer_addr.val, 6);
 
     rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);
@@ -1014,7 +1018,19 @@ TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
     /* Ensure failed connect was reported to application. */
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(ble_gap_test_event.connect.status ==
-                BLE_HS_HCI_ERR(BLE_ERR_CONN_ACCEPT_TMO));
+                BLE_HS_HCI_ERR(BLE_ERR_SUCCESS));
+
+    memset(&disc_evt, 0, sizeof disc_evt);
+    disc_evt.connection_handle = 6;
+    disc_evt.status = BLE_ERR_SUCCESS;
+    disc_evt.reason = BLE_ERR_CONN_ESTABLISHMENT;
+
+    ble_gap_rx_disconn_complete(&disc_evt);
+
+    /* Ensure failed connect was reported to application. */
+    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_DISCONNECT);
+    TEST_ASSERT(ble_gap_test_event.disconnect.reason ==
+                BLE_HS_HCI_ERR(BLE_ERR_CONN_ESTABLISHMENT));
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_gen)
@@ -1055,6 +1071,9 @@ ble_gap_test_util_conn_cancel(uint8_t hci_status)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
+    /* test if host correctly ignores other fields if status is error */
+    evt.connection_handle = 0x0fff;
+
     rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
@@ -1489,9 +1508,18 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
             memset(&evt, 0, sizeof evt);
             evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
             evt.status = connect_status;
-            evt.connection_handle = 2;
-            evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
-            memcpy(evt.peer_addr, peer_addr->val, 6);
+
+            if (connect_status == BLE_ERR_SUCCESS) {
+                evt.connection_handle = 2;
+                evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
+                memcpy(evt.peer_addr, peer_addr->val, 6);
+            } else {
+                /* test if host correctly ignores other fields if status is
+                 * error
+                 */
+                evt.connection_handle = 0x0fff;
+            }
+
             rc = ble_gap_rx_conn_complete(&evt, 0);
             TEST_ASSERT(rc == 0);
 
@@ -2773,6 +2801,9 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
     memset(&evt, 0, sizeof evt);
     evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
+    /* test if host correctly ignores other fields if status is error */
+    evt.connection_handle = 0x0fff;
+
     rc = ble_gap_rx_conn_complete(&evt, 0);
     TEST_ASSERT_FATAL(rc == 0);
 

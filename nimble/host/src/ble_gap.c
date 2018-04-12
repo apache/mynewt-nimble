@@ -449,7 +449,7 @@ ble_gap_extract_conn_cb(uint16_t conn_handle,
 {
     const struct ble_hs_conn *conn;
 
-    BLE_HS_DBG_ASSERT(conn_handle != 0);
+    BLE_HS_DBG_ASSERT(conn_handle <= BLE_HCI_LE_CONN_HANDLE_MAX);
 
     ble_hs_lock();
 

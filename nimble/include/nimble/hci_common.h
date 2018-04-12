@@ -745,6 +745,9 @@ extern "C" {
 #define BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER    (0x00)
 #define BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE     (0x01)
 
+/* Maximum valid connection handle value */
+#define BLE_HCI_LE_CONN_HANDLE_MAX              (0x0eff)
+
 /* LE advertising report event. (sub event 0x02) */
 #define BLE_HCI_LE_ADV_RPT_MIN_LEN          (12)
 #define BLE_HCI_LE_ADV_DIRECT_RPT_LEN       (18)
