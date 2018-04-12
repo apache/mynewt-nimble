@@ -323,39 +323,41 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
         return BLE_HS_ECONTROLLER;
     }
 
+    memset(&evt, 0, sizeof(evt));
+
     evt.subevent_code = data[0];
     evt.status = data[1];
-    evt.connection_handle = get_le16(data + 2);
-    evt.role = data[4];
-    evt.peer_addr_type = data[5];
-    memcpy(evt.peer_addr, data + 6, BLE_DEV_ADDR_LEN);
 
-    /* enhanced connection event has the same information with these
-     * extra fields stuffed into the middle */
-    if (subevent == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) {
-        memcpy(evt.local_rpa, data + 12, BLE_DEV_ADDR_LEN);
-        memcpy(evt.peer_rpa, data + 18, BLE_DEV_ADDR_LEN);
-        extended_offset = 12;
-    } else {
-        memset(evt.local_rpa, 0, BLE_DEV_ADDR_LEN);
-        memset(evt.peer_rpa, 0, BLE_DEV_ADDR_LEN);
-    }
+    if (evt.status == BLE_ERR_SUCCESS) {
+        evt.connection_handle = get_le16(data + 2);
+        evt.role = data[4];
+        evt.peer_addr_type = data[5];
+        memcpy(evt.peer_addr, data + 6, BLE_DEV_ADDR_LEN);
 
-    evt.conn_itvl = get_le16(data + 12 + extended_offset);
-    evt.conn_latency = get_le16(data + 14 + extended_offset);
-    evt.supervision_timeout = get_le16(data + 16 + extended_offset);
-    evt.master_clk_acc = data[18 + extended_offset];
-
-    if (evt.status == 0) {
-        if (evt.role != BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER &&
-            evt.role != BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
-
-            return BLE_HS_EBADDATA;
+        /* enhanced connection event has the same information with these
+         * extra fields stuffed into the middle */
+        if (subevent == BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE) {
+            memcpy(evt.local_rpa, data + 12, BLE_DEV_ADDR_LEN);
+            memcpy(evt.peer_rpa, data + 18, BLE_DEV_ADDR_LEN);
+            extended_offset = 12;
+        } else {
+            memset(evt.local_rpa, 0, BLE_DEV_ADDR_LEN);
+            memset(evt.peer_rpa, 0, BLE_DEV_ADDR_LEN);
         }
+
+        evt.conn_itvl = get_le16(data + 12 + extended_offset);
+        evt.conn_latency = get_le16(data + 14 + extended_offset);
+        evt.supervision_timeout = get_le16(data + 16 + extended_offset);
+        evt.master_clk_acc = data[18 + extended_offset];
+    } else {
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        evt.connection_handle = BLE_HS_CONN_HANDLE_NONE;
+#endif
     }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    if (evt.role == BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
+    if (evt.status == BLE_ERR_DIR_ADV_TMO ||
+                            evt.role == BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
     /* store this until we get set terminated event with adv handle */
         memcpy(&pend_conn_complete, &evt, sizeof(evt));
         return 0;
