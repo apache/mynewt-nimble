@@ -1147,8 +1147,15 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     aux = AUX_CURRENT(advsm);
     aux_next = AUX_NEXT(advsm);
 
-    assert(aux->sch.enqueued);
     assert(!aux_next->sch.enqueued);
+
+    /*
+     * Do not schedule next aux if current aux is no longer scheduled since we
+     * do not have reference time for scheduling.
+     */
+    if (!aux->sch.enqueued) {
+        return;
+    }
 
     /*
      * In general we do not schedule next aux if current aux does not have
