@@ -387,10 +387,9 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
         break;
     case BLE_LL_CTRL_PING_REQ:
-        CONN_F_LE_PING_SUPP(connsm) = 0;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
-        os_callout_stop(&connsm->auth_pyld_timer);
-#endif
+        /* LL can authenticate remote device even if remote device does not
+         * support LE Ping feature.
+         */
         ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
         break;
 #if (BLE_LL_BT5_PHY_SUPPORTED ==1)
