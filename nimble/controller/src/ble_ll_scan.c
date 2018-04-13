@@ -2746,10 +2746,6 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
     scansm->ext_scanning = ext;
 
     if (ext) {
-        /* TODO: Mark that extended scan is ongoing in order to send
-        * correct advertising report
-        */
-
         dur = get_le16(cmd + 2);
         period = get_le16(cmd + 4);
 
