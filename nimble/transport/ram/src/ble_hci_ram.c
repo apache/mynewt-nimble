@@ -40,13 +40,22 @@ static void *ble_hci_ram_rx_acl_hs_arg;
 static ble_hci_trans_rx_acl_fn *ble_hci_ram_rx_acl_ll_cb;
 static void *ble_hci_ram_rx_acl_ll_arg;
 
-static struct os_mempool ble_hci_ram_evt_hi_pool;
-static void *ble_hci_ram_evt_hi_buf;
-static struct os_mempool ble_hci_ram_evt_lo_pool;
-static void *ble_hci_ram_evt_lo_buf;
+static struct os_mempool ble_hci_ram_cmd_pool;
+static os_membuf_t ble_hci_ram_cmd_buf[
+        OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
+];
 
-static uint8_t *ble_hci_ram_hs_cmd_buf;
-static uint8_t ble_hci_ram_hs_cmd_buf_alloced;
+static struct os_mempool ble_hci_ram_evt_hi_pool;
+static os_membuf_t ble_hci_ram_evt_hi_buf[
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                    MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
+
+static struct os_mempool ble_hci_ram_evt_lo_pool;
+static os_membuf_t ble_hci_ram_evt_lo_buf[
+        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
+];
 
 void
 ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
@@ -122,6 +131,10 @@ ble_hci_trans_buf_alloc(int type)
     uint8_t *buf;
 
     switch (type) {
+    case BLE_HCI_TRANS_BUF_CMD:
+        buf = os_memblock_get(&ble_hci_ram_cmd_pool);
+        break;
+
     case BLE_HCI_TRANS_BUF_EVT_HI:
         buf = os_memblock_get(&ble_hci_ram_evt_hi_pool);
         if (buf == NULL) {
@@ -134,12 +147,6 @@ ble_hci_trans_buf_alloc(int type)
 
     case BLE_HCI_TRANS_BUF_EVT_LO:
         buf = os_memblock_get(&ble_hci_ram_evt_lo_pool);
-        break;
-
-    case BLE_HCI_TRANS_BUF_CMD:
-        assert(!ble_hci_ram_hs_cmd_buf_alloced);
-        ble_hci_ram_hs_cmd_buf_alloced = 1;
-        buf = ble_hci_ram_hs_cmd_buf;
         break;
 
     default:
@@ -155,15 +162,22 @@ ble_hci_trans_buf_free(uint8_t *buf)
 {
     int rc;
 
-    if (buf == ble_hci_ram_hs_cmd_buf) {
-        assert(ble_hci_ram_hs_cmd_buf_alloced);
-        ble_hci_ram_hs_cmd_buf_alloced = 0;
-    } else if (os_memblock_from(&ble_hci_ram_evt_hi_pool, buf)) {
+    /* XXX: this may look a bit odd, but the controller uses the command
+    * buffer to send back the command complete/status as an immediate
+    * response to the command. This was done to insure that the controller
+    * could always send back one of these events when a command was received.
+    * Thus, we check to see which pool the buffer came from so we can free
+    * it to the appropriate pool
+    */
+    if (os_memblock_from(&ble_hci_ram_evt_hi_pool, buf)) {
         rc = os_memblock_put(&ble_hci_ram_evt_hi_pool, buf);
         assert(rc == 0);
-    } else {
-        assert(os_memblock_from(&ble_hci_ram_evt_lo_pool, buf));
+    } else if (os_memblock_from(&ble_hci_ram_evt_lo_pool, buf)) {
         rc = os_memblock_put(&ble_hci_ram_evt_lo_pool, buf);
+        assert(rc == 0);
+    } else {
+        assert(os_memblock_from(&ble_hci_ram_cmd_pool, buf));
+        rc = os_memblock_put(&ble_hci_ram_cmd_pool, buf);
         assert(rc == 0);
     }
 }
@@ -178,20 +192,6 @@ ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
     return BLE_ERR_UNSUPPORTED;
 }
 
-static void
-ble_hci_ram_free_mem(void)
-{
-    free(ble_hci_ram_evt_hi_buf);
-    ble_hci_ram_evt_hi_buf = NULL;
-
-    free(ble_hci_ram_evt_lo_buf);
-    ble_hci_ram_evt_lo_buf = NULL;
-
-    free(ble_hci_ram_hs_cmd_buf);
-    ble_hci_ram_hs_cmd_buf = NULL;
-    ble_hci_ram_hs_cmd_buf_alloced = 0;
-}
-
 int
 ble_hci_trans_reset(void)
 {
@@ -201,63 +201,38 @@ ble_hci_trans_reset(void)
     return 0;
 }
 
-/**
- * Initializes the RAM HCI transport module.
- *
- * @param cfg                   The settings to initialize the HCI RAM
- *                                  transport with.
- *
- * @return                      0 on success;
- *                              A BLE_ERR_[...] error code on failure.
- */
-int
-ble_hci_ram_init(void)
-{
-    int rc;
-
-    ble_hci_ram_free_mem();
-
-    rc = mem_malloc_mempool(&ble_hci_ram_evt_hi_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_ram_evt_hi_pool",
-                            &ble_hci_ram_evt_hi_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
-
-    rc = mem_malloc_mempool(&ble_hci_ram_evt_lo_pool,
-                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                            "ble_hci_ram_evt_lo_pool",
-                            &ble_hci_ram_evt_lo_buf);
-    if (rc != 0) {
-        rc = ble_err_from_os(rc);
-        goto err;
-    }
-
-    ble_hci_ram_hs_cmd_buf = malloc(BLE_HCI_TRANS_CMD_SZ);
-    if (ble_hci_ram_hs_cmd_buf == NULL) {
-        rc = BLE_ERR_MEM_CAPACITY;
-        goto err;
-    }
-
-    return 0;
-
-err:
-    ble_hci_ram_free_mem();
-    return rc;
-}
-
 void
-ble_hci_ram_pkg_init(void)
+ble_hci_ram_init(void)
 {
     int rc;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
-    rc = ble_hci_ram_init();
+    /*
+     * Create memory pool of HCI command buffers. NOTE: we currently dont
+     * allow this to be configured. The controller will only allow one
+     * outstanding command. We decided to keep this a pool in case we allow
+     * allow the controller to handle more than one outstanding command.
+     */
+    rc = os_mempool_init(&ble_hci_ram_cmd_pool,
+                         1,
+                         BLE_HCI_TRANS_CMD_SZ,
+                         ble_hci_ram_cmd_buf,
+                         "ble_hci_ram_cmd_pool");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = os_mempool_init(&ble_hci_ram_evt_hi_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         ble_hci_ram_evt_hi_buf,
+                         "ble_hci_ram_evt_hi_pool");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = os_mempool_init(&ble_hci_ram_evt_lo_pool,
+                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
+                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
+                         ble_hci_ram_evt_lo_buf,
+                         "ble_hci_ram_evt_lo_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
