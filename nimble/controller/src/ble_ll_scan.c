@@ -2724,7 +2724,6 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
 int
 ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 {
-    int rc;
     uint8_t filter_dups;
     uint8_t enable;
     struct ble_ll_scan_sm *scansm;
@@ -2743,6 +2742,7 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 
     scansm = &g_ble_ll_scan_sm;
 
+    /* we can do that here since value will never change until reset */
     scansm->ext_scanning = ext;
 
     if (ext) {
@@ -2754,56 +2754,56 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
         (void) period;
     }
 
-    rc = BLE_ERR_SUCCESS;
-    if (enable) {
-        /* If already enabled, do nothing */
-        if (!scansm->scan_enabled) {
-
-            scansm->cur_phy = PHY_NOT_CONFIGURED;
-            scansm->next_phy = PHY_NOT_CONFIGURED;
-
-            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
-                scanphy = &scansm->phy_data[i];
-                scanp = &g_ble_ll_scan_params[i];
-
-                if (!scanp->configured) {
-                    continue;
-                }
-
-                scanphy->configured = scanp->configured;
-                scanphy->scan_type = scanp->scan_type;
-                scanphy->scan_itvl = scanp->scan_itvl;
-                scanphy->scan_window = scanp->scan_window;
-                scanphy->scan_filt_policy = scanp->scan_filt_policy;
-                scanphy->own_addr_type = scanp->own_addr_type;
-                scansm->scan_filt_dups = filter_dups;
-
-                if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
-                    scansm->cur_phy = i;
-                } else {
-                    scansm->next_phy = i;
-                }
-            }
-
-            rc = ble_ll_scan_sm_start(scansm);
-        } else {
-            /* Controller does not allow initiating and scanning.*/
-            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
-                scanphy = &scansm->phy_data[i];
-                if (scanphy->configured &&
-                        scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
-                        rc = BLE_ERR_CMD_DISALLOWED;
-                        break;
-                }
-            }
-        }
-    } else {
+    /* disable*/
+    if (!enable) {
         if (scansm->scan_enabled) {
             ble_ll_scan_sm_stop(1);
         }
+
+        return BLE_ERR_SUCCESS;
     }
 
-    return rc;
+    /* if already enable we just need to update parameters */
+    if (scansm->scan_enabled) {
+        /* Controller does not allow initiating and scanning.*/
+        for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+            scanphy = &scansm->phy_data[i];
+            if (scanphy->configured &&
+                                scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
+                return BLE_ERR_CMD_DISALLOWED;
+            }
+        }
+
+        return BLE_ERR_SUCCESS;
+    }
+
+    scansm->scan_filt_dups = filter_dups;
+    scansm->cur_phy = PHY_NOT_CONFIGURED;
+    scansm->next_phy = PHY_NOT_CONFIGURED;
+
+    for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+        scanphy = &scansm->phy_data[i];
+        scanp = &g_ble_ll_scan_params[i];
+
+        if (!scanp->configured) {
+            continue;
+        }
+
+        scanphy->configured = scanp->configured;
+        scanphy->scan_type = scanp->scan_type;
+        scanphy->scan_itvl = scanp->scan_itvl;
+        scanphy->scan_window = scanp->scan_window;
+        scanphy->scan_filt_policy = scanp->scan_filt_policy;
+        scanphy->own_addr_type = scanp->own_addr_type;
+
+        if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
+            scansm->cur_phy = i;
+        } else {
+            scansm->next_phy = i;
+        }
+    }
+
+    return ble_ll_scan_sm_start(scansm);
 }
 
 /**
