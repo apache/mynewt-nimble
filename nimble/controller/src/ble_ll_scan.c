@@ -1509,10 +1509,12 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
             rc = 1;
         }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning)) {
             *rxflags |= BLE_MBUF_HDR_F_EXT_ADV;
             rc = 1;
         }
+#endif
 
         /*
          * If this is the first PDU after we sent the scan response (as
@@ -2729,9 +2731,11 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     struct ble_ll_scan_params *scanphy;
+    int i;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint16_t dur;
     uint16_t period;
-    int i;
+#endif
 
     /* Check for valid parameters */
     enable = cmd[0];
@@ -2742,6 +2746,7 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 
     scansm = &g_ble_ll_scan_sm;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* we can do that here since value will never change until reset */
     scansm->ext_scanning = ext;
 
@@ -2753,6 +2758,7 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
         (void) dur;
         (void) period;
     }
+#endif
 
     /* disable*/
     if (!enable) {
@@ -2843,7 +2849,9 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
 
     scansm = &g_ble_ll_scan_sm;
     scansm->own_addr_type = hcc->own_addr_type;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     scansm->ext_scanning = 0;
+#endif
     scansm->cur_phy = PHY_UNCODED;
     scansm->next_phy = PHY_NOT_CONFIGURED;
 
