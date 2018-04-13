@@ -133,8 +133,10 @@ struct ble_ll_scan_sm
     struct hal_timer scan_timer;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    uint16_t duration;
-    uint16_t period;
+    struct hal_timer duration_timer;
+    struct hal_timer period_timer;
+    uint32_t duration_ticks;
+    uint32_t period_ticks;
     uint8_t ext_scanning;
 #endif
 

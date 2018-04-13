@@ -321,6 +321,28 @@ ble_ll_hci_ev_send_scan_req_recv(uint8_t adv_handle, const uint8_t *peer,
 #endif
 
 /**
+ * Sends the  LE Scan Timeout Event
+ *
+ */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+void
+ble_ll_hci_ev_send_scan_timeout(void)
+{
+    uint8_t *evbuf;
+
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_SCAN_TIMEOUT)) {
+        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (evbuf) {
+            evbuf[0] = BLE_HCI_EVCODE_LE_META;
+            evbuf[1] = BLE_HCI_LE_SUBEV_SCAN_TIMEOUT_LEN;
+            evbuf[2] = BLE_HCI_LE_SUBEV_SCAN_TIMEOUT;
+            ble_ll_hci_event_send(evbuf);
+        }
+    }
+}
+#endif
+
+/**
  * Sends the LE Advertising Set Terminated event
  *
  */
