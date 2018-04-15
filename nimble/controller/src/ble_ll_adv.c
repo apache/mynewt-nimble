@@ -3170,8 +3170,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_scan_chk_resume();
 
     /* Check if advertising timed out */
-    if ((advsm->duration && aux->start_time >= advsm->adv_end_time) &&
-                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
+    if (advsm->duration && (aux->start_time >= advsm->adv_end_time)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
                                               advsm->adv_instance, 0, 0);
 
@@ -3190,8 +3189,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         return;
     }
 
-    if ((advsm->events_max && (advsm->events >= advsm->events_max)) &&
-                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                               advsm->adv_instance, 0,
                                               advsm->events);
