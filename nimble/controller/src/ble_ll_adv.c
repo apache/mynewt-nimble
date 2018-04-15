@@ -1186,7 +1186,6 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
 
     ble_ll_adv_aux_calculate(advsm, aux_next, next_aux_data_offset);
     max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
-    max_usecs += XCVR_PROC_DELAY_USECS;
 
     aux_next->start_time = aux->sch.end_time +
                           ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
@@ -1194,7 +1193,8 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     sch = &aux_next->sch;
     sch->start_time = aux_next->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux_next->start_time + os_cputime_usecs_to_ticks(max_usecs);
+    sch->end_time = aux_next->start_time +
+                    ble_ll_usecs_to_ticks_round_up(max_usecs);
     ble_ll_sched_adv_new(&aux_next->sch, ble_ll_adv_aux_scheduled, aux_next);
 }
 
@@ -1245,16 +1245,10 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
         max_usecs = ble_ll_pdu_tx_time_get(aux->payload_len, advsm->sec_phy);
     }
 
-    /*
-     * XXX: For now, just schedule some additional time so we insure we have
-     * enough time to do everything we want.
-     */
-    max_usecs += XCVR_PROC_DELAY_USECS;
-
     sch = &aux->sch;
     sch->start_time = aux->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux->start_time + os_cputime_usecs_to_ticks(max_usecs);
+    sch->end_time = aux->start_time + ble_ll_usecs_to_ticks_round_up(max_usecs);
     ble_ll_sched_adv_new(sch, ble_ll_adv_aux_scheduled, aux);
 
 }
