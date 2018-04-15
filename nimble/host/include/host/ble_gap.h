@@ -384,6 +384,14 @@ struct ble_gap_event {
             uint8_t instance;
             /** The handle of the relevant connection - valid if reason=0 */
             uint16_t conn_handle;
+            /**
+             * Number of completed extended advertising events
+             *
+             * This field is only valid if non-zero max_events was passed to
+             * ble_gap_ext_adv_start() and advertising completed due to duration
+             * timeout or max events transmitted.
+             * */
+            uint8_t num_ext_adv_events;
 #endif
         } adv_complete;
 

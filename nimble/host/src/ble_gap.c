@@ -701,7 +701,8 @@ ble_gap_slave_extract_cb(uint8_t instance,
 }
 
 static void
-ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle)
+ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle,
+                     uint8_t num_events)
 {
     struct ble_gap_event event;
     ble_gap_event_fn *cb;
@@ -715,6 +716,7 @@ ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle)
 #if MYNEWT_VAL(BLE_EXT_ADV)
         event.adv_complete.instance = instance;
         event.adv_complete.conn_handle = conn_handle;
+        event.adv_complete.num_ext_adv_events = num_events;
 #endif
         cb(&event, cb_arg);
     }
@@ -1284,7 +1286,8 @@ ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
         conn_handle = evt->conn_handle;
     }
 
-    ble_gap_adv_finished(evt->adv_handle, reason, conn_handle);
+    ble_gap_adv_finished(evt->adv_handle, reason, conn_handle,
+                         evt->completed_events);
 }
 #endif
 
