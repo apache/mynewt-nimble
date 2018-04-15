@@ -454,8 +454,11 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
 
     /* AuxPtr */
-    assert(AUX_CURRENT(advsm)->sch.enqueued);
-    offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+    if (AUX_CURRENT(advsm)->sch.enqueued) {
+        offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+    } else {
+        offset = 0;
+    }
     ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
 
     return BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
