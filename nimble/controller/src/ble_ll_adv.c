@@ -3041,7 +3041,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                         (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
             ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                                  advsm->adv_instance, 0, 0);
+                                                  advsm->adv_instance, 0,
+                                                  advsm->events);
 
             /*
              * For high duty directed advertising we need to send connection
@@ -3172,7 +3173,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     /* Check if advertising timed out */
     if (advsm->duration && (aux->start_time >= advsm->adv_end_time)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                              advsm->adv_instance, 0, 0);
+                                              advsm->adv_instance, 0,
+                                              advsm->events);
 
         /*
          * For high duty directed advertising we need to send connection
