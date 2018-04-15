@@ -1147,15 +1147,19 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     aux = AUX_CURRENT(advsm);
     aux_next = AUX_NEXT(advsm);
 
-    assert(aux->sch.enqueued);
     assert(!aux_next->sch.enqueued);
 
     /*
-     * In general we do not schedule next aux if current aux does not have
-     * AuxPtr in extended header as this means we do not need subsequent
-     * ADV_CHAIN_IND to be sent.
-     * However, if current aux is scannable we allow to schedule next aux as
-     * this will be 1st ADV_CHAIN_IND of scan response.
+     * Do not schedule next aux if current aux is no longer scheduled since we
+     * do not have reference time for scheduling.
+     */
+    if (!aux->sch.enqueued) {
+        return;
+    }
+
+    /*
+     * Do not schedule next aux if current aux does not have AuxPtr in extended
+     * header as this means we do not need subsequent ADV_CHAIN_IND to be sent.
      */
     if (!(aux->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
         return;
