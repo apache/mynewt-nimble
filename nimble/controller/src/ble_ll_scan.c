@@ -3105,11 +3105,13 @@ ble_ll_scan_init(void)
     assert(scansm->scan_req_pdu != NULL);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    err = os_mempool_init(&ext_adv_pool,
-                          MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
-                          sizeof (struct ble_ll_aux_data),
-                          ext_adv_mem,
-                          "ble_ll_aux_scan_pool");
-    assert(err == 0);
+    if (ext_adv_pool.mp_membuf_addr != (uint32_t )ext_adv_mem) { // don't init this pool twice on reinit
+        err = os_mempool_init(&ext_adv_pool,
+                              MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
+                              sizeof(struct ble_ll_aux_data),
+                              ext_adv_mem,
+                              "ble_ll_aux_scan_pool");
+        assert(err == 0);
+    }
 #endif
 }
