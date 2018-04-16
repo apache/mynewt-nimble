@@ -48,6 +48,11 @@ typedef enum __attribute__((packed)) {
     BLE_SVC_HID_PROTOCOL_MODE_REPORT
 } ble_svc_hid_protocol_mode_value_t ;
 
+/* HID Service USB HID version
+ * Format: uint16
+ */
+#define USB_HID_VERSION_1_11    (0x0111)
+
 /* HID Service HID Information Flags
  * Format: 8-bit BitField
  * Note:The fields are in the order of LSO to MSO
@@ -57,6 +62,15 @@ typedef enum __attribute__((packed)) {
  */
 #define BLE_SVC_HID_HID_INFO_FLAG_REMOTE_WAKE  0x01
 #define BLE_SVC_HID_HID_INFO_FLAG_NORMALLY_CONNECTABLE  0x02
+
+/* HID Service HID Information structure
+ * https://www.bluetooth.com/api/gatt/XmlFile?xmlFileName=org.bluetooth.characteristic.hid_information.xml
+ */
+typedef struct __attribute__((packed)) {
+    uint16_t hidver;
+    uint8_t countrycode;
+    uint8_t flags;
+} ble_svc_hid_hid_information_t;
 
 /* HID Service HID Control Point Command enum
  * The HID Control Point characteristic is a control-point attribute that defines the following HID Commands when written: 

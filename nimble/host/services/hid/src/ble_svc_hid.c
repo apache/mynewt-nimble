@@ -26,7 +26,15 @@
 #include "host/ble_hs.h"
 
 
+/* TODO: Multiple HID instances */
 uint16_t ble_svc_hid_val_handle;
+
+/* HID information */
+static ble_svc_hid_hid_information_t ble_svc_hid_hid_info = {
+    .hidver = USB_HID_VERSION_1_11;
+    .countrycode = 0x00;
+    .flags = BLE_SVC_HID_HID_INFO_FLAG_REMOTE_WAKE|BLE_SVC_HID_HID_INFO_FLAG_NORMALLY_CONNECTABLE
+}
 
 /* Access function */
 static int
@@ -98,21 +106,23 @@ static const struct ble_gatt_svc_def ble_svc_hid_defs[] = {
     },
 };
 
-/*        {
-            / ** Alert Notification Control Point 
-             *
-             * This characteristic allows the peer device to 
-             * enable/disable the alert notification of new alert 
-             * and unread event more selectively than can be done 
-             * by setting or clearing the notification bit in the 
-             * Client Characteristic Configuration for each alert 
-             * characteristic.
-             * /
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_ANS_CHR_UUID16_ALERT_NOT_CTRL_PT),
-            .access_cb = ble_svc_ans_access,
-            .flags = BLE_GATT_CHR_F_WRITE,
-        }
-*/
+/*
+ * Service API
+ */
+
+/*
+ *  Set HID Information
+ */
+int
+ble_svc_hid_set_hid_info(uint16_t ver,uint8_t cc, uint8_t flags) {
+    int rc = 0;
+
+    ble_svc_hid_hid_info.hidver=ver;
+    ble_svc_hid_hid_info.countrycode= cc;
+    ble_svc_hid_hid_info.flags = flags
+
+    return rc;
+}
 
 /**
  * HID access function
@@ -124,10 +134,6 @@ ble_svc_hid_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     uint16_t uuid16;
     int rc=0;
-    
-    /* ANS Control point command and catagory variables */
-    //uint8_t cmd_id;
-    //int i;
 
     uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     assert(uuid16 != 0);
@@ -169,8 +175,10 @@ ble_svc_hid_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc;
 
     case BLE_SVC_HID_CHR_UUID16_HID_INFORMATION:
-        assert(ctxt->op == BLE_GATT_CHR_F_READ);
-        return rc;
+        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
+        rc = os_mbuf_append(ctxt->om, &ble_svc_hid_hid_info,
+                            sizeof(ble_svc_hid_hid_info));
+        return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_SVC_HID_CHR_UUID16_HID_CONTROL_POINT:
         assert(ctxt->op == BLE_GATT_CHR_F_WRITE_NO_RSP);
