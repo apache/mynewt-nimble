@@ -3143,9 +3143,9 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     assert(advsm->aux_active);
 
     aux = AUX_CURRENT(advsm);
+    aux_next = AUX_NEXT(advsm);
 
     if (advsm->aux_not_scanned) {
-        aux_next = AUX_NEXT(advsm);
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
 
@@ -3160,7 +3160,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     }
 
     /* If we have next AUX scheduled, try to schedule another one */
-    if (AUX_NEXT(advsm)->sch.enqueued) {
+    if (aux_next->sch.enqueued) {
         advsm->aux_index ^= 1;
         advsm->aux_first_pdu = 0;
         ble_ll_adv_aux_schedule_next(advsm);
