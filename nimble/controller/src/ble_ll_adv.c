@@ -185,6 +185,7 @@ struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 static void
@@ -526,9 +527,14 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
-        assert(AUX_NEXT(advsm)->sch.enqueued);
-
-        if (advsm->rx_ble_hdr) {
+        if (!AUX_NEXT(advsm)->sch.enqueued) {
+            /*
+             * Trim data here in case we do not have next aux scheduled. This
+             * can happen if next aux was outside advertising set period and
+             * was removed from scheduler.
+             */
+            offset = 0;
+        } else if (advsm->rx_ble_hdr) {
             offset = advsm->rx_ble_hdr->rem_usecs +
                      ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS + 30;
             offset = AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime -
@@ -1196,6 +1202,15 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     sch->end_time = aux_next->start_time +
                     ble_ll_usecs_to_ticks_round_up(max_usecs);
     ble_ll_sched_adv_new(&aux_next->sch, ble_ll_adv_aux_scheduled, aux_next);
+
+    /*
+     * In case duration is set for advertising set we need to check if newly
+     * scheduled aux will fit inside duration. If not, remove it from scheduler
+     * so advertising will stop after current aux.
+     */
+    if (advsm->duration && (aux_next->sch.end_time > advsm->adv_end_time)) {
+        ble_ll_sched_rmv_elem(&aux_next->sch);
+    }
 }
 
 static void
@@ -1312,6 +1327,16 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
     ble_ll_adv_aux_set_start_time(advsm);
     ble_ll_adv_aux_schedule_first(advsm);
     ble_ll_adv_aux_schedule_next(advsm);
+
+    /*
+     * In case duration is set for advertising set we need to check if at least
+     * 1st aux will fit inside duration. If not, stop advertising now so we do
+     * not start extended advertising event which we cannot finish in time.
+     */
+    if (advsm->duration &&
+            (AUX_CURRENT(advsm)->sch.end_time > advsm->adv_end_time)) {
+        ble_ll_adv_sm_stop_timeout(advsm);
+    }
 }
 #endif
 
@@ -1540,6 +1565,29 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         /* Disable advertising */
         advsm->adv_enabled = 0;
     }
+}
+
+static void
+ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                          advsm->adv_instance, 0,
+                                          advsm->events);
+#endif
+
+    /*
+     * For high duty directed advertising we need to send connection
+     * complete event with proper status
+     */
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+        ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                    advsm->conn_comp_ev, advsm);
+        advsm->conn_comp_ev = NULL;
+    }
+
+    /* Disable advertising */
+    ble_ll_adv_sm_stop(advsm);
 }
 
 static void
@@ -3040,22 +3088,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          */
         if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                         (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
-            ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                                  advsm->adv_instance, 0,
-                                                  advsm->events);
-
-            /*
-             * For high duty directed advertising we need to send connection
-             * complete event with proper status
-             */
-            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-                ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                            advsm->conn_comp_ev, advsm);
-                advsm->conn_comp_ev = NULL;
-            }
-
-            /* Disable advertising */
-            ble_ll_adv_sm_stop(advsm);
+            ble_ll_adv_sm_stop_timeout(advsm);
         }
 
         return;
@@ -3063,12 +3096,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 #else
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) &&
             (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
-        ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                    advsm->conn_comp_ev, advsm);
-        advsm->conn_comp_ev = NULL;
-
-        /* Disable advertising */
-        ble_ll_adv_sm_stop(advsm);
+        ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
 #endif
@@ -3168,23 +3196,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_scan_chk_resume();
 
     /* Check if advertising timed out */
-    if (advsm->duration && (aux->start_time >= advsm->adv_end_time)) {
-        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                              advsm->adv_instance, 0,
-                                              advsm->events);
-
-        /*
-         * For high duty directed advertising we need to send connection
-         * complete event with proper status
-         */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev, advsm);
-            advsm->conn_comp_ev = NULL;
-        }
-
-        /* Disable advertising */
-        ble_ll_adv_sm_stop(advsm);
+    if (advsm->duration && (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+        ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
 
