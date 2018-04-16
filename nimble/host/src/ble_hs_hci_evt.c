@@ -50,6 +50,7 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_dir_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_phy_update_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_ext_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_rd_rem_used_feat_complete;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_timeout;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_adv_set_terminated;
 
 /* Statistics */
@@ -102,6 +103,8 @@ static const struct ble_hs_hci_evt_le_dispatch_entry
     { BLE_HCI_LE_SUBEV_EXT_ADV_RPT, ble_hs_hci_evt_le_ext_adv_rpt },
     { BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT,
             ble_hs_hci_evt_le_rd_rem_used_feat_complete },
+    { BLE_HCI_LE_SUBEV_SCAN_TIMEOUT,
+            ble_hs_hci_evt_le_scan_timeout },
     { BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED,
             ble_hs_hci_evt_le_adv_set_terminated },
 };
@@ -602,6 +605,15 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
     }
 #endif
     return 0;
+}
+
+static int
+ble_hs_hci_evt_le_scan_timeout(uint8_t subevent, uint8_t *data, int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
+        ble_gap_rx_le_scan_timeout();
+#endif
+        return 0;
 }
 
 static int
