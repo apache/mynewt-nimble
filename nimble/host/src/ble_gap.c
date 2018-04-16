@@ -276,6 +276,7 @@ ble_gap_log_duration(int32_t duration_ms)
 }
 #endif
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                  const struct ble_gap_conn_params *params)
@@ -292,6 +293,7 @@ ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                params->itvl_max, params->latency, params->supervision_timeout,
                params->min_ce_len, params->max_ce_len, own_addr_type);
 }
+#endif
 
 #if NIMBLE_BLE_SCAN
 static void
@@ -3352,6 +3354,7 @@ ble_gap_disc_active(void)
     return ble_gap_master.op == BLE_GAP_OP_M_DISC;
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 /*****************************************************************************
  * $connection establishment procedures                                      *
  *****************************************************************************/
@@ -3403,6 +3406,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     return 0;
 }
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static void
@@ -3659,7 +3663,12 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     return BLE_HS_ENOTSUP;
 #endif
 
-    uint32_t duration_ticks = 0;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    return ble_gap_ext_connect(own_addr_type, peer_addr, duration_ms,
+                               BLE_GAP_LE_PHY_1M_MASK,
+                               conn_params, NULL, NULL, cb, cb_arg);
+#else
+    uint32_t duration_ticks;
     int rc;
 
     STATS_INC(ble_gap_stats, initiate);
@@ -3757,6 +3766,7 @@ done:
         STATS_INC(ble_gap_stats, initiate_fail);
     }
     return rc;
+#endif
 }
 
 int
