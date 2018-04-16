@@ -2863,6 +2863,9 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_ll_sched_rmv_elem(&advsm->aux[0].sch);
     ble_ll_sched_rmv_elem(&advsm->aux[1].sch);
+
+    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    advsm->aux_active = 0;
 #endif
 
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
