@@ -56,5 +56,5 @@ syscfg.defs:
         description: >
             This allows to configure maximum size of advertising data and
             scan response data used in LE Advertising Extensions.
-            Valid range 31-238.
+            Valid range 31-1650.
         value: 31
