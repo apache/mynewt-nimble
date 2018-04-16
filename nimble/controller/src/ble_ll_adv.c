@@ -488,8 +488,6 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
-    *hdr_byte = pdu_type;
-
     /* We do not create scannable PDUs here - this is handled separately */
     adv_mode = 0;
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
@@ -511,6 +509,11 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
         memcpy(dptr, advsm->initiator_addr, BLE_LL_EXT_ADV_TARGETA_SIZE);
         dptr += BLE_LL_EXT_ADV_TARGETA_SIZE;
+
+        /* Set RxAdd to random if needed. */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_RX_ADD) {
+            pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
+        }
     }
 
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
@@ -546,6 +549,8 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
                          aux->aux_data_len, dptr);
     }
 
+    *hdr_byte = pdu_type;
+
     return aux->payload_len;
 }
 
@@ -572,8 +577,6 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
         pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
-    *hdr_byte = pdu_type;
-
     ext_hdr_len = &dptr[0];
     ext_hdr = &dptr[1];
     dptr += 2;
@@ -594,6 +597,11 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
         *ext_hdr |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
         memcpy(dptr, advsm->initiator_addr, BLE_LL_EXT_ADV_TARGETA_SIZE);
         dptr += BLE_LL_EXT_ADV_TARGETA_SIZE;
+
+        /* Set RxAdd to random if needed. */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_RX_ADD) {
+            pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
+        }
     }
 
     /* ADI always */
@@ -613,6 +621,7 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
 
     pdulen = BLE_LL_EXT_ADV_HDR_LEN + *ext_hdr_len;
 
+    *hdr_byte = pdu_type;
     *ext_hdr_len |= (BLE_LL_EXT_ADV_MODE_SCAN << 6);
 
     return pdulen;
