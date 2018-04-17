@@ -2774,6 +2774,9 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
             }
         }
 
+        /* update filter policy */
+        scansm->scan_filt_dups = filter_dups;
+
         return BLE_ERR_SUCCESS;
     }
 
