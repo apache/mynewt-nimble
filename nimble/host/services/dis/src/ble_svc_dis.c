@@ -123,7 +123,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     uint16_t uuid    = ble_uuid_u16(ctxt->chr->uuid);
     const char *info = NULL;
-    
+
     switch(uuid) {
 #if (MYNEWT_VAL(BLE_SVC_DIS_MODEL_NUMBER_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_MODEL_NUMBER:
@@ -134,7 +134,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 	}
 #endif
 	break;
-#endif	
+#endif
 #if (MYNEWT_VAL(BLE_SVC_DIS_SERIAL_NUMBER_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_SERIAL_NUMBER:
 	info = ble_svc_dis_data.serial_number;
@@ -144,7 +144,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 	}
 #endif
 	break;
-#endif	
+#endif
 #if (MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_FIRMWARE_REVISION:
 	info = ble_svc_dis_data.firmware_revision;
@@ -154,7 +154,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 	}
 #endif
 	break;
-#endif	
+#endif
 #if (MYNEWT_VAL(BLE_SVC_DIS_HARDWARE_REVISION_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_HARDWARE_REVISION:
 	info = ble_svc_dis_data.hardware_revision;
@@ -164,7 +164,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 	}
 #endif
 	break;
-#endif	
+#endif
 #if (MYNEWT_VAL(BLE_SVC_DIS_SOFTWARE_REVISION_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_SOFTWARE_REVISION:
 	info = ble_svc_dis_data.software_revision;
@@ -174,7 +174,7 @@ ble_svc_dis_access(uint16_t conn_handle, uint16_t attr_handle,
 	}
 #endif
 	break;
-#endif	
+#endif
 #if (MYNEWT_VAL(BLE_SVC_DIS_MANUFACTURER_NAME_READ_PERM) >= 0)
     case BLE_SVC_DIS_CHR_UUID16_MANUFACTURER_NAME:
 	info = ble_svc_dis_data.manufacturer_name;

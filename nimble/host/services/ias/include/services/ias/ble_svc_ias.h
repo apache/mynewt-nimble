@@ -28,7 +28,7 @@
 #define BLE_SVC_IAS_ALERT_LEVEL_MILD_ALERT                      1
 #define BLE_SVC_IAS_ALERT_LEVEL_HIGH_ALERT                      2
 
-typedef int ble_svc_ias_event_fn(uint8_t alert_level); 
+typedef int ble_svc_ias_event_fn(uint8_t alert_level);
 
 void ble_svc_ias_set_cb(ble_svc_ias_event_fn *cb);
 void ble_svc_ias_init(void);

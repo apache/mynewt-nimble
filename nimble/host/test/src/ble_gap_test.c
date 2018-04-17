@@ -643,7 +643,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
         .rssi = 0,
         .addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
         .data = (uint8_t[BLE_HS_ADV_MAX_SZ]){
-            2, 
+            2,
             BLE_HS_ADV_TYPE_FLAGS,
             BLE_HS_ADV_F_DISC_GEN,
         },

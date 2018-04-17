@@ -218,7 +218,7 @@ TC_SEC_AUT_BV_14_C	PASS	b set sm_data io_capabilities=1
 				      pairing for read
 				b passkey conn=<handle> action=3 key=123456
 				Note: enter '123456' passkey in PTS
-				Note: enter handle for characteristics value which 
+				Note: enter handle for characteristics value which
 				      requires authentication
 TC_SEC_AUT_BV_15_C	N/A
 TC_SEC_AUT_BV_16_C	N/A

@@ -2017,7 +2017,7 @@ TEST_CASE(ble_att_svr_test_oom)
     ble_hs_test_util_prev_tx_dequeue();
 
     /* Receive a request. */
-    rc = ble_hs_test_util_rx_att_prep_write_req(conn_handle, 1, 0, 
+    rc = ble_hs_test_util_rx_att_prep_write_req(conn_handle, 1, 0,
                                                 ((uint8_t[1]){1}), 1);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
 

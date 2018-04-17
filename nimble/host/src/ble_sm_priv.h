@@ -196,7 +196,7 @@ struct ble_sm_dhkey_check {
 #if NIMBLE_BLE_SM
 
 #define BLE_SM_PROC_STATE_NONE              ((uint8_t)-1)
-    
+
 #define BLE_SM_PROC_STATE_PAIR              0
 #define BLE_SM_PROC_STATE_CONFIRM           1
 #define BLE_SM_PROC_STATE_RANDOM            2

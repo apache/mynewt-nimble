@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -406,7 +406,7 @@ ble_hs_conn_timer(void)
     /* If there are no timeouts configured, then there is nothing to check. */
 #if MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT) == 0 && \
     BLE_HS_ATT_SVR_QUEUED_WRITE_TMO == 0
-     
+
     return BLE_HS_FOREVER;
 #endif
 
@@ -493,7 +493,7 @@ ble_hs_conn_timer(void)
     return next_exp_in;
 }
 
-int 
+int
 ble_hs_conn_init(void)
 {
     int rc;

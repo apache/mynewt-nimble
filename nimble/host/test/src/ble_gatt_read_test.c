@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -662,7 +662,7 @@ TEST_CASE(ble_gatt_read_test_long)
     ble_gatt_read_test_misc_long_verify_bad(BLE_ATT_ERR_ATTR_NOT_FOUND,
         (struct ble_hs_test_util_flat_attr[]) { {
             .handle = 719,
-            .value = { 1, 2, 3, 4, 5, 6, 7 }, 
+            .value = { 1, 2, 3, 4, 5, 6, 7 },
             .value_len = 7
         } });
 }

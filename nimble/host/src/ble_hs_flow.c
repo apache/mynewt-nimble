@@ -27,7 +27,7 @@ static int
 ble_hs_flow_tx_num_comp_pkts(void)
 {
     uint8_t buf[
-        BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN + 
+        BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN +
         BLE_HCI_HOST_NUM_COMP_PKTS_ENT_LEN
     ];
     struct hci_host_num_comp_pkts_entry entry;
@@ -153,7 +153,7 @@ ble_hs_flow_acl_free(struct os_mempool_ext *mpe, void *data, void *arg)
      * freed.
      */
     ble_hs_lock_nested();
-    
+
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
         ble_hs_flow_inc_completed_pkts(conn);
@@ -171,7 +171,7 @@ ble_hs_flow_connection_broken(uint16_t conn_handle)
 #if MYNEWT_VAL(BLE_HS_FLOW_CTRL) &&                 \
     MYNEWT_VAL(BLE_HS_FLOW_CTRL_TX_ON_DISCONNECT)
     ble_hs_lock();
-    ble_hs_flow_tx_num_comp_pkts(); 
+    ble_hs_flow_tx_num_comp_pkts();
     ble_hs_unlock();
 #endif
 }

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -37,7 +37,7 @@ ble_hs_pvcy_test_util_init(void)
 }
 
 static int
-ble_hs_pvcy_test_util_gap_event(struct ble_gap_event *event, void *arg) 
+ble_hs_pvcy_test_util_gap_event(struct ble_gap_event *event, void *arg)
 {
     TEST_ASSERT_FATAL(ble_hs_pvcy_test_num_gap_events <
                       BLE_HS_PVCY_TEST_MAX_GAP_EVENTS);
@@ -96,7 +96,7 @@ static void
 ble_hs_pvcy_test_util_add_irk_set_acks(void)
 {
     ble_hs_test_util_hci_ack_append(
-        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0); 
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
     ble_hs_test_util_hci_ack_append(
         BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE), 0);
 }

@@ -121,12 +121,12 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
     if (rc != 0) {
         return rc;
     }
-        
+
     rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_PEER_SEC, &key);
     if (rc != 0) {
         return rc;
     }
-        
+
     memset(&key, 0, sizeof key);
     key.cccd.peer_addr = *peer_id_addr;
 

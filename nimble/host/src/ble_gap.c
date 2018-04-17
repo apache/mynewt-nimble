@@ -1637,7 +1637,7 @@ ble_gap_update_timer(void)
  * @param cb                    The callback to associate with the connection.
  * @param cb_arg                An optional argument that the callback
  *                                  receives.
- * 
+ *
  * @return                      0 on success;
  *                              BLE_HS_ENOTCONN if there is no connection with
  *                                  the specified handle.

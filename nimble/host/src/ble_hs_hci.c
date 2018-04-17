@@ -96,7 +96,7 @@ void
 ble_hs_hci_add_avail_pkts(uint16_t delta)
 {
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
-    
+
     if (ble_hs_hci_avail_pkts + delta > UINT16_MAX) {
         ble_hs_sched_reset(BLE_HS_ECONTROLLER);
     } else {
@@ -521,7 +521,7 @@ err:
  *                                  by the `om` parameter.
  *                              A BLE host core return code on unexpected
  *                                  error.
- * 
+ *
  */
 int
 ble_hs_hci_acl_tx(struct ble_hs_conn *conn, struct os_mbuf **om)
