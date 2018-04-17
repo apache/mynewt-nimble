@@ -3021,52 +3021,12 @@ ble_ll_scan_whitelist_enabled(void)
     return params->scan_filt_policy & 1;
 }
 
-/**
- * Called when the controller receives the reset command. Resets the
- * scanning state machine to its initial state.
- *
- * @return int
- */
-void
-ble_ll_scan_reset(void)
-{
-    struct ble_ll_scan_sm *scansm;
-
-    /* If enabled, stop it. */
-    scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_enabled) {
-        ble_ll_scan_sm_stop(0);
-    }
-
-    /* Free the scan request pdu */
-    os_mbuf_free_chain(scansm->scan_req_pdu);
-
-    /* Reset duplicate advertisers and those from which we rxd a response */
-    g_ble_ll_scan_num_rsp_advs = 0;
-    memset(&g_ble_ll_scan_rsp_advs[0], 0, sizeof(g_ble_ll_scan_rsp_advs));
-
-    g_ble_ll_scan_num_dup_advs = 0;
-    memset(&g_ble_ll_scan_dup_advs[0], 0, sizeof(g_ble_ll_scan_dup_advs));
-
-    /* Call the init function again */
-    ble_ll_scan_init();
-}
-
-/**
- * ble ll scan init
- *
- * Initialize a scanner. Must be called before scanning can be started.
- * Expected to be called with a un-initialized or reset scanning state machine.
- */
-void
-ble_ll_scan_init(void)
+static void
+ble_ll_scan_common_init(void)
 {
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     int i;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    os_error_t err;
-#endif
 
     /* Clear state machine in case re-initialized */
     scansm = &g_ble_ll_scan_sm;
@@ -3103,8 +3063,56 @@ ble_ll_scan_init(void)
     scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_SCAN_LEGACY_MAX_PKT_LEN,
                                               sizeof(struct ble_mbuf_hdr));
     assert(scansm->scan_req_pdu != NULL);
+}
+
+/**
+ * Called when the controller receives the reset command. Resets the
+ * scanning state machine to its initial state.
+ *
+ * @return int
+ */
+void
+ble_ll_scan_reset(void)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    /* If enabled, stop it. */
+    scansm = &g_ble_ll_scan_sm;
+    if (scansm->scan_enabled) {
+        ble_ll_scan_sm_stop(0);
+    }
+
+    /* Free the scan request pdu */
+    os_mbuf_free_chain(scansm->scan_req_pdu);
+
+    /* Reset duplicate advertisers and those from which we rxd a response */
+    g_ble_ll_scan_num_rsp_advs = 0;
+    memset(&g_ble_ll_scan_rsp_advs[0], 0, sizeof(g_ble_ll_scan_rsp_advs));
+
+    g_ble_ll_scan_num_dup_advs = 0;
+    memset(&g_ble_ll_scan_dup_advs[0], 0, sizeof(g_ble_ll_scan_dup_advs));
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* clear memory pool for AUX scan results */
+    os_mempool_clear(&ext_adv_pool);
+#endif
+
+    /* Call the common init function again */
+    ble_ll_scan_common_init();
+}
+
+/**
+ * ble ll scan init
+ *
+ * Initialize a scanner. Must be called before scanning can be started.
+ * Expected to be called with a un-initialized scanning state machine.
+ */
+void
+ble_ll_scan_init(void)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    os_error_t err;
+
     err = os_mempool_init(&ext_adv_pool,
                           MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                           sizeof (struct ble_ll_aux_data),
@@ -3112,4 +3120,6 @@ ble_ll_scan_init(void)
                           "ble_ll_aux_scan_pool");
     assert(err == 0);
 #endif
+
+    ble_ll_scan_common_init();
 }
