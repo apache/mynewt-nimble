@@ -3055,23 +3055,21 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
             }
 
             /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_scan_chk_resume();
+            ble_ll_adv_sm_stop(advsm);
         }
 
         return;
     }
 #else
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-        if (advsm->adv_pdu_start_time >= advsm->adv_end_time) {
-            /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev, advsm);
-            advsm->conn_comp_ev = NULL;
-            ble_ll_scan_chk_resume();
-            return;
-        }
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) &&
+            (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+        ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                    advsm->conn_comp_ev, advsm);
+        advsm->conn_comp_ev = NULL;
+
+        /* Disable advertising */
+        ble_ll_adv_sm_stop(advsm);
+        return;
     }
 #endif
 
@@ -3087,8 +3085,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
                                                   advsm->events);
 
             /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_scan_chk_resume();
+            ble_ll_adv_sm_stop(advsm);
         }
 
         return;
@@ -3187,7 +3184,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         }
 
         /* Disable advertising */
-        advsm->adv_enabled = 0;
+        ble_ll_adv_sm_stop(advsm);
         return;
     }
 
@@ -3195,9 +3192,9 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                               advsm->adv_instance, 0,
                                               advsm->events);
-         /* Disable advertising */
-         advsm->adv_enabled = 0;
-         return;
+        /* Disable advertising */
+        ble_ll_adv_sm_stop(advsm);
+        return;
     }
 
     advsm->aux_active = 0;
