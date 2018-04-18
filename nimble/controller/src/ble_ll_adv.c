@@ -1370,7 +1370,6 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     uint8_t peer_addr_type;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
-    uint16_t min_itvl;
     struct ble_ll_adv_sm *advsm;
     uint16_t props;
 
@@ -1390,16 +1389,12 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
      */
     adv_filter_policy = cmd[14];
 
-    /* Assume min interval based on low duty cycle/indirect advertising */
-    min_itvl = BLE_LL_ADV_ITVL_MIN;
-
     switch (adv_type) {
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
         adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
 
         /* Ignore min/max interval */
-        min_itvl = 0;
         adv_itvl_min = 0;
         adv_itvl_max = 0;
 
@@ -1415,22 +1410,26 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND;
         break;
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
-        min_itvl = 0;
         props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN;
         break;
     case BLE_HCI_ADV_TYPE_ADV_SCAN_IND:
-        min_itvl = 0;
         props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN;
         break;
     default:
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Make sure interval minimum is valid for the advertising type */
-    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
-        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
-        (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    /* Make sure intervals values are valid
+     * (HD directed advertising ignores those parameters)
+     */
+    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED)) {
+        if ((adv_itvl_min > adv_itvl_max) ||
+                (adv_itvl_min < BLE_HCI_ADV_ITVL_MIN) ||
+                (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
+                (adv_itvl_max < BLE_HCI_ADV_ITVL_MIN) ||
+                (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
     }
 
     /* Check own and peer address type */
@@ -2025,7 +2024,6 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     uint8_t peer_addr_type;
     uint32_t adv_itvl_min;
     uint32_t adv_itvl_max;
-    uint16_t min_itvl = 0;
     uint16_t props;
     struct ble_ll_adv_sm *advsm;
     uint8_t pri_phy;
@@ -2091,10 +2089,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         }
     }
 
-    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-        min_itvl = BLE_LL_ADV_ITVL_MIN;
-    }
-
+    /* High Duty Directed advertising is special */
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         if (ADV_DATA_LEN(advsm) || SCAN_RSP_DATA_LEN(advsm)) {
             rc = BLE_ERR_INV_HCI_CMD_PARMS;
@@ -2102,19 +2097,28 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         }
 
         /* Ignore min/max interval */
-        min_itvl = 0;
         adv_itvl_min = 0;
         adv_itvl_max = 0;
-    }
+    } else {
+        /* validate intervals for non HD-directed advertising */
+        if ((adv_itvl_min > adv_itvl_max) ||
+                (adv_itvl_min < BLE_HCI_ADV_ITVL_MIN) ||
+                (adv_itvl_max < BLE_HCI_ADV_ITVL_MIN)) {
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
+        }
 
-    /* Make sure interval minimum is valid for the advertising type
-     * TODO for now limit those to values from legacy advertising
-     */
-    if ((adv_itvl_min > adv_itvl_max) || (adv_itvl_min < min_itvl) ||
-        (adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
-        (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
-        goto done;
+        /* TODO for now limit those to values from legacy advertising
+         *
+         * If the primary advertising interval range is outside the advertising
+         * interval range supported by the Controller, then the Controller shall
+         * return the error code Unsupported Feature or Parameter Value (0x11).
+         */
+        if ((adv_itvl_min > BLE_HCI_ADV_ITVL_MAX) ||
+                (adv_itvl_max > BLE_HCI_ADV_ITVL_MAX)) {
+            rc = BLE_ERR_UNSUPPORTED;
+            goto done;
+        }
     }
 
     /* There are only three adv channels, so check for any outside the range */
