@@ -1154,7 +1154,9 @@ ble_ll_scan_sm_stop(int chk_disable)
     if (chk_disable) {
         OS_ENTER_CRITICAL(sr);
         lls = ble_ll_state_get();
-        if ((lls == BLE_LL_STATE_SCANNING) || (lls == BLE_LL_STATE_INITIATING)) {
+
+        if ((lls == BLE_LL_STATE_SCANNING) ||
+                        (lls == BLE_LL_STATE_INITIATING && chk_disable == 1)) {
             /* Disable phy */
             ble_phy_disable();
 
@@ -1509,10 +1511,12 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
             rc = 1;
         }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning)) {
             *rxflags |= BLE_MBUF_HDR_F_EXT_ADV;
             rc = 1;
         }
+#endif
 
         /*
          * If this is the first PDU after we sent the scan response (as
@@ -2712,6 +2716,57 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_scan_duration_period_timers_restart(struct ble_ll_scan_sm *scansm)
+{
+    uint32_t now;
+
+    now = os_cputime_get32();
+
+    os_cputime_timer_stop(&scansm->duration_timer);
+    os_cputime_timer_stop(&scansm->period_timer);
+
+    if (scansm->duration_ticks) {
+        os_cputime_timer_start(&scansm->duration_timer,
+                                                now + scansm->duration_ticks);
+
+        if (scansm->period_ticks) {
+            os_cputime_timer_start(&scansm->period_timer,
+                                                    now + scansm->period_ticks);
+        }
+    }
+}
+
+static void
+ble_ll_scan_duration_timer_cb(void *arg)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = (struct ble_ll_scan_sm *)arg;
+
+    ble_ll_scan_sm_stop(2);
+
+    /* if period is set both timers get started from period cb */
+    if (!scansm->period_ticks) {
+        ble_ll_hci_ev_send_scan_timeout();
+    }
+}
+
+static void
+ble_ll_scan_period_timer_cb(void *arg)
+{
+    struct ble_ll_scan_sm *scansm = arg;
+
+    ble_ll_scan_sm_start(scansm);
+
+    /* always start timer regardless of ble_ll_scan_sm_start result
+     * if it failed will restart in next period
+     */
+    ble_ll_scan_duration_period_timers_restart(scansm);
+}
+#endif
+
 /**
  * ble ll scan set enable
  *
@@ -2732,9 +2787,13 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     struct ble_ll_scan_params *scanphy;
-    uint16_t dur;
-    uint16_t period;
     int i;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint32_t period_ticks = 0;
+    uint32_t dur_ticks = 0;
+    uint16_t period;
+    uint16_t dur;
+#endif
 
     /* Check for valid parameters */
     enable = cmd[0];
@@ -2745,69 +2804,113 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 
     scansm = &g_ble_ll_scan_sm;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* we can do that here since value will never change until reset */
     scansm->ext_scanning = ext;
 
     if (ext) {
-        /* TODO: Mark that extended scan is ongoing in order to send
-        * correct advertising report
-        */
-
         dur = get_le16(cmd + 2);
-        period = get_le16(cmd + 4);
 
-        /* TODO Use period and duration */
-        (void) dur;
-        (void) period;
-    }
-
-    rc = BLE_ERR_SUCCESS;
-    if (enable) {
-        /* If already enabled, do nothing */
-        if (!scansm->scan_enabled) {
-
-            scansm->cur_phy = PHY_NOT_CONFIGURED;
-            scansm->next_phy = PHY_NOT_CONFIGURED;
-
-            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
-                scanphy = &scansm->phy_data[i];
-                scanp = &g_ble_ll_scan_params[i];
-
-                if (!scanp->configured) {
-                    continue;
-                }
-
-                scanphy->configured = scanp->configured;
-                scanphy->scan_type = scanp->scan_type;
-                scanphy->scan_itvl = scanp->scan_itvl;
-                scanphy->scan_window = scanp->scan_window;
-                scanphy->scan_filt_policy = scanp->scan_filt_policy;
-                scanphy->own_addr_type = scanp->own_addr_type;
-                scansm->scan_filt_dups = filter_dups;
-
-                if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
-                    scansm->cur_phy = i;
-                } else {
-                    scansm->next_phy = i;
-                }
-            }
-
-            rc = ble_ll_scan_sm_start(scansm);
+        /* Period parameter is ignored when the Duration parameter is zero */
+        if (dur) {
+            period = get_le16(cmd + 4);
         } else {
-            /* Controller does not allow initiating and scanning.*/
-            for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
-                scanphy = &scansm->phy_data[i];
-                if (scanphy->configured &&
-                        scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
-                        rc = BLE_ERR_CMD_DISALLOWED;
-                        break;
-                }
-            }
+            period = 0;
         }
-    } else {
+
+        /* period is in 1.28 sec units
+         * TODO support full range, would require os_cputime milliseconds API
+         */
+        if (period > 3355) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+        period_ticks = os_cputime_usecs_to_ticks(period * 1280000);
+
+        /* duration is in 10ms units */
+        dur_ticks = os_cputime_usecs_to_ticks(dur * 10000);
+
+        if (dur_ticks && period_ticks && (dur_ticks >= period_ticks)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    }
+#endif
+
+    /* disable*/
+    if (!enable) {
         if (scansm->scan_enabled) {
             ble_ll_scan_sm_stop(1);
         }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        os_cputime_timer_stop(&scansm->duration_timer);
+        os_cputime_timer_stop(&scansm->period_timer);
+#endif
+
+        return BLE_ERR_SUCCESS;
     }
+
+    /* if already enable we just need to update parameters */
+    if (scansm->scan_enabled) {
+        /* Controller does not allow initiating and scanning.*/
+        for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+            scanphy = &scansm->phy_data[i];
+            if (scanphy->configured &&
+                                scanphy->scan_type == BLE_SCAN_TYPE_INITIATE) {
+                return BLE_ERR_CMD_DISALLOWED;
+            }
+        }
+
+        /* update filter policy */
+        scansm->scan_filt_dups = filter_dups;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        /* restart timers according to new settings */
+        scansm->duration_ticks = dur_ticks;
+        scansm->period_ticks = period_ticks;
+        ble_ll_scan_duration_period_timers_restart(scansm);
+#endif
+
+        return BLE_ERR_SUCCESS;
+    }
+
+    /* we can store those upfront regardless of start scan result since scan is
+     * disabled now
+     */
+
+    scansm->scan_filt_dups = filter_dups;
+    scansm->cur_phy = PHY_NOT_CONFIGURED;
+    scansm->next_phy = PHY_NOT_CONFIGURED;
+
+    for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+        scanphy = &scansm->phy_data[i];
+        scanp = &g_ble_ll_scan_params[i];
+
+        if (!scanp->configured) {
+            continue;
+        }
+
+        scanphy->configured = scanp->configured;
+        scanphy->scan_type = scanp->scan_type;
+        scanphy->scan_itvl = scanp->scan_itvl;
+        scanphy->scan_window = scanp->scan_window;
+        scanphy->scan_filt_policy = scanp->scan_filt_policy;
+        scanphy->own_addr_type = scanp->own_addr_type;
+
+        if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
+            scansm->cur_phy = i;
+        } else {
+            scansm->next_phy = i;
+        }
+    }
+
+    rc = ble_ll_scan_sm_start(scansm);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (rc == BLE_ERR_SUCCESS) {
+        scansm->duration_ticks = dur_ticks;
+        scansm->period_ticks = period_ticks;
+        ble_ll_scan_duration_period_timers_restart(scansm);
+    }
+#endif
 
     return rc;
 }
@@ -2846,7 +2949,9 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
 
     scansm = &g_ble_ll_scan_sm;
     scansm->own_addr_type = hcc->own_addr_type;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     scansm->ext_scanning = 0;
+#endif
     scansm->cur_phy = PHY_UNCODED;
     scansm->next_phy = PHY_NOT_CONFIGURED;
 
@@ -3061,6 +3166,14 @@ ble_ll_scan_common_init(void)
     /* Initialize scanning timer */
     os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
+    /* Initialize extended scan timers */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    os_cputime_timer_init(&g_ble_ll_scan_sm.duration_timer,
+                            ble_ll_scan_duration_timer_cb, &g_ble_ll_scan_sm);
+    os_cputime_timer_init(&g_ble_ll_scan_sm.period_timer,
+                            ble_ll_scan_period_timer_cb, &g_ble_ll_scan_sm);
+#endif
+
     /* Get a scan request mbuf (packet header) and attach to state machine */
     scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_SCAN_LEGACY_MAX_PKT_LEN,
                                               sizeof(struct ble_mbuf_hdr));
@@ -3078,11 +3191,18 @@ ble_ll_scan_reset(void)
 {
     struct ble_ll_scan_sm *scansm;
 
-    /* If enabled, stop it. */
     scansm = &g_ble_ll_scan_sm;
+
+    /* If enabled, stop it. */
     if (scansm->scan_enabled) {
         ble_ll_scan_sm_stop(0);
     }
+
+    /* stop extended scan timers */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    os_cputime_timer_stop(&scansm->duration_timer);
+    os_cputime_timer_stop(&scansm->period_timer);
+#endif
 
     /* Free the scan request pdu */
     os_mbuf_free_chain(scansm->scan_req_pdu);

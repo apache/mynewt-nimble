@@ -1257,6 +1257,14 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
     ble_gap_disc_report(desc);
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
+void
+ble_gap_rx_le_scan_timeout(void)
+{
+    ble_gap_disc_complete();
+}
+#endif
+
 #if MYNEWT_VAL(BLE_EXT_ADV)
 void
 ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)

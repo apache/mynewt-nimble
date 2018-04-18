@@ -775,6 +775,9 @@ extern "C" {
 /* LE PHY update complete event (sub event 0x0C) */
 #define BLE_HCI_LE_PHY_UPD_LEN              (6)
 
+/* LE Scan Timeout Event (sub event 0x11) */
+#define BLE_HCI_LE_SUBEV_SCAN_TIMEOUT_LEN   (1)
+
 /*  LE Advertising Set Terminated Event (sub event 0x12) */
 #define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED_LEN   (6)
 

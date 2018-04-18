@@ -3028,13 +3028,11 @@ int
 ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
 {
     struct ble_ll_conn_sm *connsm;
-    struct ble_ll_scan_sm *scansm;
 
     connsm = g_ble_ll_conn_create_sm;
     if (!connsm) {
         return 0;
     }
-    scansm = connsm->scansm;
 
     if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
         (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND ||
@@ -3042,7 +3040,9 @@ ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
         return 1;
     }
 
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND &&
+                                                connsm->scansm->ext_scanning) {
         if (connsm->scansm->cur_aux_data) {
             STATS_INC(ble_ll_stats, aux_received);
         }
@@ -3050,6 +3050,7 @@ ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr)
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV;
         return 1;
     }
+#endif
 
     return 0;
 }

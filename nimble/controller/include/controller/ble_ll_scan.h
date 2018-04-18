@@ -132,12 +132,16 @@ struct ble_ll_scan_sm
     struct os_event scan_sched_ev;
     struct hal_timer scan_timer;
 
-    uint16_t duration;
-    uint16_t period;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct hal_timer duration_timer;
+    struct hal_timer period_timer;
+    uint32_t duration_ticks;
+    uint32_t period_ticks;
+    uint8_t ext_scanning;
+#endif
 
     uint8_t cur_phy;
     uint8_t next_phy;
-    uint8_t ext_scanning;
     uint8_t restart_timer_needed;
     struct ble_ll_aux_data *cur_aux_data;
     struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
