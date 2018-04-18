@@ -2002,11 +2002,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
     scanphy = &scansm->phy_data[scansm->cur_phy];
-    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
-#endif
     /*
      * The reason we do something different here (as opposed to failed CRC) is
      * that the received PDU will not be handed up in this case. So we have
@@ -2023,6 +2019,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         ble_phy_restart_rx();
         return 0;
     }
+
+    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
+#endif
 
     /* Just leave if the CRC is not OK. */
     rc = -1;
