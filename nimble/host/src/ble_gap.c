@@ -1349,7 +1349,7 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
              */
 #if !MYNEWT_VAL(BLE_EXT_ADV)
             if (ble_gap_adv_active()) {
-                ble_gap_adv_finished(0, 0, 0);
+                ble_gap_adv_finished(0, 0, 0, 0);
             }
 #endif
             break;
@@ -1588,7 +1588,7 @@ ble_gap_slave_timer(void)
     ble_gap_slave_reset_state(0);
 
     /* Indicate to application that advertising has stopped. */
-    ble_gap_adv_finished(0, BLE_HS_ETIMEOUT, 0);
+    ble_gap_adv_finished(0, BLE_HS_ETIMEOUT, 0, 0);
 
     return BLE_HS_FOREVER;
 }
