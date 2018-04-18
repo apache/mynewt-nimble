@@ -185,6 +185,7 @@ struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 static void
@@ -454,8 +455,11 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
 
     /* AuxPtr */
-    assert(AUX_CURRENT(advsm)->sch.enqueued);
-    offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+    if (AUX_CURRENT(advsm)->sch.enqueued) {
+        offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+    } else {
+        offset = 0;
+    }
     ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
 
     return BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
@@ -523,9 +527,14 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
-        assert(AUX_NEXT(advsm)->sch.enqueued);
-
-        if (advsm->rx_ble_hdr) {
+        if (!AUX_NEXT(advsm)->sch.enqueued) {
+            /*
+             * Trim data here in case we do not have next aux scheduled. This
+             * can happen if next aux was outside advertising set period and
+             * was removed from scheduler.
+             */
+            offset = 0;
+        } else if (advsm->rx_ble_hdr) {
             offset = advsm->rx_ble_hdr->rem_usecs +
                      ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS + 30;
             offset = AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime -
@@ -1183,7 +1192,6 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
 
     ble_ll_adv_aux_calculate(advsm, aux_next, next_aux_data_offset);
     max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
-    max_usecs += XCVR_PROC_DELAY_USECS;
 
     aux_next->start_time = aux->sch.end_time +
                           ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
@@ -1191,8 +1199,18 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     sch = &aux_next->sch;
     sch->start_time = aux_next->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux_next->start_time + os_cputime_usecs_to_ticks(max_usecs);
+    sch->end_time = aux_next->start_time +
+                    ble_ll_usecs_to_ticks_round_up(max_usecs);
     ble_ll_sched_adv_new(&aux_next->sch, ble_ll_adv_aux_scheduled, aux_next);
+
+    /*
+     * In case duration is set for advertising set we need to check if newly
+     * scheduled aux will fit inside duration. If not, remove it from scheduler
+     * so advertising will stop after current aux.
+     */
+    if (advsm->duration && (aux_next->sch.end_time > advsm->adv_end_time)) {
+        ble_ll_sched_rmv_elem(&aux_next->sch);
+    }
 }
 
 static void
@@ -1242,16 +1260,10 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
         max_usecs = ble_ll_pdu_tx_time_get(aux->payload_len, advsm->sec_phy);
     }
 
-    /*
-     * XXX: For now, just schedule some additional time so we insure we have
-     * enough time to do everything we want.
-     */
-    max_usecs += XCVR_PROC_DELAY_USECS;
-
     sch = &aux->sch;
     sch->start_time = aux->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux->start_time + os_cputime_usecs_to_ticks(max_usecs);
+    sch->end_time = aux->start_time + ble_ll_usecs_to_ticks_round_up(max_usecs);
     ble_ll_sched_adv_new(sch, ble_ll_adv_aux_scheduled, aux);
 
 }
@@ -1315,6 +1327,16 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
     ble_ll_adv_aux_set_start_time(advsm);
     ble_ll_adv_aux_schedule_first(advsm);
     ble_ll_adv_aux_schedule_next(advsm);
+
+    /*
+     * In case duration is set for advertising set we need to check if at least
+     * 1st aux will fit inside duration. If not, stop advertising now so we do
+     * not start extended advertising event which we cannot finish in time.
+     */
+    if (advsm->duration &&
+            (AUX_CURRENT(advsm)->sch.end_time > advsm->adv_end_time)) {
+        ble_ll_adv_sm_stop_timeout(advsm);
+    }
 }
 #endif
 
@@ -1543,6 +1565,29 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         /* Disable advertising */
         advsm->adv_enabled = 0;
     }
+}
+
+static void
+ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                          advsm->adv_instance, 0,
+                                          advsm->events);
+#endif
+
+    /*
+     * For high duty directed advertising we need to send connection
+     * complete event with proper status
+     */
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+        ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                    advsm->conn_comp_ev, advsm);
+        advsm->conn_comp_ev = NULL;
+    }
+
+    /* Disable advertising */
+    ble_ll_adv_sm_stop(advsm);
 }
 
 static void
@@ -2866,6 +2911,9 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_ll_sched_rmv_elem(&advsm->aux[0].sch);
     ble_ll_sched_rmv_elem(&advsm->aux[1].sch);
+
+    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    advsm->aux_active = 0;
 #endif
 
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
@@ -3040,37 +3088,16 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          */
         if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                         (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
-            ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                                  advsm->adv_instance, 0, 0);
-
-            /*
-             * For high duty directed advertising we need to send connection
-             * complete event with proper status
-             */
-            if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-                ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                            advsm->conn_comp_ev, advsm);
-                advsm->conn_comp_ev = NULL;
-            }
-
-            /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_scan_chk_resume();
+            ble_ll_adv_sm_stop_timeout(advsm);
         }
 
         return;
     }
 #else
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-        if (advsm->adv_pdu_start_time >= advsm->adv_end_time) {
-            /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev, advsm);
-            advsm->conn_comp_ev = NULL;
-            ble_ll_scan_chk_resume();
-            return;
-        }
+    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) &&
+            (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+        ble_ll_adv_sm_stop_timeout(advsm);
+        return;
     }
 #endif
 
@@ -3086,8 +3113,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
                                                   advsm->events);
 
             /* Disable advertising */
-            advsm->adv_enabled = 0;
-            ble_ll_scan_chk_resume();
+            ble_ll_adv_sm_stop(advsm);
         }
 
         return;
@@ -3142,9 +3168,9 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     assert(advsm->aux_active);
 
     aux = AUX_CURRENT(advsm);
+    aux_next = AUX_NEXT(advsm);
 
     if (advsm->aux_not_scanned) {
-        aux_next = AUX_NEXT(advsm);
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
 
@@ -3159,7 +3185,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     }
 
     /* If we have next AUX scheduled, try to schedule another one */
-    if (AUX_NEXT(advsm)->sch.enqueued) {
+    if (aux_next->sch.enqueued) {
         advsm->aux_index ^= 1;
         advsm->aux_first_pdu = 0;
         ble_ll_adv_aux_schedule_next(advsm);
@@ -3170,34 +3196,18 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_scan_chk_resume();
 
     /* Check if advertising timed out */
-    if ((advsm->duration && aux->start_time >= advsm->adv_end_time) &&
-                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
-        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                              advsm->adv_instance, 0, 0);
-
-        /*
-         * For high duty directed advertising we need to send connection
-         * complete event with proper status
-         */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
-            ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
-                                        advsm->conn_comp_ev, advsm);
-            advsm->conn_comp_ev = NULL;
-        }
-
-        /* Disable advertising */
-        advsm->adv_enabled = 0;
+    if (advsm->duration && (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+        ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
 
-    if ((advsm->events_max && (advsm->events >= advsm->events_max)) &&
-                    (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
+    if (advsm->events_max && (advsm->events >= advsm->events_max)) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
                                               advsm->adv_instance, 0,
                                               advsm->events);
-         /* Disable advertising */
-         advsm->adv_enabled = 0;
-         return;
+        /* Disable advertising */
+        ble_ll_adv_sm_stop(advsm);
+        return;
     }
 
     advsm->aux_active = 0;
