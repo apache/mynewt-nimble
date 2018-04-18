@@ -1399,7 +1399,7 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     os_cputime_timer_stop(&g_ble_ll_sched_timer);
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         /* We can insert if before entry in list */
-        if (sch->end_time <= entry->start_time) {
+        if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
             rc = 0;
             TAILQ_INSERT_BEFORE(entry, sch, link);
             sch->enqueued = 1;
