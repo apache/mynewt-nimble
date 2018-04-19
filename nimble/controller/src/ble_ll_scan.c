@@ -68,10 +68,10 @@ static const uint8_t ble_ll_valid_scan_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
 #endif
 
 /* The scanning parameters set by host */
-struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
+static struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
 
 /* The scanning state machine global object */
-struct ble_ll_scan_sm g_ble_ll_scan_sm;
+static struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
 #define BLE_LL_EXT_ADV_ADVA_BIT         (0)
 #define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
