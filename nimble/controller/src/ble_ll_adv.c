@@ -731,7 +731,10 @@ ble_ll_adv_aux_conn_rsp_pdu_make(uint8_t *dptr, void *pducb_arg,
     pdulen = BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
 
     /* Set BLE transmit header */
-    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP | rsp_data->rxadd;
+    hdr = BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP;
+    if (rsp_data->rxadd) {
+        hdr |= BLE_ADV_PDU_HDR_RXADD_MASK;
+    }
     if (rsp_data->advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
         hdr |= BLE_ADV_PDU_HDR_TXADD_MASK;
     }
