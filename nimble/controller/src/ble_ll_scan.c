@@ -2652,9 +2652,13 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
     coded->scan_filt_policy = cmd[1];
     uncoded->scan_filt_policy = cmd[1];
 
-    if (!(cmd[2] & ble_ll_valid_scan_phy_mask)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
+    /* Check if no reserved bits in PHYS are set and that at least one valid PHY
+     * is set.
+     */
+    if (!(cmd[2] & ble_ll_valid_scan_phy_mask) ||
+                                    (cmd[2] & ~ble_ll_valid_scan_phy_mask)) {
+         return BLE_ERR_INV_HCI_CMD_PARMS;
+     }
 
     idx = 3;
     if (cmd[2] & BLE_HCI_LE_PHY_1M_PREF_MASK) {
