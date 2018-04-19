@@ -3168,10 +3168,10 @@ ble_ll_scan_common_init(void)
 
     /* Initialize extended scan timers */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    os_cputime_timer_init(&g_ble_ll_scan_sm.duration_timer,
-                            ble_ll_scan_duration_timer_cb, &g_ble_ll_scan_sm);
-    os_cputime_timer_init(&g_ble_ll_scan_sm.period_timer,
-                            ble_ll_scan_period_timer_cb, &g_ble_ll_scan_sm);
+    os_cputime_timer_init(&scansm->duration_timer,
+                                        ble_ll_scan_duration_timer_cb, scansm);
+    os_cputime_timer_init(&scansm->period_timer, ble_ll_scan_period_timer_cb,
+                                                                        scansm);
 #endif
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
