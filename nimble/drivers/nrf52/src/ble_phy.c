@@ -1060,11 +1060,13 @@ ble_phy_rx_start_isr(void)
      * it is possible that actual transmission started before TIMER0 was
      * running - need to take this into account.
      */
+    ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime;
+
     usecs = NRF_TIMER0->CC[1];
     pdu_usecs = ble_phy_mode_pdu_start_off(ble_hdr->rxinfo.phy_mode) +
                 g_ble_phy_t_rxaddrdelay[ble_hdr->rxinfo.phy_mode];
     if (usecs < pdu_usecs) {
-        ticks--;
+        g_ble_phy_data.phy_start_cputime--;
         usecs += 30;
     }
     usecs -= pdu_usecs;
@@ -1076,7 +1078,7 @@ ble_phy_rx_start_isr(void)
         ++ticks;
     }
 
-    ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime + ticks;
+    ble_hdr->beg_cputime += ticks;
     ble_hdr->rem_usecs = usecs;
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
