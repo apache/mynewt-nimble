@@ -554,6 +554,49 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
     return 0;
 }
 
+static int
+ble_phy_set_start_now(void)
+{
+    uint32_t cntr;
+
+    /* Read current RTC0 state */
+    cntr = NRF_RTC0->COUNTER;
+
+    /*
+     * Set TIMER0 to fire immediately. We can't set CC to 0 as compare will not
+     * occur in such case.
+     */
+    NRF_TIMER0->TASKS_CLEAR = 1;
+    NRF_TIMER0->CC[0] = 1;
+    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+
+    /*
+     * Set RTC compare to start TIMER0. We need to set it to at least N+2 ticks
+     * from current value to guarantee triggering compare event, but let's set
+     * it to N+3 to account for possible extra tick on RTC0 during these
+     * operations.
+     */
+    NRF_RTC0->EVENTS_COMPARE[0] = 0;
+    NRF_RTC0->CC[0] = cntr + 3;
+    NRF_RTC0->EVTENSET = RTC_EVTENSET_COMPARE0_Msk;
+
+    /* Enable PPI */
+    NRF_PPI->CHENSET = PPI_CHEN_CH31_Msk;
+
+    /*
+     * Store the cputime at which we set the RTC
+     *
+     * XXX Compare event may be triggered on previous CC value (if it was set to
+     * less than N+2) so in rare cases actual start time may be 2 ticks earlier
+     * than what we expect. Since this is only used on RX, it may cause AUX scan
+     * to be scheduled 1 or 2 ticks too late so we'll miss it - it's acceptable
+     * for now.
+     */
+    g_ble_phy_data.phy_start_cputime = cntr + 3;
+
+    return 0;
+}
+
 /**
  * Function is used to set PPI so that we can time out waiting for a reception
  * to occur. This happens for two reasons: we have sent a packet and we are
@@ -1393,10 +1436,8 @@ ble_phy_rx(void)
     /* Setup for rx */
     ble_phy_rx_xcvr_setup();
 
-    /* Start the receive task in the radio if not automatically going to rx */
-    if ((NRF_PPI->CHEN & PPI_CHEN_CH21_Msk) == 0) {
-        NRF_RADIO->TASKS_RXEN = 1;
-    }
+    /* PPI to start radio automatically shall be set here */
+    assert(NRF_PPI->CHEN & PPI_CHEN_CH21_Msk);
 
     ble_ll_log(BLE_LL_LOG_ID_PHY_RX, g_ble_phy_data.phy_encrypted, 0, 0);
 
@@ -1519,16 +1560,14 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     if (ble_phy_set_start_time(cputime, rem_usecs, false) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
 
-        /*
-         * Disable PPI so ble_phy_rx() will start RX immediately after
-         * configuring receiver.
-         */
-        NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+        /* We're late so let's just try to start RX as soon as possible */
+        ble_phy_set_start_now();
+
         late = true;
-    } else {
-        /* Enable PPI to automatically start RXEN */
-        NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
     }
+
+    /* Enable PPI to automatically start RXEN */
+    NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
 
     /* Start rx */
     rc = ble_phy_rx();
@@ -1816,6 +1855,11 @@ void
 ble_phy_restart_rx(void)
 {
     ble_phy_disable_irq_and_ppi();
+
+    ble_phy_set_start_now();
+    /* Enable PPI to automatically start RXEN */
+    NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
+
     ble_phy_rx();
 }
 
