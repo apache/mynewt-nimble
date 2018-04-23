@@ -93,4 +93,4 @@ syscfg.defs:
         value: 256
 
 syscfg.vals.BLE_EXT_ADV:
-    BLE_HCI_EVT_BUF_SIZE: 274
+    BLE_HCI_EVT_BUF_SIZE: 257
