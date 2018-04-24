@@ -18,6 +18,7 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"

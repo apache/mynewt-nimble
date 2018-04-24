@@ -22,6 +22,7 @@
 
 #include <inttypes.h>
 #include "stats/stats.h"
+#include "os/os_time.h"
 #include "os/queue.h"
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"

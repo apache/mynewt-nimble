@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include "os/os.h"
