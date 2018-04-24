@@ -578,7 +578,7 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 
     params = &ext_adv->params[0];
     for (i = 0; i < num_reports; i++) {
-        desc.props = (params->evt_type) & 0xFF;
+        desc.props = (params->evt_type) & 0x1F;
         if (desc.props & BLE_HCI_ADV_LEGACY_MASK) {
             legacy_event_type = ble_hs_hci_decode_legacy_type(params->evt_type);
             if (legacy_event_type < 0) {
@@ -587,7 +587,7 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
             }
             desc.legacy_event_type = legacy_event_type;
         } else {
-            desc.data_status = params->evt_type >> 8;
+            desc.data_status = (params->evt_type & BLE_HCI_ADV_DATA_STATUS_MASK) >> 5;
         }
         desc.addr.type = params->addr_type;
         memcpy(desc.addr.val, params->addr, 6);
