@@ -1509,6 +1509,10 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_LE_PING;
 #endif
 
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+    features |= BLE_LL_FEAT_EXT_ADV;
+#endif
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
     /* CSA2 */
     features |= BLE_LL_FEAT_CSA2;
