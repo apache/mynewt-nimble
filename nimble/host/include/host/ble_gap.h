@@ -225,6 +225,11 @@ struct ble_gap_passkey_params {
 };
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
+
+#define BLE_GAP_EXT_ADV_DATA_STATUS_COMPLETE   0x00
+#define BLE_GAP_EXT_ADV_DATA_STATUS_INCOMPLETE 0x01
+#define BLE_GAP_EXT_ADV_DATA_STATUS_TRUNCATED  0x02
+
 struct ble_gap_ext_disc_desc {
     /*** Common fields. */
     uint8_t props;
