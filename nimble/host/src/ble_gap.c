@@ -20,12 +20,17 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
+
+#if MYNEWT
+#include "bsp/bsp.h"
+#else
+#define bssnz_t
+#endif
 
 /**
  * GAP - Generic Access Profile.
