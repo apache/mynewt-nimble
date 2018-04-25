@@ -1002,6 +1002,11 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
                                        g_ble_ll_sched_offset_ticks, 0);
     }
     if (!rc || rc == BLE_PHY_ERR_RX_LATE) {
+        /* If we are late here, it is still OK because we keep scanning.
+         * Clear error
+         */
+        rc = 0;
+
         /* Enable/disable whitelisting */
         if (scanphy->scan_filt_policy & 1) {
             ble_ll_whitelist_enable();
