@@ -44,7 +44,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include "console/console.h"
 #include "nimble/ble.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"

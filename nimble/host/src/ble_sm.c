@@ -43,7 +43,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include "console/console.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_sm.h"

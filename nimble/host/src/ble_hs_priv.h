@@ -22,7 +22,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include "os/os_time.h"
 #include "ble_att_cmd_priv.h"
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"

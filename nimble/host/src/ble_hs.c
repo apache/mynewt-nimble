@@ -24,7 +24,6 @@
 #include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "os/os.h"
-#include "console/console.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
