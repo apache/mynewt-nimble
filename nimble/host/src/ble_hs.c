@@ -660,8 +660,6 @@ ble_hs_init(void)
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
-    log_init();
-
     /* Create memory pool of OS events */
     rc = os_mempool_init(&ble_hs_hci_ev_pool, BLE_HS_HCI_EVT_COUNT,
                          sizeof (struct os_event), ble_hs_hci_os_event_buf,
