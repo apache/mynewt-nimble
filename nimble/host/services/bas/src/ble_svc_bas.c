@@ -31,14 +31,6 @@
 static uint16_t ble_svc_bas_battery_handle;
 #endif
 
-/* Connection handle 
- *
- * TODO: In order to support multiple connections we would need to save
- *       the handles for every connection, not just the most recent. Then
- *       we would need to notify each connection when needed.
- * */
-static uint16_t ble_svc_bas_conn_handle;
-
 /* Battery level */
 uint8_t ble_svc_bas_battery_level;
 
@@ -84,7 +76,7 @@ ble_svc_bas_access(uint16_t conn_handle, uint16_t attr_handle,
 {
     uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     int rc;
-    
+
     switch (uuid16) {
     case BLE_SVC_BAS_CHR_UUID16_BATTERY_LEVEL:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
@@ -98,19 +90,6 @@ ble_svc_bas_access(uint16_t conn_handle, uint16_t attr_handle,
     }
 }
 
-/**
- * This function must be called with the connection handle when a gap 
- * connect event is received in order to send notifications to the
- * client.
- *
- * @params conn_handle          The connection handle for the current
- *                                  connection.
- */
-void 
-ble_svc_bas_on_gap_connect(uint16_t conn_handle) 
-{
-    ble_svc_bas_conn_handle = conn_handle;
-}
 
 /**
  * Set the battery level, must be between 0 and 100.
@@ -118,17 +97,15 @@ ble_svc_bas_on_gap_connect(uint16_t conn_handle)
  */
 int
 ble_svc_bas_battery_level_set(uint8_t level) {
-    int rc = 0;
     if (level > 100)
 	level = 100;
     if (ble_svc_bas_battery_level != level) {
 	ble_svc_bas_battery_level = level;
 #if MYNEWT_VAL(BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE) > 0
-	rc = ble_gattc_notify(ble_svc_bas_conn_handle,
-			      ble_svc_bas_battery_handle);
+        ble_gatts_chr_updated(ble_svc_bas_battery_handle);
 #endif
     }
-    return rc;
+    return 0;
 }
 
 /**
