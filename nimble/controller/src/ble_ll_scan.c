@@ -2307,6 +2307,11 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         return;
     }
 
+    if (!aux_data) {
+        assert(0);
+        return;
+    }
+
     evt = ble_ll_scan_init_ext_adv(NULL);
     if (!evt) {
         return;
