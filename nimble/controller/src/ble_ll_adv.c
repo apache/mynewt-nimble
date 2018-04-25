@@ -3372,13 +3372,18 @@ ble_ll_adv_reset(void)
     struct ble_ll_adv_sm *advsm;
 
     for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
-        /* Stop advertising state machine */
         advsm = &g_ble_ll_adv_sm[i];
-        ble_ll_adv_sm_stop(advsm);
-    }
 
-    /* re-initialize the advertiser state machine */
-    ble_ll_adv_init();
+        /* Stop advertising state machine */
+        ble_ll_adv_sm_stop(advsm);
+
+        /* clear any data present */
+        os_mbuf_free_chain(advsm->adv_data);
+        os_mbuf_free_chain(advsm->scan_rsp_data);
+
+        /* re-initialize the advertiser state machine */
+        ble_ll_adv_sm_init(advsm);
+    }
 }
 
 /* Called to determine if advertising is enabled.
