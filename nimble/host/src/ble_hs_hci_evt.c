@@ -552,7 +552,7 @@ static int
 ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 {
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    struct ble_gap_ext_disc_desc desc = {0};
+    struct ble_gap_ext_disc_desc desc;
     struct hci_ext_adv_report *ext_adv;
     struct hci_ext_adv_report_param *params;
     int num_reports;
@@ -577,6 +577,8 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 
     params = &ext_adv->params[0];
     for (i = 0; i < num_reports; i++) {
+        memset(&desc, 0, sizeof(desc));
+
         desc.props = (params->evt_type) & 0x1F;
         if (desc.props & BLE_HCI_ADV_LEGACY_MASK) {
             legacy_event_type = ble_hs_hci_decode_legacy_type(params->evt_type);
@@ -585,8 +587,21 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
                 continue;
             }
             desc.legacy_event_type = legacy_event_type;
+            desc.data_status = BLE_GAP_EXT_ADV_DATA_STATUS_COMPLETE;
         } else {
-            desc.data_status = (params->evt_type & BLE_HCI_ADV_DATA_STATUS_MASK) >> 5;
+            switch(params->evt_type & BLE_HCI_ADV_DATA_STATUS_MASK) {
+            case BLE_HCI_ADV_DATA_STATUS_COMPLETE:
+                desc.data_status = BLE_GAP_EXT_ADV_DATA_STATUS_COMPLETE;
+                break;
+            case BLE_HCI_ADV_DATA_STATUS_INCOMPLETE:
+                desc.data_status = BLE_GAP_EXT_ADV_DATA_STATUS_INCOMPLETE;
+                break;
+            case BLE_HCI_ADV_DATA_STATUS_TRUNCATED:
+                desc.data_status = BLE_GAP_EXT_ADV_DATA_STATUS_TRUNCATED;
+                break;
+            default:
+                assert(false);
+            }
         }
         desc.addr.type = params->addr_type;
         memcpy(desc.addr.val, params->addr, 6);
