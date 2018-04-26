@@ -68,10 +68,10 @@ static const uint8_t ble_ll_valid_scan_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
 #endif
 
 /* The scanning parameters set by host */
-struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
+static struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
 
 /* The scanning state machine global object */
-struct ble_ll_scan_sm g_ble_ll_scan_sm;
+static struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
 #define BLE_LL_EXT_ADV_ADVA_BIT         (0)
 #define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
@@ -2662,9 +2662,13 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
     coded->scan_filt_policy = cmd[1];
     uncoded->scan_filt_policy = cmd[1];
 
-    if (!(cmd[2] & ble_ll_valid_scan_phy_mask)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
+    /* Check if no reserved bits in PHYS are set and that at least one valid PHY
+     * is set.
+     */
+    if (!(cmd[2] & ble_ll_valid_scan_phy_mask) ||
+                                    (cmd[2] & ~ble_ll_valid_scan_phy_mask)) {
+         return BLE_ERR_INV_HCI_CMD_PARMS;
+     }
 
     idx = 3;
     if (cmd[2] & BLE_HCI_LE_PHY_1M_PREF_MASK) {
@@ -3178,10 +3182,10 @@ ble_ll_scan_common_init(void)
 
     /* Initialize extended scan timers */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    os_cputime_timer_init(&g_ble_ll_scan_sm.duration_timer,
-                            ble_ll_scan_duration_timer_cb, &g_ble_ll_scan_sm);
-    os_cputime_timer_init(&g_ble_ll_scan_sm.period_timer,
-                            ble_ll_scan_period_timer_cb, &g_ble_ll_scan_sm);
+    os_cputime_timer_init(&scansm->duration_timer,
+                                        ble_ll_scan_duration_timer_cb, scansm);
+    os_cputime_timer_init(&scansm->period_timer, ble_ll_scan_period_timer_cb,
+                                                                        scansm);
 #endif
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
