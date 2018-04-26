@@ -60,7 +60,7 @@ static struct os_event ble_hs_ev_start = {
 uint8_t ble_hs_sync_state;
 static int ble_hs_reset_reason;
 
-#define BLE_HS_SYNC_RETRY_RATE          (OS_TICKS_PER_SEC / 10)
+#define BLE_HS_SYNC_RETRY_TIMEOUT_MS    100 /* ms */
 
 static struct os_task *ble_hs_parent_task;
 
@@ -326,6 +326,7 @@ ble_hs_synced(void)
 static int
 ble_hs_sync(void)
 {
+    uint32_t retry_tmo_ticks;
     int rc;
 
     /* Set the sync state to "bringup."  This allows the parent task to send
@@ -341,7 +342,8 @@ ble_hs_sync(void)
         ble_hs_sync_state = BLE_HS_SYNC_STATE_BAD;
     }
 
-    ble_hs_timer_sched(BLE_HS_SYNC_RETRY_RATE);
+    retry_tmo_ticks = os_time_ms_to_ticks32(BLE_HS_SYNC_RETRY_TIMEOUT_MS);
+    ble_hs_timer_sched(retry_tmo_ticks);
 
     if (rc == 0) {
         rc = ble_hs_misc_restore_irks();

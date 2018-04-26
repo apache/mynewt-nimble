@@ -51,7 +51,7 @@
 #if NIMBLE_BLE_SM
 
 /** Procedure timeout; 30 seconds. */
-#define BLE_SM_TIMEOUT_OS_TICKS             (30 * OS_TICKS_PER_SEC)
+#define BLE_SM_TIMEOUT_MS             (30000)
 
 STAILQ_HEAD(ble_sm_proc_list, ble_sm_proc);
 
@@ -352,8 +352,8 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 static void
 ble_sm_proc_set_timer(struct ble_sm_proc *proc)
 {
-    /* Set a timeout of 30 seconds. */
-    proc->exp_os_ticks = os_time_get() + BLE_SM_TIMEOUT_OS_TICKS;
+    proc->exp_os_ticks = os_time_get() +
+                         os_time_ms_to_ticks32(BLE_SM_TIMEOUT_MS);
     ble_hs_timer_resched();
 }
 

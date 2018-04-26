@@ -159,7 +159,7 @@ adv_thread(void *args)
 
 			// FIXME: should we redefine K_SECONDS macro instead in glue?
 			if (timeout != K_FOREVER) {
-				timeout = OS_TICKS_PER_SEC * timeout / 1000;
+				timeout = os_time_ms_to_ticks32(timeout);
 			}
 
 			ev = os_eventq_poll(&eventq_pool, 1, timeout);

@@ -84,9 +84,9 @@
  * If an attempt to cancel an active procedure fails, the attempt is retried
  * at this rate (ms).
  */
-#define BLE_GAP_CANCEL_RETRY_RATE               100 /* ms */
+#define BLE_GAP_CANCEL_RETRY_TIMEOUT_MS         100 /* ms */
 
-#define BLE_GAP_UPDATE_TIMEOUT                  (30 * OS_TICKS_PER_SEC)
+#define BLE_GAP_UPDATE_TIMEOUT_MS               30000 /* ms */
 
 #define BLE_GAP_MAX_UPDATE_ENTRIES      1
 
@@ -1530,7 +1530,7 @@ ble_gap_master_timer(void)
         rc = ble_gap_conn_cancel_tx();
         if (rc != 0) {
             /* Failed to stop connecting; try again in 100 ms. */
-            return BLE_GAP_CANCEL_RETRY_RATE;
+            return os_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
         } else {
             /* Stop the timer now that the cancel command has been acked. */
             ble_gap_master.exp_set = 0;
@@ -1550,7 +1550,7 @@ ble_gap_master_timer(void)
         rc = ble_gap_disc_enable_tx(0, 0);
         if (rc != 0) {
             /* Failed to stop discovery; try again in 100 ms. */
-            return BLE_GAP_CANCEL_RETRY_RATE;
+            return os_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
         }
 
         ble_gap_disc_complete();
@@ -4411,7 +4411,9 @@ ble_gap_update_params(uint16_t conn_handle,
 
     entry->conn_handle = conn_handle;
     entry->params = *params;
-    entry->exp_os_ticks = os_time_get() + BLE_GAP_UPDATE_TIMEOUT;
+
+    entry->exp_os_ticks = os_time_get() +
+                          os_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: ");
     ble_gap_log_update(conn_handle, params);

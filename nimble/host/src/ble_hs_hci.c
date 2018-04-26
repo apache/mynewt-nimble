@@ -28,7 +28,7 @@
 #include "ble_hs_dbg_priv.h"
 #include "ble_monitor_priv.h"
 
-#define BLE_HCI_CMD_TIMEOUT     ((OS_TICKS_PER_SEC) * 2)
+#define BLE_HCI_CMD_TIMEOUT_MS  2000
 
 static struct os_mutex ble_hs_hci_mutex;
 static struct os_sem ble_hs_hci_sem;
@@ -243,6 +243,7 @@ ble_hs_hci_process_ack(uint16_t expected_opcode,
 static int
 ble_hs_hci_wait_for_ack(void)
 {
+    uint32_t cmd_tmo;
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
@@ -255,7 +256,8 @@ ble_hs_hci_wait_for_ack(void)
         rc = ble_hs_hci_phony_ack_cb(ble_hs_hci_ack, 260);
     }
 #else
-    rc = os_sem_pend(&ble_hs_hci_sem, BLE_HCI_CMD_TIMEOUT);
+    cmd_tmo = os_time_ms_to_ticks32(BLE_HCI_CMD_TIMEOUT_MS);
+    rc = os_sem_pend(&ble_hs_hci_sem, cmd_tmo);
     switch (rc) {
     case 0:
         BLE_HS_DBG_ASSERT(ble_hs_hci_ack != NULL);

@@ -376,8 +376,7 @@ k_delayed_work_remaining_get (struct k_delayed_work *w)
 
     OS_EXIT_CRITICAL(sr);
 
-    /* We should return ms */
-    return t / OS_TICKS_PER_SEC * 1000;
+    return os_time_ticks_to_ms32(t);
 }
 
 int64_t k_uptime_get(void)
@@ -393,7 +392,11 @@ u32_t k_uptime_get_32(void)
 
 void k_sleep(int32_t duration)
 {
-    os_time_delay(OS_TICKS_PER_SEC * duration / 1000);
+    uint32_t ticks;
+
+    ticks = os_time_ms_to_ticks32(duration);
+
+    os_time_delay(ticks);
 }
 
 static uint8_t pub[64];

@@ -68,7 +68,7 @@
  * The maximum time to wait for a single ATT response.  The spec defines this
  * as the ATT transaction time (Vol. 3, Part F, 3.3.3)
  */
-#define BLE_GATTC_UNRESPONSIVE_TIMEOUT          (30 * OS_TICKS_PER_SEC)
+#define BLE_GATTC_UNRESPONSIVE_TIMEOUT_MS       30000 /* ms */
 
 #define BLE_GATT_OP_NONE                        UINT8_MAX
 #define BLE_GATT_OP_MTU                         0
@@ -731,7 +731,8 @@ ble_gattc_proc_insert(struct ble_gattc_proc *proc)
 static void
 ble_gattc_proc_set_exp_timer(struct ble_gattc_proc *proc)
 {
-    proc->exp_os_ticks = os_time_get() + BLE_GATTC_UNRESPONSIVE_TIMEOUT;
+    proc->exp_os_ticks = os_time_get() +
+                         os_time_ms_to_ticks32(BLE_GATTC_UNRESPONSIVE_TIMEOUT_MS);
 }
 
 static void
@@ -743,7 +744,8 @@ ble_gattc_proc_set_resume_timer(struct ble_gattc_proc *proc)
      * instead.
      */
     if (ble_gattc_resume_at == 0) {
-        ble_gattc_resume_at = os_time_get() + BLE_GATT_RESUME_RATE_TICKS;
+        ble_gattc_resume_at = os_time_get() +
+                              os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE));
 
         /* A value of 0 indicates the timer is unset.  Disambiguate this. */
         if (ble_gattc_resume_at == 0) {
