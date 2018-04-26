@@ -434,7 +434,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify the procedure proceeds after mbufs become available. */
     rc = os_mbuf_free_chain(oms);
@@ -454,7 +454,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     rc = os_mbuf_free_chain(oms);
     TEST_ASSERT_FATAL(rc == 0);
@@ -511,7 +511,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify the procedure proceeds after mbufs become available. */
     rc = os_mbuf_free_chain(oms);
@@ -531,7 +531,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify that procedure completes when mbufs are available. */
     rc = os_mbuf_free_chain(oms);
@@ -592,7 +592,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
          * second.
          */
         ticks_until = ble_gattc_timer();
-        TEST_ASSERT(ticks_until == BLE_GATT_RESUME_RATE_TICKS);
+        TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
         os_time_advance(ticks_until);
     }
