@@ -17,7 +17,6 @@
  * under the License.
  */
 
-#include "hal/hal_bsp.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 

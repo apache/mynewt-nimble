@@ -18,6 +18,7 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include "sysinit/sysinit.h"
@@ -25,7 +26,6 @@
 #include "os/os.h"
 #include "os/os_cputime.h"
 #include "stats/stats.h"
-#include "bsp/bsp.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
