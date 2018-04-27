@@ -47,7 +47,7 @@ extern "C" {
 #define CLR_PENDING_CTRL_PROC(sm, proc) (sm->pending_ctrl_procs &= ~(1 << proc))
 
 /* LL control procedure timeout */
-#define BLE_LL_CTRL_PROC_TIMEOUT        (40)    /* in secs */
+#define BLE_LL_CTRL_PROC_TIMEOUT_MS     (40000) /* ms */
 
 /*
  * LL CTRL PDU format

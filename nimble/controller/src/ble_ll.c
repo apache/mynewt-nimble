@@ -853,7 +853,7 @@ ble_ll_hw_err_timer_cb(struct os_event *ev)
          * than 100 msecs).
          */
         os_callout_reset(&g_ble_ll_data.ll_hw_err_timer,
-                         OS_TICKS_PER_SEC / 20);
+                         os_time_ms_to_ticks32(50));
     }
 }
 
