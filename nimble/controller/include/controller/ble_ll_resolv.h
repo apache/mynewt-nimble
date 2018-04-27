@@ -59,9 +59,10 @@ int ble_ll_resolv_list_rmv(uint8_t *cmdbuf);
 /* Address resolution enable command */
 int ble_ll_resolv_enable_cmd(uint8_t *cmdbuf);
 
-/* XXX: implement */
-int ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf);
-void ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf);
+int ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf,
+                               uint8_t *rsplen);
+int ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf,
+                                uint8_t *rsplen);
 
 /* Finds 'addr' in resolving list. Doesnt check if address resolution enabled */
 struct ble_ll_resolv_entry *

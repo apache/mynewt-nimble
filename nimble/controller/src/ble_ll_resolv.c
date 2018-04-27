@@ -406,15 +406,51 @@ ble_ll_resolv_enable_cmd(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf)
+ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
-    /* XXX */
-    return 0;
+    struct ble_ll_resolv_entry *rl;
+    uint8_t addr_type;
+    uint8_t *ident_addr;
+    int rc;
+
+    addr_type = cmdbuf[0];
+    ident_addr = cmdbuf + 1;
+
+    rl = ble_ll_resolv_list_find(ident_addr, addr_type);
+    if (rl) {
+        memcpy(rspbuf, rl->rl_peer_rpa, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        memset(rspbuf, 0, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_UNK_CONN_ID;
+    }
+
+    *rsplen = BLE_DEV_ADDR_LEN;
+    return rc;
 }
 
-void
-ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf)
+int
+ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
+    struct ble_ll_resolv_entry *rl;
+    uint8_t addr_type;
+    uint8_t *ident_addr;
+    int rc;
+
+    addr_type = cmdbuf[0];
+    ident_addr = cmdbuf + 1;
+
+    rl = ble_ll_resolv_list_find(ident_addr, addr_type);
+    if (rl) {
+        memcpy(rspbuf, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        memset(rspbuf, 0, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_UNK_CONN_ID;
+    }
+
+    *rsplen = BLE_DEV_ADDR_LEN;
+    return rc;
 }
 
 /**
