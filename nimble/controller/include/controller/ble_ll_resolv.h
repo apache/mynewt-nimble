@@ -33,13 +33,13 @@ extern "C" {
 struct ble_ll_resolv_entry
 {
     uint8_t rl_addr_type;
-    uint8_t rl_local_rpa_set;
     uint8_t rl_reserved;
     uint8_t rl_priv_mode;
     uint8_t rl_local_irk[16];
     uint8_t rl_peer_irk[16];
     uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
     uint8_t rl_local_rpa[BLE_DEV_ADDR_LEN];
+    uint8_t rl_peer_rpa[BLE_DEV_ADDR_LEN];
 };
 
 extern struct ble_ll_resolv_entry g_ble_ll_resolv_list[];
@@ -76,7 +76,7 @@ uint8_t ble_ll_resolv_enabled(void);
 /* Reset private address resolution */
 void ble_ll_resolv_list_reset(void);
 
-void ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
+void ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
                                  uint8_t *addr);
 
 /* Generate a resolvable private address. */
