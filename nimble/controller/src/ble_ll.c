@@ -208,6 +208,8 @@ static void ble_ll_event_rx_pkt(struct os_event *ev);
 static void ble_ll_event_tx_pkt(struct os_event *ev);
 static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 
+#if MYNEWT
+
 /* The BLE LL task data structure */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /* TODO: This is for testing. Check it we really need it */
@@ -219,6 +221,8 @@ static void ble_ll_event_dbuf_overflow(struct os_event *ev);
 struct os_task g_ble_ll_task;
 
 OS_TASK_STACK_DEFINE(g_ble_ll_stack, BLE_LL_STACK_SIZE);
+
+#endif /* MYNEWT */
 
 /** Our global device address (public) */
 uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
@@ -1536,10 +1540,19 @@ ble_ll_init(void)
 
     lldata->ll_supp_features = features;
 
+#if MYNEWT
     /* Initialize the LL task */
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
                  MYNEWT_VAL(BLE_LL_PRIO), OS_WAIT_FOREVER, g_ble_ll_stack,
                  BLE_LL_STACK_SIZE);
+#else
+
+/*
+ * For non-Mynewt OS it is required that OS creates task for LL and run LL
+ * routine which is wrapped by nimble_port_ll_task_func().
+ */
+
+#endif
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
