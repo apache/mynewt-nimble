@@ -491,8 +491,6 @@ ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
     return os_cputime_usecs_to_ticks(usecs + 30);
 }
 
-#include "console/console.h"
-
 #define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
 #define BLE_LL_LOG_ID_RX_START          (2)
 #define BLE_LL_LOG_ID_RX_END            (3)

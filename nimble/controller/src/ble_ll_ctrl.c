@@ -1984,7 +1984,7 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
                 /* Re-start timer. Control procedure timeout is 40 seconds */
                 os_callout_reset(&connsm->ctrl_proc_rsp_timer,
-                                 OS_TICKS_PER_SEC * BLE_LL_CTRL_PROC_TIMEOUT);
+                                 os_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
             }
         }
     }

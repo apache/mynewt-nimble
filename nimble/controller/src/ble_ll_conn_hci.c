@@ -21,7 +21,6 @@
 #include <string.h>
 #include <assert.h>
 #include "syscfg/syscfg.h"
-#include "bsp/bsp.h"
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"

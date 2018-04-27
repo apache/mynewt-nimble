@@ -56,8 +56,7 @@ extern "C" {
 
 /* Default authenticated payload timeout (30 seconds; in 10 msecs increments) */
 #define BLE_LL_CONN_DEF_AUTH_PYLD_TMO       (3000)
-#define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     \
-    ((((uint32_t)(x)) * 10 * OS_TICKS_PER_SEC) / 1000)
+#define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     os_time_ms_to_ticks32((x) * 10)
 
 
 typedef void (*ble_ll_hci_post_cmd_complete_cb)(void);

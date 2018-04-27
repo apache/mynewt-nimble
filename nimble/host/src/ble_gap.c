@@ -3403,7 +3403,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
 #else
 
     struct ble_gap_disc_params params;
-    uint32_t duration_ticks;
+    uint32_t duration_ticks = 0;
     int rc;
 
     STATS_INC(ble_gap_stats, discover);
@@ -3836,7 +3836,7 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     return BLE_HS_ENOTSUP;
 #endif
 
-    uint32_t duration_ticks;
+    uint32_t duration_ticks = 0;
     int rc;
 
     STATS_INC(ble_gap_stats, initiate);

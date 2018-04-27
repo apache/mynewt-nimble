@@ -22,7 +22,6 @@
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "os/os_cputime.h"
-#include "bsp/bsp.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"

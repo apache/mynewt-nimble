@@ -17,9 +17,9 @@
  * under the License.
  */
 #include <stdint.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "bsp/bsp.h"
 #include "os/os.h"
 #include "os/os_cputime.h"
 #include "ble/xcvr.h"

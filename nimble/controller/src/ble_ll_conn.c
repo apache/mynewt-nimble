@@ -18,10 +18,10 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include "syscfg/syscfg.h"
-#include "bsp/bsp.h"
 #include "os/os.h"
 #include "os/os_cputime.h"
 #include "nimble/ble.h"

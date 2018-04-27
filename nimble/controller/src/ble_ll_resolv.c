@@ -368,7 +368,7 @@ ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    g_ble_ll_resolv_data.rpa_tmo = tmo_secs * OS_TICKS_PER_SEC;
+    g_ble_ll_resolv_data.rpa_tmo = os_time_ms_to_ticks32(tmo_secs * 1000);
 
     /* If resolving is not enabled, we are done here. */
     if (!ble_ll_resolv_enabled()) {
@@ -590,7 +590,7 @@ ble_ll_resolv_init(void)
     uint8_t hw_size;
 
     /* Default is 15 minutes */
-    g_ble_ll_resolv_data.rpa_tmo = 15 * 60 * OS_TICKS_PER_SEC;
+    g_ble_ll_resolv_data.rpa_tmo = os_time_ms_to_ticks32(15 * 60 * 1000);
 
     hw_size = ble_hw_resolv_list_size();
     if (hw_size > MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)) {
