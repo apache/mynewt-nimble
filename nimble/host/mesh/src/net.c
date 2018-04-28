@@ -143,6 +143,96 @@ static bool msg_cache_match(struct bt_mesh_net_rx *rx,
 	return false;
 }
 
+void bt_mesh_net_set_last_update(s64_t last_udpate)
+{
+	bt_mesh.last_update = last_udpate;
+}
+
+s64_t bt_mesh_net_get_last_update(void)
+{
+	return bt_mesh.last_update;
+}
+
+bool bt_mesh_net_get_valid(void)
+{
+	return (bool) bt_mesh.valid;
+}
+
+void bt_mesh_net_set_valid(bool valid)
+{
+	bt_mesh.valid = (uint32_t) valid;
+}
+
+bool bt_mesh_net_get_iv_update(void)
+{
+	return (bool) bt_mesh.iv_update;
+}
+
+void bt_mesh_net_set_iv_update(bool iv_update)
+{
+	bt_mesh.iv_update = (uint32_t) iv_update;
+}
+
+u32_t bt_mesh_net_get_iv_index(bool *update)
+{
+	if (update)
+		*update = (bool) bt_mesh.iv_update;
+
+	return bt_mesh.iv_index;
+}
+
+void bt_mesh_net_set_iv_index(u32_t index, bool update)
+{
+	bt_mesh.iv_index = index;
+	bt_mesh.iv_update = (uint32_t) update;
+}
+
+bool bt_mesh_net_get_key(u16_t net_idx, u8_t *key)
+{
+	struct bt_mesh_subnet *sub;
+
+	sub = bt_mesh_subnet_get(net_idx);
+	if (!sub) {
+		return false;
+	}
+
+	memcpy(key, sub->keys[sub->kr_flag].net, 16);
+	return true;
+}
+
+bool bt_mesh_net_get_flags(u16_t net_idx, u8_t *out_flags)
+{
+	struct bt_mesh_subnet *sub;
+
+	sub = bt_mesh_subnet_get(net_idx);
+	if (!sub) {
+		return false;
+	}
+
+	*out_flags = bt_mesh_net_flags(sub);
+	return true;
+}
+
+u32_t bt_mesh_net_get_sequence_number(void)
+{
+	return bt_mesh.seq;
+}
+
+void bt_mesh_net_set_sequence_number(u32_t seq_number)
+{
+	bt_mesh.seq = seq_number;
+}
+
+bool bt_mesh_net_get_pending_update(void)
+{
+	return (bool) bt_mesh.pending_update;
+}
+
+void bt_mesh_net_set_pending_update(bool pending)
+{
+	bt_mesh.pending_update = (uint32_t) pending;
+}
+
 struct bt_mesh_subnet *bt_mesh_subnet_get(u16_t net_idx)
 {
 	int i;
@@ -412,7 +502,7 @@ u8_t bt_mesh_net_flags(struct bt_mesh_subnet *sub)
 		flags |= BT_MESH_NET_FLAG_KR;
 	}
 
-	if (bt_mesh.iv_update) {
+	if (bt_mesh_net_get_iv_update()) {
 		flags |= BT_MESH_NET_FLAG_IVU;
 	}
 
@@ -432,30 +522,16 @@ int bt_mesh_net_beacon_update(struct bt_mesh_subnet *sub)
 		keys = &sub->keys[0];
 	}
 
-	BT_DBG("flags 0x%02x, IVI 0x%08x", flags, bt_mesh.iv_index);
+	BT_DBG("flags 0x%02x, IVI 0x%08x", flags, bt_mesh_net_get_iv_index(NULL));
 
 	return bt_mesh_beacon_auth(keys->beacon, flags, keys->net_id,
-				   bt_mesh.iv_index, sub->auth);
+				   bt_mesh_net_get_iv_index(NULL), sub->auth);
 }
 
-int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
-		       u32_t iv_index)
+int bt_mesh_subnet_create(struct bt_mesh_subnet *sub, u16_t idx,
+			  u8_t flags, const u8_t key[16])
 {
-	struct bt_mesh_subnet *sub;
 	int err;
-
-	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
-
-	BT_DBG("NetKey %s", bt_hex(key, 16));
-
-	if (bt_mesh.valid) {
-		return -EALREADY;
-	}
-
-	memset(msg_cache, 0, sizeof(msg_cache));
-	msg_cache_next = 0;
-
-	sub = &bt_mesh.sub[0];
 
 	sub->kr_flag = BT_MESH_KEY_REFRESH(flags);
 	if (sub->kr_flag) {
@@ -472,7 +548,6 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		}
 	}
 
-	bt_mesh.valid = 1;
 	sub->net_idx = idx;
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
@@ -481,14 +556,37 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		sub->node_id = BT_MESH_NODE_IDENTITY_NOT_SUPPORTED;
 	}
 
-	bt_mesh.iv_index = iv_index;
-	bt_mesh.iv_update = BT_MESH_IV_UPDATE(flags);
-
-	/* Set initial IV Update procedure state time-stamp */
-	bt_mesh.last_update = k_uptime_get();
-
 	/* Make sure we have valid beacon data to be sent */
 	bt_mesh_net_beacon_update(sub);
+
+	return 0;
+}
+
+int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
+		       u32_t iv_index)
+{
+	struct bt_mesh_subnet *sub;
+
+	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
+
+	BT_DBG("NetKey %s", bt_hex(key, 16));
+
+	if (bt_mesh_net_get_valid()) {
+		return -EALREADY;
+	}
+
+	memset(msg_cache, 0, sizeof(msg_cache));
+	msg_cache_next = 0;
+
+	bt_mesh_net_set_valid(true);
+	bt_mesh_net_set_iv_index(iv_index, BT_MESH_IV_UPDATE(flags));
+
+	/* Set initial IV Update procedure state time-stamp */
+	bt_mesh_net_set_last_update(k_uptime_get());
+
+	sub = &bt_mesh.sub[0];
+
+	bt_mesh_subnet_create(sub, idx, flags, key);
 
 	return 0;
 }
@@ -590,15 +688,15 @@ bool bt_mesh_iv_update(void)
 		return false;
 	}
 
-	if (bt_mesh.iv_update) {
-		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
+	if (bt_mesh_net_get_iv_update()) {
+		bt_mesh_net_iv_update(bt_mesh_net_get_iv_index(NULL), false);
 	} else {
-		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
+		bt_mesh_net_iv_update(bt_mesh_net_get_iv_index(NULL) + 1, true);
 	}
 
 	bt_mesh_net_sec_update(NULL);
 
-	return bt_mesh.iv_update;
+	return bt_mesh_net_get_iv_update();
 }
 #endif /* CONFIG_BT_MESH_IV_UPDATE_TEST */
 
@@ -619,12 +717,12 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 {
 	int i;
 
-	if (bt_mesh.iv_update) {
+	if (bt_mesh_net_get_iv_update()) {
 		/* We're currently in IV Update mode */
 
-		if (iv_index != bt_mesh.iv_index) {
+		if (iv_index != bt_mesh_net_get_iv_index(NULL)) {
 			BT_WARN("IV Index mismatch: 0x%08x != 0x%08x",
-				iv_index, bt_mesh.iv_index);
+				iv_index, bt_mesh_net_get_iv_index(NULL));
 			return false;
 		}
 
@@ -636,27 +734,27 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 	} else {
 		/* We're currently in Normal mode */
 
-		if (iv_index == bt_mesh.iv_index) {
+		if (iv_index == bt_mesh_net_get_iv_index(NULL)) {
 			BT_DBG("Same IV Index in normal mode");
 			return false;
 		}
 
-		if (iv_index < bt_mesh.iv_index ||
-		    iv_index > bt_mesh.iv_index + 42) {
+		if (iv_index < bt_mesh_net_get_iv_index(NULL) ||
+		    iv_index > bt_mesh_net_get_iv_index(NULL) + 42) {
 			BT_ERR("IV Index out of sync: 0x%08x != 0x%08x",
-			       iv_index, bt_mesh.iv_index);
+			       iv_index, bt_mesh_net_get_iv_index(NULL));
 			return false;
 		}
 
-		if (iv_index > bt_mesh.iv_index + 1) {
+		if (iv_index > bt_mesh_net_get_iv_index(NULL) + 1) {
 			BT_WARN("Performing IV Index Recovery");
 			memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
-			bt_mesh.iv_index = iv_index;
-			bt_mesh.seq = 0;
+			bt_mesh_net_set_iv_index(iv_index, bt_mesh_net_get_iv_update());
+			bt_mesh_net_set_sequence_number(0);
 			goto do_update;
 		}
 
-		if (iv_index == bt_mesh.iv_index + 1 && !iv_update) {
+		if (iv_index == bt_mesh_net_get_iv_index(NULL) + 1 && !iv_update) {
 			BT_WARN("Ignoring new index in normal mode");
 			return false;
 		}
@@ -667,15 +765,15 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 			return false;
 		}
 
-		if (iv_index != bt_mesh.iv_index + 1) {
+		if (iv_index != bt_mesh_net_get_iv_index(NULL) + 1) {
 			BT_WARN("Wrong new IV Index: 0x%08x != 0x%08x + 1",
-				iv_index, bt_mesh.iv_index);
+				iv_index, bt_mesh_net_get_iv_index(NULL));
 			return false;
 		}
 	}
 
 	if (!MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST) || !bt_mesh.ivu_test) {
-		s64_t delta = k_uptime_get() - bt_mesh.last_update;
+		s64_t delta = k_uptime_get() - bt_mesh_net_get_last_update();
 
 		if (delta < K_HOURS(96)) {
 			BT_WARN("IV Update before minimum duration");
@@ -686,17 +784,17 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 	/* Defer change to Normal Operation if there are pending acks */
 	if (!iv_update && bt_mesh_tx_in_progress()) {
 		BT_WARN("IV Update deferred because of pending transfer");
-		bt_mesh.pending_update = 1;
+		bt_mesh_net_set_pending_update(true);
 		return false;
 	}
 
 do_update:
-	bt_mesh.iv_update = iv_update;
+	bt_mesh_net_set_iv_update(iv_update);
 
-	if (bt_mesh.iv_update) {
-		bt_mesh.iv_index = iv_index;
+	if (bt_mesh_net_get_iv_update()) {
+		bt_mesh_net_set_iv_index(iv_index, iv_update);
 		BT_DBG("IV Update state entered. New index 0x%08x",
-		       bt_mesh.iv_index);
+		       bt_mesh_net_get_iv_index(NULL));
 
 		bt_mesh_rpl_reset();
 
@@ -704,12 +802,12 @@ do_update:
 				      IV_UPDATE_TIMEOUT);
 	} else {
 		BT_DBG("Normal mode entered");
-		bt_mesh.seq = 0;
+		bt_mesh_net_set_sequence_number(0);
 		k_delayed_work_cancel(&bt_mesh.ivu_complete);
 	}
 
 	/* Store time-stamp of the IV procedure state change */
-	bt_mesh.last_update = k_uptime_get();
+	bt_mesh_net_set_last_update(k_uptime_get());
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
 		if (bt_mesh.sub[i].net_idx != BT_MESH_KEY_UNUSED) {
@@ -746,9 +844,10 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 	}
 
 	/* Update with a new sequence number */
-	buf->om_data[2] = (bt_mesh.seq >> 16);
-	buf->om_data[3] = (bt_mesh.seq >> 8);
-	buf->om_data[4] = bt_mesh.seq++;
+	buf->om_data[2] = (bt_mesh_net_get_sequence_number() >> 16);
+	buf->om_data[3] = (bt_mesh_net_get_sequence_number() >> 8);
+	buf->om_data[4] = bt_mesh_net_get_sequence_number();
+	bt_mesh_net_set_sequence_number(bt_mesh_net_get_sequence_number() + 1);
 
 	err = bt_mesh_net_encrypt(enc, buf, BT_MESH_NET_IVI_TX, false);
 	if (err) {
@@ -764,9 +863,10 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 
 	bt_mesh_adv_send(buf, cb, cb_data);
 
-	if (!bt_mesh.iv_update && bt_mesh.seq > IV_UPDATE_SEQ_LIMIT) {
+	if (!bt_mesh_net_get_iv_update() &&
+	    bt_mesh_net_get_sequence_number() > IV_UPDATE_SEQ_LIMIT) {
 		bt_mesh_beacon_ivu_initiator(true);
-		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
+		bt_mesh_net_iv_update(bt_mesh_net_get_iv_index(NULL) + 1, true);
 		bt_mesh_net_sec_update(NULL);
 	}
 
@@ -802,15 +902,16 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ctl %u seq 0x%06x",
-	       tx->src, tx->ctx->addr, ctl, bt_mesh.seq);
+	       tx->src, tx->ctx->addr, ctl, bt_mesh_net_get_sequence_number());
 
 	net_buf_simple_push_be16(buf, tx->ctx->addr);
 	net_buf_simple_push_be16(buf, tx->src);
 
 	seq = net_buf_simple_push(buf, 3);
-	seq[0] = (bt_mesh.seq >> 16);
-	seq[1] = (bt_mesh.seq >> 8);
-	seq[2] = bt_mesh.seq++;
+	seq[0] = (bt_mesh_net_get_sequence_number() >> 16);
+	seq[1] = (bt_mesh_net_get_sequence_number() >> 8);
+	seq[2] = bt_mesh_net_get_sequence_number();
+	bt_mesh_net_set_sequence_number(bt_mesh_net_get_sequence_number() + 1);
 
 	if (ctl) {
 		net_buf_simple_push_u8(buf, tx->ctx->send_ttl | 0x80);
@@ -855,7 +956,7 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	       tx->src, tx->ctx->addr, buf->om_len, net_buf_headroom(buf),
 	       net_buf_tailroom(buf));
 	BT_DBG("Payload len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
-	BT_DBG("Seq 0x%06x", bt_mesh.seq);
+	BT_DBG("Seq 0x%06x", bt_mesh_net_get_sequence_number());
 
 	if (tx->ctx->send_ttl == BT_MESH_TTL_DEFAULT) {
 		tx->ctx->send_ttl = bt_mesh_default_ttl_get();
@@ -979,9 +1080,9 @@ static int net_decrypt(struct bt_mesh_subnet *sub, const u8_t *enc,
 		       struct os_mbuf *buf)
 {
 	BT_DBG("NID 0x%02x net_idx 0x%04x", NID(data), sub->net_idx);
-	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(data), bt_mesh.iv_index);
+	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(data), bt_mesh_net_get_iv_index(NULL));
 
-	rx->old_iv = (IVI(data) != (bt_mesh.iv_index & 0x01));
+	rx->old_iv = (IVI(data) != (bt_mesh_net_get_iv_index(NULL) & 0x01));
 
 	net_buf_simple_init(buf, 0);
 	memcpy(net_buf_simple_add(buf, data_len), data, data_len);
@@ -1342,7 +1443,7 @@ static void ivu_complete(struct os_event *work)
 	BT_DBG("");
 
 	bt_mesh_beacon_ivu_initiator(true);
-	bt_mesh_net_iv_update(bt_mesh.iv_index, false);
+	bt_mesh_net_iv_update(bt_mesh_net_get_iv_index(NULL), false);
 }
 
 void bt_mesh_net_init(void)

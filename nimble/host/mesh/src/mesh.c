@@ -28,9 +28,9 @@
 #include "proxy.h"
 #include "shell.h"
 #include "mesh_priv.h"
+#include "store.h"
 
 u8_t g_mesh_addr_type;
-static bool provisioned;
 
 int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		      u8_t flags, u32_t iv_index, u32_t seq,
@@ -61,7 +61,7 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 
 	memcpy(bt_mesh.dev_key, dev_key, 16);
 
-	provisioned = true;
+	bt_mesh.provisioned = true;
 
 	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
 		bt_mesh_beacon_enable();
@@ -89,23 +89,70 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		bt_mesh_prov_complete(net_idx, addr);
 	}
 
+	bt_mesh_store_net_set(&bt_mesh);
+	bt_mesh_store_sub_set_all(bt_mesh.sub ,ARRAY_SIZE(bt_mesh.sub));
+	bt_mesh_store_app_key_set_all(bt_mesh.app_keys ,ARRAY_SIZE(bt_mesh.app_keys));
+
+	return 0;
+}
+
+int bt_mesh_restore(void)
+{
+	const struct bt_mesh_store_net *store_net;
+	const struct bt_mesh_store_sub *store_sub;
+	struct bt_mesh_subnet *sub;
+	u8_t flags;
+
+	BT_DBG("");
+
+	store_net = bt_mesh_store_net_get();
+
+	if (!store_net->provisioned) {
+		BT_INFO("Nothing to restore");
+		return 0;
+	}
+
+	store_sub = bt_mesh_store_sub_get_next(NULL);
+	flags = bt_mesh_store_net_flags(store_sub);
+
+	bt_mesh_provision(store_sub->keys[store_sub->kr_flag].net,
+			  store_sub->net_idx, flags, store_net->iv_index,
+			  store_net->seq, store_net->dev_primary_addr,
+			  store_net->dev_key);
+
+	store_sub = bt_mesh_store_sub_get_next(store_sub);
+
+	while(store_sub) {
+		sub = bt_mesh_subnet_get(BT_MESH_KEY_UNUSED);
+		if (!sub) {
+			break;
+		}
+
+		flags = bt_mesh_store_net_flags(store_sub);
+
+		bt_mesh_subnet_create(sub, store_sub->net_idx, flags,
+				      store_sub->keys[store_sub->kr_phase].net);
+		store_sub = bt_mesh_store_sub_get_next(store_sub);
+	}
+
+	bt_mesh_store_app_key_restore(bt_mesh.app_keys, ARRAY_SIZE(bt_mesh.app_keys));
+
 	return 0;
 }
 
 void bt_mesh_reset(void)
 {
-	if (!provisioned) {
+	if (!bt_mesh.provisioned) {
 		return;
 	}
 
 	bt_mesh_comp_unprovision();
 
-	bt_mesh.iv_index = 0;
-	bt_mesh.seq = 0;
-	bt_mesh.iv_update = 0;
-	bt_mesh.pending_update = 0;
-	bt_mesh.valid = 0;
-	bt_mesh.last_update = 0;
+	bt_mesh_net_set_iv_index(0, false);
+	bt_mesh_net_set_sequence_number(0);
+	bt_mesh_net_set_pending_update(false);
+	bt_mesh_net_set_valid(false);
+	bt_mesh_net_set_last_update(0);
 	bt_mesh.ivu_initiator = 0;
 
 	k_delayed_work_cancel(&bt_mesh.ivu_complete);
@@ -135,7 +182,7 @@ void bt_mesh_reset(void)
 
 	memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
 
-	provisioned = false;
+	bt_mesh.provisioned = false;
 
 	bt_mesh_scan_disable();
 	bt_mesh_beacon_disable();
@@ -143,11 +190,16 @@ void bt_mesh_reset(void)
 	if (IS_ENABLED(CONFIG_BT_MESH_PROV)) {
 		bt_mesh_prov_reset();
 	}
+
+	bt_mesh_store_net_set(&bt_mesh);
+	bt_mesh_store_sub_set_all(bt_mesh.sub, ARRAY_SIZE(bt_mesh.sub));
+	bt_mesh_store_app_key_set_all(bt_mesh.app_keys,
+				      ARRAY_SIZE(bt_mesh.app_keys));
 }
 
 bool bt_mesh_is_provisioned(void)
 {
-	return provisioned;
+	return bt_mesh.provisioned;
 }
 
 int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)

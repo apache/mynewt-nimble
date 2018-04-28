@@ -37,6 +37,7 @@
 #include "foundation.h"
 #include "testing.h"
 #include "model_cli.h"
+#include "store_config.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -2333,6 +2334,11 @@ static int cmd_print_composition_data(int argc, char *argv[])
 	return 0;
 }
 
+static int cmd_restore(int argc, char *argv[])
+{
+	return bt_mesh_restore();
+}
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
@@ -2406,6 +2412,8 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
 	{ "del-fault", cmd_del_fault, &cmd_del_fault_help },
 
+	{ "restore", cmd_restore, NULL },
+
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 	/* Generic Client Model Operations */
 	{ "gen-onoff-get", cmd_gen_onoff_get, NULL },
@@ -2454,4 +2462,6 @@ void ble_mesh_shell_init(void)
 #endif
 
 #endif
+
+	bt_mesh_store_config_init();
 }
