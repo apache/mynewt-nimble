@@ -2770,10 +2770,17 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     case BLE_HCI_CONN_PEER_ADDR_RANDOM:
         if (addr_type == connsm->peer_addr_type) {
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-                /* Peer uses its identity address. Let's verify privacy mode*/
+                /* Peer uses its identity address. Let's verify privacy mode.
+                 *
+                 * Note: Core Spec 5.0 Vol 6, Part B
+                 * If the Host has added the peer device to the resolving list
+                 * with an all-zero peer IRK, the Controller shall only accept
+                 * the peer's identity address.
+                 */
             if (ble_ll_resolv_enabled()) {
                 rl = ble_ll_resolv_list_find(adva, addr_type);
-                if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+                if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                        ble_ll_resolv_irk_nonzero(rl->rl_peer_irk)) {
                     return 0;
                 }
             }
