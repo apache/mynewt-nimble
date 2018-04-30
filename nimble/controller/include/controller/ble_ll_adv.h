@@ -185,6 +185,9 @@ int ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen);
 int ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen);
 int ble_ll_adv_ext_set_enable(uint8_t *cmdbuf, uint8_t len);
 
+/* Called to notify adv code about RPA rotation */
+void ble_ll_adv_rpa_timeout(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -153,6 +153,8 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
     }
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                      (int32_t)g_ble_ll_resolv_data.rpa_tmo);
+
+    ble_ll_adv_rpa_timeout();
 }
 
 /**
