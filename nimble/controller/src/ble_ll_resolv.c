@@ -356,7 +356,9 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
 
     /* Remove from IRK records */
     position = ble_ll_is_on_resolv_list(ident_addr, addr_type);
-    if (position && (position < g_ble_ll_resolv_data.rl_cnt)) {
+    if (position) {
+        assert(position <= g_ble_ll_resolv_data.rl_cnt);
+
         memmove(&g_ble_ll_resolv_list[position - 1],
                 &g_ble_ll_resolv_list[position],
                 g_ble_ll_resolv_data.rl_cnt - position);
@@ -364,9 +366,10 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
 
         /* Remove from HW list */
         ble_hw_resolv_list_rmv(position - 1);
+        return BLE_ERR_SUCCESS;
     }
 
-    return BLE_ERR_SUCCESS;
+    return BLE_ERR_UNK_CONN_ID;
 }
 
 /**
