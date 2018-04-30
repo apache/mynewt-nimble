@@ -468,12 +468,12 @@ static struct bt_mesh_prov prov = {
 	.reset = prov_reset,
 	.static_val = NULL,
 	.static_val_len = 0,
-	.output_size = 4,
-	.output_actions = (BT_MESH_BLINK | BT_MESH_BEEP | BT_MESH_DISPLAY_NUMBER),
+	.output_size = MYNEWT_VAL(BLE_MESH_OOB_OUTPUT_SIZE),
+	.output_actions = MYNEWT_VAL(BLE_MESH_OOB_OUTPUT_ACTIONS),
 	.output_number = output_number,
 	.output_string = output_string,
-	.input_size = 4,
-	.input_actions = 0,
+	.input_size = MYNEWT_VAL(BLE_MESH_OOB_INPUT_SIZE),
+	.input_actions = MYNEWT_VAL(BLE_MESH_OOB_INPUT_ACTIONS),
 	.input = input,
 };
 

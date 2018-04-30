@@ -387,6 +387,38 @@ syscfg.defs:
             Include implementation of some demo models.
         value: 0
 
+    BLE_MESH_OOB_OUTPUT_ACTIONS:
+        description: >
+            Supported Output OOB Actions
+            BT_MESH_NO_OUTPUT       = 0,
+            BT_MESH_BLINK           = BIT(0)
+            BT_MESH_BEEP            = BIT(1)
+            BT_MESH_VIBRATE         = BIT(2)
+            BT_MESH_DISPLAY_NUMBER  = BIT(3)
+            BT_MESH_DISPLAY_STRING  = BIT(4)
+        value: ((BT_MESH_DISPLAY_NUMBER))
+
+    BLE_MESH_OOB_OUTPUT_SIZE:
+        description: >
+            Output OOB size
+        value: 4
+
+    BLE_MESH_OOB_INPUT_ACTIONS:
+        description: >
+            Supported Input OOB Actions
+            BT_MESH_NO_INPUT      = 0,
+            BT_MESH_PUSH          = BIT(0)
+            BT_MESH_TWIST         = BIT(1)
+            BT_MESH_ENTER_NUMBER  = BIT(2)
+            BT_MESH_ENTER_STRING  = BIT(3)
+        value: ((BT_MESH_NO_INPUT))
+
+    BLE_MESH_OOB_INPUT_SIZE:
+        description: >
+            Input OOB size
+        value: 4
+
+
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
     BLE_MESH_HEALTH_CLI: 1
