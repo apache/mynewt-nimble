@@ -7,7 +7,7 @@
 #include <mesh/mesh.h>
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
-#include "model_cli.h"
+#include "mesh/model_cli.h"
 #include "mesh_priv.h"
 
 static s32_t msg_timeout = K_SECONDS(5);

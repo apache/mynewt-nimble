@@ -298,7 +298,7 @@ static u8_t _mod_pub_set(struct bt_mesh_model *model, u16_t pub_addr,
 	return STATUS_SUCCESS;
 }
 
-static u8_t mod_bind(struct bt_mesh_model *model, u16_t key_idx)
+u8_t mod_bind(struct bt_mesh_model *model, u16_t key_idx)
 {
 	int i;
 
@@ -325,7 +325,7 @@ static u8_t mod_bind(struct bt_mesh_model *model, u16_t key_idx)
 	return STATUS_INSUFF_RESOURCES;
 }
 
-static u8_t mod_unbind(struct bt_mesh_model *model, u16_t key_idx)
+u8_t mod_unbind(struct bt_mesh_model *model, u16_t key_idx)
 {
 	int i;
 

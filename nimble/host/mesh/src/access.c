@@ -23,7 +23,7 @@
 #include "access.h"
 #include "foundation.h"
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-#include "model_cli.h"
+#include "mesh/model_cli.h"
 #endif
 
 static const struct bt_mesh_comp *dev_comp;

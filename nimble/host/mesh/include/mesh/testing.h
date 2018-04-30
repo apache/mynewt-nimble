@@ -57,6 +57,13 @@ void bt_test_cb_register(struct bt_test_cb *cb);
  */
 void bt_test_cb_unregister(struct bt_test_cb *cb);
 
+u8_t mod_bind(struct bt_mesh_model *model, u16_t key_idx);
+u8_t mod_unbind(struct bt_mesh_model *model, u16_t key_idx);
+int cmd_init(int argc, char *argv[]);
+
+int bt_test_shell_init(void);
+int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, u16_t key_idx, u16_t id);
+
 /**
  * @}
  */

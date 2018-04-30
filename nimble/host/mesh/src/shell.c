@@ -28,15 +28,14 @@
 #include "access.h"
 #include "mesh_priv.h"
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-#include "model_srv.h"
-#include "model_cli.h"
+#include "mesh/model_srv.h"
+#include "mesh/model_cli.h"
 #include "light_model.h"
 #endif
 #include "lpn.h"
 #include "transport.h"
 #include "foundation.h"
 #include "testing.h"
-#include "model_cli.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -180,10 +179,14 @@ health_pub_init(void)
 {
 	health_pub.msg  = BT_MESH_HEALTH_FAULT_MSG(CUR_FAULTS_MAX);
 }
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 
 static struct bt_mesh_cfg_cli cfg_cli = {
 };
 
+#endif /* MYNEWT_VAL(BLE_MESH_CFG_CLI) */
+
+#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 void show_faults(u8_t test_id, u16_t cid, u8_t *faults, size_t fault_count)
 {
 	size_t i;
@@ -214,9 +217,12 @@ static struct bt_mesh_health_cli health_cli = {
 	.current_status = health_current_status,
 };
 
+#endif /* MYNEWT_VAL(BLE_MESH_HEALTH_CLI) */
+
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 static struct bt_mesh_model_pub gen_onoff_pub;
 static struct bt_mesh_model_pub gen_level_pub;
+static struct bt_mesh_model_pub light_lightness_pub;
 static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {
 	.get = light_model_gen_onoff_get,
 	.set = light_model_gen_onoff_set,
@@ -225,18 +231,43 @@ static struct bt_mesh_gen_level_srv_cb gen_level_srv_cb = {
 	.get = light_model_gen_level_get,
 	.set = light_model_gen_level_set,
 };
+static struct bt_mesh_light_lightness_srv_cb light_lightness_srv_cb = {
+	.get = light_model_light_lightness_get,
+	.set = light_model_light_lightness_set,
+};
+
+void bt_mesh_set_gen_onoff_srv_cb(struct bt_mesh_gen_onoff_srv_cb *gen_onoff_cb)
+{
+	gen_onoff_srv_cb = *gen_onoff_cb;
+}
+
+void bt_mesh_set_gen_level_srv_cb(struct bt_mesh_gen_level_srv_cb *gen_level_cb)
+{
+	gen_level_srv_cb = *gen_level_cb;
+}
+
+void bt_mesh_set_light_lightness_srv_cb(struct bt_mesh_light_lightness_srv_cb *light_lightness_cb)
+{
+	light_lightness_srv_cb = *light_lightness_cb;
+}
+
 #endif
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
-	BT_MESH_MODEL_CFG_CLI(&cfg_cli),
 	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
+	BT_MESH_MODEL_CFG_CLI(&cfg_cli),
+#endif
+#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 	BT_MESH_MODEL_HEALTH_CLI(&health_cli),
+#endif
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 	BT_MESH_MODEL_GEN_ONOFF_SRV(&gen_onoff_srv_cb, &gen_onoff_pub),
 	BT_MESH_MODEL_GEN_ONOFF_CLI(),
 	BT_MESH_MODEL_GEN_LEVEL_SRV(&gen_level_srv_cb, &gen_level_pub),
 	BT_MESH_MODEL_GEN_LEVEL_CLI(),
+	BT_MESH_MODEL_LIGHT_LIGHTNESS_SRV(&light_lightness_srv_cb, &light_lightness_pub),
 #endif
 };
 
@@ -437,12 +468,12 @@ static struct bt_mesh_prov prov = {
 	.reset = prov_reset,
 	.static_val = NULL,
 	.static_val_len = 0,
-	.output_size = 4,
-	.output_actions = (BT_MESH_BLINK | BT_MESH_BEEP | BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
+	.output_size = MYNEWT_VAL(BLE_MESH_OOB_OUTPUT_SIZE),
+	.output_actions = MYNEWT_VAL(BLE_MESH_OOB_OUTPUT_ACTIONS),
 	.output_number = output_number,
 	.output_string = output_string,
-	.input_size = 4,
-	.input_actions = (BT_MESH_ENTER_NUMBER | BT_MESH_ENTER_STRING),
+	.input_size = MYNEWT_VAL(BLE_MESH_OOB_INPUT_SIZE),
+	.input_actions = MYNEWT_VAL(BLE_MESH_OOB_INPUT_ACTIONS),
 	.input = input,
 };
 
@@ -602,7 +633,7 @@ static int check_pub_addr_unassigned(void)
 #endif
 }
 
-static int cmd_init(int argc, char *argv[])
+int cmd_init(int argc, char *argv[])
 {
 	int err;
 	ble_addr_t addr;
@@ -647,85 +678,6 @@ static int cmd_ident(int argc, char *argv[])
 	return 0;
 }
 #endif /* MESH_GATT_PROXY */
-
-static int cmd_get_comp(int argc, char *argv[])
-{
-	struct os_mbuf*comp = NET_BUF_SIMPLE(32);
-	u8_t status, page = 0x00;
-	int err;
-
-	if (argc > 1) {
-		page = strtol(argv[1], NULL, 0);
-	}
-
-	net_buf_simple_init(comp, 0);
-	err = bt_mesh_cfg_comp_data_get(net.net_idx, net.dst, page,
-					&status, comp);
-	if (err) {
-		printk("Getting composition failed (err %d)\n", err);
-		return 0;
-	}
-
-	if (status != 0x00) {
-		printk("Got non-success status 0x%02x\n", status);
-		return 0;
-	}
-
-	printk("Got Composition Data for 0x%04x:\n", net.dst);
-	printk("\tCID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tPID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tVID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tCRPL     0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tFeatures 0x%04x\n", net_buf_simple_pull_le16(comp));
-
-	while (comp->om_len > 4) {
-		u8_t sig, vnd;
-		u16_t loc;
-		int i;
-
-		loc = net_buf_simple_pull_le16(comp);
-		sig = net_buf_simple_pull_u8(comp);
-		vnd = net_buf_simple_pull_u8(comp);
-
-		printk("\n\tElement @ 0x%04x:\n", loc);
-
-		if (comp->om_len < ((sig * 2) + (vnd * 4))) {
-			printk("\t\t...truncated data!\n");
-			break;
-		}
-
-		if (sig) {
-			printk("\t\tSIG Models:\n");
-		} else {
-			printk("\t\tNo SIG Models\n");
-		}
-
-		for (i = 0; i < sig; i++) {
-			u16_t mod_id = net_buf_simple_pull_le16(comp);
-
-			printk("\t\t\t0x%04x\n", mod_id);
-		}
-
-		if (vnd) {
-			printk("\t\tVendor Models:\n");
-		} else {
-			printk("\t\tNo Vendor Models\n");
-		}
-
-		for (i = 0; i < vnd; i++) {
-			u16_t cid = net_buf_simple_pull_le16(comp);
-			u16_t mod_id = net_buf_simple_pull_le16(comp);
-
-			printk("\t\t\tCompany 0x%04x: 0x%04x\n", cid, mod_id);
-		}
-	}
-
-	return 0;
-}
-
-struct shell_cmd_help cmd_get_comp_help = {
-	NULL, "[page]", NULL
-};
 
 static int cmd_dst(int argc, char *argv[])
 {
@@ -912,6 +864,126 @@ static int cmd_iv_update_test(int argc, char *argv[])
 
 struct shell_cmd_help cmd_iv_update_test_help = {
 	NULL, "<value: off, on>", NULL
+};
+
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
+
+int cmd_timeout(int argc, char *argv[])
+{
+	s32_t timeout;
+
+	if (argc < 2) {
+		timeout = bt_mesh_cfg_cli_timeout_get();
+		if (timeout == K_FOREVER) {
+			printk("Message timeout: forever\n");
+		} else {
+			printk("Message timeout: %lu seconds\n",
+			       timeout / 1000);
+		}
+
+		return 0;
+	}
+
+	timeout = strtol(argv[1], NULL, 0);
+	if (timeout < 0 || timeout > (INT32_MAX / 1000)) {
+		timeout = K_FOREVER;
+	} else {
+		timeout = timeout * 1000;
+	}
+
+	bt_mesh_cfg_cli_timeout_set(timeout);
+	if (timeout == K_FOREVER) {
+		printk("Message timeout: forever\n");
+	} else {
+		printk("Message timeout: %lu seconds\n",
+		       timeout / 1000);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_timeout_help = {
+	NULL, "[timeout in seconds]", NULL
+};
+
+
+static int cmd_get_comp(int argc, char *argv[])
+{
+	struct os_mbuf*comp = NET_BUF_SIMPLE(32);
+	u8_t status, page = 0x00;
+	int err;
+
+	if (argc > 1) {
+		page = strtol(argv[1], NULL, 0);
+	}
+
+	net_buf_simple_init(comp, 0);
+	err = bt_mesh_cfg_comp_data_get(net.net_idx, net.dst, page,
+					&status, comp);
+	if (err) {
+		printk("Getting composition failed (err %d)\n", err);
+		return 0;
+	}
+
+	if (status != 0x00) {
+		printk("Got non-success status 0x%02x\n", status);
+		return 0;
+	}
+
+	printk("Got Composition Data for 0x%04x:\n", net.dst);
+	printk("\tCID      0x%04x\n", net_buf_simple_pull_le16(comp));
+	printk("\tPID      0x%04x\n", net_buf_simple_pull_le16(comp));
+	printk("\tVID      0x%04x\n", net_buf_simple_pull_le16(comp));
+	printk("\tCRPL     0x%04x\n", net_buf_simple_pull_le16(comp));
+	printk("\tFeatures 0x%04x\n", net_buf_simple_pull_le16(comp));
+
+	while (comp->om_len > 4) {
+		u8_t sig, vnd;
+		u16_t loc;
+		int i;
+
+		loc = net_buf_simple_pull_le16(comp);
+		sig = net_buf_simple_pull_u8(comp);
+		vnd = net_buf_simple_pull_u8(comp);
+
+		printk("\n\tElement @ 0x%04x:\n", loc);
+
+		if (comp->om_len < ((sig * 2) + (vnd * 4))) {
+			printk("\t\t...truncated data!\n");
+			break;
+		}
+
+		if (sig) {
+			printk("\t\tSIG Models:\n");
+		} else {
+			printk("\t\tNo SIG Models\n");
+		}
+
+		for (i = 0; i < sig; i++) {
+			u16_t mod_id = net_buf_simple_pull_le16(comp);
+
+			printk("\t\t\t0x%04x\n", mod_id);
+		}
+
+		if (vnd) {
+			printk("\t\tVendor Models:\n");
+		} else {
+			printk("\t\tNo Vendor Models\n");
+		}
+
+		for (i = 0; i < vnd; i++) {
+			u16_t cid = net_buf_simple_pull_le16(comp);
+			u16_t mod_id = net_buf_simple_pull_le16(comp);
+
+			printk("\t\t\tCompany 0x%04x: 0x%04x\n", cid, mod_id);
+		}
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_get_comp_help = {
+	NULL, "[page]", NULL
 };
 
 static int cmd_beacon(int argc, char *argv[])
@@ -1669,6 +1741,8 @@ struct shell_cmd_help cmd_hb_pub_help = {
 	NULL, "<dst> <count> <period> <ttl> <features> <NetKeyIndex>" , NULL
 };
 
+#endif /* MYNEWT_VAL(BLE_MESH_CFG_CLI) */
+
 #if MYNEWT_VAL(BLE_MESH_PROV)
 static int cmd_pb(bt_mesh_prov_bearer_t bearer, int argc, char *argv[])
 {
@@ -1752,43 +1826,7 @@ struct shell_cmd_help cmd_provision_help = {
 	NULL, "<NetKeyIndex> <addr> [IVIndex]" , NULL
 };
 
-int cmd_timeout(int argc, char *argv[])
-{
-	s32_t timeout;
-
-	if (argc < 2) {
-		timeout = bt_mesh_cfg_cli_timeout_get();
-		if (timeout == K_FOREVER) {
-			printk("Message timeout: forever\n");
-		} else {
-			printk("Message timeout: %lu seconds\n",
-			       timeout / 1000);
-		}
-
-		return 0;
-	}
-
-	timeout = strtol(argv[1], NULL, 0);
-	if (timeout < 0 || timeout > (INT32_MAX / 1000)) {
-		timeout = K_FOREVER;
-	} else {
-		timeout = timeout * 1000;
-	}
-
-	bt_mesh_cfg_cli_timeout_set(timeout);
-	if (timeout == K_FOREVER) {
-		printk("Message timeout: forever\n");
-	} else {
-		printk("Message timeout: %lu seconds\n",
-		       timeout / 1000);
-	}
-
-	return 0;
-}
-
-struct shell_cmd_help cmd_timeout_help = {
-	NULL, "[timeout in seconds]", NULL
-};
+#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 
 static int cmd_fault_get(int argc, char *argv[])
 {
@@ -2065,6 +2103,8 @@ struct shell_cmd_help cmd_attention_set_unack_help = {
 	NULL, "<timer>", NULL
 };
 
+#endif /* MYNEWT_VAL(BLE_MESH_HEALTH_CLI) */
+
 static int cmd_add_fault(int argc, char *argv[])
 {
 	u8_t fault_id;
@@ -2335,7 +2375,6 @@ static int cmd_print_composition_data(int argc, char *argv[])
 
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
-	{ "timeout", cmd_timeout, &cmd_timeout_help },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
 	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
 #endif
@@ -2371,7 +2410,10 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "print-credentials", cmd_print_credentials, NULL },
 	{ "print-composition-data", cmd_print_composition_data, NULL },
 
+
+#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 	/* Configuration Client Model operations */
+	{ "timeout", cmd_timeout, &cmd_timeout_help },
 	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
 	{ "beacon", cmd_beacon, &cmd_beacon_help },
 	{ "ttl", cmd_ttl, &cmd_ttl_help},
@@ -2388,7 +2430,9 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "mod-sub-del-va", cmd_mod_sub_del_va, &cmd_mod_sub_del_va_help },
 	{ "hb-sub", cmd_hb_sub, &cmd_hb_sub_help },
 	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
+#endif
 
+#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 	/* Health Client Model Operations */
 	{ "fault-get", cmd_fault_get, &cmd_fault_get_help },
 	{ "fault-clear", cmd_fault_clear, &cmd_fault_clear_help },
@@ -2401,6 +2445,7 @@ static const struct shell_cmd mesh_commands[] = {
 	{ "attention-get", cmd_attention_get, NULL },
 	{ "attention-set", cmd_attention_set, &cmd_attention_set_help },
 	{ "attention-set-unack", cmd_attention_set_unack, &cmd_attention_set_unack_help },
+#endif
 
 	/* Health Server Model Operations */
 	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
@@ -2448,10 +2493,6 @@ void ble_mesh_shell_init(void)
 	bt_mesh_shell_task_init();
 	shell_evq_set(&mesh_shell_queue);
 	shell_register("mesh", mesh_commands);
-
-#if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-	light_model_init();
-#endif
 
 #endif
 }
