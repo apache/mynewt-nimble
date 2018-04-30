@@ -132,7 +132,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x08
 #define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x30 /* use helpers! */
 #define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x40
-#define BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT    0x80
+#define BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI          0x80
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -1572,9 +1572,11 @@ static void
 ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
-                                          advsm->adv_instance, 0,
-                                          advsm->events);
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI) {
+        ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
+                                                        advsm->adv_instance, 0,
+                                                        advsm->events);
+    }
 #endif
 
     /*
@@ -1590,6 +1592,33 @@ ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
     /* Disable advertising */
     ble_ll_adv_sm_stop(advsm);
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_adv_sm_stop_limit_reached(struct ble_ll_adv_sm *advsm)
+{
+    ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+                                          advsm->adv_instance, 0,
+                                          advsm->events);
+
+    /*
+     * For high duty directed advertising we need to send connection
+     * complete event with proper status
+     *
+     * Spec is a bit unambiguous here since it doesn't define what code should
+     * be used if HD directed advertising was terminated before timeout due to
+     * events count limit. For now just use same code as with duration timeout.
+     */
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
+        ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
+                                    advsm->conn_comp_ev, advsm);
+        advsm->conn_comp_ev = NULL;
+    }
+
+    /* Disable advertising */
+    ble_ll_adv_sm_stop(advsm);
+}
+#endif
 
 static void
 ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start, void *arg)
@@ -2273,7 +2302,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
     }
 
-    advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT;
+    advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI;
 
 done:
     /* Update TX power */
@@ -3092,8 +3121,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
          * AUX is done.
          */
-        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
-                        (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             ble_ll_adv_sm_stop_timeout(advsm);
         }
 
@@ -3112,14 +3140,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
          * AUX is done.
          */
-        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
-                        (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT)) {
-            ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
-                                                  advsm->adv_instance, 0,
-                                                  advsm->events);
-
-            /* Disable advertising */
-            ble_ll_adv_sm_stop(advsm);
+        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+            ble_ll_adv_sm_stop_limit_reached(advsm);
         }
 
         return;
@@ -3208,11 +3230,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     }
 
     if (advsm->events_max && (advsm->events >= advsm->events_max)) {
-        ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
-                                              advsm->adv_instance, 0,
-                                              advsm->events);
-        /* Disable advertising */
-        ble_ll_adv_sm_stop(advsm);
+        ble_ll_adv_sm_stop_limit_reached(advsm);
         return;
     }
 
@@ -3304,7 +3322,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_TERMINATE_EVT) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI) {
         ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
                                           connsm->conn_handle, advsm->events);
     }
