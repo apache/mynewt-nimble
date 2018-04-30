@@ -251,7 +251,7 @@ ble_phy_mode_pdu_start_off(int phy_mode)
     return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
-#if MYNEWT_VAL(BSP_NRF52840)
+#if NRF52840_XXAA
 static inline bool
 ble_phy_mode_is_coded(uint8_t phy_mode)
 {
@@ -314,7 +314,7 @@ ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
         return;
     }
 
-#if MYNEWT_VAL(BSP_NRF52840)
+#if NRF52840_XXAA
     ble_phy_apply_nrf52840_errata(new_phy_mode);
 #endif
 
