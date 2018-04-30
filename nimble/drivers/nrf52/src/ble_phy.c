@@ -1213,12 +1213,27 @@ ble_phy_isr(void)
 static inline void
 ble_phy_dbg_time_setup_gpiote(int index, int pin)
 {
-    hal_gpio_init_out(pin, 0);
+    NRF_GPIO_Type *port;
+
+#if NRF52840_XXAA
+    port = pin > 31 ? NRF_P1 : NRF_P0;
+    pin &= 0x1f;
+#else
+    port = NRF_P0;
+#endif
+
+    /* Configure GPIO directly to avoid dependency to hal_gpio (for porting) */
+    port->DIRSET = (1 << pin);
+    port->OUTCLR = (1 << pin);
 
     NRF_GPIOTE->CONFIG[index] =
                         (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
                         ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
+#if NRF52840_XXAA
                         ((pin > 31) << GPIOTE_CONFIG_PORT_Pos);
+#else
+                        0;
+#endif
 }
 #endif
 
@@ -1259,7 +1274,11 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
                               MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
 
+#if NRF52840_XXAA
     NRF_PPI->CH[18].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
+#else
+    NRF_PPI->CH[18].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
+#endif
     NRF_PPI->CH[18].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
     NRF_PPI->CH[19].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
     NRF_PPI->CH[19].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
