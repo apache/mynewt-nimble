@@ -16,6 +16,7 @@
 #include "host/ble_hs_adv.h"
 #include "host/ble_gap.h"
 #include "nimble/hci_common.h"
+#include "mesh/porting.h"
 
 #include "adv.h"
 #include "foundation.h"
@@ -44,10 +45,12 @@ static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
  */
+#if MYNEWT
 #define ADV_STACK_SIZE 768
 OS_TASK_STACK_DEFINE(g_blemesh_stack, ADV_STACK_SIZE);
-
 struct os_task adv_task;
+#endif
+
 static struct os_eventq adv_queue;
 extern u8_t g_mesh_addr_type;
 
@@ -138,8 +141,8 @@ static inline void adv_send(struct os_mbuf *buf)
 	BT_DBG("Advertising stopped");
 }
 
-static void
-adv_thread(void *args)
+void
+mesh_adv_thread(void *args)
 {
 	static struct os_event *ev;
 	struct os_mbuf *buf;
@@ -309,9 +312,11 @@ void bt_mesh_adv_init(void)
 
 	os_eventq_init(&adv_queue);
 
-	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
+#if MYNEWT
+	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,
 	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
 	             g_blemesh_stack, ADV_STACK_SIZE);
+#endif
 
 	/* For BT5 controllers we can have fast advertising interval */
 	if (ble_hs_hci_get_hci_version() >= BLE_HCI_VER_BCS_5_0) {
