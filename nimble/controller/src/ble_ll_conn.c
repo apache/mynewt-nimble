@@ -1742,11 +1742,13 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
          * and we need to adjust here. If device is on resolve list mark type as
          * 'identity' as this means also RPA is allowed for connection.
          */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         if ((connsm->peer_addr_type < BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT) &&
                 ble_ll_resolv_list_find(connsm->peer_addr,
                                         connsm->peer_addr_type)) {
             connsm->peer_addr_type += 2;
         }
+#endif
 
     }
 
@@ -1858,10 +1860,12 @@ ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
          * mark type as 'identity' as this means also RPA is allowed for
          * connection.
          */
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
         if (ble_ll_resolv_list_find(connsm->peer_addr,
                                     connsm->peer_addr_type)) {
             connsm->peer_addr_type += 2;
         }
+#endif
     }
 
     connsm->initial_params = *hcc;
