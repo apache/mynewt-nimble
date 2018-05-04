@@ -26,7 +26,13 @@
 #include "nimble/nimble_opt.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
+#if MYNEWT_VAL(TRNG)
+#include "trng/trng.h"
+#endif
 
+#if MYNEWT_VAL(TRNG)
+static struct trng_dev *g_trng;
+#else
 /* This is a simple circular buffer for holding N samples of random data */
 struct ble_ll_rnum_data
 {
@@ -61,11 +67,21 @@ ble_ll_rand_sample(uint8_t rnum)
     }
     OS_EXIT_CRITICAL(sr);
 }
+#endif
 
 /* Get 'len' bytes of random data */
 int
 ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
 {
+#if MYNEWT_VAL(TRNG)
+    size_t num;
+
+    while (len) {
+        num = trng_read(g_trng, buf, len);
+        buf += num;
+        len -= num;
+    }
+#else
     uint8_t rnums;
     os_sr_t sr;
 
@@ -100,7 +116,7 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
             }
         }
     }
-
+#endif
     return BLE_ERR_SUCCESS;
 }
 
@@ -138,10 +154,14 @@ ble_ll_rand_prand_get(uint8_t *prand)
 int
 ble_ll_rand_start(void)
 {
+#if MYNEWT_VAL(TRNG)
+    /* Nothing to do - this is handled by driver */
+#else
     /* Start the generation of numbers if we are not full */
     if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
         ble_hw_rng_start();
     }
+#endif
     return 0;
 }
 
@@ -154,8 +174,12 @@ ble_ll_rand_start(void)
 int
 ble_ll_rand_init(void)
 {
+#if MYNEWT_VAL(TRNG)
+    g_trng = (struct trng_dev *) os_dev_open("trng", OS_TIMEOUT_NEVER, NULL);
+#else
     g_ble_ll_rnum_data.rnd_in = g_ble_ll_rnum_buf;
     g_ble_ll_rnum_data.rnd_out = g_ble_ll_rnum_buf;
     ble_hw_rng_init(ble_ll_rand_sample, 1);
+#endif
     return 0;
 }
