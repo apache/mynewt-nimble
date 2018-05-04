@@ -1,0 +1,312 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+#include <assert.h>
+#include <stddef.h>
+#include <string.h>
+#include "nimble/nimble_npl.h"
+
+static inline bool
+in_isr(void)
+{
+    /* XXX hw specific! */
+    return (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) != 0;
+}
+
+static struct ble_npl_eventq dflt_evq;
+
+struct ble_npl_eventq *
+npl_freertos_eventq_dflt_get(void)
+{
+    if (!dflt_evq.q) {
+        dflt_evq.q = xQueueCreate(32, sizeof(struct ble_npl_eventq *));
+    }
+
+    return &dflt_evq;
+}
+
+struct ble_npl_event *
+npl_freertos_eventq_get(struct ble_npl_eventq *evq)
+{
+    struct ble_npl_event *ev;
+    BaseType_t ret;
+
+    ret = xQueueReceive(evq->q, &ev, portMAX_DELAY);
+    assert(ret == pdPASS);
+
+    ev->queued = false;
+
+    return ev;
+}
+
+void
+npl_freertos_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
+{
+    BaseType_t ret;
+
+    if (ev->queued) {
+        return;
+    }
+
+    ev->queued = true;
+
+    ret = xQueueSendToBack(evq->q, &ev, 0);
+    assert(ret == pdPASS);
+}
+
+void
+npl_freertos_eventq_remove(struct ble_npl_eventq *evq,
+                      struct ble_npl_event *ev)
+{
+    struct ble_npl_event *tmp_ev;
+    BaseType_t ret;
+    int i;
+    int count;
+
+    if (!ev->queued) {
+        return;
+    }
+
+    /*
+     * XXX We cannot extract element from inside FreeRTOS queue so as a quick
+     * workaround we'll just remove all elements and add them back except the
+     * one we need to remove. This is silly, but works for now - we probably
+     * better use counting semaphore with os_queue to handle this in future.
+     */
+
+    vPortEnterCritical();
+
+    count = uxQueueMessagesWaiting(evq->q);
+    for (i = 0; i < count; i++) {
+        ret = xQueueReceive(evq->q, &tmp_ev, 0);
+        assert(ret == pdPASS);
+
+        if (tmp_ev == ev) {
+            continue;
+        }
+
+        ret = xQueueSendToBack(evq->q, &tmp_ev, 0);
+        assert(ret == pdPASS);
+    }
+
+    vPortExitCritical();
+
+    ev->queued = 0;
+}
+
+ble_npl_error_t
+npl_freertos_mutex_init(struct ble_npl_mutex *mu)
+{
+    if (!mu) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    mu->handle = xSemaphoreCreateRecursiveMutex();
+    assert(mu->handle);
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
+{
+    if (!mu) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    assert(mu->handle);
+
+    if (in_isr()) {
+        assert(0);
+    } else {
+        if (xSemaphoreTakeRecursive(mu->handle, timeout) != pdPASS) {
+            return BLE_NPL_TIMEOUT;
+        }
+    }
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_mutex_release(struct ble_npl_mutex *mu)
+{
+    if (!mu) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    assert(mu->handle);
+
+    if (in_isr()) {
+        assert(0);
+    } else {
+        if (xSemaphoreGiveRecursive(mu->handle) != pdPASS) {
+            return BLE_NPL_BAD_MUTEX;
+        }
+    }
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_sem_init(struct ble_npl_sem *sem, uint16_t tokens)
+{
+    if (!sem) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    sem->handle = xSemaphoreCreateCounting(128, tokens);
+    assert(sem->handle);
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
+{
+    BaseType_t woken;
+
+    if (!sem) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    assert(sem->handle);
+
+    if (in_isr()) {
+        assert(timeout == 0);
+        if (xSemaphoreTakeFromISR(sem->handle, &woken) != pdPASS) {
+            portYIELD_FROM_ISR(woken);
+            return BLE_NPL_TIMEOUT;
+        }
+        portYIELD_FROM_ISR(woken);
+    } else {
+        if (xSemaphoreTake(sem->handle, timeout) != pdPASS) {
+            return BLE_NPL_TIMEOUT;
+        }
+    }
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_sem_release(struct ble_npl_sem *sem)
+{
+    BaseType_t ret;
+    BaseType_t woken;
+
+    if (!sem) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    assert(sem->handle);
+
+    if (in_isr()) {
+        ret = xSemaphoreGiveFromISR(sem->handle, &woken);
+        assert(ret == pdPASS);
+
+        portYIELD_FROM_ISR(woken);
+    } else {
+        ret = xSemaphoreGive(sem->handle);
+        assert(ret == pdPASS);
+    }
+
+    return BLE_NPL_OK;
+}
+
+static void
+os_callout_timer_cb(TimerHandle_t timer)
+{
+    struct ble_npl_callout *co;
+
+    co = pvTimerGetTimerID(timer);
+    assert(co);
+
+    if (co->evq) {
+        ble_npl_eventq_put(co->evq, &co->ev);
+    } else {
+        co->ev.fn(&co->ev);
+    }
+}
+
+void
+npl_freertos_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
+                     ble_npl_event_fn *ev_cb, void *ev_arg)
+{
+    memset(co, 0, sizeof(*co));
+    co->handle = xTimerCreate("co", 1, pdFALSE, co, os_callout_timer_cb);
+    co->evq = evq;
+    ble_npl_event_init(&co->ev, ev_cb, ev_arg);
+}
+
+int
+npl_freertos_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
+{
+    BaseType_t woken1, woken2, woken3;
+
+    if (ticks < 0) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    if (ticks == 0) {
+        ticks = 1;
+    }
+
+    if (in_isr()) {
+        xTimerStopFromISR(co->handle, &woken1);
+        xTimerChangePeriodFromISR(co->handle, ticks, &woken2);
+        xTimerResetFromISR(co->handle, &woken3);
+
+        portYIELD_FROM_ISR(woken1 || woken2 || woken3);
+    } else {
+        xTimerStop(co->handle, portMAX_DELAY);
+        xTimerChangePeriod(co->handle, ticks, portMAX_DELAY);
+        xTimerReset(co->handle, portMAX_DELAY);
+    }
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_time_ms_to_ticks(uint32_t ms, ble_npl_time_t *out_ticks)
+{
+    uint64_t ticks;
+
+    ticks = ((uint64_t)ms * configTICK_RATE_HZ) / 1000;
+    if (ticks > UINT32_MAX) {
+        return BLE_NPL_EINVAL;
+    }
+
+    *out_ticks = ticks;
+
+    return 0;
+}
+
+ble_npl_error_t
+npl_freertos_time_ticks_to_ms(ble_npl_time_t ticks, uint32_t *out_ms)
+{
+    uint64_t ms;
+
+    ms = ((uint64_t)ticks * 1000) / configTICK_RATE_HZ;
+    if (ms > UINT32_MAX) {
+        return BLE_NPL_EINVAL;
+     }
+
+    *out_ms = ms;
+
+    return 0;
+}
