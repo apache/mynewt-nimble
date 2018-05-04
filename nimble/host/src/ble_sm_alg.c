@@ -35,6 +35,13 @@
 #if MYNEWT_VAL(BLE_SM_SC)
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
+#if MYNEWT_VAL(TRNG)
+#include "trng/trng.h"
+#endif
+#endif
+
+#if MYNEWT_VAL(BLE_SM_SC) && MYNEWT_VAL(TRNG)
+static struct trng_dev *g_trng;
 #endif
 
 static void
@@ -473,9 +480,24 @@ ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
 static int
 ble_sm_alg_rand(uint8_t *dst, unsigned int size)
 {
+#if MYNEWT_VAL(TRNG)
+    size_t num;
+
+    if (!g_trng) {
+        g_trng = (struct trng_dev *)os_dev_open("trng", OS_WAIT_FOREVER, NULL);
+        assert(g_trng);
+    }
+
+    while (size) {
+        num = trng_read(g_trng, dst, size);
+        dst += num;
+        size -= num;
+    }
+#else
     if (ble_hs_hci_util_rand(dst, size)) {
         return 0;
     }
+#endif
 
     return 1;
 }
