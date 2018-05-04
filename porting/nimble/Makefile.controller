@@ -1,0 +1,30 @@
+NIMBLE_CFLAGS += \
+	-DNIMBLE_CFG_CONTROLLER=1 \
+
+NIMBLE_INCLUDE += \
+	$(NIMBLE_ROOT)/nimble/transport/ram/include \
+	$(NIMBLE_ROOT)/nimble/controller/include \
+	$(NIMBLE_ROOT)/nimble/drivers/nrf52/include \
+
+NIMBLE_SRC += \
+	$(NIMBLE_ROOT)/nimble/transport/ram/src/ble_hci_ram.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_sched.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_xcvr.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_whitelist.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_ctrl.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_hci.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_supp_cmd.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_adv.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_conn.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_resolv.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_conn_hci.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_rand.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_scan.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_dtm.c \
+	$(NIMBLE_ROOT)/nimble/controller/src/ble_ll_hci_ev.c \
+	$(NIMBLE_ROOT)/nimble/drivers/nrf52/src/ble_hw.c \
+	$(NIMBLE_ROOT)/nimble/drivers/nrf52/src/ble_phy.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime_pwr2.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/hal_timer.c \
