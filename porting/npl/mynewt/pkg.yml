@@ -6,7 +6,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-#
+# 
 #  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
@@ -17,14 +17,11 @@
 # under the License.
 #
 
-pkg.name: nimble
-pkg.description: Generic functionality for the nimble Bluetooth Smart stack; used by both the controller and the host.
-pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.name: porting/npl/mynewt
+pkg.description: NimBLE porting layer for Apache Mynewt
+pkg.author: "Apache Mynewt <dev@mynewt.incubator.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
-    - ble
-    - bluetooth
 
 pkg.deps:
-    - porting/npl/mynewt
     - "@apache-mynewt-core/kernel/os"
