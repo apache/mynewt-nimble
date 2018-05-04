@@ -22,14 +22,12 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include "syscfg/syscfg.h"
+#include "os/os.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* XXX: some or all of these should not be here */
-#include "os/os.h"
-#include "syscfg/syscfg.h"
 
 /* The number of advertising instances */
 #define BLE_ADV_INSTANCES    (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) + 1)

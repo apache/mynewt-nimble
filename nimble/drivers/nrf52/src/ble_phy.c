@@ -23,13 +23,18 @@
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "ble/xcvr.h"
-#include "mcu/cmsis_nvic.h"
-#include "hal/hal_gpio.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
+#include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
-#include "nrf.h"
+#include "nrfx.h"
+#if MYNEWT
+#include "mcu/cmsis_nvic.h"
+#include "hal/hal_gpio.h"
+#else
+#include "core_cm4.h"
+#endif
 
 /*
  * NOTE: This code uses a couple of PPI channels so care should be taken when
@@ -1401,7 +1406,11 @@ ble_phy_init(void)
 
     /* Set isr in vector table and enable interrupt */
     NVIC_SetPriority(RADIO_IRQn, 0);
+#if MYNEWT
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
+#else
+    ble_npl_hw_set_isr(RADIO_IRQn, (uint32_t)ble_phy_isr);
+#endif
     NVIC_EnableIRQ(RADIO_IRQn);
 
     /* Register phy statistics */

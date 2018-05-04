@@ -21,10 +21,9 @@
 #define H_BLE_LL_
 
 #include "stats/stats.h"
-#include "os/os_eventq.h"
-#include "os/os_callout.h"
 #include "os/os_cputime.h"
 #include "nimble/nimble_opt.h"
+#include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
 
 #ifdef __cplusplus
@@ -103,27 +102,27 @@ struct ble_ll_obj
 #endif
 
     /* Task event queue */
-    struct os_eventq ll_evq;
+    struct ble_npl_eventq ll_evq;
 
     /* Wait for response timer */
     struct hal_timer ll_wfr_timer;
 
     /* Packet receive queue (and event). Holds received packets from PHY */
-    struct os_event ll_rx_pkt_ev;
+    struct ble_npl_event ll_rx_pkt_ev;
     struct ble_ll_pkt_q ll_rx_pkt_q;
 
     /* Packet transmit queue */
-    struct os_event ll_tx_pkt_ev;
+    struct ble_npl_event ll_tx_pkt_ev;
     struct ble_ll_pkt_q ll_tx_pkt_q;
 
     /* Data buffer overflow event */
-    struct os_event ll_dbuf_overflow_ev;
+    struct ble_npl_event ll_dbuf_overflow_ev;
 
     /* Number of completed packets event */
-    struct os_event ll_comp_pkt_ev;
+    struct ble_npl_event ll_comp_pkt_ev;
 
     /* HW error callout */
-    struct os_callout ll_hw_err_timer;
+    struct ble_npl_callout ll_hw_err_timer;
 };
 extern struct ble_ll_obj g_ble_ll_data;
 
@@ -441,7 +440,7 @@ void ble_ll_state_set(uint8_t ll_state);
 uint8_t ble_ll_state_get(void);
 
 /* Send an event to LL task */
-void ble_ll_event_send(struct os_event *ev);
+void ble_ll_event_send(struct ble_npl_event *ev);
 
 /* Hand received pdu's to LL task  */
 void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);

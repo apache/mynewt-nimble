@@ -38,7 +38,7 @@
  * Used to limit the rate at which we send the number of completed packets
  * event to the host. This is the os time at which we can send an event.
  */
-static uint32_t g_ble_ll_last_num_comp_pkt_evt;
+static ble_npl_time_t g_ble_ll_last_num_comp_pkt_evt;
 extern uint8_t *g_ble_ll_conn_comp_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -283,7 +283,7 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
      * have completed but there are data packets in the controller buffers
      * (i.e. enqueued in a connection state machine).
      */
-    if ((int32_t)(os_time_get() - g_ble_ll_last_num_comp_pkt_evt) <
+    if ((ble_npl_stime_t)(ble_npl_time_get() - g_ble_ll_last_num_comp_pkt_evt) <
                                             MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE)) {
         /*
          * If this connection has completed packets, send an event right away.
@@ -358,7 +358,7 @@ skip_conn:
     }
 
     if (event_sent) {
-        g_ble_ll_last_num_comp_pkt_evt = os_time_get();
+        g_ble_ll_last_num_comp_pkt_evt = ble_npl_time_get();
     }
 }
 
@@ -1464,7 +1464,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
     } else {
         connsm->auth_pyld_tmo = tmo;
-        if (os_callout_queued(&connsm->auth_pyld_timer)) {
+        if (ble_npl_callout_queued(&connsm->auth_pyld_timer)) {
             ble_ll_conn_auth_pyld_timer_start(connsm);
         }
     }

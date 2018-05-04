@@ -274,7 +274,7 @@ struct ble_ll_conn_sm
      * on a singly linked list. Only would need list pointer here.
      */
     /* Connection end event */
-    struct os_event conn_ev_end;
+    struct ble_npl_event conn_ev_end;
 
     /* Packet transmit queue */
     struct os_mbuf *cur_tx_pdu;
@@ -287,13 +287,13 @@ struct ble_ll_conn_sm
     };
 
     /* LL control procedure response timer */
-    struct os_callout ctrl_proc_rsp_timer;
+    struct ble_npl_callout ctrl_proc_rsp_timer;
 
     /* For scheduling connections */
     struct ble_ll_sched_item conn_sch;
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
-    struct os_callout auth_pyld_timer;
+    struct ble_npl_callout auth_pyld_timer;
 #endif
 
     /*

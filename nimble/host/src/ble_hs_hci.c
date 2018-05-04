@@ -30,8 +30,8 @@
 
 #define BLE_HCI_CMD_TIMEOUT_MS  2000
 
-static struct os_mutex ble_hs_hci_mutex;
-static struct os_sem ble_hs_hci_sem;
+static struct ble_npl_mutex ble_hs_hci_mutex;
+static struct ble_npl_sem ble_hs_hci_sem;
 
 static uint8_t *ble_hs_hci_ack;
 static uint16_t ble_hs_hci_buf_sz;
@@ -62,7 +62,7 @@ ble_hs_hci_lock(void)
 {
     int rc;
 
-    rc = os_mutex_pend(&ble_hs_hci_mutex, 0xffffffff);
+    rc = ble_npl_mutex_pend(&ble_hs_hci_mutex, BLE_NPL_TIME_FOREVER);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
@@ -71,7 +71,7 @@ ble_hs_hci_unlock(void)
 {
     int rc;
 
-    rc = os_mutex_release(&ble_hs_hci_mutex);
+    rc = ble_npl_mutex_release(&ble_hs_hci_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
@@ -255,8 +255,8 @@ ble_hs_hci_wait_for_ack(void)
         rc = ble_hs_hci_phony_ack_cb(ble_hs_hci_ack, 260);
     }
 #else
-    rc = os_sem_pend(&ble_hs_hci_sem,
-                     os_time_ms_to_ticks32(BLE_HCI_CMD_TIMEOUT_MS));
+    rc = ble_npl_sem_pend(&ble_hs_hci_sem,
+                     ble_npl_time_ms_to_ticks32(BLE_HCI_CMD_TIMEOUT_MS));
     switch (rc) {
     case 0:
         BLE_HS_DBG_ASSERT(ble_hs_hci_ack != NULL);
@@ -340,7 +340,7 @@ ble_hs_hci_cmd_tx_empty_ack(uint16_t opcode, void *cmd, uint8_t cmd_len)
 void
 ble_hs_hci_rx_ack(uint8_t *ack_ev)
 {
-    if (os_sem_get_count(&ble_hs_hci_sem) > 0) {
+    if (ble_npl_sem_get_count(&ble_hs_hci_sem) > 0) {
         /* This ack is unexpected; ignore it. */
         ble_hci_trans_buf_free(ack_ev);
         return;
@@ -351,7 +351,7 @@ ble_hs_hci_rx_ack(uint8_t *ack_ev)
      * with the acknowledgement.
      */
     ble_hs_hci_ack = ack_ev;
-    os_sem_release(&ble_hs_hci_sem);
+    ble_npl_sem_release(&ble_hs_hci_sem);
 }
 
 int
@@ -565,9 +565,9 @@ ble_hs_hci_init(void)
 {
     int rc;
 
-    rc = os_sem_init(&ble_hs_hci_sem, 0);
+    rc = ble_npl_sem_init(&ble_hs_hci_sem, 0);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-    rc = os_mutex_init(&ble_hs_hci_mutex);
+    rc = ble_npl_mutex_init(&ble_hs_hci_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }

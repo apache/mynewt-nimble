@@ -681,7 +681,7 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         /* XXX: deal with other control procedures that we need to stop */
         if (err) {
             if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
-                os_callout_stop(&connsm->ctrl_proc_rsp_timer);
+                ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
                 connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
             }
 
@@ -722,7 +722,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
             ble_ll_ctrl_phy_update_ind_make(connsm, dptr, rsp, 0);
-            os_callout_stop(&connsm->ctrl_proc_rsp_timer);
+            ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
             rsp_opcode = BLE_LL_CTRL_PHY_UPDATE_IND;
         }
 
@@ -764,7 +764,7 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
          * complete the procedure
          */
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
-            os_callout_stop(&connsm->ctrl_proc_rsp_timer);
+            ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
         }
 
         /*
@@ -1773,10 +1773,10 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  * @param arg Pointer to connection state machine.
  */
 void
-ble_ll_ctrl_proc_rsp_timer_cb(struct os_event *ev)
+ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
 {
     /* Control procedure has timed out. Kill the connection */
-    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ev->ev_arg,
+    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev),
                         BLE_ERR_LMP_LL_RSP_TMO);
 }
 
@@ -1914,7 +1914,7 @@ void
 ble_ll_ctrl_proc_stop(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     if (connsm->cur_ctrl_proc == ctrl_proc) {
-        os_callout_stop(&connsm->ctrl_proc_rsp_timer);
+        ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
         connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
     }
     CLR_PENDING_CTRL_PROC(connsm, ctrl_proc);
@@ -1977,14 +1977,14 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
             /* Initialize the procedure response timeout */
             if (ctrl_proc != BLE_LL_CTRL_PROC_CHAN_MAP_UPD) {
-                os_callout_init(&connsm->ctrl_proc_rsp_timer,
+                ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer,
                                 &g_ble_ll_data.ll_evq,
                                 ble_ll_ctrl_proc_rsp_timer_cb,
                                 connsm);
 
                 /* Re-start timer. Control procedure timeout is 40 seconds */
-                os_callout_reset(&connsm->ctrl_proc_rsp_timer,
-                                 os_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
+                ble_npl_callout_reset(&connsm->ctrl_proc_rsp_timer,
+                                 ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
             }
         }
     }

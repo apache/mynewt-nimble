@@ -124,7 +124,7 @@ void ble_hs_unlock(void);
 void ble_hs_hw_error(uint8_t hw_code);
 void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
-struct os_eventq *ble_hs_evq_get(void);
+struct ble_npl_eventq *ble_hs_evq_get(void);
 
 struct ble_mqueue {
     STAILQ_HEAD(, os_mbuf_pkthdr) head;

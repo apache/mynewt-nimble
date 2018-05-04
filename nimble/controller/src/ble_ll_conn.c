@@ -215,7 +215,7 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
 STATS_NAME_END(ble_ll_conn_stats)
 
-static void ble_ll_conn_event_end(struct os_event *ev);
+static void ble_ll_conn_event_end(struct ble_npl_event *ev);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 /**
@@ -1638,22 +1638,22 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
  * @param arg
  */
 void
-ble_ll_conn_auth_pyld_timer_cb(struct os_event *ev)
+ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
+    connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     ble_ll_auth_pyld_tmo_event_send(connsm);
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
 void
-ble_ll_conn_rd_features_timer_cb(struct os_event *ev)
+ble_ll_conn_rd_features_timer_cb(struct ble_npl_event *ev)
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
+    connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
 
     if (!connsm->csmflags.cfbit.pending_hci_rd_features ||
                                         !connsm->csmflags.cfbit.rxd_features) {
@@ -1676,7 +1676,7 @@ ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
 
     /* Timeout in is in 10 msec units */
     tmo = (int32_t)BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
-    os_callout_reset(&connsm->auth_pyld_timer, tmo);
+    ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo);
 }
 #endif
 
@@ -1980,9 +1980,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->conn_param_req.handle = 0;
 
     /* Connection end event */
-    connsm->conn_ev_end.ev_arg = connsm;
-    connsm->conn_ev_end.ev_queued = 0;
-    connsm->conn_ev_end.ev_cb = ble_ll_conn_event_end;
+    ble_npl_event_init(&connsm->conn_ev_end, ble_ll_conn_event_end, connsm);
 
     /* Initialize transmit queue and ack/flow control elements */
     STAILQ_INIT(&connsm->conn_txq);
@@ -2019,7 +2017,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
     CONN_F_LE_PING_SUPP(connsm) = 1;
-    os_callout_init(&connsm->auth_pyld_timer,
+    ble_npl_callout_init(&connsm->auth_pyld_timer,
                     &g_ble_ll_data.ll_evq,
                     ble_ll_conn_auth_pyld_timer_cb,
                     connsm);
@@ -2106,10 +2104,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
 
     /* Stop any control procedures that might be running */
-    os_callout_stop(&connsm->ctrl_proc_rsp_timer);
+    ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
-    os_callout_stop(&connsm->auth_pyld_timer);
+    ble_npl_callout_stop(&connsm->auth_pyld_timer);
 #endif
 
     /* Remove from the active connection list */
@@ -2135,7 +2133,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     }
 
     /* Make sure events off queue */
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
 
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     /* Remove from occupied periods */
@@ -2557,14 +2555,14 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
  *
  */
 static void
-ble_ll_conn_event_end(struct os_event *ev)
+ble_ll_conn_event_end(struct ble_npl_event *ev)
 {
     uint8_t ble_err;
     uint32_t tmo;
     struct ble_ll_conn_sm *connsm;
 
     /* Better be a connection state machine! */
-    connsm = (struct ble_ll_conn_sm *)ev->ev_arg;
+    connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     assert(connsm);
 
     /* Check if we need to resume scanning */
@@ -2591,7 +2589,7 @@ ble_ll_conn_event_end(struct os_event *ev)
     }
 
     /* Remove any connection end events that might be enqueued */
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
 
     /*
      * If we have received a packet, we can set the current transmit window
@@ -3813,8 +3811,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #endif
                             ++connsm->completed_pkts;
                             if (connsm->completed_pkts > 2) {
-                                os_eventq_put(&g_ble_ll_data.ll_evq,
-                                              &g_ble_ll_data.ll_comp_pkt_ev);
+                                ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
+                                                   &g_ble_ll_data.ll_comp_pkt_ev);
                             }
                         }
                         os_mbuf_free_chain(txpdu);

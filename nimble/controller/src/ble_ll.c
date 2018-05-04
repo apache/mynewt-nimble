@@ -204,9 +204,9 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, scan_timer_restarted)
 STATS_NAME_END(ble_ll_stats)
 
-static void ble_ll_event_rx_pkt(struct os_event *ev);
-static void ble_ll_event_tx_pkt(struct os_event *ev);
-static void ble_ll_event_dbuf_overflow(struct os_event *ev);
+static void ble_ll_event_rx_pkt(struct ble_npl_event *ev);
+static void ble_ll_event_tx_pkt(struct ble_npl_event *ev);
+static void ble_ll_event_dbuf_overflow(struct ble_npl_event *ev);
 
 #if MYNEWT
 
@@ -797,7 +797,7 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
 
     pkthdr = OS_MBUF_PKTHDR(rxpdu);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_rx_pkt_q, pkthdr, omp_next);
-    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
 }
 
 /**
@@ -815,7 +815,7 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
     OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_tx_pkt_q, pkthdr, omp_next);
     OS_EXIT_CRITICAL(sr);
-    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
 }
 
 /**
@@ -828,7 +828,7 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
 void
 ble_ll_data_buffer_overflow(void)
 {
-    os_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_dbuf_overflow_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_dbuf_overflow_ev);
 }
 
 /**
@@ -839,7 +839,7 @@ ble_ll_data_buffer_overflow(void)
 void
 ble_ll_hw_error(void)
 {
-    os_callout_reset(&g_ble_ll_data.ll_hw_err_timer, 0);
+    ble_npl_callout_reset(&g_ble_ll_data.ll_hw_err_timer, 0);
 }
 
 /**
@@ -848,7 +848,7 @@ ble_ll_hw_error(void)
  * @param arg
  */
 static void
-ble_ll_hw_err_timer_cb(struct os_event *ev)
+ble_ll_hw_err_timer_cb(struct ble_npl_event *ev)
 {
     if (ble_ll_hci_ev_hw_err(BLE_HW_ERR_HCI_SYNC_LOSS)) {
         /*
@@ -856,8 +856,8 @@ ble_ll_hw_err_timer_cb(struct os_event *ev)
          * event every 50 milliseconds (or each OS tick if a tick is longer
          * than 100 msecs).
          */
-        os_callout_reset(&g_ble_ll_data.ll_hw_err_timer,
-                         os_time_ms_to_ticks32(50));
+        ble_npl_callout_reset(&g_ble_ll_data.ll_hw_err_timer,
+                         ble_npl_time_ms_to_ticks32(50));
     }
 }
 
@@ -1055,25 +1055,25 @@ ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 }
 
 static void
-ble_ll_event_rx_pkt(struct os_event *ev)
+ble_ll_event_rx_pkt(struct ble_npl_event *ev)
 {
     ble_ll_rx_pkt_in();
 }
 
 static void
-ble_ll_event_tx_pkt(struct os_event *ev)
+ble_ll_event_tx_pkt(struct ble_npl_event *ev)
 {
     ble_ll_tx_pkt_in();
 }
 
 static void
-ble_ll_event_dbuf_overflow(struct os_event *ev)
+ble_ll_event_dbuf_overflow(struct ble_npl_event *ev)
 {
     ble_ll_hci_ev_databuf_overflow();
 }
 
 static void
-ble_ll_event_comp_pkts(struct os_event *ev)
+ble_ll_event_comp_pkts(struct ble_npl_event *ev)
 {
     ble_ll_conn_num_comp_pkts_event_send(NULL);
 }
@@ -1100,7 +1100,7 @@ ble_ll_task(void *arg)
     ble_ll_rand_start();
 
     while (1) {
-        os_eventq_run(&g_ble_ll_data.ll_evq);
+        ble_npl_eventq_run(&g_ble_ll_data.ll_evq);
     }
 }
 
@@ -1142,9 +1142,9 @@ ble_ll_state_get(void)
  * @param ev Event to add to the Link Layer event queue.
  */
 void
-ble_ll_event_send(struct os_event *ev)
+ble_ll_event_send(struct ble_npl_event *ev)
 {
-    os_eventq_put(&g_ble_ll_data.ll_evq, ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, ev);
 }
 
 /**
@@ -1453,25 +1453,25 @@ ble_ll_init(void)
     lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
 
     /* Initialize eventq */
-    os_eventq_init(&lldata->ll_evq);
+    ble_npl_eventq_init(&lldata->ll_evq);
 
     /* Initialize the transmit (from host) and receive (from phy) queues */
     STAILQ_INIT(&lldata->ll_tx_pkt_q);
     STAILQ_INIT(&lldata->ll_rx_pkt_q);
 
     /* Initialize transmit (from host) and receive packet (from phy) event */
-    lldata->ll_rx_pkt_ev.ev_cb = ble_ll_event_rx_pkt;
-    lldata->ll_tx_pkt_ev.ev_cb = ble_ll_event_tx_pkt;
+    ble_npl_event_init(&lldata->ll_rx_pkt_ev, ble_ll_event_rx_pkt, NULL);
+    ble_npl_event_init(&lldata->ll_tx_pkt_ev, ble_ll_event_tx_pkt, NULL);
 
     /* Initialize data buffer overflow event and completed packets */
-    lldata->ll_dbuf_overflow_ev.ev_cb = ble_ll_event_dbuf_overflow;
-    lldata->ll_comp_pkt_ev.ev_cb = ble_ll_event_comp_pkts;
+    ble_npl_event_init(&lldata->ll_dbuf_overflow_ev, ble_ll_event_dbuf_overflow, NULL);
+    ble_npl_event_init(&lldata->ll_comp_pkt_ev, ble_ll_event_comp_pkts, NULL);
 
     /* Initialize the HW error timer */
-    os_callout_init(&g_ble_ll_data.ll_hw_err_timer,
-                    &g_ble_ll_data.ll_evq,
-                    ble_ll_hw_err_timer_cb,
-                    NULL);
+    ble_npl_callout_init(&g_ble_ll_data.ll_hw_err_timer,
+                         &g_ble_ll_data.ll_evq,
+                         ble_ll_hw_err_timer_cb,
+                         NULL);
 
     /* Initialize LL HCI */
     ble_ll_hci_init();

@@ -418,7 +418,7 @@ static struct ble_gattc_proc_list ble_gattc_procs;
 /* The time when we should attempt to resume stalled procedures, in OS ticks.
  * A value of 0 indicates no stalled procedures.
  */
-static os_time_t ble_gattc_resume_at;
+static ble_npl_time_t ble_gattc_resume_at;
 
 /* Statistics. */
 STATS_SECT_DECL(ble_gattc_stats) ble_gattc_stats;
@@ -731,8 +731,8 @@ ble_gattc_proc_insert(struct ble_gattc_proc *proc)
 static void
 ble_gattc_proc_set_exp_timer(struct ble_gattc_proc *proc)
 {
-    proc->exp_os_ticks = os_time_get() +
-                         os_time_ms_to_ticks32(BLE_GATTC_UNRESPONSIVE_TIMEOUT_MS);
+    proc->exp_os_ticks = ble_npl_time_get() +
+                         ble_npl_time_ms_to_ticks32(BLE_GATTC_UNRESPONSIVE_TIMEOUT_MS);
 }
 
 static void
@@ -744,8 +744,8 @@ ble_gattc_proc_set_resume_timer(struct ble_gattc_proc *proc)
      * instead.
      */
     if (ble_gattc_resume_at == 0) {
-        ble_gattc_resume_at = os_time_get() +
-                              os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE));
+        ble_gattc_resume_at = ble_npl_time_get() +
+                              ble_npl_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE));
 
         /* A value of 0 indicates the timer is unset.  Disambiguate this. */
         if (ble_gattc_resume_at == 0) {
@@ -862,7 +862,7 @@ ble_gattc_proc_matches_conn_op(struct ble_gattc_proc *proc, void *arg)
 }
 
 struct ble_gattc_criteria_exp {
-    os_time_t now;
+    ble_npl_time_t now;
     int32_t next_exp_in;
 };
 
@@ -1012,7 +1012,7 @@ ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
 {
     struct ble_gattc_criteria_exp criteria;
 
-    criteria.now = os_time_get();
+    criteria.now = ble_npl_time_get();
     criteria.next_exp_in = BLE_HS_FOREVER;
 
     STAILQ_INIT(dst_list);
@@ -1116,7 +1116,7 @@ ble_gattc_resume_procs(void)
 static int32_t
 ble_gattc_ticks_until_resume(void)
 {
-    os_time_t now;
+    ble_npl_time_t now;
     int32_t diff;
 
     /* Resume timer not set. */
@@ -1124,7 +1124,7 @@ ble_gattc_ticks_until_resume(void)
         return BLE_HS_FOREVER;
     }
 
-    now = os_time_get();
+    now = ble_npl_time_get();
     diff = ble_gattc_resume_at - now;
     if (diff <= 0) {
         /* Timer already expired; resume immediately. */

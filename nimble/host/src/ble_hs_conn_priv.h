@@ -57,7 +57,7 @@ struct ble_hs_conn {
 
     struct ble_l2cap_chan_list bhc_channels;
     struct ble_l2cap_chan *bhc_rx_chan; /* Channel rxing current packet. */
-    uint32_t bhc_rx_timeout;
+    ble_npl_time_t bhc_rx_timeout;
 
     /**
      * Count of packets sent over this connection that the controller has not
