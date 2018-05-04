@@ -126,6 +126,15 @@ void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
 struct os_eventq *ble_hs_evq_get(void);
 
+struct ble_mqueue {
+    STAILQ_HEAD(, os_mbuf_pkthdr) head;
+    struct ble_npl_event ev;
+};
+
+int ble_mqueue_init(struct ble_mqueue *mq, ble_npl_event_fn *ev_fn, void *ev_arg);
+struct os_mbuf *ble_mqueue_get(struct ble_mqueue *mq);
+int ble_mqueue_put(struct ble_mqueue *mq, struct ble_npl_eventq *evq, struct os_mbuf *om);
+
 #if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG && !BLE_MONITOR
 
 #define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,                \

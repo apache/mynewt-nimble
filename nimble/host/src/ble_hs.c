@@ -73,7 +73,7 @@ static struct os_callout ble_hs_timer_timer;
 /* Shared queue that the host uses for work items. */
 static struct os_eventq *ble_hs_evq;
 
-static struct os_mqueue ble_hs_rx_q;
+static struct ble_mqueue ble_hs_rx_q;
 
 static struct os_mutex ble_hs_mutex;
 
@@ -222,7 +222,7 @@ ble_hs_process_rx_data_queue(void)
 {
     struct os_mbuf *om;
 
-    while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+    while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
 #if BLE_MONITOR
         ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
 #endif
@@ -305,7 +305,7 @@ ble_hs_clear_rx_queue(void)
 {
     struct os_mbuf *om;
 
-    while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+    while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
         os_mbuf_free_chain(om);
     }
 }
@@ -618,7 +618,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
      */
     ble_hs_flow_fill_acl_usrhdr(om);
 
-    rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
+    rc = ble_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
@@ -710,7 +710,7 @@ ble_hs_init(void)
     rc = ble_gatts_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    os_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);
+    ble_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
