@@ -8,7 +8,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
@@ -389,7 +389,7 @@ end
 def parse_passkey_info(line)
     passkey_info = {}
 
-    case line 
+    case line
     when /passkey action event; action=4 numcmp=(\d+)/
         passkey_info[:action] = 4
         passkey_info[:numcmp] = $1.to_i(10)

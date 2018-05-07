@@ -56,8 +56,8 @@ GATT/CL/GAD/BV-06-C	PASS	b conn peer_addr=<addr>
 				<answer YES>
 				b term conn=<handle>
 				<repeat>
-GATT/CL/GAD/BV-07-C	N/A	
-GATT/CL/GAD/BV-08-C	N/A	
+GATT/CL/GAD/BV-07-C	N/A
+GATT/CL/GAD/BV-08-C	N/A
 -------------------------------------------------------------------------------
 
 GATT/CL/GAR/BV-01-C	PASS	b conn peer_addr=<addr>
@@ -137,7 +137,7 @@ GATT/CL/GAR/BI-16-C	PASS	b conn peer_addr=<addr>
 GATT/CL/GAR/BI-17-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> long=1 attr=<val_handle>
 				<answer YES>
-				b term conn=<handle>	
+				b term conn=<handle>
 GATT/CL/GAR/BV-05-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> attr=<val_handle1> attr=<val_handle2>
 				b term conn=<handle>
@@ -184,7 +184,7 @@ GATT/CL/GAR/BI-26-C	PASS	b conn peer_addr=<addr>
 GATT/CL/GAR/BI-27-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> attr=<val_handle>
 				<answer YES>
-				b term conn=<handle>	
+				b term conn=<handle>
 GATT/CL/GAR/BV-07-C	PASS	b conn peer_addr=<addr>
 				b read conn=<handle> long=1 attr=<val_handle>
 				<answer YES>
@@ -444,8 +444,8 @@ GATT/SR/GAR/BI-35-C	N/A
 -------------------------------------------------------------------------------
 
 GATT/SR/GAW/BV-01-C	PASS	b adv
-GATT/SR/GAW/BV-02-C	N/A	
-GATT/SR/GAW/BI-01-C	N/A	
+GATT/SR/GAW/BV-02-C	N/A
+GATT/SR/GAW/BI-01-C	N/A
 GATT/SR/GAW/BV-03-C	PASS	b adv
 GATT/SR/GAW/BI-02-C	PASS	b adv
 				<enter ffff>
@@ -460,7 +460,7 @@ GATT/SR/GAW/BI-08-C	PASS	b adv
 				<enter long value handle without WRITE flag>
 GATT/SR/GAW/BI-09-C	PASS	b adv
 GATT/SR/GAW/BI-11-C	N/A
-GATT/SR/GAW/BI-12-C	PASS	b adv	
+GATT/SR/GAW/BI-12-C	PASS	b adv
 GATT/SR/GAW/BI-13-C	PASS	b adv
 GATT/SR/GAW/BV-06-C	PASS	b adv
 GATT/SR/GAW/BV-10-C	PASS	b adv

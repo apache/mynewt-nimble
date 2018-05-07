@@ -148,7 +148,7 @@ syscfg.defs:
     BLE_MESH_RELAY:
         description: >
             Support for acting as a Mesh Relay Node.
-        value: 0 
+        value: 0
 
     BLE_MESH_LOW_POWER:
         description: >
@@ -230,19 +230,19 @@ syscfg.defs:
             in value for each iteration. The value is in units of 100
             milliseconds, so e.g. a value of 300 means 3 seconds.
         value: MYNEWT_VAL_BLE_MESH_LPN_POLL_TIMEOUT
-        
+
     BLE_MESH_LPN_SCAN_LATENCY:
         description: >
             Latency in milliseconds that it takes to enable scanning. This
             is in practice how much time in advance before the Receive Window
             that scanning is requested to be enabled.
         value: 10
-        
+
     BLE_MESH_LPN_GROUPS:
         description: >
             Maximum number of groups that the LPN can subscribe to.
         value: 10
-        
+
     BLE_MESH_FRIEND:
         description: >
             Enable this option to be able to act as a Friend Node.
@@ -252,19 +252,19 @@ syscfg.defs:
         description: >
             Receive Window in milliseconds supported by the Friend node.
         value: 255
-        
+
     BLE_MESH_FRIEND_QUEUE_SIZE:
         description: >
-            Minimum number of buffers available to be stored for each 
+            Minimum number of buffers available to be stored for each
             local Friend Queue.
         value: 16
-        
+
     BLE_MESH_FRIEND_SUB_LIST_SIZE:
         description: >
             Size of the Subscription List that can be supported by a
             Friend node for a Low Power node.
         value: 3
-        
+
     BLE_MESH_FRIEND_LPN_COUNT:
         description: >
             Number of Low Power Nodes the Friend can have a Friendship
@@ -317,7 +317,7 @@ syscfg.defs:
         description: >
             Use this option to enable Beacon-related debug logs for the
             Bluetooth Mesh functionality.
-        value: 0    
+        value: 0
 
     BLE_MESH_DEBUG_CRYPTO:
         description: >
@@ -330,7 +330,7 @@ syscfg.defs:
             Use this option to enable Provisioning debug logs for the
             Bluetooth Mesh functionality.
         value: 0
-    
+
     BLE_MESH_DEBUG_ACCESS:
         description: >
             Use this option to enable Access layer and device composition
@@ -341,7 +341,7 @@ syscfg.defs:
         description: >
             Use this option to enable debug logs for the Foundation
             Models.
-        value: 0    
+        value: 0
 
     BLE_MESH_DEBUG_ADV:
         description: >
@@ -360,7 +360,7 @@ syscfg.defs:
             Use this option to enable Friend debug logs for the
             Bluetooth Mesh functionality.
         value: 0
-        
+
     BLE_MESH_DEBUG_PROXY:
         description: >
             Use this option to enable Proxy protocol debug logs.

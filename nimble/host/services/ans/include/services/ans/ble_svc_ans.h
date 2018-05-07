@@ -32,7 +32,7 @@ struct ble_hs_cfg;
 #define BLE_SVC_ANS_CHR_UUID16_UNR_ALERT_STAT               0x2a45
 #define BLE_SVC_ANS_CHR_UUID16_ALERT_NOT_CTRL_PT            0x2a44
 
-/* Alert Notification Service Category ID Bit Masks 
+/* Alert Notification Service Category ID Bit Masks
  *
  * TODO: Add remaining 2 optional categories */
 #define BLE_SVC_ANS_CAT_BM_NONE                             0x00
@@ -43,7 +43,7 @@ struct ble_hs_cfg;
 #define BLE_SVC_ANS_CAT_BM_MISSED_CALL                      0x10
 #define BLE_SVC_ANS_CAT_BM_SMS                              0x20
 #define BLE_SVC_ANS_CAT_BM_VOICE_MAIL                       0x40
-#define BLE_SVC_ANS_CAT_BM_SCHEDULE                         0x80    
+#define BLE_SVC_ANS_CAT_BM_SCHEDULE                         0x80
 
 /* Alert Notification Service Category IDs
  *
@@ -57,7 +57,7 @@ struct ble_hs_cfg;
 #define BLE_SVC_ANS_CAT_ID_VOICE_MAIL                       6
 #define BLE_SVC_ANS_CAT_ID_SCHEDULE                         7
 
-/* Number of valid ANS categories 
+/* Number of valid ANS categories
  *
  * TODO: Add remaining 2 optional categories */
 #define BLE_SVC_ANS_CAT_NUM                                 8
@@ -75,7 +75,7 @@ struct ble_hs_cfg;
 
 void ble_svc_ans_on_gap_connect(uint16_t conn_handle);
 
-int ble_svc_ans_new_alert_add(uint8_t cat_id, 
+int ble_svc_ans_new_alert_add(uint8_t cat_id,
                               const char * info_str);
 int ble_svc_ans_unr_alert_add(uint8_t cat_id);
 

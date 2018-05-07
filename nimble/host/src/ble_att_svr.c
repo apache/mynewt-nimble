@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -330,7 +330,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
  * @param now                   The current OS time.
  *
  * @return                      The number of ticks until the current queued
- *                                  write times out.  
+ *                                  write times out.
  */
 int32_t
 ble_att_svr_ticks_until_tmo(const struct ble_att_svr_conn *svr, os_time_t now)
@@ -411,7 +411,7 @@ err:
 }
 
 static int
-ble_att_svr_read_flat(uint16_t conn_handle, 
+ble_att_svr_read_flat(uint16_t conn_handle,
                       struct ble_att_svr_entry *entry,
                       uint16_t offset,
                       uint16_t max_len,

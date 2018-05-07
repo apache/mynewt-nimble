@@ -525,7 +525,7 @@ ble_hs_test_util_adv_start(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     memset(acks + i, 0, sizeof acks[i]);
 
     ble_hs_test_util_hci_ack_set_seq(acks);
-    
+
     rc = ble_gap_adv_start(own_addr_type, peer_addr,
                            duration_ms, adv_params, cb, cb_arg);
 

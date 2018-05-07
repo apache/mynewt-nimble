@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -34,7 +34,7 @@ static uint8_t ble_gatts_notify_test_peer_addr[6] = {2,3,4,5,6,7};
 
 static int
 ble_gatts_notify_test_misc_access(uint16_t conn_handle,
-                                  uint16_t attr_handle, 
+                                  uint16_t attr_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 static void

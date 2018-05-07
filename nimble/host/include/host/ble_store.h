@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -291,7 +291,7 @@ int ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs,
                                 int *out_num_peers,
                                 int max_peers);
 int ble_store_util_delete_all(int type, const union ble_store_key *key);
-int ble_store_util_delete_peer(const ble_addr_t *peer_id_addr); 
+int ble_store_util_delete_peer(const ble_addr_t *peer_id_addr);
 int ble_store_util_delete_oldest_peer(void);
 int ble_store_util_count(int type, int *out_count);
 int ble_store_util_status_rr(struct ble_store_status_event *event, void *arg);

@@ -60,7 +60,7 @@ struct ble_svc_dis_data {
      * Firmware revision.
      * Represent the firmware revision for the firmware within the device.
      */
-    const char *firmware_revision; 
+    const char *firmware_revision;
     /**
      * Hardware revision.
      * Represent the hardware revision for the hardware within the device.
@@ -84,7 +84,7 @@ struct ble_svc_dis_data {
 extern struct ble_svc_dis_data ble_svc_dis_data;
 
 /**
- * Service initialisation. 
+ * Service initialisation.
  * Automatically called during package initialisation.
  */
 void ble_svc_dis_init(void);

@@ -31,8 +31,8 @@ static uint8_t ble_svc_lls_alert_level;
 
 /* Write characteristic function */
 static int
-ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len, 
-                      uint16_t max_len, void *dst, 
+ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len,
+                      uint16_t max_len, void *dst,
                       uint16_t *len);
 
 /* Access function */
@@ -61,26 +61,26 @@ static const struct ble_gatt_svc_def ble_svc_lls_defs[] = {
 };
 
 /**
- * Writes the received value from a characteristic write to 
+ * Writes the received value from a characteristic write to
  * the given destination.
  */
 static int
-ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len, 
-                      uint16_t max_len, void *dst, 
+ble_svc_lls_chr_write(struct os_mbuf *om, uint16_t min_len,
+                      uint16_t max_len, void *dst,
                       uint16_t *len)
 {
     uint16_t om_len;
-    int rc; 
+    int rc;
 
     om_len = OS_MBUF_PKTLEN(om);
     if (om_len < min_len || om_len > max_len) {
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-    }   
+    }
 
     rc = ble_hs_mbuf_to_flat(om, dst, max_len, len);
     if (rc != 0) {
         return BLE_ATT_ERR_UNLIKELY;
-    }   
+    }
 
     return 0;
 }
@@ -102,11 +102,11 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
-        rc = ble_svc_lls_chr_write(ctxt->om, 
+        rc = ble_svc_lls_chr_write(ctxt->om,
                                    sizeof ble_svc_lls_alert_level,
                                    sizeof ble_svc_lls_alert_level,
                                    &ble_svc_lls_alert_level, NULL);
-        return rc; 
+        return rc;
 
     default:
         assert(0);
@@ -120,11 +120,11 @@ ble_svc_lls_access(uint16_t conn_handle, uint16_t attr_handle,
  * This function is the crux of the link loss service. The application
  * developer must call this function inside the gap event callback
  * function when a BLE_GAP_EVENT_DISCONNECT event is received and
- * pass the disconnect reason into this function. 
- * 
+ * pass the disconnect reason into this function.
+ *
  * Here, we then check if the disconnect reason is due to a timout, and if
- * so, we call the ble_svc_lls_event_fn callback with the current 
- * alert level. The actual alert implementation is left up to the 
+ * so, we call the ble_svc_lls_event_fn callback with the current
+ * alert level. The actual alert implementation is left up to the
  * developer.
  *
  * @param reason            The reason attatched to the GAP disconnect
@@ -135,7 +135,7 @@ ble_svc_lls_on_gap_disconnect(int reason)
 {
     if (reason == BLE_HS_HCI_ERR(BLE_ERR_CONN_SPVN_TMO)) {
             ble_svc_lls_cb_fn(ble_svc_lls_alert_level);
-    } 
+    }
 }
 
 /**
@@ -150,7 +150,7 @@ ble_svc_lls_alert_level_get(void)
 }
 
 /**
- * Sets the current alert level. 
+ * Sets the current alert level.
  *
  * @return 0 on success, BLE_HS_EINVAL if the given alert level is not valid.
  */
@@ -160,8 +160,8 @@ ble_svc_lls_alert_level_set(uint8_t alert_level)
     if (alert_level > BLE_SVC_LLS_ALERT_LEVEL_HIGH_ALERT) {
         return BLE_HS_EINVAL;
     }
-    
-    memcpy(&ble_svc_lls_alert_level, &alert_level, 
+
+    memcpy(&ble_svc_lls_alert_level, &alert_level,
            sizeof alert_level);
 
     return 0;
@@ -180,7 +180,7 @@ void
 ble_svc_lls_init(void)
 {
     int rc;
-    
+
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 

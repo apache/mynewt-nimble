@@ -963,7 +963,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
      */
     assert(!sch || scan_chan < BLE_PHY_ADV_CHAN_START);
     assert(sch || scan_chan >= BLE_PHY_ADV_CHAN_START);
-    
+
     /* Set channel */
     rc = ble_phy_setchan(scan_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
@@ -2602,7 +2602,7 @@ ble_ll_scan_set_scan_params(uint8_t *cmd)
     scanp->scan_window = scan_window;
     scanp->scan_filt_policy = filter_policy;
     scanp->own_addr_type = own_addr_type;
-    
+
 #if (BLE_LL_SCAN_PHY_NUMBER == 2)
     g_ble_ll_scan_params[PHY_CODED].configured = 0;
 #endif

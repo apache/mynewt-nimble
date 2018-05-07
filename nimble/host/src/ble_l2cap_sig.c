@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -892,7 +892,7 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     req = (struct ble_l2cap_sig_disc_req *) (*om)->om_data;
 
     /* Let's find matching channel. Note that destination CID in the request
-     * is from peer perspective. It is source CID from nimble perspective 
+     * is from peer perspective. It is source CID from nimble perspective
      */
     chan = ble_hs_conn_chan_find_by_scid(conn, le16toh(req->dcid));
     if (!chan || (le16toh(req->scid) != chan->dcid)) {
@@ -1192,7 +1192,7 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
     proc = STAILQ_FIRST(&ble_l2cap_sig_procs);
     while (proc != NULL) {
         next = STAILQ_NEXT(proc, next);
-    
+
         time_diff = proc->exp_os_ticks - now;
         if (time_diff <= 0) {
             /* Procedure has expired; move it to the destination list. */

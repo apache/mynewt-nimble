@@ -34,11 +34,11 @@ struct ble_hs_cfg;
 #define BLE_SVC_LLS_ALERT_LEVEL_MILD_ALERT                  1
 #define BLE_SVC_LLS_ALERT_LEVEL_HIGH_ALERT                  2
 
-typedef int ble_svc_lls_event_fn(uint8_t alert_level); 
+typedef int ble_svc_lls_event_fn(uint8_t alert_level);
 
 uint8_t ble_svc_lls_alert_level_get(void);
 int ble_svc_lls_alert_level_set(uint8_t alert_level);
-void ble_svc_lls_on_gap_disconnect(int reason); 
+void ble_svc_lls_on_gap_disconnect(int reason);
 
 void ble_svc_lls_set_cb(ble_svc_lls_event_fn *cb);
 void ble_svc_lls_init(void);

@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -15,7 +15,7 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- */ 
+ */
 
 #ifndef H_NIMBLE_OPT_AUTO_
 #define H_NIMBLE_OPT_AUTO_
@@ -28,7 +28,7 @@ extern "C" {
 
 /***
  * Automatic options.
- * 
+ *
  * These settings are generated automatically from the user-specified syscfg
  * settings.
  */
@@ -62,7 +62,7 @@ extern "C" {
      MYNEWT_VAL(BLE_GATT_DISC_ALL_CHRS) ||      \
      MYNEWT_VAL(BLE_GATT_DISC_CHRS_UUID) ||     \
      MYNEWT_VAL(BLE_GATT_READ_UUID))
-    
+
 #undef NIMBLE_BLE_ATT_CLT_READ
 #define NIMBLE_BLE_ATT_CLT_READ                 \
     (MYNEWT_VAL(BLE_GATT_READ) ||               \
@@ -97,7 +97,7 @@ extern "C" {
 #define NIMBLE_BLE_ATT_CLT_EXEC_WRITE           \
     (MYNEWT_VAL(BLE_GATT_WRITE_LONG))
 
-#undef NIMBLE_BLE_ATT_CLT_NOTIFY  
+#undef NIMBLE_BLE_ATT_CLT_NOTIFY
 #define NIMBLE_BLE_ATT_CLT_NOTIFY               \
     (MYNEWT_VAL(BLE_GATT_NOTIFY))
 

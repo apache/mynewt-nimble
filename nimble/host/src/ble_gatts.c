@@ -1191,7 +1191,7 @@ ble_gatts_start(void)
     int rc;
     int i;
 
-    ble_hs_lock(); 
+    ble_hs_lock();
     if (!ble_gatts_mutable()) {
         rc = BLE_HS_EBUSY;
         goto done;
@@ -1976,7 +1976,7 @@ ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
     void *p;
     int rc;
 
-    ble_hs_lock(); 
+    ble_hs_lock();
     if (!ble_gatts_mutable()) {
         rc = BLE_HS_EBUSY;
         goto done;

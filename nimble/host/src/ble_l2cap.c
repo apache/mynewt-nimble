@@ -6,7 +6,7 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
@@ -382,7 +382,7 @@ err:
 /**
  * Transmits the L2CAP payload contained in the specified mbuf.  The supplied
  * mbuf is consumed, regardless of the outcome of the function call.
- * 
+ *
  * @param chan                  The L2CAP channel to transmit over.
  * @param txom                  The data to transmit.
  *
