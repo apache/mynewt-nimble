@@ -773,7 +773,7 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 	return 0;
 }
 
-static void bt_mesh_net_local(struct os_event *work)
+static void bt_mesh_net_local(struct ble_npl_event *work)
 {
 	struct os_mbuf *buf;
 
@@ -1337,7 +1337,7 @@ done:
     os_mbuf_free_chain(buf);
 }
 
-static void ivu_complete(struct os_event *work)
+static void ivu_complete(struct ble_npl_event *work)
 {
 	BT_DBG("");
 

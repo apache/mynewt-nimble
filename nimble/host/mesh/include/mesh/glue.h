@@ -24,10 +24,9 @@
 #include <errno.h>
 
 #include "syscfg/syscfg.h"
+#include "nimble/nimble_npl.h"
 
 #include "os/os_mbuf.h"
-#include "os/os_callout.h"
-#include "os/os_eventq.h"
 #include "os/queue.h"
 
 #include "atomic.h"
@@ -170,7 +169,7 @@
 
 typedef ble_addr_t bt_addr_le_t;
 
-#define k_fifo_init(queue) os_eventq_init(queue)
+#define k_fifo_init(queue) ble_npl_eventq_init(queue)
 #define net_buf_simple_tailroom(buf) OS_MBUF_TRAILINGSPACE(buf)
 #define net_buf_tailroom(buf) net_buf_simple_tailroom(buf)
 #define net_buf_headroom(buf) ((buf)->om_data - &(buf)->om_databuf[buf->om_pkthdr_len])
@@ -207,7 +206,7 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
     buf->om_len = 0;
 }
 
-void net_buf_put(struct os_eventq *fifo, struct os_mbuf *buf);
+void net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *buf);
 void * net_buf_ref(struct os_mbuf *om);
 void net_buf_unref(struct os_mbuf *om);
 uint16_t net_buf_simple_pull_le16(struct os_mbuf *om);
@@ -224,8 +223,8 @@ void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
 void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
-bool k_fifo_is_empty(struct os_eventq *q);
-void * net_buf_get(struct os_eventq *fifo,s32_t t);
+bool k_fifo_is_empty(struct ble_npl_eventq *q);
+void *net_buf_get(struct ble_npl_eventq *fifo,s32_t t);
 uint8_t *net_buf_simple_push(struct os_mbuf *om, uint8_t len);
 void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 
@@ -279,18 +278,18 @@ int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *sd, size_t sd_len);
 
 struct k_delayed_work {
-    struct os_callout work;
+    struct ble_npl_callout work;
 };
 
-void k_work_init(struct os_callout *work, os_event_fn handler);
-void k_delayed_work_init(struct k_delayed_work *w, os_event_fn *f);
+void k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler);
+void k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f);
 void k_delayed_work_cancel(struct k_delayed_work *w);
 void k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms);
 int64_t k_uptime_get(void);
 u32_t k_uptime_get_32(void);
 void k_sleep(int32_t duration);
-void k_work_submit(struct os_callout *w);
-void k_work_add_arg(struct os_callout *w, void *arg);
+void k_work_submit(struct ble_npl_callout *w);
+void k_work_add_arg(struct ble_npl_callout *w, void *arg);
 void k_delayed_work_add_arg(struct k_delayed_work *w, void *arg);
 uint32_t k_delayed_work_remaining_get(struct k_delayed_work *w);
 
@@ -367,25 +366,25 @@ static inline unsigned int find_msb_set(u32_t op)
 	((type *)(((char *)(ptr)) - offsetof(type, field)))
 
 
-#define k_sem os_sem
+#define k_sem ble_npl_sem
 
 static inline void k_sem_init(struct k_sem *sem, unsigned int initial_count,
 			      unsigned int limit)
 {
-	os_sem_init(sem, initial_count);
+	ble_npl_sem_init(sem, initial_count);
 }
 
 static inline int k_sem_take(struct k_sem *sem, s32_t timeout)
 {
 	uint32_t ticks;
 
-	os_time_ms_to_ticks(timeout, &ticks);
-	return - os_sem_pend(sem,  ticks);
+	ble_npl_time_ms_to_ticks(timeout, &ticks);
+	return - ble_npl_sem_pend(sem,  ticks);
 }
 
 static inline void k_sem_give(struct k_sem *sem)
 {
-	os_sem_release(sem);
+	ble_npl_sem_release(sem);
 }
 
 /* Helpers to access the storage array, since we don't have access to its

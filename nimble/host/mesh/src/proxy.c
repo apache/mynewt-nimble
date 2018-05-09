@@ -97,7 +97,7 @@ static const struct ble_gap_adv_params fast_adv_param = {
 static bool proxy_adv_enabled;
 
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-static void proxy_send_beacons(struct os_event *work);
+static void proxy_send_beacons(struct ble_npl_event *work);
 #endif
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
@@ -115,7 +115,7 @@ static struct bt_mesh_proxy_client {
 	} filter_type;
 	u8_t msg_type;
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-	struct os_callout send_beacons;
+	struct ble_npl_callout send_beacons;
 #endif
 	struct os_mbuf    *buf;
 } clients[MYNEWT_VAL(BLE_MAX_CONNECTIONS)] = {
@@ -384,12 +384,13 @@ static int beacon_send(uint16_t conn_handle, struct bt_mesh_subnet *sub)
 	return rc;
 }
 
-static void proxy_send_beacons(struct os_event *work)
+static void proxy_send_beacons(struct ble_npl_event *work)
 {
 	struct bt_mesh_proxy_client *client;
 	int i;
 
-	client = work->ev_arg;
+
+	client = ble_npl_event_get_arg(work);
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
 		struct bt_mesh_subnet *sub = &bt_mesh.sub[i];

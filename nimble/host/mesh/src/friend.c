@@ -656,9 +656,9 @@ static void send_friend_clear(struct bt_mesh_friend *frnd)
 			 sizeof(req), NULL, &clear_sent_cb, frnd);
 }
 
-static void clear_timeout(struct os_event *work)
+static void clear_timeout(struct ble_npl_event *work)
 {
-	struct bt_mesh_friend *frnd = work->ev_arg;
+	struct bt_mesh_friend *frnd = ble_npl_event_get_arg(work);
 	u32_t duration;
 
 	BT_DBG("LPN 0x%04x (old) Friend 0x%04x", frnd->lpn, frnd->clear.frnd);
@@ -997,9 +997,9 @@ static void buf_send_end(int err, void *user_data)
 	}
 }
 
-static void friend_timeout(struct os_event *work)
+static void friend_timeout(struct ble_npl_event *work)
 {
-	struct bt_mesh_friend *frnd = work->ev_arg;
+	struct bt_mesh_friend *frnd = ble_npl_event_get_arg(work);
 	static const struct bt_mesh_send_cb buf_sent_cb = {
 		.start = buf_send_start,
 		.end = buf_send_end,

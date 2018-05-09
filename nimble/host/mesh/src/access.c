@@ -184,9 +184,9 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 	return bt_mesh_trans_send(&tx, sdu, &pub_sent_cb, mod);
 }
 
-static void mod_publish(struct os_event *work)
+static void mod_publish(struct ble_npl_event *work)
 {
-	struct bt_mesh_model_pub *pub = work->ev_arg;
+	struct bt_mesh_model_pub *pub = ble_npl_event_get_arg(work);
 	s32_t period_ms;
 	int err;
 

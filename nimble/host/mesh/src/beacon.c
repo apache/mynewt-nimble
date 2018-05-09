@@ -232,7 +232,7 @@ static void update_beacon_observation(void)
 	}
 }
 
-static void beacon_send(struct os_event *work)
+static void beacon_send(struct ble_npl_event *work)
 {
 	/* Don't send anything if we have an active provisioning link */
 	if ((MYNEWT_VAL(BLE_MESH_PROV)) && bt_prov_active()) {
