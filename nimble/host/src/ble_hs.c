@@ -127,7 +127,7 @@ ble_hs_locked_by_cur_task(void)
         return ble_hs_dbg_mutex_locked;
     }
 
-    owner = ble_hs_mutex.mu_owner;
+    owner = ble_hs_mutex.mu.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
 }
 #endif
