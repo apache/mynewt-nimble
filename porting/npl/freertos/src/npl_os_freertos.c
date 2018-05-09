@@ -42,17 +42,25 @@ npl_freertos_eventq_dflt_get(void)
 }
 
 struct ble_npl_event *
-npl_freertos_eventq_get(struct ble_npl_eventq *evq)
+npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    struct ble_npl_event *ev;
+    struct ble_npl_event *ev = NULL;
     BaseType_t ret;
 
-    ret = xQueueReceive(evq->q, &ev, portMAX_DELAY);
-    assert(ret == pdPASS);
+    ret = xQueueReceive(evq->q, &ev, tmo);
+    assert(ret == pdPASS || ret == errQUEUE_EMPTY);
 
-    ev->queued = false;
+    if (ev) {
+        ev->queued = false;
+    }
 
     return ev;
+}
+
+struct ble_npl_event *
+npl_freertos_eventq_get(struct ble_npl_eventq *evq)
+{
+    return npl_freertos_eventq_get_tmo(evq, portMAX_DELAY);
 }
 
 void
@@ -279,6 +287,26 @@ npl_freertos_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
     }
 
     return BLE_NPL_OK;
+}
+
+ble_npl_time_t
+npl_freertos_callout_remaining_ticks(struct ble_npl_callout *co,
+                                     ble_npl_time_t now)
+{
+    ble_npl_time_t rt;
+    uint32_t exp = xTimerGetExpiryTime(co->handle);
+
+    taskENTER_CRITICAL();
+
+    if (exp > now) {
+        rt = exp - now;
+    } else {
+        return 0;
+    }
+
+    taskEXIT_CRITICAL();
+
+    return rt;
 }
 
 ble_npl_error_t
