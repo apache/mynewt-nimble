@@ -39,7 +39,7 @@
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
 
-struct os_mutex lock;
+struct ble_npl_mutex lock;
 
 #if MYNEWT_VAL(BLE_MONITOR_UART)
 struct uart_dev *uart;
@@ -57,7 +57,7 @@ static uint8_t rtt_pktbuf[MYNEWT_VAL(BLE_MONITOR_RTT_BUFFER_SIZE)];
 static size_t rtt_pktbuf_pos;
 static struct {
     bool dropped;
-    struct os_callout tmo;
+    struct ble_npl_callout tmo;
     struct ble_monitor_drops_hdr drops_hdr;
 } rtt_drops;
 
@@ -154,7 +154,7 @@ update_drop_counters(struct ble_monitor_hdr *failed_hdr)
 
     if (*cnt < UINT8_MAX) {
         (*cnt)++;
-        os_callout_reset(&rtt_drops.tmo, OS_TICKS_PER_SEC);
+        ble_npl_callout_reset(&rtt_drops.tmo, OS_TICKS_PER_SEC);
     }
 }
 
@@ -168,7 +168,7 @@ reset_drop_counters(void)
     rtt_drops.drops_hdr.acl_rx = 0;
     rtt_drops.drops_hdr.other = 0;
 
-    os_callout_stop(&rtt_drops.tmo);
+    ble_npl_callout_stop(&rtt_drops.tmo);
 }
 #endif
 
@@ -268,9 +268,9 @@ static FILE *btmon = (FILE *) &(struct File) {
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT) && MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
 static void
-drops_tmp_cb(struct os_event *ev)
+drops_tmp_cb(struct ble_npl_event *ev)
 {
-    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
     /*
      * There's no "nop" in btsnoop protocol so we just send empty system note
@@ -280,7 +280,7 @@ drops_tmp_cb(struct os_event *ev)
     monitor_write_header(BLE_MONITOR_OPCODE_SYSTEM_NOTE, 1);
     monitor_write("", 1);
 
-    os_mutex_release(&lock);
+    ble_npl_mutex_release(&lock);
 }
 #endif
 
@@ -308,7 +308,7 @@ ble_monitor_init(void)
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
-    os_callout_init(&rtt_drops.tmo, ble_hs_evq_get(), drops_tmp_cb, NULL);
+    ble_npl_callout_init(&rtt_drops.tmo, ble_hs_evq_get(), drops_tmp_cb, NULL);
 
     /* Initialize types in header (we won't touch them later) */
     rtt_drops.drops_hdr.type_cmd = BLE_MONITOR_EXTHDR_COMMAND_DROPS;
@@ -331,7 +331,7 @@ ble_monitor_init(void)
     }
 #endif
 
-    os_mutex_init(&lock);
+    ble_npl_mutex_init(&lock);
 
     return 0;
 }
@@ -339,12 +339,12 @@ ble_monitor_init(void)
 int
 ble_monitor_send(uint16_t opcode, const void *data, size_t len)
 {
-    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
     monitor_write_header(opcode, len);
     monitor_write(data, len);
 
-    os_mutex_release(&lock);
+    ble_npl_mutex_release(&lock);
 
     return 0;
 }
@@ -361,7 +361,7 @@ ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
         om_tmp = SLIST_NEXT(om_tmp, om_next);
     }
 
-    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
     monitor_write_header(opcode, length);
 
@@ -370,7 +370,7 @@ ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
         om = SLIST_NEXT(om, om_next);
     }
 
-    os_mutex_release(&lock);
+    ble_npl_mutex_release(&lock);
 
     return 0;
 }
@@ -423,7 +423,7 @@ ble_monitor_log(int level, const char *fmt, ...)
 
     ulog.ident_len = sizeof(id);
 
-    os_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
 
     monitor_write_header(BLE_MONITOR_OPCODE_USER_LOGGING,
                          sizeof(ulog) + sizeof(id) + len + 1);
@@ -437,7 +437,7 @@ ble_monitor_log(int level, const char *fmt, ...)
     /* null-terminate string */
     monitor_write("", 1);
 
-    os_mutex_release(&lock);
+    ble_npl_mutex_release(&lock);
 
     return 0;
 }

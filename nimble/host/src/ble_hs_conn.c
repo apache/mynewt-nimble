@@ -411,14 +411,14 @@ ble_hs_conn_timer(void)
 #endif
 
     struct ble_hs_conn *conn;
-    os_time_t now;
+    ble_npl_time_t now;
     int32_t next_exp_in;
     int32_t time_diff;
     uint16_t conn_handle;
 
     conn_handle = BLE_HS_CONN_HANDLE_NONE;
     next_exp_in = BLE_HS_FOREVER;
-    now = os_time_get();
+    now = ble_npl_time_get();
 
     ble_hs_lock();
 

@@ -352,8 +352,8 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
 static void
 ble_sm_proc_set_timer(struct ble_sm_proc *proc)
 {
-    proc->exp_os_ticks = os_time_get() +
-                         os_time_ms_to_ticks32(BLE_SM_TIMEOUT_MS);
+    proc->exp_os_ticks = ble_npl_time_get() +
+                         ble_npl_time_ms_to_ticks32(BLE_SM_TIMEOUT_MS);
     ble_hs_timer_resched();
 }
 
@@ -652,11 +652,11 @@ ble_sm_extract_expired(struct ble_sm_proc_list *dst_list)
     struct ble_sm_proc *proc;
     struct ble_sm_proc *prev;
     struct ble_sm_proc *next;
-    uint32_t now;
-    int32_t next_exp_in;
-    int32_t time_diff;
+    ble_npl_time_t now;
+    ble_npl_stime_t next_exp_in;
+    ble_npl_stime_t time_diff;
 
-    now = os_time_get();
+    now = ble_npl_time_get();
     STAILQ_INIT(dst_list);
 
     /* Assume each event is either expired or has infinite duration. */

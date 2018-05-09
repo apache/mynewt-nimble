@@ -38,10 +38,10 @@
 #include <ble_ll_dtm_priv.h>
 #endif
 
-static void ble_ll_hci_cmd_proc(struct os_event *ev);
+static void ble_ll_hci_cmd_proc(struct ble_npl_event *ev);
 
 /* OS event to enqueue command */
-static struct os_event g_ble_ll_hci_cmd_ev;
+static struct ble_npl_event g_ble_ll_hci_cmd_ev;
 
 /* LE event mask */
 static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
@@ -1159,7 +1159,7 @@ ble_ll_hci_status_params_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen
  * @param ev Pointer to os event containing a pointer to command buffer
  */
 static void
-ble_ll_hci_cmd_proc(struct os_event *ev)
+ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
 {
     int rc;
     uint8_t ogf;
@@ -1170,7 +1170,7 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
     ble_ll_hci_post_cmd_complete_cb post_cb = NULL;
 
     /* The command buffer is the event argument */
-    cmdbuf = (uint8_t *)ev->ev_arg;
+    cmdbuf = (uint8_t *)ble_npl_event_get_arg(ev);
     assert(cmdbuf != NULL);
 
     /* Get the opcode from the command buffer */
@@ -1252,18 +1252,17 @@ ble_ll_hci_cmd_proc(struct os_event *ev)
 int
 ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg)
 {
-    struct os_event *ev;
+    struct ble_npl_event *ev;
 
     /* Get an event structure off the queue */
     ev = &g_ble_ll_hci_cmd_ev;
-    if (ev->ev_queued) {
+    if (ble_npl_event_is_queued(ev)) {
         return BLE_ERR_MEM_CAPACITY;
     }
 
     /* Fill out the event and post to Link Layer */
-    ev->ev_queued = 0;
-    ev->ev_arg = cmd;
-    os_eventq_put(&g_ble_ll_data.ll_evq, ev);
+    ble_npl_event_set_arg(ev, cmd);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, ev);
 
     return 0;
 }
@@ -1286,7 +1285,7 @@ void
 ble_ll_hci_init(void)
 {
     /* Set event callback for command processing */
-    g_ble_ll_hci_cmd_ev.ev_cb = ble_ll_hci_cmd_proc;
+    ble_npl_event_init(&g_ble_ll_hci_cmd_ev, ble_ll_hci_cmd_proc, NULL);
 
     /* Set defaults for LE events: Vol 2 Part E 7.8.1 */
     g_ble_ll_hci_le_event_mask[0] = 0x1f;

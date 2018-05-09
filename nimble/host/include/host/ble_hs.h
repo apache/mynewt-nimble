@@ -37,12 +37,11 @@
 #include "host/ble_sm.h"
 #include "host/ble_store.h"
 #include "host/ble_uuid.h"
+#include "nimble/nimble_npl.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct os_eventq;
-struct os_event;
 
 #define BLE_HS_FOREVER              INT32_MAX
 
@@ -174,7 +173,7 @@ extern struct ble_hs_cfg ble_hs_cfg;
 int ble_hs_synced(void);
 int ble_hs_start(void);
 void ble_hs_sched_reset(int reason);
-void ble_hs_evq_set(struct os_eventq *evq);
+void ble_hs_evq_set(struct ble_npl_eventq *evq);
 void ble_hs_init(void);
 
 #ifdef __cplusplus

@@ -104,7 +104,7 @@ struct ble_ll_adv_sm
     struct os_mbuf *adv_data;
     struct os_mbuf *scan_rsp_data;
     uint8_t *conn_comp_ev;
-    struct os_event adv_txdone_ev;
+    struct ble_npl_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t aux_active : 1;
@@ -114,7 +114,7 @@ struct ble_ll_adv_sm
     struct ble_mbuf_hdr *rx_ble_hdr;
     struct os_mbuf **aux_data;
     struct ble_ll_adv_aux aux[2];
-    struct os_event adv_sec_txdone_ev;
+    struct ble_npl_event adv_sec_txdone_ev;
     uint16_t duration;
     uint16_t adi;
     uint8_t adv_secondary_chan;
@@ -245,7 +245,7 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
         return;
     }
 
-    now = os_time_get();
+    now = ble_npl_time_get();
     if ((int32_t)(now - advsm->adv_rpa_timer) >= 0) {
         ble_ll_adv_rpa_update(advsm);
         advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
@@ -778,15 +778,15 @@ ble_ll_adv_tx_done(void *arg)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_ll_adv_active_chanset_is_pri(advsm)) {
-        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     } else if (ble_ll_adv_active_chanset_is_sec(advsm)) {
-        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
     } else {
         assert(0);
     }
 #else
     assert(ble_ll_adv_active_chanset_is_pri(advsm));
-    os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #endif
 
     ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
@@ -812,7 +812,7 @@ ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
      * scheduled.
      */
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
-    os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 }
 
 /**
@@ -1359,10 +1359,10 @@ ble_ll_adv_halt(void)
 
         ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
-        os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
-            os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+            ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
         }
 #endif
 
@@ -1473,7 +1473,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
 
         /* Reset RPA timer so we generate a new RPA */
-        advsm->adv_rpa_timer = os_time_get();
+        advsm->adv_rpa_timer = ble_npl_time_get();
     }
 #else
     /* If we dont support privacy some address types wont work */
@@ -1550,9 +1550,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 #endif
         OS_EXIT_CRITICAL(sr);
 
-        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
 #endif
 
         /* If there is an event buf we need to free it */
@@ -2217,7 +2217,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Reset RPA timer so we generate a new RPA */
-        advsm->adv_rpa_timer = os_time_get();
+        advsm->adv_rpa_timer = ble_npl_time_get();
     }
 #else
     /* If we dont support privacy some address types wont work */
@@ -2947,12 +2947,12 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
     ble_ll_sched_rmv_elem(&advsm->aux[0].sch);
     ble_ll_sched_rmv_elem(&advsm->aux[1].sch);
 
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
     advsm->aux_active = 0;
 #endif
 
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
-    os_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 }
 
 static void
@@ -3027,7 +3027,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     /* Remove the element from the schedule if it is still there. */
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
 
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 
     /*
      * Check if we have ended our advertising event. If our last advertising
@@ -3173,9 +3173,9 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 }
 
 static void
-ble_ll_adv_event_done(struct os_event *ev)
+ble_ll_adv_event_done(struct ble_npl_event *ev)
 {
-    ble_ll_adv_done(ev->ev_arg);
+    ble_ll_adv_done(ble_npl_event_get_arg(ev));
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3204,7 +3204,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
 
     /* Remove anything else scheduled for secondary channel */
     ble_ll_sched_rmv_elem(&aux->sch);
-    os_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
 
     /* Stop advertising due to transmitting connection response */
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
@@ -3239,9 +3239,9 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
 }
 
 static void
-ble_ll_adv_sec_event_done(struct os_event *ev)
+ble_ll_adv_sec_event_done(struct ble_npl_event *ev)
 {
-    ble_ll_adv_sec_done(ev->ev_arg);
+    ble_ll_adv_sec_done(ble_npl_event_get_arg(ev));
 }
 #endif
 
@@ -3432,11 +3432,9 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
 
     /* Initialize advertising tx done event */
-    advsm->adv_txdone_ev.ev_cb = ble_ll_adv_event_done;
-    advsm->adv_txdone_ev.ev_arg = advsm;
+    ble_npl_event_init(&advsm->adv_txdone_ev, ble_ll_adv_event_done, advsm);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    advsm->adv_sec_txdone_ev.ev_cb = ble_ll_adv_sec_event_done;
-    advsm->adv_sec_txdone_ev.ev_arg = advsm;
+    ble_npl_event_init(&advsm->adv_sec_txdone_ev, ble_ll_adv_sec_event_done, advsm);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

@@ -333,7 +333,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
  *                                  write times out.
  */
 int32_t
-ble_att_svr_ticks_until_tmo(const struct ble_att_svr_conn *svr, os_time_t now)
+ble_att_svr_ticks_until_tmo(const struct ble_att_svr_conn *svr, ble_npl_time_t now)
 {
 #if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO == 0
     return BLE_HS_FOREVER;
@@ -2358,7 +2358,7 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
 
 #if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO != 0
     conn->bhc_att_svr.basc_prep_timeout_at =
-        os_time_get() + BLE_HS_ATT_SVR_QUEUED_WRITE_TMO;
+        ble_npl_time_get() + BLE_HS_ATT_SVR_QUEUED_WRITE_TMO;
 
     ble_hs_timer_resched();
 #endif

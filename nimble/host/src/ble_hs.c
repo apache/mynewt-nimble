@@ -23,59 +23,53 @@
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "stats/stats.h"
-#include "os/os.h"
 #include "nimble/ble_hci_trans.h"
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
+#include "nimble/nimble_npl.h"
 
 #define BLE_HS_HCI_EVT_COUNT                    \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
      MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
-static void ble_hs_event_rx_hci_ev(struct os_event *ev);
-static void ble_hs_event_tx_notify(struct os_event *ev);
-static void ble_hs_event_reset(struct os_event *ev);
-static void ble_hs_event_start(struct os_event *ev);
+static void ble_hs_event_rx_hci_ev(struct ble_npl_event *ev);
+static void ble_hs_event_tx_notify(struct ble_npl_event *ev);
+static void ble_hs_event_reset(struct ble_npl_event *ev);
+static void ble_hs_event_start(struct ble_npl_event *ev);
 static void ble_hs_timer_sched(int32_t ticks_from_now);
 
 struct os_mempool ble_hs_hci_ev_pool;
 static os_membuf_t ble_hs_hci_os_event_buf[
-    OS_MEMPOOL_SIZE(BLE_HS_HCI_EVT_COUNT, sizeof (struct os_event))
+    OS_MEMPOOL_SIZE(BLE_HS_HCI_EVT_COUNT, sizeof (struct ble_npl_event))
 ];
 
 /** OS event - triggers tx of pending notifications and indications. */
-static struct os_event ble_hs_ev_tx_notifications = {
-    .ev_cb = ble_hs_event_tx_notify,
-};
+static struct ble_npl_event ble_hs_ev_tx_notifications;
 
 /** OS event - triggers a full reset. */
-static struct os_event ble_hs_ev_reset = {
-    .ev_cb = ble_hs_event_reset,
-};
+static struct ble_npl_event ble_hs_ev_reset;
 
-static struct os_event ble_hs_ev_start = {
-    .ev_cb = ble_hs_event_start,
-};
+static struct ble_npl_event ble_hs_ev_start;
 
 uint8_t ble_hs_sync_state;
 static int ble_hs_reset_reason;
 
 #define BLE_HS_SYNC_RETRY_TIMEOUT_MS    100 /* ms */
 
-static struct os_task *ble_hs_parent_task;
+static void *ble_hs_parent_task;
 
 /**
  * Handles unresponsive timeouts and periodic retries in case of resource
  * shortage.
  */
-static struct os_callout ble_hs_timer_timer;
+static struct ble_npl_callout ble_hs_timer_timer;
 
 /* Shared queue that the host uses for work items. */
-static struct os_eventq *ble_hs_evq;
+static struct ble_npl_eventq *ble_hs_evq;
 
-static struct os_mqueue ble_hs_rx_q;
+static struct ble_mqueue ble_hs_rx_q;
 
-static struct os_mutex ble_hs_mutex;
+static struct ble_npl_mutex ble_hs_mutex;
 
 /** These values keep track of required ATT and GATT resources counts.  They
  * increase as services are added, and are read when the ATT server and GATT
@@ -104,7 +98,7 @@ STATS_NAME_START(ble_hs_stats)
     STATS_NAME(ble_hs_stats, pvcy_add_entry_fail)
 STATS_NAME_END(ble_hs_stats)
 
-struct os_eventq *
+struct ble_npl_eventq *
 ble_hs_evq_get(void)
 {
     return ble_hs_evq;
@@ -118,7 +112,7 @@ ble_hs_evq_get(void)
  * @param evq                   The event queue to use for host work.
  */
 void
-ble_hs_evq_set(struct os_eventq *evq)
+ble_hs_evq_set(struct ble_npl_eventq *evq)
 {
     ble_hs_evq = evq;
 }
@@ -144,8 +138,8 @@ ble_hs_locked_by_cur_task(void)
 int
 ble_hs_is_parent_task(void)
 {
-    return !os_started() ||
-           os_sched_get_current_task() == ble_hs_parent_task;
+    return !ble_npl_os_started() ||
+           ble_npl_get_current_task_id() == ble_hs_parent_task;
 }
 
 /**
@@ -163,7 +157,7 @@ ble_hs_lock_nested(void)
     }
 #endif
 
-    rc = os_mutex_pend(&ble_hs_mutex, 0xffffffff);
+    rc = ble_npl_mutex_pend(&ble_hs_mutex, 0xffffffff);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
@@ -182,7 +176,7 @@ ble_hs_unlock_nested(void)
     }
 #endif
 
-    rc = os_mutex_release(&ble_hs_mutex);
+    rc = ble_npl_mutex_release(&ble_hs_mutex);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
@@ -222,7 +216,7 @@ ble_hs_process_rx_data_queue(void)
 {
     struct os_mbuf *om;
 
-    while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+    while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
 #if BLE_MONITOR
         ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
 #endif
@@ -305,7 +299,7 @@ ble_hs_clear_rx_queue(void)
 {
     struct os_mbuf *om;
 
-    while ((om = os_mqueue_get(&ble_hs_rx_q)) != NULL) {
+    while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
         os_mbuf_free_chain(om);
     }
 }
@@ -326,7 +320,7 @@ ble_hs_synced(void)
 static int
 ble_hs_sync(void)
 {
-    uint32_t retry_tmo_ticks;
+    ble_npl_time_t retry_tmo_ticks;
     int rc;
 
     /* Set the sync state to "bringup."  This allows the parent task to send
@@ -342,7 +336,7 @@ ble_hs_sync(void)
         ble_hs_sync_state = BLE_HS_SYNC_STATE_BAD;
     }
 
-    retry_tmo_ticks = os_time_ms_to_ticks32(BLE_HS_SYNC_RETRY_TIMEOUT_MS);
+    retry_tmo_ticks = ble_npl_time_ms_to_ticks32(BLE_HS_SYNC_RETRY_TIMEOUT_MS);
     ble_hs_timer_sched(retry_tmo_ticks);
 
     if (rc == 0) {
@@ -403,7 +397,7 @@ ble_hs_reset(void)
  * periodic retries in case of resource shortage.
  */
 static void
-ble_hs_timer_exp(struct os_event *ev)
+ble_hs_timer_exp(struct ble_npl_event *ev)
 {
     int32_t ticks_until_next;
 
@@ -433,14 +427,14 @@ ble_hs_timer_reset(uint32_t ticks)
 {
     int rc;
 
-    rc = os_callout_reset(&ble_hs_timer_timer, ticks);
+    rc = ble_npl_callout_reset(&ble_hs_timer_timer, ticks);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
 
 static void
 ble_hs_timer_sched(int32_t ticks_from_now)
 {
-    os_time_t abs_time;
+    ble_npl_time_t abs_time;
 
     if (ticks_from_now == BLE_HS_FOREVER) {
         return;
@@ -449,10 +443,10 @@ ble_hs_timer_sched(int32_t ticks_from_now)
     /* Reset timer if it is not currently scheduled or if the specified time is
      * sooner than the previous expiration time.
      */
-    abs_time = os_time_get() + ticks_from_now;
-    if (!os_callout_queued(&ble_hs_timer_timer) ||
-        OS_TIME_TICK_LT(abs_time, ble_hs_timer_timer.c_ticks)) {
-
+    abs_time = ble_npl_time_get() + ticks_from_now;
+    if (!ble_npl_callout_queued(&ble_hs_timer_timer) ||
+            ((ble_npl_stime_t)(abs_time -
+                               ble_npl_callout_get_ticks(&ble_hs_timer_timer))) < 0) {
         ble_hs_timer_reset(ticks_from_now);
     }
 }
@@ -467,12 +461,13 @@ ble_hs_timer_resched(void)
 }
 
 static void
-ble_hs_event_rx_hci_ev(struct os_event *ev)
+ble_hs_event_rx_hci_ev(struct ble_npl_event *ev)
 {
     uint8_t *hci_evt;
     int rc;
 
-    hci_evt = ev->ev_arg;
+    hci_evt = ble_npl_event_get_arg(ev);
+
     rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
@@ -485,25 +480,25 @@ ble_hs_event_rx_hci_ev(struct os_event *ev)
 }
 
 static void
-ble_hs_event_tx_notify(struct os_event *ev)
+ble_hs_event_tx_notify(struct ble_npl_event *ev)
 {
     ble_gatts_tx_notifications();
 }
 
 static void
-ble_hs_event_rx_data(struct os_event *ev)
+ble_hs_event_rx_data(struct ble_npl_event *ev)
 {
     ble_hs_process_rx_data_queue();
 }
 
 static void
-ble_hs_event_reset(struct os_event *ev)
+ble_hs_event_reset(struct ble_npl_event *ev)
 {
     ble_hs_reset();
 }
 
 static void
-ble_hs_event_start(struct os_event *ev)
+ble_hs_event_start(struct ble_npl_event *ev)
 {
     int rc;
 
@@ -514,16 +509,14 @@ ble_hs_event_start(struct os_event *ev)
 void
 ble_hs_enqueue_hci_event(uint8_t *hci_evt)
 {
-    struct os_event *ev;
+    struct ble_npl_event *ev;
 
     ev = os_memblock_get(&ble_hs_hci_ev_pool);
     if (ev == NULL) {
         ble_hci_trans_buf_free(hci_evt);
     } else {
-        ev->ev_queued = 0;
-        ev->ev_cb = ble_hs_event_rx_hci_ev;
-        ev->ev_arg = hci_evt;
-        os_eventq_put(ble_hs_evq, ev);
+        ble_npl_event_init(ev, ble_hs_event_rx_hci_ev, hci_evt);
+        ble_npl_eventq_put(ble_hs_evq, ev);
     }
 }
 
@@ -541,7 +534,7 @@ ble_hs_notifications_sched(void)
     }
 #endif
 
-    os_eventq_put(ble_hs_evq, &ble_hs_ev_tx_notifications);
+    ble_npl_eventq_put(ble_hs_evq, &ble_hs_ev_tx_notifications);
 }
 
 /**
@@ -557,7 +550,7 @@ ble_hs_sched_reset(int reason)
     BLE_HS_DBG_ASSERT(ble_hs_reset_reason == 0);
 
     ble_hs_reset_reason = reason;
-    os_eventq_put(ble_hs_evq, &ble_hs_ev_reset);
+    ble_npl_eventq_put(ble_hs_evq, &ble_hs_ev_reset);
 }
 
 void
@@ -584,9 +577,9 @@ ble_hs_start(void)
 {
     int rc;
 
-    ble_hs_parent_task = os_sched_get_current_task();
+    ble_hs_parent_task = ble_npl_get_current_task_id();
 
-    os_callout_init(&ble_hs_timer_timer, ble_hs_evq,
+    ble_npl_callout_init(&ble_hs_timer_timer, ble_hs_evq,
                     ble_hs_timer_exp, NULL);
 
     rc = ble_gatts_start();
@@ -618,7 +611,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
      */
     ble_hs_flow_fill_acl_usrhdr(om);
 
-    rc = os_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
+    rc = ble_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
     if (rc != 0) {
         os_mbuf_free_chain(om);
         return BLE_HS_EOS;
@@ -664,7 +657,7 @@ ble_hs_init(void)
 
     /* Create memory pool of OS events */
     rc = os_mempool_init(&ble_hs_hci_ev_pool, BLE_HS_HCI_EVT_COUNT,
-                         sizeof (struct os_event), ble_hs_hci_os_event_buf,
+                         sizeof (struct ble_npl_event), ble_hs_hci_os_event_buf,
                          "ble_hs_hci_ev_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
@@ -672,15 +665,10 @@ ble_hs_init(void)
      * bss.
      */
     ble_hs_reset_reason = 0;
-    ble_hs_ev_tx_notifications = (struct os_event) {
-        .ev_cb = ble_hs_event_tx_notify,
-    };
-    ble_hs_ev_reset = (struct os_event) {
-        .ev_cb = ble_hs_event_reset,
-    };
-    ble_hs_ev_start = (struct os_event) {
-        .ev_cb = ble_hs_event_start,
-    };
+
+    ble_npl_event_init(&ble_hs_ev_tx_notifications, ble_hs_event_tx_notify, NULL);
+    ble_npl_event_init(&ble_hs_ev_reset, ble_hs_event_reset, NULL);
+    ble_npl_event_init(&ble_hs_ev_start, ble_hs_event_start, NULL);
 
 #if BLE_MONITOR
     rc = ble_monitor_init();
@@ -710,14 +698,14 @@ ble_hs_init(void)
     rc = ble_gatts_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    os_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);
+    ble_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
         STATS_SIZE_32), STATS_NAME_INIT_PARMS(ble_hs_stats), "ble_hs");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    rc = os_mutex_init(&ble_hs_mutex);
+    rc = ble_npl_mutex_init(&ble_hs_mutex);
     SYSINIT_PANIC_ASSERT(rc == 0);
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
@@ -727,13 +715,13 @@ ble_hs_init(void)
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
-    ble_hs_evq_set(os_eventq_dflt_get());
+    ble_hs_evq_set(ble_npl_eventq_dflt_get());
 
     /* Enqueue the start event to the default event queue.  Using the default
      * queue ensures the event won't run until the end of main().  This allows
      * the application to configure this package in the meantime.
      */
-    os_eventq_put(os_eventq_dflt_get(), &ble_hs_ev_start);
+    ble_npl_eventq_put(ble_npl_eventq_dflt_get(), &ble_hs_ev_start);
 
 #if BLE_MONITOR
     ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");

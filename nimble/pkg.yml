@@ -26,4 +26,5 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
+    - porting/npl/mynewt
     - "@apache-mynewt-core/kernel/os"

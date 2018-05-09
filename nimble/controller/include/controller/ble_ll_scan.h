@@ -23,6 +23,7 @@
 #include "controller/ble_ll_sched.h"
 #include "hal/hal_timer.h"
 #include "syscfg/syscfg.h"
+#include "nimble/nimble_npl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -120,7 +121,7 @@ struct ble_ll_scan_sm
     int8_t scan_rpa_index;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-    uint32_t scan_nrpa_timer;
+    ble_npl_time_t scan_nrpa_timer;
     uint8_t scan_nrpa[BLE_DEV_ADDR_LEN];
 #endif
 
@@ -129,7 +130,7 @@ struct ble_ll_scan_sm
     uint16_t backoff_count;
     uint32_t scan_win_start_time;
     struct os_mbuf *scan_req_pdu;
-    struct os_event scan_sched_ev;
+    struct ble_npl_event scan_sched_ev;
     struct hal_timer scan_timer;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

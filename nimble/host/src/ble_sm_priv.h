@@ -244,7 +244,7 @@ struct ble_sm_keys {
 struct ble_sm_proc {
     STAILQ_ENTRY(ble_sm_proc) next;
 
-    uint32_t exp_os_ticks;
+    ble_npl_time_t exp_os_ticks;
     ble_sm_proc_flags flags;
     uint16_t conn_handle;
     uint8_t pair_alg;

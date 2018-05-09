@@ -267,10 +267,10 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
 static void
 ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
 {
-    uint32_t now;
+    ble_npl_time_t now;
 
-    now = os_time_get();
-    if ((int32_t)(now - scansm->scan_nrpa_timer) >= 0) {
+    now = ble_npl_time_get();
+    if ((ble_npl_stime_t)(now - scansm->scan_nrpa_timer) >= 0) {
         /* Generate new NRPA */
         ble_ll_rand_data_get(scansm->scan_nrpa, BLE_DEV_ADDR_LEN);
         scansm->scan_nrpa[5] &= ~0xc0;
@@ -1308,7 +1308,7 @@ ble_ll_aux_scan_rsp_failed(void)
  * @param arg
  */
 static void
-ble_ll_scan_event_proc(struct os_event *ev)
+ble_ll_scan_event_proc(struct ble_npl_event *ev)
 {
     os_sr_t sr;
     int inside_window;
@@ -1330,7 +1330,7 @@ ble_ll_scan_event_proc(struct os_event *ev)
      * Get the scanning state machine. If not enabled (this is possible), just
      * leave and do nothing (just make sure timer is stopped).
      */
-    scansm = (struct ble_ll_scan_sm *)ev->ev_arg;
+    scansm = (struct ble_ll_scan_sm *)ble_npl_event_get_arg(ev);
     scanphy = &scansm->phy_data[scansm->cur_phy];
 
     OS_ENTER_CRITICAL(sr);
@@ -3157,8 +3157,7 @@ ble_ll_scan_common_init(void)
     memset(g_ble_ll_scan_params, 0, sizeof(g_ble_ll_scan_params));
 
     /* Initialize scanning window end event */
-    scansm->scan_sched_ev.ev_cb = ble_ll_scan_event_proc;
-    scansm->scan_sched_ev.ev_arg = scansm;
+    ble_npl_event_init(&scansm->scan_sched_ev, ble_ll_scan_event_proc, scansm);
 
     for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
         /* Set all non-zero default parameters */
@@ -3174,7 +3173,7 @@ ble_ll_scan_common_init(void)
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     /* Make sure we'll generate new NRPA if necessary */
-    scansm->scan_nrpa_timer = os_time_get();
+    scansm->scan_nrpa_timer = ble_npl_time_get();
 #endif
 
     /* Initialize scanning timer */

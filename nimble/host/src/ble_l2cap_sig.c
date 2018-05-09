@@ -62,7 +62,7 @@
 struct ble_l2cap_sig_proc {
     STAILQ_ENTRY(ble_l2cap_sig_proc) next;
 
-    uint32_t exp_os_ticks;
+    ble_npl_time_t exp_os_ticks;
     uint16_t conn_handle;
     uint8_t op;
     uint8_t id;
@@ -304,7 +304,8 @@ ble_l2cap_sig_rx_noop(uint16_t conn_handle,
 static void
 ble_l2cap_sig_proc_set_timer(struct ble_l2cap_sig_proc *proc)
 {
-    proc->exp_os_ticks = os_time_get() + BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT;
+    proc->exp_os_ticks = ble_npl_time_get() +
+                         ble_npl_time_ms_to_ticks32(BLE_L2CAP_SIG_UNRESPONSIVE_TIMEOUT);
     ble_hs_timer_resched();
 }
 
@@ -1176,11 +1177,11 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_proc *prev;
     struct ble_l2cap_sig_proc *next;
-    uint32_t now;
-    int32_t next_exp_in;
-    int32_t time_diff;
+    ble_npl_time_t now;
+    ble_npl_stime_t next_exp_in;
+    ble_npl_stime_t time_diff;
 
-    now = os_time_get();
+    now = ble_npl_time_get();
     STAILQ_INIT(dst_list);
 
     /* Assume each event is either expired or has infinite duration. */

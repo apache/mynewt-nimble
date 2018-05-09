@@ -20,7 +20,6 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include "os/os.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_hci.h"
@@ -109,7 +108,7 @@ struct ble_gap_master_state {
     uint8_t op;
 
     uint8_t exp_set:1;
-    os_time_t exp_os_ticks;
+    ble_npl_time_t exp_os_ticks;
 
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -162,7 +161,7 @@ struct ble_gap_slave_state {
 /* timer is used only with legacy advertising */
 #if !MYNEWT_VAL(BLE_EXT_ADV)
     unsigned int exp_set:1;
-    os_time_t exp_os_ticks;
+    ble_npl_time_t exp_os_ticks;
 #endif
 
     ble_gap_event_fn *cb;
@@ -174,7 +173,7 @@ static bssnz_t struct ble_gap_slave_state ble_gap_slave[BLE_ADV_INSTANCES];
 struct ble_gap_update_entry {
     SLIST_ENTRY(ble_gap_update_entry) next;
     struct ble_gap_upd_params params;
-    os_time_t exp_os_ticks;
+    ble_npl_time_t exp_os_ticks;
     uint16_t conn_handle;
 };
 SLIST_HEAD(ble_gap_update_entry_list, ble_gap_update_entry);
@@ -853,14 +852,14 @@ ble_gap_update_notify(uint16_t conn_handle, int status)
 static uint32_t
 ble_gap_master_ticks_until_exp(void)
 {
-    int32_t ticks;
+    ble_npl_stime_t ticks;
 
     if (ble_gap_master.op == BLE_GAP_OP_NULL || !ble_gap_master.exp_set) {
         /* Timer not set; infinity ticks until next event. */
         return BLE_HS_FOREVER;
     }
 
-    ticks = ble_gap_master.exp_os_ticks - os_time_get();
+    ticks = ble_gap_master.exp_os_ticks - ble_npl_time_get();
     if (ticks > 0) {
         /* Timer not expired yet. */
         return ticks;
@@ -874,14 +873,14 @@ ble_gap_master_ticks_until_exp(void)
 static uint32_t
 ble_gap_slave_ticks_until_exp(void)
 {
-    int32_t ticks;
+    ble_npl_stime_t ticks;
 
     if (ble_gap_slave[0].op == BLE_GAP_OP_NULL || !ble_gap_slave[0].exp_set) {
         /* Timer not set; infinity ticks until next event. */
         return BLE_HS_FOREVER;
     }
 
-    ticks = ble_gap_slave[0].exp_os_ticks - os_time_get();
+    ticks = ble_gap_slave[0].exp_os_ticks - ble_npl_time_get();
     if (ticks > 0) {
         /* Timer not expired yet. */
         return ticks;
@@ -907,7 +906,7 @@ static uint16_t
 ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 {
     struct ble_gap_update_entry *entry;
-    os_time_t now;
+    ble_npl_time_t now;
     uint16_t conn_handle;
     int32_t best_ticks;
     int32_t ticks;
@@ -916,7 +915,7 @@ ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 
     conn_handle = BLE_HS_CONN_HANDLE_NONE;
     best_ticks = BLE_HS_FOREVER;
-    now = os_time_get();
+    now = ble_npl_time_get();
 
     SLIST_FOREACH(entry, &ble_gap_update_entries, next) {
         ticks = entry->exp_os_ticks - now;
@@ -941,7 +940,7 @@ ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 static void
 ble_gap_master_set_timer(uint32_t ticks_from_now)
 {
-    ble_gap_master.exp_os_ticks = os_time_get() + ticks_from_now;
+    ble_gap_master.exp_os_ticks = ble_npl_time_get() + ticks_from_now;
     ble_gap_master.exp_set = 1;
 
     ble_hs_timer_resched();
@@ -951,7 +950,7 @@ ble_gap_master_set_timer(uint32_t ticks_from_now)
 static void
 ble_gap_slave_set_timer(uint32_t ticks_from_now)
 {
-    ble_gap_slave[0].exp_os_ticks = os_time_get() + ticks_from_now;
+    ble_gap_slave[0].exp_os_ticks = ble_npl_time_get() + ticks_from_now;
     ble_gap_slave[0].exp_set = 1;
 
     ble_hs_timer_resched();
@@ -1530,7 +1529,7 @@ ble_gap_master_timer(void)
         rc = ble_gap_conn_cancel_tx();
         if (rc != 0) {
             /* Failed to stop connecting; try again in 100 ms. */
-            return os_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
+            return ble_npl_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
         } else {
             /* Stop the timer now that the cancel command has been acked. */
             ble_gap_master.exp_set = 0;
@@ -1550,7 +1549,7 @@ ble_gap_master_timer(void)
         rc = ble_gap_disc_enable_tx(0, 0);
         if (rc != 0) {
             /* Failed to stop discovery; try again in 100 ms. */
-            return os_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
+            return ble_npl_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
         }
 
         ble_gap_disc_complete();
@@ -2132,7 +2131,7 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
     }
 
     if (duration_ms != BLE_HS_FOREVER) {
-        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        rc = ble_npl_time_ms_to_ticks(duration_ms, &duration_ticks);
         if (rc != 0) {
             /* Duration too great. */
             rc = BLE_HS_EINVAL;
@@ -3426,7 +3425,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
     }
 
     if (duration_ms != BLE_HS_FOREVER) {
-        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        rc = ble_npl_time_ms_to_ticks(duration_ms, &duration_ticks);
         if (rc != 0) {
             /* Duration too great. */
             rc = BLE_HS_EINVAL;
@@ -3882,7 +3881,7 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     }
 
     if (duration_ms != BLE_HS_FOREVER) {
-        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        rc = ble_npl_time_ms_to_ticks(duration_ms, &duration_ticks);
         if (rc != 0) {
             /* Duration too great. */
             rc = BLE_HS_EINVAL;
@@ -4412,8 +4411,8 @@ ble_gap_update_params(uint16_t conn_handle,
     entry->conn_handle = conn_handle;
     entry->params = *params;
 
-    entry->exp_os_ticks = os_time_get() +
-                          os_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
+    entry->exp_os_ticks = ble_npl_time_get() +
+                          ble_npl_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: ");
     ble_gap_log_update(conn_handle, params);
@@ -4840,7 +4839,7 @@ ble_gap_preempt(void)
  * `ble_gap_preempt()`.
  */
 
-static struct os_mutex preempt_done_mutex;
+static struct ble_npl_mutex preempt_done_mutex;
 
 void
 ble_gap_preempt_done(void)
@@ -4858,7 +4857,7 @@ ble_gap_preempt_done(void)
     disc_preempted = 0;
 
     /* protects slaves from accessing by multiple threads */
-    os_mutex_pend(&preempt_done_mutex, 0xFFFFFFFF);
+    ble_npl_mutex_pend(&preempt_done_mutex, 0xFFFFFFFF);
     memset(slaves, 0, sizeof(slaves));
 
     ble_hs_lock();
@@ -4892,7 +4891,7 @@ ble_gap_preempt_done(void)
             ble_gap_call_event_cb(&event, slaves[i].cb, slaves[i].arg);
         }
     }
-    os_mutex_release(&preempt_done_mutex);
+    ble_npl_mutex_release(&preempt_done_mutex);
 
     if (disc_preempted) {
         event.type = BLE_GAP_EVENT_DISC_COMPLETE;
@@ -4913,7 +4912,7 @@ ble_gap_init(void)
     memset(&ble_gap_master, 0, sizeof ble_gap_master);
     memset(ble_gap_slave, 0, sizeof ble_gap_slave);
 
-    os_mutex_init(&preempt_done_mutex);
+    ble_npl_mutex_init(&preempt_done_mutex);
 
     SLIST_INIT(&ble_gap_update_entries);
 
