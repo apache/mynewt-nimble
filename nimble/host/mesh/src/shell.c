@@ -633,7 +633,7 @@ static int check_pub_addr_unassigned(void)
 #endif
 }
 
-int cmd_init(int argc, char *argv[])
+int cmd_mesh_init(int argc, char *argv[])
 {
 	int err;
 	ble_addr_t addr;
@@ -2374,7 +2374,7 @@ static int cmd_print_composition_data(int argc, char *argv[])
 }
 
 static const struct shell_cmd mesh_commands[] = {
-	{ "init", cmd_init, NULL },
+	{ "init", cmd_mesh_init, NULL },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
 	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
 #endif
