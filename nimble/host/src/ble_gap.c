@@ -152,14 +152,15 @@ struct ble_gap_slave_state {
     unsigned int preempted:1;  /** Set to 1 if advertising was preempted. */
     unsigned int connectable:1;
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
     unsigned int configured:1; /** If instance is configured */
     unsigned int scannable:1;
     unsigned int directed:1;
     unsigned int legacy_pdu:1;
     unsigned int rnd_addr_set:1;
-
+    uint8_t rnd_addr[6];
+#else
 /* timer is used only with legacy advertising */
-#if !MYNEWT_VAL(BLE_EXT_ADV)
     unsigned int exp_set:1;
     ble_npl_time_t exp_os_ticks;
 #endif
@@ -1424,6 +1425,9 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
         conn->bhc_cb = ble_gap_slave[instance].cb;
         conn->bhc_cb_arg = ble_gap_slave[instance].cb_arg;
         conn->bhc_our_addr_type = ble_gap_slave[instance].our_addr_type;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        memcpy(conn->bhc_our_rnd_addr, ble_gap_slave[instance].rnd_addr, 6);
+#endif
         ble_gap_slave_reset_state(instance);
     }
 
@@ -2565,6 +2569,7 @@ ble_gap_ext_adv_set_addr_no_lock(uint8_t instance, const uint8_t *addr)
     }
 
     ble_gap_slave[instance].rnd_addr_set = 1;
+    memcpy(ble_gap_slave[instance].rnd_addr, addr, 6);
 
     return 0;
 }

@@ -42,6 +42,9 @@ struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
     uint16_t bhc_handle;
     uint8_t bhc_our_addr_type;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    uint8_t bhc_our_rnd_addr[6];
+#endif
     ble_addr_t bhc_peer_addr;
     ble_addr_t bhc_our_rpa_addr;
     ble_addr_t bhc_peer_rpa_addr;

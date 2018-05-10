@@ -365,8 +365,23 @@ ble_hs_conn_addrs(const struct ble_hs_conn *conn,
     /* Determine our address information. */
     addrs->our_id_addr.type =
         ble_hs_misc_addr_type_to_id(conn->bhc_our_addr_type);
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    /* With EA enabled random address for slave connection is per advertising
+     * instance and requires special handling here.
+     */
+
+    if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER) &&
+            addrs->our_id_addr.type == BLE_ADDR_RANDOM) {
+        our_id_addr_val = conn->bhc_our_rnd_addr;
+    } else {
+        rc = ble_hs_id_addr(addrs->our_id_addr.type, &our_id_addr_val, NULL);
+        assert(rc == 0);
+    }
+#else
     rc = ble_hs_id_addr(addrs->our_id_addr.type, &our_id_addr_val, NULL);
     assert(rc == 0);
+#endif
 
     memcpy(addrs->our_id_addr.val, our_id_addr_val, 6);
 
