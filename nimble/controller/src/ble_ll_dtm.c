@@ -38,7 +38,7 @@ struct dtm_ctx {
     uint8_t rf_channel;
     uint8_t phy_mode;
     struct os_mbuf *om;
-    struct os_event evt;
+    struct ble_npl_event evt;
     struct ble_ll_sched_item sch;
 };
 
@@ -141,9 +141,9 @@ ble_ll_dtm_set_next(struct dtm_ctx *ctx)
 }
 
 static void
-ble_ll_dtm_event(struct os_event *evt) {
+ble_ll_dtm_event(struct ble_npl_event *evt) {
     /* It is called in LL context */
-    struct dtm_ctx *ctx = evt->ev_arg;
+    struct dtm_ctx *ctx = ble_npl_event_get_arg(evt);
     int rc;
     os_sr_t sr;
 
@@ -165,11 +165,12 @@ ble_ll_dtm_tx_done(void *arg)
     struct dtm_ctx *ctx;
 
     ctx = arg;
-    if (!ctx->evt.ev_cb) {
+    if (!ctx->active) {
         return;
     }
+
     /* Reschedule event in LL context */
-    os_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 }
@@ -289,8 +290,8 @@ schedule:
                                        os_cputime_usecs_to_ticks(5000);
 
     /* Prepare os_event */
-    g_ble_ll_dtm_ctx.evt.ev_cb = ble_ll_dtm_event;
-    g_ble_ll_dtm_ctx.evt.ev_arg = &g_ble_ll_dtm_ctx;
+    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_event,
+                       &g_ble_ll_dtm_ctx);
 
     ble_ll_dtm_calculate_itvl(&g_ble_ll_dtm_ctx, len, phy_mode);
 
