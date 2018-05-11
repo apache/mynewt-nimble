@@ -1235,7 +1235,7 @@ ble_phy_dbg_time_setup_gpiote(int index, int pin)
                         (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
                         ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
 #if NRF52840_XXAA
-                        ((pin > 31) << GPIOTE_CONFIG_PORT_Pos);
+                        ((port == NRF_P1) << GPIOTE_CONFIG_PORT_Pos);
 #else
                         0;
 #endif
