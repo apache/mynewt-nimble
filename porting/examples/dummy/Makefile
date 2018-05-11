@@ -17,6 +17,18 @@
 # under the License.
 #
 
+# Toolchain commands
+CROSS_COMPILE ?=
+CC      := ccache $(CROSS_COMPLIE)gcc
+CXX     := ccache $(CROSS_COMPILE)g++
+LD      := $(CROSS_COMPILE)gcc
+AR      := $(CROSS_COMPILE)ar
+AS      := $(CROSS_COMPILE)as
+NM      := $(CROSS_COMPILE)nm
+OBJDUMP := $(CROSS_COMPILE)objdump
+OBJCOPY := $(CROSS_COMPILE)objcopy
+SIZE    := $(CROSS_COMPILE)size
+
 # Configure NimBLE variables
 NIMBLE_ROOT := ../../..
 NIMBLE_CFG_TINYCRYPT := 1
@@ -48,7 +60,7 @@ clean:
 	rm dummy -f
 
 %.o: %.c
-	$(CC) -m32 -c $(addprefix -I, $(INC)) $(CFLAGS) -o $@ $<
+	$(CC) -c $(addprefix -I, $(INC)) $(CFLAGS) -o $@ $<
 
 dummy: $(OBJ)
-	$(CC) -m32 -o $@ $^
+	$(CC) -o $@ $^
