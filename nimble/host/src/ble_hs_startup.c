@@ -279,7 +279,10 @@ static int
 ble_hs_startup_set_evmask_tx(void)
 {
     uint8_t buf[BLE_HCI_SET_EVENT_MASK_LEN];
+    uint8_t version;
     int rc;
+
+    version = ble_hs_hci_get_hci_version();
 
     /**
      * Enable the following events:
@@ -298,16 +301,18 @@ ble_hs_startup_set_evmask_tx(void)
         return rc;
     }
 
-    /**
-     * Enable the following events:
-     *     0x0000000000800000 Authenticated Payload Timeout Event
-     */
-    ble_hs_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
-                                                BLE_HCI_OCF_CB_SET_EVENT_MASK2),
-                                     buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
+    if (version >= BLE_HCI_VER_BCS_4_1) {
+        /**
+         * Enable the following events:
+         *     0x0000000000800000 Authenticated Payload Timeout Event
+         */
+        ble_hs_hci_cmd_build_set_event_mask2(0x0000000000800000, buf, sizeof buf);
+        rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                                    BLE_HCI_OCF_CB_SET_EVENT_MASK2),
+                                         buf, sizeof(buf));
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     return 0;
