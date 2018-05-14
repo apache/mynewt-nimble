@@ -2781,30 +2781,33 @@ ble_gap_ext_adv_set_data_validate(uint8_t instance, struct os_mbuf *data)
 }
 
 static int
-ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
+ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf **data)
 {
     /* in that case we always fit all data in single HCI command */
 #if MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) <= BLE_HCI_MAX_EXT_ADV_DATA_LEN
     static uint8_t buf[BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + \
                        MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)];
-    uint16_t len = OS_MBUF_PKTLEN(data);
+    uint16_t len = OS_MBUF_PKTLEN(*data);
     int rc;
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, opcode);
 
     rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE,
-                                    0, data, len, buf, sizeof(buf));
+                                    0, *data, len, buf, sizeof(buf));
     if (rc) {
         return rc;
     }
+
+    os_mbuf_adj(*data, MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE));
+    *data = os_mbuf_trim_front(*data);
 
     return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
                                        BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
 #else
     static uint8_t buf[BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + \
                        BLE_HCI_MAX_EXT_ADV_DATA_LEN];
-    uint16_t len = OS_MBUF_PKTLEN(data);
+    uint16_t len = OS_MBUF_PKTLEN(*data);
     uint8_t op;
     int rc;
 
@@ -2814,10 +2817,13 @@ ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
     if (len <= BLE_HCI_MAX_EXT_ADV_DATA_LEN) {
         rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE,
-                                    0, data, len, buf,sizeof(buf));
+                                    0, *data, len, buf,sizeof(buf));
         if (rc) {
             return rc;
         }
+
+        os_mbuf_adj(*data, len);
+        *data = os_mbuf_trim_front(*data);
 
         return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
                                         BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
@@ -2827,18 +2833,20 @@ ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
     op = BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST;
 
     do {
-        rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance, op, 0, data,
+        rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance, op, 0, *data,
                                                   BLE_HCI_MAX_EXT_ADV_DATA_LEN,
                                                   buf, sizeof(buf));
         if (rc) {
             return rc;
         }
+
+        os_mbuf_adj(*data, BLE_HCI_MAX_EXT_ADV_DATA_LEN);
+        *data = os_mbuf_trim_front(*data);
+
         rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
         if (rc) {
             return rc;
         }
-
-        os_mbuf_adj(data, BLE_HCI_MAX_EXT_ADV_DATA_LEN);
 
         len -= BLE_HCI_MAX_EXT_ADV_DATA_LEN;
         op = BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT;
@@ -2847,10 +2855,13 @@ ble_gap_ext_adv_set(uint8_t instance, uint16_t opcode, struct os_mbuf *data)
     /* last fragment */
     rc = ble_hs_hci_cmd_build_le_ext_adv_data(instance,
                                         BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST,
-                                        0, data, len, buf, sizeof(buf));
+                                        0, *data, len, buf, sizeof(buf));
     if (rc) {
         return rc;
     }
+
+    os_mbuf_adj(*data, len);
+    *data = os_mbuf_trim_front(*data);
 
     return ble_hs_hci_cmd_tx_empty_ack(opcode, buf,
                                        BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN + len);
@@ -2874,7 +2885,7 @@ ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data)
         goto done;
     }
 
-    rc = ble_gap_ext_adv_set(instance, BLE_HCI_OCF_LE_SET_EXT_ADV_DATA, data);
+    rc = ble_gap_ext_adv_set(instance, BLE_HCI_OCF_LE_SET_EXT_ADV_DATA, &data);
 
     ble_hs_unlock();
 
@@ -2939,7 +2950,7 @@ ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data)
     }
 
     rc = ble_gap_ext_adv_set(instance, BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA,
-                             data);
+                             &data);
 
     ble_hs_unlock();
 
