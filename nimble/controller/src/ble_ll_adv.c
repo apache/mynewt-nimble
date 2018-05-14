@@ -3125,10 +3125,12 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->duration &&
         advsm->adv_pdu_start_time >= advsm->adv_end_time) {
-        /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
-         * AUX is done.
+        /* Legacy PDUs need to be stop here.
+         * For ext adv it will be stopped when AUX is done (unless it was
+         * dropped so check if AUX is active here as well).
          */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) ||
+                !advsm->aux_active) {
             ble_ll_adv_sm_stop_timeout(advsm);
         }
 
@@ -3144,10 +3146,12 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->events_max && (advsm->events >= advsm->events_max)) {
-        /* Legacy PDUs need to be stop here, for ext adv it will be stopped when
-         * AUX is done.
+        /* Legacy PDUs need to be stop here.
+         * For ext adv it will be stopped when AUX is done (unless it was
+         * dropped so check if AUX is active here as well).
          */
-        if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
+        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) ||
+                !advsm->aux_active) {
             ble_ll_adv_sm_stop_limit_reached(advsm);
         }
 
