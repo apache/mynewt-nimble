@@ -17,7 +17,7 @@ INC = \
 
 OBJ := $(SRC:.c=.o)
 
-CFLAGS := $(NIMBLE_CFLAGS) -DBLE_NPL_STORAGE_DECL=
+CFLAGS := $(NIMBLE_CFLAGS)
 
 .PHONY: all clean
 .DEFAULT: all

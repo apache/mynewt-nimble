@@ -28,10 +28,6 @@
 extern "C" {
 #endif
 
-#ifndef BLE_NPL_STORAGE_DECL
-#define BLE_NPL_STORAGE_DECL static inline
-#endif
-
 struct ble_npl_event;
 typedef void ble_npl_event_fn(struct ble_npl_event *ev);
 
@@ -60,116 +56,87 @@ typedef enum ble_npl_error ble_npl_error_t;
  * Generic
  */
 
-BLE_NPL_STORAGE_DECL
 bool ble_npl_os_started(void);
 
-BLE_NPL_STORAGE_DECL
 void *ble_npl_get_current_task_id(void);
 
 /*
  * Event queue
  */
 
-BLE_NPL_STORAGE_DECL
 struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_eventq_init(struct ble_npl_eventq *evq);
 
-BLE_NPL_STORAGE_DECL
 struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_eventq_remove(struct ble_npl_eventq *evq,
                            struct ble_npl_event *ev);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_eventq_run(struct ble_npl_eventq *evq);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_event_init(struct ble_npl_event *ev, ble_npl_event_fn *fn,
                         void *arg);
 
-BLE_NPL_STORAGE_DECL
 bool ble_npl_event_is_queued(struct ble_npl_event *ev);
 
-BLE_NPL_STORAGE_DECL
 void *ble_npl_event_get_arg(struct ble_npl_event *ev);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg);
 
 /*
  * Mutexes
  */
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_mutex_init(struct ble_npl_mutex *mu);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_mutex_pend(struct ble_npl_mutex *mu,
                                    ble_npl_time_t timeout);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_mutex_release(struct ble_npl_mutex *mu);
 
 /*
  * Semaphores
  */
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_sem_init(struct ble_npl_sem *sem, uint16_t tokens);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_sem_pend(struct ble_npl_sem *sem,
                                  ble_npl_time_t timeout);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_sem_release(struct ble_npl_sem *sem);
 
-BLE_NPL_STORAGE_DECL
 uint16_t ble_npl_sem_get_count(struct ble_npl_sem *sem);
 
 /*
  * Callouts
  */
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
                           ble_npl_event_fn *ev_cb, void *ev_arg);
 
-BLE_NPL_STORAGE_DECL
 int ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_callout_stop(struct ble_npl_callout *co);
 
-BLE_NPL_STORAGE_DECL
 int ble_npl_callout_queued(struct ble_npl_callout *co);
 
-BLE_NPL_STORAGE_DECL
 uint32_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
 
 /*
  * Time functions
  */
 
-BLE_NPL_STORAGE_DECL
 ble_npl_time_t ble_npl_time_get(void);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_time_ms_to_ticks(uint32_t ms, ble_npl_time_t *out_ticks);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_error_t ble_npl_time_ticks_to_ms(ble_npl_time_t ticks, uint32_t *out_ms);
 
-BLE_NPL_STORAGE_DECL
 ble_npl_time_t ble_npl_time_ms_to_ticks32(uint32_t ms);
 
-BLE_NPL_STORAGE_DECL
 uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks);
 
 /*
@@ -181,15 +148,12 @@ uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks);
 
 #if NIMBLE_CFG_CONTROLLER
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_hw_set_isr(int irqn, uint32_t addr);
 
 #endif
 
-BLE_NPL_STORAGE_DECL
 uint32_t ble_npl_hw_enter_critical(void);
 
-BLE_NPL_STORAGE_DECL
 void ble_npl_hw_exit_critical(uint32_t ctx);
 
 #ifdef __cplusplus
