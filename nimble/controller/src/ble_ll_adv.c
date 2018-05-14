@@ -87,8 +87,8 @@ struct ble_ll_adv_sm
     uint8_t adv_chan;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
-    uint8_t flags;
     int8_t adv_txpwr;
+    uint16_t flags;
     uint16_t props;
     uint16_t adv_itvl_min;
     uint16_t adv_itvl_max;
@@ -126,13 +126,14 @@ struct ble_ll_adv_sm
 #endif
 };
 
-#define BLE_LL_ADV_SM_FLAG_TX_ADD               0x01
-#define BLE_LL_ADV_SM_FLAG_RX_ADD               0x02
-#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF       0x04
-#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x08
-#define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x30 /* use helpers! */
-#define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x40
-#define BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI          0x80
+#define BLE_LL_ADV_SM_FLAG_TX_ADD               0x0001
+#define BLE_LL_ADV_SM_FLAG_RX_ADD               0x0002
+#define BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF       0x0004
+#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x0008
+#define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x0030 /* use helpers! */
+#define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x0040
+#define BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI          0x0080
+#define BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO          0x0100
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -239,16 +240,30 @@ ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 {
-    uint32_t now;
-
     if (advsm->own_addr_type < BLE_HCI_ADV_OWN_ADDR_PRIV_PUB) {
         return;
     }
 
-    now = ble_npl_time_get();
-    if ((int32_t)(now - advsm->adv_rpa_timer) >= 0) {
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO) {
         ble_ll_adv_rpa_update(advsm);
-        advsm->adv_rpa_timer = now + ble_ll_resolv_get_rpa_tmo();
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO;
+    }
+}
+
+void
+ble_ll_adv_rpa_timeout(void)
+{
+    struct ble_ll_adv_sm *advsm;
+    int i;
+
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        advsm = &g_ble_ll_adv_sm[i];
+
+        if (advsm->adv_enabled &&
+                advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            /* Mark RPA as timed out so we get a new RPA */
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO;
+        }
     }
 }
 #endif
@@ -1471,9 +1486,6 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
-
-        /* Reset RPA timer so we generate a new RPA */
-        advsm->adv_rpa_timer = ble_npl_time_get();
     }
 #else
     /* If we dont support privacy some address types wont work */
@@ -2214,12 +2226,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         goto done;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-    if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        /* Reset RPA timer so we generate a new RPA */
-        advsm->adv_rpa_timer = ble_npl_time_get();
-    }
-#else
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 0)
     /* If we dont support privacy some address types wont work */
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rc = BLE_ERR_UNSUPPORTED;

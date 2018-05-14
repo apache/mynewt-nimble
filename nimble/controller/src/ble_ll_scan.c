@@ -344,7 +344,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
          * section 6.3).
          */
         if (rl) {
-            ble_ll_resolv_gen_priv_addr(rl, 1, rpa);
+            ble_ll_resolv_get_priv_addr(rl, 1, rpa);
             scana = rpa;
         } else {
             ble_ll_scan_refresh_nrpa(scansm);

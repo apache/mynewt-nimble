@@ -72,11 +72,68 @@ ble_ll_resolv_list_chg_allowed(void)
     return rc;
 }
 
+
+/**
+ * Called to generate a resolvable private address in rl structure
+ *
+ * @param rl
+ * @param local
+ */
+static void
+ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local)
+{
+    uint8_t *irk;
+    uint8_t *prand;
+    uint32_t *irk32;
+    uint32_t *key32;
+    uint32_t *pt32;
+    struct ble_encryption_block ecb;
+    uint8_t *addr;
+
+    assert(rl != NULL);
+
+    if (local) {
+        addr = rl->rl_local_rpa;
+        irk = rl->rl_local_irk;
+    } else {
+        addr = rl->rl_peer_rpa;
+        irk = rl->rl_peer_irk;
+    }
+
+    /* Get prand */
+    prand = addr + 3;
+    ble_ll_rand_prand_get(prand);
+
+    /* Calculate hash, hash = ah(local IRK, prand) */
+
+    irk32 = (uint32_t *)irk;
+    key32 = (uint32_t *)&ecb.key[0];
+    key32[0] = irk32[0];
+    key32[1] = irk32[1];
+    key32[2] = irk32[2];
+    key32[3] = irk32[3];
+    pt32 = (uint32_t *)&ecb.plain_text[0];
+    pt32[0] = 0;
+    pt32[1] = 0;
+    pt32[2] = 0;
+    ecb.plain_text[12] = 0;
+    ecb.plain_text[13] = prand[2];
+    ecb.plain_text[14] = prand[1];
+    ecb.plain_text[15] = prand[0];
+
+    /* Calculate hash */
+    ble_hw_encrypt_block(&ecb);
+
+    addr[0] = ecb.cipher_text[15];
+    addr[1] = ecb.cipher_text[14];
+    addr[2] = ecb.cipher_text[13];
+}
+
 /**
  * Called when the Resolvable private address timer expires. This timer
- * is used to regenerate local RPA's in the resolving list.
+ * is used to regenerate local and peers RPA's in the resolving list.
  */
-void
+static void
 ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
 {
     int i;
@@ -86,14 +143,18 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
     rl = &g_ble_ll_resolv_list[0];
     for (i = 0; i < g_ble_ll_resolv_data.rl_cnt; ++i) {
         OS_ENTER_CRITICAL(sr);
-        rl->rl_local_rpa_set = 0;
-        ble_ll_resolv_gen_priv_addr(rl, 1, rl->rl_local_rpa);
-        rl->rl_local_rpa_set = 1;
+        ble_ll_resolv_gen_priv_addr(rl, 1);
+        OS_EXIT_CRITICAL(sr);
+
+        OS_ENTER_CRITICAL(sr);
+        ble_ll_resolv_gen_priv_addr(rl, 0);
         OS_EXIT_CRITICAL(sr);
         ++rl;
     }
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                      (int32_t)g_ble_ll_resolv_data.rpa_tmo);
+
+    ble_ll_adv_rpa_timeout();
 }
 
 /**
@@ -237,29 +298,36 @@ ble_ll_resolv_list_add(uint8_t *cmdbuf)
     addr_type = cmdbuf[0];
     ident_addr = cmdbuf + 1;
 
-    rc = BLE_ERR_SUCCESS;
-    if (!ble_ll_is_on_resolv_list(ident_addr, addr_type)) {
-        rl = &g_ble_ll_resolv_list[g_ble_ll_resolv_data.rl_cnt];
-        rl->rl_addr_type = addr_type;
-        rl->rl_local_rpa_set = 0;
-        memcpy(&rl->rl_identity_addr[0], ident_addr, BLE_DEV_ADDR_LEN);
-        swap_buf(rl->rl_peer_irk, cmdbuf + 7, 16);
-        swap_buf(rl->rl_local_irk, cmdbuf + 23, 16);
-
-        /* By default use ptivacy network mode */
-        rl->rl_priv_mode = BLE_HCI_PRIVACY_NETWORK;
-
-        /*
-         * Add peer IRK to HW resolving list. If we can add it, also
-         * generate a local RPA now to save time later.
-         */
-        rc = ble_hw_resolv_list_add(rl->rl_peer_irk);
-        if (!rc) {
-            ble_ll_resolv_gen_priv_addr(rl, 1, rl->rl_local_rpa);
-            rl->rl_local_rpa_set = 1;
-        }
-        ++g_ble_ll_resolv_data.rl_cnt;
+    /* spec is not clear on how to handle this but make sure host is aware
+     * that new keys are not used in that case
+     */
+    if (ble_ll_is_on_resolv_list(ident_addr, addr_type)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
+    rl = &g_ble_ll_resolv_list[g_ble_ll_resolv_data.rl_cnt];
+    memset (rl, 0, sizeof(*rl));
+
+    rl->rl_addr_type = addr_type;
+    memcpy(&rl->rl_identity_addr[0], ident_addr, BLE_DEV_ADDR_LEN);
+    swap_buf(rl->rl_peer_irk, cmdbuf + 7, 16);
+    swap_buf(rl->rl_local_irk, cmdbuf + 23, 16);
+
+    /* By default use privacy network mode */
+    rl->rl_priv_mode = BLE_HCI_PRIVACY_NETWORK;
+
+    /* Add peer IRK to HW resolving list. Should always succeed since we
+     * already checked if there is room for it.
+     */
+    rc = ble_hw_resolv_list_add(rl->rl_peer_irk);
+    assert (rc == BLE_ERR_SUCCESS);
+
+    /* generate a local and peer RPAs now, those will be updated by timer
+     * when resolution is enabled
+     */
+    ble_ll_resolv_gen_priv_addr(rl, 1);
+    ble_ll_resolv_gen_priv_addr(rl, 0);
+    ++g_ble_ll_resolv_data.rl_cnt;
 
     return rc;
 }
@@ -288,7 +356,9 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
 
     /* Remove from IRK records */
     position = ble_ll_is_on_resolv_list(ident_addr, addr_type);
-    if (position && (position < g_ble_ll_resolv_data.rl_cnt)) {
+    if (position) {
+        assert(position <= g_ble_ll_resolv_data.rl_cnt);
+
         memmove(&g_ble_ll_resolv_list[position - 1],
                 &g_ble_ll_resolv_list[position],
                 g_ble_ll_resolv_data.rl_cnt - position);
@@ -296,9 +366,10 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
 
         /* Remove from HW list */
         ble_hw_resolv_list_rmv(position - 1);
+        return BLE_ERR_SUCCESS;
     }
 
-    return BLE_ERR_SUCCESS;
+    return BLE_ERR_UNK_CONN_ID;
 }
 
 /**
@@ -340,15 +411,51 @@ ble_ll_resolv_enable_cmd(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf)
+ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
-    /* XXX */
-    return 0;
+    struct ble_ll_resolv_entry *rl;
+    uint8_t addr_type;
+    uint8_t *ident_addr;
+    int rc;
+
+    addr_type = cmdbuf[0];
+    ident_addr = cmdbuf + 1;
+
+    rl = ble_ll_resolv_list_find(ident_addr, addr_type);
+    if (rl) {
+        memcpy(rspbuf, rl->rl_peer_rpa, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        memset(rspbuf, 0, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_UNK_CONN_ID;
+    }
+
+    *rsplen = BLE_DEV_ADDR_LEN;
+    return rc;
 }
 
-void
-ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf)
+int
+ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
+    struct ble_ll_resolv_entry *rl;
+    uint8_t addr_type;
+    uint8_t *ident_addr;
+    int rc;
+
+    addr_type = cmdbuf[0];
+    ident_addr = cmdbuf + 1;
+
+    rl = ble_ll_resolv_list_find(ident_addr, addr_type);
+    if (rl) {
+        memcpy(rspbuf, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_SUCCESS;
+    } else {
+        memset(rspbuf, 0, BLE_DEV_ADDR_LEN);
+        rc = BLE_ERR_UNK_CONN_ID;
+    }
+
+    *rsplen = BLE_DEV_ADDR_LEN;
+    return rc;
 }
 
 /**
@@ -421,65 +528,23 @@ ble_ll_resolv_get_rpa_tmo(void)
     return g_ble_ll_resolv_data.rpa_tmo;
 }
 
-/**
- * Called to generate a resolvable private address
- *
- * @param rl
- * @param local
- * @param addr Pointer to resolvable private address
- */
 void
-ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local,
+ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
                             uint8_t *addr)
 {
-    uint8_t *irk;
-    uint8_t *prand;
-    uint32_t *irk32;
-    uint32_t *key32;
-    uint32_t *pt32;
-    struct ble_encryption_block ecb;
+    os_sr_t sr;
 
     assert(rl != NULL);
     assert(addr != NULL);
 
-    /* If the local rpa has already been generated, just copy it */
-    if (local && rl->rl_local_rpa_set) {
-        memcpy(addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
-        return;
-    }
-
-    /* Get prand */
-    prand = addr + 3;
-    ble_ll_rand_prand_get(prand);
-
-    /* Calculate hash, hash = ah(local IRK, prand) */
+    OS_ENTER_CRITICAL(sr);
     if (local) {
-        irk = rl->rl_local_irk;
+        memcpy(addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
     } else {
-        irk = rl->rl_peer_irk;
+        memcpy(addr, rl->rl_peer_rpa, BLE_DEV_ADDR_LEN);
     }
 
-    irk32 = (uint32_t *)irk;
-    key32 = (uint32_t *)&ecb.key[0];
-    key32[0] = irk32[0];
-    key32[1] = irk32[1];
-    key32[2] = irk32[2];
-    key32[3] = irk32[3];
-    pt32 = (uint32_t *)&ecb.plain_text[0];
-    pt32[0] = 0;
-    pt32[1] = 0;
-    pt32[2] = 0;
-    ecb.plain_text[12] = 0;
-    ecb.plain_text[13] = prand[2];
-    ecb.plain_text[14] = prand[1];
-    ecb.plain_text[15] = prand[0];
-
-    /* Calculate hash */
-    ble_hw_encrypt_block(&ecb);
-
-    addr[0] = ecb.cipher_text[15];
-    addr[1] = ecb.cipher_text[14];
-    addr[2] = ecb.cipher_text[13];
+    OS_EXIT_CRITICAL(sr);
 }
 
 /**
@@ -507,7 +572,7 @@ ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa, int local)
             irk = rl->rl_peer_irk;
         }
         if (ble_ll_resolv_irk_nonzero(irk)) {
-            ble_ll_resolv_gen_priv_addr(rl, local, rpa);
+            ble_ll_resolv_get_priv_addr(rl, local, rpa);
             rc = 1;
         }
     }

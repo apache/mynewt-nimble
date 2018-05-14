@@ -851,10 +851,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         rc = ble_ll_resolv_list_read_size(rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR:
-        rc = ble_ll_resolv_peer_addr_rd(cmdbuf);
+        rc = ble_ll_resolv_peer_addr_rd(cmdbuf, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR:
-        ble_ll_resolv_local_addr_rd(cmdbuf);
+        rc = ble_ll_resolv_local_addr_rd(cmdbuf, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_SET_ADDR_RES_EN:
         rc = ble_ll_resolv_enable_cmd(cmdbuf);

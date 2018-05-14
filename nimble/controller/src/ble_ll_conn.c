@@ -2753,7 +2753,7 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
          */
         if (rl) {
             hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-            ble_ll_resolv_gen_priv_addr(rl, 1, dptr);
+            ble_ll_resolv_get_priv_addr(rl, 1, dptr);
             addr = NULL;
         }
     }
