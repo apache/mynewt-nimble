@@ -1137,7 +1137,7 @@ static void close_link(u8_t err, u8_t reason)
 }
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
-static void prov_retransmit(struct os_event *work)
+static void prov_retransmit(struct ble_npl_event *work)
 {
 	int i;
 

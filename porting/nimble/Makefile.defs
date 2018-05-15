@@ -93,4 +93,8 @@ ifneq (,$(NIMBLE_CFG_TINYCRYPT))
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.tinycrypt
 endif
 
+ifneq (,$(NIMBLE_CFG_MESH))
+include $(NIMBLE_ROOT)/porting/nimble/Makefile.mesh
+endif
+
 NIMBLE_OBJ := $(NIMBLE_SRC:.c=.o)

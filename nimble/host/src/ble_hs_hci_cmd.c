@@ -179,8 +179,9 @@ ble_hs_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
     itvl = BLE_HCI_ADV_ITVL_MIN;
 #else
     /* Make sure interval is valid for advertising type. */
-    if ((adv->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) ||
-        (adv->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND)) {
+    if (((adv->adv_type == BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) ||
+        (adv->adv_type == BLE_HCI_ADV_TYPE_ADV_SCAN_IND)) &&
+        ble_hs_hci_get_hci_version() < BLE_HCI_VER_BCS_5_0) {
         itvl = BLE_HCI_ADV_ITVL_NONCONN_MIN;
     } else {
         itvl = BLE_HCI_ADV_ITVL_MIN;

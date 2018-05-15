@@ -68,6 +68,9 @@ struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
 
 void ble_npl_eventq_init(struct ble_npl_eventq *evq);
 
+struct ble_npl_event *ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq,
+                                             ble_npl_time_t tmo);
+
 struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq);
 
 void ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev);
@@ -85,6 +88,8 @@ bool ble_npl_event_is_queued(struct ble_npl_event *ev);
 void *ble_npl_event_get_arg(struct ble_npl_event *ev);
 
 void ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg);
+
+int ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
 
 /*
  * Mutexes
@@ -125,6 +130,11 @@ int ble_npl_callout_queued(struct ble_npl_callout *co);
 
 uint32_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
 
+uint32_t ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
+                                         ble_npl_time_t time);
+
+void ble_npl_callout_set_arg(struct ble_npl_callout *co,
+                             void *arg);
 /*
  * Time functions
  */
@@ -138,6 +148,8 @@ ble_npl_error_t ble_npl_time_ticks_to_ms(ble_npl_time_t ticks, uint32_t *out_ms)
 ble_npl_time_t ble_npl_time_ms_to_ticks32(uint32_t ms);
 
 uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks);
+
+void ble_npl_time_delay(ble_npl_time_t ticks);
 
 /*
  * Hardware-specific

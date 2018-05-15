@@ -53,7 +53,7 @@ struct bt_mesh_adv {
 	};
 
 	int ref_cnt;
-	struct os_event ev;
+	struct ble_npl_event ev;
 };
 
 typedef struct bt_mesh_adv *(*bt_mesh_adv_alloc_t)(int id);

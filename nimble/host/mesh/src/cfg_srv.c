@@ -3110,9 +3110,9 @@ const struct bt_mesh_model_op bt_mesh_cfg_srv_op[] = {
 	BT_MESH_MODEL_OP_END,
 };
 
-static void hb_publish(struct os_event *work)
+static void hb_publish(struct ble_npl_event *work)
 {
-	struct bt_mesh_cfg_srv *cfg = work->ev_arg;
+	struct bt_mesh_cfg_srv *cfg = ble_npl_event_get_arg(work);
 	struct bt_mesh_model *model = cfg->model;
 	struct bt_mesh_subnet *sub;
 	u16_t period_ms;

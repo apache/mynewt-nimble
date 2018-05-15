@@ -272,9 +272,9 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 	}
 }
 
-static void seg_retransmit(struct os_event *work)
+static void seg_retransmit(struct ble_npl_event *work)
 {
-	struct seg_tx *tx = work->ev_arg;
+	struct seg_tx *tx = ble_npl_event_get_arg(work);
 	seg_tx_send_unacked(tx);
 }
 
@@ -1001,9 +1001,9 @@ static void seg_rx_reset(struct seg_rx *rx, bool full_reset)
 	}
 }
 
-static void seg_ack(struct os_event *work)
+static void seg_ack(struct ble_npl_event *work)
 {
-	struct seg_rx *rx = work->ev_arg;
+	struct seg_rx *rx = ble_npl_event_get_arg(work);
 
 	BT_DBG("rx %p", rx);
 

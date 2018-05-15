@@ -100,6 +100,12 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 }
 
 static inline struct ble_npl_event *
+ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+{
+    return npl_freertos_eventq_get_tmo(evq, tmo);
+}
+
+static inline struct ble_npl_event *
 ble_npl_eventq_get(struct ble_npl_eventq *evq)
 {
     return npl_freertos_eventq_get(evq);
@@ -126,6 +132,12 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
     assert(ev->fn != NULL);
 
     ev->fn(ev);
+}
+
+static inline int
+ble_npl_eventq_is_empty(struct ble_npl_eventq *evq)
+{
+    return xQueueIsQueueEmptyFromISR(evq->q);
 }
 
 static inline void
@@ -229,6 +241,19 @@ ble_npl_callout_get_ticks(struct ble_npl_callout *co)
 }
 
 static inline uint32_t
+ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
+                                ble_npl_time_t time)
+{
+    return npl_freertos_callout_remaining_ticks(co, time);
+}
+
+static inline void
+ble_npl_callout_set_arg(struct ble_npl_callout *co, void *arg)
+{
+    co->ev.arg = arg;
+}
+
+static inline uint32_t
 ble_npl_time_get(void)
 {
     return xTaskGetTickCountFromISR();
@@ -256,6 +281,12 @@ static inline uint32_t
 ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks)
 {
     return ticks * 1000 / configTICK_RATE_HZ;
+}
+
+static inline void
+ble_npl_time_delay(ble_npl_time_t ticks)
+{
+    vTaskDelay(ticks);
 }
 
 #if NIMBLE_CFG_CONTROLLER

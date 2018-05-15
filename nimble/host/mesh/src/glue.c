@@ -70,16 +70,16 @@ bt_hex(const void *buf, size_t len)
 }
 
 void
-net_buf_put(struct os_eventq *fifo, struct os_mbuf *om)
+net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *om)
 {
-    struct os_event *ev;
+    struct ble_npl_event *ev;
 
     assert(OS_MBUF_IS_PKTHDR(om));
     ev = &BT_MESH_ADV(om)->ev;
     assert(ev);
-    assert(ev->ev_arg);
+    assert(ble_npl_event_get_arg(ev));
 
-    os_eventq_put(fifo, ev);
+    ble_npl_eventq_put(fifo, ev);
 }
 
 void *
@@ -302,17 +302,17 @@ net_buf_simple_add(struct os_mbuf *om, uint8_t len)
 }
 
 bool
-k_fifo_is_empty(struct os_eventq *q)
+k_fifo_is_empty(struct ble_npl_eventq *q)
 {
-    return STAILQ_EMPTY(&q->evq_list);
+    return ble_npl_eventq_is_empty(q);
 }
 
-void * net_buf_get(struct os_eventq *fifo, s32_t t)
+void * net_buf_get(struct ble_npl_eventq *fifo, s32_t t)
 {
-    struct os_event *ev = os_eventq_get_no_wait(fifo);
+    struct ble_npl_event *ev = ble_npl_eventq_get_tmo(fifo, 0);
 
     if (ev) {
-        return ev->ev_arg;
+        return ble_npl_event_get_arg(ev);
     }
 
     return NULL;
@@ -339,21 +339,21 @@ net_buf_reserve(struct os_mbuf *om, size_t reserve)
 }
 
 void
-k_work_init(struct os_callout *work, os_event_fn handler)
+k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler)
 {
-    os_callout_init(work, os_eventq_dflt_get(), handler, NULL);
+    ble_npl_callout_init(work, ble_npl_eventq_dflt_get(), handler, NULL);
 }
 
 void
-k_delayed_work_init(struct k_delayed_work *w, os_event_fn *f)
+k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f)
 {
-    os_callout_init(&w->work, os_eventq_dflt_get(), f, NULL);
+    ble_npl_callout_init(&w->work, ble_npl_eventq_dflt_get(), f, NULL);
 }
 
 void
 k_delayed_work_cancel(struct k_delayed_work *w)
 {
-    os_callout_stop(&w->work);
+    ble_npl_callout_stop(&w->work);
 }
 
 void
@@ -361,49 +361,49 @@ k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms)
 {
     uint32_t ticks;
 
-    if (os_time_ms_to_ticks(ms, &ticks) != 0) {
+    if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
         assert(0);
     }
-    os_callout_reset(&w->work, ticks);
+    ble_npl_callout_reset(&w->work, ticks);
 }
 
 void
-k_work_submit(struct os_callout *w)
+k_work_submit(struct ble_npl_callout *w)
 {
-    os_callout_reset(w, 0);
+    ble_npl_callout_reset(w, 0);
 }
 
 void
-k_work_add_arg(struct os_callout *w, void *arg)
+k_work_add_arg(struct ble_npl_callout *w, void *arg)
 {
-    w->c_ev.ev_arg = arg;
+    ble_npl_callout_set_arg(w, arg);
 }
 
 void
 k_delayed_work_add_arg(struct k_delayed_work *w, void *arg)
 {
-    w->work.c_ev.ev_arg = arg;
+    k_work_add_arg(&w->work, arg);
 }
 
 uint32_t
 k_delayed_work_remaining_get (struct k_delayed_work *w)
 {
     int sr;
-    os_time_t t;
+    ble_npl_time_t t;
 
     OS_ENTER_CRITICAL(sr);
 
-    t = os_callout_remaining_ticks(&w->work, os_time_get());
+    t = ble_npl_callout_remaining_ticks(&w->work, ble_npl_time_get());
 
     OS_EXIT_CRITICAL(sr);
 
-    return os_time_ticks_to_ms32(t);
+    return ble_npl_time_ticks_to_ms32(t);
 }
 
 int64_t k_uptime_get(void)
 {
     /* We should return ms */
-    return os_get_uptime_usec() / 1000;
+    return ble_npl_time_ticks_to_ms32(ble_npl_time_get());
 }
 
 u32_t k_uptime_get_32(void)
@@ -415,9 +415,9 @@ void k_sleep(int32_t duration)
 {
     uint32_t ticks;
 
-    ticks = os_time_ms_to_ticks32(duration);
+    ticks = ble_npl_time_ms_to_ticks32(duration);
 
-    os_time_delay(ticks);
+    ble_npl_time_delay(ticks);
 }
 
 static uint8_t pub[64];

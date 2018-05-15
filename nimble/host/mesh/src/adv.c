@@ -16,6 +16,7 @@
 #include "host/ble_hs_adv.h"
 #include "host/ble_gap.h"
 #include "nimble/hci_common.h"
+#include "mesh/porting.h"
 
 #include "adv.h"
 #include "foundation.h"
@@ -44,11 +45,13 @@ static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
  */
+#if MYNEWT
 #define ADV_STACK_SIZE 768
 OS_TASK_STACK_DEFINE(g_blemesh_stack, ADV_STACK_SIZE);
-
 struct os_task adv_task;
-static struct os_eventq adv_queue;
+#endif
+
+static struct ble_npl_eventq adv_queue;
 extern u8_t g_mesh_addr_type;
 
 static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
@@ -138,42 +141,41 @@ static inline void adv_send(struct os_mbuf *buf)
 	BT_DBG("Advertising stopped");
 }
 
-static void
-adv_thread(void *args)
+void
+mesh_adv_thread(void *args)
 {
-	static struct os_event *ev;
+	static struct ble_npl_event *ev;
 	struct os_mbuf *buf;
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
 	s32_t timeout;
-	struct os_eventq *eventq_pool = &adv_queue;
 #endif
 
 	BT_DBG("started");
 
 	while (1) {
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
-		ev = os_eventq_get_no_wait(&adv_queue);
+		ev = ble_npl_eventq_get_tmo(&adv_queue, 0);
 		while (!ev) {
 			timeout = bt_mesh_proxy_adv_start();
 			BT_DBG("Proxy Advertising up to %d ms", timeout);
 
 			// FIXME: should we redefine K_SECONDS macro instead in glue?
 			if (timeout != K_FOREVER) {
-				timeout = os_time_ms_to_ticks32(timeout);
+				timeout = ble_npl_time_ms_to_ticks32(timeout);
 			}
 
-			ev = os_eventq_poll(&eventq_pool, 1, timeout);
+			ev = ble_npl_eventq_get_tmo(&adv_queue, timeout);
 			bt_mesh_proxy_adv_stop();
 		}
 #else
-		ev = os_eventq_get(&adv_queue);
+		ev = ble_npl_eventq_get(&adv_queue);
 #endif
 
-		if (!ev || !ev->ev_arg) {
+		if (!ev || !ble_npl_event_get_arg(ev)) {
 			continue;
 		}
 
-		buf = ev->ev_arg;
+		buf = ble_npl_event_get_arg(ev);
 
 		/* busy == 0 means this was canceled */
 		if (BT_MESH_ADV(buf)->busy) {
@@ -181,17 +183,17 @@ adv_thread(void *args)
 			adv_send(buf);
 		}
 
-		os_sched(NULL);
+		/* os_sched(NULL); */
 	}
 }
 
 void bt_mesh_adv_update(void)
 {
-	static struct os_event ev = { };
+	static struct ble_npl_event ev = { };
 
 	BT_DBG("");
 
-	os_eventq_put(&adv_queue, &ev);
+	ble_npl_eventq_put(&adv_queue, &ev);
 }
 
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
@@ -217,7 +219,7 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	adv->count        = xmit_count;
 	adv->adv_int      = xmit_int;
 	adv->ref_cnt = 1;
-	adv->ev.ev_arg = buf;
+	ble_npl_event_set_arg(&adv->ev, buf);
 	return buf;
 }
 
@@ -237,7 +239,6 @@ void bt_mesh_adv_send(struct os_mbuf *buf, const struct bt_mesh_send_cb *cb,
 	BT_MESH_ADV(buf)->cb = cb;
 	BT_MESH_ADV(buf)->cb_data = cb_data;
 	BT_MESH_ADV(buf)->busy = 1;
-	BT_MESH_ADV(buf)->ev.ev_cb = NULL; /* does not matter */
 
 	net_buf_put(&adv_queue, net_buf_ref(buf));
 }
@@ -307,11 +308,13 @@ void bt_mesh_adv_init(void)
 			       MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT));
 	assert(rc == 0);
 
-	os_eventq_init(&adv_queue);
+	ble_npl_eventq_init(&adv_queue);
 
-	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
+#if MYNEWT
+	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,
 	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
 	             g_blemesh_stack, ADV_STACK_SIZE);
+#endif
 
 	/* For BT5 controllers we can have fast advertising interval */
 	if (ble_hs_hci_get_hci_version() >= BLE_HCI_VER_BCS_5_0) {

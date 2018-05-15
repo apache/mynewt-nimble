@@ -721,7 +721,7 @@ static void update_timeout(struct bt_mesh_lpn *lpn)
 	}
 }
 
-static void lpn_timeout(struct os_event *work)
+static void lpn_timeout(struct ble_npl_event *work)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 

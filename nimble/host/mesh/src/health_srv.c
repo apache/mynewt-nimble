@@ -366,9 +366,9 @@ int bt_mesh_fault_update(struct bt_mesh_elem *elem)
 	return bt_mesh_model_publish(mod);
 }
 
-static void attention_off(struct os_event *work)
+static void attention_off(struct ble_npl_event *work)
 {
-	struct bt_mesh_health_srv *srv = work->ev_arg;
+	struct bt_mesh_health_srv *srv = ble_npl_event_get_arg(work);
 	BT_DBG("");
 
 	if (srv->cb && srv->cb->attn_off) {
