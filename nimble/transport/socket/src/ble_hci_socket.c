@@ -39,6 +39,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -56,6 +57,8 @@
 #define HCI_CHANNEL_RAW		0
 #define HCI_CHANNEL_USER	1
 #define HCIDEVUP	_IOW('H', 201, int)
+#define HCIDEVDOWN	_IOW('H', 202, int)
+#define HCIDEVRESET	_IOW('H', 203, int)
 #define HCIGETDEVLIST	_IOR('H', 210, int)
 
 struct sockaddr_hci {
@@ -139,10 +142,14 @@ STATS_NAME_END(hci_sock_stats)
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
 
+#if MYNEWT
+
 #define BLE_SOCK_STACK_SIZE         \
     OS_STACK_ALIGN(MYNEWT_VAL(BLE_SOCK_STACK_SIZE))
 
 struct os_task ble_sock_task;
+
+#endif
 
 static struct os_mempool ble_hci_sock_evt_hi_pool;
 static os_membuf_t ble_hci_sock_evt_hi_buf[
@@ -185,9 +192,9 @@ static void *ble_hci_sock_rx_acl_arg;
 
 static struct ble_hci_sock_state {
     int sock;
-    struct os_eventq evq;
-    struct os_event ev;
-    struct os_callout timer;
+    struct ble_npl_eventq evq;
+    struct ble_npl_event ev;
+    struct ble_npl_callout timer;
 
     uint16_t rx_off;
     uint8_t rx_data[512];
@@ -420,15 +427,17 @@ ble_hci_sock_rx_msg(void)
 }
 
 static void
-ble_hci_sock_rx_ev(struct os_event *ev)
+ble_hci_sock_rx_ev(struct ble_npl_event *ev)
 {
     int rc;
+    ble_npl_time_t timeout;
 
     rc = ble_hci_sock_rx_msg();
     if (rc == 0) {
-        os_eventq_put(&ble_hci_sock_state.evq, &ble_hci_sock_state.ev);
+        ble_npl_eventq_put(&ble_hci_sock_state.evq, &ble_hci_sock_state.ev);
     } else {
-        os_callout_reset(&ble_hci_sock_state.timer, OS_TICKS_PER_SEC / 100);
+        rc = ble_npl_time_ms_to_ticks(10, &timeout);
+        ble_npl_callout_reset(&ble_hci_sock_state.timer, timeout);
     }
 }
 
@@ -438,6 +447,7 @@ ble_hci_sock_config(void)
 {
     struct ble_hci_sock_state *bhss = &ble_hci_sock_state;
     struct sockaddr_in sin;
+    ble_npl_time_t timeout;
     int s;
     int rc;
 
@@ -475,7 +485,11 @@ ble_hci_sock_config(void)
         }
         bhss->sock = s;
     }
-    os_callout_reset(&ble_hci_sock_state.timer, OS_TICKS_PER_SEC / 100);
+    rc = ble_npl_time_ms_to_ticks(10, &timeout);
+    if (rc) {
+        goto err;
+    }
+    ble_npl_callout_reset(&ble_hci_sock_state.timer, timeout);
 
     return 0;
 err:
@@ -493,6 +507,7 @@ ble_hci_sock_config(void)
     struct sockaddr_hci shci;
     int s;
     int rc;
+    ble_npl_time_t timeout;
 
     memset(&shci, 0, sizeof(shci));
     shci.hci_family = AF_BLUETOOTH;
@@ -510,6 +525,12 @@ ble_hci_sock_config(void)
         goto err;
     }
 
+    /* 
+     * HCI User Channel requires exclusive access to the device.
+     * The device has to be down at the time of binding.
+     */
+    ioctl(s, HCIDEVDOWN, shci.hci_dev);
+
     rc = bind(s, (struct sockaddr *)&shci, sizeof(shci));
     if (rc) {
         dprintf(1, "bind() failed %d\n", errno);
@@ -524,7 +545,11 @@ ble_hci_sock_config(void)
     }
     ble_hci_sock_state.sock = s;
 
-    os_callout_reset(&ble_hci_sock_state.timer, OS_TICKS_PER_SEC / 100);
+    rc = ble_npl_time_ms_to_ticks(10, &timeout);
+    if (rc) {
+        goto err;
+    }
+    ble_npl_callout_reset(&ble_hci_sock_state.timer, timeout);
 
     return 0;
 err:
@@ -727,7 +752,7 @@ ble_hci_trans_reset(void)
 {
     int rc;
 
-    os_callout_stop(&ble_hci_sock_state.timer);
+    ble_npl_callout_stop(&ble_hci_sock_state.timer);
 
     /* Reopen the UART. */
     rc = ble_hci_sock_config();
@@ -739,30 +764,40 @@ ble_hci_trans_reset(void)
     return 0;
 }
 
-static void
+void
 ble_hci_sock_ack_handler(void *arg)
 {
     while (1) {
-        os_eventq_run(&ble_hci_sock_state.evq);
+        ble_npl_eventq_run(&ble_hci_sock_state.evq);
     }
 }
 
 static void
 ble_hci_sock_init_task(void)
 {
-    os_stack_t *pstack;
-
-    pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
-    assert(pstack);
-
-    os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
-                 MYNEWT_VAL(BLE_SOCK_TASK_PRIO), OS_WAIT_FOREVER, pstack,
-                 BLE_SOCK_STACK_SIZE);
-
-    os_eventq_init(&ble_hci_sock_state.evq);
-    os_callout_stop(&ble_hci_sock_state.timer);
-    os_callout_init(&ble_hci_sock_state.timer, &ble_hci_sock_state.evq,
+    ble_npl_eventq_init(&ble_hci_sock_state.evq);
+    ble_npl_callout_stop(&ble_hci_sock_state.timer);
+    ble_npl_callout_init(&ble_hci_sock_state.timer, &ble_hci_sock_state.evq,
                     ble_hci_sock_rx_ev, NULL);
+
+#if MYNEWT
+    {
+        os_stack_t *pstack;
+
+        pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
+        assert(pstack);
+        os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
+                     MYNEWT_VAL(BLE_SOCK_TASK_PRIO), BLE_NPL_WAIT_FOREVER, pstack,
+                     BLE_SOCK_STACK_SIZE);
+    }
+#else
+/*
+ * For non-Mynewt OS it is required that OS creates task for HCI SOCKET
+ * to run ble_hci_sock_ack_handler.
+ */
+
+#endif
+
 }
 
 /**
