@@ -238,7 +238,6 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 #define net_buf_add_be32(a, b) net_buf_simple_add_be32(a, b)
 #define net_buf_add_be16(a, b) net_buf_simple_add_be16(a, b)
 
-#define bt_le_adv_stop() ble_gap_adv_stop()
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
 #define bt_gatt_attr ble_gatt_attr
 
@@ -277,6 +276,7 @@ void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *ad, size_t ad_len,
                     const struct bt_data *sd, size_t sd_len);
+int bt_le_adv_stop(void);
 
 struct k_delayed_work {
     struct os_callout work;
