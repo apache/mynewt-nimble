@@ -763,6 +763,8 @@ ble_phy_isr(void)
 {
     uint32_t irq_en;
 
+    os_trace_isr_enter();
+
     /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
 
@@ -798,6 +800,8 @@ ble_phy_isr(void)
 
     /* Count # of interrupts */
     STATS_INC(ble_phy_stats, phy_isrs);
+
+    os_trace_isr_exit();
 }
 
 /**

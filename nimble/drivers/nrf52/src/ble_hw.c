@@ -289,13 +289,14 @@ ble_rng_isr(void)
 {
     uint8_t rnum;
 
-    os_trace_enter_isr();
+    os_trace_isr_enter();
 
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
         NRF_RNG->INTENCLR = 1;
         NRF_RNG->EVENTS_VALRDY = 0;
         (void)NRF_RNG->SHORTS;
+        os_trace_isr_exit();
         return;
     }
 
@@ -305,7 +306,8 @@ ble_rng_isr(void)
         rnum = (uint8_t)NRF_RNG->VALUE;
         (*g_ble_rng_isr_cb)(rnum);
     }
-    os_trace_exit_isr();
+
+    os_trace_isr_exit();
 }
 
 /**
