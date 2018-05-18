@@ -9,7 +9,6 @@
 #if MYNEWT_VAL(BLE_MESH_PROV) == 1
 
 #include <errno.h>
-#include "mesh/atomic.h"
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_PROV))
 #include "host/ble_hs_log.h"
@@ -20,6 +19,7 @@
 #include <tinycrypt/ecc.h>
 
 #include "crypto.h"
+#include "atomic.h"
 #include "adv.h"
 #include "net.h"
 #include "access.h"
