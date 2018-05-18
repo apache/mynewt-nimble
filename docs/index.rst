@@ -113,7 +113,7 @@ Mynewt comes with two built-in projects that allow users to play with
 NimBLE, try the tutorials out with, and see how to use available
 services.
 
-1. **bletiny** : A simple shell application which provides a basic
+1. **btshell** : A simple shell application which provides a basic
    interface to the host-side of the BLE stack.
 2. **bleprph**: A basic peripheral device with no user interface. It
    advertises automatically on startup, and resumes advertising whenever

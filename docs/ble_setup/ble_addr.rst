@@ -3,7 +3,7 @@ Configure device address
 
 A BLE device needs an address to do just about anything. For information
 on the various types of Bluetooth addresses, see the `NimBLE Host
-Identity Reference :doc:`<../../../network/ble/ble_hs/ble_hs_id/ble_hs_id>`.
+Identity Reference :doc:`<../ble_hs/ble_hs_id/ble_hs_id>`.
 
 There are several methods for assigning an address to a NimBLE device.
 The available options are documented below:
@@ -52,9 +52,9 @@ Method 3: Configure a random address at runtime
 Random addresses get configured through the NimBLE host. The following
 two functions are used in random address configuration:
 
--  :doc:`ble_hs_id_gen_rnd <../../../network/ble/ble_hs/ble_hs_id/functions/ble_hs_id_gen_rnd>`:
+-  :doc:`ble_hs_id_gen_rnd <../ble_hs/ble_hs_id/functions/ble_hs_id_gen_rnd>`:
    Generates a new random address.
--  :doc:`ble_hs_id_set_rnd <../../../network/ble/ble_hs/ble_hs_id/functions/ble_hs_id_set_rnd>`:
+-  :doc:`ble_hs_id_set_rnd <../ble_hs/ble_hs_id/functions/ble_hs_id_set_rnd>`:
    Sets the device's random address.
 
 For an example of how this is done, see the :doc:`<../../../os/tutorials/ibeacon>`.

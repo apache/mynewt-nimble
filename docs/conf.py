@@ -47,8 +47,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Mynewt'
-copyright = u'Copyright © 2017 The Apache Software Foundation, Licensed under the Apache License, Version 2.0 Apache and the Apache feather logo are trademarks of The Apache Software Foundation.'
+project = u'NimBLE Bluetooth Stack'
+copyright = u'Copyright © 2018 The Apache Software Foundation, Licensed under the Apache License, Version 2.0 Apache and the Apache feather logo are trademarks of The Apache Software Foundation.'
 author = u'The Apache Software Foundation'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -70,7 +70,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'themes']
+exclude_patterns = ['_build', 'README.rst', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -109,7 +109,7 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -142,7 +142,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Mynewt.tex', u'Mynewt Documentation',
+    (master_doc, 'Mynewt.tex', u'NimBLE Bluetooth Stack',
      u'The Apache Software Foundation', 'manual'),
 ]
 
@@ -163,7 +163,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Mynewt', u'Mynewt Documentation',
+    (master_doc, 'Mynewt', u'NimBLE Bluetooth Stack',
      author, 'Mynewt', 'One line description of project.',
      'Miscellaneous'),
 ]

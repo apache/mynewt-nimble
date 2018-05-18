@@ -38,7 +38,7 @@ form:
     typedef void ble_hs_reset_fn(int reason);
 
 The ``reason`` parameter is a :doc:`NimBLE host return
-code <../../../network/ble/ble_hs/ble_hs_return_codes>`.
+code <../ble_hs/ble_hs_return_codes>`.
 
 Example
 ~~~~~~~
