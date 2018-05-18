@@ -25,6 +25,19 @@
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 
+/* Special time-stamp to indicate that we don't know when the last IV
+ * Update happened.
+ */
+#define BT_MESH_NET_IVU_UNKNOWN -1
+
+#if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
+/* Small test timeout for IV Update Procedure testing */
+#define BT_MESH_NET_IVU_TIMEOUT  K_SECONDS(120)
+#else
+/* Maximum time to stay in IV Update mode (96 < time < 144) */
+#define BT_MESH_NET_IVU_TIMEOUT  K_HOURS(120)
+#endif /* CONFIG_BT_MESH_IV_UPDATE_TEST */
+
 struct bt_mesh_app_key {
 	u16_t net_idx;
 	u16_t app_idx;
