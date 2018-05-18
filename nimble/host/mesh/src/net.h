@@ -21,6 +21,7 @@
 #define BT_MESH_KEY_REFRESH(flags) (flags & 0x01)
 
 #include <stdbool.h>
+#include "atomic.h"
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 

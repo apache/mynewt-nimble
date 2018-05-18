@@ -29,7 +29,6 @@
 #include "os/os_mbuf.h"
 #include "os/queue.h"
 
-#include "atomic.h"
 #include "nimble/ble.h"
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
