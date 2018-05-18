@@ -84,9 +84,6 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local)
 {
     uint8_t *irk;
     uint8_t *prand;
-    uint32_t *irk32;
-    uint32_t *key32;
-    uint32_t *pt32;
     struct ble_encryption_block ecb;
     uint8_t *addr;
 
@@ -105,18 +102,8 @@ ble_ll_resolv_gen_priv_addr(struct ble_ll_resolv_entry *rl, int local)
     ble_ll_rand_prand_get(prand);
 
     /* Calculate hash, hash = ah(local IRK, prand) */
-
-    irk32 = (uint32_t *)irk;
-    key32 = (uint32_t *)&ecb.key[0];
-    key32[0] = irk32[0];
-    key32[1] = irk32[1];
-    key32[2] = irk32[2];
-    key32[3] = irk32[3];
-    pt32 = (uint32_t *)&ecb.plain_text[0];
-    pt32[0] = 0;
-    pt32[1] = 0;
-    pt32[2] = 0;
-    ecb.plain_text[12] = 0;
+    memcpy(ecb.key, irk, 16);
+    memset(ecb.plain_text, 0, 13);
     ecb.plain_text[13] = prand[2];
     ecb.plain_text[14] = prand[1];
     ecb.plain_text[15] = prand[0];
