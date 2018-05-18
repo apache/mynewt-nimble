@@ -550,8 +550,8 @@ static bool is_replay(struct bt_mesh_net_rx *rx)
 	return true;
 }
 
-static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
-		    struct os_mbuf *buf)
+static int sdu_recv(struct bt_mesh_net_rx *rx, u32_t seq, u8_t hdr,
+		    u8_t aszmic, struct os_mbuf *buf)
 {
 	struct os_mbuf *sdu =
 		NET_BUF_SIMPLE(MYNEWT_VAL(BLE_MESH_RX_SDU_MAX) - 4);
@@ -586,7 +586,7 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 		net_buf_simple_init(sdu, 0);
 		err = bt_mesh_app_decrypt(bt_mesh.dev_key, true, aszmic, buf,
 					  sdu, ad, rx->ctx.addr, rx->dst,
-					  rx->seq, BT_MESH_NET_IVI_RX(rx));
+					  seq, BT_MESH_NET_IVI_RX(rx));
 		if (err) {
 			BT_ERR("Unable to decrypt with DevKey");
 			err = -EINVAL;
@@ -621,7 +621,7 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 		net_buf_simple_init(sdu, 0);
 		err = bt_mesh_app_decrypt(keys->val, false, aszmic, buf,
 					  sdu, ad, rx->ctx.addr, rx->dst,
-					  rx->seq, BT_MESH_NET_IVI_RX(rx));
+					  seq, BT_MESH_NET_IVI_RX(rx));
 		if (err) {
 			BT_WARN("Unable to decrypt with AppKey %u", i);
 			continue;
@@ -866,7 +866,7 @@ static int trans_unseg(struct os_mbuf *buf, struct bt_mesh_net_rx *rx,
 			return 0;
 		}
 
-		return sdu_recv(rx, hdr, 0, buf);
+		return sdu_recv(rx, rx->seq, hdr, 0, buf);
 	}
 }
 
@@ -1284,9 +1284,6 @@ found_rx:
 
 	*pdu_type = BT_MESH_FRIEND_PDU_COMPLETE;
 
-	/* Set the correct sequence number to be used with the App Nonce */
-	net_rx->seq = (rx->seq_auth & 0xffffff);
-
 	k_delayed_work_cancel(&rx->ack);
 	send_ack(net_rx->sub, net_rx->dst, net_rx->ctx.addr,
 		 net_rx->ctx.send_ttl, seq_auth, rx->block, rx->obo);
@@ -1294,7 +1291,8 @@ found_rx:
 	if (net_rx->ctl) {
 		err = ctl_recv(net_rx, *hdr, rx->buf, seq_auth);
 	} else {
-		err = sdu_recv(net_rx, *hdr, ASZMIC(hdr), rx->buf);
+		err = sdu_recv(net_rx, (rx->seq_auth & 0xffffff), *hdr,
+			       ASZMIC(hdr), rx->buf);
 	}
 
 	seg_rx_reset(rx, false);
