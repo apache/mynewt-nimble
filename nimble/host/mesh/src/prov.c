@@ -1008,6 +1008,15 @@ done:
     os_mbuf_free_chain(rnd);
 }
 
+static inline bool is_pb_gatt(void)
+{
+#if MYNEWT_VAL(BLE_MESH_PB_GATT)
+	return !!link.conn_handle;
+#else
+	return false;
+#endif
+}
+
 static void prov_data(const u8_t *data)
 {
 	struct os_mbuf *msg = PROV_BUF(1);
@@ -1020,6 +1029,7 @@ static void prov_data(const u8_t *data)
 	u16_t addr;
 	u16_t net_idx;
 	int err;
+	bool identity_enable;
 
 	BT_DBG("");
 
@@ -1071,14 +1081,21 @@ static void prov_data(const u8_t *data)
 	/* Ignore any further PDUs on this link */
 	link.expect = 0;
 
+	/* Store info, since bt_mesh_provision() will end up clearing it */
+	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+		identity_enable = is_pb_gatt();
+	} else {
+		identity_enable = false;
+	}
+
 	bt_mesh_provision(pdu, net_idx, flags, iv_index, 0, addr, dev_key);
 
-#if MYNEWT_VAL(BLE_MESH_PB_GATT) && MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 	/* After PB-GATT provisioning we should start advertising
 	 * using Node Identity.
 	 */
-	bt_mesh_proxy_identity_enable();
-#endif
+	if (identity_enable) {
+		bt_mesh_proxy_identity_enable();
+	}
 
 done:
 	os_mbuf_free_chain(msg);
