@@ -383,6 +383,7 @@ static struct os_mbuf *encode_friend_ctl(struct bt_mesh_friend *frnd,
 					 struct os_mbuf *sdu)
 {
 	struct friend_pdu_info info;
+	u32_t seq;
 
 	BT_DBG("LPN 0x%04x", frnd->lpn);
 
@@ -394,9 +395,10 @@ static struct os_mbuf *encode_friend_ctl(struct bt_mesh_friend *frnd,
 	info.ctl = 1;
 	info.ttl = 0;
 
-	info.seq[0] = (bt_mesh.seq >> 16);
-	info.seq[1] = (bt_mesh.seq >> 8);
-	info.seq[2] = bt_mesh.seq++;
+	seq = bt_mesh_next_seq();
+	info.seq[0] = seq >> 16;
+	info.seq[1] = seq >> 8;
+	info.seq[2] = seq;
 
 	info.iv_index = BT_MESH_NET_IVI_TX;
 
@@ -1159,6 +1161,7 @@ static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,
 {
 	struct friend_pdu_info info;
 	struct os_mbuf *buf;
+	u32_t seq;
 
 	BT_DBG("LPN 0x%04x", frnd->lpn);
 
@@ -1172,9 +1175,10 @@ static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,
 	info.ttl = tx->ctx->send_ttl;
 	info.ctl = (tx->ctx->app_idx == BT_MESH_KEY_UNUSED);
 
-	info.seq[0] = (bt_mesh.seq >> 16);
-	info.seq[1] = (bt_mesh.seq >> 8);
-	info.seq[2] = bt_mesh.seq++;
+	seq = bt_mesh_next_seq();
+	info.seq[0] = seq >> 16;
+	info.seq[1] = seq >> 8;
+	info.seq[2] = seq;
 
 	info.iv_index = BT_MESH_NET_IVI_TX;
 
