@@ -19,7 +19,6 @@
 #include "adv.h"
 #include "net.h"
 #include "transport.h"
-#include "access.h"
 #include "foundation.h"
 #include "mesh/health_cli.h"
 
