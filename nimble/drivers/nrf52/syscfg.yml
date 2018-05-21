@@ -19,6 +19,11 @@
 # Package: hw/drivers/nimble/nrf52
 
 syscfg.defs:
+    BLE_PHY_SYSVIEW:
+        description: >
+            Enable SystemView tracing module for radio driver.
+        value: 0
+
     BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN:
         description: >
             This defines additional margin for T_IFS tolerance while in

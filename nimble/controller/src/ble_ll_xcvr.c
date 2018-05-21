@@ -60,7 +60,6 @@ ble_ll_xcvr_rfclk_disable(void)
 void
 ble_ll_xcvr_rfclk_stop(void)
 {
-    ble_ll_log(BLE_LL_LOG_ID_RFCLK_STOP, g_ble_ll_data.ll_rfclk_state, 0,0);
     os_cputime_timer_stop(&g_ble_ll_data.ll_rfclk_timer);
     ble_ll_xcvr_rfclk_disable();
 }
@@ -113,7 +112,6 @@ ble_ll_xcvr_rfclk_start_now(uint32_t now)
 {
     ble_ll_xcvr_rfclk_enable();
     g_ble_ll_data.ll_rfclk_start_time = now;
-    ble_ll_log(BLE_LL_LOG_ID_RFCLK_ENABLE, 0, 0, now);
 }
 
 /**
@@ -149,7 +147,5 @@ ble_ll_xcvr_rfclk_timer_start(uint32_t cputime)
         os_cputime_timer_stop(&g_ble_ll_data.ll_rfclk_timer);
     }
     os_cputime_timer_start(&g_ble_ll_data.ll_rfclk_timer, cputime);
-    ble_ll_log(BLE_LL_LOG_ID_RFCLK_START, g_ble_ll_data.ll_rfclk_state, 0,
-               g_ble_ll_data.ll_rfclk_timer.expiry);
 }
 #endif

@@ -36,6 +36,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_trace.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: TODO
@@ -791,6 +792,9 @@ ble_ll_adv_tx_done(void *arg)
 
     advsm = (struct ble_ll_adv_sm *)arg;
 
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance,
+                       advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK);
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_ll_adv_active_chanset_is_pri(advsm)) {
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
@@ -803,9 +807,6 @@ ble_ll_adv_tx_done(void *arg)
     assert(ble_ll_adv_active_chanset_is_pri(advsm));
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #endif
-
-    ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
-               advsm->adv_instance, 0);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
@@ -1372,6 +1373,8 @@ ble_ll_adv_halt(void)
     if (g_ble_ll_cur_adv_sm != NULL) {
         advsm = g_ble_ll_cur_adv_sm;
 
+        ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, advsm->adv_instance);
+
         ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
@@ -1381,11 +1384,11 @@ ble_ll_adv_halt(void)
         }
 #endif
 
-        ble_ll_log(BLE_LL_LOG_ID_ADV_TXDONE, ble_ll_state_get(),
-                   advsm->adv_instance, 0);
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_adv_active_chanset_clear(g_ble_ll_cur_adv_sm);
         g_ble_ll_cur_adv_sm = NULL;
+    } else {
+        ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, UINT32_MAX);
     }
 }
 
