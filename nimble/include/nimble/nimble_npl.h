@@ -127,10 +127,10 @@ void ble_npl_callout_stop(struct ble_npl_callout *co);
 
 bool ble_npl_callout_is_active(struct ble_npl_callout *co);
 
-uint32_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
+ble_npl_time_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
 
-uint32_t ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
-                                         ble_npl_time_t time);
+ble_npl_time_t ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
+                                               ble_npl_time_t time);
 
 void ble_npl_callout_set_arg(struct ble_npl_callout *co,
                              void *arg);
