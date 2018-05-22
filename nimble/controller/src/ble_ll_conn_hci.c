@@ -1464,7 +1464,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
     } else {
         connsm->auth_pyld_tmo = tmo;
-        if (ble_npl_callout_queued(&connsm->auth_pyld_timer)) {
+        if (ble_npl_callout_is_active(&connsm->auth_pyld_timer)) {
             ble_ll_conn_auth_pyld_timer_start(connsm);
         }
     }

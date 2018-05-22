@@ -146,10 +146,10 @@ ble_npl_callout_stop(struct ble_npl_callout *co)
 
 }
 
-int
-ble_npl_callout_queued(struct ble_npl_callout *c)
+bool
+ble_npl_callout_is_active(struct ble_npl_callout *c)
 {
-    return 0;
+    return false;
 }
 
 ble_npl_time_t

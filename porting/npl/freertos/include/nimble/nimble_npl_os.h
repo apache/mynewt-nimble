@@ -222,8 +222,8 @@ ble_npl_callout_stop(struct ble_npl_callout *co)
     xTimerStop(co->handle, portMAX_DELAY);
 }
 
-static inline int
-ble_npl_callout_queued(struct ble_npl_callout *co)
+static inline bool
+ble_npl_callout_is_active(struct ble_npl_callout *co)
 {
     return xTimerIsTimerActive(co->handle) == pdTRUE;
 }

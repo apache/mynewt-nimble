@@ -210,8 +210,8 @@ ble_npl_callout_stop(struct ble_npl_callout *co)
     os_callout_stop(&co->co);
 }
 
-static inline int
-ble_npl_callout_queued(struct ble_npl_callout *co)
+static inline bool
+ble_npl_callout_is_active(struct ble_npl_callout *co)
 {
     return os_callout_queued(&co->co);
 }
