@@ -100,15 +100,9 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 }
 
 static inline struct ble_npl_event *
-ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    return npl_freertos_eventq_get_tmo(evq, tmo);
-}
-
-static inline struct ble_npl_event *
-ble_npl_eventq_get(struct ble_npl_eventq *evq)
-{
-    return npl_freertos_eventq_get(evq);
+    return npl_freertos_eventq_get(evq, tmo);
 }
 
 static inline void
@@ -128,7 +122,7 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
 {
     struct ble_npl_event *ev;
 
-    ev = ble_npl_eventq_get(evq);
+    ev = ble_npl_eventq_get(evq, BLE_NPL_TIME_FOREVER);
     assert(ev->fn != NULL);
 
     ev->fn(ev);

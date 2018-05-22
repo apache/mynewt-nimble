@@ -42,7 +42,7 @@ npl_freertos_eventq_dflt_get(void)
 }
 
 struct ble_npl_event *
-npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+npl_freertos_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
     struct ble_npl_event *ev = NULL;
     BaseType_t ret;
@@ -55,12 +55,6 @@ npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
     }
 
     return ev;
-}
-
-struct ble_npl_event *
-npl_freertos_eventq_get(struct ble_npl_eventq *evq)
-{
-    return npl_freertos_eventq_get_tmo(evq, portMAX_DELAY);
 }
 
 void

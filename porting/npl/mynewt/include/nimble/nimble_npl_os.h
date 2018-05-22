@@ -83,15 +83,17 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 }
 
 static inline struct ble_npl_event *
-ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    return (struct ble_npl_event *)os_eventq_poll((struct os_eventq **)&evq, 1, tmo);
-}
+    struct os_event *ev;
 
-static inline struct ble_npl_event *
-ble_npl_eventq_get(struct ble_npl_eventq *evq)
-{
-    return (struct ble_npl_event *)os_eventq_get(&evq->evq);
+    if (tmo == BLE_NPL_TIME_FOREVER) {
+        ev = os_eventq_get(&evq->evq);
+    } else {
+        ev = os_eventq_poll((struct os_eventq **)&evq, 1, tmo);
+    }
+
+    return (struct ble_npl_event *)ev;
 }
 
 static inline void

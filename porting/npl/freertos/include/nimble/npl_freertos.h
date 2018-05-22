@@ -26,9 +26,8 @@ extern "C" {
 
 struct ble_npl_eventq *npl_freertos_eventq_dflt_get(void);
 
-struct ble_npl_event *npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo);
-
-struct ble_npl_event *npl_freertos_eventq_get(struct ble_npl_eventq *evq);
+struct ble_npl_event *npl_freertos_eventq_get(struct ble_npl_eventq *evq,
+                                              ble_npl_time_t tmo);
 
 void npl_freertos_eventq_put(struct ble_npl_eventq *evq,
                              struct ble_npl_event *ev);

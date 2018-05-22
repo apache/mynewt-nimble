@@ -154,7 +154,7 @@ mesh_adv_thread(void *args)
 
 	while (1) {
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
-		ev = ble_npl_eventq_get_tmo(&adv_queue, 0);
+		ev = ble_npl_eventq_get(&adv_queue, 0);
 		while (!ev) {
 			timeout = bt_mesh_proxy_adv_start();
 			BT_DBG("Proxy Advertising up to %d ms", timeout);
@@ -164,11 +164,11 @@ mesh_adv_thread(void *args)
 				timeout = ble_npl_time_ms_to_ticks32(timeout);
 			}
 
-			ev = ble_npl_eventq_get_tmo(&adv_queue, timeout);
+			ev = ble_npl_eventq_get(&adv_queue, timeout);
 			bt_mesh_proxy_adv_stop();
 		}
 #else
-		ev = ble_npl_eventq_get(&adv_queue);
+		ev = ble_npl_eventq_get(&adv_queue, BLE_NPL_TIME_FOREVER);
 #endif
 
 		if (!ev || !ble_npl_event_get_arg(ev)) {
