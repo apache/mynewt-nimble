@@ -131,7 +131,7 @@ static inline void adv_send(struct os_mbuf *buf)
 
 	k_sleep(K_MSEC(duration));
 
-	err = bt_le_adv_stop();
+	err = bt_le_adv_stop(false);
 	adv_send_end(err, cb, cb_data);
 	if (err) {
 		BT_ERR("Stopping advertising failed: err %d", err);

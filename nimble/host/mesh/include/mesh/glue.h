@@ -274,7 +274,7 @@ void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *ad, size_t ad_len,
                     const struct bt_data *sd, size_t sd_len);
-int bt_le_adv_stop(void);
+int bt_le_adv_stop(bool proxy);
 
 struct k_delayed_work {
     struct ble_npl_callout work;

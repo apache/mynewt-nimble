@@ -643,9 +643,21 @@ error:
     return err;
 }
 
-int bt_le_adv_stop(void)
+int bt_le_adv_stop(bool proxy)
 {
-	return ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+    int rc;
+
+    if (proxy) {
+        rc = ble_gap_ext_adv_stop(BT_MESH_ADV_GATT_INST);
+    } else {
+        rc = ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
+    }
+
+    return rc;
+#else
+    return ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
+#endif
 }
 
 #else
@@ -695,7 +707,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
     return 0;
 }
 
-int bt_le_adv_stop(void)
+int bt_le_adv_stop(bool proxy)
 {
 	return ble_gap_adv_stop();
 }
