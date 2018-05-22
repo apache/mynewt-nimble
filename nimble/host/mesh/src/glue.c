@@ -510,6 +510,7 @@ ble_adv_copy_to_ext_param(struct ble_gap_ext_adv_params *ext_param,
     ext_param->itvl_min = param->itvl_min;
     ext_param->channel_map = param->channel_map;
     ext_param->high_duty_directed = param->high_duty_cycle;
+    ext_param->own_addr_type = g_mesh_addr_type;
 }
 
 static int
