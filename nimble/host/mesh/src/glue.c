@@ -32,15 +32,16 @@
 #if MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) < 1
 #error "Mesh needs at least BLE_MULTI_ADV_INSTANCES set to 1"
 #endif
-#define BT_MESH_ADV_PROXY_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) - 1)
+#define BT_MESH_ADV_GATT_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) - 1)
 #endif /* BLE_MESH_PROXY */
 #endif /* BLE_EXT_ADV */
 
 extern u8_t g_mesh_addr_type;
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-#define BLE_ADV_PB_ADV_IDX          (0)
-#define BLE_ADV_PB_GATT_IDX         (1)
+/* Store configuration for different bearers */
+#define BT_MESH_ADV_IDX          (0)
+#define BT_MESH_GATT_IDX         (1)
 static struct ble_gap_adv_params ble_adv_cur_conf[2];
 #endif
 
@@ -522,11 +523,11 @@ ble_adv_conf_adv_instance(const struct ble_gap_adv_params *param, int *instance)
 
     if (param->conn_mode == BLE_GAP_CONN_MODE_NON) {
         *instance = BT_MESH_ADV_INST;
-        cur_conf = &ble_adv_cur_conf[BLE_ADV_PB_ADV_IDX];
+        cur_conf = &ble_adv_cur_conf[BT_MESH_ADV_IDX];
     } else {
 #if MYNEWT_VAL(BLE_MESH_PROXY)
-        *instance = BT_MESH_ADV_PROXY_INST;
-        cur_conf = &ble_adv_cur_conf[BLE_ADV_PB_GATT_IDX];
+        *instance = BT_MESH_ADV_GATT_INST;
+        cur_conf = &ble_adv_cur_conf[BT_MESH_GATT_IDX];
 #else
         assert(0);
 #endif
