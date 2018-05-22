@@ -115,7 +115,7 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
     os_eventq_run(&evq->evq);
 }
 
-static inline int
+static inline bool
 ble_npl_eventq_is_empty(struct ble_npl_eventq *evq)
 {
     return STAILQ_EMPTY(&evq->evq.evq_list);

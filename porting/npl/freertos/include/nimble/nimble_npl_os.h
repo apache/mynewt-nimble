@@ -128,7 +128,7 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
     ev->fn(ev);
 }
 
-static inline int
+static inline bool
 ble_npl_eventq_is_empty(struct ble_npl_eventq *evq)
 {
     return xQueueIsQueueEmptyFromISR(evq->q);

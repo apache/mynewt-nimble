@@ -87,7 +87,7 @@ void *ble_npl_event_get_arg(struct ble_npl_event *ev);
 
 void ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg);
 
-int ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
+bool ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
 
 /*
  * Mutexes
