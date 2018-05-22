@@ -255,7 +255,7 @@ npl_freertos_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq
     ble_npl_event_init(&co->ev, ev_cb, ev_arg);
 }
 
-int
+ble_npl_error_t
 npl_freertos_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     BaseType_t woken1, woken2, woken3;

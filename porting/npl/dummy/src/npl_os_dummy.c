@@ -134,7 +134,7 @@ ble_npl_callout_init(struct ble_npl_callout *c, struct ble_npl_eventq *evq,
 {
 }
 
-int
+ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *c, ble_npl_time_t ticks)
 {
     return BLE_NPL_ENOENT;

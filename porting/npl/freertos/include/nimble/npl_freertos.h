@@ -53,8 +53,8 @@ void npl_freertos_callout_init(struct ble_npl_callout *co,
                                struct ble_npl_eventq *evq,
                                ble_npl_event_fn *ev_cb, void *ev_arg);
 
-int npl_freertos_callout_reset(struct ble_npl_callout *co,
-                               ble_npl_time_t ticks);
+ble_npl_error_t npl_freertos_callout_reset(struct ble_npl_callout *co,
+                                           ble_npl_time_t ticks);
 
 ble_npl_time_t npl_freertos_callout_remaining_ticks(struct ble_npl_callout *co,
 						    ble_npl_time_t now);

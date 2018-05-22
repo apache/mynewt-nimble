@@ -198,7 +198,7 @@ ble_npl_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
     os_callout_init(&co->co, &evq->evq, (os_event_fn *)ev_cb, ev_arg);
 }
 
-static inline int
+static inline ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     return os_callout_reset(&co->co, ticks);
