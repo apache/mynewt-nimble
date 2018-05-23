@@ -430,7 +430,7 @@ ble_hs_timer_sched(int32_t ticks_from_now)
      * sooner than the previous expiration time.
      */
     abs_time = ble_npl_time_get() + ticks_from_now;
-    if (!ble_npl_callout_queued(&ble_hs_timer_timer) ||
+    if (!ble_npl_callout_is_active(&ble_hs_timer_timer) ||
             ((ble_npl_stime_t)(abs_time -
                                ble_npl_callout_get_ticks(&ble_hs_timer_timer))) < 0) {
         ble_hs_timer_reset(ticks_from_now);

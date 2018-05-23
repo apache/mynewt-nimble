@@ -24,12 +24,6 @@
 #if NIMBLE_CFG_CONTROLLER
 #include "controller/ble_ll.h"
 #endif
-#include "services/gap/ble_svc_gap.h"
-#include "services/gatt/ble_svc_gatt.h"
-#include "services/ans/ble_svc_ans.h"
-#include "services/ias/ble_svc_ias.h"
-#include "services/lls/ble_svc_lls.h"
-#include "services/tps/ble_svc_tps.h"
 
 void
 nimble_port_init(void)
@@ -43,14 +37,6 @@ nimble_port_init(void)
     os_msys_init();
 
     ble_hs_init();
-
-    /* XXX These should be configurable somehow */
-    ble_svc_gap_init();
-    ble_svc_gatt_init();
-    ble_svc_ans_init();
-    ble_svc_ias_init();
-    ble_svc_lls_init();
-    ble_svc_tps_init();
 
     /* XXX Need to have template for store */
     ble_store_ram_init();

@@ -83,15 +83,17 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 }
 
 static inline struct ble_npl_event *
-ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    return (struct ble_npl_event *)os_eventq_poll((struct os_eventq **)&evq, 1, tmo);
-}
+    struct os_event *ev;
 
-static inline struct ble_npl_event *
-ble_npl_eventq_get(struct ble_npl_eventq *evq)
-{
-    return (struct ble_npl_event *)os_eventq_get(&evq->evq);
+    if (tmo == BLE_NPL_TIME_FOREVER) {
+        ev = os_eventq_get(&evq->evq);
+    } else {
+        ev = os_eventq_poll((struct os_eventq **)&evq, 1, tmo);
+    }
+
+    return (struct ble_npl_event *)ev;
 }
 
 static inline void
@@ -113,7 +115,7 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
     os_eventq_run(&evq->evq);
 }
 
-static inline int
+static inline bool
 ble_npl_eventq_is_empty(struct ble_npl_eventq *evq)
 {
     return STAILQ_EMPTY(&evq->evq.evq_list);
@@ -196,7 +198,7 @@ ble_npl_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
     os_callout_init(&co->co, &evq->evq, (os_event_fn *)ev_cb, ev_arg);
 }
 
-static inline int
+static inline ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     return os_callout_reset(&co->co, ticks);
@@ -208,8 +210,8 @@ ble_npl_callout_stop(struct ble_npl_callout *co)
     os_callout_stop(&co->co);
 }
 
-static inline int
-ble_npl_callout_queued(struct ble_npl_callout *co)
+static inline bool
+ble_npl_callout_is_active(struct ble_npl_callout *co)
 {
     return os_callout_queued(&co->co);
 }

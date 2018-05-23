@@ -309,7 +309,7 @@ k_fifo_is_empty(struct ble_npl_eventq *q)
 
 void * net_buf_get(struct ble_npl_eventq *fifo, s32_t t)
 {
-    struct ble_npl_event *ev = ble_npl_eventq_get_tmo(fifo, 0);
+    struct ble_npl_event *ev = ble_npl_eventq_get(fifo, 0);
 
     if (ev) {
         return ble_npl_event_get_arg(ev);

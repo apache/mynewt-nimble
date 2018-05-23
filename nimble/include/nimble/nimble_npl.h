@@ -68,10 +68,8 @@ struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
 
 void ble_npl_eventq_init(struct ble_npl_eventq *evq);
 
-struct ble_npl_event *ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq,
-                                             ble_npl_time_t tmo);
-
-struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq);
+struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq,
+                                         ble_npl_time_t tmo);
 
 void ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev);
 
@@ -89,7 +87,7 @@ void *ble_npl_event_get_arg(struct ble_npl_event *ev);
 
 void ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg);
 
-int ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
+bool ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
 
 /*
  * Mutexes
@@ -122,16 +120,17 @@ uint16_t ble_npl_sem_get_count(struct ble_npl_sem *sem);
 void ble_npl_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
                           ble_npl_event_fn *ev_cb, void *ev_arg);
 
-int ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks);
+ble_npl_error_t ble_npl_callout_reset(struct ble_npl_callout *co,
+                                      ble_npl_time_t ticks);
 
 void ble_npl_callout_stop(struct ble_npl_callout *co);
 
-int ble_npl_callout_queued(struct ble_npl_callout *co);
+bool ble_npl_callout_is_active(struct ble_npl_callout *co);
 
-uint32_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
+ble_npl_time_t ble_npl_callout_get_ticks(struct ble_npl_callout *co);
 
-uint32_t ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
-                                         ble_npl_time_t time);
+ble_npl_time_t ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
+                                               ble_npl_time_t time);
 
 void ble_npl_callout_set_arg(struct ble_npl_callout *co,
                              void *arg);

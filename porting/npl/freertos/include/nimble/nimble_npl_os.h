@@ -100,15 +100,9 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 }
 
 static inline struct ble_npl_event *
-ble_npl_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    return npl_freertos_eventq_get_tmo(evq, tmo);
-}
-
-static inline struct ble_npl_event *
-ble_npl_eventq_get(struct ble_npl_eventq *evq)
-{
-    return npl_freertos_eventq_get(evq);
+    return npl_freertos_eventq_get(evq, tmo);
 }
 
 static inline void
@@ -128,13 +122,13 @@ ble_npl_eventq_run(struct ble_npl_eventq *evq)
 {
     struct ble_npl_event *ev;
 
-    ev = ble_npl_eventq_get(evq);
+    ev = ble_npl_eventq_get(evq, BLE_NPL_TIME_FOREVER);
     assert(ev->fn != NULL);
 
     ev->fn(ev);
 }
 
-static inline int
+static inline bool
 ble_npl_eventq_is_empty(struct ble_npl_eventq *evq)
 {
     return xQueueIsQueueEmptyFromISR(evq->q);
@@ -216,7 +210,7 @@ ble_npl_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq,
     npl_freertos_callout_init(co, evq, ev_cb, ev_arg);
 }
 
-static inline int
+static inline ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     return npl_freertos_callout_reset(co, ticks);
@@ -228,8 +222,8 @@ ble_npl_callout_stop(struct ble_npl_callout *co)
     xTimerStop(co->handle, portMAX_DELAY);
 }
 
-static inline int
-ble_npl_callout_queued(struct ble_npl_callout *co)
+static inline bool
+ble_npl_callout_is_active(struct ble_npl_callout *co)
 {
     return xTimerIsTimerActive(co->handle) == pdTRUE;
 }

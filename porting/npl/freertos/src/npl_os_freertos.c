@@ -42,12 +42,19 @@ npl_freertos_eventq_dflt_get(void)
 }
 
 struct ble_npl_event *
-npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+npl_freertos_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
     struct ble_npl_event *ev = NULL;
+    BaseType_t woken;
     BaseType_t ret;
 
-    ret = xQueueReceive(evq->q, &ev, tmo);
+    if (in_isr()) {
+        assert(tmo == 0);
+        ret = xQueueReceiveFromISR(evq->q, &ev, &woken);
+        portYIELD_FROM_ISR(woken);
+    } else {
+        ret = xQueueReceive(evq->q, &ev, tmo);
+    }
     assert(ret == pdPASS || ret == errQUEUE_EMPTY);
 
     if (ev) {
@@ -57,15 +64,10 @@ npl_freertos_eventq_get_tmo(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
     return ev;
 }
 
-struct ble_npl_event *
-npl_freertos_eventq_get(struct ble_npl_eventq *evq)
-{
-    return npl_freertos_eventq_get_tmo(evq, portMAX_DELAY);
-}
-
 void
 npl_freertos_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 {
+    BaseType_t woken;
     BaseType_t ret;
 
     if (ev->queued) {
@@ -74,7 +76,13 @@ npl_freertos_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 
     ev->queued = true;
 
-    ret = xQueueSendToBack(evq->q, &ev, 0);
+    if (in_isr()) {
+        ret = xQueueSendToBackFromISR(evq->q, &ev, &woken);
+        portYIELD_FROM_ISR(woken);
+    } else {
+        ret = xQueueSendToBack(evq->q, &ev, portMAX_DELAY);
+    }
+
     assert(ret == pdPASS);
 }
 
@@ -134,6 +142,8 @@ npl_freertos_mutex_init(struct ble_npl_mutex *mu)
 ble_npl_error_t
 npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
 {
+    BaseType_t ret;
+
     if (!mu) {
         return BLE_NPL_INVALID_PARAM;
     }
@@ -141,14 +151,13 @@ npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
     assert(mu->handle);
 
     if (in_isr()) {
+        ret = pdFAIL;
         assert(0);
     } else {
-        if (xSemaphoreTakeRecursive(mu->handle, timeout) != pdPASS) {
-            return BLE_NPL_TIMEOUT;
-        }
+        ret = xSemaphoreTakeRecursive(mu->handle, timeout);
     }
 
-    return BLE_NPL_OK;
+    return ret == pdPASS ? BLE_NPL_OK : BLE_NPL_TIMEOUT;
 }
 
 ble_npl_error_t
@@ -188,6 +197,7 @@ ble_npl_error_t
 npl_freertos_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
 {
     BaseType_t woken;
+    BaseType_t ret;
 
     if (!sem) {
         return BLE_NPL_INVALID_PARAM;
@@ -197,18 +207,13 @@ npl_freertos_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
 
     if (in_isr()) {
         assert(timeout == 0);
-        if (xSemaphoreTakeFromISR(sem->handle, &woken) != pdPASS) {
-            portYIELD_FROM_ISR(woken);
-            return BLE_NPL_TIMEOUT;
-        }
+        ret = xSemaphoreTakeFromISR(sem->handle, &woken);
         portYIELD_FROM_ISR(woken);
     } else {
-        if (xSemaphoreTake(sem->handle, timeout) != pdPASS) {
-            return BLE_NPL_TIMEOUT;
-        }
+        ret = xSemaphoreTake(sem->handle, timeout);
     }
 
-    return BLE_NPL_OK;
+    return ret == pdPASS ? BLE_NPL_OK : BLE_NPL_TIMEOUT;
 }
 
 ble_npl_error_t
@@ -225,14 +230,12 @@ npl_freertos_sem_release(struct ble_npl_sem *sem)
 
     if (in_isr()) {
         ret = xSemaphoreGiveFromISR(sem->handle, &woken);
-        assert(ret == pdPASS);
-
         portYIELD_FROM_ISR(woken);
     } else {
         ret = xSemaphoreGive(sem->handle);
-        assert(ret == pdPASS);
     }
 
+    assert(ret == pdPASS);
     return BLE_NPL_OK;
 }
 
@@ -261,7 +264,7 @@ npl_freertos_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq
     ble_npl_event_init(&co->ev, ev_cb, ev_arg);
 }
 
-int
+ble_npl_error_t
 npl_freertos_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     BaseType_t woken1, woken2, woken3;
@@ -294,17 +297,15 @@ npl_freertos_callout_remaining_ticks(struct ble_npl_callout *co,
                                      ble_npl_time_t now)
 {
     ble_npl_time_t rt;
-    uint32_t exp = xTimerGetExpiryTime(co->handle);
+    uint32_t exp;
 
-    taskENTER_CRITICAL();
+    exp = xTimerGetExpiryTime(co->handle);
 
     if (exp > now) {
         rt = exp - now;
     } else {
-        return 0;
+        rt = 0;
     }
-
-    taskEXIT_CRITICAL();
 
     return rt;
 }
