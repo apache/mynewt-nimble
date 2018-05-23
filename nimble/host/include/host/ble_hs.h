@@ -20,6 +20,12 @@
 #ifndef H_BLE_HS_
 #define H_BLE_HS_
 
+/**
+ * @brief Bluetooth Host
+ * @defgroup bt_host Bluetooth Host
+ * @{
+ */
+
 #include <inttypes.h>
 #include "nimble/hci_common.h"
 #include "host/ble_att.h"
@@ -45,7 +51,18 @@ extern "C" {
 
 #define BLE_HS_FOREVER              INT32_MAX
 
+/** Connection handle not present */
 #define BLE_HS_CONN_HANDLE_NONE     0xffff
+
+/**
+ * @brief Bluetooth Host Error Code
+ * @defgroup bt_host_err Bluetooth Host Error Code
+ *
+ * Defines error codes returned by Bluetooth host. If error comes from specific
+ * component (eg L2CAP or Security Manager) it is shifted by base allowing to
+ * identify component.
+ * @{
+ */
 
 #define BLE_HS_EAGAIN               1
 #define BLE_HS_EALREADY             2
@@ -77,37 +94,98 @@ extern "C" {
 #define BLE_HS_ESTORE_FAIL          28
 #define BLE_HS_EPREEMPTED           29
 
-#define BLE_HS_ERR_ATT_BASE         0x100   /* 256 */
+/** Error base for ATT errors */
+#define BLE_HS_ERR_ATT_BASE         0x100
+
+/** Converts error to ATT base */
 #define BLE_HS_ATT_ERR(x)           ((x) ? BLE_HS_ERR_ATT_BASE + (x) : 0)
 
-#define BLE_HS_ERR_HCI_BASE         0x200   /* 512 */
+/** Error base for HCI errors */
+#define BLE_HS_ERR_HCI_BASE         0x200
+
+/** Converts error to HCI base */
 #define BLE_HS_HCI_ERR(x)           ((x) ? BLE_HS_ERR_HCI_BASE + (x) : 0)
 
-#define BLE_HS_ERR_L2C_BASE         0x300   /* 768 */
+/** Error base for L2CAP errors */
+#define BLE_HS_ERR_L2C_BASE         0x300
+
+/** Converts error to L2CAP base */
 #define BLE_HS_L2C_ERR(x)           ((x) ? BLE_HS_ERR_L2C_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_US_BASE       0x400   /* 1024 */
+/** Error base for local Security Manager errors */
+#define BLE_HS_ERR_SM_US_BASE       0x400
+
+/** Converts error to local Security Manager base */
 #define BLE_HS_SM_US_ERR(x)         ((x) ? BLE_HS_ERR_SM_US_BASE + (x) : 0)
 
-#define BLE_HS_ERR_SM_PEER_BASE     0x500   /* 1280 */
+/** Error base for remote (peer) Security Manager errors */
+#define BLE_HS_ERR_SM_PEER_BASE     0x500
+
+/** Converts error to remote (peer) Security Manager base */
 #define BLE_HS_SM_PEER_ERR(x)       ((x) ? BLE_HS_ERR_SM_PEER_BASE + (x) : 0)
 
-/* Note: A hardware error of 0 is not success. */
-#define BLE_HS_ERR_HW_BASE          0x600   /* 1536 */
+/** Error base for hardware errors */
+#define BLE_HS_ERR_HW_BASE          0x600
+
+/** Converts error to hardware error  base */
 #define BLE_HS_HW_ERR(x)            (BLE_HS_ERR_HW_BASE + (x))
 
-/* Defines the IO capabilities for the local device. */
+/**
+ * @}
+ */
+
+/**
+ * @brief Bluetooth Host Configuration
+ * @defgroup bt_host_conf Bluetooth Host Configuration
+ *
+ * @{
+ */
+
+/**
+ * @brief Local Input-Output capabilities of device
+ * @defgroup bt_host_io_local Local Input-Output capabilities of device
+ *
+ * @{
+ */
+
+/** DisplayOnly IO capability */
 #define BLE_HS_IO_DISPLAY_ONLY              0x00
+
+/** DisplayYesNo IO capability */
 #define BLE_HS_IO_DISPLAY_YESNO             0x01
+
+/** KeyboardOnly IO capability */
 #define BLE_HS_IO_KEYBOARD_ONLY             0x02
+
+/** NoInputNoOutput IO capability */
 #define BLE_HS_IO_NO_INPUT_OUTPUT           0x03
+
+/** KeyboardDisplay Only IO capability */
 #define BLE_HS_IO_KEYBOARD_DISPLAY          0x04
 
+/**
+ * @}
+ */
+
+/** @brief Stack reset callback
+ *
+ * @param reason Reason code for reset
+ */
 typedef void ble_hs_reset_fn(int reason);
+
+
+/** @brief Stack sync callback */
 typedef void ble_hs_sync_fn(void);
 
+/** @brief Bluetooth Host main configuration structure
+ *
+ * Those can be used by application to configure stack.
+ *
+ * The only reason Security Manager (sm_ members) is configurable at runtime is
+ * to simplify security testing. Defaults for those are configured by selecting
+ * proper options in application's syscfg.
+ */
 struct ble_hs_cfg {
-    /*** GATT server settings. */
     /**
      * An optional callback that gets executed upon registration of each GATT
      * resource (service, characteristic, or descriptor).
@@ -120,64 +198,151 @@ struct ble_hs_cfg {
      */
     void *gatts_register_arg;
 
-    /***
-     * Security manager settings.  The only reason these are configurable at
-     * runtime is to simplify security testing.
-     */
+    /** Security Manager Local Input Output Capabilities */
     uint8_t sm_io_cap;
+
+    /** @brief Security Manager OOB flag
+     *
+     * If set proper flag in Pairing Request/Response will be set.
+     */
     unsigned sm_oob_data_flag:1;
+
+    /** @brief Security Manager Bond flag
+     *
+     * If set proper flag in Pairing Request/Response will be set. This results
+     * in storing keys distributed during bonding.
+     */
     unsigned sm_bonding:1;
+
+    /** @brief Security Manager MITM flag
+     *
+     * If set proper flag in Pairing Request/Response will be set. This results
+     * in requiring Man-In-The-Middle protection when pairing.
+     */
     unsigned sm_mitm:1;
+
+    /** @brief Security Manager Secure Connections flag
+     *
+     * If set proper flag in Pairing Request/Response will be set. This results
+     * in using LE Secure Connections for pairing if also supported by remote
+     * device. Fallback to legacy pairing if not supported by remote.
+     */
     unsigned sm_sc:1;
+
+    /** @brief Security Manager Key Press Notification flag
+     *
+     * Currently unsupported and should not be set.
+     */
     unsigned sm_keypress:1;
+
+    /** @brief Security Manager Local Key Distribution Mask */
     uint8_t sm_our_key_dist;
+
+    /** @brief Security Manager Remote Key Distribution Mask */
     uint8_t sm_their_key_dist;
 
-    /*** HCI settings */
-    /**
+    /** @brief Stack reset callback
+     *
      * This callback is executed when the host resets itself and the controller
      * due to fatal error.
      */
     ble_hs_reset_fn *reset_cb;
 
-    /**
+    /** @brief Stack sync callback
+     *
      * This callback is executed when the host and controller become synced.
      * This happens at startup and after a reset.
      */
     ble_hs_sync_fn *sync_cb;
 
-    /*** Store settings. */
-    /**
-     * These function callbacks handle persistence of sercurity material
-     * (bonding).
-     * XXX: These need to go away.  Instead, the nimble host package should
+    /* XXX: These need to go away. Instead, the nimble host package should
      * require the host-store API (not yet implemented)..
      */
+    /** Storage Read callback handles read of security material */
     ble_store_read_fn *store_read_cb;
+
+    /** Storage Write callback handles write of security material */
     ble_store_write_fn *store_write_cb;
+
+    /** Storage Delete callback handles deletion of security material */
     ble_store_delete_fn *store_delete_cb;
 
-    /**
+    /** @brief Storage Status callback.
+     *
      * This callback gets executed when a persistence operation cannot be
-     * performed or a persistence failure is imminent.  For example, if is
+     * performed or a persistence failure is imminent. For example, if is
      * insufficient storage capacity for a record to be persisted, this
      * function gets called to give the application the opportunity to make
      * room.
      */
     ble_store_status_fn *store_status_cb;
+
+    /** An optional argument that gets passed to the storage status callback. */
     void *store_status_arg;
 };
 
 extern struct ble_hs_cfg ble_hs_cfg;
 
+/**
+ * @}
+ */
+
+/**
+ * Indicates whether the host has synchronized with the controller.
+ * Synchronization must occur before any host procedures can be performed.
+ *
+ * @return 1 if the host and controller are in sync;
+ *         0 if the host and controller our out of sync.
+ */
 int ble_hs_synced(void);
+
+/**
+ * Synchronizes the host with the controller by sending a sequence of HCI
+ * commands.  This function must be called before any other host functionality
+ * is used, but it must be called after both the host and controller are
+ * initialized.  Typically, the host-parent-task calls this function at the top
+ * of its task routine.
+ *
+ * If the host fails to synchronize with the controller (if the controller is
+ * not fully booted, for example), the host will attempt to resynchronize every
+ * 100 ms. For this reason, an error return code is not necessarily fatal.
+ *
+ * @return 0 on success; nonzero on error.
+ */
 int ble_hs_start(void);
+
+/**
+ * Causes the host to reset the NimBLE stack as soon as possible.  The
+ * application is notified when the reset occurs via the host reset callback.
+ *
+ * @param reason The host error code that gets passed to the reset callback.
+ */
 void ble_hs_sched_reset(int reason);
+
+/**
+ * Designates the specified event queue for NimBLE host work. By default, the
+ * host uses the default event queue and runs in the main task. This function
+ * is useful if you want the host to run in a different task.
+ *
+ * @param evq The event queue to use for host work.
+ */
 void ble_hs_evq_set(struct ble_npl_eventq *evq);
+
+/**
+ * Initializes the NimBLE host. This function must be called before the OS is
+ * started. The NimBLE stack requires an application task to function.  One
+ * application task in particular is designated as the "host parent task". In
+ * addition to application-specific work, the host parent task does work for
+ * NimBLE by processing events generated by the host.
+ */
 void ble_hs_init(void);
 
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ * @}
+ */
 
 #endif

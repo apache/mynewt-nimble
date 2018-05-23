@@ -20,6 +20,13 @@
 #ifndef H_BLE_GAP_
 #define H_BLE_GAP_
 
+/**
+ * @brief Bluetooth Host Generic Access Profile (GAP)
+ * @defgroup bt_host_gap Bluetooth Host Generic Access Profile (GAP)
+ * @ingroup bt_host
+ * @{
+ */
+
 #include <inttypes.h>
 #include "host/ble_hs.h"
 #include "host/ble_hs_adv.h"
@@ -86,7 +93,8 @@ struct hci_conn_update;
 /* 50 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MAX       (50 * 1000 / BLE_HCI_CONN_ITVL)
 
-#define BLE_GAP_ADV_DFLT_CHANNEL_MAP        0x07 /* All three channels. */
+/** Default channels mask: all three channels are used. */
+#define BLE_GAP_ADV_DFLT_CHANNEL_MAP        0x07
 
 #define BLE_GAP_INITIAL_CONN_LATENCY        0
 #define BLE_GAP_INITIAL_SUPERVISION_TIMEOUT 0x0100
@@ -134,53 +142,85 @@ struct hci_conn_update;
 #define BLE_GAP_REPEAT_PAIRING_RETRY        1
 #define BLE_GAP_REPEAT_PAIRING_IGNORE       2
 
+/** Connection security state */
 struct ble_gap_sec_state {
+    /** If connection is encrypted */
     unsigned encrypted:1;
+
+    /** If connection is authenticated */
     unsigned authenticated:1;
+
+    /** If connection is bonded (security information is stored)  */
     unsigned bonded:1;
+
+    /** Size of a key used for encryption */
     unsigned key_size:5;
 };
 
-/**
- * conn_mode:                   One of the following constants:
- *                                  o BLE_GAP_CONN_MODE_NON
- *                                      (non-connectable; 3.C.9.3.2).
- *                                  o BLE_GAP_CONN_MODE_DIR
- *                                      (directed-connectable; 3.C.9.3.3).
- *                                  o BLE_GAP_CONN_MODE_UND
- *                                      (undirected-connectable; 3.C.9.3.4).
- * disc_mode:                   One of the following constants:
- *                                  o BLE_GAP_DISC_MODE_NON
- *                                      (non-discoverable; 3.C.9.2.2).
- *                                  o BLE_GAP_DISC_MODE_LTD
- *                                      (limited-discoverable; 3.C.9.2.3).
- *                                  o BLE_GAP_DISC_MODE_GEN
- *                                      (general-discoverable; 3.C.9.2.4).
- */
+/** Advertising parameters */
 struct ble_gap_adv_params {
-    /*** Mandatory fields. */
+    /** Advertising mode. Can be one of following constants:
+     *  - BLE_GAP_CONN_MODE_NON (non-connectable; 3.C.9.3.2).
+     *  - BLE_GAP_CONN_MODE_DIR (directed-connectable; 3.C.9.3.3).
+     *  - BLE_GAP_CONN_MODE_UND (undirected-connectable; 3.C.9.3.4).
+     */
     uint8_t conn_mode;
+    /** Discoverable mode. Can be one of following constants:
+     *  - BLE_GAP_DISC_MODE_NON  (non-discoverable; 3.C.9.2.2).
+     *  - BLE_GAP_DISC_MODE_LTD (limited-discoverable; 3.C.9.2.3).
+     *  - BLE_GAP_DISC_MODE_GEN (general-discoverable; 3.C.9.2.4).
+     */
     uint8_t disc_mode;
 
-    /*** Optional fields; assign 0 to make the stack calculate them. */
+    /** Minimum advertising interval, if 0 stack use sane defaults */
     uint16_t itvl_min;
+    /** Maximum advertising interval, if 0 stack use sane defaults */
     uint16_t itvl_max;
+    /** Advertising channel map , if 0 stack use sane defaults */
     uint8_t channel_map;
+
+    /** Advertising  Filter policy */
     uint8_t filter_policy;
+
+    /** If do High Duty cycle for Directed Advertising */
     uint8_t high_duty_cycle:1;
 };
 
+/** @brief Connection descriptor */
 struct ble_gap_conn_desc {
+    /** Connection security state */
     struct ble_gap_sec_state sec_state;
+
+    /** Local identity address */
     ble_addr_t our_id_addr;
+
+    /** Peer identity address */
     ble_addr_t peer_id_addr;
+
+    /** Local over-the-air address */
     ble_addr_t our_ota_addr;
+
+    /** Peer over-the-air address */
     ble_addr_t peer_ota_addr;
+
+    /** Connection handle */
     uint16_t conn_handle;
+
+    /** Connection interval */
     uint16_t conn_itvl;
+
+    /** Connection latency */
     uint16_t conn_latency;
+
+    /** Connection supervision timeout */
     uint16_t supervision_timeout;
+
+    /** Connection Role
+     * Possible values BLE_GAP_ROLE_SLAVE or BLE_GAP_ROLE_MASTER
+     */
     uint8_t role;
+
+    /** Master clock accuracy */
     uint8_t master_clock_accuracy;
 };
 
@@ -681,19 +721,135 @@ typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
 #define BLE_GAP_DISC_MODE_LTD               1
 #define BLE_GAP_DISC_MODE_GEN               2
 
+/**
+ * Searches for a connection with the specified handle.  If a matching
+ * connection is found, the supplied connection descriptor is filled
+ * correspondingly.
+ *
+ * @param handle    The connection handle to search for.
+ * @param out_desc  On success, this is populated with information relating to
+ *                  the matching connection.  Pass NULL if you don't need this
+ *                  information.
+ *
+ * @return          0 on success, BLE_HS_ENOTCONN if no matching connection was
+ *                  found.
+ */
 int ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc);
+
+/**
+ * Configures a connection to use the specified GAP event callback.  A
+ * connection's GAP event callback is first specified when the connection is
+ * created, either via advertising or initiation.  This function replaces the
+ * callback that was last configured.
+ *
+ * @param conn_handle   The handle of the connection to configure.
+ * @param cb            The callback to associate with the connection.
+ * @param cb_arg        An optional argument that the callback receives.
+ *
+ * @return              0 on success, BLE_HS_ENOTCONN if there is no connection
+ *                      with the specified handle.
+ */
 int ble_gap_set_event_cb(uint16_t conn_handle,
                          ble_gap_event_fn *cb, void *cb_arg);
 
+/** @brief Start advertising
+ *
+ * This function configures and start advertising procedure.
+ *
+ * @param own_addr_type The type of address the stack should use for itself.
+ *                      Valid values are:
+ *                         - BLE_OWN_ADDR_PUBLIC
+ *                         - BLE_OWN_ADDR_RANDOM
+ *                         - BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
+ *                         - BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
+ * @param direct_addr   The peer's address for directed advertising. his
+ *                      parameter shall be non-NULL if directed advertising is
+ *                      being used.
+ * @param duration_ms   The duration of the advertisement procedure. On
+ *                      expiration, the procedure ends and a
+ *                      BLE_GAP_EVENT_ADV_COMPLETE event is reported. Units are
+ *                      milliseconds. Specify BLE_HS_FOREVER for no expiration.
+ * @param adv_params    Additional arguments specifying the particulars of the
+ *                      advertising procedure.
+ * @param cb            The callback to associate with this advertising
+ *                      procedure.  If advertising ends, the event is reported
+ *                      through this callback.  If advertising results in a
+ *                      connection, the connection inherits this callback as its
+ *                      event-reporting mechanism.
+ * @param cb_arg        The optional argument to pass to the callback function.
+ *
+ * @return              0 on success, error code on failure.
+ */
 int ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                       int32_t duration_ms,
                       const struct ble_gap_adv_params *adv_params,
                       ble_gap_event_fn *cb, void *cb_arg);
+
+/**
+ * Stops the currently-active advertising procedure.  A success return
+ * code indicates that advertising has been fully aborted and a new advertising
+ * procedure can be initiated immediately.
+ *
+ * @return  0 on success, BLE_HS_EALREADY if there is no active advertising
+ *          procedure, other error code on failure.
+ */
 int ble_gap_adv_stop(void);
+
+/**
+ * Indicates whether an advertisement procedure is currently in progress.
+ *
+ * @return 0 if no advertisement procedure in progress, 1 otherwise.
+ */
 int ble_gap_adv_active(void);
+
+/**
+ * Configures the data to include in subsequent advertisements.
+ *
+ * @param data      Buffer containing the advertising data.
+ * @param data_len  The size of the advertising data, in bytes.
+ *
+ * @return          0 on succes,  BLE_HS_EBUSY if advertising is in progress,
+ *                  other error code on failure.
+ */
 int ble_gap_adv_set_data(const uint8_t *data, int data_len);
+
+/**
+ * Configures the data to include in subsequent scan responses.
+ *
+ * @param data      Buffer containing the scan response data.
+ * @param data_len  The size of the response data, in bytes.
+ *
+ * @return          0 on succes,  BLE_HS_EBUSY if advertising is in progress,
+ *                  other error code on failure.
+ */
 int ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len);
+
+/**
+ * Configures the fields to include in subsequent advertisements.  This is a
+ * convenience wrapper for ble_gap_adv_set_data().
+ *
+ * @param adv_fields    Specifies the advertisement data.
+ *
+ * @return              0 on success,
+ *                      BLE_HS_EBUSY if advertising is in progress,
+ *                      BLE_HS_EMSGSIZE if the specified data is too large to
+ *                      fit in an advertisement,
+ *                      other error code on failure.
+ */
 int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
+
+/**
+ * Configures the fields to include in subsequent scan responses.  This is a
+ * convenience wrapper for ble_gap_adv_rsp_set_data().
+ *
+ * @param adv_fields   Specifies the scan response data.
+ *
+ * @return              0 on success,
+ *                      BLE_HS_EBUSY if advertising is in progress,
+ *                      BLE_HS_EMSGSIZE if the specified data is too large to
+ *                      fit in a scan response,
+ *                      other error code on failure.
+ */
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -731,37 +887,298 @@ int ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data);
 int ble_gap_ext_adv_remove(uint8_t instance);
 #endif
 
+/**
+ * Performs the Limited or General Discovery Procedures.
+ *
+ * @param own_addr_type         The type of address the stack should use for
+ *                                  itself when sending scan requests.  Valid
+ *                                  values are:
+ *                                      - BLE_ADDR_TYPE_PUBLIC
+ *                                      - BLE_ADDR_TYPE_RANDOM
+ *                                      - BLE_ADDR_TYPE_RPA_PUB_DEFAULT
+ *                                      - BLE_ADDR_TYPE_RPA_RND_DEFAULT
+ *                                  This parameter is ignored unless active
+ *                                  scanning is being used.
+ * @param duration_ms           The duration of the discovery procedure.
+ *                                  On expiration, the procedure ends and a
+ *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
+ *                                  reported.  Units are milliseconds.  Specify
+ *                                  BLE_HS_FOREVER for no expiration.
+ * @param disc_params           Additional arguments specifying the particulars
+ *                                  of the discovery procedure.
+ * @param cb                    The callback to associate with this discovery
+ *                                  procedure.  Advertising reports and
+ *                                  discovery termination events are reported
+ *                                  through this callback.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_event_fn *cb, void *cb_arg);
+
 int ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
                      uint8_t filter_duplicates, uint8_t filter_policy,
                      uint8_t limited,
                      const struct ble_gap_ext_disc_params *uncoded_params,
                      const struct ble_gap_ext_disc_params *coded_params,
                      ble_gap_event_fn *cb, void *cb_arg);
+
+/**
+ * Cancels the discovery procedure currently in progress.  A success return
+ * code indicates that scanning has been fully aborted; a new discovery or
+ * connect procedure can be initiated immediately.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if there is no discovery
+ *                                  procedure to cancel;
+ *                              Other nonzero on unexpected error.
+ */
 int ble_gap_disc_cancel(void);
+
+/**
+ * Indicates whether a discovery procedure is currently in progress.
+ *
+ * @return                      0: No discovery procedure in progress;
+ *                              1: Discovery procedure in progress.
+ */
 int ble_gap_disc_active(void);
+
+/**
+ * Initiates a connect procedure.
+ *
+ * @param own_addr_type         The type of address the stack should use for
+ *                                  itself during connection establishment.
+ *                                      - BLE_OWN_ADDR_PUBLIC
+ *                                      - BLE_OWN_ADDR_RANDOM
+ *                                      - BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
+ *                                      - BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
+ * @param peer_addr             The address of the peer to connect to.
+ *                                  If this parameter is NULL, the white list
+ *                                  is used.
+ * @param duration_ms           The duration of the discovery procedure.
+ *                                  On expiration, the procedure ends and a
+ *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
+ *                                  reported.  Units are milliseconds.
+ * @param conn_params           Additional arguments specifying the particulars
+ *                                  of the connect procedure.  Specify null for
+ *                                  default values.
+ * @param cb                    The callback to associate with this connect
+ *                                  procedure.  When the connect procedure
+ *                                  completes, the result is reported through
+ *                                  this callback.  If the connect procedure
+ *                                  succeeds, the connection inherits this
+ *                                  callback as its event-reporting mechanism.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if a connection attempt is
+ *                                  already in progress;
+ *                              BLE_HS_EBUSY if initiating a connection is not
+ *                                  possible because scanning is in progress;
+ *                              BLE_HS_EDONE if the specified peer is already
+ *                                  connected;
+ *                              Other nonzero on error.
+ */
 int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                     int32_t duration_ms,
                     const struct ble_gap_conn_params *params,
                     ble_gap_event_fn *cb, void *cb_arg);
+
+/**
+ * Initiates an extended connect procedure.
+ *
+ * @param own_addr_type         The type of address the stack should use for
+ *                                  itself during connection establishment.
+ *                                      - BLE_OWN_ADDR_PUBLIC
+ *                                      - BLE_OWN_ADDR_RANDOM
+ *                                      - BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
+ *                                      - BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
+ * @param peer_addr             The address of the peer to connect to.
+ *                                  If this parameter is NULL, the white list
+ *                                  is used.
+ * @param duration_ms           The duration of the discovery procedure.
+ *                                  On expiration, the procedure ends and a
+ *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
+ *                                  reported.  Units are milliseconds.
+ * @param phy_mask              Define on which PHYs connection attempt should
+ *                                  be done
+ * @param phy_1m_conn_params     Additional arguments specifying the
+ *                                  particulars of the connect procedure. When
+ *                                  BLE_GAP_LE_PHY_1M_MASK is set in phy_mask
+ *                                  this parameter can be specify to null for
+ *                                  default values.
+ * @param phy_2m_conn_params     Additional arguments specifying the
+ *                                  particulars of the connect procedure. When
+ *                                  BLE_GAP_LE_PHY_2M_MASK is set in phy_mask
+ *                                  this parameter can be specify to null for
+ *                                  default values.
+ * @param phy_coded_conn_params  Additional arguments specifying the
+ *                                  particulars of the connect procedure. When
+ *                                  BLE_GAP_LE_PHY_CODED_MASK is set in
+ *                                  phy_mask this parameter can be specify to
+ *                                  null for default values.
+ * @param cb                    The callback to associate with this connect
+ *                                  procedure.  When the connect procedure
+ *                                  completes, the result is reported through
+ *                                  this callback.  If the connect procedure
+ *                                  succeeds, the connection inherits this
+ *                                  callback as its event-reporting mechanism.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if a connection attempt is
+ *                                  already in progress;
+ *                              BLE_HS_EBUSY if initiating a connection is not
+ *                                  possible because scanning is in progress;
+ *                              BLE_HS_EDONE if the specified peer is already
+ *                                  connected;
+ *                              Other nonzero on error.
+ */
 int ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                         int32_t duration_ms, uint8_t phy_mask,
                         const struct ble_gap_conn_params *phy_1m_conn_params,
                         const struct ble_gap_conn_params *phy_2m_conn_params,
                         const struct ble_gap_conn_params *phy_coded_conn_params,
                         ble_gap_event_fn *cb, void *cb_arg);
+
+/**
+ * Aborts a connect procedure in progress.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EALREADY if there is no active connect
+ *                                  procedure.
+ *                              Other nonzero on error.
+ */
 int ble_gap_conn_cancel(void);
+
+/**
+ * Indicates whether a connect procedure is currently in progress.
+ *
+ * @return                      0: No connect procedure in progress;
+ *                              1: Connect procedure in progress.
+ */
 int ble_gap_conn_active(void);
+
+/**
+ * Terminates an established connection.
+ *
+ * @param conn_handle           The handle corresponding to the connection to
+ *                                  terminate.
+ * @param hci_reason            The HCI error code to indicate as the reason
+ *                                  for termination.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if there is no connection with
+ *                                  the specified handle;
+ *                              Other nonzero on failure.
+ */
 int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
+
+/**
+ * Overwrites the controller's white list with the specified contents.
+ *
+ * @param addrs                 The entries to write to the white list.
+ * @param white_list_count      The number of entries in the white list.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count);
+
+/**
+ * Initiates a connection parameter update procedure.
+ *
+ * @param conn_handle           The handle corresponding to the connection to
+ *                                  update.
+ * @param params                The connection parameters to attempt to update
+ *                                  to.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if the there is no connection
+ *                                  with the specified handle;
+ *                              BLE_HS_EALREADY if a connection update
+ *                                  procedure for this connection is already in
+ *                                  progress;
+ *                              BLE_HS_EINVAL if requested parameters are
+ *                                  invalid;
+ *                              Other nonzero on error.
+ */
 int ble_gap_update_params(uint16_t conn_handle,
                           const struct ble_gap_upd_params *params);
+
+/**
+ * Initiates the GAP security procedure.
+ *
+ * Depending on connection role and stored security information this function
+ * will start appropriate security procedure (pairing or encryption).
+ *
+ * @param conn_handle           The handle corresponding to the connection to
+ *                              secure.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if the there is no connection
+ *                                  with the specified handle;
+ *                              BLE_HS_EALREADY if an security procedure for
+ *                                  this connection is already in progress;
+ *                              Other nonzero on error.
+ */
 int ble_gap_security_initiate(uint16_t conn_handle);
+
+/**
+ * Initiates the GAP pairing procedure as a master. This is for testing only and
+ * should not be used by application. Use ble_gap_security_initiate() instead.
+ *
+ * @param conn_handle           The handle corresponding to the connection to
+ *                              start pairing on.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if the there is no connection
+ *                                  with the specified handle;
+ *                              BLE_HS_EALREADY if an pairing procedure for
+ *                                  this connection is already in progress;
+ *                              Other nonzero on error.
+ */
 int ble_gap_pair_initiate(uint16_t conn_handle);
+
+/**
+ * Initiates the GAP encryption procedure as a master. This is for testing only
+ * and should not be used by application. Use ble_gap_security_initiate()
+ * instead.
+ *
+ * @param conn_handle           The handle corresponding to the connection to
+ *                              start encryption.
+ * @param ltk                   Long Term Key to be used for encryption.
+ * @param udiv                  Encryption Diversifier for LTK
+ * @param rand_val              Random Value for EDIV and LTK
+ * @param auth                  If LTK provided is authenticated.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if the there is no connection
+ *                                  with the specified handle;
+ *                              BLE_HS_EALREADY if an encryption procedure for
+ *                                  this connection is already in progress;
+ *                              Other nonzero on error.
+ */
 int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
                                 uint16_t ediv, uint64_t rand_val, int auth);
+
+/**
+ * Retrieves the most-recently measured RSSI for the specified connection.  A
+ * connection's RSSI is updated whenever a data channel PDU is received.
+ *
+ * @param conn_handle           Specifies the connection to query.
+ * @param out_rssi              On success, the retrieved RSSI is written here.
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
 int ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi);
 
 #define BLE_GAP_PRIVATE_MODE_NETWORK        0
@@ -793,5 +1210,9 @@ int ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg);
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ * @}
+ */
 
 #endif

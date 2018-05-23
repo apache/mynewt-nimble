@@ -84,16 +84,6 @@ ble_hs_mbuf_l2cap_pkt(void)
     return ble_hs_mbuf_gen_pkt(BLE_HCI_DATA_HDR_SZ + BLE_L2CAP_HDR_SZ);
 }
 
-/**
- * Allocates an mbuf suitable for an ATT command packet.  The resulting packet
- * has sufficient leading space for:
- *     o ACL data header
- *     o L2CAP B-frame header
- *     o Largest ATT command base (prepare write request / response).
- *
- * @return                  An empty mbuf on success; null on memory
- *                              exhaustion.
- */
 struct os_mbuf *
 ble_hs_mbuf_att_pkt(void)
 {
@@ -105,16 +95,6 @@ ble_hs_mbuf_att_pkt(void)
                                 BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
 }
 
-/**
- * Allocates a an mbuf and fills it with the contents of the specified flat
- * buffer.
- *
- * @param buf                   The flat buffer to copy from.
- * @param len                   The length of the flat buffer.
- *
- * @return                      A newly-allocated mbuf on success;
- *                              NULL on memory exhaustion.
- */
 struct os_mbuf *
 ble_hs_mbuf_from_flat(const void *buf, uint16_t len)
 {
@@ -135,23 +115,6 @@ ble_hs_mbuf_from_flat(const void *buf, uint16_t len)
     return om;
 }
 
-/**
- * Copies the contents of an mbuf into the specified flat buffer.  If the flat
- * buffer is too small to contain the mbuf's contents, it is filled to capacity
- * and BLE_HS_EMSGSIZE is returned.
- *
- * @param om                    The mbuf to copy from.
- * @param flat                  The destination flat buffer.
- * @param max_len               The size of the flat buffer.
- * @param out_copy_len          The number of bytes actually copied gets
- *                                  written here.
- *
- * @return                      0 on success;
- *                              BLE_HS_EMSGSIZE if the flat buffer is too small
- *                                  to contain the mbuf's contents;
- *                              A BLE host core return code on unexpected
- *                                  error.
- */
 int
 ble_hs_mbuf_to_flat(const struct os_mbuf *om, void *flat, uint16_t max_len,
                     uint16_t *out_copy_len)
