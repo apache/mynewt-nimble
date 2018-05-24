@@ -85,14 +85,6 @@ ble_npl_get_current_task_id(void)
     return xTaskGetCurrentTaskHandle();
 }
 
-struct ble_npl_eventq *npl_freertos_eventq_dflt_get(void);
-
-static inline struct ble_npl_eventq *
-ble_npl_eventq_dflt_get(void)
-{
-    return npl_freertos_eventq_dflt_get();
-}
-
 static inline void
 ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {
@@ -118,13 +110,8 @@ ble_npl_eventq_remove(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 }
 
 static inline void
-ble_npl_eventq_run(struct ble_npl_eventq *evq)
+ble_npl_event_run(struct ble_npl_event *ev)
 {
-    struct ble_npl_event *ev;
-
-    ev = ble_npl_eventq_get(evq, BLE_NPL_TIME_FOREVER);
-    assert(ev->fn != NULL);
-
     ev->fn(ev);
 }
 
@@ -294,13 +281,15 @@ ble_npl_hw_set_isr(int irqn, uint32_t addr)
 static inline uint32_t
 ble_npl_hw_enter_critical(void)
 {
-    return npl_freertos_hw_enter_critical();
+    vPortEnterCritical();
+    return 0;
 }
 
 static inline void
 ble_npl_hw_exit_critical(uint32_t ctx)
 {
-    npl_freertos_hw_exit_critical(ctx);
+    vPortExitCritical();
+
 }
 
 #ifdef __cplusplus

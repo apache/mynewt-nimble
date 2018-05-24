@@ -29,18 +29,6 @@ in_isr(void)
     return (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) != 0;
 }
 
-static struct ble_npl_eventq dflt_evq;
-
-struct ble_npl_eventq *
-npl_freertos_eventq_dflt_get(void)
-{
-    if (!dflt_evq.q) {
-        dflt_evq.q = xQueueCreate(32, sizeof(struct ble_npl_eventq *));
-    }
-
-    return &dflt_evq;
-}
-
 struct ble_npl_event *
 npl_freertos_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
@@ -94,6 +82,7 @@ npl_freertos_eventq_remove(struct ble_npl_eventq *evq,
     BaseType_t ret;
     int i;
     int count;
+    BaseType_t woken, woken2;
 
     if (!ev->queued) {
         return;
@@ -106,22 +95,43 @@ npl_freertos_eventq_remove(struct ble_npl_eventq *evq,
      * better use counting semaphore with os_queue to handle this in future.
      */
 
-    vPortEnterCritical();
+    if (in_isr()) {
+        woken = pdFALSE;
 
-    count = uxQueueMessagesWaiting(evq->q);
-    for (i = 0; i < count; i++) {
-        ret = xQueueReceive(evq->q, &tmp_ev, 0);
-        assert(ret == pdPASS);
+        count = uxQueueMessagesWaitingFromISR(evq->q);
+        for (i = 0; i < count; i++) {
+            ret = xQueueReceiveFromISR(evq->q, &tmp_ev, &woken2);
+            assert(ret == pdPASS);
+            woken |= woken2;
 
-        if (tmp_ev == ev) {
-            continue;
+            if (tmp_ev == ev) {
+                continue;
+            }
+
+            ret = xQueueSendToBackFromISR(evq->q, &tmp_ev, &woken2);
+            assert(ret == pdPASS);
+            woken |= woken2;
         }
 
-        ret = xQueueSendToBack(evq->q, &tmp_ev, 0);
-        assert(ret == pdPASS);
-    }
+        portYIELD_FROM_ISR(woken);
+    } else {
+        vPortEnterCritical();
 
-    vPortExitCritical();
+        count = uxQueueMessagesWaiting(evq->q);
+        for (i = 0; i < count; i++) {
+            ret = xQueueReceive(evq->q, &tmp_ev, 0);
+            assert(ret == pdPASS);
+
+            if (tmp_ev == ev) {
+                continue;
+            }
+
+            ret = xQueueSendToBack(evq->q, &tmp_ev, 0);
+            assert(ret == pdPASS);
+        }
+
+        vPortExitCritical();
+    }
 
     ev->queued = 0;
 }

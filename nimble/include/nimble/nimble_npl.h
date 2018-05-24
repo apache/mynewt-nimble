@@ -64,8 +64,6 @@ void *ble_npl_get_current_task_id(void);
  * Event queue
  */
 
-struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
-
 void ble_npl_eventq_init(struct ble_npl_eventq *evq);
 
 struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq,
@@ -75,8 +73,6 @@ void ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev);
 
 void ble_npl_eventq_remove(struct ble_npl_eventq *evq,
                            struct ble_npl_event *ev);
-
-void ble_npl_eventq_run(struct ble_npl_eventq *evq);
 
 void ble_npl_event_init(struct ble_npl_event *ev, ble_npl_event_fn *fn,
                         void *arg);
@@ -88,6 +84,8 @@ void *ble_npl_event_get_arg(struct ble_npl_event *ev);
 void ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg);
 
 bool ble_npl_eventq_is_empty(struct ble_npl_eventq *evq);
+
+void ble_npl_event_run(struct ble_npl_event *ev);
 
 /*
  * Mutexes

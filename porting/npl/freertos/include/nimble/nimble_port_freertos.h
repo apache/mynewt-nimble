@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_PORT_H
-#define _NIMBLE_PORT_H
+#ifndef _NIMBLE_PORT_FREERTOS_H
+#define _NIMBLE_PORT_FREERTOS_H
 
 #include "nimble/nimble_npl.h"
 
@@ -26,18 +26,10 @@
 extern "C" {
 #endif
 
-void nimble_port_init(void);
-
-void nimble_port_run(void);
-
-struct ble_npl_eventq *nimble_port_get_dflt_eventq(void);
-
-#if NIMBLE_CFG_CONTROLLER
-void nimble_port_ll_task_func(void *arg);
-#endif
+void nimble_port_freertos_init(TaskFunction_t host_task_fn);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _NIMBLE_PORT_H */
+#endif /* _NIMBLE_PORT_FREERTOS_H */

@@ -32,16 +32,15 @@ ble_npl_get_current_task_id(void)
     return NULL;
 }
 
-struct ble_npl_eventq *
-ble_npl_eventq_dflt_get(void)
-{
-    return NULL;
-}
-
 void
 ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {
 
+}
+
+struct ble_npl_event *
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+{
 }
 
 void
@@ -57,7 +56,7 @@ ble_npl_eventq_remove(struct ble_npl_eventq *evq,
 }
 
 void
-ble_npl_eventq_run(struct ble_npl_eventq *evq)
+ble_npl_event_run(struct ble_npl_event *ev)
 {
 
 }

@@ -25,6 +25,8 @@
 #include "controller/ble_ll.h"
 #endif
 
+static struct ble_npl_eventq g_eventq_dflt;
+
 void
 nimble_port_init(void)
 {
@@ -33,6 +35,9 @@ nimble_port_init(void)
 #if NIMBLE_CFG_CONTROLLER
     void ble_hci_ram_init(void);
 #endif
+
+    /* Initialize default event queue */
+    ble_npl_eventq_init(&g_eventq_dflt);
 
     os_msys_init();
 
@@ -47,6 +52,23 @@ nimble_port_init(void)
     ble_ll_init();
     ble_hci_ram_init();
 #endif
+}
+
+void
+nimble_port_run(void)
+{
+    struct ble_npl_event *ev;
+
+    while (1) {
+        ev = ble_npl_eventq_get(&g_eventq_dflt, BLE_NPL_TIME_FOREVER);
+        ble_npl_event_run(ev);
+    }
+}
+
+struct ble_npl_eventq *
+nimble_port_get_dflt_eventq(void)
+{
+    return &g_eventq_dflt;
 }
 
 #if NIMBLE_CFG_CONTROLLER
