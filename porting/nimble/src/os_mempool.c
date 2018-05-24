@@ -136,6 +136,45 @@ os_mempool_ext_init(struct os_mempool_ext *mpe, uint16_t blocks,
     return 0;
 }
 
+os_error_t
+os_mempool_clear(struct os_mempool *mp)
+{
+    struct os_memblock *block_ptr;
+    int true_block_size;
+    uint8_t *block_addr;
+    uint16_t blocks;
+
+    if (!mp) {
+        return OS_INVALID_PARM;
+    }
+
+    true_block_size = OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size);
+
+    /* cleanup the memory pool structure */
+    mp->mp_num_free = mp->mp_num_blocks;
+    mp->mp_min_free = mp->mp_num_blocks;
+    os_mempool_poison((void *)mp->mp_membuf_addr, true_block_size);
+    SLIST_FIRST(mp) = (void *)mp->mp_membuf_addr;
+
+    /* Chain the memory blocks to the free list */
+    block_addr = (uint8_t *)mp->mp_membuf_addr;
+    block_ptr = (struct os_memblock *)block_addr;
+    blocks = mp->mp_num_blocks;
+
+    while (blocks > 1) {
+        block_addr += true_block_size;
+        os_mempool_poison(block_addr, true_block_size);
+        SLIST_NEXT(block_ptr, mb_next) = (struct os_memblock *)block_addr;
+        block_ptr = (struct os_memblock *)block_addr;
+        --blocks;
+    }
+
+    /* Last one in the list should be NULL */
+    SLIST_NEXT(block_ptr, mb_next) = NULL;
+
+    return OS_OK;
+}
+
 bool
 os_mempool_is_sane(const struct os_mempool *mp)
 {
@@ -194,8 +233,6 @@ os_memblock_get(struct os_mempool *mp)
             /* Get a free block */
             block = SLIST_FIRST(mp);
 
-            os_mempool_poison_check(block, OS_MEMPOOL_TRUE_BLOCK_SIZE(mp));
-
             /* Set new free list head */
             SLIST_FIRST(mp) = SLIST_NEXT(block, mb_next);
 
@@ -206,6 +243,10 @@ os_memblock_get(struct os_mempool *mp)
             }
         }
         OS_EXIT_CRITICAL(sr);
+
+        if (block) {
+            os_mempool_poison_check(block, OS_MEMPOOL_TRUE_BLOCK_SIZE(mp));
+        }
     }
 
     return (void *)block;

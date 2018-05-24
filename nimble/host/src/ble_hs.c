@@ -117,14 +117,18 @@ ble_hs_evq_set(struct ble_npl_eventq *evq)
 int
 ble_hs_locked_by_cur_task(void)
 {
+#if MYNEWT
     struct os_task *owner;
 
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         return ble_hs_dbg_mutex_locked;
     }
 
     owner = ble_hs_mutex.mu.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
+#else
+    return 1;
+#endif
 }
 #endif
 
@@ -147,7 +151,7 @@ ble_hs_lock_nested(void)
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         ble_hs_dbg_mutex_locked = 1;
         return;
     }
@@ -166,7 +170,7 @@ ble_hs_unlock_nested(void)
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         ble_hs_dbg_mutex_locked = 0;
         return;
     }
@@ -184,7 +188,7 @@ ble_hs_lock(void)
 {
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
 #if MYNEWT_VAL(BLE_HS_DEBUG)
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         BLE_HS_DBG_ASSERT(!ble_hs_dbg_mutex_locked);
     }
 #endif
@@ -199,7 +203,7 @@ void
 ble_hs_unlock(void)
 {
 #if MYNEWT_VAL(BLE_HS_DEBUG)
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         BLE_HS_DBG_ASSERT(ble_hs_dbg_mutex_locked);
     }
 #endif
@@ -517,7 +521,7 @@ void
 ble_hs_notifications_sched(void)
 {
 #if !MYNEWT_VAL(BLE_HS_REQUIRE_OS)
-    if (!os_started()) {
+    if (!ble_npl_os_started()) {
         ble_gatts_tx_notifications();
         return;
     }

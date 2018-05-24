@@ -3528,7 +3528,7 @@ ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     return BLE_HS_ENOTSUP;
 #endif
 
-    uint32_t duration_ticks;
+    ble_npl_time_t duration_ticks;
     int rc;
 
     STATS_INC(ble_gap_stats, initiate);
@@ -3584,7 +3584,7 @@ ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     }
 
     if (duration_ms != BLE_HS_FOREVER) {
-        rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
+        rc = ble_npl_time_ms_to_ticks(duration_ms, &duration_ticks);
         if (rc != 0) {
             /* Duration too great. */
             rc = BLE_HS_EINVAL;

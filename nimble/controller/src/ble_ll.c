@@ -43,7 +43,7 @@
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
-#include <ble_ll_dtm_priv.h>
+#include "ble_ll_dtm_priv.h"
 #endif
 
 /* XXX:
