@@ -1090,6 +1090,17 @@ ble_ll_task(void *arg)
 {
     struct ble_npl_event *ev;
 
+    /*
+     * XXX RIOT ties event queue to a thread which initialized it so we need to
+     * create event queue in LL task, not in general init function. This can
+     * lead to some races between host and LL so for now let us have it as a
+     * hack for RIOT where races can be avoided by proper initialization inside
+     * package.
+     */
+#ifdef RIOT_VERSION
+    ble_npl_eventq_init(&g_ble_ll_data.ll_evq);
+#endif
+
     /* Init ble phy */
     ble_phy_init();
 
@@ -1456,8 +1467,17 @@ ble_ll_init(void)
     lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_ACL_BUF_COUNT);
     lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
 
+    /*
+     * XXX RIOT ties event queue to a thread which initialized it so we need to
+     * create event queue in LL task, not in general init function. This can
+     * lead to some races between host and LL so for now let us have it as a
+     * hack for RIOT where races can be avoided by proper initialization inside
+     * package.
+     */
+#ifndef RIOT_VERSION
     /* Initialize eventq */
     ble_npl_eventq_init(&lldata->ll_evq);
+#endif
 
     /* Initialize the transmit (from host) and receive (from phy) queues */
     STAILQ_INIT(&lldata->ll_tx_pkt_q);
