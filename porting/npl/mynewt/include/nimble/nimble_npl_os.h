@@ -110,9 +110,9 @@ ble_npl_eventq_remove(struct ble_npl_eventq *evq,
 }
 
 static inline void
-ble_npl_eventq_run(struct ble_npl_eventq *evq)
+ble_npl_event_run(struct ble_npl_event *ev)
 {
-    os_eventq_run(&evq->evq);
+    ev->ev.ev_cb(&ev->ev);
 }
 
 static inline bool

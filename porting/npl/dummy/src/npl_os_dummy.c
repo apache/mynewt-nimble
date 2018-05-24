@@ -62,7 +62,7 @@ ble_npl_eventq_remove(struct ble_npl_eventq *evq,
 }
 
 void
-ble_npl_eventq_run(struct ble_npl_eventq *evq)
+ble_npl_event_run(struct ble_npl_event *ev)
 {
 
 }

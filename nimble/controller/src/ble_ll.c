@@ -1088,6 +1088,8 @@ ble_ll_event_comp_pkts(struct ble_npl_event *ev)
 void
 ble_ll_task(void *arg)
 {
+    struct ble_npl_event *ev;
+
     /* Init ble phy */
     ble_phy_init();
 
@@ -1100,7 +1102,9 @@ ble_ll_task(void *arg)
     ble_ll_rand_start();
 
     while (1) {
-        ble_npl_eventq_run(&g_ble_ll_data.ll_evq);
+        ev = ble_npl_eventq_get(&g_ble_ll_data.ll_evq, BLE_NPL_TIME_FOREVER);
+        assert(ev);
+        ble_npl_event_run(ev);
     }
 }
 
