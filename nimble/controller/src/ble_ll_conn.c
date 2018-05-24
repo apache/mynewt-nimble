@@ -286,7 +286,7 @@ ble_ll_init_get_conn_comp_ev(void)
     uint8_t *evbuf;
 
     evbuf = g_ble_ll_conn_comp_ev;
-    assert(evbuf != NULL);
+    BLE_LL_ASSERT(evbuf != NULL);
     g_ble_ll_conn_comp_ev = NULL;
 
     return evbuf;
@@ -640,7 +640,7 @@ ble_ll_conn_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
     }
 
     /* we should never reach here */
-    assert(0);
+    BLE_LL_ASSERT(0);
     return 0;
 }
 
@@ -1431,7 +1431,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     /* Set current connection state machine */
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
-    assert(connsm);
+    BLE_LL_ASSERT(connsm);
 
     /* Disable whitelisting as connections do not use it */
     ble_ll_whitelist_disable();
@@ -2138,8 +2138,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     /* Remove from occupied periods */
     OS_ENTER_CRITICAL(sr);
-    assert(g_ble_ll_sched_data.sch_num_occ_periods > 0);
-    assert(g_ble_ll_sched_data.sch_occ_period_mask & connsm->period_occ_mask);
+    BLE_LL_ASSERT(g_ble_ll_sched_data.sch_num_occ_periods > 0);
+    BLE_LL_ASSERT(g_ble_ll_sched_data.sch_occ_period_mask & connsm->period_occ_mask);
     --g_ble_ll_sched_data.sch_num_occ_periods;
     g_ble_ll_sched_data.sch_occ_period_mask &= ~connsm->period_occ_mask;
     OS_EXIT_CRITICAL(sr);
@@ -2469,7 +2469,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
                 usecs += 2500;
                 break;
             default:
-                assert(0);
+                BLE_LL_ASSERT(0);
                 break;
             }
         }
@@ -2563,7 +2563,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
 
     /* Better be a connection state machine! */
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
-    assert(connsm);
+    BLE_LL_ASSERT(connsm);
 
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
@@ -2708,7 +2708,7 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
     struct ble_ll_resolv_entry *rl;
 #endif
 
-    assert(m != NULL);
+    BLE_LL_ASSERT(m != NULL);
 
     /* clear txadd/rxadd bits only */
     ble_hdr = BLE_MBUF_HDR_PTR(m);
@@ -3589,7 +3589,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                     STATS_INCN(ble_ll_conn_stats, rx_l2cap_bytes, acl_len);
 
                     /* NOTE: there should be at least two bytes available */
-                    assert(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
+                    BLE_LL_ASSERT(OS_MBUF_LEADINGSPACE(rxpdu) >= 2);
                     os_mbuf_prepend(rxpdu, 2);
                     rxbuf = rxpdu->om_data;
 
@@ -4286,7 +4286,7 @@ ble_ll_conn_module_init(void)
                             STATS_SIZE_INIT_PARMS(ble_ll_conn_stats, STATS_SIZE_32),
                             STATS_NAME_INIT_PARMS(ble_ll_conn_stats),
                             "ble_ll_conn");
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
     /* Call reset to finish reset of initialization */
     ble_ll_conn_module_reset();

@@ -254,7 +254,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
                 break;
 #endif
             default:
-                assert(0);
+                BLE_LL_ASSERT(0);
                 break;
         }
 
@@ -282,7 +282,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
-    assert(sch != NULL);
+    BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -323,7 +323,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     struct ble_ll_sched_item *sch;
 
     /* Better have a connsm */
-    assert(connsm != NULL);
+    BLE_LL_ASSERT(connsm != NULL);
 
     /* Get schedule element from connection */
     rc = -1;
@@ -399,7 +399,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
             // 150 + 2896 + 3750 = 6796us = 222.69 ticks
             earliest_start = adv_rxend + 223;
         } else {
-            assert(0);
+            BLE_LL_ASSERT(0);
         }
     }
     earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
@@ -629,7 +629,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
             // 150 + 2896 + 3750 = 6796us = 222.69 ticks
             earliest_start = adv_rxend + 223;
         } else {
-            assert(0);
+            BLE_LL_ASSERT(0);
         }
     }
     earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
@@ -894,7 +894,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
-    assert(sch != NULL);
+    BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
@@ -999,7 +999,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
                     break;
                 }
                 entry = next_sch;
-                assert(entry != NULL);
+                BLE_LL_ASSERT(entry != NULL);
             }
         }
     }
@@ -1157,7 +1157,7 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     }
 
 sched:
-    assert(sch->sched_cb);
+    BLE_LL_ASSERT(sch->sched_cb);
     rc = sch->sched_cb(sch);
     return rc;
 }
@@ -1429,7 +1429,7 @@ done:
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
-    assert(sch != NULL);
+    BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     STATS_INC(ble_ll_stats, aux_scheduled);
@@ -1491,7 +1491,7 @@ done:
     OS_EXIT_CRITICAL(sr);
 
     /* Restart timer */
-    assert(sch != NULL);
+    BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;

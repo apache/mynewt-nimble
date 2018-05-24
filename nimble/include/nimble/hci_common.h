@@ -665,6 +665,7 @@ extern "C" {
 #define BLE_HCI_EVCODE_SLAVE_BCAST_CHAN_MAP (0x55)
 #define BLE_HCI_EVCODE_INQ_RSP_NOTIFY       (0x56)
 #define BLE_HCI_EVCODE_AUTH_PYLD_TMO        (0x57)
+#define BLE_HCI_EVCODE_VENDOR_DEBUG         (0xFF)
 
 /* LE sub-event codes */
 #define BLE_HCI_LE_SUBEV_CONN_COMPLETE          (0x01)

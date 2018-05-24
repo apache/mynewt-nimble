@@ -26,6 +26,11 @@
 #include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
 
+#ifdef MYNEWT
+#include "controller/ble_ll_ctrl.h"
+#include "hal/hal_system.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,6 +39,23 @@ extern "C" {
 #error 32.768kHz clock required
 #endif
 
+#ifdef MYNEWT
+#ifdef NDEBUG
+#define BLE_LL_ASSERT(cond) (void(0))
+#else
+#define BLE_LL_ASSERT(cond) \
+    if (!(cond)) { \
+        if (hal_debugger_connected()) { \
+            assert(0);\
+        } else {\
+            ble_ll_hci_ev_send_vendor_err(__FILE__, __LINE__); \
+            while(1) {}\
+        }\
+    }
+#endif
+#else
+#define BLE_LL_ASSERT(cond) assert(cond)
+#endif
 /*
  * XXX:
  * I guess this should not depend on the 32768 crystal to be honest. This

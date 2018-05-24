@@ -82,7 +82,7 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 {
     int rc;
 
-    assert(BLE_HCI_EVENT_HDR_LEN + evbuf[1] <= BLE_LL_MAX_EVT_LEN);
+    BLE_LL_ASSERT(BLE_HCI_EVENT_HDR_LEN + evbuf[1] <= BLE_LL_MAX_EVT_LEN);
 
     /* Count number of events sent */
     STATS_INC(ble_ll_stats, hci_events_sent);
@@ -1171,7 +1171,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
 
     /* The command buffer is the event argument */
     cmdbuf = (uint8_t *)ble_npl_event_get_arg(ev);
-    assert(cmdbuf != NULL);
+    BLE_LL_ASSERT(cmdbuf != NULL);
 
     /* Get the opcode from the command buffer */
     opcode = get_le16(cmdbuf);
@@ -1204,7 +1204,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     }
 
     /* If no response is generated, we free the buffers */
-    assert(rc >= 0);
+    BLE_LL_ASSERT(rc >= 0);
     if (rc <= BLE_ERR_MAX) {
         /* Create a command complete event with status from command */
         cmdbuf[0] = BLE_HCI_EVCODE_COMMAND_COMPLETE;

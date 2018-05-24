@@ -279,6 +279,7 @@ int ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status);
 void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm);
+void ble_ll_hci_ev_send_vendor_err(char *file, uint32_t line);
 
 #ifdef __cplusplus
 }

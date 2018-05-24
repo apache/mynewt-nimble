@@ -74,7 +74,7 @@ ble_ll_xcvr_rfclk_time_till_settled(void)
     rc = 0;
     if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_ON) {
         dt = (int32_t)(os_cputime_get32() - g_ble_ll_data.ll_rfclk_start_time);
-        assert(dt >= 0);
+        BLE_LL_ASSERT(dt >= 0);
         if (dt < g_ble_ll_data.ll_xtal_ticks) {
             rc = g_ble_ll_data.ll_xtal_ticks - (uint32_t)dt;
         }

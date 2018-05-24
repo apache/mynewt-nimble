@@ -1232,7 +1232,7 @@ ble_ll_ctrl_conn_param_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     } else {
         hcu = &connsm->conn_param_req;
         /* The host should have provided the parameters! */
-        assert(hcu->handle != 0);
+        BLE_LL_ASSERT(hcu->handle != 0);
         put_le16(dptr, hcu->conn_itvl_min);
         put_le16(dptr + 2, hcu->conn_itvl_max);
         put_le16(dptr + 4, hcu->conn_latency);
@@ -1865,7 +1865,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             break;
 #endif
         default:
-            assert(0);
+            BLE_LL_ASSERT(0);
             break;
         }
 
@@ -1937,7 +1937,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     uint32_t usecs;
     struct os_mbuf *om;
 
-    assert(connsm->disconnect_reason != 0);
+    BLE_LL_ASSERT(connsm->disconnect_reason != 0);
 
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
     om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
@@ -1965,7 +1965,7 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     struct os_mbuf *om;
 
-    assert(ctrl_proc != BLE_LL_CTRL_PROC_TERMINATE);
+    BLE_LL_ASSERT(ctrl_proc != BLE_LL_CTRL_PROC_TERMINATE);
 
     om = NULL;
     if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
