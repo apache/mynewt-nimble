@@ -27,6 +27,7 @@ extern "C" {
 static inline void
 log_dummy(void *log, ...)
 {
+    (void)log;
 }
 
 #define LOG_DEBUG(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
