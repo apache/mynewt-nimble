@@ -281,13 +281,15 @@ ble_npl_hw_set_isr(int irqn, uint32_t addr)
 static inline uint32_t
 ble_npl_hw_enter_critical(void)
 {
-    return npl_freertos_hw_enter_critical();
+    vPortEnterCritical();
+    return 0;
 }
 
 static inline void
 ble_npl_hw_exit_critical(uint32_t ctx)
 {
-    npl_freertos_hw_exit_critical(ctx);
+    vPortExitCritical();
+
 }
 
 #ifdef __cplusplus
