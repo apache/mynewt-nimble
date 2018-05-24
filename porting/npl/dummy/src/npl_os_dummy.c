@@ -44,6 +44,11 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 
 }
 
+struct ble_npl_event *
+ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
+{
+}
+
 void
 ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 {
