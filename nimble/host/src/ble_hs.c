@@ -27,6 +27,9 @@
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
 #include "nimble/nimble_npl.h"
+#ifndef MYNEWT
+#include "nimble/nimble_port.h"
+#endif
 
 #define BLE_HS_HCI_EVT_COUNT                    \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) +     \
@@ -674,13 +677,20 @@ ble_hs_init(void)
     /* Configure the HCI transport to communicate with a host. */
     ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
-    ble_hs_evq_set(ble_npl_eventq_dflt_get());
-
+#ifdef MYNEWT
+    ble_hs_evq_set((struct ble_npl_eventq *)os_eventq_dflt_get());
+#else
+    ble_hs_evq_set(nimble_port_get_dflt_eventq());
+#endif
     /* Enqueue the start event to the default event queue.  Using the default
      * queue ensures the event won't run until the end of main().  This allows
      * the application to configure this package in the meantime.
      */
-    ble_npl_eventq_put(ble_npl_eventq_dflt_get(), &ble_hs_ev_start);
+#ifdef MYNEWT
+    ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(), &ble_hs_ev_start);
+#else
+    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start);
+#endif
 
 #if BLE_MONITOR
     ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");

@@ -32,12 +32,6 @@ ble_npl_get_current_task_id(void)
     return NULL;
 }
 
-struct ble_npl_eventq *
-ble_npl_eventq_dflt_get(void)
-{
-    return NULL;
-}
-
 void
 ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {

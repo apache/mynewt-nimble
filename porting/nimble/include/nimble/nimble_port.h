@@ -20,11 +20,15 @@
 #ifndef _NIMBLE_PORT_H
 #define _NIMBLE_PORT_H
 
+#include "nimble/nimble_npl.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void nimble_port_init(void);
+
+struct ble_npl_eventq *nimble_port_get_dflt_eventq(void);
 
 #if NIMBLE_CFG_CONTROLLER
 void nimble_port_ll_task_func(void *arg);

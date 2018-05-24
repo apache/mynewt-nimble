@@ -29,18 +29,6 @@ in_isr(void)
     return (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) != 0;
 }
 
-static struct ble_npl_eventq dflt_evq;
-
-struct ble_npl_eventq *
-npl_freertos_eventq_dflt_get(void)
-{
-    if (!dflt_evq.q) {
-        dflt_evq.q = xQueueCreate(32, sizeof(struct ble_npl_eventq *));
-    }
-
-    return &dflt_evq;
-}
-
 struct ble_npl_event *
 npl_freertos_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {

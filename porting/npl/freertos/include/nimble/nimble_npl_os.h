@@ -85,14 +85,6 @@ ble_npl_get_current_task_id(void)
     return xTaskGetCurrentTaskHandle();
 }
 
-struct ble_npl_eventq *npl_freertos_eventq_dflt_get(void);
-
-static inline struct ble_npl_eventq *
-ble_npl_eventq_dflt_get(void)
-{
-    return npl_freertos_eventq_dflt_get();
-}
-
 static inline void
 ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {
