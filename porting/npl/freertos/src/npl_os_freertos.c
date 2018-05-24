@@ -82,6 +82,7 @@ npl_freertos_eventq_remove(struct ble_npl_eventq *evq,
     BaseType_t ret;
     int i;
     int count;
+    BaseType_t woken, woken2;
 
     if (!ev->queued) {
         return;
@@ -94,22 +95,43 @@ npl_freertos_eventq_remove(struct ble_npl_eventq *evq,
      * better use counting semaphore with os_queue to handle this in future.
      */
 
-    vPortEnterCritical();
+    if (in_isr()) {
+        woken = pdFALSE;
 
-    count = uxQueueMessagesWaiting(evq->q);
-    for (i = 0; i < count; i++) {
-        ret = xQueueReceive(evq->q, &tmp_ev, 0);
-        assert(ret == pdPASS);
+        count = uxQueueMessagesWaitingFromISR(evq->q);
+        for (i = 0; i < count; i++) {
+            ret = xQueueReceiveFromISR(evq->q, &tmp_ev, &woken2);
+            assert(ret == pdPASS);
+            woken |= woken2;
 
-        if (tmp_ev == ev) {
-            continue;
+            if (tmp_ev == ev) {
+                continue;
+            }
+
+            ret = xQueueSendToBackFromISR(evq->q, &tmp_ev, &woken2);
+            assert(ret == pdPASS);
+            woken |= woken2;
         }
 
-        ret = xQueueSendToBack(evq->q, &tmp_ev, 0);
-        assert(ret == pdPASS);
-    }
+        portYIELD_FROM_ISR(woken);
+    } else {
+        vPortEnterCritical();
 
-    vPortExitCritical();
+        count = uxQueueMessagesWaiting(evq->q);
+        for (i = 0; i < count; i++) {
+            ret = xQueueReceive(evq->q, &tmp_ev, 0);
+            assert(ret == pdPASS);
+
+            if (tmp_ev == ev) {
+                continue;
+            }
+
+            ret = xQueueSendToBack(evq->q, &tmp_ev, 0);
+            assert(ret == pdPASS);
+        }
+
+        vPortExitCritical();
+    }
 
     ev->queued = 0;
 }
