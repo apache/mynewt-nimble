@@ -150,7 +150,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         break;
 
     default:
-        BLE_HS_LOG(DEBUG, "\tUnknown LE event\n");
+        BLE_HS_LOG(DEBUG, "LE Meta SubEvent op=0x%02x\n", subev);
         break;
     }
 }
