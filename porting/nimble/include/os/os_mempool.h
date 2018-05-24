@@ -30,6 +30,7 @@
 
 #include <stdbool.h>
 #include "os/os.h"
+#include "os/queue.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -187,6 +188,15 @@ os_error_t os_mempool_init(struct os_mempool *mp, uint16_t blocks,
  */
 os_error_t os_mempool_ext_init(struct os_mempool_ext *mpe, uint16_t blocks,
                                uint32_t block_size, void *membuf, char *name);
+
+/**
+ * Clears a memory pool.
+ *
+ * @param mp            The mempool to clear.
+ *
+ * @return os_error_t
+ */
+os_error_t os_mempool_clear(struct os_mempool *mp);
 
 /**
  * Performs an integrity check of the specified mempool.  This function
