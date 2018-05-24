@@ -28,6 +28,8 @@ extern "C" {
 
 void nimble_port_init(void);
 
+void nimble_port_run(void);
+
 struct ble_npl_eventq *nimble_port_get_dflt_eventq(void);
 
 #if NIMBLE_CFG_CONTROLLER

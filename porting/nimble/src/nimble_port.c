@@ -54,6 +54,17 @@ nimble_port_init(void)
 #endif
 }
 
+void
+nimble_port_run(void)
+{
+    struct ble_npl_event *ev;
+
+    while (1) {
+        ev = ble_npl_eventq_get(&g_eventq_dflt, BLE_NPL_TIME_FOREVER);
+        ble_npl_event_run(ev);
+    }
+}
+
 struct ble_npl_eventq *
 nimble_port_get_dflt_eventq(void)
 {
