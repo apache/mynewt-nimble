@@ -82,7 +82,7 @@ ble_hs_flow_tx_num_comp_pkts(void)
             rc = ble_hs_hci_cmd_send_buf(
                 BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
                            BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS),
-                buf, off);
+                buf, sizeof(buf));
             if (rc != 0) {
                 return rc;
             }
