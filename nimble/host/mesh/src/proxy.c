@@ -1233,7 +1233,7 @@ void bt_mesh_proxy_adv_stop(void)
 		return;
 	}
 
-	err = bt_le_adv_stop();
+	err = bt_le_adv_stop(true);
 	if (err) {
 		BT_ERR("Failed to stop advertising (err %d)", err);
 	} else {
