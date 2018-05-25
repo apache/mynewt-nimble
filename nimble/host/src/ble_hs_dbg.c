@@ -149,6 +149,188 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                        get_le16(evdata + 1), evdata[3], evdata[4]);
         break;
 
+    case BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT:
+    {
+        struct hci_le_subev_direct_adv_rpt *data = (void *) evdata;
+        struct hci_le_subev_direct_adv_rpt_param *params = data->params;
+
+        if (len < sizeof(*data) ||
+                len < sizeof(*data) + data->num_reports * sizeof(*params)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Directed Advertising Report "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Directed Advertising Report len=%u "
+                   "num=0x%02x ", len, data->num_reports);
+
+        for (i = 0; i < data->num_reports; i++) {
+            BLE_HS_LOG(DEBUG, "[%d]={evttype=0x%02x}\n", i, params->evt_type);
+            params += 1;
+        }
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_RD_LOC_P256_PUBKEY:
+    {
+        struct hci_le_subev_rd_loc_p256_pubkey *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Read Local P-256 Public Key "
+                       "Complete Event len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Read Local P-256 Public Key Complete "
+                   "len=%u status=0x%02x", len, data->status);
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_GEN_DHKEY_COMPLETE:
+    {
+        struct hci_le_subev_gen_dhkey_complete *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Generate DHKey Complete "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Generate DHKey Complete Event len=%u "
+                   "status=0x%02x", len, data->status);
+        break;
+    }
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    case BLE_HCI_LE_SUBEV_EXT_ADV_RPT:
+    {
+        struct hci_le_subev_ext_adv_rpt *data = (void *) evdata;
+        struct hci_ext_adv_report_param *params;
+
+        if (len < sizeof(*data) + sizeof(*params)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Extended Advertising Report "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Extended Advertising Report len=%u num=0x%02x ",
+                   len, data->num_reports);
+
+        for (i = 0, dptr = &evdata[1]; i < data->num_reports;  i++) {
+            params = (void *) dptr;
+            BLE_HS_LOG(DEBUG, "[%d]={evttype=0x%04x advlen=%u}\n",
+                       i, le16toh(params->evt_type), params->adv_data_len);
+            dptr += sizeof(*params) + params->adv_data_len;
+        }
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_PER_ADV_SYNC_ESTAB:
+    {
+        struct hci_le_subev_per_adv_sync_estab *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Sync "
+                       "Established len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Periodic Advertising Sync Established "
+                   "len=%u status=0x%02x handle=0x%04x", len, data->status,
+                   le16toh(data->sync_handle));
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_PER_ADV_RPT:
+    {
+        struct hci_le_subev_per_adv_rpt *data = (void *) evdata;
+
+        if (len < sizeof(*data) || len != sizeof(*data) + data->data_length) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Report "
+                    "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Periodic Advertising Report "
+                   "len=%u handle=0x%04x data_status=0x%02x data_len=0x%02x",
+                   len, le16toh(data->sync_handle), data->data_status,
+                   data->data_length);
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_PER_ADV_SYNC_LOST:
+    {
+        struct hci_le_subev_per_adv_sync_lost *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Sync Lost "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Periodic Advertising Sync Lost "
+                   "len=%u handle=0x%04x", len, le16toh(data->sync_handle));
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_SCAN_TIMEOUT:
+        if (len) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Scan Timeout len=%u", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Scan Timeout Event len=%u", len);
+        break;
+
+    case BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED:
+    {
+        struct hci_le_subev_adv_set_terminated *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Advertising Set Terminated "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Advertising Set Terminated len=%u "
+                   "status=0x%02x adv_handle=0x%02x conn_handle=0x%04x "
+                   "num_compl_ext_adv_ev=0x%02x", len, data->adv_handle,
+                   le16toh(data->conn_handle), data->num_compl_ext_adv_ev);
+        break;
+    }
+
+    case BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD:
+    {
+        struct hci_le_subev_scan_req_rcvd *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Scan Request Received "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Scan Request Received len=%u "
+                   "adv_handle=0x%02x", len, data->adv_handle);
+        break;
+    }
+#endif /* MYNEWT_VAL(BLE_EXT_ADV) */
+
+    case BLE_HCI_LE_SUBEV_CHAN_SEL_ALG:
+    {
+        struct hci_le_subev_chan_sel_alg *data = (void *) evdata;
+
+        if (len != sizeof(*data)) {
+            BLE_HS_LOG(DEBUG, "Corrupted LE Channel Selection Algorithm "
+                       "len=%u\n", len);
+            break;
+        }
+
+        BLE_HS_LOG(DEBUG, "LE Channel Selection Algorithm len=%u "
+                   "conn_handle=0x%04x chan_sel_alg=0x%02x", len,
+                   le16toh(data->conn_handle), data->chan_sel_alg);
+        break;
+    }
+
     default:
         BLE_HS_LOG(DEBUG, "LE Meta SubEvent op=0x%02x\n", subev);
         break;
