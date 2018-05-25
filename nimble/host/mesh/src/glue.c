@@ -501,10 +501,10 @@ ble_adv_copy_to_ext_param(struct ble_gap_ext_adv_params *ext_param,
     memset(ext_param, 0, sizeof(*ext_param));
 
     ext_param->legacy_pdu = 1;
-    ext_param->scannable = 1;
 
     if (param->conn_mode != BLE_GAP_CONN_MODE_NON) {
         ext_param->connectable = 1;
+        ext_param->scannable = 1;
     }
 
     ext_param->itvl_max = param->itvl_max;
