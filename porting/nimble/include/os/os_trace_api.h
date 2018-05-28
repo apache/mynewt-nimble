@@ -46,36 +46,6 @@ os_trace_isr_exit(void)
 }
 
 static inline void
-os_trace_task_info(const struct os_task *t)
-{
-}
-
-static inline void
-os_trace_task_create(const struct os_task *t)
-{
-}
-
-static inline void
-os_trace_task_start_exec(const struct os_task *t)
-{
-}
-
-static inline void
-os_trace_task_stop_exec(void)
-{
-}
-
-static inline void
-os_trace_task_start_ready(const struct os_task *t)
-{
-}
-
-static inline void
-os_trace_task_stop_ready(const struct os_task *t, unsigned reason)
-{
-}
-
-static inline void
 os_trace_idle(void)
 {
 }
