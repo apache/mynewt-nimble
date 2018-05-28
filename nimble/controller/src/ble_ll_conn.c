@@ -37,6 +37,7 @@
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_trace.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
@@ -1387,10 +1388,8 @@ conn_tx_pdu:
     if (!rc) {
         /* Log transmit on connection state */
         cur_txlen = ble_hdr->txinfo.pyld_len;
-        ble_ll_log(BLE_LL_LOG_ID_CONN_TX,
-                   hdr_byte,
-                   ((uint16_t)ble_hdr->txinfo.offset << 8) | cur_txlen,
-                   (uint32_t)m);
+        ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_TX, cur_txlen,
+                           ble_hdr->txinfo.offset);
 
         /* Set last transmitted MD bit */
         CONN_F_LAST_TXD_MD(connsm) = md;
@@ -1433,15 +1432,14 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     g_ble_ll_conn_cur_sm = connsm;
     BLE_LL_ASSERT(connsm);
 
+    /* Log connection event start */
+    ble_ll_trace_u32(BLE_LL_TRACE_ID_CONN_EV_START, connsm->conn_handle);
+
     /* Disable whitelisting as connections do not use it */
     ble_ll_whitelist_disable();
 
     /* Set LL state */
     ble_ll_state_set(BLE_LL_STATE_CONNECTION);
-
-    /* Log connection event start */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_START, (uint8_t)connsm->conn_handle,
-               (uint16_t)connsm->ce_end_time, connsm->csmflags.conn_flags);
 
     /* Set channel */
     ble_phy_setchan(connsm->data_chan_index, connsm->access_addr,
@@ -2184,8 +2182,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 
     /* Log connection end */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle, ble_err,
-               connsm->event_cntr);
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_CONN_END, connsm->conn_handle,
+                       connsm->event_cntr, (uint32_t)ble_err);
 }
 
 /**
@@ -2565,6 +2563,10 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(connsm);
 
+    /* Log event end */
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_EV_END, connsm->conn_handle,
+                       connsm->event_cntr);
+
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
 
@@ -2668,10 +2670,6 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
         ble_ll_conn_end(connsm, ble_err);
         return;
     }
-
-    /* Log event end */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_EV_END, connsm->conn_handle,
-               connsm->event_cntr, connsm->conn_sch.start_time);
 
     /* If we have completed packets, send an event */
     ble_ll_conn_num_comp_pkts_event_send(connsm);
@@ -3744,16 +3742,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #endif
         }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-        ble_ll_log(BLE_LL_LOG_ID_CONN_RX,
-                   hdr_byte,
-                   (uint16_t)connsm->tx_seqnum << 8 | conn_nesn,
-                   connsm->enc_data.rx_pkt_cntr);
-#else
-        ble_ll_log(BLE_LL_LOG_ID_CONN_RX,
-                   hdr_byte,
-                   (uint16_t)connsm->tx_seqnum << 8 | conn_nesn, 0);
-#endif
+        ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_RX, connsm->tx_seqnum,
+                           !!(hdr_byte & BLE_LL_DATA_HDR_NESN_MASK));
 
         /*
          * Check NESN bit from header. If same as tx seq num, the transmission

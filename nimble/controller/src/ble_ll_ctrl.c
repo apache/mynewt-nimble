@@ -26,6 +26,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_ctrl.h"
+#include "controller/ble_ll_trace.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
 
@@ -2114,7 +2115,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
      */
     --len;
 
-    ble_ll_log(BLE_LL_LOG_ID_LL_CTRL_RX, opcode, len, 0);
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CTRL_RX, opcode, len);
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     restart_encryption = 0;

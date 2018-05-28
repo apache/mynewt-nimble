@@ -29,6 +29,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_trace.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: this is temporary. Not sure what I want to do here */
@@ -1113,6 +1114,10 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     uint8_t lls;
 
     lls = ble_ll_state_get();
+
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_SCHED, lls, os_cputime_get32(),
+                       sch->start_time);
+
     if (lls == BLE_LL_STATE_STANDBY) {
         goto sched;
     }
@@ -1264,8 +1269,6 @@ ble_ll_sched_rfclk_chk_restart(void)
 
             /* Only disable the rfclk if doing nothing */
             if (ll_state == BLE_LL_STATE_STANDBY) {
-                ble_ll_log(BLE_LL_LOG_ID_RFCLK_SCHED_DIS, g_ble_ll_data.ll_rfclk_state,
-                           0, 0);
                 ble_ll_xcvr_rfclk_disable();
             }
         }

@@ -35,6 +35,11 @@ syscfg.defs:
             Used to enable hardware white list
         value: 1
 
+    BLE_LL_SYSVIEW:
+        description: >
+            Enable SystemView tracing module for controller.
+        value: 0
+
     BLE_LL_PRIO:
         description: 'The priority of the LL task'
         type: 'task_priority'

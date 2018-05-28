@@ -22,33 +22,92 @@
 
 #include <stdint.h>
 
-#define OS_TRACE_ID_OFFSET                    (32u)
+#define OS_TRACE_ID_EVENTQ_PUT                  (40)
+#define OS_TRACE_ID_EVENTQ_GET_NO_WAIT          (41)
+#define OS_TRACE_ID_EVENTQ_GET                  (42)
+#define OS_TRACE_ID_EVENTQ_REMOVE               (43)
+#define OS_TRACE_ID_EVENTQ_POLL_0TIMO           (44)
+#define OS_TRACE_ID_EVENTQ_POLL                 (45)
+#define OS_TRACE_ID_MUTEX_INIT                  (50)
+#define OS_TRACE_ID_MUTEX_RELEASE               (51)
+#define OS_TRACE_ID_MUTEX_PEND                  (52)
+#define OS_TRACE_ID_SEM_INIT                    (60)
+#define OS_TRACE_ID_SEM_RELEASE                 (61)
+#define OS_TRACE_ID_SEM_PEND                    (62)
 
-#define OS_TRACE_ID_EVQ_PUT                   (1u + OS_TRACE_ID_OFFSET)
-#define OS_TRACE_ID_EVQ_GET                   (2u + OS_TRACE_ID_OFFSET)
-#define OS_TRACE_ID_MUTEX_INIT                (3u + OS_TRACE_ID_OFFSET)
-#define OS_TRACE_ID_MUTEX_RELEASE             (4u + OS_TRACE_ID_OFFSET)
-#define OS_TRACE_ID_MUTEX_PEND                (5u + OS_TRACE_ID_OFFSET)
+static inline void
+os_trace_isr_enter(void)
+{
+}
 
-static inline void os_trace_enter_isr(void){}
-static inline void os_trace_exit_isr(void){}
-static inline void os_trace_exit_isr_to_scheduler(void){}
-static inline void os_trace_task_info(const void *p_task){}
-static inline void os_trace_task_create(uint32_t task_id){}
-static inline void os_trace_task_start_exec(uint32_t task_id){}
-static inline void os_trace_task_stop_exec(void){}
-static inline void os_trace_task_start_ready(uint32_t task_id){}
-static inline void os_trace_task_stop_ready(uint32_t task_id, unsigned reason){}
-static inline void os_trace_idle(void){}
-static inline void os_trace_void(unsigned id){}
-static inline void os_trace_u32(unsigned id, uint32_t para0){}
-static inline void os_trace_u32x2(unsigned id, uint32_t para0, uint32_t para1){}
-static inline void os_trace_u32x3(unsigned id, uint32_t para0, uint32_t para1, uint32_t para2){}
-static inline void os_trace_u32x4(unsigned id, uint32_t para0, uint32_t para1, uint32_t para2, uint32_t para3){}
-static inline void os_trace_u32x5(unsigned id, uint32_t para0, uint32_t para1, uint32_t para2, uint32_t para3, uint32_t para4){}
-static inline void os_trace_enter_timer(uint32_t timer_id){}
-static inline void os_trace_exit_timer(void){}
-static inline void os_trace_end_call(unsigned id){}
-static inline void os_trace_end_call_return_value(unsigned id, uint32_t return_value){}
+static inline void
+os_trace_isr_exit(void)
+{
+}
+
+static inline void
+os_trace_task_info(const struct os_task *t)
+{
+}
+
+static inline void
+os_trace_task_create(const struct os_task *t)
+{
+}
+
+static inline void
+os_trace_task_start_exec(const struct os_task *t)
+{
+}
+
+static inline void
+os_trace_task_stop_exec(void)
+{
+}
+
+static inline void
+os_trace_task_start_ready(const struct os_task *t)
+{
+}
+
+static inline void
+os_trace_task_stop_ready(const struct os_task *t, unsigned reason)
+{
+}
+
+static inline void
+os_trace_idle(void)
+{
+}
+
+static inline void
+os_trace_api_void(unsigned id)
+{
+}
+
+static inline void
+os_trace_api_u32(unsigned id, uint32_t p0)
+{
+}
+
+static inline void
+os_trace_api_u32x2(unsigned id, uint32_t p0, uint32_t p1)
+{
+}
+
+static inline void
+os_trace_api_u32x3(unsigned id, uint32_t p0, uint32_t p1, uint32_t p2)
+{
+}
+
+static inline void
+os_trace_api_ret(unsigned id)
+{
+}
+
+static inline void
+os_trace_api_ret_u32(unsigned id, uint32_t return_value)
+{
+}
 
 #endif

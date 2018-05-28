@@ -27,6 +27,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
+#include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
 #include "nrfx.h"
 
@@ -513,13 +514,10 @@ ble_phy_tx_end_isr(void)
 
     /* If this transmission was encrypted we need to remember it */
     was_encrypted = g_ble_phy_data.phy_encrypted;
+    (void)was_encrypted;
 
     /* Better be in TX state! */
     assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
-
-    /* Log the event */
-    ble_ll_log(BLE_LL_LOG_ID_PHY_TXEND, g_ble_phy_data.phy_tx_pyld_len,
-               was_encrypted, NRF_TIMER0->CC[2]);
 
     /* Clear events and clear interrupt on disabled event */
     NRF_RADIO->EVENTS_DISABLED = 0;
@@ -763,6 +761,8 @@ ble_phy_isr(void)
 {
     uint32_t irq_en;
 
+    os_trace_isr_enter();
+
     /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
 
@@ -798,6 +798,8 @@ ble_phy_isr(void)
 
     /* Count # of interrupts */
     STATS_INC(ble_phy_stats, phy_isrs);
+
+    os_trace_isr_exit();
 }
 
 /**
@@ -952,8 +954,6 @@ ble_phy_rx(void)
         NRF_RADIO->TASKS_RXEN = 1;
     }
 
-    ble_ll_log(BLE_LL_LOG_ID_PHY_RX, g_ble_phy_data.phy_encrypted, 0, 0);
-
     return 0;
 }
 
@@ -1041,6 +1041,8 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     int rc;
 
+    ble_phy_trace_u32x2(BLE_PHY_TRACE_ID_START_TX, cputime, rem_usecs);
+
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to RXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
@@ -1077,6 +1079,8 @@ int
 ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     int rc;
+
+    ble_phy_trace_u32x2(BLE_PHY_TRACE_ID_START_RX, cputime, rem_usecs);
 
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to TXEN since we are transmitting */
@@ -1340,8 +1344,6 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[chan];
     NRF_RADIO->DATAWHITEIV = chan;
 
-    ble_ll_log(BLE_LL_LOG_ID_PHY_SETCHAN, chan, freq, access_addr);
-
     return 0;
 }
 
@@ -1394,7 +1396,8 @@ ble_phy_restart_rx(void)
 void
 ble_phy_disable(void)
 {
-    ble_ll_log(BLE_LL_LOG_ID_PHY_DISABLE, g_ble_phy_data.phy_state, 0, 0);
+    ble_phy_trace_void(BLE_PHY_TRACE_ID_DISABLE);
+
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
 }

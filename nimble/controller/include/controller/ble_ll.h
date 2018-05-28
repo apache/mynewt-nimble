@@ -512,37 +512,6 @@ ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
     return os_cputime_usecs_to_ticks(usecs + 30);
 }
 
-#define BLE_LL_LOG_ID_PHY_SETCHAN       (1)
-#define BLE_LL_LOG_ID_RX_START          (2)
-#define BLE_LL_LOG_ID_RX_END            (3)
-#define BLE_LL_LOG_ID_WFR_EXP           (4)
-#define BLE_LL_LOG_ID_PHY_TXEND         (5)
-#define BLE_LL_LOG_ID_PHY_TX            (6)
-#define BLE_LL_LOG_ID_PHY_RX            (7)
-#define BLE_LL_LOG_ID_PHY_DISABLE       (9)
-#define BLE_LL_LOG_ID_CONN_EV_START     (10)
-#define BLE_LL_LOG_ID_CONN_TX           (15)
-#define BLE_LL_LOG_ID_CONN_RX           (16)
-#define BLE_LL_LOG_ID_CONN_TX_RETRY     (17)
-#define BLE_LL_LOG_ID_CONN_RX_ACK       (18)
-#define BLE_LL_LOG_ID_LL_CTRL_RX        (19)
-#define BLE_LL_LOG_ID_CONN_EV_END       (20)
-#define BLE_LL_LOG_ID_CONN_END          (30)
-#define BLE_LL_LOG_ID_ADV_TXBEG         (50)
-#define BLE_LL_LOG_ID_ADV_TXDONE        (60)
-#define BLE_LL_LOG_ID_SCHED             (80)
-#define BLE_LL_LOG_ID_RFCLK_START       (90)
-#define BLE_LL_LOG_ID_RFCLK_ENABLE      (91)
-#define BLE_LL_LOG_ID_RFCLK_STOP        (95)
-#define BLE_LL_LOG_ID_RFCLK_SCHED_DIS   (96)
-#define BLE_LL_LOG_ID_RFCLK_SCAN_DIS    (97)
-
-#ifdef BLE_LL_LOG
-void ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32);
-#else
-#define ble_ll_log(m,n,o,p)
-#endif
-
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
 /* LTK 0x4C68384139F574D836BCF34E9DFB01BF */
 extern const uint8_t g_bletest_LTK[];

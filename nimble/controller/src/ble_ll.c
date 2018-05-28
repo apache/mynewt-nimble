@@ -32,6 +32,7 @@
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_phy.h"
+#include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
@@ -40,6 +41,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_trace.h"
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
@@ -248,44 +250,6 @@ static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
     [BLE_PHY_MODE_CODED_500KBPS] =
             (80 + 256 + 16 + 24 + 2 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
 };
-
-/* XXX: temporary logging until we transition to real logging */
-#ifdef BLE_LL_LOG
-struct ble_ll_log
-{
-    uint8_t log_id;
-    uint8_t log_a8;
-    uint16_t log_a16;
-    uint32_t log_a32;
-    uint32_t cputime;
-
-};
-
-#define BLE_LL_LOG_LEN  (256)
-
-static bssnz_t struct ble_ll_log g_ble_ll_log[BLE_LL_LOG_LEN];
-static uint8_t g_ble_ll_log_index;
-
-void
-ble_ll_log(uint8_t id, uint8_t arg8, uint16_t arg16, uint32_t arg32)
-{
-    os_sr_t sr;
-    struct ble_ll_log *le;
-
-    OS_ENTER_CRITICAL(sr);
-    le = &g_ble_ll_log[g_ble_ll_log_index];
-    le->cputime = os_cputime_get32();
-    le->log_id = id;
-    le->log_a8 = arg8;
-    le->log_a16 = arg16;
-    le->log_a32 = arg32;
-    ++g_ble_ll_log_index;
-    if (g_ble_ll_log_index == BLE_LL_LOG_LEN) {
-        g_ble_ll_log_index = 0;
-    }
-    OS_EXIT_CRITICAL(sr);
-}
-#endif
 
 /**
  * Counts the number of advertising PDU's received, by type. For advertising
@@ -578,8 +542,8 @@ ble_ll_wfr_timer_exp(void *arg)
     rx_start = ble_phy_rx_started();
     lls = g_ble_ll_data.ll_state;
 
-    ble_ll_log(BLE_LL_LOG_ID_WFR_EXP, lls, ble_phy_xcvr_state_get(),
-               (uint32_t)rx_start);
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_WFR_EXP, lls, ble_phy_xcvr_state_get(),
+                       (uint32_t)rx_start);
 
     /* If we have started a reception, there is nothing to do here */
     if (!rx_start) {
@@ -880,14 +844,14 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     int rc;
     uint8_t pdu_type;
 
-    ble_ll_log(BLE_LL_LOG_ID_RX_START, chan, rxhdr->rem_usecs,
-               rxhdr->beg_cputime);
-
     /* Advertising channel PDU */
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_RX_START, g_ble_ll_data.ll_state,
+                       pdu_type);
+
     switch (g_ble_ll_data.ll_state) {
-        case BLE_LL_STATE_CONNECTION:
+    case BLE_LL_STATE_CONNECTION:
         rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
     case BLE_LL_STATE_ADV:
@@ -940,9 +904,12 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     /* Get CRC status from BLE header */
     crcok = BLE_MBUF_HDR_CRC_OK(rxhdr);
 
-    ble_ll_log(BLE_LL_LOG_ID_RX_END, rxbuf[0],
-               ((uint16_t)rxhdr->rxinfo.flags << 8) | rxbuf[1],
-               rxhdr->beg_cputime);
+    /* Get advertising PDU type and length */
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+    len = rxbuf[1];
+
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_RX_END, pdu_type, len,
+                       rxhdr->rxinfo.flags);
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_DTM) {
@@ -955,10 +922,6 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
-
-    /* Get advertising PDU type and length */
-    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
-    len = rxbuf[1];
 
     /* If the CRC checks, make sure lengths check! */
     badpkt = 0;
@@ -1278,11 +1241,6 @@ ble_ll_reset(void)
     /* Reset LL stats */
     STATS_RESET(ble_ll_stats);
 
-#ifdef BLE_LL_LOG
-    g_ble_ll_log_index = 0;
-    memset(&g_ble_ll_log, 0, sizeof(g_ble_ll_log));
-#endif
-
     /* Reset any preferred PHYs */
     g_ble_ll_data.ll_pref_tx_phys = 0;
     g_ble_ll_data.ll_pref_rx_phys = 0;
@@ -1436,6 +1394,9 @@ ble_ll_init(void)
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
+    ble_ll_trace_init();
+    ble_phy_trace_init();
+
     /* Retrieve the public device address if not set by syscfg */
     memcpy(&addr.val[0], MYNEWT_VAL_BLE_PUBLIC_DEV_ADDR, BLE_DEV_ADDR_LEN);
     if (!memcmp(&addr.val[0], ((ble_addr_t *)BLE_ADDR_ANY)->val,
@@ -1586,31 +1547,3 @@ ble_ll_init(void)
 
     ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
 }
-
-#ifdef BLE_LL_LOG
-void
-ble_ll_log_dump_index(int i)
-{
-    struct ble_ll_log *log;
-
-    log = &g_ble_ll_log[i];
-
-    /* TODO cast is a workaround until this is fixed properly */
-    console_printf("cputime=%lu id=%u a8=%u a16=%u a32=%lu\n",
-                   (unsigned long)log->cputime, log->log_id, log->log_a8,
-                   log->log_a16, (unsigned long)log->log_a32);
-}
-
-void
-ble_ll_log_dump(void)
-{
-    int i;
-
-    for (i = g_ble_ll_log_index; i < BLE_LL_LOG_LEN; ++i) {
-        ble_ll_log_dump_index(i);
-    }
-    for (i = 0; i < g_ble_ll_log_index; ++i) {
-        ble_ll_log_dump_index(i);
-    }
-}
-#endif

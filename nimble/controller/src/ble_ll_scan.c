@@ -1054,7 +1054,6 @@ ble_ll_scan_rfclk_chk_stop(void)
         stop = 1;
     }
     if (stop) {
-        ble_ll_log(BLE_LL_LOG_ID_RFCLK_SCAN_DIS, g_ble_ll_data.ll_rfclk_state,0,0);
         ble_ll_xcvr_rfclk_disable();
     }
     OS_EXIT_CRITICAL(sr);
