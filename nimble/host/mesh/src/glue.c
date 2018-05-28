@@ -19,6 +19,9 @@
 
 #include "mesh/glue.h"
 #include "adv.h"
+#ifndef MYNEWT
+#include "nimble/nimble_port.h"
+#endif
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 
@@ -342,13 +345,21 @@ net_buf_reserve(struct os_mbuf *om, size_t reserve)
 void
 k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler)
 {
+#ifndef MYNEWT
+    ble_npl_callout_init(work, nimble_port_get_dflt_eventq(), handler, NULL);
+#else
     ble_npl_callout_init(work, ble_npl_eventq_dflt_get(), handler, NULL);
+#endif
 }
 
 void
 k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f)
 {
+#ifndef MYNEWT
+    ble_npl_callout_init(&w->work, nimble_port_get_dflt_eventq(), f, NULL);
+#else
     ble_npl_callout_init(&w->work, ble_npl_eventq_dflt_get(), f, NULL);
+#endif
 }
 
 void
