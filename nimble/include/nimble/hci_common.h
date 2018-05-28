@@ -879,6 +879,33 @@ struct hci_create_conn
     uint16_t max_ce_len;
 };
 
+/* LE Read Local P-256 Public Key Complete Event */
+struct hci_le_subev_rd_loc_p256_pubkey {
+    uint8_t status;
+    uint8_t pubkey[64];
+} __attribute__((packed));
+
+/* LE Generate DHKey Complete Event */
+struct hci_le_subev_gen_dhkey_complete {
+    uint8_t status;
+    uint8_t dhkey[32];
+} __attribute__((packed));
+
+/* LE Directed Advertising Report Event */
+struct hci_le_subev_direct_adv_rpt_param {
+    uint8_t evt_type;
+    uint8_t addr_type;
+    uint8_t addr[6];
+    uint8_t dir_addr_type;
+    uint8_t dir_addr[6];
+    int8_t rssi;
+} __attribute__((packed));
+
+struct hci_le_subev_direct_adv_rpt {
+    uint8_t num_reports;
+    struct hci_le_subev_direct_adv_rpt_param params[0];
+} __attribute__((packed));
+
 #if MYNEWT_VAL(BLE_EXT_ADV)
 /* LE create connection command (ocf=0x0043). */
 struct hci_ext_conn_params
@@ -952,7 +979,63 @@ struct hci_ext_adv_params
     uint8_t sid;
     uint8_t scan_req_notif;
 };
+
+/* LE Extended Advertising Report Event */
+struct hci_le_subev_ext_adv_rpt {
+    uint8_t num_reports;
+    struct hci_ext_adv_report_param params[0];
+} __attribute__((packed));
+
+/* LE Periodic Advertising Sync Established Event */
+struct hci_le_subev_per_adv_sync_estab {
+    uint8_t status;
+    uint16_t sync_handle;
+    uint8_t sid;
+    uint8_t adv_addr_type;
+    uint8_t adv_addr[6];
+    uint8_t adv_phy;
+    uint16_t per_adv_ival;
+    uint8_t adv_clk_accuracy;
+} __attribute__((packed));
+
+/* LE Periodic Advertising Report Event */
+struct hci_le_subev_per_adv_rpt {
+    uint16_t sync_handle;
+    uint8_t tx_power;
+    int8_t rssi;
+    uint8_t _unused;
+    uint8_t data_status;
+    uint8_t data_length;
+    uint8_t data[0];
+} __attribute__((packed));
+
+/* LE Periodic Advertising Sync Lost Event */
+struct hci_le_subev_per_adv_sync_lost {
+    uint16_t sync_handle;
+} __attribute__((packed));
+
+/* LE Advertising Set Terminated Event */
+struct hci_le_subev_adv_set_terminated {
+    uint8_t status;
+    uint8_t adv_handle;
+    uint16_t conn_handle;
+    uint8_t num_compl_ext_adv_ev;
+} __attribute__((packed));
+
+/* LE Scan Request Received Event */
+struct hci_le_subev_scan_req_rcvd {
+    uint8_t adv_handle;
+    uint8_t scan_addr_type;
+    uint8_t scan_addr[6];
+} __attribute__((packed));
+
 #endif
+
+/* LE Channel Selection Algorithm Event */
+struct hci_le_subev_chan_sel_alg {
+    uint16_t conn_handle;
+    uint8_t chan_sel_alg;
+} __attribute__((packed));
 
 /* LE connection update command (ocf=0x0013). */
 struct hci_conn_update
