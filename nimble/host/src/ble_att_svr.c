@@ -476,22 +476,6 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-/**
- * Reads a locally registered attribute.  If the specified attribute handle
- * coresponds to a GATT characteristic value or descriptor, the read is
- * performed by calling the registered GATT access callback.
- *
- * @param attr_handle           The 16-bit handle of the attribute to read.
- * @param out_om                On success, this is made to point to a
- *                                  newly-allocated mbuf containing the
- *                                  attribute data read.
- *
- * @return                      0 on success;
- *                              NimBLE host ATT return code if the attribute
- *                                  access callback reports failure;
- *                              NimBLE host core return code on unexpected
- *                                  error.
- */
 int
 ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om)
 {
@@ -2092,21 +2076,6 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
     return ble_att_svr_write_handle(conn_handle, handle, 0, rxom, &att_err);
 }
 
-/**
- * Writes a locally registered attribute.  This function consumes the supplied
- * mbuf regardless of the outcome.  If the specified attribute handle
- * coresponds to a GATT characteristic value or descriptor, the write is
- * performed by calling the registered GATT access callback.
- *
- * @param attr_handle           The 16-bit handle of the attribute to write.
- * @param om                    The value to write to the attribute.
- *
- * @return                      0 on success;
- *                              NimBLE host ATT return code if the attribute
- *                                  access callback reports failure;
- *                              NimBLE host core return code on unexpected
- *                                  error.
- */
 int
 ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om)
 {

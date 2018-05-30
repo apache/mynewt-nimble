@@ -20,6 +20,13 @@
 #ifndef H_BLE_ATT_
 #define H_BLE_ATT_
 
+/**
+ * @brief Bluetooth Attribute Protocol (ATT)
+ * @defgroup bt_att Bluetooth Attribute Protocol (ATT)
+ * @ingroup bt_host
+ * @{
+ */
+
 #include "os/queue.h"
 #ifdef __cplusplus
 extern "C" {
@@ -94,7 +101,8 @@ struct os_mbuf;
 #define BLE_ATT_ACCESS_OP_READ              1
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
-#define BLE_ATT_MTU_DFLT                    23  /* Also the minimum. */
+/** Default ATT MTU. Also the minimum. */
+#define BLE_ATT_MTU_DFLT                    23
 
 /**
  * An ATT MTU of 527 allows the largest ATT command (signed write) to contain a
@@ -102,15 +110,85 @@ struct os_mbuf;
  */
 #define BLE_ATT_MTU_MAX                     527
 
+/**
+ * Reads a locally registered attribute.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the read is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to read.
+ * @param out_om                On success, this is made to point to a
+ *                                  newly-allocated mbuf containing the
+ *                                  attribute data read.
+ *
+ * @return                      0 on success;
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
+
+/**
+ * Writes a locally registered attribute.  This function consumes the supplied
+ * mbuf regardless of the outcome.  If the specified attribute handle
+ * coresponds to a GATT characteristic value or descriptor, the write is
+ * performed by calling the registered GATT access callback.
+ *
+ * @param attr_handle           The 16-bit handle of the attribute to write.
+ * @param om                    The value to write to the attribute.
+ *
+ * @return                      0 on success;
+ *                              NimBLE host ATT return code if the attribute
+ *                                  access callback reports failure;
+ *                              NimBLE host core return code on unexpected
+ *                                  error.
+ */
 int ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om);
 
+/**
+ * Retrieves the ATT MTU of the specified connection.  If an MTU exchange for
+ * this connection has occurred, the MTU is the lower of the two peers'
+ * preferred values.  Otherwise, the MTU is the default value of 23.
+ *
+ * @param conn_handle           The handle of the connection to query.
+ *
+ * @return                      The specified connection's ATT MTU, or 0 if
+ *                                  there is no such connection.
+ */
 uint16_t ble_att_mtu(uint16_t conn_handle);
+
+/**
+ * Retrieves the preferred ATT MTU.  This is the value indicated by the device
+ * during an ATT MTU exchange.
+ *
+ * @return                      The preferred ATT MTU.
+ */
 uint16_t ble_att_preferred_mtu(void);
+
+/**
+ * Sets the preferred ATT MTU; the device will indicate this value in all
+ * subseqeunt ATT MTU exchanges.  The ATT MTU of a connection is equal to the
+ * lower of the two peers' preferred MTU values.  The ATT MTU is what dictates
+ * the maximum size of any message sent during a GATT procedure.
+ *
+ * The specified MTU must be within the following range: [23, BLE_ATT_MTU_MAX].
+ * 23 is a minimum imposed by the Bluetooth specification; BLE_ATT_MTU_MAX is a
+ * NimBLE compile-time setting.
+ *
+ * @param mtu                   The preferred ATT MTU.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EINVAL if the specifeid value is not
+ *                                  within the allowed range.
+ */
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ * @}
+ */
 
 #endif
