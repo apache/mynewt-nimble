@@ -20,6 +20,13 @@
 #ifndef H_BLE_EDDYSTONE_
 #define H_BLE_EDDYSTONE_
 
+/**
+ * @brief Eddystone - BLE beacon from Google
+ * @defgroup bt_eddystone Eddystone - BLE beacon from Google
+ * @ingroup bt_host
+ * @{
+ */
+
 #include <inttypes.h>
 #ifdef __cplusplus
 extern "C" {
@@ -51,8 +58,47 @@ struct ble_hs_adv_fields;
 #define BLE_EDDYSTONE_URL_SUFFIX_GOV        0x0d
 #define BLE_EDDYSTONE_URL_SUFFIX_NONE       0xff
 
+/**
+ * Configures the device to advertise Eddystone UID beacons.
+ *
+ * @param adv_fields            The base advertisement fields to transform into
+ *                                  an eddystone beacon.  All configured fields
+ *                                  are preserved; you probably want to clear
+ *                                  this struct before calling this function.
+ * @param uid                   The 16-byte UID to advertise.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              BLE_HS_EMSGSIZE if the specified data is too
+ *                                  large to fit in an advertisement;
+ *                              Other nonzero on failure.
+ */
 int ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields,
                                    void *uid);
+
+/**
+ * Configures the device to advertise Eddystone URL beacons.
+ *
+ * @param adv_fields            The base advertisement fields to transform into
+ *                                  an eddystone beacon.  All configured fields
+ *                                  are preserved; you probably want to clear
+ *                                  this struct before calling this function.
+ * @param url_scheme            The prefix of the URL; one of the
+ *                                  BLE_EDDYSTONE_URL_SCHEME values.
+ * @param url_body              The middle of the URL.  Don't include the
+ *                                  suffix if there is a suitable suffix code.
+ * @param url_body_len          The string length of the url_body argument.
+ * @param url_suffix            The suffix of the URL; one of the
+ *                                  BLE_EDDYSTONE_URL_SUFFIX values; use
+ *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
+ *                                  is embedded in the body argument.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              BLE_HS_EMSGSIZE if the specified data is too
+ *                                  large to fit in an advertisement;
+ *                              Other nonzero on failure.
+ */
 int ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                    uint8_t url_scheme, char *url_body,
                                    uint8_t url_body_len, uint8_t suffix);
@@ -60,5 +106,9 @@ int ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ * @}
+ */
 
 #endif

@@ -105,21 +105,6 @@ ble_eddystone_set_adv_data_gen(struct ble_hs_adv_fields *adv_fields,
     return 0;
 }
 
-/**
- * Configures the device to advertise eddystone UID beacons.
- *
- * @param adv_fields            The base advertisement fields to transform into
- *                                  an eddystone beacon.  All configured fields
- *                                  are preserved; you probably want to clear
- *                                  this struct before calling this function.
- * @param uid                   The 16-byte UID to advertise.
- *
- * @return                      0 on success;
- *                              BLE_HS_EBUSY if advertising is in progress;
- *                              BLE_HS_EMSGSIZE if the specified data is too
- *                                  large to fit in an advertisement;
- *                              Other nonzero on failure.
- */
 int
 ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
 {
@@ -152,29 +137,6 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
     return 0;
 }
 
-/**
- * Configures the device to advertise eddystone URL beacons.
- *
- * @param adv_fields            The base advertisement fields to transform into
- *                                  an eddystone beacon.  All configured fields
- *                                  are preserved; you probably want to clear
- *                                  this struct before calling this function.
- * @param url_scheme            The prefix of the URL; one of the
- *                                  BLE_EDDYSTONE_URL_SCHEME values.
- * @param url_body              The middle of the URL.  Don't include the
- *                                  suffix if there is a suitable suffix code.
- * @param url_body_len          The string length of the url_body argument.
- * @param url_suffix            The suffix of the URL; one of the
- *                                  BLE_EDDYSTONE_URL_SUFFIX values; use
- *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
- *                                  is embedded in the body argument.
- *
- * @return                      0 on success;
- *                              BLE_HS_EBUSY if advertising is in progress;
- *                              BLE_HS_EMSGSIZE if the specified data is too
- *                                  large to fit in an advertisement;
- *                              Other nonzero on failure.
- */
 int
 ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                uint8_t url_scheme, char *url_body,
