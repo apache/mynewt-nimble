@@ -1735,19 +1735,6 @@ ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
     if (hcc->filter_policy == 0) {
         memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
         connsm->peer_addr_type = hcc->peer_addr_type;
-
-        /* If device was added to resolve list peer type has different meaning
-         * and we need to adjust here. If device is on resolve list mark type as
-         * 'identity' as this means also RPA is allowed for connection.
-         */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-        if ((connsm->peer_addr_type < BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT) &&
-                ble_ll_resolv_list_find(connsm->peer_addr,
-                                        connsm->peer_addr_type)) {
-            connsm->peer_addr_type += 2;
-        }
-#endif
-
     }
 
     /* XXX: for now, just make connection interval equal to max */
@@ -1851,19 +1838,6 @@ ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
     if (hcc->filter_policy == 0) {
         memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
         connsm->peer_addr_type = hcc->peer_addr_type;
-
-        /* In LE Extended Create Connection peer type has different meaning
-         * than legacy LE Create Connection and since legacy values are used
-         * internally we need to adjust here. If device is on resolve list
-         * mark type as 'identity' as this means also RPA is allowed for
-         * connection.
-         */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-        if (ble_ll_resolv_list_find(connsm->peer_addr,
-                                    connsm->peer_addr_type)) {
-            connsm->peer_addr_type += 2;
-        }
-#endif
     }
 
     connsm->initial_params = *hcc;
