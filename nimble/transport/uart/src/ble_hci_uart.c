@@ -74,6 +74,8 @@ static const uint8_t ble_hci_uart_reset_cmd[4] = { 0x01, 0x03, 0x0C, 0x00 };
 #define BLE_HCI_UART_H4_SYNC_LOSS   0x80
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
+#define BLE_HCI_UART_H4_LE_EVT      0x83
+#define BLE_HCI_UART_H4_SKIP_EVT    0x84
 
 static ble_hci_trans_rx_cmd_fn *ble_hci_uart_rx_cmd_cb;
 static void *ble_hci_uart_rx_cmd_arg;
@@ -434,13 +436,12 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
 #if MYNEWT_VAL(BLE_HOST)
     case BLE_HCI_UART_H4_EVT:
         /*
-         * XXX: we should not assert if host cannot allocate an event. Need
-         * to determine what to do here.
+         * The event code is unknown at the moment. Depending on event priority,
+         * buffer *shall* be allocated from ble_hci_uart_evt_hi_pool
+         * or "may* be allocated from ble_hci_uart_evt_lo_pool.
+         * Thus do not allocate the buffer yet.
          */
-        ble_hci_uart_state.rx_cmd.data =
-            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-        assert(ble_hci_uart_state.rx_cmd.data != NULL);
-
+        ble_hci_uart_state.rx_cmd.data = NULL;
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
         break;
@@ -589,10 +590,38 @@ ble_hci_uart_rx_skip_cmd(uint8_t data)
 #endif
 
 #if MYNEWT_VAL(BLE_HOST)
+static inline void
+ble_hci_uart_rx_evt_cb()
+{
+    int rc;
+
+    if (ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
+        assert(ble_hci_uart_rx_cmd_cb != NULL);
+        rc = ble_hci_uart_rx_cmd_cb(ble_hci_uart_state.rx_cmd.data,
+                                    ble_hci_uart_rx_cmd_arg);
+        if (rc != 0) {
+            ble_hci_trans_buf_free(ble_hci_uart_state.rx_cmd.data);
+        }
+        ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
+    }
+}
+
 static void
 ble_hci_uart_rx_evt(uint8_t data)
 {
-    int rc;
+    /* Determine event priority to allocate buffer */
+    if (!ble_hci_uart_state.rx_cmd.data) {
+        /* In case of LE Meta Event priority might be still unknown */
+        if (data == BLE_HCI_EVCODE_LE_META) {
+            ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_LE_EVT;
+            ble_hci_uart_state.rx_cmd.cur++;
+            return;
+        }
+
+        ble_hci_uart_state.rx_cmd.data =
+            ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        assert(ble_hci_uart_state.rx_cmd.data != NULL);
+    }
 
     ble_hci_uart_state.rx_cmd.data[ble_hci_uart_state.rx_cmd.cur++] = data;
 
@@ -605,13 +634,51 @@ ble_hci_uart_rx_evt(uint8_t data)
                                         BLE_HCI_EVENT_HDR_LEN;
     }
 
-    if (ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
-        assert(ble_hci_uart_rx_cmd_cb != NULL);
-        rc = ble_hci_uart_rx_cmd_cb(ble_hci_uart_state.rx_cmd.data,
-                                    ble_hci_uart_rx_cmd_arg);
-        if (rc != 0) {
-            ble_hci_trans_buf_free(ble_hci_uart_state.rx_cmd.data);
+    ble_hci_uart_rx_evt_cb();
+}
+
+static void
+ble_hci_uart_rx_le_evt(uint8_t data)
+{
+    ble_hci_uart_state.rx_cmd.cur++;
+
+    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_EVENT_HDR_LEN) {
+        /* LE Meta Event parameter length is never 0 */
+        assert(data != 0);
+        ble_hci_uart_state.rx_cmd.len = data + BLE_HCI_EVENT_HDR_LEN;
+        return;
+    }
+
+    /* Determine event priority to allocate buffer */
+    if (!ble_hci_uart_state.rx_cmd.data) {
+        /* Determine event priority to allocate buffer */
+        if (data == BLE_HCI_LE_SUBEV_ADV_RPT ||
+                data == BLE_HCI_LE_SUBEV_EXT_ADV_RPT) {
+            ble_hci_uart_state.rx_cmd.data =
+                ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+            if (ble_hci_uart_state.rx_cmd.data == NULL) {
+                ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_SKIP_EVT;
+                return;
+            }
+        } else {
+            ble_hci_uart_state.rx_cmd.data =
+                ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            assert(ble_hci_uart_state.rx_cmd.data != NULL);
         }
+
+        ble_hci_uart_state.rx_cmd.data[0] = BLE_HCI_EVCODE_LE_META;
+        ble_hci_uart_state.rx_cmd.data[1] =
+                ble_hci_uart_state.rx_cmd.len - BLE_HCI_EVENT_HDR_LEN;
+    }
+
+    ble_hci_uart_state.rx_cmd.data[ble_hci_uart_state.rx_cmd.cur - 1] = data;
+    ble_hci_uart_rx_evt_cb();
+}
+
+static void
+ble_hci_uart_rx_skip_evt(uint8_t data)
+{
+    if (++ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
     }
 }
@@ -716,6 +783,12 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
 #if MYNEWT_VAL(BLE_HOST)
     case BLE_HCI_UART_H4_EVT:
         ble_hci_uart_rx_evt(data);
+        return 0;
+    case BLE_HCI_UART_H4_LE_EVT:
+        ble_hci_uart_rx_le_evt(data);
+        return 0;
+    case BLE_HCI_UART_H4_SKIP_EVT:
+        ble_hci_uart_rx_skip_evt(data);
         return 0;
 #endif
     case BLE_HCI_UART_H4_ACL:
