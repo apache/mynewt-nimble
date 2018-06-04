@@ -398,16 +398,6 @@ ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
     }
 }
 
-/**
- * Retrieves the ATT MTU of the specified connection.  If an MTU exchange for
- * this connection has occurred, the MTU is the lower of the two peers'
- * preferred values.  Otherwise, the MTU is the default value of 23.
- *
- * @param conn_handle           The handle of the connection to query.
- *
- * @return                      The specified connection's ATT MTU, or 0 if
- *                                  there is no such connection.
- */
 uint16_t
 ble_att_mtu(uint16_t conn_handle)
 {
@@ -521,34 +511,12 @@ ble_att_rx(struct ble_l2cap_chan *chan)
     return 0;
 }
 
-/**
- * Retrieves the preferred ATT MTU.  This is the value indicated by the device
- * during an ATT MTU exchange.
- *
- * @return                      The preferred ATT MTU.
- */
 uint16_t
 ble_att_preferred_mtu(void)
 {
     return ble_att_preferred_mtu_val;
 }
 
-/**
- * Sets the preferred ATT MTU; the device will indicate this value in all
- * subseqeunt ATT MTU exchanges.  The ATT MTU of a connection is equal to the
- * lower of the two peers' preferred MTU values.  The ATT MTU is what dictates
- * the maximum size of any message sent during a GATT procedure.
- *
- * The specified MTU must be within the following range: [23, BLE_ATT_MTU_MAX].
- * 23 is a minimum imposed by the Bluetooth specification; BLE_ATT_MTU_MAX is a
- * NimBLE compile-time setting.
- *
- * @param mtu                   The preferred ATT MTU.
- *
- * @return                      0 on success;
- *                              BLE_HS_EINVAL if the specifeid value is not
- *                                  within the allowed range.
- */
 int
 ble_att_set_preferred_mtu(uint16_t mtu)
 {
