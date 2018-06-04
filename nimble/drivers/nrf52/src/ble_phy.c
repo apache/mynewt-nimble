@@ -673,6 +673,24 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 
     /* Enable the disabled interrupt so we time out on events compare */
     NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
+
+    /*
+     * It may happen that if CPU is halted for a brief moment (e.g. during flash
+     * erase or write), TIMER0 already counted past CC[3] and thus wfr will not
+     * fire as expected. In case this happened, let's just disable PPIs for wfr
+     * and trigger wfr manually (i.e. disable radio).
+     *
+     * Note that the same applies to RX start time set in CC[0] but since it
+     * should fire earlier than wfr, fixing wfr is enough.
+     *
+     * CC[1] is only used as a reference on RX start, we do not need it here so
+     * it can be used to read TIMER0 counter.
+     */
+    NRF_TIMER0->TASKS_CAPTURE[1] = 1;
+    if (NRF_TIMER0->CC[1] > NRF_TIMER0->CC[3]) {
+        NRF_PPI->CHENCLR = PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk;
+        NRF_RADIO->TASKS_DISABLE = 1;
+    }
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
