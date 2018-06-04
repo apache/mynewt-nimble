@@ -1167,18 +1167,6 @@ ble_gatts_free_mem(void)
     ble_gatts_svc_entries = NULL;
 }
 
-/**
- * Makes all registered services available to peers.  This function gets called
- * automatically by the NimBLE host on startup; manual calls are only necessary
- * for replacing the set of supported services with a new one.  This function
- * requires that:
- *     o No peers are connected, and
- *     o No GAP operations are active (advertise, discover, or connect).
- *
- * @return                      0 on success;
- *                              A BLE host core return code on unexpected
- *                                  error.
- */
 int
 ble_gatts_start(void)
 {
@@ -1833,18 +1821,6 @@ ble_gatts_find_svc_chr_attr(const ble_uuid_t *svc_uuid,
     }
 }
 
-/**
- * Retrieves the attribute handle associated with a local GATT service.
- *
- * @param uuid128               The UUID of the service to look up.
- * @param out_handle            On success, populated with the handle of the
- *                                  service attribute.  Pass null if you don't
- *                                  need this value.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOENT if the specified service could
- *                                  not be found.
- */
 int
 ble_gatts_find_svc(const ble_uuid_t *uuid, uint16_t *out_handle)
 {
@@ -1861,23 +1837,6 @@ ble_gatts_find_svc(const ble_uuid_t *uuid, uint16_t *out_handle)
     return 0;
 }
 
-/**
- * Retrieves the pair of attribute handles associated with a local GATT
- * characteristic.
- *
- * @param svc_uuid128           The UUID of the parent service.
- * @param chr_uuid128           The UUID of the characteristic to look up.
- * @param out_def_handle        On success, populated with the handle
- *                                  of the characteristic definition attribute.
- *                                  Pass null if you don't need this value.
- * @param out_val_handle        On success, populated with the handle
- *                                  of the characteristic value attribute.
- *                                  Pass null if you don't need this value.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOENT if the specified service or
- *                                  characteristic could not be found.
- */
 int
 ble_gatts_find_chr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
                    uint16_t *out_def_handle, uint16_t *out_val_handle)
@@ -1899,21 +1858,6 @@ ble_gatts_find_chr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
     return 0;
 }
 
-/**
- * Retrieves the attribute handle associated with a local GATT descriptor.
- *
- * @param svc_uuid128           The UUID of the grandparent service.
- * @param chr_uuid128           The UUID of the parent characteristic.
- * @param dsc_uuid128           The UUID of the descriptor ro look up.
- * @param out_handle            On success, populated with the handle
- *                                  of the descripytor attribute.  Pass null if
- *                                  you don't need this value.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOENT if the specified service,
- *                                  characteristic, or descriptor could not be
- *                                  found.
- */
 int
 ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
                    const ble_uuid_t *dsc_uuid, uint16_t *out_handle)
@@ -1958,18 +1902,6 @@ ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
     }
 }
 
-/**
- * Queues a set of service definitions for registration.  All services queued
- * in this manner get registered when ble_gatts_start() is called.
- *
- * @param svcs                  An array of service definitions to queue for
- *                                  registration.  This array must be
- *                                  terminated with an entry whose 'type'
- *                                  equals 0.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOMEM on heap exhaustion.
- */
 int
 ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
 {
@@ -2129,24 +2061,6 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
 
     return 0;
 }
-
-/**
- * Adjusts a host configuration object's settings to accommodate the specified
- * service definition array.  This function adds the counts to the appropriate
- * fields in the supplied configuration object without clearing them first, so
- * it can be called repeatedly with different inputs to calculate totals.  Be
- * sure to zero the GATT server settings prior to the first call to this
- * function.
- *
- * @param defs                  The service array containing the resource
- *                                  definitions to be counted.
- * @param cfg                   The resource counts are accumulated in this
- *                                  configuration object.
- *
- * @return                      0 on success;
- *                              BLE_HS_EINVAL if the svcs array contains an
- *                                  invalid resource definition.
- */
 int
 ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs)
 {
@@ -2180,18 +2094,6 @@ ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb)
     }
 }
 
-/**
- * Resets the GATT server to its initial state.  On success, this function
- * removes all supported services, characteristics, and descriptors.  This
- * function requires that:
- *     o No peers are connected, and
- *     o No GAP operations are active (advertise, discover, or connect).
- *
- * @return                      0 on success;
- *                              BLE_HS_EBUSY if the GATT server could not be
- *                                  reset due to existing connections or active
- *                                  GAP procedures.
- */
 int
 ble_gatts_reset(void)
 {

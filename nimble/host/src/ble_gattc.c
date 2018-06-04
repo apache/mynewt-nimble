@@ -1288,18 +1288,6 @@ ble_gattc_mtu_tx(struct ble_gattc_proc *proc)
     return rc;
 }
 
-/**
- * Initiates GATT procedure: Exchange MTU.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
 {
@@ -1518,16 +1506,6 @@ ble_gattc_disc_all_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Discover All Primary Services.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- */
 int
 ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
                         void *cb_arg)
@@ -1741,19 +1719,6 @@ ble_gattc_disc_svc_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Discover Primary Service by Service UUID.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param service_uuid128       The 128-bit UUID of the service to discover.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid,
                            ble_gatt_disc_svc_fn *cb, void *cb_arg)
@@ -2066,22 +2031,6 @@ ble_gattc_find_inc_svcs_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Find Included Services.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param start_handle          The handle to begin the search at (generally
- *                                  the service definition handle).
- * @param end_handle            The handle to end the search at (generally the
- *                                  last handle in the service).
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
                         uint16_t end_handle,
@@ -2310,22 +2259,6 @@ ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Discover All Characteristics of a Service.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param start_handle          The handle to begin the search at (generally
- *                                  the service definition handle).
- * @param end_handle            The handle to end the search at (generally the
- *                                  last handle in the service).
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
                         uint16_t end_handle, ble_gatt_chr_fn *cb,
@@ -2565,24 +2498,6 @@ ble_gattc_disc_chr_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Discover Characteristics by UUID.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param start_handle          The handle to begin the search at (generally
- *                                  the service definition handle).
- * @param end_handle            The handle to end the search at (generally the
- *                                  last handle in the service).
- * @param chr_uuid128           The 128-bit UUID of the characteristic to
- *                                  discover.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                             uint16_t end_handle, const ble_uuid_t *uuid,
@@ -2793,22 +2708,6 @@ ble_gattc_disc_all_dscs_rx_complete(struct ble_gattc_proc *proc, int status)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Discover All Characteristic Descriptors.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param chr_val_handle        The handle of the characteristic value
- *                                  attribute.
- * @param chr_end_handle        The last handle in the characteristic
- *                                  definition.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
                         uint16_t end_handle,
@@ -2948,19 +2847,6 @@ ble_gattc_read_tx(struct ble_gattc_proc *proc)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Read Characteristic Value.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to read.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
                ble_gatt_attr_fn *cb, void *cb_arg)
@@ -3122,22 +3008,6 @@ ble_gattc_read_uuid_tx(struct ble_gattc_proc *proc)
                                     &proc->read_uuid.chr_uuid.u);
 }
 
-/**
- * Initiates GATT procedure: Read Using Characteristic UUID.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param start_handle          The first handle to search (generally the
- *                                  handle of the service definition).
- * @param end_handle            The last handle to search (generally the
- *                                  last handle in the service definition).
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                        uint16_t end_handle, const ble_uuid_t *uuid,
@@ -3335,19 +3205,6 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Read Long Characteristic Values.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param handle                The handle of the characteristic value to read.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
                     ble_gatt_attr_fn *cb, void *cb_arg)
@@ -3475,20 +3332,7 @@ ble_gattc_read_mult_tx(struct ble_gattc_proc *proc)
     return 0;
 }
 
-/**
- * Initiates GATT procedure: Read Multiple Characteristic Values.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param handles               An array of 16-bit attribute handles to read.
- * @param num_handles           The number of entries in the "handles" array.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
+
 int
 ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                     uint8_t num_handles, ble_gatt_attr_fn *cb,
@@ -3542,18 +3386,6 @@ done:
  * $write no response                                                        *
  *****************************************************************************/
 
-/**
- * Initiates GATT procedure: Write Without Response.  This function consumes
- * the supplied mbuf regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param txom                  The value to write to the characteristic.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                        struct os_mbuf *txom)
@@ -3576,19 +3408,6 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
     return rc;
 }
 
-/**
- * Initiates GATT procedure: Write Without Response.  This function consumes
- * the supplied mbuf regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param value                 The value to write to the characteristic.
- * @param value_len             The number of bytes to write.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_write_no_rsp_flat(uint16_t conn_handle, uint16_t attr_handle,
                             const void *data, uint16_t data_len)
@@ -3668,22 +3487,6 @@ ble_gattc_write_err(struct ble_gattc_proc *proc, int status,
     ble_gattc_write_cb(proc, status, att_handle);
 }
 
-/**
- * Initiates GATT procedure: Write Characteristic Value.  This function
- * consumes the supplied mbuf regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param txom                  The value to write to the characteristic.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
                 struct os_mbuf *txom, ble_gatt_attr_fn *cb, void *cb_arg)
@@ -3729,22 +3532,6 @@ done:
     return rc;
 }
 
-/**
- * Initiates GATT procedure: Write Characteristic Value (flat buffer version).
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param value                 The value to write to the characteristic.
- * @param value_len             The number of bytes to write.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_write_flat(uint16_t conn_handle, uint16_t attr_handle,
                      const void *data, uint16_t data_len,
@@ -4009,22 +3796,6 @@ ble_gattc_write_long_rx_exec(struct ble_gattc_proc *proc, int status)
     return BLE_HS_EDONE;
 }
 
-/**
- * Initiates GATT procedure: Write Long Characteristic Values.  This function
- * consumes the supplied mbuf regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attr_handle           The handle of the characteristic value to write
- *                                  to.
- * @param txom                  The value to write to the characteristic.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
                      uint16_t offset, struct os_mbuf *txom,
@@ -4299,25 +4070,6 @@ ble_gattc_write_reliable_rx_exec(struct ble_gattc_proc *proc, int status)
     return BLE_HS_EDONE;
 }
 
-/**
- * Initiates GATT procedure: Reliable Writes.  This function consumes the
- * supplied mbufs regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param attrs                 An array of attribute descriptors; specifies
- *                                  which characteristics to write to and what
- *                                  data to write to them.  The mbuf pointer in
- *                                  each attribute is set to NULL by this
- *                                  function.
- * @param num_attrs             The number of characteristics to write; equal
- *                                  to the number of elements in the 'attrs'
- *                                  array.
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- */
 int
 ble_gattc_write_reliable(uint16_t conn_handle,
                          struct ble_gatt_attr *attrs,
@@ -4387,18 +4139,6 @@ done:
  * $notify                                                                   *
  *****************************************************************************/
 
-/**
- * Sends a "free-form" characteristic notification.  This function consumes the
- * supplied mbuf regardless of the outcome.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param chr_val_handle        The attribute handle to indicate in the
- *                                  outgoing notification.
- * @param txom                  The value to write to the characteristic.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                         struct os_mbuf *txom)
@@ -4450,18 +4190,6 @@ done:
     return rc;
 }
 
-/**
- * Sends a characteristic notification.  The content of the message is read
- * from the specified characteristic.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param chr_val_handle        The value attribute handle of the
- *                                  characteristic to include in the outgoing
- *                                  notification.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
 {
@@ -4555,19 +4283,6 @@ ble_gatts_indicate_fail_notconn(uint16_t conn_handle)
     ble_gattc_fail_procs(conn_handle, BLE_GATT_OP_INDICATE, BLE_HS_ENOTCONN);
 }
 
-/**
- * Sends a characteristic indication.  The content of the message is read from
- * the specified characteristic.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param chr_val_handle        The value attribute handle of the
- *                                  characteristic to include in the outgoing
- *                                  indication.
- * @param txom                  The data to include in the indication.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                           struct os_mbuf *txom)
@@ -4641,18 +4356,6 @@ done:
     return rc;
 }
 
-/**
- * Sends a characteristic indication.  The content of the message is read from
- * the specified characteristic.
- *
- * @param conn_handle           The connection over which to execute the
- *                                  procedure.
- * @param chr_val_handle        The value attribute handle of the
- *                                  characteristic to include in the outgoing
- *                                  indication.
- *
- * @return                      0 on success; nonzero on failure.
- */
 int
 ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
 {
