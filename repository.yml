@@ -23,8 +23,12 @@ repo.versions:
 
     "0-dev": "0.0.0"
     "0-latest": "0.0.0"
+    "1-latest": "1.0.0"
+
+    "1.0.0": "nimble_1_0_0_tag"
+
+    "1.0-latest": "1.0.0"
 
 repo.newt_compatibility:
     0.0.0:
         1.1.0: good
-
