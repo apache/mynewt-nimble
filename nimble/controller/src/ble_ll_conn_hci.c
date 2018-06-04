@@ -223,7 +223,15 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                     memcpy(evdata, rpa, BLE_DEV_ADDR_LEN);
                 }
 
-                if (connsm->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
+                /* We need to adjust peer type if device connected using RPA
+                 * and was resolved since RPA needs to be added to HCI event.
+                 */
+                 if (connsm->peer_addr_type < BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT
+                         && (connsm->rpa_index > -1)) {
+                     peer_addr_type += 2;
+                 }
+
+                if (peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
                     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
                         rpa = ble_ll_scan_get_peer_rpa();
                     } else {
