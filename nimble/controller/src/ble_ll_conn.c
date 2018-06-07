@@ -2868,7 +2868,7 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset,
     } else {
         ble_phy_set_txend_cb(ble_ll_conn_req_txend_init, NULL);
     }
-    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m, end_trans);
+    rc = ble_phy_tx(ble_ll_tx_flat_mbuf_pducb, m, end_trans);
     return rc;
 }
 
