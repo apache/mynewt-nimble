@@ -182,7 +182,6 @@ int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
 int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
-void ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int ble_ll_ext_conn_create(uint8_t *cmdbuf);
 #endif

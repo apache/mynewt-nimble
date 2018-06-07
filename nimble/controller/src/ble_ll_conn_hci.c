@@ -124,54 +124,6 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
 }
 
 /**
- * Make a connect request PDU
- *
- * @param connsm
- */
-void
-ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan)
-{
-    uint8_t pdu_type;
-    uint8_t *dptr;
-    struct os_mbuf *m;
-
-    m = ble_ll_scan_get_pdu();
-    BLE_LL_ASSERT(m != NULL);
-
-    /* Construct first PDU header byte */
-    pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
-
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
-    /* We need CSA2 bit only for legacy connect */
-    if (chan >= BLE_PHY_NUM_DATA_CHANS) {
-        pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
-    }
-#endif
-
-    /* Set BLE transmit header */
-    ble_ll_mbuf_init(m, BLE_CONNECT_REQ_LEN, pdu_type);
-
-    /* Construct the connect request */
-    dptr = m->om_data;
-
-    /* Skip inita and adva advertiser's address as we dont know that yet */
-    dptr += (2 * BLE_DEV_ADDR_LEN);
-
-    /* Access address */
-    put_le32(dptr, connsm->access_addr);
-    dptr[4] = (uint8_t)connsm->crcinit;
-    dptr[5] = (uint8_t)(connsm->crcinit >> 8);
-    dptr[6] = (uint8_t)(connsm->crcinit >> 16);
-    dptr[7] = connsm->tx_win_size;
-    put_le16(dptr + 8, connsm->tx_win_off);
-    put_le16(dptr + 10, connsm->conn_itvl);
-    put_le16(dptr + 12, connsm->slave_latency);
-    put_le16(dptr + 14, connsm->supervision_tmo);
-    memcpy(dptr + 16, &connsm->chanmap, BLE_LL_CONN_CHMAP_LEN);
-    dptr[21] = connsm->hop_inc | (connsm->master_sca << 5);
-}
-
-/**
  * Send a connection complete event
  *
  * @param status The BLE error code associated with the event
