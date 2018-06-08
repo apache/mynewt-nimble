@@ -1017,6 +1017,23 @@ ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     return ble_hdr->txinfo.pyld_len;
 }
 
+uint8_t
+ble_ll_tx_flat_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
+{
+    struct os_mbuf *txpdu;
+    struct ble_mbuf_hdr *ble_hdr;
+
+    txpdu = pducb_arg;
+    BLE_LL_ASSERT(txpdu);
+    ble_hdr = BLE_MBUF_HDR_PTR(txpdu);
+
+    memcpy(dptr, txpdu->om_data, ble_hdr->txinfo.pyld_len);
+
+    *hdr_byte = ble_hdr->txinfo.hdr_byte;
+
+    return ble_hdr->txinfo.pyld_len;
+}
+
 static void
 ble_ll_event_rx_pkt(struct ble_npl_event *ev)
 {
