@@ -81,6 +81,7 @@ struct sockaddr_hci {
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "nimble/nimble_npl.h"
 #include "nimble/ble_hci_trans.h"
 #include "socket/ble_hci_socket.h"
 
@@ -767,8 +768,11 @@ ble_hci_trans_reset(void)
 void
 ble_hci_sock_ack_handler(void *arg)
 {
+    struct ble_npl_event *ev;
+
     while (1) {
-        ble_npl_eventq_run(&ble_hci_sock_state.evq);
+        ev = ble_npl_eventq_get(&ble_hci_sock_state.evq, BLE_NPL_TIME_FOREVER);
+        ble_npl_event_run(ev);
     }
 }
 
@@ -787,7 +791,7 @@ ble_hci_sock_init_task(void)
         pstack = malloc(sizeof(os_stack_t)*BLE_SOCK_STACK_SIZE);
         assert(pstack);
         os_task_init(&ble_sock_task, "hci_sock", ble_hci_sock_ack_handler, NULL,
-                     MYNEWT_VAL(BLE_SOCK_TASK_PRIO), BLE_NPL_WAIT_FOREVER, pstack,
+                     MYNEWT_VAL(BLE_SOCK_TASK_PRIO), BLE_NPL_TIME_FOREVER, pstack,
                      BLE_SOCK_STACK_SIZE);
     }
 #else
@@ -818,7 +822,7 @@ ble_hci_sock_init(void)
     ble_hci_sock_state.sock = -1;
 
     ble_hci_sock_init_task();
-    ble_hci_sock_state.ev.ev_cb = ble_hci_sock_rx_ev;
+    ble_npl_event_init(&ble_hci_sock_state.ev, ble_hci_sock_rx_ev, NULL);
 
     rc = os_mempool_init(&ble_hci_sock_acl_pool,
                          MYNEWT_VAL(BLE_ACL_BUF_COUNT),
