@@ -817,9 +817,10 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         rc = ble_ll_conn_hci_le_start_encrypt(cmdbuf);
         break;
     case BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY:
+        rc = ble_ll_conn_hci_le_ltk_reply(cmdbuf, rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY:
-        rc = ble_ll_conn_hci_le_ltk_reply(cmdbuf, rspbuf, ocf);
-        *rsplen = sizeof(uint16_t);
+        rc = ble_ll_conn_hci_le_ltk_neg_reply(cmdbuf, rspbuf, rsplen);
         break;
 #endif
     case BLE_HCI_OCF_LE_RD_SUPP_STATES :

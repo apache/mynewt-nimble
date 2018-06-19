@@ -1314,7 +1314,7 @@ ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf)
  * @return int
  */
 int
-ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
+ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
     int rc;
     uint16_t handle;
@@ -1335,22 +1335,71 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf)
     }
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->enc_data.enc_state == CONN_ENC_S_LTK_REQ_WAIT) {
-        if (ocf == BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY) {
-            swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 2, 16);
-            ble_ll_calc_session_key(connsm);
-            ble_ll_ctrl_start_enc_send(connsm, BLE_LL_CTRL_START_ENC_REQ);
-        } else {
-            /* We received a negative reply! Send REJECT_IND */
-            ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
-                                        BLE_ERR_PINKEY_MISSING);
-            connsm->enc_data.enc_state = CONN_ENC_S_LTK_NEG_REPLY;
-        }
+    if (connsm->enc_data.enc_state != CONN_ENC_S_LTK_REQ_WAIT) {
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto ltk_key_cmd_complete;
     }
+
+    swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 2, 16);
+    ble_ll_calc_session_key(connsm);
+    ble_ll_ctrl_start_enc_send(connsm, BLE_LL_CTRL_START_ENC_REQ);
     rc = BLE_ERR_SUCCESS;
 
 ltk_key_cmd_complete:
     put_le16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t);
+    return rc;
+}
+
+/**
+ * Called to process the LE long term key negative reply.
+ *
+ * Context: Link Layer Task.
+ *
+ * @param cmdbuf
+ * @param rspbuf
+ * @param ocf
+ *
+ * @return int
+ */
+int
+ble_ll_conn_hci_le_ltk_neg_reply(uint8_t *cmdbuf, uint8_t *rspbuf,
+                                 uint8_t *rsplen)
+{
+    int rc;
+    uint16_t handle;
+    struct ble_ll_conn_sm *connsm;
+
+    /* Find connection handle */
+    handle = get_le16(cmdbuf);
+    connsm = ble_ll_conn_find_active_conn(handle);
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto ltk_key_cmd_complete;
+    }
+
+    /* Should never get this if we are a master! */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        rc = BLE_ERR_UNSPECIFIED;
+        goto ltk_key_cmd_complete;
+    }
+
+    /* The connection should be awaiting a reply. If not, just discard */
+    if (connsm->enc_data.enc_state != CONN_ENC_S_LTK_REQ_WAIT) {
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto ltk_key_cmd_complete;
+    }
+
+    /* We received a negative reply! Send REJECT_IND */
+    ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
+                                BLE_ERR_PINKEY_MISSING);
+    connsm->enc_data.enc_state = CONN_ENC_S_LTK_NEG_REPLY;
+
+    rc = BLE_ERR_SUCCESS;
+
+ltk_key_cmd_complete:
+    put_le16(rspbuf, handle);
+    *rsplen = sizeof(uint16_t);
     return rc;
 }
 #endif

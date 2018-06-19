@@ -165,7 +165,10 @@ int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
 int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf,
                                  uint8_t *rsplen);
 int ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf);
-int ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t ocf);
+int ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf,
+                                 uint8_t *rsplen);
+int ble_ll_conn_hci_le_ltk_neg_reply(uint8_t *cmdbuf, uint8_t *rspbuf,
+                                     uint8_t *rsplen);
 int ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
                                      uint8_t *rsplen);
 int ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
