@@ -353,7 +353,8 @@ extern "C" {
 #define BLE_HCI_SCAN_FILT_MAX               (3)
 
 /* Whitelist commands */
-#define BLE_HCI_CHG_WHITE_LIST_LEN          (7)
+#define BLE_HCI_ADD_WHITE_LIST_LEN          (7)
+#define BLE_HCI_RMV_WHITE_LIST_LEN          (7)
 
 /* Create Connection */
 #define BLE_HCI_CREATE_CONN_LEN             (25)
@@ -409,6 +410,9 @@ extern "C" {
 
 /* --- LE read supported states (OCF 0x001C) --- */
 #define BLE_HCI_RD_SUPP_STATES_RSPLEN       (8)
+
+/* --- LE receiver test command (OCF 0x001D) --- */
+#define BLE_HCI_RX_TEST_LEN                 (1)
 
 /* --- LE transitter test command (OCF 0x001E) --- */
 #define BLE_HCI_TX_TEST_LEN                 (3)
