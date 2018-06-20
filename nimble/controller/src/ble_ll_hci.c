@@ -764,13 +764,13 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         break;
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
         if (len == BLE_HCI_SET_ADV_DATA_LEN) {
-            rc = ble_ll_adv_set_adv_data(cmdbuf, 0,
+            rc = ble_ll_adv_set_adv_data(cmdbuf, len, 0,
                                      BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE);
         }
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
         if (len == BLE_HCI_SET_SCAN_RSP_DATA_LEN) {
-            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, 0,
+            rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, len, 0,
                                 BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE);
         }
         break;
