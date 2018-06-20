@@ -960,7 +960,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         break;
     case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
         /* variable length */
-        rc = ble_ll_ext_conn_create(cmdbuf);
+        rc = ble_ll_ext_conn_create(cmdbuf, len);
         break;
 #endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:

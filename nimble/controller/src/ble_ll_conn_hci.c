@@ -522,7 +522,7 @@ ble_ll_conn_init_hcc_params(struct hci_ext_create_conn *hcc,
 }
 
 int
-ble_ll_ext_conn_create(uint8_t *cmdbuf)
+ble_ll_ext_conn_create(uint8_t *cmdbuf, uint8_t cmdlen)
 {
     int rc;
     struct hci_ext_create_conn ccdata;
@@ -531,6 +531,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
     struct ble_ll_conn_sm *connsm;
     int valid_param_idx = -1;
     int iter;
+
+    /* validate length */
+    if (cmdlen < 10) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     /* If we are already creating a connection we should leave */
     if (g_ble_ll_conn_create_sm) {
@@ -580,6 +585,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
 
     iter = 10;
     if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
+        /* validate length */
+        if (cmdlen < iter + 16) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         hcc_params = &hcc->params[0];
         hcc_params->scan_itvl = get_le16(cmdbuf + iter);
         hcc_params->scan_window = get_le16(cmdbuf + iter + 2);
@@ -617,6 +627,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
     if (hcc->init_phy_mask & BLE_PHY_MASK_2M) {
+        /* validate length */
+        if (cmdlen < iter + 16) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         /* Move to connection parameters */
         hcc_params = &hcc->params[1];
         iter += 4;
@@ -647,6 +662,11 @@ ble_ll_ext_conn_create(uint8_t *cmdbuf)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
+        /* validate length */
+        if (cmdlen < iter + 16) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         hcc_params = &hcc->params[2];
         hcc_params->scan_itvl = get_le16(cmdbuf + iter);
         hcc_params->scan_window = get_le16(cmdbuf + iter + 2);

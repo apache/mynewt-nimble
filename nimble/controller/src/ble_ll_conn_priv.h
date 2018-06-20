@@ -186,7 +186,7 @@ int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
 int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_ext_conn_create(uint8_t *cmdbuf);
+int ble_ll_ext_conn_create(uint8_t *cmdbuf, uint8_t cmdlen);
 #endif
 #ifdef __cplusplus
 }
