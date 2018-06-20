@@ -1042,7 +1042,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         break;
     case BLE_HCI_OCF_LE_TEST_END:
         if (len == 0) {
-            rc = ble_ll_dtm_end_test(cmdbuf, rspbuf, rsplen);
+            rc = ble_ll_dtm_end_test(rspbuf, rsplen);
         }
         break;
     case BLE_HCI_OCF_LE_ENH_RX_TEST:
