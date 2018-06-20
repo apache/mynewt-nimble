@@ -161,7 +161,7 @@ int ble_ll_scan_set_scan_params(uint8_t *cmd);
 int ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_set_ext_scan_params(uint8_t *cmd);
+int ble_ll_set_ext_scan_params(uint8_t *cmd, uint8_t cmdlen);
 #endif
 
 /*--- Controller Internal API ---*/

@@ -1039,9 +1039,8 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
-        if (len == BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN) {
-            rc = ble_ll_set_ext_scan_params(cmdbuf);
-        }
+        /* variable length */
+        rc = ble_ll_set_ext_scan_params(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
         if (len == BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN) {
