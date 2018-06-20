@@ -779,14 +779,14 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_adv_set_enable(0, cmdbuf[0], -1, 0);
         }
         break;
-    case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
-        if (len == BLE_HCI_SET_SCAN_ENABLE_LEN) {
-            rc = ble_ll_scan_set_enable(cmdbuf, 0);
-        }
-        break;
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
         if (len == BLE_HCI_SET_SCAN_PARAM_LEN) {
             rc = ble_ll_scan_set_scan_params(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
+        if (len == BLE_HCI_SET_SCAN_ENABLE_LEN) {
+            rc = ble_ll_scan_set_enable(cmdbuf, 0);
         }
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN:
@@ -799,14 +799,14 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_conn_create_cancel(cb);
         }
         break;
-    case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
-        if (len == 0) {
-            rc = ble_ll_whitelist_clear();
-        }
-        break;
     case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
         if (len == 0) {
             rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
+        }
+        break;
+    case BLE_HCI_OCF_LE_CLEAR_WHITE_LIST:
+        if (len == 0) {
+            rc = ble_ll_whitelist_clear();
         }
         break;
     case BLE_HCI_OCF_LE_ADD_WHITE_LIST:
@@ -873,14 +873,31 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
         }
         break;
-    case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
-        if (len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN) {
-            rc = ble_ll_conn_hci_param_reply(cmdbuf, 0, rspbuf, rsplen);
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+    case BLE_HCI_OCF_LE_TX_TEST:
+        if (len == BLE_HCI_TX_TEST_LEN) {
+            rc = ble_ll_dtm_tx_test(cmdbuf, false);
         }
         break;
+    case BLE_HCI_OCF_LE_RX_TEST:
+        if (len == BLE_HCI_RX_TEST_LEN) {
+            rc = ble_ll_dtm_rx_test(cmdbuf, false);
+        }
+        break;
+    case BLE_HCI_OCF_LE_TEST_END:
+        if (len == 0) {
+            rc = ble_ll_dtm_end_test(rspbuf, rsplen);
+        }
+        break;
+#endif
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         if (len == BLE_HCI_CONN_PARAM_REPLY_LEN) {
             rc = ble_ll_conn_hci_param_reply(cmdbuf, 1, rspbuf, rsplen);
+        }
+        break;
+    case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
+        if (len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN) {
+            rc = ble_ll_conn_hci_param_reply(cmdbuf, 0, rspbuf, rsplen);
         }
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
@@ -941,33 +958,41 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_resolv_set_rpa_tmo(cmdbuf);
         }
         break;
-    case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
-        if (len == BLE_HCI_LE_SET_PRIVACY_MODE_LEN) {
-            rc = ble_ll_resolve_set_priv_mode(cmdbuf);
-        }
-        break;
-#endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
-        if (len == BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN) {
-            rc = ble_ll_set_ext_scan_params(cmdbuf);
-        }
-        break;
-    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
-        if (len == BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN) {
-            rc = ble_ll_scan_set_enable(cmdbuf, 1);
-        }
-        break;
-    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
-        /* variable length */
-        rc = ble_ll_ext_conn_create(cmdbuf, len);
-        break;
-#endif
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         if (len == 0) {
             rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
         }
         break;
+#endif
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    case BLE_HCI_OCF_LE_RD_PHY:
+        if (len == BLE_HCI_LE_RD_PHY_LEN) {
+            rc = ble_ll_conn_hci_le_rd_phy(cmdbuf, rspbuf, rsplen);
+        }
+        break;
+    case BLE_HCI_OCF_LE_SET_DEFAULT_PHY:
+        if (len == BLE_HCI_LE_SET_DEFAULT_PHY_LEN) {
+            rc = ble_ll_hci_le_set_def_phy(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_SET_PHY:
+        if (len == BLE_HCI_LE_SET_PHY_LEN) {
+            rc = ble_ll_conn_hci_le_set_phy(cmdbuf);
+        }
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+    case BLE_HCI_OCF_LE_ENH_RX_TEST:
+        if (len == BLE_HCI_LE_ENH_RX_TEST_LEN) {
+            rc = ble_ll_dtm_rx_test(cmdbuf, true);
+        }
+        break;
+    case BLE_HCI_OCF_LE_ENH_TX_TEST:
+        if (len == BLE_HCI_LE_ENH_TX_TEST_LEN) {
+            rc = ble_ll_dtm_tx_test(cmdbuf, true);
+        }
+        break;
+#endif
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
     case BLE_HCI_OCF_LE_SET_ADV_SET_RND_ADDR:
         if (len == BLE_HCI_LE_SET_ADV_SET_RND_ADDR_LEN) {
@@ -1012,47 +1037,26 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         }
         break;
 #endif
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    case BLE_HCI_OCF_LE_RD_PHY:
-        if (len == BLE_HCI_LE_RD_PHY_LEN) {
-            rc = ble_ll_conn_hci_le_rd_phy(cmdbuf, rspbuf, rsplen);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
+        if (len == BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN) {
+            rc = ble_ll_set_ext_scan_params(cmdbuf);
         }
         break;
-    case BLE_HCI_OCF_LE_SET_DEFAULT_PHY:
-        if (len == BLE_HCI_LE_SET_DEFAULT_PHY_LEN) {
-            rc = ble_ll_hci_le_set_def_phy(cmdbuf);
+    case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
+        if (len == BLE_HCI_LE_SET_EXT_SCAN_ENABLE_LEN) {
+            rc = ble_ll_scan_set_enable(cmdbuf, 1);
         }
         break;
-    case BLE_HCI_OCF_LE_SET_PHY:
-        if (len == BLE_HCI_LE_SET_PHY_LEN) {
-            rc = ble_ll_conn_hci_le_set_phy(cmdbuf);
-        }
+    case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
+        /* variable length */
+        rc = ble_ll_ext_conn_create(cmdbuf, len);
         break;
 #endif
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
-    case BLE_HCI_OCF_LE_TX_TEST:
-        if (len == BLE_HCI_TX_TEST_LEN) {
-            rc = ble_ll_dtm_tx_test(cmdbuf, false);
-        }
-        break;
-    case BLE_HCI_OCF_LE_RX_TEST:
-        if (len == BLE_HCI_RX_TEST_LEN) {
-            rc = ble_ll_dtm_rx_test(cmdbuf, false);
-        }
-        break;
-    case BLE_HCI_OCF_LE_TEST_END:
-        if (len == 0) {
-            rc = ble_ll_dtm_end_test(rspbuf, rsplen);
-        }
-        break;
-    case BLE_HCI_OCF_LE_ENH_RX_TEST:
-        if (len == BLE_HCI_LE_ENH_RX_TEST_LEN) {
-            rc = ble_ll_dtm_rx_test(cmdbuf, true);
-        }
-        break;
-    case BLE_HCI_OCF_LE_ENH_TX_TEST:
-        if (len == BLE_HCI_LE_ENH_TX_TEST_LEN) {
-            rc = ble_ll_dtm_tx_test(cmdbuf, true);
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
+        if (len == BLE_HCI_LE_SET_PRIVACY_MODE_LEN) {
+            rc = ble_ll_resolve_set_priv_mode(cmdbuf);
         }
         break;
 #endif
