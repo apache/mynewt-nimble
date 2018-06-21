@@ -390,7 +390,7 @@ static bool model_has_key(struct bt_mesh_model *mod, u16_t key)
 }
 
 static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
-					      u8_t model_count,
+					      u8_t model_count, u16_t dst,
 					      u16_t app_idx, u32_t opcode,
 					      struct bt_mesh_model **model)
 {
@@ -400,6 +400,13 @@ static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
 		const struct bt_mesh_model_op *op;
 
 		*model = &models[i];
+
+		if (BT_MESH_ADDR_IS_GROUP(dst) ||
+		    BT_MESH_ADDR_IS_VIRTUAL(dst)) {
+			if (!bt_mesh_model_find_group(*model, dst)) {
+				continue;
+			}
+		}
 
 		if (!model_has_key(*model, app_idx)) {
 			continue;
@@ -494,11 +501,6 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			if (elem->addr != rx->dst) {
 				continue;
 			}
-		} else if (BT_MESH_ADDR_IS_GROUP(rx->dst) ||
-			   BT_MESH_ADDR_IS_VIRTUAL(rx->dst)) {
-			if (!bt_mesh_elem_find_group(elem, rx->dst)) {
-				continue;
-			}
 		} else if (i != 0 || !bt_mesh_fixed_group_match(rx->dst)) {
 			continue;
 		}
@@ -515,7 +517,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			count = elem->vnd_model_count;
 		}
 
-		op = find_op(models, count, rx->ctx.app_idx, opcode, &model);
+		op = find_op(models, count, rx->dst, rx->ctx.app_idx, opcode, &model);
 		if (op) {
 			struct net_buf_simple_state state;
 
