@@ -501,6 +501,9 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			if (elem->addr != rx->dst) {
 				continue;
 			}
+		} else if (BT_MESH_ADDR_IS_GROUP(rx->dst) ||
+			   BT_MESH_ADDR_IS_VIRTUAL(rx->dst)) {
+			/* find_op will find the correct model for the group */
 		} else if (i != 0 || !bt_mesh_fixed_group_match(rx->dst)) {
 			continue;
 		}
