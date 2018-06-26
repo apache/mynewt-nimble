@@ -57,6 +57,9 @@ int ble_ll_hci_send_noop(void);
 /* Checks the preferref phy masks from set default phy and set phy commands */
 int ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy);
 
+/* Returns true if Extended Advertising HCI commands are in use */
+bool ble_ll_hci_adv_mode_ext(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -134,7 +134,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD         0x0008
 #define BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK  0x0030 /* use helpers! */
 #define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x0040
-#define BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI          0x0080
+#define BLE_LL_ADV_SM_FLAG_CONFIGURED           0x0080
 #define BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO          0x0100
 
 #define ADV_DATA_LEN(_advsm) \
@@ -1588,7 +1588,7 @@ static void
 ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI) {
+    if (ble_ll_hci_adv_mode_ext()) {
         ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_DIR_ADV_TMO,
                                                         advsm->adv_instance, 0,
                                                         advsm->events);
@@ -1896,6 +1896,19 @@ done:
     *omp = om;
 }
 
+static bool
+instance_configured(struct ble_ll_adv_sm *advsm)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (ble_ll_hci_adv_mode_ext()) {
+        return advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED;
+    }
+#endif
+
+    /* legacy HCI instance is always configured */
+    return true;
+}
+
 /**
  * Set the scan response data that the controller will send.
  *
@@ -1917,6 +1930,10 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
     advsm = &g_ble_ll_adv_sm[instance];
     datalen = cmd[0];
+
+    if (!instance_configured(advsm)) {
+        return BLE_ERR_UNK_ADV_INDENT;
+    }
 
     /* check if type of advertising support scan rsp */
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
@@ -2013,6 +2030,10 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
     advsm = &g_ble_ll_adv_sm[instance];
     datalen = cmd[0];
+
+    if (!instance_configured(advsm)) {
+        return BLE_ERR_UNK_ADV_INDENT;
+    }
 
     /* check if type of advertising support adv data */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
@@ -2313,7 +2334,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
     }
 
-    advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI;
+    advsm->flags |= BLE_LL_ADV_SM_FLAG_CONFIGURED;
 
 done:
     /* Update TX power */
@@ -2416,9 +2437,13 @@ ble_ll_adv_ext_set_enable(uint8_t *cmd, uint8_t len)
             }
         }
 
-        if (enable) {
-            advsm = &g_ble_ll_adv_sm[set->handle];
+        advsm = &g_ble_ll_adv_sm[set->handle];
 
+        if (!instance_configured(advsm)) {
+            return BLE_ERR_UNK_ADV_INDENT;
+        }
+
+        if (enable) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
                 if (set->duration == 0 || le16toh(set->duration) > 128) {
                     return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -2488,6 +2513,10 @@ ble_ll_adv_remove(uint8_t instance)
     }
 
     advsm = &g_ble_ll_adv_sm[instance];
+
+    if (!instance_configured(advsm)) {
+        return BLE_ERR_UNK_ADV_INDENT;
+    }
 
     if (advsm->adv_enabled) {
         return BLE_ERR_CMD_DISALLOWED;
@@ -3337,7 +3366,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_EXT_HCI) {
+    if (ble_ll_hci_adv_mode_ext()) {
         ble_ll_hci_ev_send_adv_set_terminated(0, advsm->adv_instance,
                                           connsm->conn_handle, advsm->events);
     }
