@@ -27,6 +27,7 @@ pkg.keywords:
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/util/mem"
     - nimble
 
@@ -45,7 +46,6 @@ pkg.deps.BLE_MESH:
 pkg.req_apis:
     - ble_transport
     - console
-    - log
     - stats
 
 pkg.init:
