@@ -95,7 +95,7 @@ struct ble_ll_ext_adv_hdr
     uint8_t hdr[0];
 };
 
-struct ble_ll_ext_adv {
+struct ble_ll_ext_adv_report {
     /* We support one report per event for now */
     uint8_t event_meta; /* BLE_HCI_EVCODE_LE_META */
     uint8_t event_len;
@@ -572,12 +572,12 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
-static struct ble_ll_ext_adv *
-ble_ll_scan_init_ext_adv(struct ble_ll_ext_adv *copy_from)
+static struct ble_ll_ext_adv_report *
+ble_ll_scan_init_ext_adv_report(struct ble_ll_ext_adv_report *copy_from)
 {
-    struct ble_ll_ext_adv *evt;
+    struct ble_ll_ext_adv_report *evt;
 
-    evt = (struct ble_ll_ext_adv *) ble_hci_trans_buf_alloc(
+    evt = (struct ble_ll_ext_adv_report *) ble_hci_trans_buf_alloc(
                                                     BLE_HCI_TRANS_BUF_EVT_LO);
     if (!evt) {
         return NULL;
@@ -612,7 +612,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t adv_data_len, struct os_mbuf *adv_data,
                                       uint8_t *inita)
 {
-    struct ble_ll_ext_adv *evt;
+    struct ble_ll_ext_adv_report *evt;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
         return -1;
@@ -624,7 +624,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
         return -1;
     }
 
-    evt = ble_ll_scan_init_ext_adv(NULL);
+    evt = ble_ll_scan_init_ext_adv_report(NULL);
     if (!evt) {
         return 0;
     }
@@ -1591,7 +1591,7 @@ ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
 
 static void
 ble_ll_ext_scan_parse_adv_info(struct ble_ll_scan_sm *scansm,
-                               struct ble_ll_ext_adv *evt, uint8_t *buf)
+                               struct ble_ll_ext_adv_report *evt, uint8_t *buf)
 {
     uint16_t adv_info = get_le16(buf);
 
@@ -1736,7 +1736,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
  */
 int
 ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
-                          struct ble_ll_ext_adv *out_evt)
+                          struct ble_ll_ext_adv_report *out_evt)
 {
     uint8_t pdu_len;
     uint8_t ext_hdr_len;
@@ -2281,8 +2281,8 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
                                struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
-    struct ble_ll_ext_adv *evt;
-    struct ble_ll_ext_adv *next_evt;
+    struct ble_ll_ext_adv_report *evt;
+    struct ble_ll_ext_adv_report *next_evt;
     int offset;
     int datalen;
 
@@ -2290,7 +2290,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         return;
     }
 
-    evt = ble_ll_scan_init_ext_adv(NULL);
+    evt = ble_ll_scan_init_ext_adv_report(NULL);
     if (!evt) {
         return;
     }
@@ -2319,7 +2319,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
              * If we cannot allocate another HCI event from pool, just mark
              * data as truncated.
              */
-            next_evt = ble_ll_scan_init_ext_adv(evt);
+            next_evt = ble_ll_scan_init_ext_adv_report(evt);
 
             if (next_evt) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
