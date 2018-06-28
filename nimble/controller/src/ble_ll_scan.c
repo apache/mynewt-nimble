@@ -2272,11 +2272,21 @@ void
 ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
 {
     if (aux_scan) {
+        if (aux_scan->evt) {
+            ble_hci_trans_buf_free((uint8_t *)aux_scan->evt);
+        }
         os_memblock_put(&ext_adv_pool, aux_scan);
     }
 }
 
-static void
+/*
+ * Send extended advertising report
+ *
+ * @return -1 on error (data truncated or other error)
+ *          0 on success (data status is "completed")
+ *          1 on success (data status is not "completed")
+ */
+static int
 ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
                                struct ble_mbuf_hdr *hdr)
 {
@@ -2285,39 +2295,69 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
     struct ble_ll_ext_adv_report *next_evt;
     int offset;
     int datalen;
+    int rc;
+    bool need_event;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
-        return;
+        return -1;
     }
 
-    evt = ble_ll_scan_init_ext_adv_report(NULL);
-    if (!evt) {
-        return;
+    /*
+     * We keep one allocated event in aux_data to be able to truncate chain
+     * properly in case of error. If there is no event in aux_data it means this
+     * is the first event for this chain.
+     */
+    if (aux_data && aux_data->evt) {
+        evt = aux_data->evt;
+    } else {
+        evt = ble_ll_scan_init_ext_adv_report(NULL);
+        if (!evt) {
+            return -1;
+        }
     }
 
     datalen = ble_ll_scan_parse_ext_hdr(om, hdr, evt);
     if (datalen < 0) {
+        /* XXX what should we do here? send some trimmed event? */
         ble_hci_trans_buf_free((uint8_t *)evt);
-        return;
+        return -1;
     }
 
     offset = 0;
 
     do {
+        need_event = false;
         next_evt = NULL;
 
         evt->adv_data_len = min(BLE_LL_MAX_EVT_LEN - sizeof(*evt),
                                 datalen - offset);
-        os_mbuf_copydata(om, offset, evt->adv_data_len, evt->adv_data);
+        evt->event_len = (sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN) +
+                         evt->adv_data_len;
+        evt->rssi = hdr->rxinfo.rssi;
 
+        os_mbuf_copydata(om, offset, evt->adv_data_len, evt->adv_data);
         offset += evt->adv_data_len;
 
+
         if (offset < datalen) {
+            /* Need another event for next fragment of this PDU */
+            need_event = true;
+        } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+            need_event = false;
+        } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+            /* Need another event for next PDU in chain */
+            need_event = true;
+        } else {
+            need_event = false;
+        }
+
+        /* Assume data status is not "completed" */
+        rc = 1;
+
+        if (need_event) {
             /*
-             * We need to fragment this PDU as it does not fit in single HCI
-             * event. Subsequent event will have exactly the same header data.
-             * If we cannot allocate another HCI event from pool, just mark
-             * data as truncated.
+             * We will need another event so let's try to allocate one now. If
+             * we cannot do this, need to mark event as truncated.
              */
             next_evt = ble_ll_scan_init_ext_adv_report(evt);
 
@@ -2325,25 +2365,30 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             } else {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+                rc = -1;
             }
-        } else if (aux_data) {
-            if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
-                evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
-            } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+        } else if (aux_data) { 
+            if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+                rc = -1;
+            } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+                evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             }
+        } else {
+            rc = 0;
         }
-
-        evt->event_len = (sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN) +
-                         evt->adv_data_len;
-        evt->rssi = hdr->rxinfo.rssi;
 
         ble_ll_hci_event_send((uint8_t *)evt);
 
         evt = next_evt;
-    } while (evt);
+    } while (offset < datalen && evt);
 
     BLE_LL_ASSERT(offset <= datalen);
+
+    /* Store any event left for later use */
+    aux_data->evt = evt;
+
+    return rc;
 }
 #endif
 /**
@@ -2376,6 +2421,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_aux_data *aux_data;
+    int rc;
 #endif
 
     /* Set scan response check flag */
@@ -2480,11 +2526,17 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
         aux_data = hdr->rxinfo.user_data;
 
+        if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
+            goto scan_continue;
+        }
+
         /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
             if (ble_ll_sched_aux_scan(hdr, scansm, hdr->rxinfo.user_data)) {
                 /* We are here when could not schedule the aux ptr */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+                /* Mark that chain is trimmed */
+                aux_data->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
 
             if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
@@ -2499,7 +2551,17 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
-        ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
+        rc = ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
+        if (rc < 0) {
+            /*
+             * Data were trimmed so no need to scan this chain anymore. Also
+             * make sure we do not send any more events for this chain, just in
+             * case we managed to scan something before events were processed.
+             */
+            ble_ll_sched_rmv_elem(&aux_data->sch);
+            hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+            aux_data->flags |= BLE_LL_AUX_IGNORE_BIT;
+        }
         ble_ll_scan_switch_phy(scansm);
 
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
