@@ -408,6 +408,7 @@ static struct os_mbuf *encode_update(struct bt_mesh_friend *frnd, u8_t md)
 	struct bt_mesh_ctl_friend_update *upd;
 	struct os_mbuf *sdu = NET_BUF_SIMPLE(1 + sizeof(*upd));
 	struct bt_mesh_subnet *sub = bt_mesh_subnet_get(frnd->net_idx);
+	struct os_mbuf *buf;
 
 	__ASSERT_NO_MSG(sub != NULL);
 
@@ -420,7 +421,10 @@ static struct os_mbuf *encode_update(struct bt_mesh_friend *frnd, u8_t md)
 	upd->iv_index = sys_cpu_to_be32(bt_mesh.iv_index);
 	upd->md = md;
 
-	return encode_friend_ctl(frnd, TRANS_CTL_OP_FRIEND_UPDATE, sdu);
+	buf = encode_friend_ctl(frnd, TRANS_CTL_OP_FRIEND_UPDATE, sdu);
+
+	os_mbuf_free_chain(sdu);
+	return buf;
 }
 
 static void enqueue_sub_cfm(struct bt_mesh_friend *frnd, u8_t xact)
@@ -449,6 +453,7 @@ static void enqueue_sub_cfm(struct bt_mesh_friend *frnd, u8_t xact)
 
 	frnd->last = buf;
 	frnd->send_last = 1;
+	os_mbuf_free_chain(sdu);
 }
 
 static void friend_recv_delay(struct bt_mesh_friend *frnd)
@@ -755,6 +760,7 @@ static void enqueue_offer(struct bt_mesh_friend *frnd, s8_t rssi)
 
 	frnd->last = buf;
 	frnd->send_last = 1;
+	os_mbuf_free_chain(sdu);
 }
 
 #define RECV_WIN                  CONFIG_BT_MESH_FRIEND_RECV_WIN

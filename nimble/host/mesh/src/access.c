@@ -165,10 +165,12 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 		.xmit = bt_mesh_net_transmit_get(),
 		.friend_cred = pub->cred,
 	};
+	int err;
 
 	key = bt_mesh_app_key_find(pub->key);
 	if (!key) {
-		return -EADDRNOTAVAIL;
+		err = -EADDRNOTAVAIL;
+		goto done;
 	}
 
 	tx.sub = bt_mesh_subnet_get(key->net_idx);
@@ -181,7 +183,11 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 
 	pub->count--;
 
-	return bt_mesh_trans_send(&tx, sdu, &pub_sent_cb, mod);
+	err = bt_mesh_trans_send(&tx, sdu, &pub_sent_cb, mod);
+
+done:
+	os_mbuf_free_chain(sdu);
+	return err;
 }
 
 static void mod_publish(struct ble_npl_event *work)
@@ -671,10 +677,10 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 	err = model_send(model, &tx, true, sdu, &pub_sent_cb, model);
 	if (err) {
 		pub->count = 0;
-		return err;
 	}
 
-	return 0;
+	os_mbuf_free_chain(sdu);
+	return err;
 }
 
 struct bt_mesh_model *bt_mesh_model_find_vnd(struct bt_mesh_elem *elem,

@@ -751,16 +751,17 @@ static int cmd_net_send(int argc, char *argv[])
 		.sub = bt_mesh_subnet_get(net.net_idx),
 	};
 	size_t len;
-	int err;
+	int err = 0;
 
 	if (argc < 2) {
-		return -EINVAL;
+		err = -EINVAL;
+		goto done;
 	}
 
 	if (!tx.sub) {
 		printk("No matching subnet for NetKey Index 0x%04x\n",
 		       net.net_idx);
-		return 0;
+		goto done;
 	}
 
 	net_buf_simple_init(msg, 0);
@@ -772,7 +773,9 @@ static int cmd_net_send(int argc, char *argv[])
 		printk("Failed to send (err %d)\n", err);
 	}
 
-	return 0;
+done:
+	os_mbuf_free_chain(msg);
+	return err;
 }
 
 struct shell_cmd_help cmd_net_send_help = {
@@ -909,9 +912,9 @@ struct shell_cmd_help cmd_timeout_help = {
 
 static int cmd_get_comp(int argc, char *argv[])
 {
-	struct os_mbuf*comp = NET_BUF_SIMPLE(32);
+	struct os_mbuf *comp = NET_BUF_SIMPLE(32);
 	u8_t status, page = 0x00;
-	int err;
+	int err = 0;
 
 	if (argc > 1) {
 		page = strtol(argv[1], NULL, 0);
@@ -922,12 +925,12 @@ static int cmd_get_comp(int argc, char *argv[])
 					&status, comp);
 	if (err) {
 		printk("Getting composition failed (err %d)\n", err);
-		return 0;
+		goto done;
 	}
 
 	if (status != 0x00) {
 		printk("Got non-success status 0x%02x\n", status);
-		return 0;
+		goto done;
 	}
 
 	printk("Got Composition Data for 0x%04x:\n", net.dst);
@@ -979,7 +982,9 @@ static int cmd_get_comp(int argc, char *argv[])
 		}
 	}
 
-	return 0;
+done:
+	os_mbuf_free_chain(comp);
+	return err;
 }
 
 struct shell_cmd_help cmd_get_comp_help = {
