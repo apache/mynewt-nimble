@@ -60,7 +60,7 @@ syscfg.defs:
         value: 0
     BLE_MONITOR_RTT_BUFFER_NAME:
         description: Monitor interface upstream buffer name
-        value: '"monitor"'
+        value: '"btmonitor"'
     BLE_MONITOR_RTT_BUFFER_SIZE:
         description: Monitor interface upstream buffer size
         value: 256
