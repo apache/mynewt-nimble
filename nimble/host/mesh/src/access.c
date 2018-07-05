@@ -490,7 +490,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	int i;
 
 	BT_DBG("app_idx 0x%04x src 0x%04x dst 0x%04x", rx->ctx.app_idx,
-	       rx->ctx.addr, rx->dst);
+	       rx->ctx.addr, rx->ctx.recv_dst);
 	BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
 	if (get_opcode(buf, &opcode) < 0) {
@@ -503,14 +503,17 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	for (i = 0; i < dev_comp->elem_count; i++) {
 		struct bt_mesh_elem *elem = &dev_comp->elem[i];
 
-		if (BT_MESH_ADDR_IS_UNICAST(rx->dst)) {
-			if (elem->addr != rx->dst) {
+		if (BT_MESH_ADDR_IS_UNICAST(rx->ctx.recv_dst)) {
+			if (elem->addr != rx->ctx.recv_dst) {
 				continue;
 			}
-		} else if (BT_MESH_ADDR_IS_GROUP(rx->dst) ||
-			   BT_MESH_ADDR_IS_VIRTUAL(rx->dst)) {
-			/* find_op will find the correct model for the group */
-		} else if (i != 0 || !bt_mesh_fixed_group_match(rx->dst)) {
+		} else if (BT_MESH_ADDR_IS_GROUP(rx->ctx.recv_dst) ||
+			   BT_MESH_ADDR_IS_VIRTUAL(rx->ctx.recv_dst)) {
+			if (!bt_mesh_elem_find_group(elem, rx->ctx.recv_dst)) {
+				continue;
+			}
+		} else if (i != 0 ||
+			   !bt_mesh_fixed_group_match(rx->ctx.recv_dst)) {
 			continue;
 		}
 
@@ -526,7 +529,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			count = elem->vnd_model_count;
 		}
 
-		op = find_op(models, count, rx->dst, rx->ctx.app_idx, opcode, &model);
+		op = find_op(models, count, rx->ctx.recv_dst,
+			     rx->ctx.app_idx, opcode, &model);
 		if (op) {
 			struct net_buf_simple_state state;
 

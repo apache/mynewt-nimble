@@ -1176,7 +1176,8 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 		return;
 	}
 
-	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl, rx->dst);
+	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl,
+	       rx->ctx.recv_dst);
 
 	/* The Relay Retransmit state is only applied to adv-adv relaying.
 	 * Anything else (like GATT to adv, or locally originated packets)
@@ -1240,8 +1241,8 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED ||
 	     rx->net_if == BT_MESH_NET_IF_LOCAL)) {
-		if (bt_mesh_proxy_relay(buf, rx->dst) &&
-			    BT_MESH_ADDR_IS_UNICAST(rx->dst)) {
+		if (bt_mesh_proxy_relay(buf, rx->ctx.recv_dst) &&
+		    BT_MESH_ADDR_IS_UNICAST(rx->ctx.recv_dst)) {
 			goto done;
 		}
 	}
@@ -1292,18 +1293,18 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 
 	rx->ctl = CTL(buf->om_data);
 	rx->seq = SEQ(buf->om_data);
-	rx->dst = DST(buf->om_data);
+	rx->ctx.recv_dst = DST(buf->om_data);
 
 	BT_DBG("Decryption successful. Payload len %u: %s", buf->om_len,
 		   bt_hex(buf->om_data, buf->om_len));
 
 	if (net_if != BT_MESH_NET_IF_PROXY_CFG &&
-	    rx->dst == BT_MESH_ADDR_UNASSIGNED) {
+	    rx->ctx.recv_dst == BT_MESH_ADDR_UNASSIGNED) {
 		BT_ERR("Destination address is unassigned; dropping packet");
 		return -EBADMSG;
 	}
 
-	if (BT_MESH_ADDR_IS_RFU(rx->dst)) {
+	if (BT_MESH_ADDR_IS_RFU(rx->ctx.recv_dst)) {
 		BT_ERR("Destination address is RFU; dropping packet");
 		return -EBADMSG;
 	}
@@ -1313,7 +1314,7 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 		return -EBADMSG;
 	}
 
-	BT_DBG("src 0x%04x dst 0x%04x ttl %u", rx->ctx.addr, rx->dst,
+	BT_DBG("src 0x%04x dst 0x%04x ttl %u", rx->ctx.addr, rx->ctx.recv_dst,
 	       rx->ctx.recv_ttl);
 	BT_DBG("PDU: %s", bt_hex(buf->om_data, buf->om_len));
 
@@ -1346,15 +1347,15 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
 	}
 
-	rx.local_match = (bt_mesh_fixed_group_match(rx.dst) ||
-			  bt_mesh_elem_find(rx.dst));
+	rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
+			  bt_mesh_elem_find(rx.ctx.recv_dst));
 
 	bt_mesh_trans_recv(buf, &rx);
 
 	/* Relay if this was a group/virtual address, or if the destination
 	 * was neither a local element nor an LPN we're Friends for.
 	 */
-	if (!BT_MESH_ADDR_IS_UNICAST(rx.dst) ||
+	if (!BT_MESH_ADDR_IS_UNICAST(rx.ctx.recv_dst) ||
 	    (!rx.local_match && !rx.friend_match)) {
 		net_buf_simple_restore(buf, &state);
 		bt_mesh_net_relay(buf, &rx);
