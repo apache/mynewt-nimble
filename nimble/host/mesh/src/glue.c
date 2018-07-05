@@ -832,3 +832,15 @@ int settings_bytes_from_str(char *val_str, void *vp, int *len)
     *len = base64_decode(val_str, vp);
     return 0;
 }
+
+char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len)
+{
+    if (BASE64_ENCODE_SIZE(vp_len) > buf_len) {
+        return NULL;
+    }
+
+    base64_encode(vp, vp_len, buf, 1);
+
+    return buf;
+}
+
