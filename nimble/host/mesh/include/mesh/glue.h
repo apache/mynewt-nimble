@@ -336,7 +336,6 @@ static inline unsigned int find_msb_set(u32_t op)
     return 32 - __builtin_clz(op);
 }
 
-#define CONFIG_BLUETOOTH_MESH_FRIEND        BLE_MESH_FRIEND
 #define CONFIG_BT_MESH_FRIEND               BLE_MESH_FRIEND
 #define CONFIG_BT_MESH_GATT_PROXY           BLE_MESH_GATT_PROXY
 #define CONFIG_BT_MESH_IV_UPDATE_TEST       BLE_MESH_IV_UPDATE_TEST
