@@ -41,6 +41,8 @@
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
 
+#include "config/config.h"
+
 #define u8_t    uint8_t
 #define s8_t    int8_t
 #define u16_t   uint16_t
@@ -346,6 +348,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 #define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
+#define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
 #define BT_SETTINGS                         BLE_MESH_SETTINGS
 
 /* Above flags are used with IS_ENABLED macro */
@@ -434,7 +437,7 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
  *
  * @return 0 on success, non-zero on failure.
  */
-int settings_load(void);
+#define settings_load conf_load
 int settings_bytes_from_str(char *val_str, void *vp, int *len);
 char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len);
 

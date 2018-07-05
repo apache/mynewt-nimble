@@ -27,15 +27,17 @@
 #include "net.h"
 #include "access.h"
 #include "mesh_priv.h"
+#include "lpn.h"
+#include "transport.h"
+#include "foundation.h"
+#include "testing.h"
+#include "settings.h"
+
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 #include "mesh/model_srv.h"
 #include "mesh/model_cli.h"
 #include "light_model.h"
 #endif
-#include "lpn.h"
-#include "transport.h"
-#include "foundation.h"
-#include "testing.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -656,7 +658,17 @@ int cmd_mesh_init(int argc, char *argv[])
 	}
 
 	printk("Mesh initialized\n");
-	printk("Use \"pb-adv on\" or \"pb-gatt on\" to enable advertising\n");
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
+
+	if (bt_mesh_is_provisioned()) {
+		printk("Mesh network restored from flash\n");
+	} else {
+		printk("Use \"pb-adv on\" or \"pb-gatt on\" to enable"
+		       " advertising\n");
+	}
 
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	bt_mesh_lpn_set_cb(lpn_cb);
