@@ -700,6 +700,10 @@ static void beacon_set(struct bt_mesh_model *model,
 		if (buf->om_data[0] != cfg->beacon) {
 			cfg->beacon = buf->om_data[0];
 
+			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+				bt_mesh_store_cfg();
+			}
+
 			if (cfg->beacon) {
 				bt_mesh_beacon_enable();
 			} else {
@@ -759,7 +763,13 @@ static void default_ttl_set(struct bt_mesh_model *model,
 	if (!cfg) {
 		BT_WARN("No Configuration Server context available");
 	} else if (buf->om_data[0] <= BT_MESH_TTL_MAX && buf->om_data[0] != 0x01) {
-		cfg->default_ttl = buf->om_data[0];
+		if (cfg->default_ttl != buf->om_data[0]) {
+			cfg->default_ttl = buf->om_data[0];
+
+			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+				bt_mesh_store_cfg();
+			}
+		}
 	} else {
 		BT_WARN("Prohibited Default TTL value 0x%02x", buf->om_data[0]);
 		goto done;
@@ -837,6 +847,11 @@ static void gatt_proxy_set(struct bt_mesh_model *model,
 	}
 
 	cfg->gatt_proxy = buf->om_data[0];
+
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		bt_mesh_store_cfg();
+	}
+
 	if (cfg->gatt_proxy == BT_MESH_GATT_PROXY_DISABLED) {
 		int i;
 
@@ -912,6 +927,10 @@ static void net_transmit_set(struct bt_mesh_model *model,
 		BT_WARN("No Configuration Server context available");
 	} else {
 		cfg->net_transmit = buf->om_data[0];
+
+		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+			bt_mesh_store_cfg();
+		}
 	}
 
 	bt_mesh_model_msg_init(msg, OP_NET_TRANSMIT_STATUS);
@@ -971,6 +990,10 @@ static void relay_set(struct bt_mesh_model *model,
 			change = (cfg->relay != buf->om_data[0]);
 			cfg->relay = buf->om_data[0];
 			cfg->relay_retransmit = buf->om_data[1];
+
+			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+				bt_mesh_store_cfg();
+			}
 		}
 
 		BT_DBG("Relay 0x%02x (%s) xmit 0x%02x (count %u interval %u)",
@@ -2656,6 +2679,10 @@ static void friend_set(struct bt_mesh_model *model,
 	if (MYNEWT_VAL(BLE_MESH_FRIEND)) {
 		cfg->frnd = buf->om_data[0];
 
+		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+			bt_mesh_store_cfg();
+		}
+
 		if (cfg->frnd == BT_MESH_FRIEND_DISABLED) {
 			bt_mesh_friend_clear_net_idx(BT_MESH_KEY_ANY);
 		}
@@ -3423,6 +3450,11 @@ struct bt_mesh_hb_pub *bt_mesh_hb_pub_get(void)
 	}
 
 	return &conf->hb_pub;
+}
+
+struct bt_mesh_cfg_srv *bt_mesh_cfg_get(void)
+{
+	return conf;
 }
 
 void bt_mesh_subnet_del(struct bt_mesh_subnet *sub)
