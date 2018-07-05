@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "base64/base64.h"
 #include "mesh/glue.h"
 #include "adv.h"
 #ifndef MYNEWT
@@ -824,4 +825,10 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 	}
 
 	STAILQ_INIT(list);
+}
+
+int settings_bytes_from_str(char *val_str, void *vp, int *len)
+{
+    *len = base64_decode(val_str, vp);
+    return 0;
 }

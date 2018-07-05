@@ -366,6 +366,11 @@ syscfg.defs:
             Use this option to enable Proxy protocol debug logs.
         value: 0
 
+    BLE_MESH_DEBUG_SETTINGS:
+        description: >
+            Use this option to enable persistent settings debug logs.
+        value: 1
+
     BLE_MESH_IV_UPDATE_TEST:
         description: >
             This option removes the 96 hour limit of the IV Update
@@ -417,6 +422,11 @@ syscfg.defs:
         description: >
             Input OOB size
         value: 4
+
+    BLE_MESH_SETTINGS:
+        description: >
+            This option enables Mesh settings storage.
+        value: 1
 
 
 syscfg.vals.BLE_MESH_SHELL:

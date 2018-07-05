@@ -345,6 +345,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
+#define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
@@ -419,5 +420,15 @@ void net_buf_slist_remove(struct net_buf_slist_t *list, struct os_mbuf *prev,
 void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 			       struct net_buf_slist_t *list_to_append);
 #define NET_BUF_SLIST_FOR_EACH_NODE(head, var) STAILQ_FOREACH(var, head, omp_next)
+
+/**
+ * Load serialized items from registered persistence sources. Handlers for
+ * serialized item subtrees registered earlier will be called for encountered
+ * values.
+ *
+ * @return 0 on success, non-zero on failure.
+ */
+int settings_load(void);
+int settings_bytes_from_str(char *val_str, void *vp, int *len);
 
 #endif
