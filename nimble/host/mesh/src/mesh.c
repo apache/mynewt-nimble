@@ -112,6 +112,10 @@ void bt_mesh_reset(void)
 		bt_mesh_proxy_prov_enable();
 	}
 
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		bt_mesh_clear_net();
+	}
+
 	memset(bt_mesh.dev_key, 0, sizeof(bt_mesh.dev_key));
 
 	memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
