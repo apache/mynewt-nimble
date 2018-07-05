@@ -99,17 +99,20 @@ static inline void adv_send(struct os_mbuf *buf)
 	void *cb_data = BT_MESH_ADV(buf)->cb_data;
 	struct ble_gap_adv_params param = { 0 };
 	u16_t duration, adv_int;
-	struct bt_mesh_adv *adv = BT_MESH_ADV(buf);
 	struct bt_data ad;
 	int err;
 
-	adv_int = max(adv_int_min, adv->adv_int);
-	duration = MESH_SCAN_WINDOW_MS + (adv->count + 1) * (adv_int + 10);
+	adv_int = max(adv_int_min,
+		      BT_MESH_TRANSMIT_INT(BT_MESH_ADV(buf)->xmit));
+	duration = (MESH_SCAN_WINDOW_MS +
+		    ((BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1) *
+		     (adv_int + 10)));
 
-	BT_DBG("buf %p, type %u len %u:", buf, adv->type,
-	       buf->om_len);
+	BT_DBG("type %u om_len %u: %s", BT_MESH_ADV(buf)->type,
+	       buf->om_len, bt_hex(buf->om_data, buf->om_len));
 	BT_DBG("count %u interval %ums duration %ums",
-	       adv->count + 1, adv_int, duration);
+	       BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1, adv_int,
+	       duration);
 
 	ad.type = adv_type[BT_MESH_ADV(buf)->type];
 	ad.data_len = buf->om_len;
@@ -199,8 +202,7 @@ void bt_mesh_adv_update(void)
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 					     bt_mesh_adv_alloc_t get_id,
 					     enum bt_mesh_adv_type type,
-					     u8_t xmit_count, u8_t xmit_int,
-					     s32_t timeout)
+					     u8_t xmit, s32_t timeout)
 {
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
@@ -216,18 +218,19 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	memset(adv, 0, sizeof(*adv));
 
 	adv->type         = type;
-	adv->count        = xmit_count;
-	adv->adv_int      = xmit_int;
+	adv->xmit         = xmit;
+
 	adv->ref_cnt = 1;
 	ble_npl_event_set_arg(&adv->ev, buf);
+
 	return buf;
 }
 
-struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit_count,
-				   u8_t xmit_int, s32_t timeout)
+struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit,
+				   s32_t timeout)
 {
 	return bt_mesh_adv_create_from_pool(&adv_os_mbuf_pool, adv_alloc, type,
-					    xmit_count, xmit_int, timeout);
+					    xmit, timeout);
 }
 
 void bt_mesh_adv_send(struct os_mbuf *buf, const struct bt_mesh_send_cb *cb,
