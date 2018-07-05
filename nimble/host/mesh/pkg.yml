@@ -44,5 +44,4 @@ pkg.req_apis:
 
 pkg.init:
     bt_mesh_register_gatt: 500
-    bt_mesh_settings_init: 750
     ble_mesh_shell_init: 1000
