@@ -38,9 +38,6 @@
 /* Application-specified header. */
 #include "blecent.h"
 
-/** Log data. */
-struct log blecent_log;
-
 static int blecent_gap_event(struct ble_gap_event *event, void *arg);
 
 /**
@@ -53,13 +50,13 @@ blecent_on_read(uint16_t conn_handle,
                 struct ble_gatt_attr *attr,
                 void *arg)
 {
-    BLECENT_LOG(INFO, "Read complete; status=%d conn_handle=%d", error->status,
+    MODLOG_DFLT(INFO, "Read complete; status=%d conn_handle=%d", error->status,
                 conn_handle);
     if (error->status == 0) {
-        BLECENT_LOG(INFO, " attr_handle=%d value=", attr->handle);
+        MODLOG_DFLT(INFO, " attr_handle=%d value=", attr->handle);
         print_mbuf(attr->om);
     }
-    BLECENT_LOG(INFO, "\n");
+    MODLOG_DFLT(INFO, "\n");
 
     return 0;
 }
@@ -74,8 +71,8 @@ blecent_on_write(uint16_t conn_handle,
                  struct ble_gatt_attr *attr,
                  void *arg)
 {
-    BLECENT_LOG(INFO, "Write complete; status=%d conn_handle=%d "
-                      "attr_handle=%d\n",
+    MODLOG_DFLT(INFO,
+                "Write complete; status=%d conn_handle=%d attr_handle=%d\n",
                 error->status, conn_handle, attr->handle);
 
     return 0;
@@ -91,7 +88,7 @@ blecent_on_subscribe(uint16_t conn_handle,
                      struct ble_gatt_attr *attr,
                      void *arg)
 {
-    BLECENT_LOG(INFO, "Subscribe complete; status=%d conn_handle=%d "
+    MODLOG_DFLT(INFO, "Subscribe complete; status=%d conn_handle=%d "
                       "attr_handle=%d\n",
                 error->status, conn_handle, attr->handle);
 
@@ -123,7 +120,7 @@ blecent_read_write_subscribe(const struct peer *peer)
                              BLE_UUID16_DECLARE(BLECENT_SVC_ALERT_UUID),
                              BLE_UUID16_DECLARE(BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID));
     if (chr == NULL) {
-        BLECENT_LOG(ERROR, "Error: Peer doesn't support the Supported New "
+        MODLOG_DFLT(ERROR, "Error: Peer doesn't support the Supported New "
                            "Alert Category characteristic\n");
         goto err;
     }
@@ -131,7 +128,7 @@ blecent_read_write_subscribe(const struct peer *peer)
     rc = ble_gattc_read(peer->conn_handle, chr->chr.val_handle,
                         blecent_on_read, NULL);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "Error: Failed to read characteristic; rc=%d\n",
+        MODLOG_DFLT(ERROR, "Error: Failed to read characteristic; rc=%d\n",
                     rc);
         goto err;
     }
@@ -143,7 +140,7 @@ blecent_read_write_subscribe(const struct peer *peer)
                              BLE_UUID16_DECLARE(BLECENT_SVC_ALERT_UUID),
                              BLE_UUID16_DECLARE(BLECENT_CHR_ALERT_NOT_CTRL_PT));
     if (chr == NULL) {
-        BLECENT_LOG(ERROR, "Error: Peer doesn't support the Alert "
+        MODLOG_DFLT(ERROR, "Error: Peer doesn't support the Alert "
                            "Notification Control Point characteristic\n");
         goto err;
     }
@@ -153,7 +150,7 @@ blecent_read_write_subscribe(const struct peer *peer)
     rc = ble_gattc_write_flat(peer->conn_handle, chr->chr.val_handle,
                               value, sizeof value, blecent_on_write, NULL);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "Error: Failed to write characteristic; rc=%d\n",
+        MODLOG_DFLT(ERROR, "Error: Failed to write characteristic; rc=%d\n",
                     rc);
     }
 
@@ -166,7 +163,7 @@ blecent_read_write_subscribe(const struct peer *peer)
                              BLE_UUID16_DECLARE(BLECENT_CHR_UNR_ALERT_STAT_UUID),
                              BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16));
     if (dsc == NULL) {
-        BLECENT_LOG(ERROR, "Error: Peer lacks a CCCD for the Unread Alert "
+        MODLOG_DFLT(ERROR, "Error: Peer lacks a CCCD for the Unread Alert "
                            "Status characteristic\n");
         goto err;
     }
@@ -176,7 +173,7 @@ blecent_read_write_subscribe(const struct peer *peer)
     rc = ble_gattc_write_flat(peer->conn_handle, dsc->dsc.handle,
                               value, sizeof value, blecent_on_subscribe, NULL);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "Error: Failed to subscribe to characteristic; "
+        MODLOG_DFLT(ERROR, "Error: Failed to subscribe to characteristic; "
                            "rc=%d\n", rc);
         goto err;
     }
@@ -197,7 +194,7 @@ blecent_on_disc_complete(const struct peer *peer, int status, void *arg)
 
     if (status != 0) {
         /* Service discovery failed.  Terminate the connection. */
-        BLECENT_LOG(ERROR, "Error: Service discovery failed; status=%d "
+        MODLOG_DFLT(ERROR, "Error: Service discovery failed; status=%d "
                            "conn_handle=%d\n", status, peer->conn_handle);
         ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         return;
@@ -207,7 +204,7 @@ blecent_on_disc_complete(const struct peer *peer, int status, void *arg)
      * list of services, characteristics, and descriptors that the peer
      * supports.
      */
-    BLECENT_LOG(ERROR, "Service discovery complete; status=%d "
+    MODLOG_DFLT(ERROR, "Service discovery complete; status=%d "
                        "conn_handle=%d\n", status, peer->conn_handle);
 
     /* Now perform three concurrent GATT procedures against the peer: read,
@@ -229,7 +226,7 @@ blecent_scan(void)
     /* Figure out address to use while advertising (no privacy for now) */
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "error determining address type; rc=%d\n", rc);
+        MODLOG_DFLT(ERROR, "error determining address type; rc=%d\n", rc);
         return;
     }
 
@@ -253,7 +250,7 @@ blecent_scan(void)
     rc = ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &disc_params,
                       blecent_gap_event, NULL);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "Error initiating GAP discovery procedure; rc=%d\n",
+        MODLOG_DFLT(ERROR, "Error initiating GAP discovery procedure; rc=%d\n",
                     rc);
     }
 }
@@ -312,7 +309,7 @@ blecent_connect_if_interesting(const struct ble_gap_disc_desc *disc)
     /* Scanning must be stopped before a connection can be initiated. */
     rc = ble_gap_disc_cancel();
     if (rc != 0) {
-        BLECENT_LOG(DEBUG, "Failed to cancel scan; rc=%d\n", rc);
+        MODLOG_DFLT(DEBUG, "Failed to cancel scan; rc=%d\n", rc);
         return;
     }
 
@@ -322,9 +319,9 @@ blecent_connect_if_interesting(const struct ble_gap_disc_desc *disc)
     rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &disc->addr, 30000, NULL,
                          blecent_gap_event, NULL);
     if (rc != 0) {
-        BLECENT_LOG(ERROR, "Error: Failed to connect to device; addr_type=%d "
-                           "addr=%s\n", disc->addr.type,
-                           addr_str(disc->addr.val));
+        MODLOG_DFLT(ERROR, "Error: Failed to connect to device; addr_type=%d "
+                           "addr=%s\n",
+                    disc->addr.type, addr_str(disc->addr.val));
         return;
     }
 }
@@ -369,17 +366,17 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             /* Connection successfully established. */
-            BLECENT_LOG(INFO, "Connection established ");
+            MODLOG_DFLT(INFO, "Connection established ");
 
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
             assert(rc == 0);
             print_conn_desc(&desc);
-            BLECENT_LOG(INFO, "\n");
+            MODLOG_DFLT(INFO, "\n");
 
             /* Remember peer. */
             rc = peer_add(event->connect.conn_handle);
             if (rc != 0) {
-                BLECENT_LOG(ERROR, "Failed to add peer; rc=%d\n", rc);
+                MODLOG_DFLT(ERROR, "Failed to add peer; rc=%d\n", rc);
                 return 0;
             }
 
@@ -387,12 +384,12 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
             rc = peer_disc_all(event->connect.conn_handle,
                                blecent_on_disc_complete, NULL);
             if (rc != 0) {
-                BLECENT_LOG(ERROR, "Failed to discover services; rc=%d\n", rc);
+                MODLOG_DFLT(ERROR, "Failed to discover services; rc=%d\n", rc);
                 return 0;
             }
         } else {
             /* Connection attempt failed; resume scanning. */
-            BLECENT_LOG(ERROR, "Error: Connection failed; status=%d\n",
+            MODLOG_DFLT(ERROR, "Error: Connection failed; status=%d\n",
                         event->connect.status);
             blecent_scan();
         }
@@ -401,9 +398,9 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         /* Connection terminated. */
-        BLECENT_LOG(INFO, "disconnect; reason=%d ", event->disconnect.reason);
+        MODLOG_DFLT(INFO, "disconnect; reason=%d ", event->disconnect.reason);
         print_conn_desc(&event->disconnect.conn);
-        BLECENT_LOG(INFO, "\n");
+        MODLOG_DFLT(INFO, "\n");
 
         /* Forget about peer. */
         peer_delete(event->disconnect.conn.conn_handle);
@@ -413,13 +410,13 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        BLECENT_LOG(INFO, "discovery complete; reason=%d\n",
+        MODLOG_DFLT(INFO, "discovery complete; reason=%d\n",
                     event->disc_complete.reason);
         return 0;
 
     case BLE_GAP_EVENT_ENC_CHANGE:
         /* Encryption has been enabled or disabled for this connection. */
-        BLECENT_LOG(INFO, "encryption change event; status=%d ",
+        MODLOG_DFLT(INFO, "encryption change event; status=%d ",
                     event->enc_change.status);
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         assert(rc == 0);
@@ -428,7 +425,7 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_NOTIFY_RX:
         /* Peer sent us a notification or indication. */
-        BLECENT_LOG(INFO, "received %s; conn_handle=%d attr_handle=%d "
+        MODLOG_DFLT(INFO, "received %s; conn_handle=%d attr_handle=%d "
                           "attr_len=%d\n",
                     event->notify_rx.indication ?
                         "indication" :
@@ -441,7 +438,7 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_MTU:
-        BLECENT_LOG(INFO, "mtu update event; conn_handle=%d cid=%d mtu=%d\n",
+        MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d cid=%d mtu=%d\n",
                     event->mtu.conn_handle,
                     event->mtu.channel_id,
                     event->mtu.value);
@@ -471,7 +468,7 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
 static void
 blecent_on_reset(int reason)
 {
-    BLECENT_LOG(ERROR, "Resetting state; reason=%d\n", reason);
+    MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
 static void
@@ -502,13 +499,7 @@ main(void)
     /* Initialize OS */
     sysinit();
 
-    /* Initialize the blecent log. */
-    log_register("blecent", &blecent_log, &log_console_handler, NULL,
-                 LOG_SYSLEVEL);
-
     /* Configure the host. */
-    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL,
-                 LOG_SYSLEVEL);
     ble_hs_cfg.reset_cb = blecent_on_reset;
     ble_hs_cfg.sync_cb = blecent_on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;

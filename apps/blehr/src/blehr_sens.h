@@ -20,21 +20,12 @@
 #ifndef H_BLEHR_SENSOR_
 #define H_BLEHR_SENSOR_
 
-#include "log/log.h"
 #include "nimble/ble.h"
+#include "modlog/modlog.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern struct log blehr_log;
-
-/* blehr uses the first "peruser" log module */
-#define BLEHR_LOG_MODULE (LOG_MODULE_PERUSER + 0)
-
-/* Convenience macro for logging to the blerh module */
-#define BLEHR_LOG(lvl, ...) \
-    LOG_ ## lvl(&blehr_log, BLEHR_LOG_MODULE, __VA_ARGS__)
 
 /* Heart-rate configuration */
 #define GATT_HRS_UUID                           0x180D

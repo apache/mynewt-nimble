@@ -74,8 +74,6 @@
 #define PTR_TO_INT(x)     (int) ((intptr_t)(x))
 #endif
 
-struct log btshell_log;
-
 bssnz_t struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 int btshell_num_conns;
 
@@ -390,7 +388,7 @@ btshell_svc_add(uint16_t conn_handle, const struct ble_gatt_svc *gatt_svc)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        BTSHELL_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
                            "HANDLE=%d\n",
                     conn_handle);
         return NULL;
@@ -404,7 +402,7 @@ btshell_svc_add(uint16_t conn_handle, const struct ble_gatt_svc *gatt_svc)
 
     svc = os_memblock_get(&btshell_svc_pool);
     if (svc == NULL) {
-        BTSHELL_LOG(DEBUG, "OOM WHILE DISCOVERING SERVICE\n");
+        MODLOG_DFLT(DEBUG, "OOM WHILE DISCOVERING SERVICE\n");
         return NULL;
     }
     memset(svc, 0, sizeof *svc);
@@ -474,7 +472,7 @@ btshell_chr_add(uint16_t conn_handle,  uint16_t svc_start_handle,
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        BTSHELL_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
                            "HANDLE=%d\n",
                     conn_handle);
         return NULL;
@@ -482,7 +480,7 @@ btshell_chr_add(uint16_t conn_handle,  uint16_t svc_start_handle,
 
     svc = btshell_svc_find(conn, svc_start_handle, NULL);
     if (svc == NULL) {
-        BTSHELL_LOG(DEBUG, "CAN'T FIND SERVICE FOR DISCOVERED CHR; HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG, "CAN'T FIND SERVICE FOR DISCOVERED CHR; HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
@@ -495,7 +493,7 @@ btshell_chr_add(uint16_t conn_handle,  uint16_t svc_start_handle,
 
     chr = os_memblock_get(&btshell_chr_pool);
     if (chr == NULL) {
-        BTSHELL_LOG(DEBUG, "OOM WHILE DISCOVERING CHARACTERISTIC\n");
+        MODLOG_DFLT(DEBUG, "OOM WHILE DISCOVERING CHARACTERISTIC\n");
         return NULL;
     }
     memset(chr, 0, sizeof *chr);
@@ -565,7 +563,7 @@ btshell_dsc_add(uint16_t conn_handle, uint16_t chr_val_handle,
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        BTSHELL_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
                            "HANDLE=%d\n",
                     conn_handle);
         return NULL;
@@ -573,14 +571,14 @@ btshell_dsc_add(uint16_t conn_handle, uint16_t chr_val_handle,
 
     svc = btshell_svc_find_range(conn, chr_val_handle);
     if (svc == NULL) {
-        BTSHELL_LOG(DEBUG, "CAN'T FIND SERVICE FOR DISCOVERED DSC; HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG, "CAN'T FIND SERVICE FOR DISCOVERED DSC; HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
 
     chr = btshell_chr_find(svc, chr_val_handle, NULL);
     if (chr == NULL) {
-        BTSHELL_LOG(DEBUG, "CAN'T FIND CHARACTERISTIC FOR DISCOVERED DSC; "
+        MODLOG_DFLT(DEBUG, "CAN'T FIND CHARACTERISTIC FOR DISCOVERED DSC; "
                            "HANDLE=%d\n",
                     conn_handle);
         return NULL;
@@ -689,7 +687,7 @@ btshell_disc_full_dscs(uint16_t conn_handle)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        BTSHELL_LOG(DEBUG, "Failed to discover descriptors for conn=%d; "
+        MODLOG_DFLT(DEBUG, "Failed to discover descriptors for conn=%d; "
                            "not connected\n", conn_handle);
         btshell_full_disc_complete(BLE_HS_ENOTCONN);
         return;
@@ -727,7 +725,7 @@ btshell_disc_full_chrs(uint16_t conn_handle)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        BTSHELL_LOG(DEBUG, "Failed to discover characteristics for conn=%d; "
+        MODLOG_DFLT(DEBUG, "Failed to discover characteristics for conn=%d; "
                            "not connected\n", conn_handle);
         btshell_full_disc_complete(BLE_HS_ENOTCONN);
         return;
@@ -2080,13 +2078,7 @@ main(int argc, char **argv)
     assert(rc == 0);
 #endif
 
-    /* Initialize the logging system. */
-    log_register("btshell", &btshell_log, &log_console_handler, NULL,
-                 LOG_SYSLEVEL);
-
     /* Initialize the NimBLE host configuration. */
-    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL,
-                 LOG_SYSLEVEL);
     ble_hs_cfg.reset_cb = btshell_on_reset;
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;

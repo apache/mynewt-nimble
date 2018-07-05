@@ -21,7 +21,7 @@
 #define H_BLECENT_
 
 #include "os/mynewt.h"
-#include "log/log.h"
+#include "modlog/modlog.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,15 +31,6 @@ struct ble_gap_conn_desc;
 struct ble_hs_cfg;
 union ble_store_value;
 union ble_store_key;
-
-extern struct log blecent_log;
-
-/* blecent uses the first "peruser" log module. */
-#define BLECENT_LOG_MODULE  (LOG_MODULE_PERUSER + 0)
-
-/* Convenience macro for logging to the blecent module. */
-#define BLECENT_LOG(lvl, ...) \
-    LOG_ ## lvl(&blecent_log, BLECENT_LOG_MODULE, __VA_ARGS__)
 
 #define BLECENT_SVC_ALERT_UUID              0x1811
 #define BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID  0x2A47

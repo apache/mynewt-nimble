@@ -30,9 +30,6 @@
 #include "services/gap/ble_svc_gap.h"
 #include "blehr_sens.h"
 
-/* Log data */
-struct log blehr_log;
-
 static bool notify_state;
 
 static const char *device_name = "blehr_sensor";
@@ -89,7 +86,7 @@ blehr_advertise(void)
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
-        BLEHR_LOG(ERROR, "error setting advertisement data; rc=%d\n", rc);
+        MODLOG_DFLT(ERROR, "error setting advertisement data; rc=%d\n", rc);
         return;
     }
 
@@ -100,7 +97,7 @@ blehr_advertise(void)
     rc = ble_gap_adv_start(blehr_addr_type, NULL, BLE_HS_FOREVER,
                            &adv_params, blehr_gap_event, NULL);
     if (rc != 0) {
-        BLEHR_LOG(ERROR, "error enabling advertisement; rc=%d\n", rc);
+        MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
         return;
     }
 }
@@ -158,7 +155,7 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed */
-        BLEHR_LOG(INFO, "connection %s; status=%d\n",
+        MODLOG_DFLT(INFO, "connection %s; status=%d\n",
                     event->connect.status == 0 ? "established" : "failed",
                     event->connect.status);
 
@@ -169,22 +166,21 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        BLEHR_LOG(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
+        MODLOG_DFLT(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
 
         /* Connection terminated; resume advertising */
         blehr_advertise();
         break;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        BLEHR_LOG(INFO, "adv complete\n");
+        MODLOG_DFLT(INFO, "adv complete\n");
         blehr_advertise();
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        BLEHR_LOG(INFO, "subscribe event; cur_notify=%d\n value handle; "
-                  "val_handle=%d\n",
-                        event->subscribe.cur_notify,
-                        hrs_hrm_handle);
+        MODLOG_DFLT(INFO, "subscribe event; cur_notify=%d\n value handle; "
+                          "val_handle=%d\n",
+                    event->subscribe.cur_notify, hrs_hrm_handle);
         if (event->subscribe.attr_handle == hrs_hrm_handle) {
             notify_state = event->subscribe.cur_notify;
             blehr_tx_hrate_reset();
@@ -195,7 +191,7 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_MTU:
-        BLEHR_LOG(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
+        MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
                     event->mtu.conn_handle,
                     event->mtu.value);
         break;
@@ -234,13 +230,7 @@ main(void)
     /* Initialize OS */
     sysinit();
 
-    /* Initialize the blehr log */
-    log_register("blehr_sens_log", &blehr_log, &log_console_handler, NULL,
-                    LOG_SYSLEVEL);
-
     /* Initialize the NimBLE host configuration */
-    log_register("blehr_sens", &ble_hs_log, &log_console_handler, NULL,
-                    LOG_SYSLEVEL);
     ble_hs_cfg.sync_cb = blehr_on_sync;
 
     os_callout_init(&blehr_tx_timer, os_eventq_dflt_get(),

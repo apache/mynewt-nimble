@@ -41,9 +41,6 @@
 /* Simulated speed upper limit */
 #define CSC_SIM_SPEED_KPH_MAX                     35
 
-/* Log data */
-struct log blecsc_log;
-
 /* Noticication status */
 static bool notify_state = false;
 
@@ -118,7 +115,7 @@ blecsc_advertise(void)
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
-        BLECSC_LOG(ERROR, "error setting advertisement data; rc=%d\n", rc);
+        MODLOG_DFLT(ERROR, "error setting advertisement data; rc=%d\n", rc);
         return;
     }
 
@@ -129,7 +126,7 @@ blecsc_advertise(void)
     rc = ble_gap_adv_start(blecsc_addr_type, NULL, BLE_HS_FOREVER,
                            &adv_params, blecsc_gap_event, NULL);
     if (rc != 0) {
-        BLECSC_LOG(ERROR, "error enabling advertisement; rc=%d\n", rc);
+        MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
         return;
     }
 }
@@ -180,8 +177,8 @@ blecsc_simulate_speed_and_cadence()
         csc_measurement_state.last_crank_evt_time += crank_rev_period;
     }
 
-    BLECSC_LOG(INFO, "CSC simulated values: speed = %d kph, cadence = %d \n",
-                    csc_sim_speed_kph, csc_sim_crank_rpm);
+    MODLOG_DFLT(INFO, "CSC simulated values: speed = %d kph, cadence = %d \n",
+                csc_sim_speed_kph, csc_sim_crank_rpm);
 }
 
 /* Run CSC measurement simulation and notify it to the client */
@@ -207,7 +204,7 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed */
-        BLECSC_LOG(INFO, "connection %s; status=%d\n",
+        MODLOG_DFLT(INFO, "connection %s; status=%d\n",
                     event->connect.status == 0 ? "established" : "failed",
                     event->connect.status);
 
@@ -222,34 +219,34 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        BLECSC_LOG(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
+        MODLOG_DFLT(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
         conn_handle = 0;
         /* Connection terminated; resume advertising */
         blecsc_advertise();
         break;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        BLECSC_LOG(INFO, "adv complete\n");
+        MODLOG_DFLT(INFO, "adv complete\n");
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        BLECSC_LOG(INFO, "subscribe event attr_handle=%d\n",
-                         event->subscribe.attr_handle);
+        MODLOG_DFLT(INFO, "subscribe event attr_handle=%d\n",
+                    event->subscribe.attr_handle);
 
         if (event->subscribe.attr_handle == csc_measurement_handle) {
             notify_state = event->subscribe.cur_notify;
-            BLECSC_LOG(INFO, "csc measurement notify state = %d\n",
-                              notify_state);
+            MODLOG_DFLT(INFO, "csc measurement notify state = %d\n",
+                        notify_state);
         }
         else if (event->subscribe.attr_handle == csc_control_point_handle) {
             gatt_svr_set_cp_indicate(event->subscribe.cur_indicate);
-            BLECSC_LOG(INFO, "csc control point indicate state = %d\n",
-                              event->subscribe.cur_indicate);
+            MODLOG_DFLT(INFO, "csc control point indicate state = %d\n",
+                        event->subscribe.cur_indicate);
         }
         break;
 
     case BLE_GAP_EVENT_MTU:
-        BLECSC_LOG(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
+        MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
                     event->mtu.conn_handle,
                     event->mtu.value);
         break;
@@ -288,13 +285,7 @@ main(void)
     /* Initialize OS */
     sysinit();
 
-    /* Initialize the blecsc log */
-    log_register("blecsc_sens_log", &blecsc_log, &log_console_handler, NULL,
-                    LOG_SYSLEVEL);
-
     /* Initialize the NimBLE host configuration */
-    log_register("blecsc_sens", &ble_hs_log, &log_console_handler, NULL,
-                    LOG_SYSLEVEL);
     ble_hs_cfg.sync_cb = blecsc_on_sync;
 
     /* Initialize measurement and notification timer */

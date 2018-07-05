@@ -31,6 +31,7 @@ pkg.deps:
     - "@apache-mynewt-core/mgmt/newtmgr/transport/ble"
     - "@apache-mynewt-core/sys/console/full"
     - "@apache-mynewt-core/sys/log/full"
+    - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/sys/sysinit"
     - "@apache-mynewt-core/sys/id"
