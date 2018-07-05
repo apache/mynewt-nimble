@@ -164,7 +164,7 @@ int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, u16_t key_idx, u1
 {
 	struct bt_mesh_model *found_model;
 
-	found_model = bt_mesh_model_find(model->elem, id);
+	found_model = bt_mesh_model_find(bt_mesh_model_elem(model), id);
 	if (!found_model) {
 		return STATUS_INVALID_MODEL;
 	}
