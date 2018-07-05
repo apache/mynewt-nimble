@@ -428,6 +428,13 @@ syscfg.defs:
             This option enables Mesh settings storage.
         value: 1
 
+    BLE_MESH_STORE_TIMEOUT:
+        description: >
+            This value defines in seconds how soon any pending changes
+            are actually written into persistent storage (flash) after
+            a change occurs.
+        value: 2
+
     BLE_MESH_SEQ_STORE_RATE:
         description: >
             This value defines how often the local sequence number gets
