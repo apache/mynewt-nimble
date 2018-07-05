@@ -140,10 +140,10 @@ u8_t bt_mesh_beacon_get(void);
 u8_t bt_mesh_gatt_proxy_get(void);
 u8_t bt_mesh_default_ttl_get(void);
 
-void bt_mesh_subnet_del(struct bt_mesh_subnet *sub);
+void bt_mesh_subnet_del(struct bt_mesh_subnet *sub, bool store);
 
 struct bt_mesh_app_key *bt_mesh_app_key_alloc(u16_t app_idx);
-void bt_mesh_app_key_del(struct bt_mesh_app_key *key);
+void bt_mesh_app_key_del(struct bt_mesh_app_key *key, bool store);
 
 static inline void key_idx_pack(struct os_mbuf *buf,
 				u16_t idx1, u16_t idx2)
