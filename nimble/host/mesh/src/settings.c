@@ -539,6 +539,18 @@ static void schedule_store(int flag)
 	k_delayed_work_submit(&pending_store, timeout);
 }
 
+static void clear_iv(void)
+{
+	BT_DBG("Clearing IV");
+	settings_save_one("bt/mesh/IV", NULL);
+}
+
+static void clear_net(void)
+{
+	BT_DBG("Clearing Network");
+	settings_save_one("bt/mesh/Net", NULL);
+}
+
 static void store_pending_net(void)
 {
 	char buf[BT_SETTINGS_SIZE(sizeof(struct net_val))];
@@ -645,6 +657,27 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 
 	BT_DBG("Saving RPL %s as value %s", path, str);
 	settings_save_one(path, str);
+}
+
+static void clear_rpl(void)
+{
+	int i;
+
+	BT_DBG("");
+
+	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
+		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
+		char path[18];
+
+		if (!rpl->src) {
+			continue;
+		}
+
+		snprintk(path, sizeof(path), "bt/mesh/RPL/%x", rpl->src);
+		settings_save_one(path, NULL);
+
+		memset(rpl, 0, sizeof(*rpl));
+	}
 }
 
 static void store_pending_rpl(void)
@@ -785,7 +818,11 @@ static void store_pending(struct ble_npl_event *work)
 	BT_DBG("");
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_RPL_PENDING)) {
-		store_pending_rpl();
+		if (bt_mesh.valid) {
+			store_pending_rpl();
+		} else {
+			clear_rpl();
+		}
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_KEYS_PENDING)) {
@@ -793,11 +830,19 @@ static void store_pending(struct ble_npl_event *work)
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_NET_PENDING)) {
-		store_pending_net();
+		if (bt_mesh.valid) {
+			store_pending_net();
+		} else {
+			clear_net();
+		}
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_IV_PENDING)) {
-		store_pending_iv();
+		if (bt_mesh.valid) {
+			store_pending_iv();
+		} else {
+			clear_iv();
+		}
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_SEQ_PENDING)) {
@@ -894,10 +939,8 @@ void bt_mesh_store_app_key(struct bt_mesh_app_key *key)
 
 void bt_mesh_clear_net(void)
 {
-	BT_DBG("");
-
-	settings_save_one("bt/mesh/IV", NULL);
-	settings_save_one("bt/mesh/Net", NULL);
+	schedule_store(BT_MESH_NET_PENDING);
+	schedule_store(BT_MESH_IV_PENDING);
 }
 
 void bt_mesh_clear_subnet(struct bt_mesh_subnet *sub)
@@ -954,21 +997,7 @@ void bt_mesh_clear_app_key(struct bt_mesh_app_key *key)
 
 void bt_mesh_clear_rpl(void)
 {
-	int i;
-
-	BT_DBG("");
-
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-		char path[18];
-
-		if (!rpl->src) {
-			continue;
-		}
-
-		snprintk(path, sizeof(path), "bt/mesh/RPL/%x", rpl->src);
-		settings_save_one(path, NULL);
-	}
+	schedule_store(BT_MESH_RPL_PENDING);
 }
 
 void bt_mesh_settings_init(void)
