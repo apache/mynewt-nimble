@@ -269,6 +269,10 @@ static u8_t _mod_pub_set(struct bt_mesh_model *model, u16_t pub_addr,
 			k_delayed_work_cancel(&model->pub->timer);
 		}
 
+		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+			bt_mesh_store_mod_pub(model);
+		}
+
 		return STATUS_SUCCESS;
 	}
 
@@ -294,6 +298,10 @@ static u8_t _mod_pub_set(struct bt_mesh_model *model, u16_t pub_addr,
 		} else {
 			k_delayed_work_cancel(&model->pub->timer);
 		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		bt_mesh_store_mod_pub(model);
 	}
 
 	return STATUS_SUCCESS;
