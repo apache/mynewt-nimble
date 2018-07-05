@@ -547,9 +547,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			}
 		} else if (BT_MESH_ADDR_IS_GROUP(rx->ctx.recv_dst) ||
 			   BT_MESH_ADDR_IS_VIRTUAL(rx->ctx.recv_dst)) {
-			if (!bt_mesh_elem_find_group(elem, rx->ctx.recv_dst)) {
-				continue;
-			}
+			/* find_op() will do proper model/group matching */
 		} else if (i != 0 ||
 			   !bt_mesh_fixed_group_match(rx->ctx.recv_dst)) {
 			continue;
@@ -567,8 +565,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			count = elem->vnd_model_count;
 		}
 
-		op = find_op(models, count, rx->ctx.recv_dst,
-			     rx->ctx.app_idx, opcode, &model);
+		op = find_op(models, count, rx->ctx.recv_dst, rx->ctx.app_idx,
+			     opcode, &model);
 		if (op) {
 			struct net_buf_simple_state state;
 
