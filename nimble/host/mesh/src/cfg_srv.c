@@ -3268,6 +3268,7 @@ int bt_mesh_cfg_srv_init(struct bt_mesh_model *model, bool primary)
 
 	k_delayed_work_init(&cfg->hb_pub.timer, hb_publish);
 	k_delayed_work_add_arg(&cfg->hb_pub.timer, cfg);
+	cfg->hb_pub.net_idx = BT_MESH_KEY_UNUSED;
 	cfg->hb_sub.expiry = 0;
 
 	cfg->model = model;

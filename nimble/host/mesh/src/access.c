@@ -290,7 +290,6 @@ static void mod_init(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		mod->keys[i] = BT_MESH_KEY_UNUSED;
 	}
 
-	mod->flags = 0;
 	mod->elem_idx = elem - dev_comp->elem;
 	if (vnd) {
 		mod->mod_idx = mod - elem->vnd_models;
