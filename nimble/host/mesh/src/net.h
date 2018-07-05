@@ -324,6 +324,8 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 
 u32_t bt_mesh_next_seq(void);
 
+void bt_mesh_net_start(void);
+
 void bt_mesh_net_init(void);
 
 /* Friendship Credential Management */
