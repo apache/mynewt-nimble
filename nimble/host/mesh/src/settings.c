@@ -822,15 +822,6 @@ static int mesh_commit(void)
 	return 0;
 }
 
-static struct conf_handler bt_mesh_settings_conf_handler = {
-	.ch_name = "ble_mesh",
-	.ch_get = NULL,
-	.ch_set = mesh_set,
-	.ch_commit = mesh_commit,
-	.ch_export = NULL,
-};
-
-
 static void schedule_store(int flag)
 {
 	s32_t timeout;
@@ -857,13 +848,13 @@ static void schedule_store(int flag)
 static void clear_iv(void)
 {
 	BT_DBG("Clearing IV");
-	settings_save_one("bt/mesh/IV", NULL);
+	settings_save_one("bt_mesh/IV", NULL);
 }
 
 static void clear_net(void)
 {
 	BT_DBG("Clearing Network");
-	settings_save_one("bt/mesh/Net", NULL);
+	settings_save_one("bt_mesh/Net", NULL);
 }
 
 static void store_pending_net(void)
@@ -885,7 +876,7 @@ static void store_pending_net(void)
 	}
 
 	BT_DBG("Saving Network as value %s", str);
-	settings_save_one("bt/mesh/Net", str);
+	settings_save_one("bt_mesh/Net", str);
 }
 
 void bt_mesh_store_net(void)
@@ -910,7 +901,7 @@ static void store_pending_iv(void)
 	}
 
 	BT_DBG("Saving IV as value %s", str);
-	settings_save_one("bt/mesh/IV", str);
+	settings_save_one("bt_mesh/IV", str);
 }
 
 void bt_mesh_store_iv(bool only_duration)
@@ -940,7 +931,7 @@ static void store_pending_seq(void)
 	}
 
 	BT_DBG("Saving Seq as value %s", str);
-	settings_save_one("bt/mesh/Seq", str);
+	settings_save_one("bt_mesh/Seq", str);
 }
 
 void bt_mesh_store_seq(void)
@@ -972,7 +963,7 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 		return;
 	}
 
-	snprintk(path, sizeof(path), "bt/mesh/RPL/%x", entry->src);
+	snprintk(path, sizeof(path), "bt_mesh/RPL/%x", entry->src);
 
 	BT_DBG("Saving RPL %s as value %s", path, str);
 	settings_save_one(path, str);
@@ -992,7 +983,7 @@ static void clear_rpl(void)
 			continue;
 		}
 
-		snprintk(path, sizeof(path), "bt/mesh/RPL/%x", rpl->src);
+		snprintk(path, sizeof(path), "bt_mesh/RPL/%x", rpl->src);
 		settings_save_one(path, NULL);
 
 		memset(rpl, 0, sizeof(*rpl));
@@ -1046,7 +1037,7 @@ static void store_pending_hb_pub(void)
 
 	BT_DBG("Saving Heartbeat Publication as value %s",
 	       str ? str : "(null)");
-	settings_save_one("bt/mesh/HBPub", str);
+	settings_save_one("bt_mesh/HBPub", str);
 }
 
 static void store_pending_cfg(void)
@@ -1075,13 +1066,13 @@ static void store_pending_cfg(void)
 	}
 
 	BT_DBG("Saving configuration as value %s", str);
-	settings_save_one("bt/mesh/Cfg", str);
+	settings_save_one("bt_mesh/Cfg", str);
 }
 
 static void clear_cfg(void)
 {
 	BT_DBG("Clearing configuration");
-	settings_save_one("bt/mesh/Cfg", NULL);
+	settings_save_one("bt_mesh/Cfg", NULL);
 }
 
 static void clear_app_key(u16_t app_idx)
@@ -1090,7 +1081,7 @@ static void clear_app_key(u16_t app_idx)
 
 	BT_DBG("AppKeyIndex 0x%03x", app_idx);
 
-	snprintk(path, sizeof(path), "bt/mesh/AppKey/%x", app_idx);
+	snprintk(path, sizeof(path), "bt_mesh/AppKey/%x", app_idx);
 	settings_save_one(path, NULL);
 }
 
@@ -1100,7 +1091,7 @@ static void clear_net_key(u16_t net_idx)
 
 	BT_DBG("NetKeyIndex 0x%03x", net_idx);
 
-	snprintk(path, sizeof(path), "bt/mesh/NetKey/%x", net_idx);
+	snprintk(path, sizeof(path), "bt_mesh/NetKey/%x", net_idx);
 	settings_save_one(path, NULL);
 }
 
@@ -1125,7 +1116,7 @@ static void store_net_key(struct bt_mesh_subnet *sub)
 		return;
 	}
 
-	snprintk(path, sizeof(path), "bt/mesh/NetKey/%x", sub->net_idx);
+	snprintk(path, sizeof(path), "bt_mesh/NetKey/%x", sub->net_idx);
 
 	BT_DBG("Saving NetKey %s as value %s", path, str);
 	settings_save_one(path, str);
@@ -1149,7 +1140,7 @@ static void store_app_key(struct bt_mesh_app_key *app)
 		return;
 	}
 
-	snprintk(path, sizeof(path), "bt/mesh/AppKey/%x", app->app_idx);
+	snprintk(path, sizeof(path), "bt_mesh/AppKey/%x", app->app_idx);
 
 	BT_DBG("Saving AppKey %s as value %s", path, str);
 	settings_save_one(path, str);
@@ -1207,9 +1198,9 @@ static void encode_mod_path(struct bt_mesh_model *mod, bool vnd,
 	u16_t mod_key = (((u16_t)mod->elem_idx << 8) | mod->mod_idx);
 
 	if (vnd) {
-		snprintk(path, path_len, "bt/mesh/v/%x/%s", mod_key, key);
+		snprintk(path, path_len, "bt_mesh/v/%x/%s", mod_key, key);
 	} else {
-		snprintk(path, path_len, "bt/mesh/s/%x/%s", mod_key, key);
+		snprintk(path, path_len, "bt_mesh/s/%x/%s", mod_key, key);
 	}
 }
 
@@ -1562,6 +1553,14 @@ void bt_mesh_store_mod_pub(struct bt_mesh_model *mod)
 	mod->flags |= BT_MESH_MOD_PUB_PENDING;
 	schedule_store(BT_MESH_MOD_PENDING);
 }
+
+static struct conf_handler bt_mesh_settings_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = mesh_set,
+	.ch_commit = mesh_commit,
+	.ch_export = NULL,
+};
 
 void bt_mesh_settings_init(void)
 {
