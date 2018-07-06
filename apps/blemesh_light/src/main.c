@@ -115,8 +115,6 @@ main(void)
     ble_hs_cfg.sync_cb = blemesh_on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
-    bt_mesh_register_gatt();
-
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
     }
