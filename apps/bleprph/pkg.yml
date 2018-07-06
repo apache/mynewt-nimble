@@ -34,10 +34,10 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/sys/sysinit"
     - "@apache-mynewt-core/sys/id"
-    - net/nimble/host
-    - net/nimble/host/services/ans
-    - net/nimble/host/services/gap
-    - net/nimble/host/services/gatt
-    - net/nimble/host/store/config
-    - net/nimble/host/util
-    - net/nimble/transport
+    - nimble/host
+    - nimble/host/services/ans
+    - nimble/host/services/gap
+    - nimble/host/services/gatt
+    - nimble/host/store/config
+    - nimble/host/util
+    - nimble/transport
