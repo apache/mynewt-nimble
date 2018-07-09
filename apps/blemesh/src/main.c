@@ -136,7 +136,7 @@ fault_test(struct bt_mesh_model *model, uint8_t test_id, uint16_t company_id)
 
     recent_test_id = test_id;
     has_reg_fault = true;
-    bt_mesh_fault_update(model->elem);
+    bt_mesh_fault_update(bt_mesh_model_elem(model));
 
     return 0;
 }
@@ -405,6 +405,14 @@ blemesh_on_sync(void)
 #endif
 
     console_printf("Mesh initialized\n");
+
+    if (IS_ENABLED(CONFIG_SETTINGS)) {
+        settings_load();
+    }
+
+    if (bt_mesh_is_provisioned()) {
+        printk("Mesh network restored from flash\n");
+    }
 }
 
 int
