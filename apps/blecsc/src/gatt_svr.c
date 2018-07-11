@@ -178,8 +178,8 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     assert(ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR);
 
     if (!csc_cp_indication_status) {
-        BLECSC_LOG(INFO, "SC Control Point; CCC descriptor "
-                         "improperly configured");
+        MODLOG_DFLT(INFO, "SC Control Point; CCC descriptor "
+                          "improperly configured");
         return CSC_ERR_CCC_DESC_IMPROPERLY_CONFIGURED;
     }
 
@@ -188,7 +188,7 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     if (rc != 0){
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
-    BLECSC_LOG(INFO, "SC Control Point; opcode=%d\n", op_code);
+    MODLOG_DFLT(INFO, "SC Control Point; opcode=%d\n", op_code);
 
     /* Allocate response buffer */
     om_indication = ble_hs_mbuf_att_pkt();
@@ -207,8 +207,8 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
         measurement_state->cumulative_wheel_rev =
                            get_le32(new_cumulative_wheel_rev_arr);
 
-        BLECSC_LOG(INFO, "SC Control Point; Set cumulative value = %d\n",
-                          measurement_state->cumulative_wheel_rev);
+        MODLOG_DFLT(INFO, "SC Control Point; Set cumulative value = %d\n",
+                    measurement_state->cumulative_wheel_rev);
 
         response = SC_CP_RESPONSE_SUCCESS;
         break;
@@ -222,8 +222,8 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
           return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
 
-        BLECSC_LOG(INFO, "SC Control Point; Sensor location update = %d\n",
-                         new_sensor_location);
+        MODLOG_DFLT(INFO, "SC Control Point; Sensor location update = %d\n",
+                    new_sensor_location);
 
         /* Verify if requested new location is on supported locations list */
         response = SC_CP_RESPONSE_INVALID_PARAM;
@@ -338,13 +338,13 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 
     switch (ctxt->op) {
     case BLE_GATT_REGISTER_OP_SVC:
-        BLECSC_LOG(DEBUG, "registered service %s with handle=%d\n",
+        MODLOG_DFLT(DEBUG, "registered service %s with handle=%d\n",
                     ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
                     ctxt->svc.handle);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
-        BLECSC_LOG(DEBUG, "registering characteristic %s with "
+        MODLOG_DFLT(DEBUG, "registering characteristic %s with "
                            "def_handle=%d val_handle=%d\n",
                     ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
                     ctxt->chr.def_handle,
@@ -352,7 +352,7 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
-        BLECSC_LOG(DEBUG, "registering descriptor %s with handle=%d\n",
+        MODLOG_DFLT(DEBUG, "registering descriptor %s with handle=%d\n",
                     ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
                     ctxt->dsc.handle);
         break;

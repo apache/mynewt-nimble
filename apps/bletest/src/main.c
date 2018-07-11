@@ -1299,9 +1299,6 @@ main(void)
     g_bletest_cur_peer_addr[5] = 0x08;
 #endif
 
-    log_register("ble_hs", &ble_hs_log, &log_console_handler, NULL,
-                 LOG_SYSLEVEL);
-
     /* Set the led pin as an output */
     g_led_pin = LED_BLINK_PIN;
     hal_gpio_init_out(g_led_pin, 1);

@@ -20,17 +20,16 @@
 #ifndef H_BLE_HS_LOG_
 #define H_BLE_HS_LOG_
 
-#include "log/log.h"
+#include "modlog/modlog.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct os_mbuf;
 
-extern struct log ble_hs_log;
-
 #define BLE_HS_LOG(lvl, ...) \
-    LOG_ ## lvl(&ble_hs_log, LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+    MODLOG_ ## lvl(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
 
 #define BLE_HS_LOG_ADDR(lvl, addr)                      \
     BLE_HS_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x",    \

@@ -24,7 +24,7 @@
 #include "os/mynewt.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
-#include "log/log.h"
+#include "modlog/modlog.h"
 
 #include "host/ble_gatt.h"
 #include "host/ble_gap.h"
@@ -89,7 +89,6 @@ struct btshell_scan_opts {
 extern struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 extern int btshell_num_conns;
 
-extern struct log btshell_log;
 int btshell_exchange_mtu(uint16_t conn_handle);
 int btshell_disc_svcs(uint16_t conn_handle);
 int btshell_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid);
@@ -165,9 +164,6 @@ int btshell_l2cap_create_srv(uint16_t psm, int accept_response);
 int btshell_l2cap_connect(uint16_t conn, uint16_t psm);
 int btshell_l2cap_disconnect(uint16_t conn, uint16_t idx);
 int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
-#define BTSHELL_LOG_MODULE  (LOG_MODULE_PERUSER + 0)
-#define BTSHELL_LOG(lvl, ...) \
-    LOG_ ## lvl(&btshell_log, BTSHELL_LOG_MODULE, __VA_ARGS__)
 
 /** GATT server. */
 #define GATT_SVR_SVC_ALERT_UUID               0x1811

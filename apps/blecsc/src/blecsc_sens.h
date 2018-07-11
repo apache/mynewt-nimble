@@ -20,21 +20,12 @@
 #ifndef H_BLECSC_SENSOR_
 #define H_BLECSC_SENSOR_
 
-#include "log/log.h"
+#include "modlog/modlog.h"
 #include "nimble/ble.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern struct log blecsc_log;
-
-/* blecsc uses the first "peruser" log module */
-#define BLECSC_LOG_MODULE (LOG_MODULE_PERUSER + 0)
-
-/* Convenience macro for logging to the blerh module */
-#define BLECSC_LOG(lvl, ...) \
-    LOG_ ## lvl(&blecsc_log, BLECSC_LOG_MODULE, __VA_ARGS__)
 
 /* Cycling Speed and Cadence configuration */
 #define GATT_CSC_UUID                           0x1816
