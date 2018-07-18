@@ -163,6 +163,13 @@ syscfg.defs:
                 0x04: BLE_SM_PAIR_KEY_DIST_SIGN
                 0x08: BLE_SM_PAIR_KEY_DIST_LINK
         value: 0
+    BLE_SM_SC_DEBUG_KEYS:
+        description: >
+            Enable SM debug mode. In this mode SM uses predefined DH key pair as
+            described in Core Specification 5.0, Vol. 3, Part H, 2.3.5.6.1. This
+            allows to decrypt air traffic easily and thus should be only used
+            for debugging.
+        value: 0
 
     # Supported GATT procedures.  By default:
     #     o Notify and indicate are enabled;
