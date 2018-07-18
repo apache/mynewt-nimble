@@ -98,6 +98,14 @@ blemesh_on_sync(void)
 
     console_printf("Mesh initialized\n");
 
+    if (IS_ENABLED(CONFIG_SETTINGS)) {
+        settings_load();
+    }
+
+    if (bt_mesh_is_provisioned()) {
+        printk("Mesh network restored from flash\n");
+    }
+
     /* Hack for demo purposes */
     bt_test_shell_init();
 }

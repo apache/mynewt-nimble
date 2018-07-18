@@ -41,6 +41,8 @@
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
 
+#include "config/config.h"
+
 #define u8_t    uint8_t
 #define s8_t    int8_t
 #define u16_t   uint16_t
@@ -334,9 +336,9 @@ static inline unsigned int find_msb_set(u32_t op)
     return 32 - __builtin_clz(op);
 }
 
-#define CONFIG_BLUETOOTH_MESH_FRIEND        BLE_MESH_FRIEND
 #define CONFIG_BT_MESH_FRIEND               BLE_MESH_FRIEND
 #define CONFIG_BT_MESH_GATT_PROXY           BLE_MESH_GATT_PROXY
+#define CONFIG_BT_MESH_IV_UPDATE_TEST       BLE_MESH_IV_UPDATE_TEST
 #define CONFIG_BT_MESH_LOW_POWER            BLE_MESH_LOW_POWER
 #define CONFIG_BT_MESH_LPN_AUTO             BLE_MESH_LPN_AUTO
 #define CONFIG_BT_MESH_LPN_ESTABLISHMENT    BLE_MESH_LPN_ESTABLISHMENT
@@ -344,6 +346,9 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
+#define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
+#define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
+#define BT_SETTINGS                         BLE_MESH_SETTINGS
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
@@ -357,6 +362,12 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_MODEL_KEY_COUNT      MYNEWT_VAL(BLE_MESH_MODEL_KEY_COUNT)
 #define CONFIG_BT_MESH_NODE_ID_TIMEOUT      MYNEWT_VAL(BLE_MESH_NODE_ID_TIMEOUT)
 #define CONFIG_BT_MAX_CONN                  MYNEWT_VAL(BLE_MAX_CONNECTIONS)
+#define CONFIG_BT_MESH_SEQ_STORE_RATE       MYNEWT_VAL(BLE_MESH_SEQ_STORE_RATE)
+#define CONFIG_BT_MESH_RPL_STORE_TIMEOUT    MYNEWT_VAL(BLE_MESH_RPL_STORE_TIMEOUT)
+#define CONFIG_BT_MESH_APP_KEY_COUNT        MYNEWT_VAL(BLE_MESH_APP_KEY_COUNT)
+#define CONFIG_BT_MESH_SUBNET_COUNT         MYNEWT_VAL(BLE_MESH_SUBNET_COUNT)
+#define CONFIG_BT_MESH_STORE_TIMEOUT        MYNEWT_VAL(BLE_MESH_STORE_TIMEOUT)
+#define CONFIG_BT_MESH_IVU_DIVIDER          MYNEWT_VAL(BLE_MESH_IVU_DIVIDER)
 #define CONFIG_BT_DEVICE_NAME               "nimble-mesh"
 
 #define printk console_printf
@@ -418,5 +429,20 @@ void net_buf_slist_remove(struct net_buf_slist_t *list, struct os_mbuf *prev,
 void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 			       struct net_buf_slist_t *list_to_append);
 #define NET_BUF_SLIST_FOR_EACH_NODE(head, var) STAILQ_FOREACH(var, head, omp_next)
+
+/**
+ * Load serialized items from registered persistence sources. Handlers for
+ * serialized item subtrees registered earlier will be called for encountered
+ * values.
+ *
+ * @return 0 on success, non-zero on failure.
+ */
+#define settings_load conf_load
+int settings_bytes_from_str(char *val_str, void *vp, int *len);
+char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len);
+
+#define snprintk snprintf
+#define BT_SETTINGS_SIZE(in_size) ((((((in_size) - 1) / 3) * 4) + 4) + 1)
+#define settings_save_one conf_save_one
 
 #endif

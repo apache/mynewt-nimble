@@ -19,17 +19,8 @@
 #include "main.h"
 #include "cfg_srv.h"
 #include "health_srv.h"
-
-#if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 #include "cfg_cli.h"
-#endif
-
-#if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
 #include "health_cli.h"
-#endif
-
-#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 #include "proxy.h"
-#endif
 
 #endif /* __BT_MESH_H */

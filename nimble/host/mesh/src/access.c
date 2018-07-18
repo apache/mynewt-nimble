@@ -161,7 +161,7 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 	};
 	struct bt_mesh_net_tx tx = {
 		.ctx = &ctx,
-		.src = mod->elem->addr,
+		.src = bt_mesh_model_elem(mod)->addr,
 		.xmit = bt_mesh_net_transmit_get(),
 		.friend_cred = pub->cred,
 	};
@@ -242,12 +242,43 @@ static void mod_publish(struct ble_npl_event *work)
 	}
 }
 
+struct bt_mesh_elem *bt_mesh_model_elem(struct bt_mesh_model *mod)
+{
+	return &dev_comp->elem[mod->elem_idx];
+}
+
+struct bt_mesh_model *bt_mesh_model_get(bool vnd, u8_t elem_idx, u8_t mod_idx)
+{
+	struct bt_mesh_elem *elem;
+
+	if (elem_idx >= dev_comp->elem_count) {
+		BT_ERR("Invalid element index %u", elem_idx);
+		return NULL;
+	}
+
+	elem = &dev_comp->elem[elem_idx];
+
+	if (vnd) {
+		if (mod_idx >= elem->vnd_model_count) {
+			BT_ERR("Invalid vendor model index %u", mod_idx);
+			return NULL;
+		}
+
+		return &elem->vnd_models[mod_idx];
+	} else {
+		if (mod_idx >= elem->model_count) {
+			BT_ERR("Invalid SIG model index %u", mod_idx);
+			return NULL;
+		}
+
+		return &elem->models[mod_idx];
+	}
+}
+
 static void mod_init(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		     bool vnd, bool primary, void *user_data)
 {
 	int i;
-
-	mod->elem = elem;
 
 	if (mod->pub) {
 		mod->pub->mod = mod;
@@ -257,6 +288,13 @@ static void mod_init(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 	for (i = 0; i < ARRAY_SIZE(mod->keys); i++) {
 		mod->keys[i] = BT_MESH_KEY_UNUSED;
+	}
+
+	mod->elem_idx = elem - dev_comp->elem;
+	if (vnd) {
+		mod->mod_idx = mod - elem->vnd_models;
+	} else {
+		mod->mod_idx = mod - elem->models;
 	}
 
 	if (vnd) {
@@ -490,7 +528,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	int i;
 
 	BT_DBG("app_idx 0x%04x src 0x%04x dst 0x%04x", rx->ctx.app_idx,
-	       rx->ctx.addr, rx->dst);
+	       rx->ctx.addr, rx->ctx.recv_dst);
 	BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
 	if (get_opcode(buf, &opcode) < 0) {
@@ -503,14 +541,15 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	for (i = 0; i < dev_comp->elem_count; i++) {
 		struct bt_mesh_elem *elem = &dev_comp->elem[i];
 
-		if (BT_MESH_ADDR_IS_UNICAST(rx->dst)) {
-			if (elem->addr != rx->dst) {
+		if (BT_MESH_ADDR_IS_UNICAST(rx->ctx.recv_dst)) {
+			if (elem->addr != rx->ctx.recv_dst) {
 				continue;
 			}
-		} else if (BT_MESH_ADDR_IS_GROUP(rx->dst) ||
-			   BT_MESH_ADDR_IS_VIRTUAL(rx->dst)) {
-			/* find_op will find the correct model for the group */
-		} else if (i != 0 || !bt_mesh_fixed_group_match(rx->dst)) {
+		} else if (BT_MESH_ADDR_IS_GROUP(rx->ctx.recv_dst) ||
+			   BT_MESH_ADDR_IS_VIRTUAL(rx->ctx.recv_dst)) {
+			/* find_op() will do proper model/group matching */
+		} else if (i != 0 ||
+			   !bt_mesh_fixed_group_match(rx->ctx.recv_dst)) {
 			continue;
 		}
 
@@ -526,7 +565,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			count = elem->vnd_model_count;
 		}
 
-		op = find_op(models, count, rx->dst, rx->ctx.app_idx, opcode, &model);
+		op = find_op(models, count, rx->ctx.recv_dst, rx->ctx.app_idx,
+			     opcode, &model);
 		if (op) {
 			struct net_buf_simple_state state;
 
@@ -611,7 +651,7 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
 	struct bt_mesh_net_tx tx = {
 		.sub = bt_mesh_subnet_get(ctx->net_idx),
 		.ctx = ctx,
-		.src = model->elem->addr,
+		.src = bt_mesh_model_elem(model)->addr,
 		.xmit = bt_mesh_net_transmit_get(),
 		.friend_cred = 0,
 	};
@@ -628,7 +668,7 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 	};
 	struct bt_mesh_net_tx tx = {
 		.ctx = &ctx,
-		.src = model->elem->addr,
+		.src = bt_mesh_model_elem(model)->addr,
 		.xmit = bt_mesh_net_transmit_get(),
 	};
 	int err;

@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
+#include "net.h"
 #include "foundation.h"
 
 #define CID_NVAL 0xffff
