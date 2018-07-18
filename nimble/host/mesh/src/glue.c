@@ -17,11 +17,14 @@
  * under the License.
  */
 
-#include "base64/base64.h"
 #include "mesh/glue.h"
 #include "adv.h"
 #ifndef MYNEWT
 #include "nimble/nimble_port.h"
+#endif
+
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+#include "base64/base64.h"
 #endif
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
@@ -827,6 +830,8 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 	STAILQ_INIT(list);
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+
 int settings_bytes_from_str(char *val_str, void *vp, int *len)
 {
     *len = base64_decode(val_str, vp);
@@ -843,4 +848,6 @@ char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len)
 
     return buf;
 }
+
+#endif /* MYNEWT_VAL(BLE_MESH_SETTINGS) */
 

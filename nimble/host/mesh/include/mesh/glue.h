@@ -41,7 +41,9 @@
 #include "tinycrypt/cmac_mode.h"
 #include "tinycrypt/ecc_dh.h"
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 #include "config/config.h"
+#endif
 
 #define u8_t    uint8_t
 #define s8_t    int8_t
@@ -430,13 +432,8 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 			       struct net_buf_slist_t *list_to_append);
 #define NET_BUF_SLIST_FOR_EACH_NODE(head, var) STAILQ_FOREACH(var, head, omp_next)
 
-/**
- * Load serialized items from registered persistence sources. Handlers for
- * serialized item subtrees registered earlier will be called for encountered
- * values.
- *
- * @return 0 on success, non-zero on failure.
- */
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+
 #define settings_load conf_load
 int settings_bytes_from_str(char *val_str, void *vp, int *len);
 char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len);
@@ -444,5 +441,15 @@ char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len);
 #define snprintk snprintf
 #define BT_SETTINGS_SIZE(in_size) ((((((in_size) - 1) / 3) * 4) + 4) + 1)
 #define settings_save_one conf_save_one
+
+#else
+
+static inline int
+settings_load(void)
+{
+	return 0;
+}
+
+#endif /* MYNEWT_VAL(MYNEWT_VAL_BLE_MESH_SETTINGS) */
 
 #endif

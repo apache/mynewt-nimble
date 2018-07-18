@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+
 #define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_SETTINGS)
 
 #include "mesh/mesh.h"
@@ -1573,3 +1577,5 @@ void bt_mesh_settings_init(void)
 
 	k_delayed_work_init(&pending_store, store_pending);
 }
+
+#endif /* MYNEWT_VAL(BLE_MESH_SETTINGS) */
