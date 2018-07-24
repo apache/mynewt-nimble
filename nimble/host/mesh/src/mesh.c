@@ -236,9 +236,9 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 
 	ble_gap_mesh_cb_register(bt_mesh_gap_event, NULL);
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_settings_init();
-	}
+#if (MYNEWT_VAL(BLE_MESH_SETTINGS))
+	bt_mesh_settings_init();
+#endif
 
 	return 0;
 }

@@ -30,13 +30,15 @@ pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/util/mem"
     - "@apache-mynewt-core/crypto/tinycrypt"
-    - "@apache-mynewt-core/encoding/base64"
-    - "@apache-mynewt-core/sys/config"
     - nimble
     - nimble/host
 
 pkg.deps.BLE_MESH_SHELL:
     - "@apache-mynewt-core/sys/shell"
+
+pkg.deps.BLE_MESH_SETTINGS:
+    - "@apache-mynewt-core/encoding/base64"
+    - "@apache-mynewt-core/sys/config"
 
 pkg.req_apis:
     - log
