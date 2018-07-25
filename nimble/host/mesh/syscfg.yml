@@ -487,6 +487,11 @@ syscfg.defs:
             replay attacks).
         value: 5
 
+    BLE_MESH_DEVICE_NAME:
+        description: >
+            This value defines BLE Mesh device/node name.
+        value: '"nimble-mesh-node"'
+
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
     BLE_MESH_HEALTH_CLI: 1
