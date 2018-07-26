@@ -676,21 +676,25 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 	BT_DBG("");
 
 	if (!pub) {
-		return -ENOTSUP;
+		err = -ENOTSUP;
+		goto done;
 	}
 
 	if (pub->addr == BT_MESH_ADDR_UNASSIGNED) {
-		return -EADDRNOTAVAIL;
+		err = -EADDRNOTAVAIL;
+		goto done;
 	}
 
 	key = bt_mesh_app_key_find(pub->key);
 	if (!key) {
-		return -EADDRNOTAVAIL;
+		err = -EADDRNOTAVAIL;
+		goto done;
 	}
 
 	if (pub->msg->om_len + 4 > BT_MESH_TX_SDU_MAX) {
 		BT_ERR("Message does not fit maximum SDU size");
-		return -EMSGSIZE;
+		err = -EMSGSIZE;
+		goto done;
 	}
 
 	if (pub->count) {
@@ -719,6 +723,7 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 		pub->count = 0;
 	}
 
+done:
 	os_mbuf_free_chain(sdu);
 	return err;
 }
