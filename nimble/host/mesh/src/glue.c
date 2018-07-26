@@ -183,6 +183,20 @@ net_buf_simple_pull_be32(struct os_mbuf *om)
     return val;
 }
 
+uint32_t
+net_buf_simple_pull_le32(struct os_mbuf *om)
+{
+    uint32_t val;
+    struct os_mbuf *old = om;
+
+    om = os_mbuf_pullup(om, sizeof(val));
+    assert(om == old);
+    val = get_le32(om->om_data);
+    os_mbuf_adj(om, sizeof(val));
+
+    return val;
+}
+
 uint8_t
 net_buf_simple_pull_u8(struct os_mbuf *om)
 {
@@ -217,6 +231,14 @@ void
 net_buf_simple_add_be32(struct os_mbuf *om, uint32_t val)
 {
     val = htobe32(val);
+    os_mbuf_append(om, &val, sizeof(val));
+    ASSERT_NOT_CHAIN(om);
+}
+
+void
+net_buf_simple_add_le32(struct os_mbuf *om, uint32_t val)
+{
+    val = htole32(val);
     os_mbuf_append(om, &val, sizeof(val));
     ASSERT_NOT_CHAIN(om);
 }
