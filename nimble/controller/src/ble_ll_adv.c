@@ -2298,7 +2298,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
     }
 
-    tx_power = (int8_t) rspbuf[21];
+    tx_power = (int8_t) cmdbuf[19];
     if (tx_power == 127) {
         /* no preference */
         advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
