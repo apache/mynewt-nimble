@@ -39,7 +39,7 @@ extern "C" {
 #error 32.768kHz clock required
 #endif
 
-#ifdef MYNEWT
+#if defined(MYNEWT) && MYNEWT_VAL(BLE_LL_VND_EVENT_ON_ASSERT)
 #ifdef NDEBUG
 #define BLE_LL_ASSERT(cond) (void(0))
 #else
