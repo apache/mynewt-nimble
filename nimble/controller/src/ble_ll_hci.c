@@ -407,13 +407,16 @@ ble_ll_hci_le_wr_sugg_data_len(uint8_t *cmdbuf)
         g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
         g_ble_ll_conn_params.sugg_tx_time = tx_time;
 
-        /* XXX TODO: This has to change! They do not have to be the same
-           at this point. Deal with this */
-        if ((tx_time <= g_ble_ll_conn_params.supp_max_tx_time) &&
-            (tx_oct <= g_ble_ll_conn_params.supp_max_tx_octets)) {
-            g_ble_ll_conn_params.conn_init_max_tx_octets = tx_oct;
-            g_ble_ll_conn_params.conn_init_max_tx_time = tx_time;
-        }
+        /*
+         * We can disregard host suggestion, but we are a nice controller so
+         * let's use host suggestion, unless they exceed max supported values
+         * in which case we just use our max.
+         */
+        g_ble_ll_conn_params.conn_init_max_tx_octets =
+                        min(tx_oct, g_ble_ll_conn_params.supp_max_tx_octets);
+        g_ble_ll_conn_params.conn_init_max_tx_time =
+                        min(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
+
         rc = BLE_ERR_SUCCESS;
     } else {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
