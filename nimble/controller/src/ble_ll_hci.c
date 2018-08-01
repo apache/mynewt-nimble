@@ -961,6 +961,8 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_resolv_set_rpa_tmo(cmdbuf);
         }
         break;
+#endif
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         if (len == 0) {
             rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
