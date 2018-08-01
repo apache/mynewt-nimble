@@ -466,7 +466,7 @@ int ble_ll_dtm_rx_test(uint8_t *cmdbuf, bool enhanced)
     return BLE_ERR_SUCCESS;
 }
 
-int ble_ll_dtm_end_test(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen)
+int ble_ll_dtm_end_test(uint8_t *rsp, uint8_t *rsplen)
 {
     put_le16(rsp, g_ble_ll_dtm_ctx. num_of_packets);
     *rsplen = 2;

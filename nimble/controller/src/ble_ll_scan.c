@@ -2632,13 +2632,17 @@ ble_ll_check_scan_params(uint8_t type, uint16_t itvl, uint16_t window)
 }
 
 int
-ble_ll_set_ext_scan_params(uint8_t *cmd)
+ble_ll_set_ext_scan_params(uint8_t *cmd, uint8_t cmdlen)
 {
     struct ble_ll_scan_params new_params[BLE_LL_SCAN_PHY_NUMBER] = { };
     struct ble_ll_scan_params *uncoded = &new_params[PHY_UNCODED];
     struct ble_ll_scan_params *coded = &new_params[PHY_CODED];
     uint8_t idx;
     int rc;
+
+    if (cmdlen < 3) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     /* If already enabled, we return an error */
     if (g_ble_ll_scan_sm.scan_enabled) {
@@ -2671,6 +2675,10 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
 
     idx = 3;
     if (cmd[2] & BLE_HCI_LE_PHY_1M_PREF_MASK) {
+        if (cmdlen < idx + 5) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         uncoded->scan_type = cmd[idx];
         idx++;
         uncoded->scan_itvl = get_le16(cmd + idx);
@@ -2691,6 +2699,10 @@ ble_ll_set_ext_scan_params(uint8_t *cmd)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     if (cmd[2] & BLE_HCI_LE_PHY_CODED_PREF_MASK) {
+        if (cmdlen < idx + 5) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         coded->scan_type = cmd[idx];
         idx++;
         coded->scan_itvl = get_le16(cmd + idx);

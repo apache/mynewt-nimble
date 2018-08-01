@@ -521,7 +521,7 @@ ble_hs_hci_cmd_build_le_add_to_whitelist(const uint8_t *addr,
                                          uint8_t addr_type,
                                          uint8_t *dst, int dst_len)
 {
-    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_CHG_WHITE_LIST_LEN);
+    BLE_HS_DBG_ASSERT(dst_len >= BLE_HCI_ADD_WHITE_LIST_LEN);
 
     return ble_hs_hci_cmd_body_le_whitelist_chg(addr, addr_type, dst);
 }

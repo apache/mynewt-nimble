@@ -1685,7 +1685,7 @@ ble_gap_wl_busy(void)
 static int
 ble_gap_wl_tx_add(const ble_addr_t *addr)
 {
-    uint8_t buf[BLE_HCI_CHG_WHITE_LIST_LEN];
+    uint8_t buf[BLE_HCI_ADD_WHITE_LIST_LEN];
     int rc;
 
     rc = ble_hs_hci_cmd_build_le_add_to_whitelist(addr->val, addr->type,

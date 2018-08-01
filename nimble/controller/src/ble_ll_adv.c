@@ -1918,7 +1918,8 @@ instance_configured(struct ble_ll_adv_sm *advsm)
  * @return int
  */
 int
-ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
+ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
+                             uint8_t operation)
 {
     uint8_t datalen;
     struct ble_ll_adv_sm *advsm;
@@ -1930,6 +1931,10 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
     advsm = &g_ble_ll_adv_sm[instance];
     datalen = cmd[0];
+
+    if (datalen > 251 || datalen > cmd_len - 1) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     if (!instance_configured(advsm)) {
         return BLE_ERR_UNK_ADV_INDENT;
@@ -2018,7 +2023,8 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
  * @return int 0: success; BLE_ERR_INV_HCI_CMD_PARMS otherwise.
  */
 int
-ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
+ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
+                        uint8_t operation)
 {
     uint8_t datalen;
     struct ble_ll_adv_sm *advsm;
@@ -2030,6 +2036,10 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t instance, uint8_t operation)
 
     advsm = &g_ble_ll_adv_sm[instance];
     datalen = cmd[0];
+
+    if (datalen > 251 || datalen > cmd_len - 1) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     if (!instance_configured(advsm)) {
         return BLE_ERR_UNK_ADV_INDENT;
@@ -2354,7 +2364,8 @@ ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen)
 
     /* TODO fragment preference ignored for now */
 
-    return ble_ll_adv_set_adv_data(cmdbuf + 3, cmdbuf[0], cmdbuf[1]);
+    return ble_ll_adv_set_adv_data(cmdbuf + 3, cmdlen - 3, cmdbuf[0],
+                                   cmdbuf[1]);
 }
 
 int
@@ -2367,7 +2378,8 @@ ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen)
 
     /* TODO fragment preference ignored for now */
 
-    return ble_ll_adv_set_scan_rsp_data(cmdbuf + 3, cmdbuf[0], cmdbuf[1]);
+    return ble_ll_adv_set_scan_rsp_data(cmdbuf + 3, cmdlen - 3, cmdbuf[0],
+                                        cmdbuf[1]);
 }
 
 struct ext_adv_set {
