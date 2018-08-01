@@ -293,7 +293,19 @@ syscfg.defs:
              Enables HCI Test commands needed for Bluetooth SIG certification
         value: 0
 
+    BLE_LL_VND_EVENT_ON_ASSERT:
+        description: >
+            This options enables controller to send a vendor-specific event on
+            an assertion in controller code. The event contains file name and
+            line number where assertion occured.
+        value: 0
+
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
     BLE_LL_EXT_ADV_AUX_PTR_CNT: 5
+
+# Enable vendor event on assert in standalone build to make failed assertions in
+# controller code visible when connected to external host
+syscfg.vals.!BLE_HOST:
+    BLE_LL_VND_EVENT_ON_ASSERT: 1
