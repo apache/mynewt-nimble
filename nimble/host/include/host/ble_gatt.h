@@ -488,8 +488,9 @@ int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 
 /**
- * Sends a characteristic indication.  The content of the message is read from
- * the specified characteristic.
+ * Sends a "free-form" characteristic indication.  The provided mbuf contains
+ * the indication payload.  This function consumes the supplied mbuf regardless
+ * of the outcome.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
