@@ -25,6 +25,10 @@
 #include "controller/ble_ll.h"
 #endif
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+#include "config/config.h"
+#endif
+
 static struct ble_npl_eventq g_eventq_dflt;
 
 void
@@ -45,6 +49,10 @@ nimble_port_init(void)
 
     /* XXX Need to have template for store */
     ble_store_ram_init();
+
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+    conf_init();
+#endif
 
 #if NIMBLE_CFG_CONTROLLER
     hal_timer_init(5, NULL);
