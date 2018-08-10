@@ -443,7 +443,6 @@ ble_ll_hci_le_rd_sugg_data_len(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_RD_SUGG_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
-#endif
 
 /**
  * HCI read maximum data length command. Returns the controllers max supported
@@ -465,6 +464,7 @@ ble_ll_hci_le_rd_max_data_len(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = BLE_HCI_RD_MAX_DATALEN_RSPLEN;
     return BLE_ERR_SUCCESS;
 }
+#endif
 
 /**
  * HCI read local supported features command. Returns the features
