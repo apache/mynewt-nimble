@@ -1004,8 +1004,10 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     entry = ble_gap_update_entry_remove(conn_handle);
     ble_hs_unlock();
 
-    ble_gap_update_notify(conn_handle, reason);
-    ble_gap_update_entry_free(entry);
+    if (entry != NULL) {
+        ble_gap_update_notify(conn_handle, reason);
+        ble_gap_update_entry_free(entry);
+    }
 
     /* Indicate the connection termination to each module.  The order matters
      * here: gatts must come before gattc to ensure the application does not
