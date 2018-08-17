@@ -10,6 +10,9 @@
 
 #define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_SETTINGS)
 
+#include "sysinit/sysinit.h"
+#include "stdio.h"
+#include "stdlib.h"
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 #include "net.h"
@@ -1571,9 +1574,11 @@ void bt_mesh_settings_init(void)
 	int rc;
 
 	rc = conf_register(&bt_mesh_settings_conf_handler);
+    if (rc != 0) {
+        BT_ERR("Failed to register bt_mesh_settings conf");
+    }
 
-	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
-				 "Failed to register bt_mesh_settings conf");
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
 	k_delayed_work_init(&pending_store, store_pending);
 }
