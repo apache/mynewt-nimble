@@ -212,6 +212,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_INITIATING     (3)
 #define BLE_LL_STATE_CONNECTION     (4)
 #define BLE_LL_STATE_DTM            (5)
+#define BLE_LL_STATE_RAAL           (6)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION    (0x00000001)

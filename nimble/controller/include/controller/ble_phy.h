@@ -248,6 +248,11 @@ void ble_phy_enable_dtm(void);
 void ble_phy_disable_dtm(void);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+void ble_phy_nrf_raal_slot_enter(void);
+void ble_phy_nrf_raal_slot_exit(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

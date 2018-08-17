@@ -298,6 +298,19 @@ syscfg.defs:
             Sysinit stage for the NimBLE controller.
         value: 250
 
+    BLE_LL_NRF_RAAL_ENABLE:
+        description: >
+            This option enables nRF RAAF support.
+        value: 0
+    BLE_LL_NRF_RAAL_SLOT_LENGTH:
+        description: >
+            Length of slots scheduled for RAAL in continuous mode.
+        value: 6400
+    BLE_LL_NRF_RAAL_ISR_HANDLER_NAME:
+        description: >
+            Name of NRF_RADIO ISR called by RAAL when inside slot.
+        value: 'nrf_802154_radio_irq_handler'
+
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
         description: Superseded by BLE_CONTROLLER

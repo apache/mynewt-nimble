@@ -1507,6 +1507,10 @@ ble_ll_init(void)
     /* Initialize the connection module */
     ble_ll_conn_module_init();
 
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+    ble_ll_nrf_raal_init();
+#endif
+
     /* Set the supported features. NOTE: we always support extended reject. */
     features = BLE_LL_FEAT_EXTENDED_REJ;
 
