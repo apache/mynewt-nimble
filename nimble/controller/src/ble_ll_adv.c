@@ -2048,7 +2048,9 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     /* check if type of advertising support adv data */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            if (ble_ll_hci_adv_mode_ext()) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
         }
     } else {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
