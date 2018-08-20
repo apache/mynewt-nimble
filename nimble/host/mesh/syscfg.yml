@@ -163,10 +163,13 @@ syscfg.defs:
 
     BLE_MESH_RX_SDU_MAX:
         description: >
-            Maximum incoming Upper Transport Access PDU length. Leave this
-            to the value; value, unless you really need to optimize memory
-            usage.
-        value: 384
+            Maximum incoming Upper Transport Access PDU length. This
+            determines also how many segments incoming segmented messages
+            can have. Each segment can contain 12 bytes, so this value should
+            be set to a multiple of 12 to avoid wasted memory. The minimum
+            requirement is 2 segments (24 bytes) whereas the maximum supported
+            by the Mesh specification is 32 segments (384 bytes).
+        value: 72
 
     BLE_MESH_TX_SEG_MAX:
         description: >
