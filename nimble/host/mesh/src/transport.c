@@ -28,6 +28,13 @@
 #include "transport.h"
 #include "testing.h"
 
+/* The transport layer needs at least three buffers for itself to avoid
+ * deadlocks. Ensure that there are a sufficient number of advertising
+ * buffers available compared to the maximum supported outgoing segment
+ * count.
+ */
+BUILD_ASSERT(CONFIG_BT_MESH_ADV_BUF_COUNT >= (CONFIG_BT_MESH_TX_SEG_MAX + 3));
+
 #define AID_MASK                    ((u8_t)(BIT_MASK(6)))
 
 #define SEG(data)                   ((data)[0] >> 7)
@@ -58,7 +65,7 @@
 
 static struct seg_tx {
 	struct bt_mesh_subnet   *sub;
-	struct os_mbuf          *seg[BT_MESH_TX_SEG_COUNT];
+	struct os_mbuf          *seg[CONFIG_BT_MESH_TX_SEG_MAX];
 	u64_t                    seq_auth;
 	u16_t                    dst;
 	u8_t                     seg_n:5,       /* Last segment index */

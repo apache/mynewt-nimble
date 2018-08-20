@@ -373,6 +373,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_STORE_TIMEOUT        MYNEWT_VAL(BLE_MESH_STORE_TIMEOUT)
 #define CONFIG_BT_MESH_IVU_DIVIDER          MYNEWT_VAL(BLE_MESH_IVU_DIVIDER)
 #define CONFIG_BT_DEVICE_NAME               MYNEWT_VAL(BLE_MESH_DEVICE_NAME)
+#define CONFIG_BT_MESH_TX_SEG_MAX           MYNEWT_VAL(BLE_MESH_TX_SEG_MAX)
 
 #define printk console_printf
 
@@ -453,5 +454,7 @@ settings_load(void)
 }
 
 #endif /* MYNEWT_VAL(MYNEWT_VAL_BLE_MESH_SETTINGS) */
+
+#define BUILD_ASSERT(cond) _Static_assert(cond, "")
 
 #endif
