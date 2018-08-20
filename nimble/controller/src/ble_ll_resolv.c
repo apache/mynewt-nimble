@@ -534,6 +534,18 @@ ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
     OS_EXIT_CRITICAL(sr);
 }
 
+void
+ble_ll_resolv_set_peer_rpa(int index, uint8_t *rpa)
+{
+    os_sr_t sr;
+    struct ble_ll_resolv_entry *rl;
+
+    OS_ENTER_CRITICAL(sr);
+    rl = &g_ble_ll_resolv_list[index];
+    memcpy(rl->rl_peer_rpa, rpa, BLE_DEV_ADDR_LEN);
+    OS_EXIT_CRITICAL(sr);
+}
+
 /**
  * Generate a resolvable private address.
  *

@@ -2789,6 +2789,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
             /* Retain the resolvable private address that we received. */
             memcpy(advsm->adv_rpa, inita, BLE_DEV_ADDR_LEN);
 
+            /* Update resolving list with current peer RPA */
+            ble_ll_resolv_set_peer_rpa(advsm->adv_rpa_index, inita);
+
             /*
              * Overwrite received inita with identity address since that
              * is used from now on.

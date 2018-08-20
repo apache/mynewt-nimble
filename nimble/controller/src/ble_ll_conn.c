@@ -2983,6 +2983,11 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 
         if (connsm->rpa_index >= 0) {
             ble_ll_scan_set_peer_rpa(rxbuf + BLE_LL_PDU_HDR_LEN);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+            /* Update resolving list with current peer RPA */
+            ble_ll_resolv_set_peer_rpa(connsm->rpa_index, rxbuf + BLE_LL_PDU_HDR_LEN);
+#endif
         }
 
         /* Connection has been created. Stop scanning */
