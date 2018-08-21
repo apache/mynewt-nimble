@@ -1831,6 +1831,12 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
             return BLE_ERR_CMD_DISALLOWED;
         }
 
+        if (ble_ll_hci_adv_mode_ext() &&
+                (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
+                SCAN_RSP_DATA_LEN(advsm) == 0) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         /* handle specifics of HD dir adv enabled in legacy way */
         if (duration < 0) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
