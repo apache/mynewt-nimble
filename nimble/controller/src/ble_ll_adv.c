@@ -1824,13 +1824,13 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
 
     advsm = &g_ble_ll_adv_sm[instance];
 
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         /* handle specifics of HD dir adv enabled in legacy way */
         if (duration < 0) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
