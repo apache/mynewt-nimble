@@ -658,6 +658,7 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
+    case BLE_HCI_OCF_LE_RD_ADV_CHAN_TXPWR:
         if (hci_adv_mode == ADV_MODE_EXT) {
             return false;
         }
@@ -671,6 +672,20 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_RSP_DATA:
+    case BLE_HCI_OCF_LE_RD_MAX_ADV_DATA_LEN:
+    case BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS:
+    case BLE_HCI_OCF_LE_REMOVE_ADV_SET:
+    case BLE_HCI_OCF_LE_CLEAR_ADV_SETS:
+    case BLE_HCI_OCF_LE_SET_PER_ADV_PARAMS:
+    case BLE_HCI_OCF_LE_SET_PER_ADV_DATA:
+    case BLE_HCI_OCF_LE_SET_PER_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC:
+    case BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC_CANCEL:
+    case BLE_HCI_OCF_LE_PER_ADV_TERM_SYNC:
+    case BLE_HCI_OCF_LE_ADD_DEV_TO_PER_ADV_LIST:
+    case BLE_HCI_OCF_LE_REM_DEV_FROM_PER_ADV_LIST:
+    case BLE_HCI_OCF_LE_CLEAR_PER_ADV_LIST:
+    case BLE_HCI_OCF_LE_RD_PER_ADV_LIST_SIZE:
         if (hci_adv_mode == ADV_MODE_LEGACY) {
             return false;
         }
