@@ -1076,8 +1076,11 @@ ll_hci_le_cmd_exit:
      * This code is here because we add 256 to the return code to denote
      * that the reply to this command should be command status (as opposed to
      * command complete).
+     *
+     * For unknown HCI command let us return always command status as per
+     * specification Bluetooth 5, Vol. 2, Chapter 4.4
      */
-    if (ble_ll_hci_le_cmd_send_cmd_status(ocf)) {
+    if (ble_ll_hci_le_cmd_send_cmd_status(ocf) || rc == BLE_ERR_UNKNOWN_HCI_CMD) {
         rc += (BLE_ERR_MAX + 1);
     }
 
