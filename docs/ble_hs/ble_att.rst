@@ -17,6 +17,4 @@ host exposes to the application.
 Header
 ~~~~~~
 
-.. code-block:: cpp
-
-    #include "host/ble_hs.h"
+.. doxygenfile:: host/ble_hs.h
