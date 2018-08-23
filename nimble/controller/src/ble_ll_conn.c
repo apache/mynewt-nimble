@@ -3261,7 +3261,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                     goto init_rx_isr_exit;
                 }
             } else {
-                if (!ble_ll_is_our_devaddr(init_addr, addr_type)) {
+                if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
                     goto init_rx_isr_exit;
                 }
             }
