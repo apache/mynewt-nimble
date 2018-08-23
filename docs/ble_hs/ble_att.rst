@@ -17,4 +17,4 @@ host exposes to the application.
 Header
 ~~~~~~
 
-.. doxygenfile:: host/ble_hs.h
+.. doxygenfile:: ble_hs.h
