@@ -18,6 +18,7 @@
  */
 
 #include "os/os.h"
+#include "nimble/nimble_npl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,6 +104,11 @@ ble_npl_get_current_task_id(void)
 bool ble_npl_os_started(void)
 {
     return true;
+}
+
+void ble_npl_task_yield(void)
+{
+    pthread_yield();
 }
 
 #ifdef __cplusplus

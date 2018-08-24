@@ -24,7 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "npl_osal.h"
+#include "os_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,10 +33,6 @@ extern "C" {
 #define BLE_NPL_OS_ALIGNMENT    4
 
 #define BLE_NPL_TIME_FOREVER    INT32_MAX
-
-/* This should be compatible with TickType_t */
-typedef uint32_t ble_npl_time_t;
-typedef int32_t ble_npl_stime_t;
 
 #define SYSINIT_PANIC_MSG(msg) __assert_fail(msg, __FILE__, __LINE__, __func__)
 

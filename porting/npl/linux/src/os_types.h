@@ -38,8 +38,6 @@ typedef int32_t ble_npl_stime_t;
 //typedef int os_sr_t;
 typedef int ble_npl_stack_t;
 
-struct ble_npl_event;
-typedef void ble_npl_event_fn(struct ble_npl_event *ev);
 
 struct ble_npl_event {
     uint8_t                 ev_queued;
@@ -81,5 +79,7 @@ int ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_fun
 int ble_npl_task_remove(struct ble_npl_task *t);
 
 uint8_t ble_npl_task_count(void);
+
+void ble_npl_task_yield(void);
 
 #endif // _NPL_OS_TYPES_H
