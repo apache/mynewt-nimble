@@ -17,6 +17,7 @@
 
 NIMBLE_INCLUDE += \
 	$(NIMBLE_ROOT)/nimble/host/mesh/include \
+	$(NULL)
 
 NIMBLE_SRC += \
 	$(NIMBLE_ROOT)/nimble/host/mesh/src/access.c \
@@ -40,3 +41,4 @@ NIMBLE_SRC += \
 	$(NIMBLE_ROOT)/nimble/host/mesh/src/shell.c \
 	$(NIMBLE_ROOT)/nimble/host/mesh/src/testing.c \
 	$(NIMBLE_ROOT)/nimble/host/mesh/src/transport.c \
+	$(NULL)
