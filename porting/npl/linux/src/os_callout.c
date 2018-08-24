@@ -25,7 +25,7 @@
 #include <time.h>
 #include <signal.h>
 
-#include "npl_osal.h"
+#include "nimble/nimble_npl.h"
 
 static void
 ble_npl_callout_timer_cb(union sigval sv)
@@ -39,7 +39,6 @@ ble_npl_callout_timer_cb(union sigval sv)
         c->c_ev.ev_cb(&c->c_ev);
     }
 }
-
 
 void ble_npl_callout_init(struct ble_npl_callout *c, 
                           struct ble_npl_eventq *evq,

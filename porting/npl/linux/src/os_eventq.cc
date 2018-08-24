@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "npl_osal.h"
+#include "nimble/nimble_npl.h"
 #include "wqueue.h"
 
 extern "C" {

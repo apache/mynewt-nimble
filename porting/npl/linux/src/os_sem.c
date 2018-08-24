@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "os/os.h"
+#include "nimble/nimble_npl.h"
 
 #include <errno.h>
 #include <pthread.h>
