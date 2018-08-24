@@ -16,5 +16,4 @@ host exposes to the application.
 
 Header
 ~~~~~~
-
-.. doxygenfile:: ble_hs.h
+.. doxygenfile:: nimble/host/include/host/ble_hs.h
