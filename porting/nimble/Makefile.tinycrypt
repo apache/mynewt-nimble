@@ -19,6 +19,7 @@ TINYCRYPT_CFLAGS := -std=c99
 
 TINYCRYPT_INCLUDE := \
 	$(NIMBLE_ROOT)/ext/tinycrypt/include \
+	$(NULL)
 
 TINYCRYPT_SRC := \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/aes_decrypt.c \
@@ -27,3 +28,4 @@ TINYCRYPT_SRC := \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc_dh.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/utils.c \
+	$(NULL)
