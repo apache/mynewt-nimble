@@ -1013,7 +1013,7 @@ static void relay_set(struct bt_mesh_model *model,
 		       cfg->relay, change ? "changed" : "not changed",
 		       cfg->relay_retransmit,
 		       BT_MESH_TRANSMIT_COUNT(cfg->relay_retransmit),
-		       BT_MESH_TRANSMIT_INT(cfg->relay_retransmit))
+		       BT_MESH_TRANSMIT_INT(cfg->relay_retransmit));
 
 		sub = bt_mesh_subnet_get(cfg->hb_pub.net_idx);
 		if ((cfg->hb_pub.feat & BT_MESH_FEAT_RELAY) && sub && change) {
@@ -3146,15 +3146,11 @@ static void hb_sub_send_status(struct bt_mesh_model *model,
 	net_buf_simple_add_le16(msg, cfg->hb_sub.src);
 	net_buf_simple_add_le16(msg, cfg->hb_sub.dst);
 
-	if (cfg->hb_sub.src == BT_MESH_ADDR_UNASSIGNED ||
-	    cfg->hb_sub.dst == BT_MESH_ADDR_UNASSIGNED) {
-		memset(net_buf_simple_add(msg, 4), 0, 4);
-	} else {
-		net_buf_simple_add_u8(msg, hb_log(period));
-		net_buf_simple_add_u8(msg, hb_log(cfg->hb_sub.count));
-		net_buf_simple_add_u8(msg, cfg->hb_sub.min_hops);
-		net_buf_simple_add_u8(msg, cfg->hb_sub.max_hops);
-	}
+	net_buf_simple_add_u8(msg, hb_log(period));
+	net_buf_simple_add_u8(msg, hb_log(cfg->hb_sub.count));
+	net_buf_simple_add_u8(msg, cfg->hb_sub.min_hops);
+	net_buf_simple_add_u8(msg, cfg->hb_sub.max_hops);
+
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Heartbeat Subscription Status");
@@ -3211,12 +3207,17 @@ static void heartbeat_sub_set(struct bt_mesh_model *model,
 	if (sub_src == BT_MESH_ADDR_UNASSIGNED ||
 	    sub_dst == BT_MESH_ADDR_UNASSIGNED ||
 	    sub_period == 0x00) {
-		/* Setting the same addresses with zero period should retain
-		 * the addresses according to MESH/NODE/CFG/HBS/BV-02-C.
+		/* Only an explicit address change to unassigned should
+		 * trigger clearing of the values according to
+		 * MESH/NODE/CFG/HBS/BV-02-C.
 		 */
-		if (cfg->hb_sub.src != sub_src || cfg->hb_sub.dst != sub_dst) {
+		if (sub_src == BT_MESH_ADDR_UNASSIGNED ||
+		    sub_dst == BT_MESH_ADDR_UNASSIGNED) {
 			cfg->hb_sub.src = BT_MESH_ADDR_UNASSIGNED;
 			cfg->hb_sub.dst = BT_MESH_ADDR_UNASSIGNED;
+			cfg->hb_sub.min_hops = BT_MESH_TTL_MAX;
+			cfg->hb_sub.max_hops = 0;
+			cfg->hb_sub.count = 0;
 		}
 
 		period_ms = 0;
@@ -3241,6 +3242,13 @@ static void heartbeat_sub_set(struct bt_mesh_model *model,
 	}
 
 	hb_sub_send_status(model, ctx, STATUS_SUCCESS);
+
+	/* MESH/NODE/CFG/HBS/BV-01-C expects the MinHops to be 0x7f after
+	 * disabling subscription, but 0x00 for subsequent Get requests.
+	 */
+	if (!period_ms) {
+		cfg->hb_sub.min_hops = 0;
+	}
 }
 
 const struct bt_mesh_model_op bt_mesh_cfg_srv_op[] = {
