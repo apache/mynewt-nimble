@@ -22,6 +22,7 @@ NIMBLE_INCLUDE += \
 	$(NIMBLE_ROOT)/nimble/transport/ram/include \
 	$(NIMBLE_ROOT)/nimble/controller/include \
 	$(NIMBLE_ROOT)/nimble/drivers/nrf52/include \
+	$(NULL)
 
 NIMBLE_SRC += \
 	$(NIMBLE_ROOT)/nimble/transport/ram/src/ble_hci_ram.c \
@@ -45,3 +46,4 @@ NIMBLE_SRC += \
 	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime.c \
 	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime_pwr2.c \
 	$(NIMBLE_ROOT)/porting/nimble/src/hal_timer.c \
+	$(NULL)
