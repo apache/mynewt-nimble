@@ -14,6 +14,9 @@ higher level GATT profile, which sits directly above ATT in the host. NimBLE exp
 which are not encompassed by higher level GATT functions. This section documents the ATT functionality that the NimBLE
 host exposes to the application.
 
-Header
+API
 ~~~~~~
-.. doxygenfile:: nimble/host/include/host/ble_hs.h
+
+.. doxygengroup:: bt_host
+    :content-only:
+    :members:

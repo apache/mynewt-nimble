@@ -7,9 +7,9 @@ Introduction
 The Generic Attribute Profile (GATT) manages all activities involving services, characteristics, and descriptors. The
 server half of the GATT API handles registration and responding to GATT clients.
 
-Header
+API
 ~~~~~~
 
-.. code-block:: cpp
-
-    #include "host/ble_hs.h"
+.. doxygengroup:: bt_gatt
+    :content-only:
+    :members:
