@@ -3406,11 +3406,13 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 uint8_t *
 ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm)
 {
-    uint8_t *rpa;
+    uint8_t *rpa = NULL;
 
-    rpa = NULL;
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        rpa = advsm->adva;
+        if ((advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) &&
+                                    ble_ll_is_rpa(advsm->adva, 1)) {
+            rpa = advsm->adva;
+        }
     }
 
     return rpa;
