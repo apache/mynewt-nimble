@@ -761,11 +761,13 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
         if ((inita[5] & 0x40)) {
             /* For resolvable we send separate event */
             subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
+            event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
         } else {
             subev = BLE_HCI_LE_SUBEV_ADV_RPT;
+            event_len = BLE_HCI_LE_ADV_RPT_MIN_LEN;
         }
         evtype = BLE_HCI_ADV_RPT_EVTYPE_DIR_IND;
-        event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
+
         adv_data_len = 0;
     } else {
         subev = BLE_HCI_LE_SUBEV_ADV_RPT;
