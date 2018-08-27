@@ -2431,6 +2431,14 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     if (index >= 0) {
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+
+        if (ble_ll_is_rpa(init_addr, init_addr_type)) {
+           /* Let's try resolve InitA. */
+           if (ble_ll_resolv_rpa(init_addr, g_ble_ll_resolv_list[index].rl_local_irk)) {
+               init_addr = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+               init_addr_type = scansm->own_addr_type;
+           }
+       }
     }
 #endif
 
