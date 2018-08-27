@@ -894,10 +894,10 @@ ble_ll_scan_chk_filter_policy(uint8_t pdu_type, uint8_t *adv_addr,
 
     /* If we are using the whitelist, check that first */
     if (use_whitelist && (pdu_type != BLE_ADV_PDU_TYPE_SCAN_RSP)) {
-        /* If there was a devmatch, we will allow the PDU */
-        if (devmatch) {
-            return 0;
-        } else {
+        /* If device does not match let us skip this PDU.
+         * If device matches, lets check for InitA further in the code
+         */
+        if (!devmatch) {
             return 1;
         }
     }
@@ -2416,13 +2416,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
        goto scan_continue;
     }
 
-    /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(ptype, adv_addr, txadd, init_addr,
-                                      init_addr_type,
-                                      BLE_MBUF_HDR_DEVMATCH(hdr))) {
-        goto scan_continue;
-    }
-
     ident_addr = adv_addr;
     ident_addr_type = txadd;
 
@@ -2441,6 +2434,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
        }
     }
 #endif
+
+    /* Check the scanner filter policy */
+    if (ble_ll_scan_chk_filter_policy(ptype, adv_addr, txadd, init_addr,
+                                      init_addr_type,
+                                      BLE_MBUF_HDR_DEVMATCH(hdr))) {
+        goto scan_continue;
+    }
 
     /*
      * XXX: The BLE spec is a bit unclear here. What if we get a scan
