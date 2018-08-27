@@ -737,28 +737,21 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
  * @param scansm
  */
 static void
-ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
-                           struct ble_mbuf_hdr *hdr,
-                           struct ble_ll_scan_sm *scansm)
+ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
+                            uint8_t *inita, uint8_t inita_type,
+                            struct os_mbuf *om,
+                            struct ble_mbuf_hdr *hdr,
+                            struct ble_ll_scan_sm *scansm)
 {
     int rc;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    int index;
-#endif
     uint8_t *rxbuf = om->om_data;
     uint8_t evtype;
     uint8_t subev;
-    uint8_t *adv_addr;
-    uint8_t *inita;
-    uint8_t addr_type;
     uint8_t adv_data_len;
     uint8_t event_len;
 
-    inita = NULL;
-
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-        inita = rxbuf + BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN;
-        if ((inita[5] & 0x40)) {
+        if (ble_ll_is_rpa(inita, inita_type)) {
             /* For resolvable we send separate event */
             subev = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT;
             event_len = BLE_HCI_LE_ADV_DIRECT_RPT_LEN;
@@ -786,46 +779,34 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
         os_mbuf_adj(om, BLE_LL_PDU_HDR_LEN + BLE_DEV_ADDR_LEN);
     }
 
-    if (txadd) {
-        addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
-    } else {
-        addr_type = BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-    }
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (BLE_MBUF_HDR_RESOLVED(hdr)) {
-        index = scansm->scan_rpa_index;
-        adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         /*
          * NOTE: this looks a bit odd, but the resolved address types
          * are 2 greater than the unresolved ones in the spec, so
          * we just add 2 here.
          */
-        addr_type = g_ble_ll_resolv_list[index].rl_addr_type + 2;
-    } else {
-        adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
+        adva_type += 2;
     }
-#else
-    adv_addr = rxbuf + BLE_LL_PDU_HDR_LEN;
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->ext_scanning) {
         rc = ble_ll_hci_send_legacy_ext_adv_report(evtype,
-                                                   addr_type, adv_addr,
+                                                   adva_type, adva,
                                                    hdr->rxinfo.rssi,
                                                    adv_data_len, om,
                                                    inita);
     } else {
         rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
-                                        addr_type, adv_addr,
+                                        adva_type, adva,
                                         hdr->rxinfo.rssi,
                                         adv_data_len, om,
                                         inita);
     }
 #else
     rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
-                                    addr_type, adv_addr,
+                                    adva_type, adva,
                                     hdr->rxinfo.rssi,
                                     adv_data_len, om,
                                     inita);
@@ -833,7 +814,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t txadd, struct os_mbuf *om,
     if (!rc) {
         /* If filtering, add it to list of duplicate addresses */
         if (scansm->scan_filt_dups) {
-            ble_ll_scan_add_dup_adv(adv_addr, txadd, subev, evtype);
+            ble_ll_scan_add_dup_adv(adva, adva_type, subev, evtype);
         }
     }
 }
@@ -2535,7 +2516,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 #endif
 
     /* Send the advertising report */
-    ble_ll_scan_send_adv_report(ptype, ident_addr_type, om, hdr, scansm);
+    ble_ll_scan_send_adv_report(ptype, ident_addr, ident_addr_type,
+                                init_addr, init_addr_type, om, hdr, scansm);
 
 scan_continue:
 
