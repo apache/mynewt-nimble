@@ -3251,21 +3251,21 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         // no break
 #endif
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-            /*
-             * If we expect our address to be private and the INITA is not,
-             * we dont respond!
-             */
-            inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
-            if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                if (!inita_is_rpa) {
-                    goto init_rx_isr_exit;
-                }
-            } else {
-                if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
-                    goto init_rx_isr_exit;
-                }
+        /*
+         * If we expect our address to be private and the INITA is not,
+         * we dont respond!
+         */
+        inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
+        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            if (!inita_is_rpa) {
+                goto init_rx_isr_exit;
             }
-            break;
+        } else {
+            if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
+                goto init_rx_isr_exit;
+            }
+        }
+        break;
     default:
         goto init_rx_isr_exit;
     }
