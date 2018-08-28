@@ -213,6 +213,10 @@ cmd_advertise_configure(int argc, char **argv)
         return rc;
     }
 
+    if (params.directed && params.legacy_pdu) {
+        params.scannable = 0;
+    }
+
     params.own_addr_type = parse_arg_kv_dflt("own_addr_type",
                                              cmd_own_addr_types,
                                              BLE_OWN_ADDR_PUBLIC, &rc);
