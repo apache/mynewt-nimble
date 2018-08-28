@@ -206,6 +206,13 @@ cmd_advertise_configure(int argc, char **argv)
         return rc;
     }
 
+
+    params.directed = parse_arg_bool_dflt("directed", params.directed, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'directed' parameter\n");
+        return rc;
+    }
+
     params.own_addr_type = parse_arg_kv_dflt("own_addr_type",
                                              cmd_own_addr_types,
                                              BLE_OWN_ADDR_PUBLIC, &rc);
@@ -435,6 +442,7 @@ static const struct shell_param advertise_configure_params[] = {
     {"instance", "default: 0"},
     {"connectable", "connectable advertising, usage: =[0-1], default: 0"},
     {"scannable", "scannable advertising, usage: =[0-1], default: 0"},
+    {"directed", "directed advertising, usage: =[0-1], default: 0"},
     {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
     {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
