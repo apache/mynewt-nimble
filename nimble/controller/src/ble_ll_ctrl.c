@@ -929,6 +929,24 @@ ble_ll_ctrl_enc_allowed_pdu(uint8_t llid, uint8_t len, uint8_t opcode)
 }
 
 int
+ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu)
+{
+    uint8_t llid;
+    uint8_t len;
+    uint8_t opcode;
+
+    llid = rxpdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK;
+    len = rxpdu->om_data[1];
+    if (llid == BLE_LL_LLID_CTRL) {
+        opcode = rxpdu->om_data[2];
+    } else {
+        opcode = 0;
+    }
+
+    return ble_ll_ctrl_enc_allowed_pdu(llid, len, opcode);
+}
+
+int
 ble_ll_ctrl_enc_allowed_pdu_tx(struct os_mbuf_pkthdr *pkthdr)
 {
     struct os_mbuf *m;
