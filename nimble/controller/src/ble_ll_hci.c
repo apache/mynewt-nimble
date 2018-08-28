@@ -1179,7 +1179,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen)
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
     case BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO:
-        rc = ble_ll_conn_hci_wr_auth_pyld_tmo(cmdbuf, rspbuf, rsplen);
+        rc = ble_ll_conn_hci_rd_auth_pyld_tmo(cmdbuf, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_CB_WR_AUTH_PYLD_TMO:
         rc = ble_ll_conn_hci_wr_auth_pyld_tmo(cmdbuf, rspbuf, rsplen);
