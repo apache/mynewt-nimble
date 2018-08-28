@@ -117,7 +117,7 @@ static bool adv_instances[BLE_ADV_INSTANCES];
 static int
 cmd_advertise_configure(int argc, char **argv)
 {
-    struct ble_gap_ext_adv_params params;
+    struct ble_gap_ext_adv_params params = {0};
     int8_t selected_tx_power;
     uint8_t instance;
     int rc;
@@ -140,13 +140,24 @@ cmd_advertise_configure(int argc, char **argv)
 
     memset(&params, 0, sizeof(params));
 
-    params.connectable = parse_arg_bool_dflt("connectable", 0, &rc);
+    params.legacy_pdu = parse_arg_bool_dflt("legacy", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'legacy' parameter\n");
+        return rc;
+    }
+
+    if (params.legacy_pdu) {
+        params.connectable = 1;
+        params.scannable = 1;
+    }
+
+    params.connectable = parse_arg_bool_dflt("connectable", params.connectable, &rc);
     if (rc != 0) {
         console_printf("invalid 'connectable' parameter\n");
         return rc;
     }
 
-    params.scannable = parse_arg_bool_dflt("scannable", 0, &rc);
+    params.scannable = parse_arg_bool_dflt("scannable", params.scannable, &rc);
     if (rc != 0) {
         console_printf("invalid 'scannable' parameter\n");
         return rc;
@@ -161,12 +172,6 @@ cmd_advertise_configure(int argc, char **argv)
     params.anonymous = parse_arg_bool_dflt("anonymous", 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'anonymous' parameter\n");
-        return rc;
-    }
-
-    params.legacy_pdu = parse_arg_bool_dflt("legacy", 0, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'legacy' parameter\n");
         return rc;
     }
 
@@ -199,6 +204,17 @@ cmd_advertise_configure(int argc, char **argv)
     } else {
         console_printf("invalid 'peer_addr' parameter\n");
         return rc;
+    }
+
+
+    params.directed = parse_arg_bool_dflt("directed", params.directed, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'directed' parameter\n");
+        return rc;
+    }
+
+    if (params.directed && params.legacy_pdu) {
+        params.scannable = 0;
     }
 
     params.own_addr_type = parse_arg_kv_dflt("own_addr_type",
@@ -430,6 +446,7 @@ static const struct shell_param advertise_configure_params[] = {
     {"instance", "default: 0"},
     {"connectable", "connectable advertising, usage: =[0-1], default: 0"},
     {"scannable", "scannable advertising, usage: =[0-1], default: 0"},
+    {"directed", "directed advertising, usage: =[0-1], default: 0"},
     {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
     {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
