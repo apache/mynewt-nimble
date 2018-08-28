@@ -1111,7 +1111,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
          * kinds of LL control PDU's. If none is enqueued, send empty pdu!
          */
         if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
-            if (!ble_ll_ctrl_enc_allowed_pdu(pkthdr)) {
+            if (!ble_ll_ctrl_enc_allowed_pdu_tx(pkthdr)) {
                 CONN_F_EMPTY_PDU_TXD(connsm) = 1;
                 goto conn_tx_pdu;
             }
@@ -1122,7 +1122,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
              * to wait to receive the START_ENC_RSP from the slave before
              * packets can be let go.
              */
-            if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+            if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)
                 && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
                     !ble_ll_ctrl_is_start_enc_rsp(m))) {
                 nextpkthdr = NULL;
@@ -1160,7 +1160,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
                 pkthdr = OS_MBUF_PKTHDR(connsm->cur_tx_pdu);
-                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)
                     && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
                         !ble_ll_ctrl_is_start_enc_rsp(connsm->cur_tx_pdu))) {
                     nextpkthdr = NULL;
@@ -1174,7 +1174,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
-                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)) {
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)) {
                     nextpkthdr = NULL;
                 }
             }

@@ -885,28 +885,24 @@ ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm)
  *
  * XXX: the current code may actually allow some control pdu's to be sent
  * in states where they shouldnt. I dont expect those states to occur so I
- * dont try to check for them but we could do more...
+ * dont try to check for them but we could do more... for example there are
+ * different PDUs allowed for master/slave and TX/RX
  *
- * @param pkthdr
+ * @param llid
+ * @param opcode
+ * @param len
  *
  * @return int
  */
-int
-ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr)
+static int
+ble_ll_ctrl_enc_allowed_pdu(uint8_t llid, uint8_t len, uint8_t opcode)
 {
     int allowed;
-    uint8_t opcode;
-    uint8_t llid;
-    struct os_mbuf *m;
-    struct ble_mbuf_hdr *ble_hdr;
 
     allowed = 0;
-    m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-    ble_hdr = BLE_MBUF_HDR_PTR(m);
 
-    llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
-    if (llid == BLE_LL_LLID_CTRL) {
-        opcode = m->om_data[0];
+    switch (llid) {
+    case BLE_LL_LLID_CTRL:
         switch (opcode) {
         case BLE_LL_CTRL_REJECT_IND:
         case BLE_LL_CTRL_REJECT_IND_EXT:
@@ -919,12 +915,40 @@ ble_ll_ctrl_enc_allowed_pdu(struct os_mbuf_pkthdr *pkthdr)
         case BLE_LL_CTRL_TERMINATE_IND:
             allowed = 1;
             break;
-        default:
-            break;
         }
+        break;
+    case BLE_LL_LLID_DATA_FRAG:
+        if (len == 0) {
+            /* Empty PDUs are allowed */
+            allowed = 1;
+        }
+        break;
     }
 
     return allowed;
+}
+
+int
+ble_ll_ctrl_enc_allowed_pdu_tx(struct os_mbuf_pkthdr *pkthdr)
+{
+    struct os_mbuf *m;
+    struct ble_mbuf_hdr *ble_hdr;
+    uint8_t llid;
+    uint8_t len;
+    uint8_t opcode;
+
+    m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+    ble_hdr = BLE_MBUF_HDR_PTR(m);
+
+    llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+    len = ble_hdr->txinfo.pyld_len;
+    if (llid == BLE_LL_LLID_CTRL) {
+        opcode = m->om_data[0];
+    } else {
+        opcode = 0;
+    }
+
+    return ble_ll_ctrl_enc_allowed_pdu(llid, len, opcode);
 }
 
 int
