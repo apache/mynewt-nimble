@@ -2363,6 +2363,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int index;
+    struct ble_ll_resolv_entry *rl;
 #endif
     uint8_t *rxbuf = om->om_data;
     uint8_t *adv_addr = NULL;
@@ -2413,6 +2414,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                init_addr_type = scansm->own_addr_type;
            }
        }
+    } else if (init_addr && ble_ll_resolv_enabled() && ble_ll_is_rpa(init_addr, init_addr_type)) {
+        /* If we are here it means AdvA is identity. Check if initA is RPA */
+        rl = ble_ll_resolv_list_find(ident_addr, ident_addr_type);
+        if (rl && ble_ll_resolv_rpa(init_addr, rl->rl_local_irk)) {
+            init_addr = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+            init_addr_type = scansm->own_addr_type;
+        }
     }
 #endif
 
