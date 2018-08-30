@@ -1458,11 +1458,12 @@ ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
  * @param dptr
  * @param opcode
  */
-static void
+static int
 ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
-                          uint8_t opcode)
+                          uint8_t opcode, uint8_t *rspdata)
 {
     uint8_t ble_error;
+    uint8_t rsp_opcode = BLE_ERR_MAX;
 
     /* Get error out of received PDU */
     if (opcode == BLE_LL_CTRL_REJECT_IND) {
@@ -1476,8 +1477,15 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     switch (connsm->cur_ctrl_proc) {
     case BLE_LL_CTRL_PROC_CONN_PARAM_REQ:
         if (opcode == BLE_LL_CTRL_REJECT_IND_EXT) {
-            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
-            ble_ll_hci_ev_conn_update(connsm, ble_error);
+            /* As a master we should send connection update indication in this point */
+            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
+                ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
+                connsm->reject_reason = BLE_ERR_SUCCESS;
+            } else {
+                ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+                ble_ll_hci_ev_conn_update(connsm, ble_error);
+            }
         }
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
@@ -1503,6 +1511,8 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     default:
         break;
     }
+
+    return rsp_opcode;
 }
 
 /**
@@ -2338,7 +2348,8 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     /* Fall-through intentional... */
     case BLE_LL_CTRL_REJECT_IND:
     case BLE_LL_CTRL_REJECT_IND_EXT:
-        ble_ll_ctrl_rx_reject_ind(connsm, dptr, opcode);
+        /* Sometimes reject triggers sending other LL CTRL msg */
+        rsp_opcode = ble_ll_ctrl_rx_reject_ind(connsm, dptr, opcode, rspdata);
         break;
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
