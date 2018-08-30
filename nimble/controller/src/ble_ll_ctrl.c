@@ -357,14 +357,99 @@ conn_param_pdu_exit:
 }
 
 /**
+ * Called to make a connection update request LL control PDU
+ *
+ * Context: Link Layer
+ *
+ * @param connsm
+ * @param rsp
+ */
+static void
+ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
+                          struct ble_ll_conn_params *cp)
+{
+    uint16_t instant;
+    uint32_t dt;
+    uint32_t num_old_ce;
+    uint32_t new_itvl_usecs;
+    uint32_t old_itvl_usecs;
+    struct hci_conn_update *hcu;
+    struct ble_ll_conn_upd_req *req;
+
+    /*
+     * Set instant. We set the instant to the current event counter plus
+     * the amount of slave latency as the slave may not be listening
+     * at every connection interval and we are not sure when the connect
+     * request will actually get sent. We add one more event plus the
+     * minimum as per the spec of 6 connection events.
+     */
+    instant = connsm->event_cntr + connsm->slave_latency + 6 + 1;
+
+    /*
+     * XXX: This should change in the future, but for now we will just
+     * start the new instant at the same anchor using win offset 0.
+     */
+    /* Copy parameters in connection update structure */
+    hcu = &connsm->conn_param_req;
+    req = &connsm->conn_update_req;
+    if (cp) {
+        /* XXX: so we need to make the new anchor point some time away
+         * from txwinoffset by some amount of msecs. Not sure how to do
+           that here. We dont need to, but we should. */
+        /* Calculate offset from requested offsets (if any) */
+        if (cp->offset0 != 0xFFFF) {
+            new_itvl_usecs = cp->interval_max * BLE_LL_CONN_ITVL_USECS;
+            old_itvl_usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+            if ((int16_t)(cp->ref_conn_event_cnt - instant) >= 0) {
+                num_old_ce = cp->ref_conn_event_cnt - instant;
+                dt = old_itvl_usecs * num_old_ce;
+                dt += (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
+                dt = dt % new_itvl_usecs;
+            } else {
+                num_old_ce = instant - cp->ref_conn_event_cnt;
+                dt = old_itvl_usecs * num_old_ce;
+                dt -= (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
+                dt = dt % new_itvl_usecs;
+                dt = new_itvl_usecs - dt;
+            }
+            req->winoffset = dt / BLE_LL_CONN_TX_WIN_USECS;
+        } else {
+            req->winoffset = 0;
+        }
+        req->interval = cp->interval_max;
+        req->timeout = cp->timeout;
+        req->latency = cp->latency;
+        req->winsize = 1;
+    } else {
+        req->interval = hcu->conn_itvl_max;
+        req->timeout = hcu->supervision_timeout;
+        req->latency = hcu->conn_latency;
+        req->winoffset = 0;
+        req->winsize = connsm->tx_win_size;
+    }
+    req->instant = instant;
+
+    /* XXX: make sure this works for the connection parameter request proc. */
+    pyld[0] = req->winsize;
+    put_le16(pyld + 1, req->winoffset);
+    put_le16(pyld + 3, req->interval);
+    put_le16(pyld + 5, req->latency);
+    put_le16(pyld + 7, req->timeout);
+    put_le16(pyld + 9, instant);
+
+    /* Set flag in state machine to denote we have scheduled an update */
+    connsm->csmflags.cfbit.conn_update_sched = 1;
+}
+
+/**
  * Called to process and UNKNOWN_RSP LL control packet.
  *
  * Context: Link Layer Task
  *
  * @param dptr
  */
-static void
-ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+static int
+ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspdata)
 {
     uint8_t ctrl_proc;
     uint8_t opcode;
@@ -383,8 +468,14 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_FEATURE_XCHG;
         break;
-    case BLE_LL_CTRL_CONN_PARM_RSP:
     case BLE_LL_CTRL_CONN_PARM_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+            ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
+            connsm->reject_reason = BLE_ERR_SUCCESS;
+            return BLE_LL_CTRL_CONN_UPDATE_IND;
+        }
+        /* note: fall-through intentional */
+    case BLE_LL_CTRL_CONN_PARM_RSP:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
         break;
     case BLE_LL_CTRL_PING_REQ:
@@ -418,6 +509,8 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
             connsm->csmflags.cfbit.pending_hci_rd_features = 0;
         }
     }
+
+    return BLE_ERR_MAX;
 }
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -1337,91 +1430,6 @@ ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 }
 
 /**
- * Called to make a connection update request LL control PDU
- *
- * Context: Link Layer
- *
- * @param connsm
- * @param rsp
- */
-static void
-ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
-                          struct ble_ll_conn_params *cp)
-{
-    uint16_t instant;
-    uint32_t dt;
-    uint32_t num_old_ce;
-    uint32_t new_itvl_usecs;
-    uint32_t old_itvl_usecs;
-    struct hci_conn_update *hcu;
-    struct ble_ll_conn_upd_req *req;
-
-    /*
-     * Set instant. We set the instant to the current event counter plus
-     * the amount of slave latency as the slave may not be listening
-     * at every connection interval and we are not sure when the connect
-     * request will actually get sent. We add one more event plus the
-     * minimum as per the spec of 6 connection events.
-     */
-    instant = connsm->event_cntr + connsm->slave_latency + 6 + 1;
-
-    /*
-     * XXX: This should change in the future, but for now we will just
-     * start the new instant at the same anchor using win offset 0.
-     */
-    /* Copy parameters in connection update structure */
-    hcu = &connsm->conn_param_req;
-    req = &connsm->conn_update_req;
-    if (cp) {
-        /* XXX: so we need to make the new anchor point some time away
-         * from txwinoffset by some amount of msecs. Not sure how to do
-           that here. We dont need to, but we should. */
-        /* Calculate offset from requested offsets (if any) */
-        if (cp->offset0 != 0xFFFF) {
-            new_itvl_usecs = cp->interval_max * BLE_LL_CONN_ITVL_USECS;
-            old_itvl_usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
-            if ((int16_t)(cp->ref_conn_event_cnt - instant) >= 0) {
-                num_old_ce = cp->ref_conn_event_cnt - instant;
-                dt = old_itvl_usecs * num_old_ce;
-                dt += (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
-                dt = dt % new_itvl_usecs;
-            } else {
-                num_old_ce = instant - cp->ref_conn_event_cnt;
-                dt = old_itvl_usecs * num_old_ce;
-                dt -= (cp->offset0 * BLE_LL_CONN_ITVL_USECS);
-                dt = dt % new_itvl_usecs;
-                dt = new_itvl_usecs - dt;
-            }
-            req->winoffset = dt / BLE_LL_CONN_TX_WIN_USECS;
-        } else {
-            req->winoffset = 0;
-        }
-        req->interval = cp->interval_max;
-        req->timeout = cp->timeout;
-        req->latency = cp->latency;
-        req->winsize = 1;
-    } else {
-        req->interval = hcu->conn_itvl_max;
-        req->timeout = hcu->supervision_timeout;
-        req->latency = hcu->conn_latency;
-        req->winoffset = 0;
-        req->winsize = connsm->tx_win_size;
-    }
-    req->instant = instant;
-
-    /* XXX: make sure this works for the connection parameter request proc. */
-    pyld[0] = req->winsize;
-    put_le16(pyld + 1, req->winoffset);
-    put_le16(pyld + 3, req->interval);
-    put_le16(pyld + 5, req->latency);
-    put_le16(pyld + 7, req->timeout);
-    put_le16(pyld + 9, instant);
-
-    /* Set flag in state machine to denote we have scheduled an update */
-    connsm->csmflags.cfbit.conn_update_sched = 1;
-}
-
-/**
  * Called to respond to a LL control PDU connection parameter request or
  * response.
  *
@@ -2280,7 +2288,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         }
         break;
     case BLE_LL_CTRL_UNKNOWN_RSP:
-        ble_ll_ctrl_proc_unk_rsp(connsm, dptr);
+        rsp_opcode = ble_ll_ctrl_proc_unk_rsp(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_FEATURE_REQ:
         rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
