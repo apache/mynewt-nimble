@@ -1111,7 +1111,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
          * kinds of LL control PDU's. If none is enqueued, send empty pdu!
          */
         if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
-            if (!ble_ll_ctrl_enc_allowed_pdu(pkthdr)) {
+            if (!ble_ll_ctrl_enc_allowed_pdu_tx(pkthdr)) {
                 CONN_F_EMPTY_PDU_TXD(connsm) = 1;
                 goto conn_tx_pdu;
             }
@@ -1122,7 +1122,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
              * to wait to receive the START_ENC_RSP from the slave before
              * packets can be let go.
              */
-            if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+            if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)
                 && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
                     !ble_ll_ctrl_is_start_enc_rsp(m))) {
                 nextpkthdr = NULL;
@@ -1160,7 +1160,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
                 pkthdr = OS_MBUF_PKTHDR(connsm->cur_tx_pdu);
-                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)
                     && ((connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) ||
                         !ble_ll_ctrl_is_start_enc_rsp(connsm->cur_tx_pdu))) {
                     nextpkthdr = NULL;
@@ -1174,7 +1174,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
                 /* We will allow a next packet if it itself is allowed */
-                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu(nextpkthdr)) {
+                if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)) {
                     nextpkthdr = NULL;
                 }
             }
@@ -3518,6 +3518,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     uint8_t hdr_byte;
     uint8_t rxd_sn;
     uint8_t *rxbuf;
+    uint8_t llid;
     uint16_t acl_len;
     uint16_t acl_hdr;
     struct ble_ll_conn_sm *connsm;
@@ -3535,17 +3536,30 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
             rxbuf = rxpdu->om_data;
             hdr_byte = rxbuf[0];
             acl_len = rxbuf[1];
-            acl_hdr = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+            llid = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
 
             /*
              * Check that the LLID and payload length are reasonable.
              * Empty payload is only allowed for LLID == 01b.
              *  */
-            if ((acl_hdr == 0) ||
-                ((acl_len == 0) && (acl_hdr != BLE_LL_LLID_DATA_FRAG))) {
+            if ((llid == 0) ||
+                ((acl_len == 0) && (llid != BLE_LL_LLID_DATA_FRAG))) {
                 STATS_INC(ble_ll_conn_stats, rx_bad_llid);
                 goto conn_rx_data_pdu_end;
             }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+            /* Check if PDU is allowed when encryption is started. If not,
+             * terminate connection.
+             *
+             * Reference: Core 5.0, Vol 6, Part B, 5.1.3.1
+             */
+            if ((connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) &&
+                    !ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
+                ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+                goto conn_rx_data_pdu_end;
+            }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
             /*
@@ -3582,7 +3596,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 connsm->last_rxd_sn = rxd_sn;
 
                 /* No need to do anything if empty pdu */
-                if ((acl_hdr == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
+                if ((llid == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
                     goto conn_rx_data_pdu_end;
                 }
 
@@ -3598,7 +3612,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                 }
 #endif
 
-                if (acl_hdr == BLE_LL_LLID_CTRL) {
+                if (llid == BLE_LL_LLID_CTRL) {
                     /* Process control frame */
                     STATS_INC(ble_ll_conn_stats, rx_ctrl_pdus);
                     if (ble_ll_ctrl_rx_pdu(connsm, rxpdu)) {
@@ -3614,7 +3628,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
                     os_mbuf_prepend(rxpdu, 2);
                     rxbuf = rxpdu->om_data;
 
-                    acl_hdr = (acl_hdr << 12) | connsm->conn_handle;
+                    acl_hdr = (llid << 12) | connsm->conn_handle;
                     put_le16(rxbuf, acl_hdr);
                     put_le16(rxbuf + 2, acl_len);
                     ble_hci_trans_ll_acl_tx(rxpdu);
