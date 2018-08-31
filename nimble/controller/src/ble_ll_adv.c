@@ -202,7 +202,7 @@ ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
         if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
             advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
         } else {
-            if (advsm->own_addr_type & 1) {
+            if (advsm->peer_addr_type & 1) {
                 advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
             } else {
                 advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
