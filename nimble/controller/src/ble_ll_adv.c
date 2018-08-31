@@ -193,8 +193,16 @@ static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
 static void
 ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
-    ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                          advsm->adva, 1);
+    if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                          advsm->adva, 1)) {
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+    } else {
+        if (advsm->own_addr_type & 1) {
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+        } else {
+            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+        }
+    }
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
@@ -207,17 +215,6 @@ ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
             } else {
                 advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
             }
-        }
-    }
-
-    /* May have to reset txadd bit */
-    if (ble_ll_is_rpa(advsm->adva, 1)) {
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
-    } else {
-        if (advsm->own_addr_type & 1) {
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
-        } else {
-            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
         }
     }
 }
