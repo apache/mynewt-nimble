@@ -1793,6 +1793,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
         out_evt->dir_addr_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
