@@ -205,9 +205,8 @@ ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
     }
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-        ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                              advsm->initiator_addr, 0);
-        if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
+        if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                              advsm->initiator_addr, 0)) {
             advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
         } else {
             if (advsm->peer_addr_type & 1) {
