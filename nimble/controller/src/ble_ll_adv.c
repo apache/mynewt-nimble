@@ -1833,6 +1833,7 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
 
         if (ble_ll_hci_adv_mode_ext() &&
                 (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
+                !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                 SCAN_RSP_DATA_LEN(advsm) == 0) {
             return BLE_ERR_CMD_DISALLOWED;
         }
