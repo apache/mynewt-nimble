@@ -193,31 +193,27 @@ static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
 static void
 ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
-    ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                          advsm->adva, 1);
-
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-        ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                              advsm->initiator_addr, 0);
-        if (ble_ll_is_rpa(advsm->initiator_addr, 1)) {
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
-        } else {
-            if (advsm->own_addr_type & 1) {
-                advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
-            } else {
-                advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
-            }
-        }
-    }
-
-    /* May have to reset txadd bit */
-    if (ble_ll_is_rpa(advsm->adva, 1)) {
+    if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                          advsm->adva, 1)) {
         advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
     } else {
         if (advsm->own_addr_type & 1) {
             advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
         } else {
             advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+        }
+    }
+
+    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
+        if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
+                              advsm->initiator_addr, 0)) {
+            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+        } else {
+            if (advsm->peer_addr_type & 1) {
+                advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+            } else {
+                advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
+            }
         }
     }
 }
@@ -1824,13 +1820,20 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
 
     advsm = &g_ble_ll_adv_sm[instance];
 
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        if (ble_ll_hci_adv_mode_ext() &&
+                (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
+                !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+                SCAN_RSP_DATA_LEN(advsm) == 0) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         /* handle specifics of HD dir adv enabled in legacy way */
         if (duration < 0) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
@@ -2048,7 +2051,9 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     /* check if type of advertising support adv data */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            if (ble_ll_hci_adv_mode_ext()) {
+                return BLE_ERR_INV_HCI_CMD_PARMS;
+            }
         }
     } else {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
@@ -2789,6 +2794,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
             /* Retain the resolvable private address that we received. */
             memcpy(advsm->adv_rpa, inita, BLE_DEV_ADDR_LEN);
 
+            /* Update resolving list with current peer RPA */
+            ble_ll_resolv_set_peer_rpa(advsm->adv_rpa_index, inita);
+
             /*
              * Overwrite received inita with identity address since that
              * is used from now on.
@@ -3394,11 +3402,13 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 uint8_t *
 ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm)
 {
-    uint8_t *rpa;
+    uint8_t *rpa = NULL;
 
-    rpa = NULL;
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        rpa = advsm->adva;
+        if ((advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) &&
+                                    ble_ll_is_rpa(advsm->adva, 1)) {
+            rpa = advsm->adva;
+        }
     }
 
     return rpa;

@@ -527,6 +527,23 @@ ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
 }
 
 /**
+ * Get identity address
+ *
+ * @param addr_type Random (1). Public(0)
+ *
+ * @return pointer to identity address of given type.
+ */
+uint8_t*
+ble_ll_get_our_devaddr(uint8_t addr_type)
+{
+    if (addr_type) {
+        return g_random_addr;
+    }
+
+    return g_dev_addr;
+}
+
+/**
  * Wait for response timeout function
  *
  * Context: interrupt (ble scheduler)

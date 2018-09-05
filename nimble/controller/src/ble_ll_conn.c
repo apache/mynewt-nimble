@@ -2983,6 +2983,11 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 
         if (connsm->rpa_index >= 0) {
             ble_ll_scan_set_peer_rpa(rxbuf + BLE_LL_PDU_HDR_LEN);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+            /* Update resolving list with current peer RPA */
+            ble_ll_resolv_set_peer_rpa(connsm->rpa_index, rxbuf + BLE_LL_PDU_HDR_LEN);
+#endif
         }
 
         /* Connection has been created. Stop scanning */
@@ -3246,21 +3251,36 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         // no break
 #endif
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+        /*
+         * If we expect our address to be private and the INITA is not,
+         * we dont respond!
+         */
+        inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
+        if (!inita_is_rpa) {
             /*
-             * If we expect our address to be private and the INITA is not,
+             * If we expect our address to be private and the InitA is not,
              * we dont respond!
+             *
+             * TODO: Probably we could not care for this if privacy is on.
+             * Leave if for now.
              */
-            inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
             if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                if (!inita_is_rpa) {
-                    goto init_rx_isr_exit;
-                }
-            } else {
-                if (!ble_ll_is_our_devaddr(init_addr, addr_type)) {
-                    goto init_rx_isr_exit;
-                }
+                goto init_rx_isr_exit;
             }
-            break;
+
+            /* Resolving will be done later. Check if identity InitA matches */
+            if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
+                goto init_rx_isr_exit;
+            }
+        }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 0
+        else {
+            /* If privacy is off - reject RPA InitA*/
+            goto init_rx_isr_exit;
+        }
+#endif
+
+        break;
     default:
         goto init_rx_isr_exit;
     }
@@ -3290,20 +3310,53 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                 !inita_is_rpa) {
                 goto init_rx_isr_exit;
             }
+
+            /*
+             * If the InitA is a RPA, we must see if it resolves based on the
+             * identity address of the resolved ADVA.
+             */
+            if (init_addr && inita_is_rpa &&
+                            !ble_ll_resolv_rpa(init_addr,
+                                               g_ble_ll_resolv_list[index].rl_local_irk)) {
+                goto init_rx_isr_exit;
+            }
+
         } else {
             if (chk_wl) {
                 goto init_rx_isr_exit;
             }
-        }
-    } else if (init_addr && ble_ll_resolv_enabled()) {
 
-        /* Let's see if we have IRK with that peer. If so lets make sure
-         * privacy mode is correct together with initA
-         */
+            /* Could not resolved InitA */
+            if (init_addr && inita_is_rpa) {
+                goto init_rx_isr_exit;
+            }
+        }
+    } else if (init_addr) {
+
+        /* If resolving is off and InitA is RPA we reject advertising */
+        if (inita_is_rpa && !ble_ll_resolv_enabled()) {
+            goto init_rx_isr_exit;
+        }
+
+        /* Let's see if we have IRK with that peer.*/
         rl = ble_ll_resolv_list_find(adv_addr, addr_type);
+
+        /* Lets make sure privacy mode is correct together with InitA in case it
+         * is identity address
+         */
         if (rl && !inita_is_rpa &&
            (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
             goto init_rx_isr_exit;
+        }
+
+        /*
+         * If the InitA is a RPA, we must see if it resolves based on the
+         * identity address of the resolved ADVA.
+         */
+        if (inita_is_rpa) {
+            if (!rl || !ble_ll_resolv_rpa(init_addr, rl->rl_local_irk)) {
+                goto init_rx_isr_exit;
+            }
         }
     }
 #endif
@@ -3320,18 +3373,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         }
     }
     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
-
-    /*
-     * If the inita is a RPA, we must see if it resolves based on the
-     * identity address of the resolved ADVA.
-     */
-    if (init_addr && inita_is_rpa) {
-        if ((index < 0) ||
-            !ble_ll_resolv_rpa(init_addr,
-                               g_ble_ll_resolv_list[index].rl_local_irk)) {
-            goto init_rx_isr_exit;
-        }
-    }
 
     /* For CONNECT_IND we don't go into RX state */
     conn_req_end_trans = BLE_PHY_TRANSITION_NONE;
