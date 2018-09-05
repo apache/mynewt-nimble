@@ -246,21 +246,30 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
 {
     int rc = 0;
     uint8_t byte_pattern;
+    struct ble_mbuf_hdr *ble_hdr;
+    struct os_mbuf *m;
     struct ble_ll_sched_item *sch = &g_ble_ll_dtm_ctx.sch;
 
     /* MSYS is big enough to get continues memory */
-    g_ble_ll_dtm_ctx.om = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    m = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    g_ble_ll_dtm_ctx.om = m;
     BLE_LL_ASSERT(g_ble_ll_dtm_ctx.om);
 
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
 
     /* Set BLE transmit header */
-    ble_ll_mbuf_init(g_ble_ll_dtm_ctx.om, len, packet_payload);
+    ble_hdr = BLE_MBUF_HDR_PTR(m);
+    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.offset = 0;
+    ble_hdr->txinfo.pyld_len = len;
+    ble_hdr->txinfo.hdr_byte = packet_payload;
 
     switch(packet_payload) {
     case 0x00:
-        memcpy(g_ble_ll_dtm_ctx.om->om_data, &g_ble_ll_dtm_prbs9_data, len);
+        if (os_mbuf_copyinto(m, 0, &g_ble_ll_dtm_prbs9_data, len)) {
+            return 1;
+        }
         goto schedule;
     case 0x01:
         byte_pattern = 0x0F;
@@ -269,7 +278,9 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
         byte_pattern = 0x55;
         break;
     case 0x03:
-        memcpy(g_ble_ll_dtm_ctx.om->om_data, &g_ble_ll_dtm_prbs15_data, len);
+        if (os_mbuf_copyinto(m, 0, &g_ble_ll_dtm_prbs15_data, len)) {
+            return 1;
+        }
         goto schedule;
     case 0x04:
         byte_pattern = 0xFF;
@@ -287,7 +298,11 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
         return 1;
     }
 
-    memset(g_ble_ll_dtm_ctx.om->om_data, byte_pattern, len);
+    for (rc = 0; rc < len; rc++) {
+        if (os_mbuf_copyinto(m, rc, &byte_pattern, 1)) {
+            return 1;
+        }
+    }
 
 schedule:
 
