@@ -200,15 +200,23 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 
     sch->start_time += g_ble_ll_sched_offset_ticks;
 
-    /*XXX Maybe reschedule if too late */
     rc = ble_phy_tx_set_start_time(sch->start_time, sch->remainder);
-    BLE_LL_ASSERT(rc == 0);
+    if (rc) {
+        goto resched;
+    }
 
     rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, ctx->om, BLE_PHY_TRANSITION_NONE);
-    BLE_LL_ASSERT(rc == 0);
+    if (rc) {
+        goto resched;
+    }
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
+    return BLE_LL_SCHED_STATE_DONE;
+
+resched:
+    /* Reschedule from LL task if late for this PDU */
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
     return BLE_LL_SCHED_STATE_DONE;
 }
 
