@@ -312,6 +312,19 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
 }
 #endif
 
+#ifdef NRF52
+static void
+ble_phy_apply_errata_102_106_107(void)
+{
+    /* [102] RADIO: PAYLOAD/END events delayed or not triggered after ADDRESS
+     * [106] RADIO: Higher CRC error rates for some access addresses
+     * [107] RADIO: Immediate address match for access addresses containing MSBs 0x00
+     */
+    *(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
+                         0xfffffffe) | 0x01000000;
+}
+#endif
+
 void
 ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
 {
@@ -1813,6 +1826,10 @@ ble_phy_set_access_addr(uint32_t access_addr)
     NRF_RADIO->PREFIX0 = (NRF_RADIO->PREFIX0 & 0xFFFFFF00) | (access_addr >> 24);
 
     g_ble_phy_data.phy_access_address = access_addr;
+
+#ifdef NRF52
+    ble_phy_apply_errata_102_106_107();
+#endif
 
     return 0;
 }
