@@ -59,6 +59,12 @@ bool ble_ll_hci_adv_mode_ext(void)
 {
     return hci_adv_mode == ADV_MODE_EXT;
 }
+#else
+bool
+ble_ll_hci_adv_mode_ext(void)
+{
+    return false;
+}
 #endif
 
 /**

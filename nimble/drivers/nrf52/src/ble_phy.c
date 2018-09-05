@@ -247,6 +247,19 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
+#ifdef NRF52
+static void
+ble_phy_apply_errata_102_106_107(void)
+{
+    /* [102] RADIO: PAYLOAD/END events delayed or not triggered after ADDRESS
+     * [106] RADIO: Higher CRC error rates for some access addresses
+     * [107] RADIO: Immediate address match for access addresses containing MSBs 0x00
+     */
+    *(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
+                         0xfffffffe) | 0x01000000;
+}
+#endif
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
 /* Packet start offset (in usecs). This is the preamble plus access address.
@@ -309,19 +322,6 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
                         ((*((volatile uint32_t *) 0x40001740)) & 0x7FFFFFFF);
 #endif
     }
-}
-#endif
-
-#ifdef NRF52
-static void
-ble_phy_apply_errata_102_106_107(void)
-{
-    /* [102] RADIO: PAYLOAD/END events delayed or not triggered after ADDRESS
-     * [106] RADIO: Higher CRC error rates for some access addresses
-     * [107] RADIO: Immediate address match for access addresses containing MSBs 0x00
-     */
-    *(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
-                         0xfffffffe) | 0x01000000;
 }
 #endif
 
