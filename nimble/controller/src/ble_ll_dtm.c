@@ -151,7 +151,7 @@ ble_ll_dtm_set_next(struct dtm_ctx *ctx)
 }
 
 static void
-ble_ll_dtm_event(struct ble_npl_event *evt) {
+ble_ll_dtm_ev_tx_resched_cb(struct ble_npl_event *evt) {
     /* It is called in LL context */
     struct dtm_ctx *ctx = ble_npl_event_get_arg(evt);
     int rc;
@@ -326,7 +326,7 @@ schedule:
                                        os_cputime_usecs_to_ticks(5000);
 
     /* Prepare os_event */
-    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_event,
+    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_tx_resched_cb,
                        &g_ble_ll_dtm_ctx);
 
     ble_ll_dtm_calculate_itvl(&g_ble_ll_dtm_ctx, len, phy_mode);
