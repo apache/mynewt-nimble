@@ -23,11 +23,21 @@
 
 #include "assert.h"
 #include "os/os.h"
+#include "stats/stats.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_xcvr.h"
 #include "ble_ll_dtm_priv.h"
+
+STATS_SECT_START(ble_ll_dtm_stats)
+    STATS_SECT_ENTRY(tx_failed)
+STATS_SECT_END
+STATS_SECT_DECL(ble_ll_dtm_stats) ble_ll_dtm_stats;
+
+STATS_NAME_START(ble_ll_dtm_stats)
+    STATS_NAME(ble_ll_dtm_stats, tx_failed)
+STATS_NAME_END(ble_phy_stats)
 
 struct dtm_ctx {
     uint8_t payload_packet;
@@ -217,6 +227,9 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 resched:
     /* Reschedule from LL task if late for this PDU */
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
+
+    STATS_INC(ble_ll_dtm_stats, tx_failed);
+
     return BLE_LL_SCHED_STATE_DONE;
 }
 
