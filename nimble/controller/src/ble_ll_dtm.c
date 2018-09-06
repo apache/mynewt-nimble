@@ -389,6 +389,8 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     }
     OS_EXIT_CRITICAL(sr);
 
+    ble_ll_sched_rmv_elem(&ctx->sch);
+
     ble_phy_disable();
     ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
@@ -396,7 +398,6 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     ble_ll_xcvr_rfclk_stop();
 #endif
 
-    ble_ll_sched_rmv_elem(&ctx->sch);
     os_mbuf_free_chain(ctx->om);
     memset(ctx, 0, sizeof(*ctx));
 }
