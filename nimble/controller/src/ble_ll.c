@@ -1580,4 +1580,8 @@ ble_ll_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+    ble_ll_dtm_init();
+#endif
 }

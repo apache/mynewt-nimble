@@ -578,4 +578,16 @@ ble_ll_dtm_reset(void)
 {
     ble_ll_dtm_ctx_free(&g_ble_ll_dtm_ctx);
 }
+
+void
+ble_ll_dtm_init(void)
+{
+    int rc;
+
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_dtm_stats),
+                            STATS_SIZE_INIT_PARMS(ble_ll_dtm_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(ble_ll_dtm_stats),
+                            "ble_ll_dtm");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+}
 #endif
