@@ -32,11 +32,13 @@
 
 STATS_SECT_START(ble_ll_dtm_stats)
     STATS_SECT_ENTRY(tx_failed)
+    STATS_SECT_ENTRY(rx_failed)
 STATS_SECT_END
 STATS_SECT_DECL(ble_ll_dtm_stats) ble_ll_dtm_stats;
 
 STATS_NAME_START(ble_ll_dtm_stats)
     STATS_NAME(ble_ll_dtm_stats, tx_failed)
+    STATS_NAME(ble_ll_dtm_stats, rx_failed)
 STATS_NAME_END(ble_phy_stats)
 
 struct dtm_ctx {
@@ -167,6 +169,16 @@ ble_ll_dtm_ev_tx_resched_cb(struct ble_npl_event *evt) {
     ble_ll_dtm_set_next(ctx);
     rc = ble_ll_sched_dtm(&ctx->sch);
     BLE_LL_ASSERT(rc == 0);
+}
+
+static int ble_ll_dtm_rx_start(void);
+
+static void
+ble_ll_dtm_ev_rx_restart_cb(struct ble_npl_event *evt) {
+    if (ble_ll_dtm_rx_start() != 0) {
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        STATS_INC(ble_ll_dtm_stats, rx_failed);
+    }
 }
 
 static void
@@ -380,6 +392,9 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
     g_ble_ll_dtm_ctx.active = 1;
 
+    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_rx_restart_cb,
+                       NULL);
+
     if (ble_ll_dtm_rx_start() != 0) {
         return 1;
     }
@@ -525,7 +540,8 @@ ble_ll_dtm_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     if (ble_ll_dtm_rx_start() != 0) {
-        BLE_LL_ASSERT(0);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        STATS_INC(ble_ll_dtm_stats, rx_failed);
     }
 }
 
