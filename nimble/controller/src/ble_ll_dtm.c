@@ -23,11 +23,25 @@
 
 #include "assert.h"
 #include "os/os.h"
+#include "stats/stats.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_xcvr.h"
 #include "ble_ll_dtm_priv.h"
+
+STATS_SECT_START(ble_ll_dtm_stats)
+    STATS_SECT_ENTRY(rx_count)
+    STATS_SECT_ENTRY(tx_failed)
+    STATS_SECT_ENTRY(rx_failed)
+STATS_SECT_END
+STATS_SECT_DECL(ble_ll_dtm_stats) ble_ll_dtm_stats;
+
+STATS_NAME_START(ble_ll_dtm_stats)
+    STATS_NAME(ble_ll_dtm_stats, rx_count)
+    STATS_NAME(ble_ll_dtm_stats, tx_failed)
+    STATS_NAME(ble_ll_dtm_stats, rx_failed)
+STATS_NAME_END(ble_phy_stats)
 
 struct dtm_ctx {
     uint8_t payload_packet;
@@ -141,7 +155,7 @@ ble_ll_dtm_set_next(struct dtm_ctx *ctx)
 }
 
 static void
-ble_ll_dtm_event(struct ble_npl_event *evt) {
+ble_ll_dtm_ev_tx_resched_cb(struct ble_npl_event *evt) {
     /* It is called in LL context */
     struct dtm_ctx *ctx = ble_npl_event_get_arg(evt);
     int rc;
@@ -157,6 +171,16 @@ ble_ll_dtm_event(struct ble_npl_event *evt) {
     ble_ll_dtm_set_next(ctx);
     rc = ble_ll_sched_dtm(&ctx->sch);
     BLE_LL_ASSERT(rc == 0);
+}
+
+static int ble_ll_dtm_rx_start(void);
+
+static void
+ble_ll_dtm_ev_rx_restart_cb(struct ble_npl_event *evt) {
+    if (ble_ll_dtm_rx_start() != 0) {
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        STATS_INC(ble_ll_dtm_stats, rx_failed);
+    }
 }
 
 static void
@@ -217,6 +241,9 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 resched:
     /* Reschedule from LL task if late for this PDU */
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
+
+    STATS_INC(ble_ll_dtm_stats, tx_failed);
+
     return BLE_LL_SCHED_STATE_DONE;
 }
 
@@ -313,7 +340,7 @@ schedule:
                                        os_cputime_usecs_to_ticks(5000);
 
     /* Prepare os_event */
-    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_event,
+    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_tx_resched_cb,
                        &g_ble_ll_dtm_ctx);
 
     ble_ll_dtm_calculate_itvl(&g_ble_ll_dtm_ctx, len, phy_mode);
@@ -331,6 +358,7 @@ schedule:
 static int
 ble_ll_dtm_rx_start(void)
 {
+    os_sr_t sr;
     int rc;
 
     rc = ble_phy_setchan(channel_rf_to_index[g_ble_ll_dtm_ctx.rf_channel],
@@ -343,8 +371,10 @@ ble_ll_dtm_rx_start(void)
     ble_phy_mode_set(g_ble_ll_dtm_ctx.phy_mode, g_ble_ll_dtm_ctx.phy_mode);
 #endif
 
+    OS_ENTER_CRITICAL(sr);
     rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                    g_ble_ll_sched_offset_ticks, 0);
+    OS_EXIT_CRITICAL(sr);
     if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         return rc;
     }
@@ -367,8 +397,12 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
     g_ble_ll_dtm_ctx.active = 1;
 
+    STATS_CLEAR(ble_ll_dtm_stats, rx_count);
+
+    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_rx_restart_cb,
+                       NULL);
+
     if (ble_ll_dtm_rx_start() != 0) {
-        BLE_LL_ASSERT(0);
         return 1;
     }
 
@@ -389,6 +423,8 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     }
     OS_EXIT_CRITICAL(sr);
 
+    ble_ll_sched_rmv_elem(&ctx->sch);
+
     ble_phy_disable();
     ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
@@ -396,7 +432,6 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     ble_ll_xcvr_rfclk_stop();
 #endif
 
-    ble_ll_sched_rmv_elem(&ctx->sch);
     os_mbuf_free_chain(ctx->om);
     memset(ctx, 0, sizeof(*ctx));
 }
@@ -509,10 +544,12 @@ ble_ll_dtm_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
         /* XXX Compare data. */
         g_ble_ll_dtm_ctx.num_of_packets++;
+        STATS_INC(ble_ll_dtm_stats, rx_count);
     }
 
     if (ble_ll_dtm_rx_start() != 0) {
-        BLE_LL_ASSERT(0);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        STATS_INC(ble_ll_dtm_stats, rx_failed);
     }
 }
 
@@ -548,5 +585,17 @@ void
 ble_ll_dtm_reset(void)
 {
     ble_ll_dtm_ctx_free(&g_ble_ll_dtm_ctx);
+}
+
+void
+ble_ll_dtm_init(void)
+{
+    int rc;
+
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_dtm_stats),
+                            STATS_SIZE_INIT_PARMS(ble_ll_dtm_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(ble_ll_dtm_stats),
+                            "ble_ll_dtm");
+    SYSINIT_PANIC_ASSERT(rc == 0);
 }
 #endif
