@@ -358,6 +358,7 @@ schedule:
 static int
 ble_ll_dtm_rx_start(void)
 {
+    os_sr_t sr;
     int rc;
 
     rc = ble_phy_setchan(channel_rf_to_index[g_ble_ll_dtm_ctx.rf_channel],
@@ -370,8 +371,10 @@ ble_ll_dtm_rx_start(void)
     ble_phy_mode_set(g_ble_ll_dtm_ctx.phy_mode, g_ble_ll_dtm_ctx.phy_mode);
 #endif
 
+    OS_ENTER_CRITICAL(sr);
     rc = ble_phy_rx_set_start_time(os_cputime_get32() +
                                    g_ble_ll_sched_offset_ticks, 0);
+    OS_EXIT_CRITICAL(sr);
     if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         return rc;
     }
