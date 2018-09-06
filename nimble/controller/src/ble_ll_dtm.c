@@ -381,7 +381,6 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
     g_ble_ll_dtm_ctx.active = 1;
 
     if (ble_ll_dtm_rx_start() != 0) {
-        BLE_LL_ASSERT(0);
         return 1;
     }
 
