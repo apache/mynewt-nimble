@@ -2131,6 +2131,15 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     }
 
     /*
+     * If there is still pending read features request HCI command, send an
+     * event to complete it.
+     */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, ble_err);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
+
+    /*
      * We need to send a disconnection complete event. Connection Complete for
      * canceling connection creation is sent from LE Create Connection Cancel
      * Command handler.
@@ -2141,15 +2150,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     if (ble_err && (ble_err != BLE_ERR_UNK_CONN_ID ||
                                 connsm->csmflags.cfbit.terminate_ind_rxd)) {
         ble_ll_disconn_comp_event_send(connsm, ble_err);
-    }
-
-    /*
-     * If there is still pending read features request HCI command, send an
-     * event to complete it.
-     */
-    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
-        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_UNK_CONN_ID);
-        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
     }
 
     /* Put connection state machine back on free list */
