@@ -513,6 +513,36 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
     return BLE_ERR_MAX;
 }
 
+/**
+ * Callback when LL control procedure times out (for a given connection). If
+ * this is called, it means that we need to end the connection because it
+ * has not responded to a LL control request.
+ *
+ * Context: Link Layer
+ *
+ * @param arg Pointer to connection state machine.
+ */
+void
+ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
+{
+    /* Control procedure has timed out. Kill the connection */
+    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev),
+                        BLE_ERR_LMP_LL_RSP_TMO);
+}
+
+static void
+ble_ll_ctrl_start_rsp_timer(struct ble_ll_conn_sm *connsm)
+{
+    ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer,
+                    &g_ble_ll_data.ll_evq,
+                    ble_ll_ctrl_proc_rsp_timer_cb,
+                    connsm);
+
+    /* Re-start timer. Control procedure timeout is 40 seconds */
+    ble_npl_callout_reset(&connsm->ctrl_proc_rsp_timer,
+                     ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
+}
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 void
 ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
@@ -793,6 +823,10 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         CONN_F_PEER_PHY_UPDATE(connsm) = 1;
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
+
+        /* Start response timer */
+        connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
+        ble_ll_ctrl_start_rsp_timer(connsm);
     }
     return rsp_opcode;
 }
@@ -1825,23 +1859,6 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
- * Callback when LL control procedure times out (for a given connection). If
- * this is called, it means that we need to end the connection because it
- * has not responded to a LL control request.
- *
- * Context: Link Layer
- *
- * @param arg Pointer to connection state machine.
- */
-void
-ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
-{
-    /* Control procedure has timed out. Kill the connection */
-    ble_ll_conn_timeout((struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev),
-                        BLE_ERR_LMP_LL_RSP_TMO);
-}
-
-/**
  * Initiate LL control procedure.
  *
  * This function is called to obtain a mbuf to send a LL control PDU. The data
@@ -2038,14 +2055,7 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 
             /* Initialize the procedure response timeout */
             if (ctrl_proc != BLE_LL_CTRL_PROC_CHAN_MAP_UPD) {
-                ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer,
-                                &g_ble_ll_data.ll_evq,
-                                ble_ll_ctrl_proc_rsp_timer_cb,
-                                connsm);
-
-                /* Re-start timer. Control procedure timeout is 40 seconds */
-                ble_npl_callout_reset(&connsm->ctrl_proc_rsp_timer,
-                                 ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
+                ble_ll_ctrl_start_rsp_timer(connsm);
             }
         }
     }
