@@ -1781,7 +1781,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
     } else {
-        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
+        if (aux_data && (aux_data->flags & BLE_LL_AUX_HAS_ADDRA)) {
             /* Have address in aux_data */
             memcpy(out_evt->addr, aux_data->addr, 6);
             out_evt->addr_type = aux_data->addr_type;
@@ -2290,11 +2290,6 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         return;
     }
 
-    if (!aux_data) {
-        BLE_LL_ASSERT(0);
-        return;
-    }
-
     evt = ble_ll_scan_init_ext_adv(NULL);
     if (!evt) {
         return;
@@ -2331,7 +2326,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
             } else {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
             }
-        } else {
+        } else if (aux_data) {
             if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
