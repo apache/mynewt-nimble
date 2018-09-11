@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+language: go
+
+_addons: &addon_conf
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-multilib
+      - gcc-7-multilib
+
+go:
+  - "1.10"
+
+matrix:
+  include:
+    - os: linux
+      addons: *addon_conf
+      env: 
+        - TEST=BUILD_TARGETS
+    - os: linux
+      addons: *addon_conf
+      env: 
+        - TEST=TEST_ALL
+          # run core tests too, because -e doens't allow to exclude
+          # @apache-mynewt-core in newt 1.4.1
+        - TEST_CMD="newt test all -e net/oic/test,net/ip/mn_socket/test"
+    - os: linux
+      addons: *addon_conf
+      env: 
+        - TEST=BUILD_PORTS
+    - os: osx
+      osx_image: xcode9.2
+      env: 
+        - TEST=BUILD_TARGETS
+    - os: osx
+      osx_image: xcode9.2
+      env: 
+        - TEST=TEST_ALL
+        - TEST_CMD="newt test all -e net/oic/test,net/ip/mn_socket/test"
+    - os: osx
+      osx_image: xcode9.2
+      env: 
+        - TEST=BUILD_PORTS
+
+install:
+- printenv
+- export GOPATH=$HOME/gopath
+- go version
+
+- git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
+- pushd $HOME/ci && git checkout nimble-travis && popd
+- chmod +x $HOME/ci/*.sh
+- $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
+
+- newt version
+- gcc --version
+- arm-none-eabi-gcc --version
+
+script:
+- cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
+- cp -R $HOME/ci/mynewt-nimble-targets targets
+- mkdir -p repos && cd repos/
+- git clone https://github.com/apache/mynewt-core apache-mynewt-core
+- cd ..
+
+- $HOME/ci/run_test.sh
+
+cache:
+  directories:
+  - $HOME/TOOLCHAIN
