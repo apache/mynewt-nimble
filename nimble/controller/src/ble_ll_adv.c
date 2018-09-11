@@ -1112,14 +1112,18 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->aux_data_offset = aux_data_offset;
     aux->aux_data_len = 0;
     aux->payload_len = 0;
+    aux->ext_hdr = 0;
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
     chainable = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE);
 
-    /* Flags and ADI */
-    aux->ext_hdr = (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
-    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE +
-              BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE;
+
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+        /* Flags and ADI */
+        aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
+        hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
 
     /* AdvA for 1st PDU in chain (i.e. AUX_ADV_IND or AUX_SCAN_RSP) */
     if (aux_data_offset == 0) {
