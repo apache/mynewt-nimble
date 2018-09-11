@@ -72,6 +72,12 @@ inc_and_wrap(int i, int max)
 }
 
 static int
+monitor_uart_rx_discard(void *arg, uint8_t ch)
+{
+    return 0;
+}
+
+static int
 monitor_uart_tx_char(void *arg)
 {
     uint8_t ch;
@@ -295,7 +301,7 @@ ble_monitor_init(void)
         .uc_parity = UART_PARITY_NONE,
         .uc_flow_ctl = UART_FLOW_CTL_NONE,
         .uc_tx_char = monitor_uart_tx_char,
-        .uc_rx_char = NULL,
+        .uc_rx_char = monitor_uart_rx_discard,
         .uc_cb_arg = NULL,
     };
 
