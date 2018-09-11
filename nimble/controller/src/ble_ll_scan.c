@@ -2923,6 +2923,10 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
 
         if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
             scansm->cur_phy = i;
+            /* Take own_addr_type from the first configured PHY.
+             * Note: All configured PHYs shall have the same own_addr_type
+             */
+            scansm->own_addr_type = scanphy->own_addr_type;
         } else {
             scansm->next_phy = i;
         }
