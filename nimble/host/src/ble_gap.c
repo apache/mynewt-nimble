@@ -185,6 +185,8 @@ struct ble_gap_snapshot {
     void *cb_arg;
 };
 
+static SLIST_HEAD(ble_gap_hook_list, ble_gap_event_listener) ble_gap_event_listener_list;
+
 static os_membuf_t ble_gap_update_entry_mem[
                         OS_MEMPOOL_SIZE(BLE_GAP_MAX_UPDATE_ENTRIES,
                                         sizeof (struct ble_gap_update_entry))];
@@ -570,6 +572,9 @@ ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg)
  *****************************************************************************/
 
 static int
+ble_gap_event_listener_call(struct ble_gap_event *event);
+
+static int
 ble_gap_call_event_cb(struct ble_gap_event *event,
                       ble_gap_event_fn *cb, void *cb_arg)
 {
@@ -829,6 +834,7 @@ ble_gap_update_notify(uint16_t conn_handle, int status)
     event.conn_update.conn_handle = conn_handle;
     event.conn_update.status = status;
 
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 
     /* Terminate the connection on procedure timeout. */
@@ -1023,6 +1029,8 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
 
     event.type = BLE_GAP_EVENT_DISCONNECT;
     event.disconnect.reason = reason;
+
+    ble_gap_event_listener_call(&event);
     ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
 
 #if MYNEWT_VAL(BLE_MESH)
@@ -1063,6 +1071,8 @@ ble_gap_rx_disconn_complete(struct hci_disconn_complete *evt)
         event.type = BLE_GAP_EVENT_TERM_FAILURE;
         event.term_failure.conn_handle = evt->connection_handle;
         event.term_failure.status = BLE_HS_HCI_ERR(evt->status);
+
+        ble_gap_event_listener_call(&event);
         ble_gap_call_conn_event_cb(&event, evt->connection_handle);
     }
 }
@@ -1439,6 +1449,8 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
     event.type = BLE_GAP_EVENT_CONNECT;
     event.connect.conn_handle = evt->connection_handle;
     event.connect.status = 0;
+
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 
 #if MYNEWT_VAL(BLE_MESH)
@@ -1500,6 +1512,7 @@ ble_gap_rx_phy_update_complete(struct hci_le_phy_upd_complete *evt)
     event.phy_updated.tx_phy = evt->tx_phy;
     event.phy_updated.rx_phy = evt->rx_phy;
 
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
 }
 
@@ -4362,6 +4375,8 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     event.type = BLE_GAP_EVENT_ENC_CHANGE;
     event.enc_change.conn_handle = conn_handle;
     event.enc_change.status = status;
+
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 
     if (status == 0 && security_restored) {
@@ -4487,6 +4502,8 @@ ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
     event.subscribe.cur_notify = !!cur_notify;
     event.subscribe.prev_indicate = !!prev_indicate;
     event.subscribe.cur_indicate = !!cur_indicate;
+
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 
 #if MYNEWT_VAL(BLE_MESH)
@@ -4510,6 +4527,8 @@ ble_gap_mtu_event(uint16_t conn_handle, uint16_t cid, uint16_t mtu)
     event.mtu.conn_handle = conn_handle;
     event.mtu.channel_id = cid;
     event.mtu.value = mtu;
+
+    ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
@@ -4640,6 +4659,76 @@ ble_gap_preempt_done(void)
     }
 }
 
+int
+ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
+                                ble_gap_event_fn *fn, void *arg)
+{
+    struct ble_gap_event_listener *evl = NULL;
+    int rc;
+
+    SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
+        if (evl == listener) {
+            break;
+        }
+    }
+
+    if (!evl) {
+        if (fn) {
+            memset(listener, 0, sizeof(*listener));
+            listener->fn = fn;
+            listener->arg = arg;
+            SLIST_INSERT_HEAD(&ble_gap_event_listener_list, listener, link);
+            rc = 0;
+        } else {
+            rc = BLE_HS_EINVAL;
+        }
+    } else {
+        rc = BLE_HS_EALREADY;
+    }
+
+    return rc;
+}
+
+int
+ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener)
+{
+    struct ble_gap_event_listener *evl = NULL;
+    int rc;
+
+    /*
+     * We check if element exists on the list only for sanity to let caller
+     * know whether it registered its listener before.
+     */
+
+    SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
+        if (evl == listener) {
+            break;
+        }
+    }
+
+    if (!evl) {
+        rc = BLE_HS_ENOENT;
+    } else {
+        SLIST_REMOVE(&ble_gap_event_listener_list, listener,
+                     ble_gap_event_listener, link);
+        rc = 0;
+    }
+
+    return rc;
+}
+
+static int
+ble_gap_event_listener_call(struct ble_gap_event *event)
+{
+    struct ble_gap_event_listener *evl = NULL;
+
+    SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
+        evl->fn(event, evl->arg);
+    }
+
+    return 0;
+}
+
 /*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
@@ -4655,6 +4744,7 @@ ble_gap_init(void)
     ble_npl_mutex_init(&preempt_done_mutex);
 
     SLIST_INIT(&ble_gap_update_entries);
+    SLIST_INIT(&ble_gap_event_listener_list);
 
     rc = os_mempool_init(&ble_gap_update_entry_pool,
                          BLE_GAP_MAX_UPDATE_ENTRIES,

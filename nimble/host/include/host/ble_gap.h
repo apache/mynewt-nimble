@@ -1203,6 +1203,45 @@ int ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask,
 int ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                                 uint8_t rx_phys_mask, uint16_t phy_opts);
 
+/**
+ * Event listener structure
+ *
+ * This should be used as an opaque structure and not modified manually.
+ */
+struct ble_gap_event_listener {
+    ble_gap_event_fn *fn;
+    void *arg;
+    SLIST_ENTRY(ble_gap_event_listener) link;
+};
+
+/**
+ * Registers listener for GAP events
+ *
+ * On success listener structure will be initialized automatically and does not
+ * need to be initialized prior to calling this function. To change callback
+ * and/or argument unregister listener first and register it again.
+ *
+ * @param listener      Listener structure
+ * @param fn            Callback function
+ * @param arg           Callback argument
+ *
+ * @return              0 on success
+ *                      BLE_HS_EINVAL if no callback is specified
+ *                      BLE_HS_EALREADY if listener is already registered
+ */
+int ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
+                                    ble_gap_event_fn *fn, void *arg);
+
+/**
+ * Unregisters listener for GAP events
+ *
+ * @param listener      Listener structure
+ *
+ * @return              0 on success
+ *                      BLE_HS_ENOENT if listener was not registered
+ */
+int ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener);
+
 #if MYNEWT_VAL(BLE_MESH)
 int ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg);
 #endif
