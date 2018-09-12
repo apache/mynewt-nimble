@@ -1109,7 +1109,13 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 
     return 0;
 }
-
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_scan_sched_remove(struct ble_ll_sched_item *sch)
+{
+    ble_ll_scan_aux_data_free(sch->cb_arg);
+}
+#endif
 /**
  * Stop the scanning state machine
  */
@@ -1132,6 +1138,8 @@ ble_ll_scan_sm_stop(int chk_disable)
     OS_ENTER_CRITICAL(sr);
     ble_ll_scan_clean_cur_aux_data();
     OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sched_rmv_elem_type(BLE_LL_SCHED_TYPE_AUX_SCAN, ble_ll_scan_sched_remove);
 #endif
 
     /* Count # of times stopped */
