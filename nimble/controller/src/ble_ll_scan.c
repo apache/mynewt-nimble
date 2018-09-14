@@ -1665,7 +1665,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
-        tmp_aux_data.did = get_le16(ext_hdr + i);
+        tmp_aux_data.adi = get_le16(ext_hdr + i);
         i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
 
@@ -1682,7 +1682,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             *aux_data = scansm->cur_aux_data;
 
             /* TODO Collision; Do smth smart when did does not match */
-            if (tmp_aux_data.did != (*aux_data)->did) {
+            if (tmp_aux_data.adi != (*aux_data)->adi) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
                 (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
@@ -1703,7 +1703,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             scansm->cur_aux_data = NULL;
         }
 
-        (*aux_data)->did = tmp_aux_data.did;
+        (*aux_data)->adi = tmp_aux_data.adi;
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;

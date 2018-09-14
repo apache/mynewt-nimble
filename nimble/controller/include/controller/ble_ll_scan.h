@@ -103,7 +103,7 @@ struct ble_ll_aux_data {
     uint8_t mode;
     uint8_t scanning;
     uint8_t flags;
-    uint16_t did;
+    uint16_t adi;
     uint32_t offset;
     uint8_t offset_units;
     uint8_t addr[6];
