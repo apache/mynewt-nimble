@@ -1684,7 +1684,8 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             *aux_data = scansm->cur_aux_data;
 
             /* TODO Collision; Do smth smart when did does not match */
-            if (tmp_aux_data.adi != (*aux_data)->adi) {
+            if (!((*aux_data)->evt_type & (BLE_HCI_ADV_SCAN_MASK))
+                            && (tmp_aux_data.adi != (*aux_data)->adi)) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
                 (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
