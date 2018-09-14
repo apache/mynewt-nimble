@@ -1628,6 +1628,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
     uint8_t has_addr = 0;
+    uint8_t has_adi = 0;
     int i;
     struct ble_ll_aux_data tmp_aux_data = { 0 };
 
@@ -1667,6 +1668,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
         tmp_aux_data.adi = get_le16(ext_hdr + i);
         i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+        has_adi = 1;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
@@ -1703,7 +1705,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             scansm->cur_aux_data = NULL;
         }
 
-        (*aux_data)->adi = tmp_aux_data.adi;
+        if (has_adi) {
+            (*aux_data)->adi = tmp_aux_data.adi;
+        }
+
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;
