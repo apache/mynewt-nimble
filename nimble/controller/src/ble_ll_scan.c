@@ -2396,7 +2396,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         ble_ll_hci_event_send((uint8_t *)evt);
 
         evt = next_evt;
-    } while (offset < datalen && evt);
+    } while ((offset < datalen) && evt);
 
     BLE_LL_ASSERT(offset <= datalen);
 
