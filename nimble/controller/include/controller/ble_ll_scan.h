@@ -108,6 +108,7 @@ struct ble_ll_aux_data {
     uint8_t offset_units;
     uint8_t addr[6];
     uint8_t addr_type;
+    uint8_t evt_type;
     struct ble_ll_sched_item sch;
     struct ble_ll_ext_adv_report *evt;
 };

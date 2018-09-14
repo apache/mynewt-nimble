@@ -1773,6 +1773,10 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
         return -1;
     }
 
+    if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr)) {
+        out_evt->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
+    }
+
     ext_hdr_len = rxbuf[2] & 0x3F;
     os_mbuf_adj(om, 3);
 
@@ -1842,12 +1846,15 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     out_evt->sec_phy = aux_data->aux_phy;
     out_evt->prim_phy = aux_data->aux_primary_phy;
 
-    if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr)) {
-        out_evt->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
-    }
-
     /* Adjust mbuf to contain advertising data only */
     os_mbuf_adj(om, i);
+
+    /* Let us first keep update event type in aux data.
+     * Note that in aux chain and aux scan response packets
+     * we do miss original event type, which we need for advertising report.
+     */
+    aux_data->evt_type |= out_evt->evt_type;
+    out_evt->evt_type = aux_data->evt_type;
 
 done:
     return pdu_len - i - 1;
