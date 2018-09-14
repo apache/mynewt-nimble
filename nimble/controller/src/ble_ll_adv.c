@@ -394,9 +394,6 @@ static void
 ble_ll_adv_put_aux_ptr(struct ble_ll_adv_sm *advsm, uint32_t offset,
                        uint8_t *dptr)
 {
-    /* in usecs */
-    offset = os_cputime_ticks_to_usecs(offset);
-
     dptr[0] = advsm->adv_secondary_chan;
 
     if (offset > 245700) {
@@ -468,7 +465,7 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
     /* AuxPtr */
     if (AUX_CURRENT(advsm)->sch.enqueued) {
-        offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+        offset = os_cputime_ticks_to_usecs(AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time);
     } else {
         offset = 0;
     }
@@ -547,12 +544,10 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
              */
             offset = 0;
         } else if (advsm->rx_ble_hdr) {
-            offset = advsm->rx_ble_hdr->rem_usecs +
-                     ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS + 30;
-            offset = AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime -
-                     os_cputime_usecs_to_ticks(offset);
+            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime);
+            offset -= (advsm->rx_ble_hdr->rem_usecs + ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS);
         } else {
-            offset = AUX_NEXT(advsm)->start_time - aux->start_time;
+            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
 
         ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
