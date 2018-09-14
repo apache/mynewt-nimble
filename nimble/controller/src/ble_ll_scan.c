@@ -1639,7 +1639,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     tmp_aux_data.mode = rxbuf[2] >> 6;
 
     ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE) {
+    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !scansm->cur_aux_data) {
         return -1;
     }
 
