@@ -1809,6 +1809,8 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
         ble_ll_ext_scan_parse_adv_info(scansm, out_evt, (ext_hdr + i));
         i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    } else if (out_evt->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK) {
+        out_evt->sid = (aux_data->adi >> 12);
     }
 
     /* In this point of time we don't want to care about aux ptr */
