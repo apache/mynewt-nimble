@@ -1119,7 +1119,7 @@ ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu)
 }
 
 /**
- * Called to create and send a LL_START_ENC_REQ or LL_START_ENC_RSP
+ * Called to create and send a LL_START_ENC_REQ
  *
  * @param connsm
  * @param err
@@ -1127,7 +1127,7 @@ ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu)
  * @return int
  */
 int
-ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode)
+ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm)
 {
     int rc;
     struct os_mbuf *om;
@@ -1135,7 +1135,7 @@ ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode)
     om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
                             sizeof(struct ble_mbuf_hdr));
     if (om) {
-        om->om_data[0] = opcode;
+        om->om_data[0] = BLE_LL_CTRL_START_ENC_REQ;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, 1);
         rc = 0;
     } else {

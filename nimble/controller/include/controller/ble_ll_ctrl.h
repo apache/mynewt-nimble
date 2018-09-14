@@ -253,7 +253,7 @@ uint8_t ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm,
                                      struct ble_ll_conn_params *req);
 int ble_ll_ctrl_reject_ind_send(struct ble_ll_conn_sm *connsm,
                                 uint8_t rej_opcode, uint8_t err);
-int ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm, uint8_t opcode);
+int ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu);
 int ble_ll_ctrl_enc_allowed_pdu_tx(struct os_mbuf_pkthdr *pkthdr);
 int ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm);

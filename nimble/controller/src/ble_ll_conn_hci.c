@@ -1362,7 +1362,7 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
     swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 2, 16);
     ble_ll_calc_session_key(connsm);
-    ble_ll_ctrl_start_enc_send(connsm, BLE_LL_CTRL_START_ENC_REQ);
+    ble_ll_ctrl_start_enc_send(connsm);
     rc = BLE_ERR_SUCCESS;
 
 ltk_key_cmd_complete:
