@@ -151,13 +151,13 @@ static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = { 376, 40
 #define BLE_PHY_T_TXENFAST      (XCVR_TX_RADIO_RAMPUP_USECS)
 #define BLE_PHY_T_RXENFAST      (XCVR_RX_RADIO_RAMPUP_USECS)
 /* delay between EVENTS_READY and start of tx */
-static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = { 5, 3, 3, 5 };
+static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = { 5, 4, 3, 5 };
 /* delay between EVENTS_END and end of txd packet */
-static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = { 9, 3, 3, 3 };
+static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = { 9, 4, 3, 3 };
 /* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
-static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = { 17, 7, 3, 17 };
+static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = { 17, 6, 2, 17 };
 /* delay between end of rxd packet and EVENTS_END */
-static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = { 27, 7, 3, 22 };
+static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = { 27, 6, 2, 22 };
 
 /* Statistics */
 STATS_SECT_START(ble_phy_stats)
@@ -646,6 +646,13 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
         end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         /* Wait a bit longer due to allowed active clock accuracy */
         end_time += 2;
+        /*
+         * It's possible that we'll capture PDU start time at the end of timer
+         * cycle and since wfr expires at the beginning of calculated timer
+         * cycle it can be almost 1 usec too early. Let's compensate for this
+         * by waiting 1 usec more.
+         */
+        end_time += 1;
 #if MYNEWT_VAL(BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN) > 0
         if ((phy == BLE_PHY_MODE_CODED_125KBPS) ||
                                     (phy == BLE_PHY_MODE_CODED_500KBPS)) {
