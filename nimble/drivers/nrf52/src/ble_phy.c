@@ -646,6 +646,13 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
         end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         /* Wait a bit longer due to allowed active clock accuracy */
         end_time += 2;
+        /*
+         * It's possible that we'll capture PDU start time at the end of timer
+         * cycle and since wfr expires at the beginning of calculated timer
+         * cycle it can be almost 1 usec too early. Let's compensate for this
+         * by waiting 1 usec more.
+         */
+        end_time += 1;
 #if MYNEWT_VAL(BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN) > 0
         if ((phy == BLE_PHY_MODE_CODED_125KBPS) ||
                                     (phy == BLE_PHY_MODE_CODED_500KBPS)) {
