@@ -201,6 +201,12 @@ static struct ble_hci_sock_state {
     uint8_t rx_data[512];
 } ble_hci_sock_state;
 
+#if MYNEWT_VAL(BLE_SOCK_USE_TCP)
+static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_TCP_PORT));
+#elif MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
+#endif
+
 /**
  * Allocates a buffer (mbuf) for ACL operation.
  *
@@ -454,7 +460,7 @@ ble_hci_sock_config(void)
 
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(MYNEWT_VAL(BLE_SOCK_TCP_PORT));
+    sin.sin_port = htons(s_ble_hci_device);
     sin.sin_addr.s_addr = inet_addr("127.0.0.1");
 #ifdef MN_OSX
     sin.sin_len = sizeof(sin);
@@ -512,7 +518,7 @@ ble_hci_sock_config(void)
 
     memset(&shci, 0, sizeof(shci));
     shci.hci_family = AF_BLUETOOTH;
-    shci.hci_dev = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
+    shci.hci_dev = s_ble_hci_device;
     shci.hci_channel = HCI_CHANNEL_USER;
 
     if (ble_hci_sock_state.sock >= 0) {
@@ -802,6 +808,12 @@ ble_hci_sock_init_task(void)
 
 #endif
 
+}
+
+void
+ble_hci_sock_set_device(int dev)
+{
+    s_ble_hci_device = dev;
 }
 
 /**
