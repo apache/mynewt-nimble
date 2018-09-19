@@ -394,9 +394,6 @@ static void
 ble_ll_adv_put_aux_ptr(struct ble_ll_adv_sm *advsm, uint32_t offset,
                        uint8_t *dptr)
 {
-    /* in usecs */
-    offset = os_cputime_ticks_to_usecs(offset);
-
     dptr[0] = advsm->adv_secondary_chan;
 
     if (offset > 245700) {
@@ -468,7 +465,7 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
     /* AuxPtr */
     if (AUX_CURRENT(advsm)->sch.enqueued) {
-        offset = AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time;
+        offset = os_cputime_ticks_to_usecs(AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time);
     } else {
         offset = 0;
     }
@@ -547,12 +544,10 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
              */
             offset = 0;
         } else if (advsm->rx_ble_hdr) {
-            offset = advsm->rx_ble_hdr->rem_usecs +
-                     ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS + 30;
-            offset = AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime -
-                     os_cputime_usecs_to_ticks(offset);
+            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime);
+            offset -= (advsm->rx_ble_hdr->rem_usecs + ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS);
         } else {
-            offset = AUX_NEXT(advsm)->start_time - aux->start_time;
+            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
 
         ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
@@ -1112,14 +1107,18 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->aux_data_offset = aux_data_offset;
     aux->aux_data_len = 0;
     aux->payload_len = 0;
+    aux->ext_hdr = 0;
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
     chainable = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE);
 
-    /* Flags and ADI */
-    aux->ext_hdr = (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
-    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE +
-              BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE;
+
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
+        /* Flags and ADI */
+        aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
+        hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
 
     /* AdvA for 1st PDU in chain (i.e. AUX_ADV_IND or AUX_SCAN_RSP) */
     if (aux_data_offset == 0) {

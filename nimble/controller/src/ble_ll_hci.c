@@ -321,15 +321,20 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
  * @param txphy Pointer to output tx phy mask
  * @param rxphy Pointer to output rx phy mask
  *
- * @return int BLE_ERR_SUCCESS or BLE_ERR_INV_HCI_CMD_PARMS
+ * @return int BLE_ERR_SUCCESS or BLE_ERR_INV_HCI_CMD_PARMS or BLE_ERR_UNSUPPORTED
  */
 int
 ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy)
 {
-    int rc;
     uint8_t all_phys;
     uint8_t rx_phys;
     uint8_t tx_phys;
+
+    /* Check for RFU */
+    if ((cmdbuf[1] & ~BLE_HCI_LE_PHY_PREF_MASK_ALL) ||
+                    (cmdbuf[2] & ~BLE_HCI_LE_PHY_PREF_MASK_ALL)) {
+        return BLE_ERR_UNSUPPORTED;
+    }
 
     /* Check for valid values */
     all_phys = cmdbuf[0];
@@ -338,29 +343,34 @@ ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy)
 
     if ((!(all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) && (tx_phys == 0)) ||
         (!(all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) && (rx_phys == 0))) {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
-    } else {
-        /* If phy not supported, wipe its bit */
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If phy not supported, return error */
 #if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
-        tx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
-        rx_phys &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+    if((tx_phys & BLE_HCI_LE_PHY_2M_PREF_MASK) ||
+                    (rx_phys & BLE_HCI_LE_PHY_2M_PREF_MASK)) {
+        return BLE_ERR_UNSUPPORTED;
+    }
 #endif
 #if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-        tx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
-        rx_phys &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
-#endif
-        /* Set the default PHY preferences */
-        if (all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) {
-            tx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
-        }
-        *txphy = tx_phys;
-        if (all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) {
-            rx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
-        }
-        *rxphy = rx_phys;
-        rc = BLE_ERR_SUCCESS;
+    if ((tx_phys & BLE_HCI_LE_PHY_CODED_PREF_MASK) ||
+                    (rx_phys & BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
+        return BLE_ERR_UNSUPPORTED;
     }
-    return rc;
+#endif
+    /* Set the default PHY preferences */
+    if (all_phys & BLE_HCI_LE_PHY_NO_TX_PREF_MASK) {
+        tx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
+    }
+    *txphy = tx_phys;
+
+    if (all_phys & BLE_HCI_LE_PHY_NO_RX_PREF_MASK) {
+        rx_phys = BLE_HCI_LE_PHY_PREF_MASK_ALL;
+    }
+    *rxphy = rx_phys;
+
+    return BLE_ERR_SUCCESS;
 }
 
 /**

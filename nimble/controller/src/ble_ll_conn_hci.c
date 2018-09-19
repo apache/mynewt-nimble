@@ -853,7 +853,7 @@ ble_ll_conn_hci_update(uint8_t *cmdbuf)
     /* See if this feature is supported on both sides */
     if ((connsm->conn_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_CMD_DISALLOWED;
+            return BLE_ERR_UNSUPP_REM_FEATURE;
         }
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
@@ -1362,7 +1362,7 @@ ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 
     swap_buf(connsm->enc_data.enc_block.key, cmdbuf + 2, 16);
     ble_ll_calc_session_key(connsm);
-    ble_ll_ctrl_start_enc_send(connsm, BLE_LL_CTRL_START_ENC_REQ);
+    ble_ll_ctrl_start_enc_send(connsm);
     rc = BLE_ERR_SUCCESS;
 
 ltk_key_cmd_complete:

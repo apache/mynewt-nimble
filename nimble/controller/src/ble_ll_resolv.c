@@ -485,10 +485,6 @@ ble_ll_resolve_set_priv_mode(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    if (!ble_ll_resolv_enabled()) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
     /* cmdbuf = addr_type(0) | addr(6) | priv_mode(1) */
     rl = ble_ll_resolv_list_find(&cmdbuf[1], cmdbuf[0]);
     if (!rl) {
