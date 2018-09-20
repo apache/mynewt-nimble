@@ -2453,7 +2453,8 @@ done:
     if (rc != 0) {
         /* Failure. */
         cbrc = ble_gattc_disc_chr_uuid_cb(proc, rc, 0, NULL);
-    } else if (ble_uuid_cmp(&chr.uuid.u, &proc->disc_chr_uuid.chr_uuid.u) == 0) {
+    } else if (ble_uuid_check(&chr.uuid.u) == 0 &&
+               ble_uuid_cmp(&chr.uuid.u, &proc->disc_chr_uuid.chr_uuid.u) == 0) {
         /* Requested characteristic discovered. */
         cbrc = ble_gattc_disc_chr_uuid_cb(proc, 0, 0, &chr);
     } else {
