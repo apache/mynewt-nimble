@@ -32,8 +32,8 @@ static uint8_t ble_uuid_base[16] = {
     0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
-static int verify_uuid(const ble_uuid_t *uuid)
+int
+ble_uuid_check(const ble_uuid_t *uuid)
 {
     switch (uuid->type) {
     case BLE_UUID_TYPE_16:
@@ -48,7 +48,6 @@ static int verify_uuid(const ble_uuid_t *uuid)
 
     return BLE_HS_EBADDATA;
 }
-#endif
 
 int
 ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
@@ -74,8 +73,8 @@ ble_uuid_init_from_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
 int
 ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
 {
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid1) == 0);
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid2) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid1) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid2) == 0);
 
     if (uuid1->type != uuid2->type) {
       return uuid1->type - uuid2->type;
@@ -147,7 +146,7 @@ ble_uuid_to_str(const ble_uuid_t *uuid, char *dst)
 uint16_t
 ble_uuid_u16(const ble_uuid_t *uuid)
 {
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid) == 0);
 
     return uuid->type == BLE_UUID_TYPE_16 ? BLE_UUID16(uuid)->value : 0;
 }
@@ -174,7 +173,7 @@ ble_uuid_init_from_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off,
 int
 ble_uuid_to_any(const ble_uuid_t *uuid, ble_uuid_any_t *uuid_any)
 {
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid) == 0);
 
     uuid_any->u.type = uuid->type;
 
@@ -203,7 +202,7 @@ ble_uuid_to_mbuf(const ble_uuid_t *uuid, struct os_mbuf *om)
     int len;
     void *buf;
 
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid) == 0);
 
     len = ble_uuid_length(uuid);
 
@@ -220,7 +219,7 @@ ble_uuid_to_mbuf(const ble_uuid_t *uuid, struct os_mbuf *om)
 int
 ble_uuid_flat(const ble_uuid_t *uuid, void *dst)
 {
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid) == 0);
 
     switch (uuid->type) {
     case BLE_UUID_TYPE_16:
@@ -243,7 +242,7 @@ ble_uuid_flat(const ble_uuid_t *uuid, void *dst)
 int
 ble_uuid_length(const ble_uuid_t *uuid)
 {
-    BLE_HS_DBG_ASSERT(verify_uuid(uuid) == 0);
+    BLE_HS_DBG_ASSERT(ble_uuid_check(uuid) == 0);
 
     return uuid->type >> 3;
 }

@@ -171,6 +171,15 @@ char *ble_uuid_to_str(const ble_uuid_t *uuid, char *dst);
  */
 uint16_t ble_uuid_u16(const ble_uuid_t *uuid);
 
+/** @brief Checks a UUID object for validity.
+ *
+ * @param uuid      The UUID object to check.
+ *
+ * @return          0 on success;
+ *                  BLE_HS_EBADDATA if the provided UUID object is not valid.
+ */
+int ble_uuid_check(const ble_uuid_t *uuid);
+
 #ifdef __cplusplus
 }
 #endif
