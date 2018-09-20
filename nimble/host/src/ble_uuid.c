@@ -91,7 +91,8 @@ ble_uuid_cmp(const ble_uuid_t *uuid1, const ble_uuid_t *uuid2)
 
     BLE_HS_DBG_ASSERT(0);
 
-    return 0;
+    /* If the UUID type is not recognised, compare as unequal. */
+    return BLE_HS_EBADDATA;
 }
 
 void
