@@ -171,6 +171,12 @@ syscfg.defs:
             for debugging.
         value: 0
 
+    # GAP options.
+    BLE_GAP_MAX_UPDATE_ENTRIES:
+        description: >
+            The maximum number of GAP update entries. (0/1)
+        value: 1
+
     # Supported GATT procedures.  By default:
     #     o Notify and indicate are enabled;
     #     o All other procedures are enabled for centrals.
