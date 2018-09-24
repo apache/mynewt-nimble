@@ -3908,7 +3908,7 @@ chk_rx_terminate_ind:
 
         /* If we received a terminate IND, we must set some flags */
         if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)
-                    && (rx_pyld_len == BLE_LL_CTRL_TERMINATE_IND_LEN)) {
+                    && (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
             connsm->csmflags.cfbit.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxbuf[3];
             reply = 1;
