@@ -186,7 +186,7 @@ struct ble_gap_snapshot {
 static SLIST_HEAD(ble_gap_hook_list, ble_gap_event_listener) ble_gap_event_listener_list;
 
 static os_membuf_t ble_gap_update_entry_mem[
-                        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_GAP_MAX_UPDATE_ENTRIES),
+                        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_GAP_MAX_PENDING_CONN_PARAM_UPDATE),
                                         sizeof (struct ble_gap_update_entry))];
 static struct os_mempool ble_gap_update_entry_pool;
 static struct ble_gap_update_entry_list ble_gap_update_entries;
@@ -4745,7 +4745,7 @@ ble_gap_init(void)
     SLIST_INIT(&ble_gap_event_listener_list);
 
     rc = os_mempool_init(&ble_gap_update_entry_pool,
-                         MYNEWT_VAL(BLE_GAP_MAX_UPDATE_ENTRIES),
+                         MYNEWT_VAL(BLE_GAP_MAX_PENDING_CONN_PARAM_UPDATE),
                          sizeof (struct ble_gap_update_entry),
                          ble_gap_update_entry_mem,
                          "ble_gap_update");
