@@ -236,7 +236,7 @@ ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
             case BLE_STORE_OBJ_TYPE_OUR_SEC:
             case BLE_STORE_OBJ_TYPE_PEER_SEC:
             case BLE_STORE_OBJ_TYPE_CCCD:
-                return ble_store_util_delete_oldest_peer();
+                return ble_gap_unpair_oldest_peer();
 
             default:
                 return BLE_HS_EUNKNOWN;
