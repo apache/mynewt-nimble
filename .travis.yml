@@ -38,9 +38,6 @@ matrix:
       addons: *addon_conf
       env: 
         - TEST=TEST_ALL
-          # run core tests too, because -e doens't allow to exclude
-          # @apache-mynewt-core in newt 1.4.1
-        - TEST_CMD="newt test all -e net/oic/test,net/ip/mn_socket/test"
     - os: linux
       addons: *addon_conf
       env: 
@@ -53,7 +50,6 @@ matrix:
       osx_image: xcode9.2
       env: 
         - TEST=TEST_ALL
-        - TEST_CMD="newt test all -e net/oic/test,net/ip/mn_socket/test"
     - os: osx
       osx_image: xcode9.2
       env: 
@@ -65,7 +61,6 @@ install:
 - go version
 
 - git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
-- pushd $HOME/ci && git checkout nimble-travis && popd
 - chmod +x $HOME/ci/*.sh
 - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
 
