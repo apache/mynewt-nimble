@@ -171,6 +171,14 @@ syscfg.defs:
             for debugging.
         value: 0
 
+    # GAP options.
+    BLE_GAP_MAX_PENDING_CONN_PARAM_UPDATE:
+        description: >
+            Controls the number of connection parameter updates that can be pending
+            simultaneously. Devices with many concurrent connections may need
+            to increase this value.
+        value: 1
+
     # Supported GATT procedures.  By default:
     #     o Notify and indicate are enabled;
     #     o All other procedures are enabled for centrals.
