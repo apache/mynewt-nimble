@@ -1385,6 +1385,8 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 		gen_prov_ack_send(rx->xact_id);
 		return;
 	}
+	
+	u16_t trailing_space = OS_MBUF_TRAILINGSPACE(link.rx.buf);
 
 	link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
 	link.rx.id  = rx->xact_id;
@@ -1399,7 +1401,7 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	if (link.rx.buf->om_len > OS_MBUF_TRAILINGSPACE(link.rx.buf)) {
+	if (link.rx.buf->om_len > trailing_space) {
 		BT_ERR("Too large provisioning PDU (%u bytes)",
 		       link.rx.buf->om_len);
 		close_link(PROV_ERR_NVAL_FMT, CLOSE_REASON_FAILED);
