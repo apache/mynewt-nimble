@@ -1441,7 +1441,8 @@ ble_gattc_disc_all_svcs_rx_adata(struct ble_gattc_proc *proc,
     switch (adata->value_len) {
     case 2:
     case 16:
-        rc = ble_uuid_init_from_buf(&service.uuid, adata->value, adata->value_len);
+        rc = ble_uuid_init_from_att_buf(&service.uuid, adata->value,
+                                        adata->value_len);
         if (rc != 0) {
             rc = BLE_HS_EBADDATA;
             goto done;
@@ -1887,7 +1888,7 @@ ble_gattc_find_inc_svcs_rx_read_rsp(struct ble_gattc_proc *proc, int status,
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    rc = ble_uuid_init_from_mbuf(&service.uuid, *om, 0, 16);
+    rc = ble_uuid_init_from_att_mbuf(&service.uuid, *om, 0, 16);
     os_mbuf_free_chain(*om);
     *om = NULL;
 
@@ -1964,6 +1965,8 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
 
     proc->find_inc_svcs.prev_handle = adata->att_handle;
 
+    rc = 0;
+
     switch (adata->value_len) {
     case BLE_GATTS_INC_SVC_LEN_NO_UUID:
         proc->find_inc_svcs.cur_start = get_le16(adata->value + 0);
@@ -1974,15 +1977,16 @@ ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
     case BLE_GATTS_INC_SVC_LEN_UUID:
         service.start_handle = get_le16(adata->value + 0);
         service.end_handle = get_le16(adata->value + 2);
-        ble_uuid_init_from_buf(&service.uuid, adata->value + 4, 2);
+        rc = ble_uuid_init_from_att_buf(&service.uuid, adata->value + 4, 2);
+        if (rc != 0) {
+            rc = BLE_HS_EBADDATA;
+        }
         break;
 
     default:
         rc = BLE_HS_EBADDATA;
-        goto done;
+        break;
     }
-
-    rc = 0;
 
 done:
     if (call_cb) {
@@ -2195,8 +2199,8 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
     switch (adata->value_len) {
     case BLE_GATT_CHR_DECL_SZ_16:
     case BLE_GATT_CHR_DECL_SZ_128:
-        rc = ble_uuid_init_from_buf(&chr.uuid, adata->value + 3,
-                                    adata->value_len - 3);
+        rc = ble_uuid_init_from_att_buf(&chr.uuid, adata->value + 3,
+                                        adata->value_len - 3);
         if (rc != 0) {
             rc = BLE_HS_EBADDATA;
             goto done;
@@ -2423,8 +2427,8 @@ ble_gattc_disc_chr_uuid_rx_adata(struct ble_gattc_proc *proc,
     switch (adata->value_len) {
     case BLE_GATT_CHR_DECL_SZ_16:
     case BLE_GATT_CHR_DECL_SZ_128:
-        rc = ble_uuid_init_from_buf(&chr.uuid, adata->value + 3,
-                                    adata->value_len - 3);
+        rc = ble_uuid_init_from_att_buf(&chr.uuid, adata->value + 3,
+                                        adata->value_len - 3);
         if (rc != 0) {
             rc = BLE_HS_EBADDATA;
             goto done;

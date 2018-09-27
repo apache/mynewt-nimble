@@ -155,8 +155,8 @@ ble_uuid_u16(const ble_uuid_t *uuid)
 /* APIs below are private (ble_uuid_priv.h) */
 
 int
-ble_uuid_init_from_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off,
-                          int len)
+ble_uuid_init_from_att_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off,
+                            int len)
 {
     uint8_t val[16];
     int rc;
@@ -166,7 +166,25 @@ ble_uuid_init_from_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off,
         return rc;
     }
 
-    rc = ble_uuid_init_from_buf(uuid, val, len);
+    rc = ble_uuid_init_from_att_buf(uuid, val, len);
+
+    return rc;
+}
+
+int
+ble_uuid_init_from_att_buf(ble_uuid_any_t *uuid, const void *buf, size_t len)
+{
+    int rc = 0;
+
+    if (len == 2) {
+        uuid->u.type = BLE_UUID_TYPE_16;
+        uuid->u16.value = get_le16(buf);
+    } else if (len == 16) {
+        uuid->u.type = BLE_UUID_TYPE_128;
+        memcpy(uuid->u128.value, buf, 16);
+    } else {
+        rc = BLE_HS_EINVAL;
+    }
 
     return rc;
 }

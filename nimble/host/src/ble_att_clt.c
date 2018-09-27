@@ -207,14 +207,14 @@ ble_att_clt_parse_find_info_entry(struct os_mbuf **rxom, uint8_t rsp_format,
 
     switch (rsp_format) {
     case BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT:
-        rc = ble_uuid_init_from_mbuf(&idata->uuid, *rxom, 2, 2);
+        rc = ble_uuid_init_from_att_mbuf(&idata->uuid, *rxom, 2, 2);
         if (rc != 0) {
             return BLE_HS_EBADDATA;
         }
         break;
 
     case BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT:
-        rc = ble_uuid_init_from_mbuf(&idata->uuid, *rxom, 2, 16);
+        rc = ble_uuid_init_from_att_mbuf(&idata->uuid, *rxom, 2, 16);
         if (rc != 0) {
             return BLE_HS_EBADDATA;
         }

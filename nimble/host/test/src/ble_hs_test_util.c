@@ -1269,14 +1269,14 @@ ble_hs_test_util_verify_tx_find_info_rsp(
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_16BIT);
 
-            ble_uuid_init_from_mbuf(&uuid, om, off, 2);
+            ble_uuid_init_from_att_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
             off += 2;
         } else {
             TEST_ASSERT(rsp.bafp_format ==
                         BLE_ATT_FIND_INFO_RSP_FORMAT_128BIT);
 
-            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
+            rc = ble_uuid_init_from_att_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
             off += 16;
         }
@@ -1328,10 +1328,10 @@ ble_hs_test_util_verify_tx_read_group_type_rsp(
         off += 2;
 
         if (entry->uuid->type == BLE_UUID_TYPE_16) {
-            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 2);
+            rc = ble_uuid_init_from_att_mbuf(&uuid, om, off, 2);
             TEST_ASSERT(rc == 0);
         } else {
-            rc = ble_uuid_init_from_mbuf(&uuid, om, off, 16);
+            rc = ble_uuid_init_from_att_mbuf(&uuid, om, off, 16);
             TEST_ASSERT(rc == 0);
         }
 
