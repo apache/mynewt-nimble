@@ -26,6 +26,10 @@
 /**
  * Configures the device to advertise iBeacons.
  *
+ * @param adv_fields            The base advertisement fields to transform into
+ *                                  an eddystone beacon.  All configured fields
+ *                                  are preserved; you probably want to clear
+ *                                  this struct before calling this function.
  * @param uuid                  The 128-bit UUID to advertise.
  * @param major                 The major version number to include in
  *                                  iBeacons.
@@ -37,9 +41,8 @@
  *                              Other nonzero on failure.
  */
 int
-ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
+ble_ibeacon_set_adv_data(struct ble_hs_adv_fields *adv_fields, void *uuid128, uint16_t major, uint16_t minor)
 {
-    struct ble_hs_adv_fields fields;
     uint8_t buf[BLE_IBEACON_MFG_DATA_SIZE];
     int8_t tx_pwr;
     int rc;
@@ -67,17 +70,16 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
     }
     buf[24] = tx_pwr;
 
-    memset(&fields, 0, sizeof fields);
-    fields.mfg_data = buf;
-    fields.mfg_data_len = sizeof buf;
+    adv_fields->mfg_data = buf;
+    adv_fields->mfg_data_len = sizeof buf;
 
     /* Advertise two flags:
      *     o Discoverability in forthcoming advertisement (general)
      *     o BLE-only (BR/EDR unsupported).
      */
-    fields.flags = BLE_HS_ADV_F_DISC_GEN |
+    adv_fields->flags = BLE_HS_ADV_F_DISC_GEN |
                    BLE_HS_ADV_F_BREDR_UNSUP;
 
-    rc = ble_gap_adv_set_fields(&fields);
+    rc = ble_gap_adv_set_fields(&adv_fields);
     return rc;
 }
