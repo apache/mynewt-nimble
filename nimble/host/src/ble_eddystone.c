@@ -140,10 +140,9 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields, void *uid)
 int
 ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                uint8_t url_scheme, char *url_body,
-                               uint8_t url_body_len, uint8_t url_suffix)
+                               uint8_t url_body_len, uint8_t url_suffix, int8_t tx_measure_power)
 {
     uint8_t *svc_data;
-    int8_t tx_pwr;
     int url_len;
     int rc;
 
@@ -157,11 +156,9 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
 
     svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_URL);
 
-    rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr);
-    if (rc != 0) {
-        return rc;
-    }
-    svc_data[0] = tx_pwr;
+    /** Last byte (Measured Power) filled in as RSSI  measurement at 1Meter distance . */
+    svc_data[0] = tx_measure_power;
+    
     svc_data[1] = url_scheme;
     memcpy(svc_data + 2, url_body, url_body_len);
     if (url_suffix != BLE_EDDYSTONE_URL_SUFFIX_NONE) {
