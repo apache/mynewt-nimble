@@ -76,6 +76,6 @@ ble_ibeacon_set_adv_data(struct ble_hs_adv_fields *adv_fields, void *uuid128, ui
     adv_fields->flags = BLE_HS_ADV_F_DISC_GEN |
                    BLE_HS_ADV_F_BREDR_UNSUP;
 
-    rc = ble_gap_adv_set_fields(&adv_fields);
+    rc = ble_gap_adv_set_fields(adv_fields);
     return rc;
 }
