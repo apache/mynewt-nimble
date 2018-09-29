@@ -1752,6 +1752,12 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
         return rc;
     }
 
+    int8_t measured_power = parse_arg_uint16("measured_power", &rc);
+    if (rc != 0 && rc != ENOENT) {
+        console_printf("invalid 'measured_power' parameter\n");
+        return rc;
+    }
+
     eddystone_url_full = parse_arg_extract("eddystone_url");
     if (eddystone_url_full != NULL) {
         rc = parse_eddystone_url(eddystone_url_full, &eddystone_url_scheme,
@@ -1765,7 +1771,8 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
         rc = ble_eddystone_set_adv_data_url(&adv_fields, eddystone_url_scheme,
                                             eddystone_url_body,
                                             eddystone_url_body_len,
-                                            eddystone_url_suffix);
+                                            eddystone_url_suffix,
+                                            measured_power);
     } else {
 #if MYNEWT_VAL(BLE_EXT_ADV)
         /* Default to legacy PDUs size, mbuf chain will be increased if needed
