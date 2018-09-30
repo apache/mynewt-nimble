@@ -1752,11 +1752,8 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
         return rc;
     }
 
-    int8_t measured_power;
-    uint8_t measured_power_uint = parse_arg_uint8_dflt("measured_power", 0, rc);
-    if(rc == 0){
-        measured_power = -1 * measured_power_uint;
-    }else if(rc != ENOENT){
+    int8_t measured_power = (int8_t) parse_arg_long_bounds_dflt("measured_power", -100, 0, 0, rc)
+    if(rc != 0 && rc != ENOENT){
         console_printf("invalid 'measured_power' parameter\n");
         return rc;
     }
