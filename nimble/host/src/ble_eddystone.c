@@ -141,7 +141,7 @@ int
 ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                uint8_t url_scheme, char *url_body,
                                uint8_t url_body_len, uint8_t url_suffix,
-                                int8_t measured_power)
+                               int8_t measured_power)
 {
     uint8_t *svc_data;
     int url_len;
