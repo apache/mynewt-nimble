@@ -92,6 +92,7 @@ int ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields,
  *                                  BLE_EDDYSTONE_URL_SUFFIX values; use
  *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
  *                                  is embedded in the body argument.
+ * @param measured_power        The Measured Power (RSSI value at 1 Meter).
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;
@@ -101,7 +102,8 @@ int ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields,
  */
 int ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                    uint8_t url_scheme, char *url_body,
-                                   uint8_t url_body_len, uint8_t suffix);
+                                   uint8_t url_body_len, uint8_t suffix,
+                                   int8_t measured_power);
 
 #ifdef __cplusplus
 }
