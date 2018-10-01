@@ -1511,7 +1511,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
     uint8_t eddystone_url_body_len;
     uint8_t eddystone_url_suffix;
     uint8_t eddystone_url_scheme;
-    int8_t measured_power;
+    int8_t measured_power = 0;
     char eddystone_url_body[BLE_EDDYSTONE_URL_MAX_LEN];
     char *eddystone_url_full;
     int svc_data_uuid16_len;
