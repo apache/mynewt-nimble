@@ -1511,6 +1511,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
     uint8_t eddystone_url_body_len;
     uint8_t eddystone_url_suffix;
     uint8_t eddystone_url_scheme;
+    int8_t measured_power;
     char eddystone_url_body[BLE_EDDYSTONE_URL_MAX_LEN];
     char *eddystone_url_full;
     int svc_data_uuid16_len;
@@ -1752,6 +1753,14 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
         return rc;
     }
 
+    tmp = parse_arg_long_bounds("measured_power", -100, 20, &rc);
+    if (rc == 0) {
+        measured_power = tmp;
+    } else if (rc != ENOENT) {
+        console_printf("invalid 'measured_power' parameter\n");
+        return rc;
+    }
+
     eddystone_url_full = parse_arg_extract("eddystone_url");
     if (eddystone_url_full != NULL) {
         rc = parse_eddystone_url(eddystone_url_full, &eddystone_url_scheme,
@@ -1765,7 +1774,8 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
         rc = ble_eddystone_set_adv_data_url(&adv_fields, eddystone_url_scheme,
                                             eddystone_url_body,
                                             eddystone_url_body_len,
-                                            eddystone_url_suffix);
+                                            eddystone_url_suffix,
+                                            measured_power);
     } else {
 #if MYNEWT_VAL(BLE_EXT_ADV)
         /* Default to legacy PDUs size, mbuf chain will be increased if needed
@@ -1851,6 +1861,7 @@ static const struct shell_param set_adv_data_params[] = {
     {"service_data_uuid128", "usage: =[XX:XX...]"},
     {"uri", "usage: =[XX:XX...]"},
     {"mfg_data", "usage: =[XX:XX...]"},
+    {"measured_power", "usage: =[-100-20]"},
     {"eddystone_url", "usage: =[string]"},
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {"extra_data_len", "usage: =[UINT16]"},
