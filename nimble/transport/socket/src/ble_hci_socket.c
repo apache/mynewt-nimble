@@ -202,7 +202,7 @@ static struct ble_hci_sock_state {
 } ble_hci_sock_state;
 
 #if MYNEWT_VAL(BLE_SOCK_USE_TCP)
-static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_TCP_PORT));
+static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_TCP_PORT);
 #elif MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
 static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
 #endif
