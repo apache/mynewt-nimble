@@ -3251,22 +3251,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         // no break
 #endif
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        /*
-         * If we expect our address to be private and the INITA is not,
-         * we dont respond!
-         */
         inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
         if (!inita_is_rpa) {
-            /*
-             * If we expect our address to be private and the InitA is not,
-             * we dont respond!
-             *
-             * TODO: Probably we could not care for this if privacy is on.
-             * Leave if for now.
-             */
-            if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                goto init_rx_isr_exit;
-            }
 
             /* Resolving will be done later. Check if identity InitA matches */
             if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
@@ -3306,8 +3292,9 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             resolved = 1;
 
             /* Assure privacy */
-            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) && init_addr &&
-                !inita_is_rpa) {
+            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                                        init_addr && !inita_is_rpa &&
+                                        ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
                 goto init_rx_isr_exit;
             }
 
@@ -3345,7 +3332,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
          * is identity address
          */
         if (rl && !inita_is_rpa &&
-           (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+           (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+            ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
             goto init_rx_isr_exit;
         }
 
