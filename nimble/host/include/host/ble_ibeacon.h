@@ -24,7 +24,8 @@
 extern "C" {
 #endif
 
-int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor);
+int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major,
+                             uint16_t minor, int8_t measured_power);
 
 #ifdef __cplusplus
 }

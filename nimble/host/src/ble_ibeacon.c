@@ -31,17 +31,18 @@
  *                                  iBeacons.
  * @param minor                 The minor version number to include in
  *                                  iBeacons.
+ * @param measured_power        The Measured Power (RSSI value at 1 Meter).
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;
  *                              Other nonzero on failure.
  */
 int
-ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
+ble_ibeacon_set_adv_data(void *uuid128, uint16_t major,
+                         uint16_t minor, int8_t measured_power)
 {
     struct ble_hs_adv_fields fields;
     uint8_t buf[BLE_IBEACON_MFG_DATA_SIZE];
-    int8_t tx_pwr;
     int rc;
 
     /** Company identifier (Apple). */
@@ -59,13 +60,11 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major, uint16_t minor)
     put_be16(buf + 20, major);
     put_be16(buf + 22, minor);
 
-    /** Last byte (tx power level) filled in after HCI exchange. */
-
-    rc = ble_hs_hci_util_read_adv_tx_pwr(&tx_pwr);
-    if (rc != 0) {
-        return rc;
+    /* Measured Power ranging data (Calibrated tx power at 1 meters). */
+    if (measured_power < -126 || measured_power > 20) {
+        return BLE_HS_EINVAL;
     }
-    buf[24] = tx_pwr;
+    buf[24] = measured_power;
 
     memset(&fields, 0, sizeof fields);
     fields.mfg_data = buf;
