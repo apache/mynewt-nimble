@@ -66,7 +66,7 @@ struct ble_hs_adv_fields;
  *                                  are preserved; you probably want to clear
  *                                  this struct before calling this function.
  * @param uid                   The 16-byte UID to advertise.
- * @param measured_power        The Measured Power (RSSI value at 1 Meter).
+ * @param measured_power        The Measured Power (RSSI value at 0 Meter).
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;
@@ -93,7 +93,7 @@ int ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields,
  *                                  BLE_EDDYSTONE_URL_SUFFIX values; use
  *                                  BLE_EDDYSTONE_URL_SUFFIX_NONE if the suffix
  *                                  is embedded in the body argument.
- * @param measured_power        The Measured Power (RSSI value at 1 Meter).
+ * @param measured_power        The Measured Power (RSSI value at 0 Meter).
  *
  * @return                      0 on success;
  *                              BLE_HS_EBUSY if advertising is in progress;

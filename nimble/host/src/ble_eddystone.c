@@ -115,7 +115,7 @@ ble_eddystone_set_adv_data_uid(struct ble_hs_adv_fields *adv_fields,
     /* Eddystone UUID and frame type (0). */
     svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_UID);
 
-    /* Measured Power ranging data (Calibrated tx power at 1 meters). */
+    /* Measured Power ranging data (Calibrated tx power at 0 meters). */
     if (measured_power < -100 || measured_power > 20) {
         return BLE_HS_EINVAL;
     }
@@ -156,7 +156,7 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
 
     svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_URL);
 
-    /* Measured Power ranging data (Calibrated tx power at 1 meters). */
+    /* Measured Power ranging data (Calibrated tx power at 0 meters). */
     if (measured_power < -100 || measured_power > 20) {
         return BLE_HS_EINVAL;
     }

@@ -61,7 +61,7 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major,
     put_be16(buf + 22, minor);
 
     /* Measured Power ranging data (Calibrated tx power at 1 meters). */
-    if (measured_power < -100 || measured_power > 20) {
+    if (measured_power < -126 || measured_power > 20) {
         return BLE_HS_EINVAL;
     }
     buf[24] = measured_power;
