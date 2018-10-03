@@ -272,3 +272,14 @@ done:
     ble_hs_unlock();
     return rc;
 }
+
+/**
+ * Clears both the public and random addresses.  This function is necessary
+ * when the controller loses its random address (e.g., on a stack reset).
+ */
+void
+ble_hs_id_reset(void)
+{
+    memset(ble_hs_id_pub, 0, sizeof ble_hs_id_pub);
+    memset(ble_hs_id_rnd, 0, sizeof ble_hs_id_pub);
+}
