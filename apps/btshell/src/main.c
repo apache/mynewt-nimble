@@ -1862,6 +1862,12 @@ btshell_on_reset(int reason)
     console_printf("Error: Resetting state; reason=%d\n", reason);
 }
 
+static void
+btshell_on_sync(void)
+{
+    console_printf("Host and controller synced\n");
+}
+
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 
 static int
@@ -2214,6 +2220,7 @@ main(int argc, char **argv)
 
     /* Initialize the NimBLE host configuration. */
     ble_hs_cfg.reset_cb = btshell_on_reset;
+    ble_hs_cfg.sync_cb = btshell_on_sync;
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 

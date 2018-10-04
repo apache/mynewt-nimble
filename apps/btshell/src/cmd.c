@@ -3155,6 +3155,58 @@ static const struct shell_cmd_help phy_read_help = {
 };
 
 /*****************************************************************************
+ * $host-enable                                                              *
+ *****************************************************************************/
+
+static int
+cmd_host_enable(int argc, char **argv)
+{
+    ble_hs_sched_start();
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_cmd_help host_enable_help = {
+    .summary = "start the NimBLE host",
+    .usage = NULL,
+    .params = NULL,
+};
+#endif
+
+/*****************************************************************************
+ * $host-disable                                                              *
+ *****************************************************************************/
+
+static void
+on_stop(int status, void *arg)
+{
+    if (status == 0) {
+        console_printf("host stopped\n");
+    } else {
+        console_printf("host failed to stop; rc=%d\n", status);
+    }
+}
+
+static int
+cmd_host_disable(int argc, char **argv)
+{
+    static struct ble_hs_stop_listener listener;
+    int rc;
+
+    rc = ble_hs_stop(&listener, on_stop, NULL);
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_cmd_help host_disable_help = {
+    .summary = "stop the NimBLE host",
+    .usage = NULL,
+    .params = NULL,
+};
+#endif
+
+/*****************************************************************************
  * $gatt-discover                                                            *
  *****************************************************************************/
 
@@ -3854,6 +3906,20 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_phy_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &phy_read_help,
+#endif
+    },
+    {
+        .sc_cmd = "host-enable",
+        .sc_cmd_func = cmd_host_enable,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &host_enable_help,
+#endif
+    },
+    {
+        .sc_cmd = "host-disable",
+        .sc_cmd_func = cmd_host_disable,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &host_disable_help,
 #endif
     },
     { NULL, NULL, NULL },
