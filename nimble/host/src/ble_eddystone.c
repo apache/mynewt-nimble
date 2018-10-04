@@ -29,6 +29,7 @@
 
 #define BLE_EDDYSTONE_FRAME_TYPE_UID    0x00
 #define BLE_EDDYSTONE_FRAME_TYPE_URL    0x10
+#define BLE_EDDYSTONE_FRAME_TYPE_TLM_UNENCRYPTED    0x20
 
 static ble_uuid16_t ble_eddystone_uuids16[BLE_EDDYSTONE_MAX_UUIDS16 + 1];
 static uint8_t ble_eddystone_svc_data[BLE_EDDYSTONE_MAX_SVC_DATA_LEN];
@@ -169,6 +170,47 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
     }
 
     rc = ble_eddystone_set_adv_data_gen(adv_fields, url_len + 2);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+int
+ble_eddystone_set_adv_data_tlm_unencrypted(struct ble_hs_adv_fields *adv_fields,
+                               uint16_t battery_voltage, float temperature,
+                               uint32_t adv_pdu_count, uint32_t time_since_power_up)
+{
+    uint8_t *svc_data;
+    uint8_t temp_data[4];
+    int tmp;
+    int rc;
+
+    svc_data = ble_eddystone_set_svc_data_base(BLE_EDDYSTONE_FRAME_TYPE_TLM_UNENCRYPTED);
+
+    /* First byte is TLM Version - 00 for Unencrypted. */
+    svc_data[0] = 00;
+
+    /* Second paramter is Battery Voltage in mV. */
+    put_be16(temp_data, battery_voltage);
+    memcpy(svc_data + 1, temp_data, 2);
+
+    /* Third paramter is Temperature (8.8 Fixed Point Notation). */
+    tmp = (256.0 * temperature);
+    svc_data[4] = tmp & 0xff;
+    tmp >>= 8;
+    svc_data[3] = tmp & 0xff;
+
+    /* Fourth paramter is Advertising PDU Count (Total number of PDU sent for TLM). */
+    put_be32(temp_data, adv_pdu_count);
+    memcpy(svc_data + 5, temp_data, 4);
+
+    /* Fifth paramter is Alive Time (Total number of 0.1 Seconds since the device booted / rebooted). */
+    put_be32(temp_data, time_since_power_up);
+    memcpy(svc_data + 9, temp_data, 4);
+
+    rc = ble_eddystone_set_adv_data_gen(adv_fields, 13);
     if (rc != 0) {
         return rc;
     }
