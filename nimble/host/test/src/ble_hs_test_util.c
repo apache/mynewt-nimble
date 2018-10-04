@@ -1991,10 +1991,8 @@ ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
 
 
 void
-ble_hs_test_util_init_no_start(void)
+ble_hs_test_util_init_no_sysinit_no_start(void)
 {
-    sysinit();
-
     STAILQ_INIT(&ble_hs_test_util_prev_tx_queue);
     ble_hs_test_util_prev_tx_cur = NULL;
 
@@ -2004,6 +2002,8 @@ ble_hs_test_util_init_no_start(void)
                          ble_hs_test_util_pkt_txed, NULL);
 
     ble_hs_test_util_hci_ack_set_startup();
+
+    ble_hs_enabled_state = BLE_HS_ENABLED_STATE_OFF;
 
     ble_hs_max_services = 16;
     ble_hs_max_client_configs = 32;
@@ -2016,6 +2016,13 @@ ble_hs_test_util_init_no_start(void)
     ble_hs_cfg.store_delete_cb = ble_hs_test_util_store_delete;
 
     ble_store_clear();
+}
+
+void
+ble_hs_test_util_init_no_start(void)
+{
+    sysinit();
+    ble_hs_test_util_init_no_sysinit_no_start();
 }
 
 void

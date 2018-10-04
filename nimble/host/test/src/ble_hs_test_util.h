@@ -275,6 +275,7 @@ void ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
                                ble_gatt_register_fn *reg_cb,
                                void *cb_arg);
 void ble_hs_test_util_init_no_start(void);
+void ble_hs_test_util_init_no_sysinit_no_start(void);
 void ble_hs_test_util_init(void);
 
 #ifdef __cplusplus

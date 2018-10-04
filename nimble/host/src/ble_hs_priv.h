@@ -60,6 +60,10 @@ struct os_event;
 #define BLE_HS_SYNC_STATE_BRINGUP       1
 #define BLE_HS_SYNC_STATE_GOOD          2
 
+#define BLE_HS_ENABLED_STATE_OFF        0
+#define BLE_HS_ENABLED_STATE_STOPPING   1
+#define BLE_HS_ENABLED_STATE_ON         2
+
 #if NIMBLE_BLE_CONNECT
 #define BLE_HS_MAX_CONNECTIONS MYNEWT_VAL(BLE_MAX_CONNECTIONS)
 #else
@@ -90,6 +94,7 @@ extern STATS_SECT_DECL(ble_hs_stats) ble_hs_stats;
 
 extern struct os_mbuf_pool ble_hs_mbuf_pool;
 extern uint8_t ble_hs_sync_state;
+extern uint8_t ble_hs_enabled_state;
 
 extern const uint8_t ble_hs_misc_null_addr[6];
 
@@ -125,6 +130,7 @@ void ble_hs_hw_error(uint8_t hw_code);
 void ble_hs_timer_resched(void);
 void ble_hs_notifications_sched(void);
 struct ble_npl_eventq *ble_hs_evq_get(void);
+void ble_hs_stop_init(void);
 
 struct ble_mqueue {
     STAILQ_HEAD(, os_mbuf_pkthdr) head;
