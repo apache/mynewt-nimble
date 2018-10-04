@@ -422,5 +422,12 @@ syscfg.defs:
             a necessary workaround when interfacing with some controllers.
         value: 0
 
+    BLE_HS_STOP_ON_SHUTDOWN:
+        description: >
+            Stops the Bluetooth host when the system shuts down.  Stopping
+            entails aborting all GAP procedures and terminating open
+            connections.
+        value: 1
+
 syscfg.vals.BLE_MESH:
     BLE_SM_SC: 1
