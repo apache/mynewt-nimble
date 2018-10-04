@@ -64,6 +64,7 @@ NIMBLE_SRC := \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_misc.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_pvcy.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_startup.c \
+	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_stop.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_ibeacon.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_l2cap.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_l2cap_coc.c \

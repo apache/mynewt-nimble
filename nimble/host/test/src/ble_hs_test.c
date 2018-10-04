@@ -53,6 +53,7 @@ main(int argc, char **argv)
     ble_l2cap_test_all();
     ble_os_test_all();
     ble_sm_test_all();
+    ble_stop_test_all();
     ble_store_test_all();
     ble_uuid_test_all();
 

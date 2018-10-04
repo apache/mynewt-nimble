@@ -38,6 +38,7 @@
 #include "host/ble_hs_log.h"
 #include "host/ble_hs_test.h"
 #include "host/ble_hs_mbuf.h"
+#include "host/ble_hs_stop.h"
 #include "host/ble_ibeacon.h"
 #include "host/ble_l2cap.h"
 #include "host/ble_sm.h"
@@ -93,6 +94,7 @@ extern "C" {
 #define BLE_HS_ESTORE_CAP           27
 #define BLE_HS_ESTORE_FAIL          28
 #define BLE_HS_EPREEMPTED           29
+#define BLE_HS_EDISABLED            30
 
 /** Error base for ATT errors */
 #define BLE_HS_ERR_ATT_BASE         0x100
@@ -288,11 +290,20 @@ extern struct ble_hs_cfg ble_hs_cfg;
  */
 
 /**
+ * @brief Indicates whether the host is enabled.  The host is enabled if it is
+ * starting or fully started.  It is disabled if it is stopping or stopped.
+ *
+ * @return 1 if the host is enabled;
+ *         0 if the host is disabled.
+ */
+int ble_hs_enabled(void);
+
+/**
  * Indicates whether the host has synchronized with the controller.
  * Synchronization must occur before any host procedures can be performed.
  *
  * @return 1 if the host and controller are in sync;
- *         0 if the host and controller our out of sync.
+ *         0 if the host and controller are out of sync.
  */
 int ble_hs_synced(void);
 

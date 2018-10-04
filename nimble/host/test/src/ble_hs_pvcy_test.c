@@ -136,6 +136,7 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
         ble_hs_pvcy_test_util_add_irk_set_acks(false, false);
     }
 
+    ble_hs_enabled_state = BLE_HS_ENABLED_STATE_OFF;
     rc = ble_hs_start();
     TEST_ASSERT_FATAL(rc == 0);
 
