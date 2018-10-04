@@ -364,6 +364,17 @@ void ble_hs_evq_set(struct ble_npl_eventq *evq);
  */
 void ble_hs_init(void);
 
+/**
+ * @brief Called when the system is shutting down.  Stops the BLE host.
+ *
+ * @param reason                The reason for the shutdown.  One of the
+ *                                  HAL_RESET_[...] codes or an
+ *                                  implementation-defined value.
+ *
+ * @return                      SYSDOWN_IN_PROGRESS. 
+ */
+int ble_hs_shutdown(int reason);
+
 #ifdef __cplusplus
 }
 #endif

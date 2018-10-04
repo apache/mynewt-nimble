@@ -50,3 +50,6 @@ pkg.req_apis:
 
 pkg.init:
     ble_hs_init: 200
+
+pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
+    ble_hs_shutdown: 200
