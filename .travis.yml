@@ -60,7 +60,7 @@ install:
 - export GOPATH=$HOME/gopath
 - go version
 
-- git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
+- git clone -b testing https://github.com/utzig/mynewt-travis-ci $HOME/ci
 - chmod +x $HOME/ci/*.sh
 - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
 
