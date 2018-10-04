@@ -1741,7 +1741,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
  *
  */
 int
-ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
+ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
+                          uint8_t *adva, uint8_t adva_type,
+                          uint8_t *inita, uint8_t inita_type,
+                          struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_ext_adv_report *out_evt)
 {
     uint8_t pdu_len;
@@ -1786,24 +1789,22 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
 
     i = 0;
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
-        memcpy(out_evt->addr, ext_hdr + i, BLE_LL_EXT_ADV_ADVA_SIZE);
-        out_evt->addr_type =
-                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
-    } else {
-        if (aux_data && (aux_data->flags & BLE_LL_AUX_HAS_ADDRA)) {
-            /* Have address in aux_data */
-            memcpy(out_evt->addr, aux_data->addr, 6);
-            out_evt->addr_type = aux_data->addr_type;
-        }
+    }
+
+    if (adva) {
+        memcpy(out_evt->addr, adva, 6);
+        out_evt->addr_type = adva_type;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
-        memcpy(out_evt->dir_addr, ext_hdr + i, BLE_LL_EXT_ADV_ADVA_SIZE);
-        out_evt->dir_addr_type =
-                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
-        out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
+    }
+
+    if (inita) {
+       memcpy(out_evt->dir_addr, inita, 6);
+       out_evt->dir_addr_type = inita_type;
+       out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
@@ -2302,7 +2303,9 @@ ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
  *          1 on success (data status is not "completed")
  */
 static int
-ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
+ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
+                               uint8_t *inita, uint8_t inita_type,
+                               struct os_mbuf *om,
                                struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
@@ -2331,7 +2334,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         }
     }
 
-    datalen = ble_ll_scan_parse_ext_hdr(om, hdr, evt);
+    datalen = ble_ll_scan_parse_ext_hdr(om, adva, adva_type, inita, inita_type, hdr, evt);
     if (datalen < 0) {
         /* XXX what should we do here? send some trimmed event? */
         ble_hci_trans_buf_free((uint8_t *)evt);
@@ -2566,7 +2569,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
-        rc = ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
+        rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
+                                            init_addr, init_addr_type, om, hdr);
         if (rc < 0) {
             /*
              * Data were trimmed so no need to scan this chain anymore. Also
