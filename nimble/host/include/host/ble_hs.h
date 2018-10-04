@@ -301,7 +301,9 @@ int ble_hs_synced(void);
  * commands.  This function must be called before any other host functionality
  * is used, but it must be called after both the host and controller are
  * initialized.  Typically, the host-parent-task calls this function at the top
- * of its task routine.
+ * of its task routine.  This function must only be called in the host parent
+ * task.  A safe alternative for starting the stack from any task is to call
+ * `ble_hs_sched_start()`.
  *
  * If the host fails to synchronize with the controller (if the controller is
  * not fully booted, for example), the host will attempt to resynchronize every
@@ -319,7 +321,9 @@ int ble_hs_start(void);
  * configure the host package in the meantime.
  *
  * If auto-start is disabled, the application should use this function to start
- * the BLE stack.
+ * the BLE stack.  This function can be called at any time as long as the host
+ * is stopped.  When the host successfully starts, the application is notified
+ * via the ble_hs_cfg.sync_cb callback.
  */
 void ble_hs_sched_start(void);
 
