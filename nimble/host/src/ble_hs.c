@@ -38,7 +38,8 @@
 static void ble_hs_event_rx_hci_ev(struct ble_npl_event *ev);
 static void ble_hs_event_tx_notify(struct ble_npl_event *ev);
 static void ble_hs_event_reset(struct ble_npl_event *ev);
-static void ble_hs_event_start(struct ble_npl_event *ev);
+static void ble_hs_event_start_stage1(struct ble_npl_event *ev);
+static void ble_hs_event_start_stage2(struct ble_npl_event *ev);
 static void ble_hs_timer_sched(int32_t ticks_from_now);
 
 struct os_mempool ble_hs_hci_ev_pool;
@@ -52,7 +53,8 @@ static struct ble_npl_event ble_hs_ev_tx_notifications;
 /** OS event - triggers a full reset. */
 static struct ble_npl_event ble_hs_ev_reset;
 
-static struct ble_npl_event ble_hs_ev_start;
+static struct ble_npl_event ble_hs_ev_start_stage1;
+static struct ble_npl_event ble_hs_ev_start_stage2;
 
 uint8_t ble_hs_sync_state;
 static int ble_hs_reset_reason;
@@ -455,15 +457,22 @@ ble_hs_timer_resched(void)
      */
     ble_hs_timer_reset(0);
 }
- 
+
+static void
+ble_hs_sched_start_stage2(void)
+{
+    ble_npl_eventq_put((struct ble_npl_eventq *)ble_hs_evq_get(),
+                       &ble_hs_ev_start_stage2);
+}
+
 void
 ble_hs_sched_start(void)
 {
 #ifdef MYNEWT
     ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
-                       &ble_hs_ev_start);
+                       &ble_hs_ev_start_stage1);
 #else
-    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start);
+    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start_stage1);
 #endif
 }
 
@@ -504,8 +513,30 @@ ble_hs_event_reset(struct ble_npl_event *ev)
     ble_hs_reset();
 }
 
+/**
+ * Implements the first half of the start process.  This just enqueues another
+ * event on the host parent task's event queue.
+ *
+ * Starting is done in two stages to allow the application time to configure
+ * the event queue to use after system initialization but before the host
+ * starts.
+ */
 static void
-ble_hs_event_start(struct ble_npl_event *ev)
+ble_hs_event_start_stage1(struct ble_npl_event *ev)
+{
+    ble_hs_sched_start_stage2();
+}
+
+/**
+ * Implements the second half of the start process.  This actually starts the
+ * host.
+ *
+ * Starting is done in two stages to allow the application time to configure
+ * the event queue to use after system initialization but before the host
+ * starts.
+ */
+static void
+ble_hs_event_start_stage2(struct ble_npl_event *ev)
 {
     int rc;
 
@@ -651,9 +682,13 @@ ble_hs_init(void)
      */
     ble_hs_reset_reason = 0;
 
-    ble_npl_event_init(&ble_hs_ev_tx_notifications, ble_hs_event_tx_notify, NULL);
+    ble_npl_event_init(&ble_hs_ev_tx_notifications, ble_hs_event_tx_notify,
+                       NULL);
     ble_npl_event_init(&ble_hs_ev_reset, ble_hs_event_reset, NULL);
-    ble_npl_event_init(&ble_hs_ev_start, ble_hs_event_start, NULL);
+    ble_npl_event_init(&ble_hs_ev_start_stage1, ble_hs_event_start_stage1,
+                       NULL);
+    ble_npl_event_init(&ble_hs_ev_start_stage2, ble_hs_event_start_stage2,
+                       NULL);
 
 #if BLE_MONITOR
     rc = ble_monitor_init();
@@ -712,9 +747,9 @@ ble_hs_init(void)
 #if MYNEWT_VAL(BLE_HS_AUTO_START)
 #ifdef MYNEWT
     ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
-                       &ble_hs_ev_start);
+                       &ble_hs_ev_start_stage1);
 #else
-    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start);
+    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start_stage1);
 #endif
 #endif
 
