@@ -461,14 +461,17 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
     switch (opcode) {
     case BLE_LL_CTRL_LENGTH_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_DATA_LEN_UPD;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_DATA_LEN_EXT);
         break;
     case BLE_LL_CTRL_CONN_UPDATE_IND:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_FEATURE_XCHG;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_SLAVE_INIT);
         break;
     case BLE_LL_CTRL_CONN_PARM_REQ:
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_CONN_PARM_REQ);
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
             connsm->reject_reason = BLE_ERR_SUCCESS;
@@ -483,6 +486,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
          * support LE Ping feature.
          */
         ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_LE_PING);
         break;
 #if (BLE_LL_BT5_PHY_SUPPORTED ==1)
     case BLE_LL_CTRL_PHY_REQ:

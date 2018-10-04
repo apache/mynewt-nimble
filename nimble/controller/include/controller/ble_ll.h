@@ -229,6 +229,15 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_FEAT_LE_POWER_CLASS_1 (0x00008000)
 #define BLE_LL_FEAT_MIN_USED_CHAN    (0x00010000)
 
+/* This is initial mask, so if feature exchange will not happen,
+ * but host will want to use this procedure, we will try. If not
+ * succeed, feature bit will be cleared.
+ * Look at LL Features above to find out what is allowed
+ */
+#define BLE_LL_CONN_INITIAL_FEATURES    (0x00000002)
+
+#define BLE_LL_CONN_CLEAR_FEATURE(connsm, feature)   (connsm->conn_features &= ~(feature))
+
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
 #define BLE_LL_MAFS                 (300)       /* usecs */
