@@ -17,7 +17,7 @@
 #define BT_MESH_ADV_DATA_SIZE 31
 
 /* The user data is a pointer (4 bytes) to struct bt_mesh_adv */
-#define BT_MESH_ADV_USER_DATA_SIZE 4
+#define BT_MESH_ADV_USER_DATA_SIZE (sizeof(struct bt_mesh_adv *))
 
 #define BT_MESH_MBUF_HEADER_SIZE (sizeof(struct os_mbuf_pkthdr) + \
                                     BT_MESH_ADV_USER_DATA_SIZE +\

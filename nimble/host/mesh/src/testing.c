@@ -157,7 +157,11 @@ void bt_test_print_credentials(void)
 
 int bt_test_shell_init(void)
 {
-	return cmd_mesh_init(0, NULL);
+    int err = 0;
+#if MYNEWT_VAL(BLE_MESH_SHELL)
+	err = cmd_mesh_init(0, NULL);
+#endif
+    return err;
 }
 
 int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, u16_t key_idx, u16_t id)

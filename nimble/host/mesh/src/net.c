@@ -857,8 +857,8 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	int err;
 
 	BT_DBG("src 0x%04x dst 0x%04x len %u headroom %zu tailroom %zu",
-	       tx->src, tx->ctx->addr, buf->om_len, net_buf_headroom(buf),
-	       net_buf_tailroom(buf));
+	       tx->src, tx->ctx->addr, buf->om_len, (size_t)net_buf_headroom(buf),
+		   (size_t)net_buf_tailroom(buf));
 	BT_DBG("Payload len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 	BT_DBG("Seq 0x%06x", bt_mesh.seq);
 
