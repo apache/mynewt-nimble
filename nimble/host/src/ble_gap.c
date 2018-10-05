@@ -2363,7 +2363,7 @@ ble_gap_ext_adv_params_validate(const struct ble_gap_ext_adv_params *params)
     }
 
     if (params->directed) {
-        if (params->scannable) {
+        if (params->scannable && params->connectable) {
             return BLE_HS_EINVAL;
         }
     }
@@ -2783,7 +2783,7 @@ ble_gap_ext_adv_rsp_set_validate(uint8_t instance,  struct os_mbuf *data)
     }
 
     /* not allowed with directed advertising */
-    if (ble_gap_slave[instance].directed) {
+    if (ble_gap_slave[instance].directed && ble_gap_slave[instance].connectable) {
         return BLE_HS_EINVAL;
     }
 
