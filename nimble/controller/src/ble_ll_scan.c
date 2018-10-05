@@ -1628,6 +1628,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
     uint8_t has_addr = 0;
+    uint8_t has_dir_addr = 0;
     uint8_t has_adi = 0;
     int i;
     struct ble_ll_aux_data tmp_aux_data = { 0 };
@@ -1658,6 +1659,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+        memcpy(tmp_aux_data.dir_addr, ext_hdr + i, 6);
+               tmp_aux_data.dir_addr_type =
+                        ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
+               has_dir_addr = 1;
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
 
@@ -1717,6 +1722,11 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             memcpy((*aux_data)->addr, tmp_aux_data.addr, 6);
             (*aux_data)->addr_type = tmp_aux_data.addr_type;
             (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
+        }
+        if (has_dir_addr) {
+            memcpy((*aux_data)->dir_addr, tmp_aux_data.dir_addr, 6);
+            (*aux_data)->dir_addr_type = tmp_aux_data.dir_addr_type;
+            (*aux_data)->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
         }
         return 0;
     }
@@ -1924,6 +1934,18 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *inita_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        if (aux_data) {
+            /* Lets copy addr to aux_data. Need it for e.g. chaining */
+            memcpy(aux_data->dir_addr, *inita, 6);
+            aux_data->dir_addr_type = *inita_type;
+            aux_data->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+        }
+    } else {
+        /* We should have address already in aux_data */
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
+            *inita = aux_data->dir_addr;
+            *inita_type = aux_data->dir_addr_type;
+        }
     }
 
     return 0;
