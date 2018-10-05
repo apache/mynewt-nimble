@@ -126,7 +126,6 @@ struct ble_gap_master_state {
 
         struct {
             uint8_t limited:1;
-            uint8_t extended:1;
         } disc;
     };
 };
@@ -203,7 +202,7 @@ ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
 static int ble_gap_adv_enable_tx(int enable);
 static int ble_gap_conn_cancel_tx(void);
 
-#if NIMBLE_BLE_SCAN
+#if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
 #endif
 
@@ -264,7 +263,7 @@ ble_gap_dbg_update_active(uint16_t conn_handle)
  * $log                                                                      *
  *****************************************************************************/
 
-#if NIMBLE_BLE_SCAN
+#if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_duration(int32_t duration_ms)
 {
@@ -276,6 +275,7 @@ ble_gap_log_duration(int32_t duration_ms)
 }
 #endif
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                  const struct ble_gap_conn_params *params)
@@ -292,8 +292,9 @@ ble_gap_log_conn(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                params->itvl_max, params->latency, params->supervision_timeout,
                params->min_ce_len, params->max_ce_len, own_addr_type);
 }
+#endif
 
-#if NIMBLE_BLE_SCAN
+#if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params)
@@ -760,13 +761,6 @@ ble_gap_master_connect_cancelled(void)
     }
 }
 
-
-static int
-ble_gap_is_extended_disc(void)
-{
-    return ble_gap_master.disc.extended;
-}
-
 static void
 ble_gap_disc_report(void *desc)
 {
@@ -774,17 +768,13 @@ ble_gap_disc_report(void *desc)
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
-    if (ble_gap_is_extended_disc()) {
 #if MYNEWT_VAL(BLE_EXT_ADV)
-        event.type = BLE_GAP_EVENT_EXT_DISC;
-        event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
+    event.type = BLE_GAP_EVENT_EXT_DISC;
+    event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
 #else
-        assert(0);
+    event.type = BLE_GAP_EVENT_DISC;
+    event.disc = *((struct ble_gap_disc_desc *)desc);
 #endif
-    } else {
-        event.type = BLE_GAP_EVENT_DISC;
-        event.disc = *((struct ble_gap_disc_desc *)desc);
-    }
 
     ble_gap_master_extract_state(&state, 0);
     if (ble_gap_has_client(&state)) {
@@ -1548,7 +1538,7 @@ ble_gap_master_timer(void)
         break;
 
     case BLE_GAP_OP_M_DISC:
-#if NIMBLE_BLE_SCAN
+#if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
         /* When a discovery procedure times out, it is not a failure. */
         rc = ble_gap_disc_enable_tx(0, 0);
         if (rc != 0) {
@@ -2958,6 +2948,7 @@ ble_gap_ext_disc_enable_tx(uint8_t enable, uint8_t filter_duplicates,
 #endif
 
 #if NIMBLE_BLE_SCAN
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 static int
 ble_gap_disc_enable_tx(int enable, int filter_duplicates)
 {
@@ -3009,25 +3000,16 @@ ble_gap_disc_tx_params(uint8_t own_addr_type,
 
     return 0;
 }
+#endif
 
 static int
 ble_gap_disc_disable_tx(void)
 {
-
-    int rc;
-
-    if (!ble_gap_is_extended_disc()) {
-        rc = ble_gap_disc_enable_tx(0, 0);
-    } else {
 #if MYNEWT_VAL(BLE_EXT_ADV)
-        rc = ble_gap_ext_disc_enable_tx(0, 0, 0, 0);
+    return ble_gap_ext_disc_enable_tx(0, 0, 0, 0);
 #else
-        assert(0);
-        rc = BLE_HS_EUNKNOWN;
+    return ble_gap_disc_enable_tx(0, 0);
 #endif
-    }
-
-    return rc;
 }
 
 static int
@@ -3195,7 +3177,6 @@ ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
     }
 
     ble_gap_master.disc.limited = limited;
-    ble_gap_master.disc.extended = 1;
     ble_gap_master.cb = cb;
     ble_gap_master.cb_arg = cb_arg;
 
@@ -3226,7 +3207,7 @@ done:
 #endif
 }
 
-#if NIMBLE_BLE_SCAN
+#if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_disc_fill_dflts(struct ble_gap_disc_params *disc_params)
 {
@@ -3268,6 +3249,18 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
     return BLE_HS_ENOTSUP;
 #else
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    struct ble_gap_ext_disc_params p = {0};
+
+    p.itvl = disc_params->itvl;
+    p.passive = disc_params->passive;
+    p.window = disc_params->window;
+
+    return ble_gap_ext_disc(own_addr_type, duration_ms/10, 0,
+                          disc_params->filter_duplicates,
+                          disc_params->filter_policy, disc_params->limited,
+                          &p, NULL, cb, cb_arg);
+#else
     struct ble_gap_disc_params params;
     uint32_t duration_ticks = 0;
     int rc;
@@ -3309,7 +3302,6 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
 
     ble_gap_master.disc.limited = params.limited;
     ble_gap_master.cb = cb;
-    ble_gap_master.disc.extended = 0;
     ble_gap_master.cb_arg = cb_arg;
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: discovery; ");
@@ -3343,6 +3335,7 @@ done:
     }
     return rc;
 #endif
+#endif
 }
 
 int
@@ -3352,6 +3345,7 @@ ble_gap_disc_active(void)
     return ble_gap_master.op == BLE_GAP_OP_M_DISC;
 }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 /*****************************************************************************
  * $connection establishment procedures                                      *
  *****************************************************************************/
@@ -3403,6 +3397,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
     return 0;
 }
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static void
@@ -3659,7 +3654,12 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     return BLE_HS_ENOTSUP;
 #endif
 
-    uint32_t duration_ticks = 0;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    return ble_gap_ext_connect(own_addr_type, peer_addr, duration_ms,
+                               BLE_GAP_LE_PHY_1M_MASK,
+                               conn_params, NULL, NULL, cb, cb_arg);
+#else
+    uint32_t duration_ticks;
     int rc;
 
     STATS_INC(ble_gap_stats, initiate);
@@ -3757,6 +3757,7 @@ done:
         STATS_INC(ble_gap_stats, initiate_fail);
     }
     return rc;
+#endif
 }
 
 int
