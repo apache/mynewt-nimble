@@ -1584,7 +1584,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
     /* Only a slave should receive this */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-        return BLE_ERR_MAX;
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     /* Retrieve parameters */
@@ -1848,24 +1848,28 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  * @param connsm
  * @param dptr
  */
-static void
+static int
 ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     uint16_t instant;
     uint16_t conn_events;
 
-    /* If instant is in the past, we have to end the connection */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
-        conn_events = (instant - connsm->event_cntr) & 0xFFFF;
-        if (conn_events >= 32767) {
-            ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
-        } else {
-            connsm->chanmap_instant = instant;
-            memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
-            connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
-        }
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
+
+    /* If instant is in the past, we have to end the connection */
+    instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
+    conn_events = (instant - connsm->event_cntr) & 0xFFFF;
+    if (conn_events >= 32767) {
+        ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
+    } else {
+        connsm->chanmap_instant = instant;
+        memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
+        connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+    }
+
+    return BLE_ERR_MAX;
 }
 
 /**
@@ -2267,7 +2271,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr);
         break;
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
-        ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
+        rsp_opcode = ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
         break;
     case BLE_LL_CTRL_LENGTH_REQ:
         /* Extract parameters and check if valid */
