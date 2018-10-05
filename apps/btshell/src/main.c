@@ -1849,9 +1849,14 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
                 return 0;
             }
 
-            console_printf("LE COC connected, conn: %d, chan: 0x%08lx\n",
+            console_printf("LE COC connected, conn: %d, chan: 0x%08lx, scid: 0x%04x, "
+                           "dcid: 0x%04x, our_mtu: 0x%04x, peer_mtu: 0x%04x\n",
                            event->connect.conn_handle,
-                           (uint32_t) event->connect.chan);
+                           (uint32_t) event->connect.chan,
+                           ble_l2cap_get_scid(event->connect.chan),
+                           ble_l2cap_get_dcid(event->connect.chan),
+                           ble_l2cap_get_our_mtu(event->connect.chan),
+                           ble_l2cap_get_peer_mtu(event->connect.chan));
 
             btshell_l2cap_coc_add(event->connect.conn_handle,
                                   event->connect.chan);
