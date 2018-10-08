@@ -4341,6 +4341,58 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
     return rc;
 }
 
+int
+ble_gap_unpair(const ble_addr_t *peer_addr)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    if (ble_addr_cmp(peer_addr, BLE_ADDR_ANY) == 0) {
+        return BLE_HS_EINVAL;
+    }
+
+    conn = ble_hs_conn_find_by_addr(peer_addr);
+    if (conn != NULL) {
+        rc = ble_gap_terminate(conn->bhc_handle, BLE_ERR_REM_USER_CONN_TERM);
+        if ((rc != BLE_HS_EALREADY) && (rc != BLE_HS_ENOTCONN)) {
+            return rc;
+        }
+    }
+
+    rc = ble_hs_pvcy_remove_entry(peer_addr->type,
+                                  peer_addr->val);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_store_util_delete_peer(peer_addr);
+}
+
+int
+ble_gap_unpair_oldest_peer(void)
+{
+    ble_addr_t oldest_peer_id_addr;
+    int num_peers;
+    int rc;
+
+    rc = ble_store_util_bonded_peers(
+            &oldest_peer_id_addr, &num_peers, 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (num_peers == 0) {
+        return 0;
+    }
+
+    rc = ble_gap_unpair(&oldest_peer_id_addr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
 void
 ble_gap_passkey_event(uint16_t conn_handle,
                       struct ble_gap_passkey_params *passkey_params)

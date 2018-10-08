@@ -2636,6 +2636,59 @@ static const struct shell_cmd_help security_pair_help = {
 #endif
 
 /*****************************************************************************
+ * $security-unpair                                                            *
+ *****************************************************************************/
+
+static int
+cmd_security_unpair(int argc, char **argv)
+{
+    ble_addr_t peer;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = parse_arg_mac("peer_addr", peer.val);
+    if (rc == 0) {
+
+        peer.type = parse_arg_kv_dflt("peer_addr_type",
+                                      cmd_peer_addr_types,
+                                      BLE_ADDR_PUBLIC, &rc);
+        if (rc != 0) {
+            console_printf("invalid 'peer_addr_type' parameter\n");
+            return rc;
+        }
+    } else {
+        console_printf("invalid 'peer_addr' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_unpair(&peer);
+    if (rc != 0) {
+        console_printf("error unpairing; rc=%d\n", rc);
+        return rc;
+    }
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param security_unpair_params[] = {
+    {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
+    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help security_unpair_help = {
+    .summary = "unpair a peer device",
+    .usage = NULL,
+    .params = security_unpair_params,
+};
+#endif
+
+/*****************************************************************************
  * $security-start                                                           *
  *****************************************************************************/
 
@@ -3728,6 +3781,13 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_security_pair,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &security_pair_help,
+#endif
+    },
+    {
+        .sc_cmd = "security-unpair",
+        .sc_cmd_func = cmd_security_unpair,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &security_unpair_help,
 #endif
     },
     {

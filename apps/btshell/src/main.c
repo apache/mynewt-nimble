@@ -1626,6 +1626,19 @@ btshell_sec_pair(uint16_t conn_handle)
 }
 
 int
+btshell_sec_unpair(ble_addr_t *peer_addr)
+{
+#if !NIMBLE_BLE_SM
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+
+    rc = ble_gap_unpair(peer_addr);
+    return rc;
+}
+
+int
 btshell_sec_start(uint16_t conn_handle)
 {
 #if !NIMBLE_BLE_SM

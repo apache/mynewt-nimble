@@ -1181,6 +1181,34 @@ int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
  */
 int ble_gap_conn_rssi(uint16_t conn_handle, int8_t *out_rssi);
 
+/**
+ * Unpairs a device with the specified address. The keys related to that peer
+ * device are removed from storage and peer address is removed from the resolve
+ * list from the controller. If a peer is connected, the connection is terminated.
+ *
+ * @param peer_addr             Address of the device to be unpaired
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
+int ble_gap_unpair(const ble_addr_t *peer_addr);
+
+/**
+ * Unpairs the oldest bonded peer device. The keys related to that peer
+ * device are removed from storage and peer address is removed from the resolve
+ * list from the controller. If a peer is connected, the connection is terminated.
+ *
+ * @return                      0 on success;
+ *                              A BLE host HCI return code if the controller
+ *                                  rejected the request;
+ *                              A BLE host core return code on unexpected
+ *                                  error.
+ */
+int ble_gap_unpair_oldest_peer(void);
+
 #define BLE_GAP_PRIVATE_MODE_NETWORK        0
 #define BLE_GAP_PRIVATE_MODE_DEVICE         1
 int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
