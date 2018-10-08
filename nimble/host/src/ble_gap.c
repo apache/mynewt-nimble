@@ -1817,12 +1817,6 @@ ble_gap_adv_stop_no_lock(void)
 
     STATS_INC(ble_gap_stats, adv_stop);
 
-    /* Do nothing if advertising is already disabled. */
-    if (!ble_gap_adv_active()) {
-        rc = BLE_HS_EALREADY;
-        goto done;
-    }
-
     BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising.\n");
 
     rc = ble_gap_adv_enable_tx(0);

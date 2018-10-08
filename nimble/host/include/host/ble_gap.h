@@ -790,6 +790,18 @@ int ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
  * code indicates that advertising has been fully aborted and a new advertising
  * procedure can be initiated immediately.
  *
+ * NOTE: If the caller is running in the same task as the NimBLE host, or if it
+ * is running in a higher priority task than that of the host, care must be
+ * taken when restarting advertising.  Under these conditions, the following is
+ * *not* a reliable method to restart advertising:
+ *     ble_gap_adv_stop()
+ *     ble_gap_adv_start()
+ *
+ * Instead, the call to `ble_gap_adv_start()` must be made in a separate event
+ * context.  That is, `ble_gap_adv_start()` must be called asynchronously by
+ * enqueueing an event on the current task's event queue.  See
+ * https://github.com/apache/mynewt-nimble/pull/211 for more information.
+ *
  * @return  0 on success, BLE_HS_EALREADY if there is no active advertising
  *          procedure, other error code on failure.
  */
