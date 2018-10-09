@@ -610,7 +610,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t addr_type, uint8_t *addr,
                                       uint8_t rssi,
                                       uint8_t adv_data_len, struct os_mbuf *adv_data,
-                                      uint8_t *inita)
+                                      uint8_t *inita, uint8_t inita_type)
 {
     struct ble_ll_ext_adv_report *evt;
 
@@ -657,7 +657,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
 
     if (inita) {
         /* TODO Really ?? */
-        evt->dir_addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+        evt->dir_addr_type = inita_type;
         memcpy(evt->dir_addr, inita, BLE_DEV_ADDR_LEN);
         evt->event_len += BLE_DEV_ADDR_LEN  + 1;
     } else if (adv_data_len <= (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
@@ -677,7 +677,7 @@ static int
 ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
                            uint8_t addr_type, uint8_t *addr, uint8_t rssi,
                            uint8_t adv_data_len, struct os_mbuf *adv_data,
-                           uint8_t *inita)
+                           uint8_t *inita, uint8_t inita_type)
 {
     uint8_t *evbuf;
     uint8_t *tmp;
@@ -708,7 +708,7 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
     tmp = &evbuf[12];
     if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
         BLE_LL_ASSERT(inita);
-        tmp[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+        tmp[0] = inita_type;
         memcpy(tmp + 1, inita, BLE_DEV_ADDR_LEN);
         tmp += BLE_DEV_ADDR_LEN + 1;
     } else if (subev == BLE_HCI_LE_SUBEV_ADV_RPT) {
@@ -796,20 +796,20 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
                                                    adva_type, adva,
                                                    hdr->rxinfo.rssi,
                                                    adv_data_len, om,
-                                                   inita);
+                                                   inita, inita_type);
     } else {
         rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                         adva_type, adva,
                                         hdr->rxinfo.rssi,
                                         adv_data_len, om,
-                                        inita);
+                                        inita, inita_type);
     }
 #else
     rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                     adva_type, adva,
                                     hdr->rxinfo.rssi,
                                     adv_data_len, om,
-                                    inita);
+                                    inita, inita_type);
 #endif
     if (!rc) {
         /* If filtering, add it to list of duplicate addresses */
