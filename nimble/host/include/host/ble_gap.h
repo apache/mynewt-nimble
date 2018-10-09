@@ -737,6 +737,22 @@ typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
 int ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc);
 
 /**
+ * Searches for a connection with a peer with the specified address.
+ * If a matching connection is found, the supplied connection descriptor
+ * is filled correspondingly.
+ *
+ * @param addr      The ble address of a connected peer device to search for.
+ * @param out_desc  On success, this is populated with information relating to
+ *                  the matching connection.  Pass NULL if you don't need this
+ *                  information.
+ *
+ * @return          0 on success, BLE_HS_ENOTCONN if no matching connection was
+ *                  found.
+ */
+int ble_gap_conn_find_by_addr(const ble_addr_t *addr,
+                              struct ble_gap_conn_desc *out_desc);
+
+/**
  * Configures a connection to use the specified GAP event callback.  A
  * connection's GAP event callback is first specified when the connection is
  * created, either via advertising or initiation.  This function replaces the
