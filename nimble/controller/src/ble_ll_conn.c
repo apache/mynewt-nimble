@@ -2188,6 +2188,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         ble_ll_ctrl_terminate_start(connsm);
     }
 
+    if (CONN_F_TERMINATE_STARTED(connsm) && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)) {
+        /* Some of the devices waits whole connection interval to ACK our
+         * TERMINATE_IND sent as a Slave. Since we are here it means we are still waiting for ACK.
+         * Make sure we catch it in next connection event.
+         */
+        connsm->slave_latency = 0;
+    }
+
     /*
      * XXX: TODO Probably want to add checks to see if we need to start
      * a control procedure here as an instant may have prevented us from
