@@ -555,6 +555,11 @@ ble_hs_start(void)
 
     ble_hs_parent_task = ble_npl_get_current_task_id();
 
+    /* Stop the timer just in case the host was already running (e.g., unit
+     * tests).
+     */
+    ble_npl_callout_stop(&ble_hs_timer_timer);
+
     ble_npl_callout_init(&ble_hs_timer_timer, ble_hs_evq,
                     ble_hs_timer_exp, NULL);
 

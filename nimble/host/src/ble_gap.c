@@ -1811,11 +1811,14 @@ ble_gap_adv_stop_no_lock(void)
     return BLE_HS_ENOTSUP;
 #endif
 
+    bool active;
     int rc;
 
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
     STATS_INC(ble_gap_stats, adv_stop);
+
+    active = ble_gap_adv_active();
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: stop advertising.\n");
 
@@ -1826,7 +1829,11 @@ ble_gap_adv_stop_no_lock(void)
 
     ble_gap_slave_reset_state(0);
 
-    rc = 0;
+    if (!active) {
+        rc = BLE_HS_EALREADY;
+    } else {
+        rc = 0;
+    }
 
 done:
     if (rc != 0) {
@@ -2567,15 +2574,14 @@ ble_gap_ext_adv_stop_no_lock(uint8_t instance)
     uint8_t buf[6];
     struct hci_ext_adv_set set;
     uint16_t opcode;
+    bool active;
     int rc;
 
     if (!ble_gap_slave[instance].configured) {
         return BLE_HS_EINVAL;
     }
 
-    if (ble_gap_slave[instance].op != BLE_GAP_OP_S_ADV) {
-        return BLE_HS_EALREADY;
-    }
+    active = ble_gap_adv_active_instance(instance);
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE);
 
@@ -2595,7 +2601,11 @@ ble_gap_ext_adv_stop_no_lock(uint8_t instance)
 
     ble_gap_slave[instance].op = BLE_GAP_OP_NULL;
 
-    return 0;
+    if (!active) {
+        return BLE_HS_EALREADY;
+    } else {
+        return 0;
+    }
 }
 
 int
