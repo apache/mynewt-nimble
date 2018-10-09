@@ -619,16 +619,20 @@ ble_hs_test_util_set_our_irk(const uint8_t *irk, int fail_idx,
             ble_hs_test_util_hci_misc_exp_status(2, fail_idx, hci_status),
         },
         {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE),
             ble_hs_test_util_hci_misc_exp_status(3, fail_idx, hci_status),
         },
         {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
             ble_hs_test_util_hci_misc_exp_status(4, fail_idx, hci_status),
         },
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
-            ble_hs_test_util_hci_misc_exp_status(4, fail_idx, hci_status),
+            ble_hs_test_util_hci_misc_exp_status(5, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            ble_hs_test_util_hci_misc_exp_status(6, fail_idx, hci_status),
         },
         {
             0
@@ -1984,6 +1988,7 @@ ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
     rc = ble_gatts_start();
     TEST_ASSERT_FATAL(rc == 0);
 }
+
 
 void
 ble_hs_test_util_init_no_start(void)

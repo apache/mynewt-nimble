@@ -1344,6 +1344,10 @@ ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
     uint8_t param_len;
     uint8_t *param;
 
+    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
+                                   BLE_HCI_OCF_LE_SET_ADV_ENABLE,
+                                   NULL);
+
     param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
                                            &param_len);
@@ -2038,8 +2042,12 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params,
         ble_hs_test_util_hci_ack_set_seq(((struct ble_hs_test_util_hci_ack[]) {
             {
                 .opcode = ble_hs_hci_util_opcode_join(
+                                BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE),
+            },
+            {
+                .opcode = ble_hs_hci_util_opcode_join(
                                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
-            } ,
+            },
             {
                 .opcode = ble_hs_hci_util_opcode_join(
                                 BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE),

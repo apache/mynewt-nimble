@@ -93,8 +93,23 @@ ble_hs_pvcy_test_util_all_gap_procs(int adv_status,
 }
 
 static void
-ble_hs_pvcy_test_util_add_irk_set_acks(void)
+ble_hs_pvcy_test_util_add_irk_set_acks(bool scanning, bool connecting)
 {
+    ble_hs_test_util_hci_ack_append(
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE), 0);
+
+    if (connecting) {
+        ble_hs_test_util_hci_ack_append(
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
+            0);
+    }
+
+    if (scanning) {
+        ble_hs_test_util_hci_ack_append(
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
+            0);
+    }
+
     ble_hs_test_util_hci_ack_append(
         BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
     ble_hs_test_util_hci_ack_append(
@@ -118,7 +133,7 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
     ble_hs_test_util_hci_ack_set_startup();
 
     for (i = 0; i < num_expected_irks; i++) {
-        ble_hs_pvcy_test_util_add_irk_set_acks();
+        ble_hs_pvcy_test_util_add_irk_set_acks(false, false);
     }
 
     rc = ble_hs_start();
@@ -131,8 +146,26 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
 static void
 ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
                                         const uint8_t *peer_irk,
-                                        const uint8_t *local_irk)
+                                        const uint8_t *local_irk,
+                                        bool scanning,
+                                        bool connecting)
 {
+    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
+                                   BLE_HCI_OCF_LE_SET_ADV_ENABLE,
+                                   NULL);
+
+    if (connecting) {
+        ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
+                                       BLE_HCI_OCF_LE_CREATE_CONN_CANCEL,
+                                       NULL);
+    }
+
+    if (scanning) {
+        ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
+                                       BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
+                                       NULL);
+    }
+
     ble_hs_test_util_hci_verify_tx_add_irk(peer_addr->type,
                                            peer_addr->val,
                                            peer_irk,
@@ -146,21 +179,32 @@ ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
 static void
 ble_hs_pvcy_test_util_add_irk(const ble_addr_t *peer_addr,
                               const uint8_t *peer_irk,
-                              const uint8_t *local_irk)
+                              const uint8_t *local_irk,
+                              bool scanning,
+                              bool connecting)
 {
+    int num_acks;
     int rc;
 
-    ble_hs_pvcy_test_util_add_irk_set_acks();
+    ble_hs_pvcy_test_util_add_irk_set_acks(scanning, connecting);
 
     rc = ble_hs_pvcy_add_entry(peer_addr->val, peer_addr->type, peer_irk);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_out_adj(-2);
-    ble_hs_pvcy_test_util_add_irk_verify_tx(peer_addr, peer_irk, local_irk);
+    num_acks = 3;
+    if (scanning) {
+        num_acks++;
+    }
+    if (connecting) {
+        num_acks++;
+    }
+    ble_hs_test_util_hci_out_adj(-num_acks);
+    ble_hs_pvcy_test_util_add_irk_verify_tx(peer_addr, peer_irk, local_irk,
+                                            scanning, connecting);
 }
 
 static void
-ble_hs_pvcy_test_util_add_arbitrary_irk(void)
+ble_hs_pvcy_test_util_add_arbitrary_irk(bool scanning, bool connecting)
 {
     ble_addr_t peer_addr;
 
@@ -171,22 +215,28 @@ ble_hs_pvcy_test_util_add_arbitrary_irk(void)
     ble_hs_pvcy_test_util_add_irk(
         &peer_addr,
         (uint8_t[16]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
-        ble_hs_pvcy_default_irk);
+        ble_hs_pvcy_default_irk,
+        scanning,
+        connecting);
 }
 
 static void
-ble_hs_pvcy_test_util_restore_irk(const struct ble_store_value_sec *value_sec)
+ble_hs_pvcy_test_util_restore_irk(const struct ble_store_value_sec *value_sec,
+                                  bool scanning,
+                                  bool connecting)
 {
     int rc;
 
-    ble_hs_pvcy_test_util_add_irk_set_acks();
+    ble_hs_pvcy_test_util_add_irk_set_acks(scanning, connecting);
 
     rc = ble_store_write_peer_sec(value_sec);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec->peer_addr,
                                             value_sec->irk,
-                                            ble_hs_pvcy_default_irk);
+                                            ble_hs_pvcy_default_irk,
+                                            scanning,
+                                            connecting);
 }
 
 TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
@@ -210,13 +260,14 @@ TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
         .irk = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 },
         .irk_present = 1,
     };
-    ble_hs_pvcy_test_util_restore_irk(&value_sec1);
+    ble_hs_pvcy_test_util_restore_irk(&value_sec1, false, false);
 
     /* Ensure it gets added to list on startup. */
     ble_hs_pvcy_test_util_start_host(1);
     ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr,
                                             value_sec1.irk,
-                                            ble_hs_pvcy_default_irk);
+                                            ble_hs_pvcy_default_irk,
+                                            false, false);
 
     /* Two persisted IRKs. */
     value_sec2 = (struct ble_store_value_sec) {
@@ -227,16 +278,18 @@ TEST_CASE(ble_hs_pvcy_test_case_restore_irks)
         .irk = { 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 9, 9, 9, 9, 9, 10 },
         .irk_present = 1,
     };
-    ble_hs_pvcy_test_util_restore_irk(&value_sec2);
+    ble_hs_pvcy_test_util_restore_irk(&value_sec2, false, false);
 
     /* Ensure both get added to list on startup. */
     ble_hs_pvcy_test_util_start_host(2);
     ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr,
                                             value_sec1.irk,
-                                            ble_hs_pvcy_default_irk);
+                                            ble_hs_pvcy_default_irk,
+                                            false, false);
     ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec2.peer_addr,
                                             value_sec2.irk,
-                                            ble_hs_pvcy_default_irk);
+                                            ble_hs_pvcy_default_irk,
+                                            false, false);
 }
 
 /** No active GAP procedures. */
@@ -244,7 +297,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_idle)
 {
     ble_hs_pvcy_test_util_init();
 
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(false, false);
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 0);
 }
 
@@ -263,10 +316,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_adv)
                                     NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_ack_set(
-        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE),
-        0);
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(false, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
     TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
@@ -293,10 +343,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_disc)
                                NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_ack_set(
-        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-        0);
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(true, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
     TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
@@ -323,10 +370,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_conn)
                                   ble_hs_pvcy_test_util_gap_event, NULL, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_ack_set(
-        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
-        0);
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(false, true);
 
     /* Cancel is now in progress. */
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 0);
@@ -372,13 +416,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_adv_disc)
                                NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_ack_set_seq((struct ble_hs_test_util_hci_ack[]) {
-        { BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE), 0 },
-        { BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE), 0 },
-        { 0 },
-    });
-
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(true, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 2);
     TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
@@ -417,13 +455,7 @@ TEST_CASE(ble_hs_pvcy_test_case_add_irk_adv_conn)
                                   ble_hs_pvcy_test_util_gap_event, NULL, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_hci_ack_set_seq((struct ble_hs_test_util_hci_ack[]) {
-        { BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE), 0 },
-        { BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN_CANCEL), 0 },
-        { 0 },
-    });
-
-    ble_hs_pvcy_test_util_add_arbitrary_irk();
+    ble_hs_pvcy_test_util_add_arbitrary_irk(false, true);
 
     /* Cancel is now in progress. */
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);

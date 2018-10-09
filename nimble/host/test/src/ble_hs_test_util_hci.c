@@ -290,6 +290,10 @@ static const struct ble_hs_test_util_hci_ack hci_startup_seq[] = {
     },
     {
         .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
             BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
     },
     {
@@ -398,6 +402,7 @@ ble_hs_test_util_hci_verify_tx_add_irk(uint8_t addr_type,
 {
     uint8_t param_len;
     uint8_t *param;
+
 
     param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                            BLE_HCI_OCF_LE_ADD_RESOLV_LIST,
