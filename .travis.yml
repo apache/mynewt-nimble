@@ -28,54 +28,102 @@ _addons: &addon_conf
 go:
   - "1.10"
 
+git:
+  depth: false
+
 matrix:
   include:
+    # newt build <targets>
     - os: linux
       addons: *addon_conf
-      env: 
+      env:
         - TEST=BUILD_TARGETS
+        - VM_AMOUNT=4
+        - TARGET_SET=1
     - os: linux
       addons: *addon_conf
-      env: 
-        - TEST=TEST_ALL
-    - os: linux
-      addons: *addon_conf
-      env: 
-        - TEST=BUILD_PORTS
-    - os: osx
-      osx_image: xcode9.2
-      env: 
+      env:
         - TEST=BUILD_TARGETS
-    - os: osx
-      osx_image: xcode9.2
-      env: 
+        - VM_AMOUNT=4
+        - TARGET_SET=2
+    - os: linux
+      addons: *addon_conf
+      env:
+        - TEST=BUILD_TARGETS
+        - VM_AMOUNT=4
+        - TARGET_SET=3
+    - os: linux
+      addons: *addon_conf
+      env:
+        - TEST=BUILD_TARGETS
+        - VM_AMOUNT=4
+        - TARGET_SET=4
+
+    # newt test all (Linux)
+    - os: linux
+      addons: *addon_conf
+      env:
         - TEST=TEST_ALL
+        - VM_AMOUNT=2
+        - TARGET_SET=1
+    - os: linux
+      addons: *addon_conf
+      env:
+        - TEST=TEST_ALL
+        - VM_AMOUNT=2
+        - TARGET_SET=2
+
+    # ports
+    - os: linux
+      addons: *addon_conf
+      env:
+        - TEST=BUILD_PORTS
+        - VM_AMOUNT=1
+        - TARGET_SET=1
+
+    # newt test all
     - os: osx
       osx_image: xcode9.2
-      env: 
-        - TEST=BUILD_PORTS
+      env:
+        - TEST=TEST_ALL
+        - VM_AMOUNT=3
+        - TARGET_SET=1
+    - os: osx
+      osx_image: xcode9.2
+      env:
+        - TEST=TEST_ALL
+        - VM_AMOUNT=3
+        - TARGET_SET=2
+    - os: osx
+      osx_image: xcode9.2
+      env:
+        - TEST=TEST_ALL
+        - VM_AMOUNT=3
+        - TARGET_SET=3
+
+before_install:
+  - printenv
+  - export GOPATH=$HOME/gopath
+  - go version
 
 install:
-- printenv
-- export GOPATH=$HOME/gopath
-- go version
+  - git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
+  - chmod +x $HOME/ci/*.sh
+  - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
 
-- git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
-- chmod +x $HOME/ci/*.sh
-- $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
-
-- newt version
-- gcc --version
-- if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
+before_script:
+  - newt version
+  - gcc --version
+  - if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
+  - cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
+  - cp -R $HOME/ci/mynewt-nimble-targets targets
+  - $HOME/ci/prepare_test.sh $VM_AMOUNT
+  - mkdir -p repos && pushd repos/
+  - git clone https://github.com/apache/mynewt-core apache-mynewt-core
+  - popd
 
 script:
-- cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
-- cp -R $HOME/ci/mynewt-nimble-targets targets
-- mkdir -p repos && cd repos/
-- git clone https://github.com/apache/mynewt-core apache-mynewt-core
-- cd ..
-
-- $HOME/ci/run_test.sh
+  - $HOME/ci/run_test.sh
 
 cache:
   directories:
