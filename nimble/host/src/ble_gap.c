@@ -436,6 +436,28 @@ ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc)
     }
 }
 
+int
+ble_gap_conn_find_by_addr(const ble_addr_t *addr,
+                          struct ble_gap_conn_desc *out_desc)
+{
+	struct ble_hs_conn *conn;
+
+	ble_hs_lock();
+
+	conn = ble_hs_conn_find_by_addr(addr);
+	if (conn != NULL && out_desc != NULL) {
+		ble_gap_fill_conn_desc(conn, out_desc);
+	}
+
+	ble_hs_unlock();
+
+	if (conn == NULL) {
+		return BLE_HS_ENOTCONN;
+	}
+
+	return 0;
+}
+
 static int
 ble_gap_extract_conn_cb(uint16_t conn_handle,
                         ble_gap_event_fn **out_cb, void **out_cb_arg)
