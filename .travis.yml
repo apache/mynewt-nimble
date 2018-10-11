@@ -73,6 +73,7 @@ matrix:
         - VM_AMOUNT=2
         - TARGET_SET=2
 
+    # ports
     - os: linux
       addons: *addon_conf
       env:
@@ -80,11 +81,7 @@ matrix:
         - VM_AMOUNT=1
         - TARGET_SET=1
 
-    #- os: osx
-    #  osx_image: xcode9.2
-    #  env:
-    #    - TEST=BUILD_TARGETS
-
+    # newt test all
     - os: osx
       osx_image: xcode9.2
       env:
@@ -103,11 +100,6 @@ matrix:
         - TEST=TEST_ALL
         - VM_AMOUNT=3
         - TARGET_SET=3
-
-    #- os: osx
-    #  osx_image: xcode9.2
-    #  env:
-    #    - TEST=BUILD_PORTS
 
 before_install:
   - printenv
