@@ -3591,7 +3591,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
              *
              * Reference: Core 5.0, Vol 6, Part B, 5.1.3.1
              */
-            if ((connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) &&
+            if ((connsm->enc_data.enc_state > CONN_ENC_S_PAUSE_ENC_RSP_WAIT) &&
                     !ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
                 ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
                 goto conn_rx_data_pdu_end;
