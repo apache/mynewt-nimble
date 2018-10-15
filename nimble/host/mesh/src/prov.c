@@ -788,6 +788,8 @@ static void send_input_complete(void)
 
 	prov_buf_init(buf, PROV_INPUT_COMPLETE);
 	prov_send(buf);
+
+	os_mbuf_free_chain(buf);
 }
 
 int bt_mesh_input_number(u32_t num)

@@ -725,7 +725,7 @@ static void beacon_set(struct bt_mesh_model *model,
 		}
 	} else {
 		BT_WARN("Invalid Config Beacon value 0x%02x", buf->om_data[0]);
-		return;
+		goto done;
 	}
 
 	bt_mesh_model_msg_init(msg, OP_BEACON_STATUS);
@@ -735,6 +735,7 @@ static void beacon_set(struct bt_mesh_model *model,
 		BT_ERR("Unable to send Config Beacon Status response");
 	}
 
+done:
 	os_mbuf_free_chain(msg);
 
 }
@@ -1698,7 +1699,7 @@ static void mod_sub_get(struct bt_mesh_model *model,
 	addr = net_buf_simple_pull_le16(buf);
 	if (!BT_MESH_ADDR_IS_UNICAST(addr)) {
 		BT_WARN("Prohibited element address");
-		return;
+		goto done;
 	}
 
 	id = net_buf_simple_pull_le16(buf);
@@ -1739,6 +1740,7 @@ send_list:
 		BT_ERR("Unable to send Model Subscription List");
 	}
 
+done:
 	os_mbuf_free_chain(msg);
 
 }
@@ -1758,7 +1760,7 @@ static void mod_sub_get_vnd(struct bt_mesh_model *model,
 	addr = net_buf_simple_pull_le16(buf);
 	if (!BT_MESH_ADDR_IS_UNICAST(addr)) {
 		BT_WARN("Prohibited element address");
-		return;
+		goto done;
 	}
 
 	company = net_buf_simple_pull_le16(buf);
@@ -1803,6 +1805,7 @@ send_list:
 		BT_ERR("Unable to send Vendor Model Subscription List");
 	}
 
+done:
 	os_mbuf_free_chain(msg);
 
 }
@@ -2534,7 +2537,7 @@ static void mod_app_bind(struct bt_mesh_model *model,
 	elem_addr = net_buf_simple_pull_le16(buf);
 	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
 		BT_WARN("Prohibited element address");
-		return;
+		goto done;
 	}
 
 	key_app_idx = net_buf_simple_pull_le16(buf);
@@ -2576,6 +2579,7 @@ send_status:
 		BT_ERR("Unable to send Model App Bind Status response");
 	}
 
+done:
     os_mbuf_free_chain(msg);
 
 }
@@ -2594,7 +2598,7 @@ static void mod_app_unbind(struct bt_mesh_model *model,
 	elem_addr = net_buf_simple_pull_le16(buf);
 	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
 		BT_WARN("Prohibited element address");
-		return;
+		goto done;
 	}
 
 	key_app_idx = net_buf_simple_pull_le16(buf);
@@ -2629,6 +2633,7 @@ send_status:
 		BT_ERR("Unable to send Model App Unbind Status response");
 	}
 
+done:
     os_mbuf_free_chain(msg);
 }
 
@@ -2648,7 +2653,7 @@ static void mod_app_get(struct bt_mesh_model *model,
 	elem_addr = net_buf_simple_pull_le16(buf);
 	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
 		BT_WARN("Prohibited element address");
-		return;
+		goto done;
 	}
 
 	mod_id = buf->om_data;
@@ -2701,6 +2706,7 @@ send_list:
 		BT_ERR("Unable to send Model Application List message");
 	}
 
+done:
 	os_mbuf_free_chain(msg);
 }
 
