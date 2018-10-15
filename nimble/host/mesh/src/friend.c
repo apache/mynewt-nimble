@@ -443,7 +443,7 @@ static void enqueue_sub_cfm(struct bt_mesh_friend *frnd, u8_t xact)
 	buf = encode_friend_ctl(frnd, TRANS_CTL_OP_FRIEND_SUB_CFM, sdu);
 	if (!buf) {
 		BT_ERR("Unable to encode Subscription List Confirmation");
-		return;
+		goto done;
 	}
 
 	if (frnd->last) {
@@ -453,6 +453,8 @@ static void enqueue_sub_cfm(struct bt_mesh_friend *frnd, u8_t xact)
 
 	frnd->last = buf;
 	frnd->send_last = 1;
+
+done:
 	os_mbuf_free_chain(sdu);
 }
 
@@ -749,7 +751,7 @@ static void enqueue_offer(struct bt_mesh_friend *frnd, s8_t rssi)
 	buf = encode_friend_ctl(frnd, TRANS_CTL_OP_FRIEND_OFFER, sdu);
 	if (!buf) {
 		BT_ERR("Unable to encode Friend Offer");
-		return;
+		goto done;
 	}
 
 	frnd->counter++;
@@ -760,6 +762,8 @@ static void enqueue_offer(struct bt_mesh_friend *frnd, s8_t rssi)
 
 	frnd->last = buf;
 	frnd->send_last = 1;
+
+done:
 	os_mbuf_free_chain(sdu);
 }
 

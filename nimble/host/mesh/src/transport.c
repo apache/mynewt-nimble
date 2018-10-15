@@ -591,7 +591,8 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u32_t seq, u8_t hdr,
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && !rx->local_match) {
 		BT_DBG("Ignoring PDU for LPN 0x%04x of this Friend",
 		       rx->ctx.recv_dst);
-		return 0;
+		err = 0;
+		goto done;
 	}
 
 	if (BT_MESH_ADDR_IS_VIRTUAL(rx->ctx.recv_dst)) {
