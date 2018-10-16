@@ -3812,6 +3812,12 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Set last received header byte */
         connsm->last_rxd_hdr_byte = hdr_byte;
 
+        is_ctrl = 0;
+        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+            is_ctrl = 1;
+            opcode = rxbuf[2];
+        }
+
         /*
          * If SN bit from header does not match NESN in connection, this is
          * a resent PDU and should be ignored.
@@ -3893,10 +3899,16 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
                     } else {
-                        /*  XXX: TODO need to check with phy update procedure.
-                         *  There are limitations if we have started update */
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
                         /* Adjust payload for max TX time and octets */
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+                        if (is_ctrl && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
+                                        && (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
+                            connsm->phy_tx_transition = rxbuf[3];
+                        }
+#endif
+
                         rem_bytes = ble_ll_conn_adjust_pyld_len(connsm, rem_bytes);
                         txhdr->txinfo.pyld_len = rem_bytes;
                     }
@@ -3907,12 +3919,6 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Should we continue connection event? */
         /* If this is a TERMINATE_IND, we have to reply */
 chk_rx_terminate_ind:
-        is_ctrl = 0;
-        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
-            is_ctrl = 1;
-            opcode = rxbuf[2];
-        }
-
         /* If we received a terminate IND, we must set some flags */
         if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)
                     && (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {

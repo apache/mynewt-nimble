@@ -830,6 +830,14 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
 
+        if (rsp[0] & BLE_PHY_MASK_1M) {
+            connsm->phy_tx_transition = BLE_PHY_1M;
+        } else if (rsp[0] & BLE_PHY_MASK_2M) {
+            connsm->phy_tx_transition = BLE_PHY_2M;
+        } else if (rsp[0] & BLE_PHY_MASK_CODED) {
+            connsm->phy_tx_transition = BLE_PHY_CODED;
+        }
+
         /* Start response timer */
         connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
         ble_ll_ctrl_start_rsp_timer(connsm);
