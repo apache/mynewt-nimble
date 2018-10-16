@@ -165,6 +165,8 @@ struct ble_ll_conn_phy_data
 #define CONN_CUR_TX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_tx_phy - 1))
 #define CONN_CUR_RX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_rx_phy - 1))
 
+#define BLE_PHY_TRANSITION_INVALID    (0xFF)
+
 /* Connection state machine */
 struct ble_ll_conn_sm
 {
@@ -200,6 +202,7 @@ struct ble_ll_conn_sm
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     struct ble_ll_conn_phy_data phy_data;
     uint16_t phy_instant;
+    uint8_t phy_tx_transition;
 #endif
 
     /* Used to calculate data channel index for connection */

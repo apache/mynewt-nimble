@@ -557,6 +557,8 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
     chk_proc_stop = 1;
     chk_host_phy = 1;
 
+    connsm->phy_tx_transition = BLE_PHY_TRANSITION_INVALID;
+
     if (CONN_F_PEER_PHY_UPDATE(connsm)) {
         CONN_F_PEER_PHY_UPDATE(connsm) = 0;
     } else if (CONN_F_CTRLR_PHY_UPDATE(connsm)) {
@@ -2538,6 +2540,19 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+        }
+        break;
+#endif
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    case BLE_LL_CTRL_PHY_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
+                connsm->phy_tx_transition = BLE_PHY_1M;
+            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
+                connsm->phy_tx_transition = BLE_PHY_2M;
+            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
+                connsm->phy_tx_transition = BLE_PHY_CODED;
+            }
         }
         break;
 #endif
