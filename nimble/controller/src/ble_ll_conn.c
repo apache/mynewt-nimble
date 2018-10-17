@@ -1371,7 +1371,7 @@ conn_tx_pdu:
             }
         } else {
             CONN_F_ENCRYPTED(connsm) = 0;
-            connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+            connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
             connsm->enc_data.tx_encrypted = 0;
             ble_phy_encrypt_disable();
         }
@@ -3932,7 +3932,7 @@ chk_rx_terminate_ind:
             reply = 1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
-                connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+                connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
             }
 #endif
         }
@@ -4023,6 +4023,15 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                 break;
             case BLE_LL_CTRL_PAUSE_ENC_RSP:
                 if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                    lifo = 1;
+                }
+                break;
+            case BLE_LL_CTRL_ENC_REQ:
+            case BLE_LL_CTRL_ENC_RSP:
+                /* If encryption has been paused, we don't want to send any packets from the
+                 * TX queue, as they would go unencrypted.
+                 */
+                if (connsm->enc_data.enc_state == CONN_ENC_S_PAUSED) {
                     lifo = 1;
                 }
                 break;
