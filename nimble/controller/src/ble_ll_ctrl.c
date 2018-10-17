@@ -526,7 +526,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
  *
  * @param arg Pointer to connection state machine.
  */
-void
+static void
 ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
 {
     /* Control procedure has timed out. Kill the connection */
@@ -889,7 +889,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  * @param connsm
  * @param dptr
  */
-void
+static void
 ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     int no_change;
