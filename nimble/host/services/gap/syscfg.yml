@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/host/services/gap
+# Package: nimble/host/services/gap
 
 syscfg.defs:
     BLE_SVC_GAP_DEVICE_NAME:

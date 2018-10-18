@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/host
+# Package: nimble/host/store/config
 
 syscfg.defs:
     BLE_STORE_CONFIG_PERSIST:

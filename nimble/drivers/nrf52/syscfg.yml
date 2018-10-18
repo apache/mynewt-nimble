@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: hw/drivers/nimble/nrf52
+# Package: nimble/drivers/nrf52
 
 syscfg.defs:
     BLE_PHY_SYSVIEW:

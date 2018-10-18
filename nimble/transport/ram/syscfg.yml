@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/ram
+# Package: nimble/transport/ram
 
 syscfg.defs:
     BLE_HCI_EVT_HI_BUF_COUNT:

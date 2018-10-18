@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/controller
+# Package: nimble/controller
 
 syscfg.defs:
     BLE_DEVICE:

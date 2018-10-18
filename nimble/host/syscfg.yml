@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/host
+# Package: nimble/host
 
 syscfg.defs:
     BLE_HOST:

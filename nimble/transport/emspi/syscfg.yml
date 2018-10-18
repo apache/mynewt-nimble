@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/ram
+# Package: nimble/transport/emspi
 
 syscfg.defs:
     BLE_HCI_EMSPI:

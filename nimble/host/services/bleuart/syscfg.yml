@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/host/services/bleuart
+# Package: nimble/host/services/bleuart
 
 syscfg.defs:
     BLEUART_MAX_INPUT:
