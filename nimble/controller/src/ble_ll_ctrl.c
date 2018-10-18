@@ -2248,6 +2248,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_PHY_REQ:
         feature = BLE_LL_FEAT_LE_2M_PHY | BLE_LL_FEAT_LE_CODED_PHY;
         break;
+    case BLE_LL_CTRL_MIN_USED_CHAN_IND:
+        feature = BLE_LL_FEAT_MIN_USED_CHAN;
+        break;
     default:
         feature = 0;
         break;
