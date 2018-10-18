@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble
+# Package: nimble
 
 syscfg.defs:
     # Supported GAP roles.  By default, all four roles are enabled.

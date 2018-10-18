@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/host/mesh
+# Package: nimble/host/mesh
 
 syscfg.defs:
     BLE_MESH_PROV:

@@ -16,7 +16,7 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/uart
+# Package: nimble/transport/socket
 
 syscfg.defs:
     BLE_HCI_EVT_BUF_SIZE:

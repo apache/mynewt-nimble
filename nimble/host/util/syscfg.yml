@@ -16,6 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/host/util
+# Package: nimble/host/util
 
 syscfg.defs:
