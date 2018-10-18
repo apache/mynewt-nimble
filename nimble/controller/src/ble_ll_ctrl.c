@@ -874,6 +874,8 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
          *
          * XXX: TODO count some stat?
          */
+    } else {
+        rsp_opcode = BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     /* NOTE: slave should never receive one of these */
@@ -1261,7 +1263,7 @@ ble_ll_ctrl_rx_enc_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                        uint8_t *rspdata)
 {
     if (connsm->conn_role != BLE_LL_CONN_ROLE_SLAVE) {
-        return BLE_ERR_MAX;
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     /* In case we were already encrypted we need to reset packet counters */
@@ -1309,6 +1311,8 @@ ble_ll_ctrl_rx_start_enc_req(struct ble_ll_conn_sm *connsm)
             connsm->enc_data.enc_state = CONN_ENC_S_START_ENC_RSP_WAIT;
             rc = BLE_LL_CTRL_START_ENC_RSP;
         }
+    } else {
+        rc = BLE_LL_CTRL_UNKNOWN_RSP;
     }
     return rc;
 }
@@ -1327,6 +1331,8 @@ ble_ll_ctrl_rx_pause_enc_req(struct ble_ll_conn_sm *connsm)
     if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
         (connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED)) {
         rc = BLE_LL_CTRL_PAUSE_ENC_RSP;
+    } else {
+        rc = BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     return rc;
@@ -1345,9 +1351,10 @@ ble_ll_ctrl_rx_pause_enc_rsp(struct ble_ll_conn_sm *connsm)
 {
     int rc;
 
-    rc = BLE_ERR_MAX;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         rc = BLE_LL_CTRL_PAUSE_ENC_RSP;
+    } else {
+        rc = BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     return rc;
@@ -1789,7 +1796,7 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* A slave should never receive this response */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        return BLE_ERR_MAX;
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     /*
