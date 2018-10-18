@@ -89,12 +89,12 @@ ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 static inline struct ble_npl_event *
 ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
+    assert((tmo == 0) || (tmo == BLE_NPL_TIME_FOREVER));
+
     if (tmo == 0) {
         return (struct ble_npl_event *)event_get(&evq->q);
-    } else if (tmo == BLE_NPL_TIME_FOREVER) {
-        return (struct ble_npl_event *)event_wait(&evq->q);
     } else {
-        assert(0);
+        return (struct ble_npl_event *)event_wait(&evq->q);
     }
 }
 
@@ -151,6 +151,8 @@ static inline ble_npl_error_t
 ble_npl_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
 {
     assert(timeout == BLE_NPL_TIME_FOREVER);
+    (void)timeout;
+
     mutex_lock(&mu->mu);
     return BLE_NPL_OK;
 }
