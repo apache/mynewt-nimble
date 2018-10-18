@@ -2628,6 +2628,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct aux_conn_rsp_data rsp_data;
 #endif
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+    struct ble_ll_resolv_entry *rl;
+#endif
 
     /* See if adva in the request (scan or connect) matches what we sent */
     advsm = g_ble_ll_cur_adv_sm;
@@ -2657,17 +2660,28 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     resolved = 0;
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
-    if (ble_ll_is_rpa(peer, txadd) && ble_ll_resolv_enabled()) {
-        advsm->adv_rpa_index = ble_hw_resolv_list_match();
-        if (advsm->adv_rpa_index >= 0) {
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
-            if (chk_wl) {
-                peer = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_identity_addr;
-                peer_addr_type = g_ble_ll_resolv_list[advsm->adv_rpa_index].rl_addr_type;
-                resolved = 1;
+    rl = NULL;
+    if (ble_ll_resolv_enabled()) {
+        if (ble_ll_is_rpa(peer, txadd)) {
+            advsm->adv_rpa_index = ble_hw_resolv_list_match();
+            if (advsm->adv_rpa_index >= 0) {
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
+                rl = &g_ble_ll_resolv_list[advsm->adv_rpa_index];
+                if (chk_wl) {
+                    peer = rl->rl_identity_addr;
+                    peer_addr_type = rl->rl_addr_type;
+                    resolved = 1;
+                }
+            } else {
+                if (chk_wl) {
+                    return -1;
+                }
             }
         } else {
-            if (chk_wl) {
+            /* Verify privacy mode */
+            rl = ble_ll_resolv_list_find(peer, peer_addr_type);
+            if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                                ble_ll_resolv_irk_nonzero(rl->rl_peer_irk)) {
                 return -1;
             }
         }
