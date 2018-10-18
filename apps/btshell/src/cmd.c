@@ -338,6 +338,7 @@ cmd_advertise_start(int argc, char **argv)
     int max_events;
     uint8_t instance;
     int duration;
+    bool restart;
     int rc;
 
     rc = parse_arg_all(argc - 1, argv + 1);
@@ -368,7 +369,13 @@ cmd_advertise_start(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_ext_adv_start(instance, duration, max_events);
+    restart = parse_arg_bool_dflt("restart", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'restart' parameter\n");
+        return rc;
+    }
+
+    rc = btshell_ext_adv_start(instance, duration, max_events, restart);
     if (rc) {
         console_printf("failed to start advertising instance\n");
         return rc;
@@ -399,7 +406,7 @@ cmd_advertise_stop(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_ext_adv_stop(instance);
+    rc = btshell_ext_adv_stop(instance);
     if (rc) {
         console_printf("failed to stop advertising instance\n");
         return rc;
@@ -488,6 +495,7 @@ static const struct shell_param advertise_start_params[] = {
     {"instance", "default: 0"},
     {"duration", "advertising duration in 10ms units, default: 0 (forever)"},
     {"max_events", "max number of advertising events, default: 0 (no limit)"},
+    {"restart", "restart advertising after disconnect, usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
 
@@ -543,6 +551,7 @@ cmd_advertise(int argc, char **argv)
     ble_addr_t peer_addr;
     ble_addr_t *peer_addr_param = &peer_addr;
     uint8_t own_addr_type;
+    bool restart;
     int rc;
 
     rc = parse_arg_all(argc - 1, argv + 1);
@@ -586,6 +595,12 @@ cmd_advertise(int argc, char **argv)
         peer_addr_param = NULL;
     } else if (rc != 0) {
         console_printf("invalid 'peer_addr' parameter\n");
+        return rc;
+    }
+
+    restart = parse_arg_bool_dflt("restart", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'restart' parameter\n");
         return rc;
     }
 
@@ -635,7 +650,7 @@ cmd_advertise(int argc, char **argv)
     }
 
     rc = btshell_adv_start(own_addr_type, peer_addr_param, duration_ms,
-                           &params);
+                           &params, restart);
     if (rc != 0) {
         console_printf("advertise fail: %d\n", rc);
         return rc;
@@ -658,6 +673,7 @@ static const struct shell_param advertise_params[] = {
     {"interval_max", "usage: =[0-UINT16_MAX], default: 0"},
     {"high_duty", "usage: =[0-1], default: 0"},
     {"duration", "usage: =[1-INT32_MAX], default: INT32_MAX"},
+    {"restart", "restart advertising after disconnect, usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
 

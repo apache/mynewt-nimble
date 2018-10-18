@@ -120,10 +120,14 @@ int btshell_write_reliable(uint16_t conn_handle,
 int btshell_ext_adv_configure(uint8_t instance,
                               const struct ble_gap_ext_adv_params *params,
                               int8_t *selected_tx_power);
+int btshell_ext_adv_start(uint8_t instance, int duration,
+                          int max_events, bool restart);
+int btshell_ext_adv_stop(uint8_t instance);
 #endif
 int btshell_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                       int32_t duration_ms,
-                      const struct ble_gap_adv_params *params);
+                      const struct ble_gap_adv_params *params,
+                      bool restart);
 int btshell_adv_stop(void);
 int btshell_conn_initiate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                           int32_t duration_ms,

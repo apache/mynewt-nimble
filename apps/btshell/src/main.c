@@ -129,6 +129,21 @@ int btshell_full_disc_prev_chr_val;
 #define BTSHELL_AUTO_DEVICE_NAME    ""
 #endif
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+struct {
+    bool restart;
+    uint16_t conn_handle;
+} ext_adv_restart[BLE_ADV_INSTANCES];
+#endif
+
+static struct {
+    bool restart;
+    uint8_t own_addr_type;
+    ble_addr_t direct_addr;
+    int32_t duration_ms;
+    struct ble_gap_adv_params params;
+} adv_params;
+
 static void
 btshell_print_error(char *msg, uint16_t conn_handle,
                     const struct ble_gatt_error *error)
@@ -986,6 +1001,43 @@ common_data:
 #endif
 
 static int
+btshell_gap_event(struct ble_gap_event *event, void *arg);
+
+static int
+btshell_restart_adv(struct ble_gap_event *event)
+{
+    int rc = 0;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    uint8_t i;
+#endif
+
+    if (event->type != BLE_GAP_EVENT_DISCONNECT) {
+        return -1;
+    }
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
+        if (ext_adv_restart[i].restart &&
+            (ext_adv_restart[i].conn_handle ==
+             event->disconnect.conn.conn_handle)) {
+            rc = ble_gap_ext_adv_start(i, 0, 0);
+            break;
+        }
+    }
+#else
+    if (!adv_params.restart) {
+        return 0;
+    }
+
+    rc = ble_gap_adv_start(adv_params.own_addr_type, &adv_params.direct_addr,
+                           adv_params.duration_ms, &adv_params.params,
+                           btshell_gap_event, NULL);
+#endif
+
+    return rc;
+}
+
+static int
 btshell_gap_event(struct ble_gap_event *event, void *arg)
 {
     struct ble_gap_conn_desc desc;
@@ -1014,7 +1066,8 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         if (conn_idx != -1) {
             btshell_conn_delete_idx(conn_idx);
         }
-        return 0;
+
+        return btshell_restart_adv(event);
 #if MYNEWT_VAL(BLE_EXT_ADV)
     case BLE_GAP_EVENT_EXT_DISC:
         btshell_decode_event_type(&event->ext_disc, arg);
@@ -1074,6 +1127,9 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         console_printf("advertise complete; reason=%d, instance=%u, handle=%d\n",
                        event->adv_complete.reason, event->adv_complete.instance,
                        event->adv_complete.conn_handle);
+
+        ext_adv_restart[event->adv_complete.instance].conn_handle =
+            event->adv_complete.conn_handle;
 #else
         console_printf("advertise complete; reason=%d\n",
                        event->adv_complete.reason);
@@ -1439,6 +1495,36 @@ btshell_ext_adv_configure(uint8_t instance,
     return ble_gap_ext_adv_configure(instance, params, selected_tx_power,
                                      btshell_gap_event, NULL);
 }
+
+int
+btshell_ext_adv_start(uint8_t instance, int duration,
+                      int max_events, bool restart)
+{
+    int rc;
+
+    /* Advertising restart doesn't make sense
+     * with limited duration or events
+     */
+    if (restart && (duration == 0) && (max_events == 0)) {
+        ext_adv_restart[instance].restart = restart;
+    }
+
+    rc = ble_gap_ext_adv_start(instance, duration, max_events);
+
+    return rc;
+}
+
+int
+btshell_ext_adv_stop(uint8_t instance)
+{
+    int rc;
+
+    ext_adv_restart[instance].restart = false;
+
+    rc = ble_gap_ext_adv_stop(instance);
+
+    return rc;
+}
 #endif
 
 int
@@ -1446,15 +1532,32 @@ btshell_adv_stop(void)
 {
     int rc;
 
+    adv_params.restart = false;
+
     rc = ble_gap_adv_stop();
     return rc;
 }
 
 int
 btshell_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
-                  int32_t duration_ms, const struct ble_gap_adv_params *params)
+                  int32_t duration_ms, const struct ble_gap_adv_params *params,
+                  bool restart)
 {
     int rc;
+
+    if (restart) {
+        adv_params.restart = restart;
+        adv_params.own_addr_type = own_addr_type;
+        adv_params.duration_ms = duration_ms;
+
+        if (direct_addr) {
+            memcpy(&adv_params.direct_addr, direct_addr, sizeof(adv_params.direct_addr));
+        }
+
+        if (params) {
+            memcpy(&adv_params.params, params, sizeof(adv_params.params));
+        }
+    }
 
     rc = ble_gap_adv_start(own_addr_type, direct_addr, duration_ms, params,
                            btshell_gap_event, NULL);
@@ -2042,6 +2145,19 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
 
 #endif
 }
+
+static void
+btshell_init_ext_adv_restart(void)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    int i;
+
+    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
+        ext_adv_restart[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+#endif
+}
+
 /**
  * main
  *
@@ -2115,6 +2231,8 @@ main(int argc, char **argv)
      */
     os_callout_init(&btshell_tx_timer, os_eventq_dflt_get(),
                     btshell_tx_timer_cb, NULL);
+
+    btshell_init_ext_adv_restart();
 
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
