@@ -16,7 +16,6 @@
 # under the License.
 #
 
-# Package: apps/bletest
 syscfg.defs:
     BLETEST_ROLE:
         description: >

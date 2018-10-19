@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/host
-
 syscfg.defs:
     BLE_HOST:
         description: 'Indicates that a BLE host is present.'

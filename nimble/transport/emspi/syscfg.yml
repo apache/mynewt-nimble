@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/ram
-
 syscfg.defs:
     BLE_HCI_EMSPI:
         description: 'Indicates that the emspi host HCI transport is present.'

@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: apps/blecent
-
 syscfg.vals:
     # DEBUG logging is a bit noisy; use INFO.
     LOG_LEVEL: 1

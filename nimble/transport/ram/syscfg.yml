@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/transport/ram
-
 syscfg.defs:
     BLE_HCI_EVT_HI_BUF_COUNT:
         description: 'Number of high-priority event buffers.'

@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/host/test
-
 syscfg.vals:
     BLE_HS_DEBUG: 1
     BLE_HS_PHONY_HCI_ACKS: 1

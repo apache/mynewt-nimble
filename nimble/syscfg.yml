@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble
-
 syscfg.defs:
     # Supported GAP roles.  By default, all four roles are enabled.
     BLE_ROLE_CENTRAL:
