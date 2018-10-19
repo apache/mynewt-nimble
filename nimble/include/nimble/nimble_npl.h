@@ -157,7 +157,7 @@ void ble_npl_time_delay(ble_npl_time_t ticks);
 
 #if NIMBLE_CFG_CONTROLLER
 
-void ble_npl_hw_set_isr(int irqn, uint32_t addr);
+void ble_npl_hw_set_isr(int irqn, void (*addr)(void));
 
 #endif
 

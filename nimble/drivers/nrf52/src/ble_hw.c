@@ -334,7 +334,7 @@ ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
 #if MYNEWT
         NVIC_SetVector(RNG_IRQn, (uint32_t)ble_rng_isr);
 #else
-        ble_npl_hw_set_isr(RNG_IRQn, (uint32_t)ble_rng_isr);
+        ble_npl_hw_set_isr(RNG_IRQn, ble_rng_isr);
 #endif
         NVIC_EnableIRQ(RNG_IRQn);
         g_ble_rng_isr_cb = cb;

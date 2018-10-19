@@ -1448,7 +1448,7 @@ ble_phy_init(void)
 #if MYNEWT
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
 #else
-    ble_npl_hw_set_isr(RADIO_IRQn, (uint32_t)ble_phy_isr);
+    ble_npl_hw_set_isr(RADIO_IRQn, ble_phy_isr);
 #endif
     NVIC_EnableIRQ(RADIO_IRQn);
 

@@ -19,30 +19,30 @@
 
 #include "cpu.h"
 
-static uint32_t radio_isr_addr;
-static uint32_t rng_isr_addr;
-static uint32_t rtc0_isr_addr;
+static void (*radio_isr_addr)(void);
+static void (*rng_isr_addr)(void);
+static void (*rtc0_isr_addr)(void);
 
 void
 isr_radio(void)
 {
-    ((void (*)(void))radio_isr_addr)();
+    radio_isr_addr();
 }
 
 void
 isr_rng(void)
 {
-    ((void (*)(void))rng_isr_addr)();
+    rng_isr_addr();
 }
 
 void
 isr_rtc0(void)
 {
-    ((void (*)(void))rtc0_isr_addr)();
+    rtc0_isr_addr();
 }
 
 void
-ble_npl_hw_set_isr(int irqn, uint32_t addr)
+ble_npl_hw_set_isr(int irqn, void (*addr)(void))
 {
     switch (irqn) {
     case RADIO_IRQn:

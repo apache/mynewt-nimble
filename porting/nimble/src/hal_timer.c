@@ -503,7 +503,7 @@ hal_timer_init(int timer_num, void *cfg)
 #if MYNEWT
     NVIC_SetVector(irq_num, (uint32_t)irq_isr);
 #else
-    ble_npl_hw_set_isr(irq_num, (uint32_t)irq_isr);
+    ble_npl_hw_set_isr(irq_num, irq_isr);
 #endif
 
     return 0;
