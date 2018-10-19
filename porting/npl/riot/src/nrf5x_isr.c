@@ -19,9 +19,9 @@
 
 #include "cpu.h"
 
-static void (*radio_isr_addr)();
-static void (*rng_isr_addr)();
-static void (*rtc0_isr_addr)();
+static void (*radio_isr_addr)(void);
+static void (*rng_isr_addr)(void);
+static void (*rtc0_isr_addr)(void);
 
 void
 isr_radio(void)
@@ -42,7 +42,7 @@ isr_rtc0(void)
 }
 
 void
-ble_npl_hw_set_isr(int irqn, void (*addr)())
+ble_npl_hw_set_isr(int irqn, void (*addr)(void))
 {
     switch (irqn) {
     case RADIO_IRQn:
