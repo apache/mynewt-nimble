@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/transport
-
 syscfg.defs:
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
         description: >

@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: apps/blemesh
-
 syscfg.vals:
     # Set log level to info (disable debug logging).
     LOG_LEVEL: 1

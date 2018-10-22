@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: apps/bleprph
-
 syscfg.defs:
     BLEPRPH_LE_PHY_SUPPORT:
         description: >

@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: net/nimble/controller
-
 syscfg.defs:
     BLE_DEVICE:
         description: >

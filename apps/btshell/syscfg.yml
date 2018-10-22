@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: apps/btshell
-
 syscfg.defs:
     BTSHELL_ANS:
         description: Include support for the alert notification service.

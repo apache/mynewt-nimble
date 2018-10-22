@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: apps/blehci
-
 syscfg.vals:
     # Default task settings
     OS_MAIN_STACK_SIZE: 64

@@ -16,8 +16,6 @@
 # under the License.
 #
 
-# Package: nimble/host/services/dis
-
 syscfg.defs:
     BLE_SVC_DIS_DEFAULT_READ_PERM:
         description: >
