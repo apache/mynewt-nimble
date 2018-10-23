@@ -610,7 +610,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t addr_type, uint8_t *addr,
                                       uint8_t rssi,
                                       uint8_t adv_data_len, struct os_mbuf *adv_data,
-                                      uint8_t *inita)
+                                      uint8_t *inita, uint8_t inita_type)
 {
     struct ble_ll_ext_adv_report *evt;
 
@@ -657,7 +657,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
 
     if (inita) {
         /* TODO Really ?? */
-        evt->dir_addr_type = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+        evt->dir_addr_type = inita_type;
         memcpy(evt->dir_addr, inita, BLE_DEV_ADDR_LEN);
         evt->event_len += BLE_DEV_ADDR_LEN  + 1;
     } else if (adv_data_len <= (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
@@ -677,7 +677,7 @@ static int
 ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
                            uint8_t addr_type, uint8_t *addr, uint8_t rssi,
                            uint8_t adv_data_len, struct os_mbuf *adv_data,
-                           uint8_t *inita)
+                           uint8_t *inita, uint8_t inita_type)
 {
     uint8_t *evbuf;
     uint8_t *tmp;
@@ -708,7 +708,7 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
     tmp = &evbuf[12];
     if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
         BLE_LL_ASSERT(inita);
-        tmp[0] = BLE_HCI_ADV_OWN_ADDR_RANDOM;
+        tmp[0] = inita_type;
         memcpy(tmp + 1, inita, BLE_DEV_ADDR_LEN);
         tmp += BLE_DEV_ADDR_LEN + 1;
     } else if (subev == BLE_HCI_LE_SUBEV_ADV_RPT) {
@@ -796,20 +796,20 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
                                                    adva_type, adva,
                                                    hdr->rxinfo.rssi,
                                                    adv_data_len, om,
-                                                   inita);
+                                                   inita, inita_type);
     } else {
         rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                         adva_type, adva,
                                         hdr->rxinfo.rssi,
                                         adv_data_len, om,
-                                        inita);
+                                        inita, inita_type);
     }
 #else
     rc = ble_ll_hci_send_adv_report(subev, evtype, event_len,
                                     adva_type, adva,
                                     hdr->rxinfo.rssi,
                                     adv_data_len, om,
-                                    inita);
+                                    inita, inita_type);
 #endif
     if (!rc) {
         /* If filtering, add it to list of duplicate addresses */
@@ -1628,6 +1628,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
     uint8_t has_addr = 0;
+    uint8_t has_dir_addr = 0;
     uint8_t has_adi = 0;
     int i;
     struct ble_ll_aux_data tmp_aux_data = { 0 };
@@ -1658,6 +1659,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+        memcpy(tmp_aux_data.dir_addr, ext_hdr + i, 6);
+               tmp_aux_data.dir_addr_type =
+                        ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
+               has_dir_addr = 1;
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
 
@@ -1718,6 +1723,11 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             (*aux_data)->addr_type = tmp_aux_data.addr_type;
             (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
         }
+        if (has_dir_addr) {
+            memcpy((*aux_data)->dir_addr, tmp_aux_data.dir_addr, 6);
+            (*aux_data)->dir_addr_type = tmp_aux_data.dir_addr_type;
+            (*aux_data)->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+        }
         return 0;
     }
 
@@ -1741,7 +1751,10 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
  *
  */
 int
-ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
+ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
+                          uint8_t *adva, uint8_t adva_type,
+                          uint8_t *inita, uint8_t inita_type,
+                          struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_ext_adv_report *out_evt)
 {
     uint8_t pdu_len;
@@ -1786,24 +1799,22 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
 
     i = 0;
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
-        memcpy(out_evt->addr, ext_hdr + i, BLE_LL_EXT_ADV_ADVA_SIZE);
-        out_evt->addr_type =
-                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
-    } else {
-        if (aux_data && (aux_data->flags & BLE_LL_AUX_HAS_ADDRA)) {
-            /* Have address in aux_data */
-            memcpy(out_evt->addr, aux_data->addr, 6);
-            out_evt->addr_type = aux_data->addr_type;
-        }
+    }
+
+    if (adva) {
+        memcpy(out_evt->addr, adva, 6);
+        out_evt->addr_type = adva_type;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
-        memcpy(out_evt->dir_addr, ext_hdr + i, BLE_LL_EXT_ADV_ADVA_SIZE);
-        out_evt->dir_addr_type =
-                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
-        out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
+    }
+
+    if (inita) {
+       memcpy(out_evt->dir_addr, inita, 6);
+       out_evt->dir_addr_type = inita_type;
+       out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
@@ -1923,6 +1934,18 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *inita_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        if (aux_data) {
+            /* Lets copy addr to aux_data. Need it for e.g. chaining */
+            memcpy(aux_data->dir_addr, *inita, 6);
+            aux_data->dir_addr_type = *inita_type;
+            aux_data->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+        }
+    } else {
+        /* We should have address already in aux_data */
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
+            *inita = aux_data->dir_addr;
+            *inita_type = aux_data->dir_addr_type;
+        }
     }
 
     return 0;
@@ -2302,7 +2325,9 @@ ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
  *          1 on success (data status is not "completed")
  */
 static int
-ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
+ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
+                               uint8_t *inita, uint8_t inita_type,
+                               struct os_mbuf *om,
                                struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
@@ -2331,7 +2356,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, struct os_mbuf *om,
         }
     }
 
-    datalen = ble_ll_scan_parse_ext_hdr(om, hdr, evt);
+    datalen = ble_ll_scan_parse_ext_hdr(om, adva, adva_type, inita, inita_type, hdr, evt);
     if (datalen < 0) {
         /* XXX what should we do here? send some trimmed event? */
         ble_hci_trans_buf_free((uint8_t *)evt);
@@ -2566,7 +2591,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
-        rc = ble_ll_hci_send_ext_adv_report(ptype, om, hdr);
+        rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
+                                            init_addr, init_addr_type, om, hdr);
         if (rc < 0) {
             /*
              * Data were trimmed so no need to scan this chain anymore. Also

@@ -1038,8 +1038,18 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
     uint16_t ret;
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    uint8_t phy_mode;
+
+    if (connsm->phy_tx_transition != BLE_PHY_TRANSITION_INVALID) {
+        phy_mode = ble_ll_phy_to_phy_mode(connsm->phy_tx_transition,
+                                          connsm->phy_data.phy_options);
+    } else {
+        phy_mode = connsm->phy_data.tx_phy_mode;
+    }
+
     phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
-                                                     connsm->phy_data.tx_phy_mode);
+                                                     phy_mode);
+
 #else
     phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
                                                      BLE_PHY_MODE_1M);
@@ -1361,7 +1371,7 @@ conn_tx_pdu:
             }
         } else {
             CONN_F_ENCRYPTED(connsm) = 0;
-            connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+            connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
             connsm->enc_data.tx_encrypted = 0;
             ble_phy_encrypt_disable();
         }
@@ -1918,7 +1928,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->disconnect_reason = 0;
-    connsm->conn_features = 0;
+    connsm->conn_features = BLE_LL_CONN_INITIAL_FEATURES;
     memset(connsm->remote_features, 0, sizeof(connsm->remote_features));
     connsm->vers_nr = 0;
     connsm->comp_id = 0;
@@ -1938,6 +1948,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->phy_data.host_pref_tx_phys_mask = g_ble_ll_data.ll_pref_tx_phys;
     connsm->phy_data.host_pref_rx_phys_mask = g_ble_ll_data.ll_pref_rx_phys;
     connsm->phy_data.phy_options = 0;
+    connsm->phy_tx_transition = BLE_PHY_TRANSITION_INVALID;
 #endif
 
     /* Reset current control procedure */
@@ -2186,6 +2197,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* If unable to start terminate procedure, start it now */
     if (connsm->disconnect_reason && !CONN_F_TERMINATE_STARTED(connsm)) {
         ble_ll_ctrl_terminate_start(connsm);
+    }
+
+    if (CONN_F_TERMINATE_STARTED(connsm) && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)) {
+        /* Some of the devices waits whole connection interval to ACK our
+         * TERMINATE_IND sent as a Slave. Since we are here it means we are still waiting for ACK.
+         * Make sure we catch it in next connection event.
+         */
+        connsm->slave_latency = 0;
     }
 
     /*
@@ -3251,22 +3270,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         // no break
 #endif
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
-        /*
-         * If we expect our address to be private and the INITA is not,
-         * we dont respond!
-         */
         inita_is_rpa = (uint8_t)ble_ll_is_rpa(init_addr, init_addr_type);
         if (!inita_is_rpa) {
-            /*
-             * If we expect our address to be private and the InitA is not,
-             * we dont respond!
-             *
-             * TODO: Probably we could not care for this if privacy is on.
-             * Leave if for now.
-             */
-            if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-                goto init_rx_isr_exit;
-            }
 
             /* Resolving will be done later. Check if identity InitA matches */
             if (!ble_ll_is_our_devaddr(init_addr, init_addr_type)) {
@@ -3306,8 +3311,9 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             resolved = 1;
 
             /* Assure privacy */
-            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) && init_addr &&
-                !inita_is_rpa) {
+            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+                                        init_addr && !inita_is_rpa &&
+                                        ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
                 goto init_rx_isr_exit;
             }
 
@@ -3345,7 +3351,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
          * is identity address
          */
         if (rl && !inita_is_rpa &&
-           (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+           (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+            ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
             goto init_rx_isr_exit;
         }
 
@@ -3595,7 +3602,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
              *
              * Reference: Core 5.0, Vol 6, Part B, 5.1.3.1
              */
-            if ((connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) &&
+            if ((connsm->enc_data.enc_state > CONN_ENC_S_PAUSE_ENC_RSP_WAIT) &&
                     !ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
                 ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
                 goto conn_rx_data_pdu_end;
@@ -3805,6 +3812,12 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Set last received header byte */
         connsm->last_rxd_hdr_byte = hdr_byte;
 
+        is_ctrl = 0;
+        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+            is_ctrl = 1;
+            opcode = rxbuf[2];
+        }
+
         /*
          * If SN bit from header does not match NESN in connection, this is
          * a resent PDU and should be ignored.
@@ -3886,10 +3899,16 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         os_mbuf_free_chain(txpdu);
                         connsm->cur_tx_pdu = NULL;
                     } else {
-                        /*  XXX: TODO need to check with phy update procedure.
-                         *  There are limitations if we have started update */
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
                         /* Adjust payload for max TX time and octets */
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+                        if (is_ctrl && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
+                                        && (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
+                            connsm->phy_tx_transition = rxbuf[3];
+                        }
+#endif
+
                         rem_bytes = ble_ll_conn_adjust_pyld_len(connsm, rem_bytes);
                         txhdr->txinfo.pyld_len = rem_bytes;
                     }
@@ -3900,12 +3919,6 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Should we continue connection event? */
         /* If this is a TERMINATE_IND, we have to reply */
 chk_rx_terminate_ind:
-        is_ctrl = 0;
-        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
-            is_ctrl = 1;
-            opcode = rxbuf[2];
-        }
-
         /* If we received a terminate IND, we must set some flags */
         if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)
                     && (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
@@ -3919,7 +3932,7 @@ chk_rx_terminate_ind:
             reply = 1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
-                connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
+                connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
             }
 #endif
         }
@@ -4010,6 +4023,15 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                 break;
             case BLE_LL_CTRL_PAUSE_ENC_RSP:
                 if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                    lifo = 1;
+                }
+                break;
+            case BLE_LL_CTRL_ENC_REQ:
+            case BLE_LL_CTRL_ENC_RSP:
+                /* If encryption has been paused, we don't want to send any packets from the
+                 * TX queue, as they would go unencrypted.
+                 */
+                if (connsm->enc_data.enc_state == CONN_ENC_S_PAUSED) {
                     lifo = 1;
                 }
                 break;

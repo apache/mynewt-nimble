@@ -461,14 +461,17 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
     switch (opcode) {
     case BLE_LL_CTRL_LENGTH_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_DATA_LEN_UPD;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_DATA_LEN_EXT);
         break;
     case BLE_LL_CTRL_CONN_UPDATE_IND:
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         ctrl_proc = BLE_LL_CTRL_PROC_FEATURE_XCHG;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_SLAVE_INIT);
         break;
     case BLE_LL_CTRL_CONN_PARM_REQ:
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_CONN_PARM_REQ);
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
             connsm->reject_reason = BLE_ERR_SUCCESS;
@@ -483,6 +486,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
          * support LE Ping feature.
          */
         ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
+        BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_LE_PING);
         break;
 #if (BLE_LL_BT5_PHY_SUPPORTED ==1)
     case BLE_LL_CTRL_PHY_REQ:
@@ -522,7 +526,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
  *
  * @param arg Pointer to connection state machine.
  */
-void
+static void
 ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
 {
     /* Control procedure has timed out. Kill the connection */
@@ -552,6 +556,8 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 
     chk_proc_stop = 1;
     chk_host_phy = 1;
+
+    connsm->phy_tx_transition = BLE_PHY_TRANSITION_INVALID;
 
     if (CONN_F_PEER_PHY_UPDATE(connsm)) {
         CONN_F_PEER_PHY_UPDATE(connsm) = 0;
@@ -824,6 +830,14 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
 
+        if (rsp[0] & BLE_PHY_MASK_1M) {
+            connsm->phy_tx_transition = BLE_PHY_1M;
+        } else if (rsp[0] & BLE_PHY_MASK_2M) {
+            connsm->phy_tx_transition = BLE_PHY_2M;
+        } else if (rsp[0] & BLE_PHY_MASK_CODED) {
+            connsm->phy_tx_transition = BLE_PHY_CODED;
+        }
+
         /* Start response timer */
         connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
         ble_ll_ctrl_start_rsp_timer(connsm);
@@ -875,7 +889,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  * @param connsm
  * @param dptr
  */
-void
+static void
 ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     int no_change;
@@ -1580,7 +1594,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
     /* Only a slave should receive this */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-        return BLE_ERR_MAX;
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
     /* Retrieve parameters */
@@ -1844,24 +1858,28 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  * @param connsm
  * @param dptr
  */
-static void
+static int
 ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     uint16_t instant;
     uint16_t conn_events;
 
-    /* If instant is in the past, we have to end the connection */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
-        conn_events = (instant - connsm->event_cntr) & 0xFFFF;
-        if (conn_events >= 32767) {
-            ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
-        } else {
-            connsm->chanmap_instant = instant;
-            memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
-            connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
-        }
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
+
+    /* If instant is in the past, we have to end the connection */
+    instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
+    conn_events = (instant - connsm->event_cntr) & 0xFFFF;
+    if (conn_events >= 32767) {
+        ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
+    } else {
+        connsm->chanmap_instant = instant;
+        memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
+        connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
+    }
+
+    return BLE_ERR_MAX;
 }
 
 /**
@@ -2263,7 +2281,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_conn_update(connsm, dptr);
         break;
     case BLE_LL_CTRL_CHANNEL_MAP_REQ:
-        ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
+        rsp_opcode = ble_ll_ctrl_rx_chanmap_req(connsm, dptr);
         break;
     case BLE_LL_CTRL_LENGTH_REQ:
         /* Extract parameters and check if valid */
@@ -2530,6 +2548,19 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+        }
+        break;
+#endif
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    case BLE_LL_CTRL_PHY_REQ:
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
+                connsm->phy_tx_transition = BLE_PHY_1M;
+            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
+                connsm->phy_tx_transition = BLE_PHY_2M;
+            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
+                connsm->phy_tx_transition = BLE_PHY_CODED;
+            }
         }
         break;
 #endif

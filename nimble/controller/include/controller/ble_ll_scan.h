@@ -93,6 +93,7 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_INCOMPLETE_ERR_BIT   0x04
 #define BLE_LL_AUX_HAS_ADDRA            0x08
 #define BLE_LL_AUX_IGNORE_BIT           0x10
+#define BLE_LL_AUX_HAS_DIR_ADDRA        0x20
 
 #define BLE_LL_CHECK_AUX_FLAG(aux_data, flag) (!!((aux_data)->flags & flag))
 
@@ -108,6 +109,8 @@ struct ble_ll_aux_data {
     uint8_t offset_units;
     uint8_t addr[6];
     uint8_t addr_type;
+    uint8_t dir_addr[6];
+    uint8_t dir_addr_type;
     uint8_t evt_type;
     struct ble_ll_sched_item sch;
     struct ble_ll_ext_adv_report *evt;
@@ -238,7 +241,10 @@ int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
 
 /* Called to parse extended advertising*/
 struct ble_ll_ext_adv_report;
-int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om, struct ble_mbuf_hdr *ble_hdr,
+int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
+                              uint8_t *adva, uint8_t adva_type,
+                              uint8_t *inita, uint8_t inita_type,
+                              struct ble_mbuf_hdr *ble_hdr,
                               struct ble_ll_ext_adv_report *parsed_evt);
 
 void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);
