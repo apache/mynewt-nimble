@@ -1432,8 +1432,8 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_uuid_init_from_mbuf(&uuid, *rxom, sizeof(*req),
-                                 pktlen - sizeof(*req));
+    rc = ble_uuid_init_from_att_mbuf(&uuid, *rxom, sizeof(*req),
+                                     pktlen - sizeof(*req));
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
         rc = BLE_HS_EMSGSIZE;
@@ -1930,8 +1930,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     }
 
     om_uuid_len = OS_MBUF_PKTHDR(*rxom)->omp_len - sizeof(*req);
-    rc = ble_uuid_init_from_mbuf(&uuid, *rxom, sizeof(*req),
-                                 om_uuid_len);
+    rc = ble_uuid_init_from_att_mbuf(&uuid, *rxom, sizeof(*req), om_uuid_len);
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = start_handle;

@@ -28,7 +28,11 @@ extern "C" {
 
 struct os_mbuf;
 
-int ble_uuid_init_from_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om, int off, int len);
+int ble_uuid_init_from_att_mbuf(ble_uuid_any_t *uuid, struct os_mbuf *om,
+                                int off, int len);
+int ble_uuid_init_from_att_buf(ble_uuid_any_t *uuid, const void *buf,
+                               size_t len);
+
 int ble_uuid_to_any(const ble_uuid_t *uuid, ble_uuid_any_t *uuid_any);
 int ble_uuid_to_mbuf(const ble_uuid_t *uuid, struct os_mbuf *om);
 int ble_uuid_flat(const ble_uuid_t *uuid, void *dst);
