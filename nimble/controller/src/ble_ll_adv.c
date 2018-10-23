@@ -2674,11 +2674,6 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     }
 #endif
 
-    /* See if the device is already connected */
-    if (ble_ll_adv_already_connected(peer, peer_addr_type)) {
-        return -1;
-    }
-
     /* Set device match bit if we are whitelisting */
     if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
         return -1;
@@ -2723,6 +2718,11 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             STATS_INC(ble_ll_stats, scan_rsp_txg);
         }
     } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
+        /* See if the device is already connected */
+        if (ble_ll_adv_already_connected(peer, peer_addr_type)) {
+            return -1;
+        }
+
         /*
          * Only accept connect requests from the desired address if we
          * are doing directed advertising
