@@ -54,13 +54,21 @@ public:
         pthread_mutex_unlock(&m_mutex);
     }
 
-    T get() {
+    T get(uint32_t tmo) {
         pthread_mutex_lock(&m_mutex);
-        while (m_queue.size() == 0) {
-            pthread_cond_wait(&m_condv, &m_mutex);
+        if (tmo) {
+            while (m_queue.size() == 0) {
+                pthread_cond_wait(&m_condv, &m_mutex);
+            }
         }
-        T item = m_queue.front();
-        m_queue.pop_front();
+
+        T item = NULL;
+
+        if (m_queue.size() != 0) {
+            item = m_queue.front();
+            m_queue.pop_front();
+        }
+
         pthread_mutex_unlock(&m_mutex);
         return item;
     }
