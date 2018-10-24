@@ -1098,6 +1098,37 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
     OS_EXIT_CRITICAL(sr);
 }
 
+void
+ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
+{
+    os_sr_t sr;
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *first;
+
+    OS_ENTER_CRITICAL(sr);
+    first = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        if (entry->sched_type == type) {
+            if (first == entry) {
+                os_cputime_timer_stop(&g_ble_ll_sched_timer);
+                first = NULL;
+            }
+
+            TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
+            remove_cb(entry);
+            entry->enqueued = 0;
+        }
+    }
+
+    if (!first) {
+        first = TAILQ_FIRST(&g_ble_ll_sched_q);
+        os_cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+}
+
 /**
  * Executes a schedule item by calling the schedule callback function.
  *

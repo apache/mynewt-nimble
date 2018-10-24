@@ -82,7 +82,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 /* Callback function */
 struct ble_ll_sched_item;
 typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
-
+typedef void (*sched_remove_cb_func)(struct ble_ll_sched_item *sch);
 /*
  * Strict connection scheduling (for the master) is different than how
  * connections are normally scheduled. With strict connection scheduling we
@@ -142,6 +142,8 @@ int ble_ll_sched_init(void);
 
 /* Remove item(s) from schedule */
 void ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
+
+void ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb);
 
 /* Schedule a new master connection */
 struct ble_ll_conn_sm;
