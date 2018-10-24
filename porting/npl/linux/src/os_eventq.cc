@@ -83,8 +83,11 @@ struct ble_npl_event *ble_npl_eventq_get(struct ble_npl_eventq *evq,
     struct ble_npl_event *ev;
     wqueue_t *q = static_cast<wqueue_t *>(evq->q);
 
-    ev = q->get();
-    ev->ev_queued = 0;
+    ev = q->get(tmo);
+
+    if (ev) {
+        ev->ev_queued = 0;
+    }
 
     return ev;
 }
