@@ -22,6 +22,7 @@
 #include <string.h>
 #include "os/os.h"
 
+#include <unistd.h>
 #include <time.h>
 
 /**
@@ -61,4 +62,10 @@ ble_npl_time_t ble_npl_time_ms_to_ticks32(uint32_t ms)
 uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks)
 {
     return ticks;
+}
+
+void
+ble_npl_time_delay(ble_npl_time_t ticks)
+{
+    sleep(ble_npl_time_ticks_to_ms32(ticks)/1000);
 }
