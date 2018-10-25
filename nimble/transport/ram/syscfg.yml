@@ -39,5 +39,10 @@ syscfg.defs:
             packets. It does not include the HCI data header (of 4 bytes).
         value: 255
 
+    BLE_TRANS_RAM_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the RAM BLE transport.
+        value: 100
+
 syscfg.vals.BLE_EXT_ADV:
     BLE_HCI_EVT_BUF_SIZE: 257

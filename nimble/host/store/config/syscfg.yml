@@ -21,3 +21,7 @@ syscfg.defs:
         description: >
             Whether to save data to sys/config, or just keep it in RAM.
         value: 1
+    BLE_STORE_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for BLE host store.
+        value: 500

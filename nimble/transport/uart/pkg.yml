@@ -35,4 +35,4 @@ pkg.apis:
     - ble_transport
 
 pkg.init:
-    ble_hci_uart_init: 500
+    ble_hci_uart_init: 'MYNEWT_VAL(BLE_TRANS_UART_SYSINIT_STAGE)'

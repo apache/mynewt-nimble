@@ -33,4 +33,4 @@ pkg.apis:
     - ble_transport
 
 pkg.init:
-    ble_hci_emspi_init: 100
+    ble_hci_emspi_init: 'MYNEWT_VAL(BLE_HCI_EMSPI_SYSINIT_STAGE)'

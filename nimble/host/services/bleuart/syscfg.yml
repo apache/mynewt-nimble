@@ -22,3 +22,7 @@ syscfg.defs:
             The size of the largest line that can be received over the UART
             service.
         value: 120
+    BLEUART_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the BLE UART service.
+        value: 500

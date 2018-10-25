@@ -35,4 +35,4 @@ pkg.deps.BLE_STORE_CONFIG_PERSIST:
     - "@apache-mynewt-core/sys/config"
 
 pkg.init:
-    ble_store_config_init: 500
+    ble_store_config_init: 'MYNEWT_VAL(BLE_STORE_SYSINIT_STAGE)'

@@ -31,4 +31,4 @@ pkg.deps:
     - nimble/host
 
 pkg.init:
-    ble_svc_ans_init: 303
+    ble_svc_ans_init: 'MYNEWT_VAL(BLE_SVC_ANS_SYSINIT_STAGE)'

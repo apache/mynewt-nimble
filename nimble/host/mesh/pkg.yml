@@ -45,5 +45,5 @@ pkg.req_apis:
     - stats
 
 pkg.init:
-    bt_mesh_register_gatt: 500
-    ble_mesh_shell_init: 1000
+    bt_mesh_register_gatt: 'MYNEWT_VAL(BLE_MESH_SYSINIT_STAGE)'
+    ble_mesh_shell_init: 'MYNEWT_VAL(BLE_MESH_SYSINIT_STAGE_2)'

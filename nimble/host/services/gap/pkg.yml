@@ -31,4 +31,4 @@ pkg.deps:
     - nimble/host
 
 pkg.init:
-    ble_svc_gap_init: 301
+    ble_svc_gap_init: 'MYNEWT_VAL(BLE_SVC_GAP_SYSINIT_STAGE)'

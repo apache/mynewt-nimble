@@ -16,19 +16,8 @@
 # under the License.
 
 syscfg.defs:
-    BLE_SVC_BAS_BATTERY_LEVEL_READ_PERM:
+    BLE_STORE_RAM_SYSINIT_STAGE:
         description: >
-            Defines permissions for reading "Battery Level" characteristics. Can
-            be zero to allow read without extra permissions or combination of:
-                BLE_GATT_CHR_F_READ_ENC
-                BLE_GATT_CHR_F_READ_AUTHEN
-                BLE_GATT_CHR_F_READ_AUTHOR
-        value: 0
-    BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE:
-        description: >
-            Set to 1 to support notification or 0 to disable it.
-        value: 1
-    BLE_SVC_BAS_SYSINIT_STAGE:
-        description: >
-            Sysinit stage for the battery level service.
-        value: 303
+            Sysinit stage for the RAM BLE store.
+        value: 500
+

@@ -34,4 +34,4 @@ pkg.deps:
     - nimble/host
 
 pkg.init:
-    ble_store_ram_init: 500
+    ble_store_ram_init: 'MYNEWT_VAL(BLE_STORE_RAM_SYSINIT_STAGE)'

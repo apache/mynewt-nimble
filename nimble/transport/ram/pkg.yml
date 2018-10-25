@@ -33,4 +33,4 @@ pkg.apis:
     - ble_transport
 
 pkg.init:
-    ble_hci_ram_init: 100
+    ble_hci_ram_init: 'MYNEWT_VAL(BLE_TRANS_RAM_SYSINIT_STAGE)'

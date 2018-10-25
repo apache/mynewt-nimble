@@ -23,3 +23,8 @@ syscfg.defs:
     BLE_SVC_ANS_UNR_ALERT_CAT:
         description: "Initial supported unread alert category bitmask."
         value: 0
+
+    BLE_SVC_ANS_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the alert notification service.
+        value: 303
