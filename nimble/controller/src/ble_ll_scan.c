@@ -2122,7 +2122,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             goto scan_rx_isr_exit;
         }
 
-        if (ext_adv_mode == BLE_LL_EXT_ADV_MODE_SCAN) {
+        if ((ext_adv_mode == BLE_LL_EXT_ADV_MODE_SCAN) &&
+                (scanphy->scan_type == BLE_SCAN_TYPE_ACTIVE)) {
             chk_send_req = 1;
         }
         chk_wl = 1;
