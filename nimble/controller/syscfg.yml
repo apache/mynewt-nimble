@@ -298,6 +298,11 @@ syscfg.defs:
             line number where assertion occured.
         value: 0
 
+    BLE_LL_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the NimBLE controller.
+        value: 250
+
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0

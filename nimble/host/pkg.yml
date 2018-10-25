@@ -49,7 +49,7 @@ pkg.req_apis:
     - stats
 
 pkg.init:
-    ble_hs_init: 200
+    ble_hs_init: 'MYNEWT_VAL(BLE_HS_SYSINIT_STAGE)'
 
 pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
     ble_hs_shutdown: 200

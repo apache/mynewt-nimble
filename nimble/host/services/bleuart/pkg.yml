@@ -34,4 +34,4 @@ pkg.req_apis:
     - console
 
 pkg.init:
-    bleuart_init: 500
+    bleuart_init: 'MYNEWT_VAL(BLEUART_SYSINIT_STAGE)'

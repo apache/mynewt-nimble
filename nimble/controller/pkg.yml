@@ -35,4 +35,4 @@ pkg.deps:
     - nimble
 
 pkg.init:
-    ble_ll_init: 250
+    ble_ll_init: 'MYNEWT_VAL(BLE_LL_SYSINIT_STAGE)'

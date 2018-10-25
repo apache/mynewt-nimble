@@ -92,3 +92,7 @@ syscfg.defs:
             Defines a default value for "Manufacturer name" if not set with
             'ble_svc_dis_manufacturer_name_set'.
         value: NULL
+    BLE_SVC_DIS_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the device information BLE service.
+        value: 303

@@ -76,3 +76,8 @@ syscfg.defs:
             by Core specification 5.0, Vol 3, Part C, section 12.
             Set to '-1' to disable.
         value: -1
+
+    BLE_SVC_GAP_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the GAP BLE service.
+        value: 301

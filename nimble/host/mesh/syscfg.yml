@@ -514,6 +514,16 @@ syscfg.defs:
             This value defines BLE Mesh device/node name.
         value: '"nimble-mesh-node"'
 
+    BLE_MESH_SYSINIT_STAGE:
+        description: >
+            Primary sysinit stage for BLE mesh functionality.
+        value: 500
+
+    BLE_MESH_SYSINIT_STAGE_2:
+        description: >
+            Secondary sysinit stage for BLE mesh functionality.
+        value: 1000
+
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
     BLE_MESH_HEALTH_CLI: 1

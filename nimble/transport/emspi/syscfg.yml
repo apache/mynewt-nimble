@@ -90,5 +90,10 @@ syscfg.defs:
         description: 'The size of the emspi task (units: 4-byte words).'
         value: 256
 
+    BLE_HCI_EMSPI_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the EMSPI BLE transport.
+        value: 100
+
 syscfg.vals.BLE_EXT_ADV:
     BLE_HCI_EVT_BUF_SIZE: 257

@@ -70,5 +70,10 @@ syscfg.defs:
         description: 'Size of the HCI socket stack (units=words).'
         value: 80
 
+    BLE_SOCK_CLI_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for the socket BLE transport.
+        value: 500
+
 syscfg.vals.BLE_EXT_ADV:
     BLE_HCI_EVT_BUF_SIZE: 257
