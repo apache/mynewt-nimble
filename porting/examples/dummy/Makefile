@@ -39,14 +39,18 @@ SRC = \
 	$(NIMBLE_ROOT)/porting/npl/dummy/src/npl_os_dummy.c \
 	$(NIMBLE_ROOT)/porting/npl/dummy/src/hci_dummy.c \
 	$(NIMBLE_SRC) \
+	$(TINYCRYPT_SRC) \
 	main.c \
 
 # Add dummy NPL and all NimBLE directories to include paths
 INC = \
 	$(NIMBLE_ROOT)/porting/npl/dummy/include \
 	$(NIMBLE_INCLUDE) \
+	$(TINYCRYPT_INCLUDE) \
+	$(INCLUDE) \
 
 OBJ := $(SRC:.c=.o)
+TINYCRYPT_OBJ := $(TINYCRYPT_SRC:.c=.o)
 
 CFLAGS := $(NIMBLE_CFLAGS)
 
@@ -59,8 +63,10 @@ clean:
 	rm $(OBJ) -f
 	rm dummy -f
 
+$(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
+
 %.o: %.c
 	$(CC) -c $(addprefix -I, $(INC)) $(CFLAGS) -o $@ $<
 
-dummy: $(OBJ)
+dummy: $(OBJ) $(TINYCRYPT_OBJ)
 	$(CC) -o $@ $^

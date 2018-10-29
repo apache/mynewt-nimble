@@ -27,6 +27,7 @@ SRC += \
 	$(NIMBLE_ROOT)/porting/npl/linux/src/os_task.c     \
 	$(NIMBLE_ROOT)/porting/npl/linux/src/os_time.c     \
 	$(NIMBLE_ROOT)/nimble/transport/socket/src/ble_hci_socket.c \
+	$(TINYCRYPT_SRC) \
 	$(NULL)
 
 # Source files for demo app
@@ -42,6 +43,7 @@ INC = \
 	$(NIMBLE_ROOT)/porting/npl/linux/src \
 	$(NIMBLE_ROOT)/nimble/transport/socket/include \
 	$(NIMBLE_INCLUDE) \
+	$(TINYCRYPT_INCLUDE) \
 	$(NULL)
 
 INCLUDES := $(addprefix -I, $(INC))
@@ -51,6 +53,8 @@ SRC_CC = $(filter %.cc, $(SRC))
 
 OBJ := $(SRC_C:.c=.o)
 OBJ += $(SRC_CC:.cc=.o)
+
+TINYCRYPT_OBJ := $(TINYCRYPT_SRC:.c=.o)
 
 CFLAGS =                    \
     $(NIMBLE_CFLAGS)        \
@@ -70,12 +74,14 @@ clean:
 	rm $(OBJ) -f
 	rm dummy -f
 
+$(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
+
 %.o: %.c
 	$(CC) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
 %.o: %.cc
 	$(CXX) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
-nimble-linux: $(OBJ)
+nimble-linux: $(OBJ) $(TINYCRYPT_OBJ)
 	$(LD) -o $@ $^ $(LIBS)
 	$(SIZE) $@
