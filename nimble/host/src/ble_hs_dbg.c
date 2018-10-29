@@ -319,7 +319,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
     {
         struct hci_le_subev_chan_sel_alg *data = (void *) evdata;
 
-        if (len != BLE_HCI_LE_SUBEV_CHAN_SEL_ALG_LEN) {
+        if (len != sizeof(*data)) {
             BLE_HS_LOG(DEBUG, "Corrupted LE Channel Selection Algorithm "
                        "len=%u\n", len);
             break;
