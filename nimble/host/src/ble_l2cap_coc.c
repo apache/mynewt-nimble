@@ -124,6 +124,7 @@ ble_l2cap_event_coc_received_data(struct ble_l2cap_chan *chan,
     struct ble_l2cap_event event;
 
     event.type = BLE_L2CAP_EVENT_COC_DATA_RECEIVED;
+    event.receive.conn_handle = chan->conn_handle;
     event.receive.chan = chan;
     event.receive.sdu_rx = om;
 
