@@ -93,7 +93,8 @@ int test_get_no_wait()
 
 int test_get()
 {
-    struct ble_npl_event *ev = ble_npl_eventq_get(&s_eventq);
+    struct ble_npl_event *ev = ble_npl_eventq_get(&s_eventq,
+						  BLE_NPL_WAIT_FOREVER);
 
     VerifyOrQuit(ev == &s_event,
 		 "callout: wrong event passed");
