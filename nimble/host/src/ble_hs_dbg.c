@@ -675,7 +675,7 @@ ble_hs_dbg_event_disp(uint8_t *evbuf)
         ble_hs_dbg_num_comp_pkts_disp(evdata, len);
         break;
     case BLE_HCI_EVCODE_LE_META:
-        ble_hs_dbg_le_event_disp(evdata[0], len, evdata + 1);
+        ble_hs_dbg_le_event_disp(evdata[0], len-1, evdata + 1);
         break;
     case BLE_HCI_EVCODE_AUTH_PYLD_TMO:
         ble_hs_dbg_auth_pyld_tmo_disp(evdata, len);
