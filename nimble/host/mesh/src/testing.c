@@ -97,7 +97,7 @@ void bt_test_print_credentials(void)
 	struct bt_mesh_subnet *sub;
 	struct bt_mesh_app_key *app_key;
 
-	console_printf("IV Index: %08lx\n", bt_mesh.iv_index);
+	console_printf("IV Index: %08lx\n", (long) bt_mesh.iv_index);
 	console_printf("Dev key: %s\n", bt_hex(bt_mesh.dev_key, 16));
 
 	for (i = 0; i < MYNEWT_VAL(BLE_MESH_SUBNET_COUNT); ++i)
