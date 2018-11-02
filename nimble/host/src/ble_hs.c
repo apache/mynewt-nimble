@@ -455,6 +455,17 @@ ble_hs_timer_resched(void)
      */
     ble_hs_timer_reset(0);
 }
+ 
+void
+ble_hs_sched_start(void)
+{
+#ifdef MYNEWT
+    ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
+                       &ble_hs_ev_start);
+#else
+    ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start);
+#endif
+}
 
 static void
 ble_hs_event_rx_hci_ev(struct ble_npl_event *ev)
@@ -698,10 +709,13 @@ ble_hs_init(void)
      * queue ensures the event won't run until the end of main().  This allows
      * the application to configure this package in the meantime.
      */
+#if MYNEWT_VAL(BLE_HS_AUTO_START)
 #ifdef MYNEWT
-    ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(), &ble_hs_ev_start);
+    ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
+                       &ble_hs_ev_start);
 #else
     ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start);
+#endif
 #endif
 
 #if BLE_MONITOR
