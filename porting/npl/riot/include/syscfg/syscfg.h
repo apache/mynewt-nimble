@@ -777,6 +777,10 @@
 #define MYNEWT_VAL_BLE_HS_DEBUG (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_HS_AUTO_START
+#define MYNEWT_VAL_BLE_HS_AUTO_START (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_HS_FLOW_CTRL
 #define MYNEWT_VAL_BLE_HS_FLOW_CTRL (0)
 #endif

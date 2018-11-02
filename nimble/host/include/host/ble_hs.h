@@ -312,6 +312,18 @@ int ble_hs_synced(void);
 int ble_hs_start(void);
 
 /**
+ * Enqueues a host start event to the default event queue.  The actual host
+ * startup is performed in the host parent task, but using the default queue
+ * here ensures the event won't run until the end of main() when this is
+ * called during system initialization.  This allows the application to
+ * configure the host package in the meantime.
+ *
+ * If auto-start is disabled, the application should use this function to start
+ * the BLE stack.
+ */
+void ble_hs_sched_start(void);
+
+/**
  * Causes the host to reset the NimBLE stack as soon as possible.  The
  * application is notified when the reset occurs via the host reset callback.
  *

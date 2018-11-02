@@ -21,6 +21,12 @@ syscfg.defs:
         description: 'Indicates that a BLE host is present.'
         value: 1
 
+    BLE_HS_AUTO_START:
+        description: >
+                Causes the BLE host to automatically start during system
+                initialization.
+        value: 1
+
     # Debug settings.
     BLE_HS_DEBUG:
         description: 'Enables extra runtime assertions.'
