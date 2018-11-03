@@ -65,11 +65,11 @@ Generic Attribute Profile (GATT) and Security Manager (SM).
 - nimble/transport: Contains code for supported transport protocols between host
 and controller. This includes UART, emSPI and RAM (used in combined build when
 host and controller run on same CPU)
-([transport](https://github.com/apache/mynewt-nimble/tree/master/nimble/drivers))
+([transport](https://github.com/apache/mynewt-nimble/tree/master/nimble/transport))
 
 - porting: Contains implementation of NimBLE Porting Layer (NPL) for supported
 operating systems
-([transport](https://github.com/apache/mynewt-nimble/tree/master/porting))
+([porting](https://github.com/apache/mynewt-nimble/tree/master/porting))
 
 - ext: Contains external libraries used by NimBLE. Those are used if not
 provided by OS
