@@ -1565,8 +1565,7 @@ ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
 }
 
 static int
-ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
-                              struct ble_ll_aux_data *aux_data, uint8_t *buf)
+ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_aux_data *aux_data, uint8_t *buf)
 {
     uint32_t aux_ptr_field = get_le32(buf) & 0x00FFFFFF;
 
@@ -1612,7 +1611,7 @@ ble_ll_ext_scan_parse_adv_info(struct ble_ll_scan_sm *scansm,
  * ble_ll_scan_get_aux_data
  *
  * Get aux data pointer. It is new allocated data for beacon or currently
- * processing aux data pointer
+ * processing aux data pointer. Aux data pointer will be attached to ble_hdr.rxinfo.user_data
  *
  * Context: Interrupt
  *
@@ -1627,9 +1626,7 @@ ble_ll_ext_scan_parse_adv_info(struct ble_ll_scan_sm *scansm,
  * -1: error
  */
 int
-ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
-                         struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
-                         struct ble_ll_aux_data **aux_data)
+ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 {
     uint8_t ext_hdr_len;
     uint8_t pdu_len;
@@ -1639,6 +1636,8 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t has_dir_addr = 0;
     uint8_t has_adi = 0;
     int i;
+    struct ble_ll_aux_data *current_aux = ble_hdr->rxinfo.user_data;
+    struct ble_ll_aux_data *new_aux = NULL;
     struct ble_ll_aux_data tmp_aux_data = { 0 };
     int rc;
 
@@ -1650,7 +1649,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     tmp_aux_data.mode = rxbuf[2] >> 6;
 
     ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !scansm->cur_aux_data) {
+    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !ble_hdr->rxinfo.user_data) {
         return -1;
     }
 
@@ -1687,43 +1686,42 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
 
-        if (ble_ll_ext_scan_parse_aux_ptr(scansm, &tmp_aux_data, ext_hdr + i) < 0) {
+        if (ble_ll_ext_scan_parse_aux_ptr(&tmp_aux_data, ext_hdr + i) < 0) {
             return -1;
         }
 
-        if (scansm->cur_aux_data) {
+        if (current_aux) {
             /* If we are here that means there is chain advertising. */
 
             /* Lets reuse old aux_data */
-            *aux_data = scansm->cur_aux_data;
+            new_aux = current_aux;
 
             /* TODO Collision; Do smth smart when did does not match */
-            if (!((*aux_data)->evt_type & (BLE_HCI_ADV_SCAN_MASK))
-                            && (tmp_aux_data.adi != (*aux_data)->adi)) {
+            if (!(new_aux->evt_type & (BLE_HCI_ADV_SCAN_MASK))
+                            && (tmp_aux_data.adi != new_aux->adi)) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
-                (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+                new_aux->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
             }
 
-            (*aux_data)->flags |= BLE_LL_AUX_CHAIN_BIT;
-            (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
-        } else if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
+            new_aux->flags |= BLE_LL_AUX_CHAIN_BIT;
+            new_aux->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
+        } else {
+            if (ble_ll_scan_ext_adv_init(&new_aux) < 0) {
             /* Out of memory */
             return -1;
+            }
         }
 
-        (*aux_data)->aux_phy = tmp_aux_data.aux_phy;
+        new_aux->aux_phy = tmp_aux_data.aux_phy;
 
-        if (!scansm->cur_aux_data) {
+        if (!current_aux) {
             /* Only for first ext adv we want to keep primary phy.*/
-            (*aux_data)->aux_primary_phy = ble_hdr->rxinfo.phy;
-        } else {
-            /* We are ok to clear cur_aux_data now. */
-            scansm->cur_aux_data = NULL;
+            new_aux->aux_primary_phy = ble_hdr->rxinfo.phy;
         }
 
-        (*aux_data)->chan = tmp_aux_data.chan;
-        (*aux_data)->offset = tmp_aux_data.offset;
-        (*aux_data)->mode = tmp_aux_data.mode;
+        new_aux->chan = tmp_aux_data.chan;
+        new_aux->offset = tmp_aux_data.offset;
+        new_aux->mode = tmp_aux_data.mode;
 
         /* New aux_data or chaining */
         rc = 0;
@@ -1733,37 +1731,38 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
          * a) it is empty beacon (no aux ptr at all)
          * b) there is no chaining or chaining has just stopped. In this case we do hava aux_data */
 
-        if (!scansm->cur_aux_data) {
-            (*aux_data) = NULL;
+        if (!current_aux) {
+            new_aux = NULL;
             return 1;
         }
 
         /*If there is no new aux ptr, just get current one */
-        (*aux_data) = scansm->cur_aux_data;
-        scansm->cur_aux_data = NULL;
+        new_aux = ble_hdr->rxinfo.user_data;
 
         /* Clear incomplete flag */
-        (*aux_data)->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
+        new_aux->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
 
         /* Current processing aux_ptr */
         rc = 1;
     }
 
     if (has_adi) {
-         (*aux_data)->adi = tmp_aux_data.adi;
+        new_aux->adi = tmp_aux_data.adi;
     }
 
     if (has_addr) {
-        memcpy((*aux_data)->addr, tmp_aux_data.addr, 6);
-        (*aux_data)->addr_type = tmp_aux_data.addr_type;
-        (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
+        memcpy(new_aux->addr, tmp_aux_data.addr, 6);
+        new_aux->addr_type = tmp_aux_data.addr_type;
+        new_aux->flags |= BLE_LL_AUX_HAS_ADDRA;
     }
 
     if (has_dir_addr) {
-        memcpy((*aux_data)->dir_addr, tmp_aux_data.dir_addr, 6);
-        (*aux_data)->dir_addr_type = tmp_aux_data.dir_addr_type;
-        (*aux_data)->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+        memcpy(new_aux->dir_addr, tmp_aux_data.dir_addr, 6);
+        new_aux->dir_addr_type = tmp_aux_data.dir_addr_type;
+        new_aux->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
     }
+
+    ble_hdr->rxinfo.user_data = new_aux;
 
     return rc;
 }
@@ -2048,7 +2047,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     struct ble_ll_scan_params *scanphy;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data = NULL;
     uint8_t phy_mode;
 #endif
 
@@ -2077,12 +2075,14 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
+    scansm->cur_aux_data = NULL;
 #endif
 
     /* Just leave if the CRC is not OK. */
     rc = -1;
     if (!crcok) {
-        scansm->cur_aux_data = NULL;
+        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+        ble_hdr->rxinfo.user_data = NULL;
         goto scan_rx_isr_exit;
     }
 
@@ -2096,13 +2096,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             goto scan_rx_isr_exit;
         }
         /* Create new aux data for beacon or get current processing aux ptr */
-        rc = ble_ll_scan_get_aux_data(scansm, ble_hdr, rxbuf, &aux_data);
+        rc = ble_ll_scan_get_aux_data(ble_hdr, rxbuf);
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-            /* cur_aux_data is already in the ble_hdr->rxinfo.user_data and
-             * will be taken care by LL task */
-            scansm->cur_aux_data = NULL;
 
             goto scan_rx_isr_exit;
         }
@@ -2115,7 +2112,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
          * and aux_data contains correct data
          */
         BLE_LL_ASSERT(scansm->cur_aux_data == NULL);
-        ble_hdr->rxinfo.user_data = aux_data;
         rc = -1;
     }
 #endif
@@ -2484,7 +2480,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     struct ble_mbuf_hdr *ble_hdr;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data;
+    struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
     int rc;
 #endif
 
@@ -2588,7 +2584,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             goto scan_continue;
         }
 
-        aux_data = hdr->rxinfo.user_data;
 
         if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
             goto scan_continue;

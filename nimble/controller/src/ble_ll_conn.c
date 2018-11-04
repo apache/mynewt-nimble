@@ -3170,7 +3170,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_scan_sm *scansm;
     uint8_t phy;
-    struct ble_ll_aux_data *aux_data = NULL;
 #endif
     int ext_adv_mode = -1;
 
@@ -3180,6 +3179,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     scansm = connsm->scansm;
     ble_hdr->rxinfo.user_data =scansm->cur_aux_data;
+    scansm->cur_aux_data = NULL;
 #endif
 
     rc = -1;
@@ -3190,7 +3190,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* Invalid packet - make sure we do not wait for AUX_CONNECT_RSP */
         ble_ll_conn_reset_pending_aux_conn_rsp();
-        scansm->cur_aux_data = NULL;
 #endif
 
         /* Ignore this packet */
@@ -3221,16 +3220,14 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             goto init_rx_isr_exit;
         }
 
-        rc = ble_ll_scan_get_aux_data(scansm, ble_hdr, rxbuf, &aux_data);
+        rc = ble_ll_scan_get_aux_data(ble_hdr, rxbuf);
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-            ble_ll_scan_aux_data_free(scansm->cur_aux_data);
-            scansm->cur_aux_data = NULL;
+            ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+            ble_hdr->rxinfo.user_data = NULL;
             goto init_rx_isr_exit;
         }
-
-        ble_hdr->rxinfo.user_data = aux_data;
     }
 #endif
 
