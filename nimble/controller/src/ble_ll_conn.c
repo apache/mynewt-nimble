@@ -3924,8 +3924,9 @@ chk_rx_terminate_ind:
                     && (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
             connsm->csmflags.cfbit.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxbuf[3];
-            reply = 1;
-        } else if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        }
+
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
             reply = CONN_F_LAST_TXD_MD(connsm) || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
         } else {
             /* A slave always replies */
