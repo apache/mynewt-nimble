@@ -1922,6 +1922,27 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         return -1;
     }
 
+    if (aux_data) {
+        /* If address has been provided, we do have it already in aux_data.*/
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
+            *addr = aux_data->addr;
+            *addr_type = aux_data->addr_type;
+        }
+
+        if (!inita) {
+            return 0;
+        }
+
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
+            *inita = aux_data->dir_addr;
+            *inita_type = aux_data->dir_addr_type;
+        }
+
+        return 0;
+    }
+
+    /* If this is just becon with no aux data, lets get address from the packet */
+
     ext_hdr_len = rxbuf[2] & 0x3F;
 
     ext_hdr_flags = rxbuf[3];
@@ -1937,19 +1958,6 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *addr_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
-        if (aux_data) {
-            /* Lets copy addr to aux_data. Need it for e.g. chaining */
-            /* XXX add sanity checks */
-            memcpy(aux_data->addr, *addr, 6);
-            aux_data->addr_type = *addr_type;
-            aux_data->flags |= BLE_LL_AUX_HAS_ADDRA;
-        }
-    } else {
-        /* We should have address already in aux_data */
-        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
-            *addr = aux_data->addr;
-            *addr_type = aux_data->addr_type;
-        }
     }
 
     if (!inita) {
@@ -1961,18 +1969,6 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *inita_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
-        if (aux_data) {
-            /* Lets copy addr to aux_data. Need it for e.g. chaining */
-            memcpy(aux_data->dir_addr, *inita, 6);
-            aux_data->dir_addr_type = *inita_type;
-            aux_data->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
-        }
-    } else {
-        /* We should have address already in aux_data */
-        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
-            *inita = aux_data->dir_addr;
-            *inita_type = aux_data->dir_addr_type;
-        }
     }
 
     return 0;
