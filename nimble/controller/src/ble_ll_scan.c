@@ -1640,6 +1640,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
     uint8_t has_adi = 0;
     int i;
     struct ble_ll_aux_data tmp_aux_data = { 0 };
+    int rc;
 
     pdu_len = rxbuf[1];
     if (pdu_len == 0) {
@@ -1706,6 +1707,7 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             (*aux_data)->flags |= BLE_LL_AUX_CHAIN_BIT;
             (*aux_data)->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
         } else if (ble_ll_scan_ext_adv_init(aux_data) < 0) {
+            /* Out of memory */
             return -1;
         }
 
@@ -1719,34 +1721,51 @@ ble_ll_scan_get_aux_data(struct ble_ll_scan_sm *scansm,
             scansm->cur_aux_data = NULL;
         }
 
-        if (has_adi) {
-            (*aux_data)->adi = tmp_aux_data.adi;
-        }
-
         (*aux_data)->chan = tmp_aux_data.chan;
         (*aux_data)->offset = tmp_aux_data.offset;
         (*aux_data)->mode = tmp_aux_data.mode;
-        if (has_addr) {
-            memcpy((*aux_data)->addr, tmp_aux_data.addr, 6);
-            (*aux_data)->addr_type = tmp_aux_data.addr_type;
-            (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
+
+        /* New aux_data or chaining */
+        rc = 0;
+    } else {
+
+        /* So ext packet does not have aux ptr. It can be because
+         * a) it is empty beacon (no aux ptr at all)
+         * b) there is no chaining or chaining has just stopped. In this case we do hava aux_data */
+
+        if (!scansm->cur_aux_data) {
+            (*aux_data) = NULL;
+            return 1;
         }
-        if (has_dir_addr) {
-            memcpy((*aux_data)->dir_addr, tmp_aux_data.dir_addr, 6);
-            (*aux_data)->dir_addr_type = tmp_aux_data.dir_addr_type;
-            (*aux_data)->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
-        }
-        return 0;
+
+        /*If there is no new aux ptr, just get current one */
+        (*aux_data) = scansm->cur_aux_data;
+        scansm->cur_aux_data = NULL;
+
+        /* Clear incomplete flag */
+        (*aux_data)->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
+
+        /* Current processing aux_ptr */
+        rc = 1;
     }
 
-    /*If there is no new aux ptr, just get current one */
-    (*aux_data) = scansm->cur_aux_data;
-    scansm->cur_aux_data = NULL;
+    if (has_adi) {
+         (*aux_data)->adi = tmp_aux_data.adi;
+    }
 
-    /* Clear incomplete flag */
-    (*aux_data)->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
+    if (has_addr) {
+        memcpy((*aux_data)->addr, tmp_aux_data.addr, 6);
+        (*aux_data)->addr_type = tmp_aux_data.addr_type;
+        (*aux_data)->flags |= BLE_LL_AUX_HAS_ADDRA;
+    }
 
-    return 1;
+    if (has_dir_addr) {
+        memcpy((*aux_data)->dir_addr, tmp_aux_data.dir_addr, 6);
+        (*aux_data)->dir_addr_type = tmp_aux_data.dir_addr_type;
+        (*aux_data)->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+    }
+
+    return rc;
 }
 /**
  * Called when a receive ADV_EXT PDU has ended.
