@@ -38,6 +38,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_trace.h"
 #include "ble_ll_conn_priv.h"
 
 /*
@@ -168,13 +169,13 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
      * just drop the scheduled item
      */
     if (!scansm->scan_enabled || scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_free(sch->cb_arg);
+        ble_ll_scan_aux_data_unref(sch->cb_arg);
         goto done;
     }
 
     /* Check if there is no aux connect sent. If so drop the sched item */
     if (lls == BLE_LL_STATE_INITIATING && ble_ll_conn_init_pending_aux_conn_rsp()) {
-        ble_ll_scan_aux_data_free(sch->cb_arg);
+        ble_ll_scan_aux_data_unref(sch->cb_arg);
         goto done;
     }
 
@@ -196,7 +197,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     scansm->cur_aux_data->scanning = 1;
 
     if (ble_ll_scan_start(scansm, sch)) {
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         ble_ll_scan_chk_resume();
         goto done;
@@ -226,6 +227,8 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
     e->sch.sched_cb = ble_ll_aux_scan_cb;
     e->sch.cb_arg = e;
     e->sch.sched_type = BLE_LL_SCHED_TYPE_AUX_SCAN;
+    e->ref_cnt = 1;
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_REF, (uint32_t)e, e->ref_cnt);
 
     *aux_data = e;
     STATS_INC(ble_ll_stats, aux_allocated);
@@ -419,7 +422,7 @@ ble_ll_scan_clean_cur_aux_data(void)
 
     /* If scanner was reading aux ptr, we need to clean it up */
     if (scansm && scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
     }
 #endif
@@ -1113,6 +1116,59 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     return 0;
 }
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
+{
+    if (aux_scan) {
+        if (aux_scan->evt) {
+            ble_hci_trans_buf_free((uint8_t *)aux_scan->evt);
+            aux_scan->evt = NULL;
+        }
+        os_memblock_put(&ext_adv_pool, aux_scan);
+        STATS_INC(ble_ll_stats, aux_freed);
+    }
+}
+
+void
+ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_data)
+{
+    os_sr_t sr;
+
+    if (!aux_data) {
+        return;
+    }
+
+    OS_ENTER_CRITICAL(sr);
+    aux_data->ref_cnt++;
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_REF, (uint32_t) aux_data, aux_data->ref_cnt);
+
+    OS_EXIT_CRITICAL(sr);
+}
+
+int
+ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_data)
+{
+    os_sr_t sr;
+    int ret;
+
+    if (!aux_data) {
+        return 0;
+    }
+
+    OS_ENTER_CRITICAL(sr);
+    aux_data->ref_cnt--;
+    ret = aux_data->ref_cnt;
+    ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_UNREF, (uint32_t) aux_data, aux_data->ref_cnt);
+
+    if (aux_data->ref_cnt == 0) {
+        ble_ll_scan_aux_data_free(aux_data);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    return ret;
+}
+
 static void
 ble_ll_scan_sched_remove(struct ble_ll_sched_item *sch)
 {
@@ -2074,18 +2130,27 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         return 0;
     }
 
+    rc = -1;
+
     ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
-    scansm->cur_aux_data = NULL;
+    if (scansm->cur_aux_data) {
+        ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
+        scansm->cur_aux_data = NULL;
+        if (ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data) == 0) {
+            ble_hdr->rxinfo.user_data = NULL;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+            goto scan_rx_isr_exit;
+        }
+    }
 #endif
 
     /* Just leave if the CRC is not OK. */
-    rc = -1;
     if (!crcok) {
-        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
-        ble_hdr->rxinfo.user_data = NULL;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+#endif
         goto scan_rx_isr_exit;
     }
 
@@ -2111,10 +2176,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
         }
 
-        /* If the ble_ll_scan_get_aux_data() succeed, scansm->cur_aux_data is NULL
-         * and aux_data contains correct data
-         */
-        BLE_LL_ASSERT(scansm->cur_aux_data == NULL);
         rc = -1;
     }
 #endif
@@ -2227,6 +2288,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 if (ble_hdr->rxinfo.channel <  BLE_PHY_NUM_DATA_CHANS) {
                     /* Let's keep the aux ptr as a reference to scan rsp */
                     scansm->cur_aux_data = ble_hdr->rxinfo.user_data;
+                    ble_ll_scan_aux_data_ref(scansm->cur_aux_data);
                     STATS_INC(ble_ll_stats, aux_scan_req_tx);
                 }
 #endif
@@ -2238,6 +2300,12 @@ scan_rx_isr_exit:
     if (rc) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* On handover lets increase ref count */
+    if (ble_hdr->rxinfo.user_data) {
+        ble_ll_scan_aux_data_ref(ble_hdr->rxinfo.user_data);
+    }
+#endif
     return rc;
 }
 
@@ -2318,7 +2386,7 @@ ble_ll_scan_wfr_timer_exp(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->cur_aux_data) {
         /*TODO handle chain incomplete, data truncated */
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         STATS_INC(ble_ll_stats, aux_missed_adv);
         ble_ll_scan_chk_resume();
@@ -2329,18 +2397,6 @@ ble_ll_scan_wfr_timer_exp(void)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-void
-ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
-{
-    if (aux_scan) {
-        if (aux_scan->evt) {
-            ble_hci_trans_buf_free((uint8_t *)aux_scan->evt);
-        }
-        os_memblock_put(&ext_adv_pool, aux_scan);
-        STATS_INC(ble_ll_stats, aux_freed);
-    }
-}
-
 /*
  * Send extended advertising report
  *
@@ -2364,7 +2420,8 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     uint8_t max_event_len;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
-        return -1;
+        rc = -1;
+        goto done;
     }
 
     /*
@@ -2378,7 +2435,8 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     } else {
         evt = ble_ll_scan_init_ext_adv_report(NULL);
         if (!evt) {
-            return -1;
+            rc = -1;
+            goto done;
         }
     }
 
@@ -2386,7 +2444,8 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     if (datalen < 0) {
         /* XXX what should we do here? send some trimmed event? */
         ble_hci_trans_buf_free((uint8_t *)evt);
-        return -1;
+        rc = -1;
+        goto done;
     }
 
     offset = 0;
@@ -2458,6 +2517,12 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     } else {
         /* If it is empty beacon, evt shall be NULL */
         BLE_LL_ASSERT(!evt);
+    }
+
+done:
+    /* If advertising event is completed or failed, we can drop the reference */
+    if (rc <= 0) {
+        ble_ll_scan_aux_data_unref(aux_data);
     }
 
     return rc;
@@ -2542,6 +2607,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     if (ble_ll_scan_chk_filter_policy(ptype, adv_addr, txadd, init_addr,
                                       init_addr_type,
                                       BLE_MBUF_HDR_DEVMATCH(hdr))) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_ll_scan_aux_data_unref(aux_data);
+#endif
         goto scan_continue;
     }
 
@@ -2582,6 +2650,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     /* Filter duplicates */
     if (scansm->scan_filt_dups) {
         if (ble_ll_scan_is_dup_adv(ptype, ident_addr_type, ident_addr)) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+            if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+                ble_ll_scan_aux_data_unref(aux_data);
+            }
+#endif
             goto scan_continue;
         }
     }
@@ -2589,6 +2662,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm->ext_scanning) {
+            ble_ll_scan_aux_data_unref(aux_data);
             goto scan_continue;
         }
 
@@ -2596,8 +2670,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             goto scan_continue;
         }
 
-
+        /* If it is ignore it means event is already truncated, just unref aux */
         if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
+            ble_ll_scan_aux_data_unref(aux_data);
             goto scan_continue;
         }
 
@@ -2609,13 +2684,22 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
                 /* Mark that chain is trimmed */
                 aux_data->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+                /* Note: aux_data unref will be done when truncated is sent to the host or
+                 * below if we failed to schedule for the very first aux packet.
+                 */
+            } else {
+                /* We are here because successfully scheduled for next aux */
+                ble_ll_scan_aux_data_ref(aux_data);
             }
 
+            /*
+             * If this is ext adv, there is nothing to do here but just leave and wait
+             * for aux packet. However, if we was not able to schedule for first aux packet,
+             * make sure to unref aux_data here
+             */
             if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
-                /* This is just beacon. Let's wait for more data */
-                if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-                    /* If scheduled for aux let's don't remove aux data */
-                    hdr->rxinfo.user_data = NULL;
+                if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+                    ble_ll_scan_aux_data_unref(aux_data);
                 }
                 goto scan_continue;
             }
@@ -2623,6 +2707,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
+        /* For the time when sending events up, lets increase ref count */
+        ble_ll_scan_aux_data_ref(aux_data);
         rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
                                             init_addr, init_addr_type, om, hdr);
         if (rc < 0) {
@@ -2631,19 +2717,25 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
              * make sure we do not send any more events for this chain, just in
              * case we managed to scan something before events were processed.
              */
-            ble_ll_sched_rmv_elem(&aux_data->sch);
-            hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+            if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+                hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+                if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
+                    ble_ll_scan_aux_data_unref(aux_data);
+                }
+            }
             aux_data->flags |= BLE_LL_AUX_IGNORE_BIT;
         }
-        ble_ll_scan_switch_phy(scansm);
+        ble_ll_scan_aux_data_unref(aux_data);
 
-        if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-            /* If scheduled for aux let's don't remove aux data */
-            hdr->rxinfo.user_data = NULL;
-        }
+        ble_ll_scan_switch_phy(scansm);
 
         if (scansm->scan_rsp_pending) {
             if (!scan_rsp_chk) {
+                /* We are here because we sent SCAN_REQ and wait for SCAN_RSP.
+                 * We do not drop reference here by purpose, because
+                 * it was already dropped in ble_ll_hci_send_ext_adv_report() as
+                 * very first advertising report for scannable report is "completed"
+                 */
                 return;
             }
 
@@ -2661,7 +2753,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 scan_continue:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        ble_ll_scan_aux_data_free(hdr->rxinfo.user_data);
+    if (aux_data) {
+        /* This is ref for handover to LL */
+        ble_ll_scan_aux_data_unref(aux_data);
+    }
 #endif
     /*
      * If the scan response check bit is set and we are pending a response,

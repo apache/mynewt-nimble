@@ -842,7 +842,9 @@ ble_ll_conn_init_wfr_timer_exp(void)
 
     scansm = connsm->scansm;
     if (scansm && scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_free(scansm->cur_aux_data);
+        if (ble_ll_scan_aux_data_unref(scansm->cur_aux_data)) {
+            ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
+        }
         scansm->cur_aux_data = NULL;
         STATS_INC(ble_ll_stats, aux_missed_adv);
         ble_ll_event_send(&scansm->scan_sched_ev);
@@ -2931,6 +2933,18 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
     uint8_t *adv_addr;
     struct ble_ll_conn_sm *connsm;
     int ext_adv_mode = -1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
+
+    /*
+     * Let's take the reference for handover to LL.
+     * There shall be one more, if not something went very wrong
+     */
+    if (!ble_ll_scan_aux_data_unref(aux_data)) {
+        BLE_LL_ASSERT(0);
+    }
+
+#endif
 
     /* Get the connection state machine we are trying to create */
     connsm = g_ble_ll_conn_create_sm;
@@ -2946,13 +2960,14 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
     if (BLE_MBUF_HDR_AUX_INVALID(ble_hdr)) {
         goto scan_continue;
     }
+
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (BLE_MBUF_HDR_WAIT_AUX(ble_hdr)) {
             /* Just continue scanning. We are waiting for AUX */
-            if (!ble_ll_sched_aux_scan(ble_hdr, connsm->scansm,
-                                      ble_hdr->rxinfo.user_data)) {
-               /* Wait for aux conn response */
-                ble_hdr->rxinfo.user_data = NULL;
+            if (!ble_ll_sched_aux_scan(ble_hdr, connsm->scansm, aux_data)) {
+                ble_ll_scan_aux_data_ref(aux_data);
+                ble_ll_scan_chk_resume();
+                return;
             }
             goto scan_continue;
         }
@@ -2963,7 +2978,6 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
             return;
         }
-        ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
     }
 #endif
 
@@ -3028,6 +3042,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         /* Lets take last used phy */
         ble_ll_conn_init_phy(connsm, ble_hdr->rxinfo.phy);
 #endif
+        ble_ll_scan_aux_data_unref(aux_data);
 #endif
         ble_ll_conn_created(connsm, NULL);
         return;
@@ -3035,7 +3050,8 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 
 scan_continue:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+    /* Drop last reference and keep continue to connect */
+    ble_ll_scan_aux_data_unref(aux_data);
 #endif
     ble_ll_scan_chk_resume();
 }
@@ -3177,15 +3193,21 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     /* Get connection state machine to use if connection to be established */
     connsm = g_ble_ll_conn_create_sm;
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    scansm = connsm->scansm;
-    ble_hdr->rxinfo.user_data =scansm->cur_aux_data;
-    scansm->cur_aux_data = NULL;
-#endif
-
     rc = -1;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     pyld_len = rxbuf[1];
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    scansm = connsm->scansm;
+    if (scansm->cur_aux_data) {
+        ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
+        scansm->cur_aux_data = NULL;
+        if (ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data) == 0) {
+            ble_hdr->rxinfo.user_data = 0;
+            goto init_rx_isr_exit;
+        }
+    }
+#endif
 
     if (!crcok) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3225,7 +3247,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-            ble_ll_scan_aux_data_free(ble_hdr->rxinfo.user_data);
+            ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
             ble_hdr->rxinfo.user_data = NULL;
             goto init_rx_isr_exit;
         }
@@ -3434,6 +3456,12 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     STATS_INC(ble_ll_conn_stats, conn_req_txd);
 
 init_rx_isr_exit:
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (ble_hdr->rxinfo.user_data) {
+        ble_ll_scan_aux_data_ref(ble_hdr->rxinfo.user_data);
+    }
+#endif
     /*
      * We have to restart receive if we cant hand up pdu. We return 0 so that
      * the phy does not get disabled.

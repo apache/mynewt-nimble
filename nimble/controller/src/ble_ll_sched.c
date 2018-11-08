@@ -250,7 +250,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
                 break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             case BLE_LL_SCHED_TYPE_AUX_SCAN:
-                ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)
+                ble_ll_scan_aux_data_unref((struct ble_ll_aux_data *)
                                           entry->cb_arg);
                 break;
 #endif
@@ -1361,7 +1361,7 @@ ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode)
             return 1;
         }
 
-        ble_ll_scan_aux_data_free((struct ble_ll_aux_data *)sch->cb_arg);
+        ble_ll_scan_aux_data_unref((struct ble_ll_aux_data *)sch->cb_arg);
         TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
         sch->enqueued = 0;
         sch = TAILQ_FIRST(&g_ble_ll_sched_q);
