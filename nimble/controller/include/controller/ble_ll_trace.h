@@ -38,6 +38,8 @@ extern "C" {
 #define BLE_LL_TRACE_ID_CONN_RX                 9
 #define BLE_LL_TRACE_ID_ADV_TXDONE              10
 #define BLE_LL_TRACE_ID_ADV_HALT                11
+#define BLE_LL_TRACE_ID_AUX_REF                 12
+#define BLE_LL_TRACE_ID_AUX_UNREF               13
 
 #if MYNEWT_VAL(BLE_LL_SYSVIEW)
 

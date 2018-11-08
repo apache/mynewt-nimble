@@ -95,9 +95,11 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_IGNORE_BIT           0x10
 #define BLE_LL_AUX_HAS_DIR_ADDRA        0x20
 
+#define BLE_LL_SET_AUX_FLAG(aux_data, flag) ((aux_data)->flags |= flag)
 #define BLE_LL_CHECK_AUX_FLAG(aux_data, flag) (!!((aux_data)->flags & flag))
 
 struct ble_ll_aux_data {
+    uint8_t ref_cnt;
     uint8_t chan;
     uint8_t aux_phy;
     uint8_t aux_primary_phy;
@@ -245,7 +247,8 @@ int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
                               struct ble_mbuf_hdr *ble_hdr,
                               struct ble_ll_ext_adv_report *parsed_evt);
 
-void ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan);
+void ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_scan);
+int ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
 #endif
 
 /* Called to clean up current aux data */

@@ -41,6 +41,8 @@ ble_ll_trace_module_send_desc(void)
     os_trace_module_desc(&g_ble_ll_trace_mod, "9 ll_conn_rx conn_sn=%u pdu_nesn=%u");
     os_trace_module_desc(&g_ble_ll_trace_mod, "10 ll_adv_txdone inst=%u chanset=%x");
     os_trace_module_desc(&g_ble_ll_trace_mod, "11 ll_adv_halt inst=%u");
+    os_trace_module_desc(&g_ble_ll_trace_mod, "12 ll_aux_ref aux=%p ref=%u");
+    os_trace_module_desc(&g_ble_ll_trace_mod, "13 ll_aux_unref aux=%p ref=%u");
 }
 
 void
