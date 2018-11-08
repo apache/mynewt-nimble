@@ -1566,31 +1566,31 @@ ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
 
 static int
 ble_ll_ext_scan_parse_aux_ptr(struct ble_ll_scan_sm *scansm,
-                              struct ble_ll_aux_data *aux_scan, uint8_t *buf)
+                              struct ble_ll_aux_data *aux_data, uint8_t *buf)
 {
     uint32_t aux_ptr_field = get_le32(buf) & 0x00FFFFFF;
 
-    aux_scan->chan = (aux_ptr_field) & 0x3F;
-    if (aux_scan->chan >= BLE_PHY_NUM_DATA_CHANS) {
+    aux_data->chan = (aux_ptr_field) & 0x3F;
+    if (aux_data->chan >= BLE_PHY_NUM_DATA_CHANS) {
         return -1;
     }
 
     /* TODO use CA aux_ptr_field >> 6 */
 
-    aux_scan->offset = 30 * ((aux_ptr_field >> 8) & 0x1FFF);
+    aux_data->offset = 30 * ((aux_ptr_field >> 8) & 0x1FFF);
 
     if ((aux_ptr_field >> 7) & 0x01) {
-            aux_scan->offset *= 10;
-            aux_scan->offset_units = 1;
+            aux_data->offset *= 10;
+            aux_data->offset_units = 1;
     }
 
-    if (aux_scan->offset < BLE_LL_MAFS) {
+    if (aux_data->offset < BLE_LL_MAFS) {
         return -1;
     }
 
-    aux_scan->aux_phy =
+    aux_data->aux_phy =
             ble_ll_ext_adv_phy_mode_to_local_phy((aux_ptr_field >> 21) & 0x07);
-    if (aux_scan->aux_phy == 0) {
+    if (aux_data->aux_phy == 0) {
         return -1;
     }
 
