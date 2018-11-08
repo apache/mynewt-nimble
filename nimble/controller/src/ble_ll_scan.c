@@ -2357,6 +2357,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     int datalen;
     int rc;
     bool need_event;
+    uint8_t max_event_len;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
         return -1;
@@ -2384,15 +2385,16 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     }
 
     offset = 0;
+    max_event_len = min(UINT8_MAX, BLE_LL_MAX_EVT_LEN);
 
     do {
         need_event = false;
         next_evt = NULL;
 
-        evt->adv_data_len = min(BLE_LL_MAX_EVT_LEN - sizeof(*evt),
+        evt->adv_data_len = min(max_event_len - sizeof(*evt),
                                 datalen - offset);
-        evt->event_len = (sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN) +
-                         evt->adv_data_len;
+        /* Event len, should not contain event meta code and let itself */
+        evt->event_len = (sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN) + evt->adv_data_len;
         evt->rssi = hdr->rxinfo.rssi;
 
         os_mbuf_copydata(om, offset, evt->adv_data_len, evt->adv_data);
