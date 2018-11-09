@@ -1319,7 +1319,7 @@ ble_ll_sched_rfclk_chk_restart(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /**
- * Called to check if there is place for comming scan req.
+ * Called to check if there is place for a planned scan req.
  *
  * @param chan
  * @param phy_mode
