@@ -1378,7 +1378,7 @@ static void gen_prov_ack(struct prov_rx *rx, struct os_mbuf *buf)
 static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 {
 	u16_t trailing_space = 0;
-	
+
 	if (link.rx.seg) {
 		BT_WARN("Got Start while there are unreceived segments");
 		return;
