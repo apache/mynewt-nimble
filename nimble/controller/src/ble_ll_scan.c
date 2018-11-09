@@ -2405,13 +2405,11 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         if (offset < datalen) {
             /* Need another event for next fragment of this PDU */
             need_event = true;
-        } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+        } else if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
             need_event = false;
-        } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+        } else if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
             /* Need another event for next PDU in chain */
             need_event = true;
-        } else {
-            need_event = false;
         }
 
         /* Assume data status is not "completed" */
@@ -2430,12 +2428,14 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
                 rc = -1;
             }
-        } else if (aux_data) { 
+        } else if (aux_data ) {
             if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
                 rc = -1;
             } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
+            } else {
+                rc = 0;
             }
         } else {
             rc = 0;
@@ -2448,8 +2448,13 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
 
     BLE_LL_ASSERT(offset <= datalen);
 
-    /* Store any event left for later use */
-    aux_data->evt = evt;
+    if (aux_data){
+        /* Store any event left for later use */
+        aux_data->evt = evt;
+    } else {
+        /* If it is empty beacon, evt shall be NULL */
+        BLE_LL_ASSERT(!evt);
+    }
 
     return rc;
 }
@@ -2588,12 +2593,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
 
 
-        if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
+        if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
             goto scan_continue;
         }
 
         /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+           BLE_LL_ASSERT(aux_data);
             if (ble_ll_sched_aux_scan(hdr, scansm, hdr->rxinfo.user_data)) {
                 /* We are here when could not schedule the aux ptr */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
