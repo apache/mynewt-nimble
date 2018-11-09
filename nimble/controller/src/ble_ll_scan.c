@@ -410,6 +410,112 @@ next_dup_adv:
     return NULL;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static struct ble_ll_ext_adv_report *
+ble_ll_scan_init_ext_adv_report(struct ble_ll_ext_adv_report *copy_from)
+{
+    struct ble_ll_ext_adv_report *evt;
+
+    evt = (struct ble_ll_ext_adv_report *) ble_hci_trans_buf_alloc(
+                                                    BLE_HCI_TRANS_BUF_EVT_LO);
+    if (!evt) {
+        return NULL;
+    }
+
+    if (copy_from) {
+        memcpy(evt, copy_from, sizeof(*evt));
+    } else {
+        memset(evt, 0, sizeof(*evt));
+
+        evt->event_meta = BLE_HCI_EVCODE_LE_META;
+        evt->subevt = BLE_HCI_LE_SUBEV_EXT_ADV_RPT;
+        /* We support only one report per event now */
+        evt->num_reports = 1;
+        /* Init TX Power with "Not available" which is 127 */
+        evt->tx_power = 127;
+        /* Init RSSI with "Not available" which is 127 */
+        evt->rssi = 127;
+        /* Init SID with "Not available" which is 0xFF */
+        evt->sid = 0xFF;
+        /* Init address type with "anonymous" which is 0xFF */
+        evt->addr_type = 0xFF;
+    }
+
+    return evt;
+}
+
+static void
+ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
+{
+    struct ble_ll_ext_adv_report *evt;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
+        goto done;
+    }
+
+    BLE_LL_ASSERT(aux_data);
+
+    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+        /* if not chained, there is nothing to do here */
+        goto done;
+    }
+
+    if (aux_data->evt) {
+        evt = aux_data->evt;
+        aux_data->evt = NULL;
+    } else {
+        evt = ble_ll_scan_init_ext_adv_report(NULL);
+        if (!evt) {
+            goto done;
+        }
+    }
+
+    evt->event_len = sizeof(*evt);
+    evt->evt_type = aux_data->evt_type;
+    evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+    BLE_LL_SET_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+
+    if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+        memcpy(evt->addr, aux_data->addr, 6);
+        evt->addr_type = aux_data->addr_type;
+    }
+
+    if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+        memcpy(evt->dir_addr, aux_data->dir_addr, 6);
+        evt->dir_addr_type = aux_data->dir_addr_type;
+    }
+
+    evt->sid = (aux_data->adi >> 12);
+    ble_ll_hci_event_send((uint8_t *)evt);
+
+done:
+    ble_ll_scan_aux_data_unref(aux_data);
+}
+#endif
+
+void
+ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /*
+     * Check if tuncated has been sent
+     *
+     * Normally reference counter here should be 2. 1 for outstanding
+     * complete event and one for ongoing scanning. If there is only 1
+     * that means, advertising event is already completed
+     * (truncated was sent to the host) and we just need to drop last reference.
+     * Otherwise we should try to send truncated event to the host.
+     */
+    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT)) {
+        ble_ll_scan_send_truncated_if_chained(aux_data);
+    }
+
+    if (ble_ll_scan_aux_data_unref(aux_data) > 0) {
+        BLE_LL_ASSERT(0);
+    }
+
+#endif
+}
 /**
  * Do scan machine clean up on PHY disabled
  *
@@ -422,7 +528,7 @@ ble_ll_scan_clean_cur_aux_data(void)
 
     /* If scanner was reading aux ptr, we need to clean it up */
     if (scansm && scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
+        ble_ll_scan_end_adv_evt(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
     }
 #endif
@@ -577,40 +683,6 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-
-static struct ble_ll_ext_adv_report *
-ble_ll_scan_init_ext_adv_report(struct ble_ll_ext_adv_report *copy_from)
-{
-    struct ble_ll_ext_adv_report *evt;
-
-    evt = (struct ble_ll_ext_adv_report *) ble_hci_trans_buf_alloc(
-                                                    BLE_HCI_TRANS_BUF_EVT_LO);
-    if (!evt) {
-        return NULL;
-    }
-
-    if (copy_from) {
-        memcpy(evt, copy_from, sizeof(*evt));
-    } else {
-        memset(evt, 0, sizeof(*evt));
-
-        evt->event_meta = BLE_HCI_EVCODE_LE_META;
-        evt->subevt = BLE_HCI_LE_SUBEV_EXT_ADV_RPT;
-        /* We support only one report per event now */
-        evt->num_reports = 1;
-        /* Init TX Power with "Not available" which is 127 */
-        evt->tx_power = 127;
-        /* Init RSSI with "Not available" which is 127 */
-        evt->rssi = 127;
-        /* Init SID with "Not available" which is 0xFF */
-        evt->sid = 0xFF;
-        /* Init address type with "anonymous" which is 0xFF */
-        evt->addr_type = 0xFF;
-    }
-
-    return evt;
-}
-
 static int
 ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       uint8_t addr_type, uint8_t *addr,
@@ -2385,8 +2457,7 @@ ble_ll_scan_wfr_timer_exp(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->cur_aux_data) {
-        /*TODO handle chain incomplete, data truncated */
-        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
+        ble_ll_scan_end_adv_evt(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
         STATS_INC(ble_ll_stats, aux_missed_adv);
         ble_ll_scan_chk_resume();
@@ -2489,6 +2560,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             } else {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+                BLE_LL_SET_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
                 rc = -1;
             }
         } else if (aux_data ) {
@@ -2559,14 +2631,23 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
     int rc;
+    uint8_t evt_possibly_truncated = 0;
 #endif
 
     /* Set scan response check flag */
     scan_rsp_chk = BLE_MBUF_HDR_SCAN_RSP_RCV(hdr);
 
     /* We dont care about scan requests or connect requests */
-    if (!BLE_MBUF_HDR_CRC_OK(hdr) || (ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
-        (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
+    if (!BLE_MBUF_HDR_CRC_OK(hdr)) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
+            evt_possibly_truncated = 1;
+        }
+#endif
+        goto scan_continue;
+    }
+
+    if ((ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
         goto scan_continue;
     }
 
@@ -2574,7 +2655,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                                     &adv_addr, &txadd,
                                     &init_addr, &init_addr_type,
                                     &ext_adv_mode)) {
-       goto scan_continue;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        evt_possibly_truncated = 1;
+#endif
+        goto scan_continue;
     }
 
     ident_addr = adv_addr;
@@ -2667,6 +2751,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
 
         if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
+            evt_possibly_truncated = 1;
             goto scan_continue;
         }
 
@@ -2754,8 +2839,12 @@ scan_continue:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (aux_data) {
-        /* This is ref for handover to LL */
-        ble_ll_scan_aux_data_unref(aux_data);
+        if (evt_possibly_truncated) {
+            ble_ll_scan_end_adv_evt(aux_data);
+        } else {
+            /* This is ref for handover to LL */
+            ble_ll_scan_aux_data_unref(aux_data);
+        }
     }
 #endif
     /*
