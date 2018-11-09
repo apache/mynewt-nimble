@@ -2370,6 +2370,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
      */
     if (aux_data && aux_data->evt) {
         evt = aux_data->evt;
+        aux_data->evt = NULL;
     } else {
         evt = ble_ll_scan_init_ext_adv_report(NULL);
         if (!evt) {
