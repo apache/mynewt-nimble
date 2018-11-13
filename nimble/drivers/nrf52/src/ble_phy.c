@@ -30,8 +30,8 @@
 #include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
 #include "nrfx.h"
-#include "mcu/nrf52_clock.h"
 #if MYNEWT
+#include "mcu/nrf52_clock.h"
 #include "mcu/cmsis_nvic.h"
 #include "hal/hal_gpio.h"
 #else
@@ -1353,7 +1353,7 @@ ble_phy_init(void)
 
 #if !defined(BLE_XCVR_RFCLK)
     /* BLE wants the HFXO on all the time in this case */
-    nrf52_clock_hfxo_request();
+    ble_phy_rfclk_enable();
 
     /*
      * XXX: I do not think we need to wait for settling time here since
@@ -2035,12 +2035,20 @@ void ble_phy_disable_dtm(void)
 void
 ble_phy_rfclk_enable(void)
 {
+#if MYNEWT
     nrf52_clock_hfxo_request();
+#else
+    NRF_CLOCK->TASKS_HFCLKSTART = 1;
+#endif
 }
 
 void
 ble_phy_rfclk_disable(void)
 {
+#if MYNEWT
     nrf52_clock_hfxo_release();
+#else
+    NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+#endif
 }
 #endif

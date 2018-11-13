@@ -30,7 +30,10 @@
 #include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
 #include "nrfx.h"
+
+#if MYNEWT
 #include "mcu/nrf51_clock.h"
+#endif
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
@@ -817,7 +820,7 @@ ble_phy_init(void)
 
 #if !defined(BLE_XCVR_RFCLK)
     /* BLE wants the HFXO on all the time in this case */
-    nrf51_clock_hfxo_request();
+    ble_phy_rfclk_enable();
 
     /*
      * XXX: I do not think we need to wait for settling time here since
@@ -1474,12 +1477,20 @@ ble_phy_resolv_list_disable(void)
 void
 ble_phy_rfclk_enable(void)
 {
+#if MYNEWT
     nrf51_clock_hfxo_request();
+#else
+    NRF_CLOCK->TASKS_HFCLKSTART = 1;
+#endif
 }
 
 void
 ble_phy_rfclk_disable(void)
 {
+#if MYNEWT
     nrf51_clock_hfxo_release();
+#else
+    NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+#endif
 }
 #endif
