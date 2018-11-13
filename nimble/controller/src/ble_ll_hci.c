@@ -671,6 +671,7 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_CREATE_CONN:
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_SET_ADV_DATA:
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
