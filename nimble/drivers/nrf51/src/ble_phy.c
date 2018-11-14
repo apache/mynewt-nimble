@@ -31,6 +31,10 @@
 #include "controller/ble_ll.h"
 #include "nrfx.h"
 
+#if MYNEWT
+#include "mcu/nrf51_clock.h"
+#endif
+
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
@@ -815,20 +819,14 @@ ble_phy_init(void)
     int rc;
 
 #if !defined(BLE_XCVR_RFCLK)
-    uint32_t os_tmo;
+    /* BLE wants the HFXO on all the time in this case */
+    ble_phy_rfclk_enable();
 
-    /* Make sure HFXO is started */
-    NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
-    NRF_CLOCK->TASKS_HFCLKSTART = 1;
-    os_tmo = os_time_get() + (5 * (1000 / OS_TICKS_PER_SEC));
-    while (1) {
-        if (NRF_CLOCK->EVENTS_HFCLKSTARTED) {
-            break;
-        }
-        if ((int32_t)(os_time_get() - os_tmo) > 0) {
-            return BLE_PHY_ERR_INIT;
-        }
-    }
+    /*
+     * XXX: I do not think we need to wait for settling time here since
+     * we will probably not use the radio for longer than the settling time
+     * and it will only degrade performance. Might want to wait here though.
+     */
 #endif
 
     /* Set phy channel to an invalid channel so first set channel works */
@@ -1479,12 +1477,20 @@ ble_phy_resolv_list_disable(void)
 void
 ble_phy_rfclk_enable(void)
 {
+#if MYNEWT
+    nrf51_clock_hfxo_request();
+#else
     NRF_CLOCK->TASKS_HFCLKSTART = 1;
+#endif
 }
 
 void
 ble_phy_rfclk_disable(void)
 {
+#if MYNEWT
+    nrf51_clock_hfxo_release();
+#else
     NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+#endif
 }
 #endif

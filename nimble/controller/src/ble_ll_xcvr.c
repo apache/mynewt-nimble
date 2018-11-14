@@ -46,15 +46,19 @@ ble_ll_xcvr_rfclk_state(void)
 void
 ble_ll_xcvr_rfclk_enable(void)
 {
-    g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_ON;
-    ble_phy_rfclk_enable();
+    if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_OFF) {
+        g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_ON;
+        ble_phy_rfclk_enable();
+    }
 }
 
 void
 ble_ll_xcvr_rfclk_disable(void)
 {
-    ble_phy_rfclk_disable();
-    g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_OFF;
+    if (g_ble_ll_data.ll_rfclk_state != BLE_RFCLK_STATE_OFF) {
+        ble_phy_rfclk_disable();
+        g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_OFF;
+    }
 }
 
 void
