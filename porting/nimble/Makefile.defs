@@ -88,7 +88,6 @@ NIMBLE_SRC := \
 	$(NIMBLE_ROOT)/nimble/host/store/ram/src/ble_store_ram.c \
 	$(NIMBLE_ROOT)/nimble/host/util/src/addr.c \
 	$(NIMBLE_ROOT)/nimble/src/ble_util.c \
-	$(NIMBLE_ROOT)/nimble/src/hci_common.c \
         $(NULL)
 
 # Few utils and data structures copied from Mynewt
