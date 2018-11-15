@@ -99,7 +99,7 @@ ble_hs_util_ensure_addr(int prefer_random)
         /* Try to load a public address. */
         rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, NULL, NULL);
         if (rc == BLE_HS_ENOADDR) {
-            /* No random address; try to load a random address. */
+            /* No public address; try to load a random address. */
             rc = ble_hs_util_ensure_rand_addr();
         }
     }
