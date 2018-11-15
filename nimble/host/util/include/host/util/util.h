@@ -24,6 +24,19 @@
 extern "C" {
 #endif
 
+/**
+ * Tries to configure the device with at least one Bluetooth address.
+ * Addresses are restored in a hardware-specific fashion.
+ *
+ * @param prefer_random         Whether to attempt to restore a random address
+ *                                  before checking if a public address has
+ *                                  already been configured.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOADDR if the device does not have any
+ *                                  available addresses.
+ *                              Other BLE host core code on error.
+ */
 int ble_hs_util_ensure_addr(int prefer_random);
 
 #ifdef __cplusplus
