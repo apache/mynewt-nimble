@@ -848,7 +848,8 @@ int ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
 
 typedef void (*ble_gatt_svc_foreach_fn)(const struct ble_gatt_svc_def *svc,
                                         uint16_t handle,
-                                        uint16_t end_group_handle);
+                                        uint16_t end_group_handle,
+                                        void *arg);
 
 /**
  * Prints dump of local GATT database. This is useful to log local state of
