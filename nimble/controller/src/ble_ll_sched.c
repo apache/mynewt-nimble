@@ -1066,16 +1066,17 @@ adv_resched_pdu_fail:
  *
  * @param sched_type
  *
- * @return int
+ * @return int 0 - removed, 1 - not in the list
  */
-void
+int
 ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
 {
     os_sr_t sr;
     struct ble_ll_sched_item *first;
+    int rc = 1;
 
     if (!sch) {
-        return;
+        return rc;
     }
 
     OS_ENTER_CRITICAL(sr);
@@ -1087,6 +1088,7 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
 
         TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
         sch->enqueued = 0;
+        rc = 0;
 
         if (first == sch) {
             first = TAILQ_FIRST(&g_ble_ll_sched_q);
@@ -1096,6 +1098,8 @@ ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch)
         }
     }
     OS_EXIT_CRITICAL(sr);
+
+    return rc;
 }
 
 void

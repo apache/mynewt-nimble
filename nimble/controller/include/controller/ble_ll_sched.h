@@ -141,7 +141,7 @@ struct ble_ll_sched_item
 int ble_ll_sched_init(void);
 
 /* Remove item(s) from schedule */
-void ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
+int ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
 
 void ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb);
 
