@@ -2974,7 +2974,8 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr,
                                         &adv_addr, &addr_type,
                                         NULL, NULL, &ext_adv_mode)) {
-            return;
+            /* Something got wrong, keep trying to connect */
+            goto scan_continue;
         }
 
         if (ble_ll_scan_whitelist_enabled()) {
