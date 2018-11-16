@@ -135,7 +135,8 @@ ble_gatt_show_local_chr(const struct ble_gatt_svc_def *svc,
 
 static void
 ble_gatt_show_local_svc(const struct ble_gatt_svc_def *svc,
-                        uint16_t handle, uint16_t end_group_handle)
+                        uint16_t handle, uint16_t end_group_handle,
+                        void *arg)
 {
     char uuid_buf[BLE_UUID_STR_LEN];
     char flags_buf[BLE_CHR_FLAGS_STR_LEN];
@@ -159,6 +160,6 @@ ble_gatt_show_local_svc(const struct ble_gatt_svc_def *svc,
 void
 ble_gatts_show_local(void)
 {
-    ble_gatts_lcl_svc_foreach(ble_gatt_show_local_svc);
+    ble_gatts_lcl_svc_foreach(ble_gatt_show_local_svc, NULL);
 }
 
