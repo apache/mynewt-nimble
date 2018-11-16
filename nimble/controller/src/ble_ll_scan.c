@@ -162,6 +162,8 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     uint8_t lls = ble_ll_state_get();
     uint32_t wfr_usec;
 
+    STATS_INC(ble_ll_stats, aux_sched_cb);
+
     /* In case scan has been disabled or there is other aux ptr in progress
      * just drop the scheduled item
      */
@@ -226,6 +228,7 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
     e->sch.sched_type = BLE_LL_SCHED_TYPE_AUX_SCAN;
 
     *aux_data = e;
+    STATS_INC(ble_ll_stats, aux_allocated);
 
     return 0;
 }
@@ -2334,6 +2337,7 @@ ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
             ble_hci_trans_buf_free((uint8_t *)aux_scan->evt);
         }
         os_memblock_put(&ext_adv_pool, aux_scan);
+        STATS_INC(ble_ll_stats, aux_freed);
     }
 }
 
