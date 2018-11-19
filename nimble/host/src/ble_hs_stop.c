@@ -193,7 +193,7 @@ ble_hs_stop(struct ble_hs_stop_listener *listener,
     }
 
     /* Abort all active GAP procedures. */
-    ble_gap_ensure_preempted();
+    ble_gap_preempt();
     ble_gap_preempt_done();
 
     rc = ble_gap_event_listener_register(&ble_hs_stop_gap_listener,

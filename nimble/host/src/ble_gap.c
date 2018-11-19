@@ -4673,6 +4673,8 @@ ble_gap_preempt_no_lock(void)
 }
 
 /**
+ * @brief Preempts the GAP if it is not already preempted.
+ *
  * Aborts all active GAP procedures and prevents new ones from being started.
  * This function is used to ensure an idle GAP so that the controller's
  * resolving list can be modified.  When done accessing the resolving list, the
@@ -4684,20 +4686,6 @@ ble_gap_preempt_no_lock(void)
  */
 void
 ble_gap_preempt(void)
-{
-    ble_hs_lock();
-
-    BLE_HS_DBG_ASSERT(!ble_gap_is_preempted());
-    ble_gap_preempt_no_lock();
-
-    ble_hs_unlock();
-}
-
-/**
- * Preempts the GAP if it is not already preempted.
- */
-void
-ble_gap_ensure_preempted(void)
 {
     ble_hs_lock();
 
