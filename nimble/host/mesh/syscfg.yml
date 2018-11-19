@@ -519,7 +519,7 @@ syscfg.defs:
             Primary sysinit stage for BLE mesh functionality.
         value: 500
 
-    BLE_MESH_SYSINIT_STAGE_2:
+    BLE_MESH_SYSINIT_STAGE_SHELL:
         description: >
             Secondary sysinit stage for BLE mesh functionality.
         value: 1000
