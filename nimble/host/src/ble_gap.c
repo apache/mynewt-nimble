@@ -2093,7 +2093,7 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
         }
     }
 
-    if (!ble_hs_enabled()) {
+    if (!ble_hs_is_enabled()) {
         rc = BLE_HS_EDISABLED;
         goto done;
     }
@@ -3104,7 +3104,7 @@ ble_gap_disc_ext_validate(uint8_t own_addr_type)
         return BLE_HS_EALREADY;
     }
 
-    if (!ble_hs_enabled()) {
+    if (!ble_hs_is_enabled()) {
         return BLE_HS_EDISABLED;
     }
 
@@ -3588,7 +3588,7 @@ ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         goto done;
     }
 
-    if (!ble_hs_enabled()) {
+    if (!ble_hs_is_enabled()) {
         return BLE_HS_EDISABLED;
     }
 
@@ -3715,7 +3715,7 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
         goto done;
     }
 
-    if (!ble_hs_enabled()) {
+    if (!ble_hs_is_enabled()) {
         rc = BLE_HS_EDISABLED;
         goto done;
     }
