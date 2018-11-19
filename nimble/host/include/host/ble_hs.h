@@ -296,7 +296,7 @@ extern struct ble_hs_cfg ble_hs_cfg;
  * @return 1 if the host is enabled;
  *         0 if the host is disabled.
  */
-int ble_hs_enabled(void);
+int ble_hs_is_enabled(void);
 
 /**
  * Indicates whether the host has synchronized with the controller.
