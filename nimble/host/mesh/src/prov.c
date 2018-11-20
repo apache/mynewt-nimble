@@ -796,7 +796,7 @@ static void send_input_complete(void)
 
 int bt_mesh_input_number(u32_t num)
 {
-	BT_DBG("%u", num);
+	BT_DBG("%u", (unsigned) num);
 
 	if (!atomic_test_and_clear_bit(link.flags, WAIT_NUMBER)) {
 		return -EINVAL;
@@ -1075,7 +1075,7 @@ static void prov_data(const u8_t *data)
 	addr = sys_get_be16(&pdu[23]);
 
 	BT_DBG("net_idx %u iv_index 0x%08x, addr 0x%04x",
-	       net_idx, iv_index, addr);
+	       net_idx, (unsigned) iv_index, addr);
 
 	prov_buf_init(msg, PROV_COMPLETE);
 	prov_send(msg);
@@ -1476,7 +1476,7 @@ void bt_mesh_pb_adv_recv(struct os_mbuf *buf)
 	rx.xact_id = net_buf_simple_pull_u8(buf);
 	rx.gpc = net_buf_simple_pull_u8(buf);
 
-	BT_DBG("link_id 0x%08x xact_id %u", rx.link_id, rx.xact_id);
+	BT_DBG("link_id 0x%08x xact_id %u", (unsigned) rx.link_id, rx.xact_id);
 
 	if (atomic_test_bit(link.flags, LINK_ACTIVE) && link.id != rx.link_id) {
 		BT_DBG("Ignoring mesh beacon for unknown link");

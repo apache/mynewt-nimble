@@ -177,7 +177,8 @@ static int iv_set(int argc, char **argv, char *val)
 	bt_mesh.ivu_duration = iv.iv_duration;
 
 	BT_DBG("IV Index 0x%04x (IV Update Flag %u) duration %u hours",
-	       bt_mesh.iv_index, bt_mesh.iv_update, bt_mesh.ivu_duration);
+	       (unsigned) bt_mesh.iv_index, bt_mesh.iv_update,
+	       bt_mesh.ivu_duration);
 
 	return 0;
 }
@@ -302,7 +303,7 @@ static int rpl_set(int argc, char **argv, char *val)
 	entry->old_iv = rpl.old_iv;
 
 	BT_DBG("RPL entry for 0x%04x: Seq 0x%06x old_iv %u", entry->src,
-	       entry->seq, entry->old_iv);
+	       (unsigned) entry->seq, entry->old_iv);
 
 	return 0;
 }
@@ -758,7 +759,8 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 	    mod->pub->addr != BT_MESH_ADDR_UNASSIGNED) {
 		s32_t ms = bt_mesh_model_pub_period_get(mod);
 		if (ms) {
-			BT_DBG("Starting publish timer (period %u ms)", ms);
+			BT_DBG("Starting publish timer (period %u ms)",
+			       (unsigned) ms);
 			k_delayed_work_submit(&mod->pub->timer, ms);
 		}
 	}
@@ -844,7 +846,7 @@ static void schedule_store(int flag)
 		timeout = K_SECONDS(CONFIG_BT_MESH_STORE_TIMEOUT);
 	}
 
-	BT_DBG("Waiting %d seconds", timeout / MSEC_PER_SEC);
+	BT_DBG("Waiting %d seconds", (int) (timeout / MSEC_PER_SEC));
 
 	k_delayed_work_submit(&pending_store, timeout);
 }
@@ -955,8 +957,8 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 	char path[18];
 	char *str;
 
-	BT_DBG("src 0x%04x seq 0x%06x old_iv %u", entry->src, entry->seq,
-	       entry->old_iv);
+	BT_DBG("src 0x%04x seq 0x%06x old_iv %u", entry->src,
+	       (unsigned) entry->seq, entry->old_iv);
 
 	rpl.seq = entry->seq;
 	rpl.old_iv = entry->old_iv;

@@ -462,7 +462,7 @@ static void friend_recv_delay(struct bt_mesh_friend *frnd)
 {
 	frnd->pending_req = 1;
 	k_delayed_work_submit(&frnd->timer, recv_delay(frnd));
-	BT_DBG("Waiting RecvDelay of %d ms", recv_delay(frnd));
+	BT_DBG("Waiting RecvDelay of %d ms", (int) recv_delay(frnd));
 }
 
 int bt_mesh_friend_sub_add(struct bt_mesh_net_rx *rx,
@@ -790,7 +790,7 @@ static s32_t offer_delay(struct bt_mesh_friend *frnd, s8_t rssi, u8_t crit)
 	delay -= (s32_t)fact[RSSI_FACT(crit)] * rssi;
 	delay /= 10;
 
-	BT_DBG("Local Delay calculated as %d ms", delay);
+	BT_DBG("Local Delay calculated as %d ms", (int) delay);
 
 	if (delay < 100) {
 		return K_MSEC(100);
@@ -822,7 +822,7 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		   ((u32_t)msg->poll_to[2]));
 
 	if (poll_to <= 0x000009 || poll_to >= 0x34bc00) {
-		BT_WARN("Prohibited PollTimeout (0x%06x)", poll_to);
+		BT_WARN("Prohibited PollTimeout (0x%06x)", (unsigned) poll_to);
 		return -EINVAL;
 	}
 
@@ -839,7 +839,7 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	if (CONFIG_BT_MESH_FRIEND_QUEUE_SIZE < MIN_QUEUE_SIZE(msg->criteria)) {
 		BT_WARN("We have a too small Friend Queue size (%u < %u)",
 			CONFIG_BT_MESH_FRIEND_QUEUE_SIZE,
-			MIN_QUEUE_SIZE(msg->criteria));
+			(unsigned) MIN_QUEUE_SIZE(msg->criteria));
 		return 0;
 	}
 
@@ -880,7 +880,8 @@ init_friend:
 	frnd->clear.frnd = sys_be16_to_cpu(msg->prev_addr);
 
 	BT_DBG("LPN 0x%04x rssi %d recv_delay %u poll_to %ums",
-	       frnd->lpn, rx->rssi, frnd->recv_delay, frnd->poll_to);
+	       frnd->lpn, rx->rssi, frnd->recv_delay,
+	       (unsigned) frnd->poll_to);
 
 	if (BT_MESH_ADDR_IS_UNICAST(old_friend) &&
 	    !bt_mesh_elem_find(old_friend)) {
@@ -999,7 +1000,8 @@ static void buf_send_end(int err, void *user_data)
 
 	if (frnd->established) {
 		k_delayed_work_submit(&frnd->timer, frnd->poll_to);
-		BT_DBG("Waiting %u ms for next poll", frnd->poll_to);
+		BT_DBG("Waiting %u ms for next poll",
+		       (unsigned) frnd->poll_to);
 	} else {
 		/* Friend offer timeout is 1 second */
 		k_delayed_work_submit(&frnd->timer, K_SECONDS(1));
@@ -1117,7 +1119,8 @@ static void friend_lpn_enqueue_rx(struct bt_mesh_friend *frnd,
 	struct friend_pdu_info info;
 	struct os_mbuf *buf;
 
-	BT_DBG("LPN 0x%04x queue_size %u", frnd->lpn, frnd->queue_size);
+	BT_DBG("LPN 0x%04x queue_size %u", frnd->lpn,
+	       (unsigned) frnd->queue_size);
 
 	if (type == BT_MESH_FRIEND_PDU_SINGLE && seq_auth) {
 		friend_purge_old_ack(frnd, seq_auth, rx->ctx.addr);
@@ -1153,7 +1156,7 @@ static void friend_lpn_enqueue_rx(struct bt_mesh_friend *frnd,
 	enqueue_friend_pdu(frnd, type, buf);
 
 	BT_DBG("Queued message for LPN 0x%04x, queue_size %u",
-	       frnd->lpn, frnd->queue_size);
+	       frnd->lpn, (unsigned) frnd->queue_size);
 }
 
 static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,

@@ -724,7 +724,8 @@ static int trans_ack(struct bt_mesh_net_rx *rx, u8_t hdr,
 
 	ack = net_buf_simple_pull_be32(buf);
 
-	BT_DBG("OBO %u seq_zero 0x%04x ack 0x%08x", obo, seq_zero, ack);
+	BT_DBG("OBO %u seq_zero 0x%04x ack 0x%08x", obo, seq_zero,
+	       (unsigned) ack);
 
 	tx = seg_tx_lookup(seq_zero, obo, rx->ctx.addr);
 	if (!tx) {
@@ -877,7 +878,7 @@ static int trans_unseg(struct os_mbuf *buf, struct bt_mesh_net_rx *rx,
 
 	if (rx->local_match && is_replay(rx)) {
 		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
-			rx->ctx.addr, rx->ctx.recv_dst, rx->seq);
+			rx->ctx.addr, rx->ctx.recv_dst, (unsigned) rx->seq);
 		return -EINVAL;
 	}
 
@@ -975,7 +976,8 @@ static int send_ack(struct bt_mesh_subnet *sub, u16_t src, u16_t dst,
 	u16_t seq_zero = *seq_auth & 0x1fff;
 	u8_t buf[6];
 
-	BT_DBG("SeqZero 0x%04x Block 0x%08x OBO %u", seq_zero, block, obo);
+	BT_DBG("SeqZero 0x%04x Block 0x%08x OBO %u", seq_zero,
+	       (unsigned) block, obo);
 
 	if (bt_mesh_lpn_established()) {
 		BT_WARN("Not sending ack when LPN is enabled");
@@ -1145,7 +1147,7 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 		rx->block = 0;
 
 		BT_DBG("New RX context. Block Complete 0x%08x",
-		       BLOCK_COMPLETE(seg_n));
+		       (unsigned) BLOCK_COMPLETE(seg_n));
 
 		return rx;
 	}
@@ -1216,7 +1218,8 @@ static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
 		}
 
 		if (rx->in_use) {
-			BT_DBG("Existing RX context. Block 0x%08x", rx->block);
+			BT_DBG("Existing RX context. Block 0x%08x",
+			       (unsigned) rx->block);
 			goto found_rx;
 		}
 
@@ -1314,7 +1317,8 @@ found_rx:
 
 	if (net_rx->local_match && is_replay(net_rx)) {
 		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
-			net_rx->ctx.addr, net_rx->ctx.recv_dst, net_rx->seq);
+			net_rx->ctx.addr, net_rx->ctx.recv_dst,
+			(unsigned) net_rx->seq);
 		/* Clear the segment's bit */
 		rx->block &= ~BIT(seg_o);
 		return -EINVAL;
@@ -1353,7 +1357,8 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 	}
 
 	BT_DBG("src 0x%04x dst 0x%04x seq 0x%08x friend_match %u",
-	       rx->ctx.addr, rx->ctx.recv_dst, rx->seq, rx->friend_match);
+	       rx->ctx.addr, rx->ctx.recv_dst, (unsigned) rx->seq,
+	       rx->friend_match);
 
 	/* Remove network headers */
 	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);

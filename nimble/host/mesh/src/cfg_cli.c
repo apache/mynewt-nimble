@@ -68,7 +68,7 @@ static void state_status_u8(struct bt_mesh_model *model,
 
 	if (cli->op_pending != expect_status) {
 		BT_WARN("Unexpected Status (0x%08x != 0x%08x)",
-			cli->op_pending, expect_status);
+			(unsigned) cli->op_pending, (unsigned) expect_status);
 		return;
 	}
 

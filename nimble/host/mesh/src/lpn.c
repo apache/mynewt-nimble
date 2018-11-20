@@ -840,7 +840,7 @@ static s32_t poll_timeout(struct bt_mesh_lpn *lpn)
 					POLL_TIMEOUT_MAX(lpn));
 	}
 
-	BT_DBG("Poll Timeout is %ums", lpn->poll_timeout);
+	BT_DBG("Poll Timeout is %ums", (unsigned) lpn->poll_timeout);
 
 	return lpn->poll_timeout;
 }
@@ -966,8 +966,8 @@ int bt_mesh_lpn_friend_update(struct bt_mesh_net_rx *rx,
 
 	iv_index = sys_be32_to_cpu(msg->iv_index);
 
-	BT_DBG("flags 0x%02x iv_index 0x%08x md %u", msg->flags, iv_index,
-	       msg->md);
+	BT_DBG("flags 0x%02x iv_index 0x%08x md %u", msg->flags,
+	       (unsigned) iv_index, msg->md);
 
 	if (bt_mesh_kr_update(sub, BT_MESH_KEY_REFRESH(msg->flags),
 			      rx->new_key)) {

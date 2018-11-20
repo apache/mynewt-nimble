@@ -160,7 +160,7 @@ mesh_adv_thread(void *args)
 		ev = ble_npl_eventq_get(&adv_queue, 0);
 		while (!ev) {
 			timeout = bt_mesh_proxy_adv_start();
-			BT_DBG("Proxy Advertising up to %d ms", timeout);
+			BT_DBG("Proxy Advertising up to %d ms", (int) timeout);
 
 			// FIXME: should we redefine K_SECONDS macro instead in glue?
 			if (timeout != K_FOREVER) {

@@ -295,7 +295,7 @@ static u8_t _mod_pub_set(struct bt_mesh_model *model, u16_t pub_addr,
 		s32_t period_ms;
 
 		period_ms = bt_mesh_model_pub_period_get(model);
-		BT_DBG("period %u ms", period_ms);
+		BT_DBG("period %u ms", (unsigned) period_ms);
 
 		if (period_ms) {
 			k_delayed_work_submit(&model->pub->timer, period_ms);
@@ -3239,7 +3239,7 @@ static void heartbeat_sub_set(struct bt_mesh_model *model,
 	/* Let the transport layer know it needs to handle this address */
 	bt_mesh_set_hb_sub_dst(cfg->hb_sub.dst);
 
-	BT_DBG("period_ms %u", period_ms);
+	BT_DBG("period_ms %u", (unsigned) period_ms);
 
 	if (period_ms) {
 		cfg->hb_sub.expiry = k_uptime_get() + period_ms;
