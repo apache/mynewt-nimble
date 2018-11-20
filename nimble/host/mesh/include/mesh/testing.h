@@ -57,6 +57,36 @@ void bt_test_cb_register(struct bt_test_cb *cb);
  */
 void bt_test_cb_unregister(struct bt_test_cb *cb);
 
+/** Send Friend Subscription List Add message.
+ *
+ *  Used by Low Power node to send the group address for which messages are to
+ *  be stored by Friend node.
+ *
+ *  @param group Group address
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_test_mesh_lpn_group_add(u16_t group);
+
+/** Send Friend Subscription List Remove message.
+ *
+ *  Used by Low Power node to remove the group addresses from Friend node
+ *  subscription list. Messages sent to those addresses will not be stored
+ *  by Friend node.
+ *
+ *  @param groups Group addresses
+ *  @param groups_count Group addresses count
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_test_mesh_lpn_group_remove(u16_t *groups, size_t groups_count);
+
+/** Clear replay protection list cache.
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_test_mesh_rpl_clear(void);
+
 u8_t mod_bind(struct bt_mesh_model *model, u16_t key_idx);
 u8_t mod_unbind(struct bt_mesh_model *model, u16_t key_idx, bool store);
 int cmd_mesh_init(int argc, char *argv[]);
