@@ -116,7 +116,7 @@ static s32_t next_period(struct bt_mesh_model *mod)
 
 	elapsed = k_uptime_get_32() - pub->period_start;
 
-	BT_DBG("Publishing took %ums", elapsed);
+	BT_DBG("Publishing took %ums", (unsigned) elapsed);
 
 	if (elapsed > period) {
 		BT_WARN("Publication sending took longer than the period");
@@ -141,7 +141,7 @@ static void publish_sent(int err, void *user_data)
 	}
 
 	if (delay) {
-		BT_DBG("Publishing next time in %dms", delay);
+		BT_DBG("Publishing next time in %dms", (int) delay);
 		k_delayed_work_submit(&mod->pub->timer, delay);
 	}
 }
@@ -199,7 +199,7 @@ static void mod_publish(struct ble_npl_event *work)
 	BT_DBG("");
 
 	period_ms = bt_mesh_model_pub_period_get(pub->mod);
-	BT_DBG("period %u ms", period_ms);
+	BT_DBG("period %u ms", (unsigned) period_ms);
 
 	if (pub->count) {
 		err = publish_retransmit(pub->mod);
@@ -536,7 +536,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	BT_DBG("OpCode 0x%08x", opcode);
+	BT_DBG("OpCode 0x%08x", (unsigned) opcode);
 
 	for (i = 0; i < dev_comp->elem_count; i++) {
 		struct bt_mesh_elem *elem = &dev_comp->elem[i];
@@ -572,7 +572,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 
 			if (buf->om_len < op->min_len) {
 				BT_ERR("Too short message for OpCode 0x%08x",
-				       opcode);
+				       (unsigned) opcode);
 				continue;
 			}
 
@@ -585,7 +585,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			net_buf_simple_restore(buf, &state);
 
 		} else {
-			BT_DBG("No OpCode 0x%08x for elem %d", opcode, i);
+			BT_DBG("No OpCode 0x%08x for elem %d",
+			       (unsigned) opcode, i);
 		}
 	}
 }

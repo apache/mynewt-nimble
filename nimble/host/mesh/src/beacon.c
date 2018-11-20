@@ -96,7 +96,7 @@ void bt_mesh_beacon_create(struct bt_mesh_subnet *sub,
 
 	BT_DBG("net_idx 0x%04x flags 0x%02x NetID %s", sub->net_idx,
 	       flags, bt_hex(keys->net_id, 8));
-	BT_DBG("IV Index 0x%08x Auth %s", bt_mesh.iv_index,
+	BT_DBG("IV Index 0x%08x Auth %s", (unsigned) bt_mesh.iv_index,
 	       bt_hex(sub->auth, 8));
 }
 
@@ -285,7 +285,7 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 	auth = buf->om_data;
 
 	BT_DBG("flags 0x%02x id %s iv_index 0x%08x",
-	       flags, bt_hex(net_id, 8), iv_index);
+	       flags, bt_hex(net_id, 8), (unsigned) iv_index);
 
 	sub = bt_mesh_subnet_find(net_id, flags, iv_index, auth, &new_key);
 	if (!sub) {
@@ -308,7 +308,7 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 	}
 
 	BT_DBG("net_idx 0x%04x iv_index 0x%08x, current iv_index 0x%08x",
-	       sub->net_idx, iv_index, bt_mesh.iv_index);
+	       sub->net_idx, (unsigned) iv_index, (unsigned) bt_mesh.iv_index);
 
 	if (bt_mesh.ivu_initiator &&
 	    bt_mesh.iv_update == BT_MESH_IV_UPDATE(flags)) {

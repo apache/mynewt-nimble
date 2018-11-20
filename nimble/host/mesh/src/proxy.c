@@ -1141,7 +1141,7 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 		if (active < NODE_ID_TIMEOUT) {
 			remaining = NODE_ID_TIMEOUT - active;
 			BT_DBG("Node ID active for %u ms, %d ms remaining",
-			       active, remaining);
+			       (unsigned) active, (int) remaining);
 			node_id_adv(sub);
 		} else {
 			bt_mesh_proxy_identity_stop(sub);
@@ -1175,7 +1175,8 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 		}
 	}
 
-	BT_DBG("Advertising %d ms for net_idx 0x%04x", remaining, sub->net_idx);
+	BT_DBG("Advertising %d ms for net_idx 0x%04x",
+	       (int) remaining, sub->net_idx);
 
 	return remaining;
 }

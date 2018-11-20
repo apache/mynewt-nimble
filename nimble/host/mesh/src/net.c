@@ -426,7 +426,7 @@ int bt_mesh_net_beacon_update(struct bt_mesh_subnet *sub)
 		keys = &sub->keys[0];
 	}
 
-	BT_DBG("flags 0x%02x, IVI 0x%08x", flags, bt_mesh.iv_index);
+	BT_DBG("flags 0x%02x, IVI 0x%08x", flags, (unsigned) bt_mesh.iv_index);
 
 	return bt_mesh_beacon_auth(keys->beacon, flags, keys->net_id,
 				   bt_mesh.iv_index, sub->auth);
@@ -438,7 +438,8 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 	struct bt_mesh_subnet *sub;
 	int err;
 
-	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags, iv_index);
+	BT_DBG("idx %u flags 0x%02x iv_index %u", idx, flags,
+	       (unsigned) iv_index);
 
 	BT_DBG("NetKey %s", bt_hex(key, 16));
 
@@ -623,7 +624,8 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 
 		if (iv_index != bt_mesh.iv_index) {
 			BT_WARN("IV Index mismatch: 0x%08x != 0x%08x",
-				iv_index, bt_mesh.iv_index);
+				(unsigned) iv_index,
+				(unsigned) bt_mesh.iv_index);
 			return false;
 		}
 
@@ -643,7 +645,8 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 		if (iv_index < bt_mesh.iv_index ||
 		    iv_index > bt_mesh.iv_index + 42) {
 			BT_ERR("IV Index out of sync: 0x%08x != 0x%08x",
-			       iv_index, bt_mesh.iv_index);
+			       (unsigned) iv_index,
+			       (unsigned) bt_mesh.iv_index);
 			return false;
 		}
 
@@ -688,7 +691,7 @@ do_update:
 	if (bt_mesh.iv_update) {
 		bt_mesh.iv_index = iv_index;
 		BT_DBG("IV Update state entered. New index 0x%08x",
-		       bt_mesh.iv_index);
+		       (unsigned) bt_mesh.iv_index);
 
 		bt_mesh_rpl_reset();
 	} else {
@@ -984,7 +987,8 @@ static int net_decrypt(struct bt_mesh_subnet *sub, const u8_t *enc,
 		       struct os_mbuf *buf)
 {
 	BT_DBG("NID 0x%02x net_idx 0x%04x", NID(data), sub->net_idx);
-	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(data), bt_mesh.iv_index);
+	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(data),
+	       (unsigned) bt_mesh.iv_index);
 
 	rx->old_iv = (IVI(data) != (bt_mesh.iv_index & 0x01));
 
