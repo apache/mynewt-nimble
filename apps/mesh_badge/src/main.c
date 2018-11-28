@@ -4,140 +4,155 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <misc/printk.h>
+#include "console/console.h"
+#include "host/ble_gap.h"
+#include "mesh/glue.h"
+#include "services/gap/ble_svc_gap.h"
+#include "base64/base64.h"
 
-#include <string.h>
-
-#include <settings/settings.h>
-
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/gatt.h>
-
+#include "mesh_badge.h"
 #include "mesh.h"
 #include "board.h"
 
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_NO_BREDR),
-};
+static char badge_name[MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH)];
 
-static size_t first_name_len(const char *name)
+#define MESH_BADGE_NAME_ENCODE_SIZE      \
+    BASE64_ENCODE_SIZE(sizeof(badge_name))
+
+static bool reset_mesh;
+
+void print_addr(const void *addr)
 {
-	size_t len;
+	const uint8_t *u8p;
 
-	for (len = 0; *name; name++, len++) {
-		switch (*name) {
-		case ' ':
-		case ',':
-		case '\n':
-			return len;
-		}
-	}
-
-	return len;
+	u8p = addr;
+	MODLOG_DFLT(INFO, "%02x:%02x:%02x:%02x:%02x:%02x",
+		    u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
 }
 
-static ssize_t read_name(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset)
+static void
+print_conn_desc(struct ble_gap_conn_desc *desc)
 {
-	const char *value = bt_get_name();
-
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 strlen(value));
+	MODLOG_DFLT(INFO, "handle=%d our_ota_addr_type=%d our_ota_addr=",
+		    desc->conn_handle, desc->our_ota_addr.type);
+	print_addr(desc->our_ota_addr.val);
+	MODLOG_DFLT(INFO, " our_id_addr_type=%d our_id_addr=",
+		    desc->our_id_addr.type);
+	print_addr(desc->our_id_addr.val);
+	MODLOG_DFLT(INFO, " peer_ota_addr_type=%d peer_ota_addr=",
+		    desc->peer_ota_addr.type);
+	print_addr(desc->peer_ota_addr.val);
+	MODLOG_DFLT(INFO, " peer_id_addr_type=%d peer_id_addr=",
+		    desc->peer_id_addr.type);
+	print_addr(desc->peer_id_addr.val);
+	MODLOG_DFLT(INFO, " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+			  "encrypted=%d authenticated=%d bonded=%d\n",
+		    desc->conn_itvl, desc->conn_latency,
+		    desc->supervision_timeout,
+		    desc->sec_state.encrypted,
+		    desc->sec_state.authenticated,
+		    desc->sec_state.bonded);
 }
 
-static ssize_t write_name(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			  const void *buf, u16_t len, u16_t offset,
-			  u8_t flags)
+static int gap_event(struct ble_gap_event *event, void *arg);
+
+static void advertise(void)
 {
-	char name[CONFIG_BT_DEVICE_NAME_MAX];
-	int err;
+	uint8_t own_addr_type;
+	struct ble_gap_adv_params adv_params;
+	struct ble_hs_adv_fields fields;
+	const char *name;
+	int rc;
 
-	if (offset) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+	/* Figure out address to use while advertising (no privacy for now) */
+	rc = ble_hs_id_infer_auto(0, &own_addr_type);
+	if (rc != 0) {
+		MODLOG_DFLT(ERROR, "error determining address type; rc=%d\n", rc);
+		return;
 	}
 
-	if (len >= CONFIG_BT_DEVICE_NAME_MAX) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+	/**
+	 *  Set the advertisement data included in our advertisements:
+	 *     o Flags (indicates advertisement type and other general info).
+	 *     o Advertising tx power.
+	 *     o Device name.
+	 *     o 16-bit service UUIDs (alert notifications).
+	 */
+
+	memset(&fields, 0, sizeof fields);
+
+	/* Advertise two flags:
+	 *     o Discoverability in forthcoming advertisement (general)
+	 *     o BLE-only (BR/EDR unsupported).
+	 */
+	fields.flags = BLE_HS_ADV_F_DISC_GEN |
+		       BLE_HS_ADV_F_BREDR_UNSUP;
+
+#if 0
+	/* Indicate that the TX power level field should be included; have the
+	 * stack fill this value automatically.  This is done by assiging the
+	 * special value BLE_HS_ADV_TX_PWR_LVL_AUTO.
+	 */
+	fields.tx_pwr_lvl_is_present = 1;
+	fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+#endif
+
+	name = ble_svc_gap_device_name();
+	fields.name = (uint8_t *)name;
+	fields.name_len = (uint8_t) strlen(name);
+	fields.name_is_complete = 1;
+
+	rc = ble_gap_adv_set_fields(&fields);
+	if (rc != 0) {
+		MODLOG_DFLT(ERROR, "error setting advertisement data; rc=%d\n", rc);
+		return;
 	}
 
-	memcpy(name, buf, len);
-	name[len] = '\0';
-
-	err = bt_set_name(name);
-	if (err) {
-		return BT_GATT_ERR(BT_ATT_ERR_INSUFFICIENT_RESOURCES);
+	/* Begin advertising. */
+	memset(&adv_params, 0, sizeof adv_params);
+	adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+	adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+	rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
+			       &adv_params, gap_event, NULL);
+	if (rc != 0) {
+		MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
+		return;
 	}
-
-	mesh_set_name(name, first_name_len(name));
-	board_refresh_display();
-
-	return len;
 }
 
-static struct bt_uuid_128 name_uuid = BT_UUID_INIT_128(
-	0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-	0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
-
-static struct bt_uuid_128 name_enc_uuid = BT_UUID_INIT_128(
-	0xf1, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-	0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
-
-#define CPF_FORMAT_UTF8 0x19
-
-static const struct bt_gatt_cpf name_cpf = {
-	.format = CPF_FORMAT_UTF8,
-};
-
-/* Vendor Primary Service Declaration */
-static struct bt_gatt_attr name_attrs[] = {
-	/* Vendor Primary Service Declaration */
-	BT_GATT_PRIMARY_SERVICE(&name_uuid),
-	BT_GATT_CHARACTERISTIC(&name_enc_uuid.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT,
-			       read_name, write_name, NULL),
-	BT_GATT_CUD("Badge Name", BT_GATT_PERM_READ),
-	BT_GATT_CPF(&name_cpf),
-};
-
-static struct bt_gatt_service name_svc = BT_GATT_SERVICE(name_attrs);
-
-static void passkey_display(struct bt_conn *conn, unsigned int passkey)
+static void passkey_display(uint16_t conn_handle)
 {
 	char buf[20];
+	struct ble_sm_io pk;
+	int rc;
 
-	snprintk(buf, sizeof(buf), "Passkey:\n%06u", passkey);
+	bt_rand(&pk.passkey, sizeof(pk.passkey));
+	/* Max value is 999999 */
+	pk.passkey %= 1000000;
+	pk.action = BLE_SM_IOACT_DISP;
+
+	rc = ble_sm_inject_io(conn_handle, &pk);
+	assert(rc == 0);
+
+	snprintk(buf, sizeof(buf), "Passkey:\n%06lu", pk.passkey);
 
 	printk("%s\n", buf);
 	board_show_text(buf, false, K_FOREVER);
 }
 
-static void passkey_cancel(struct bt_conn *conn)
-{
-	printk("Cancel\n");
-}
-
-static void pairing_complete(struct bt_conn *conn, bool bonded)
+static void pairing_complete(uint16_t conn_handle, bool bonded)
 {
 	printk("Pairing Complete\n");
 	board_show_text("Pairing Complete", false, K_SECONDS(2));
 }
 
-static void pairing_failed(struct bt_conn *conn)
+static void pairing_failed(uint16_t conn_handle)
 {
 	printk("Pairing Failed\n");
 	board_show_text("Pairing Failed", false, K_SECONDS(2));
 }
 
-const struct bt_conn_auth_cb auth_cb = {
-	.passkey_display = passkey_display,
-	.cancel = passkey_cancel,
-	.pairing_complete = pairing_complete,
-	.pairing_failed = pairing_failed,
-};
-
-static void connected(struct bt_conn *conn, u8_t err)
+static void connected(uint16_t conn_handle, int err)
 {
 	printk("Connected (err 0x%02x)\n", err);
 
@@ -148,35 +163,129 @@ static void connected(struct bt_conn *conn, u8_t err)
 	}
 }
 
-static void disconnected(struct bt_conn *conn, u8_t reason)
+static void disconnected(uint16_t conn_handle, int reason)
 {
 	printk("Disconnected (reason 0x%02x)\n", reason);
 
-	if (strcmp(CONFIG_BT_DEVICE_NAME, bt_get_name()) &&
+	if (strcmp(MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME), bt_get_name()) != 0 &&
 	    !mesh_is_initialized()) {
 		/* Mesh will take over advertising control */
-		bt_le_adv_stop();
+		ble_gap_adv_stop();
 		mesh_start();
 	} else {
 		board_show_text("Disconnected", false, K_SECONDS(2));
 	}
 }
 
-static struct bt_conn_cb conn_cb = {
-	.connected = connected,
-	.disconnected = disconnected,
-};
-
-static void bt_ready(int err)
+static int gap_event(struct ble_gap_event *event, void *arg)
 {
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-		return;
+	struct ble_gap_conn_desc desc;
+	int rc;
+
+	switch (event->type) {
+		case BLE_GAP_EVENT_CONNECT:
+			/* A new connection was established or a connection attempt failed. */
+			MODLOG_DFLT(INFO, "connection %s; status=%d ",
+				    event->connect.status == 0 ? "established" : "failed",
+				    event->connect.status);
+			if (event->connect.status == 0) {
+				rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+				assert(rc == 0);
+				print_conn_desc(&desc);
+				connected(event->connect.conn_handle,
+					  event->connect.status);
+			}
+			MODLOG_DFLT(INFO, "\n");
+
+			if (event->connect.status != 0) {
+				/* Connection failed; resume advertising. */
+				advertise();
+			}
+			return 0;
+
+		case BLE_GAP_EVENT_DISCONNECT:
+			MODLOG_DFLT(INFO, "disconnect; reason=%d ", event->disconnect.reason);
+			print_conn_desc(&event->disconnect.conn);
+			MODLOG_DFLT(INFO, "\n");
+
+			/* Connection terminated; resume advertising. */
+			advertise();
+
+			disconnected(event->disconnect.conn.conn_handle,
+				     event->disconnect.reason);
+			return 0;
+
+		case BLE_GAP_EVENT_CONN_UPDATE:
+			/* The central has updated the connection parameters. */
+			MODLOG_DFLT(INFO, "connection updated; status=%d ",
+				    event->conn_update.status);
+			rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+			assert(rc == 0);
+			print_conn_desc(&desc);
+			MODLOG_DFLT(INFO, "\n");
+			return 0;
+
+		case BLE_GAP_EVENT_ENC_CHANGE:
+			/* Encryption has been enabled or disabled for this connection. */
+			MODLOG_DFLT(INFO, "encryption change event; status=%d ",
+				    event->enc_change.status);
+			rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+			assert(rc == 0);
+			print_conn_desc(&desc);
+			MODLOG_DFLT(INFO, "\n");
+
+			if (desc.sec_state.bonded) {
+				pairing_complete(event->enc_change.conn_handle, true);
+			} else if(desc.sec_state.encrypted) {
+				pairing_complete(event->enc_change.conn_handle, false);
+			} else {
+				pairing_failed(event->enc_change.conn_handle);
+			}
+			return 0;
+
+		case BLE_GAP_EVENT_PASSKEY_ACTION:
+			MODLOG_DFLT(INFO, "passkey action event; conn_handle=%d action=%d numcmp=%d\n",
+				    event->passkey.conn_handle,
+				    event->passkey.params.action,
+				    event->passkey.params.numcmp);
+			passkey_display(event->passkey.conn_handle);
+			return 0;
+
+		case BLE_GAP_EVENT_REPEAT_PAIRING:
+			/* We already have a bond with the peer, but it is attempting to
+			 * establish a new secure link.  This app sacrifices security for
+			 * convenience: just throw away the old bond and accept the new link.
+			 */
+
+			/* Delete the old bond. */
+			rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
+			assert(rc == 0);
+			ble_store_util_delete_peer(&desc.peer_id_addr);
+
+			/* Return BLE_GAP_REPEAT_PAIRING_RETRY to indicate that the host should
+			 * continue with the pairing operation.
+			 */
+			return BLE_GAP_REPEAT_PAIRING_RETRY;
+
 	}
+
+	return 0;
+}
+
+static void on_sync(void)
+{
+	int err;
+	ble_addr_t addr;
+
+	/* Use NRPA */
+	err = ble_hs_id_gen_rnd(1, &addr);
+	assert(err == 0);
+	err = ble_hs_id_set_rnd(addr.val);
+	assert(err == 0);
 
 	printk("Bluetooth initialized\n");
 
-	err = mesh_init();
+	err = mesh_init(addr.type);
 	if (err) {
 		printk("Initializing mesh failed (err %d)\n", err);
 		return;
@@ -184,29 +293,20 @@ static void bt_ready(int err)
 
 	printk("Mesh initialized\n");
 
-	bt_conn_cb_register(&conn_cb);
-	bt_conn_auth_cb_register(&auth_cb);
-
-	bt_gatt_service_register(&name_svc);
-
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
 	}
 
+	if (reset_mesh) {
+		bt_mesh_reset();
+		reset_mesh = false;
+	}
+
 	if (!mesh_is_initialized()) {
-		/* Start advertising */
-		err = bt_le_adv_start(BT_LE_ADV_CONN_NAME,
-				      ad, ARRAY_SIZE(ad), NULL, 0);
-		if (err) {
-			printk("Advertising failed to start (err %d)\n", err);
-			return;
-		}
+		advertise();
 	} else {
-		const char *name = bt_get_name();
-
 		printk("Already provisioned\n");
-
-		mesh_set_name(name, first_name_len(name));
+		ble_svc_gap_device_name_set(bt_get_name());
 	}
 
 	board_refresh_display();
@@ -214,22 +314,80 @@ static void bt_ready(int err)
 	printk("Board started\n");
 }
 
-void main(void)
+void schedule_mesh_reset(void)
+{
+	reset_mesh = true;
+}
+
+static void on_reset(int reason)
+{
+	MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
+}
+
+const char *bt_get_name(void)
+{
+	char buf[MESH_BADGE_NAME_ENCODE_SIZE];
+	int rc, len;
+
+	rc = conf_get_stored_value("mesh_badge/badge_name",
+				   buf, sizeof(buf));
+	if (rc == OS_ENOENT) {
+		bt_set_name(MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME));
+	} else {
+		assert(rc == 0);
+	}
+
+	memset(badge_name, '\0', sizeof(badge_name));
+	len = base64_decode(buf, badge_name);
+	if (len < 0) {
+		bt_set_name(MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME));
+	}
+
+	return badge_name;
+}
+
+int bt_set_name(const char *name)
+{
+	char buf[MESH_BADGE_NAME_ENCODE_SIZE];
+	int rc;
+
+	memset(badge_name, '\0', sizeof(badge_name));
+	memcpy(badge_name, name, strlen(name));
+	base64_encode(badge_name, sizeof(badge_name), buf, 1);
+	rc = conf_save_one("mesh_badge/badge_name", buf);
+	assert(rc == 0);
+
+	return 0;
+}
+
+int main(void)
 {
 	int err;
+
+	/* Initialize OS */
+	sysinit();
 
 	err = board_init();
 	if (err) {
 		printk("board init failed (err %d)\n", err);
-		return;
+		assert(err == 0);
 	}
 
-	printk("Starting Board Demo\n");
+	/* Initialize the NimBLE host configuration. */
+	ble_hs_cfg.reset_cb = on_reset;
+	ble_hs_cfg.sync_cb = on_sync;
+	ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
+	ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+	ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_ONLY;
 
-	/* Initialize the Bluetooth Subsystem */
-	err = bt_enable(bt_ready);
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-		return;
+	err = gatt_svr_init();
+	assert(err == 0);
+
+	/*
+	 * As the last thing, process events from default event queue.
+	 */
+	while (1) {
+		os_eventq_run(os_eventq_dflt_get());
 	}
+	return 0;
 }

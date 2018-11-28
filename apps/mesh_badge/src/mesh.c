@@ -4,29 +4,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <string.h>
-#include <misc/printk.h>
+#include "console/console.h"
+#include "mesh/mesh.h"
 
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/mesh.h>
-#include <bluetooth/hci.h>
-
+#include "mesh_badge.h"
 #include "mesh.h"
 #include "board.h"
 
-#define MOD_LF         0x0000
-#define OP_LF          0xbb
-#define OP_VENDOR_MSG  BT_MESH_MODEL_OP_3(OP_LF, BT_COMP_ID_LF)
+#define BT_COMP_ID_LF 0x05f1
 
-#define DEFAULT_TTL    7
-#define GROUP_ADDR     0xc123
-#define NET_IDX        0x000
-#define APP_IDX        0x000
-#define FLAGS          0
+#define MOD_LF            0x0000
+#define OP_HELLO          0xbb
+#define OP_HEARTBEAT      0xbc
+#define OP_VND_HELLO      BT_MESH_MODEL_OP_3(OP_HELLO, BT_COMP_ID_LF)
+#define OP_VND_HEARTBEAT  BT_MESH_MODEL_OP_3(OP_HEARTBEAT, BT_COMP_ID_LF)
 
-static struct k_work publish_work;
-static struct k_work mesh_start_work;
+#define DEFAULT_TTL       31
+#define GROUP_ADDR        0xc123
+#define NET_IDX           0x000
+#define APP_IDX           0x000
+#define FLAGS             0
+static struct ble_npl_callout hello_work;
+static struct ble_npl_callout mesh_start_work;
 
 static void heartbeat(u8_t hops, u16_t feat)
 {
@@ -67,7 +66,8 @@ static struct bt_mesh_health_srv health_srv = {
 	.cb = &health_srv_cb,
 };
 
-BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
+static struct os_mbuf *bt_mesh_pub_msg_health_pub;
+static struct bt_mesh_model_pub health_pub;
 
 static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
@@ -75,22 +75,26 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
 };
 
-static void vnd_message(struct bt_mesh_model *model,
+static void vnd_hello(struct bt_mesh_model *model,
 			struct bt_mesh_msg_ctx *ctx,
-			struct net_buf_simple *buf)
+			struct os_mbuf *buf)
 {
 	char str[32];
 	size_t len;
 
-	printk("Vendor message from 0x%04x\n", ctx->addr);
+	printk("Hello message from 0x%04x\n", ctx->addr);
 
 	if (ctx->addr == bt_mesh_model_elem(model)->addr) {
 		printk("Ignoring message from self\n");
 		return;
 	}
 
-	len = min(buf->len, 8);
-	memcpy(str, buf->data, len);
+	len = min(buf->om_len, 8);
+	memcpy(str, buf->om_data, len);
+	str[len] = '\0';
+
+	board_add_hello(ctx->addr, str);
+
 	strcpy(str + len, " says hi!");
 
 	board_show_text(str, false, K_SECONDS(3));
@@ -98,13 +102,46 @@ static void vnd_message(struct bt_mesh_model *model,
 	board_blink_leds();
 }
 
+static void vnd_heartbeat(struct bt_mesh_model *model,
+			  struct bt_mesh_msg_ctx *ctx,
+			  struct os_mbuf *buf)
+{
+	u8_t init_ttl, hops;
+
+	/* Ignore messages from self */
+	if (ctx->addr == bt_mesh_model_elem(model)->addr) {
+		return;
+	}
+
+	init_ttl = net_buf_simple_pull_u8(buf);
+	hops = init_ttl - ctx->recv_ttl + 1;
+
+	printk("Heartbeat from 0x%04x over %u hop%s\n", ctx->addr,
+	       hops, hops == 1 ? "" : "s");
+
+	board_add_heartbeat(ctx->addr, hops);
+}
+
 static const struct bt_mesh_model_op vnd_ops[] = {
-	{ OP_VENDOR_MSG, 1, vnd_message },
+	{ OP_VND_HELLO, 1, vnd_hello },
+	{ OP_VND_HEARTBEAT, 1, vnd_heartbeat },
 	BT_MESH_MODEL_OP_END,
 };
 
-/* Limit the payload to 11 bytes so that it doesn't get segmented */
-BT_MESH_MODEL_PUB_DEFINE(vnd_pub, NULL, 3 + 8);
+static int pub_update(struct bt_mesh_model *mod)
+{
+	struct os_mbuf *msg = mod->pub->msg;
+
+	printk("Preparing to send heartbeat\n");
+
+	bt_mesh_model_msg_init(msg, OP_VND_HEARTBEAT);
+	net_buf_simple_add_u8(msg, DEFAULT_TTL);
+
+	return 0;
+}
+
+static struct os_mbuf *bt_mesh_pub_msg_vnd_pub;
+static struct bt_mesh_model_pub vnd_pub;
 
 static struct bt_mesh_model vnd_models[] = {
 	BT_MESH_MODEL_VND(BT_COMP_ID_LF, MOD_LF, vnd_ops, &vnd_pub, NULL),
@@ -120,19 +157,49 @@ static const struct bt_mesh_comp comp = {
 	.elem_count = ARRAY_SIZE(elements),
 };
 
-static void publish_message(struct k_work *work)
+static size_t first_name_len(const char *name)
 {
-	if (bt_mesh_model_publish(&vnd_models[0]) == 0) {
+	size_t len;
+
+	for (len = 0; *name; name++, len++) {
+		switch (*name) {
+		case ' ':
+		case ',':
+		case '\n':
+			return len;
+		}
+	}
+
+	return len;
+}
+
+static void send_hello(struct ble_npl_event *work)
+{
+	struct os_mbuf *msg = NET_BUF_SIMPLE(3 + 8 + 4);
+	struct bt_mesh_msg_ctx ctx = {
+		.net_idx = NET_IDX,
+		.app_idx = APP_IDX,
+		.addr = GROUP_ADDR,
+		.send_ttl = DEFAULT_TTL,
+	};
+	const char *name = bt_get_name();
+
+	bt_mesh_model_msg_init(msg, OP_VND_HELLO);
+	net_buf_simple_add_mem(msg, name, first_name_len(name));
+
+	if (bt_mesh_model_send(&vnd_models[0], &ctx, msg, NULL, NULL) == 0) {
 		board_show_text("Saying \"hi!\" to everyone", false,
 				K_SECONDS(2));
 	} else {
 		board_show_text("Sending Failed!", false, K_SECONDS(2));
 	}
+
+	os_mbuf_free_chain(msg);
 }
 
-void mesh_publish(void)
+void mesh_send_hello(void)
 {
-	k_work_submit(&publish_work);
+	k_work_submit(&hello_work);
 }
 
 static int provision_and_configure(void)
@@ -150,6 +217,7 @@ static int provision_and_configure(void)
 		.addr = GROUP_ADDR,
 		.app_idx = APP_IDX,
 		.ttl = DEFAULT_TTL,
+		.period = BT_MESH_PUB_PERIOD_SEC(10),
 	};
 	u8_t dev_key[16];
 	u16_t addr;
@@ -201,7 +269,7 @@ static int provision_and_configure(void)
 	return addr;
 }
 
-static void start_mesh(struct k_work *work)
+static void start_mesh(struct ble_npl_event *work)
 {
 	int err;
 
@@ -223,27 +291,32 @@ void mesh_start(void)
 	k_work_submit(&mesh_start_work);
 }
 
-void mesh_set_name(const char *name, size_t len)
-{
-	bt_mesh_model_msg_init(vnd_pub.msg, OP_VENDOR_MSG);
-	len = min(len, net_buf_simple_tailroom(vnd_pub.msg));
-	net_buf_simple_add_mem(vnd_pub.msg, name, len);
-}
-
 bool mesh_is_initialized(void)
 {
-	return elements[0].addr != BT_MESH_ADDR_UNASSIGNED;
+	return bt_mesh_is_provisioned();
 }
 
-int mesh_init(void)
+u16_t mesh_get_addr(void)
+{
+	return elements[0].addr;
+}
+
+int mesh_init(u8_t addr_type)
 {
 	static const u8_t dev_uuid[16] = { 0xc0, 0xff, 0xee };
 	static const struct bt_mesh_prov prov = {
 		.uuid = dev_uuid,
 	};
 
-	k_work_init(&publish_work, publish_message);
+	bt_mesh_pub_msg_health_pub = NET_BUF_SIMPLE(0);
+	health_pub.msg = bt_mesh_pub_msg_health_pub;
+
+	bt_mesh_pub_msg_vnd_pub = NET_BUF_SIMPLE(3 + 1);
+	vnd_pub.msg = bt_mesh_pub_msg_vnd_pub;
+	vnd_pub.update = pub_update;
+
+	k_work_init(&hello_work, send_hello);
 	k_work_init(&mesh_start_work, start_mesh);
 
-	return bt_mesh_init(&prov, &comp);
+	return bt_mesh_init(addr_type, &prov, &comp);
 }
