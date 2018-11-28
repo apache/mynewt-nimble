@@ -149,19 +149,19 @@ extern "C" {
 #define BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS           (0x003B)
 #define BLE_HCI_OCF_LE_REMOVE_ADV_SET               (0x003C)
 #define BLE_HCI_OCF_LE_CLEAR_ADV_SETS               (0x003D)
-#define BLE_HCI_OCF_LE_SET_PER_ADV_PARAMS           (0x003E)
-#define BLE_HCI_OCF_LE_SET_PER_ADV_DATA             (0x003F)
-#define BLE_HCI_OCF_LE_SET_PER_ADV_ENABLE           (0x0040)
+#define BLE_HCI_OCF_LE_SET_PERIODIC_ADV_PARAMS      (0x003E)
+#define BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA        (0x003F)
+#define BLE_HCI_OCF_LE_SET_PERIODIC_ADV_ENABLE      (0x0040)
 #define BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM           (0x0041)
 #define BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE          (0x0042)
 #define BLE_HCI_OCF_LE_EXT_CREATE_CONN              (0x0043)
-#define BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC          (0x0044)
-#define BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC_CANCEL   (0x0045)
-#define BLE_HCI_OCF_LE_PER_ADV_TERM_SYNC            (0x0046)
-#define BLE_HCI_OCF_LE_ADD_DEV_TO_PER_ADV_LIST      (0x0047)
-#define BLE_HCI_OCF_LE_REM_DEV_FROM_PER_ADV_LIST    (0x0048)
-#define BLE_HCI_OCF_LE_CLEAR_PER_ADV_LIST           (0x0049)
-#define BLE_HCI_OCF_LE_RD_PER_ADV_LIST_SIZE         (0x004A)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC          (0x0044)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL   (0x0045)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC            (0x0046)
+#define BLE_HCI_OCF_LE_ADD_DEV_TO_PERIODIC_ADV_LIST      (0x0047)
+#define BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST    (0x0048)
+#define BLE_HCI_OCF_LE_CLEAR_PERIODIC_ADV_LIST           (0x0049)
+#define BLE_HCI_OCF_LE_RD_PERIODIC_ADV_LIST_SIZE         (0x004A)
 #define BLE_HCI_OCF_LE_RD_TRANSMIT_POWER            (0x004B)
 #define BLE_HCI_OCF_LE_RD_RF_PATH_COMPENSATION      (0x004C)
 #define BLE_HCI_OCF_LE_WR_RF_PATH_COMPENSATION      (0x004D)
@@ -522,21 +522,18 @@ extern "C" {
 #define BLE_HCI_SET_EXT_ADV_DATA_HDR_LEN            (4)
 
 #define BLE_HCI_LE_SET_EXT_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
-#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT        (0)
-#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST      (1)
-#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST       (2)
-#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE   (3)
-#define BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED  (4)
+#define BLE_HCI_LE_SET_DATA_OPER_INT        (0)
+#define BLE_HCI_LE_SET_DATA_OPER_FIRST      (1)
+#define BLE_HCI_LE_SET_DATA_OPER_LAST       (2)
+#define BLE_HCI_LE_SET_DATA_OPER_COMPLETE   (3)
+#define BLE_HCI_LE_SET_DATA_OPER_UNCHANGED  (4)
 
 /* --- LE set extended scan response data (OCF 0x0038) */
 #define BLE_HCI_MAX_EXT_SCAN_RSP_DATA_LEN           (251)
 #define BLE_HCI_SET_EXT_SCAN_RSP_DATA_HDR_LEN       (4)
 
 #define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_LEN        BLE_HCI_VARIABLE_LEN
-#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT        (0)
-#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST      (1)
-#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST       (2)
-#define BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE   (3)
+
 
 /* --- LE set extended advertising enable (OCF 0x0039) */
 #define BLE_HCI_LE_SET_EXT_ADV_ENABLE_LEN           BLE_HCI_VARIABLE_LEN
@@ -551,13 +548,18 @@ extern "C" {
 #define BLE_HCI_RD_NR_SUP_ADV_SETS                  (1)
 
 /* --- LE set periodic advertising parameters (OCF 0x003E) */
-#define BLE_HCI_LE_SET_PER_ADV_PARAMS_LEN           (7)
+#define BLE_HCI_LE_SET_PERIODIC_ADV_PARAMS_LEN      (7)
+#define BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR (0x0040)
 
 /* --- LE set periodic advertising data (OCF 0x003F) */
-#define BLE_HCI_LE_SET_PER_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_LE_SET_PERIODIC_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
+#define BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN                (252)
+#define BLE_HCI_SET_PERIODIC_ADV_DATA_HDR_LEN            (3)
+
+
 
 /* --- LE periodic advertising enable (OCF 0x0040) */
-#define BLE_HCI_LE_SET_PER_ADV_ENABLE_LEN           (2)
+#define BLE_HCI_LE_SET_PERIODIC_ADV_ENABLE_LEN           (2)
 
 /* --- LE set extended scan parameters (OCF 0x0041) */
 #define BLE_HCI_LE_SET_EXT_SCAN_PARAM_LEN           BLE_HCI_VARIABLE_LEN
@@ -572,16 +574,16 @@ extern "C" {
 #define BLE_HCI_LE_EXT_CREATE_CONN_BASE_LEN         (10)
 
 /* --- LE periodic advertising create sync (OCF 0x0044) */
-#define BLE_HCI_LE_PER_ADV_CREATE_SYNC_LEN          (14)
+#define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN          (14)
 
 /* --- LE periodic advertising terminate (OCF 0x0046) */
-#define BLE_HCI_LE_PER_ADV_TERM_SYNC_LEN            (2)
+#define BLE_HCI_LE_PERIODIC_ADV_TERM_SYNC_LEN            (2)
 
 /* --- LE add device to periodic advertising list (OCF 0x0047) */
-#define BLE_HCI_LE_ADD_DEV_TO_PER_ADV_LIST_LEN      (8)
+#define BLE_HCI_LE_ADD_DEV_TO_PERIODIC_ADV_LIST_LEN      (8)
 
 /* --- LE remove device from periodic advertising list (OCF 0x0048) */
-#define BLE_HCI_LE_REM_DEV_FROM_PER_ADV_LIST_LEN    (8)
+#define BLE_HCI_LE_REM_DEV_FROM_PERIODIC_ADV_LIST_LEN    (8)
 
 /* --- LE write RF path (OCF 0x004D) */
 #define BLE_HCI_LE_WR_RF_PATH_COMPENSATION_LEN      (4)
@@ -685,9 +687,9 @@ extern "C" {
 #define BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT         (0x0B)
 #define BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE    (0x0C)
 #define BLE_HCI_LE_SUBEV_EXT_ADV_RPT            (0x0D)
-#define BLE_HCI_LE_SUBEV_PER_ADV_SYNC_ESTAB     (0x0E)
-#define BLE_HCI_LE_SUBEV_PER_ADV_RPT            (0x0F)
-#define BLE_HCI_LE_SUBEV_PER_ADV_SYNC_LOST      (0x10)
+#define BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB     (0x0E)
+#define BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT            (0x0F)
+#define BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST      (0x10)
 #define BLE_HCI_LE_SUBEV_SCAN_TIMEOUT           (0x11)
 #define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED     (0x12)
 #define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD          (0x13)
@@ -779,6 +781,15 @@ extern "C" {
 
 /* LE PHY update complete event (sub event 0x0C) */
 #define BLE_HCI_LE_PHY_UPD_LEN              (6)
+
+/* LE Periodic Advertising Sync Established Event (sub event 0x0e) */
+#define BLE_HCI_LE_PERIODIC_ADV_SYNC_ESTAB_LEN   (16)
+
+/* LE Periodic Advertising Report Event (sub event 0x0f) */
+#define BLE_HCI_LE_PERIODIC_ADV_RPT_LEN   (8)
+
+/* LE Periodic Advertising Sync Lost Event (sub event 0x10) */
+#define BLE_HCI_LE_PERIODIC_ADV_SYNC_LOST_LEN   (3)
 
 /* LE Scan Timeout Event (sub event 0x11) */
 #define BLE_HCI_LE_SUBEV_SCAN_TIMEOUT_LEN   (1)
@@ -990,8 +1001,17 @@ struct hci_le_subev_ext_adv_rpt {
     struct hci_ext_adv_report_param params[0];
 } __attribute__((packed));
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+/* Periodic Advertising Parameters */
+struct hci_periodic_adv_params
+{
+    uint16_t min_interval;
+    uint16_t max_interval;
+    uint16_t properties;
+};
+
 /* LE Periodic Advertising Sync Established Event */
-struct hci_le_subev_per_adv_sync_estab {
+struct hci_le_subev_periodic_adv_sync_estab {
     uint8_t status;
     uint16_t sync_handle;
     uint8_t sid;
@@ -1003,20 +1023,20 @@ struct hci_le_subev_per_adv_sync_estab {
 } __attribute__((packed));
 
 /* LE Periodic Advertising Report Event */
-struct hci_le_subev_per_adv_rpt {
+struct hci_le_subev_periodic_adv_rpt {
     uint16_t sync_handle;
     uint8_t tx_power;
     int8_t rssi;
-    uint8_t _unused;
     uint8_t data_status;
     uint8_t data_length;
     uint8_t data[0];
 } __attribute__((packed));
 
 /* LE Periodic Advertising Sync Lost Event */
-struct hci_le_subev_per_adv_sync_lost {
+struct hci_le_subev_periodic_adv_sync_lost {
     uint16_t sync_handle;
 } __attribute__((packed));
+#endif
 
 /* LE Advertising Set Terminated Event */
 struct hci_le_subev_adv_set_terminated {

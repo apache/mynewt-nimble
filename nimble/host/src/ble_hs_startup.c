@@ -256,12 +256,15 @@ ble_hs_startup_le_set_evmask_tx(void)
          * Enable the following LE events:
          *   0x0000000000000800 LE PHY Update Complete Event
          *   0x0000000000001000 LE Extended Advertising Report Event
+         *   0x0000000000002000 LE Periodic Advertising Sync Established Event
+         *   0x0000000000004000 LE Periodic Advertising Report Event
+         *   0x0000000000008000 LE Periodic Advertising Sync Lost Event
          *   0x0000000000010000 LE Extended Scan Timeout Event
          *   0x0000000000020000 LE Extended Advertising Set Terminated Event
          *   0x0000000000040000 LE Scan Request Received Event
          *   0x0000000000080000 LE Channel Selection Algorithm Event
          */
-        mask |= 0x00000000000f1800;
+        mask |= 0x00000000000ff800;
     }
 
     ble_hs_hci_cmd_build_le_set_event_mask(mask, buf, sizeof buf);

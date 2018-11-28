@@ -59,9 +59,51 @@ ble_hs_stop_done(int status)
 }
 
 /**
+ * Terminates all active periodic sync handles
+ *
+ * If there are no active periodic sync handles, signals completion of the
+ * close procedure.
+ */
+static int
+ble_hs_stop_terminate_next_periodic_sync(void)
+{
+    int rc = 0;
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct ble_hs_periodic_sync *psync;
+
+    while((psync = ble_hs_periodic_sync_first())){
+        /* Terminate sync command waits a command complete event, so there
+         * is no need to wait for GAP event, as the calling thread will be
+         * blocked on the hci semaphore until the command complete is received.
+         *
+         * Also, once the sync is terminated, the psync will be freed and
+         * removed from the list such that the next call to
+         * ble_hs_periodic_sync_first yields the next psync handle
+         */
+        rc = ble_gap_periodic_adv_terminate_sync(psync->sync_handle);
+
+        if (!rc){
+            BLE_HS_LOG(ERROR,
+                    "ble_hs_stop: failed to terminate connection; rc=%d\n",
+                     rc);
+            ble_hs_stop_done(rc);
+        }
+    }
+
+#endif
+    /* No more active periodic sync handles (Or periodic advertising
+     * is not supported), Signal completion of the stop procedure.
+     */
+    ble_hs_stop_done(0);
+
+    return rc;
+}
+
+/**
  * Terminates the first open connection.
  *
- * If there are no open connections, signals completion of the close procedure.
+ * If there are no open connections, Check for any active periodic sync
+ * handles.
  */
 static void
 ble_hs_stop_terminate_next_conn(void)
@@ -71,8 +113,8 @@ ble_hs_stop_terminate_next_conn(void)
 
     handle = ble_hs_atomic_first_conn_handle();
     if (handle == BLE_HS_CONN_HANDLE_NONE) {
-        /* No open connections.  Signal completion of the stop procedure. */
-        ble_hs_stop_done(0);
+        /* No open connections.  Check for any active periodic sync */
+        ble_hs_stop_terminate_next_periodic_sync();
         return;
     }
 

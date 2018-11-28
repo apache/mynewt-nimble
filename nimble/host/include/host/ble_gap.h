@@ -124,6 +124,9 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_REPEAT_PAIRING        17
 #define BLE_GAP_EVENT_PHY_UPDATE_COMPLETE   18
 #define BLE_GAP_EVENT_EXT_DISC              19
+#define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB    20
+#define BLE_GAP_EVENT_PERIODIC_DISC              21
+#define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST     22
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -708,6 +711,46 @@ struct ble_gap_event {
             uint8_t tx_phy;
             uint8_t rx_phy;
         } phy_updated;
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+        /**
+         * Represents an periodic advertising sync established during discovery
+         * procedure.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB
+         */
+        struct {
+            uint8_t status;
+            uint16_t sync_handle;
+            uint8_t sid;
+            uint8_t adv_addr_type;
+            uint8_t adv_addr[6];
+            uint8_t adv_phy;
+            uint16_t per_adv_ival;
+            uint8_t adv_clk_accuracy;
+        } periodic_adv_sync_estab;
+
+        /**
+         * Represents a Periodic advertising report received during discovery
+         * procedure.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_DISC
+         */
+        struct {
+            uint16_t sync_handle;
+            uint8_t tx_power;
+            int8_t rssi;
+            uint8_t data_status;
+            uint8_t data_length;
+            uint8_t *data;
+        } periodic_disc;
+
+        /**
+         * Represents an periodic advertising sync Lost during discovery
+         * procedure.  Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST
+         */
+        struct {
+            uint16_t sync_handle;
+        } periodic_adv_sync_lost;
+#endif
     };
 };
 
@@ -903,6 +946,15 @@ struct ble_gap_ext_adv_params {
     uint8_t sid;
 };
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+struct ble_gap_periodic_adv_params {
+    unsigned int include_tx_power:1;
+
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+};
+#endif
+
 int ble_gap_ext_adv_configure(uint8_t instance,
                               const struct ble_gap_ext_adv_params *params,
                               int8_t *selected_tx_power,
@@ -913,6 +965,28 @@ int ble_gap_ext_adv_stop(uint8_t instance);
 int ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data);
 int ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data);
 int ble_gap_ext_adv_remove(uint8_t instance);
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+/* Periodic Advertising */
+int ble_gap_periodic_adv_configure(uint8_t instance, const struct ble_gap_periodic_adv_params *params);
+int ble_gap_periodic_adv_start(uint8_t instance);
+int ble_gap_periodic_adv_stop(uint8_t instance);
+int ble_gap_periodic_adv_set_data(uint8_t instance, struct os_mbuf *data);
+int ble_gap_periodic_adv_create_sync (uint8_t filter_policy,
+                                 uint8_t    adv_sid, uint8_t adv_add_type,
+                                 const uint8_t *adv_addr, uint16_t skip,
+                                 uint16_t sync_timeout);
+int ble_gap_periodic_adv_create_sync_cancel(void);
+int ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle);
+int ble_gap_add_dev_to_periodic_adv_list(uint8_t adv_add_type, const uint8_t *adv_add,
+                                    uint8_t adv_sid);
+int ble_gap_rem_dev_from_periodic_adv_list(uint8_t adv_addr_type,
+                                      const uint8_t *adv_addr,
+                                      uint8_t adv_sid);
+int ble_gap_clear_periodic_adv_list(void);
+int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
+#endif
+
 #endif
 
 /**

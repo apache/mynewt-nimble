@@ -82,6 +82,11 @@ void ble_gap_rx_le_scan_timeout(void);
 #if MYNEWT_VAL(BLE_EXT_ADV)
 void ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc);
 void ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt);
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+void ble_gap_rx_peroidic_adv_sync_estab(struct hci_le_subev_periodic_adv_sync_estab *evt);
+void ble_gap_rx_periodic_adv_rpt(struct hci_le_subev_periodic_adv_rpt *evt);
+void ble_gap_rx_periodic_adv_sync_lost(struct hci_le_subev_periodic_adv_sync_lost *evt);
+#endif
 #endif
 void ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc);
 void ble_gap_rx_rd_rem_sup_feat_complete(struct hci_le_rd_rem_supp_feat_complete *evt);

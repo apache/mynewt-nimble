@@ -30,6 +30,7 @@
 #include "ble_hs_hci_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_conn_priv.h"
+#include "ble_hs_periodic_disc_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_mbuf_priv.h"
 #include "ble_hs_startup_priv.h"

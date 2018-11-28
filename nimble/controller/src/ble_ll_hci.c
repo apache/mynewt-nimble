@@ -696,16 +696,16 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_RD_NUM_OF_ADV_SETS:
     case BLE_HCI_OCF_LE_REMOVE_ADV_SET:
     case BLE_HCI_OCF_LE_CLEAR_ADV_SETS:
-    case BLE_HCI_OCF_LE_SET_PER_ADV_PARAMS:
-    case BLE_HCI_OCF_LE_SET_PER_ADV_DATA:
-    case BLE_HCI_OCF_LE_SET_PER_ADV_ENABLE:
-    case BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC:
-    case BLE_HCI_OCF_LE_PER_ADV_CREATE_SYNC_CANCEL:
-    case BLE_HCI_OCF_LE_PER_ADV_TERM_SYNC:
-    case BLE_HCI_OCF_LE_ADD_DEV_TO_PER_ADV_LIST:
-    case BLE_HCI_OCF_LE_REM_DEV_FROM_PER_ADV_LIST:
-    case BLE_HCI_OCF_LE_CLEAR_PER_ADV_LIST:
-    case BLE_HCI_OCF_LE_RD_PER_ADV_LIST_SIZE:
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_PARAMS:
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA:
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_ENABLE:
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL:
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC:
+    case BLE_HCI_OCF_LE_ADD_DEV_TO_PERIODIC_ADV_LIST:
+    case BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST:
+    case BLE_HCI_OCF_LE_CLEAR_PERIODIC_ADV_LIST:
+    case BLE_HCI_OCF_LE_RD_PERIODIC_ADV_LIST_SIZE:
         if (hci_adv_mode == ADV_MODE_LEGACY) {
             return false;
         }
@@ -859,13 +859,13 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
     case BLE_HCI_OCF_LE_SET_ADV_DATA:
         if (len == BLE_HCI_SET_ADV_DATA_LEN) {
             rc = ble_ll_adv_set_adv_data(cmdbuf, len, 0,
-                                     BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE);
+                                     BLE_HCI_LE_SET_DATA_OPER_COMPLETE);
         }
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_RSP_DATA:
         if (len == BLE_HCI_SET_SCAN_RSP_DATA_LEN) {
             rc = ble_ll_adv_set_scan_rsp_data(cmdbuf, len, 0,
-                                BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE);
+                                BLE_HCI_LE_SET_DATA_OPER_COMPLETE);
         }
         break;
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:

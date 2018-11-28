@@ -235,6 +235,48 @@ ble_hs_hci_cmd_build_le_ext_adv_params(uint8_t handle,
 int
 ble_hs_hci_cmd_build_le_ext_adv_remove(uint8_t handle,
                                        uint8_t *cmd, int cmd_len);
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+int
+ble_hs_hci_cmd_build_le_periodic_adv_params(uint8_t handle,
+                                       const struct hci_periodic_adv_params *params,
+                                       uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_enable(uint8_t enable,
+                                       uint8_t handle,
+                                       uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_data(uint8_t handle, uint8_t operation,
+                                     struct os_mbuf *data,
+                                     uint8_t data_len,
+                                     uint8_t *cmd, int cmd_len);
+int
+ble_hs_hci_cmd_build_le_periodic_adv_create_sync(uint8_t filter_policy,
+                                        uint8_t adv_sid,
+                                        uint8_t adv_add_type,
+                                        const uint8_t *adv_addr,
+                                        uint16_t skip,
+                                        uint16_t sync_timeout,
+                                        uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_terminate_sync(uint16_t sync_handle,
+                                               uint8_t *cmd, int cmd_len);
+
+int
+ble_hs_hci_cmd_build_le_add_dev_to_periodic_adv_list(uint8_t adv_add_type,
+                                                const uint8_t *adv_addr,
+                                                uint8_t adv_sid,
+                                                uint8_t *cmd, int cmd_len);
+int
+ble_hs_hci_cmd_build_le_rem_dev_from_periodic_adv_list(uint8_t adv_add_type,
+                                                  const uint8_t *adv_addr,
+                                                  uint8_t adv_sid,
+                                                  uint8_t *cmd, int cmd_len);
+#endif
+
 #endif
 
 int ble_hs_hci_cmd_build_le_enh_recv_test(uint8_t rx_chan, uint8_t phy,

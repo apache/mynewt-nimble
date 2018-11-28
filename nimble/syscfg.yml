@@ -34,6 +34,11 @@ syscfg.defs:
     BLE_MAX_CONNECTIONS:
         description: 'The maximum number of concurrent connections.'
         value: 1
+    BLE_MAX_PERIODIC_SCANNING_SM:
+        description: >
+            The maximum number of concurrent periodic syncs that can 
+            be created
+        value: 1
     BLE_WHITELIST:
         description: >
             Enables the BLE whitelist for controlling who to connect to or
@@ -49,6 +54,10 @@ syscfg.defs:
     BLE_EXT_ADV:
         description: >
             This enables extended advertising feature.
+        value: 0
+    BLE_PERIODIC_ADV:
+        description: >
+            This enables periodic advertising feature.
         value: 0
     BLE_EXT_ADV_MAX_SIZE:
         description: >
