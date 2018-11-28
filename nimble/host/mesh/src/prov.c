@@ -1616,6 +1616,8 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 
 	prov = prov_info;
 
+	(void)prov_handlers;
+
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	k_delayed_work_init(&link.tx.retransmit, prov_retransmit);
 	link.rx.prev_id = XACT_NVAL;
