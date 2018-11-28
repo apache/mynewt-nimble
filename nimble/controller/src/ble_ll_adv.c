@@ -2106,7 +2106,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     }
 
     switch (operation) {
-    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE:
+    case BLE_HCI_LE_SET_DATA_OPER_COMPLETE:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             if (datalen > BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -2115,10 +2115,10 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_LAST:
+    case BLE_HCI_LE_SET_DATA_OPER_LAST:
         /* TODO mark scan rsp as complete? */
         /* fall through */
-    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_INT:
+    case BLE_HCI_LE_SET_DATA_OPER_INT:
         if (!advsm->scan_rsp_data) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -2135,7 +2135,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
         break;
-    case BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST:
+    case BLE_HCI_LE_SET_DATA_OPER_FIRST:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -2154,8 +2154,8 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    new_data = (operation == BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE) ||
-               (operation == BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST);
+    new_data = (operation == BLE_HCI_LE_SET_DATA_OPER_COMPLETE) ||
+               (operation == BLE_HCI_LE_SET_DATA_OPER_FIRST);
 
     if (advsm->adv_enabled) {
         if (advsm->new_scan_rsp_data) {
@@ -2234,7 +2234,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     }
 
     switch (operation) {
-    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE:
+    case BLE_HCI_LE_SET_DATA_OPER_COMPLETE:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             if (datalen > BLE_ADV_LEGACY_DATA_MAX_LEN) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -2245,7 +2245,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED:
+    case BLE_HCI_LE_SET_DATA_OPER_UNCHANGED:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -2257,10 +2257,10 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         /* update DID only */
         ble_ll_adv_update_did(advsm);
         return BLE_ERR_SUCCESS;
-    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
+    case BLE_HCI_LE_SET_DATA_OPER_LAST:
         ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
         /* fall through */
-    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT:
+    case BLE_HCI_LE_SET_DATA_OPER_INT:
         if (!advsm->adv_data) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -2277,7 +2277,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
             return BLE_ERR_CMD_DISALLOWED;
         }
         break;
-    case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST:
+    case BLE_HCI_LE_SET_DATA_OPER_FIRST:
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
@@ -2297,8 +2297,8 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    new_data = (operation == BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE) ||
-               (operation == BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST);
+    new_data = (operation == BLE_HCI_LE_SET_DATA_OPER_COMPLETE) ||
+               (operation == BLE_HCI_LE_SET_DATA_OPER_FIRST);
 
     if (advsm->adv_enabled) {
         if (advsm->new_adv_data) {

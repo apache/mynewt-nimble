@@ -1605,6 +1605,164 @@ ble_hs_hci_cmd_build_le_ext_adv_remove(uint8_t handle,
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+int
+ble_hs_hci_cmd_build_le_periodic_adv_params(uint8_t handle,
+                                       const struct hci_periodic_adv_params *params,
+                                       uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_SET_PERIODIC_ADV_PARAMS_LEN);
+
+    if (handle > 0xEF){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (params->max_interval > 0xFFFF || params->max_interval < 6){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (params->min_interval > 0xFFFF || params->min_interval < 6){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = handle;
+
+    put_le16(&cmd[1], params->min_interval);
+    put_le16(&cmd[3], params->max_interval);
+    put_le16(&cmd[5], params->properties);
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_enable(uint8_t enable,
+                                       uint8_t handle,
+                                       uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_SET_PERIODIC_ADV_ENABLE_LEN);
+
+    if (enable > 1){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = enable;
+    cmd[1] = handle;
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_data(uint8_t handle,
+                                     uint8_t operation,
+                                     struct os_mbuf *data,
+                                     uint8_t data_len,
+                                     uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= 3 + data_len);
+
+    if (!data){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (!data->om_data){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (handle > 0xEF){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = handle;
+    cmd[1] = operation;
+    cmd[2] = data_len;
+    os_mbuf_copydata(data, 0, data_len, cmd + 3);
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_create_sync(uint8_t filter_policy,
+                                        uint8_t adv_sid,
+                                        uint8_t adv_add_type,
+                                        const uint8_t *adv_addr,
+                                        uint16_t skip,
+                                        uint16_t sync_timeout,
+                                        uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN);
+
+    if (filter_policy > 1 || adv_add_type > 1){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (adv_sid > 0x0f){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (skip > 0x1f3 || sync_timeout > 0x4000 || sync_timeout < 0x0A){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    cmd[0] = filter_policy;
+    cmd[1] = adv_sid;
+    cmd[2] = adv_add_type;
+    memcpy(&cmd[3], adv_addr, 6);
+    put_le16(&cmd[9], skip);
+    put_le16(&cmd[11], sync_timeout);
+    cmd[13] = 0x00;
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_periodic_adv_terminate_sync(uint16_t sync_handle,
+                                               uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_PERIODIC_ADV_TERM_SYNC_LEN);
+
+    if (sync_handle > 0xEF){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = sync_handle;
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_add_dev_to_periodic_adv_list(
+                                                uint8_t adv_add_type,
+                                                const uint8_t *adv_addr,
+                                                uint8_t adv_sid,
+                                                uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_ADD_DEV_TO_PERIODIC_ADV_LIST_LEN);
+
+    if (adv_add_type > 1 || adv_sid > 0x0f){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = adv_add_type;
+    memcpy(&cmd[1], adv_addr, 6);
+    cmd[7] = adv_sid;
+
+    return 0;
+}
+
+int
+ble_hs_hci_cmd_build_le_rem_dev_from_periodic_adv_list(
+                                                  uint8_t adv_add_type,
+                                                  const uint8_t *adv_addr,
+                                                  uint8_t adv_sid,
+                                                  uint8_t *cmd, int cmd_len)
+{
+    BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_REM_DEV_FROM_PERIODIC_ADV_LIST_LEN);
+
+    if (adv_add_type > 1 || adv_sid > 0x0f){
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    cmd[0] = adv_add_type;
+    memcpy(&cmd[1], adv_addr, 6);
+    cmd[7] = adv_sid;
+
+    return 0;
+}
+#endif
+
 #endif
 
 static int

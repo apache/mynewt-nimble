@@ -224,10 +224,10 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
         break;
     }
-
-    case BLE_HCI_LE_SUBEV_PER_ADV_SYNC_ESTAB:
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    case BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB:
     {
-        struct hci_le_subev_per_adv_sync_estab *data = (void *) evdata;
+        struct hci_le_subev_periodic_adv_sync_estab *data = (void *) evdata;
 
         if (len != sizeof(*data)) {
             BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Sync "
@@ -241,9 +241,9 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         break;
     }
 
-    case BLE_HCI_LE_SUBEV_PER_ADV_RPT:
+    case BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT:
     {
-        struct hci_le_subev_per_adv_rpt *data = (void *) evdata;
+        struct hci_le_subev_periodic_adv_rpt *data = (void *) evdata;
 
         if (len < sizeof(*data) || len != sizeof(*data) + data->data_length) {
             BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Report "
@@ -258,9 +258,9 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         break;
     }
 
-    case BLE_HCI_LE_SUBEV_PER_ADV_SYNC_LOST:
+    case BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST:
     {
-        struct hci_le_subev_per_adv_sync_lost *data = (void *) evdata;
+        struct hci_le_subev_periodic_adv_sync_lost *data = (void *) evdata;
 
         if (len != sizeof(*data)) {
             BLE_HS_LOG(DEBUG, "Corrupted LE Periodic Advertising Sync Lost "
@@ -272,6 +272,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
                    "len=%u handle=0x%04x", len, le16toh(data->sync_handle));
         break;
     }
+#endif
 
     case BLE_HCI_LE_SUBEV_SCAN_TIMEOUT:
         if (len) {

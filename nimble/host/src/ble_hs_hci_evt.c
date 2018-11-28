@@ -51,7 +51,9 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_ext_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_rd_rem_used_feat_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_timeout;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_adv_set_terminated;
-
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_estab;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_rpt;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_lost;
 /* Statistics */
 struct host_hci_stats
 {
@@ -100,6 +102,11 @@ static const struct ble_hs_hci_evt_le_dispatch_entry
     { BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE,
         ble_hs_hci_evt_le_phy_update_complete },
     { BLE_HCI_LE_SUBEV_EXT_ADV_RPT, ble_hs_hci_evt_le_ext_adv_rpt },
+    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB,
+        ble_hs_hci_evt_le_periodic_adv_sync_estab},
+    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT, ble_hs_hci_evt_le_periodic_adv_rpt},
+    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST,
+        ble_hs_hci_evt_le_periodic_adv_sync_lost},
     { BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT,
             ble_hs_hci_evt_le_rd_rem_used_feat_complete },
     { BLE_HCI_LE_SUBEV_SCAN_TIMEOUT,
@@ -226,7 +233,8 @@ ble_hs_hci_evt_enc_key_refresh(uint8_t event_code, uint8_t *data, int len)
 }
 
 static int
-ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
+ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data,
+                                     int len)
 {
     struct ble_hs_conn *conn;
     uint16_t num_pkts;
@@ -501,8 +509,9 @@ ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 }
 
 static int
-ble_hs_hci_evt_le_rd_rem_used_feat_complete(uint8_t subevent, uint8_t *data,
-                                                                        int len)
+ble_hs_hci_evt_le_rd_rem_used_feat_complete(uint8_t subevent,
+                                                 uint8_t *data,
+                                                 int len)
 {
     struct hci_le_rd_rem_supp_feat_complete evt;
 
@@ -613,6 +622,76 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 #endif
     return 0;
 }
+
+static int
+ble_hs_hci_evt_le_periodic_adv_sync_estab(uint8_t subevent, uint8_t *data,
+                                              int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct hci_le_subev_periodic_adv_sync_estab evt;
+
+    if (len < BLE_HCI_LE_PERIODIC_ADV_SYNC_ESTAB_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.status = data[1];
+    evt.sync_handle = get_le16(data + 2);
+    evt.sid = data[4];
+    evt.adv_addr_type = data[5];
+    memcpy(evt.adv_addr, &data[6], 6);
+    evt.adv_phy = data[12];
+    evt.per_adv_ival = get_le16(data + 13);
+    evt.adv_clk_accuracy = data[15];
+
+    ble_gap_rx_peroidic_adv_sync_estab(&evt);
+#endif
+
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_periodic_adv_rpt(uint8_t subevent, uint8_t *data,
+                                      int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct hci_le_subev_periodic_adv_rpt evt;
+
+    if (len < BLE_HCI_LE_PERIODIC_ADV_RPT_LEN) {
+        return BLE_HS_EBADDATA;
+    }
+
+    evt.sync_handle = get_le16(data + 1);
+    evt.tx_power = data[3];
+    evt.rssi = data[4];
+    evt.data_status = data[6];
+    evt.data_length = data[7];
+    memcpy(evt.data, &data[8], evt.data_length);
+
+    ble_gap_rx_periodic_adv_rpt(&evt);
+#endif
+
+return 0;
+}
+
+static int
+ble_hs_hci_evt_le_periodic_adv_sync_lost(uint8_t subevent, uint8_t *data,
+                                             int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct hci_le_subev_periodic_adv_sync_lost evt;
+
+    if (len < BLE_HCI_LE_PERIODIC_ADV_SYNC_LOST_LEN) {
+        return BLE_HS_EBADDATA;
+    }
+
+    evt.sync_handle = get_le16(data + 1);
+
+    ble_gap_rx_periodic_adv_sync_lost(&evt);
+
+#endif
+    return 0;
+}
+
 
 static int
 ble_hs_hci_evt_le_scan_timeout(uint8_t subevent, uint8_t *data, int len)
