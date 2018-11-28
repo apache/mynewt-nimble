@@ -237,7 +237,9 @@ static void reset_link(void)
 
 	/* Clear everything except the retransmit delayed work config */
 	memset(&link, 0, offsetof(struct prov_link, tx.retransmit));
-
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
+	link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+#endif
 	link.rx.prev_id = XACT_NVAL;
 
 	if (bt_pub_key_get()) {
@@ -449,7 +451,7 @@ static int prov_send_adv(struct os_mbuf *msg)
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static int prov_send_gatt(struct os_mbuf *msg)
 {
-	if (!link.conn_handle) {
+	if (link.conn_handle == BLE_HS_CONN_HANDLE_NONE) {
 		BT_ERR("No connection handle!?");
 		return -ENOTCONN;
 	}
@@ -461,7 +463,7 @@ static int prov_send_gatt(struct os_mbuf *msg)
 static inline int prov_send(struct os_mbuf *buf)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (link.conn_handle) {
+	if (link.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
 		return prov_send_gatt(buf);
 	}
 #endif
