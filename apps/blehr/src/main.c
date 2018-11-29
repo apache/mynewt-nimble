@@ -32,6 +32,9 @@
 
 static bool notify_state;
 
+/* Connection handle */
+static uint16_t conn_handle;
+
 static const char *device_name = "blehr_sensor";
 
 static int blehr_gap_event(struct ble_gap_event *event, void *arg);
@@ -143,7 +146,7 @@ blehr_tx_hrate(struct os_event *ev)
 
     om = ble_hs_mbuf_from_flat(hrm, sizeof(hrm));
 
-    rc = ble_gattc_notify_custom(notify_state, hrs_hrm_handle, om);
+    rc = ble_gattc_notify_custom(conn_handle, hrs_hrm_handle, om);
 
     assert(rc == 0);
     blehr_tx_hrate_reset();
@@ -162,11 +165,17 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
         if (event->connect.status != 0) {
             /* Connection failed; resume advertising */
             blehr_advertise();
+            conn_handle = 0;
         }
+        else {
+          conn_handle = event->connect.conn_handle;
+        }
+
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
+        conn_handle = BLE_HS_CONN_HANDLE_NONE; /* reset conn_handle */
 
         /* Connection terminated; resume advertising */
         blehr_advertise();
