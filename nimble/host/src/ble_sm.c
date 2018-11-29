@@ -261,19 +261,19 @@ ble_sm_gen_pair_rand(uint8_t *pair_rand)
 }
 
 static int
-ble_sm_gen_ediv(uint16_t *ediv)
+ble_sm_gen_ediv(struct ble_sm_master_id *master_id)
 {
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     if (ble_sm_dbg_next_ediv_set) {
         ble_sm_dbg_next_ediv_set = 0;
-        *ediv = ble_sm_dbg_next_ediv;
+        master_id->ediv = ble_sm_dbg_next_ediv;
         return 0;
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(ediv, sizeof *ediv);
+    rc = ble_hs_hci_util_rand(&master_id->ediv, sizeof master_id->ediv);
     if (rc != 0) {
         return rc;
     }
@@ -282,19 +282,19 @@ ble_sm_gen_ediv(uint16_t *ediv)
 }
 
 static int
-ble_sm_gen_master_id_rand(uint64_t *master_id_rand)
+ble_sm_gen_master_id_rand(struct ble_sm_master_id *master_id)
 {
     int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     if (ble_sm_dbg_next_master_id_rand_set) {
         ble_sm_dbg_next_master_id_rand_set = 0;
-        *master_id_rand = ble_sm_dbg_next_master_id_rand;
+        master_id->rand_val = ble_sm_dbg_next_master_id_rand;
         return 0;
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(master_id_rand, sizeof *master_id_rand);
+    rc = ble_hs_hci_util_rand(&master_id->rand_val, sizeof master_id->rand_val);
     if (rc != 0) {
         return rc;
     }
@@ -2051,12 +2051,12 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
-        rc = ble_sm_gen_ediv(&master_id->ediv);
+        rc = ble_sm_gen_ediv(master_id);
         if (rc != 0) {
             os_mbuf_free_chain(txom);
             goto err;
         }
-        rc = ble_sm_gen_master_id_rand(&master_id->rand_val);
+        rc = ble_sm_gen_master_id_rand(master_id);
         if (rc != 0) {
             os_mbuf_free_chain(txom);
             goto err;
