@@ -890,8 +890,10 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  *
  * @param connsm
  * @param dptr
+ *
+ * @return uint8_t
  */
-static void
+static uint8_t
 ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     int no_change;
@@ -902,65 +904,69 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     uint16_t instant;
     uint16_t delta;
 
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        /*
-         * Reception stops the procedure response timer but does not
-         * complete the procedure
-         */
-        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
-            ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
-        }
-
-        /*
-         * XXX: Should we check to see if we are expecting to receive one
-         * of these, and if not, kill connection? Meaning we better be
-         * doing either a PEER, CTRLR, or HOST phy update.
-         */
-        /* get the new phy masks and see if we need to change */
-        new_m_to_s_mask = dptr[0];
-        new_s_to_m_mask = dptr[1];
-        instant = get_le16(dptr + 2);
-
-        if ((new_m_to_s_mask == 0) && (new_s_to_m_mask == 0)) {
-            /* No change in phy */
-            no_change = 1;
-        } else {
-            no_change = 0;
-            /*
-             * NOTE: from the slaves perspective, the m to s phy is the one
-             * that the slave will receive on; s to m is the one it will
-             * transmit on
-             */
-            new_rx_phy = ble_ll_ctrl_phy_from_phy_mask(new_m_to_s_mask);
-            new_tx_phy = ble_ll_ctrl_phy_from_phy_mask(new_s_to_m_mask);
-
-            if ((new_tx_phy == 0) && (new_rx_phy == 0)) {
-                /* XXX: this is an error! What to do??? */
-                no_change = 1;
-            }
-
-            if ((new_tx_phy == connsm->phy_data.cur_tx_phy) &&
-                (new_rx_phy == connsm->phy_data.cur_rx_phy)) {
-                no_change = 1;
-            }
-        }
-
-        if (!no_change) {
-            /* If instant is in the past, we have to end the connection */
-            delta = (instant - connsm->event_cntr) & 0xFFFF;
-            if (delta >= 32767) {
-                ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
-            } else {
-                connsm->phy_data.new_tx_phy = new_tx_phy;
-                connsm->phy_data.new_rx_phy = new_rx_phy;
-                connsm->phy_instant = instant;
-                CONN_F_PHY_UPDATE_SCHED(connsm) = 1;
-            }
-            return;
-        }
-
-        ble_ll_ctrl_phy_update_proc_complete(connsm);
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        return BLE_LL_CTRL_UNKNOWN_RSP;
     }
+
+    /*
+     * Reception stops the procedure response timer but does not
+     * complete the procedure
+     */
+    if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_PHY_UPDATE) {
+        ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
+    }
+
+    /*
+     * XXX: Should we check to see if we are expecting to receive one
+     * of these, and if not, kill connection? Meaning we better be
+     * doing either a PEER, CTRLR, or HOST phy update.
+     */
+    /* get the new phy masks and see if we need to change */
+    new_m_to_s_mask = dptr[0];
+    new_s_to_m_mask = dptr[1];
+    instant = get_le16(dptr + 2);
+
+    if ((new_m_to_s_mask == 0) && (new_s_to_m_mask == 0)) {
+        /* No change in phy */
+        no_change = 1;
+    } else {
+        no_change = 0;
+        /*
+         * NOTE: from the slaves perspective, the m to s phy is the one
+         * that the slave will receive on; s to m is the one it will
+         * transmit on
+         */
+        new_rx_phy = ble_ll_ctrl_phy_from_phy_mask(new_m_to_s_mask);
+        new_tx_phy = ble_ll_ctrl_phy_from_phy_mask(new_s_to_m_mask);
+
+        if ((new_tx_phy == 0) && (new_rx_phy == 0)) {
+            /* XXX: this is an error! What to do??? */
+            no_change = 1;
+        }
+
+        if ((new_tx_phy == connsm->phy_data.cur_tx_phy) &&
+            (new_rx_phy == connsm->phy_data.cur_rx_phy)) {
+            no_change = 1;
+        }
+    }
+
+    if (!no_change) {
+        /* If instant is in the past, we have to end the connection */
+        delta = (instant - connsm->event_cntr) & 0xFFFF;
+        if (delta >= 32767) {
+            ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
+        } else {
+            connsm->phy_data.new_tx_phy = new_tx_phy;
+            connsm->phy_data.new_rx_phy = new_rx_phy;
+            connsm->phy_instant = instant;
+            CONN_F_PHY_UPDATE_SCHED(connsm) = 1;
+        }
+        return BLE_ERR_MAX;
+    }
+
+    ble_ll_ctrl_phy_update_proc_complete(connsm);
+
+    return BLE_ERR_MAX;
 }
 #endif
 
@@ -2426,7 +2432,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_phy_rsp(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
-        ble_ll_ctrl_rx_phy_update_ind(connsm, dptr);
+        rsp_opcode = ble_ll_ctrl_rx_phy_update_ind(connsm, dptr);
         break;
 #endif
     default:
