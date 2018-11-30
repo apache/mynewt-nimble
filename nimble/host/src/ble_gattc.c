@@ -971,7 +971,7 @@ ble_gattc_extract_one(ble_gattc_match_fn *cb, void *arg)
 }
 
 static void
-ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op,
+ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op, int max_procs,
                              struct ble_gattc_proc_list *dst_list)
 {
     struct ble_gattc_criteria_conn_op criteria;
@@ -979,7 +979,7 @@ ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op,
     criteria.conn_handle = conn_handle;
     criteria.op = op;
 
-    ble_gattc_extract(ble_gattc_proc_matches_conn_op, &criteria, 0, dst_list);
+    ble_gattc_extract(ble_gattc_proc_matches_conn_op, &criteria, max_procs, dst_list);
 }
 
 static struct ble_gattc_proc *
@@ -987,7 +987,7 @@ ble_gattc_extract_first_by_conn_op(uint16_t conn_handle, uint8_t op)
 {
     struct ble_gattc_proc_list dst_list;
 
-    ble_gattc_extract_by_conn_op(conn_handle, op, &dst_list);
+    ble_gattc_extract_by_conn_op(conn_handle, op, 1, &dst_list);
     return STAILQ_FIRST(&dst_list);
 }
 
@@ -1076,7 +1076,7 @@ ble_gattc_fail_procs(uint16_t conn_handle, uint8_t op, int status)
     /* Remove all procs with the specified conn handle-op-pair and insert them
      * into the temporary list.
      */
-    ble_gattc_extract_by_conn_op(conn_handle, op, &temp_list);
+    ble_gattc_extract_by_conn_op(conn_handle, op, 0, &temp_list);
 
     /* Notify application of failed procedures and free the corresponding proc
      * entries.
