@@ -2684,10 +2684,14 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
  * @param m
  * @param adva
  * @param addr_type     Address type of ADVA from received advertisement.
+ * @param inita
+ * @param inita_type     Address type of INITA from received advertisement.
+
  * @param txoffset      The tx window offset for this connection
  */
 static void
 ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
+                           uint8_t *inita, uint8_t inita_type,
                            uint16_t txoffset, int rpa_index)
 {
     uint8_t hdr;
@@ -2715,46 +2719,54 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
 
     dptr = m->om_data;
 
-    /* Get pointer to our device address */
-    connsm = g_ble_ll_conn_create_sm;
-    if ((connsm->own_addr_type & 1) == 0) {
-        addr = g_dev_addr;
+    if (inita) {
+        memcpy(dptr, inita, BLE_DEV_ADDR_LEN);
+        if (inita_type) {
+            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        }
     } else {
-        hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        addr = g_random_addr;
-    }
+        /* Get pointer to our device address */
+        connsm = g_ble_ll_conn_create_sm;
+        if ((connsm->own_addr_type & 1) == 0) {
+            addr = g_dev_addr;
+        } else {
+            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+            addr = g_random_addr;
+        }
 
     /* XXX: do this ahead of time? Calculate the local rpa I mean */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-        rl = NULL;
-        is_rpa = ble_ll_is_rpa(adva, addr_type);
-        if (is_rpa) {
-            if (rpa_index >= 0) {
-                rl = &g_ble_ll_resolv_list[rpa_index];
+        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            rl = NULL;
+            is_rpa = ble_ll_is_rpa(adva, addr_type);
+            if (is_rpa) {
+                if (rpa_index >= 0) {
+                    rl = &g_ble_ll_resolv_list[rpa_index];
+                }
+            } else {
+                if (ble_ll_resolv_enabled()) {
+                    rl = ble_ll_resolv_list_find(adva, addr_type);
+                }
             }
-        } else {
-            if (ble_ll_resolv_enabled()) {
-                rl = ble_ll_resolv_list_find(adva, addr_type);
-            }
-        }
 
-        /*
-         * If peer in on resolving list, we use RPA generated with Local IRK
-         * from resolving list entry. In other case, we need to use our identity
-         * address (see  Core 5.0, Vol 6, Part B, section 6.4).
-         */
-        if (rl) {
-            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-            ble_ll_resolv_get_priv_addr(rl, 1, dptr);
-            addr = NULL;
+            /*
+             * If peer in on resolving list, we use RPA generated with Local IRK
+             * from resolving list entry. In other case, we need to use our identity
+             * address (see  Core 5.0, Vol 6, Part B, section 6.4).
+             */
+            if (rl) {
+                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+                ble_ll_resolv_get_priv_addr(rl, 1, dptr);
+                addr = NULL;
+            }
         }
-    }
 #endif
 
-    if (addr) {
-        memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+        if (addr) {
+            memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+        }
     }
+
     memcpy(dptr + BLE_DEV_ADDR_LEN, adva, BLE_DEV_ADDR_LEN);
     put_le16(dptr + 20, txoffset);
 
@@ -2875,7 +2887,9 @@ ble_ll_conn_req_txend_init(void *arg)
  * @param adva Address of advertiser
  */
 int
-ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset,
+ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva,
+                         uint8_t inita_type, uint8_t *inita,
+                         uint16_t txoffset,
                          int rpa_index, uint8_t end_trans)
 {
     struct os_mbuf *m;
@@ -2883,7 +2897,8 @@ ble_ll_conn_request_send(uint8_t addr_type, uint8_t *adva, uint16_t txoffset,
 
     /* XXX: TODO: assume we are already on correct phy */
     m = ble_ll_scan_get_pdu();
-    ble_ll_conn_req_pdu_update(m, adva, addr_type, txoffset, rpa_index);
+    ble_ll_conn_req_pdu_update(m, adva, addr_type, inita, inita_type,
+                               txoffset, rpa_index);
     if (end_trans == BLE_PHY_TRANSITION_NONE) {
         ble_phy_set_txend_cb(ble_ll_conn_req_txend, NULL);
     } else {
@@ -3433,6 +3448,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 
     /* Setup to transmit the connect request */
     rc = ble_ll_conn_request_send(addr_type, adv_addr,
+                                  init_addr_type, init_addr,
                                   connsm->tx_win_off, index,
                                   conn_req_end_trans);
     if (rc) {
