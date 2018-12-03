@@ -2031,7 +2031,7 @@ void ble_phy_disable_dtm(void)
     NRF_RADIO->PCNF1 |= RADIO_PCNF1_WHITEEN_Msk;
 }
 #endif
-#ifdef BLE_XCVR_RFCLK
+
 void
 ble_phy_rfclk_enable(void)
 {
@@ -2051,4 +2051,3 @@ ble_phy_rfclk_disable(void)
     NRF_CLOCK->TASKS_HFCLKSTOP = 1;
 #endif
 }
-#endif
