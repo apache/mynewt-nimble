@@ -206,7 +206,9 @@ ble_npl_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 static inline void
 ble_npl_callout_stop(struct ble_npl_callout *co)
 {
-    xTimerStop(co->handle, portMAX_DELAY);
+    if (co->handle) {
+        xTimerStop(co->handle, portMAX_DELAY);
+    }
 }
 
 static inline bool
