@@ -1571,10 +1571,10 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         break;
 #endif
     case BLE_LL_CTRL_PROC_DATA_LEN_UPD:
-	/* That should not happen according to Bluetooth 5.0 Vol6 Part B, 5.1.9
-	 * However we need this workaround as there are devices on the market
-	 * which do send LL_REJECT on LL_LENGTH_REQ when collision happens
-	 */
+        /* That should not happen according to Bluetooth 5.0 Vol6 Part B, 5.1.9
+         * However we need this workaround as there are devices on the market
+         * which do send LL_REJECT on LL_LENGTH_REQ when collision happens
+         */
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
         break;
     default:
@@ -1623,6 +1623,21 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
     } else {
         connsm->csmflags.cfbit.conn_update_sched = 1;
+
+        /*
+         * Errata says that receiving a connection update when the event
+         * counter is equal to the instant means wesimply ignore the window
+         * offset and window size. Anchor point has already been set based on
+         * first packet received in connection event. Given that we increment
+         * the event counter BEFORE checking to see if the instant is equal to
+         * the event counter what we do here is increment the instant and set
+         * the window offset and size to 0.
+         */
+        if (conn_events == 0) {
+            reqdata->winoffset = 0;
+            reqdata->winsize = 0;
+            reqdata->instant += 1;
+        }
     }
 
     return rsp_opcode;
