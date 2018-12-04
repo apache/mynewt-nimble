@@ -17,11 +17,12 @@
  * under the License.
  */
 
-#include <syscfg/syscfg.h>
+#include "syscfg/syscfg.h"
+#include "sysinit/sysinit.h"
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
 
-#include "assert.h"
+#include <assert.h>
 #include "os/os.h"
 #include "stats/stats.h"
 #include "controller/ble_ll.h"
