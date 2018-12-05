@@ -126,6 +126,7 @@ struct ble_ll_ext_adv_report {
 struct ble_ll_scan_advertisers
 {
     uint16_t            sc_adv_flags;
+    uint16_t            adi;
     struct ble_dev_addr adv_addr;
 };
 
@@ -625,7 +626,8 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev,
  * @return int 0: have not received a scan response; 1 otherwise.
  */
 static int
-ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd)
+ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd,
+                              uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -638,14 +640,27 @@ ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd)
             /* Address type must match */
             if (txadd) {
                 if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
+                    if (ext_adv) {
+                        if (adi == adv->adi) {
+                            return 1;
+                        }
+                        goto next;
+                    }
                     return 1;
                 }
             } else {
                 if ((adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) == 0) {
+                    if (ext_adv) {
+                        if (adi == adv->adi) {
+                            return 1;
+                        }
+                        goto next;
+                    }
                     return 1;
                 }
             }
         }
+next:
         ++adv;
         --num_advs;
     }
@@ -654,7 +669,8 @@ ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd)
 }
 
 static void
-ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
+ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
+                             uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -666,7 +682,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
     }
 
     /* Check if address is already on the list */
-    if (ble_ll_scan_have_rxd_scan_rsp(addr, txadd)) {
+    if (ble_ll_scan_have_rxd_scan_rsp(addr, txadd, ext_adv, adi)) {
         return;
     }
 
@@ -677,6 +693,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd)
     if (txadd) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
     }
+    adv->adi = adi;
     ++g_ble_ll_scan_num_rsp_advs;
 
     return;
@@ -1879,6 +1896,7 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 
     if (has_adi) {
         new_aux->adi = tmp_aux_data.adi;
+        BLE_LL_SET_AUX_FLAG(new_aux, BLE_LL_AUX_HAS_ADI);
     }
 
     if (has_addr) {
@@ -2103,6 +2121,22 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
 
     return 0;
 }
+
+static int
+ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
+{
+    if (!aux_data) {
+        return -1;
+    }
+
+    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
+        return -1;
+    }
+
+    *adi = aux_data->adi;
+
+    return 0;
+}
 #endif
 
 int
@@ -2179,6 +2213,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t phy_mode;
+    uint16_t adi;
 #endif
 
     /* Get scanning state machine */
@@ -2329,11 +2364,29 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     /* Should we send a scan request? */
     if (chk_send_req) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+            if (ble_ll_scan_get_adi(ble_hdr->rxinfo.user_data, &adi) < 0) {
+                /* There is not ADI in scannable packet? This must be some trash,
+                 * ignore it
+                 */
+                goto scan_rx_isr_exit;
+            }
+            if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 1, adi)) {
+                goto scan_rx_isr_exit;
+            }
+        } else {
+            /* Dont send scan request if we have sent one to this advertiser */
+            if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 0, 0)) {
+                goto scan_rx_isr_exit;
+            }
+        }
+#else
         /* Dont send scan request if we have sent one to this advertiser */
-        if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type)) {
+        if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 0, 0)) {
             goto scan_rx_isr_exit;
         }
-
+#endif
         /* Better not be a scan response pending */
         BLE_LL_ASSERT(scansm->scan_rsp_pending == 0);
 
@@ -2594,7 +2647,14 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
 done:
     /* If advertising event is completed or failed, we can drop the reference */
     if (rc <= 0) {
-        ble_ll_scan_aux_data_unref(aux_data);
+        if (aux_data){
+            if ((rc == 0) && (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
+                /* Scan response completed successfully */
+                ble_ll_scan_add_scan_rsp_adv(aux_data->addr, aux_data->addr_type,
+                                             1, aux_data->adi);
+            }
+            ble_ll_scan_aux_data_unref(aux_data);
+        }
     }
 
     return rc;
@@ -2720,7 +2780,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
                 !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
-                ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type);
+                ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type, 0, 0);
 
                 /* Perform scan request backoff procedure */
                 ble_ll_scan_req_backoff(scansm, 1);
@@ -2824,6 +2884,12 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 return;
             }
 
+            /* XXX: For now let us consider scan response as succeed in the backoff context,
+             * after first scan response packet is received.
+             * I guess we should marked it succeed after complete scan response is received,
+             * and failed when truncated, but then we need to analyze reason of truncation as it
+             * also might be issue of the resources on our side
+             */
             ble_ll_scan_req_backoff(scansm, 1);
         }
 
