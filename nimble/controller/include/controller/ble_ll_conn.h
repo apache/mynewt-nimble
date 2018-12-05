@@ -269,6 +269,12 @@ struct ble_ll_conn_sm
     uint32_t slave_cur_window_widening;
     uint32_t last_rxd_pdu_cputime;  /* Used exclusively for supervision timer */
 
+    /*
+     * Used to mark that direct advertising from the peer was using
+     * identity address as InitA
+     */
+    uint8_t inita_identity_used;
+
     /* address information */
     uint8_t own_addr_type;
     uint8_t peer_addr_type;

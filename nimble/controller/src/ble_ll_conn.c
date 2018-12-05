@@ -849,6 +849,8 @@ ble_ll_conn_init_wfr_timer_exp(void)
         STATS_INC(ble_ll_stats, aux_missed_adv);
         ble_ll_event_send(&scansm->scan_sched_ev);
     }
+
+    connsm->inita_identity_used = 0;
 #endif
 }
 /**
@@ -3454,6 +3456,10 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     if (rc) {
         ble_ll_sched_rmv_elem(&connsm->conn_sch);
         goto init_rx_isr_exit;
+    }
+
+    if (init_addr && !inita_is_rpa) {
+        connsm->inita_identity_used = 1;
     }
 
     CONN_F_CONN_REQ_TXD(connsm) = 1;
