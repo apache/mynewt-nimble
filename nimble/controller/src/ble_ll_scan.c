@@ -379,7 +379,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
  * @return uint8_t 0: not on list; any other value is
  */
 static struct ble_ll_scan_advertisers *
-ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
+ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
@@ -398,6 +398,10 @@ ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd)
                 if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
                     goto next_dup_adv;
                 }
+            }
+
+            if (ext_adv && (adv->adi != adi)) {
+                goto next_dup_adv;
             }
 
             return adv;
@@ -492,6 +496,22 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
 done:
     ble_ll_scan_aux_data_unref(aux_data);
 }
+
+static int
+ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
+{
+    if (!aux_data) {
+        return -1;
+    }
+
+    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
+        return -1;
+    }
+
+    *adi = aux_data->adi;
+
+    return 0;
+}
 #endif
 
 void
@@ -544,11 +564,26 @@ ble_ll_scan_clean_cur_aux_data(void)
  * @return int 0: not a duplicate. 1:duplicate
  */
 int
-ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
+ble_ll_scan_is_dup_adv(struct ble_mbuf_hdr *ble_hdr, uint8_t pdu_type,
+                       uint8_t txadd, uint8_t *addr)
 {
     struct ble_ll_scan_advertisers *adv;
+    uint8_t ext_adv = 0;
+    uint16_t adi = 0;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
 
-    adv = ble_ll_scan_find_dup_adv(addr, txadd);
+    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+        if (ble_ll_scan_get_adi(aux_data, &adi) < 0) {
+            return 0;
+        }
+
+        ext_adv = 1;
+    }
+
+#endif
+
+    adv = ble_ll_scan_find_dup_adv(addr, txadd, ext_adv, adi);
     if (adv) {
         /* Check appropriate flag (based on type of PDU) */
         if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
@@ -559,6 +594,17 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
             if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_SCAN_RSP_SENT) {
                 return 1;
             }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        } else if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+            if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr) ||
+                            (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
+                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_SCAN_RSP_SENT) {
+                    return 1;
+                }
+            } else {
+                return 1;
+            }
+#endif
         } else {
             if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_ADV_RPT_SENT) {
                 return 1;
@@ -578,16 +624,17 @@ ble_ll_scan_is_dup_adv(uint8_t pdu_type, uint8_t txadd, uint8_t *addr)
  * @param Txadd. TxAdd bit (0 public, random otherwise)
  * @param subev  Type of advertising report sent (direct or normal).
  * @param evtype Advertising event type
+ * @param adi    Advertising Data Information
  */
 void
 ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev,
-                        uint8_t evtype)
+                        uint8_t evtype, uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
     struct ble_ll_scan_advertisers *adv;
 
     /* Check to see if on list. */
-    adv = ble_ll_scan_find_dup_adv(addr, txadd);
+    adv = ble_ll_scan_find_dup_adv(addr, txadd, ext_adv, adi);
     if (!adv) {
         /* XXX: for now, if we dont have room, just leave */
         num_advs = g_ble_ll_scan_num_dup_advs;
@@ -604,10 +651,19 @@ ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev,
         if (txadd) {
             adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
         }
+        adv->adi = adi;
     }
 
     if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
         adv->sc_adv_flags |= BLE_LL_SC_ADV_F_DIRECT_RPT_SENT;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    } else if (subev == BLE_HCI_LE_SUBEV_EXT_ADV_RPT) {
+        if (evtype & BLE_HCI_ADV_SCAN_RSP_MASK) {
+            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_SCAN_RSP_SENT;
+        } else {
+            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
+        }
+#endif
     } else {
         if (evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP) {
             adv->sc_adv_flags |= BLE_LL_SC_ADV_F_SCAN_RSP_SENT;
@@ -909,7 +965,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
     if (!rc) {
         /* If filtering, add it to list of duplicate addresses */
         if (scansm->scan_filt_dups) {
-            ble_ll_scan_add_dup_adv(adva, adva_type, subev, evtype);
+            ble_ll_scan_add_dup_adv(adva, adva_type, subev, evtype, 0, 0);
         }
     }
 }
@@ -2121,22 +2177,6 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
 
     return 0;
 }
-
-static int
-ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
-{
-    if (!aux_data) {
-        return -1;
-    }
-
-    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
-        return -1;
-    }
-
-    *adi = aux_data->adi;
-
-    return 0;
-}
 #endif
 
 int
@@ -2793,7 +2833,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
     /* Filter duplicates */
     if (scansm->scan_filt_dups) {
-        if (ble_ll_scan_is_dup_adv(ptype, ident_addr_type, ident_addr)) {
+        if (ble_ll_scan_is_dup_adv(hdr, ptype, ident_addr_type, ident_addr)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
                 ble_ll_scan_aux_data_unref(aux_data);
@@ -2869,6 +2909,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 }
             }
             aux_data->flags |= BLE_LL_AUX_IGNORE_BIT;
+        } else if ((rc == 0) && scansm->scan_filt_dups && aux_data && aux_data->adi) {
+                ble_ll_scan_add_dup_adv(ident_addr, ident_addr_type,
+                                        BLE_HCI_LE_SUBEV_EXT_ADV_RPT,
+                                        aux_data->evt_type, 1, aux_data->adi);
         }
         ble_ll_scan_aux_data_unref(aux_data);
 
