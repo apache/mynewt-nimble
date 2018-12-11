@@ -737,11 +737,6 @@ ble_hs_init(void)
     ble_npl_event_init(&ble_hs_ev_start_stage2, ble_hs_event_start_stage2,
                        NULL);
 
-#if BLE_MONITOR
-    rc = ble_monitor_init();
-    SYSINIT_PANIC_ASSERT(rc == 0);
-#endif
-
     ble_hs_hci_init();
 
     rc = ble_hs_conn_init();
@@ -789,6 +784,12 @@ ble_hs_init(void)
 #else
     ble_hs_evq_set(nimble_port_get_dflt_eventq());
 #endif
+
+#if BLE_MONITOR
+    rc = ble_monitor_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
+
     /* Enqueue the start event to the default event queue.  Using the default
      * queue ensures the event won't run until the end of main().  This allows
      * the application to configure this package in the meantime.
