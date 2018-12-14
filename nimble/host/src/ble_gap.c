@@ -85,7 +85,7 @@
  */
 #define BLE_GAP_CANCEL_RETRY_TIMEOUT_MS         100 /* ms */
 
-#define BLE_GAP_UPDATE_TIMEOUT_MS               30000 /* ms */
+#define BLE_GAP_UPDATE_TIMEOUT_MS               40000 /* ms */
 
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
     .scan_itvl = 0x0010,
