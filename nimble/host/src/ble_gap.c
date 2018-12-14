@@ -4016,15 +4016,17 @@ ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg)
     /* Report failures and rejections.  Success gets reported when the
      * controller sends the connection update complete event.
      */
-    if (status != 0) {
-        ble_hs_lock();
-        entry = ble_gap_update_entry_remove(conn_handle);
-        ble_hs_unlock();
 
-        if (entry != NULL) {
-            ble_gap_update_entry_free(entry);
+    ble_hs_lock();
+    entry = ble_gap_update_entry_remove(conn_handle);
+    ble_hs_unlock();
+
+    if (entry != NULL) {
+        ble_gap_update_entry_free(entry);
+        if (status != 0) {
             ble_gap_update_notify(conn_handle, status);
         }
+        /* On success let's wait for the controller to notify about update */
     }
 }
 
