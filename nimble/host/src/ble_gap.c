@@ -1128,6 +1128,8 @@ ble_gap_rx_update_complete(struct hci_le_conn_upd_complete *evt)
             entry = ble_gap_update_entry_find(evt->connection_handle, NULL);
             if (entry != NULL && !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
                 ble_gap_update_to_l2cap(&entry->params, &l2cap_params);
+                entry->exp_os_ticks = ble_npl_time_get() +
+                                      ble_npl_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
             }
             break;
 
