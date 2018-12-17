@@ -243,7 +243,6 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 #define net_buf_add_be16(a, b) net_buf_simple_add_be16(a, b)
 
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
-#define bt_gatt_attr ble_gatt_attr
 
 /** Description of different data types that can be encoded into
   * advertising data. Used to form arrays that are passed to the
