@@ -33,6 +33,9 @@ struct bt_mesh_net;
 #define OP_LIGHT_LIGHTNESS_SET		BT_MESH_MODEL_OP_2(0x82, 0x4c)
 #define OP_LIGHT_LIGHTNESS_SET_UNACK	BT_MESH_MODEL_OP_2(0x82, 0x4d)
 
+#define INVALID_CONN_HANDLE           (0xFFFFu)
+#define IS_VALID_CONN_HANDLE(handle)  ((handle) != INVALID_CONN_HANDLE)
+
 bool bt_mesh_is_provisioned(void);
 
 #endif

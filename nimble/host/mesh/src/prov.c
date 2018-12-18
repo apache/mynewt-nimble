@@ -176,7 +176,10 @@ static struct os_mbuf *rx_buf;
 
 #define PROV_BUF(len) NET_BUF_SIMPLE(PROV_BUF_HEADROOM + len)
 
-static struct prov_link link;
+static struct prov_link link =
+    {
+        .conn_handle = INVALID_CONN_HANDLE
+    };
 
 static const struct bt_mesh_prov *prov;
 
@@ -245,6 +248,7 @@ static void reset_link(void)
 	}
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
+	link.conn_handle = INVALID_CONN_HANDLE;
 	link.rx.buf = bt_mesh_proxy_get_buf();
 #else
 	net_buf_simple_init(rx_buf, 0);
@@ -449,7 +453,7 @@ static int prov_send_adv(struct os_mbuf *msg)
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static int prov_send_gatt(struct os_mbuf *msg)
 {
-	if (!link.conn_handle) {
+	if (!IS_VALID_CONN_HANDLE(link.conn_handle)) {
 		BT_ERR("No connection handle!?");
 		return -ENOTCONN;
 	}
@@ -461,7 +465,7 @@ static int prov_send_gatt(struct os_mbuf *msg)
 static inline int prov_send(struct os_mbuf *buf)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (link.conn_handle) {
+	if (IS_VALID_CONN_HANDLE(link.conn_handle)) {
 		return prov_send_gatt(buf);
 	}
 #endif
@@ -1011,7 +1015,7 @@ done:
 static inline bool is_pb_gatt(void)
 {
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-	return !!link.conn_handle;
+	return IS_VALID_CONN_HANDLE(link.conn_handle);
 #else
 	return false;
 #endif
@@ -1130,7 +1134,7 @@ static const struct {
 static void close_link(u8_t err, u8_t reason)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (link.conn_handle) {
+	if (IS_VALID_CONN_HANDLE(link.conn_handle)) {
 		bt_mesh_pb_gatt_close(link.conn_handle);
 		return;
 	}
@@ -1389,7 +1393,7 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 		gen_prov_ack_send(rx->xact_id);
 		return;
 	}
-	
+
 	trailing_space = OS_MBUF_TRAILINGSPACE(link.rx.buf);
 
 	link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
@@ -1571,6 +1575,8 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 	if (pub_key) {
 		atomic_set_bit(link.flags, LOCAL_PUB_KEY);
 	}
+
+	link.conn_handle = INVALID_CONN_HANDLE;
 
 	return 0;
 }

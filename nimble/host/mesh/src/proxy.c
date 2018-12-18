@@ -417,7 +417,7 @@ void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		if (clients[i].conn_handle) {
+		if (IS_VALID_CONN_HANDLE(clients[i].conn_handle)) {
 			beacon_send(clients[i].conn_handle, sub);
 		}
 	}
@@ -607,7 +607,7 @@ static void proxy_connected(uint16_t conn_handle)
 	}
 
 	for (client = NULL, i = 0; i < ARRAY_SIZE(clients); i++) {
-		if (!clients[i].conn_handle) {
+		if (!IS_VALID_CONN_HANDLE(clients[i].conn_handle)) {
 			client = &clients[i];
 			break;
 		}
@@ -641,7 +641,7 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 				bt_mesh_pb_gatt_close(conn_handle);
 			}
 
-			client->conn_handle = 0;
+			client->conn_handle = INVALID_CONN_HANDLE;
 			break;
 		}
 	}
@@ -693,7 +693,7 @@ int bt_mesh_proxy_prov_enable(void)
 	prov_fast_adv = true;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		if (clients[i].conn_handle) {
+		if (IS_VALID_CONN_HANDLE(clients[i].conn_handle)) {
 			clients[i].filter_type = PROV;
 		}
 	}
@@ -765,7 +765,7 @@ int bt_mesh_proxy_gatt_enable(void)
 	gatt_svc = MESH_GATT_PROXY;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		if (clients[i].conn_handle) {
+		if (IS_VALID_CONN_HANDLE(clients[i].conn_handle)) {
 			clients[i].filter_type = WHITELIST;
 		}
 	}
@@ -877,7 +877,7 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, u16_t dst)
 		struct bt_mesh_proxy_client *client = &clients[i];
 		struct os_mbuf *msg;
 
-		if (!client->conn_handle) {
+		if (!IS_VALID_CONN_HANDLE(client->conn_handle)) {
 			continue;
 		}
 
@@ -1383,6 +1383,7 @@ int bt_mesh_proxy_init(void)
 		k_work_init(&clients[i].send_beacons, proxy_send_beacons);
 #endif
 		clients[i].buf = NET_BUF_SIMPLE(CLIENT_BUF_SIZE);
+		clients[i].conn_handle = INVALID_CONN_HANDLE;
 	}
 
 	resolve_svc_handles();
