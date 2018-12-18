@@ -164,7 +164,7 @@ struct ble_store_status_event {
         } overflow;
 
         /**
-         * Represents the possiblity that a scheduled write will fail due to
+         * Represents the possibility that a scheduled write will fail due to
          * storage exhaustion.  Valid for the following event types:
          *     o BLE_STORE_EVENT_FULL
          */
@@ -222,7 +222,7 @@ typedef int ble_store_write_fn(int obj_type, const union ble_store_value *val);
  * @param key                   Specifies properties of the object to search
  *                                  for.  An object is deleted if it matches
  *                                  these criteria.
- * @return                      0 if an object was successfully retreived;
+ * @return                      0 if an object was successfully retrieved;
  *                              BLE_HS_ENOENT if no matching object was found;
  *                              Other nonzero on error.
  */

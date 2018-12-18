@@ -22,6 +22,6 @@ New features in this version of NimBLE include:
 * Lots of other bugfixes, minor enhancements and optimisations
 * Mesh improvements
 
-If working on next-generation RTOS and Bluetooth protocotol stack
+If working on next-generation RTOS and Bluetooth protocol stack
 sounds exciting to you, get in touch, by sending a mail to the Apache Mynewt
 Developer's list, dev@mynewt.apache.org.

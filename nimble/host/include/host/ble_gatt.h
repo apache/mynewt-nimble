@@ -835,7 +835,7 @@ int ble_gatts_find_chr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
  * @param chr_uuid              The UUID of the parent characteristic.
  * @param dsc_uuid              The UUID of the descriptor ro look up.
  * @param out_handle            On success, populated with the handle
- *                                  of the descripytor attribute.  Pass null if
+ *                                  of the descriptor attribute.  Pass null if
  *                                  you don't need this value.
  *
  * @return                      0 on success;
