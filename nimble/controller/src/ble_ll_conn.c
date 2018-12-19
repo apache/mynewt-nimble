@@ -1410,6 +1410,9 @@ conn_tx_pdu:
 
         /* Increment packets transmitted */
         if (CONN_F_EMPTY_PDU_TXD(connsm)) {
+            if (connsm->csmflags.cfbit.terminate_ind_rxd) {
+                    connsm->csmflags.cfbit.terminate_ind_rxd_acked = 1;
+            }
             STATS_INC(ble_ll_conn_stats, tx_empty_pdus);
         } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
             STATS_INC(ble_ll_conn_stats, tx_ctrl_pdus);
@@ -2573,7 +2576,8 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
 
     /* If we have transmitted the terminate IND successfully, we are done */
     if ((connsm->csmflags.cfbit.terminate_ind_txd) ||
-        (connsm->csmflags.cfbit.terminate_ind_rxd)) {
+                    (connsm->csmflags.cfbit.terminate_ind_rxd &&
+                     connsm->csmflags.cfbit.terminate_ind_rxd_acked)) {
         if (connsm->csmflags.cfbit.terminate_ind_txd) {
             ble_err = BLE_ERR_CONN_TERM_LOCAL;
         } else {

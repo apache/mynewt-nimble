@@ -101,6 +101,7 @@ union ble_ll_conn_sm_flags {
         uint32_t pkt_rxd:1;
         uint32_t terminate_ind_txd:1;
         uint32_t terminate_ind_rxd:1;
+        uint32_t terminate_ind_rxd_acked:1;
         uint32_t allow_slave_latency:1;
         uint32_t slave_set_last_anchor:1;
         uint32_t awaiting_host_reply:1;
