@@ -177,9 +177,12 @@ static struct os_mbuf *rx_buf;
 #define PROV_BUF(len) NET_BUF_SIMPLE(PROV_BUF_HEADROOM + len)
 
 static struct prov_link link =
-    {
-        .conn_handle = INVALID_CONN_HANDLE
-    };
+	{
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
+		.conn_handle = INVALID_CONN_HANDLE,
+#endif
+		0
+	};
 
 static const struct bt_mesh_prov *prov;
 
