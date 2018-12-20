@@ -104,7 +104,9 @@ struct ble_ll_adv_sm
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
     uint8_t initiator_addr[BLE_DEV_ADDR_LEN];
     struct os_mbuf *adv_data;
+    struct os_mbuf *new_adv_data;
     struct os_mbuf *scan_rsp_data;
+    struct os_mbuf *new_scan_rsp_data;
     uint8_t *conn_comp_ev;
     struct ble_npl_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
@@ -136,6 +138,8 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE  0x0040
 #define BLE_LL_ADV_SM_FLAG_CONFIGURED           0x0080
 #define BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO          0x0100
+#define BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA         0x0200
+#define BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA    0x0400
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -1516,6 +1520,40 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     return 0;
 }
 
+static void
+ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
+{
+    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA) &&
+                    !(advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA)) {
+        return;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (advsm->aux_active) {
+        return;
+    }
+#endif
+
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA) {
+        if (advsm->new_adv_data) {
+            os_mbuf_free_chain(advsm->adv_data);
+            advsm->adv_data = advsm->new_adv_data;
+            advsm->new_adv_data = NULL;
+        }
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+    } else if (advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA) {
+        os_mbuf_free_chain(advsm->scan_rsp_data);
+        advsm->scan_rsp_data = advsm->new_scan_rsp_data;
+        advsm->new_scan_rsp_data = NULL;
+        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /* DID shall be updated when host provides new advertising data */
+    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+#endif
+}
+
 /**
  * Stop advertising state machine
  *
@@ -1576,6 +1614,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 
         /* Disable advertising */
         advsm->adv_enabled = 0;
+
+        /* Check if there is outstanding update */
+        ble_ll_adv_update_adv_scan_rsp_data(advsm);
     }
 }
 
@@ -2001,16 +2042,33 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     new_data = (operation == BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_COMPLETE) ||
                (operation == BLE_HCI_LE_SET_EXT_SCAN_RSP_DATA_OPER_FIRST);
 
-    ble_ll_adv_update_data_mbuf(&advsm->scan_rsp_data, new_data,
-                                BLE_SCAN_RSP_DATA_MAX_LEN, cmd + 1, datalen);
-    if (!advsm->scan_rsp_data) {
-        return BLE_ERR_MEM_CAPACITY;
-    }
+    if (advsm->adv_enabled) {
+        if (advsm->new_scan_rsp_data) {
+            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+            os_mbuf_free_chain(advsm->new_scan_rsp_data);
+            advsm->new_scan_rsp_data = NULL;
+        }
+
+        ble_ll_adv_update_data_mbuf(&advsm->new_scan_rsp_data, new_data,
+                                    BLE_ADV_DATA_MAX_LEN,
+                                    cmd + 1, datalen);
+        if (!advsm->new_scan_rsp_data) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+    } else {
+        ble_ll_adv_update_data_mbuf(&advsm->scan_rsp_data, new_data,
+                                    BLE_SCAN_RSP_DATA_MAX_LEN,
+                                    cmd + 1, datalen);
+        if (!advsm->scan_rsp_data) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    /* DID shall be updated when host provides new scan response data */
-    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        /* DID shall be updated when host provides new scan response data */
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
 #endif
+    }
 
     return BLE_ERR_SUCCESS;
 }
@@ -2126,16 +2184,33 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
     new_data = (operation == BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_COMPLETE) ||
                (operation == BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_FIRST);
 
-    ble_ll_adv_update_data_mbuf(&advsm->adv_data, new_data, BLE_ADV_DATA_MAX_LEN,
-                                cmd + 1, datalen);
-    if (!advsm->adv_data) {
-        return BLE_ERR_MEM_CAPACITY;
-    }
+    if (advsm->adv_enabled) {
+        if (advsm->new_adv_data) {
+            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+            os_mbuf_free_chain(advsm->new_adv_data);
+            advsm->new_adv_data = NULL;
+        }
+
+        ble_ll_adv_update_data_mbuf(&advsm->new_adv_data, new_data,
+                                    BLE_ADV_DATA_MAX_LEN,
+                                    cmd + 1, datalen);
+        if (!advsm->new_adv_data) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
+        advsm->flags |= BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+    } else {
+        ble_ll_adv_update_data_mbuf(&advsm->adv_data, new_data,
+                                    BLE_ADV_DATA_MAX_LEN,
+                                    cmd + 1, datalen);
+        if (!advsm->adv_data) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    /* DID shall be updated when host provides new advertising data */
-    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        /* DID shall be updated when host provides new advertising data */
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
 #endif
+        }
 
     return BLE_ERR_SUCCESS;
 }
@@ -3120,6 +3195,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 
     assert(advsm->adv_enabled);
 
+    ble_ll_adv_update_adv_scan_rsp_data(advsm);
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         /* stop advertising this was due to transmitting connection response */
@@ -3345,6 +3422,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     }
 
     advsm->aux_active = 0;
+    ble_ll_adv_update_adv_scan_rsp_data(advsm);
     ble_ll_adv_reschedule_event(advsm);
 }
 
