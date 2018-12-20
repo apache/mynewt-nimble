@@ -1961,14 +1961,12 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
 
     /* Receive l2cap connection parameter update response. */
     ble_hs_test_util_rx_l2cap_update_rsp(2, id, l2cap_result);
-    if (l2cap_result == BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT) {
-        TEST_ASSERT(ble_gap_dbg_update_active(2));
+    TEST_ASSERT(!ble_gap_dbg_update_active(2));
 
+    if (l2cap_result == BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT) {
         /* Receive connection update complete event. */
         ble_gap_test_util_rx_update_complete(0, params);
     }
-
-    TEST_ASSERT(!ble_gap_dbg_update_active(2));
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     if (l2cap_result != BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT) {
@@ -2025,12 +2023,12 @@ ble_gap_test_util_update_no_l2cap_tmo(struct ble_gap_upd_params *params,
     /* Ensure no update event reported. */
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
-    /* Advance 29 seconds; ensure no timeout reported. */
-    os_time_advance(29 * OS_TICKS_PER_SEC);
+    /* Advance 39 seconds; ensure no timeout reported. */
+    os_time_advance(39 * OS_TICKS_PER_SEC);
     ble_gap_timer();
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
-    /* Advance 30th second; ensure timeout reported. */
+    /* Advance 40th second; ensure timeout reported. */
     os_time_advance(1 * OS_TICKS_PER_SEC);
 
     /* Timeout will result in a terminate HCI command being sent; schedule ack
@@ -2094,14 +2092,18 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
         /* Receive l2cap connection parameter update response. */
         ble_hs_test_util_rx_l2cap_update_rsp(
             2, id, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
-    }
 
-    TEST_ASSERT(ble_gap_dbg_update_active(2));
+        TEST_ASSERT(!ble_gap_dbg_update_active(2));
+    } else {
+        TEST_ASSERT(ble_gap_dbg_update_active(2));
+    }
 
     /* Ensure no update event reported. */
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
 
-    /* Advance 29 seconds; ensure no timeout reported. */
+    /* Advance 29 seconds; ensure no timeout reported.
+     * Note: L2CAP signaling timeout is 30 sec, GAP update timeout is 40 sec
+     */
     os_time_advance(29 * OS_TICKS_PER_SEC);
     ble_gap_timer();
     ble_l2cap_sig_timer();
@@ -2110,22 +2112,31 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
     /* Advance 30th second; ensure timeout reported. */
     os_time_advance(1 * OS_TICKS_PER_SEC);
 
-    /* Timeout will result in a terminate HCI command being sent; schedule ack
-     * from controller.
-     */
-    ble_hs_test_util_hci_ack_set_disconnect(0);
+    /* If L2CAP response has been received, GAP Timer is removed */
+     if (!rx_l2cap) {
 
-    ble_gap_timer();
-    ble_l2cap_sig_timer();
+         /* Timeout will result in a terminate HCI command being sent; schedule ack
+          * from controller.
+          */
+         ble_hs_test_util_hci_ack_set_disconnect(0);
 
-    /* Verify terminate was sent. */
-    ble_gap_test_util_verify_tx_disconnect();
+         ble_gap_timer();
+         ble_l2cap_sig_timer();
 
-    TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
-    TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_ETIMEOUT);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+         /* Verify terminate was sent. */
+         ble_gap_test_util_verify_tx_disconnect();
+
+        TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
+        TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_ETIMEOUT);
+        TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
+        TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
+                           peer_addr, 6) == 0);
+    } else {
+        ble_gap_timer();
+        ble_l2cap_sig_timer();
+
+        TEST_ASSERT(ble_gap_test_event.type == 0xff);
+    }
 }
 
 static void
@@ -2892,9 +2903,6 @@ TEST_CASE(ble_gap_test_case_update_timeout)
 
     /* L2CAP - Local unsupported; L2CAP timeout. */
     ble_gap_test_util_update_l2cap_tmo(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 0);
-
-    /* L2CAP - Local unsupported; LL timeout. */
-    ble_gap_test_util_update_l2cap_tmo(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 1);
 
     /* L2CAP - Remote unsupported; L2CAP timeout. */
     ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
