@@ -2675,10 +2675,13 @@ ble_gap_ext_adv_set_data_validate(uint8_t instance, struct os_mbuf *data)
         return 0;
     }
 
-    /* if already advertising, data must fit in single HCI command */
+    /* if already advertising, data must fit in single HCI command
+     * as per BT 5.0 Vol 2, Part E, 7.8.54. Don't bother Controller with such
+     * a request.
+     */
     if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
         if (len > min(MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE), 251)) {
-            return EINVAL;
+            return BLE_HS_EINVAL;
         }
     }
 
@@ -2832,10 +2835,13 @@ ble_gap_ext_adv_rsp_set_validate(uint8_t instance,  struct os_mbuf *data)
         return 0;
     }
 
-    /* if already advertising, data must fit in single HCI command */
+    /* if already advertising, data must fit in single HCI command
+     * as per BT 5.0 Vol 2, Part E, 7.8.55. Don't bother Controller with such
+     * a request.
+     */
     if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
         if (len > min(MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE), 251)) {
-            return EINVAL;
+            return BLE_HS_EINVAL;
         }
     }
 
