@@ -41,7 +41,7 @@ struct os_mbuf;
  *  - L2CAP B-frame header
  *  - Largest ATT command base (prepare write request / response).
  *
- * @return An empty mbuf on success, NULLl on error.
+ * @return An empty mbuf on success, NULL on error.
  */
 struct os_mbuf *ble_hs_mbuf_att_pkt(void);
 

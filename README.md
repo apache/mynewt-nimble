@@ -84,7 +84,7 @@ stack. These sample applications are located in the `apps/` directory of
 Apache Mynewt [repo](https://github.com/apache/mynewt-core). Some examples:
 
 * [blecent](https://github.com/apache/mynewt-core/tree/master/apps/blecent):
-A basic central device with no user interface.  Thisa pplication scans for
+A basic central device with no user interface.  This application scans for
 a peripheral that supports the alert notification service (ANS). Upon
 discovering such a peripheral, blecent connects and performs a characteristic
 read, characteristic write, and notification subscription.
@@ -95,7 +95,7 @@ HCI over UART.
 * [bleprph](https://github.com/apache/mynewt-core/tree/master/apps/bleprph): An
   implementation of a minimal BLE peripheral.
 * [btshell](https://github.com/apache/mynewt-core/tree/master/apps/btshell): A
-  shell-like application allowing to configure and use most og NimBLE
+  shell-like application allowing to configure and use most of NimBLE
   functionality from command line.
 * [bleuart](https://github.com/apache/mynewt-core/tree/master/apps/bleuart):
 Implements a simple BLE peripheral that supports the Nordic

@@ -112,7 +112,7 @@ struct os_mbuf;
 
 /**
  * Reads a locally registered attribute.  If the specified attribute handle
- * coresponds to a GATT characteristic value or descriptor, the read is
+ * corresponds to a GATT characteristic value or descriptor, the read is
  * performed by calling the registered GATT access callback.
  *
  * @param attr_handle           The 16-bit handle of the attribute to read.
@@ -131,7 +131,7 @@ int ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om);
 /**
  * Writes a locally registered attribute.  This function consumes the supplied
  * mbuf regardless of the outcome.  If the specified attribute handle
- * coresponds to a GATT characteristic value or descriptor, the write is
+ * corresponds to a GATT characteristic value or descriptor, the write is
  * performed by calling the registered GATT access callback.
  *
  * @param attr_handle           The 16-bit handle of the attribute to write.
@@ -167,7 +167,7 @@ uint16_t ble_att_preferred_mtu(void);
 
 /**
  * Sets the preferred ATT MTU; the device will indicate this value in all
- * subseqeunt ATT MTU exchanges.  The ATT MTU of a connection is equal to the
+ * subsequent ATT MTU exchanges.  The ATT MTU of a connection is equal to the
  * lower of the two peers' preferred MTU values.  The ATT MTU is what dictates
  * the maximum size of any message sent during a GATT procedure.
  *
@@ -178,7 +178,7 @@ uint16_t ble_att_preferred_mtu(void);
  * @param mtu                   The preferred ATT MTU.
  *
  * @return                      0 on success;
- *                              BLE_HS_EINVAL if the specifeid value is not
+ *                              BLE_HS_EINVAL if the specified value is not
  *                                  within the allowed range.
  */
 int ble_att_set_preferred_mtu(uint16_t mtu);

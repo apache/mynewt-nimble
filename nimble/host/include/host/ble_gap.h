@@ -594,7 +594,7 @@ struct ble_gap_event {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
 
-            /** The handle of the relevant characterstic value. */
+            /** The handle of the relevant characteristic value. */
             uint16_t attr_handle;
 
             /**
@@ -778,7 +778,7 @@ int ble_gap_set_event_cb(uint16_t conn_handle,
  *                         - BLE_OWN_ADDR_RANDOM
  *                         - BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT
  *                         - BLE_OWN_ADDR_RPA_RANDOM_DEFAULT
- * @param direct_addr   The peer's address for directed advertising. his
+ * @param direct_addr   The peer's address for directed advertising. This
  *                      parameter shall be non-NULL if directed advertising is
  *                      being used.
  * @param duration_ms   The duration of the advertisement procedure. On
