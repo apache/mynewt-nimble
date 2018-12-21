@@ -500,11 +500,6 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* It's the same for AUX_ADV_IND and AUX_CHAIN_IND */
     pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
 
-    /* Set TxAdd to random if needed. */
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-    }
-
     /* We do not create scannable PDUs here - this is handled separately */
     adv_mode = 0;
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
@@ -519,6 +514,12 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr += 1;
 
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+
+        /* Set TxAdd to random if needed. */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+            pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        }
+
         memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
         dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
@@ -592,11 +593,6 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
 
     pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
 
-    /* Set TxAdd to random if needed. */
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-    }
-
     ext_hdr_len = &dptr[0];
     ext_hdr = &dptr[1];
     dptr += 2;
@@ -605,11 +601,18 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
     *ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE;
     *ext_hdr = 0;
 
-    /* AdvA always */
-    *ext_hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
-    *ext_hdr |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
-    memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
-    dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+    /* AdvA when non anonymous */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
+        /* Set TxAdd to random if needed. */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+            pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        }
+
+        *ext_hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
+        *ext_hdr |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+        memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+        dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
 
     /* TargetA only for directed */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
@@ -1079,9 +1082,14 @@ ble_ll_adv_aux_scannable_pdu_payload_len(struct ble_ll_adv_sm *advsm)
 {
     uint8_t len;
 
-    /* Flags, AdvA and ADI always */
-    len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE +
-          BLE_LL_EXT_ADV_ADVA_SIZE + BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    /* Flags, ADI always */
+    len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE
+            + BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+
+    /* AdvA if not anonymous */
+    if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
+        len += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
 
     /* TargetA only for directed */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
@@ -1125,7 +1133,8 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     }
 
     /* AdvA for 1st PDU in chain (i.e. AUX_ADV_IND or AUX_SCAN_RSP) */
-    if (aux_data_offset == 0) {
+    if (aux_data_offset == 0 &&
+        !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
         aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
         hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
@@ -2415,7 +2424,14 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         advsm->adv_txpwr = ble_phy_txpower_round(tx_power);
     }
 
-    advsm->own_addr_type = own_addr_type;
+    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+         (props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
+        /* For anonymous don't care about address type */
+        advsm->own_addr_type = 0;
+    } else {
+        advsm->own_addr_type = own_addr_type;
+    }
+
     advsm->peer_addr_type = peer_addr_type;
     advsm->adv_filter_policy = adv_filter_policy;
     advsm->adv_chanmask = adv_chanmask;
