@@ -1130,9 +1130,20 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
         hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
 
-    /* TargetA for directed connectable */
-    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
-        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE)) {
+    /* Note: this function does not calculate AUX_ADV_IND when advertising is
+     * scannable. Instead it is calculated in ble_ll_adv_aux_schedule_first().
+     *
+     * However this function calculates length of AUX_SCAN_RSP and according
+     * to BT 5.0 Vol 6 Part B, 2.3.2.3, TargetA shall not be include there.
+     *
+     * This is why TargetA is added to all directed advertising here unless it
+     * is scannable one.
+     *
+     * Note. TargetA shall not be also in AUX_CHAIN_IND
+     */
+    if (aux_data_offset == 0  &&
+        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
+            !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
         aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_TARGETA_BIT);
         hdr_len += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
@@ -1265,7 +1276,16 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
                     /* AUX_CONN_RSP */
                     ble_ll_pdu_tx_time_get(14, advsm->sec_phy);
     } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
-        /* Scheduled aux is calculated for AUX_SCAN_RSP, 1st aux is created separately */
+        /* For scannable advertising we need to calculate how much time we
+         * need for AUX_ADV_IND along with AUX_SCAN_REQ, AUX_SCAN_RSP and
+         * IFS in between.
+         *
+         * Note:
+         *  1. aux->payload_len, which calculated by above ble_ll_adv_aux_calulcate(),
+         * contains AUX_SCAN_RSP length.
+         *  2. length of AUX_ADV_IND is calculated by special function:
+         *      ble_ll_adv_aux_scannable_pdu_payload_len()
+         */
         max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_aux_scannable_pdu_payload_len(advsm),
                                            advsm->sec_phy) +
                     BLE_LL_IFS +
