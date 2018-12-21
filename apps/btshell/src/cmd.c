@@ -2467,6 +2467,16 @@ cmd_keystore_iterator(int obj_type,
                 console_printf("\n");
             }
             break;
+        case BLE_STORE_OBJ_TYPE_CCCD:
+            console_printf("Key: ");
+            console_printf("addr_type=%u ", val->cccd.peer_addr.type);
+            print_addr(val->cccd.peer_addr.val);
+            console_printf("\n");
+
+            console_printf("    char_val_handle: %d\n", val->cccd.chr_val_handle);
+            console_printf("    flags:           0x%02x\n", val->cccd.flags);
+            console_printf("    changed:         %d\n", val->cccd.value_changed);
+            break;
     }
     return 0;
 }
