@@ -733,7 +733,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     return 0;
 }
 
-static int
+int
 ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t op, uint16_t offset, struct os_mbuf **om,
                          void *arg)

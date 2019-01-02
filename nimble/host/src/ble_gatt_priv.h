@@ -182,6 +182,9 @@ void ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb, void *arg);
 int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
                             ble_gatt_register_fn *register_cb,
                             void *cb_arg);
+int ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
+                             uint8_t op, uint16_t offset, struct os_mbuf **om,
+                             void *arg);
 
 /*** @misc. */
 int ble_gatts_conn_can_alloc(void);
