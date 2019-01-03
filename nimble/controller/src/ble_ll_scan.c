@@ -471,7 +471,7 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
         }
     }
 
-    evt->event_len = sizeof(*evt);
+    evt->event_len = sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN;
     evt->evt_type = aux_data->evt_type;
     evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
     BLE_LL_SET_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
@@ -748,7 +748,7 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
     evt->addr_type = addr_type;
     memcpy(evt->addr, addr, BLE_DEV_ADDR_LEN);
 
-    evt->event_len = sizeof(*evt);
+    evt->event_len = sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN;
 
     if (inita) {
         evt->dir_addr_type = inita_type;
