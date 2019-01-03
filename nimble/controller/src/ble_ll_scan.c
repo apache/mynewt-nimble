@@ -751,7 +751,6 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
     evt->event_len = sizeof(*evt);
 
     if (inita) {
-        /* TODO Really ?? */
         evt->dir_addr_type = inita_type;
         memcpy(evt->dir_addr, inita, BLE_DEV_ADDR_LEN);
         evt->event_len += BLE_DEV_ADDR_LEN  + 1;
