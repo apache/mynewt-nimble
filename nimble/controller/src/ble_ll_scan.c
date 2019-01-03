@@ -753,7 +753,6 @@ ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
     if (inita) {
         evt->dir_addr_type = inita_type;
         memcpy(evt->dir_addr, inita, BLE_DEV_ADDR_LEN);
-        evt->event_len += BLE_DEV_ADDR_LEN  + 1;
     } else if (adv_data_len <= (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - sizeof(*evt))) {
         evt->adv_data_len = adv_data_len;
         os_mbuf_copydata(adv_data, 0, adv_data_len, evt->adv_data);
