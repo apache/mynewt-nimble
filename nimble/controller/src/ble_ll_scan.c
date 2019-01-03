@@ -2539,7 +2539,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     int datalen;
     int rc;
     bool need_event;
-    uint8_t max_event_len;
+    uint16_t max_event_len;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
         rc = -1;
@@ -2570,8 +2570,11 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         goto done;
     }
 
+    /* Max_event_len contains advertising data and BLE_HCI_EVENT_HDR_LEN as this is related
+     * to the buffer available for the event. The maximum is 255 + 2
+     */
     offset = 0;
-    max_event_len = min(UINT8_MAX, BLE_LL_MAX_EVT_LEN);
+    max_event_len = min(UINT8_MAX + BLE_HCI_EVENT_HDR_LEN, BLE_LL_MAX_EVT_LEN);
 
     do {
         need_event = false;
