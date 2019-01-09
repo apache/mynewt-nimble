@@ -1448,8 +1448,18 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
     conn->bhc_our_rpa_addr.type = BLE_ADDR_RANDOM;
     memcpy(conn->bhc_our_rpa_addr.val, evt->local_rpa, 6);
 
-    conn->bhc_peer_rpa_addr.type = BLE_ADDR_RANDOM;
-    memcpy(conn->bhc_peer_rpa_addr.val, evt->peer_rpa, 6);
+    /* If peer RPA is not set in the event and peer address
+     * is RPA then store the peer RPA address so when the peer
+     * address is resolved, the RPA is not forgotten.
+     */
+    if (memcmp(BLE_ADDR_ANY->val, evt->peer_rpa, 6) == 0) {
+        if (BLE_ADDR_IS_RPA(&conn->bhc_peer_addr)) {
+            conn->bhc_peer_rpa_addr = conn->bhc_peer_addr;
+        }
+    } else {
+        conn->bhc_peer_rpa_addr.type = BLE_ADDR_RANDOM;
+        memcpy(conn->bhc_peer_rpa_addr.val, evt->peer_rpa, 6);
+    }
 
     ble_hs_lock();
 
