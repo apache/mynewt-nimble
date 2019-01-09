@@ -300,8 +300,14 @@ ble_hs_conn_find_by_addr(const ble_addr_t *addr)
     }
 
     SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
-        if (ble_addr_cmp(&conn->bhc_peer_addr, addr) == 0) {
-            return conn;
+        if (BLE_ADDR_IS_RPA(addr)) {
+            if (ble_addr_cmp(&conn->bhc_peer_rpa_addr, addr) == 0) {
+                return conn;
+            }
+        } else {
+            if (ble_addr_cmp(&conn->bhc_peer_addr, addr) == 0) {
+                return conn;
+            }
         }
     }
 
