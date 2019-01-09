@@ -524,15 +524,14 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         memcpy(peer_addr.val, proc->peer_keys.addr, sizeof peer_addr.val);
 
         conn->bhc_peer_addr = peer_addr;
+
         /* Update identity address in conn.
-         * If peer's address was an RPA, we store it as RPA since peer's address
-         * will not be an identity address. The peer's address type has to be
+         * If peer's rpa address is set then it means that the peer's address
+         * is an identity address. The peer's address type has to be
          * set as 'ID' to allow resolve 'id' and 'ota' addresses properly in
          * conn info.
          */
-        if (BLE_ADDR_IS_RPA(&conn->bhc_peer_addr)) {
-            conn->bhc_peer_rpa_addr = conn->bhc_peer_addr;
-
+        if (memcmp(BLE_ADDR_ANY->val, &conn->bhc_peer_rpa_addr.val, 6) != 0) {
             switch (peer_addr.type) {
             case BLE_ADDR_PUBLIC:
             case BLE_ADDR_PUBLIC_ID:
