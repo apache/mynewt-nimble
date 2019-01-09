@@ -543,9 +543,9 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
                 conn->bhc_peer_addr.type = BLE_ADDR_RANDOM_ID;
                 break;
             }
-        }
 
-        identity_ev = 1;
+            identity_ev = 1;
+        }
     } else {
         peer_addr = conn->bhc_peer_addr;
         peer_addr.type = ble_hs_misc_addr_type_to_id(conn->bhc_peer_addr.type);
