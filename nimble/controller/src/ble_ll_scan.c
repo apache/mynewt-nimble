@@ -1851,7 +1851,7 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
     tmp_aux_data.mode = rxbuf[2] >> 6;
 
     ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !ble_hdr->rxinfo.user_data) {
+    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !current_aux) {
         return -1;
     }
 
