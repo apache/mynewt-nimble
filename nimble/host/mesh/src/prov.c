@@ -1599,6 +1599,10 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 	rx_buf = NET_BUF_SIMPLE(65);
 #endif
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
+	link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+#endif
+
 	if (!prov_info) {
 		BT_ERR("No provisioning context provided");
 		return -EINVAL;
