@@ -2284,6 +2284,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
 
+    /* Get pdu type, pointer to address and address "type"  */
+    rxbuf = rxpdu->om_data;
+    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (scansm->cur_aux_data) {
         ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
@@ -2291,6 +2295,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data) == 0) {
             ble_hdr->rxinfo.user_data = NULL;
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
+            goto scan_rx_isr_exit;
+        }
+
+        /* If we were expecting aux/chain and it not arrived,
+         * lets just exit here.
+         */
+        if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
             goto scan_rx_isr_exit;
         }
     }
@@ -2303,10 +2314,6 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #endif
         goto scan_rx_isr_exit;
     }
-
-    /* Get pdu type, pointer to address and address "type"  */
-    rxbuf = rxpdu->om_data;
-    pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
@@ -2782,6 +2789,17 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 #endif
         goto scan_continue;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (aux_data && ptype != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+        /* LL was scheduled for aux but received something different.
+         * Let's just ignore received event and send truncated for
+         * previous report if needed.
+         */
+        evt_possibly_truncated = 1;
+        goto scan_continue;
+    }
+#endif
 
     if ((ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) || (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
         goto scan_continue;
