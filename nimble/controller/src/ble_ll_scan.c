@@ -1859,7 +1859,6 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
     ext_hdr = &rxbuf[4];
 
     i = 0;
-    /* Just all until AUX PTR it for now*/
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
         memcpy(tmp_aux_data.addr, ext_hdr + i, 6);
         tmp_aux_data.addr_type =
