@@ -929,13 +929,14 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    /* If RPA has been used, make sure we use correct address types
+     * in the advertising report.
+     */
     if (BLE_MBUF_HDR_RESOLVED(hdr)) {
-        /*
-         * NOTE: this looks a bit odd, but the resolved address types
-         * are 2 greater than the unresolved ones in the spec, so
-         * we just add 2 here.
-         */
         adva_type += 2;
+    }
+    if (BLE_MBUF_HDR_INITA_RESOLVED(hdr)) {
+        inita_type += 2;
     }
 #endif
 
@@ -2412,9 +2413,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 peer = g_ble_ll_resolv_list[index].rl_identity_addr;
                 peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
                 resolved = 1;
-                if (ble_ll_is_rpa(inita, inita_type) &&
-                    !ble_ll_resolv_rpa(inita, g_ble_ll_resolv_list[index].rl_local_irk)) {
-                    goto scan_rx_isr_exit;
+                if (ble_ll_is_rpa(inita, inita_type)) {
+                    if (!ble_ll_resolv_rpa(inita, g_ble_ll_resolv_list[index].rl_local_irk)) {
+                        goto scan_rx_isr_exit;
+                    }
+                    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
                 }
             } else {
                 if (chk_wl) {
@@ -2426,13 +2429,19 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 }
             }
         } else if (chk_send_req && inita && ble_ll_is_rpa(inita, inita_type)) {
-            /* If remove is identity address but InitA is RPA, make sure we can resolve it.
+            /* If remote is identity address but InitA is RPA, make sure we can resolve it.
              * If not, nothing more to do here
              */
             rl = ble_ll_resolv_list_find(peer, peer_addr_type);
-            if (!rl || !ble_ll_resolv_rpa(inita, rl->rl_local_irk)) {
+            if (!rl) {
                 goto scan_rx_isr_exit;
             }
+
+            if (!ble_ll_resolv_rpa(inita, rl->rl_local_irk)) {
+                goto scan_rx_isr_exit;
+            }
+
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
         }
     }
 #else
@@ -2657,6 +2666,18 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
             goto done;
         }
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    /* If RPA has been used, make sure we use correct address types
+     * in the advertising report.
+     */
+    if (BLE_MBUF_HDR_RESOLVED(hdr)) {
+        adva_type += 2;
+    }
+    if (BLE_MBUF_HDR_INITA_RESOLVED(hdr)) {
+        inita_type += 2;
+    }
+#endif
 
     datalen = ble_ll_scan_parse_ext_hdr(om, adva, adva_type, inita, inita_type, hdr, evt);
     if (datalen < 0) {
