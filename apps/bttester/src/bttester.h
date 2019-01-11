@@ -6,9 +6,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <misc/util.h>
+#ifndef __BTTESTER_H__
+#define __BTTESTER_H__
 
-#define BTP_MTU 1024
+#include "syscfg/syscfg.h"
+#include "host/ble_gatt.h"
+
+#if MYNEWT_VAL(BLE_MESH)
+#include "mesh/glue.h"
+#else
+#include "glue.h"
+#endif
+
+#define BTP_MTU MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 #define BTP_DATA_MAX_SIZE (BTP_MTU - sizeof(struct btp_hdr))
 
 #define BTP_INDEX_NONE		0xff
@@ -24,9 +34,22 @@
 #define BTP_STATUS_UNKNOWN_CMD	0x02
 #define BTP_STATUS_NOT_READY	0x03
 
+#define SYS_LOG_DBG(fmt, ...) \
+	if (MYNEWT_VAL(BTTESTER_DEBUG)) { \
+		console_printf("[INF] %s: " fmt "\n", \
+			       __func__, ## __VA_ARGS__); \
+	}
+#define SYS_LOG_INF(fmt, ...)   console_printf("[INF] %s: " fmt "\n", \
+					       __func__, ## __VA_ARGS__);
+#define SYS_LOG_ERR(fmt, ...)   console_printf("[WRN] %s: " fmt "\n", \
+					       __func__, ## __VA_ARGS__);
+
 #define SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
 #define SYS_LOG_DOMAIN "bttester"
-#include <logging/sys_log.h>
+
+#define sys_cpu_to_le32 htole32
+#define sys_le32_to_cpu le32toh
+#define sys_cpu_to_le16 htole16
 
 struct btp_hdr {
 	u8_t  service;
@@ -831,16 +854,26 @@ u8_t tester_init_gatt(void);
 u8_t tester_unregister_gatt(void);
 void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 			u16_t len);
+int tester_gatt_notify_rx_ev(u16_t conn_handle, u16_t attr_handle,
+			     u8_t indication, struct os_mbuf *om);
+int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
+			     u8_t prev_notify, u8_t cur_notify,
+			     u8_t prev_indicate, u8_t cur_indicate);
 
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 u8_t tester_init_l2cap(void);
 u8_t tester_unregister_l2cap(void);
 void tester_handle_l2cap(u8_t opcode, u8_t index, u8_t *data,
 			 u16_t len);
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
+#endif
 
-#if defined(CONFIG_BT_MESH)
+#if MYNEWT_VAL(BLE_MESH)
 u8_t tester_init_mesh(void);
 u8_t tester_unregister_mesh(void);
 void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len);
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */
+
+void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
+int gatt_svr_init(void);
+
+#endif /* __BTTESTER_H__ */
