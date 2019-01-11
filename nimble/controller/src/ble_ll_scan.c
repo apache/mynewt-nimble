@@ -1855,6 +1855,18 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         return -1;
     }
 
+    if (ext_hdr_len == 0) {
+        if (current_aux) {
+            /* This is last element in the chain.
+             * Clear incomplete flag
+             */
+            BLE_LL_CLEAR_AUX_FLAG(current_aux, BLE_LL_AUX_INCOMPLETE_BIT);
+            return 1;
+        }
+
+        return -1;
+    }
+
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
 
@@ -2025,55 +2037,56 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
 
-    i = 0;
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
-        i += BLE_LL_EXT_ADV_ADVA_SIZE;
-    }
+    if (ext_hdr_len) {
+        i = 0;
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+            i += BLE_LL_EXT_ADV_ADVA_SIZE;
+        }
 
-    if (adva) {
-        memcpy(out_evt->addr, adva, 6);
-        out_evt->addr_type = adva_type;
-    }
+        if (adva) {
+            memcpy(out_evt->addr, adva, 6);
+            out_evt->addr_type = adva_type;
+        }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
-        i += BLE_LL_EXT_ADV_TARGETA_SIZE;
-    }
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+            i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        }
 
-    if (inita) {
-       memcpy(out_evt->dir_addr, inita, 6);
-       out_evt->dir_addr_type = inita_type;
-       out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
-    }
+        if (inita) {
+           memcpy(out_evt->dir_addr, inita, 6);
+           out_evt->dir_addr_type = inita_type;
+           out_evt->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
+        }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
-        /* Just skip it for now*/
-        i += 1;
-    }
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+            /* Just skip it for now*/
+            i += 1;
+        }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
-        ble_ll_ext_scan_parse_adv_info(scansm, out_evt, (ext_hdr + i));
-        i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
-    } else if (out_evt->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK) {
-        out_evt->sid = (aux_data->adi >> 12);
-    }
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+            ble_ll_ext_scan_parse_adv_info(scansm, out_evt, (ext_hdr + i));
+            i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+        } else if (out_evt->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK) {
+            out_evt->sid = (aux_data->adi >> 12);
+        }
 
-    /* In this point of time we don't want to care about aux ptr */
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
-        i += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
-    }
+        /* In this point of time we don't want to care about aux ptr */
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+            i += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+        }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
-        /* TODO Handle periodic adv */
-        i += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
-    }
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
+            /* TODO Handle periodic adv */
+            i += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
+        }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
-        out_evt->tx_power = *(ext_hdr + i);
-        i += BLE_LL_EXT_ADV_TX_POWER_SIZE;
-    }
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
+            out_evt->tx_power = *(ext_hdr + i);
+            i += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        }
 
-    /* Skip ADAC if it is there */
-    i = ext_hdr_len;
+        /* TODO Handle ACAD if needed */
+    }
 
     /* In the event we need information on primary and secondary PHY used during
      * advertising.
@@ -2086,8 +2099,10 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
     out_evt->sec_phy = aux_data->aux_phy;
     out_evt->prim_phy = aux_data->aux_primary_phy;
 
-    /* Adjust mbuf to contain advertising data only */
-    os_mbuf_adj(om, i);
+    if (ext_hdr_len) {
+        /* Adjust mbuf to contain advertising data only */
+        os_mbuf_adj(om, ext_hdr_len);
+    }
 
     /* Let us first keep update event type in aux data.
      * Note that in aux chain and aux scan response packets
@@ -2097,7 +2112,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
     out_evt->evt_type = aux_data->evt_type;
 
 done:
-    return pdu_len - i - 1;
+    return pdu_len - ext_hdr_len - 1;
 }
 
 static int
