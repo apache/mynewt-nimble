@@ -460,7 +460,7 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
 
     BLE_LL_ASSERT(aux_data);
 
-    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
         /* if not chained, there is nothing to do here */
         goto done;
     }
@@ -478,14 +478,14 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
     evt->event_len = sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN;
     evt->evt_type = aux_data->evt_type;
     evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
-    BLE_LL_SET_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+    BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
 
-    if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+    if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
         memcpy(evt->addr, aux_data->addr, 6);
         evt->addr_type = aux_data->addr_type;
     }
 
-    if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+    if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
         memcpy(evt->dir_addr, aux_data->dir_addr, 6);
         evt->dir_addr_type = aux_data->dir_addr_type;
     }
@@ -504,7 +504,7 @@ ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
         return -1;
     }
 
-    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
+    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
         return -1;
     }
 
@@ -527,7 +527,7 @@ ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data)
      * (truncated was sent to the host) and we just need to drop last reference.
      * Otherwise we should try to send truncated event to the host.
      */
-    if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT)) {
+    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT)) {
         ble_ll_scan_send_truncated_if_chained(aux_data);
     }
 
@@ -1860,7 +1860,7 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
             /* This is last element in the chain.
              * Clear incomplete flag
              */
-            BLE_LL_CLEAR_AUX_FLAG(current_aux, BLE_LL_AUX_INCOMPLETE_BIT);
+            BLE_LL_AUX_CLEAR_FLAG(current_aux, BLE_LL_AUX_INCOMPLETE_BIT);
             return 1;
         }
 
@@ -1913,11 +1913,11 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
             if (!(new_aux->evt_type & (BLE_HCI_ADV_SCAN_MASK))
                             && (tmp_aux_data.adi != new_aux->adi)) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
-                new_aux->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+                BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
             }
 
-            new_aux->flags |= BLE_LL_AUX_CHAIN_BIT;
-            new_aux->flags |= BLE_LL_AUX_INCOMPLETE_BIT;
+            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_CHAIN_BIT);
+            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
         } else {
             if (ble_ll_scan_ext_adv_init(&new_aux) < 0) {
             /* Out of memory */
@@ -1953,7 +1953,7 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         new_aux = ble_hdr->rxinfo.user_data;
 
         /* Clear incomplete flag */
-        new_aux->flags &= ~BLE_LL_AUX_INCOMPLETE_BIT;
+        BLE_LL_AUX_CLEAR_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
 
         /* Current processing aux_ptr */
         rc = 1;
@@ -1961,19 +1961,19 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 
     if (has_adi) {
         new_aux->adi = tmp_aux_data.adi;
-        BLE_LL_SET_AUX_FLAG(new_aux, BLE_LL_AUX_HAS_ADI);
+        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_ADI);
     }
 
     if (has_addr) {
         memcpy(new_aux->addr, tmp_aux_data.addr, 6);
         new_aux->addr_type = tmp_aux_data.addr_type;
-        new_aux->flags |= BLE_LL_AUX_HAS_ADDRA;
+        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_ADDRA);
     }
 
     if (has_dir_addr) {
         memcpy(new_aux->dir_addr, tmp_aux_data.dir_addr, 6);
         new_aux->dir_addr_type = tmp_aux_data.dir_addr_type;
-        new_aux->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
+        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_DIR_ADDRA);
     }
 
     ble_hdr->rxinfo.user_data = new_aux;
@@ -2140,7 +2140,7 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
 
     if (aux_data) {
         /* If address has been provided, we do have it already in aux_data.*/
-        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
             *addr = aux_data->addr;
             *addr_type = aux_data->addr_type;
         }
@@ -2149,7 +2149,7 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
             return 0;
         }
 
-        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
             *inita = aux_data->dir_addr;
             *inita_type = aux_data->dir_addr_type;
         }
@@ -2689,9 +2689,9 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         if (offset < datalen) {
             /* Need another event for next fragment of this PDU */
             need_event = true;
-        } else if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+        } else if (aux_data && BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
             need_event = false;
-        } else if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+        } else if (aux_data && BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
             /* Need another event for next PDU in chain */
             need_event = true;
         }
@@ -2710,14 +2710,14 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             } else {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
-                BLE_LL_SET_AUX_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
                 rc = -1;
             }
         } else if (aux_data ) {
-            if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+            if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
                 rc = -1;
-            } else if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
+            } else if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
             } else {
                 rc = 0;
@@ -2924,7 +2924,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
 
         /* If it is ignore it means event is already truncated, just unref aux */
-        if (aux_data && BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
+        if (aux_data && BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT)) {
             ble_ll_scan_aux_data_unref(aux_data);
             goto scan_continue;
         }
@@ -2936,7 +2936,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 /* We are here when could not schedule the aux ptr */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
                 /* Mark that chain is trimmed */
-                aux_data->flags |= BLE_LL_AUX_INCOMPLETE_ERR_BIT;
+                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
                 /* Note: aux_data unref will be done when truncated is sent to the host or
                  * below if we failed to schedule for the very first aux packet.
                  */
@@ -2950,8 +2950,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
              * for aux packet. However, if we was not able to schedule for first aux packet,
              * make sure to unref aux_data here
              */
-            if (!BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
-                if (BLE_LL_CHECK_AUX_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
+            if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+                if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
                     ble_ll_scan_aux_data_unref(aux_data);
                 }
                 goto scan_continue;
@@ -2976,7 +2976,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                     ble_ll_scan_aux_data_unref(aux_data);
                 }
             }
-            aux_data->flags |= BLE_LL_AUX_IGNORE_BIT;
+            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_IGNORE_BIT);
         } else if ((rc == 0) && scansm->scan_filt_dups && aux_data && aux_data->adi) {
                 ble_ll_scan_add_dup_adv(ident_addr, ident_addr_type,
                                         BLE_HCI_LE_SUBEV_EXT_ADV_RPT,
