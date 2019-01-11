@@ -6,25 +6,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
-#include <zephyr/types.h>
+#include <stdlib.h>
 
-#include <toolchain.h>
-#include <bluetooth/bluetooth.h>
-#include <misc/byteorder.h>
-#include <console/uart_pipe.h>
+#include "syscfg/syscfg.h"
+#include "console/console.h"
 
+#include "bttester_pipe.h"
 #include "bttester.h"
 
-#define STACKSIZE 2048
-static K_THREAD_STACK_DEFINE(stack, STACKSIZE);
-static struct k_thread cmd_thread;
-
 #define CMD_QUEUED 2
+
+static struct os_eventq avail_queue;
+static struct os_eventq *cmds_queue;
+static struct os_event bttester_ev[CMD_QUEUED];
+
 struct btp_buf {
-	u32_t _reserved;
+	struct os_event *ev;
 	union {
 		u8_t data[BTP_MTU];
 		struct btp_hdr hdr;
@@ -32,9 +31,6 @@ struct btp_buf {
 };
 
 static struct btp_buf cmd_buf[CMD_QUEUED];
-
-static K_FIFO_DEFINE(cmds_queue);
-static K_FIFO_DEFINE(avail_queue);
 
 static void supported_commands(u8_t *data, u16_t len)
 {
@@ -62,12 +58,12 @@ static void supported_services(u8_t *data, u16_t len)
 	tester_set_bit(buf, BTP_SERVICE_ID_CORE);
 	tester_set_bit(buf, BTP_SERVICE_ID_GAP);
 	tester_set_bit(buf, BTP_SERVICE_ID_GATT);
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 	tester_set_bit(buf, BTP_SERVICE_ID_L2CAP);
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
-#if defined(CONFIG_BT_MESH)
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#if MYNEWT_VAL(BLE_MESH)
 	tester_set_bit(buf, BTP_SERVICE_ID_MESH);
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */
 
 	tester_send(BTP_SERVICE_ID_CORE, CORE_READ_SUPPORTED_SERVICES,
 		    BTP_INDEX_NONE, (u8_t *) rp, sizeof(buf));
@@ -89,16 +85,16 @@ static void register_service(u8_t *data, u16_t len)
 	case BTP_SERVICE_ID_GATT:
 		status = tester_init_gatt();
 		break;
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 	case BTP_SERVICE_ID_L2CAP:
 		status = tester_init_l2cap();
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
 		break;
-#if defined(CONFIG_BT_MESH)
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#if MYNEWT_VAL(BLE_MESH)
 	case BTP_SERVICE_ID_MESH:
 		status = tester_init_mesh();
 		break;
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */
 	default:
 		status = BTP_STATUS_FAILED;
 		break;
@@ -121,16 +117,16 @@ static void unregister_service(u8_t *data, u16_t len)
 	case BTP_SERVICE_ID_GATT:
 		status = tester_unregister_gatt();
 		break;
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 	case BTP_SERVICE_ID_L2CAP:
 		status = tester_unregister_l2cap();
 		break;
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
-#if defined(CONFIG_BT_MESH)
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#if MYNEWT_VAL(BLE_MESH)
 	case BTP_SERVICE_ID_MESH:
 		status = tester_unregister_mesh();
 		break;
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */
 	default:
 		status = BTP_STATUS_FAILED;
 		break;
@@ -144,7 +140,8 @@ static void handle_core(u8_t opcode, u8_t index, u8_t *data,
 			u16_t len)
 {
 	if (index != BTP_INDEX_NONE) {
-		tester_rsp(BTP_SERVICE_ID_CORE, opcode, index, BTP_STATUS_FAILED);
+		tester_rsp(BTP_SERVICE_ID_CORE, opcode, index,
+			   BTP_STATUS_FAILED);
 		return;
 	}
 
@@ -168,21 +165,30 @@ static void handle_core(u8_t opcode, u8_t index, u8_t *data,
 	}
 }
 
-static void cmd_handler(void *p1, void *p2, void *p3)
+static void cmd_handler(struct os_event *ev)
 {
-	while (1) {
-		struct btp_buf *cmd;
-		u16_t len;
+	u16_t len;
+	struct btp_buf *cmd;
 
-		cmd = k_fifo_get(&cmds_queue, K_FOREVER);
+	if (!ev || !ev->ev_arg) {
+		return;
+	}
 
-		len = sys_le16_to_cpu(cmd->hdr.len);
+	cmd = ev->ev_arg;
 
-		/* TODO
-		 * verify if service is registered before calling handler
-		 */
+	len = sys_le16_to_cpu(cmd->hdr.len);
+	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+		console_printf("[DBG] received %d bytes: %s\n",
+			       sizeof(cmd->hdr) + len,
+			       bt_hex(cmd->data,
+				      sizeof(cmd->hdr) + len));
+	}
 
-		switch (cmd->hdr.service) {
+	/* TODO
+	 * verify if service is registered before calling handler
+	 */
+
+	switch (cmd->hdr.service) {
 		case BTP_SERVICE_ID_CORE:
 			handle_core(cmd->hdr.opcode, cmd->hdr.index,
 				    cmd->hdr.data, len);
@@ -195,32 +201,32 @@ static void cmd_handler(void *p1, void *p2, void *p3)
 			tester_handle_gatt(cmd->hdr.opcode, cmd->hdr.index,
 					   cmd->hdr.data, len);
 			break;
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 		case BTP_SERVICE_ID_L2CAP:
 			tester_handle_l2cap(cmd->hdr.opcode, cmd->hdr.index,
 					    cmd->hdr.data, len);
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
 			break;
-#if defined(CONFIG_BT_MESH)
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#if MYNEWT_VAL(BLE_MESH)
 		case BTP_SERVICE_ID_MESH:
 			tester_handle_mesh(cmd->hdr.opcode, cmd->hdr.index,
 					   cmd->hdr.data, len);
 			break;
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */
 		default:
 			tester_rsp(cmd->hdr.service, cmd->hdr.opcode,
 				   cmd->hdr.index, BTP_STATUS_FAILED);
 			break;
-		}
-
-		k_fifo_put(&avail_queue, cmd);
 	}
+
+	os_eventq_put(&avail_queue, ev);
 }
 
 static u8_t *recv_cb(u8_t *buf, size_t *off)
 {
 	struct btp_hdr *cmd = (void *) buf;
-	struct btp_buf *new_buf;
+	struct os_event *new_ev;
+	struct btp_buf *new_buf, *old_buf;
 	u16_t len;
 
 	if (*off < sizeof(*cmd)) {
@@ -238,33 +244,58 @@ static u8_t *recv_cb(u8_t *buf, size_t *off)
 		return buf;
 	}
 
-	new_buf =  k_fifo_get(&avail_queue, K_NO_WAIT);
-	if (!new_buf) {
+	new_ev = os_eventq_get_no_wait(&avail_queue);
+	if (!new_ev) {
 		SYS_LOG_ERR("BT tester: RX overflow");
 		*off = 0;
 		return buf;
 	}
 
-	k_fifo_put(&cmds_queue, CONTAINER_OF(buf, struct btp_buf, data));
+	old_buf = CONTAINER_OF(buf, struct btp_buf, data);
+	os_eventq_put(cmds_queue, old_buf->ev);
 
+	new_buf = new_ev->ev_arg;
 	*off = 0;
 	return new_buf->data;
 }
 
-void tester_init(void)
+static void avail_queue_init(void)
 {
 	int i;
-	struct btp_buf *buf;
+
+	os_eventq_init(&avail_queue);
 
 	for (i = 0; i < CMD_QUEUED; i++) {
-		k_fifo_put(&avail_queue, &cmd_buf[i]);
+		cmd_buf[i].ev = &bttester_ev[i];
+		bttester_ev[i].ev_cb = cmd_handler;
+		bttester_ev[i].ev_arg = &cmd_buf[i];
+
+		os_eventq_put(&avail_queue, &bttester_ev[i]);
+	}
+}
+
+void bttester_evq_set(struct os_eventq *evq)
+{
+	cmds_queue = evq;
+}
+
+void tester_init(void)
+{
+	struct os_event *ev;
+	struct btp_buf *buf;
+
+	avail_queue_init();
+	bttester_evq_set(os_eventq_dflt_get());
+
+	ev = os_eventq_get(&avail_queue);
+	buf = ev->ev_arg;
+
+	if (bttester_pipe_init()) {
+		SYS_LOG_ERR("Failed to initialize pipe");
+		return;
 	}
 
-	k_thread_create(&cmd_thread, stack, STACKSIZE, cmd_handler,
-			NULL, NULL, NULL, K_PRIO_COOP(7), 0, K_NO_WAIT);
-
-	buf = k_fifo_get(&avail_queue, K_NO_WAIT);
-	uart_pipe_register(buf->data, BTP_MTU, recv_cb);
+	bttester_pipe_register(buf->data, BTP_MTU, recv_cb);
 
 	tester_send(BTP_SERVICE_ID_CORE, CORE_EV_IUT_READY, BTP_INDEX_NONE,
 		    NULL, 0);
@@ -280,9 +311,18 @@ void tester_send(u8_t service, u8_t opcode, u8_t index, u8_t *data,
 	msg.index = index;
 	msg.len = len;
 
-	uart_pipe_send((u8_t *)&msg, sizeof(msg));
+	bttester_pipe_send((u8_t *)&msg, sizeof(msg));
 	if (data && len) {
-		uart_pipe_send(data, len);
+		bttester_pipe_send(data, len);
+	}
+
+	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+		console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
+			       bt_hex((char *) &msg, sizeof(msg)));
+		if (data && len) {
+			console_printf("[DBG] send %d bytes data: %s\n", len,
+				       bt_hex((char *) data, len));
+		}
 	}
 }
 

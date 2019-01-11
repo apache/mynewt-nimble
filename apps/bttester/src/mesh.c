@@ -6,12 +6,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <bluetooth/bluetooth.h>
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_MESH)
 
 #include <errno.h>
-#include <bluetooth/mesh.h>
-#include <bluetooth/testing.h>
-#include <misc/byteorder.h>
+
+#include "mesh/mesh.h"
+#include "mesh/glue.h"
+#include "mesh/testing.h"
+#include "console/console.h"
+
 #include "bttester.h"
 
 #define CONTROLLER_INDEX 0
@@ -60,39 +65,39 @@ static struct {
 
 static void supported_commands(u8_t *data, u16_t len)
 {
-	struct net_buf_simple *buf = NET_BUF_SIMPLE(BTP_DATA_MAX_SIZE);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(BTP_DATA_MAX_SIZE);
 
 	net_buf_simple_init(buf, 0);
 
 	/* 1st octet */
 	memset(net_buf_simple_add(buf, 1), 0, 1);
-	tester_set_bit(buf->data, MESH_READ_SUPPORTED_COMMANDS);
-	tester_set_bit(buf->data, MESH_CONFIG_PROVISIONING);
-	tester_set_bit(buf->data, MESH_PROVISION_NODE);
-	tester_set_bit(buf->data, MESH_INIT);
-	tester_set_bit(buf->data, MESH_RESET);
-	tester_set_bit(buf->data, MESH_INPUT_NUMBER);
-	tester_set_bit(buf->data, MESH_INPUT_STRING);
+	tester_set_bit(buf->om_data, MESH_READ_SUPPORTED_COMMANDS);
+	tester_set_bit(buf->om_data, MESH_CONFIG_PROVISIONING);
+	tester_set_bit(buf->om_data, MESH_PROVISION_NODE);
+	tester_set_bit(buf->om_data, MESH_INIT);
+	tester_set_bit(buf->om_data, MESH_RESET);
+	tester_set_bit(buf->om_data, MESH_INPUT_NUMBER);
+	tester_set_bit(buf->om_data, MESH_INPUT_STRING);
 	/* 2nd octet */
-	tester_set_bit(buf->data, MESH_IVU_TEST_MODE);
-	tester_set_bit(buf->data, MESH_IVU_TOGGLE_STATE);
-	tester_set_bit(buf->data, MESH_NET_SEND);
-	tester_set_bit(buf->data, MESH_HEALTH_GENERATE_FAULTS);
-	tester_set_bit(buf->data, MESH_HEALTH_CLEAR_FAULTS);
-	tester_set_bit(buf->data, MESH_LPN);
-	tester_set_bit(buf->data, MESH_LPN_POLL);
-	tester_set_bit(buf->data, MESH_MODEL_SEND);
+	tester_set_bit(buf->om_data, MESH_IVU_TEST_MODE);
+	tester_set_bit(buf->om_data, MESH_IVU_TOGGLE_STATE);
+	tester_set_bit(buf->om_data, MESH_NET_SEND);
+	tester_set_bit(buf->om_data, MESH_HEALTH_GENERATE_FAULTS);
+	tester_set_bit(buf->om_data, MESH_HEALTH_CLEAR_FAULTS);
+	tester_set_bit(buf->om_data, MESH_LPN);
+	tester_set_bit(buf->om_data, MESH_LPN_POLL);
+	tester_set_bit(buf->om_data, MESH_MODEL_SEND);
 	/* 3rd octet */
 	memset(net_buf_simple_add(buf, 1), 0, 1);
-#if defined(CONFIG_BT_TESTING)
-	tester_set_bit(buf->data, MESH_LPN_SUBSCRIBE);
-	tester_set_bit(buf->data, MESH_LPN_UNSUBSCRIBE);
-	tester_set_bit(buf->data, MESH_RPL_CLEAR);
+#if MYNEWT_VAL(BLE_MESH_TESTING)
+	tester_set_bit(buf->om_data, MESH_LPN_SUBSCRIBE);
+	tester_set_bit(buf->om_data, MESH_LPN_UNSUBSCRIBE);
+	tester_set_bit(buf->om_data, MESH_RPL_CLEAR);
 #endif /* CONFIG_BT_TESTING */
-	tester_set_bit(buf->data, MESH_PROXY_IDENTITY);
+	tester_set_bit(buf->om_data, MESH_PROXY_IDENTITY);
 
 	tester_send(BTP_SERVICE_ID_MESH, MESH_READ_SUPPORTED_COMMANDS,
-		    CONTROLLER_INDEX, buf->data, buf->len);
+		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
 }
 
 static struct bt_mesh_cfg_srv cfg_srv = {
@@ -192,7 +197,13 @@ static struct bt_mesh_health_srv health_srv = {
 	.cb = &health_srv_cb,
 };
 
-BT_MESH_HEALTH_PUB_DEFINE(health_pub, CUR_FAULTS_MAX);
+static struct bt_mesh_model_pub health_pub;
+
+static void
+health_pub_init(void)
+{
+	health_pub.msg  = BT_MESH_HEALTH_FAULT_MSG(CUR_FAULTS_MAX);
+}
 
 static struct bt_mesh_cfg_cli cfg_cli = {
 };
@@ -293,7 +304,7 @@ static int output_number(bt_mesh_output_action_t action, u32_t number)
 {
 	struct mesh_out_number_action_ev ev;
 
-	SYS_LOG_DBG("action 0x%04x number 0x%08x", action, number);
+	SYS_LOG_DBG("action 0x%04x number 0x%08lx", action, number);
 
 	ev.action = sys_cpu_to_le16(action);
 	ev.number = sys_cpu_to_le32(number);
@@ -307,7 +318,7 @@ static int output_number(bt_mesh_output_action_t action, u32_t number)
 static int output_string(const char *str)
 {
 	struct mesh_out_string_action_ev *ev;
-	struct net_buf_simple *buf = NET_BUF_SIMPLE(BTP_DATA_MAX_SIZE);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(BTP_DATA_MAX_SIZE);
 
 	SYS_LOG_DBG("str %s", str);
 
@@ -319,7 +330,7 @@ static int output_string(const char *str)
 	net_buf_simple_add_mem(buf, str, ev->string_len);
 
 	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_OUT_STRING_ACTION,
-		    CONTROLLER_INDEX, buf->data, buf->len);
+		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
 
 	return 0;
 }
@@ -422,7 +433,7 @@ static void init(u8_t *data, u16_t len)
 
 	SYS_LOG_DBG("");
 
-	err = bt_mesh_init(&prov, &comp);
+	err = bt_mesh_init(0, &prov, &comp);
 	if (err) {
 		status = BTP_STATUS_FAILED;
 
@@ -469,7 +480,7 @@ static void input_number(u8_t *data, u16_t len)
 
 	number = sys_le32_to_cpu(cmd->number);
 
-	SYS_LOG_DBG("number 0x%04x", number);
+	SYS_LOG_DBG("number 0x%04lx", number);
 
 	err = bt_mesh_input_number(number);
 	if (err) {
@@ -499,9 +510,9 @@ static void input_string(u8_t *data, u16_t len)
 		goto rsp;
 	}
 
-	strncpy(str_auth, cmd->string, cmd->string_len);
+	strncpy((char *)str_auth, (char *)cmd->string, cmd->string_len);
 
-	err = bt_mesh_input_string(str_auth);
+	err = bt_mesh_input_string((char *)str_auth);
 	if (err) {
 		status = BTP_STATUS_FAILED;
 	}
@@ -574,7 +585,7 @@ static void lpn_poll(u8_t *data, u16_t len)
 static void net_send(u8_t *data, u16_t len)
 {
 	struct mesh_net_send_cmd *cmd = (void *) data;
-	NET_BUF_SIMPLE_DEFINE(msg, UINT8_MAX);
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX);
 	struct bt_mesh_msg_ctx ctx = {
 		.net_idx = net.net_idx,
 		.app_idx = BT_MESH_KEY_DEV,
@@ -586,41 +597,43 @@ static void net_send(u8_t *data, u16_t len)
 	SYS_LOG_DBG("ttl 0x%02x dst 0x%04x payload_len %d", ctx.send_ttl,
 		    ctx.addr, cmd->payload_len);
 
-	net_buf_simple_add_mem(&msg, cmd->payload, cmd->payload_len);
+	net_buf_simple_add_mem(msg, cmd->payload, cmd->payload_len);
 
-	err = bt_mesh_model_send(&vnd_models[0], &ctx, &msg, NULL, NULL);
+	err = bt_mesh_model_send(&vnd_models[0], &ctx, msg, NULL, NULL);
 	if (err) {
 		SYS_LOG_ERR("Failed to send (err %d)", err);
 	}
 
 	tester_rsp(BTP_SERVICE_ID_MESH, MESH_NET_SEND, CONTROLLER_INDEX,
 		   err ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS);
+
+	os_mbuf_free_chain(msg);
 }
 
 static void health_generate_faults(u8_t *data, u16_t len)
 {
 	struct mesh_health_generate_faults_rp *rp;
-	NET_BUF_SIMPLE_DEFINE(buf, sizeof(*rp) + sizeof(cur_faults) +
+	struct os_mbuf *buf = NET_BUF_SIMPLE(sizeof(*rp) + sizeof(cur_faults) +
 			      sizeof(reg_faults));
 	u8_t some_faults[] = { 0x01, 0x02, 0x03, 0xff, 0x06 };
 	u8_t cur_faults_count, reg_faults_count;
 
-	rp = net_buf_simple_add(&buf, sizeof(*rp));
+	rp = net_buf_simple_add(buf, sizeof(*rp));
 
 	cur_faults_count = min(sizeof(cur_faults), sizeof(some_faults));
 	memcpy(cur_faults, some_faults, cur_faults_count);
-	net_buf_simple_add_mem(&buf, cur_faults, cur_faults_count);
+	net_buf_simple_add_mem(buf, cur_faults, cur_faults_count);
 	rp->cur_faults_count = cur_faults_count;
 
 	reg_faults_count = min(sizeof(reg_faults), sizeof(some_faults));
 	memcpy(reg_faults, some_faults, reg_faults_count);
-	net_buf_simple_add_mem(&buf, reg_faults, reg_faults_count);
+	net_buf_simple_add_mem(buf, reg_faults, reg_faults_count);
 	rp->reg_faults_count = reg_faults_count;
 
 	bt_mesh_fault_update(&elements[0]);
 
 	tester_send(BTP_SERVICE_ID_MESH, MESH_HEALTH_GENERATE_FAULTS,
-		    CONTROLLER_INDEX, buf.data, buf.len);
+		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
 }
 
 static void health_clear_faults(u8_t *data, u16_t len)
@@ -639,7 +652,7 @@ static void health_clear_faults(u8_t *data, u16_t len)
 static void model_send(u8_t *data, u16_t len)
 {
 	struct mesh_model_send_cmd *cmd = (void *) data;
-	NET_BUF_SIMPLE_DEFINE(msg, UINT8_MAX);
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX);
 	struct bt_mesh_msg_ctx ctx = {
 		.net_idx = net.net_idx,
 		.app_idx = BT_MESH_KEY_DEV,
@@ -670,9 +683,9 @@ static void model_send(u8_t *data, u16_t len)
 	SYS_LOG_DBG("src 0x%04x dst 0x%04x model %p payload_len %d", src,
 		    ctx.addr, model, cmd->payload_len);
 
-	net_buf_simple_add_mem(&msg, cmd->payload, cmd->payload_len);
+	net_buf_simple_add_mem(msg, cmd->payload, cmd->payload_len);
 
-	err = bt_mesh_model_send(model, &ctx, &msg, NULL, NULL);
+	err = bt_mesh_model_send(model, &ctx, msg, NULL, NULL);
 	if (err) {
 		SYS_LOG_ERR("Failed to send (err %d)", err);
 	}
@@ -680,9 +693,11 @@ static void model_send(u8_t *data, u16_t len)
 fail:
 	tester_rsp(BTP_SERVICE_ID_MESH, MESH_MODEL_SEND, CONTROLLER_INDEX,
 		   err ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS);
+
+	os_mbuf_free_chain(msg);
 }
 
-#if defined(CONFIG_BT_TESTING)
+#if MYNEWT_VAL(BLE_MESH_TESTING)
 static void lpn_subscribe(u8_t *data, u16_t len)
 {
 	struct mesh_lpn_subscribe_cmd *cmd = (void *) data;
@@ -731,7 +746,7 @@ static void rpl_clear(u8_t *data, u16_t len)
 	tester_rsp(BTP_SERVICE_ID_MESH, MESH_RPL_CLEAR, CONTROLLER_INDEX,
 		   err ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS);
 }
-#endif /* CONFIG_BT_TESTING */
+#endif /* MYNEWT_VAL(BLE_MESH_TESTING) */
 
 static void proxy_identity_enable(u8_t *data, u16_t len)
 {
@@ -796,7 +811,7 @@ void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len)
 	case MESH_MODEL_SEND:
 		model_send(data, len);
 		break;
-#if defined(CONFIG_BT_TESTING)
+#if MYNEWT_VAL(BLE_MESH_TESTING)
 	case MESH_LPN_SUBSCRIBE:
 		lpn_subscribe(data, len);
 		break;
@@ -806,7 +821,7 @@ void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len)
 	case MESH_RPL_CLEAR:
 		rpl_clear(data, len);
 		break;
-#endif /* CONFIG_BT_TESTING */
+#endif /* MYNEWT_VAL(BLE_MESH_TESTING) */
 	case MESH_PROXY_IDENTITY:
 		proxy_identity_enable(data, len);
 		break;
@@ -820,28 +835,30 @@ void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len)
 void net_recv_ev(u8_t ttl, u8_t ctl, u16_t src, u16_t dst, const void *payload,
 		 size_t payload_len)
 {
-	NET_BUF_SIMPLE_DEFINE(buf, UINT8_MAX);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(UINT8_MAX);
 	struct mesh_net_recv_ev *ev;
 
 	SYS_LOG_DBG("ttl 0x%02x ctl 0x%02x src 0x%04x dst 0x%04x "
 		    "payload_len %d", ttl, ctl, src, dst, payload_len);
 
-	if (payload_len > net_buf_simple_tailroom(&buf)) {
+	if (payload_len > net_buf_simple_tailroom(buf)) {
 		SYS_LOG_ERR("Payload size exceeds buffer size");
 
-		return;
+		goto done;
 	}
 
-	ev = net_buf_simple_add(&buf, sizeof(*ev));
+	ev = net_buf_simple_add(buf, sizeof(*ev));
 	ev->ttl = ttl;
 	ev->ctl = ctl;
 	ev->src = sys_cpu_to_le16(src);
 	ev->dst = sys_cpu_to_le16(dst);
 	ev->payload_len = payload_len;
-	net_buf_simple_add_mem(&buf, payload, payload_len);
+	net_buf_simple_add_mem(buf, payload, payload_len);
 
 	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_NET_RECV, CONTROLLER_INDEX,
-		    buf.data, buf.len);
+		    buf->om_data, buf->om_len);
+done:
+	os_mbuf_free_chain(buf);
 }
 
 static void model_bound_cb(u16_t addr, struct bt_mesh_model *model,
@@ -914,6 +931,8 @@ static struct bt_test_cb bt_test_cb = {
 
 u8_t tester_init_mesh(void)
 {
+	health_pub_init();
+
 	if (IS_ENABLED(CONFIG_BT_TESTING)) {
 		bt_test_cb_register(&bt_test_cb);
 	}
@@ -925,3 +944,5 @@ u8_t tester_unregister_mesh(void)
 {
 	return BTP_STATUS_SUCCESS;
 }
+
+#endif /* MYNEWT_VAL(BLE_MESH) */
