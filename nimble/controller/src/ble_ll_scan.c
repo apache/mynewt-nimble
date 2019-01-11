@@ -2931,7 +2931,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
         /* Let's see if that packet contains aux ptr*/
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-           BLE_LL_ASSERT(aux_data);
+            BLE_LL_ASSERT(aux_data);
             if (ble_ll_sched_aux_scan(hdr, scansm, hdr->rxinfo.user_data)) {
                 /* We are here when could not schedule the aux ptr */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
