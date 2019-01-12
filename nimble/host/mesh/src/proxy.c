@@ -641,7 +641,7 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 				bt_mesh_pb_gatt_close(conn_handle);
 			}
 
-			client->conn_handle = 0;
+			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
 			break;
 		}
 	}
