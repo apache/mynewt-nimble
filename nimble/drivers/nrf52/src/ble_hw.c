@@ -67,6 +67,7 @@ int
 ble_hw_get_public_addr(ble_addr_t *addr)
 {
     int rc;
+    int type = 1;
     uint32_t addr_high;
     uint32_t addr_low;
 
@@ -77,19 +78,34 @@ ble_hw_get_public_addr(ble_addr_t *addr)
         addr_high = NRF_FICR->DEVICEADDR[1];
         rc = 0;
     } else {
-        /* See if programmed in UICR. Upper 16 bits must all be zero */
+        /* See if programmed in UICR. Upper 16 bits must all be zero or one's
+         * If they are all zero then we handle the address's normally, if they
+         * are all one's then it indicates the value is stored in big endian
+         * format and we need to convert them to form a proper address.
+         */
         addr_high = NRF_UICR->CUSTOMER[1];
-        if (addr_high < 65536) {
+        type = ((((addr_high >> 16) & 0xffff) + 1) & 0xffff);
+        if (type == 1) {
             addr_low = NRF_UICR->CUSTOMER[0];
+            rc = 0;
+        } else if ( type == 0) {
+            addr_low = be32toh(addr_high & 0x0000ffff) >> 16;
+            addr_high = be32toh(NRF_UICR->CUSTOMER[0]);
             rc = 0;
         }
     }
 
     if (!rc) {
         /* Copy into device address. We can do this because we know platform */
-        memcpy(addr->val, &addr_low, 4);
-        memcpy(&addr->val[4], &addr_high, 2);
-        addr->type = BLE_ADDR_PUBLIC;
+        if (type == 1) {
+		memcpy(addr->val, &addr_low, 4);
+		memcpy(&addr->val[4], &addr_high, 2);
+		addr->type = BLE_ADDR_PUBLIC;
+	} else {
+		memcpy(addr->val, &addr_low, 2);
+		memcpy(&addr->val[2], &addr_high, 4);
+		addr->type = BLE_ADDR_PUBLIC;
+        }
     }
 
     return rc;
