@@ -24,6 +24,7 @@ pkg.keywords:
 
 pkg.deps:
     - "@apache-mynewt-core/sys/console/stub"
+    - "@apache-mynewt-core/sys/log/stub"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/kernel/os"
     - nimble/controller
