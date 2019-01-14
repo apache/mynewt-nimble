@@ -60,33 +60,17 @@ uint8_t g_nrf_num_irks;
 int
 ble_hw_get_public_addr(ble_addr_t *addr)
 {
-    int rc;
-    uint32_t addr_high;
-    uint32_t addr_low;
-
     /* Does FICR have a public address */
-    rc = -1;
-    if ((NRF_FICR->DEVICEADDRTYPE & 1) == 0) {
-        addr_low = NRF_FICR->DEVICEADDR[0];
-        addr_high = NRF_FICR->DEVICEADDR[1];
-        rc = 0;
-    } else {
-        /* See if programmed in UICR. Upper 16 bits must all be zero */
-        addr_high = NRF_UICR->CUSTOMER[1];
-        if (addr_high < 65536) {
-            addr_low = NRF_UICR->CUSTOMER[0];
-            rc = 0;
-        }
+    if ((NRF_FICR->DEVICEADDRTYPE & 1) != 0) {
+        return -1;
     }
 
-    if (!rc) {
-        /* Copy into device address. We can do this because we know platform */
-        memcpy(addr->val, &addr_low, 4);
-        memcpy(&addr->val[4], &addr_high, 2);
-        addr->type = BLE_ADDR_PUBLIC;
-    }
+    /* Copy into device address. We can do this because we know platform */
+    memcpy(addr->val, &NRF_FICR->DEVICEADDR[0], 4);
+    memcpy(&addr->val[4], &NRF_FICR->DEVICEADDR[1], 2);
+    addr->type = BLE_ADDR_PUBLIC;
 
-    return rc;
+    return 0;
 }
 
 /* Returns random static address or -1 if not present */
