@@ -81,6 +81,7 @@ void ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
                                  uint8_t *addr);
 
 void ble_ll_resolv_set_peer_rpa(int index, uint8_t *rpa);
+void ble_ll_resolv_set_local_rpa(int index, uint8_t *rpa);
 
 /* Generate a resolvable private address. */
 int ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa,
