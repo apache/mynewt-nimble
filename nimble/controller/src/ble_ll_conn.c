@@ -2952,6 +2952,8 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
     uint8_t addr_type;
     uint8_t *addr;
     uint8_t *adv_addr;
+    uint8_t *inita;
+    uint8_t inita_type;
     struct ble_ll_conn_sm *connsm;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3008,7 +3010,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 
         if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr,
                                         &adv_addr, &addr_type,
-                                        NULL, NULL, &ext_adv_mode)) {
+                                        &inita, &inita_type, &ext_adv_mode)) {
             /* Something got wrong, keep trying to connect */
             goto scan_continue;
         }
@@ -3042,6 +3044,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
             /* Update resolving list with current peer RPA */
             ble_ll_resolv_set_peer_rpa(connsm->rpa_index, rxbuf + BLE_LL_PDU_HDR_LEN);
+            if (ble_ll_is_rpa(inita, inita_type)) {
+                ble_ll_resolv_set_local_rpa(connsm->rpa_index, inita);
+            }
+
 #endif
         }
 
