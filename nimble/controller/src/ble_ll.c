@@ -458,6 +458,14 @@ ble_ll_is_valid_random_addr(uint8_t *addr)
     return rc;
 }
 
+int
+ble_ll_set_public_addr(const uint8_t *addr)
+{
+    memcpy(g_dev_addr, addr, BLE_DEV_ADDR_LEN);
+
+    return BLE_ERR_SUCCESS;
+}
+
 /**
  * Called from the HCI command parser when the set random address command
  * is received.
@@ -1412,6 +1420,12 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
     return max(27, octets);
 }
 
+static inline bool
+ble_ll_is_addr_empty(const uint8_t *addr)
+{
+    return memcmp(addr, BLE_ADDR_ANY, BLE_DEV_ADDR_LEN) == 0;
+}
+
 /**
  * Initialize the Link Layer. Should be called only once
  *
@@ -1434,16 +1448,17 @@ ble_ll_init(void)
     ble_ll_trace_init();
     ble_phy_trace_init();
 
-    /* Retrieve the public device address if not set by syscfg */
-    memcpy(&addr.val[0], MYNEWT_VAL_BLE_PUBLIC_DEV_ADDR, BLE_DEV_ADDR_LEN);
-    if (!memcmp(&addr.val[0], ((ble_addr_t *)BLE_ADDR_ANY)->val,
-                BLE_DEV_ADDR_LEN)) {
-        rc = ble_hw_get_public_addr(&addr);
-        if (!rc) {
-            memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
+    /* Set public device address if not already set */
+    if (ble_ll_is_addr_empty(g_dev_addr)) {
+        /* Use sycfg address if configured, otherwise try to read from HW */
+        if (!ble_ll_is_addr_empty(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
+            memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
+        } else {
+            rc = ble_hw_get_public_addr(&addr);
+            if (!rc) {
+                memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
+            }
         }
-    } else {
-        memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
     }
 
 #ifdef BLE_XCVR_RFCLK

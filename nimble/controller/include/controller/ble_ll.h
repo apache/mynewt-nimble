@@ -483,6 +483,15 @@ void ble_ll_event_send(struct ble_npl_event *ev);
 /* Hand received pdu's to LL task  */
 void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);
 
+/*
+ * Set public address
+ *
+ * This can be used to set controller public address from vendor specific storage,
+ * usually should be done in hal_bsp_init().
+ * Shall be *only* called before LL is initialized, i.e. before sysinit stage.
+ */
+int ble_ll_set_public_addr(const uint8_t *addr);
+
 /* Set random address */
 int ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext);
 
