@@ -237,7 +237,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
  * succeed, feature bit will be cleared.
  * Look at LL Features above to find out what is allowed
  */
-#define BLE_LL_CONN_INITIAL_FEATURES    (0x00000002)
+#define BLE_LL_CONN_INITIAL_FEATURES    (0x00000022)
 
 #define BLE_LL_CONN_CLEAR_FEATURE(connsm, feature)   (connsm->conn_features &= ~(feature))
 
