@@ -446,11 +446,15 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
     ble_l2cap_coc_continue_tx(chan);
 }
 
-void
+int
 ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 {
     struct ble_hs_conn *conn;
     struct ble_l2cap_chan *c;
+
+    if (!sdu_rx) {
+        return BLE_HS_EINVAL;
+    }
 
     chan->coc_rx.sdu = sdu_rx;
 
@@ -459,7 +463,7 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     c = ble_hs_conn_chan_find_by_scid(conn, chan->scid);
     if (!c) {
         ble_hs_unlock();
-        return;
+        return BLE_HS_ENOENT;
     }
 
     /* We want to back only that much credits which remote side is missing
@@ -474,6 +478,8 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     }
 
     ble_hs_unlock();
+
+    return 0;
 }
 
 /**

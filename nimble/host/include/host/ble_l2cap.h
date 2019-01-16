@@ -187,7 +187,7 @@ int ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                       ble_l2cap_event_fn *cb, void *cb_arg);
 int ble_l2cap_disconnect(struct ble_l2cap_chan *chan);
 int ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
-void ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx);
+int ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx);
 int ble_l2cap_get_scid(struct ble_l2cap_chan *chan);
 int ble_l2cap_get_dcid(struct ble_l2cap_chan *chan);
 int ble_l2cap_get_our_mtu(struct ble_l2cap_chan *chan);
