@@ -1937,7 +1937,9 @@ btshell_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
     sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
     assert(sdu != NULL);
 
-    ble_l2cap_recv_ready(chan, sdu);
+    if (ble_l2cap_recv_ready(chan, sdu) != 0) {
+        assert(0);
+    }
 }
 
 static int
@@ -1954,9 +1956,7 @@ btshell_l2cap_coc_accept(uint16_t conn_handle, uint16_t peer_mtu,
         return BLE_HS_ENOMEM;
     }
 
-    ble_l2cap_recv_ready(chan, sdu_rx);
-
-    return 0;
+    return ble_l2cap_recv_ready(chan, sdu_rx);
 }
 
 static int
