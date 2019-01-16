@@ -170,10 +170,10 @@ ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
     return ble_l2cap_coc_send(chan, sdu);
 }
 
-void
+int
 ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 {
-    ble_l2cap_coc_recv_ready(chan, sdu_rx);
+    return ble_l2cap_coc_recv_ready(chan, sdu_rx);
 }
 
 void
