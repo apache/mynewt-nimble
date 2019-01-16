@@ -118,9 +118,6 @@ int ble_phy_rx(void);
 /* Copies the received PHY buffer into the allocated pdu */
 void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);
 
-/* Get an RSSI reading */
-int ble_phy_rssi_get(void);
-
 /* Set the transmit power */
 int ble_phy_txpwr_set(int dbm);
 
