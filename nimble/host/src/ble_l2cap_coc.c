@@ -152,7 +152,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         return rc;
     }
 
-    /* Fist LE frame */
+    /* First LE frame */
     if (OS_MBUF_PKTLEN(rx->sdu) == 0) {
         uint16_t sdu_len;
 
