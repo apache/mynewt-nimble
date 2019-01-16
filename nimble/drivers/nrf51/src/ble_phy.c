@@ -84,6 +84,7 @@ struct ble_phy_obj
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
     uint8_t *rxdptr;
+    int8_t  rx_pwr_compensation;
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     struct ble_mbuf_hdr rxhdr;
@@ -593,7 +594,8 @@ ble_phy_rx_end_isr(void)
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
-    ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
+    ble_hdr->rxinfo.rssi = (-1 * NRF_RADIO->RSSISAMPLE) +
+                            g_ble_phy_data.rx_pwr_compensation;
 
     dptr = g_ble_phy_data.rxdptr;
 
@@ -831,6 +833,8 @@ ble_phy_init(void)
 
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
+
+    g_ble_phy_data.rx_pwr_compensation = 0;
 
     /* Toggle peripheral power to reset (just in case) */
     NRF_RADIO->POWER = 0;
@@ -1285,6 +1289,12 @@ int
 ble_phy_txpwr_get(void)
 {
     return g_ble_phy_data.phy_txpwr_dbm;
+}
+
+void
+ble_phy_set_rx_pwr_compensation(int8_t compensation)
+{
+    g_ble_phy_data.rx_pwr_compensation = compensation;
 }
 
 /**

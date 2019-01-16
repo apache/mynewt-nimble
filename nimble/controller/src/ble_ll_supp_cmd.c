@@ -328,7 +328,7 @@
 #define BLE_SUPP_CMD_LE_REMOVE_PADV_LIST    (0 << 4)
 #define BLE_SUPP_CMD_LE_CLEAR_PADV_LIST     (0 << 5)
 #define BLE_SUPP_CMD_LE_RD_PADV_LIST_SIZE   (0 << 6)
-#define BLE_SUPP_CMD_LE_RD_TX_POWER         (0 << 7)
+#define BLE_SUPP_CMD_LE_RD_TX_POWER         (1 << 7)
 
 #define BLE_LL_SUPP_CMD_OCTET_38            \
 (                                           \
@@ -343,8 +343,8 @@
 )
 
 /* Octet 39 */
-#define BLE_SUPP_CMD_LE_RD_RF_PATH_COMP     (0 << 0)
-#define BLE_SUPP_CMD_LE_WR_RF_PATH_COMP     (0 << 1)
+#define BLE_SUPP_CMD_LE_RD_RF_PATH_COMP     (1 << 0)
+#define BLE_SUPP_CMD_LE_WR_RF_PATH_COMP     (1 << 1)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
 #define BLE_SUPP_CMD_LE_SET_PRIVACY_MODE    (1 << 2)
 #else

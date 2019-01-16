@@ -127,6 +127,9 @@ int ble_phy_txpower_round(int dbm);
 /* Get the transmit power */
 int ble_phy_txpwr_get(void);
 
+/* Set RX path power compensation value rounded to integer dB */
+void ble_phy_set_rx_pwr_compensation(int8_t compensation);
+
 /* Disable the PHY */
 void ble_phy_disable(void);
 

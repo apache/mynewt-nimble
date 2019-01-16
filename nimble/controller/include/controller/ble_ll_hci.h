@@ -60,6 +60,9 @@ int ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy);
 /* Returns true if Extended Advertising HCI commands are in use */
 bool ble_ll_hci_adv_mode_ext(void);
 
+/* Get TX power compensation rounded to integer dB */
+int8_t ble_ll_get_tx_pwr_compensation(void);
+
 #ifdef __cplusplus
 }
 #endif
