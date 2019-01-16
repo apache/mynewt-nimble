@@ -1359,6 +1359,12 @@ ble_ll_ctrl_rx_pause_enc_rsp(struct ble_ll_conn_sm *connsm)
 
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         rc = BLE_LL_CTRL_PAUSE_ENC_RSP;
+    } else if (connsm->enc_data.enc_state == CONN_ENC_S_PAUSE_ENC_RSP_WAIT) {
+        /* Master sends back unencrypted LL_PAUSE_ENC_RSP.
+         * From this moment encryption is paused.
+         */
+        rc = BLE_ERR_MAX;
+        connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
     } else {
         rc = BLE_LL_CTRL_UNKNOWN_RSP;
     }

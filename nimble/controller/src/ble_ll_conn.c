@@ -3989,12 +3989,6 @@ chk_rx_terminate_ind:
         } else {
             /* A slave always replies */
             reply = 1;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-            if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_REQ)
-                        && (rx_pyld_len == (1 + BLE_LL_CTRL_PAUSE_ENC_REQ_LEN))) {
-                connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
-            }
-#endif
         }
     }
 
