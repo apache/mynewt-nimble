@@ -201,9 +201,8 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     rc = 0;
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         if (ble_ll_sched_is_overlap(sch, entry)) {
-            if (entry->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
-                /* Do nothing, we start_mark overlap below */
-            } else if (!ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
+           if (entry->sched_type == BLE_LL_SCHED_TYPE_CONN &&
+                            !ble_ll_conn_is_lru((struct ble_ll_conn_sm *)sch->cb_arg,
                                     (struct ble_ll_conn_sm *)entry->cb_arg)) {
                 /* Only insert if this element is older than all that we
                  * overlap
