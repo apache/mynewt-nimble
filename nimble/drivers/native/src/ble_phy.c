@@ -33,6 +33,7 @@ struct ble_phy_obj
 {
     uint8_t phy_stats_initialized;
     int8_t  phy_txpwr_dbm;
+    int16_t rx_pwr_compensation;
     uint8_t phy_chan;
     uint8_t phy_state;
     uint8_t phy_transition;
@@ -275,7 +276,8 @@ ble_phy_isr(void)
         /* Construct BLE header before handing up */
         ble_hdr = &g_ble_phy_data.rxhdr;
         ble_hdr->rxinfo.flags = 0;
-        ble_hdr->rxinfo.rssi = -77;    /* XXX: dummy rssi */
+        /* XXX: dummy rssi */
+        ble_hdr->rxinfo.rssi = -77 + g_ble_phy_data.rx_pwr_compensation;
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
         ble_hdr->rxinfo.phy = BLE_PHY_1M;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -311,6 +313,8 @@ ble_phy_init(void)
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
+
+    g_ble_phy_data.rx_pwr_compensation = 0;
 
     /* XXX: emulate ISR? */
 
@@ -513,6 +517,12 @@ int
 ble_phy_txpwr_get(void)
 {
     return g_ble_phy_data.phy_txpwr_dbm;
+}
+
+void
+ble_phy_set_rx_pwr_compensation(int8_t compensation)
+{
+    g_ble_phy_data.rx_pwr_compensation = compensation;
 }
 
 /**

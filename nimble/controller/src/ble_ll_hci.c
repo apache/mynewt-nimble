@@ -48,6 +48,9 @@ static uint8_t g_ble_ll_hci_le_event_mask[BLE_HCI_SET_LE_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask[BLE_HCI_SET_EVENT_MASK_LEN];
 static uint8_t g_ble_ll_hci_event_mask2[BLE_HCI_SET_EVENT_MASK_LEN];
 
+static int16_t rx_path_pwr_compensation;
+static int16_t tx_path_pwr_compensation;
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static enum {
     ADV_MODE_ANY,
@@ -717,6 +720,62 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
 }
 #endif
 
+static int
+ble_ll_read_tx_power(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    int8_t min;
+    int8_t max;
+
+    min = ble_phy_txpower_round(-127);
+    max = ble_phy_txpower_round(126);
+
+    rspbuf[0] = min;
+    rspbuf[1] = max;
+
+    *rsplen = 2;
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_read_rf_path_compensation(uint8_t *rspbuf, uint8_t *rsplen)
+{
+    put_le16(rspbuf, tx_path_pwr_compensation);
+    *rsplen = sizeof(int16_t);
+
+    put_le16(rspbuf + 2, rx_path_pwr_compensation);
+    *rsplen += sizeof(int16_t);
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_write_rf_path_compensation(const uint8_t *cmdbuf)
+{
+    int16_t rx;
+    int16_t tx;
+
+    tx = get_le16(cmdbuf);
+    rx = get_le16(cmdbuf + 2);
+
+    if ((tx < -1280) || (tx > 1280) || (rx < -1280) || (rx > 1280)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    tx_path_pwr_compensation = tx;
+    rx_path_pwr_compensation = rx;
+
+    ble_phy_set_rx_pwr_compensation(rx_path_pwr_compensation / 10);
+
+    return BLE_ERR_SUCCESS;
+}
+
+int8_t
+ble_ll_get_tx_pwr_compensation(void)
+{
+    return tx_path_pwr_compensation / 10;
+}
+
 /**
  * Process a LE command sent from the host to the controller. The HCI command
  * has a 3 byte command header followed by data. The header is:
@@ -1089,6 +1148,17 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         rc = ble_ll_ext_conn_create(cmdbuf, len);
         break;
 #endif
+    case BLE_HCI_OCF_LE_RD_TRANSMIT_POWER:
+        rc = ble_ll_read_tx_power(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_RD_RF_PATH_COMPENSATION:
+        rc = ble_ll_read_rf_path_compensation(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_WR_RF_PATH_COMPENSATION:
+        if (len == BLE_HCI_LE_WR_RF_PATH_COMPENSATION_LEN) {
+            rc = ble_ll_write_rf_path_compensation(cmdbuf);
+        }
+        break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
     case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
         if (len == BLE_HCI_LE_SET_PRIVACY_MODE_LEN) {
@@ -1464,6 +1534,10 @@ ble_ll_hci_init(void)
 
     /* Set page 2 to 0 */
     memset(g_ble_ll_hci_event_mask2, 0, BLE_HCI_SET_EVENT_MASK_LEN);
+
+    /* reset RF path compensation values */
+    rx_path_pwr_compensation = 0;
+    tx_path_pwr_compensation = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* after reset both legacy and extended advertising commands are allowed */

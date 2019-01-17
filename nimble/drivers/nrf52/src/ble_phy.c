@@ -81,10 +81,6 @@ extern uint32_t g_nrf_irk_list[];
 #define NRF_MAXLEN              (255)
 #define NRF_BALEN               (3)     /* For base address of 3 bytes */
 
-/* Maximum tx power */
-#define NRF_TX_PWR_MAX_DBM      (4)
-#define NRF_TX_PWR_MIN_DBM      (-40)
-
 /* NRF_RADIO->PCNF0 configuration values */
 #define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
                                 (RADIO_PCNF0_S1INCL_Msk) | \
@@ -115,6 +111,7 @@ struct ble_phy_obj
     uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
     uint8_t phy_bcc_offset;
+    int8_t  rx_pwr_compensation;
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     struct ble_mbuf_hdr rxhdr;
@@ -961,7 +958,8 @@ ble_phy_rx_end_isr(void)
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
-    ble_hdr->rxinfo.rssi = -1 * NRF_RADIO->RSSISAMPLE;
+    ble_hdr->rxinfo.rssi = (-1 * NRF_RADIO->RSSISAMPLE) +
+                           g_ble_phy_data.rx_pwr_compensation;
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
     dptr += 3;
@@ -1350,6 +1348,8 @@ ble_phy_init(void)
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
     g_ble_phy_data.phy_txtorx_phy_mode = BLE_PHY_MODE_1M;
+
+    g_ble_phy_data.rx_pwr_compensation = 0;
 
 #if !defined(BLE_XCVR_RFCLK)
     /* BLE wants the HFXO on all the time in this case */
@@ -1771,17 +1771,8 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 int
 ble_phy_txpwr_set(int dbm)
 {
-    /* Check valid range */
-    assert(dbm <= BLE_PHY_MAX_PWR_DBM);
-
     /* "Rail" power level if outside supported range */
-    if (dbm > NRF_TX_PWR_MAX_DBM) {
-        dbm = NRF_TX_PWR_MAX_DBM;
-    } else {
-        if (dbm < NRF_TX_PWR_MIN_DBM) {
-            dbm = NRF_TX_PWR_MIN_DBM;
-        }
-    }
+    dbm = ble_phy_txpower_round(dbm);
 
     NRF_RADIO->TXPOWER = dbm;
     g_ble_phy_data.phy_txpwr_dbm = dbm;
@@ -1800,16 +1791,38 @@ ble_phy_txpwr_set(int dbm)
  */
 int ble_phy_txpower_round(int dbm)
 {
+    /* TODO this should be per nRF52XXX */
+
     /* "Rail" power level if outside supported range */
-    if (dbm > NRF_TX_PWR_MAX_DBM) {
-        dbm = NRF_TX_PWR_MAX_DBM;
-    } else {
-        if (dbm < NRF_TX_PWR_MIN_DBM) {
-            dbm = NRF_TX_PWR_MIN_DBM;
-        }
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm;
     }
 
-    return dbm;
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_0dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_0dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm;
+    }
+
+    return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
 }
 
 /**
@@ -1847,6 +1860,12 @@ int
 ble_phy_txpwr_get(void)
 {
     return g_ble_phy_data.phy_txpwr_dbm;
+}
+
+void
+ble_phy_set_rx_pwr_compensation(int8_t compensation)
+{
+    g_ble_phy_data.rx_pwr_compensation = compensation;
 }
 
 /**
