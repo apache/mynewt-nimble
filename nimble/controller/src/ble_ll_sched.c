@@ -1287,7 +1287,7 @@ ble_ll_sched_rfclk_chk_restart(void)
 {
     os_sr_t sr;
     uint8_t ll_state;
-    int32_t time_till_next;
+    uint32_t time_till_next;
     uint32_t next_time;
 
     OS_ENTER_CRITICAL(sr);
@@ -1297,7 +1297,7 @@ ble_ll_sched_rfclk_chk_restart(void)
          * If the time until the next event is too close, no need to start
          * the timer. Leave clock on.
          */
-        time_till_next = (int32_t)(next_time - os_cputime_get32());
+        time_till_next = next_time - os_cputime_get32();
         if (time_till_next > g_ble_ll_data.ll_xtal_ticks) {
             /* Restart the rfclk timer based on the next scheduled time */
             ble_ll_xcvr_rfclk_timer_start(next_time);
