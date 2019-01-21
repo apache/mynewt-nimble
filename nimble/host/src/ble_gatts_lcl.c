@@ -24,6 +24,8 @@
 #include "nimble/ble.h"
 #include "ble_hs_priv.h"
 
+static const ble_uuid_t *uuid_ccc =
+        BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
 
 static const char * const ble_gatt_chr_f_names[] = {
     "BROADCAST",
@@ -115,6 +117,24 @@ ble_gatt_show_local_chr(const struct ble_gatt_svc_def *svc,
                        ble_gatts_flags_to_str(chr->flags,
                        flags_buf, ble_gatt_chr_f_names));
         handle += 2;
+
+        if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
+            (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
+            console_printf("ccc descriptor\n");
+            console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                           "%s\n", " ", "uuid",
+                           ble_uuid_to_str(uuid_ccc, uuid_buf));
+            console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                           "%d\n", " ", "handle", handle);
+            console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                           "%d\n", " ", "min_key_size", 0);
+            console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                           "%s\n", " ", "flags",
+                           ble_gatts_flags_to_str(BLE_ATT_F_READ | BLE_ATT_F_WRITE,
+                                                  flags_buf, ble_gatt_dsc_f_names));
+            handle++;
+        }
+
         for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
             console_printf("descriptor\n");
             console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
