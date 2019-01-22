@@ -941,7 +941,7 @@ struct hci_ext_adv_report_param {
     uint8_t prim_phy;
     uint8_t sec_phy;
     uint8_t sid;
-    uint8_t tx_power;
+    int8_t tx_power;
     int8_t rssi;
     uint16_t per_adv_itvl;
     uint8_t dir_addr_type;
