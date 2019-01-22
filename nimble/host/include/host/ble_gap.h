@@ -277,7 +277,7 @@ struct ble_gap_ext_disc_desc {
     uint8_t legacy_event_type;
     ble_addr_t addr;
     int8_t rssi;
-    uint8_t tx_power;
+    int8_t tx_power;
     uint8_t sid;
     uint8_t prim_phy;
     uint8_t sec_phy;
