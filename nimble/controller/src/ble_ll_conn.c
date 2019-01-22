@@ -511,6 +511,7 @@ ble_ll_conn_calc_access_addr(void)
     uint8_t consecutive;
     uint8_t transitions;
     uint8_t ones;
+    int tmp;
 
     /* Calculate a random access address */
     aa = 0;
@@ -525,8 +526,8 @@ ble_ll_conn_calc_access_addr(void)
         }
 
         /* Upper 6 bits must have 2 transitions */
-        temp = aa_high & 0xFC00;
-        if ((temp == 0) || (temp == 0xFC00)) {
+        tmp = (int16_t)aa_high >> 10;
+        if (__builtin_popcount(tmp ^ (tmp >> 1)) < 2) {
             continue;
         }
 
