@@ -691,6 +691,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     chan->coc_tx.credits = le16toh(req->credits);
     chan->coc_tx.mtu = le16toh(req->mtu);
 
+    ble_hs_conn_chan_insert(conn, chan);
     ble_hs_unlock();
 
     rc = ble_l2cap_event_coc_accept(chan, le16toh(req->mtu));
@@ -700,7 +701,9 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         /* Make sure we do not send disconnect event when removing channel */
         chan->cb = NULL;
 
-        ble_l2cap_chan_free(chan);
+        ble_hs_lock();
+        ble_hs_conn_delete_chan(conn, chan);
+        ble_hs_unlock();
         rsp->result = htole16(coc_err);
         goto failed;
     }
@@ -712,13 +715,11 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     rsp->result = htole16(BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS);
 
     rc = ble_l2cap_sig_tx(conn_handle, txom);
-    if (rc == 0) {
-        /* Response sent out with a success. We are connected now*/
+    if (rc != 0) {
         ble_hs_lock();
-        ble_hs_conn_chan_insert(conn, chan);
+        ble_hs_conn_delete_chan(conn, chan);
         ble_hs_unlock();
-    } else {
-        ble_l2cap_chan_free(chan);
+        return 0;
     }
 
     /* Notify user about connection status */
