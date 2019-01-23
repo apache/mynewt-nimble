@@ -856,6 +856,11 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_adv_active_chanset_set_pri(advsm);
 
+    if ((advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA) ||
+        (advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA)) {
+        goto adv_tx_done;
+    }
+
     /* Set the power */
     ble_phy_txpwr_set(advsm->adv_txpwr);
 
