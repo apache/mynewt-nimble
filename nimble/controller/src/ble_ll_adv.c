@@ -1549,6 +1549,26 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
+{
+    uint16_t old_adi = advsm->adi;
+
+    /*
+     * The Advertising DID for a given advertising set shall be initialized
+     * with a randomly chosen value. Whenever the Host provides new advertising
+     * data or scan response data for a given advertising set (whether it is the
+     * same as the previous data or not), the Advertising DID shall be updated.
+     * The new value shall be a randomly chosen value that is not the same as
+     * the previously used value.
+     */
+    do {
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+    } while (old_adi == advsm->adi);
+}
+#endif
+
 static void
 ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 {
@@ -1579,7 +1599,7 @@ ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new advertising data */
-    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+    ble_ll_adv_update_did(advsm);
 #endif
 }
 
@@ -2095,7 +2115,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* DID shall be updated when host provides new scan response data */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
 #endif
     }
 
@@ -2168,7 +2188,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         }
 
         /* update DID only */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
         advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
@@ -2237,7 +2257,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* DID shall be updated when host provides new advertising data */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
 #endif
         }
 
