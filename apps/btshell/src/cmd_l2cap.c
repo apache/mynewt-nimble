@@ -130,9 +130,11 @@ cmd_l2cap_create_server(int argc, char **argv)
 
     rc = btshell_l2cap_create_srv(psm, accept_response);
     if (rc) {
-        console_printf("Server create error: 0x%02x", rc);
+        console_printf("Server create error: 0x%02x\n", rc);
+        return rc;
     }
 
+    console_printf("Server created successfully\n");
     return 0;
 }
 
