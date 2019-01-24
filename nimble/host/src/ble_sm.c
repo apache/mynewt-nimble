@@ -1306,6 +1306,7 @@ ble_sm_ltk_restore_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             proc->conn_handle, value_sec->ltk);
 
         if (res->app_status == 0) {
+            proc->key_size = value_sec->key_size;
             if (value_sec->authenticated) {
                 proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
             }
