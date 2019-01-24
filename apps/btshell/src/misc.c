@@ -113,10 +113,11 @@ print_conn_desc(const struct ble_gap_conn_desc *desc)
     console_printf(" peer_id_addr_type=%d peer_id_addr=",
                    desc->peer_id_addr.type);
     print_addr(desc->peer_id_addr.val);
-    console_printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d "
-                   "encrypted=%d authenticated=%d bonded=%d\n",
+    console_printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d"
+                   " key_size=%d encrypted=%d authenticated=%d bonded=%d\n",
                    desc->conn_itvl, desc->conn_latency,
                    desc->supervision_timeout,
+                   desc->sec_state.key_size,
                    desc->sec_state.encrypted,
                    desc->sec_state.authenticated,
                    desc->sec_state.bonded);
