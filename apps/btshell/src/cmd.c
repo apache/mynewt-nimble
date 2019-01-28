@@ -2953,9 +2953,9 @@ static int
 cmd_test_tx(int argc, char **argv)
 {
     int rc;
-    uint16_t rate;
+    uint16_t conn;
     uint16_t len;
-    uint16_t handle;
+    uint16_t rate;
     uint16_t num;
 
     rc = parse_arg_all(argc - 1, argv + 1);
@@ -2963,9 +2963,9 @@ cmd_test_tx(int argc, char **argv)
         return rc;
     }
 
-    rate = parse_arg_uint16("rate", &rc);
+    conn = parse_arg_uint16("conn", &rc);
     if (rc != 0) {
-        console_printf("invalid 'rate' parameter\n");
+        console_printf("invalid 'conn' parameter\n");
         return rc;
     }
 
@@ -2978,28 +2978,28 @@ cmd_test_tx(int argc, char **argv)
         console_printf("error: len must be between 4 and 251, inclusive");
     }
 
-    num = parse_arg_uint16("num", &rc);
+    rate = parse_arg_uint16_dflt("rate", 1, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'rate' parameter\n");
+        return rc;
+    }
+
+    num = parse_arg_uint16_dflt("num", 1, &rc);
     if (rc != 0) {
         console_printf("invalid 'num' parameter\n");
         return rc;
     }
 
-    handle = parse_arg_uint16("handle", &rc);
-    if (rc != 0) {
-        console_printf("invalid 'handle' parameter\n");
-        return rc;
-    }
-
-    rc = btshell_tx_start(handle, len, rate, num);
+    rc = btshell_tx_start(conn, len, rate, num);
     return rc;
 }
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param test_tx_params[] = {
-    {"num", "number of packets, usage: =<UINT16>"},
+    {"conn", "handle to tx to, usage: =<UINT16>"},
     {"length", "size of packet, usage: =<UINT16>"},
-    {"rate", "rate of tx, usage: =<UINT16>"},
-    {"handle", "handle to tx to, usage: =<UINT16>"},
+    {"rate", "rate of tx, usage: =<UINT16>, default=1"},
+    {"num", "number of packets, usage: =<UINT16>, default=1"},
     {NULL, NULL}
 };
 
