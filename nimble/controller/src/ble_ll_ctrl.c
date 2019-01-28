@@ -1739,6 +1739,35 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 }
 
 /**
+ * Called when we receive a feature response
+ *
+ * @param connsm
+ * @param dptr
+ * @param new_features
+ *
+ */
+static void
+ble_ll_ctrl_rx_feature_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *new_features)
+{
+    connsm->conn_features = dptr[0];
+    memcpy(connsm->remote_features, dptr + 1, 7);
+    /* If this is the first time we received remote features, try to start DLE */
+    if (!connsm->csmflags.cfbit.rxd_features) {
+        *new_features = 1;
+        connsm->csmflags.cfbit.rxd_features = 1;
+    }
+    /* Stop the control procedure */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+    }
+    /* Send event to host if pending features read */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
+}
+
+/**
  *
  *
  * Context: Link Layer task
@@ -2368,22 +2397,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
-        connsm->conn_features = dptr[0];
-        memcpy(connsm->remote_features, dptr + 1, 7);
-        /* If this is the first time we received remote features, try to start DLE */
-        if (!connsm->csmflags.cfbit.rxd_features) {
-            ble_ll_ctrl_initiate_dle(connsm);
-            connsm->csmflags.cfbit.rxd_features = 1;
-        }
-        /* Stop the control procedure */
-        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
-            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
-        }
-        /* Send event to host if pending features read */
-        if (connsm->csmflags.cfbit.pending_hci_rd_features) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
-        }
+        ble_ll_ctrl_rx_feature_rsp(connsm, dptr, &new_features);
         break;
     case BLE_LL_CTRL_VERSION_IND:
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspdata);
