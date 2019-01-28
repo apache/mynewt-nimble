@@ -1685,12 +1685,13 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
  * @param dptr
  * @param rspbuf
  * @param opcode
+ * @param new_features
  *
  * @return int
  */
 static int
 ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
-                           uint8_t *rspbuf, uint8_t opcode)
+                           uint8_t *rspbuf, uint8_t opcode, uint8_t *new_features)
 {
     uint8_t rsp_opcode;
     uint32_t our_feat;
@@ -1730,7 +1731,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* If this is the first time we received remote features, try to start DLE */
     if (!connsm->csmflags.cfbit.rxd_features) {
-        ble_ll_ctrl_initiate_dle(connsm);
+        *new_features = 1;
         connsm->csmflags.cfbit.rxd_features = 1;
     }
 
@@ -2208,6 +2209,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     int restart_encryption;
 #endif
+    uint8_t new_features = 0;
     int rc = 0;
 
     /* XXX: where do we validate length received and packet header length?
@@ -2362,7 +2364,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_proc_unk_rsp(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
@@ -2387,7 +2389,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     case BLE_LL_CTRL_ENC_REQ:
@@ -2469,6 +2471,11 @@ ll_ctrl_send_rsp:
         }
 #endif
     }
+
+    if (new_features) {
+        ble_ll_ctrl_initiate_dle(connsm);
+    }
+
     return rc;
 }
 
