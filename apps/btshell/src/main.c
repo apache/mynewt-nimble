@@ -111,7 +111,7 @@ struct btshell_tx_data_s
 {
     uint16_t tx_num;
     uint16_t tx_rate;
-    uint16_t tx_handle;
+    uint16_t tx_conn_handle;
     uint16_t tx_len;
     struct ble_hs_conn *conn;
 };
@@ -1809,7 +1809,7 @@ btshell_sec_restart(uint16_t conn_handle,
  * @return int
  */
 int
-btshell_tx_start(uint16_t handle, uint16_t len, uint16_t rate, uint16_t num)
+btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num)
 {
     /* Cannot be currently in a session */
     if (num == 0) {
@@ -1829,14 +1829,15 @@ btshell_tx_start(uint16_t handle, uint16_t len, uint16_t rate, uint16_t num)
     btshell_tx_data.tx_num = num;
     btshell_tx_data.tx_rate = rate;
     btshell_tx_data.tx_len = len;
-    btshell_tx_data.tx_handle = handle;
+    btshell_tx_data.tx_conn_handle = conn_handle;
 
     ble_hs_lock();
-    btshell_tx_data.conn = ble_hs_conn_find(handle);
+    btshell_tx_data.conn = ble_hs_conn_find(conn_handle);
     ble_hs_unlock();
 
     if (!btshell_tx_data.conn) {
-        console_printf("Could not find ble_hs_conn for handle: %d\n", handle);
+        console_printf("Could not find ble_hs_conn for handle: %d\n",
+                       conn_handle);
         return -1;
     }
 
