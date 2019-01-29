@@ -1608,7 +1608,7 @@ ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf)
          * pending bit but do not start the control procedure.
          */
         if (CONN_F_PEER_PHY_UPDATE(connsm)) {
-            connsm->pending_ctrl_procs |= BLE_LL_CTRL_PROC_PHY_UPDATE;
+            connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_PHY_UPDATE);
             CONN_F_HOST_PHY_UPDATE(connsm) = 1;
         } else {
             /* Check if we should start phy update procedure */
