@@ -153,16 +153,24 @@ ble_gatt_show_local_chr(const struct ble_gatt_svc_def *svc,
     }
 }
 
-static void
-ble_gatt_show_local_inc_svc(const struct ble_gatt_svc_def *svc, char *uuid_buf)
+static int
+ble_gatt_show_local_inc_svc(const struct ble_gatt_svc_def *svc,
+                            uint16_t handle, char *uuid_buf)
 {
-    const struct ble_gatt_svc_def *inc_svc;
+    const struct ble_gatt_svc_def **includes;
+    int num = 0;
 
-    console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s ", " ", "includes");
-    for (inc_svc = *svc->includes; inc_svc; ++inc_svc) {
-            console_printf("%s ", ble_uuid_to_str(inc_svc->uuid, uuid_buf));
+    for (includes = &svc->includes[0]; *includes != NULL; ++includes) {
+        console_printf("included service\n");
+        console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                       "%s\n", " ", "uuid",
+                       ble_uuid_to_str((*includes)->uuid, uuid_buf));
+        console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
+                       "%d\n", " ", "attr handle", handle);
+        ++num;
     }
-    console_printf("\n");
+
+    return num;
 }
 
 static void
@@ -185,10 +193,13 @@ ble_gatt_show_local_svc(const struct ble_gatt_svc_def *svc,
     console_printf("%" FIELD_INDENT "s %" FIELD_NAME_LEN "s "
                    "%d\n", " ", "end_handle",
                    end_group_handle);
+    handle++;
+
     if (svc->includes) {
-        ble_gatt_show_local_inc_svc(svc, uuid_buf);
+        handle += ble_gatt_show_local_inc_svc(svc, handle, uuid_buf);
     }
-    ble_gatt_show_local_chr(svc, handle+1,
+
+    ble_gatt_show_local_chr(svc, handle,
                             uuid_buf, flags_buf);
 }
 
