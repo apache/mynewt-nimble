@@ -1160,9 +1160,13 @@ ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm)
         om->om_data[0] = BLE_LL_CTRL_START_ENC_REQ;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, 1);
 
-        /* Wait for LL_START_ENC_RSP */
-        connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_ENCRYPT;
-        ble_ll_ctrl_start_rsp_timer(connsm);
+        /* Wait for LL_START_ENC_RSP. If there is already procedure in progress,
+         * LL response timer is already running.
+         */
+        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
+            connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_ENCRYPT;
+            ble_ll_ctrl_start_rsp_timer(connsm);
+        }
 
         rc = 0;
     } else {
@@ -1391,10 +1395,11 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
         return BLE_ERR_MAX;
     }
 
-    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
-
     /* If master, we are done. Stop control procedure and sent event to host */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
@@ -1404,6 +1409,11 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
     } else {
         /* Procedure has completed but slave needs to send START_ENC_RSP */
         rc = BLE_LL_CTRL_START_ENC_RSP;
+
+        /* Stop timer if it was started when sending START_ENC_REQ */
+        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT) {
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+        }
     }
 
     /*
