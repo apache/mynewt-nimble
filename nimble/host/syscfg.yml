@@ -110,6 +110,14 @@ syscfg.defs:
             Defines maximum number of LE Connection Oriented Channels channels.
             When set to (0), LE COC is not compiled in.
         value: 0
+    BLE_L2CAP_COC_MTU:
+        description: >
+            Defines the MTU size used internally by the L2CAP COC module for
+            transferring data from user provided buffers into NimBLE's internal
+            buffer. The default MTU size is chosen in a way, that the MTU plus
+            the required HCI and L2CAP headers fit into the smallest available
+            MSYS blocks.
+        value: 'MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8'
 
     # Security manager settings.
     BLE_SM_LEGACY:
