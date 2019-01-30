@@ -1293,7 +1293,6 @@ void bt_mesh_proxy_adv_stop(void)
 int
 ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 {
-//    BT_DBG("event %d", event->type);
 
 	if (event->type == BLE_GAP_EVENT_CONNECT) {
 		proxy_connected(event->connect.conn_handle);
