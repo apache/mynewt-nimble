@@ -247,7 +247,7 @@ ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     chan->cb = cb;
     chan->cb_arg = cb_arg;
     chan->scid = ble_l2cap_coc_get_cid();
-    chan->my_mtu = BLE_L2CAP_COC_MTU;
+    chan->my_mtu = MYNEWT_VAL(BLE_L2CAP_COC_MTU);
     chan->rx_fn = ble_l2cap_coc_rx_fn;
     chan->coc_rx.mtu = mtu;
     chan->coc_rx.sdu = sdu_rx;

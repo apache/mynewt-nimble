@@ -30,7 +30,6 @@
 extern "C" {
 #endif
 
-#define BLE_L2CAP_COC_MTU                       100
 #define BLE_L2CAP_COC_CID_START                 0x0040
 #define BLE_L2CAP_COC_CID_END                   0x007F
 
