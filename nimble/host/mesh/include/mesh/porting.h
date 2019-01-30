@@ -10,7 +10,15 @@
 #ifndef __BT_MESH_PORTING_H
 #define __BT_MESH_PORTING_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void mesh_adv_thread(void *args);
+
+#ifdef __cplusplus
+}
+#endif
 
 /**
  * @}

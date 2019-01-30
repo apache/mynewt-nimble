@@ -45,6 +45,10 @@
 #include "config/config.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define u8_t    uint8_t
 #define s8_t    int8_t
 #define u16_t   uint16_t
@@ -455,4 +459,8 @@ settings_load(void)
 
 #define BUILD_ASSERT(cond) _Static_assert(cond, "")
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* _MESH_GLUE_ */
