@@ -3574,6 +3574,13 @@ struct bt_mesh_hb_pub *bt_mesh_hb_pub_get(void)
 	return &conf->hb_pub;
 }
 
+void bt_mesh_hb_pub_disable(void)
+{
+	if (conf) {
+		hb_pub_disable(conf);
+	}
+}
+
 struct bt_mesh_cfg_srv *bt_mesh_cfg_get(void)
 {
 	return conf;
