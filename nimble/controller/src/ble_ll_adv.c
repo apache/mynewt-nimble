@@ -2878,7 +2878,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
          * are doing directed advertising
          */
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-            if (memcmp(advsm->peer_addr, peer, BLE_DEV_ADDR_LEN)) {
+            if (memcmp(advsm->initiator_addr, peer, BLE_DEV_ADDR_LEN)) {
                 return -1;
             }
         }
