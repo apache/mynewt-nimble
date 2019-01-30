@@ -37,19 +37,32 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		      u8_t flags, u32_t iv_index, u16_t addr,
 		      const u8_t dev_key[16])
 {
+	bool pb_gatt_enabled;
 	int err;
 
 	BT_INFO("Primary Element: 0x%04x", addr);
 	BT_DBG("net_idx 0x%04x flags 0x%02x iv_index 0x%04x",
 	       net_idx, flags, (unsigned) iv_index);
 
+	if (atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		return -EALREADY;
+	}
+
 	if ((MYNEWT_VAL(BLE_MESH_PB_GATT))) {
-		bt_mesh_proxy_prov_disable();
+		if (bt_mesh_proxy_prov_disable() == 0) {
+			pb_gatt_enabled = true;
+		} else {
+			pb_gatt_enabled = false;
+		}
+	} else {
+		pb_gatt_enabled = false;
 	}
 
 	err = bt_mesh_net_create(net_idx, flags, net_key, iv_index);
 	if (err) {
-		if ((MYNEWT_VAL(BLE_MESH_PB_GATT))) {
+		atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+
+		if (MYNEWT_VAL(BLE_MESH_PB_GATT)  && pb_gatt_enabled) {
 			bt_mesh_proxy_prov_enable();
 		}
 
