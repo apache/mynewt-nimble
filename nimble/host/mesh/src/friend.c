@@ -812,7 +812,6 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	struct bt_mesh_ctl_friend_req *msg = (void *)buf->om_data;
 	struct bt_mesh_friend *frnd = NULL;
-	u16_t old_friend;
 	u32_t poll_to;
 	int i;
 
@@ -857,9 +856,7 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		return 0;
 	}
 
-	old_friend = sys_be16_to_cpu(msg->prev_addr);
 	frnd = bt_mesh_friend_find(rx->sub->net_idx, rx->ctx.addr, true, false);
-
 	if (frnd) {
 		BT_WARN("Existing LPN re-requesting Friendship");
 		friend_clear(frnd);
@@ -892,8 +889,8 @@ init_friend:
 	       frnd->lpn, rx->rssi, frnd->recv_delay,
 	       (unsigned) frnd->poll_to);
 
-	if (BT_MESH_ADDR_IS_UNICAST(old_friend) &&
-	    !bt_mesh_elem_find(old_friend)) {
+	if (BT_MESH_ADDR_IS_UNICAST(frnd->clear.frnd) &&
+	    !bt_mesh_elem_find(frnd->clear.frnd)) {
 		clear_procedure_start(frnd);
 	}
 
