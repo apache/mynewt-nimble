@@ -231,6 +231,7 @@ void net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
 void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
+void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
 bool k_fifo_is_empty(struct ble_npl_eventq *q);
 void *net_buf_get(struct ble_npl_eventq *fifo,s32_t t);
