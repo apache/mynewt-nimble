@@ -683,6 +683,14 @@ int bt_mesh_proxy_prov_enable(void)
 
 	BT_DBG("");
 
+	if (gatt_svc == MESH_GATT_PROV) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_NONE) {
+		return -EBUSY;
+	}
+
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_VAL), &handle);
 	assert(rc == 0);
 	ble_gatts_svc_set_visibility(handle, 1);
@@ -709,6 +717,14 @@ int bt_mesh_proxy_prov_disable(void)
 	int i;
 
 	BT_DBG("");
+
+	if (gatt_svc == MESH_GATT_NONE) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_PROV) {
+		return -EBUSY;
+	}
 
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_VAL), &handle);
 	assert(rc == 0);
@@ -757,6 +773,14 @@ int bt_mesh_proxy_gatt_enable(void)
 
 	BT_DBG("");
 
+	if (gatt_svc == MESH_GATT_PROXY) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_NONE) {
+		return -EBUSY;
+	}
+
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_VAL), &handle);
 	assert(rc == 0);
 	ble_gatts_svc_set_visibility(handle, 1);
@@ -800,6 +824,14 @@ int bt_mesh_proxy_gatt_disable(void)
 	int rc;
 
 	BT_DBG("");
+
+	if (gatt_svc == MESH_GATT_NONE) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_PROXY) {
+		return -EBUSY;
+	}
 
 	bt_mesh_proxy_gatt_disconnect();
 
