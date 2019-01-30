@@ -7,6 +7,10 @@
 #ifndef __MODEL_SRV_H__
 #define __MODEL_SRV_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bt_mesh_gen_onoff_srv_cb {
     int (*get)(struct bt_mesh_model *model, u8_t *state);
     int (*set)(struct bt_mesh_model *model, u8_t state);
@@ -45,4 +49,8 @@ void bt_mesh_set_gen_onoff_srv_cb(struct bt_mesh_gen_onoff_srv_cb *gen_onoff_cb)
 void bt_mesh_set_gen_level_srv_cb(struct bt_mesh_gen_level_srv_cb *gen_level_cb);
 void bt_mesh_set_light_lightness_srv_cb(struct bt_mesh_light_lightness_srv_cb *light_lightness_cb);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* __MODEL_SRV_H__ */
