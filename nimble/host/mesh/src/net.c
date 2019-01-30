@@ -406,7 +406,7 @@ u8_t bt_mesh_net_flags(struct bt_mesh_subnet *sub)
 		flags |= BT_MESH_NET_FLAG_KR;
 	}
 
-	if (bt_mesh.iv_update) {
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		flags |= BT_MESH_NET_FLAG_IVU;
 	}
 
@@ -443,7 +443,7 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 
 	BT_DBG("NetKey %s", bt_hex(key, 16));
 
-	if (bt_mesh.valid) {
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return -EALREADY;
 	}
 
@@ -467,7 +467,7 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 		}
 	}
 
-	bt_mesh.valid = 1;
+	atomic_set_bit(bt_mesh.flags, BT_MESH_VALID);
 	sub->net_idx = idx;
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
@@ -477,7 +477,8 @@ int bt_mesh_net_create(u16_t idx, u8_t flags, const u8_t key[16],
 	}
 
 	bt_mesh.iv_index = iv_index;
-	bt_mesh.iv_update = BT_MESH_IV_UPDATE(flags);
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS,
+			  BT_MESH_IV_UPDATE(flags));
 
 	/* Set minimum required hours, since the 96-hour minimum requirement
 	 * doesn't apply straight after provisioning (since we can't know how
@@ -578,7 +579,7 @@ void bt_mesh_rpl_reset(void)
 #if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
 void bt_mesh_iv_update_test(bool enable)
 {
-	bt_mesh.ivu_test = enable;
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_TEST, enable);
 	/* Reset the duration variable - needed for some PTS tests */
 	bt_mesh.ivu_duration = 0;
 }
@@ -590,7 +591,7 @@ bool bt_mesh_iv_update(void)
 		return false;
 	}
 
-	if (bt_mesh.iv_update) {
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 	} else {
 		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
@@ -598,7 +599,7 @@ bool bt_mesh_iv_update(void)
 
 	bt_mesh_net_sec_update(NULL);
 
-	return bt_mesh.iv_update;
+	return atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 }
 #endif /* CONFIG_BT_MESH_IV_UPDATE_TEST */
 
@@ -619,7 +620,7 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 {
 	int i;
 
-	if (bt_mesh.iv_update) {
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		/* We're currently in IV Update mode */
 
 		if (iv_index != bt_mesh.iv_index) {
@@ -670,7 +671,8 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 		}
 	}
 
-	if (!(IS_ENABLED(CONFIG_BT_MESH_IV_UPDATE_TEST) && bt_mesh.ivu_test)) {
+	if (!(IS_ENABLED(CONFIG_BT_MESH_IV_UPDATE_TEST) &&
+	      atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_TEST))) {
 		if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
 			BT_WARN("IV Update before minimum duration");
 			return false;
@@ -680,15 +682,15 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 	/* Defer change to Normal Operation if there are pending acks */
 	if (!iv_update && bt_mesh_tx_in_progress()) {
 		BT_WARN("IV Update deferred because of pending transfer");
-		bt_mesh.pending_update = 1;
+		atomic_set_bit(bt_mesh.flags, BT_MESH_IVU_PENDING);
 		return false;
 	}
 
 do_update:
-	bt_mesh.iv_update = iv_update;
-	bt_mesh.ivu_duration = 0;
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
+	bt_mesh.ivu_duration = 0U;
 
-	if (bt_mesh.iv_update) {
+	if (iv_update) {
 		bt_mesh.iv_index = iv_index;
 		BT_DBG("IV Update state entered. New index 0x%08x",
 		       (unsigned) bt_mesh.iv_index);
@@ -770,7 +772,8 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 
 	bt_mesh_adv_send(buf, cb, cb_data);
 
-	if (!bt_mesh.iv_update && bt_mesh.seq > IV_UPDATE_SEQ_LIMIT) {
+	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) &&
+	    bt_mesh.seq > IV_UPDATE_SEQ_LIMIT) {
 		bt_mesh_beacon_ivu_initiator(true);
 		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
 		bt_mesh_net_sec_update(NULL);
@@ -1350,7 +1353,8 @@ static void ivu_refresh(struct ble_npl_event *work)
 	bt_mesh.ivu_duration += BT_MESH_IVU_HOURS;
 
 	BT_DBG("%s for %u hour%s",
-	       bt_mesh.iv_update ? "IVU in Progress" : "IVU Normal mode",
+	       atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ?
+	       "IVU in Progress" : "IVU Normal mode",
 	       bt_mesh.ivu_duration, bt_mesh.ivu_duration == 1 ? "" : "s");
 
 	if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
@@ -1362,7 +1366,7 @@ static void ivu_refresh(struct ble_npl_event *work)
 		return;
 	}
 
-	if (bt_mesh.iv_update) {
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		bt_mesh_beacon_ivu_initiator(true);
 		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 	} else if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
