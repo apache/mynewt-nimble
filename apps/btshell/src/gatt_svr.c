@@ -61,6 +61,9 @@
 #define  PTS_LONG_DSC_READ_WRITE_ENC     0x001c
 #define  PTS_LONG_DSC_READ_WRITE_AUTHEN  0x001d
 
+#define  PTS_INC_SVC                     0x001e
+#define  PTS_CHR_READ_WRITE_ALT          0x001f
+
 /**
  * The vendor specific security test service consists of two characteristics:
  *     o random-number-generator: generates a random 32-bit number each time
@@ -276,6 +279,30 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     },
 };
 
+static const struct ble_gatt_svc_def *inc_svcs[] = {
+    &gatt_svr_svcs[0],
+    NULL,
+};
+
+static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
+    {
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = PTS_UUID_DECLARE(PTS_INC_SVC),
+        .includes = inc_svcs,
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
+            .access_cb = gatt_svr_chr_access_sec_test,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+        }, {
+            0, /* No more characteristics */
+        }, },
+    },
+
+    {
+        0, /* No more services. */
+    },
+};
+
 static int
 gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
                    void *dst, uint16_t *len)
@@ -398,6 +425,7 @@ gatt_svr_access_test(uint16_t conn_handle, uint16_t attr_handle,
     case PTS_CHR_READ_WRITE:
     case PTS_CHR_READ_WRITE_ENC:
     case PTS_CHR_READ_WRITE_AUTHEN:
+    case PTS_CHR_READ_WRITE_ALT:
         if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
             rc = gatt_svr_chr_write(ctxt->om,0,
                                     sizeof gatt_svr_pts_static_val,
@@ -587,6 +615,16 @@ gatt_svr_init(void)
     }
 
     rc = ble_gatts_add_svcs(gatt_svr_svcs);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gatts_count_cfg(gatt_svr_inc_svcs);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gatts_add_svcs(gatt_svr_inc_svcs);
     if (rc != 0) {
         return rc;
     }
