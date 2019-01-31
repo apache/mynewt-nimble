@@ -3040,7 +3040,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         }
 
         if (connsm->rpa_index >= 0) {
-            ble_ll_scan_set_peer_rpa(rxbuf + BLE_LL_PDU_HDR_LEN);
+            ble_ll_scan_set_peer_rpa(adv_addr);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
             /* Update resolving list with current peer RPA */
