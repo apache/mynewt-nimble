@@ -2957,10 +2957,22 @@ cmd_test_tx(int argc, char **argv)
     uint16_t len;
     uint16_t rate;
     uint16_t num;
+    uint8_t stop;
 
     rc = parse_arg_all(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
+    }
+
+    stop = parse_arg_uint8_dflt("stop", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'stop' parameter\n");
+        return rc;
+    }
+
+    if (stop) {
+        btshell_tx_stop();
+        return 0;
     }
 
     conn = parse_arg_uint16("conn", &rc);
@@ -3000,6 +3012,7 @@ static const struct shell_param test_tx_params[] = {
     {"length", "size of packet, usage: =<UINT16>"},
     {"rate", "rate of tx, usage: =<UINT16>, default=1"},
     {"num", "number of packets, usage: =<UINT16>, default=1"},
+    {"stop", "stop sending, usage: 1 to stop, default 0"},
     {NULL, NULL}
 };
 

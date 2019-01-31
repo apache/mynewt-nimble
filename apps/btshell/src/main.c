@@ -110,6 +110,7 @@ static struct os_callout btshell_tx_timer;
 struct btshell_tx_data_s
 {
     uint16_t tx_num;
+    uint16_t tx_num_requested;
     uint16_t tx_rate;
     uint16_t tx_conn_handle;
     uint16_t tx_len;
@@ -1240,6 +1241,10 @@ btshell_tx_timer_cb(struct os_event *ev)
         return;
     }
 
+    console_printf("Sending %d/%d len: %d\n",
+                       btshell_tx_data.tx_num_requested - btshell_tx_data.tx_num + 1,
+                       btshell_tx_data.tx_num_requested, btshell_tx_data.tx_len);
+
     len = btshell_tx_data.tx_len;
 
     om = NULL;
@@ -1827,6 +1832,7 @@ btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num
     }
 
     btshell_tx_data.tx_num = num;
+    btshell_tx_data.tx_num_requested = num;
     btshell_tx_data.tx_rate = rate;
     btshell_tx_data.tx_len = len;
     btshell_tx_data.tx_conn_handle = conn_handle;
@@ -1844,6 +1850,13 @@ btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num
     os_callout_reset(&btshell_tx_timer, 0);
 
     return 0;
+}
+
+void
+btshell_tx_stop(void)
+{
+    os_callout_stop(&btshell_tx_timer);
+    btshell_tx_data.tx_num = 0;
 }
 
 int
