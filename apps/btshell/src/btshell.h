@@ -164,6 +164,7 @@ int btshell_sec_restart(uint16_t conn_handle, uint8_t *ltk, uint16_t ediv,
                         uint64_t rand_val, int auth);
 int btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate,
                      uint16_t num);
+void btshell_tx_stop(void);
 int btshell_rssi(uint16_t conn_handle, int8_t *out_rssi);
 int btshell_l2cap_create_srv(uint16_t psm, int accept_response);
 int btshell_l2cap_connect(uint16_t conn, uint16_t psm);
