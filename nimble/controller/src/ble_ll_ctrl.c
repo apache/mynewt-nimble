@@ -686,10 +686,17 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     uint8_t tx_phys;
     uint8_t rx_phys;
     uint16_t instant;
+    uint8_t is_slave_sym = 0;
 
     /* Get preferences from PDU */
     tx_phys = dptr[0];
     rx_phys = dptr[1];
+
+    /* If we are master, check if slave requested symmetric PHY */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        is_slave_sym = tx_phys == rx_phys;
+        is_slave_sym &= __builtin_popcount(tx_phys) == 1;
+    }
 
     /* Get m_to_s and s_to_m masks */
     if (slave_req) {
@@ -709,6 +716,18 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     s_to_m = ble_ll_ctrl_find_new_phy(s_to_m);
     if (s_to_m == connsm->phy_data.cur_rx_phy) {
         s_to_m = 0;
+    }
+
+    /*
+     * Core 5.0, Vol 6, PartB, 5.1.10
+     *     If the slave specified a single PHY in both the TX_PHYS and RX_PHYS
+     *     fields and both fields are the same, the master shall either select
+     *     the PHY specified by the slave for both directions or shall leave
+     *     both directions unchanged.
+     */
+    if (is_slave_sym && (s_to_m != m_to_s)) {
+        s_to_m = 0;
+        m_to_s = 0;
     }
 
     /* At this point, m_to_s and s_to_m are not masks; they are numeric */
