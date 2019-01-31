@@ -4495,8 +4495,12 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 
-    if (status == 0 && security_restored) {
-        ble_gatts_bonding_restored(conn_handle);
+    if (status == 0) {
+        if (security_restored) {
+            ble_gatts_bonding_restored(conn_handle);
+        } else {
+            ble_gatts_bonding_established(conn_handle);
+        }
     }
 }
 
