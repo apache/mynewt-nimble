@@ -7,6 +7,7 @@
 
 #include "console/console.h"
 
+#include "common.h"
 #include "ble_mesh.h"
 #include "device_composition.h"
 
@@ -30,6 +31,7 @@ static int output_string(const char *str)
 
 static void prov_complete(u16_t net_idx, u16_t addr)
 {
+	printk("Local node provisioned, primary address 0x%04x\n", addr);
 }
 
 static void prov_reset(void)
@@ -90,4 +92,6 @@ void blemesh_on_sync(void)
 	bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
 
 	console_printf("Mesh initialized\n");
+
+	bt_initialized();
 }
