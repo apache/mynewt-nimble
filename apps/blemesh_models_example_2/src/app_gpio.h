@@ -5,10 +5,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _COMMON_H
-#define _COMMON_H
+#ifndef _APP_GPIO_H
+#define _APP_GPIO_H
 
-void update_light_state(void);
-void bt_initialized(void);
+/* GPIO */
+extern int button_device[];
+extern int led_device[];
+
+void app_gpio_init(void);
 
 #endif

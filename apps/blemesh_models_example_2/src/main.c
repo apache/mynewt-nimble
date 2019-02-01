@@ -5,88 +5,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "bsp/bsp.h"
+
 #include "console/console.h"
 #include "hal/hal_gpio.h"
+#include "mesh/mesh.h"
 
-#include "common.h"
+#include "app_gpio.h"
+#include "storage.h"
+
 #include "ble_mesh.h"
 #include "device_composition.h"
+#include "no_transition_work_handler.h"
 #include "publisher.h"
 #include "state_binding.h"
 #include "transition.h"
 
-int button_device[] = {
-	BUTTON_1,
-	BUTTON_2,
-	BUTTON_3,
-	BUTTON_4,
-};
+static bool reset;
 
-int led_device[] = {
-	LED_1,
-	LED_2,
-	LED_3,
-	LED_4,
-};
-
-static struct ble_npl_callout button_work;
-
-static void button_pressed(struct os_event *ev)
+static void light_default_var_init(void)
 {
-	k_work_submit(&button_work);
-}
+	gen_def_trans_time_srv_user_data.tt = 0x00;
 
-static struct os_event button_event;
-
-static void
-gpio_irq_handler(void *arg)
-{
-	button_event.ev_arg = arg;
-	os_eventq_put(os_eventq_dflt_get(), &button_event);
-}
-
-static void gpio_init(void)
-{
-	/* LEDs configiuratin & setting */
-
-	hal_gpio_init_out(led_device[0], 1);
-	hal_gpio_init_out(led_device[1], 1);
-	hal_gpio_init_out(led_device[2], 1);
-	hal_gpio_init_out(led_device[3], 1);
-
-	/* Buttons configiuratin & setting */
-
-	k_work_init(&button_work, publish);
-
-	button_event.ev_cb = button_pressed;
-
-	hal_gpio_irq_init(button_device[0], gpio_irq_handler, NULL,
-			  HAL_GPIO_TRIG_FALLING, HAL_GPIO_PULL_UP);
-	hal_gpio_irq_enable(button_device[0]);
-
-	hal_gpio_irq_init(button_device[1], gpio_irq_handler, NULL,
-			  HAL_GPIO_TRIG_FALLING, HAL_GPIO_PULL_UP);
-	hal_gpio_irq_enable(button_device[1]);
-
-	hal_gpio_irq_init(button_device[2], gpio_irq_handler, NULL,
-			  HAL_GPIO_TRIG_FALLING, HAL_GPIO_PULL_UP);
-	hal_gpio_irq_enable(button_device[2]);
-
-	hal_gpio_irq_init(button_device[3], gpio_irq_handler, NULL,
-			  HAL_GPIO_TRIG_FALLING, HAL_GPIO_PULL_UP);
-	hal_gpio_irq_enable(button_device[3]);
-}
-
-void light_default_status_init(void)
-{
-	/* Assume vaules are retrived from Persistence Storage (Start).
-	 * These had saved by respective Setup Servers.
-	 */
 	gen_power_onoff_srv_user_data.onpowerup = STATE_DEFAULT;
 
 	light_lightness_srv_user_data.light_range_min = LIGHTNESS_MIN;
 	light_lightness_srv_user_data.light_range_max = LIGHTNESS_MAX;
+	light_lightness_srv_user_data.last = LIGHTNESS_MAX;
 	light_lightness_srv_user_data.def = LIGHTNESS_MAX;
 
 	/* Following 2 values are as per specification */
@@ -94,50 +38,89 @@ void light_default_status_init(void)
 	light_ctl_srv_user_data.temp_range_max = TEMP_MAX;
 
 	light_ctl_srv_user_data.temp_def = TEMP_MIN;
-	/* (End) */
 
-	/* Assume following values are retrived from Persistence
-	 * Storage (Start).
-	 * These values had saved before power down.
-	 */
-	light_lightness_srv_user_data.last = LIGHTNESS_MAX;
-	light_ctl_srv_user_data.temp_last = TEMP_MIN;
-	/* (End) */
+	light_ctl_srv_user_data.lightness_temp_last =
+		(u32_t) ((LIGHTNESS_MAX << 16) | TEMP_MIN);
+}
+
+static void light_default_status_init(void)
+{
+	u16_t lightness;
+
+	lightness = (u16_t) (light_ctl_srv_user_data.lightness_temp_last >> 16);
+
+	if (lightness) {
+		gen_onoff_srv_root_user_data.onoff = STATE_ON;
+	} else {
+		gen_onoff_srv_root_user_data.onoff = STATE_OFF;
+	}
+
+	/* Retrieve Default Lightness & Temperature Values */
+
+	if (light_ctl_srv_user_data.lightness_temp_def) {
+		light_ctl_srv_user_data.lightness_def = (u16_t)
+			(light_ctl_srv_user_data.lightness_temp_def >> 16);
+
+		light_ctl_srv_user_data.temp_def = (u16_t)
+			(light_ctl_srv_user_data.lightness_temp_def);
+	}
+
+	light_lightness_srv_user_data.def =
+		light_ctl_srv_user_data.lightness_def;
 
 	light_ctl_srv_user_data.temp = light_ctl_srv_user_data.temp_def;
 
-	if (gen_power_onoff_srv_user_data.onpowerup == STATE_OFF) {
-		gen_onoff_srv_root_user_data.onoff = STATE_OFF;
-		state_binding(ONOFF, ONOFF_TEMP);
-	} else if (gen_power_onoff_srv_user_data.onpowerup == STATE_DEFAULT) {
-		gen_onoff_srv_root_user_data.onoff = STATE_ON;
-		state_binding(ONOFF, ONOFF_TEMP);
-	} else if (gen_power_onoff_srv_user_data.onpowerup == STATE_RESTORE) {
-		/* Assume following values is retrived from Persistence
-		 * Storage (Start).
-		 * This value had saved before power down.
-		 */
-		gen_onoff_srv_root_user_data.onoff = STATE_ON;
-		/* (End) */
+	/* Retrieve Range of Lightness & Temperature */
 
-		light_ctl_srv_user_data.temp =
-			light_ctl_srv_user_data.temp_last;
+	if (light_lightness_srv_user_data.lightness_range) {
+		light_lightness_srv_user_data.light_range_max = (u16_t)
+			(light_lightness_srv_user_data.lightness_range >> 16);
 
-		state_binding(ONPOWERUP, ONOFF_TEMP);
+		light_lightness_srv_user_data.light_range_min = (u16_t)
+			(light_lightness_srv_user_data.lightness_range);
 	}
+
+	if (light_ctl_srv_user_data.temperature_range) {
+		light_ctl_srv_user_data.temp_range_max = (u16_t)
+			(light_ctl_srv_user_data.temperature_range >> 16);
+
+		light_ctl_srv_user_data.temp_range_min = (u16_t)
+			(light_ctl_srv_user_data.temperature_range);
+	}
+
+	switch (gen_power_onoff_srv_user_data.onpowerup) {
+		case STATE_OFF:
+			gen_onoff_srv_root_user_data.onoff = STATE_OFF;
+			state_binding(ONOFF, ONOFF_TEMP);
+			break;
+		case STATE_DEFAULT:
+			gen_onoff_srv_root_user_data.onoff = STATE_ON;
+			state_binding(ONOFF, ONOFF_TEMP);
+			break;
+		case STATE_RESTORE:
+			light_lightness_srv_user_data.last = (u16_t)
+				(light_ctl_srv_user_data.lightness_temp_last >> 16);
+
+			light_ctl_srv_user_data.temp =
+				(u16_t) (light_ctl_srv_user_data.lightness_temp_last);
+
+			state_binding(ONPOWERUP, ONOFF_TEMP);
+			break;
+	}
+
+	default_tt = gen_def_trans_time_srv_user_data.tt;
 }
 
 void update_light_state(void)
 {
 	u8_t power, color;
 
-	power = 100 * ((float) light_lightness_srv_user_data.actual / 65535);
-	color = 100 * ((float) (gen_level_srv_s0_user_data.level + 32768)
-		       / 65535);
+	power = 100 * ((float) lightness / 65535);
+	color = 100 * ((float) (temperature + 32768) / 65535);
 
 	printk("power-> %d, color-> %d\n", power, color);
 
-	if (gen_onoff_srv_root_user_data.onoff == STATE_ON) {
+	if (lightness) {
 		/* LED1 On */
 		hal_gpio_write(led_device[0], 0);
 	} else {
@@ -160,6 +143,56 @@ void update_light_state(void)
 		/* LED4 Off */
 		hal_gpio_write(led_device[3], 1);
 	}
+
+	if (*ptr_counter == 0 || reset == false) {
+		reset = true;
+		k_work_submit(&no_transition_work);
+	}
+}
+
+static void short_time_multireset_bt_mesh_unprovisioning(void)
+{
+	if (reset_counter >= 4) {
+		reset_counter = 0;
+		printk("BT Mesh reset\n");
+		bt_mesh_reset();
+	} else {
+		printk("Reset Counter -> %d\n", reset_counter);
+		reset_counter++;
+	}
+
+	save_on_flash(RESET_COUNTER);
+}
+
+static void reset_counter_timer_handler(struct ble_npl_event *dummy)
+{
+	reset_counter = 0;
+	save_on_flash(RESET_COUNTER);
+	printk("Reset Counter set to Zero\n");
+}
+
+struct ble_npl_callout reset_counter_timer;
+
+static void init_timers(void)
+{
+
+	ble_npl_callout_init(&reset_counter_timer, ble_npl_eventq_dflt_get(),
+			     reset_counter_timer_handler, NULL);
+	ble_npl_callout_reset(&reset_counter_timer,
+			      ble_npl_time_ms_to_ticks32(K_MSEC(7000)));
+
+	no_transition_work_init();
+}
+
+void bt_initialized(void)
+{
+	light_default_status_init();
+
+	update_light_state();
+
+	randomize_publishers_TID();
+
+	short_time_multireset_bt_mesh_unprovisioning();
 }
 
 int main(void)
@@ -171,15 +204,17 @@ int main(void)
 	/* Initialize OS */
 	sysinit();
 
-	light_default_status_init();
+	light_default_var_init();
+
+	app_gpio_init();
+
+	init_timers();
 
 	transition_timers_init();
 
-	gpio_init();
-
-	update_light_state();
-
 	init_pub();
+
+	ps_settings_init();
 
 	printk("Initializing...\n");
 
@@ -187,8 +222,6 @@ int main(void)
 	ble_hs_cfg.reset_cb = blemesh_on_reset;
 	ble_hs_cfg.sync_cb = blemesh_on_sync;
 	ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-
-	randomize_publishers_TID();
 
 	while (1) {
 		os_eventq_run(os_eventq_dflt_get());

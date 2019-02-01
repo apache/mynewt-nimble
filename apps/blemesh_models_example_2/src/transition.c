@@ -5,14 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "common.h"
 #include "ble_mesh.h"
+#include "common.h"
 #include "device_composition.h"
 #include "state_binding.h"
 #include "transition.h"
-
-u8_t enable_transition;
-u8_t default_tt;
 
 struct ble_npl_callout onoff_work;
 struct ble_npl_callout level_lightness_work;
@@ -22,175 +19,251 @@ struct ble_npl_callout light_lightness_linear_work;
 struct ble_npl_callout light_ctl_work;
 struct ble_npl_callout light_ctl_temp_work;
 
-struct ble_npl_callout onoff_transition_timer;
-struct ble_npl_callout level_lightness_transition_timer;
-struct ble_npl_callout level_temp_transition_timer;
-struct ble_npl_callout light_lightness_actual_transition_timer;
-struct ble_npl_callout light_lightness_linear_transition_timer;
-struct ble_npl_callout light_ctl_transition_timer;
-struct ble_npl_callout light_ctl_temp_transition_timer;
+struct ble_npl_callout dummy_timer;
 
-static u32_t tt_counter_calculator(u8_t *tt, u32_t *cal_tt)
+u8_t transition_type, default_tt;
+u32_t *ptr_counter;
+struct ble_npl_callout *ptr_timer = &dummy_timer;
+
+struct transition lightness_transition, temp_transition;
+
+/* Function to calculate Remaining Time (Start) */
+
+void calculate_rt(struct transition *transition)
+{
+	u8_t steps, resolution;
+	s32_t duration_remainder;
+	s64_t now;
+
+	if (transition->just_started) {
+		transition->rt = transition->tt;
+	} else {
+		now = k_uptime_get();
+		duration_remainder = transition->total_duration -
+				     (now - transition->start_timestamp);
+
+		if (duration_remainder > 620000) {
+			/* > 620 seconds -> resolution = 0b11 [10 minutes] */
+			resolution = 0x03;
+			steps = duration_remainder / 600000;
+		} else if (duration_remainder > 62000) {
+			/* > 62 seconds -> resolution = 0b10 [10 seconds] */
+			resolution = 0x02;
+			steps = duration_remainder / 10000;
+		} else if (duration_remainder > 6200) {
+			/* > 6.2 seconds -> resolution = 0b01 [1 seconds] */
+			resolution = 0x01;
+			steps = duration_remainder / 1000;
+		} else if (duration_remainder > 0) {
+			/* <= 6.2 seconds -> resolution = 0b00 [100 ms] */
+			resolution = 0x00;
+			steps = duration_remainder / 100;
+		} else {
+			resolution = 0x00;
+			steps = 0x00;
+		}
+
+		transition->rt = (resolution << 6) | steps;
+	}
+}
+
+/* Function to calculate Remaining Time (End) */
+
+static void bound_states_transition_type_reassignment(u8_t type)
+{
+	switch (type) {
+	case ONOFF:
+	case LEVEL:
+	case ACTUAL:
+	case LINEAR:
+		light_ctl_srv_user_data.transition = &lightness_transition;
+		break;
+	case CTL:
+		light_ctl_srv_user_data.transition = &lightness_transition;
+		gen_level_srv_s0_user_data.transition = &lightness_transition;
+		break;
+	case LEVEL_TEMP:
+	case CTL_TEMP:
+		gen_level_srv_s0_user_data.transition = &temp_transition;
+		light_ctl_srv_user_data.transition = &temp_transition;
+		break;
+	default:
+		break;
+	}
+}
+
+static void tt_values_calculator(struct transition *transition)
 {
 	u8_t steps_multiplier, resolution;
-	u32_t tt_counter;
 
-	resolution = ((*tt) >> 6);
-	steps_multiplier = (*tt) & 0x3F;
+	resolution = (transition->tt >> 6);
+	steps_multiplier = (transition->tt & 0x3F);
 
 	switch (resolution) {
 	case 0:	/* 100ms */
-		*cal_tt = steps_multiplier * 100;
+		transition->total_duration = steps_multiplier * 100;
 		break;
 	case 1:	/* 1 second */
-		*cal_tt = steps_multiplier * 1000;
+		transition->total_duration = steps_multiplier * 1000;
 		break;
 	case 2:	/* 10 seconds */
-		*cal_tt = steps_multiplier * 10000;
+		transition->total_duration = steps_multiplier * 10000;
 		break;
 	case 3:	/* 10 minutes */
-		*cal_tt = steps_multiplier * 600000;
+		transition->total_duration = steps_multiplier * 600000;
 		break;
 	}
 
-	tt_counter = ((float) *cal_tt / 100);
+	transition->counter = ((float) transition->total_duration / 100);
 
-	if (tt_counter > DEVICE_SPECIFIC_RESOLUTION) {
-		tt_counter = DEVICE_SPECIFIC_RESOLUTION;
+	if (transition->counter > DEVICE_SPECIFIC_RESOLUTION) {
+		transition->counter = DEVICE_SPECIFIC_RESOLUTION;
 	}
 
-	if (tt_counter != 0) {
-		*cal_tt = *cal_tt / tt_counter;
-	}
-
-	return tt_counter;
+	ptr_counter = &transition->counter;
 }
 
-void onoff_tt_values(struct generic_onoff_state *state)
+void onoff_tt_values(struct generic_onoff_state *state, u8_t tt, u8_t delay)
 {
-	state->tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
+	bound_states_transition_type_reassignment(ONOFF);
+	calculate_lightness_target_values(ONOFF);
+	state->transition->tt = tt;
+	state->transition->delay = delay;
+
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
+	}
+
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
+
+	state->tt_delta = ((float) (lightness - target_lightness) /
+			   state->transition->counter);
 }
 
-void level_tt_values(struct generic_level_state *state)
+void level_tt_values(struct generic_level_state *state, u8_t tt, u8_t delay)
 {
-	u32_t tt_counter;
-
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
+	if (state == &gen_level_srv_root_user_data) {
+		bound_states_transition_type_reassignment(LEVEL);
+		calculate_lightness_target_values(LEVEL);
+	} else if (state == &gen_level_srv_s0_user_data) {
+		bound_states_transition_type_reassignment(LEVEL_TEMP);
+		calculate_temp_target_values(LEVEL_TEMP);
 	}
+	state->transition->tt = tt;
+	state->transition->delay = delay;
+
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
+	}
+
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
 
 	state->tt_delta = ((float) (state->level - state->target_level) /
-			   tt_counter);
+			   state->transition->counter);
 }
 
-void delta_level_tt_values(struct generic_level_state *state)
+void light_lightness_actual_tt_values(struct light_lightness_state *state,
+				      u8_t tt, u8_t delay)
 {
-	u32_t tt_counter;
+	bound_states_transition_type_reassignment(ACTUAL);
+	calculate_lightness_target_values(ACTUAL);
+	state->transition->tt = tt;
+	state->transition->delay = delay;
 
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter_delta = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
 	}
 
-	state->tt_delta = ((float) state->last_delta / tt_counter);
-
-	state->tt_delta *= -1;
-}
-
-void move_level_tt_values(struct generic_level_state *state)
-{
-	u32_t tt_counter;
-
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter_move = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
-	}
-
-	state->tt_delta = ((float) state->last_delta / tt_counter);
-
-	state->tt_delta *= -1;
-}
-
-void light_lightnes_actual_tt_values(struct light_lightness_state *state)
-{
-	u32_t tt_counter;
-
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter_actual = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
-	}
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
 
 	state->tt_delta_actual =
 		((float) (state->actual - state->target_actual) /
-		 tt_counter);
+		 state->transition->counter);
 }
 
-void light_lightnes_linear_tt_values(struct light_lightness_state *state)
+void light_lightness_linear_tt_values(struct light_lightness_state *state,
+				      u8_t tt, u8_t delay)
 {
-	u32_t tt_counter;
+	bound_states_transition_type_reassignment(LINEAR);
+	calculate_lightness_target_values(LINEAR);
+	state->transition->tt = tt;
+	state->transition->delay = delay;
 
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter_linear = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
 	}
+
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
 
 	state->tt_delta_linear =
 		((float) (state->linear - state->target_linear) /
-		 tt_counter);
+		 state->transition->counter);
 }
 
-void light_ctl_tt_values(struct light_ctl_state *state)
+void light_ctl_tt_values(struct light_ctl_state *state, u8_t tt, u8_t delay)
 {
-	u32_t tt_counter;
+	bound_states_transition_type_reassignment(CTL);
+	calculate_lightness_target_values(CTL);
+	state->transition->tt = tt;
+	state->transition->delay = delay;
 
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
 	}
 
-	state->tt_lightness_delta =
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
+
+	state->tt_delta_lightness =
 		((float) (state->lightness - state->target_lightness) /
-		 tt_counter);
+		 state->transition->counter);
 
-	state->tt_temp_delta =
+	state->tt_delta_temp =
 		((float) (state->temp - state->target_temp) /
-		 tt_counter);
+		 state->transition->counter);
 
-	state->tt_duv_delta =
+	state->tt_delta_duv =
 		((float) (state->delta_uv - state->target_delta_uv) /
-		 tt_counter);
+		 state->transition->counter);
 }
 
-void light_ctl_temp_tt_values(struct light_ctl_state *state)
+void light_ctl_temp_tt_values(struct light_ctl_state *state,
+			      u8_t tt, u8_t delay)
 {
-	u32_t tt_counter;
+	bound_states_transition_type_reassignment(CTL_TEMP);
+	calculate_temp_target_values(CTL_TEMP);
+	state->transition->tt = tt;
+	state->transition->delay = delay;
 
-	tt_counter = tt_counter_calculator(&state->tt, &state->cal_tt);
-	state->tt_counter_temp = tt_counter;
-
-	if (tt_counter == 0) {
-		tt_counter = 1;
+	if (tt != 0) {
+		tt_values_calculator(state->transition);
+	} else {
+		return;
 	}
 
-	state->tt_temp_delta = ((float) (state->temp - state->target_temp) /
-				tt_counter);
+	state->transition->quo_tt = state->transition->total_duration /
+					state->transition->counter;
 
-	state->tt_duv_delta =
+	state->tt_delta_temp = ((float) (state->temp - state->target_temp) /
+				state->transition->counter);
+
+	state->tt_delta_duv =
 		((float) (state->delta_uv - state->target_delta_uv) /
-		 tt_counter);
+		 state->transition->counter);
 }
 
 /* Timers related handlers & threads (Start) */
@@ -198,141 +271,144 @@ static void onoff_work_handler(struct ble_npl_event *work)
 {
 	struct generic_onoff_state *state = &gen_onoff_srv_root_user_data;
 
-	if (enable_transition != ONOFF_TT) {
-		ble_npl_callout_stop(&onoff_transition_timer);
-		return;
-	}
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
 
-	if (state->tt_counter != 0) {
-		state->tt_counter--;
-
-		if (state->target_onoff == STATE_ON) {
-			state->onoff = STATE_ON;
-
+		if (state->transition->counter == 0) {
 			state_binding(ONOFF, IGNORE_TEMP);
 			update_light_state();
 
-			enable_transition = DISABLE_TRANSITION;
+			ble_npl_callout_stop(ptr_timer);
+		} else {
+			state->transition->start_timestamp = k_uptime_get();
+
+			if (state->target_onoff == STATE_ON) {
+				state->onoff = STATE_ON;
+			}
 		}
+
+		return;
 	}
 
-	if (state->tt_counter == 0) {
-		state->onoff = state->target_onoff;
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
 
-		state_binding(ONOFF, IGNORE_TEMP);
+		lightness -= state->tt_delta;
+
+		state_binding(IGNORE, IGNORE_TEMP);
+		update_light_state();
+	}
+
+	if (state->transition->counter == 0) {
+		state->onoff = state->target_onoff;
+		lightness = target_lightness;
+
+		state_binding(IGNORE, IGNORE_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&onoff_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
 static void level_lightness_work_handler(struct ble_npl_event *work)
 {
-	u32_t *tt_counter;
+	u8_t level;
 	struct generic_level_state *state = &gen_level_srv_root_user_data;
 
-	tt_counter = NULL;
-
-	switch (enable_transition) {
+	switch (transition_type) {
 	case LEVEL_TT:
-		tt_counter = &state->tt_counter;
+		level = LEVEL;
 		break;
 	case LEVEL_TT_DELTA:
-		tt_counter = &state->tt_counter_delta;
+		level = DELTA_LEVEL;
 		break;
 	case LEVEL_TT_MOVE:
-		tt_counter = &state->tt_counter_move;
+		level = LEVEL;
 		break;
 	default:
-		ble_npl_callout_stop(&level_lightness_transition_timer);
 		return;
 	}
 
-	if (*tt_counter != 0) {
-		s32_t lightness;
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
 
-		(*tt_counter)--;
-
-		lightness = state->level - state->tt_delta;
-
-		if (lightness > INT16_MAX) {
-			lightness = INT16_MAX;
-		} else if (lightness < INT16_MIN) {
-			lightness = INT16_MIN;
-		}
-
-		if (state->level != lightness) {
-			state->level = lightness;
-
-			state_binding(LEVEL, IGNORE_TEMP);
+		if (state->transition->counter == 0) {
+			state_binding(level, IGNORE_TEMP);
 			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
 		} else {
-			enable_transition = DISABLE_TRANSITION;
+			state->transition->start_timestamp = k_uptime_get();
 		}
+
+		return;
 	}
 
-	if (*tt_counter == 0) {
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
+
+		state->level -= state->tt_delta;
+
+		state_binding(level, IGNORE_TEMP);
+		update_light_state();
+	}
+
+	if (state->transition->counter == 0) {
 		state->level = state->target_level;
 
-		state_binding(LEVEL, IGNORE_TEMP);
+		state_binding(level, IGNORE_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&level_lightness_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
 static void level_temp_work_handler(struct ble_npl_event *work)
 {
-	u32_t *tt_counter;
 	struct generic_level_state *state = &gen_level_srv_s0_user_data;
 
-	tt_counter = NULL;
-
-	switch (enable_transition) {
-	case LEVEL_TT:
-		tt_counter = &state->tt_counter;
+	switch (transition_type) {
+	case LEVEL_TEMP_TT:
 		break;
-	case LEVEL_TT_DELTA:
-		tt_counter = &state->tt_counter_delta;
+	case LEVEL_TEMP_TT_DELTA:
 		break;
-	case LEVEL_TT_MOVE:
-		tt_counter = &state->tt_counter_move;
+	case LEVEL_TEMP_TT_MOVE:
 		break;
 	default:
-		ble_npl_callout_stop(&level_temp_transition_timer);
 		return;
 	}
 
-	if (*tt_counter != 0) {
-		s32_t temp;
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
 
-		(*tt_counter)--;
-
-		temp = state->level - state->tt_delta;
-
-		if (temp > INT16_MAX) {
-			temp = INT16_MAX;
-		} else if (temp < INT16_MIN) {
-			temp = INT16_MIN;
-		}
-
-		if (state->level != temp) {
-			state->level = temp;
-
+		if (state->transition->counter == 0) {
 			state_binding(IGNORE, LEVEL_TEMP);
 			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
 		} else {
-			enable_transition = DISABLE_TRANSITION;
+			state->transition->start_timestamp = k_uptime_get();
 		}
+
+		return;
 	}
 
-	if (*tt_counter == 0) {
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
+
+		state->level -= state->tt_delta;
+
+		state_binding(IGNORE, LEVEL_TEMP);
+		update_light_state();
+	}
+
+	if (state->transition->counter == 0) {
 		state->level = state->target_level;
 
 		state_binding(IGNORE, LEVEL_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&level_temp_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
@@ -340,35 +416,37 @@ static void light_lightness_actual_work_handler(struct ble_npl_event *work)
 {
 	struct light_lightness_state *state = &light_lightness_srv_user_data;
 
-	if (enable_transition != LIGTH_LIGHTNESS_ACTUAL_TT) {
-		ble_npl_callout_stop(&light_lightness_actual_transition_timer);
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
+
+		if (state->transition->counter == 0) {
+			state_binding(ACTUAL, IGNORE_TEMP);
+			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
+		} else {
+			state->transition->start_timestamp = k_uptime_get();
+		}
+
 		return;
 	}
 
-	if (state->tt_counter_actual != 0) {
-		u32_t actual;
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
 
-		state->tt_counter_actual--;
+		state->actual -= state->tt_delta_actual;
 
-		actual = state->actual - state->tt_delta_actual;
-
-		if (state->actual != actual) {
-			state->actual = actual;
-
-			state_binding(ACTUAL, IGNORE_TEMP);
-			update_light_state();
-		} else {
-			enable_transition = DISABLE_TRANSITION;
-		}
+		state_binding(ACTUAL, IGNORE_TEMP);
+		update_light_state();
 	}
 
-	if (state->tt_counter_actual == 0) {
+	if (state->transition->counter == 0) {
 		state->actual = state->target_actual;
 
 		state_binding(ACTUAL, IGNORE_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&light_lightness_actual_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
@@ -376,35 +454,37 @@ static void light_lightness_linear_work_handler(struct ble_npl_event *work)
 {
 	struct light_lightness_state *state = &light_lightness_srv_user_data;
 
-	if (enable_transition != LIGTH_LIGHTNESS_LINEAR_TT) {
-		ble_npl_callout_stop(&light_lightness_linear_transition_timer);
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
+
+		if (state->transition->counter == 0) {
+			state_binding(LINEAR, IGNORE_TEMP);
+			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
+		} else {
+			state->transition->start_timestamp = k_uptime_get();
+		}
+
 		return;
 	}
 
-	if (state->tt_counter_linear != 0) {
-		u32_t linear;
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
 
-		state->tt_counter_linear--;
+		state->linear -= state->tt_delta_linear;
 
-		linear = state->linear - state->tt_delta_linear;
-
-		if (state->linear != linear) {
-			state->linear = linear;
-
-			state_binding(LINEAR, IGNORE_TEMP);
-			update_light_state();
-		} else {
-			enable_transition = DISABLE_TRANSITION;
-		}
+		state_binding(LINEAR, IGNORE_TEMP);
+		update_light_state();
 	}
 
-	if (state->tt_counter_linear == 0) {
+	if (state->transition->counter == 0) {
 		state->linear = state->target_linear;
 
 		state_binding(LINEAR, IGNORE_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&light_lightness_linear_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
@@ -412,46 +492,38 @@ static void light_ctl_work_handler(struct ble_npl_event *work)
 {
 	struct light_ctl_state *state = &light_ctl_srv_user_data;
 
-	if (enable_transition != LIGTH_CTL_TT) {
-		ble_npl_callout_stop(&light_ctl_transition_timer);
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
+
+		if (state->transition->counter == 0) {
+			state_binding(CTL, CTL_TEMP);
+			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
+		} else {
+			state->transition->start_timestamp = k_uptime_get();
+		}
+
 		return;
 	}
 
-	if (state->tt_counter != 0) {
-		u32_t lightness, temp;
-		s32_t delta_uv;
-
-		state->tt_counter--;
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
 
 		/* Lightness */
-		lightness = state->lightness - state->tt_lightness_delta;
+		state->lightness -= state->tt_delta_lightness;
 
 		/* Temperature */
-		temp = state->temp - state->tt_temp_delta;
+		state->temp -= state->tt_delta_temp;
 
 		/* Delta_UV */
-		delta_uv = state->delta_uv - state->tt_duv_delta;
+		state->delta_uv -= state->tt_delta_duv;
 
-		if (delta_uv > INT16_MAX) {
-			delta_uv = INT16_MAX;
-		} else if (delta_uv < INT16_MIN) {
-			delta_uv = INT16_MIN;
-		}
-
-		if (state->lightness != lightness || state->temp != temp ||
-		    state->delta_uv != delta_uv) {
-			state->lightness = lightness;
-			state->temp = temp;
-			state->delta_uv = delta_uv;
-
-			state_binding(CTL, CTL_TEMP);
-			update_light_state();
-		} else {
-			enable_transition = DISABLE_TRANSITION;
-		}
+		state_binding(CTL, CTL_TEMP);
+		update_light_state();
 	}
 
-	if (state->tt_counter == 0) {
+	if (state->transition->counter == 0) {
 		state->lightness = state->target_lightness;
 		state->temp = state->target_temp;
 		state->delta_uv = state->target_delta_uv;
@@ -459,7 +531,7 @@ static void light_ctl_work_handler(struct ble_npl_event *work)
 		state_binding(CTL, CTL_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&light_ctl_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
 
@@ -467,50 +539,47 @@ static void light_ctl_temp_work_handler(struct ble_npl_event *work)
 {
 	struct light_ctl_state *state = &light_ctl_srv_user_data;
 
-	if (enable_transition != LIGHT_CTL_TEMP_TT) {
-		ble_npl_callout_stop(&light_ctl_temp_transition_timer);
+	if (state->transition->just_started) {
+		state->transition->just_started = false;
+
+		if (state->transition->counter == 0) {
+			state_binding(IGNORE, CTL_TEMP);
+			update_light_state();
+
+			ble_npl_callout_stop(ptr_timer);
+		} else {
+			state->transition->start_timestamp = k_uptime_get();
+		}
+
 		return;
 	}
 
-	if (state->tt_counter_temp != 0) {
-		s32_t delta_uv;
-		u32_t temp;
-
-		state->tt_counter_temp--;
+	if (state->transition->counter != 0) {
+		state->transition->counter--;
 
 		/* Temperature */
-		temp = state->temp - state->tt_temp_delta;
+		state->temp -= state->tt_delta_temp;
 
 		/* Delta UV */
-		delta_uv = state->delta_uv - state->tt_duv_delta;
+		state->delta_uv -= state->tt_delta_duv;
 
-		if (delta_uv > INT16_MAX) {
-			delta_uv = INT16_MAX;
-		} else if (delta_uv < INT16_MIN) {
-			delta_uv = INT16_MIN;
-		}
-
-		if (state->temp != temp || state->delta_uv != delta_uv) {
-			state->temp = temp;
-			state->delta_uv = delta_uv;
-
-			state_binding(IGNORE, CTL_TEMP);
-			update_light_state();
-		} else {
-			enable_transition = DISABLE_TRANSITION;
-		}
+		state_binding(IGNORE, CTL_TEMP);
+		update_light_state();
 	}
 
-	if (state->tt_counter_temp == 0) {
+	if (state->transition->counter == 0) {
 		state->temp = state->target_temp;
 		state->delta_uv = state->target_delta_uv;
 
 		state_binding(IGNORE, CTL_TEMP);
 		update_light_state();
 
-		ble_npl_callout_stop(&light_ctl_temp_transition_timer);
+		ble_npl_callout_stop(ptr_timer);
 	}
 }
+
+static void dummy_timer_handler(struct ble_npl_event *ev)
+{ }
 
 static void onoff_tt_handler(struct ble_npl_event *ev)
 {
@@ -518,7 +587,9 @@ static void onoff_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&onoff_work, 0);
-	ble_npl_callout_reset(&onoff_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void level_lightness_tt_handler(struct ble_npl_event *ev)
@@ -527,7 +598,9 @@ static void level_lightness_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&level_lightness_work, 0);
-	ble_npl_callout_reset(&level_lightness_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void level_temp_tt_handler(struct ble_npl_event *ev)
@@ -536,7 +609,9 @@ static void level_temp_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&level_temp_work, 0);
-	ble_npl_callout_reset(&level_temp_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void light_lightness_actual_tt_handler(struct ble_npl_event *ev)
@@ -545,7 +620,9 @@ static void light_lightness_actual_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&light_lightness_actual_work, 0);
-	ble_npl_callout_reset(&light_lightness_actual_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void light_lightness_linear_tt_handler(struct ble_npl_event *ev)
@@ -554,7 +631,9 @@ static void light_lightness_linear_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&light_lightness_linear_work, 0);
-	ble_npl_callout_reset(&light_lightness_linear_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void light_ctl_tt_handler(struct ble_npl_event *ev)
@@ -563,7 +642,9 @@ static void light_ctl_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&light_ctl_work, 0);
-	ble_npl_callout_reset(&light_ctl_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 
 static void light_ctl_temp_tt_handler(struct ble_npl_event *ev)
@@ -572,65 +653,97 @@ static void light_ctl_temp_tt_handler(struct ble_npl_event *ev)
 
 	assert(state != NULL);
 	ble_npl_callout_reset(&light_ctl_temp_work, 0);
-	ble_npl_callout_reset(&light_ctl_temp_transition_timer, K_MSEC(state->cal_tt));
+	ble_npl_callout_reset(&state->transition->timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(state->transition->quo_tt)));
 }
 /* Timers related handlers & threads (End) */
 
 /* Messages handlers (Start) */
 void onoff_handler(struct generic_onoff_state *state)
 {
-	enable_transition = ONOFF_TT;
+	ptr_timer = &state->transition->timer;
 
-	ble_npl_callout_set_arg(&onoff_transition_timer, state);
-	ble_npl_callout_reset(&onoff_transition_timer, K_MSEC(5 * state->delay));
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     onoff_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer, state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void level_lightness_handler(struct generic_level_state *state)
 {
-	ble_npl_callout_set_arg(&level_lightness_transition_timer, state);
-	ble_npl_callout_reset(&level_lightness_transition_timer,
-		      K_MSEC(5 * state->delay));
+	ptr_timer = &state->transition->timer;
+
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     level_lightness_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer, state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void level_temp_handler(struct generic_level_state *state)
 {
-	ble_npl_callout_set_arg(&level_temp_transition_timer, state);
-	ble_npl_callout_reset(&level_temp_transition_timer, K_MSEC(5 * state->delay));
+	ptr_timer = &state->transition->timer;
+
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     level_temp_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer, state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void light_lightness_actual_handler(struct light_lightness_state *state)
 {
-	enable_transition = LIGTH_LIGHTNESS_ACTUAL_TT;
+	ptr_timer = &state->transition->timer;
 
-	ble_npl_callout_set_arg(&light_lightness_actual_transition_timer, state);
-	ble_npl_callout_reset(&light_lightness_actual_transition_timer,
-		      K_MSEC(5 * state->delay));
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     light_lightness_actual_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer,
+				state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void light_lightness_linear_handler(struct light_lightness_state *state)
 {
-	enable_transition = LIGTH_LIGHTNESS_LINEAR_TT;
+	ptr_timer = &state->transition->timer;
 
-	ble_npl_callout_set_arg(&light_lightness_linear_transition_timer, state);
-	ble_npl_callout_reset(&light_lightness_linear_transition_timer,
-		      K_MSEC(5 * state->delay));
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     light_lightness_linear_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer,
+				state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void light_ctl_handler(struct light_ctl_state *state)
 {
-	enable_transition = LIGTH_CTL_TT;
+	ptr_timer = &state->transition->timer;
 
-	ble_npl_callout_set_arg(&light_ctl_transition_timer, state);
-	ble_npl_callout_reset(&light_ctl_transition_timer, K_MSEC(5 * state->delay));
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     light_ctl_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer, state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 
 void light_ctl_temp_handler(struct light_ctl_state *state)
 {
-	enable_transition = LIGHT_CTL_TEMP_TT;
+	ptr_timer = &state->transition->timer;
 
-	ble_npl_callout_set_arg(&light_ctl_temp_transition_timer, state);
-	ble_npl_callout_reset(&light_ctl_temp_transition_timer,
-		      K_MSEC(5 * state->delay));
+	ble_npl_callout_init(ptr_timer, ble_npl_eventq_dflt_get(),
+			     light_ctl_temp_tt_handler, NULL);
+	ble_npl_callout_set_arg(ptr_timer, state);
+	ble_npl_callout_reset(ptr_timer,
+			      ble_npl_time_ms_to_ticks32(
+				      K_MSEC(5 * state->transition->delay)));
 }
 /* Messages handlers (End) */
 
@@ -644,9 +757,11 @@ void transition_timers_init(void)
 	ble_npl_callout_init(&level_temp_work, ble_npl_eventq_dflt_get(),
 			     level_temp_work_handler, NULL);
 
-	ble_npl_callout_init(&light_lightness_actual_work, ble_npl_eventq_dflt_get(),
+	ble_npl_callout_init(&light_lightness_actual_work,
+			     ble_npl_eventq_dflt_get(),
 			     light_lightness_actual_work_handler, NULL);
-	ble_npl_callout_init(&light_lightness_linear_work, ble_npl_eventq_dflt_get(),
+	ble_npl_callout_init(&light_lightness_linear_work,
+			     ble_npl_eventq_dflt_get(),
 			     light_lightness_linear_work_handler, NULL);
 
 	ble_npl_callout_init(&light_ctl_work, ble_npl_eventq_dflt_get(),
@@ -654,25 +769,7 @@ void transition_timers_init(void)
 	ble_npl_callout_init(&light_ctl_temp_work, ble_npl_eventq_dflt_get(),
 			     light_ctl_temp_work_handler, NULL);
 
-	ble_npl_callout_init(&onoff_transition_timer, ble_npl_eventq_dflt_get(),
-			     onoff_tt_handler, NULL);
-
-	ble_npl_callout_init(&level_lightness_transition_timer, ble_npl_eventq_dflt_get(),
-			     level_lightness_tt_handler, NULL);
-	ble_npl_callout_init(&level_temp_transition_timer, ble_npl_eventq_dflt_get(),
-			     level_temp_tt_handler, NULL);
-
-	ble_npl_callout_init(&light_lightness_actual_transition_timer, ble_npl_eventq_dflt_get(),
-			     light_lightness_actual_tt_handler, NULL);
-	ble_npl_callout_init(&light_lightness_linear_transition_timer, ble_npl_eventq_dflt_get(),
-			     light_lightness_linear_tt_handler, NULL);
-
-	ble_npl_callout_init(&light_ctl_transition_timer, ble_npl_eventq_dflt_get(),
-			     light_ctl_tt_handler, NULL);
-	ble_npl_callout_init(&light_ctl_temp_transition_timer, ble_npl_eventq_dflt_get(),
-			     light_ctl_temp_tt_handler, NULL);
-
-	ble_npl_callout_init(&light_ctl_temp_transition_timer, ble_npl_eventq_dflt_get(),
-			     light_ctl_temp_tt_handler, NULL);
-
+	ble_npl_callout_init(&dummy_timer, ble_npl_eventq_dflt_get(),
+			     dummy_timer_handler, NULL);
 }
+

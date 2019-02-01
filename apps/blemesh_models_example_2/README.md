@@ -10,6 +10,8 @@ which Root element has following models
 - Generic OnOff Client
 - Generic Level Server
 - Generic Level Client
+- Generic Default Transition Time Server
+- Generic Default Transition Time Client
 - Generic Power OnOff Server
 - Generic Power OnOff Setup Server
 - Generic Power OnOff Client
@@ -23,8 +25,6 @@ which Root element has following models
 
 And Secondary element has following models
 
-- Generic OnOff Server
-- Generic OnOff Client
 - Generic Level Server
 - Generic Level Client
 - Light CTL Temperature Server
