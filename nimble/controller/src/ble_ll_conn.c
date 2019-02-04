@@ -1944,6 +1944,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->reject_reason = BLE_ERR_SUCCESS;
     connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
     connsm->rpa_index = -1;
+    connsm->inita_identity_used = 0;
 
     /* XXX: TODO set these based on PHY that started connection */
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
