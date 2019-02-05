@@ -182,7 +182,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
 
         BLE_HS_LOG(DEBUG, "LE Read Local P-256 Public Key Complete "
-                   "len=%u status=0x%02x", len, data->status);
+                   "len=%u status=0x%02x\n", len, data->status);
         break;
     }
 
@@ -197,7 +197,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
 
         BLE_HS_LOG(DEBUG, "LE Generate DHKey Complete Event len=%u "
-                   "status=0x%02x", len, data->status);
+                   "status=0x%02x\n", len, data->status);
         break;
     }
 
@@ -326,7 +326,7 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
 
         BLE_HS_LOG(DEBUG, "LE Channel Selection Algorithm len=%u "
-                   "conn_handle=0x%04x chan_sel_alg=0x%02x", len,
+                   "conn_handle=0x%04x chan_sel_alg=0x%02x\n", len,
                    le16toh(data->conn_handle), data->chan_sel_alg);
         break;
     }
