@@ -2772,6 +2772,8 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
 
         if (addr) {
             memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+            /* Identity address used */
+            connsm->inita_identity_used = 1;
         }
     }
 

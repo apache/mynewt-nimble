@@ -164,9 +164,10 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                 memset(evdata, 0, 2 * BLE_DEV_ADDR_LEN);
                 if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
                     if (connsm->inita_identity_used) {
-                        /* If it was direct advertising we were replying to and we used
-                         * identity address there (which might be just fine), we should
-                         * we should take it into account here in this event.
+                        /* We used identity address in CONNECT_IND which can be just fine if
+                         * a) it was direct advertising we replied to and remote uses its identity address
+                         * in device privacy mode or IRK is all zeros.
+                         * b) peer uses RPA and this is first time we connect to him
                          */
                         rpa = NULL;
                     } else  if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
