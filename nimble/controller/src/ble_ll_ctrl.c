@@ -1295,6 +1295,8 @@ ble_ll_ctrl_rx_enc_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         return BLE_LL_CTRL_UNKNOWN_RSP;
     }
 
+    connsm->enc_data.enc_state = CONN_ENC_S_LTK_REQ_WAIT;
+
     /* In case we were already encrypted we need to reset packet counters */
     connsm->enc_data.rx_pkt_cntr = 0;
     connsm->enc_data.tx_pkt_cntr = 0;
@@ -2621,7 +2623,6 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         connsm->enc_data.enc_state = CONN_ENC_S_ENC_RSP_WAIT;
         break;
     case BLE_LL_CTRL_ENC_RSP:
-        connsm->enc_data.enc_state = CONN_ENC_S_LTK_REQ_WAIT;
         connsm->csmflags.cfbit.send_ltk_req = 1;
         break;
     case BLE_LL_CTRL_START_ENC_RSP:
