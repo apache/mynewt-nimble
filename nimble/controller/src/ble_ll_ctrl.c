@@ -2640,15 +2640,16 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
-                connsm->phy_tx_transition = BLE_PHY_1M;
-            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
-                connsm->phy_tx_transition = BLE_PHY_2M;
-            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
-                connsm->phy_tx_transition = BLE_PHY_CODED;
-            }
+        if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
+            connsm->phy_tx_transition = BLE_PHY_1M;
+        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
+            connsm->phy_tx_transition = BLE_PHY_2M;
+        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
+            connsm->phy_tx_transition = BLE_PHY_CODED;
         }
+        break;
+    case BLE_LL_CTRL_PHY_UPDATE_IND:
+         connsm->phy_tx_transition = txpdu->om_data[2];
         break;
 #endif
     default:
