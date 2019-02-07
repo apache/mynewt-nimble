@@ -18,15 +18,11 @@
  */
 
 #include <assert.h>
-#include <stdint.h>
-#include <string.h>
-#include "os/os.h"
-#include "nimble/nimble_npl.h"
-
 #include <errno.h>
-#include <pthread.h>
 #include <semaphore.h>
 
+#include "os/os.h"
+#include "nimble/nimble_npl.h"
 
 ble_npl_error_t
 ble_npl_sem_init(struct ble_npl_sem *sem, uint16_t tokens)
@@ -64,24 +60,21 @@ ble_npl_sem_pend(struct ble_npl_sem *sem, uint32_t timeout)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    err = clock_gettime(CLOCK_REALTIME, &wait);
-    if (err) {
-        return BLE_NPL_ERROR;
-    }
-
-    wait.tv_sec  += timeout / 1000;
-    wait.tv_nsec += (timeout % 1000) * 1000000;
-    wait.tv_nsec %= 1000000000;
-
     if (timeout == BLE_NPL_WAIT_FOREVER) {
         err = sem_wait(&sem->lock);
-    }
-    else
-    {
-        if (sem_timedwait(&sem->lock, &wait)) {
-	        assert(errno == ETIMEDOUT);
-	        return BLE_NPL_TIMEOUT;
-	    }
+    } else {
+        err = clock_gettime(CLOCK_REALTIME, &wait);
+        if (err) {
+            return BLE_NPL_ERROR;
+        }
+
+        wait.tv_sec  += timeout / 1000;
+        wait.tv_nsec += (timeout % 1000) * 1000000;
+
+        err = sem_timedwait(&sem->lock, &wait);
+        if (err && errno == ETIMEDOUT) {
+            return BLE_NPL_TIMEOUT;
+        }
     }
 
     return (err) ? BLE_NPL_ERROR : BLE_NPL_OK;
