@@ -68,5 +68,13 @@ uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks)
 void
 ble_npl_time_delay(ble_npl_time_t ticks)
 {
-    sleep(ble_npl_time_ticks_to_ms32(ticks)/1000);
+    struct timespec sleep_time;
+    long ms = ble_npl_time_ticks_to_ms32(ticks);
+    uint32_t s = ms / 1000;
+
+    ms -= s * 1000;
+    sleep_time.tv_sec = s;
+    sleep_time.tv_nsec = ms * 1000000;
+
+    nanosleep(&sleep_time, NULL);
 }
