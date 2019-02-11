@@ -1013,7 +1013,7 @@ done:
 static inline bool is_pb_gatt(void)
 {
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-	return !!link.conn_handle;
+	return (link.conn_handle != BLE_HS_CONN_HANDLE_NONE);
 #else
 	return false;
 #endif
@@ -1132,7 +1132,7 @@ static const struct {
 static void close_link(u8_t err, u8_t reason)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (link.conn_handle) {
+	if (link.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
 		bt_mesh_pb_gatt_close(link.conn_handle);
 		return;
 	}
