@@ -32,6 +32,7 @@
 #include "settings.h"
 
 u8_t g_mesh_addr_type;
+static struct ble_gap_event_listener mesh_event_listener;
 
 int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		      u8_t flags, u32_t iv_index, u16_t addr,
@@ -333,7 +334,8 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	bt_mesh_proxy_prov_enable();
 #endif
 
-	ble_gap_mesh_cb_register(bt_mesh_gap_event, NULL);
+	ble_gap_event_listener_register(&mesh_event_listener,
+					bt_mesh_gap_event, NULL);
 
 #if (MYNEWT_VAL(BLE_MESH_SETTINGS))
 	bt_mesh_settings_init();

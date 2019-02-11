@@ -131,13 +131,6 @@ struct ble_gap_master_state {
 };
 static bssnz_t struct ble_gap_master_state ble_gap_master;
 
-#if MYNEWT_VAL(BLE_MESH)
-struct ble_gap_mesh_state {
-    ble_gap_event_fn *cb;
-    void *cb_arg;
-} ble_gap_mesh;
-#endif
-
 /**
  * The state of the in-progress slave connection.  If no slave connection is
  * currently in progress, then the op field is set to BLE_GAP_OP_NULL.
@@ -577,17 +570,6 @@ ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
         buf, sizeof(buf), NULL, 0, NULL);
 }
 
-#if MYNEWT_VAL(BLE_MESH)
-int
-ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg)
-{
-    ble_gap_mesh.cb = cb;
-    ble_gap_mesh.cb_arg = cb_arg;
-
-    return 0;
-}
-#endif
-
 /*****************************************************************************
  * $misc                                                                     *
  *****************************************************************************/
@@ -803,11 +785,7 @@ ble_gap_disc_report(void *desc)
         state.cb(&event, state.cb_arg);
     }
 
-#if MYNEWT_VAL(BLE_MESH)
-    if (ble_gap_mesh.cb) {
-        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
-    }
-#endif
+    ble_gap_event_listener_call(&event);
 }
 
 #if NIMBLE_BLE_SCAN
@@ -826,11 +804,7 @@ ble_gap_disc_complete(void)
         ble_gap_call_event_cb(&event, state.cb, state.cb_arg);
     }
 
-#if MYNEWT_VAL(BLE_MESH)
-    if (ble_gap_mesh.cb) {
-        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
-    }
-#endif
+    ble_gap_event_listener_call(&event);
 }
 #endif
 
@@ -1042,12 +1016,6 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
 
     ble_gap_event_listener_call(&event);
     ble_gap_call_event_cb(&event, snap.cb, snap.cb_arg);
-
-#if MYNEWT_VAL(BLE_MESH)
-    if (ble_gap_mesh.cb) {
-        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
-    }
-#endif
 
     STATS_INC(ble_gap_stats, disconnect);
 }
@@ -1474,12 +1442,6 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
 
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, evt->connection_handle);
-
-#if MYNEWT_VAL(BLE_MESH)
-    if (ble_gap_mesh.cb) {
-        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
-    }
-#endif
 
     ble_gap_rd_rem_sup_feat_tx(evt->connection_handle);
 
@@ -4625,12 +4587,6 @@ ble_gap_subscribe_event(uint16_t conn_handle, uint16_t attr_handle,
 
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
-
-#if MYNEWT_VAL(BLE_MESH)
-    if (ble_gap_mesh.cb) {
-        ble_gap_mesh.cb(&event, ble_gap_mesh.cb_arg);
-    }
-#endif
 }
 
 /*****************************************************************************
