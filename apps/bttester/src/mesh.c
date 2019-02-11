@@ -105,12 +105,12 @@ static void supported_commands(u8_t *data, u16_t len)
 static struct bt_mesh_cfg_srv cfg_srv = {
 	.relay = BT_MESH_RELAY_ENABLED,
 	.beacon = BT_MESH_BEACON_ENABLED,
-#if defined(CONFIG_BT_MESH_FRIEND)
+#if MYNEWT_VAL(BLE_MESH_FRIEND)
 	.frnd = BT_MESH_FRIEND_DISABLED,
 #else
 	.frnd = BT_MESH_FRIEND_NOT_SUPPORTED,
 #endif
-#if defined(CONFIG_BT_MESH_GATT_PROXY)
+#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
 	.gatt_proxy = BT_MESH_GATT_PROXY_ENABLED,
 #else
 	.gatt_proxy = BT_MESH_GATT_PROXY_NOT_SUPPORTED,
