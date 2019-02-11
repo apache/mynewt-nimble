@@ -808,8 +808,9 @@ void bt_mesh_proxy_gatt_disconnect(void)
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
 
-		if (client->conn_handle && (client->filter_type == WHITELIST ||
-					    client->filter_type == BLACKLIST)) {
+		if ((client->conn_handle != BLE_HS_CONN_HANDLE_NONE) &&
+		    (client->filter_type == WHITELIST ||
+		     client->filter_type == BLACKLIST)) {
 			client->filter_type = NONE;
 			rc = ble_gap_terminate(client->conn_handle,
 			                       BLE_ERR_REM_USER_CONN_TERM);
