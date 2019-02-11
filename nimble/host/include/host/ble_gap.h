@@ -1298,10 +1298,6 @@ int ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
  */
 int ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener);
 
-#if MYNEWT_VAL(BLE_MESH)
-int ble_gap_mesh_cb_register(ble_gap_event_fn *cb, void *cb_arg);
-#endif
-
 #ifdef __cplusplus
 }
 #endif
