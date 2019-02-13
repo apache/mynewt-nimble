@@ -19,6 +19,8 @@
 
 #include "bttester.h"
 
+extern u8_t own_addr_type;
+
 #define CONTROLLER_INDEX 0
 #define CID_LOCAL 0xffff
 
@@ -433,7 +435,7 @@ static void init(u8_t *data, u16_t len)
 
 	SYS_LOG_DBG("");
 
-	err = bt_mesh_init(0, &prov, &comp);
+	err = bt_mesh_init(own_addr_type, &prov, &comp);
 	if (err) {
 		status = BTP_STATUS_FAILED;
 
