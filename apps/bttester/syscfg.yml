@@ -61,7 +61,6 @@ syscfg.vals:
     SHELL_NEWTMGR: 0
     LOG_LEVEL: 1
     MSYS_1_BLOCK_COUNT: 48
-    BLE_PUBLIC_DEV_ADDR: "((uint8_t[6]){0x66, 0x55, 0x44, 0x33, 0x22, 0x11})"
 
     BLE_MONITOR_RTT: 1
     CONSOLE_RTT: 0

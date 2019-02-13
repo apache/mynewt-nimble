@@ -31,7 +31,7 @@ const uint8_t irk[16] = {
 struct hal_timer conn_param_update_timer;
 #endif
 static atomic_t current_settings;
-static u8_t own_addr_type = BLE_OWN_ADDR_PUBLIC;
+u8_t own_addr_type;
 static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
@@ -112,6 +112,18 @@ static void controller_index_list(u8_t *data,  u16_t len)
 		    BTP_INDEX_NONE, (u8_t *) rp, sizeof(buf));
 }
 
+static int check_pub_addr_unassigned(void)
+{
+#ifdef ARCH_sim
+	return 0;
+#else
+	uint8_t zero_addr[BLE_DEV_ADDR_LEN] = { 0 };
+
+	return memcmp(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
+		      zero_addr, BLE_DEV_ADDR_LEN) == 0;
+#endif
+}
+
 static void controller_info(u8_t *data, u16_t len)
 {
 	struct gap_read_controller_info_rp rp;
@@ -137,8 +149,17 @@ static void controller_info(u8_t *data, u16_t len)
 		supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
 		memcpy(rp.address, addr.val, sizeof(rp.address));
 	} else {
-		memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
-		       sizeof(rp.address));
+		if (check_pub_addr_unassigned()) {
+			own_addr_type = BLE_OWN_ADDR_RANDOM;
+			memcpy(rp.address, addr.val, sizeof(rp.address));
+			supported_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
+			atomic_set_bit(&current_settings,
+				       GAP_SETTINGS_STATIC_ADDRESS);
+		} else {
+			own_addr_type = BLE_OWN_ADDR_PUBLIC;
+			memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
+			       sizeof(rp.address));
+		}
 	}
 
 	ble_hs_cfg.sm_mitm = 0;
