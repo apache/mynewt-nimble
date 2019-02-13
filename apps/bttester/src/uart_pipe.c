@@ -40,12 +40,12 @@ struct uart_pipe_ring {
 
 static struct uart_dev *uart_dev;
 static struct uart_pipe_ring cr_tx;
-static uint8_t cr_tx_buf[2048];
+static uint8_t cr_tx_buf[MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)];
 typedef void (*console_write_char)(struct uart_dev*, uint8_t);
 static console_write_char write_char_cb;
 
 static struct uart_pipe_ring cr_rx;
-static uint8_t cr_rx_buf[2048];
+static uint8_t cr_rx_buf[MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)];
 static volatile bool uart_console_rx_stalled;
 
 struct os_event rx_ev;

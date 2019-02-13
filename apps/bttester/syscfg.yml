@@ -21,11 +21,11 @@
 syscfg.defs:
     BTTESTER_PIPE_UART:
         description: 'Set communication pipe to UART'
-        value: 0
+        value: 1
 
     BTTESTER_PIPE_RTT:
         description: 'Set communication pipe to RTT'
-        value: 1
+        value: 0
 
     BTTESTER_RTT_BUFFER_NAME:
         description: Bttester rtt pipe buffer name
@@ -53,7 +53,7 @@ syscfg.defs:
 
     BTTESTER_DEBUG:
         description: Enable debug logging
-        value: 0
+        value: 1
 
 syscfg.vals:
     OS_MAIN_STACK_SIZE: 12444
