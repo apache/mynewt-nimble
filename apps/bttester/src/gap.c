@@ -1095,6 +1095,7 @@ static void passkey_entry(const u8_t *data, u16_t len)
 		goto rsp;
 	}
 
+	pk.action = BLE_SM_IOACT_INPUT;
 	pk.passkey = sys_le32_to_cpu(cmd->passkey);
 
 	rc = ble_sm_inject_io(desc.conn_handle, &pk);
