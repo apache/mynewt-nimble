@@ -127,7 +127,10 @@ extern "C" {
 #define sys_be16_to_cpu(a) be16toh(a)
 #define sys_le16_to_cpu(a) le16toh(a)
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #define CODE_UNREACHABLE __builtin_unreachable()
 #define __ASSERT(code, str) \
     do {                          \
