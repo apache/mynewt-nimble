@@ -91,6 +91,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_PAIR);
 	tester_set_bit(cmds, GAP_UNPAIR);
 	tester_set_bit(cmds, GAP_PASSKEY_ENTRY);
+	tester_set_bit(cmds, GAP_PASSKEY_CONFIRM);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
 		    CONTROLLER_INDEX, (u8_t *) rp, sizeof(cmds));
@@ -1111,6 +1112,39 @@ rsp:
 		   status);
 }
 
+static void passkey_confirm(const u8_t *data, u16_t len)
+{
+	const struct gap_passkey_confirm_cmd *cmd = (void *) data;
+	struct ble_gap_conn_desc desc;
+	struct ble_sm_io pk;
+	u8_t status;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	if (rc) {
+		status = BTP_STATUS_FAILED;
+		goto rsp;
+	}
+
+	pk.action = BLE_SM_IOACT_NUMCMP;
+	pk.numcmp_accept = cmd->match;
+
+	rc = ble_sm_inject_io(desc.conn_handle, &pk);
+	if (rc) {
+		console_printf("sm inject io failed");
+		status = BTP_STATUS_FAILED;
+		goto rsp;
+	}
+
+	status = BTP_STATUS_SUCCESS;
+
+rsp:
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_PASSKEY_CONFIRM, CONTROLLER_INDEX,
+		   status);
+}
+
 void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		       u16_t len)
 {
@@ -1177,6 +1211,9 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GAP_PASSKEY_ENTRY:
 		passkey_entry(data, len);
+		return;
+	case GAP_PASSKEY_CONFIRM:
+		passkey_confirm(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
