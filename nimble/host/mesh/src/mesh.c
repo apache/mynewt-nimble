@@ -15,6 +15,7 @@
 #include "syscfg/syscfg.h"
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 #include "host/ble_hs_log.h"
+#include "host/ble_uuid.h"
 
 #include "adv.h"
 #include "prov.h"
@@ -31,24 +32,38 @@
 #include "settings.h"
 
 u8_t g_mesh_addr_type;
+static struct ble_gap_event_listener mesh_event_listener;
 
 int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		      u8_t flags, u32_t iv_index, u16_t addr,
 		      const u8_t dev_key[16])
 {
+	bool pb_gatt_enabled;
 	int err;
 
 	BT_INFO("Primary Element: 0x%04x", addr);
 	BT_DBG("net_idx 0x%04x flags 0x%02x iv_index 0x%04x",
 	       net_idx, flags, (unsigned) iv_index);
 
+	if (atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		return -EALREADY;
+	}
+
 	if ((MYNEWT_VAL(BLE_MESH_PB_GATT))) {
-		bt_mesh_proxy_prov_disable();
+		if (bt_mesh_proxy_prov_disable() == 0) {
+			pb_gatt_enabled = true;
+		} else {
+			pb_gatt_enabled = false;
+		}
+	} else {
+		pb_gatt_enabled = false;
 	}
 
 	err = bt_mesh_net_create(net_idx, flags, net_key, iv_index);
 	if (err) {
-		if ((MYNEWT_VAL(BLE_MESH_PB_GATT))) {
+		atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+
+		if (MYNEWT_VAL(BLE_MESH_PB_GATT)  && pb_gatt_enabled) {
 			bt_mesh_proxy_prov_enable();
 		}
 
@@ -75,17 +90,14 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 
 void bt_mesh_reset(void)
 {
-	if (!bt_mesh.valid) {
+	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return;
 	}
 
-	bt_mesh.iv_index = 0;
-	bt_mesh.seq = 0;
-	bt_mesh.iv_update = 0;
-	bt_mesh.pending_update = 0;
-	bt_mesh.valid = 0;
-	bt_mesh.ivu_duration = 0;
-	bt_mesh.ivu_initiator = 0;
+	bt_mesh.iv_index = 0U;
+	bt_mesh.seq = 0U;
+
+	memset(bt_mesh.flags, 0, sizeof(bt_mesh.flags));
 
 	k_delayed_work_cancel(&bt_mesh.ivu_timer);
 
@@ -128,13 +140,22 @@ void bt_mesh_reset(void)
 
 bool bt_mesh_is_provisioned(void)
 {
-	return bt_mesh.valid;
+	return atomic_test_bit(bt_mesh.flags, BT_MESH_VALID);
 }
 
 int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 {
 	if (bt_mesh_is_provisioned()) {
 		return -EALREADY;
+	}
+
+	if (MYNEWT_VAL(BLE_MESH_DEBUG)) {
+		char uuid_buf[BLE_UUID_STR_LEN];
+		const struct bt_mesh_prov *prov = bt_mesh_prov_get();
+		ble_uuid_t *uuid = BLE_UUID128_DECLARE();
+
+		memcpy(BLE_UUID128(uuid)->value, prov->uuid, 16);
+		BT_INFO("Device UUID: %s", ble_uuid_to_str(uuid, uuid_buf));
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) &&
@@ -186,6 +207,85 @@ static int bt_mesh_gap_event(struct ble_gap_event *event, void *arg)
 	return 0;
 }
 
+static void model_suspend(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
+			  bool vnd, bool primary, void *user_data)
+{
+	if (mod->pub && mod->pub->update) {
+		mod->pub->count = 0;
+		k_delayed_work_cancel(&mod->pub->timer);
+	}
+}
+
+int bt_mesh_suspend(void)
+{
+	int err;
+
+	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		return -EINVAL;
+	}
+
+	if (atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+		return -EALREADY;
+	}
+
+	err = bt_mesh_scan_disable();
+	if (err) {
+		atomic_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
+		BT_WARN("Disabling scanning failed (err %d)", err);
+		return err;
+	}
+
+	bt_mesh_hb_pub_disable();
+
+	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
+		bt_mesh_beacon_disable();
+	}
+
+	bt_mesh_model_foreach(model_suspend, NULL);
+
+	return 0;
+}
+
+static void model_resume(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
+			  bool vnd, bool primary, void *user_data)
+{
+	if (mod->pub && mod->pub->update) {
+		s32_t period_ms = bt_mesh_model_pub_period_get(mod);
+
+		if (period_ms) {
+			k_delayed_work_submit(&mod->pub->timer, period_ms);
+		}
+	}
+}
+
+int bt_mesh_resume(void)
+{
+	int err;
+
+	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		return -EINVAL;
+	}
+
+	if (!atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+		return -EALREADY;
+	}
+
+	err = bt_mesh_scan_enable();
+	if (err) {
+		BT_WARN("Re-enabling scanning failed (err %d)", err);
+		atomic_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
+		return err;
+	}
+
+	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
+		bt_mesh_beacon_enable();
+	}
+
+	bt_mesh_model_foreach(model_resume, NULL);
+
+	return err;
+}
+
 int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 		 const struct bt_mesh_comp *comp)
 {
@@ -234,7 +334,8 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	bt_mesh_proxy_prov_enable();
 #endif
 
-	ble_gap_mesh_cb_register(bt_mesh_gap_event, NULL);
+	ble_gap_event_listener_register(&mesh_event_listener,
+					bt_mesh_gap_event, NULL);
 
 #if (MYNEWT_VAL(BLE_MESH_SETTINGS))
 	bt_mesh_settings_init();

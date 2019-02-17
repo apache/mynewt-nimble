@@ -53,7 +53,7 @@
  */
 #include "../src/ble_hs_conn_priv.h"
 #include "../src/ble_hs_atomic_priv.h"
-#include "../src/ble_hs_hci_priv.h"
+#include "../src/ble_hs_priv.h"
 
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 #define BTSHELL_MAX_SVCS               32
@@ -110,9 +110,11 @@ static struct os_callout btshell_tx_timer;
 struct btshell_tx_data_s
 {
     uint16_t tx_num;
+    uint16_t tx_num_requested;
     uint16_t tx_rate;
-    uint16_t tx_handle;
+    uint16_t tx_conn_handle;
     uint16_t tx_len;
+    struct ble_hs_conn *conn;
 };
 static struct btshell_tx_data_s btshell_tx_data;
 int btshell_full_disc_prev_chr_val;
@@ -1229,49 +1231,45 @@ btshell_on_l2cap_update(uint16_t conn_handle, int status, void *arg)
 static void
 btshell_tx_timer_cb(struct os_event *ev)
 {
-    int i;
+    uint8_t i;
     uint8_t len;
     int32_t timeout;
-    uint8_t *dptr;
+    struct ble_l2cap_hdr l2cap_hdr;
     struct os_mbuf *om;
 
     if ((btshell_tx_data.tx_num == 0) || (btshell_tx_data.tx_len == 0)) {
         return;
     }
 
+    console_printf("Sending %d/%d len: %d\n",
+                       btshell_tx_data.tx_num_requested - btshell_tx_data.tx_num + 1,
+                       btshell_tx_data.tx_num_requested, btshell_tx_data.tx_len);
+
     len = btshell_tx_data.tx_len;
 
     om = NULL;
     if (os_msys_num_free() >= 4) {
-        om = os_msys_get_pkthdr(len + 4, sizeof(struct ble_mbuf_hdr));
+        om = os_msys_get_pkthdr(len + BLE_L2CAP_HDR_SZ, BLE_HCI_DATA_HDR_SZ);
     }
 
     if (om) {
-        /* Put the HCI header in the mbuf */
-        om->om_len = len + 4;
-        put_le16(om->om_data, btshell_tx_data.tx_handle);
-        put_le16(om->om_data + 2, len);
-        dptr = om->om_data + 4;
-
         /*
-         * NOTE: first byte gets 0xff so not confused with l2cap channel.
+         * NOTE: CID is 0xffff so it is not confused with valid l2cap channel.
          * The rest of the data gets filled with incrementing pattern starting
          * from 0.
          */
-        put_le16(dptr, len - 4);
-        dptr[2] = 0xff;
-        dptr[3] = 0xff;
-        dptr += 4;
-        len -= 4;
+        put_le16(&l2cap_hdr.len, len);
+        put_le16(&l2cap_hdr.cid, 0xffff);
+
+        os_mbuf_append(om, (void *)&l2cap_hdr, BLE_L2CAP_HDR_SZ);
 
         for (i = 0; i < len; ++i) {
-            *dptr = i;
-            ++dptr;
+            os_mbuf_append(om, (void *)&i, 1);
         }
 
-        /* Set packet header length */
-        OS_MBUF_PKTHDR(om)->omp_len = om->om_len;
-        ble_hci_trans_hs_acl_tx(om);
+        ble_hs_lock();
+        ble_hs_hci_acl_tx_now(btshell_tx_data.conn, &om);
+        ble_hs_unlock();
 
         --btshell_tx_data.tx_num;
     }
@@ -1816,7 +1814,7 @@ btshell_sec_restart(uint16_t conn_handle,
  * @return int
  */
 int
-btshell_tx_start(uint16_t handle, uint16_t len, uint16_t rate, uint16_t num)
+btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num)
 {
     /* Cannot be currently in a session */
     if (num == 0) {
@@ -1834,13 +1832,31 @@ btshell_tx_start(uint16_t handle, uint16_t len, uint16_t rate, uint16_t num)
     }
 
     btshell_tx_data.tx_num = num;
+    btshell_tx_data.tx_num_requested = num;
     btshell_tx_data.tx_rate = rate;
     btshell_tx_data.tx_len = len;
-    btshell_tx_data.tx_handle = handle;
+    btshell_tx_data.tx_conn_handle = conn_handle;
+
+    ble_hs_lock();
+    btshell_tx_data.conn = ble_hs_conn_find(conn_handle);
+    ble_hs_unlock();
+
+    if (!btshell_tx_data.conn) {
+        console_printf("Could not find ble_hs_conn for handle: %d\n",
+                       conn_handle);
+        return -1;
+    }
 
     os_callout_reset(&btshell_tx_timer, 0);
 
     return 0;
+}
+
+void
+btshell_tx_stop(void)
+{
+    os_callout_stop(&btshell_tx_timer);
+    btshell_tx_data.tx_num = 0;
 }
 
 int

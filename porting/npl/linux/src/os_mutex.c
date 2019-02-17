@@ -17,25 +17,22 @@
  * under the License.
  */
 
-#include <assert.h>
-#include <stdint.h>
-#include <string.h>
+#include <errno.h>
+#include <pthread.h>
+
 #include "os/os.h"
 #include "nimble/nimble_npl.h"
-
-#include <pthread.h>
 
 ble_npl_error_t
 ble_npl_mutex_init(struct ble_npl_mutex *mu)
 {
-    pthread_mutexattr_t mu_attr;
-
     if (!mu) {
         return BLE_NPL_INVALID_PARAM;
     }
 
-    pthread_mutexattr_settype(&mu_attr, PTHREAD_MUTEX_RECURSIVE_NP);
-    pthread_mutex_init(&mu->lock, &mu_attr);
+    pthread_mutexattr_init(&mu->attr);
+    pthread_mutexattr_settype(&mu->attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutex_init(&mu->lock, &mu->attr);
 
     return BLE_NPL_OK;
 }
@@ -57,21 +54,28 @@ ble_npl_mutex_release(struct ble_npl_mutex *mu)
 ble_npl_error_t
 ble_npl_mutex_pend(struct ble_npl_mutex *mu, uint32_t timeout)
 {
-    struct timespec wait;
+    int err;
 
     if (!mu) {
         return BLE_NPL_INVALID_PARAM;
     }
 
-    assert(&mu->lock);
+    if (timeout == BLE_NPL_WAIT_FOREVER) {
+        err = pthread_mutex_lock(&mu->lock);
+    } else {
+        err = clock_gettime(CLOCK_REALTIME, &mu->wait);
+        if (err) {
+            return BLE_NPL_ERROR;
+        }
 
-    wait.tv_sec  = timeout / 1000;
-    wait.tv_nsec = (timeout % 1000) * 1000000;
-    wait.tv_nsec %= 1000000000;
+        mu->wait.tv_sec  += timeout / 1000;
+        mu->wait.tv_nsec += (timeout % 1000) * 1000000;
 
-    if (pthread_mutex_timedlock(&mu->lock, &wait)) {
-        return BLE_NPL_TIMEOUT;
+        err = pthread_mutex_timedlock(&mu->lock, &mu->wait);
+        if (err == ETIMEDOUT) {
+            return BLE_NPL_TIMEOUT;
+        }
     }
 
-    return BLE_NPL_OK;
+    return (err) ? BLE_NPL_ERROR : BLE_NPL_OK;
 }

@@ -45,6 +45,10 @@
 #include "config/config.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define u8_t    uint8_t
 #define s8_t    int8_t
 #define u16_t   uint16_t
@@ -123,7 +127,10 @@
 #define sys_be16_to_cpu(a) be16toh(a)
 #define sys_le16_to_cpu(a) le16toh(a)
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #define CODE_UNREACHABLE __builtin_unreachable()
 #define __ASSERT(code, str) \
     do {                          \
@@ -227,6 +234,7 @@ void net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
 void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
+void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
 bool k_fifo_is_empty(struct ble_npl_eventq *q);
 void *net_buf_get(struct ble_npl_eventq *fifo,s32_t t);
@@ -351,7 +359,6 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 #define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
 #define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
-#define BT_SETTINGS                         BLE_MESH_SETTINGS
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
@@ -456,4 +463,8 @@ settings_load(void)
 
 #define BUILD_ASSERT(cond) _Static_assert(cond, "")
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* _MESH_GLUE_ */

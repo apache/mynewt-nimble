@@ -683,6 +683,14 @@ int bt_mesh_proxy_prov_enable(void)
 
 	BT_DBG("");
 
+	if (gatt_svc == MESH_GATT_PROV) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_NONE) {
+		return -EBUSY;
+	}
+
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_VAL), &handle);
 	assert(rc == 0);
 	ble_gatts_svc_set_visibility(handle, 1);
@@ -709,6 +717,14 @@ int bt_mesh_proxy_prov_disable(void)
 	int i;
 
 	BT_DBG("");
+
+	if (gatt_svc == MESH_GATT_NONE) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_PROV) {
+		return -EBUSY;
+	}
 
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_VAL), &handle);
 	assert(rc == 0);
@@ -757,6 +773,14 @@ int bt_mesh_proxy_gatt_enable(void)
 
 	BT_DBG("");
 
+	if (gatt_svc == MESH_GATT_PROXY) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_NONE) {
+		return -EBUSY;
+	}
+
 	rc = ble_gatts_find_svc(BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_VAL), &handle);
 	assert(rc == 0);
 	ble_gatts_svc_set_visibility(handle, 1);
@@ -784,8 +808,9 @@ void bt_mesh_proxy_gatt_disconnect(void)
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
 
-		if (client->conn_handle && (client->filter_type == WHITELIST ||
-					    client->filter_type == BLACKLIST)) {
+		if ((client->conn_handle != BLE_HS_CONN_HANDLE_NONE) &&
+		    (client->filter_type == WHITELIST ||
+		     client->filter_type == BLACKLIST)) {
 			client->filter_type = NONE;
 			rc = ble_gap_terminate(client->conn_handle,
 			                       BLE_ERR_REM_USER_CONN_TERM);
@@ -800,6 +825,14 @@ int bt_mesh_proxy_gatt_disable(void)
 	int rc;
 
 	BT_DBG("");
+
+	if (gatt_svc == MESH_GATT_NONE) {
+		return -EALREADY;
+	}
+
+	if (gatt_svc != MESH_GATT_PROXY) {
+		return -EBUSY;
+	}
 
 	bt_mesh_proxy_gatt_disconnect();
 
@@ -1293,7 +1326,6 @@ void bt_mesh_proxy_adv_stop(void)
 int
 ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 {
-//    BT_DBG("event %d", event->type);
 
 	if (event->type == BLE_GAP_EVENT_CONNECT) {
 		proxy_connected(event->connect.conn_handle);

@@ -747,9 +747,9 @@ ble_l2cap_test_coc_connect(struct test_data *t)
         return;
     }
 
-    req.credits = htole16((t->mtu + (BLE_L2CAP_COC_MTU - 1) / 2) /
-                                                        BLE_L2CAP_COC_MTU);
-    req.mps = htole16(BLE_L2CAP_COC_MTU);
+    req.credits = htole16((t->mtu + (MYNEWT_VAL(BLE_L2CAP_COC_MTU) - 1) / 2) /
+                                                MYNEWT_VAL(BLE_L2CAP_COC_MTU));
+    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
     req.scid = htole16(current_cid++);
@@ -763,7 +763,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
      * only*/
     rsp.credits = htole16(10);
     rsp.dcid = htole16(current_cid);
-    rsp.mps = htole16(BLE_L2CAP_COC_MTU + 16);
+    rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU) + 16);
     rsp.mtu = htole16(t->mtu);
     rsp.result = htole16(ev->l2cap_status);
 
@@ -790,7 +790,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
 
     /* Use some different parameters for peer */
     req.credits = htole16(30);
-    req.mps = htole16(BLE_L2CAP_COC_MTU + 16);
+    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU) + 16);
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
     req.scid = htole16(0x0040);
@@ -812,10 +812,10 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
         rsp.result = htole16(ev->l2cap_status);
     } else {
         /* Receive response from peer.*/
-        rsp.credits = htole16((t->mtu + (BLE_L2CAP_COC_MTU - 1) / 2) /
-                                                          BLE_L2CAP_COC_MTU);
+        rsp.credits = htole16((t->mtu + (MYNEWT_VAL(BLE_L2CAP_COC_MTU) - 1) / 2) /
+                                                MYNEWT_VAL(BLE_L2CAP_COC_MTU));
         rsp.dcid = current_cid++;
-        rsp.mps = htole16(BLE_L2CAP_COC_MTU);
+        rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
         rsp.mtu = htole16(t->mtu);
     }
 

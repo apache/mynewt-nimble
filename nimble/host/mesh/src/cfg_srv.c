@@ -1286,9 +1286,7 @@ static void mod_pub_va_set(struct bt_mesh_model *model,
 		return;
 	}
 
-	label_uuid = buf->om_data;
-	net_buf_simple_pull(buf, 16);
-
+	label_uuid = net_buf_simple_pull_mem(buf, 16);
 	pub_app_idx = net_buf_simple_pull_le16(buf);
 	cred_flag = ((pub_app_idx >> 12) & BIT_MASK(1));
 	pub_app_idx &= BIT_MASK(12);
@@ -1830,8 +1828,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 		return;
 	}
 
-	label_uuid = buf->om_data;
-	net_buf_simple_pull(buf, 16);
+	label_uuid = net_buf_simple_pull_mem(buf, 16);
 
 	BT_DBG("elem_addr 0x%04x", elem_addr);
 
@@ -1908,8 +1905,7 @@ static void mod_sub_va_del(struct bt_mesh_model *model,
 		return;
 	}
 
-	label_uuid = buf->om_data;
-	net_buf_simple_pull(buf, 16);
+	label_uuid = net_buf_simple_pull_mem(buf, 16);
 
 	BT_DBG("elem_addr 0x%04x", elem_addr);
 
@@ -1976,12 +1972,11 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 		return;
 	}
 
-	label_uuid = buf->om_data;
-	net_buf_simple_pull(buf, 16);
-	mod_id = buf->om_data;
+	label_uuid = net_buf_simple_pull_mem(buf, 16);
 
-	BT_DBG("elem_addr 0x%04x, addr %s, mod_id %s", elem_addr,
-	       bt_hex(label_uuid, 16), bt_hex(mod_id, buf->om_len));
+	BT_DBG("elem_addr 0x%04x", elem_addr);
+
+	mod_id = buf->om_data;
 
 	elem = bt_mesh_elem_find(elem_addr);
 	if (!elem) {
@@ -3410,7 +3405,7 @@ static void mod_reset(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 	mod_sub_list_clear(mod);
 
-	if (IS_ENABLED(BT_SETTINGS)) {
+	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
 		bt_mesh_store_mod_sub(mod);
 	}
 }
@@ -3572,6 +3567,13 @@ struct bt_mesh_hb_pub *bt_mesh_hb_pub_get(void)
 	}
 
 	return &conf->hb_pub;
+}
+
+void bt_mesh_hb_pub_disable(void)
+{
+	if (conf) {
+		hb_pub_disable(conf);
+	}
 }
 
 struct bt_mesh_cfg_srv *bt_mesh_cfg_get(void)

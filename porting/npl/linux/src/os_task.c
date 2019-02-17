@@ -55,20 +55,18 @@ ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_func_t 
         return OS_INVALID_PARM;
     }
 
-    pthread_attr_t attr;
-    struct sched_param param;
-    err = pthread_attr_init(&attr);
+    err = pthread_attr_init(&t->attr);
     if (err) return err;
-    err = pthread_attr_getschedparam (&attr, &param);
+    err = pthread_attr_getschedparam (&t->attr, &t->param);
     if (err) return err;
-    err = pthread_attr_setschedpolicy(&attr, SCHED_RR);
+    err = pthread_attr_setschedpolicy(&t->attr, SCHED_RR);
     if (err) return err;
-    param.sched_priority = prio;
-    err = pthread_attr_setschedparam (&attr, &param);
+    t->param.sched_priority = prio;
+    err = pthread_attr_setschedparam (&t->attr, &t->param);
     if (err) return err;
 
     t->name = name;
-    err = pthread_create(&t->handle, &attr, func, arg);
+    err = pthread_create(&t->handle, &t->attr, func, arg);
 
     return err;
 }

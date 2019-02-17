@@ -155,8 +155,8 @@ static int iv_set(int argc, char **argv, char *val)
 	BT_DBG("val %s", val ? val : "(null)");
 
 	if (!val) {
-		bt_mesh.iv_index = 0;
-		bt_mesh.iv_update = 0;
+		bt_mesh.iv_index = 0U;
+		atomic_clear_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 		return 0;
 	}
 
@@ -173,12 +173,11 @@ static int iv_set(int argc, char **argv, char *val)
 	}
 
 	bt_mesh.iv_index = iv.iv_index;
-	bt_mesh.iv_update = iv.iv_update;
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv.iv_update);
 	bt_mesh.ivu_duration = iv.iv_duration;
 
 	BT_DBG("IV Index 0x%04x (IV Update Flag %u) duration %u hours",
-	       (unsigned) bt_mesh.iv_index, bt_mesh.iv_update,
-	       bt_mesh.ivu_duration);
+	       (unsigned) iv.iv_index, iv.iv_update, iv.iv_duration);
 
 	return 0;
 }
@@ -380,7 +379,6 @@ static int net_key_set(int argc, char **argv, char *val)
 static int app_key_set(int argc, char **argv, char *val)
 {
 	struct bt_mesh_app_key *app;
-	struct bt_mesh_subnet *sub;
 	struct app_key_val key;
 	u16_t app_idx;
 	int len, err;
@@ -410,12 +408,6 @@ static int app_key_set(int argc, char **argv, char *val)
 	if (len != sizeof(key)) {
 		BT_ERR("Unexpected value length (%d != %zu)", len, sizeof(key));
 		return -EINVAL;
-	}
-
-	sub = bt_mesh_subnet_get(key.net_idx);
-	if (!sub) {
-		BT_ERR("Failed to find subnet 0x%03x", key.net_idx);
-		return -ENOENT;
 	}
 
 	app = bt_mesh_app_key_find(app_idx);
@@ -821,7 +813,7 @@ static int mesh_commit(void)
 		cfg->default_ttl = stored_cfg.cfg.default_ttl;
 	}
 
-	bt_mesh.valid = 1;
+	atomic_set_bit(bt_mesh.flags, BT_MESH_VALID);
 
 	bt_mesh_net_start();
 
@@ -897,7 +889,7 @@ static void store_pending_iv(void)
 	char *str;
 
 	iv.iv_index = bt_mesh.iv_index;
-	iv.iv_update = bt_mesh.iv_update;
+	iv.iv_update = atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 	iv.iv_duration = bt_mesh.ivu_duration;
 
 	str = settings_str_from_bytes(&iv, sizeof(iv), buf, sizeof(buf));
@@ -1026,7 +1018,7 @@ static void store_pending_hb_pub(void)
 	if (pub->dst == BT_MESH_ADDR_UNASSIGNED) {
 		str = NULL;
 	} else {
-		val.indefinite = (pub->count = 0xffff);
+		val.indefinite = (pub->count == 0xffff);
 		val.dst = pub->dst;
 		val.period = pub->period;
 		val.ttl = pub->ttl;
@@ -1333,7 +1325,7 @@ static void store_pending(struct ble_npl_event *work)
 	BT_DBG("");
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_RPL_PENDING)) {
-		if (bt_mesh.valid) {
+		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 			store_pending_rpl();
 		} else {
 			clear_rpl();
@@ -1345,7 +1337,7 @@ static void store_pending(struct ble_npl_event *work)
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_NET_PENDING)) {
-		if (bt_mesh.valid) {
+		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 			store_pending_net();
 		} else {
 			clear_net();
@@ -1353,7 +1345,7 @@ static void store_pending(struct ble_npl_event *work)
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_IV_PENDING)) {
-		if (bt_mesh.valid) {
+		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 			store_pending_iv();
 		} else {
 			clear_iv();
@@ -1369,7 +1361,7 @@ static void store_pending(struct ble_npl_event *work)
 	}
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_CFG_PENDING)) {
-		if (bt_mesh.valid) {
+		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 			store_pending_cfg();
 		} else {
 			clear_cfg();

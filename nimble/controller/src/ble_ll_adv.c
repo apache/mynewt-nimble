@@ -57,6 +57,7 @@ struct ble_ll_adv_aux {
     struct ble_ll_sched_item sch;
     uint32_t start_time;
     uint16_t aux_data_offset;
+    uint8_t chan;
     uint8_t ext_hdr;
     uint8_t aux_data_len;
     uint8_t payload_len;
@@ -121,7 +122,6 @@ struct ble_ll_adv_sm
     struct ble_npl_event adv_sec_txdone_ev;
     uint16_t duration;
     uint16_t adi;
-    uint8_t adv_secondary_chan;
     uint8_t adv_random_addr[BLE_DEV_ADDR_LEN];
     uint8_t events_max;
     uint8_t events;
@@ -395,10 +395,10 @@ ble_ll_adv_legacy_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
-ble_ll_adv_put_aux_ptr(struct ble_ll_adv_sm *advsm, uint32_t offset,
+ble_ll_adv_put_aux_ptr(uint8_t chan, uint8_t phy, uint32_t offset,
                        uint8_t *dptr)
 {
-    dptr[0] = advsm->adv_secondary_chan;
+    dptr[0] = chan;
 
     if (offset > 245700) {
         dptr[0] |= 0x80;
@@ -408,7 +408,7 @@ ble_ll_adv_put_aux_ptr(struct ble_ll_adv_sm *advsm, uint32_t offset,
     }
 
     dptr[1] = (offset & 0x000000ff);
-    dptr[2] = ((offset >> 8) & 0x0000001f) | (advsm->sec_phy - 1) << 5; //TODO;
+    dptr[2] = ((offset >> 8) & 0x0000001f) | (phy - 1) << 5; //TODO;
 }
 
 /**
@@ -473,7 +473,9 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     } else {
         offset = 0;
     }
-    ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
+    /* Always use channel from 1st AUX */
+    ble_ll_adv_put_aux_ptr(AUX_CURRENT(advsm)->chan, advsm->sec_phy,
+                           offset, dptr);
 
     return BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
 }
@@ -555,7 +557,8 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
             offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
 
-        ble_ll_adv_put_aux_ptr(advsm, offset, dptr);
+        ble_ll_adv_put_aux_ptr(AUX_NEXT(advsm)->chan, advsm->sec_phy,
+                               offset, dptr);
 
         dptr += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
     }
@@ -856,6 +859,11 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_adv_active_chanset_set_pri(advsm);
 
+    if ((advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA) ||
+        (advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA)) {
+        goto adv_tx_done;
+    }
+
     /* Set the power */
     ble_phy_txpwr_set(advsm->adv_txpwr);
 
@@ -992,6 +1000,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
     ble_phy_tx_pducb_t pducb;
+    struct ble_ll_adv_aux *aux;
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -1005,7 +1014,8 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_txpwr_set(advsm->adv_txpwr);
 
     /* Set channel */
-    rc = ble_phy_setchan(advsm->adv_secondary_chan, BLE_ACCESS_ADDR_ADV,
+    aux = AUX_CURRENT(advsm);
+    rc = ble_phy_setchan(aux->chan, BLE_ACCESS_ADDR_ADV,
                          BLE_LL_CRCINIT_ADV);
     assert(rc == 0);
 
@@ -1120,6 +1130,11 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->aux_data_len = 0;
     aux->payload_len = 0;
     aux->ext_hdr = 0;
+
+    /* TODO we could use CSA2 for this
+     * (will be needed for periodic advertising anyway)
+     */
+    aux->chan = rand() % BLE_PHY_NUM_DATA_CHANS;
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
     chainable = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE);
@@ -1269,11 +1284,6 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
 
     aux = AUX_CURRENT(advsm);
     ble_ll_adv_aux_calculate(advsm, aux, 0);
-
-    /* TODO we could use CSA2 for this
-     * (will be needed for periodic advertising anyway)
-     */
-    advsm->adv_secondary_chan = rand() % BLE_PHY_NUM_DATA_CHANS;
 
     /* Set end time to maximum time this schedule item may take */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
@@ -1549,6 +1559,26 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static void
+ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
+{
+    uint16_t old_adi = advsm->adi;
+
+    /*
+     * The Advertising DID for a given advertising set shall be initialized
+     * with a randomly chosen value. Whenever the Host provides new advertising
+     * data or scan response data for a given advertising set (whether it is the
+     * same as the previous data or not), the Advertising DID shall be updated.
+     * The new value shall be a randomly chosen value that is not the same as
+     * the previously used value.
+     */
+    do {
+        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+    } while (old_adi == advsm->adi);
+}
+#endif
+
 static void
 ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 {
@@ -1579,7 +1609,7 @@ ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new advertising data */
-    advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+    ble_ll_adv_update_did(advsm);
 #endif
 }
 
@@ -2095,7 +2125,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* DID shall be updated when host provides new scan response data */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
 #endif
     }
 
@@ -2168,7 +2198,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         }
 
         /* update DID only */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
         advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
@@ -2237,7 +2267,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* DID shall be updated when host provides new advertising data */
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        ble_ll_adv_update_did(advsm);
 #endif
         }
 
@@ -2853,7 +2883,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
          * are doing directed advertising
          */
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-            if (memcmp(advsm->peer_addr, peer, BLE_DEV_ADDR_LEN)) {
+            if (memcmp(advsm->initiator_addr, peer, BLE_DEV_ADDR_LEN)) {
                 return -1;
             }
         }

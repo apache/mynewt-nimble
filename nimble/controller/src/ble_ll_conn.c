@@ -511,6 +511,7 @@ ble_ll_conn_calc_access_addr(void)
     uint8_t consecutive;
     uint8_t transitions;
     uint8_t ones;
+    int tmp;
 
     /* Calculate a random access address */
     aa = 0;
@@ -525,8 +526,8 @@ ble_ll_conn_calc_access_addr(void)
         }
 
         /* Upper 6 bits must have 2 transitions */
-        temp = aa_high & 0xFC00;
-        if ((temp == 0) || (temp == 0xFC00)) {
+        tmp = (int16_t)aa_high >> 10;
+        if (__builtin_popcount(tmp ^ (tmp >> 1)) < 2) {
             continue;
         }
 
@@ -1943,6 +1944,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->reject_reason = BLE_ERR_SUCCESS;
     connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
     connsm->rpa_index = -1;
+    connsm->inita_identity_used = 0;
 
     /* XXX: TODO set these based on PHY that started connection */
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -2770,6 +2772,8 @@ ble_ll_conn_req_pdu_update(struct os_mbuf *m, uint8_t *adva, uint8_t addr_type,
 
         if (addr) {
             memcpy(dptr, addr, BLE_DEV_ADDR_LEN);
+            /* Identity address used */
+            connsm->inita_identity_used = 1;
         }
     }
 
@@ -3039,7 +3043,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         }
 
         if (connsm->rpa_index >= 0) {
-            ble_ll_scan_set_peer_rpa(rxbuf + BLE_LL_PDU_HDR_LEN);
+            ble_ll_scan_set_peer_rpa(adv_addr);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
             /* Update resolving list with current peer RPA */

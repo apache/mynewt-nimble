@@ -271,8 +271,7 @@ struct ble_ll_conn_sm
     uint32_t last_rxd_pdu_cputime;  /* Used exclusively for supervision timer */
 
     /*
-     * Used to mark that direct advertising from the peer was using
-     * identity address as InitA
+     * Used to mark that identity address was used as InitA
      */
     uint8_t inita_identity_used;
 

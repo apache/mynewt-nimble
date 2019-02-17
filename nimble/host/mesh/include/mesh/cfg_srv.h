@@ -17,6 +17,10 @@
  * @{
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Mesh Configuration Server Model Context */
 struct bt_mesh_cfg_srv {
 	struct bt_mesh_model *model;
@@ -62,6 +66,9 @@ extern const struct bt_mesh_model_op bt_mesh_cfg_srv_op[];
 		BT_MESH_MODEL(BT_MESH_MODEL_ID_CFG_SRV,                      \
 			      bt_mesh_cfg_srv_op, NULL, srv_data)
 
+#ifdef __cplusplus
+}
+#endif
 
 /**
  * @}

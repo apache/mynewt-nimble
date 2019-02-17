@@ -29,8 +29,8 @@
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
 
 /* Window and Interval are equal for continuous scanning */
-#define MESH_SCAN_INTERVAL_MS 10
-#define MESH_SCAN_WINDOW_MS   10
+#define MESH_SCAN_INTERVAL_MS 30
+#define MESH_SCAN_WINDOW_MS   30
 #define MESH_SCAN_INTERVAL    ADV_SCAN_UNIT(MESH_SCAN_INTERVAL_MS)
 #define MESH_SCAN_WINDOW      ADV_SCAN_UNIT(MESH_SCAN_WINDOW_MS)
 
@@ -206,6 +206,11 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 {
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
+
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+		BT_WARN("Refusing to allocate buffer while suspended");
+		return NULL;
+	}
 
 	buf = os_mbuf_get_pkthdr(pool, BT_MESH_ADV_USER_DATA_SIZE);
 	if (!buf) {

@@ -7,6 +7,10 @@
 #ifndef __MODEL_CLI_H__
 #define __MODEL_CLI_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bt_mesh_gen_model_cli {
     struct bt_mesh_model *model;
 
@@ -40,4 +44,8 @@ int bt_mesh_gen_level_set(u16_t net_idx, u16_t addr, u16_t app_idx,
 			  s16_t val, s16_t *state);
 int bt_mesh_gen_model_cli_init(struct bt_mesh_model *model, bool primary);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* __MODEL_CLI_H__ */

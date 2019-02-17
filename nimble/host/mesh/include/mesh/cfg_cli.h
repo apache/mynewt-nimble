@@ -17,6 +17,10 @@
  * @{
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Mesh Configuration Client Model Context */
 struct bt_mesh_cfg_cli {
 	struct bt_mesh_model *model;
@@ -71,6 +75,48 @@ int bt_mesh_cfg_mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
 int bt_mesh_cfg_mod_app_bind_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				 u16_t mod_app_idx, u16_t mod_id, u16_t cid,
 				 u8_t *status);
+
+/** @def BT_MESH_PUB_PERIOD_100MS
+ *
+ *  @brief Helper macro to encode model publication period in units of 100ms
+ *
+ *  @param steps Number of 100ms steps.
+ *
+ *  @return Encoded value that can be assigned to bt_mesh_cfg_mod_pub.period
+ */
+#define BT_MESH_PUB_PERIOD_100MS(steps)  ((steps) & BIT_MASK(6))
+
+/** @def BT_MESH_PUB_PERIOD_SEC
+ *
+ *  @brief Helper macro to encode model publication period in units of 1 second
+ *
+ *  @param steps Number of 1 second steps.
+ *
+ *  @return Encoded value that can be assigned to bt_mesh_cfg_mod_pub.period
+ */
+#define BT_MESH_PUB_PERIOD_SEC(steps)   (((steps) & BIT_MASK(6)) | (1 << 6))
+
+/** @def BT_MESH_PUB_PERIOD_10SEC
+ *
+ *  @brief Helper macro to encode model publication period in units of 10
+ *  seconds
+ *
+ *  @param steps Number of 10 second steps.
+ *
+ *  @return Encoded value that can be assigned to bt_mesh_cfg_mod_pub.period
+ */
+#define BT_MESH_PUB_PERIOD_10SEC(steps) (((steps) & BIT_MASK(6)) | (2 << 6))
+
+/** @def BT_MESH_PUB_PERIOD_10MIN
+ *
+ *  @brief Helper macro to encode model publication period in units of 10
+ *  minutes
+ *
+ *  @param steps Number of 10 minute steps.
+ *
+ *  @return Encoded value that can be assigned to bt_mesh_cfg_mod_pub.period
+ */
+#define BT_MESH_PUB_PERIOD_10MIN(steps) (((steps) & BIT_MASK(6)) | (3 << 6))
 
 struct bt_mesh_cfg_mod_pub {
 	u16_t  addr;
@@ -177,6 +223,9 @@ int bt_mesh_cfg_hb_pub_get(u16_t net_idx, u16_t addr,
 s32_t bt_mesh_cfg_cli_timeout_get(void);
 void bt_mesh_cfg_cli_timeout_set(s32_t timeout);
 
+#ifdef __cplusplus
+}
+#endif
 /**
  * @}
  */

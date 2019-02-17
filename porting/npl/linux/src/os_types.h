@@ -59,6 +59,8 @@ struct ble_npl_callout {
 
 struct ble_npl_mutex {
     pthread_mutex_t         lock;
+    pthread_mutexattr_t     attr;
+    struct timespec         wait;
 };
 
 struct ble_npl_sem {
@@ -67,6 +69,8 @@ struct ble_npl_sem {
 
 struct ble_npl_task {
     pthread_t               handle;
+    pthread_attr_t          attr;
+    struct sched_param      param;
     const char*             name;
 };
 

@@ -111,6 +111,15 @@ static struct os_mbuf *friend_buf_alloc(u16_t src)
 	return buf;
 }
 
+static bool is_lpn_unicast(struct bt_mesh_friend *frnd, u16_t addr)
+{
+	if (frnd->lpn == BT_MESH_ADDR_UNASSIGNED) {
+		return false;
+	}
+
+	return (addr >= frnd->lpn && addr < (frnd->lpn + frnd->num_elem));
+}
+
 struct bt_mesh_friend *bt_mesh_friend_find(u16_t net_idx, u16_t lpn_addr,
 					   bool valid, bool established)
 {
@@ -133,7 +142,7 @@ struct bt_mesh_friend *bt_mesh_friend_find(u16_t net_idx, u16_t lpn_addr,
 			continue;
 		}
 
-		if (frnd->lpn == lpn_addr) {
+		if (is_lpn_unicast(frnd, lpn_addr)) {
 			return frnd;
 		}
 	}
@@ -803,7 +812,6 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	struct bt_mesh_ctl_friend_req *msg = (void *)buf->om_data;
 	struct bt_mesh_friend *frnd = NULL;
-	u16_t old_friend;
 	u32_t poll_to;
 	int i;
 
@@ -831,6 +839,11 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		return -EINVAL;
 	}
 
+	if (!BT_MESH_ADDR_IS_UNICAST(rx->ctx.addr + msg->num_elem - 1)) {
+		BT_WARN("LPN elements stretch outside of unicast range");
+		return -EINVAL;
+	}
+
 	if (!MIN_QUEUE_SIZE_LOG(msg->criteria)) {
 		BT_WARN("Prohibited Minimum Queue Size in Friend Request");
 		return -EINVAL;
@@ -843,15 +856,7 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		return 0;
 	}
 
-	old_friend = sys_be16_to_cpu(msg->prev_addr);
-	if (BT_MESH_ADDR_IS_UNICAST(old_friend)) {
-		frnd = bt_mesh_friend_find(rx->sub->net_idx, old_friend,
-					   true, false);
-	} else {
-		frnd = bt_mesh_friend_find(rx->sub->net_idx, rx->ctx.addr,
-					   true, false);
-	}
-
+	frnd = bt_mesh_friend_find(rx->sub->net_idx, rx->ctx.addr, true, false);
 	if (frnd) {
 		BT_WARN("Existing LPN re-requesting Friendship");
 		friend_clear(frnd);
@@ -873,6 +878,7 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 
 init_friend:
 	frnd->lpn = rx->ctx.addr;
+	frnd->num_elem = msg->num_elem;
 	frnd->net_idx = rx->sub->net_idx;
 	frnd->recv_delay = msg->recv_delay;
 	frnd->poll_to = poll_to * 100;
@@ -883,8 +889,8 @@ init_friend:
 	       frnd->lpn, rx->rssi, frnd->recv_delay,
 	       (unsigned) frnd->poll_to);
 
-	if (BT_MESH_ADDR_IS_UNICAST(old_friend) &&
-	    !bt_mesh_elem_find(old_friend)) {
+	if (BT_MESH_ADDR_IS_UNICAST(frnd->clear.frnd) &&
+	    !bt_mesh_elem_find(frnd->clear.frnd)) {
 		clear_procedure_start(frnd);
 	}
 
@@ -1216,11 +1222,7 @@ static bool friend_lpn_matches(struct bt_mesh_friend *frnd, u16_t net_idx,
 	}
 
 	if (BT_MESH_ADDR_IS_UNICAST(addr)) {
-		if (addr == frnd->lpn) {
-			return true;
-		}
-
-		return false;
+		return is_lpn_unicast(frnd, addr);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(frnd->sub_list); i++) {

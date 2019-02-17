@@ -29,16 +29,17 @@ using namespace std;
 
 template <typename T> class wqueue
 {
-    list<T>         m_queue;
-    pthread_mutex_t m_mutex;
-    pthread_cond_t  m_condv;
+    list<T>              m_queue;
+    pthread_mutex_t      m_mutex;
+    pthread_mutexattr_t  m_mutex_attr;
+    pthread_cond_t       m_condv;
 
 public:
     wqueue()
     {
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&m_mutex, &attr);
+        pthread_mutexattr_init(&m_mutex_attr);
+        pthread_mutexattr_settype(&m_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&m_mutex, &m_mutex_attr);
         pthread_cond_init(&m_condv, NULL);
     }
 

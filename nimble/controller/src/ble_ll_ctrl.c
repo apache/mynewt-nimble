@@ -686,10 +686,17 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     uint8_t tx_phys;
     uint8_t rx_phys;
     uint16_t instant;
+    uint8_t is_slave_sym = 0;
 
     /* Get preferences from PDU */
     tx_phys = dptr[0];
     rx_phys = dptr[1];
+
+    /* If we are master, check if slave requested symmetric PHY */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+        is_slave_sym = tx_phys == rx_phys;
+        is_slave_sym &= __builtin_popcount(tx_phys) == 1;
+    }
 
     /* Get m_to_s and s_to_m masks */
     if (slave_req) {
@@ -709,6 +716,18 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     s_to_m = ble_ll_ctrl_find_new_phy(s_to_m);
     if (s_to_m == connsm->phy_data.cur_rx_phy) {
         s_to_m = 0;
+    }
+
+    /*
+     * Core 5.0, Vol 6, PartB, 5.1.10
+     *     If the slave specified a single PHY in both the TX_PHYS and RX_PHYS
+     *     fields and both fields are the same, the master shall either select
+     *     the PHY specified by the slave for both directions or shall leave
+     *     both directions unchanged.
+     */
+    if (is_slave_sym && (s_to_m != m_to_s)) {
+        s_to_m = 0;
+        m_to_s = 0;
     }
 
     /* At this point, m_to_s and s_to_m are not masks; they are numeric */
@@ -1160,9 +1179,13 @@ ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm)
         om->om_data[0] = BLE_LL_CTRL_START_ENC_REQ;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, 1);
 
-        /* Wait for LL_START_ENC_RSP */
-        connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_ENCRYPT;
-        ble_ll_ctrl_start_rsp_timer(connsm);
+        /* Wait for LL_START_ENC_RSP. If there is already procedure in progress,
+         * LL response timer is already running.
+         */
+        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
+            connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_ENCRYPT;
+            ble_ll_ctrl_start_rsp_timer(connsm);
+        }
 
         rc = 0;
     } else {
@@ -1271,6 +1294,8 @@ ble_ll_ctrl_rx_enc_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->conn_role != BLE_LL_CONN_ROLE_SLAVE) {
         return BLE_LL_CTRL_UNKNOWN_RSP;
     }
+
+    connsm->enc_data.enc_state = CONN_ENC_S_LTK_REQ_WAIT;
 
     /* In case we were already encrypted we need to reset packet counters */
     connsm->enc_data.rx_pkt_cntr = 0;
@@ -1391,10 +1416,11 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
         return BLE_ERR_MAX;
     }
 
-    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
-
     /* If master, we are done. Stop control procedure and sent event to host */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
@@ -1404,6 +1430,11 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
     } else {
         /* Procedure has completed but slave needs to send START_ENC_RSP */
         rc = BLE_LL_CTRL_START_ENC_RSP;
+
+        /* Stop timer if it was started when sending START_ENC_REQ */
+        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT) {
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
+        }
     }
 
     /*
@@ -1685,12 +1716,13 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
  * @param dptr
  * @param rspbuf
  * @param opcode
+ * @param new_features
  *
  * @return int
  */
 static int
 ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
-                           uint8_t *rspbuf, uint8_t opcode)
+                           uint8_t *rspbuf, uint8_t opcode, uint8_t *new_features)
 {
     uint8_t rsp_opcode;
     uint32_t our_feat;
@@ -1730,11 +1762,40 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* If this is the first time we received remote features, try to start DLE */
     if (!connsm->csmflags.cfbit.rxd_features) {
-        ble_ll_ctrl_initiate_dle(connsm);
+        *new_features = 1;
         connsm->csmflags.cfbit.rxd_features = 1;
     }
 
     return rsp_opcode;
+}
+
+/**
+ * Called when we receive a feature response
+ *
+ * @param connsm
+ * @param dptr
+ * @param new_features
+ *
+ */
+static void
+ble_ll_ctrl_rx_feature_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *new_features)
+{
+    connsm->conn_features = dptr[0];
+    memcpy(connsm->remote_features, dptr + 1, 7);
+    /* If this is the first time we received remote features, try to start DLE */
+    if (!connsm->csmflags.cfbit.rxd_features) {
+        *new_features = 1;
+        connsm->csmflags.cfbit.rxd_features = 1;
+    }
+    /* Stop the control procedure */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
+    }
+    /* Send event to host if pending features read */
+    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+        ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
+        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+    }
 }
 
 /**
@@ -2208,6 +2269,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     int restart_encryption;
 #endif
+    uint8_t new_features = 0;
     int rc = 0;
 
     /* XXX: where do we validate length received and packet header length?
@@ -2362,32 +2424,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_proc_unk_rsp(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
-        connsm->conn_features = dptr[0];
-        memcpy(connsm->remote_features, dptr + 1, 7);
-        /* If this is the first time we received remote features, try to start DLE */
-        if (!connsm->csmflags.cfbit.rxd_features) {
-            ble_ll_ctrl_initiate_dle(connsm);
-            connsm->csmflags.cfbit.rxd_features = 1;
-        }
-        /* Stop the control procedure */
-        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
-            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
-        }
-        /* Send event to host if pending features read */
-        if (connsm->csmflags.cfbit.pending_hci_rd_features) {
-            ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-            connsm->csmflags.cfbit.pending_hci_rd_features = 0;
-        }
+        ble_ll_ctrl_rx_feature_rsp(connsm, dptr, &new_features);
         break;
     case BLE_LL_CTRL_VERSION_IND:
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
         break;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
     case BLE_LL_CTRL_ENC_REQ:
@@ -2469,6 +2516,11 @@ ll_ctrl_send_rsp:
         }
 #endif
     }
+
+    if (new_features) {
+        ble_ll_ctrl_initiate_dle(connsm);
+    }
+
     return rc;
 }
 
@@ -2571,7 +2623,6 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         connsm->enc_data.enc_state = CONN_ENC_S_ENC_RSP_WAIT;
         break;
     case BLE_LL_CTRL_ENC_RSP:
-        connsm->enc_data.enc_state = CONN_ENC_S_LTK_REQ_WAIT;
         connsm->csmflags.cfbit.send_ltk_req = 1;
         break;
     case BLE_LL_CTRL_START_ENC_RSP:
@@ -2590,15 +2641,16 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
-                connsm->phy_tx_transition = BLE_PHY_1M;
-            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
-                connsm->phy_tx_transition = BLE_PHY_2M;
-            } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
-                connsm->phy_tx_transition = BLE_PHY_CODED;
-            }
+        if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
+            connsm->phy_tx_transition = BLE_PHY_1M;
+        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
+            connsm->phy_tx_transition = BLE_PHY_2M;
+        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
+            connsm->phy_tx_transition = BLE_PHY_CODED;
         }
+        break;
+    case BLE_LL_CTRL_PHY_UPDATE_IND:
+         connsm->phy_tx_transition = txpdu->om_data[2];
         break;
 #endif
     default:

@@ -1013,7 +1013,7 @@ done:
 static inline bool is_pb_gatt(void)
 {
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-	return !!link.conn_handle;
+	return (link.conn_handle != BLE_HS_CONN_HANDLE_NONE);
 #else
 	return false;
 #endif
@@ -1095,7 +1095,7 @@ static void prov_data(const u8_t *data)
 	/* After PB-GATT provisioning we should start advertising
 	 * using Node Identity.
 	 */
-	if (identity_enable) {
+	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) && identity_enable) {
 		bt_mesh_proxy_identity_enable();
 	}
 
@@ -1132,7 +1132,7 @@ static const struct {
 static void close_link(u8_t err, u8_t reason)
 {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (link.conn_handle) {
+	if (link.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
 		bt_mesh_pb_gatt_close(link.conn_handle);
 		return;
 	}
@@ -1565,8 +1565,6 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 		prov->link_close(BT_MESH_PROV_GATT);
 	}
 
-//	bt_conn_unref(conn_handle);
-
 	pub_key = atomic_test_bit(link.flags, LOCAL_PUB_KEY);
 	memset(&link, 0, sizeof(link));
 
@@ -1615,6 +1613,8 @@ int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 	}
 
 	prov = prov_info;
+
+	(void)prov_handlers;
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	k_delayed_work_init(&link.tx.retransmit, prov_retransmit);
