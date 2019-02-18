@@ -981,6 +981,7 @@ static int find_included_cb(uint16_t conn_handle,
 	struct gatt_find_included_rp *rp = (void *) gatt_buf.buf;
 	struct gatt_included *included;
 	const ble_uuid_any_t *uuid;
+	int service_handle = (int) arg;
 	u8_t uuid_length;
 
 	SYS_LOG_DBG("");
@@ -1005,9 +1006,10 @@ static int find_included_cb(uint16_t conn_handle,
 	}
 
 	/* FIXME */
-	included->included_handle = sys_cpu_to_le16(gatt_svc->start_handle);
+	included->included_handle = sys_cpu_to_le16(service_handle + 1 +
+						    rp->services_count);
 	included->service.start_handle = sys_cpu_to_le16(gatt_svc->start_handle);
-	included->service.end_handle = sys_cpu_to_le16(gatt_svc->start_handle);
+	included->service.end_handle = sys_cpu_to_le16(gatt_svc->end_handle);
 	included->service.uuid_length = uuid_length;
 
 	if (uuid->u.type == BLE_UUID_TYPE_16) {
@@ -1029,6 +1031,7 @@ static void find_included(u8_t *data, u16_t len)
 	const struct gatt_find_included_cmd *cmd = (void *) data;
 	struct ble_gap_conn_desc conn;
 	uint16_t start_handle, end_handle;
+	int service_handle_arg;
 	int rc;
 
 	SYS_LOG_DBG("");
@@ -1044,9 +1047,11 @@ static void find_included(u8_t *data, u16_t len)
 
 	start_handle = sys_le16_to_cpu(cmd->start_handle);
 	end_handle = sys_le16_to_cpu(cmd->end_handle);
+	service_handle_arg = start_handle;
 
 	if (ble_gattc_find_inc_svcs(conn.conn_handle, start_handle, end_handle,
-				    find_included_cb, NULL)) {
+				    find_included_cb,
+				    (void *)service_handle_arg)) {
 		discover_destroy();
 		goto fail;
 	}
