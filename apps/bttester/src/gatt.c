@@ -387,6 +387,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GATT_START_SERVER);
 	tester_set_bit(cmds, GATT_SET_ENC_KEY_SIZE);
 	tester_set_bit(cmds, GATT_EXCHANGE_MTU);
+	tester_set_bit(cmds, GATT_DISC_ALL_PRIM_SVCS);
 	tester_set_bit(cmds, GATT_DISC_PRIM_UUID);
 	tester_set_bit(cmds, GATT_FIND_INCLUDED);
 	tester_set_bit(cmds, GATT_DISC_ALL_CHRC);
@@ -900,11 +901,12 @@ static int disc_prim_uuid_cb(uint16_t conn_handle,
 	struct gatt_service *service;
 	const ble_uuid_any_t *uuid;
 	u8_t uuid_length;
+	u8_t opcode = (u8_t) (int) arg;
 
 	SYS_LOG_DBG("");
 
 	if (error->status != 0) {
-		tester_send(BTP_SERVICE_ID_GATT, GATT_DISC_PRIM_UUID,
+		tester_send(BTP_SERVICE_ID_GATT, opcode,
 			    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
 		discover_destroy();
 		return 0;
@@ -915,7 +917,7 @@ static int disc_prim_uuid_cb(uint16_t conn_handle,
 
 	service = gatt_buf_reserve(sizeof(*service) + uuid_length);
 	if (!service) {
-		tester_rsp(BTP_SERVICE_ID_GATT, GATT_DISC_PRIM_UUID,
+		tester_rsp(BTP_SERVICE_ID_GATT, opcode,
 			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 		discover_destroy();
 		return BLE_HS_EDONE;
@@ -937,6 +939,36 @@ static int disc_prim_uuid_cb(uint16_t conn_handle,
 	rp->services_count++;
 
 	return 0;
+}
+
+static void disc_all_prim_svcs(u8_t *data, u16_t len)
+{
+	struct ble_gap_conn_desc conn;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &conn);
+	if (rc) {
+		goto fail;
+	}
+
+	if (!gatt_buf_reserve(sizeof(struct gatt_disc_all_prim_svcs_rp))) {
+		goto fail;
+	}
+
+	if (ble_gattc_disc_all_svcs(conn.conn_handle,
+				    disc_prim_uuid_cb,
+				    (void *) GATT_DISC_ALL_PRIM_SVCS)) {
+		discover_destroy();
+		goto fail;
+	}
+
+	return;
+
+fail:
+	tester_rsp(BTP_SERVICE_ID_GATT, GATT_DISC_ALL_PRIM_SVCS,
+		   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 }
 
 static void disc_prim_uuid(u8_t *data, u16_t len)
@@ -961,8 +993,9 @@ static void disc_prim_uuid(u8_t *data, u16_t len)
 		goto fail;
 	}
 
-	if (ble_gattc_disc_svc_by_uuid(conn.conn_handle, &uuid.u,
-				       disc_prim_uuid_cb, NULL)) {
+	if (ble_gattc_disc_svc_by_uuid(conn.conn_handle,
+				       &uuid.u, disc_prim_uuid_cb,
+				       (void *) GATT_DISC_PRIM_UUID)) {
 		discover_destroy();
 		goto fail;
 	}
@@ -2095,6 +2128,9 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GATT_EXCHANGE_MTU:
 		exchange_mtu(data, len);
+		return;
+	case GATT_DISC_ALL_PRIM_SVCS:
+		disc_all_prim_svcs(data, len);
 		return;
 	case GATT_DISC_PRIM_UUID:
 		disc_prim_uuid(data, len);
