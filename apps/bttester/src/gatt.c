@@ -190,7 +190,10 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE),
 			.access_cb = gatt_svr_access_cb,
-			.flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+			.flags = BLE_GATT_CHR_F_READ |
+				 BLE_GATT_CHR_F_WRITE |
+				 BLE_GATT_CHR_F_NOTIFY |
+				 BLE_GATT_CHR_F_INDICATE,
 			.arg = &gatt_values[4],
 			.val_handle = &gatt_values[4].val_handle,
 		}, {
