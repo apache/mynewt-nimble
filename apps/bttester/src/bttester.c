@@ -177,7 +177,7 @@ static void cmd_handler(struct os_event *ev)
 	cmd = ev->ev_arg;
 
 	len = sys_le16_to_cpu(cmd->hdr.len);
-	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+	if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
 		console_printf("[DBG] received %d bytes: %s\n",
 			       sizeof(cmd->hdr) + len,
 			       bt_hex(cmd->data,
@@ -316,7 +316,7 @@ void tester_send(u8_t service, u8_t opcode, u8_t index, u8_t *data,
 		bttester_pipe_send(data, len);
 	}
 
-	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+	if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
 		console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
 			       bt_hex((char *) &msg, sizeof(msg)));
 		if (data && len) {
