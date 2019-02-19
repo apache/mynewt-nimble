@@ -36,7 +36,7 @@
 
 #define SYS_LOG_DBG(fmt, ...) \
 	if (MYNEWT_VAL(BTTESTER_DEBUG)) { \
-		console_printf("[INF] %s: " fmt "\n", \
+		console_printf("[DBG] %s: " fmt "\n", \
 			       __func__, ## __VA_ARGS__); \
 	}
 #define SYS_LOG_INF(fmt, ...)   console_printf("[INF] %s: " fmt "\n", \
