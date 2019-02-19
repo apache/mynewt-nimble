@@ -1303,8 +1303,10 @@ ble_ll_reset(void)
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
 #ifdef BLE_XCVR_RFCLK
+    OS_ENTER_CRITICAL(sr);
     /* Stops rf clock and rfclock timer */
     ble_ll_xcvr_rfclk_stop();
+    OS_EXIT_CRITICAL(sr);
 #endif
 
     /* Reset our random address */

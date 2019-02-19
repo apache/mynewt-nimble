@@ -33,6 +33,7 @@ ble_ll_xcvr_rfclk_state(void)
 {
     uint32_t expiry;
 
+    OS_ASSERT_CRITICAL();
     if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_ON) {
         expiry = g_ble_ll_data.ll_rfclk_start_time;
         if ((int32_t)(os_cputime_get32() - expiry) >
@@ -46,6 +47,7 @@ ble_ll_xcvr_rfclk_state(void)
 void
 ble_ll_xcvr_rfclk_enable(void)
 {
+    OS_ASSERT_CRITICAL();
     if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_OFF) {
         g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_ON;
         ble_phy_rfclk_enable();
@@ -55,6 +57,7 @@ ble_ll_xcvr_rfclk_enable(void)
 void
 ble_ll_xcvr_rfclk_disable(void)
 {
+    OS_ASSERT_CRITICAL();
     if (g_ble_ll_data.ll_rfclk_state != BLE_RFCLK_STATE_OFF) {
         ble_phy_rfclk_disable();
         g_ble_ll_data.ll_rfclk_state = BLE_RFCLK_STATE_OFF;
