@@ -629,7 +629,7 @@ bletest_init_scanner(void)
 {
     int rc;
     uint8_t own_addr_type;
-    uint8_t buf[BLE_HCI_CMD_HDR_LEN + BLE_HCI_SET_SCAN_PARAM_LEN];
+    uint8_t buf[BLE_HCI_SET_SCAN_PARAM_LEN];
     uint8_t add_whitelist;
 
     own_addr_type = BLETEST_CFG_SCAN_OWN_ADDR_TYPE;
@@ -640,7 +640,9 @@ bletest_init_scanner(void)
                                                BLETEST_CFG_SCAN_FILT_POLICY,
                                                buf, sizeof buf);
     assert(rc == 0);
-    rc = ble_hs_hci_cmd_tx_empty_ack(buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                                BLE_HCI_OCF_LE_SET_SCAN_PARAMS),
+                                                buf, sizeof(buf));
     if (rc == 0) {
         add_whitelist = BLETEST_CFG_SCAN_FILT_POLICY;
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
