@@ -1660,7 +1660,8 @@ int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
 static int enable_subscription(u16_t conn_handle, u16_t ccc_handle,
 			       u16_t value)
 {
-	u8_t op, status;
+	u8_t op;
+
 	SYS_LOG_DBG("");
 
 	op = (uint8_t) (value == 0x0001 ? GATT_CFG_NOTIFY :
@@ -1670,16 +1671,13 @@ static int enable_subscription(u16_t conn_handle, u16_t ccc_handle,
 					ccc_handle,
 					&value,
 					sizeof(value))) {
-		status = BTP_STATUS_FAILED;
-		goto rsp;
+		return -EINVAL;
 	}
-
-	status = BTP_STATUS_SUCCESS;
 
 	subscribe_params.ccc_handle = value;
 
-rsp:
-	tester_rsp(BTP_SERVICE_ID_GATT, op, CONTROLLER_INDEX, status);
+	tester_rsp(BTP_SERVICE_ID_GATT, op, CONTROLLER_INDEX,
+		   BTP_STATUS_SUCCESS);
 	return 0;
 }
 
@@ -1701,7 +1699,6 @@ static int disable_subscription(u16_t conn_handle, u16_t ccc_handle)
 	}
 
 	subscribe_params.ccc_handle = 0;
-
 	return 0;
 }
 
