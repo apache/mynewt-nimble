@@ -227,11 +227,11 @@ bttester_pipe_init(void)
             .uc_rx_char = uart_console_rx_char,
     };
 
-    cr_tx.size = 2048;
+    cr_tx.size = sizeof(cr_tx_buf);
     cr_tx.buf = cr_tx_buf;
     write_char_cb = uart_pipe_queue_char;
 
-    cr_rx.size = 2048;
+    cr_rx.size = sizeof(cr_rx_buf);
     cr_rx.buf = cr_rx_buf;
 
     rx_ev.ev_cb = uart_console_rx_char_event;
