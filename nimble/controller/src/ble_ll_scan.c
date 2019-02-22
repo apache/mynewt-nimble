@@ -1338,11 +1338,14 @@ ble_ll_scan_sm_stop(int chk_disable)
     scansm->restart_timer_needed = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    OS_ENTER_CRITICAL(sr);
-    ble_ll_scan_clean_cur_aux_data();
-    OS_EXIT_CRITICAL(sr);
+    if (scansm->ext_scanning) {
+        OS_ENTER_CRITICAL(sr);
+        ble_ll_scan_clean_cur_aux_data();
+        OS_EXIT_CRITICAL(sr);
 
-    ble_ll_sched_rmv_elem_type(BLE_LL_SCHED_TYPE_AUX_SCAN, ble_ll_scan_sched_remove);
+        ble_ll_sched_rmv_elem_type(BLE_LL_SCHED_TYPE_AUX_SCAN, ble_ll_scan_sched_remove);
+        scansm->ext_scanning = 0;
+    }
 #endif
 
     /* Count # of times stopped */
