@@ -2727,6 +2727,7 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
     uint16_t handle;
+    int rc;
 
     handle = ble_l2cap_get_conn_handle(chan);
     if (!handle) {
@@ -2740,7 +2741,11 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
 
     cmd->reason = BLE_SM_ERR_PAIR_NOT_SUPP;
 
-    return ble_sm_tx(handle, txom);
+    ble_hs_lock();
+    rc = ble_sm_tx(handle, txom);
+    ble_hs_unlock();
+
+    return rc;
 }
 #endif
 
