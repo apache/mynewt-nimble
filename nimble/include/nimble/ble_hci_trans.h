@@ -162,17 +162,17 @@ void ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
  * Configures the HCI transport to operate with a host.  The transport will
  * execute specified callbacks upon receiving HCI packets from the controller.
  *
- * @param cmd_cb                The callback to execute upon receiving an HCI
+ * @param evt_cb                The callback to execute upon receiving an HCI
  *                                  event.
- * @param cmd_arg               Optional argument to pass to the command
+ * @param evt_arg               Optional argument to pass to the event
  *                                  callback.
  * @param acl_cb                The callback to execute upon receiving ACL
  *                                  data.
  * @param acl_arg               Optional argument to pass to the ACL
  *                                  callback.
  */
-void ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                          void *cmd_arg,
+void ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *evt_cb,
+                          void *evt_arg,
                           ble_hci_trans_rx_acl_fn *acl_cb,
                           void *acl_arg);
 
