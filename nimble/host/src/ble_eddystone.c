@@ -18,6 +18,7 @@
  */
 
 #include <string.h>
+#include "os/endian.h"
 #include "host/ble_eddystone.h"
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"

@@ -22,10 +22,5 @@ TINYCRYPT_INCLUDE := \
 	$(NULL)
 
 TINYCRYPT_SRC := \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/aes_decrypt.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/aes_encrypt.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/cmac_mode.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc_dh.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/utils.c \
+	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/ext/tinycrypt/src/*.c)) \
 	$(NULL)

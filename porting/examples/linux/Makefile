@@ -13,20 +13,22 @@ SIZE    := $(CROSS_COMPILE)size
 # Configure NimBLE variables
 NIMBLE_ROOT := ../../..
 NIMBLE_CFG_TINYCRYPT := 1
+
+# Skip files that don't build for this port
+NIMBLE_IGNORE := $(NIMBLE_ROOT)/porting/nimble/src/hal_timer.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_cputime_pwr2.c \
+	$(NULL)
+
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.defs
 
-SRC := 	$(NIMBLE_SRC)
+SRC := $(NIMBLE_SRC)
 
 # Source files for NPL OSAL
 SRC += \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_atomic.c   \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_callout.c  \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_eventq.cc  \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_mutex.c    \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_sem.c      \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_task.c     \
-	$(NIMBLE_ROOT)/porting/npl/linux/src/os_time.c     \
-	$(NIMBLE_ROOT)/nimble/transport/socket/src/ble_hci_socket.c \
+	$(wildcard $(NIMBLE_ROOT)/porting/npl/linux/src/*.c) \
+	$(wildcard $(NIMBLE_ROOT)/porting/npl/linux/src/*.cc) \
+	$(wildcard $(NIMBLE_ROOT)/nimble/transport/socket/src/*.c) \
 	$(TINYCRYPT_SRC) \
 	$(NULL)
 
@@ -40,7 +42,6 @@ SRC += \
 INC = \
     ./include \
 	$(NIMBLE_ROOT)/porting/npl/linux/include \
-	$(NIMBLE_ROOT)/porting/npl/linux/src \
 	$(NIMBLE_ROOT)/nimble/transport/socket/include \
 	$(NIMBLE_INCLUDE) \
 	$(TINYCRYPT_INCLUDE) \
