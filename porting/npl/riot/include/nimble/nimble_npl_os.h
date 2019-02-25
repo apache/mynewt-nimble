@@ -256,6 +256,12 @@ ble_npl_hw_exit_critical(uint32_t ctx)
     irq_restore((unsigned)ctx);
 }
 
+static inline bool
+ble_npl_hw_is_in_critical(void)
+{
+    return irq_is_in();
+}
+
 #ifdef __cplusplus
 }
 #endif
