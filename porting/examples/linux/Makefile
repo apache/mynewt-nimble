@@ -72,7 +72,7 @@ all: nimble-linux
 
 clean:
 	rm $(OBJ) -f
-	rm dummy -f
+	rm nimble-linux -f
 
 $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 

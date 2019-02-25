@@ -69,11 +69,11 @@ LIBS := -lrt -lpthread -lstdc++
 .PHONY: all clean
 .DEFAULT: all
 
-all: nimble-linux
+all: nimble-linux-blemesh
 
 clean:
 	rm $(OBJ) -f
-	rm dummy -f
+	rm nimble-linux-blemesh -f
 
 $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 
@@ -83,6 +83,6 @@ $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 %.o: %.cc
 	$(CXX) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
-nimble-linux: $(OBJ) $(TINYCRYPT_OBJ)
+nimble-linux-blemesh: $(OBJ) $(TINYCRYPT_OBJ)
 	$(LD) -o $@ $^ $(LIBS)
 	$(SIZE) $@
