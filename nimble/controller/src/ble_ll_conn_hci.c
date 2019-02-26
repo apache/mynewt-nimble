@@ -27,6 +27,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_ctrl.h"
@@ -1234,7 +1235,7 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
      * I will not allow this command if there are less than 2 channels masked.
      */
     rc = BLE_ERR_SUCCESS;
-    num_used_chans = ble_ll_conn_calc_used_chans(cmdbuf);
+    num_used_chans = ble_ll_utils_calc_num_used_chans(cmdbuf);
     if ((num_used_chans < 2) || ((cmdbuf[4] & 0xe0) != 0)) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
     }

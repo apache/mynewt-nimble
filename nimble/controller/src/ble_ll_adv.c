@@ -38,6 +38,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_trace.h"
+#include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: TODO
@@ -111,6 +112,10 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct ble_npl_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    uint16_t channel_id;
+    uint16_t event_cntr;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t aux_active : 1;
     uint8_t aux_index : 1;
@@ -1131,10 +1136,15 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->payload_len = 0;
     aux->ext_hdr = 0;
 
-    /* TODO we could use CSA2 for this
-     * (will be needed for periodic advertising anyway)
-     */
-    aux->chan = rand() % BLE_PHY_NUM_DATA_CHANS;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    aux->chan = ble_ll_utils_calc_dci_csa2(advsm->event_cntr++,
+                                           advsm->channel_id,
+                                           g_ble_ll_conn_params.num_used_chans,
+                                           g_ble_ll_conn_params.master_chan_map);
+#else
+    aux->chan = ble_ll_utils_remapped_channel(rand() % BLE_PHY_NUM_DATA_CHANS,
+                                              g_ble_ll_conn_params.master_chan_map);
+#endif
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
     chainable = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE);
@@ -1776,6 +1786,9 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t adv_chan;
     uint8_t *addr;
     uint8_t *evbuf;
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    uint32_t access_addr;
+#endif
 
     /* only clear flags that are not set from HCI */
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
@@ -1838,6 +1851,13 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 
     /* Set flag telling us that advertising is enabled */
     advsm->adv_enabled = 1;
+
+#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+    advsm->event_cntr = 0;
+    access_addr = ble_ll_utils_calc_access_addr();
+    advsm->channel_id = ((access_addr & 0xffff0000) >> 16) ^
+                         (access_addr & 0x0000ffff);
+#endif
 
     /* Determine the advertising interval we will use */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
