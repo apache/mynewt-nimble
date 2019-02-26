@@ -25,8 +25,8 @@ NIMBLE_INCLUDE += \
 	$(NULL)
 
 NIMBLE_SRC += \
-	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT/nimble/transport/ram/src/*.c)) \
-	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT/nimble/controller/src/*.c)) \
-	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT/nimble/drivers/nrf52/src/*.c)) \
+	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/transport/ram/src/*.c)) \
+	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/controller/src/*.c)) \
+	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/drivers/nrf52/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/porting/nimble/controller/src/*.c)) \
 	$(NULL)
