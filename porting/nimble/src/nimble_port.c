@@ -21,6 +21,7 @@
 #include "os/os.h"
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
+#include "nimble/nimble_port.h"
 #if NIMBLE_CFG_CONTROLLER
 #include "controller/ble_ll.h"
 #endif
