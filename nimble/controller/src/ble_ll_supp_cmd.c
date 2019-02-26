@@ -295,9 +295,15 @@
 #define BLE_SUPP_CMD_LE_REMOVE_ADVS         (0 << 0)
 #define BLE_SUPP_CMD_LE_CLEAR_ADVS          (0 << 1)
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#define BLE_SUPP_CMD_LE_SET_PADV_PARAM      (1 << 2)
+#define BLE_SUPP_CMD_LE_SET_PADV_DATA       (1 << 3)
+#define BLE_SUPP_CMD_LE_SET_PADV_ENABLE     (1 << 4)
+#else
 #define BLE_SUPP_CMD_LE_SET_PADV_PARAM      (0 << 2)
 #define BLE_SUPP_CMD_LE_SET_PADV_DATA       (0 << 3)
 #define BLE_SUPP_CMD_LE_SET_PADV_ENABLE     (0 << 4)
+#endif
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
 #define BLE_SUPP_CMD_LE_SET_EXT_SCAN_PARAM  (1 << 5)
 #define BLE_SUPP_CMD_LE_SET_EXT_SCAN_ENABLE (1 << 6)

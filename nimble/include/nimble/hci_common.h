@@ -550,13 +550,12 @@ extern "C" {
 /* --- LE set periodic advertising parameters (OCF 0x003E) */
 #define BLE_HCI_LE_SET_PERIODIC_ADV_PARAMS_LEN      (7)
 #define BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR (0x0040)
+#define BLE_HCI_LE_SET_PERIODIC_ADV_PROP_MASK       (0x0040)
 
 /* --- LE set periodic advertising data (OCF 0x003F) */
 #define BLE_HCI_LE_SET_PERIODIC_ADV_DATA_LEN             BLE_HCI_VARIABLE_LEN
 #define BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN                (252)
 #define BLE_HCI_SET_PERIODIC_ADV_DATA_HDR_LEN            (3)
-
-
 
 /* --- LE periodic advertising enable (OCF 0x0040) */
 #define BLE_HCI_LE_SET_PERIODIC_ADV_ENABLE_LEN           (2)

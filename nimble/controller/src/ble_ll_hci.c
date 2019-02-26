@@ -1132,6 +1132,22 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc =  ble_ll_adv_clear_all();
         }
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_PARAMS:
+        if (len == BLE_HCI_LE_SET_PERIODIC_ADV_PARAMS_LEN) {
+            rc = ble_ll_adv_periodic_set_param(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA:
+        /* variable length */
+        rc = ble_ll_adv_periodic_set_data(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_SET_PERIODIC_ADV_ENABLE:
+        if (len == BLE_HCI_LE_SET_PERIODIC_ADV_ENABLE_LEN) {
+            rc = ble_ll_adv_periodic_enable(cmdbuf);
+        }
+        break;
+#endif
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:

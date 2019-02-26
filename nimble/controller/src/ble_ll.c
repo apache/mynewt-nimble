@@ -1549,6 +1549,10 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_LE_CODED_PHY;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    features |= BLE_LL_FEAT_PERIODIC_ADV;
+#endif
+
     /* Initialize random number generation */
     ble_ll_rand_init();
 
