@@ -266,6 +266,12 @@ syscfg.defs:
             and connect.
         value: MYNEWT_VAL_BLE_EXT_ADV
 
+    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV:
+        description: >
+            This option is used to enable/disable support for Periodic
+            Advertising Feature. Currently on advertiser is supported.
+        value: MYNEWT_VAL(BLE_PERIODIC_ADV)
+
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
          description: >
             This option configure a max number of scheduled outstanding auxiliary
