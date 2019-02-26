@@ -469,7 +469,6 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_random_advance(proc);
-        int rc;
 
         rc = ble_sm_sc_io_action(proc, &ioact);
         if (rc != 0) {
@@ -497,6 +496,7 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     struct ble_sm_public_key *cmd;
     struct os_mbuf *txom;
     uint8_t ioact;
+    int rc;
 
     res->app_status = ble_sm_sc_ensure_keys_generated();
     if (res->app_status != 0) {
@@ -525,7 +525,6 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
         proc->state = BLE_SM_PROC_STATE_CONFIRM;
-        int rc;
 
         rc = ble_sm_sc_io_action(proc, &ioact);
         if (rc != 0) {
@@ -587,7 +586,6 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->enc_cb = 1;
         } else {
             if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-                int rc;
 
                 proc->state = BLE_SM_PROC_STATE_CONFIRM;
 
