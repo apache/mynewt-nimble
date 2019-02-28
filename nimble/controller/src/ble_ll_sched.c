@@ -893,6 +893,81 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
 }
 
 int
+ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, uint32_t *start,
+                          bool after_overlap)
+{
+    int rc = 0;
+    os_sr_t sr;
+    uint32_t adv_start;
+    uint32_t duration;
+    struct ble_ll_sched_item *entry;
+#ifdef BLE_XCVR_RFCLK
+    struct ble_ll_sched_item *orig = sch;
+#endif
+
+    /* Get length of schedule item */
+    duration = sch->end_time - sch->start_time;
+
+    OS_ENTER_CRITICAL(sr);
+    entry = ble_ll_sched_insert_if_empty(sch);
+    if (!entry) {
+        adv_start = sch->start_time;
+    } else {
+        /* XXX: no need to stop timer if not first on list. Modify code? */
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
+        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+            /* We can insert if before entry in list */
+            if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
+                TAILQ_INSERT_BEFORE(entry, sch, link);
+                break;
+            }
+
+            /* Check for overlapping events */
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                if (after_overlap) {
+                    /* Earliest start is end of this event since we overlap */
+                    sch->start_time = entry->end_time;
+                    sch->end_time = sch->start_time + duration;
+                } else {
+                    rc = -1;
+                    break;
+                }
+            }
+        }
+
+        if (!entry) {
+            TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        }
+        adv_start = sch->start_time;
+
+        if (!rc) {
+            sch->enqueued = 1;
+        }
+
+        /* Restart with head of list */
+        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+    }
+
+    if (!rc) {
+        *start = adv_start;
+    }
+
+#ifdef BLE_XCVR_RFCLK
+    if (orig == sch) {
+        ble_ll_xcvr_rfclk_timer_start(sch->start_time);
+    }
+#endif
+
+    OS_EXIT_CRITICAL(sr);
+
+    /* Restart timer */
+    BLE_LL_ASSERT(sch != NULL);
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+int
 ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
                             uint32_t max_delay_ticks)
 {

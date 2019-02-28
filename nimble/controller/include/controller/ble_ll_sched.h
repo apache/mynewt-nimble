@@ -161,6 +161,10 @@ typedef void ble_ll_sched_adv_new_cb(struct ble_ll_adv_sm *advsm,
 int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
                          ble_ll_sched_adv_new_cb cb, void *arg);
 
+/* Schedule periodic advertising event */
+int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, uint32_t *start,
+                              bool after_overlap);
+
 /* Reschedule an advertising event */
 int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
                                 uint32_t max_delay_ticks);
