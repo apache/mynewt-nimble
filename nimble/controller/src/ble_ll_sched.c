@@ -105,7 +105,7 @@ ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
  * Determines if the schedule item overlaps the currently running schedule
  * item. We only care about connection schedule items
  */
-int
+static int
 ble_ll_sched_overlaps_current(struct ble_ll_sched_item *sch)
 {
     int rc;
@@ -141,7 +141,7 @@ ble_ll_sched_conn_overlap(struct ble_ll_sched_item *entry)
     return rc;
 }
 
-struct ble_ll_sched_item *
+static struct ble_ll_sched_item *
 ble_ll_sched_insert_if_empty(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_sched_item *entry;
@@ -1208,7 +1208,7 @@ sched:
  *
  * @return int
  */
-void
+static void
 ble_ll_sched_run(void *arg)
 {
     struct ble_ll_sched_item *sch;
