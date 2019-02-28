@@ -239,24 +239,21 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     while (entry) {
         start_overlap = TAILQ_NEXT(entry,link);
         switch (entry->sched_type) {
-            case BLE_LL_SCHED_TYPE_CONN:
+        case BLE_LL_SCHED_TYPE_CONN:
             tmp = (struct ble_ll_conn_sm *)entry->cb_arg;
             ble_ll_event_send(&tmp->conn_ev_end);
             break;
-            case BLE_LL_SCHED_TYPE_ADV:
-                ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)
-                                                  entry->cb_arg);
-                break;
+        case BLE_LL_SCHED_TYPE_ADV:
+            ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)entry->cb_arg);
+            break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-            case BLE_LL_SCHED_TYPE_AUX_SCAN:
-                ble_ll_scan_end_adv_evt((struct ble_ll_aux_data *)
-                                          entry->cb_arg);
-
-                break;
+        case BLE_LL_SCHED_TYPE_AUX_SCAN:
+            ble_ll_scan_end_adv_evt((struct ble_ll_aux_data *)entry->cb_arg);
+            break;
 #endif
-            default:
-                BLE_LL_ASSERT(0);
-                break;
+        default:
+            BLE_LL_ASSERT(0);
+            break;
         }
 
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
