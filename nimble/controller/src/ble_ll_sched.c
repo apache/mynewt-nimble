@@ -1050,6 +1050,7 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
         }
         os_cputime_timer_stop(&g_ble_ll_sched_timer);
         TAILQ_INSERT_BEFORE(entry, sch, link);
+        sch->enqueued = 1;
     }
 
     OS_EXIT_CRITICAL(sr);
