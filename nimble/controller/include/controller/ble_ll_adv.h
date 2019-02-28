@@ -47,6 +47,7 @@ extern "C" {
 #define BLE_LL_ADV_PDU_ITVL_LD_MS_MAX   (10)            /* msecs */
 #define BLE_LL_ADV_PDU_ITVL_HD_MS_MAX   (3750)          /* usecs */
 #define BLE_LL_ADV_STATE_HD_MAX         (1280)          /* msecs */
+#define BLE_LL_ADV_PERIODIC_ITVL        (1250)          /* usecs */
 
 /* Maximum advertisement data length */
 #define BLE_ADV_LEGACY_DATA_MAX_LEN     (31)

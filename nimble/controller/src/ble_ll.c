@@ -207,6 +207,8 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, adv_evt_dropped)
     STATS_NAME(ble_ll_stats, scan_timer_stopped)
     STATS_NAME(ble_ll_stats, scan_timer_restarted)
+    STATS_NAME(ble_ll_stats, periodic_adv_drop_event)
+    STATS_NAME(ble_ll_stats, periodic_chain_drop_event)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct ble_npl_event *ev);
