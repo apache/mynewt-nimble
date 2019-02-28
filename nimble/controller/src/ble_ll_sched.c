@@ -833,7 +833,6 @@ int
 ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
                      void *arg)
 {
-    int rc;
     os_sr_t sr;
     uint32_t adv_start;
     uint32_t duration;
@@ -847,7 +846,6 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
     OS_ENTER_CRITICAL(sr);
     entry = ble_ll_sched_insert_if_empty(sch);
     if (!entry) {
-        rc = 0;
         adv_start = sch->start_time;
     } else {
         /* XXX: no need to stop timer if not first on list. Modify code? */
@@ -855,7 +853,6 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
             /* We can insert if before entry in list */
             if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
-                rc = 0;
                 TAILQ_INSERT_BEFORE(entry, sch, link);
                 break;
             }
@@ -869,14 +866,11 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
         }
 
         if (!entry) {
-            rc = 0;
             TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
         }
         adv_start = sch->start_time;
 
-        if (!rc) {
-            sch->enqueued = 1;
-        }
+        sch->enqueued = 1;
 
         /* Restart with head of list */
         sch = TAILQ_FIRST(&g_ble_ll_sched_q);
@@ -898,7 +892,7 @@ ble_ll_sched_adv_new(struct ble_ll_sched_item *sch, ble_ll_sched_adv_new_cb cb,
     BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
-    return rc;
+    return 0;
 }
 
 int
