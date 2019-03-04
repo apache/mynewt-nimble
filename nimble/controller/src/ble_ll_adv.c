@@ -162,11 +162,13 @@ ble_ll_adv_active_chanset_is_pri(struct ble_ll_adv_sm *advsm)
     return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x10;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static inline int
 ble_ll_adv_active_chanset_is_sec(struct ble_ll_adv_sm *advsm)
 {
     return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x20;
 }
+#endif
 
 static inline void
 ble_ll_adv_active_chanset_clear(struct ble_ll_adv_sm *advsm)
@@ -182,6 +184,7 @@ ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
     advsm->flags |= 0x10;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static inline void
 ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
 {
@@ -189,6 +192,7 @@ ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
     advsm->flags |= 0x20;
 }
+#endif
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
