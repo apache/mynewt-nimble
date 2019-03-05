@@ -53,7 +53,7 @@
  */
 
 /* XXX: for now, define this here */
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
 extern void ble_ll_data_buffer_overflow(void);
 extern void ble_ll_hw_error(uint8_t err);
 
@@ -193,7 +193,7 @@ ble_hci_trans_acl_buf_alloc(void)
     struct os_mbuf *m;
     uint8_t usrhdr_len;
 
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
     usrhdr_len = sizeof(struct ble_mbuf_hdr);
 #elif MYNEWT_VAL(BLE_HS_FLOW_CTRL)
     usrhdr_len = BLE_MBUF_HS_HDR_LEN;
@@ -387,7 +387,7 @@ ble_hci_uart_tx_char(void *arg)
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
 /**
  * HCI uart sync lost.
  *
@@ -420,7 +420,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
 
     switch (ble_hci_uart_state.rx_type) {
     /* Host should never receive a command! */
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
@@ -460,7 +460,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
         break;
 
     default:
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
         /*
          * If we receive an unknown HCI packet type this is considered a loss
          * of sync.
@@ -479,7 +479,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
 /**
  * HCI uart sync loss.
  *
@@ -710,7 +710,7 @@ ble_hci_uart_rx_acl(uint8_t data)
          */
         if (pktlen > MYNEWT_VAL(BLE_ACL_BUF_SIZE)) {
             os_mbuf_free_chain(ble_hci_uart_state.rx_acl.buf);
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
             ble_hci_uart_sync_lost();
 #else
         /*
@@ -756,7 +756,7 @@ ble_hci_uart_rx_skip_acl(uint8_t data)
 
     if (rxd_bytes == ble_hci_uart_state.rx_acl.len) {
 /* XXX: I dont like this but for now this denotes controller only */
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
         ble_ll_data_buffer_overflow();
 #endif
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
@@ -769,7 +769,7 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
     switch (ble_hci_uart_state.rx_type) {
     case BLE_HCI_UART_H4_NONE:
         return ble_hci_uart_rx_pkt_type(data);
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_rx_cmd(data);
         return 0;

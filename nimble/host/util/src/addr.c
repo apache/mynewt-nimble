@@ -20,7 +20,7 @@
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
 #include "controller/ble_hw.h"
 #endif
 
@@ -31,7 +31,7 @@ ble_hs_util_load_rand_addr(ble_addr_t *addr)
      * is in the controller package.  A host-only device ought to be able to
      * automically restore a random address.
      */
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
     int rc;
 
     rc = ble_hw_get_static_addr(addr);

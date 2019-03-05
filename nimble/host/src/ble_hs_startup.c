@@ -23,7 +23,7 @@
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 
-#if !MYNEWT_VAL(BLE_DEVICE)
+#if !MYNEWT_VAL(BLE_CONTROLLER)
 static int
 ble_hs_startup_read_sup_f_tx(void)
 {
@@ -351,7 +351,7 @@ ble_hs_startup_go(void)
     /* XXX: Read local supported commands. */
 
     /* we need to check this only if using external controller */
-#if !MYNEWT_VAL(BLE_DEVICE)
+#if !MYNEWT_VAL(BLE_CONTROLLER)
     if (ble_hs_hci_get_hci_version() < BLE_HCI_VER_BCS_4_0) {
         BLE_HS_LOG(ERROR, "Required controller version is 4.0 (6)\n");
         return BLE_HS_ECONTROLLER;
