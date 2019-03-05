@@ -17,15 +17,10 @@
 #
 
 syscfg.defs:
-    BLE_DEVICE:
+    BLE_CONTROLLER:
         description: >
-            Used by package management system to include BLE hardware
-            drivers.
-        value: 1
-
-    BLE_LP_CLOCK:
-        description: >
-            Used by BSP packages to configure LP clock for controller.
+            Indicates that NimBLE controller is present. The default value for
+            this setting shall not be overriden.
         value: 1
 
     BLE_HW_WHITELIST_ENABLE:
@@ -302,6 +297,16 @@ syscfg.defs:
         description: >
             Sysinit stage for the NimBLE controller.
         value: 250
+
+# defunct settings (to be removed eventually)
+    BLE_DEVICE:
+        description: Superseded by BLE_CONTROLLER
+        value: 1
+        defunct: 1
+    BLE_LP_CLOCK:
+        description: Superseded by BLE_CONTROLLER
+        value: 1
+        defunct: 1
 
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
