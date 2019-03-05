@@ -317,3 +317,6 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
 # controller code visible when connected to external host
 syscfg.vals.!BLE_HOST:
     BLE_LL_VND_EVENT_ON_ASSERT: 1
+
+syscfg.restrictions:
+    - OS_CPUTIME_FREQ == 32768
