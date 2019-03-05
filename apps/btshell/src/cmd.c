@@ -1382,7 +1382,7 @@ cmd_set_addr(void)
     }
 
     switch (addr_type) {
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_ADDR_PUBLIC:
         /* We shouldn't be writing to the controller's address (g_dev_addr).
          * There is no standard way to set the local public address, so this is

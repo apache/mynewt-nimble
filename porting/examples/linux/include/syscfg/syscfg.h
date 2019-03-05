@@ -272,8 +272,8 @@
 #endif
 
 /*** net/nimble/controller */
-#ifndef MYNEWT_VAL_BLE_DEVICE
-#define MYNEWT_VAL_BLE_DEVICE (0)
+#ifndef MYNEWT_VAL_BLE_CONTROLLER
+#define MYNEWT_VAL_BLE_CONTROLLER (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_PUBLIC_DEV_ADDR

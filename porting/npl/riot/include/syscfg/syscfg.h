@@ -435,8 +435,8 @@
 #endif
 
 /*** nimble/controller */
-#ifndef MYNEWT_VAL_BLE_DEVICE
-#define MYNEWT_VAL_BLE_DEVICE (1)
+#ifndef MYNEWT_VAL_BLE_CONTROLLER
+#define MYNEWT_VAL_BLE_CONTROLLER (1)
 #endif
 
 /* Overridden by nimble/controller (defined by nimble/controller) */

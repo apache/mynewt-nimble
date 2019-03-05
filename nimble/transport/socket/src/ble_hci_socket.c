@@ -344,7 +344,7 @@ ble_hci_sock_rx_msg(void)
 
     while (bhss->rx_off > 0) {
         switch (bhss->rx_data[0]) {
-#if MYNEWT_VAL(BLE_DEVICE)
+#if MYNEWT_VAL(BLE_CONTROLLER)
         case BLE_HCI_UART_H4_CMD:
             if (bhss->rx_off < BLE_HCI_CMD_HDR_LEN) {
                 return -1;
