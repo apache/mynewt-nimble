@@ -27,9 +27,6 @@ const uint8_t irk[16] = {
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 };
 
-#if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-struct hal_timer conn_param_update_timer;
-#endif
 static atomic_t current_settings;
 u8_t own_addr_type;
 static ble_addr_t peer_id_addr;
@@ -559,18 +556,34 @@ static void conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
 		       conn_handle, status);
 }
 
-static void conn_param_update(void *arg)
+static void conn_param_update_slave(u16_t conn_handle)
 {
 	int rc;
 	struct ble_l2cap_sig_update_params params;
 
-	params.itvl_min = 0x200;
-	params.itvl_max = 0x300;
+	params.itvl_min = 0x0032;
+	params.itvl_max = 0x0046;
 	params.slave_latency = 0;
-	params.timeout_multiplier = 0x500;
+	params.timeout_multiplier = 0x07d0;
 
-	rc = ble_l2cap_sig_update(1, &params, conn_param_update_cb,
-				  NULL);
+	rc = ble_l2cap_sig_update(conn_handle, &params,
+		conn_param_update_cb, NULL);
+	assert(rc == 0);
+}
+
+static void conn_param_update_master(u16_t conn_handle)
+{
+	int rc;
+	struct ble_gap_upd_params params;
+
+	params.itvl_min = 0x0032;
+	params.itvl_max = 0x0046;
+	params.latency = 0;
+	params.supervision_timeout = 0x07d0;
+	params.min_ce_len = 0;
+	params.max_ce_len = 0;
+
+	rc = ble_gap_update_params(conn_handle, &params);
 	assert(rc == 0);
 }
 #endif
@@ -601,8 +614,13 @@ static void le_connected(u16_t conn_handle, int status)
 	memcpy(ev.address, addr->val, sizeof(ev.address));
 	ev.address_type = addr->type;
 
+
 #if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-	os_cputime_timer_relative(&conn_param_update_timer, 5000000);
+	if (desc.role == BLE_GAP_ROLE_MASTER) {
+		conn_param_update_master(conn_handle);
+	} else {
+		conn_param_update_slave(conn_handle);
+	}
 #endif
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
@@ -1242,11 +1260,6 @@ static void tester_init_gap_cb(int err)
 u8_t tester_init_gap(void)
 {
 	adv_buf = NET_BUF_SIMPLE(ADV_BUF_LEN);
-
-#if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-	os_cputime_timer_init(&conn_param_update_timer,
-			      conn_param_update, NULL);
-#endif
 
 	tester_init_gap_cb(BTP_STATUS_SUCCESS);
 	return BTP_STATUS_SUCCESS;
