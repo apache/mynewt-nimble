@@ -77,7 +77,7 @@ ble_npl_get_current_task_id(void)
 static inline void
 ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {
-    event_queue_init(&evq->q);
+    event_queue_init_detached(&evq->q);
 }
 
 static inline void
@@ -90,6 +90,10 @@ static inline struct ble_npl_event *
 ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
     assert((tmo == 0) || (tmo == BLE_NPL_TIME_FOREVER));
+
+    if (evq->q.waiter == NULL) {
+        event_queue_claim(&evq->q);
+    }
 
     if (tmo == 0) {
         return (struct ble_npl_event *)event_get(&evq->q);
