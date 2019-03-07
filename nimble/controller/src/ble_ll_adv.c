@@ -2299,6 +2299,37 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static bool
+pri_phy_valid(uint8_t phy)
+{
+    switch (phy) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    case BLE_HCI_LE_PHY_CODED:
+#endif
+    case BLE_HCI_LE_PHY_1M:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
+sec_phy_valid(uint8_t phy)
+{
+    switch (phy) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    case BLE_HCI_LE_PHY_CODED:
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    case BLE_HCI_LE_PHY_2M:
+#endif
+    case BLE_HCI_LE_PHY_1M:
+        return true;
+    default:
+        return false;
+    }
+}
+
 int
 ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -2440,14 +2471,13 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     }
 
     pri_phy = cmdbuf[20];
-    if (pri_phy != BLE_HCI_LE_PHY_1M && pri_phy != BLE_HCI_LE_PHY_CODED) {
+    if (!pri_phy_valid(pri_phy)) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
         goto done;
     }
 
     sec_phy = cmdbuf[22];
-    if (sec_phy != BLE_HCI_LE_PHY_1M && sec_phy != BLE_HCI_LE_PHY_2M &&
-            sec_phy != BLE_HCI_LE_PHY_CODED) {
+    if (!sec_phy_valid(sec_phy)) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
         goto done;
     }
