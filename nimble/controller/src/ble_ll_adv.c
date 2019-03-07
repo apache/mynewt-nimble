@@ -2311,7 +2311,6 @@ pri_phy_valid(uint8_t phy)
     default:
         return false;
     }
-
 }
 
 static bool

@@ -147,9 +147,9 @@ ble_ll_dtm_set_next(struct dtm_ctx *ctx)
 
     sch->start_time += ctx->itvl_ticks;
     sch->remainder += ctx->itvl_rem_usec;
-    if (sch->remainder > 30) {
+    if (sch->remainder >= 31) {
        sch->start_time++;
-       sch->remainder -= 30;
+       sch->remainder -= 31;
     }
 
     sch->start_time -= g_ble_ll_sched_offset_ticks;
