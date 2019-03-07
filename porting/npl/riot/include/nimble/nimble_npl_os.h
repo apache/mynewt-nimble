@@ -38,6 +38,8 @@ extern "C" {
 typedef uint32_t ble_npl_time_t;
 typedef int32_t ble_npl_stime_t;
 
+extern volatile int ble_npl_in_critical;
+
 struct ble_npl_event {
     event_callback_t e;
     void *arg;
@@ -251,19 +253,27 @@ ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks)
 static inline uint32_t
 ble_npl_hw_enter_critical(void)
 {
-    return (uint32_t)irq_disable();
+    uint32_t ctx = irq_disable();
+    ++ble_npl_in_critical;
+    return ctx;
 }
 
 static inline void
 ble_npl_hw_exit_critical(uint32_t ctx)
 {
+    --ble_npl_in_critical;
     irq_restore((unsigned)ctx);
 }
 
 static inline bool
 ble_npl_hw_is_in_critical(void)
 {
-    return irq_is_in();
+    /*
+     * XXX Currently RIOT does not support an API for finding out if interrupts
+     *     are currently disabled, hence in a critical section in this context.
+     *     So for now, we use this global variable to keep this state for us.
+    -*/
+    return (ble_npl_in_critical > 0);
 }
 
 #ifdef __cplusplus

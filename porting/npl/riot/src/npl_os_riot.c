@@ -23,6 +23,8 @@
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
 
+volatile int ble_npl_in_critical = 0;
+
 static void
 _callout_fire(void *arg)
 {
