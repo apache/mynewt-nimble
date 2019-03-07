@@ -1068,16 +1068,9 @@ static void pair(const u8_t *data, u16_t len)
 		goto rsp;
 	}
 
-	if (desc.role == BLE_GAP_ROLE_SLAVE) {
-		if (ble_sm_slave_initiate(desc.conn_handle)) {
-			status = BTP_STATUS_FAILED;
-			goto rsp;
-		}
-	} else {
-		if (ble_sm_pair_initiate(desc.conn_handle)) {
-			status = BTP_STATUS_FAILED;
-			goto rsp;
-		}
+	if (ble_gap_security_initiate(desc.conn_handle)) {
+		status = BTP_STATUS_FAILED;
+		goto rsp;
 	}
 
 	status = BTP_STATUS_SUCCESS;
