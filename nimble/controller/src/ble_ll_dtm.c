@@ -384,7 +384,9 @@ ble_ll_dtm_rx_start(void)
 
 #ifdef BLE_XCVR_RFCLK
     if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
+        OS_ENTER_CRITICAL(sr);
         ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+        OS_EXIT_CRITICAL(sr);
     }
 #endif
 
@@ -430,7 +432,9 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 #ifdef BLE_XCVR_RFCLK
+    OS_ENTER_CRITICAL(sr);
     ble_ll_xcvr_rfclk_stop();
+    OS_EXIT_CRITICAL(sr);
 #endif
 
     os_mbuf_free_chain(ctx->om);
