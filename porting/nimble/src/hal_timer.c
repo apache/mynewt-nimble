@@ -25,19 +25,6 @@
 #include "nrfx.h"
 #include "hal/hal_timer.h"
 
-#define __HAL_DISABLE_INTERRUPTS(x)                     \
-    do {                                                \
-        x = __get_PRIMASK();                            \
-        __disable_irq();                                \
-    } while(0);
-
-#define __HAL_ENABLE_INTERRUPTS(x)                      \
-    do {                                                \
-        if (!x) {                                       \
-            __enable_irq();                             \
-        }                                               \
-    } while(0);
-
 /* IRQ prototype */
 typedef void (*hal_timer_irq_handler_t)(void);
 
@@ -231,12 +218,12 @@ static uint32_t
 hal_timer_read_bsptimer(struct nrf52_hal_timer *bsptimer)
 {
     uint32_t low32;
-    uint32_t ctx;
+    os_sr_t sr;
     uint32_t tcntr;
     NRF_RTC_Type *rtctimer;
 
     rtctimer = (NRF_RTC_Type *)bsptimer->tmr_reg;
-    __HAL_DISABLE_INTERRUPTS(ctx);
+    OS_ENTER_CRITICAL(sr);
     tcntr = bsptimer->tmr_cntr;
     low32 = rtctimer->COUNTER;
     if (rtctimer->EVENTS_OVRFLW) {
@@ -247,7 +234,7 @@ hal_timer_read_bsptimer(struct nrf52_hal_timer *bsptimer)
         NVIC_SetPendingIRQ(bsptimer->tmr_irq_num);
     }
     tcntr |= low32;
-    __HAL_ENABLE_INTERRUPTS(ctx);
+    OS_EXIT_CRITICAL(sr);
 
     return tcntr;
 }
@@ -265,11 +252,11 @@ hal_timer_chk_queue(struct nrf52_hal_timer *bsptimer)
 {
     int32_t delta;
     uint32_t tcntr;
-    uint32_t ctx;
+    os_sr_t sr;
     struct hal_timer *timer;
 
     /* disable interrupts */
-    __HAL_DISABLE_INTERRUPTS(ctx);
+    OS_ENTER_CRITICAL(sr);
     while ((timer = TAILQ_FIRST(&bsptimer->hal_timer_q)) != NULL) {
         if (bsptimer->tmr_rtc) {
             tcntr = hal_timer_read_bsptimer(bsptimer);
@@ -302,7 +289,7 @@ hal_timer_chk_queue(struct nrf52_hal_timer *bsptimer)
             nrf_timer_disable_ocmp(bsptimer->tmr_reg);
         }
     }
-    __HAL_ENABLE_INTERRUPTS(ctx);
+    OS_EXIT_CRITICAL(sr);
 }
 #endif
 
@@ -528,7 +515,7 @@ int
 hal_timer_config(int timer_num, uint32_t freq_hz)
 {
     int rc;
-    uint32_t ctx;
+    os_sr_t sr;
     struct nrf52_hal_timer *bsptimer;
 #if MYNEWT_VAL(TIMER_5)
     NRF_RTC_Type *rtctimer;
@@ -548,7 +535,7 @@ hal_timer_config(int timer_num, uint32_t freq_hz)
         bsptimer->tmr_freq = freq_hz;
         bsptimer->tmr_enabled = 1;
 
-        __HAL_DISABLE_INTERRUPTS(ctx);
+        OS_ENTER_CRITICAL(sr);
 
         rtctimer = (NRF_RTC_Type *)bsptimer->tmr_reg;
 
@@ -568,7 +555,7 @@ hal_timer_config(int timer_num, uint32_t freq_hz)
         /* Set isr in vector table and enable interrupt */
         NVIC_EnableIRQ(bsptimer->tmr_irq_num);
 
-        __HAL_ENABLE_INTERRUPTS(ctx);
+        OS_EXIT_CRITICAL(sr);
         return 0;
     }
 #endif
@@ -594,7 +581,7 @@ int
 hal_timer_deinit(int timer_num)
 {
     int rc;
-    uint32_t ctx;
+    os_sr_t sr;
     struct nrf52_hal_timer *bsptimer;
     NRF_TIMER_Type *hwtimer;
     NRF_RTC_Type *rtctimer;
@@ -602,7 +589,7 @@ hal_timer_deinit(int timer_num)
     rc = 0;
     NRF52_HAL_TIMER_RESOLVE(timer_num, bsptimer);
 
-    __HAL_DISABLE_INTERRUPTS(ctx);
+    OS_ENTER_CRITICAL(sr);
     if (bsptimer->tmr_rtc) {
         rtctimer = (NRF_RTC_Type *)bsptimer->tmr_reg;
         rtctimer->INTENCLR = NRF_TIMER_INT_MASK(NRF_RTC_TIMER_CC_INT);
@@ -614,7 +601,7 @@ hal_timer_deinit(int timer_num)
     }
     bsptimer->tmr_enabled = 0;
     bsptimer->tmr_reg = NULL;
-    __HAL_ENABLE_INTERRUPTS(ctx);
+    OS_EXIT_CRITICAL(sr);
 
 err:
     return rc;
@@ -751,7 +738,7 @@ hal_timer_start(struct hal_timer *timer, uint32_t ticks)
 int
 hal_timer_start_at(struct hal_timer *timer, uint32_t tick)
 {
-    uint32_t ctx;
+    os_sr_t sr;
     struct hal_timer *entry;
     struct nrf52_hal_timer *bsptimer;
 
@@ -762,7 +749,7 @@ hal_timer_start_at(struct hal_timer *timer, uint32_t tick)
     bsptimer = (struct nrf52_hal_timer *)timer->bsp_timer;
     timer->expiry = tick;
 
-    __HAL_DISABLE_INTERRUPTS(ctx);
+    OS_ENTER_CRITICAL(sr);
 
     if (TAILQ_EMPTY(&bsptimer->hal_timer_q)) {
         TAILQ_INSERT_HEAD(&bsptimer->hal_timer_q, timer, link);
@@ -783,7 +770,7 @@ hal_timer_start_at(struct hal_timer *timer, uint32_t tick)
         nrf_timer_set_ocmp(bsptimer, timer->expiry);
     }
 
-    __HAL_ENABLE_INTERRUPTS(ctx);
+    OS_EXIT_CRITICAL(sr);
 
     return 0;
 }
@@ -800,7 +787,7 @@ hal_timer_start_at(struct hal_timer *timer, uint32_t tick)
 int
 hal_timer_stop(struct hal_timer *timer)
 {
-    uint32_t ctx;
+    os_sr_t sr;
     int reset_ocmp;
     struct hal_timer *entry;
     struct nrf52_hal_timer *bsptimer;
@@ -811,7 +798,7 @@ hal_timer_stop(struct hal_timer *timer)
 
    bsptimer = (struct nrf52_hal_timer *)timer->bsp_timer;
 
-    __HAL_DISABLE_INTERRUPTS(ctx);
+    OS_ENTER_CRITICAL(sr);
 
     if (timer->link.tqe_prev != NULL) {
         reset_ocmp = 0;
@@ -836,7 +823,7 @@ hal_timer_stop(struct hal_timer *timer)
         }
     }
 
-    __HAL_ENABLE_INTERRUPTS(ctx);
+    OS_EXIT_CRITICAL(sr);
 
     return 0;
 }
