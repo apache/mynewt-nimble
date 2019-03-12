@@ -255,7 +255,10 @@ ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     /* Number of credits should allow to send full SDU with on given
      * L2CAP MTU
      */
-    chan->coc_rx.credits = (mtu + (chan->my_mtu - 1) / 2) / chan->my_mtu;
+    chan->coc_rx.credits = mtu / chan->my_mtu;
+    if (mtu % chan->my_mtu) {
+        chan->coc_rx.credits++;
+    }
 
     chan->initial_credits = chan->coc_rx.credits;
     return chan;
