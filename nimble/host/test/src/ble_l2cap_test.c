@@ -719,6 +719,18 @@ ble_l2cap_test_event(struct ble_l2cap_event *event, void *arg)
     }
 }
 
+static uint16_t ble_l2cap_calculate_credits(uint16_t mtu, uint16_t mps)
+{
+    int credits;
+
+    credits = mtu / mps;
+    if (mtu % mps) {
+        credits++;
+    }
+
+    return credits;
+}
+
 static void
 ble_l2cap_test_coc_connect(struct test_data *t)
 {
@@ -747,8 +759,9 @@ ble_l2cap_test_coc_connect(struct test_data *t)
         return;
     }
 
-    req.credits = htole16((t->mtu + (MYNEWT_VAL(BLE_L2CAP_COC_MTU) - 1) / 2) /
-                                                MYNEWT_VAL(BLE_L2CAP_COC_MTU));
+    req.credits = htole16(
+                        ble_l2cap_calculate_credits(t->mtu,
+                                                    MYNEWT_VAL(BLE_L2CAP_COC_MTU)));
     req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
@@ -812,8 +825,9 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
         rsp.result = htole16(ev->l2cap_status);
     } else {
         /* Receive response from peer.*/
-        rsp.credits = htole16((t->mtu + (MYNEWT_VAL(BLE_L2CAP_COC_MTU) - 1) / 2) /
-                                                MYNEWT_VAL(BLE_L2CAP_COC_MTU));
+        rsp.credits = htole16(
+                            ble_l2cap_calculate_credits(t->mtu,
+                                                        MYNEWT_VAL(BLE_L2CAP_COC_MTU)));
         rsp.dcid = current_cid++;
         rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
         rsp.mtu = htole16(t->mtu);
