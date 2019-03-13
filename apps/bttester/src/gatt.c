@@ -1667,10 +1667,8 @@ static int enable_subscription(u16_t conn_handle, u16_t ccc_handle,
 	op = (uint8_t) (value == 0x0001 ? GATT_CFG_NOTIFY :
 			GATT_CFG_INDICATE);
 
-	if (ble_gattc_write_no_rsp_flat(conn_handle,
-					ccc_handle,
-					&value,
-					sizeof(value))) {
+	if (ble_gattc_write_flat(conn_handle, ccc_handle,
+				 &value, sizeof(value), NULL, NULL)) {
 		return -EINVAL;
 	}
 
