@@ -780,7 +780,7 @@ ble_att_svr_test_misc_verify_indicate(uint16_t conn_handle,
     }
 }
 
-TEST_CASE(ble_att_svr_test_mtu)
+TEST_CASE_SELF(ble_att_svr_test_mtu)
 {
     /*** MTU too low; should pretend peer sent default value instead. */
     ble_att_svr_test_misc_mtu_exchange(BLE_ATT_MTU_DFLT, 5,
@@ -796,7 +796,7 @@ TEST_CASE(ble_att_svr_test_mtu)
     ble_att_svr_test_misc_mtu_exchange(100, 50, 50, 50);
 }
 
-TEST_CASE(ble_att_svr_test_read)
+TEST_CASE_SELF(ble_att_svr_test_read)
 {
     struct ble_hs_conn *conn;
     struct os_mbuf *om;
@@ -888,7 +888,7 @@ TEST_CASE(ble_att_svr_test_read)
                                         BLE_ATT_MTU_DFLT - 1);
 }
 
-TEST_CASE(ble_att_svr_test_read_blob)
+TEST_CASE_SELF(ble_att_svr_test_read_blob)
 {
     uint16_t attr_handle;
     uint16_t conn_handle;
@@ -934,7 +934,7 @@ TEST_CASE(ble_att_svr_test_read_blob)
                                                   0);
 }
 
-TEST_CASE(ble_att_svr_test_read_mult)
+TEST_CASE_SELF(ble_att_svr_test_read_mult)
 {
     uint16_t conn_handle;
     int rc;
@@ -1011,7 +1011,7 @@ TEST_CASE(ble_att_svr_test_read_mult)
 
 }
 
-TEST_CASE(ble_att_svr_test_write)
+TEST_CASE_SELF(ble_att_svr_test_write)
 {
     struct ble_hs_conn *conn;
     uint16_t conn_handle;
@@ -1100,7 +1100,7 @@ TEST_CASE(ble_att_svr_test_write)
     ble_hs_test_util_verify_tx_write_rsp();
 }
 
-TEST_CASE(ble_att_svr_test_find_info)
+TEST_CASE_SELF(ble_att_svr_test_find_info)
 {
     uint16_t conn_handle;
     uint16_t handle1;
@@ -1203,7 +1203,7 @@ TEST_CASE(ble_att_svr_test_find_info)
 
 }
 
-TEST_CASE(ble_att_svr_test_find_type_value)
+TEST_CASE_SELF(ble_att_svr_test_find_type_value)
 {
     uint16_t conn_handle;
     uint16_t handle1;
@@ -1491,13 +1491,13 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
 
 }
 
-TEST_CASE(ble_att_svr_test_read_type)
+TEST_CASE_SELF(ble_att_svr_test_read_type)
 {
     ble_att_svr_test_misc_read_type(0);
     ble_att_svr_test_misc_read_type(128);
 }
 
-TEST_CASE(ble_att_svr_test_read_group_type)
+TEST_CASE_SELF(ble_att_svr_test_read_group_type)
 {
     uint16_t conn_handle;
     int rc;
@@ -1608,7 +1608,7 @@ TEST_CASE(ble_att_svr_test_read_group_type)
 
 }
 
-TEST_CASE(ble_att_svr_test_prep_write)
+TEST_CASE_SELF(ble_att_svr_test_prep_write)
 {
     struct ble_hs_conn *conn;
     uint16_t conn_handle;
@@ -1769,7 +1769,7 @@ TEST_CASE(ble_att_svr_test_prep_write)
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 6);
 }
 
-TEST_CASE(ble_att_svr_test_notify)
+TEST_CASE_SELF(ble_att_svr_test_notify)
 {
     uint16_t conn_handle;
 
@@ -1792,7 +1792,7 @@ TEST_CASE(ble_att_svr_test_notify)
 
 }
 
-TEST_CASE(ble_att_svr_test_prep_write_tmo)
+TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
 {
     int32_t ticks_from_now;
     uint16_t conn_handle;
@@ -1852,7 +1852,7 @@ TEST_CASE(ble_att_svr_test_prep_write_tmo)
     TEST_ASSERT_FATAL(rc == 0);
 }
 
-TEST_CASE(ble_att_svr_test_indicate)
+TEST_CASE_SELF(ble_att_svr_test_indicate)
 {
     uint16_t conn_handle;
 
@@ -1874,7 +1874,7 @@ TEST_CASE(ble_att_svr_test_indicate)
                                           (uint8_t[]) { 1, 2, 3 }, 3, 0);
 }
 
-TEST_CASE(ble_att_svr_test_oom)
+TEST_CASE_SELF(ble_att_svr_test_oom)
 {
     struct os_mbuf *oms;
     uint16_t conn_handle;
@@ -2052,7 +2052,7 @@ TEST_CASE(ble_att_svr_test_oom)
     TEST_ASSERT_FATAL(rc == 0);
 }
 
-TEST_CASE(ble_att_svr_test_unsupported_req)
+TEST_CASE_SELF(ble_att_svr_test_unsupported_req)
 {
     uint16_t conn_handle;
     int rc;
@@ -2104,12 +2104,4 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();
     ble_att_svr_test_unsupported_req();
-}
-
-int
-ble_att_svr_test_all(void)
-{
-    ble_att_svr_suite();
-
-    return tu_any_failed;
 }

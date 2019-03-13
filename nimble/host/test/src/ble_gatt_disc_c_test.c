@@ -256,7 +256,7 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
     ble_gatt_disc_c_test_misc_verify_chars(ret_chars, 0);
 }
 
-TEST_CASE(ble_gatt_disc_c_test_disc_all)
+TEST_CASE_SELF(ble_gatt_disc_c_test_disc_all)
 {
     /*** One 16-bit characteristic. */
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
@@ -377,7 +377,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_all)
     });
 }
 
-TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
+TEST_CASE_SELF(ble_gatt_disc_c_test_disc_uuid)
 {
     /*** One 16-bit characteristic. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16_DECLARE(0x2010),
@@ -534,7 +534,7 @@ TEST_CASE(ble_gatt_disc_c_test_disc_uuid)
     );
 }
 
-TEST_CASE(ble_gatt_disc_c_test_oom_all)
+TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 {
     /* Retrieve enough characteristics to require two transactions. */
     struct ble_gatt_disc_c_test_char chrs[] = {
@@ -620,7 +620,7 @@ TEST_CASE(ble_gatt_disc_c_test_oom_all)
     ble_gatt_disc_c_test_misc_verify_chars(chrs, 0);
 }
 
-TEST_CASE(ble_gatt_disc_c_test_oom_uuid)
+TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 {
     /* Retrieve enough characteristics to require two transactions. */
     struct ble_gatt_disc_c_test_char chrs[] = {
@@ -713,13 +713,4 @@ TEST_SUITE(ble_gatt_disc_c_test_suite)
     ble_gatt_disc_c_test_disc_uuid();
     ble_gatt_disc_c_test_oom_all();
     ble_gatt_disc_c_test_oom_uuid();
-}
-
-int
-ble_gatt_disc_c_test_all(void)
-{
-    ble_gatt_disc_c_test_suite();
-    ble_gatt_disc_c_test_oom_all();
-
-    return tu_any_failed;
 }

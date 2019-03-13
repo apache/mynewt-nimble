@@ -38,7 +38,7 @@ ble_hs_conn_test_util_any()
     return conn != NULL;
 }
 
-TEST_CASE(ble_hs_conn_test_direct_connect_success)
+TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
 {
     struct hci_le_conn_complete evt;
     struct ble_l2cap_chan *chan;
@@ -89,7 +89,7 @@ TEST_CASE(ble_hs_conn_test_direct_connect_success)
     ble_hs_unlock();
 }
 
-TEST_CASE(ble_hs_conn_test_direct_connectable_success)
+TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
 {
     struct hci_le_conn_complete evt;
     struct ble_gap_adv_params adv_params;
@@ -147,7 +147,7 @@ TEST_CASE(ble_hs_conn_test_direct_connectable_success)
     ble_hs_unlock();
 }
 
-TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
+TEST_CASE_SELF(ble_hs_conn_test_undirect_connectable_success)
 {
     struct ble_hs_adv_fields adv_fields;
     struct hci_le_conn_complete evt;
@@ -212,19 +212,11 @@ TEST_CASE(ble_hs_conn_test_undirect_connectable_success)
     ble_hs_unlock();
 }
 
-TEST_SUITE(conn_suite)
+TEST_SUITE(ble_hs_conn_suite)
 {
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_hs_conn_test_direct_connect_success();
     ble_hs_conn_test_direct_connectable_success();
     ble_hs_conn_test_undirect_connectable_success();
-}
-
-int
-ble_hs_conn_test_all(void)
-{
-    conn_suite();
-
-    return tu_any_failed;
 }

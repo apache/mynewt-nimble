@@ -365,7 +365,7 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
     return 0;
 }
 
-TEST_CASE(ble_gatt_conn_test_disconnect)
+TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 {
     struct ble_gatt_conn_test_arg mtu_arg            = { 0, BLE_HS_ENOTCONN };
     struct ble_gatt_conn_test_arg disc_all_svcs_arg  = { 0, BLE_HS_ENOTCONN };
@@ -583,7 +583,7 @@ ble_gatt_conn_test_util_timeout(uint16_t conn_handle,
     }
 }
 
-TEST_CASE(ble_gatt_conn_test_timeout)
+TEST_CASE_SELF(ble_gatt_conn_test_timeout)
 {
     static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
@@ -744,12 +744,4 @@ TEST_SUITE(ble_gatt_conn_suite)
 
     ble_gatt_conn_test_disconnect();
     ble_gatt_conn_test_timeout();
-}
-
-int
-ble_gatt_conn_test_all(void)
-{
-    ble_gatt_conn_suite();
-
-    return tu_any_failed;
 }

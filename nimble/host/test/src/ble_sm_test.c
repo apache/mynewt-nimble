@@ -34,7 +34,7 @@
  * $misc                                                                     *
  *****************************************************************************/
 
-TEST_CASE(ble_sm_test_case_f4)
+TEST_CASE_SELF(ble_sm_test_case_f4)
 {
 	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
 			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
@@ -57,7 +57,7 @@ TEST_CASE(ble_sm_test_case_f4)
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
 }
 
-TEST_CASE(ble_sm_test_case_f5)
+TEST_CASE_SELF(ble_sm_test_case_f5)
 {
 	uint8_t w[32] = { 0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
 			  0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
@@ -86,7 +86,7 @@ TEST_CASE(ble_sm_test_case_f5)
     TEST_ASSERT(memcmp(ltk, exp_ltk, 16) == 0);
 }
 
-TEST_CASE(ble_sm_test_case_f6)
+TEST_CASE_SELF(ble_sm_test_case_f6)
 {
 	uint8_t w[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
 			  0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
@@ -111,7 +111,7 @@ TEST_CASE(ble_sm_test_case_f6)
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
 }
 
-TEST_CASE(ble_sm_test_case_g2)
+TEST_CASE_SELF(ble_sm_test_case_g2)
 {
 	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
 			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
@@ -134,7 +134,7 @@ TEST_CASE(ble_sm_test_case_g2)
 	TEST_ASSERT(val == exp_val);
 }
 
-TEST_CASE(ble_sm_test_case_conn_broken)
+TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 {
     struct hci_disconn_complete disconn_evt;
     int rc;
@@ -168,7 +168,7 @@ TEST_CASE(ble_sm_test_case_conn_broken)
  * $peer                                                                     *
  *****************************************************************************/
 
-TEST_CASE(ble_sm_test_case_peer_fail_inval)
+TEST_CASE_SELF(ble_sm_test_case_peer_fail_inval)
 {
     /* Invalid role detected before other arguments. */
     ble_sm_test_util_peer_fail_inval(
@@ -225,7 +225,7 @@ TEST_CASE(ble_sm_test_case_peer_fail_inval)
     );
 }
 
-TEST_CASE(ble_sm_test_case_peer_lgcy_fail_confirm)
+TEST_CASE_SELF(ble_sm_test_case_peer_lgcy_fail_confirm)
 {
     ble_sm_test_util_peer_lgcy_fail_confirm(
         ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
@@ -276,13 +276,13 @@ TEST_CASE(ble_sm_test_case_peer_lgcy_fail_confirm)
     );
 }
 
-TEST_CASE(ble_sm_test_case_peer_bonding_bad)
+TEST_CASE_SELF(ble_sm_test_case_peer_bonding_bad)
 {
     ble_sm_test_util_peer_bonding_bad(0x5684, 32);
     ble_sm_test_util_peer_bonding_bad(54325, 65437);
 }
 
-TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
+TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
 {
     struct ble_sm_pair_fail fail;
     struct ble_sm_sec_req sec_req;
@@ -320,7 +320,7 @@ TEST_CASE(ble_sm_test_case_peer_sec_req_inval)
  * $us                                                                       *
  *****************************************************************************/
 
-TEST_CASE(ble_sm_test_case_us_fail_inval)
+TEST_CASE_SELF(ble_sm_test_case_us_fail_inval)
 {
     struct ble_sm_test_params params;
 
@@ -394,17 +394,3 @@ TEST_SUITE(ble_sm_gen_test_suite)
     ble_sm_test_case_peer_sec_req_inval();
 }
 #endif
-
-int
-ble_sm_test_all(void)
-{
-#if !NIMBLE_BLE_SM
-    return 0;
-#else
-    ble_sm_gen_test_suite();
-    ble_sm_lgcy_test_suite();
-    ble_sm_sc_test_suite();
-
-    return tu_any_failed;
-#endif
-}

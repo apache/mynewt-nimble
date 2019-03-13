@@ -365,7 +365,7 @@ ble_gatt_write_test_misc_reliable_good(
     }
 }
 
-TEST_CASE(ble_gatt_write_test_no_rsp)
+TEST_CASE_SELF(ble_gatt_write_test_no_rsp)
 {
     int attr_len;
     int rc;
@@ -386,7 +386,7 @@ TEST_CASE(ble_gatt_write_test_no_rsp)
     TEST_ASSERT(!ble_gatt_write_test_cb_called);
 }
 
-TEST_CASE(ble_gatt_write_test_rsp)
+TEST_CASE_SELF(ble_gatt_write_test_rsp)
 {
     int attr_len;
 
@@ -412,7 +412,7 @@ TEST_CASE(ble_gatt_write_test_rsp)
     TEST_ASSERT(ble_gatt_write_test_cb_called);
 }
 
-TEST_CASE(ble_gatt_write_test_long_good)
+TEST_CASE_SELF(ble_gatt_write_test_long_good)
 {
     /*** 1 prep write req/rsp. */
     ble_gatt_write_test_misc_long_good(
@@ -426,7 +426,7 @@ TEST_CASE(ble_gatt_write_test_long_good)
     ble_gatt_write_test_misc_long_good(BLE_ATT_ATTR_MAX_LEN);
 }
 
-TEST_CASE(ble_gatt_write_test_long_bad_handle)
+TEST_CASE_SELF(ble_gatt_write_test_long_bad_handle)
 {
     /*** 1 prep write req/rsp. */
     ble_gatt_write_test_misc_long_bad(
@@ -444,7 +444,7 @@ TEST_CASE(ble_gatt_write_test_long_bad_handle)
         ble_gatt_write_test_misc_long_fail_handle);
 }
 
-TEST_CASE(ble_gatt_write_test_long_bad_offset)
+TEST_CASE_SELF(ble_gatt_write_test_long_bad_offset)
 {
     /*** 1 prep write req/rsp. */
     ble_gatt_write_test_misc_long_bad(
@@ -462,7 +462,7 @@ TEST_CASE(ble_gatt_write_test_long_bad_offset)
         ble_gatt_write_test_misc_long_fail_offset);
 }
 
-TEST_CASE(ble_gatt_write_test_long_bad_value)
+TEST_CASE_SELF(ble_gatt_write_test_long_bad_value)
 {
     /*** 1 prep write req/rsp. */
     ble_gatt_write_test_misc_long_bad(
@@ -480,7 +480,7 @@ TEST_CASE(ble_gatt_write_test_long_bad_value)
         ble_gatt_write_test_misc_long_fail_value);
 }
 
-TEST_CASE(ble_gatt_write_test_long_bad_length)
+TEST_CASE_SELF(ble_gatt_write_test_long_bad_length)
 {
     /*** 1 prep write req/rsp. */
     ble_gatt_write_test_misc_long_bad(
@@ -498,7 +498,7 @@ TEST_CASE(ble_gatt_write_test_long_bad_length)
         ble_gatt_write_test_misc_long_fail_length);
 }
 
-TEST_CASE(ble_gatt_write_test_reliable_good)
+TEST_CASE_SELF(ble_gatt_write_test_reliable_good)
 {
     /*** 1 attribute. */
     ble_gatt_write_test_misc_reliable_good(
@@ -558,7 +558,7 @@ TEST_CASE(ble_gatt_write_test_reliable_good)
         } }));
 }
 
-TEST_CASE(ble_gatt_write_test_long_queue_full)
+TEST_CASE_SELF(ble_gatt_write_test_long_queue_full)
 {
     int off;
     int len;
@@ -608,7 +608,7 @@ TEST_CASE(ble_gatt_write_test_long_queue_full)
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CANCEL);
 }
 
-TEST_CASE(ble_gatt_write_test_long_oom)
+TEST_CASE_SELF(ble_gatt_write_test_long_oom)
 {
     static const struct ble_hs_test_util_flat_attr attr = {
         .handle = 34,
@@ -700,7 +700,7 @@ TEST_CASE(ble_gatt_write_test_long_oom)
     TEST_ASSERT(!ble_gattc_any_jobs());
 }
 
-TEST_CASE(ble_gatt_write_test_reliable_oom)
+TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
 {
     static const struct ble_hs_test_util_flat_attr attr = {
         .handle = 34,
@@ -809,12 +809,4 @@ TEST_SUITE(ble_gatt_write_test_suite)
     ble_gatt_write_test_reliable_good();
     ble_gatt_write_test_long_oom();
     ble_gatt_write_test_reliable_oom();
-}
-
-int
-ble_gatt_write_test_all(void)
-{
-    ble_gatt_write_test_suite();
-
-    return tu_any_failed;
 }

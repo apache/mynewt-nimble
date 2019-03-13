@@ -74,7 +74,7 @@ ble_att_clt_test_tx_write_req_or_cmd(uint16_t conn_handle, uint16_t handle,
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_find_info)
+TEST_CASE_SELF(ble_att_clt_test_tx_find_info)
 {
     uint16_t conn_handle;
     int rc;
@@ -98,7 +98,7 @@ TEST_CASE(ble_att_clt_test_tx_find_info)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_rx_find_info)
+TEST_CASE_SELF(ble_att_clt_test_rx_find_info)
 {
     struct ble_att_find_info_rsp rsp;
     uint16_t conn_handle;
@@ -265,13 +265,13 @@ ble_att_clt_test_misc_tx_mtu(uint16_t conn_handle, uint16_t mtu, int status)
     }
 }
 
-TEST_CASE(ble_att_clt_test_tx_write)
+TEST_CASE_SELF(ble_att_clt_test_tx_write)
 {
     ble_att_clt_test_case_tx_write_req_or_cmd(0);
     ble_att_clt_test_case_tx_write_req_or_cmd(1);
 }
 
-TEST_CASE(ble_att_clt_test_tx_read)
+TEST_CASE_SELF(ble_att_clt_test_tx_read)
 {
     uint16_t conn_handle;
     int rc;
@@ -287,7 +287,7 @@ TEST_CASE(ble_att_clt_test_tx_read)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_att_clt_test_rx_read)
+TEST_CASE_SELF(ble_att_clt_test_rx_read)
 {
     uint16_t conn_handle;
     uint8_t buf[1024];
@@ -313,7 +313,7 @@ TEST_CASE(ble_att_clt_test_rx_read)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_read_blob)
+TEST_CASE_SELF(ble_att_clt_test_tx_read_blob)
 {
     uint16_t conn_handle;
     int rc;
@@ -329,7 +329,7 @@ TEST_CASE(ble_att_clt_test_tx_read_blob)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_att_clt_test_rx_read_blob)
+TEST_CASE_SELF(ble_att_clt_test_rx_read_blob)
 {
     uint16_t conn_handle;
     uint8_t buf[1024];
@@ -355,7 +355,7 @@ TEST_CASE(ble_att_clt_test_rx_read_blob)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_read_mult)
+TEST_CASE_SELF(ble_att_clt_test_tx_read_mult)
 {
     struct os_mbuf *om;
     uint16_t conn_handle;
@@ -380,7 +380,7 @@ TEST_CASE(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_att_clt_test_rx_read_mult)
+TEST_CASE_SELF(ble_att_clt_test_rx_read_mult)
 {
     uint16_t conn_handle;
     uint8_t buf[1024];
@@ -413,7 +413,7 @@ TEST_CASE(ble_att_clt_test_rx_read_mult)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_prep_write)
+TEST_CASE_SELF(ble_att_clt_test_tx_prep_write)
 {
     uint8_t attr_data[512];
     int i;
@@ -444,7 +444,7 @@ TEST_CASE(ble_att_clt_test_tx_prep_write)
                                    BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_att_clt_test_rx_prep_write)
+TEST_CASE_SELF(ble_att_clt_test_rx_prep_write)
 {
     struct ble_att_prep_write_cmd rsp;
     uint16_t conn_handle;
@@ -472,7 +472,7 @@ TEST_CASE(ble_att_clt_test_rx_prep_write)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_exec_write)
+TEST_CASE_SELF(ble_att_clt_test_tx_exec_write)
 {
     uint16_t conn_handle;
     int rc;
@@ -488,7 +488,7 @@ TEST_CASE(ble_att_clt_test_tx_exec_write)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_att_clt_test_tx_mtu)
+TEST_CASE_SELF(ble_att_clt_test_tx_mtu)
 {
     uint16_t conn_handle;
 
@@ -519,12 +519,4 @@ TEST_SUITE(ble_att_clt_suite)
     ble_att_clt_test_rx_prep_write();
     ble_att_clt_test_tx_exec_write();
     ble_att_clt_test_tx_mtu();
-}
-
-int
-ble_att_clt_test_all(void)
-{
-    ble_att_clt_suite();
-
-    return tu_any_failed;
 }

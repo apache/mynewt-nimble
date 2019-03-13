@@ -434,7 +434,7 @@ ble_gap_test_util_wl_set(ble_addr_t *addrs, int addrs_count, int cmd_fail_idx,
     }
 }
 
-TEST_CASE(ble_gap_test_case_wl_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_wl_bad_args)
 {
     int rc;
 
@@ -465,7 +465,7 @@ TEST_CASE(ble_gap_test_case_wl_bad_args)
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
 
-TEST_CASE(ble_gap_test_case_wl_ctlr_fail)
+TEST_CASE_SELF(ble_gap_test_case_wl_ctlr_fail)
 {
     int i;
 
@@ -483,7 +483,7 @@ TEST_CASE(ble_gap_test_case_wl_ctlr_fail)
     }
 }
 
-TEST_CASE(ble_gap_test_case_wl_good)
+TEST_CASE_SELF(ble_gap_test_case_wl_good)
 {
     ble_addr_t addrs[] = {
         { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
@@ -558,7 +558,7 @@ ble_gap_test_util_disc(uint8_t own_addr_type,
     return rc;
 }
 
-TEST_CASE(ble_gap_test_case_disc_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_disc_bad_args)
 {
     struct ble_gap_disc_params params;
     int rc;
@@ -579,7 +579,7 @@ TEST_CASE(ble_gap_test_case_disc_bad_args)
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_gap_test_case_disc_good)
+TEST_CASE_SELF(ble_gap_test_case_disc_good)
 {
     uint8_t adv_data[32];
     uint8_t flags;
@@ -634,7 +634,7 @@ TEST_CASE(ble_gap_test_case_disc_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
+TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
 {
     int rc;
     struct ble_gap_disc_desc desc = {
@@ -683,7 +683,7 @@ TEST_CASE(ble_gap_test_case_disc_ltd_mismatch)
 
 }
 
-TEST_CASE(ble_gap_test_case_disc_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_disc_hci_fail)
 {
     int fail_idx;
     int limited;
@@ -751,13 +751,13 @@ ble_gap_test_util_disc_dflts_once(int limited)
     ble_gap_test_util_verify_tx_scan_enable(1, 0);
 }
 
-TEST_CASE(ble_gap_test_case_disc_dflts)
+TEST_CASE_SELF(ble_gap_test_case_disc_dflts)
 {
     ble_gap_test_util_disc_dflts_once(0);
     ble_gap_test_util_disc_dflts_once(1);
 }
 
-TEST_CASE(ble_gap_test_case_disc_already)
+TEST_CASE_SELF(ble_gap_test_case_disc_already)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
     int rc;
@@ -776,7 +776,7 @@ TEST_CASE(ble_gap_test_case_disc_already)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_disc_busy)
+TEST_CASE_SELF(ble_gap_test_case_disc_busy)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
     static const ble_addr_t peer_addr = {
@@ -815,7 +815,7 @@ TEST_SUITE(ble_gap_test_suite_disc)
  * $direct connect                                                           *
  *****************************************************************************/
 
-TEST_CASE(ble_gap_test_case_conn_gen_good)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
 {
     struct hci_le_conn_complete evt;
     struct ble_gap_conn_params params;
@@ -873,7 +873,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_good)
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_bad_args)
 {
     int rc;
 
@@ -904,7 +904,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_bad_args)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_dflt_params)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_dflt_params)
 {
     static const ble_addr_t peer_addr = {
         BLE_ADDR_PUBLIC,
@@ -920,7 +920,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_dflt_params)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_already)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_already)
 {
     static const struct ble_gap_conn_params conn_params = { 0 };
     static const ble_addr_t peer_addr = {
@@ -942,7 +942,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_already)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_done)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_done)
 {
     static const struct ble_gap_conn_params conn_params = { 0 };
     static const ble_addr_t peer_addr = {
@@ -965,7 +965,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_done)
     TEST_ASSERT(rc == BLE_HS_EDONE);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_busy)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_busy)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
     static const struct ble_gap_conn_params conn_params = { 0 };
@@ -989,7 +989,7 @@ TEST_CASE(ble_gap_test_case_conn_gen_busy)
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_gen_fail_evt)
+TEST_CASE_SELF(ble_gap_test_case_conn_gen_fail_evt)
 {
     static const ble_addr_t peer_addr = {BLE_ADDR_PUBLIC, {1, 2, 3, 4, 5, 6}};
     struct hci_le_conn_complete evt;
@@ -1103,7 +1103,7 @@ ble_gap_test_util_conn_and_cancel(uint8_t *peer_addr, uint8_t hci_status)
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
 }
 
-TEST_CASE(ble_gap_test_case_conn_cancel_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_conn_cancel_bad_args)
 {
     int rc;
 
@@ -1115,7 +1115,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_bad_args)
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 }
 
-TEST_CASE(ble_gap_test_case_conn_cancel_good)
+TEST_CASE_SELF(ble_gap_test_case_conn_cancel_good)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
@@ -1126,7 +1126,7 @@ TEST_CASE(ble_gap_test_case_conn_cancel_good)
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
 }
 
-TEST_CASE(ble_gap_test_case_conn_cancel_ctlr_fail)
+TEST_CASE_SELF(ble_gap_test_case_conn_cancel_ctlr_fail)
 {
     struct hci_le_conn_complete evt;
     int rc;
@@ -1213,7 +1213,7 @@ ble_gap_test_util_terminate(uint8_t *peer_addr, uint8_t hci_status)
     }
 }
 
-TEST_CASE(ble_gap_test_case_conn_terminate_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_conn_terminate_bad_args)
 {
     int rc;
 
@@ -1224,7 +1224,7 @@ TEST_CASE(ble_gap_test_case_conn_terminate_bad_args)
     TEST_ASSERT(rc == BLE_HS_ENOTCONN);
 }
 
-TEST_CASE(ble_gap_test_case_conn_terminate_good)
+TEST_CASE_SELF(ble_gap_test_case_conn_terminate_good)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
@@ -1244,7 +1244,7 @@ TEST_CASE(ble_gap_test_case_conn_terminate_good)
     TEST_ASSERT(!ble_gap_master_in_progress());
 }
 
-TEST_CASE(ble_gap_test_case_conn_terminate_ctlr_fail)
+TEST_CASE_SELF(ble_gap_test_case_conn_terminate_ctlr_fail)
 {
     struct hci_disconn_complete evt;
     int rc;
@@ -1285,7 +1285,7 @@ TEST_CASE(ble_gap_test_case_conn_terminate_ctlr_fail)
     TEST_ASSERT(!ble_gap_master_in_progress());
 }
 
-TEST_CASE(ble_gap_test_case_conn_terminate_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_conn_terminate_hci_fail)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
@@ -1310,7 +1310,7 @@ TEST_SUITE(ble_gap_test_suite_conn_terminate)
  * $conn find                                                                *
  *****************************************************************************/
 
-TEST_CASE(ble_gap_test_case_conn_find)
+TEST_CASE_SELF(ble_gap_test_case_conn_find)
 {
 
     struct ble_gap_conn_desc desc;
@@ -1321,6 +1321,9 @@ TEST_CASE(ble_gap_test_case_conn_find)
     /*** We are master; public addresses. */
     ble_gap_test_util_init();
 
+    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
+
     ble_hs_test_util_create_rpa_conn(8,
                                      BLE_OWN_ADDR_PUBLIC,
                                      ((uint8_t[6]){0,0,0,0,0,0}),
@@ -1330,9 +1333,6 @@ TEST_CASE(ble_gap_test_case_conn_find)
                                      BLE_HS_TEST_CONN_FEAT_ALL,
                                      ble_gap_test_util_connect_cb,
                                      NULL);
-
-    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
-    TEST_ASSERT_FATAL(rc == 0);
 
     rc = ble_gap_conn_find(8, &desc);
     TEST_ASSERT_FATAL(rc == 0);
@@ -1368,6 +1368,9 @@ TEST_CASE(ble_gap_test_case_conn_find)
 
     /*** We are master; RPAs. */
     ble_gap_test_util_init();
+
+    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
+    TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_test_util_create_rpa_conn(54,
                                      BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT,
@@ -1534,7 +1537,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
     }
 }
 
-TEST_CASE(ble_gap_test_case_adv_bad_args)
+TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
 {
     struct ble_gap_adv_params adv_params;
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
@@ -1657,7 +1660,7 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
     }
 }
 
-TEST_CASE(ble_gap_test_case_adv_dflt_params)
+TEST_CASE_SELF(ble_gap_test_case_adv_dflt_params)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
 
@@ -1672,7 +1675,7 @@ TEST_CASE(ble_gap_test_case_adv_dflt_params)
     }
 }
 
-TEST_CASE(ble_gap_test_case_adv_good)
+TEST_CASE_SELF(ble_gap_test_case_adv_good)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int d;
@@ -1696,7 +1699,7 @@ TEST_CASE(ble_gap_test_case_adv_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
+TEST_CASE_SELF(ble_gap_test_case_adv_ctlr_fail)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int d;
@@ -1717,7 +1720,7 @@ TEST_CASE(ble_gap_test_case_adv_ctlr_fail)
     }
 }
 
-TEST_CASE(ble_gap_test_case_adv_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_adv_hci_fail)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int fail_idx;
@@ -1779,7 +1782,7 @@ ble_gap_test_util_stop_adv(const ble_addr_t *peer_addr,
     ble_gap_test_util_verify_tx_adv_enable(0);
 }
 
-TEST_CASE(ble_gap_test_case_stop_adv_good)
+TEST_CASE_SELF(ble_gap_test_case_stop_adv_good)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int d;
@@ -1797,7 +1800,7 @@ TEST_CASE(ble_gap_test_case_stop_adv_good)
     }
 }
 
-TEST_CASE(ble_gap_test_case_stop_adv_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_stop_adv_hci_fail)
 {
     ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
     int d;
@@ -2379,7 +2382,7 @@ hci_fail:
                 BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
 }
 
-TEST_CASE(ble_gap_test_case_update_conn_good)
+TEST_CASE_SELF(ble_gap_test_case_update_conn_good)
 {
     ble_gap_test_util_update_no_l2cap(
         ((struct ble_gap_upd_params[]) { {
@@ -2402,7 +2405,7 @@ TEST_CASE(ble_gap_test_case_update_conn_good)
         1, 0, 0);
 }
 
-TEST_CASE(ble_gap_test_case_update_conn_verify_params)
+TEST_CASE_SELF(ble_gap_test_case_update_conn_verify_params)
 {
     /* GOOD */
     ble_gap_test_util_update_verify_params(
@@ -2469,7 +2472,7 @@ TEST_CASE(ble_gap_test_case_update_conn_verify_params)
         BLE_HS_EINVAL);
 }
 
-TEST_CASE(ble_gap_test_case_update_conn_bad)
+TEST_CASE_SELF(ble_gap_test_case_update_conn_bad)
 {
     ble_gap_test_util_update_no_l2cap(
         ((struct ble_gap_upd_params[]) { {
@@ -2482,7 +2485,7 @@ TEST_CASE(ble_gap_test_case_update_conn_bad)
         1, 0, BLE_ERR_LMP_COLLISION);
 }
 
-TEST_CASE(ble_gap_test_case_update_conn_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_update_conn_hci_fail)
 {
     ble_gap_test_util_update_no_l2cap(
         ((struct ble_gap_upd_params[]) { {
@@ -2495,7 +2498,7 @@ TEST_CASE(ble_gap_test_case_update_conn_hci_fail)
         1, BLE_ERR_UNSUPPORTED, 0);
 }
 
-TEST_CASE(ble_gap_test_case_update_conn_l2cap)
+TEST_CASE_SELF(ble_gap_test_case_update_conn_l2cap)
 {
     struct ble_gap_upd_params params = {
         .itvl_min = 10,
@@ -2514,7 +2517,7 @@ TEST_CASE(ble_gap_test_case_update_conn_l2cap)
                                    BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
 }
 
-TEST_CASE(ble_gap_test_case_update_peer_good)
+TEST_CASE_SELF(ble_gap_test_case_update_peer_good)
 {
     ble_gap_test_util_update_peer(0,
         ((struct ble_gap_upd_params[]) { {
@@ -2535,7 +2538,7 @@ TEST_CASE(ble_gap_test_case_update_peer_good)
         }}));
 }
 
-TEST_CASE(ble_gap_test_case_update_req_good)
+TEST_CASE_SELF(ble_gap_test_case_update_req_good)
 {
     ble_gap_test_util_update_req_pos(
         ((struct ble_gap_upd_params[]) { {
@@ -2572,7 +2575,7 @@ TEST_CASE(ble_gap_test_case_update_req_good)
         -1, 0);
 }
 
-TEST_CASE(ble_gap_test_case_update_req_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_update_req_hci_fail)
 {
     ble_gap_test_util_update_req_pos(
         ((struct ble_gap_upd_params[]) { {
@@ -2592,7 +2595,7 @@ TEST_CASE(ble_gap_test_case_update_req_hci_fail)
         0, BLE_ERR_UNSUPPORTED);
 }
 
-TEST_CASE(ble_gap_test_case_update_req_reject)
+TEST_CASE_SELF(ble_gap_test_case_update_req_reject)
 {
     ble_gap_test_util_update_req_neg(
         ((struct ble_gap_upd_params[]) { {
@@ -2615,7 +2618,7 @@ TEST_CASE(ble_gap_test_case_update_req_reject)
         -1, 0);
 }
 
-TEST_CASE(ble_gap_test_case_update_concurrent_good)
+TEST_CASE_SELF(ble_gap_test_case_update_concurrent_good)
 {
     ble_gap_test_util_update_req_concurrent(
         ((struct ble_gap_upd_params[]) { {
@@ -2666,7 +2669,7 @@ TEST_CASE(ble_gap_test_case_update_concurrent_good)
         -1, 0);
 }
 
-TEST_CASE(ble_gap_test_case_update_concurrent_hci_fail)
+TEST_CASE_SELF(ble_gap_test_case_update_concurrent_hci_fail)
 {
     ble_gap_test_util_update_req_concurrent(
         ((struct ble_gap_upd_params[]) { {
@@ -2888,7 +2891,7 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
     ble_gap_test_util_reset_cb_info();
 }
 
-TEST_CASE(ble_gap_test_case_update_timeout)
+TEST_CASE_SELF(ble_gap_test_case_update_timeout)
 {
     struct ble_gap_upd_params params = {
         .itvl_min = 10,
@@ -2913,7 +2916,7 @@ TEST_CASE(ble_gap_test_case_update_timeout)
                                        1);
 }
 
-TEST_CASE(ble_gap_test_case_conn_timeout_conn_forever)
+TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_forever)
 {
     ble_gap_test_util_init();
 
@@ -2925,7 +2928,7 @@ TEST_CASE(ble_gap_test_case_conn_timeout_conn_forever)
 
 }
 
-TEST_CASE(ble_gap_test_case_conn_timeout_conn_timeout)
+TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_timeout)
 {
     ble_gap_test_util_init();
 
@@ -2937,7 +2940,7 @@ TEST_CASE(ble_gap_test_case_conn_timeout_conn_timeout)
 
 }
 
-TEST_CASE(ble_gap_test_case_conn_forever_conn_timeout)
+TEST_CASE_SELF(ble_gap_test_case_conn_forever_conn_timeout)
 {
     ble_gap_test_util_init();
 
@@ -2954,7 +2957,7 @@ TEST_CASE(ble_gap_test_case_conn_forever_conn_timeout)
     ble_gap_test_util_conn_timeout(30);
 }
 
-TEST_CASE(ble_gap_test_case_disc_timeout_disc_forever)
+TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_forever)
 {
     ble_gap_test_util_init();
 
@@ -2966,7 +2969,7 @@ TEST_CASE(ble_gap_test_case_disc_timeout_disc_forever)
 
 }
 
-TEST_CASE(ble_gap_test_case_disc_timeout_disc_timeout)
+TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_timeout)
 {
     ble_gap_test_util_init();
 
@@ -2978,7 +2981,7 @@ TEST_CASE(ble_gap_test_case_disc_timeout_disc_timeout)
 
 }
 
-TEST_CASE(ble_gap_test_case_disc_forever_disc_timeout)
+TEST_CASE_SELF(ble_gap_test_case_disc_forever_disc_timeout)
 {
     ble_gap_test_util_init();
 
@@ -2992,7 +2995,7 @@ TEST_CASE(ble_gap_test_case_disc_forever_disc_timeout)
     ble_gap_test_util_disc_timeout(30);
 }
 
-TEST_CASE(ble_gap_test_case_conn_timeout_disc_timeout)
+TEST_CASE_SELF(ble_gap_test_case_conn_timeout_disc_timeout)
 {
     ble_gap_test_util_init();
 
@@ -3020,7 +3023,7 @@ TEST_SUITE(ble_gap_test_suite_timeout)
     ble_gap_test_case_update_timeout();
 }
 
-TEST_CASE(ble_gap_test_case_mtu_us)
+TEST_CASE_SELF(ble_gap_test_case_mtu_us)
 {
     const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
     int rc;
@@ -3044,7 +3047,7 @@ TEST_CASE(ble_gap_test_case_mtu_us)
     TEST_ASSERT(ble_gap_test_event.mtu.value == 123);
 }
 
-TEST_CASE(ble_gap_test_case_mtu_peer)
+TEST_CASE_SELF(ble_gap_test_case_mtu_peer)
 {
     const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
     int rc;
@@ -3090,7 +3093,7 @@ ble_gap_test_util_set_cb_event(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
-TEST_CASE(ble_gap_test_case_set_cb_good)
+TEST_CASE_SELF(ble_gap_test_case_set_cb_good)
 {
     const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
     struct hci_disconn_complete disconn_evt;
@@ -3121,7 +3124,7 @@ TEST_CASE(ble_gap_test_case_set_cb_good)
     TEST_ASSERT(event.disconnect.conn.conn_handle == 2);
 }
 
-TEST_CASE(ble_gap_test_case_set_cb_bad)
+TEST_CASE_SELF(ble_gap_test_case_set_cb_bad)
 {
     int rc;
 
@@ -3138,27 +3141,4 @@ TEST_SUITE(ble_gap_test_suite_set_cb)
 
     ble_gap_test_case_set_cb_good();
     ble_gap_test_case_set_cb_bad();
-}
-
-/*****************************************************************************
- * $all                                                                      *
- *****************************************************************************/
-
-int
-ble_gap_test_all(void)
-{
-    ble_gap_test_suite_wl();
-    ble_gap_test_suite_disc();
-    ble_gap_test_suite_conn_gen();
-    ble_gap_test_suite_conn_cancel();
-    ble_gap_test_suite_conn_terminate();
-    ble_gap_test_suite_conn_find();
-    ble_gap_test_suite_adv();
-    ble_gap_test_suite_stop_adv();
-    ble_gap_test_suite_update_conn();
-    ble_gap_test_suite_timeout();
-    ble_gap_test_suite_mtu();
-    ble_gap_test_suite_set_cb();
-
-    return tu_any_failed;
 }

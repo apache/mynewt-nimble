@@ -223,7 +223,9 @@ ble_hs_test_util_create_rpa_conn(uint16_t handle, uint8_t own_addr_type,
     addr.type = peer_addr_type;
     memcpy(addr.val, peer_id_addr, 6);
 
-    ble_hs_test_util_connect(own_addr_type, &addr, 0, NULL, cb, cb_arg, 0);
+    rc = ble_hs_test_util_connect(own_addr_type, &addr, 0, NULL, cb, cb_arg,
+                                  0);
+    TEST_ASSERT_FATAL(rc == 0);
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
     ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,

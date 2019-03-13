@@ -183,7 +183,7 @@ ble_gatts_read_test_once(uint16_t conn_handle, uint16_t attr_id,
     ble_hs_test_util_verify_tx_read_rsp(expected_value, expected_len);
 }
 
-TEST_CASE(ble_gatts_read_test_case_basic)
+TEST_CASE_SELF(ble_gatts_read_test_case_basic)
 {
     uint16_t conn_handle;
 
@@ -206,7 +206,7 @@ TEST_CASE(ble_gatts_read_test_case_basic)
 
 }
 
-TEST_CASE(ble_gatts_read_test_case_long)
+TEST_CASE_SELF(ble_gatts_read_test_case_long)
 {
     struct ble_att_read_blob_req read_blob_req;
     struct ble_att_read_req read_req;

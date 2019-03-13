@@ -26,7 +26,7 @@
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 
-TEST_CASE(ble_hs_hci_test_event_bad)
+TEST_CASE_SELF(ble_hs_hci_test_event_bad)
 {
     uint8_t *buf;
     int rc;
@@ -41,7 +41,7 @@ TEST_CASE(ble_hs_hci_test_event_bad)
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
 }
 
-TEST_CASE(ble_hs_hci_test_rssi)
+TEST_CASE_SELF(ble_hs_hci_test_rssi)
 {
     uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
     uint16_t opcode;
@@ -83,7 +83,7 @@ TEST_CASE(ble_hs_hci_test_rssi)
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 }
 
-TEST_CASE(ble_hs_hci_acl_one_conn)
+TEST_CASE_SELF(ble_hs_hci_acl_one_conn)
 {
     struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2];
     struct hci_disconn_complete evt;
@@ -167,7 +167,7 @@ TEST_CASE(ble_hs_hci_acl_one_conn)
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 5);
 }
 
-TEST_CASE(ble_hs_hci_acl_two_conn)
+TEST_CASE_SELF(ble_hs_hci_acl_two_conn)
 {
     struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2];
     const struct ble_hs_conn *conn1;
@@ -335,11 +335,4 @@ TEST_SUITE(ble_hs_hci_suite)
     ble_hs_hci_test_rssi();
     ble_hs_hci_acl_one_conn();
     ble_hs_hci_acl_two_conn();
-}
-
-int
-ble_hs_hci_test_all(void)
-{
-    ble_hs_hci_suite();
-    return tu_any_failed;
 }

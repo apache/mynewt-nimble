@@ -249,7 +249,7 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
     }
 }
 
-TEST_CASE(ble_gatt_find_s_test_1)
+TEST_CASE_SELF(ble_gatt_find_s_test_1)
 {
     /* Two 16-bit UUID services; one response. */
     ble_gatt_find_s_test_misc_init();
@@ -342,7 +342,7 @@ TEST_CASE(ble_gatt_find_s_test_1)
     );
 }
 
-TEST_CASE(ble_gatt_find_s_test_oom)
+TEST_CASE_SELF(ble_gatt_find_s_test_oom)
 {
 
     struct ble_gatt_find_s_test_entry incs[] = {
@@ -428,12 +428,4 @@ TEST_SUITE(ble_gatt_find_s_test_suite)
 
     ble_gatt_find_s_test_1();
     ble_gatt_find_s_test_oom();
-}
-
-int
-ble_gatt_find_s_test_all(void)
-{
-    ble_gatt_find_s_test_suite();
-
-    return tu_any_failed;
 }
