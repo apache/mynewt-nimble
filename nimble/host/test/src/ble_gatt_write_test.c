@@ -384,6 +384,8 @@ TEST_CASE_SELF(ble_gatt_write_test_no_rsp)
 
     /* No response expected; verify callback not called. */
     TEST_ASSERT(!ble_gatt_write_test_cb_called);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_rsp)
@@ -410,6 +412,8 @@ TEST_CASE_SELF(ble_gatt_write_test_rsp)
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_good)
@@ -424,6 +428,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_good)
 
     /*** Maximum reqs/rsps. */
     ble_gatt_write_test_misc_long_good(BLE_ATT_ATTR_MAX_LEN);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_bad_handle)
@@ -442,6 +448,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_bad_handle)
     ble_gatt_write_test_misc_long_bad(
         BLE_ATT_ATTR_MAX_LEN,
         ble_gatt_write_test_misc_long_fail_handle);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_bad_offset)
@@ -460,6 +468,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_bad_offset)
     ble_gatt_write_test_misc_long_bad(
         BLE_ATT_ATTR_MAX_LEN,
         ble_gatt_write_test_misc_long_fail_offset);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_bad_value)
@@ -478,6 +488,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_bad_value)
     ble_gatt_write_test_misc_long_bad(
         BLE_ATT_ATTR_MAX_LEN,
         ble_gatt_write_test_misc_long_fail_value);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_bad_length)
@@ -496,6 +508,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_bad_length)
     ble_gatt_write_test_misc_long_bad(
         BLE_ATT_ATTR_MAX_LEN,
         ble_gatt_write_test_misc_long_fail_length);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_reliable_good)
@@ -556,6 +570,8 @@ TEST_CASE_SELF(ble_gatt_write_test_reliable_good)
         }, {
             0
         } }));
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_queue_full)
@@ -606,6 +622,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_queue_full)
 
     /* Verify clear queue command got sent. */
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_CANCEL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_long_oom)
@@ -698,6 +716,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_oom)
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
     TEST_ASSERT(!ble_gattc_any_jobs());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
@@ -792,12 +812,12 @@ TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
     TEST_ASSERT(!ble_gattc_any_jobs());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatt_write_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatt_write_test_no_rsp();
     ble_gatt_write_test_rsp();
     ble_gatt_write_test_long_good();

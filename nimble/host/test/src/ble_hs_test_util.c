@@ -1841,12 +1841,6 @@ ble_hs_test_util_assert_mbufs_freed(
     TEST_ASSERT(count == os_msys_count());
 }
 
-void
-ble_hs_test_util_post_test(void *arg)
-{
-    ble_hs_test_util_assert_mbufs_freed(arg);
-}
-
 static int
 ble_hs_test_util_pkt_txed(struct os_mbuf *om, void *arg)
 {

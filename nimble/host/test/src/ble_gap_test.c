@@ -463,6 +463,8 @@ TEST_CASE_SELF(ble_gap_test_case_wl_bad_args)
         }, }),
         1, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_wl_ctlr_fail)
@@ -481,6 +483,8 @@ TEST_CASE_SELF(ble_gap_test_case_wl_ctlr_fail)
         ble_gap_test_util_wl_set(addrs, addrs_count, i,
                                  BLE_ERR_UNSPECIFIED);
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_wl_good)
@@ -494,12 +498,12 @@ TEST_CASE_SELF(ble_gap_test_case_wl_good)
     int addrs_count = sizeof addrs / sizeof addrs[0];
 
     ble_gap_test_util_wl_set(addrs, addrs_count, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_wl)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_wl_good();
     ble_gap_test_case_wl_bad_args();
     ble_gap_test_case_wl_ctlr_fail();
@@ -577,6 +581,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_bad_args)
     rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, &params,
                       ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_good)
@@ -632,6 +638,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_good)
         TEST_ASSERT(ble_gap_test_disc_arg == NULL);
 
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
@@ -715,6 +723,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_hci_fail)
             TEST_ASSERT(!ble_gap_master_in_progress());
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 static void
@@ -755,6 +765,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_dflts)
 {
     ble_gap_test_util_disc_dflts_once(0);
     ble_gap_test_util_disc_dflts_once(1);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_already)
@@ -774,6 +786,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_already)
     rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
                                ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_busy)
@@ -796,12 +810,12 @@ TEST_CASE_SELF(ble_gap_test_case_disc_busy)
     rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
                                ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_disc)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_disc_bad_args();
     ble_gap_test_case_disc_good();
     ble_gap_test_case_disc_ltd_mismatch();
@@ -871,6 +885,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
                        peer_addr.val, 6) == 0);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_bad_args)
@@ -902,6 +918,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_bad_args)
         &((ble_addr_t) { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }}),
         0, NULL, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_dflt_params)
@@ -918,6 +936,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_dflt_params)
                                   &peer_addr, 0, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_already)
@@ -940,6 +960,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_already)
     rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
                          &conn_params, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_done)
@@ -963,6 +985,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_done)
     rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC,  &peer_addr, BLE_HS_FOREVER,
                          &conn_params, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EDONE);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_busy)
@@ -987,6 +1011,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_busy)
     rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
                          &conn_params, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_fail_evt)
@@ -1031,12 +1057,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_fail_evt)
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_DISCONNECT);
     TEST_ASSERT(ble_gap_test_event.disconnect.reason ==
                 BLE_HS_HCI_ERR(BLE_ERR_CONN_ESTABLISHMENT));
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_gen)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_conn_gen_good();
     ble_gap_test_case_conn_gen_bad_args();
     ble_gap_test_case_conn_gen_dflt_params();
@@ -1113,6 +1139,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_cancel_bad_args)
     TEST_ASSERT(!ble_gap_master_in_progress());
     rc = ble_hs_test_util_conn_cancel(0);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_cancel_good)
@@ -1124,6 +1152,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_cancel_good)
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(ble_gap_test_event.connect.status == BLE_HS_EAPP);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_cancel_ctlr_fail)
@@ -1164,12 +1194,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_cancel_ctlr_fail)
                        peer_addr, 6) == 0);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_cancel)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_conn_cancel_good();
     ble_gap_test_case_conn_cancel_bad_args();
     ble_gap_test_case_conn_cancel_ctlr_fail();
@@ -1222,6 +1252,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_bad_args)
     /*** Nonexistent connection. */
     rc = ble_hs_test_util_conn_terminate(2, 0);
     TEST_ASSERT(rc == BLE_HS_ENOTCONN);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_terminate_good)
@@ -1242,6 +1274,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_good)
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
     TEST_ASSERT(!ble_gap_master_in_progress());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_terminate_ctlr_fail)
@@ -1283,6 +1317,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_ctlr_fail)
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_terminate_hci_fail)
@@ -1294,12 +1330,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_hci_fail)
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
     TEST_ASSERT(!ble_gap_master_in_progress());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_terminate)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_conn_terminate_bad_args();
     ble_gap_test_case_conn_terminate_good();
     ble_gap_test_case_conn_terminate_ctlr_fail();
@@ -1414,12 +1450,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_find)
     rc = ble_gap_conn_find(54, &desc);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(desc.role == BLE_GAP_ROLE_SLAVE);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_conn_find)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_conn_find();
 }
 
@@ -1589,6 +1625,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
     TEST_ASSERT(ble_gap_adv_active());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 static void
@@ -1673,6 +1711,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_dflt_params)
                 BLE_OWN_ADDR_PUBLIC, &peer_addr, c, d);
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_adv_good)
@@ -1697,6 +1737,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_good)
             }
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_adv_ctlr_fail)
@@ -1718,6 +1760,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_ctlr_fail)
             TEST_ASSERT(ble_gap_test_conn_arg == NULL);
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_adv_hci_fail)
@@ -1739,12 +1783,12 @@ TEST_CASE_SELF(ble_gap_test_case_adv_hci_fail)
             }
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_adv)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_adv_bad_args();
     ble_gap_test_case_adv_dflt_params();
     ble_gap_test_case_adv_good();
@@ -1798,6 +1842,8 @@ TEST_CASE_SELF(ble_gap_test_case_stop_adv_good)
             TEST_ASSERT(ble_gap_test_conn_arg == (void *)-1);
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_stop_adv_hci_fail)
@@ -1817,12 +1863,12 @@ TEST_CASE_SELF(ble_gap_test_case_stop_adv_hci_fail)
             TEST_ASSERT(ble_gap_test_conn_arg == (void *)-1);
         }
     }
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_stop_adv)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_stop_adv_good();
     ble_gap_test_case_stop_adv_hci_fail();
 }
@@ -2403,6 +2449,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_good)
             .max_ce_len = 554,
         }}),
         1, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_verify_params)
@@ -2470,6 +2518,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_verify_params)
             .max_ce_len = 554,
         }}),
         BLE_HS_EINVAL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_bad)
@@ -2483,6 +2533,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_bad)
             .max_ce_len = 456,
         }}),
         1, 0, BLE_ERR_LMP_COLLISION);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_hci_fail)
@@ -2496,6 +2548,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_hci_fail)
             .max_ce_len = 456,
         }}),
         1, BLE_ERR_UNSUPPORTED, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_l2cap)
@@ -2515,6 +2569,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_l2cap)
     /* Rejected L2CAP. */
     ble_gap_test_util_update_l2cap(&params,
                                    BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_peer_good)
@@ -2536,6 +2592,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_peer_good)
             .min_ce_len = 554,
             .max_ce_len = 554,
         }}));
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_good)
@@ -2573,6 +2631,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_req_good)
             .max_ce_len = 554,
         }}),
         -1, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_hci_fail)
@@ -2593,6 +2653,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_req_hci_fail)
             .max_ce_len = 456,
         }}),
         0, BLE_ERR_UNSUPPORTED);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_reject)
@@ -2616,6 +2678,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_req_reject)
             .max_ce_len = 888,
         }}),
         -1, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_concurrent_good)
@@ -2667,6 +2731,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_concurrent_good)
             .max_ce_len = 222,
         }}),
         -1, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_concurrent_hci_fail)
@@ -2718,12 +2784,12 @@ TEST_CASE_SELF(ble_gap_test_case_update_concurrent_hci_fail)
             .max_ce_len = 222,
         }}),
         1, BLE_ERR_UNSUPPORTED);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_update_conn)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_update_conn_good();
     ble_gap_test_case_update_conn_bad();
     ble_gap_test_case_update_conn_hci_fail();
@@ -2914,6 +2980,8 @@ TEST_CASE_SELF(ble_gap_test_case_update_timeout)
     /* L2CAP - Remote unsupported; LL timeout. */
     ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
                                        1);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_forever)
@@ -2926,6 +2994,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_forever)
     /* No timeout. */
     ble_gap_test_util_conn_forever();
 
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_timeout)
@@ -2938,6 +3007,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_timeout_conn_timeout)
     /* 20 ms. */
     ble_gap_test_util_conn_timeout(20);
 
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_forever_conn_timeout)
@@ -2955,6 +3025,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_forever_conn_timeout)
 
     /* 30 ms. */
     ble_gap_test_util_conn_timeout(30);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_forever)
@@ -2967,6 +3039,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_forever)
     /* No timeout. */
     ble_gap_test_util_disc_forever();
 
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_timeout)
@@ -2979,6 +3052,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_timeout_disc_timeout)
     /* 20 ms. */
     ble_gap_test_util_disc_timeout(20);
 
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_forever_disc_timeout)
@@ -2993,6 +3067,8 @@ TEST_CASE_SELF(ble_gap_test_case_disc_forever_disc_timeout)
 
     /* 30 ms. */
     ble_gap_test_util_disc_timeout(30);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_conn_timeout_disc_timeout)
@@ -3004,12 +3080,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_timeout_disc_timeout)
 
     /* 1280 ms. */
     ble_gap_test_util_disc_timeout(1280);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_timeout)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_conn_timeout_conn_forever();
     ble_gap_test_case_conn_timeout_conn_timeout();
     ble_gap_test_case_conn_forever_conn_timeout();
@@ -3045,6 +3121,8 @@ TEST_CASE_SELF(ble_gap_test_case_mtu_us)
     TEST_ASSERT(ble_gap_test_event.mtu.conn_handle == 2);
     TEST_ASSERT(ble_gap_test_event.mtu.channel_id == BLE_L2CAP_CID_ATT);
     TEST_ASSERT(ble_gap_test_event.mtu.value == 123);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_mtu_peer)
@@ -3067,12 +3145,12 @@ TEST_CASE_SELF(ble_gap_test_case_mtu_peer)
     TEST_ASSERT(ble_gap_test_event.mtu.conn_handle == 2);
     TEST_ASSERT(ble_gap_test_event.mtu.channel_id == BLE_L2CAP_CID_ATT);
     TEST_ASSERT(ble_gap_test_event.mtu.value == 123);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_mtu)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_mtu_us();
     ble_gap_test_case_mtu_peer();
 }
@@ -3122,6 +3200,8 @@ TEST_CASE_SELF(ble_gap_test_case_set_cb_good)
     TEST_ASSERT(event.disconnect.reason ==
                 BLE_HS_HCI_ERR(BLE_ERR_REM_USER_CONN_TERM));
     TEST_ASSERT(event.disconnect.conn.conn_handle == 2);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_set_cb_bad)
@@ -3133,12 +3213,12 @@ TEST_CASE_SELF(ble_gap_test_case_set_cb_bad)
     /* Ensure error is reported when specified connection doesn't exist. */
     rc = ble_gap_set_event_cb(123, ble_gap_test_util_set_cb_event, NULL);
     TEST_ASSERT(rc == BLE_HS_ENOTCONN);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gap_test_suite_set_cb)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gap_test_case_set_cb_good();
     ble_gap_test_case_set_cb_bad();
 }

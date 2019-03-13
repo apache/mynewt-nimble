@@ -550,6 +550,8 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.attr_handle ==
                 attr_handle);
     TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.indication);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 static void
@@ -736,12 +738,12 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
     rc = ble_gattc_indicate(1, attr_handle);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, NULL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatt_conn_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatt_conn_test_disconnect();
     ble_gatt_conn_test_timeout();
 }

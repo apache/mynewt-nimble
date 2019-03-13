@@ -39,6 +39,8 @@ TEST_CASE_SELF(ble_hs_hci_test_event_bad)
     buf[1] = 0;
     rc = ble_hs_hci_evt_process(buf);
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_hs_hci_test_rssi)
@@ -81,6 +83,8 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi)
     ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params + 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_hs_hci_acl_one_conn)
@@ -165,6 +169,8 @@ TEST_CASE_SELF(ble_hs_hci_acl_one_conn)
     evt.reason = BLE_ERR_CONN_TERM_LOCAL;
     ble_hs_test_util_hci_rx_disconn_complete_event(&evt);
     TEST_ASSERT_FATAL(ble_hs_hci_avail_pkts == 5);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_hs_hci_acl_two_conn)
@@ -325,12 +331,12 @@ TEST_CASE_SELF(ble_hs_hci_acl_two_conn)
     ble_hs_test_util_verify_tx_write_cmd(100, data + 10, 25);
     ble_hs_test_util_verify_tx_write_cmd(100, data + 20, 70);
     ble_hs_test_util_verify_tx_write_cmd(100, data + 30, 70);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_hs_hci_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_hs_hci_test_event_bad();
     ble_hs_hci_test_rssi();
     ble_hs_hci_acl_one_conn();

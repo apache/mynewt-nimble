@@ -162,6 +162,8 @@ TEST_CASE_SELF(ble_sm_lgcy_peer_jw_iio4_rio3_b1_iat0_rat0_ik7_rk7)
         },
     };
     ble_sm_test_util_peer_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -297,6 +299,8 @@ TEST_CASE_SELF(ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7)
         },
     };
     ble_sm_test_util_peer_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -420,6 +424,8 @@ TEST_CASE_SELF(ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5)
         },
     };
     ble_sm_test_util_us_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -544,6 +550,8 @@ TEST_CASE_SELF(ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5)
         },
     };
     ble_sm_test_util_us_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -682,6 +690,8 @@ TEST_CASE_SELF(ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7)
         },
     };
     ble_sm_test_util_us_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -817,12 +827,12 @@ TEST_CASE_SELF(ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7)
         },
     };
     ble_sm_test_util_peer_lgcy_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_sm_lgcy_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     /*** No privacy. */
 
     /* Peer as initiator. */

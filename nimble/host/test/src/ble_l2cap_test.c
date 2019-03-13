@@ -278,6 +278,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_bad_header)
 
     rc = ble_l2cap_test_util_rx_first_frag(2, 14, 1234, 10);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_bad_handle)
@@ -294,6 +296,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_bad_handle)
 
     /* Ensure we did not send anything in return. */
     TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*****************************************************************************
@@ -334,6 +338,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_single)
     ble_l2cap_test_util_verify_middle_frag(2, 2);
     ble_l2cap_test_util_verify_middle_frag(2, 21);
     ble_l2cap_test_util_verify_last_frag(2, 5);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_frag_multiple)
@@ -356,6 +362,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_multiple)
     ble_l2cap_test_util_verify_middle_frag(4, 2);
     ble_l2cap_test_util_verify_last_frag(4, 1);
     ble_l2cap_test_util_verify_last_frag(2, 1);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_frag_channels)
@@ -398,6 +406,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_channels)
      * Mbuf leaks are tested in the post-test-case callback.
      */
     ble_hs_test_util_conn_disconnect(2);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_frag_timeout)
@@ -443,6 +453,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_timeout)
 
     /* Ensure connection was terminated. */
     ble_hs_test_util_hci_verify_tx_disconnect(2, BLE_ERR_REM_USER_CONN_TERM);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*****************************************************************************
@@ -464,6 +476,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_unsol_rsp)
 
     /* Ensure we did not send anything in return. */
     TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*****************************************************************************
@@ -569,21 +583,25 @@ ble_l2cap_test_util_we_update(int peer_accepts)
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_accept)
 {
     ble_l2cap_test_util_peer_updates(1);
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_reject)
 {
     ble_l2cap_test_util_peer_updates(0);
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_accept)
 {
     ble_l2cap_test_util_we_update(1);
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_reject)
 {
     ble_l2cap_test_util_we_update(0);
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_master)
@@ -605,6 +623,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_master)
 
     /* Ensure callback never called. */
     TEST_ASSERT(ble_l2cap_test_update_status == -1);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_bad_id)
@@ -645,6 +665,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_bad_id)
     /* Ensure callback got called. */
     TEST_ASSERT(ble_l2cap_test_update_status == 0);
     TEST_ASSERT(ble_l2cap_test_update_arg == NULL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /* Test enum but first four events matches to events which L2CAP sends to
@@ -1018,6 +1040,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
     ble_l2cap_test_coc_connect(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
@@ -1037,6 +1061,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
     ble_l2cap_test_coc_connect(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
@@ -1056,6 +1082,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
     ble_l2cap_test_coc_connect(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
@@ -1075,6 +1103,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
     ble_l2cap_test_coc_connect(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_author)
@@ -1094,6 +1124,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_author)
     ble_l2cap_test_coc_connect(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
@@ -1112,6 +1144,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
     ble_l2cap_test_coc_connect_by_peer(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
@@ -1145,6 +1179,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
      * connection, channel is destroyed. In such case CID for channel has been
      * used and we need to increase current_cid. */
     current_cid++;
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_success)
@@ -1169,6 +1205,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_success)
     ble_l2cap_test_coc_connect_by_peer(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_succeed)
@@ -1190,6 +1228,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_succeed)
     ble_l2cap_test_coc_disc(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
@@ -1211,6 +1251,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
     ble_l2cap_test_coc_disc_by_peer(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
@@ -1232,6 +1274,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
     ble_l2cap_test_coc_invalid_disc_by_peer(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
@@ -1256,6 +1300,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
     ble_l2cap_test_coc_disc(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
@@ -1282,6 +1328,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
     ble_l2cap_test_coc_disc(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
@@ -1306,12 +1354,12 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
     ble_l2cap_test_coc_disc(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_l2cap_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_l2cap_test_case_bad_header();
     ble_l2cap_test_case_bad_handle();
     ble_l2cap_test_case_frag_single();

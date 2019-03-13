@@ -55,6 +55,8 @@ TEST_CASE_SELF(ble_sm_test_case_f4)
 	err = ble_sm_alg_f4(u, v, x, z, res);
 	TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_f5)
@@ -84,6 +86,8 @@ TEST_CASE_SELF(ble_sm_test_case_f5)
 	TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(mackey, exp_mackey, 16) == 0);
     TEST_ASSERT(memcmp(ltk, exp_ltk, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_f6)
@@ -109,6 +113,8 @@ TEST_CASE_SELF(ble_sm_test_case_f6)
 	err = ble_sm_alg_f6(w, n1, n2, r, io_cap, a1t, a1, a2t, a2, res);
 	TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_g2)
@@ -132,6 +138,8 @@ TEST_CASE_SELF(ble_sm_test_case_g2)
 	err = ble_sm_alg_g2(u, v, x, y, &val);
 	TEST_ASSERT_FATAL(err == 0);
 	TEST_ASSERT(val == exp_val);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_conn_broken)
@@ -162,6 +170,8 @@ TEST_CASE_SELF(ble_sm_test_case_conn_broken)
     TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_ENOTCONN);
     TEST_ASSERT(!ble_sm_test_sec_state.encrypted);
     TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*****************************************************************************
@@ -223,6 +233,8 @@ TEST_CASE_SELF(ble_sm_test_case_peer_fail_inval)
             .reason = BLE_SM_ERR_INVAL,
         } })
     );
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_peer_lgcy_fail_confirm)
@@ -274,12 +286,16 @@ TEST_CASE_SELF(ble_sm_test_case_peer_lgcy_fail_confirm)
             .reason = BLE_SM_ERR_CONFIRM_MISMATCH,
         } })
     );
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_peer_bonding_bad)
 {
     ble_sm_test_util_peer_bonding_bad(0x5684, 32);
     ble_sm_test_util_peer_bonding_bad(54325, 65437);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
@@ -314,6 +330,8 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
 
     ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*****************************************************************************
@@ -375,12 +393,12 @@ TEST_CASE_SELF(ble_sm_test_case_us_fail_inval)
         },
     };
     ble_sm_test_util_us_fail_inval(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_sm_gen_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_sm_test_case_f4();
     ble_sm_test_case_f5();
     ble_sm_test_case_f6();

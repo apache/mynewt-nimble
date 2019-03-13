@@ -204,6 +204,7 @@ TEST_CASE_SELF(ble_gatts_read_test_case_basic)
                              ble_gatts_read_test_chr_2_def_handle + 1,
                              ((uint8_t[6]){0,10,20,30,40,50}), 6);
 
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatts_read_test_case_long)
@@ -245,12 +246,12 @@ TEST_CASE_SELF(ble_gatts_read_test_case_long)
     /* Ensure response starts at appropriate offset (22). */
     ble_hs_test_util_verify_tx_read_blob_rsp(
         ble_gatts_read_test_chr_1_val + 22, 18);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatts_read_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatts_read_test_case_basic();
     ble_gatts_read_test_case_long();
 }

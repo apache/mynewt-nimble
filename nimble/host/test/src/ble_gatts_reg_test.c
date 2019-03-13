@@ -344,6 +344,8 @@ TEST_CASE_SELF(ble_gatts_reg_test_svc_return)
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatts_reg_test_chr_return)
@@ -386,6 +388,8 @@ TEST_CASE_SELF(ble_gatts_reg_test_chr_return)
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatts_reg_test_dsc_return)
@@ -442,6 +446,8 @@ TEST_CASE_SELF(ble_gatts_reg_test_dsc_return)
 
     rc = ble_gatts_register_svcs(svcs_good, NULL, NULL);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 static void
@@ -530,6 +536,8 @@ TEST_CASE_SELF(ble_gatts_reg_test_svc_cb)
         }
     };
     ble_gatts_reg_test_misc_svcs(svcs);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatts_reg_test_chr_cb)
@@ -583,6 +591,8 @@ TEST_CASE_SELF(ble_gatts_reg_test_chr_cb)
     }, {
         0
     } });
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatts_reg_test_dsc_cb)
@@ -693,12 +703,12 @@ TEST_CASE_SELF(ble_gatts_reg_test_dsc_cb)
     }, {
         0
     } });
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatts_reg_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatts_reg_test_svc_return();
     ble_gatts_reg_test_chr_return();
     ble_gatts_reg_test_dsc_return();
