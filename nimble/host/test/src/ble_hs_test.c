@@ -21,9 +21,9 @@
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/hci_common.h"
-#include "host/ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
+#include "ble_hs_test.h"
 
 #if MYNEWT_VAL(SELFTEST)
 

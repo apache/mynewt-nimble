@@ -36,7 +36,6 @@
 #include "host/ble_hs_id.h"
 #include "host/ble_hs_hci.h"
 #include "host/ble_hs_log.h"
-#include "host/ble_hs_test.h"
 #include "host/ble_hs_mbuf.h"
 #include "host/ble_hs_stop.h"
 #include "host/ble_ibeacon.h"

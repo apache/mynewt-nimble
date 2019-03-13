@@ -23,7 +23,7 @@
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs_adv.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_ADV_TEST_DATA_OFF   4

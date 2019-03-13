@@ -22,7 +22,7 @@
 #include <string.h>
 #include "testutil/testutil.h"
 #include "host/ble_hs.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 #define BHST_MAX_EVENTS     32

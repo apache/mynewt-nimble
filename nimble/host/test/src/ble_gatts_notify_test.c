@@ -22,7 +22,7 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID    0x1111

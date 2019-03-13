@@ -22,7 +22,7 @@
 #include <string.h>
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 

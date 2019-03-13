@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "testutil/testutil.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_test_util.h"
 

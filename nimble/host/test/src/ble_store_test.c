@@ -18,7 +18,7 @@
  */
 
 #include "testutil/testutil.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 static struct ble_store_status_event ble_store_test_status_event;
