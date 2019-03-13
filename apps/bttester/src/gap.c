@@ -609,7 +609,7 @@ static void le_connected(u16_t conn_handle, int status)
 	peer_id_addr = desc.peer_id_addr;
 	peer_ota_addr = desc.peer_ota_addr;
 
-	addr = &desc.peer_ota_addr;
+	addr = &desc.peer_id_addr;
 
 	memcpy(ev.address, addr->val, sizeof(ev.address));
 	ev.address_type = addr->type;
