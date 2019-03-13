@@ -297,7 +297,7 @@ ble_gatts_reg_test_misc_dummy_access(uint16_t conn_handle,
     return 0;
 }
 
-TEST_CASE(ble_gatts_reg_test_svc_return)
+TEST_CASE_SELF(ble_gatts_reg_test_svc_return)
 {
     int rc;
 
@@ -346,7 +346,7 @@ TEST_CASE(ble_gatts_reg_test_svc_return)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_gatts_reg_test_chr_return)
+TEST_CASE_SELF(ble_gatts_reg_test_chr_return)
 {
     int rc;
 
@@ -388,7 +388,7 @@ TEST_CASE(ble_gatts_reg_test_chr_return)
     TEST_ASSERT(rc == 0);
 }
 
-TEST_CASE(ble_gatts_reg_test_dsc_return)
+TEST_CASE_SELF(ble_gatts_reg_test_dsc_return)
 {
     int rc;
 
@@ -480,7 +480,7 @@ ble_gatts_reg_test_misc_svcs(struct ble_gatt_svc_def *svcs)
     }
 }
 
-TEST_CASE(ble_gatts_reg_test_svc_cb)
+TEST_CASE_SELF(ble_gatts_reg_test_svc_cb)
 {
     /*** 1 primary. */
     ble_gatts_reg_test_misc_svcs((struct ble_gatt_svc_def[]) { {
@@ -532,7 +532,7 @@ TEST_CASE(ble_gatts_reg_test_svc_cb)
     ble_gatts_reg_test_misc_svcs(svcs);
 }
 
-TEST_CASE(ble_gatts_reg_test_chr_cb)
+TEST_CASE_SELF(ble_gatts_reg_test_chr_cb)
 {
     uint16_t val_handles[16];
 
@@ -585,7 +585,7 @@ TEST_CASE(ble_gatts_reg_test_chr_cb)
     } });
 }
 
-TEST_CASE(ble_gatts_reg_test_dsc_cb)
+TEST_CASE_SELF(ble_gatts_reg_test_dsc_cb)
 {
     uint16_t val_handles[16];
 
@@ -706,12 +706,4 @@ TEST_SUITE(ble_gatts_reg_suite)
     ble_gatts_reg_test_svc_cb();
     ble_gatts_reg_test_chr_cb();
     ble_gatts_reg_test_dsc_cb();
-}
-
-int
-ble_gatts_reg_test_all(void)
-{
-    ble_gatts_reg_suite();
-
-    return tu_any_failed;
 }

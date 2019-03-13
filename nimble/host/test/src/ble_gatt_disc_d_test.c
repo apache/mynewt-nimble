@@ -227,7 +227,7 @@ ble_gatt_disc_d_test_misc_all(uint16_t chr_val_handle, uint16_t end_handle,
     ble_gatt_disc_d_test_misc_verify_dscs(dscs, stop_after);
 }
 
-TEST_CASE(ble_gatt_disc_d_test_1)
+TEST_CASE_SELF(ble_gatt_disc_d_test_1)
 {
     /*** One 16-bit descriptor. */
     ble_gatt_disc_d_test_misc_all(5, 10, 0,
@@ -352,7 +352,7 @@ TEST_CASE(ble_gatt_disc_d_test_1)
     );
 }
 
-TEST_CASE(ble_gatt_disc_d_test_oom_all)
+TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
 {
     struct ble_gatt_disc_d_test_dsc dscs[] = {
         {
@@ -441,12 +441,4 @@ TEST_SUITE(ble_gatt_disc_d_test_suite)
 
     ble_gatt_disc_d_test_1();
     ble_gatt_disc_d_test_oom_all();
-}
-
-int
-ble_gatt_disc_d_test_all(void)
-{
-    ble_gatt_disc_d_test_suite();
-
-    return tu_any_failed;
 }

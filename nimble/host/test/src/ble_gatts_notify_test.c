@@ -562,7 +562,7 @@ ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
     }
 }
 
-TEST_CASE(ble_gatts_notify_test_n)
+TEST_CASE_SELF(ble_gatts_notify_test_n)
 {
     static const uint8_t fourbytes[] = { 1, 2, 3, 4 };
     struct os_mbuf *om;
@@ -657,7 +657,7 @@ TEST_CASE(ble_gatts_notify_test_n)
     TEST_ASSERT(flags == 0);
 }
 
-TEST_CASE(ble_gatts_notify_test_i)
+TEST_CASE_SELF(ble_gatts_notify_test_i)
 {
     static const uint8_t fourbytes[] = { 1, 2, 3, 4 };
     struct os_mbuf *om;
@@ -767,7 +767,7 @@ TEST_CASE(ble_gatts_notify_test_i)
     TEST_ASSERT(flags == 0);
 }
 
-TEST_CASE(ble_gatts_notify_test_bonded_n)
+TEST_CASE_SELF(ble_gatts_notify_test_bonded_n)
 {
     uint16_t conn_handle;
     uint16_t flags;
@@ -831,7 +831,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_n)
     TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 }
 
-TEST_CASE(ble_gatts_notify_test_bonded_i)
+TEST_CASE_SELF(ble_gatts_notify_test_bonded_i)
 {
     uint16_t conn_handle;
     uint16_t flags;
@@ -919,7 +919,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i)
     TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
 }
 
-TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
+TEST_CASE_SELF(ble_gatts_notify_test_bonded_i_no_ack)
 {
     struct ble_store_value_cccd value_cccd;
     struct ble_store_key_cccd key_cccd;
@@ -992,7 +992,7 @@ TEST_CASE(ble_gatts_notify_test_bonded_i_no_ack)
     TEST_ASSERT(!value_cccd.value_changed);
 }
 
-TEST_CASE(ble_gatts_notify_test_disallowed)
+TEST_CASE_SELF(ble_gatts_notify_test_disallowed)
 {
     uint16_t chr1_val_handle;
     uint16_t chr2_val_handle;
@@ -1077,12 +1077,4 @@ TEST_SUITE(ble_gatts_notify_suite)
      *     o Bonding after CCCD configuration.
      *     o Disconnect prior to rx of indicate ack.
      */
-}
-
-int
-ble_gatts_notify_test_all(void)
-{
-    ble_gatts_notify_suite();
-
-    return tu_any_failed;
 }

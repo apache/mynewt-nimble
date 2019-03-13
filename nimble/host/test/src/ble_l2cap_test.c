@@ -267,7 +267,7 @@ ble_l2cap_test_util_verify_last_frag(uint16_t conn_handle,
  * $rx                                                                       *
  *****************************************************************************/
 
-TEST_CASE(ble_l2cap_test_case_bad_header)
+TEST_CASE_SELF(ble_l2cap_test_case_bad_header)
 {
     int rc;
 
@@ -280,7 +280,7 @@ TEST_CASE(ble_l2cap_test_case_bad_header)
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 }
 
-TEST_CASE(ble_l2cap_test_case_bad_handle)
+TEST_CASE_SELF(ble_l2cap_test_case_bad_handle)
 {
     int rc;
 
@@ -300,7 +300,7 @@ TEST_CASE(ble_l2cap_test_case_bad_handle)
  * $fragmentation                                                            *
  *****************************************************************************/
 
-TEST_CASE(ble_l2cap_test_case_frag_single)
+TEST_CASE_SELF(ble_l2cap_test_case_frag_single)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -336,7 +336,7 @@ TEST_CASE(ble_l2cap_test_case_frag_single)
     ble_l2cap_test_util_verify_last_frag(2, 5);
 }
 
-TEST_CASE(ble_l2cap_test_case_frag_multiple)
+TEST_CASE_SELF(ble_l2cap_test_case_frag_multiple)
 {
     ble_l2cap_test_util_init();
 
@@ -358,7 +358,7 @@ TEST_CASE(ble_l2cap_test_case_frag_multiple)
     ble_l2cap_test_util_verify_last_frag(2, 1);
 }
 
-TEST_CASE(ble_l2cap_test_case_frag_channels)
+TEST_CASE_SELF(ble_l2cap_test_case_frag_channels)
 {
     struct ble_hs_conn *conn;
     int rc;
@@ -400,7 +400,7 @@ TEST_CASE(ble_l2cap_test_case_frag_channels)
     ble_hs_test_util_conn_disconnect(2);
 }
 
-TEST_CASE(ble_l2cap_test_case_frag_timeout)
+TEST_CASE_SELF(ble_l2cap_test_case_frag_timeout)
 {
     int32_t ticks_from_now;
     int rc;
@@ -449,7 +449,7 @@ TEST_CASE(ble_l2cap_test_case_frag_timeout)
  * $unsolicited response                                                     *
  *****************************************************************************/
 
-TEST_CASE(ble_l2cap_test_case_sig_unsol_rsp)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_unsol_rsp)
 {
     int rc;
 
@@ -566,27 +566,27 @@ ble_l2cap_test_util_we_update(int peer_accepts)
     TEST_ASSERT(ble_l2cap_test_update_arg == NULL);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_accept)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_accept)
 {
     ble_l2cap_test_util_peer_updates(1);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_reject)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_reject)
 {
     ble_l2cap_test_util_peer_updates(0);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_init_accept)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_accept)
 {
     ble_l2cap_test_util_we_update(1);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_init_reject)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_reject)
 {
     ble_l2cap_test_util_we_update(0);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_master)
 {
     struct ble_l2cap_sig_update_params params;
     int rc;
@@ -607,7 +607,7 @@ TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_master)
     TEST_ASSERT(ble_l2cap_test_update_status == -1);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_update_init_fail_bad_id)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_update_init_fail_bad_id)
 {
     struct ble_l2cap_sig_update_params params;
     uint8_t id;
@@ -1002,7 +1002,7 @@ ble_l2cap_test_set_chan_test_conf(uint16_t psm, uint16_t mtu,
     t->mtu = mtu;
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
 {
     struct test_data t;
 
@@ -1020,7 +1020,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
 {
     struct test_data t;
 
@@ -1039,7 +1039,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
 {
     struct test_data t;
 
@@ -1058,7 +1058,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
 {
     struct test_data t;
 
@@ -1077,7 +1077,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_conn_insuff_author)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_author)
 {
     struct test_data t;
 
@@ -1096,7 +1096,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_conn_insuff_author)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
 {
     struct test_data t;
 
@@ -1114,7 +1114,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
 {
     struct test_data t;
     int rc;
@@ -1147,7 +1147,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
     current_cid++;
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_success)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_success)
 {
     struct test_data t;
     int rc;
@@ -1171,7 +1171,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_conn_success)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_disconnect_succeed)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_succeed)
 {
     struct test_data t;
 
@@ -1192,7 +1192,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_disconnect_succeed)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
 {
     struct test_data t;
 
@@ -1213,7 +1213,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
 {
     struct test_data t;
 
@@ -1234,7 +1234,7 @@ TEST_CASE(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_coc_send_data_succeed)
+TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
 {
     struct test_data t;
     uint8_t buf[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -1258,7 +1258,7 @@ TEST_CASE(ble_l2cap_test_case_coc_send_data_succeed)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
+TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
 {
     struct test_data t = {};
     uint16_t small_mtu = 27;
@@ -1284,7 +1284,7 @@ TEST_CASE(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
 }
 
-TEST_CASE(ble_l2cap_test_case_coc_recv_data_succeed)
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
 {
     struct test_data t = {};
     uint8_t buf[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -1339,12 +1339,4 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
-}
-
-int
-ble_l2cap_test_all(void)
-{
-    ble_l2cap_test_suite();
-
-    return tu_any_failed;
 }

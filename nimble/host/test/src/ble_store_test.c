@@ -125,7 +125,7 @@ ble_store_test_util_count(int obj_type)
     return count;
 }
 
-TEST_CASE(ble_store_test_peers)
+TEST_CASE_SELF(ble_store_test_peers)
 {
     struct ble_store_value_sec secs[3] = {
         {
@@ -166,7 +166,7 @@ TEST_CASE(ble_store_test_peers)
     }
 }
 
-TEST_CASE(ble_store_test_delete_peer)
+TEST_CASE_SELF(ble_store_test_delete_peer)
 {
     struct ble_store_value_sec secs[2] = {
         {
@@ -260,7 +260,7 @@ TEST_CASE(ble_store_test_delete_peer)
     ble_store_test_util_verify_peer_deleted(&secs[1].peer_addr);
 }
 
-TEST_CASE(ble_store_test_count)
+TEST_CASE_SELF(ble_store_test_count)
 {
     struct ble_store_value_sec secs[4] = {
         {
@@ -339,13 +339,13 @@ TEST_CASE(ble_store_test_count)
     TEST_ASSERT(count == 1);
 }
 
-TEST_CASE(ble_store_test_overflow)
+TEST_CASE_SELF(ble_store_test_overflow)
 {
     ble_store_test_util_overflow_sec(0);
     ble_store_test_util_overflow_sec(1);
 }
 
-TEST_CASE(ble_store_test_clear)
+TEST_CASE_SELF(ble_store_test_clear)
 {
     const struct ble_store_value_sec secs[2] = {
         {
@@ -424,12 +424,4 @@ TEST_SUITE(ble_store_suite)
     ble_store_test_count();
     ble_store_test_overflow();
     ble_store_test_clear();
-}
-
-int
-ble_store_test_all(void)
-{
-    ble_store_suite();
-
-    return tu_any_failed;
 }

@@ -164,7 +164,7 @@ ble_gap_direct_connect_test_task_handler(void *arg)
     tu_restart();
 }
 
-TEST_CASE(ble_gap_direct_connect_test_case)
+TEST_CASE_SELF(ble_gap_direct_connect_test_case)
 {
     ble_os_test_misc_init();
 
@@ -250,7 +250,7 @@ ble_os_disc_test_task_handler(void *arg)
     tu_restart();
 }
 
-TEST_CASE(ble_os_disc_test_case)
+TEST_CASE_SELF(ble_os_disc_test_case)
 {
     ble_os_test_misc_init();
 
@@ -371,7 +371,7 @@ ble_os_test_app_task_handler(void *arg)
     }
 }
 
-TEST_CASE(ble_gap_terminate_test_case)
+TEST_CASE_SELF(ble_gap_terminate_test_case)
 {
     ble_os_test_misc_init();
 
@@ -391,11 +391,4 @@ TEST_SUITE(ble_os_test_suite)
     ble_os_disc_test_case();
     ble_gap_direct_connect_test_case();
     ble_gap_terminate_test_case();
-}
-
-int
-ble_os_test_all(void)
-{
-    ble_os_test_suite();
-    return tu_any_failed;
 }

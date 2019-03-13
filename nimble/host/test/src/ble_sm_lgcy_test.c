@@ -42,7 +42,7 @@
  * Initiator key distribution: 7
  * Responder key distribution: 7
  */
-TEST_CASE(ble_sm_lgcy_peer_jw_iio4_rio3_b1_iat0_rat0_ik7_rk7)
+TEST_CASE_SELF(ble_sm_lgcy_peer_jw_iio4_rio3_b1_iat0_rat0_ik7_rk7)
 {
     struct ble_sm_test_params params;
 
@@ -176,7 +176,7 @@ TEST_CASE(ble_sm_lgcy_peer_jw_iio4_rio3_b1_iat0_rat0_ik7_rk7)
  * Initiator key distribution: 7
  * Responder key distribution: 7
  */
-TEST_CASE(ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7)
+TEST_CASE_SELF(ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7)
 {
     struct ble_sm_test_params params;
 
@@ -311,7 +311,7 @@ TEST_CASE(ble_sm_lgcy_peer_pk_iio4_rio0_b1_iat0_rat0_ik7_rk7)
  * Initiator key distribution: 7
  * Responder key distribution: 5
  */
-TEST_CASE(ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5)
+TEST_CASE_SELF(ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5)
 {
     struct ble_sm_test_params params;
 
@@ -434,7 +434,7 @@ TEST_CASE(ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5)
  * Initiator key distribution: 7
  * Responder key distribution: 5
  */
-TEST_CASE(ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5)
+TEST_CASE_SELF(ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5)
 {
     struct ble_sm_test_params params;
 
@@ -558,7 +558,7 @@ TEST_CASE(ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5)
  * Initiator key distribution: 7
  * Responder key distribution: 7
  */
-TEST_CASE(ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7)
+TEST_CASE_SELF(ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7)
 {
     struct ble_sm_test_params params;
 
@@ -696,7 +696,7 @@ TEST_CASE(ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7)
  * Initiator key distribution: 7
  * Responder key distribution: 7
  */
-TEST_CASE(ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7)
+TEST_CASE_SELF(ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7)
 {
     struct ble_sm_test_params params;
 

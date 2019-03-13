@@ -294,7 +294,7 @@ ble_gatt_disc_s_test_misc_good_uuid(
     ble_gatt_disc_s_test_misc_verify_services(services);
 }
 
-TEST_CASE(ble_gatt_disc_s_test_disc_all)
+TEST_CASE_SELF(ble_gatt_disc_s_test_disc_all)
 {
     /*** One 128-bit service. */
     ble_gatt_disc_s_test_misc_good_all((struct ble_gatt_disc_s_test_svc[]) {
@@ -334,7 +334,7 @@ TEST_CASE(ble_gatt_disc_s_test_disc_all)
     });
 }
 
-TEST_CASE(ble_gatt_disc_s_test_disc_uuid)
+TEST_CASE_SELF(ble_gatt_disc_s_test_disc_uuid)
 {
     /*** 128-bit service; one entry. */
     ble_gatt_disc_s_test_misc_good_uuid((struct ble_gatt_disc_s_test_svc[]) {
@@ -397,7 +397,7 @@ TEST_CASE(ble_gatt_disc_s_test_disc_uuid)
     });
 }
 
-TEST_CASE(ble_gatt_disc_s_test_oom_all)
+TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
 {
     struct ble_gatt_disc_s_test_svc svcs[] = {
         { 1, 5,     BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
@@ -468,7 +468,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_all)
     ble_gatt_disc_s_test_misc_verify_services(svcs);
 }
 
-TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
+TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
 {
     /* Retrieve enough services to require two transactions. */
     struct ble_gatt_disc_s_test_svc svcs[] = {
@@ -546,7 +546,7 @@ TEST_CASE(ble_gatt_disc_s_test_oom_uuid)
     ble_gatt_disc_s_test_misc_verify_services(svcs);
 }
 
-TEST_CASE(ble_gatt_disc_s_test_oom_timeout)
+TEST_CASE_SELF(ble_gatt_disc_s_test_oom_timeout)
 {
     struct ble_gatt_disc_s_test_svc svcs[] = {
         { 1, 5,  BLE_UUID128_DECLARE(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ), },
@@ -620,12 +620,4 @@ TEST_SUITE(ble_gatt_disc_s_test_suite)
     ble_gatt_disc_s_test_oom_all();
     ble_gatt_disc_s_test_oom_uuid();
     ble_gatt_disc_s_test_oom_timeout();
-}
-
-int
-ble_gatt_disc_s_test_all(void)
-{
-    ble_gatt_disc_s_test_suite();
-
-    return tu_any_failed;
 }

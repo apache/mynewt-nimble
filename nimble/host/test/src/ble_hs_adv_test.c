@@ -177,7 +177,7 @@ ble_hs_adv_test_misc_tx_and_verify_data(
     ble_hs_test_util_hci_out_last();
 }
 
-TEST_CASE(ble_hs_adv_test_case_user)
+TEST_CASE_SELF(ble_hs_adv_test_case_user)
 {
     struct ble_hs_adv_fields adv_fields;
     struct ble_hs_adv_fields rsp_fields;
@@ -680,7 +680,7 @@ TEST_CASE(ble_hs_adv_test_case_user)
         }, &rsp_fields, NULL);
 }
 
-TEST_CASE(ble_hs_adv_test_case_user_rsp)
+TEST_CASE_SELF(ble_hs_adv_test_case_user_rsp)
 {
     struct ble_hs_adv_fields rsp_fields;
     struct ble_hs_adv_fields adv_fields;
@@ -1218,7 +1218,7 @@ TEST_CASE(ble_hs_adv_test_case_user_rsp)
         });
 }
 
-TEST_CASE(ble_hs_adv_test_case_user_full_payload)
+TEST_CASE_SELF(ble_hs_adv_test_case_user_full_payload)
 {
     /* Intentionally allocate an extra byte. */
     static const uint8_t mfg_data[30] = {
@@ -1271,12 +1271,3 @@ TEST_SUITE(ble_hs_adv_test_suite)
     ble_hs_adv_test_case_user_rsp();
     ble_hs_adv_test_case_user_full_payload();
 }
-
-int
-ble_hs_adv_test_all(void)
-{
-    ble_hs_adv_test_suite();
-
-    return tu_any_failed;
-}
-

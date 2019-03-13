@@ -24,7 +24,7 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_test_util.h"
 
-TEST_CASE(ble_uuid_test)
+TEST_CASE_SELF(ble_uuid_test)
 {
     uint8_t buf_16[2] = { 0x00, 0x18 };
     uint8_t buf_128[16] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
@@ -73,12 +73,4 @@ TEST_SUITE(ble_uuid_test_suite)
     tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
 
     ble_uuid_test();
-}
-
-int
-ble_uuid_test_all(void)
-{
-    ble_uuid_test_suite();
-
-    return tu_any_failed;
 }

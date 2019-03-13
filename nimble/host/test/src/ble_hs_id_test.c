@@ -36,7 +36,7 @@ ble_hs_id_test_util_infer_auto(int privacy, uint8_t *own_addr_type)
     return rc;
 }
 
-TEST_CASE(ble_hs_id_test_case_auto_none)
+TEST_CASE_SELF(ble_hs_id_test_case_auto_none)
 {
     uint8_t own_addr_type;
     int rc;
@@ -50,7 +50,7 @@ TEST_CASE(ble_hs_id_test_case_auto_none)
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOADDR);
 }
 
-TEST_CASE(ble_hs_id_test_case_auto_public)
+TEST_CASE_SELF(ble_hs_id_test_case_auto_public)
 {
     uint8_t own_addr_type;
     int rc;
@@ -62,7 +62,7 @@ TEST_CASE(ble_hs_id_test_case_auto_public)
     TEST_ASSERT(own_addr_type == BLE_OWN_ADDR_PUBLIC);
 }
 
-TEST_CASE(ble_hs_id_test_case_auto_random)
+TEST_CASE_SELF(ble_hs_id_test_case_auto_random)
 {
     uint8_t own_addr_type;
     int rc;
@@ -77,7 +77,7 @@ TEST_CASE(ble_hs_id_test_case_auto_random)
     TEST_ASSERT(own_addr_type == BLE_OWN_ADDR_RANDOM);
 }
 
-TEST_CASE(ble_hs_id_test_case_auto_rpa_pub)
+TEST_CASE_SELF(ble_hs_id_test_case_auto_rpa_pub)
 {
     uint8_t own_addr_type;
     int rc;
@@ -89,7 +89,7 @@ TEST_CASE(ble_hs_id_test_case_auto_rpa_pub)
     TEST_ASSERT(own_addr_type == BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT);
 }
 
-TEST_CASE(ble_hs_id_test_case_auto_rpa_rnd)
+TEST_CASE_SELF(ble_hs_id_test_case_auto_rpa_rnd)
 {
     uint8_t own_addr_type;
     int rc;
@@ -113,12 +113,4 @@ TEST_SUITE(ble_hs_id_test_suite_auto)
     ble_hs_id_test_case_auto_random();
     ble_hs_id_test_case_auto_rpa_pub();
     ble_hs_id_test_case_auto_rpa_rnd();
-}
-
-int
-ble_hs_id_test_all(void)
-{
-    ble_hs_id_test_suite_auto();
-
-    return tu_any_failed;
 }
