@@ -22,8 +22,9 @@
 #include "testutil/testutil.h"
 #include "controller/ble_ll_test.h"
 #include "controller/ble_ll_conn.h"
+#include "ble_ll_csa2_test.h"
 
-TEST_CASE(ble_ll_csa2_test_1)
+TEST_CASE_SELF(ble_ll_csa2_test_1)
 {
     struct ble_ll_conn_sm conn;
     uint8_t rc;
@@ -65,7 +66,7 @@ TEST_CASE(ble_ll_csa2_test_1)
     TEST_ASSERT(rc == 21);
 }
 
-TEST_CASE(ble_ll_csa2_test_2)
+TEST_CASE_SELF(ble_ll_csa2_test_2)
 {
     struct ble_ll_conn_sm conn;
     uint8_t rc;
@@ -111,13 +112,4 @@ TEST_SUITE(ble_ll_csa2_test_suite)
 {
     ble_ll_csa2_test_1();
     ble_ll_csa2_test_2();
-}
-
-int
-ble_ll_csa2_test_all(void)
-{
-    ble_ll_csa2_test_1();
-    ble_ll_csa2_test_2();
-
-    return tu_any_failed;
 }

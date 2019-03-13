@@ -17,20 +17,11 @@
  * under the License.
  */
 
-#include "sysinit/sysinit.h"
-#include "syscfg/syscfg.h"
-#include "controller/ble_ll_test.h"
-#include "os/os.h"
+#ifndef H_BLE_LL_CSA2_TEST_
+#define H_BLE_LL_CSA2_TEST_
+
 #include "testutil/testutil.h"
-#include "ble_ll_csa2_test.h"
 
-#if MYNEWT_VAL(SELFTEST)
-
-int
-main(int argc, char **argv)
-{
-    ble_ll_csa2_test_suite();
-    return tu_any_failed;
-}
+TEST_SUITE_DECL(ble_ll_csa2_test_suite);
 
 #endif
