@@ -21,7 +21,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/hci_common.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_L2CAP_TEST_PSM                   (90)

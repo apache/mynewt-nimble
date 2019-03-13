@@ -21,7 +21,7 @@
 #include <errno.h>
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 /**

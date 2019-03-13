@@ -21,7 +21,7 @@
 #include <errno.h>
 #include <string.h>
 #include "testutil/testutil.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 #define BLE_HS_PVCY_TEST_MAX_GAP_EVENTS 256

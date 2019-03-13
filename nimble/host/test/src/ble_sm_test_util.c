@@ -24,7 +24,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_sm.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "host/ble_hs_id.h"
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"

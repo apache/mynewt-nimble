@@ -23,7 +23,7 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "host/ble_hs_adv.h"
-#include "host/ble_hs_test.h"
+#include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
 static struct ble_gap_event ble_gap_test_event;
