@@ -66,11 +66,11 @@ TEST_CASE_SELF(ble_uuid_test)
 
     rc = ble_uuid_cmp(uuid128_1, uuid128_2);
     TEST_ASSERT(rc != 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_uuid_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_uuid_test();
 }

@@ -678,6 +678,8 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user)
             },
             { 0 },
         }, &rsp_fields, NULL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_hs_adv_test_case_user_rsp)
@@ -1216,6 +1218,8 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user_rsp)
             },
             { 0 },
         });
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_hs_adv_test_case_user_full_payload)
@@ -1261,12 +1265,12 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user_full_payload)
     adv_fields.mfg_data_len = 30;
     rc = ble_gap_adv_set_fields(&adv_fields);
     TEST_ASSERT(rc == BLE_HS_EMSGSIZE);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_hs_adv_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_hs_adv_test_case_user();
     ble_hs_adv_test_case_user_rsp();
     ble_hs_adv_test_case_user_full_payload();

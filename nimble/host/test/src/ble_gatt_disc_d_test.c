@@ -350,6 +350,8 @@ TEST_CASE_SELF(ble_gatt_disc_d_test_1)
             0
         } })
     );
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
@@ -433,12 +435,12 @@ TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
     ble_gatt_disc_d_test_misc_verify_dscs(dscs, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatt_disc_d_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatt_disc_d_test_1();
     ble_gatt_disc_d_test_oom_all();
 }

@@ -291,6 +291,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_restore_irks)
                                             value_sec2.irk,
                                             ble_hs_pvcy_default_irk,
                                             false, false);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /** No active GAP procedures. */
@@ -300,6 +302,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_idle)
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(false, false);
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*** Advertising active. */
@@ -327,6 +331,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv)
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*** Discovery active. */
@@ -354,6 +360,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_disc)
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*** Connect active. */
@@ -392,6 +400,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_conn)
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*** Advertising and discovery active. */
@@ -431,6 +441,8 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv_disc)
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /*** Advertising and connecting active. */
@@ -481,12 +493,12 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv_conn)
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_hs_pvcy_test_suite_irk)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_hs_pvcy_test_case_restore_irks();
     ble_hs_pvcy_test_case_add_irk_idle();
     ble_hs_pvcy_test_case_add_irk_adv();

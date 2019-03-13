@@ -124,6 +124,8 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
 
     rc = ble_hs_test_util_conn_cancel(0);
     TEST_ASSERT(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_TASK(ble_hs_stop_test_cur_procs)
@@ -171,6 +173,8 @@ TEST_CASE_TASK(ble_hs_stop_test_cur_procs)
     TEST_ASSERT(bhst_events[0].adv_complete.reason == BLE_HS_EPREEMPTED);
     TEST_ASSERT(bhst_events[1].type == BLE_GAP_EVENT_DISC_COMPLETE);
     TEST_ASSERT(bhst_events[1].disc_complete.reason == BLE_HS_EPREEMPTED);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 static void
@@ -184,7 +188,6 @@ bhst_pre_test(void *arg)
 
 TEST_SUITE(ble_hs_stop_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
     tu_suite_set_pre_test_cb(bhst_pre_test, NULL);
 
     ble_hs_stop_test_new_procs();

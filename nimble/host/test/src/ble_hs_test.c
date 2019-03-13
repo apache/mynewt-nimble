@@ -35,6 +35,9 @@ main(int argc, char **argv)
      * should enable privacy as needed, but the test util functions are so low
      * level that they make this very difficult to arrange (individual HCI
      * commands and responses).
+     *
+     * To fix this, we should implement a set of higher level BLE test
+     * functions that don't require individual HCI commands to be specified.
      */
     ble_gap_test_suite_disc();
 

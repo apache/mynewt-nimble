@@ -41,6 +41,19 @@ static uint16_t ble_att_svr_test_n_attr_handle;
 static uint8_t ble_att_svr_test_attr_n[1024];
 static uint16_t ble_att_svr_test_attr_n_len;
 
+static void
+ble_att_svr_test_assert_mbufs_freed(void)
+{
+    /* When checking for mbuf leaks, ensure no stale prep entries. */
+    static const struct ble_hs_test_util_mbuf_params mbuf_params = {
+        .prev_tx = 1,
+        .rx_queue = 1,
+        .prep_list = 0,
+    };
+
+    ble_hs_test_util_assert_mbufs_freed(&mbuf_params);
+}
+
 static int
 ble_att_svr_test_misc_gap_cb(struct ble_gap_event *event, void *arg)
 {
@@ -794,6 +807,8 @@ TEST_CASE_SELF(ble_att_svr_test_mtu)
 
     /*** Mine higher than peer's. */
     ble_att_svr_test_misc_mtu_exchange(100, 50, 50, 50);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_read)
@@ -886,6 +901,8 @@ TEST_CASE_SELF(ble_att_svr_test_read)
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_read_rsp(ble_att_svr_test_attr_r_1,
                                         BLE_ATT_MTU_DFLT - 1);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_read_blob)
@@ -932,6 +949,8 @@ TEST_CASE_SELF(ble_att_svr_test_read_blob)
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_read_blob_rsp(ble_att_svr_test_attr_r_1,
                                                   0);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_read_mult)
@@ -1009,6 +1028,7 @@ TEST_CASE_SELF(ble_att_svr_test_read_mult)
 
     ble_att_svr_test_misc_verify_all_read_mult(conn_handle, attrs, 2);
 
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_write)
@@ -1098,6 +1118,8 @@ TEST_CASE_SELF(ble_att_svr_test_write)
                                            attr_val, sizeof attr_val);
     TEST_ASSERT(rc == 0);
     ble_hs_test_util_verify_tx_write_rsp();
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_find_info)
@@ -1201,6 +1223,7 @@ TEST_CASE_SELF(ble_att_svr_test_find_info)
             .handle = 0,
         } }));
 
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_find_type_value)
@@ -1354,6 +1377,8 @@ TEST_CASE_SELF(ble_att_svr_test_find_type_value)
         }, {
             .first = 0,
         } }));
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 static void
@@ -1489,12 +1514,15 @@ ble_att_svr_test_misc_read_type(uint16_t mtu)
             .handle = 0,
         } }));
 
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_read_type)
 {
     ble_att_svr_test_misc_read_type(0);
     ble_att_svr_test_misc_read_type(128);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_read_group_type)
@@ -1606,6 +1634,7 @@ TEST_CASE_SELF(ble_att_svr_test_read_group_type)
             .start_handle = 0,
         } }));
 
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_prep_write)
@@ -1767,6 +1796,8 @@ TEST_CASE_SELF(ble_att_svr_test_prep_write)
     ble_att_svr_test_misc_prep_write(conn_handle, 6, 78, data + 78, 1, 0);
     ble_att_svr_test_misc_exec_write(conn_handle, BLE_ATT_EXEC_WRITE_F_EXECUTE,
                                      BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN, 6);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_notify)
@@ -1790,6 +1821,7 @@ TEST_CASE_SELF(ble_att_svr_test_notify)
     ble_att_svr_test_misc_verify_notify(conn_handle, 0,
                                         (uint8_t[]) { 1, 2, 3 }, 3, 0);
 
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
@@ -1850,6 +1882,8 @@ TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
      */
     rc = ble_hs_atomic_conn_delete(conn_handle);
     TEST_ASSERT_FATAL(rc == 0);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_indicate)
@@ -1872,6 +1906,8 @@ TEST_CASE_SELF(ble_att_svr_test_indicate)
     /* Attribute handle of 0. */
     ble_att_svr_test_misc_verify_indicate(conn_handle, 0,
                                           (uint8_t[]) { 1, 2, 3 }, 3, 0);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_oom)
@@ -2050,6 +2086,8 @@ TEST_CASE_SELF(ble_att_svr_test_oom)
 
     rc = os_mbuf_free_chain(oms);
     TEST_ASSERT_FATAL(rc == 0);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_CASE_SELF(ble_att_svr_test_unsupported_req)
@@ -2076,19 +2114,12 @@ TEST_CASE_SELF(ble_att_svr_test_unsupported_req)
 
     /* Ensure no response sent. */
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+
+    ble_att_svr_test_assert_mbufs_freed();
 }
 
 TEST_SUITE(ble_att_svr_suite)
 {
-    /* When checking for mbuf leaks, ensure no stale prep entries. */
-    static struct ble_hs_test_util_mbuf_params mbuf_params = {
-        .prev_tx = 1,
-        .rx_queue = 1,
-        .prep_list = 0,
-    };
-
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, &mbuf_params);
-
     ble_att_svr_test_mtu();
     ble_att_svr_test_read();
     ble_att_svr_test_read_blob();

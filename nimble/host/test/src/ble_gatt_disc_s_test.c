@@ -332,6 +332,8 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_disc_all)
         { 7, 0xffff,BLE_UUID128_DECLARE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ), },
         { 0 }
     });
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_disc_s_test_disc_uuid)
@@ -395,6 +397,8 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_disc_uuid)
         { 9, 0xffff,BLE_UUID16_DECLARE(0x1234) },
         { 0 }
     });
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
@@ -466,6 +470,8 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
     ble_gatt_disc_s_test_misc_verify_services(svcs);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
@@ -544,6 +550,8 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
     ble_gatt_disc_s_test_misc_verify_services(svcs);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gatt_disc_s_test_oom_timeout)
@@ -609,12 +617,12 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_timeout)
 
     rc = os_mbuf_free_chain(oms);
     TEST_ASSERT_FATAL(rc == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_gatt_disc_s_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     ble_gatt_disc_s_test_disc_all();
     ble_gatt_disc_s_test_disc_uuid();
     ble_gatt_disc_s_test_oom_all();

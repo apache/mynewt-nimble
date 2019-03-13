@@ -170,6 +170,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_jw_iio3_rio3_b1_iat0_rat0_ik5_rk7)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -775,6 +777,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_pk_iio0_rio2_b1_iat0_rat0_ik5_rk7)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -1380,6 +1384,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_pk_iio2_rio0_b1_iat0_rat0_ik5_rk7)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -1524,6 +1530,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_nc_iio1_rio1_b1_iat0_rat0_ik5_rk7)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -1666,6 +1674,8 @@ TEST_CASE_SELF(ble_sm_sc_us_jw_iio3_rio4_b1_iat0_rat0_ik7_rk5)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -2271,6 +2281,8 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -2876,6 +2888,8 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio0_rio4_b1_iat0_rat0_ik7_rk5)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -3020,6 +3034,8 @@ TEST_CASE_SELF(ble_sm_sc_us_nc_iio1_rio4_b1_iat0_rat0_ik7_rk5)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -3182,6 +3198,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_jw_iio3_rio3_b1_iat2_rat2_ik7_rk7)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -3334,6 +3352,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -3953,6 +3973,8 @@ TEST_CASE_SELF(ble_sm_sc_peer_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
         },
     };
     ble_sm_test_util_peer_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -4103,6 +4125,8 @@ TEST_CASE_SELF(ble_sm_sc_us_jw_iio3_rio3_b1_iat2_rat2_ik3_rk3)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -4255,6 +4279,8 @@ TEST_CASE_SELF(ble_sm_sc_us_nc_iio1_rio1_b1_iat2_rat2_ik3_rk3)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 /**
@@ -4874,12 +4900,12 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
         },
     };
     ble_sm_test_util_us_sc_good(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_SUITE(ble_sm_sc_test_suite)
 {
-    tu_suite_set_post_test_cb(ble_hs_test_util_post_test, NULL);
-
     /*** No privacy. */
 
     /* Peer as initiator. */
