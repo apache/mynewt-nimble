@@ -29,7 +29,17 @@ TC_BROB_BCST_BV_03_C	PASS	b set irk=<IRK> e.g: 00:00:00:00:00:00:00:00:00:00:00:
 				TSPX_iut_device_IRK_for_resolvable_privacy_address_generation_procedure=11000000000000000000000000000000
 				b set adv_data flags=4
 				b adv conn=non disc=non own_addr_type=rpa_pub
-TC_BROB_BCST_BV_04_C	N/A
+TC_BROB_BCST_BV_04_C	PASS
+				TSPX_advertising_data=07086E696D626C65
+				set-adv-data name=nimble
+                set addr_type=random addr=01:3e:56:f7:46:21
+				advertise conn=non own_addr_type=random
+TC_BROB_BCST_BV_05_C	PASS
+				TSPX_advertising_data=07086E696D626C65
+				TSPX_iut_device_IRK_for_resolvable_privacy_address_generation_procedure=11000000000000000000000000000000
+				set-adv-data name=nimble
+				set irk=00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:11
+				advertise conn=non own_addr_type=rpa_pub
 TC_BROB_OBSV_BV_01_C	PASS	b scan passive
 TC_BROB_OBSV_BV_02_C	PASS	b scan
 TC_BROB_OBSV_BV_03_C	N/A
@@ -107,23 +117,52 @@ TC_CONN_UCON_BV_06_C	PASS	b set adv_data flags=6
 TC_CONN_ACEP_BV_01_C	PASS	b wl addr=<addr> addr_type=public
 				b conn addr_type=wl
 				b term conn=<handle>
-TC_CONN_ACEP_BV_02_C	N/A
+TC_CONN_ACEP_BV_02_C	PASS
+				set addr_type=random addr=<NRPA> e.g: 01:3e:56:f7:46:21
+				white-list addr=<PTS-ADDR> addr_type=public
+				connect
+				Note: Discover Reconnect Address Characteristic and use value handle
+				gatt-write conn=1 attr=7 value=21:46:f7:56:3e:01
+				disconnect conn=1
+				white-list addr=01:3e:56:f7:46:21 addr_type=random
+				connect own_addr_type=random
+TC_CONN_ACEP_BV_03_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
+TC_CONN_ACEP_BV_04_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
 TC_CONN_GCEP_BV_01_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 TC_CONN_GCEP_BV_02_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 TC_CONN_GCEP_BV_03_C	N/A
 TC_CONN_GCEP_BV_04_C	N/A
+TC_CONN_GCEP_BV_05_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
+TC_CONN_GCEP_BV_06_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
 TC_CONN_SCEP_BV_01_C	PASS	b wl addr=<addr> addr_type=public
 				b conn addr_type=wl
 				b term conn=<handle>
 TC_CONN_SCEP_BV_02_C	N/A
+TC_CONN_SCEP_BV_03_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
 TC_CONN_DCEP_BV_01_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 TC_CONN_DCEP_BV_02_C	N/A
 TC_CONN_DCEP_BV_03_C	PASS	b conn peer_addr=<addr>
 				b term conn=<handle>
 TC_CONN_DCEP_BV_04_C	N/A
+TC_CONN_DCEP_BV_05_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
+TC_CONN_DCEP_BV_06_C	INCONC
+				PTS 7.3.0 requires IUT to be able to add PTS's Identity
+				to resolv list without pairing
 TC_CONN_CPUP_BV_01_C	PASS	b adv
 				b l2cap update conn=<handle>
 TC_CONN_CPUP_BV_02_C	PASS	b adv
@@ -351,6 +390,10 @@ TC_ADV_BV_14_C		PASS	b set adv_data adv_itvl=2
                                 b adv stop
 TC_ADV_BV_15_C		N/A
 TC_ADV_BV_16_C		N/A
+TC_ADV_BV_17_C		PASS
+ 				TSPX_URI=<bytes>
+ 				set-adv-data uri=<bytes>
+ 				advertise
 -------------------------------------------------------------------------------
 
 TC_GAT_BV_01_C		PASS	<answer NO to role question>
