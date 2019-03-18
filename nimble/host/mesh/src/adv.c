@@ -53,6 +53,7 @@ struct os_task adv_task;
 
 static struct ble_npl_eventq adv_queue;
 extern u8_t g_mesh_addr_type;
+static int adv_initialized = false;
 
 static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
 		MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
@@ -306,6 +307,12 @@ void bt_mesh_adv_init(void)
 {
 	int rc;
 
+	/* Advertising should only be initialized once. Calling
+	 * os_task init the second time will result in an assert. */
+	if (adv_initialized) {
+		return;
+	}
+
 	rc = os_mempool_init(&adv_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
 			     BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
 			     adv_buf_mem, "adv_buf_pool");
@@ -328,6 +335,8 @@ void bt_mesh_adv_init(void)
 	if (ble_hs_hci_get_hci_version() >= BLE_HCI_VER_BCS_5_0) {
 	    adv_int_min = ADV_INT_FAST_MS;
 	}
+
+	adv_initialized = true;
 }
 
 int
