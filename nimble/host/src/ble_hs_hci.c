@@ -462,6 +462,10 @@ ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
     while (txom != NULL && ble_hs_hci_avail_pkts > 0) {
         frag = mem_split_frag(&txom, ble_hs_hci_max_acl_payload_sz(),
                               ble_hs_hci_frag_alloc, NULL);
+        if (frag == NULL) {
+            rc = BLE_HS_ENOMEM;
+            goto err;
+        }
 
         frag = ble_hs_hci_acl_hdr_prepend(frag, conn->bhc_handle, pb);
         if (frag == NULL) {
