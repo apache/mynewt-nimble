@@ -147,7 +147,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     rx = &chan->coc_rx;
 
     om_total = OS_MBUF_PKTLEN(*om);
-    rc = ble_hs_mbuf_pullup_base(om, om_total);
+    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SDU_SIZE);
     if (rc != 0) {
         return rc;
     }
