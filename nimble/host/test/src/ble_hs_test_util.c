@@ -719,7 +719,7 @@ ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
     struct os_mbuf *om;
     int rc;
 
-    om = ble_hs_mbuf_l2cap_pkt();
+    om = ble_hs_mbuf_att_pkt();
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = os_mbuf_append(om, data, len);

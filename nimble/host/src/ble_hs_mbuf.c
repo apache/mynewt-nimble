@@ -19,6 +19,7 @@
 
 #include "host/ble_hs.h"
 #include "ble_hs_priv.h"
+#include "nimble/hci_common.h"
 
 /**
  * Allocates an mbuf for use by the nimble host.
@@ -85,14 +86,30 @@ ble_hs_mbuf_l2cap_pkt(void)
 }
 
 struct os_mbuf *
+ble_hs_mbuf_hdr_pkt(uint8_t hdr_len)
+{
+    struct os_mbuf *om;
+
+    om = os_msys_get_pkthdr(hdr_len, 0);
+    if (om == NULL) {
+       return NULL;
+    }
+
+    assert(om->om_omp->omp_databuf_len >= hdr_len);
+
+    om->om_data += hdr_len;
+
+    return om;
+}
+
+struct os_mbuf *
 ble_hs_mbuf_att_pkt(void)
 {
     /* Prepare write request and response are the larget ATT commands which
      * contain attribute data.
      */
-     return ble_hs_mbuf_gen_pkt(BLE_HCI_DATA_HDR_SZ +
-                                BLE_L2CAP_HDR_SZ +
-                                BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+     return ble_hs_mbuf_gen_pkt(
+             BLE_HS_ATT_PKT_HDR_LEADINGSPACE(BLE_ATT_PREP_WRITE_CMD_BASE_SZ));
 }
 
 struct os_mbuf *
@@ -156,6 +173,25 @@ ble_hs_mbuf_pullup_base(struct os_mbuf **om, int base_len)
     if (*om == NULL) {
         return BLE_HS_ENOMEM;
     }
+
+    return 0;
+}
+
+int
+ble_hs_mbuf_reuse_for_rsp(struct os_mbuf *om, uint8_t leading_space)
+{
+    int rc;
+
+    assert(om);
+    os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
+
+    if (om->om_omp->omp_databuf_len < leading_space) {
+        rc = os_mbuf_free_chain(om);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+        return BLE_HS_ENOMEM;
+    }
+
+    om->om_data += leading_space;
 
     return 0;
 }
