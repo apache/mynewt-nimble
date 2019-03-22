@@ -621,8 +621,8 @@
 #define MYNEWT_VAL_BLE_L2CAP_SIG_MAX_PROCS (1)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_L2CAP_COC_MTU
-#define MYNEWT_VAL_BLE_L2CAP_COC_MTU (MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8)
+#ifndef MYNEWT_VAL_BLE_L2CAP_COC_MPS
+#define MYNEWT_VAL_BLE_L2CAP_COC_MPS (MYNEWT_VAL_MSYS_1_BLOCK_SIZE - 8)
 #endif
 
 /* Overridden by apps/bleall (defined by net/nimble/host) */
