@@ -23,17 +23,10 @@ int
 ble_hs_atomic_conn_delete(uint16_t conn_handle)
 {
     struct ble_hs_conn *conn;
-    struct os_mbuf_pkthdr *omp;
 
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-
-        while ((omp = STAILQ_FIRST(&conn->bhc_tx_q)) != NULL) {
-            STAILQ_REMOVE_HEAD(&conn->bhc_tx_q, omp_next);
-            os_mbuf_free_chain(OS_MBUF_PKTHDR_TO_MBUF(omp));
-        }
-
         ble_hs_conn_remove(conn);
         ble_hs_conn_free(conn);
 
