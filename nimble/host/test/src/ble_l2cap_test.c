@@ -783,8 +783,8 @@ ble_l2cap_test_coc_connect(struct test_data *t)
 
     req.credits = htole16(
                         ble_l2cap_calculate_credits(t->mtu,
-                                                    MYNEWT_VAL(BLE_L2CAP_COC_MTU)));
-    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
+                                                    MYNEWT_VAL(BLE_L2CAP_COC_MPS)));
+    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
     req.scid = htole16(current_cid++);
@@ -798,7 +798,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
      * only*/
     rsp.credits = htole16(10);
     rsp.dcid = htole16(current_cid);
-    rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU) + 16);
+    rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     rsp.mtu = htole16(t->mtu);
     rsp.result = htole16(ev->l2cap_status);
 
@@ -825,7 +825,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
 
     /* Use some different parameters for peer */
     req.credits = htole16(30);
-    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU) + 16);
+    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
     req.scid = htole16(0x0040);
@@ -849,9 +849,9 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
         /* Receive response from peer.*/
         rsp.credits = htole16(
                             ble_l2cap_calculate_credits(t->mtu,
-                                                        MYNEWT_VAL(BLE_L2CAP_COC_MTU)));
+                                                        MYNEWT_VAL(BLE_L2CAP_COC_MPS)));
         rsp.dcid = current_cid++;
-        rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MTU));
+        rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
         rsp.mtu = htole16(t->mtu);
     }
 
