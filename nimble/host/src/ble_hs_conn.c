@@ -207,6 +207,7 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 #endif
 
     struct ble_l2cap_chan *chan;
+    struct os_mbuf_pkthdr *omp;
     int rc;
 
     if (conn == NULL) {
@@ -217,6 +218,11 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
 
     while ((chan = SLIST_FIRST(&conn->bhc_channels)) != NULL) {
         ble_hs_conn_delete_chan(conn, chan);
+    }
+
+    while ((omp = STAILQ_FIRST(&conn->bhc_tx_q)) != NULL) {
+        STAILQ_REMOVE_HEAD(&conn->bhc_tx_q, omp_next);
+        os_mbuf_free_chain(OS_MBUF_PKTHDR_TO_MBUF(omp));
     }
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
