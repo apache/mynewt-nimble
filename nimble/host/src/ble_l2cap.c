@@ -393,15 +393,13 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
              struct os_mbuf *txom)
 {
     int rc;
-    struct os_mbuf *om;
 
-    om = ble_l2cap_prepend_hdr(txom, chan->dcid, OS_MBUF_PKTLEN(txom));
-    if (om == NULL) {
-        os_mbuf_free_chain(txom);
+    txom = ble_l2cap_prepend_hdr(txom, chan->dcid, OS_MBUF_PKTLEN(txom));
+    if (txom == NULL) {
         return BLE_HS_ENOMEM;
     }
 
-    rc = ble_hs_hci_acl_tx(conn, &om);
+    rc = ble_hs_hci_acl_tx(conn, &txom);
     switch (rc) {
     case 0:
         /* Success. */
@@ -409,7 +407,7 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     case BLE_HS_EAGAIN:
         /* Controller could not accommodate full packet.  Enqueue remainder. */
-        STAILQ_INSERT_TAIL(&conn->bhc_tx_q, OS_MBUF_PKTHDR(om), omp_next);
+        STAILQ_INSERT_TAIL(&conn->bhc_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
         return 0;
 
     default:
