@@ -22,3 +22,9 @@ syscfg.vals:
 
     # Default task settings
     OS_MAIN_STACK_SIZE: 336
+
+# Disable peripheral and broadcaster roles.
+    BLE_ROLE_BROADCASTER: 0
+    BLE_ROLE_CENTRAL: 1
+    BLE_ROLE_OBSERVER: 1
+    BLE_ROLE_PERIPHERAL: 0
