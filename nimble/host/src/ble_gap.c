@@ -326,7 +326,7 @@ ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
     }
 }
 
-#if !MYNEWT_VAL(BLE_EXT_ADV)
+#if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_log_adv(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                 const struct ble_gap_adv_params *adv_params)
@@ -924,7 +924,7 @@ ble_gap_master_set_timer(uint32_t ticks_from_now)
     ble_hs_timer_resched();
 }
 
-#if !MYNEWT_VAL(BLE_EXT_ADV)
+#if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
 ble_gap_slave_set_timer(uint32_t ticks_from_now)
 {
@@ -1858,7 +1858,7 @@ ble_gap_adv_stop(void)
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-#if !MYNEWT_VAL(BLE_EXT_ADV)
+#if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static int
 ble_gap_adv_type(const struct ble_gap_adv_params *adv_params)
 {
