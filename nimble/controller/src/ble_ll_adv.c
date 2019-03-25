@@ -173,26 +173,58 @@ ble_ll_adv_active_chanset_is_sec(struct ble_ll_adv_sm *advsm)
 static inline void
 ble_ll_adv_active_chanset_clear(struct ble_ll_adv_sm *advsm)
 {
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
+    OS_EXIT_CRITICAL(sr);
 }
 
 static inline void
 ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
 {
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
     assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
     advsm->flags |= 0x10;
+    OS_EXIT_CRITICAL(sr);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static inline void
 ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
 {
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
     assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
     advsm->flags |= 0x20;
+    OS_EXIT_CRITICAL(sr);
 }
 #endif
+
+static inline void
+ble_ll_adv_flags_set(struct ble_ll_adv_sm *advsm, uint16_t flags)
+{
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
+    advsm->flags |= flags;
+    OS_EXIT_CRITICAL(sr);
+}
+
+static inline void
+ble_ll_adv_flags_clear(struct ble_ll_adv_sm *advsm, uint16_t flags)
+{
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
+    advsm->flags &= ~flags;
+    OS_EXIT_CRITICAL(sr);
+}
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
@@ -2127,7 +2159,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
     if (advsm->adv_enabled) {
         if (advsm->new_scan_rsp_data) {
-            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+            ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA);
             os_mbuf_free_chain(advsm->new_scan_rsp_data);
             advsm->new_scan_rsp_data = NULL;
         }
@@ -2138,7 +2170,7 @@ ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         if (!advsm->new_scan_rsp_data) {
             return BLE_ERR_MEM_CAPACITY;
         }
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+        ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA);
     } else {
         ble_ll_adv_update_data_mbuf(&advsm->scan_rsp_data, new_data,
                                     BLE_SCAN_RSP_DATA_MAX_LEN,
@@ -2209,7 +2241,8 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
             }
         }
 
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
+
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_UNCHANGED:
@@ -2225,7 +2258,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         ble_ll_adv_update_did(advsm);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_LAST:
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
         /* fall through */
     case BLE_HCI_LE_SET_EXT_ADV_DATA_OPER_INT:
         if (!advsm->adv_data) {
@@ -2257,7 +2290,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE;
+        ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
         break;
 #endif
     default:
@@ -2269,7 +2302,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
 
     if (advsm->adv_enabled) {
         if (advsm->new_adv_data) {
-            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+            ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA);
             os_mbuf_free_chain(advsm->new_adv_data);
             advsm->new_adv_data = NULL;
         }
@@ -2280,7 +2313,7 @@ ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
         if (!advsm->new_adv_data) {
             return BLE_ERR_MEM_CAPACITY;
         }
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+        ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA);
     } else {
         ble_ll_adv_update_data_mbuf(&advsm->adv_data, new_data,
                                     BLE_ADV_DATA_MAX_LEN,
