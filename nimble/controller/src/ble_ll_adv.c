@@ -240,24 +240,24 @@ ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
     if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                           advsm->adva, 1)) {
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+        ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD);
     } else {
         if (advsm->own_addr_type & 1) {
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
+            ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD);
         } else {
-            advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
+            ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD);
         }
     }
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
                               advsm->initiator_addr, 0)) {
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+            ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_RX_ADD);
         } else {
             if (advsm->peer_addr_type & 1) {
-                advsm->flags |= BLE_LL_ADV_SM_FLAG_RX_ADD;
+                ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_RX_ADD);
             } else {
-                advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
+                ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_RX_ADD);
             }
         }
     }
@@ -289,7 +289,7 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
 
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO) {
         ble_ll_adv_rpa_update(advsm);
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO);
     }
 }
 
@@ -305,7 +305,7 @@ ble_ll_adv_rpa_timeout(void)
         if (advsm->adv_enabled &&
                 advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
             /* Mark RPA as timed out so we get a new RPA */
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO;
+            ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO);
         }
     }
 }
@@ -1645,12 +1645,12 @@ ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
             advsm->adv_data = advsm->new_adv_data;
             advsm->new_adv_data = NULL;
         }
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_NEW_ADV_DATA);
     } else if (advsm->flags & BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA) {
         os_mbuf_free_chain(advsm->scan_rsp_data);
         advsm->scan_rsp_data = advsm->new_scan_rsp_data;
         advsm->new_scan_rsp_data = NULL;
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_NEW_SCAN_RSP_DATA);
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1827,9 +1827,9 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 #endif
 
     /* only clear flags that are not set from HCI */
-    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_TX_ADD;
-    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_RX_ADD;
-    advsm->flags &= ~BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+    ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD |
+                                  BLE_LL_ADV_SM_FLAG_RX_ADD |
+                                  BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD);
 
     if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2571,12 +2571,12 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
     }
 
     if (scan_req_notif) {
-        advsm->flags |= BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+        ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF);
     } else {
-        advsm->flags &= ~BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF;
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF);
     }
 
-    advsm->flags |= BLE_LL_ADV_SM_FLAG_CONFIGURED;
+    ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_CONFIGURED);
 
 done:
     /* Update TX power */
@@ -2989,7 +2989,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
         rc = ble_phy_tx(ble_ll_adv_aux_conn_rsp_pdu_make, &rsp_data,
                         BLE_PHY_TRANSITION_NONE);
         if (!rc) {
-            advsm->flags |= BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD;
+            ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD);
             STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
         }
 #endif
