@@ -17,21 +17,50 @@
 #
 
 syscfg.defs:
-    BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
+    BLE_HCI_TRANSPORT:
         description: >
-            Enables HCI transport for built-in NimBLE controller.
-            This is virtually the same as enabling RAM HCI transport and
-            adding dependency to NimBLE controller package explicitly.
-        value: 1
+            Selects HCI transport to be included in build.
+            This has virtually the same effect as including package dependency
+            manually, but it allows to easily override HCI transport package in
+            application or target settings.
+        value: builtin
+        restrictions: $notnull
+        choices:
+            - builtin   # Built-in NimBLE controller and RAM transport
+            - ram       # RAM transport
+            - uart      # UART HCI H4 transport
+            - socket    # Socket transport (for native builds)
+            - emspi     # SPI transport for EM Microelectionic controllers
+
+# Deprecated settings
+    BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
+        description: Use BLE_HCI_TRANSPORT instead.
+        value: 0
+        deprecated: 1
     BLE_HCI_TRANSPORT_EMSPI:
-        description: Enables EM SPI HCI transport package
+        description: Use BLE_HCI_TRANSPORT instead.
         value: 0
+        deprecated: 1
     BLE_HCI_TRANSPORT_RAM:
-        description: Enables RAM HCI transport package
+        description: Use BLE_HCI_TRANSPORT instead.
         value: 0
+        deprecated: 1
     BLE_HCI_TRANSPORT_SOCKET:
-        description: Enables socket HCI transport package
+        description: Use BLE_HCI_TRANSPORT instead.
         value: 0
+        deprecated: 1
     BLE_HCI_TRANSPORT_UART:
-        description: Enables UART HCI transport package
+        description: Use BLE_HCI_TRANSPORT instead.
         value: 0
+        deprecated: 1
+
+syscfg.vals.BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
+    BLE_HCI_TRANSPORT: builtin
+syscfg.vals.BLE_HCI_TRANSPORT_RAM:
+    BLE_HCI_TRANSPORT: ram
+syscfg.vals.BLE_HCI_TRANSPORT_UART:
+    BLE_HCI_TRANSPORT: uart
+syscfg.vals.BLE_HCI_TRANSPORT_SOCKET:
+    BLE_HCI_TRANSPORT: socket
+syscfg.vals.BLE_HCI_TRANSPORT_EMSPI:
+    BLE_HCI_TRANSPORT: emspi

@@ -25,18 +25,18 @@ pkg.keywords:
     - ble
     - bluetooth
 
-pkg.deps.BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
+pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
     - nimble/transport/ram
     - nimble/controller
 
-pkg.deps.BLE_HCI_TRANSPORT_EMSPI:
+pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
     - nimble/transport/emspi
 
-pkg.deps.BLE_HCI_TRANSPORT_RAM:
+pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
     - nimble/transport/ram
 
-pkg.deps.BLE_HCI_TRANSPORT_SOCKET:
+pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
     - nimble/transport/socket
 
-pkg.deps.BLE_HCI_TRANSPORT_UART:
+pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
     - nimble/transport/uart
