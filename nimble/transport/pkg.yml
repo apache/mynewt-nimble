@@ -40,3 +40,6 @@ pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
 
 pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
     - nimble/transport/uart
+
+pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
+    - nimble/transport/da1469x

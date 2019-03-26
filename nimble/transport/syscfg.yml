@@ -31,6 +31,7 @@ syscfg.defs:
             - uart      # UART HCI H4 transport
             - socket    # Socket transport (for native builds)
             - emspi     # SPI transport for EM Microelectionic controllers
+            - da1469x   # Dialog DA1469x integrated controller
 
 # Deprecated settings
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
