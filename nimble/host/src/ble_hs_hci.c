@@ -39,6 +39,28 @@ static uint8_t ble_hs_hci_max_pkts;
 static uint32_t ble_hs_hci_sup_feat;
 static uint8_t ble_hs_hci_version;
 
+#define BLE_HS_HCI_FRAG_DATABUF_SIZE    \
+    (BLE_ACL_MAX_PKT_SIZE +             \
+     sizeof (struct os_mbuf_pkthdr) +   \
+     sizeof (struct os_mbuf))
+
+#define BLE_HS_HCI_FRAG_MEMBLOCK_SIZE   \
+    (OS_ALIGN(BLE_HS_HCI_FRAG_DATABUF_SIZE, 4))
+
+#define BLE_HS_HCI_FRAG_MEMPOOL_SIZE    \
+    OS_MEMPOOL_SIZE(1, BLE_HS_HCI_FRAG_MEMBLOCK_SIZE)
+
+/**
+ *  A one-element mbuf pool dedicated to holding outgoing ACL data packets.
+ *  This dedicated pool prevents a deadlock caused by mbuf exhaustion.  Without
+ *  this pool, all msys mbufs could be permanently allocated, preventing us
+ *  from fragmenting outgoing packets and sending them (and ultimately freeing
+ *  them).
+ */
+static os_membuf_t ble_hs_hci_frag_data[BLE_HS_HCI_FRAG_MEMPOOL_SIZE];
+static struct os_mbuf_pool ble_hs_hci_frag_mbuf_pool;
+static struct os_mempool ble_hs_hci_frag_mempool;
+
 /**
  * The number of available ACL transmit buffers on the controller.  This
  * variable must only be accessed while the host mutex is locked.
@@ -400,7 +422,22 @@ ble_hs_hci_max_acl_payload_sz(void)
 static struct os_mbuf *
 ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
 {
-    return ble_hs_mbuf_acl_pkt();
+    struct os_mbuf *om;
+
+    /* Prefer the dedicated one-element fragment pool. */
+    om = os_mbuf_get_pkthdr(&ble_hs_hci_frag_mbuf_pool, 0);
+    if (om != NULL) {
+        om->om_data += BLE_HCI_DATA_HDR_SZ;
+        return om;
+    }
+
+    /* Otherwise, fall back to msys. */
+    om = ble_hs_mbuf_acl_pkt();
+    if (om != NULL) {
+        return om;
+    }
+
+    return NULL;
 }
 
 static struct os_mbuf *
@@ -573,5 +610,13 @@ ble_hs_hci_init(void)
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
     rc = ble_npl_mutex_init(&ble_hs_hci_mutex);
+    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+    rc = mem_init_mbuf_pool(ble_hs_hci_frag_data,
+                            &ble_hs_hci_frag_mempool,
+                            &ble_hs_hci_frag_mbuf_pool,
+                            1,
+                            BLE_HS_HCI_FRAG_MEMBLOCK_SIZE,
+                            "ble_hs_hci_frag");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }

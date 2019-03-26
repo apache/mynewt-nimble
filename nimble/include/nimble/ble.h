@@ -35,6 +35,9 @@ extern "C" {
 /* BLE encryption block definitions */
 #define BLE_ENC_BLOCK_SIZE       (16)
 
+/* 4 byte header + 251 byte payload. */
+#define BLE_ACL_MAX_PKT_SIZE     255
+
 struct ble_encryption_block
 {
     uint8_t     key[BLE_ENC_BLOCK_SIZE];
