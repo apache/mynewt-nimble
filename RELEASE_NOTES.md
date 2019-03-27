@@ -1,6 +1,6 @@
 # RELEASE NOTES
 
-04 June 2018 - Apache NimBLE v1.0.0
+27 March 2019 - Apache NimBLE v1.1.0
 
 For full release notes, please visit the
 [Apache Mynewt Wiki](https://cwiki.apache.org/confluence/display/MYNEWT/Release+Notes).
@@ -9,16 +9,10 @@ Apache NimBLE is an open-source Bluetooth 5.0 stack (both Host & Controller) tha
 replaces the proprietary SoftDevice on Nordic chipsets.
 
 New features in this version of NimBLE include:
-
-* Initial version after moving to separate repo - https://github.com/apache/mynewt-nimble
-* removal of deprecated bletiny application (superseded by btshell)
-* Added NimBLE Porting Layer (NPL) which abstracts OS specific details to improve portability
-* Initial ports for FreeRTOS and RIOT OS
-* Support for advertising up to 1650 bytes of data with Extended Advertising
-* Support for host flow control
-* Support for Direct Test Mode (DTM) via HCI interface
-* Support for Device Information Service
-* Bugfixes for issues found on UPF59 and during BT certification testing
+* Linux port of BLE host
+* Support for RX/TX power with RF path compensation
+* New bttester application used for automated testing
+* Fully qualifiable controller and host
 * Lots of other bugfixes, minor enhancements and optimisations
 * Mesh improvements
 

@@ -35,6 +35,8 @@ Features highlight:
   - Advertising Extensions.
   - Coded (aka Long Range) and 2M PHYs.
   - Bluetooth Mesh.
+  - Support for multiple OSes
+  - Fuly qualifiable controller and host
 
 ## Supported hardware
 
