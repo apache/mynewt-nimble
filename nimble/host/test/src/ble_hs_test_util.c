@@ -1738,6 +1738,18 @@ ble_hs_test_util_mbuf_chain_len(const struct os_mbuf *om)
     return count;
 }
 
+static int
+ble_hs_test_util_num_mbufs(void)
+{
+    return os_msys_count() + ble_hs_hci_frag_num_mbufs();
+}
+
+static int
+ble_hs_test_util_num_mbufs_free(void)
+{
+    return os_msys_num_free() + ble_hs_hci_frag_num_mbufs_free();
+}
+
 struct os_mbuf *
 ble_hs_test_util_mbuf_alloc_all_but(int count)
 {
@@ -1787,7 +1799,7 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
 
     ble_hs_process_rx_data_queue();
 
-    count = os_msys_num_free();
+    count = ble_hs_test_util_num_mbufs_free();
 
     if (params->prev_tx) {
         count += ble_hs_test_util_mbuf_chain_len(ble_hs_test_util_prev_tx_cur);
@@ -1838,7 +1850,7 @@ ble_hs_test_util_assert_mbufs_freed(
     }
 
     count = ble_hs_test_util_mbuf_count(params);
-    TEST_ASSERT(count == os_msys_count());
+    TEST_ASSERT(count == ble_hs_test_util_num_mbufs());
 }
 
 static int

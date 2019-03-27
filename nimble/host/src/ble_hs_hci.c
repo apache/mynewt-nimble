@@ -440,6 +440,24 @@ ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
     return NULL;
 }
 
+/**
+ * Retrieves the total capacity of the ACL fragment pool (always 1).
+ */
+int
+ble_hs_hci_frag_num_mbufs(void)
+{
+    return ble_hs_hci_frag_mempool.mp_num_blocks;
+}
+
+/**
+ * Retrieves the the count of free buffers in the ACL fragment pool.
+ */
+int
+ble_hs_hci_frag_num_mbufs_free(void)
+{
+    return ble_hs_hci_frag_mempool.mp_num_free;
+}
+
 static struct os_mbuf *
 ble_hs_hci_acl_hdr_prepend(struct os_mbuf *om, uint16_t handle,
                            uint8_t pb_flag)
