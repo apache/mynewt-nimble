@@ -308,10 +308,18 @@ syscfg.defs:
         value: 1
         defunct: 1
 
+    BLE_LL_STACK_SIZE:
+        description: >
+            BLE stack size. Can be reconfigured
+            if BLE_LL_CFG_FEAT_LL_EXT_ADV
+            (see syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV below)
+        value: 90
+
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
     BLE_LL_EXT_ADV_AUX_PTR_CNT: 5
+    BLE_LL_STACK_SIZE: 128
 
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host
