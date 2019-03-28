@@ -427,6 +427,7 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     OS_EXIT_CRITICAL(sr);
 
     ble_ll_sched_rmv_elem(&ctx->sch);
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
 
     ble_phy_disable();
     ble_phy_disable_dtm();
