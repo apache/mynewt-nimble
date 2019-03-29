@@ -291,7 +291,7 @@ static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
         .includes = inc_svcs,
         .characteristics = (struct ble_gatt_chr_def[]) {{
             .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
-            .access_cb = gatt_svr_chr_access_sec_test,
+            .access_cb = gatt_svr_access_test,
             .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
         }, {
             0, /* No more characteristics */
