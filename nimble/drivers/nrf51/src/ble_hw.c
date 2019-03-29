@@ -60,14 +60,19 @@ uint8_t g_nrf_num_irks;
 int
 ble_hw_get_public_addr(ble_addr_t *addr)
 {
+    uint32_t addr_high;
+    uint32_t addr_low;
+
     /* Does FICR have a public address */
     if ((NRF_FICR->DEVICEADDRTYPE & 1) != 0) {
         return -1;
     }
 
     /* Copy into device address. We can do this because we know platform */
-    memcpy(addr->val, &NRF_FICR->DEVICEADDR[0], 4);
-    memcpy(&addr->val[4], &NRF_FICR->DEVICEADDR[1], 2);
+    addr_low = NRF_FICR->DEVICEADDR[0];
+    addr_high = NRF_FICR->DEVICEADDR[1];
+    memcpy(addr->val, &addr_low, 4);
+    memcpy(&addr->val[4], &addr_high, 2);
     addr->type = BLE_ADDR_PUBLIC;
 
     return 0;
