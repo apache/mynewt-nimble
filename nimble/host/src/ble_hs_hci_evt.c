@@ -226,7 +226,6 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
     uint16_t num_pkts;
     uint16_t handle;
     uint8_t num_handles;
-    int tx_outstanding;
     int off;
     int i;
 
@@ -241,13 +240,6 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
         return BLE_HS_ECONTROLLER;
     }
     off++;
-
-    /* If we were previously blocked due to controller buffer exhaustion, and
-     * this event indicates that some buffers have been freed, then the host
-     * needs to resume transmitting.  `tx_outstanding` keeps track of whether
-     * this is the case.
-     */
-    tx_outstanding = 0;
 
     for (i = 0; i < num_handles; i++) {
         handle = get_le16(data + off);
@@ -264,19 +256,14 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data, int len)
                     conn->bhc_outstanding_pkts -= num_pkts;
                 }
 
-                if (ble_hs_hci_avail_pkts == 0) {
-                    tx_outstanding = 1;
-                }
-
                 ble_hs_hci_add_avail_pkts(num_pkts);
             }
             ble_hs_unlock();
         }
     }
 
-    if (tx_outstanding) {
-        ble_hs_wakeup_tx();
-    }
+    /* If any transmissions have stalled, wake them up now. */
+    ble_hs_wakeup_tx();
 
     return 0;
 }
