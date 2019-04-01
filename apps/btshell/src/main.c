@@ -1754,6 +1754,7 @@ btshell_sec_start(uint16_t conn_handle)
 
 int
 btshell_sec_restart(uint16_t conn_handle,
+                    uint8_t key_size,
                     uint8_t *ltk,
                     uint16_t ediv,
                     uint64_t rand_val,
@@ -1793,12 +1794,14 @@ btshell_sec_restart(uint16_t conn_handle,
         }
 
         ltk = value_sec.ltk;
+        key_size = value_sec.key_size;
         ediv = value_sec.ediv;
         rand_val = value_sec.rand_num;
         auth = value_sec.authenticated;
     }
 
-    rc = ble_gap_encryption_initiate(conn_handle, ltk, ediv, rand_val, auth);
+    rc = ble_gap_encryption_initiate(conn_handle, key_size, ltk,
+                                     ediv, rand_val, auth);
     return rc;
 }
 

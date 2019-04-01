@@ -1179,6 +1179,7 @@ int ble_gap_pair_initiate(uint16_t conn_handle);
  *
  * @param conn_handle           The handle corresponding to the connection to
  *                              start encryption.
+ * @param key_size              Encryption key size
  * @param ltk                   Long Term Key to be used for encryption.
  * @param udiv                  Encryption Diversifier for LTK
  * @param rand_val              Random Value for EDIV and LTK
@@ -1191,8 +1192,9 @@ int ble_gap_pair_initiate(uint16_t conn_handle);
  *                                  this connection is already in progress;
  *                              Other nonzero on error.
  */
-int ble_gap_encryption_initiate(uint16_t conn_handle, const uint8_t *ltk,
-                                uint16_t ediv, uint64_t rand_val, int auth);
+int ble_gap_encryption_initiate(uint16_t conn_handle, uint8_t key_size,
+                                const uint8_t *ltk, uint16_t ediv,
+                                uint64_t rand_val, int auth);
 
 /**
  * Retrieves the most-recently measured RSSI for the specified connection.  A

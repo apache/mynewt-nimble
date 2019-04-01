@@ -1969,7 +1969,9 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         }
 
         if (res->app_status == 0) {
-            res->app_status = ble_sm_enc_initiate(conn_handle, value_sec.ltk,
+            res->app_status = ble_sm_enc_initiate(conn_handle,
+                                                  value_sec.key_size,
+                                                  value_sec.ltk,
                                                   value_sec.ediv,
                                                   value_sec.rand_num,
                                                   value_sec.authenticated);
@@ -2505,7 +2507,8 @@ ble_sm_slave_initiate(uint16_t conn_handle)
  * Initiates the encryption procedure for the specified connection.
  */
 int
-ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
+ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
+                    const uint8_t *ltk, uint16_t ediv,
                     uint64_t rand_val, int auth)
 {
     struct ble_sm_result res;
@@ -2528,6 +2531,7 @@ ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk, uint16_t ediv,
             res.app_status = BLE_HS_ENOMEM;
         } else {
             proc->conn_handle = conn_handle;
+            proc->key_size = key_size;
             proc->state = BLE_SM_PROC_STATE_ENC_RESTORE;
             proc->flags |= BLE_SM_PROC_F_INITIATOR;
             if (auth) {
