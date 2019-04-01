@@ -166,6 +166,12 @@ ble_hs_hci_evt_disconn_complete(uint8_t event_code, uint8_t *data, int len)
 
     ble_gap_rx_disconn_complete(&evt);
 
+    /* The connection termination may have freed up some capacity in the
+     * controller for additional ACL data packets.  Wake up any stalled
+     * connections.
+     */
+    ble_hs_wakeup_tx();
+
     return 0;
 }
 
