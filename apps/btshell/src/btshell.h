@@ -160,7 +160,8 @@ int btshell_l2cap_update(uint16_t conn_handle,
 int btshell_sec_start(uint16_t conn_handle);
 int btshell_sec_pair(uint16_t conn_handle);
 int btshell_sec_unpair(ble_addr_t *peer_addr);
-int btshell_sec_restart(uint16_t conn_handle, uint8_t *ltk, uint16_t ediv,
+int btshell_sec_restart(uint16_t conn_handle, uint8_t key_size,
+                        uint8_t *ltk, uint16_t ediv,
                         uint64_t rand_val, int auth);
 int btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate,
                      uint16_t num);
