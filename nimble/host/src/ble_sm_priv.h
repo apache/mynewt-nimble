@@ -396,8 +396,9 @@ int32_t ble_sm_timer(void);
 void ble_sm_connection_broken(uint16_t conn_handle);
 int ble_sm_pair_initiate(uint16_t conn_handle);
 int ble_sm_slave_initiate(uint16_t conn_handle);
-int ble_sm_enc_initiate(uint16_t conn_handle, const uint8_t *ltk,
-                        uint16_t ediv, uint64_t rand_val, int auth);
+int ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
+                        const uint8_t *ltk, uint16_t ediv,
+                        uint64_t rand_val, int auth);
 int ble_sm_init(void);
 
 #define BLE_SM_LOG_CMD(is_tx, cmd_name, conn_handle, log_cb, cmd) \

@@ -460,12 +460,14 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     proc->our_keys.ediv = 0;
     proc->our_keys.rand_val = 0;
     proc->our_keys.ediv_rand_valid = 1;
+    proc->our_keys.key_size = proc->key_size;
 
     memcpy(proc->peer_keys.ltk, proc->ltk, sizeof proc->peer_keys.ltk);
     proc->peer_keys.ltk_valid = 1;
     proc->peer_keys.ediv = 0;
     proc->peer_keys.rand_val = 0;
     proc->peer_keys.ediv_rand_valid = 1;
+    proc->peer_keys.key_size = proc->key_size;
 
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
         ble_sm_sc_random_advance(proc);

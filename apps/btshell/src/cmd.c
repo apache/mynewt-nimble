@@ -2768,6 +2768,7 @@ cmd_security_encryption(int argc, char **argv)
     uint16_t ediv;
     uint64_t rand_val;
     uint8_t ltk[16];
+    uint8_t key_size;
     int rc;
     int auth;
 
@@ -2784,7 +2785,7 @@ cmd_security_encryption(int argc, char **argv)
 
     ediv = parse_arg_uint16("ediv", &rc);
     if (rc == ENOENT) {
-        rc = btshell_sec_restart(conn_handle, NULL, 0, 0, 0);
+        rc = btshell_sec_restart(conn_handle, 0, NULL, 0, 0, 0);
     } else {
         rand_val = parse_arg_uint64("rand", &rc);
         if (rc != 0) {
@@ -2798,13 +2799,20 @@ cmd_security_encryption(int argc, char **argv)
             return rc;
         }
 
+        key_size = parse_arg_uint8("key_size", &rc);
+        if (rc != 0) {
+            console_printf("invalid 'key_size' parameter\n");
+            return rc;
+        }
+
         rc = parse_arg_byte_stream_exact_length("ltk", ltk, 16);
         if (rc != 0) {
             console_printf("invalid 'ltk' parameter\n");
             return rc;
         }
 
-        rc = btshell_sec_restart(conn_handle, ltk, ediv, rand_val, auth);
+        rc = btshell_sec_restart(conn_handle, key_size,
+                                 ltk, ediv, rand_val, auth);
     }
 
     if (rc != 0) {

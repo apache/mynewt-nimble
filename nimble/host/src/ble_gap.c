@@ -4302,8 +4302,9 @@ ble_gap_security_initiate(uint16_t conn_handle)
          */
         rc = ble_store_read_peer_sec(&key_sec, &value_sec);
         if (rc == 0 && value_sec.ltk_present) {
-            rc = ble_sm_enc_initiate(conn_handle, value_sec.ltk,
-                                     value_sec.ediv, value_sec.rand_num,
+            rc = ble_sm_enc_initiate(conn_handle, value_sec.key_size,
+                                     value_sec.ltk, value_sec.ediv,
+                                     value_sec.rand_num,
                                      value_sec.authenticated);
             if (rc != 0) {
                 goto done;
@@ -4343,6 +4344,7 @@ ble_gap_pair_initiate(uint16_t conn_handle)
 
 int
 ble_gap_encryption_initiate(uint16_t conn_handle,
+                            uint8_t key_size,
                             const uint8_t *ltk,
                             uint16_t ediv,
                             uint64_t rand_val,
@@ -4364,7 +4366,8 @@ ble_gap_encryption_initiate(uint16_t conn_handle,
         return BLE_HS_EROLE;
     }
 
-    rc = ble_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth);
+    rc = ble_sm_enc_initiate(conn_handle, key_size, ltk,
+                             ediv, rand_val, auth);
     return rc;
 }
 
