@@ -547,8 +547,6 @@ ble_hs_test_util_hci_rx_num_completed_pkts_event(
     for (i = 0; i < num_entries; i++) {
         put_le16(buf + off, entries[i].handle_id);
         off += 2;
-    }
-    for (i = 0; i < num_entries; i++) {
         put_le16(buf + off, entries[i].num_pkts);
         off += 2;
     }
