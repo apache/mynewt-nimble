@@ -414,7 +414,7 @@ int ble_sm_init(void);
 #define ble_sm_connection_broken(conn_handle)
 #define ble_sm_pair_initiate(conn_handle)   BLE_HS_ENOTSUP
 #define ble_sm_slave_initiate(conn_handle)  BLE_HS_ENOTSUP
-#define ble_sm_enc_initiate(conn_handle, ltk, ediv, rand_val, auth) \
+#define ble_sm_enc_initiate(conn_handle, keysize, ltk, ediv, rand_val, auth) \
         BLE_HS_ENOTSUP
 
 #define ble_sm_init() 0
