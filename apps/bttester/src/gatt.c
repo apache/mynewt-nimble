@@ -1252,7 +1252,7 @@ fail:
 
 static int disc_all_desc_cb(uint16_t conn_handle,
 			    const struct ble_gatt_error *error,
-			    uint16_t chr_def_handle,
+			    uint16_t chr_val_handle,
 			    const struct ble_gatt_dsc *gatt_dsc,
 			    void *arg)
 {

@@ -55,7 +55,7 @@ peer_disc_chrs(struct peer *peer);
 
 static int
 peer_dsc_disced(uint16_t conn_handle, const struct ble_gatt_error *error,
-                uint16_t chr_def_handle, const struct ble_gatt_dsc *dsc,
+                uint16_t chr_val_handle, const struct ble_gatt_dsc *dsc,
                 void *arg);
 
 static struct peer *
