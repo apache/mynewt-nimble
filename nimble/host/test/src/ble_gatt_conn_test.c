@@ -202,7 +202,7 @@ ble_gatt_conn_test_disc_chr_uuid_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
-                                    uint16_t chr_def_handle,
+                                    uint16_t chr_val_handle,
                                     const struct ble_gatt_dsc *dsc,
                                     void *arg)
 {

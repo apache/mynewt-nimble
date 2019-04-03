@@ -143,7 +143,7 @@ typedef int ble_gatt_chr_fn(uint16_t conn_handle,
 
 typedef int ble_gatt_dsc_fn(uint16_t conn_handle,
                             const struct ble_gatt_error *error,
-                            uint16_t chr_def_handle,
+                            uint16_t chr_val_handle,
                             const struct ble_gatt_dsc *dsc,
                             void *arg);
 
@@ -790,9 +790,9 @@ int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs);
  * Send notification (or indication) to any connected devices that have
  * subscribed for notification (or indication) for specified characteristic.
  *
- * @param chr_def_handle        Characteristic definition handle
+ * @param chr_val_handle        Characteristic value handle
  */
-void ble_gatts_chr_updated(uint16_t chr_def_handle);
+void ble_gatts_chr_updated(uint16_t chr_val_handle);
 
 /**
  * Retrieves the attribute handle associated with a local GATT service.
