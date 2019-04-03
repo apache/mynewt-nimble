@@ -894,6 +894,8 @@ void tester_init(void);
 void tester_rsp(u8_t service, u8_t opcode, u8_t index, u8_t status);
 void tester_send(u8_t service, u8_t opcode, u8_t index, u8_t *data,
 		 size_t len);
+void tester_send_buf(u8_t service, u8_t opcode, u8_t index,
+		     struct os_mbuf *buf);
 
 u8_t tester_init_gap(void);
 u8_t tester_unregister_gap(void);

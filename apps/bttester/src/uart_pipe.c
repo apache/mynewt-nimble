@@ -215,6 +215,31 @@ bttester_pipe_send(const u8_t *data, int len)
 }
 
 int
+bttester_pipe_send_buf(struct os_mbuf *buf)
+{
+	int i, len;
+	struct os_mbuf *om;
+
+	/* Assure that there is a write cb installed; this enables to debug
+	 * code that is faulting before the console was initialized.
+	 */
+	if (!write_char_cb) {
+		return -1;
+	}
+
+	for (om = buf; om; om = SLIST_NEXT(om, om_next)) {
+		len = om->om_len;
+		for (i = 0; i < len; ++i) {
+			write_char_cb(uart_dev, om->om_data[i]);
+		}
+	}
+
+	uart_start_tx(uart_dev);
+
+	return 0;
+}
+
+int
 bttester_pipe_init(void)
 {
     struct uart_conf uc = {

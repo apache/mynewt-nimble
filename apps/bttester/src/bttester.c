@@ -345,6 +345,22 @@ void tester_send(u8_t service, u8_t opcode, u8_t index, u8_t *data,
 	}
 }
 
+void tester_send_buf(u8_t service, u8_t opcode, u8_t index,
+		     struct os_mbuf *data)
+{
+	struct btp_hdr msg;
+
+	msg.service = service;
+	msg.opcode = opcode;
+	msg.index = index;
+	msg.len = os_mbuf_len(data);
+
+	bttester_pipe_send((u8_t *)&msg, sizeof(msg));
+	if (data && msg.len) {
+		bttester_pipe_send_buf(data);
+	}
+}
+
 void tester_rsp(u8_t service, u8_t opcode, u8_t index, u8_t status)
 {
 	struct btp_status s;
