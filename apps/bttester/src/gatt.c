@@ -49,6 +49,8 @@ static const ble_uuid_t *uuid_pri =
 	BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE);
 static const ble_uuid_t *uuid_sec =
 	BLE_UUID16_DECLARE(BLE_ATT_UUID_SECONDARY_SERVICE);
+static const ble_uuid_t *uuid_inc =
+	BLE_UUID16_DECLARE(BLE_ATT_UUID_INCLUDE);
 static const ble_uuid_t *uuid_chr =
 	BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
 static const ble_uuid_t *uuid_ccc =
@@ -1947,6 +1949,7 @@ static void get_attrs_cb(const struct ble_gatt_svc_def *svc,
 			 void *arg)
 {
 	struct get_attrs_foreach_data *foreach = arg;
+	const struct ble_gatt_svc_def **includes;
 	const struct ble_gatt_chr_def *chr;
 	const struct ble_gatt_dsc_def *dsc;
 
@@ -1959,31 +1962,39 @@ static void get_attrs_cb(const struct ble_gatt_svc_def *svc,
 		foreach_get_attrs(handle, BTP_GATT_PERM_READ,
 				  uuid_sec, foreach);
 	}
+	handle += 1;
 
-	/* TODO: iterate over included services*/
+	if (svc->includes) {
+		for (includes = &svc->includes[0];
+		     *includes != NULL; ++includes) {
+			foreach_get_attrs(handle, BTP_GATT_PERM_READ,
+					  uuid_inc, foreach);
+			handle += 1;
+		}
+	}
 
 	for (chr = svc->characteristics; chr && chr->uuid; ++chr) {
-		handle += 1;
 		foreach_get_attrs(handle, BTP_GATT_PERM_READ,
 				  uuid_chr, foreach);
 		handle += 1;
+
 		foreach_get_attrs(handle, flags2perm(chr->flags, true),
 				  chr->uuid, foreach);
+		handle += 1;
 
 		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
 		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
-			handle += 1;
-
 			foreach_get_attrs(handle,
 					  flags2perm(BLE_ATT_F_READ |
 						     BLE_ATT_F_WRITE,
 						     false), uuid_ccc, foreach);
+			handle += 1;
 		}
 
 		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
-			handle += 1;
 			foreach_get_attrs(handle, flags2perm(chr->flags, false),
 					  dsc->uuid, foreach);
+			handle += 1;
 		}
 	}
 }
@@ -2032,8 +2043,8 @@ static void get_attrs(u8_t *data, u16_t len)
 	rp = (void *) net_buf_simple_push(buf, sizeof(*rp));
 	rp->attrs_count = foreach.count;
 
-	tester_send(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTES, CONTROLLER_INDEX,
-		    buf->om_data, buf->om_len);
+	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTES,
+			CONTROLLER_INDEX, buf);
 
 	goto free;
 fail:
