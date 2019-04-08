@@ -1884,7 +1884,7 @@ static u8_t foreach_get_attrs(u16_t handle,
 	struct gatt_attr *gatt_attr;
 	char uuid_buf[BLE_UUID_STR_LEN];
 
-	if (handle < foreach->start_handle && handle > foreach->end_handle) {
+	if (handle < foreach->start_handle || handle > foreach->end_handle) {
 		return 0;
 	}
 
