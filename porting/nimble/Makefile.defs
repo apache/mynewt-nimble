@@ -50,7 +50,6 @@ NIMBLE_SRC := \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/lls/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/tps/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/store/ram/src/*.c)) \
-	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_periodic_disc.c \
 	$(NULL)
 
 ifneq (,$(NIMBLE_CFG_CONTROLLER))
