@@ -67,6 +67,16 @@ struct ble_hs_hci_ext_conn_params {
     uint16_t conn_itvl;
     uint16_t conn_windows;
 };
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+/* Periodic Advertising Parameters */
+struct hci_periodic_adv_params
+{
+    uint16_t min_interval;
+    uint16_t max_interval;
+    uint16_t properties;
+};
+#endif
 #endif
 
 extern uint16_t ble_hs_hci_avail_pkts;

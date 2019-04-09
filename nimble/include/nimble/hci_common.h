@@ -1002,14 +1002,6 @@ struct hci_le_subev_ext_adv_rpt {
 } __attribute__((packed));
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
-/* Periodic Advertising Parameters */
-struct hci_periodic_adv_params
-{
-    uint16_t min_interval;
-    uint16_t max_interval;
-    uint16_t properties;
-};
-
 /* LE Periodic Advertising Sync Established Event */
 struct hci_le_subev_periodic_adv_sync_estab {
     uint8_t status;
