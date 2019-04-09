@@ -179,7 +179,7 @@ ble_hw_rng_read(void)
     return 0;
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 /**
  * Clear the resolving list
  *

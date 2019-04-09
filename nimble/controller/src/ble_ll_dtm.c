@@ -20,7 +20,7 @@
 #include "syscfg/syscfg.h"
 #include "sysinit/sysinit.h"
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 
 #include <assert.h>
 #include "os/os.h"

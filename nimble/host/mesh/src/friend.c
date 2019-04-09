@@ -8,7 +8,7 @@
 
 
 #include "syscfg/syscfg.h"
-#if MYNEWT_VAL(BLE_MESH_FRIEND) == 1
+#if MYNEWT_VAL(BLE_MESH_FRIEND)
 
 #include <stdint.h>
 #include <errno.h>
@@ -1347,4 +1347,4 @@ void bt_mesh_friend_clear_incomplete(struct bt_mesh_subnet *sub, u16_t src,
 	}
 }
 
-#endif //MYNEWT_VAL(BLE_MESH_FRIEND)
+#endif /* MYNEWT_VAL(BLE_MESH_FRIEND) */

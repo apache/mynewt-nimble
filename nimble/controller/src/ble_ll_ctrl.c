@@ -1007,7 +1007,7 @@ ble_ll_ctrl_datalen_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     put_le16(dptr + 7, connsm->max_tx_time);
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 void
 ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm)
 {
@@ -1423,7 +1423,7 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
 
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
         ble_ll_conn_auth_pyld_timer_start(connsm);
 #endif
         rc = BLE_ERR_MAX;
@@ -1600,7 +1600,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
             }
         }
         break;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_PROC_ENCRYPT:
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
         ble_ll_hci_ev_encrypt_chg(connsm, ble_error);
@@ -2043,7 +2043,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_LENGTH_REQ;
             ble_ll_ctrl_datalen_upd_make(connsm, dptr);
             break;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         /* XXX: deal with already encrypted connection.*/
         case BLE_LL_CTRL_PROC_ENCRYPT:
             /* If we are already encrypted we do pause procedure */
@@ -2266,7 +2266,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     uint8_t *dptr;
     uint8_t *rspbuf;
     uint8_t *rspdata;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     int restart_encryption;
 #endif
     uint8_t new_features = 0;
@@ -2307,7 +2307,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CTRL_RX, opcode, len);
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     restart_encryption = 0;
 #endif
 
@@ -2436,7 +2436,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
         rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
         break;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_ENC_REQ:
         rsp_opcode = ble_ll_ctrl_rx_enc_req(connsm, dptr, rspdata);
         break;
@@ -2508,7 +2508,7 @@ ll_ctrl_send_rsp:
         }
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (restart_encryption) {
             /* XXX: what happens if this fails? Meaning we cant allocate
                mbuf? */
@@ -2605,18 +2605,18 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
                 connsm->csmflags.cfbit.host_expects_upd_event = 1;
             }
         }
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
             connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
         }
 #endif
         break;
     case BLE_LL_CTRL_REJECT_IND:
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
 #endif
         break;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
         /* note: fall-through intentional */
     case BLE_LL_CTRL_ENC_REQ:

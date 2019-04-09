@@ -44,7 +44,7 @@
 #include "controller/ble_ll_trace.h"
 #include "ble_ll_conn_priv.h"
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 #include "ble_ll_dtm_priv.h"
 #endif
 
@@ -590,7 +590,7 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_INITIATING:
             ble_ll_conn_init_wfr_timer_exp();
             break;
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_wfr_timer_exp();
             break;
@@ -685,7 +685,7 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
     crcok = BLE_MBUF_HDR_CRC_OK(hdr);
     connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_CONNECTION);
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
     /* Reuse connection stats for DTM */
     connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_DTM);
 #endif
@@ -762,7 +762,7 @@ ble_ll_rx_pkt_in(void)
         case BLE_LL_STATE_INITIATING:
             ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
             break;
@@ -893,7 +893,7 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
         break;
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
     case BLE_LL_STATE_DTM:
         rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
@@ -941,7 +941,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     ble_ll_trace_u32x3(BLE_LL_TRACE_ID_RX_END, pdu_type, len,
                        rxhdr->rxinfo.flags);
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 1
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_DTM) {
         rc = ble_ll_dtm_rx_isr_end(rxbuf, rxhdr);
         return rc;
@@ -1307,7 +1307,7 @@ ble_ll_reset(void)
     ble_ll_whitelist_clear();
 
     /* Reset resolving list */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_ll_resolv_list_reset();
 #endif
 
@@ -1512,42 +1512,42 @@ ble_ll_init(void)
     /* Set the supported features. NOTE: we always support extended reject. */
     features = BLE_LL_FEAT_EXTENDED_REJ;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
     features |= BLE_LL_FEAT_DATA_LEN_EXT;
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_CONN_PARAM_REQ) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CONN_PARAM_REQ)
     features |= BLE_LL_FEAT_CONN_PARM_REQ;
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG)
     features |= BLE_LL_FEAT_SLAVE_INIT;
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     features |= (BLE_LL_FEAT_LL_PRIVACY | BLE_LL_FEAT_EXT_SCAN_FILT);
     ble_ll_resolv_init();
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     features |= BLE_LL_FEAT_LE_PING;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     features |= BLE_LL_FEAT_EXT_ADV;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     /* CSA2 */
     features |= BLE_LL_FEAT_CSA2;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
     features |= BLE_LL_FEAT_LE_2M_PHY;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     features |= BLE_LL_FEAT_LE_CODED_PHY;
 #endif
 

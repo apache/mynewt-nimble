@@ -31,7 +31,7 @@
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 struct ble_ll_resolv_data
 {
     uint8_t addr_res_enabled;
@@ -676,5 +676,5 @@ ble_ll_resolv_init(void)
                          NULL);
 }
 
-#endif  /* if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1 */
+#endif  /* if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) */
 

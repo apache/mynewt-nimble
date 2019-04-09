@@ -131,7 +131,7 @@ struct ble_ll_scan_sm
     uint8_t scan_rsp_cons_ok;
     int8_t scan_rpa_index;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_npl_time_t scan_nrpa_timer;
     uint8_t scan_nrpa[BLE_DEV_ADDR_LEN];
 #endif

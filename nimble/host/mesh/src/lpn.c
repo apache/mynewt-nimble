@@ -8,7 +8,7 @@
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_MESH_LOW_POWER) == 1
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 
 #include <stdint.h>
 
@@ -66,7 +66,7 @@
 
 static void (*lpn_cb)(u16_t friend_addr, bool established);
 
-#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
+#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
 static const char *state2str(int state)
 {
 	switch (state) {
@@ -96,7 +96,7 @@ static const char *state2str(int state)
 
 static inline void lpn_set_state(int state)
 {
-#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
+#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
 	BT_DBG("%s -> %s", state2str(bt_mesh.lpn.state), state2str(state));
 #endif
 	bt_mesh.lpn.state = state;
@@ -725,7 +725,7 @@ static void lpn_timeout(struct ble_npl_event *work)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-#if (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
+#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
 	BT_DBG("state: %s", state2str(lpn->state));
 #endif
 
@@ -1043,4 +1043,4 @@ int bt_mesh_lpn_init(void)
 	return 0;
 }
 
-#endif //MYNEWT_VAL(BLE_MESH_LOW_POWER) == 1
+#endif /* MYNEWT_VAL(BLE_MESH_LOW_POWER) */

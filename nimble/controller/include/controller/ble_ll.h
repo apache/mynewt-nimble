@@ -539,7 +539,7 @@ ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
     return os_cputime_usecs_to_ticks(usecs + 30);
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /* LTK 0x4C68384139F574D836BCF34E9DFB01BF */
 extern const uint8_t g_bletest_LTK[];
 extern uint16_t g_bletest_EDIV;

@@ -39,7 +39,7 @@ static uint8_t g_ble_hw_whitelist_mask;
 ble_rng_isr_cb_t g_ble_rng_isr_cb;
 
 /* If LL privacy is enabled, allocate memory for AAR */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 
 /* The NRF51 supports up to 16 IRK entries */
 #if (MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE) < 16)
@@ -384,7 +384,7 @@ ble_hw_rng_read(void)
     return rnum;
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY))
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 /**
  * Clear the resolving list
  *

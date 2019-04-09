@@ -123,7 +123,7 @@ struct ble_ll_adv_sm
     uint8_t *conn_comp_ev;
     struct ble_npl_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint16_t channel_id;
     uint16_t event_cntr;
 #endif
@@ -278,7 +278,7 @@ static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hd
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 static void
 ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
@@ -426,7 +426,7 @@ ble_ll_adv_legacy_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         pdu_type = BLE_ADV_PDU_TYPE_ADV_DIRECT_IND;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
 #endif
 
@@ -439,7 +439,7 @@ ble_ll_adv_legacy_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         pdu_type = BLE_ADV_PDU_TYPE_ADV_IND;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
 #endif
     } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
@@ -1031,12 +1031,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     /* XXX: automatically do this in the phy based on channel? */
     ble_phy_encrypt_disable();
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     advsm->adv_rpa_index = -1;
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
@@ -1171,11 +1171,11 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     ble_phy_encrypt_disable();
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     advsm->adv_rpa_index = -1;
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
@@ -1270,7 +1270,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->payload_len = 0;
     aux->ext_hdr = 0;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     aux->chan = ble_ll_utils_calc_dci_csa2(advsm->event_cntr++,
                                            advsm->channel_id,
                                            g_ble_ll_conn_params.num_used_chans,
@@ -1687,7 +1687,7 @@ ble_ll_adv_set_adv_params(uint8_t *cmd)
 
     advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         /* Copy peer address */
         memcpy(advsm->peer_addr, cmd + 7, BLE_DEV_ADDR_LEN);
@@ -2058,11 +2058,11 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     ble_phy_encrypt_disable();
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_phy_resolv_list_disable();
 #endif
 
@@ -2473,7 +2473,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t adv_chan;
     uint8_t *addr;
     uint8_t *evbuf;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint32_t access_addr;
 #endif
 
@@ -2529,7 +2529,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
         }
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     /* This will generate an RPA for both initiator addr and adva */
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         ble_ll_adv_rpa_update(advsm);
@@ -2539,7 +2539,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     /* Set flag telling us that advertising is enabled */
     advsm->adv_enabled = 1;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     advsm->event_cntr = 0;
     access_addr = ble_ll_utils_calc_access_addr();
     advsm->channel_id = ((access_addr & 0xffff0000) >> 16) ^
@@ -3169,7 +3169,7 @@ ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
         goto done;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 0)
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     /* If we dont support privacy some address types wont work */
     if (own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rc = BLE_ERR_UNSUPPORTED;
@@ -3766,7 +3766,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct aux_conn_rsp_data rsp_data;
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
 #endif
 
@@ -3797,7 +3797,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     peer_addr_type = txadd;
     resolved = 0;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     rl = NULL;
     if (ble_ll_resolv_enabled()) {
         if (ble_ll_is_rpa(peer, txadd)) {
@@ -4399,7 +4399,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 #endif
 
     /* We need to regenerate our RPA's if we have passed timeout */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_ll_adv_chk_rpa_timeout(advsm);
 #endif
 
@@ -4568,7 +4568,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
 
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     ble_ll_hci_ev_le_csa(connsm);
 #endif
 
@@ -4697,8 +4697,9 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     ble_npl_event_init(&advsm->adv_sec_txdone_ev, ble_ll_adv_sec_event_done, advsm);
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) == 1)
-    ble_npl_event_init(&advsm->adv_periodic_txdone_ev, ble_ll_adv_periodic_event_done, advsm);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    ble_npl_event_init(&advsm->adv_periodic_txdone_ev,
+                       ble_ll_adv_periodic_event_done, advsm);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -4711,7 +4712,7 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     advsm->aux[1].sch.sched_cb = ble_ll_adv_secondary_tx_start_cb;
     advsm->aux[1].sch.sched_type = BLE_LL_SCHED_TYPE_ADV;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     /* Initialize sync schedulers */
     advsm->periodic_sync_active = 0;
     advsm->periodic_sync[0].sch.cb_arg = advsm;

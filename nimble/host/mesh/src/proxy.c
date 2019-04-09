@@ -8,7 +8,7 @@
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_MESH_PROXY) == 1
+#if MYNEWT_VAL(BLE_MESH_PROXY)
 
 #include "mesh/mesh.h"
 
@@ -1428,4 +1428,4 @@ int bt_mesh_proxy_init(void)
 	return 0;
 }
 
-#endif //MYNEWT_VAL(BLE_MESH_PROXY)
+#endif /* MYNEWT_VAL(BLE_MESH_PROXY) */
