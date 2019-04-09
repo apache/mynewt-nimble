@@ -1027,6 +1027,7 @@ struct hci_le_subev_periodic_adv_rpt {
     uint16_t sync_handle;
     uint8_t tx_power;
     int8_t rssi;
+    uint8_t unused;
     uint8_t data_status;
     uint8_t data_length;
     uint8_t data[0];
