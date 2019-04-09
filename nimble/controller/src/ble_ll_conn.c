@@ -505,7 +505,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
 {
     uint8_t index;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (CONN_F_CSA2_SUPP(conn)) {
         return ble_ll_utils_calc_dci_csa2(conn->event_cntr, conn->channel_id,
                                           conn->num_used_chans, conn->chanmap);
@@ -1658,7 +1658,7 @@ ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
 static void
 ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 {
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (chsel) {
         CONN_F_CSA2_SUPP(connsm) = 1;
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
@@ -2286,7 +2286,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         } else {
             evbuf = ble_ll_init_get_conn_comp_ev();
             ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, NULL);
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
             ble_ll_hci_ev_le_csa(connsm);
 #endif
 
@@ -2552,7 +2552,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     int rc;
     uint8_t *peer_addr;
     struct ble_ll_conn_sm *connsm;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
 #endif
 
@@ -2567,7 +2567,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC:
     case BLE_HCI_CONN_PEER_ADDR_RANDOM:
         if (addr_type == connsm->peer_addr_type) {
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
                 /* Peer uses its identity address. Let's verify privacy mode.
                  *
                  * Note: Core Spec 5.0 Vol 6, Part B
@@ -2587,7 +2587,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
             break;
         }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         /* Check if peer uses RPA. If so and it match, use it as controller
          * supports privacy mode
          */
@@ -2907,7 +2907,7 @@ ble_ll_conn_req_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t chan)
     /* Construct first PDU header byte */
     pdu_type = BLE_ADV_PDU_TYPE_CONNECT_REQ;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     /* We need CSA2 bit only for legacy connect */
     if (chan >= BLE_PHY_NUM_DATA_CHANS) {
         pdu_type |= BLE_ADV_PDU_HDR_CHSEL;
@@ -3088,7 +3088,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
                 goto init_rx_isr_exit;
             }
         }
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 0
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         else {
             /* If privacy is off - reject RPA InitA*/
             goto init_rx_isr_exit;

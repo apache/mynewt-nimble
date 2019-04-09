@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "syscfg/syscfg.h"
-#if MYNEWT_VAL(BLE_MESH_PROV) == 1
+#if MYNEWT_VAL(BLE_MESH_PROV)
 
 #include <errno.h>
 
@@ -1653,4 +1653,4 @@ void bt_mesh_prov_reset(void)
 	}
 }
 
-#endif //MYNEWT_VAL(BLE_MESH_PROV) == 1
+#endif /* MYNEWT_VAL(BLE_MESH_PROV) */

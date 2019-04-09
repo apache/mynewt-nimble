@@ -341,7 +341,7 @@ ble_phy_restart_rx(void)
 {
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /**
  * Called to enable encryption at the PHY. Note that this state will persist
  * in the PHY; in other words, if you call this function you have to call
@@ -610,7 +610,7 @@ ble_phy_max_data_pdu_pyld(void)
     return BLE_LL_DATA_PDU_MAX_PYLD;
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 void
 ble_phy_resolv_list_enable(void)
 {

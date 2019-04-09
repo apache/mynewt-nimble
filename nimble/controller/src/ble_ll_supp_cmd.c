@@ -106,7 +106,7 @@
 #define BLE_SUPP_CMD_LE_SET_HOST_CHAN_CLASS (1 << 3)
 #define BLE_SUPP_CMD_LE_RD_CHAN_MAP         (1 << 4)
 #define BLE_SUPP_CMD_LE_RD_REM_USED_FEAT    (1 << 5)
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 #define BLE_SUPP_CMD_LE_ENCRYPT             (1 << 6)
 #else
 #define BLE_SUPP_CMD_LE_ENCRYPT             (0 << 6)
@@ -126,7 +126,7 @@
 )
 
 /* Octet 28 */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 #define BLE_SUPP_CMD_LE_START_ENCRYPT       (1 << 0)
 #define BLE_SUPP_CMD_LE_LTK_REQ_REPLY       (1 << 1)
 #define BLE_SUPP_CMD_LE_LTK_REQ_NEG_REPLY   (1 << 2)
@@ -137,14 +137,15 @@
 #endif
 #define BLE_SUPP_CMD_LE_READ_SUPP_STATES    (1 << 3)
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 0
-#define BLE_SUPP_CMD_LE_RX_TEST             (0 << 4)
-#define BLE_SUPP_CMD_LE_TX_TEST             (0 << 5)
-#define BLE_SUPP_CMD_LE_TEST_END            (0 << 6)
-#else
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 #define BLE_SUPP_CMD_LE_RX_TEST             (1 << 4)
 #define BLE_SUPP_CMD_LE_TX_TEST             (1 << 5)
 #define BLE_SUPP_CMD_LE_TEST_END            (1 << 6)
+
+#else
+#define BLE_SUPP_CMD_LE_RX_TEST             (0 << 4)
+#define BLE_SUPP_CMD_LE_TX_TEST             (0 << 5)
+#define BLE_SUPP_CMD_LE_TEST_END            (0 << 6)
 #endif
 
 #define BLE_LL_SUPP_CMD_OCTET_28            \
@@ -161,7 +162,7 @@
 /* Octet 33 */
 #define BLE_SUPP_CMD_LE_REM_CONN_PRR        (1 << 4)
 #define BLE_SUPP_CMD_LE_REM_CONN_PRNR       (1 << 5)
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
 #define BLE_SUPP_CMD_LE_SET_DATALEN         (1 << 6)
 #define BLE_SUPP_CMD_LE_RD_SUGG_DATALEN     (1 << 7)
 #else
@@ -178,14 +179,14 @@
 )
 
 /* Octet 34 */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
 #define BLE_SUPP_CMD_LE_WR_SUGG_DATALEN     (1 << 0)
 #else
 #define BLE_SUPP_CMD_LE_WR_SUGG_DATALEN     (0 << 0)
 #endif
 #define BLE_SUPP_CMD_LE_READ_LOCAL_P256_PK  (0 << 1)
 #define BLE_SUPP_CMD_LE_GENERATE_DH_KEY     (0 << 2)
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 #define BLE_SUPP_CMD_LE_ADD_RESOLV_LIST     (1 << 3)
 #define BLE_SUPP_CMD_LE_REMOVE_RESOLV_LIST  (1 << 4)
 #define BLE_SUPP_CMD_LE_CLEAR_RESOLV_LIST   (1 << 5)
@@ -212,7 +213,7 @@
 )
 
 /* Octet 35 */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 #define BLE_SUPP_CMD_LE_RD_LOCAL_RESV_ADDR  (1 << 0)
 #define BLE_SUPP_CMD_LE_SET_ADDR_RES_EN     (1 << 1)
 #define BLE_SUPP_CMD_LE_SET_RESV_ADDR_TMO   (1 << 2)
@@ -232,10 +233,10 @@
 #define BLE_SUPP_CMD_LE_SET_PHY             (0 << 6)
 #endif
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 0
-#define BLE_SUPP_CMD_LE_ENHANCED_RX_TEST    (0 << 7)
-#else
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 #define BLE_SUPP_CMD_LE_ENHANCED_RX_TEST    (1 << 7)
+#else
+#define BLE_SUPP_CMD_LE_ENHANCED_RX_TEST    (0 << 7)
 #endif
 
 #define BLE_LL_SUPP_CMD_OCTET_35            \
@@ -251,13 +252,13 @@
 )
 
 /* Octet 36 */
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE) == 0
-#define BLE_SUPP_CMD_LE_ENHANCED_TX_TEST    (0 << 0)
-#else
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 #define BLE_SUPP_CMD_LE_ENHANCED_TX_TEST    (1 << 0)
+#else
+#define BLE_SUPP_CMD_LE_ENHANCED_TX_TEST    (0 << 0)
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_SUPP_CMD_LE_SET_ADVS_RAND_ADDR  (1 << 1)
 #define BLE_SUPP_CMD_LE_SET_EXT_ADV_PARAM   (1 << 2)
 #define BLE_SUPP_CMD_LE_SET_EXT_ADV_DATA    (1 << 3)
@@ -288,7 +289,7 @@
 )
 
 /* Octet 37 */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_SUPP_CMD_LE_REMOVE_ADVS         (1 << 0)
 #define BLE_SUPP_CMD_LE_CLEAR_ADVS          (1 << 1)
 #else
@@ -304,7 +305,7 @@
 #define BLE_SUPP_CMD_LE_SET_PADV_DATA       (0 << 3)
 #define BLE_SUPP_CMD_LE_SET_PADV_ENABLE     (0 << 4)
 #endif
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_SUPP_CMD_LE_SET_EXT_SCAN_PARAM  (1 << 5)
 #define BLE_SUPP_CMD_LE_SET_EXT_SCAN_ENABLE (1 << 6)
 #define BLE_SUPP_CMD_LE_EXT_CREATE_CONN     (1 << 7)
@@ -351,7 +352,7 @@
 /* Octet 39 */
 #define BLE_SUPP_CMD_LE_RD_RF_PATH_COMP     (1 << 0)
 #define BLE_SUPP_CMD_LE_WR_RF_PATH_COMP     (1 << 1)
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 #define BLE_SUPP_CMD_LE_SET_PRIVACY_MODE    (1 << 2)
 #else
 #define BLE_SUPP_CMD_LE_SET_PRIVACY_MODE    (0 << 2)

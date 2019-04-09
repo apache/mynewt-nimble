@@ -112,7 +112,7 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
     }
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 void
 ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
 {
@@ -274,7 +274,7 @@ ble_ll_hci_ev_databuf_overflow(void)
  *
  * @param connsm Pointer to connection state machine
  */
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
 void
 ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
 {

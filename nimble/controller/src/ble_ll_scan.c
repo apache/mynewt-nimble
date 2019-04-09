@@ -270,7 +270,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
     BLE_LL_ASSERT(scansm->backoff_count <= 256);
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 static void
 ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
 {
@@ -306,7 +306,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     uint8_t     pdu_type;
     uint8_t     *scana;
     struct os_mbuf *m;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     uint8_t rpa[BLE_DEV_ADDR_LEN];
     struct ble_ll_resolv_entry *rl;
 #endif
@@ -329,7 +329,7 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
         scana = g_random_addr;
     }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rl = NULL;
         if (ble_ll_is_rpa(adv_addr, adv_addr_type)) {
@@ -1107,11 +1107,11 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
      */
     ble_phy_set_txend_cb(NULL, NULL);
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     ble_phy_encrypt_disable();
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (ble_ll_resolv_enabled()) {
         ble_phy_resolv_list_enable();
     } else {
@@ -2407,7 +2407,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     resolved = 0;
 
     index = -1;
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (ble_ll_resolv_enabled()) {
         if (ble_ll_is_rpa(peer, peer_addr_type)) {
             index = ble_hw_resolv_list_match();
@@ -2856,7 +2856,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     ident_addr = adv_addr;
     ident_addr_type = txadd;
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     index = scansm->scan_rpa_index;
     if (index >= 0) {
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
@@ -3703,7 +3703,7 @@ ble_ll_scan_common_init(void)
     scansm->phy_data[PHY_CODED].phy = BLE_PHY_CODED;
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     /* Make sure we'll generate new NRPA if necessary */
     scansm->scan_nrpa_timer = ble_npl_time_get();
 #endif

@@ -330,7 +330,7 @@ skip_conn:
     }
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
  * Send a authenticated payload timeout event
  *
@@ -1245,7 +1245,7 @@ ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf)
     return rc;
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
 int
 ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -1290,7 +1290,7 @@ done:
 }
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /**
  * LE start encrypt command
  *
@@ -1432,7 +1432,7 @@ ltk_key_cmd_complete:
 }
 #endif
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
  * Read authenticated payload timeout (OGF=3, OCF==0x007B)
  *

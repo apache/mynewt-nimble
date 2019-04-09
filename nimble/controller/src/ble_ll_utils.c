@@ -204,7 +204,7 @@ ble_ll_utils_calc_num_used_chans(const uint8_t *chmap)
     return used_channels;
 }
 
-#if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2) == 1)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
 static uint16_t
 ble_ll_utils_csa2_perm(uint16_t in)
 {
