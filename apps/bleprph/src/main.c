@@ -28,6 +28,11 @@
 #include "hal/hal_system.h"
 #include "config/config.h"
 #include "split/split.h"
+#if MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0
+#include "bootutil/image.h"
+#include "imgmgr/imgmgr.h"
+#include "services/dis/ble_svc_dis.h"
+#endif
 
 /* BLE */
 #include "nimble/ble.h"
@@ -300,6 +305,10 @@ bleprph_on_sync(void)
 int
 main(void)
 {
+#if MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0
+    struct image_version ver;
+    static char ver_str[IMGMGR_NMGR_MAX_VER];
+#endif
     int rc;
 
     /* Initialize OS */
@@ -317,6 +326,13 @@ main(void)
     /* Set the default device name. */
     rc = ble_svc_gap_device_name_set("nimble-bleprph");
     assert(rc == 0);
+
+#if MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0
+    /* Set firmware version in DIS */
+    imgr_my_version(&ver);
+    imgr_ver_str(&ver, ver_str);
+    ble_svc_dis_firmware_revision_set(ver_str);
+#endif
 
 #if MYNEWT_VAL(BLEPRPH_LE_PHY_SUPPORT)
     phy_init();

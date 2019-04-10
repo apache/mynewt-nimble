@@ -37,6 +37,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/id"
     - nimble/host
     - nimble/host/services/ans
+    - nimble/host/services/dis
     - nimble/host/services/gap
     - nimble/host/services/gatt
     - nimble/host/store/config
