@@ -58,6 +58,7 @@ ble_hs_stop_done(int status)
     }
 }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
 /**
  * Terminates all active periodic sync handles
  *
@@ -65,11 +66,11 @@ ble_hs_stop_done(int status)
  * close procedure.
  */
 static int
-ble_hs_stop_terminate_next_periodic_sync(void)
+ble_hs_stop_terminate_all_periodic_sync(void)
 {
     int rc = 0;
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct ble_hs_periodic_sync *psync;
+    uint16_t sync_handle;
 
     while((psync = ble_hs_periodic_sync_first())){
         /* Terminate sync command waits a command complete event, so there
@@ -80,24 +81,18 @@ ble_hs_stop_terminate_next_periodic_sync(void)
          * removed from the list such that the next call to
          * ble_hs_periodic_sync_first yields the next psync handle
          */
-        rc = ble_gap_periodic_adv_terminate_sync(psync->sync_handle);
-
-        if (!rc){
-            BLE_HS_LOG(ERROR,
-                    "ble_hs_stop: failed to terminate connection; rc=%d\n",
-                     rc);
-            ble_hs_stop_done(rc);
+        sync_handle = psync->sync_handle;
+        rc = ble_gap_periodic_adv_terminate_sync(sync_handle);
+        if (rc != 0 && rc != BLE_HS_ENOTCONN) {
+            BLE_HS_LOG(ERROR, "failed to terminate periodic sync=0x%04x, rc=%d\n",
+                       sync_handle, rc);
+            return rc;
         }
     }
 
-#endif
-    /* No more active periodic sync handles (Or periodic advertising
-     * is not supported), Signal completion of the stop procedure.
-     */
-    ble_hs_stop_done(0);
-
-    return rc;
+    return 0;
 }
+#endif
 
 /**
  * Terminates the first open connection.
@@ -113,8 +108,8 @@ ble_hs_stop_terminate_next_conn(void)
 
     handle = ble_hs_atomic_first_conn_handle();
     if (handle == BLE_HS_CONN_HANDLE_NONE) {
-        /* No open connections.  Check for any active periodic sync */
-        ble_hs_stop_terminate_next_periodic_sync();
+        /* No open connections.  Signal completion of the stop procedure. */
+        ble_hs_stop_done(0);
         return;
     }
 
@@ -243,6 +238,14 @@ ble_hs_stop(struct ble_hs_stop_listener *listener,
     if (rc != 0) {
         return rc;
     }
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    /* Check for active periodic sync first and terminate it all */
+    rc = ble_hs_stop_terminate_all_periodic_sync();
+    if (rc != 0) {
+        return rc;
+    }
+#endif
 
     /* Schedule termination of all open connections in the host task.  This is
      * done even if there are no open connections so that the result of the
