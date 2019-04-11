@@ -3423,10 +3423,8 @@ ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle)
      * the app wants to terminate that sync handle */
     psync = ble_hs_periodic_sync_find(sync_handle);
     if (!psync) {
-        /* Sync already terminated. TODO: Not sure what error code
-         * describes this scnario the best */
-        rc = BLE_HS_EALREADY;
-        goto done;
+        /* Sync already terminated.*/
+        return BLE_HS_ENOTCONN;
     }
 
     /* Remove the handle from the list */
@@ -3446,7 +3444,6 @@ ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle)
 
     rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
 
-done:
     return rc;
 }
 
