@@ -206,9 +206,13 @@ ble_hs_periodic_sync_first(void)
 #if !MYNEWT_VAL(BLE_PERIODIC_ADV)
     return NULL;
 #endif
+    struct ble_hs_periodic_sync *psync;
 
-    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
-    return SLIST_FIRST(&ble_hs_periodic_sync_handles);
+    ble_hs_lock();
+    psync = SLIST_FIRST(&ble_hs_periodic_sync_handles);
+    ble_hs_unlock();
+
+    return psync;
 }
 
 int
