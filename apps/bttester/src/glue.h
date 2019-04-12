@@ -36,8 +36,6 @@
 
 #define sys_le16_to_cpu le16toh
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 struct bt_data {
     u8_t type;
     u8_t data_len;
