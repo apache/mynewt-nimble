@@ -2023,6 +2023,10 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
         case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
             btshell_l2cap_coc_recv(event->receive.chan, event->receive.sdu_rx);
             return 0;
+        case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+            console_printf("L2CAP CoC channel %p unstalled, last sdu sent with err=0x%02x\n",
+                            event->tx_unstalled.chan, event->tx_unstalled.status);
+            return 0;
         default:
             return 0;
     }
