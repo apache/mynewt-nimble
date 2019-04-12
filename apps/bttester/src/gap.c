@@ -28,7 +28,7 @@
 #include "host/ble_gap.h"
 #include "console/console.h"
 
-#include "../../../../apache-mynewt-nimble/nimble/host/src/ble_hs_pvcy_priv.h"
+#include "../../../nimble/host/src/ble_hs_pvcy_priv.h"
 #include "../../../nimble/host/src/ble_hs_hci_priv.h"
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
