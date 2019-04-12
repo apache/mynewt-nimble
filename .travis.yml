@@ -116,6 +116,7 @@ before_script:
   - gcc --version
   - if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
   - cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
+  - mkdir -p targets
   - cp -R $HOME/ci/mynewt-nimble-targets targets
   - $HOME/ci/prepare_test.sh $VM_AMOUNT
   - mkdir -p repos && pushd repos/
