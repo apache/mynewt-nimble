@@ -33,7 +33,7 @@
 #include "host/ble_gatt.h"
 #include "console/console.h"
 #include "services/gatt/ble_svc_gatt.h"
-#include "../../../../apache-mynewt-nimble/nimble/host/src/ble_gatt_priv.h"
+#include "../../../nimble/host/src/ble_gatt_priv.h"
 
 #include "bttester.h"
 
