@@ -316,6 +316,23 @@ ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan)
     os_mbuf_free_chain(chan->coc_tx.sdu);
 }
 
+static void
+ble_l2cap_event_coc_unstalled(struct ble_l2cap_chan *chan, int status)
+{
+    struct ble_l2cap_event event = { };
+
+    if (!chan->cb) {
+        return;
+    }
+
+    event.type = BLE_L2CAP_EVENT_COC_TX_UNSTALLED;
+    event.tx_unstalled.conn_handle = chan->conn_handle;
+    event.tx_unstalled.chan = chan;
+    event.tx_unstalled.status = status;
+
+    chan->cb(&event, chan->cb_arg);
+}
+
 static int
 ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
 {
@@ -402,8 +419,18 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
                 os_mbuf_free_chain(tx->sdu);
                 tx->sdu = 0;
                 tx->data_offset = 0;
+                if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
+                    ble_l2cap_event_coc_unstalled(chan, 0);
+                    tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
+                }
                 break;
         }
+    }
+
+    if (tx->sdu) {
+        /* Not complete SDU sent, wait for credits */
+        tx->flags |= BLE_L2CAP_COC_FLAG_STALLED;
+        return BLE_HS_ESTALLED;
     }
 
     return 0;
@@ -412,6 +439,10 @@ failed:
     os_mbuf_free_chain(tx->sdu);
     tx->sdu = NULL;
     os_mbuf_free_chain(txom);
+    if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
+        ble_l2cap_event_coc_unstalled(chan, rc);
+        tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
+    }
 
     return rc;
 }

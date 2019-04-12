@@ -75,6 +75,7 @@ struct ble_hs_conn;
 #define BLE_L2CAP_EVENT_COC_DISCONNECTED              1
 #define BLE_L2CAP_EVENT_COC_ACCEPT                    2
 #define BLE_L2CAP_EVENT_COC_DATA_RECEIVED             3
+#define BLE_L2CAP_EVENT_COC_TX_UNSTALLED              4
 
 typedef void ble_l2cap_sig_update_fn(uint16_t conn_handle, int status,
                                      void *arg);
@@ -173,6 +174,28 @@ struct ble_l2cap_event {
             /** The mbuf with received SDU. */
             struct os_mbuf *sdu_rx;
         } receive;
+
+        /**
+         * Represents tx_unstalled data. Valid for the following event
+         * types:
+         *     o BLE_L2CAP_EVENT_COC_TX_UNSTALLED
+         */
+        struct {
+            /** Connection handle of the relevant connection */
+            uint16_t conn_handle;
+
+            /** The L2CAP channel of the relevant L2CAP connection. */
+            struct ble_l2cap_chan *chan;
+
+            /**
+             * The status of the send attempt which was stalled due to
+             * lack of credits; This can be non zero only if there
+             * is an issue with memory allocation for following SDU fragments.
+             * In such a case last SDU has been partially sent to peer device
+             * and it is up to application to decide how to handle it.
+             */
+            int status;
+        } tx_unstalled;
     };
 };
 

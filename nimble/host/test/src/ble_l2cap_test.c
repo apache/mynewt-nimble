@@ -736,6 +736,9 @@ ble_l2cap_test_event(struct ble_l2cap_event *event, void *arg)
                                     OS_MBUF_PKTLEN(event->receive.sdu_rx));
         TEST_ASSERT(memcmp(sdu_rx->om_data, ev->data, ev->data_len) == 0);
         return 0;
+    case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+        /* TODO Add tests for this */
+        return 0;
     default:
         return 0;
     }
