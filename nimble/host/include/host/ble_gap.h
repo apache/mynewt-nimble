@@ -972,17 +972,15 @@ int ble_gap_periodic_adv_configure(uint8_t instance, const struct ble_gap_period
 int ble_gap_periodic_adv_start(uint8_t instance);
 int ble_gap_periodic_adv_stop(uint8_t instance);
 int ble_gap_periodic_adv_set_data(uint8_t instance, struct os_mbuf *data);
-int ble_gap_periodic_adv_create_sync (uint8_t filter_policy,
-                                 uint8_t    adv_sid, uint8_t adv_add_type,
-                                 const uint8_t *adv_addr, uint16_t skip,
-                                 uint16_t sync_timeout);
+int ble_gap_periodic_adv_create_sync(const ble_addr_t *peer_addr, uint8_t adv_sid,
+                                     uint8_t filter_policy, uint16_t skip,
+                                     uint16_t sync_timeout);
 int ble_gap_periodic_adv_create_sync_cancel(void);
 int ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle);
 int ble_gap_add_dev_to_periodic_adv_list(uint8_t adv_add_type, const uint8_t *adv_add,
-                                    uint8_t adv_sid);
-int ble_gap_rem_dev_from_periodic_adv_list(uint8_t adv_addr_type,
-                                      const uint8_t *adv_addr,
-                                      uint8_t adv_sid);
+                                         uint8_t adv_sid);
+int ble_gap_rem_dev_from_periodic_adv_list(const ble_addr_t *peer_addr,
+                                           uint8_t adv_sid);
 int ble_gap_clear_periodic_adv_list(void);
 int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
 #endif

@@ -3345,9 +3345,9 @@ ble_gap_periodic_adv_stop(uint8_t instance)
 }
 
 int
-ble_gap_periodic_adv_create_sync(uint8_t filter_policy, uint8_t adv_sid,
-        uint8_t adv_addr_type, const uint8_t *adv_addr, uint16_t skip,
-        uint16_t sync_timeout)
+ble_gap_periodic_adv_create_sync(const ble_addr_t *peer_addr, uint8_t adv_sid,
+                                 uint8_t filter_policy, uint16_t skip,
+                                 uint16_t sync_timeout)
 {
     uint8_t buf[BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN];
     uint16_t opcode;
@@ -3366,8 +3366,8 @@ ble_gap_periodic_adv_create_sync(uint8_t filter_policy, uint8_t adv_sid,
 
     rc = ble_hs_hci_cmd_build_le_periodic_adv_create_sync(filter_policy,
                                                           adv_sid,
-                                                          adv_addr_type,
-                                                          adv_addr,
+                                                          peer_addr->type,
+                                                          peer_addr->val,
                                                           skip, sync_timeout,
                                                           buf, sizeof(buf));
     if (rc != 0) {
@@ -3469,8 +3469,7 @@ ble_gap_add_dev_to_periodic_adv_list(uint8_t adv_addr_type,
 }
 
 int
-ble_gap_rem_dev_from_periodic_adv_list(uint8_t adv_addr_type,
-        const uint8_t *adv_addr, uint8_t adv_sid)
+ble_gap_rem_dev_from_periodic_adv_list(const ble_addr_t *peer_addr, uint8_t adv_sid)
 {
     uint8_t buf[BLE_HCI_LE_REM_DEV_FROM_PERIODIC_ADV_LIST_LEN];
     uint16_t opcode;
@@ -3479,8 +3478,8 @@ ble_gap_rem_dev_from_periodic_adv_list(uint8_t adv_addr_type,
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
             BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST);
 
-    rc = ble_hs_hci_cmd_build_le_rem_dev_from_periodic_adv_list(adv_addr_type,
-            adv_addr, adv_sid, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_le_rem_dev_from_periodic_adv_list(peer_addr->type,
+            peer_addr->val, adv_sid, buf, sizeof(buf));
     if (rc != 0) {
         return rc;
     }
