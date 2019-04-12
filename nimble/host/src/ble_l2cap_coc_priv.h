@@ -35,11 +35,14 @@ extern "C" {
 
 struct ble_l2cap_chan;
 
+#define BLE_L2CAP_COC_FLAG_STALLED              0x01
+
 struct ble_l2cap_coc_endpoint {
+    struct os_mbuf *sdu;
     uint16_t mtu;
     uint16_t credits;
     uint16_t data_offset;
-    struct os_mbuf *sdu;
+    uint8_t flags;
 };
 
 struct ble_l2cap_coc_srv {
