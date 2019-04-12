@@ -3361,7 +3361,7 @@ ble_gap_periodic_adv_create_sync(const ble_addr_t *peer_addr, uint8_t adv_sid,
 
     /* No sync can be created if another sync is still pending */
     if (ble_gap_master.pending_create_sync) {
-        return BLE_HS_EINVAL;
+        return BLE_HS_EBUSY;
     }
 
     rc = ble_hs_hci_cmd_build_le_periodic_adv_create_sync(filter_policy,
@@ -3391,7 +3391,7 @@ ble_gap_periodic_adv_create_sync_cancel(void)
     int rc = 0;
 
     if (!ble_gap_master.pending_create_sync) {
-        return BLE_HS_EINVAL;
+        return BLE_HS_EBUSY;
     }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
@@ -3414,7 +3414,7 @@ ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle)
     int rc = 0;
 
     if (ble_gap_master.pending_create_sync) {
-        return BLE_HS_EINVAL;
+        return BLE_HS_EBUSY;
     }
 
     ble_hs_lock();
