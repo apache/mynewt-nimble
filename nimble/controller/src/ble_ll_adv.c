@@ -1873,7 +1873,7 @@ ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
 static void
 ble_ll_adv_sm_stop_limit_reached(struct ble_ll_adv_sm *advsm)
 {
-    ble_ll_hci_ev_send_adv_set_terminated(BLE_RR_LIMIT_REACHED,
+    ble_ll_hci_ev_send_adv_set_terminated(BLE_ERR_LIMIT_REACHED,
                                           advsm->adv_instance, 0,
                                           advsm->events);
 

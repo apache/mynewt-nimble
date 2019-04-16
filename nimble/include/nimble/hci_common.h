@@ -584,6 +584,10 @@ extern "C" {
 /* --- LE remove device from periodic advertising list (OCF 0x0048) */
 #define BLE_HCI_LE_REM_DEV_FROM_PERIODIC_ADV_LIST_LEN    (8)
 
+#define BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE   0x00
+#define BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE 0x01
+#define BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED  0x02
+
 /* --- LE write RF path (OCF 0x004D) */
 #define BLE_HCI_LE_WR_RF_PATH_COMPENSATION_LEN      (4)
 
@@ -1016,7 +1020,7 @@ struct hci_le_subev_periodic_adv_sync_estab {
 /* LE Periodic Advertising Report Event */
 struct hci_le_subev_periodic_adv_rpt {
     uint16_t sync_handle;
-    uint8_t tx_power;
+    int8_t tx_power;
     int8_t rssi;
     uint8_t unused;
     uint8_t data_status;

@@ -204,6 +204,15 @@ STATS_SECT_START(ble_ll_stats)
     STATS_SECT_ENTRY(scan_timer_restarted)
     STATS_SECT_ENTRY(periodic_adv_drop_event)
     STATS_SECT_ENTRY(periodic_chain_drop_event)
+    STATS_SECT_ENTRY(sync_event_failed)
+    STATS_SECT_ENTRY(sync_received)
+    STATS_SECT_ENTRY(sync_chain_failed)
+    STATS_SECT_ENTRY(sync_missed_err)
+    STATS_SECT_ENTRY(sync_crc_err)
+    STATS_SECT_ENTRY(sync_rx_buf_err)
+    STATS_SECT_ENTRY(sync_scheduled)
+    STATS_SECT_ENTRY(sched_state_sync_errs)
+    STATS_SECT_ENTRY(sched_invalid_pdu)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
@@ -214,6 +223,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_INITIATING     (3)
 #define BLE_LL_STATE_CONNECTION     (4)
 #define BLE_LL_STATE_DTM            (5)
+#define BLE_LL_STATE_SYNC           (6)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION    (0x00000001)

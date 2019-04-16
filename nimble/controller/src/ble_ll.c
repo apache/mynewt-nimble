@@ -42,6 +42,7 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
 #include "controller/ble_ll_trace.h"
+#include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
@@ -209,6 +210,15 @@ STATS_NAME_START(ble_ll_stats)
     STATS_NAME(ble_ll_stats, scan_timer_restarted)
     STATS_NAME(ble_ll_stats, periodic_adv_drop_event)
     STATS_NAME(ble_ll_stats, periodic_chain_drop_event)
+    STATS_NAME(ble_ll_stats, sync_event_failed)
+    STATS_NAME(ble_ll_stats, sync_received)
+    STATS_NAME(ble_ll_stats, sync_chain_failed)
+    STATS_NAME(ble_ll_stats, sync_missed_err)
+    STATS_NAME(ble_ll_stats, sync_crc_err)
+    STATS_NAME(ble_ll_stats, sync_rx_buf_err)
+    STATS_NAME(ble_ll_stats, sync_scheduled)
+    STATS_NAME(ble_ll_stats, sched_state_sync_errs)
+    STATS_NAME(ble_ll_stats, sched_invalid_pdu)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct ble_npl_event *ev);
@@ -595,6 +605,11 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_dtm_wfr_timer_exp();
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+        case BLE_LL_STATE_SYNC:
+            ble_ll_sync_wfr_timer_exp();
+            break;
+#endif
         default:
             break;
         }
@@ -767,6 +782,11 @@ ble_ll_rx_pkt_in(void)
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+        case BLE_LL_STATE_SYNC:
+            ble_ll_sync_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
         default:
             /* Any other state should never occur */
             STATS_INC(ble_ll_stats, bad_ll_state);
@@ -898,6 +918,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    case BLE_LL_STATE_SYNC:
+        rc = ble_ll_sync_rx_isr_start(pdu_type, rxhdr);
+        break;
+#endif
     default:
         /* Should not be in this state! */
         rc = -1;
@@ -952,6 +977,13 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_SYNC) {
+        rc = ble_ll_sync_rx_isr_end(rxbuf, rxhdr);
+        return rc;
+    }
+#endif
 
     /* If the CRC checks, make sure lengths check! */
     badpkt = 0;
@@ -1268,6 +1300,11 @@ ble_ll_reset(void)
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
     ble_ll_dtm_reset();
+#endif
+
+    /* Stop sync */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    ble_ll_sync_reset();
 #endif
 
     /* FLush all packets from Link layer queues */
