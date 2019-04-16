@@ -1291,6 +1291,9 @@ ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
 
     ble_gap_adv_finished(evt->adv_handle, reason, conn_handle,
                          evt->completed_events);
+
+    /* Remove ble_gap_slave instance */
+    memset(&ble_gap_slave[instance], 0, sizeof(struct ble_gap_slave_state));
 }
 #endif
 
