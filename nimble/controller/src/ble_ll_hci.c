@@ -32,6 +32,7 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
@@ -611,6 +612,7 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_RD_P256_PUBKEY:
     case BLE_HCI_OCF_LE_GEN_DHKEY:
     case BLE_HCI_OCF_LE_SET_PHY:
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
         rc = 1;
         break;
     default:
@@ -1162,6 +1164,43 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
     case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
         /* variable length */
         rc = ble_ll_ext_conn_create(cmdbuf, len);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
+        if (len == BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN) {
+            rc = ble_ll_sync_create(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL:
+        if (len == 0) {
+            rc = ble_ll_sync_cancel(cb);
+        }
+        break;
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC:
+        if (len == BLE_HCI_LE_PERIODIC_ADV_TERM_SYNC_LEN) {
+            rc = ble_ll_sync_terminate(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_ADD_DEV_TO_PERIODIC_ADV_LIST:
+        if (len == BLE_HCI_LE_ADD_DEV_TO_PERIODIC_ADV_LIST_LEN) {
+            rc = ble_ll_sync_list_add(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST:
+        if (len == BLE_HCI_LE_REM_DEV_FROM_PERIODIC_ADV_LIST_LEN) {
+            rc = ble_ll_sync_list_remove(cmdbuf);
+        }
+        break;
+    case BLE_HCI_OCF_LE_CLEAR_PERIODIC_ADV_LIST:
+        if (len == 0) {
+            rc = ble_ll_sync_list_clear();
+        }
+        break;
+    case BLE_HCI_OCF_LE_RD_PERIODIC_ADV_LIST_SIZE:
+        if (len == 0) {
+            rc = ble_ll_sync_list_size(rspbuf, rsplen);
+        }
         break;
 #endif
     case BLE_HCI_OCF_LE_RD_TRANSMIT_POWER:

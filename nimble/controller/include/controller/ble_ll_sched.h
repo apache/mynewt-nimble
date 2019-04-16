@@ -74,6 +74,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_CONN      (3)
 #define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
 #define BLE_LL_SCHED_TYPE_DTM       (5)
+#define BLE_LL_SCHED_TYPE_SYNC      (6)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -164,6 +165,14 @@ int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
 /* Schedule periodic advertising event */
 int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, uint32_t *start,
                               bool after_overlap);
+
+int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
+                                 uint32_t anchor_point,
+                                 uint8_t anchor_point_usecs,
+                                 uint32_t window_widening, int8_t phy_mode);
+int ble_ll_sched_sync(struct ble_ll_sched_item *sch,
+                      struct ble_mbuf_hdr *ble_hdr, uint32_t offset,
+                      int8_t phy_mode);
 
 /* Reschedule an advertising event */
 int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,

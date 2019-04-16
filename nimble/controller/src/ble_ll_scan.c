@@ -39,6 +39,7 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_xcvr.h"
 #include "controller/ble_ll_trace.h"
+#include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
 
 /*
@@ -1593,6 +1594,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
     switch (ble_ll_state_get()) {
     case BLE_LL_STATE_ADV:
     case BLE_LL_STATE_CONNECTION:
+    case BLE_LL_STATE_SYNC:
          start_scan = 0;
          break;
     case BLE_LL_STATE_INITIATING:
@@ -2084,7 +2086,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
         }
 
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
-            /* TODO Handle periodic adv */
+            out_evt->per_adv_itvl = get_le16(ext_hdr + i + 2);
             i += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
         }
 
@@ -2549,6 +2551,9 @@ scan_rx_isr_exit:
  * connection event has ended. It is also called if we receive a packet while
  * in the initiating or scanning state.
  *
+ * If periodic advertising is enabled this is also called on sync event end
+ * or sync packet received if chaining
+ *
  * Context: Link Layer task
  */
 void
@@ -2785,6 +2790,63 @@ done:
     return rc;
 }
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+static void
+check_periodic_sync(const struct os_mbuf *om, struct ble_mbuf_hdr *rxhdr,
+                          uint8_t *adva, uint8_t adva_type)
+{
+    uint8_t pdu_len;
+    uint8_t ext_hdr_len;
+    uint8_t ext_hdr_flags;
+    uint8_t *ext_hdr;
+    uint8_t *rxbuf = om->om_data;
+    uint8_t sid;
+    int i;
+
+    pdu_len = rxbuf[1];
+    if (pdu_len == 0) {
+        return;
+    }
+
+    ext_hdr_len = rxbuf[2] & 0x3F;
+
+    if (ext_hdr_len) {
+        ext_hdr_flags = rxbuf[3];
+        ext_hdr = &rxbuf[4];
+        i = 0;
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+            i += BLE_LL_EXT_ADV_ADVA_SIZE;
+        }
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+            i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        }
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+            i += 1;
+        }
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+            sid = (get_le16(ext_hdr + i) >> 12);
+            i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+        } else {
+            /* ADI is mandatory */
+            return;
+        }
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+            i += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+        }
+
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
+            ble_ll_sync_info_event(adva, adva_type, sid, rxhdr, ext_hdr + i);
+        }
+    }
+}
+#endif
+
 /**
  * Process a received PDU while in the scanning state.
  *
@@ -2880,6 +2942,16 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             init_addr = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
             init_addr_type = scansm->own_addr_type & 1;
         }
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    /* periodic scan is using own filter list so we need to bypass scan filter
+     * policy if PDU and adv type match and advertiser address is present
+     */
+    if ((ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) &&
+            (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && ident_addr) {
+        check_periodic_sync(om, hdr, ident_addr, ident_addr_type);
     }
 #endif
 

@@ -21,6 +21,7 @@
 #define H_BLE_LL_CONN_PRIV_
 
 #include "controller/ble_ll_conn.h"
+#include "controller/ble_ll_hci.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,9 +58,6 @@ extern "C" {
 /* Default authenticated payload timeout (30 seconds; in 10 msecs increments) */
 #define BLE_LL_CONN_DEF_AUTH_PYLD_TMO       (3000)
 #define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     ble_npl_time_ms_to_ticks32((x) * 10)
-
-
-typedef void (*ble_ll_hci_post_cmd_complete_cb)(void);
 
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params

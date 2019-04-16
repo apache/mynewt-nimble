@@ -233,7 +233,8 @@ enum ble_error_codes
     BLE_ERR_COARSE_CLK_ADJ      = 0x40,
     BLE_ERR_TYPE0_SUBMAP_NDEF   = 0x41,
     BLE_ERR_UNK_ADV_INDENT      = 0x42,
-    BLE_RR_LIMIT_REACHED        = 0x43,
+    BLE_ERR_LIMIT_REACHED       = 0x43,
+    BLE_ERR_OPERATION_CANCELLED = 0x44,
     BLE_ERR_MAX                 = 0xff
 };
 

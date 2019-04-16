@@ -328,6 +328,15 @@
 )
 
 /* Octet 38 */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#define BLE_SUPP_CMD_LE_PADV_CREATE_SYNC    (1 << 0)
+#define BLE_SUPP_CMD_LE_PADV_CREATE_SYNC_C  (1 << 1)
+#define BLE_SUPP_CMD_LE_PADV_TERMINATE_SYNC (1 << 2)
+#define BLE_SUPP_CMD_LE_ADD_PADV_LIST       (1 << 3)
+#define BLE_SUPP_CMD_LE_REMOVE_PADV_LIST    (1 << 4)
+#define BLE_SUPP_CMD_LE_CLEAR_PADV_LIST     (1 << 5)
+#define BLE_SUPP_CMD_LE_RD_PADV_LIST_SIZE   (1 << 6)
+#else
 #define BLE_SUPP_CMD_LE_PADV_CREATE_SYNC    (0 << 0)
 #define BLE_SUPP_CMD_LE_PADV_CREATE_SYNC_C  (0 << 1)
 #define BLE_SUPP_CMD_LE_PADV_TERMINATE_SYNC (0 << 2)
@@ -335,6 +344,7 @@
 #define BLE_SUPP_CMD_LE_REMOVE_PADV_LIST    (0 << 4)
 #define BLE_SUPP_CMD_LE_CLEAR_PADV_LIST     (0 << 5)
 #define BLE_SUPP_CMD_LE_RD_PADV_LIST_SIZE   (0 << 6)
+#endif
 #define BLE_SUPP_CMD_LE_RD_TX_POWER         (1 << 7)
 
 #define BLE_LL_SUPP_CMD_OCTET_38            \
