@@ -2523,12 +2523,6 @@ ble_gap_ext_adv_configure(uint8_t instance,
 
     ble_hs_lock();
 
-    /* TODO should we allow to reconfigure existing instance? */
-    if (ble_gap_slave[instance].configured) {
-        ble_hs_unlock();
-        return ENOMEM;
-    }
-
     rc = ble_gap_ext_adv_params_tx(instance, params, selected_tx_power);
     if (rc) {
         ble_hs_unlock();
