@@ -94,7 +94,18 @@ static void recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
 		    CONTROLLER_INDEX, recv_cb_buf, sizeof(*ev) + buf->om_len);
 
 	tester_l2cap_coc_recv(chan, buf);
+}
 
+static void unstalled_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
+			 int status, void *arg)
+{
+	if (status) {
+		tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+	} else {
+		tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA,
+			   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
+	}
 }
 
 static struct channel *get_free_channel()
@@ -243,6 +254,15 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 		recv_cb(event->receive.conn_handle, event->receive.chan,
 			event->receive.sdu_rx, arg);
 		return 0;
+	case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+		console_printf("LE CoC tx unstalled, chan: 0x%08lx, handle: %u, status: %d\n",
+			       (uint32_t) event->tx_unstalled.chan,
+			       event->tx_unstalled.conn_handle,
+			       event->tx_unstalled.status);
+		unstalled_cb(event->tx_unstalled.conn_handle,
+			     event->tx_unstalled.chan,
+			     event->tx_unstalled.status, arg);
+		return 0;
 	default:
 		return 0;
 	}
@@ -326,7 +346,7 @@ static void send_data(u8_t *data, u16_t len)
 {
 	const struct l2cap_send_data_cmd *cmd = (void *) data;
 	struct channel *chan = &channels[cmd->chan_id];
-	struct os_mbuf *sdu_tx;
+	struct os_mbuf *sdu_tx = NULL;
 	int rc;
 	u16_t data_len = sys_le16_to_cpu(cmd->data_len);
 
@@ -347,15 +367,18 @@ static void send_data(u8_t *data, u16_t len)
 	os_mbuf_append(sdu_tx, cmd->data, data_len);
 
 	rc = ble_l2cap_send(chan->chan, sdu_tx);
-	if (rc) {
-		SYS_LOG_ERR("Unable to send data: %d", rc);
-		os_mbuf_free_chain(sdu_tx);
-		goto fail;
+	if (rc == BLE_HS_ESTALLED) {
+		/* Wait for TX_UNSTALLED event before sending response */
+		/* ble_l2cap_send takes ownership of the sdu */
+		return;
+	} else if (rc == 0) {
+		tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA, CONTROLLER_INDEX,
+			   BTP_STATUS_SUCCESS);
+		return;
 	}
 
-	tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA, CONTROLLER_INDEX,
-		   BTP_STATUS_SUCCESS);
-	return;
+	SYS_LOG_ERR("Unable to send data: %d", rc);
+	os_mbuf_free_chain(sdu_tx);
 
 fail:
 	tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA, CONTROLLER_INDEX,
