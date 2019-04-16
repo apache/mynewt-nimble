@@ -45,7 +45,7 @@ syscfg.vals:
     BLE_ROLE_PERIPHERAL: 1
 
     # Configure DIS
-    BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM: 0
+    BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM: 1
 
     # Log reboot messages to a flash circular buffer.
     REBOOT_LOG_FCB: 1
