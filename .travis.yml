@@ -120,7 +120,8 @@ before_script:
   - cp -R $HOME/ci/mynewt-nimble-targets targets
   - $HOME/ci/prepare_test.sh $VM_AMOUNT
   - mkdir -p repos && pushd repos/
-  - git clone https://github.com/apache/mynewt-core apache-mynewt-core
+  - git clone --depth=1 https://github.com/apache/mynewt-core apache-mynewt-core
+  - git clone --depth=1 https://github.com/JuulLabs-OSS/mcuboot mcuboot
   - popd
 
 script:
