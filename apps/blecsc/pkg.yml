@@ -25,7 +25,6 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - "@apache-mynewt-core/boot/bootutil"
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/console/full"
     - "@apache-mynewt-core/sys/log/full"

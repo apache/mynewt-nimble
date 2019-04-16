@@ -24,7 +24,7 @@ pkg.keywords:
 
 pkg.deps:
     - "@apache-mynewt-core/boot/split"
-    - "@apache-mynewt-core/boot/bootutil"
+    - "@mcuboot/boot/bootutil"
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/mgmt/imgmgr"
     - "@apache-mynewt-core/mgmt/newtmgr"
