@@ -2510,7 +2510,7 @@ ble_gap_ext_adv_configure(uint8_t instance,
     int rc;
 
     if (instance >= BLE_ADV_INSTANCES) {
-        return EINVAL;
+        return BLE_HS_EINVAL;
     }
 
     rc = ble_gap_ext_adv_params_validate(params);
@@ -2520,10 +2520,9 @@ ble_gap_ext_adv_configure(uint8_t instance,
 
     ble_hs_lock();
 
-    /* TODO should we allow to reconfigure existing instance? */
-    if (ble_gap_slave[instance].configured) {
+    if (ble_gap_adv_active_instance(instance)) {
         ble_hs_unlock();
-        return ENOMEM;
+        return BLE_HS_EBUSY;
     }
 
     rc = ble_gap_ext_adv_params_tx(instance, params, selected_tx_power);
