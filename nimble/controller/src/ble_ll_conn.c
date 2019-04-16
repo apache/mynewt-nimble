@@ -131,12 +131,6 @@ struct ble_ll_empty_pdu
     #error "Maximum # of connections is 254"
 #endif
 
-/* Sleep clock accuracy table (in ppm) */
-static const uint16_t g_ble_sca_ppm_tbl[8] =
-{
-    500, 250, 150, 100, 75, 50, 30, 20
-};
-
 /* Global connection complete event. Used when initiating */
 uint8_t *g_ble_ll_conn_comp_ev;
 
@@ -430,37 +424,6 @@ ble_ll_conn_sm_get(void)
     }
 
     return connsm;
-}
-
-/**
- * Calculate the amount of window widening for a given connection event. This
- * is the amount of time that a slave has to account for when listening for
- * the start of a connection event.
- *
- * @param connsm Pointer to connection state machine.
- *
- * @return uint32_t The current window widening amount (in microseconds)
- */
-uint32_t
-ble_ll_conn_calc_window_widening(struct ble_ll_conn_sm *connsm)
-{
-    uint32_t total_sca_ppm;
-    uint32_t window_widening;
-    int32_t time_since_last_anchor;
-    uint32_t delta_msec;
-
-    window_widening = 0;
-
-    time_since_last_anchor = (int32_t)(connsm->anchor_point -
-                                       connsm->last_anchor_point);
-    if (time_since_last_anchor > 0) {
-        delta_msec = os_cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
-        total_sca_ppm = g_ble_sca_ppm_tbl[connsm->master_sca] +
-            MYNEWT_VAL(BLE_LL_OUR_SCA);
-        window_widening = (total_sca_ppm * delta_msec) / 1000;
-    }
-
-    return window_widening;
 }
 
 static uint8_t
@@ -2143,7 +2106,10 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     itvl = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
 #endif
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-        cur_ww = ble_ll_conn_calc_window_widening(connsm);
+
+        cur_ww = ble_ll_utils_calc_window_widening(connsm->anchor_point,
+                                                   connsm->last_anchor_point,
+                                                   connsm->master_sca);
         max_ww = (connsm->conn_itvl * (BLE_LL_CONN_ITVL_USECS/2)) - BLE_LL_IFS;
         if (cur_ww >= max_ww) {
             return -1;
