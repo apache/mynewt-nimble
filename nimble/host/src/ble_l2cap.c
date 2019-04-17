@@ -32,8 +32,7 @@ _Static_assert(sizeof (struct ble_l2cap_hdr) == BLE_L2CAP_HDR_SZ,
 struct os_mempool ble_l2cap_chan_pool;
 
 static os_membuf_t ble_l2cap_chan_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
-                    MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
                     sizeof (struct ble_l2cap_chan))
 ];
 
@@ -70,16 +69,16 @@ ble_l2cap_chan_alloc(uint16_t conn_handle)
 }
 
 void
-ble_l2cap_chan_free(struct ble_l2cap_chan *chan)
+ble_l2cap_chan_free(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     int rc;
 
-    if (chan == NULL) {
+    if ((chan == NULL) || (conn == NULL)) {
         return;
     }
 
     os_mbuf_free_chain(chan->rx_buf);
-    ble_l2cap_coc_cleanup_chan(chan);
+    ble_l2cap_coc_cleanup_chan(conn, chan);
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     memset(chan, 0xff, sizeof *chan);
@@ -422,8 +421,7 @@ ble_l2cap_init(void)
     int rc;
 
     rc = os_mempool_init(&ble_l2cap_chan_pool,
-                         MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
-                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                         MYNEWT_VAL(BLE_L2CAP_MAX_CHANS),
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {

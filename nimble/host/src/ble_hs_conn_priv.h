@@ -33,10 +33,21 @@ struct hci_create_conn;
 struct ble_l2cap_chan;
 
 typedef uint8_t ble_hs_conn_flags_t;
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+typedef uint8_t ble_hs_conn_cid_mask_t;
+#endif
 
 #define BLE_HS_CONN_F_MASTER        0x01
 #define BLE_HS_CONN_F_TERMINATING   0x02
 #define BLE_HS_CONN_F_TX_FRAG       0x04 /* Cur ACL packet partially txed. */
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#define BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT \
+                                   (8 * sizeof(ble_hs_conn_cid_mask_t))
+#define BLE_HS_CONN_CID_MASK_LEN   ((MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) \
+                                   + BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) \
+                                   / BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT)
+#endif
 
 struct ble_hs_conn {
     SLIST_ENTRY(ble_hs_conn) bhc_next;
@@ -58,6 +69,12 @@ struct ble_hs_conn {
 
     ble_hs_conn_flags_t bhc_flags;
 
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+    /**
+     * CID Mask used for allocation of CID for l2cap Channels.
+     */
+    ble_hs_conn_cid_mask_t bhc_cid_mask[BLE_HS_CONN_CID_MASK_LEN];
+#endif
     struct ble_l2cap_chan_list bhc_channels;
     struct ble_l2cap_chan *bhc_rx_chan; /* Channel rxing current packet. */
     ble_npl_time_t bhc_rx_timeout;

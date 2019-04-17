@@ -29,6 +29,20 @@
 
 #define BLE_L2CAP_SDU_SIZE              2
 
+#define LOG_1(n) (((n) >= 2) ? 1 : 0)
+#define LOG_2(n) (((n) >= 1<<2) ? (2 + LOG_1((n)>>2)) : LOG_1(n))
+#define LOG(n)   (((n) >= 1<<4) ? (4 + LOG_2((n)>>4)) : LOG_2(n))
+/* Log2(BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) */
+#define LOG2_BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT \
+                                 (LOG(BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT))
+
+#define SET_CID_MASK(maskBuf, c_idx, r_idx)    ((maskBuf)[c_idx] |= \
+                                               (1UL << r_idx))
+#define RESET_CID_MASK(maskBuf, indx)  ((maskBuf)[((indx) >> \
+                      LOG2_BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT)] &= \
+                      ~(1UL << ((indx) & ((1UL << \
+                      LOG2_BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) - 1))))
+
 STAILQ_HEAD(ble_l2cap_coc_srv_list, ble_l2cap_coc_srv);
 
 static struct ble_l2cap_coc_srv_list ble_l2cap_coc_srvs;
@@ -88,17 +102,89 @@ ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
     return 0;
 }
 
-static uint16_t
-ble_l2cap_coc_get_cid(void)
+static int
+ble_l2cap_coc_alloc_cid(ble_hs_conn_cid_mask_t *cid_chan_mask)
 {
-    static uint16_t next_cid = BLE_L2CAP_COC_CID_START;
+    int i, j;
+    /* The following equation is used to get the Maximum Value of bitmask
+     * cid_mask = ((1UL << BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) - 1)
+     * but using -1 is more generic in terms of ble_hs_conn_cid_mask_t
+     * as all octets must be 0xFF
+     * cid_mask is used to search for the first free slot to use it.
+     * */
+    ble_hs_conn_cid_mask_t cid_mask = -1;
+    uint16_t cid_idx;
 
-    if (next_cid > BLE_L2CAP_COC_CID_END) {
-            next_cid = BLE_L2CAP_COC_CID_START;
+    for (i = 0; i < BLE_HS_CONN_CID_MASK_LEN; i++) {
+        if (cid_chan_mask[i] != cid_mask) {
+             break;
+        }
     }
 
-    /*TODO: Make it smarter*/
-    return next_cid++;
+    if (i == BLE_HS_CONN_CID_MASK_LEN) {
+        /* No Free CID */
+        return -1;
+    }
+
+    cid_mask = cid_chan_mask[i];
+
+    for (j = 0; j < BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT; j++ ) {
+        if (cid_mask & 0x01) {
+            cid_mask >>= 1;
+        } else {
+            break;
+        }
+    }
+
+    if (j == BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) {
+        /* Can't happen */
+        assert(0);
+        return -1;
+    }
+
+    cid_idx = (i * BLE_HS_CONN_TOTAL_CID_PER_MASK_ELEMENT) + j;
+
+    if (cid_idx >= MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)) {
+        return -1;
+    }
+
+    /* Set CID in Mask */
+    SET_CID_MASK(cid_chan_mask, i, j);
+
+    return cid_idx;
+}
+
+static void
+ble_l2cap_coc_free_cid(struct ble_hs_conn *conn, uint16_t cid)
+{
+	BLE_HS_DBG_ASSERT((cid >= BLE_L2CAP_COC_CID_START) &&
+                      (cid <= BLE_L2CAP_COC_CID_END));
+    assert(conn != NULL);
+    cid -= BLE_L2CAP_COC_CID_START;
+    RESET_CID_MASK(conn->bhc_cid_mask, cid);
+
+}
+
+static int
+ble_l2cap_coc_get_cid(struct ble_hs_conn *conn)
+{
+    int next_cid;
+
+    if(conn) {
+        /* Get first free cid */
+        next_cid = ble_l2cap_coc_alloc_cid(conn->bhc_cid_mask);
+        if(next_cid < 0) {
+        	goto done;
+        }
+    } else {
+        next_cid = -1;
+        assert(0);
+        goto done;
+    }
+
+    next_cid += BLE_L2CAP_COC_CID_START;
+done:
+    return next_cid;
 }
 
 static struct ble_l2cap_coc_srv *
@@ -232,21 +318,25 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
 }
 
 struct ble_l2cap_chan *
-ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn, uint16_t psm, uint16_t mtu,
                          struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb,
                          void *cb_arg)
 {
     struct ble_l2cap_chan *chan;
+    int scid;
 
-    chan = ble_l2cap_chan_alloc(conn_handle);
-    if (!chan) {
+    if((scid = ble_l2cap_coc_get_cid(conn)) == -1) {
+        /* No Free channel, can't allocate */
         return NULL;
     }
+
+    chan = ble_l2cap_chan_alloc(conn->bhc_handle);
+    assert(chan != NULL);
 
     chan->psm = psm;
     chan->cb = cb;
     chan->cb_arg = cb_arg;
-    chan->scid = ble_l2cap_coc_get_cid();
+    chan->scid = (uint16_t)scid;
     chan->my_mtu = MYNEWT_VAL(BLE_L2CAP_COC_MPS);
     chan->rx_fn = ble_l2cap_coc_rx_fn;
     chan->coc_rx.mtu = mtu;
@@ -265,7 +355,7 @@ ble_l2cap_coc_chan_alloc(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 }
 
 int
-ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
+ble_l2cap_coc_create_srv_chan(struct ble_hs_conn *conn, uint16_t psm,
                               struct ble_l2cap_chan **chan)
 {
     struct ble_l2cap_coc_srv *srv;
@@ -276,7 +366,7 @@ ble_l2cap_coc_create_srv_chan(uint16_t conn_handle, uint16_t psm,
         return BLE_HS_ENOTSUP;
     }
 
-    *chan = ble_l2cap_coc_chan_alloc(conn_handle, psm, srv->mtu, NULL, srv->cb,
+    *chan = ble_l2cap_coc_chan_alloc(conn, psm, srv->mtu, NULL, srv->cb,
                                      srv->cb_arg);
     if (!*chan) {
         return BLE_HS_ENOMEM;
@@ -303,12 +393,15 @@ ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
 }
 
 void
-ble_l2cap_coc_cleanup_chan(struct ble_l2cap_chan *chan)
+ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn,
+                           struct ble_l2cap_chan *chan)
 {
     /* PSM 0 is used for fixed channels. */
     if (chan->psm == 0) {
             return;
     }
+
+    ble_l2cap_coc_free_cid(conn, chan->scid);
 
     ble_l2cap_event_coc_disconnected(chan);
 

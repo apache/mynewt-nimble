@@ -83,11 +83,6 @@ syscfg.defs:
         value: 128
 
     # L2CAP settings.
-    BLE_L2CAP_MAX_CHANS:
-        description: >
-            The number of L2CAP channels to allocate.  The default value allows
-            for the signal, ATT, and SM channels for each connection.
-        value: '3*MYNEWT_VAL_BLE_MAX_CONNECTIONS'
     BLE_L2CAP_SIG_MAX_PROCS:
         description: >
             The maximum number of concurrent L2CAP signal procedures.
@@ -110,6 +105,11 @@ syscfg.defs:
             Defines maximum number of LE Connection Oriented Channels channels.
             When set to (0), LE COC is not compiled in.
         value: 0
+    BLE_L2CAP_MAX_CHANS:
+        description: >
+            The number of L2CAP channels to allocate.  The default value allows
+            for the signal, ATT, and SM channels for each connection.
+        value: '(3+MYNEWT_VAL_BLE_L2CAP_COC_MAX_NUM)*MYNEWT_VAL_BLE_MAX_CONNECTIONS'
     BLE_L2CAP_COC_MPS:
         description: >
             Defines the MPS of L2CAP COC module. This is actually NimBLE's internal
