@@ -839,7 +839,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
     uint32_t ticks;
     struct os_mbuf *m;
     struct ble_mbuf_hdr *ble_hdr;
-    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf_pkthdr *pkthdr = NULL;
     struct os_mbuf_pkthdr *nextpkthdr;
     struct ble_ll_empty_pdu empty_pdu;
     ble_phy_tx_end_func txend_func;
@@ -850,6 +850,14 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
     m = NULL;
     md = 0;
     hdr_byte = BLE_LL_LLID_DATA_FRAG;
+
+    if (connsm->csmflags.cfbit.terminate_ind_rxd) {
+        /* We just received terminate indication.
+         * Just sent empty packet as an ACK
+         */
+        CONN_F_EMPTY_PDU_TXD(connsm) = 1;
+        goto conn_tx_pdu;
+    }
 
     /*
      * We need to check if we are retrying a pdu or if there is a pdu on
