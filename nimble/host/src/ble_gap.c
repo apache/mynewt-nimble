@@ -88,6 +88,8 @@
 
 #define BLE_GAP_UPDATE_TIMEOUT_MS               40000 /* ms */
 
+#define BLE_GAP_MAX_NUM_OF_LISTENERS            10
+
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
     .scan_itvl = 0x0010,
     .scan_window = 0x0010,
@@ -187,7 +189,27 @@ struct ble_gap_snapshot {
     void *cb_arg;
 };
 
-static SLIST_HEAD(ble_gap_hook_list, ble_gap_event_listener) ble_gap_event_listener_list;
+/**
+ * Event listener structure
+ *
+ * This should be used as an opaque structure and not modified manually.
+ */
+struct ble_gap_event_listener {
+    ble_gap_event_fn *fn;
+    void             *arg;
+    uint32_t          events;
+    SLIST_ENTRY(ble_gap_event_listener) link;
+};
+
+static SLIST_HEAD(ble_gap_hook_list, ble_gap_event_listener)
+                        ble_gap_event_listener_list;
+static os_membuf_t ble_gap_listener_mem[
+                        OS_MEMPOOL_SIZE(BLE_GAP_MAX_NUM_OF_LISTENERS,
+                                        sizeof (
+                                             struct ble_gap_event_listener))];
+static struct os_mempool ble_gap_listener_pool;
+
+
 static os_membuf_t ble_gap_update_entry_mem[
                         OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_GAP_MAX_PENDING_CONN_PARAM_UPDATE),
                                         sizeof (struct ble_gap_update_entry))];
@@ -206,6 +228,8 @@ ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
 static int ble_gap_adv_enable_tx(int enable);
 static int ble_gap_conn_cancel_tx(void);
 
+static void ble_gap_listener_free(struct ble_gap_event_listener *lst);
+static struct ble_gap_event_listener * ble_gap_listener_alloc(void);
 #if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
 #endif
@@ -5383,37 +5407,47 @@ ble_gap_preempt_done(void)
 }
 
 int
-ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
-                                ble_gap_event_fn *fn, void *arg)
+ble_gap_event_listener_register(uint32_t events, ble_gap_event_fn *fn,
+                                void *arg)
 {
     struct ble_gap_event_listener *evl = NULL;
     int rc;
 
+    if (!fn){
+        rc = BLE_HS_EINVAL;
+        goto done;
+    }
+
+    /* See if fn was previously registered */
     SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
-        if (evl == listener) {
+        if (evl->fn == fn) {
             break;
         }
     }
 
+    /* If not registered, allocate and insert a new listener */
     if (!evl) {
-        if (fn) {
-            memset(listener, 0, sizeof(*listener));
-            listener->fn = fn;
-            listener->arg = arg;
-            SLIST_INSERT_HEAD(&ble_gap_event_listener_list, listener, link);
-            rc = 0;
-        } else {
-            rc = BLE_HS_EINVAL;
+        evl = ble_gap_listener_alloc();
+        if (!evl) {
+            rc = BLE_HS_ENOMEM;
+            goto done;
         }
-    } else {
-        rc = BLE_HS_EALREADY;
+        else {
+            SLIST_INSERT_HEAD(&ble_gap_event_listener_list, evl, link);
+        }
     }
 
+    evl->fn = fn;
+    evl->arg = arg;
+    evl->events |= events;
+    rc = 0;
+
+done:
     return rc;
 }
 
 int
-ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener)
+ble_gap_event_listener_unregister(uint32_t events, ble_gap_event_fn *fn)
 {
     struct ble_gap_event_listener *evl = NULL;
     int rc;
@@ -5424,7 +5458,7 @@ ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener)
      */
 
     SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
-        if (evl == listener) {
+        if (evl->fn == fn) {
             break;
         }
     }
@@ -5432,8 +5466,12 @@ ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener)
     if (!evl) {
         rc = BLE_HS_ENOENT;
     } else {
-        SLIST_REMOVE(&ble_gap_event_listener_list, listener,
-                     ble_gap_event_listener, link);
+        evl->events &= ~events;
+        if (evl->events == 0) {
+            SLIST_REMOVE(&ble_gap_event_listener_list, evl,
+                         ble_gap_event_listener, link);
+            ble_gap_listener_free(evl);
+        }
         rc = 0;
     }
 
@@ -5446,12 +5484,38 @@ ble_gap_event_listener_call(struct ble_gap_event *event)
     struct ble_gap_event_listener *evl = NULL;
 
     SLIST_FOREACH(evl, &ble_gap_event_listener_list, link) {
-        evl->fn(event, evl->arg);
+        if (evl->events & BLE_GAP_EVENT_TO_LISTENER(event->type)) {
+            evl->fn(event, evl->arg);
+        }
     }
 
     return 0;
 }
 
+static struct ble_gap_event_listener * ble_gap_listener_alloc(void)
+{
+    struct ble_gap_event_listener *lst;
+
+    lst = os_memblock_get(&ble_gap_listener_pool);
+    if (lst != NULL) {
+        memset(lst, 0, sizeof *lst);
+    }
+
+    return lst;
+}
+
+static void ble_gap_listener_free(struct ble_gap_event_listener *lst)
+{
+    int rc;
+
+    if (lst != NULL) {
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+        memset(lst, 0xff, sizeof *lst);
+#endif
+        rc = os_memblock_put(&ble_gap_listener_pool, lst);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    }
+}
 /*****************************************************************************
  * $init                                                                     *
  *****************************************************************************/
@@ -5474,6 +5538,12 @@ ble_gap_init(void)
                          sizeof (struct ble_gap_update_entry),
                          ble_gap_update_entry_mem,
                          "ble_gap_update");
+
+    rc = os_mempool_init(&ble_gap_listener_pool,
+                          BLE_GAP_MAX_NUM_OF_LISTENERS,
+                          sizeof (struct ble_gap_event_listener),
+                          ble_gap_listener_mem,
+                          "ble_listeners");
     switch (rc) {
     case 0:
         break;

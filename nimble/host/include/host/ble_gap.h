@@ -93,6 +93,9 @@ struct hci_conn_update;
 /* 50 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MAX       (50 * 1000 / BLE_HCI_CONN_ITVL)
 
+/* Converts BLE_GAP_EVENT to bitmask to use in GAP listeners */
+#define BLE_GAP_EVENT_TO_LISTENER(ev)       (1 << (ev))
+
 /** Default channels mask: all three channels are used. */
 #define BLE_GAP_ADV_DFLT_CHANNEL_MAP        0x07
 
@@ -127,7 +130,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB    20
 #define BLE_GAP_EVENT_PERIODIC_DISC              21
 #define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST     22
-
+#define BLE_GAP_EVENT_ALL_EVENTS                 0xff
 /*** Reason codes for the subscribe GAP event. */
 
 /** Peer's CCCD subscription state changed due to a descriptor write. */
@@ -1334,24 +1337,18 @@ int ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                                 uint8_t rx_phys_mask, uint16_t phy_opts);
 
 /**
- * Event listener structure
- *
- * This should be used as an opaque structure and not modified manually.
- */
-struct ble_gap_event_listener {
-    ble_gap_event_fn *fn;
-    void *arg;
-    SLIST_ENTRY(ble_gap_event_listener) link;
-};
-
-/**
  * Registers listener for GAP events
  *
- * On success listener structure will be initialized automatically and does not
- * need to be initialized prior to calling this function. To change callback
- * and/or argument unregister listener first and register it again.
+ * On success, fn will be registered as a GAP listener, so it will be called
+ * whenever the any of the specified event_type GAP event(s) happens.
+ * To add more events to the same listeners, call the same function with the
+ * same arguments again, with event_type containing the new event bitmask.
+ * To change callback and/or argument unregister listener first and register
+ * it again.
  *
- * @param listener      Listener structure
+ * @param event_type    The bitmask of the event type(s) to listen for.
+ *                      To listen for all GAP events, use
+ *                      BLE_GAP_EVENT_ALL_EVENTS
  * @param fn            Callback function
  * @param arg           Callback argument
  *
@@ -1359,18 +1356,27 @@ struct ble_gap_event_listener {
  *                      BLE_HS_EINVAL if no callback is specified
  *                      BLE_HS_EALREADY if listener is already registered
  */
-int ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
+int ble_gap_event_listener_register(uint32_t event_type,
                                     ble_gap_event_fn *fn, void *arg);
 
 /**
  * Unregisters listener for GAP events
  *
- * @param listener      Listener structure
+ * @param event_type    The bitmask of the event type(s) to stop
+ *                      listening for.
+ *                      If there are still some events in the bitmask, the
+ *                      listener will not be removed and will continue
+ *                      listening for the remaining events.
+ *                      If all events have been removed (bitmask = 0), the
+ *                      listener will be removed.
+ *                      To remove all events, use BLE_GAP_EVENT_ALL_EVENTS
+ * @param fn            Callback function
  *
  * @return              0 on success
  *                      BLE_HS_ENOENT if listener was not registered
  */
-int ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener);
+int ble_gap_event_listener_unregister(uint32_t event_type,
+                                    ble_gap_event_fn *fn);
 
 #ifdef __cplusplus
 }
