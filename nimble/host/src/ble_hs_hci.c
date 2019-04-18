@@ -41,6 +41,7 @@ static uint8_t ble_hs_hci_version;
 
 #define BLE_HS_HCI_FRAG_DATABUF_SIZE    \
     (BLE_ACL_MAX_PKT_SIZE +             \
+     BLE_HCI_DATA_HDR_SZ +              \
      sizeof (struct os_mbuf_pkthdr) +   \
      sizeof (struct os_mbuf))
 
