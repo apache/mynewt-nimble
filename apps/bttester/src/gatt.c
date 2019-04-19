@@ -69,9 +69,6 @@ static int gatt_dsc_perm_map[] = {
 /* GATT server context */
 #define SERVER_MAX_VALUES	14
 
-static u16_t db_attr_min = 0xffff;
-static u16_t db_attr_max = 0x0000;
-
 struct gatt_value {
 	struct os_mbuf *buf;
 	u8_t enc_key_size;
@@ -823,8 +820,8 @@ static void start_server(u8_t *data, u16_t len)
 
 	ble_svc_gatt_changed(0x0001, 0xffff);
 
-	rp.db_attr_off = db_attr_min;
-	rp.db_attr_cnt = (u8_t) (db_attr_max - db_attr_min + 1);
+	rp.db_attr_off = 0;
+	rp.db_attr_cnt = 0;
 
 	tester_send(BTP_SERVICE_ID_GATT, GATT_START_SERVER, CONTROLLER_INDEX,
 		    (u8_t *) &rp, sizeof(rp));
@@ -2055,80 +2052,6 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 	}
 }
 
-static bool gatt_svr_svc_exists(const struct ble_gatt_svc_def *svc_def)
-{
-	const struct ble_gatt_svc_def *svc;
-
-	for (svc = &gatt_svr_svcs[0]; svc && svc->uuid; svc++) {
-		if (svc == svc_def) {
-			return true;
-		}
-	}
-
-	for (svc = &gatt_svr_inc_svcs[0]; svc && svc->uuid; svc++) {
-		if (svc == svc_def) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool gatt_svr_chr_exists(const struct ble_gatt_chr_def *chr_def)
-{
-	const struct ble_gatt_svc_def *svc;
-	const struct ble_gatt_chr_def *chr;
-
-	for (svc = &gatt_svr_svcs[0]; svc && svc->uuid; svc++) {
-		for (chr = &svc->characteristics[0]; chr && chr->uuid; chr++) {
-			if (chr == chr_def) {
-				return true;
-			}
-		}
-	}
-
-	for (svc = &gatt_svr_inc_svcs[0]; svc && svc->uuid; svc++) {
-		for (chr = &svc->characteristics[0]; chr && chr->uuid; chr++) {
-			if (chr == chr_def) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-static bool gatt_svr_dsc_exists(const struct ble_gatt_dsc_def *dsc_def)
-{
-	const struct ble_gatt_svc_def *svc;
-	const struct ble_gatt_chr_def *chr;
-	const struct ble_gatt_dsc_def *dsc;
-
-	for (svc = &gatt_svr_svcs[0]; svc && svc->uuid; svc++) {
-		for (chr = &svc->characteristics[0]; chr && chr->uuid; chr++) {
-			for (dsc = &chr->descriptors[0];
-			     dsc && dsc->uuid; dsc++) {
-				if (dsc == dsc_def) {
-					return true;
-				}
-			}
-		}
-	}
-
-	for (svc = &gatt_svr_inc_svcs[0]; svc && svc->uuid; svc++) {
-		for (chr = &svc->characteristics[0]; chr && chr->uuid; chr++) {
-			for (dsc = &chr->descriptors[0];
-			     dsc && dsc->uuid; dsc++) {
-				if (dsc == dsc_def) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
 	char buf[BLE_UUID_STR_LEN];
@@ -2140,14 +2063,6 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 				    ble_uuid_to_str(ctxt->svc.svc_def->uuid,
 						    buf),
 				    ctxt->svc.handle);
-			if (gatt_svr_svc_exists(ctxt->svc.svc_def)) {
-				if (ctxt->svc.handle < db_attr_min) {
-					db_attr_min = ctxt->svc.handle;
-				}
-				if (ctxt->svc.handle > db_attr_max) {
-					db_attr_max = ctxt->svc.handle;
-				}
-			}
 			break;
 
 		case BLE_GATT_REGISTER_OP_CHR:
@@ -2157,20 +2072,6 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 						    buf),
 				    ctxt->chr.def_handle,
 				    ctxt->chr.val_handle);
-			if (gatt_svr_chr_exists(ctxt->chr.chr_def)) {
-				if (ctxt->chr.def_handle < db_attr_min) {
-					db_attr_min = ctxt->chr.def_handle;
-				}
-				if (ctxt->chr.val_handle < db_attr_min) {
-					db_attr_min = ctxt->chr.val_handle;
-				}
-				if (ctxt->chr.def_handle > db_attr_max) {
-					db_attr_max = ctxt->chr.def_handle;
-				}
-				if (ctxt->chr.val_handle > db_attr_max) {
-					db_attr_max = ctxt->chr.val_handle;
-				}
-			}
 			break;
 
 		case BLE_GATT_REGISTER_OP_DSC:
@@ -2178,17 +2079,7 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 				    "registering descriptor %s with handle=%d\n",
 				    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
 				    ctxt->dsc.handle);
-			if (gatt_svr_dsc_exists(ctxt->dsc.dsc_def)) {
-				if (ctxt->dsc.handle < db_attr_min) {
-					db_attr_min = ctxt->dsc.handle;
-				}
-				if (ctxt->dsc.handle > db_attr_max) {
-					db_attr_max = ctxt->dsc.handle;
-				}
-			}
 			break;
-
-		/* FIXME: handle incldued services*/
 
 		default:
 			assert(0);
