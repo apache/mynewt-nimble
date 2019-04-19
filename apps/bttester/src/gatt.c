@@ -33,6 +33,7 @@
 #include "host/ble_gatt.h"
 #include "console/console.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include "../../../nimble/host/src/ble_att_priv.h"
 #include "../../../nimble/host/src/ble_gatt_priv.h"
 
 #include "bttester.h"
@@ -40,21 +41,8 @@
 #define CONTROLLER_INDEX 0
 #define MAX_BUFFER_SIZE 2048
 
-#define BTP_GATT_PERM_READ	0x01
-
 static const ble_uuid16_t BT_UUID_GATT_CEP = BLE_UUID16_INIT(0x2900);
 static const ble_uuid16_t BT_UUID_GATT_CCC = BLE_UUID16_INIT(0x2902);
-
-static const ble_uuid_t *uuid_pri =
-	BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE);
-static const ble_uuid_t *uuid_sec =
-	BLE_UUID16_DECLARE(BLE_ATT_UUID_SECONDARY_SERVICE);
-static const ble_uuid_t *uuid_inc =
-	BLE_UUID16_DECLARE(BLE_ATT_UUID_INCLUDE);
-static const ble_uuid_t *uuid_chr =
-	BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
-static const ble_uuid_t *uuid_ccc =
-	BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
 
 static int gatt_chr_perm_map[] = {
 	BLE_GATT_CHR_F_READ,
@@ -1869,144 +1857,17 @@ static void config_subscription(u8_t *data, u16_t len, u8_t op)
 	tester_rsp(BTP_SERVICE_ID_GATT, op, CONTROLLER_INDEX, status);
 }
 
-struct get_attrs_foreach_data {
-	ble_uuid_any_t *uuid;
-	u16_t start_handle, end_handle;
-	struct os_mbuf *buf;
-	u8_t count;
-};
-
-static u8_t foreach_get_attrs(u16_t handle,
-			      u8_t permission,
-			      const ble_uuid_t *uuid,
-			      struct get_attrs_foreach_data *foreach)
-{
-	struct gatt_attr *gatt_attr;
-	char uuid_buf[BLE_UUID_STR_LEN];
-
-	if (handle < foreach->start_handle || handle > foreach->end_handle) {
-		return 0;
-	}
-
-	if (foreach->uuid && ble_uuid_cmp(&foreach->uuid->u, uuid)) {
-		return 0;
-	}
-
-	SYS_LOG_DBG("hdl 0x%04x perm 0x%02x uuid %s", handle, permission,
-		    ble_uuid_to_str(uuid, uuid_buf));
-
-	gatt_attr = net_buf_simple_add(foreach->buf, sizeof(*gatt_attr));
-	gatt_attr->handle = sys_cpu_to_le16(handle);
-	gatt_attr->permission = permission;
-
-	if (uuid->type == BLE_UUID_TYPE_16) {
-		gatt_attr->type_length = 2;
-		net_buf_simple_add_le16(foreach->buf,
-					BLE_UUID16(uuid)->value);
-	} else {
-		gatt_attr->type_length = 16;
-		net_buf_simple_add_mem(foreach->buf,
-				       BLE_UUID128(uuid)->value,
-				       gatt_attr->type_length);
-	}
-
-	foreach->count++;
-
-	return 0;
-}
-
-static u8_t flags2perm(u16_t flags, bool chr)
-{
-	u8_t permission = 0;
-	int *flag_arr;
-	int flag_arr_len;
-	int i;
-
-	if (chr) {
-		flag_arr = gatt_chr_perm_map;
-		flag_arr_len = ARRAY_SIZE(gatt_chr_perm_map);
-
-		/* FIXME: Handle WRITE_NO_RSP */
-		if (flags & BLE_GATT_CHR_F_WRITE_NO_RSP) {
-			permission |= BIT(1);
-		}
-	} else {
-		flag_arr = gatt_dsc_perm_map;
-		flag_arr_len = ARRAY_SIZE(gatt_dsc_perm_map);
-	}
-
-	for (i = 0; i < flag_arr_len; ++i) {
-		if (flags & flag_arr[i]) {
-			permission |= BIT(i);
-		}
-	}
-
-	return permission;
-}
-
-static void get_attrs_cb(const struct ble_gatt_svc_def *svc,
-			 uint16_t handle, uint16_t end_group_handle,
-			 void *arg)
-{
-	struct get_attrs_foreach_data *foreach = arg;
-	const struct ble_gatt_svc_def **includes;
-	const struct ble_gatt_chr_def *chr;
-	const struct ble_gatt_dsc_def *dsc;
-
-	SYS_LOG_DBG("");
-
-	if (svc->type == BLE_GATT_SVC_TYPE_PRIMARY) {
-		foreach_get_attrs(handle, BTP_GATT_PERM_READ,
-				  uuid_pri, foreach);
-	} else if (svc->type == BLE_GATT_SVC_TYPE_SECONDARY) {
-		foreach_get_attrs(handle, BTP_GATT_PERM_READ,
-				  uuid_sec, foreach);
-	}
-	handle += 1;
-
-	if (svc->includes) {
-		for (includes = &svc->includes[0];
-		     *includes != NULL; ++includes) {
-			foreach_get_attrs(handle, BTP_GATT_PERM_READ,
-					  uuid_inc, foreach);
-			handle += 1;
-		}
-	}
-
-	for (chr = svc->characteristics; chr && chr->uuid; ++chr) {
-		foreach_get_attrs(handle, BTP_GATT_PERM_READ,
-				  uuid_chr, foreach);
-		handle += 1;
-
-		foreach_get_attrs(handle, flags2perm(chr->flags, true),
-				  chr->uuid, foreach);
-		handle += 1;
-
-		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
-		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
-			foreach_get_attrs(handle,
-					  flags2perm(BLE_ATT_F_READ |
-						     BLE_ATT_F_WRITE,
-						     false), uuid_ccc, foreach);
-			handle += 1;
-		}
-
-		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
-			foreach_get_attrs(handle, flags2perm(chr->flags, false),
-					  dsc->uuid, foreach);
-			handle += 1;
-		}
-	}
-}
-
 static void get_attrs(u8_t *data, u16_t len)
 {
 	const struct gatt_get_attributes_cmd *cmd = (void *) data;
 	struct gatt_get_attributes_rp *rp;
+	struct gatt_attr *gatt_attr;
 	struct os_mbuf *buf = os_msys_get(0, 0);
-	struct get_attrs_foreach_data foreach;
 	u16_t start_handle, end_handle;
+	struct ble_att_svr_entry *entry = NULL;
 	ble_uuid_any_t uuid;
+	ble_uuid_t *uuid_ptr = NULL;
+	u8_t count = 0;
 	char str[BLE_UUID_STR_LEN];
 
 	SYS_LOG_DBG("");
@@ -2025,23 +1886,42 @@ static void get_attrs(u8_t *data, u16_t len)
 		SYS_LOG_DBG("start 0x%04x end 0x%04x, uuid %s", start_handle,
 			    end_handle, str);
 
-		foreach.uuid = &uuid;
+		uuid_ptr = &uuid.u;
 	} else {
 		SYS_LOG_DBG("start 0x%04x end 0x%04x", start_handle, end_handle);
-		foreach.uuid = NULL;
 	}
 
-	net_buf_simple_init(buf, sizeof(*rp));
+	net_buf_simple_init(buf, 0);
+	rp = net_buf_simple_add(buf, sizeof(*rp));
 
-	foreach.start_handle = start_handle;
-	foreach.end_handle = end_handle;
-	foreach.buf = buf;
-	foreach.count = 0;
+	entry = ble_att_svr_find_by_uuid(entry, uuid_ptr, end_handle);
+	while (entry) {
 
-	ble_gatts_lcl_svc_foreach(get_attrs_cb, &foreach);
+		if (entry->ha_handle_id < start_handle) {
+			continue;
+		}
 
-	rp = (void *) net_buf_simple_push(buf, sizeof(*rp));
-	rp->attrs_count = foreach.count;
+		gatt_attr = net_buf_simple_add(buf, sizeof(*gatt_attr));
+		gatt_attr->handle = sys_cpu_to_le16(entry->ha_handle_id);
+		gatt_attr->permission = entry->ha_flags;
+
+		if (entry->ha_uuid->type == BLE_UUID_TYPE_16) {
+			gatt_attr->type_length = 2;
+			net_buf_simple_add_le16(buf,
+						BLE_UUID16(entry->ha_uuid)->value);
+		} else {
+			gatt_attr->type_length = 16;
+			net_buf_simple_add_mem(buf,
+					       BLE_UUID128(entry->ha_uuid)->value,
+					       gatt_attr->type_length);
+		}
+
+		count++;
+
+		entry = ble_att_svr_find_by_uuid(entry, uuid_ptr, end_handle);
+	}
+
+	rp->attrs_count = count;
 
 	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTES,
 			CONTROLLER_INDEX, buf);
@@ -2054,201 +1934,28 @@ free:
 	os_mbuf_free_chain(buf);
 }
 
-static int access_svc(uint16_t conn_handle, uint16_t attr_handle,
-		      struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-	const struct ble_gatt_svc_def *svc = arg;
-
-	if (svc->uuid->type == BLE_UUID_TYPE_16) {
-		net_buf_simple_add_le16(ctxt->om,
-					BLE_UUID16(svc->uuid)->value);
-	} else {
-		net_buf_simple_add_mem(ctxt->om,
-				       BLE_UUID128(svc->uuid)->value,
-				       16);
-	}
-
-	return 0;
-}
-
-static int access_incl_svc(uint16_t conn_handle, uint16_t attr_handle,
-			   struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-	const struct ble_gatt_svc_def *svc = arg;
-
-	/* TODO: Get included service handle and end group handle */
-	net_buf_simple_add_le16(ctxt->om, 0xffff);
-	net_buf_simple_add_le16(ctxt->om, 0xffff);
-
-	if (svc->uuid->type == BLE_UUID_TYPE_16) {
-		net_buf_simple_add_le16(ctxt->om,
-					BLE_UUID16(svc->uuid)->value);
-	}
-
-	return 0;
-}
-
-static int access_chr(uint16_t conn_handle, uint16_t attr_handle,
-		      struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-	const struct ble_gatt_chr_def *chr = arg;
-
-	net_buf_simple_add_u8(ctxt->om, flags2perm(chr->flags, true));
-	net_buf_simple_add_le16(ctxt->om, *chr->val_handle);
-
-	if (chr->uuid->type == BLE_UUID_TYPE_16) {
-		net_buf_simple_add_le16(ctxt->om,
-					BLE_UUID16(chr->uuid)->value);
-	} else {
-		net_buf_simple_add_mem(ctxt->om,
-				       BLE_UUID128(chr->uuid)->value,
-				       16);
-	}
-
-	return 0;
-}
-
-static int access_cccd(uint16_t conn_handle, uint16_t attr_handle,
-		       struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-	return ble_gatts_clt_cfg_access(conn_handle, attr_handle,
-					ctxt->op, 0, &ctxt->om, arg);
-}
-
-static int foreach_get_attr_val(u16_t handle,
-				ble_gatt_access_fn access_cb,
-				void *arg,
-				struct ble_gatt_access_ctxt *ctxt,
-				u16_t rx_handle)
-
-{
-	struct gatt_get_attribute_value_rp *rp;
-	uint16_t hdr_len;
-	int rc;
-
-	if (handle != rx_handle) {
-		return 0;
-	}
-
-	rp = net_buf_simple_add(ctxt->om, sizeof(*rp));
-	hdr_len = ctxt->om->om_len;
-
-	rc = access_cb(1, handle, ctxt, arg);
-
-	rp->att_response = (uint8_t) rc;
-	rp->value_length = ctxt->om->om_len - hdr_len;
-
-	return BLE_HS_EDONE;
-}
-
-static void get_attr_val_cb(const struct ble_gatt_svc_def *svc,
-			    uint16_t handle, uint16_t end_group_handle,
-			    void *arg)
-{
-	struct get_attrs_foreach_data *foreach = arg;
-	struct os_mbuf *buf = foreach->buf;
-	struct ble_gatt_access_ctxt ctxt;
-	const struct ble_gatt_svc_def **includes;
-	const struct ble_gatt_chr_def *chr;
-	const struct ble_gatt_dsc_def *dsc;
-	int rc;
-
-	SYS_LOG_DBG("");
-
-	ctxt.om = buf;
-
-	rc = foreach_get_attr_val(handle, access_svc, (void *) svc,
-				  &ctxt, foreach->start_handle);
-	if (rc == BLE_HS_EDONE) {
-		return;
-	}
-
-	handle += 1;
-
-	if (svc->includes) {
-		for (includes = &svc->includes[0];
-		     *includes != NULL; ++includes) {
-			svc = *includes;
-			foreach_get_attr_val(handle, access_incl_svc,
-					     (void *) svc, &ctxt,
-					     foreach->start_handle);
-			handle += 1;
-		}
-	}
-
-	for (chr = svc->characteristics; chr && chr->uuid; ++chr) {
-		rc = foreach_get_attr_val(handle, access_chr, (void *) chr,
-					  &ctxt, foreach->start_handle);
-		if (rc == BLE_HS_EDONE) {
-			return;
-		}
-
-		handle += 1;
-
-		ctxt.op = BLE_GATT_ACCESS_OP_READ_CHR;
-		ctxt.chr = chr;
-
-		rc = foreach_get_attr_val(handle,
-					  chr->access_cb, chr->arg,
-					  &ctxt, foreach->start_handle);
-		if (rc == BLE_HS_EDONE) {
-			return;
-		}
-
-		handle += 1;
-
-		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
-		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
-			ctxt.op = BLE_GATT_ACCESS_OP_READ_CHR;
-
-			rc = foreach_get_attr_val(handle,
-						  access_cccd, NULL,
-						  &ctxt, foreach->start_handle);
-			if (rc == BLE_HS_EDONE) {
-				return;
-			}
-
-			handle += 1;
-		}
-
-		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
-			ctxt.op = BLE_GATT_ACCESS_OP_READ_DSC;
-			ctxt.dsc = dsc;
-
-			rc = foreach_get_attr_val(handle,
-						  dsc->access_cb, dsc->arg,
-						  &ctxt, foreach->start_handle);
-			if (rc == BLE_HS_EDONE) {
-				return;
-			}
-
-			handle += 1;
-		}
-	}
-}
-
 static void get_attr_val(u8_t *data, u16_t len)
 {
 	const struct gatt_get_attribute_value_cmd *cmd = (void *) data;
+	struct gatt_get_attribute_value_rp *rp;
 	struct os_mbuf *buf = os_msys_get(0, 0);
-	struct get_attrs_foreach_data foreach;
 	u16_t handle = sys_cpu_to_le16(cmd->handle);
+	uint8_t out_att_err;
 
-	memset(&foreach, 0, sizeof(foreach));
+	SYS_LOG_DBG("");
+
 	net_buf_simple_init(buf, 0);
+	rp = net_buf_simple_add(buf, sizeof(*rp));
 
-	foreach.buf = buf;
-	foreach.start_handle = handle;
+	ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
+				handle, 0, buf,
+				&out_att_err);
 
-	ble_gatts_lcl_svc_foreach(get_attr_val_cb, &foreach);
+	rp->att_response = out_att_err;
+	rp->value_length = os_mbuf_len(buf) - sizeof(*rp);
 
-	if (buf->om_len) {
-		tester_send(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTE_VALUE,
-			    CONTROLLER_INDEX, buf->om_data, buf->om_len);
-	} else {
-		tester_rsp(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTE_VALUE,
-			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
-	}
+	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_GET_ATTRIBUTE_VALUE,
+			CONTROLLER_INDEX, buf);
 
 	os_mbuf_free_chain(buf);
 }
