@@ -171,7 +171,8 @@ ble_att_svr_find_by_handle(uint16_t handle_id)
 /**
  * Find a host attribute by UUID.
  *
- * @param uuid                  The ble_uuid_t to search for
+ * @param uuid                  The ble_uuid_t to search for; null means
+ *                                  find any type of attribute.
  * @param prev                  On input: Indicates the starting point of the
  *                                  walk; null means start at the beginning of
  *                                  the list, non-null means start at the
@@ -198,7 +199,7 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, const ble_uuid_t *uuid,
          entry != NULL && entry->ha_handle_id <= end_handle;
          entry = STAILQ_NEXT(entry, ha_next)) {
 
-        if (ble_uuid_cmp(entry->ha_uuid, uuid) == 0) {
+        if (uuid == NULL || ble_uuid_cmp(entry->ha_uuid, uuid) == 0) {
             return entry;
         }
     }
