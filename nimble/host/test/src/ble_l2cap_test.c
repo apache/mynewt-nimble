@@ -790,7 +790,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
-    req.scid = htole16(current_cid++);
+    req.scid = htole16(current_cid);
 
     /* Ensure an update request got sent. */
     id = ble_hs_test_util_verify_tx_l2cap_sig(
@@ -831,7 +831,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
     req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     req.mtu = htole16(t->mtu);
     req.psm = htole16(t->psm);
-    req.scid = htole16(0x0040);
+    req.scid = htole16(current_cid);
 
     /* Receive remote request*/
     rc = ble_hs_test_util_inject_rx_l2cap_sig(2,
@@ -853,7 +853,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
         rsp.credits = htole16(
                             ble_l2cap_calculate_credits(t->mtu,
                                                         MYNEWT_VAL(BLE_L2CAP_COC_MPS)));
-        rsp.dcid = current_cid++;
+        rsp.dcid = htole16(current_cid);
         rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
         rsp.mtu = htole16(t->mtu);
     }
@@ -1177,11 +1177,6 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
     ble_l2cap_test_coc_connect_by_peer(&t);
 
     TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
-
-    /* In this test case, L2CAP channel is created and once application rejects
-     * connection, channel is destroyed. In such case CID for channel has been
-     * used and we need to increase current_cid. */
-    current_cid++;
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
