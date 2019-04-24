@@ -218,6 +218,12 @@ ble_npl_callout_get_ticks(struct ble_npl_callout *co)
     return co->target_ticks;
 }
 
+static inline void
+ble_npl_callout_set_arg(struct ble_npl_callout *co, void *arg)
+{
+    co->e.arg = arg;
+}
+
 static inline uint32_t
 ble_npl_time_get(void)
 {

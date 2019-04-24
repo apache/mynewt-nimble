@@ -66,3 +66,11 @@ ble_npl_callout_reset(struct ble_npl_callout *c, ble_npl_time_t ticks)
     xtimer_set(&c->timer, ((ticks * 1000) - ((xtimer_now_usec() - now) / 1000)));
     return BLE_NPL_OK;
 }
+
+uint32_t
+ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
+                                ble_npl_time_t time)
+{
+    uint32_t now = xtimer_now_usec();
+    return ((uint32_t)co->target_ticks) - (now / 1000);
+}
