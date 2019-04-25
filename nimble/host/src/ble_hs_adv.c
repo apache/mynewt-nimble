@@ -594,7 +594,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         if (rc != 0) {
             return rc;
         }
-        adv_fields->uuids16_is_complete = 0;
+        adv_fields->uuids32_is_complete = 0;
         break;
 
     case BLE_HS_ADV_TYPE_COMP_UUIDS32:
@@ -602,7 +602,7 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
         if (rc != 0) {
             return rc;
         }
-        adv_fields->uuids16_is_complete = 1;
+        adv_fields->uuids32_is_complete = 1;
         break;
 
     case BLE_HS_ADV_TYPE_INCOMP_UUIDS128:
