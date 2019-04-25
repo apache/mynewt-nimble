@@ -256,6 +256,12 @@ ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks)
     return ticks;
 }
 
+static inline void
+ble_npl_time_delay(ble_npl_time_t ticks)
+{
+    xtimer_usleep(ticks * 1000);
+}
+
 static inline uint32_t
 ble_npl_hw_enter_critical(void)
 {
