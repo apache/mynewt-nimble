@@ -91,16 +91,16 @@ ble_npl_eventq_put(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
 static inline struct ble_npl_event *
 ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
-    assert((tmo == 0) || (tmo == BLE_NPL_TIME_FOREVER));
-
     if (evq->q.waiter == NULL) {
         event_queue_claim(&evq->q);
     }
 
     if (tmo == 0) {
         return (struct ble_npl_event *)event_get(&evq->q);
-    } else {
+    } else if (tmo == BLE_NPL_TIME_FOREVER) {
         return (struct ble_npl_event *)event_wait(&evq->q);
+    } else {
+        return (struct ble_npl_event *)event_wait_timeout(&evq->q, (tmo * 1000));
     }
 }
 
