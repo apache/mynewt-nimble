@@ -41,9 +41,6 @@
 #define CONTROLLER_INDEX 0
 #define MAX_BUFFER_SIZE 2048
 
-static const ble_uuid16_t BT_UUID_GATT_CEP = BLE_UUID16_INIT(0x2900);
-static const ble_uuid16_t BT_UUID_GATT_CCC = BLE_UUID16_INIT(0x2902);
-
 static int gatt_chr_perm_map[] = {
 	BLE_GATT_CHR_F_READ,
 	BLE_GATT_CHR_F_WRITE,
@@ -148,15 +145,6 @@ static void *gatt_buf_reserve(size_t len)
 static void gatt_buf_clear(void)
 {
 	(void)memset(&gatt_buf, 0, sizeof(gatt_buf));
-}
-
-struct gatt_value *find_gatt_value_by_id(u16_t id)
-{
-	if (id < SERVER_MAX_VALUES) {
-		return &gatt_values[id];
-	}
-
-	return NULL;
 }
 
 static int gatt_svr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
@@ -423,76 +411,113 @@ static void supported_commands(u8_t *data, u16_t len)
 		    CONTROLLER_INDEX, (u8_t *) rp, sizeof(cmds));
 }
 
-const struct ble_gatt_svc_def *find_svc(ble_uuid_any_t *uuid)
+enum attr_type {
+    BLE_GATT_ATTR_SVC = 0,
+    BLE_GATT_ATTR_CHR,
+    BLE_GATT_ATTR_DSC,
+};
+
+struct find_attr_data {
+	ble_uuid_any_t *uuid;
+	int attr_type;
+	void *ptr;
+	uint16_t handle;
+};
+
+static void find_attr_by_uuid_cb(const struct ble_gatt_svc_def *svc,
+				 uint16_t handle, uint16_t end_group_handle,
+				 void *arg)
 {
-	const struct ble_gatt_svc_def *svc;
-
-	for (svc = gatt_svr_svcs; svc && svc->uuid; svc++) {
-		if (ble_uuid_cmp(&uuid->u, svc->uuid) == 0) {
-			return svc;
-		}
-	}
-
-	for (svc = gatt_svr_inc_svcs; svc && svc->uuid; svc++) {
-		if (ble_uuid_cmp(&uuid->u, svc->uuid) == 0) {
-			return svc;
-		}
-	}
-
-	return NULL;
-}
-
-const struct ble_gatt_chr_def *find_chr(ble_uuid_any_t *uuid)
-{
-	const struct ble_gatt_svc_def *svc;
-	const struct ble_gatt_chr_def *chr;
-
-	for (svc = gatt_svr_svcs; svc && svc->uuid; svc++) {
-		for (chr = svc->characteristics; chr && chr->uuid; chr++) {
-			if (ble_uuid_cmp(&uuid->u, chr->uuid) == 0) {
-				return chr;
-			}
-		}
-	}
-
-	for (svc = gatt_svr_inc_svcs; svc && svc->uuid; svc++) {
-		for (chr = svc->characteristics; chr && chr->uuid; chr++) {
-			if (ble_uuid_cmp(&uuid->u, chr->uuid) == 0) {
-				return chr;
-			}
-		}
-	}
-
-	return NULL;
-}
-
-const struct ble_gatt_dsc_def *find_dsc(ble_uuid_any_t *uuid)
-{
-	const struct ble_gatt_svc_def *svc;
+	struct find_attr_data *foreach = arg;
+	const struct ble_gatt_svc_def **includes;
 	const struct ble_gatt_chr_def *chr;
 	const struct ble_gatt_dsc_def *dsc;
 
-	for (svc = gatt_svr_svcs; svc && svc->uuid; svc++) {
-		for (chr = svc->characteristics; chr && chr->uuid; chr++) {
-			for (dsc = chr->descriptors; dsc && dsc->uuid; dsc++) {
-				if (ble_uuid_cmp(&uuid->u, dsc->uuid) == 0) {
-					return dsc;
-				}
-			}
+	SYS_LOG_DBG("");
+
+	if (foreach->attr_type == BLE_GATT_ATTR_SVC &&
+	    ble_uuid_cmp(&foreach->uuid->u, svc->uuid) == 0) {
+		foreach->ptr = (void *) svc;
+		foreach->handle = handle;
+		return;
+	}
+	handle += 1;
+
+	if (svc->includes) {
+		for (includes = &svc->includes[0];
+		     *includes != NULL; ++includes) {
+			handle += 1;
 		}
 	}
 
-	for (svc = gatt_svr_inc_svcs; svc && svc->uuid; svc++) {
-		for (chr = svc->characteristics; chr && chr->uuid; chr++) {
-			for (dsc = chr->descriptors; dsc && dsc->uuid; dsc++) {
-				if (ble_uuid_cmp(&uuid->u, dsc->uuid) == 0) {
-					return dsc;
-				}
+	for (chr = svc->characteristics; chr && chr->uuid; ++chr) {
+		if (foreach->attr_type == BLE_GATT_ATTR_CHR &&
+		    ble_uuid_cmp(&foreach->uuid->u, chr->uuid) == 0) {
+			foreach->ptr = (void *) chr;
+			foreach->handle = handle;
+			return;
+		}
+		handle += 2;
+
+		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
+		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
+			handle += 1;
+		}
+
+		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
+			if (foreach->attr_type == BLE_GATT_ATTR_DSC &&
+			    ble_uuid_cmp(&foreach->uuid->u, dsc->uuid) == 0) {
+				foreach->ptr = (void *) dsc;
+				foreach->handle = handle;
+				return;
 			}
+			handle += 1;
+		}
+	}
+}
+
+static void find_attr_by_handle_cb(const struct ble_gatt_svc_def *svc,
+				   uint16_t handle, uint16_t end_group_handle,
+				   void *arg)
+{
+	struct find_attr_data *foreach = arg;
+	const struct ble_gatt_svc_def **includes;
+	const struct ble_gatt_chr_def *chr;
+	const struct ble_gatt_dsc_def *dsc;
+
+	SYS_LOG_DBG("");
+
+	handle += 1;
+
+	if (svc->includes) {
+		for (includes = &svc->includes[0];
+		     *includes != NULL; ++includes) {
+			handle += 1;
 		}
 	}
 
-	return NULL;
+	for (chr = svc->characteristics; chr && chr->uuid; ++chr) {
+		if (handle == foreach->handle) {
+			foreach->attr_type = BLE_GATT_ATTR_CHR;
+			foreach->ptr = (void *) chr;
+			return;
+		}
+		handle += 2;
+
+		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
+		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
+			handle += 1;
+		}
+
+		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
+			if (handle == foreach->handle) {
+				foreach->attr_type = BLE_GATT_ATTR_CHR;
+				foreach->ptr = (void *) dsc;
+				return;
+			}
+			handle += 1;
+		}
+	}
 }
 
 static void add_service(u8_t *data, u16_t len)
@@ -500,12 +525,14 @@ static void add_service(u8_t *data, u16_t len)
 	const struct gatt_add_service_cmd *cmd = (void *) data;
 	struct gatt_add_service_rp rp;
 	const struct ble_gatt_svc_def *svc;
+	struct find_attr_data find_data;
 	ble_uuid_any_t uuid;
 	int type;
 
 	SYS_LOG_DBG("");
 
 	if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
+		SYS_LOG_ERR("Invalid service UUID");
 		goto fail;
 	}
 
@@ -521,19 +548,25 @@ static void add_service(u8_t *data, u16_t len)
 		goto fail;
 	}
 
-	svc = find_svc(&uuid);
+	memset(&find_data, 0, sizeof(find_data));
+
+	find_data.uuid = &uuid;
+	find_data.attr_type = BLE_GATT_ATTR_SVC;
+
+	ble_gatts_lcl_svc_foreach(find_attr_by_uuid_cb, &find_data);
+
+	svc = find_data.ptr;
 	if (svc == NULL) {
-		SYS_LOG_ERR("Invalid service UUID");
+		SYS_LOG_ERR("Could not find service");
 		goto fail;
 	}
 
 	if (type != svc->type) {
-		SYS_LOG_ERR("Invalid service type");
+		SYS_LOG_ERR("Service type mismatch");
 		goto fail;
 	}
 
-	/* TODO: set svc id */
-	rp.svc_id = 0;
+	rp.svc_id = find_data.handle;
 
 	tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_SERVICE, CONTROLLER_INDEX,
 		    (u8_t *) &rp, sizeof(rp));
@@ -666,6 +699,7 @@ static void add_characteristic(u8_t *data, u16_t len)
 	const struct gatt_add_characteristic_cmd *cmd = (void *) data;
 	struct gatt_add_characteristic_rp rp;
 	const struct ble_gatt_chr_def *chr;
+	struct find_attr_data find_data;
 	ble_uuid_any_t uuid;
 	uint16_t flags = 0;
 	int i;
@@ -673,11 +707,25 @@ static void add_characteristic(u8_t *data, u16_t len)
 	SYS_LOG_DBG("");
 
 	if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
+		SYS_LOG_ERR("Invalid characteristic UUID");
 		goto fail;
 	}
 
-	/* characterisic must be added sequentially */
 	if (cmd->svc_id) {
+		SYS_LOG_ERR("Characteristic must be added sequentially");
+		goto fail;
+	}
+
+	memset(&find_data, 0, sizeof(find_data));
+
+	find_data.uuid = &uuid;
+	find_data.attr_type = BLE_GATT_ATTR_CHR;
+
+	ble_gatts_lcl_svc_foreach(find_attr_by_uuid_cb, &find_data);
+
+	chr = find_data.ptr;
+	if (chr == NULL) {
+		SYS_LOG_ERR("Could not find characteristic");
 		goto fail;
 	}
 
@@ -687,19 +735,12 @@ static void add_characteristic(u8_t *data, u16_t len)
 		}
 	}
 
-	chr = find_chr(&uuid);
-	if (chr == NULL) {
-		SYS_LOG_ERR("Invalid characteristic UUID");
-		goto fail;
-	}
-
 	if ((chr->flags > 0) && ((flags & chr->flags) == 0)) {
 		SYS_LOG_ERR("Invalid flags");
 		goto fail;
 	}
 
-	/* TODO: Set char id */
-	rp.char_id = 0;
+	rp.char_id = find_data.handle;
 
 	tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_CHARACTERISTIC,
 		    CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
@@ -715,6 +756,7 @@ static void add_descriptor(u8_t *data, u16_t len)
 	const struct gatt_add_descriptor_cmd *cmd = (void *) data;
 	struct gatt_add_descriptor_rp rp;
 	const struct ble_gatt_dsc_def *dsc;
+	struct find_attr_data find_data;
 	ble_uuid_any_t uuid;
 	uint16_t att_flags = 0;
 	int i;
@@ -722,40 +764,43 @@ static void add_descriptor(u8_t *data, u16_t len)
 	SYS_LOG_DBG("");
 
 	if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
+		SYS_LOG_ERR("Invalid descriptor UUID");
 		goto fail;
 	}
 
-	/* descriptor can be added only sequentially */
 	if (cmd->char_id) {
+		SYS_LOG_ERR("Descriptor must be added sequentially");
+		goto fail;
+	}
+
+	memset(&find_data, 0, sizeof(find_data));
+
+	find_data.uuid = &uuid;
+	find_data.attr_type = BLE_GATT_ATTR_DSC;
+
+	ble_gatts_lcl_svc_foreach(find_attr_by_uuid_cb, &find_data);
+
+	dsc = find_data.ptr;
+	if (dsc == NULL) {
+		SYS_LOG_ERR("Could not find descriptor");
 		goto fail;
 	}
 
 	att_flags = cmd->permissions;
 
-	if (!ble_uuid_cmp(&uuid.u, &BT_UUID_GATT_CEP.u)) {
-		/* TODO: */
-	} else if (!ble_uuid_cmp(&uuid.u, &BT_UUID_GATT_CCC.u)) {
-		/* handled by host */
-	} else {
-		dsc = find_dsc(&uuid);
-		if (dsc == NULL) {
-			SYS_LOG_ERR("Invalid characteristic UUID");
-			goto fail;
-		}
-
-		for (i = 0; i < 8; ++i) {
-			if (cmd->permissions & BIT(i)) {
-				att_flags |= gatt_dsc_perm_map[i];
-			}
-		}
-
-		if ((att_flags & dsc->att_flags) == 0) {
-			SYS_LOG_ERR("Invalid flags");
-			goto fail;
+	for (i = 0; i < 8; ++i) {
+		if (cmd->permissions & BIT(i)) {
+			att_flags |= gatt_dsc_perm_map[i];
 		}
 	}
 
-	rp.desc_id = 0;
+	if ((att_flags & dsc->att_flags) == 0) {
+		SYS_LOG_ERR("Invalid flags");
+		goto fail;
+	}
+
+	rp.desc_id = find_data.handle;
+
 	tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_DESCRIPTOR, CONTROLLER_INDEX,
 		    (u8_t *) &rp, sizeof(rp));
 	return;
@@ -782,14 +827,30 @@ static void set_value(u8_t *data, u16_t len)
 {
 	const struct gatt_set_value_cmd *cmd = (void *) data;
 	const struct ble_gatt_chr_def *chr;
-	struct gatt_value *gatt_value;
+	struct find_attr_data find_data;
+	struct gatt_value *gatt_value = NULL;
 	u16_t value_len;
 	const u8_t *value;
 
 	SYS_LOG_DBG("%d id", cmd->attr_id);
 
-	gatt_value = find_gatt_value_by_id(
-		sys_le16_to_cpu(cmd->attr_id));
+	memset(&find_data, 0, sizeof(find_data));
+
+	find_data.handle = sys_le16_to_cpu(cmd->attr_id);
+
+	ble_gatts_lcl_svc_foreach(find_attr_by_handle_cb, &find_data);
+
+	if (find_data.ptr == NULL) {
+		SYS_LOG_ERR("Could not find attribute");
+		goto fail;
+	}
+
+	if (find_data.attr_type == BLE_GATT_ATTR_CHR) {
+		gatt_value = ((struct ble_gatt_chr_def *)find_data.ptr)->arg;
+	} else if (find_data.attr_type == BLE_GATT_ATTR_DSC) {
+		gatt_value = ((struct ble_gatt_dsc_def *)find_data.ptr)->arg;
+	}
+
 	assert(gatt_value != NULL);
 
 	value_len = sys_le16_to_cpu(cmd->len);
@@ -810,6 +871,11 @@ static void set_value(u8_t *data, u16_t len)
 
 	tester_rsp(BTP_SERVICE_ID_GATT, GATT_SET_VALUE, CONTROLLER_INDEX,
 		   BTP_STATUS_SUCCESS);
+	return;
+
+fail:
+	tester_rsp(BTP_SERVICE_ID_GATT, GATT_SET_VALUE,
+		   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 }
 
 static void start_server(u8_t *data, u16_t len)
@@ -832,16 +898,34 @@ static void start_server(u8_t *data, u16_t len)
 static void set_enc_key_size(u8_t *data, u16_t len)
 {
 	const struct gatt_set_enc_key_size_cmd *cmd = (void *) data;
-	struct gatt_value *val;
-	u8_t status = 0;
+	struct find_attr_data find_data;
+	struct gatt_value *val = NULL;
+	u8_t status = BTP_STATUS_SUCCESS;
 
 	/* Fail if requested key size is invalid */
 	if (cmd->key_size < 0x07 || cmd->key_size > 0x0f) {
 		status = BTP_STATUS_FAILED;
-		goto fail;
+		goto done;
 	}
 
-	val = find_gatt_value_by_id(sys_le16_to_cpu(cmd->attr_id));
+	memset(&find_data, 0, sizeof(find_data));
+
+	find_data.handle = sys_le16_to_cpu(cmd->attr_id);
+
+	ble_gatts_lcl_svc_foreach(find_attr_by_handle_cb, &find_data);
+
+	if (find_data.ptr == NULL) {
+		SYS_LOG_ERR("Could not find attribute");
+		status = BTP_STATUS_FAILED;
+		goto done;
+	}
+
+	if (find_data.attr_type == BLE_GATT_ATTR_CHR) {
+		val = ((struct ble_gatt_chr_def *)find_data.ptr)->arg;
+	} else if (find_data.attr_type == BLE_GATT_ATTR_DSC) {
+		val = ((struct ble_gatt_dsc_def *)find_data.ptr)->arg;
+	}
+
 	assert(val != NULL);
 	assert(val->ptr != NULL);
 
@@ -858,7 +942,7 @@ static void set_enc_key_size(u8_t *data, u16_t len)
 		break;
 	}
 
-fail:
+done:
 	tester_rsp(BTP_SERVICE_ID_GATT, GATT_SET_ENC_KEY_SIZE, CONTROLLER_INDEX,
 		   status);
 }
