@@ -570,23 +570,27 @@ static size_t read_value(uint16_t conn_handle, uint16_t attr_handle,
 		ble_uuid_to_str(ctxt->dsc->uuid, str);
 	}
 
-	rc = os_mbuf_append(ctxt->om, value->buf->om_data, value->buf->om_len);
+	rc = os_mbuf_appendfrom(ctxt->om, value->buf,
+				0, os_mbuf_len(value->buf));
 	return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-static void attr_value_changed_ev(u16_t handle, const u8_t *value, u16_t len)
+static void attr_value_changed_ev(u16_t handle, struct os_mbuf *data)
 {
-	u8_t buf[len + sizeof(struct gatt_attr_value_changed_ev)];
-	struct gatt_attr_value_changed_ev *ev = (void *) buf;
+	struct gatt_attr_value_changed_ev *ev;
+	struct os_mbuf *buf = os_msys_get(0, 0);
 
 	SYS_LOG_DBG("");
 
-	ev->handle = sys_cpu_to_le16(handle);
-	ev->data_length = sys_cpu_to_le16(len);
-	memcpy(ev->data, value, len);
+	net_buf_simple_init(buf, 0);
+	ev = net_buf_simple_add(buf, sizeof(*ev));
 
-	tester_send(BTP_SERVICE_ID_GATT, GATT_EV_ATTR_VALUE_CHANGED,
-		    CONTROLLER_INDEX, buf, sizeof(buf));
+	ev->handle = sys_cpu_to_le16(handle);
+	ev->data_length = sys_cpu_to_le16(os_mbuf_len(data));
+	os_mbuf_appendfrom(buf, data, 0, os_mbuf_len(data));
+
+	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_EV_ATTR_VALUE_CHANGED,
+			CONTROLLER_INDEX, buf);
 }
 
 static size_t write_value(uint16_t conn_handle, uint16_t attr_handle,
@@ -594,7 +598,7 @@ static size_t write_value(uint16_t conn_handle, uint16_t attr_handle,
 			  void *arg)
 {
 	struct gatt_value *value = arg;
-	uint16_t om_len, len;
+	uint16_t write_len, current_len;
 	int rc;
 
 	SYS_LOG_DBG("");
@@ -609,22 +613,22 @@ static size_t write_value(uint16_t conn_handle, uint16_t attr_handle,
 		}
 	}
 
-	om_len = OS_MBUF_PKTLEN(ctxt->om);
-	if (om_len > value->buf->om_len) {
+	write_len = os_mbuf_len(ctxt->om);
+	current_len = os_mbuf_len(value->buf);
+
+	SYS_LOG_DBG("current_len = %d", current_len);
+	SYS_LOG_DBG("write_len = %d", write_len);
+	if (write_len > current_len) {
 		return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
 	}
 
-	rc = ble_hs_mbuf_to_flat(ctxt->om, value->buf->om_data,
-				 value->buf->om_len, &len);
+	os_mbuf_adj(value->buf, -current_len);
+	rc = os_mbuf_appendfrom(value->buf, ctxt->om, 0, write_len);
 	if (rc != 0) {
 		return BLE_ATT_ERR_UNLIKELY;
 	}
 
-	/* Maximum attribute value size is 512 bytes */
-	assert(value->buf->om_len < 512);
-
-	attr_value_changed_ev(attr_handle, value->buf->om_data,
-			      value->buf->om_len);
+	attr_value_changed_ev(attr_handle, value->buf);
 
 	return 0;
 }
@@ -791,12 +795,10 @@ static void set_value(u8_t *data, u16_t len)
 	value_len = sys_le16_to_cpu(cmd->len);
 	value = cmd->value;
 
-	if (value_len > gatt_value->buf->om_len) {
-		os_mbuf_extend(gatt_value->buf,
-			       (value_len - gatt_value->buf->om_len));
-	}
+	os_mbuf_adj(gatt_value->buf, - os_mbuf_len(gatt_value->buf));
+	os_mbuf_append(gatt_value->buf, value, value_len);
 
-	memcpy(gatt_value->buf->om_data, value, value_len);
+	SYS_LOG_DBG("os_mbuf_len = %d", os_mbuf_len(gatt_value->buf));
 
 	if (gatt_value->type == GATT_VALUE_TYPE_CHR) {
 		chr = gatt_value->ptr;
@@ -1704,42 +1706,42 @@ static struct bt_gatt_subscribe_params {
 	u16_t value_handle;
 } subscribe_params;
 
-/* ev header + default MTU_ATT-3 */
-static u8_t ev_buf[33];
-
 int tester_gatt_notify_rx_ev(u16_t conn_handle, u16_t attr_handle,
 			     u8_t indication, struct os_mbuf *om)
 {
-	struct gatt_notification_ev *ev = (void *) ev_buf;
+	struct gatt_notification_ev *ev;
 	struct ble_gap_conn_desc conn;
+	struct os_mbuf *buf = os_msys_get(0, 0);
 	const ble_addr_t *addr;
-	int rc;
 
 	SYS_LOG_DBG("");
 
 	if (!subscribe_params.ccc_handle) {
-		return 0;
+		goto fail;
 	}
 
-	rc = ble_gap_conn_find(conn_handle, &conn);
-	if (rc) {
-		return -1;
+	if (ble_gap_conn_find(conn_handle, &conn)) {
+		goto fail;
 	}
+
+	net_buf_simple_init(buf, 0);
+	ev = net_buf_simple_add(buf, sizeof(*ev));
 
 	addr = &conn.peer_ota_addr;
 
+	ev->address_type = addr->type;
+	memcpy(ev->address, addr->val, sizeof(ev->address));
 	ev->type = (u8_t) (indication ? 0x02 : 0x01);
 	ev->handle = sys_cpu_to_le16(attr_handle);
-	ev->data_length = sys_cpu_to_le16(om->om_len);
-	memcpy(ev->data, om->om_data, om->om_len);
-	memcpy(ev->address, addr->val, sizeof(ev->address));
-	ev->address_type = addr->type;
+	ev->data_length = sys_cpu_to_le16(os_mbuf_len(om));
+	os_mbuf_appendfrom(buf, om, 0, os_mbuf_len(om));
 
-	tester_send(BTP_SERVICE_ID_GATT, GATT_EV_NOTIFICATION,
-		    CONTROLLER_INDEX, ev_buf, sizeof(*ev) + om->om_len);
+	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_EV_NOTIFICATION,
+			CONTROLLER_INDEX, buf);
 
+fail:
+	os_mbuf_free_chain(buf);
 	return 0;
-
 }
 
 int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
