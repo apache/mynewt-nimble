@@ -23,7 +23,6 @@
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "ble/xcvr.h"
-#include "mcu/cmsis_nvic.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "controller/ble_phy.h"
@@ -33,6 +32,9 @@
 
 #if MYNEWT
 #include "mcu/nrf51_clock.h"
+#include "mcu/cmsis_nvic.h"
+#else
+#include "core_cm0.h"
 #endif
 
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
@@ -907,7 +909,11 @@ ble_phy_init(void)
 
     /* Set isr in vector table and enable interrupt */
     NVIC_SetPriority(RADIO_IRQn, 0);
+#if MYNEWT
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
+#else
+    ble_npl_hw_set_isr(RADIO_IRQn, ble_phy_isr);
+#endif
     NVIC_EnableIRQ(RADIO_IRQn);
 
     /* Register phy statistics */
