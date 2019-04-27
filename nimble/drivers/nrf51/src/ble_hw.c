@@ -27,7 +27,13 @@
 #include "nimble/nimble_opt.h"
 #include "nrfx.h"
 #include "controller/ble_hw.h"
+#if MYNEWT
 #include "mcu/cmsis_nvic.h"
+#else
+#include "core_cm0.h"
+#include <nimble/nimble_npl_os.h>
+#endif
+#include "os/os_trace_api.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -314,7 +320,11 @@ ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
     /* If we were passed a function pointer we need to enable the interrupt */
     if (cb != NULL) {
         NVIC_SetPriority(RNG_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#if MYNEWT
         NVIC_SetVector(RNG_IRQn, (uint32_t)ble_rng_isr);
+#else
+        ble_npl_hw_set_isr(RNG_IRQn, ble_rng_isr);
+#endif
         NVIC_EnableIRQ(RNG_IRQn);
         g_ble_rng_isr_cb = cb;
     }
