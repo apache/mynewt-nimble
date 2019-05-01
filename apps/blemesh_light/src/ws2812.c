@@ -16,6 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+ 
+#include "syscfg/syscfg.h"
+
+#if (MYNEWT_VAL(USE_NEOPIXEL))
 
 #include <assert.h>
 #include <string.h>
@@ -131,3 +135,4 @@ ws2812_write(const uint32_t *rgb)
 
     return 0;
 }
+#endif
