@@ -3007,6 +3007,47 @@ ble_gap_ext_adv_remove(uint8_t instance)
     return 0;
 }
 
+int
+ble_gap_ext_adv_clear(void)
+{
+    int rc;
+    uint8_t instance;
+    uint16_t opcode;
+
+    ble_hs_lock();
+
+    for (instance = 0; instance < BLE_ADV_INSTANCES; instance++) {
+        /* If there is an active instance or periodic adv instance,
+         * Don't send the command
+         * */
+        if ((ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV)) {
+            ble_hs_unlock();
+            return BLE_HS_EBUSY;
+        }
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+        if ((ble_gap_slave[instance].periodic_op ==
+                        BLE_GAP_OP_S_PERIODIC_ADV)) {
+            ble_hs_unlock();
+            return BLE_HS_EBUSY;
+        }
+#endif
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CLEAR_ADV_SETS);
+
+    rc = ble_hs_hci_cmd_tx_empty_ack(opcode, NULL, 0);
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    memset(ble_gap_slave, 0, sizeof(ble_gap_slave));
+    ble_hs_unlock();
+
+    return 0;
+}
+
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
 static int
 ble_gap_periodic_adv_params_tx(uint8_t instance,

@@ -965,6 +965,13 @@ int ble_gap_ext_adv_stop(uint8_t instance);
 int ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data);
 int ble_gap_ext_adv_rsp_set_data(uint8_t instance, struct os_mbuf *data);
 int ble_gap_ext_adv_remove(uint8_t instance);
+/**
+ * Clear All existing extended Adv Sets.
+ * @return              0 on success,
+ *                      BLE_HS_EBUSY if advertising is in progress,
+ *                      other error code on failure.
+ */
+int ble_gap_ext_adv_clear(void);
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
 /* Periodic Advertising */
