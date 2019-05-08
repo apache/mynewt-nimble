@@ -46,6 +46,7 @@ void *ble_hs_test_util_hci_out_first(void);
 void *ble_hs_test_util_hci_out_last(void);
 void ble_hs_test_util_hci_out_enqueue(void *cmd);
 void ble_hs_test_util_hci_out_clear(void);
+void ble_hs_test_util_hci_acks_clear(void);
 
 /* $build */
 void ble_hs_test_util_hci_build_cmd_complete(uint8_t *dst, int len,

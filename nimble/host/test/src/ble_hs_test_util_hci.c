@@ -107,6 +107,12 @@ ble_hs_test_util_hci_out_clear(void)
     ble_hs_test_util_hci_out_queue_sz = 0;
 }
 
+void
+ble_hs_test_util_hci_acks_clear(void)
+{
+    ble_hs_test_util_hci_num_acks = 0;
+}
+
 /*****************************************************************************
  * $build                                                                    *
  *****************************************************************************/

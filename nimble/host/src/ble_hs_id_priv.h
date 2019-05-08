@@ -31,6 +31,7 @@ int ble_hs_id_addr(uint8_t id_addr_type, const uint8_t **out_id_addr,
                    int *out_is_nrpa);
 int ble_hs_id_use_addr(uint8_t addr_type);
 void ble_hs_id_reset(void);
+void ble_hs_id_rnd_reset(void);
 
 #ifdef __cplusplus
 }
