@@ -58,11 +58,14 @@ ble_hs_id_set_rnd(const uint8_t *rnd_addr)
 {
     uint8_t addr_type_byte;
     int rc;
+    uint8_t all_zeros[BLE_DEV_ADDR_LEN] = {0}, all_ones[BLE_DEV_ADDR_LEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     ble_hs_lock();
 
+    /* Make sure all bits are neither one nor zero */
     addr_type_byte = rnd_addr[5] & 0xc0;
-    if (addr_type_byte != 0x00 && addr_type_byte != 0xc0) {
+    if ((addr_type_byte != 0x00 && addr_type_byte != 0xc0) ||
+        !memcmp(rnd_addr, all_zeros, BLE_DEV_ADDR_LEN) || !memcmp(rnd_addr, all_ones, BLE_DEV_ADDR_LEN)) {
         rc = BLE_HS_EINVAL;
         goto done;
     }
@@ -283,3 +286,13 @@ ble_hs_id_reset(void)
     memset(ble_hs_id_pub, 0, sizeof ble_hs_id_pub);
     memset(ble_hs_id_rnd, 0, sizeof ble_hs_id_pub);
 }
+
+/**
+ * Clears random address. This function is necessary when the host wants to
+ * clear random address.
+ */
+ void
+ ble_hs_id_rnd_reset(void)
+ {
+    memset(ble_hs_id_rnd, 0, sizeof ble_hs_id_rnd);
+ }
