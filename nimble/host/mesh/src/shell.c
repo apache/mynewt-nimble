@@ -2390,95 +2390,332 @@ static int cmd_print_composition_data(int argc, char *argv[])
 	return 0;
 }
 
+
 static const struct shell_cmd mesh_commands[] = {
-	{ "init", cmd_mesh_init, NULL },
+    {
+        .sc_cmd = "init",
+        .sc_cmd_func = cmd_mesh_init,
+        .help = NULL,
+    },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
-	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
+    {
+        .sc_cmd = "pb-adv",
+        .sc_cmd_func = cmd_pb_adv,
+        .help = &cmd_pb_help,
+    },
 #endif
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-	{ "pb-gatt", cmd_pb_gatt, &cmd_pb_help },
+    {
+        .sc_cmd = "pb-gatt",
+        .sc_cmd_func = cmd_pb_gatt,
+        .help = &cmd_pb_help,
+    },
 #endif
-	{ "reset", cmd_reset, NULL },
-	{ "uuid", cmd_uuid, &cmd_uuid_help },
-	{ "input-num", cmd_input_num, &cmd_input_num_help },
-	{ "input-str", cmd_input_str, &cmd_input_str_help },
-	{ "static-oob", cmd_static_oob, &cmd_static_oob_help },
-	{ "provision", cmd_provision, &cmd_provision_help },
+    {
+        .sc_cmd = "reset",
+        .sc_cmd_func = cmd_reset,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "uuid",
+        .sc_cmd_func = cmd_uuid,
+        .help = &cmd_uuid_help,
+    },
+    {
+        .sc_cmd = "input-num",
+        .sc_cmd_func = cmd_input_num,
+        .help = &cmd_input_num_help,
+    },
+    {
+        .sc_cmd = "input-str",
+        .sc_cmd_func = cmd_input_str,
+        .help = &cmd_input_str_help,
+    },
+    {
+        .sc_cmd = "static-oob",
+        .sc_cmd_func = cmd_static_oob,
+        .help = &cmd_static_oob_help,
+    },
+    {
+        .sc_cmd = "provision",
+        .sc_cmd_func = cmd_provision,
+        .help = &cmd_provision_help,
+    },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
-	{ "lpn", cmd_lpn, &cmd_lpn_help },
-	{ "poll", cmd_poll, NULL },
+    {
+        .sc_cmd = "lpn",
+        .sc_cmd_func = cmd_lpn,
+        .help = &cmd_lpn_help,
+    },
+    {
+        .sc_cmd = "poll",
+        .sc_cmd_func = cmd_poll,
+        .help = NULL,
+    },
 #endif
 #if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
-	{ "ident", cmd_ident, NULL },
+    {
+        .sc_cmd = "ident",
+        .sc_cmd_func = cmd_ident,
+        .help = NULL,
+    },
 #endif
-	{ "dst", cmd_dst, &cmd_dst_help },
-	{ "netidx", cmd_netidx, &cmd_netidx_help },
-	{ "appidx", cmd_appidx, &cmd_appidx_help },
+    {
+        .sc_cmd = "dst",
+        .sc_cmd_func = cmd_dst,
+        .help = &cmd_dst_help,
+    },
+    {
+        .sc_cmd = "netidx",
+        .sc_cmd_func = cmd_netidx,
+        .help = &cmd_netidx_help,
+    },
+    {
+        .sc_cmd = "appidx",
+        .sc_cmd_func = cmd_appidx,
+        .help = &cmd_appidx_help,
+    },
 
-	/* Commands which access internal APIs, for testing only */
-	{ "net-send", cmd_net_send, &cmd_net_send_help },
-	{ "iv-update", cmd_iv_update, NULL },
-	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
-	{ "rpl-clear", cmd_rpl_clear, NULL },
+    /* Commands which access internal APIs, for testing only */
+    {
+        .sc_cmd = "net-send",
+        .sc_cmd_func = cmd_net_send,
+        .help = &cmd_net_send_help,
+    },
+    {
+        .sc_cmd = "iv-update",
+        .sc_cmd_func = cmd_iv_update,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "iv-update-test",
+        .sc_cmd_func = cmd_iv_update_test,
+        .help = &cmd_iv_update_test_help,
+    },
+    {
+        .sc_cmd = "rpl-clear",
+        .sc_cmd_func = cmd_rpl_clear,
+        .help = NULL,
+    },
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
-	{ "lpn-subscribe", cmd_lpn_subscribe, &cmd_lpn_subscribe_help },
-	{ "lpn-unsubscribe", cmd_lpn_unsubscribe, &cmd_lpn_unsubscribe_help },
+    {
+        .sc_cmd = "lpn-subscribe",
+        .sc_cmd_func = cmd_lpn_subscribe,
+        .help = &cmd_lpn_subscribe_help,
+    },
+    {
+        .sc_cmd = "lpn-unsubscribe",
+        .sc_cmd_func = cmd_lpn_unsubscribe,
+        .help = &cmd_lpn_unsubscribe_help,
+    },
 #endif
-	{ "print-credentials", cmd_print_credentials, NULL },
-	{ "print-composition-data", cmd_print_composition_data, NULL },
+    {
+        .sc_cmd = "print-credentials",
+        .sc_cmd_func = cmd_print_credentials,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "print-composition-data",
+        .sc_cmd_func = cmd_print_composition_data,
+        .help = NULL,
+    },
 
 
 #if MYNEWT_VAL(BLE_MESH_CFG_CLI)
-	/* Configuration Client Model operations */
-	{ "timeout", cmd_timeout, &cmd_timeout_help },
-	{ "get-comp", cmd_get_comp, &cmd_get_comp_help },
-	{ "beacon", cmd_beacon, &cmd_beacon_help },
-	{ "ttl", cmd_ttl, &cmd_ttl_help},
-	{ "friend", cmd_friend, &cmd_friend_help },
-	{ "gatt-proxy", cmd_gatt_proxy, &cmd_gatt_proxy_help },
-	{ "relay", cmd_relay, &cmd_relay_help },
-	{ "net-key-add", cmd_net_key_add, &cmd_net_key_add_help },
-	{ "app-key-add", cmd_app_key_add, &cmd_app_key_add_help },
-	{ "mod-app-bind", cmd_mod_app_bind, &cmd_mod_app_bind_help },
-	{ "mod-pub", cmd_mod_pub, &cmd_mod_pub_help },
-	{ "mod-sub-add", cmd_mod_sub_add, &cmd_mod_sub_add_help },
-	{ "mod-sub-del", cmd_mod_sub_del, &cmd_mod_sub_del_help },
-	{ "mod-sub-add-va", cmd_mod_sub_add_va, &cmd_mod_sub_add_va_help },
-	{ "mod-sub-del-va", cmd_mod_sub_del_va, &cmd_mod_sub_del_va_help },
-	{ "hb-sub", cmd_hb_sub, &cmd_hb_sub_help },
-	{ "hb-pub", cmd_hb_pub, &cmd_hb_pub_help },
+    /* Configuration Client Model operations */
+    {
+        .sc_cmd = "timeout",
+        .sc_cmd_func = cmd_timeout,
+        .help = &cmd_timeout_help,
+    },
+    {
+        .sc_cmd = "get-comp",
+        .sc_cmd_func = cmd_get_comp,
+        .help = &cmd_get_comp_help,
+    },
+    {
+        .sc_cmd = "beacon",
+        .sc_cmd_func = cmd_beacon,
+        .help = &cmd_beacon_help,
+    },
+    {
+        .sc_cmd = "ttl",
+        .sc_cmd_func = cmd_ttl,
+        .help = &cmd_ttl_help,
+    },
+    {
+        .sc_cmd = "friend",
+        .sc_cmd_func = cmd_friend,
+        .help = &cmd_friend_help,
+    },
+    {
+        .sc_cmd = "gatt-proxy",
+        .sc_cmd_func = cmd_gatt_proxy,
+        .help = &cmd_gatt_proxy_help,
+    },
+    {
+        .sc_cmd = "relay",
+        .sc_cmd_func = cmd_relay,
+        .help = &cmd_relay_help,
+    },
+    {
+        .sc_cmd = "net-key-add",
+        .sc_cmd_func = cmd_net_key_add,
+        .help = &cmd_net_key_add_help,
+    },
+    {
+        .sc_cmd = "app-key-add",
+        .sc_cmd_func = cmd_app_key_add,
+        .help = &cmd_app_key_add_help,
+    },
+    {
+        .sc_cmd = "mod-app-bind",
+        .sc_cmd_func = cmd_mod_app_bind,
+        .help = &cmd_mod_app_bind_help,
+    },
+    {
+        .sc_cmd = "mod-pub",
+        .sc_cmd_func = cmd_mod_pub,
+        .help = &cmd_mod_pub_help,
+    },
+    {
+        .sc_cmd = "mod-sub-add",
+        .sc_cmd_func = cmd_mod_sub_add,
+        .help = &cmd_mod_sub_add_help,
+    },
+    {
+        .sc_cmd = "mod-sub-del",
+        .sc_cmd_func = cmd_mod_sub_del,
+        .help = &cmd_mod_sub_del_help,
+    },
+    {
+        .sc_cmd = "mod-sub-add-va",
+        .sc_cmd_func = cmd_mod_sub_add_va,
+        .help = &cmd_mod_sub_add_va_help,
+    },
+    {
+        .sc_cmd = "mod-sub-del-va",
+        .sc_cmd_func = cmd_mod_sub_del_va,
+        .help = &cmd_mod_sub_del_va_help,
+    },
+    {
+        .sc_cmd = "hb-sub",
+        .sc_cmd_func = cmd_hb_sub,
+        .help = &cmd_hb_sub_help,
+    },
+    {
+        .sc_cmd = "hb-pub",
+        .sc_cmd_func = cmd_hb_pub,
+        .help = &cmd_hb_pub_help,
+    },
 #endif
 
 #if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
-	/* Health Client Model Operations */
-	{ "fault-get", cmd_fault_get, &cmd_fault_get_help },
-	{ "fault-clear", cmd_fault_clear, &cmd_fault_clear_help },
-	{ "fault-clear-unack", cmd_fault_clear_unack, &cmd_fault_clear_unack_help },
-	{ "fault-test", cmd_fault_test, &cmd_fault_test_help },
-	{ "fault-test-unack", cmd_fault_test_unack, &cmd_fault_test_unack_help },
-	{ "period-get", cmd_period_get, NULL },
-	{ "period-set", cmd_period_set, &cmd_period_set_help },
-	{ "period-set-unack", cmd_period_set_unack, &cmd_period_set_unack_help },
-	{ "attention-get", cmd_attention_get, NULL },
-	{ "attention-set", cmd_attention_set, &cmd_attention_set_help },
-	{ "attention-set-unack", cmd_attention_set_unack, &cmd_attention_set_unack_help },
+    /* Health Client Model Operations */
+    {
+        .sc_cmd = "fault-get",
+        .sc_cmd_func = cmd_fault_get,
+        .help = &cmd_fault_get_help,
+    },
+    {
+        .sc_cmd = "fault-clear",
+        .sc_cmd_func = cmd_fault_clear,
+        .help = &cmd_fault_clear_help,
+    },
+    {
+        .sc_cmd = "fault-clear-unack",
+        .sc_cmd_func = cmd_fault_clear_unack,
+        .help = &cmd_fault_clear_unack_help,
+    },
+    {
+        .sc_cmd = "fault-test",
+        .sc_cmd_func = cmd_fault_test,
+        .help = &cmd_fault_test_help,
+    },
+    {
+        .sc_cmd = "fault-test-unack",
+        .sc_cmd_func = cmd_fault_test_unack,
+        .help = &cmd_fault_test_unack_help,
+    },
+    {
+        .sc_cmd = "period-get",
+        .sc_cmd_func = cmd_period_get,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "period-set",
+        .sc_cmd_func = cmd_period_set,
+        .help = &cmd_period_set_help,
+    },
+    {
+        .sc_cmd = "period-set-unack",
+        .sc_cmd_func = cmd_period_set_unack,
+        .help = &cmd_period_set_unack_help,
+    },
+    {
+        .sc_cmd = "attention-get",
+        .sc_cmd_func = cmd_attention_get,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "attention-set",
+        .sc_cmd_func = cmd_attention_set,
+        .help = &cmd_attention_set_help,
+    },
+    {
+        .sc_cmd = "attention-set-unack",
+        .sc_cmd_func = cmd_attention_set_unack,
+        .help = &cmd_attention_set_unack_help,
+    },
 #endif
 
-	/* Health Server Model Operations */
-	{ "add-fault", cmd_add_fault, &cmd_add_fault_help },
-	{ "del-fault", cmd_del_fault, &cmd_del_fault_help },
+    /* Health Server Model Operations */
+    {
+        .sc_cmd = "add-fault",
+        .sc_cmd_func = cmd_add_fault,
+        .help = &cmd_add_fault_help,
+    },
+    {
+        .sc_cmd = "del-fault",
+        .sc_cmd_func = cmd_del_fault,
+        .help = &cmd_del_fault_help,
+    },
 
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-	/* Generic Client Model Operations */
-	{ "gen-onoff-get", cmd_gen_onoff_get, NULL },
-	{ "gen-onoff-set", cmd_gen_onoff_set, &cmd_gen_onoff_set_help },
-	{ "gen-onoff-set-unack", cmd_gen_onoff_set_unack, &cmd_gen_onoff_set_unack_help },
-	{ "gen-level-get", cmd_gen_level_get, NULL },
-	{ "gen-level-set", cmd_gen_level_set, &cmd_gen_level_set_help },
-	{ "gen-level-set-unack", cmd_gen_level_set_unack, &cmd_gen_level_set_unack_help },
+    /* Generic Client Model Operations */
+    {
+        .sc_cmd = "gen-onoff-get",
+        .sc_cmd_func = cmd_gen_onoff_get,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "gen-onoff-set",
+        .sc_cmd_func = cmd_gen_onoff_set,
+        .help = &cmd_gen_onoff_set_help,
+    },
+    {
+        .sc_cmd = "gen-onoff-set-unack",
+        .sc_cmd_func = cmd_gen_onoff_set_unack,
+        .help = &cmd_gen_onoff_set_unack_help,
+    },
+    {
+        .sc_cmd = "gen-level-get",
+        .sc_cmd_func = cmd_gen_level_get,
+        .help = NULL,
+    },
+    {
+        .sc_cmd = "gen-level-set",
+        .sc_cmd_func = cmd_gen_level_set,
+        .help = &cmd_gen_level_set_help,
+    },
+    {
+        .sc_cmd = "gen-level-set-unack",
+        .sc_cmd_func = cmd_gen_level_set_unack,
+        .help = &cmd_gen_level_set_unack_help,
+    },
 #endif
 
-	{ NULL, NULL, NULL}
+    { 0 },
 };
 
 static void mesh_shell_thread(void *args)
