@@ -3964,7 +3964,7 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &host_disable_help,
 #endif
     },
-    { NULL, NULL, NULL },
+    { 0 },
 };
 
 
