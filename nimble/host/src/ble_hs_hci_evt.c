@@ -654,20 +654,14 @@ ble_hs_hci_evt_le_periodic_adv_rpt(uint8_t subevent, uint8_t *data,
                                       int len)
 {
 #if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
-    struct hci_le_subev_periodic_adv_rpt evt;
+    struct hci_le_subev_periodic_adv_rpt* evt;
 
     if (len < BLE_HCI_LE_PERIODIC_ADV_RPT_LEN) {
         return BLE_HS_EBADDATA;
     }
 
-    evt.sync_handle = get_le16(data + 1);
-    evt.tx_power = data[3];
-    evt.rssi = data[4];
-    evt.data_status = data[6];
-    evt.data_length = data[7];
-    memcpy(evt.data, &data[8], evt.data_length);
-
-    ble_gap_rx_periodic_adv_rpt(&evt);
+    evt = (struct hci_le_subev_periodic_adv_rpt *)data;
+    ble_gap_rx_periodic_adv_rpt(evt);
 #endif
 
 return 0;
