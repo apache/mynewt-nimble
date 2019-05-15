@@ -504,7 +504,7 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
     evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
     evt->tx_power = 127; /* not available */
     evt->rssi = 127; /* not available */
-    evt->unused = 0xff;
+    evt->cte_type = 0xff;
     evt->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
     evt->data_length = 0;
     ble_ll_hci_event_send(evbuf);
@@ -568,7 +568,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
         evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
         evt->tx_power = tx_power;
         evt->rssi = hdr->rxinfo.rssi;
-        evt->unused = 0xff;
+        evt->cte_type = 0xff;
 
         evt->data_length = min(max_event_len - sizeof(*evt) - 3, datalen - offset);
         /* adjust event length */

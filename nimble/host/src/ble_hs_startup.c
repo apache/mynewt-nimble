@@ -264,7 +264,14 @@ ble_hs_startup_le_set_evmask_tx(void)
          *   0x0000000000040000 LE Scan Request Received Event
          *   0x0000000000080000 LE Channel Selection Algorithm Event
          */
-        mask |= 0x00000000000ff800;
+        mask |= 0x00000000000f1800 | 0x2000 | 0x4000 | 0x8000;
+    }
+    if (version >= BLE_HCI_VER_BCS_5_1) {
+        /**
+         *  0x0000000000100000 LE Connection IQ Sampling Report Event
+         *  0x0000000000200000 LE Connectionless IQ Sampling Report Event
+         */
+        mask |= 0x0000000000300000;
     }
 
     ble_hs_hci_cmd_build_le_set_event_mask(mask, buf, sizeof buf);

@@ -166,6 +166,14 @@ extern "C" {
 #define BLE_HCI_OCF_LE_RD_RF_PATH_COMPENSATION      (0x004C)
 #define BLE_HCI_OCF_LE_WR_RF_PATH_COMPENSATION      (0x004D)
 #define BLE_HCI_OCF_LE_SET_PRIVACY_MODE             (0x004E)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_CTE_TX_PARAMS      (0x0051)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_CTE_TX_ENABLE      (0x0052)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_IQ_SAMPLING_ENABLE (0x0053)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_RX_PARAMS          (0x0054)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_TX_PARAMS          (0x0055)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_REQ_ENABLE         (0x0056)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_RESP_ENABLE        (0x0057)
+#define BLE_HCI_OCF_LE_RD_ANTENNA_INFO                 (0x0058)
 
 /* Command Specific Definitions */
 #define BLE_HCI_VARIABLE_LEN                (0xFF)
@@ -697,7 +705,8 @@ extern "C" {
 #define BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED     (0x12)
 #define BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD          (0x13)
 #define BLE_HCI_LE_SUBEV_CHAN_SEL_ALG           (0x14)
-
+#define BLE_HCI_LE_SUBEV_CONNLESS_IQ_SAMPLES_RPT   (0x15)
+#define BLE_HCI_LE_SUBEV_CONN_IQ_SAMPLES_RPT       (0x16)
 /* Generic event header */
 #define BLE_HCI_EVENT_HDR_LEN               (2)
 
@@ -817,6 +826,7 @@ extern "C" {
 #define BLE_HCI_VER_BCS_4_1                 (7)
 #define BLE_HCI_VER_BCS_4_2                 (8)
 #define BLE_HCI_VER_BCS_5_0                 (9)
+#define BLE_HCI_VER_BCS_5_1                 (10)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -828,6 +838,7 @@ extern "C" {
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
 #define BLE_LMP_VER_BCS_5_0                 (9)
+#define BLE_LMP_VER_BCS_5_1                 (10)
 
 /* Sub-event 0x0A: enhanced connection complete */
 #define BLE_HCI_LE_ENH_CONN_COMPLETE_LEN    (31)
@@ -1022,7 +1033,7 @@ struct hci_le_subev_periodic_adv_rpt {
     uint16_t sync_handle;
     int8_t tx_power;
     int8_t rssi;
-    uint8_t unused;
+    uint8_t cte_type;
     uint8_t data_status;
     uint8_t data_length;
     uint8_t data[0];
@@ -1246,6 +1257,57 @@ struct hci_add_dev_to_resolving_list {
 
 /* External data structures */
 extern const uint8_t g_ble_hci_le_cmd_len[BLE_HCI_NUM_LE_CMDS];
+
+struct hci_connless_cte_params {
+    uint8_t adv_handle;
+    uint8_t cte_lenght;
+    uint8_t cte_type;
+    uint8_t cte_count;
+    uint8_t length_switch_ptrn;
+    uint8_t antenna_ids[0];
+}__attribute__((packed));
+
+struct hci_connless_iq_samples_enable {
+    uint16_t sync_handle;
+    uint8_t sampling_en;
+    uint8_t slot_duration;
+    uint8_t max_sampled_cte;
+    uint8_t length_switch_ptrn;
+    uint8_t antenna_ids[0];
+}__attribute__((packed));
+
+struct hci_conn_cte_rx_params {
+    uint16_t conn_handle;
+    uint8_t sampling_en;
+    uint8_t slot_duration;
+    uint8_t length_switch_ptrn;
+    uint8_t* antenna_ids[0];
+}__attribute__((packed));
+
+struct hci_conn_cte_tx_params {
+    uint16_t conn_handle;
+    uint8_t cte_types;
+    uint8_t length_switch_ptrn;
+    uint8_t antenna_ids[0];
+}__attribute__((packed));
+
+struct hci_conn_cte_req_enable {
+    uint16_t conn_handle;
+    uint8_t enable;
+    uint16_t cte_req_interval;
+    uint8_t cte_requested_lenght;
+    uint8_t cte_requested_type;
+}__attribute__((packed));
+
+#define BLE_HCI_SET_CONNLESS_CTE_ENABLE_LEN     (2)
+#define BLE_HCI_SET_CONNLESS_CTE_PARAM_MAX_LEN     (5 + 75)
+#define BLE_HCI_CONNLES_IQ_SAMPLING_EN_MAX_LEN     (6 + 75)
+#define BLE_HCI_SET_CONN_CTE_TX_PARAMS_MAX_LEN     (4 + 75)
+#define BLE_HCI_SET_CONN_CTE_RX_PARAMS_MAX_LEN     (5 + 75)
+#define BLE_HCI_SET_CONN_CTE_REQ_ENABLE_LEN    (7)
+#define BLE_HCI_SET_CONN_CTE_RESP_ENABLE_LEN   (3)
+#define BLE_HCI_IQ_SAMPLES_RPRT_MIN_LEN        (11)
+#define BLE_HCI_GET_ANTENNA_INFO_LEN           (5)
 
 #ifdef __cplusplus
 }
