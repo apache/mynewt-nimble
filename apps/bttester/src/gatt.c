@@ -158,11 +158,39 @@ static int gatt_svr_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 			      struct ble_gatt_access_ctxt *ctxt,
 			      void *arg);
 
+
+static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
+	{
+		.type = BLE_GATT_SVC_TYPE_PRIMARY,
+		.uuid = PTS_UUID_DECLARE(PTS_INC_SVC),
+		.characteristics = (struct ble_gatt_chr_def[]) {{
+			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
+			.access_cb = gatt_svr_access_cb,
+			.flags = BLE_GATT_CHR_F_READ |
+				 BLE_GATT_CHR_F_WRITE,
+			.arg = &gatt_values[13],
+			.val_handle = &gatt_values[13].val_handle,
+		}, {
+			0,
+		} },
+	},
+
+	{
+		0, /* No more services. */
+	},
+};
+
+static const struct ble_gatt_svc_def *inc_svcs[] = {
+	&gatt_svr_inc_svcs[0],
+	NULL,
+};
+
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 	{
 		/*** Service: PTS test. */
 		.type = BLE_GATT_SVC_TYPE_PRIMARY,
 		.uuid = PTS_UUID_DECLARE(PTS_SVC),
+		.includes = inc_svcs,
 		.characteristics = (struct ble_gatt_chr_def[]) { {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_NO_PERM),
 			.access_cb = gatt_svr_access_cb,
@@ -270,35 +298,6 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 		}, {
 			0, /* No more characteristics in this service. */
 		} },
-	},
-
-	{
-		0, /* No more services. */
-	},
-};
-
-static const struct ble_gatt_svc_def *inc_svcs[] = {
-	&gatt_svr_svcs[0],
-	NULL,
-};
-
-static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
-	{
-		.type = BLE_GATT_SVC_TYPE_PRIMARY,
-		.uuid = PTS_UUID_DECLARE(PTS_INC_SVC),
-		.includes = inc_svcs,
-		.characteristics = (struct ble_gatt_chr_def[]) {{
-			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
-			.access_cb = gatt_svr_access_cb,
-			.flags = BLE_GATT_CHR_F_READ |
-				 BLE_GATT_CHR_F_WRITE,
-			.arg = &gatt_values[13],
-			.val_handle = &gatt_values[13].val_handle,
-			},
-			{
-				0,
-			},
-		},
 	},
 
 	{
@@ -2186,22 +2185,22 @@ int gatt_svr_init(void)
 {
 	int rc;
 
-	rc = ble_gatts_count_cfg(gatt_svr_svcs);
-	if (rc != 0) {
-		return rc;
-	}
-
-	rc = ble_gatts_add_svcs(gatt_svr_svcs);
-	if (rc != 0) {
-		return rc;
-	}
-
 	rc = ble_gatts_count_cfg(gatt_svr_inc_svcs);
 	if (rc != 0) {
 		return rc;
 	}
 
 	rc = ble_gatts_add_svcs(gatt_svr_inc_svcs);
+	if (rc != 0) {
+		return rc;
+	}
+
+	rc = ble_gatts_count_cfg(gatt_svr_svcs);
+	if (rc != 0) {
+		return rc;
+	}
+
+	rc = ble_gatts_add_svcs(gatt_svr_svcs);
 	if (rc != 0) {
 		return rc;
 	}
