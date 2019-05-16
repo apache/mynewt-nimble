@@ -25,8 +25,7 @@
 static ble_npl_event_fn ble_hs_stop_term_event_cb;
 static struct ble_npl_event ble_hs_stop_term_ev;
 
-static struct ble_gap_event_listener ble_hs_stop_gap_listener;
-
+static int ble_hs_stop_gap_event(struct ble_gap_event *event, void *arg);
 /**
  * List of stop listeners.  These are notified when a stop procedure completes.
  */
@@ -44,7 +43,8 @@ ble_hs_stop_done(int status)
 
     ble_hs_lock();
 
-    ble_gap_event_listener_unregister(&ble_hs_stop_gap_listener);
+    (void)ble_gap_event_listener_unregister(BLE_GAP_EVENT_ALL_EVENTS,
+                                             ble_hs_stop_gap_event);
 
     slist = ble_hs_stop_listeners;
     SLIST_INIT(&ble_hs_stop_listeners);
@@ -147,13 +147,7 @@ ble_hs_stop_term_event_cb(struct ble_npl_event *ev)
 static int
 ble_hs_stop_gap_event(struct ble_gap_event *event, void *arg)
 {
-    /* Only process connection termination events. */
-    if (event->type == BLE_GAP_EVENT_DISCONNECT ||
-        event->type == BLE_GAP_EVENT_TERM_FAILURE) {
-
-        ble_hs_stop_terminate_next_conn();
-    }
-
+    ble_hs_stop_terminate_next_conn();
     return 0;
 }
 
@@ -233,8 +227,11 @@ ble_hs_stop(struct ble_hs_stop_listener *listener,
     ble_gap_preempt();
     ble_gap_preempt_done();
 
-    rc = ble_gap_event_listener_register(&ble_hs_stop_gap_listener,
-                                         ble_hs_stop_gap_event, NULL);
+    rc = ble_gap_event_listener_register(
+                    BLE_GAP_EVENT_TO_LISTENER(BLE_GAP_EVENT_DISCONNECT) |
+                    BLE_GAP_EVENT_TO_LISTENER(BLE_GAP_EVENT_TERM_FAILURE),
+                    ble_hs_stop_gap_event, NULL);
+
     if (rc != 0) {
         return rc;
     }
