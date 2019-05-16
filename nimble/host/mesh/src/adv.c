@@ -105,9 +105,14 @@ static inline void adv_send(struct os_mbuf *buf)
 
 	adv_int = max(adv_int_min,
 		      BT_MESH_TRANSMIT_INT(BT_MESH_ADV(buf)->xmit));
+#if MYNEWT_VAL(BLE_CONTROLLER)
+	duration = ((BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1) *
+				(adv_int + 10));
+#else
 	duration = (MESH_SCAN_WINDOW_MS +
 		    ((BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1) *
 		     (adv_int + 10)));
+#endif
 
 	BT_DBG("type %u om_len %u: %s", BT_MESH_ADV(buf)->type,
 	       buf->om_len, bt_hex(buf->om_data, buf->om_len));
