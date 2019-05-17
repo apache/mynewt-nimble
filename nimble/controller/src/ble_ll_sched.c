@@ -1522,8 +1522,8 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
          * anything. We can make it smarter later on
          */
         if (ble_ll_sched_is_overlap(sch, entry)) {
-            OS_EXIT_CRITICAL(sr);
-            return -1;
+            rc = -1;
+            break;
         }
     }
 
@@ -1536,7 +1536,16 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 done:
 
     /* Get head of list to restart timer */
+#ifdef BLE_XCVR_RFCLK
+    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
+    if (entry == sch) {
+        ble_ll_xcvr_rfclk_timer_start(sch->start_time);
+    } else {
+        sch = entry;
+    }
+#else
     sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+#endif
 
     OS_EXIT_CRITICAL(sr);
 
