@@ -245,6 +245,10 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+static int g_ble_phy_nrf_raal_in_slot;
+#endif
+
 static void
 ble_phy_apply_errata_102_106_107(void)
 {
@@ -1194,6 +1198,13 @@ ble_phy_isr(void)
 
     os_trace_isr_enter();
 
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+    if (g_ble_phy_nrf_raal_in_slot) {
+        ble_ll_nrf_raal_radio_isr();
+        goto done;
+    }
+#endif
+
     /* Read irq register to determine which interrupts are enabled */
     irq_en = NRF_RADIO->INTENCLR;
 
@@ -1242,6 +1253,9 @@ ble_phy_isr(void)
     /* Ensures IRQ is cleared */
     irq_en = NRF_RADIO->SHORTS;
 
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+done:
+#endif
     /* Count # of interrupts */
     STATS_INC(ble_phy_stats, phy_isrs);
 
@@ -1331,6 +1345,55 @@ ble_phy_dbg_time_setup(void)
 #endif
 }
 
+void
+ble_phy_nrf_radio_init(void)
+{
+    /* Disable all interrupts */
+    NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
+
+    /* Set configuration registers */
+    NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
+    NRF_RADIO->PCNF0 = NRF_PCNF0;
+
+    /* XXX: should maxlen be 251 for encryption? */
+    NRF_RADIO->PCNF1 = NRF_MAXLEN |
+                       (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
+                       (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
+                       RADIO_PCNF1_WHITEEN_Msk;
+
+    /* Enable radio fast ramp-up */
+    NRF_RADIO->MODECNF0 |= (RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos) &
+                            RADIO_MODECNF0_RU_Msk;
+
+    /* Set logical address 1 for TX and RX */
+    NRF_RADIO->TXADDRESS  = 0;
+    NRF_RADIO->RXADDRESSES  = (1 << 0);
+
+    /* Configure the CRC registers */
+    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
+
+    /* Configure BLE poly */
+    NRF_RADIO->CRCPOLY = 0x0000065B;
+
+    /* Configure IFS */
+    NRF_RADIO->TIFS = BLE_LL_IFS;
+
+    /* Configure TX power */
+    NRF_RADIO->TXPOWER = g_ble_phy_data.phy_txpwr_dbm;
+
+    /* Captures tx/rx start in timer0 cc 1 and tx/rx end in timer0 cc 2 */
+    NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk | PPI_CHEN_CH27_Msk;
+
+    /* Set isr in vector table and enable interrupt */
+    NVIC_SetPriority(RADIO_IRQn, 0);
+#if MYNEWT
+    NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
+#else
+    ble_npl_hw_set_isr(RADIO_IRQn, (uint32_t)ble_phy_isr);
+#endif
+    NVIC_EnableIRQ(RADIO_IRQn);
+}
+
 /**
  * ble phy init
  *
@@ -1367,38 +1430,8 @@ ble_phy_init(void)
     NRF_RADIO->POWER = 0;
     NRF_RADIO->POWER = 1;
 
-    /* Disable all interrupts */
-    NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
-
-    /* Set configuration registers */
-    NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
-    NRF_RADIO->PCNF0 = NRF_PCNF0;
-
-    /* XXX: should maxlen be 251 for encryption? */
-    NRF_RADIO->PCNF1 = NRF_MAXLEN |
-                       (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
-                       (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
-                       RADIO_PCNF1_WHITEEN_Msk;
-
-    /* Enable radio fast ramp-up */
-    NRF_RADIO->MODECNF0 |= (RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos) &
-                            RADIO_MODECNF0_RU_Msk;
-
-    /* Set logical address 1 for TX and RX */
-    NRF_RADIO->TXADDRESS  = 0;
-    NRF_RADIO->RXADDRESSES  = (1 << 0);
-
-    /* Configure the CRC registers */
-    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
-
-    /* Configure BLE poly */
-    NRF_RADIO->CRCPOLY = 0x0000065B;
-
-    /* Configure IFS */
-    NRF_RADIO->TIFS = BLE_LL_IFS;
-
-    /* Captures tx/rx start in timer0 cc 1 and tx/rx end in timer0 cc 2 */
-    NRF_PPI->CHENSET = PPI_CHEN_CH26_Msk | PPI_CHEN_CH27_Msk;
+    /* Initialize radio peripheral */
+    ble_phy_nrf_radio_init();
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     NRF_CCM->INTENCLR = 0xffffffff;
@@ -1435,15 +1468,6 @@ ble_phy_init(void)
     NRF_PPI->CH[4].TEP = (uint32_t)&(NRF_TIMER0->TASKS_CAPTURE[3]);
     NRF_PPI->CH[5].EEP = (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]);
     NRF_PPI->CH[5].TEP = (uint32_t)&(NRF_RADIO->TASKS_DISABLE);
-
-    /* Set isr in vector table and enable interrupt */
-    NVIC_SetPriority(RADIO_IRQn, 0);
-#if MYNEWT
-    NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
-#else
-    ble_npl_hw_set_isr(RADIO_IRQn, ble_phy_isr);
-#endif
-    NVIC_EnableIRQ(RADIO_IRQn);
 
     /* Register phy statistics */
     if (!g_ble_phy_data.phy_stats_initialized) {
@@ -2064,5 +2088,20 @@ ble_phy_rfclk_disable(void)
     nrf52_clock_hfxo_release();
 #else
     NRF_CLOCK->TASKS_HFCLKSTOP = 1;
-#endif
 }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+void
+ble_phy_nrf_raal_slot_enter(void)
+{
+    ble_phy_disable();
+}
+
+void
+ble_phy_nrf_raal_slot_exit(void)
+{
+    ble_phy_disable();
+    ble_phy_nrf_radio_init();
+}
+#endif

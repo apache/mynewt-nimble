@@ -74,6 +74,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_CONN      (3)
 #define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
 #define BLE_LL_SCHED_TYPE_DTM       (5)
+#define BLE_LL_SCHED_TYPE_NRF_RAAL  (6)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -197,6 +198,10 @@ int ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 int ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode);
 #endif
 
+
+#if MYNEWT_VAL(BLE_LL_NRF_RAAL_ENABLE)
+int ble_ll_sched_nrf_raal(struct ble_ll_sched_item *sch);
+#endif
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);
 
