@@ -898,13 +898,13 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
 #if !BLE_MONITOR
-    BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
-                      "len=%u data=",
-               BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc),
-               BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc),
-               hci_hdr.hdh_len);
+    BLE_HS_LOG_DEBUG("ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
+                     "len=%u data=",
+                     BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc),
+                     BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc),
+                     hci_hdr.hdh_len);
     ble_hs_log_mbuf(om);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 #endif
 #endif
 

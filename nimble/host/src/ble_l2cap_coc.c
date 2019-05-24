@@ -159,13 +159,13 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         sdu_len = get_le16((*om)->om_data);
         if (sdu_len > rx->mtu) {
             /* TODO Disconnect?*/
-            BLE_HS_LOG(INFO, "error: sdu_len > rx->mtu (%d>%d)\n",
-                       sdu_len, rx->mtu);
+            BLE_HS_LOG_INFO("error: sdu_len > rx->mtu (%d>%d)\n",
+                            sdu_len, rx->mtu);
             return BLE_HS_EBADDATA;
         }
 
-        BLE_HS_LOG(DEBUG, "sdu_len=%d, received LE frame=%d, credits=%d\n",
-                   sdu_len, om_total, rx->credits);
+        BLE_HS_LOG_DEBUG("sdu_len=%d, received LE frame=%d, credits=%d\n",
+                         sdu_len, om_total, rx->credits);
 
         os_mbuf_adj(*om , BLE_L2CAP_SDU_SIZE);
 
@@ -174,7 +174,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
             /* FIXME: User shall give us big enough buffer.
              * need to handle it better
              */
-            BLE_HS_LOG(INFO, "Could not append data rc=%d\n", rc);
+            BLE_HS_LOG_INFO("Could not append data rc=%d\n", rc);
             assert(0);
         }
 
@@ -182,12 +182,12 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         rx->data_offset = sdu_len;
 
     } else {
-        BLE_HS_LOG(DEBUG, "Continuation...received %d\n", (*om)->om_len);
+        BLE_HS_LOG_DEBUG("Continuation...received %d\n", (*om)->om_len);
 
         rc  = os_mbuf_appendfrom(rx->sdu, *om, 0, om_total);
         if (rc != 0) {
             /* FIXME: need to handle it better */
-            BLE_HS_LOG(DEBUG, "Could not append data rc=%d\n", rc);
+            BLE_HS_LOG_DEBUG("Could not append data rc=%d\n", rc);
             assert(0);
         }
     }
@@ -197,8 +197,8 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     if (OS_MBUF_PKTLEN(rx->sdu) == rx->data_offset) {
         struct os_mbuf *sdu_rx = rx->sdu;
 
-        BLE_HS_LOG(DEBUG, "Received sdu_len=%d, credits left=%d\n",
-                   OS_MBUF_PKTLEN(rx->sdu), rx->credits);
+        BLE_HS_LOG_DEBUG("Received sdu_len=%d, credits left=%d\n",
+                         OS_MBUF_PKTLEN(rx->sdu), rx->credits);
 
         /* Lets get back control to os_mbuf to application.
          * Since it this callback application might want to set new sdu
@@ -225,8 +225,8 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid, rx->credits);
     }
 
-    BLE_HS_LOG(DEBUG, "Received partial sdu_len=%d, credits left=%d\n",
-               OS_MBUF_PKTLEN(rx->sdu), rx->credits);
+    BLE_HS_LOG_DEBUG("Received partial sdu_len=%d, credits left=%d\n",
+                     OS_MBUF_PKTLEN(rx->sdu), rx->credits);
 
     return 0;
 }
@@ -353,7 +353,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
     while (tx->credits) {
         sdu_size_offset = 0;
 
-        BLE_HS_LOG(DEBUG, "Available credits %d\n", tx->credits);
+        BLE_HS_LOG_DEBUG("Available credits %d\n", tx->credits);
 
         /* lets calculate data we are going to send */
         left_to_send = OS_MBUF_PKTLEN(tx->sdu) - tx->data_offset;
@@ -369,7 +369,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         /* Prepare packet */
         txom = ble_hs_mbuf_l2cap_pkt();
         if (!txom) {
-            BLE_HS_LOG(DEBUG, "Could not prepare l2cap packet len %d", len);
+            BLE_HS_LOG_DEBUG("Could not prepare l2cap packet len %d", len);
             rc = BLE_HS_ENOMEM;
             goto failed;
         }
@@ -378,10 +378,10 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             /* First packet needs SDU len first. Left to send */
             uint16_t l = htole16(OS_MBUF_PKTLEN(tx->sdu));
 
-            BLE_HS_LOG(DEBUG, "Sending SDU len=%d\n", OS_MBUF_PKTLEN(tx->sdu));
+            BLE_HS_LOG_DEBUG("Sending SDU len=%d\n", OS_MBUF_PKTLEN(tx->sdu));
             rc = os_mbuf_append(txom, &l, sizeof(uint16_t));
             if (rc) {
-                BLE_HS_LOG(DEBUG, "Could not append data rc=%d", rc);
+                BLE_HS_LOG_DEBUG("Could not append data rc=%d", rc);
                 goto failed;
             }
         }
@@ -393,7 +393,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         rc = os_mbuf_appendfrom(txom, tx->sdu, tx->data_offset,
                                 len - sdu_size_offset);
         if (rc) {
-            BLE_HS_LOG(DEBUG, "Could not append data rc=%d", rc);
+            BLE_HS_LOG_DEBUG("Could not append data rc=%d", rc);
            goto failed;
         }
 
@@ -411,11 +411,12 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             tx->data_offset += len - sdu_size_offset;
         }
 
-        BLE_HS_LOG(DEBUG, "Sent %d bytes, credits=%d, to send %d bytes \n",
-                  len, tx->credits, OS_MBUF_PKTLEN(tx->sdu)- tx->data_offset );
+        BLE_HS_LOG_DEBUG("Sent %d bytes, credits=%d, to send %d bytes \n",
+                         len, tx->credits,
+                         OS_MBUF_PKTLEN(tx->sdu) - tx->data_offset);
 
         if (tx->data_offset == OS_MBUF_PKTLEN(tx->sdu)) {
-                BLE_HS_LOG(DEBUG, "Complete package sent\n");
+                BLE_HS_LOG_DEBUG("Complete package sent\n");
                 os_mbuf_free_chain(tx->sdu);
                 tx->sdu = 0;
                 tx->data_offset = 0;
@@ -469,7 +470,7 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
     }
 
     if (chan->coc_tx.credits + credits > 0xFFFF) {
-        BLE_HS_LOG(INFO, "LE CoC credits overflow...disconnecting\n");
+        BLE_HS_LOG_INFO("LE CoC credits overflow...disconnecting\n");
         ble_hs_unlock();
         ble_l2cap_sig_disconnect(chan);
         return;

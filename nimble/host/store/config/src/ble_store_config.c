@@ -48,37 +48,37 @@ static void
 ble_store_config_print_value_sec(const struct ble_store_value_sec *sec)
 {
     if (sec->ltk_present) {
-        BLE_HS_LOG(DEBUG, "ediv=%u rand=%llu authenticated=%d ltk=",
-                       sec->ediv, sec->rand_num, sec->authenticated);
+        BLE_HS_LOG_DEBUG("ediv=%u rand=%llu authenticated=%d ltk=",
+                         sec->ediv, sec->rand_num, sec->authenticated);
         ble_hs_log_flat_buf(sec->ltk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG_DEBUG(" ");
     }
     if (sec->irk_present) {
-        BLE_HS_LOG(DEBUG, "irk=");
+        BLE_HS_LOG_DEBUG("irk=");
         ble_hs_log_flat_buf(sec->irk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG_DEBUG(" ");
     }
     if (sec->csrk_present) {
-        BLE_HS_LOG(DEBUG, "csrk=");
+        BLE_HS_LOG_DEBUG("csrk=");
         ble_hs_log_flat_buf(sec->csrk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG_DEBUG(" ");
     }
 
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 }
 
 static void
 ble_store_config_print_key_sec(const struct ble_store_key_sec *key_sec)
 {
     if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
-        BLE_HS_LOG(DEBUG, "peer_addr_type=%d peer_addr=",
-                       key_sec->peer_addr.type);
+        BLE_HS_LOG_DEBUG("peer_addr_type=%d peer_addr=",
+                         key_sec->peer_addr.type);
         ble_hs_log_flat_buf(key_sec->peer_addr.val, 6);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG_DEBUG(" ");
     }
     if (key_sec->ediv_rand_present) {
-        BLE_HS_LOG(DEBUG, "ediv=0x%02x rand=0x%llx ",
-                       key_sec->ediv, key_sec->rand_num);
+        BLE_HS_LOG_DEBUG("ediv=0x%02x rand=0x%llx ",
+                         key_sec->ediv, key_sec->rand_num);
     }
 }
 
@@ -147,7 +147,7 @@ ble_store_config_write_our_sec(const struct ble_store_value_sec *value_sec)
     int idx;
     int rc;
 
-    BLE_HS_LOG(DEBUG, "persisting our sec; ");
+    BLE_HS_LOG_DEBUG("persisting our sec; ");
     ble_store_config_print_value_sec(value_sec);
 
     ble_store_key_from_value_sec(&key_sec, value_sec);
@@ -155,8 +155,8 @@ ble_store_config_write_our_sec(const struct ble_store_value_sec *value_sec)
                                     ble_store_config_num_our_secs);
     if (idx == -1) {
         if (ble_store_config_num_our_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
-            BLE_HS_LOG(DEBUG, "error persisting our sec; too many entries "
-                              "(%d)\n", ble_store_config_num_our_secs);
+            BLE_HS_LOG_DEBUG("error persisting our sec; too many entries "
+                             "(%d)\n", ble_store_config_num_our_secs);
             return BLE_HS_ESTORE_CAP;
         }
 
@@ -278,7 +278,7 @@ ble_store_config_write_peer_sec(const struct ble_store_value_sec *value_sec)
     int idx;
     int rc;
 
-    BLE_HS_LOG(DEBUG, "persisting peer sec; ");
+    BLE_HS_LOG_DEBUG("persisting peer sec; ");
     ble_store_config_print_value_sec(value_sec);
 
     ble_store_key_from_value_sec(&key_sec, value_sec);
@@ -286,7 +286,7 @@ ble_store_config_write_peer_sec(const struct ble_store_value_sec *value_sec)
                                  ble_store_config_num_peer_secs);
     if (idx == -1) {
         if (ble_store_config_num_peer_secs >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
-            BLE_HS_LOG(DEBUG, "error persisting peer sec; too many entries "
+            BLE_HS_LOG_DEBUG("error persisting peer sec; too many entries "
                              "(%d)\n", ble_store_config_num_peer_secs);
             return BLE_HS_ESTORE_CAP;
         }
@@ -396,8 +396,8 @@ ble_store_config_write_cccd(const struct ble_store_value_cccd *value_cccd)
     idx = ble_store_config_find_cccd(&key_cccd);
     if (idx == -1) {
         if (ble_store_config_num_cccds >= MYNEWT_VAL(BLE_STORE_MAX_CCCDS)) {
-            BLE_HS_LOG(DEBUG, "error persisting cccd; too many entries (%d)\n",
-                       ble_store_config_num_cccds);
+            BLE_HS_LOG_DEBUG("error persisting cccd; too many entries (%d)\n",
+                             ble_store_config_num_cccds);
             return BLE_HS_ESTORE_CAP;
         }
 
@@ -440,16 +440,16 @@ ble_store_config_read(int obj_type, const union ble_store_key *key,
          * result.  The nimble stack will use this key if this function returns
          * success.
          */
-        BLE_HS_LOG(DEBUG, "looking up peer sec; ");
+        BLE_HS_LOG_DEBUG("looking up peer sec; ");
         ble_store_config_print_key_sec(&key->sec);
-        BLE_HS_LOG(DEBUG, "\n");
+        BLE_HS_LOG_DEBUG("\n");
         rc = ble_store_config_read_peer_sec(&key->sec, &value->sec);
         return rc;
 
     case BLE_STORE_OBJ_TYPE_OUR_SEC:
-        BLE_HS_LOG(DEBUG, "looking up our sec; ");
+        BLE_HS_LOG_DEBUG("looking up our sec; ");
         ble_store_config_print_key_sec(&key->sec);
-        BLE_HS_LOG(DEBUG, "\n");
+        BLE_HS_LOG_DEBUG("\n");
         rc = ble_store_config_read_our_sec(&key->sec, &value->sec);
         return rc;
 

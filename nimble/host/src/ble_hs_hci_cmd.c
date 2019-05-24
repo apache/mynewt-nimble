@@ -81,10 +81,10 @@ ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
     }
 
 #if !BLE_MONITOR
-    BLE_HS_LOG(DEBUG, "ble_hs_hci_cmd_send: ogf=0x%02x ocf=0x%04x len=%d\n",
-               BLE_HCI_OGF(opcode), BLE_HCI_OCF(opcode), len);
+    BLE_HS_LOG_DEBUG("ble_hs_hci_cmd_send: ogf=0x%02x ocf=0x%04x len=%d\n",
+                     BLE_HCI_OGF(opcode), BLE_HCI_OCF(opcode), len);
     ble_hs_log_flat_buf(buf, len + BLE_HCI_CMD_HDR_LEN);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 #endif
 
     rc = ble_hs_hci_cmd_transport(buf);
@@ -92,7 +92,7 @@ ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
     if (rc == 0) {
         STATS_INC(ble_hs_stats, hci_cmd);
     } else {
-        BLE_HS_LOG(DEBUG, "ble_hs_hci_cmd_send failure; rc=%d\n", rc);
+        BLE_HS_LOG_DEBUG("ble_hs_hci_cmd_send failure; rc=%d\n", rc);
     }
 
     return rc;

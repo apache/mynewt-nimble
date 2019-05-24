@@ -22,18 +22,48 @@
 
 #include "modlog/modlog.h"
 
+#if MYNEWT
+#include "os/mynewt.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct os_mbuf;
 
-#define BLE_HS_LOG(lvl, ...) \
-    MODLOG_ ## lvl(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+/* For Mynewt builds, the newt tool generates the `BLE_HS_LOG_[...] macros
+ * based on the host's configured log level.  For non Mynewt-builds, these
+ * macros are defined here.
+ */
+
+#ifndef BLE_HS_LOG_DEBUG
+#define BLE_HS_LOG_DEBUG(fmt, ...)      \
+    MODLOG_DEBUG(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#endif
+
+#ifndef BLE_HS_LOG_INFO
+#define BLE_HS_LOG_INFO(fmt, ...)       \
+    MODLOG_INFO(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#endif
+
+#ifndef BLE_HS_LOG_WARN
+#define BLE_HS_LOG_WARN(fmt, ...)       \
+    MODLOG_WARN(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#endif
+
+#ifndef BLE_HS_LOG_ERROR
+#define BLE_HS_LOG_ERROR(fmt, ...)      \
+    MODLOG_ERROR(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#endif
+
+#ifndef BLE_HS_LOG_CRITICAL
+#define BLE_HS_LOG_CRITICAL(fmt, ...)   \
+    MODLOG_CRITICAL(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#endif
 
 #define BLE_HS_LOG_ADDR(lvl, addr)                      \
-    MODLOG_ ## lvl(LOG_MODULE_NIMBLE_HOST,              \
-                   "%02x:%02x:%02x:%02x:%02x:%02x",     \
+    BLE_HS_LOG_ ## lvl("%02x:%02x:%02x:%02x:%02x:%02x", \
                    (addr)[5], (addr)[4], (addr)[3],     \
                    (addr)[2], (addr)[1], (addr)[0])
 

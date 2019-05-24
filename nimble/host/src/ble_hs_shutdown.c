@@ -61,7 +61,7 @@ ble_hs_shutdown(int reason)
         return SYSDOWN_COMPLETE;
 
     default:
-        BLE_HS_LOG(ERROR, "ble_hs_shutdown: failed to stop host; rc=%d\n", rc);
+        BLE_HS_LOG_ERROR("ble_hs_shutdown: failed to stop host; rc=%d\n", rc);
         return SYSDOWN_COMPLETE;
     }
 }

@@ -47,7 +47,7 @@ ble_hs_startup_read_sup_f_tx(void)
      * LE Supported (Controller) byte 4, bit 6
      */
     if (!(ack_params[4] & 0x60)) {
-        BLE_HS_LOG(ERROR, "Controller doesn't support LE\n");
+        BLE_HS_LOG_ERROR("Controller doesn't support LE\n");
         return BLE_HS_ECONTROLLER;
     }
 
@@ -356,7 +356,7 @@ ble_hs_startup_go(void)
     /* we need to check this only if using external controller */
 #if !MYNEWT_VAL(BLE_CONTROLLER)
     if (ble_hs_hci_get_hci_version() < BLE_HCI_VER_BCS_4_0) {
-        BLE_HS_LOG(ERROR, "Required controller version is 4.0 (6)\n");
+        BLE_HS_LOG_ERROR("Required controller version is 4.0 (6)\n");
         return BLE_HS_ECONTROLLER;
     }
 

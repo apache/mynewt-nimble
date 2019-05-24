@@ -185,12 +185,12 @@ ble_sm_sc_ensure_keys_generated(void)
         ble_sm_sc_keys_generated = 1;
     }
 
-    BLE_HS_LOG(DEBUG, "our pubkey=");
+    BLE_HS_LOG_DEBUG("our pubkey=");
     ble_hs_log_flat_buf(&ble_sm_sc_pub_key, 64);
-    BLE_HS_LOG(DEBUG, "\n");
-    BLE_HS_LOG(DEBUG, "our privkey=");
+    BLE_HS_LOG_DEBUG("\n");
+    BLE_HS_LOG_DEBUG("our privkey=");
     ble_hs_log_flat_buf(&ble_sm_sc_priv_key, 32);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 
     return 0;
 }
@@ -417,9 +417,9 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     if (proc->flags & BLE_SM_PROC_F_INITIATOR ||
         ble_sm_sc_responder_verifies_random(proc)) {
 
-        BLE_HS_LOG(DEBUG, "tk=");
+        BLE_HS_LOG_DEBUG("tk=");
         ble_hs_log_flat_buf(proc->tk, 16);
-        BLE_HS_LOG(DEBUG, "\n");
+        BLE_HS_LOG_DEBUG("\n");
 
         rc = ble_sm_alg_f4(proc->pub_key_peer.x, ble_sm_sc_pub_key,
                            ble_sm_peer_pair_rand(proc), proc->ri,
@@ -710,9 +710,9 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     }
 
     ble_sm_sc_dhkey_addrs(proc, &our_addr, &peer_addr);
-    BLE_HS_LOG(DEBUG, "tk=");
+    BLE_HS_LOG_DEBUG("tk=");
     ble_hs_log_flat_buf(proc->tk, 16);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 
     res->app_status = ble_sm_alg_f6(proc->mackey,
                                     ble_sm_peer_pair_rand(proc),

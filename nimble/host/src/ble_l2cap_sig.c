@@ -743,7 +743,7 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     int rc;
 
 #if !BLE_MONITOR
-    BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
+    BLE_HS_LOG_DEBUG("L2CAP LE COC connection response received\n");
 #endif
 
     proc = ble_l2cap_sig_proc_extract(conn_handle,
@@ -1115,9 +1115,9 @@ ble_l2cap_sig_rx(struct ble_l2cap_chan *chan)
     STATS_INC(ble_l2cap_stats, sig_rx);
 
 #if !BLE_MONITOR
-    BLE_HS_LOG(DEBUG, "L2CAP - rxed signalling msg: ");
+    BLE_HS_LOG_DEBUG("L2CAP - rxed signalling msg: ");
     ble_hs_log_mbuf(*om);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 #endif
 
     rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_HDR_SZ);

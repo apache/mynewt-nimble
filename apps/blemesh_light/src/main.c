@@ -66,7 +66,7 @@ static struct bt_test_cb bt_test_cb = {
 static void
 blemesh_on_reset(int reason)
 {
-    BLE_HS_LOG(ERROR, "Resetting state; reason=%d\n", reason);
+    BLE_HS_LOG_ERROR("Resetting state; reason=%d\n", reason);
 }
 
 static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {

@@ -488,8 +488,8 @@ ble_hs_hci_acl_hdr_prepend(struct os_mbuf *om, uint16_t handle,
     memcpy(om->om_data, &hci_hdr, sizeof hci_hdr);
 
 #if !BLE_MONITOR
-    BLE_HS_LOG(DEBUG, "host tx hci data; handle=%d length=%d\n", handle,
-               get_le16(&hci_hdr.hdh_len));
+    BLE_HS_LOG_DEBUG("host tx hci data; handle=%d length=%d\n", handle,
+                     get_le16(&hci_hdr.hdh_len));
 #endif
 
     return om;
@@ -534,9 +534,9 @@ ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
         }
 
 #if !BLE_MONITOR
-        BLE_HS_LOG(DEBUG, "ble_hs_hci_acl_tx(): ");
+        BLE_HS_LOG_DEBUG("ble_hs_hci_acl_tx(): ");
         ble_hs_log_mbuf(frag);
-        BLE_HS_LOG(DEBUG, "\n");
+        BLE_HS_LOG_DEBUG("\n");
 #endif
 
         rc = ble_hs_tx_data(frag);

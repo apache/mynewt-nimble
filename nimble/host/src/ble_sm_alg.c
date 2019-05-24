@@ -101,15 +101,15 @@ ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out)
         return rc;
     }
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_s1()\n    k=");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_s1()\n    k=");
     ble_hs_log_flat_buf(k, 16);
-    BLE_HS_LOG(DEBUG, "\n    r1=");
+    BLE_HS_LOG_DEBUG("\n    r1=");
     ble_hs_log_flat_buf(r1, 16);
-    BLE_HS_LOG(DEBUG, "\n    r2=");
+    BLE_HS_LOG_DEBUG("\n    r2=");
     ble_hs_log_flat_buf(r2, 16);
-    BLE_HS_LOG(DEBUG, "\n    out=");
+    BLE_HS_LOG_DEBUG("\n    out=");
     ble_hs_log_flat_buf(out, 16);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 
     return 0;
 }
@@ -124,18 +124,18 @@ ble_sm_alg_c1(uint8_t *k, uint8_t *r,
     uint8_t p1[16], p2[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_c1()\n    k=");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_c1()\n    k=");
     ble_hs_log_flat_buf(k, 16);
-    BLE_HS_LOG(DEBUG, "\n    r=");
+    BLE_HS_LOG_DEBUG("\n    r=");
     ble_hs_log_flat_buf(r, 16);
-    BLE_HS_LOG(DEBUG, "\n    iat=%d rat=%d", iat, rat);
-    BLE_HS_LOG(DEBUG, "\n    ia=");
+    BLE_HS_LOG_DEBUG("\n    iat=%d rat=%d", iat, rat);
+    BLE_HS_LOG_DEBUG("\n    ia=");
     ble_hs_log_flat_buf(ia, 6);
-    BLE_HS_LOG(DEBUG, "\n    ra=");
+    BLE_HS_LOG_DEBUG("\n    ra=");
     ble_hs_log_flat_buf(ra, 6);
-    BLE_HS_LOG(DEBUG, "\n    preq=");
+    BLE_HS_LOG_DEBUG("\n    preq=");
     ble_hs_log_flat_buf(preq, 7);
-    BLE_HS_LOG(DEBUG, "\n    pres=");
+    BLE_HS_LOG_DEBUG("\n    pres=");
     ble_hs_log_flat_buf(pres, 7);
 
     /* pres, preq, rat and iat are concatenated to generate p1 */
@@ -144,7 +144,7 @@ ble_sm_alg_c1(uint8_t *k, uint8_t *r,
     memcpy(p1 + 2, preq, 7);
     memcpy(p1 + 9, pres, 7);
 
-    BLE_HS_LOG(DEBUG, "\n    p1=");
+    BLE_HS_LOG_DEBUG("\n    p1=");
     ble_hs_log_flat_buf(p1, sizeof p1);
 
     /* c1 = e(k, e(k, r XOR p1) XOR p2) */
@@ -163,7 +163,7 @@ ble_sm_alg_c1(uint8_t *k, uint8_t *r,
     memcpy(p2 + 6, ia, 6);
     memset(p2 + 12, 0, 4);
 
-    BLE_HS_LOG(DEBUG, "\n    p2=");
+    BLE_HS_LOG_DEBUG("\n    p2=");
     ble_hs_log_flat_buf(p2, sizeof p2);
 
     ble_sm_alg_xor_128(out_enc_data, p2, out_enc_data);
@@ -174,13 +174,13 @@ ble_sm_alg_c1(uint8_t *k, uint8_t *r,
         goto done;
     }
 
-    BLE_HS_LOG(DEBUG, "\n    out_enc_data=");
+    BLE_HS_LOG_DEBUG("\n    out_enc_data=");
     ble_hs_log_flat_buf(out_enc_data, 16);
 
     rc = 0;
 
 done:
-    BLE_HS_LOG(DEBUG, "\n    rc=%d\n", rc);
+    BLE_HS_LOG_DEBUG("\n    rc=%d\n", rc);
     return rc;
 }
 
@@ -189,9 +189,9 @@ done:
 static void
 ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
 {
-    BLE_HS_LOG(DEBUG, "    %s=", name);
+    BLE_HS_LOG_DEBUG("    %s=", name);
     ble_hs_log_flat_buf(buf, len);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 }
 
 /**
@@ -232,13 +232,13 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
     uint8_t m[65];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_f4()\n    u=");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_f4()\n    u=");
     ble_hs_log_flat_buf(u, 32);
-    BLE_HS_LOG(DEBUG, "\n    v=");
+    BLE_HS_LOG_DEBUG("\n    v=");
     ble_hs_log_flat_buf(v, 32);
-    BLE_HS_LOG(DEBUG, "\n    x=");
+    BLE_HS_LOG_DEBUG("\n    x=");
     ble_hs_log_flat_buf(x, 16);
-    BLE_HS_LOG(DEBUG, "\n    z=0x%02x\n", z);
+    BLE_HS_LOG_DEBUG("\n    z=0x%02x\n", z);
 
     /*
      * U, V and Z are concatenated and used as input m to the function
@@ -262,9 +262,9 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
 
     swap_in_place(out_enc_data, 16);
 
-    BLE_HS_LOG(DEBUG, "    out_enc_data=");
+    BLE_HS_LOG_DEBUG("    out_enc_data=");
     ble_hs_log_flat_buf(out_enc_data, 16);
-    BLE_HS_LOG(DEBUG, "\n");
+    BLE_HS_LOG_DEBUG("\n");
 
     return 0;
 }
@@ -292,7 +292,7 @@ ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
     uint8_t t[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_f5()\n");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_f5()\n");
     ble_sm_alg_log_buf("w", w, 32);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
@@ -347,7 +347,7 @@ ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
     uint8_t m[65];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_f6()\n");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_f6()\n");
     ble_sm_alg_log_buf("w", w, 16);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
@@ -392,7 +392,7 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
     uint8_t m[80], xs[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_g2()\n");
+    BLE_HS_LOG_DEBUG("ble_sm_alg_g2()\n");
     ble_sm_alg_log_buf("u", u, 32);
     ble_sm_alg_log_buf("v", v, 32);
     ble_sm_alg_log_buf("x", x, 16);
@@ -413,7 +413,7 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
     ble_sm_alg_log_buf("res", xs, 16);
 
     *passkey = get_be32(xs + 12) % 1000000;
-    BLE_HS_LOG(DEBUG, "    passkey=%u\n", *passkey);
+    BLE_HS_LOG_DEBUG("    passkey=%u\n", *passkey);
 
     return 0;
 }

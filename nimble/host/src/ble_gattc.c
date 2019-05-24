@@ -487,7 +487,7 @@ ble_gattc_dbg_assert_proc_not_inserted(struct ble_gattc_proc *proc)
 static void
 ble_gattc_log_proc_init(char *name)
 {
-    BLE_HS_LOG(INFO, "GATT procedure initiated: %s", name);
+    BLE_HS_LOG_INFO("GATT procedure initiated: %s", name);
 }
 
 static void
@@ -497,7 +497,7 @@ ble_gattc_log_uuid(const ble_uuid_t *uuid)
 
     ble_uuid_to_str(uuid, buf);
 
-    BLE_HS_LOG(INFO, "%s", buf);
+    BLE_HS_LOG_INFO("%s", buf);
 }
 
 static void
@@ -505,52 +505,52 @@ ble_gattc_log_disc_svc_uuid(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("discover service by uuid; uuid=");
     ble_gattc_log_uuid(&proc->disc_svc_uuid.service_uuid.u);
-    BLE_HS_LOG(INFO, "\n");
+    BLE_HS_LOG_INFO("\n");
 }
 
 static void
 ble_gattc_log_find_inc_svcs(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("find included services; ");
-    BLE_HS_LOG(INFO, "start_handle=%d end_handle=%d\n",
-               proc->find_inc_svcs.prev_handle + 1,
-               proc->find_inc_svcs.end_handle);
+    BLE_HS_LOG_INFO("start_handle=%d end_handle=%d\n",
+                    proc->find_inc_svcs.prev_handle + 1,
+                    proc->find_inc_svcs.end_handle);
 }
 
 static void
 ble_gattc_log_disc_all_chrs(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("discover all characteristics; ");
-    BLE_HS_LOG(INFO, "start_handle=%d end_handle=%d\n",
-               proc->disc_all_chrs.prev_handle + 1,
-               proc->disc_all_chrs.end_handle);
+    BLE_HS_LOG_INFO("start_handle=%d end_handle=%d\n",
+                    proc->disc_all_chrs.prev_handle + 1,
+                    proc->disc_all_chrs.end_handle);
 }
 
 static void
 ble_gattc_log_disc_chr_uuid(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("discover characteristics by uuid; ");
-    BLE_HS_LOG(INFO, "start_handle=%d end_handle=%d uuid=",
-               proc->disc_chr_uuid.prev_handle + 1,
-               proc->disc_chr_uuid.end_handle);
+    BLE_HS_LOG_INFO("start_handle=%d end_handle=%d uuid=",
+                    proc->disc_chr_uuid.prev_handle + 1,
+                    proc->disc_chr_uuid.end_handle);
     ble_gattc_log_uuid(&proc->disc_chr_uuid.chr_uuid.u);
-    BLE_HS_LOG(INFO, "\n");
+    BLE_HS_LOG_INFO("\n");
 }
 
 static void
 ble_gattc_log_disc_all_dscs(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("discover all descriptors; ");
-    BLE_HS_LOG(INFO, "chr_val_handle=%d end_handle=%d\n",
-               proc->disc_all_dscs.chr_val_handle,
-               proc->disc_all_dscs.end_handle);
+    BLE_HS_LOG_INFO("chr_val_handle=%d end_handle=%d\n",
+                    proc->disc_all_dscs.chr_val_handle,
+                    proc->disc_all_dscs.end_handle);
 }
 
 static void
 ble_gattc_log_read(uint16_t att_handle)
 {
     ble_gattc_log_proc_init("read; ");
-    BLE_HS_LOG(INFO, "att_handle=%d\n", att_handle);
+    BLE_HS_LOG_INFO("att_handle=%d\n", att_handle);
 }
 
 static void
@@ -558,17 +558,17 @@ ble_gattc_log_read_uuid(uint16_t start_handle, uint16_t end_handle,
                         const ble_uuid_t *uuid)
 {
     ble_gattc_log_proc_init("read by uuid; ");
-    BLE_HS_LOG(INFO, "start_handle=%d end_handle=%d uuid=",
-               start_handle, end_handle);
+    BLE_HS_LOG_INFO("start_handle=%d end_handle=%d uuid=",
+                    start_handle, end_handle);
     ble_gattc_log_uuid(uuid);
-    BLE_HS_LOG(INFO, "\n");
+    BLE_HS_LOG_INFO("\n");
 }
 
 static void
 ble_gattc_log_read_long(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("read long; ");
-    BLE_HS_LOG(INFO, "att_handle=%d\n", proc->read_long.handle);
+    BLE_HS_LOG_INFO("att_handle=%d\n", proc->read_long.handle);
 }
 
 static void
@@ -577,11 +577,11 @@ ble_gattc_log_read_mult(const uint16_t *handles, uint8_t num_handles)
     int i;
 
     ble_gattc_log_proc_init("read multiple; ");
-    BLE_HS_LOG(INFO, "att_handles=");
+    BLE_HS_LOG_INFO("att_handles=");
     for (i = 0; i < num_handles; i++) {
-        BLE_HS_LOG(INFO, "%s%d", i != 0 ? "," : "", handles[i]);
+        BLE_HS_LOG_INFO("%s%d", i != 0 ? "," : "", handles[i]);
     }
-    BLE_HS_LOG(INFO, "\n");
+    BLE_HS_LOG_INFO("\n");
 }
 
 static void
@@ -596,16 +596,16 @@ ble_gattc_log_write(uint16_t att_handle, uint16_t len, int expecting_rsp)
     }
 
     ble_gattc_log_proc_init(name);
-    BLE_HS_LOG(INFO, "att_handle=%d len=%d\n", att_handle, len);
+    BLE_HS_LOG_INFO("att_handle=%d len=%d\n", att_handle, len);
 }
 
 static void
 ble_gattc_log_write_long(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("write long; ");
-    BLE_HS_LOG(INFO, "att_handle=%d len=%d\n",
-               proc->write_long.attr.handle,
-               OS_MBUF_PKTLEN(proc->write_long.attr.om));
+    BLE_HS_LOG_INFO("att_handle=%d len=%d\n",
+                    proc->write_long.attr.handle,
+                    OS_MBUF_PKTLEN(proc->write_long.attr.om));
 }
 
 static void
@@ -614,26 +614,26 @@ ble_gattc_log_write_reliable(struct ble_gattc_proc *proc)
     int i;
 
     ble_gattc_log_proc_init("write reliable; ");
-    BLE_HS_LOG(INFO, "att_handles=");
+    BLE_HS_LOG_INFO("att_handles=");
     for (i = 0; i < proc->write_reliable.num_attrs; i++) {
-        BLE_HS_LOG(INFO, "%s%d", i != 0 ? "," : "",
-                   proc->write_reliable.attrs[i].handle);
+        BLE_HS_LOG_INFO("%s%d", i != 0 ? "," : "",
+                        proc->write_reliable.attrs[i].handle);
     }
-    BLE_HS_LOG(INFO, "\n");
+    BLE_HS_LOG_INFO("\n");
 }
 
 static void
 ble_gattc_log_notify(uint16_t att_handle)
 {
     ble_gattc_log_proc_init("notify; ");
-    BLE_HS_LOG(INFO, "att_handle=%d\n", att_handle);
+    BLE_HS_LOG_INFO("att_handle=%d\n", att_handle);
 }
 
 static void
 ble_gattc_log_indicate(uint16_t att_handle)
 {
     ble_gattc_log_proc_init("indicate; ");
-    BLE_HS_LOG(INFO, "att_handle=%d\n", att_handle);
+    BLE_HS_LOG_INFO("att_handle=%d\n", att_handle);
 }
 
 /*****************************************************************************

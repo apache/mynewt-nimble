@@ -398,7 +398,7 @@ static const struct bt_mesh_prov prov = {
 static void
 blemesh_on_reset(int reason)
 {
-    BLE_HS_LOG(ERROR, "Resetting state; reason=%d\n", reason);
+    BLE_HS_LOG_ERROR("Resetting state; reason=%d\n", reason);
 }
 
 void mesh_initialized(void);

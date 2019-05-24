@@ -344,8 +344,8 @@ ble_hs_sync(void)
     if (rc == 0) {
         rc = ble_hs_misc_restore_irks();
         if (rc != 0) {
-            BLE_HS_LOG(INFO, "Failed to restore IRKs from store; status=%d\n",
-                       rc);
+            BLE_HS_LOG_INFO("Failed to restore IRKs from store; status=%d\n",
+                            rc);
         }
 
         if (ble_hs_cfg.sync_cb != NULL) {

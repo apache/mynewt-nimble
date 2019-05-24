@@ -871,7 +871,7 @@ ble_sm_chk_repeat_pairing(uint16_t conn_handle,
         rc = ble_gap_repeat_pairing_event(&rp);
     } while (rc == BLE_GAP_REPEAT_PAIRING_RETRY);
 
-    BLE_HS_LOG(DEBUG, "silently ignoring pair request from bonded peer");
+    BLE_HS_LOG_DEBUG("silently ignoring pair request from bonded peer");
 
     return BLE_HS_EALREADY;
 }
@@ -2164,7 +2164,7 @@ err:
 static void
 ble_sm_key_rxed(struct ble_sm_proc *proc, struct ble_sm_result *res)
 {
-    BLE_HS_LOG(DEBUG, "rx_key_flags=0x%02x\n", proc->rx_key_flags);
+    BLE_HS_LOG_DEBUG("rx_key_flags=0x%02x\n", proc->rx_key_flags);
 
     if (proc->rx_key_flags == 0) {
         /* The peer is done sending keys.  If we are the initiator, we need to

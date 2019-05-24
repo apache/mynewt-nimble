@@ -84,8 +84,8 @@ ble_hs_stop_terminate_all_periodic_sync(void)
         sync_handle = psync->sync_handle;
         rc = ble_gap_periodic_adv_terminate_sync(sync_handle);
         if (rc != 0 && rc != BLE_HS_ENOTCONN) {
-            BLE_HS_LOG(ERROR, "failed to terminate periodic sync=0x%04x, rc=%d\n",
-                       sync_handle, rc);
+            BLE_HS_LOG_ERROR("failed to terminate periodic sync=0x%04x, rc=%d\n",
+                             sync_handle, rc);
             return rc;
         }
     }
@@ -119,7 +119,7 @@ ble_hs_stop_terminate_next_conn(void)
          * handler deal with the result.
          */
     } else {
-        BLE_HS_LOG(ERROR,
+        BLE_HS_LOG_ERROR(
             "ble_hs_stop: failed to terminate connection; rc=%d\n", rc);
         ble_hs_stop_done(rc);
     }

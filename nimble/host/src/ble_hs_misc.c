@@ -108,7 +108,7 @@ ble_hs_misc_restore_one_irk(int obj_type, union ble_store_value *val,
         rc = ble_hs_pvcy_add_entry(sec->peer_addr.val, sec->peer_addr.type,
                                    sec->irk);
         if (rc != 0) {
-            BLE_HS_LOG(ERROR, "failed to configure restored IRK\n");
+            BLE_HS_LOG_ERROR("failed to configure restored IRK\n");
         }
     }
 

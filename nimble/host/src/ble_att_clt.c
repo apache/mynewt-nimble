@@ -754,14 +754,14 @@ ble_att_clt_tx_write_cmd(uint16_t conn_handle, uint16_t handle,
     int rc;
     int i;
 
-    BLE_HS_LOG(DEBUG, "ble_att_clt_tx_write_cmd(): ");
+    BLE_HS_LOG_DEBUG("ble_att_clt_tx_write_cmd(): ");
     for (i = 0; i < OS_MBUF_PKTLEN(txom); i++) {
         if (i != 0) {
-            BLE_HS_LOG(DEBUG, ":");
+            BLE_HS_LOG_DEBUG(":");
         }
         rc = os_mbuf_copydata(txom, i, 1, &b);
         assert(rc == 0);
-        BLE_HS_LOG(DEBUG, "0x%02x", b);
+        BLE_HS_LOG_DEBUG("0x%02x", b);
     }
 
 

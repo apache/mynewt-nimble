@@ -147,17 +147,19 @@ int ble_mqueue_put(struct ble_mqueue *mq, struct ble_npl_eventq *evq, struct os_
 #define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,                \
                        log_cb, cmd) do                                        \
 {                                                                             \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
-               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
+    BLE_HS_LOG_DEBUG("%sed %s command: %s; conn=%d ",                         \
+                     (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name),           \
+                     (conn_handle));                                          \
     (log_cb)(cmd);                                                            \
-    BLE_HS_LOG(DEBUG, "\n");                                                  \
+    BLE_HS_LOG_DEBUG("\n");                                                   \
 } while (0)
 
 #define BLE_HS_LOG_EMPTY_CMD(is_tx, cmd_type, cmd_name, conn_handle) do       \
 {                                                                             \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
-               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
-    BLE_HS_LOG(DEBUG, "\n");                                                  \
+    BLE_HS_LOG_DEBUG("%sed %s command: %s; conn=%d ",                         \
+                     (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name),           \
+                     (conn_handle));                                          \
+    BLE_HS_LOG_DEBUG("\n");                                                   \
 } while (0)
 
 #else

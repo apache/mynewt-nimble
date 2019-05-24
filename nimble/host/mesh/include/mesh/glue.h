@@ -170,11 +170,11 @@ extern "C" {
 
 #define BT_DBG(fmt, ...)    \
     if (BT_DBG_ENABLED) { \
-        BLE_HS_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__); \
+        BLE_HS_LOG_DEBUG("%s: " fmt "\n", __func__, ## __VA_ARGS__); \
     }
-#define BT_INFO(fmt, ...)   BLE_HS_LOG(INFO, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_WARN(fmt, ...)   BLE_HS_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_ERR(fmt, ...)    BLE_HS_LOG(ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_INFO(fmt, ...)   BLE_HS_LOG_INFO("%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_WARN(fmt, ...)   BLE_HS_LOG_WARN("%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_ERR(fmt, ...)    BLE_HS_LOG_ERROR("%s: " fmt "\n", __func__, ## __VA_ARGS__);
 #define BT_GATT_ERR(_att_err)   (-(_att_err))
 
 typedef ble_addr_t bt_addr_le_t;

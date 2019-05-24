@@ -329,8 +329,8 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
              * CID response.
              */
             if (l2cap_hdr.cid != BLE_L2CAP_CID_BLACK_HOLE) {
-                BLE_HS_LOG(DEBUG, "rx on unknown L2CAP channel: %d\n",
-                           l2cap_hdr.cid);
+                BLE_HS_LOG_DEBUG("rx on unknown L2CAP channel: %d\n",
+                                 l2cap_hdr.cid);
                 *out_reject_cid = l2cap_hdr.cid;
             }
             goto err;
