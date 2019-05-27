@@ -511,7 +511,7 @@ static void find_attr_by_handle_cb(const struct ble_gatt_svc_def *svc,
 
 		for (dsc = chr->descriptors; dsc && dsc->uuid; ++dsc) {
 			if (handle == foreach->handle) {
-				foreach->attr_type = BLE_GATT_ATTR_CHR;
+				foreach->attr_type = BLE_GATT_ATTR_DSC;
 				foreach->ptr = (void *) dsc;
 				return;
 			}
