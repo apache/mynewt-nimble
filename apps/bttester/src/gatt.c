@@ -41,6 +41,9 @@
 #define CONTROLLER_INDEX 0
 #define MAX_BUFFER_SIZE 2048
 
+static const ble_uuid_t *uuid_ccc =
+	BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
+
 static int gatt_chr_perm_map[] = {
 	BLE_GATT_CHR_F_READ,
 	BLE_GATT_CHR_F_WRITE,
@@ -136,6 +139,10 @@ static void *gatt_buf_add(const void *data, size_t len)
 
 	return ptr;
 }
+
+static const struct ble_gatt_dsc_def cccd_def = {
+	.att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE,
+};
 
 static void *gatt_buf_reserve(size_t len)
 {
@@ -461,6 +468,11 @@ static void find_attr_by_uuid_cb(const struct ble_gatt_svc_def *svc,
 
 		if ((chr->flags & BLE_GATT_CHR_F_NOTIFY) ||
 		    (chr->flags & BLE_GATT_CHR_F_INDICATE)) {
+			if (foreach->attr_type == BLE_GATT_ATTR_DSC &&
+			    ble_uuid_cmp(&foreach->uuid->u, uuid_ccc) == 0) {
+				foreach->ptr = (void *) &cccd_def;
+				foreach->handle = handle;
+			}
 			handle += 1;
 		}
 
