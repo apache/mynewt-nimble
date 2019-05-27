@@ -200,6 +200,14 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_INDICATE,
 			.arg = &gatt_values[4],
 			.val_handle = &gatt_values[4].val_handle,
+			.descriptors = (struct ble_gatt_dsc_def[]) { {
+				   .uuid = PTS_UUID_DECLARE(PTS_DSC_READ_WRITE),
+				   .access_cb = gatt_svr_access_cb,
+				   .att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE,
+				   .arg = &gatt_values[5],
+			}, {
+				0
+			} }
 		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ENC),
 			.access_cb = gatt_svr_access_cb,
@@ -208,8 +216,8 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_WRITE |
 				 BLE_GATT_CHR_F_WRITE_ENC,
 			.min_key_size = 0x0f,
-			.arg = &gatt_values[5],
-			.val_handle = &gatt_values[5].val_handle,
+			.arg = &gatt_values[6],
+			.val_handle = &gatt_values[6].val_handle,
 		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHEN),
 			.access_cb = gatt_svr_access_cb,
@@ -217,8 +225,8 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_READ_AUTHEN |
 				 BLE_GATT_CHR_F_WRITE |
 				 BLE_GATT_CHR_F_WRITE_AUTHEN,
-			.arg = &gatt_values[6],
-			.val_handle = &gatt_values[6].val_handle,
+			.arg = &gatt_values[7],
+			.val_handle = &gatt_values[7].val_handle,
 		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHOR),
 			.access_cb = gatt_svr_access_cb,
@@ -226,23 +234,18 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_READ_AUTHOR |
 				 BLE_GATT_CHR_F_WRITE |
 				 BLE_GATT_CHR_F_WRITE_AUTHOR,
-			.arg = &gatt_values[7],
-			.val_handle = &gatt_values[7].val_handle,
+			.arg = &gatt_values[8],
+			.val_handle = &gatt_values[8].val_handle,
 
 			.descriptors = (struct ble_gatt_dsc_def[]){ {
 				.uuid = PTS_UUID_DECLARE(PTS_DSC_READ),
 				.access_cb = gatt_svr_access_cb,
 				.att_flags = BLE_ATT_F_READ,
-				.arg = &gatt_values[8],
+				.arg = &gatt_values[9],
 			}, {
 				.uuid = PTS_UUID_DECLARE(PTS_DSC_WRITE),
 				.access_cb = gatt_svr_access_cb,
 				.att_flags = BLE_ATT_F_WRITE,
-				.arg = &gatt_values[9],
-			}, {
-				.uuid = PTS_UUID_DECLARE(PTS_DSC_READ_WRITE),
-				.access_cb = gatt_svr_access_cb,
-				.att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE,
 				.arg = &gatt_values[10],
 			}, {
 				.uuid = PTS_UUID_DECLARE(PTS_DSC_READ_WRITE_ENC),
