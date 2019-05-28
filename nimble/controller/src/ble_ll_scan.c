@@ -147,10 +147,14 @@ struct ble_ll_scan_advertisers
 g_ble_ll_scan_dup_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)];
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT) != 0
 static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(
                     MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                     sizeof (struct ble_ll_aux_data))
 ];
+#else
+#define ext_adv_mem NULL
+#endif
 
 static struct os_mempool ext_adv_pool;
 
