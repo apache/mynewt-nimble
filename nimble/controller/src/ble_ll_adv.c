@@ -570,6 +570,7 @@ static void
 ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm, uint8_t *dptr)
 {
     uint32_t offset;
+    uint8_t units;
 
     offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
                                        AUX_CURRENT(advsm)->start_time);
@@ -577,14 +578,15 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm, uint8_t *dptr)
 
     /* Sync Packet Offset (13 bits), Offset Units (1 bit), RFU (2 bits) */
     if (offset > 245700) {
-        dptr[1] |= 0x20;
+        units = 0x20;
         offset = offset / 300;
     } else {
+        units = 0x00;
         offset = offset / 30;
     }
 
     dptr[0] = (offset & 0x000000ff);
-    dptr[1] = ((offset >> 8) & 0x0000001f);
+    dptr[1] = ((offset >> 8) & 0x0000001f) | units;
 
     /* Interval (2 bytes) */
     put_le16(&dptr[2], advsm->periodic_adv_itvl_max);
