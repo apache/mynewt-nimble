@@ -572,10 +572,10 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
 static int
 ble_phy_set_start_now(void)
 {
-    uint32_t cntr;
+    os_sr_t sr;
+    uint32_t now;
 
-    /* Read current RTC0 state */
-    cntr = NRF_RTC0->COUNTER;
+    OS_ENTER_CRITICAL(sr);
 
     /*
      * Set TIMER0 to fire immediately. We can't set CC to 0 as compare will not
@@ -591,8 +591,9 @@ ble_phy_set_start_now(void)
      * it to N+3 to account for possible extra tick on RTC0 during these
      * operations.
      */
+    now = os_cputime_get32();
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
-    NRF_RTC0->CC[0] = cntr + 3;
+    NRF_RTC0->CC[0] = now + 3;
     NRF_RTC0->EVTENSET = RTC_EVTENSET_COMPARE0_Msk;
 
     /* Enable PPI */
@@ -607,7 +608,9 @@ ble_phy_set_start_now(void)
      * to be scheduled 1 or 2 ticks too late so we'll miss it - it's acceptable
      * for now.
      */
-    g_ble_phy_data.phy_start_cputime = cntr + 3;
+    g_ble_phy_data.phy_start_cputime = now + 3;
+
+    OS_EXIT_CRITICAL(sr);
 
     return 0;
 }
