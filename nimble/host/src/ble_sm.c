@@ -2039,6 +2039,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 
         /* store LTK before sending since ble_sm_tx consumes tx mbuf */
         memcpy(proc->our_keys.ltk, enc_info->ltk, 16);
+        proc->our_keys.key_size = proc->key_size;
         proc->our_keys.ltk_valid = 1;
 
         rc = ble_sm_tx(proc->conn_handle, txom);
@@ -2204,6 +2205,7 @@ ble_sm_enc_info_rx(uint16_t conn_handle, struct os_mbuf **om,
         proc->rx_key_flags &= ~BLE_SM_KE_F_ENC_INFO;
         proc->peer_keys.ltk_valid = 1;
         memcpy(proc->peer_keys.ltk, cmd->ltk, 16);
+        proc->peer_keys.key_size = proc->key_size;
 
         ble_sm_key_rxed(proc, res);
     }
