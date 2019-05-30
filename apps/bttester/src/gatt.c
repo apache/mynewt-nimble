@@ -1994,6 +1994,8 @@ static void get_attrs(u8_t *data, u16_t len)
 	while (entry) {
 
 		if (entry->ha_handle_id < start_handle) {
+			entry = ble_att_svr_find_by_uuid(entry,
+							 uuid_ptr, end_handle);
 			continue;
 		}
 
