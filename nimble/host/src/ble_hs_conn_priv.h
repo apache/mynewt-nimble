@@ -112,8 +112,8 @@ struct ble_l2cap_chan *ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn,
                                              uint16_t cid);
 int ble_hs_conn_chan_insert(struct ble_hs_conn *conn,
                             struct ble_l2cap_chan *chan);
-void
-ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+void ble_hs_conn_delete_chan(struct ble_hs_conn *conn,
+                             struct ble_l2cap_chan *chan);
 
 void ble_hs_conn_addrs(const struct ble_hs_conn *conn,
                        struct ble_hs_conn_addrs *addrs);
