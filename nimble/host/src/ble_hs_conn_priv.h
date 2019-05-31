@@ -119,6 +119,9 @@ void ble_hs_conn_addrs(const struct ble_hs_conn *conn,
                        struct ble_hs_conn_addrs *addrs);
 int32_t ble_hs_conn_timer(void);
 
+typedef int ble_hs_conn_foreach_fn(struct ble_hs_conn *conn, void *arg);
+void ble_hs_conn_foreach(ble_hs_conn_foreach_fn *cb, void *arg);
+
 int ble_hs_conn_init(void);
 
 #ifdef __cplusplus

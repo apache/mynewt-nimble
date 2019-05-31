@@ -200,6 +200,20 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 }
 
 void
+ble_hs_conn_foreach(ble_hs_conn_foreach_fn *cb, void *arg)
+{
+    struct ble_hs_conn *conn;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
+        if (cb(conn, arg) != 0) {
+            return;
+        }
+    }
+}
+
+void
 ble_hs_conn_free(struct ble_hs_conn *conn)
 {
 #if !NIMBLE_BLE_CONNECT
