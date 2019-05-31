@@ -287,6 +287,7 @@ static void start_advertising(const u8_t *data, u16_t len)
 {
 	const struct gap_start_advertising_cmd *cmd = (void *) data;
 	struct gap_start_advertising_rp rp;
+	int32_t duration_ms = BLE_HS_FOREVER;
 	uint8_t buf[BLE_HS_ADV_MAX_SZ];
 	uint8_t buf_len = 0;
 	u8_t adv_len, sd_len;
@@ -346,7 +347,11 @@ static void start_advertising(const u8_t *data, u16_t len)
 		}
 	}
 
-	err = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
+	if (adv_params.disc_mode == BLE_GAP_DISC_MODE_LTD) {
+		duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+	}
+
+	err = ble_gap_adv_start(own_addr_type, NULL, duration_ms,
 				&adv_params, gap_event_cb, NULL);
 	if (err) {
 		SYS_LOG_ERR("Advertising failed: err %d", err);

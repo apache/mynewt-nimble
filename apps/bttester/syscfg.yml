@@ -43,6 +43,10 @@ syscfg.defs:
         description: Use Resolvable Private Address
         value: 0
 
+    BTTESTER_LTD_ADV_TIMEOUT:
+        description: Limited advertising timeout
+        value: 30000
+
     BTTESTER_BTP_DATA_SIZE_MAX:
         description: Maximum BTP payload
         value: MYNEWT_VAL_BTTESTER_RTT_BUFFER_SIZE_UP
