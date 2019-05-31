@@ -435,6 +435,12 @@ syscfg.defs:
             entails aborting all GAP procedures and terminating open
             connections.
         value: 1
+
+    BLE_HS_STOP_ON_SHUTDOWN_TIMEOUT:
+        description: >
+            Timeout used in NimBLE's host stop procedure in ms.
+        value: 2000
+
     BLE_HS_SYSINIT_STAGE:
         description: >
             Sysinit stage for the NimBLE host.
