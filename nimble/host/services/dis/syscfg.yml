@@ -29,8 +29,8 @@ syscfg.defs:
     BLE_SVC_DIS_MODEL_NUMBER_READ_PERM:
         description: >
             Defines permissions for reading "Model Number" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
         value: 0
     BLE_SVC_DIS_MODEL_NUMBER_DEFAULT:
         description: >
@@ -40,9 +40,9 @@ syscfg.defs:
     BLE_SVC_DIS_SERIAL_NUMBER_READ_PERM:
         description: >
             Defines permissions for reading "Serial Number" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
-        value: MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
     BLE_SVC_DIS_SERIAL_NUMBER_DEFAULT:
         description: >
             Defines a default value for "Serial number" if not set with
@@ -51,9 +51,9 @@ syscfg.defs:
     BLE_SVC_DIS_HARDWARE_REVISION_READ_PERM:
         description: >
             Defines permissions for reading "Hardware Revision" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
-        value: MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
     BLE_SVC_DIS_HARDWARE_REVISION_DEFAULT:
         description: >
             Defines a default value for "Hardware revision" if not set with
@@ -62,9 +62,9 @@ syscfg.defs:
     BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM:
         description: >
             Defines permissions for reading "Firmware Revision" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
-        value: MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
     BLE_SVC_DIS_FIRMWARE_REVISION_DEFAULT:
         description: >
             Defines a default value for "Software revision" if not set with
@@ -73,9 +73,9 @@ syscfg.defs:
     BLE_SVC_DIS_SOFTWARE_REVISION_READ_PERM:
         description: >
             Defines permissions for reading "Software Revision" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
-        value: MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
     BLE_SVC_DIS_SOFTWARE_REVISION_DEFAULT:
         description: >
             Defines a default value for "Software revision" if not set with
@@ -84,12 +84,23 @@ syscfg.defs:
     BLE_SVC_DIS_MANUFACTURER_NAME_READ_PERM:
         description: >
             Defines permissions for reading "Manufacturer name" characteristics.
-            Can be set to MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM or use
-            the possible values defined in BLE_SVC_DIS_DEFAULT_READ_PERM.
-        value: MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
     BLE_SVC_DIS_MANUFACTURER_NAME_DEFAULT:
         description: >
             Defines a default value for "Manufacturer name" if not set with
+            'ble_svc_dis_manufacturer_name_set'.
+        value: NULL
+    BLE_SVC_DIS_SYSTEM_ID_READ_PERM:
+        description: >
+            Defines permissions for reading "System ID" characteristics.
+            Can be set to BLE_SVC_DIS_DEFAULT_READ_PERM or use any of the
+            possible values defined for that setting.
+        value: MYNEWT_VAL(BLE_SVC_DIS_DEFAULT_READ_PERM)
+    BLE_SVC_DIS_SYSTEM_ID_DEFAULT:
+        description: >
+            Defines a default value for "System ID" if not set with
             'ble_svc_dis_manufacturer_name_set'.
         value: NULL
     BLE_SVC_DIS_SYSINIT_STAGE:
