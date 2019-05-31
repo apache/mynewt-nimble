@@ -4610,11 +4610,37 @@ ble_gap_conn_active(void)
 /*****************************************************************************
  * $terminate connection procedure                                           *
  *****************************************************************************/
+int
+ble_gap_terminate_with_conn(struct ble_hs_conn *conn, uint8_t hci_reason)
+{
+    uint8_t buf[BLE_HCI_DISCONNECT_CMD_LEN];
+    int rc;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+    if (conn->bhc_flags & BLE_HS_CONN_F_TERMINATING) {
+        return BLE_HS_EALREADY;
+    }
+
+    BLE_HS_LOG(INFO, "GAP procedure initiated: terminate connection; "
+                     "conn_handle=%d hci_reason=%d\n",
+                     conn->bhc_handle, hci_reason);
+
+    ble_hs_hci_cmd_build_disconnect(conn->bhc_handle, hci_reason,
+                                    buf, sizeof buf);
+    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL,
+                                                BLE_HCI_OCF_DISCONNECT_CMD),
+                                     buf, sizeof(buf));
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn->bhc_flags |= BLE_HS_CONN_F_TERMINATING;
+    return 0;
+}
 
 int
 ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
 {
-    uint8_t buf[BLE_HCI_DISCONNECT_CMD_LEN];
     struct ble_hs_conn *conn;
     int rc;
 
@@ -4628,26 +4654,7 @@ ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason)
         goto done;
     }
 
-    if (conn->bhc_flags & BLE_HS_CONN_F_TERMINATING) {
-        rc = BLE_HS_EALREADY;
-        goto done;
-    }
-
-    BLE_HS_LOG(INFO, "GAP procedure initiated: terminate connection; "
-                     "conn_handle=%d hci_reason=%d\n",
-               conn_handle, hci_reason);
-
-    ble_hs_hci_cmd_build_disconnect(conn_handle, hci_reason,
-                                    buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL,
-                                                BLE_HCI_OCF_DISCONNECT_CMD),
-                                     buf, sizeof(buf));
-    if (rc != 0) {
-        goto done;
-    }
-
-    conn->bhc_flags |= BLE_HS_CONN_F_TERMINATING;
-    rc = 0;
+    rc = ble_gap_terminate_with_conn(conn, hci_reason);
 
 done:
     ble_hs_unlock();
