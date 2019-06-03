@@ -30,6 +30,12 @@
 #define PDU_TYPE(data)     (data[0] & BIT_MASK(6))
 #define PDU_SAR(data)      (data[0] >> 6)
 
+/* Mesh Profile 1.0 Section 6.6:
+ * "The timeout for the SAR transfer is 20 seconds. When the timeout
+ *  expires, the Proxy Server shall disconnect."
+ */
+#define PROXY_SAR_TIMEOUT  K_SECONDS(20)
+
 #define SAR_COMPLETE       0x00
 #define SAR_FIRST          0x01
 #define SAR_CONT           0x02
@@ -117,6 +123,7 @@ static struct bt_mesh_proxy_client {
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 	struct ble_npl_callout send_beacons;
 #endif
+	struct k_delayed_work sar_timer;
 	struct os_mbuf    *buf;
 } clients[MYNEWT_VAL(BLE_MAX_CONNECTIONS)] = {
 	[0 ... (MYNEWT_VAL(BLE_MAX_CONNECTIONS) - 1)] = { 0 },
@@ -401,6 +408,23 @@ static void proxy_send_beacons(struct ble_npl_event *work)
 	}
 }
 
+static void proxy_sar_timeout(struct ble_npl_event *work)
+{
+	struct bt_mesh_proxy_client *client;
+	int rc;
+
+	BT_WARN("Proxy SAR timeout");
+
+	client = ble_npl_event_get_arg(work);
+	assert(client != NULL);
+
+	if ((client->conn_handle != BLE_HS_CONN_HANDLE_NONE)) {
+		rc = ble_gap_terminate(client->conn_handle,
+				       BLE_ERR_REM_USER_CONN_TERM);
+		assert(rc == 0);
+	}
+}
+
 void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
 {
 	int i;
@@ -550,6 +574,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
+		k_delayed_work_submit(&client->sar_timer, PROXY_SAR_TIMEOUT);
 		client->msg_type = PDU_TYPE(data);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		break;
@@ -579,6 +604,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
+		k_delayed_work_cancel(&client->sar_timer);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		proxy_complete_pdu(client);
 		break;
@@ -641,6 +667,7 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 				bt_mesh_pb_gatt_close(conn_handle);
 			}
 
+			k_delayed_work_cancel(&client->sar_timer);
 			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
 			break;
 		}
@@ -1418,6 +1445,9 @@ int bt_mesh_proxy_init(void)
 #endif
 		clients[i].buf = NET_BUF_SIMPLE(CLIENT_BUF_SIZE);
 		clients[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+		k_delayed_work_init(&clients[i].sar_timer, proxy_sar_timeout);
+		k_delayed_work_add_arg(&clients[i].sar_timer, &clients[i]);
 	}
 
 	resolve_svc_handles();
