@@ -576,6 +576,16 @@ struct gatt_write_long_cmd {
 	u8_t data[0];
 } __packed;
 
+#define GATT_RELIABLE_WRITE		0x19
+struct gatt_reliable_write_cmd {
+    u8_t address_type;
+    u8_t address[6];
+    u16_t handle;
+    u16_t offset;
+    u16_t data_length;
+    u8_t data[0];
+} __packed;
+
 #define GATT_CFG_NOTIFY			0x1a
 #define GATT_CFG_INDICATE		0x1b
 struct gatt_cfg_notify_cmd {
