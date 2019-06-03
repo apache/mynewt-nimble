@@ -1654,6 +1654,63 @@ fail:
 		   BTP_STATUS_FAILED);
 }
 
+static int reliable_write_rsp(uint16_t conn_handle,
+			      const struct ble_gatt_error *error,
+			      struct ble_gatt_attr *attrs,
+			      uint8_t num_attrs,
+			      void *arg)
+{
+	uint8_t err = (uint8_t) error->status;
+
+	SYS_LOG_DBG("");
+
+	tester_send(BTP_SERVICE_ID_GATT, GATT_RELIABLE_WRITE,
+		    CONTROLLER_INDEX, &err,
+		    sizeof(err));
+	return 0;
+}
+
+static void reliable_write(u8_t *data, u16_t len)
+{
+	const struct gatt_reliable_write_cmd *cmd = (void *) data;
+	struct ble_gap_conn_desc conn;
+	struct ble_gatt_attr attr;
+	struct os_mbuf *om = NULL;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &conn);
+	if (rc) {
+		goto fail;
+	}
+
+	om = ble_hs_mbuf_from_flat(cmd->data, sys_le16_to_cpu(cmd->data_length));
+	/* This is required, because Nimble checks if
+	 * the data is longer than offset
+	 */
+	if (os_mbuf_extend(om, sys_le16_to_cpu(cmd->offset) + 1) == NULL) {
+		goto fail;
+	}
+
+	attr.handle = sys_le16_to_cpu(cmd->handle);
+	attr.offset = sys_le16_to_cpu(cmd->offset);
+	attr.om = om;
+
+	if (ble_gattc_write_reliable(conn.conn_handle, &attr, 1,
+				     reliable_write_rsp, NULL)) {
+		goto fail;
+	}
+
+	return;
+
+	fail:
+	os_mbuf_free_chain(om);
+
+	tester_rsp(BTP_SERVICE_ID_GATT, GATT_WRITE_LONG, CONTROLLER_INDEX,
+		   BTP_STATUS_FAILED);
+}
+
 static struct bt_gatt_subscribe_params {
 	u16_t ccc_handle;
 	u16_t value;
@@ -2234,6 +2291,9 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GATT_WRITE_LONG:
 		write_long(data, len);
+		return;
+	case GATT_RELIABLE_WRITE:
+		reliable_write(data, len);
 		return;
 	case GATT_CFG_NOTIFY:
 	case GATT_CFG_INDICATE:
