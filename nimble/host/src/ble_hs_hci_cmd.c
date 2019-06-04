@@ -1679,12 +1679,12 @@ ble_hs_hci_cmd_build_le_periodic_adv_data(uint8_t handle,
 
 int
 ble_hs_hci_cmd_build_le_periodic_adv_create_sync(uint8_t filter_policy,
-                                        uint8_t adv_sid,
-                                        uint8_t adv_add_type,
-                                        const uint8_t *adv_addr,
-                                        uint16_t skip,
-                                        uint16_t sync_timeout,
-                                        uint8_t *cmd, int cmd_len)
+                                                 uint8_t adv_sid,
+                                                 uint8_t adv_add_type,
+                                                 const uint8_t *adv_addr,
+                                                 uint16_t skip,
+                                                 uint16_t sync_timeout,
+                                                 uint8_t *cmd, int cmd_len)
 {
     BLE_HS_DBG_ASSERT(cmd_len >= BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN);
 

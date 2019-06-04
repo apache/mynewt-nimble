@@ -79,6 +79,7 @@
 #define BLE_GAP_OP_M_CONN           2
 #define BLE_GAP_OP_S_ADV            1
 #define BLE_GAP_OP_S_PERIODIC_ADV   2
+#define BLE_GAP_OP_SYNC             1
 
 /**
  * If an attempt to cancel an active procedure fails, the attempt is retried
@@ -129,15 +130,24 @@ struct ble_gap_master_state {
             uint8_t limited:1;
         } disc;
     };
-
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
-    /* Tells if create_sync was called without receiving sync
-     * established event
-     */
-    uint8_t        pending_create_sync;
-#endif
 };
 static bssnz_t struct ble_gap_master_state ble_gap_master;
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+/**
+ * The state of the in-progress sync creation. If no sync creation connection is
+ * currently in progress, then the op field is set to BLE_GAP_OP_NULL.
+ */
+struct ble_gap_sync_state {
+    uint8_t op;
+    struct ble_hs_periodic_sync *psync;
+
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+};
+
+static bssnz_t struct ble_gap_sync_state ble_gap_sync;
+#endif
 
 /**
  * The state of the in-progress slave connection.  If no slave connection is
@@ -158,7 +168,7 @@ struct ble_gap_slave_state {
     unsigned int rnd_addr_set:1;
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     unsigned int periodic_configured:1;
-    uint8_t       periodic_op;
+    uint8_t      periodic_op;
 #endif
     uint8_t rnd_addr[6];
 #else
@@ -1295,106 +1305,132 @@ ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
 #endif
 
 /* Periodic adv events */
-#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+
 void
-ble_gap_rx_peroidic_adv_sync_estab(
-        struct hci_le_subev_periodic_adv_sync_estab *evt)
+ble_gap_rx_peroidic_adv_sync_estab(struct hci_le_subev_periodic_adv_sync_estab *evt)
 {
     struct ble_gap_event event;
-    struct ble_gap_master_state state;
-    struct ble_hs_periodic_sync * psync;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
 
     memset(&event, 0, sizeof event);
 
-    /* There must be memory for psync as the check was done when creating
-     * sync
-     */
-    psync = ble_hs_periodic_sync_alloc();
-    BLE_HS_DBG_ASSERT(psync != NULL);
-
-    psync->sync_handle               = evt->sync_handle;
-    psync->adv_sid                   = evt->sid;
-    psync->advertiser_addr_type      = evt->adv_addr_type;
-
-    memcpy(psync->advertiser_addr.val, evt->adv_addr, 6);
-
-    psync->advertiser_phy            = evt->adv_phy;
-    psync->periodic_adv_itvl         = evt->per_adv_ival;
-    psync->advertiser_clock_accuracy = evt->adv_clk_accuracy;
+    event.type = BLE_GAP_EVENT_PERIODIC_SYNC;
+    event.periodic_sync.status = evt->status;
 
     ble_hs_lock();
-    ble_hs_periodic_sync_insert(psync);
+
+    BLE_HS_DBG_ASSERT(ble_gap_sync.psync);
+
+    if (!evt->status) {
+        ble_gap_sync.psync->sync_handle  = evt->sync_handle;
+        ble_gap_sync.psync->adv_sid = evt->sid;
+        memcpy(ble_gap_sync.psync->advertiser_addr.val, evt->adv_addr, 6);
+        ble_gap_sync.psync->advertiser_addr.type = evt->adv_addr_type;
+
+        ble_gap_sync.psync->cb = ble_gap_sync.cb;
+        ble_gap_sync.psync->cb_arg = ble_gap_sync.cb_arg;
+
+        event.periodic_sync.sync_handle = evt->sync_handle;
+        event.periodic_sync.sid = evt->sid;
+        event.periodic_sync.adv_addr = ble_gap_sync.psync->advertiser_addr;
+        event.periodic_sync.adv_phy = evt->adv_phy;
+        event.periodic_sync.per_adv_ival = evt->per_adv_ival;
+        event.periodic_sync.adv_clk_accuracy = evt->adv_clk_accuracy;
+
+        ble_hs_periodic_sync_insert(ble_gap_sync.psync);
+    } else {
+        ble_hs_periodic_sync_free(ble_gap_sync.psync);
+    }
+
+    cb = ble_gap_sync.cb;
+    cb_arg = ble_gap_sync.cb_arg;
+
+    ble_gap_sync.op = BLE_GAP_OP_NULL;
+    ble_gap_sync.cb_arg = NULL;
+    ble_gap_sync.cb_arg = NULL;
+    ble_gap_sync.psync = NULL;
+
     ble_hs_unlock();
 
-    event.type = BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB;
-    event.periodic_adv_sync_estab.status             = evt->status;
-    event.periodic_adv_sync_estab.sync_handle        = evt->sync_handle;
-    event.periodic_adv_sync_estab.sid                = evt->sid;
-    event.periodic_adv_sync_estab.adv_addr_type      = evt->adv_addr_type;
-
-    memcpy(event.periodic_adv_sync_estab.adv_addr, evt->adv_addr, 6);
-
-    event.periodic_adv_sync_estab.adv_phy            = evt->adv_phy;
-    event.periodic_adv_sync_estab.per_adv_ival       = evt->per_adv_ival;
-    event.periodic_adv_sync_estab.adv_clk_accuracy   = evt->adv_clk_accuracy;
-
-    ble_gap_master.pending_create_sync = 0;
-
-    ble_gap_master_extract_state(&state, 0);
-    if (ble_gap_has_client(&state)) {
-        state.cb(&event, state.cb_arg);
+    ble_gap_event_listener_call(&event);
+    if (cb) {
+        cb(&event, cb_arg);
     }
 }
 
 void
 ble_gap_rx_periodic_adv_rpt(struct hci_le_subev_periodic_adv_rpt *evt)
 {
+    struct ble_hs_periodic_sync *psync;
     struct ble_gap_event event;
-    struct ble_gap_master_state state;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    ble_hs_lock();
+    psync = ble_hs_periodic_sync_find_by_handle(evt->sync_handle);
+    if (psync) {
+        cb = psync->cb;
+        cb_arg = psync->cb_arg;
+    }
+    ble_hs_unlock();
+
+    if (!psync || !cb) {
+        return;
+    }
 
     memset(&event, 0, sizeof event);
 
-    event.type = BLE_GAP_EVENT_PERIODIC_DISC;
-    event.periodic_disc.sync_handle = evt->sync_handle;
-    event.periodic_disc.tx_power = evt->tx_power;
-    event.periodic_disc.rssi = evt->rssi;
-    event.periodic_disc.data_status = evt->data_status;
-    event.periodic_disc.data_length = evt->data_length;
-    event.periodic_disc.data = evt->data;
+    event.type = BLE_GAP_EVENT_PERIODIC_REPORT;
+    event.periodic_report.sync_handle = evt->sync_handle;
+    event.periodic_report.tx_power = evt->tx_power;
+    event.periodic_report.rssi = evt->rssi;
+    event.periodic_report.data_status = evt->data_status;
+    event.periodic_report.data_length = evt->data_length;
+    event.periodic_report.data = evt->data;
 
-    ble_gap_master_extract_state(&state, 0);
-    if (ble_gap_has_client(&state)) {
-        state.cb(&event, state.cb_arg);
-    }
+    /* TODO should we allow for listener too? this can be spammy and is more
+     * like ACL data, not general event
+     */
+     cb(&event, cb_arg);
 }
 
 void
-ble_gap_rx_periodic_adv_sync_lost(
-        struct hci_le_subev_periodic_adv_sync_lost *evt)
+ble_gap_rx_periodic_adv_sync_lost(struct hci_le_subev_periodic_adv_sync_lost *evt)
 {
-    struct ble_gap_event event;
-    struct ble_gap_master_state state;
     struct ble_hs_periodic_sync *psync;
+    struct ble_gap_event event;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
 
     memset(&event, 0, sizeof event);
 
-    event.type = BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST;
-    event.periodic_adv_sync_lost.sync_handle = evt->sync_handle;
+    event.type = BLE_GAP_EVENT_PERIODIC_SYNC_LOST;
+    event.periodic_sync_lost.sync_handle = evt->sync_handle;
+    event.periodic_sync_lost.reason = BLE_HS_ETIMEOUT;
 
     ble_hs_lock();
     /* The handle must be in the list */
-    psync = ble_hs_periodic_sync_find_assert(evt->sync_handle);
+    psync = ble_hs_periodic_sync_find_by_handle(evt->sync_handle);
+    BLE_HS_DBG_ASSERT(psync);
+
+    cb = psync->cb;
+    cb_arg = psync->cb_arg;
 
     /* Remove the handle from the list */
     ble_hs_periodic_sync_remove(psync);
+    ble_hs_unlock();
+
+    /* remove any sync_lost event from queue */
+    ble_npl_eventq_remove(ble_hs_evq_get(), &psync->lost_ev);
 
     /* Free the memory occupied by psync as it is no longer needed */
     ble_hs_periodic_sync_free(psync);
-    ble_hs_unlock();
 
-    ble_gap_master_extract_state(&state, 0);
-    if (ble_gap_has_client(&state)) {
-        state.cb(&event, state.cb_arg);
+    ble_gap_event_listener_call(&event);
+    if (cb) {
+        cb(&event, cb_arg);
     }
 }
 #endif
@@ -3025,8 +3061,7 @@ ble_gap_ext_adv_clear(void)
         }
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
-        if ((ble_gap_slave[instance].periodic_op ==
-                        BLE_GAP_OP_S_PERIODIC_ADV)) {
+        if (ble_gap_slave[instance].periodic_op == BLE_GAP_OP_S_PERIODIC_ADV) {
             ble_hs_unlock();
             return BLE_HS_EBUSY;
         }
@@ -3194,7 +3229,7 @@ ble_gap_periodic_adv_start(uint8_t instance)
 
 static int
 ble_gap_periodic_adv_set(uint8_t instance, uint16_t opcode,
-        struct os_mbuf **data)
+                         struct os_mbuf **data)
 {
     /* In that case we always fit all data in single HCI command */
 #if MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) <= BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN
@@ -3295,7 +3330,7 @@ ble_gap_periodic_adv_set(uint8_t instance, uint16_t opcode,
 
 static int
 ble_gap_periodic_adv_set_data_validate(uint8_t instance,
-        struct os_mbuf *data)
+                                       struct os_mbuf *data)
 {
     /* The corresponding extended advertising instance should be configured */
     if (!ble_gap_slave[instance].configured) {
@@ -3332,10 +3367,8 @@ ble_gap_periodic_adv_set_data(uint8_t instance, struct os_mbuf *data)
         goto done;
     }
 
-    rc = ble_gap_periodic_adv_set(
-            instance,
-            BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA,
-            &data);
+    rc = ble_gap_periodic_adv_set(instance,
+                                  BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA, &data);
 
     ble_hs_unlock();
 
@@ -3384,42 +3417,99 @@ ble_gap_periodic_adv_stop(uint8_t instance)
     return rc;
 }
 
+static void
+ble_gap_npl_sync_lost(struct ble_npl_event *ev)
+{
+    struct ble_hs_periodic_sync *psync;
+    struct ble_gap_event event;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    /* this psync is no longer on list so no lock needed */
+    psync = ble_npl_event_get_arg(ev);
+    cb = psync->cb;
+    cb_arg = psync->cb_arg;
+
+    memset(&event, 0, sizeof event);
+
+    event.type = BLE_GAP_EVENT_PERIODIC_SYNC_LOST;
+    event.periodic_sync_lost.sync_handle = psync->sync_handle;
+    event.periodic_sync_lost.reason = BLE_HS_EDONE;
+
+    /* Free the memory occupied by psync as it is no longer needed */
+    ble_hs_periodic_sync_free(psync);
+
+    ble_gap_event_listener_call(&event);
+    if (cb) {
+        cb(&event, cb_arg);
+    }
+}
+
 int
-ble_gap_periodic_adv_create_sync(const ble_addr_t *peer_addr, uint8_t adv_sid,
-                                 uint8_t filter_policy, uint16_t skip,
-                                 uint16_t sync_timeout)
+ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
+                                 const struct ble_gap_periodic_sync_params *params,
+                                 ble_gap_event_fn *cb, void *cb_arg)
 {
     uint8_t buf[BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_LEN];
+    struct ble_hs_periodic_sync *psync;
     uint16_t opcode;
     int rc = 0;
 
-    if (!ble_hs_periodic_sync_can_alloc()) {
-        return BLE_HS_ENOMEM;
-    }
-    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                    BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC);
+    ble_hs_lock();
 
     /* No sync can be created if another sync is still pending */
-    if (ble_gap_master.pending_create_sync) {
+    if (ble_gap_sync.op == BLE_GAP_OP_SYNC) {
+        ble_hs_unlock();
         return BLE_HS_EBUSY;
     }
 
-    rc = ble_hs_hci_cmd_build_le_periodic_adv_create_sync(filter_policy,
-                                                          adv_sid,
-                                                          peer_addr->type,
-                                                          peer_addr->val,
-                                                          skip, sync_timeout,
-                                                          buf, sizeof(buf));
+    /* cannot create another sync if already synchronized */
+    if (ble_hs_periodic_sync_find(addr, adv_sid)) {
+        ble_hs_unlock();
+        return BLE_HS_EALREADY;
+    }
+
+    /* preallocate sync element */
+    psync = ble_hs_periodic_sync_alloc();
+    if (!psync) {
+        ble_hs_unlock();
+        return BLE_HS_ENOMEM;
+    }
+
+    ble_npl_event_init(&psync->lost_ev, ble_gap_npl_sync_lost, psync);
+
+    if (addr) {
+        rc = ble_hs_hci_cmd_build_le_periodic_adv_create_sync(0x00, adv_sid,
+                                        addr->type, addr->val, params->skip,
+                                        params->sync_timeout, buf, sizeof(buf));
+    } else {
+        rc = ble_hs_hci_cmd_build_le_periodic_adv_create_sync(0x01, adv_sid,
+                            BLE_ADDR_ANY->type, BLE_ADDR_ANY->val, params->skip,
+                            params->sync_timeout, buf, sizeof(buf));
+    }
+
     if (rc != 0) {
+        ble_hs_periodic_sync_free(psync);
+        ble_hs_unlock();
         return rc;
     }
 
-    /* This shall be reset upon receiving sync_established event,
-     * or if the sync is cancelled before receiving that event.
-     */
-    ble_gap_master.pending_create_sync = 1;
-
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC);
     rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
+
+    if (!rc) {
+        /* This shall be reset upon receiving sync_established event,
+         * or if the sync is cancelled before receiving that event.
+         */
+        ble_gap_sync.op = BLE_GAP_OP_SYNC;
+        ble_gap_sync.cb = cb;
+        ble_gap_sync.cb_arg = cb_arg;
+        ble_gap_sync.psync = psync;
+    } else {
+        ble_hs_periodic_sync_free(psync);
+    }
+
+    ble_hs_unlock();
 
     return rc;
 }
@@ -3430,18 +3520,28 @@ ble_gap_periodic_adv_create_sync_cancel(void)
     uint16_t opcode;
     int rc = 0;
 
-    if (!ble_gap_master.pending_create_sync) {
+    ble_hs_lock();
+
+    if (ble_gap_sync.op != BLE_GAP_OP_SYNC) {
+        ble_hs_unlock();
         return BLE_HS_EBUSY;
     }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
-            BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL);
+                        BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL);
 
     rc = ble_hs_hci_cmd_tx_empty_ack(opcode, NULL, 0);
 
     if (!rc) {
-        ble_gap_master.pending_create_sync = 0;
+        ble_gap_sync.op = BLE_GAP_OP_NULL;
+        ble_gap_sync.cb = NULL;
+        ble_gap_sync.cb_arg = NULL;
+        ble_hs_periodic_sync_free(ble_gap_sync.psync);
+        ble_gap_sync.psync = NULL;
     }
+
+    ble_hs_unlock();
+
     return rc;
 }
 
@@ -3453,52 +3553,65 @@ ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle)
     struct ble_hs_periodic_sync *psync;
     int rc = 0;
 
-    if (ble_gap_master.pending_create_sync) {
+    ble_hs_lock();
+
+    if (ble_gap_sync.op == BLE_GAP_OP_SYNC) {
+        ble_hs_unlock();
         return BLE_HS_EBUSY;
     }
 
-    ble_hs_lock();
     /* The handle must be in the list. If it doesn't exist, it means
      * that the sync may have been lost at the same moment in which
-     * the app wants to terminate that sync handle */
-    psync = ble_hs_periodic_sync_find(sync_handle);
+     * the app wants to terminate that sync handle
+     */
+    psync = ble_hs_periodic_sync_find_by_handle(sync_handle);
     if (!psync) {
         /* Sync already terminated.*/
+        ble_hs_unlock();
         return BLE_HS_ENOTCONN;
     }
-
-    /* Remove the handle from the list */
-    ble_hs_periodic_sync_remove(psync);
-
-    /* Free the memory occupied by psync as it is no longer needed */
-    ble_hs_periodic_sync_free(psync);
-    ble_hs_unlock();
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC);
 
     rc = ble_hs_hci_cmd_build_le_periodic_adv_terminate_sync(sync_handle,
-                                                            buf, sizeof(buf));
+                                                             buf, sizeof(buf));
     if (rc != 0) {
+        ble_hs_unlock();
         return rc;
     }
 
     rc = ble_hs_hci_cmd_tx_empty_ack(opcode, buf, sizeof(buf));
 
+    if (rc == 0) {
+        /* Remove the handle from the list */
+        ble_hs_periodic_sync_remove(psync);
+
+        /* send sync_lost event, this is to mimic connection behavior and thus
+         * simplify application error handling
+         */
+        ble_npl_eventq_put(ble_hs_evq_get(), &psync->lost_ev);
+    }
+
+    ble_hs_unlock();
+
     return rc;
 }
 
 int
-ble_gap_add_dev_to_periodic_adv_list(uint8_t adv_addr_type,
-        const uint8_t *adv_addr, uint8_t adv_sid)
+ble_gap_add_dev_to_periodic_adv_list(const ble_addr_t *peer_addr,
+                                     uint8_t adv_sid)
 {
     uint8_t buf[BLE_HCI_LE_ADD_DEV_TO_PERIODIC_ADV_LIST_LEN];
     uint16_t opcode;
     int rc = 0;
 
-    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_DEV_TO_PERIODIC_ADV_LIST);
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
+                        BLE_HCI_OCF_LE_ADD_DEV_TO_PERIODIC_ADV_LIST);
 
-    rc = ble_hs_hci_cmd_build_le_add_dev_to_periodic_adv_list(adv_addr_type,
-            adv_addr, adv_sid, buf, sizeof(buf));
+    rc = ble_hs_hci_cmd_build_le_add_dev_to_periodic_adv_list(peer_addr->type,
+                                                              peer_addr->val,
+                                                              adv_sid, buf,
+                                                              sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -3516,10 +3629,12 @@ ble_gap_rem_dev_from_periodic_adv_list(const ble_addr_t *peer_addr, uint8_t adv_
     int rc = 0;
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE,
-            BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST);
+                        BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST);
 
     rc = ble_hs_hci_cmd_build_le_rem_dev_from_periodic_adv_list(peer_addr->type,
-            peer_addr->val, adv_sid, buf, sizeof(buf));
+                                                                peer_addr->val,
+                                                                adv_sid, buf,
+                                                                sizeof(buf));
     if (rc != 0) {
         return rc;
     }
@@ -3565,7 +3680,6 @@ ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size)
 
     return 0;
 }
-
 #endif
 
 /*****************************************************************************
@@ -5501,8 +5615,12 @@ ble_gap_init(void)
 {
     int rc;
 
-    memset(&ble_gap_master, 0, sizeof ble_gap_master);
-    memset(ble_gap_slave, 0, sizeof ble_gap_slave);
+    memset(&ble_gap_master, 0, sizeof(ble_gap_master));
+    memset(ble_gap_slave, 0, sizeof(ble_gap_slave));
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    memset(&ble_gap_sync, 0, sizeof(ble_gap_sync));
+#endif
 
     ble_npl_mutex_init(&preempt_done_mutex);
 
