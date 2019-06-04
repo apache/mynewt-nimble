@@ -35,6 +35,7 @@
  */
 
 #define BLE_SVC_DIS_UUID16					0x180A
+#define BLE_SVC_DIS_CHR_UUID16_SYSTEM_ID			0x2A23
 #define BLE_SVC_DIS_CHR_UUID16_MODEL_NUMBER			0x2A24
 #define BLE_SVC_DIS_CHR_UUID16_SERIAL_NUMBER			0x2A25
 #define BLE_SVC_DIS_CHR_UUID16_FIRMWARE_REVISION 		0x2A26
@@ -76,6 +77,11 @@ struct ble_svc_dis_data {
      * Represent the name of the manufacturer of the device.
      */
     const char *manufacturer_name;
+    /**
+     * System ID.
+     * Represent the System Id of the device.
+     */
+    const char *system_id;
 };
 
 /**
@@ -101,5 +107,7 @@ const char *ble_svc_dis_software_revision(void);
 int ble_svc_dis_software_revision_set(const char *value);
 const char *ble_svc_dis_manufacturer_name(void);
 int ble_svc_dis_manufacturer_name_set(const char *value);
+const char *ble_svc_dis_system_id(void);
+int ble_svc_dis_system_id_set(const char *value);
 
 #endif
