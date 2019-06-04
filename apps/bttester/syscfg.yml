@@ -40,7 +40,11 @@ syscfg.defs:
         value: 512
 
     BTTESTER_PRIVACY_MODE:
-        description: Use Resolvable Private Address
+        description: Enable privacy mode (RPA or NRPA)
+        value: 0
+
+    BTTESTER_USE_NRPA:
+        description: Use Non Resolvable Private Address
         value: 0
 
     BTTESTER_LTD_ADV_TIMEOUT:
