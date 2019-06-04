@@ -616,6 +616,7 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
         desc.sid = params->sid;
         desc.prim_phy = params->prim_phy;
         desc.sec_phy = params->sec_phy;
+        desc.periodic_adv_itvl = params->per_adv_itvl;
         ble_gap_rx_ext_adv_report(&desc);
         params += 1;
     }
@@ -625,9 +626,9 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 
 static int
 ble_hs_hci_evt_le_periodic_adv_sync_estab(uint8_t subevent, uint8_t *data,
-                                              int len)
+                                          int len)
 {
-#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct hci_le_subev_periodic_adv_sync_estab evt;
 
     if (len < BLE_HCI_LE_PERIODIC_ADV_SYNC_ESTAB_LEN) {
@@ -650,17 +651,16 @@ ble_hs_hci_evt_le_periodic_adv_sync_estab(uint8_t subevent, uint8_t *data,
 }
 
 static int
-ble_hs_hci_evt_le_periodic_adv_rpt(uint8_t subevent, uint8_t *data,
-                                      int len)
+ble_hs_hci_evt_le_periodic_adv_rpt(uint8_t subevent, uint8_t *data, int len)
 {
-#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct hci_le_subev_periodic_adv_rpt* evt;
 
     if (len < BLE_HCI_LE_PERIODIC_ADV_RPT_LEN) {
         return BLE_HS_EBADDATA;
     }
 
-    evt = (struct hci_le_subev_periodic_adv_rpt *)data;
+    evt = (struct hci_le_subev_periodic_adv_rpt *)(data + 1);
     ble_gap_rx_periodic_adv_rpt(evt);
 #endif
 
@@ -669,9 +669,9 @@ return 0;
 
 static int
 ble_hs_hci_evt_le_periodic_adv_sync_lost(uint8_t subevent, uint8_t *data,
-                                             int len)
+                                         int len)
 {
-#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct hci_le_subev_periodic_adv_sync_lost evt;
 
     if (len < BLE_HCI_LE_PERIODIC_ADV_SYNC_LOST_LEN) {

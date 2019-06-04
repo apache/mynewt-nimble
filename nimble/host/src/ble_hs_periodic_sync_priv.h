@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef H_BLE_HS_PERIODIC_DISC_
-#define H_BLE_HS_PERIODIC_DISC_
+#ifndef H_BLE_HS_PERIODIC_SYNC_
+#define H_BLE_HS_PERIODIC_SYNC_
 
 #include <inttypes.h>
 #include "os/queue.h"
@@ -27,30 +27,24 @@ extern "C" {
 #endif
 
 struct ble_hs_periodic_sync {
-    SLIST_ENTRY(ble_hs_periodic_sync) bhc_next;
+    SLIST_ENTRY(ble_hs_periodic_sync) next;
     uint16_t   sync_handle;
-    uint8_t    adv_sid;
-    uint8_t    advertiser_addr_type;
     ble_addr_t advertiser_addr;
-    uint8_t    advertiser_phy;
-    uint16_t   periodic_adv_itvl;
-    uint8_t    advertiser_clock_accuracy;
+    uint8_t    adv_sid;
+
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    struct ble_npl_event lost_ev;
 };
 
-int ble_hs_periodic_sync_can_alloc(void);
 struct ble_hs_periodic_sync *ble_hs_periodic_sync_alloc(void);
 void ble_hs_periodic_sync_free(struct ble_hs_periodic_sync *psync);
 void ble_hs_periodic_sync_insert(struct ble_hs_periodic_sync *psync);
 void ble_hs_periodic_sync_remove(struct ble_hs_periodic_sync *psync);
-struct ble_hs_periodic_sync *ble_hs_periodic_sync_find(
-                                                         uint16_t sync_handle);
-struct ble_hs_periodic_sync *ble_hs_periodic_sync_find_assert(
-                                                         uint16_t sync_handle);
-struct ble_hs_periodic_sync *ble_hs_periodic_sync_find_by_adv_addr(
-                                                      const ble_addr_t *addr);
-struct ble_hs_periodic_sync *ble_hs_periodic_sync_find_by_adv_sid(
-                                                                 uint16_t sid);
-int ble_hs_periodic_sync_exists(uint16_t sync_handle);
+struct ble_hs_periodic_sync *ble_hs_periodic_sync_find_by_handle(uint16_t sync_handle);
+struct ble_hs_periodic_sync *ble_hs_periodic_sync_find(const ble_addr_t *addr,
+                                                       uint8_t sid);
 struct ble_hs_periodic_sync *ble_hs_periodic_sync_first(void);
 int ble_hs_periodic_sync_init(void);
 

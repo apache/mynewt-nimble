@@ -124,9 +124,9 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_REPEAT_PAIRING        17
 #define BLE_GAP_EVENT_PHY_UPDATE_COMPLETE   18
 #define BLE_GAP_EVENT_EXT_DISC              19
-#define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB    20
-#define BLE_GAP_EVENT_PERIODIC_DISC              21
-#define BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST     22
+#define BLE_GAP_EVENT_PERIODIC_SYNC         20
+#define BLE_GAP_EVENT_PERIODIC_REPORT       21
+#define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -284,6 +284,7 @@ struct ble_gap_ext_disc_desc {
     uint8_t sid;
     uint8_t prim_phy;
     uint8_t sec_phy;
+    uint16_t periodic_adv_itvl;
     uint8_t length_data;
     uint8_t *data;
     /***
@@ -711,45 +712,47 @@ struct ble_gap_event {
             uint8_t tx_phy;
             uint8_t rx_phy;
         } phy_updated;
-#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
         /**
-         * Represents an periodic advertising sync established during discovery
-         * procedure.  Valid for the following event types:
-         *     o BLE_GAP_EVENT_PERIODIC_ADV_SYNC_ESTAB
+         * Represents a periodic advertising sync established during discovery
+         * procedure. Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_SYNC
          */
         struct {
             uint8_t status;
             uint16_t sync_handle;
             uint8_t sid;
-            uint8_t adv_addr_type;
-            uint8_t adv_addr[6];
+            ble_addr_t adv_addr;
             uint8_t adv_phy;
             uint16_t per_adv_ival;
             uint8_t adv_clk_accuracy;
-        } periodic_adv_sync_estab;
+        } periodic_sync;
 
         /**
-         * Represents a Periodic advertising report received during discovery
-         * procedure.  Valid for the following event types:
-         *     o BLE_GAP_EVENT_PERIODIC_DISC
+         * Represents a periodic advertising report received on established
+         * sync. Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_REPORT
          */
         struct {
             uint16_t sync_handle;
-            uint8_t tx_power;
+            int8_t tx_power;
             int8_t rssi;
             uint8_t data_status;
             uint8_t data_length;
             uint8_t *data;
-        } periodic_disc;
+        } periodic_report;
 
         /**
-         * Represents an periodic advertising sync Lost during discovery
-         * procedure.  Valid for the following event types:
-         *     o BLE_GAP_EVENT_PERIODIC_ADV_SYNC_LOST
+         * Represents a periodic advertising sync lost of established sync.
+         * Sync lost reason can be BLE_HS_ETIMEOUT (sync timeout) or
+         * BLE_HS_EDONE (sync terminated locally).
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_PERIODIC_SYNC_LOST
          */
         struct {
             uint16_t sync_handle;
-        } periodic_adv_sync_lost;
+            int reason;
+        } periodic_sync_lost;
 #endif
     };
 };
@@ -946,15 +949,6 @@ struct ble_gap_ext_adv_params {
     uint8_t sid;
 };
 
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
-struct ble_gap_periodic_adv_params {
-    unsigned int include_tx_power:1;
-
-    uint16_t itvl_min;
-    uint16_t itvl_max;
-};
-#endif
-
 int ble_gap_ext_adv_configure(uint8_t instance,
                               const struct ble_gap_ext_adv_params *params,
                               int8_t *selected_tx_power,
@@ -972,19 +966,34 @@ int ble_gap_ext_adv_remove(uint8_t instance);
  *                      other error code on failure.
  */
 int ble_gap_ext_adv_clear(void);
+#endif
 
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
 /* Periodic Advertising */
-int ble_gap_periodic_adv_configure(uint8_t instance, const struct ble_gap_periodic_adv_params *params);
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+struct ble_gap_periodic_adv_params {
+    unsigned int include_tx_power:1;
+
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+};
+
+struct ble_gap_periodic_sync_params {
+    uint16_t skip;
+    uint16_t sync_timeout;
+};
+
+int ble_gap_periodic_adv_configure(uint8_t instance,
+                                   const struct ble_gap_periodic_adv_params *params);
 int ble_gap_periodic_adv_start(uint8_t instance);
 int ble_gap_periodic_adv_stop(uint8_t instance);
 int ble_gap_periodic_adv_set_data(uint8_t instance, struct os_mbuf *data);
-int ble_gap_periodic_adv_create_sync(const ble_addr_t *peer_addr, uint8_t adv_sid,
-                                     uint8_t filter_policy, uint16_t skip,
-                                     uint16_t sync_timeout);
+
+int ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
+                                     const struct ble_gap_periodic_sync_params *params,
+                                     ble_gap_event_fn *cb, void *cb_arg);
 int ble_gap_periodic_adv_create_sync_cancel(void);
 int ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle);
-int ble_gap_add_dev_to_periodic_adv_list(uint8_t adv_add_type, const uint8_t *adv_add,
+int ble_gap_add_dev_to_periodic_adv_list(const ble_addr_t *peer_addr,
                                          uint8_t adv_sid);
 int ble_gap_rem_dev_from_periodic_adv_list(const ble_addr_t *peer_addr,
                                            uint8_t adv_sid);
@@ -992,7 +1001,6 @@ int ble_gap_clear_periodic_adv_list(void);
 int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
 #endif
 
-#endif
 
 /**
  * Performs the Limited or General Discovery Procedures.
