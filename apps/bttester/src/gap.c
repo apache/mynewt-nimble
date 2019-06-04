@@ -155,13 +155,17 @@ static void controller_info(u8_t *data, u16_t len)
 
 	memset(&rp, 0, sizeof(rp));
 
-	rc = ble_hs_id_gen_rnd(0, &addr);
+	rc = ble_hs_id_gen_rnd(MYNEWT_VAL(BTTESTER_USE_NRPA), &addr);
 	assert(rc == 0);
 	rc = ble_hs_id_set_rnd(addr.val);
 	assert(rc == 0);
 
 	if (MYNEWT_VAL(BTTESTER_PRIVACY_MODE)) {
-		own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
+		if (MYNEWT_VAL(BTTESTER_USE_NRPA)) {
+			own_addr_type = BLE_OWN_ADDR_RANDOM;
+		} else {
+			own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
+		}
 		atomic_set_bit(&current_settings, GAP_SETTINGS_PRIVACY);
 		supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
 		memcpy(rp.address, addr.val, sizeof(rp.address));
