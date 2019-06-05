@@ -590,6 +590,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
+		k_delayed_work_submit(&client->sar_timer, PROXY_SAR_TIMEOUT);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		break;
 
