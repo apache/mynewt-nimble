@@ -143,6 +143,7 @@ struct ble_ll_scan_sm
     struct os_mbuf *scan_req_pdu;
     struct ble_npl_event scan_sched_ev;
     struct hal_timer scan_timer;
+    struct ble_npl_event scan_wfr_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct hal_timer duration_timer;
