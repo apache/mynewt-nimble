@@ -1132,6 +1132,12 @@ cmd_set_scan_opts(int argc, char **argv)
         return rc;
     }
 
+    g_scan_opts.periodic_only = parse_arg_bool_dflt("periodic_only", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'periodic_only' parameter\n");
+        return rc;
+    }
+
     return rc;
 }
 
@@ -1139,6 +1145,7 @@ cmd_set_scan_opts(int argc, char **argv)
 static const struct shell_param set_scan_opts_params[] = {
     {"decode_limit", "usage: =[0-UINT16_MAX], default: UINT16_MAX"},
     {"ignore_legacy", "usage: =[0-1], default: 0"},
+    {"periodic_only", "usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
 
@@ -1506,7 +1513,8 @@ update_pattern(uint8_t *buf, int counter)
 #endif
 
 static int
-cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
+cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
+                             bool periodic)
 {
     static bssnz_t ble_uuid16_t uuids16[CMD_ADV_DATA_MAX_UUIDS16];
     static bssnz_t ble_uuid32_t uuids32[CMD_ADV_DATA_MAX_UUIDS32];
@@ -1548,6 +1556,11 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
     uint16_t extra_data_len;
     struct os_mbuf *adv_data;
 #endif
+
+    /* cannot set scan rsp for periodic */
+    if (scan_rsp && periodic) {
+        return -1;
+    }
 
     memset(&adv_fields, 0, sizeof adv_fields);
 
@@ -1828,6 +1841,10 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp)
 
         if (scan_rsp) {
             rc = ble_gap_ext_adv_rsp_set_data(instance, adv_data);
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+        } else if (periodic) {
+            rc = ble_gap_periodic_adv_set_data(instance, adv_data);
+#endif
         } else {
             rc = ble_gap_ext_adv_set_data(instance, adv_data);
         }
@@ -1851,13 +1868,13 @@ done:
 static int
 cmd_set_adv_data(int argc, char **argv)
 {
-    return cmd_set_adv_data_or_scan_rsp(argc, argv, false);
+    return cmd_set_adv_data_or_scan_rsp(argc, argv, false, false);
 }
 
 static int
 cmd_set_scan_rsp(int argc, char **argv)
 {
-    return cmd_set_adv_data_or_scan_rsp(argc, argv, true);
+    return cmd_set_adv_data_or_scan_rsp(argc, argv, true, false);
 }
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
@@ -3566,6 +3583,312 @@ static const struct shell_cmd_help l2cap_show_coc_help = {
 #endif
 #endif
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+static int
+cmd_periodic_configure(int argc, char **argv)
+{
+    struct ble_gap_periodic_adv_params params = {0};
+    uint8_t instance;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    instance = parse_arg_uint8_dflt("instance", 0, &rc);
+    if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
+        console_printf("invalid instance\n");
+        return rc;
+    }
+
+    memset(&params, 0, sizeof(params));
+
+    params.include_tx_power = parse_arg_bool_dflt("include_tx_power", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'include_tx_power' parameter\n");
+        return rc;
+    }
+
+    params.itvl_min = parse_arg_uint32_dflt("interval_min", 6, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'interval_min' parameter\n");
+        return rc;
+    }
+
+    params.itvl_max = parse_arg_uint32_dflt("interval_max", params.itvl_min, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'interval_max' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_configure(instance, &params);
+    if (rc) {
+        console_printf("failed to configure periodic advertising\n");
+        return rc;
+    }
+
+    console_printf("Instance %u configured for periodic advertising\n",
+                   instance);
+
+    return 0;
+}
+
+static int
+cmd_periodic_set_adv_data(int argc, char **argv)
+{
+    return cmd_set_adv_data_or_scan_rsp(argc, argv, false, true);
+}
+
+static int
+cmd_periodic_start(int argc, char **argv)
+{
+    uint8_t instance;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    instance = parse_arg_uint8_dflt("instance", 0, &rc);
+    if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
+        console_printf("invalid instance\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_start(instance);
+    if (rc) {
+        console_printf("failed to start periodic advertising\n");
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+cmd_periodic_stop(int argc, char **argv)
+{
+    uint8_t instance;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    instance = parse_arg_uint8_dflt("instance", 0, &rc);
+    if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
+        console_printf("invalid instance\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_stop(instance);
+    if (rc) {
+        console_printf("failed to stop periodic advertising\n");
+        return rc;
+    }
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param periodic_configure_params[] = {
+    {"instance", "default: 0"},
+    {"interval_min", "usage: =[0-UINT32_MAX], default: 6"},
+    {"interval_max", "usage: =[0-UINT32_MAX], default: interval_min"},
+    {"tx_power", "include TX power, usage: =[0-1], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help periodic_configure_help = {
+    .summary = "configure periodic advertising for instance",
+    .usage = NULL,
+    .params = periodic_configure_params,
+};
+
+static const struct shell_param periodic_start_params[] = {
+    {"instance", "default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help periodic_start_help = {
+    .summary = "start periodic advertising for instance",
+    .usage = NULL,
+    .params = periodic_start_params,
+};
+
+static const struct shell_param periodic_stop_params[] = {
+    {"instance", "default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help periodic_stop_help = {
+    .summary = "stop periodic advertising for instance",
+    .usage = NULL,
+    .params = periodic_stop_params,
+};
+#endif
+
+static int
+cmd_sync_create(int argc, char **argv)
+{
+    struct ble_gap_periodic_sync_params params;
+    ble_addr_t addr;
+    ble_addr_t *addr_param = &addr;
+    uint8_t sid;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (argc > 1 && strcmp(argv[1], "cancel") == 0) {
+        rc = ble_gap_periodic_adv_create_sync_cancel();
+        if (rc != 0) {
+            console_printf("Sync create cancel fail: %d\n", rc);
+            return rc;
+        }
+
+        return 0;
+    }
+
+    addr.type = parse_arg_kv_dflt("peer_addr_type", cmd_addr_type,
+                                  BLE_ADDR_PUBLIC, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'peer_addr_type' parameter\n");
+        return rc;
+    }
+
+    rc = parse_arg_mac("peer_addr", addr.val);
+    if (rc == ENOENT) {
+        /* With no "peer_addr" specified we'll use periodic list */
+        addr_param = NULL;
+    } else if (rc != 0) {
+        console_printf("invalid 'addr' parameter\n");
+        return rc;
+    }
+
+    sid = parse_arg_uint8_dflt("sid", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sid' parameter\n");
+        return rc;
+    }
+
+    params.skip = parse_arg_uint16_dflt("skip", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'skip' parameter\n");
+        return rc;
+    }
+
+    params.sync_timeout = parse_arg_uint16_dflt("sync_timeout", 10, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_timeout' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_create_sync(addr_param, sid, &params,
+                                          btshell_gap_event, NULL);
+    if (rc) {
+        console_printf("Failed to create sync (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_create_params[] = {
+    {"cancel", "cancel periodic sync establishment procedure"},
+    {"peer_addr_type", "usage: =[public|random], default: public"},
+    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
+    {"sid", "usage: =[UINT8], default: 0"},
+    {"skip", "usage: =[0-0x01F3], default: 0x0000"},
+    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x000A"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_create_help = {
+    .summary = "start/stop periodic sync procedure with specific parameters",
+    .usage = NULL,
+    .params = sync_create_params,
+};
+#endif
+
+static int
+cmd_sync_terminate(int argc, char **argv)
+{
+    uint16_t sync_handle;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    sync_handle = parse_arg_uint16_dflt("sync_handle", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_handle' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_terminate_sync(sync_handle);
+    if (rc) {
+        console_printf("Failed to terminate sync (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_terminate_params[] = {
+    {"sync_handle", "usage: =[UINT16], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_terminate_help = {
+    .summary = "terminate periodic sync",
+    .usage = NULL,
+    .params = sync_terminate_params,
+};
+#endif
+
+static int
+cmd_sync_stats(int argc, char **argv)
+{
+    uint16_t sync_handle;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    sync_handle = parse_arg_uint16_dflt("sync_handle", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_handle' parameter\n");
+        return rc;
+    }
+
+    btshell_sync_stats(sync_handle);
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_stats_params[] = {
+    {"sync_handle", "usage: =[UINT16], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_stats_help = {
+    .summary = "show sync stats",
+    .usage = NULL,
+    .params = sync_stats_params,
+};
+#endif
+#endif
+
 static const struct shell_cmd btshell_commands[] = {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
@@ -3968,6 +4291,57 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &host_disable_help,
 #endif
     },
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    {
+        .sc_cmd = "periodic-configure",
+        .sc_cmd_func = cmd_periodic_configure,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &periodic_configure_help,
+#endif
+    },
+    {
+        .sc_cmd = "periodic-set-adv-data",
+        .sc_cmd_func = cmd_periodic_set_adv_data,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &set_adv_data_help,
+#endif
+    },
+    {
+        .sc_cmd = "periodic-start",
+        .sc_cmd_func = cmd_periodic_start,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &periodic_start_help,
+#endif
+    },
+    {
+        .sc_cmd = "periodic-stop",
+        .sc_cmd_func = cmd_periodic_stop,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &periodic_stop_help,
+#endif
+    },
+    {
+        .sc_cmd = "sync-create",
+        .sc_cmd_func = cmd_sync_create,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_create_help,
+#endif
+    },
+    {
+        .sc_cmd = "sync-terminate",
+        .sc_cmd_func = cmd_sync_terminate,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_terminate_help,
+#endif
+    },
+    {
+        .sc_cmd = "sync-stats",
+        .sc_cmd_func = cmd_sync_stats,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_stats_help,
+#endif
+    },
+#endif
     { 0 },
 };
 
