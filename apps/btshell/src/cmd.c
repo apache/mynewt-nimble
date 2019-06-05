@@ -823,7 +823,9 @@ cmd_connect(int argc, char **argv)
     if (ext == 0x00) {
         rc = btshell_conn_initiate(own_addr_type, peer_addr_param, duration_ms,
                                    &phy_1M_params);
-        console_printf("error connecting; rc=%d\n", rc);
+        if (rc) {
+            console_printf("error connecting; rc=%d\n", rc);
+        }
         return rc;
     }
 
@@ -831,7 +833,9 @@ cmd_connect(int argc, char **argv)
         rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param,
                                        duration_ms, &phy_1M_params,
                                        NULL, NULL);
-        console_printf("error connecting; rc=%d\n", rc);
+        if (rc) {
+            console_printf("error connecting; rc=%d\n", rc);
+        }
         return rc;
     }
 
