@@ -1761,6 +1761,11 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 
 done:
 
+    if (rc == 0) {
+        sch->cb_arg = ble_ll_scan_aux_data_ref(aux_scan);
+        STATS_INC(ble_ll_stats, aux_scheduled);
+    }
+
     /* Get head of list to restart timer */
 #ifdef BLE_XCVR_RFCLK
     entry = TAILQ_FIRST(&g_ble_ll_sched_q);
@@ -1779,7 +1784,6 @@ done:
     BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
 
-    STATS_INC(ble_ll_stats, aux_scheduled);
     return rc;
 }
 #endif
