@@ -84,6 +84,7 @@ struct btshell_conn {
 struct btshell_scan_opts {
     uint16_t limit;
     uint8_t ignore_legacy:1;
+    uint8_t periodic_only:1;
 };
 
 extern struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
@@ -171,6 +172,9 @@ int btshell_l2cap_create_srv(uint16_t psm, int accept_response);
 int btshell_l2cap_connect(uint16_t conn, uint16_t psm);
 int btshell_l2cap_disconnect(uint16_t conn, uint16_t idx);
 int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
+
+int btshell_gap_event(struct ble_gap_event *event, void *arg);
+void btshell_sync_stats(uint16_t handle);
 
 /** GATT server. */
 #define GATT_SVR_SVC_ALERT_UUID               0x1811

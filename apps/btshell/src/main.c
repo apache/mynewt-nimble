@@ -918,17 +918,17 @@ btshell_decode_adv_data(uint8_t *adv_data, uint8_t adv_data_len, void *arg)
     struct btshell_scan_opts *scan_opts = arg;
     struct ble_hs_adv_fields fields;
 
-    console_printf(" length_data=%d data=", adv_data_len);
+    console_printf(" data_length=%d data=", adv_data_len);
 
     if (scan_opts) {
         adv_data_len = min(adv_data_len, scan_opts->limit);
     }
 
     print_bytes(adv_data, adv_data_len);
+
     console_printf(" fields:\n");
     ble_hs_adv_parse_fields(&fields, adv_data, adv_data_len);
     btshell_print_adv_fields(&fields);
-    console_printf("\n");
 }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -948,6 +948,10 @@ btshell_decode_event_type(struct ble_gap_ext_disc_desc *desc, void *arg)
             directed = 1;
         }
         goto common_data;
+    } else {
+        if (scan_opts && scan_opts->periodic_only && desc->periodic_adv_itvl == 0) {
+            return;
+        }
     }
 
     console_printf("Extended adv: ");
@@ -983,9 +987,9 @@ btshell_decode_event_type(struct ble_gap_ext_disc_desc *desc, void *arg)
 
 common_data:
     console_printf(" rssi=%d txpower=%d, pphy=%d, sphy=%d, sid=%d,"
-                   " addr_type=%d addr=",
+                   " periodic_adv_itvl=%u, addr_type=%d addr=",
                    desc->rssi, desc->tx_power, desc->prim_phy, desc->sec_phy,
-                   desc->sid, desc->addr.type);
+                   desc->sid, desc->periodic_adv_itvl, desc->addr.type);
     print_addr(desc->addr.val);
     if (directed) {
         console_printf(" init_addr_type=%d inita=", desc->direct_addr.type);
@@ -1001,9 +1005,6 @@ common_data:
     btshell_decode_adv_data(desc->data, desc->length_data, arg);
 }
 #endif
-
-static int
-btshell_gap_event(struct ble_gap_event *event, void *arg);
 
 static int
 btshell_restart_adv(struct ble_gap_event *event)
@@ -1039,12 +1040,116 @@ btshell_restart_adv(struct ble_gap_event *event)
     return rc;
 }
 
-static int
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+struct psync {
+    bool established;
+    unsigned int complete;
+    unsigned int truncated;
+    size_t off;
+    bool changed;
+    uint8_t data[1650]; /* TODO make this configurable */
+};
+
+static struct psync g_periodic_data[MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)];
+
+void
+btshell_sync_stats(uint16_t handle)
+{
+    struct psync *psync;
+
+    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+        return;
+    }
+
+    psync = &g_periodic_data[handle];
+    if (!psync->established) {
+        console_printf("Sync not established\n");
+        return;
+    }
+
+    console_printf("completed=%u truncated=%u\n",
+                    psync->complete, psync->truncated);
+}
+
+static void
+handle_periodic_report(struct ble_gap_event *event)
+{
+    struct psync *psync;
+    uint16_t handle = event->periodic_report.sync_handle;
+
+    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+        return;
+    }
+
+    psync = &g_periodic_data[handle];
+
+    if (psync->changed ||
+            memcmp(psync->data + psync->off, event->periodic_report.data,
+                   event->periodic_report.data_length)) {
+        /* first fragment with changed data */
+        if (!psync->changed) {
+            console_printf("Sync data changed, completed=%u, truncated=%u\n",
+                           psync->complete, psync->truncated);
+        }
+
+        psync->changed = true;
+
+        console_printf("Sync report handle=%u status=", handle);
+        switch(event->periodic_report.data_status) {
+        case BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE:
+            console_printf("complete");
+            break;
+        case BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE:
+            console_printf("incomplete");
+            break;
+        case BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED:
+            console_printf("truncated");
+            break;
+        default:
+            console_printf("reserved 0x%x", event->periodic_report.data_status);
+            break;
+        }
+
+        btshell_decode_adv_data(event->periodic_report.data,
+                                event->periodic_report.data_length, NULL);
+
+        psync->complete = 0;
+        psync->truncated = 0;
+    }
+
+    /* cache data */
+    memcpy(psync->data + psync->off, event->periodic_report.data,
+           event->periodic_report.data_length);
+
+    switch(event->periodic_report.data_status) {
+    case BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE:
+        psync->off += event->periodic_report.data_length;
+        break;
+    case BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE:
+        psync->complete++;
+        psync->off = 0;
+        psync->changed = false;
+        break;
+    case BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED:
+        psync->truncated++;
+        psync->off = 0;
+        psync->changed = false;
+        break;
+    default:
+        break;
+    }
+}
+#endif
+
+int
 btshell_gap_event(struct ble_gap_event *event, void *arg)
 {
     struct ble_gap_conn_desc desc;
     int conn_idx;
     int rc;
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct psync *psync;
+#endif
 
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
@@ -1215,7 +1320,54 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
          * continue with the pairing operation.
          */
         return BLE_GAP_REPEAT_PAIRING_RETRY;
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    case BLE_GAP_EVENT_PERIODIC_SYNC:
+        if (event->periodic_sync.status) {
+            console_printf("Periodic Sync Establishment Failed; status=%u\n",
+                           event->periodic_sync.status);
+        } else {
+            console_printf("Periodic Sync Established; sync_handle=%u sid=%u "
+                            "phy=%u adv_interval=%u ca=%u addr_type=%u addr=",
+                       event->periodic_sync.sync_handle,
+                       event->periodic_sync.sid, event->periodic_sync.adv_phy,
+                       event->periodic_sync.per_adv_ival,
+                       event->periodic_sync.adv_clk_accuracy,
+                       event->periodic_sync.adv_addr.type);
+            print_addr(event->periodic_sync.adv_addr.val);
+            console_printf("\n");
 
+            /* TODO non-NimBLE controllers may not start handles from 0 */
+            if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+                console_printf("Unable to prepare cache for sync data\n");
+            } else {
+                psync = &g_periodic_data[event->periodic_sync.sync_handle];
+                memset(psync, 0, sizeof(*psync));
+                psync->changed = true;
+                psync->established = true;
+            }
+        }
+        return 0;
+    case BLE_GAP_EVENT_PERIODIC_SYNC_LOST:
+        /* TODO non-NimBLE controllers may not start handles from 0 */
+        if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+            console_printf("Periodic Sync Lost; sync_handle=%d reason=%d\n",
+                            event->periodic_sync_lost.sync_handle,
+                            event->periodic_sync_lost.reason);
+        } else {
+            psync = &g_periodic_data[event->periodic_sync.sync_handle];
+
+            console_printf("Periodic Sync Lost; sync_handle=%d reason=%d completed=%u truncated=%u\n",
+                           event->periodic_sync_lost.sync_handle,
+                           event->periodic_sync_lost.reason,
+                           psync->complete, psync->truncated);
+
+            memset(psync, 0, sizeof(*psync));
+        }
+        return 0;
+    case BLE_GAP_EVENT_PERIODIC_REPORT:
+        handle_periodic_report(event);
+        return 0;
+#endif
     default:
         return 0;
     }
