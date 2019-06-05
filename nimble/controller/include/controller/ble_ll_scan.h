@@ -92,7 +92,7 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_INCOMPLETE_BIT       0x02
 #define BLE_LL_AUX_INCOMPLETE_ERR_BIT   0x04
 #define BLE_LL_AUX_HAS_ADDRA            0x08
-#define BLE_LL_AUX_IGNORE_BIT           0x10
+#define BLE_LL_SENT_EVENT_TO_HOST       0x10
 #define BLE_LL_AUX_HAS_DIR_ADDRA        0x20
 #define BLE_LL_AUX_TRUNCATED_SENT       0x40
 #define BLE_LL_AUX_HAS_ADI              0x80
@@ -251,13 +251,13 @@ int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
                               struct ble_mbuf_hdr *ble_hdr,
                               struct ble_ll_ext_adv_report *parsed_evt);
 
-void ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_scan);
-int ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
+struct ble_ll_aux_data *ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_scan);
+void ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
+void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 #endif
 
 /* Called to clean up current aux data */
 void ble_ll_scan_clean_cur_aux_data(void);
-void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 
 #ifdef __cplusplus
 }

@@ -2678,22 +2678,25 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
     struct ble_ll_conn_sm *connsm;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
+    struct ble_ll_aux_data *aux_data = NULL;
 
-    /*
-     * Let's take the reference for handover to LL.
-     * There shall be one more, if not something went very wrong
-     */
-    if (aux_data && !ble_ll_scan_aux_data_unref(aux_data)) {
-        BLE_LL_ASSERT(0);
-        return;
-    }
-
+     if (ble_hdr->rxinfo.user_data) {
+         /* aux_data just a local helper, no need to ref
+          * as ble_hdr->rxinfo.user_data is unref in the end of this function
+          */
+         aux_data = ble_hdr->rxinfo.user_data;
+     }
 #endif
 
     /* Get the connection state machine we are trying to create */
     connsm = g_ble_ll_conn_create_sm;
     if (!connsm) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (aux_data) {
+            ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
+            ble_hdr->rxinfo.user_data = NULL;
+        }
+#endif
         return;
     }
 
@@ -2710,7 +2713,9 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         if (BLE_MBUF_HDR_WAIT_AUX(ble_hdr)) {
             /* Just continue scanning. We are waiting for AUX */
             if (!ble_ll_sched_aux_scan(ble_hdr, connsm->scansm, aux_data)) {
-                ble_ll_scan_aux_data_ref(aux_data);
+                /* ref for aux ptr in the scheduler */
+                ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
+                ble_hdr->rxinfo.user_data = NULL;
                 ble_ll_scan_chk_resume();
                 return;
             }
@@ -2719,8 +2724,9 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
     }
 
     if (CONN_F_AUX_CONN_REQ(connsm)) {
-        /* Wait for connection response */
         if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
+            /* Wait for connection response, in this point of time aux is NULL */
+            BLE_LL_ASSERT(ble_hdr->rxinfo.user_data == NULL);
             return;
         }
     }
@@ -2791,7 +2797,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         /* Lets take last used phy */
         ble_ll_conn_init_phy(connsm, ble_hdr->rxinfo.phy);
 #endif
-        ble_ll_scan_aux_data_unref(aux_data);
+        if (aux_data) {
+            ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
+            ble_hdr->rxinfo.user_data = NULL;
+        }
 #endif
         ble_ll_conn_created(connsm, NULL);
         return;
@@ -2800,7 +2809,10 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
 scan_continue:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* Drop last reference and keep continue to connect */
-    ble_ll_scan_aux_data_unref(aux_data);
+    if (aux_data) {
+        ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
+        ble_hdr->rxinfo.user_data = NULL;
+    }
 #endif
     ble_ll_scan_chk_resume();
 }
@@ -2955,10 +2967,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     if (scansm->cur_aux_data) {
         ble_hdr->rxinfo.user_data = scansm->cur_aux_data;
         scansm->cur_aux_data = NULL;
-        if (ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data) == 0) {
-            ble_hdr->rxinfo.user_data = 0;
-            goto init_rx_isr_exit;
-        }
     }
 #endif
 
@@ -3000,8 +3008,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-            ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
-            ble_hdr->rxinfo.user_data = NULL;
             goto init_rx_isr_exit;
         }
     }
@@ -3215,11 +3221,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 
 init_rx_isr_exit:
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (ble_hdr->rxinfo.user_data) {
-        ble_ll_scan_aux_data_ref(ble_hdr->rxinfo.user_data);
-    }
-#endif
     /*
      * We have to restart receive if we cant hand up pdu. We return 0 so that
      * the phy does not get disabled.
