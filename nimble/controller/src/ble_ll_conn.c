@@ -2694,6 +2694,7 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
      */
     if (aux_data && !ble_ll_scan_aux_data_unref(aux_data)) {
         BLE_LL_ASSERT(0);
+        return;
     }
 
 #endif
