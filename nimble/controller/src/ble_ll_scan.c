@@ -1501,6 +1501,39 @@ ble_ll_aux_scan_rsp_failed(void)
 }
 #endif
 
+static void
+ble_ll_scan_wfr_event_cb(struct ble_npl_event *ev)
+{
+    struct ble_ll_scan_sm *scansm = ev->ev.ev_arg;
+
+    if (!scansm->scan_enabled) {
+        return;
+    }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (scansm && scansm->cur_aux_data) {
+        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
+        scansm->cur_aux_data = NULL;
+        STATS_INC(ble_ll_stats, aux_missed_adv);
+    }
+#endif
+
+    /*
+    * If we timed out waiting for a response, the scan response pending
+    * flag should be set. Deal with scan backoff. Put device back into rx.
+    */
+
+    if (scansm->scan_rsp_pending) {
+        ble_ll_scan_req_backoff(scansm, 0);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        ble_ll_aux_scan_rsp_failed();
+#endif
+    }
+
+    ble_ll_scan_chk_resume();
+    ble_phy_restart_rx();
+}
+
 /**
  * Called to process the scanning OS event which was posted to the LL task
  *
@@ -2610,29 +2643,8 @@ ble_ll_scan_wfr_timer_exp(void)
 {
     struct ble_ll_scan_sm *scansm;
 
-    /*
-     * If we timed out waiting for a response, the scan response pending
-     * flag should be set. Deal with scan backoff. Put device back into rx.
-     */
     scansm = &g_ble_ll_scan_sm;
-    if (scansm->scan_rsp_pending) {
-        ble_ll_scan_req_backoff(scansm, 0);
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        ble_ll_aux_scan_rsp_failed();
-        ble_ll_scan_chk_resume();
-#endif
-    }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (scansm->cur_aux_data) {
-        ble_ll_scan_end_adv_evt(scansm->cur_aux_data);
-        scansm->cur_aux_data = NULL;
-        STATS_INC(ble_ll_stats, aux_missed_adv);
-        ble_ll_scan_chk_resume();
-    }
-#endif
-
-    ble_phy_restart_rx();
+    ble_ll_event_send(&scansm->scan_wfr_ev);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3794,6 +3806,8 @@ ble_ll_scan_common_init(void)
     os_cputime_timer_init(&scansm->period_timer, ble_ll_scan_period_timer_cb,
                                                                         scansm);
 #endif
+
+    ble_npl_event_init(&scansm->scan_wfr_ev, ble_ll_scan_wfr_event_cb, scansm);
 
     /* Get a scan request mbuf (packet header) and attach to state machine */
     scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_SCAN_LEGACY_MAX_PKT_LEN,

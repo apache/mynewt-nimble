@@ -554,18 +554,10 @@ ble_ll_conn_init_wfr_timer_exp(void)
     }
 
     ble_ll_conn_reset_pending_aux_conn_rsp();
+    connsm->inita_identity_used = 0;
 
     scansm = connsm->scansm;
-    if (scansm && scansm->cur_aux_data) {
-        if (ble_ll_scan_aux_data_unref(scansm->cur_aux_data)) {
-            ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
-        }
-        scansm->cur_aux_data = NULL;
-        STATS_INC(ble_ll_stats, aux_missed_adv);
-        ble_ll_event_send(&scansm->scan_sched_ev);
-    }
-
-    connsm->inita_identity_used = 0;
+    ble_ll_event_send(&scansm->scan_wfr_ev);
 #endif
 }
 /**
