@@ -295,8 +295,9 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 
         BLE_HS_LOG(DEBUG, "LE Advertising Set Terminated len=%u "
                    "status=0x%02x adv_handle=0x%02x conn_handle=0x%04x "
-                   "num_compl_ext_adv_ev=0x%02x", len, data->adv_handle,
-                   le16toh(data->conn_handle), data->num_compl_ext_adv_ev);
+                   "num_compl_ext_adv_ev=0x%02x", len, data->status,
+                   data->adv_handle, le16toh(data->conn_handle),
+                   data->num_compl_ext_adv_ev);
         break;
     }
 
