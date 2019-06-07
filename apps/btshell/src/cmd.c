@@ -2225,9 +2225,11 @@ cmd_conn_datalen(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param conn_datalen_params[] = {
-    {"conn", "conn_datalen handle, usage: =<UINT16>"},
-    {"octets", "usage: =<UINT16>"},
-    {"time", "usage: =<UINT16>"},
+    {"conn", "Connection handle, usage: =<UINT16>"},
+    {"octets", "Max payload size to include in LL Data PDU, "
+               "range=<27-251>, usage: =<UINT16>"},
+    {"time", "Max number of microseconds the controller should use to tx "
+             "single LL packet, range=<328-17040>, usage: =<UINT16>"},
     {NULL, NULL}
 };
 
