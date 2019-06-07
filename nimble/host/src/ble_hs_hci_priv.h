@@ -87,6 +87,7 @@ int ble_hs_hci_cmd_tx(uint16_t opcode, void *cmd, uint8_t cmd_len,
 int ble_hs_hci_cmd_tx_empty_ack(uint16_t opcode, void *cmd, uint8_t cmd_len);
 void ble_hs_hci_rx_ack(uint8_t *ack_ev);
 void ble_hs_hci_init(void);
+void ble_hs_hci_deinit(void);
 
 void ble_hs_hci_set_le_supported_feat(uint32_t feat);
 uint32_t ble_hs_hci_get_le_supported_feat(void);

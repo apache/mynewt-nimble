@@ -1167,6 +1167,20 @@ ble_gatts_free_mem(void)
     ble_gatts_svc_entries = NULL;
 }
 
+
+void
+ble_gatts_stop(void)
+{
+
+    ble_hs_max_services = 0;
+    ble_hs_max_attrs = 0;
+    ble_hs_max_client_configs = 0;
+
+    ble_gatts_free_mem();
+    ble_gatts_free_svc_defs();
+    ble_att_svr_stop();
+}
+
 int
 ble_gatts_start(void)
 {

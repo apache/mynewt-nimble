@@ -175,6 +175,16 @@ os_mempool_clear(struct os_mempool *mp)
     return OS_OK;
 }
 
+os_error_t
+os_mempool_ext_clear(struct os_mempool_ext *mpe)
+{
+    mpe->mpe_mp.mp_flags = 0;
+    mpe->mpe_put_cb = NULL;
+    mpe->mpe_put_arg = NULL;
+
+    return os_mempool_clear(&mpe->mpe_mp);
+}
+
 bool
 os_mempool_is_sane(const struct os_mempool *mp)
 {

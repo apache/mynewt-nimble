@@ -199,6 +199,15 @@ os_error_t os_mempool_ext_init(struct os_mempool_ext *mpe, uint16_t blocks,
 os_error_t os_mempool_clear(struct os_mempool *mp);
 
 /**
+ * Clears an extended memory pool.
+ *
+ * @param mpe            The extended memory pool to clear.
+ *
+ * @return os_error_t
+ */
+os_error_t os_mempool_ext_clear(struct os_mempool_ext *mpe);
+
+/**
  * Performs an integrity check of the specified mempool.  This function
  * attempts to detect memory corruption in the specified memory pool.
  *

@@ -49,3 +49,16 @@ nimble_port_freertos_init(TaskFunction_t host_task_fn)
     xTaskCreate(host_task_fn, "ble", configMINIMAL_STACK_SIZE + 400,
                 NULL, tskIDLE_PRIORITY + 1, &host_task_h);
 }
+
+/**
+ * If nimble_port_freertos_init() is used during initialization, then
+ * nimble_port_freertos_deinit() should be called in the host task
+ * after nimble_port_run().
+ */
+void
+nimble_port_freertos_deinit(void)
+{
+    if (host_task_h) {
+        vTaskDelete(host_task_h);
+    }
+}
