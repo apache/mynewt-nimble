@@ -2954,6 +2954,10 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
     pyld_len = rxbuf[1];
 
+    if (!connsm) {
+        goto init_rx_isr_exit;
+    }
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     scansm = connsm->scansm;
     if (scansm->cur_aux_data) {

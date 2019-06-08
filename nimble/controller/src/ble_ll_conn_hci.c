@@ -1018,6 +1018,7 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
 {
     int rc;
     struct ble_ll_conn_sm *connsm;
+    os_sr_t sr;
 
     /*
      * If we receive this command and we have not got a connection
@@ -1025,6 +1026,7 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
      * what happens if the connection has already been established. We
      * return disallowed as well
      */
+    OS_ENTER_CRITICAL(sr);
     connsm = g_ble_ll_conn_create_sm;
     if (connsm && (connsm->conn_state == BLE_LL_CONN_STATE_IDLE)) {
         /* stop scanning and end the connection event */
@@ -1039,6 +1041,7 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
         /* If we are not attempting to create a connection*/
         rc = BLE_ERR_CMD_DISALLOWED;
     }
+    OS_EXIT_CRITICAL(sr);
 
     return rc;
 }
