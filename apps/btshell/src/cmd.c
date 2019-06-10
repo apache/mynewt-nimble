@@ -92,6 +92,48 @@ static const struct kv_pair cmd_addr_type[] = {
 };
 
 
+static int
+parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
+               ble_addr_t *addr)
+{
+    char name[32];
+    int rc;
+
+    /* XXX string operations below are not quite safe, but do we care? */
+
+    if (!prefix) {
+        name[0] = '\0';
+    } else {
+        strcpy(name, prefix);
+    }
+
+    strcat(name, "addr");
+    rc = parse_arg_addr(name, addr);
+    if (rc == ENOENT) {
+        /* not found */
+        return rc;
+    } else if (rc == EAGAIN) {
+        /* address found, but no type provided */
+        strcat(name, "_type");
+        addr->type = parse_arg_kv(name, addr_types, &rc);
+        if (rc == ENOENT) {
+            addr->type = BLE_ADDR_PUBLIC;
+        } else if (rc != 0) {
+            return rc;
+        }
+    } else if (rc != 0) {
+        /* error parsing address */
+        return rc;
+    } else {
+        /* full address found, but let's just make sure there is no type arg */
+        strcat(name, "_type");
+        if (parse_arg_extract(name)) {
+            return E2BIG;
+        }
+    }
+
+    return 0;
+}
 
 /*****************************************************************************
  * $advertise                                                                *
@@ -187,19 +229,10 @@ cmd_advertise_configure(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_mac("peer_addr", params.peer.val);
+    rc = parse_dev_addr("peer_", cmd_peer_addr_types, &params.peer);
     if (rc == 0) {
         params.directed = 1;
-
-        params.peer.type = parse_arg_kv_dflt("peer_addr_type",
-                                             cmd_peer_addr_types,
-                                             BLE_ADDR_PUBLIC, &rc);
-        if (rc != 0) {
-            console_printf("invalid 'peer_addr_type' parameter\n");
-            return rc;
-        }
-    }
-    else if (rc == ENOENT) {
+    } else if (rc == ENOENT) {
        /* skip, no peer address provided */
     } else {
         console_printf("invalid 'peer_addr' parameter\n");
@@ -583,14 +616,7 @@ cmd_advertise(int argc, char **argv)
         return rc;
     }
 
-    peer_addr.type = parse_arg_kv_dflt("peer_addr_type", cmd_peer_addr_types,
-                                       BLE_ADDR_PUBLIC, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'peer_addr_type' parameter\n");
-        return rc;
-    }
-
-    rc = parse_arg_mac("peer_addr", peer_addr.val);
+    rc = parse_dev_addr("peer_", cmd_peer_addr_types, &peer_addr);
     if (rc == ENOENT) {
         peer_addr_param = NULL;
     } else if (rc != 0) {
@@ -732,19 +758,7 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    peer_addr.type = parse_arg_kv_dflt("peer_addr_type", cmd_peer_addr_types,
-                                       BLE_ADDR_PUBLIC, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'peer_addr_type' parameter\n");
-        return rc;
-    }
-
-    rc = parse_arg_mac("peer_addr", peer_addr.val);
-    if (rc == ENOENT) {
-        /* Allow "addr" for backwards compatibility. */
-        rc = parse_arg_mac("addr", peer_addr.val);
-    }
-
+    rc = parse_dev_addr("peer_", cmd_peer_addr_types, &peer_addr);
     if (rc == ENOENT) {
         /* With no "peer_addr" specified we'll use white list */
         peer_addr_param = NULL;
@@ -1366,46 +1380,32 @@ static const struct shell_cmd_help scan_help = {
  * $set                                                                      *
  *****************************************************************************/
 
-static const struct kv_pair cmd_set_addr_types[] = {
-    { "public",         BLE_ADDR_PUBLIC },
-    { "random",         BLE_ADDR_RANDOM },
-    { NULL }
-};
-
 static int
 cmd_set_addr(void)
 {
-    uint8_t addr[6];
-    int addr_type;
+    ble_addr_t addr;
     int rc;
 
-    addr_type = parse_arg_kv_dflt("addr_type", cmd_set_addr_types,
-                                  BLE_ADDR_PUBLIC, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'addr_type' parameter\n");
-        return rc;
-    }
-
-    rc = parse_arg_mac("addr", addr);
+    rc = parse_dev_addr(NULL, cmd_addr_type, &addr);
     if (rc != 0) {
         console_printf("invalid 'addr' parameter\n");
         return rc;
     }
 
-    switch (addr_type) {
+    switch (addr.type) {
 #if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_ADDR_PUBLIC:
         /* We shouldn't be writing to the controller's address (g_dev_addr).
          * There is no standard way to set the local public address, so this is
          * our only option at the moment.
          */
-        memcpy(g_dev_addr, addr, 6);
+        memcpy(g_dev_addr, addr.val, 6);
         ble_hs_id_set_pub(g_dev_addr);
         break;
 #endif
 
     case BLE_ADDR_RANDOM:
-        rc = ble_hs_id_set_rnd(addr);
+        rc = ble_hs_id_set_rnd(addr.val);
         if (rc != 0) {
             return rc;
         }
@@ -1940,14 +1940,7 @@ cmd_set_priv_mode(int argc, char **argv)
         return rc;
     }
 
-    addr.type = parse_arg_kv_dflt("addr_type", cmd_set_addr_types,
-                                  BLE_ADDR_PUBLIC, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'addr_type' parameter\n");
-        return rc;
-    }
-
-    rc = parse_arg_mac("addr", addr.val);
+    rc = parse_dev_addr(NULL, cmd_addr_type, &addr);
     if (rc != 0) {
         console_printf("invalid 'addr' parameter\n");
         return rc;
@@ -2001,17 +1994,11 @@ cmd_white_list(int argc, char **argv)
             return EINVAL;
         }
 
-        rc = parse_arg_mac("addr", addrs[addrs_cnt].val);
+        rc = parse_dev_addr(NULL, cmd_addr_type, &addrs[addrs_cnt]);
         if (rc == ENOENT) {
             break;
         } else if (rc != 0) {
-            console_printf("invalid 'addr' parameter\n");
-            return rc;
-        }
-
-        addrs[addrs_cnt].type = parse_arg_kv("addr_type", cmd_addr_type, &rc);
-        if (rc != 0) {
-            console_printf("invalid 'addr_type' parameter\n");
+            console_printf("invalid 'addr' parameter #%d\n", addrs_cnt + 1);
             return rc;
         }
 
@@ -2268,14 +2255,7 @@ cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out,
     switch (*obj_type) {
     case BLE_STORE_OBJ_TYPE_PEER_SEC:
     case BLE_STORE_OBJ_TYPE_OUR_SEC:
-        out->sec.peer_addr.type = parse_arg_kv("addr_type",
-                                               cmd_addr_type, &rc);
-        if (rc != 0) {
-            console_printf("invalid 'addr_type' parameter\n");
-            return rc;
-        }
-
-        rc = parse_arg_mac("addr", out->sec.peer_addr.val);
+        rc = parse_dev_addr(NULL, cmd_addr_type, &out->sec.peer_addr);
         if (rc != 0) {
             console_printf("invalid 'addr' parameter\n");
             return rc;
@@ -2705,17 +2685,8 @@ cmd_security_unpair(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_mac("peer_addr", peer.val);
-    if (rc == 0) {
-
-        peer.type = parse_arg_kv_dflt("peer_addr_type",
-                                      cmd_peer_addr_types,
-                                      BLE_ADDR_PUBLIC, &rc);
-        if (rc != 0) {
-            console_printf("invalid 'peer_addr_type' parameter\n");
-            return rc;
-        }
-    } else {
+    rc = parse_dev_addr("peer_", cmd_peer_addr_types, &peer);
+    if (rc != 0) {
         console_printf("invalid 'peer_addr' parameter\n");
         return rc;
     }
@@ -3763,14 +3734,7 @@ cmd_sync_create(int argc, char **argv)
         return 0;
     }
 
-    addr.type = parse_arg_kv_dflt("peer_addr_type", cmd_addr_type,
-                                  BLE_ADDR_PUBLIC, &rc);
-    if (rc != 0) {
-        console_printf("invalid 'peer_addr_type' parameter\n");
-        return rc;
-    }
-
-    rc = parse_arg_mac("peer_addr", addr.val);
+    rc = parse_dev_addr("peer_", cmd_addr_type, &addr);
     if (rc == ENOENT) {
         /* With no "peer_addr" specified we'll use periodic list */
         addr_param = NULL;
