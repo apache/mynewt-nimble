@@ -743,6 +743,27 @@ ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle,
     }
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static void
+ble_gap_scan_req_rcvd(uint8_t instance, uint8_t scan_addr_type,
+                      uint8_t *scan_addr)
+{
+    struct ble_gap_event event;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    ble_gap_slave_extract_cb(instance, &cb, &cb_arg);
+    if (cb != NULL) {
+        memset(&event, 0, sizeof event);
+        event.type = BLE_GAP_EVENT_SCAN_REQ_RCVD;
+        event.scan_req_rcvd.instance = instance;
+        event.scan_req_rcvd.scan_addr.type = scan_addr_type;
+        memcpy(event.scan_req_rcvd.scan_addr.val, scan_addr, 6);
+        cb(&event, cb_arg);
+    }
+}
+#endif
+
 static int
 ble_gap_master_connect_failure(int status)
 {
@@ -1301,6 +1322,12 @@ ble_gap_rx_adv_set_terminated(struct hci_le_adv_set_terminated *evt)
 
     ble_gap_adv_finished(evt->adv_handle, reason, conn_handle,
                          evt->completed_events);
+}
+
+void
+ble_gap_rx_scan_req_rcvd(struct hci_le_scan_req_rcvd *evt)
+{
+    ble_gap_scan_req_rcvd(evt->adv_handle, evt->scan_addr_type, evt->scan_addr);
 }
 #endif
 
