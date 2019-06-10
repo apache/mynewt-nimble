@@ -1821,6 +1821,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
 
         rc = ble_hs_adv_set_fields_mbuf(&adv_fields, adv_data);
         if (rc) {
+            os_mbuf_free_chain(adv_data);
             goto done;
         }
 
@@ -1832,8 +1833,12 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
             while (counter < extra_data_len) {
                 update_pattern(extra_data, counter);
 
-                os_mbuf_append(adv_data, extra_data,
-                               min(extra_data_len - counter, 10));
+                rc = os_mbuf_append(adv_data, extra_data,
+                                    min(extra_data_len - counter, 10));
+                if (rc) {
+                    os_mbuf_free_chain(adv_data);
+                    goto done;
+                }
 
                 counter += 10;
             }
