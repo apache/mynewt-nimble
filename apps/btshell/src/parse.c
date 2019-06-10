@@ -512,6 +512,54 @@ parse_arg_mac(char *name, uint8_t *dst)
 }
 
 int
+parse_arg_addr(char *name, ble_addr_t *addr)
+{
+    char *arg;
+    size_t len;
+    uint8_t addr_type;
+    bool addr_type_found;
+    int rc;
+
+    arg = parse_arg_peek(name);
+    if (!arg) {
+        return ENOENT;
+    }
+
+    len = strlen(arg);
+    if (len < 2) {
+        return EINVAL;
+    }
+
+    addr_type_found = false;
+    if ((arg[len - 2] == ':') || (arg[len - 2] == '-')) {
+        if (tolower(arg[len - 1]) == 'p') {
+            addr_type = BLE_ADDR_PUBLIC;
+            addr_type_found = true;
+        } else if (tolower(arg[len - 1]) == 'r') {
+            addr_type = BLE_ADDR_RANDOM;
+            addr_type_found = true;
+        }
+
+        if (addr_type_found) {
+            arg[len - 2] = '\0';
+        }
+}
+
+    rc = parse_arg_mac(name, addr->val);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (addr_type_found) {
+        addr->type = addr_type;
+    } else {
+        rc = EAGAIN;
+    }
+
+    return rc;
+}
+
+int
 parse_arg_uuid(char *str, ble_uuid_any_t *uuid)
 {
     uint16_t uuid16;
