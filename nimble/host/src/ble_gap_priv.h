@@ -87,6 +87,7 @@ void ble_gap_rx_peroidic_adv_sync_estab(struct hci_le_subev_periodic_adv_sync_es
 void ble_gap_rx_periodic_adv_rpt(struct hci_le_subev_periodic_adv_rpt *evt);
 void ble_gap_rx_periodic_adv_sync_lost(struct hci_le_subev_periodic_adv_sync_lost *evt);
 #endif
+void ble_gap_rx_scan_req_rcvd(struct hci_le_scan_req_rcvd *evt);
 #endif
 void ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc);
 void ble_gap_rx_rd_rem_sup_feat_complete(struct hci_le_rd_rem_supp_feat_complete *evt);

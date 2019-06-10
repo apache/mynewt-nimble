@@ -127,6 +127,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_SYNC         20
 #define BLE_GAP_EVENT_PERIODIC_REPORT       21
 #define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
+#define BLE_GAP_EVENT_SCAN_REQ_RCVD         23
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -908,6 +909,21 @@ struct ble_gap_event {
              */
             int reason;
         } periodic_sync_lost;
+#endif
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        /**
+         * Represents a scan request for an extended advertising instance where
+         * scan request notifications were enabled.
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_SCAN_REQ_RCVD
+         */
+        struct {
+            /** Extended advertising instance */
+            uint8_t instance;
+            /** Address of scanner */
+            ble_addr_t scan_addr;
+        } scan_req_rcvd;
 #endif
     };
 };

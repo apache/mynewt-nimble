@@ -54,6 +54,7 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_adv_set_terminated;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_estab;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_lost;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_req_rcvd;
 /* Statistics */
 struct host_hci_stats
 {
@@ -113,6 +114,8 @@ static const struct ble_hs_hci_evt_le_dispatch_entry
             ble_hs_hci_evt_le_scan_timeout },
     { BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED,
             ble_hs_hci_evt_le_adv_set_terminated },
+    { BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD,
+            ble_hs_hci_evt_le_scan_req_rcvd },
 };
 
 #define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
@@ -717,6 +720,27 @@ ble_hs_hci_evt_le_adv_set_terminated(uint8_t subevent, uint8_t *data, int len)
         ble_gap_rx_conn_complete(&pend_conn_complete, evt.adv_handle);
     }
     ble_gap_rx_adv_set_terminated(&evt);
+#endif
+
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_scan_req_rcvd(uint8_t subevent, uint8_t *data, int len)
+{
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    struct hci_le_scan_req_rcvd evt;
+
+    if (len != BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD_LEN) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    evt.subevent_code = data[0];
+    evt.adv_handle = data[1];
+    evt.scan_addr_type = data[2];
+    memcpy(evt.scan_addr, data + 3, 6);
+
+    ble_gap_rx_scan_req_rcvd(&evt);
 #endif
 
     return 0;
