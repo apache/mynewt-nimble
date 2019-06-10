@@ -34,6 +34,9 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0 || MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
+#include "hal/hal_gpio.h"
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
 #include "ble_ll_dtm_priv.h"
@@ -97,6 +100,10 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 {
     int rc;
 
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
+    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 1);
+#endif
+
     BLE_LL_ASSERT(BLE_HCI_EVENT_HDR_LEN + evbuf[1] <= BLE_LL_MAX_EVT_LEN);
 
     /* Count number of events sent */
@@ -104,6 +111,10 @@ ble_ll_hci_event_send(uint8_t *evbuf)
 
     /* Send the event to the host */
     rc = ble_hci_trans_ll_evt_tx(evbuf);
+
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
+    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 0);
+#endif
 
     return rc;
 }
@@ -1458,6 +1469,10 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     uint16_t ocf;
     ble_ll_hci_post_cmd_complete_cb post_cb = NULL;
 
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
+    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 1);
+#endif
+
     /* The command buffer is the event argument */
     cmdbuf = (uint8_t *)ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(cmdbuf != NULL);
@@ -1525,6 +1540,10 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     if (post_cb) {
         post_cb();
     }
+
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
+    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 0);
+#endif
 }
 
 /**
@@ -1573,6 +1592,13 @@ ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg)
 void
 ble_ll_hci_init(void)
 {
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
+    hal_gpio_init_out(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 0);
+#endif
+#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
+    hal_gpio_init_out(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 0);
+#endif
+
     /* Set event callback for command processing */
     ble_npl_event_init(&g_ble_ll_hci_cmd_ev, ble_ll_hci_cmd_proc, NULL);
 

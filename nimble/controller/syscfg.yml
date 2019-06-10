@@ -309,6 +309,19 @@ syscfg.defs:
             Sysinit stage for the NimBLE controller.
         value: 250
 
+    BLE_LL_DBG_HCI_CMD_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set to high
+            state when HCI command is received and being processed and back
+            to low state when it was processed.
+        value: -1
+    BLE_LL_DBG_HCI_EV_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set to high
+            state when HCI event is being sent and back to low state when event
+            was sent from controller.
+        value: -1
+
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
         description: Superseded by BLE_CONTROLLER
