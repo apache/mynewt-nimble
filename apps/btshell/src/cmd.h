@@ -28,6 +28,7 @@ struct kv_pair {
     int val;
 };
 
+uint32_t parse_arg_time_dflt(char *name, int step, uint32_t dflt, int *out_status);
 const struct kv_pair *parse_kv_find(const struct kv_pair *kvs, char *name);
 int parse_arg_find_idx(const char *key);
 char *parse_arg_extract(const char *key);

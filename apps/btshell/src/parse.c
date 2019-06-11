@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 #include "console/console.h"
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
@@ -272,6 +273,90 @@ parse_arg_uint32_dflt(char *name, uint32_t dflt, int *out_status)
     if (rc == ENOENT) {
         val = dflt;
         rc = 0;
+    }
+
+    *out_status = rc;
+    return val;
+}
+
+static uint32_t
+parse_time_unit_mult(const char *str)
+{
+    if (!strcasecmp(str, "us")) {
+        return 1;
+    } else if (!strcasecmp(str, "ms")) {
+        return 1000;
+    } else if (!strcasecmp(str, "s")) {
+        return 1000000;
+    }
+
+    return 0;
+}
+
+static uint32_t
+parse_time_us(const char *str, int *out_status)
+{
+    uint32_t val = 0;
+    uint32_t val_div = 1;
+    uint32_t val_mult = 1;
+    uint32_t val_us;
+
+    while (isdigit(*str)) {
+        val *= 10;
+        val += *str - '0';
+        str++;
+    }
+
+    if (*str == '.') {
+        str++;
+        while (isdigit(*str)) {
+            val *= 10;
+            val += *str - '0';
+            val_div *= 10;
+            str++;
+        }
+    }
+
+    val_mult = parse_time_unit_mult(str);
+    if (val_mult == 0) {
+        *out_status = EINVAL;
+        return 0;
+    }
+
+    if (val_mult > val_div) {
+        val_us = val * (val_mult / val_div);
+    } else {
+        val_us = val * (val_div / val_mult);
+    }
+
+    *out_status = 0;
+
+    return val_us;
+}
+
+uint32_t
+parse_arg_time_dflt(char *name, int step_us, uint32_t dflt, int *out_status)
+{
+    const char *arg;
+    uint32_t val;
+    int rc;
+
+    arg = parse_arg_peek(name);
+    if (!arg) {
+        *out_status = 0;
+        return dflt;
+    }
+
+    val = parse_time_us(arg, &rc);
+    if (rc) {
+        val = parse_arg_uint32(name, &rc);
+        if (rc == ENOENT) {
+            *out_status = 0;
+            return dflt;
+        }
+    } else {
+        val /= step_us;
+        parse_arg_extract(name);
     }
 
     *out_status = rc;
