@@ -3615,7 +3615,7 @@ cmd_periodic_configure(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint32_dflt("interval_min", 6, &rc);
+    params.itvl_min = parse_arg_uint32_dflt("interval_min", 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
@@ -3700,7 +3700,7 @@ cmd_periodic_stop(int argc, char **argv)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param periodic_configure_params[] = {
     {"instance", "default: 0"},
-    {"interval_min", "usage: =[0-UINT32_MAX], default: 6"},
+    {"interval_min", "usage: =[0-UINT32_MAX], default: 0"},
     {"interval_max", "usage: =[0-UINT32_MAX], default: interval_min"},
     {"tx_power", "include TX power, usage: =[0-1], default: 0"},
     {NULL, NULL}
