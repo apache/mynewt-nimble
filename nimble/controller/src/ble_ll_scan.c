@@ -54,9 +54,6 @@
  */
 
 /* Dont allow more than 255 of these entries */
-#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS) > 255
-    #error "Cannot have more than 255 duplicate entries!"
-#endif
 #if MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS) > 255
     #error "Cannot have more than 255 scan response entries!"
 #endif
@@ -142,10 +139,33 @@ static uint8_t g_ble_ll_scan_num_rsp_advs;
 struct ble_ll_scan_advertisers
 g_ble_ll_scan_rsp_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)];
 
-/* Used to filter duplicate advertising events to host */
-static uint8_t g_ble_ll_scan_num_dup_advs;
-struct ble_ll_scan_advertisers
-g_ble_ll_scan_dup_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)];
+/* Duplicates filtering data */
+#define BLE_LL_SCAN_ENTRY_TYPE_LEGACY(addr_type) \
+    (addr_type)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#define BLE_LL_SCAN_ENTRY_TYPE_EXT(addr_type, has_aux, is_anon, adi) \
+    (((adi >> 8) & 0xF0) | (1 << 3) | (is_anon << 2) | (has_aux << 1) | (addr_type))
+#endif
+
+#define BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT       (0x01)
+#define BLE_LL_SCAN_DUP_F_DIR_ADV_REPORT_SENT   (0x02)
+#define BLE_LL_SCAN_DUP_F_SCAN_RSP_SENT         (0x04)
+
+struct ble_ll_scan_dup_entry {
+    uint8_t type;       /* entry type, see BLE_LL_SCAN_ENTRY_TYPE_* */
+    uint8_t addr[6];
+    uint8_t flags;      /* use BLE_LL_SCAN_DUP_F_xxx */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint16_t adi;
+#endif
+    TAILQ_ENTRY(ble_ll_scan_dup_entry) link;
+};
+
+static os_membuf_t g_scan_dup_mem[ OS_MEMPOOL_SIZE(
+                                   MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS),
+                                   sizeof(struct ble_ll_scan_dup_entry)) ];
+static struct os_mempool g_scan_dup_pool;
+static TAILQ_HEAD(ble_ll_scan_dup_list, ble_ll_scan_dup_entry) g_scan_dup_list;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #if MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT) != 0
@@ -376,51 +396,6 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     memcpy(dptr + BLE_DEV_ADDR_LEN, adv_addr, BLE_DEV_ADDR_LEN);
 }
 
-/**
- * Checks to see if an advertiser is on the duplicate address list.
- *
- * @param addr Pointer to address
- * @param txadd TxAdd bit. 0: public; random otherwise
- *
- * @return uint8_t 0: not on list; any other value is
- */
-static struct ble_ll_scan_advertisers *
-ble_ll_scan_find_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv, uint16_t adi)
-{
-    uint8_t num_advs;
-    struct ble_ll_scan_advertisers *adv;
-
-    /* Do we have an address match? Must match address type */
-    adv = &g_ble_ll_scan_dup_advs[0];
-    num_advs = g_ble_ll_scan_num_dup_advs;
-    while (num_advs) {
-        if (!memcmp(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
-            /* Address type must match */
-            if (txadd) {
-                if ((adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) == 0) {
-                    goto next_dup_adv;
-                }
-            } else {
-                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_RANDOM_ADDR) {
-                    goto next_dup_adv;
-                }
-            }
-
-            if (ext_adv && (adv->adi != adi)) {
-                goto next_dup_adv;
-            }
-
-            return adv;
-        }
-
-next_dup_adv:
-        ++adv;
-        --num_advs;
-    }
-
-    return NULL;
-}
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static struct ble_ll_ext_adv_report *
 ble_ll_scan_init_ext_adv_report(struct ble_ll_ext_adv_report *copy_from)
@@ -547,124 +522,6 @@ ble_ll_scan_clean_cur_aux_data(void)
         scansm->cur_aux_data = NULL;
     }
 #endif
-}
-
-/**
- * Check if a packet is a duplicate advertising packet.
- *
- * @param pdu_type
- * @param rxbuf
- *
- * @return int 0: not a duplicate. 1:duplicate
- */
-int
-ble_ll_scan_is_dup_adv(struct ble_mbuf_hdr *ble_hdr, uint8_t pdu_type,
-                       uint8_t txadd, uint8_t *addr)
-{
-    struct ble_ll_scan_advertisers *adv;
-    uint8_t ext_adv = 0;
-    uint16_t adi = 0;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
-
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-        if (ble_ll_scan_get_adi(aux_data, &adi) < 0) {
-            return 0;
-        }
-
-        ext_adv = 1;
-    }
-
-#endif
-
-    adv = ble_ll_scan_find_dup_adv(addr, txadd, ext_adv, adi);
-    if (adv) {
-        /* Check appropriate flag (based on type of PDU) */
-        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
-            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_DIRECT_RPT_SENT) {
-                return 1;
-            }
-        } else if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_SCAN_RSP_SENT) {
-                return 1;
-            }
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        } else if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-            if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr) ||
-                            (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
-                if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_SCAN_RSP_SENT) {
-                    return 1;
-                }
-            } else {
-                return 1;
-            }
-#endif
-        } else {
-            if (adv->sc_adv_flags & BLE_LL_SC_ADV_F_ADV_RPT_SENT) {
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/**
- * Add an advertiser the list of duplicate advertisers. An address gets added to
- * the list of duplicate addresses when the controller sends an advertising
- * report to the host.
- *
- * @param addr   Pointer to advertisers address or identity address
- * @param Txadd. TxAdd bit (0 public, random otherwise)
- * @param subev  Type of advertising report sent (direct or normal).
- * @param evtype Advertising event type
- * @param adi    Advertising Data Information
- */
-void
-ble_ll_scan_add_dup_adv(uint8_t *addr, uint8_t txadd, uint8_t subev,
-                        uint8_t evtype, uint8_t ext_adv, uint16_t adi)
-{
-    uint8_t num_advs;
-    struct ble_ll_scan_advertisers *adv;
-
-    /* Check to see if on list. */
-    adv = ble_ll_scan_find_dup_adv(addr, txadd, ext_adv, adi);
-    if (!adv) {
-        /* XXX: for now, if we dont have room, just leave */
-        num_advs = g_ble_ll_scan_num_dup_advs;
-        if (num_advs == MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)) {
-            return;
-        }
-
-        /* Add the advertiser to the array */
-        adv = &g_ble_ll_scan_dup_advs[num_advs];
-        memcpy(&adv->adv_addr, addr, BLE_DEV_ADDR_LEN);
-        ++g_ble_ll_scan_num_dup_advs;
-
-        adv->sc_adv_flags = 0;
-        if (txadd) {
-            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_RANDOM_ADDR;
-        }
-        adv->adi = adi;
-    }
-
-    if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
-        adv->sc_adv_flags |= BLE_LL_SC_ADV_F_DIRECT_RPT_SENT;
-#if MYNEWT_VAL(BLE_EXT_ADV)
-    } else if (subev == BLE_HCI_LE_SUBEV_EXT_ADV_RPT) {
-        if (evtype & BLE_HCI_ADV_SCAN_RSP_MASK) {
-            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_SCAN_RSP_SENT;
-        } else {
-            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
-        }
-#endif
-    } else {
-        if (evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP) {
-            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_SCAN_RSP_SENT;
-        } else {
-            adv->sc_adv_flags |= BLE_LL_SC_ADV_F_ADV_RPT_SENT;
-        }
-    }
 }
 
 /**
@@ -867,6 +724,10 @@ ble_ll_hci_send_adv_report(uint8_t subev, uint8_t evtype,uint8_t event_len,
 
     return ble_ll_hci_event_send(evbuf);
 }
+
+static int ble_ll_scan_dup_update_legacy(uint8_t addr_type, uint8_t *addr, uint8_t subev,
+                               uint8_t evtype);
+
 /**
  * Send an advertising report to the host.
  *
@@ -955,11 +816,9 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type, uint8_t *adva, uint8_t adva_type,
                                     adv_data_len, om,
                                     inita, inita_type);
 #endif
-    if (!rc) {
-        /* If filtering, add it to list of duplicate addresses */
-        if (scansm->scan_filt_dups) {
-            ble_ll_scan_add_dup_adv(adva, adva_type, subev, evtype, 0, 0);
-        }
+
+    if (!rc && scansm->scan_filt_dups) {
+        ble_ll_scan_dup_update_legacy(adva_type, adva, subev, evtype);
     }
 }
 
@@ -1399,7 +1258,9 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 
     /* Forget filtered advertisers from previous scan. */
     g_ble_ll_scan_num_rsp_advs = 0;
-    g_ble_ll_scan_num_dup_advs = 0;
+
+    os_mempool_clear(&g_scan_dup_pool);
+    TAILQ_INIT(&g_scan_dup_list);
 
     /* XXX: align to current or next slot???. */
     /* Schedule start time now */
@@ -2840,6 +2701,183 @@ check_periodic_sync(const struct os_mbuf *om, struct ble_mbuf_hdr *rxhdr,
 }
 #endif
 
+static inline void
+ble_ll_scan_dup_move_to_head(struct ble_ll_scan_dup_entry *e)
+{
+    if (e != TAILQ_FIRST(&g_scan_dup_list)) {
+        TAILQ_REMOVE(&g_scan_dup_list, e, link);
+        TAILQ_INSERT_HEAD(&g_scan_dup_list, e, link);
+    }
+}
+
+static inline struct ble_ll_scan_dup_entry *
+ble_ll_scan_dup_new(void)
+{
+    struct ble_ll_scan_dup_entry *e;
+
+    e = os_memblock_get(&g_scan_dup_pool);
+    if (!e) {
+        e = TAILQ_LAST(&g_scan_dup_list, ble_ll_scan_dup_list);
+        TAILQ_REMOVE(&g_scan_dup_list, e, link);
+    }
+
+    memset(e, 0, sizeof(*e));
+
+    return e;
+}
+
+static int
+ble_ll_scan_dup_check_legacy(uint8_t addr_type, uint8_t *addr, uint8_t pdu_type)
+{
+    struct ble_ll_scan_dup_entry *e;
+    uint8_t type;
+    int rc;
+
+    type = BLE_LL_SCAN_ENTRY_TYPE_LEGACY(addr_type);
+
+    TAILQ_FOREACH(e, &g_scan_dup_list, link) {
+        if ((e->type == type) && !memcmp(e->addr, addr, 6)) {
+            break;
+        }
+    }
+
+    if (e) {
+        if (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
+            rc = e->flags & BLE_LL_SCAN_DUP_F_DIR_ADV_REPORT_SENT;
+        } else if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
+            rc = e->flags & BLE_LL_SCAN_DUP_F_SCAN_RSP_SENT;
+        } else {
+            rc = e->flags & BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT;
+        }
+
+        ble_ll_scan_dup_move_to_head(e);
+    } else {
+        rc = 0;
+
+        e = ble_ll_scan_dup_new();
+        e->flags = 0;
+        e->type = type;
+        memcpy(e->addr, addr, 6);
+
+        TAILQ_INSERT_HEAD(&g_scan_dup_list, e, link);
+    }
+
+    return rc;
+}
+
+static int
+ble_ll_scan_dup_update_legacy(uint8_t addr_type, uint8_t *addr, uint8_t subev,
+                              uint8_t evtype)
+{
+    struct ble_ll_scan_dup_entry *e;
+    uint8_t type;
+
+    type = BLE_LL_SCAN_ENTRY_TYPE_LEGACY(addr_type);
+
+    /*
+     * We assume ble_ll_scan_dup_check() was called before which either matched
+     * some entry or allocated new one and placed in on the top of queue.
+     */
+
+    e = TAILQ_FIRST(&g_scan_dup_list);
+    BLE_LL_ASSERT(e && e->type == type && !memcmp(e->addr, addr, 6));
+
+    if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
+        e->flags |= BLE_LL_SCAN_DUP_F_DIR_ADV_REPORT_SENT;
+    } else {
+        if (evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP) {
+            e->flags |= BLE_LL_SCAN_DUP_F_SCAN_RSP_SENT;
+        } else {
+            e->flags |= BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT;
+        }
+    }
+
+    return 0;
+}
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static int
+ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr,
+                          struct ble_ll_aux_data *aux_data)
+{
+    struct ble_ll_scan_dup_entry *e;
+    bool has_aux;
+    bool is_anon;
+    uint16_t adi;
+    uint8_t type;
+    int rc;
+
+    has_aux = aux_data != NULL;
+    is_anon = addr == NULL;
+    adi = has_aux ? aux_data->adi : 0;
+
+    type = BLE_LL_SCAN_ENTRY_TYPE_EXT(addr_type, has_aux, is_anon, adi);
+
+    TAILQ_FOREACH(e, &g_scan_dup_list, link) {
+        if ((e->type == type) &&
+            (is_anon || !memcmp(e->addr, addr, BLE_DEV_ADDR_LEN))) {
+            break;
+        }
+    }
+
+    if (e) {
+        if (e->adi != adi) {
+            rc = 0;
+
+            e->flags = 0;
+            e->adi = adi;
+        } else {
+            rc = e->flags & BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT;
+        }
+
+        ble_ll_scan_dup_move_to_head(e);
+    } else {
+        rc = 0;
+
+        e = ble_ll_scan_dup_new();
+        e->flags = 0;
+        e->type = type;
+        e->adi = adi;
+        if (!is_anon) {
+            memcpy(e->addr, addr, 6);
+        }
+
+        TAILQ_INSERT_HEAD(&g_scan_dup_list, e, link);
+    }
+
+    return rc;
+}
+
+static int
+ble_ll_scan_dup_update_ext(uint8_t addr_type, uint8_t *addr,
+                           struct ble_ll_aux_data *aux_data)
+{
+    struct ble_ll_scan_dup_entry *e;
+    bool has_aux;
+    bool is_anon;
+    uint16_t adi;
+    uint8_t type;
+
+    has_aux = aux_data != NULL;
+    is_anon = addr == NULL;
+    adi = has_aux ? aux_data->adi : 0;
+
+    type = BLE_LL_SCAN_ENTRY_TYPE_EXT(addr_type, has_aux, is_anon, adi);
+
+    /*
+     * We assume ble_ll_scan_dup_check() was called before which either matched
+     * some entry or allocated new one and placed in on the top of queue.
+     */
+
+    e = TAILQ_FIRST(&g_scan_dup_list);
+    BLE_LL_ASSERT(e && e->type == type && (is_anon || !memcmp(e->addr, addr, 6)));
+
+    e->flags |= BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT;
+
+    return 0;
+}
+#endif
+
 /**
  * Process a received PDU while in the scanning state.
  *
@@ -2996,13 +3034,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         }
     }
 
-    /* Filter duplicates */
-    if (scansm->scan_filt_dups) {
-        if (ble_ll_scan_is_dup_adv(hdr, ptype, ident_addr_type, ident_addr)) {
-            goto scan_continue;
-        }
-    }
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm->ext_scanning) {
@@ -3038,31 +3069,34 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             STATS_INC(ble_ll_stats, aux_chain_cnt);
         }
 
-        rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
-                                            init_addr, init_addr_type, om, hdr);
-        if (rc < 0) {
-            /*
-             * Data were trimmed so no need to scan this chain anymore. Also
-             * make sure we do not send any more events for this chain, just in
-             * case we managed to scan something before events were processed.
-             */
-            if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-                hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-                if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
-                    /* AUX PTR removed from the scheduler.
-                     * Unref aux_data which are stored in the scheduler item
-                     * as a cb_arg
-                     */
-                    ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
-                    aux_data->sch.cb_arg = NULL;
-                    evt_possibly_truncated = 1;
+        /* Filter duplicates */
+        if (!scansm->scan_filt_dups ||
+            !ble_ll_scan_dup_check_ext(ident_addr_type, ident_addr, aux_data)) {
+            rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
+                                                init_addr, init_addr_type, om, hdr);
+            if (rc < 0) {
+                /*
+                 * Data were trimmed so no need to scan this chain anymore. Also
+                 * make sure we do not send any more events for this chain, just in
+                 * case we managed to scan something before events were processed.
+                 */
+                if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+                    hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+                    if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
+                        /* AUX PTR removed from the scheduler.
+                         * Unref aux_data which are stored in the scheduler item
+                         * as a cb_arg
+                         */
+                        ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
+                        aux_data->sch.cb_arg = NULL;
+                        evt_possibly_truncated = 1;
+                    }
                 }
+            } else if (!rc && scansm->scan_filt_dups) {
+                ble_ll_scan_dup_update_ext(ident_addr_type, ident_addr, aux_data);
             }
-        } else if ((rc == 0) && scansm->scan_filt_dups && aux_data && aux_data->adi) {
-                ble_ll_scan_add_dup_adv(ident_addr, ident_addr_type,
-                                        BLE_HCI_LE_SUBEV_EXT_ADV_RPT,
-                                        aux_data->evt_type, 1, aux_data->adi);
         }
+
         ble_ll_scan_switch_phy(scansm);
 
         if (scansm->scan_rsp_pending) {
@@ -3086,9 +3120,13 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     }
 #endif
 
-    /* Send the advertising report */
-    ble_ll_scan_send_adv_report(ptype, ident_addr, ident_addr_type,
-                                init_addr, init_addr_type, om, hdr, scansm);
+    /* Filter duplicates */
+    if (!scansm->scan_filt_dups ||
+        !ble_ll_scan_dup_check_legacy(ident_addr_type, ident_addr, ptype)) {
+        /* Send the advertising report, also updates scan duplicates list */
+        ble_ll_scan_send_adv_report(ptype, ident_addr, ident_addr_type,
+                                    init_addr, init_addr_type, om, hdr, scansm);
+    }
 
 scan_continue:
 
@@ -3811,8 +3849,8 @@ ble_ll_scan_reset(void)
     g_ble_ll_scan_num_rsp_advs = 0;
     memset(&g_ble_ll_scan_rsp_advs[0], 0, sizeof(g_ble_ll_scan_rsp_advs));
 
-    g_ble_ll_scan_num_dup_advs = 0;
-    memset(&g_ble_ll_scan_dup_advs[0], 0, sizeof(g_ble_ll_scan_dup_advs));
+    os_mempool_clear(&g_scan_dup_pool);
+    TAILQ_INIT(&g_scan_dup_list);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* clear memory pool for AUX scan results */
@@ -3832,9 +3870,9 @@ ble_ll_scan_reset(void)
 void
 ble_ll_scan_init(void)
 {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     os_error_t err;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     err = os_mempool_init(&ext_adv_pool,
                           MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                           sizeof (struct ble_ll_aux_data),
@@ -3842,6 +3880,15 @@ ble_ll_scan_init(void)
                           "ble_ll_aux_scan_pool");
     BLE_LL_ASSERT(err == 0);
 #endif
+
+    err = os_mempool_init(&g_scan_dup_pool,
+                          MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS),
+                          sizeof(struct ble_ll_scan_dup_entry),
+                          g_scan_dup_mem,
+                          "ble_ll_scan_dup_pool");
+    BLE_LL_ASSERT(err == 0);
+
+    TAILQ_INIT(&g_scan_dup_list);
 
     ble_ll_scan_common_init();
 }
