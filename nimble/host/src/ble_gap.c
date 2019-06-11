@@ -3133,10 +3133,10 @@ ble_gap_periodic_adv_params_validate(
         return BLE_HS_EINVAL;
     }
 
-    if (params->itvl_min > 0xffff || params->itvl_min < 6) {
+    if (params->itvl_min && params->itvl_min < 6) {
         return BLE_HS_EINVAL;
     }
-    if (params->itvl_max > 0xffff || params->itvl_max < 6) {
+    if (params->itvl_max && params->itvl_max < 6) {
             return BLE_HS_EINVAL;
     }
     return 0;
