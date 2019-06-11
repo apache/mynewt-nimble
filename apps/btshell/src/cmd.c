@@ -238,13 +238,13 @@ cmd_advertise_configure(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint32_dflt("interval_min", 0, &rc);
+    params.itvl_min = parse_arg_time_dflt("interval_min", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    params.itvl_max = parse_arg_uint32_dflt("interval_max", 0, &rc);
+    params.itvl_max = parse_arg_time_dflt("interval_max", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -624,13 +624,13 @@ cmd_advertise(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint16_dflt("interval_min", 0, &rc);
+    params.itvl_min = parse_arg_time_dflt("interval_min", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    params.itvl_max = parse_arg_uint16_dflt("interval_max", 0, &rc);
+    params.itvl_max = parse_arg_time_dflt("interval_max", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -766,19 +766,19 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_1M_params.scan_itvl = parse_arg_uint16_dflt("scan_interval", 0x0010, &rc);
+    phy_1M_params.scan_itvl = parse_arg_time_dflt("scan_interval", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'scan_interval' parameter\n");
         return rc;
     }
 
-    phy_1M_params.scan_window = parse_arg_uint16_dflt("scan_window", 0x0010, &rc);
+    phy_1M_params.scan_window = parse_arg_time_dflt("scan_window", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'scan_window' parameter\n");
         return rc;
     }
 
-    phy_1M_params.itvl_min = parse_arg_uint16_dflt("interval_min",
+    phy_1M_params.itvl_min = parse_arg_time_dflt("interval_min", 1250,
                                                    BLE_GAP_INITIAL_CONN_ITVL_MIN,
                                                    &rc);
     if (rc != 0) {
@@ -786,7 +786,7 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_1M_params.itvl_max = parse_arg_uint16_dflt("interval_max",
+    phy_1M_params.itvl_max = parse_arg_time_dflt("interval_max", 1250,
                                                    BLE_GAP_INITIAL_CONN_ITVL_MAX,
                                                    &rc);
     if (rc != 0) {
@@ -800,21 +800,22 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_1M_params.supervision_timeout = parse_arg_uint16_dflt("timeout", 0x0100, &rc);
+    phy_1M_params.supervision_timeout = parse_arg_time_dflt("timeout", 10000,
+                                                              0x0100, &rc);
     if (rc != 0) {
         console_printf("invalid 'timeout' parameter\n");
         return rc;
     }
 
-    phy_1M_params.min_ce_len = parse_arg_uint16_dflt("min_conn_event_len",
-                                                     0x0010, &rc);
+    phy_1M_params.min_ce_len = parse_arg_time_dflt("min_conn_event_len", 625,
+                                                   0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'min_conn_event_len' parameter\n");
         return rc;
     }
 
-    phy_1M_params.max_ce_len = parse_arg_uint16_dflt("max_conn_event_len",
-                                                     0x0300, &rc);
+    phy_1M_params.max_ce_len = parse_arg_time_dflt("max_conn_event_len", 625,
+                                                   0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_conn_event_len' parameter\n");
         return rc;
@@ -840,31 +841,31 @@ cmd_connect(int argc, char **argv)
     }
 
     /* Get coded params */
-    phy_coded_params.scan_itvl = parse_arg_uint16_dflt("coded_scan_interval",
-                                                       0x0010, &rc);
+    phy_coded_params.scan_itvl = parse_arg_time_dflt("coded_scan_interval",
+                                                     625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_scan_interval' parameter\n");
         return rc;
     }
 
-    phy_coded_params.scan_window = parse_arg_uint16_dflt("coded_scan_window",
-                                                         0x0010, &rc);
+    phy_coded_params.scan_window = parse_arg_time_dflt("coded_scan_window",
+                                                       625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_scan_window' parameter\n");
         return rc;
     }
 
-    phy_coded_params.itvl_min = parse_arg_uint16_dflt("coded_interval_min",
-                                                      BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                                      &rc);
+    phy_coded_params.itvl_min = parse_arg_time_dflt("coded_interval_min", 1250,
+                                                    BLE_GAP_INITIAL_CONN_ITVL_MIN,
+                                                    &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_interval_min' parameter\n");
         return rc;
     }
 
-    phy_coded_params.itvl_max = parse_arg_uint16_dflt("coded_interval_max",
-                                                      BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                                      &rc);
+    phy_coded_params.itvl_max = parse_arg_time_dflt("coded_interval_max", 1250,
+                                                    BLE_GAP_INITIAL_CONN_ITVL_MAX,
+                                                    &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_interval_max' parameter\n");
         return rc;
@@ -878,7 +879,7 @@ cmd_connect(int argc, char **argv)
     }
 
     phy_coded_params.supervision_timeout =
-        parse_arg_uint16_dflt("coded_timeout", 0x0100, &rc);
+        parse_arg_time_dflt("coded_timeout", 10000, 0x0100, &rc);
 
     if (rc != 0) {
         console_printf("invalid 'coded_timeout' parameter\n");
@@ -886,30 +887,30 @@ cmd_connect(int argc, char **argv)
     }
 
     phy_coded_params.min_ce_len =
-        parse_arg_uint16_dflt("coded_min_conn_event", 0x0010, &rc);
+        parse_arg_time_dflt("coded_min_conn_event", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_min_conn_event' parameter\n");
         return rc;
     }
 
-    phy_coded_params.max_ce_len = parse_arg_uint16_dflt("coded_max_conn_event",
-                                                        0x0300, &rc);
+    phy_coded_params.max_ce_len = parse_arg_time_dflt("coded_max_conn_event",
+                                                      625, 0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_max_conn_event' parameter\n");
         return rc;
     }
 
     /* Get 2M params */
-    phy_2M_params.itvl_min = parse_arg_uint16_dflt("2M_interval_min",
-                                                   BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                                   &rc);
+    phy_2M_params.itvl_min = parse_arg_time_dflt("2M_interval_min", 1250,
+                                                 BLE_GAP_INITIAL_CONN_ITVL_MIN,
+                                                 &rc);
     if (rc != 0) {
         console_printf("invalid '2M_interval_min' parameter\n");
         return rc;
     }
 
-    phy_2M_params.itvl_max = parse_arg_uint16_dflt("2M_interval_max",
-                                                   BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
+    phy_2M_params.itvl_max = parse_arg_time_dflt("2M_interval_max", 1250,
+                                                 BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_interval_max' parameter\n");
         return rc;
@@ -922,23 +923,23 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_2M_params.supervision_timeout = parse_arg_uint16_dflt("2M_timeout",
-                                                              0x0100, &rc);
+    phy_2M_params.supervision_timeout = parse_arg_time_dflt("2M_timeout", 10000,
+                                                            0x0100, &rc);
 
     if (rc != 0) {
         console_printf("invalid '2M_timeout' parameter\n");
         return rc;
     }
 
-    phy_2M_params.min_ce_len = parse_arg_uint16_dflt("2M_min_conn_event", 0x0010,
-                                                     &rc);
+    phy_2M_params.min_ce_len = parse_arg_time_dflt("2M_min_conn_event", 625,
+                                                   0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_min_conn_event' parameter\n");
         return rc;
     }
 
-    phy_2M_params.max_ce_len = parse_arg_uint16_dflt("2M_max_conn_event",
-                                                     0x0300, &rc);
+    phy_2M_params.max_ce_len = parse_arg_time_dflt("2M_max_conn_event", 625,
+                                                   0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_max_conn_event' parameter\n");
         return rc;
@@ -1211,8 +1212,7 @@ cmd_scan(int argc, char **argv)
         return rc;
     }
 
-    duration_ms = parse_arg_long_bounds_dflt("duration", 1, INT32_MAX,
-                                             BLE_HS_FOREVER, &rc);
+    duration_ms = parse_arg_time_dflt("duration", 10000, BLE_HS_FOREVER, &rc);
     if (rc != 0) {
         console_printf("invalid 'duration' parameter\n");
         return rc;
@@ -1230,13 +1230,13 @@ cmd_scan(int argc, char **argv)
         return rc;
     }
 
-    params.itvl = parse_arg_uint16_dflt("interval", 0, &rc);
+    params.itvl = parse_arg_time_dflt("interval", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval' parameter\n");
         return rc;
     }
 
-    params.window = parse_arg_uint16_dflt("window", 0, &rc);
+    params.window = parse_arg_time_dflt("window", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'window' parameter\n");
         return rc;
@@ -1277,25 +1277,25 @@ cmd_scan(int argc, char **argv)
     uncoded.itvl = params.itvl;
     uncoded.window = params.window;
 
-    duration = parse_arg_uint16_dflt("extended_duration", 0, &rc);
+    duration = parse_arg_time_dflt("extended_duration", 10000, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'extended_duration' parameter\n");
         return rc;
     }
 
-    period = parse_arg_uint16_dflt("extended_period", 0, &rc);
+    period = parse_arg_time_dflt("extended_period", 1280000, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'extended_period' parameter\n");
         return rc;
     }
 
-    coded.itvl = parse_arg_uint16_dflt("longrange_interval", 0, &rc);
+    coded.itvl = parse_arg_time_dflt("longrange_interval", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'longrange_interval' parameter\n");
         return rc;
     }
 
-    coded.window = parse_arg_uint16_dflt("longrange_window", 0, &rc);
+    coded.window = parse_arg_time_dflt("longrange_window", 625, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'longrange_window' parameter\n");
         return rc;
@@ -2109,17 +2109,17 @@ cmd_conn_update_params(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint16_dflt("interval_min",
-                                            BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                            &rc);
+    params.itvl_min = parse_arg_time_dflt("interval_min", 1250,
+                                          BLE_GAP_INITIAL_CONN_ITVL_MIN,
+                                          &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    params.itvl_max = parse_arg_uint16_dflt("interval_max",
-                                            BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                            &rc);
+    params.itvl_max = parse_arg_time_dflt("interval_max", 1250,
+                                          BLE_GAP_INITIAL_CONN_ITVL_MAX,
+                                          &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -2131,21 +2131,22 @@ cmd_conn_update_params(int argc, char **argv)
         return rc;
     }
 
-    params.supervision_timeout = parse_arg_uint16_dflt("timeout", 0x0100, &rc);
+    params.supervision_timeout = parse_arg_time_dflt("timeout", 10000, 0x0100,
+                                                     &rc);
     if (rc != 0) {
         console_printf("invalid 'timeout' parameter\n");
         return rc;
     }
 
-    params.min_ce_len = parse_arg_uint16_dflt("min_conn_event_len",
-                                              0x0010, &rc);
+    params.min_ce_len = parse_arg_time_dflt("min_conn_event_len", 625,
+                                            0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'min_conn_event_len' parameter\n");
         return rc;
     }
 
-    params.max_ce_len = parse_arg_uint16_dflt("max_conn_event_len",
-                                              0x0300, &rc);
+    params.max_ce_len = parse_arg_time_dflt("max_conn_event_len", 625,
+                                            0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_conn_event_len' parameter\n");
         return rc;
@@ -3617,13 +3618,14 @@ cmd_periodic_configure(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint32_dflt("interval_min", 0, &rc);
+    params.itvl_min = parse_arg_time_dflt("interval_min", 1250, 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    params.itvl_max = parse_arg_uint32_dflt("interval_max", params.itvl_min, &rc);
+    params.itvl_max = parse_arg_time_dflt("interval_max", 1250, params.itvl_min,
+                                          &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -3789,7 +3791,7 @@ cmd_sync_create(int argc, char **argv)
         return rc;
     }
 
-    params.sync_timeout = parse_arg_uint16_dflt("sync_timeout", 10, &rc);
+    params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000, 10, &rc);
     if (rc != 0) {
         console_printf("invalid 'sync_timeout' parameter\n");
         return rc;
