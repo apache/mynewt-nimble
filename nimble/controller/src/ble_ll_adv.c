@@ -49,8 +49,6 @@
  * advertising? (for example)
  * 4) How to determine the advertising interval we will actually use. As of
  * now, we set it to max.
- * 5) How does the advertising channel tx power get set? I dont implement
- * that currently.
  */
 
 /* Scheduling data for secondary channel */
@@ -492,8 +490,9 @@ ble_ll_adv_put_aux_ptr(uint8_t chan, uint8_t phy, uint32_t offset,
         offset = offset / 30;
     }
 
+    /* offset is 13bits and PHY 3 bits */
     dptr[1] = (offset & 0x000000ff);
-    dptr[2] = ((offset >> 8) & 0x0000001f) | (phy - 1) << 5; //TODO;
+    dptr[2] = ((offset >> 8) & 0x0000001f) | (phy - 1) << 5;
 }
 
 /**
@@ -930,7 +929,7 @@ ble_ll_adv_tx_done(void *arg)
 {
     struct ble_ll_adv_sm *advsm;
 
-    /* XXX: for now, reset power to max after advertising */
+    /* reset power to max after advertising */
     ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
     advsm = (struct ble_ll_adv_sm *)arg;
@@ -1998,7 +1997,7 @@ ble_ll_adv_sync_tx_done(void *arg)
 {
     struct ble_ll_adv_sm *advsm;
 
-    /* XXX: for now, reset power to max after advertising */
+    /* reset power to max after advertising */
     ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
     advsm = (struct ble_ll_adv_sm *)arg;
@@ -3842,7 +3841,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     rc = -1;
 
     if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) {
-        /* XXX TODO: assume we do not need to change phy mode */
+        /* PHY used for scan requests shall be the same as the PHY used for the
+         * PDU that they reply to so no need to change PHY mode.
+         */
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -4725,7 +4726,7 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
 #endif
 #endif
 
-    /*XXX Configure instances to be legacy on start */
+    /* Configure instances to be legacy on start */
     advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
     advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
 }
