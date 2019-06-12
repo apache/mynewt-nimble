@@ -3697,7 +3697,13 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
                         if (is_ctrl && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
                                         && (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
-                            connsm->phy_tx_transition = rxbuf[3];
+                            if (rxbuf[3] & BLE_PHY_MASK_1M) {
+                                connsm->phy_tx_transition = BLE_PHY_1M;
+                            } else if (rxbuf[3] & BLE_PHY_MASK_2M) {
+                                connsm->phy_tx_transition = BLE_PHY_2M;
+                            } else if (rxbuf[3] & BLE_PHY_MASK_CODED) {
+                                connsm->phy_tx_transition = BLE_PHY_CODED;
+                            }
                         }
 #endif
 
