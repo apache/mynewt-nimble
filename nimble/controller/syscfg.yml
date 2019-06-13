@@ -264,7 +264,7 @@ syscfg.defs:
             This option is used to enable/disable support for Extended
             Advertising Feature. That means extended scanner, advertiser
             and connect.
-        value: MYNEWT_VAL_BLE_EXT_ADV
+        value: MYNEWT_VAL(BLE_EXT_ADV)
 
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV:
         description: >
@@ -275,7 +275,7 @@ syscfg.defs:
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT:
         description: >
             This option is used to configure number of supported periodic syncs.
-        value: 1
+        value: MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)
 
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
          description: >

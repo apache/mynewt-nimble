@@ -1050,14 +1050,14 @@ struct psync {
     uint8_t data[1650]; /* TODO make this configurable */
 };
 
-static struct psync g_periodic_data[MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)];
+static struct psync g_periodic_data[MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)];
 
 void
 btshell_sync_stats(uint16_t handle)
 {
     struct psync *psync;
 
-    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
         return;
     }
 
@@ -1077,7 +1077,7 @@ handle_periodic_report(struct ble_gap_event *event)
     struct psync *psync;
     uint16_t handle = event->periodic_report.sync_handle;
 
-    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+    if (handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
         return;
     }
 
@@ -1337,7 +1337,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
             console_printf("\n");
 
             /* TODO non-NimBLE controllers may not start handles from 0 */
-            if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+            if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
                 console_printf("Unable to prepare cache for sync data\n");
             } else {
                 psync = &g_periodic_data[event->periodic_sync.sync_handle];
@@ -1349,7 +1349,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
     case BLE_GAP_EVENT_PERIODIC_SYNC_LOST:
         /* TODO non-NimBLE controllers may not start handles from 0 */
-        if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM)) {
+        if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
             console_printf("Periodic Sync Lost; sync_handle=%d reason=%d\n",
                             event->periodic_sync_lost.sync_handle,
                             event->periodic_sync_lost.reason);

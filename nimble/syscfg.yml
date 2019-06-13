@@ -34,7 +34,7 @@ syscfg.defs:
     BLE_MAX_CONNECTIONS:
         description: 'The maximum number of concurrent connections.'
         value: 1
-    BLE_MAX_PERIODIC_SCANNING_SM:
+    BLE_MAX_PERIODIC_SYNCS:
         description: >
             The maximum number of concurrent periodic syncs that can 
             be created
