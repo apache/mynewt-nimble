@@ -23,8 +23,8 @@
 #include <pthread.h>
 #include "nimble/nimble_npl.h"
 #include "nimble/nimble_port.h"
-#include "nimble/nimble_port.h"
 
+#include "mesh/glue.h"
 #include "mesh/porting.h"
 
 #include "services/gap/ble_svc_gap.h"
@@ -62,13 +62,15 @@ void *ble_mesh_adv_task(void *param)
 
 void mesh_initialized(void)
 {
-    ble_npl_task_init(&s_task_host, "ble_mesh_adv", ble_mesh_adv_task,
+    ble_npl_task_init(&s_task_mesh_adv, "ble_mesh_adv", ble_mesh_adv_task,
                       NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_WAIT_FOREVER,
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 }
 
 int main(void)
 {
+    int ret = 0;
+
     ble_hci_sock_init();
     nimble_port_init();
 
@@ -88,11 +90,5 @@ int main(void)
                       NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_WAIT_FOREVER,
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
-    int ret = 0;
     pthread_exit(&ret);
-
-    while (true)
-    {
-        pthread_yield();
-    }
 }

@@ -56,6 +56,8 @@ void *ble_host_task(void *param)
 
 int main(void)
 {
+    int ret = 0;
+
     ble_hci_sock_init();
     nimble_port_init();
 
@@ -79,11 +81,5 @@ int main(void)
                       NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_WAIT_FOREVER, 
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
-    int ret = 0;
-    pthread_exit(&ret);         
-         
-    while (true)
-    {
-        pthread_yield();
-    }
+    pthread_exit(&ret);
 }
