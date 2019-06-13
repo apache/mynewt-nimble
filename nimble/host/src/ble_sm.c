@@ -1961,9 +1961,7 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
              * requested minimum authreq.
              */
             authreq_mitm = cmd->authreq & BLE_SM_PAIR_AUTHREQ_MITM;
-            if ((!authreq_mitm && value_sec.authenticated) ||
-                (authreq_mitm && !value_sec.authenticated)) {
-
+            if (authreq_mitm && !value_sec.authenticated) {
                 res->app_status = BLE_HS_EREJECT;
             }
         }
