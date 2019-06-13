@@ -205,6 +205,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
             rc = ble_svc_gap_device_name_write_access(ctxt);
         } else {
             assert(0);
+            rc = BLE_ATT_ERR_UNLIKELY;
         }
         return rc;
 
@@ -215,6 +216,7 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
             rc = ble_svc_gap_appearance_write_access(ctxt);
         } else {
             assert(0);
+            rc = BLE_ATT_ERR_UNLIKELY;
         }
         return rc;
 
