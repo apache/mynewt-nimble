@@ -22,6 +22,7 @@
 #include "console/console.h"
 
 /* BLE */
+#include "nimble/nimble_port.h"
 #include "nimble/ble.h"
 #include "host/ble_hs.h"
 #include "services/gap/ble_svc_gap.h"
