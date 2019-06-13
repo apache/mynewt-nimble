@@ -319,7 +319,9 @@ ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
 
     /* If we were passed a function pointer we need to enable the interrupt */
     if (cb != NULL) {
+#ifndef RIOT_VERSION
         NVIC_SetPriority(RNG_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#endif
 #if MYNEWT
         NVIC_SetVector(RNG_IRQn, (uint32_t)ble_rng_isr);
 #else
