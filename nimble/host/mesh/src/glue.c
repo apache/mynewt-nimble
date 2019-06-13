@@ -566,6 +566,9 @@ ble_adv_conf_adv_instance(const struct ble_gap_adv_params *param, int *instance)
     struct ble_gap_ext_adv_params ext_params;
     struct ble_gap_adv_params *cur_conf;
     int err = 0;
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+    ble_addr_t proxy_addr;
+#endif
 
     if (param->conn_mode == BLE_GAP_CONN_MODE_NON) {
         *instance = BT_MESH_ADV_INST;
@@ -574,6 +577,9 @@ ble_adv_conf_adv_instance(const struct ble_gap_adv_params *param, int *instance)
 #if MYNEWT_VAL(BLE_MESH_PROXY)
         *instance = BT_MESH_ADV_GATT_INST;
         cur_conf = &ble_adv_cur_conf[BT_MESH_GATT_IDX];
+        /* Use other NRPA for proxy */
+        err = ble_hs_id_gen_rnd(1, &proxy_addr);
+        assert(err==0);
 #else
         assert(0);
 #endif
@@ -606,6 +612,13 @@ configure:
     if (!err) {
         memcpy(cur_conf, param, sizeof(*cur_conf));
     }
+
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+    if (*instance == BT_MESH_ADV_GATT_INST) {
+        err = ble_gap_ext_adv_set_addr(BT_MESH_ADV_GATT_INST, &proxy_addr);
+        assert(err == 0);
+    }
+#endif
 
 done:
     return err;
