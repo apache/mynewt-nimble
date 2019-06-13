@@ -28,7 +28,7 @@ static SLIST_HEAD(, ble_hs_periodic_sync) g_ble_hs_periodic_sync_handles;
 static struct os_mempool ble_hs_periodic_sync_pool;
 
 static os_membuf_t ble_hs_psync_elem_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS),
                     sizeof (struct ble_hs_periodic_sync))
 ];
 
@@ -139,7 +139,7 @@ ble_hs_periodic_sync_init(void)
     int rc;
 
     rc = os_mempool_init(&ble_hs_periodic_sync_pool,
-                         MYNEWT_VAL(BLE_MAX_PERIODIC_SCANNING_SM),
+                         MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS),
                          sizeof (struct ble_hs_periodic_sync),
                          ble_hs_psync_elem_mem, "ble_hs_periodic_disc_pool");
     if (rc != 0) {
