@@ -908,7 +908,9 @@ ble_phy_init(void)
     NRF_PPI->CH[5].TEP = (uint32_t)&(NRF_RADIO->TASKS_DISABLE);
 
     /* Set isr in vector table and enable interrupt */
+#ifndef RIOT_VERSION
     NVIC_SetPriority(RADIO_IRQn, 0);
+#endif
 #if MYNEWT
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
 #else
