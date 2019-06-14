@@ -2382,6 +2382,17 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     uint32_t usecs;
     uint32_t ticks;
 
+    /*
+     * The Advertising DID is not required to change when a SyncInfo field is
+     * added to or removed from an advertising set. However, if it does not
+     * change, then scanners may fail to synchronize to periodic advertising
+     * because entries in the Advertising DID cache (see Section 4.3.3) mean
+     * they ignore the advertisements containing the SyncInfo field. Therefore,
+     * advertisers should update the Advertising DID when a periodic advertising
+     * train is enabled.
+     */
+    ble_ll_adv_update_did(advsm);
+
     advsm->periodic_adv_active = 1;
 
     /* keep channel map since we cannot change it later on */
@@ -2424,6 +2435,18 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
     if (!advsm->periodic_adv_active) {
         return;
     }
+
+    /*
+     * The Advertising DID is not required to change when a SyncInfo field is
+     * added to or removed from an advertising set. However, if it does not
+     * change, then scanners may unnecessary try to synchronize to instance that
+     * no longer has periodic advertising enabled  because entries in the
+     * Advertising DID cache (see Section 4.3.3) mean they ignore the
+     * advertisements no longer containing the SyncInfo field. Therefore,
+     * advertisers should update the Advertising DID when a periodic advertising
+     * train is disabled.
+     */
+    ble_ll_adv_update_did(advsm);
 
     /* Remove any scheduled advertising items */
     advsm->periodic_adv_active = 0;
