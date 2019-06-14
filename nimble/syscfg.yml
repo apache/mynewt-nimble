@@ -65,3 +65,10 @@ syscfg.defs:
             scan response data used in LE Advertising Extensions.
             Valid range 31-1650.
         value: 31
+    BLE_VERSION:
+        description: >
+            This allows to configure supported Bluetooth Core version. Some
+            features may not be available if version is too low. Version is
+            integer for easy comparison.
+        range: 50, 51
+        value: 50

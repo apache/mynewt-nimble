@@ -764,6 +764,24 @@ struct ble_hci_le_set_privacy_mode_cp {
     uint8_t mode;
 } __attribute__((packed));
 
+#define BLE_HCI_OCF_LE_RX_TEST_V3                        (0x004F)
+#define BLE_HCI_OCF_LE_TX_TEST_V3                        (0x0050)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_CTE_TX_PARAMS        (0x0051)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_CTE_TX_ENABLE        (0x0052)
+#define BLE_HCI_OCF_LE_SET_CONNLESS_IQ_SAMPLING_ENABLE   (0x0053)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_RX_PARAMS            (0x0054)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_TX_PARAMS            (0x0055)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_REQ_ENABLE           (0x0056)
+#define BLE_HCI_OCF_LE_SET_CONN_CTE_RESP_ENABLE          (0x0057)
+#define BLE_HCI_OCF_LE_RD_ANTENNA_INFO                   (0x0058)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE       (0x0059)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER        (0x005A)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER    (0x005B)
+#define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS (0x005C)
+#define BLE_HCI_OCF_LE_SET_DEFAULT_SYNC_TRANSFER_PARAMS  (0x005D)
+#define BLE_HCI_OCF_LE_GENERATE_DHKEY_V2                 (0x005E)
+#define BLE_HCI_OCF_LE_MODIFY_SCA                        (0x005F)
+
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
 #define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)
@@ -1139,6 +1157,8 @@ struct ble_hci_ev_auth_pyld_tmo {
     uint16_t conn_handle;
 } __attribute__((packed));
 
+#define BLE_HCI_EVCODE_SAM_STATUS_CHG       (0x58)
+
 #define BLE_HCI_EVCODE_VENDOR_DEBUG         (0xFF)
 struct ble_hci_ev_vendor_debug {
     uint8_t id;
@@ -1356,6 +1376,11 @@ struct ble_hci_ev_le_subev_chan_sel_alg {
     uint8_t  csa;
 } __attribute__((packed));
 
+#define BLE_HCI_LE_SUBEV_CONNLESS_IQ_RPT        (0x15)
+#define BLE_HCI_LE_SUBEV_CONN_IQ_RPT            (0x16)
+#define BLE_HCI_LE_SUBEV_CTE_REQ_FAILED         (0x17)
+#define BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_TRANSFER   (0x18)
+
 /* Data buffer overflow event */
 #define BLE_HCI_EVENT_ACL_BUF_OVERFLOW      (0x01)
 
@@ -1396,6 +1421,7 @@ struct ble_hci_ev_le_subev_chan_sel_alg {
 #define BLE_HCI_VER_BCS_4_1                 (7)
 #define BLE_HCI_VER_BCS_4_2                 (8)
 #define BLE_HCI_VER_BCS_5_0                 (9)
+#define BLE_HCI_VER_BCS_5_1                 (10)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -1407,6 +1433,16 @@ struct ble_hci_ev_le_subev_chan_sel_alg {
 #define BLE_LMP_VER_BCS_4_1                 (7)
 #define BLE_LMP_VER_BCS_4_2                 (8)
 #define BLE_LMP_VER_BCS_5_0                 (9)
+#define BLE_LMP_VER_BCS_5_1                 (10)
+
+/* selected HCI and LMP version */
+#if MYNEWT_VAL(BLE_VERSION) == 50
+#define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_0
+#define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_0
+#elif MYNEWT_VAL(BLE_VERSION) == 51
+#define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_1
+#define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_1
+#endif
 
 #define BLE_HCI_DATA_HDR_SZ                 4
 #define BLE_HCI_DATA_HANDLE(handle_pb_bc)   (((handle_pb_bc) & 0x0fff) >> 0)
