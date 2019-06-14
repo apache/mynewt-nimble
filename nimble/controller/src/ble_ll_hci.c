@@ -213,9 +213,9 @@ ble_ll_hci_rd_local_version(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_ip_rd_local_ver_rp *rsp = (void *) rspbuf;
 
-    rsp->hci_ver = BLE_HCI_VER_BCS_5_0;
+    rsp->hci_ver = BLE_HCI_VER_BCS;
     rsp->hci_rev = 0;
-    rsp->lmp_ver = BLE_LMP_VER_BCS_5_0;
+    rsp->lmp_ver = BLE_LMP_VER_BCS;
     rsp->manufacturer = htole16(MYNEWT_VAL(BLE_LL_MFRG_ID));
     rsp->lmp_subver = 0;
 

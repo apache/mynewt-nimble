@@ -438,6 +438,10 @@
 #define MYNEWT_VAL_BLE_WHITELIST (1)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_VERSION
+#define MYNEWT_VAL_BLE_VERSION 50
+#endif
+
 /*** nimble/controller */
 #ifndef MYNEWT_VAL_BLE_CONTROLLER
 #define MYNEWT_VAL_BLE_CONTROLLER (1)
