@@ -438,6 +438,9 @@ uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
 /* Is this address a resolvable private address? */
 int ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type);
 
+/* Is this address an identity address? */
+int ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type);
+
 /* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
 int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
 
