@@ -426,6 +426,12 @@ ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type)
     return rc;
 }
 
+int
+ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type)
+{
+    return !addr_type || ((addr[5] & 0xc0) == 0xc0);
+}
+
 /* Checks to see that the device is a valid random address */
 int
 ble_ll_is_valid_random_addr(uint8_t *addr)
