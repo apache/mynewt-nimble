@@ -2022,8 +2022,13 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
     uint8_t ext_hdr_len;
     uint8_t ext_hdr_flags;
     uint8_t *ext_hdr;
+    bool has_adva = false;
+    bool has_inita = false;
     int i;
     struct ble_ll_aux_data *aux_data = ble_hdr->rxinfo.user_data;
+
+    *addr = NULL;
+    *inita = NULL;
 
     pdu_len = rxbuf[1];
     if (pdu_len == 0) {
@@ -2035,28 +2040,10 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         return -1;
     }
 
-    if (aux_data) {
-        /* If address has been provided, we do have it already in aux_data.*/
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
-            *addr = aux_data->addr;
-            *addr_type = aux_data->addr_type;
-        }
-
-        if (!inita) {
-            return 0;
-        }
-
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
-            *inita = aux_data->dir_addr;
-            *inita_type = aux_data->dir_addr_type;
-        }
-
-        return 0;
-    }
-
-    /* If this is just becon with no aux data, lets get address from the packet */
-
     ext_hdr_len = rxbuf[2] & 0x3F;
+    if (ext_hdr_len == 0) {
+        goto done;
+    }
 
     ext_hdr_flags = rxbuf[3];
     ext_hdr = &rxbuf[4];
@@ -2071,10 +2058,12 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *addr_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         i += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+        has_adva = true;
     }
 
     if (!inita) {
-        return 0;
+        goto done;
     }
 
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
@@ -2082,6 +2071,38 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         *inita_type =
                 ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
+
+        has_inita = true;
+    }
+
+done:
+    /* Check if we had address already. If yes, replace it with new one */
+
+    if (aux_data) {
+        /* If address has been provided, we do have it already in aux_data.*/
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+            if (!has_adva) {
+                *addr = aux_data->addr;
+                *addr_type = aux_data->addr_type;
+            } else {
+                memcpy(aux_data->addr, *addr, 6);
+                aux_data->addr_type = *addr_type;
+            }
+        }
+
+        if (!inita) {
+            return 0;
+        }
+
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+            if (!has_inita) {
+                *inita = aux_data->dir_addr;
+                *inita_type = aux_data->dir_addr_type;
+            } else {
+                memcpy(aux_data->dir_addr, *inita, 6);
+                aux_data->dir_addr_type = *inita_type;
+            }
+        }
     }
 
     return 0;
@@ -2119,10 +2140,8 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
 
     /* Extended advertising */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (ble_ll_scan_get_addr_from_ext_adv(rxbuf, ble_hdr, addr, addr_type,
-                                          inita, inita_type, ext_mode)) {
-        return -1;
-    }
+    return ble_ll_scan_get_addr_from_ext_adv(rxbuf, ble_hdr, addr, addr_type,
+                                          inita, inita_type, ext_mode);
 #else
     return -1;
 #endif
