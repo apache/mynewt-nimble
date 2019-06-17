@@ -2524,7 +2524,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     /* Fall-through intentional */
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC:
     case BLE_HCI_CONN_PEER_ADDR_RANDOM:
-        if (addr_type == connsm->peer_addr_type) {
+        if (ble_ll_addr_is_id(adva, addr_type)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
                 /* Peer uses its identity address. Let's verify privacy mode.
                  *
