@@ -1723,6 +1723,21 @@ err:
     }
 }
 
+static bool
+ble_sm_verify_auth_requirements(uint8_t authreq)
+{
+    /* For now we check only SC only mode. I.e.: when remote indicates
+     * to not support SC pairing, let us make sure legacy pairing is supported
+     * on our side. If not, we can fail right away.
+     */
+    if (!(authreq & BLE_SM_PAIR_AUTHREQ_SC)) {
+        if (MYNEWT_VAL(BLE_SM_LEGACY) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void
 ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
                    struct ble_sm_result *res)
@@ -1795,6 +1810,9 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         } else if (req->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        } else if (!ble_sm_verify_auth_requirements(req->authreq)) {
+            res->sm_err = BLE_SM_ERR_AUTHREQ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
         } else {
             /* The request looks good.  Precalculate our pairing response and
              * determine some properties of the imminent link.  We need this
