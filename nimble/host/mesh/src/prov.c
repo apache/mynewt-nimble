@@ -230,9 +230,17 @@ static void prov_clear_tx(void)
 	free_segments();
 }
 
+static void pub_key_ready(const u8_t *pkey);
+
 static void reset_link(void)
 {
+	static struct bt_pub_key_cb pub_key_cb = {
+		.func = pub_key_ready,
+	};
+	int err;
+
 	atomic_clear_bit(link.flags, LINK_ACTIVE);
+	atomic_clear_bit(link.flags, LOCAL_PUB_KEY);
 	atomic_clear_bit(link.flags, LINK_INVALID);
 	k_delayed_work_cancel(&prot_timer);
 
@@ -249,8 +257,10 @@ static void reset_link(void)
 #endif
 	link.rx.prev_id = XACT_NVAL;
 
-	if (bt_pub_key_get()) {
-		atomic_set_bit(link.flags, LOCAL_PUB_KEY);
+	err = bt_pub_key_gen(&pub_key_cb);
+	if (err) {
+		BT_ERR("Failed to generate public key (%d)", err);
+		return;
 	}
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
