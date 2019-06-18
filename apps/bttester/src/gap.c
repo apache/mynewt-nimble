@@ -616,6 +616,30 @@ static void conn_param_update_master(u16_t conn_handle)
 }
 #endif
 
+/* Bluetooth Core Spec v5.1 | Section 10.7.1
+ * If a privacy-enabled Peripheral, that has a stored bond,
+ * receives a resolvable private address, the Host may resolve
+ * the resolvable private address [...]
+ * If the resolution is successful, the Host may accept the connection.
+ * If the resolution procedure fails, then the Host shall disconnect
+ * with the error code "Authentication failure" [...]
+ */
+static void periph_privacy(struct ble_gap_conn_desc desc)
+{
+#if !MYNEWT_VAL(BTTESTER_PRIVACY_MODE)
+	return;
+#endif
+	int count;
+
+	SYS_LOG_DBG("");
+
+	ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count);
+	if (count > 0 && BLE_ADDR_IS_RPA(&desc.peer_id_addr)) {
+		SYS_LOG_DBG("Authentication failure, disconnecting");
+		ble_gap_terminate(desc.conn_handle, BLE_ERR_AUTH_FAIL);
+	}
+}
+
 static void le_connected(u16_t conn_handle, int status)
 {
 	struct ble_gap_conn_desc desc;
@@ -653,6 +677,8 @@ static void le_connected(u16_t conn_handle, int status)
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+
+	periph_privacy(desc);
 }
 
 static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
