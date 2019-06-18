@@ -83,7 +83,7 @@ syscfg.vals:
     BLE_L2CAP_COC_MAX_NUM: 2
     # Some testcases require MPS < MTU
     BLE_L2CAP_COC_MPS: 100
-    BLE_RPA_TIMEOUT: 10
+    BLE_RPA_TIMEOUT: 30
     BLE_SM_BONDING: 1
     BLE_SM_MITM: 1
     BLE_SM_SC: 1
