@@ -1698,6 +1698,7 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
     int phy_mode;
 
     sch = &aux_scan->sch;
+    BLE_LL_ASSERT(sch->cb_arg == NULL);
 
     off_ticks = os_cputime_usecs_to_ticks(aux_scan->offset);
     off_rem_usecs = aux_scan->offset - os_cputime_ticks_to_usecs(off_ticks);

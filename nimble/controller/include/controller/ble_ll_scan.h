@@ -153,7 +153,7 @@ struct ble_ll_scan_sm
     uint32_t scan_win_start_time;
     struct ble_npl_event scan_sched_ev;
     struct hal_timer scan_timer;
-    struct ble_npl_event scan_wfr_ev;
+    struct ble_npl_event scan_interrupted_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct hal_timer duration_timer;
@@ -237,6 +237,9 @@ void ble_ll_scan_chk_resume(void);
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);
+
+/* Called when scan could be interrupted  */
+void ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm);
 
 int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                                 struct ble_mbuf_hdr *ble_hdr,

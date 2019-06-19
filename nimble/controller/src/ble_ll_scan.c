@@ -226,7 +226,7 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
     scansm->cur_aux_data->scanning = 1;
 
     if (ble_ll_scan_start(scansm, sch)) {
-        ble_ll_event_send(&scansm->scan_wfr_ev);
+        ble_ll_scan_interrupted(scansm);
         goto done;
     }
 
@@ -252,7 +252,6 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
 
     memset(e, 0, sizeof(*e));
     e->sch.sched_cb = ble_ll_aux_scan_cb;
-    e->sch.cb_arg = e;
     e->sch.sched_type = BLE_LL_SCHED_TYPE_AUX_SCAN;
     e->ref_cnt = 1;
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_REF, (uint32_t)e, e->ref_cnt);
@@ -1347,30 +1346,39 @@ ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
 }
 
 static void
-ble_ll_aux_scan_rsp_failed(void)
+ble_ll_aux_scan_rsp_failed(struct ble_ll_scan_sm *scansm)
 {
+    if (!scansm->cur_aux_data) {
+        return;
+    }
+
     STATS_INC(ble_ll_stats, aux_scan_rsp_err);
-    ble_ll_scan_clean_cur_aux_data();
+    ble_ll_scan_interrupted(scansm);
 }
 #endif
 
 static void
-ble_ll_scan_wfr_event_cb(struct ble_npl_event *ev)
+ble_ll_scan_interrupted_event_cb(struct ble_npl_event *ev)
 {
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_aux_data *aux_data;
+#endif
 
     if (!scansm->scan_enabled) {
         return;
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (scansm && scansm->cur_aux_data) {
+    aux_data = ble_npl_event_get_arg(ev);
+
+    if (aux_data) {
         if (scansm->scan_rsp_pending) {
             STATS_INC(ble_ll_stats, aux_scan_rsp_err);
         }
-        ble_ll_scan_end_adv_evt(scansm->cur_aux_data);
-        ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
-        scansm->cur_aux_data = NULL;
+        ble_ll_scan_end_adv_evt(aux_data);
+        ble_ll_scan_aux_data_unref(aux_data);
+        ble_npl_event_set_arg(ev, NULL);
         STATS_INC(ble_ll_stats, aux_missed_adv);
     }
 #endif
@@ -1627,7 +1635,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-                ble_ll_aux_scan_rsp_failed();
+                ble_ll_aux_scan_rsp_failed(scansm);
 #endif
             }
         }
@@ -2200,7 +2208,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
      * return 0 in this case because we dont want the phy disabled.
      */
     if (rxpdu == NULL) {
-        ble_ll_event_send(&scansm->scan_wfr_ev);
+        ble_ll_scan_interrupted(scansm);
         return 0;
     }
 
@@ -2484,6 +2492,17 @@ ble_ll_scan_timer_cb(void *arg)
     ble_ll_event_send(&scansm->scan_sched_ev);
 }
 
+void
+ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm)
+{
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    ble_npl_event_set_arg(&scansm->scan_interrupted_ev, scansm->cur_aux_data);
+    scansm->cur_aux_data = NULL;
+#endif
+
+    ble_ll_event_send(&scansm->scan_interrupted_ev);
+}
+
 /**
  * Called when the wait for response timer expires while in the scanning
  * state.
@@ -2496,7 +2515,7 @@ ble_ll_scan_wfr_timer_exp(void)
     struct ble_ll_scan_sm *scansm;
 
     scansm = &g_ble_ll_scan_sm;
-    ble_ll_event_send(&scansm->scan_wfr_ev);
+    ble_ll_scan_interrupted(scansm);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3824,7 +3843,7 @@ ble_ll_scan_common_init(void)
                                                                         scansm);
 #endif
 
-    ble_npl_event_init(&scansm->scan_wfr_ev, ble_ll_scan_wfr_event_cb, scansm);
+    ble_npl_event_init(&scansm->scan_interrupted_ev, ble_ll_scan_interrupted_event_cb, NULL);
 }
 
 /**
