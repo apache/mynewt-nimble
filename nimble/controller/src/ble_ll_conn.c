@@ -2508,7 +2508,7 @@ static int
 ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
 {
     int rc;
-    uint8_t *peer_addr;
+    uint8_t *peer_addr = NULL;
     struct ble_ll_conn_sm *connsm;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
@@ -2524,8 +2524,8 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     /* Fall-through intentional */
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC:
     case BLE_HCI_CONN_PEER_ADDR_RANDOM:
-        if (ble_ll_addr_is_id(adva, addr_type)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+        if (ble_ll_addr_is_id(adva, addr_type)) {
                 /* Peer uses its identity address. Let's verify privacy mode.
                  *
                  * Note: Core Spec 5.0 Vol 6, Part B
@@ -2540,23 +2540,27 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
                     return 0;
                 }
             }
-#endif
-            peer_addr = adva;
-            break;
         }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         /* Check if peer uses RPA. If so and it match, use it as controller
          * supports privacy mode
          */
-        if ((index < 0) ||
-            (g_ble_ll_resolv_list[index].rl_addr_type != connsm->peer_addr_type)) {
-            return 0;
+        if ((index >= 0) &&
+                (g_ble_ll_resolv_list[index].rl_addr_type == connsm->peer_addr_type)) {
+            peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        }
+#endif
+        /*
+         * If we are here it means we don't know the device, lets
+         * check if type is what we are looking for and later
+         * if address matches
+         */
+        if ((connsm->peer_addr_type == addr_type) && !peer_addr) {
+            peer_addr = adva;
         }
 
-        peer_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
-
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     case BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT:
         if ((index < 0) ||
             (g_ble_ll_resolv_list[index].rl_addr_type != 0)) {
