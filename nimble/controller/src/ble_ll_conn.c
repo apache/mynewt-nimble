@@ -546,7 +546,6 @@ ble_ll_conn_init_wfr_timer_exp(void)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_conn_sm *connsm;
-    struct ble_ll_scan_sm *scansm;
 
     connsm = g_ble_ll_conn_create_sm;
     if (!connsm) {
@@ -556,8 +555,8 @@ ble_ll_conn_init_wfr_timer_exp(void)
     ble_ll_conn_reset_pending_aux_conn_rsp();
     connsm->inita_identity_used = 0;
 
-    scansm = connsm->scansm;
-    ble_ll_event_send(&scansm->scan_wfr_ev);
+    ble_ll_scan_interrupted(connsm->scansm);
+
 #endif
 }
 /**
