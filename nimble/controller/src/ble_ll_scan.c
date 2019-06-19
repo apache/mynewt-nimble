@@ -1944,12 +1944,12 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
             }
 
             BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_CHAIN_BIT);
+            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
         } else {
             if (ble_ll_scan_ext_adv_init(&new_aux) < 0) {
             /* Out of memory */
             return -1;
             }
-            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
         }
 
         new_aux->aux_phy = tmp_aux_data.aux_phy;
