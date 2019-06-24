@@ -4147,15 +4147,41 @@ int
 ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                         struct os_mbuf *txom)
 {
+    return ble_gattc_notify_now(conn_handle, chr_val_handle, txom, 0);
+}
+
+int
+ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
+{
+    return ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL);
+}
+
+int
+ble_gattc_notify_now(uint16_t conn_handle, uint16_t chr_val_handle,
+                     struct os_mbuf *txom, uint8_t now)
+{
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY)
     return BLE_HS_ENOTSUP;
 #endif
 
+    struct ble_hs_conn *conn;
     int rc;
 
     STATS_INC(ble_gattc_stats, notify);
 
     ble_gattc_log_notify(chr_val_handle);
+
+    if (!now) {
+        ble_hs_lock();
+        conn = ble_hs_conn_find(conn_handle);
+        ble_hs_unlock();
+
+        rc = ble_gatts_check_cccd_enabled(conn, chr_val_handle,
+                                      BLE_GATTS_CLT_CFG_F_NOTIFY);
+        if (rc != 0) {
+            goto done;
+        }
+    }
 
     if (txom == NULL) {
         /* No custom attribute data; read the value from the specified
@@ -4190,20 +4216,6 @@ done:
     ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 0);
 
     os_mbuf_free_chain(txom);
-
-    return rc;
-}
-
-int
-ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
-{
-#if !MYNEWT_VAL(BLE_GATT_NOTIFY)
-    return BLE_HS_ENOTSUP;
-#endif
-
-    int rc;
-
-    rc = ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL);
 
     return rc;
 }
@@ -4291,15 +4303,40 @@ int
 ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                           struct os_mbuf *txom)
 {
+    return ble_gattc_indicate_now(conn_handle, chr_val_handle, txom, 0);
+}
+
+int
+ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
+{
+    return ble_gattc_indicate_custom(conn_handle, chr_val_handle, NULL);
+}
+
+int
+ble_gattc_indicate_now(uint16_t conn_handle, uint16_t chr_val_handle,
+                       struct os_mbuf *txom, uint8_t now)
+{
 #if !MYNEWT_VAL(BLE_GATT_INDICATE)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_gattc_proc *proc;
+    struct ble_gattc_proc *proc = NULL;
     struct ble_hs_conn *conn;
     int rc;
 
     STATS_INC(ble_gattc_stats, indicate);
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    ble_hs_unlock();
+
+    if (!now) {
+        rc = ble_gatts_check_cccd_enabled(conn, chr_val_handle,
+                                          BLE_GATTS_CLT_CFG_F_INDICATE);
+        if (rc != 0) {
+            goto done;
+        }
+    }
 
     proc = ble_gattc_proc_alloc();
     if (proc == NULL) {
@@ -4339,13 +4376,10 @@ ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         goto done;
     }
 
-    ble_hs_lock();
-    conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
         BLE_HS_DBG_ASSERT(conn->bhc_gatt_svr.indicate_val_handle == 0);
         conn->bhc_gatt_svr.indicate_val_handle = chr_val_handle;
     }
-    ble_hs_unlock();
 
 done:
     if (rc != 0) {
@@ -4358,12 +4392,6 @@ done:
     ble_gattc_process_status(proc, rc);
     os_mbuf_free_chain(txom);
     return rc;
-}
-
-int
-ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
-{
-    return ble_gattc_indicate_custom(conn_handle, chr_val_handle, NULL);
 }
 
 /*****************************************************************************

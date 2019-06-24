@@ -1354,6 +1354,39 @@ ble_gatts_schedule_update(struct ble_hs_conn *conn,
 }
 
 int
+ble_gatts_check_cccd_enabled(struct ble_hs_conn *conn,
+                             uint16_t chr_val_handle,
+                             uint8_t flag) {
+
+    struct ble_gatts_clt_cfg *clt_cfg;
+    int rc;
+
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+    /* Determine if notifications / indications are enabled for this
+     * characteristic.
+     */
+    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs ,
+            chr_val_handle);
+
+    if (clt_cfg == NULL) {
+        rc = BLE_HS_ENOENT;
+        goto done;
+    }
+
+    if (!(clt_cfg->flags & flag)) {
+        rc = BLE_HS_EDISABLED;
+        goto done;
+    }
+
+    rc = 0;
+done:
+    return rc;
+}
+
+int
 ble_gatts_send_next_indicate(uint16_t conn_handle)
 {
     struct ble_gatts_clt_cfg *clt_cfg;
@@ -1394,7 +1427,7 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
         return BLE_HS_ENOENT;
     }
 
-    rc = ble_gattc_indicate(conn_handle, chr_val_handle);
+    rc = ble_gattc_indicate_now(conn_handle, chr_val_handle, NULL, 1);
     if (rc != 0) {
         return rc;
     }
@@ -1630,11 +1663,11 @@ ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
             break;
 
         case BLE_ATT_OP_NOTIFY_REQ:
-            ble_gattc_notify(conn_handle, chr_val_handle);
+            ble_gattc_notify_now(conn_handle, chr_val_handle, NULL, 1);
             break;
 
         case BLE_ATT_OP_INDICATE_REQ:
-            ble_gattc_indicate(conn_handle, chr_val_handle);
+            ble_gattc_indicate_now(conn_handle, chr_val_handle, NULL, 1);
             break;
 
         default:
@@ -1769,7 +1802,8 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
             break;
 
         case BLE_ATT_OP_NOTIFY_REQ:
-            rc = ble_gattc_notify(conn_handle, cccd_value.chr_val_handle);
+            rc = ble_gattc_notify_now(conn_handle, cccd_value.chr_val_handle,
+                                      NULL, 1);
             if (rc == 0) {
                 cccd_value.value_changed = 0;
                 ble_store_write_cccd(&cccd_value);
@@ -1777,7 +1811,8 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
             break;
 
         case BLE_ATT_OP_INDICATE_REQ:
-            ble_gattc_indicate(conn_handle, cccd_value.chr_val_handle);
+            ble_gattc_indicate_now(conn_handle, cccd_value.chr_val_handle,
+                                   NULL, 1);
             break;
 
         default:
