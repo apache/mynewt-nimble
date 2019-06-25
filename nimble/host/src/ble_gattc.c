@@ -168,8 +168,9 @@ struct ble_gattc_proc {
         } read_uuid;
 
         struct {
-            uint16_t handle;
+            struct ble_gatt_attr attr;
             uint16_t offset;
+            uint8_t is_full;
             ble_gatt_attr_fn *cb;
             void *cb_arg;
         } read_long;
@@ -568,7 +569,7 @@ static void
 ble_gattc_log_read_long(struct ble_gattc_proc *proc)
 {
     ble_gattc_log_proc_init("read long; ");
-    BLE_HS_LOG(INFO, "att_handle=%d\n", proc->read_long.handle);
+    BLE_HS_LOG(INFO, "att_handle=%d\n", proc->read_long.attr.handle);
 }
 
 static void
@@ -696,6 +697,10 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
         ble_gattc_dbg_assert_proc_not_inserted(proc);
 
         switch (proc->op) {
+        case BLE_GATT_OP_READ_LONG:
+            os_mbuf_free_chain(proc->read_long.attr.om);
+            break;
+
         case BLE_GATT_OP_WRITE_LONG:
             os_mbuf_free_chain(proc->write_long.attr.om);
             break;
@@ -3111,13 +3116,14 @@ ble_gattc_read_long_tx(struct ble_gattc_proc *proc)
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     if (proc->read_long.offset == 0) {
-        rc = ble_att_clt_tx_read(proc->conn_handle, proc->read_long.handle);
+        rc = ble_att_clt_tx_read(proc->conn_handle,
+                                 proc->read_long.attr.handle);
         if (rc != 0) {
             return rc;
         }
     } else {
         rc = ble_att_clt_tx_read_blob(proc->conn_handle,
-                                      proc->read_long.handle,
+                                      proc->read_long.attr.handle,
                                       proc->read_long.offset);
         if (rc != 0) {
             return rc;
@@ -3166,21 +3172,38 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
     struct ble_gatt_attr attr;
     uint16_t data_len;
     uint16_t mtu;
-    int rc;
+    int rc = 0;
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     data_len = OS_MBUF_PKTLEN(*om);
 
-    attr.handle = proc->read_long.handle;
-    attr.offset = proc->read_long.offset;
-    attr.om = *om;
+    if (proc->read_long.is_full) {
+        /* Queue Partial Reading. */
+        if (proc->read_long.offset == proc->read_long.attr.offset) {
+            proc->read_long.attr.om = *om;
+        } else {
+            /* Append data to existing mbuf */
+            rc = os_mbuf_appendfrom(proc->read_long.attr.om, *om, 0, data_len);
+            if (rc != 0) {
+                return BLE_HS_EDONE;
+            }
+            rc = os_mbuf_free_chain(*om);
+            if (rc != 0) {
+                return BLE_HS_EDONE;
+            }
+        }
 
-    /* Report partial payload to application. */
-    rc = ble_gattc_read_long_cb(proc, status, 0, &attr);
-
-    /* Indicate to the caller whether the application consumed the mbuf. */
-    *om = attr.om;
+        /* Indicate to the caller procedure consumed mbuf. */
+        *om = NULL;
+    } else {
+        attr.handle = proc->read_long.attr.handle;
+        attr.offset = proc->read_long.offset;
+        attr.om = *om;
+        rc = ble_gattc_read_long_cb(proc, status, 0, &attr);
+        /* Indicate to the caller procedure consumed mbuf. */
+        *om = attr.om;
+    }
 
     if (rc != 0 || status != 0) {
         return BLE_HS_EDONE;
@@ -3194,8 +3217,17 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
     }
 
     if (data_len < mtu - 1) {
-        /* Response shorter than maximum allowed; read complete. */
-        ble_gattc_read_long_cb(proc, BLE_HS_EDONE, 0, NULL);
+        /* Response shorter than maximum allowed; read complete.
+         */
+        if (proc->read_long.is_full) {
+            /* Report the complete reading
+             * */
+            ble_gattc_read_long_cb(proc, 0, 0,
+                                   &(proc->read_long.attr));
+        } else {
+            /* Report Procedure Done */
+            ble_gattc_read_long_cb(proc, BLE_HS_EDONE, 0, NULL);
+        }
         return BLE_HS_EDONE;
     }
 
@@ -3208,10 +3240,10 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
 
     return 0;
 }
-
-int
-ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
-                    ble_gatt_attr_fn *cb, void *cb_arg)
+static int
+ble_gattc_read_long_wrapper(uint16_t conn_handle, uint16_t handle,
+                            uint16_t offset, ble_gatt_attr_fn *cb,
+                            void *cb_arg, uint8_t is_full)
 {
 #if !MYNEWT_VAL(BLE_GATT_READ_LONG)
     return BLE_HS_ENOTSUP;
@@ -3230,10 +3262,11 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
 
     proc->op = BLE_GATT_OP_READ_LONG;
     proc->conn_handle = conn_handle;
-    proc->read_long.handle = handle;
+    proc->read_long.attr.handle = handle;
     proc->read_long.offset = offset;
     proc->read_long.cb = cb;
     proc->read_long.cb_arg = cb_arg;
+    proc->read_long.is_full = is_full;
 
     ble_gattc_log_read_long(proc);
 
@@ -3249,6 +3282,22 @@ done:
 
     ble_gattc_process_status(proc, rc);
     return rc;
+}
+
+int
+ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
+                    ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_read_long_wrapper(conn_handle, handle, offset,
+                                       cb, cb_arg, 0);
+}
+
+int
+ble_gattc_read_long_full(uint16_t conn_handle, uint16_t handle, uint16_t offset,
+                         ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    return ble_gattc_read_long_wrapper(conn_handle, handle, offset,
+                                       cb, cb_arg, 1);
 }
 
 /*****************************************************************************
