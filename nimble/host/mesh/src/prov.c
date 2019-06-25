@@ -898,17 +898,7 @@ static void send_pub_key(void)
 		goto done;
 	}
 
-	prov_buf_init(buf, PROV_PUB_KEY);
-
-	/* Swap X and Y halves independently to big-endian */
-	sys_memcpy_swap(net_buf_simple_add(buf, 32), key, 32);
-	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
-
-	memcpy(&link.conf_inputs[81], &buf->om_data[1], 64);
-
-	BT_DBG("Local Public Key: %s", bt_hex(&buf->om_data[1], 64));
-
-	prov_send(buf);
+	/* bt_dh_key_gen() will verify that the remote's public key is valid. */
 
 	/* Copy remote key in little-endian for bt_dh_key_gen().
 	 * X and Y halves are swapped independently.
@@ -923,6 +913,18 @@ static void send_pub_key(void)
 		atomic_set_bit(link.flags, LINK_INVALID);
 		goto done;
 	}
+
+	prov_buf_init(buf, PROV_PUB_KEY);
+
+	/* Swap X and Y halves independently to big-endian */
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), key, 32);
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
+
+	memcpy(&link.conf_inputs[81], &buf->om_data[1], 64);
+
+	BT_DBG("Local Public Key: %s", bt_hex(&buf->om_data[1], 64));
+
+	prov_send(buf);
 
 	link.expect = PROV_CONFIRM;
 
