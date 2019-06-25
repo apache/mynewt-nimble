@@ -20,4 +20,6 @@ syscfg.vals:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
 
     # Prevent priority conflict with controller task.
-    MCU_UART_POLLER_PRIO: 16
+    MCU_TIMER_POLLER_PRIO: 1
+    MCU_UART_POLLER_PRIO: 2
+    NATIVE_SOCKETS_PRIO: 3
