@@ -84,38 +84,23 @@ static const struct ble_hs_hci_evt_dispatch_entry ble_hs_hci_evt_dispatch[] = {
 #define BLE_HS_HCI_EVT_DISPATCH_SZ \
     (sizeof ble_hs_hci_evt_dispatch / sizeof ble_hs_hci_evt_dispatch[0])
 
-/** Dispatch table for incoming LE meta events.  Sorted by subevent field. */
-struct ble_hs_hci_evt_le_dispatch_entry {
-    uint8_t subevent;
-    ble_hs_hci_evt_le_fn *cb;
-};
-
-static const struct ble_hs_hci_evt_le_dispatch_entry
-        ble_hs_hci_evt_le_dispatch[] = {
-    { BLE_HCI_LE_SUBEV_CONN_COMPLETE, ble_hs_hci_evt_le_conn_complete },
-    { BLE_HCI_LE_SUBEV_ADV_RPT, ble_hs_hci_evt_le_adv_rpt },
-    { BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE,
-          ble_hs_hci_evt_le_conn_upd_complete },
-    { BLE_HCI_LE_SUBEV_LT_KEY_REQ, ble_hs_hci_evt_le_lt_key_req },
-    { BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ, ble_hs_hci_evt_le_conn_parm_req },
-    { BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE, ble_hs_hci_evt_le_conn_complete },
-    { BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT, ble_hs_hci_evt_le_dir_adv_rpt },
-    { BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE,
-        ble_hs_hci_evt_le_phy_update_complete },
-    { BLE_HCI_LE_SUBEV_EXT_ADV_RPT, ble_hs_hci_evt_le_ext_adv_rpt },
-    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB,
-        ble_hs_hci_evt_le_periodic_adv_sync_estab},
-    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT, ble_hs_hci_evt_le_periodic_adv_rpt},
-    { BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST,
-        ble_hs_hci_evt_le_periodic_adv_sync_lost},
-    { BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT,
-            ble_hs_hci_evt_le_rd_rem_used_feat_complete },
-    { BLE_HCI_LE_SUBEV_SCAN_TIMEOUT,
-            ble_hs_hci_evt_le_scan_timeout },
-    { BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED,
-            ble_hs_hci_evt_le_adv_set_terminated },
-    { BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD,
-            ble_hs_hci_evt_le_scan_req_rcvd },
+static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
+    [BLE_HCI_LE_SUBEV_CONN_COMPLETE] = ble_hs_hci_evt_le_conn_complete,
+    [BLE_HCI_LE_SUBEV_ADV_RPT] = ble_hs_hci_evt_le_adv_rpt,
+    [BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE] = ble_hs_hci_evt_le_conn_upd_complete,
+    [BLE_HCI_LE_SUBEV_LT_KEY_REQ] = ble_hs_hci_evt_le_lt_key_req,
+    [BLE_HCI_LE_SUBEV_REM_CONN_PARM_REQ] = ble_hs_hci_evt_le_conn_parm_req,
+    [BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE] = ble_hs_hci_evt_le_conn_complete,
+    [BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT] = ble_hs_hci_evt_le_dir_adv_rpt,
+    [BLE_HCI_LE_SUBEV_PHY_UPDATE_COMPLETE] = ble_hs_hci_evt_le_phy_update_complete,
+    [BLE_HCI_LE_SUBEV_EXT_ADV_RPT] = ble_hs_hci_evt_le_ext_adv_rpt,
+    [BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB] = ble_hs_hci_evt_le_periodic_adv_sync_estab,
+    [BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT] = ble_hs_hci_evt_le_periodic_adv_rpt,
+    [BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST] = ble_hs_hci_evt_le_periodic_adv_sync_lost,
+    [BLE_HCI_LE_SUBEV_RD_REM_USED_FEAT] = ble_hs_hci_evt_le_rd_rem_used_feat_complete,
+    [BLE_HCI_LE_SUBEV_SCAN_TIMEOUT] = ble_hs_hci_evt_le_scan_timeout,
+    [BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED] = ble_hs_hci_evt_le_adv_set_terminated,
+    [BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD] = ble_hs_hci_evt_le_scan_req_rcvd,
 };
 
 #define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
@@ -137,20 +122,14 @@ ble_hs_hci_evt_dispatch_find(uint8_t event_code)
     return NULL;
 }
 
-static const struct ble_hs_hci_evt_le_dispatch_entry *
+static ble_hs_hci_evt_le_fn *
 ble_hs_hci_evt_le_dispatch_find(uint8_t event_code)
 {
-    const struct ble_hs_hci_evt_le_dispatch_entry *entry;
-    int i;
-
-    for (i = 0; i < BLE_HS_HCI_EVT_LE_DISPATCH_SZ; i++) {
-        entry = ble_hs_hci_evt_le_dispatch + i;
-        if (entry->subevent == event_code) {
-            return entry;
-        }
+    if (event_code >= BLE_HS_HCI_EVT_LE_DISPATCH_SZ) {
+        return NULL;
     }
 
-    return NULL;
+    return ble_hs_hci_evt_le_dispatch[event_code];
 }
 
 static int
@@ -288,7 +267,7 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, uint8_t *data,
 static int
 ble_hs_hci_evt_le_meta(uint8_t event_code, uint8_t *data, int len)
 {
-    const struct ble_hs_hci_evt_le_dispatch_entry *entry;
+    ble_hs_hci_evt_le_fn *fn;
     uint8_t subevent;
     int rc;
 
@@ -297,10 +276,10 @@ ble_hs_hci_evt_le_meta(uint8_t event_code, uint8_t *data, int len)
     }
 
     subevent = data[2];
-    entry = ble_hs_hci_evt_le_dispatch_find(subevent);
-    if (entry != NULL) {
-        rc = entry->cb(subevent, data + BLE_HCI_EVENT_HDR_LEN,
-                           len - BLE_HCI_EVENT_HDR_LEN);
+    fn = ble_hs_hci_evt_le_dispatch_find(subevent);
+    if (fn) {
+        rc = fn(subevent, data + BLE_HCI_EVENT_HDR_LEN,
+                len - BLE_HCI_EVENT_HDR_LEN);
         if (rc != 0) {
             return rc;
         }
