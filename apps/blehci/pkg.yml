@@ -17,7 +17,7 @@
 #
 pkg.name: apps/blehci
 pkg.type: app
-pkg.description: BLE controller application exposing HCI over UART
+pkg.description: BLE controller application exposing HCI over external interface
 pkg.author: "Johan Hedberg <johan.hedberg@intel.com>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -28,4 +28,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/kernel/os"
     - nimble/controller
-    - nimble/transport/uart
+    - nimble/transport
+
+pkg.req_apis:
+    - ble_transport
