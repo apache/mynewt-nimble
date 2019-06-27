@@ -73,12 +73,12 @@ struct ble_hs_hci_evt_dispatch_entry {
 };
 
 static const struct ble_hs_hci_evt_dispatch_entry ble_hs_hci_evt_dispatch[] = {
+    { BLE_HCI_EVCODE_LE_META, ble_hs_hci_evt_le_meta },
+    { BLE_HCI_EVCODE_NUM_COMP_PKTS, ble_hs_hci_evt_num_completed_pkts },
     { BLE_HCI_EVCODE_DISCONN_CMP, ble_hs_hci_evt_disconn_complete },
     { BLE_HCI_EVCODE_ENCRYPT_CHG, ble_hs_hci_evt_encrypt_change },
-    { BLE_HCI_EVCODE_HW_ERROR, ble_hs_hci_evt_hw_error },
-    { BLE_HCI_EVCODE_NUM_COMP_PKTS, ble_hs_hci_evt_num_completed_pkts },
     { BLE_HCI_EVCODE_ENC_KEY_REFRESH, ble_hs_hci_evt_enc_key_refresh },
-    { BLE_HCI_EVCODE_LE_META, ble_hs_hci_evt_le_meta },
+    { BLE_HCI_EVCODE_HW_ERROR, ble_hs_hci_evt_hw_error },
 };
 
 #define BLE_HS_HCI_EVT_DISPATCH_SZ \
