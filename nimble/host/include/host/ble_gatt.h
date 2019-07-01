@@ -518,6 +518,9 @@ int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
  */
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
+struct ble_gatt_error *
+ble_gattc_error(int status, uint16_t att_handle);
+
 int ble_gattc_init(void);
 
 /*** @server. */

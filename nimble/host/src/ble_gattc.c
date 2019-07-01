@@ -54,6 +54,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+
+#include "ble_attr_cache.h"
 #include "os/os_mempool.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
@@ -1197,7 +1199,7 @@ ble_gattc_timer(void)
  * returned object is statically allocated, so this function is not reentrant.
  * This function should only ever be called by the ble_hs task.
  */
-static struct ble_gatt_error *
+struct ble_gatt_error *
 ble_gattc_error(int status, uint16_t att_handle)
 {
     static struct ble_gatt_error error;
@@ -1352,6 +1354,17 @@ ble_gattc_disc_all_svcs_cb(struct ble_gattc_proc *proc,
     if (proc->disc_all_svcs.cb == NULL) {
         rc = 0;
     } else {
+        switch (status) {
+        case 0:
+    		ble_att_caching_svc_add(proc->conn_handle,service);
+            break;
+
+        case BLE_HS_EDONE:
+            ble_att_caching_set_all_services_cached(proc->conn_handle);
+			break;
+        default:
+            BLE_HS_LOG(INFO, "error with conn_handle= %d\n",proc->conn_handle);
+        }
         rc = proc->disc_all_svcs.cb(proc->conn_handle,
                                     ble_gattc_error(status, att_handle),
                                     service, proc->disc_all_svcs.cb_arg);
@@ -1516,8 +1529,22 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
 #endif
 
     struct ble_gattc_proc *proc;
+    struct ble_gap_conn_desc desc;
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
     int rc;
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = desc.peer_id_addr;
 
+    rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+    if (rc == BLE_HS_ENOENT && !value_sec.ltk_present) {
+         ble_att_caching_conn_add(&desc);
+    }
+    rc = ble_att_caching_check_if_services_cached(conn_handle,cb,cb_arg);
+    if(rc == 0) {
+    	return rc;
+    }
     STATS_INC(ble_gattc_stats, disc_all_svcs);
 
     proc = ble_gattc_proc_alloc();
@@ -2106,6 +2133,20 @@ ble_gattc_disc_all_chrs_cb(struct ble_gattc_proc *proc, int status,
     if (proc->disc_all_chrs.cb == NULL) {
         rc = 0;
     } else {
+	    uint16_t* svc_start_handle;
+	    svc_start_handle = (uint16_t*)proc->disc_all_chrs.cb_arg;
+
+        switch (status) {
+        case 0:
+            ble_att_caching_chr_add(proc->conn_handle, *svc_start_handle, chr);
+            break;
+
+        case BLE_HS_EDONE:
+            ble_att_caching_set_all_chrs_cached(proc->conn_handle,*svc_start_handle);
+			break;
+        default:
+            BLE_HS_LOG(INFO, "error with conn_handle= %d\n",proc->conn_handle);
+        }
         rc = proc->disc_all_chrs.cb(proc->conn_handle,
                                     ble_gattc_error(status, att_handle), chr,
                                     proc->disc_all_chrs.cb_arg);
@@ -2275,6 +2316,10 @@ ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
     struct ble_gattc_proc *proc;
     int rc;
 
+    rc = ble_att_caching_check_if_chars_cached(conn_handle,start_handle,cb,cb_arg);
+    if(rc == 0) {
+    	return rc;
+    }
     STATS_INC(ble_gattc_stats, disc_all_chrs);
 
     proc = ble_gattc_proc_alloc();
@@ -2574,6 +2619,19 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
     if (proc->disc_all_dscs.cb == NULL) {
         rc = 0;
     } else {
+        switch (status) {
+        case 0:
+        	ble_att_caching_dsc_add(proc->conn_handle,
+        	        proc->disc_all_dscs.chr_val_handle, dsc);
+            break;
+
+        case BLE_HS_EDONE:
+            ble_att_caching_set_all_dscs_cached(proc->conn_handle,
+                    proc->disc_all_dscs.chr_val_handle);
+			break;
+        default:
+            BLE_HS_LOG(INFO, "error with conn_handle= %d\n",proc->conn_handle);
+        }
         rc = proc->disc_all_dscs.cb(proc->conn_handle,
                                     ble_gattc_error(status, att_handle),
                                     proc->disc_all_dscs.chr_val_handle,
@@ -2723,7 +2781,10 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
 
     struct ble_gattc_proc *proc;
     int rc;
-
+    rc = ble_att_caching_check_if_dsc_cached(conn_handle,start_handle,cb,cb_arg);
+    if(rc == 0) {
+    	return rc;
+    }
     STATS_INC(ble_gattc_stats, disc_all_dscs);
 
     proc = ble_gattc_proc_alloc();

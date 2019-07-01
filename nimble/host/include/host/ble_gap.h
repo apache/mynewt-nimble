@@ -128,6 +128,8 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_REPORT       21
 #define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
 #define BLE_GAP_EVENT_SCAN_REQ_RCVD         23
+#define BLE_GAP_EVENT_SERVICE_CHANGED_RX      24
+
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -694,6 +696,30 @@ struct ble_gap_event {
              */
             uint8_t indication:1;
         } notify_rx;
+
+        /**
+         * Represents a received indication from service changed chr.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_SERVICE_CHANGED_RX
+         */
+        struct {
+            /**
+            * The start Attribute Handle shall be the start Attribute Handle of
+            *                                         the service definition containing the change
+            */
+            uint16_t start_handle;
+
+            /**
+             * The end Attribute Handle shall   be the last Attribute Handle of the service definition
+             *                                         containing the change
+             .*/
+            uint16_t end_handle;
+
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+
+        } indicate_svc_changed_rx;
 
         /**
          * Represents a transmitted ATT notification or indication, or a
