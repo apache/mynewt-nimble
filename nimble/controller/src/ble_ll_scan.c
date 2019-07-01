@@ -141,10 +141,10 @@ g_ble_ll_scan_rsp_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)];
 
 /* Duplicates filtering data */
 #define BLE_LL_SCAN_ENTRY_TYPE_LEGACY(addr_type) \
-    (addr_type)
+    ((addr_type) & 1)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_LL_SCAN_ENTRY_TYPE_EXT(addr_type, has_aux, is_anon, adi) \
-    (((adi >> 8) & 0xF0) | (1 << 3) | (is_anon << 2) | (has_aux << 1) | (addr_type))
+    (((adi >> 8) & 0xF0) | (1 << 3) | (is_anon << 2) | (has_aux << 1) | ((addr_type) & 1))
 #endif
 
 #define BLE_LL_SCAN_DUP_F_ADV_REPORT_SENT       (0x01)
