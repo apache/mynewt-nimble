@@ -23,6 +23,7 @@
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_hci.h"
+#include "ble_att_caching.h"
 #include "ble_hs_priv.h"
 
 #if MYNEWT
@@ -5347,11 +5348,23 @@ ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
+    if (attr_handle == ble_att_caching_get_service_changed_att_handle(conn_handle)) {
+        uint16_t start_handle;
+        uint16_t end_handle;
+        start_handle = get_le16(om->om_data);
+        end_handle = get_le16(om ->om_data + 2);
+        ble_att_caching_service_changed_rx(conn_handle,start_handle,end_handle);
+        event.type = BLE_GAP_EVENT_SERVICE_CHANGED_RX;
+        event.indicate_svc_changed_rx.conn_handle = conn_handle;
+        event.indicate_svc_changed_rx.start_handle = start_handle;
+        event.indicate_svc_changed_rx.end_handle = end_handle;
+    } else {
     event.type = BLE_GAP_EVENT_NOTIFY_RX;
     event.notify_rx.conn_handle = conn_handle;
     event.notify_rx.attr_handle = attr_handle;
     event.notify_rx.om = om;
     event.notify_rx.indication = is_indication;
+	}
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 

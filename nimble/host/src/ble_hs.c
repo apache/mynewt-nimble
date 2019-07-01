@@ -753,6 +753,9 @@ ble_hs_init(void)
     rc = ble_att_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+    rc = ble_att_caching_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
     rc = ble_att_svr_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
