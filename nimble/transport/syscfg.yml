@@ -27,6 +27,7 @@ syscfg.defs:
         restrictions: $notnull
         choices:
             - builtin   # Built-in NimBLE controller and RAM transport
+            - custom    # Custom transport, has to be included manually by user
             - ram       # RAM transport
             - uart      # UART HCI H4 transport
             - socket    # Socket transport (for native builds)
