@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#include "nimble/hci_common.h"
+
 /* For supported commands */
 #define BLE_LL_SUPP_CMD_LEN (40)
 extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
@@ -45,19 +47,20 @@ typedef void (*ble_ll_hci_post_cmd_complete_cb)(void);
 void ble_ll_hci_init(void);
 
 /* Used to determine if the LE event is enabled/disabled */
-uint8_t ble_ll_hci_is_le_event_enabled(int subev);
+bool ble_ll_hci_is_le_event_enabled(unsigned int subev);
 
 /* Used to determine if event is enabled/disabled */
-uint8_t ble_ll_hci_is_event_enabled(int evcode);
+bool ble_ll_hci_is_event_enabled(unsigned int evcode);
 
 /* Send event from controller to host */
-int ble_ll_hci_event_send(uint8_t *evbuf);
+int ble_ll_hci_event_send(struct ble_hci_ev *hci_ev);
 
 /* Sends a command complete with a no-op opcode to host */
-int ble_ll_hci_send_noop(void);
+void ble_ll_hci_send_noop(void);
 
 /* Checks the preferref phy masks from set default phy and set phy commands */
-int ble_ll_hci_chk_phy_masks(uint8_t *cmdbuf, uint8_t *txphy, uint8_t *rxphy);
+int ble_ll_hci_chk_phy_masks(uint8_t all_phys, uint8_t tx_phys, uint8_t rx_phys,
+                             uint8_t *txphy, uint8_t *rxphy);
 
 /* Returns true if Extended Advertising HCI commands are in use */
 bool ble_ll_hci_adv_mode_ext(void);

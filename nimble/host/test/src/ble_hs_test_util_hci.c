@@ -23,6 +23,14 @@
 #include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
 
+#define BLE_HCI_EVENT_CMD_COMPLETE_HDR_LEN  (5)
+#define BLE_HCI_EVENT_CMD_STATUS_LEN        (6)
+#define BLE_HCI_ADD_TO_RESOLV_LIST_LEN      (39)
+#define BLE_HCI_LE_SET_PRIVACY_MODE_LEN     (8)
+#define BLE_HCI_DISCONNECT_CMD_LEN          (3)
+#define BLE_HCI_EVENT_HDR_LEN               (2)
+#define BLE_HCI_EVENT_DISCONN_COMPLETE_LEN  (4)
+
 #define BLE_HS_TEST_UTIL_PREV_HCI_TX_CNT      64
 
 static uint8_t
@@ -517,7 +525,7 @@ ble_hs_test_util_hci_rx_evt(uint8_t *evt)
     if (os_started()) {
         rc = ble_hci_trans_ll_evt_tx(evbuf);
     } else {
-        rc = ble_hs_hci_evt_process(evbuf);
+        rc = ble_hs_hci_evt_process((void *)evbuf);
     }
 
     TEST_ASSERT_FATAL(rc == 0);
@@ -557,16 +565,16 @@ ble_hs_test_util_hci_rx_num_completed_pkts_event(
 }
 
 void
-ble_hs_test_util_hci_rx_disconn_complete_event(
-    struct hci_disconn_complete *evt)
+ble_hs_test_util_hci_rx_disconn_complete_event(uint16_t conn_handle,
+                                               uint8_t status, uint8_t reason)
 {
     uint8_t buf[BLE_HCI_EVENT_HDR_LEN + BLE_HCI_EVENT_DISCONN_COMPLETE_LEN];
 
     buf[0] = BLE_HCI_EVCODE_DISCONN_CMP;
     buf[1] = BLE_HCI_EVENT_DISCONN_COMPLETE_LEN;
-    buf[2] = evt->status;
-    put_le16(buf + 3, evt->connection_handle);
-    buf[5] = evt->reason;
+    buf[2] = status;
+    put_le16(buf + 3, conn_handle);
+    buf[5] = reason;
 
     ble_hs_test_util_hci_rx_evt(buf);
 }
@@ -574,11 +582,10 @@ ble_hs_test_util_hci_rx_disconn_complete_event(
 void
 ble_hs_test_util_hci_rx_conn_cancel_evt(void)
 {
-    struct hci_le_conn_complete evt;
+    struct ble_gap_conn_complete evt;
     int rc;
 
     memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_UNK_CONN_ID;
     /* test if host correctly ignores other fields if status is error */
     evt.connection_handle = 0x0fff;

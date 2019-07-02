@@ -3911,7 +3911,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
  * @param chanmap
  */
 void
-ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap)
+ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap)
 {
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_conn_global_params *conn_params;

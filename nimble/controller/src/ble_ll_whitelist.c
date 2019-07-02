@@ -105,8 +105,12 @@ ble_ll_whitelist_clear(void)
 int
 ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
 {
-    rspbuf[0] = BLE_LL_WHITELIST_SIZE;
-    *rsplen = 1;
+    struct ble_hci_le_rd_white_list_rp *rsp = (void *) rspbuf;
+
+    rsp->size = BLE_LL_WHITELIST_SIZE;
+
+    *rsplen = sizeof(*rsp);
+
     return BLE_ERR_SUCCESS;
 }
 
@@ -123,7 +127,7 @@ ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen)
  * plus 1).
  */
 static int
-ble_ll_whitelist_search(uint8_t *addr, uint8_t addr_type)
+ble_ll_whitelist_search(const uint8_t *addr, uint8_t addr_type)
 {
     int i;
     struct ble_ll_whitelist_entry *wl;
@@ -180,11 +184,16 @@ ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type, int is_ident)
  * @return int
  */
 int
-ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
+ble_ll_whitelist_add(const uint8_t *cmdbuf, uint8_t len)
 {
-    int i;
-    int rc;
+    const struct ble_hci_le_add_whte_list_cp *cmd = (const void *) cmdbuf;
     struct ble_ll_whitelist_entry *wl;
+    int rc;
+    int i;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     /* Must be in proper state */
     if (!ble_ll_whitelist_chg_allowed()) {
@@ -193,12 +202,12 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
 
     /* Check if we have any open entries */
     rc = BLE_ERR_SUCCESS;
-    if (!ble_ll_whitelist_search(addr, addr_type)) {
+    if (!ble_ll_whitelist_search(cmd->addr, cmd->addr_type)) {
         wl = &g_ble_ll_whitelist[0];
         for (i = 0; i < BLE_LL_WHITELIST_SIZE; ++i) {
             if (wl->wl_valid == 0) {
-                memcpy(&wl->wl_dev_addr[0], addr, BLE_DEV_ADDR_LEN);
-                wl->wl_addr_type = addr_type;
+                memcpy(&wl->wl_dev_addr[0], cmd->addr, BLE_DEV_ADDR_LEN);
+                wl->wl_addr_type = cmd->addr_type;
                 wl->wl_valid = 1;
                 break;
             }
@@ -209,7 +218,7 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
             rc = BLE_ERR_MEM_CAPACITY;
         } else {
 #if (BLE_USES_HW_WHITELIST == 1)
-            rc = ble_hw_whitelist_add(addr, addr_type);
+            rc = ble_hw_whitelist_add(cmd->addr, cmd->addr_type);
 #endif
         }
     }
@@ -225,22 +234,27 @@ ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type)
  * @return int 0: success, BLE error code otherwise
  */
 int
-ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
+ble_ll_whitelist_rmv(const uint8_t *cmdbuf, uint8_t len)
 {
+    const struct ble_hci_le_rmv_white_list_cp *cmd = (const void *) cmdbuf;
     int position;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     /* Must be in proper state */
     if (!ble_ll_whitelist_chg_allowed()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    position = ble_ll_whitelist_search(addr, addr_type);
+    position = ble_ll_whitelist_search(cmd->addr, cmd->addr_type);
     if (position) {
         g_ble_ll_whitelist[position - 1].wl_valid = 0;
     }
 
 #if (BLE_USES_HW_WHITELIST == 1)
-    ble_hw_whitelist_rmv(addr, addr_type);
+    ble_hw_whitelist_rmv(cmd->addr, cmd->addr_type);
 #endif
 
     return BLE_ERR_SUCCESS;

@@ -25,6 +25,7 @@
 #include "host/ble_hs_adv.h"
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
+#include "../src/ble_gap_priv.h"
 
 static int
 ble_hs_conn_test_util_any(void)
@@ -40,7 +41,7 @@ ble_hs_conn_test_util_any(void)
 
 TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
 {
-    struct hci_le_conn_complete evt;
+    struct ble_gap_conn_complete evt;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
@@ -65,7 +66,6 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_MASTER;
@@ -93,7 +93,7 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
 
 TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
 {
-    struct hci_le_conn_complete evt;
+    struct ble_gap_conn_complete evt;
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -124,7 +124,6 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;
@@ -154,7 +153,7 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
 TEST_CASE_SELF(ble_hs_conn_test_undirect_connectable_success)
 {
     struct ble_hs_adv_fields adv_fields;
-    struct hci_le_conn_complete evt;
+    struct ble_gap_conn_complete evt;
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -191,7 +190,6 @@ TEST_CASE_SELF(ble_hs_conn_test_undirect_connectable_success)
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
-    evt.subevent_code = BLE_HCI_LE_SUBEV_CONN_COMPLETE;
     evt.status = BLE_ERR_SUCCESS;
     evt.connection_handle = 2;
     evt.role = BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE;

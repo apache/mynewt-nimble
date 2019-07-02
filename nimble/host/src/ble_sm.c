@@ -93,6 +93,14 @@ static ble_sm_rx_fn * const ble_sm_dispatch[] = {
 #endif
 };
 
+struct hci_start_encrypt
+{
+    uint16_t connection_handle;
+    uint16_t encrypted_diversifier;
+    uint64_t random_number;
+    uint8_t long_term_key[16];
+};
+
 typedef void ble_sm_state_fn(struct ble_sm_proc *proc,
                              struct ble_sm_result *res, void *arg);
 
@@ -1033,20 +1041,18 @@ ble_sm_chk_store_overflow(uint16_t conn_handle)
  *****************************************************************************/
 
 static int
-ble_sm_start_encrypt_tx(struct hci_start_encrypt *cmd)
+ble_sm_start_encrypt_tx(struct hci_start_encrypt *params)
 {
-    uint8_t buf[BLE_HCI_LE_START_ENCRYPT_LEN];
-    int rc;
+    struct ble_hci_le_start_encrypt_cp cmd;
 
-    ble_hs_hci_cmd_build_le_start_encrypt(cmd, buf, sizeof buf);
-    rc = ble_hs_hci_cmd_tx_empty_ack(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                                BLE_HCI_OCF_LE_START_ENCRYPT),
-                                          buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
-    }
+    cmd.conn_handle = htole16(params->connection_handle);
+    cmd.div = htole16(params->encrypted_diversifier);
+    cmd.rand = htole64(params->random_number);
+    memcpy(cmd.ltk, params->long_term_key, sizeof(cmd.ltk));
 
-    return 0;
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_START_ENCRYPT),
+                             &cmd, sizeof(cmd), NULL, 0);
 }
 
 static void
@@ -1181,19 +1187,19 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
 }
 
 void
-ble_sm_enc_change_rx(struct hci_encrypt_change *evt)
+ble_sm_enc_change_rx(const struct ble_hci_ev_enrypt_chg *ev)
 {
     /* For encrypted state: read LE-encryption bit; ignore BR/EDR and reserved
      * bits.
      */
-    ble_sm_enc_event_rx(evt->connection_handle, evt->status,
-                        evt->encryption_enabled & 0x01);
+    ble_sm_enc_event_rx(le16toh(ev->connection_handle), ev->status,
+                        ev->enabled & 0x01);
 }
 
 void
-ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt)
+ble_sm_enc_key_refresh_rx(const struct ble_hci_ev_enc_key_refresh *ev)
 {
-    ble_sm_enc_event_rx(evt->connection_handle, evt->status, 1);
+    ble_sm_enc_event_rx(le16toh(ev->conn_handle), ev->status, 1);
 }
 
 /*****************************************************************************
@@ -1201,7 +1207,7 @@ ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt)
  *****************************************************************************/
 
 static int
-ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
+ble_sm_retrieve_ltk(uint16_t ediv, uint64_t rand, uint8_t peer_addr_type,
                     uint8_t *peer_addr, struct ble_store_value_sec *value_sec)
 {
     struct ble_store_key_sec key_sec;
@@ -1211,8 +1217,8 @@ ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr.type = peer_addr_type;
     memcpy(key_sec.peer_addr.val, peer_addr, 6);
-    key_sec.ediv = evt->encrypted_diversifier;
-    key_sec.rand_num = evt->random_number;
+    key_sec.ediv = ediv;
+    key_sec.rand_num = rand;
     key_sec.ediv_rand_present = 1;
 
     rc = ble_store_read_our_sec(&key_sec, value_sec);
@@ -1220,30 +1226,23 @@ ble_sm_retrieve_ltk(struct hci_le_lt_key_req *evt, uint8_t peer_addr_type,
 }
 
 static int
-ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
+ble_sm_ltk_req_reply_tx(uint16_t conn_handle, const uint8_t *ltk)
 {
-    struct hci_lt_key_req_reply cmd;
-    uint16_t ack_conn_handle;
-    uint8_t buf[BLE_HCI_LT_KEY_REQ_REPLY_LEN];
-    uint8_t ack_params_len;
+    struct ble_hci_le_lt_key_req_reply_cp cmd;
+    struct ble_hci_le_lt_key_req_reply_rp rsp;
     int rc;
 
-    cmd.conn_handle = conn_handle;
-    memcpy(cmd.long_term_key, ltk, 16);
+    cmd.conn_handle = htole16(conn_handle);
+    memcpy(cmd.ltk, ltk, 16);
 
-    ble_hs_hci_cmd_build_le_lt_key_req_reply(&cmd, buf, sizeof buf);
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                       BLE_HCI_OCF_LE_LT_KEY_REQ_REPLY),
-                           buf, sizeof(buf), &ack_conn_handle,
-                           sizeof(ack_conn_handle), &ack_params_len);
+                           &cmd, sizeof(cmd), &rsp, sizeof(rsp));
     if (rc != 0) {
         return rc;
     }
-    if (ack_params_len != BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN) {
-        return BLE_HS_ECONTROLLER;
-    }
 
-    if (le16toh(ack_conn_handle) != conn_handle) {
+    if (le16toh(rsp.conn_handle) != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
 
@@ -1253,24 +1252,19 @@ ble_sm_ltk_req_reply_tx(uint16_t conn_handle, uint8_t *ltk)
 static int
 ble_sm_ltk_req_neg_reply_tx(uint16_t conn_handle)
 {
-    uint16_t ack_conn_handle;
-    uint8_t buf[BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN];
-    uint8_t ack_params_len;
+    struct ble_hci_le_lt_key_req_neg_reply_cp cmd;
+    struct ble_hci_le_lt_key_req_neg_reply_cp rsp;
     int rc;
 
-    ble_hs_hci_cmd_build_le_lt_key_req_neg_reply(conn_handle, buf, sizeof buf);
+    cmd.conn_handle = htole16(conn_handle);
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                       BLE_HCI_OCF_LE_LT_KEY_REQ_NEG_REPLY),
-                           buf, sizeof(buf), &ack_conn_handle,
-                           sizeof(ack_conn_handle), &ack_params_len);
+                           &cmd, sizeof(cmd), &rsp, sizeof(rsp));
     if (rc != 0) {
         return rc;
     }
-    if (ack_params_len != BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN) {
-        return BLE_HS_ECONTROLLER;
-    }
 
-    if (le16toh(ack_conn_handle) != conn_handle) {
+    if (le16toh(rsp.conn_handle) != conn_handle) {
         return BLE_HS_ECONTROLLER;
     }
 
@@ -1329,7 +1323,7 @@ ble_sm_ltk_restore_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
 }
 
 int
-ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
+ble_sm_ltk_req_rx(const struct ble_hci_ev_le_subev_lt_key_req *ev)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn_addrs addrs;
@@ -1340,11 +1334,12 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     int store_rc;
     int restore;
 
+    uint16_t conn_handle = le16toh(ev->conn_handle);
+
     memset(&res, 0, sizeof res);
 
     ble_hs_lock();
-    proc = ble_sm_proc_find(evt->connection_handle, BLE_SM_PROC_STATE_NONE,
-                            0, NULL);
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, 0, NULL);
     if (proc == NULL) {
         /* The peer is attempting to restore a encrypted connection via the
          * encryption procedure.  Create a proc entry to indicate that security
@@ -1356,7 +1351,7 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
         if (proc == NULL) {
             res.app_status = BLE_HS_ENOMEM;
         } else {
-            proc->conn_handle = evt->connection_handle;
+            proc->conn_handle = conn_handle;
             proc->state = BLE_SM_PROC_STATE_LTK_RESTORE;
             ble_sm_insert(proc);
 
@@ -1378,12 +1373,12 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
     } else {
         /* The request is unexpected; nack and forget. */
         restore = 0;
-        ble_sm_ltk_req_neg_reply_tx(evt->connection_handle);
+        ble_sm_ltk_req_neg_reply_tx(conn_handle);
         proc = NULL;
     }
 
     if (restore) {
-        conn = ble_hs_conn_find_assert(evt->connection_handle);
+        conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_addrs(conn, &addrs);
         memcpy(peer_id_addr, addrs.peer_id_addr.val, 6);
     }
@@ -1396,7 +1391,8 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
 
     if (res.app_status == 0) {
         if (restore) {
-            store_rc = ble_sm_retrieve_ltk(evt, addrs.peer_id_addr.type,
+            store_rc = ble_sm_retrieve_ltk(le16toh(ev->div), le64toh(ev->rand),
+                                            addrs.peer_id_addr.type,
                                            peer_id_addr, &value_sec);
             if (store_rc == 0) {
                 /* Send the key to the controller. */
@@ -1408,7 +1404,7 @@ ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt)
         }
     }
 
-    ble_sm_process_result(evt->connection_handle, &res);
+    ble_sm_process_result(conn_handle, &res);
 
     return 0;
 }

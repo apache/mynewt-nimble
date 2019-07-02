@@ -161,7 +161,7 @@ btshell_print_error(char *msg, uint16_t conn_handle,
 static void
 btshell_print_adv_fields(const struct ble_hs_adv_fields *fields)
 {
-    uint8_t *u8p;
+    const uint8_t *u8p;
     int i;
 
     if (fields->flags != 0) {
@@ -939,7 +939,7 @@ btshell_on_write_reliable(uint16_t conn_handle,
 }
 
 static void
-btshell_decode_adv_data(uint8_t *adv_data, uint8_t adv_data_len, void *arg)
+btshell_decode_adv_data(const uint8_t *adv_data, uint8_t adv_data_len, void *arg)
 {
     struct btshell_scan_opts *scan_opts = arg;
     struct ble_hs_adv_fields fields;

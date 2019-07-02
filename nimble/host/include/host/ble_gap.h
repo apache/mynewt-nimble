@@ -390,7 +390,7 @@ struct ble_gap_ext_disc_desc {
     uint8_t length_data;
 
     /** Advertising data */
-    uint8_t *data;
+    const uint8_t *data;
 
     /** Directed advertising address.  Valid if BLE_HCI_ADV_DIRECT_MASK props is
      * set (BLE_ADDR_ANY otherwise).
@@ -420,7 +420,7 @@ struct ble_gap_disc_desc {
     int8_t rssi;
 
     /** Advertising data */
-    uint8_t *data;
+    const uint8_t *data;
 
     /** Directed advertising address.  Valid for BLE_HCI_ADV_RPT_EVTYPE_DIR_IND
      * event type (BLE_ADDR_ANY otherwise).
@@ -890,7 +890,7 @@ struct ble_gap_event {
             uint8_t data_length;
 
             /** Advertising data */
-            uint8_t *data;
+            const uint8_t *data;
         } periodic_report;
 
         /**

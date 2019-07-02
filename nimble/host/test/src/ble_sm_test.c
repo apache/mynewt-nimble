@@ -144,7 +144,7 @@ TEST_CASE_SELF(ble_sm_test_case_g2)
 
 TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 {
-    struct hci_disconn_complete disconn_evt;
+    struct ble_hci_ev_disconn_cmp disconn_evt;
     int rc;
 
     ble_sm_test_util_init();
@@ -161,7 +161,7 @@ TEST_CASE_SELF(ble_sm_test_case_conn_broken)
     ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
 
     /* Terminate the connection. */
-    disconn_evt.connection_handle = 2;
+    disconn_evt.conn_handle = htole16(2);
     disconn_evt.status = 0;
     disconn_evt.reason = BLE_ERR_REM_USER_CONN_TERM;
     ble_gap_rx_disconn_complete(&disconn_evt);

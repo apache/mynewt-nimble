@@ -34,104 +34,79 @@ const uint8_t ble_hs_pvcy_default_irk[16] = {
 static int
 ble_hs_pvcy_set_addr_timeout(uint16_t timeout)
 {
-    uint8_t buf[BLE_HCI_SET_RESOLV_PRIV_ADDR_TO_LEN];
-    int rc;
+    struct ble_hci_le_set_rpa_tmo_cp cmd;
 
-    rc = ble_hs_hci_cmd_build_set_resolv_priv_addr_timeout(timeout, buf,
-                                                           sizeof(buf));
-    if (rc != 0) {
-        return rc;
+    if (timeout == 0 || timeout > 0xA1B8) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
+    cmd.rpa_timeout = htole16(timeout);
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_SET_RPA_TMO),
-                             buf, sizeof(buf), NULL, 0, NULL);
+                             &cmd, sizeof(cmd), NULL, 0);
 }
 
 static int
 ble_hs_pvcy_set_resolve_enabled(int enable)
 {
-    uint8_t buf[BLE_HCI_SET_ADDR_RESOL_ENA_LEN];
-    int rc;
+    struct ble_hci_le_set_addr_res_en_cp cmd;
 
-    rc = ble_hs_hci_cmd_build_set_addr_res_en(enable, buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
-    }
+    cmd.enable = enable;
 
-    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
-                           buf, sizeof(buf), NULL, 0, NULL);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_SET_ADDR_RES_EN),
+                             &cmd, sizeof(cmd), NULL, 0);
 }
 
 int
 ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
 {
-    uint8_t buf[BLE_HCI_RMV_FROM_RESOLV_LIST_LEN];
-    int rc;
+    struct ble_hci_le_rmv_resolve_list_cp cmd;
 
-    rc = ble_hs_hci_cmd_build_remove_from_resolv_list(addr_type, addr,
-                                                      buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
+    if (addr_type > BLE_ADDR_RANDOM) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_RMV_RESOLV_LIST),
-                           buf, sizeof(buf), NULL, 0, NULL);
-    if (rc != 0) {
-        return rc;
-    }
+    cmd.peer_addr_type = addr_type;
+    memcpy(cmd.peer_id_addr, addr, BLE_DEV_ADDR_LEN);
 
-    return 0;
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_RMV_RESOLV_LIST),
+                             &cmd, sizeof(cmd), NULL, 0);
 }
 
 static int
 ble_hs_pvcy_clear_entries(void)
 {
-    int rc;
-
-    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
-                           NULL, 0, NULL, 0, NULL);
-    if (rc != 0) {
-        return rc;
-    }
-
-    return 0;
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_CLR_RESOLV_LIST),
+                             NULL, 0, NULL, 0);
 }
 
 static int
 ble_hs_pvcy_add_entry_hci(const uint8_t *addr, uint8_t addr_type,
                           const uint8_t *irk)
 {
-    struct hci_add_dev_to_resolving_list add;
-    uint8_t buf[BLE_HCI_ADD_TO_RESOLV_LIST_LEN];
+    struct ble_hci_le_add_resolv_list_cp cmd;
     ble_addr_t peer_addr;
     int rc;
 
-    add.addr_type = addr_type;
-    memcpy(add.addr, addr, 6);
-    memcpy(add.local_irk, ble_hs_pvcy_irk, 16);
-    memcpy(add.peer_irk, irk, 16);
-
-    rc = ble_hs_hci_cmd_build_add_to_resolv_list(&add, buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
+    if (addr_type > BLE_ADDR_RANDOM) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
+    cmd.peer_addr_type = addr_type;
+    memcpy(cmd.peer_id_addr, addr, 6);
+    memcpy(cmd.local_irk, ble_hs_pvcy_irk, 16);
+    memcpy(cmd.peer_irk, irk, 16);
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                       BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
-                           buf, sizeof(buf), NULL, 0, NULL);
+                           &cmd, sizeof(cmd), NULL, 0);
     if (rc != 0) {
         return rc;
     }
-
 
     /* FIXME Controller is BT5.0 and default privacy mode is network which
      * can cause problems for apps which are not aware of it. We need to
@@ -257,16 +232,17 @@ ble_hs_pvcy_our_irk(const uint8_t **out_irk)
 int
 ble_hs_pvcy_set_mode(const ble_addr_t *addr, uint8_t priv_mode)
 {
-    uint8_t buf[BLE_HCI_LE_SET_PRIVACY_MODE_LEN];
-    int rc;
+    struct ble_hci_le_set_privacy_mode_cp cmd;
 
-    rc = ble_hs_hci_cmd_build_le_set_priv_mode(addr->val, addr->type, priv_mode,
-                                           buf, sizeof(buf));
-    if (rc != 0) {
-        return rc;
+    if (addr->type > BLE_ADDR_RANDOM) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
+
+    cmd.mode = priv_mode;
+    cmd.peer_id_addr_type = addr->type;
+    memcpy(cmd.peer_id_addr, addr->val, BLE_DEV_ADDR_LEN);
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
-                             buf, sizeof(buf), NULL, 0, NULL);
+                             &cmd, sizeof(cmd), NULL, 0);
 }

@@ -316,9 +316,9 @@ int ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
 int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
 void ble_sm_alg_ecc_init(void);
 
-void ble_sm_enc_change_rx(struct hci_encrypt_change *evt);
-void ble_sm_enc_key_refresh_rx(struct hci_encrypt_key_refresh *evt);
-int ble_sm_ltk_req_rx(struct hci_le_lt_key_req *evt);
+void ble_sm_enc_change_rx(const struct ble_hci_ev_enrypt_chg *ev);
+void ble_sm_enc_key_refresh_rx(const struct ble_hci_ev_enc_key_refresh *ev);
+int ble_sm_ltk_req_rx(const struct ble_hci_ev_le_subev_lt_key_req *ev);
 
 #if MYNEWT_VAL(BLE_SM_LEGACY)
 int ble_sm_lgcy_io_action(struct ble_sm_proc *proc, uint8_t *action);

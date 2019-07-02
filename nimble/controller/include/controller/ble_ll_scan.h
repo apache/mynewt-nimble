@@ -116,9 +116,9 @@ struct ble_ll_aux_data {
     uint8_t addr_type;
     uint8_t dir_addr[6];
     uint8_t dir_addr_type;
-    uint8_t evt_type;
+    uint16_t evt_type;
     struct ble_ll_sched_item sch;
-    struct ble_ll_ext_adv_report *evt;
+    struct ble_hci_ev *evt;
     struct ble_npl_event ev;
 };
 
@@ -178,13 +178,14 @@ struct ble_ll_scan_sm
 
 /*---- HCI ----*/
 /* Set scanning parameters */
-int ble_ll_scan_set_scan_params(uint8_t *cmd);
+int ble_ll_scan_set_scan_params(const uint8_t *cmdbuf, uint8_t len);
 
 /* Turn scanning on/off */
-int ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext);
+int ble_ll_hci_scan_set_enable(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_hci_ext_scan_set_enable(const uint8_t *cmdbuf, uint8_t len);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_set_ext_scan_params(uint8_t *cmd, uint8_t cmdlen);
+int ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len);
 #endif
 
 /*--- Controller Internal API ---*/
@@ -258,13 +259,6 @@ int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
                                     struct ble_ll_scan_sm **sm);
 
 /* Called to parse extended advertising*/
-struct ble_ll_ext_adv_report;
-int ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
-                              uint8_t *adva, uint8_t adva_type,
-                              uint8_t *inita, uint8_t inita_type,
-                              struct ble_mbuf_hdr *ble_hdr,
-                              struct ble_ll_ext_adv_report *parsed_evt);
-
 struct ble_ll_aux_data *ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_scan);
 void ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
 void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);

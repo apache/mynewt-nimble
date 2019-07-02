@@ -24,8 +24,12 @@
 #include <stdbool.h>
 #include "nimble/ble.h"
 
-int ble_ll_dtm_tx_test(uint8_t *cmdbuf, uint8_t cmdlen, bool enhanced);
-int ble_ll_dtm_rx_test(uint8_t *cmdbuf, bool enhanced);
+int ble_ll_hci_dtm_tx_test(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_hci_dtm_tx_test_v2(const uint8_t *cmdbuf, uint8_t len);
+
+int ble_ll_hci_dtm_rx_test(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_hci_dtm_rx_test_v2(const uint8_t *cmdbuf, uint8_t len);
+
 int ble_ll_dtm_end_test(uint8_t *rsp, uint8_t *rsplen);
 
 int ble_ll_dtm_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);

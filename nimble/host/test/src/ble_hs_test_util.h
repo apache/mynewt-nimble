@@ -28,6 +28,26 @@
 extern "C" {
 #endif
 
+
+/* TODO  this is currently copied from ble_ll_conn_priv.h and eventually
+ * should not be needed...
+ */
+struct hci_create_conn
+{
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint8_t filter_policy;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint8_t own_addr_type;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
 struct ble_hs_conn;
 struct ble_l2cap_chan;
 struct hci_disconn_complete;

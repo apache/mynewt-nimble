@@ -88,9 +88,24 @@ extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 
 /* Generic interface */
 struct ble_ll_len_req;
-struct hci_create_conn;
 struct ble_mbuf_hdr;
 struct ble_ll_adv_sm;
+
+struct hci_create_conn
+{
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint8_t filter_policy;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint8_t own_addr_type;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
 
 void ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
@@ -118,7 +133,7 @@ int ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat,
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
-void ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, uint8_t *chanmap);
+void ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap);
 void ble_ll_conn_module_reset(void);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
@@ -140,13 +155,15 @@ bool ble_ll_conn_init_pending_aux_conn_rsp(void);
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);
 void ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm);
-int ble_ll_conn_hci_disconnect_cmd(uint8_t *cmdbuf);
-int ble_ll_conn_hci_rd_rem_ver_cmd(uint8_t *cmdbuf);
-int ble_ll_conn_create(uint8_t *cmdbuf);
-int ble_ll_conn_hci_update(uint8_t *cmdbuf);
-int ble_ll_conn_hci_set_chan_class(uint8_t *cmdbuf);
-int ble_ll_conn_hci_param_reply(uint8_t *cmdbuf, int negative_reply,
-                                uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_disconnect_cmd(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_create(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
+                             uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_param_nrr(const uint8_t *cmdbuf, uint8_t len,
+                             uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb);
 void ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
@@ -154,22 +171,22 @@ void ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
 void ble_ll_conn_timeout(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 int ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
                                     uint16_t latency, uint16_t spvn_tmo);
-int ble_ll_conn_hci_read_rem_features(uint8_t *cmdbuf);
-int ble_ll_conn_hci_read_rem_features_complete(void);
-int ble_ll_conn_hci_rd_rssi(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_conn_hci_rd_chan_map(uint8_t *cmdbuf, uint8_t *rspbuf,
-                                uint8_t *rsplen);
-int ble_ll_conn_hci_set_data_len(uint8_t *cmdbuf, uint8_t *rspbuf,
-                                 uint8_t *rsplen);
-int ble_ll_conn_hci_le_start_encrypt(uint8_t *cmdbuf);
-int ble_ll_conn_hci_le_ltk_reply(uint8_t *cmdbuf, uint8_t *rspbuf,
-                                 uint8_t *rsplen);
-int ble_ll_conn_hci_le_ltk_neg_reply(uint8_t *cmdbuf, uint8_t *rspbuf,
-                                     uint8_t *rsplen);
-int ble_ll_conn_hci_wr_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
-                                     uint8_t *rsplen);
-int ble_ll_conn_hci_rd_auth_pyld_tmo(uint8_t *cmdbuf, uint8_t *rsp,
-                                     uint8_t *rsplen);
+int ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_rd_rssi(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf,
+                            uint8_t *rsplen);
+int ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
+                                uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
+                                 uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_le_start_encrypt(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_le_ltk_reply(const uint8_t *cmdbuf, uint8_t len,
+                                 uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_le_ltk_neg_reply(const uint8_t *cmdbuf, uint8_t len,
+                                     uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
+                                     uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_rd_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
+                                     uint8_t *rspbuf, uint8_t *rsplen);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 #else
@@ -179,11 +196,12 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 
-int ble_ll_conn_hci_le_rd_phy(uint8_t *cmdbuf, uint8_t *rsp, uint8_t *rsplen);
-int ble_ll_conn_hci_le_set_phy(uint8_t *cmdbuf);
+int ble_ll_conn_hci_le_rd_phy(const uint8_t *cmdbuf, uint8_t len,
+                              uint8_t *rsp, uint8_t *rsplen);
+int ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_ext_conn_create(uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t cmdlen);
 #endif
 #ifdef __cplusplus
 }

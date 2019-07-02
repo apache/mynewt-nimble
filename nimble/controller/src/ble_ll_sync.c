@@ -156,29 +156,29 @@ ble_ll_sync_phy_mode_to_hci(int8_t phy_mode)
 static void
 ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
 {
-    struct hci_le_subev_periodic_adv_sync_estab *evt;
-    uint8_t *evbuf;
+    struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev;
+    struct ble_hci_ev *hci_ev;
 
     BLE_LL_ASSERT(g_ble_ll_sync_comp_ev);
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB)) {
-        evbuf = g_ble_ll_sync_comp_ev;
-        evbuf[0] = BLE_HCI_EVCODE_LE_META;
-        evbuf[1] = BLE_HCI_LE_PERIODIC_ADV_SYNC_ESTAB_LEN;
-        evbuf[2] = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
+        hci_ev = (void *) g_ble_ll_sync_comp_ev;
 
-        evt = (void *) evbuf + 3;
+        hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+        hci_ev->length = sizeof(*ev);
+        ev = (void *) hci_ev->data;
 
-        evt->status = BLE_ERR_SUCCESS;
-        evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
-        evt->sid = sm->adv_sid;
-        evt->adv_addr_type = sm->adv_addr_type;
-        memcpy(evt->adv_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
-        evt->adv_phy = ble_ll_sync_phy_mode_to_hci(sm->phy_mode);
-        evt->per_adv_ival = htole16(sm->itvl);
-        evt->adv_clk_accuracy = sm->sca;
+        ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
+        ev->status = BLE_ERR_SUCCESS;
+        ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
+        ev->sid = sm->adv_sid;
+        ev->peer_addr_type = sm->adv_addr_type;
+        memcpy(ev->peer_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
+        ev->phy = ble_ll_sync_phy_mode_to_hci(sm->phy_mode);
+        ev->interval = htole16(sm->itvl);
+        ev->aca = sm->sca;
 
-        ble_ll_hci_event_send(evbuf);
+        ble_ll_hci_event_send(hci_ev);
     } else {
         ble_hci_trans_buf_free(g_ble_ll_sync_comp_ev);
     }
@@ -189,23 +189,24 @@ ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
 static void
 ble_ll_sync_est_event_failed(uint8_t status)
 {
-    struct hci_le_subev_periodic_adv_sync_estab *evt;
-    uint8_t *evbuf;
+    struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev;
+    struct ble_hci_ev *hci_ev;
 
     BLE_LL_ASSERT(g_ble_ll_sync_comp_ev);
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB)) {
-        evbuf = g_ble_ll_sync_comp_ev;
-        evbuf[0] = BLE_HCI_EVCODE_LE_META;
-        evbuf[1] = BLE_HCI_LE_PERIODIC_ADV_SYNC_ESTAB_LEN;
-        evbuf[2] = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
+        hci_ev = (void *) g_ble_ll_sync_comp_ev;
 
-        evt = (void *) evbuf + 3;
+        hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+        hci_ev->length = sizeof(*ev);
+        ev = (void *) hci_ev->data;
 
-        memset(evt, 0, sizeof(*evt));
-        evt->status = status;
+        memset(ev, 0, sizeof(*ev));
 
-        ble_ll_hci_event_send(evbuf);
+        ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
+        ev->status = status;
+
+        ble_ll_hci_event_send(hci_ev);
     } else {
         ble_hci_trans_buf_free(g_ble_ll_sync_comp_ev);
     }
@@ -216,20 +217,20 @@ ble_ll_sync_est_event_failed(uint8_t status)
 static void
 ble_ll_sync_lost_event(struct ble_ll_sync_sm *sm)
 {
-    struct hci_le_subev_periodic_adv_sync_lost *evt;
-    uint8_t *evbuf;
+    struct ble_hci_ev_le_subev_periodic_adv_sync_lost *ev;
+    struct ble_hci_ev *hci_ev;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST)) {
-        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-        if (evbuf) {
-            evbuf[0] = BLE_HCI_EVCODE_LE_META;
-            evbuf[1] = BLE_HCI_LE_PERIODIC_ADV_SYNC_LOST_LEN;
-            evbuf[2] = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST;
+        hci_ev = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
 
-            evt = (void *) evbuf + 3;
-            evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
+            ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST;
+            ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
 
-            ble_ll_hci_event_send(evbuf);
+            ble_ll_hci_event_send(hci_ev);
         }
     }
 
@@ -489,36 +490,40 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
 static void
 ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf)
 {
-    struct hci_le_subev_periodic_adv_rpt *evt;
+    struct ble_hci_ev_le_subev_periodic_adv_rpt *ev;
+    struct ble_hci_ev *hci_ev;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT)) {
         ble_hci_trans_buf_free(evbuf);
         return;
     }
 
-    evbuf[0] = BLE_HCI_EVCODE_LE_META;
-    evbuf[1] = BLE_HCI_LE_PERIODIC_ADV_RPT_LEN;
-    evbuf[2] = BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT;
+    hci_ev = (void *) evbuf;
 
-    evt = (void *) evbuf + 3;
-    evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
-    evt->tx_power = 127; /* not available */
-    evt->rssi = 127; /* not available */
-    evt->unused = 0xff;
-    evt->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
-    evt->data_length = 0;
-    ble_ll_hci_event_send(evbuf);
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *) hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT;
+    ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
+    ev->tx_power = 127; /* not available */
+    ev->rssi = 127; /* not available */
+    ev->cte_type = 0xff;
+    ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
+    ev->data_len = 0;
+
+    ble_ll_hci_event_send(hci_ev);
 }
 
 static int
 ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
                              struct ble_mbuf_hdr *hdr, uint8_t **aux)
 {
-    struct hci_le_subev_periodic_adv_rpt *evt;
-    uint8_t *evbuf_next = NULL;
-    uint16_t max_event_len;
+    struct ble_hci_ev_le_subev_periodic_adv_rpt *ev;
+    struct ble_hci_ev *hci_ev;
+    struct ble_hci_ev *hci_ev_next = NULL;
+    uint8_t max_data_len;
     int8_t tx_power;
-    uint8_t *evbuf;
     int datalen;
     int offset;
     int rc;
@@ -539,64 +544,62 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
 
     /* use next report buffer if present, this means we are chaining */
     if (sm->next_report) {
-        evbuf = sm->next_report;
+        hci_ev = (void *) sm->next_report;
         sm->next_report = NULL;
     } else {
-        evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
-        if (!evbuf) {
+        hci_ev = (void * )ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+        if (!hci_ev) {
             return -1;
         }
     }
 
-    /* Max_event_len contains advertising data and BLE_HCI_EVENT_HDR_LEN as this
-     * is related to the buffer available for the event. The maximum is 255 + 2
-     */
+    max_data_len = BLE_LL_MAX_EVT_LEN - sizeof(*hci_ev) - sizeof(*ev);
     offset = 0;
-    max_event_len = min(UINT8_MAX + BLE_HCI_EVENT_HDR_LEN, BLE_LL_MAX_EVT_LEN);
 
     do {
-        if (evbuf_next) {
-            evbuf = evbuf_next;
-            evbuf_next = NULL;
+        if (hci_ev_next) {
+            hci_ev = hci_ev_next;
+            hci_ev_next = NULL;
         }
 
-        evbuf[0] = BLE_HCI_EVCODE_LE_META;
-        evbuf[1] = BLE_HCI_LE_PERIODIC_ADV_RPT_LEN;
-        evbuf[2] = BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT;
+        hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+        hci_ev->length = sizeof(*ev);
 
-        evt = (void *) evbuf + 3;
-        evt->sync_handle = htole16(ble_ll_sync_get_handle(sm));
-        evt->tx_power = tx_power;
-        evt->rssi = hdr->rxinfo.rssi;
-        evt->unused = 0xff;
+        ev = (void *) hci_ev->data;
 
-        evt->data_length = min(max_event_len - sizeof(*evt) - 3, datalen - offset);
+        ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT;
+        ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
+        ev->tx_power = tx_power;
+        ev->rssi = hdr->rxinfo.rssi;
+        ev->cte_type = 0xff;
+
+        ev->data_len = min(max_data_len, datalen - offset);
         /* adjust event length */
-        evbuf[1] += evt->data_length;
+        hci_ev->length += ev->data_len;
 
-        os_mbuf_copydata(rxpdu, offset, evt->data_length, evt->data);
-        offset += evt->data_length;
+        os_mbuf_copydata(rxpdu, offset, ev->data_len, ev->data);
+        offset += ev->data_len;
 
         /* Need another event for next fragment of this PDU */
         if ((offset < datalen) || *aux) {
-            evbuf_next = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
-            if (evbuf_next) {
-                evt->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
+            hci_ev_next = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+            if (hci_ev_next) {
+                ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
                 rc = 0;
             } else {
-                evt->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
+                ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
                 rc = -1;
             }
         } else {
-            evt->data_status = BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE;
+            ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE;
             rc = 0;
         }
 
-        ble_ll_hci_event_send(evbuf);
-    } while ((offset < datalen) && evbuf_next);
+        ble_ll_hci_event_send(hci_ev);
+    } while ((offset < datalen) && hci_ev_next);
 
     /* store for chain */
-    sm->next_report = evbuf_next;
+    sm->next_report = (void *) hci_ev_next;
 
     return rc;
 }
@@ -1216,15 +1219,11 @@ ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type, uint8_t sid,
 }
 
 int
-ble_ll_sync_create(uint8_t *cmdbuf)
+ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
 {
+    const struct ble_hci_le_periodic_adv_create_sync_cp *cmd = (const void *) cmdbuf;
     struct ble_ll_sync_sm *sm;
-    uint8_t filter_policy;
-    uint8_t addr_type;
     uint16_t timeout;
-    uint8_t *addr;
-    uint16_t skip;
-    uint8_t sid;
     os_sr_t sr;
     int cnt;
     int i;
@@ -1233,23 +1232,25 @@ ble_ll_sync_create(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    filter_policy = cmdbuf[0];
-    if (filter_policy > 0x01) {
+    if (len != sizeof(*cmd)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    skip = get_le16(cmdbuf + 9);
-    if (skip > 0x01f3) {
+    if (cmd->options > BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    timeout = get_le16(cmdbuf + 11);
+    if (cmd->skip > 0x01f3) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    timeout = le16toh(cmd->sync_timeout);
     if (timeout < 0x000a && timeout > 0x4000) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     /* check if list is sane */
-    if (filter_policy) {
+    if (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER) {
         cnt = 0;
 
         OS_ENTER_CRITICAL(sr);
@@ -1270,7 +1271,7 @@ ble_ll_sync_create(uint8_t *cmdbuf)
 
             /* mark as pending */
             sm->flags |= BLE_LL_SYNC_SM_FLAG_PENDING;
-            sm->skip = skip;
+            sm->skip = cmd->skip;
             sm->timeout = timeout * 10000; /* 10ms units, store in us */
             cnt++;
         }
@@ -1284,19 +1285,15 @@ ble_ll_sync_create(uint8_t *cmdbuf)
             return BLE_ERR_CMD_DISALLOWED;
         }
     } else {
-        sid = cmdbuf[1];
-        if (sid > 0x0f) {
+        if (cmd->sid > 0x0f) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
-        addr_type = cmdbuf[2];
-        if (addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
+        if (cmd->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
-        addr = &cmdbuf[3];
-
-        sm = ble_ll_sync_get(addr, addr_type, sid);
+        sm = ble_ll_sync_get(cmd->peer_addr, cmd->peer_addr_type, cmd->sid);
         if (!sm) {
             return BLE_ERR_MEM_CAPACITY;
         }
@@ -1312,7 +1309,7 @@ ble_ll_sync_create(uint8_t *cmdbuf)
         /* mark as pending */
         sm->flags |= BLE_LL_SYNC_SM_FLAG_PENDING;
         sm->timeout = timeout * 10000; /* 10ms units, store in us */
-        sm->skip = skip;
+        sm->skip = cmd->skip;
 
         OS_EXIT_CRITICAL(sr);
     }
@@ -1379,8 +1376,9 @@ ble_ll_sync_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
 }
 
 int
-ble_ll_sync_terminate(uint8_t *cmdbuf)
+ble_ll_sync_terminate(const uint8_t *cmdbuf, uint8_t len)
 {
+    const struct ble_hci_le_periodic_adv_term_sync_cp *cmd = (const void *) cmdbuf;
     struct ble_ll_sync_sm *sm;
     uint16_t handle;
     os_sr_t sr;
@@ -1389,7 +1387,11 @@ ble_ll_sync_terminate(uint8_t *cmdbuf)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    handle  = get_le16(cmdbuf);
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    handle = le16toh(cmd->sync_handle);
     if (handle > 0xeff) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -1415,33 +1417,30 @@ ble_ll_sync_terminate(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_sync_list_add(uint8_t *cmdbuf)
+ble_ll_sync_list_add(const uint8_t *cmdbuf, uint8_t len)
 {
+    const struct ble_hci_le_add_dev_to_periodic_adv_list_cp *cmd = (const void *)cmdbuf;
     struct ble_ll_sync_sm *sm;
-    uint8_t addr_type;
-    uint8_t *addr;
-    uint8_t sid;
     os_sr_t sr;
 
     if (g_ble_ll_sync_pending) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    addr_type = cmdbuf[0];
-    if (addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
+    if (len != sizeof(*cmd)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    addr = &cmdbuf[1];
-
-    sid = cmdbuf[7];
-    if (sid > 0x0f) {
+    if (cmd->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+    if (cmd->sid > 0x0f) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     OS_ENTER_CRITICAL(sr);
 
-    sm = ble_ll_sync_get(addr, addr_type, sid);
+    sm = ble_ll_sync_get(cmd->peer_addr, cmd->peer_addr_type, cmd->sid);
     if (!sm) {
         OS_EXIT_CRITICAL(sr);
         return BLE_ERR_MEM_CAPACITY;
@@ -1455,33 +1454,31 @@ ble_ll_sync_list_add(uint8_t *cmdbuf)
 }
 
 int
-ble_ll_sync_list_remove(uint8_t *cmdbuf)
+ble_ll_sync_list_remove(const uint8_t *cmdbuf, uint8_t len)
 {
+    const struct ble_hci_le_rem_dev_from_periodic_adv_list_cp *cmd = (const void *)cmdbuf;
     struct ble_ll_sync_sm *sm;
-    uint8_t addr_type;
-    uint8_t *addr;
-    uint8_t sid;
     os_sr_t sr;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     if (g_ble_ll_sync_pending) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    addr_type = cmdbuf[0];
-    if (addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
+    if (cmd->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    addr = &cmdbuf[1];
-
-    sid = cmdbuf[7];
-    if (sid > 0x0f) {
+    if (cmd->sid > 0x0f) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     OS_ENTER_CRITICAL(sr);
 
-    sm = ble_ll_sync_find(addr, addr_type, sid);
+    sm = ble_ll_sync_find(cmd->peer_addr, cmd->peer_addr_type, cmd->sid);
     if (!sm) {
         OS_EXIT_CRITICAL(sr);
         return BLE_ERR_UNK_ADV_INDENT;
@@ -1532,10 +1529,11 @@ ble_ll_sync_list_clear(void)
 int
 ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen)
 {
+    struct ble_hci_le_rd_periodic_adv_list_size_rp *rsp = (void *) rspbuf;
     os_sr_t sr;
     int i;
 
-    rspbuf[0] = 0;
+    rsp->list_size = 0;
 
     OS_ENTER_CRITICAL(sr);
 
@@ -1546,12 +1544,12 @@ ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen)
             continue;
         }
 
-        rspbuf[0]++;
+        rsp->list_size++;
     }
 
     OS_EXIT_CRITICAL(sr);
 
-    *rsplen = 1;
+    *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
 }
 

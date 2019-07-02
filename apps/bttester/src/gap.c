@@ -397,7 +397,7 @@ static void stop_advertising(const u8_t *data, u16_t len)
 		    (u8_t *) &rp, sizeof(rp));
 }
 
-static u8_t get_ad_flags(u8_t *data, u8_t data_len)
+static u8_t get_ad_flags(const u8_t *data, u8_t data_len)
 {
 	u8_t len, i;
 
@@ -428,7 +428,7 @@ static u8_t discovery_flags;
 static struct os_mbuf *adv_buf;
 
 static void store_adv(const ble_addr_t *addr, s8_t rssi,
-		      u8_t *data, u8_t len)
+		      const u8_t *data, u8_t len)
 {
 	struct gap_device_found_ev *ev;
 
@@ -446,7 +446,7 @@ static void store_adv(const ble_addr_t *addr, s8_t rssi,
 }
 
 static void device_found(ble_addr_t *addr, s8_t rssi, u8_t evtype,
-			 u8_t *data, u8_t len)
+			 const u8_t *data, u8_t len)
 {
 	struct gap_device_found_ev *ev;
 	ble_addr_t a;

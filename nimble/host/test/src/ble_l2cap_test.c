@@ -24,6 +24,8 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
+#define BLE_HCI_CONN_UPDATE_LEN             (14)
+
 #define BLE_L2CAP_TEST_PSM                   (90)
 #define BLE_L2CAP_TEST_CID                   (99)
 #define BLE_L2CAP_TEST_COC_MTU               (256)

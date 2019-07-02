@@ -289,10 +289,10 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
     iov[0].iov_base = &ch;
     iov[1].iov_base = hci_ev;
     if (h4_type == BLE_HCI_UART_H4_CMD) {
-        len = BLE_HCI_CMD_HDR_LEN + hci_ev[2];
+        len = sizeof(struct ble_hci_cmd) + hci_ev[2];
         STATS_INC(hci_sock_stats, ocmd);
     } else if (h4_type == BLE_HCI_UART_H4_EVT) {
-        len = BLE_HCI_EVENT_HDR_LEN + hci_ev[1];
+        len = sizeof(struct ble_hci_ev) + hci_ev[1];
         STATS_INC(hci_sock_stats, oevt);
     } else {
         assert(0);
@@ -346,10 +346,10 @@ ble_hci_sock_rx_msg(void)
         switch (bhss->rx_data[0]) {
 #if MYNEWT_VAL(BLE_CONTROLLER)
         case BLE_HCI_UART_H4_CMD:
-            if (bhss->rx_off < BLE_HCI_CMD_HDR_LEN) {
+            if (bhss->rx_off < sizeof(struct ble_hci_cmd)) {
                 return -1;
             }
-            len = 1 + BLE_HCI_CMD_HDR_LEN + bhss->rx_data[3];
+            len = 1 + sizeof(struct ble_hci_cmd) + bhss->rx_data[3];
             if (bhss->rx_off < len) {
                 return -1;
             }
@@ -373,10 +373,10 @@ ble_hci_sock_rx_msg(void)
 #endif
 #if MYNEWT_VAL(BLE_HOST)
         case BLE_HCI_UART_H4_EVT:
-            if (bhss->rx_off < BLE_HCI_EVENT_HDR_LEN) {
+            if (bhss->rx_off < sizeof(struct ble_hci_ev)) {
                 return -1;
             }
-            len = 1 + BLE_HCI_EVENT_HDR_LEN + bhss->rx_data[2];
+            len = 1 + sizeof(struct ble_hci_ev) + bhss->rx_data[2];
             if (bhss->rx_off < len) {
                 return -1;
             }

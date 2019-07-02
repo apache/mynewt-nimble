@@ -394,7 +394,7 @@ ble_hci_emspi_tx_cmd(const uint8_t *data)
         return rc;
     }
 
-    len = data[2] + BLE_HCI_CMD_HDR_LEN;
+    len = data[2] + sizeof(struct ble_hci_cmd);
     rc = ble_hci_emspi_tx_flat(data, len);
     if (rc != 0) {
         return rc;
@@ -488,14 +488,14 @@ ble_hci_emspi_rx_evt(void)
     data = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
     assert(data != NULL);
 
-    rc = ble_hci_emspi_rx(data, BLE_HCI_EVENT_HDR_LEN);
+    rc = ble_hci_emspi_rx(data, sizeof(struct ble_hci_ev));
     if (rc != 0) {
         goto err;
     }
 
     len = data[1];
     if (len > 0) {
-        rc = ble_hci_emspi_rx(data + BLE_HCI_EVENT_HDR_LEN, len);
+        rc = ble_hci_emspi_rx(data + sizeof(struct ble_hci_ev), len);
         if (rc != 0) {
             goto err;
         }

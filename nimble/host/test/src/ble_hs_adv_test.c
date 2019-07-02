@@ -28,6 +28,9 @@
 
 #define BLE_ADV_TEST_DATA_OFF   4
 
+#define BLE_HCI_SET_ADV_DATA_LEN            (32)
+#define BLE_HCI_SET_SCAN_RSP_DATA_LEN       (32)
+
 static void
 ble_hs_adv_test_misc_verify_tx_adv_data_hdr(uint8_t *cmd, int data_len)
 {
