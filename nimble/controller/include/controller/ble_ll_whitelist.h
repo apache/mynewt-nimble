@@ -31,10 +31,10 @@ int ble_ll_whitelist_clear(void);
 int ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen);
 
 /* Add a device to the whitelist */
-int ble_ll_whitelist_add(uint8_t *addr, uint8_t addr_type);
+int ble_ll_whitelist_add(const uint8_t *cmdbuf, uint8_t len);
 
 /* Remove a device fromthe whitelist */
-int ble_ll_whitelist_rmv(uint8_t *addr, uint8_t addr_type);
+int ble_ll_whitelist_rmv(const uint8_t *cmdbuf, uint8_t len);
 
 /* Enable whitelisting */
 void ble_ll_whitelist_enable(void);

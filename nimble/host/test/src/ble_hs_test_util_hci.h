@@ -89,8 +89,8 @@ uint8_t *ble_hs_test_util_hci_verify_tx(uint8_t ogf, uint16_t ocf,
 /* $rx */
 void ble_hs_test_util_hci_rx_num_completed_pkts_event(
     struct ble_hs_test_util_hci_num_completed_pkts_entry *entries);
-void ble_hs_test_util_hci_rx_disconn_complete_event(
-    struct hci_disconn_complete *evt);
+void ble_hs_test_util_hci_rx_disconn_complete_event(uint16_t conn_handle,
+                                                    uint8_t status, uint8_t reason);
 void ble_hs_test_util_hci_rx_conn_cancel_evt(void);
 
 /* $misc */

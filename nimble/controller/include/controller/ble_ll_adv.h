@@ -117,19 +117,16 @@ int ble_ll_adv_start_req(uint8_t adv_chanmask, uint8_t adv_type,
                          uint8_t *init_addr, uint16_t adv_itvl, void *handle);
 
 /* Start or stop advertising */
-int ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
-                          uint8_t event);
+int ble_ll_hci_adv_set_enable(const uint8_t *cmdbuf, uint8_t len);
 
-/* Set advertising data */
-int ble_ll_adv_set_adv_data(uint8_t *cmd, uint8_t cmd_len, uint8_t instance,
-                            uint8_t operation);
+/* Set legacy advertising data */
+int ble_ll_hci_set_adv_data(const uint8_t *cmdbuf, uint8_t len);
 
 /* Set scan response data */
-int ble_ll_adv_set_scan_rsp_data(uint8_t *cmd, uint8_t cmd_len,
-                                 uint8_t instance, uint8_t operation);
+int ble_ll_hci_set_scan_rsp_data(const uint8_t *cmd, uint8_t cmd_len);
 
 /* Set advertising parameters */
-int ble_ll_adv_set_adv_params(uint8_t *cmd);
+int ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len);
 
 /* Read advertising channel power */
 int ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen);
@@ -185,17 +182,19 @@ void ble_ll_adv_halt(void);
 /* Called to determine if advertising is enabled */
 uint8_t ble_ll_adv_enabled(void);
 
-int ble_ll_adv_set_random_addr(uint8_t *addr, uint8_t instance);
-int ble_ll_adv_remove(uint8_t instance);
+int ble_ll_adv_hci_set_random_addr(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_adv_set_random_addr(const uint8_t *addr, uint8_t instance);
+int ble_ll_adv_remove(const uint8_t *addr, uint8_t len);
 int ble_ll_adv_clear_all(void);
-int ble_ll_adv_ext_set_param(uint8_t *cmdbuf, uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_adv_ext_set_adv_data(uint8_t *cmdbuf, uint8_t cmdlen);
-int ble_ll_adv_ext_set_scan_rsp(uint8_t *cmdbuf, uint8_t cmdlen);
-int ble_ll_adv_ext_set_enable(uint8_t *cmdbuf, uint8_t len);
+int ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
+                             uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_adv_ext_set_adv_data(const uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_scan_rsp(const uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len);
 
-int ble_ll_adv_periodic_set_param(uint8_t *cmdbuf);
-int ble_ll_adv_periodic_set_data(uint8_t *cmdbuf, uint8_t cmdlen);
-int ble_ll_adv_periodic_enable(uint8_t *cmdbuf);
+int ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len);
 
 /* Called to notify adv code about RPA rotation */
 void ble_ll_adv_rpa_timeout(void);

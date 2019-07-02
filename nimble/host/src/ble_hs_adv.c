@@ -63,8 +63,8 @@ ble_hs_adv_set_hdr(uint8_t type, uint8_t data_len, uint8_t max_len,
 
 static int
 ble_hs_adv_set_flat_mbuf(uint8_t type, int data_len, const void *data,
-                    uint8_t *dst, uint8_t *dst_len, uint8_t max_len,
-                    struct os_mbuf *om)
+                         uint8_t *dst, uint8_t *dst_len, uint8_t max_len,
+                         struct os_mbuf *om)
 {
     int rc;
 
@@ -489,7 +489,7 @@ ble_hs_adv_parse_uuids16(struct ble_hs_adv_fields *adv_fields,
 
     for (i = 0; i < adv_fields->num_uuids16; i++) {
         ble_uuid_init_from_buf(&uuid, data + i * 2, 2);
-        adv_fields->uuids16[i] = uuid.u16;
+        ble_hs_adv_uuids16[i] = uuid.u16;
     }
 
     return 0;
@@ -511,7 +511,7 @@ ble_hs_adv_parse_uuids32(struct ble_hs_adv_fields *adv_fields,
 
     for (i = 0; i < adv_fields->num_uuids32; i++) {
         ble_uuid_init_from_buf(&uuid, data + i * 4, 4);
-        adv_fields->uuids32[i] = uuid.u32;
+        ble_hs_adv_uuids32[i] = uuid.u32;
     }
 
     return 0;
@@ -533,7 +533,7 @@ ble_hs_adv_parse_uuids128(struct ble_hs_adv_fields *adv_fields,
 
     for (i = 0; i < adv_fields->num_uuids128; i++) {
         ble_uuid_init_from_buf(&uuid, data + i * 16, 16);
-        adv_fields->uuids128[i] = uuid.u128;
+        ble_hs_adv_uuids128[i] = uuid.u128;
     }
 
     return 0;
@@ -541,11 +541,12 @@ ble_hs_adv_parse_uuids128(struct ble_hs_adv_fields *adv_fields,
 
 static int
 ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
-                           uint8_t *total_len, uint8_t *src, uint8_t src_len)
+                           uint8_t *total_len, const uint8_t *src,
+                           uint8_t src_len)
 {
     uint8_t data_len;
     uint8_t type;
-    uint8_t *data;
+    const uint8_t *data;
     int rc;
 
     if (src_len < 1) {
@@ -715,8 +716,8 @@ ble_hs_adv_parse_one_field(struct ble_hs_adv_fields *adv_fields,
 }
 
 int
-ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields, uint8_t *src,
-                        uint8_t src_len)
+ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields,
+                        const uint8_t *src, uint8_t src_len)
 {
     uint8_t field_len;
     int rc;

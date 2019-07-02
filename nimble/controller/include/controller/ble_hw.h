@@ -39,10 +39,10 @@ uint8_t ble_hw_whitelist_size(void);
 void ble_hw_whitelist_clear(void);
 
 /* Remove a device from the hw whitelist */
-void ble_hw_whitelist_rmv(uint8_t *addr, uint8_t addr_type);
+void ble_hw_whitelist_rmv(const uint8_t *addr, uint8_t addr_type);
 
 /* Add a device to the hw whitelist */
-int ble_hw_whitelist_add(uint8_t *addr, uint8_t addr_type);
+int ble_hw_whitelist_add(const uint8_t *addr, uint8_t addr_type);
 
 /* Enable hw whitelisting */
 void ble_hw_whitelist_enable(void);

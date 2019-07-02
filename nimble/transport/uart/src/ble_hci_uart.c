@@ -290,7 +290,7 @@ ble_hci_uart_tx_pkt_type(void)
         ble_hci_uart_state.tx_cmd.data = pkt->data;
         ble_hci_uart_state.tx_cmd.cur = 0;
         ble_hci_uart_state.tx_cmd.len = ble_hci_uart_state.tx_cmd.data[2] +
-                                        BLE_HCI_CMD_HDR_LEN;
+                                        sizeof(struct ble_hci_cmd);
         break;
 
     case BLE_HCI_UART_H4_EVT:
@@ -298,7 +298,7 @@ ble_hci_uart_tx_pkt_type(void)
         ble_hci_uart_state.tx_cmd.data = pkt->data;
         ble_hci_uart_state.tx_cmd.cur = 0;
         ble_hci_uart_state.tx_cmd.len = ble_hci_uart_state.tx_cmd.data[1] +
-                                        BLE_HCI_EVENT_HDR_LEN;
+                                        sizeof(struct ble_hci_ev);
         break;
 
     case BLE_HCI_UART_H4_ACL:
@@ -543,13 +543,13 @@ ble_hci_uart_rx_cmd(uint8_t data)
 
     ble_hci_uart_state.rx_cmd.data[ble_hci_uart_state.rx_cmd.cur++] = data;
 
-    if (ble_hci_uart_state.rx_cmd.cur < BLE_HCI_CMD_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur < sizeof(struct ble_hci_cmd)) {
         return;
     }
 
-    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_CMD_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur == sizeof(struct ble_hci_cmd)) {
         ble_hci_uart_state.rx_cmd.len = ble_hci_uart_state.rx_cmd.data[2] +
-                                         BLE_HCI_CMD_HDR_LEN;
+                                        sizeof(struct ble_hci_cmd);
     }
 
     if (ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
@@ -568,12 +568,12 @@ ble_hci_uart_rx_skip_cmd(uint8_t data)
 {
     ble_hci_uart_state.rx_cmd.cur++;
 
-    if (ble_hci_uart_state.rx_cmd.cur < BLE_HCI_CMD_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur < sizeof(struct ble_hci_cmd)) {
         return;
     }
 
-    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_CMD_HDR_LEN) {
-        ble_hci_uart_state.rx_cmd.len = data + BLE_HCI_CMD_HDR_LEN;
+    if (ble_hci_uart_state.rx_cmd.cur == sizeof(struct ble_hci_cmd)) {
+        ble_hci_uart_state.rx_cmd.len = data + sizeof(struct ble_hci_cmd);
     }
 
     if (ble_hci_uart_state.rx_cmd.cur == ble_hci_uart_state.rx_cmd.len) {
@@ -625,13 +625,13 @@ ble_hci_uart_rx_evt(uint8_t data)
 
     ble_hci_uart_state.rx_cmd.data[ble_hci_uart_state.rx_cmd.cur++] = data;
 
-    if (ble_hci_uart_state.rx_cmd.cur < BLE_HCI_EVENT_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur < sizeof(struct ble_hci_ev)) {
         return;
     }
 
-    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_EVENT_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur == sizeof(struct ble_hci_ev)) {
         ble_hci_uart_state.rx_cmd.len = ble_hci_uart_state.rx_cmd.data[1] +
-                                        BLE_HCI_EVENT_HDR_LEN;
+                                        sizeof(struct ble_hci_ev);
     }
 
     ble_hci_uart_rx_evt_cb();
@@ -642,10 +642,10 @@ ble_hci_uart_rx_le_evt(uint8_t data)
 {
     ble_hci_uart_state.rx_cmd.cur++;
 
-    if (ble_hci_uart_state.rx_cmd.cur == BLE_HCI_EVENT_HDR_LEN) {
+    if (ble_hci_uart_state.rx_cmd.cur == sizeof(struct ble_hci_ev)) {
         /* LE Meta Event parameter length is never 0 */
         assert(data != 0);
-        ble_hci_uart_state.rx_cmd.len = data + BLE_HCI_EVENT_HDR_LEN;
+        ble_hci_uart_state.rx_cmd.len = data + sizeof(struct ble_hci_ev);
         return;
     }
 
@@ -668,7 +668,7 @@ ble_hci_uart_rx_le_evt(uint8_t data)
 
         ble_hci_uart_state.rx_cmd.data[0] = BLE_HCI_EVCODE_LE_META;
         ble_hci_uart_state.rx_cmd.data[1] =
-                ble_hci_uart_state.rx_cmd.len - BLE_HCI_EVENT_HDR_LEN;
+                ble_hci_uart_state.rx_cmd.len - sizeof(struct ble_hci_ev);
     }
 
     ble_hci_uart_state.rx_cmd.data[ble_hci_uart_state.rx_cmd.cur - 1] = data;

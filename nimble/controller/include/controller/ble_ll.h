@@ -426,7 +426,7 @@ void ble_ll_init(void);
 int ble_ll_reset(void);
 
 /* 'Boolean' function returning true if address is a valid random address */
-int ble_ll_is_valid_random_addr(uint8_t *addr);
+int ble_ll_is_valid_random_addr(const uint8_t *addr);
 
 /* Calculate the amount of time in microseconds a PDU with payload length of
  * 'payload_len' will take to transmit on a PHY 'phy_mode'. */
@@ -437,7 +437,7 @@ uint32_t ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode);
 uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
 
 /* Is this address a resolvable private address? */
-int ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type);
+int ble_ll_is_rpa(const uint8_t *addr, uint8_t addr_type);
 
 /* Is this address an identity address? */
 int ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type);
@@ -513,7 +513,7 @@ void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);
 int ble_ll_set_public_addr(const uint8_t *addr);
 
 /* Set random address */
-int ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext);
+int ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext);
 
 /* Enable wait for response timer */
 void ble_ll_wfr_enable(uint32_t cputime);

@@ -175,6 +175,39 @@ struct ble_ll_conn_phy_data
 
 #define BLE_PHY_TRANSITION_INVALID    (0xFF)
 
+struct hci_conn_update
+{
+    uint16_t handle;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+struct hci_ext_conn_params
+{
+    uint16_t scan_itvl;
+    uint16_t scan_window;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+struct hci_ext_create_conn
+{
+    uint8_t filter_policy;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+    uint8_t init_phy_mask;
+    struct hci_ext_conn_params params[3];
+};
+
 /* Connection state machine */
 struct ble_ll_conn_sm
 {

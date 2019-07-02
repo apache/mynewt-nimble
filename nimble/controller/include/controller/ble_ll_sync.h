@@ -29,11 +29,11 @@
 extern "C" {
 #endif
 
-int ble_ll_sync_create(uint8_t *cmdbuf);
+int ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb);
-int ble_ll_sync_terminate(uint8_t *cmdbuf);
-int ble_ll_sync_list_add(uint8_t *cmdbuf);
-int ble_ll_sync_list_remove(uint8_t *cmdbuf);
+int ble_ll_sync_terminate(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_sync_list_add(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_sync_list_remove(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_list_clear(void);
 int ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen);
 

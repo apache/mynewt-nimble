@@ -421,7 +421,7 @@ ble_ll_chk_txrx_time(uint16_t time)
  * @return int
  */
 int
-ble_ll_is_rpa(uint8_t *addr, uint8_t addr_type)
+ble_ll_is_rpa(const uint8_t *addr, uint8_t addr_type)
 {
     int rc;
 
@@ -441,7 +441,7 @@ ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type)
 
 /* Checks to see that the device is a valid random address */
 int
-ble_ll_is_valid_random_addr(uint8_t *addr)
+ble_ll_is_valid_random_addr(const uint8_t *addr)
 {
     int i;
     int rc;
@@ -502,8 +502,14 @@ ble_ll_set_public_addr(const uint8_t *addr)
  * @return int 0: success
  */
 int
-ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
+ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
 {
+    const struct ble_hci_le_set_rand_addr_cp *cmd = (const void *) cmdbuf;
+
+    if (len < sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* If the Host issues this command when scanning or legacy advertising is
      * enabled, the Controller shall return the error code Command Disallowed.
      *
@@ -515,11 +521,11 @@ ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    if (!ble_ll_is_valid_random_addr(addr)) {
+    if (!ble_ll_is_valid_random_addr(cmd->addr)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    memcpy(g_random_addr, addr, BLE_DEV_ADDR_LEN);
+    memcpy(g_random_addr, cmd->addr, BLE_DEV_ADDR_LEN);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* For instance 0 we need same address if legacy advertising might be
@@ -527,7 +533,7 @@ ble_ll_set_random_addr(uint8_t *addr, bool hci_adv_ext)
      * affect instance 0.
      */
     if (!hci_adv_ext)
-        ble_ll_adv_set_random_addr(addr, 0);
+        ble_ll_adv_set_random_addr(cmd->addr, 0);
 #endif
 
     return BLE_ERR_SUCCESS;

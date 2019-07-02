@@ -124,7 +124,7 @@ ble_hw_whitelist_clear(void)
  * @return int 0: success, BLE error code otherwise
  */
 int
-ble_hw_whitelist_add(uint8_t *addr, uint8_t addr_type)
+ble_hw_whitelist_add(const uint8_t *addr, uint8_t addr_type)
 {
     int i;
     uint32_t mask;
@@ -155,7 +155,7 @@ ble_hw_whitelist_add(uint8_t *addr, uint8_t addr_type)
  *
  */
 void
-ble_hw_whitelist_rmv(uint8_t *addr, uint8_t addr_type)
+ble_hw_whitelist_rmv(const uint8_t *addr, uint8_t addr_type)
 {
     int i;
     uint8_t cfg_addr;

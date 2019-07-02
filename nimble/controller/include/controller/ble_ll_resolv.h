@@ -51,22 +51,22 @@ int ble_ll_resolv_list_clr(void);
 int ble_ll_resolv_list_read_size(uint8_t *rspbuf, uint8_t *rsplen);
 
 /* Add a device to the resolving list */
-int ble_ll_resolv_list_add(uint8_t *cmdbuf);
+int ble_ll_resolv_list_add(const uint8_t *cmdbuf, uint8_t len);
 
 /* Remove a device from the resolving list */
-int ble_ll_resolv_list_rmv(uint8_t *cmdbuf);
+int ble_ll_resolv_list_rmv(const uint8_t *cmdbuf, uint8_t len);
 
 /* Address resolution enable command */
-int ble_ll_resolv_enable_cmd(uint8_t *cmdbuf);
+int ble_ll_resolv_enable_cmd(const uint8_t *cmdbuf, uint8_t len);
 
-int ble_ll_resolv_peer_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf,
-                               uint8_t *rsplen);
-int ble_ll_resolv_local_addr_rd(uint8_t *cmdbuf, uint8_t *rspbuf,
-                                uint8_t *rsplen);
+int ble_ll_resolv_peer_addr_rd(const uint8_t *cmdbuf, uint8_t len,
+                               uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_resolv_local_addr_rd(const uint8_t *cmdbuf, uint8_t len,
+                                uint8_t *rspbuf, uint8_t *rsplen);
 
 /* Finds 'addr' in resolving list. Doesnt check if address resolution enabled */
 struct ble_ll_resolv_entry *
-ble_ll_resolv_list_find(uint8_t *addr, uint8_t addr_type);
+ble_ll_resolv_list_find(const uint8_t *addr, uint8_t addr_type);
 
 /* Called to determine if the IRK is all zero. */
 int ble_ll_resolv_irk_nonzero(uint8_t *irk);
@@ -88,10 +88,10 @@ int ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa,
                           int local);
 
 /* Set the resolvable private address timeout */
-int ble_ll_resolv_set_rpa_tmo(uint8_t *cmdbuf);
+int ble_ll_resolv_set_rpa_tmo(const uint8_t *cmdbuf, uint8_t len);
 
 /* Set the privacy mode */
-int ble_ll_resolve_set_priv_mode(uint8_t *cmdbuf);
+int ble_ll_resolve_set_priv_mode(const uint8_t *cmdbuf, uint8_t len);
 
 /* Get the RPA timeout, in seconds */
 uint32_t ble_ll_resolv_get_rpa_tmo(void);

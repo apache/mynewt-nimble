@@ -500,20 +500,20 @@ ble_hs_sched_start(void)
 static void
 ble_hs_event_rx_hci_ev(struct ble_npl_event *ev)
 {
-    uint8_t *hci_evt;
+    const struct ble_hci_ev *hci_ev;
     int rc;
 
-    hci_evt = ble_npl_event_get_arg(ev);
+    hci_ev = ble_npl_event_get_arg(ev);
 
     rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
 #if BLE_MONITOR
-    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, hci_evt,
-                     hci_evt[1] + BLE_HCI_EVENT_HDR_LEN);
+    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, hci_ev,
+                     hci_ev->length + sizeof(*hci_ev));
 #endif
 
-    ble_hs_hci_evt_process(hci_evt);
+    ble_hs_hci_evt_process(hci_ev);
 }
 
 static void

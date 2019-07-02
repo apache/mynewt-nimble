@@ -29,6 +29,13 @@
 #include "ble_hs_test_util.h"
 #include "ble_sm_test_util.h"
 
+#define BLE_HCI_LT_KEY_REQ_REPLY_LEN        (18)
+#define BLE_HCI_LT_KEY_REQ_NEG_REPLY_LEN    (2)
+#define BLE_HCI_LT_KEY_REQ_REPLY_ACK_PARAM_LEN (2) /* No status byte. */
+#define BLE_HCI_LT_KEY_REQ_NEG_REPLY_ACK_PARAM_LEN (2)
+#define BLE_HCI_LE_START_ENCRYPT_LEN        (28)
+#define BLE_HCI_ADD_TO_RESOLV_LIST_LEN      (39)
+
 int ble_sm_test_gap_event_type;
 int ble_sm_test_gap_status;
 struct ble_gap_sec_state ble_sm_test_sec_state;
@@ -1239,13 +1246,13 @@ ble_sm_test_util_verify_tx_pair_fail(
 static void
 ble_sm_test_util_rx_lt_key_req(uint16_t conn_handle, uint64_t r, uint16_t ediv)
 {
-    struct hci_le_lt_key_req evt;
+    struct ble_hci_ev_le_subev_lt_key_req evt;
     int rc;
 
-    evt.subevent_code = BLE_HCI_LE_SUBEV_LT_KEY_REQ;
-    evt.connection_handle = conn_handle;
-    evt.random_number = r;
-    evt.encrypted_diversifier = ediv;
+    evt.subev_code = BLE_HCI_LE_SUBEV_LT_KEY_REQ;
+    evt.conn_handle = htole16(conn_handle);
+    evt.rand = htole64(r);
+    evt.div = htole16(ediv);
 
     rc = ble_sm_ltk_req_rx(&evt);
     TEST_ASSERT_FATAL(rc == 0);
@@ -1307,11 +1314,11 @@ static void
 ble_sm_test_util_rx_enc_change(uint16_t conn_handle, uint8_t status,
                                      uint8_t encryption_enabled)
 {
-    struct hci_encrypt_change evt;
+    struct ble_hci_ev_enrypt_chg evt;
 
     evt.status = status;
-    evt.encryption_enabled = encryption_enabled;
-    evt.connection_handle = conn_handle;
+    evt.enabled = encryption_enabled;
+    evt.connection_handle = htole16(conn_handle);
 
     ble_sm_enc_change_rx(&evt);
 }
