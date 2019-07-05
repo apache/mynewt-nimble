@@ -123,7 +123,11 @@ struct ble_ll_aux_data {
 
 struct ble_ll_scan_pdu_data {
     uint8_t hdr_byte;
-    uint8_t scana[BLE_DEV_ADDR_LEN];
+    /* ScanA for SCAN_REQ and InitA for CONNECT_IND */
+    union {
+        uint8_t scana[BLE_DEV_ADDR_LEN];
+        uint8_t inita[BLE_DEV_ADDR_LEN];
+    };
     uint8_t adva[BLE_DEV_ADDR_LEN];
 };
 
@@ -147,7 +151,6 @@ struct ble_ll_scan_sm
     uint16_t upper_limit;
     uint16_t backoff_count;
     uint32_t scan_win_start_time;
-    struct os_mbuf *scan_req_pdu;
     struct ble_npl_event scan_sched_ev;
     struct hal_timer scan_timer;
     struct ble_npl_event scan_wfr_ev;
@@ -214,8 +217,8 @@ struct hci_create_conn;
 int ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
                                 struct ble_ll_scan_sm **sm);
 
-/* Returns the PDU allocated by the scanner */
-struct os_mbuf *ble_ll_scan_get_pdu(void);
+/* Returns storage for PDU data (for SCAN_REQ or CONNECT_IND) */
+struct ble_ll_scan_pdu_data *ble_ll_scan_get_pdu_data(void);
 
 /* Called to set the resolvable private address of the last connected peer */
 void ble_ll_scan_set_peer_rpa(uint8_t *rpa);
