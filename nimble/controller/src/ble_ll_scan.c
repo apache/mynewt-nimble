@@ -325,33 +325,30 @@ ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
  *                  the advertiser; not our "own address type"
  */
 static void
-ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
-                         uint8_t adv_addr_type)
+ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
+                            uint8_t adv_addr_type)
 {
-    uint8_t     *dptr;
-    uint8_t     pdu_type;
+    uint8_t     hdr_byte;
     uint8_t     *scana;
-    struct os_mbuf *m;
+    struct ble_ll_scan_pdu_data *pdu_data;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     uint8_t rpa[BLE_DEV_ADDR_LEN];
     struct ble_ll_resolv_entry *rl;
 #endif
 
-    /* Construct first PDU header byte */
-    pdu_type = BLE_ADV_PDU_TYPE_SCAN_REQ;
-    if (adv_addr_type) {
-        pdu_type |= BLE_ADV_PDU_HDR_RXADD_RAND;
-    }
+    pdu_data = &scansm->pdu_data;
 
-    /* Get the advertising PDU */
-    m = scansm->scan_req_pdu;
-    BLE_LL_ASSERT(m != NULL);
+    /* Construct first PDU header byte */
+    hdr_byte = BLE_ADV_PDU_TYPE_SCAN_REQ;
+    if (adv_addr_type) {
+        hdr_byte |= BLE_ADV_PDU_HDR_RXADD_RAND;
+    }
 
     /* Get pointer to our device address */
     if ((scansm->own_addr_type & 1) == 0) {
         scana = g_dev_addr;
     } else {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
         scana = g_random_addr;
     }
 
@@ -384,16 +381,28 @@ ble_ll_scan_req_pdu_make(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
             scana = scansm->scan_nrpa;
         }
 
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 #endif
 
-    ble_ll_mbuf_init(m, BLE_SCAN_REQ_LEN, pdu_type);
+    /* Save scan request data */
+    pdu_data->hdr_byte = hdr_byte;
+    memcpy(pdu_data->scana, scana, BLE_DEV_ADDR_LEN);
+    memcpy(pdu_data->adva, adv_addr, BLE_DEV_ADDR_LEN);
+}
 
-    /* Construct the scan request */
-    dptr = m->om_data;
-    memcpy(dptr, scana, BLE_DEV_ADDR_LEN);
-    memcpy(dptr + BLE_DEV_ADDR_LEN, adv_addr, BLE_DEV_ADDR_LEN);
+static uint8_t
+ble_ll_scan_req_tx_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
+{
+    struct ble_ll_scan_sm *scansm = pducb_arg;
+    struct ble_ll_scan_pdu_data *pdu_data = &scansm->pdu_data;
+
+    memcpy(dptr, pdu_data->scana, BLE_DEV_ADDR_LEN);
+    memcpy(dptr + BLE_DEV_ADDR_LEN, pdu_data->adva, BLE_DEV_ADDR_LEN);
+
+    *hdr_byte = pdu_data->hdr_byte;
+
+    return BLE_DEV_ADDR_LEN * 2;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2377,8 +2386,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
 #endif
             /* XXX: TODO assume we are on correct phy */
-            ble_ll_scan_req_pdu_make(scansm, adv_addr, addr_type);
-            rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, scansm->scan_req_pdu,
+            ble_ll_scan_req_pdu_prepare(scansm, adv_addr, addr_type);
+            rc = ble_phy_tx(ble_ll_scan_req_tx_pducb, scansm,
                             BLE_PHY_TRANSITION_TX_RX);
 
             if (rc == 0) {
@@ -2904,7 +2913,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     uint8_t rxadd;
     uint8_t scan_rsp_chk;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
-    struct ble_mbuf_hdr *ble_hdr;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct ble_ll_aux_data *aux_data;
@@ -3017,9 +3025,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
              * that it is relatively close to the end of the scan request but
              * we wont for now.
              */
-            ble_hdr = BLE_MBUF_HDR_PTR(scansm->scan_req_pdu);
-            rxadd = ble_hdr->txinfo.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
-            adva = scansm->scan_req_pdu->om_data + BLE_DEV_ADDR_LEN;
+            rxadd = scansm->pdu_data.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
+            adva = scansm->pdu_data.adva;
             if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
                 !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
@@ -3717,18 +3724,7 @@ ble_ll_scan_get_peer_rpa(void)
 uint8_t *
 ble_ll_scan_get_local_rpa(void)
 {
-    uint8_t *rpa;
-    struct ble_ll_scan_sm *scansm;
-
-    scansm = &g_ble_ll_scan_sm;
-
-    /*
-     * The RPA we used is in connect request or scan request and is the
-     * first address in the packet
-     */
-    rpa = scansm->scan_req_pdu->om_data;
-
-    return rpa;
+    return g_ble_ll_scan_sm.pdu_data.scana;
 }
 
 /**
@@ -3748,11 +3744,10 @@ ble_ll_scan_set_peer_rpa(uint8_t *rpa)
     memcpy(scansm->scan_peer_rpa, rpa, BLE_DEV_ADDR_LEN);
 }
 
-/* Returns the PDU allocated by the scanner */
-struct os_mbuf *
-ble_ll_scan_get_pdu(void)
+struct ble_ll_scan_pdu_data *
+ble_ll_scan_get_pdu_data(void)
 {
-    return g_ble_ll_scan_sm.scan_req_pdu;
+    return &g_ble_ll_scan_sm.pdu_data;
 }
 
 /* Returns true if whitelist is enabled for scanning */
@@ -3811,11 +3806,6 @@ ble_ll_scan_common_init(void)
 #endif
 
     ble_npl_event_init(&scansm->scan_wfr_ev, ble_ll_scan_wfr_event_cb, scansm);
-
-    /* Get a scan request mbuf (packet header) and attach to state machine */
-    scansm->scan_req_pdu = os_msys_get_pkthdr(BLE_SCAN_LEGACY_MAX_PKT_LEN,
-                                              sizeof(struct ble_mbuf_hdr));
-    BLE_LL_ASSERT(scansm->scan_req_pdu != NULL);
 }
 
 /**
@@ -3841,9 +3831,6 @@ ble_ll_scan_reset(void)
     os_cputime_timer_stop(&scansm->duration_timer);
     os_cputime_timer_stop(&scansm->period_timer);
 #endif
-
-    /* Free the scan request pdu */
-    os_mbuf_free_chain(scansm->scan_req_pdu);
 
     /* Reset duplicate advertisers and those from which we rxd a response */
     g_ble_ll_scan_num_rsp_advs = 0;
