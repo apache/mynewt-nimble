@@ -2429,7 +2429,7 @@ ble_ll_conn_connect_ind_prepare(struct ble_ll_conn_sm *connsm,
     struct ble_ll_resolv_entry *rl;
 #endif
 
-    hdr = BLE_ADV_PDU_TYPE_CONNECT_REQ;
+    hdr = BLE_ADV_PDU_TYPE_CONNECT_IND;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     /* We need CSA2 bit only for legacy connect */

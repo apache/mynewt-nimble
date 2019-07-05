@@ -4078,7 +4078,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
 #endif
         if (crcok) {
             if ((pdu_type == BLE_ADV_PDU_TYPE_SCAN_REQ) ||
-                (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ)) {
+                (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_IND)) {
                 /* Process request */
                 rc = ble_ll_adv_rx_req(pdu_type, rxpdu);
             }
@@ -4140,7 +4140,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
      */
     adv_event_over = 1;
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
-        if (ptype == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+        if (ptype == BLE_ADV_PDU_TYPE_CONNECT_IND) {
             if (ble_ll_adv_conn_req_rxd(rxbuf, hdr, advsm)) {
                 adv_event_over = 0;
             }
@@ -4188,7 +4188,7 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
         }
     } else {
         /* Only accept connect requests if connectable advertising event */
-        if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_REQ) {
+        if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_IND) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
                 rc = 0;
             }
