@@ -2588,21 +2588,14 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
     return rc;
 }
 
-/**
- * Called when a connect request transmission is done.
- *
- * Context: ISR
- *
- * @param arg
- */
 static void
-ble_ll_conn_req_txend(void *arg)
+ble_ll_conn_connect_ind_txend_to_standby(void *arg)
 {
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 }
 
 static void
-ble_ll_conn_req_txend_init(void *arg)
+ble_ll_conn_connect_ind_txend_to_init(void *arg)
 {
     ble_ll_state_set(BLE_LL_STATE_INITIATING);
 }
@@ -2656,9 +2649,9 @@ ble_ll_conn_connect_ind_send(struct ble_ll_conn_sm *connsm, uint8_t end_trans)
     int rc;
 
     if (end_trans == BLE_PHY_TRANSITION_NONE) {
-        ble_phy_set_txend_cb(ble_ll_conn_req_txend, NULL);
+        ble_phy_set_txend_cb(ble_ll_conn_connect_ind_txend_to_standby, NULL);
     } else {
-        ble_phy_set_txend_cb(ble_ll_conn_req_txend_init, NULL);
+        ble_phy_set_txend_cb(ble_ll_conn_connect_ind_txend_to_init, NULL);
     }
 
     rc = ble_phy_tx(ble_ll_conn_connect_ind_tx_pducb, connsm, end_trans);
