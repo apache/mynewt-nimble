@@ -296,7 +296,7 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
     case BLE_ADV_PDU_TYPE_SCAN_RSP:
         STATS_INC(ble_ll_stats, rx_scan_rsps);
         break;
-    case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+    case BLE_ADV_PDU_TYPE_CONNECT_IND:
         STATS_INC(ble_ll_stats, rx_connect_reqs);
         break;
     case BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP:
@@ -1013,7 +1013,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             break;
         case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
             break;
-        case BLE_ADV_PDU_TYPE_CONNECT_REQ:
+        case BLE_ADV_PDU_TYPE_CONNECT_IND:
             if (len != BLE_CONNECT_REQ_LEN) {
                 badpkt = 1;
             }
