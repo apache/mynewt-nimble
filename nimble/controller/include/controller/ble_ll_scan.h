@@ -121,6 +121,12 @@ struct ble_ll_aux_data {
     struct ble_ll_ext_adv_report *evt;
 };
 
+struct ble_ll_scan_pdu_data {
+    uint8_t hdr_byte;
+    uint8_t scana[BLE_DEV_ADDR_LEN];
+    uint8_t adva[BLE_DEV_ADDR_LEN];
+};
+
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
@@ -135,6 +141,7 @@ struct ble_ll_scan_sm
     ble_npl_time_t scan_nrpa_timer;
     uint8_t scan_nrpa[BLE_DEV_ADDR_LEN];
 #endif
+    struct ble_ll_scan_pdu_data pdu_data;
 
     /* XXX: Shall we count backoff per phy? */
     uint16_t upper_limit;
