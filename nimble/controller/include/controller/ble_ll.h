@@ -455,12 +455,16 @@ uint8_t *ble_ll_get_our_devaddr(uint8_t addr_type);
 void ble_ll_acl_data_in(struct os_mbuf *txpkt);
 
 /**
- * Allocate a pdu (chain) for reception.
+ * Allocates mbuf for received PDU
  *
- * @param len Length of PDU. This includes the PDU header as well as payload.
- * Does not include MIC if encrypted.
+ * This allocated mbuf (may be chained if necessary) that has capacity large
+ * enough to store received PDU of given length. It does not set mbufs length
+ * as this has to be done by PHY when copying data.
  *
- * @return struct os_mbuf* Pointer to mbuf chain to hold received packet
+ * @param len  Length of PDU, including PDU header and excluding MIC (if encrypted)
+ *
+ * @return mbuf large enough to store received PDU on success
+ *         NULL on failure (oom)
  */
 struct os_mbuf *ble_ll_rxpdu_alloc(uint16_t len);
 

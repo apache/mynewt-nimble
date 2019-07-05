@@ -310,66 +310,65 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
     }
 }
 
-/**
- * Allocate a pdu (chain) for reception.
- *
- * @param len
- *
- * @return struct os_mbuf*
- */
 struct os_mbuf *
 ble_ll_rxpdu_alloc(uint16_t len)
 {
-    uint16_t mb_bytes;
-    struct os_mbuf *m;
-    struct os_mbuf *n;
-    struct os_mbuf *p;
+    struct os_mbuf *om_ret;
+    struct os_mbuf *om_next;
+    struct os_mbuf *om;
     struct os_mbuf_pkthdr *pkthdr;
+    uint16_t databuf_len;
+    int rem_len;
 
-    p = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
-    if (!p) {
-        goto rxpdu_alloc_exit;
+    om_ret = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
+    if (!om_ret) {
+        goto rxpdu_alloc_fail;
     }
 
-    /* Set packet length */
-    pkthdr = OS_MBUF_PKTHDR(p);
+    /* Set complete PDU length in packet header */
+    pkthdr = OS_MBUF_PKTHDR(om_ret);
     pkthdr->omp_len = len;
 
+    rem_len = len;
+
     /*
-     * NOTE: first mbuf in chain will have data pre-pended to it so we adjust
-     * m_data by a word.
+     * Calculate length of data in memory block. We assume length is rounded
+     * down to word size so PHY can do word-size aligned data copy to mbufs
+     * (except for last one) and leave remainder unused.
+     *
+     * Note that there likely won't be any remainder here since all pools have
+     * block size aligned to word size anyway.
      */
-    p->om_data += 4;
-    mb_bytes = (p->om_omp->omp_databuf_len - p->om_pkthdr_len - 4);
+    databuf_len = om_ret->om_omp->omp_databuf_len & ~3;
 
-    if (mb_bytes < len) {
-        n = p;
-        len -= mb_bytes;
-        while (len) {
-            m = os_msys_get(len, 0);
-            if (!m) {
-                os_mbuf_free_chain(p);
-                p = NULL;
-                goto rxpdu_alloc_exit;
-            }
-            /* Chain new mbuf to existing chain */
-            SLIST_NEXT(n, om_next) = m;
-            n = m;
-            mb_bytes = m->om_omp->omp_databuf_len;
-            if (mb_bytes >= len) {
-                len = 0;
-            } else {
-                len -= mb_bytes;
-            }
+    /*
+     * First mbuf can store less data due to packet header. Also we reserve one
+     * word for leading space to prepend header when necessary (like for data
+     * PDU before handing over to HCI)
+     */
+    om_ret->om_data += 4;
+    rem_len -= databuf_len - om_ret->om_pkthdr_len - 4;
+
+    /* Allocate and chain mbufs until there's enough space to store complete PDU */
+    om = om_ret;
+    while (rem_len > 0) {
+        om_next = os_msys_get(rem_len, 0);
+        if (!om_next) {
+            os_mbuf_free_chain(om_ret);
+            goto rxpdu_alloc_fail;
         }
+
+        SLIST_NEXT(om, om_next) = om_next;
+        om = om_next;
+
+        rem_len -= databuf_len;
     }
 
+    return om_ret;
 
-rxpdu_alloc_exit:
-    if (!p) {
-        STATS_INC(ble_ll_stats, no_bufs);
-    }
-    return p;
+rxpdu_alloc_fail:
+    STATS_INC(ble_ll_stats, no_bufs);
+    return NULL;
 }
 
 int
