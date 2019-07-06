@@ -397,69 +397,80 @@ ble_phy_get_cur_phy(void)
 void
 ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
 {
-    uint16_t rem_bytes;
-    uint16_t mb_bytes;
-    uint16_t copylen;
-    uint32_t *dst;
-    uint32_t *src;
-    struct os_mbuf *m;
-    struct ble_mbuf_hdr *ble_hdr;
-    struct os_mbuf_pkthdr *pkthdr;
+    uint32_t rem_len;
+    uint32_t copy_len;
+    uint32_t block_len;
+    void *dst;
+    void *src;
+    struct os_mbuf * om;
 
     /* Better be aligned */
     assert(((uint32_t)dptr & 3) == 0);
 
-    pkthdr = OS_MBUF_PKTHDR(rxpdu);
-    rem_bytes = pkthdr->omp_len;
+    block_len = rxpdu->om_omp->omp_databuf_len;
+    rem_len = OS_MBUF_PKTHDR(rxpdu)->omp_len;
+    src = dptr;
 
-    /* Fill in the mbuf pkthdr first. */
-    dst = (uint32_t *)(rxpdu->om_data);
-    src = (uint32_t *)dptr;
+    /*
+     * Setup for copying from first mbuf which is shorter due to packet header
+     * and extra leading space
+     */
+    copy_len = block_len - rxpdu->om_pkthdr_len - 4;
+    om = rxpdu;
+    dst = om->om_data;
 
-    mb_bytes = (rxpdu->om_omp->omp_databuf_len - rxpdu->om_pkthdr_len - 4);
-    copylen = min(mb_bytes, rem_bytes);
-    copylen &= 0xFFFC;
-    rem_bytes -= copylen;
-    mb_bytes -= copylen;
-    rxpdu->om_len = copylen;
-    while (copylen > 0) {
-        *dst = *src;
-        ++dst;
-        ++src;
-        copylen -= 4;
-    }
+    while (om) {
+        /*
+         * Always copy blocks of length aligned to word size, only last mbuf
+         * will have remaining non-word size bytes appended.
+         */
+        copy_len = min(copy_len, rem_len);
+        copy_len &= ~3;
 
-    /* Copy remaining bytes */
-    m = rxpdu;
-    while (rem_bytes > 0) {
-        /* If there are enough bytes in the mbuf, copy them and leave */
-        if (rem_bytes <= mb_bytes) {
-            memcpy(m->om_data + m->om_len, src, rem_bytes);
-            m->om_len += rem_bytes;
+        dst = om->om_data;
+        om->om_len = copy_len;
+        rem_len -= copy_len;
+
+        __asm__ volatile (".syntax unified              \n"
+                          "   mov  r4, %[len]           \n"
+                          "   b    2f                   \n"
+                          "1: ldr  r3, [%[src], %[len]] \n"
+                          "   str  r3, [%[dst], %[len]] \n"
+                          "2: subs %[len], #4           \n"
+                          "   bpl  1b                   \n"
+                          "   adds %[src], %[src], r4   \n"
+                          "   adds %[dst], %[dst], r4   \n"
+                          : [dst] "+r" (dst), [src] "+r" (src),
+                            [len] "+r" (copy_len)
+                          :
+                          : "r3", "r4", "memory"
+                         );
+
+        if (rem_len < 4) {
             break;
         }
 
-        m = SLIST_NEXT(m, om_next);
-        assert(m != NULL);
-
-        mb_bytes = m->om_omp->omp_databuf_len;
-        copylen = min(mb_bytes, rem_bytes);
-        copylen &= 0xFFFC;
-        rem_bytes -= copylen;
-        mb_bytes -= copylen;
-        m->om_len = copylen;
-        dst = (uint32_t *)m->om_data;
-        while (copylen > 0) {
-            *dst = *src;
-            ++dst;
-            ++src;
-            copylen -= 4;
-        }
+        /* Move to next mbuf */
+        om = SLIST_NEXT(om, om_next);
+        copy_len = block_len;
     }
 
-    /* Copy ble header */
-    ble_hdr = BLE_MBUF_HDR_PTR(rxpdu);
-    memcpy(ble_hdr, &g_ble_phy_data.rxhdr, sizeof(struct ble_mbuf_hdr));
+    /* Copy remaining bytes, if any, to last mbuf */
+    om->om_len += rem_len;
+    __asm__ volatile (".syntax unified              \n"
+                      "   b    2f                   \n"
+                      "1: ldrb r3, [%[src], %[len]] \n"
+                      "   strb r3, [%[dst], %[len]] \n"
+                      "2: subs %[len], #1           \n"
+                      "   bpl  1b                   \n"
+                      : [len] "+r" (rem_len)
+                      : [dst] "r" (dst), [src] "r" (src)
+                      : "r3", "memory"
+                     );
+
+    /* Copy header */
+    memcpy(BLE_MBUF_HDR_PTR(rxpdu), &g_ble_phy_data.rxhdr,
+           sizeof(struct ble_mbuf_hdr));
 }
 
 /**
