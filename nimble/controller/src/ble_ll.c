@@ -320,6 +320,18 @@ ble_ll_rxpdu_alloc(uint16_t len)
     uint16_t databuf_len;
     int rem_len;
 
+    /*
+     * Make sure that data in mbuf are word-aligned with and without packet
+     * header. This is essential for proper and quick copying of received PDUs
+     * into mbufs.
+     */
+    _Static_assert((offsetof(struct os_mbuf, om_data) & 3) == 0,
+                   "Unaligned om_data");
+    _Static_assert(((offsetof(struct os_mbuf, om_data) +
+                     sizeof(struct os_mbuf_pkthdr) +
+                     sizeof(struct ble_mbuf_hdr)) & 3) == 0,
+                   "Unaligned data trailing packet header");
+
     om_ret = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
     if (!om_ret) {
         goto rxpdu_alloc_fail;
