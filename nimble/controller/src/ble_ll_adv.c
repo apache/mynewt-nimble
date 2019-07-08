@@ -4437,13 +4437,13 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     }
 
     /*
-     * In the unlikely event we cant reschedule this, just post a done
-     * event and we will reschedule the next advertising event
+     * In the unlikely event we can't reschedule this, just post a done event
+     * and we will reschedule the next advertising PDU.
      */
     rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
     if (rc) {
         STATS_INC(ble_ll_stats, adv_resched_pdu_fail);
-        ble_ll_adv_drop_event(advsm);
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
     }
 }
 
