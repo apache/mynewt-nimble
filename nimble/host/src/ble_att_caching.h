@@ -37,9 +37,9 @@
 extern "C" {
 #endif
 
-#define BLE_ATT_CASHING_MAX_SVCS               32
-#define BLE_ATT_CASHING_MAX_CHRS               64
-#define BLE_ATT_CASHING_MAX_DSCS               64
+#define BLE_ATT_CACHING_MAX_SVCS               32
+#define BLE_ATT_CACHING_MAX_CHRS               64
+#define BLE_ATT_CACHING_MAX_DSCS               64
 #define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
 
 /**
@@ -180,22 +180,7 @@ ble_att_caching_set_all_dscs_cached(uint16_t conn_handle, uint16_t chr_val_handl
  *                      BLE_HS_EINVAL We need to discover as of the three concisions is violated.
  */
 int
-ble_att_caching_check_if_services_cached(uint16_t conn_handle);
-
-/**
- * If all services are already cached, we will not discover on air we need to
- * notify the app with all cached services.
- *
- * @param conn_handle      connection handle for the current connection
- *                                        from the gap descriptor
- * @param cb                    The function to call to report procedure status
- *                                  updates; null for no callback.
- * @param cb_arg                The optional argument to pass to the callback
- *                                  function.
- * @return              Void
- */
-void
-ble_att_caching_notify_application_with_cached_services(uint16_t conn_handle,
+ble_att_caching_check_if_services_cached(uint16_t conn_handle,
         ble_gatt_disc_svc_fn *cb, void *cb_arg);
 
 /**
@@ -255,27 +240,6 @@ ble_att_caching_check_if_dsc_cached(uint16_t conn_handle,
  */
 uint16_t
 ble_att_caching_get_service_changed_att_handle(uint16_t conn_handle);
-
-/**
- * When receive indication the a specific range of attribute is changed, delete all stored
- * attribute in attribute caching.
- *
- * @param conn_handle      connection handle for the current connection
- *                                        from the gap descriptor
- * @param start_handle  The start Attribute Handle shall be the start Attribute Handle of
- *                                         the service definition containing the change
- * @param end_handle   The end Attribute Handle shall
- *                                         be the last Attribute Handle of the service definition
- *                                         containing the change.
- *
- * @return               0  on success
- *                      BLE_HS_ENOTCONN if no matching connection was
- *                  found
- *                      BLE_HS_EINVAL service is not found with that start handle.
- */
-int
-ble_att_caching_service_changed_rx(uint16_t conn_handle, uint16_t start_handle,
-        uint16_t end_handle);
 
 /**
  * Initialize services, characteristics and descriptors memory pools.

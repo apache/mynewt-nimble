@@ -57,16 +57,17 @@ static struct ble_att_caching_conn ble_att_caching_conns[MYNEWT_VAL(
 static int ble_att_caching_num_conns = 0;
 
 static os_membuf_t ble_att_caching_svc_mem[OS_MEMPOOL_SIZE(
-        BLE_ATT_CASHING_MAX_SVCS, sizeof(struct ble_att_caching_svc))];
+        BLE_ATT_CACHING_MAX_SVCS, sizeof(struct ble_att_caching_svc))];
 static struct os_mempool ble_att_caching_svc_pool;
 
 static os_membuf_t ble_att_caching_chr_mem[OS_MEMPOOL_SIZE(
-        BLE_ATT_CASHING_MAX_CHRS, sizeof(struct ble_att_caching_chr))];
+        BLE_ATT_CACHING_MAX_CHRS, sizeof(struct ble_att_caching_chr))];
 static struct os_mempool ble_att_caching_chr_pool;
 
 static os_membuf_t ble_att_caching_dsc_mem[OS_MEMPOOL_SIZE(
-        BLE_ATT_CASHING_MAX_DSCS, sizeof(struct ble_att_caching_dsc))];
+        BLE_ATT_CACHING_MAX_DSCS, sizeof(struct ble_att_caching_dsc))];
 static struct os_mempool ble_att_caching_dsc_pool;
+static struct ble_gap_event_listener ble_att_caching_gap_listener;
 
 static void
 ble_att_caching_chr_delete(struct ble_att_caching_chr *chr)
@@ -128,7 +129,7 @@ ble_att_caching_conn_find_by_add(ble_addr_t *peer_addr)
 
     for (i = 0; i < ble_att_caching_num_conns; i++) {
         if (!ble_addr_cmp((const ble_addr_t *)
-        		&ble_att_caching_conns[i].peer_id_addr,
+                &ble_att_caching_conns[i].peer_id_addr,
                 (const ble_addr_t *) peer_addr)) {
 
             return ble_att_caching_conns + i;
@@ -146,8 +147,7 @@ ble_att_caching_svc_find_prev(struct ble_att_caching_conn *conn,
     struct ble_att_caching_svc *svc;
 
     prev = NULL;
-    SLIST_FOREACH(svc, &conn->svcs, next)
-    {
+    SLIST_FOREACH(svc, &conn->svcs, next) {
         if (svc->svc.start_handle >= svc_start_handle) {
             break;
         }
@@ -188,10 +188,9 @@ ble_att_caching_svc_find_range(struct ble_att_caching_conn *conn,
 {
     struct ble_att_caching_svc *svc;
 
-    SLIST_FOREACH(svc, &conn->svcs, next)
-    {
-        if (svc->svc.start_handle <= attr_handle
-                && svc->svc.end_handle >= attr_handle) {
+    SLIST_FOREACH(svc, &conn->svcs, next) {
+        if (svc->svc.start_handle <= attr_handle &&
+                svc->svc.end_handle >= attr_handle) {
 
             return svc;
         }
@@ -208,8 +207,7 @@ ble_att_caching_dsc_find_prev(const struct ble_att_caching_chr *chr,
     struct ble_att_caching_dsc *dsc;
 
     prev = NULL;
-    SLIST_FOREACH(dsc, &chr->dscs, next)
-    {
+    SLIST_FOREACH(dsc, &chr->dscs, next) {
         if (dsc->dsc.handle >= dsc_handle) {
             break;
         }
@@ -252,8 +250,7 @@ ble_att_caching_chr_find_prev(const struct ble_att_caching_svc *svc,
     struct ble_att_caching_chr *chr;
 
     prev = NULL;
-    SLIST_FOREACH(chr, &svc->chrs, next)
-    {
+    SLIST_FOREACH(chr, &svc->chrs, next) {
         if (chr->chr.val_handle >= chr_val_handle) {
             break;
         }
@@ -295,7 +292,7 @@ ble_att_caching_conn_add(struct ble_gap_conn_desc *desc)
     assert(ble_att_caching_num_conns < MYNEWT_VAL(BLE_MAX_CONNECTIONS) );
     conn = ble_att_caching_conn_find_by_add(&desc->peer_id_addr);
     if (conn != NULL) {
-    	return conn;
+        return conn;
     }
     conn = ble_att_caching_conns + ble_att_caching_num_conns;
     ble_att_caching_num_conns++;
@@ -421,12 +418,13 @@ ble_att_caching_set_all_dscs_cached(uint16_t conn_handle, uint16_t chr_val_handl
 }
 
 int
-ble_att_caching_check_if_services_cached(uint16_t conn_handle)
+ble_att_caching_check_if_services_cached(uint16_t conn_handle,
+        ble_gatt_disc_svc_fn *cb, void *cb_arg)
 {
     struct ble_gap_conn_desc desc;
     struct ble_att_caching_conn *conn;
     struct ble_att_caching_svc *svc;
-
+    int status = 0;
     conn = ble_att_caching_conn_find(conn_handle);
     if (conn == NULL) {
         BLE_HS_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
@@ -438,14 +436,20 @@ ble_att_caching_check_if_services_cached(uint16_t conn_handle)
 
     /* Check bonded , all services cached and they have
      *  the same address at the same time. */
-    if (desc.sec_state.bonded && conn->all_services_cached
-            && !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
+    if (desc.sec_state.bonded && conn->all_services_cached &&
+            !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
                     (const ble_addr_t *) &desc.peer_id_addr)) {
         /* Then don`t discover. */
+        SLIST_FOREACH(svc, &conn->svcs, next) {
+            cb(conn_handle, ble_gattc_error(status, 0), &svc->svc, cb_arg);
+        }
+        status = BLE_HS_EDONE;
+        cb(conn_handle, ble_gattc_error(status, 0), &svc->svc, cb_arg);
+
         return 0;
     } else {
         while ((svc = SLIST_FIRST(&conn->svcs)) != NULL) {
-        	conn->all_services_cached = 0;
+            conn->all_services_cached = 0;
             SLIST_REMOVE_HEAD(&conn->svcs, next);
             ble_att_caching_svc_delete(svc);
         }
@@ -480,11 +484,10 @@ ble_att_caching_check_if_chars_cached(uint16_t conn_handle,
     }
     /* Check bonded , all services cached and they have
      *  the same address at the same time. */
-    if (desc.sec_state.bonded && svc->all_chars_cached
-            && !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
+    if (desc.sec_state.bonded && svc->all_chars_cached &&
+            !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
                     (const ble_addr_t *) &desc.peer_id_addr)) {
-        SLIST_FOREACH(chr, &svc->chrs, next)
-        {
+        SLIST_FOREACH(chr, &svc->chrs, next) {
            cb(conn_handle, ble_gattc_error(status, 0), &chr->chr, cb_arg);
         }
         status = BLE_HS_EDONE;
@@ -530,11 +533,10 @@ ble_att_caching_check_if_dsc_cached(uint16_t conn_handle,
     }
     /* Check bonded , all services cached and they have
      *  the same address at the same time. */
-    if (desc.sec_state.bonded && chr->all_dsc_cached
-            && !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
+    if (desc.sec_state.bonded && chr->all_dsc_cached &&
+            !ble_addr_cmp((const ble_addr_t *) &conn->peer_id_addr,
                     (const ble_addr_t *) &desc.peer_id_addr)) {
-        SLIST_FOREACH(dsc, &chr->dscs, next)
-        {
+        SLIST_FOREACH(dsc, &chr->dscs, next) {
             cb(conn_handle, ble_gattc_error(status, 0), chr_val_handle,
                     &dsc->dsc, cb_arg);
         }
@@ -546,24 +548,6 @@ ble_att_caching_check_if_dsc_cached(uint16_t conn_handle,
     }
 
     return BLE_HS_EINVAL;
-}
-
-void
-ble_att_caching_notify_application_with_cached_services(
-        uint16_t conn_handle, ble_gatt_disc_svc_fn *cb, void *cb_arg)
-{
-    struct ble_att_caching_svc *svc;
-    struct ble_att_caching_conn *conn;
-    int status = 0;
-    conn = ble_att_caching_conn_find(conn_handle);
-
-    SLIST_FOREACH(svc, &conn->svcs, next)
-    {
-        cb(conn_handle, ble_gattc_error(status, 0), &svc->svc, cb_arg);
-    }
-    status = BLE_HS_EDONE;
-    cb(conn_handle, ble_gattc_error(status, 0), &svc->svc, cb_arg);
-
 }
 
 int ble_att_caching_chr_add(uint16_t conn_handle, uint16_t svc_start_handle,
@@ -689,24 +673,28 @@ ble_att_caching_get_service_changed_att_handle(uint16_t conn_handle)
     return conn->service_changed_att_handle;
 }
 
-int
-ble_att_caching_service_changed_rx(uint16_t conn_handle,
-        uint16_t start_handle, uint16_t end_handle)
+static int
+ble_att_caching_service_changed_rx(struct ble_gap_event *event, void *arg)
 {
     struct ble_att_caching_conn *conn;
     struct ble_att_caching_svc *svc;
     struct ble_att_caching_svc *prev;
     uint16_t svc_end_handle;
+    if(event->type != BLE_GAP_EVENT_SERVICE_CHANGED_RX) {
+        return 0;
+    }
 
-    conn = ble_att_caching_conn_find(conn_handle);
+    conn = ble_att_caching_conn_find(
+            event->indicate_svc_changed_rx.conn_handle);
     if (conn == NULL) {
         BLE_HS_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
                 "HANDLE=%d\n",
-                conn_handle);
+                event->indicate_svc_changed_rx.conn_handle);
         return BLE_HS_ENOTCONN;
     }
     conn->all_services_cached = 0;
-    svc = ble_att_caching_svc_find(conn, start_handle, &prev);
+    svc = ble_att_caching_svc_find(conn,
+            event->indicate_svc_changed_rx.start_handle, &prev);
     if (svc == NULL) {
         /* Service not found. */
         return BLE_HS_EINVAL;
@@ -715,31 +703,34 @@ ble_att_caching_service_changed_rx(uint16_t conn_handle,
         svc_end_handle = svc->svc.end_handle;
         SLIST_NEXT((prev), next) = SLIST_NEXT((svc), next);
         ble_att_caching_svc_delete(svc);
-        if (svc_end_handle == end_handle) {
+        if (svc_end_handle == event->indicate_svc_changed_rx.end_handle) {
             break;
         }
     }
     return 0;
-
 }
 
 int
 ble_att_caching_init(void)
 {
     int rc;
-    rc = os_mempool_init(&ble_att_caching_svc_pool, BLE_ATT_CASHING_MAX_SVCS,
+    rc = os_mempool_init(&ble_att_caching_svc_pool, BLE_ATT_CACHING_MAX_SVCS,
             sizeof(struct ble_att_caching_svc), ble_att_caching_svc_mem,
             "ble_att_caching_svc_pool");
     BLE_HS_DBG_ASSERT(rc == 0);
 
-    rc = os_mempool_init(&ble_att_caching_chr_pool, BLE_ATT_CASHING_MAX_CHRS,
+    rc = os_mempool_init(&ble_att_caching_chr_pool, BLE_ATT_CACHING_MAX_CHRS,
             sizeof(struct ble_att_caching_chr), ble_att_caching_chr_mem,
             "ble_att_caching_chr_pool");
     BLE_HS_DBG_ASSERT(rc == 0);
 
-    rc = os_mempool_init(&ble_att_caching_dsc_pool, BLE_ATT_CASHING_MAX_DSCS,
+    rc = os_mempool_init(&ble_att_caching_dsc_pool, BLE_ATT_CACHING_MAX_DSCS,
             sizeof(struct ble_att_caching_dsc), ble_att_caching_dsc_mem,
             "ble_att_caching_dsc_pool");
     BLE_HS_DBG_ASSERT(rc == 0);
+    rc = ble_gap_event_listener_register(&ble_att_caching_gap_listener,
+            ble_att_caching_service_changed_rx, NULL);
+    BLE_HS_DBG_ASSERT(rc == 0);
+
     return rc;
 }

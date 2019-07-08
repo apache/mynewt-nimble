@@ -128,7 +128,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_REPORT       21
 #define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
 #define BLE_GAP_EVENT_SCAN_REQ_RCVD         23
-#define BLE_GAP_EVENT_SERVICE_CHANGED_RX             25
+#define BLE_GAP_EVENT_SERVICE_CHANGED_RX      24
 
 
 /*** Reason codes for the subscribe GAP event. */

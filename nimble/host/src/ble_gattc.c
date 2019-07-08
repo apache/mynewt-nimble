@@ -1537,12 +1537,11 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
     key_sec.peer_addr = desc.peer_id_addr;
 
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
-    if (rc == 5 && !value_sec.ltk_present) {
-    ble_att_caching_conn_add(&desc);
+    if (rc == BLE_HS_ENOENT && !value_sec.ltk_present) {
+         ble_att_caching_conn_add(&desc);
     }
-    rc = ble_att_caching_check_if_services_cached(conn_handle);
+    rc = ble_att_caching_check_if_services_cached(conn_handle,cb,cb_arg);
     if(rc == 0) {
-    	ble_att_caching_notify_application_with_cached_services(conn_handle,cb,cb_arg);
     	return rc;
     }
     STATS_INC(ble_gattc_stats, disc_all_svcs);
@@ -2621,11 +2620,13 @@ ble_gattc_disc_all_dscs_cb(struct ble_gattc_proc *proc, int status,
     } else {
         switch (status) {
         case 0:
-        	ble_att_caching_dsc_add(proc->conn_handle, proc->disc_all_dscs.chr_val_handle, dsc);
+        	ble_att_caching_dsc_add(proc->conn_handle,
+        	        proc->disc_all_dscs.chr_val_handle, dsc);
             break;
 
         case BLE_HS_EDONE:
-            ble_att_caching_set_all_dscs_cached(proc->conn_handle,proc->disc_all_dscs.chr_val_handle);
+            ble_att_caching_set_all_dscs_cached(proc->conn_handle,
+                    proc->disc_all_dscs.chr_val_handle);
 			break;
         default:
             BLE_HS_LOG(INFO, "error with conn_handle= %d\n",proc->conn_handle);

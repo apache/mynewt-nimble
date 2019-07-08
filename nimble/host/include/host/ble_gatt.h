@@ -116,8 +116,7 @@ typedef int ble_gatt_disc_svc_fn(uint16_t conn_handle,
                                  const struct ble_gatt_error *error,
                                  const struct ble_gatt_svc *service,
                                  void *arg);
-struct ble_gatt_error *
-ble_gattc_error(int status, uint16_t att_handle);
+
 /**
  * The host will free the attribute mbuf automatically after the callback is
  * executed.  The application can take ownership of the mbuf and prevent it
@@ -518,6 +517,9 @@ int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
  * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
+
+struct ble_gatt_error *
+ble_gattc_error(int status, uint16_t att_handle);
 
 int ble_gattc_init(void);
 
