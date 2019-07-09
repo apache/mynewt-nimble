@@ -274,6 +274,16 @@ struct gap_passkey_confirm_cmd {
 	u8_t match;
 } __packed;
 
+#define GAP_CONN_PARAM_UPDATE		0x16
+struct gap_conn_param_update_cmd {
+    u8_t address_type;
+    u8_t address[6];
+    u16_t conn_itvl_min;
+    u16_t conn_itvl_max;
+    u16_t conn_latency;
+    u16_t supervision_timeout;
+} __packed;
+
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {
@@ -298,6 +308,9 @@ struct gap_device_found_ev {
 struct gap_device_connected_ev {
 	u8_t address_type;
 	u8_t address[6];
+	u16_t conn_itvl;
+	u16_t conn_latency;
+	u16_t supervision_timeout;
 } __packed;
 
 #define GAP_EV_DEVICE_DISCONNECTED	0x83
@@ -332,6 +345,15 @@ struct gap_identity_resolved_ev {
 	u8_t address[6];
 	u8_t identity_address_type;
 	u8_t identity_address[6];
+} __packed;
+
+#define GAP_EV_CONN_PARAM_UPDATE	0x88
+struct gap_conn_param_update_ev {
+    u8_t address_type;
+    u8_t address[6];
+    u16_t conn_itvl;
+    u16_t conn_latency;
+    u16_t supervision_timeout;
 } __packed;
 
 /* GATT Service */
