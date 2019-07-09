@@ -25,6 +25,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <host/ble_gap.h>
 #include "host/ble_gap.h"
 #include "console/console.h"
 
@@ -665,7 +666,9 @@ static void le_connected(u16_t conn_handle, int status)
 
 	memcpy(ev.address, addr->val, sizeof(ev.address));
 	ev.address_type = addr->type;
-
+	ev.conn_itvl = desc.conn_itvl;
+	ev.conn_latency = desc.conn_latency;
+	ev.supervision_timeout = desc.supervision_timeout;
 
 #if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
 	if (desc.role == BLE_GAP_ROLE_MASTER) {
@@ -826,6 +829,23 @@ static void le_identity_resolved(u16_t conn_handle)
 static void le_encryption_changed(struct ble_gap_conn_desc *desc)
 {
 	encrypted = (bool) desc->sec_state.encrypted;
+}
+
+static void le_conn_param_update(struct ble_gap_conn_desc *desc)
+{
+	struct gap_conn_param_update_ev ev;
+
+	SYS_LOG_DBG("");
+
+	ev.address_type = desc->peer_ota_addr.type;
+	memcpy(ev.address, desc->peer_ota_addr.val, sizeof(ev.address));
+
+	ev.conn_itvl = desc->conn_itvl;
+	ev.conn_latency = desc->conn_latency;
+	ev.supervision_timeout = desc->supervision_timeout;
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_CONN_PARAM_UPDATE,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 
 static void print_bytes(const uint8_t *bytes, int len)
@@ -1004,6 +1024,30 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 		rc = ble_store_util_delete_peer(&desc.peer_id_addr);
 		assert(rc == 0);
 		return BLE_GAP_REPEAT_PAIRING_RETRY;
+	case BLE_GAP_EVENT_CONN_UPDATE:
+		console_printf("connection update event; status=%d ",
+			       event->conn_update.status);
+			rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
+			assert(rc == 0);
+			print_conn_desc(&desc);
+			le_conn_param_update(&desc);
+		break;
+	case BLE_GAP_EVENT_CONN_UPDATE_REQ:
+		console_printf("connection update request event; "
+			       "conn_handle=%d itvl_min=%d itvl_max=%d "
+			       "latency=%d supervision_timoeut=%d "
+			       "min_ce_len=%d max_ce_len=%d\n",
+			       event->conn_update_req.conn_handle,
+			       event->conn_update_req.peer_params->itvl_min,
+			       event->conn_update_req.peer_params->itvl_max,
+			       event->conn_update_req.peer_params->latency,
+			       event->conn_update_req.peer_params->supervision_timeout,
+			       event->conn_update_req.peer_params->min_ce_len,
+			       event->conn_update_req.peer_params->max_ce_len);
+
+		*event->conn_update_req.self_params =
+			*event->conn_update_req.peer_params;
+		break;
 	default:
 		break;
 	}
@@ -1210,6 +1254,97 @@ rsp:
 		   status);
 }
 
+static void conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
+{
+	u8_t btp_status;
+
+	console_printf("conn param update complete; conn_handle=%d status=%d\n",
+		       conn_handle, status);
+
+	btp_status = status ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE,
+		   CONTROLLER_INDEX, btp_status);
+}
+
+static int conn_param_update_slave(u16_t conn_handle,
+				   const struct gap_conn_param_update_cmd *cmd)
+{
+	int rc;
+	struct ble_l2cap_sig_update_params params;
+
+	params.itvl_min = cmd->conn_itvl_min;
+	params.itvl_max = cmd->conn_itvl_max;
+	params.slave_latency = cmd->conn_latency;
+	params.timeout_multiplier = cmd->supervision_timeout;
+
+	rc = ble_l2cap_sig_update(conn_handle, &params,
+				  conn_param_update_cb, NULL);
+	if (rc) {
+		tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+	}
+
+	return 0;
+}
+
+static int conn_param_update_master(u16_t conn_handle,
+				    const struct gap_conn_param_update_cmd *cmd)
+{
+	int rc;
+	struct ble_gap_upd_params params;
+
+	params.itvl_min = cmd->conn_itvl_min;
+	params.itvl_max = cmd->conn_itvl_max;
+	params.latency = cmd->conn_latency;
+	params.supervision_timeout = cmd->supervision_timeout;
+	rc = ble_gap_update_params(conn_handle, &params);
+	if (rc) {
+		SYS_LOG_ERR("Failed to send update params: rc=%d", rc);
+	}
+
+	return rc;
+}
+
+static void conn_param_update(const u8_t *data, u16_t len)
+{
+	const struct gap_conn_param_update_cmd *cmd = (void *) data;
+	struct ble_gap_conn_desc desc;
+	u8_t status = BTP_STATUS_SUCCESS;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	if (rc) {
+		status = BTP_STATUS_FAILED;
+		goto rsp;
+	}
+
+	if ((desc.conn_itvl >= cmd->conn_itvl_min) &&
+	    (desc.conn_itvl <= cmd->conn_itvl_max) &&
+	    (desc.conn_latency == cmd->conn_latency) &&
+	    (desc.supervision_timeout == cmd->supervision_timeout)) {
+		goto rsp;
+	}
+
+	if (desc.role == BLE_GAP_ROLE_MASTER) {
+		rc = conn_param_update_master(desc.conn_handle, cmd);
+	} else {
+		rc = conn_param_update_slave(desc.conn_handle, cmd);
+		if (!rc) {
+			/* Response will be sent from callback */
+			return;
+		}
+	}
+
+	status = rc ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
+
+rsp:
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE, CONTROLLER_INDEX,
+		   status);
+}
+
 void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		       u16_t len)
 {
@@ -1279,6 +1414,9 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GAP_PASSKEY_CONFIRM:
 		passkey_confirm(data, len);
+		return;
+	case GAP_CONN_PARAM_UPDATE:
+		conn_param_update(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
