@@ -454,15 +454,9 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
         return;
     }
 
-    if (aux_data->evt) {
-        evt = aux_data->evt;
-        aux_data->evt = NULL;
-    } else {
-        evt = ble_ll_scan_init_ext_adv_report(NULL);
-        if (!evt) {
-            return;
-        }
-    }
+    BLE_LL_ASSERT(aux_data->evt);
+    evt = aux_data->evt;
+    aux_data->evt = NULL;
 
     evt->event_len = sizeof(*evt) - BLE_HCI_EVENT_HDR_LEN;
     evt->evt_type = aux_data->evt_type;
