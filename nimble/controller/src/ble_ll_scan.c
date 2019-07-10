@@ -3155,8 +3155,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                          */
                         ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
                         aux_data->sch.cb_arg = NULL;
-                        evt_possibly_truncated = 1;
+
                     }
+                    evt_possibly_truncated = 1;
                 }
             } else if (!rc && scansm->scan_filt_dups) {
                 ble_ll_scan_dup_update_ext(ident_addr_type, ident_addr, aux_data);
