@@ -1824,8 +1824,8 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
             BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
         } else {
             if (ble_ll_scan_ext_adv_init(&new_aux) < 0) {
-            /* Out of memory */
-            return -1;
+                /* Out of memory */
+                return -1;
             }
         }
 
@@ -2633,7 +2633,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
                 }
 
             }
-        } else if (aux_data ) {
+        } else if (aux_data) {
             if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
                 evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
                 BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
@@ -2668,7 +2668,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
 
     BLE_LL_ASSERT(offset <= datalen);
 
-    if (aux_data){
+    if (aux_data) {
         /* Store any event left for later use */
         aux_data->evt = evt;
     } else {
