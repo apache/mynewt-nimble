@@ -1116,14 +1116,14 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
 }
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
-ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_scan)
+ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_data)
 {
-    if (aux_scan) {
-        if (aux_scan->evt) {
-            ble_hci_trans_buf_free((uint8_t *)aux_scan->evt);
-            aux_scan->evt = NULL;
+    if (aux_data) {
+        if (aux_data->evt) {
+            ble_hci_trans_buf_free((uint8_t *)aux_data->evt);
+            aux_data->evt = NULL;
         }
-        os_memblock_put(&ext_adv_pool, aux_scan);
+        os_memblock_put(&ext_adv_pool, aux_data);
         STATS_INC(ble_ll_stats, aux_freed);
     }
 }
