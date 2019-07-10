@@ -1156,6 +1156,11 @@ ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_data)
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_UNREF, (uint32_t) aux_data, aux_data->ref_cnt);
 
     if (aux_data->ref_cnt == 0) {
+        /* Below assert is to detect missing complete or truncated event in case of chaining */
+        BLE_LL_ASSERT(!((BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT) &&
+                            BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST)) &&
+                            !(BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT) ||
+                            !BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT))));
         ble_ll_scan_aux_data_free(aux_data);
     }
 
@@ -2646,6 +2651,16 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
 
         if (aux_data) {
             BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
+            /* In case it is scannable AUX and we are waiting for scan response,
+             * let us clear BLE_LL_SENT_EVENT_TO_HOST flag as we consider scan response
+             * as separate report even aux_data is reused.
+             * This is needed to proper detect of not completed advertising
+             * reports.
+             */
+            if ((aux_data->evt_type & BLE_HCI_ADV_SCAN_MASK) &&
+                    !(aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
+                BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
+            }
         }
 
         evt = next_evt;
