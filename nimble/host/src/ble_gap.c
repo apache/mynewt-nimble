@@ -1612,8 +1612,8 @@ ble_gap_rx_conn_complete(struct hci_le_conn_complete *evt, uint8_t instance)
 
     memset(&event, 0, sizeof event);
     ble_hs_conn_insert(conn);
-
     ble_hs_unlock();
+    ble_hs_conn_set_awareness(conn->bhc_handle, 1);
 
     event.type = BLE_GAP_EVENT_CONNECT;
     event.connect.conn_handle = evt->connection_handle;
@@ -5268,11 +5268,37 @@ ble_gap_enc_event(uint16_t conn_handle, int status, int security_restored)
 
     struct ble_gap_event event;
 
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_hs_conn_addrs addrs;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    STATS_INC(ble_gap_stats, security_initiate);
+
+
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_ENC_CHANGE;
     event.enc_change.conn_handle = conn_handle;
     event.enc_change.status = status;
 
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        ble_hs_conn_addrs(conn, &addrs);
+        memset(&key_sec, 0, sizeof key_sec);
+        key_sec.peer_addr = addrs.peer_id_addr;
+    }
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+        if (rc == 0 && value_sec.ltk_present) {
+            ble_hs_conn_set_awareness(conn_handle,value_sec.aware);
+        }
+    }
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
 

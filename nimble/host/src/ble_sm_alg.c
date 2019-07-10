@@ -32,8 +32,8 @@
 #include "tinycrypt/constants.h"
 #include "tinycrypt/utils.h"
 
-#if MYNEWT_VAL(BLE_SM_SC)
 #include "tinycrypt/cmac_mode.h"
+#if MYNEWT_VAL(BLE_SM_SC)
 #include "tinycrypt/ecc_dh.h"
 #if MYNEWT_VAL(TRNG)
 #include "trng/trng.h"
@@ -184,16 +184,6 @@ done:
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_SM_SC)
-
-static void
-ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
-{
-    BLE_HS_LOG(DEBUG, "    %s=", name);
-    ble_hs_log_flat_buf(buf, len);
-    BLE_HS_LOG(DEBUG, "\n");
-}
-
 /**
  * Cypher based Message Authentication Code (CMAC) with AES 128 bit
  *
@@ -202,7 +192,7 @@ ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
  * @param len                   Length of the message in octets.
  * @param out                   Output; message authentication code.
  */
-static int
+int
 ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
                     uint8_t *out)
 {
@@ -222,6 +212,16 @@ ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
     }
 
     return 0;
+}
+
+#if MYNEWT_VAL(BLE_SM_SC)
+
+static void
+ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
+{
+    BLE_HS_LOG(DEBUG, "    %s=", name);
+    ble_hs_log_flat_buf(buf, len);
+    BLE_HS_LOG(DEBUG, "\n");
 }
 
 int

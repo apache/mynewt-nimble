@@ -468,6 +468,30 @@ ble_att_rx_handle_unknown_request(uint8_t op, uint16_t conn_handle,
 }
 
 static int
+ble_att_check_hash_uuid(struct os_mbuf **rxom)
+{
+    struct ble_att_read_req *req;
+    uint16_t err_handle;
+    struct ble_att_svr_entry *entry;
+    const ble_uuid_t *uuid = BLE_UUID16_DECLARE(
+            BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16);
+    /* Initialize some values in case of early error. */
+    err_handle = 0;
+    req = (struct ble_att_read_req *)(*rxom)->om_data;
+    err_handle = le16toh(req->barq_handle);
+    entry = ble_att_svr_find_by_handle(err_handle);
+
+    if (entry == NULL) {
+        return BLE_HS_ENOENT;
+    }
+    if (ble_uuid_cmp(entry->ha_uuid, uuid) == 0) {
+        return 0;
+    }
+
+    return BLE_HS_ENOTSUP;
+}
+
+static int
 ble_att_rx(struct ble_l2cap_chan *chan)
 {
     const struct ble_att_rx_dispatch_entry *entry;
@@ -495,6 +519,22 @@ ble_att_rx(struct ble_l2cap_chan *chan)
         return BLE_HS_ENOTSUP;
     }
 
+    if(!ble_hs_conn_get_awareness(conn_handle)) {
+        /* Client is not aware with the latest database updates
+         * so server ignores the command.
+         * but in case of reading hash uuid server shall respond.*/
+
+        if(entry->bde_op != BLE_ATT_OP_READ_REQ ||
+                ble_att_check_hash_uuid(om)) {
+            ble_hs_conn_check_set_awareness_if_bonding(conn_handle, 1);
+            os_mbuf_adj(*om, OS_MBUF_PKTLEN(*om));
+            ble_att_svr_tx_error_rsp(conn_handle, *om, op, 0,
+                    BLE_ATT_ERR_DATA_OUT_OF_SYNC);
+
+            *om = NULL;
+            return BLE_HS_EREJECT;
+        }
+    }
     ble_att_inc_rx_stat(op);
 
     /* Strip L2CAP ATT header from the front of the mbuf. */

@@ -1981,6 +1981,7 @@ ble_gatts_svc_set_visibility(uint16_t handle, int visible)
             } else {
                 ble_att_svr_hide_range(entry->handle, entry->end_group_handle);
             }
+            ble_hs_conn_set_all_awareness(0);
             return 0;
         }
     }

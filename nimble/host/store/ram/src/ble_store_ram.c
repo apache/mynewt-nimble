@@ -283,6 +283,35 @@ ble_store_ram_write_peer_sec(const struct ble_store_value_sec *value_sec)
     return 0;
 }
 
+static int
+ble_store_ram_change_awareness(const struct ble_store_value_sec *value_sec)
+{
+    struct ble_store_key_sec key_sec;
+    int idx;
+
+    BLE_HS_LOG(DEBUG, "persisting peer sec; ");
+    ble_store_ram_print_value_sec(value_sec);
+
+    ble_store_key_from_value_sec(&key_sec, value_sec);
+    idx = ble_store_ram_find_sec(&key_sec, ble_store_ram_peer_secs,
+                                 ble_store_ram_num_peer_secs);
+    if (idx == -1) {
+            return BLE_HS_ENOENT;
+        }
+
+    ble_store_ram_peer_secs[idx] = *value_sec;
+    return 0;
+}
+
+static int
+ble_store_ram_change_all_awareness(const struct ble_store_value_sec *value_sec)
+{
+    int i;
+    for (i = 0; i < ble_store_ram_num_peer_secs; i++) {
+        ble_store_ram_peer_secs[i].aware = value_sec->aware;
+    }
+    return 0;
+}
 /*****************************************************************************
  * $cccd                                                                     *
  *****************************************************************************/
@@ -450,6 +479,12 @@ ble_store_ram_write(int obj_type, const union ble_store_value *val)
 
     case BLE_STORE_OBJ_TYPE_CCCD:
         rc = ble_store_ram_write_cccd(&val->cccd);
+        return rc;
+    case BLE_STORE_OBJ_TYPE_CHANGE_ALL_AWARENESS:
+        rc = ble_store_ram_change_all_awareness(&val->sec);
+        return rc;
+    case BLE_STORE_OBJ_TYPE_CHANGE_AWARENESS:
+        rc = ble_store_ram_change_awareness(&val->sec);
         return rc;
 
     default:

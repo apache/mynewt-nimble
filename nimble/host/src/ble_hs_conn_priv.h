@@ -75,6 +75,7 @@ struct ble_hs_conn {
      */
     uint16_t bhc_completed_pkts;
 #endif
+    uint8_t aware;
 
     /** Queue of outgoing packets that could not be sent. */
     STAILQ_HEAD(, os_mbuf_pkthdr) bhc_tx_q;

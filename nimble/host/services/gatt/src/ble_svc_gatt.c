@@ -23,9 +23,21 @@
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
 
+
+#define CLIENT_SUPPORTED_FEATURES_MAX_OCTETS        (1)
+typedef enum {
+    ROBUST_CACHING = 0,
+    MAX_SUPPORTED_FEATURES
+} client_supported_features;
+
+static struct ble_gap_event_listener ble_svc_gatt_gap_listener;
+
 static uint16_t ble_svc_gatt_changed_val_handle;
 static uint16_t ble_svc_gatt_start_handle;
 static uint16_t ble_svc_gatt_end_handle;
+
+static uint8_t ble_svc_gatt_client_supported_features_val
+                        [CLIENT_SUPPORTED_FEATURES_MAX_OCTETS];
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -42,6 +54,15 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
             .val_handle = &ble_svc_gatt_changed_val_handle,
             .flags = BLE_GATT_CHR_F_INDICATE,
         }, {
+            .uuid =
+            BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16),
+            .access_cb = ble_svc_gatt_access,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16),
+            .access_cb = ble_svc_gatt_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
             0, /* No more characteristics in this service. */
         } },
     },
@@ -52,19 +73,9 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
 };
 
 static int
-ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
-                    struct ble_gatt_access_ctxt *ctxt, void *arg)
+ble_svc_gatt_service_changed_read_access(struct ble_gatt_access_ctxt *ctxt)
 {
     uint8_t *u8p;
-
-    /* The only operation allowed for this characteristic is indicate.  This
-     * access callback gets called by the stack when it needs to read the
-     * characteristic value to populate the outgoing indication command.
-     * Therefore, this callback should only get called during an attempt to
-     * read the characteristic.
-     */
-    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-    assert(ctxt->chr == &ble_svc_gatt_defs[0].characteristics[0]);
 
     u8p = os_mbuf_extend(ctxt->om, 4);
     if (u8p == NULL) {
@@ -73,8 +84,90 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
 
     put_le16(u8p + 0, ble_svc_gatt_start_handle);
     put_le16(u8p + 2, ble_svc_gatt_end_handle);
+    return 0;
+}
+
+static int
+ble_svc_gatt_client_supported_features_read_access(
+                struct ble_gatt_access_ctxt *ctxt)
+{
+    int rc;
+
+    rc = os_mbuf_append(ctxt->om, ble_svc_gatt_client_supported_features_val,
+            sizeof(ble_svc_gatt_client_supported_features_val));
+
+    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+static int
+ble_svc_gatt_client_supported_features_write_access(
+                        struct ble_gatt_access_ctxt *ctxt)
+{
+    uint16_t om_len;
+    int rc;
+
+    om_len = OS_MBUF_PKTLEN(ctxt->om);
+    if (om_len > CLIENT_SUPPORTED_FEATURES_MAX_OCTETS) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    rc = ble_hs_mbuf_to_flat(ctxt->om,
+                    ble_svc_gatt_client_supported_features_val, om_len, NULL);
+    if (rc != 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
 
     return 0;
+}
+
+static int
+ble_svc_gatt_database_hash_read_access(struct ble_gatt_access_ctxt *ctxt)
+{
+    int rc;
+    uint8_t* ble_svc_gatt_database_hash_val;
+    ble_svc_gatt_database_hash_val = ble_att_svr_get_database_hash();
+    rc = os_mbuf_append(ctxt->om, ble_svc_gatt_database_hash_val,
+            BLE_ATT_SVR_HASH_KEY_SIZE_IN_BYTES);
+
+    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+static int
+ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
+                    struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    uint16_t uuid16;
+    int rc;
+
+    uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+    assert(uuid16 != 0);
+
+    switch (uuid16) {
+        case BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16:
+            assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
+            rc =  ble_svc_gatt_service_changed_read_access(ctxt);
+            return rc;
+            break;
+        case BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16:
+            if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+                rc = ble_svc_gatt_client_supported_features_read_access(ctxt);
+            } else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+                rc = ble_svc_gatt_client_supported_features_write_access(ctxt);
+            } else {
+                assert(0);
+            }
+            return rc;
+            break;
+        case BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16:
+            assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
+            ble_hs_conn_check_set_awareness_if_bonding(conn_handle, 1);
+            rc =  ble_svc_gatt_database_hash_read_access(ctxt);
+            return rc;
+            break;
+        default:
+            assert(0);
+            return BLE_ATT_ERR_UNLIKELY;
+    }
 }
 
 /**
@@ -92,6 +185,37 @@ ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle)
     ble_gatts_chr_updated(ble_svc_gatt_changed_val_handle);
 }
 
+
+bool
+ble_svc_gatt_is_client_robust_caching_supported(void)
+{
+   bool rc = ((ble_svc_gatt_client_supported_features_val[0] & (1 << ROBUST_CACHING)) == 1);
+   return rc;
+}
+
+int
+ble_svc_gatt_update_database_hash(void)
+{
+    int rc ;
+    rc = ble_att_svr_calculate_database_hash();
+    return rc;
+}
+
+static int
+ble_svc_gatt_ind_ack_rx(struct ble_gap_event *event, void *arg)
+{
+    /* Only process connection termination events. */
+    if (event->type == BLE_GAP_EVENT_NOTIFY_TX &&
+            event->notify_tx.status == BLE_HS_EDONE &&
+            event->notify_tx.attr_handle == ble_svc_gatt_changed_val_handle) {
+
+        ble_hs_conn_check_set_awareness_if_bonding(
+                event->notify_tx.conn_handle , 1);
+    }
+
+    return 0;
+}
+
 void
 ble_svc_gatt_init(void)
 {
@@ -104,5 +228,9 @@ ble_svc_gatt_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = ble_gap_event_listener_register(&ble_svc_gatt_gap_listener,
+            ble_svc_gatt_ind_ack_rx, NULL);
     SYSINIT_PANIC_ASSERT(rc == 0);
 }

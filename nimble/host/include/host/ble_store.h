@@ -30,6 +30,9 @@ extern "C" {
 #define BLE_STORE_OBJ_TYPE_OUR_SEC      1
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
+#define BLE_STORE_OBJ_TYPE_CHANGE_ALL_AWARENESS         4
+#define BLE_STORE_OBJ_TYPE_CHANGE_AWARENESS         5
+
 
 /** Failed to persist record; insufficient storage capacity. */
 #define BLE_STORE_EVENT_OVERFLOW        1
@@ -85,6 +88,7 @@ struct ble_store_value_sec {
 
     unsigned authenticated:1;
     uint8_t sc:1;
+    uint8_t aware:1;
 };
 
 /**

@@ -424,7 +424,9 @@ int ble_sm_init(void);
 struct ble_l2cap_chan *ble_sm_create_chan(uint16_t handle);
 void *ble_sm_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
 int ble_sm_tx(uint16_t conn_handle, struct os_mbuf *txom);
-
+int
+ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
+                    uint8_t *out);
 #ifdef __cplusplus
 }
 #endif

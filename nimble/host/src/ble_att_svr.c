@@ -24,7 +24,6 @@
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
-
 /**
  * ATT server - Attribute Protocol
  *
@@ -43,6 +42,9 @@
  * attribute data that gets passed to the application callback.  The
  * application may choose to retain the mbuf during the callback, so the stack
  */
+#define BLE_ATT_SVR_CONCATENATE_ALL                        0x01
+#define BLE_ATT_SVR_CONCATENATE_HANDLE_TYPE      0x02
+static uint8_t ble_att_svr_database_hash[BLE_ATT_SVR_HASH_KEY_SIZE_IN_BYTES];
 
 STAILQ_HEAD(ble_att_svr_entry_list, ble_att_svr_entry);
 static struct ble_att_svr_entry_list ble_att_svr_list;
@@ -129,6 +131,84 @@ ble_att_svr_register(const ble_uuid_t *uuid, uint8_t flags,
     }
 
     return 0;
+}
+
+static uint8_t
+ble_att_svr_check_attribute_type(const ble_uuid_t * uuid) {
+    uint16_t uuid16;
+
+    uuid16 = ble_uuid_u16(uuid);
+    if( (uuid16 >= BLE_ATT_UUID_PRIMARY_SERVICE &&
+            uuid16 <= BLE_ATT_UUID_CHARACTERISTIC) ||
+            uuid16 ==  BLE_ATT_UUID_CHARACTERISTIC_EXTENDED_PROPERTIES ) {
+            return BLE_ATT_SVR_CONCATENATE_ALL;
+    } else if ( uuid16 >= BLE_ATT_UUID_CLIENT_CHARACTERISTICS_CONFIGURATION &&
+            uuid16 <= BLE_ATT_UUID_CHARACTERISTIC_AGGREGATE_FORMAT) {
+            return BLE_ATT_SVR_CONCATENATE_HANDLE_TYPE;
+    }
+    return 0;
+}
+
+/**
+ * Calculate the hash depending on the attribute in the table.
+ *
+ * @param hash_om             The buffer that contains the hash
+ *
+ * @return                      0 on success; BLE_HS_ENOMEM on error.
+ */
+int
+ble_att_svr_calculate_database_hash(void) {
+    struct ble_att_svr_entry *entry;
+    uint8_t key[BLE_ATT_SVR_HASH_KEY_SIZE_IN_BYTES];
+    struct os_mbuf *hash_om = os_msys_get(0,0);
+    struct os_mbuf *om = os_msys_get(5,0);
+    uint16_t uuid16;
+    uint8_t concatenate_status = 0;
+    uint8_t *buffer;
+    uint16_t buf_len;
+    int rc;
+    memset(key, 0, BLE_ATT_SVR_HASH_KEY_SIZE_IN_BYTES);
+    for (entry = STAILQ_FIRST(&ble_att_svr_list);
+         entry != NULL;
+         entry = STAILQ_NEXT(entry, ha_next)) {
+        uuid16 = ble_uuid_u16(entry->ha_uuid);
+        concatenate_status = ble_att_svr_check_attribute_type(entry->ha_uuid);
+        if (concatenate_status == BLE_ATT_SVR_CONCATENATE_ALL) {
+            rc = os_mbuf_append(hash_om,(const void*)&entry->ha_handle_id,
+                    sizeof(entry->ha_handle_id));
+            assert(rc == 0);
+            rc = os_mbuf_append(hash_om,(const void*)&uuid16,
+                    sizeof(uuid16) );
+            assert(rc == 0);
+            BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
+            rc = entry->ha_cb(0, entry->ha_handle_id,
+                            0, 0, &om, entry->ha_cb_arg);
+           rc = os_mbuf_appendfrom(hash_om,(const  struct os_mbuf *)om,0,om->om_len);
+           assert(rc == 0);
+           om->om_len = 0;
+        } else if (concatenate_status == BLE_ATT_SVR_CONCATENATE_HANDLE_TYPE) {
+            rc = os_mbuf_append(hash_om,(const void*)&entry->ha_handle_id,
+                    sizeof(entry->ha_handle_id));
+            assert(rc == 0);
+            rc = os_mbuf_append(hash_om,(const void*)&uuid16,
+                    sizeof(uuid16) );
+            assert(rc == 0);
+        }
+    }
+    buffer = malloc(OS_MBUF_PKTLEN(hash_om));
+    ble_hs_mbuf_to_flat(hash_om,buffer,OS_MBUF_PKTLEN(hash_om),&buf_len);
+    rc = ble_sm_alg_aes_cmac((const uint8_t *)&key,
+           (const uint8_t *)buffer,buf_len
+          ,(uint8_t *)&ble_att_svr_database_hash);
+    free(buffer);
+    os_mbuf_free(om);
+    os_mbuf_free(hash_om);
+    return rc;
+}
+
+uint8_t*
+ble_att_svr_get_database_hash(void) {
+    return ble_att_svr_database_hash;
 }
 
 uint16_t

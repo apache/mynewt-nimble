@@ -520,6 +520,86 @@ ble_hs_conn_timer(void)
     return next_exp_in;
 }
 
+void
+ble_hs_conn_check_set_awareness_if_bonding(uint16_t conn_handle,
+        uint8_t aware)
+{
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_hs_conn_addrs addrs;
+    struct ble_hs_conn *conn;
+    int rc;
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        ble_hs_conn_addrs(conn, &addrs);
+        memset(&key_sec, 0, sizeof key_sec);
+        key_sec.peer_addr = addrs.peer_id_addr;
+    }
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+    } else {
+        rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+        if (rc == 0 && value_sec.ltk_present) {
+            value_sec.aware = aware;
+            rc = ble_store_write(BLE_STORE_OBJ_TYPE_CHANGE_AWARENESS,
+                    (union ble_store_value *)&value_sec);
+        }
+        ble_hs_conn_set_awareness(conn_handle,aware);
+    }
+}
+
+void
+ble_hs_conn_set_awareness(uint16_t conn_handle, uint8_t aware)
+{
+    struct ble_hs_conn *conn;
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        BLE_HS_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+                "HANDLE=%d\n",
+                conn_handle);
+        ble_hs_unlock();
+        return ;
+    }
+   conn->aware = aware;
+    ble_hs_unlock();
+
+}
+
+void
+ble_hs_conn_set_all_awareness(uint8_t aware)
+{
+    struct ble_hs_conn *conn;
+    struct ble_store_value_sec value_sec;
+    SLIST_FOREACH(conn, &ble_hs_conns, bhc_next) {
+        conn->aware = aware;
+    }
+    value_sec.aware = aware;
+    ble_store_write(BLE_STORE_OBJ_TYPE_CHANGE_ALL_AWARENESS,
+            (union ble_store_value *)&value_sec);
+}
+
+uint8_t
+ble_hs_conn_get_awareness(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        BLE_HS_LOG(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+                "HANDLE=%d\n",
+                conn_handle);
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+    ble_hs_unlock();
+
+    return conn->aware;
+}
+
 int
 ble_hs_conn_init(void)
 {
