@@ -1705,9 +1705,9 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
 
     start_time = ble_hdr->beg_cputime + off_ticks;
     start_time_rem_usecs = ble_hdr->rem_usecs + off_rem_usecs;
-    if (start_time_rem_usecs > 30) {
+    if (start_time_rem_usecs >= 31) {
         start_time++;
-        start_time_rem_usecs -= 30;
+        start_time_rem_usecs -= 31;
     }
     start_time -= g_ble_ll_sched_offset_ticks;
 
