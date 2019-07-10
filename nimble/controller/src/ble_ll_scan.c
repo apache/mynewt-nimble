@@ -3199,7 +3199,7 @@ scan_continue:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (aux_data) {
-        if (evt_possibly_truncated) {
+        if (evt_possibly_truncated || !BLE_MBUF_HDR_CRC_OK(hdr)) {
             ble_ll_scan_end_adv_evt(aux_data);
         }
 
