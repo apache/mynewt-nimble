@@ -2575,9 +2575,19 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
 
     datalen = ble_ll_scan_parse_ext_hdr(om, adva, adva_type, inita, inita_type, hdr, evt);
     if (datalen < 0) {
-        /* XXX what should we do here? send some trimmed event? */
-        ble_hci_trans_buf_free((uint8_t *)evt);
         rc = -1;
+        /* If we were in the middle of advertising report, let us send truncated report. */
+        if (aux_data &&
+                BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST) &&
+                BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+            evt->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+
+            ble_ll_hci_event_send((uint8_t *)evt);
+            goto done;
+        }
+
+        ble_hci_trans_buf_free((uint8_t *)evt);
         goto done;
     }
 
