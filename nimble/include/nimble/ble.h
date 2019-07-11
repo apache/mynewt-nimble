@@ -261,9 +261,9 @@ int ble_err_from_os(int os_err);
 #define BLE_ADDR_IS_RPA(addr)     (((addr)->type == BLE_ADDR_RANDOM) && \
                                    ((addr)->val[5] & 0xc0) == 0x40)
 #define BLE_ADDR_IS_NRPA(addr)    (((addr)->type == BLE_ADDR_RANDOM) && \
-                                   (((addr)->val[5] & 0xc0) == 0x00)
+                                   ((addr)->val[5] & 0xc0) == 0x00)
 #define BLE_ADDR_IS_STATIC(addr)  (((addr)->type == BLE_ADDR_RANDOM) && \
-                                   (((addr)->val[5] & 0xc0) == 0xc0)
+                                   ((addr)->val[5] & 0xc0) == 0xc0)
 
 typedef struct {
     uint8_t type;
