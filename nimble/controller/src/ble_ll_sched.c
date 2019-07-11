@@ -1685,7 +1685,7 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                       struct ble_ll_scan_sm *scansm,
                       struct ble_ll_aux_data *aux_scan)
 {
-    int rc;
+    int rc = 1;
     os_sr_t sr;
     uint32_t off_ticks;
     uint32_t off_rem_usecs;
@@ -1749,7 +1749,6 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
          * anything. We can make it smarter later on
          */
         if (ble_ll_sched_is_overlap(sch, entry)) {
-            rc = -1;
             break;
         }
     }
