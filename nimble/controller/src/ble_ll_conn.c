@@ -3076,10 +3076,20 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
              * If the InitA is a RPA, we must see if it resolves based on the
              * identity address of the resolved ADVA.
              */
-            if (init_addr && inita_is_rpa &&
-                            !ble_ll_resolv_rpa(init_addr,
-                                               g_ble_ll_resolv_list[index].rl_local_irk)) {
-                goto init_rx_isr_exit;
+            if (init_addr && inita_is_rpa) {
+                if (!ble_ll_resolv_rpa(init_addr,
+                                       g_ble_ll_resolv_list[index].rl_local_irk)) {
+                    goto init_rx_isr_exit;
+                }
+
+                /* Core Specification Vol 6, Part B, Section 6.4:
+                 * "The Link Layer should not set the InitA field to the same
+                 * value as the TargetA field in the received advertising PDU."
+                 *
+                 * We update the received PDU directly here, so ble_ll_init_rx_pkt_in
+                 * can process it as is.
+                 */
+                memcpy(init_addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
             }
 
         } else {
@@ -3119,6 +3129,15 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             if (!rl || !ble_ll_resolv_rpa(init_addr, rl->rl_local_irk)) {
                 goto init_rx_isr_exit;
             }
+
+            /* Core Specification Vol 6, Part B, Section 6.4:
+             * "The Link Layer should not set the InitA field to the same
+             * value as the TargetA field in the received advertising PDU."
+             *
+             * We update the received PDU directly here, so ble_ll_init_rx_pkt_in
+             * can process it as is.
+             */
+            memcpy(init_addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
         }
     }
 #endif
