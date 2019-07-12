@@ -322,8 +322,8 @@ static const struct bt_mesh_comp comp = {
 struct sw {
     u8_t sw_num;
     u8_t onoff_state;
-    struct ble_npl_callout button_work;
-    struct k_delayed_work button_timer;
+    struct os_callout button_work;
+    struct os_callout button_timer;
 };
 
 
@@ -489,7 +489,7 @@ static void button_pressed(struct os_event *ev)
     }
 
     if (button_press_cnt == 0) {
-    	k_delayed_work_submit(&sw.button_timer, K_SECONDS(1));
+        os_callout_reset(&sw.button_timer, os_time_ms_to_ticks32(K_SECONDS(1)));
     }
 
     BT_INFO("button_press_cnt 0x%02x", button_press_cnt);
@@ -507,27 +507,27 @@ static void button_pressed(struct os_event *ev)
  * Button Count Timer Worker
  */
 
-static void button_cnt_timer(struct ble_npl_event *work)
+static void button_cnt_timer(struct os_event *work)
 {
-    struct sw *button_sw = work->ev.ev_arg;
+    struct sw *button_sw = work->ev_arg;
 
     button_sw->onoff_state = button_press_cnt == 1 ? 1 : 0;
     BT_INFO("button_press_cnt 0x%02x onoff_state 0x%02x",
                 button_press_cnt, button_sw->onoff_state);
     button_press_cnt = 0;
-    k_work_submit(&sw.button_work);
+    os_callout_reset(&sw.button_work, 0);
 }
 
 /*
  * Button Pressed Worker Task
  */
 
-static void button_pressed_worker(struct ble_npl_event *work)
+static void button_pressed_worker(struct os_event *work)
 {
     struct os_mbuf *msg = NET_BUF_SIMPLE(1);
     struct bt_mesh_model *mod_cli, *mod_srv;
     struct bt_mesh_model_pub *pub_cli, *pub_srv;
-    struct sw *sw = work->ev.ev_arg;
+    struct sw *sw = work->ev_arg;
     u8_t sw_idx = sw->sw_num;
     int err;
 
@@ -676,12 +676,12 @@ int main(void)
     last_time = k_uptime_get_32();
 
     /* Initialize button worker task*/
-    k_work_init(&sw.button_work, button_pressed_worker);
-    k_work_add_arg(&sw.button_work, &sw);
+    os_callout_init(&sw.button_work, os_eventq_dflt_get(),
+                    button_pressed_worker, &sw);
 
     /* Initialize button count timer */
-    k_delayed_work_init(&sw.button_timer, button_cnt_timer);
-    k_delayed_work_add_arg(&sw.button_timer, &sw);
+    os_callout_init(&sw.button_timer, os_eventq_dflt_get(),
+                    button_cnt_timer, &sw);
 
     /* Initialize LED's */
     init_led(0);

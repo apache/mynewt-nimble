@@ -27,7 +27,7 @@
 #ifndef _NO_TRANSITION_WORK_HANDLER_H
 #define _NO_TRANSITION_WORK_HANDLER_H
 
-extern struct ble_npl_callout no_transition_work;
+extern struct os_callout no_transition_work;
 
 void no_transition_work_init(void);
 

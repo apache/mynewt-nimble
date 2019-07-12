@@ -165,7 +165,7 @@ void update_light_state(void)
 
 	if (*ptr_counter == 0 || reset == false) {
 		reset = true;
-		k_work_submit(&no_transition_work);
+		os_callout_reset(&no_transition_work, 0);
 	}
 }
 
@@ -183,22 +183,22 @@ static void short_time_multireset_bt_mesh_unprovisioning(void)
 	save_on_flash(RESET_COUNTER);
 }
 
-static void reset_counter_timer_handler(struct ble_npl_event *dummy)
+static void reset_counter_timer_handler(struct os_event *dummy)
 {
 	reset_counter = 0;
 	save_on_flash(RESET_COUNTER);
 	printk("Reset Counter set to Zero\n");
 }
 
-struct ble_npl_callout reset_counter_timer;
+struct os_callout reset_counter_timer;
 
 static void init_timers(void)
 {
 
-	ble_npl_callout_init(&reset_counter_timer, ble_npl_eventq_dflt_get(),
-			     reset_counter_timer_handler, NULL);
-	ble_npl_callout_reset(&reset_counter_timer,
-			      ble_npl_time_ms_to_ticks32(K_MSEC(7000)));
+	os_callout_init(&reset_counter_timer, os_eventq_dflt_get(),
+			reset_counter_timer_handler, NULL);
+	os_callout_reset(&reset_counter_timer,
+			 os_time_ms_to_ticks32(K_MSEC(7000)));
 
 	no_transition_work_init();
 }

@@ -133,7 +133,7 @@ static void save_temperature_range(void)
 	settings_save_one("ps/tr", buf);
 }
 
-static void storage_work_handler(struct ble_npl_event *work)
+static void storage_work_handler(struct os_event *work)
 {
 	switch (storage_id) {
 	case RESET_COUNTER:
@@ -160,13 +160,12 @@ static void storage_work_handler(struct ble_npl_event *work)
 	}
 }
 
-struct ble_npl_callout storage_work;
+struct os_callout storage_work;
 
 void save_on_flash(u8_t id)
 {
 	storage_id = id;
-	k_work_submit(&storage_work);
-	ble_npl_callout_reset(&storage_work, 0);
+	os_callout_reset(&storage_work, 0);
 }
 
 static int ps_set(int argc, char **argv, char *val)
@@ -243,7 +242,7 @@ int ps_settings_init(void)
 {
 	int err;
 
-	ble_npl_callout_init(&storage_work, ble_npl_eventq_dflt_get(),
+	os_callout_init(&storage_work, os_eventq_dflt_get(),
 			     storage_work_handler, NULL);
 
 	err = conf_register(&ps_settings);
