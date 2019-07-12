@@ -274,6 +274,13 @@ struct gap_passkey_confirm_cmd {
 	u8_t match;
 } __packed;
 
+#define GAP_START_DIRECT_ADV		0x15
+struct gap_start_direct_adv_cmd {
+	u8_t address_type;
+	u8_t address[6];
+	u8_t high_duty;
+} __packed;
+
 #define GAP_CONN_PARAM_UPDATE		0x16
 struct gap_conn_param_update_cmd {
     u8_t address_type;
