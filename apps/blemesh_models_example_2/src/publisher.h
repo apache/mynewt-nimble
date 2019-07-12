@@ -41,6 +41,6 @@
 #define LEVEL_U100 65535
 
 void randomize_publishers_TID(void);
-void publish(struct ble_npl_event *work);
+void publish(struct os_event *work);
 
 #endif

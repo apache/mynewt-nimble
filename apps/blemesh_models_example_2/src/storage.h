@@ -39,7 +39,7 @@ enum ps_variables_id {
 
 extern u8_t reset_counter;
 
-extern struct ble_npl_callout storage_work;
+extern struct os_callout storage_work;
 
 int ps_settings_init(void);
 void save_on_flash(u8_t id);

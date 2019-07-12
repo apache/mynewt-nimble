@@ -66,7 +66,7 @@ static u32_t button_read(int button)
 	return (uint32_t) hal_gpio_read(button);
 }
 
-void publish(struct ble_npl_event *work)
+void publish(struct os_event *work)
 {
 	int err = 0;
 

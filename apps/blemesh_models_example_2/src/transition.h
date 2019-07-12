@@ -50,16 +50,16 @@ struct transition {
 	u32_t total_duration;
 	s64_t start_timestamp;
 
-	struct ble_npl_callout timer;
+	struct os_callout timer;
 };
 
 extern u8_t transition_type, default_tt;
 extern u32_t *ptr_counter;
-extern struct ble_npl_callout *ptr_timer;
+extern struct os_callout *ptr_timer;
 
 extern struct transition lightness_transition, temp_transition;
 
-extern struct ble_npl_callout dummy_timer;
+extern struct os_callout dummy_timer;
 
 void calculate_rt(struct transition *transition);
 

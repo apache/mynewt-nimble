@@ -46,11 +46,11 @@ int led_device[] = {
 	LED_4,
 };
 
-static struct ble_npl_callout button_work;
+static struct os_callout button_work;
 
 static void button_pressed(struct os_event *ev)
 {
-	k_work_submit(&button_work);
+	os_callout_reset(&button_work, 0);
 }
 
 static struct os_event button_event;
@@ -72,7 +72,7 @@ void app_gpio_init(void)
 
 	/* Buttons configiuratin & setting */
 
-	k_work_init(&button_work, publish);
+	os_callout_init(&button_work, os_eventq_dflt_get(), publish, NULL);
 
 	button_event.ev_cb = button_pressed;
 

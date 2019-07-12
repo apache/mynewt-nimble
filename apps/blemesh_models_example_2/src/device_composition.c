@@ -261,7 +261,7 @@ static void gen_onoff_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -328,7 +328,7 @@ static void gen_onoff_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -456,7 +456,7 @@ static void gen_level_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -529,7 +529,7 @@ static void gen_level_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -611,7 +611,7 @@ static void gen_delta_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -701,7 +701,7 @@ static void gen_delta_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -840,7 +840,7 @@ static void gen_move_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -922,7 +922,7 @@ static void gen_move_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -1119,8 +1119,8 @@ static void gen_onpowerup_publish(struct bt_mesh_model *model)
 }
 
 static bool gen_onpowerup_setunack(struct bt_mesh_model *model,
-				struct bt_mesh_msg_ctx *ctx,
-				struct os_mbuf *buf)
+				   struct bt_mesh_msg_ctx *ctx,
+				   struct os_mbuf *buf)
 {
 	u8_t onpowerup;
 	struct generic_onpowerup_state *state = model->user_data;
@@ -1324,7 +1324,7 @@ static void light_lightness_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -1395,7 +1395,7 @@ static void light_lightness_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -1517,7 +1517,7 @@ static void light_lightness_linear_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -1581,7 +1581,7 @@ static void light_lightness_linear_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -1949,7 +1949,7 @@ static void light_ctl_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -2033,7 +2033,7 @@ static void light_ctl_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -2214,7 +2214,7 @@ static void light_ctl_temp_range_publish(struct bt_mesh_model *model)
 
 static bool light_ctl_temp_range_setunack(struct bt_mesh_model *model,
 					  struct bt_mesh_msg_ctx *ctx,
-                      struct os_mbuf *buf)
+					  struct os_mbuf *buf)
 {
 	u16_t min, max;
 	struct light_ctl_state *state = model->user_data;
@@ -2233,14 +2233,14 @@ static bool light_ctl_temp_range_setunack(struct bt_mesh_model *model,
 	if (min <= max) {
 		state->status_code = RANGE_SUCCESSFULLY_UPDATED;
 
-			if (state->temp_range_min != min ||
-			    state->temp_range_max != max) {
+		if (state->temp_range_min != min ||
+		    state->temp_range_max != max) {
 
-				state->temp_range_min = min;
-				state->temp_range_max = max;
+			state->temp_range_min = min;
+			state->temp_range_max = max;
 
-				save_on_flash(TEMPERATURE_RANGE);
-			}
+			save_on_flash(TEMPERATURE_RANGE);
+		}
 	} else {
 		/* The provided value for Range Max cannot be set */
 		state->status_code = CANNOT_SET_RANGE_MAX;
@@ -2424,7 +2424,7 @@ static void light_ctl_temp_set_unack(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
@@ -2504,7 +2504,7 @@ static void light_ctl_temp_set(struct bt_mesh_model *model,
 	}
 
 	*ptr_counter = 0;
-	ble_npl_callout_stop(ptr_timer);
+	os_callout_stop(ptr_timer);
 
 	state->last_tid = tid;
 	state->last_src_addr = ctx->addr;
