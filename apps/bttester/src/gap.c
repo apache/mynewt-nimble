@@ -1254,6 +1254,35 @@ rsp:
 		   status);
 }
 
+static void start_direct_adv(const u8_t *data, u16_t len)
+{
+	const struct gap_start_direct_adv_cmd *cmd = (void *) data;
+	struct gap_start_advertising_rp rp;
+	int err;
+
+	SYS_LOG_DBG("");
+
+	adv_params.high_duty_cycle = cmd->high_duty;
+
+	err = ble_gap_adv_start(own_addr_type, (ble_addr_t *)data,
+				BLE_HS_FOREVER, &adv_params,
+				gap_event_cb, NULL);
+	if (err) {
+		SYS_LOG_ERR("Advertising failed: err %d", err);
+		goto fail;
+	}
+
+	atomic_set_bit(&current_settings, GAP_SETTINGS_ADVERTISING);
+	rp.current_settings = sys_cpu_to_le32(current_settings);
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
+		    (u8_t *) &rp, sizeof(rp));
+	return;
+fail:
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
+		   BTP_STATUS_FAILED);
+}
+
 static void conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
 {
 	u8_t btp_status;
@@ -1414,6 +1443,9 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GAP_PASSKEY_CONFIRM:
 		passkey_confirm(data, len);
+		return;
+	case GAP_START_DIRECT_ADV:
+		start_direct_adv(data, len);
 		return;
 	case GAP_CONN_PARAM_UPDATE:
 		conn_param_update(data, len);
