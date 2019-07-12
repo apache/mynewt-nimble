@@ -52,8 +52,6 @@ static void gen_onoff_status(struct bt_mesh_model *model,
 
 	BT_DBG("state: %d", state);
 
-	transaction_id++;
-
 	k_sem_give(&cli->op_sync);
 }
 
@@ -83,8 +81,6 @@ static void gen_level_status(struct bt_mesh_model *model,
 	}
 
 	BT_DBG("level: %d", level);
-
-	transaction_id++;
 
 	k_sem_give(&cli->op_sync);
 }
@@ -181,6 +177,9 @@ int bt_mesh_gen_onoff_set(u16_t net_idx, u16_t addr, u16_t app_idx,
 
 	err = cli_wait(&gen_onoff_cli, &param, OP_GEN_ONOFF_STATUS);
 done:
+	if (err == 0) {
+		transaction_id++;
+	}
 	os_mbuf_free_chain(msg);
 	return err;
 }
@@ -250,6 +249,9 @@ int bt_mesh_gen_level_set(u16_t net_idx, u16_t addr, u16_t app_idx,
 
 	err = cli_wait(&gen_level_cli, &param, OP_GEN_LEVEL_STATUS);
 done:
+	if (err == 0) {
+		transaction_id++;
+	}
 	os_mbuf_free_chain(msg);
 	return err;
 }
