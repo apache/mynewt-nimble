@@ -1,6 +1,6 @@
 # RELEASE NOTES
 
-04 June 2018 - Apache NimBLE v1.0.0
+16 July 2019 - Apache NimBLE v1.2.0
 
 For full release notes, please visit the
 [Apache Mynewt Wiki](https://cwiki.apache.org/confluence/display/MYNEWT/Release+Notes).
@@ -10,17 +10,17 @@ replaces the proprietary SoftDevice on Nordic chipsets.
 
 New features in this version of NimBLE include:
 
-* Initial version after moving to separate repo - https://github.com/apache/mynewt-nimble
-* removal of deprecated bletiny application (superseded by btshell)
-* Added NimBLE Porting Layer (NPL) which abstracts OS specific details to improve portability
-* Initial ports for FreeRTOS and RIOT OS
-* Support for advertising up to 1650 bytes of data with Extended Advertising
-* Support for host flow control
-* Support for Direct Test Mode (DTM) via HCI interface
-* Support for Device Information Service
-* Bugfixes for issues found on UPF59 and during BT certification testing
-* Lots of other bugfixes, minor enhancements and optimisations
-* Mesh improvements
+* Perdiodic Advertising support with up to 1650 bytes of data (scanner and advertiser)
+* Support for scan request notification in GAP API
+* Updated host qualification ID
+* Qualification related bugfixes
+* GAP API doxygen documentation update
+* BLE Mesh improvements - fixes and resync with latest Zephyr code
+* RIOT OS port fixes and improvements
+* btshell sample application improvements
+* improvements for bttester application
+* Controller duplicates filtering improvements
+* Memory and CPU usage optimizations in controller
 
 If working on next-generation RTOS and Bluetooth protocol stack
 sounds exciting to you, get in touch, by sending a mail to the Apache Mynewt
