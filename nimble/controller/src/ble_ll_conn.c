@@ -179,6 +179,8 @@ STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(tx_l2cap_bytes)
     STATS_SECT_ENTRY(tx_empty_pdus)
     STATS_SECT_ENTRY(mic_failures)
+    STATS_SECT_ENTRY(sched_start_in_idle)
+    STATS_SECT_ENTRY(sched_end_in_idle)
 STATS_SECT_END
 STATS_SECT_DECL(ble_ll_conn_stats) ble_ll_conn_stats;
 
@@ -209,6 +211,8 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, tx_l2cap_bytes)
     STATS_NAME(ble_ll_conn_stats, tx_empty_pdus)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
+    STATS_NAME(ble_ll_conn_stats, sched_start_in_idle)
+    STATS_NAME(ble_ll_conn_stats, sched_end_in_idle)
 STATS_NAME_END(ble_ll_conn_stats)
 
 static void ble_ll_conn_event_end(struct ble_npl_event *ev);
@@ -1162,6 +1166,15 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
     BLE_LL_ASSERT(connsm);
+    if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
+        /* That should not happen. If it does it means connection
+         * is already closed
+         */
+        STATS_INC(ble_ll_conn_stats, sched_start_in_idle);
+        BLE_LL_ASSERT(0);
+        ble_ll_conn_current_sm_over(connsm);
+        return BLE_LL_SCHED_STATE_DONE;
+    }
 
     /* Log connection event start */
     ble_ll_trace_u32(BLE_LL_TRACE_ID_CONN_EV_START, connsm->conn_handle);
@@ -2280,6 +2293,24 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     /* Better be a connection state machine! */
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(connsm);
+    if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
+        /* That should not happen. If it does it means connection
+         * is already closed.
+         * Make sure LL state machine is in idle
+         */
+        STATS_INC(ble_ll_conn_stats, sched_end_in_idle);
+        BLE_LL_ASSERT(0);
+
+        /* Just in case */
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+        ble_ll_scan_chk_resume();
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_sched_rfclk_chk_restart();
+#endif
+
+        return;
+    }
 
     /* Log event end */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_EV_END, connsm->conn_handle,
