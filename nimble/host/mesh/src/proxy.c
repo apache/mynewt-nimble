@@ -681,7 +681,9 @@ struct os_mbuf *bt_mesh_proxy_get_buf(void)
 {
 	struct os_mbuf *buf = clients[0].buf;
 
-	net_buf_simple_init(buf, 0);
+	if (buf != NULL) {
+		net_buf_simple_init(buf, 0);
+	}
 
 	return buf;
 }
