@@ -424,7 +424,6 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
         OS_EXIT_CRITICAL(sr);
         return;
     }
-    OS_EXIT_CRITICAL(sr);
 
     ble_ll_sched_rmv_elem(&ctx->sch);
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
@@ -433,13 +432,12 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 #ifdef BLE_XCVR_RFCLK
-    OS_ENTER_CRITICAL(sr);
     ble_ll_xcvr_rfclk_stop();
-    OS_EXIT_CRITICAL(sr);
 #endif
 
     os_mbuf_free_chain(ctx->om);
     memset(ctx, 0, sizeof(*ctx));
+    OS_EXIT_CRITICAL(sr);
 }
 
 int
