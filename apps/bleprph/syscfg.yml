@@ -64,3 +64,5 @@ syscfg.vals:
     # values.
     MSYS_1_BLOCK_COUNT: 22
     MSYS_1_BLOCK_SIZE: 110
+
+    BLE_SVC_GAP_DEVICE_NAME: '"nimble-bleprph"'
