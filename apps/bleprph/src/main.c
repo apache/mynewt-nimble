@@ -323,10 +323,6 @@ main(void)
     rc = gatt_svr_init();
     assert(rc == 0);
 
-    /* Set the default device name. */
-    rc = ble_svc_gap_device_name_set("nimble-bleprph");
-    assert(rc == 0);
-
 #if MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0
     /* Set firmware version in DIS */
     imgr_my_version(&ver);
