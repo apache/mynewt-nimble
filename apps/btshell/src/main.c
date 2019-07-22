@@ -749,9 +749,8 @@ btshell_disc_full_chrs(uint16_t conn_handle)
     }
 
     SLIST_FOREACH(svc, &conn->svcs, next) {
-        if (!svc_is_empty(svc) && SLIST_EMPTY(&svc->chrs)) {
-            rc = btshell_disc_all_chrs(conn_handle, svc->svc.start_handle,
-                                       svc->svc.end_handle);
+        if (!svc->discovered) {
+            rc = btshell_disc_all_chrs_in_svc(conn_handle, svc);
             if (rc != 0) {
                 btshell_full_disc_complete(rc);
             }
@@ -801,6 +800,33 @@ btshell_on_disc_c(uint16_t conn_handle, const struct ble_gatt_error *error,
         break;
 
     case BLE_HS_EDONE:
+        console_printf("characteristic discovery successful\n");
+        if (btshell_full_disc_prev_chr_val > 0) {
+            btshell_disc_full_chrs(conn_handle);
+        }
+        break;
+
+    default:
+        btshell_print_error(NULL, conn_handle, error);
+        break;
+    }
+
+    return 0;
+}
+
+static int
+btshell_on_disc_c_in_s(uint16_t conn_handle, const struct ble_gatt_error *error,
+                       const struct ble_gatt_chr *chr, void *arg)
+{
+    struct btshell_svc *svc = arg;
+
+    switch (error->status) {
+    case 0:
+        btshell_chr_add(conn_handle, svc->svc.start_handle, chr);
+        break;
+
+    case BLE_HS_EDONE:
+        svc->discovered = true;
         console_printf("characteristic discovery successful\n");
         if (btshell_full_disc_prev_chr_val > 0) {
             btshell_disc_full_chrs(conn_handle);
@@ -1452,6 +1478,17 @@ btshell_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
     svc_start_handle = start_handle;
     rc = ble_gattc_disc_all_chrs(conn_handle, start_handle, end_handle,
                                  btshell_on_disc_c, (void *)svc_start_handle);
+    return rc;
+}
+
+int
+btshell_disc_all_chrs_in_svc(uint16_t conn_handle, struct btshell_svc *svc)
+{
+    int rc;
+
+    rc = ble_gattc_disc_all_chrs(conn_handle, svc->svc.start_handle,
+                                 svc->svc.end_handle, btshell_on_disc_c_in_s,
+                                 svc);
     return rc;
 }
 
