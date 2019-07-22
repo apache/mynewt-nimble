@@ -64,6 +64,7 @@ struct btshell_svc {
     SLIST_ENTRY(btshell_svc) next;
     struct ble_gatt_svc svc;
     struct btshell_chr_list chrs;
+    bool discovered;
 };
 
 SLIST_HEAD(btshell_svc_list, btshell_svc);
@@ -95,6 +96,7 @@ int btshell_disc_svcs(uint16_t conn_handle);
 int btshell_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid);
 int btshell_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
                            uint16_t end_handle);
+int btshell_disc_all_chrs_in_svc(uint16_t conn_handle, struct btshell_svc *svc);
 int btshell_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                                uint16_t end_handle, const ble_uuid_t *uuid);
 int btshell_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
