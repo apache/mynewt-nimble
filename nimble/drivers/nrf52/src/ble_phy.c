@@ -400,6 +400,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
     uint32_t rem_len;
     uint32_t copy_len;
     uint32_t block_len;
+    uint32_t block_rem_len;
     void *dst;
     void *src;
     struct os_mbuf * om;
@@ -424,12 +425,14 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
          * Always copy blocks of length aligned to word size, only last mbuf
          * will have remaining non-word size bytes appended.
          */
+        block_rem_len = copy_len;
         copy_len = min(copy_len, rem_len);
         copy_len &= ~3;
 
         dst = om->om_data;
         om->om_len = copy_len;
         rem_len -= copy_len;
+        block_rem_len -= copy_len;
 
         __asm__ volatile (".syntax unified              \n"
                           "   mov  r4, %[len]           \n"
@@ -446,7 +449,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
                           : "r3", "r4", "memory"
                          );
 
-        if (rem_len < 4) {
+        if ((rem_len < 4) && (block_rem_len >= rem_len)) {
             break;
         }
 
