@@ -838,6 +838,23 @@ ble_sm_read_bond(uint16_t conn_handle, struct ble_store_value_sec *out_bond)
 }
 
 /**
+ * The application is queried about pairing request, depending upon the
+ * application's response the pairing request is accepted or rejected
+ */
+static int
+ble_sm_pairing_req(uint16_t conn_handle, struct ble_sm_pair_cmd *req)
+{
+    struct ble_gap_pairing_req pair_req;
+
+    pair_req.conn_handle = conn_handle;
+    pair_req.io_cap = req->io_cap;
+    pair_req.oob_data_flag = req->oob_data_flag;
+    pair_req.authreq = req->authreq;
+
+    return ble_gap_pairing_req_event(&pair_req);
+}
+
+/**
  * Checks if the specified peer is already bonded.  If it is, the application
  * is queried about how to proceed: retry or ignore.  The application should
  * only indicate a retry if it deleted the old bond.
@@ -916,7 +933,9 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
                 rm = 1;
             }
 
-            if (proc->state == BLE_SM_PROC_STATE_NONE) {
+            if (proc->state == BLE_SM_PROC_STATE_NONE &&
+                ((res->passkey_params.action != BLE_SM_IOACT_JUSTWORKS) ||
+                 (res->passkey_params.action != BLE_SM_IOACT_REJECT))) {
                 rm = 1;
             }
 
@@ -934,6 +953,13 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
         ble_hs_unlock();
 
         if (proc == NULL) {
+            break;
+        }
+
+        if (res->passkey_params.action == BLE_SM_IOACT_JUSTWORKS ||
+            res->passkey_params.action == BLE_SM_IOACT_REJECT) {
+            /* Pairing request related IO action types may stop here, call
+             * break */
             break;
         }
 
@@ -1842,6 +1868,21 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
         } else {
+            /* Unlock host lock as the GAP event callback will result in nested
+             * ble_hs_lock() XXX */
+            ble_hs_unlock();
+
+            /* Ask application to provide response if pairing is to be accepted */
+            rc = ble_sm_pairing_req(conn_handle, req);
+            if (rc != 0) {
+                /* The app indicated that the pairing request should be rejected. */
+                res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+                return;
+            }
+            /* Resume the ble_hs_lock() */
+            ble_hs_lock();
+
             /* The request looks good.  Precalculate our pairing response and
              * determine some properties of the imminent link.  We need this
              * information in case this is a repeated pairing attempt (i.e., we
@@ -2663,6 +2704,28 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
         rc = BLE_HS_ENOENT;
     } else if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
         rc = BLE_HS_EALREADY;
+    } else if (pkey->action == BLE_SM_IOACT_JUSTWORKS ||
+               pkey->action == BLE_SM_IOACT_REJECT) {
+        struct ble_gap_passkey_params passkey_params = {0};
+        /* Response given by application to accept or reject pairing */
+        res.passkey_params.action = pkey->action;
+        passkey_params.action = pkey->action;
+        if (pkey->action == BLE_SM_IOACT_REJECT) {
+            res.passkey_params.pairing_accept = pkey->pairing_accept;
+            passkey_params.pairing_accept = pkey->pairing_accept;
+            if (pkey->pairing_accept == 0) {
+                rc = BLE_HS_EREJECT;
+                res.sm_err = BLE_SM_ERR_UNSPECIFIED;
+                res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+            } else {
+                rc = 0;
+            }
+
+            ble_gap_confirm_pairing_req_params(conn_handle, &passkey_params);
+        } else {
+            /* If not given explicit reject, assume accepted with JUSTWORKS */
+            rc = 0;
+        }
     } else if ((ble_sm_io_action(proc, &action) == 0) && pkey->action != action) {
         /* Application provided incorrect IO type. */
         rc = BLE_HS_EINVAL;
