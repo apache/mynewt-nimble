@@ -1155,6 +1155,9 @@ ble_ll_task(void *arg)
     /* Set output power to 1mW (0 dBm) */
     ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
 
+    /* Register callback for transport */
+    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
+
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
 
@@ -1619,6 +1622,16 @@ ble_ll_init(void)
 
     lldata->ll_supp_features = features;
 
+    rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
+                            STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
+                            STATS_NAME_INIT_PARMS(ble_ll_stats),
+                            "ble_ll");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+    ble_ll_dtm_init();
+#endif
+
 #if MYNEWT
     /* Initialize the LL task */
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
@@ -1631,17 +1644,5 @@ ble_ll_init(void)
  * routine which is wrapped by nimble_port_ll_task_func().
  */
 
-#endif
-
-    rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
-                            STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
-                            STATS_NAME_INIT_PARMS(ble_ll_stats),
-                            "ble_ll");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
-
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
-    ble_ll_dtm_init();
 #endif
 }
