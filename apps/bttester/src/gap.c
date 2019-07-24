@@ -33,7 +33,6 @@
 #include "../../../nimble/host/src/ble_hs_hci_priv.h"
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
-#include "atomic.h"
 #include "bttester.h"
 
 #define CONTROLLER_INDEX 0
@@ -47,7 +46,7 @@ const uint8_t irk[16] = {
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 };
 
-static atomic_t current_settings;
+static uint16_t current_settings;
 u8_t own_addr_type;
 static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
@@ -167,7 +166,7 @@ static void controller_info(u8_t *data, u16_t len)
 		} else {
 			own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
 		}
-		atomic_set_bit(&current_settings, GAP_SETTINGS_PRIVACY);
+		current_settings |= BIT(GAP_SETTINGS_PRIVACY);
 		supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
 		memcpy(rp.address, addr.val, sizeof(rp.address));
 	} else {
@@ -175,8 +174,7 @@ static void controller_info(u8_t *data, u16_t len)
 			own_addr_type = BLE_OWN_ADDR_RANDOM;
 			memcpy(rp.address, addr.val, sizeof(rp.address));
 			supported_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
-			atomic_set_bit(&current_settings,
-				       GAP_SETTINGS_STATIC_ADDRESS);
+			current_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
 		} else {
 			own_addr_type = BLE_OWN_ADDR_PUBLIC;
 			memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
@@ -214,10 +212,10 @@ static void set_connectable(u8_t *data, u16_t len)
 	SYS_LOG_DBG("");
 
 	if (cmd->connectable) {
-		atomic_set_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
+		current_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
 		adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
 	} else {
-		atomic_clear_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
+		current_settings &= ~BIT(GAP_SETTINGS_CONNECTABLE);
 		adv_params.conn_mode = BLE_GAP_CONN_MODE_NON;
 	}
 
@@ -240,19 +238,19 @@ static void set_discoverable(u8_t *data, u16_t len)
 	case GAP_NON_DISCOVERABLE:
 		ad_flags &= ~(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_DISC_LTD);
 		adv_params.disc_mode = BLE_GAP_DISC_MODE_NON;
-		atomic_clear_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
+		current_settings &= ~BIT(GAP_SETTINGS_DISCOVERABLE);
 		break;
 	case GAP_GENERAL_DISCOVERABLE:
 		ad_flags &= ~BLE_HS_ADV_F_DISC_LTD;
 		ad_flags |= BLE_HS_ADV_F_DISC_GEN;
 		adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-		atomic_set_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
+		current_settings |= BIT(GAP_SETTINGS_DISCOVERABLE);
 		break;
 	case GAP_LIMITED_DISCOVERABLE:
 		ad_flags &= ~BLE_HS_ADV_F_DISC_GEN;
 		ad_flags |= BLE_HS_ADV_F_DISC_LTD;
 		adv_params.disc_mode = BLE_GAP_DISC_MODE_LTD;
-		atomic_set_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
+		current_settings |= BIT(GAP_SETTINGS_DISCOVERABLE);
 		break;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_DISCOVERABLE,
@@ -363,7 +361,7 @@ static void start_advertising(const u8_t *data, u16_t len)
 		goto fail;
 	}
 
-	atomic_set_bit(&current_settings, GAP_SETTINGS_ADVERTISING);
+	current_settings |= BIT(GAP_SETTINGS_ADVERTISING);
 	rp.current_settings = sys_cpu_to_le32(current_settings);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_START_ADVERTISING, CONTROLLER_INDEX,
@@ -386,7 +384,7 @@ static void stop_advertising(const u8_t *data, u16_t len)
 		return;
 	}
 
-	atomic_clear_bit(&current_settings, GAP_SETTINGS_ADVERTISING);
+	current_settings &= ~BIT(GAP_SETTINGS_ADVERTISING);
 	rp.current_settings = sys_cpu_to_le32(current_settings);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_STOP_ADVERTISING, CONTROLLER_INDEX,
@@ -909,7 +907,7 @@ static void adv_complete(void)
 {
 	struct gap_new_settings_ev ev;
 
-	atomic_clear_bit(&current_settings, GAP_SETTINGS_ADVERTISING);
+	current_settings &= ~BIT(GAP_SETTINGS_ADVERTISING);
 	ev.current_settings = sys_cpu_to_le32(current_settings);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_NEW_SETTINGS, CONTROLLER_INDEX,
@@ -1272,7 +1270,7 @@ static void start_direct_adv(const u8_t *data, u16_t len)
 		goto fail;
 	}
 
-	atomic_set_bit(&current_settings, GAP_SETTINGS_ADVERTISING);
+	current_settings |= BIT(GAP_SETTINGS_ADVERTISING);
 	rp.current_settings = sys_cpu_to_le32(current_settings);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
@@ -1465,10 +1463,10 @@ static void tester_init_gap_cb(int err)
 		return;
 	}
 
-	atomic_clear(&current_settings);
-	atomic_set_bit(&current_settings, GAP_SETTINGS_POWERED);
-	atomic_set_bit(&current_settings, GAP_SETTINGS_BONDABLE);
-	atomic_set_bit(&current_settings, GAP_SETTINGS_LE);
+	current_settings = 0;
+	current_settings |= BIT(GAP_SETTINGS_POWERED);
+	current_settings |= BIT(GAP_SETTINGS_BONDABLE);
+	current_settings |= BIT(GAP_SETTINGS_LE);
 
 	tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
 		   BTP_STATUS_SUCCESS);
