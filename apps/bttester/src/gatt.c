@@ -1720,6 +1720,11 @@ static void write_long(u8_t *data, u16_t len)
 
 	om = ble_hs_mbuf_from_flat(cmd->data, sys_le16_to_cpu(cmd->data_length));
 
+	if (!om) {
+		SYS_LOG_ERR("Insufficient resources");
+		goto fail;
+	}
+
 	if (ble_gattc_write_long(conn.conn_handle, sys_le16_to_cpu(cmd->handle),
 				 sys_le16_to_cpu(cmd->offset), om, write_rsp,
 				 (void *) GATT_WRITE_LONG)) {
