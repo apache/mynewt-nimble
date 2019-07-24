@@ -24,12 +24,8 @@
 
 /* BLE */
 #include "nimble/ble.h"
-#include "controller/ble_ll.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
-
-/* RAM HCI transport. */
-#include "transport/ram/ble_hci_ram.h"
 
 /* Mandatory services. */
 #include "services/gap/ble_svc_gap.h"
