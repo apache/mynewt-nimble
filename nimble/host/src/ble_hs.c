@@ -781,14 +781,14 @@ ble_hs_init(void)
     ble_hs_dbg_mutex_locked = 0;
 #endif
 
-    /* Configure the HCI transport to communicate with a host. */
-    ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
-
 #ifdef MYNEWT
     ble_hs_evq_set((struct ble_npl_eventq *)os_eventq_dflt_get());
 #else
     ble_hs_evq_set(nimble_port_get_dflt_eventq());
 #endif
+
+    /* Configure the HCI transport to communicate with a host. */
+    ble_hci_trans_cfg_hs(ble_hs_hci_rx_evt, NULL, ble_hs_rx_data, NULL);
 
 #if BLE_MONITOR
     rc = ble_monitor_init();
