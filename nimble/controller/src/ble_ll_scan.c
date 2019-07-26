@@ -1392,7 +1392,6 @@ ble_ll_scan_interrupted_event_cb(struct ble_npl_event *ev)
     }
 
     ble_ll_scan_chk_resume();
-    ble_phy_restart_rx();
 }
 
 /**
@@ -2512,9 +2511,45 @@ void
 ble_ll_scan_wfr_timer_exp(void)
 {
     struct ble_ll_scan_sm *scansm;
+    uint8_t chan;
+    int phy;
+    int rc;
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    uint8_t phy_mode;
+#endif
 
     scansm = &g_ble_ll_scan_sm;
-    ble_ll_scan_interrupted(scansm);
+    if (scansm->cur_aux_data) {
+        /* We actually care about interrupted scan only for EXT ADV because only
+         * then we might consider to send truncated event to the host.
+         */
+        ble_ll_scan_interrupted(scansm);
+
+        /* Need to disable phy since we are going to move to BLE_LL_STATE_STANDBY
+         * or we will need to change channel to primary one
+         */
+        ble_phy_disable();
+
+        if (ble_ll_scan_window_chk(scansm, os_cputime_get32()) == 1) {
+            /* Outside the window scan */
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+            return;
+        }
+
+        ble_ll_get_chan_to_scan(scansm, &chan, &phy);
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+        phy_mode = ble_ll_phy_to_phy_mode(phy, BLE_HCI_LE_PHY_CODED_ANY);
+        ble_phy_mode_set(phy_mode, phy_mode);
+#endif
+        rc = ble_phy_setchan(chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
+        BLE_LL_ASSERT(rc == 0);
+    }
+
+    if (scansm->scan_rsp_pending) {
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
+
+    ble_phy_restart_rx();
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
