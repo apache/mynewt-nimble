@@ -824,11 +824,6 @@ static void le_identity_resolved(u16_t conn_handle)
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 
-static void le_encryption_changed(struct ble_gap_conn_desc *desc)
-{
-	encrypted = (bool) desc->sec_state.encrypted;
-}
-
 static void le_conn_param_update(struct ble_gap_conn_desc *desc)
 {
 	struct gap_conn_param_update_ev ev;
@@ -843,6 +838,34 @@ static void le_conn_param_update(struct ble_gap_conn_desc *desc)
 	ev.supervision_timeout = desc->supervision_timeout;
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_CONN_PARAM_UPDATE,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void le_encryption_changed(struct ble_gap_conn_desc *desc)
+{
+	struct gap_sec_level_changed_ev ev;
+
+	SYS_LOG_DBG("");
+
+	encrypted = (bool) desc->sec_state.encrypted;
+
+	ev.address_type = desc->peer_ota_addr.type;
+	memcpy(ev.address, desc->peer_ota_addr.val, sizeof(ev.address));
+	ev.level = 0;
+
+	if (desc->sec_state.encrypted) {
+		if (desc->sec_state.authenticated) {
+			if (desc->sec_state.key_size == 16) {
+				ev.level = 3;
+			} else {
+				ev.level = 2;
+			}
+		} else {
+			ev.level = 1;
+		}
+	}
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_SEC_LEVEL_CHANGED,
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 

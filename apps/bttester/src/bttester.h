@@ -363,6 +363,13 @@ struct gap_conn_param_update_ev {
     u16_t supervision_timeout;
 } __packed;
 
+#define GAP_EV_SEC_LEVEL_CHANGED	0x89
+struct gap_sec_level_changed_ev {
+    u8_t address_type;
+    u8_t address[6];
+    u8_t level;
+} __packed;
+
 /* GATT Service */
 /* commands */
 #define GATT_READ_SUPPORTED_COMMANDS	0x01
