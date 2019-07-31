@@ -108,7 +108,7 @@ static void unstalled_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
 	}
 }
 
-static struct channel *get_free_channel()
+static struct channel *get_free_channel(void)
 {
 	u8_t i;
 	struct channel *chan;
