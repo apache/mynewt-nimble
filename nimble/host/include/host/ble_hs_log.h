@@ -21,6 +21,9 @@
 #define H_BLE_HS_LOG_
 
 #include "modlog/modlog.h"
+#if MYNEWT
+#include "os/mynewt.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,14 +31,28 @@ extern "C" {
 
 struct os_mbuf;
 
+/* Logging macros are generated automatically for Mynewt.  Define them here for
+ * other OSes.
+ */
+#if !MYNEWT
+
+#define BLE_HS_LOG_DEBUG(...) MODLOG_DEBUG(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#define BLE_HS_LOG_INFO(...)  MODLOG_INFO(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#define BLE_HS_LOG_WARN(...)  MODLOG_WARN(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#define BLE_HS_LOG_ERROR(...) MODLOG_ERROR(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+#define BLE_HS_LOG_CRITICAL(...)    \
+    MODLOG_CRITICAL(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+
+#endif
+
 #define BLE_HS_LOG(lvl, ...) \
-    MODLOG_ ## lvl(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
+    BLE_HS_LOG_ ## lvl(__VA_ARGS__)
 
 #define BLE_HS_LOG_ADDR(lvl, addr)                      \
-    MODLOG_ ## lvl(LOG_MODULE_NIMBLE_HOST,              \
-                   "%02x:%02x:%02x:%02x:%02x:%02x",     \
-                   (addr)[5], (addr)[4], (addr)[3],     \
-                   (addr)[2], (addr)[1], (addr)[0])
+    BLE_HS_LOG_ ## lvl("%02x:%02x:%02x:%02x:%02x:%02x", \
+                       (addr)[5], (addr)[4], (addr)[3], \
+                       (addr)[2], (addr)[1], (addr)[0])
+
 
 void ble_hs_log_mbuf(const struct os_mbuf *om);
 void ble_hs_log_flat_buf(const void *data, int len);
