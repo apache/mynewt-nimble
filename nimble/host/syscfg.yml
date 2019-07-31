@@ -446,5 +446,19 @@ syscfg.defs:
             Sysinit stage for the NimBLE host.
         value: 200
 
+    ### Log settings.
+
+    BLE_HS_LOG_MOD:
+        description: 'Numeric module ID to use for BLE host log messages.'
+        value: 4
+    BLE_HS_LOG_LVL:
+        description: 'Minimum level for the BLE host log.'
+        value: 1
+
+syscfg.logs:
+    BLE_HS_LOG:
+        module: MYNEWT_VAL(BLE_HS_LOG_MOD)
+        level: MYNEWT_VAL(BLE_HS_LOG_LVL)
+
 syscfg.vals.BLE_MESH:
     BLE_SM_SC: 1
