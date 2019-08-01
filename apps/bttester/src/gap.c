@@ -1279,6 +1279,9 @@ static void start_direct_adv(const u8_t *data, u16_t len)
 {
 	const struct gap_start_direct_adv_cmd *cmd = (void *) data;
 	struct gap_start_advertising_rp rp;
+	static struct ble_gap_adv_params adv_params = {
+		.conn_mode = BLE_GAP_CONN_MODE_DIR,
+	};
 	int err;
 
 	SYS_LOG_DBG("");
