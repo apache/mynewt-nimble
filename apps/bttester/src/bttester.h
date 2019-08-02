@@ -651,12 +651,21 @@ struct gatt_attr {
 
 #define GATT_GET_ATTRIBUTE_VALUE	0x1d
 struct gatt_get_attribute_value_cmd {
+	u8_t address_type;
+	u8_t address[6];
 	u16_t handle;
 } __packed;
 struct gatt_get_attribute_value_rp {
 	u8_t att_response;
 	u16_t value_length;
 	u8_t value[0];
+} __packed;
+
+#define GATT_CHANGE_DATABASE		0x1e
+struct gatt_change_database {
+    u16_t start_handle;
+    u16_t end_handle;
+    u8_t visibility;
 } __packed;
 
 /* GATT events */
