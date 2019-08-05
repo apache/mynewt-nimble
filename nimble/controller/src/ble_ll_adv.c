@@ -4190,7 +4190,8 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
         /* Only accept connect requests if connectable advertising event */
         if (pdu_type == BLE_ADV_PDU_TYPE_CONNECT_IND) {
             if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-                rc = 0;
+                /* Need transition to TX if extended adv */
+                rc = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY);
             }
         }
     }
