@@ -191,6 +191,12 @@ syscfg.defs:
             as there are outgoing segments.
         value: 3
 
+    BLE_MESH_SEG_RETRANSMIT_ATTEMPTS:
+        description: >
+            Number of retransmit attempts (after the initial transmit) per segment
+        value: 4
+        retrictions: 'BLE_MESH_SEG_RETRANSMIT_ATTEMPTS > 1'
+
     BLE_MESH_RELAY:
         description: >
             Support for acting as a Mesh Relay Node.

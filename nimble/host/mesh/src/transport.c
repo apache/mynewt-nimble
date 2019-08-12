@@ -52,7 +52,7 @@ BUILD_ASSERT(CONFIG_BT_MESH_ADV_BUF_COUNT >= (CONFIG_BT_MESH_TX_SEG_MAX + 3));
 #define SEQ_AUTH(iv_index, seq)     (((u64_t)iv_index) << 24 | (u64_t)seq)
 
 /* Number of retransmit attempts (after the initial transmit) per segment */
-#define SEG_RETRANSMIT_ATTEMPTS     4
+#define SEG_RETRANSMIT_ATTEMPTS     (MYNEWT_VAL(BLE_MESH_SEG_RETRANSMIT_ATTEMPTS))
 
 /* "This timer shall be set to a minimum of 200 + 50 * TTL milliseconds.".
  * We use 400 since 300 is a common send duration for standard HCI, and we
