@@ -273,6 +273,37 @@ ble_ll_resolv_list_find(const uint8_t *addr, uint8_t addr_type)
 }
 
 /**
+ * Helper function to remove address from the resolving list
+ *
+ * @return position of removed entry
+ */
+static int
+ble_ll_resolv_list_rmv_entry(const uint8_t *addr, const uint8_t addr_type)
+{
+    int position;
+
+    /* Remove from IRK records */
+    position = ble_ll_is_on_resolv_list(addr, addr_type);
+    if (position) {
+        BLE_LL_ASSERT(position <= g_ble_ll_resolv_data.rl_cnt);
+
+        memmove(&g_ble_ll_resolv_list[position - 1],
+                &g_ble_ll_resolv_list[position],
+                (g_ble_ll_resolv_data.rl_cnt - position) *
+                sizeof(g_ble_ll_resolv_list[0]));
+        g_ble_ll_resolv_data.rl_cnt--;
+
+        /* Remove from HW list */
+        if (position <= g_ble_ll_resolv_data.rl_cnt_hw) {
+            ble_hw_resolv_list_rmv(position - 1);
+            g_ble_ll_resolv_data.rl_cnt_hw--;
+        }
+    }
+
+    return position;
+}
+
+/**
  * Add a device to the resolving list
  *
  * @return int
@@ -298,12 +329,11 @@ ble_ll_resolv_list_add(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_MEM_CAPACITY;
     }
 
-    /* spec is not clear on how to handle this but make sure host is aware
-     * that new keys are not used in that case
+    /* Specification is not clear on how to handle this.
+     * From now on we are nice and let host to update new keys as we saw
+     * some hosts does it.
      */
-    if (ble_ll_is_on_resolv_list(cmd->peer_id_addr, cmd->peer_addr_type)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
+    ble_ll_resolv_list_rmv_entry(cmd->peer_id_addr, cmd->peer_addr_type);
 
     /* we keep this sorted in a way that entries with peer_irk are first */
     if (ble_ll_resolv_irk_nonzero(cmd->peer_irk)) {
@@ -355,7 +385,6 @@ int
 ble_ll_resolv_list_rmv(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_rmv_resolve_list_cp *cmd = (const void *) cmdbuf;
-    int position;
 
     if (len != sizeof(*cmd)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -366,26 +395,12 @@ ble_ll_resolv_list_rmv(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    /* Remove from IRK records */
-    position = ble_ll_is_on_resolv_list(cmd->peer_id_addr, cmd->peer_addr_type);
-    if (position) {
-        BLE_LL_ASSERT(position <= g_ble_ll_resolv_data.rl_cnt);
-
-        memmove(&g_ble_ll_resolv_list[position - 1],
-                &g_ble_ll_resolv_list[position],
-                (g_ble_ll_resolv_data.rl_cnt - position) *
-                sizeof(g_ble_ll_resolv_list[0]));
-        g_ble_ll_resolv_data.rl_cnt--;
-
-        /* Remove from HW list */
-        if (position <= g_ble_ll_resolv_data.rl_cnt_hw) {
-            ble_hw_resolv_list_rmv(position - 1);
-            g_ble_ll_resolv_data.rl_cnt_hw--;
-        }
-        return BLE_ERR_SUCCESS;
+    if (ble_ll_resolv_list_rmv_entry(cmd->peer_id_addr, cmd->peer_addr_type) == 0) {
+        /* No device on the list */
+        return BLE_ERR_UNK_CONN_ID;
     }
 
-    return BLE_ERR_UNK_CONN_ID;
+    return BLE_ERR_SUCCESS;
 }
 
 /**
