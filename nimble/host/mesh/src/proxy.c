@@ -654,10 +654,7 @@ static void proxy_connected(uint16_t conn_handle)
 static void proxy_disconnected(uint16_t conn_handle, int reason)
 {
 	int i;
-
-	BT_INFO("conn_handle %d reason %d", conn_handle, reason);
-
-	conn_count--;
+	bool disconnected = false;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
@@ -670,11 +667,16 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 
 			k_delayed_work_cancel(&client->sar_timer);
 			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+			conn_count--;
+			disconnected = true;
 			break;
 		}
 	}
 
-	bt_mesh_adv_update();
+	if (disconnected) {
+		BT_INFO("conn_handle %d reason %d", conn_handle, reason);
+		bt_mesh_adv_update();
+	}
 }
 
 struct os_mbuf *bt_mesh_proxy_get_buf(void)
@@ -1353,12 +1355,39 @@ void bt_mesh_proxy_adv_stop(void)
 	}
 }
 
-int
-ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
+static void ble_mesh_handle_connect(struct ble_gap_event *event, void *arg)
 {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+	/* When EXT ADV is enabled then mesh proxy is connected
+	 * when proxy advertising instance is completed.
+	 * Therefore no need to handle BLE_GAP_EVENT_CONNECT
+	 */
+	if (event->type == BLE_GAP_EVENT_ADV_COMPLETE) {
+		/* Reason 0 means advertising has been completed because
+		 * connection has been established
+		 */
+		if (event->adv_complete.reason != 0) {
+			return;
+		}
 
+		if (event->adv_complete.instance != BT_MESH_ADV_GATT_INST) {
+			return;
+		}
+
+		proxy_connected(event->adv_complete.conn_handle);
+	}
+#else
 	if (event->type == BLE_GAP_EVENT_CONNECT) {
 		proxy_connected(event->connect.conn_handle);
+	}
+#endif
+}
+
+int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
+{
+	if ((event->type == BLE_GAP_EVENT_CONNECT) ||
+		(event->type == BLE_GAP_EVENT_ADV_COMPLETE)) {
+		ble_mesh_handle_connect(event, arg);
 	} else if (event->type == BLE_GAP_EVENT_DISCONNECT) {
 		proxy_disconnected(event->disconnect.conn.conn_handle,
 				   event->disconnect.reason);

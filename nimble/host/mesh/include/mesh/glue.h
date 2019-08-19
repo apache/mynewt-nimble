@@ -206,6 +206,20 @@ static inline struct os_mbuf * NET_BUF_SIMPLE(uint16_t size)
 #define K_NO_WAIT (0)
 #define K_FOREVER (-1)
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+#define BT_MESH_ADV_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES))
+
+#if MYNEWT_VAL(BLE_MESH_PROXY)
+/* Note that BLE_MULTI_ADV_INSTANCES contains number of additional instances.
+ * Instance 0 is always there
+ */
+#if MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) < 1
+#error "Mesh needs at least BLE_MULTI_ADV_INSTANCES set to 1"
+#endif
+#define BT_MESH_ADV_GATT_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) - 1)
+#endif /* BLE_MESH_PROXY */
+#endif /* BLE_EXT_ADV */
+
 /* This is by purpose */
 static inline void net_buf_simple_init(struct os_mbuf *buf,
                                        size_t reserve_head)
