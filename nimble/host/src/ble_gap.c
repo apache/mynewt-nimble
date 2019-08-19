@@ -755,15 +755,18 @@ ble_gap_scan_req_rcvd(uint8_t instance, uint8_t scan_addr_type,
     ble_gap_event_fn *cb;
     void *cb_arg;
 
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_SCAN_REQ_RCVD;
+    event.scan_req_rcvd.instance = instance;
+    event.scan_req_rcvd.scan_addr.type = scan_addr_type;
+    memcpy(event.scan_req_rcvd.scan_addr.val, scan_addr, 6);
+
     ble_gap_slave_extract_cb(instance, &cb, &cb_arg);
     if (cb != NULL) {
-        memset(&event, 0, sizeof event);
-        event.type = BLE_GAP_EVENT_SCAN_REQ_RCVD;
-        event.scan_req_rcvd.instance = instance;
-        event.scan_req_rcvd.scan_addr.type = scan_addr_type;
-        memcpy(event.scan_req_rcvd.scan_addr.val, scan_addr, 6);
         cb(&event, cb_arg);
     }
+
+    ble_gap_event_listener_call(&event);
 }
 #endif
 
