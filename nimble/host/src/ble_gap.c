@@ -729,16 +729,19 @@ ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle,
     ble_gap_event_fn *cb;
     void *cb_arg;
 
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_ADV_COMPLETE;
+    event.adv_complete.reason = reason;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    event.adv_complete.instance = instance;
+    event.adv_complete.conn_handle = conn_handle;
+    event.adv_complete.num_ext_adv_events = num_events;
+#endif
+
+    ble_gap_event_listener_call(&event);
+
     ble_gap_slave_extract_cb(instance, &cb, &cb_arg);
     if (cb != NULL) {
-        memset(&event, 0, sizeof event);
-        event.type = BLE_GAP_EVENT_ADV_COMPLETE;
-        event.adv_complete.reason = reason;
-#if MYNEWT_VAL(BLE_EXT_ADV)
-        event.adv_complete.instance = instance;
-        event.adv_complete.conn_handle = conn_handle;
-        event.adv_complete.num_ext_adv_events = num_events;
-#endif
         cb(&event, cb_arg);
     }
 }
