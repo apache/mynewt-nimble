@@ -29,20 +29,6 @@
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
-#define BT_MESH_ADV_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES))
-
-#if MYNEWT_VAL(BLE_MESH_PROXY)
-/* Note that BLE_MULTI_ADV_INSTANCES contains number of additional instances.
- * Instance 0 is always there
- */
-#if MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) < 1
-#error "Mesh needs at least BLE_MULTI_ADV_INSTANCES set to 1"
-#endif
-#define BT_MESH_ADV_GATT_INST     (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) - 1)
-#endif /* BLE_MESH_PROXY */
-#endif /* BLE_EXT_ADV */
-
 extern u8_t g_mesh_addr_type;
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
