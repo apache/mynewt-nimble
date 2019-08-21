@@ -348,7 +348,8 @@ ble_ll_resolv_list_rmv(uint8_t *cmdbuf)
 
         memmove(&g_ble_ll_resolv_list[position - 1],
                 &g_ble_ll_resolv_list[position],
-                g_ble_ll_resolv_data.rl_cnt - position);
+                (g_ble_ll_resolv_data.rl_cnt - position) *
+                sizeof(g_ble_ll_resolv_list[0]));
         --g_ble_ll_resolv_data.rl_cnt;
 
         /* Remove from HW list */
