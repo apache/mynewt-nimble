@@ -448,7 +448,7 @@ ble_hw_resolv_list_rmv(int index)
         --g_nrf_num_irks;
         irk_entry = &g_nrf_irk_list[index];
         if (g_nrf_num_irks > index) {
-            memmove(irk_entry, irk_entry + 4, g_nrf_num_irks - index);
+            memmove(irk_entry, irk_entry + 4, 16 * (g_nrf_num_irks - index));
         }
     }
 }
