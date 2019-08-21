@@ -289,7 +289,10 @@ ble_hs_hci_evt_le_meta(uint8_t event_code, uint8_t *data, int len)
 }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
+static int8_t pend_adv_instance = -1;
+static bool pend_conn_complete_evt;
 static struct hci_le_conn_complete pend_conn_complete;
+static struct hci_le_adv_set_terminated pending_term_evt;
 #endif
 
 static int
@@ -345,6 +348,14 @@ ble_hs_hci_evt_le_conn_complete(uint8_t subevent, uint8_t *data, int len)
                             evt.role == BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
     /* store this until we get set terminated event with adv handle */
         memcpy(&pend_conn_complete, &evt, sizeof(evt));
+
+        if (pend_adv_instance  >= 0) {
+            ble_gap_rx_conn_complete(&evt, pend_adv_instance);
+            pend_adv_instance = -1;
+            ble_gap_rx_adv_set_terminated(&pending_term_evt);
+            return 0;
+        }
+        pend_conn_complete_evt = true;
         return 0;
     }
 #endif
@@ -695,10 +706,18 @@ ble_hs_hci_evt_le_adv_set_terminated(uint8_t subevent, uint8_t *data, int len)
     evt.completed_events = data[5];
 
     if (evt.status == 0) {
-        /* ignore return code as we need to terminate advertising set anyway */
-        ble_gap_rx_conn_complete(&pend_conn_complete, evt.adv_handle);
+        if (pend_conn_complete_evt) {
+            /* ignore return code as we need to terminate advertising set anyway */
+            ble_gap_rx_conn_complete(&pend_conn_complete, evt.adv_handle);
+            pend_conn_complete_evt = false;
+            ble_gap_rx_adv_set_terminated(&evt);
+        } else {
+           pend_adv_instance = evt.adv_handle;
+           pending_term_evt = evt;
+        }
+    } else {
+       ble_gap_rx_adv_set_terminated(&evt);
     }
-    ble_gap_rx_adv_set_terminated(&evt);
 #endif
 
     return 0;
