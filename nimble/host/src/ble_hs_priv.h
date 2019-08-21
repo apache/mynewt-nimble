@@ -118,7 +118,8 @@ int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
 void ble_hs_misc_conn_chan_find_reqd(uint16_t conn_handle, uint16_t cid,
                                      struct ble_hs_conn **out_conn,
                                      struct ble_l2cap_chan **out_chan);
-uint8_t ble_hs_misc_addr_type_to_id(uint8_t addr_type);
+uint8_t ble_hs_misc_own_addr_type_to_id(uint8_t addr_type);
+uint8_t ble_hs_misc_peer_addr_type_to_id(uint8_t addr_type);
 int ble_hs_misc_restore_irks(void);
 
 int ble_hs_locked_by_cur_task(void);

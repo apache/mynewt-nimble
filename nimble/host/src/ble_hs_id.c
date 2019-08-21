@@ -182,7 +182,7 @@ ble_hs_id_addr_type_usable(uint8_t own_addr_type)
 
     case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
     case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
-        id_addr_type = ble_hs_misc_addr_type_to_id(own_addr_type);
+        id_addr_type = ble_hs_misc_own_addr_type_to_id(own_addr_type);
         rc = ble_hs_id_addr(id_addr_type, NULL, &nrpa);
         if (rc != 0) {
             return rc;

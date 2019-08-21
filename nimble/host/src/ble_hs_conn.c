@@ -390,7 +390,7 @@ ble_hs_conn_addrs(const struct ble_hs_conn *conn,
 
     /* Determine our address information. */
     addrs->our_id_addr.type =
-        ble_hs_misc_addr_type_to_id(conn->bhc_our_addr_type);
+        ble_hs_misc_own_addr_type_to_id(conn->bhc_our_addr_type);
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     /* With EA enabled random address for slave connection is per advertising
