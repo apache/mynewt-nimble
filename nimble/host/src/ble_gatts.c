@@ -718,6 +718,8 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
             /* Successful writes get persisted for bonded connections. */
             if (conn->bhc_sec_state.bonded) {
                 out_cccd->peer_addr = conn->bhc_peer_addr;
+                out_cccd->peer_addr.type =
+                    ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
                 out_cccd->chr_val_handle = chr_val_handle;
                 out_cccd->flags = clt_cfg->flags;
                 out_cccd->value_changed = 0;
@@ -1449,6 +1451,8 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
                   !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED);
         if (persist) {
             cccd_value.peer_addr = conn->bhc_peer_addr;
+            cccd_value.peer_addr.type =
+                ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
             cccd_value.chr_val_handle = chr_val_handle;
             cccd_value.flags = clt_cfg->flags;
             cccd_value.value_changed = 0;
@@ -1677,6 +1681,8 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     BLE_HS_DBG_ASSERT(conn->bhc_sec_state.bonded);
 
     cccd_value.peer_addr = conn->bhc_peer_addr;
+    cccd_value.peer_addr.type =
+        ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     gatt_srv = &conn->bhc_gatt_svr;
 
     for (i = 0; i < gatt_srv->num_clt_cfgs; ++i) {
@@ -1721,6 +1727,8 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
     BLE_HS_DBG_ASSERT(conn->bhc_sec_state.bonded);
 
     cccd_key.peer_addr = conn->bhc_peer_addr;
+    cccd_key.peer_addr.type =
+        ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     cccd_key.chr_val_handle = 0;
     cccd_key.idx = 0;
 

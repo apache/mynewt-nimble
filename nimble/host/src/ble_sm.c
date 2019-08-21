@@ -548,7 +548,8 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
         }
     } else {
         peer_addr = conn->bhc_peer_addr;
-        peer_addr.type = ble_hs_misc_addr_type_to_id(conn->bhc_peer_addr.type);
+        peer_addr.type =
+            ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     }
 
     ble_hs_unlock();
