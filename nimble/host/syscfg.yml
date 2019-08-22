@@ -441,6 +441,11 @@ syscfg.defs:
             Timeout used in NimBLE's host stop procedure in ms.
         value: 2000
 
+    BLE_SM_SC_DEBUG_MODE:
+        description: >
+            Use debug mode as described in Bluetooth 5.0 Vol. 3, Part H, 2.3.5.6.1
+        value: 0
+
     BLE_HS_SYSINIT_STAGE:
         description: >
             Sysinit stage for the NimBLE host.

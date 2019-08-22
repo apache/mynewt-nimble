@@ -29,6 +29,8 @@
 #define BLE_SM_SC_PASSKEY_BYTES     4
 #define BLE_SM_SC_PASSKEY_BITS      20
 
+#define BLE_SM_DBG_MODE (MYNEWT_VAL(BLE_SM_SC_DEBUG_MODE) || MYNEWT_VAL(BLE_HS_DEBUG))
+
 static uint8_t ble_sm_sc_pub_key[64];
 static uint8_t ble_sm_sc_priv_key[32];
 
@@ -78,12 +80,30 @@ static const uint8_t ble_sm_sc_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
       {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
+#if BLE_SM_DBG_MODE
+static uint8_t ble_sm_dbg_sc_pub_key[64] = {
+    0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+    0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+    0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+    0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20,
+    0x8b, 0xd2, 0x89, 0x15, 0xd0, 0x8e, 0x1c, 0x74,
+    0x24, 0x30, 0xed, 0x8f, 0xc2, 0x45, 0x63, 0x76,
+    0x5c, 0x15, 0x52, 0x5a, 0xbf, 0x9a, 0x32, 0x63,
+    0x6d, 0xeb, 0x2a, 0x65, 0x49, 0x9c, 0x80, 0xdc
+};
 
-static uint8_t ble_sm_dbg_sc_pub_key[64];
-static uint8_t ble_sm_dbg_sc_priv_key[32];
-static uint8_t ble_sm_dbg_sc_keys_set;
+static uint8_t ble_sm_dbg_sc_priv_key[32] = {
+    0xbd, 0x1a, 0x3c, 0xcd, 0xa6, 0xb8, 0x99, 0x58,
+    0x99, 0xb7, 0x40, 0xeb, 0x7b, 0x60, 0xff, 0x4a,
+    0x50, 0x3f, 0x10, 0xd2, 0xe3, 0xb3, 0xc9, 0x74,
+    0x38, 0x5f, 0xc5, 0xa3, 0xd4, 0xf6, 0x49, 0x3f
+};
 
+#if MYNEWT_VAL(BLE_SM_SC_DEBUG_MODE)
+static uint8_t ble_sm_dbg_sc_keys_set = 1;
+#else
+/* This is used for unit test purposes */
+static uint8_t ble_sm_dbg_sc_keys_set = 0;
 void
 ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
 {
@@ -93,7 +113,7 @@ ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey)
            sizeof ble_sm_dbg_sc_priv_key);
     ble_sm_dbg_sc_keys_set = 1;
 }
-
+#endif
 #endif
 
 int
@@ -154,7 +174,7 @@ ble_sm_gen_pub_priv(uint8_t *pub, uint8_t *priv)
 {
     int rc;
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
+#if BLE_SM_DBG_MODE
     if (ble_sm_dbg_sc_keys_set) {
         ble_sm_dbg_sc_keys_set = 0;
         memcpy(pub, ble_sm_dbg_sc_pub_key, sizeof ble_sm_dbg_sc_pub_key);
