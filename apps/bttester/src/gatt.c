@@ -271,17 +271,17 @@ gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 	assert(uuid16 != 0);
 
 	switch (uuid16) {
-		case PTS_CHR_READ_WRITE:
-	if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-		rc = gatt_svr_chr_write(ctxt->om, 0,
-					sizeof gatt_svr_pts_static_short_val,
-					&gatt_svr_pts_static_short_val, NULL);
-	return rc;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_short_val,
-					sizeof gatt_svr_pts_static_short_val);
-	return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
+	case PTS_CHR_READ_WRITE:
+		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+			rc = gatt_svr_chr_write(ctxt->om, 0,
+						sizeof gatt_svr_pts_static_short_val,
+						&gatt_svr_pts_static_short_val, NULL);
+			return rc;
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_short_val,
+					    sizeof gatt_svr_pts_static_short_val);
+			return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
@@ -301,27 +301,17 @@ gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 
 	switch (uuid16) {
 	case PTS_LONG_CHR_READ_WRITE:
-		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
-						sizeof gatt_svr_pts_static_long_val,
-						&gatt_svr_pts_static_long_val, NULL);
-		return rc;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_long_val,
-				    sizeof gatt_svr_pts_static_long_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
 	case PTS_LONG_CHR_READ_WRITE_ALT:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
 			rc = gatt_svr_chr_write(ctxt->om, 0,
 						sizeof gatt_svr_pts_static_long_val,
 						&gatt_svr_pts_static_long_val, NULL);
 			return rc;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_long_val,
-				    sizeof gatt_svr_pts_static_long_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_long_val,
+					    sizeof gatt_svr_pts_static_long_val);
+			return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
@@ -341,25 +331,16 @@ gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
 
 	switch (uuid16) {
 	case PTS_CHR_READ_WRITE_AUTHEN:
-		if (ctxt->op == BLE_GATT_CHR_F_WRITE_AUTHEN) {
+		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
 			rc = gatt_svr_chr_write(ctxt->om, 0,
 						sizeof gatt_svr_pts_static_val,
 						&gatt_svr_pts_static_val, NULL);
 			return rc;
-	} else if (ctxt->op == BLE_GATT_CHR_F_READ_AUTHEN) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
-				    sizeof gatt_svr_pts_static_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	} else if (BLE_GATT_ACCESS_OP_WRITE_CHR) {
-		rc = gatt_svr_chr_write(ctxt->om, 0,
-					sizeof gatt_svr_pts_static_val,
-					&gatt_svr_pts_static_val, NULL);
-	return rc;
-	} else if (BLE_GATT_ACCESS_OP_READ_CHR) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
-				    sizeof gatt_svr_pts_static_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
+					    sizeof gatt_svr_pts_static_val);
+			return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
@@ -383,21 +364,12 @@ gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
 			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
 					    sizeof gatt_svr_pts_static_val);
 			return rc;
-	} else if (ctxt->op == BLE_GATT_CHR_F_READ_ENC) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
-				    sizeof gatt_svr_pts_static_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-		rc = gatt_svr_chr_write(ctxt->om, 0,
-					sizeof gatt_svr_pts_static_val,
-					&gatt_svr_pts_static_val, NULL);
-		return rc;
-	} else if (ctxt->op == BLE_GATT_CHR_F_WRITE_ENC) {
-		rc = gatt_svr_chr_write(ctxt->om, 0,
-					sizeof gatt_svr_pts_static_val,
-					&gatt_svr_pts_static_val, NULL);
-		return rc;
-	}
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+			rc = gatt_svr_chr_write(ctxt->om, 0,
+						sizeof gatt_svr_pts_static_val,
+						&gatt_svr_pts_static_val, NULL);
+			return rc;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
@@ -422,11 +394,11 @@ gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 						sizeof gatt_svr_pts_static_short_val,
 						&gatt_svr_pts_static_short_val, NULL);
 			return rc;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_short_val,
-				    sizeof gatt_svr_pts_static_short_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
+			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_short_val,
+					    sizeof gatt_svr_pts_static_short_val);
+			return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
@@ -446,16 +418,16 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 
 	switch (uuid16) {
 	case PTS_LONG_DSC_READ_WRITE:
-	if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
-		rc = gatt_svr_chr_write(ctxt->om, 0,
-					sizeof gatt_svr_pts_static_long_val,
-					&gatt_svr_pts_static_long_val, NULL);
-		return rc;
-	} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
-		rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_long_val,
-				    sizeof gatt_svr_pts_static_long_val);
-		return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-	}
+		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
+			rc = gatt_svr_chr_write(ctxt->om, 0,
+						sizeof gatt_svr_pts_static_long_val,
+						&gatt_svr_pts_static_long_val, NULL);
+			return rc;
+		} else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
+			rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_long_val,
+					    sizeof gatt_svr_pts_static_long_val);
+			return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+		}
 	default:
 		assert(0);
 		return BLE_ATT_ERR_UNLIKELY;
