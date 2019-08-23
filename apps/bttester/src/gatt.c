@@ -187,7 +187,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_READ |
 				 BLE_GATT_CHR_F_WRITE |
 				 BLE_GATT_CHR_F_WRITE_ENC,
-			.min_key_size = 0x16,
+			.min_key_size = 16,
 		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE),
 			.access_cb = gatt_svr_read_write_long_test,
