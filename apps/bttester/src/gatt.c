@@ -1672,14 +1672,8 @@ free:
 static void change_database(u8_t *data, u16_t len)
 {
 	const struct gatt_change_database *cmd = (void *) data;
-	int rc;
 
 	SYS_LOG_DBG("")
-
-	rc = ble_gatts_svc_set_visibility(cmd->start_handle, cmd->visibility);
-	if (rc) {
-		goto fail;
-	}
 
 	ble_gatts_show_local();
 
@@ -1689,10 +1683,6 @@ static void change_database(u8_t *data, u16_t len)
 		   BTP_STATUS_SUCCESS);
 
 	return;
-
-fail:
-	tester_rsp(BTP_SERVICE_ID_GATT, GATT_CHANGE_DATABASE, CONTROLLER_INDEX,
-		   BTP_STATUS_FAILED);
 }
 
 static void supported_commands(u8_t *data, u16_t len)
