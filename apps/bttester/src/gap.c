@@ -52,6 +52,12 @@ static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
 
+struct os_callout update_params_co;
+static struct gap_conn_param_update_cmd update_params;
+
+static void conn_param_update(struct os_event *ev);
+
+
 static int gap_conn_find_by_addr(const ble_addr_t *dev_addr,
 				 struct ble_gap_conn_desc *out_desc)
 {
@@ -576,44 +582,6 @@ static void stop_discovery(const u8_t *data, u16_t len)
 		   status);
 }
 
-#if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-static void conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
-{
-	console_printf("conn param update complete; conn_handle=%d status=%d\n",
-		       conn_handle, status);
-}
-
-static void conn_param_update_slave(u16_t conn_handle)
-{
-	int rc;
-	struct ble_l2cap_sig_update_params params;
-
-	params.itvl_min = 0x0032;
-	params.itvl_max = 0x0046;
-	params.slave_latency = 0;
-	params.timeout_multiplier = 0x07d0;
-
-	rc = ble_l2cap_sig_update(conn_handle, &params,
-		conn_param_update_cb, NULL);
-	assert(rc == 0);
-}
-
-static void conn_param_update_master(u16_t conn_handle)
-{
-	int rc;
-	struct ble_gap_upd_params params;
-
-	params.itvl_min = 0x0032;
-	params.itvl_max = 0x0046;
-	params.latency = 0;
-	params.supervision_timeout = 0x07d0;
-	params.min_ce_len = 0;
-	params.max_ce_len = 0;
-
-	rc = ble_gap_update_params(conn_handle, &params);
-	assert(rc == 0);
-}
-#endif
 
 /* Bluetooth Core Spec v5.1 | Section 10.7.1
  * If a privacy-enabled Peripheral, that has a stored bond,
@@ -669,11 +637,14 @@ static void le_connected(u16_t conn_handle, int status)
 	ev.supervision_timeout = desc.supervision_timeout;
 
 #if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-	if (desc.role == BLE_GAP_ROLE_MASTER) {
-		conn_param_update_master(conn_handle);
-	} else {
-		conn_param_update_slave(conn_handle);
-	}
+	memcpy(update_params.address, addr->val, sizeof(ev.address));
+	update_params.address_type = addr->type;
+	update_params.conn_itvl_min = desc.conn_itvl;
+	update_params.conn_itvl_max = desc.conn_itvl;
+	update_params.conn_latency = desc.conn_latency + 1;
+	update_params.supervision_timeout = desc.supervision_timeout;
+
+	conn_param_update(NULL);
 #endif
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
@@ -1310,15 +1281,8 @@ fail:
 
 static void conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
 {
-	u8_t btp_status;
-
 	console_printf("conn param update complete; conn_handle=%d status=%d\n",
 		       conn_handle, status);
-
-	btp_status = status ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
-
-	tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE,
-		   CONTROLLER_INDEX, btp_status);
 }
 
 static int conn_param_update_slave(u16_t conn_handle,
@@ -1335,8 +1299,7 @@ static int conn_param_update_slave(u16_t conn_handle,
 	rc = ble_l2cap_sig_update(conn_handle, &params,
 				  conn_param_update_cb, NULL);
 	if (rc) {
-		tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE,
-			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		SYS_LOG_ERR("Failed to send update params: rc=%d", rc);
 	}
 
 	return 0;
@@ -1352,6 +1315,8 @@ static int conn_param_update_master(u16_t conn_handle,
 	params.itvl_max = cmd->conn_itvl_max;
 	params.latency = cmd->conn_latency;
 	params.supervision_timeout = cmd->supervision_timeout;
+	params.min_ce_len = 0;
+	params.max_ce_len = 0;
 	rc = ble_gap_update_params(conn_handle, &params);
 	if (rc) {
 		SYS_LOG_ERR("Failed to send update params: rc=%d", rc);
@@ -1360,43 +1325,51 @@ static int conn_param_update_master(u16_t conn_handle,
 	return rc;
 }
 
-static void conn_param_update(const u8_t *data, u16_t len)
+struct os_callout update_params_co;
+static struct gap_conn_param_update_cmd update_params;
+
+static void conn_param_update(struct os_event *ev)
 {
-	const struct gap_conn_param_update_cmd *cmd = (void *) data;
 	struct ble_gap_conn_desc desc;
-	u8_t status = BTP_STATUS_SUCCESS;
 	int rc;
 
 	SYS_LOG_DBG("");
 
-	rc = gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	rc = gap_conn_find_by_addr((ble_addr_t *)&update_params, &desc);
 	if (rc) {
-		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
 
-	if ((desc.conn_itvl >= cmd->conn_itvl_min) &&
-	    (desc.conn_itvl <= cmd->conn_itvl_max) &&
-	    (desc.conn_latency == cmd->conn_latency) &&
-	    (desc.supervision_timeout == cmd->supervision_timeout)) {
+	if ((desc.conn_itvl >= update_params.conn_itvl_min) &&
+	    (desc.conn_itvl <= update_params.conn_itvl_max) &&
+	    (desc.conn_latency == update_params.conn_latency) &&
+	    (desc.supervision_timeout == update_params.supervision_timeout)) {
 		goto rsp;
 	}
 
 	if (desc.role == BLE_GAP_ROLE_MASTER) {
-		rc = conn_param_update_master(desc.conn_handle, cmd);
+		rc = conn_param_update_master(desc.conn_handle, &update_params);
 	} else {
-		rc = conn_param_update_slave(desc.conn_handle, cmd);
-		if (!rc) {
-			/* Response will be sent from callback */
-			return;
-		}
+		rc = conn_param_update_slave(desc.conn_handle, &update_params);
 	}
 
-	status = rc ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
+	if (rc == 0) {
+		return;
+	}
 
 rsp:
+	SYS_LOG_ERR("Conn param update fail; rc=%d", rc);
+}
+
+static void conn_param_update_async(const u8_t *data, u16_t len)
+{
+	const struct gap_conn_param_update_cmd *cmd = (void *) data;
+	update_params = *cmd;
+
+	os_callout_reset(&update_params_co, 0);
+
 	tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE, CONTROLLER_INDEX,
-		   status);
+		   BTP_STATUS_SUCCESS);
 }
 
 void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
@@ -1473,7 +1446,7 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		start_direct_adv(data, len);
 		return;
 	case GAP_CONN_PARAM_UPDATE:
-		conn_param_update(data, len);
+		conn_param_update_async(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
@@ -1494,6 +1467,9 @@ static void tester_init_gap_cb(int err)
 	current_settings |= BIT(GAP_SETTINGS_POWERED);
 	current_settings |= BIT(GAP_SETTINGS_BONDABLE);
 	current_settings |= BIT(GAP_SETTINGS_LE);
+
+	os_callout_init(&update_params_co, os_eventq_dflt_get(),
+			conn_param_update, NULL);
 
 	tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
 		   BTP_STATUS_SUCCESS);
