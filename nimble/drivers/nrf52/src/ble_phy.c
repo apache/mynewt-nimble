@@ -108,8 +108,9 @@ struct ble_phy_obj
     uint8_t phy_encrypted;
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
-    uint8_t phy_txtorx_phy_mode;
     uint8_t phy_cur_phy_mode;
+    uint8_t phy_tx_phy_mode;
+    uint8_t phy_rx_phy_mode;
     uint8_t phy_bcc_offset;
     int8_t  rx_pwr_compensation;
     uint32_t phy_aar_scratch;
@@ -321,19 +322,18 @@ ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
 }
 #endif
 
-void
-ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
+static void
+ble_phy_mode_apply(uint8_t phy_mode)
 {
-    if (new_phy_mode == g_ble_phy_data.phy_cur_phy_mode) {
-        g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
+    if (phy_mode == g_ble_phy_data.phy_cur_phy_mode) {
         return;
     }
 
 #if NRF52840_XXAA
-    ble_phy_apply_nrf52840_errata(new_phy_mode);
+    ble_phy_apply_nrf52840_errata(phy_mode);
 #endif
 
-    switch (new_phy_mode) {
+    switch (phy_mode) {
     case BLE_PHY_MODE_1M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
         NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
@@ -358,8 +358,14 @@ ble_phy_mode_set(uint8_t new_phy_mode, uint8_t txtorx_phy_mode)
         assert(0);
     }
 
-    g_ble_phy_data.phy_cur_phy_mode = new_phy_mode;
-    g_ble_phy_data.phy_txtorx_phy_mode = txtorx_phy_mode;
+    g_ble_phy_data.phy_cur_phy_mode = phy_mode;
+}
+
+void
+ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
+{
+    g_ble_phy_data.phy_tx_phy_mode = tx_phy_mode;
+    g_ble_phy_data.phy_rx_phy_mode = rx_phy_mode;
 }
 #endif
 
@@ -844,9 +850,6 @@ ble_phy_rx_xcvr_setup(void)
 static void
 ble_phy_tx_end_isr(void)
 {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    int phy;
-#endif
     uint8_t tx_phy_mode;
     uint8_t was_encrypted;
     uint8_t transition;
@@ -892,11 +895,7 @@ ble_phy_tx_end_isr(void)
     if (transition == BLE_PHY_TRANSITION_TX_RX) {
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-        /* See if a new phy has been specified for tx to rx transition */
-        phy = g_ble_phy_data.phy_txtorx_phy_mode;
-        if (phy != g_ble_phy_data.phy_cur_phy_mode) {
-            ble_phy_mode_set(phy, phy);
-        }
+        ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
 #endif
 
         /* Packet pointer needs to be reset. */
@@ -1017,6 +1016,10 @@ ble_phy_rx_end_isr(void)
 #endif
     }
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_mode_apply(g_ble_phy_data.phy_tx_phy_mode);
+#endif
+
     /*
      * Let's schedule TX now and we will just cancel it after processing RXed
      * packet if we don't need TX.
@@ -1038,7 +1041,6 @@ ble_phy_rx_end_isr(void)
     /* Adjust for radio ramp-up */
     tx_time -= BLE_PHY_T_TXENFAST;
     /* Adjust for delay between EVENT_READY and actual TX start time */
-    /* XXX: we may have asymmetric phy so next phy may be different... */
     tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
     NRF_TIMER0->CC[0] = tx_time;
@@ -1362,7 +1364,8 @@ ble_phy_init(void)
 
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
-    g_ble_phy_data.phy_txtorx_phy_mode = BLE_PHY_MODE_1M;
+    g_ble_phy_data.phy_tx_phy_mode = BLE_PHY_MODE_1M;
+    g_ble_phy_data.phy_rx_phy_mode = BLE_PHY_MODE_1M;
 
     g_ble_phy_data.rx_pwr_compensation = 0;
 
@@ -1599,6 +1602,10 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     ble_phy_trace_u32x2(BLE_PHY_TRACE_ID_START_TX, cputime, rem_usecs);
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_mode_apply(g_ble_phy_data.phy_tx_phy_mode);
+#endif
+
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to RXEN since we are transmitting */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
@@ -1635,6 +1642,10 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     int rc = 0;
 
     ble_phy_trace_u32x2(BLE_PHY_TRACE_ID_START_RX, cputime, rem_usecs);
+
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
+#endif
 
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to TXEN since we are transmitting */

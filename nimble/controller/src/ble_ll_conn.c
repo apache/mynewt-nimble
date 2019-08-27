@@ -1110,10 +1110,6 @@ conn_tx_pdu:
     }
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_phy_mode_set(connsm->phy_data.tx_phy_mode,connsm->phy_data.rx_phy_mode);
-#endif
-
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
     rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m, end_transition);
@@ -1193,6 +1189,10 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_resolv_list_disable();
 #endif
 
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+    ble_phy_mode_set(connsm->phy_data.tx_phy_mode, connsm->phy_data.rx_phy_mode);
+#endif
+
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         /* Set start time of transmission */
         start = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -1229,11 +1229,6 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         } else {
             ble_phy_encrypt_disable();
         }
-#endif
-
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-        ble_phy_mode_set(connsm->phy_data.rx_phy_mode,
-                             connsm->phy_data.rx_phy_mode);
 #endif
 
         /* XXX: what is this really for the slave? */
