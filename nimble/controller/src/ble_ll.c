@@ -1426,7 +1426,7 @@ uint16_t
 ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
 {
     uint32_t header_tx_time;
-    uint16_t octets;
+    uint16_t octets = 0;
 
     BLE_LL_ASSERT(phy_mode < BLE_PHY_NUM_MODE);
 
