@@ -1953,6 +1953,40 @@ static void config_subscription(u8_t *data, u16_t len, u8_t op)
 	tester_rsp(BTP_SERVICE_ID_GATT, op, CONTROLLER_INDEX, status);
 }
 
+#define BTP_PERM_F_READ                      0x01
+#define BTP_PERM_F_WRITE                     0x02
+#define BTP_PERM_F_READ_ENC                  0x04
+#define BTP_PERM_F_WRITE_ENC                 0x08
+#define BTP_PERM_F_READ_AUTHEN               0x10
+#define BTP_PERM_F_WRITE_AUTHEN              0x20
+#define BTP_PERM_F_READ_AUTHOR               0x40
+#define BTP_PERM_F_WRITE_AUTHOR              0x80
+
+static int flags_hs2btp_map[] = {
+	BTP_PERM_F_READ,
+	BTP_PERM_F_WRITE,
+	BTP_PERM_F_READ_ENC,
+	BTP_PERM_F_READ_AUTHEN,
+	BTP_PERM_F_READ_AUTHOR,
+	BTP_PERM_F_WRITE_ENC,
+	BTP_PERM_F_WRITE_AUTHEN,
+	BTP_PERM_F_WRITE_AUTHOR,
+};
+
+static u8_t flags_hs2btp(u8_t flags)
+{
+	int i;
+	u8_t ret = 0;
+
+	for (i = 0; i < 8; ++i) {
+		if (flags & BIT(i)) {
+			ret |= flags_hs2btp_map[i];
+		}
+	}
+
+	return ret;
+}
+
 static void get_attrs(u8_t *data, u16_t len)
 {
 	const struct gatt_get_attributes_cmd *cmd = (void *) data;
@@ -2001,7 +2035,7 @@ static void get_attrs(u8_t *data, u16_t len)
 
 		gatt_attr = net_buf_simple_add(buf, sizeof(*gatt_attr));
 		gatt_attr->handle = sys_cpu_to_le16(entry->ha_handle_id);
-		gatt_attr->permission = entry->ha_flags;
+		gatt_attr->permission = flags_hs2btp(entry->ha_flags);
 
 		if (entry->ha_uuid->type == BLE_UUID_TYPE_16) {
 			gatt_attr->type_length = 2;
