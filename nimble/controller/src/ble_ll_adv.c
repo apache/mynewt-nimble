@@ -973,6 +973,18 @@ ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+/*
+ * Called when a periodic event has been removed from the scheduler
+ * without being run.
+ */
+void
+ble_ll_adv_periodic_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
+{
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
+}
+#endif
+
 /**
  * This is the scheduler callback (called from interrupt context) which
  * transmits an advertisement.
@@ -4743,10 +4755,10 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     advsm->periodic_sync_active = 0;
     advsm->periodic_sync[0].sch.cb_arg = advsm;
     advsm->periodic_sync[0].sch.sched_cb = ble_ll_adv_sync_tx_start_cb;
-    advsm->periodic_sync[0].sch.sched_type = BLE_LL_SCHED_TYPE_ADV;
+    advsm->periodic_sync[0].sch.sched_type = BLE_LL_SCHED_TYPE_SYNC;
     advsm->periodic_sync[1].sch.cb_arg = advsm;
     advsm->periodic_sync[1].sch.sched_cb = ble_ll_adv_sync_tx_start_cb;
-    advsm->periodic_sync[1].sch.sched_type = BLE_LL_SCHED_TYPE_ADV;
+    advsm->periodic_sync[1].sch.sched_type = BLE_LL_SCHED_TYPE_SYNC;
 #endif
 #endif
 
