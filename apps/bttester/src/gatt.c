@@ -227,8 +227,27 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 	},
 };
 
+static void attr_value_changed_ev(u16_t handle, struct os_mbuf *data)
+{
+	struct gatt_attr_value_changed_ev *ev;
+	struct os_mbuf *buf = os_msys_get(0, 0);
+
+	SYS_LOG_DBG("");
+
+	net_buf_simple_init(buf, 0);
+	ev = net_buf_simple_add(buf, sizeof(*ev));
+
+	ev->handle = sys_cpu_to_le16(handle);
+	ev->data_length = sys_cpu_to_le16(os_mbuf_len(data));
+	os_mbuf_appendfrom(buf, data, 0, os_mbuf_len(data));
+
+	tester_send_buf(BTP_SERVICE_ID_GATT, GATT_EV_ATTR_VALUE_CHANGED,
+			CONTROLLER_INDEX, buf);
+}
+
 static int
-gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
+gatt_svr_chr_write(uint16_t conn_handle, uint16_t attr_handle,
+		   struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
 		   void *dst, uint16_t *len)
 {
 	uint16_t om_len;
@@ -243,6 +262,8 @@ gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
 	if (rc != 0) {
 		return BLE_ATT_ERR_UNLIKELY;
 	}
+
+	attr_value_changed_ev(attr_handle, om);
 
 	return 0;
 }
@@ -273,7 +294,8 @@ gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_CHR_READ_WRITE:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_short_val,
 						&gatt_svr_pts_static_short_val, NULL);
 			return rc;
@@ -303,7 +325,8 @@ gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 	case PTS_LONG_CHR_READ_WRITE:
 	case PTS_LONG_CHR_READ_WRITE_ALT:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_long_val,
 						&gatt_svr_pts_static_long_val, NULL);
 			return rc;
@@ -332,7 +355,8 @@ gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_CHR_READ_WRITE_AUTHEN:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_val,
 						&gatt_svr_pts_static_val, NULL);
 			return rc;
@@ -365,7 +389,8 @@ gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
 					    sizeof gatt_svr_pts_static_val);
 			return rc;
 		} else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_val,
 						&gatt_svr_pts_static_val, NULL);
 			return rc;
@@ -390,7 +415,8 @@ gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_DSC_READ_WRITE:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_short_val,
 						&gatt_svr_pts_static_short_val, NULL);
 			return rc;
@@ -419,7 +445,8 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_LONG_DSC_READ_WRITE:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_long_val,
 						&gatt_svr_pts_static_long_val, NULL);
 			return rc;
@@ -472,7 +499,8 @@ gatt_svr_write_no_rsp_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_CHR_WRITE_NO_RSP:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_short_val,
 						&gatt_svr_pts_static_short_val, NULL);
 			return rc;
@@ -501,7 +529,8 @@ gatt_svr_rel_write_test(uint16_t conn_handle, uint16_t attr_handle,
 	switch (uuid16) {
 	case PTS_CHR_RELIABLE_WRITE:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-			rc = gatt_svr_chr_write(ctxt->om, 0,
+			rc = gatt_svr_chr_write(conn_handle, attr_handle,
+						ctxt->om, 0,
 						sizeof gatt_svr_pts_static_val,
 						&gatt_svr_pts_static_val, NULL);
 			return rc;
