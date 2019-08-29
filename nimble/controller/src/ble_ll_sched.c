@@ -251,6 +251,11 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
         case BLE_LL_SCHED_TYPE_AUX_SCAN:
             ble_ll_scan_end_adv_evt((struct ble_ll_aux_data *)entry->cb_arg);
             break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+        case BLE_LL_SCHED_TYPE_SYNC:
+            ble_ll_adv_periodic_rmvd_from_sched((struct ble_ll_adv_sm *)entry->cb_arg);
+            break;
+#endif
 #endif
         default:
             BLE_LL_ASSERT(0);
