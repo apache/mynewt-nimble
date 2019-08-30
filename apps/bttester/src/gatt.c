@@ -135,12 +135,36 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 				  struct ble_gatt_access_ctxt *ctxt,
 				  void *arg);
 
+static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
+	{
+		.type = BLE_GATT_SVC_TYPE_PRIMARY,
+		.uuid = PTS_UUID_DECLARE(PTS_INC_SVC),
+		.characteristics = (struct ble_gatt_chr_def[]) {{
+			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
+			.access_cb = gatt_svr_read_write_test,
+			.flags = BLE_GATT_CHR_F_WRITE |
+				 BLE_GATT_CHR_F_READ,
+		}, {
+		0,
+		} },
+	},
+
+	{
+		0, /* No more services. */
+	},
+};
+
+static const struct ble_gatt_svc_def *inc_svcs[] = {
+	&gatt_svr_inc_svcs[0],
+	NULL,
+};
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 	{
 		/*** Service: PTS test. */
 		.type = BLE_GATT_SVC_TYPE_PRIMARY,
 		.uuid = PTS_UUID_DECLARE(PTS_SVC),
+		.includes = inc_svcs,
 		.characteristics = (struct ble_gatt_chr_def[]) { {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE),
 			.access_cb = gatt_svr_read_write_test,
@@ -295,6 +319,7 @@ gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 
 	switch (uuid16) {
 	case PTS_CHR_READ_WRITE:
+	case PTS_CHR_READ_WRITE_ALT:
 		if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
 			rc = gatt_svr_chr_write(conn_handle, attr_handle,
 						ctxt->om, 0,
@@ -1994,6 +2019,16 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 int gatt_svr_init(void)
 {
 	int rc;
+
+	rc = ble_gatts_count_cfg(gatt_svr_inc_svcs);
+	if (rc != 0) {
+		return rc;
+	}
+
+	rc = ble_gatts_add_svcs(gatt_svr_inc_svcs);
+	if (rc != 0) {
+		return rc;
+	}
 
 	rc = ble_gatts_count_cfg(gatt_svr_svcs);
 	if (rc != 0) {
