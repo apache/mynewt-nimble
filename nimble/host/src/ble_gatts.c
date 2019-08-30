@@ -1695,7 +1695,14 @@ ble_gatts_bonding_established(uint16_t conn_handle)
             cccd_value.chr_val_handle = clt_cfg->chr_val_handle;
             cccd_value.flags = clt_cfg->flags;
             cccd_value.value_changed = 0;
+
+            /* Store write use ble_hs_lock */
+            ble_hs_unlock();
             ble_store_write_cccd(&cccd_value);
+            ble_hs_lock();
+
+            conn = ble_hs_conn_find(conn_handle);
+            BLE_HS_DBG_ASSERT(conn != NULL);
         }
     }
 
