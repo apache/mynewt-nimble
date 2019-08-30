@@ -76,10 +76,12 @@
 static uint8_t gatt_svr_pts_static_long_val[300];
 static uint8_t gatt_svr_pts_static_val[30];
 static uint8_t gatt_svr_pts_static_short_val;
-static bool notify_state;
+static u8_t notify_state;
+static u8_t indicate_state;
 static uint16_t myconn_handle;
 static struct os_callout notify_tx_timer;
 uint16_t notify_handle;
+uint8_t notify_value = 90;
 
 struct find_attr_data {
                 ble_uuid_any_t *uuid;
@@ -1890,12 +1892,11 @@ void notify_test_reset(void)
 
 void notify_test(struct os_event *ev)
 {
-	uint8_t notify_value = 90;
 	static uint8_t ntf[1];
-	int rc;
 	struct os_mbuf *om;
+	int rc;
 
-	if (!notify_state) {
+	if (!notify_state && !indicate_state) {
 		notify_test_stop();
 		notify_value = 90;
 		return;
@@ -1910,11 +1911,15 @@ void notify_test(struct os_event *ev)
 
 	om = ble_hs_mbuf_from_flat(ntf, sizeof(ntf));
 
-	rc = ble_gattc_notify_custom(myconn_handle, notify_handle, om);
-	rc = ble_gattc_indicate_custom(myconn_handle, notify_handle, om);
+	if (notify_state) {
+		rc = ble_gattc_notify_custom(myconn_handle, notify_handle, om);
+		assert(rc == 0);
+	}
 
-	assert(rc == 0);
-	notify_test_reset();
+	if (indicate_state) {
+		rc = ble_gattc_indicate_custom(myconn_handle, notify_handle, om);
+		assert(rc == 0);
+	}
 }
 
 int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
@@ -1923,7 +1928,6 @@ int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
 {
 	SYS_LOG_DBG("");
 	myconn_handle = conn_handle;
-	os_callout_init(&notify_tx_timer, os_eventq_dflt_get(), notify_test, NULL);
 
 	if (cur_notify == 0 && cur_indicate == 0) {
 		SYS_LOG_INF("Unsubscribed");
@@ -1932,25 +1936,24 @@ int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
 	}
 
 	if (cur_notify) {
-			SYS_LOG_INF("Subscribed to notifications");
+		SYS_LOG_INF("Subscribed to notifications");
 		if (attr_handle == notify_handle) {
 			notify_state = cur_notify;
-			notify_test_reset();
-		} else if (attr_handle != notify_handle) {
-			notify_state = cur_notify;
-			notify_test_stop();
 		}
 	}
 
 	if (cur_indicate) {
 		SYS_LOG_INF("Subscribed to indications");
 		if (attr_handle == notify_handle) {
-			notify_state = cur_indicate;
-			notify_test_reset();
-		} else if (attr_handle != notify_handle) {
-			notify_state = cur_indicate;
-			notify_test_stop();
+			indicate_state = cur_indicate;
 		}
+	}
+
+
+	if (notify_state || indicate_state) {
+		notify_test_reset();
+	} else {
+		notify_test_stop();
 	}
 
 	return 0;
@@ -2007,6 +2010,9 @@ int gatt_svr_init(void)
 
 u8_t tester_init_gatt(void)
 {
+	os_callout_init(&notify_tx_timer, os_eventq_dflt_get(),
+			notify_test, NULL);
+
 	return BTP_STATUS_SUCCESS;
 }
 
