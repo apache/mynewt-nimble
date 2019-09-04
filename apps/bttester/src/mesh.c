@@ -117,8 +117,8 @@ static void supported_commands(u8_t *data, u16_t len)
 #endif /* CONFIG_BT_TESTING */
 	tester_set_bit(buf->om_data, MESH_PROXY_IDENTITY);
 
-	tester_send(BTP_SERVICE_ID_MESH, MESH_READ_SUPPORTED_COMMANDS,
-		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
+	tester_send_buf(BTP_SERVICE_ID_MESH, MESH_READ_SUPPORTED_COMMANDS,
+			CONTROLLER_INDEX, buf);
 }
 
 static struct bt_mesh_cfg_srv cfg_srv = {
@@ -350,9 +350,10 @@ static int output_string(const char *str)
 
 	net_buf_simple_add_mem(buf, str, ev->string_len);
 
-	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_OUT_STRING_ACTION,
-		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
+	tester_send_buf(BTP_SERVICE_ID_MESH, MESH_EV_OUT_STRING_ACTION,
+			CONTROLLER_INDEX, buf);
 
+	os_mbuf_free_chain(buf);
 	return 0;
 }
 
@@ -653,8 +654,8 @@ static void health_generate_faults(u8_t *data, u16_t len)
 
 	bt_mesh_fault_update(&elements[0]);
 
-	tester_send(BTP_SERVICE_ID_MESH, MESH_HEALTH_GENERATE_FAULTS,
-		    CONTROLLER_INDEX, buf->om_data, buf->om_len);
+	tester_send_buf(BTP_SERVICE_ID_MESH, MESH_HEALTH_GENERATE_FAULTS,
+			CONTROLLER_INDEX, buf);
 }
 
 static void health_clear_faults(u8_t *data, u16_t len)
@@ -876,8 +877,8 @@ void net_recv_ev(u8_t ttl, u8_t ctl, u16_t src, u16_t dst, const void *payload,
 	ev->payload_len = payload_len;
 	net_buf_simple_add_mem(buf, payload, payload_len);
 
-	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_NET_RECV, CONTROLLER_INDEX,
-		    buf->om_data, buf->om_len);
+	tester_send_buf(BTP_SERVICE_ID_MESH, MESH_EV_NET_RECV, CONTROLLER_INDEX,
+			buf);
 done:
 	os_mbuf_free_chain(buf);
 }
