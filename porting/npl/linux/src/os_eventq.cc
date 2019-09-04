@@ -141,4 +141,17 @@ ble_npl_event_run(struct ble_npl_event *ev)
     ev->ev_cb(ev);
 }
 
+void
+ble_npl_eventq_remove(struct ble_npl_eventq *evq, struct ble_npl_event *ev)
+{
+    wqueue_t *q = static_cast<wqueue_t *>(evq->q);
+
+    if (!ev->ev_queued) {
+        return;
+    }
+
+    ev->ev_queued = 0;
+    q->remove(ev);
+}
+
 }

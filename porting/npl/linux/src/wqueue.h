@@ -74,6 +74,12 @@ public:
         return item;
     }
 
+    void remove(T item) {
+        pthread_mutex_lock(&m_mutex);
+        m_queue.remove(item);
+        pthread_mutex_unlock(&m_mutex);
+    }
+
     int size() {
         pthread_mutex_lock(&m_mutex);
         int size = m_queue.size();
