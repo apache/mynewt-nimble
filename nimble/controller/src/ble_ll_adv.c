@@ -39,6 +39,7 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_utils.h"
+#include "controller/ble_ll_xcvr.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: TODO
@@ -2507,8 +2508,13 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     uint8_t adv_chan;
     uint8_t *addr;
     uint8_t *evbuf;
+    uint32_t start_delay_us;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint32_t access_addr;
+#endif
+#ifdef BLE_XCVR_RFCLK
+    int xtal_state;
+    os_sr_t sr;
 #endif
 
     /* only clear flags that are not set from HCI */
@@ -2594,17 +2600,26 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->adv_chan = adv_chan;
 
     /*
-     * XXX: while this may not be the most efficient, schedule the first
-     * advertising event some time in the future (5 msecs). This will give
-     * time to start up any clocks or anything and also avoid a bunch of code
-     * to check if we are currently doing anything. Just makes this simple.
-     *
-     * Might also want to align this on a slot in the future.
-     *
+     * Set initial start time (randomized similar to interval)
      * NOTE: adv_event_start_time gets set by the sched_adv_new
      */
+    start_delay_us = rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
     advsm->adv_pdu_start_time = os_cputime_get32() +
-                                os_cputime_usecs_to_ticks(5000);
+                                os_cputime_usecs_to_ticks(start_delay_us);
+
+#ifdef BLE_XCVR_RFCLK
+    OS_ENTER_CRITICAL(sr);
+    xtal_state = ble_ll_xcvr_rfclk_state();
+    if (xtal_state != BLE_RFCLK_STATE_SETTLED) {
+        if (xtal_state == BLE_RFCLK_STATE_OFF) {
+            advsm->adv_pdu_start_time += g_ble_ll_data.ll_xtal_ticks;
+            ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+        } else {
+            advsm->adv_pdu_start_time += ble_ll_xcvr_rfclk_time_till_settled();
+        }
+    }
+    OS_EXIT_CRITICAL(sr);
+#endif
 
     /*
      * Schedule advertising. We set the initial schedule start and end
