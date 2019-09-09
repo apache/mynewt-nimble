@@ -26,7 +26,6 @@
 #if NIMBLE_BLE_SM
 
 #include "nimble/ble.h"
-#include "nimble/nimble_opt.h"
 #include "ble_hs_priv.h"
 #include "tinycrypt/aes.h"
 #include "tinycrypt/constants.h"
