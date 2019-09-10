@@ -236,7 +236,7 @@
 
 /*** net/nimble */
 #ifndef MYNEWT_VAL_BLE_EXT_ADV
-#define MYNEWT_VAL_BLE_EXT_ADV (1)
+#define MYNEWT_VAL_BLE_EXT_ADV (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_EXT_ADV_MAX_SIZE
@@ -256,7 +256,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_BLE_PERIODIC_ADV
-#define MYNEWT_VAL_BLE_PERIODIC_ADV (1)
+#define MYNEWT_VAL_BLE_PERIODIC_ADV (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_ROLE_BROADCASTER
