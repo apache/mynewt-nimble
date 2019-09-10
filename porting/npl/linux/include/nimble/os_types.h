@@ -26,8 +26,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#define BLE_NPL_WAIT_FOREVER (-1)
-
 /* The highest and lowest task priorities */
 #define OS_TASK_PRI_HIGHEST (sched_get_priority_max(SCHED_RR))
 #define OS_TASK_PRI_LOWEST  (sched_get_priority_min(SCHED_RR))
