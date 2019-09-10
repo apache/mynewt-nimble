@@ -79,12 +79,12 @@ int main(int argc, char *argv[])
     ble_store_ram_init();
 
     ble_npl_task_init(&s_task_hci, "hci_sock", ble_hci_sock_task,
-                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_WAIT_FOREVER,
+                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
     /* Create task which handles default event queue for host stack. */
     ble_npl_task_init(&s_task_host, "ble_host", ble_host_task,
-                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_WAIT_FOREVER, 
+                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
     pthread_exit(&ret);

@@ -60,7 +60,7 @@ ble_npl_mutex_pend(struct ble_npl_mutex *mu, uint32_t timeout)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    if (timeout == BLE_NPL_WAIT_FOREVER) {
+    if (timeout == BLE_NPL_TIME_FOREVER) {
         err = pthread_mutex_lock(&mu->lock);
     } else {
         err = clock_gettime(CLOCK_REALTIME, &mu->wait);

@@ -126,10 +126,10 @@ init_app_tasks(void)
      * Initialize tasks 1 and 2 with the OS.
      */
     ble_npl_task_init(&task1, "task1", task1_handler, NULL, TASK1_PRIO,
-		 BLE_NPL_WAIT_FOREVER, task1_stack, TASK1_STACK_SIZE);
+                      BLE_NPL_TIME_FOREVER, task1_stack, TASK1_STACK_SIZE);
 
     ble_npl_task_init(&task2, "task2", task2_handler, NULL, TASK2_PRIO,
-		 BLE_NPL_WAIT_FOREVER, task2_stack, TASK2_STACK_SIZE);
+                      BLE_NPL_TIME_FOREVER, task2_stack, TASK2_STACK_SIZE);
 
     return 0;
 }

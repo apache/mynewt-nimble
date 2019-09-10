@@ -60,7 +60,7 @@ ble_npl_sem_pend(struct ble_npl_sem *sem, uint32_t timeout)
         return BLE_NPL_INVALID_PARAM;
     }
 
-    if (timeout == BLE_NPL_WAIT_FOREVER) {
+    if (timeout == BLE_NPL_TIME_FOREVER) {
         err = sem_wait(&sem->lock);
     } else {
         err = clock_gettime(CLOCK_REALTIME, &wait);
