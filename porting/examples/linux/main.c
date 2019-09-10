@@ -37,6 +37,7 @@ static struct ble_npl_task s_task_hci;
 void nimble_host_task(void *param);
 void ble_hci_sock_ack_handler(void *param);
 void ble_hci_sock_init(void);
+void ble_hci_sock_set_device(int dev);
 
 #define TASK_DEFAULT_PRIORITY       1
 #define TASK_DEFAULT_STACK          NULL
@@ -54,9 +55,14 @@ void *ble_host_task(void *param)
     return NULL;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     int ret = 0;
+
+    /* allow to specify custom hci */
+    if (argc > 1) {
+        ble_hci_sock_set_device(atoi(argv[1]));
+    }
 
     ble_hci_sock_init();
     nimble_port_init();
