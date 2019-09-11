@@ -52,15 +52,15 @@ syscfg.vals:
     LOG_FCB: 1
     CONFIG_FCB: 1
 
-    # Enable newtmgr commands.
-    STATS_NEWTMGR: 1
-    LOG_NEWTMGR: 1
-    CONFIG_NEWTMGR: 1
+    # Enable smp commands.
+    STATS_MGMT: 1
+    LOG_MGMT: 1
+    CONFIG_MGMT: 1
 
     # OS main/default task
     OS_MAIN_STACK_SIZE: 468
 
-    # Lots of smaller mbufs are required for newtmgr using typical BLE ATT MTU
+    # Lots of smaller mbufs are required for smp using typical BLE ATT MTU
     # values.
     MSYS_1_BLOCK_COUNT: 22
     MSYS_1_BLOCK_SIZE: 110

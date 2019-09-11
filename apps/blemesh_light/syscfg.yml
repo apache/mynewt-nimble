@@ -30,8 +30,8 @@ syscfg.vals:
     # Default task settings
     OS_MAIN_STACK_SIZE: 768
 
-    # Newtmgr is not supported in this app, so disable newtmgr-over-shell.
-    SHELL_NEWTMGR: 0
+    # SMP is not supported in this app, so disable smp-over-shell.
+    SHELL_MGMT: 0
 
     MSYS_1_BLOCK_COUNT: 80
 
