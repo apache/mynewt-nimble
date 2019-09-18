@@ -3192,13 +3192,12 @@ static const struct shell_cmd_help phy_read_help = {
 static int
 cmd_host_enable(int argc, char **argv)
 {
-    int rc;
-
-    rc = gatt_svr_init();
-    assert(rc == 0);
+    if (ble_hs_is_enabled()) {
+        console_printf("Host is started\n");
+        return 0;
+    }
 
     ble_hs_sched_start();
-
     return 0;
 }
 
@@ -3234,8 +3233,6 @@ cmd_host_disable(int argc, char **argv)
     if (rc) {
         return rc;
     }
-
-    ble_gatts_reset();
 
     return 0;
 }
