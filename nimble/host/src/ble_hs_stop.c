@@ -20,6 +20,7 @@
 #include <assert.h>
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
+#include "host/ble_gatt.h"
 #include "ble_hs_priv.h"
 #include "nimble/nimble_npl.h"
 #ifndef MYNEWT
@@ -66,6 +67,8 @@ ble_hs_stop_done(int status)
     SLIST_FOREACH(listener, &slist, link) {
         listener->fn(status, listener->arg);
     }
+
+    ble_gatts_reset();
 }
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
