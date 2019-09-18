@@ -69,6 +69,10 @@ ble_hs_stop_done(int status)
     }
 
     ble_gatts_reset();
+
+    if (ble_hs_cfg.post_stop_cb) {
+        ble_hs_cfg.post_stop_cb();
+    }
 }
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)

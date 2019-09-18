@@ -179,6 +179,12 @@ typedef void ble_hs_reset_fn(int reason);
 /** @brief Stack sync callback */
 typedef void ble_hs_sync_fn(void);
 
+/** @bried Stack pre-enabled callback */
+typedef void ble_hs_pre_enable_fn(void);
+
+/** @bried Stack post-stop callback */
+typedef void ble_hs_post_stop_fn(void);
+
 /** @brief Bluetooth Host main configuration structure
  *
  * Those can be used by application to configure stack.
@@ -256,6 +262,19 @@ struct ble_hs_cfg {
      * This happens at startup and after a reset.
      */
     ble_hs_sync_fn *sync_cb;
+
+    /** @brief Stack pre-enable callback
+     *
+     * This callback is executed just before host gets enabled.
+     */
+    ble_hs_pre_enable_fn *pre_enable_cb;
+
+    /** @brief Stack post-stop callback
+     *
+     * This callback is executed just after host gets stopped.
+     */
+    ble_hs_post_stop_fn *post_stop_cb;
+
 
     /* XXX: These need to go away. Instead, the nimble host package should
      * require the host-store API (not yet implemented)..

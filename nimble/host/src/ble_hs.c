@@ -482,6 +482,10 @@ ble_hs_timer_resched(void)
 static void
 ble_hs_sched_start_stage2(void)
 {
+    if (ble_hs_cfg.pre_enable_cb) {
+        ble_hs_cfg.pre_enable_cb();
+    }
+
     ble_npl_eventq_put((struct ble_npl_eventq *)ble_hs_evq_get(),
                        &ble_hs_ev_start_stage2);
 }
