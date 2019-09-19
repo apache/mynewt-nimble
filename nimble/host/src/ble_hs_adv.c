@@ -356,7 +356,7 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     }
 
     /*** 0x16 - Service data - 16-bit UUID. */
-    if (adv_fields->svc_data_uuid16 != NULL) {
+    if (adv_fields->svc_data_uuid16 != NULL && adv_fields->svc_data_uuid16_len) {
         rc = ble_hs_adv_set_flat_mbuf(BLE_HS_ADV_TYPE_SVC_DATA_UUID16,
                                       adv_fields->svc_data_uuid16_len,
                                       adv_fields->svc_data_uuid16, dst, dst_len,
@@ -402,7 +402,7 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     }
 
     /*** 0x20 - Service data - 32-bit UUID. */
-    if (adv_fields->svc_data_uuid32 != NULL) {
+    if (adv_fields->svc_data_uuid32 != NULL && adv_fields->svc_data_uuid32_len) {
         rc = ble_hs_adv_set_flat_mbuf(BLE_HS_ADV_TYPE_SVC_DATA_UUID32,
                                      adv_fields->svc_data_uuid32_len,
                                      adv_fields->svc_data_uuid32, dst, dst_len,
@@ -413,7 +413,7 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     }
 
     /*** 0x21 - Service data - 128-bit UUID. */
-    if (adv_fields->svc_data_uuid128 != NULL) {
+    if (adv_fields->svc_data_uuid128 != NULL && adv_fields->svc_data_uuid128_len) {
         rc = ble_hs_adv_set_flat_mbuf(BLE_HS_ADV_TYPE_SVC_DATA_UUID128,
                                       adv_fields->svc_data_uuid128_len,
                                       adv_fields->svc_data_uuid128, dst,
@@ -424,7 +424,7 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     }
 
     /*** 0x24 - URI. */
-    if (adv_fields->uri != NULL) {
+    if (adv_fields->uri != NULL && adv_fields->uri_len) {
         rc = ble_hs_adv_set_flat_mbuf(BLE_HS_ADV_TYPE_URI, adv_fields->uri_len,
                                       adv_fields->uri, dst, dst_len, max_len,
                                       om);
@@ -434,7 +434,7 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     }
 
     /*** 0xff - Manufacturer specific data. */
-    if (adv_fields->mfg_data != NULL) {
+    if ((adv_fields->mfg_data != NULL) && (adv_fields->mfg_data_len >= 2)) {
         rc = ble_hs_adv_set_flat_mbuf(BLE_HS_ADV_TYPE_MFG_DATA,
                                       adv_fields->mfg_data_len,
                                       adv_fields->mfg_data,
