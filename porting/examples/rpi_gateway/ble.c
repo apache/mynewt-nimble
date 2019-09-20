@@ -52,7 +52,7 @@ ble_adv_task_init(void)
     int rc;
 
     rc = ble_npl_task_init(&nimble_mesh_adv_task_h, "mesh_adv", adv_thread,
-                      NULL, TASK_DEFAULT_PRIORITY + 2, BLE_NPL_WAIT_FOREVER,
+                      NULL, TASK_DEFAULT_PRIORITY + 2, BLE_NPL_TIME_FOREVER,
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
     assert(rc == 0);
 }
