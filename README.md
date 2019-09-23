@@ -83,27 +83,24 @@ There are also some sample applications that show how to Apache Mynewt NimBLE
 stack. These sample applications are located in the `apps/` directory of
 Apache Mynewt [repo](https://github.com/apache/mynewt-core). Some examples:
 
-* [blecent](https://github.com/apache/mynewt-core/tree/master/apps/blecent):
+* [blecent](https://github.com/apache/mynewt-nimble/tree/master/apps/blecent):
 A basic central device with no user interface.  This application scans for
 a peripheral that supports the alert notification service (ANS). Upon
 discovering such a peripheral, blecent connects and performs a characteristic
 read, characteristic write, and notification subscription.
-* [blehci](https://github.com/apache/mynewt-core/tree/master/apps/blehci):
+* [blehci](https://github.com/apache/mynewt-nimble/tree/master/apps/blehci):
 Implements a BLE controller-only application.  A separate host-only
 implementation, such as Linux's BlueZ, can interface with this application via
 HCI over UART.
-* [bleprph](https://github.com/apache/mynewt-core/tree/master/apps/bleprph): An
+* [bleprph](https://github.com/apache/mynewt-nimble/tree/master/apps/bleprph): An
   implementation of a minimal BLE peripheral.
-* [btshell](https://github.com/apache/mynewt-core/tree/master/apps/btshell): A
+* [btshell](https://github.com/apache/mynewt-nimble/tree/master/apps/btshell): A
   shell-like application allowing to configure and use most of NimBLE
   functionality from command line.
 * [bleuart](https://github.com/apache/mynewt-core/tree/master/apps/bleuart):
 Implements a simple BLE peripheral that supports the Nordic
 UART / Serial Port Emulation service
 (https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v8.x.x/doc/8.0.0/s110/html/a00072.html).
-* [test](https://github.com/apache/mynewt-core/tree/master/apps/test): Test
-  project which can be compiled either with the simulator, or on a per-architecture basis.
-  Test will run all the package's unit tests.
 
 # Getting Help
 
