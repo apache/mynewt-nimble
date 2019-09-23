@@ -25,7 +25,6 @@
 #include "nimble/ble_hci_trans.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_dbg_priv.h"
 #include "ble_monitor_priv.h"
 
 #define BLE_HCI_CMD_TIMEOUT_MS  2000
@@ -211,9 +210,6 @@ ble_hs_hci_process_ack(uint16_t expected_opcode,
 
     /* Count events received */
     STATS_INC(ble_hs_stats, hci_event);
-
-    /* Display to console */
-    ble_hs_dbg_event_disp(ble_hs_hci_ack);
 
     event_code = ble_hs_hci_ack[0];
     param_len = ble_hs_hci_ack[1];

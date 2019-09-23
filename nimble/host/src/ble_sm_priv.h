@@ -294,19 +294,6 @@ void ble_sm_dbg_set_sc_keys(uint8_t *pubkey, uint8_t *privkey);
 
 int ble_sm_num_procs(void);
 
-void ble_sm_pair_cmd_log(struct ble_sm_pair_cmd *cmd);
-void ble_sm_pair_confirm_log(struct ble_sm_pair_confirm *cmd);
-void ble_sm_pair_random_log(struct ble_sm_pair_random *cmd);
-void ble_sm_pair_fail_log(struct ble_sm_pair_fail *cmd);
-void ble_sm_enc_info_log(struct ble_sm_enc_info *cmd);
-void ble_sm_master_id_log(struct ble_sm_master_id *cmd);
-void ble_sm_id_info_log(struct ble_sm_id_info *cmd);
-void ble_sm_id_addr_info_log(struct ble_sm_id_addr_info *cmd);
-void ble_sm_sign_info_log(struct ble_sm_sign_info *cmd);
-void ble_sm_sec_req_log(struct ble_sm_sec_req *cmd);
-void ble_sm_public_key_log(struct ble_sm_public_key *cmd);
-void ble_sm_dhkey_check_log(struct ble_sm_dhkey_check *cmd);
-
 int ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out);
 int ble_sm_alg_c1(uint8_t *k, uint8_t *r,
                   uint8_t *preq, uint8_t *pres,
@@ -400,10 +387,6 @@ int ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
                         const uint8_t *ltk, uint16_t ediv,
                         uint64_t rand_val, int auth);
 int ble_sm_init(void);
-
-#define BLE_SM_LOG_CMD(is_tx, cmd_name, conn_handle, log_cb, cmd) \
-    BLE_HS_LOG_CMD((is_tx), "sm", (cmd_name), (conn_handle), (log_cb), (cmd))
-
 #else
 
 #define ble_sm_enc_change_rx(evt) ((void)(evt))
