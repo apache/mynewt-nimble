@@ -26,7 +26,6 @@
 #include "host/ble_gap.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
-#include "ble_hs_dbg_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
@@ -852,9 +851,6 @@ ble_hs_hci_evt_process(uint8_t *data)
 
     /* Count events received */
     STATS_INC(ble_hs_stats, hci_event);
-
-    /* Display to console */
-    ble_hs_dbg_event_disp(data);
 
     /* Process the event */
     event_code = data[0];

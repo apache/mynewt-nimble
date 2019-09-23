@@ -1464,8 +1464,6 @@ ble_sm_random_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     cmd = (struct ble_sm_pair_random *)(*om)->om_data;
 
-    BLE_SM_LOG_CMD(0, "random", conn_handle, ble_sm_pair_random_log, cmd);
-
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_RANDOM, -1, NULL);
     if (proc == NULL) {
@@ -1513,8 +1511,6 @@ ble_sm_confirm_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_pair_confirm *)(*om)->om_data;
-
-    BLE_SM_LOG_CMD(0, "confirm", conn_handle, ble_sm_pair_confirm_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_CONFIRM, -1, NULL);
@@ -1762,8 +1758,6 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     req = (struct ble_sm_pair_cmd *)(*om)->om_data;
 
-    BLE_SM_LOG_CMD(0, "pair req", conn_handle, ble_sm_pair_cmd_log, req);
-
     ble_hs_lock();
 
     /* XXX: Check connection state; reject if not appropriate. */
@@ -1862,8 +1856,6 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     rsp = (struct ble_sm_pair_cmd *)(*om)->om_data;
 
-    BLE_SM_LOG_CMD(0, "pair rsp", conn_handle, ble_sm_pair_cmd_log, rsp);
-
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, NULL);
     if (proc != NULL) {
@@ -1942,7 +1934,6 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_sec_req *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "sec req", conn_handle, ble_sm_sec_req_log, cmd);
 
     /* XXX: Reject if:
      *     o authreq-reserved flags set?
@@ -2210,7 +2201,6 @@ ble_sm_enc_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_enc_info *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "enc info", conn_handle, ble_sm_enc_info_log, cmd);
 
     ble_hs_lock();
 
@@ -2245,7 +2235,6 @@ ble_sm_master_id_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_master_id *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "master id", conn_handle, ble_sm_master_id_log, cmd);
 
     ble_hs_lock();
 
@@ -2281,7 +2270,6 @@ ble_sm_id_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_id_info *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "id info", conn_handle, ble_sm_id_info_log, cmd);
 
     ble_hs_lock();
 
@@ -2316,8 +2304,6 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_id_addr_info *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "id addr info", conn_handle, ble_sm_id_addr_info_log,
-                   cmd);
 
     ble_hs_lock();
 
@@ -2352,7 +2338,6 @@ ble_sm_sign_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_sign_info *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "sign info", conn_handle, ble_sm_sign_info_log, cmd);
 
     ble_hs_lock();
 
@@ -2387,7 +2372,6 @@ ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status == 0) {
         cmd = (struct ble_sm_pair_fail *)(*om)->om_data;
-        BLE_SM_LOG_CMD(0, "fail", conn_handle, ble_sm_pair_fail_log, cmd);
 
         res->app_status = BLE_HS_SM_PEER_ERR(cmd->reason);
     }

@@ -26,7 +26,6 @@
 #include "ble_att_priv.h"
 #include "ble_gap_priv.h"
 #include "ble_gatt_priv.h"
-#include "ble_hs_dbg_priv.h"
 #include "ble_hs_hci_priv.h"
 #include "ble_hs_atomic_priv.h"
 #include "ble_hs_conn_priv.h"
@@ -142,31 +141,6 @@ struct ble_mqueue {
 int ble_mqueue_init(struct ble_mqueue *mq, ble_npl_event_fn *ev_fn, void *ev_arg);
 struct os_mbuf *ble_mqueue_get(struct ble_mqueue *mq);
 int ble_mqueue_put(struct ble_mqueue *mq, struct ble_npl_eventq *evq, struct os_mbuf *om);
-
-#if MYNEWT_VAL(LOG_LEVEL) <= LOG_LEVEL_DEBUG && !BLE_MONITOR
-
-#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle,                \
-                       log_cb, cmd) do                                        \
-{                                                                             \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
-               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
-    (log_cb)(cmd);                                                            \
-    BLE_HS_LOG(DEBUG, "\n");                                                  \
-} while (0)
-
-#define BLE_HS_LOG_EMPTY_CMD(is_tx, cmd_type, cmd_name, conn_handle) do       \
-{                                                                             \
-    BLE_HS_LOG(DEBUG, "%sed %s command: %s; conn=%d ",                        \
-               (is_tx) ? "tx" : "rx", (cmd_type), (cmd_name), (conn_handle)); \
-    BLE_HS_LOG(DEBUG, "\n");                                                  \
-} while (0)
-
-#else
-
-#define BLE_HS_LOG_CMD(is_tx, cmd_type, cmd_name, conn_handle, log_cb, cmd)
-#define BLE_HS_LOG_EMPTY_CMD(is_tx, cmd_type, cmd_name, conn_handle)
-
-#endif
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     #define BLE_HS_DBG_ASSERT(x) assert(x)

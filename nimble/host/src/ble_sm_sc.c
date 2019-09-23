@@ -568,7 +568,6 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_public_key *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "public key", conn_handle, ble_sm_public_key_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PUBLIC_KEY, -1,
@@ -768,7 +767,6 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_dhkey_check *)(*om)->om_data;
-    BLE_SM_LOG_CMD(0, "dhkey check", conn_handle, ble_sm_dhkey_check_log, cmd);
 
     ble_hs_lock();
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_DHKEY_CHECK, -1,
