@@ -3594,8 +3594,10 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
             }
         }
 
+#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
         /* update filter policy */
         scansm->scan_filt_dups = filter_dups;
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* restart timers according to new settings */
@@ -3611,7 +3613,9 @@ ble_ll_scan_set_enable(uint8_t *cmd, uint8_t ext)
      * disabled now
      */
 
+#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
     scansm->scan_filt_dups = filter_dups;
+#endif
     scansm->cur_phy = PHY_NOT_CONFIGURED;
     scansm->next_phy = PHY_NOT_CONFIGURED;
 
