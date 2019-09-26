@@ -373,8 +373,7 @@ ble_ll_dtm_rx_start(void)
 #endif
 
     OS_ENTER_CRITICAL(sr);
-    rc = ble_phy_rx_set_start_time(os_cputime_get32() +
-                                   g_ble_ll_sched_offset_ticks, 0);
+    rc = ble_phy_rx_set_start_time(os_cputime_get32(), 0);
     OS_EXIT_CRITICAL(sr);
     if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         return rc;
