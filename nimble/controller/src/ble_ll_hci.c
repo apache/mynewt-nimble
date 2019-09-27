@@ -980,7 +980,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
             rc = ble_ll_hci_le_read_supp_states(rspbuf, rsplen);
         }
         break;
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
     case BLE_HCI_OCF_LE_TX_TEST:
         if (len == BLE_HCI_TX_TEST_LEN) {
             rc = ble_ll_dtm_tx_test(cmdbuf, false);
