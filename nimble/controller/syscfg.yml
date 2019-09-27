@@ -296,6 +296,24 @@ syscfg.defs:
         description: >
              Enables HCI Test commands needed for Bluetooth SIG certification
         value: MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+    BLE_LL_DTM_EXTENSIONS_ENABLE:
+        description: >
+             Enables non-standard extensions to HCI test commands. Once enabled,
+             HCI_LE_Transmitter_Test accepts extra parameters in addition to
+             those defined in Core specification
+               interval (2 octets)   interval between packets (usecs), overrides
+                                     standard interval
+               pkt_count (2 octets)  number of packets to transmit, controller
+                                     will automatically stop sending packets
+                                     after given number of packets was sent
+             Setting either of these parameters to 0 will configure for default
+             behavior, as per Core specification.
+             If specified interval is shorter then allowed by specification it
+             will be ignored.
+             Extended parameters shall immediately follow standard parameters.
+             Controller can accept both standard and extended version of command
+             depending on specified HCI command length.
+        value: 0
 
     BLE_LL_VND_EVENT_ON_ASSERT:
         description: >

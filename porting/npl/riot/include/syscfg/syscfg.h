@@ -517,8 +517,8 @@
 #define MYNEWT_VAL_BLE_LL_DBG_HCI_EV_PIN (-1)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_LL_DIRECT_TEST_MODE
-#define MYNEWT_VAL_BLE_LL_DIRECT_TEST_MODE (0)
+#ifndef MYNEWT_VAL_BLE_LL_DTM
+#define MYNEWT_VAL_BLE_LL_DTM (0)
 #endif
 
 /* Overridden by nimble/controller (defined by nimble/controller) */

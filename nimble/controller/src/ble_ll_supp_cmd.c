@@ -137,7 +137,7 @@
 #endif
 #define BLE_SUPP_CMD_LE_READ_SUPP_STATES    (1 << 3)
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 #define BLE_SUPP_CMD_LE_RX_TEST             (1 << 4)
 #define BLE_SUPP_CMD_LE_TX_TEST             (1 << 5)
 #define BLE_SUPP_CMD_LE_TEST_END            (1 << 6)
@@ -233,7 +233,7 @@
 #define BLE_SUPP_CMD_LE_SET_PHY             (0 << 6)
 #endif
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 #define BLE_SUPP_CMD_LE_ENHANCED_RX_TEST    (1 << 7)
 #else
 #define BLE_SUPP_CMD_LE_ENHANCED_RX_TEST    (0 << 7)
@@ -252,7 +252,7 @@
 )
 
 /* Octet 36 */
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 #define BLE_SUPP_CMD_LE_ENHANCED_TX_TEST    (1 << 0)
 #else
 #define BLE_SUPP_CMD_LE_ENHANCED_TX_TEST    (0 << 0)
