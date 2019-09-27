@@ -38,7 +38,7 @@
 #include "hal/hal_gpio.h"
 #endif
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
 #endif
 
@@ -982,9 +982,7 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         break;
 #if MYNEWT_VAL(BLE_LL_DTM)
     case BLE_HCI_OCF_LE_TX_TEST:
-        if (len == BLE_HCI_TX_TEST_LEN) {
-            rc = ble_ll_dtm_tx_test(cmdbuf, false);
-        }
+        rc = ble_ll_dtm_tx_test(cmdbuf, len, false);
         break;
     case BLE_HCI_OCF_LE_RX_TEST:
         if (len == BLE_HCI_RX_TEST_LEN) {
@@ -1090,16 +1088,14 @@ ble_ll_hci_le_cmd_proc(uint8_t *cmdbuf, uint16_t ocf, uint8_t *rsplen,
         }
         break;
 #endif
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
     case BLE_HCI_OCF_LE_ENH_RX_TEST:
         if (len == BLE_HCI_LE_ENH_RX_TEST_LEN) {
             rc = ble_ll_dtm_rx_test(cmdbuf, true);
         }
         break;
     case BLE_HCI_OCF_LE_ENH_TX_TEST:
-        if (len == BLE_HCI_LE_ENH_TX_TEST_LEN) {
-            rc = ble_ll_dtm_tx_test(cmdbuf, true);
-        }
+        rc = ble_ll_dtm_tx_test(cmdbuf, len, true);
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

@@ -2061,7 +2061,7 @@ ble_phy_resolv_list_disable(void)
 }
 #endif
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 void ble_phy_enable_dtm(void)
 {
     /* When DTM is enabled we need to disable whitening as per

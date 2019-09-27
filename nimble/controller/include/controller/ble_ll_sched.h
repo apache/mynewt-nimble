@@ -214,7 +214,7 @@ void ble_ll_sched_stop(void);
 void ble_ll_sched_rfclk_chk_restart(void);
 #endif
 
-#if MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+#if MYNEWT_VAL(BLE_LL_DTM)
 int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #endif
 
