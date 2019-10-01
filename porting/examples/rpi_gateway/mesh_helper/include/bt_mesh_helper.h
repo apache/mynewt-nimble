@@ -48,8 +48,6 @@ struct network {
    u16_t app_idx;
 };
 
-struct bt_mesh_model *find_model(struct bt_mesh_elem *elem, uint16_t id);
-
 void rgb_to_rgbw(uint16_t *red, uint16_t *green, uint16_t *blue, uint16_t *white);
 
 void hsl_to_rgbw(struct hsl_color_format *hsl, struct rgbw_color_format *rgbw);

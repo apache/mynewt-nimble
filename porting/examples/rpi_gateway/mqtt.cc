@@ -88,14 +88,10 @@ void mqtt_message_handler(void)
 
 			reader.parse(msg, obj);
 
-			if (!strcmp("powerState", obj["name"].asCString()))
-			{
-				if (!strcmp("ON", obj["value"].asCString()))
-				{
+			if (!strcmp("powerState", obj["name"].asCString())) {
+				if (!strcmp("ON", obj["value"].asCString())) {
 					publish_gen_onoff_set(0x1);
-				}
-				else if (!strcmp("OFF", obj["value"].asCString()))
-				{
+				} else if (!strcmp("OFF", obj["value"].asCString())) {
 					publish_gen_onoff_set(0x0);
 				}
 			}
@@ -124,16 +120,14 @@ void mosquitto_mqtt_init(void *param)
 	  thread mqtt_msg_handler_thread(mqtt_message_handler);
 
 	  // Main communication loop to process messages.
-	  do
-	  {
+	  do {
 	    // Save loop iteration state (TRUE if all ok).
 	    result = client->loop();
 	    // Just show that we are alive.
 	    cout << ".\r\n";
 	    // Wait 1 second.
 	    sleep(1);
-	  }
-	  while(result == true); // Break if loop returned FALSE.
+	  } while(result == true); // Break if loop returned FALSE.
 
 	  delete client;
 

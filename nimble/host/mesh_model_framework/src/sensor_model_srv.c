@@ -19,7 +19,6 @@
 
 #include "mesh/mesh.h"
 #include "model.h"
-#include "bt_mesh_helper.h"
 
 //=============================================================================
 // Globale definitions and variables
@@ -31,8 +30,8 @@
 // Sensor Server
 //=============================================================================
 
-static void add_marshalled_sensor_data(struct os_mbuf *msg,
-        struct bt_mesh_sensor *state)
+static void
+add_marshalled_sensor_data(struct os_mbuf *msg, struct bt_mesh_sensor *state)
 {
     uint8_t *mpid = NULL;
     uint8_t *raw_value = NULL;
@@ -41,8 +40,7 @@ static void add_marshalled_sensor_data(struct os_mbuf *msg,
      * check payload length and property id length for
      * accurate marshalling
      */
-    if (state->data_length <= 16 && state->descriptor.property_id < 2048)
-    {
+    if (state->data_length <= 16 && state->descriptor.property_id < 2048) {
         /*
          * | Format0 | Length  |      Property ID        |
          * | 0       | 1 2 3 4 | 5 6 7 | 0 1 2 3 4 5 6 7 |
@@ -63,9 +61,7 @@ static void add_marshalled_sensor_data(struct os_mbuf *msg,
         BT_DBG("mpid = 0x%x", temp_mpid);
 
         memcpy(mpid, &temp_mpid, 2);
-    }
-    else
-    {
+    } else {
         /*
          * | Format1 | Length        |            Property ID            |
          * | 0       | 1 2 3 4 5 6 7 | 0 1 2 3 4 5 6 7 | 0 1 2 3 4 5 6 7 |
@@ -98,47 +94,41 @@ static void add_marshalled_sensor_data(struct os_mbuf *msg,
     memcpy(raw_value, state->data, state->data_length);
 }
 
-static void sensor_status(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           uint16_t property_id)
+static void
+sensor_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              uint16_t property_id)
 {
     struct bt_mesh_model_sensor_srv *srv = model->user_data;
 
-    if (srv)
-    {
+    if (srv) {
         struct os_mbuf *msg = NET_BUF_SIMPLE(4);
         int err, i;
 
         bt_mesh_model_msg_init(msg, OP_SENSOR_STATUS);
 
         /* send status for the particular property id */
-        if (property_id)
-        {
+        if (property_id) {
             uint32_t is_property_id_matched = false;
 
             /* find property id */
-            for (i = 0; i < srv->sensor_count; i++)
-            {
+            for (i = 0; i < srv->sensor_count; i++) {
                 struct bt_mesh_sensor state = srv->sensors[i];
 
-                if (property_id == state.descriptor.property_id)
-                {
+                if (property_id == state.descriptor.property_id) {
                     is_property_id_matched = true;
                     add_marshalled_sensor_data(msg, &state);
                     break;
                 }
             }
 
-            if (!is_property_id_matched)
-            {
+            if (!is_property_id_matched) {
                 uint8_t *mpid = NULL;
 
                 /*
                  * check payload length and property id length for
                  * accurate marshalling
                  */
-                if (property_id < 2048)
-                {
+                if (property_id < 2048) {
                     uint16_t temp_mpid = 0;
 
                     mpid = net_buf_simple_add(msg, 2);
@@ -148,9 +138,7 @@ static void sensor_status(struct bt_mesh_model *model,
                     BT_DBG("mpid = 0x%x", temp_mpid);
 
                     memcpy(mpid, &temp_mpid, 2);
-                }
-                else
-                {
+                } else {
                     uint32_t temp_mpid = 0x1;
 
                     mpid = net_buf_simple_add(msg, 3);
@@ -170,11 +158,8 @@ static void sensor_status(struct bt_mesh_model *model,
                     memcpy(mpid, &temp_mpid, 3);
                 }
             }
-        }
-        else
-        {
-            for (i = 0; i < srv->sensor_count; i++)
-            {
+        } else {
+            for (i = 0; i < srv->sensor_count; i++) {
                 add_marshalled_sensor_data(msg, &srv->sensors[i]);
             }
         }
@@ -182,8 +167,7 @@ static void sensor_status(struct bt_mesh_model *model,
         ble_hs_log_flat_buf(msg->om_databuf, msg->om_len);
 
         err = bt_mesh_model_send(model, ctx, msg, NULL, NULL);
-        if (err)
-        {
+        if (err) {
             BT_ERR("Send status failed error=%d", err);
         }
 
@@ -191,28 +175,26 @@ static void sensor_status(struct bt_mesh_model *model,
     }
 }
 
-static void sensor_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
+static void
+sensor_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
            struct os_mbuf *buf)
 {
     uint16_t property_id = 0;
 
-    if (buf)
-    {
+    if (buf) {
         property_id = net_buf_simple_pull_le16(buf);
     }
 
     sensor_status(model, ctx, property_id);
 }
 
-static void sensor_descriptor_status(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           uint16_t property_id)
+static void
+sensor_descriptor_status(struct bt_mesh_model *model,
+                         struct bt_mesh_msg_ctx *ctx, uint16_t property_id)
 {
     struct bt_mesh_model_sensor_srv *srv = model->user_data;
 
-    if (srv)
-    {
+    if (srv) {
         int err, i;
         struct os_mbuf *msg = NET_BUF_SIMPLE(2);
         bt_mesh_model_msg_init(msg, OP_SENSOR_DESCRIPTOR_STATUS);
@@ -221,33 +203,24 @@ static void sensor_descriptor_status(struct bt_mesh_model *model,
         size_t des_size = sizeof(struct bt_mesh_sensor_descriptor);
 
         /* send status for the particular property id */
-        if (property_id)
-        {
+        if (property_id) {
             /* find property id */
-            for (i = 0; i < srv->sensor_count; i++)
-            {
-                if (property_id == srv->sensors[i].descriptor.property_id)
-                {
+            for (i = 0; i < srv->sensor_count; i++) {
+                if (property_id == srv->sensors[i].descriptor.property_id) {
                     state = &srv->sensors[i];
                     break;
                 }
             }
 
-            if (state)
-            {
+            if (state) {
                 descriptor = net_buf_simple_add(msg, des_size);
                 memcpy(descriptor, &state->descriptor, des_size);
-            }
-            else
-            {
+            } else {
                 descriptor = net_buf_simple_add(msg, 2);
                 memcpy(descriptor, &property_id, 2);
             }
-        }
-        else
-        {
-            for (i = 0; i < srv->sensor_count; i++)
-            {
+        } else {
+            for (i = 0; i < srv->sensor_count; i++) {
                 state = &srv->sensors[i];
 
                 descriptor = net_buf_simple_add(msg, des_size);
@@ -256,8 +229,7 @@ static void sensor_descriptor_status(struct bt_mesh_model *model,
         }
 
         err = bt_mesh_model_send(model, ctx, msg, NULL, NULL);
-        if (err)
-        {
+        if (err) {
             BT_ERR("Send status failed error=%d", err);
         }
 
@@ -265,14 +237,13 @@ static void sensor_descriptor_status(struct bt_mesh_model *model,
     }
 }
 
-static void sensor_descriptor_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+sensor_descriptor_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                      struct os_mbuf *buf)
 {
     uint16_t property_id = 0;
 
-    if (buf)
-    {
+    if (buf) {
         property_id = net_buf_simple_pull_le16(buf);
     }
 

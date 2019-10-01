@@ -40,7 +40,6 @@ NIMBLE_IGNORE := $(NIMBLE_ROOT)/porting/nimble/src/hal_timer.c \
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.defs
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.mesh
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.modelframework
-include $(NIMBLE_ROOT)/porting/nimble/Makefile.helper
 
 SRC := $(NIMBLE_SRC)
 
@@ -59,12 +58,17 @@ SRC += \
 	./bt_mesh_node.c \
 	./mqtt.cc \
 	./raspberry_osio_client/raspberry_osio_client.cc \
+	./mesh_helper/src/configuration_model_srv.c \
+    ./mesh_helper/src/health_model_srv.c \
+    ./mesh_helper/src/provisioning_info_builder.c \
+    ./mesh_helper/src/bt_mesh_helper.c \
 	$(NULL)
 
 # Add NPL and all NimBLE directories to include paths
 INC = \
 	./include \
 	./raspberry_osio_client \
+	./mesh_helper/include \
 	$(NIMBLE_ROOT)/porting/npl/linux/include \
 	$(NIMBLE_ROOT)/porting/npl/linux/src \
 	$(NIMBLE_ROOT)/nimble/transport/socket/include \
@@ -87,6 +91,7 @@ CFLAGS =                    \
     $(INCLUDES)             \
     -g                      \
     -D_GNU_SOURCE           \
+    -std=c++11              \
     $(NULL)
 
 LIBS := -lrt -lpthread -lstdc++ -lmosquitto -ljsoncpp
@@ -94,11 +99,11 @@ LIBS := -lrt -lpthread -lstdc++ -lmosquitto -ljsoncpp
 .PHONY: all clean
 .DEFAULT: all
 
-all: nimble-linux-blemesh
+all: rpi_gateway
 
 clean:
 	rm $(OBJ) -f
-	rm nimble-linux-blemesh -f
+	rm rpi_gateway -f
 
 $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 
@@ -108,6 +113,6 @@ $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 %.o: %.cc
 	$(CXX) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
-nimble-linux-blemesh: $(OBJ) $(TINYCRYPT_OBJ)
+rpi_gateway: $(OBJ) $(TINYCRYPT_OBJ)
 	$(LD) -o $@ $^ $(LIBS)
 	$(SIZE) $@

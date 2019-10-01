@@ -27,7 +27,8 @@
 static u8_t cur_faults[CUR_FAULTS_MAX];
 static u8_t reg_faults[CUR_FAULTS_MAX * 2];
 
-static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
+static void
+get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
 {
    u8_t i, limit = *count;
 
@@ -39,8 +40,9 @@ static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
    }
 }
 
-static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
-          u16_t *company_id, u8_t *faults, u8_t *fault_count)
+static int
+fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
+              u16_t *company_id, u8_t *faults, u8_t *fault_count)
 {
    BT_INFO("Sending current faults\n");
 
@@ -52,8 +54,9 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
    return 0;
 }
 
-static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
-          u8_t *test_id, u8_t *faults, u8_t *fault_count)
+static int
+fault_get_reg(struct bt_mesh_model *model, u16_t cid, u8_t *test_id,
+              u8_t *faults, u8_t *fault_count)
 {
    if (cid != CID_VENDOR) {
       BT_INFO("Faults requested for unknown Company ID 0x%04x\n", cid);
@@ -69,7 +72,8 @@ static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
    return 0;
 }
 
-static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
+static int
+fault_clear(struct bt_mesh_model *model, uint16_t cid)
 {
    if (cid != CID_VENDOR) {
       return -EINVAL;
@@ -80,8 +84,8 @@ static int fault_clear(struct bt_mesh_model *model, uint16_t cid)
    return 0;
 }
 
-static int fault_test(struct bt_mesh_model *model, uint8_t test_id,
-            uint16_t cid)
+static int
+fault_test(struct bt_mesh_model *model, uint8_t test_id, uint16_t cid)
 {
    if (cid != CID_VENDOR) {
       return -EINVAL;
@@ -102,9 +106,9 @@ static const struct bt_mesh_health_srv_cb health_srv_cb = {
 };
 
 
-void bt_mesh_health_model_srv_init(
-   struct bt_mesh_health_srv *health_srv,
-   struct bt_mesh_model_pub *health_pub)
+void
+bt_mesh_health_model_srv_init(struct bt_mesh_health_srv *health_srv,
+                              struct bt_mesh_model_pub *health_pub)
 {
    if (health_srv == NULL)
       return;

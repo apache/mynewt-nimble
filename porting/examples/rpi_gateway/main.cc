@@ -70,7 +70,6 @@ static void *mqtt_task(void *param)
 	return NULL;
 }
 
-//int main(int argc,char **argv)
 int main(void)
 {
     ble_hci_sock_init();
@@ -103,8 +102,7 @@ int main(void)
     int ret = 0;
     pthread_exit(&ret);
 
-    while (true)
-    {
+    while (true) {
         pthread_yield();
     }
 }

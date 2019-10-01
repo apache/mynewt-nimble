@@ -22,8 +22,8 @@
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 
-static void gen_level_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx)
+static void
+gen_level_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx)
 {
    struct bt_mesh_model_gen_level_srv *srv = model->user_data;
    struct os_mbuf *msg = NET_BUF_SIMPLE(3);
@@ -45,28 +45,28 @@ static void gen_level_status(struct bt_mesh_model *model,
    os_mbuf_free_chain(msg);
 }
 
-static void gen_level_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+gen_level_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
    gen_level_status(model, ctx);
 }
 
-static void gen_level_set_unack(struct bt_mesh_model *model,
-            struct bt_mesh_msg_ctx *ctx,
-            struct os_mbuf *buf)
+static void
+gen_level_set_unack(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                    struct os_mbuf *buf)
 {
    struct bt_mesh_model_gen_level_srv *srv = model->user_data;
    int16_t level;
-   uint8_t tid;
 
    level = (int16_t) net_buf_simple_pull_le16(buf);
-   tid = net_buf_simple_pull_u8(buf);
-   //transit time = buf->om_data[3];
-   //delay = buf->om_data[4];
 
-   BT_DBG("singed level = %d tid = %u", level, tid);
-   BT_DBG("unsigned level = %u tid = %u", (uint16_t) level, tid);
+   /*
+    * if required, handle Transaction ID here
+    *
+    * uint8_t tid;
+    * tid = net_buf_simple_pull_u8(buf);
+    */
 
    if (srv && srv->cb) {
       srv->level_state = level;
@@ -74,9 +74,9 @@ static void gen_level_set_unack(struct bt_mesh_model *model,
    }
 }
 
-static void gen_level_set(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+gen_level_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
    gen_level_set_unack(model, ctx, buf);
    gen_level_status(model, ctx);

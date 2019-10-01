@@ -31,9 +31,9 @@ struct gen_onoff_param {
     uint8_t *state;
 };
 
-static void gen_onoff_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx,
-              struct os_mbuf *buf)
+static void
+gen_onoff_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                 struct os_mbuf *buf)
 {
    struct bt_mesh_gen_onoff_model_cli *cli = model->user_data;
    struct gen_onoff_param *param;
@@ -67,7 +67,8 @@ const struct bt_mesh_model_op gen_onoff_cli_op[] = {
 };
 
 
-static int cli_wait(struct bt_mesh_gen_onoff_model_cli *cli, void *param, u32_t op)
+static int
+cli_wait(struct bt_mesh_gen_onoff_model_cli *cli, void *param, u32_t op)
 {
    int err;
 
@@ -85,9 +86,9 @@ static int cli_wait(struct bt_mesh_gen_onoff_model_cli *cli, void *param, u32_t 
 }
 
 
-int bt_mesh_gen_onoff_model_cli_get(
-   struct bt_mesh_gen_onoff_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx)
+int
+bt_mesh_gen_onoff_model_cli_get(struct bt_mesh_gen_onoff_model_cli *cli,
+                                struct bt_mesh_msg_ctx *ctx)
 {
    if (cli == NULL)
       return BLE_HS_ENOADDR;
@@ -113,11 +114,9 @@ done:
 }
 
 
-int bt_mesh_gen_onoff_model_cli_set(
-   struct bt_mesh_gen_onoff_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx,
-   uint8_t val
-)
+int
+bt_mesh_gen_onoff_model_cli_set(struct bt_mesh_gen_onoff_model_cli *cli,
+                                struct bt_mesh_msg_ctx *ctx, uint8_t val)
 {
    if (cli == NULL)
       return BLE_HS_ENOADDR;
@@ -151,11 +150,9 @@ done:
    return err;
 }
 
-int bt_mesh_gen_onoff_model_cli_set_unack(
-   struct bt_mesh_gen_onoff_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx,
-   uint8_t val
-)
+int
+bt_mesh_gen_onoff_model_cli_set_unack(struct bt_mesh_gen_onoff_model_cli *cli,
+                                      struct bt_mesh_msg_ctx *ctx, uint8_t val)
 {
    if (cli == NULL)
       return BLE_HS_ENOADDR;
@@ -178,17 +175,16 @@ int bt_mesh_gen_onoff_model_cli_set_unack(
    return err;
 }
 
-void bt_mesh_gen_onoff_model_cli_init(struct bt_mesh_model *models, uint32_t models_count)
+void
+bt_mesh_gen_onoff_model_cli_init(struct bt_mesh_model *models,
+                                 uint32_t models_count)
 {
-   if (models && models_count > 0)
-   {
+   if (models && models_count > 0) {
       uint32_t i;
       struct bt_mesh_model *model = models;
 
-      for (i = 0; i < models_count; i++)
-      {
-         if (model->id == BT_MESH_MODEL_ID_GEN_ONOFF_CLI && model->user_data)
-         {
+      for (i = 0; i < models_count; i++) {
+         if (model->id == BT_MESH_MODEL_ID_GEN_ONOFF_CLI && model->user_data) {
             struct bt_mesh_gen_onoff_model_cli *cli = model->user_data;
 
             cli->model = model;

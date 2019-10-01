@@ -307,12 +307,9 @@ void bt_mesh_node_init(void)
         settings_load();
     }
 
-    if (bt_mesh_is_provisioned())
-    {
+    if (bt_mesh_is_provisioned()) {
         console_printf("Mesh network restored from flash\n");
-    }
-    else
-    {
+    } else {
         console_printf("Mesh network starting fresh\n");
     }
 

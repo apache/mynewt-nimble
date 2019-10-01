@@ -20,39 +20,19 @@
 #include "mesh/mesh.h"
 #include "bt_mesh_helper.h"
 
-struct bt_mesh_model *find_model(struct bt_mesh_elem *elem, uint16_t id)
-{
-   if (elem == NULL || elem->model_count == 0 || elem->models == NULL)
-      return NULL;
-
-   int j;
-
-   for (j = 0; j < elem->model_count; j++)
-   {
-      struct bt_mesh_model *model = &elem->models[j];
-
-      if (model->id == id)
-      {
-         return model;
-      }
-   }
-
-   return NULL;
-}
-
-void rgb_to_rgbw(uint16_t *red, uint16_t *green, uint16_t *blue, uint16_t *white)
+void
+rgb_to_rgbw(uint16_t *red, uint16_t *green, uint16_t *blue, uint16_t *white)
 {
     uint16_t temp_white;
 
     /* If Maximum Value Of RGB Is Zero, White Is Also Zero */
-    if (0 == MAX_OF_3 (*red,*green,*blue) )
-    {
+    if (0 == MAX_OF_3(*red,*green,*blue)) {
         *white = 0;
         return;
     }
 
     /* Else, Compute White */
-    temp_white = (uint16_t)( ((uint32_t) MIN_OF_3(*red,*green,*blue) * ( *red + *green + *blue ) ) / ( MAX_OF_3(*red,*green,*blue) * 3 ) );
+    temp_white = (uint16_t)(((uint32_t) MIN_OF_3(*red,*green,*blue) * (*red + *green + *blue)) / (MAX_OF_3(*red,*green,*blue) * 3));
     *red   += temp_white;
     *green += temp_white;
     *blue  += temp_white;
@@ -65,7 +45,8 @@ void rgb_to_rgbw(uint16_t *red, uint16_t *green, uint16_t *blue, uint16_t *white
     *blue  -= *white;
 }
 
-static double hue_to_rgb (double v1, double v2, double vH)
+static double
+hue_to_rgb (double v1, double v2, double vH)
 {
     if (vH < 0) vH += 1;
     if (vH > 1) vH -= 1;
@@ -76,7 +57,8 @@ static double hue_to_rgb (double v1, double v2, double vH)
     return v1;
 }
 
-void hsl_to_rgbw(struct hsl_color_format *hsl, struct rgbw_color_format *rgbw)
+void
+hsl_to_rgbw(struct hsl_color_format *hsl, struct rgbw_color_format *rgbw)
 {
     if (hsl == NULL || rgbw == NULL)
         return;
@@ -90,12 +72,9 @@ void hsl_to_rgbw(struct hsl_color_format *hsl, struct rgbw_color_format *rgbw)
     /* Rescaling lightness range from 0-65535 to 0.0-1.0 */
     double l = (double) hsl->lightness / 65535.0f;
 
-    if (s == 0)
-    {
+    if (s == 0) {
         rgbw->red = rgbw->green = rgbw->blue = (uint16_t) (l * 1000.0f);
-    }
-    else
-    {
+    } else {
         float v1 = 0, v2 = 0;
 
         if (l < 0.5)

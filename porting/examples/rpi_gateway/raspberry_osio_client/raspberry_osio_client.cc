@@ -37,8 +37,7 @@ static void callbackMessageReceived(mosquitto *data, void * context, const struc
 {
   RaspberryOSIOClient * _this = (RaspberryOSIOClient *)context;
 
-  if (_this->onMessage != 0)
-  {
+  if (_this->onMessage != 0) {
     mosquitto_message * destination = new mosquitto_message();
     mosquitto_message_copy(destination, message);
     _this->onMessage(destination->topic, (char*)destination->payload, destination->payloadlen);
@@ -140,8 +139,7 @@ RaspberryOSIOClient::~RaspberryOSIOClient()
  */
 bool RaspberryOSIOClient::connectIfNecessary()
 {
-  if (this->_authenticatedInServer)
-  {
+  if (this->_authenticatedInServer) {
     return true;
   }
 
@@ -184,8 +182,7 @@ bool RaspberryOSIOClient::publish(char* topic, char* payload)
  */
 bool RaspberryOSIOClient::subscribe(char* topic)
 {
-  if (!this->connectIfNecessary())
-  {
+  if (!this->connectIfNecessary()) {
     return false;
   }
 

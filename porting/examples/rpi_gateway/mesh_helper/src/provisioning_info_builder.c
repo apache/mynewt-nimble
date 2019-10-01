@@ -23,7 +23,8 @@ static struct network *p_net = NULL;
 
 static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
 
-static void prov_complete(u16_t net_idx, u16_t addr)
+static void
+prov_complete(u16_t net_idx, u16_t addr)
 {
    BT_INFO("Local node provisioned, net_idx 0x%04x address 0x%04x\n",
           net_idx, addr);
@@ -35,18 +36,21 @@ static void prov_complete(u16_t net_idx, u16_t addr)
    }
 }
 
-static void prov_reset(void)
+static void
+prov_reset(void)
 {
    BT_INFO("The local node has been reset and needs reprovisioning\n");
 }
 
-static int output_number(bt_mesh_output_action_t action, uint32_t number)
+static int
+output_number(bt_mesh_output_action_t action, uint32_t number)
 {
    BT_INFO("OOB Number: %u\n", number);
    return 0;
 }
 
-static int output_string(const char *str)
+static int
+output_string(const char *str)
 {
    BT_INFO("OOB String: %s\n", str);
    return 0;
@@ -55,7 +59,8 @@ static int output_string(const char *str)
 static bt_mesh_input_action_t input_act;
 static u8_t input_size;
 
-static const char *bearer2str(bt_mesh_prov_bearer_t bearer)
+static const char *
+bearer2str(bt_mesh_prov_bearer_t bearer)
 {
    switch (bearer) {
    case BT_MESH_PROV_ADV:
@@ -67,17 +72,20 @@ static const char *bearer2str(bt_mesh_prov_bearer_t bearer)
    }
 }
 
-static void link_open(bt_mesh_prov_bearer_t bearer)
+static void
+link_open(bt_mesh_prov_bearer_t bearer)
 {
    BT_INFO("Provisioning link opened on %s\n", bearer2str(bearer));
 }
 
-static void link_close(bt_mesh_prov_bearer_t bearer)
+static void
+link_close(bt_mesh_prov_bearer_t bearer)
 {
    BT_INFO("Provisioning link closed on %s\n", bearer2str(bearer));
 }
 
-static int input(bt_mesh_input_action_t act, u8_t size)
+static int
+input(bt_mesh_input_action_t act, u8_t size)
 {
    switch (act) {
    case BT_MESH_ENTER_NUMBER:
@@ -99,7 +107,8 @@ static int input(bt_mesh_input_action_t act, u8_t size)
    return 0;
 }
 
-void bt_mesh_provisioning_info_init(struct bt_mesh_prov *prov, struct network *net)
+void
+bt_mesh_provisioning_info_init(struct bt_mesh_prov *prov, struct network *net)
 {
    if (prov == NULL)
       return;

@@ -31,9 +31,9 @@ struct gen_level_param {
     int16_t *level;
 };
 
-static void gen_level_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx,
-              struct os_mbuf *buf)
+static void
+gen_level_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                 struct os_mbuf *buf)
 {
    struct bt_mesh_gen_level_model_cli *cli = model->user_data;
    struct gen_level_param *param;
@@ -67,7 +67,8 @@ const struct bt_mesh_model_op gen_level_cli_op[] = {
 };
 
 
-static int cli_wait(struct bt_mesh_gen_level_model_cli *cli, void *param, uint32_t op)
+static int
+cli_wait(struct bt_mesh_gen_level_model_cli *cli, void *param, uint32_t op)
 {
    int err;
 
@@ -85,9 +86,9 @@ static int cli_wait(struct bt_mesh_gen_level_model_cli *cli, void *param, uint32
 }
 
 
-int bt_mesh_gen_level_model_cli_get(
-   struct bt_mesh_gen_level_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx
+int
+bt_mesh_gen_level_model_cli_get(struct bt_mesh_gen_level_model_cli *cli,
+                                struct bt_mesh_msg_ctx *ctx
 )
 {
    if (cli == NULL)
@@ -114,10 +115,9 @@ done:
 }
 
 
-int bt_mesh_gen_level_model_cli_set(
-   struct bt_mesh_gen_level_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx,
-   int16_t level
+int
+bt_mesh_gen_level_model_cli_set(struct bt_mesh_gen_level_model_cli *cli,
+                                struct bt_mesh_msg_ctx *ctx, int16_t level
 )
 {
    if (cli == NULL)
@@ -150,10 +150,10 @@ done:
    return err;
 }
 
-int bt_mesh_gen_level_model_cli_set_unack(
-   struct bt_mesh_gen_level_model_cli *cli,
-   struct bt_mesh_msg_ctx *ctx,
-   int16_t level
+int
+bt_mesh_gen_level_model_cli_set_unack(struct bt_mesh_gen_level_model_cli *cli,
+                                      struct bt_mesh_msg_ctx *ctx,
+                                      int16_t level
 )
 {
    if (cli == NULL)
@@ -176,17 +176,16 @@ int bt_mesh_gen_level_model_cli_set_unack(
 }
 
 
-void bt_mesh_gen_level_model_cli_init(struct bt_mesh_model *models, uint32_t models_count)
+void
+bt_mesh_gen_level_model_cli_init(struct bt_mesh_model *models,
+                                 uint32_t models_count)
 {
-   if (models && models_count > 0)
-   {
+   if (models && models_count > 0) {
       uint32_t i;
       struct bt_mesh_model *model = models;
 
-      for (i = 0; i < models_count; i++)
-      {
-         if (model->id == BT_MESH_MODEL_ID_GEN_LEVEL_CLI && model->user_data)
-         {
+      for (i = 0; i < models_count; i++) {
+         if (model->id == BT_MESH_MODEL_ID_GEN_LEVEL_CLI && model->user_data) {
             struct bt_mesh_gen_level_model_cli *cli = model->user_data;
 
             cli->model = model;

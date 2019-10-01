@@ -19,7 +19,6 @@
 
 #include "mesh/mesh.h"
 #include "model.h"
-#include "bt_mesh_helper.h"
 
 //=============================================================================
 // Globale definitions and variables
@@ -28,11 +27,34 @@
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 
 //=============================================================================
+// Utility functions
+//=============================================================================
+
+static struct
+bt_mesh_model *find_model(struct bt_mesh_elem *elem, uint16_t id)
+{
+   if (elem == NULL || elem->model_count == 0 || elem->models == NULL)
+      return NULL;
+
+   int j;
+
+   for (j = 0; j < elem->model_count; j++) {
+      struct bt_mesh_model *model = &elem->models[j];
+
+      if (model->id == id) {
+         return model;
+      }
+   }
+
+   return NULL;
+}
+
+//=============================================================================
 // Light Lightness Server
 //=============================================================================
 
-static void light_lightness_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx)
+static void
+light_lightness_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx)
 {
    struct bt_mesh_model_light_lightness_srv *srv = model->user_data;
    struct os_mbuf *msg = NET_BUF_SIMPLE(4);
@@ -54,16 +76,16 @@ static void light_lightness_status(struct bt_mesh_model *model,
 }
 
 
-static void light_lightness_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+light_lightness_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                    struct os_mbuf *buf)
 {
    light_lightness_status(model, ctx);
 }
 
-static void light_lightness_set_unack(struct bt_mesh_model *model,
-            struct bt_mesh_msg_ctx *ctx,
-            struct os_mbuf *buf)
+static void
+light_lightness_set_unack(struct bt_mesh_model *model,
+                          struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf)
 {
    struct bt_mesh_model_light_lightness_srv *srv = model->user_data;
    uint16_t actual_state;
@@ -81,14 +103,14 @@ static void light_lightness_set_unack(struct bt_mesh_model *model,
 }
 
 
-static void light_lightness_set(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+light_lightness_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+
+                    struct os_mbuf *buf)
 {
    light_lightness_set_unack(model, ctx, buf);
    light_lightness_status(model, ctx);
 }
-
 
 const struct bt_mesh_model_op light_lightness_srv_op[] = {
    { OP_LIGHT_LIGHTNESS_GET,     0, light_lightness_get },
@@ -101,10 +123,10 @@ const struct bt_mesh_model_op light_lightness_srv_op[] = {
 // Generic Level Server
 //=============================================================================
 
-static void gen_level_state_change_cb (struct bt_mesh_model *model)
+static void
+gen_level_state_change_cb (struct bt_mesh_model *model)
 {
-   if (model && model->user_data)
-   {
+   if (model && model->user_data) {
       struct bt_mesh_model_gen_level_srv *level_srv = model->user_data;
       struct bt_mesh_model *ll_model = find_model(
                                           bt_mesh_model_elem(model),
@@ -134,10 +156,10 @@ static void gen_level_state_change_cb (struct bt_mesh_model *model)
 // Generic OnOff Server
 //=============================================================================
 
-static void gen_onoff_state_change_cb (struct bt_mesh_model *model)
+static void
+gen_onoff_state_change_cb (struct bt_mesh_model *model)
 {
-   if (model && model->user_data)
-   {
+   if (model && model->user_data) {
       struct bt_mesh_model_gen_onoff_srv *onoff_srv = model->user_data;
       struct bt_mesh_model *ll_model = find_model(
                                            bt_mesh_model_elem(model),
@@ -147,18 +169,12 @@ static void gen_onoff_state_change_cb (struct bt_mesh_model *model)
       if (ll_model && ll_model->user_data) {
          struct bt_mesh_model_light_lightness_srv *srv = ll_model->user_data;
 
-         if (onoff_srv->onoff_state == 0)
-         {
+         if (onoff_srv->onoff_state == 0) {
             srv->actual_state = 0;
-         }
-         else
-         {
-            if (srv->default_state == 0)
-            {
+         } else {
+            if (srv->default_state == 0) {
                srv->actual_state = srv->last_state;
-            }
-            else
-            {
+            } else {
                srv->actual_state = srv->default_state;
             }
          }
@@ -182,34 +198,27 @@ static void gen_onoff_state_change_cb (struct bt_mesh_model *model)
 // Exposed Interfaces
 //=============================================================================
 
-void bt_mesh_model_light_lightness_actual_state_update(
-    struct bt_mesh_model_light_lightness_srv *srv,
-    uint16_t actual_state
-)
+void
+bt_mesh_model_light_lightness_actual_state_update(
+    struct bt_mesh_model_light_lightness_srv *srv, uint16_t actual_state)
 {
-    if (srv)
-    {
+    if (srv) {
         srv->actual_state = actual_state;
         srv->gen_level_srv.level_state = actual_state - 32768;
-        if (actual_state)
-        {
+        if (actual_state) {
             srv->gen_onoff_srv.onoff_state = 1;
             srv->last_state = actual_state;
-        }
-        else
-        {
+        } else {
             srv->gen_onoff_srv.onoff_state = 0;
         }
     }
 }
 
-
-void bt_mesh_model_light_lightness_srv_init(
-    struct bt_mesh_model_light_lightness_srv *srv
-)
+void
+bt_mesh_model_light_lightness_srv_init(
+    struct bt_mesh_model_light_lightness_srv *srv)
 {
-    if (srv)
-    {
+    if (srv) {
         srv->actual_state = 0x0000;
         srv->linear_state = 0x0000;
         srv->last_state = 0xffff;

@@ -19,7 +19,8 @@
 
 #include "bt_mesh_helper.h"
 
-void bt_mesh_cfg_model_srv_init (struct bt_mesh_cfg_srv *cfg_srv)
+void
+bt_mesh_cfg_model_srv_init (struct bt_mesh_cfg_srv *cfg_srv)
 {
    if (cfg_srv == NULL)
       return;

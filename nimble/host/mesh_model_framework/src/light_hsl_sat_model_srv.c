@@ -19,7 +19,6 @@
 
 #include "mesh/mesh.h"
 #include "model.h"
-#include "bt_mesh_helper.h"
 
 //=============================================================================
 // Globale definitions and variables
@@ -28,11 +27,34 @@
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 
 //=============================================================================
+// Utility functions
+//=============================================================================
+
+static struct
+bt_mesh_model *find_model(struct bt_mesh_elem *elem, uint16_t id)
+{
+   if (elem == NULL || elem->model_count == 0 || elem->models == NULL)
+      return NULL;
+
+   int j;
+
+   for (j = 0; j < elem->model_count; j++) {
+      struct bt_mesh_model *model = &elem->models[j];
+
+      if (model->id == id) {
+         return model;
+      }
+   }
+
+   return NULL;
+}
+
+//=============================================================================
 // Light HSL Saturation Server
 //=============================================================================
 
-static void light_hsl_sat_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx)
+static void
+light_hsl_sat_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx)
 {
    struct bt_mesh_model_light_hsl_sat_srv *srv = model->user_data;
    struct os_mbuf *msg = NET_BUF_SIMPLE(4);
@@ -55,16 +77,17 @@ static void light_hsl_sat_status(struct bt_mesh_model *model,
 }
 
 
-static void light_hsl_sat_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+light_hsl_sat_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                  struct os_mbuf *buf)
 {
    light_hsl_sat_status(model, ctx);
 }
 
-static void light_hsl_sat_set_unack(struct bt_mesh_model *model,
-            struct bt_mesh_msg_ctx *ctx,
-            struct os_mbuf *buf) {
+static void
+light_hsl_sat_set_unack(struct bt_mesh_model *model,
+                        struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf)
+{
    struct bt_mesh_model_light_hsl_sat_srv *srv = model->user_data;
    uint16_t sat_state;
    uint8_t tid;
@@ -81,14 +104,13 @@ static void light_hsl_sat_set_unack(struct bt_mesh_model *model,
 }
 
 
-static void light_hsl_sat_set(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+light_hsl_sat_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                  struct os_mbuf *buf)
 {
    light_hsl_sat_set_unack(model, ctx, buf);
    light_hsl_sat_status(model, ctx);
 }
-
 
 const struct bt_mesh_model_op light_hsl_sat_srv_op[] = {
    { OP_LIGHT_HSL_SAT_GET,       0, light_hsl_sat_get },
@@ -101,10 +123,10 @@ const struct bt_mesh_model_op light_hsl_sat_srv_op[] = {
 // Generic Level Server
 //=============================================================================
 
-static void gen_level_state_change_cb (struct bt_mesh_model *model)
+static void
+gen_level_state_change_cb (struct bt_mesh_model *model)
 {
-   if (model && model->user_data)
-   {
+   if (model && model->user_data) {
       struct bt_mesh_model_gen_level_srv *level_srv = model->user_data;
       struct bt_mesh_model *sat_model = find_model(bt_mesh_model_elem(model),
                                         BT_MESH_MODEL_ID_LIGHT_HSL_SAT_SRV);
@@ -131,22 +153,21 @@ static void gen_level_state_change_cb (struct bt_mesh_model *model)
 // Exposed Interfaces
 //=============================================================================
 
-void bt_mesh_model_light_hsl_sat_state_update(
-    struct bt_mesh_model_light_hsl_sat_srv *srv,
-    uint16_t sat_state
-)
+void
+bt_mesh_model_light_hsl_sat_state_update(
+    struct bt_mesh_model_light_hsl_sat_srv *srv, uint16_t sat_state)
 {
-    if (srv)
-    {
+    if (srv) {
         srv->sat_state = sat_state;
         srv->gen_level_srv.level_state = sat_state - 32768;
     }
 }
 
-void bt_mesh_model_light_hsl_sat_srv_init(struct bt_mesh_model_light_hsl_sat_srv *srv)
+void
+bt_mesh_model_light_hsl_sat_srv_init(
+   struct bt_mesh_model_light_hsl_sat_srv *srv)
 {
-    if (srv)
-    {
+    if (srv) {
         srv->sat_state = 0x0000;
         srv->gen_level_srv.cb = gen_level_state_change_cb;
     }

@@ -22,8 +22,8 @@
 
 #define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_MODEL))
 
-static void gen_onoff_status(struct bt_mesh_model *model,
-              struct bt_mesh_msg_ctx *ctx)
+static void
+gen_onoff_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx)
 {
     struct bt_mesh_model_gen_onoff_srv *srv = model->user_data;
     struct os_mbuf *msg = NET_BUF_SIMPLE(3);
@@ -44,16 +44,16 @@ static void gen_onoff_status(struct bt_mesh_model *model,
     os_mbuf_free_chain(msg);
 }
 
-static void gen_onoff_get(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+gen_onoff_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
     gen_onoff_status(model, ctx);
 }
 
-static void gen_onoff_set_unack(struct bt_mesh_model *model,
-            struct bt_mesh_msg_ctx *ctx,
-            struct os_mbuf *buf)
+static void
+gen_onoff_set_unack(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                    struct os_mbuf *buf)
 {
     struct bt_mesh_model_gen_onoff_srv *srv = model->user_data;
     u8_t state;
@@ -70,9 +70,9 @@ static void gen_onoff_set_unack(struct bt_mesh_model *model,
     }
 }
 
-static void gen_onoff_set(struct bt_mesh_model *model,
-           struct bt_mesh_msg_ctx *ctx,
-           struct os_mbuf *buf)
+static void
+gen_onoff_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
     gen_onoff_set_unack(model, ctx, buf);
     gen_onoff_status(model, ctx);

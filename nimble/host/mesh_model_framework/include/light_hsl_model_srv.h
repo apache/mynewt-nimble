@@ -22,7 +22,6 @@
 
 #include "mesh/mesh.h"
 #include "model.h"
-#include "bt_mesh_helper.h"
 
 extern const struct bt_mesh_model_op light_hsl_srv_op[];
 
