@@ -69,7 +69,7 @@ struct ble_ll_resolv_entry *
 ble_ll_resolv_list_find(const uint8_t *addr, uint8_t addr_type);
 
 /* Called to determine if the IRK is all zero. */
-int ble_ll_resolv_irk_nonzero(uint8_t *irk);
+int ble_ll_resolv_irk_nonzero(const uint8_t *irk);
 
 /* Returns true if address resolution is enabled */
 uint8_t ble_ll_resolv_enabled(void);
