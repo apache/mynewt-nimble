@@ -366,12 +366,9 @@ static void send_data(u8_t *data, u16_t len)
 
 	os_mbuf_append(sdu_tx, cmd->data, data_len);
 
+	/* ble_l2cap_send takes ownership of the sdu */
 	rc = ble_l2cap_send(chan->chan, sdu_tx);
-	if (rc == BLE_HS_ESTALLED) {
-		/* Wait for TX_UNSTALLED event before sending response */
-		/* ble_l2cap_send takes ownership of the sdu */
-		return;
-	} else if (rc == 0) {
+	if (rc == 0 || rc == BLE_HS_ESTALLED) {
 		tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_SEND_DATA, CONTROLLER_INDEX,
 			   BTP_STATUS_SUCCESS);
 		return;
