@@ -344,6 +344,7 @@ syscfg.defs:
     BLE_LL_DIRECT_TEST_MODE:
         description: use BLE_LL_DTM instead
         value: 0
+        deprecated: 1
 
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
