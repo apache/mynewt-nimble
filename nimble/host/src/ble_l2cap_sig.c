@@ -286,6 +286,7 @@ ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
             }
             break;
         }
+        prev = proc;
     }
 
     ble_hs_unlock();
