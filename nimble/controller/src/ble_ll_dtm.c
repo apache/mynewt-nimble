@@ -49,7 +49,7 @@ struct dtm_ctx {
     uint8_t itvl_rem_usec;
     uint16_t num_of_packets;
     uint32_t itvl_ticks;
-#if MYNEWT_VAL(BLE_DTM_CLI_EXTENSIONS_ENABLE)
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     uint16_t num_of_packets_max;
 #endif
     int active;
@@ -174,7 +174,7 @@ ble_ll_dtm_ev_tx_resched_cb(struct ble_npl_event *evt) {
     }
     OS_EXIT_CRITICAL(sr);
 
-#if MYNEWT_VAL(BLE_DTM_CLI_EXTENSIONS_ENABLE)
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     if (g_ble_ll_dtm_ctx.num_of_packets_max &&
         (g_ble_ll_dtm_ctx.num_of_packets == g_ble_ll_dtm_ctx.num_of_packets_max)) {
         /*
@@ -279,7 +279,7 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len,
     l = ble_ll_pdu_tx_time_get(len + BLE_LL_PDU_HDR_LEN, phy_mode);
     itvl_usec = ((l + 249 + 624) / 625) * 625;
 
-#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS_ENABLE)
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     if (cmd_interval > itvl_usec) {
         itvl_usec = cmd_interval;
     }
@@ -313,7 +313,7 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
     g_ble_ll_dtm_ctx.num_of_packets = 0;
-#if MYNEWT_VAL(BLE_DTM_CLI_EXTENSIONS_ENABLE)
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     g_ble_ll_dtm_ctx.num_of_packets_max = cmd_pkt_count;
 #endif
 
@@ -487,7 +487,7 @@ ble_ll_dtm_tx_test(uint8_t *cmdbuf, uint8_t cmdlen, bool enhanced)
 
     cmdlen_valid = enhanced ? BLE_HCI_LE_ENH_TX_TEST_LEN : BLE_HCI_TX_TEST_LEN;
 
-#if !MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS_ENABLE)
+#if !MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     if (cmdlen != cmdlen_valid) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -520,7 +520,7 @@ ble_ll_dtm_tx_test(uint8_t *cmdbuf, uint8_t cmdlen, bool enhanced)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS_ENABLE)
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
     if (cmdlen == cmdlen_valid + 4) {
         interval = get_le16(cmdbuf + cmdlen_valid );
         pkt_count = get_le16(cmdbuf + cmdlen_valid  + 2);
