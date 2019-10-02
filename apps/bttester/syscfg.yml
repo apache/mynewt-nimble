@@ -81,6 +81,7 @@ syscfg.vals:
     RTT_NUM_BUFFERS_DOWN: 0
 
     BLE_L2CAP_COC_MAX_NUM: 2
+    BLE_L2CAP_SIG_MAX_PROCS: 2
     # Some testcases require MPS < MTU
     BLE_L2CAP_COC_MPS: 100
     BLE_RPA_TIMEOUT: 30
