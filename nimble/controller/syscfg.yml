@@ -296,7 +296,7 @@ syscfg.defs:
         description: >
              Enables HCI Test commands needed for Bluetooth SIG certification
         value: MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
-    BLE_LL_DTM_EXTENSIONS_ENABLE:
+    BLE_LL_DTM_EXTENSIONS:
         description: >
              Enables non-standard extensions to HCI test commands. Once enabled,
              HCI_LE_Transmitter_Test accepts extra parameters in addition to
