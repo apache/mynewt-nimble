@@ -27,6 +27,7 @@
 
 #include <host/ble_gap.h>
 #include "host/ble_gap.h"
+#include "host/util/util.h"
 #include "console/console.h"
 
 #include "../../../nimble/host/src/ble_hs_pvcy_priv.h"
@@ -161,14 +162,19 @@ static void controller_info(u8_t *data, u16_t len)
 
 	memset(&rp, 0, sizeof(rp));
 
-	rc = ble_hs_id_gen_rnd(MYNEWT_VAL(BTTESTER_USE_NRPA), &addr);
+	/* Make sure we have proper identity address set (public preferred) */
+	rc = ble_hs_util_ensure_addr(1);
 	assert(rc == 0);
-	rc = ble_hs_id_set_rnd(addr.val);
+	rc = ble_hs_id_copy_addr(BLE_ADDR_RANDOM, addr.val, NULL);
 	assert(rc == 0);
 
 	if (MYNEWT_VAL(BTTESTER_PRIVACY_MODE)) {
 		if (MYNEWT_VAL(BTTESTER_USE_NRPA)) {
 			own_addr_type = BLE_OWN_ADDR_RANDOM;
+			rc = ble_hs_id_gen_rnd(1, &addr);
+			assert(rc == 0);
+			rc = ble_hs_id_set_rnd(addr.val);
+			assert(rc == 0);
 		} else {
 			own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
 		}
