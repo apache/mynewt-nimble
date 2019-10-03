@@ -154,8 +154,6 @@ static struct kv_pair cmd_ext_adv_phy_opts[] = {
     { NULL }
 };
 
-static bool adv_instances[BLE_ADV_INSTANCES];
-
 static int
 cmd_advertise_configure(int argc, char **argv)
 {
@@ -172,11 +170,6 @@ cmd_advertise_configure(int argc, char **argv)
     instance = parse_arg_uint8_dflt("instance", 0, &rc);
     if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
         console_printf("invalid instance\n");
-        return rc;
-    }
-
-    if (adv_instances[instance]) {
-        console_printf("instance already configured\n");
         return rc;
     }
 
@@ -320,8 +313,6 @@ cmd_advertise_configure(int argc, char **argv)
     console_printf("Instance %u configured (selected tx power: %d)\n",
                    instance, selected_tx_power);
 
-    adv_instances[instance] = true;
-
     return 0;
 }
 
@@ -340,11 +331,6 @@ cmd_advertise_set_addr(int argc, char **argv)
     instance = parse_arg_uint8_dflt("instance", 0, &rc);
     if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
         console_printf("invalid instance\n");
-        return rc;
-    }
-
-    if (!adv_instances[instance]) {
-        console_printf("instance not configured\n");
         return rc;
     }
 
@@ -382,11 +368,6 @@ cmd_advertise_start(int argc, char **argv)
     instance = parse_arg_uint8_dflt("instance", 0, &rc);
     if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
         console_printf("invalid instance\n");
-        return rc;
-    }
-
-    if (!adv_instances[instance]) {
-        console_printf("instance not configured\n");
         return rc;
     }
 
@@ -434,11 +415,6 @@ cmd_advertise_stop(int argc, char **argv)
         return rc;
     }
 
-    if (!adv_instances[instance]) {
-        console_printf("instance not configured\n");
-        return rc;
-    }
-
     rc = btshell_ext_adv_stop(instance);
     if (rc) {
         console_printf("failed to stop advertising instance\n");
@@ -465,18 +441,11 @@ cmd_advertise_remove(int argc, char **argv)
         return rc;
     }
 
-    if (!adv_instances[instance]) {
-        console_printf("instance not configured\n");
-        return rc;
-    }
-
     rc = ble_gap_ext_adv_remove(instance);
     if (rc) {
         console_printf("failed to remove advertising instance\n");
         return rc;
     }
-
-    adv_instances[instance] = false;
 
     return 0;
 }
@@ -1573,11 +1542,6 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     instance = parse_arg_uint8_dflt("instance", 0, &rc);
     if (rc != 0 || instance >= BLE_ADV_INSTANCES) {
         console_printf("invalid instance\n");
-        return rc;
-    }
-
-    if (!adv_instances[instance]) {
-        console_printf("instance not configured\n");
         return rc;
     }
 #endif
