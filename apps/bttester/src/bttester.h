@@ -315,6 +315,11 @@ struct gap_oob_sc_set_remote_data_cmd {
     u8_t c[16];
 } __packed;
 
+#define GAP_SET_MITM		0x1b
+struct gap_set_mitm_cmd {
+    u8_t mitm;
+} __packed;
+
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {

@@ -124,6 +124,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_OOB_LEGACY_SET_DATA);
 	tester_set_bit(cmds, GAP_OOB_SC_GET_LOCAL_DATA);
 	tester_set_bit(cmds, GAP_OOB_SC_SET_REMOTE_DATA);
+	tester_set_bit(cmds, GAP_SET_MITM);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
 		    CONTROLLER_INDEX, (u8_t *) rp, sizeof(cmds));
@@ -202,8 +203,6 @@ static void controller_info(u8_t *data, u16_t len)
 			       sizeof(rp.address));
 		}
 	}
-
-	ble_hs_cfg.sm_mitm = 0;
 
 	supported_settings |= BIT(GAP_SETTINGS_POWERED);
 	supported_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
@@ -1217,7 +1216,6 @@ static void set_io_cap(const u8_t *data, u16_t len)
 		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
 		ble_hs_cfg.sm_mitm = 0;
 		break;
-		break;
 	case GAP_IO_CAP_KEYBOARD_ONLY:
 		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_ONLY;
 		ble_hs_cfg.sm_mitm = 1;
@@ -1499,6 +1497,16 @@ static void oob_sc_set_remote_data(const u8_t *data, u16_t len)
 		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
+static void set_mitm(const u8_t *data, u16_t len)
+{
+	const struct gap_set_mitm_cmd *cmd = (void *) data;
+
+	ble_hs_cfg.sm_mitm = cmd->mitm;
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_MITM,
+		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
+}
+
 void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		       u16_t len)
 {
@@ -1586,6 +1594,9 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GAP_OOB_SC_SET_REMOTE_DATA:
 		oob_sc_set_remote_data(data, len);
+		return;
+	case GAP_SET_MITM:
+		set_mitm(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
