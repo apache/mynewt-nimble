@@ -811,7 +811,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
 
     if (connsm->csmflags.cfbit.terminate_ind_rxd) {
         /* We just received terminate indication.
-         * Just sent empty packet as an ACK
+         * Just send empty packet as an ACK
          */
         CONN_F_EMPTY_PDU_TXD(connsm) = 1;
         goto conn_tx_pdu;
@@ -918,8 +918,7 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
      * Set the more data data flag if we have more data to send and we
      * have not been asked to terminate
      */
-    if ((nextpkthdr || ((cur_offset + cur_txlen) < pktlen)) &&
-         !connsm->csmflags.cfbit.terminate_ind_rxd) {
+    if (nextpkthdr || ((cur_offset + cur_txlen) < pktlen)) {
         /* Get next event time */
         next_event_time = ble_ll_conn_get_next_sched_time(connsm);
 
