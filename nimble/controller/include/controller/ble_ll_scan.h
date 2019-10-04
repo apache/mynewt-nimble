@@ -119,6 +119,7 @@ struct ble_ll_aux_data {
     uint8_t evt_type;
     struct ble_ll_sched_item sch;
     struct ble_ll_ext_adv_report *evt;
+    struct ble_npl_event ev;
 };
 
 struct ble_ll_scan_pdu_data {
