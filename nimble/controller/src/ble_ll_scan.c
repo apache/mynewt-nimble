@@ -182,6 +182,26 @@ static struct os_mempool ext_scan_aux_pool;
 static int ble_ll_scan_start(struct ble_ll_scan_sm *scansm,
                              struct ble_ll_sched_item *sch);
 
+static void
+ble_ll_aux_scan_drop_event_cb(struct ble_npl_event *ev)
+{
+    struct ble_ll_aux_data *aux_data = ble_npl_event_get_arg(ev);
+
+    ble_ll_scan_end_adv_evt(aux_data);
+    ble_ll_scan_aux_data_unref(aux_data);
+}
+
+static void
+ble_ll_aux_scan_drop(struct ble_ll_aux_data *aux_data)
+{
+    BLE_LL_ASSERT(aux_data);
+
+    STATS_INC(ble_ll_stats, aux_scan_drop);
+
+    ble_npl_event_init(&aux_data->ev, ble_ll_aux_scan_drop_event_cb, aux_data);
+    ble_ll_event_send(&aux_data->ev);
+}
+
 static int
 ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
 {
@@ -195,14 +215,14 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
      * just drop the scheduled item
      */
     if (!scansm->scan_enabled || scansm->cur_aux_data) {
-        ble_ll_scan_aux_data_unref(sch->cb_arg);
+        ble_ll_aux_scan_drop(sch->cb_arg);
         sch->cb_arg = NULL;
         goto done;
     }
 
     /* Check if there is no aux connect sent. If so drop the sched item */
     if (lls == BLE_LL_STATE_INITIATING && ble_ll_conn_init_pending_aux_conn_rsp()) {
-        ble_ll_scan_aux_data_unref(sch->cb_arg);
+        ble_ll_aux_scan_drop(sch->cb_arg);
         sch->cb_arg = NULL;
         goto done;
     }
