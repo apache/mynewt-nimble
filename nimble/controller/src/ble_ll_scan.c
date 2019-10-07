@@ -169,15 +169,15 @@ static TAILQ_HEAD(ble_ll_scan_dup_list, ble_ll_scan_dup_entry) g_scan_dup_list;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #if MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT) != 0
-static os_membuf_t ext_adv_mem[ OS_MEMPOOL_SIZE(
+static os_membuf_t ext_scan_aux_mem[ OS_MEMPOOL_SIZE(
                     MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                     sizeof (struct ble_ll_aux_data))
 ];
 #else
-#define ext_adv_mem NULL
+#define ext_scan_aux_mem NULL
 #endif
 
-static struct os_mempool ext_adv_pool;
+static struct os_mempool ext_scan_aux_pool;
 
 static int ble_ll_scan_start(struct ble_ll_scan_sm *scansm,
                              struct ble_ll_sched_item *sch);
@@ -245,7 +245,7 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
 {
     struct ble_ll_aux_data *e;
 
-    e = os_memblock_get(&ext_adv_pool);
+    e = os_memblock_get(&ext_scan_aux_pool);
     if (!e) {
         return -1;
     }
@@ -1123,7 +1123,7 @@ ble_ll_scan_aux_data_free(struct ble_ll_aux_data *aux_data)
             ble_hci_trans_buf_free((uint8_t *)aux_data->evt);
             aux_data->evt = NULL;
         }
-        os_memblock_put(&ext_adv_pool, aux_data);
+        os_memblock_put(&ext_scan_aux_pool, aux_data);
         STATS_INC(ble_ll_stats, aux_freed);
     }
 }
@@ -3940,7 +3940,7 @@ ble_ll_scan_reset(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* clear memory pool for AUX scan results */
-    os_mempool_clear(&ext_adv_pool);
+    os_mempool_clear(&ext_scan_aux_pool);
 #endif
 
     /* Call the common init function again */
@@ -3959,10 +3959,10 @@ ble_ll_scan_init(void)
     os_error_t err;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    err = os_mempool_init(&ext_adv_pool,
+    err = os_mempool_init(&ext_scan_aux_pool,
                           MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT),
                           sizeof (struct ble_ll_aux_data),
-                          ext_adv_mem,
+                          ext_scan_aux_mem,
                           "ble_ll_aux_scan_pool");
     BLE_LL_ASSERT(err == 0);
 #endif
