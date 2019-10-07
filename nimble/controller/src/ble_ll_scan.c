@@ -518,7 +518,7 @@ ble_ll_scan_clean_cur_aux_data(void)
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
 
     /* If scanner was reading aux ptr, we need to clean it up */
-    if (scansm && scansm->cur_aux_data) {
+    if (scansm->cur_aux_data) {
         ble_ll_scan_end_adv_evt(scansm->cur_aux_data);
         ble_ll_scan_aux_data_unref(scansm->cur_aux_data);
         scansm->cur_aux_data = NULL;
