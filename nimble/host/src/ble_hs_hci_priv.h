@@ -45,6 +45,13 @@ struct os_mbuf;
 #define BLE_HS_HCI_LE_FEAT_CSA2                         (0x00004000)
 #define BLE_HS_HCI_LE_FEAT_POWER_CLASS_1                (0x00008000)
 #define BLE_HS_HCI_LE_FEAT_MIN_NUM_USED_CHAN            (0x00010000)
+#define BLE_HS_HCI_LE_FEAT_CONN_CTE_REQUEST             (0x00020000)
+#define BLE_HS_HCI_LE_FEAT_CONN_CTE_RESPONSE            (0x00040000)
+#define BLE_HS_HCI_LE_FEAT_CONNLESS_CTE_TX              (0x00080000)
+#define BLE_HS_HCI_LE_FEAT_CONNLESS_CTE_RX              (0x00100000)
+#define BLE_HS_HCI_LE_FEAT_ANTENNA_SWITCH_CTE_TX_AOD    (0x00200000)
+#define BLE_HS_HCI_LE_FEAT_ANTENNA_SWITCH_CTE_RX_AOA    (0x00400000)
+#define BLE_HS_HCI_LE_FEAT_RX_CTE                       (0x00800000)
 
 struct ble_hs_hci_ack {
     int bha_status;         /* A BLE_HS_E<...> error; NOT a naked HCI code. */
@@ -321,7 +328,7 @@ int ble_hs_hci_frag_num_mbufs_free(void);
 #endif
 
 int ble_hs_hci_cmd_build_le_read_remote_feat(uint16_t handle, uint8_t *dst,
-                                                                 int dst_len);
+        int dst_len);
 #ifdef __cplusplus
 }
 #endif

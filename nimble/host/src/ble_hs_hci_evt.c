@@ -54,6 +54,8 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_estab;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_lost;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_req_rcvd;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_conn_iq_sampling_rpt;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_connless_iq_sampling_rpt;
 /* Statistics */
 struct host_hci_stats
 {
@@ -100,6 +102,8 @@ static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
     [BLE_HCI_LE_SUBEV_SCAN_TIMEOUT] = ble_hs_hci_evt_le_scan_timeout,
     [BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED] = ble_hs_hci_evt_le_adv_set_terminated,
     [BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD] = ble_hs_hci_evt_le_scan_req_rcvd,
+	[BLE_HCI_LE_SUBEV_CONNLESS_IQ_SAMPLES_RPT] = ble_hs_hci_evt_le_connless_iq_sampling_rpt,
+    [BLE_HCI_LE_SUBEV_CONN_IQ_SAMPLES_RPT] = ble_hs_hci_evt_le_conn_iq_sampling_rpt,
 };
 
 #define BLE_HS_HCI_EVT_LE_DISPATCH_SZ \
@@ -953,4 +957,26 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 err:
     os_mbuf_free_chain(om);
     return rc;
+}
+
+static int
+ble_hs_hci_evt_le_connless_iq_sampling_rpt(uint8_t subevent,
+        uint8_t *data, int len)
+{
+    if (len < BLE_HCI_IQ_SAMPLES_RPRT_MIN_LEN) {
+        return BLE_HS_EBADDATA;
+    }
+    /*TODO: Pass Report to Upper Layer */
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_conn_iq_sampling_rpt(uint8_t subevent,
+        uint8_t *data, int len)
+{
+    if (len < BLE_HCI_IQ_SAMPLES_RPRT_MIN_LEN) {
+        return BLE_HS_EBADDATA;
+    }
+    /*TODO: Pass Report to Upper Layer */
+    return 0;
 }

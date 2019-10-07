@@ -417,6 +417,10 @@
 #define MYNEWT_VAL_BLE_WHITELIST (1)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_CTE
+#define MYNEWT_VAL_BLE_CTE (1)
+#endif
+
 /*** nimble/host */
 #ifndef MYNEWT_VAL_BLE_ATT_PREFERRED_MTU
 #define MYNEWT_VAL_BLE_ATT_PREFERRED_MTU (256)
