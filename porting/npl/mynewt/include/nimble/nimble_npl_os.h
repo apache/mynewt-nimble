@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 #include "os/os.h"
 
 #ifdef __cplusplus
@@ -146,6 +147,7 @@ ble_npl_event_get_arg(struct ble_npl_event *ev)
 static inline void
 ble_npl_event_set_arg(struct ble_npl_event *ev, void *arg)
 {
+    assert(ev->ev.ev_queued == 0);
     ev->ev.ev_arg = arg;
 }
 
