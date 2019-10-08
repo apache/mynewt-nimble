@@ -265,6 +265,8 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
 static void
 ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
 {
+    BLE_LL_ASSERT(scansm->backoff_count == 0);
+
     scansm->scan_rsp_pending = 0;
     if (success) {
         scansm->scan_rsp_cons_fails = 0;
@@ -2467,7 +2469,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         BLE_LL_ASSERT(scansm->scan_rsp_pending == 0);
 
         /* We want to send a request. See if backoff allows us */
-        --scansm->backoff_count;
+        if (scansm->backoff_count > 0) {
+            scansm->backoff_count--;
+        }
+
         if (scansm->backoff_count == 0) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
             phy_mode = ble_ll_phy_to_phy_mode(ble_hdr->rxinfo.phy,
