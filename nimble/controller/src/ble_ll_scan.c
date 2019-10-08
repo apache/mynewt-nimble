@@ -389,7 +389,7 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
 }
 
 static uint8_t
-ble_ll_scan_req_tx_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
+ble_ll_scan_req_tx_pdu_cb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
     struct ble_ll_scan_sm *scansm = pducb_arg;
     struct ble_ll_scan_pdu_data *pdu_data = &scansm->pdu_data;
@@ -2479,7 +2479,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #endif
             /* XXX: TODO assume we are on correct phy */
             ble_ll_scan_req_pdu_prepare(scansm, adv_addr, addr_type);
-            rc = ble_phy_tx(ble_ll_scan_req_tx_pducb, scansm,
+            rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm,
                             BLE_PHY_TRANSITION_TX_RX);
 
             if (rc == 0) {
