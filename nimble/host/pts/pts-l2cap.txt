@@ -1,7 +1,18 @@
 PTS test results for L2CAP
 
-PTS version: 7.0
-Tested: 18-Jul-2017
+PTS version: 7.5.0
+Tested: 07-Oct-2019
+
+syscfg.vals:
+    BLE_EXT_ADV: 1
+    BLE_PUBLIC_DEV_ADDR: "((uint8_t[6]){0x01, 0xff, 0xff, 0xc0, 0xde, 0xc0})"
+    BLE_SM_LEGACY: 1
+    BLE_SM_SC: 1
+    BLE_L2CAP_COC_MAX_NUM: 5
+    BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL: 9
+    BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL: 30
+    BLE_SVC_GAP_PPCP_SUPERVISION_TMO: 2000
+    CONSOLE_HISTORY_SIZE: 10
 
 Results:
 PASS   test passed
@@ -44,11 +55,30 @@ L2CAP/COS/ECH/BV-01-C	N/A
 L2CAP/COS/ECH/BV-02-C	N/A
 -------------------------------------------------------------------------------
 
-L2CAP/COS/CFC/BV-01-C	N/A
-L2CAP/COS/CFC/BV-02-C	N/A
-L2CAP/COS/CFC/BV-03-C	N/A
-L2CAP/COS/CFC/BV-04-C	N/A
-L2CAP/COS/CFC/BV-05-C	N/A
+L2CAP/COS/CFC/BV-01-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+				l2cap-send conn=<handle> idx=0 bytes=15
+				<YES>
+L2CAP/COS/CFC/BV-02-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+				l2cap-send conn=<handle> idx=0 bytes=15
+				<YES>
+L2CAP/COS/CFC/BV-03-C	PASS	NOTE: #define BTSHELL_COC_MTU = 512
+				advertise-configure connectable=1 legacy=1
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/COS/CFC/BV-04-C	PASS	advertise-configure connectable=1 legacy=1
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/COS/CFC/BV-05-C	PASS	advertise-configure connectable=1 legacy=1
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+				l2cap-connect conn=<handle> psm=<your psm>
+				l2cap-connect conn=<handle> psm=<2nd psm>
 -------------------------------------------------------------------------------
 
 L2CAP/CLS/CLR/BV-01-C	N/A
@@ -181,75 +211,91 @@ L2CAP/ECF/BV-07-C		N/A
 L2CAP/ECF/BV-08-C		N/A
 -------------------------------------------------------------------------------
 
-L2CAP/LE/CPU/BV-01-C	PASS	b set adv_data flags=6
-				b adv
-				b l2cap update conn=<handle>
-L2CAP/LE/CPU/BV-02-C	PASS	b conn peer_addr=<addr>
-				b term conn=<handle>
-L2CAP/LE/CPU/BI-01-C	PASS	b conn peer_addr=<addr>
-				b term conn=<handle>
-L2CAP/LE/CPU/BI-02-C	PASS	b set adv_data flags=6
-				b adv
+L2CAP/LE/CPU/BV-01-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-update conn=<handle>
+L2CAP/LE/CPU/BV-02-C	PASS	connect peer_addr=<addr>
+				disconnect conn=<handle>
+L2CAP/LE/CPU/BI-01-C	PASS	connect peer_addr=<addr>
+				disconnect conn=<handle>
+L2CAP/LE/CPU/BI-02-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
 -------------------------------------------------------------------------------
 
-L2CAP/LE/REJ/BI-01-C	PASS	b set adv_data flags=6
-				b adv
-L2CAP/LE/REJ/BI-02-C	PASS	b set adv_data flags=6
-				b adv
-				b term conn=<handle>
+L2CAP/LE/REJ/BI-01-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+L2CAP/LE/REJ/BI-02-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				disconnect conn=<handle>
 -------------------------------------------------------------------------------
 
-L2CAP/LE/CFC/BV-01-C	PASS	b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
-L2CAP/LE/CFC/BV-02-C	PASS	b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
-L2CAP/LE/CFC/BV-03-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-				b l2cap send conn=<handle> idx=0 bytes=15
-L2CAP/LE/CFC/BV-04-C	PASS	b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=<not suppported psm from ixit>
-L2CAP/LE/CFC/BV-05-C	PASS	b set adv_data flags=6
-				b adv
-L2CAP/LE/CFC/BV-06-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-				b l2cap send conn=<handle> idx=0 bytes=15
-L2CAP/LE/CFC/BV-07-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-L2CAP/LE/CFC/BI-01-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-L2CAP/LE/CFC/BV-08-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-				b l2cap disconnect conn=<handle> idx=0
-L2CAP/LE/CFC/BV-09-C	PASS	b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-L2CAP/LE/CFC/BV-16-C	PASS    b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-01-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+L2CAP/LE/CFC/BV-02-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-03-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+				l2cap-send conn=<handle> idx=0 bytes=15
+				<YES>
+L2CAP/LE/CFC/BV-04-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=<unsuppported psm from ixit>
+L2CAP/LE/CFC/BV-05-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+L2CAP/LE/CFC/BV-06-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+				l2cap-send conn=<handle> idx=0 bytes=15
+L2CAP/LE/CFC/BV-07-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/LE/CFC/BI-01-C	PASS	advertise-configure connectable=1 legacy=1
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/LE/CFC/BV-08-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<your psm>
+				advertise-start
+				l2cap-disconnect conn=<handle> idx=0
+L2CAP/LE/CFC/BV-09-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/LE/CFC/BV-16-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=90
 L2CAP/LE/CFC/BV-17-C	N/A
-L2CAP/LE/CFC/BV-18-C	PASS    b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
-L2CAP/LE/CFC/BV-19-C	PASS    NOTE: TSPC_L2CAP_3_16 (multiple channel support) must be checked
-				b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-18-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=90
+L2CAP/LE/CFC/BV-19-C	PASS	NOTE: TSPC_L2CAP_3_16 (multiple channel support) must be checked
+				advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=90
 L2CAP/LE/CFC/BV-20-C	PASS	NOTE: TSPC_L2CAP_3_16 (multiple channel support) must be checked
-				b set adv_data flags=6
-				b l2cap create_srv psm=<your psm>
-				b adv
-				b term conn=<handle>
-L2CAP/LE/CFC/BV-21-C	PASS	b set adv_data flags=6
-				b adv
-				b l2cap connect conn=<handle> psm=90
+				advertise-configure connectable=1 legacy=1
+				l2cap-create-server psm=<TSPX_le_psm from ixit>
+				advertise-start
+L2CAP/LE/CFC/BV-21-C	PASS	advertise-configure connectable=1 legacy=1
+				advertise-set-adv-data flags=6
+				advertise-start
+				l2cap-connect conn=<handle> psm=90
 -------------------------------------------------------------------------------
 
 L2CAP/LE/CID/BV-01-C	N/A
