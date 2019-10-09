@@ -743,8 +743,10 @@ ble_hs_init(void)
     rc = ble_hs_conn_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
     rc = ble_hs_periodic_sync_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
 
     rc = ble_l2cap_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
