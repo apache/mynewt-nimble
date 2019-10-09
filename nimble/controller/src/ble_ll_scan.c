@@ -3483,16 +3483,17 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
     }
 #endif
 
-    /* If host requests continuous scan for 2 PHYs, we double scan interval
-     * and split it for two equal scan windows between 2 PHYs
+    /* if any of PHYs is configured for continuous scan we alter interval to
+     * fit other PHY
      */
-    if ((coded->configured && uncoded->configured) &&
-                ((uncoded->scan_itvl == uncoded->scan_window) ||
-                (coded->scan_itvl == coded-> scan_window))) {
+    if (coded->configured && uncoded->configured) {
+        if (coded->scan_itvl == coded->scan_window) {
+            coded->scan_itvl += uncoded->scan_window;
+        }
 
-                uncoded->scan_itvl *= 2;
-                coded-> scan_itvl = uncoded->scan_itvl;
-                coded->scan_window = uncoded->scan_window;
+        if (uncoded->scan_itvl == uncoded->scan_window) {
+            uncoded->scan_itvl += coded->scan_window;
+        }
     }
 
     memcpy(g_ble_ll_scan_params, new_params, sizeof(new_params));
@@ -3828,16 +3829,17 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
         }
     }
 
-    /* If host request for continuous scan if 2 PHYs are requested, we split
-     * time on two
+    /* if any of PHYs is configured for continuous scan we alter interval to
+     * fit other PHY
      */
-    if ((scansm->next_phy != PHY_NOT_CONFIGURED) &&
-                ((uncoded->scan_itvl == uncoded->scan_window) ||
-                (coded->scan_itvl == coded-> scan_window))) {
+    if (coded->configured && uncoded->configured) {
+        if (coded->scan_itvl == coded->scan_window) {
+            coded->scan_itvl += uncoded->scan_window;
+        }
 
-        uncoded->scan_itvl *= 2;
-        coded-> scan_itvl = uncoded->scan_itvl;
-        coded->scan_window = uncoded->scan_window;
+        if (uncoded->scan_itvl == uncoded->scan_window) {
+            uncoded->scan_itvl += coded->scan_window;
+        }
     }
 
     rc = ble_ll_scan_sm_start(scansm);
