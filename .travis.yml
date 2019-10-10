@@ -122,6 +122,7 @@ before_script:
   - mkdir -p repos && pushd repos/
   - git clone --depth=1 https://github.com/apache/mynewt-core apache-mynewt-core
   - git clone --depth=1 https://github.com/JuulLabs-OSS/mcuboot mcuboot
+  - git clone --depth=1 https://github.com/apache/mynewt-mcumgr apache-mynewt-mcumgr
   - popd
 
 script:
