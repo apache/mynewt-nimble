@@ -387,7 +387,6 @@ ble_gatts_notify_test_misc_access(uint16_t conn_handle,
     int rc;
 
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-    TEST_ASSERT(conn_handle == 0xffff);
 
     if (attr_handle == ble_gatts_notify_test_chr_1_def_handle + 1) {
         TEST_ASSERT(ctxt->chr ==
