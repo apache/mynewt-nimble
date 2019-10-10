@@ -78,6 +78,18 @@ void mqtt_message_handler(void)
 
 		msg_evt = false;
 
+		/*
+		 * Incoming message to be expected in the following JSON format.
+		 * 
+		 * {
+		 * 		"namespace":"Alexa.PowerController",
+		 * 		"name":"powerState",
+		 * 		"value":"ON",
+		 * 		"timeOfSample":"2018-09-03T16:20:50.52Z",
+		 * 		"uncertaintyInMilliseconds":50
+		 * }
+		 */
+
 		while (!mqtt_msg_q.empty()) {
 			Json::Value obj;
 
