@@ -1132,18 +1132,16 @@ ble_ll_scan_get_next_adv_prim_chan(uint8_t chan)
 }
 
 static uint32_t
-ble_ll_scan_get_current_scan_win(struct ble_ll_scan_sm *scansm, uint32_t cputime)
+ble_ll_scan_get_scan_win(struct ble_ll_scan_params *scanphy, uint32_t cputime)
 {
     uint32_t itvl;
-    struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
-    /* Well, in case we missed to schedule scan, lets move to next stan interval.
-     */
+    /* if pass current window, move to next interval */
     itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
-    while ((int32_t)(cputime - scanphy->scan_win_start_time) >= itvl) {
+    while ((int32_t)(cputime - scanphy->scan_win_start_time) >= (int32_t)itvl) {
         scanphy->scan_win_start_time += itvl;
 
-        /* If we missed scan window, make sure we update scan channel */
+        /* update channel if moving to next interval */
         scanphy->scan_chan =
                 ble_ll_scan_get_next_adv_prim_chan(scanphy->scan_chan);
     }
@@ -1169,7 +1167,7 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     uint32_t win_start;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
 
-    win_start = ble_ll_scan_get_current_scan_win(scansm, cputime);
+    win_start = ble_ll_scan_get_scan_win(scanphy, cputime);
 
     if (scanphy->scan_window != scanphy->scan_itvl) {
         win = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
@@ -1345,6 +1343,13 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     /* Schedule start time now */
     scansm->phy_data[scansm->cur_phy].scan_win_start_time = os_cputime_get32();
 
+    if (scansm->next_phy != PHY_NOT_CONFIGURED) {
+        /* Schedule start time right after first phy */
+        scansm->phy_data[scansm->next_phy].scan_win_start_time =
+                scansm->phy_data[scansm->cur_phy].scan_win_start_time +
+                os_cputime_usecs_to_ticks(scansm->phy_data[scansm->cur_phy].scan_window * BLE_HCI_SCAN_ITVL);
+    }
+
     /* Post scanning event to start off the scanning process */
     ble_ll_event_send(&scansm->scan_sched_ev);
 
@@ -1353,67 +1358,17 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
-ble_ll_scan_switch_phy(struct ble_ll_scan_sm *scansm)
+ble_ll_scan_switch_current_phy(struct ble_ll_scan_sm *scansm)
 {
     uint8_t tmp;
 
-    if (scansm->next_phy == PHY_NOT_CONFIGURED) {
-        return;
-    }
+    BLE_LL_ASSERT(scansm->next_phy != PHY_NOT_CONFIGURED);
 
     tmp = scansm->next_phy;
     scansm->next_phy = scansm->cur_phy;
     scansm->cur_phy = tmp;
 
     /* PHY is changing in ble_ll_scan_start() */
-}
-
-/**
- * Called to change PHY if needed and set new event time
- *
- * Context: Link Layer task.
- *
- * @param arg
- */
-static bool
-ble_ll_scan_start_next_phy(struct ble_ll_scan_sm *scansm,
-                                 uint32_t *next_event_time)
-{
-    struct ble_ll_scan_params *cur_phy;
-    struct ble_ll_scan_params *next_phy;
-    uint32_t now;
-    uint32_t win;
-
-    /* Lets check if we want to switch to other PHY */
-    if (scansm->cur_phy == scansm->next_phy ||
-            scansm->next_phy == PHY_NOT_CONFIGURED) {
-        return false;
-    }
-
-    cur_phy = &scansm->phy_data[scansm->cur_phy];
-    next_phy = &scansm->phy_data[scansm->next_phy];
-
-    /* Store next event for current phy */
-    cur_phy->next_event_start = *next_event_time;
-
-    /* Other PHY already wanted to scan. Allow it */
-    ble_ll_scan_switch_phy(scansm);
-
-    now = os_cputime_get32();
-
-    /* Start with new channel only if PHY was scanning already */
-    if (next_phy->next_event_start != 0) {
-        next_phy->scan_chan =
-                ble_ll_scan_get_next_adv_prim_chan(next_phy->scan_chan);
-    }
-    next_phy->scan_win_start_time = now;
-    win = os_cputime_usecs_to_ticks(next_phy->scan_window *
-                                    BLE_HCI_SCAN_ITVL);
-
-    next_phy->next_event_start = now + win;
-
-    *next_event_time = next_phy->next_event_start;
-    return true;
 }
 
 static void
@@ -1466,6 +1421,38 @@ ble_ll_scan_interrupted_event_cb(struct ble_npl_event *ev)
     ble_ll_scan_chk_resume();
 }
 
+static int
+check_phy_window(struct ble_ll_scan_params *scanphy, uint32_t now,
+                 uint32_t *next_event_time, uint32_t *dt, uint32_t *win,
+                 uint32_t *scan_itvl)
+{
+    uint32_t win_start;
+
+    win_start = ble_ll_scan_get_scan_win(scanphy, now);
+
+    /* Determine on/off state based on scan window */
+    *scan_itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl *
+                                                    BLE_HCI_SCAN_ITVL);
+
+    /* for continues scan assume we are always inside window */
+    if (scanphy->scan_window == scanphy->scan_itvl) {
+        *next_event_time = win_start + *scan_itvl;
+        return 1;
+    }
+
+    *win = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
+
+    /* Check if we are in scan window */
+    *dt = now - win_start;
+    if (*dt < *win) {
+        *next_event_time = win_start + *win;
+        return 1;
+    }
+
+    *next_event_time = win_start + *scan_itvl;
+    return 0;
+}
+
 /**
  * Called to process the scanning OS event which was posted to the LL task
  *
@@ -1480,17 +1467,24 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
     int inside_window;
     int start_scan;
     uint32_t now;
-    uint32_t dt;
-    uint32_t win;
-    uint32_t win_start;
-    uint32_t scan_itvl;
+    uint32_t dt = 0;
+    uint32_t win = 0;
+    uint32_t scan_itvl = 0;
     uint32_t next_event_time;
+    struct ble_ll_scan_sm *scansm;
+    struct ble_ll_scan_params *scanphy;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint32_t dt_next;
+    uint32_t win_next;
+    uint32_t scan_itvl_next;
+    uint32_t next_event_time_next;
+    struct ble_ll_scan_params *scanphy_next;
+#endif
+
 #ifdef BLE_XCVR_RFCLK
     uint32_t xtal_ticks;
     int xtal_state;
 #endif
-    struct ble_ll_scan_sm *scansm;
-    struct ble_ll_scan_params *scanphy;
 
     /*
      * Get the scanning state machine. If not enabled (this is possible), just
@@ -1514,39 +1508,35 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         return;
     }
 
-    /* Make sure the scan window start time and channel are up to date. */
     now = os_cputime_get32();
-    win_start = ble_ll_scan_get_current_scan_win(scansm, now);
 
-    /* Check if we are in scan window */
-    dt = now - win_start;
-
-    if (scanphy->scan_window != scanphy->scan_itvl) {
-        win = os_cputime_usecs_to_ticks(scanphy->scan_window * BLE_HCI_SCAN_ITVL);
-        inside_window = dt < win ? 1 : 0;
-    } else {
-        win = 0;
-        /* In case continous scan lets assume we area always in the window*/
-        inside_window = 1;
-    }
-
-    /* Determine on/off state based on scan window */
-    scan_itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl *
-                                                    BLE_HCI_SCAN_ITVL);
-
-    if (win != 0 && inside_window) {
-        next_event_time = win_start + win;
-    } else {
-        next_event_time = win_start + scan_itvl;
-    }
+    /* check current phy */
+    inside_window = check_phy_window(scanphy, now, &next_event_time, &dt, &win,
+                                     &scan_itvl);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (inside_window == 0  &&
-                        ble_ll_scan_start_next_phy(scansm, &next_event_time)) {
-        /* Check if we should start next phy. If so let's say we are inside
-         * the window
-         */
-        inside_window = 1;
+    if (!inside_window) {
+        if (scansm->next_phy != PHY_NOT_CONFIGURED) {
+            scanphy_next = &scansm->phy_data[scansm->next_phy];
+
+            /* check next phy */
+            inside_window = check_phy_window(scanphy_next, now,
+                                             &next_event_time_next, &dt_next,
+                                             &win_next, &scan_itvl_next);
+
+            /* Update current PHY if either next phy is in window or
+             * closest window is for next-PHY
+             */
+            if (inside_window ||
+                    CPUTIME_LEQ(next_event_time_next, next_event_time)) {
+                ble_ll_scan_switch_current_phy(scansm);
+
+                dt = dt_next;
+                win = win_next;
+                scan_itvl = scan_itvl_next;
+                next_event_time = next_event_time_next;
+            }
+        }
     }
 #endif
 
@@ -3251,8 +3241,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 ble_ll_scan_dup_update_ext(ident_addr_type, ident_addr, aux_data);
             }
         }
-
-        ble_ll_scan_switch_phy(scansm);
 
         if (scansm->scan_rsp_pending) {
             if (!scan_rsp_chk) {
