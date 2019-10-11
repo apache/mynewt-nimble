@@ -210,6 +210,9 @@ static int reset_state(void)
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 	link.rx.buf = bt_mesh_proxy_get_buf();
 #else
+	if (!rx_buf) {
+	    rx_buf = NET_BUF_SIMPLE(65);
+	}
 	net_buf_simple_init(rx_buf, 0);
 	link.rx.buf = rx_buf;
 #endif /* PB_GATT */
