@@ -699,6 +699,7 @@ struct ble_hci_le_ext_create_conn_cp {
 } __attribute__((packed));
 
 #define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER      0x01
+#define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED    0x02
 
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC          (0x0044)
 struct ble_hci_le_periodic_adv_create_sync_cp {
@@ -774,7 +775,13 @@ struct ble_hci_le_set_privacy_mode_cp {
 #define BLE_HCI_OCF_LE_SET_CONN_CTE_REQ_ENABLE           (0x0056)
 #define BLE_HCI_OCF_LE_SET_CONN_CTE_RESP_ENABLE          (0x0057)
 #define BLE_HCI_OCF_LE_RD_ANTENNA_INFO                   (0x0058)
+
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE       (0x0059)
+struct ble_hci_le_periodic_adv_receive_enable_cp {
+    uint16_t sync_handle;
+    uint8_t enable;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER        (0x005A)
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER    (0x005B)
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS (0x005C)
