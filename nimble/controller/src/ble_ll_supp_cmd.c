@@ -375,6 +375,17 @@
     BLE_SUPP_CMD_LE_SET_PRIVACY_MODE        \
 )
 
+/* Octet 40 */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_VERSION) >= 51
+#define BLE_SUPP_CMD_LE_PADV_RECV_ENABLE (1 << 5)
+#else
+#define BLE_SUPP_CMD_LE_PADV_RECV_ENABLE (0 << 5)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_40            \
+(                                           \
+    BLE_SUPP_CMD_LE_PADV_RECV_ENABLE        \
+)
+
 /* Defines the array of supported commands */
 const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
@@ -418,4 +429,6 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
     BLE_LL_SUPP_CMD_OCTET_37,
     BLE_LL_SUPP_CMD_OCTET_38,
     BLE_LL_SUPP_CMD_OCTET_39,
+    BLE_LL_SUPP_CMD_OCTET_40,           /* Octet 40 */
+    0,
 };

@@ -708,6 +708,9 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_REM_DEV_FROM_PERIODIC_ADV_LIST:
     case BLE_HCI_OCF_LE_CLEAR_PERIODIC_ADV_LIST:
     case BLE_HCI_OCF_LE_RD_PERIODIC_ADV_LIST_SIZE:
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE:
+#endif
         if (hci_adv_mode == ADV_MODE_LEGACY) {
             return false;
         }
@@ -1101,6 +1104,11 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
             rc = ble_ll_sync_list_size(rspbuf, rsplen);
         }
         break;
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE:
+        rc = ble_ll_sync_receive_enable(cmdbuf, len);
+        break;
+#endif
 #endif
     case BLE_HCI_OCF_LE_RD_TRANSMIT_POWER:
         rc = ble_ll_read_tx_power(rspbuf, rsplen);

@@ -53,6 +53,7 @@
 #define BLE_LL_SYNC_SM_FLAG_SET_ANCHOR      0x10
 #define BLE_LL_SYNC_SM_FLAG_OFFSET_300      0x20
 #define BLE_LL_SYNC_SM_FLAG_SYNC_INFO       0x40
+#define BLE_LL_SYNC_SM_FLAG_DISABLED        0x80
 
 #define BLE_LL_SYNC_CHMAP_LEN               5
 #define BLE_LL_SYNC_ITVL_USECS              1250
@@ -529,6 +530,17 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
     int rc;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT)) {
+        return -1;
+    }
+
+    /* spec is not clear if we should truncate chain or just stop sending
+     * reports... for now just truncate
+     */
+    if (sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED) {
+        if (sm->next_report) {
+            ble_ll_sync_send_truncated_per_adv_rpt(sm, sm->next_report);
+            sm->next_report = NULL;
+        }
         return -1;
     }
 
@@ -1236,7 +1248,11 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+    if (cmd->options > BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED) {
+#else
     if (cmd->options > BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER) {
+#endif
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1271,8 +1287,13 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
 
             /* mark as pending */
             sm->flags |= BLE_LL_SYNC_SM_FLAG_PENDING;
-            sm->skip = cmd->skip;
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+            if (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED) {
+                sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
+            }
+#endif
             sm->timeout = timeout * 10000; /* 10ms units, store in us */
+            sm->skip = cmd->skip;
             cnt++;
         }
 
@@ -1308,6 +1329,11 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
 
         /* mark as pending */
         sm->flags |= BLE_LL_SYNC_SM_FLAG_PENDING;
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+            if (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED) {
+                sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
+            }
+#endif
         sm->timeout = timeout * 10000; /* 10ms units, store in us */
         sm->skip = cmd->skip;
 
@@ -1552,6 +1578,53 @@ ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen)
     *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
 }
+
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+int
+ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_le_periodic_adv_receive_enable_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_sync_sm *sm;
+    uint16_t handle;
+    os_sr_t sr;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->enable > 0x01) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    handle = le16toh(cmd->sync_handle);
+    if (handle > 0xeff) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (handle >= BLE_LL_SYNC_CNT) {
+        return BLE_ERR_UNK_ADV_INDENT;
+    }
+
+    sm = &g_ble_ll_sync_sm[handle];
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (!(sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHED)) {
+        OS_EXIT_CRITICAL(sr);
+        return BLE_ERR_UNK_ADV_INDENT;
+    }
+
+    if (cmd->enable) {
+        sm->flags &= ~BLE_LL_SYNC_SM_FLAG_DISABLED;
+    } else {
+        sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    return BLE_ERR_SUCCESS;
+}
+#endif
 
 void
 ble_ll_sync_reset(void)

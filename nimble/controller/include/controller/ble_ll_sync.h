@@ -36,6 +36,7 @@ int ble_ll_sync_list_add(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_list_remove(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_list_clear(void);
 int ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len);
 
 void ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type,
                             uint8_t sid, struct ble_mbuf_hdr *rxhdr,
