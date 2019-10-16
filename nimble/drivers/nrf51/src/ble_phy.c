@@ -1412,6 +1412,7 @@ ble_phy_disable_irq_and_ppi(void)
 void
 ble_phy_restart_rx(void)
 {
+    ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
     ble_phy_rx();
 }
