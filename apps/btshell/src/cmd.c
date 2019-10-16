@@ -1310,9 +1310,12 @@ cmd_scan(int argc, char **argv)
                               &g_scan_opts);
         break;
     default:
-        rc = -1;
-        console_printf("invalid 'extended' parameter\n");
+        assert(0);
         break;
+    }
+
+    if (rc != 0) {
+        console_printf("error scanning; rc=%d\n", rc);
     }
 
     return rc;
