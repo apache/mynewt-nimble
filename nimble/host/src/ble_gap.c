@@ -4030,6 +4030,12 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
     p.passive = disc_params->passive;
     p.window = disc_params->window;
 
+    if (duration_ms == BLE_HS_FOREVER) {
+        duration_ms = 0;
+    } else if (duration_ms == 0) {
+        duration_ms = BLE_GAP_DISC_DUR_DFLT;
+    }
+
     return ble_gap_ext_disc(own_addr_type, duration_ms/10, 0,
                           disc_params->filter_duplicates,
                           disc_params->filter_policy, disc_params->limited,
