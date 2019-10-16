@@ -189,10 +189,11 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
 
     STATS_INC(ble_ll_stats, aux_sched_cb);
 
-    /* In case scan has been disabled or there is other aux ptr in progress
-     * just drop the scheduled item
+    /* Drop the scheduled item if scan was disable or there is aux or scan
+     * response pending
      */
-    if (!scansm->scan_enabled || scansm->cur_aux_data) {
+    if (!scansm->scan_enabled || scansm->cur_aux_data ||
+            scansm->scan_rsp_pending) {
         ble_ll_aux_scan_drop(sch->cb_arg);
         sch->cb_arg = NULL;
         goto done;
@@ -266,8 +267,8 @@ static void
 ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
 {
     BLE_LL_ASSERT(scansm->backoff_count == 0);
+    BLE_LL_ASSERT(scansm->scan_rsp_pending == 0);
 
-    scansm->scan_rsp_pending = 0;
     if (success) {
         scansm->scan_rsp_cons_fails = 0;
         ++scansm->scan_rsp_cons_ok;
@@ -1015,6 +1016,8 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
 #endif
     int phy;
 
+    BLE_LL_ASSERT(scansm->scan_rsp_pending == 0);
+
     ble_ll_get_chan_to_scan(scansm, &scan_chan, &phy);
 
     /* XXX: right now scheduled item is only present if we schedule for aux
@@ -1080,11 +1083,6 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm, struct ble_ll_sched_item *sch)
         } else {
             ble_ll_state_set(BLE_LL_STATE_SCANNING);
         }
-    }
-
-    /* If there is a still a scan response pending, we have failed! */
-    if (scansm->scan_rsp_pending) {
-        ble_ll_scan_req_backoff(scansm, 0);
     }
 
     return rc;
@@ -1415,6 +1413,7 @@ ble_ll_scan_interrupted_event_cb(struct ble_npl_event *ev)
     */
 
     if (scansm->scan_rsp_pending) {
+        scansm->scan_rsp_pending = 0;
         ble_ll_scan_req_backoff(scansm, 0);
     }
 
@@ -1500,7 +1499,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         return;
     }
 
-    if (scansm->cur_aux_data) {
+    if (scansm->cur_aux_data || scansm->scan_rsp_pending) {
         /* Aux scan in progress. Wait */
         STATS_INC(ble_ll_stats, scan_timer_stopped);
         scansm->restart_timer_needed = 1;
@@ -1688,10 +1687,12 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
          * work for successful scan requests. If failed, we do the work here.
          */
         if (scansm->scan_rsp_pending) {
+            scansm->scan_rsp_pending = 0;
+
             if (pdu_type == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_RXD;
             } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_SCAN_RSP) {
-                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_CHK;
+                *rxflags |= BLE_MBUF_HDR_F_SCAN_RSP_RXD;
             } else {
                 ble_ll_scan_req_backoff(scansm, 0);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1989,7 +1990,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
         return -1;
     }
 
-    if (BLE_MBUF_HDR_SCAN_RSP_RCV(ble_hdr)) {
+    if (BLE_MBUF_HDR_SCAN_RSP_RXD(ble_hdr)) {
         report->evt_type |= BLE_HCI_ADV_SCAN_RSP_MASK;
     }
 
@@ -2479,7 +2480,10 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
             if (rc == 0) {
                 /* Set "waiting for scan response" flag */
+
                 scansm->scan_rsp_pending = 1;
+                ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_SCAN_REQ_TXD;
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
                 if (ble_hdr->rxinfo.channel <  BLE_PHY_NUM_DATA_CHANS) {
                     /* Let's keep the aux ptr as a reference to scan rsp */
@@ -2581,6 +2585,13 @@ ble_ll_scan_wfr_timer_exp(void)
 #endif
 
     scansm = &g_ble_ll_scan_sm;
+
+    /* Update backoff if we failed to receive scan response */
+    if (scansm->scan_rsp_pending) {
+        scansm->scan_rsp_pending = 0;
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
+
     if (scansm->cur_aux_data) {
         /* We actually care about interrupted scan only for EXT ADV because only
          * then we might consider to send truncated event to the host.
@@ -2607,9 +2618,6 @@ ble_ll_scan_wfr_timer_exp(void)
         BLE_LL_ASSERT(rc == 0);
     }
 
-    if (scansm->scan_rsp_pending) {
-        ble_ll_scan_req_backoff(scansm, 0);
-    }
 
     ble_phy_restart_rx();
 }
@@ -3048,7 +3056,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     uint8_t init_addr_type = 0;
     uint8_t txadd = 0;
     uint8_t rxadd;
-    uint8_t scan_rsp_chk;
+    uint8_t scan_rsp_rxd;
+    int backoff_success = 0;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     int ext_adv_mode = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -3063,8 +3072,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
 #endif
 
-    /* Set scan response check flag */
-    scan_rsp_chk = BLE_MBUF_HDR_SCAN_RSP_RCV(hdr);
+    /* if packet is scan response */
+    scan_rsp_rxd = BLE_MBUF_HDR_SCAN_RSP_RXD(hdr);
 
     if (!BLE_MBUF_HDR_CRC_OK(hdr)) {
         goto scan_continue;
@@ -3156,7 +3165,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
          * If this is a scan response in reply to a request we sent we need
          * to store this advertiser's address so we dont send a request to it.
          */
-        if (scansm->scan_rsp_pending && scan_rsp_chk) {
+        if (scan_rsp_rxd) {
             /*
              * We could also check the timing of the scan reponse; make sure
              * that it is relatively close to the end of the scan request but
@@ -3168,9 +3177,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
                 /* We have received a scan response. Add to list */
                 ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type, 0, 0);
-
-                /* Perform scan request backoff procedure */
-                ble_ll_scan_req_backoff(scansm, 1);
+                backoff_success = 1;
             }
         } else {
             /* Ignore if this is not ours */
@@ -3242,21 +3249,22 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             }
         }
 
-        if (scansm->scan_rsp_pending) {
-            if (!scan_rsp_chk) {
-                /* We are here because we sent SCAN_REQ and wait for SCAN_RSP. */
-                ble_ll_scan_aux_data_unref(hdr->rxinfo.user_data);
-                hdr->rxinfo.user_data = NULL;
-                return;
-            }
+        if (BLE_MBUF_HDR_SCAN_REQ_TXD(hdr)) {
+            /* We are here because we sent SCAN_REQ and wait for SCAN_RSP. */
+            ble_ll_scan_aux_data_unref(hdr->rxinfo.user_data);
+            hdr->rxinfo.user_data = NULL;
+            return;
+        }
 
-            /* XXX: For now let us consider scan response as succeed in the backoff context,
-             * after first scan response packet is received.
-             * I guess we should marked it succeed after complete scan response is received,
-             * and failed when truncated, but then we need to analyze reason of truncation as it
-             * also might be issue of the resources on our side
+        if (scan_rsp_rxd) {
+            /* XXX: For now let us consider scan response as succeed in the
+             * backoff context, after first scan response packet is received.
+             * I guess we should marked it succeed after complete scan response
+             * is received, and failed when truncated, but then we need to
+             * analyze reason of truncation as it also might be issue of the
+             * resources on our side
              */
-            ble_ll_scan_req_backoff(scansm, 1);
+            backoff_success = 1;
         }
 
         goto scan_continue;
@@ -3283,13 +3291,9 @@ scan_continue:
         hdr->rxinfo.user_data = NULL;
     }
 #endif
-    /*
-     * If the scan response check bit is set and we are pending a response,
-     * we have failed the scan request (as we would have reset the scan rsp
-     * pending flag if we received a valid response
-     */
-    if (scansm->scan_rsp_pending && scan_rsp_chk) {
-        ble_ll_scan_req_backoff(scansm, 0);
+    /* if we got scan response update backoff */
+    if (scan_rsp_rxd) {
+        ble_ll_scan_req_backoff(scansm, backoff_success);
     }
 
     ble_ll_scan_chk_resume();

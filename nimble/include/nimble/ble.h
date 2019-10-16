@@ -79,6 +79,7 @@ struct ble_mbuf_hdr_rxinfo
 };
 
 /* Flag definitions for rxinfo  */
+#define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000)
 #define BLE_MBUF_HDR_F_INITA_RESOLVED   (0x2000)
 #define BLE_MBUF_HDR_F_EXT_ADV_SEC      (0x1000)
 #define BLE_MBUF_HDR_F_EXT_ADV          (0x0800)
@@ -89,7 +90,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x0040)
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
-#define BLE_MBUF_HDR_F_SCAN_RSP_CHK     (0x0008)
+#define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008)
 #define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
 
 /* Transmit info. NOTE: no flags defined */
@@ -111,6 +112,9 @@ struct ble_mbuf_hdr
     uint32_t rem_usecs;
 };
 
+#define BLE_MBUF_HDR_SCAN_REQ_TXD(hdr) \
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_REQ_TXD))
+
 #define BLE_MBUF_HDR_EXT_ADV_SEC(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_EXT_ADV_SEC))
 
@@ -120,8 +124,8 @@ struct ble_mbuf_hdr
 #define BLE_MBUF_HDR_DEVMATCH(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_DEVMATCH))
 
-#define BLE_MBUF_HDR_SCAN_RSP_RCV(hdr) \
-    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_CHK))
+#define BLE_MBUF_HDR_SCAN_RSP_RXD(hdr) \
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_RXD))
 
 #define BLE_MBUF_HDR_AUX_INVALID(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_INVALID))
