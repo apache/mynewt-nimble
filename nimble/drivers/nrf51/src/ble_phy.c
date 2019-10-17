@@ -37,6 +37,14 @@
 #include "core_cm0.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+#error LE 2M PHY cannot be enabled on nRF51
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+#error LE Coded PHY cannot be enabled on nRF51
+#endif
+
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
