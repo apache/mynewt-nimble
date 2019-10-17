@@ -3212,8 +3212,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    if ((cmd->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) ||
-        (cmd->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
+    if (cmd->own_addr_type > BLE_HCI_ADV_OWN_ADDR_MAX) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
         goto done;
     }
@@ -3226,7 +3225,14 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     }
 #endif
 
-    /* Check filter policy (valid only for undirected */
+    /* peer address type is only valid for directed */
+    if ((props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
+            (cmd->peer_addr_type > BLE_HCI_ADV_PEER_ADDR_MAX)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    /* Check filter policy (valid only for undirected) */
     if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) &&
          cmd->filter_policy > BLE_HCI_ADV_FILT_MAX) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
@@ -3238,7 +3244,9 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    if (!sec_phy_valid(cmd->sec_phy)) {
+    /* check secondary phy only if not using legacy PDUs */
+    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
+            !sec_phy_valid(cmd->sec_phy)) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
         goto done;
     }
@@ -3255,10 +3263,6 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
     rc = BLE_ERR_SUCCESS;
 
-    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
-        memcpy(advsm->peer_addr, &cmdbuf[12], BLE_DEV_ADDR_LEN);
-    }
-
     if (cmd->tx_power == 127) {
         /* no preference */
         advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
@@ -3266,15 +3270,10 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         advsm->adv_txpwr = ble_phy_txpower_round(cmd->tx_power);
     }
 
-    if (!(props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
-         (props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
-        /* For anonymous don't care about address type */
-        advsm->own_addr_type = 0;
-    } else {
-        advsm->own_addr_type = cmd->own_addr_type;
-    }
-
+    /* we can always store as those are validated and used only when needed */
     advsm->peer_addr_type = cmd->peer_addr_type;
+    memcpy(advsm->peer_addr, cmd->peer_addr, BLE_DEV_ADDR_LEN);
+    advsm->own_addr_type = cmd->own_addr_type;
     advsm->adv_filter_policy = cmd->filter_policy;
     advsm->adv_chanmask = cmd->pri_chan_map;
     advsm->adv_itvl_min = adv_itvl_min;
