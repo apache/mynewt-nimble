@@ -38,6 +38,12 @@
 #include "core_cm4.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+#if !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840) && !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52811)
+#error LE Coded PHY can only be enabled on nRF52811 or nRF52840
+#endif
+#endif
+
 /*
  * NOTE: This code uses a couple of PPI channels so care should be taken when
  *       using PPI somewhere else.
