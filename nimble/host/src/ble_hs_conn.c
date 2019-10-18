@@ -196,7 +196,7 @@ ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
     }
 
     SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, next);
-    ble_l2cap_chan_free(chan);
+    ble_l2cap_chan_free(conn, chan);
 }
 
 void
