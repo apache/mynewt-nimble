@@ -102,7 +102,7 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
                                       uint16_t len);
 
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(uint16_t conn_handle);
-void ble_l2cap_chan_free(struct ble_l2cap_chan *chan);
+void ble_l2cap_chan_free(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
 
 bool ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan);
 
