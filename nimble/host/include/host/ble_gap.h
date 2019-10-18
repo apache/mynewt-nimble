@@ -1435,7 +1435,8 @@ int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
  *                                  On expiration, the procedure ends and a
  *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
  *                                  reported.  Units are milliseconds.  Specify
- *                                  BLE_HS_FOREVER for no expiration.
+ *                                  BLE_HS_FOREVER for no expiration. Specify
+ *                                  0 to use stack defaults.
  * @param disc_params           Additional arguments specifying the particulars
  *                                  of the discovery procedure.
  * @param cb                    The callback to associate with this discovery
