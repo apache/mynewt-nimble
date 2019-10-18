@@ -1038,9 +1038,16 @@ static int disc_prim_uuid_cb(uint16_t conn_handle,
 
 	SYS_LOG_DBG("");
 
-	if (error->status != 0) {
+	if (error->status != 0 && error->status != BLE_HS_EDONE) {
+		tester_rsp(BTP_SERVICE_ID_GATT, opcode,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		discover_destroy();
+		return 0;
+	}
+
+	if (error->status == BLE_HS_EDONE) {
 		tester_send(BTP_SERVICE_ID_GATT, opcode,
-		CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
+			    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
 		discover_destroy();
 		return 0;
 	}
@@ -1086,7 +1093,14 @@ static int disc_all_desc_cb(uint16_t conn_handle,
 
 	SYS_LOG_DBG("");
 
-	if (error->status != 0) {
+	if (error->status != 0 && error->status != BLE_HS_EDONE) {
+		tester_rsp(BTP_SERVICE_ID_GATT, GATT_DISC_ALL_DESC,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		discover_destroy();
+		return 0;
+	}
+
+	if (error->status == BLE_HS_EDONE) {
 		tester_send(BTP_SERVICE_ID_GATT, GATT_DISC_ALL_DESC,
 			    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
 		discover_destroy();
@@ -1198,7 +1212,14 @@ static int find_included_cb(uint16_t conn_handle,
 
 	SYS_LOG_DBG("");
 
-	if (error->status != 0) {
+	if (error->status != 0 && error->status != BLE_HS_EDONE) {
+		tester_rsp(BTP_SERVICE_ID_GATT, GATT_FIND_INCLUDED,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		discover_destroy();
+		return 0;
+	}
+
+	if (error->status == BLE_HS_EDONE) {
 		tester_send(BTP_SERVICE_ID_GATT, GATT_FIND_INCLUDED,
 			    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
 		discover_destroy();
@@ -1249,7 +1270,14 @@ static int disc_chrc_cb(uint16_t conn_handle,
 
 	SYS_LOG_DBG("");
 
-	if (error->status != 0) {
+	if (error->status != 0 && error->status != BLE_HS_EDONE) {
+		tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		discover_destroy();
+		return 0;
+	}
+
+	if (error->status == BLE_HS_EDONE) {
 		tester_send(BTP_SERVICE_ID_GATT, btp_opcode,
 			    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
 		discover_destroy();
