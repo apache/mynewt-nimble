@@ -128,7 +128,6 @@ void ble_phy_disable(void);
 #define BLE_PHY_WFR_ENABLE_RX       (0)
 #define BLE_PHY_WFR_ENABLE_TXRX     (1)
 
-void ble_phy_stop_usec_timer(void);
 void ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs);
 
 /* Starts rf clock */
