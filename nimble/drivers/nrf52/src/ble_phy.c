@@ -1868,7 +1868,7 @@ int ble_phy_txpower_round(int dbm)
  *
  * @return int 0: success; PHY error code otherwise
  */
-int
+static int
 ble_phy_set_access_addr(uint32_t access_addr)
 {
     NRF_RADIO->BASE0 = (access_addr << 8);
@@ -1941,7 +1941,7 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
 /**
  * Stop the timer used to count microseconds when using RTC for cputime
  */
-void
+static void
 ble_phy_stop_usec_timer(void)
 {
     NRF_TIMER0->TASKS_STOP = 1;
@@ -1957,7 +1957,7 @@ ble_phy_stop_usec_timer(void)
  * restarted in receive mode. Generally, the disable routine is called to stop
  * the phy.
  */
-void
+static void
 ble_phy_disable_irq_and_ppi(void)
 {
     NRF_RADIO->INTENCLR = NRF_RADIO_IRQ_MASK_ALL;
