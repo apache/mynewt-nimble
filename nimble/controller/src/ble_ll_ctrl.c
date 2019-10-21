@@ -557,7 +557,7 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
     chk_proc_stop = 1;
     chk_host_phy = 1;
 
-    connsm->phy_tx_transition = BLE_PHY_TRANSITION_INVALID;
+    connsm->phy_tx_transition = 0;
 
     if (CONN_F_PEER_PHY_UPDATE(connsm)) {
         CONN_F_PEER_PHY_UPDATE(connsm) = 0;
