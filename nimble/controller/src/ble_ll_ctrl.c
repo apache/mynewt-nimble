@@ -2650,7 +2650,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         }
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
-         connsm->phy_tx_transition = txpdu->om_data[2];
+        connsm->phy_tx_transition = ble_ll_ctrl_phy_from_phy_mask(txpdu->om_data[2]);
         break;
 #endif
     default:
