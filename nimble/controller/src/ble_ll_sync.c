@@ -1265,6 +1265,17 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+#if MYNEWT_VAL(BLE_VERSION) >= 51
+    /* we don't support any CTE yet */
+    if (cmd->sync_cte_type) {
+        if (cmd->sync_cte_type > 4) {
+           return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        return BLE_ERR_UNSUPPORTED;
+    }
+#endif
+
     /* check if list is sane */
     if (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER) {
         cnt = 0;
