@@ -114,13 +114,13 @@ struct ble_hci_cb_host_buf_size_cp {
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS   (0x0035)
-struct  ble_hci_handle_count {
+struct  ble_hci_cb_host_num_comp_pkts_entry {
     uint16_t handle;
     uint16_t count;
-} __packed;
+} __attribute__((packed));
 struct ble_hci_cb_host_num_comp_pkts_cp {
     uint8_t handles;
-    struct ble_hci_handle_count h[0];
+    struct ble_hci_cb_host_num_comp_pkts_entry h[0];
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_CB_SET_EVENT_MASK2      (0x0063)

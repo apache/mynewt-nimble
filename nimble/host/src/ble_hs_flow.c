@@ -44,10 +44,10 @@ static int
 ble_hs_flow_tx_num_comp_pkts(void)
 {
     uint8_t buf[
-        BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN +
-        BLE_HCI_HOST_NUM_COMP_PKTS_ENT_LEN
+        sizeof(struct ble_hci_cb_host_num_comp_pkts_cp) +
+        sizeof(struct ble_hci_cb_host_num_comp_pkts_entry)
     ];
-    struct hci_host_num_comp_pkts_entry entry;
+    struct ble_hci_cb_host_num_comp_pkts_cp *cmd = (void *) buf;
     struct ble_hs_conn *conn;
     int rc;
 
@@ -62,16 +62,12 @@ ble_hs_flow_tx_num_comp_pkts(void)
 
         if (conn->bhc_completed_pkts > 0) {
             /* Only specify one connection per command. */
-            buf[0] = 1;
+            /* TODO could combine this in single HCI command */
+            cmd->handles = 1;
 
             /* Append entry for this connection. */
-            entry.conn_handle = conn->bhc_handle;
-            entry.num_pkts = conn->bhc_completed_pkts;
-            rc = ble_hs_hci_cmd_build_host_num_comp_pkts_entry(
-                &entry,
-                buf + BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN,
-                sizeof buf - BLE_HCI_HOST_NUM_COMP_PKTS_HDR_LEN);
-            BLE_HS_DBG_ASSERT(rc == 0);
+            cmd->h[0].handle = htole16(conn->bhc_handle);
+            cmd->h[0].count = htole16(conn->bhc_completed_pkts);
 
             conn->bhc_completed_pkts = 0;
 
@@ -224,7 +220,11 @@ int
 ble_hs_flow_startup(void)
 {
 #if MYNEWT_VAL(BLE_HS_FLOW_CTRL)
-    struct hci_host_buf_size buf_size_cmd;
+    struct ble_hci_cb_ctlr_to_host_fc_cp enable_cmd;
+    struct ble_hci_cb_host_buf_size_cp buf_size_cmd = {
+            .acl_data_len = htole16(MYNEWT_VAL(BLE_ACL_BUF_SIZE)),
+            .acl_num = htole16(MYNEWT_VAL(BLE_ACL_BUF_COUNT)),
+    };
     int rc;
 
     ble_npl_event_init(&ble_hs_flow_ev, ble_hs_flow_event_cb, NULL);
@@ -233,18 +233,23 @@ ble_hs_flow_startup(void)
     ble_hci_trans_set_acl_free_cb(NULL, NULL);
     ble_npl_callout_stop(&ble_hs_flow_timer);
 
-    rc = ble_hs_hci_cmd_tx_set_ctlr_to_host_fc(BLE_HCI_CTLR_TO_HOST_FC_ACL);
+    enable_cmd.enable = BLE_HCI_CTLR_TO_HOST_FC_ACL;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                      BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC),
+                           &enable_cmd, sizeof(enable_cmd), NULL, 0);
     if (rc != 0) {
         return rc;
     }
 
-    buf_size_cmd = (struct hci_host_buf_size) {
-        .acl_pkt_len = MYNEWT_VAL(BLE_ACL_BUF_SIZE),
-        .num_acl_pkts = MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-    };
-    rc = ble_hs_hci_cmd_tx_host_buf_size(&buf_size_cmd);
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                      BLE_HCI_OCF_CB_HOST_BUF_SIZE),
+                           &buf_size_cmd, sizeof(buf_size_cmd), NULL, 0);
     if (rc != 0) {
-        ble_hs_hci_cmd_tx_set_ctlr_to_host_fc(BLE_HCI_CTLR_TO_HOST_FC_OFF);
+        enable_cmd.enable = BLE_HCI_CTLR_TO_HOST_FC_OFF;
+        ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                                     BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC),
+                          &enable_cmd, sizeof(enable_cmd), NULL, 0);
         return rc;
     }
 
