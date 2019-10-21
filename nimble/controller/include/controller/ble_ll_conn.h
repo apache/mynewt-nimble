@@ -173,8 +173,6 @@ struct ble_ll_conn_phy_data
 #define CONN_CUR_TX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_tx_phy - 1))
 #define CONN_CUR_RX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_rx_phy - 1))
 
-#define BLE_PHY_TRANSITION_INVALID    (0xFF)
-
 struct hci_conn_update
 {
     uint16_t handle;
