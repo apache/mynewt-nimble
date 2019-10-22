@@ -372,6 +372,11 @@ struct ble_ll_conn_sm
     struct hci_ext_create_conn initial_params;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    uint8_t  sync_transfer_mode;
+    uint16_t sync_transfer_skip;
+    uint32_t sync_transfer_sync_timeout;
+#endif
 };
 
 /* Flags */
@@ -404,6 +409,10 @@ struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 
 /* required for unit testing */
 uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
+
+/* used to get anchor point for connection event specified */
+void ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
+                            uint32_t *anchor, uint8_t *anchor_usecs);
 
 #ifdef __cplusplus
 }

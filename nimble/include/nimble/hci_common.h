@@ -783,9 +783,45 @@ struct ble_hci_le_periodic_adv_receive_enable_cp {
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER        (0x005A)
+struct ble_hci_le_periodic_adv_sync_transfer_cp {
+    uint16_t conn_handle;
+    uint16_t service_data;
+    uint16_t sync_handle;
+} __attribute__((packed));
+struct ble_hci_le_periodic_adv_sync_transfer_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER    (0x005B)
+struct ble_hci_le_periodic_adv_set_info_transfer_cp {
+    uint16_t conn_handle;
+    uint16_t service_data;
+    uint8_t adv_handle;
+} __attribute__((packed));
+struct ble_hci_le_periodic_adv_set_info_transfer_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS (0x005C)
+struct ble_hci_le_periodic_adv_sync_transfer_params_cp {
+    uint16_t conn_handle;
+    uint8_t  mode;
+    uint16_t skip;
+    uint16_t sync_timeout;
+    uint8_t  sync_cte_type;
+} __attribute__((packed));
+struct ble_hci_le_periodic_adv_sync_transfer_params_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_SET_DEFAULT_SYNC_TRANSFER_PARAMS  (0x005D)
+struct ble_hci_le_set_default_periodic_sync_transfer_params_cp {
+    uint8_t  mode;
+    uint16_t skip;
+    uint16_t sync_timeout;
+    uint8_t  sync_cte_type;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_GENERATE_DHKEY_V2                 (0x005E)
 #define BLE_HCI_OCF_LE_MODIFY_SCA                        (0x005F)
 
@@ -1386,7 +1422,21 @@ struct ble_hci_ev_le_subev_chan_sel_alg {
 #define BLE_HCI_LE_SUBEV_CONNLESS_IQ_RPT        (0x15)
 #define BLE_HCI_LE_SUBEV_CONN_IQ_RPT            (0x16)
 #define BLE_HCI_LE_SUBEV_CTE_REQ_FAILED         (0x17)
+
 #define BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_TRANSFER   (0x18)
+struct ble_hci_ev_le_subev_periodic_adv_sync_transfer {
+    uint8_t  subev_code;
+    uint8_t  status;
+    uint16_t conn_handle;
+    uint16_t service_data;
+    uint16_t sync_handle;
+    uint8_t  sid;
+    uint8_t  peer_addr_type;
+    uint8_t  peer_addr[6];
+    uint8_t  phy;
+    uint16_t interval;
+    uint8_t  aca;
+} __attribute__((packed));
 
 /* Data buffer overflow event */
 #define BLE_HCI_EVENT_ACL_BUF_OVERFLOW      (0x01)

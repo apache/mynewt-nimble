@@ -1783,3 +1783,101 @@ phy_cmd_param_err:
     return rc;
 }
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+int
+ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
+                                uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_periodic_adv_sync_transfer_params_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_periodic_adv_sync_transfer_params_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t sync_timeout;
+    uint16_t skip;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    if (cmd->mode > 0x02) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    skip = le16toh(cmd->skip);
+    if (skip > 0x01f3) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    sync_timeout = le16toh(cmd->sync_timeout);
+    if ((sync_timeout < 0x000a) || (sync_timeout > 0x4000)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    /* we don't support any CTE yet */
+    if (cmd->sync_cte_type) {
+        rc = BLE_ERR_UNSUPPORTED;
+        goto done;
+    }
+
+    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
+    }
+
+    /* timeout in 10ms units */
+    connsm->sync_transfer_sync_timeout = sync_timeout * 10000;
+    connsm->sync_transfer_mode = cmd->mode;
+    connsm->sync_transfer_skip = skip;
+
+    rc = BLE_ERR_SUCCESS;
+
+done:
+    rsp->conn_handle = cmd->conn_handle;
+    *rsplen = sizeof(*rsp);
+    return rc;
+}
+
+int
+ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_le_set_default_periodic_sync_transfer_params_cp *cmd = (const void *)cmdbuf;
+    uint16_t sync_timeout;
+    uint16_t skip;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->mode > 0x02) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    skip = le16toh(cmd->skip);
+    if (skip > 0x01f3) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    sync_timeout = le16toh(cmd->sync_timeout);
+    if ((sync_timeout < 0x000a) || (sync_timeout > 0x4000)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* we don't support any CTE yet */
+    if (cmd->sync_cte_type) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    /* timeout in 10ms units */
+    g_ble_ll_conn_sync_transfer_params.sync_timeout_us = sync_timeout * 10000;
+    g_ble_ll_conn_sync_transfer_params.mode = cmd->mode;
+    g_ble_ll_conn_sync_transfer_params.max_skip = skip;
+
+    return BLE_ERR_SUCCESS;
+}
+#endif

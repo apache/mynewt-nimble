@@ -137,6 +137,11 @@ uint8_t *g_ble_ll_conn_comp_ev;
 /* Global LL connection parameters */
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+/* Global default sync transfer params */
+struct ble_ll_conn_sync_transfer_params g_ble_ll_conn_sync_transfer_params;
+#endif
+
 /* Pointer to connection state machine we are trying to create */
 struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
 
@@ -1681,6 +1686,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->rpa_index = -1;
     connsm->inita_identity_used = 0;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    connsm->sync_transfer_sync_timeout = g_ble_ll_conn_sync_transfer_params.sync_timeout_us;
+    connsm->sync_transfer_mode = g_ble_ll_conn_sync_transfer_params.mode;
+    connsm->sync_transfer_skip = g_ble_ll_conn_sync_transfer_params.max_skip;
+#endif
+
     /* XXX: TODO set these based on PHY that started connection */
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     connsm->phy_data.cur_tx_phy = BLE_PHY_1M;
@@ -1924,6 +1935,35 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     ble_ll_trace_u32x3(BLE_LL_TRACE_ID_CONN_END, connsm->conn_handle,
                        connsm->event_cntr, (uint32_t)ble_err);
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+void
+ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
+                       uint32_t *anchor, uint8_t *anchor_usecs)
+{
+    uint32_t ticks;
+    uint32_t itvl;
+
+    itvl = (connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
+
+    if ((int16_t)(conn_event - connsm->event_cntr) < 0) {
+        itvl *= connsm->event_cntr - conn_event;
+        ticks = os_cputime_usecs_to_ticks(itvl);
+        *anchor = connsm->anchor_point - ticks;
+    } else {
+        itvl *= conn_event - connsm->event_cntr;
+        ticks = os_cputime_usecs_to_ticks(itvl);
+        *anchor = connsm->anchor_point + ticks;
+    }
+
+    *anchor_usecs = connsm->anchor_point_usecs;
+    *anchor_usecs += (itvl - os_cputime_ticks_to_usecs(ticks));
+    if (*anchor_usecs >= 31) {
+        (*anchor)++;
+        *anchor_usecs -= 31;
+    }
+}
+#endif
 
 /**
  * Called to move to the next connection event.
@@ -4171,6 +4211,13 @@ ble_ll_conn_module_reset(void)
 
     /* Reset statistics */
     STATS_RESET(ble_ll_conn_stats);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    /* reset default sync transfer params */
+    g_ble_ll_conn_sync_transfer_params.max_skip = 0;
+    g_ble_ll_conn_sync_transfer_params.mode = 0;
+    g_ble_ll_conn_sync_transfer_params.sync_timeout_us = 0;
+#endif
 }
 
 /* Initialize the connection module */

@@ -80,14 +80,23 @@ extern "C" {
 #define BLE_LL_CTRL_PHY_RSP             (23)
 #define BLE_LL_CTRL_PHY_UPDATE_IND      (24)
 #define BLE_LL_CTRL_MIN_USED_CHAN_IND   (25)
+#define BLE_LL_CTRL_CTE_REQ             (26)
+#define BLE_LL_CTRL_CTE_RSP             (27)
+#define BLE_LL_CTRL_PERIODIC_SYNC_IND   (28)
+#define BLE_LL_CTRL_CLOCK_ACCURACY_REQ  (29)
+#define BLE_LL_CTRL_CLOCK_ACCURACY_RSP  (30)
 
 /* Maximum opcode value */
-#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_MIN_USED_CHAN_IND + 1)
+#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_CLOCK_ACCURACY_RSP + 1)
 
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
 /* Maximum LL control PDU size */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+#define BLE_LL_CTRL_MAX_PDU_LEN         (35)
+#else
 #define BLE_LL_CTRL_MAX_PDU_LEN         (27)
+#endif
 
 /* LL control connection update request */
 struct ble_ll_conn_upd_req
@@ -239,6 +248,19 @@ struct ble_ll_len_req
 /* Min used channels */
 #define BLE_LL_CTRL_MIN_USED_CHAN_LEN   (2)
 
+/* CTE REQ */
+#define BLE_LL_CTRL_CTE_REQ_LEN         (1)
+
+/* CTE RSP (contains no data) */
+#define BLE_LL_CTRL_CTE_RSP_LEN     (0)
+
+/* Periodic Sync Transfer IND */
+#define BLE_LL_CTRL_PERIODIC_SYNC_IND_LEN   (34)
+
+/* Clock accuracy request/response */
+#define BLE_LL_CTRL_CLOCK_ACCURACY_REQ_LEN  (1)
+#define BLE_LL_CTRL_CLOCK_ACCURACY_RSP_LEN  (1)
+
 /* API */
 struct ble_ll_conn_sm;
 void ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc);
@@ -280,6 +302,8 @@ void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm);
 void ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line);
+
+uint8_t ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask);
 
 #ifdef __cplusplus
 }
