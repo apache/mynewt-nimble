@@ -59,6 +59,11 @@ syscfg.defs:
         description: >
             This enables periodic advertising feature.
         value: 0
+    BLE_PERIODIC_ADV_SYNC_TRANSFER:
+        description: >
+            This enables Periodic Advertising Sync Transfer Feature.
+        value: 0
+
     BLE_EXT_ADV_MAX_SIZE:
         description: >
             This allows to configure maximum size of advertising data and
@@ -72,3 +77,7 @@ syscfg.defs:
             integer for easy comparison.
         range: 50, 51
         value: 50
+
+# Allow periodic sync transfer only if 5.1 or higher
+syscfg.restrictions:
+    - "'BLE_PERIODIC_ADV_SYNC_TRANSFER == 0' || 'BLE_VERSION >= 51'"

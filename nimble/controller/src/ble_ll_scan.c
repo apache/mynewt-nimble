@@ -2842,7 +2842,7 @@ done:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 static void
 check_periodic_sync(const struct os_mbuf *om, struct ble_mbuf_hdr *rxhdr,
-                          uint8_t *adva, uint8_t adva_type)
+                          uint8_t *adva, uint8_t adva_type, int rpa_index)
 {
     uint8_t pdu_len;
     uint8_t ext_hdr_len;
@@ -2889,7 +2889,8 @@ check_periodic_sync(const struct os_mbuf *om, struct ble_mbuf_hdr *rxhdr,
         }
 
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
-            ble_ll_sync_info_event(adva, adva_type, sid, rxhdr, ext_hdr + i);
+            ble_ll_sync_info_event(adva, adva_type, rpa_index, sid, rxhdr,
+                                   ext_hdr + i);
         }
     }
 }
@@ -3165,8 +3166,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
      * policy if PDU and adv type match and advertiser address is present
      */
     if ((ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) &&
-            (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && ident_addr) {
-        check_periodic_sync(om, hdr, ident_addr, ident_addr_type);
+            (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && adv_addr) {
+        check_periodic_sync(om, hdr, adv_addr, txadd, index);
     }
 #endif
 

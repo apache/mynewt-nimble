@@ -28,6 +28,7 @@
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_hw.h"
+#include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
 
 /* To use spec sample data for testing */
@@ -105,7 +106,12 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     BLE_LL_CTRL_PHY_REQ_LEN,
     BLE_LL_CTRL_PHY_RSP_LEN,
     BLE_LL_CTRL_PHY_UPD_IND_LEN,
-    BLE_LL_CTRL_MIN_USED_CHAN_LEN
+    BLE_LL_CTRL_MIN_USED_CHAN_LEN,
+    BLE_LL_CTRL_CTE_REQ_LEN,
+    BLE_LL_CTRL_CTE_RSP_LEN,
+    BLE_LL_CTRL_PERIODIC_SYNC_IND_LEN,
+    BLE_LL_CTRL_CLOCK_ACCURACY_REQ_LEN,
+    BLE_LL_CTRL_CLOCK_ACCURACY_RSP_LEN,
 };
 
 /**
@@ -602,7 +608,7 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
  * BLE_HCI_LE_PHY_2M                    (2)
  * BLE_HCI_LE_PHY_CODED                 (3)
  */
-static uint8_t
+uint8_t
 ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
 {
     uint8_t phy;
@@ -984,6 +990,28 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     }
 
     ble_ll_ctrl_phy_update_proc_complete(connsm);
+
+    return BLE_ERR_MAX;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+/**
+ * Called when a BLE_LL_CTRL_PERIODIC_SYNC_IND PDU is received
+ *
+ * @param connsm
+ * @param dptr
+ *
+ * @return uint8_t
+ */
+static uint8_t
+ble_ll_ctrl_rx_periodic_sync_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    if (connsm->sync_transfer_mode) {
+        ble_ll_sync_periodic_ind(connsm, dptr, connsm->sync_transfer_mode == 1,
+                                 connsm->sync_transfer_skip,
+                                 connsm->sync_transfer_sync_timeout);
+    }
 
     return BLE_ERR_MAX;
 }
@@ -2348,6 +2376,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_MIN_USED_CHAN_IND:
         feature = BLE_LL_FEAT_MIN_USED_CHAN;
         break;
+    case BLE_LL_CTRL_PERIODIC_SYNC_IND:
+        feature = BLE_LL_FEAT_SYNC_RECV;
+        break;
     default:
         feature = 0;
         break;
@@ -2487,6 +2518,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
         rsp_opcode = ble_ll_ctrl_rx_phy_update_ind(connsm, dptr);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_LL_CTRL_PERIODIC_SYNC_IND:
+        rsp_opcode = ble_ll_ctrl_rx_periodic_sync_ind(connsm, dptr);
         break;
 #endif
     default:

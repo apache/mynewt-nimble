@@ -196,6 +196,9 @@ int ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len);
 
+int ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
+                                          uint8_t *rspbuf, uint8_t *rsplen);
+
 /* Called to notify adv code about RPA rotation */
 void ble_ll_adv_rpa_timeout(void);
 

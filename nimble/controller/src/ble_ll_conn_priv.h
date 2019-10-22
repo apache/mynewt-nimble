@@ -77,6 +77,16 @@ struct ble_ll_conn_global_params
 };
 extern struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+struct ble_ll_conn_sync_transfer_params
+{
+    uint32_t sync_timeout_us;
+    uint16_t max_skip;
+    uint8_t  mode;
+};
+extern struct ble_ll_conn_sync_transfer_params g_ble_ll_conn_sync_transfer_params;
+#endif
+
 /* Some data structures used by other LL routines */
 SLIST_HEAD(ble_ll_conn_active_list, ble_ll_conn_sm);
 STAILQ_HEAD(ble_ll_conn_free_list, ble_ll_conn_sm);
@@ -203,6 +213,13 @@ int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t cmdlen);
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+int ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
+                                    uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

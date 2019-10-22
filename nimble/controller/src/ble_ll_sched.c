@@ -963,7 +963,8 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
 }
 
 int
-ble_ll_sched_sync(struct ble_ll_sched_item *sch, struct ble_mbuf_hdr *ble_hdr,
+ble_ll_sched_sync(struct ble_ll_sched_item *sch,
+                  uint32_t beg_cputime, uint32_t rem_usecs,
                   uint32_t offset, int8_t phy_mode)
 {
     struct ble_ll_sched_item *entry;
@@ -979,8 +980,8 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch, struct ble_mbuf_hdr *ble_hdr,
     off_ticks = os_cputime_usecs_to_ticks(offset);
     off_rem_usecs = offset - os_cputime_ticks_to_usecs(off_ticks);
 
-    start_time = ble_hdr->beg_cputime + off_ticks;
-    start_time_rem_usecs = ble_hdr->rem_usecs + off_rem_usecs;
+    start_time = beg_cputime + off_ticks;
+    start_time_rem_usecs = rem_usecs + off_rem_usecs;
     if (start_time_rem_usecs >= 31) {
         start_time++;
         start_time_rem_usecs -= 31;

@@ -246,6 +246,17 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_FEAT_CSA2             (0x00004000)
 #define BLE_LL_FEAT_LE_POWER_CLASS_1 (0x00008000)
 #define BLE_LL_FEAT_MIN_USED_CHAN    (0x00010000)
+#define BLE_LL_FEAT_CTE_REQ          (0x00020000)
+#define BLE_LL_FEAT_CTE_RSP          (0x00040000)
+#define BLE_LL_FEAT_CTE_TX           (0x00080000)
+#define BLE_LL_FEAT_CTE_RX           (0x00100000)
+#define BLE_LL_FEAT_CTE_AOD          (0x00200000)
+#define BLE_LL_FEAT_CTE_AOA          (0x00400000)
+#define BLE_LL_FEAT_CTE_RECV         (0x00800000)
+#define BLE_LL_FEAT_SYNC_SEND        (0x01000000)
+#define BLE_LL_FEAT_SYNC_RECV        (0x02000000)
+#define BLE_LL_FEAT_SCA_UPDATE       (0x04000000)
+#define BLE_LL_FEAT_REM_PKEY         (0x08000000)
 
 /* This is initial mask, so if feature exchange will not happen,
  * but host will want to use this procedure, we will try. If not

@@ -711,6 +711,10 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
 #if MYNEWT_VAL(BLE_VERSION) >= 51
     case BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE:
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS:
+    case BLE_HCI_OCF_LE_SET_DEFAULT_SYNC_TRANSFER_PARAMS:
+#endif
         if (hci_adv_mode == ADV_MODE_LEGACY) {
             return false;
         }
@@ -1122,6 +1126,14 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     case BLE_HCI_OCF_LE_SET_PRIVACY_MODE:
         rc = ble_ll_resolve_set_priv_mode(cmdbuf, len);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS:
+        rc = ble_ll_set_sync_transfer_params(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_DEFAULT_SYNC_TRANSFER_PARAMS:
+        rc = ble_ll_set_default_sync_transfer_params(cmdbuf, len);
         break;
 #endif
     default:
