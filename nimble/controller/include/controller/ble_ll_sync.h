@@ -54,6 +54,7 @@ void ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm);
 uint32_t ble_ll_sync_get_event_end_time(void);
 
 void ble_ll_sync_reset(void);
+void ble_ll_sync_init(void);
 
 #ifdef __cplusplus
 }
