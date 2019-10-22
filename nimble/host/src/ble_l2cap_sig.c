@@ -707,6 +707,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         chan->cb = NULL;
 
         ble_hs_lock();
+        conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_delete_chan(conn, chan);
         ble_hs_unlock();
         rsp->result = htole16(coc_err);
@@ -722,6 +723,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     rc = ble_l2cap_sig_tx(conn_handle, txom);
     if (rc != 0) {
         ble_hs_lock();
+        conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_delete_chan(conn, chan);
         ble_hs_unlock();
         return 0;
