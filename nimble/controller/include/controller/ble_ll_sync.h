@@ -56,6 +56,7 @@ uint32_t ble_ll_sync_get_event_end_time(void);
 bool ble_ll_sync_enabled(void);
 
 void ble_ll_sync_reset(void);
+void ble_ll_sync_init(void);
 
 #ifdef __cplusplus
 }
