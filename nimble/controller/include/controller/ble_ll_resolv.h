@@ -35,6 +35,7 @@ struct ble_ll_resolv_entry
     uint8_t rl_addr_type;
     uint8_t rl_reserved;
     uint8_t rl_priv_mode;
+    uint8_t _pad;
     uint8_t rl_local_irk[16];
     uint8_t rl_peer_irk[16];
     uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
