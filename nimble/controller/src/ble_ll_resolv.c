@@ -43,6 +43,7 @@ struct ble_ll_resolv_data
 };
 struct ble_ll_resolv_data g_ble_ll_resolv_data;
 
+__attribute__((aligned(4)))
 struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)];
 
 static int
