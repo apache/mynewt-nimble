@@ -9,7 +9,7 @@ no need for configuring public address.
 ::
 
     newt target create blemesh
-    newt target set blemesh app=@apache-mynewt-core/apps/blemesh
+    newt target set blemesh app=@apache-mynewt-nimble/apps/blemesh
     newt target set blemesh bsp=@apache-mynewt-core/hw/bsp/nrf52840pdk
     newt target set blemesh build_profile=optimized
     newt target set blemesh syscfg=BLE_MESH_PB_GATT=1:BLE_MESH_DEV_UUID='(uint8_t[16]){0x22, 0x20, 0}'
