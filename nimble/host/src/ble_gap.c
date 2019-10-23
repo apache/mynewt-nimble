@@ -1370,7 +1370,7 @@ ble_gap_rx_scan_req_rcvd(const struct ble_hci_ev_le_subev_scan_req_rcvd *ev)
 void
 ble_gap_rx_peroidic_adv_sync_estab(const struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev)
 {
-    uint16_t sync_handle = le16toh(ev->sync_handle);
+    uint16_t sync_handle;
     struct ble_gap_event event;
     ble_gap_event_fn *cb;
     void *cb_arg;
@@ -1385,6 +1385,8 @@ ble_gap_rx_peroidic_adv_sync_estab(const struct ble_hci_ev_le_subev_periodic_adv
     BLE_HS_DBG_ASSERT(ble_gap_sync.psync);
 
     if (!ev->status) {
+        sync_handle = le16toh(ev->sync_handle);
+
         ble_gap_sync.psync->sync_handle = sync_handle;
         ble_gap_sync.psync->adv_sid = ev->sid;
         memcpy(ble_gap_sync.psync->advertiser_addr.val, ev->peer_addr, 6);
@@ -3504,14 +3506,6 @@ ble_gap_periodic_adv_create_sync_cancel(void)
                         BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL);
 
     rc = ble_hs_hci_cmd_tx(opcode, NULL, 0, NULL, 0);
-
-    if (!rc) {
-        ble_gap_sync.op = BLE_GAP_OP_NULL;
-        ble_gap_sync.cb = NULL;
-        ble_gap_sync.cb_arg = NULL;
-        ble_hs_periodic_sync_free(ble_gap_sync.psync);
-        ble_gap_sync.psync = NULL;
-    }
 
     ble_hs_unlock();
 
