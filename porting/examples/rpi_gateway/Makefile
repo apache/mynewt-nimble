@@ -64,6 +64,12 @@ SRC += \
     ./mesh_helper/src/bt_mesh_helper.c \
 	$(NULL)
 
+# skipping files to avoid redefinition error
+SRC := $(filter-out \
+	$(NIMBLE_ROOT)/nimble/host/mesh/src/model_srv.c \
+	$(NIMBLE_ROOT)/nimble/host/mesh/src/model_cli.c \
+	, $(SRC))
+
 # Add NPL and all NimBLE directories to include paths
 INC = \
 	./include \
