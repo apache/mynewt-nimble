@@ -142,7 +142,7 @@ bt_mesh_gen_level_model_cli_set(struct bt_mesh_gen_level_model_cli *cli,
    err = cli_wait(cli, &param, OP_GEN_LEVEL_STATUS);
 
 done:
-   if (err = 0) {
+   if (err == 0) {
       cli->transaction_id++;
    }
 
