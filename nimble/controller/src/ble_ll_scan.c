@@ -1238,6 +1238,7 @@ ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_data)
 static void
 ble_ll_scan_sched_remove(struct ble_ll_sched_item *sch)
 {
+    ble_ll_scan_end_adv_evt(sch->cb_arg);
     ble_ll_scan_aux_data_unref(sch->cb_arg);
     sch->cb_arg = NULL;
 }
