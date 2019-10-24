@@ -231,7 +231,10 @@ ble_hs_flow_startup(void)
 
     /* Assume failure. */
     ble_hci_trans_set_acl_free_cb(NULL, NULL);
+
+#if MYNEWT_VAL(SELFTEST)
     ble_npl_callout_stop(&ble_hs_flow_timer);
+#endif
 
     enable_cmd.enable = BLE_HCI_CTLR_TO_HOST_FC_ACL;
 
