@@ -3399,7 +3399,7 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
         }
 
         /* validate duplicated sets */
-        for (j = 1; j < cmd->num_sets - i; j++) {
+        for (j = i + 1; j < cmd->num_sets; j++) {
             if (cmd->sets[i].adv_handle == cmd->sets[j].adv_handle) {
                 return BLE_ERR_INV_HCI_CMD_PARMS;
             }
