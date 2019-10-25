@@ -3679,6 +3679,25 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
         }
     }
 
+    /* spec is not really clear if we should use defaults in this case
+     * or just disallow starting scan without explicit configuration
+     * For now be nice to host and just use values based on LE Set Scan
+     * Parameters defaults.
+     */
+    if (scansm->cur_phy == PHY_NOT_CONFIGURED) {
+        scansm->cur_phy = PHY_UNCODED;
+        scansm->own_addr_type = BLE_ADDR_PUBLIC;
+
+        scanphy = &scansm->phy_data[PHY_UNCODED];
+
+        scanphy->configured = 1;
+        scanphy->scan_type = BLE_SCAN_TYPE_PASSIVE;
+        scanphy->scan_itvl = 0x0010;
+        scanphy->scan_window = 0x0010;
+        scanphy->scan_filt_policy = BLE_HCI_SCAN_FILT_NO_WL;
+        scanphy->own_addr_type = BLE_ADDR_PUBLIC;
+    }
+
     rc = ble_ll_scan_sm_start(scansm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
