@@ -381,9 +381,19 @@
 #else
 #define BLE_SUPP_CMD_LE_PADV_RECV_ENABLE (0 << 5)
 #endif
-#define BLE_LL_SUPP_CMD_OCTET_40            \
-(                                           \
-    BLE_SUPP_CMD_LE_PADV_RECV_ENABLE        \
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+#define BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER (1 << 6)
+#define BLE_SUPP_CMD_LE_PADV_SET_INFO_TRANSFER (1 << 7)
+#else
+#define BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER (0 << 6)
+#define BLE_SUPP_CMD_LE_PADV_SET_INFO_TRANSFER (0 << 7)
+#endif
+
+#define BLE_LL_SUPP_CMD_OCTET_40             \
+(                                            \
+    BLE_SUPP_CMD_LE_PADV_RECV_ENABLE       | \
+    BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER     | \
+    BLE_SUPP_CMD_LE_PADV_SET_INFO_TRANSFER   \
 )
 
 /* Octet 41 */
