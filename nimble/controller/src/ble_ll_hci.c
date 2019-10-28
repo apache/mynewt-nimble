@@ -712,6 +712,8 @@ ble_ll_is_valid_adv_mode(uint8_t ocf)
     case BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE:
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER:
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER:
     case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS:
     case BLE_HCI_OCF_LE_SET_DEFAULT_SYNC_TRANSFER_PARAMS:
 #endif
@@ -1129,6 +1131,12 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER:
+        rc = ble_ll_sync_transfer(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER:
+        rc = ble_ll_adv_periodic_set_info_transfer(cmdbuf, len, rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS:
         rc = ble_ll_set_sync_transfer_params(cmdbuf, len, rspbuf, rsplen);
         break;

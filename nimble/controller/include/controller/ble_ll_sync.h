@@ -40,6 +40,8 @@ int ble_ll_sync_list_remove(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_list_clear(void);
 int ble_ll_sync_list_size(uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_sync_transfer(const uint8_t *cmdbuf, uint8_t len,
+                         uint8_t *rspbuf, uint8_t *rsplen);
 
 void ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
                               const uint8_t *sync_ind, bool reports_disabled,

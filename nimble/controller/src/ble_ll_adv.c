@@ -165,6 +165,9 @@ struct ble_ll_adv_sm
     uint32_t periodic_adv_event_start_time;
     struct ble_ll_adv_sync periodic_sync[2];
     struct ble_npl_event adv_periodic_txdone_ev;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    uint16_t periodic_event_cntr_last_sent;
+#endif
 #endif
 #endif
 };
@@ -571,19 +574,45 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 static void
-ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm, uint8_t *dptr)
+ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
+                        struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
     uint32_t offset;
     uint8_t units;
 
-    offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
-                                       AUX_CURRENT(advsm)->start_time);
-    offset += advsm->periodic_adv_event_start_time_remainder;
+    if (connsm) {
+        if (CPUTIME_LT(connsm->anchor_point, advsm->periodic_adv_event_start_time)) {
+            offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
+                                               connsm->anchor_point);
+        } else {
+            offset = os_cputime_ticks_to_usecs(connsm->anchor_point -
+                                               advsm->periodic_adv_event_start_time);
+        }
 
-    /* Sync Packet Offset (13 bits), Offset Units (1 bit), RFU (2 bits) */
+        offset -= connsm->anchor_point_usecs;
+        offset += advsm->periodic_adv_event_start_time_remainder;
+    } else {
+        offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
+                                           AUX_CURRENT(advsm)->start_time);
+        offset += advsm->periodic_adv_event_start_time_remainder;
+    }
+
+    /* Sync Packet Offset (13 bits), Offset Units (1 bit), Offset Adjust (1 bit),
+     * RFU (1 bit)
+     */
     if (offset > 245700) {
         units = 0x20;
         offset = offset / 300;
+
+        if (offset >= 0x2000) {
+            if (connsm) {
+                offset -= 0x2000;
+                units |= 0x40;
+            } else {
+                offset = 0;
+            }
+        }
+
     } else {
         units = 0x00;
         offset = offset / 30;
@@ -703,7 +732,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
-        ble_ll_adv_put_syncinfo(advsm, dptr);
+        ble_ll_adv_put_syncinfo(advsm, NULL, dptr);
         dptr += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
     }
 #endif
@@ -1996,23 +2025,12 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     return sync->payload_len;
 }
 
-/**
- * Called to indicate the advertising sync event is over.
- *
- * Context: Interrupt
- *
- * @param advsm
- *
- */
-static void
-ble_ll_adv_sync_tx_done(void *arg)
-{
-    struct ble_ll_adv_sm *advsm;
 
+static void
+ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
+{
     /* reset power to max after advertising */
     ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
-
-    advsm = (struct ble_ll_adv_sm *)arg;
 
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
@@ -2028,6 +2046,27 @@ ble_ll_adv_sync_tx_done(void *arg)
 
     /* We no longer have a current state machine */
     g_ble_ll_cur_adv_sm = NULL;
+}
+
+/**
+ * Called to indicate the advertising sync event is over.
+ *
+ * Context: Interrupt
+ *
+ * @param advsm
+ *
+ */
+static void
+ble_ll_adv_sync_tx_end(void *arg)
+{
+    struct ble_ll_adv_sm *advsm = arg;
+
+    ble_ll_adv_sync_tx_done(advsm);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    /* store last sent periodic counter */
+    advsm->periodic_event_cntr_last_sent = advsm->periodic_event_cntr;
+#endif
 }
 
 static int
@@ -2079,7 +2118,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
 #endif
 
     /* Transmit advertisement */
-    ble_phy_set_txend_cb(ble_ll_adv_sync_tx_done, advsm);
+    ble_phy_set_txend_cb(ble_ll_adv_sync_tx_end, advsm);
     rc = ble_phy_tx(ble_ll_adv_sync_pdu_make, advsm, BLE_PHY_TRANSITION_NONE);
     if (rc) {
         goto adv_tx_done;
@@ -3779,6 +3818,119 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
 
     return BLE_ERR_SUCCESS;
 }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+static int
+ble_ll_adv_periodic_send_sync_ind(struct ble_ll_adv_sm *advsm,
+                                  struct ble_ll_conn_sm *connsm,
+                                  uint16_t service_data)
+{
+    struct os_mbuf *om;
+    uint8_t *sync_ind;
+
+    om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
+                            sizeof(struct ble_mbuf_hdr));
+    if (!om) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    om->om_data[0] = BLE_LL_CTRL_PERIODIC_SYNC_IND;
+
+    sync_ind = om->om_data + 1;
+
+    /* ID (service_data), already in LE order */
+    memcpy(sync_ind, &service_data, sizeof(service_data));
+
+    /* fill in syncinfo */
+    ble_ll_adv_put_syncinfo(advsm, connsm, sync_ind + 2);
+
+    /* connEventCount */
+    put_le16(sync_ind + 20, connsm->event_cntr);
+
+    /* lastPaEventCounter */
+    put_le16(sync_ind + 22, advsm->periodic_event_cntr_last_sent);
+
+    /* SID, AType, SCA */
+    sync_ind[24] = (advsm->adi >> 12);
+    sync_ind[24] |= !!(advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) << 4 ;
+    sync_ind[24] |= MYNEWT_VAL(BLE_LL_MASTER_SCA) << 5;
+
+    /* PHY */
+    sync_ind[25] = (0x01 << (advsm->sec_phy - 1));
+
+    /* AdvA */
+    memcpy(sync_ind + 26, advsm->adva, BLE_DEV_ADDR_LEN);
+
+    /* syncConnEventCount */
+    put_le16(sync_ind + 32, connsm->event_cntr);
+
+    ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL,
+                            BLE_LL_CTRL_PERIODIC_SYNC_IND_LEN + 1);
+
+    return BLE_ERR_SUCCESS;
+}
+
+int
+ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
+                                      uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_periodic_adv_set_info_transfer_cp *cmd = (const void *)cmdbuf;
+     struct ble_hci_le_periodic_adv_set_info_transfer_rp *rsp = (void *) rspbuf;
+     struct ble_ll_conn_sm *connsm;
+     struct ble_ll_adv_sm *advsm;
+     uint16_t handle;
+     int rc;
+
+     if (len != sizeof(*cmd)) {
+         rc = BLE_ERR_INV_HCI_CMD_PARMS;
+         goto done;
+     }
+
+     if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
+         rc = BLE_ERR_INV_HCI_CMD_PARMS;
+         goto done;
+     }
+
+     advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
+     if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+         rc = BLE_ERR_UNK_ADV_INDENT;
+         goto done;
+     }
+
+     if (!advsm->periodic_adv_active) {
+         rc = BLE_ERR_CMD_DISALLOWED;
+         goto done;
+     }
+
+     handle = le16toh(cmd->conn_handle);
+     if (handle > 0xeff) {
+         rc = BLE_ERR_INV_HCI_CMD_PARMS;
+         goto done;
+     }
+
+     connsm = ble_ll_conn_find_active_conn(handle);
+     if (!connsm) {
+         rc = BLE_ERR_UNK_CONN_ID;
+         goto done;
+     }
+
+     /* TODO should not need to shift
+      * byte 3 (0 byte is conn_feature) , bit 1
+      *
+      * Allow initiate LL procedure only if remote supports it.
+      */
+     if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SYNC_RECV >> (8 * 3)))) {
+         rc = BLE_ERR_UNSUPP_REM_FEATURE;
+         goto done;
+     }
+
+     rc = ble_ll_adv_periodic_send_sync_ind(advsm, connsm, cmd->service_data);
+ done:
+     rsp->conn_handle = cmd->conn_handle;
+     *rsplen = sizeof(*rsp);
+     return rc;
+}
+#endif
 #endif
 #endif
 
