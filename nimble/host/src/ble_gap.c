@@ -5185,7 +5185,6 @@ int
 ble_gap_unpair(const ble_addr_t *peer_addr)
 {
     struct ble_hs_conn *conn;
-    int rc;
 
     if (ble_addr_cmp(peer_addr, BLE_ADDR_ANY) == 0) {
         return BLE_HS_EINVAL;
@@ -5195,20 +5194,13 @@ ble_gap_unpair(const ble_addr_t *peer_addr)
 
     conn = ble_hs_conn_find_by_addr(peer_addr);
     if (conn != NULL) {
-        rc = ble_gap_terminate_with_conn(conn, BLE_ERR_REM_USER_CONN_TERM);
-        if ((rc != BLE_HS_EALREADY) && (rc != BLE_HS_ENOTCONN)) {
-            ble_hs_unlock();
-            return rc;
-        }
+        ble_gap_terminate_with_conn(conn, BLE_ERR_REM_USER_CONN_TERM);
     }
 
     ble_hs_unlock();
 
-    rc = ble_hs_pvcy_remove_entry(peer_addr->type,
-                                  peer_addr->val);
-    if (rc != 0) {
-        return rc;
-    }
+    ble_hs_pvcy_remove_entry(peer_addr->type,
+                             peer_addr->val);
 
     return ble_store_util_delete_peer(peer_addr);
 }
