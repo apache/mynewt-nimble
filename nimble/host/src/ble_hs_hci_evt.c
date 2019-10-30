@@ -689,14 +689,14 @@ ble_hs_hci_evt_le_conn_upd_complete(uint8_t subevent, const void *data,
     }
 
     if (ev->status == 0) {
-        BLE_HS_DBG_ASSERT(le16toh(ev->conn_itvl) > BLE_HCI_CONN_ITVL_MIN);
-        BLE_HS_DBG_ASSERT(le16toh(ev->conn_itvl) < BLE_HCI_CONN_ITVL_MAX);
+        BLE_HS_DBG_ASSERT(le16toh(ev->conn_itvl) >= BLE_HCI_CONN_ITVL_MIN);
+        BLE_HS_DBG_ASSERT(le16toh(ev->conn_itvl) <= BLE_HCI_CONN_ITVL_MAX);
 
-        BLE_HS_DBG_ASSERT(le16toh(ev->conn_latency) > BLE_HCI_CONN_LATENCY_MIN);
-        BLE_HS_DBG_ASSERT(le16toh(ev->conn_latency) < BLE_HCI_CONN_LATENCY_MAX);
+        BLE_HS_DBG_ASSERT(le16toh(ev->conn_latency) >= BLE_HCI_CONN_LATENCY_MIN);
+        BLE_HS_DBG_ASSERT(le16toh(ev->conn_latency) <= BLE_HCI_CONN_LATENCY_MAX);
 
-        BLE_HS_DBG_ASSERT(le16toh(ev->supervision_timeout) > BLE_HCI_CONN_SPVN_TIMEOUT_MIN);
-        BLE_HS_DBG_ASSERT(le16toh(ev->supervision_timeout) < BLE_HCI_CONN_SPVN_TIMEOUT_MAX);
+        BLE_HS_DBG_ASSERT(le16toh(ev->supervision_timeout) >= BLE_HCI_CONN_SPVN_TIMEOUT_MIN);
+        BLE_HS_DBG_ASSERT(le16toh(ev->supervision_timeout) <= BLE_HCI_CONN_SPVN_TIMEOUT_MAX);
     }
 
     ble_gap_rx_update_complete(ev);
@@ -727,15 +727,15 @@ ble_hs_hci_evt_le_conn_parm_req(uint8_t subevent, const void *data, unsigned int
         return BLE_HS_ECONTROLLER;
     }
 
-    BLE_HS_DBG_ASSERT(le16toh(ev->min_interval) > BLE_HCI_CONN_ITVL_MIN);
-    BLE_HS_DBG_ASSERT(le16toh(ev->max_interval) < BLE_HCI_CONN_ITVL_MAX);
+    BLE_HS_DBG_ASSERT(le16toh(ev->min_interval) >= BLE_HCI_CONN_ITVL_MIN);
+    BLE_HS_DBG_ASSERT(le16toh(ev->max_interval) <= BLE_HCI_CONN_ITVL_MAX);
     BLE_HS_DBG_ASSERT(le16toh(ev->max_interval) >= le16toh(ev->min_interval));
 
-    BLE_HS_DBG_ASSERT(le16toh(ev->latency) > BLE_HCI_CONN_LATENCY_MIN);
-    BLE_HS_DBG_ASSERT(le16toh(ev->latency) < BLE_HCI_CONN_LATENCY_MAX);
+    BLE_HS_DBG_ASSERT(le16toh(ev->latency) >= BLE_HCI_CONN_LATENCY_MIN);
+    BLE_HS_DBG_ASSERT(le16toh(ev->latency) <= BLE_HCI_CONN_LATENCY_MAX);
 
-    BLE_HS_DBG_ASSERT(le16toh(ev->timeout) > BLE_HCI_CONN_SPVN_TIMEOUT_MIN);
-    BLE_HS_DBG_ASSERT(le16toh(ev->timeout) < BLE_HCI_CONN_SPVN_TIMEOUT_MAX);
+    BLE_HS_DBG_ASSERT(le16toh(ev->timeout) >= BLE_HCI_CONN_SPVN_TIMEOUT_MIN);
+    BLE_HS_DBG_ASSERT(le16toh(ev->timeout) <= BLE_HCI_CONN_SPVN_TIMEOUT_MAX);
 
     ble_gap_rx_param_req(ev);
 
