@@ -188,17 +188,13 @@ ble_l2cap_remove_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 static void
 ble_l2cap_append_rx(struct ble_l2cap_chan *chan, struct os_mbuf *frag)
 {
-    int rc;
-
-    (void)rc;
-
 #if MYNEWT_VAL(BLE_L2CAP_JOIN_RX_FRAGS)
+    struct os_mbuf *m;
+
     /* Copy the data from the incoming fragment into the packet in progress. */
-    rc = os_mbuf_appendfrom(chan->rx_buf, frag, 0, OS_MBUF_PKTLEN(frag));
-    if (rc == 0) {
-        os_mbuf_free_chain(frag);
-        return;
-    }
+    m = os_mbuf_pack_chains(chan->rx_buf, frag);
+    assert(m);
+    return;
 #endif
 
     /* Join disabled or append failed due to mbuf shortage.  Just attach the
