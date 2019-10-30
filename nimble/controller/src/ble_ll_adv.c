@@ -490,6 +490,10 @@ ble_ll_adv_put_aux_ptr(uint8_t chan, uint8_t phy, uint32_t offset,
         offset = offset / 30;
     }
 
+    if (offset > 0x1fff) {
+        offset = 0;
+    }
+
     /* offset is 13bits and PHY 3 bits */
     dptr[1] = (offset & 0x000000ff);
     dptr[2] = ((offset >> 8) & 0x0000001f) | (phy - 1) << 5;
