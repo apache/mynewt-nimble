@@ -65,7 +65,7 @@ ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
     struct ble_hci_le_rmv_resolve_list_cp cmd;
 
     if (addr_type > BLE_ADDR_RANDOM) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        addr_type = addr_type % 2;
     }
 
     cmd.peer_addr_type = addr_type;
