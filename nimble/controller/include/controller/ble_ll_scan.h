@@ -250,7 +250,7 @@ int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /* Get aux ptr from ext advertising */
-int ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf);
+int ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf);
 
 /* Initialize the extended scanner when we start initiating */
 struct hci_ext_create_conn;
