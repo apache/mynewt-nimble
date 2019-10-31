@@ -58,12 +58,10 @@
     #error "Cannot have more than 255 scan response entries!"
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static const uint8_t ble_ll_valid_scan_phy_mask = (BLE_HCI_LE_PHY_1M_PREF_MASK
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-                                | BLE_HCI_LE_PHY_CODED_PREF_MASK
-#endif
-                              );
+#define SCAN_VALID_PHY_MASK     (BLE_HCI_LE_PHY_1M_PREF_MASK | BLE_HCI_LE_PHY_CODED_PREF_MASK)
+#else
+#define SCAN_VALID_PHY_MASK     (BLE_HCI_LE_PHY_1M_PREF_MASK)
 #endif
 
 /* The scanning parameters set by host */
@@ -3412,8 +3410,8 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
     /* Check if no reserved bits in PHYS are set and that at least one valid PHY
      * is set.
      */
-    if (!(cmd->phys & ble_ll_valid_scan_phy_mask) ||
-                                    (cmd->phys & ~ble_ll_valid_scan_phy_mask)) {
+    if (!(cmd->phys & SCAN_VALID_PHY_MASK) ||
+        (cmd->phys & ~SCAN_VALID_PHY_MASK)) {
          return BLE_ERR_INV_HCI_CMD_PARMS;
      }
 
