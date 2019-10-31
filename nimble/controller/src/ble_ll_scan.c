@@ -2114,6 +2114,11 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                             uint8_t **inita, uint8_t *inita_type,
                             int *ext_mode)
 {
+    /*
+     * XXX this should be only used for legacy advertising, but need to refactor
+     *     code in ble_ll_init first so it does not call this for ext
+     */
+
     if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND &&
         pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
         /* Legacy advertising */
@@ -2182,10 +2187,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t phy_mode;
     uint16_t adi;
+    struct ble_ll_aux_data *aux_data;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl = NULL;
 #endif
+    bool is_addr_decoded = false;
 
     /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
@@ -2229,6 +2236,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    /*
+     * For extended advertising events all data are decoded to aux_data and can
+     * be retrieved from there. For legacy advertising we need to get addresses
+     * from PDU.
+     */
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         if (!scansm->ext_scanning) {
             goto scan_rx_isr_exit;
@@ -2236,25 +2248,38 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
         rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf);
         if (rc < 0) {
-            /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
-
             goto scan_rx_isr_exit;
-        }
-        if (rc == 0) {
-            /* Let's tell LL to schedule aux */
+        } else if (rc == 0) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
         }
+
+        ext_adv_mode = rxbuf[2] >> 6;
+
+        aux_data = ble_hdr->rxinfo.user_data;
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+            peer = aux_data->addr;
+            peer_addr_type = aux_data->addr_type;
+        }
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+            inita = aux_data->dir_addr;
+            inita_type = aux_data->dir_addr_type;
+        }
+
+        is_addr_decoded = true;
 
         rc = -1;
     }
 #endif
 
-    /* Lets get addresses from advertising report*/
-    if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr,
-                                    &peer, &peer_addr_type,
-                                    &inita, &inita_type, &ext_adv_mode)) {
-        goto scan_rx_isr_exit;
+    if (!is_addr_decoded) {
+        /* Try to decode addresses from PDU */
+        if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr, &peer,
+                                        &peer_addr_type, &inita, &inita_type,
+                                        &ext_adv_mode)) {
+            goto scan_rx_isr_exit;
+        }
+        is_addr_decoded = true;
     }
 
     /* Determine if request may be sent and if whitelist needs to be checked */
@@ -2992,16 +3017,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     int backoff_success = 0;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     int ext_adv_mode = -1;
+    bool is_addr_decoded = false;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data;
+    struct ble_ll_aux_data *aux_data = NULL;
     int rc;
     uint8_t evt_possibly_truncated = 0;
-
-    /* No need to ref as this is only local helper
-     * and unref on hdr->rxinfo.user_data is done in the end of this function
-     */
-    aux_data = hdr->rxinfo.user_data;
-
 #endif
 
     /* if packet is scan response */
@@ -3012,6 +3032,8 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    aux_data = hdr->rxinfo.user_data;
+
     if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
         evt_possibly_truncated = 1;
         goto scan_continue;
@@ -3033,14 +3055,35 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         goto scan_continue;
     }
 
-    if (ble_ll_scan_adv_decode_addr(ptype, rxbuf, hdr,
-                                    &adv_addr, &txadd,
-                                    &init_addr, &init_addr_type,
-                                    &ext_adv_mode)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        evt_possibly_truncated = 1;
+    /*
+     * For extended advertising events all data are decoded to aux_data and can
+     * be retrieved from there. For legacy advertising we need to get addresses
+     * from PDU.
+     */
+    if (aux_data) {
+        ext_adv_mode = rxbuf[2] >> 6;
+
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+            adv_addr = aux_data->addr;
+            txadd = aux_data->addr_type;
+        }
+        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+            init_addr = aux_data->dir_addr;
+            init_addr_type = aux_data->dir_addr_type;
+        }
+
+        is_addr_decoded = true;
+    }
 #endif
-        goto scan_continue;
+
+    if (!is_addr_decoded) {
+        if (ble_ll_scan_adv_decode_addr(ptype, rxbuf, hdr, &adv_addr, &txadd,
+                                        &init_addr, &init_addr_type,
+                                        &ext_adv_mode)) {
+            goto scan_continue;
+        }
+        is_addr_decoded = true;
     }
 
     ident_addr = adv_addr;
