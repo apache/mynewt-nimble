@@ -1838,7 +1838,7 @@ ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         i += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
 
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
         i += 1;
     }
 
@@ -2007,7 +2007,7 @@ ble_ll_scan_parse_ext_hdr(struct os_mbuf *om,
            report->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
         }
 
-        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
             /* Just skip it for now*/
             i += 1;
         }
@@ -2848,7 +2848,7 @@ check_periodic_sync(const struct os_mbuf *om, struct ble_mbuf_hdr *rxhdr,
             i += BLE_LL_EXT_ADV_TARGETA_SIZE;
         }
 
-        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
             i += 1;
         }
 

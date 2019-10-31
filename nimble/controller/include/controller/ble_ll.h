@@ -329,7 +329,7 @@ struct ble_dev_addr
 
 #define BLE_LL_EXT_ADV_ADVA_BIT         (0)
 #define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
-#define BLE_LL_EXT_ADV_RFU_BIT          (2)
+#define BLE_LL_EXT_ADV_CTE_INFO_BIT     (2)
 #define BLE_LL_EXT_ADV_DATA_INFO_BIT    (3)
 #define BLE_LL_EXT_ADV_AUX_PTR_BIT      (4)
 #define BLE_LL_EXT_ADV_SYNC_INFO_BIT    (5)
