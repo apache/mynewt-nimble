@@ -4775,10 +4775,10 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     advsm->periodic_sync_active = 0;
     advsm->periodic_sync[0].sch.cb_arg = advsm;
     advsm->periodic_sync[0].sch.sched_cb = ble_ll_adv_sync_tx_start_cb;
-    advsm->periodic_sync[0].sch.sched_type = BLE_LL_SCHED_TYPE_SYNC;
+    advsm->periodic_sync[0].sch.sched_type = BLE_LL_SCHED_TYPE_PERIODIC;
     advsm->periodic_sync[1].sch.cb_arg = advsm;
     advsm->periodic_sync[1].sch.sched_cb = ble_ll_adv_sync_tx_start_cb;
-    advsm->periodic_sync[1].sch.sched_type = BLE_LL_SCHED_TYPE_SYNC;
+    advsm->periodic_sync[1].sch.sched_type = BLE_LL_SCHED_TYPE_PERIODIC;
 #endif
 #endif
 

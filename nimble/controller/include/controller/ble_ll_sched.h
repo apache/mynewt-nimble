@@ -74,7 +74,8 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_CONN      (3)
 #define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
 #define BLE_LL_SCHED_TYPE_DTM       (5)
-#define BLE_LL_SCHED_TYPE_SYNC      (6)
+#define BLE_LL_SCHED_TYPE_PERIODIC  (6)
+#define BLE_LL_SCHED_TYPE_SYNC      (7)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
