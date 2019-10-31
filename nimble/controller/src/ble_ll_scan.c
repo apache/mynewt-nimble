@@ -72,21 +72,6 @@ static struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
 /* The scanning state machine global object */
 static struct ble_ll_scan_sm g_ble_ll_scan_sm;
 
-#define BLE_LL_EXT_ADV_ADVA_BIT         (0)
-#define BLE_LL_EXT_ADV_TARGETA_BIT      (1)
-#define BLE_LL_EXT_ADV_RFU_BIT          (2)
-#define BLE_LL_EXT_ADV_DATA_INFO_BIT    (3)
-#define BLE_LL_EXT_ADV_AUX_PTR_BIT      (4)
-#define BLE_LL_EXT_ADV_SYNC_INFO_BIT    (5)
-#define BLE_LL_EXT_ADV_TX_POWER_BIT     (6)
-
-#define BLE_LL_EXT_ADV_ADVA_SIZE        (6)
-#define BLE_LL_EXT_ADV_TARGETA_SIZE     (6)
-#define BLE_LL_EXT_ADV_DATA_INFO_SIZE   (2)
-#define BLE_LL_EXT_ADV_AUX_PTR_SIZE     (3)
-#define BLE_LL_EXT_ADV_SYNC_INFO_SIZE   (18)
-#define BLE_LL_EXT_ADV_TX_POWER_SIZE    (1)
-
 struct ble_ll_ext_adv_hdr
 {
     uint8_t mode;
