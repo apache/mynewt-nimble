@@ -1637,6 +1637,16 @@ ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len)
 }
 #endif
 
+/*
+ * Called when a sync scan event has been removed from the scheduler
+ * without being run.
+ */
+void
+ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
+{
+    ble_ll_event_send(&sm->sync_ev_end);
+}
+
 void
 ble_ll_sync_reset(void)
 {

@@ -29,6 +29,8 @@
 extern "C" {
 #endif
 
+struct ble_ll_sync_sm;
+
 int ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_sync_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb);
 int ble_ll_sync_terminate(const uint8_t *cmdbuf, uint8_t len);
@@ -47,6 +49,7 @@ int ble_ll_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_sync_wfr_timer_exp(void);
 void ble_ll_sync_halt(void);
+void ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm);
 
 uint32_t ble_ll_sync_get_event_end_time(void);
 
