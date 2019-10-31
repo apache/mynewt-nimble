@@ -1759,176 +1759,124 @@ ble_ll_ext_scan_parse_adv_info(struct ext_adv_report *report, const uint8_t *buf
 }
 
 /**
- * ble_ll_scan_get_aux_data
+ * ble_ll_scan_update_aux_data
  *
- * Get aux data pointer. It is new allocated data for beacon or currently
- * processing aux data pointer. Aux data pointer will be attached to ble_hdr.rxinfo.user_data
+ * Update aux_data stored in ble_hdr.rxinfo.user_data. If no aux_data is present
+ * (i.e. processing ADV_EXT_IND) this will try to allocate new aux_data.
  *
  * Context: Interrupt
  *
- * @param scansm
  * @param ble_hdr
  * @param rxbuf
- * @param aux_data
  *
  * @return int
- *  0: new allocated aux data
- *  1: current processing aux data
+ *  1: do not scan for next AUX (no AuxPtr or malformed data)
+ *  0: scan for next AUX (valid AuxPtr found)
  * -1: error
  */
 int
-ble_ll_scan_get_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
+ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 {
-    uint8_t ext_hdr_len;
+    uint8_t pdu_hdr;
     uint8_t pdu_len;
-    uint8_t ext_hdr_flags;
-    uint8_t *ext_hdr;
-    uint8_t has_addr = 0;
-    uint8_t has_dir_addr = 0;
-    uint8_t has_adi = 0;
-    int i;
-    struct ble_ll_aux_data *current_aux = ble_hdr->rxinfo.user_data;
-    struct ble_ll_aux_data *new_aux = NULL;
-    struct ble_ll_aux_data tmp_aux_data = { 0 };
-    int rc;
+    uint8_t eh_len;
+    uint8_t eh_flags;
+    uint8_t *eh;
+    struct ble_ll_aux_data *aux_data;
+    bool is_aux;
 
+    aux_data = ble_hdr->rxinfo.user_data;
+    /* aux_data is initially not set only for ADV_EXT_IND */
+    is_aux = aux_data;
+
+    pdu_hdr = rxbuf[0];
     pdu_len = rxbuf[1];
+
+    /* PDU without at least Extended Header Length is invalid */
     if (pdu_len == 0) {
         return -1;
     }
 
-    tmp_aux_data.mode = rxbuf[2] >> 6;
+    eh_len = rxbuf[2];
+    eh_flags = rxbuf[3];
+    eh = &rxbuf[4];
 
-    ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len < BLE_LL_EXT_ADV_AUX_PTR_SIZE && !current_aux) {
-        return -1;
-    }
-
-    if (ext_hdr_len == 0) {
-        if (current_aux) {
-            /* This is last element in the chain.
-             * Clear incomplete flag
-             */
-            BLE_LL_AUX_CLEAR_FLAG(current_aux, BLE_LL_AUX_INCOMPLETE_BIT);
+    /*
+     * PDU without Extended Header indicates end of chain so aux_data has to be
+     * already set, otherwise it's invalid.
+     */
+    if (eh_len == 0) {
+        if (aux_data) {
+            BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
             return 1;
         }
-
         return -1;
     }
 
-    ext_hdr_flags = rxbuf[3];
-    ext_hdr = &rxbuf[4];
-
-    i = 0;
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
-        memcpy(tmp_aux_data.addr, ext_hdr + i, 6);
-        tmp_aux_data.addr_type =
-                ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
-        i += BLE_LL_EXT_ADV_ADVA_SIZE;
-        has_addr = 1;
-    }
-
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
-        memcpy(tmp_aux_data.dir_addr, ext_hdr + i, 6);
-               tmp_aux_data.dir_addr_type =
-                        ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_RXADD_MASK);
-               has_dir_addr = 1;
-        i += BLE_LL_EXT_ADV_TARGETA_SIZE;
-    }
-
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
-        i += 1;
-    }
-
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
-        tmp_aux_data.adi = get_le16(ext_hdr + i);
-        i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
-        has_adi = 1;
-    }
-
-    if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
-
-        if (ble_ll_ext_scan_parse_aux_ptr(&tmp_aux_data, ext_hdr + i) < 0) {
+    /*
+     * If aux_data is not set, this is ADV_EXT_IND which starts new extended
+     * advertising event.
+     */
+    if (!aux_data) {
+        if (ble_ll_scan_ext_adv_init(&aux_data)) {
             return -1;
         }
 
-        if (current_aux) {
-            /* If we are here that means there is chain advertising. */
+        aux_data->aux_primary_phy = ble_hdr->rxinfo.phy;
+    }
 
-            /* Lets reuse old aux_data */
-            new_aux = current_aux;
+    /* Now parse extended header... */
 
-            /* TODO Collision; Do smth smart when did does not match */
-            if (!(new_aux->evt_type & (BLE_HCI_ADV_SCAN_MASK))
-                            && (tmp_aux_data.adi != new_aux->adi)) {
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+        memcpy(aux_data->addr, eh, 6);
+        aux_data->addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_TXADD_MASK);
+        eh += BLE_LL_EXT_ADV_ADVA_SIZE;
+        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA);
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+        memcpy(aux_data->dir_addr, eh, 6);
+        aux_data->dir_addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_MASK);
+        eh += BLE_LL_EXT_ADV_TARGETA_SIZE;
+        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA);
+    }
+
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
+        eh += 1;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+        if (is_aux) {
+            if (get_le16(eh) != aux_data->adi) {
                 STATS_INC(ble_ll_stats, aux_chain_err);
-                BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
+                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
             }
-
-            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_CHAIN_BIT);
-            BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
         } else {
-            if (ble_ll_scan_ext_adv_init(&new_aux) < 0) {
-                /* Out of memory */
-                return -1;
-            }
+            aux_data->adi = get_le16(eh);
         }
+        eh += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_ADI);
+    }
 
-        new_aux->aux_phy = tmp_aux_data.aux_phy;
-
-        if (!current_aux) {
-            /* Only for first ext adv we want to keep primary phy.*/
-            new_aux->aux_primary_phy = ble_hdr->rxinfo.phy;
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+        if (ble_ll_ext_scan_parse_aux_ptr(aux_data, eh)) {
+            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
+        } else if (is_aux) {
+            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT);
+            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
         }
-
-        new_aux->chan = tmp_aux_data.chan;
-        new_aux->offset = tmp_aux_data.offset;
-        new_aux->mode = tmp_aux_data.mode;
-
-        /* New aux_data or chaining */
-        rc = 0;
     } else {
-
-        /* So ext packet does not have aux ptr. It can be because
-         * a) it is empty beacon (no aux ptr at all)
-         * b) there is no chaining or chaining has just stopped. In this case we do hava aux_data */
-
-        if (!current_aux) {
-            new_aux = NULL;
-            return 1;
-        }
-
-        /*If there is no new aux ptr, just get current one */
-        new_aux = ble_hdr->rxinfo.user_data;
-
-        /* Clear incomplete flag */
-        BLE_LL_AUX_CLEAR_FLAG(new_aux, BLE_LL_AUX_INCOMPLETE_BIT);
-
-        /* Current processing aux_ptr */
-        rc = 1;
+        BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
     }
 
-    if (has_adi) {
-        new_aux->adi = tmp_aux_data.adi;
-        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_ADI);
-    }
+    ble_hdr->rxinfo.user_data = aux_data;
 
-    if (has_addr) {
-        memcpy(new_aux->addr, tmp_aux_data.addr, 6);
-        new_aux->addr_type = tmp_aux_data.addr_type;
-        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_ADDRA);
-    }
-
-    if (has_dir_addr) {
-        memcpy(new_aux->dir_addr, tmp_aux_data.dir_addr, 6);
-        new_aux->dir_addr_type = tmp_aux_data.dir_addr_type;
-        BLE_LL_AUX_SET_FLAG(new_aux, BLE_LL_AUX_HAS_DIR_ADDRA);
-    }
-
-    ble_hdr->rxinfo.user_data = new_aux;
-
-    return rc;
+    /* Do not scan for next AUX if either no AuxPtr or malformed data found */
+    return !(eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) ||
+           BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
 }
+
 /**
  * Called when a receive ADV_EXT PDU has ended.
  *
@@ -2285,8 +2233,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         if (!scansm->ext_scanning) {
             goto scan_rx_isr_exit;
         }
-        /* Create new aux data for beacon or get current processing aux ptr */
-        rc = ble_ll_scan_get_aux_data(ble_hdr, rxbuf);
+
+        rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf);
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;

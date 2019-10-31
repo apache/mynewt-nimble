@@ -3004,7 +3004,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             goto init_rx_isr_exit;
         }
 
-        rc = ble_ll_scan_get_aux_data(ble_hdr, rxbuf);
+        rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf);
         if (rc < 0) {
             /* No memory or broken packet */
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
