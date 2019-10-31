@@ -448,7 +448,7 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
         }
 
         /* there should be no RFU in Sync or chain, skip it */
-        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_RFU_BIT)) {
+        if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
             i += 1;
         }
 
