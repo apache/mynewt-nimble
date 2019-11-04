@@ -1756,6 +1756,7 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      */
 
     connsm->conn_features = dptr[0] & our_feat;
+    memcpy(connsm->remote_features, dptr + 1, 7);
     memset(rspbuf + 1, 0, 8);
     put_le32(rspbuf + 1, our_feat);
     rspbuf[1] = connsm->conn_features;
