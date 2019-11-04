@@ -1411,7 +1411,7 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
 
     aux_next->start_time = aux->sch.end_time +
-                          ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
+                           ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
 
     sch = &aux_next->sch;
     sch->start_time = aux_next->start_time - g_ble_ll_sched_offset_ticks;
@@ -1530,7 +1530,7 @@ ble_ll_adv_aux_set_start_time(struct ble_ll_adv_sm *advsm)
     adv_event_dur = (adv_pdu_dur * chans) + (9 * (chans - 1));
 
     advsm->aux[0].start_time = advsm->adv_event_start_time + adv_event_dur +
-                               ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
+                               ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_MAFS_DELAY));
 }
 
 static void
@@ -2267,7 +2267,7 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     max_usecs = ble_ll_pdu_tx_time_get(sync_next->payload_len, advsm->sec_phy);
 
     sync_next->start_time = sync->sch.end_time +
-                            ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS);
+                            ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
 
     sch = &sync_next->sch;
     sch->start_time = sync_next->start_time - g_ble_ll_sched_offset_ticks;
