@@ -2735,16 +2735,9 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         ble_ll_hci_event_send(hci_ev);
 
         if (aux_data) {
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
-            /* In case it is scannable AUX and we are waiting for scan response,
-             * let us clear BLE_LL_SENT_EVENT_TO_HOST flag as we consider scan response
-             * as separate report even aux_data is reused.
-             * This is needed to proper detect of not completed advertising
-             * reports.
-             */
-            if ((aux_data->evt_type & BLE_HCI_ADV_SCAN_MASK) &&
-                    !(aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
-                BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
+            if (!(aux_data->evt_type & BLE_HCI_ADV_SCAN_MASK) ||
+                (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
+                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
             }
         }
 
