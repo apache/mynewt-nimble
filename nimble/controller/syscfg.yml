@@ -340,6 +340,20 @@ syscfg.defs:
             was sent from controller.
         value: -1
 
+# Below settings allow to change scheduler timings. These should be left at
+# default values unless you know what you are doing!
+    BLE_LL_SCHED_AUX_MAFS_DELAY:
+        description: >
+            Additional delay [us] between last ADV_EXT_IND and AUX_ADV_IND PDUs
+            when scheduling extended advertising event. This extends T_MAFS.
+        value: 0
+    BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY:
+        description: >
+            Additional delay [us] between consecutive AUX_CHAIN_IND PDUs
+            when scheduling extended or periodic advertising event. This extends
+            T_MAFS.
+        value: 0
+
 # deprecated settings (to be defunct/removed eventually)
     BLE_LL_DIRECT_TEST_MODE:
         description: use BLE_LL_DTM instead
