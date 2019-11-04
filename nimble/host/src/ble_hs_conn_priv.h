@@ -98,6 +98,10 @@ struct ble_hs_conn {
 
     ble_gap_event_fn *bhc_cb;
     void *bhc_cb_arg;
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    struct ble_hs_periodic_sync *psync;
+#endif
 };
 
 struct ble_hs_conn_addrs {

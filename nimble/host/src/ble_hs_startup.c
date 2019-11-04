@@ -228,6 +228,16 @@ ble_hs_startup_le_set_evmask_tx(void)
         mask |= 0x00000000000ff800;
     }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    if (version >= BLE_HCI_VER_BCS_5_1) {
+        /**
+         * Enable the following LE events:
+         * 0x0000000000800000 LE Periodic Advertising Sync Transfer Received event
+         */
+        mask |= 0x0000000000800000;
+    }
+#endif
+
     cmd.event_mask = htole64(mask);
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,

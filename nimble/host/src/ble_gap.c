@@ -1499,6 +1499,110 @@ ble_gap_rx_periodic_adv_sync_lost(const struct ble_hci_ev_le_subev_periodic_adv_
 }
 #endif
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+static int
+periodic_adv_transfer_disable(uint16_t conn_handle)
+{
+    struct ble_hci_le_periodic_adv_sync_transfer_params_cp cmd;
+    struct ble_hci_le_periodic_adv_sync_transfer_params_rp rsp;
+    uint16_t opcode;
+    int rc;
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS);
+
+    cmd.conn_handle = htole16(conn_handle);
+    cmd.sync_cte_type = 0x00;
+    cmd.mode = 0x00;
+    cmd.skip = 0x0000;
+    cmd.sync_timeout = 0x000a;
+
+    rc = ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), &rsp, sizeof(rsp));
+    if (!rc) {
+        BLE_HS_DBG_ASSERT(le16toh(rsp.conn_handle) == conn_handle);
+    }
+
+    return rc;
+}
+
+void
+ble_gap_rx_periodic_adv_sync_transfer(const struct ble_hci_ev_le_subev_periodic_adv_sync_transfer *ev)
+{
+    struct ble_hci_le_periodic_adv_term_sync_cp cmd_term;
+    struct ble_gap_event event;
+    struct ble_hs_conn *conn;
+    ble_gap_event_fn *cb;
+    uint16_t sync_handle;
+    uint16_t conn_handle;
+    uint16_t opcode;
+    void *cb_arg;
+
+    conn_handle = le16toh(ev->conn_handle);
+
+    ble_hs_lock();
+
+    /* Unfortunately spec sucks here as it doesn't explicitly stop
+     * transfer reception on first transfer... for now just disable it on
+     * every transfer event we get.
+     */
+    periodic_adv_transfer_disable(conn_handle);
+
+    conn = ble_hs_conn_find(le16toh(ev->conn_handle));
+    if (!conn || !conn->psync) {
+        /* terminate sync if we didn't expect it */
+        if (!ev->status) {
+            opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC);
+            cmd_term.sync_handle = ev->sync_handle;
+            ble_hs_hci_cmd_tx(opcode, &cmd_term, sizeof(cmd_term), NULL, 0);
+        }
+
+        ble_hs_unlock();
+        return;
+    }
+
+    cb = conn->psync->cb;
+    cb_arg = conn->psync->cb_arg;
+
+    memset(&event, 0, sizeof event);
+
+    event.type = BLE_GAP_EVENT_PERIODIC_TRANSFER;
+    event.periodic_transfer.status = ev->status;
+
+    /* only sync handle is not valid on error */
+    if (ev->status) {
+        sync_handle = 0;
+        ble_hs_periodic_sync_free(conn->psync);
+    } else {
+        sync_handle = le16toh(ev->sync_handle);
+
+        conn->psync->sync_handle = sync_handle;
+        conn->psync->adv_sid = ev->sid;
+        memcpy(conn->psync->advertiser_addr.val, ev->peer_addr, 6);
+        conn->psync->advertiser_addr.type = ev->peer_addr_type;
+        ble_hs_periodic_sync_insert(conn->psync);
+    }
+
+    conn->psync = NULL;
+
+    event.periodic_transfer.sync_handle = sync_handle;
+    event.periodic_transfer.conn_handle = conn_handle;
+    event.periodic_transfer.service_data = le16toh(ev->service_data);
+    event.periodic_transfer.sid = ev->sid;
+    memcpy(event.periodic_transfer.adv_addr.val, ev->peer_addr, 6);
+    event.periodic_transfer.adv_addr.type = ev->peer_addr_type;
+
+    event.periodic_transfer.adv_phy = ev->phy;
+    event.periodic_transfer.per_adv_itvl = le16toh(ev->interval);
+    event.periodic_transfer.adv_clk_accuracy = ev->aca;
+
+    ble_hs_unlock();
+
+    ble_gap_event_listener_call(&event);
+    if (cb) {
+        cb(&event, cb_arg);
+    }
+}
+#endif
+
 static int
 ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
 {
@@ -3561,6 +3665,205 @@ ble_gap_periodic_adv_sync_terminate(uint16_t sync_handle)
 
     return rc;
 }
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+int
+ble_gap_periodic_adv_sync_reporting(uint16_t sync_handle, bool enable)
+{
+    struct ble_hci_le_periodic_adv_receive_enable_cp cmd;
+    struct ble_hs_periodic_sync *psync;
+    uint16_t opcode;
+    int rc;
+
+    ble_hs_lock();
+
+    if (ble_gap_sync.op == BLE_GAP_OP_SYNC) {
+        ble_hs_unlock();
+        return BLE_HS_EBUSY;
+    }
+
+    psync = ble_hs_periodic_sync_find_by_handle(sync_handle);
+    if (!psync) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_RECEIVE_ENABLE);
+
+    cmd.sync_handle = htole16(sync_handle);
+    cmd.enable = enable ? 0x01 : 0x00;
+
+    rc = ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), NULL, 0);
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
+int
+ble_gap_periodic_adv_sync_transfer(uint16_t sync_handle, uint16_t conn_handle,
+                                   uint16_t service_data)
+{
+    struct ble_hci_le_periodic_adv_sync_transfer_cp cmd;
+    struct ble_hci_le_periodic_adv_sync_transfer_rp rsp;
+    struct ble_hs_periodic_sync *psync;
+    struct ble_hs_conn *conn;
+    uint16_t opcode;
+    int rc;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (!conn) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    psync = ble_hs_periodic_sync_find_by_handle(sync_handle);
+    if (!psync) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER);
+
+    cmd.conn_handle = htole16(conn_handle);
+    cmd.sync_handle = htole16(sync_handle);
+    cmd.service_data = htole16(service_data);
+
+    rc = ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), &rsp, sizeof(rsp));
+    if (!rc) {
+        BLE_HS_DBG_ASSERT(le16toh(rsp.conn_handle) == conn_handle);
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
+int
+ble_gap_periodic_adv_sync_set_info(uint8_t instance, uint16_t conn_handle,
+                                   uint16_t service_data)
+{
+    struct ble_hci_le_periodic_adv_set_info_transfer_cp cmd;
+    struct ble_hci_le_periodic_adv_set_info_transfer_rp rsp;
+    struct ble_hs_conn *conn;
+    uint16_t opcode;
+    int rc;
+
+    if (instance >= BLE_ADV_INSTANCES) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    if (ble_gap_slave[instance].periodic_op != BLE_GAP_OP_S_PERIODIC_ADV) {
+        /* periodic adv not enabled */
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (!conn) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_SET_INFO_TRANSFER);
+
+    cmd.conn_handle = htole16(conn_handle);
+    cmd.adv_handle = instance;
+    cmd.service_data = htole16(service_data);
+
+    rc = ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), &rsp, sizeof(rsp));
+    if (!rc) {
+        BLE_HS_DBG_ASSERT(le16toh(rsp.conn_handle) == conn_handle);
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}
+
+static int
+periodic_adv_transfer_enable(uint16_t conn_handle,
+                             const struct ble_gap_periodic_sync_params *params)
+{
+    struct ble_hci_le_periodic_adv_sync_transfer_params_cp cmd;
+    struct ble_hci_le_periodic_adv_sync_transfer_params_rp rsp;
+    uint16_t opcode;
+    int rc;
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_PERIODIC_ADV_SYNC_TRANSFER_PARAMS);
+
+    cmd.conn_handle = htole16(conn_handle);
+    cmd.sync_cte_type = 0x00;
+    cmd.mode = params->reports_disabled ? 0x01 : 0x02;
+    cmd.skip = htole16(params->skip);
+    cmd.sync_timeout = htole16(params->sync_timeout);
+
+    rc = ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), &rsp, sizeof(rsp));
+    if (!rc) {
+        BLE_HS_DBG_ASSERT(le16toh(rsp.conn_handle) == conn_handle);
+    }
+
+    return rc;
+}
+
+int
+ble_gap_periodic_adv_sync_receive(uint16_t conn_handle,
+                                  const struct ble_gap_periodic_sync_params *params,
+                                  ble_gap_event_fn *cb, void *cb_arg)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (!conn) {
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    if (params) {
+        if (conn->psync) {
+            ble_hs_unlock();
+            return BLE_HS_EALREADY;
+        }
+
+        conn->psync = ble_hs_periodic_sync_alloc();
+        if (!conn->psync) {
+            ble_hs_unlock();
+            return BLE_HS_ENOMEM;
+        }
+
+        rc = periodic_adv_transfer_enable(conn_handle, params);
+        if (rc) {
+            ble_hs_periodic_sync_free(conn->psync);
+            conn->psync = NULL;
+        } else {
+            conn->psync->cb = cb;
+            conn->psync->cb_arg = cb_arg;
+            ble_npl_event_init(&conn->psync->lost_ev, ble_gap_npl_sync_lost,
+                               conn->psync);
+        }
+    } else {
+        if (!conn->psync) {
+            ble_hs_unlock();
+            return BLE_HS_EALREADY;
+        }
+
+        rc = periodic_adv_transfer_disable(conn_handle);
+        if (!rc) {
+            ble_hs_periodic_sync_free(conn->psync);
+            conn->psync = NULL;
+        }
+    }
+
+    ble_hs_unlock();
+
+    return rc;
+}
+#endif
 
 int
 ble_gap_add_dev_to_periodic_adv_list(const ble_addr_t *peer_addr,
