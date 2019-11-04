@@ -3680,7 +3680,7 @@ static const struct shell_cmd_help periodic_stop_help = {
 static int
 cmd_sync_create(int argc, char **argv)
 {
-    struct ble_gap_periodic_sync_params params;
+    struct ble_gap_periodic_sync_params params = { 0 };
     ble_addr_t addr;
     ble_addr_t *addr_param = &addr;
     uint8_t sid;
@@ -3728,6 +3728,12 @@ cmd_sync_create(int argc, char **argv)
         return rc;
     }
 
+    params.reports_disabled = parse_arg_bool_dflt("reports_disabled", false, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'reports_disabled' parameter\n");
+        return rc;
+    }
+
     rc = ble_gap_periodic_adv_sync_create(addr_param, sid, &params,
                                           btshell_gap_event, NULL);
     if (rc) {
@@ -3745,6 +3751,7 @@ static const struct shell_param sync_create_params[] = {
     {"sid", "usage: =[UINT8], default: 0"},
     {"skip", "usage: =[0-0x01F3], default: 0x0000"},
     {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x000A"},
+    {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
 
@@ -3752,6 +3759,196 @@ static const struct shell_cmd_help sync_create_help = {
     .summary = "start/stop periodic sync procedure with specific parameters",
     .usage = NULL,
     .params = sync_create_params,
+};
+#endif
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+static int
+cmd_sync_transfer(int argc, char **argv)
+{
+    uint16_t service_data;
+    uint16_t conn_handle;
+    uint16_t sync_handle;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    sync_handle = parse_arg_uint16_dflt("sync_handle", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_handle' parameter\n");
+        return rc;
+    }
+
+    service_data = parse_arg_uint16_dflt("service_data", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'service_data' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_sync_transfer(sync_handle, conn_handle,
+                                            service_data);
+    if (rc) {
+        console_printf("Failed to transfer sync (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_transfer_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"sync_handle", "sync handle, usage: =[UINT16], default: 0"},
+    {"service_data", "service data, usage: =[UINT16], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_transfer_help = {
+    .summary = "start periodic sync transfer procedure with specific parameters",
+    .usage = NULL,
+    .params = sync_transfer_params,
+};
+#endif
+
+static int
+cmd_sync_transfer_set_info(int argc, char **argv)
+{
+    uint16_t service_data;
+    uint16_t conn_handle;
+    uint8_t instance;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    instance = parse_arg_uint8_dflt("instance", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'instance' parameter\n");
+        return rc;
+    }
+
+    service_data = parse_arg_uint16_dflt("service_data", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'service_data' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_sync_set_info(instance, conn_handle,
+                                                service_data);
+    if (rc) {
+        console_printf("Failed to transfer sync (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_transfer_set_info_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"instance", "advertising instance, usage: =[UINT8], default: 0"},
+    {"service_data", "service data, usage: =[UINT16], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_transfer_set_info_help = {
+    .summary = "start periodic sync transfer procedure with specific parameters",
+    .usage = NULL,
+    .params = sync_transfer_set_info_params,
+};
+#endif
+
+static int
+cmd_sync_transfer_receive(int argc, char **argv)
+{
+    struct ble_gap_periodic_sync_params params = { 0 };
+    uint16_t conn_handle;
+    bool disable;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    disable = parse_arg_bool_dflt("disable", false, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'disable' parameter\n");
+        return rc;
+    }
+
+    if (disable) {
+        rc = ble_gap_periodic_adv_sync_receive(conn_handle, NULL, NULL, NULL);
+        if (rc) {
+            console_printf("Failed to disable sync transfer reception (%d)\n", rc);
+        }
+
+        return rc;
+    }
+
+    params.skip = parse_arg_uint16_dflt("skip", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'skip' parameter\n");
+        return rc;
+    }
+
+    params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000, 10, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_timeout' parameter\n");
+        return rc;
+    }
+
+    params.reports_disabled = parse_arg_bool_dflt("reports_disabled", false, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'reports_disabled' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_sync_receive(conn_handle, &params, btshell_gap_event,
+                                       NULL);
+    if (rc) {
+        console_printf("Failed to enable sync transfer reception (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param sync_transfer_receive_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"disable", "disable transfer reception, usage: =[0-1], default: 0"},
+    {"skip", "usage: =[0-0x01F3], default: 0x0000"},
+    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x000A"},
+    {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
+    {NULL, NULL}
+};
+#endif
+
+static const struct shell_cmd_help sync_transfer_receive_help = {
+    .summary = "start/stop periodic sync reception with specific parameters",
+    .usage = NULL,
+    .params = sync_transfer_receive_params,
 };
 #endif
 
@@ -4281,6 +4478,29 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &sync_stats_help,
 #endif
     },
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    {
+        .sc_cmd = "sync-transfer",
+        .sc_cmd_func = cmd_sync_transfer,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_transfer_help,
+#endif
+    },
+    {
+        .sc_cmd = "sync-transfer-set-info",
+        .sc_cmd_func = cmd_sync_transfer_set_info,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_transfer_set_info_help,
+#endif
+    },
+    {
+        .sc_cmd = "sync-transfer-receive",
+        .sc_cmd_func = cmd_sync_transfer_receive,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &sync_transfer_receive_help,
+#endif
+    },
+#endif
 #endif
     { 0 },
 };
