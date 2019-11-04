@@ -1393,6 +1393,35 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_PERIODIC_REPORT:
         handle_periodic_report(event);
         return 0;
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_GAP_EVENT_PERIODIC_TRANSFER:
+        console_printf("Periodic Sync Transfer Received on conn=%u; status=%u,"
+                        " sync_handle=%u sid=%u phy=%u adv_interval=%u ca=%u "
+                        "addr_type=%u addr=",
+                       event->periodic_transfer.conn_handle,
+                       event->periodic_transfer.status,
+                       event->periodic_transfer.sync_handle,
+                       event->periodic_transfer.sid,
+                       event->periodic_transfer.adv_phy,
+                       event->periodic_transfer.per_adv_itvl,
+                       event->periodic_transfer.adv_clk_accuracy,
+                       event->periodic_transfer.adv_addr.type);
+        print_addr(event->periodic_transfer.adv_addr.val);
+        console_printf("\n");
+
+        if (!event->periodic_transfer.status) {
+            /* TODO non-NimBLE controllers may not start handles from 0 */
+            if (event->periodic_transfer.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
+                console_printf("Unable to prepare cache for sync data\n");
+            } else {
+                psync = &g_periodic_data[event->periodic_transfer.sync_handle];
+                memset(psync, 0, sizeof(*psync));
+                psync->changed = true;
+                psync->established = true;
+            }
+        }
+        return 0;
+#endif
 #endif
     default:
         return 0;
