@@ -1375,12 +1375,12 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
     case BLE_GAP_EVENT_PERIODIC_SYNC_LOST:
         /* TODO non-NimBLE controllers may not start handles from 0 */
-        if (event->periodic_sync.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
+        if (event->periodic_sync_lost.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
             console_printf("Periodic Sync Lost; sync_handle=%d reason=%d\n",
                             event->periodic_sync_lost.sync_handle,
                             event->periodic_sync_lost.reason);
         } else {
-            psync = &g_periodic_data[event->periodic_sync.sync_handle];
+            psync = &g_periodic_data[event->periodic_sync_lost.sync_handle];
 
             console_printf("Periodic Sync Lost; sync_handle=%d reason=%d completed=%u truncated=%u\n",
                            event->periodic_sync_lost.sync_handle,
