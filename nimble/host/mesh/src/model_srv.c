@@ -128,7 +128,7 @@ static void light_lightness_status(struct bt_mesh_model *model,
 	struct os_mbuf *msg = NET_BUF_SIMPLE(4);
 	s16_t *lightness;
 
-	bt_mesh_model_msg_init(msg, OP_GEN_LEVEL_STATUS);
+	bt_mesh_model_msg_init(msg, OP_LIGHT_LIGHTNESS_STATUS);
 	lightness = net_buf_simple_add(msg, 2);
 	if (cb && cb->get) {
 		cb->get(model, lightness);
