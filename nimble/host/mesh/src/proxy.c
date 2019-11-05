@@ -7,13 +7,11 @@
  */
 
 #include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_PROXY_LOG
 
 #if MYNEWT_VAL(BLE_MESH_PROXY)
 
 #include "mesh/mesh.h"
-
-#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_PROXY))
-#include "host/ble_hs_log.h"
 #include "host/ble_att.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "../../host/src/ble_hs_priv.h"

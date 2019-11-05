@@ -6,15 +6,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_MODEL_LOG
+
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
 
 #include "mesh/mesh.h"
-
-#include "syscfg/syscfg.h"
-#define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_MODEL)
-#include "host/ble_hs_log.h"
 
 #include "mesh_priv.h"
 #include "adv.h"

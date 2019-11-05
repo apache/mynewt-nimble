@@ -7,13 +7,11 @@
  */
 
 #include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_LOW_POWER_LOG
 
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 
 #include <stdint.h>
-
-#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER))
-#include "host/ble_hs_log.h"
 
 #include "mesh/mesh.h"
 #include "mesh_priv.h"
@@ -66,7 +64,7 @@
 
 static void (*lpn_cb)(u16_t friend_addr, bool established);
 
-#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_LVL) == LOG_LEVEL_DEBUG
 static const char *state2str(int state)
 {
 	switch (state) {
@@ -92,11 +90,11 @@ static const char *state2str(int state)
 		return "(unknown)";
 	}
 }
-#endif /* CONFIG_BLUETOOTH_MESH_DEBUG_LPN */
+#endif
 
 static inline void lpn_set_state(int state)
 {
-#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_LVL) == LOG_LEVEL_DEBUG
 	BT_DBG("%s -> %s", state2str(bt_mesh.lpn.state), state2str(state));
 #endif
 	bt_mesh.lpn.state = state;
@@ -311,7 +309,7 @@ static void req_sent(u16_t duration, int err, void *user_data)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-#if BT_DBG_ENABLED
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_LVL) == LOG_LEVEL_DEBUG
 	BT_DBG("req 0x%02x duration %u err %d state %s",
 	       lpn->sent_req, duration, err, state2str(lpn->state));
 #endif
@@ -725,7 +723,7 @@ static void lpn_timeout(struct ble_npl_event *work)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-#if MYNEWT_VAL(BLE_MESH_DEBUG_LOW_POWER)
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_LVL) == LOG_LEVEL_DEBUG
 	BT_DBG("state: %s", state2str(lpn->state));
 #endif
 

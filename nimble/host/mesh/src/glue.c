@@ -17,6 +17,9 @@
  * under the License.
  */
 
+#include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_LOG
+
 #include "mesh/glue.h"
 #include "adv.h"
 #ifndef MYNEWT
@@ -26,8 +29,6 @@
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
 #include "base64/base64.h"
 #endif
-
-#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
 
 extern u8_t g_mesh_addr_type;
 

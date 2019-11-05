@@ -32,8 +32,6 @@
 #include "services/gap/ble_svc_gap.h"
 #include "mesh/glue.h"
 
-#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
-
 /* Company ID */
 #define CID_VENDOR 0x05C3
 #define STANDARD_TEST_ID 0x00
