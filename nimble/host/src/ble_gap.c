@@ -3267,7 +3267,7 @@ ble_gap_periodic_adv_set(uint8_t instance, struct os_mbuf **data)
 
     do{
         cmd->operation = op;
-        cmd->adv_data_len = len;
+        cmd->adv_data_len = BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN;
         os_mbuf_copydata(*data, 0, BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN,
                          cmd->adv_data);
 
