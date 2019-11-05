@@ -108,6 +108,9 @@ struct ble_ll_aux_data {
     uint8_t mode;
     uint8_t scanning;
     uint8_t flags;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    int8_t rpa_index;
+#endif
     uint16_t adi;
     uint32_t offset;
     uint8_t offset_units;
@@ -139,7 +142,6 @@ struct ble_ll_scan_sm
     uint8_t scan_rsp_pending;
     uint8_t scan_rsp_cons_fails;
     uint8_t scan_rsp_cons_ok;
-    int8_t scan_rpa_index;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_npl_time_t scan_nrpa_timer;
@@ -250,7 +252,8 @@ int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /* Get aux ptr from ext advertising */
-int ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf);
+int ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
+                                bool *adva_present);
 
 /* Initialize the extended scanner when we start initiating */
 struct hci_ext_create_conn;

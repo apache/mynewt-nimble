@@ -73,6 +73,9 @@ struct ble_mbuf_hdr_rxinfo
     /* XXX: we could just use single phy_mode field */
     int8_t  phy;
     uint8_t phy_mode;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    int8_t  rpa_index;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     void *user_data;
 #endif

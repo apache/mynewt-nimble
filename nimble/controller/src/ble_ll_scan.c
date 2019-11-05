@@ -236,6 +236,9 @@ ble_ll_scan_ext_adv_init(struct ble_ll_aux_data **aux_data)
     e->sch.sched_cb = ble_ll_aux_scan_cb;
     e->sch.sched_type = BLE_LL_SCHED_TYPE_AUX_SCAN;
     e->ref_cnt = 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    e->rpa_index = -1;
+#endif
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_REF, (uint32_t)e, e->ref_cnt);
 
     *aux_data = e;
@@ -306,10 +309,11 @@ ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
  * @param adv_addr Pointer to device address of advertiser
  * @param addr_type 0 if public; non-zero if random. This is the addr type of
  *                  the advertiser; not our "own address type"
+ * @rpa_index       Index on resolve list to use
  */
 static void
 ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
-                            uint8_t adv_addr_type)
+                            uint8_t adv_addr_type, int rpa_index)
 {
     uint8_t     hdr_byte;
     uint8_t     *scana;
@@ -339,9 +343,9 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
     if (scansm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         rl = NULL;
         if (ble_ll_is_rpa(adv_addr, adv_addr_type)) {
-            if (scansm->scan_rpa_index >= 0) {
+            if (rpa_index >= 0) {
                 /* Generate a RPA to use for scana */
-                rl = &g_ble_ll_resolv_list[scansm->scan_rpa_index];
+                rl = &g_ble_ll_resolv_list[rpa_index];
             }
         } else {
             if (ble_ll_resolv_enabled()) {
@@ -1693,6 +1697,12 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
         ble_ll_wfr_disable();
         break;
     case BLE_SCAN_TYPE_PASSIVE:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND && scansm->ext_scanning)) {
+            *rxflags |= BLE_MBUF_HDR_F_EXT_ADV;
+        }
+        break;
+#endif
     default:
         break;
     }
@@ -1775,7 +1785,8 @@ ble_ll_ext_scan_parse_adv_info(struct ext_adv_report *report, const uint8_t *buf
  * -1: error
  */
 int
-ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
+ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
+                            bool *adva_present)
 {
     uint8_t pdu_hdr;
     uint8_t pdu_len;
@@ -1832,6 +1843,10 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         aux_data->addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_TXADD_MASK);
         eh += BLE_LL_EXT_ADV_ADVA_SIZE;
         BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA);
+
+        if (adva_present) {
+            *adva_present = true;
+        }
     }
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
@@ -2187,12 +2202,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t phy_mode;
     uint16_t adi;
-    struct ble_ll_aux_data *aux_data;
+    struct ble_ll_aux_data *aux_data = NULL;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl = NULL;
+    bool resolve_peer = false;
 #endif
-    bool is_addr_decoded = false;
 
     /* Get scanning state machine */
     scansm = &g_ble_ll_scan_sm;
@@ -2235,18 +2250,22 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto scan_rx_isr_exit;
     }
 
+    switch (pdu_type) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /*
      * For extended advertising events all data are decoded to aux_data and can
      * be retrieved from there. For legacy advertising we need to get addresses
      * from PDU.
      */
-    if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+    case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
         if (!scansm->ext_scanning) {
             goto scan_rx_isr_exit;
         }
-
-        rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+        rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf, &resolve_peer);
+#else
+        rc = ble_ll_scan_update_aux_data(ble_hdr, rxbuf, NULL);
+#endif
         if (rc < 0) {
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_INVALID;
             goto scan_rx_isr_exit;
@@ -2266,20 +2285,21 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             inita_type = aux_data->dir_addr_type;
         }
 
-        is_addr_decoded = true;
-
         rc = -1;
-    }
+    break;
 #endif
-
-    if (!is_addr_decoded) {
+    default:
         /* Try to decode addresses from PDU */
         if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr, &peer,
                                         &peer_addr_type, &inita, &inita_type,
                                         &ext_adv_mode)) {
             goto scan_rx_isr_exit;
         }
-        is_addr_decoded = true;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+        resolve_peer = true;
+#endif
+        break;
     }
 
     /* Determine if request may be sent and if whitelist needs to be checked */
@@ -2328,11 +2348,28 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     index = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    /* Only resolve if packet actually contained AdvA. With Extended Advertising
+     * is it possible that AdvA is present either in ADV_EXT_IND or AUX_ADV_IND
+     */
     if (ble_ll_resolv_enabled()) {
         if (ble_ll_is_rpa(peer, peer_addr_type)) {
-            index = ble_hw_resolv_list_match();
+            if (resolve_peer) {
+                index = ble_hw_resolv_list_match();
+            } else {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+                /* for legacy PDUs we always attempt to resolve */
+                BLE_LL_ASSERT(aux_data);
+                index = aux_data->rpa_index;
+#endif
+            }
+
             if (index >= 0) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+                if (aux_data) {
+                    aux_data->rpa_index = index;
+                }
+#endif
                 peer = g_ble_ll_resolv_list[index].rl_identity_addr;
                 peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
                 resolved = 1;
@@ -2367,12 +2404,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
         }
     }
+
+    ble_hdr->rxinfo.rpa_index = index;
 #else
     if (chk_send_req && inita && ble_ll_is_rpa(inita, inita_type)) {
         goto scan_rx_isr_exit;
     }
 #endif
-    scansm->scan_rpa_index = index;
 
     /* If whitelist enabled, check to see if device is in the white list */
     if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
@@ -2431,7 +2469,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
 #endif
             /* XXX: TODO assume we are on correct phy */
-            ble_ll_scan_req_pdu_prepare(scansm, adv_addr, addr_type);
+            ble_ll_scan_req_pdu_prepare(scansm, adv_addr, addr_type, index);
             rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm,
                             BLE_PHY_TRANSITION_TX_RX);
 
@@ -3083,7 +3121,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     ident_addr_type = txadd;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    index = scansm->scan_rpa_index;
+    index = hdr->rxinfo.rpa_index;
     if (index >= 0) {
         ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
         ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
