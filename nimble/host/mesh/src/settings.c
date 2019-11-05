@@ -5,10 +5,9 @@
  */
 
 #include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_SETTINGS_LOG
 
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
-
-#define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_SETTINGS)
 
 #include "mesh/mesh.h"
 #include "mesh/glue.h"

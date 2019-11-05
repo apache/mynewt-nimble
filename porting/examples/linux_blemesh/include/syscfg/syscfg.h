@@ -741,9 +741,25 @@
 #endif
 
 /*** @apache-mynewt-nimble/nimble/host/mesh */
+#ifndef MYNEWT_VAL_BLE_MESH_ACCESS_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_ACCESS_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_ACCESS_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_ACCESS_LOG_MOD (10)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_ADV_BUF_COUNT
 #define MYNEWT_VAL_BLE_MESH_ADV_BUF_COUNT (20)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_ADV_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_ADV_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_ADV_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_ADV_LOG_MOD (11)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_ADV_TASK_PRIO
@@ -755,6 +771,14 @@
 #define MYNEWT_VAL_BLE_MESH_APP_KEY_COUNT (4)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_BEACON_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_BEACON_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_BEACON_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_BEACON_LOG_MOD (12)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_CFG_CLI
 #define MYNEWT_VAL_BLE_MESH_CFG_CLI (1)
@@ -764,56 +788,12 @@
 #define MYNEWT_VAL_BLE_MESH_CRPL (10)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG
-#define MYNEWT_VAL_BLE_MESH_DEBUG (0)
+#ifndef MYNEWT_VAL_BLE_MESH_CRYPTO_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_CRYPTO_LOG_LVL (1)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_ACCESS
-#define MYNEWT_VAL_BLE_MESH_DEBUG_ACCESS (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_ADV
-#define MYNEWT_VAL_BLE_MESH_DEBUG_ADV (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_BEACON
-#define MYNEWT_VAL_BLE_MESH_DEBUG_BEACON (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_CRYPTO
-#define MYNEWT_VAL_BLE_MESH_DEBUG_CRYPTO (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_FRIEND
-#define MYNEWT_VAL_BLE_MESH_DEBUG_FRIEND (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_LOW_POWER
-#define MYNEWT_VAL_BLE_MESH_DEBUG_LOW_POWER (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_MODEL
-#define MYNEWT_VAL_BLE_MESH_DEBUG_MODEL (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_NET
-#define MYNEWT_VAL_BLE_MESH_DEBUG_NET (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_PROV
-#define MYNEWT_VAL_BLE_MESH_DEBUG_PROV (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_PROXY
-#define MYNEWT_VAL_BLE_MESH_DEBUG_PROXY (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_SETTINGS
-#define MYNEWT_VAL_BLE_MESH_DEBUG_SETTINGS (1)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_MESH_DEBUG_TRANS
-#define MYNEWT_VAL_BLE_MESH_DEBUG_TRANS (0)
+#ifndef MYNEWT_VAL_BLE_MESH_CRYPTO_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_CRYPTO_LOG_MOD (13)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_DEVICE_NAME
@@ -827,6 +807,14 @@
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_FRIEND
 #define MYNEWT_VAL_BLE_MESH_FRIEND (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_FRIEND_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_FRIEND_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_FRIEND_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_FRIEND_LOG_MOD (14)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_FRIEND_LPN_COUNT
@@ -872,9 +860,25 @@
 #define MYNEWT_VAL_BLE_MESH_LABEL_COUNT (2)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_LOG_MOD (9)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_LOW_POWER
 #define MYNEWT_VAL_BLE_MESH_LOW_POWER (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_LOW_POWER_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_LOW_POWER_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_LOW_POWER_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_LOW_POWER_LOG_MOD (15)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
@@ -935,8 +939,24 @@
 #define MYNEWT_VAL_BLE_MESH_MODEL_KEY_COUNT (1)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_MODEL_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_MODEL_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_MODEL_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_MODEL_LOG_MOD (16)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_MESH_MSG_CACHE_SIZE
 #define MYNEWT_VAL_BLE_MESH_MSG_CACHE_SIZE (10)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_NET_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_NET_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_NET_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_NET_LOG_MOD (17)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_NODE_ID_TIMEOUT
@@ -974,6 +994,14 @@
 #define MYNEWT_VAL_BLE_MESH_PROV (1)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_PROV_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_PROV_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_PROV_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_PROV_LOG_MOD (18)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/nimble/host/mesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_PROXY
 #define MYNEWT_VAL_BLE_MESH_PROXY (1)
@@ -981,6 +1009,14 @@
 
 #ifndef MYNEWT_VAL_BLE_MESH_PROXY_FILTER_SIZE
 #define MYNEWT_VAL_BLE_MESH_PROXY_FILTER_SIZE (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_PROXY_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_PROXY_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_PROXY_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_PROXY_LOG_MOD (19)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
@@ -1013,6 +1049,14 @@
 #define MYNEWT_VAL_BLE_MESH_SETTINGS (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_SETTINGS_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_SETTINGS_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_SETTINGS_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_SETTINGS_LOG_MOD (20)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_SHELL
 #define MYNEWT_VAL_BLE_MESH_SHELL (0)
@@ -1042,6 +1086,14 @@
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_TESTING
 #define MYNEWT_VAL_BLE_MESH_TESTING (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_TRANS_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_TRANS_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_TRANS_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_TRANS_LOG_MOD (21)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */

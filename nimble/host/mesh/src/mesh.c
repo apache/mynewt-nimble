@@ -6,15 +6,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_LOG
+
 #include <stdbool.h>
 #include <errno.h>
 
 #include "os/os_mbuf.h"
 #include "mesh/mesh.h"
-
-#include "syscfg/syscfg.h"
-#define BT_DBG_ENABLED (MYNEWT_VAL(BLE_MESH_DEBUG))
-#include "host/ble_hs_log.h"
 #include "host/ble_uuid.h"
 
 #include "adv.h"
@@ -149,14 +148,12 @@ int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 		return -EALREADY;
 	}
 
-	if (MYNEWT_VAL(BLE_MESH_DEBUG)) {
-		char uuid_buf[BLE_UUID_STR_LEN];
-		const struct bt_mesh_prov *prov = bt_mesh_prov_get();
-		ble_uuid_t *uuid = BLE_UUID128_DECLARE();
+	char uuid_buf[BLE_UUID_STR_LEN];
+	const struct bt_mesh_prov *prov = bt_mesh_prov_get();
+	ble_uuid_t *uuid = BLE_UUID128_DECLARE();
 
-		memcpy(BLE_UUID128(uuid)->value, prov->uuid, 16);
-		BT_INFO("Device UUID: %s", ble_uuid_to_str(uuid, uuid_buf));
-	}
+	memcpy(BLE_UUID128(uuid)->value, prov->uuid, 16);
+	BT_INFO("Device UUID: %s", ble_uuid_to_str(uuid, uuid_buf));
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) &&
 	    (bearers & BT_MESH_PROV_ADV)) {

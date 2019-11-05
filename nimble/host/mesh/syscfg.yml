@@ -347,82 +347,6 @@ syscfg.defs:
             the console.
         value: 0
 
-    BLE_MESH_DEBUG:
-        description: >
-            Use this option to enable debug logs for the Bluetooth
-            Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_NET:
-        description: >
-            Use this option to enable Network layer debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_TRANS:
-        description: >
-            Use this option to enable Transport layer debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_BEACON:
-        description: >
-            Use this option to enable Beacon-related debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_CRYPTO:
-        description: >
-            Use this option to enable cryptographic debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_PROV:
-        description: >
-            Use this option to enable Provisioning debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_ACCESS:
-        description: >
-            Use this option to enable Access layer and device composition
-            related debug logs for Bluetooth Mesh.
-        value: 0
-
-    BLE_MESH_DEBUG_MODEL:
-        description: >
-            Use this option to enable debug logs for the Foundation
-            Models.
-        value: 0
-
-    BLE_MESH_DEBUG_ADV:
-        description: >
-            Use this option to enable advertising debug logs for
-            the Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_LOW_POWER:
-        description: >
-            Use this option to enable Low Power debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_FRIEND:
-        description: >
-            Use this option to enable Friend debug logs for the
-            Bluetooth Mesh functionality.
-        value: 0
-
-    BLE_MESH_DEBUG_PROXY:
-        description: >
-            Use this option to enable Proxy protocol debug logs.
-        value: 0
-
-    BLE_MESH_DEBUG_SETTINGS:
-        description: >
-            Use this option to enable persistent settings debug logs.
-        value: 1
-
     BLE_MESH_IV_UPDATE_TEST:
         description: >
             This option removes the 96 hour limit of the IV Update
@@ -529,6 +453,178 @@ syscfg.defs:
         description: >
             Secondary sysinit stage for BLE mesh functionality.
         value: 1000
+
+    ### Log settings.
+
+    BLE_MESH_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh log messages.
+        value: 9
+    BLE_MESH_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh log.
+        value: 1
+
+    BLE_MESH_ACCESS_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Access-related log messages.
+        value: 10
+    BLE_MESH_ACCESS_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Access-related log.
+        value: 1
+
+    BLE_MESH_ADV_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh advertising log messages.
+        value: 11
+    BLE_MESH_ADV_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh log.
+        value: 1
+
+    BLE_MESH_BEACON_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Beacon-related log messages.
+        value: 12
+    BLE_MESH_BEACON_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Beacon-related log.
+        value: 1
+
+    BLE_MESH_CRYPTO_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh cryptographic log messages.
+        value: 13
+    BLE_MESH_CRYPTO_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh cryptographic log.
+        value: 1
+
+    BLE_MESH_FRIEND_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Friend log messages.
+        value: 14
+    BLE_MESH_FRIEND_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Friend log.
+        value: 1
+
+    BLE_MESH_LOW_POWER_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Low Power log messages.
+        value: 15
+    BLE_MESH_LOW_POWER_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Low Power log.
+        value: 1
+
+    BLE_MESH_MODEL_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Foundation Models log messages.
+        value: 16
+    BLE_MESH_MODEL_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Foundation Models log.
+        value: 1
+
+    BLE_MESH_NET_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Network layer log messages.
+        value: 17
+    BLE_MESH_NET_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Network layer log.
+        value: 1
+
+    BLE_MESH_PROV_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Provisioning log messages.
+        value: 18
+    BLE_MESH_PROV_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Provisioning log.
+        value: 1
+
+    BLE_MESH_PROXY_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Proxy protocol log messages.
+        value: 19
+    BLE_MESH_PROXY_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Proxy protocol log.
+        value: 1
+
+    BLE_MESH_SETTINGS_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh persistent settings log messages.
+        value: 20
+    BLE_MESH_SETTINGS_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh persistent settings log.
+        value: 1
+
+    BLE_MESH_TRANS_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Transport Layer log messages.
+        value: 21
+    BLE_MESH_TRANS_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Transport Layer log.
+        value: 1
+
+syscfg.logs:
+    BLE_MESH_LOG:
+        module: MYNEWT_VAL(BLE_MESH_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_LOG_LVL)
+
+    BLE_MESH_ACCESS_LOG:
+        module: MYNEWT_VAL(BLE_MESH_ACCESS_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_ACCESS_LOG_LVL)
+
+    BLE_MESH_ADV_LOG:
+        module: MYNEWT_VAL(BLE_MESH_ADV_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_ADV_LOG_LVL)
+
+    BLE_MESH_BEACON_LOG:
+        module: MYNEWT_VAL(BLE_MESH_BEACON_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_BEACON_LOG_LVL)
+
+    BLE_MESH_CRYPTO_LOG:
+        module: MYNEWT_VAL(BLE_MESH_CRYPTO_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_CRYPTO_LOG_LVL)
+
+    BLE_MESH_FRIEND_LOG:
+        module: MYNEWT_VAL(BLE_MESH_FRIEND_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_FRIEND_LOG_LVL)
+
+    BLE_MESH_LOW_POWER_LOG:
+        module: MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_LOW_POWER_LOG_LVL)
+
+    BLE_MESH_MODEL_LOG:
+        module: MYNEWT_VAL(BLE_MESH_MODEL_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_MODEL_LOG_LVL)
+
+    BLE_MESH_NET_LOG:
+        module: MYNEWT_VAL(BLE_MESH_NET_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_NET_LOG_LVL)
+
+    BLE_MESH_PROV_LOG:
+        module: MYNEWT_VAL(BLE_MESH_PROV_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_PROV_LOG_LVL)
+
+    BLE_MESH_PROXY_LOG:
+        module: MYNEWT_VAL(BLE_MESH_PROXY_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_PROXY_LOG_LVL)
+
+    BLE_MESH_SETTINGS_LOG:
+        module: MYNEWT_VAL(BLE_MESH_SETTINGS_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_SETTINGS_LOG_LVL)
+
+    BLE_MESH_TRANS_LOG:
+        module: MYNEWT_VAL(BLE_MESH_TRANS_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_TRANS_LOG_LVL)
 
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1
