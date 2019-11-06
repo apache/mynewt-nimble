@@ -87,27 +87,41 @@ struct ble_ll_scan_params
     uint32_t scan_win_start_time;
 };
 
-#define BLE_LL_AUX_CHAIN_BIT            0x01
-#define BLE_LL_AUX_INCOMPLETE_BIT       0x02
-#define BLE_LL_AUX_INCOMPLETE_ERR_BIT   0x04
-#define BLE_LL_AUX_HAS_ADDRA            0x08
-#define BLE_LL_SENT_EVENT_TO_HOST       0x10
-#define BLE_LL_AUX_HAS_DIR_ADDRA        0x20
-#define BLE_LL_AUX_TRUNCATED_SENT       0x40
-#define BLE_LL_AUX_HAS_ADI              0x80
+#define BLE_LL_AUX_HAS_ADDRA                    0x01
+#define BLE_LL_AUX_HAS_DIR_ADDRA                0x02
+#define BLE_LL_AUX_HAS_ADI                      0x04
 
 #define BLE_LL_AUX_SET_FLAG(aux_data, flag) ((aux_data)->flags |= (flag))
 #define BLE_LL_AUX_CLEAR_FLAG(aux_data, flag) ((aux_data)->flags &= ~(flag))
 #define BLE_LL_AUX_CHECK_FLAG(aux_data, flag) ((aux_data)->flags & (flag))
 
+#define BLE_LL_AUX_FLAG_AUX_RECEIVED            0x01
+#define BLE_LL_AUX_FLAG_HCI_SENT_ANY            0x02
+#define BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED      0x04
+#define BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED      0x08
+#define BLE_LL_AUX_FLAG_SCAN_COMPLETE           0x10
+#define BLE_LL_AUX_FLAG_SCAN_ERROR              0x20
+
 struct ble_ll_aux_data {
+    uint8_t flags;
+
+    /*
+     * Since aux_data can be accessed from ISR and LL, we have separate copies
+     * of flags to make sure that ISR does not modify flags while LL uses them.
+     * ISR updates 'flags_isr' and LL adds these to 'flags_ll' which it then
+     * uses for further processing allowing to update 'flags_isr' if another
+     * scan for given 'aux_data' is scheduled. Note that flags must not be unset
+     * while aux_data is valid.
+     */
+    uint8_t flags_isr;
+    uint8_t flags_ll;
+
     uint8_t ref_cnt;
     uint8_t chan;
     uint8_t aux_phy;
     uint8_t aux_primary_phy;
     uint8_t mode;
     uint8_t scanning;
-    uint8_t flags;
     uint16_t adi;
     uint32_t offset;
     uint8_t offset_units;
@@ -249,7 +263,6 @@ int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                                 int *ext_mode);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-/* Get aux ptr from ext advertising */
 int ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf);
 
 /* Initialize the extended scanner when we start initiating */
