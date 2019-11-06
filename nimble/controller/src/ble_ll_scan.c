@@ -1705,10 +1705,14 @@ ble_ll_ext_adv_phy_mode_to_local_phy(uint8_t adv_phy_mode)
     switch (adv_phy_mode) {
     case 0x00:
         return BLE_PHY_1M;
-    case 0x01:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+     case 0x01:
         return BLE_PHY_2M;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case 0x02:
         return BLE_PHY_CODED;
+#endif
     }
 
     return 0;
