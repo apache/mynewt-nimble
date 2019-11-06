@@ -468,12 +468,12 @@ ble_ll_scan_send_truncated(struct ble_ll_aux_data *aux_data)
     report->evt_type = aux_data->evt_type;
     report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
 
-    if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+    if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
         memcpy(report->addr, aux_data->addr, 6);
         report->addr_type = aux_data->addr_type;
     }
 
-    if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+    if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
         memcpy(report->dir_addr, aux_data->dir_addr, 6);
         report->dir_addr_type = aux_data->dir_addr_type;
     }
@@ -489,11 +489,7 @@ ble_ll_scan_send_truncated(struct ble_ll_aux_data *aux_data)
 static int
 ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
 {
-    if (!aux_data) {
-        return -1;
-    }
-
-    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADI)) {
+    if (!aux_data || !(aux_data->flags & BLE_LL_AUX_HAS_ADI)) {
         return -1;
     }
 
@@ -1843,17 +1839,17 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
     /* Now parse extended header... */
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+        aux_data->flags |= BLE_LL_AUX_HAS_ADDRA;
         memcpy(aux_data->addr, eh, 6);
         aux_data->addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_TXADD_MASK);
         eh += BLE_LL_EXT_ADV_ADVA_SIZE;
-        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA);
     }
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+        aux_data->flags |= BLE_LL_AUX_HAS_DIR_ADDRA;
         memcpy(aux_data->dir_addr, eh, 6);
         aux_data->dir_addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_MASK);
         eh += BLE_LL_EXT_ADV_TARGETA_SIZE;
-        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA);
     }
 
 
@@ -1862,6 +1858,7 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
     }
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+        aux_data->flags |= BLE_LL_AUX_HAS_ADI;
         if (is_aux) {
             if (get_le16(eh) != aux_data->adi) {
                 aux_data->flags_isr |= BLE_LL_AUX_FLAG_SCAN_ERROR;
@@ -1871,7 +1868,6 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
             aux_data->adi = get_le16(eh);
         }
         eh += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
-        BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_HAS_ADI);
     }
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
@@ -2091,7 +2087,7 @@ done:
 
     if (aux_data) {
         /* If address has been provided, we do have it already in aux_data.*/
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
             if (!has_adva) {
                 *addr = aux_data->addr;
                 *addr_type = aux_data->addr_type;
@@ -2105,7 +2101,7 @@ done:
             return 0;
         }
 
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
             if (!has_inita) {
                 *inita = aux_data->dir_addr;
                 *inita_type = aux_data->dir_addr_type;
@@ -2270,11 +2266,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         ext_adv_mode = rxbuf[2] >> 6;
 
         aux_data = ble_hdr->rxinfo.user_data;
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
             peer = aux_data->addr;
             peer_addr_type = aux_data->addr_type;
         }
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
             inita = aux_data->dir_addr;
             inita_type = aux_data->dir_addr_type;
         }
@@ -3068,11 +3064,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     if (aux_data) {
         ext_adv_mode = rxbuf[2] >> 6;
 
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_ADDRA) {
             adv_addr = aux_data->addr;
             txadd = aux_data->addr_type;
         }
-        if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_DIR_ADDRA)) {
+        if (aux_data->flags & BLE_LL_AUX_HAS_DIR_ADDRA) {
             init_addr = aux_data->dir_addr;
             init_addr_type = aux_data->dir_addr_type;
         }
