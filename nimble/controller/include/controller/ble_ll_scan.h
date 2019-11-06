@@ -91,10 +91,6 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_HAS_DIR_ADDRA                0x02
 #define BLE_LL_AUX_HAS_ADI                      0x04
 
-#define BLE_LL_AUX_SET_FLAG(aux_data, flag) ((aux_data)->flags |= (flag))
-#define BLE_LL_AUX_CLEAR_FLAG(aux_data, flag) ((aux_data)->flags &= ~(flag))
-#define BLE_LL_AUX_CHECK_FLAG(aux_data, flag) ((aux_data)->flags & (flag))
-
 #define BLE_LL_AUX_FLAG_AUX_RECEIVED            0x01
 #define BLE_LL_AUX_FLAG_HCI_SENT_ANY            0x02
 #define BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED      0x04
