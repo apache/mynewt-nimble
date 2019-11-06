@@ -436,7 +436,7 @@ ble_ll_scan_get_ext_adv_report(struct ext_adv_report *copy_from)
 }
 
 static void
-ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
+ble_ll_scan_send_truncated(struct ble_ll_aux_data *aux_data)
 {
     struct ble_hci_ev_le_subev_ext_adv_rpt *ev;
     struct ext_adv_report *report;
@@ -448,8 +448,9 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
 
     BLE_LL_ASSERT(aux_data);
 
-    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
-        /* if not chained, there is nothing to do here */
+    /* No need to send if we did not send any report or sent truncated already */
+    if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY) ||
+        (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED)) {
         return;
     }
 
@@ -465,8 +466,7 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
     report->data_len = 0;
 
     report->evt_type = aux_data->evt_type;
-    report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
-    BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+    report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
 
     if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_HAS_ADDRA)) {
         memcpy(report->addr, aux_data->addr, 6);
@@ -480,6 +480,10 @@ ble_ll_scan_send_truncated_if_chained(struct ble_ll_aux_data *aux_data)
 
     report->sid = aux_data->adi >> 12;
     ble_ll_hci_event_send(hci_ev);
+
+    aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
+    aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_ANY;
+    aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED;
 }
 
 static int
@@ -501,13 +505,8 @@ ble_ll_scan_get_adi(struct ble_ll_aux_data *aux_data, uint16_t *adi)
 void
 ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data)
 {
-    /* If part of the event has been sent to the host and truncated
-     * has not been sent, do it now
-     */
-    if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST) &&
-            !BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT)) {
-        ble_ll_scan_send_truncated_if_chained(aux_data);
-    }
+    /* Make sure we send report with 'truncated' data state if needed */
+    ble_ll_scan_send_truncated(aux_data);
 }
 #endif
 /**
@@ -1205,11 +1204,20 @@ ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_data)
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_AUX_UNREF, (uint32_t) aux_data, aux_data->ref_cnt);
 
     if (aux_data->ref_cnt == 0) {
-        /* Below assert is to detect missing complete or truncated event in case of chaining */
-        BLE_LL_ASSERT(!((BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT) &&
-                            BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST)) &&
-                            !(BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT) ||
-                            !BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT))));
+        /*
+         * Some validation to make sure that we completed scan properly:
+         * - we either did not send any report or sent completed/truncated
+         * - we only sent one of completed/truncated
+         * - in case of error, we wither did not send anything or sent truncated
+         */
+        BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY) ||
+                      ((aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY) &&
+                       (aux_data->flags_ll & (BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED | BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED))));
+        BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED) || !(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED));
+        BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_SCAN_ERROR) ||
+                      !(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY) ||
+                      (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED));
+
         ble_ll_scan_aux_data_free(aux_data);
     }
 
@@ -1781,6 +1789,7 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 {
     uint8_t pdu_hdr;
     uint8_t pdu_len;
+    uint8_t adv_mode;
     uint8_t eh_len;
     uint8_t eh_flags;
     uint8_t *eh;
@@ -1799,20 +1808,22 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         return -1;
     }
 
-    eh_len = rxbuf[2];
+    adv_mode = rxbuf[2] >> 6;
+    eh_len = rxbuf[2] & 0x3f;
     eh_flags = rxbuf[3];
     eh = &rxbuf[4];
 
     /*
-     * PDU without Extended Header indicates end of chain so aux_data has to be
-     * already set, otherwise it's invalid.
+     * PDU without Extended Header is valid in case of last AUX_CHAIN_IND in
+     * chain so aux_data has to be set and advertising mode has to be 00b,
+     * otherwise it's an invalid PDU.
      */
     if (eh_len == 0) {
-        if (aux_data) {
-            BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
-            return 1;
+        if (!aux_data || adv_mode) {
+            return -1;
         }
-        return -1;
+        aux_data->flags_isr |= BLE_LL_AUX_FLAG_SCAN_COMPLETE;
+        return 1;
     }
 
     /*
@@ -1825,6 +1836,8 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
         }
 
         aux_data->aux_primary_phy = ble_hdr->rxinfo.phy;
+    } else {
+        aux_data->flags_isr |= BLE_LL_AUX_FLAG_AUX_RECEIVED;
     }
 
     /* Now parse extended header... */
@@ -1851,8 +1864,8 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
     if (eh_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
         if (is_aux) {
             if (get_le16(eh) != aux_data->adi) {
+                aux_data->flags_isr |= BLE_LL_AUX_FLAG_SCAN_ERROR;
                 STATS_INC(ble_ll_stats, aux_chain_err);
-                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
             }
         } else {
             aux_data->adi = get_le16(eh);
@@ -1863,20 +1876,18 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf)
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (ble_ll_ext_scan_parse_aux_ptr(aux_data, eh)) {
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
-        } else if (is_aux) {
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT);
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
+            aux_data->flags_isr |= BLE_LL_AUX_FLAG_SCAN_ERROR;
         }
-    } else {
-        BLE_LL_AUX_CLEAR_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT);
+    } else if (!(adv_mode & BLE_LL_EXT_ADV_MODE_SCAN)) {
+        /* No AuxPtr for scannable PDU is ignored since we can still scan it */
+        aux_data->flags_isr |= BLE_LL_AUX_FLAG_SCAN_COMPLETE;
     }
 
     ble_hdr->rxinfo.user_data = aux_data;
 
     /* Do not scan for next AUX if either no AuxPtr or malformed data found */
     return !(eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) ||
-           BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
+           (aux_data->flags_isr & BLE_LL_AUX_FLAG_SCAN_ERROR);
 }
 
 /**
@@ -2604,6 +2615,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     int datalen;
     int rc;
     bool need_event;
+    bool is_scannable_aux;
     uint8_t max_data_len;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
@@ -2647,15 +2659,18 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
                                         hdr, ev->reports);
     if (datalen < 0) {
         rc = -1;
-        /* If we were in the middle of advertising report, let us send truncated report. */
-        if (aux_data &&
-                BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST) &&
-                BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
-            report = ev->reports;
 
+        /* Need to send truncated event if we already sent some reports */
+        if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY)) {
+            BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED));
+            BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED));
+
+            aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
+            aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED;
+
+            report = ev->reports;
             report->data_len = 0;
-            report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
+            report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
 
             ble_ll_hci_event_send(hci_ev);
             goto done;
@@ -2665,12 +2680,14 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         goto done;
     }
 
+    is_scannable_aux = aux_data &&
+                       (aux_data->evt_type & BLE_HCI_ADV_SCAN_MASK) &&
+                       !(aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK);
 
     max_data_len = BLE_LL_MAX_EVT_LEN - sizeof(*hci_ev) - sizeof(*ev) - sizeof(*report);
     offset = 0;
 
     do {
-        need_event = false;
         hci_ev_next = NULL;
 
         ev = (void *) hci_ev->data;
@@ -2685,19 +2702,12 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         os_mbuf_copydata(om, offset, report->data_len, report->data);
         offset += report->data_len;
 
-
-        if (offset < datalen) {
-            /* Need another event for next fragment of this PDU */
-            need_event = true;
-        } else if (aux_data && BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
-            need_event = false;
-        } else if (aux_data && BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
-            /* Need another event for next PDU in chain */
-            need_event = true;
-        }
-
-        /* Assume data status is not "completed" */
-        rc = 1;
+        /*
+         * We need another event if either there are still some data left to
+         * send in current PDU or scan is not completed. The only exception is
+         * when this is a scannable event which is not a scan response.
+         */
+        need_event = ((offset < datalen) || (aux_data && !(aux_data->flags_ll & BLE_LL_AUX_FLAG_SCAN_COMPLETE))) && !is_scannable_aux;
 
         if (need_event) {
             /*
@@ -2707,41 +2717,40 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
             hci_ev_next = ble_ll_scan_get_ext_adv_report(report);
 
             if (hci_ev_next) {
-                report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
+                report->evt_type |= BLE_HCI_ADV_DATA_STATUS_INCOMPLETE;
+                rc = 1;
             } else {
-                report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
+                report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
                 rc = -1;
-                if (aux_data) {
-                    BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
-                    if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST)) {
-                        ble_hci_trans_buf_free((uint8_t *)hci_ev);
-                        goto done;
-                    }
-                }
-
             }
-        } else if (aux_data) {
-            if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT)) {
-                report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_TRUNCATED);
-                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_TRUNCATED_SENT);
-                rc = -1;
-            } else if (BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_BIT)) {
-                report->evt_type |= (BLE_HCI_ADV_DATA_STATUS_INCOMPLETE);
-            } else {
-                rc = 0;
-            }
+        } else if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_SCAN_ERROR)) {
+            report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
+            rc = -1;
         } else {
             rc = 0;
         }
 
-        ble_ll_hci_event_send(hci_ev);
+        if ((rc == -1) && aux_data) {
+            aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
 
-        if (aux_data) {
-            if (!(aux_data->evt_type & BLE_HCI_ADV_SCAN_MASK) ||
-                (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
-                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST);
+            if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY)) {
+                ble_hci_trans_buf_free((uint8_t *)hci_ev);
+                goto  done;
+            }
+
+            aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED;
+        } else if (!is_scannable_aux) {
+            /*
+             * We do not set 'sent' flags for scannable AUX since we only care
+             * about scan response that will come next.
+             */
+            aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_ANY;
+            if (rc == 0) {
+                aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED;
             }
         }
+
+        ble_ll_hci_event_send(hci_ev);
 
         hci_ev = hci_ev_next;
     } while ((offset < datalen) && hci_ev);
@@ -2757,24 +2766,29 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     }
 
 done:
-    /* Incomplete event. Can leave now.*/
-    if (rc == 1) {
+    if (!aux_data) {
         return rc;
     }
 
-    if (aux_data){
-        if ((rc == 0) && (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK)) {
-            /* Scan response completed successfully, add to duplicate list
-             * if possible
-             */
+    if (rc == 0) {
+        if (aux_data->evt_type & BLE_HCI_ADV_SCAN_RSP_MASK) {
+            /* Complete scan response can be added to duplicates list */
             ble_ll_scan_add_scan_rsp_adv(aux_data->addr, aux_data->addr_type,
                                          1, aux_data->adi);
+        } else if (is_scannable_aux) {
+            /*
+             * Scannable AUX is marked as incomplete because we do not want to
+             * add this to duplicates list now, this should happen only after
+             * we receive complete scan response. The drawback here is that we
+             * will keep receiving reports for scannable PDUs until complete
+             * scan response is received.
+             *
+             * XXX ^^ extend duplicates list to fix
+             */
+            rc = 1;
         }
-
-        /* Error during sending event or even before.*/
-        if (rc < 0) {
-            BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
-        }
+    } else if (rc < 0) {
+        aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
     }
 
     return rc;
@@ -3014,9 +3028,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     int ext_adv_mode = -1;
     bool is_addr_decoded = false;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct ble_ll_aux_data *aux_data = NULL;
+    struct ble_ll_aux_data *aux_data = hdr->rxinfo.user_data;
+    bool aux_error = false;
     int rc;
-    uint8_t evt_possibly_truncated = 0;
 #endif
 
     /* if packet is scan response */
@@ -3027,20 +3041,15 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    aux_data = hdr->rxinfo.user_data;
-
-    if (BLE_MBUF_HDR_AUX_INVALID(hdr)) {
-        evt_possibly_truncated = 1;
-        goto scan_continue;
+    if (aux_data) {
+        aux_data->flags_ll |= aux_data->flags_isr;
     }
 
-    if (aux_data && (ptype != BLE_ADV_PDU_TYPE_ADV_EXT_IND ||
-                     BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT))) {
-        /* LL was scheduled for aux but received something different.
-         * Let's just ignore received event and send truncated for
-         * previous report if needed.
-         */
-        evt_possibly_truncated = 1;
+    /* Drop on scan error or if we received not what we expected to receive */
+    if (BLE_MBUF_HDR_AUX_INVALID(hdr) ||
+        (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_SCAN_ERROR)) ||
+        (aux_data && (ptype != BLE_ADV_PDU_TYPE_ADV_EXT_IND))) {
+        aux_error = true;
         goto scan_continue;
     }
 #endif
@@ -3165,25 +3174,19 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
             BLE_LL_ASSERT(aux_data);
 
-            /* ble_ll_sched_aux_scan will ref aux_data */
             if (ble_ll_sched_aux_scan(hdr, scansm, aux_data)) {
-                /* We are here when could not schedule the aux ptr */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-                /* Mark that chain is trimmed */
-                BLE_LL_AUX_SET_FLAG(aux_data, BLE_LL_AUX_INCOMPLETE_ERR_BIT);
-                /* Note: aux_data unref will be done when truncated is sent to the host or
-                 * below if we failed to schedule for the very first aux packet.
-                 */
-                if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_SENT_EVENT_TO_HOST)) {
+
+                aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
+
+                /* Just ignore if no HCI event was sent to host */
+                if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY)) {
                     goto scan_continue;
                 }
             }
 
-            /*
-             * If this is ext adv, there is nothing to do here but just leave and wait
-             * for aux packet.
-             */
-            if (!BLE_LL_AUX_CHECK_FLAG(aux_data, BLE_LL_AUX_CHAIN_BIT)) {
+            /* Ignore if this was just ADV_EXT_IND with AuxPtr, will process AUX */
+            if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_AUX_RECEIVED)) {
                 goto scan_continue;
             }
 
@@ -3195,26 +3198,19 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             !ble_ll_scan_dup_check_ext(ident_addr_type, ident_addr, aux_data)) {
             rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
                                                 init_addr, init_addr_type, om, hdr);
-            if (rc < 0) {
-                /*
-                 * Data were trimmed so no need to scan this chain anymore. Also
-                 * make sure we do not send any more events for this chain, just in
-                 * case we managed to scan something before events were processed.
-                 */
-                if (BLE_MBUF_HDR_WAIT_AUX(hdr)) {
-                    hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
-                    if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
-                        /* AUX PTR removed from the scheduler.
-                         * Unref aux_data which are stored in the scheduler item
-                         * as a cb_arg
-                         */
-                        ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
-                        aux_data->sch.cb_arg = NULL;
+            if ((rc < 0) && BLE_MBUF_HDR_WAIT_AUX(hdr)) {
+                /* Data were truncated, stop scanning for subsequent chains */
+                hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
 
-                    }
-                    evt_possibly_truncated = 1;
+                if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
+                    ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
+                    aux_data->sch.cb_arg = NULL;
                 }
-            } else if (!rc && scansm->scan_filt_dups) {
+
+                aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
+                aux_error = true;
+            } else if ((rc == 0) && scansm->scan_filt_dups) {
+                /* Complete data were send, now we can update scan_dup list */
                 ble_ll_scan_dup_update_ext(ident_addr_type, ident_addr, aux_data);
             }
         }
@@ -3253,7 +3249,7 @@ scan_continue:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (aux_data) {
-        if (evt_possibly_truncated || !BLE_MBUF_HDR_CRC_OK(hdr)) {
+        if (aux_error || !BLE_MBUF_HDR_CRC_OK(hdr)) {
             ble_ll_scan_end_adv_evt(aux_data);
         }
 
