@@ -512,11 +512,8 @@ ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data)
     }
 }
 #endif
-/**
- * Do scan machine clean up on PHY disabled
- *
- */
-void
+
+static void
 ble_ll_scan_clean_cur_aux_data(void)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -529,6 +526,20 @@ ble_ll_scan_clean_cur_aux_data(void)
         scansm->cur_aux_data = NULL;
     }
 #endif
+}
+
+void
+ble_ll_scan_halt(void)
+{
+    struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
+
+    ble_ll_scan_clean_cur_aux_data();
+
+    /* Update backoff if we failed to receive scan response */
+    if (scansm->scan_rsp_pending) {
+        scansm->scan_rsp_pending = 0;
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
 }
 
 /**

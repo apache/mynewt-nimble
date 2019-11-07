@@ -263,8 +263,8 @@ void ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
 void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 #endif
 
-/* Called to clean up current aux data */
-void ble_ll_scan_clean_cur_aux_data(void);
+/* Called to halt currently running scan */
+void ble_ll_scan_halt(void);
 
 #ifdef __cplusplus
 }
