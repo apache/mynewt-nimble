@@ -641,15 +641,15 @@ ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa, int local)
  * @return int
  */
 int
-ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk)
+ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
 {
     int rc;
-    uint32_t *irk32;
+    const uint32_t *irk32;
     uint32_t *key32;
     uint32_t *pt32;
     struct ble_encryption_block ecb;
 
-    irk32 = (uint32_t *)irk;
+    irk32 = (const uint32_t *)irk;
     key32 = (uint32_t *)&ecb.key[0];
 
     key32[0] = irk32[0];
@@ -676,6 +676,20 @@ ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk)
     }
 
     return rc;
+}
+
+int
+ble_ll_resolv_peer_rpa_any(const uint8_t *rpa)
+{
+    int i;
+
+    for (i = 0; i < g_ble_ll_resolv_data.rl_cnt_hw; i++) {
+        if (ble_ll_resolv_rpa(rpa, g_ble_ll_resolv_list[i].rl_peer_irk)) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 /**
