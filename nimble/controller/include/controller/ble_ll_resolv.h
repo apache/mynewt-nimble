@@ -98,7 +98,10 @@ int ble_ll_resolve_set_priv_mode(const uint8_t *cmdbuf, uint8_t len);
 uint32_t ble_ll_resolv_get_rpa_tmo(void);
 
 /* Resolve a resolvable private address */
-int ble_ll_resolv_rpa(uint8_t *rpa, uint8_t *irk);
+int ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk);
+
+/* Try to resolve peer RPA and return index on RL if matched */
+int ble_ll_resolv_peer_rpa_any(const uint8_t *rpa);
 
 /* Initialize resolv*/
 void ble_ll_resolv_init(void);
