@@ -21,8 +21,10 @@
 #define H_BLE_HS_LOG_
 
 #include "modlog/modlog.h"
-#if MYNEWT
-#include "os/mynewt.h"
+
+/* Only include the logcfg header if this version of newt can generate it. */
+#if MYNEWT_VAL(NEWT_FEATURE_LOGCFG)
+#include "logcfg/logcfg.h"
 #endif
 
 #ifdef __cplusplus
@@ -30,20 +32,6 @@ extern "C" {
 #endif
 
 struct os_mbuf;
-
-/* Logging macros are generated automatically for Mynewt.  Define them here for
- * other OSes.
- */
-#if !MYNEWT
-
-#define BLE_HS_LOG_DEBUG(...) MODLOG_DEBUG(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-#define BLE_HS_LOG_INFO(...)  MODLOG_INFO(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-#define BLE_HS_LOG_WARN(...)  MODLOG_WARN(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-#define BLE_HS_LOG_ERROR(...) MODLOG_ERROR(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-#define BLE_HS_LOG_CRITICAL(...)    \
-    MODLOG_CRITICAL(LOG_MODULE_NIMBLE_HOST, __VA_ARGS__)
-
-#endif
 
 #define BLE_HS_LOG(lvl, ...) \
     BLE_HS_LOG_ ## lvl(__VA_ARGS__)
