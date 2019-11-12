@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <pthread.h>
 #include "nimble/nimble_npl.h"
@@ -67,9 +68,14 @@ void mesh_initialized(void)
                       TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     int ret = 0;
+
+    /* allow to specify custom hci */
+    if (argc > 1) {
+        ble_hci_sock_set_device(atoi(argv[1]));
+    }
 
     ble_hci_sock_init();
     nimble_port_init();
