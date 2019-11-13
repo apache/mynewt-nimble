@@ -2715,9 +2715,6 @@ void
 ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
                       struct ble_mbuf_hdr *ble_hdr)
 {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    int8_t rpa_index;
-#endif
     uint8_t addr_type;
     uint8_t *addr;
     uint8_t *adv_addr;
@@ -2791,30 +2788,25 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
             goto scan_continue;
         }
 
-        if (ble_ll_scan_whitelist_enabled()) {
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-            /*
-             * Did we resolve this address? If so, set correct peer address
-             * and peer address type.
-             */
-            rpa_index = connsm->rpa_index;
-
-            if (rpa_index >= 0) {
-                addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type + 2;
-                addr = g_ble_ll_resolv_list[rpa_index].rl_identity_addr;
-            } else {
-                addr = adv_addr;
-            }
-#else
+        /*
+         * Did we resolve this address? If so, set correct peer address
+         * and peer address type.
+         */
+        if (connsm->rpa_index >= 0) {
+            addr_type = g_ble_ll_resolv_list[connsm->rpa_index].rl_addr_type + 2;
+            addr = g_ble_ll_resolv_list[connsm->rpa_index].rl_identity_addr;
+        } else {
             addr = adv_addr;
+        }
+#else
+        addr = adv_addr;
 #endif
 
+        if (connsm->rpa_index >= 0) {
             connsm->peer_addr_type = addr_type;
             memcpy(connsm->peer_addr, addr, BLE_DEV_ADDR_LEN);
-        }
 
-        if (connsm->rpa_index >= 0) {
             ble_ll_scan_set_peer_rpa(adv_addr);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -2825,6 +2817,12 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
             }
 
 #endif
+        } else if (ble_ll_scan_whitelist_enabled()) {
+            /* if WL is used we need to store peer addr also if it was not
+             * resolved
+             */
+            connsm->peer_addr_type = addr_type;
+            memcpy(connsm->peer_addr, addr, BLE_DEV_ADDR_LEN);
         }
 
         /* Connection has been created. Stop scanning */
