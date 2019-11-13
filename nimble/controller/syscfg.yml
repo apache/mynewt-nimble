@@ -72,12 +72,11 @@ syscfg.defs:
         description: 'Transmit power level.'
         value: '0'
 
-    BLE_NUM_COMP_PKT_RATE:
+    BLE_LL_NUM_COMP_PKT_ITVL_MS:
         description: >
-            Determines the maximum rate at which the controller will send the
-            number of completed packets event to the host. Rate is in os time
-            ticks.
-        value: '(2 * OS_TICKS_PER_SEC)'
+            Determines the interval at which the controller will send the
+            number of completed packets event to the host. Rate is in milliseconds.
+        value: 2000
 
     BLE_LL_MFRG_ID:
         description: >
@@ -369,6 +368,11 @@ syscfg.defs:
         description: Superseded by BLE_CONTROLLER
         value: 1
         defunct: 1
+    BLE_NUM_COMP_PKT_RATE:
+        description: Superseded by BLE_LL_NUM_COMP_PKT_ITVL_MS
+        value: '(2 * OS_TICKS_PER_SEC)'
+        defunct: 1
+
 
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1

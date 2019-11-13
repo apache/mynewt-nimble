@@ -264,7 +264,7 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
      * (i.e. enqueued in a connection state machine).
      */
     if ((ble_npl_stime_t)(ble_npl_time_get() - g_ble_ll_last_num_comp_pkt_evt) <
-                                            MYNEWT_VAL(BLE_NUM_COMP_PKT_RATE)) {
+        ble_npl_time_ms_to_ticks32(MYNEWT_VAL(BLE_LL_NUM_COMP_PKT_ITVL_MS))) {
         /*
          * If this connection has completed packets, send an event right away.
          * We do this to increase throughput but we dont want to search the
