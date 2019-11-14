@@ -188,6 +188,8 @@ mesh_adv_thread(void *args)
 		if (BT_MESH_ADV(buf)->busy) {
 			BT_MESH_ADV(buf)->busy = 0;
 			adv_send(buf);
+		} else {
+			net_buf_unref(buf);
 		}
 
 		/* os_sched(NULL); */
