@@ -238,11 +238,6 @@ static void mod_publish(struct ble_npl_event *work)
 	if (err) {
 		BT_ERR("Publishing failed (err %d)", err);
 	}
-
-	if (pub->count) {
-		/* Retransmissions also control the timer */
-		k_delayed_work_cancel(&pub->timer);
-	}
 }
 
 struct bt_mesh_elem *bt_mesh_model_elem(struct bt_mesh_model *mod)
