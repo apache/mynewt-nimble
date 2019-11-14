@@ -362,6 +362,8 @@ int bt_mesh_fault_update(struct bt_mesh_elem *elem)
 		return -EINVAL;
 	}
 
+	health_pub_update(mod);
+
 	return bt_mesh_model_publish(mod);
 }
 
