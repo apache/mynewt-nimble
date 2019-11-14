@@ -1302,7 +1302,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 		      enum bt_mesh_net_if net_if)
 {
 	struct os_mbuf *buf = NET_BUF_SIMPLE(29);
-	struct bt_mesh_net_rx rx = { .rssi = rssi };
+	struct bt_mesh_net_rx rx = { .ctx.recv_rssi = rssi };
 	struct net_buf_simple_state state;
 
 	BT_DBG("rssi %d net_if %u", rssi, net_if);
