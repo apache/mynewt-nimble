@@ -100,7 +100,6 @@
 enum {
 	REMOTE_PUB_KEY,        /* Remote key has been received */
 	LINK_ACTIVE,           /* Link has been opened */
-	HAVE_DHKEY,            /* DHKey has been calculated */
 	SEND_CONFIRM,          /* Waiting to send Confirm value */
 	WAIT_NUMBER,           /* Waiting for number input from user */
 	WAIT_STRING,           /* Waiting for string input from user */
@@ -843,10 +842,6 @@ int bt_mesh_input_number(u32_t num)
 
 	send_input_complete();
 
-	if (!atomic_test_bit(link.flags, HAVE_DHKEY)) {
-		return 0;
-	}
-
 	if (atomic_test_and_clear_bit(link.flags, SEND_CONFIRM)) {
 		send_confirm();
 	}
@@ -866,10 +861,6 @@ int bt_mesh_input_string(const char *str)
 
 	send_input_complete();
 
-	if (!atomic_test_bit(link.flags, HAVE_DHKEY)) {
-		return 0;
-	}
-
 	if (atomic_test_and_clear_bit(link.flags, SEND_CONFIRM)) {
 		send_confirm();
 	}
@@ -877,36 +868,22 @@ int bt_mesh_input_string(const char *str)
 	return 0;
 }
 
-static void prov_dh_key_cb(const u8_t key[32])
-{
-	BT_DBG("%p", key);
-
-	if (!key) {
-		BT_ERR("DHKey generation failed");
-		prov_send_fail_msg(PROV_ERR_UNEXP_ERR);
-		return;
-	}
-
-	sys_memcpy_swap(link.dhkey, key, 32);
-
-	BT_DBG("DHkey: %s", bt_hex(link.dhkey, 32));
-
-	atomic_set_bit(link.flags, HAVE_DHKEY);
-
-	if (atomic_test_bit(link.flags, WAIT_NUMBER) ||
-	    atomic_test_bit(link.flags, WAIT_STRING)) {
-		return;
-	}
-
-	if (atomic_test_and_clear_bit(link.flags, SEND_CONFIRM)) {
-		send_confirm();
-	}
-}
-
-static void send_pub_key(void)
+static void send_pub_key(const u8_t dhkey[32])
 {
 	struct os_mbuf *buf = PROV_BUF(65);
 	const u8_t *key;
+
+	BT_DBG("%p", dhkey);
+
+	if (!dhkey) {
+		BT_ERR("DHKey generation failed");
+		prov_send_fail_msg(PROV_ERR_UNEXP_ERR);
+		goto done;
+	}
+
+	sys_memcpy_swap(link.dhkey, dhkey, 32);
+
+	BT_DBG("DHkey: %s", bt_hex(link.dhkey, 32));
 
 	key = bt_pub_key_get();
 	if (!key) {
@@ -916,20 +893,6 @@ static void send_pub_key(void)
 	}
 
 	BT_DBG("Local Public Key: %s", bt_hex(key, 64));
-
-	/* Copy remote key in little-endian for bt_dh_key_gen().
-	 * X and Y halves are swapped independently. Use response
-	 * buffer as a temporary storage location. The bt_dh_key_gen()
-	 * will also take care of validating the remote public key.
-	 */
-	sys_memcpy_swap(buf->om_data, &link.conf_inputs[17], 32);
-	sys_memcpy_swap(&buf->om_data[32], &link.conf_inputs[49], 32);
-
-	if (bt_dh_key_gen(buf->om_data, prov_dh_key_cb)) {
-		BT_ERR("Failed to generate DHKey");
-		prov_send_fail_msg(PROV_ERR_UNEXP_ERR);
-		return;
-	}
 
 	prov_buf_init(buf, PROV_PUB_KEY);
 
@@ -941,13 +904,32 @@ static void send_pub_key(void)
 
 	if (prov_send(buf)) {
 		BT_ERR("Failed to send Public Key");
-		return;
+		goto done;
 	}
 
+	atomic_set_bit(link.flags, SEND_CONFIRM);
 	link.expect = PROV_CONFIRM;
 
 done:
 	os_mbuf_free_chain(buf);
+}
+
+static void prov_dh_key_gen(void)
+{
+	u8_t remote_pk[64];
+
+	/* Copy remote key in little-endian for bt_dh_key_gen().
+	 * X and Y halves are swapped independently. Use response
+	 * buffer as a temporary storage location. The bt_dh_key_gen()
+	 * will also take care of validating the remote public key.
+	 */
+	sys_memcpy_swap(remote_pk, &link.conf_inputs[17], 32);
+	sys_memcpy_swap(&remote_pk[32], &link.conf_inputs[49], 32);
+
+	if (bt_dh_key_gen(remote_pk, send_pub_key)) {
+		BT_ERR("Failed to generate DHKey");
+		prov_send_fail_msg(PROV_ERR_UNEXP_ERR);
+	}
 }
 
 static void prov_pub_key(const u8_t *data)
@@ -966,7 +948,7 @@ static void prov_pub_key(const u8_t *data)
 		return;
 	}
 
-	send_pub_key();
+	prov_dh_key_gen();
 }
 
 static void pub_key_ready(const u8_t *pkey)
@@ -979,7 +961,7 @@ static void pub_key_ready(const u8_t *pkey)
 	BT_DBG("Local public key ready");
 
 	if (atomic_test_and_clear_bit(link.flags, REMOTE_PUB_KEY)) {
-		send_pub_key();
+		prov_dh_key_gen();
 	}
 }
 
@@ -994,12 +976,16 @@ static void prov_confirm(const u8_t *data)
 
 	memcpy(link.conf, data, 16);
 
-	if (!atomic_test_bit(link.flags, HAVE_DHKEY)) {
+	if (atomic_test_bit(link.flags, WAIT_NUMBER) ||
+	    atomic_test_bit(link.flags, WAIT_STRING)) {
+		/* Clear retransmit timer */
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 		prov_clear_tx();
 #endif
-		atomic_set_bit(link.flags, SEND_CONFIRM);
-	} else {
+		return;
+	}
+
+	if (atomic_test_and_clear_bit(link.flags, SEND_CONFIRM)) {
 		send_confirm();
 	}
 }
