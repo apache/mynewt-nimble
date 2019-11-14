@@ -1026,6 +1026,7 @@ static void store_pending_hb_pub(void)
 	struct bt_mesh_hb_pub *pub = bt_mesh_hb_pub_get();
 	struct hb_pub_val val;
 	char *str;
+	int err;
 
 	if (!pub) {
 		return;
@@ -1051,7 +1052,12 @@ static void store_pending_hb_pub(void)
 
 	BT_DBG("Saving Heartbeat Publication as value %s",
 	       str ? str : "(null)");
-	settings_save_one("bt_mesh/HBPub", str);
+	err = settings_save_one("bt_mesh/HBPub", str);
+	if (err) {
+		BT_ERR("Failed to store Heartbeat Publication");
+	} else {
+		BT_DBG("Stored Heartbeat Publication");
+	}
 }
 
 static void store_pending_cfg(void)
