@@ -392,6 +392,8 @@ done:
 
 int bt_mesh_scan_enable(void)
 {
+	int err;
+
 #if MYNEWT_VAL(BLE_EXT_ADV)
 	struct ble_gap_ext_disc_params uncoded_params =
 		{ .itvl = MESH_SCAN_INTERVAL, .window = MESH_SCAN_WINDOW,
@@ -399,7 +401,7 @@ int bt_mesh_scan_enable(void)
 
 	BT_DBG("");
 
-	return ble_gap_ext_disc(g_mesh_addr_type, 0, 0, 0, 0, 0,
+	err =  ble_gap_ext_disc(g_mesh_addr_type, 0, 0, 0, 0, 0,
 				&uncoded_params, NULL, NULL, NULL);
 #else
 	struct ble_gap_disc_params scan_param =
@@ -408,13 +410,28 @@ int bt_mesh_scan_enable(void)
 
 	BT_DBG("");
 
-	return ble_gap_disc(g_mesh_addr_type, BLE_HS_FOREVER, &scan_param, NULL, NULL);
+	err =  ble_gap_disc(g_mesh_addr_type, BLE_HS_FOREVER, &scan_param,
+			    NULL, NULL);
 #endif
+	if (err && err != BLE_HS_EALREADY) {
+		BT_ERR("starting scan failed (err %d)", err);
+		return err;
+	}
+
+	return 0;
 }
 
 int bt_mesh_scan_disable(void)
 {
+	int err;
+
 	BT_DBG("");
 
-	return ble_gap_disc_cancel();
+	err = ble_gap_disc_cancel();
+	if (err && err != BLE_HS_EALREADY) {
+		BT_ERR("stopping scan failed (err %d)", err);
+		return err;
+	}
+
+	return 0;
 }
