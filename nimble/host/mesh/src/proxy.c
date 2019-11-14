@@ -740,7 +740,7 @@ int bt_mesh_proxy_prov_enable(void)
 	return 0;
 }
 
-int bt_mesh_proxy_prov_disable(void)
+int bt_mesh_proxy_prov_disable(bool disconnect)
 {
 	uint16_t handle;
 	int rc;
@@ -767,12 +767,22 @@ int bt_mesh_proxy_prov_disable(void)
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
 
-        if ((client->conn_handle != BLE_HS_CONN_HANDLE_NONE)
-                && (client->filter_type == PROV)) {
+		if ((client->conn_handle == BLE_HS_CONN_HANDLE_NONE)
+		    || (client->filter_type != PROV)) {
+			continue;
+		}
+
+		if (disconnect) {
+			rc = ble_gap_terminate(client->conn_handle,
+					       BLE_ERR_REM_USER_CONN_TERM);
+			assert(rc == 0);
+		} else {
 			bt_mesh_pb_gatt_close(client->conn_handle);
 			client->filter_type = NONE;
 		}
 	}
+
+	bt_mesh_adv_update();
 
 	return 0;
 }
