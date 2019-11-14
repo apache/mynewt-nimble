@@ -871,6 +871,7 @@ static void store_pending_net(void)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct net_val))];
 	struct net_val net;
 	char *str;
+	int err;
 
 	BT_DBG("addr 0x%04x DevKey %s", bt_mesh_primary_addr(),
 	       bt_hex(bt_mesh.dev_key, 16));
@@ -885,7 +886,12 @@ static void store_pending_net(void)
 	}
 
 	BT_DBG("Saving Network as value %s", str);
-	settings_save_one("bt_mesh/Net", str);
+	err = settings_save_one("bt_mesh/Net", str);
+	if (err) {
+		BT_ERR("Failed to store Network");
+	} else {
+		BT_DBG("Stored Network");
+	}
 }
 
 void bt_mesh_store_net(void)
@@ -898,6 +904,7 @@ static void store_pending_iv(void)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct iv_val))];
 	struct iv_val iv;
 	char *str;
+	int err;
 
 	iv.iv_index = bt_mesh.iv_index;
 	iv.iv_update = atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
@@ -910,7 +917,12 @@ static void store_pending_iv(void)
 	}
 
 	BT_DBG("Saving IV as value %s", str);
-	settings_save_one("bt_mesh/IV", str);
+	err = settings_save_one("bt_mesh/IV", str);
+	if (err) {
+		BT_ERR("Failed to store IV");
+	} else {
+		BT_DBG("Stored IV");
+	}
 }
 
 void bt_mesh_store_iv(bool only_duration)
@@ -928,6 +940,7 @@ static void store_pending_seq(void)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct seq_val))];
 	struct seq_val seq;
 	char *str;
+	int err;
 
 	seq.val[0] = bt_mesh.seq;
 	seq.val[1] = bt_mesh.seq >> 8;
@@ -940,7 +953,12 @@ static void store_pending_seq(void)
 	}
 
 	BT_DBG("Saving Seq as value %s", str);
-	settings_save_one("bt_mesh/Seq", str);
+	err = settings_save_one("bt_mesh/Seq", str);
+	if (err) {
+		BT_ERR("Failed to store Seq");
+	} else {
+		BT_DBG("Stored Seq");
+	}
 }
 
 void bt_mesh_store_seq(void)
@@ -959,6 +977,7 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 	struct rpl_val rpl;
 	char path[18];
 	char *str;
+	int err;
 
 	BT_DBG("src 0x%04x seq 0x%06x old_iv %u", entry->src,
 	       (unsigned) entry->seq, entry->old_iv);
@@ -975,7 +994,12 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 	snprintk(path, sizeof(path), "bt_mesh/RPL/%x", entry->src);
 
 	BT_DBG("Saving RPL %s as value %s", path, str);
-	settings_save_one(path, str);
+	err = settings_save_one(path, str);
+	if (err) {
+		BT_ERR("Failed to store RPL");
+	} else {
+		BT_DBG("Stored RPL");
+	}
 }
 
 static void clear_rpl(void)
@@ -1066,6 +1090,7 @@ static void store_pending_cfg(void)
 	struct bt_mesh_cfg_srv *cfg = bt_mesh_cfg_get();
 	struct cfg_val val;
 	char *str;
+	int err;
 
 	if (!cfg) {
 		return;
@@ -1086,7 +1111,12 @@ static void store_pending_cfg(void)
 	}
 
 	BT_DBG("Saving configuration as value %s", str);
-	settings_save_one("bt_mesh/Cfg", str);
+	err = settings_save_one("bt_mesh/Cfg", str);
+	if (err) {
+		BT_ERR("Failed to store configuration");
+	} else {
+		BT_DBG("Stored configuration");
+	}
 }
 
 static void clear_cfg(void)
@@ -1139,6 +1169,7 @@ static void store_net_key(struct bt_mesh_subnet *sub)
 	struct net_key_val key;
 	char path[20];
 	char *str;
+	int err;
 
 	BT_DBG("NetKeyIndex 0x%03x NetKey %s", sub->net_idx,
 	       bt_hex(sub->keys[0].net, 16));
@@ -1157,7 +1188,12 @@ static void store_net_key(struct bt_mesh_subnet *sub)
 	snprintk(path, sizeof(path), "bt_mesh/NetKey/%x", sub->net_idx);
 
 	BT_DBG("Saving NetKey %s as value %s", path, str);
-	settings_save_one(path, str);
+	err = settings_save_one(path, str);
+	if (err) {
+		BT_ERR("Failed to store NetKey");
+	} else {
+		BT_DBG("Stored NetKey");
+	}
 }
 
 static void store_app_key(struct bt_mesh_app_key *app)
@@ -1166,6 +1202,7 @@ static void store_app_key(struct bt_mesh_app_key *app)
 	struct app_key_val key;
 	char path[20];
 	char *str;
+	int err;
 
 	key.net_idx = app->net_idx;
 	key.updated = app->updated;
@@ -1181,7 +1218,12 @@ static void store_app_key(struct bt_mesh_app_key *app)
 	snprintk(path, sizeof(path), "bt_mesh/AppKey/%x", app->app_idx);
 
 	BT_DBG("Saving AppKey %s as value %s", path, str);
-	settings_save_one(path, str);
+	err = settings_save_one(path, str);
+	if (err) {
+		BT_ERR("Failed to store AppKey");
+	} else {
+		BT_DBG("Stored AppKey");
+	}
 }
 
 static void store_pending_keys(void)
@@ -1247,7 +1289,7 @@ static void store_pending_mod_bind(struct bt_mesh_model *mod, bool vnd)
 	u16_t keys[CONFIG_BT_MESH_MODEL_KEY_COUNT];
 	char buf[BT_SETTINGS_SIZE(sizeof(keys))];
 	char path[20];
-	int i, count;
+	int i, count, err;
 	char *val;
 
 	for (i = 0, count = 0; i < ARRAY_SIZE(mod->keys); i++) {
@@ -1270,7 +1312,12 @@ static void store_pending_mod_bind(struct bt_mesh_model *mod, bool vnd)
 	encode_mod_path(mod, vnd, "bind", path, sizeof(path));
 
 	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
-	settings_save_one(path, val);
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store bind");
+	} else {
+		BT_DBG("Stored bind");
+	}
 }
 
 static void store_pending_mod_sub(struct bt_mesh_model *mod, bool vnd)
@@ -1278,7 +1325,7 @@ static void store_pending_mod_sub(struct bt_mesh_model *mod, bool vnd)
 	u16_t groups[CONFIG_BT_MESH_MODEL_GROUP_COUNT];
 	char buf[BT_SETTINGS_SIZE(sizeof(groups))];
 	char path[20];
-	int i, count;
+	int i, count, err;
 	char *val;
 
 	for (i = 0, count = 0; i < ARRAY_SIZE(mod->groups); i++) {
@@ -1301,7 +1348,12 @@ static void store_pending_mod_sub(struct bt_mesh_model *mod, bool vnd)
 	encode_mod_path(mod, vnd, "sub", path, sizeof(path));
 
 	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
-	settings_save_one(path, val);
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store sub");
+	} else {
+		BT_DBG("Stored sub");
+	}
 }
 
 static void store_pending_mod_pub(struct bt_mesh_model *mod, bool vnd)
@@ -1310,6 +1362,7 @@ static void store_pending_mod_pub(struct bt_mesh_model *mod, bool vnd)
 	struct mod_pub_val pub;
 	char path[20];
 	char *val;
+	int err;
 
 	if (!mod->pub || mod->pub->addr == BT_MESH_ADDR_UNASSIGNED) {
 		val = NULL;
@@ -1333,7 +1386,12 @@ static void store_pending_mod_pub(struct bt_mesh_model *mod, bool vnd)
 	encode_mod_path(mod, vnd, "pub", path, sizeof(path));
 
 	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
-	settings_save_one(path, val);
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store pub");
+	} else {
+		BT_DBG("Stored pub");
+	}
 }
 
 static void store_pending_mod(struct bt_mesh_model *mod,
