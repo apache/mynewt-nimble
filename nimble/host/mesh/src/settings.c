@@ -844,14 +844,26 @@ static void schedule_store(int flag)
 
 static void clear_iv(void)
 {
-	BT_DBG("Clearing IV");
-	settings_save_one("bt_mesh/IV", NULL);
+	int err;
+
+	err = settings_save_one("bt_mesh/IV", NULL);
+	if (err) {
+		BT_ERR("Failed to clear IV");
+	} else {
+		BT_DBG("Cleared IV");
+	}
 }
 
 static void clear_net(void)
 {
-	BT_DBG("Clearing Network");
-	settings_save_one("bt_mesh/Net", NULL);
+	int err;
+
+	err = settings_save_one("bt_mesh/Net", NULL);
+	if (err) {
+		BT_ERR("Failed to clear Network");
+	} else {
+		BT_DBG("Cleared Network");
+	}
 }
 
 static void store_pending_net(void)
@@ -968,7 +980,7 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 
 static void clear_rpl(void)
 {
-	int i;
+	int i, err;
 
 	BT_DBG("");
 
@@ -981,7 +993,12 @@ static void clear_rpl(void)
 		}
 
 		snprintk(path, sizeof(path), "bt_mesh/RPL/%x", rpl->src);
-		settings_save_one(path, NULL);
+		err = settings_save_one(path, NULL);
+		if (err) {
+			BT_ERR("Failed to clear RPL");
+		} else {
+			BT_DBG("Cleared RPL");
+		}
 
 		memset(rpl, 0, sizeof(*rpl));
 	}
@@ -1068,28 +1085,46 @@ static void store_pending_cfg(void)
 
 static void clear_cfg(void)
 {
-	BT_DBG("Clearing configuration");
-	settings_save_one("bt_mesh/Cfg", NULL);
+	int err;
+
+	err = settings_save_one("bt_mesh/Cfg", NULL);
+	if (err) {
+		BT_ERR("Failed to clear configuration");
+	} else {
+		BT_DBG("Cleared configuration");
+	}
 }
 
 static void clear_app_key(u16_t app_idx)
 {
 	char path[20];
+	int err;
 
 	BT_DBG("AppKeyIndex 0x%03x", app_idx);
 
 	snprintk(path, sizeof(path), "bt_mesh/AppKey/%x", app_idx);
-	settings_save_one(path, NULL);
+	err = settings_save_one(path, NULL);
+	if (err) {
+		BT_ERR("Failed to clear AppKeyIndex 0x%03x", app_idx);
+	} else {
+		BT_DBG("Cleared AppKeyIndex 0x%03x", app_idx);
+	}
 }
 
 static void clear_net_key(u16_t net_idx)
 {
 	char path[20];
+	int err;
 
 	BT_DBG("NetKeyIndex 0x%03x", net_idx);
 
 	snprintk(path, sizeof(path), "bt_mesh/NetKey/%x", net_idx);
-	settings_save_one(path, NULL);
+	err = settings_save_one(path, NULL);
+	if (err) {
+		BT_ERR("Failed to clear NetKeyIndex 0x%03x", net_idx);
+	} else {
+		BT_DBG("Cleared NetKeyIndex 0x%03x", net_idx);
+	}
 }
 
 static void store_net_key(struct bt_mesh_subnet *sub)
