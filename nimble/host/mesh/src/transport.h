@@ -97,3 +97,5 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx);
 void bt_mesh_trans_init(void);
 
 void bt_mesh_rpl_clear(void);
+
+void bt_mesh_heartbeat_send(void);
