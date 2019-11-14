@@ -1463,6 +1463,7 @@ static void mod_sub_add(struct bt_mesh_model *model,
 
 	if (bt_mesh_model_find_group(mod, sub_addr)) {
 		/* Tried to add existing subscription */
+		BT_DBG("found existing subscription");
 		status = STATUS_SUCCESS;
 		goto send_status;
 	}
@@ -3412,6 +3413,8 @@ void bt_mesh_cfg_reset(void)
 {
 	struct bt_mesh_cfg_srv *cfg = conf;
 	int i;
+
+	BT_DBG("");
 
 	if (!cfg) {
 		return;
