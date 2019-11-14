@@ -3180,33 +3180,16 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         goto scan_continue;
     }
 
-    /*
-     * XXX: The BLE spec is a bit unclear here. What if we get a scan
-     * response from an advertiser that we did not send a request to?
-     * Do we send an advertising report? Do we add it to list of devices
-     * that we have heard a scan response from?
-     */
     if (ptype == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-        /*
-         * If this is a scan response in reply to a request we sent we need
-         * to store this advertiser's address so we dont send a request to it.
-         */
-        if (scan_rsp_rxd) {
-            /*
-             * We could also check the timing of the scan reponse; make sure
-             * that it is relatively close to the end of the scan request but
-             * we wont for now.
-             */
-            rxadd = scansm->pdu_data.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
-            adva = scansm->pdu_data.adva;
-            if (((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
-                !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
-                /* We have received a scan response. Add to list */
-                ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type, 0, 0);
-                backoff_success = 1;
-            }
+        rxadd = scansm->pdu_data.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
+        adva = scansm->pdu_data.adva;
+        if (scan_rsp_rxd && ((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
+            !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
+            /* We have received a scan response. Add to list */
+            ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type, 0, 0);
+            backoff_success = 1;
         } else {
-            /* Ignore if this is not ours */
+            /* This is not addressed for us, ignore */
             goto scan_continue;
         }
     }
