@@ -184,16 +184,18 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
 
     /* Create a shortcut to rx endpoint */
     rx = &chan->coc_rx;
+    BLE_HS_DBG_ASSERT(rx != NULL);
 
     om_total = OS_MBUF_PKTLEN(*om);
-    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SDU_SIZE);
-    if (rc != 0) {
-        return rc;
-    }
 
     /* First LE frame */
     if (OS_MBUF_PKTLEN(rx->sdu) == 0) {
         uint16_t sdu_len;
+
+        rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SDU_SIZE);
+        if (rc != 0) {
+            return rc;
+        }
 
         sdu_len = get_le16((*om)->om_data);
         if (sdu_len > rx->mtu) {
