@@ -796,19 +796,6 @@ struct shell_cmd_help cmd_net_send_help = {
 	NULL, "<hex string>", NULL
 };
 
-static int cmd_iv_update(int argc, char *argv[])
-{
-	if (bt_mesh_iv_update()) {
-		printk("Transitioned to IV Update In Progress state\n");
-	} else {
-		printk("Transitioned to IV Update Normal state\n");
-	}
-
-	printk("IV Index is 0x%08lx\n", bt_mesh.iv_index);
-
-	return 0;
-}
-
 static int cmd_rpl_clear(int argc, char *argv[])
 {
 	bt_mesh_rpl_clear();
@@ -859,6 +846,20 @@ struct shell_cmd_help cmd_lpn_unsubscribe_help = {
 };
 #endif
 
+#if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
+static int cmd_iv_update(int argc, char *argv[])
+{
+	if (bt_mesh_iv_update()) {
+		printk("Transitioned to IV Update In Progress state\n");
+	} else {
+		printk("Transitioned to IV Update Normal state\n");
+	}
+
+	printk("IV Index is 0x%08lx\n", bt_mesh.iv_index);
+
+	return 0;
+}
+
 static int cmd_iv_update_test(int argc, char *argv[])
 {
 	bool enable;
@@ -882,6 +883,7 @@ static int cmd_iv_update_test(int argc, char *argv[])
 struct shell_cmd_help cmd_iv_update_test_help = {
 	NULL, "<value: off, on>", NULL
 };
+#endif
 
 #if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 
@@ -2484,6 +2486,7 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd_func = cmd_net_send,
         .help = &cmd_net_send_help,
     },
+#if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
     {
         .sc_cmd = "iv-update",
         .sc_cmd_func = cmd_iv_update,
@@ -2494,6 +2497,7 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd_func = cmd_iv_update_test,
         .help = &cmd_iv_update_test_help,
     },
+#endif
     {
         .sc_cmd = "rpl-clear",
         .sc_cmd_func = cmd_rpl_clear,
