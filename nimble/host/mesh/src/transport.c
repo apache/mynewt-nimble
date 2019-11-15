@@ -126,8 +126,21 @@ static int send_unseg(struct bt_mesh_net_tx *tx, struct os_mbuf *sdu,
 	net_buf_add_mem(buf, sdu->om_data, sdu->om_len);
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
+		if (!bt_mesh_friend_queue_has_space(tx->sub->net_idx,
+						    tx->src, tx->ctx->addr,
+						    NULL, 1)) {
+			if (BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
+				BT_ERR("Not enough space in Friend Queue");
+				net_buf_unref(buf);
+				return -ENOBUFS;
+			} else {
+				BT_WARN("No space in Friend Queue");
+				goto send;
+			}
+		}
+
 		if (bt_mesh_friend_enqueue_tx(tx, BT_MESH_FRIEND_PDU_SINGLE,
-					      NULL, buf) &&
+					      NULL, 1, buf) &&
 		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
 			/* PDUs for a specific Friend should only go
 			 * out through the Friend Queue.
@@ -138,6 +151,7 @@ static int send_unseg(struct bt_mesh_net_tx *tx, struct os_mbuf *sdu,
 		}
 	}
 
+send:
 	return bt_mesh_net_send(tx, buf, cb, cb_data);
 }
 
@@ -343,6 +357,17 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 
 	BT_DBG("SeqZero 0x%04x", seq_zero);
 
+	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) &&
+	    !bt_mesh_friend_queue_has_space(tx->sub->net_idx, net_tx->src,
+					    tx->dst, &tx->seq_auth,
+					    tx->seg_n + 1) &&
+	    BT_MESH_ADDR_IS_UNICAST(tx->dst)) {
+		BT_ERR("Not enough space in Friend Queue for %u segments",
+		       tx->seg_n + 1);
+		seg_tx_reset(tx);
+		return -ENOBUFS;
+	}
+
 	for (seg_o = 0; sdu->om_len; seg_o++) {
 		struct os_mbuf *seg;
 		u16_t len;
@@ -381,6 +406,7 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 
 			if (bt_mesh_friend_enqueue_tx(net_tx, type,
 						      &tx->seq_auth,
+						      tx->seg_n + 1,
 						      seg) &&
 			    BT_MESH_ADDR_IS_UNICAST(net_tx->ctx->addr)) {
 				/* PDUs for a specific Friend should only go
@@ -955,7 +981,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
 		if (bt_mesh_friend_enqueue_tx(tx, BT_MESH_FRIEND_PDU_SINGLE,
-					      seq_auth, buf) &&
+					      seq_auth, 1, buf) &&
 		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
 			/* PDUs for a specific Friend should only go
 			 * out through the Friend Queue.
@@ -1166,11 +1192,12 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 }
 
 static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
-		     enum bt_mesh_friend_pdu_type *pdu_type, u64_t *seq_auth)
+		     enum bt_mesh_friend_pdu_type *pdu_type, u64_t *seq_auth,
+		     u8_t *seg_count)
 {
 	struct bt_mesh_rpl *rpl = NULL;
 	struct seg_rx *rx;
-       u8_t *hdr = buf->om_data;
+	u8_t *hdr = buf->om_data;
 	u16_t seq_zero;
 	u8_t seg_n;
 	u8_t seg_o;
@@ -1223,6 +1250,8 @@ static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
 			      ((((net_rx->seq & BIT_MASK(14)) - seq_zero)) &
 			       BIT_MASK(13))));
 
+	*seg_count = seg_n + 1;
+
 	/* Look for old RX sessions */
 	rx = seg_rx_find(net_rx, seq_auth);
 	if (rx) {
@@ -1271,6 +1300,22 @@ static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
 			 net_rx->ctx.send_ttl, seq_auth, 0,
 			 net_rx->friend_match);
 		return -EMSGSIZE;
+	}
+
+	/* Verify early that there will be space in the Friend Queue(s) in
+	 * case this message is destined to an LPN of ours.
+	 */
+	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) &&
+	    net_rx->friend_match && !net_rx->local_match &&
+	    !bt_mesh_friend_queue_has_space(net_rx->sub->net_idx,
+					    net_rx->ctx.addr,
+					    net_rx->ctx.recv_dst, seq_auth,
+					    *seg_count)) {
+		BT_ERR("No space in Friend Queue for %u segments", *seg_count);
+		send_ack(net_rx->sub, net_rx->ctx.recv_dst, net_rx->ctx.addr,
+			 net_rx->ctx.send_ttl, seq_auth, 0,
+			 net_rx->friend_match);
+		return -ENOBUFS;
 	}
 
 	/* Look for free slot for a new RX session */
@@ -1367,6 +1412,7 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 	u64_t seq_auth = TRANS_SEQ_AUTH_NVAL;
 	enum bt_mesh_friend_pdu_type pdu_type = BT_MESH_FRIEND_PDU_SINGLE;
 	struct net_buf_simple_state state;
+	u8_t seg_count = 0;
 	int err;
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
@@ -1414,8 +1460,9 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 			return 0;
 		}
 
-		err = trans_seg(buf, rx, &pdu_type, &seq_auth);
+		err = trans_seg(buf, rx, &pdu_type, &seq_auth, &seg_count);
 	} else {
+		seg_count = 1;
 		err = trans_unseg(buf, rx, &seq_auth);
 	}
 
@@ -1440,9 +1487,11 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx)
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && rx->friend_match && !err) {
 		if (seq_auth == TRANS_SEQ_AUTH_NVAL) {
-			bt_mesh_friend_enqueue_rx(rx, pdu_type, NULL, buf);
+			bt_mesh_friend_enqueue_rx(rx, pdu_type, NULL,
+						  seg_count, buf);
 		} else {
-			bt_mesh_friend_enqueue_rx(rx, pdu_type, &seq_auth, buf);
+			bt_mesh_friend_enqueue_rx(rx, pdu_type, &seq_auth,
+						  seg_count, buf);
 		}
 	}
 
