@@ -181,6 +181,7 @@ STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(mic_failures)
     STATS_SECT_ENTRY(sched_start_in_idle)
     STATS_SECT_ENTRY(sched_end_in_idle)
+    STATS_SECT_ENTRY(conn_event_while_tmo)
 STATS_SECT_END
 STATS_SECT_DECL(ble_ll_conn_stats) ble_ll_conn_stats;
 
@@ -213,6 +214,7 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, mic_failures)
     STATS_NAME(ble_ll_conn_stats, sched_start_in_idle)
     STATS_NAME(ble_ll_conn_stats, sched_end_in_idle)
+    STATS_NAME(ble_ll_conn_stats, conn_event_while_tmo)
 STATS_NAME_END(ble_ll_conn_stats)
 
 static void ble_ll_conn_event_end(struct ble_npl_event *ev);
@@ -353,8 +355,7 @@ ble_ll_conn_get_ce_end_time(void)
 }
 
 /**
- * Called when the current connection state machine is no longer being used.
- * This function will:
+ * Called when connection state machine needs to halt. This function will:
  *  -> Disable the PHY, which will prevent any transmit/receive interrupts.
  *  -> Disable the wait for response timer, if running.
  *  -> Remove the connection state machine from the scheduler.
@@ -366,19 +367,22 @@ ble_ll_conn_get_ce_end_time(void)
  *  standby and set the current state machine pointer to NULL.
  */
 static void
+ble_ll_conn_halt(void)
+{
+    ble_phy_disable();
+    ble_ll_wfr_disable();
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
+    g_ble_ll_conn_cur_sm = NULL;
+}
+
+/**
+ * Called when the current connection state machine is no longer being used.
+ */
+static void
 ble_ll_conn_current_sm_over(struct ble_ll_conn_sm *connsm)
 {
-    /* Disable the PHY */
-    ble_phy_disable();
 
-    /* Disable the wfr timer */
-    ble_ll_wfr_disable();
-
-    /* Link-layer is in standby state now */
-    ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-    /* Set current LL connection to NULL */
-    g_ble_ll_conn_cur_sm = NULL;
+    ble_ll_conn_halt();
 
     /*
      * NOTE: the connection state machine may be NULL if we are calling
@@ -1808,12 +1812,25 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 {
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
+    os_sr_t sr;
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     os_sr_t sr;
 #endif
 
     /* Remove scheduler events just in case */
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
+
+    /* In case of the supervision timeout we shall make sure
+     * that there is no ongoing connection event. It could happen
+     * because we scheduled connection event before checking connection timeout.
+     * If connection event managed to start, let us drop it.
+     */
+    OS_ENTER_CRITICAL(sr);
+    if (g_ble_ll_conn_cur_sm == connsm) {
+        ble_ll_conn_halt();
+        STATS_INC(ble_ll_conn_stats, conn_event_while_tmo);
+    }
+    OS_EXIT_CRITICAL(sr);
 
     /* Stop any control procedures that might be running */
     ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
