@@ -330,6 +330,11 @@ static void prov_complete(u16_t net_idx, u16_t addr)
 	net.dst = addr;
 }
 
+static void prov_input_complete(void)
+{
+	printk("Input complete");
+}
+
 static void prov_reset(void)
 {
 	printk("The local node has been reset and needs reprovisioning\n");
@@ -479,6 +484,7 @@ static struct bt_mesh_prov prov = {
 	.input_size = MYNEWT_VAL(BLE_MESH_OOB_INPUT_SIZE),
 	.input_actions = MYNEWT_VAL(BLE_MESH_OOB_INPUT_ACTIONS),
 	.input = input,
+	.input_complete = prov_input_complete,
 };
 
 static int cmd_static_oob(int argc, char *argv[])
