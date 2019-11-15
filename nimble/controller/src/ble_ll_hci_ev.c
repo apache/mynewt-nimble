@@ -551,3 +551,31 @@ ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line)
         ble_ll_hci_event_send(hci_ev);
     }
 }
+
+#if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
+void
+ble_ll_hci_ev_send_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
+                              void *pdu, size_t length)
+{
+    struct ble_hci_ev_vendor_debug *ev;
+    struct ble_hci_ev *hci_ev;
+
+    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+    if (hci_ev) {
+        hci_ev->opcode = BLE_HCI_EVCODE_VENDOR_DEBUG;
+        hci_ev->length = sizeof(*ev) + 8 + length;
+        ev = (void *) hci_ev->data;
+
+        ev->id = 0x17;
+        ev->data[0] = type;
+        put_le16(&ev->data[1], handle);
+        put_le16(&ev->data[3], count);
+        ev->data[5] = 0;
+        ev->data[6] = 0;
+        ev->data[7] = 0;
+        memcpy(&ev->data[8], pdu, length);
+
+        ble_ll_hci_event_send(hci_ev);
+    }
+}
+#endif
