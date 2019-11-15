@@ -839,13 +839,11 @@ void net_buf_slist_remove(struct net_buf_slist_t *list, struct os_mbuf *prev,
 void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 			       struct net_buf_slist_t *list_to_append)
 {
-	struct os_mbuf_pkthdr *pkthdr;
-
-	STAILQ_FOREACH(pkthdr, list_to_append, omp_next) {
-		STAILQ_INSERT_TAIL(list, pkthdr, omp_next);
+	if (!STAILQ_EMPTY(list_to_append)) {
+		*(list)->stqh_last = list_to_append->stqh_first;
+		(list)->stqh_last = list_to_append->stqh_last;
+		STAILQ_INIT(list_to_append);
 	}
-
-	STAILQ_INIT(list);
 }
 
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
