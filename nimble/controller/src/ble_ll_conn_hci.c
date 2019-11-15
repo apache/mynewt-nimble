@@ -983,7 +983,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
         /* Get a control packet buffer */
         if (rc == BLE_ERR_SUCCESS) {
-            om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PAYLOAD + 1,
+            om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
                                     sizeof(struct ble_mbuf_hdr));
             if (om) {
                 dptr = om->om_data;

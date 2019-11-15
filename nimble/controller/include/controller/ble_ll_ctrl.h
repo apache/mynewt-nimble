@@ -86,8 +86,7 @@ extern "C" {
 
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
-/* Maximum # of payload bytes in a LL control PDU */
-#define BLE_LL_CTRL_MAX_PAYLOAD         (26)
+/* Maximum LL control PDU size */
 #define BLE_LL_CTRL_MAX_PDU_LEN         (27)
 
 /* LL control connection update request */
