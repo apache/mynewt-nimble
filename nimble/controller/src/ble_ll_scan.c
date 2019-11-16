@@ -1269,6 +1269,12 @@ ble_ll_scan_sm_stop(int chk_disable)
         scansm->ext_scanning = 0;
     }
 #endif
+
+    /* Update backoff if we failed to receive scan response */
+    if (scansm->scan_rsp_pending) {
+        scansm->scan_rsp_pending = 0;
+        ble_ll_scan_req_backoff(scansm, 0);
+    }
     OS_EXIT_CRITICAL(sr);
 
     /* Count # of times stopped */
