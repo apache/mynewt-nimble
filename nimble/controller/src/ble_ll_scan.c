@@ -1680,6 +1680,10 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
         }
 #endif
 
+        if (scansm->cur_aux_data && !scansm->scan_rsp_pending ) {
+            STATS_INC(ble_ll_stats, aux_received);
+        }
+
         /*
          * If this is the first PDU after we sent the scan response (as
          * denoted by the scan rsp pending flag), we set a bit in the ble
@@ -1700,10 +1704,6 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
                 ble_ll_aux_scan_rsp_failed(scansm);
 #endif
             }
-        }
-
-        if (scansm->cur_aux_data && !scansm->scan_rsp_pending ) {
-            STATS_INC(ble_ll_stats, aux_received);
         }
 
         /* Disable wfr if running */
