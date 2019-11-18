@@ -1359,7 +1359,7 @@ int ble_gap_periodic_adv_set_data(uint8_t instance, struct os_mbuf *data);
  *
  * @return                   0 on success; nonzero on failure.
  */
-int ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
+int ble_gap_periodic_adv_sync_create(const ble_addr_t *addr, uint8_t adv_sid,
                                      const struct ble_gap_periodic_sync_params *params,
                                      ble_gap_event_fn *cb, void *cb_arg);
 
@@ -1368,7 +1368,7 @@ int ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
  *
  * @return                   0 on success; nonzero on failure.
  */
-int ble_gap_periodic_adv_create_sync_cancel(void);
+int ble_gap_periodic_adv_sync_create_cancel(void);
 
 /**
  * Terminate synchronization procedure.
@@ -1377,7 +1377,7 @@ int ble_gap_periodic_adv_create_sync_cancel(void);
  *
  * @return                   0 on success; nonzero on failure.
  */
-int ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle);
+int ble_gap_periodic_adv_sync_terminate(uint16_t sync_handle);
 
 /**
  * Add peer device to periodic synchronization list.

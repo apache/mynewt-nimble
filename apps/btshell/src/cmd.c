@@ -3692,7 +3692,7 @@ cmd_sync_create(int argc, char **argv)
     }
 
     if (argc > 1 && strcmp(argv[1], "cancel") == 0) {
-        rc = ble_gap_periodic_adv_create_sync_cancel();
+        rc = ble_gap_periodic_adv_sync_create_cancel();
         if (rc != 0) {
             console_printf("Sync create cancel fail: %d\n", rc);
             return rc;
@@ -3728,7 +3728,7 @@ cmd_sync_create(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_create_sync(addr_param, sid, &params,
+    rc = ble_gap_periodic_adv_sync_create(addr_param, sid, &params,
                                           btshell_gap_event, NULL);
     if (rc) {
         console_printf("Failed to create sync (%d)\n", rc);
@@ -3772,7 +3772,7 @@ cmd_sync_terminate(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_terminate_sync(sync_handle);
+    rc = ble_gap_periodic_adv_sync_terminate(sync_handle);
     if (rc) {
         console_printf("Failed to terminate sync (%d)\n", rc);
     }
