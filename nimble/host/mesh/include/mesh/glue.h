@@ -472,7 +472,8 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 
 #define settings_load conf_load
 int settings_bytes_from_str(char *val_str, void *vp, int *len);
-char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len);
+char *settings_str_from_bytes(const void *vp, int vp_len,
+			      char *buf, int buf_len);
 
 #define snprintk snprintf
 #define BT_SETTINGS_SIZE(in_size) ((((((in_size) - 1) / 3) * 4) + 4) + 1)

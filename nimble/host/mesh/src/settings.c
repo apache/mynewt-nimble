@@ -657,6 +657,10 @@ static int mod_set(bool vnd, int argc, char **argv, char *val)
 		return mod_set_pub(mod, val);
 	}
 
+	if (!strcmp(argv[1], "data") && mod->cb && mod->cb->settings_set) {
+		return mod->cb->settings_set(mod, val);
+	}
+
 	BT_WARN("Unknown module key %s", argv[1]);
 	return -ENOENT;
 }
@@ -754,6 +758,10 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 			       (unsigned) ms);
 			k_delayed_work_submit(&mod->pub->timer, ms);
 		}
+	}
+
+	if (mod->cb && mod->cb->settings_commit)  {
+		mod->cb->settings_commit(mod);
 	}
 }
 
@@ -1664,6 +1672,36 @@ void bt_mesh_store_mod_pub(struct bt_mesh_model *mod)
 {
 	mod->flags |= BT_MESH_MOD_PUB_PENDING;
 	schedule_store(BT_MESH_MOD_PENDING);
+}
+
+int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
+			     const void *data, size_t data_len)
+{
+	char path[20];
+	char buf[BT_SETTINGS_SIZE(sizeof(struct mod_pub_val))];
+	char *val;
+	int err;
+
+	encode_mod_path(mod, vnd, "data", path, sizeof(path));
+
+	if (data_len) {
+		val = settings_str_from_bytes(data, data_len,
+					      buf, sizeof(buf));
+		if (!val) {
+			BT_ERR("Unable to encode model publication as value");
+			return -EINVAL;
+		}
+		err = settings_save_one(path, val);
+	} else {
+		err = settings_save_one(path, NULL);
+	}
+
+	if (err) {
+		BT_ERR("Failed to store %s value", path);
+	} else {
+		BT_DBG("Stored %s value", path);
+	}
+	return err;
 }
 
 static struct conf_handler bt_mesh_settings_conf_handler = {
