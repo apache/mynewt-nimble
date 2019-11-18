@@ -4528,6 +4528,11 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         return;
     }
 
+    /* Turn off the clock if not doing anything else */
+#ifdef BLE_XCVR_RFCLK
+    ble_ll_sched_rfclk_chk_restart();
+#endif
+
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
 
