@@ -271,6 +271,11 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 #define net_buf_clone(a, b) os_mbuf_dup(a)
 #define net_buf_add_be32(a, b) net_buf_simple_add_be32(a, b)
 #define net_buf_add_be16(a, b) net_buf_simple_add_be16(a, b)
+#define net_buf_pull(a, b) net_buf_simple_pull(a, b)
+#define net_buf_pull_mem(a, b) net_buf_simple_pull_mem(a, b)
+#define net_buf_pull_u8(a) net_buf_simple_pull_u8(a)
+#define net_buf_pull_be16(a) net_buf_simple_pull_be16(a)
+#define net_buf_skip(a, b) net_buf_simple_pull_mem(a, b)
 
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
 
