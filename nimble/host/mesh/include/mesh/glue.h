@@ -383,6 +383,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_PB_ADV               BLE_MESH_PB_ADV
 #define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
 #define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
+#define CONFIG_BT_MESH_PROXY                BLE_MESH_PROXY
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 #define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
 #define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
