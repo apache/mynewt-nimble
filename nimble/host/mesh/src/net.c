@@ -1220,6 +1220,17 @@ done:
 	net_buf_unref(buf);
 }
 
+void bt_mesh_net_header_parse(struct os_mbuf *buf,
+			      struct bt_mesh_net_rx *rx)
+{
+	rx->old_iv = (IVI(buf->om_data) != (bt_mesh.iv_index & 0x01));
+	rx->ctl = CTL(buf->om_data);
+	rx->ctx.recv_ttl = TTL(buf->om_data);
+	rx->seq = SEQ(buf->om_data);
+	rx->ctx.addr = SRC(buf->om_data);
+	rx->ctx.recv_dst = DST(buf->om_data);
+}
+
 int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
