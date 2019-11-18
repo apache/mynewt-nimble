@@ -146,7 +146,6 @@ static int secure_beacon_send(void)
 
 static int unprovisioned_beacon_send(void)
 {
-#if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 	const struct bt_mesh_prov *prov;
 	u8_t uri_hash[16] = { 0 };
 	struct os_mbuf *buf;
@@ -198,7 +197,6 @@ static int unprovisioned_beacon_send(void)
 		net_buf_unref(buf);
 	}
 
-#endif /* MYNEWT_VAL(BLE_MESH_PB_ADV) */
 	return 0;
 }
 
@@ -248,11 +246,10 @@ static void beacon_send(struct ble_npl_event *work)
 			k_delayed_work_submit(&beacon_timer,
 					      PROVISIONED_INTERVAL);
 		}
-	} else {
+	} else if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV)) {
 		unprovisioned_beacon_send();
 		k_delayed_work_submit(&beacon_timer, UNPROVISIONED_INTERVAL);
 	}
-
 }
 
 static void secure_beacon_recv(struct os_mbuf *buf)
