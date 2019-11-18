@@ -373,6 +373,30 @@ struct bt_mesh_model_pub {
 
 /** Model callback functions. */
 struct bt_mesh_model_cb {
+	/** @brief Set value handler of user data tied to the model.
+	 *
+	 * @sa settings_handler::h_set
+	 *
+	 * @param model Model to set the persistent data of.
+	 * @param val Data from the backend.
+	 *
+	 * @return 0 on success, error otherwise.
+	 */
+	int (*const settings_set)(struct bt_mesh_model *model, char *val);
+
+	/** @brief Callback called when all settings have been loaded.
+	 *
+	 * This handler gets called after the settings have been loaded in
+	 * full.
+	 *
+	 * @sa settings_handler::h_commit
+	 *
+	 * @param model Model this callback belongs to.
+	 *
+	 * @return 0 on success, error otherwise.
+	 */
+	int (*const settings_commit)(struct bt_mesh_model *model);
+
 	/** @brief Model init callback.
 	 *
 	 * Called on every model instance during mesh initialization.
@@ -505,6 +529,18 @@ static inline bool bt_mesh_model_in_primary(const struct bt_mesh_model *mod)
 {
 	return (mod->elem_idx == 0);
 }
+
+/** @brief Immediately store the model's user data in persistent storage.
+ *
+ * @param mod Mesh model.
+ * @param vnd This is a vendor model.
+ * @param data Model data to store, or NULL to delete any model data.
+ * @param data_len Length of the model data.
+ *
+ * @return 0 on success, or (negative) error code on failure.
+ */
+int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
+			     const void *data, size_t data_len);
 
 /** Node Composition */
 struct bt_mesh_comp {

@@ -854,7 +854,8 @@ int settings_bytes_from_str(char *val_str, void *vp, int *len)
     return 0;
 }
 
-char *settings_str_from_bytes(void *vp, int vp_len, char *buf, int buf_len)
+char *settings_str_from_bytes(const void *vp, int vp_len,
+			      char *buf, int buf_len)
 {
     if (BASE64_ENCODE_SIZE(vp_len) > buf_len) {
         return NULL;
