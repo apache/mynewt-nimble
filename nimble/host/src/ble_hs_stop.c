@@ -92,7 +92,7 @@ ble_hs_stop_terminate_all_periodic_sync(void)
          * ble_hs_periodic_sync_first yields the next psync handle
          */
         sync_handle = psync->sync_handle;
-        rc = ble_gap_periodic_adv_terminate_sync(sync_handle);
+        rc = ble_gap_periodic_adv_sync_terminate(sync_handle);
         if (rc != 0 && rc != BLE_HS_ENOTCONN) {
             BLE_HS_LOG(ERROR, "failed to terminate periodic sync=0x%04x, rc=%d\n",
                        sync_handle, rc);

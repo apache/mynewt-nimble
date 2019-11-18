@@ -3412,7 +3412,7 @@ ble_gap_npl_sync_lost(struct ble_npl_event *ev)
 }
 
 int
-ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
+ble_gap_periodic_adv_sync_create(const ble_addr_t *addr, uint8_t adv_sid,
                                  const struct ble_gap_periodic_sync_params *params,
                                  ble_gap_event_fn *cb, void *cb_arg)
 {
@@ -3490,7 +3490,7 @@ ble_gap_periodic_adv_create_sync(const ble_addr_t *addr, uint8_t adv_sid,
 }
 
 int
-ble_gap_periodic_adv_create_sync_cancel(void)
+ble_gap_periodic_adv_sync_create_cancel(void)
 {
     uint16_t opcode;
     int rc = 0;
@@ -3513,7 +3513,7 @@ ble_gap_periodic_adv_create_sync_cancel(void)
 }
 
 int
-ble_gap_periodic_adv_terminate_sync(uint16_t sync_handle)
+ble_gap_periodic_adv_sync_terminate(uint16_t sync_handle)
 {
     struct ble_hci_le_periodic_adv_term_sync_cp cmd;
     struct ble_hs_periodic_sync *psync;
