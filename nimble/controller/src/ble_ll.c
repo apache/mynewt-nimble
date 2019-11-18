@@ -1517,7 +1517,7 @@ ble_ll_init(void)
     /* Settling time of crystal, in ticks */
     xtal_ticks = MYNEWT_VAL(BLE_XTAL_SETTLE_TIME);
     BLE_LL_ASSERT(xtal_ticks != 0);
-    g_ble_ll_data.ll_xtal_ticks = os_cputime_usecs_to_ticks(xtal_ticks);
+    g_ble_ll_data.ll_xtal_ticks = ble_ll_usecs_to_ticks_round_up(xtal_ticks);
 
     /* Initialize rf clock timer */
     os_cputime_timer_init(&g_ble_ll_data.ll_rfclk_timer,
