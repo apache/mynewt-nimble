@@ -512,7 +512,6 @@ static int bt_mesh_ccm_encrypt(const u8_t key[16], u8_t nonce[13],
 	return 0;
 }
 
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
 static void create_proxy_nonce(u8_t nonce[13], const u8_t *pdu,
 			       u32_t iv_index)
 {
@@ -538,7 +537,6 @@ static void create_proxy_nonce(u8_t nonce[13], const u8_t *pdu,
 	/* IV Index */
 	sys_put_be32(iv_index, &nonce[9]);
 }
-#endif /* PROXY */
 
 static void create_net_nonce(u8_t nonce[13], const u8_t *pdu,
 			     u32_t iv_index)
@@ -604,15 +602,11 @@ int bt_mesh_net_encrypt(const u8_t key[16], struct os_mbuf *buf,
 	       bt_hex(key, 16), mic_len);
 	BT_DBG("PDU (len %u) %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
-	if (proxy) {
+	if (IS_ENABLED(CONFIG_BT_MESH_PROXY) && proxy) {
 		create_proxy_nonce(nonce, buf->om_data, iv_index);
 	} else {
 		create_net_nonce(nonce, buf->om_data, iv_index);
 	}
-#else
-	create_net_nonce(nonce, buf->om_data, iv_index);
-#endif
 
 	BT_DBG("Nonce %s", bt_hex(nonce, 13));
 
@@ -635,15 +629,11 @@ int bt_mesh_net_decrypt(const u8_t key[16], struct os_mbuf *buf,
 	BT_DBG("iv_index %u, key %s mic_len %u", (unsigned) iv_index,
 	       bt_hex(key, 16), mic_len);
 
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
-	if (proxy) {
+	if (IS_ENABLED(CONFIG_BT_MESH_PROXY) && proxy) {
 		create_proxy_nonce(nonce, buf->om_data, iv_index);
 	} else {
 		create_net_nonce(nonce, buf->om_data, iv_index);
 	}
-#else
-	create_net_nonce(nonce, buf->om_data, iv_index);
-#endif
 
 	BT_DBG("Nonce %s", bt_hex(nonce, 13));
 
