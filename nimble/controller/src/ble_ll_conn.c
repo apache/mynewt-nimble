@@ -1814,9 +1814,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
     os_sr_t sr;
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-    os_sr_t sr;
-#endif
 
     /* Remove scheduler events just in case */
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
