@@ -23,7 +23,7 @@
 #include "nimble/ble.h"
 #include "nimble/ble_hci_trans.h"
 #include "nimble/hci_common.h"
-#include "mcu/da1469x_cmac.h"
+#include "cmac_driver/cmac_host.h"
 
 #define HCI_PKT_NONE    0x00
 #define HCI_PKT_CMD     0x01
@@ -154,8 +154,8 @@ ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
     uint8_t ind = HCI_PKT_CMD;
     int len = 3 + cmd[2];
 
-    da1469x_cmac_mbox_write(&ind, 1);
-    da1469x_cmac_mbox_write(cmd, len);
+    cmac_mbox_write(&ind, 1);
+    cmac_mbox_write(cmd, len);
 
     ble_hci_trans_buf_free(cmd);
 
@@ -168,11 +168,11 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
     uint8_t ind = HCI_PKT_ACL;
     struct os_mbuf *x;
 
-    da1469x_cmac_mbox_write(&ind, 1);
+    cmac_mbox_write(&ind, 1);
 
     x = om;
     while (x) {
-        da1469x_cmac_mbox_write(x->om_data, x->om_len);
+        cmac_mbox_write(x->om_data, x->om_len);
         x = SLIST_NEXT(x, om_next);
     }
 
@@ -363,6 +363,6 @@ da1469x_ble_hci_init(void)
 void
 da1469x_ble_hci_cmac_init(void)
 {
-    da1469x_cmac_mbox_set_read_cb(da1469x_ble_hci_read_cb);
-    da1469x_cmac_init();
+    cmac_mbox_set_read_cb(da1469x_ble_hci_read_cb);
+    cmac_host_init();
 }
