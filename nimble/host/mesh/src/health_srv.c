@@ -217,8 +217,7 @@ done:
 static void send_attention_status(struct bt_mesh_model *model,
 				  struct bt_mesh_msg_ctx *ctx)
 {
-	/* Needed size: opcode (2 bytes) + msg + MIC */
-	struct os_mbuf *msg = NET_BUF_SIMPLE(2 + 1 + 4);
+	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_ATTENTION_STATUS, 1);
 	struct bt_mesh_health_srv *srv = model->user_data;
 	u8_t time;
 
@@ -272,8 +271,7 @@ static void attention_set(struct bt_mesh_model *model,
 static void send_health_period_status(struct bt_mesh_model *model,
 				      struct bt_mesh_msg_ctx *ctx)
 {
-	/* Needed size: opcode (2 bytes) + msg + MIC */
-	struct os_mbuf *msg = NET_BUF_SIMPLE(2 + 1 + 4);
+	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_HEALTH_PERIOD_STATUS, 1);
 
 	bt_mesh_model_msg_init(msg, OP_HEALTH_PERIOD_STATUS);
 
