@@ -1307,6 +1307,14 @@ static void friend_lpn_enqueue_rx(struct bt_mesh_friend *frnd,
 	struct friend_pdu_info info;
 	struct os_mbuf *buf;
 
+	/* Because of network loopback, tx packets will also be passed into
+	 * this rx function. These packets have already been added to the
+	 * queue, and should be ignored.
+	 */
+	if (bt_mesh_elem_find(rx->ctx.addr)) {
+		return;
+	}
+
 	BT_DBG("LPN 0x%04x queue_size %u", frnd->lpn,
 	       (unsigned) frnd->queue_size);
 
