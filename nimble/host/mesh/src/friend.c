@@ -40,6 +40,8 @@ static struct os_mempool friend_buf_mempool;
 
 #define NET_BUF_FRAGS        BIT(0)
 
+#define FRIEND_ADV(buf) CONTAINER_OF(BT_MESH_ADV(buf), struct friend_adv, adv)
+
 /* PDUs from Friend to the LPN should only be transmitted once with the
  * smallest possible interval (20ms).
  */
@@ -57,11 +59,15 @@ struct friend_pdu_info {
 	u32_t  iv_index;
 };
 
-static struct bt_mesh_adv adv_pool[FRIEND_BUF_COUNT];
+static struct friend_adv {
+	struct bt_mesh_adv adv;
+	u16_t app_idx;
+} adv_pool[FRIEND_BUF_COUNT];
 
 static struct bt_mesh_adv *adv_alloc(int id)
 {
-	return &adv_pool[id];
+	adv_pool[id].app_idx = BT_MESH_KEY_UNUSED;
+	return &adv_pool[id].adv;
 }
 
 static bool is_lpn_unicast(struct bt_mesh_friend *frnd, u16_t addr)
@@ -315,13 +321,134 @@ static struct os_mbuf *create_friend_pdu(struct bt_mesh_friend *frnd,
 	return buf;
 }
 
-static int encrypt_friend_pdu(struct bt_mesh_friend *frnd, struct os_mbuf *buf, bool master_cred)
+struct unseg_app_sdu_meta {
+	struct bt_mesh_net_rx net;
+	const u8_t *key;
+	struct bt_mesh_subnet *subnet;
+	bool is_dev_key;
+	u8_t aid;
+	u8_t *ad;
+};
+
+static int unseg_app_sdu_unpack(struct bt_mesh_friend *frnd,
+				struct os_mbuf *buf,
+				struct unseg_app_sdu_meta *meta)
+{
+	u16_t app_idx = FRIEND_ADV(buf)->app_idx;
+	int err;
+
+	meta->subnet = bt_mesh_subnet_get(frnd->net_idx);
+	meta->is_dev_key = (app_idx == BT_MESH_KEY_DEV);
+	bt_mesh_net_header_parse(buf, &meta->net);
+	err = bt_mesh_app_key_get(meta->subnet, app_idx, &meta->key,
+				  &meta->aid);
+	if (err) {
+		return err;
+	}
+
+	if (BT_MESH_ADDR_IS_VIRTUAL(meta->net.ctx.recv_dst)) {
+		meta->ad = bt_mesh_label_uuid_get(meta->net.ctx.recv_dst);
+		if (!meta->ad) {
+			return -ENOENT;
+		}
+	} else {
+		meta->ad = NULL;
+	}
+
+	return 0;
+}
+
+static int unseg_app_sdu_decrypt(struct bt_mesh_friend *frnd,
+				 struct os_mbuf *buf,
+				 const struct unseg_app_sdu_meta *meta)
+{
+	struct net_buf_simple_state state;
+	int err;
+
+	BT_DBG("");
+
+	net_buf_simple_save(buf, &state);
+	net_buf_simple_pull_mem(buf, 10);
+	buf->om_len -= 4;
+
+	err = bt_mesh_app_decrypt_in_place(meta->key, meta->is_dev_key,
+					   0, buf, meta->ad, meta->net.ctx.addr,
+					   meta->net.ctx.recv_dst, meta->net.seq,
+					   BT_MESH_NET_IVI_TX);
+
+	net_buf_simple_restore(buf, &state);
+	return err;
+}
+
+static int unseg_app_sdu_encrypt(struct bt_mesh_friend *frnd,
+				 struct os_mbuf *buf,
+				 const struct unseg_app_sdu_meta *meta)
+{
+	struct net_buf_simple_state state;
+	int err;
+
+	BT_DBG("");
+
+	net_buf_simple_save(buf, &state);
+	net_buf_simple_pull_mem(buf, 10);
+	buf->om_len -= 4;
+
+	err = bt_mesh_app_encrypt_in_place(meta->key, meta->is_dev_key, 0, buf,
+					   meta->ad, meta->net.ctx.addr,
+					   meta->net.ctx.recv_dst, bt_mesh.seq,
+					   BT_MESH_NET_IVI_TX);
+
+	net_buf_simple_restore(buf, &state);
+	return err;
+}
+
+static int unseg_app_sdu_prepare(struct bt_mesh_friend *frnd,
+				 struct os_mbuf *buf)
+{
+	struct unseg_app_sdu_meta meta;
+	int err;
+
+	BT_DBG("");
+
+	if (FRIEND_ADV(buf)->app_idx == BT_MESH_KEY_UNUSED) {
+		return 0;
+	}
+
+	err = unseg_app_sdu_unpack(frnd, buf, &meta);
+	if (err) {
+		return err;
+	}
+
+	/* No need to reencrypt the message if the sequence number is
+	 * unchanged.
+	 */
+	if (meta.net.seq == bt_mesh.seq) {
+		return 0;
+	}
+
+	err = unseg_app_sdu_decrypt(frnd, buf, &meta);
+	if (err) {
+		BT_WARN("Decryption failed! %d", err);
+		return err;
+	}
+
+	err = unseg_app_sdu_encrypt(frnd, buf, &meta);
+	if (err) {
+		BT_WARN("Re-encryption failed! %d", err);
+	}
+
+	return err;
+}
+
+static int encrypt_friend_pdu(struct bt_mesh_friend *frnd, struct os_mbuf *buf,
+			      bool master_cred)
 {
 	struct bt_mesh_subnet *sub = bt_mesh_subnet_get(frnd->net_idx);
 	const u8_t *enc, *priv;
 	u32_t iv_index;
 	u16_t src;
 	u8_t nid;
+	int err;
 
 	if (master_cred) {
 		enc = sub->keys[sub->kr_flag].enc;
@@ -337,12 +464,22 @@ static int encrypt_friend_pdu(struct bt_mesh_friend *frnd, struct os_mbuf *buf, 
 	src = sys_get_be16(&buf->om_data[5]);
 
 	if (bt_mesh_elem_find(src)) {
-		/* Local messages were stored with a blank seqnum */
-		u32_t seq = bt_mesh_next_seq();
+		u32_t seq;
+
+		if (FRIEND_ADV(buf)->app_idx != BT_MESH_KEY_UNUSED) {
+			err = unseg_app_sdu_prepare(frnd, buf);
+			if (err) {
+				return err;
+			}
+		}
+
+		seq = bt_mesh_next_seq();
 		buf->om_data[2] = seq >> 16;
 		buf->om_data[3] = seq >> 8;
 		buf->om_data[4] = seq;
+
 		iv_index = BT_MESH_NET_IVI_TX;
+		FRIEND_ADV(buf)->app_idx = BT_MESH_KEY_UNUSED;
 	} else {
 		u8_t ivi = (buf->om_data[0] >> 7);
 		iv_index = (bt_mesh.iv_index - ((bt_mesh.iv_index & 1) != ivi));
@@ -1227,7 +1364,9 @@ static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,
 	info.ttl = tx->ctx->send_ttl;
 	info.ctl = (tx->ctx->app_idx == BT_MESH_KEY_UNUSED);
 
-	memset(info.seq, 0, sizeof(info.seq)); /* Will be allocated before encryption */
+	info.seq[0] = (bt_mesh.seq >> 16);
+	info.seq[1] = (bt_mesh.seq >> 8);
+	info.seq[2] = bt_mesh.seq;
 
 	info.iv_index = BT_MESH_NET_IVI_TX;
 
@@ -1235,6 +1374,14 @@ static void friend_lpn_enqueue_tx(struct bt_mesh_friend *frnd,
 	if (!buf) {
 		BT_ERR("Failed to encode Friend buffer");
 		return;
+	}
+
+	if (type == BT_MESH_FRIEND_PDU_SINGLE && !info.ctl) {
+		/* Unsegmented application packets may be reencrypted later,
+		 * as they depend on the the sequence number being the same
+		 * when encrypting in transport and network.
+		 */
+		FRIEND_ADV(buf)->app_idx = tx->ctx->app_idx;
 	}
 
 	enqueue_friend_pdu(frnd, type, info.src, seg_count, buf);
