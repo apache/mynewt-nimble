@@ -991,7 +991,7 @@ static void prov_confirm(const u8_t *data)
 
 static void prov_random(const u8_t *data)
 {
-	struct os_mbuf *rnd = PROV_BUF(16);
+	struct os_mbuf *rnd = PROV_BUF(17);
 	u8_t conf_verify[16];
 
 	BT_DBG("Remote Random: %s", bt_hex(data, 16));
