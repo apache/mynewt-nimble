@@ -408,6 +408,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_IVU_DIVIDER          MYNEWT_VAL(BLE_MESH_IVU_DIVIDER)
 #define CONFIG_BT_DEVICE_NAME               MYNEWT_VAL(BLE_MESH_DEVICE_NAME)
 #define CONFIG_BT_MESH_TX_SEG_MAX           MYNEWT_VAL(BLE_MESH_TX_SEG_MAX)
+#define CONFIG_BT_MESH_LABEL_COUNT          MYNEWT_VAL(BLE_MESH_LABEL_COUNT)
 
 #define printk console_printf
 
