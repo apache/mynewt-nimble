@@ -200,6 +200,40 @@ static int unprovisioned_beacon_send(void)
 	return 0;
 }
 
+static void unprovisioned_beacon_recv(struct os_mbuf *buf)
+{
+#if MYNEWT_VAL(BLE_MESH_PB_ADV)
+	const struct bt_mesh_prov *prov;
+	u8_t *uuid;
+	u16_t oob_info;
+	u32_t uri_hash_val;
+	u32_t *uri_hash = NULL;
+
+	if (buf->om_len != 18 && buf->om_len != 22) {
+		BT_ERR("Invalid unprovisioned beacon length (%u)", buf->om_len);
+		return;
+	}
+
+	uuid = net_buf_simple_pull_mem(buf, 16);
+	oob_info = net_buf_simple_pull_be16(buf);
+
+	if (buf->om_len == 4) {
+		uri_hash_val = net_buf_simple_pull_be32(buf);
+		uri_hash = &uri_hash_val;
+	}
+
+	BT_DBG("uuid %s", bt_hex(uuid, 16));
+
+	prov = bt_mesh_prov_get();
+
+	if (prov->unprovisioned_beacon) {
+		prov->unprovisioned_beacon(uuid,
+					   (bt_mesh_prov_oob_info_t)oob_info,
+					   uri_hash);
+	}
+#endif
+}
+
 static void update_beacon_observation(void)
 {
 	static bool first_half;
@@ -347,7 +381,7 @@ void bt_mesh_beacon_recv(struct os_mbuf *buf)
 	type = net_buf_simple_pull_u8(buf);
 	switch (type) {
 	case BEACON_TYPE_UNPROVISIONED:
-		BT_DBG("Ignoring unprovisioned device beacon");
+		unprovisioned_beacon_recv(buf);
 		break;
 	case BEACON_TYPE_SECURE:
 		secure_beacon_recv(buf);
