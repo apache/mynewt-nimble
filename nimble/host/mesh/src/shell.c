@@ -222,39 +222,25 @@ static struct bt_mesh_health_cli health_cli = {
 #endif /* MYNEWT_VAL(BLE_MESH_HEALTH_CLI) */
 
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
+static struct bt_mesh_gen_model_cli gen_onoff_cli;
 static struct bt_mesh_model_pub gen_onoff_cli_pub;
 static struct bt_mesh_model_pub gen_onoff_srv_pub;
+static struct bt_mesh_gen_model_cli gen_level_cli;
 static struct bt_mesh_model_pub gen_level_cli_pub;
 static struct bt_mesh_model_pub gen_level_srv_pub;
 static struct bt_mesh_model_pub light_lightness_pub;
-static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {
+static struct bt_mesh_gen_onoff_srv gen_onoff_srv = {
 	.get = light_model_gen_onoff_get,
 	.set = light_model_gen_onoff_set,
 };
-static struct bt_mesh_gen_level_srv_cb gen_level_srv_cb = {
+static struct bt_mesh_gen_level_srv gen_level_srv = {
 	.get = light_model_gen_level_get,
 	.set = light_model_gen_level_set,
 };
-static struct bt_mesh_light_lightness_srv_cb light_lightness_srv_cb = {
+static struct bt_mesh_light_lightness_srv light_lightness_srv = {
 	.get = light_model_light_lightness_get,
 	.set = light_model_light_lightness_set,
 };
-
-void bt_mesh_set_gen_onoff_srv_cb(struct bt_mesh_gen_onoff_srv_cb *gen_onoff_cb)
-{
-	gen_onoff_srv_cb = *gen_onoff_cb;
-}
-
-void bt_mesh_set_gen_level_srv_cb(struct bt_mesh_gen_level_srv_cb *gen_level_cb)
-{
-	gen_level_srv_cb = *gen_level_cb;
-}
-
-void bt_mesh_set_light_lightness_srv_cb(struct bt_mesh_light_lightness_srv_cb *light_lightness_cb)
-{
-	light_lightness_srv_cb = *light_lightness_cb;
-}
-
 #endif
 
 static struct bt_mesh_model root_models[] = {
@@ -267,11 +253,11 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_HEALTH_CLI(&health_cli),
 #endif
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-	BT_MESH_MODEL_GEN_ONOFF_SRV(&gen_onoff_srv_cb, &gen_onoff_srv_pub),
-	BT_MESH_MODEL_GEN_ONOFF_CLI(&gen_onoff_cli_pub),
-	BT_MESH_MODEL_GEN_LEVEL_SRV(&gen_level_srv_cb, &gen_level_srv_pub),
-	BT_MESH_MODEL_GEN_LEVEL_CLI(&gen_level_cli_pub),
-	BT_MESH_MODEL_LIGHT_LIGHTNESS_SRV(&light_lightness_srv_cb, &light_lightness_pub),
+	BT_MESH_MODEL_GEN_ONOFF_SRV(&gen_onoff_srv, &gen_onoff_srv_pub),
+	BT_MESH_MODEL_GEN_ONOFF_CLI(&gen_onoff_cli, &gen_onoff_cli_pub),
+	BT_MESH_MODEL_GEN_LEVEL_SRV(&gen_level_srv, &gen_level_srv_pub),
+	BT_MESH_MODEL_GEN_LEVEL_CLI(&gen_level_cli, &gen_level_cli_pub),
+	BT_MESH_MODEL_LIGHT_LIGHTNESS_SRV(&light_lightness_srv, &light_lightness_pub),
 #endif
 };
 
