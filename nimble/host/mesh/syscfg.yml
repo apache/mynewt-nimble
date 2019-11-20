@@ -29,6 +29,19 @@ syscfg.defs:
            the advertising bearer.
         value: 1
 
+    BLE_MESH_PROVISIONER:
+        description: >
+            Enable this option to have support for provisioning remote devices.
+        value: 0
+        restrictions:
+            - (BLE_MESH_PROV)
+
+    BLE_MESH_NODE_COUNT:
+        description: >
+            This option specifies how many nodes each network can at most
+            save in the provisioning database. Range 1-4096
+        value: 1
+
     BLE_MESH_PROXY:
         description: >
            Enable proxy. This is automatically set whenever BLE_MESH_PB_GATT or

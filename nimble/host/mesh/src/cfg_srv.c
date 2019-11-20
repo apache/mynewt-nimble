@@ -3351,8 +3351,11 @@ static int cfg_srv_init(struct bt_mesh_model *model)
 		return -EINVAL;
 	}
 
-	/* Configuration Model security is device-key based */
-	model->keys[0] = BT_MESH_KEY_DEV;
+	/*
+	 * Configuration Model security is device-key based and only the local
+	 * device-key is allowed to access this model.
+	 */
+	model->keys[0] = BT_MESH_KEY_DEV_LOCAL;
 
 	if (!(MYNEWT_VAL(BLE_MESH_RELAY))) {
 		cfg->relay = BT_MESH_RELAY_NOT_SUPPORTED;
