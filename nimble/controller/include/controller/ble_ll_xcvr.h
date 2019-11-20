@@ -32,7 +32,7 @@ extern "C" {
 #define BLE_RFCLK_STATE_SETTLED (2)
 
 int ble_ll_xcvr_rfclk_state(void);
-void ble_ll_xcvr_rfclk_start_now(uint32_t now);
+void ble_ll_xcvr_rfclk_start_now(void);
 void ble_ll_xcvr_rfclk_stop(void);
 void ble_ll_xcvr_rfclk_enable(void);
 void ble_ll_xcvr_rfclk_disable(void);

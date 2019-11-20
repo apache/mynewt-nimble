@@ -415,7 +415,7 @@ ble_ll_dtm_rx_start(void)
 #ifdef BLE_XCVR_RFCLK
     OS_ENTER_CRITICAL(sr);
     if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
-        ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+        ble_ll_xcvr_rfclk_start_now();
     }
     OS_EXIT_CRITICAL(sr);
 #endif

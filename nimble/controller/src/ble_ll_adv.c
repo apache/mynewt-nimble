@@ -2613,7 +2613,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     if (xtal_state != BLE_RFCLK_STATE_SETTLED) {
         if (xtal_state == BLE_RFCLK_STATE_OFF) {
             advsm->adv_pdu_start_time += g_ble_ll_data.ll_xtal_ticks;
-            ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+            ble_ll_xcvr_rfclk_start_now();
         } else {
             advsm->adv_pdu_start_time += ble_ll_xcvr_rfclk_time_till_settled();
         }
