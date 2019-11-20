@@ -1596,7 +1596,7 @@ static void store_pending_mod_sub(struct bt_mesh_model *mod, bool vnd)
 	int i, count, err;
 	char *val;
 
-	for (i = 0, count = 0; i < ARRAY_SIZE(mod->groups); i++) {
+	for (i = 0, count = 0; i < CONFIG_BT_MESH_MODEL_GROUP_COUNT; i++) {
 		if (mod->groups[i] != BT_MESH_ADDR_UNASSIGNED) {
 			groups[count++] = mod->groups[i];
 		}

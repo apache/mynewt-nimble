@@ -360,6 +360,12 @@ syscfg.defs:
             the console.
         value: 0
 
+    BLE_MESH_MODEL_EXTENSIONS:
+        description: >
+            Enable support for the model extension concept, allowing the Access
+            layer to know about Mesh model relationships.
+        value: 0
+
     BLE_MESH_IV_UPDATE_TEST:
         description: >
             This option removes the 96 hour limit of the IV Update
