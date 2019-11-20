@@ -930,6 +930,10 @@
 #define MYNEWT_VAL_BLE_MESH_LPN_SCAN_LATENCY (10)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_MODEL_EXTENSIONS
+#define MYNEWT_VAL_BLE_MESH_MODEL_EXTENSIONS (0)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_MODEL_GROUP_COUNT
 #define MYNEWT_VAL_BLE_MESH_MODEL_GROUP_COUNT (2)
@@ -957,6 +961,10 @@
 
 #ifndef MYNEWT_VAL_BLE_MESH_NET_LOG_MOD
 #define MYNEWT_VAL_BLE_MESH_NET_LOG_MOD (17)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_NODE_COUNT
+#define MYNEWT_VAL_BLE_MESH_NODE_COUNT (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_NODE_ID_TIMEOUT
@@ -992,6 +1000,10 @@
 /* Overridden by @apache-mynewt-nimble/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_PROV
 #define MYNEWT_VAL_BLE_MESH_PROV (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_PROVISIONER
+#define MYNEWT_VAL_BLE_MESH_PROVISIONER (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_PROV_LOG_LVL
