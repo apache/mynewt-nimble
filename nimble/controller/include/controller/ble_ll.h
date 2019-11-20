@@ -118,8 +118,10 @@ struct ble_ll_obj
 
 #ifdef BLE_XCVR_RFCLK
     uint8_t ll_rfclk_state;
+    uint8_t ll_rfclk_is_sched;
     uint16_t ll_xtal_ticks;
     uint32_t ll_rfclk_start_time;
+    uint32_t ll_rfclk_sched_time;
     struct hal_timer ll_rfclk_timer;
 #endif
 

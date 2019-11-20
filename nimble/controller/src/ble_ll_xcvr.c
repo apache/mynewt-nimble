@@ -67,6 +67,8 @@ ble_ll_xcvr_rfclk_disable(void)
 void
 ble_ll_xcvr_rfclk_stop(void)
 {
+    OS_ASSERT_CRITICAL();
+    g_ble_ll_data.ll_rfclk_is_sched = 0;
     os_cputime_timer_stop(&g_ble_ll_data.ll_rfclk_timer);
     ble_ll_xcvr_rfclk_disable();
 }
@@ -101,6 +103,8 @@ ble_ll_xcvr_rfclk_time_till_settled(void)
 void
 ble_ll_xcvr_rfclk_timer_exp(void *arg)
 {
+    g_ble_ll_data.ll_rfclk_is_sched = 0;
+
     if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_OFF) {
         ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
     }
@@ -130,6 +134,8 @@ ble_ll_xcvr_rfclk_start_now(uint32_t now)
 void
 ble_ll_xcvr_rfclk_timer_start(uint32_t cputime)
 {
+    OS_ASSERT_CRITICAL();
+
     /*
      * If we are currently in an advertising event or a connection event,
      * no need to start the cputime timer
@@ -147,12 +153,15 @@ ble_ll_xcvr_rfclk_timer_start(uint32_t cputime)
      * 'cputime'. If the expiry is before, no need to do anything. If it
      * is after, we need to stop the timer and start at new time.
      */
-    if (g_ble_ll_data.ll_rfclk_timer.link.tqe_prev != NULL) {
-        if ((int32_t)(cputime - g_ble_ll_data.ll_rfclk_timer.expiry) >= 0) {
+    if (g_ble_ll_data.ll_rfclk_is_sched) {
+        if ((int32_t)(cputime - g_ble_ll_data.ll_rfclk_sched_time) >= 0) {
             return;
         }
         os_cputime_timer_stop(&g_ble_ll_data.ll_rfclk_timer);
     }
+
+    g_ble_ll_data.ll_rfclk_is_sched = 1;
+    g_ble_ll_data.ll_rfclk_sched_time = cputime;
     os_cputime_timer_start(&g_ble_ll_data.ll_rfclk_timer, cputime);
 }
 #endif
