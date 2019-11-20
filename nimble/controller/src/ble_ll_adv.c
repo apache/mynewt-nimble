@@ -202,6 +202,34 @@ struct ble_ll_adv_sm
 #define SYNC_DATA_LEN(_advsm) \
                 (_advsm->periodic_adv_data ? OS_MBUF_PKTLEN(advsm->periodic_adv_data) : 0)
 
+/* The advertising state machine global object */
+struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
+struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
+
+static struct ble_ll_adv_sm *
+ble_ll_adv_sm_find_configured(uint8_t instance)
+{
+    struct ble_ll_adv_sm *advsm;
+    int i;
+
+    /* in legacy mode we only allow instance 0 */
+    if (!ble_ll_hci_adv_mode_ext()) {
+        BLE_LL_ASSERT(instance == 0);
+        return &g_ble_ll_adv_sm[0];
+    }
+
+    for (i = 0; i < ARRAY_SIZE(g_ble_ll_adv_sm); i++) {
+        advsm = &g_ble_ll_adv_sm[i];
+
+        if ((advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED) &&
+                (advsm->adv_instance == instance)) {
+            return advsm;
+        }
+    }
+
+    return NULL;
+}
+
 static int
 ble_ll_adv_active_chanset_is_pri(struct ble_ll_adv_sm *advsm)
 {
@@ -271,10 +299,6 @@ ble_ll_adv_flags_clear(struct ble_ll_adv_sm *advsm, uint16_t flags)
     advsm->flags &= ~flags;
     OS_EXIT_CRITICAL(sr);
 }
-
-/* The advertising state machine global object */
-struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
-struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
@@ -2717,11 +2741,10 @@ ble_ll_adv_set_enable(uint8_t instance, uint8_t enable, int duration,
     int rc;
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    advsm = ble_ll_adv_sm_find_configured(instance);
+    if (!advsm) {
+        return BLE_ERR_UNK_ADV_INDENT;
     }
-
-    advsm = &g_ble_ll_adv_sm[instance];
 
     rc = BLE_ERR_SUCCESS;
     if (enable == 1) {
@@ -2814,19 +2837,6 @@ done:
     *omp = om;
 }
 
-static bool
-instance_configured(struct ble_ll_adv_sm *advsm)
-{
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (ble_ll_hci_adv_mode_ext()) {
-        return advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED;
-    }
-#endif
-
-    /* legacy HCI instance is always configured */
-    return true;
-}
-
 /**
  * Set the scan response data that the controller will send.
  *
@@ -2842,13 +2852,8 @@ ble_ll_adv_set_scan_rsp_data(const uint8_t *data, uint8_t datalen,
     struct ble_ll_adv_sm *advsm;
     bool new_data;
 
-    if (instance >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[instance];
-
-    if (!instance_configured(advsm)) {
+    advsm = ble_ll_adv_sm_find_configured(instance);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -2968,13 +2973,8 @@ ble_ll_adv_set_adv_data(const uint8_t *data, uint8_t datalen, uint8_t instance,
     struct ble_ll_adv_sm *advsm;
     bool new_data;
 
-    if (instance >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[instance];
-
-    if (!instance_configured(advsm)) {
+    advsm = ble_ll_adv_sm_find_configured(instance);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -3132,6 +3132,32 @@ sec_phy_valid(uint8_t phy)
     }
 }
 
+static struct ble_ll_adv_sm *
+ble_ll_adv_sm_get(uint8_t instance)
+{
+    struct ble_ll_adv_sm *advsm;
+    int i;
+
+    advsm = ble_ll_adv_sm_find_configured(instance);
+    if (advsm) {
+        return advsm;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(g_ble_ll_adv_sm); i++) {
+        advsm = &g_ble_ll_adv_sm[i];
+
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+            ble_ll_adv_sm_init(advsm);
+
+           /* configured flag is set by caller on success config */
+           advsm->adv_instance = instance;
+           return advsm;
+        }
+    }
+
+    return NULL;
+}
+
 int
 ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
                          uint8_t *rspbuf, uint8_t *rsplen)
@@ -3149,12 +3175,12 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    advsm = ble_ll_adv_sm_get(cmd->adv_handle);
+    if (!advsm) {
+        rc = BLE_ERR_MEM_CAPACITY;
         goto done;
     }
 
-    advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
     if (advsm->adv_enabled) {
         rc = BLE_ERR_CMD_DISALLOWED;
         goto done;
@@ -3453,10 +3479,6 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
 
     /* validate instances */
     for (i = 0; i < cmd->num_sets; i++) {
-        if (cmd->sets[i].adv_handle >= BLE_ADV_INSTANCES) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
-
         /* validate duplicated sets */
         for (j = i + 1; j < cmd->num_sets; j++) {
             if (cmd->sets[i].adv_handle == cmd->sets[j].adv_handle) {
@@ -3464,9 +3486,8 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
             }
         }
 
-        advsm = &g_ble_ll_adv_sm[cmd->sets[i].adv_handle];
-
-        if (!instance_configured(advsm)) {
+        advsm = ble_ll_adv_sm_find_configured(cmd->sets[i].adv_handle);
+        if (!advsm) {
             return BLE_ERR_UNK_ADV_INDENT;
         }
 
@@ -3497,11 +3518,10 @@ ble_ll_adv_set_random_addr(const uint8_t *addr, uint8_t instance)
 {
     struct ble_ll_adv_sm *advsm;
 
-    if (instance >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    advsm = ble_ll_adv_sm_find_configured(instance);
+    if (!advsm) {
+        return BLE_ERR_UNK_ADV_INDENT;
     }
-
-    advsm = &g_ble_ll_adv_sm[instance];
 
     /*
      * Reject if connectable advertising is on
@@ -3543,17 +3563,8 @@ ble_ll_adv_remove(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* TODO
-     * Should we allow any value for instance ID?
-     */
-
-    if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
-
-    if (!instance_configured(advsm)) {
+    advsm = ble_ll_adv_sm_find_configured(cmd->adv_handle);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -3627,12 +3638,8 @@ ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
     adv_itvl_max = le16toh(cmd->max_itvl);
     props = le16toh(cmd->props);
 
-    if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
-    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+    advsm = ble_ll_adv_sm_find_configured(cmd->adv_handle);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -3694,12 +3701,8 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
-    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+    advsm = ble_ll_adv_sm_find_configured(cmd->adv_handle);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -3787,12 +3790,8 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
-    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+    advsm = ble_ll_adv_sm_find_configured(cmd->adv_handle);
+    if (!advsm) {
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
@@ -3886,13 +3885,8 @@ ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
          goto done;
      }
 
-     if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
-         rc = BLE_ERR_INV_HCI_CMD_PARMS;
-         goto done;
-     }
-
-     advsm = &g_ble_ll_adv_sm[cmd->adv_handle];
-     if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONFIGURED)) {
+     advsm = ble_ll_adv_sm_find_configured(cmd->adv_handle);
+     if (!advsm) {
          rc = BLE_ERR_UNK_ADV_INDENT;
          goto done;
      }
@@ -4915,11 +4909,8 @@ ble_ll_adv_enabled(void)
 static void
 ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
 {
-    uint8_t i = advsm->adv_instance;
-
     memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
 
-    advsm->adv_instance = i;
     advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
     advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
     advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
@@ -4972,7 +4963,6 @@ ble_ll_adv_init(void)
 
     /* Set default advertising parameters */
     for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
-        g_ble_ll_adv_sm[i].adv_instance = i;
         ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }
