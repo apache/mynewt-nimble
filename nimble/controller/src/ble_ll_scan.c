@@ -1600,7 +1600,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
              * the clock setting time.
              */
             if (xtal_state == BLE_RFCLK_STATE_OFF) {
-                ble_ll_xcvr_rfclk_start_now(now);
+                ble_ll_xcvr_rfclk_start_now();
             }
             next_event_time = now + xtal_ticks;
             goto done;
@@ -1621,7 +1621,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
             /* Start the clock if necessary */
             if (start_scan) {
                 if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
-                    ble_ll_xcvr_rfclk_start_now(now);
+                    ble_ll_xcvr_rfclk_start_now();
                     next_event_time = now + g_ble_ll_data.ll_xtal_ticks;
                 }
             }

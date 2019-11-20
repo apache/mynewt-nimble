@@ -102,7 +102,7 @@ void
 ble_ll_xcvr_rfclk_timer_exp(void *arg)
 {
     if (g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_OFF) {
-        ble_ll_xcvr_rfclk_start_now(os_cputime_get32());
+        ble_ll_xcvr_rfclk_start_now();
     }
 }
 
@@ -115,10 +115,12 @@ ble_ll_xcvr_rfclk_timer_exp(void *arg)
  * @param now
  */
 void
-ble_ll_xcvr_rfclk_start_now(uint32_t now)
+ble_ll_xcvr_rfclk_start_now(void)
 {
+    BLE_LL_ASSERT(g_ble_ll_data.ll_rfclk_state == BLE_RFCLK_STATE_OFF);
+
     ble_ll_xcvr_rfclk_enable();
-    g_ble_ll_data.ll_rfclk_start_time = now;
+    g_ble_ll_data.ll_rfclk_start_time = os_cputime_get32();
 }
 
 /**
