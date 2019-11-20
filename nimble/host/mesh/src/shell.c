@@ -311,8 +311,17 @@ static void prov_complete(u16_t net_idx, u16_t addr)
 {
 	printk("Local node provisioned, net_idx 0x%04x address 0x%04x\n",
 	       net_idx, addr);
-	net.net_idx = net_idx,
 	net.local = addr;
+	net.net_idx = net_idx,
+	net.dst = addr;
+}
+
+static void prov_node_added(u16_t net_idx, u16_t addr, u8_t num_elem)
+{
+	printk("Node provisioned, net_idx 0x%04x address "
+	       "0x%04x elements %d", net_idx, addr, num_elem);
+
+	net.net_idx = net_idx,
 	net.dst = addr;
 }
 
@@ -460,6 +469,7 @@ static struct bt_mesh_prov prov = {
 	.link_open = link_open,
 	.link_close = link_close,
 	.complete = prov_complete,
+	.node_added = prov_node_added,
 	.reset = prov_reset,
 	.static_val = NULL,
 	.static_val_len = 0,
@@ -1798,6 +1808,37 @@ static int cmd_pb_adv(int argc, char *argv[])
 {
 	return cmd_pb(BT_MESH_PROV_ADV, argc, argv);
 }
+
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+static int cmd_provision_adv(int argc, char *argv[])
+{
+	u8_t uuid[16];
+	u8_t attention_duration;
+	u16_t net_idx;
+	u16_t addr;
+	size_t len;
+	int err;
+
+	len = hex2bin(argv[1], uuid, sizeof(uuid));
+	(void)memset(uuid + len, 0, sizeof(uuid) - len);
+
+	net_idx = strtoul(argv[2], NULL, 0);
+	addr = strtoul(argv[3], NULL, 0);
+	attention_duration = strtoul(argv[4], NULL, 0);
+
+	err = bt_mesh_provision_adv(uuid, net_idx, addr, attention_duration);
+	if (err) {
+		printk("Provisioning failed (err %d)", err);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_provision_adv_help = {
+	NULL, "<UUID> <NetKeyIndex> <addr> <AttentionDuration>" , NULL
+};
+#endif /* CONFIG_BT_MESH_PROVISIONER */
+
 #endif /* CONFIG_BT_MESH_PB_ADV */
 
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
@@ -2399,6 +2440,13 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd_func = cmd_pb_adv,
         .help = &cmd_pb_help,
     },
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+    {
+        .sc_cmd = "provision-adv",
+        .sc_cmd_func = cmd_provision_adv,
+        .help = &cmd_provision_adv_help,
+    },
+#endif
 #endif
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
     {
