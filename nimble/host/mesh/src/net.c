@@ -77,6 +77,13 @@ struct bt_mesh_net bt_mesh = {
 			.net_idx = BT_MESH_KEY_UNUSED,
 		}
 	},
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+	.nodes = {
+		[0 ... (CONFIG_BT_MESH_NODE_COUNT - 1)] = {
+			.net_idx = BT_MESH_KEY_UNUSED,
+		}
+	},
+#endif
 };
 
 static u32_t dup_cache[4];

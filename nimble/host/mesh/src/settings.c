@@ -18,6 +18,7 @@
 #include "foundation.h"
 #include "proxy.h"
 #include "settings.h"
+#include "nodes.h"
 
 #include "config/config.h"
 
@@ -110,6 +111,24 @@ struct va_val {
 	u16_t addr;
 	u8_t uuid[16];
 } __packed;
+
+/* Node storage information */
+struct node_val {
+	u16_t net_idx;
+	u8_t  dev_key[16];
+	u8_t  num_elem;
+} __packed;
+
+struct node_update {
+	u16_t addr;
+	bool clear;
+};
+
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+static struct node_update node_updates[CONFIG_BT_MESH_NODE_COUNT];
+#else
+static struct node_update node_updates[0];
+#endif
 
 /* We need this so we don't overwrite app-hardcoded values in case FCB
  * contains a history of changes but then has a NULL at the end.
@@ -739,6 +758,62 @@ static int va_set(int argc, char **argv, char *val)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+static int node_set(int argc, char **argv, char *str)
+{
+	struct bt_mesh_node *node;
+	struct node_val val;
+	u16_t addr;
+	int len, err;
+
+	if (argc < 1) {
+		BT_ERR("Insufficient number of arguments");
+		return -ENOENT;
+	}
+
+	addr = strtol(argv[0], NULL, 16);
+
+	if (str == NULL) {
+		BT_DBG("val (null)");
+		BT_DBG("Deleting node 0x%04x", addr);
+
+		node = bt_mesh_node_find(addr);
+		if (node) {
+			bt_mesh_node_del(node, false);
+		}
+
+		return 0;
+	}
+
+	err = settings_bytes_from_str(str, &val, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return -EINVAL;
+	}
+
+	if (len != sizeof(struct node_val)) {
+		BT_ERR("Invalid length for node_val");
+		return -EINVAL;
+	}
+
+	node = bt_mesh_node_find(addr);
+	if (!node) {
+		node = bt_mesh_node_alloc(addr, val.num_elem, val.net_idx);
+	}
+
+	if (!node) {
+		BT_ERR("No space for a new node");
+		return -ENOMEM;
+	}
+
+	memcpy(node->dev_key, &val.dev_key, 16);
+
+	BT_DBG("Node 0x%04x recovered from storage", addr);
+
+	return 0;
+}
+#endif
+
 const struct mesh_setting {
 	const char *name;
 	int (*func)(int argc, char **argv, char *val);
@@ -755,6 +830,9 @@ const struct mesh_setting {
 	{ "v", vnd_mod_set },
 #if CONFIG_BT_MESH_LABEL_COUNT > 0
 	{ "Va", va_set },
+#endif
+#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
+	{ "Node", node_set },
 #endif
 };
 
@@ -903,7 +981,8 @@ static int mesh_commit(void)
 #define GENERIC_PENDING_BITS (BIT(BT_MESH_KEYS_PENDING) |          \
 			      BIT(BT_MESH_HB_PUB_PENDING) |        \
 			      BIT(BT_MESH_CFG_PENDING) |           \
-			      BIT(BT_MESH_MOD_PENDING))
+			      BIT(BT_MESH_MOD_PENDING) |           \
+			      BIT(BT_MESH_NODES_PENDING))
 
 static void schedule_store(int flag)
 {
@@ -1363,6 +1442,104 @@ static void store_pending_keys(void)
 	}
 }
 
+static void store_node(struct bt_mesh_node *node)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct node_val))];
+	struct node_val val;
+	char path[20];
+	char *str;
+	int err;
+
+	val.net_idx = node->net_idx;
+	val.num_elem = node->num_elem;
+	memcpy(val.dev_key, node->dev_key, 16);
+
+	snprintk(path, sizeof(path), "bt_mesh/Node/%x", node->addr);
+
+	str = settings_str_from_bytes(&val, sizeof(val), buf, sizeof(buf));
+	if (!str) {
+		BT_ERR("Unable to encode Node as value");
+		return;
+	}
+
+
+	err = settings_save_one(path, str);
+	if (err) {
+		BT_ERR("Failed to store Node %s value", path);
+	} else {
+		BT_DBG("Stored Node %s value", path);
+	}
+}
+
+static void clear_node(u16_t addr)
+{
+	char path[20];
+	int err;
+
+	BT_DBG("Node 0x%04x", addr);
+
+	snprintk(path, sizeof(path), "bt_mesh/Node/%x", addr);
+	err = settings_save_one(path, NULL);
+	if (err) {
+		BT_ERR("Failed to clear Node 0x%04x", addr);
+	} else {
+		BT_DBG("Cleared Node 0x%04x", addr);
+	}
+}
+
+static void store_pending_nodes(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(node_updates); ++i) {
+		struct node_update *update = &node_updates[i];
+
+		if (update->addr == BT_MESH_ADDR_UNASSIGNED) {
+			continue;
+		}
+
+		if (update->clear) {
+			clear_node(update->addr);
+		} else {
+			struct bt_mesh_node *node;
+
+			node = bt_mesh_node_find(update->addr);
+			if (node) {
+				store_node(node);
+			} else {
+				BT_WARN("Node 0x%04x not found", update->addr);
+			}
+		}
+
+		update->addr = BT_MESH_ADDR_UNASSIGNED;
+	}
+}
+
+static struct node_update *node_update_find(u16_t addr,
+					    struct node_update **free_slot)
+{
+	struct node_update *match;
+	int i;
+
+	match = NULL;
+	*free_slot = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(node_updates); i++) {
+		struct node_update *update = &node_updates[i];
+
+		if (update->addr == BT_MESH_ADDR_UNASSIGNED) {
+			*free_slot = update;
+			continue;
+		}
+
+		if (update->addr == addr) {
+			match = update;
+		}
+	}
+
+	return match;
+}
+
 static void encode_mod_path(struct bt_mesh_model *mod, bool vnd,
 			    const char *key, char *path, size_t path_len)
 {
@@ -1610,6 +1787,11 @@ static void store_pending(struct ble_npl_event *work)
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_VA_PENDING)) {
 		store_pending_va();
 	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_PROVISIONER) &&
+	    atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_NODES_PENDING)) {
+		store_pending_nodes();
+	}
 }
 
 void bt_mesh_store_rpl(struct bt_mesh_rpl *entry)
@@ -1791,9 +1973,56 @@ void bt_mesh_store_mod_pub(struct bt_mesh_model *mod)
 	schedule_store(BT_MESH_MOD_PENDING);
 }
 
+
 void bt_mesh_store_label(void)
 {
 	schedule_store(BT_MESH_VA_PENDING);
+}
+
+void bt_mesh_store_node(struct bt_mesh_node *node)
+{
+	struct node_update *update, *free_slot;
+
+	BT_DBG("Node 0x%04x", node->addr);
+
+	update = node_update_find(node->addr, &free_slot);
+	if (update) {
+		update->clear = false;
+		schedule_store(BT_MESH_NODES_PENDING);
+		return;
+	}
+
+	if (!free_slot) {
+		store_node(node);
+		return;
+	}
+
+	free_slot->addr = node->addr;
+
+	schedule_store(BT_MESH_NODES_PENDING);
+}
+
+void bt_mesh_clear_node(struct bt_mesh_node *node)
+{
+	struct node_update *update, *free_slot;
+
+	BT_DBG("Node 0x%04x", node->addr);
+
+	update = node_update_find(node->addr, &free_slot);
+	if (update) {
+		update->clear = true;
+		schedule_store(BT_MESH_NODES_PENDING);
+		return;
+	}
+
+	if (!free_slot) {
+		clear_node(node->addr);
+		return;
+	}
+
+	free_slot->addr = node->addr;
+
+	schedule_store(BT_MESH_NODES_PENDING);
 }
 
 int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,

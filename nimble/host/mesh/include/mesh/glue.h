@@ -387,6 +387,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_TESTING                   BLE_MESH_TESTING
 #define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
 #define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
+#define CONFIG_BT_MESH_PROVISIONER          BLE_MESH_PROVISIONER
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
@@ -409,6 +410,7 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_DEVICE_NAME               MYNEWT_VAL(BLE_MESH_DEVICE_NAME)
 #define CONFIG_BT_MESH_TX_SEG_MAX           MYNEWT_VAL(BLE_MESH_TX_SEG_MAX)
 #define CONFIG_BT_MESH_LABEL_COUNT          MYNEWT_VAL(BLE_MESH_LABEL_COUNT)
+#define CONFIG_BT_MESH_NODE_COUNT           MYNEWT_VAL(BLE_MESH_NODE_COUNT)
 
 #define printk console_printf
 
