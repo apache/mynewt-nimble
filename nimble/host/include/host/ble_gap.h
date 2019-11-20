@@ -1203,8 +1203,8 @@ int ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr);
  * @param instance            Instance ID
  * @param duration            The duration of the advertisement procedure. On
  *                            expiration, the procedure ends and
- *                            a BLE_HS_FOREVER  event is reported.
- *                            Units are milliseconds. Specify 0 for no
+ *                            a BLE_GAP_EVENT_ADV_COMPLETE event is reported.
+ *                            Units are 10 milliseconds. Specify 0 for no
  *                            expiration.
  * @params max_events         Number of advertising events that should be sent
  *                            before advertising ends and
