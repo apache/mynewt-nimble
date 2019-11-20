@@ -164,6 +164,7 @@ struct ble_gap_slave_state {
     unsigned int configured:1; /** If instance is configured */
     unsigned int scannable:1;
     unsigned int directed:1;
+    unsigned int high_duty_directed:1;
     unsigned int legacy_pdu:1;
     unsigned int rnd_addr_set:1;
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
@@ -2582,6 +2583,7 @@ ble_gap_ext_adv_configure(uint8_t instance,
     ble_gap_slave[instance].connectable = params->connectable;
     ble_gap_slave[instance].scannable = params->scannable;
     ble_gap_slave[instance].directed = params->directed;
+    ble_gap_slave[instance].high_duty_directed = params->high_duty_directed;
     ble_gap_slave[instance].legacy_pdu = params->legacy_pdu;
 
     ble_hs_unlock();
@@ -2650,7 +2652,9 @@ ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
         return  BLE_HS_EALREADY;
     }
 
-    if (ble_gap_slave[instance].directed && duration > 1280) {
+    /* HD directed duration shall not be 0 or larger than >1.28s */
+    if (ble_gap_slave[instance].high_duty_directed &&
+            ((duration == 0) || (duration > 128)) ) {
         ble_hs_unlock();
         return BLE_HS_EINVAL;
     }
