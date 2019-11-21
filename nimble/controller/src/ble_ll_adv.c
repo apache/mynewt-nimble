@@ -199,21 +199,21 @@ struct ble_ll_adv_sm
 #define SYNC_DATA_LEN(_advsm) \
                 (_advsm->periodic_adv_data ? OS_MBUF_PKTLEN(advsm->periodic_adv_data) : 0)
 
-static inline int
+static int
 ble_ll_adv_active_chanset_is_pri(struct ble_ll_adv_sm *advsm)
 {
     return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x10;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static inline int
+static int
 ble_ll_adv_active_chanset_is_sec(struct ble_ll_adv_sm *advsm)
 {
     return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x20;
 }
 #endif
 
-static inline void
+static void
 ble_ll_adv_active_chanset_clear(struct ble_ll_adv_sm *advsm)
 {
     os_sr_t sr;
@@ -223,7 +223,7 @@ ble_ll_adv_active_chanset_clear(struct ble_ll_adv_sm *advsm)
     OS_EXIT_CRITICAL(sr);
 }
 
-static inline void
+static void
 ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
 {
     os_sr_t sr;
@@ -236,7 +236,7 @@ ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static inline void
+static void
 ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
 {
     os_sr_t sr;
@@ -249,7 +249,7 @@ ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
 }
 #endif
 
-static inline void
+static void
 ble_ll_adv_flags_set(struct ble_ll_adv_sm *advsm, uint16_t flags)
 {
     os_sr_t sr;
@@ -259,7 +259,7 @@ ble_ll_adv_flags_set(struct ble_ll_adv_sm *advsm, uint16_t flags)
     OS_EXIT_CRITICAL(sr);
 }
 
-static inline void
+static void
 ble_ll_adv_flags_clear(struct ble_ll_adv_sm *advsm, uint16_t flags)
 {
     os_sr_t sr;
