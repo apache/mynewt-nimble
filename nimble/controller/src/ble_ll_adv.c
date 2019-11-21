@@ -3107,7 +3107,8 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     int rc;
 
     if (len != sizeof(*cmd )) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     if (cmd->adv_handle >= BLE_ADV_INSTANCES) {
@@ -3135,14 +3136,16 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
      */
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED) {
         if (advsm->periodic_adv_enabled) {
-            return BLE_ERR_CMD_DISALLOWED;
+            rc = BLE_ERR_CMD_DISALLOWED;
+            goto done;
         }
 
         if (props & (BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
                      BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
                      BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY |
                      BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
-            return BLE_ERR_CMD_DISALLOWED;
+            rc = BLE_ERR_CMD_DISALLOWED;
+            goto done;
         }
     }
 #endif
@@ -3323,7 +3326,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
 done:
     /* Update TX power */
-    rsp->tx_power = ble_phy_txpower_round(cmd->tx_power);
+    rsp->tx_power = rc ? 0 : advsm->adv_txpwr;
 
     *rsplen = sizeof(*rsp);
     return rc;
