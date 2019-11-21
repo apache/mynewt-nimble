@@ -53,6 +53,13 @@ extern const struct bt_mesh_model_cb light_lightness_srv_cb;
 	BT_MESH_MODEL_CB(BT_MESH_MODEL_ID_LIGHT_LIGHTNESS_SRV,	\
 			 light_lightness_srv_op, pub, srv, &light_lightness_srv_cb)
 
+void bt_mesh_set_gen_onoff_srv_cb(int (*get)(struct bt_mesh_model *model, u8_t *state),
+				  int (*set)(struct bt_mesh_model *model, u8_t state));
+void bt_mesh_set_gen_level_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
+				  int (*set)(struct bt_mesh_model *model, s16_t level));
+void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
+					int (*set)(struct bt_mesh_model *model, s16_t level));
+
 #ifdef __cplusplus
 }
 #endif

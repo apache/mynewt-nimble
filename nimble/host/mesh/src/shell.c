@@ -241,6 +241,27 @@ static struct bt_mesh_light_lightness_srv light_lightness_srv = {
 	.get = light_model_light_lightness_get,
 	.set = light_model_light_lightness_set,
 };
+
+void bt_mesh_set_gen_onoff_srv_cb(int (*get)(struct bt_mesh_model *model, u8_t *state),
+				  int (*set)(struct bt_mesh_model *model, u8_t state))
+{
+	gen_onoff_srv.get = get;
+	gen_onoff_srv.set = set;
+}
+
+void bt_mesh_set_gen_level_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
+				  int (*set)(struct bt_mesh_model *model, s16_t level))
+{
+	gen_level_srv.get = get;
+	gen_level_srv.set = set;
+}
+
+void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
+					int (*set)(struct bt_mesh_model *model, s16_t level))
+{
+	light_lightness_srv.get = get;
+	light_lightness_srv.set = set;
+}
 #endif
 
 static struct bt_mesh_model root_models[] = {
