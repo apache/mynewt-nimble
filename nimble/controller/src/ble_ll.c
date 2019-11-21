@@ -439,6 +439,20 @@ ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type)
     return !addr_type || ((addr[5] & 0xc0) == 0xc0);
 }
 
+int
+ble_ll_is_valid_public_addr(const uint8_t *addr)
+{
+    int i;
+
+    for (i = 0; i < BLE_DEV_ADDR_LEN; ++i) {
+        if (addr[i]) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /* Checks to see that the device is a valid random address */
 int
 ble_ll_is_valid_random_addr(const uint8_t *addr)
@@ -478,6 +492,31 @@ ble_ll_is_valid_random_addr(const uint8_t *addr)
     } else {
         /* Invalid upper two bits */
         rc = 0;
+    }
+
+    return rc;
+}
+int
+ble_ll_is_valid_own_addr_type(uint8_t own_addr_type, const uint8_t *random_addr)
+{
+    int rc;
+
+    switch (own_addr_type) {
+    case BLE_HCI_ADV_OWN_ADDR_PUBLIC:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    case BLE_HCI_ADV_OWN_ADDR_PRIV_PUB:
+#endif
+        rc = ble_ll_is_valid_public_addr(g_dev_addr);
+        break;
+    case BLE_HCI_ADV_OWN_ADDR_RANDOM:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    case BLE_HCI_ADV_OWN_ADDR_PRIV_RAND:
+#endif
+        rc = ble_ll_is_valid_random_addr(random_addr);
+        break;
+    default:
+        rc = 0;
+        break;
     }
 
     return rc;
