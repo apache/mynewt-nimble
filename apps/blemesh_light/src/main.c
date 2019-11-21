@@ -21,15 +21,10 @@
 #include "os/os.h"
 #include "mesh/mesh.h"
 #include "console/console.h"
-#include "hal/hal_system.h"
-#include "hal/hal_gpio.h"
 #include "bsp/bsp.h"
 #include "shell/shell.h"
 
-/* BLE */
-#include "nimble/ble.h"
 #include "host/ble_hs.h"
-#include "services/gap/ble_svc_gap.h"
 #include "mesh/glue.h"
 #include "mesh/testing.h"
 #include "mesh/model_srv.h"
@@ -69,19 +64,6 @@ blemesh_on_reset(int reason)
     BLE_HS_LOG(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
-static struct bt_mesh_gen_onoff_srv_cb gen_onoff_srv_cb = {
-        .get = light_model_gen_onoff_get,
-        .set = light_model_gen_onoff_set,
-};
-static struct bt_mesh_gen_level_srv_cb gen_level_srv_cb = {
-        .get = light_model_gen_level_get,
-        .set = light_model_gen_level_set,
-};
-static struct bt_mesh_light_lightness_srv_cb light_lightness_srv_cb = {
-        .get = light_model_light_lightness_get,
-        .set = light_model_light_lightness_set,
-};
-
 static void
 blemesh_on_sync(void)
 {
@@ -92,9 +74,12 @@ blemesh_on_sync(void)
     bt_test_cb_register(&bt_test_cb);
 
     light_model_init();
-    bt_mesh_set_gen_onoff_srv_cb(&gen_onoff_srv_cb);
-    bt_mesh_set_gen_level_srv_cb(&gen_level_srv_cb);
-    bt_mesh_set_light_lightness_srv_cb(&light_lightness_srv_cb);
+    bt_mesh_set_gen_onoff_srv_cb(light_model_gen_onoff_get,
+                                 light_model_gen_onoff_set);
+    bt_mesh_set_gen_level_srv_cb(light_model_gen_level_get,
+                                 light_model_gen_level_set);
+    bt_mesh_set_light_lightness_srv_cb(light_model_light_lightness_get,
+                                       light_model_light_lightness_set);
 
     console_printf("Mesh initialized\n");
 
