@@ -28,6 +28,7 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_sync.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
 
@@ -49,6 +50,12 @@ struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SI
 static int
 ble_ll_is_controller_busy(void)
 {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    if (ble_ll_sync_enabled()) {
+        return 1;
+    }
+#endif
+
     return ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
            g_ble_ll_conn_create_sm;
 }
