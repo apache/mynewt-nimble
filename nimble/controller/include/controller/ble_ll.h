@@ -427,8 +427,17 @@ void ble_ll_init(void);
 /* Reset the Link Layer */
 int ble_ll_reset(void);
 
+int ble_ll_is_valid_public_addr(const uint8_t *addr);
+
 /* 'Boolean' function returning true if address is a valid random address */
 int ble_ll_is_valid_random_addr(const uint8_t *addr);
+
+/*
+ * Check if given own_addr_type is valid for current controller configuration
+ * given the random address provided (when applicable)
+ */
+int ble_ll_is_valid_own_addr_type(uint8_t own_addr_type,
+                                  const uint8_t *random_addr);
 
 /* Calculate the amount of time in microseconds a PDU with payload length of
  * 'payload_len' will take to transmit on a PHY 'phy_mode'. */
