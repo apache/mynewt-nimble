@@ -2516,22 +2516,21 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     int xtal_state;
     os_sr_t sr;
 #endif
+    const uint8_t *random_addr;
 
     /* only clear flags that are not set from HCI */
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD |
                                   BLE_LL_ADV_SM_FLAG_RX_ADD |
                                   BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD);
 
-    if (advsm->own_addr_type == BLE_HCI_ADV_OWN_ADDR_RANDOM) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        if (!ble_ll_is_valid_random_addr(advsm->adv_random_addr)) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
+    random_addr = advsm->adv_random_addr;
 #else
-        if (!ble_ll_is_valid_random_addr(g_random_addr)) {
-            return BLE_ERR_CMD_DISALLOWED;
-        }
+    random_addr = g_random_addr;
 #endif
+
+    if (!ble_ll_is_valid_own_addr_type(advsm->own_addr_type, random_addr)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     /*
