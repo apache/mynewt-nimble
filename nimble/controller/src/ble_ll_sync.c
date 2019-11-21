@@ -1647,6 +1647,12 @@ ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
     ble_ll_event_send(&sm->sync_ev_end);
 }
 
+bool
+ble_ll_sync_enabled(void)
+{
+    return g_ble_ll_sync_pending > 0;
+}
+
 void
 ble_ll_sync_reset(void)
 {
