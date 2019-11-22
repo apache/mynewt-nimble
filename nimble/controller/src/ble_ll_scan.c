@@ -2209,12 +2209,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     int index;
     int resolved;
     uint8_t pdu_type;
-    uint8_t addr_type;
-    uint8_t peer_addr_type = 0;
-    uint8_t *adv_addr = NULL;
-    uint8_t *peer = NULL;
-    uint8_t *inita = NULL;
-    uint8_t inita_type = 0;
+    uint8_t adva_type = 0;
+    uint8_t *adva = NULL;       /* Original AdvA */
+    uint8_t targeta_type = 0;
+    uint8_t *targeta = NULL;    /* Original TargetA */
+    uint8_t adv_addr_type = 0;
+    uint8_t *adv_addr = NULL;   /* Actual advertiser address (AdvA or identity) */
     uint8_t *rxbuf;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_scan_sm *scansm;
@@ -2298,12 +2298,12 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
         aux_data = ble_hdr->rxinfo.user_data;
         if (aux_data->flags & BLE_LL_AUX_HAS_ADVA) {
-            peer = aux_data->adva;
-            peer_addr_type = aux_data->adva_type;
+            adva = aux_data->adva;
+            adva_type = aux_data->adva_type;
         }
         if (aux_data->flags & BLE_LL_AUX_HAS_TARGETA) {
-            inita = aux_data->targeta;
-            inita_type = aux_data->targeta_type;
+            targeta = aux_data->targeta;
+            targeta_type = aux_data->targeta_type;
         }
 
         rc = -1;
@@ -2311,8 +2311,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #endif
     default:
         /* Try to decode addresses from PDU */
-        if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr, &peer,
-                                        &peer_addr_type, &inita, &inita_type,
+        if (ble_ll_scan_adv_decode_addr(pdu_type, rxbuf, ble_hdr, &adva,
+                                        &adva_type, &targeta, &targeta_type,
                                         &ext_adv_mode)) {
             goto scan_rx_isr_exit;
         }
@@ -2328,7 +2328,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     switch (pdu_type) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_ADV_PDU_TYPE_ADV_EXT_IND:
-        if (!peer) {
+        if (!adva) {
             /*Wait for AUX ptr */
             goto scan_rx_isr_exit;
         }
@@ -2356,11 +2356,9 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         break;
     }
 
-    /* Since peer might point to different address e.g. resolved one
-     * lets do a copy of pointers for scan request
-     */
-    adv_addr = peer;
-    addr_type = peer_addr_type;
+    /* Use AdvA as initial advertiser address, we may try to resolve it later */
+    adv_addr = adva;
+    adv_addr_type = adva_type;
 
     if ((scanphy->scan_filt_policy & 1) == 0) {
         chk_wl = 0;
@@ -2373,7 +2371,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
      * is it possible that AdvA is present either in ADV_EXT_IND or AUX_ADV_IND
      */
     if (ble_ll_resolv_enabled()) {
-        if (ble_ll_is_rpa(peer, peer_addr_type)) {
+        if (ble_ll_is_rpa(adva, adva_type)) {
             if (resolve_peer) {
                 index = ble_hw_resolv_list_match();
             } else {
@@ -2393,11 +2391,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                     aux_data->rpa_index = index;
                 }
 #endif
-                peer = g_ble_ll_resolv_list[index].rl_identity_addr;
-                peer_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+
+                /* Use resolved identity address as advertiser address */
+                adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+                adv_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
                 resolved = 1;
-                if (ble_ll_is_rpa(inita, inita_type)) {
-                    if (!ble_ll_resolv_rpa(inita, g_ble_ll_resolv_list[index].rl_local_irk)) {
+                if (ble_ll_is_rpa(targeta, targeta_type)) {
+                    if (!ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[index].rl_local_irk)) {
                         goto scan_rx_isr_exit;
                     }
                     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
@@ -2407,20 +2407,20 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                     goto scan_rx_isr_exit;
                 }
                 /* We don't know peer and InitA is RPA so nothing to do more here */
-                if (chk_send_req && inita && ble_ll_is_rpa(inita, inita_type)) {
+                if (chk_send_req && targeta && ble_ll_is_rpa(targeta, targeta_type)) {
                     goto scan_rx_isr_exit;
                 }
             }
-        } else if (chk_send_req && inita && ble_ll_is_rpa(inita, inita_type)) {
+        } else if (chk_send_req && targeta && ble_ll_is_rpa(targeta, targeta_type)) {
             /* If remote is identity address but InitA is RPA, make sure we can resolve it.
              * If not, nothing more to do here
              */
-            rl = ble_ll_resolv_list_find(peer, peer_addr_type);
+            rl = ble_ll_resolv_list_find(adva, adva_type);
             if (!rl) {
                 goto scan_rx_isr_exit;
             }
 
-            if (!ble_ll_resolv_rpa(inita, rl->rl_local_irk)) {
+            if (!ble_ll_resolv_rpa(targeta, rl->rl_local_irk)) {
                 goto scan_rx_isr_exit;
             }
 
@@ -2430,13 +2430,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 
     ble_hdr->rxinfo.rpa_index = index;
 #else
-    if (chk_send_req && inita && ble_ll_is_rpa(inita, inita_type)) {
+    if (chk_send_req && targeta && ble_ll_is_rpa(targeta, targeta_type)) {
         goto scan_rx_isr_exit;
     }
 #endif
 
     /* If whitelist enabled, check to see if device is in the white list */
-    if (chk_wl && !ble_ll_whitelist_match(peer, peer_addr_type, resolved)) {
+    if (chk_wl && !ble_ll_whitelist_match(adv_addr, adv_addr_type, resolved)) {
         goto scan_rx_isr_exit;
     }
     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_DEVMATCH;
@@ -2448,8 +2448,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             /* Let us check if InitA is our device.
              * Note that InitA RPA is handled above where privacy is handled
              */
-            if (inita && !ble_ll_is_rpa(inita, inita_type) &&
-                         !ble_ll_is_our_devaddr(inita, inita_type)) {
+            if (targeta && !ble_ll_is_rpa(targeta, targeta_type) &&
+                         !ble_ll_is_our_devaddr(targeta, targeta_type)) {
                 goto scan_rx_isr_exit;
             }
 
@@ -2459,18 +2459,18 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                  */
                 goto scan_rx_isr_exit;
             }
-            if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 1, adi)) {
+            if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, adv_addr_type, 1, adi)) {
                 goto scan_rx_isr_exit;
             }
         } else {
             /* Dont send scan request if we have sent one to this advertiser */
-            if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 0, 0)) {
+            if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, adv_addr_type, 0, 0)) {
                 goto scan_rx_isr_exit;
             }
         }
 #else
         /* Dont send scan request if we have sent one to this advertiser */
-        if (ble_ll_scan_have_rxd_scan_rsp(peer, peer_addr_type, 0, 0)) {
+        if (ble_ll_scan_have_rxd_scan_rsp(adv_addr, adv_addr_type, 0, 0)) {
             goto scan_rx_isr_exit;
         }
 #endif
@@ -2492,7 +2492,8 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             }
 #endif
             /* XXX: TODO assume we are on correct phy */
-            ble_ll_scan_req_pdu_prepare(scansm, adv_addr, addr_type, index);
+            /* Use original AdvA in scan request */
+            ble_ll_scan_req_pdu_prepare(scansm, adva, adva_type, index);
             rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm,
                             BLE_PHY_TRANSITION_TX_RX);
 
