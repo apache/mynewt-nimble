@@ -787,7 +787,7 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
 }
 
 static int
-ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
+ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
 {
     int rc;
     uint8_t md;
@@ -1221,7 +1221,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
                 ble_phy_encrypt_disable();
             }
 #endif
-            rc = ble_ll_conn_tx_data_pdu(connsm);
+            rc = ble_ll_conn_tx_pdu(connsm);
             if (!rc) {
                 rc = BLE_LL_SCHED_STATE_RUNNING;
             } else {
@@ -3775,7 +3775,7 @@ chk_rx_terminate_ind:
         rx_pyld_len += BLE_LL_DATA_MIC_LEN;
     }
     if (reply && ble_ll_conn_can_send_next_pdu(connsm, begtime, add_usecs)) {
-        rc = ble_ll_conn_tx_data_pdu(connsm);
+        rc = ble_ll_conn_tx_pdu(connsm);
     }
 
 conn_exit:
