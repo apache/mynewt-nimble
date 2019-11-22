@@ -100,6 +100,11 @@ matrix:
         - TEST=TEST_ALL
         - VM_AMOUNT=3
         - TARGET_SET=3
+    - os: windows
+      env:
+        - TEST=BUILD_TARGETS_WINDOWS
+        - VM_AMOUNT=1
+        - TARGET_SET=1
 
 before_install:
   - printenv
@@ -107,7 +112,7 @@ before_install:
   - go version
 
 install:
-  - git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
+  - git clone https://github.com/JuulLabs-OSS/mynewt-travis-ci $HOME/ci
   - chmod +x $HOME/ci/*.sh
   - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
 
