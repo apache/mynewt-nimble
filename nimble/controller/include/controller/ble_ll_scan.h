@@ -87,8 +87,8 @@ struct ble_ll_scan_params
     uint32_t scan_win_start_time;
 };
 
-#define BLE_LL_AUX_HAS_ADDRA                    0x01
-#define BLE_LL_AUX_HAS_DIR_ADDRA                0x02
+#define BLE_LL_AUX_HAS_ADVA                     0x01
+#define BLE_LL_AUX_HAS_TARGETA                  0x02
 #define BLE_LL_AUX_HAS_ADI                      0x04
 
 #define BLE_LL_AUX_FLAG_AUX_RECEIVED            0x01
@@ -124,10 +124,10 @@ struct ble_ll_aux_data {
     uint16_t adi;
     uint32_t offset;
     uint8_t offset_units;
-    uint8_t addr[6];
-    uint8_t addr_type;
-    uint8_t dir_addr[6];
-    uint8_t dir_addr_type;
+    uint8_t adva[6];
+    uint8_t adva_type;
+    uint8_t targeta[6];
+    uint8_t targeta_type;
     uint16_t evt_type;
     struct ble_ll_sched_item sch;
     struct ble_hci_ev *evt;
