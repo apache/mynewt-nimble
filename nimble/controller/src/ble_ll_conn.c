@@ -806,6 +806,11 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
     struct ble_ll_empty_pdu empty_pdu;
     ble_phy_tx_end_func txend_func;
     int tx_phy_mode;
+    uint8_t llid;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    int is_ctrl;
+    uint8_t opcode;
+#endif
 
     /* For compiler warnings... */
     ble_hdr = NULL;
@@ -870,12 +875,21 @@ ble_ll_conn_tx_data_pdu(struct ble_ll_conn_sm *connsm)
         ble_hdr = BLE_MBUF_HDR_PTR(m);
 
         /*
-         * We dequeued new packet for transmission so need to calculate payload
-         * length we can send over current PHY. Effectively, this determines
-         * fragmentation of packet into PDUs.
+         * We dequeued new packet for transmission.
+         * If this is a data PDU we need to calculate payload length we can send
+         * over current PHY. Effectively, this determines fragmentation of packet
+         * into PDUs.
+         * If this is a control PDU we send complete PDU as only data PDU can be
+         * fragmented. We assume that checks (i.e. if remote supports such PDU)
+         * were already performed before putting packet on queue.
          */
+        llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
         pktlen = pkthdr->omp_len;
-        cur_txlen = ble_ll_conn_adjust_pyld_len(connsm, pktlen);
+        if (llid == BLE_LL_LLID_CTRL) {
+            cur_txlen = pktlen;
+        } else {
+            cur_txlen = ble_ll_conn_adjust_pyld_len(connsm, pktlen);
+        }
         ble_hdr->txinfo.pyld_len = cur_txlen;
 
         /* NOTE: header was set when first enqueued */
@@ -1039,10 +1053,6 @@ conn_tx_pdu:
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    int is_ctrl;
-    uint8_t llid;
-    uint8_t opcode;
-
     llid = ble_hdr->txinfo.hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
     if (llid == BLE_LL_LLID_CTRL) {
         is_ctrl = 1;
