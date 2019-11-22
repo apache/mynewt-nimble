@@ -230,13 +230,13 @@ ble_ll_adv_sm_find_configured(uint8_t instance)
     return NULL;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static int
 ble_ll_adv_active_chanset_is_pri(struct ble_ll_adv_sm *advsm)
 {
     return (advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0x10;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static int
 ble_ll_adv_active_chanset_is_sec(struct ble_ll_adv_sm *advsm)
 {
@@ -1004,7 +1004,6 @@ ble_ll_adv_tx_done(void *arg)
         assert(0);
     }
 #else
-    assert(ble_ll_adv_active_chanset_is_pri(advsm));
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
 #endif
 
@@ -1999,7 +1998,6 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     advsm = pducb_arg;
     sync = SYNC_CURRENT(advsm);
 
-    assert(!ble_ll_adv_active_chanset_is_pri(advsm));
     assert(!ble_ll_adv_active_chanset_is_sec(advsm));
     assert(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
@@ -2060,7 +2058,6 @@ ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
 
     assert(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
-    assert(!ble_ll_adv_active_chanset_is_pri(advsm));
     assert(!ble_ll_adv_active_chanset_is_sec(advsm));
 
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
@@ -4737,7 +4734,6 @@ ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
         ble_ll_adv_done(advsm);
     }
 #else
-    assert(ble_ll_adv_active_chanset_is_pri(advsm));
     ble_ll_adv_active_chanset_clear(advsm);
     ble_ll_adv_done(advsm);
 #endif
