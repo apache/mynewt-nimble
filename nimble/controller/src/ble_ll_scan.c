@@ -3064,14 +3064,14 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     struct ble_ll_resolv_entry *rl;
 #endif
     uint8_t *rxbuf = om->om_data;
-    uint8_t *adv_addr = NULL;
-    uint8_t *adva;
-    uint8_t *ident_addr;
-    uint8_t ident_addr_type;
-    uint8_t *init_addr = NULL;
-    uint8_t init_addr_type = 0;
-    uint8_t txadd = 0;
-    uint8_t rxadd;
+    uint8_t adva_type = 0;
+    uint8_t *adva = NULL;       /* Original AdvA */
+    uint8_t targeta_type = 0;
+    uint8_t *targeta = NULL;    /* Original TargetA */
+    uint8_t adv_addr_type = 0;
+    uint8_t *adv_addr = NULL;   /* Actual advertiser address (AdvA or identity) */
+    uint8_t sreq_adva_type = 0;
+    uint8_t *sreq_adva;         /* AdvA from scan request */
     uint8_t scan_rsp_rxd;
     int backoff_success = 0;
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
@@ -3119,12 +3119,12 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         ext_adv_mode = rxbuf[2] >> 6;
 
         if (aux_data->flags & BLE_LL_AUX_HAS_ADVA) {
-            adv_addr = aux_data->adva;
-            txadd = aux_data->adva_type;
+            adva = aux_data->adva;
+            adva_type = aux_data->adva_type;
         }
         if (aux_data->flags & BLE_LL_AUX_HAS_TARGETA) {
-            init_addr = aux_data->targeta;
-            init_addr_type = aux_data->targeta_type;
+            targeta = aux_data->targeta;
+            targeta_type = aux_data->targeta_type;
         }
 
         is_addr_decoded = true;
@@ -3132,36 +3132,36 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 #endif
 
     if (!is_addr_decoded) {
-        if (ble_ll_scan_adv_decode_addr(ptype, rxbuf, hdr, &adv_addr, &txadd,
-                                        &init_addr, &init_addr_type,
+        if (ble_ll_scan_adv_decode_addr(ptype, rxbuf, hdr, &adva, &adva_type,
+                                        &targeta, &targeta_type,
                                         &ext_adv_mode)) {
             goto scan_continue;
         }
         is_addr_decoded = true;
     }
 
-    ident_addr = adv_addr;
-    ident_addr_type = txadd;
+    adv_addr = adva;
+    adv_addr_type = adva_type;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     index = hdr->rxinfo.rpa_index;
     if (index >= 0) {
-        ident_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
-        ident_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+        adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
+        adv_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
 
-        if (ble_ll_is_rpa(init_addr, init_addr_type)) {
+        if (ble_ll_is_rpa(targeta, targeta_type)) {
            /* Let's try resolve InitA. */
-           if (ble_ll_resolv_rpa(init_addr, g_ble_ll_resolv_list[index].rl_local_irk)) {
-               init_addr = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
-               init_addr_type = scansm->own_addr_type & 1;
+           if (ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[index].rl_local_irk)) {
+               targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+               targeta_type = scansm->own_addr_type & 1;
            }
        }
-    } else if (init_addr && ble_ll_resolv_enabled() && ble_ll_is_rpa(init_addr, init_addr_type)) {
+    } else if (targeta && ble_ll_resolv_enabled() && ble_ll_is_rpa(targeta, targeta_type)) {
         /* If we are here it means AdvA is identity. Check if initA is RPA */
-        rl = ble_ll_resolv_list_find(ident_addr, ident_addr_type);
-        if (rl && ble_ll_resolv_rpa(init_addr, rl->rl_local_irk)) {
-            init_addr = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
-            init_addr_type = scansm->own_addr_type & 1;
+        rl = ble_ll_resolv_list_find(adva, adva_type);
+        if (rl && ble_ll_resolv_rpa(targeta, rl->rl_local_irk)) {
+            targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+            targeta_type = scansm->own_addr_type & 1;
         }
     }
 #endif
@@ -3171,25 +3171,26 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
      * policy if PDU and adv type match and advertiser address is present
      */
     if ((ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) &&
-            (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && adv_addr) {
-        check_periodic_sync(om, hdr, adv_addr, txadd, index);
+            (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && adva) {
+        check_periodic_sync(om, hdr, adva, adva_type, index);
     }
 #endif
 
     /* Check the scanner filter policy */
-    if (ble_ll_scan_chk_filter_policy(ptype, adv_addr, txadd, init_addr,
-                                      init_addr_type,
+    if (ble_ll_scan_chk_filter_policy(ptype, adva, adva_type, targeta,
+                                      targeta_type,
                                       BLE_MBUF_HDR_DEVMATCH(hdr))) {
         goto scan_continue;
     }
 
     if (ptype == BLE_ADV_PDU_TYPE_SCAN_RSP) {
-        rxadd = scansm->pdu_data.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK;
-        adva = scansm->pdu_data.adva;
-        if (scan_rsp_rxd && ((txadd && rxadd) || ((txadd + rxadd) == 0)) &&
-            !memcmp(adv_addr, adva, BLE_DEV_ADDR_LEN)) {
+        sreq_adva_type = ble_ll_get_addr_type(scansm->pdu_data.hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK);
+        sreq_adva = scansm->pdu_data.adva;
+        if (scan_rsp_rxd && ((adva_type && sreq_adva_type) ||
+                             ((adva_type + sreq_adva_type) == 0)) &&
+            !memcmp(adva, sreq_adva, BLE_DEV_ADDR_LEN)) {
             /* We have received a scan response. Add to list */
-            ble_ll_scan_add_scan_rsp_adv(ident_addr, ident_addr_type, 0, 0);
+            ble_ll_scan_add_scan_rsp_adv(adv_addr, adv_addr_type, 0, 0);
             backoff_success = 1;
         } else {
             /* This is not addressed for us, ignore */
@@ -3228,9 +3229,9 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
         /* Filter duplicates */
         if (!scansm->scan_filt_dups ||
-            !ble_ll_scan_dup_check_ext(ident_addr_type, ident_addr, aux_data)) {
-            rc = ble_ll_hci_send_ext_adv_report(ptype, ident_addr, ident_addr_type,
-                                                init_addr, init_addr_type, om, hdr);
+            !ble_ll_scan_dup_check_ext(adv_addr_type, adv_addr, aux_data)) {
+            rc = ble_ll_hci_send_ext_adv_report(ptype, adv_addr, adv_addr_type,
+                                                targeta, targeta_type, om, hdr);
             if ((rc < 0) && BLE_MBUF_HDR_WAIT_AUX(hdr)) {
                 /* Data were truncated, stop scanning for subsequent chains */
                 hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
@@ -3244,7 +3245,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
                 aux_error = true;
             } else if ((rc == 0) && scansm->scan_filt_dups) {
                 /* Complete data were send, now we can update scan_dup list */
-                ble_ll_scan_dup_update_ext(ident_addr_type, ident_addr, aux_data);
+                ble_ll_scan_dup_update_ext(adv_addr_type, adv_addr, aux_data);
             }
         }
 
@@ -3272,10 +3273,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 
     /* Filter duplicates */
     if (!scansm->scan_filt_dups ||
-        !ble_ll_scan_dup_check_legacy(ident_addr_type, ident_addr, ptype)) {
+        !ble_ll_scan_dup_check_legacy(adv_addr_type, adv_addr, ptype)) {
         /* Send the advertising report, also updates scan duplicates list */
-        ble_ll_scan_send_adv_report(ptype, ident_addr, ident_addr_type,
-                                    init_addr, init_addr_type, om, hdr, scansm);
+        ble_ll_scan_send_adv_report(ptype, adv_addr, adv_addr_type,
+                                    targeta, targeta_type, om, hdr, scansm);
     }
 
 scan_continue:
