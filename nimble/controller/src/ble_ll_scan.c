@@ -2206,7 +2206,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     int rc;
     int chk_send_req;
     int chk_wl;
-    int index;
+    int rpa_index;
     int resolved;
     uint8_t pdu_type;
     uint8_t adva_type = 0;
@@ -2365,7 +2365,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     }
     resolved = 0;
 
-    index = -1;
+    rpa_index = -1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     /* Only resolve if packet actually contained AdvA. With Extended Advertising
      * is it possible that AdvA is present either in ADV_EXT_IND or AUX_ADV_IND
@@ -2373,31 +2373,31 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     if (ble_ll_resolv_enabled()) {
         if (ble_ll_is_rpa(adva, adva_type)) {
             if (resolve_peer) {
-                index = ble_hw_resolv_list_match();
+                rpa_index = ble_hw_resolv_list_match();
             } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
                 /* for legacy PDUs we always attempt to resolve */
                 BLE_LL_ASSERT(aux_data);
-                index = aux_data->rpa_index;
+                rpa_index = aux_data->rpa_index;
 #else
                 BLE_LL_ASSERT(false);
 #endif
             }
 
-            if (index >= 0) {
+            if (rpa_index >= 0) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_RESOLVED;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
                 if (aux_data) {
-                    aux_data->rpa_index = index;
+                    aux_data->rpa_index = rpa_index;
                 }
 #endif
 
                 /* Use resolved identity address as advertiser address */
-                adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
-                adv_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+                adv_addr = g_ble_ll_resolv_list[rpa_index].rl_identity_addr;
+                adv_addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type;
                 resolved = 1;
                 if (ble_ll_is_rpa(targeta, targeta_type)) {
-                    if (!ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[index].rl_local_irk)) {
+                    if (!ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[rpa_index].rl_local_irk)) {
                         goto scan_rx_isr_exit;
                     }
                     ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
@@ -2428,7 +2428,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         }
     }
 
-    ble_hdr->rxinfo.rpa_index = index;
+    ble_hdr->rxinfo.rpa_index = rpa_index;
 #else
     if (chk_send_req && targeta && ble_ll_is_rpa(targeta, targeta_type)) {
         goto scan_rx_isr_exit;
@@ -2493,7 +2493,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
 #endif
             /* XXX: TODO assume we are on correct phy */
             /* Use original AdvA in scan request */
-            ble_ll_scan_req_pdu_prepare(scansm, adva, adva_type, index);
+            ble_ll_scan_req_pdu_prepare(scansm, adva, adva_type, rpa_index);
             rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm,
                             BLE_PHY_TRANSITION_TX_RX);
 
@@ -3060,7 +3060,7 @@ void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hdr)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    int index;
+    int rpa_index;
     struct ble_ll_resolv_entry *rl;
 #endif
     uint8_t *rxbuf = om->om_data;
@@ -3144,14 +3144,14 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     adv_addr_type = adva_type;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    index = hdr->rxinfo.rpa_index;
-    if (index >= 0) {
-        adv_addr = g_ble_ll_resolv_list[index].rl_identity_addr;
-        adv_addr_type = g_ble_ll_resolv_list[index].rl_addr_type;
+    rpa_index = hdr->rxinfo.rpa_index;
+    if (rpa_index >= 0) {
+        adv_addr = g_ble_ll_resolv_list[rpa_index].rl_identity_addr;
+        adv_addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type;
 
         if (ble_ll_is_rpa(targeta, targeta_type)) {
            /* Let's try resolve InitA. */
-           if (ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[index].rl_local_irk)) {
+           if (ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[rpa_index].rl_local_irk)) {
                targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
                targeta_type = scansm->own_addr_type & 1;
            }
@@ -3172,7 +3172,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
      */
     if ((ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) &&
             (ext_adv_mode == BLE_LL_EXT_ADV_MODE_NON_CONN) && adva) {
-        check_periodic_sync(om, hdr, adva, adva_type, index);
+        check_periodic_sync(om, hdr, adva, adva_type, rpa_index);
     }
 #endif
 
