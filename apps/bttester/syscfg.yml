@@ -33,11 +33,11 @@ syscfg.defs:
 
     BTTESTER_RTT_BUFFER_SIZE_UP:
         description: Bttester upstream buffer size
-        value: 512
+        value: MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 
     BTTESTER_RTT_BUFFER_SIZE_DOWN:
         description: Bttester downstream buffer size
-        value: 512
+        value: MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 
     BTTESTER_PRIVACY_MODE:
         description: Enable privacy mode (RPA or NRPA)
@@ -53,7 +53,7 @@ syscfg.defs:
 
     BTTESTER_BTP_DATA_SIZE_MAX:
         description: Maximum BTP payload
-        value: MYNEWT_VAL_BTTESTER_RTT_BUFFER_SIZE_UP
+        value: 2048
 
     BTTESTER_CONN_PARAM_UPDATE:
         description: Trigger conn param update after connection establish
