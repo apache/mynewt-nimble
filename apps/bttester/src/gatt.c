@@ -896,7 +896,7 @@ static void write_long(u8_t *data, u16_t len)
 	const struct gatt_write_long_cmd *cmd = (void *) data;
 	struct ble_gap_conn_desc conn;
 	struct os_mbuf *om = NULL;
-	int rc;
+	int rc = 0;
 
 	SYS_LOG_DBG("");
 
@@ -906,23 +906,23 @@ static void write_long(u8_t *data, u16_t len)
 	}
 
 	om = ble_hs_mbuf_from_flat(cmd->data, sys_le16_to_cpu(cmd->data_length));
-
 	if (!om) {
 		SYS_LOG_ERR("Insufficient resources");
 		goto fail;
 	}
 
-	if (ble_gattc_write_long(conn.conn_handle, sys_le16_to_cpu(cmd->handle),
-				 sys_le16_to_cpu(cmd->offset), om, write_rsp,
-				 (void *) GATT_WRITE_LONG)) {
-		goto fail;
-}
-
-	return;
+	rc = ble_gattc_write_long(conn.conn_handle,
+				  sys_le16_to_cpu(cmd->handle),
+				  sys_le16_to_cpu(cmd->offset),
+				  om, write_rsp,
+				  (void *) GATT_WRITE_LONG);
+	if (!rc) {
+		return;
+	}
 
 fail:
+	SYS_LOG_ERR("Failed to send Write Long request, rc=%d", rc);
 	os_mbuf_free_chain(om);
-
 	tester_rsp(BTP_SERVICE_ID_GATT, GATT_WRITE_LONG, CONTROLLER_INDEX,
 		   BTP_STATUS_FAILED);
 }
