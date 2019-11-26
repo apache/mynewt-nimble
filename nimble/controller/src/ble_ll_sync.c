@@ -999,6 +999,10 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
      */
     if (!sm->flags) {
         ble_ll_scan_chk_resume();
+
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_sched_rfclk_chk_restart();
+#endif
         return;
     }
 
@@ -1044,6 +1048,10 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         /* if chain was scheduled we don't end event yet */
         /* TODO should we check resume only if offset is high? */
         ble_ll_scan_chk_resume();
+
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_sched_rfclk_chk_restart();
+#endif
         return;
     }
 
