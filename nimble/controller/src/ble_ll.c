@@ -1363,6 +1363,20 @@ ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
     ble_hdr->txinfo.hdr_byte = hdr;
 }
 
+static void
+ble_ll_validate_task(void)
+{
+#ifdef MYNEWT
+#ifndef NDEBUG
+    struct os_task_info oti;
+
+    os_task_info_get(&g_ble_ll_task, &oti);
+
+    BLE_LL_ASSERT(oti.oti_stkusage < oti.oti_stksize);
+#endif
+#endif
+}
+
 /**
  * Called to reset the controller. This performs a "software reset" of the link
  * layer; it does not perform a HW reset of the controller nor does it reset
@@ -1378,6 +1392,9 @@ ble_ll_reset(void)
 {
     int rc;
     os_sr_t sr;
+
+    /* do sanity check on LL task stack */
+    ble_ll_validate_task();
 
     OS_ENTER_CRITICAL(sr);
     ble_phy_disable();
