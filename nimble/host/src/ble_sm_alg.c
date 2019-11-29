@@ -44,7 +44,7 @@ static struct trng_dev *g_trng;
 #endif
 
 static void
-ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
+ble_sm_alg_xor_128(const uint8_t *p, const uint8_t *q, uint8_t *r)
 {
     int i;
 
@@ -54,7 +54,8 @@ ble_sm_alg_xor_128(uint8_t *p, uint8_t *q, uint8_t *r)
 }
 
 static int
-ble_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
+ble_sm_alg_encrypt(const uint8_t *key, const uint8_t *plaintext,
+                   uint8_t *enc_data)
 {
     struct tc_aes_key_sched_struct s;
     uint8_t tmp[16];
@@ -79,7 +80,8 @@ ble_sm_alg_encrypt(uint8_t *key, uint8_t *plaintext, uint8_t *enc_data)
 }
 
 int
-ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out)
+ble_sm_alg_s1(const uint8_t *k, const uint8_t *r1, const uint8_t *r2,
+              uint8_t *out)
 {
     int rc;
 
@@ -114,10 +116,10 @@ ble_sm_alg_s1(uint8_t *k, uint8_t *r1, uint8_t *r2, uint8_t *out)
 }
 
 int
-ble_sm_alg_c1(uint8_t *k, uint8_t *r,
-              uint8_t *preq, uint8_t *pres,
+ble_sm_alg_c1(const uint8_t *k, const uint8_t *r,
+              const uint8_t *preq, const uint8_t *pres,
               uint8_t iat, uint8_t rat,
-              uint8_t *ia, uint8_t *ra,
+              const uint8_t *ia, const uint8_t *ra,
               uint8_t *out_enc_data)
 {
     uint8_t p1[16], p2[16];
@@ -224,8 +226,8 @@ ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
 }
 
 int
-ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
-              uint8_t *out_enc_data)
+ble_sm_alg_f4(const uint8_t *u, const uint8_t *v, const uint8_t *x,
+              uint8_t z, uint8_t *out_enc_data)
 {
     uint8_t xs[16];
     uint8_t m[65];
@@ -269,9 +271,9 @@ ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
 }
 
 int
-ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,
-              uint8_t *a1, uint8_t a2t, uint8_t *a2, uint8_t *mackey,
-              uint8_t *ltk)
+ble_sm_alg_f5(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
+              uint8_t a1t, const uint8_t *a1, uint8_t a2t, const uint8_t *a2,
+              uint8_t *mackey, uint8_t *ltk)
 {
     static const uint8_t salt[16] = { 0x6c, 0x88, 0x83, 0x91, 0xaa, 0xf5,
                       0xa5, 0x38, 0x60, 0x37, 0x0b, 0xdb,
@@ -385,8 +387,8 @@ ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
 }
 
 int
-ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
-              uint32_t *passkey)
+ble_sm_alg_g2(const uint8_t *u, const uint8_t *v, const uint8_t *x,
+              const uint8_t *y, uint32_t *passkey)
 {
     uint8_t m[80], xs[16];
     int rc;
@@ -418,8 +420,8 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
 }
 
 int
-ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
-                     uint8_t *our_priv_key, uint8_t *out_dhkey)
+ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x, const uint8_t *peer_pub_key_y,
+                     const uint8_t *our_priv_key, uint8_t *out_dhkey)
 {
     uint8_t dh[32];
     uint8_t pk[64];
