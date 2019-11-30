@@ -403,7 +403,9 @@ ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
     case BLE_HS_EAGAIN:
         /* Controller could not accommodate full packet.  Enqueue remainder. */
-        STAILQ_INSERT_TAIL(&conn->bhc_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
+        if (txom) {
+            STAILQ_INSERT_TAIL(&conn->bhc_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
+        }
         return 0;
 
     default:
