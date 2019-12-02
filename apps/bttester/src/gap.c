@@ -115,6 +115,8 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_UNPAIR);
 	tester_set_bit(cmds, GAP_PASSKEY_ENTRY);
 	tester_set_bit(cmds, GAP_PASSKEY_CONFIRM);
+	tester_set_bit(cmds, GAP_START_DIRECT_ADV);
+	tester_set_bit(cmds, GAP_CONN_PARAM_UPDATE);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
 		    CONTROLLER_INDEX, (u8_t *) rp, sizeof(cmds));
