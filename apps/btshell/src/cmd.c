@@ -2493,6 +2493,31 @@ static const struct shell_cmd_help keystore_show_help = {
 
 #if NIMBLE_BLE_SM
 /*****************************************************************************
+ * $show-oob-sc                                                              *
+ *****************************************************************************/
+
+extern struct ble_sm_sc_oob_data oob_data_local;
+extern struct ble_sm_sc_oob_data oob_data_remote;
+
+static int
+cmd_show_oob_sc(int argc, char **argv)
+{
+    console_printf("Local OOB Data: r=");
+    print_bytes(oob_data_local.r, 16);
+    console_printf(" c=");
+    print_bytes(oob_data_local.c, 16);
+    console_printf("\n");
+
+    console_printf("Remote OOB Data: r=");
+    print_bytes(oob_data_remote.r, 16);
+    console_printf(" c=");
+    print_bytes(oob_data_remote.c, 16);
+    console_printf("\n");
+
+    return 0;
+}
+
+/*****************************************************************************
  * $auth-passkey                                                             *
  *****************************************************************************/
 
@@ -2563,9 +2588,29 @@ cmd_auth_passkey(int argc, char **argv)
             }
             break;
 
-       default:
-         console_printf("invalid passkey action action=%d\n", pk.action);
-         return EINVAL;
+        case BLE_SM_IOACT_OOB_SC:
+            rc = parse_arg_byte_stream_exact_length("r", oob_data_remote.r, 16);
+            if (rc != 0 && rc != ENOENT) {
+                console_printf("invalid 'r' parameter\n");
+                return rc;
+            }
+
+            rc = parse_arg_byte_stream_exact_length("c", oob_data_remote.c, 16);
+            if (rc != 0 && rc != ENOENT) {
+                console_printf("invalid 'c' parameter\n");
+                return rc;
+            }
+            pk.oob_sc_data.local = &oob_data_local;
+            if (ble_hs_cfg.sm_oob_data_flag) {
+                pk.oob_sc_data.remote = &oob_data_remote;
+            } else {
+                pk.oob_sc_data.remote = NULL;
+            }
+            break;
+
+        default:
+            console_printf("invalid passkey action action=%d\n", pk.action);
+            return EINVAL;
     }
 
     rc = ble_sm_inject_io(conn_handle, &pk);
@@ -4343,6 +4388,13 @@ static const struct shell_cmd btshell_commands[] = {
 #endif
     },
 #if NIMBLE_BLE_SM
+    {
+        .sc_cmd = "show-oob-sc",
+        .sc_cmd_func = cmd_show_oob_sc,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = NULL,
+#endif
+    },
     {
         .sc_cmd = "auth-passkey",
         .sc_cmd_func = cmd_auth_passkey,
