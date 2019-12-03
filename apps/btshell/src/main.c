@@ -119,6 +119,9 @@ struct btshell_tx_data_s
 static struct btshell_tx_data_s btshell_tx_data;
 int btshell_full_disc_prev_chr_val;
 
+struct ble_sm_sc_oob_data oob_data_local;
+struct ble_sm_sc_oob_data oob_data_remote;
+
 #define XSTR(s) STR(s)
 #ifndef STR
 #define STR(s) #s
@@ -2102,6 +2105,16 @@ btshell_on_reset(int reason)
 static void
 btshell_on_sync(void)
 {
+#if MYNEWT_VAL(BLE_SM_SC)
+    int rc;
+
+    rc = ble_sm_sc_oob_generate_data(&oob_data_local);
+    if (rc) {
+        console_printf("Error: generating oob data; reason=%d\n", rc);
+        return;
+    }
+#endif
+
     console_printf("Host and controller synced\n");
 }
 
