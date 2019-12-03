@@ -740,6 +740,9 @@ ble_sm_ioact_state(uint8_t action)
     case BLE_SM_IOACT_NUMCMP:
         return BLE_SM_PROC_STATE_DHKEY_CHECK;
 
+    case BLE_SM_IOACT_OOB_SC:
+        return BLE_SM_PROC_STATE_RANDOM;
+
     case BLE_SM_IOACT_OOB:
     case BLE_SM_IOACT_INPUT:
     case BLE_SM_IOACT_DISP:
@@ -2667,6 +2670,24 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
                 }
             }
             break;
+
+#if MYNEWT_VAL(BLE_SM_SC)
+        case BLE_SM_IOACT_OOB_SC:
+            if (!ble_sm_sc_oob_data_check(proc,
+                                          (pkey->oob_sc_data.local != NULL),
+                                          (pkey->oob_sc_data.remote != NULL))) {
+                res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB);
+                res.sm_err = BLE_SM_ERR_OOB;
+            } else {
+                proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
+                proc->oob_data_local = pkey->oob_sc_data.local;
+                proc->oob_data_remote = pkey->oob_sc_data.remote;
+
+                /* Execute Confirm step */
+                ble_sm_sc_oob_confirm(proc, &res);
+            }
+            break;
+#endif
 
         default:
             BLE_HS_DBG_ASSERT(0);

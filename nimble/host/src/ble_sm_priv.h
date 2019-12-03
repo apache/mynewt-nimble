@@ -269,6 +269,8 @@ struct ble_sm_proc {
     struct ble_sm_public_key pub_key_peer;
     uint8_t mackey[16];
     uint8_t dhkey[32];
+    const struct ble_sm_sc_oob_data *oob_data_local;
+    const struct ble_sm_sc_oob_data *oob_data_remote;
 #endif
 };
 
@@ -353,6 +355,10 @@ void ble_sm_sc_dhkey_check_exec(struct ble_sm_proc *proc,
                                 struct ble_sm_result *res, void *arg);
 void ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **rxom,
                               struct ble_sm_result *res);
+bool ble_sm_sc_oob_data_check(struct ble_sm_proc *proc,
+                              bool oob_data_local_present,
+                              bool oob_data_remote_present);
+void ble_sm_sc_oob_confirm(struct ble_sm_proc *proc, struct ble_sm_result *res);
 void ble_sm_sc_init(void);
 #else
 #define ble_sm_sc_io_action(proc, action) (BLE_HS_ENOTSUP)
