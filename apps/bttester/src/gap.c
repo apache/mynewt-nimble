@@ -107,6 +107,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_READ_CONTROLLER_INFO);
 	tester_set_bit(cmds, GAP_SET_CONNECTABLE);
 	tester_set_bit(cmds, GAP_SET_DISCOVERABLE);
+	tester_set_bit(cmds, GAP_SET_BONDABLE);
 	tester_set_bit(cmds, GAP_START_ADVERTISING);
 	tester_set_bit(cmds, GAP_STOP_ADVERTISING);
 	tester_set_bit(cmds, GAP_START_DISCOVERY);
@@ -209,6 +210,14 @@ static void controller_info(u8_t *data, u16_t len)
 	supported_settings |= BIT(GAP_SETTINGS_BONDABLE);
 	supported_settings |= BIT(GAP_SETTINGS_LE);
 	supported_settings |= BIT(GAP_SETTINGS_ADVERTISING);
+	supported_settings |= BIT(GAP_SETTINGS_SC);
+
+	if (ble_hs_cfg.sm_bonding) {
+		current_settings |= BIT(GAP_SETTINGS_BONDABLE);
+	}
+	if (ble_hs_cfg.sm_sc) {
+		current_settings |= BIT(GAP_SETTINGS_SC);
+	}
 
 	rp.supported_settings = sys_cpu_to_le32(supported_settings);
 	rp.current_settings = sys_cpu_to_le32(current_settings);
@@ -281,6 +290,26 @@ static void set_discoverable(u8_t *data, u16_t len)
 	rp.current_settings = sys_cpu_to_le32(current_settings);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_SET_DISCOVERABLE, CONTROLLER_INDEX,
+		    (u8_t *) &rp, sizeof(rp));
+}
+
+static void set_bondable(const u8_t *data, u16_t len)
+{
+	const struct gap_set_bondable_cmd *cmd = (void *) data;
+	struct gap_set_bondable_rp rp;
+
+	SYS_LOG_DBG("");
+
+	ble_hs_cfg.sm_bonding = cmd->bondable;
+	if (ble_hs_cfg.sm_bonding) {
+		current_settings |= BIT(GAP_SETTINGS_BONDABLE);
+	} else {
+		current_settings &= ~BIT(GAP_SETTINGS_BONDABLE);
+	}
+
+	rp.current_settings = sys_cpu_to_le32(current_settings);
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_SET_BONDABLE, CONTROLLER_INDEX,
 		    (u8_t *) &rp, sizeof(rp));
 }
 
@@ -1507,6 +1536,9 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 	case GAP_SET_DISCOVERABLE:
 		set_discoverable(data, len);
 		return;
+	case GAP_SET_BONDABLE:
+		set_bondable(data, len);
+		return;
 	case GAP_START_ADVERTISING:
 		start_advertising(data, len);
 		return;
@@ -1572,7 +1604,6 @@ static void tester_init_gap_cb(int err)
 
 	current_settings = 0;
 	current_settings |= BIT(GAP_SETTINGS_POWERED);
-	current_settings |= BIT(GAP_SETTINGS_BONDABLE);
 	current_settings |= BIT(GAP_SETTINGS_LE);
 
 	os_callout_init(&update_params_co, os_eventq_dflt_get(),
