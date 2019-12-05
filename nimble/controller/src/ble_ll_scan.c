@@ -1270,7 +1270,6 @@ ble_ll_scan_sm_stop(int chk_disable)
     if (scansm->ext_scanning) {
         ble_ll_scan_clean_cur_aux_data();
         ble_ll_sched_rmv_elem_type(BLE_LL_SCHED_TYPE_AUX_SCAN, ble_ll_scan_sched_remove);
-        scansm->ext_scanning = 0;
     }
 #endif
 
@@ -1304,6 +1303,15 @@ ble_ll_scan_sm_stop(int chk_disable)
         }
         OS_EXIT_CRITICAL(sr);
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (scansm->ext_scanning) {
+#ifdef BLE_XCVR_RFCLK
+        ble_ll_sched_rfclk_chk_restart();
+#endif
+        scansm->ext_scanning = 0;
+    }
+#endif
 }
 
 static int
