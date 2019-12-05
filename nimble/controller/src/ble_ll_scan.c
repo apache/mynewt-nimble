@@ -1155,6 +1155,9 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
     uint32_t dt;
     uint32_t win_start;
     struct ble_ll_scan_params *scanphy = &scansm->phy_data[scansm->cur_phy];
+#ifdef BLE_XCVR_RFCLK
+    uint32_t itvl;
+#endif
 
     win_start = ble_ll_scan_get_scan_win(scanphy, cputime);
 
@@ -1163,7 +1166,8 @@ ble_ll_scan_window_chk(struct ble_ll_scan_sm *scansm, uint32_t cputime)
         dt = cputime - win_start;
         if (dt >= win) {
 #ifdef BLE_XCVR_RFCLK
-            if (dt < (scanphy->scan_itvl - g_ble_ll_data.ll_xtal_ticks)) {
+            itvl = os_cputime_usecs_to_ticks(scanphy->scan_itvl * BLE_HCI_SCAN_ITVL);
+            if (dt < (itvl - g_ble_ll_data.ll_xtal_ticks)) {
                 ble_ll_scan_rfclk_chk_stop();
             }
 #endif
