@@ -1608,6 +1608,15 @@ ble_ll_sched_rfclk_chk_restart(void)
          */
         time_till_next = (int32_t)(next_time - os_cputime_get32());
         if (time_till_next > g_ble_ll_data.ll_xtal_ticks) {
+            /*
+             * XXX stop timer if already scheduled since it could be set for a
+             *     scheduler item which was removed prior to calling this func.
+             *     in such case we need to make sure we are set to proper item.
+             */
+            if (g_ble_ll_data.ll_rfclk_is_sched) {
+                g_ble_ll_data.ll_rfclk_is_sched = 0;
+                os_cputime_timer_stop(&g_ble_ll_data.ll_rfclk_timer);
+            }
             /* Restart the rfclk timer based on the next scheduled time */
             ble_ll_xcvr_rfclk_timer_start(next_time);
 
