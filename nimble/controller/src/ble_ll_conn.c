@@ -38,6 +38,7 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_trace.h"
+#include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_utils.h"
@@ -2367,6 +2368,8 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     uint32_t tmo;
     struct ble_ll_conn_sm *connsm;
 
+    ble_ll_rfmgmt_release();
+
     /* Better be a connection state machine! */
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(connsm);
@@ -2382,10 +2385,6 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
         ble_ll_scan_chk_resume();
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
-#endif
-
         return;
     }
 
@@ -2393,12 +2392,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_EV_END, connsm->conn_handle,
                        connsm->event_cntr);
 
-    /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
-
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_sched_rfclk_chk_restart();
-#endif
 
     /* If we have transmitted the terminate IND successfully, we are done */
     if ((connsm->csmflags.cfbit.terminate_ind_txd) ||

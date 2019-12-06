@@ -56,27 +56,6 @@ extern "C" {
 #else
 #define BLE_LL_ASSERT(cond) assert(cond)
 #endif
-/*
- * XXX:
- * I guess this should not depend on the 32768 crystal to be honest. This
- * should be done for TIMER0 as well since the rf clock chews up more current.
- * Deal with this later.
- *
- * Another note: BLE_XTAL_SETTLE_TIME should be bsp related (I guess). There
- * should be a note in there that the converted usecs to ticks value of this
- * should not be 0. Thus: if you are using a 32.768 os cputime freq, the min
- * value of settle time should be 31 usecs. I would suspect all settling times
- * would exceed 31 usecs.
- */
-
-/* Determines if we need to turn on/off rf clock */
-#undef BLE_XCVR_RFCLK
-
-/* We will turn on/off rf clock */
-#if MYNEWT_VAL(BLE_XTAL_SETTLE_TIME) != 0
-#define BLE_XCVR_RFCLK
-
-#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
 #define BLE_LL_BT5_PHY_SUPPORTED    (1)
@@ -115,15 +94,6 @@ struct ble_ll_obj
     /* Preferred PHY's */
     uint8_t ll_pref_tx_phys;
     uint8_t ll_pref_rx_phys;
-
-#ifdef BLE_XCVR_RFCLK
-    uint8_t ll_rfclk_state;
-    uint8_t ll_rfclk_is_sched;
-    uint16_t ll_xtal_ticks;
-    uint32_t ll_rfclk_start_time;
-    uint32_t ll_rfclk_sched_time;
-    struct hal_timer ll_rfclk_timer;
-#endif
 
     /* Task event queue */
     struct ble_npl_eventq ll_evq;

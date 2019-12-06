@@ -210,11 +210,6 @@ int ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode);
 /* Stop the scheduler */
 void ble_ll_sched_stop(void);
 
-#ifdef BLE_XCVR_RFCLK
-/* Check if RF clock needs to be restarted */
-void ble_ll_sched_rfclk_chk_restart(void);
-#endif
-
 #if MYNEWT_VAL(BLE_LL_DTM)
 int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #endif

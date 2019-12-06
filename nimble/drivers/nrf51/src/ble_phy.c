@@ -844,17 +844,6 @@ ble_phy_init(void)
 {
     int rc;
 
-#if !defined(BLE_XCVR_RFCLK)
-    /* BLE wants the HFXO on all the time in this case */
-    ble_phy_rfclk_enable();
-
-    /*
-     * XXX: I do not think we need to wait for settling time here since
-     * we will probably not use the radio for longer than the settling time
-     * and it will only degrade performance. Might want to wait here though.
-     */
-#endif
-
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
 

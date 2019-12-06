@@ -31,6 +31,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_rfmgmt.h"
 
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -201,9 +202,7 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
         ble_ll_scan_chk_resume();
     }
 
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
-#endif
+    ble_ll_rfmgmt_release();
 
     BLE_LL_ASSERT(sm->sync_ev_end.ev.ev_queued == 0);
     BLE_LL_ASSERT(sm->sch.enqueued == 0);
@@ -990,15 +989,13 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 
     BLE_LL_ASSERT(sm);
 
+    ble_ll_rfmgmt_release();
+
     /* this could happen if sync was cancelled or terminated while pkt_in was
      * already in LL queue, just drop in that case
      */
     if (!sm->flags) {
         ble_ll_scan_chk_resume();
-
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
-#endif
         return;
     }
 
@@ -1044,10 +1041,6 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         /* if chain was scheduled we don't end event yet */
         /* TODO should we check resume only if offset is high? */
         ble_ll_scan_chk_resume();
-
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
-#endif
         return;
     }
 
@@ -1152,16 +1145,14 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
     sm = ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(sm);
 
+    ble_ll_rfmgmt_release();
+
     if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
         ble_ll_sync_check_failed(sm);
     }
 
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
-
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_sched_rfclk_chk_restart();
-#endif
 
     /* Remove any end events that might be enqueued */
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &sm->sync_ev_end);

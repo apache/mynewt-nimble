@@ -39,7 +39,7 @@
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_utils.h"
-#include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_rfmgmt.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: TODO
@@ -1853,6 +1853,8 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
     os_sr_t sr;
 
     if (advsm->adv_enabled) {
+        ble_ll_rfmgmt_release();
+
         /* Remove any scheduled advertising items */
         ble_ll_sched_rmv_elem(&advsm->adv_sch);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1878,9 +1880,6 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
             g_ble_ll_cur_adv_sm = NULL;
             ble_ll_scan_chk_resume();
         }
-#endif
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
 #endif
         OS_EXIT_CRITICAL(sr);
 
@@ -2413,6 +2412,8 @@ ble_ll_adv_periodic_done(struct ble_ll_adv_sm *advsm)
     assert(advsm->periodic_adv_active);
     assert(advsm->periodic_sync_active);
 
+    ble_ll_rfmgmt_release();
+
     sync = SYNC_CURRENT(advsm);
     sync_next = SYNC_NEXT(advsm);
 
@@ -2429,11 +2430,6 @@ ble_ll_adv_periodic_done(struct ble_ll_adv_sm *advsm)
 
     /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
-
-    /* Turn off the clock if not doing anything else */
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_sched_rfclk_chk_restart();
-#endif
 
     advsm->periodic_sync_active = 0;
     ble_ll_adv_update_periodic_data(advsm);
@@ -2502,6 +2498,8 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
 {
     os_sr_t sr;
 
+    ble_ll_rfmgmt_release();
+
     if (!advsm->periodic_adv_active) {
         return;
     }
@@ -2533,10 +2531,6 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
         g_ble_ll_cur_adv_sm = NULL;
         ble_ll_scan_chk_resume();
     }
-
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_sched_rfclk_chk_restart();
-#endif
     OS_EXIT_CRITICAL(sr);
 
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
@@ -2569,11 +2563,9 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint32_t access_addr;
 #endif
-#ifdef BLE_XCVR_RFCLK
-    int xtal_state;
-    os_sr_t sr;
-#endif
     const uint8_t *random_addr;
+    uint32_t earliest_start_time;
+    int32_t delta;
 
     /* only clear flags that are not set from HCI */
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD |
@@ -2656,32 +2648,31 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     advsm->adv_chan = adv_chan;
 
     /*
-     * Set initial start time (randomized similar to interval)
-     * NOTE: adv_event_start_time gets set by the sched_adv_new
+     * Scheduling 1st PDU is a bit tricky.
+     * Earliest possible start time is after RF is enabled so just force RF to
+     * start here to see when if will be fully enabled - it will be too early,
+     * but this is the only reliable way to have it enabled on time.
+     * Next we calculate expected start time (randomize it a bit) and this is
+     * used to setup start time for scheduler item.
+     * Then we check if start time for scheduler item (which includes scheduler
+     * overhead) is no earlier than calculated earliest possible start time and
+     * adjust scheduler item if necessary.
      */
+    earliest_start_time = ble_ll_rfmgmt_enable_now();
+
     start_delay_us = rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
     advsm->adv_pdu_start_time = os_cputime_get32() +
                                 os_cputime_usecs_to_ticks(start_delay_us);
 
-#ifdef BLE_XCVR_RFCLK
-    OS_ENTER_CRITICAL(sr);
-    xtal_state = ble_ll_xcvr_rfclk_state();
-    if (xtal_state != BLE_RFCLK_STATE_SETTLED) {
-        if (xtal_state == BLE_RFCLK_STATE_OFF) {
-            advsm->adv_pdu_start_time += g_ble_ll_data.ll_xtal_ticks;
-            ble_ll_xcvr_rfclk_start_now();
-        } else {
-            advsm->adv_pdu_start_time += ble_ll_xcvr_rfclk_time_till_settled();
-        }
-    }
-    OS_EXIT_CRITICAL(sr);
-#endif
-
-    /*
-     * Schedule advertising. We set the initial schedule start and end
-     * times to the earliest possible start/end.
-     */
     ble_ll_adv_set_sched(advsm);
+
+    delta = (int32_t)(advsm->adv_sch.start_time - earliest_start_time);
+    if (delta < 0) {
+        advsm->adv_sch.start_time -= delta;
+        advsm->adv_sch.end_time -= delta;
+    }
+
+    /* This does actual scheduling */
     ble_ll_sched_adv_new(&advsm->adv_sch, ble_ll_adv_scheduled, NULL);
 
     /* we start periodic before AE since we need PDU start time in SyncInfo */
@@ -4473,6 +4464,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 
     assert(advsm->adv_enabled);
 
+    ble_ll_rfmgmt_release();
+
     ble_ll_adv_update_adv_scan_rsp_data(advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -4504,13 +4497,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         }
 #endif
 
-        /* Check if we need to resume scanning */
         ble_ll_scan_chk_resume();
-
-        /* Turn off the clock if not doing anything else */
-#ifdef BLE_XCVR_RFCLK
-        ble_ll_sched_rfclk_chk_restart();
-#endif
 
         /* This event is over. Set adv channel to first one */
         advsm->adv_chan = ble_ll_adv_first_chan(advsm);
@@ -4663,6 +4650,9 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     aux = AUX_CURRENT(advsm);
     aux_next = AUX_NEXT(advsm);
 
+    /* We don't need RF anymore */
+    ble_ll_rfmgmt_release();
+
     if (advsm->aux_not_scanned) {
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
@@ -4685,13 +4675,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
         return;
     }
 
-    /* Check if we need to resume scanning */
     ble_ll_scan_chk_resume();
-
-    /* Turn off the clock if not doing anything else */
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_sched_rfclk_chk_restart();
-#endif
 
     /* Check if advertising timed out */
     if (advsm->duration && (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
