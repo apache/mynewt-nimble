@@ -40,7 +40,7 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
-#include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
@@ -1326,16 +1326,12 @@ ble_ll_reset(void)
     int rc;
     os_sr_t sr;
 
-    /* Stop the phy */
-    ble_phy_disable();
-
-    /* Stop any wait for response timer */
     OS_ENTER_CRITICAL(sr);
+    ble_phy_disable();
     ble_ll_sched_stop();
-    OS_EXIT_CRITICAL(sr);
-
-    /* Stop any scanning */
     ble_ll_scan_reset();
+    ble_ll_rfmgmt_reset();
+    OS_EXIT_CRITICAL(sr);
 
     /* Stop any advertising */
     ble_ll_adv_reset();
@@ -1371,13 +1367,6 @@ ble_ll_reset(void)
 
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-#ifdef BLE_XCVR_RFCLK
-    OS_ENTER_CRITICAL(sr);
-    /* Stops rf clock and rfclock timer */
-    ble_ll_xcvr_rfclk_stop();
-    OS_EXIT_CRITICAL(sr);
-#endif
 
     /* Reset our random address */
     memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
@@ -1508,9 +1497,6 @@ ble_ll_init(void)
 {
     int rc;
     uint32_t features;
-#ifdef BLE_XCVR_RFCLK
-    uint32_t xtal_ticks;
-#endif
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
@@ -1533,17 +1519,7 @@ ble_ll_init(void)
         }
     }
 
-#ifdef BLE_XCVR_RFCLK
-    /* Settling time of crystal, in ticks */
-    xtal_ticks = MYNEWT_VAL(BLE_XTAL_SETTLE_TIME);
-    BLE_LL_ASSERT(xtal_ticks != 0);
-    g_ble_ll_data.ll_xtal_ticks = ble_ll_usecs_to_ticks_round_up(xtal_ticks);
-
-    /* Initialize rf clock timer */
-    os_cputime_timer_init(&g_ble_ll_data.ll_rfclk_timer,
-                          ble_ll_xcvr_rfclk_timer_exp, NULL);
-
-#endif
+    ble_ll_rfmgmt_init();
 
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;

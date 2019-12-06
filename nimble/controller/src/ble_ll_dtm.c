@@ -28,7 +28,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
-#include "controller/ble_ll_xcvr.h"
+#include "controller/ble_ll_rfmgmt.h"
 #include "ble_ll_dtm_priv.h"
 
 STATS_SECT_START(ble_ll_dtm_stats)
@@ -368,8 +368,7 @@ schedule:
     sch->sched_cb = ble_ll_dtm_tx_sched_cb;
     sch->cb_arg = &g_ble_ll_dtm_ctx;
     sch->sched_type = BLE_LL_SCHED_TYPE_DTM;
-    sch->start_time =  os_cputime_get32() +
-                                       os_cputime_usecs_to_ticks(5000);
+    sch->start_time =  ble_ll_rfmgmt_enable_now();
 
     /* Prepare os_event */
     ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_tx_resched_cb,
@@ -412,14 +411,6 @@ ble_ll_dtm_rx_start(void)
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
-#ifdef BLE_XCVR_RFCLK
-    OS_ENTER_CRITICAL(sr);
-    if (ble_ll_xcvr_rfclk_state() == BLE_RFCLK_STATE_OFF) {
-        ble_ll_xcvr_rfclk_start_now();
-    }
-    OS_EXIT_CRITICAL(sr);
-#endif
-
     return 0;
 }
 
@@ -451,8 +442,7 @@ ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
     sch->sched_cb = ble_ll_dtm_rx_sched_cb;
     sch->cb_arg = &g_ble_ll_dtm_ctx;
     sch->sched_type = BLE_LL_SCHED_TYPE_DTM;
-    sch->start_time =  os_cputime_get32() +
-                                       os_cputime_usecs_to_ticks(5000);
+    sch->start_time =  ble_ll_rfmgmt_enable_now();
 
     rc = ble_ll_sched_dtm(sch);
     BLE_LL_ASSERT(rc == 0);
@@ -480,9 +470,7 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     ble_phy_disable();
     ble_phy_disable_dtm();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
-#ifdef BLE_XCVR_RFCLK
-    ble_ll_xcvr_rfclk_stop();
-#endif
+    ble_ll_rfmgmt_release();
 
     os_mbuf_free_chain(ctx->om);
     memset(ctx, 0, sizeof(*ctx));
