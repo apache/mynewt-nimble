@@ -74,6 +74,13 @@ extern "C" {
 #define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
 #define BLE_LL_EXT_ADV_MODE_SCAN        (0x02)
 
+/* All values are stored as ticks */
+struct ble_ll_scan_timing {
+    uint32_t interval;
+    uint32_t window;
+    uint32_t start_time;
+};
+
 struct ble_ll_scan_params
 {
     uint8_t phy;
@@ -82,9 +89,7 @@ struct ble_ll_scan_params
     uint8_t configured;
     uint8_t scan_type;
     uint8_t scan_chan;
-    uint16_t scan_itvl;
-    uint16_t scan_window;
-    uint32_t scan_win_start_time;
+    struct ble_ll_scan_timing timing;
 };
 
 #define BLE_LL_AUX_HAS_ADVA                     0x01
