@@ -68,7 +68,6 @@ extern "C" {
 
 #define PHY_UNCODED                    (0)
 #define PHY_CODED                      (1)
-#define PHY_NOT_CONFIGURED             (0xFF)
 
 #define BLE_LL_EXT_ADV_MODE_NON_CONN    (0x00)
 #define BLE_LL_EXT_ADV_MODE_CONN        (0x01)
@@ -180,8 +179,9 @@ struct ble_ll_scan_sm
     uint8_t ext_scanning;
 #endif
 
-    uint8_t cur_phy;
-    uint8_t next_phy;
+    struct ble_ll_scan_params *scanp;
+    struct ble_ll_scan_params *scanp_next;
+
     uint8_t restart_timer_needed;
     struct ble_ll_aux_data *cur_aux_data;
     struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
