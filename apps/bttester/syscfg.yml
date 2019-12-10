@@ -51,6 +51,10 @@ syscfg.defs:
         description: Limited advertising timeout
         value: 30000
 
+    BTTESTER_CONN_RETRY:
+        description: Retry connections when connection failed to be established
+        value: 3
+
     BTTESTER_BTP_DATA_SIZE_MAX:
         description: Maximum BTP payload
         value: 2048

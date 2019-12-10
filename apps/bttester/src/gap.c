@@ -56,8 +56,24 @@ static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
 
-struct os_callout update_params_co;
+static struct os_callout update_params_co;
 static struct gap_conn_param_update_cmd update_params;
+
+static struct os_callout connected_ev_co;
+static struct gap_device_connected_ev connected_ev;
+#define CONNECTED_EV_DELAY_MS(itvl) 8 * BLE_HCI_CONN_ITVL * itvl / 1000
+static int connection_attempts;
+
+static const struct ble_gap_conn_params dflt_conn_params = {
+	.scan_itvl = 0x0010,
+	.scan_window = 0x0010,
+	.itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
+	.itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX,
+	.latency = 0,
+	.supervision_timeout = 0x0100,
+	.min_ce_len = 0x0010,
+	.max_ce_len = 0x0300,
+};
 
 static void conn_param_update(struct os_event *ev);
 
@@ -649,10 +665,30 @@ static void periph_privacy(struct ble_gap_conn_desc desc)
 	}
 }
 
+static void device_connected_ev_send(struct os_event *ev)
+{
+	struct ble_gap_conn_desc desc;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = gap_conn_find_by_addr((ble_addr_t *)&connected_ev, &desc);
+	if (rc) {
+		tester_rsp(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+		return;
+	}
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+		    CONTROLLER_INDEX, (u8_t *) &connected_ev,
+		    sizeof(connected_ev));
+
+	periph_privacy(desc);
+}
+
 static void le_connected(u16_t conn_handle, int status)
 {
 	struct ble_gap_conn_desc desc;
-	struct gap_device_connected_ev ev;
 	ble_addr_t *addr;
 	int rc;
 
@@ -672,27 +708,21 @@ static void le_connected(u16_t conn_handle, int status)
 
 	addr = &desc.peer_id_addr;
 
-	memcpy(ev.address, addr->val, sizeof(ev.address));
-	ev.address_type = addr->type;
-	ev.conn_itvl = desc.conn_itvl;
-	ev.conn_latency = desc.conn_latency;
-	ev.supervision_timeout = desc.supervision_timeout;
+	memcpy(connected_ev.address, addr->val, sizeof(connected_ev.address));
+	connected_ev.address_type = addr->type;
+	connected_ev.conn_itvl = desc.conn_itvl;
+	connected_ev.conn_latency = desc.conn_latency;
+	connected_ev.supervision_timeout = desc.supervision_timeout;
 
-#if MYNEWT_VAL(BTTESTER_CONN_PARAM_UPDATE)
-	memcpy(update_params.address, addr->val, sizeof(ev.address));
-	update_params.address_type = addr->type;
-	update_params.conn_itvl_min = desc.conn_itvl;
-	update_params.conn_itvl_max = desc.conn_itvl;
-	update_params.conn_latency = desc.conn_latency + 1;
-	update_params.supervision_timeout = desc.supervision_timeout;
-
-	conn_param_update(NULL);
-#endif
-
+#if MYNEWT_VAL(BTTESTER_CONN_RETRY)
+	os_callout_reset(&connected_ev_co,
+			 os_time_ms_to_ticks32(
+				 CONNECTED_EV_DELAY_MS(desc.conn_itvl)));
+#else
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-
-	periph_privacy(desc);
+		    CONTROLLER_INDEX, (u8_t *) &connected_ev,
+		    sizeof(connected_ev));
+#endif
 }
 
 static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
@@ -701,6 +731,33 @@ static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
 	ble_addr_t *addr = &conn->peer_ota_addr;
 
 	SYS_LOG_DBG("");
+
+#if MYNEWT_VAL(BTTESTER_CONN_RETRY)
+	int rc;
+
+	if ((reason == BLE_HS_HCI_ERR(BLE_ERR_CONN_ESTABLISHMENT)) &&
+	    os_callout_queued(&connected_ev_co)) {
+		if (connection_attempts < MYNEWT_VAL(BTTESTER_CONN_RETRY)) {
+			os_callout_stop(&connected_ev_co);
+
+			/* try connecting again */
+			rc = ble_gap_connect(own_addr_type, addr, 0,
+					     &dflt_conn_params, gap_event_cb,
+					     NULL);
+
+			if (rc == 0) {
+				connection_attempts++;
+				return;
+			}
+		}
+	} else if (os_callout_queued(&connected_ev_co)) {
+		os_callout_stop(&connected_ev_co);
+		return;
+	}
+#endif
+
+	connection_attempts = 0;
+	memset(&connected_ev, 0, sizeof(connected_ev));
 
 	memcpy(ev.address, addr->val, sizeof(ev.address));
 	ev.address_type = addr->type;
@@ -1142,32 +1199,15 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
 static void connect(const u8_t *data, u16_t len)
 {
-	struct ble_gap_conn_params conn_params = { 0 };
-	u8_t status;
-	int rc;
+	u8_t status = BTP_STATUS_SUCCESS;
 
 	SYS_LOG_DBG("");
 
-	conn_params.scan_itvl = 0x0010;
-	conn_params.scan_window = 0x0010;
-	conn_params.itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
-	conn_params.itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
-	conn_params.latency = 0;
-	conn_params.supervision_timeout = 0x0100;
-	conn_params.min_ce_len = 0x0010;
-	conn_params.max_ce_len = 0x0300;
-
-	rc = ble_gap_connect(own_addr_type, (ble_addr_t *) data,
-			     0, &conn_params,
-			     gap_event_cb, NULL);
-	if (rc) {
+	if (ble_gap_connect(own_addr_type, (ble_addr_t *) data, 0,
+			    &dflt_conn_params, gap_event_cb, NULL)) {
 		status = BTP_STATUS_FAILED;
-		goto rsp;
 	}
 
-	status = BTP_STATUS_SUCCESS;
-
-rsp:
 	tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONNECT, CONTROLLER_INDEX, status);
 }
 
@@ -1416,9 +1456,6 @@ static int conn_param_update_master(u16_t conn_handle,
 	return rc;
 }
 
-struct os_callout update_params_co;
-static struct gap_conn_param_update_cmd update_params;
-
 static void conn_param_update(struct os_event *ev)
 {
 	struct ble_gap_conn_desc desc;
@@ -1619,6 +1656,9 @@ static void tester_init_gap_cb(int err)
 
 	os_callout_init(&update_params_co, os_eventq_dflt_get(),
 			conn_param_update, NULL);
+
+	os_callout_init(&connected_ev_co, os_eventq_dflt_get(),
+			device_connected_ev_send, NULL);
 
 	tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
 		   BTP_STATUS_SUCCESS);
