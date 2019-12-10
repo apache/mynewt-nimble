@@ -197,7 +197,6 @@ ble_ll_aux_scan_cb(struct ble_ll_sched_item *sch)
      */
     if (lls != BLE_LL_STATE_STANDBY) {
         ble_phy_disable();
-        ble_ll_wfr_disable();
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
     }
 
@@ -1714,9 +1713,6 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
 #endif
             }
         }
-
-        /* Disable wfr if running */
-        ble_ll_wfr_disable();
         break;
     case BLE_SCAN_TYPE_PASSIVE:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

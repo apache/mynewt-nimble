@@ -1867,7 +1867,6 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         if ((g_ble_ll_cur_adv_sm == advsm) &&
                !(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING)) {
             ble_phy_disable();
-            ble_ll_wfr_disable();
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
             g_ble_ll_cur_adv_sm = NULL;
             ble_ll_scan_chk_resume();
@@ -1875,7 +1874,6 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 #else
         if (ble_ll_state_get() == BLE_LL_STATE_ADV) {
             ble_phy_disable();
-            ble_ll_wfr_disable();
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
             g_ble_ll_cur_adv_sm = NULL;
             ble_ll_scan_chk_resume();
@@ -2531,7 +2529,6 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
     if ((g_ble_ll_cur_adv_sm == advsm) &&
             (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING)) {
         ble_phy_disable();
-        ble_ll_wfr_disable();
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         g_ble_ll_cur_adv_sm = NULL;
         ble_ll_scan_chk_resume();

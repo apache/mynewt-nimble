@@ -196,7 +196,6 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
 
     if (g_ble_ll_sync_sm_current == sm) {
         ble_phy_disable();
-        ble_ll_wfr_disable();
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         g_ble_ll_sync_sm_current = NULL;
         ble_ll_scan_chk_resume();
@@ -404,9 +403,6 @@ ble_ll_sync_current_sm_over(void)
 {
     /* Disable the PHY */
     ble_phy_disable();
-
-    /* Disable the wfr timer */
-    ble_ll_wfr_disable();
 
     /* Link-layer is in standby state now */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);

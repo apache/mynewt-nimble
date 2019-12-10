@@ -537,12 +537,6 @@ int ble_ll_set_public_addr(const uint8_t *addr);
 /* Set random address */
 int ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext);
 
-/* Enable wait for response timer */
-void ble_ll_wfr_enable(uint32_t cputime);
-
-/* Disable wait for response timer */
-void ble_ll_wfr_disable(void);
-
 /* Wait for response timer expiration callback */
 void ble_ll_wfr_timer_exp(void *arg);
 

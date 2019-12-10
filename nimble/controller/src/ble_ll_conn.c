@@ -375,7 +375,6 @@ static void
 ble_ll_conn_halt(void)
 {
     ble_phy_disable();
-    ble_ll_wfr_disable();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     g_ble_ll_conn_cur_sm = NULL;
 }
@@ -3408,7 +3407,6 @@ ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
      * called at receive end will deal with ending the connection event
      * if needed
      */
-    ble_ll_wfr_disable();
     connsm = g_ble_ll_conn_cur_sm;
     if (connsm) {
         /* Double check access address. Better match connection state machine */
