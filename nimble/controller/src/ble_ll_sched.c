@@ -1482,7 +1482,6 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 
     /* We have to disable the PHY no matter what */
     ble_phy_disable();
-    ble_ll_wfr_disable();
 
     if (lls == BLE_LL_STATE_SCANNING) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);

@@ -679,28 +679,6 @@ ble_ll_wfr_timer_exp(void *arg)
 }
 
 /**
- * Enable the wait for response timer.
- *
- * Context: Interrupt.
- *
- * @param cputime
- * @param wfr_cb
- * @param arg
- */
-void
-ble_ll_wfr_enable(uint32_t cputime)
-{
-}
-
-/**
- * Disable the wait for response timer
- */
-void
-ble_ll_wfr_disable(void)
-{
-}
-
-/**
  * ll tx pkt in proc
  *
  * Process ACL data packet input from host
@@ -1353,7 +1331,6 @@ ble_ll_reset(void)
 
     /* Stop any wait for response timer */
     OS_ENTER_CRITICAL(sr);
-    ble_ll_wfr_disable();
     ble_ll_sched_stop();
     OS_EXIT_CRITICAL(sr);
 
