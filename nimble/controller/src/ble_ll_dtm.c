@@ -424,23 +424,42 @@ ble_ll_dtm_rx_start(void)
 }
 
 static int
+ble_ll_dtm_rx_sched_cb(struct ble_ll_sched_item *sch)
+{
+    if (ble_ll_dtm_rx_start() != 0) {
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        STATS_INC(ble_ll_dtm_stats, rx_failed);
+    }
+
+    return BLE_LL_SCHED_STATE_DONE;
+}
+
+static int
 ble_ll_dtm_rx_create_ctx(uint8_t rf_channel, uint8_t phy_mode)
 {
+    struct ble_ll_sched_item *sch = &g_ble_ll_dtm_ctx.sch;
+    int rc;
+
     g_ble_ll_dtm_ctx.phy_mode = phy_mode;
     g_ble_ll_dtm_ctx.rf_channel = rf_channel;
-    g_ble_ll_dtm_ctx.active = 1;
 
     STATS_CLEAR(ble_ll_dtm_stats, rx_count);
 
     ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_rx_restart_cb,
                        NULL);
 
-    if (ble_ll_dtm_rx_start() != 0) {
-        return 1;
-    }
+    sch->sched_cb = ble_ll_dtm_rx_sched_cb;
+    sch->cb_arg = &g_ble_ll_dtm_ctx;
+    sch->sched_type = BLE_LL_SCHED_TYPE_DTM;
+    sch->start_time =  os_cputime_get32() +
+                                       os_cputime_usecs_to_ticks(5000);
+
+    rc = ble_ll_sched_dtm(sch);
+    BLE_LL_ASSERT(rc == 0);
 
     ble_phy_enable_dtm();
 
+    g_ble_ll_dtm_ctx.active = 1;
     return 0;
 }
 
