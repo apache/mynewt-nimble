@@ -1375,6 +1375,19 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    /*
+     * Keep original value requested by host since we may want to recalculate
+     * MaxTxTime after PHY changes between coded and uncoded.
+     */
+    connsm->host_req_max_tx_time = txtime;
+
+    /* If peer does not support coded, we cannot use value larger than 2120us */
+    if (!(connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8))) {
+        txtime = min(txtime, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+    }
+#endif
+
     rc = BLE_ERR_SUCCESS;
     if (connsm->max_tx_time != txtime ||
         connsm->max_tx_octets != txoctets) {
