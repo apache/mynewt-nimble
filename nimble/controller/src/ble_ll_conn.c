@@ -1563,6 +1563,8 @@ ble_ll_conn_init_phy(struct ble_ll_conn_sm *connsm, int phy)
         connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
         connsm->rem_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
         connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
+        /* Assume peer does support coded */
+        connsm->remote_features[0] |= (BLE_LL_FEAT_LE_CODED_PHY >> 8);
     } else {
         connsm->max_tx_time = conngp->conn_init_max_tx_time_uncoded;
         connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_UNCODED;
@@ -1743,6 +1745,9 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->rem_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    connsm->host_req_max_tx_time = 0;
+#endif
 
     ble_ll_update_max_tx_octets_phy_mode(connsm);
 
@@ -2142,6 +2147,22 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
 
         ble_ll_ctrl_phy_update_proc_complete(connsm);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        /*
+         * If PHY in either direction was changed to coded, we assume that peer
+         * does support LE Coded PHY even if features were not exchanged yet.
+         * This means that MaxRxTime can be updated to supported max and we need
+         * initiate DLE to notify peer about the change.
+         */
+        if (((connsm->phy_data.cur_tx_phy == BLE_PHY_CODED) ||
+             (connsm->phy_data.cur_rx_phy == BLE_PHY_CODED)) &&
+            !(connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8))) {
+            connsm->remote_features[0] |= (BLE_LL_FEAT_LE_CODED_PHY >> 8);
+            connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
+            ble_ll_ctrl_initiate_dle(connsm);
+        }
+#endif
     }
 #endif
 

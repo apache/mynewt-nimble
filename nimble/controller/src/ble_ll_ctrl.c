@@ -1735,6 +1735,38 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
 }
 
+static void
+ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
+{
+    connsm->conn_features = feat[0];
+    memcpy(connsm->remote_features, feat + 1, 7);
+
+    /* If we received peer's features for the 1st time, we should try DLE */
+    if (!connsm->csmflags.cfbit.rxd_features) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        /*
+         * If connection was established on uncoded PHY, by default we use
+         * MaxTxTime and MaxRxTime applicable for that PHY since we are not
+         * allowed to indicate longer supported time if peer does not support
+         * LE Coded PHY. However, once we know that peer does support it we can
+         * update those values to ones applicable for coded PHY.
+         */
+        if (connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8)) {
+            if (connsm->host_req_max_tx_time) {
+                connsm->max_tx_time = max(connsm->max_tx_time,
+                                          connsm->host_req_max_tx_time);
+            } else {
+                connsm->max_tx_time = g_ble_ll_conn_params.conn_init_max_tx_time_coded;
+            }
+            connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
+        }
+#endif
+
+        connsm->csmflags.cfbit.pending_initiate_dle = 1;
+        connsm->csmflags.cfbit.rxd_features = 1;
+    }
+}
+
 /**
  * Called when we receive a feature request or a slave initiated feature
  * request.
@@ -1750,7 +1782,7 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
  */
 static int
 ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
-                           uint8_t *rspbuf, uint8_t opcode, uint8_t *new_features)
+                           uint8_t *rspbuf, uint8_t opcode)
 {
     uint8_t rsp_opcode;
     uint32_t our_feat;
@@ -1774,6 +1806,8 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     rsp_opcode = BLE_LL_CTRL_FEATURE_RSP;
 
+    ble_ll_ctrl_update_features(connsm, dptr);
+
     /*
      * 1st octet of features should be common features of local and remote
      * controller - we call this 'connection features'
@@ -1782,18 +1816,11 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      *
      * See: Vol 6, Part B, section 2.4.2.10
      */
+    connsm->conn_features &= our_feat;
 
-    connsm->conn_features = dptr[0] & our_feat;
-    memcpy(connsm->remote_features, dptr + 1, 7);
     memset(rspbuf + 1, 0, 8);
     put_le32(rspbuf + 1, our_feat);
     rspbuf[1] = connsm->conn_features;
-
-    /* If this is the first time we received remote features, try to start DLE */
-    if (!connsm->csmflags.cfbit.rxd_features) {
-        *new_features = 1;
-        connsm->csmflags.cfbit.rxd_features = 1;
-    }
 
     return rsp_opcode;
 }
@@ -1807,19 +1834,15 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
  *
  */
 static void
-ble_ll_ctrl_rx_feature_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *new_features)
+ble_ll_ctrl_rx_feature_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    connsm->conn_features = dptr[0];
-    memcpy(connsm->remote_features, dptr + 1, 7);
-    /* If this is the first time we received remote features, try to start DLE */
-    if (!connsm->csmflags.cfbit.rxd_features) {
-        *new_features = 1;
-        connsm->csmflags.cfbit.rxd_features = 1;
-    }
+    ble_ll_ctrl_update_features(connsm, dptr);
+
     /* Stop the control procedure */
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
     }
+
     /* Send event to host if pending features read */
     if (connsm->csmflags.cfbit.pending_hci_rd_features) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
@@ -2298,7 +2321,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     int restart_encryption;
 #endif
-    uint8_t new_features = 0;
     int rc = 0;
 
     /* XXX: where do we validate length received and packet header length?
@@ -2456,17 +2478,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_proc_unk_rsp(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
         break;
     /* XXX: check to see if ctrl procedure was running? Do we care? */
     case BLE_LL_CTRL_FEATURE_RSP:
-        ble_ll_ctrl_rx_feature_rsp(connsm, dptr, &new_features);
+        ble_ll_ctrl_rx_feature_rsp(connsm, dptr);
         break;
     case BLE_LL_CTRL_VERSION_IND:
         rsp_opcode = ble_ll_ctrl_rx_version_ind(connsm, dptr, rspdata);
         break;
     case BLE_LL_CTRL_SLAVE_FEATURE_REQ:
-        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode, &new_features);
+        rsp_opcode = ble_ll_ctrl_rx_feature_req(connsm, dptr, rspbuf, opcode);
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_ENC_REQ:
@@ -2554,7 +2576,8 @@ ll_ctrl_send_rsp:
 #endif
     }
 
-    if (new_features) {
+    if (connsm->csmflags.cfbit.pending_initiate_dle) {
+        connsm->csmflags.cfbit.pending_initiate_dle = 0;
         ble_ll_ctrl_initiate_dle(connsm);
     }
 

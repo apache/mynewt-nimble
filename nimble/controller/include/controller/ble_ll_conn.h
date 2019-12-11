@@ -133,6 +133,7 @@ union ble_ll_conn_sm_flags {
         uint32_t aux_conn_req: 1;
         uint32_t rxd_features:1;
         uint32_t pending_hci_rd_features:1;
+        uint32_t pending_initiate_dle:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -237,6 +238,9 @@ struct ble_ll_conn_sm
     uint16_t eff_max_tx_time;
     uint16_t eff_max_rx_time;
     uint8_t max_tx_octets_phy_mode[BLE_PHY_NUM_MODE];
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    uint16_t host_req_max_tx_time;
+#endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     struct ble_ll_conn_phy_data phy_data;
