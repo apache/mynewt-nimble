@@ -53,13 +53,13 @@ reset callbacks.
     #include "host/ble_hs.h"
 
     static void
-    on_sync(void)
+    on_sync(void *arg)
     {
         /* Begin advertising, scanning for peripherals, etc. */
     }
 
     static void
-    on_reset(int reason)
+    on_reset(int reason, void *arg)
     {
         console_printf("Resetting state; reason=%d\n", reason);
     }

@@ -623,13 +623,13 @@ void init_button(int button)
 }
 
 static void
-blemesh_on_reset(int reason)
+blemesh_on_reset(int reason, void *arg)
 {
     BLE_HS_LOG(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
 static void
-blemesh_on_sync(void)
+blemesh_on_sync(void *arg)
 {
     int err;
     ble_addr_t addr;

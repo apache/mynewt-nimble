@@ -64,7 +64,7 @@ static struct bt_test_cb bt_test_cb = {
 };
 
 static void
-blemesh_on_reset(int reason)
+blemesh_on_reset(int reason, void *arg)
 {
     BLE_HS_LOG(ERROR, "Resetting state; reason=%d\n", reason);
 }
@@ -83,7 +83,7 @@ static struct bt_mesh_light_lightness_srv_cb light_lightness_srv_cb = {
 };
 
 static void
-blemesh_on_sync(void)
+blemesh_on_sync(void *arg)
 {
     console_printf("Bluetooth initialized\n");
 

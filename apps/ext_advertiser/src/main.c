@@ -412,7 +412,7 @@ start_non_connectable_ext(void)
 }
 
 static void
-on_sync(void)
+on_sync(void *arg)
 {
     int rc;
 

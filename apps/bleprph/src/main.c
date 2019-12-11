@@ -276,13 +276,13 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
 }
 
 static void
-bleprph_on_reset(int reason)
+bleprph_on_reset(int reason, void *arg)
 {
     MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
 static void
-bleprph_on_sync(void)
+bleprph_on_sync(void *arg)
 {
     int rc;
 

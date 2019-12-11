@@ -2097,13 +2097,13 @@ btshell_rssi(uint16_t conn_handle, int8_t *out_rssi)
 }
 
 static void
-btshell_on_reset(int reason)
+btshell_on_reset(int reason, void *arg)
 {
     console_printf("Error: Resetting state; reason=%d\n", reason);
 }
 
 static void
-btshell_on_sync(void)
+btshell_on_sync(void *arg)
 {
 #if MYNEWT_VAL(BLE_SM_SC)
     int rc;
