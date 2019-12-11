@@ -173,11 +173,11 @@ extern "C" {
  *
  * @param reason Reason code for reset
  */
-typedef void ble_hs_reset_fn(int reason);
+typedef void ble_hs_reset_fn(int reason, void *arg);
 
 
 /** @brief Stack sync callback */
-typedef void ble_hs_sync_fn(void);
+typedef void ble_hs_sync_fn(void *arg);
 
 /** @brief Bluetooth Host main configuration structure
  *
@@ -250,12 +250,18 @@ struct ble_hs_cfg {
      */
     ble_hs_reset_fn *reset_cb;
 
+    /** An optional argument that gets passed to the reset callback. */
+    void *reset_cb_arg;
+
     /** @brief Stack sync callback
      *
      * This callback is executed when the host and controller become synced.
      * This happens at startup and after a reset.
      */
     ble_hs_sync_fn *sync_cb;
+
+    /** An optional argument that gets passed to the sync callback. */
+    void *sync_cb_arg;
 
     /* XXX: These need to go away. Instead, the nimble host package should
      * require the host-store API (not yet implemented)..
