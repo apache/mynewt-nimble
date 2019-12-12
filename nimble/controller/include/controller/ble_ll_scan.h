@@ -179,12 +179,12 @@ struct ble_ll_scan_sm
     uint8_t ext_scanning;
 #endif
 
-    struct ble_ll_scan_params *scanp;
-    struct ble_ll_scan_params *scanp_next;
-
     uint8_t restart_timer_needed;
     struct ble_ll_aux_data *cur_aux_data;
-    struct ble_ll_scan_params phy_data[BLE_LL_SCAN_PHY_NUMBER];
+
+    struct ble_ll_scan_params *scanp;
+    struct ble_ll_scan_params *scanp_next;
+    struct ble_ll_scan_params scanp_phys[BLE_LL_SCAN_PHY_NUMBER];
 };
 
 /* Scan types */
