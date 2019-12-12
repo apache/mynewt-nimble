@@ -26,7 +26,7 @@ extern "C" {
 
 void ble_ll_rfmgmt_init(void);
 
-#if MYNEWT_VAL(BLE_XTAL_SETTLE_TIME) > 0
+#if MYNEWT_VAL(BLE_LL_RFMGMT_ENABLE_TIME) > 0
 
 void ble_ll_rfmgmt_reset(void);
 
