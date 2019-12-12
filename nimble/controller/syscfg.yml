@@ -175,13 +175,18 @@ syscfg.defs:
             material often.
         value: '32'
 
-    # Crystal setting time
-    BLE_XTAL_SETTLE_TIME:
+    BLE_LL_RFMGMT_ENABLE_TIME:
         description: >
-            The settling time of the high-frequency oscillator. This is
-            used to turn on/off the clock used for the radio (assuming
-            the HW supports this). This value is in microseconds.
-        value: '0'
+            Time required for radio and/or related components to be fully
+            enabled before any request from LL is sent. This value is used
+            by rfmgmt to enable PHY in advance, before request from LL is
+            made. It depends on radio driver selected and may also depend
+            on hardware used:
+            - nrf51 - time required for XTAL to settle
+            - nrf52 - time required for XTAL to settle
+            Value is specified in microseconds. If set to 0, rfmgmt keeps
+            PHY enabled all the time.
+        value: MYNEWT_VAL(BLE_XTAL_SETTLE_TIME)
 
     # Configuration for LL supported features.
     #
@@ -367,6 +372,10 @@ syscfg.defs:
 # deprecated settings (to be defunct/removed eventually)
     BLE_LL_DIRECT_TEST_MODE:
         description: use BLE_LL_DTM instead
+        value: 0
+        deprecated: 1
+    BLE_XTAL_SETTLE_TIME:
+        description: use BLE_LL_RFMGMT_ENABLE_TIME instead
         value: 0
         deprecated: 1
 

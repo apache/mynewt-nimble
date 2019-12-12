@@ -28,7 +28,7 @@
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_rfmgmt.h"
 
-#if MYNEWT_VAL(BLE_XTAL_SETTLE_TIME) > 0
+#if MYNEWT_VAL(BLE_LL_RFMGMT_ENABLE_TIME) > 0
 
 enum ble_ll_rfmgmt_state {
     RFMGMT_STATE_OFF = 0,
@@ -215,7 +215,7 @@ ble_ll_rfmgmt_init(void)
     rfmgmt->state = RFMGMT_STATE_OFF;
 
     rfmgmt->ticks_to_enabled =
-            ble_ll_usecs_to_ticks_round_up(MYNEWT_VAL(BLE_XTAL_SETTLE_TIME));
+            ble_ll_usecs_to_ticks_round_up(MYNEWT_VAL(BLE_LL_RFMGMT_ENABLE_TIME));
 
     rfmgmt->timer_scheduled = false;
     os_cputime_timer_init(&rfmgmt->timer, ble_ll_rfmgmt_timer_exp, NULL);
