@@ -3793,15 +3793,11 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         /* Adjust payload for max TX time and octets */
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-                        if (is_ctrl && (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
-                                        && (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
-                            if (rxbuf[3] & BLE_PHY_MASK_1M) {
-                                connsm->phy_tx_transition = BLE_PHY_1M;
-                            } else if (rxbuf[3] & BLE_PHY_MASK_2M) {
-                                connsm->phy_tx_transition = BLE_PHY_2M;
-                            } else if (rxbuf[3] & BLE_PHY_MASK_CODED) {
-                                connsm->phy_tx_transition = BLE_PHY_CODED;
-                            }
+                        if (is_ctrl &&
+                            (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
+                            (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
+                            connsm->phy_tx_transition =
+                                    ble_ll_ctrl_phy_tx_transition_get(rxbuf[3]);
                         }
 #endif
 

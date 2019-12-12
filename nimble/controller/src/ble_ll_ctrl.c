@@ -554,6 +554,25 @@ ble_ll_ctrl_start_rsp_timer(struct ble_ll_conn_sm *connsm)
 }
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+uint8_t
+ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask)
+{
+    /*
+     * Evaluate PHYs in transition starting from the one with longest TX time
+     * so we select the one that allows shortest payload to be sent. This is
+     * to make sure we do not violate timing restriction on new PHY.
+     */
+    if (phy_mask & BLE_PHY_MASK_CODED) {
+        return BLE_PHY_CODED;
+    } else if (phy_mask & BLE_PHY_MASK_1M) {
+        return BLE_PHY_1M;
+    } else if (phy_mask & BLE_PHY_MASK_2M) {
+        return BLE_PHY_2M;
+    }
+
+    return 0;
+}
+
 void
 ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 {
@@ -855,13 +874,7 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
 
-        if (rsp[0] & BLE_PHY_MASK_1M) {
-            connsm->phy_tx_transition = BLE_PHY_1M;
-        } else if (rsp[0] & BLE_PHY_MASK_2M) {
-            connsm->phy_tx_transition = BLE_PHY_2M;
-        } else if (rsp[0] & BLE_PHY_MASK_CODED) {
-            connsm->phy_tx_transition = BLE_PHY_CODED;
-        }
+        connsm->phy_tx_transition = ble_ll_ctrl_phy_tx_transition_get(req[1] | rsp[0]);
 
         /* Start response timer */
         connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
@@ -2701,16 +2714,12 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
-        if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_1M) {
-            connsm->phy_tx_transition = BLE_PHY_1M;
-        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_2M) {
-            connsm->phy_tx_transition = BLE_PHY_2M;
-        } else if (connsm->phy_data.req_pref_tx_phys_mask & BLE_PHY_MASK_CODED) {
-            connsm->phy_tx_transition = BLE_PHY_CODED;
-        }
+        connsm->phy_tx_transition =
+                    ble_ll_ctrl_phy_tx_transition_get(connsm->phy_data.req_pref_tx_phys_mask);
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
-        connsm->phy_tx_transition = ble_ll_ctrl_phy_from_phy_mask(txpdu->om_data[2]);
+        connsm->phy_tx_transition =
+                    ble_ll_ctrl_phy_tx_transition_get(txpdu->om_data[2]);
         break;
 #endif
     default:
