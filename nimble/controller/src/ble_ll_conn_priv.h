@@ -134,8 +134,7 @@ void ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
 #endif
 
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
-void ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
-                                struct ble_ll_len_req *req);
+void ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm);
 
 /* Advertising interface */
 int ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat,

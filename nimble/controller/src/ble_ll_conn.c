@@ -1772,38 +1772,33 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 }
 
-/**
- * Called when a remotes data length parameters change.
- *
- * Context: Link Layer task
- *
- * @param connsm
- * @param req
- */
 void
-ble_ll_conn_datalen_update(struct ble_ll_conn_sm *connsm,
-                           struct ble_ll_len_req *req)
+ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
 {
     int send_event;
     uint16_t eff_time;
     uint16_t eff_bytes;
-
-    /* Update parameters */
-    connsm->rem_max_rx_time = req->max_rx_time;
-    connsm->rem_max_tx_time = req->max_tx_time;
-    connsm->rem_max_rx_octets = req->max_rx_bytes;
-    connsm->rem_max_tx_octets = req->max_tx_bytes;
 
     /* Assume no event sent */
     send_event = 0;
 
     /* See if effective times have changed */
     eff_time = min(connsm->rem_max_tx_time, connsm->max_rx_time);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (connsm->phy_data.cur_rx_phy == BLE_PHY_CODED) {
+        eff_time = max(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
+    }
+#endif
     if (eff_time != connsm->eff_max_rx_time) {
         connsm->eff_max_rx_time = eff_time;
         send_event = 1;
     }
     eff_time = min(connsm->rem_max_rx_time, connsm->max_tx_time);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    if (connsm->phy_data.cur_tx_phy == BLE_PHY_CODED) {
+        eff_time = max(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
+    }
+#endif
     if (eff_time != connsm->eff_max_tx_time) {
         connsm->eff_max_tx_time = eff_time;
         send_event = 1;
@@ -2149,6 +2144,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         ble_ll_ctrl_phy_update_proc_complete(connsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+        /* Recalculate effective connection parameters */
+        ble_ll_conn_update_eff_data_len(connsm);
+
         /*
          * If PHY in either direction was changed to coded, we assume that peer
          * does support LE Coded PHY even if features were not exchanged yet.
