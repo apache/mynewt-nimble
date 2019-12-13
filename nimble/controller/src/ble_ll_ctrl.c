@@ -210,8 +210,14 @@ ble_ll_ctrl_len_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         (ctrl_req.max_tx_time < BLE_LL_CONN_SUPP_TIME_MIN)) {
         rc = 1;
     } else {
-        /* Update the connection with the new parameters */
-        ble_ll_conn_datalen_update(connsm, &ctrl_req);
+        /* Update parameters */
+        connsm->rem_max_rx_time = ctrl_req.max_rx_time;
+        connsm->rem_max_tx_time = ctrl_req.max_tx_time;
+        connsm->rem_max_rx_octets = ctrl_req.max_rx_bytes;
+        connsm->rem_max_tx_octets = ctrl_req.max_tx_bytes;
+
+        /* Recalculate effective connection parameters */
+        ble_ll_conn_update_eff_data_len(connsm);
         rc = 0;
     }
 
