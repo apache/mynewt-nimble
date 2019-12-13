@@ -640,3 +640,13 @@ void
 ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
 }
+
+void
+ble_phy_rfclk_enable(void)
+{
+}
+
+void
+ble_phy_rfclk_disable(void)
+{
+}
