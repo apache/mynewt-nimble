@@ -25,7 +25,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <host/ble_gap.h>
 #include "host/ble_gap.h"
 #include "host/util/util.h"
 #include "console/console.h"
@@ -46,6 +45,10 @@ const uint8_t irk[16] = {
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 };
+
+static uint8_t oob[16];
+static struct ble_sm_sc_oob_data oob_data_local;
+static struct ble_sm_sc_oob_data oob_data_remote;
 
 static uint16_t current_settings;
 u8_t own_addr_type;
@@ -117,6 +120,9 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_PASSKEY_CONFIRM);
 	tester_set_bit(cmds, GAP_START_DIRECT_ADV);
 	tester_set_bit(cmds, GAP_CONN_PARAM_UPDATE);
+	tester_set_bit(cmds, GAP_OOB_LEGACY_SET_DATA);
+	tester_set_bit(cmds, GAP_OOB_SC_GET_LOCAL_DATA);
+	tester_set_bit(cmds, GAP_OOB_SC_SET_REMOTE_DATA);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
 		    CONTROLLER_INDEX, (u8_t *) rp, sizeof(cmds));
@@ -675,6 +681,26 @@ static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 
+static void auth_passkey_oob(u16_t conn_handle)
+{
+	struct ble_gap_conn_desc desc;
+	struct ble_sm_io pk;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	memcpy(pk.oob, oob, sizeof(oob));
+	pk.action = BLE_SM_IOACT_OOB;
+
+	rc = ble_sm_inject_io(conn_handle, &pk);
+	assert(rc == 0);
+}
+
 static void auth_passkey_display(u16_t conn_handle, unsigned int passkey)
 {
 	struct ble_gap_conn_desc desc;
@@ -756,12 +782,39 @@ static void auth_passkey_numcmp(u16_t conn_handle, unsigned int passkey)
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 
+static void auth_passkey_oob_sc(u16_t conn_handle)
+{
+	int rc;
+	struct ble_sm_io pk;
+
+	SYS_LOG_DBG("");
+
+	memset(&pk, 0, sizeof(pk));
+
+	pk.oob_sc_data.local = &oob_data_local;
+
+	if (ble_hs_cfg.sm_oob_data_flag) {
+		pk.oob_sc_data.remote = &oob_data_remote;
+	}
+
+	pk.action = BLE_SM_IOACT_OOB_SC;
+	rc = ble_sm_inject_io(conn_handle, &pk);
+	if (rc != 0) {
+		console_printf("error providing oob; rc=%d\n", rc);
+	}
+}
+
 static void le_passkey_action(u16_t conn_handle,
 			      struct ble_gap_passkey_params *params)
 {
 	SYS_LOG_DBG("");
 
 	switch (params->action) {
+	case BLE_SM_IOACT_NONE:
+		break;
+	case BLE_SM_IOACT_OOB:
+		auth_passkey_oob(conn_handle);
+		break;
 	case BLE_SM_IOACT_INPUT:
 		auth_passkey_entry(conn_handle);
 		break;
@@ -771,8 +824,11 @@ static void le_passkey_action(u16_t conn_handle,
 	case BLE_SM_IOACT_NUMCMP:
 		auth_passkey_numcmp(conn_handle, params->numcmp);
 		break;
-	default:
+	case BLE_SM_IOACT_OOB_SC:
+		auth_passkey_oob_sc(conn_handle);
 		break;
+	default:
+		assert(0);
 	}
 }
 
@@ -1380,6 +1436,40 @@ static void conn_param_update_async(const u8_t *data, u16_t len)
 		   BTP_STATUS_SUCCESS);
 }
 
+static void oob_legacy_set_data(const u8_t *data, u16_t len)
+{
+	const struct gap_oob_legacy_set_data_cmd *cmd = (void *) data;
+
+	ble_hs_cfg.sm_oob_data_flag = 1;
+	memcpy(oob, cmd->oob_data, sizeof(oob));
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_OOB_LEGACY_SET_DATA,
+		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
+}
+
+static void oob_sc_get_local_data(const u8_t *data, u16_t len)
+{
+	struct gap_oob_sc_get_local_data_rp rp;
+
+	memcpy(rp.r, oob_data_local.r, 16);
+	memcpy(rp.c, oob_data_local.c, 16);
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_OOB_SC_GET_LOCAL_DATA,
+		    CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
+}
+
+static void oob_sc_set_remote_data(const u8_t *data, u16_t len)
+{
+	const struct gap_oob_sc_set_remote_data_cmd *cmd = (void *) data;
+
+	ble_hs_cfg.sm_oob_data_flag = 1;
+	memcpy(oob_data_remote.r, cmd->r, 16);
+	memcpy(oob_data_remote.c, cmd->c, 16);
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_OOB_SC_SET_REMOTE_DATA,
+		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
+}
+
 void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 		       u16_t len)
 {
@@ -1456,6 +1546,15 @@ void tester_handle_gap(u8_t opcode, u8_t index, u8_t *data,
 	case GAP_CONN_PARAM_UPDATE:
 		conn_param_update_async(data, len);
 		return;
+	case GAP_OOB_LEGACY_SET_DATA:
+		oob_legacy_set_data(data, len);
+		return;
+	case GAP_OOB_SC_GET_LOCAL_DATA:
+		oob_sc_get_local_data(data, len);
+		return;
+	case GAP_OOB_SC_SET_REMOTE_DATA:
+		oob_sc_set_remote_data(data, len);
+		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
 			   BTP_STATUS_UNKNOWN_CMD);
@@ -1485,6 +1584,16 @@ static void tester_init_gap_cb(int err)
 
 u8_t tester_init_gap(void)
 {
+#if MYNEWT_VAL(BLE_SM_SC)
+	int rc;
+
+	rc = ble_sm_sc_oob_generate_data(&oob_data_local);
+	if (rc) {
+		console_printf("Error: generating oob data; reason=%d\n", rc);
+		return BTP_STATUS_FAILED;
+	}
+#endif
+
 	adv_buf = NET_BUF_SIMPLE(ADV_BUF_LEN);
 
 	tester_init_gap_cb(BTP_STATUS_SUCCESS);

@@ -298,6 +298,23 @@ struct gap_pairing_consent_rsp_cmd {
     u8_t consent;
 } __packed;
 
+#define GAP_OOB_LEGACY_SET_DATA		0x18
+struct gap_oob_legacy_set_data_cmd {
+    u8_t oob_data[16];
+} __packed;
+
+#define GAP_OOB_SC_GET_LOCAL_DATA		0x19
+struct gap_oob_sc_get_local_data_rp {
+    u8_t r[16];
+    u8_t c[16];
+} __packed;
+
+#define GAP_OOB_SC_SET_REMOTE_DATA		0x1a
+struct gap_oob_sc_set_remote_data_cmd {
+    u8_t r[16];
+    u8_t c[16];
+} __packed;
+
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {
