@@ -78,14 +78,6 @@ os_mempool_init(struct os_mempool *mp, uint16_t blocks, uint32_t block_size,
         return OS_INVALID_PARM;
     }
 
-    if (membuf != NULL) {
-        /* Blocks need to be sized properly and memory buffer should be
-         * aligned
-         */
-        if (((uintptr_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
-            return OS_MEM_NOT_ALIGNED;
-        }
-    }
     true_block_size = OS_MEM_TRUE_BLOCK_SIZE(block_size);
 
     /* Initialize the memory pool structure */
@@ -96,22 +88,31 @@ os_mempool_init(struct os_mempool *mp, uint16_t blocks, uint32_t block_size,
     mp->mp_num_blocks = blocks;
     mp->mp_membuf_addr = (uintptr_t)membuf;
     mp->name = name;
-    os_mempool_poison(membuf, true_block_size);
     SLIST_FIRST(mp) = membuf;
 
-    /* Chain the memory blocks to the free list */
-    block_addr = (uint8_t *)membuf;
-    block_ptr = (struct os_memblock *)block_addr;
-    while (blocks > 1) {
-        block_addr += true_block_size;
-        os_mempool_poison(block_addr, true_block_size);
-        SLIST_NEXT(block_ptr, mb_next) = (struct os_memblock *)block_addr;
-        block_ptr = (struct os_memblock *)block_addr;
-        --blocks;
-    }
+    if (membuf != NULL) {
+        /* Blocks need to be sized properly and memory buffer should be
+         * aligned
+         */
+        if (((uintptr_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
+            return OS_MEM_NOT_ALIGNED;
+        }
 
-    /* Last one in the list should be NULL */
-    SLIST_NEXT(block_ptr, mb_next) = NULL;
+        /* Chain the memory blocks to the free list */
+        block_addr = (uint8_t *)membuf;
+        os_mempool_poison(block_addr, true_block_size);
+        block_ptr = (struct os_memblock *)block_addr;
+        while (blocks > 1) {
+            block_addr += true_block_size;
+            os_mempool_poison(block_addr, true_block_size);
+            SLIST_NEXT(block_ptr, mb_next) = (struct os_memblock *)block_addr;
+            block_ptr = (struct os_memblock *)block_addr;
+            --blocks;
+        }
+
+        /* Last one in the list should be NULL */
+        SLIST_NEXT(block_ptr, mb_next) = NULL;
+    }
 
     STAILQ_INSERT_TAIL(&g_os_mempool_list, mp, mp_list);
 
