@@ -291,6 +291,13 @@ struct gap_conn_param_update_cmd {
     u16_t supervision_timeout;
 } __packed;
 
+#define GAP_PAIRING_CONSENT_RSP		0x17
+struct gap_pairing_consent_rsp_cmd {
+    u8_t address_type;
+    u8_t address[6];
+    u8_t consent;
+} __packed;
+
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {
@@ -368,6 +375,12 @@ struct gap_sec_level_changed_ev {
     u8_t address_type;
     u8_t address[6];
     u8_t level;
+} __packed;
+
+#define GAP_EV_PAIRING_CONSENT_REQ	0x8a
+struct gap_pairing_consent_req_ev {
+    u8_t address_type;
+    u8_t address[6];
 } __packed;
 
 /* GATT Service */
