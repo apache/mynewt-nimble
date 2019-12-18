@@ -39,7 +39,7 @@ struct ble_ll_resolv_data
     uint8_t rl_size;
     uint8_t rl_cnt_hw;
     uint8_t rl_cnt;
-    uint32_t rpa_tmo;
+    ble_npl_time_t rpa_tmo;
     struct ble_npl_callout rpa_timer;
 };
 struct ble_ll_resolv_data g_ble_ll_resolv_data;
@@ -151,8 +151,9 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
         }
         ++rl;
     }
+
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
-                     (int32_t)g_ble_ll_resolv_data.rpa_tmo);
+                          g_ble_ll_resolv_data.rpa_tmo);
 
     ble_ll_adv_rpa_timeout();
 }
@@ -199,6 +200,9 @@ ble_ll_resolv_list_clr(void)
     g_ble_ll_resolv_data.rl_cnt_hw = 0;
     g_ble_ll_resolv_data.rl_cnt = 0;
     ble_hw_resolv_list_clear();
+
+    /* stop RPA timer when clearing RL */
+    ble_npl_callout_stop(&g_ble_ll_resolv_data.rpa_timer);
 
     return BLE_ERR_SUCCESS;
 }
@@ -358,6 +362,12 @@ ble_ll_resolv_list_add(const uint8_t *cmdbuf, uint8_t len)
 
     g_ble_ll_resolv_data.rl_cnt++;
 
+    /* start RPA timer if this was first element added to RL */
+    if (g_ble_ll_resolv_data.rl_cnt == 1) {
+        ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
+                              g_ble_ll_resolv_data.rpa_tmo);
+    }
+
     return rc;
 }
 
@@ -399,6 +409,12 @@ ble_ll_resolv_list_rmv(const uint8_t *cmdbuf, uint8_t len)
             ble_hw_resolv_list_rmv(position - 1);
             g_ble_ll_resolv_data.rl_cnt_hw--;
         }
+
+        /* stop RPA timer if list is empty */
+        if (g_ble_ll_resolv_data.rl_cnt == 0) {
+            ble_npl_callout_stop(&g_ble_ll_resolv_data.rpa_timer);
+        }
+
         return BLE_ERR_SUCCESS;
     }
 
@@ -416,7 +432,6 @@ int
 ble_ll_resolv_enable_cmd(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_addr_res_en_cp *cmd = (const void *) cmdbuf;
-    int32_t tmo;
 
     if (len != sizeof(*cmd)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -431,16 +446,7 @@ ble_ll_resolv_enable_cmd(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* If we change state, we need to disable/enable the RPA timer */
-    if ((cmd->enable ^ g_ble_ll_resolv_data.addr_res_enabled) != 0) {
-        if (cmd->enable) {
-            tmo = (int32_t)g_ble_ll_resolv_data.rpa_tmo;
-            ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer, tmo);
-        } else {
-            ble_npl_callout_stop(&g_ble_ll_resolv_data.rpa_timer);
-        }
-        g_ble_ll_resolv_data.addr_res_enabled = cmd->enable;
-    }
+    g_ble_ll_resolv_data.addr_res_enabled = cmd->enable;
 
     return BLE_ERR_SUCCESS;
 }
@@ -521,14 +527,11 @@ ble_ll_resolv_set_rpa_tmo(const uint8_t *cmdbuf, uint8_t len)
 
     g_ble_ll_resolv_data.rpa_tmo = ble_npl_time_ms_to_ticks32(tmo_secs * 1000);
 
-    /* If resolving is not enabled, we are done here. */
-    if (!ble_ll_resolv_enabled()) {
-        return BLE_ERR_SUCCESS;
+    /* restart timer if there is something on RL */
+    if (g_ble_ll_resolv_data.rl_cnt) {
+        ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
+                              g_ble_ll_resolv_data.rpa_tmo);
     }
-
-    /* Reset timeout if resolving is enabled */
-    ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
-                     (int32_t)g_ble_ll_resolv_data.rpa_tmo);
 
     return BLE_ERR_SUCCESS;
 }
