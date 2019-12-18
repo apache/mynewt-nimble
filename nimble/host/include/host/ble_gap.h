@@ -1467,8 +1467,13 @@ int ble_gap_periodic_adv_sync_set_info(uint8_t instance,
 
 /**
  * Enables or disables sync transfer reception on specified connection.
- * When BLE_GAP_EVENT_PERIODIC_TRANSFER is sent transfer reception is terminated
- * on that connection.
+ * When sync transfer arrives, BLE_GAP_EVENT_PERIODIC_TRANSFER is sent to the user.
+ * After that, sync transfer reception on that connection is terminated and user needs
+ * to call this API again when expect to receive next sync transfers.
+ *
+ * Note: If ACL connection gets disconnected before sync transfer arrived, user will
+ * not receive BLE_GAP_EVENT_PERIODIC_TRANSFER. Instead, sync transfer reception
+ * is terminated by the host automatically.
  *
  * @param conn_handle        Handle identifying connection.
  * @param params             Parameters for enabled sync transfer reception.
