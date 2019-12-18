@@ -138,13 +138,17 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
 
     rl = &g_ble_ll_resolv_list[0];
     for (i = 0; i < g_ble_ll_resolv_data.rl_cnt; ++i) {
-        OS_ENTER_CRITICAL(sr);
-        ble_ll_resolv_gen_priv_addr(rl, 1);
-        OS_EXIT_CRITICAL(sr);
+        if (rl->rl_has_local) {
+            OS_ENTER_CRITICAL(sr);
+            ble_ll_resolv_gen_priv_addr(rl, 1);
+            OS_EXIT_CRITICAL(sr);
+        }
 
-        OS_ENTER_CRITICAL(sr);
-        ble_ll_resolv_gen_priv_addr(rl, 0);
-        OS_EXIT_CRITICAL(sr);
+        if (rl->rl_has_peer) {
+            OS_ENTER_CRITICAL(sr);
+            ble_ll_resolv_gen_priv_addr(rl, 0);
+            OS_EXIT_CRITICAL(sr);
+        }
         ++rl;
     }
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
@@ -160,7 +164,7 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
  *
  * @return int 0: IRK is zero . 1: IRK has non-zero value.
  */
-int
+static int
 ble_ll_resolv_irk_nonzero(const uint8_t *irk)
 {
     int i;
@@ -319,27 +323,40 @@ ble_ll_resolv_list_add(const uint8_t *cmdbuf, uint8_t len)
     memset (rl, 0, sizeof(*rl));
     rl->rl_addr_type = cmd->peer_addr_type;
     memcpy(rl->rl_identity_addr, cmd->peer_id_addr, BLE_DEV_ADDR_LEN);
-    swap_buf(rl->rl_peer_irk, cmd->peer_irk, 16);
-    swap_buf(rl->rl_local_irk, cmd->local_irk, 16);
+
+    if (ble_ll_resolv_irk_nonzero(cmd->peer_irk)) {
+        swap_buf(rl->rl_peer_irk, cmd->peer_irk, 16);
+        rl->rl_has_peer = 1;
+
+        /* generate peer RPA now, those will be updated by timer when
+         * resolution is enabled
+         */
+        ble_ll_resolv_gen_priv_addr(rl, 0);
+    }
+
+    if (ble_ll_resolv_irk_nonzero(cmd->local_irk)) {
+        swap_buf(rl->rl_local_irk, cmd->local_irk, 16);
+        rl->rl_has_local = 1;
+
+        /* generate local RPA now, those will be updated by timer when
+         * resolution is enabled
+         */
+        ble_ll_resolv_gen_priv_addr(rl, 1);
+    }
 
     /* By default use privacy network mode */
     rl->rl_priv_mode = BLE_HCI_PRIVACY_NETWORK;
 
-    /* generate a local and peer RPAs now, those will be updated by timer
-     * when resolution is enabled
-     */
-    ble_ll_resolv_gen_priv_addr(rl, 1);
-    ble_ll_resolv_gen_priv_addr(rl, 0);
-    g_ble_ll_resolv_data.rl_cnt++;
-
     /* Add peers IRKs to HW resolving list. Should always succeed since we
      * already checked if there is room for it.
      */
-    if (ble_ll_resolv_irk_nonzero(cmd->peer_irk)) {
+    if (rl->rl_has_peer) {
         rc = ble_hw_resolv_list_add(rl->rl_peer_irk);
         BLE_LL_ASSERT(rc == BLE_ERR_SUCCESS);
         g_ble_ll_resolv_data.rl_cnt_hw++;
     }
+
+    g_ble_ll_resolv_data.rl_cnt++;
 
     return rc;
 }
@@ -567,8 +584,10 @@ ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
 
     OS_ENTER_CRITICAL(sr);
     if (local) {
+        BLE_LL_ASSERT(rl->rl_has_local);
         memcpy(addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
     } else {
+        BLE_LL_ASSERT(rl->rl_has_peer);
         memcpy(addr, rl->rl_peer_rpa, BLE_DEV_ADDR_LEN);
     }
 
@@ -611,25 +630,17 @@ ble_ll_resolv_set_local_rpa(int index, uint8_t *rpa)
 int
 ble_ll_resolv_gen_rpa(uint8_t *addr, uint8_t addr_type, uint8_t *rpa, int local)
 {
-    int rc;
-    uint8_t *irk;
     struct ble_ll_resolv_entry *rl;
 
-    rc = 0;
     rl = ble_ll_resolv_list_find(addr, addr_type);
     if (rl) {
-        if (local) {
-            irk = rl->rl_local_irk;
-        } else {
-            irk = rl->rl_peer_irk;
-        }
-        if (ble_ll_resolv_irk_nonzero(irk)) {
+        if ((local && rl->rl_has_local) || (!local && rl->rl_has_peer)) {
             ble_ll_resolv_get_priv_addr(rl, local, rpa);
-            rc = 1;
+            return 1;
         }
     }
 
-    return rc;
+    return 0;
 }
 
 /**

@@ -4034,7 +4034,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             /* Verify privacy mode */
             rl = ble_ll_resolv_list_find(peer, peer_addr_type);
             if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
-                                ble_ll_resolv_irk_nonzero(rl->rl_peer_irk)) {
+                rl->rl_has_peer) {
                 return -1;
             }
         }

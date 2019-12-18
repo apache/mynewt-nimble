@@ -2586,7 +2586,7 @@ ble_ll_conn_connect_ind_prepare(struct ble_ll_conn_sm *connsm,
              * from resolving list entry. In other case, we need to use our identity
              * address (see  Core 5.0, Vol 6, Part B, section 6.4).
              */
-            if (rl) {
+            if (rl && rl->rl_has_local) {
                 hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
                 ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
                 addr = NULL;
@@ -2641,7 +2641,7 @@ ble_ll_conn_is_peer_adv(uint8_t addr_type, uint8_t *adva, int index)
             if (ble_ll_resolv_enabled()) {
                 rl = ble_ll_resolv_list_find(adva, addr_type);
                 if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
-                        ble_ll_resolv_irk_nonzero(rl->rl_peer_irk)) {
+                    rl->rl_has_peer) {
                     return 0;
                 }
             }
@@ -3172,9 +3172,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
             resolved = 1;
 
             /* Assure privacy */
-            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
-                                        init_addr && !inita_is_rpa &&
-                                        ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
+            if ((rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) && init_addr &&
+                !inita_is_rpa && rl->rl_has_local) {
                 goto init_rx_isr_exit;
             }
 
@@ -3223,7 +3222,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
          */
         if (rl && !inita_is_rpa &&
            (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
-            ble_ll_resolv_irk_nonzero(rl->rl_local_irk)) {
+           rl->rl_has_local) {
             goto init_rx_isr_exit;
         }
 

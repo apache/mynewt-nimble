@@ -360,7 +360,7 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm, uint8_t *adv_addr,
          * being tracked when doing an active scan (see Core 5.0, Vol 6, Part B,
          * section 6.3).
          */
-        if (rl) {
+        if (rl && rl->rl_has_local) {
             ble_ll_resolv_get_priv_addr(rl, 1, rpa);
             scana = rpa;
         } else {

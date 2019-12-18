@@ -29,13 +29,16 @@ extern "C" {
  *      The identity address is stored in little endian format.
  *      The local rpa is stored in little endian format.
  *      The IRKs are stored in big endian format.
+ *
+ *  Note:
+ *  rl_local_irk and rl_peer_irk need to be word aligned
  */
 struct ble_ll_resolv_entry
 {
     uint8_t rl_addr_type;
-    uint8_t rl_reserved;
     uint8_t rl_priv_mode;
-    uint8_t _pad;
+    uint8_t rl_has_local;
+    uint8_t rl_has_peer;
     uint8_t rl_local_irk[16];
     uint8_t rl_peer_irk[16];
     uint8_t rl_identity_addr[BLE_DEV_ADDR_LEN];
@@ -69,15 +72,15 @@ int ble_ll_resolv_local_addr_rd(const uint8_t *cmdbuf, uint8_t len,
 struct ble_ll_resolv_entry *
 ble_ll_resolv_list_find(const uint8_t *addr, uint8_t addr_type);
 
-/* Called to determine if the IRK is all zero. */
-int ble_ll_resolv_irk_nonzero(const uint8_t *irk);
-
 /* Returns true if address resolution is enabled */
 uint8_t ble_ll_resolv_enabled(void);
 
 /* Reset private address resolution */
 void ble_ll_resolv_list_reset(void);
 
+/* Generate local or peer RPA. It is up to caller to make sure required IRK
+ * is present on RL
+ */
 void ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
                                  uint8_t *addr);
 
