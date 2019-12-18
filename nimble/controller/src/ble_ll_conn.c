@@ -2576,9 +2576,11 @@ ble_ll_conn_connect_ind_prepare(struct ble_ll_conn_sm *connsm,
                     rl = &g_ble_ll_resolv_list[rpa_index];
                 }
             } else {
-                if (ble_ll_resolv_enabled()) {
-                    rl = ble_ll_resolv_list_find(adva, adva_type);
-                }
+                /* we look for RL entry to generate local RPA regardless if
+                 * resolving is enabled or not (as this is is for local RPA
+                 * not peer RPA)
+                 */
+                 rl = ble_ll_resolv_list_find(adva, adva_type);
             }
 
             /*
