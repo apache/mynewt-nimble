@@ -1503,6 +1503,9 @@ ble_ll_init(void)
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
+    /* Perform any necessary HW initialization */
+    ble_hw_init();
+
     ble_ll_trace_init();
     ble_phy_trace_init();
 

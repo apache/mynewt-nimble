@@ -138,13 +138,13 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
 
     rl = &g_ble_ll_resolv_list[0];
     for (i = 0; i < g_ble_ll_resolv_data.rl_cnt; ++i) {
-        OS_ENTER_CRITICAL(sr);
+        //OS_ENTER_CRITICAL(sr);
         ble_ll_resolv_gen_priv_addr(rl, 1);
-        OS_EXIT_CRITICAL(sr);
+        //OS_EXIT_CRITICAL(sr);
 
-        OS_ENTER_CRITICAL(sr);
+        //OS_ENTER_CRITICAL(sr);
         ble_ll_resolv_gen_priv_addr(rl, 0);
-        OS_EXIT_CRITICAL(sr);
+        //OS_EXIT_CRITICAL(sr);
         ++rl;
     }
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
@@ -667,12 +667,14 @@ ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
     ecb.plain_text[14] = rpa[4];
     ecb.plain_text[13] = rpa[5];
 
-    ble_hw_encrypt_block(&ecb);
-    if ((ecb.cipher_text[15] == rpa[0]) && (ecb.cipher_text[14] == rpa[1]) &&
-        (ecb.cipher_text[13] == rpa[2])) {
-        rc = 1;
-    } else {
-        rc = 0;
+    rc = ble_hw_encrypt_block(&ecb);
+    if (rc == 0) {
+        if ((ecb.cipher_text[15] == rpa[0]) && (ecb.cipher_text[14] == rpa[1]) &&
+            (ecb.cipher_text[13] == rpa[2])) {
+            rc = 1;
+        } else {
+            rc = 0;
+        }
     }
 
     return rc;

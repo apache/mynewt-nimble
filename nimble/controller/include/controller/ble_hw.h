@@ -109,6 +109,9 @@ int ble_hw_get_public_addr(ble_addr_t *addr);
 /* Returns random static address or -1 if not present */
 int ble_hw_get_static_addr(ble_addr_t *addr);
 
+/* Performs any needed (one time) hardware initializations */
+void ble_hw_init(void);
+
 #ifdef __cplusplus
 }
 #endif

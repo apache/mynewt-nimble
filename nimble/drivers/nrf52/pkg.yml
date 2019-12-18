@@ -29,3 +29,6 @@ pkg.apis: ble_driver
 pkg.deps:
     - nimble
     - nimble/controller
+
+pkg.deps.CRYPTO:
+    - "@apache-mynewt-core/hw/drivers/crypto"
