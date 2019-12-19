@@ -1783,7 +1783,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     uint16_t conn_event_count;
     uint8_t sync_anchor_usecs;
     const uint8_t *rpa = NULL;
-    uint16_t last_pa_diff;
+    int last_pa_diff;
     uint32_t sync_anchor;
     const uint8_t *addr;
     uint16_t event_cntr;
@@ -1810,7 +1810,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     event_cntr = get_le16(syncinfo + 16);
     itvl_usecs = itvl * BLE_LL_SYNC_ITVL_USECS;
 
-    last_pa_diff = event_cntr - last_pa_event_count;
+    last_pa_diff = abs((int16_t)(event_cntr - last_pa_event_count));
     /* check if not 5 seconds apart, if so ignore sync transfer */
     if ((last_pa_diff * itvl_usecs) > 5000000) {
         return;
@@ -1925,8 +1925,6 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
 
     sm->phy_mode = phy_mode;
 
-    sm->window_widening = BLE_LL_JITTER_USECS;
-
     /* Calculate channel index of first event */
     sm->chan_index = ble_ll_utils_calc_dci_csa2(sm->event_cntr, sm->channel_id,
                                                 sm->num_used_chans, sm->chanmap);
@@ -1941,7 +1939,6 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
                            &sm->anchor_point_usecs);
 
     /* Set last anchor point */
-    last_pa_diff = sm->event_cntr - last_pa_event_count;
     sm->last_anchor_point = sm->anchor_point - (last_pa_diff * sm->itvl_ticks);
 
     /* calculate extra window widening */
