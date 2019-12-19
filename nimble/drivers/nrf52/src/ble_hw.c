@@ -308,7 +308,20 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
         }
     }
 #else
-    rc = ble_hw_do_encrypt(ecb);
+    os_sr_t sr;
+
+    if (os_arch_in_isr()) {
+        rc = ble_hw_do_encrypt(ecb);
+    } else {
+        while (1) {
+            OS_ENTER_CRITICAL(sr);
+            rc = ble_hw_do_encrypt(ecb);
+            OS_EXIT_CRITICAL(sr);
+            if (rc == 0) {
+                break;
+            }
+        }
+    }
 #endif
 
     return rc;
