@@ -229,11 +229,7 @@ static void ble_ll_event_dbuf_overflow(struct ble_npl_event *ev);
 #if MYNEWT
 
 /* The BLE LL task data structure */
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_LL_STACK_SIZE   (120)
-#else
-#define BLE_LL_STACK_SIZE   (90)
-#endif
 
 struct os_task g_ble_ll_task;
 
@@ -1502,6 +1498,9 @@ ble_ll_init(void)
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
+
+    /* Perform any necessary HW initialization */
+    ble_hw_init();
 
     ble_ll_trace_init();
     ble_phy_trace_init();

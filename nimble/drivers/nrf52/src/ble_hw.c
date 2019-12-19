@@ -29,6 +29,9 @@
 #include "controller/ble_hw.h"
 #if MYNEWT
 #include "mcu/cmsis_nvic.h"
+#if MYNEWT_VAL(CRYPTO)
+#include "crypto/crypto.h"
+#endif
 #else
 #include "core_cm4.h"
 #include <nimble/nimble_npl_os.h>
@@ -60,6 +63,10 @@ uint32_t g_nrf_irk_list[NRF_IRK_LIST_ENTRIES * 4];
 /* Current number of IRK entries */
 uint8_t g_nrf_num_irks;
 
+#endif
+
+#if MYNEWT_VAL(CRYPTO)
+struct crypto_dev *g_crypto;
 #endif
 
 /* Returns public device address or -1 if not present */
@@ -236,22 +243,27 @@ ble_hw_whitelist_match(void)
     return (int)NRF_RADIO->EVENTS_DEVMATCH;
 }
 
-/* Encrypt data */
-int
-ble_hw_encrypt_block(struct ble_encryption_block *ecb)
+/**
+ * Encrypt a block. This uses the NRF HW directly
+ *
+ * @param ecb Pointer to ble encryption block
+ *
+ * @return int 0: success; -1 otherwise
+ */
+static int
+ble_hw_do_encrypt(struct ble_encryption_block *ecb)
 {
     int rc;
     uint32_t end;
     uint32_t err;
 
-    /* Stop ECB */
+    /* Stop ECB and clear events */
     NRF_ECB->TASKS_STOPECB = 1;
-    /* XXX: does task stop clear these counters? Anyway to do this quicker? */
     NRF_ECB->EVENTS_ENDECB = 0;
     NRF_ECB->EVENTS_ERRORECB = 0;
-    NRF_ECB->ECBDATAPTR = (uint32_t)ecb;
 
-    /* Start ECB */
+    /* Set data pointer and start encryption */
+    NRF_ECB->ECBDATAPTR = (uint32_t)ecb;
     NRF_ECB->TASKS_STARTECB = 1;
 
     /* Wait till error or done */
@@ -266,6 +278,51 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
             break;
         }
     }
+
+    return rc;
+}
+
+/* Encrypt data */
+int
+ble_hw_encrypt_block(struct ble_encryption_block *ecb)
+{
+    int rc;
+
+#if MYNEWT_VAL(CRYPTO)
+    uint32_t nb;
+
+    if (os_arch_in_isr()) {
+        if (!crypto_in_use(g_crypto)) {
+            rc = ble_hw_do_encrypt(ecb);
+        } else {
+            rc = -1;
+        }
+    } else {
+        nb = crypto_encrypt_aes_ecb(g_crypto, &ecb->key[0], 128,
+                                    &ecb->plain_text[0], &ecb->cipher_text[0],
+                                    16);
+        if (nb != 16) {
+            rc = -1;
+        } else {
+            rc = 0;
+        }
+    }
+#else
+    os_sr_t sr;
+
+    if (os_arch_in_isr()) {
+        rc = ble_hw_do_encrypt(ecb);
+    } else {
+        while (1) {
+            OS_ENTER_CRITICAL(sr);
+            rc = ble_hw_do_encrypt(ecb);
+            OS_EXIT_CRITICAL(sr);
+            if (rc == 0) {
+                break;
+            }
+        }
+    }
+#endif
 
     return rc;
 }
@@ -486,3 +543,17 @@ ble_hw_resolv_list_match(void)
     return -1;
 }
 #endif
+
+/**
+ * Called to perform "one-time" hardware initializations.
+ * Expected to be called only once and from the Link Layer task.
+ */
+void
+ble_hw_init(void)
+{
+#if MYNEWT_VAL(CRYPTO)
+    /* open the crypto driver */
+    g_crypto = (struct crypto_dev *)os_dev_open("crypto", OS_TIMEOUT_NEVER, NULL);
+    assert(g_crypto != NULL);
+#endif
+}
