@@ -51,20 +51,21 @@
 #define BLE_LL_SYNC_CNT MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT)
 #define BLE_LL_SYNC_LIST_CNT MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT)
 
-#define BLE_LL_SYNC_SM_FLAG_RESERVED        0x01
-#define BLE_LL_SYNC_SM_FLAG_ESTABLISHING    0x02
-#define BLE_LL_SYNC_SM_FLAG_ESTABLISHED     0x04
-#define BLE_LL_SYNC_SM_FLAG_SET_ANCHOR      0x08
-#define BLE_LL_SYNC_SM_FLAG_OFFSET_300      0x10
-#define BLE_LL_SYNC_SM_FLAG_SYNC_INFO       0x20
-#define BLE_LL_SYNC_SM_FLAG_DISABLED        0x40
-#define BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED   0x80
+#define BLE_LL_SYNC_SM_FLAG_RESERVED        0x0001
+#define BLE_LL_SYNC_SM_FLAG_ESTABLISHING    0x0002
+#define BLE_LL_SYNC_SM_FLAG_ESTABLISHED     0x0004
+#define BLE_LL_SYNC_SM_FLAG_SET_ANCHOR      0x0008
+#define BLE_LL_SYNC_SM_FLAG_OFFSET_300      0x0010
+#define BLE_LL_SYNC_SM_FLAG_SYNC_INFO       0x0020
+#define BLE_LL_SYNC_SM_FLAG_DISABLED        0x0040
+#define BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED   0x0080
+#define BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED   0x0100
 
 #define BLE_LL_SYNC_CHMAP_LEN               5
 #define BLE_LL_SYNC_ITVL_USECS              1250
 
 struct ble_ll_sync_sm {
-    uint8_t flags;
+    uint16_t flags;
 
     uint8_t adv_sid;
     uint8_t adv_addr[BLE_DEV_ADDR_LEN];
@@ -591,7 +592,8 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
     struct ble_hci_ev_le_subev_periodic_adv_rpt *ev;
     struct ble_hci_ev *hci_ev;
 
-    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT)) {
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT) ||
+        (sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED)) {
         ble_hci_trans_buf_free(evbuf);
         return;
     }
@@ -613,43 +615,16 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
     ble_ll_hci_event_send(hci_ev);
 }
 
-static int
+static void
 ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
-                             struct ble_mbuf_hdr *hdr, uint8_t **aux)
+                             int8_t rssi, int8_t tx_power, int datalen,
+                             uint8_t *aux, bool aux_scheduled)
 {
     struct ble_hci_ev_le_subev_periodic_adv_rpt *ev;
     struct ble_hci_ev *hci_ev;
     struct ble_hci_ev *hci_ev_next = NULL;
     uint8_t max_data_len;
-    int8_t tx_power;
-    int datalen;
     int offset;
-    int rc;
-
-    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT)) {
-        return -1;
-    }
-
-    /* spec is not clear if we should truncate chain or just stop sending
-     * reports... for now just truncate
-     */
-    if (sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED) {
-        if (sm->next_report) {
-            ble_ll_sync_send_truncated_per_adv_rpt(sm, sm->next_report);
-            sm->next_report = NULL;
-        }
-        return -1;
-    }
-
-    datalen = ble_ll_sync_parse_ext_hdr(rxpdu, aux, &tx_power);
-    if (datalen < 0) {
-        /* we got bad packet but were chaining, send truncated report */
-        if (sm->next_report) {
-            ble_ll_sync_send_truncated_per_adv_rpt(sm, sm->next_report);
-            sm->next_report = NULL;
-        }
-        return -1;
-    }
 
     /* use next report buffer if present, this means we are chaining */
     if (sm->next_report) {
@@ -658,7 +633,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
     } else {
         hci_ev = (void * )ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
         if (!hci_ev) {
-            return -1;
+            goto done;
         }
     }
 
@@ -679,7 +654,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
         ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT;
         ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
         ev->tx_power = tx_power;
-        ev->rssi = hdr->rxinfo.rssi;
+        ev->rssi = rssi;
         ev->cte_type = 0xff;
 
         ev->data_len = min(max_data_len, datalen - offset);
@@ -690,27 +665,45 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
         offset += ev->data_len;
 
         /* Need another event for next fragment of this PDU */
-        if ((offset < datalen) || *aux) {
+        if (offset < datalen) {
             hci_ev_next = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
             if (hci_ev_next) {
                 ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
-                rc = 0;
             } else {
                 ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
-                rc = -1;
             }
         } else {
-            ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE;
-            rc = 0;
+            /* last report of this PDU */
+            if (aux) {
+                if (aux_scheduled) {
+                    /* if we scheduled aux, we need buffer for next report */
+                    hci_ev_next = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+                    if (hci_ev_next) {
+                        ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
+                    } else {
+                        ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
+                    }
+                } else {
+                    ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_TRUNCATED;
+                }
+            } else {
+                ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE;
+            }
         }
-
         ble_ll_hci_event_send(hci_ev);
     } while ((offset < datalen) && hci_ev_next);
 
+done:
+    /* this means that we already truncated data (or didn't sent first at all)
+     * in HCI report but has scheduled for next PDU in chain. In that case mark
+     * it so that we end event properly when next PDU is received.
+     * */
+    if (aux_scheduled && !hci_ev_next) {
+        sm->flags |= BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED;
+    }
+
     /* store for chain */
     sm->next_report = (void *) hci_ev_next;
-
-    return rc;
 }
 
 /**
@@ -852,7 +845,6 @@ ble_ll_sync_chain_start_cb(struct ble_ll_sched_item *sch)
     sm = sch->cb_arg;
     g_ble_ll_sync_sm_current = sm;
     BLE_LL_ASSERT(sm);
-    BLE_LL_ASSERT(sm->next_report);
 
     /* Disable whitelisting */
     ble_ll_whitelist_disable();
@@ -986,17 +978,19 @@ void
 ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_sync_sm *sm = hdr->rxinfo.user_data;
+    bool aux_scheduled = false;
     uint8_t *aux = NULL;
+    int8_t tx_power;
+    int datalen;
 
     BLE_LL_ASSERT(sm);
-
-    ble_ll_rfmgmt_release();
 
     /* this could happen if sync was cancelled or terminated while pkt_in was
      * already in LL queue, just drop in that case
      */
     if (!sm->flags) {
         ble_ll_scan_chk_resume();
+        ble_ll_rfmgmt_release();
         return;
     }
 
@@ -1023,30 +1017,55 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     sm->event_cntr_last_received = sm->event_cntr;
 #endif
 
-    /* if packet is good we send sync established here */
-    if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
-        ble_ll_sync_established(sm);
-    }
-
-    /* send report to host, if this fails we end event */
-    if (ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr, &aux) < 0) {
+    /* this means we are chaining but due to low buffers already sent data
+     * truncated report to host (or didn't sent any at all). If this happens
+     * next_buf should be already set to NULL and we just end event.
+     */
+    if (sm->flags & BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED) {
+        BLE_LL_ASSERT(!sm->next_report);
         goto end_event;
     }
 
-    /* schedule for chain packet if AUX pointer was present */
-    if (sm->next_report && aux) {
-        if (ble_ll_sync_schedule_chain(sm, hdr, aux) < 0) {
+    if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT) &&
+        !(sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED)) {
+        /* get ext header data */
+        datalen = ble_ll_sync_parse_ext_hdr(rxpdu, &aux, &tx_power);
+        if (datalen < 0) {
+            /* we got bad packet, end event */
             goto end_event;
         }
 
-        /* if chain was scheduled we don't end event yet */
-        /* TODO should we check resume only if offset is high? */
+        /* if aux is present, we need to schedule ASAP */
+        if (aux && (ble_ll_sync_schedule_chain(sm, hdr, aux) == 0)) {
+            aux_scheduled = true;
+        }
+
+        /* in case data reporting is enabled we need to send sync established here */
+        if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
+            ble_ll_sync_established(sm);
+        }
+
+        /* send reports from this PDU */
+        ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr->rxinfo.rssi, tx_power,
+                                     datalen, aux, aux_scheduled);
+    } else {
+        /* we need to establish link even if reporting was disabled */
+        if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
+            ble_ll_sync_established(sm);
+        }
+    }
+
+    /* if chain was scheduled we don't end event yet */
+    /* TODO should we check resume only if offset is high? */
+    if (aux_scheduled) {
         ble_ll_scan_chk_resume();
+        ble_ll_rfmgmt_release();
         return;
     }
 
 end_event:
     ble_ll_event_send(&sm->sync_ev_end);
+    ble_ll_rfmgmt_release();
 }
 
 static int
@@ -1171,9 +1190,13 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
      * must send truncated report to host
      */
     if (sm->next_report) {
+        BLE_LL_ASSERT(!(sm->flags & BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED));
         ble_ll_sync_send_truncated_per_adv_rpt(sm, sm->next_report);
         sm->next_report = NULL;
     }
+
+    /* Event ended so we are no longer chaining */
+    sm->flags &= ~BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED;
 
     sm->sch.sched_cb = ble_ll_sync_event_start_cb;
     sm->sch.cb_arg = sm;
