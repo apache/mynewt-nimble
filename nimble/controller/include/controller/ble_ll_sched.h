@@ -48,7 +48,7 @@ extern "C" {
 #define BLE_LL_SCHED_MAX_ADV_PDU_USECS      (376)
 
 /* We don't know how big aux packet will be. It depends on adv packet len which
- * can be up to 256. For now we fix it to 128 bytes, but we can optimize it.
+ * can be up to 257. For now we fix it to 128 bytes, but we can optimize it.
  */
 #define BLE_LL_SCHED_AUX_PTR_DFLT_BYTES_NUM  (128)
 
