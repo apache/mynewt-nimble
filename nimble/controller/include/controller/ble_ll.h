@@ -80,7 +80,7 @@ STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
 struct ble_ll_obj
 {
     /* Supported features */
-    uint32_t ll_supp_features;
+    uint64_t ll_supp_features;
 
     /* Current Link Layer state */
     uint8_t ll_state;
@@ -517,7 +517,7 @@ int ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
 void ble_ll_wfr_timer_exp(void *arg);
 
 /* Read set of features supported by the Link Layer */
-uint32_t ble_ll_read_supp_features(void);
+uint64_t ble_ll_read_supp_features(void);
 
 /* Read set of states supported by the Link Layer */
 uint64_t ble_ll_read_supp_states(void);

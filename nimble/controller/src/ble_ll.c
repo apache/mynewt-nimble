@@ -1269,9 +1269,9 @@ ble_ll_read_supp_states(void)
 /**
  * Returns the features supported by the link layer
  *
- * @return uint32_t bitmask of supported features.
+ * @return uint64_t bitmask of supported features.
  */
-uint32_t
+uint64_t
 ble_ll_read_supp_features(void)
 {
     return g_ble_ll_data.ll_supp_features;
@@ -1515,7 +1515,7 @@ void
 ble_ll_init(void)
 {
     int rc;
-    uint32_t features;
+    uint64_t features;
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
