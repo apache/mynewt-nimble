@@ -199,34 +199,42 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_SYNC           (6)
 
 /* LL Features */
-#define BLE_LL_FEAT_LE_ENCRYPTION    (0x00000001)
-#define BLE_LL_FEAT_CONN_PARM_REQ    (0x00000002)
-#define BLE_LL_FEAT_EXTENDED_REJ     (0x00000004)
-#define BLE_LL_FEAT_SLAVE_INIT       (0x00000008)
-#define BLE_LL_FEAT_LE_PING          (0x00000010)
-#define BLE_LL_FEAT_DATA_LEN_EXT     (0x00000020)
-#define BLE_LL_FEAT_LL_PRIVACY       (0x00000040)
-#define BLE_LL_FEAT_EXT_SCAN_FILT    (0x00000080)
-#define BLE_LL_FEAT_LE_2M_PHY        (0x00000100)
-#define BLE_LL_FEAT_STABLE_MOD_ID_TX (0x00000200)
-#define BLE_LL_FEAT_STABLE_MOD_ID_RX (0x00000400)
-#define BLE_LL_FEAT_LE_CODED_PHY     (0x00000800)
-#define BLE_LL_FEAT_EXT_ADV          (0x00001000)
-#define BLE_LL_FEAT_PERIODIC_ADV     (0x00002000)
-#define BLE_LL_FEAT_CSA2             (0x00004000)
-#define BLE_LL_FEAT_LE_POWER_CLASS_1 (0x00008000)
-#define BLE_LL_FEAT_MIN_USED_CHAN    (0x00010000)
-#define BLE_LL_FEAT_CTE_REQ          (0x00020000)
-#define BLE_LL_FEAT_CTE_RSP          (0x00040000)
-#define BLE_LL_FEAT_CTE_TX           (0x00080000)
-#define BLE_LL_FEAT_CTE_RX           (0x00100000)
-#define BLE_LL_FEAT_CTE_AOD          (0x00200000)
-#define BLE_LL_FEAT_CTE_AOA          (0x00400000)
-#define BLE_LL_FEAT_CTE_RECV         (0x00800000)
-#define BLE_LL_FEAT_SYNC_TRANS_SEND  (0x01000000)
-#define BLE_LL_FEAT_SYNC_TRANS_RECV  (0x02000000)
-#define BLE_LL_FEAT_SCA_UPDATE       (0x04000000)
-#define BLE_LL_FEAT_REM_PKEY         (0x08000000)
+#define BLE_LL_FEAT_LE_ENCRYPTION    (0x0000000001)
+#define BLE_LL_FEAT_CONN_PARM_REQ    (0x0000000002)
+#define BLE_LL_FEAT_EXTENDED_REJ     (0x0000000004)
+#define BLE_LL_FEAT_SLAVE_INIT       (0x0000000008)
+#define BLE_LL_FEAT_LE_PING          (0x0000000010)
+#define BLE_LL_FEAT_DATA_LEN_EXT     (0x0000000020)
+#define BLE_LL_FEAT_LL_PRIVACY       (0x0000000040)
+#define BLE_LL_FEAT_EXT_SCAN_FILT    (0x0000000080)
+#define BLE_LL_FEAT_LE_2M_PHY        (0x0000000100)
+#define BLE_LL_FEAT_STABLE_MOD_ID_TX (0x0000000200)
+#define BLE_LL_FEAT_STABLE_MOD_ID_RX (0x0000000400)
+#define BLE_LL_FEAT_LE_CODED_PHY     (0x0000000800)
+#define BLE_LL_FEAT_EXT_ADV          (0x0000001000)
+#define BLE_LL_FEAT_PERIODIC_ADV     (0x0000002000)
+#define BLE_LL_FEAT_CSA2             (0x0000004000)
+#define BLE_LL_FEAT_LE_POWER_CLASS_1 (0x0000008000)
+#define BLE_LL_FEAT_MIN_USED_CHAN    (0x0000010000)
+#define BLE_LL_FEAT_CTE_REQ          (0x0000020000)
+#define BLE_LL_FEAT_CTE_RSP          (0x0000040000)
+#define BLE_LL_FEAT_CTE_TX           (0x0000080000)
+#define BLE_LL_FEAT_CTE_RX           (0x0000100000)
+#define BLE_LL_FEAT_CTE_AOD          (0x0000200000)
+#define BLE_LL_FEAT_CTE_AOA          (0x0000400000)
+#define BLE_LL_FEAT_CTE_RECV         (0x0000800000)
+#define BLE_LL_FEAT_SYNC_TRANS_SEND  (0x0001000000)
+#define BLE_LL_FEAT_SYNC_TRANS_RECV  (0x0002000000)
+#define BLE_LL_FEAT_SCA_UPDATE       (0x0004000000)
+#define BLE_LL_FEAT_REM_PKEY         (0x0008000000)
+#define BLE_LL_FEAT_CIS_MASTER       (0x0010000000)
+#define BLE_LL_FEAT_CIS_SLAVE        (0x0020000000)
+#define BLE_LL_FEAT_ISO_BROADCASTER  (0x0040000000)
+#define BLE_LL_FEAT_SYNC_RECV        (0x0080000000)
+#define BLE_LL_FEAT_ISO_HOST_SUPPORT (0x0100000000)
+#define BLE_LL_FEAT_POWER_CTRL_REQ   (0x0200000000)
+#define BLE_LL_FEAT_POWER_CHANGE_IND (0x0400000000)
+#define BLE_LL_FEAT_PATH_LOSS_MON    (0x0800000000)
 
 /* This is initial mask, so if feature exchange will not happen,
  * but host will want to use this procedure, we will try. If not
@@ -234,8 +242,10 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
  * Look at LL Features above to find out what is allowed
  */
 #define BLE_LL_CONN_INITIAL_FEATURES    (0x00000022)
-
 #define BLE_LL_CONN_CLEAR_FEATURE(connsm, feature)   (connsm->conn_features &= ~(feature))
+
+/* All the features which can be controlled by the Host */
+#define BLE_LL_HOST_CONTROLLED_FEATURES (BLE_LL_FEAT_ISO_HOST_SUPPORT)
 
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
@@ -518,6 +528,9 @@ void ble_ll_wfr_timer_exp(void *arg);
 
 /* Read set of features supported by the Link Layer */
 uint64_t ble_ll_read_supp_features(void);
+
+/* Set host supported features */
+int ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len);
 
 /* Read set of states supported by the Link Layer */
 uint64_t ble_ll_read_supp_states(void);

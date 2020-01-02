@@ -825,6 +825,12 @@ struct ble_hci_le_set_default_periodic_sync_transfer_params_cp {
 #define BLE_HCI_OCF_LE_GENERATE_DHKEY_V2                 (0x005E)
 #define BLE_HCI_OCF_LE_MODIFY_SCA                        (0x005F)
 
+#define BLE_HCI_OCF_LE_SET_HOST_FEAT                     (0x0074)
+struct ble_hci_le_set_host_feat_cp {
+    uint8_t bit_num;
+    uint8_t val;
+} __attribute__((packed));
+
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
 #define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)
