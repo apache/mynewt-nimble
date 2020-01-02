@@ -82,6 +82,7 @@ struct ble_mbuf_hdr_rxinfo
 };
 
 /* Flag definitions for rxinfo  */
+#define BLE_MBUF_HDR_F_IGNORED          (0x8000)
 #define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000)
 #define BLE_MBUF_HDR_F_INITA_RESOLVED   (0x2000)
 #define BLE_MBUF_HDR_F_EXT_ADV_SEC      (0x1000)
@@ -114,6 +115,9 @@ struct ble_mbuf_hdr
     uint32_t beg_cputime;
     uint32_t rem_usecs;
 };
+
+#define BLE_MBUF_HDR_IGNORED(hdr) \
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_IGNORED))
 
 #define BLE_MBUF_HDR_SCAN_REQ_TXD(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_REQ_TXD))
