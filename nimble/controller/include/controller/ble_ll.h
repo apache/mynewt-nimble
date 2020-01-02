@@ -401,6 +401,10 @@ struct ble_dev_addr
 #define BLE_SCAN_RSP_MAX_LEN        (37)
 #define BLE_SCAN_RSP_MAX_EXT_LEN    (251)
 
+#define BLE_LL_ADDR_SUBTYPE_IDENTITY    (0)
+#define BLE_LL_ADDR_SUBTYPE_RPA         (1)
+#define BLE_LL_ADDR_SUBTYPE_NRPA        (2)
+
 /*--- External API ---*/
 /* Initialize the Link Layer */
 void ble_ll_init(void);
@@ -430,6 +434,8 @@ uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
 
 /* Is this address a resolvable private address? */
 int ble_ll_is_rpa(const uint8_t *addr, uint8_t addr_type);
+
+int ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type);
 
 /* Is this address an identity address? */
 int ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type);
