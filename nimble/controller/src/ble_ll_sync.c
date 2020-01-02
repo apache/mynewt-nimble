@@ -748,9 +748,10 @@ ble_ll_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         ble_ll_event_send(&g_ble_ll_sync_sm_current->sync_ev_end);
     }
 
+    /* PHY is disabled here */
     ble_ll_sync_current_sm_over();
 
-    return -1;
+    return 1;
 }
 
 /**
