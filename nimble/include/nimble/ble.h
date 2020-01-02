@@ -85,6 +85,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_IGNORED          (0x8000)
 #define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000)
 #define BLE_MBUF_HDR_F_INITA_RESOLVED   (0x2000)
+#define BLE_MBUF_HDR_F_TARGETA_RESOLVED (0x2000)
 #define BLE_MBUF_HDR_F_EXT_ADV_SEC      (0x1000)
 #define BLE_MBUF_HDR_F_EXT_ADV          (0x0800)
 #define BLE_MBUF_HDR_F_RESOLVED         (0x0400)
@@ -151,6 +152,9 @@ struct ble_mbuf_hdr
 
 #define BLE_MBUF_HDR_INITA_RESOLVED(hdr)      \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_INITA_RESOLVED))
+
+#define BLE_MBUF_HDR_TARGETA_RESOLVED(hdr)      \
+    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED))
 
 #define BLE_MBUF_HDR_RX_STATE(hdr)      \
     ((uint8_t)((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK))
