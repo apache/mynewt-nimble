@@ -559,6 +559,56 @@ ble_ll_ctrl_start_rsp_timer(struct ble_ll_conn_sm *connsm)
                      ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
 }
 
+/**
+ * Convert a phy mask to a numeric phy value.
+ *
+ * NOTE: only one bit should be set here and there should be at least one.
+ * If this function returns a 0 it is an error!
+ *
+ * @param phy_mask Bitmask of phy
+ *
+ * @return uint8_t The numeric value associated with the phy mask
+ *
+ * BLE_HCI_LE_PHY_1M                    (1)
+ * BLE_HCI_LE_PHY_2M                    (2)
+ * BLE_HCI_LE_PHY_CODED                 (3)
+ */
+uint8_t
+ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
+{
+    uint8_t phy;
+
+    /*
+     * NOTE: wipe out unsupported PHYs. There should not be an unsupported
+     * in this mask if the other side is working correctly.
+     */
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    phy_mask &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
+#endif
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    phy_mask &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
+#endif
+
+    if (phy_mask & BLE_PHY_MASK_1M) {
+        phy = BLE_PHY_1M;
+        phy_mask &= ~BLE_PHY_MASK_1M;
+    } else if (phy_mask & BLE_PHY_MASK_2M) {
+        phy = BLE_PHY_2M;
+        phy_mask &= ~BLE_PHY_MASK_2M;
+    } else if (phy_mask & BLE_PHY_MASK_CODED) {
+        phy = BLE_PHY_CODED;
+        phy_mask &= ~BLE_PHY_MASK_CODED;
+    } else {
+        phy = 0;
+    }
+
+    if (phy_mask != 0) {
+        phy = 0;
+    }
+
+    return phy;
+}
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 uint8_t
 ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask)
@@ -617,56 +667,6 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
     if (chk_proc_stop) {
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
     }
-}
-
-/**
- * Convert a phy mask to a numeric phy value.
- *
- * NOTE: only one bit should be set here and there should be at least one.
- * If this function returns a 0 it is an error!
- *
- * @param phy_mask Bitmask of phy
- *
- * @return uint8_t The numeric value associated with the phy mask
- *
- * BLE_HCI_LE_PHY_1M                    (1)
- * BLE_HCI_LE_PHY_2M                    (2)
- * BLE_HCI_LE_PHY_CODED                 (3)
- */
-uint8_t
-ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
-{
-    uint8_t phy;
-
-    /*
-     * NOTE: wipe out unsupported PHYs. There should not be an unsupported
-     * in this mask if the other side is working correctly.
-     */
-#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
-    phy_mask &= ~BLE_HCI_LE_PHY_2M_PREF_MASK;
-#endif
-#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    phy_mask &= ~BLE_HCI_LE_PHY_CODED_PREF_MASK;
-#endif
-
-    if (phy_mask & BLE_PHY_MASK_1M) {
-        phy = BLE_PHY_1M;
-        phy_mask &= ~BLE_PHY_MASK_1M;
-    } else if (phy_mask & BLE_PHY_MASK_2M) {
-        phy = BLE_PHY_2M;
-        phy_mask &= ~BLE_PHY_MASK_2M;
-    } else if (phy_mask & BLE_PHY_MASK_CODED) {
-        phy = BLE_PHY_CODED;
-        phy_mask &= ~BLE_PHY_MASK_CODED;
-    } else {
-        phy = 0;
-    }
-
-    if (phy_mask != 0) {
-        phy = 0;
-    }
-
-    return phy;
 }
 
 /**
