@@ -75,7 +75,7 @@ syscfg.defs:
             This allows to configure supported Bluetooth Core version. Some
             features may not be available if version is too low. Version is
             integer for easy comparison.
-        range: 50, 51
+        range: 50, 51, 52
         value: 50
 
 # Allow periodic sync transfer only if 5.1 or higher
