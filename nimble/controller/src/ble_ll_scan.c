@@ -865,7 +865,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type,
     if (BLE_MBUF_HDR_RESOLVED(hdr)) {
         adva_type += 2;
     }
-    if (BLE_MBUF_HDR_INITA_RESOLVED(hdr)) {
+    if (BLE_MBUF_HDR_TARGETA_RESOLVED(hdr)) {
         inita_type += 2;
     }
 #endif
@@ -2267,7 +2267,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                     if (!ble_ll_resolv_rpa(targeta, g_ble_ll_resolv_list[rpa_index].rl_local_irk)) {
                         goto scan_rx_isr_exit;
                     }
-                    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
+                    ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_TARGETA_RESOLVED;
                 }
             } else {
                 if (chk_wl) {
@@ -2291,7 +2291,7 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 goto scan_rx_isr_exit;
             }
 
-            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_INITA_RESOLVED;
+            ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_TARGETA_RESOLVED;
         }
     }
 
@@ -2570,7 +2570,7 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
     if (BLE_MBUF_HDR_RESOLVED(hdr)) {
         adva_type += 2;
     }
-    if (BLE_MBUF_HDR_INITA_RESOLVED(hdr)) {
+    if (BLE_MBUF_HDR_TARGETA_RESOLVED(hdr)) {
         inita_type += 2;
     }
 #endif
