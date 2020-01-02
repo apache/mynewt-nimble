@@ -1479,6 +1479,7 @@ struct ble_hci_ev_le_subev_periodic_adv_sync_transfer {
 #define BLE_HCI_VER_BCS_4_2                 (8)
 #define BLE_HCI_VER_BCS_5_0                 (9)
 #define BLE_HCI_VER_BCS_5_1                 (10)
+#define BLE_HCI_VER_BCS_5_2                 (11)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -1491,6 +1492,7 @@ struct ble_hci_ev_le_subev_periodic_adv_sync_transfer {
 #define BLE_LMP_VER_BCS_4_2                 (8)
 #define BLE_LMP_VER_BCS_5_0                 (9)
 #define BLE_LMP_VER_BCS_5_1                 (10)
+#define BLE_LMP_VER_BCS_5_2                 (11)
 
 /* selected HCI and LMP version */
 #if MYNEWT_VAL(BLE_VERSION) == 50
@@ -1499,6 +1501,10 @@ struct ble_hci_ev_le_subev_periodic_adv_sync_transfer {
 #elif MYNEWT_VAL(BLE_VERSION) == 51
 #define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_1
 #define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_1
+#elif MYNEWT_VAL(BLE_VERSION) == 52
+#define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_2
+#define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_2
+
 #endif
 
 #define BLE_HCI_DATA_HDR_SZ                 4
