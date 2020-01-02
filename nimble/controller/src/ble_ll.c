@@ -444,6 +444,23 @@ ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type)
 }
 
 int
+ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type)
+{
+    if (!addr_type) {
+        return BLE_LL_ADDR_SUBTYPE_IDENTITY;
+    }
+
+    switch (addr[5] >> 6) {
+    case 0:
+        return BLE_LL_ADDR_SUBTYPE_NRPA; /* NRPA */
+    case 1:
+        return BLE_LL_ADDR_SUBTYPE_RPA; /* RPA */
+    default:
+        return BLE_LL_ADDR_SUBTYPE_IDENTITY; /* static random */
+    }
+}
+
+int
 ble_ll_is_valid_public_addr(const uint8_t *addr)
 {
     int i;
