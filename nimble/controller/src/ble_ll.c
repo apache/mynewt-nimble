@@ -247,6 +247,9 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
+/** Our supported features which can be controller by the host */
+uint64_t g_ble_ll_supported_host_features = 0;
+
 static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
 {
     [BLE_PHY_MODE_1M] =
@@ -1277,6 +1280,46 @@ ble_ll_read_supp_features(void)
     return g_ble_ll_data.ll_supp_features;
 }
 
+/**
+ * Sets the features controlled by the host.
+ *
+ * @return HCI command status
+ */
+int
+ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_le_set_host_feat_cp *cmd = (const void *) cmdbuf;
+    uint64_t mask;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if ((cmd->bit_num > 0x3F) || (cmd->val > 1)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    mask = (uint64_t)1 << (cmd->bit_num);
+    if (!(mask & BLE_LL_HOST_CONTROLLED_FEATURES)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!(mask & g_ble_ll_supported_host_features)) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    if (cmd->val == 0) {
+        g_ble_ll_data.ll_supp_features &= ~(mask);
+    } else {
+        g_ble_ll_data.ll_supp_features |= mask;
+    }
+
+    return BLE_ERR_SUCCESS;
+}
 /**
  * Flush a link layer packet queue.
  *
