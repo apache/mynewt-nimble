@@ -3848,6 +3848,39 @@ cmd_sync_transfer(int argc, char **argv)
     return rc;
 }
 
+static int
+cmd_sync_reporting(int argc, char **argv)
+{
+    uint16_t sync_handle;
+    bool enable;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    sync_handle = parse_arg_uint16_dflt("sync_handle", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_handle' parameter\n");
+        return rc;
+    }
+
+    enable = parse_arg_bool_dflt("enabled", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'enabled' parameter\n");
+        return rc;
+    }
+
+    rc = ble_gap_periodic_adv_sync_reporting(sync_handle, enable);
+    if (rc) {
+        console_printf("Failed to %s reporting (%d)\n",
+                       enable ? "enable" : "disable", rc);
+    }
+
+    return rc;
+}
+
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_transfer_params[] = {
     {"conn", "connection handle, usage: =<UINT16>"},
@@ -3860,6 +3893,18 @@ static const struct shell_cmd_help sync_transfer_help = {
     .summary = "start periodic sync transfer procedure with specific parameters",
     .usage = NULL,
     .params = sync_transfer_params,
+};
+
+static const struct shell_param sync_reporting_params[] = {
+    {"sync_handle", "sync handle, usage: =[UINT16], default: 0"},
+    {"enabled", "toggle reporting, usage: =[0-1], default: 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help sync_reporting_help = {
+   .summary = "configure periodic advertising sync reporting",
+   .usage = NULL,
+   .params = sync_reporting_params,
 };
 #endif
 
@@ -4550,6 +4595,13 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_sync_transfer_receive,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &sync_transfer_receive_help,
+#endif
+    },
+    {
+       .sc_cmd = "sync-reporting",
+       .sc_cmd_func = cmd_sync_reporting,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+       .help = &sync_reporting_help,
 #endif
     },
 #endif
