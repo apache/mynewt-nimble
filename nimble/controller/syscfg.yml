@@ -240,13 +240,6 @@ syscfg.defs:
             This option is used to enable/disable LL privacy.
         value: '1'
 
-    BLE_LL_CFG_FEAT_EXT_SCAN_FILT:
-        description: >
-            This option is used to enable/disable the extended scanner filter
-            policy feature. Currently, this feature is not supported by the
-            nimble controller.
-        value: '0'
-
     BLE_LL_CFG_FEAT_LE_CSA2:
         description: >
             This option is used to enable/disable support for LE Channel
