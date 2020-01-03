@@ -3449,7 +3449,7 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (cmd->sets == 0) {
+    if (cmd->num_sets == 0) {
         if (cmd->enable) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
