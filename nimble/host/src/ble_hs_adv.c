@@ -237,9 +237,8 @@ adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
     int8_t tx_pwr_lvl;
     int rc;
 
-    if (dst_len) {
-        *dst_len = 0;
-    }
+    BLE_HS_DBG_ASSERT(dst_len);
+    *dst_len = 0;
 
     /*** 0x01 - Flags. */
     /* The application has two options concerning the flags field:
