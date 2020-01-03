@@ -1158,7 +1158,7 @@ static bool advertise_subnet(struct bt_mesh_subnet *sub)
 	}
 
 	return (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING ||
-		bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED);
+		bt_mesh_gatt_proxy_get() != BT_MESH_GATT_PROXY_NOT_SUPPORTED);
 }
 
 static struct bt_mesh_subnet *next_sub(void)
@@ -1225,11 +1225,7 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	}
 
 	if (sub->node_id == BT_MESH_NODE_IDENTITY_STOPPED) {
-		if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
-			net_id_adv(sub);
-		} else {
-			return gatt_proxy_advertise(next_sub());
-		}
+		net_id_adv(sub);
 	}
 
 	subnet_count = sub_count();
