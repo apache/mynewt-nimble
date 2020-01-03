@@ -742,7 +742,9 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     /* Reuse connection stats for DTM */
-    connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_DTM);
+    if (!connection_data) {
+        connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_DTM);
+    }
 #endif
 
     if (crcok) {
