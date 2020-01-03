@@ -421,7 +421,8 @@ gatt_svr_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-
+        assert(0);
+        break;
     case PTS_CHR_READ_WRITE:
     case PTS_CHR_READ_WRITE_ENC:
     case PTS_CHR_READ_WRITE_AUTHEN:
@@ -436,7 +437,8 @@ gatt_svr_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-
+        assert(0);
+        break;
     case PTS_DSC_READ:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC);
         rc = os_mbuf_append(ctxt->om, &gatt_svr_pts_static_val,
@@ -463,11 +465,14 @@ gatt_svr_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
-
+        assert(0);
+        break;
     default:
         assert(0);
-        return BLE_ATT_ERR_UNLIKELY;
+        break;
     }
+
+    return BLE_ATT_ERR_UNLIKELY;
 }
 
 static int
