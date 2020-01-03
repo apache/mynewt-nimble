@@ -1686,10 +1686,7 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     gatt_srv = &conn->bhc_gatt_svr;
 
     for (i = 0; i < gatt_srv->num_clt_cfgs; ++i) {
-        clt_cfg = (gatt_srv->clt_cfgs + i);
-        if (clt_cfg == NULL) {
-            continue;
-        }
+        clt_cfg = &gatt_srv->clt_cfgs[i];
 
         if (clt_cfg->flags != 0) {
             cccd_value.chr_val_handle = clt_cfg->chr_val_handle;
