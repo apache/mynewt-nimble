@@ -1325,13 +1325,19 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 	/* Save the state so the buffer can later be relayed */
 	net_buf_simple_save(buf, &state);
 
+	rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
+			  bt_mesh_elem_find(rx.ctx.recv_dst));
+
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY)) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
-	}
 
-	rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
-			  bt_mesh_elem_find(rx.ctx.recv_dst));
+		if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_DISABLED &&
+		    !rx.local_match) {
+			BT_INFO("Proxy is disabled; ignoring message");
+			goto done;
+		}
+	}
 
 	/* The transport layer has indicated that it has rejected the message,
 	 * but would like to see it again if it is received in the future.
