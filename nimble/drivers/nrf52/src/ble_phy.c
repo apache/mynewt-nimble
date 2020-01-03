@@ -432,7 +432,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
     om = rxpdu;
     dst = om->om_data;
 
-    while (om) {
+    while (true) {
         /*
          * Always copy blocks of length aligned to word size, only last mbuf
          * will have remaining non-word size bytes appended.
