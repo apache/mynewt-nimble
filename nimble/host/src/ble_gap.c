@@ -4532,11 +4532,6 @@ ble_gap_ext_conn_create_tx(
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Check peer addr type */
-    if (peer_addr->type > BLE_HCI_CONN_PEER_ADDR_MAX) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
     if (phy_mask > (BLE_HCI_LE_PHY_1M_PREF_MASK |
                     BLE_HCI_LE_PHY_2M_PREF_MASK |
                     BLE_HCI_LE_PHY_CODED_PREF_MASK)) {
@@ -4555,6 +4550,11 @@ ble_gap_ext_conn_create_tx(
         cmd->peer_addr_type = 0;
         memset(cmd->peer_addr, 0, sizeof(cmd->peer_addr));
     } else {
+        /* Check peer addr type */
+        if (peer_addr->type > BLE_HCI_CONN_PEER_ADDR_MAX) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         cmd->filter_policy = BLE_HCI_CONN_FILT_NO_WL;
         cmd->peer_addr_type = peer_addr->type;
         memcpy(cmd->peer_addr, peer_addr->val, sizeof(cmd->peer_addr));
