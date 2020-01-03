@@ -800,13 +800,17 @@ ble_sm_pair_fail_tx(uint16_t conn_handle, uint8_t reason)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;
+    int rc;
 
     BLE_HS_DBG_ASSERT(reason > 0 && reason < BLE_SM_ERR_MAX_PLUS_1);
 
     cmd = ble_sm_cmd_get(BLE_SM_OP_PAIR_FAIL, sizeof(*cmd), &txom);
     if (cmd) {
         cmd->reason = reason;
-        ble_sm_tx(conn_handle, txom);
+        rc = ble_sm_tx(conn_handle, txom);
+        if (rc) {
+            BLE_HS_LOG(ERROR, "ble_sm_pair_fail_tx failed, rc = %d\n", rc);
+        }
     }
 }
 
