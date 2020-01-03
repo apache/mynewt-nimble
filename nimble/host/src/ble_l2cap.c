@@ -194,13 +194,12 @@ ble_l2cap_append_rx(struct ble_l2cap_chan *chan, struct os_mbuf *frag)
     /* Copy the data from the incoming fragment into the packet in progress. */
     m = os_mbuf_pack_chains(chan->rx_buf, frag);
     assert(m);
-    return;
-#endif
-
+#else
     /* Join disabled or append failed due to mbuf shortage.  Just attach the
      * mbuf to the end of the packet.
      */
     os_mbuf_concat(chan->rx_buf, frag);
+#endif
 }
 
 static int
