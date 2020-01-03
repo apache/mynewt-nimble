@@ -504,7 +504,7 @@ ble_ll_sync_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
     return 0;
 }
 
-int
+static int
 ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
 {
     uint8_t *rxbuf = om->om_data;
@@ -519,21 +519,15 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
         return -1;
     }
     ext_hdr_len = rxbuf[2] & 0x3F;
-    if (ext_hdr_len > pdu_len) {
+    if (ext_hdr_len > (pdu_len - 1)) {
         return -1;
     }
-
-    os_mbuf_adj(om, 3);
 
     if (ext_hdr_len) {
         ext_hdr_flags = rxbuf[3];
         ext_hdr = &rxbuf[4];
 
         i = 0;
-
-        /* TODO should we ignore packets with extra data instead of just
-         * skipping fields?
-         */
 
         /* there should be no AdvA in Sync or chain, skip it */
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
@@ -545,7 +539,7 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
             i += BLE_LL_EXT_ADV_TARGETA_SIZE;
         }
 
-        /* there should be no RFU in Sync or chain, skip it */
+        /* Ignore CTE for now */
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
             i += 1;
         }
@@ -559,8 +553,6 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
             *aux = ext_hdr + i;
             i += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
-        } else {
-            *aux = NULL;
         }
 
         /* there should be no SyncInfo in Sync or chain, skip it */
@@ -571,19 +563,29 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power)
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
             *tx_power = *(ext_hdr + i);
             i += BLE_LL_EXT_ADV_TX_POWER_SIZE;
-        } else {
-            *tx_power = 127; /* not available */
         }
 
         /* TODO Handle ACAD if needed */
-    }
 
-    if (ext_hdr_len) {
-        /* Adjust mbuf to contain advertising data only */
-        os_mbuf_adj(om, ext_hdr_len);
+        /* sanity check */
+        if (i > ext_hdr_len) {
+            return -1;
+        }
     }
 
     return pdu_len - ext_hdr_len - 1;
+}
+
+static void
+ble_ll_sync_adjust_ext_hdr(struct os_mbuf *om)
+{
+    uint8_t *rxbuf = om->om_data;
+    uint8_t ext_hdr_len;
+
+    /* this was already verified in ble_ll_sync_parse_ext_hdr() */
+    ext_hdr_len = rxbuf[2] & 0x3F;
+
+    os_mbuf_adj(om, 3 + ext_hdr_len);
 }
 
 static void
@@ -979,8 +981,8 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 {
     struct ble_ll_sync_sm *sm = hdr->rxinfo.user_data;
     bool aux_scheduled = false;
+    int8_t tx_power = 127; /* defaults to not available */
     uint8_t *aux = NULL;
-    int8_t tx_power;
     int datalen;
 
     BLE_LL_ASSERT(sm);
@@ -1044,6 +1046,9 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
             ble_ll_sync_established(sm);
         }
+
+        /* Adjust rxpdu to contain advertising data only */
+        ble_ll_sync_adjust_ext_hdr(rxpdu);
 
         /* send reports from this PDU */
         ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr->rxinfo.rssi, tx_power,
