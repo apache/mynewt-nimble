@@ -3077,9 +3077,6 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (pdu_type == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-        if (!scansm) {
-            goto init_rx_isr_exit;
-        }
         if (!scansm->ext_scanning) {
             goto init_rx_isr_exit;
         }
