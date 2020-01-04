@@ -2229,6 +2229,22 @@ ble_ll_scan_rx_isr_on_aux(uint8_t pdu_type, uint8_t *rxbuf,
     /* Now we can update aux_data from header since it may have just been created */
     aux_data = rxinfo->user_data;
 
+    /*
+     * Restore proper header flags if filtering was already done successfully on
+     * some previous PDU in an event.
+     */
+    if (aux_data->flags & BLE_LL_AUX_IS_MATCHED) {
+        rxinfo->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+        rxinfo->rpa_index = aux_data->rpa_index;
+        if (rxinfo->rpa_index >= 0) {
+            rxinfo->flags |= BLE_MBUF_HDR_F_RESOLVED;
+        }
+        if (aux_data->flags & BLE_LL_AUX_IS_TARGETA_RESOLVED) {
+            rxinfo->flags |= BLE_MBUF_HDR_F_TARGETA_RESOLVED;
+        }
+        goto done;
+    }
+
     if (aux_data->flags & BLE_LL_AUX_HAS_ADVA) {
         addrd->adva = aux_data->adva;
         addrd->adva_type = aux_data->adva_type;
@@ -2251,11 +2267,23 @@ ble_ll_scan_rx_isr_on_aux(uint8_t pdu_type, uint8_t *rxbuf,
 
     rxinfo->flags |= BLE_MBUF_HDR_F_DEVMATCH;
 
+    /*
+     * Once we matched device, there's no need to go through filtering on every
+     * other PDU in an event so just store info required to restore state for
+     * subsequent PDUs in aux_data.
+     */
+    aux_data->flags |= BLE_LL_AUX_IS_MATCHED;
+    if (rxinfo->flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED) {
+        aux_data->flags |= BLE_LL_AUX_IS_TARGETA_RESOLVED;
+        /* AdvA state is already stored in rpa_index */
+    }
+
     if (rc == 2) {
         /* Scan request forbidden by filter policy */
         return 0;
     }
 
+done:
     return (scanp->scan_type == BLE_SCAN_TYPE_ACTIVE) &&
            ((rxbuf[2] >> 6) == BLE_LL_EXT_ADV_MODE_SCAN);
 }
