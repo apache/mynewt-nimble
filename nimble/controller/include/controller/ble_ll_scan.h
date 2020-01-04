@@ -94,6 +94,8 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_HAS_ADVA                     0x01
 #define BLE_LL_AUX_HAS_TARGETA                  0x02
 #define BLE_LL_AUX_HAS_ADI                      0x04
+#define BLE_LL_AUX_IS_MATCHED                   0x08
+#define BLE_LL_AUX_IS_TARGETA_RESOLVED          0x10
 
 #define BLE_LL_AUX_FLAG_AUX_RECEIVED            0x01
 #define BLE_LL_AUX_FLAG_HCI_SENT_ANY            0x02
