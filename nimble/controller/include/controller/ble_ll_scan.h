@@ -97,12 +97,13 @@ struct ble_ll_scan_params
 #define BLE_LL_AUX_IS_MATCHED                   0x08
 #define BLE_LL_AUX_IS_TARGETA_RESOLVED          0x10
 
-#define BLE_LL_AUX_FLAG_AUX_RECEIVED            0x01
 #define BLE_LL_AUX_FLAG_HCI_SENT_ANY            0x02
 #define BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED      0x04
 #define BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED      0x08
 #define BLE_LL_AUX_FLAG_SCAN_COMPLETE           0x10
 #define BLE_LL_AUX_FLAG_SCAN_ERROR              0x20
+#define BLE_LL_AUX_FLAG_AUX_ADV_RECEIVED        0x40
+#define BLE_LL_AUX_FLAG_AUX_CHAIN_RECEIVED      0x80
 
 struct ble_ll_aux_data {
     uint8_t flags;
