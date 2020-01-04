@@ -1094,6 +1094,9 @@ ble_phy_rx_start_isr(void)
     uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
     uint8_t *dptr;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    int adva_offset;
+#endif
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
 
@@ -1164,6 +1167,28 @@ ble_phy_rx_start_isr(void)
         }
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    /*
+     * If privacy is enabled and received PDU has TxAdd bit set (i.e. random
+     * address) we try to resolve address using AAR.
+     */
+    if (g_ble_phy_data.phy_privacy && (dptr[3] & 0x40)) {
+        /*
+         * AdvA is located at 4th octet in RX buffer (after S0, length an S1
+         * fields). In case of extended advertising PDU we need to add 2 more
+         * octets for extended header.
+         */
+        adva_offset = (dptr[3] & 0x0f) == 0x07 ? 2 : 0;
+        NRF_AAR->ADDRPTR = (uint32_t)(dptr + 3 + adva_offset);
+
+        /* Trigger AAR after last bit of AdvA is received */
+        NRF_RADIO->EVENTS_BCMATCH = 0;
+        NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
+        NRF_RADIO->BCC = (BLE_LL_PDU_HDR_LEN + adva_offset + BLE_DEV_ADDR_LEN) * 8 +
+                         g_ble_phy_data.phy_bcc_offset;
+    }
+#endif
+
     /* Call Link Layer receive start function */
     rc = ble_ll_rx_start(dptr + 3,
                          g_ble_phy_data.phy_chan,
@@ -1172,34 +1197,6 @@ ble_phy_rx_start_isr(void)
         /* Set rx started flag and enable rx end ISR */
         g_ble_phy_data.phy_rx_started = 1;
         NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        /* Must start aar if we need to  */
-        if (g_ble_phy_data.phy_privacy) {
-            NRF_RADIO->EVENTS_BCMATCH = 0;
-            NRF_PPI->CHENSET = PPI_CHEN_CH23_Msk;
-
-            /*
-             * Setup AAR to resolve AdvA and trigger it after complete address
-             * is received, i.e. after PDU header and AdvA is received.
-             *
-             * AdvA starts at 4th octet in receive buffer, after S0, len and S1
-             * fields.
-             *
-             * In case of extended advertising AdvA is located after extended
-             * header (+2 octets).
-             */
-            if (BLE_MBUF_HDR_EXT_ADV(&g_ble_phy_data.rxhdr)) {
-                NRF_AAR->ADDRPTR = (uint32_t)(dptr + 5);
-                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN + 2) * 8 +
-                                 g_ble_phy_data.phy_bcc_offset;
-            } else {
-                NRF_AAR->ADDRPTR = (uint32_t)(dptr + 3);
-                NRF_RADIO->BCC = (BLE_DEV_ADDR_LEN + BLE_LL_PDU_HDR_LEN) * 8 +
-                                 g_ble_phy_data.phy_bcc_offset;
-            }
-        }
-#endif
     } else {
         /* Disable PHY */
         ble_phy_disable();
