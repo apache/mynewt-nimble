@@ -1631,7 +1631,11 @@ ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
 
         aux_data->aux_primary_phy = ble_hdr->rxinfo.phy;
     } else {
-        aux_data->flags_isr |= BLE_LL_AUX_FLAG_AUX_RECEIVED;
+        if (aux_data->flags_isr & BLE_LL_AUX_FLAG_AUX_ADV_RECEIVED) {
+            aux_data->flags_isr |= BLE_LL_AUX_FLAG_AUX_CHAIN_RECEIVED;
+        } else {
+            aux_data->flags_isr |= BLE_LL_AUX_FLAG_AUX_ADV_RECEIVED;
+        }
     }
 
     /* Now parse extended header... */
@@ -3110,7 +3114,8 @@ ble_ll_scan_rx_pkt_in_on_aux(uint8_t pdu_type, struct os_mbuf *om,
      * regardless of scanner filtering. Just make sure we already have AdvA.
      */
     if (ble_ll_sync_enabled() &&
-        ((rxbuf[2] >> 6) == BLE_LL_EXT_ADV_MODE_NON_CONN) && addrd->adva) {
+        ((rxbuf[2] >> 6) == BLE_LL_EXT_ADV_MODE_NON_CONN) && addrd->adva &&
+        !(aux_data->flags_ll & BLE_LL_AUX_FLAG_AUX_CHAIN_RECEIVED)) {
         ble_ll_scan_check_periodic_sync(om, hdr, addrd->adva, addrd->adva_type,
                                         rxinfo->rpa_index);
     }
@@ -3139,7 +3144,7 @@ ble_ll_scan_rx_pkt_in_on_aux(uint8_t pdu_type, struct os_mbuf *om,
         }
 
         /* Ignore if this was just ADV_EXT_IND with AuxPtr, will process aux */
-        if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_AUX_RECEIVED)) {
+        if (!(aux_data->flags_ll & BLE_LL_AUX_FLAG_AUX_ADV_RECEIVED)) {
             goto scan_continue;
         }
 
