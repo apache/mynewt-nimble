@@ -208,13 +208,18 @@ static struct os_mempool ble_gap_update_entry_pool;
 static struct ble_gap_update_entry_list ble_gap_update_entries;
 
 static void ble_gap_update_entry_free(struct ble_gap_update_entry *entry);
+
+#if NIMBLE_BLE_CONNECT
 static struct ble_gap_update_entry *
 ble_gap_update_entry_find(uint16_t conn_handle,
                           struct ble_gap_update_entry **out_prev);
-static struct ble_gap_update_entry *
-ble_gap_update_entry_remove(uint16_t conn_handle);
+
 static void
 ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg);
+#endif
+
+static struct ble_gap_update_entry *
+ble_gap_update_entry_remove(uint16_t conn_handle);
 
 #if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static int ble_gap_adv_enable_tx(int enable);
@@ -327,6 +332,7 @@ ble_gap_log_disc(uint8_t own_addr_type, int32_t duration_ms,
 }
 #endif
 
+#if NIMBLE_BLE_CONNECT
 static void
 ble_gap_log_update(uint16_t conn_handle,
                    const struct ble_gap_upd_params *params)
@@ -338,6 +344,7 @@ ble_gap_log_update(uint16_t conn_handle,
                params->latency, params->supervision_timeout,
                params->min_ce_len, params->max_ce_len);
 }
+#endif
 
 static void
 ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
@@ -705,6 +712,7 @@ ble_gap_is_preempted(void)
     return false;
 }
 
+#if NIMBLE_BLE_CONNECT
 static void
 ble_gap_master_reset_state(void)
 {
@@ -714,6 +722,7 @@ ble_gap_master_reset_state(void)
 
     ble_hs_timer_resched();
 }
+#endif
 
 static void
 ble_gap_slave_reset_state(uint8_t instance)
@@ -726,6 +735,7 @@ ble_gap_slave_reset_state(uint8_t instance)
 #endif
 }
 
+#if NIMBLE_BLE_CONNECT
 static bool
 ble_gap_has_client(struct ble_gap_master_state *out_state)
 {
@@ -751,6 +761,7 @@ ble_gap_master_extract_state(struct ble_gap_master_state *out_state,
 
     ble_hs_unlock();
 }
+#endif
 
 static void
 ble_gap_slave_extract_cb(uint8_t instance,
@@ -790,6 +801,7 @@ ble_gap_adv_finished(uint8_t instance, int reason, uint16_t conn_handle,
     }
 }
 
+#if NIMBLE_BLE_CONNECT
 static int
 ble_gap_master_connect_failure(int status)
 {
@@ -832,6 +844,7 @@ ble_gap_master_connect_cancelled(void)
         state.cb(&event, state.cb_arg);
     }
 }
+#endif
 
 #if NIMBLE_BLE_SCAN
 static void
@@ -1005,6 +1018,7 @@ ble_gap_slave_set_timer(uint32_t ticks_from_now)
 }
 #endif
 
+#if NIMBLE_BLE_CONNECT
 /**
  * Called when an error is encountered while the master-connection-fsm is
  * active.
@@ -1039,6 +1053,7 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
 
     ble_gap_update_notify(conn_handle, status);
 }
+#endif
 
 void
 ble_gap_conn_broken(uint16_t conn_handle, int reason)
@@ -1090,6 +1105,7 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     STATS_INC(ble_gap_stats, disconnect);
 }
 
+#if NIMBLE_BLE_CONNECT
 static void
 ble_gap_update_to_l2cap(const struct ble_gap_upd_params *params,
                         struct ble_l2cap_sig_update_params *l2cap_params)
@@ -1099,6 +1115,7 @@ ble_gap_update_to_l2cap(const struct ble_gap_upd_params *params,
     l2cap_params->slave_latency = params->latency;
     l2cap_params->timeout_multiplier = params->supervision_timeout;
 }
+#endif
 
 void
 ble_gap_rx_disconn_complete(const struct ble_hci_ev_disconn_cmp *ev)
@@ -1212,6 +1229,14 @@ ble_gap_master_in_progress(void)
 }
 
 static int
+ble_gap_adv_active_instance(uint8_t instance)
+{
+    /* Assume read is atomic; mutex not necessary. */
+    return ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV;
+}
+
+#if NIMBLE_BLE_CONNECT
+static int
 ble_gap_accept_master_conn(void)
 {
     int rc;
@@ -1240,13 +1265,6 @@ ble_gap_accept_master_conn(void)
 }
 
 static int
-ble_gap_adv_active_instance(uint8_t instance)
-{
-    /* Assume read is atomic; mutex not necessary. */
-    return ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV;
-}
-
-static int
 ble_gap_accept_slave_conn(uint8_t instance)
 {
     int rc;
@@ -1269,6 +1287,7 @@ ble_gap_accept_slave_conn(uint8_t instance)
 
     return rc;
 }
+#endif
 
 #if NIMBLE_BLE_SCAN
 static int
@@ -1311,15 +1330,14 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
 #endif
 }
 
-#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
+#if MYNEWT_VAL(BLE_EXT_ADV)
+#if NIMBLE_BLE_SCAN
 void
 ble_gap_rx_le_scan_timeout(void)
 {
     ble_gap_disc_complete();
 }
-#endif
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
 void
 ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
 {
@@ -1329,6 +1347,7 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
 
     ble_gap_disc_report(desc);
 }
+#endif
 
 void
 ble_gap_rx_adv_set_terminated(const struct ble_hci_ev_le_subev_adv_set_terminated *ev)
@@ -1606,6 +1625,7 @@ ble_gap_rx_periodic_adv_sync_transfer(const struct ble_hci_ev_le_subev_periodic_
 }
 #endif
 
+#if NIMBLE_BLE_CONNECT
 static int
 ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
 {
@@ -1617,6 +1637,7 @@ ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
                                         BLE_HCI_OCF_LE_RD_REM_FEAT),
                              &cmd, sizeof(cmd), NULL, 0);
 }
+#endif
 
 /**
  * Processes an incoming connection-complete HCI event.
@@ -4464,6 +4485,7 @@ ble_gap_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 #endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 static int
 ble_gap_check_conn_params(uint8_t phy, const struct ble_gap_conn_params *params)
 {
@@ -4619,6 +4641,7 @@ ble_gap_ext_conn_create_tx(
                                         BLE_HCI_OCF_LE_EXT_CREATE_CONN),
                                        cmd, len, NULL, 0);
 }
+#endif
 
 /**
  * Initiates a connect procedure.
@@ -5003,10 +5026,10 @@ ble_gap_conn_cancel_tx(void)
     return 0;
 }
 
+#if NIMBLE_BLE_CONNECT
 static int
 ble_gap_conn_cancel_no_lock(void)
 {
-#if MYNEWT_VAL(BLE_ROLE_CENTRAL)
     int rc;
 
     STATS_INC(ble_gap_stats, cancel);
@@ -5032,10 +5055,8 @@ done:
     }
 
     return rc;
-#else
-    return BLE_HS_ENOTSUP;
-#endif
 }
+#endif
 
 int
 ble_gap_conn_cancel(void)
@@ -5058,6 +5079,7 @@ ble_gap_conn_cancel(void)
  * $update connection parameters                                             *
  *****************************************************************************/
 
+#if NIMBLE_BLE_CONNECT
 static struct ble_gap_update_entry *
 ble_gap_update_entry_alloc(void)
 {
@@ -5070,6 +5092,7 @@ ble_gap_update_entry_alloc(void)
 
     return entry;
 }
+#endif
 
 static void
 ble_gap_update_entry_free(struct ble_gap_update_entry *entry)
@@ -5129,6 +5152,7 @@ ble_gap_update_entry_remove(uint16_t conn_handle)
     return entry;
 }
 
+#if NIMBLE_BLE_CONNECT
 static void
 ble_gap_update_l2cap_cb(uint16_t conn_handle, int status, void *arg)
 {
@@ -5182,6 +5206,7 @@ ble_gap_tx_param_neg_reply(uint16_t conn_handle, uint8_t reject_reason)
                                         BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR),
                                      &cmd, sizeof(cmd), NULL, 0);
 }
+#endif
 
 void
 ble_gap_rx_param_req(const struct ble_hci_ev_le_subev_rem_conn_param_req *ev)
@@ -5227,6 +5252,7 @@ ble_gap_rx_param_req(const struct ble_hci_ev_le_subev_rem_conn_param_req *ev)
 #endif
 }
 
+#if NIMBLE_BLE_CONNECT
 static int
 ble_gap_update_tx(uint16_t conn_handle,
                   const struct ble_gap_upd_params *params)
@@ -5275,6 +5301,7 @@ ble_gap_validate_conn_params(const struct ble_gap_upd_params *params)
 
     return true;
 }
+#endif
 
 int
 ble_gap_update_params(uint16_t conn_handle,
