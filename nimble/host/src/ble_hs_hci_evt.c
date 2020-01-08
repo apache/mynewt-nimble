@@ -483,7 +483,7 @@ ble_hs_hci_evt_le_rd_rem_used_feat_complete(uint8_t subevent, const void *data,
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
 static int
 ble_hs_hci_decode_legacy_type(uint16_t evt_type)
 {
@@ -508,7 +508,7 @@ static int
 ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, const void *data,
                               unsigned int len)
 {
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && NIMBLE_BLE_SCAN
     const struct ble_hci_ev_le_subev_ext_adv_rpt *ev = data;
     const struct ext_adv_report *report;
     struct ble_gap_ext_disc_desc desc;
