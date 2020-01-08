@@ -259,6 +259,8 @@ ble_ll_sync_find(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
 static uint16_t
 get_max_skip(uint32_t interval_us, uint32_t timeout_us)
 {
+    uint16_t max_skip;
+
     BLE_LL_ASSERT(interval_us);
     BLE_LL_ASSERT(timeout_us);
 
@@ -266,7 +268,20 @@ get_max_skip(uint32_t interval_us, uint32_t timeout_us)
         return 0;
     }
 
-    return (timeout_us / interval_us) - 1;
+    /*
+     * Calculate max allowed skip to receive something before timeout. We adjust
+     * current skip value to be no more than max_skip-6 so we have at least few
+     * attempts to receive an event (so we don't timeout immediately after just
+     * one missed event).
+     */
+
+    max_skip = (timeout_us / interval_us) - 1;
+
+    if (max_skip < 6) {
+        return 0;
+    }
+
+    return max_skip - 6;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
