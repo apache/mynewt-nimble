@@ -100,16 +100,18 @@ int
 ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
 {
     struct ble_sm_pair_cmd *pair_req, *pair_rsp;
+    bool any_mitm;
 
     pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
 
+    any_mitm = (pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) ||
+               (pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM);
+
     if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES ||
         pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
         *action = BLE_SM_IOACT_OOB_SC;
-    } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
-               !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
-
+    } else if (!any_mitm) {
         *action = BLE_SM_IOACT_NONE;
     } else if (pair_req->io_cap >= BLE_SM_IO_CAP_RESERVED ||
                pair_rsp->io_cap >= BLE_SM_IO_CAP_RESERVED) {
@@ -144,6 +146,13 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
     default:
         BLE_HS_DBG_ASSERT(0);
         return BLE_HS_EINVAL;
+    }
+
+    /* If man-in-the-middle protection is required, abort the procedure if
+     * authentication is not being used.
+     */
+    if (any_mitm && !(proc->flags & BLE_SM_PROC_F_AUTHENTICATED)) {
+        return BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
     }
 
     return 0;
