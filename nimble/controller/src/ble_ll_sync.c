@@ -475,11 +475,16 @@ ble_ll_sync_event_start_cb(struct ble_ll_sched_item *sch)
          */
         sm->flags |= BLE_LL_SYNC_SM_FLAG_SET_ANCHOR;
 
-        /* set wfr timer, for first PDU pointed with AuxPtr we use offset
-         * unit, for other PDU we use current window widening
+        /* Set WFR timer.
+         * If establishing we always adjust with offset unit.
+         * If this is first packet of sync (one that was pointed by from
+         * SyncInfo we don't adjust WFT with window widening.
          */
-        if (sm->flags & BLE_LL_SYNC_SM_FLAG_SYNC_INFO) {
+        if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
             wfr_usecs = (sm->flags & BLE_LL_SYNC_SM_FLAG_OFFSET_300) ? 300 : 30;
+            if (!(sm->flags & BLE_LL_SYNC_SM_FLAG_SYNC_INFO)) {
+                wfr_usecs += 2 * sm->window_widening;
+            }
         } else {
             wfr_usecs = 2 * sm->window_widening;
         }
@@ -1141,18 +1146,6 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
         return -1;
     }
 
-    /* if we are establishing, adjust window widening with offset unit
-     * uncertainty, since we set anchor point in the middle of offset window
-     * it is enough to adjust for half of offset
-     */
-    if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
-        if (sm->flags & BLE_LL_SYNC_SM_FLAG_OFFSET_300) {
-            cur_ww += 150;
-        } else {
-            cur_ww += 15;
-        }
-    }
-
     cur_ww += BLE_LL_JITTER_USECS;
 
     /* if updated anchor is pass last anchor + timeout it means we will not be
@@ -1401,19 +1394,6 @@ ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type, int rpa_index,
 
     sm->anchor_point = sm->sch.start_time + g_ble_ll_sched_offset_ticks;
     sm->anchor_point_usecs = sm->sch.remainder;
-
-    /* set anchor point in middle of offset window */
-    if (sm->flags & BLE_LL_SYNC_SM_FLAG_OFFSET_300) {
-        sm->anchor_point_usecs += 150;
-    } else {
-        sm->anchor_point_usecs += 15;
-    }
-
-    while (sm->anchor_point_usecs >= 31) {
-        sm->anchor_point++;
-        sm->anchor_point_usecs -= 31;
-    }
-
     sm->last_anchor_point = sm->anchor_point;
 
 #if MYNEWT_VAL(BLE_VERSION) >= 51
@@ -1794,7 +1774,6 @@ ble_ll_sync_transfer_get(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
             memcpy(&sm->adv_addr, addr, BLE_DEV_ADDR_LEN);
 
             sm->flags |= BLE_LL_SYNC_SM_FLAG_ESTABLISHING;
-            sm->flags |= BLE_LL_SYNC_SM_FLAG_SYNC_INFO;
             return sm;
         }
     }
@@ -2002,18 +1981,6 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     /* Set new anchor point */
     sm->anchor_point = sm->sch.start_time + g_ble_ll_sched_offset_ticks;
     sm->anchor_point_usecs = sm->sch.remainder;
-
-    /* set anchor point in middle of offset window */
-    if (sm->flags & BLE_LL_SYNC_SM_FLAG_OFFSET_300) {
-        sm->anchor_point_usecs += 150;
-    } else {
-        sm->anchor_point_usecs += 15;
-    }
-
-    while (sm->anchor_point_usecs >= 31) {
-        sm->anchor_point++;
-        sm->anchor_point_usecs -= 31;
-    }
 
     if (reports_disabled) {
         sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
