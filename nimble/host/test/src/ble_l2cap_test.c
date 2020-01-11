@@ -697,6 +697,7 @@ struct event {
 struct test_data {
     struct event event[3];
     uint16_t expected_num_of_ev;
+    uint16_t expected_num_iters;
     /* This we use to track number of events sent to application*/
     uint16_t event_cnt;
     /* This we use to track verified events (received or not) */
@@ -1037,6 +1038,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
     ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
                                       BLE_L2CAP_TEST_COC_MTU, &t);
     t.expected_num_of_ev = 1;
+    t.expected_num_iters = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
     t.event[0].app_status = BLE_HS_ENOTSUP;
@@ -1044,7 +1046,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
 
     ble_l2cap_test_coc_connect(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+    TEST_ASSERT(t.expected_num_iters == t.event_iter);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1058,6 +1061,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
     ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
                                       BLE_L2CAP_TEST_COC_MTU, &t);
     t.expected_num_of_ev = 1;
+    t.expected_num_iters = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
     t.event[0].app_status = BLE_HS_ENOMEM;
@@ -1065,7 +1069,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
 
     ble_l2cap_test_coc_connect(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+    TEST_ASSERT(t.expected_num_iters == t.event_iter);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1086,7 +1091,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
 
     ble_l2cap_test_coc_connect(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1107,7 +1112,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
 
     ble_l2cap_test_coc_connect(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1128,7 +1133,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_author)
 
     ble_l2cap_test_coc_connect(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1141,14 +1146,16 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm)
 
     ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
                                       BLE_L2CAP_TEST_COC_MTU, &t);
-    t.expected_num_of_ev = 1;
+    t.expected_num_of_ev = 0;
+    t.expected_num_iters = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM;
 
     ble_l2cap_test_coc_connect_by_peer(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_iters == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1162,7 +1169,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
 
     ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
                                       BLE_L2CAP_TEST_COC_MTU, &t);
-    t.expected_num_of_ev = 2;
+    t.expected_num_of_ev = 1;
+    t.expected_num_iters = 2;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_ACCEPT;
     t.event[0].app_status = BLE_HS_ENOMEM;
@@ -1178,7 +1186,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_rejected_by_app)
 
     ble_l2cap_test_coc_connect_by_peer(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_iters == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1204,7 +1213,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_conn_success)
 
     ble_l2cap_test_coc_connect_by_peer(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1227,7 +1236,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_succeed)
     ble_l2cap_test_coc_connect(&t);
     ble_l2cap_test_coc_disc(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1250,7 +1259,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed)
     ble_l2cap_test_coc_connect(&t);
     ble_l2cap_test_coc_disc_by_peer(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1263,7 +1272,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
 
     ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
                                       BLE_L2CAP_TEST_COC_MTU, &t);
-    t.expected_num_of_ev = 2;
+    t.expected_num_of_ev = 1;
+    t.expected_num_iters = 2;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
     t.event[0].app_status = 0;
@@ -1273,7 +1283,8 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_incoming_disconnect_failed)
     ble_l2cap_test_coc_connect(&t);
     ble_l2cap_test_coc_invalid_disc_by_peer(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_iters == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1299,7 +1310,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
     ble_l2cap_test_coc_send_data(&t);
     ble_l2cap_test_coc_disc(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1327,7 +1338,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
     ble_l2cap_test_coc_send_data(&t);
     ble_l2cap_test_coc_disc(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -1353,7 +1364,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
     ble_l2cap_test_coc_recv_data(&t);
     ble_l2cap_test_coc_disc(&t);
 
-    TEST_ASSERT(t.expected_num_of_ev == t.event_iter);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
