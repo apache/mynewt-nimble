@@ -121,8 +121,8 @@ static ble_l2cap_sig_rx_fn * const ble_l2cap_sig_dispatch[] = {
     [BLE_L2CAP_SIG_OP_MOVE_CHAN_CONF_RSP]   = ble_l2cap_sig_rx_noop,
     [BLE_L2CAP_SIG_OP_UPDATE_REQ]           = ble_l2cap_sig_update_req_rx,
     [BLE_L2CAP_SIG_OP_UPDATE_RSP]           = ble_l2cap_sig_update_rsp_rx,
-    [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ]   = ble_l2cap_sig_coc_req_rx,
-    [BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_coc_rsp_rx,
+    [BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ]   = ble_l2cap_sig_coc_req_rx,
+    [BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_RSP]   = ble_l2cap_sig_coc_rsp_rx,
     [BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT]     = ble_l2cap_sig_le_credits_rx,
 };
 
@@ -651,7 +651,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         return rc;
     }
 
-    rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
+    rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_RSP,
                                 hdr->identifier, sizeof(*rsp), &txom);
     if (!rsp) {
         /* Well, nothing smart we can do if there is no memory for response.
@@ -840,7 +840,7 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     proc->conn_handle = conn_handle;
     proc->connect.chan = chan;
 
-    req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ, proc->id,
+    req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ, proc->id,
                                 sizeof(*req), &txom);
     if (!req) {
         ble_l2cap_chan_free(conn, chan);
