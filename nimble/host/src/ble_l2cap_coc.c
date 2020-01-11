@@ -274,6 +274,17 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     return 0;
 }
 
+void
+ble_l2cap_coc_set_new_mtu_mps(struct ble_l2cap_chan *chan, uint16_t mtu, uint16_t mps)
+{
+    chan->my_coc_mps = mps;
+    chan->coc_rx.mtu = mtu;
+    chan->initial_credits = mtu / chan->my_coc_mps;
+    if (mtu % chan->my_coc_mps) {
+        chan->initial_credits++;
+    }
+}
+
 struct ble_l2cap_chan *
 ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn, uint16_t psm, uint16_t mtu,
                          struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb,

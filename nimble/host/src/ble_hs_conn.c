@@ -88,6 +88,24 @@ ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn, uint16_t cid)
     return NULL;
 }
 
+bool
+ble_hs_conn_chan_exist(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+#if !NIMBLE_BLE_CONNECT
+    return NULL;
+#endif
+
+    struct ble_l2cap_chan *tmp;
+
+    SLIST_FOREACH(tmp, &conn->bhc_channels, next) {
+        if (chan == tmp) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int
 ble_hs_conn_chan_insert(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {

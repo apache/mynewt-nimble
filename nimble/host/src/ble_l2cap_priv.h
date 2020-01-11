@@ -130,6 +130,13 @@ void ble_l2cap_remove_rx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
 
 int ble_l2cap_init(void);
 
+/* Below experimental API is available when BLE_VERSION >= 52 */
+int ble_l2cap_enhanced_connect(uint16_t conn_handle,
+                               uint16_t psm, uint16_t mtu,
+                               uint8_t num, struct os_mbuf *sdu_rx[],
+                               ble_l2cap_event_fn *cb, void *cb_arg);
+int ble_l2cap_reconfig(struct ble_l2cap_chan *chans[], uint8_t num, uint16_t new_mtu);
+
 #ifdef __cplusplus
 }
 #endif

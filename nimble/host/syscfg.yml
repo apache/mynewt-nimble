@@ -118,6 +118,13 @@ syscfg.defs:
             MSYS blocks.
         value: 'MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8'
 
+    BLE_L2CAP_ENHANCED_COC:
+        description: >
+            Enables LE Enhanced CoC mode.
+        value: 0
+        restrictions:
+            - '(BLE_L2CAP_COC_MAX_NUM > 0) && (BLE_VERSION >= 52) if 1'
+
     # Security manager settings.
     BLE_SM_LEGACY:
         description: 'Security manager legacy pairing.'
