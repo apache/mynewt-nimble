@@ -178,6 +178,38 @@ ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info 
 }
 
 int
+ble_l2cap_enhanced_connect(uint16_t conn_handle,
+                               uint16_t psm, uint16_t mtu,
+                               uint8_t num, struct os_mbuf *sdu_rx[],
+                               ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    return ble_l2cap_sig_ecoc_connect(conn_handle, psm, mtu,
+                                      num, sdu_rx, cb, cb_arg);
+}
+
+int
+ble_l2cap_reconfig(struct ble_l2cap_chan *chans[], uint8_t num, uint16_t new_mtu)
+{
+    int i;
+    uint16_t conn_handle;
+
+    if (num == 0 || !chans) {
+        return BLE_HS_EINVAL;
+    }
+
+    conn_handle = chans[0]->conn_handle;
+
+    for (i = 1; i < num; i++) {
+        if (conn_handle != chans[i]->conn_handle) {
+            BLE_HS_LOG(ERROR, "All channels should have same conn handle\n");
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    return ble_l2cap_sig_coc_reconfig(conn_handle, chans, num, new_mtu);
+}
+
+int
 ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
 {
     return ble_l2cap_sig_disconnect(chan);

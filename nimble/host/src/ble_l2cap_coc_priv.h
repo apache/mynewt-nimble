@@ -70,6 +70,7 @@ void ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
 int ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan,
                              struct os_mbuf *sdu_rx);
 int ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
+void ble_l2cap_coc_set_new_mtu_mps(struct ble_l2cap_chan *chan, uint16_t mtu, uint16_t mps);
 #else
 static inline int
 ble_l2cap_coc_init(void) {
