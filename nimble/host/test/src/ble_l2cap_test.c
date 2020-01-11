@@ -796,7 +796,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
 
     /* Ensure an update request got sent. */
     id = ble_hs_test_util_verify_tx_l2cap_sig(
-                                            BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ,
+                                            BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ,
                                             &req, sizeof(req));
 
     /* Use some different parameters for peer. Just keep mtu same for testing
@@ -808,7 +808,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     rsp.result = htole16(ev->l2cap_status);
 
     rc = ble_hs_test_util_inject_rx_l2cap_sig(2,
-                                              BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
+                                              BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_RSP,
                                               id, &rsp, sizeof(rsp));
     TEST_ASSERT(rc == 0);
 
@@ -837,7 +837,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
 
     /* Receive remote request*/
     rc = ble_hs_test_util_inject_rx_l2cap_sig(2,
-                                              BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ,
+                                              BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ,
                                               id, &req, sizeof(req));
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -862,7 +862,7 @@ ble_l2cap_test_coc_connect_by_peer(struct test_data *t)
 
     /* Ensure we sent response. */
     TEST_ASSERT(id == ble_hs_test_util_verify_tx_l2cap_sig(
-                                            BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
+                                            BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_RSP,
                                             &rsp, sizeof(rsp)));
 
     if (ev->l2cap_status == 0) {
