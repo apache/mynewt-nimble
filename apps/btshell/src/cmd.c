@@ -3515,6 +3515,7 @@ static const struct shell_cmd_help l2cap_create_server_help = {
 static const struct shell_param l2cap_connect_params[] = {
     {"conn", "connection handle, usage: =<UINT16>"},
     {"psm", "usage: =<UINT16>"},
+    {"num", "usage: number of connection created in a row: [1-5]"},
     {NULL, NULL}
 };
 
@@ -3538,6 +3539,23 @@ static const struct shell_cmd_help l2cap_disconnect_help = {
     .summary = "perform l2cap disconnect procedure",
     .usage = "use gatt-show-coc to get the parameters",
     .params = l2cap_disconnect_params,
+};
+
+/*****************************************************************************
+ * $l2cap-reconfig                                                           *
+ *****************************************************************************/
+
+static const struct shell_param l2cap_reconfig_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"mtu", "new mtu, usage: =<UINT16>, default: 0 (no change)"},
+    {"idxs", "list of channel indexes, usage: idxs=1,3"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help l2cap_reconfig_help = {
+    .summary = "perform l2cap reconfigure procedure",
+    .usage = "use gatt-show-coc to get the parameters",
+    .params = l2cap_reconfig_params,
 };
 
 /*****************************************************************************
@@ -4387,6 +4405,13 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_l2cap_connect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &l2cap_connect_help,
+#endif
+    },
+    {
+        .sc_cmd = "l2cap-reconfig",
+        .sc_cmd_func = cmd_l2cap_reconfig,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &l2cap_reconfig_help,
 #endif
     },
     {
