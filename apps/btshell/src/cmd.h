@@ -51,6 +51,8 @@ int parse_arg_kv(char *name, const struct kv_pair *kvs, int *out_status);
 int parse_arg_kv_dflt(char *name, const struct kv_pair *kvs, int def_val,
                          int *out_status);
 int parse_arg_byte_stream(char *name, int max_len, uint8_t *dst, int *out_len);
+int parse_arg_uint8_list_with_separator(char *name, char *separator, int max_len,
+                                         uint8_t *dst, int *out_len);
 int parse_arg_byte_stream_exact_length(char *name, uint8_t *dst, int len);
 int parse_arg_mac(char *name, uint8_t *dst);
 int parse_arg_addr(char *name, ble_addr_t *addr);

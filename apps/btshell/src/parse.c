@@ -466,6 +466,20 @@ parse_arg_byte_stream(char *name, int max_len, uint8_t *dst, int *out_len)
 }
 
 int
+parse_arg_uint8_list_with_separator(char *name, char *separator, int max_len,
+                                     uint8_t *dst, int *out_len)
+{
+    char *sval;
+
+    sval = parse_arg_extract(name);
+    if (sval == NULL) {
+        return ENOENT;
+    }
+
+    return parse_arg_byte_stream_delim(sval, separator, max_len, dst, out_len);
+}
+
+int
 parse_arg_byte_stream_exact_length(char *name, uint8_t *dst, int len)
 {
     int actual_len;

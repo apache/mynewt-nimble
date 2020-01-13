@@ -2226,9 +2226,9 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
                 assert(0);
             }
 
-            console_printf("LE COC connected, conn: %d, chan: 0x%08lx, psm: 0x%02x, scid: 0x%04x, "
-                           "dcid: 0x%04x, our_mps: %d, our_mtu: %d, peer_mps: 0x%d, peer_mtu: %d\n",
-                           event->connect.conn_handle, (uint32_t) event->connect.chan,
+            console_printf("LE COC connected, conn: %d, chan: %p, psm: 0x%02x, scid: 0x%04x, "
+                           "dcid: 0x%04x, our_mps: %d, our_mtu: %d, peer_mps: %d, peer_mtu: %d\n",
+                           event->connect.conn_handle, event->connect.chan,
                            chan_info.psm, chan_info.scid, chan_info.dcid,
                            chan_info.our_l2cap_mtu, chan_info.our_coc_mtu, chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
 
@@ -2237,8 +2237,8 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
             return 0;
         case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-            console_printf("LE CoC disconnected, chan: 0x%08lx\n",
-                           (uint32_t) event->disconnect.chan);
+            console_printf("LE CoC disconnected, chan: %p\n",
+                           event->disconnect.chan);
 
             btshell_l2cap_coc_remove(event->disconnect.conn_handle,
                                      event->disconnect.chan);
@@ -2255,6 +2255,37 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
         case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
             btshell_l2cap_coc_recv(event->receive.chan, event->receive.sdu_rx);
+            return 0;
+        case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
+
+            if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
+                assert(0);
+            }
+
+            console_printf("LE CoC reconfigure completed status 0x%02x," \
+                            "chan: %p\n",
+                            event->reconfigured.status,
+                            event->reconfigured.chan);
+
+            if (event->reconfigured.status == 0) {
+                console_printf("\t our_mps: %d our_mtu %d\n", chan_info.our_l2cap_mtu, chan_info.our_coc_mtu);
+            }
+            return 0;
+        case BLE_L2CAP_EVENT_COC_PEER_RECONFIGURED:
+
+            if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
+                assert(0);
+            }
+
+            console_printf("LE CoC peer reconfigured status 0x%02x," \
+                            "chan: %p\n",
+                            event->reconfigured.status,
+                            event->reconfigured.chan);
+
+            if (event->reconfigured.status == 0) {
+                console_printf("\t peer_mps: %d peer_mtu %d\n", chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
+            }
+
             return 0;
         case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
             console_printf("L2CAP CoC channel %p unstalled, last sdu sent with err=0x%02x\n",
@@ -2281,7 +2312,7 @@ btshell_l2cap_create_srv(uint16_t psm, int accept_response)
 }
 
 int
-btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm)
+btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint8_t num)
 {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
     console_printf("BLE L2CAP LE COC not supported.");
@@ -2289,13 +2320,21 @@ btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm)
     return 0;
 #else
 
-    struct os_mbuf *sdu_rx;
+    struct os_mbuf *sdu_rx[num];
+    int i;
 
-    sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
-    assert(sdu_rx != NULL);
+    for (i = 0; i < num; i++) {
+        sdu_rx[i] = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+        assert(sdu_rx != NULL);
+    }
 
-    return ble_l2cap_connect(conn_handle, psm, BTSHELL_COC_MTU, sdu_rx,
-                             btshell_l2cap_event, NULL);
+    if (num == 1) {
+        return ble_l2cap_connect(conn_handle, psm, BTSHELL_COC_MTU, sdu_rx[0],
+                                     btshell_l2cap_event, NULL);
+    }
+
+    return ble_l2cap_enhanced_connect(conn_handle, psm, BTSHELL_COC_MTU,
+                                      num, sdu_rx,btshell_l2cap_event, NULL);
 #endif
 }
 
@@ -2332,6 +2371,44 @@ btshell_l2cap_disconnect(uint16_t conn_handle, uint16_t idx)
 
     return rc;
 #endif
+}
+
+int
+btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
+                       uint8_t num, uint8_t idxs[])
+{
+    struct btshell_conn *conn;
+    struct btshell_l2cap_coc *coc;
+    struct ble_l2cap_chan * chans[5] = {0};
+    int i, j;
+    int cnt;
+
+    conn = btshell_conn_find(conn_handle);
+    if (conn == NULL) {
+        console_printf("conn=%d does not exist\n", conn_handle);
+        return 0;
+    }
+
+    i = 0;
+    j = 0;
+    cnt = 0;
+    SLIST_FOREACH(coc, &conn->coc_list, next) {
+        for (i = 0; i < num; i++) {
+            if (idxs[i] == j) {
+                chans[cnt] = coc->chan;
+                cnt++;
+                break;
+            }
+        }
+        j++;
+    }
+
+    if (cnt != num) {
+        console_printf("Missing coc? (%d!=%d)\n", num, cnt);
+        return BLE_HS_EINVAL;
+    }
+
+    return ble_l2cap_reconfig(chans, cnt, mtu);
 }
 
 int
