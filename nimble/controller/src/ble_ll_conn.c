@@ -135,6 +135,8 @@ struct ble_ll_empty_pdu
 /* Global connection complete event. Used when initiating */
 uint8_t *g_ble_ll_conn_comp_ev;
 
+static struct ble_npl_event g_ble_ll_init_conn_created_ev;
+
 /* Global LL connection parameters */
 struct ble_ll_conn_global_params g_ble_ll_conn_params;
 
@@ -2695,6 +2697,9 @@ static void
 ble_ll_conn_connect_ind_txend_to_standby(void *arg)
 {
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    /* We are here if CONNECT_IND was transmitted so we can assume connection is now created */
+    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_init_conn_created_ev);
 }
 
 static void
@@ -2779,6 +2784,18 @@ ble_ll_conn_event_halt(void)
         ble_ll_event_send(&g_ble_ll_conn_cur_sm->conn_ev_end);
         g_ble_ll_conn_cur_sm = NULL;
     }
+}
+
+static void
+ble_ll_init_conn_created(struct ble_npl_event *ev)
+{
+    struct ble_ll_conn_sm *connsm = g_ble_ll_conn_create_sm;
+
+    BLE_LL_ASSERT(connsm);
+
+    g_ble_ll_conn_create_sm = NULL;
+    ble_ll_scan_sm_stop(0);
+    ble_ll_conn_created(connsm, NULL);
 }
 
 /**
@@ -2904,10 +2921,6 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
             memcpy(connsm->peer_addr, addr, BLE_DEV_ADDR_LEN);
         }
 
-        /* Connection has been created. Stop scanning */
-        g_ble_ll_conn_create_sm = NULL;
-        ble_ll_scan_sm_stop(0);
-
         /* For AUX Connect CSA2 is mandatory. Otherwise we need to check bit
          * mask
          */
@@ -2925,9 +2938,22 @@ ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
         if (aux_data) {
             ble_ll_scan_aux_data_unref(ble_hdr->rxinfo.user_data);
             ble_hdr->rxinfo.user_data = NULL;
+
+            /* We are here if AUX_CONNECT_RSP was received so we can assume connection is now created */
+            ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_init_conn_created_ev);
         }
 #endif
-        ble_ll_conn_created(connsm, NULL);
+
+        /*
+         * Now we have connsm set for new connection. Here's what can happen next:
+         * - if this was AUX_CONNECT_RSP, we'll start connection from LL
+         * - if this was ADV_IND or ADV_DIRECT_IND, we'll postpone starting
+         *   connection until CONNECT_IND was transmitted successfully and then
+         *   do as above
+         * - if for some reason CONNECT_IND was not transmitted properly it means
+         *   some other activity will be active and we'll just restart scanning
+         *   once that activity completes (so as if CONNECT_IND was never sent)
+         */
         return;
     }
 
@@ -4257,6 +4283,8 @@ ble_ll_conn_module_init(void)
         connsm->conn_sch.cb_arg = connsm;
         ++connsm;
     }
+
+    ble_npl_event_init(&g_ble_ll_init_conn_created_ev, ble_ll_init_conn_created, NULL);
 
     /* Register connection statistics */
     rc = stats_init_and_reg(STATS_HDR(ble_ll_conn_stats),
