@@ -346,6 +346,7 @@ ble_gap_log_update(uint16_t conn_handle,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_WHITELIST)
 static void
 ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
 {
@@ -359,6 +360,7 @@ ble_gap_log_wl(const ble_addr_t *addr, uint8_t white_list_count)
         BLE_HS_LOG(INFO, "} ");
     }
 }
+#endif
 
 #if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static void
@@ -2000,18 +2002,15 @@ ble_gap_timer(void)
  * $white list                                                               *
  *****************************************************************************/
 
+#if MYNEWT_VAL(BLE_WHITELIST)
 static int
 ble_gap_wl_busy(void)
 {
-#if MYNEWT_VAL(BLE_WHITELIST)
     /* Check if an auto or selective connection establishment procedure is in
      * progress.
      */
     return ble_gap_master.op == BLE_GAP_OP_M_CONN &&
            ble_gap_master.conn.using_wl;
-#else
-    return BLE_HS_ENOTSUP;
-#endif
 }
 
 static int
@@ -2038,6 +2037,7 @@ ble_gap_wl_tx_clear(void)
                                         BLE_HCI_OCF_LE_CLEAR_WHITE_LIST),
                              NULL, 0, NULL, 0 );
 }
+#endif
 
 int
 ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count)
