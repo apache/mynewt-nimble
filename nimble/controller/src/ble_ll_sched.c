@@ -914,6 +914,9 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
     rand_ticks = max_delay_ticks;
     sch->end_time += max_delay_ticks;
 
+    /* Mark original schedule item 'start' */
+    orig_start = sch->start_time;
+
     start_overlap = NULL;
     end_overlap = NULL;
     before = NULL;
@@ -932,6 +935,8 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
                 } else {
                     end_overlap = entry;
                 }
+                sch->start_time = entry->end_time;
+                sch->end_time = sch->start_time + max_delay_ticks;
             } else {
                 if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
                     before = entry;
@@ -961,20 +966,25 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
              * with original duration.
              */
             before = NULL;
-            orig_start = sch->start_time;
+            sch->start_time = orig_start;
             entry = start_overlap;
             sch->end_time = sch->start_time + duration;
             while (1) {
                 next_sch = entry->link.tqe_next;
                 if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
-                    rand_ticks = entry->start_time - sch->end_time;
-                    before = entry;
-                    TAILQ_INSERT_BEFORE(before, sch, link);
-                    break;
-                } else {
-                    sch->start_time = entry->end_time;
-                    sch->end_time = sch->start_time + duration;
+                    rand_ticks = (orig_start + max_delay_ticks) - sch->start_time;
+                    if (rand_ticks > max_delay_ticks) {
+                        /* No place for advertisement. */
+                        rc = -1;
+                    } else {
+                        rand_ticks = entry->start_time - sch->end_time;
+                        before = entry;
+                        TAILQ_INSERT_BEFORE(before, sch, link);
+                        break;
+                    }
                 }
+                sch->start_time = entry->end_time;
+                sch->end_time = sch->start_time + duration;
 
                 if (entry == end_overlap) {
                     rand_ticks = (orig_start + max_delay_ticks) - sch->start_time;
