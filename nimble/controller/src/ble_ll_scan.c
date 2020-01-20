@@ -1877,10 +1877,6 @@ ble_ll_scan_get_addr_from_ext_adv(uint8_t *rxbuf, struct ble_mbuf_hdr *ble_hdr,
         has_adva = true;
     }
 
-    if (!inita) {
-        goto done;
-    }
-
     if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
         *inita = ext_hdr + i;
         *inita_type =
@@ -1903,10 +1899,6 @@ done:
                 memcpy(aux_data->adva, *addr, 6);
                 aux_data->adva_type = *addr_type;
             }
-        }
-
-        if (!inita) {
-            return 0;
         }
 
         if (aux_data->flags & BLE_LL_AUX_HAS_TARGETA) {
@@ -1941,10 +1933,6 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
         /* Legacy advertising */
         *addr_type = ble_ll_get_addr_type(rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK);
         *addr = rxbuf + BLE_LL_PDU_HDR_LEN;
-
-        if (!inita) {
-            return 0;
-        }
 
         if (pdu_type != BLE_ADV_PDU_TYPE_ADV_DIRECT_IND) {
             *inita = NULL;
