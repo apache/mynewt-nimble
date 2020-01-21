@@ -3222,27 +3222,20 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     props = le16toh(cmd->props);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
-    /* For now just disallow to reconfigure instance that has periodic
-     * advertising configured if new configuration is not valid for periodic
-     * advertising
-     *
-     * TODO should we allow to reconfigure but then fail on enable instead?
-     * spec is unclear here but at least require check for anonymous
-     * advertising when configuring periodic so lets be consistent with this for
-     * now
+    /* If the Host issues this command when periodic advertising is enabled for
+     * the specified advertising set and connectable, scannable, legacy, or
+     * anonymous advertising is specified, the Controller shall return the
+     * error code Invalid HCI Command Parameters (0x12).
      */
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED) {
         if (advsm->periodic_adv_enabled) {
-            rc = BLE_ERR_CMD_DISALLOWED;
-            goto done;
-        }
-
-        if (props & (BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
-                     BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
-                     BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY |
-                     BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
-            rc = BLE_ERR_CMD_DISALLOWED;
-            goto done;
+            if (props & (BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
+                         BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
+                         BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY |
+                         BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
+                rc = BLE_ERR_INV_HCI_CMD_PARMS;
+                goto done;
+            }
         }
     }
 #endif
@@ -3653,7 +3646,83 @@ ble_ll_adv_clear_all(void)
 
     return BLE_ERR_SUCCESS;
 }
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+static uint16_t
+ble_ll_adv_sync_get_pdu_len(uint16_t data_len, uint16_t *data_offset,
+                            uint16_t props)
+{
+    uint16_t rem_data_len = data_len - *data_offset;
+    uint8_t hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
+    uint8_t ext_hdr = 0;
+
+    /* TxPower if configured
+     * Note: TxPower shall not be present in chain PDU for SYNC
+     */
+    if (*data_offset == 0 &&
+        (props & BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR)) {
+        ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
+        hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    /* if we have any fields in ext header we need to add flags, note that Aux
+     * PTR is handled later and it will account for flags if needed
+     *
+     * This could be handled inside TxPower but lets keep code consistent with
+     * how Aux calculate works and this also make it easier to add more fields
+     * into flags if needed in future
+     */
+    if (ext_hdr) {
+        hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+    }
+
+    /* AdvData always */
+    data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_data_len);
+
+    /* AuxPtr if there are more AdvData remaining that we can fit here */
+    if (rem_data_len > data_len) {
+            /* adjust for flags that needs to be added if AuxPtr is only field
+             * in Extended Header
+             */
+            if (!ext_hdr) {
+                hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+                data_len -= BLE_LL_EXT_ADV_FLAGS_SIZE;
+            }
+
+            hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+            data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+
+            /* PDU payload should be full if chained */
+            BLE_LL_ASSERT(hdr_len + data_len == BLE_LL_MAX_PAYLOAD_LEN);
+    }
+
+    *data_offset += data_len;
+
+    return hdr_len + data_len;
+}
+
+static bool
+ble_ll_adv_periodic_check_data_itvl(uint16_t payload_len, uint16_t props,
+                                    uint16_t itvl, uint8_t phy)
+{
+    uint32_t max_usecs = 0;
+    uint32_t itvl_usecs;
+    uint16_t offset = 0;
+    uint16_t pdu_len;
+
+    while (offset < payload_len) {
+        pdu_len = ble_ll_adv_sync_get_pdu_len(payload_len, &offset, props);
+
+        max_usecs += ble_ll_pdu_tx_time_get(pdu_len, phy);
+        max_usecs += ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS +
+                                MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
+    }
+
+    itvl_usecs = (uint32_t)itvl * BLE_LL_ADV_PERIODIC_ITVL;
+
+    return max_usecs < itvl_usecs;
+}
+
 int
 ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
 {
@@ -3676,24 +3745,21 @@ ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
-    /* A device in the periodic advertising synchronizability mode shall send
-     * synchronization information for periodic advertising events in
-     * non-connectable and non-scannable extended advertising events.
-     */
-    if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) ||
-        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
-        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
     /* If the advertising set identified by the Advertising_Handle specified
-     * anonymous advertising, the Controller shall return the error code Invalid
-     * HCI Parameters (0x12).
+     * scannable, connectable, legacy, or anonymous advertising, the Controller
+     * shall return the error code Invalid HCI Command Parameters (0x12).
      */
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV) {
+    if (advsm->props & (BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV |
+                        BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
+                        BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
+                        BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    /* If the Host issues this command when periodic advertising is enabled for
+     * the specified advertising set, the Controller shall return the error code
+     * Command Disallowed (0x0C).
+     */
     if (advsm->periodic_adv_enabled) {
         return BLE_ERR_CMD_DISALLOWED;
     }
@@ -3707,6 +3773,17 @@ ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
     /* validate properties */
     if (props & ~BLE_HCI_LE_SET_PERIODIC_ADV_PROP_MASK) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If the advertising set already contains periodic advertising data and the
+     * length of the data is greater than the maximum that the Controller can
+     * transmit within a periodic advertising interval of
+     * Periodic_Advertising_Interval_Max, the Controller shall return the error
+     * code Packet Too Long (0x45).
+     */
+    if (!ble_ll_adv_periodic_check_data_itvl(SYNC_DATA_LEN(advsm), props,
+                                             adv_itvl_max, advsm->sec_phy)) {
+        return BLE_ERR_PACKET_TOO_LONG;
     }
 
     advsm->periodic_adv_itvl_min = adv_itvl_min;
@@ -3723,6 +3800,7 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_periodic_adv_data_cp *cmd = (const void *) cmdbuf;
     struct ble_ll_adv_sm *advsm;
+    uint16_t payload_total_len;
     bool new_data = false;
 
     if (len < sizeof(*cmd)) {
@@ -3773,6 +3851,25 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
         break;
     default:
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    payload_total_len = cmd->adv_data_len;
+    if (!new_data) {
+        payload_total_len += SYNC_DATA_LEN(advsm);
+    }
+
+    /* If the combined length of the data is greater than the maximum that the
+     * Controller can transmit within the current periodic advertising interval
+     * (if periodic advertising is currently enabled) or the
+     * Periodic_Advertising_Interval_Max for the advertising set (if currently
+     * disabled), all the data shall be discarded and the Controller shall
+     * return the error code Packet Too Long (0x45).
+     */
+    if (!ble_ll_adv_periodic_check_data_itvl(payload_total_len,
+                                             advsm->periodic_adv_props,
+                                             advsm->periodic_adv_itvl_max,
+                                             advsm->sec_phy)) {
+        return BLE_ERR_PACKET_TOO_LONG;
     }
 
     if (advsm->periodic_adv_active) {
@@ -3831,6 +3928,18 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
     if (cmd->enable) {
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_DATA_INCOMPLETE) {
             return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        /* If Enable is set to 0x01 and the length of the periodic advertising
+         * data is greater than the maximum that the Controller can transmit
+         * within the chosen periodicadvertising interval, the Controller shall
+         * return the error code Packet Too Long (0x45).
+         */
+        if (!ble_ll_adv_periodic_check_data_itvl(SYNC_DATA_LEN(advsm),
+                                                 advsm->periodic_adv_props,
+                                                 advsm->periodic_adv_itvl_max,
+                                                 advsm->sec_phy)) {
+            return BLE_ERR_PACKET_TOO_LONG;
         }
 
         /* If the advertising set is not currently enabled (see the

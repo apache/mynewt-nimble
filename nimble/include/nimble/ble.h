@@ -250,6 +250,7 @@ enum ble_error_codes
     BLE_ERR_UNK_ADV_INDENT      = 0x42,
     BLE_ERR_LIMIT_REACHED       = 0x43,
     BLE_ERR_OPERATION_CANCELLED = 0x44,
+    BLE_ERR_PACKET_TOO_LONG     = 0x45,
     BLE_ERR_MAX                 = 0xff
 };
 
