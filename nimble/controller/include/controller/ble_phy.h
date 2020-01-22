@@ -179,17 +179,15 @@ void ble_phy_resolv_list_enable(void);
 void ble_phy_resolv_list_disable(void);
 
 /*
- * These definitions are used for the 'phy' parameters in the API listed below.
- * These are numbered in a specific order to save code. The HCI definitions for
- * the PHY modes for 1Mbps and 2Mbps are the same here. For the coded phy
- * they need to be translated from the HCI number to either 0 or 3. This
- * was done in order to save code when translating between the HCI phy value
- * and the phy API.
+ * PHY mode values for 1M, 2M and Coded S=8 are the same as corresponding values
+ * of PHY. This makes conversion between 'phy' and 'phy_mode' easier and it also
+ * means that default coding for Coded will be S=8, unless explicitly translated
+ * to S=2.
  */
+#define BLE_PHY_MODE_CODED_500KBPS  (0)
 #define BLE_PHY_MODE_1M             (1)
 #define BLE_PHY_MODE_2M             (2)
-#define BLE_PHY_MODE_CODED_125KBPS  (0)
-#define BLE_PHY_MODE_CODED_500KBPS  (3)
+#define BLE_PHY_MODE_CODED_125KBPS  (3)
 
 /* The number of different modes */
 #define BLE_PHY_NUM_MODE            (4)
@@ -218,16 +216,14 @@ static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
     int phy_mode;
 
     /*
-     * Mode values are set in a way that 1M, 2M and Coded(S=2) are equivalent
-     * to 1M, 2M and Coded in HCI. The only conversion is needed for Coded(S=8)
-     * which uses non-HCI value.
+     * 'phy' value can be used as 'phy_mode' value unless S=2 coding is explicitly
+     * required. By default we'll use S=2 for Coded.
      */
-
     phy_mode = phy;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S8_PREF) {
-        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+    if (phy == BLE_PHY_CODED && phy_options == BLE_HCI_LE_PHY_CODED_S2_PREF) {
+        phy_mode = BLE_PHY_MODE_CODED_500KBPS;
     }
 #endif
 
