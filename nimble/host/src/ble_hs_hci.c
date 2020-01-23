@@ -356,21 +356,20 @@ ble_hs_hci_rx_ack(uint8_t *ack_ev)
 int
 ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg)
 {
+    struct ble_hci_ev *ev = (void *) hci_ev;
+    struct ble_hci_ev_command_complete *cmd_complete = (void *) ev->data;
+    struct ble_hci_ev_command_status *cmd_status = (void *) ev->data;
     int enqueue;
 
     BLE_HS_DBG_ASSERT(hci_ev != NULL);
 
-    switch (hci_ev[0]) {
+    switch (ev->opcode) {
     case BLE_HCI_EVCODE_COMMAND_COMPLETE:
-    case BLE_HCI_EVCODE_COMMAND_STATUS:
-        if (hci_ev[3] == 0 && hci_ev[4] == 0) {
-            enqueue = 1;
-        } else {
-            ble_hs_hci_rx_ack(hci_ev);
-            enqueue = 0;
-        }
+        enqueue = (cmd_complete->opcode == BLE_HCI_OPCODE_NOP);
         break;
-
+    case BLE_HCI_EVCODE_COMMAND_STATUS:
+        enqueue = (cmd_status->opcode == BLE_HCI_OPCODE_NOP);
+        break;
     default:
         enqueue = 1;
         break;
@@ -378,6 +377,8 @@ ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg)
 
     if (enqueue) {
         ble_hs_enqueue_hci_event(hci_ev);
+    } else {
+        ble_hs_hci_rx_ack(hci_ev);
     }
 
     return 0;
