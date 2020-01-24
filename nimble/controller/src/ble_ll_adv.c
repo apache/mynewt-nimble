@@ -1358,7 +1358,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
 
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
-        /* Flags and ADI */
+        /* ADI */
         aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
         hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
