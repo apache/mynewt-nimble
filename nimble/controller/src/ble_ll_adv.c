@@ -703,8 +703,11 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr[0] = (adv_mode << 6) | ext_hdr_len;
     dptr += 1;
 
-    dptr[0] = aux->ext_hdr;
-    dptr += 1;
+    /* only put flags if needed */
+    if (aux->ext_hdr) {
+        dptr[0] = aux->ext_hdr;
+        dptr += 1;
+    }
 
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
 
@@ -1352,7 +1355,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
     chainable = !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE);
 
-    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE;
+    hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
 
     if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) {
         /* Flags and ADI */
@@ -1404,11 +1407,26 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     }
 #endif
 
+    /* if we have any fields in ext header we need to add flags, note that Aux
+     * PTR is handled later and it will account for flags if needed
+     */
+    if (aux->ext_hdr) {
+        hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+    }
+
     /* AdvData always */
     aux->aux_data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_aux_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
     if (chainable && (rem_aux_data_len > aux->aux_data_len)) {
+            /* adjust for flags that needs to be added if AuxPtr is only field
+             * in Extended Header
+             */
+            if (!aux->ext_hdr) {
+                hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+                aux->aux_data_len -= BLE_LL_EXT_ADV_FLAGS_SIZE;
+            }
+
             aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
             hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
             aux->aux_data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
@@ -2013,8 +2031,11 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr[0] = (adv_mode << 6) | ext_hdr_len;
     dptr += 1;
 
-    dptr[0] = sync->ext_hdr;
-    dptr += 1;
+    /* only put flags if needed */
+    if (sync->ext_hdr) {
+        dptr[0] = sync->ext_hdr;
+        dptr += 1;
+    }
 
     if (sync->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (!SYNC_NEXT(advsm)->sch.enqueued) {
@@ -2184,7 +2205,7 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
 
     rem_sync_data_len = SYNC_DATA_LEN(advsm) - sync_data_offset;
 
-    hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE;
+    hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
 
     /* TxPower if configured
      * Note: TxPower shall not be present in chain PDU for SYNC
@@ -2195,11 +2216,30 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
         hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
+    /* if we have any fields in ext header we need to add flags, note that Aux
+     * PTR is handled later and it will account for flags if needed
+     *
+     * This could be handled inside TxPower but lets keep code consistent with
+     * how Aux calculate works and this also make it easier to add more fields
+     * into flags if needed in future
+     */
+    if (sync->ext_hdr) {
+        hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+    }
+
     /* AdvData always */
     sync->sync_data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_sync_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
     if ((rem_sync_data_len > sync->sync_data_len)) {
+            /* adjust for flags that needs to be added if AuxPtr is only field
+             * in Extended Header
+             */
+            if (!sync->ext_hdr) {
+                hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+                sync->sync_data_len -= BLE_LL_EXT_ADV_FLAGS_SIZE;
+            }
+
             sync->ext_hdr |= (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
             hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
             sync->sync_data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
