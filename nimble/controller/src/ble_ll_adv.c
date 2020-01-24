@@ -1385,8 +1385,11 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
         hdr_len += BLE_LL_EXT_ADV_TARGETA_SIZE;
     }
 
-    /* TxPower if configured */
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
+    /* TxPower if configured.
+     * Note: TxPower should not be be present in AUX_CHAIN_IND
+     */
+    if (aux_data_offset == 0 &&
+        (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR)) {
         aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
         hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
@@ -2181,8 +2184,11 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
 
     hdr_len = BLE_LL_EXT_ADV_HDR_LEN + BLE_LL_EXT_ADV_FLAGS_SIZE;
 
-    /* TxPower if configured */
-    if (advsm->periodic_adv_props & BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR) {
+    /* TxPower if configured
+     * Note: TxPower shall not be present in chain PDU for SYNC
+     */
+    if (sync_data_offset == 0 &&
+        (advsm->periodic_adv_props & BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR)) {
         sync->ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
         hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
