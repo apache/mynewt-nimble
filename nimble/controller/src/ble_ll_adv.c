@@ -1394,6 +1394,16 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
         hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+    /* SyncInfo for 1st PDU in chain (i.e. AUX_ADV_IND only) if periodic
+     * advertising is enabled
+     */
+    if (aux_data_offset == 0 && advsm->periodic_adv_active) {
+        aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT);
+        hdr_len += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
+    }
+#endif
+
     /* AdvData always */
     aux->aux_data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_aux_data_len);
 
@@ -1406,14 +1416,6 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
             /* PDU payload should be full if chained */
             assert(hdr_len + aux->aux_data_len == BLE_LL_MAX_PAYLOAD_LEN);
     }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
-    /* SyncInfo for 1st PDU in chain (i.e. AUX_ADV_IND only) */
-    if (aux_data_offset == 0 && advsm->periodic_adv_active) {
-        aux->ext_hdr |= (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT);
-        hdr_len += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
-    }
-#endif
 
     aux->payload_len = hdr_len + aux->aux_data_len;
 }
