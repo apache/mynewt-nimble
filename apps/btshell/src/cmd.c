@@ -3196,6 +3196,7 @@ static const struct shell_cmd_help phy_read_help = {
     .usage = NULL,
     .params = phy_read_params,
 };
+#endif
 
 /*****************************************************************************
  * $host-enable                                                              *
@@ -3258,7 +3259,6 @@ static const struct shell_cmd_help host_disable_help = {
     .usage = NULL,
     .params = NULL,
 };
-#endif
 
 /*****************************************************************************
  * $gatt-discover                                                            *
