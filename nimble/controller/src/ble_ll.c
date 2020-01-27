@@ -1631,8 +1631,8 @@ ble_ll_init(void)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-    features |= BLE_LL_FEAT_SYNC_RECV;
-    features |= BLE_LL_FEAT_SYNC_SEND;
+    features |= BLE_LL_FEAT_SYNC_TRANS_RECV;
+    features |= BLE_LL_FEAT_SYNC_TRANS_SEND;
 #endif
 
     /* Initialize random number generation */

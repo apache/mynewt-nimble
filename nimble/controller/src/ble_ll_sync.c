@@ -2166,7 +2166,7 @@ ble_ll_sync_transfer(const uint8_t *cmdbuf, uint8_t len,
      *
      * Allow initiate LL procedure only if remote supports it.
      */
-    if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SYNC_RECV >> (8 * 3)))) {
+    if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SYNC_TRANS_RECV >> (8 * 3)))) {
         rc = BLE_ERR_UNSUPP_REM_FEATURE;
         goto done;
     }
