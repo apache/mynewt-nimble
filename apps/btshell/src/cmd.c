@@ -3494,6 +3494,7 @@ static const struct shell_cmd_help l2cap_update_help = {
 
 static const struct shell_param l2cap_create_server_params[] = {
     {"psm", "usage: =<UINT16>"},
+    {"mtu", "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU"},
     {"error", "usage: used for PTS testing:"},
     {"", "0 - always accept"},
     {"", "1 - reject with insufficient authentication"},
@@ -3516,6 +3517,7 @@ static const struct shell_param l2cap_connect_params[] = {
     {"conn", "connection handle, usage: =<UINT16>"},
     {"psm", "usage: =<UINT16>"},
     {"num", "usage: number of connection created in a row: [1-5]"},
+    {"mtu", "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU"},
     {NULL, NULL}
 };
 

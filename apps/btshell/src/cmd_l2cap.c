@@ -96,6 +96,7 @@ int
 cmd_l2cap_create_server(int argc, char **argv)
 {
     uint16_t psm = 0;
+    uint16_t mtu;
     int error;
     int accept_response = 0;
     int rc;
@@ -117,6 +118,12 @@ cmd_l2cap_create_server(int argc, char **argv)
         return rc;
     }
 
+    mtu = parse_arg_uint16_dflt("mtu", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'mtu' parameter\n");
+        return rc;
+    }
+
     switch (error) {
     case 1:
         accept_response = BLE_HS_EAUTHEN;
@@ -129,7 +136,7 @@ cmd_l2cap_create_server(int argc, char **argv)
         break;
     }
 
-    rc = btshell_l2cap_create_srv(psm, accept_response);
+    rc = btshell_l2cap_create_srv(psm, mtu, accept_response);
     if (rc) {
         console_printf("Server create error: 0x%02x\n", rc);
         return rc;
@@ -148,6 +155,7 @@ cmd_l2cap_connect(int argc, char **argv)
 {
     uint16_t conn = 0;
     uint16_t psm = 0;
+    uint16_t mtu;
     uint8_t num;
     int rc;
 
@@ -168,13 +176,19 @@ cmd_l2cap_connect(int argc, char **argv)
         return rc;
     }
 
+    mtu = parse_arg_uint16_dflt("mtu", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'mtu' parameter\n");
+        return rc;
+    }
+
     num = parse_arg_uint8_dflt("num", 1, &rc);
     if (rc != 0) {
         console_printf("invalid 'num' parameter\n");
         return rc;
     }
 
-    return btshell_l2cap_connect(conn, psm, num);
+    return btshell_l2cap_connect(conn, psm, mtu, num);
 }
 
 /*****************************************************************************
