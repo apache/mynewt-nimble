@@ -2298,7 +2298,7 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
 #endif
 
 int
-btshell_l2cap_create_srv(uint16_t psm, int accept_response)
+btshell_l2cap_create_srv(uint16_t psm, uint16_t mtu, int accept_response)
 {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
     console_printf("BLE L2CAP LE COC not supported.");
@@ -2306,13 +2306,17 @@ btshell_l2cap_create_srv(uint16_t psm, int accept_response)
     return 0;
 #else
 
-    return ble_l2cap_create_server(psm, BTSHELL_COC_MTU, btshell_l2cap_event,
+    if (mtu == 0 || mtu > BTSHELL_COC_MTU) {
+        mtu = BTSHELL_COC_MTU;
+    }
+
+    return ble_l2cap_create_server(psm, mtu, btshell_l2cap_event,
                                    INT_TO_PTR(accept_response));
 #endif
 }
 
 int
-btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint8_t num)
+btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu, uint8_t num)
 {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
     console_printf("BLE L2CAP LE COC not supported.");
@@ -2323,17 +2327,23 @@ btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint8_t num)
     struct os_mbuf *sdu_rx[num];
     int i;
 
+    if (mtu == 0 || mtu > BTSHELL_COC_MTU) {
+        mtu = BTSHELL_COC_MTU;
+    }
+
+    console_printf("L2CAP CoC MTU: %d, max available %d\n", mtu, BTSHELL_COC_MTU);
+
     for (i = 0; i < num; i++) {
         sdu_rx[i] = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
         assert(sdu_rx != NULL);
     }
 
     if (num == 1) {
-        return ble_l2cap_connect(conn_handle, psm, BTSHELL_COC_MTU, sdu_rx[0],
+        return ble_l2cap_connect(conn_handle, psm, mtu, sdu_rx[0],
                                      btshell_l2cap_event, NULL);
     }
 
-    return ble_l2cap_enhanced_connect(conn_handle, psm, BTSHELL_COC_MTU,
+    return ble_l2cap_enhanced_connect(conn_handle, psm, mtu,
                                       num, sdu_rx,btshell_l2cap_event, NULL);
 #endif
 }

@@ -170,8 +170,8 @@ int btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate,
                      uint16_t num);
 void btshell_tx_stop(void);
 int btshell_rssi(uint16_t conn_handle, int8_t *out_rssi);
-int btshell_l2cap_create_srv(uint16_t psm, int accept_response);
-int btshell_l2cap_connect(uint16_t conn, uint16_t psm, uint8_t num);
+int btshell_l2cap_create_srv(uint16_t psm, uint16_t mtu, int accept_response);
+int btshell_l2cap_connect(uint16_t conn, uint16_t psm, uint16_t mtu, uint8_t num);
 int btshell_l2cap_disconnect(uint16_t conn, uint16_t idx);
 int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
 int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
