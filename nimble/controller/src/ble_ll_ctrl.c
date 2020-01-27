@@ -2416,7 +2416,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         feature = BLE_LL_FEAT_MIN_USED_CHAN;
         break;
     case BLE_LL_CTRL_PERIODIC_SYNC_IND:
-        feature = BLE_LL_FEAT_SYNC_RECV;
+        feature = BLE_LL_FEAT_SYNC_TRANS_RECV;
         break;
     default:
         feature = 0;
