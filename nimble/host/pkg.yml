@@ -41,6 +41,9 @@ pkg.deps.BLE_SM_SC:
 pkg.deps.BLE_MESH:
     - nimble/host/mesh
 
+pkg.deps.BLE_EATT_CHAN_NUM:
+    - nimble/host/services/gatt
+
 pkg.req_apis:
     - ble_transport
     - console
