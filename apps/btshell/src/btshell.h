@@ -72,6 +72,7 @@ SLIST_HEAD(btshell_svc_list, btshell_svc);
 struct btshell_l2cap_coc {
     SLIST_ENTRY(btshell_l2cap_coc) next;
     struct ble_l2cap_chan *chan;
+    bool stalled;
 };
 
 SLIST_HEAD(btshell_l2cap_coc_list, btshell_l2cap_coc);

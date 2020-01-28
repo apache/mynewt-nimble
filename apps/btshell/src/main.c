@@ -2209,6 +2209,31 @@ btshell_l2cap_coc_accept(uint16_t conn_handle, uint16_t peer_mtu,
     return ble_l2cap_recv_ready(chan, sdu_rx);
 }
 
+static void
+btshell_l2cap_coc_unstalled(uint16_t conn_handle, struct ble_l2cap_chan *chan)
+{
+    struct btshell_conn *conn;
+    struct btshell_l2cap_coc *coc;
+    struct btshell_l2cap_coc *cur;
+
+    conn = btshell_conn_find(conn_handle);
+    assert(conn != NULL);
+
+    coc = NULL;
+    SLIST_FOREACH(cur, &conn->coc_list, next) {
+        if (cur->chan == chan) {
+            coc = cur;
+            break;
+        }
+    }
+
+    if (!coc) {
+        return;
+    }
+
+    coc->stalled = false;
+}
+
 static int
 btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
@@ -2290,6 +2315,7 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
         case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
             console_printf("L2CAP CoC channel %p unstalled, last sdu sent with err=0x%02x\n",
                             event->tx_unstalled.chan, event->tx_unstalled.status);
+            btshell_l2cap_coc_unstalled(event->tx_unstalled.conn_handle, event->tx_unstalled.chan);
             return 0;
         default:
             return 0;
@@ -2457,6 +2483,11 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
         return 0;
     }
 
+    if (coc->stalled) {
+        console_printf("Channel is stalled, wait ...\n");
+        return 0;
+    }
+
     sdu_tx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
     if (sdu_tx == NULL) {
         console_printf("No memory in the test sdu pool\n");
@@ -2486,7 +2517,12 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
 
     rc = ble_l2cap_send(coc->chan, sdu_tx);
     if (rc) {
-        console_printf("Could not send data rc=%d\n", rc);
+        if (rc == BLE_HS_ESTALLED) {
+          console_printf("CoC module is stalled with data. Wait for unstalled \n");
+          coc->stalled = true;
+        } else {
+            console_printf("Could not send data rc=%d\n", rc);
+        }
         os_mbuf_free_chain(sdu_tx);
     }
 
