@@ -199,7 +199,18 @@ struct ble_l2cap_event {
     };
 };
 
+struct ble_l2cap_chan_info {
+    uint16_t scid;
+    uint16_t dcid;
+    uint16_t our_l2cap_mtu;
+    uint16_t peer_l2cap_mtu;
+    uint16_t psm;
+    uint16_t our_coc_mtu;
+    uint16_t peer_coc_mtu;
+};
+
 typedef int ble_l2cap_event_fn(struct ble_l2cap_event *event, void *arg);
+
 
 uint16_t ble_l2cap_get_conn_handle(struct ble_l2cap_chan *chan);
 int ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
@@ -211,10 +222,7 @@ int ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 int ble_l2cap_disconnect(struct ble_l2cap_chan *chan);
 int ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
 int ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx);
-int ble_l2cap_get_scid(struct ble_l2cap_chan *chan);
-int ble_l2cap_get_dcid(struct ble_l2cap_chan *chan);
-int ble_l2cap_get_our_mtu(struct ble_l2cap_chan *chan);
-int ble_l2cap_get_peer_mtu(struct ble_l2cap_chan *chan);
+int ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info *chan_info);
 
 #ifdef __cplusplus
 }
