@@ -155,7 +155,30 @@ ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     return ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg);
 }
 
-int ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
+int
+ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info *chan_info)
+{
+    if (!chan || !chan_info) {
+        return BLE_HS_EINVAL;
+    }
+
+    memset(chan_info, 0, sizeof(*chan_info));
+    chan_info->dcid = chan->dcid;
+    chan_info->scid = chan->scid;
+    chan_info->our_l2cap_mtu = chan->my_mtu;
+    chan_info->peer_l2cap_mtu = chan->peer_mtu;
+
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+    chan_info->psm = chan->psm;
+    chan_info->our_coc_mtu = chan->coc_rx.mtu;
+    chan_info->peer_coc_mtu = chan->coc_tx.mtu;
+#endif
+
+    return 0;
+}
+
+int
+ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
 {
     return ble_l2cap_sig_disconnect(chan);
 }

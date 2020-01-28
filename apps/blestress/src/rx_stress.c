@@ -754,6 +754,7 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     static int data_len = 1000;
     static int send_cnt = 0;
     static bool stalled = false;
+    struct ble_l2cap_chan_info chan_info;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
@@ -762,15 +763,17 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
             return 0;
         }
 
+        ble_l2cap_get_chan_info(event->connect.chan, &chan_info);
+
         MODLOG_DFLT(INFO,
                     "LE COC connected, conn: %d, chan: 0x%08lx, scid: 0x%04x, "
                     "dcid: 0x%04x, our_mtu: 0x%04x, peer_mtu: 0x%04x\n",
                     event->connect.conn_handle,
                     (uint32_t) event->connect.chan,
-                    ble_l2cap_get_scid(event->connect.chan),
-                    ble_l2cap_get_dcid(event->connect.chan),
-                    ble_l2cap_get_our_mtu(event->connect.chan),
-                    ble_l2cap_get_peer_mtu(event->connect.chan));
+                    chan_info.scid,
+                    chan_info.dcid,
+                    chan_info.our_l2cap_mtu,
+                    chan_info.peer_l2cap_mtu);
 
         struct ble_l2cap_sig_update_params params = {
             .itvl_min = 0x0006,//BLE_GAP_INITIAL_CONN_ITVL_MIN

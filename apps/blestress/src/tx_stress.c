@@ -1020,6 +1020,7 @@ tx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
     static int i = 0;
     int64_t us = 0;
+    struct ble_l2cap_chan_info chan_info;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
@@ -1028,15 +1029,17 @@ tx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
             MODLOG_DFLT(INFO, "Established L2CAP connection\n");
             tx_stress_ctx->chan = event->connect.chan;
 
+            ble_l2cap_get_chan_info(event->connect.chan, &chan_info);
+
             MODLOG_DFLT(INFO,
                         "LE COC connected, conn: %d, chan: 0x%08lx, scid: 0x%04x, "
                         "dcid: 0x%04x, our_mtu: 0x%04x, peer_mtu: 0x%04x\n",
                         event->connect.conn_handle,
                         (uint32_t) event->connect.chan,
-                        ble_l2cap_get_scid(event->connect.chan),
-                        ble_l2cap_get_dcid(event->connect.chan),
-                        ble_l2cap_get_our_mtu(event->connect.chan),
-                        ble_l2cap_get_peer_mtu(event->connect.chan));
+                        chan_info.scid,
+                        chan_info.dcid,
+                        chan_info.our_l2cap_mtu,
+                        chan_info.peer_l2cap_mtu);
 
             tx_stress_10_l2cap_send_req();
         }

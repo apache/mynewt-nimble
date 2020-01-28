@@ -207,6 +207,8 @@ static int accept_cb(uint16_t conn_handle, uint16_t peer_mtu,
 static int
 tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
+	struct ble_l2cap_chan_info chan_info;
+
 	switch (event->type) {
 	case BLE_L2CAP_EVENT_COC_CONNECTED:
 		if (event->connect.status) {
@@ -216,14 +218,16 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 			return 0;
 		}
 
+		ble_l2cap_get_chan_info(event->connect.chan, &chan_info);
+
 		console_printf("LE COC connected, conn: %d, chan: 0x%08lx, scid: 0x%04x, "
 			       "dcid: 0x%04x, our_mtu: 0x%04x, peer_mtu: 0x%04x\n",
 			       event->connect.conn_handle,
 			       (uint32_t) event->connect.chan,
-			       ble_l2cap_get_scid(event->connect.chan),
-			       ble_l2cap_get_dcid(event->connect.chan),
-			       ble_l2cap_get_our_mtu(event->connect.chan),
-			       ble_l2cap_get_peer_mtu(event->connect.chan));
+			       chan_info.scid,
+			       chan_info.dcid,
+			       chan_info.our_l2cap_mtu,
+			       chan_info.peer_l2cap_mtu);
 
 		connected_cb(event->connect.conn_handle,
 			     event->connect.chan, arg);
