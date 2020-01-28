@@ -908,8 +908,9 @@ ble_att_clt_tx_notify(uint16_t conn_handle, uint16_t handle,
     req->banq_handle = htole16(handle);
     os_mbuf_concat(txom2, txom);
 
-    cid = BLE_L2CAP_CID_ATT;
+    cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
     return ble_att_tx(conn_handle, cid, txom2);
+    ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
 
 err:
     os_mbuf_free_chain(txom);

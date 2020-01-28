@@ -689,7 +689,7 @@ ble_gattc_proc_prepare(struct ble_gattc_proc *proc, uint16_t conn_handle, uint8_
 {
     proc->conn_handle = conn_handle;
     proc->op = op;
-    proc->cid = BLE_L2CAP_CID_ATT;
+    proc->cid = ble_eatt_get_available_chan_cid(conn_handle, op);
 }
 
 /**
@@ -718,6 +718,12 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
         default:
             break;
         }
+
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+    if (proc->cid != BLE_L2CAP_CID_ATT) {
+        ble_eatt_release_chan(proc->conn_handle, proc->op);
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
         memset(proc, 0xff, sizeof *proc);
@@ -3450,15 +3456,18 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
 #endif
 
     int rc;
+    uint16_t cid;
 
     STATS_INC(ble_gattc_stats, write_no_rsp);
 
     ble_gattc_log_write(attr_handle, OS_MBUF_PKTLEN(txom), 0);
 
-    rc = ble_att_clt_tx_write_cmd(conn_handle, BLE_L2CAP_CID_ATT, attr_handle, txom);
+    cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
+    rc = ble_att_clt_tx_write_cmd(conn_handle, cid, attr_handle, txom);
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, write);
     }
+    ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
 
     return rc;
 }

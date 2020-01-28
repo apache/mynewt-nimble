@@ -506,20 +506,12 @@ ble_att_send_outstanding_after_response(uint16_t conn_handle)
 }
 
 static int
-ble_att_rx(struct ble_l2cap_chan *chan)
+ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 {
     const struct ble_att_rx_dispatch_entry *entry;
     uint8_t op;
-    uint16_t conn_handle;
-    struct os_mbuf **om;
     int rc;
 
-    conn_handle = ble_l2cap_get_conn_handle(chan);
-    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    om = &chan->rx_buf;
     BLE_HS_DBG_ASSERT(*om != NULL);
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
@@ -533,7 +525,7 @@ ble_att_rx(struct ble_l2cap_chan *chan)
 
     entry = ble_att_rx_dispatch_entry_find(op);
     if (entry == NULL) {
-        ble_att_rx_handle_unknown_request(op, conn_handle, chan->scid, om);
+        ble_att_rx_handle_unknown_request(op, conn_handle, cid, om);
         return BLE_HS_ENOTSUP;
     }
 
@@ -542,15 +534,28 @@ ble_att_rx(struct ble_l2cap_chan *chan)
     /* Strip L2CAP ATT header from the front of the mbuf. */
     os_mbuf_adj(*om, 1);
 
-    rc = entry->bde_fn(conn_handle, chan->scid, om);
+    rc = entry->bde_fn(conn_handle, cid, om);
     if (rc != 0) {
         if (rc == BLE_HS_ENOTSUP) {
-            ble_att_rx_handle_unknown_request(op, conn_handle, chan->scid, om);
+            ble_att_rx_handle_unknown_request(op, conn_handle, cid, om);
         }
         return rc;
     }
 
     return 0;
+}
+
+static int
+ble_att_rx(struct ble_l2cap_chan *chan)
+{
+    uint16_t conn_handle;
+
+    conn_handle = ble_l2cap_get_conn_handle(chan);
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    return ble_att_rx_extended(conn_handle, chan->scid, &chan->rx_buf);
 }
 
 uint16_t
@@ -672,6 +677,8 @@ ble_att_init(void)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
+
+    ble_eatt_init(ble_att_rx_extended);
 
     return 0;
 }
