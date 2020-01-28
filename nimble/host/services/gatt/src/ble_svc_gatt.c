@@ -27,29 +27,89 @@ static uint16_t ble_svc_gatt_changed_val_handle;
 static uint16_t ble_svc_gatt_start_handle;
 static uint16_t ble_svc_gatt_end_handle;
 
+/* Server supported features */
+#define BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT      (0x00)
+
+/* Client supported features */
+#define BLE_SVC_GATT_CLI_SUP_FEAT_ROBUST_CATCHING_BIT   (0x00)
+#define BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT              (0x01)
+#define BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT          (0x02)
+
+static uint8_t ble_svc_gatt_srv_sup_feat = 0;
+static uint8_t ble_svc_gatt_cl_sup_feat = 0;
+
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
                     struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int
+ble_svc_gatt_srv_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
+                                 struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int
+ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
+                                struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
     {
         /*** Service: GATT */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(BLE_GATT_SVC_UUID16),
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16),
-            .access_cb = ble_svc_gatt_access,
-            .val_handle = &ble_svc_gatt_changed_val_handle,
-            .flags = BLE_GATT_CHR_F_INDICATE,
-        }, {
-            0, /* No more characteristics in this service. */
-        } },
+        .characteristics = (struct ble_gatt_chr_def[]) {
+            {
+                .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16),
+                .access_cb = ble_svc_gatt_access,
+                .val_handle = &ble_svc_gatt_changed_val_handle,
+                .flags = BLE_GATT_CHR_F_INDICATE,
+            },
+            {
+                .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_SERVER_SUPPORTED_FEAT_UUID16),
+                .access_cb = ble_svc_gatt_srv_sup_feat_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEAT_UUID16),
+                .access_cb = ble_svc_gatt_cl_sup_feat_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+            },
+            {
+                0, /* No more characteristics in this service. */
+            }
+        },
     },
 
     {
         0, /* No more services. */
     },
 };
+
+static int
+ble_svc_gatt_srv_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
+                                 struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    os_mbuf_append(ctxt->om, &ble_svc_gatt_srv_sup_feat, sizeof(ble_svc_gatt_srv_sup_feat));
+
+    return 0;
+}
+
+static int
+ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
+                                struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        /* TODO For now just send 1*/
+        uint8_t eatt_supported = 2;
+        os_mbuf_append(ctxt->om, &eatt_supported, sizeof(eatt_supported));
+        return 0;
+    }
+    /* TODO For write just return OK */
+
+    return 0;
+}
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -75,6 +135,12 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
     put_le16(u8p + 2, ble_svc_gatt_end_handle);
 
     return 0;
+}
+
+uint8_t
+ble_svc_gatt_get_local_cl_supported_feat(void)
+{
+    return ble_svc_gatt_cl_sup_feat;
 }
 
 /**
@@ -105,4 +171,12 @@ ble_svc_gatt_init(void)
 
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
+
+    if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
+        ble_svc_gatt_srv_sup_feat |= (1 << BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT);
+    }
+
+    if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
+        ble_svc_gatt_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT);
+    }
 }

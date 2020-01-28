@@ -66,16 +66,19 @@ ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan, stru
         }
         omp = STAILQ_FIRST(&conn->att_tx_q);
         if (omp == NULL) {
+            BLE_EATT_LOG_ERROR("%s: wakeup but nothing in the queue\n", __func__);
             return 0;
         }
         STAILQ_REMOVE_HEAD(&conn->att_tx_q, omp_next);
         txom = OS_MBUF_PKTHDR_TO_MBUF(omp);
+        BLE_EATT_LOG_DEBUG("%s: wakeup will send %p\n", __func__, txom);
     }
 
     BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
 
     if (ble_att_is_request_op(txom->om_data[0])) {
         if (conn->client_att_busy) {
+            BLE_EATT_LOG_DEBUG("ATT Queue %p, client busy %d\n", txom, conn->client_att_busy);
             STAILQ_INSERT_TAIL(&conn->att_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
             return 0;
         }
@@ -96,6 +99,12 @@ ble_att_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int rc;
+
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+    if (cid != BLE_L2CAP_CID_ATT) {
+        return ble_eatt_tx(conn_handle, cid, txom);
+    }
+#endif
 
     ble_hs_lock();
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
