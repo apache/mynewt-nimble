@@ -634,6 +634,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
                 units |= 0x40;
             } else {
                 offset = 0;
+                units = 0x00;
             }
         }
 
