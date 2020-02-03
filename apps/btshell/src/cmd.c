@@ -3767,7 +3767,7 @@ cmd_sync_create(int argc, char **argv)
         return rc;
     }
 
-    params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000, 10, &rc);
+    params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000, 2000, &rc);
     if (rc != 0) {
         console_printf("invalid 'sync_timeout' parameter\n");
         return rc;
