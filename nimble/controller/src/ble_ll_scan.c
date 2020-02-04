@@ -3151,10 +3151,10 @@ ble_ll_scan_rx_pkt_in_on_aux(uint8_t pdu_type, struct os_mbuf *om,
             /* Data were truncated so stop scanning for subsequent auxes */
             aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
 
-            ble_ll_sched_rmv_elem(&aux_data->sch);
-
-            ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
-            aux_data->sch.cb_arg = NULL;
+            if (ble_ll_sched_rmv_elem(&aux_data->sch) == 0) {
+                ble_ll_scan_aux_data_unref(aux_data->sch.cb_arg);
+                aux_data->sch.cb_arg = NULL;
+            }
         } else if ((rc == 0) && scansm->scan_filt_dups) {
             /* Complete data were send so we can update scan_dup list */
             ble_ll_scan_dup_update_ext(addrd->adv_addr_type, addrd->adv_addr,
