@@ -599,22 +599,35 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 static void
 ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
-                        struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+                        struct ble_ll_conn_sm *connsm, uint8_t *conn_event_cnt,
+                        uint8_t *dptr)
 {
-    uint32_t offset;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    uint8_t anchor_usecs;
+    uint16_t conn_cnt;
+    uint32_t anchor;
+#endif
+    uint32_t offset = 0;
     uint8_t units;
 
     if (connsm) {
-        if (CPUTIME_LT(connsm->anchor_point, advsm->periodic_adv_event_start_time)) {
-            offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
-                                               connsm->anchor_point);
-        } else {
-            offset = os_cputime_ticks_to_usecs(connsm->anchor_point -
-                                               advsm->periodic_adv_event_start_time);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+        anchor = connsm->anchor_point;
+        anchor_usecs = connsm->anchor_point_usecs;
+        conn_cnt = connsm->event_cntr;
+
+        /* get anchor for conn event that is before periodic_adv_event_start_time */
+        while (CPUTIME_GT(anchor, advsm->periodic_adv_event_start_time)) {
+            ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
         }
 
-        offset -= connsm->anchor_point_usecs;
+        offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time - anchor);
+        offset -= anchor_usecs;
         offset += advsm->periodic_adv_event_start_time_remainder;
+
+        /* connEventCount */
+        put_le16(conn_event_cnt, conn_cnt);
+#endif
     } else {
         offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
                                            AUX_CURRENT(advsm)->start_time);
@@ -760,7 +773,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
-        ble_ll_adv_put_syncinfo(advsm, NULL, dptr);
+        ble_ll_adv_put_syncinfo(advsm, NULL, NULL, dptr);
         dptr += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
     }
 #endif
@@ -3984,10 +3997,7 @@ ble_ll_adv_periodic_send_sync_ind(struct ble_ll_adv_sm *advsm,
     memcpy(sync_ind, &service_data, sizeof(service_data));
 
     /* fill in syncinfo */
-    ble_ll_adv_put_syncinfo(advsm, connsm, sync_ind + 2);
-
-    /* connEventCount */
-    put_le16(sync_ind + 20, connsm->event_cntr);
+    ble_ll_adv_put_syncinfo(advsm, connsm, sync_ind + 20, sync_ind + 2);
 
     /* lastPaEventCounter */
     put_le16(sync_ind + 22, advsm->periodic_event_cntr_last_sent);
