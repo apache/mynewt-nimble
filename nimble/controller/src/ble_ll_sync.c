@@ -1989,21 +1989,30 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
 
 static void
 ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
-                         struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+                         struct ble_ll_conn_sm *connsm, uint8_t *conn_event_cnt,
+                         uint8_t *dptr)
 {
+    uint8_t anchor_usecs;
+    uint16_t conn_cnt;
     uint32_t offset;
+    uint32_t anchor;
     uint8_t units;
 
-     if (CPUTIME_LT(connsm->anchor_point, syncsm->anchor_point)) {
-         offset = os_cputime_ticks_to_usecs(syncsm->anchor_point -
-                                            connsm->anchor_point);
-     } else {
-         offset = os_cputime_ticks_to_usecs(connsm->anchor_point -
-                                            syncsm->anchor_point);
-     }
+    anchor = connsm->anchor_point;
+    anchor_usecs = connsm->anchor_point_usecs;
+    conn_cnt = connsm->event_cntr;
 
-     offset -= connsm->anchor_point_usecs;
-     offset += syncsm->anchor_point_usecs;
+    /* get anchor for conn event that is before periodic_adv_event_start_time */
+    while (CPUTIME_GT(anchor, syncsm->anchor_point)) {
+        ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
+    }
+
+    offset = os_cputime_ticks_to_usecs(syncsm->anchor_point - anchor);
+    offset -= anchor_usecs;
+    offset += syncsm->anchor_point_usecs;
+
+    /* connEventCount */
+    put_le16(conn_event_cnt, conn_cnt);
 
     /* Sync Packet Offset (13 bits), Offset Units (1 bit), Offset Adjust (1 bit),
      * RFU (1 bit)
@@ -2071,10 +2080,7 @@ ble_ll_sync_send_sync_ind(struct ble_ll_sync_sm *syncsm,
     memcpy(sync_ind, &service_data, sizeof(service_data));
 
     /* fill in syncinfo */
-    ble_ll_sync_put_syncinfo(syncsm, connsm, sync_ind + 2);
-
-    /* connEventCount */
-    put_le16(sync_ind + 20, connsm->event_cntr);
+    ble_ll_sync_put_syncinfo(syncsm, connsm, sync_ind + 20, sync_ind + 2);
 
     /* lastPaEventCounter */
     put_le16(sync_ind + 22, syncsm->event_cntr_last_received);
