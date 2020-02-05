@@ -738,27 +738,36 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         s_to_m = connsm->phy_data.req_pref_rx_phys_mask & tx_phys;
     }
 
-    /* Find new phys. If not different than current, set to 0 */
+    if (is_slave_sym) {
+        /*
+         * If either s_to_m or m_to_s is 0, it means for at least one direction
+         * requested PHY is not our preferred one so make sure we keep current
+         * PHY in both directions
+         *
+         * Core 5.2, Vol 6, PartB, 5.1.10
+         *     If the slave specified a single PHY in both the TX_PHYS and
+         *     RX_PHYS fields and both fields are the same, the master shall
+         *     either select the PHY specified by the slave for both directions
+         *     or shall leave both directions unchanged.
+         */
+        if ((s_to_m == 0) || (m_to_s == 0)) {
+            s_to_m = 0;
+            m_to_s = 0;
+        } else {
+            BLE_LL_ASSERT(s_to_m == m_to_s);
+        }
+    }
+
+    /* Calculate new PHYs to use */
     m_to_s = ble_ll_ctrl_find_new_phy(m_to_s);
+    s_to_m = ble_ll_ctrl_find_new_phy(s_to_m);
+
+    /* Make sure we do not indicate PHY change if the same as current one */
     if (m_to_s == connsm->phy_data.cur_tx_phy) {
         m_to_s = 0;
     }
-
-    s_to_m = ble_ll_ctrl_find_new_phy(s_to_m);
     if (s_to_m == connsm->phy_data.cur_rx_phy) {
         s_to_m = 0;
-    }
-
-    /*
-     * Core 5.0, Vol 6, PartB, 5.1.10
-     *     If the slave specified a single PHY in both the TX_PHYS and RX_PHYS
-     *     fields and both fields are the same, the master shall either select
-     *     the PHY specified by the slave for both directions or shall leave
-     *     both directions unchanged.
-     */
-    if (is_slave_sym && (s_to_m != m_to_s)) {
-        s_to_m = 0;
-        m_to_s = 0;
     }
 
     /* At this point, m_to_s and s_to_m are not masks; they are numeric */
