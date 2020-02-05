@@ -2405,6 +2405,13 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto scan_rx_isr_ignore;
     }
 
+    /*
+     * Addresses will be always set in handlers, no need to initialize them. We
+     * only need to initialize rl which may not be always set, depending on how
+     * filtering goes.
+     */
+    addrd.rl = NULL;
+
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
