@@ -2045,7 +2045,7 @@ ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
     dptr[8] = syncsm->chanmap[4] & 0x1f;
 
     /* SCA (3 bits) */
-    dptr[8] |= MYNEWT_VAL(BLE_LL_MASTER_SCA) << 5;
+    dptr[8] |= syncsm->sca << 5;
 
     /* AA (4 bytes) */
     put_le32(&dptr[9], syncsm->access_addr);
