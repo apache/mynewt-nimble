@@ -39,9 +39,9 @@ ble_npl_sem_pend(struct ble_npl_sem *sem, ble_npl_time_t timeout)
     struct timespec abs;
     uint64_t time;
 
-    time = xtimer_now_usec64() + ble_npl_time_ticks_to_ms32(timeout) * 1000;
-    abs.tv_sec = (time_t)(time / 1000000);
-    abs.tv_nsec = (long)((time % 1000000) * 1000);
+    time = xtimer_now_usec64() + ble_npl_time_ticks_to_ms32(timeout) * US_PER_MS;
+    abs.tv_sec = (time_t)(time / US_PER_SEC);
+    abs.tv_nsec = (long)((time % US_PER_SEC) * NS_PER_US);
 
     rc = sem_timedwait(&sem->sem, &abs);
 
@@ -62,8 +62,8 @@ ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *c, ble_npl_time_t ticks)
 {
     uint32_t now = xtimer_now_usec();
-    c->target_ticks = (ble_npl_time_t)((now / 1000) + ticks);
-    xtimer_set(&c->timer, ((ticks * 1000) - ((xtimer_now_usec() - now) / 1000)));
+    c->target_ticks = (ble_npl_time_t)((now / US_PER_MS) + ticks);
+    xtimer_set(&c->timer, ((ticks * US_PER_MS) - ((xtimer_now_usec() - now) / US_PER_MS)));
     return BLE_NPL_OK;
 }
 
@@ -72,5 +72,5 @@ ble_npl_callout_remaining_ticks(struct ble_npl_callout *co,
                                 ble_npl_time_t time)
 {
     uint32_t now = xtimer_now_usec();
-    return ((uint32_t)co->target_ticks) - (now / 1000);
+    return ((uint32_t)co->target_ticks) - (now / US_PER_MS);
 }
