@@ -83,9 +83,6 @@ ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn, uint16_t cid)
         if (chan->dcid == cid) {
             return chan;
         }
-        if (chan->dcid > cid) {
-            return NULL;
-        }
     }
 
     return NULL;
