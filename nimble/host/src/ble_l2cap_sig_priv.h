@@ -107,9 +107,19 @@ int ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan);
 int ble_l2cap_sig_le_credits(uint16_t conn_handle, uint16_t scid,
                              uint16_t credits);
 #else
-#define ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg) \
-                                                                BLE_HS_ENOTSUP
-#define ble_l2cap_sig_disconnect(chan)                          BLE_HS_ENOTSUP
+static inline int
+ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
+                          struct os_mbuf *sdu_rx,
+                          ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    return BLE_HS_ENOTSUP;
+}
+
+static inline int
+ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
+{
+    return BLE_HS_ENOTSUP;
+}
 #endif
 
 void ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason);
