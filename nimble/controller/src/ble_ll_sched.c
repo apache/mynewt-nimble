@@ -854,6 +854,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
     uint32_t window_ticks;
     uint32_t start_time;
     uint32_t end_time;
+    uint32_t dur;
     int rc = 0;
     os_sr_t sr;
 
@@ -871,11 +872,9 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
         start_time_rem_usecs -= 31;
     }
 
-    /* TODO For now assume max sync packet, make expected data size
-     * configurable
-     */
-    end_time = start_time + os_cputime_usecs_to_ticks(
-                                        ble_ll_pdu_tx_time_get(257, phy_mode));
+    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
+                                 phy_mode);
+    end_time = start_time + os_cputime_usecs_to_ticks(dur);
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -963,10 +962,8 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
         start_time_rem_usecs -= 31;
     }
 
-    /* TODO For now assume max sync packet, make expected data size
-     * configurable
-     */
-    dur = ble_ll_pdu_tx_time_get(257, phy_mode);
+    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
+                                  phy_mode);
     end_time = start_time + os_cputime_usecs_to_ticks(dur);
 
     start_time -= g_ble_ll_sched_offset_ticks;
@@ -1645,7 +1642,8 @@ ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
      */
     phy_mode = ble_ll_phy_to_phy_mode(aux_scan->aux_phy,
                                       BLE_HCI_LE_PHY_CODED_ANY);
-    dur = ble_ll_pdu_tx_time_get(BLE_LL_SCHED_AUX_PTR_DFLT_BYTES_NUM, phy_mode);
+    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
+                                 phy_mode);
     end_time = start_time + os_cputime_usecs_to_ticks(dur);
 
     sch->start_time = start_time;

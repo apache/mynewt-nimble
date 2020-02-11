@@ -361,6 +361,31 @@ syscfg.defs:
             when scheduling extended or periodic advertising event. This extends
             T_MAFS.
         value: 0
+    BLE_LL_SCHED_SCAN_AUX_PDU_LEN:
+        description: >
+            This is expected PDU len for AUX_ADV_IND and subsequent
+            AUX_CHAIN_IND. When scheduling scan scheduler will reserve time for
+            receiving this amount of time. Setting this to high value improves
+            reception of large PDUs but results in wasting scheduler space when
+            receiving small PDUs only. On the other hand too low value can
+            result in not being able to scan whole PDU due to being preempted
+            by next scheduled item. By default size matching legacy ADV_IND PDU
+            payload is used: ExtHeader (Flags, AdvA, ADI) + 31 bytes of data.
+        range: 1..257
+        value: 41
+
+    BLE_LL_SCHED_SCAN_SYNC_PDU_LEN:
+        description: >
+            This is expected PDU len for AUX_SYNC_IND and subsequent
+            AUX_CHAIN_IND. When scheduling scan scheduler will reserve time for
+            receiving this amount of time. Setting this to high value improves
+            reception of large PDUs but results in wasting scheduler space when
+            receiving small PDUs only. On the other hand too low value can
+            result in not being able to scan whole PDU due to being preempted
+            by next scheduled item. By default size matching PDU with legacy
+            data size is used: ExtHeader + 31 bytes of data.
+        range: 1..257
+        value: 32
 
 # deprecated settings (to be defunct/removed eventually)
     BLE_LL_DIRECT_TEST_MODE:
