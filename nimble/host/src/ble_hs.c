@@ -734,6 +734,11 @@ ble_hs_init(void)
     rc = ble_l2cap_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+#endif
+    rc = ble_gap_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+#if NIMBLE_BLE_CONNECT
+
     rc = ble_att_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
@@ -746,8 +751,6 @@ ble_hs_init(void)
     rc = ble_gatts_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 #endif
-    rc = ble_gap_init();
-    SYSINIT_PANIC_ASSERT(rc == 0);
 
     ble_hs_stop_init();
 
