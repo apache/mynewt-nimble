@@ -605,9 +605,10 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
     uint8_t anchor_usecs;
     uint16_t conn_cnt;
-    uint32_t anchor;
 #endif
+    unsigned int event_cnt_off = 0;
     uint32_t offset = 0;
+    uint32_t anchor;
     uint8_t units;
 
     if (connsm) {
@@ -629,9 +630,21 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
         put_le16(conn_event_cnt, conn_cnt);
 #endif
     } else {
-        offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time -
-                                           AUX_CURRENT(advsm)->start_time);
+        anchor = advsm->periodic_adv_event_start_time;
+
+        /* Get periodic event that is past AUX start time (so that we always
+         * provide valid offset if it is not too far in future). This can
+         * happen if advertising event is interleaved with periodic advertising
+         * event (when chaining).
+         */
+        while (CPUTIME_GT(AUX_CURRENT(advsm)->start_time, anchor)) {
+            anchor += advsm->periodic_adv_itvl_ticks;
+            event_cnt_off++;
+        }
+
+        offset = os_cputime_ticks_to_usecs(anchor - AUX_CURRENT(advsm)->start_time);
         offset += advsm->periodic_adv_event_start_time_remainder;
+        offset += advsm->periodic_adv_itvl_rem_usec;
     }
 
     /* Sync Packet Offset (13 bits), Offset Units (1 bit), Offset Adjust (1 bit),
@@ -646,8 +659,10 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
                 offset -= 0x2000;
                 units |= 0x40;
             } else {
+                /* not able to represent time in offset */
                 offset = 0;
                 units = 0x00;
+                event_cnt_off = 0;
             }
         }
 
@@ -681,7 +696,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
     dptr[15] = (uint8_t)(advsm->periodic_crcinit >> 16);
 
     /* Event Counter (2 bytes) */
-    put_le16(&dptr[16], advsm->periodic_event_cntr);
+    put_le16(&dptr[16], advsm->periodic_event_cntr + event_cnt_off);
 }
 #endif
 
