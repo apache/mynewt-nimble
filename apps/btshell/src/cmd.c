@@ -2712,7 +2712,7 @@ cmd_security_unpair(int argc, char **argv)
 
     rc = parse_dev_addr("peer_", cmd_peer_addr_types, &peer);
     if (rc != 0) {
-        console_printf("invalid 'peer_addr' parameter\n");
+        console_printf("invalid peer address\n");
         return rc;
     }
 
