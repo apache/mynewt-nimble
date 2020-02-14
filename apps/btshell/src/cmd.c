@@ -3795,7 +3795,7 @@ static const struct shell_param sync_create_params[] = {
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
     {"sid", "usage: =[UINT8], default: 0"},
     {"skip", "usage: =[0-0x01F3], default: 0x0000"},
-    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x000A"},
+    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x07D0"},
     {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
