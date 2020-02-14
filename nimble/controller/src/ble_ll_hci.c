@@ -453,6 +453,17 @@ ble_ll_hci_le_wr_sugg_data_len(const uint8_t *cmdbuf, uint8_t len)
         g_ble_ll_conn_params.conn_init_max_tx_time =
                         min(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
 
+        /*
+         * Use the same for coded and uncoded defaults. These are used when PHY
+         * parameters are initialized and we want to use values overridden by
+         * host. Make sure we do not exceed max supported time on uncoded.
+         */
+        g_ble_ll_conn_params.conn_init_max_tx_time_uncoded =
+                                min(BLE_LL_CONN_SUPP_TIME_MAX_UNCODED,
+                                    g_ble_ll_conn_params.conn_init_max_tx_time);
+        g_ble_ll_conn_params.conn_init_max_tx_time_coded =
+                                g_ble_ll_conn_params.conn_init_max_tx_time;
+
         rc = BLE_ERR_SUCCESS;
     } else {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
