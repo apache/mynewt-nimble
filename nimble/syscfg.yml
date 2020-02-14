@@ -107,6 +107,10 @@ syscfg.defs:
         value: 0
         restrictions:
             - 'BLE_ISO if 1'
+    BLE_ISO_LOOPBACK:
+        decription: >
+            Enable ISO loopback - mynewt will just send back ISO data to the remote
+        value: 0
 
     BLE_HCI_VS:
         description: >

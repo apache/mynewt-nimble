@@ -500,6 +500,16 @@ syscfg.defs:
         restrictions:
             - 'BLE_ISO_BROADCASTER if 0'
 
+    BLE_MAX_CIS_CONNECTIONS:
+        description: >
+            Number of supported CISs
+        value: 4
+
+    BLE_MAX_CIG:
+        desciptrion: >
+            Number of available CIGs
+        value: 1
+
     ### Log settings.
 
     BLE_HS_LOG_MOD:
@@ -516,10 +526,21 @@ syscfg.defs:
         description: 'Minimum level for the BLE EATT log.'
         value: 1
 
+    BLE_HS_LEAUDIO_MOD:
+        description: 'Numeric module ID to use for BLE LEAudio log messages.'
+        value: 28
+    BLE_HS_LEAUDIO_LOG_LVL:
+        description: 'Minimum level for the BLE LEAudio logs.'
+        value: 1
+
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
         level: MYNEWT_VAL(BLE_HS_LOG_LVL)
+       
+    BLE_HS_LEAUDIO_LOG:
+        module: MYNEWT_VAL(BLE_HS_LEAUDIO_MOD)
+        level: MYNEWT_VAL(BLE_HS_LEAUDIO_LOG_LVL)
 
     BLE_EATT_LOG:
        module: MYNEWT_VAL(BLE_EATT_LOG_MOD)

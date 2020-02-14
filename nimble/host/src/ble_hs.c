@@ -75,6 +75,7 @@ static struct ble_npl_callout ble_hs_timer;
 static struct ble_npl_eventq *ble_hs_evq;
 
 static struct ble_mqueue ble_hs_rx_q;
+static struct ble_mqueue ble_hs_rx_iso_q;
 
 static struct ble_npl_mutex ble_hs_mutex;
 
@@ -225,6 +226,16 @@ ble_hs_process_rx_data_queue(void)
     }
 }
 
+void
+ble_hs_process_rx_iso_data_queue(void)
+{
+    struct os_mbuf *om;
+
+    while ((om = ble_mqueue_get(&ble_hs_rx_iso_q)) != NULL) {
+        ble_hs_hci_evt_iso_process(om);
+    }
+}
+
 static int
 ble_hs_wakeup_tx_conn(struct ble_hs_conn *conn)
 {
@@ -302,6 +313,13 @@ ble_hs_clear_rx_queue(void)
     while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
         os_mbuf_free_chain(om);
     }
+
+#if MYNEWT_VAL(BLE_ISO)
+    while ((om = ble_mqueue_get(&ble_hs_rx_iso_q)) != NULL) {
+        os_mbuf_free_chain(om);
+    }
+#endif
+
 }
 
 int
@@ -513,6 +531,12 @@ ble_hs_event_rx_data(struct ble_npl_event *ev)
 }
 
 static void
+ble_hs_event_rx_iso_data(struct ble_npl_event *ev)
+{
+    ble_hs_process_rx_iso_data_queue();
+}
+
+static void
 ble_hs_event_reset(struct ble_npl_event *ev)
 {
     ble_hs_reset();
@@ -676,6 +700,28 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
     return 0;
 }
 
+static int
+ble_hs_rx_iso(struct os_mbuf *om, void *arg)
+{
+#if MYNEWT_VAL(BLE_ISO)
+    int rc;
+
+    /* If flow control is enabled, mark this packet with its corresponding
+     * connection handle.
+     */
+
+    rc = ble_mqueue_put(&ble_hs_rx_iso_q, ble_hs_evq, om);
+    if (rc != 0) {
+        os_mbuf_free_chain(om);
+        return BLE_HS_EOS;
+    }
+
+    return 0;
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
 /**
  * Enqueues an ACL data packet for transmission.  This function consumes the
  * supplied mbuf, regardless of the outcome.
@@ -765,6 +811,7 @@ ble_hs_init(void)
     ble_hs_stop_init();
 
     ble_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);
+    ble_mqueue_init(&ble_hs_rx_iso_q, ble_hs_event_rx_iso_data, NULL);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_hs_stats), STATS_SIZE_INIT_PARMS(ble_hs_stats,
@@ -815,9 +862,7 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 int
 ble_transport_to_hs_iso_impl(struct os_mbuf *om)
 {
-    os_mbuf_free_chain(om);
-
-    return 0;
+    return ble_hs_rx_iso(om, NULL);
 }
 
 void

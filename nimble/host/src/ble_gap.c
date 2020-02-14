@@ -26,6 +26,7 @@
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
 #include "ble_gap_priv.h"
+#include "ble_iso_priv.h"
 
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -1208,7 +1209,10 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
 
     rc = ble_gap_find_snapshot(conn_handle, &snap);
     if (rc != 0) {
+#if MYNEWT_VAL(BLE_ISO)
         /* No longer connected. */
+        ble_iso_disconnected_event(conn_handle, reason, false);
+#endif
         return;
     }
 
@@ -1232,7 +1236,10 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     ble_sm_connection_broken(conn_handle);
     ble_gatts_connection_broken(conn_handle);
     ble_gattc_connection_broken(conn_handle);
-    ble_hs_flow_connection_broken(conn_handle);;
+    ble_hs_flow_connection_broken(conn_handle);
+#if MYNEWT_VAL(BLE_ISO)
+    ble_iso_disconnected_event(conn_handle, reason, true);
+#endif
 
     ble_hs_atomic_conn_delete(conn_handle);
 

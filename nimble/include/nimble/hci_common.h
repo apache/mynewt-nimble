@@ -846,6 +846,7 @@ struct ble_hci_le_read_iso_tx_sync_rp {
     uint8_t time_offset[3];
 } __attribute__((packed));
 
+#define BLE_HCI_LE_SET_CIG_CIS_MAX_NUM                   (0x1F)
 #define BLE_HCI_OCF_LE_SET_CIG_PARAMS                    (0x0062)
 struct ble_hci_le_cis_params {
     uint8_t cis_id;
@@ -2117,6 +2118,37 @@ struct ble_hci_iso_data {
     uint16_t sdu_len;
     uint8_t data[0];
 };
+
+#if MYNEWT_VAL(BLE_ISO)
+
+#define BLE_HCI_ISO_DATA_HANDLE(handle_pb_ts)   (((handle_pb_ts) & 0x0fff) >> 0)
+#define BLE_HCI_ISO_DATA_TS(handle_pb_ts)       (((handle_pb_ts) & 0x4000) >> 14)
+#define BLE_HCI_ISO_DATA_LEN(len_rfu)           ((len_rfu) & 0x3fff)
+#define BLE_HCI_ISO_DATA_SDU_LEN(sdu_len_psf)    ((sdu_len_psf) & 0x0fff)
+#define BLE_HCI_ISO_DATA_PS_FLAG(sdu_len_psf)    (((sdu_len_psf) & 0xc000) >> 14)
+
+#define BLE_HCI_ISO_HDR_SIZE_WITH_TS        (12)
+struct hci_iso_data_with_ts_hdr {
+    uint32_t ts;
+    uint16_t seq_num;
+    uint16_t sdu_len_psf;
+};
+
+#define BLE_HCI_ISO_HDR_SIZE_NO_TS          (8)
+struct hci_iso_data_no_ts_hdr {
+    uint16_t seq_num;
+    uint16_t sdu_len_psf;
+};
+
+struct hci_iso_hdr {
+    uint16_t handle_pb_ts;
+    uint16_t len;
+    union {
+        struct hci_iso_data_with_ts_hdr with_ts;
+        struct hci_iso_data_no_ts_hdr no_ts;
+    };
+};
+#endif
 
 #ifdef __cplusplus
 }

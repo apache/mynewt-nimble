@@ -49,6 +49,8 @@ extern "C" {
 #define BLE_MONITOR_EXTHDR_SCO_TX_DROPS     6
 #define BLE_MONITOR_EXTHDR_OTHER_DROPS      7
 #define BLE_MONITOR_EXTHDR_TS32             8
+#define BLE_MONITOR_EXTHDR_ISO_RX_DROPS     9
+#define BLE_MONITOR_EXTHDR_ISO_TX_DROPS     10
 
 struct ble_monitor_hdr {
     uint16_t  data_len;

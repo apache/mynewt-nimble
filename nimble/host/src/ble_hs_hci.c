@@ -33,6 +33,11 @@ static struct ble_hci_ev *ble_hs_hci_ack;
 static uint16_t ble_hs_hci_buf_sz;
 static uint8_t ble_hs_hci_max_pkts;
 
+#if MYNEWT_VAL(BLE_ISO)
+static uint16_t ble_iso_hci_buf_sz;
+static uint8_t ble_iso_hci_max_pkts;
+#endif
+
 /* For now 32-bits of features is enough */
 static uint32_t ble_hs_hci_sup_feat;
 
@@ -75,6 +80,9 @@ static struct os_mempool ble_hs_hci_frag_mempool;
  * variable must only be accessed while the host mutex is locked.
  */
 uint16_t ble_hs_hci_avail_pkts;
+#if MYNEWT_VAL(BLE_ISO)
+uint16_t ble_iso_hci_avail_pkts;
+#endif
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 static ble_hs_hci_phony_ack_fn *ble_hs_hci_phony_ack_cb;
@@ -119,6 +127,47 @@ ble_hs_hci_set_buf_sz(uint16_t pktlen, uint16_t max_pkts)
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_ISO)
+int
+ble_iso_hci_set_buf_sz(uint16_t iso_pktlen, uint16_t iso_max_pkts)
+{
+    ble_iso_hci_buf_sz = iso_pktlen;
+    ble_iso_hci_max_pkts = iso_max_pkts;
+    ble_iso_hci_avail_pkts = iso_max_pkts;
+
+    return 0;
+}
+
+/**
+ * Calculates the largest ISO payload that the controller can accept.
+ */
+uint16_t
+ble_hs_iso_hci_max_iso_payload_sz(void)
+{
+    /* As per BLE 5.1 Standard, Vol. 2, Part E, section 7.8.2:
+     * The LE_Read_Buffer_Size command is used to read the maximum size of the
+     * data portion of HCI LE ACL Data Packets sent from the Host to the
+     * Controller.
+     */
+    return ble_iso_hci_buf_sz;
+}
+/**
+ * Increases the count of available controller ACL buffers.
+ */
+
+void
+ble_hs_iso_hci_add_avail_pkts(uint16_t delta)
+{
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    if (ble_iso_hci_avail_pkts + delta > UINT16_MAX) {
+        ble_hs_sched_reset(BLE_HS_ECONTROLLER);
+    } else {
+        ble_iso_hci_avail_pkts += delta;
+    }
+}
+#endif
 
 /**
  * Increases the count of available controller ACL buffers.
