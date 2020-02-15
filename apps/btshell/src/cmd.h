@@ -47,6 +47,7 @@ uint16_t parse_arg_uint16_dflt(char *name, uint16_t dflt, int *out_status);
 uint32_t parse_arg_uint32(char *name, int *out_status);
 uint32_t parse_arg_uint32_dflt(char *name, uint32_t dflt, int *out_status);
 uint64_t parse_arg_uint64(char *name, int *out_status);
+uint64_t parse_arg_uint64_dflt(char *name, uint64_t dflt, int *out_status);
 int parse_arg_kv(char *name, const struct kv_pair *kvs, int *out_status);
 int parse_arg_kv_dflt(char *name, const struct kv_pair *kvs, int def_val,
                          int *out_status);

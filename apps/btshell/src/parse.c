@@ -279,6 +279,22 @@ parse_arg_uint32_dflt(char *name, uint32_t dflt, int *out_status)
     return val;
 }
 
+uint64_t
+parse_arg_uint64_dflt(char *name, uint64_t dflt, int *out_status)
+{
+    uint64_t val;
+    int rc;
+
+    val = parse_arg_uint64(name, &rc);
+    if (rc == ENOENT) {
+        val = dflt;
+        rc = 0;
+    }
+
+    *out_status = rc;
+    return val;
+}
+
 static uint32_t
 parse_time_unit_mult(const char *str)
 {
