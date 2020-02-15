@@ -2200,8 +2200,8 @@ static const struct shell_cmd_help conn_datalen_help = {
  *****************************************************************************/
 
 static const struct kv_pair cmd_keystore_entry_type[] = {
-    { "msec",       BLE_STORE_OBJ_TYPE_PEER_SEC },
-    { "ssec",       BLE_STORE_OBJ_TYPE_OUR_SEC },
+    { "peer",       BLE_STORE_OBJ_TYPE_PEER_SEC },
+    { "our",        BLE_STORE_OBJ_TYPE_OUR_SEC },
     { "cccd",       BLE_STORE_OBJ_TYPE_CCCD },
     { NULL }
 };
@@ -2345,7 +2345,7 @@ cmd_keystore_add(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_add_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
+    {"type", "entry type, usage: =<peer|our|cccd>"},
     {"addr_type", "usage: =<public|random>"},
     {"addr", "usage: =<XX:XX:XX:XX:XX:XX>"},
     {"ediv", "usage: =<UINT16>"},
