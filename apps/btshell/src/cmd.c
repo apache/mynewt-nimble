@@ -2228,13 +2228,13 @@ cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out,
             return rc;
         }
 
-        out->sec.ediv = parse_arg_uint16("ediv", &rc);
+        out->sec.ediv = parse_arg_uint16_dflt("ediv", 0, &rc);
         if (rc != 0) {
             console_printf("invalid 'ediv' parameter\n");
             return rc;
         }
 
-        out->sec.rand_num = parse_arg_uint64("rand", &rc);
+        out->sec.rand_num = parse_arg_uint64_dflt("rand", 0, &rc);
         if (rc != 0) {
             console_printf("invalid 'rand' parameter\n");
             return rc;
