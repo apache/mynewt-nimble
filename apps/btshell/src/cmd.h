@@ -55,6 +55,7 @@ int parse_arg_byte_stream(char *name, int max_len, uint8_t *dst, int *out_len);
 int parse_arg_byte_stream_exact_length(char *name, uint8_t *dst, int len);
 int parse_arg_mac(char *name, uint8_t *dst);
 int parse_arg_addr(char *name, ble_addr_t *addr);
+int parse_arg_security_key(char *name, uint8_t *out_key);
 int parse_arg_uuid(char *name, ble_uuid_any_t *uuid);
 int parse_arg_all(int argc, char **argv);
 int parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,

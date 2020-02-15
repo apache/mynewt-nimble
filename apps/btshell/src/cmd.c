@@ -1423,7 +1423,7 @@ cmd_set(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_byte_stream_exact_length("irk", irk, 16);
+    rc = parse_arg_security_key("irk", irk);
     if (rc == 0) {
         good = 1;
         ble_hs_pvcy_set_our_irk(irk);
@@ -2253,49 +2253,44 @@ cmd_keystore_parse_valuedata(int argc, char **argv,
                              union ble_store_value *out)
 {
     int rc;
-    int valcnt = 0;
+
     memset(out, 0, sizeof(*out));
 
-    switch (obj_type) {
-        case BLE_STORE_OBJ_TYPE_PEER_SEC:
-        case BLE_STORE_OBJ_TYPE_OUR_SEC:
-            rc = parse_arg_byte_stream_exact_length("ltk", out->sec.ltk, 16);
-            if (rc == 0) {
-                out->sec.ltk_present = 1;
-                swap_in_place(out->sec.ltk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'ltk' parameter\n");
-                return rc;
-            }
-            rc = parse_arg_byte_stream_exact_length("irk", out->sec.irk, 16);
-            if (rc == 0) {
-                out->sec.irk_present = 1;
-                swap_in_place(out->sec.irk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'irk' parameter\n");
-                return rc;
-            }
-            rc = parse_arg_byte_stream_exact_length("csrk", out->sec.csrk, 16);
-            if (rc == 0) {
-                out->sec.csrk_present = 1;
-                swap_in_place(out->sec.csrk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'csrk' parameter\n");
-                return rc;
-            }
-            out->sec.peer_addr = key->sec.peer_addr;
-            out->sec.ediv = key->sec.ediv;
-            out->sec.rand_num = key->sec.rand_num;
-            break;
+    if ((obj_type != BLE_STORE_OBJ_TYPE_PEER_SEC) &&
+        (obj_type != BLE_STORE_OBJ_TYPE_OUR_SEC)) {
+        return EINVAL;
     }
 
-    if (valcnt) {
-        return 0;
+    rc = parse_arg_security_key("ltk", out->sec.ltk);
+    out->sec.ltk_present = (rc == 0);
+    if (rc && rc != ENOENT) {
+        console_printf("invalid 'ltk' parameter\n");
+        return rc;
     }
-    return -1;
+
+    rc = parse_arg_security_key("irk", out->sec.irk);
+    out->sec.irk_present = (rc == 0);
+    if (rc && rc != ENOENT) {
+        console_printf("invalid 'irk' parameter\n");
+        return rc;
+    }
+
+    rc = parse_arg_security_key("csrk", out->sec.csrk);
+    out->sec.csrk_present = (rc == 0);
+    if (rc && rc != ENOENT) {
+        console_printf("invalid 'csrk' parameter\n");
+        return rc;
+    }
+
+    out->sec.peer_addr = key->sec.peer_addr;
+    out->sec.ediv = key->sec.ediv;
+    out->sec.rand_num = key->sec.rand_num;
+
+    if (!out->sec.ltk_present && !out->sec.irk_present && !out->sec.csrk_present) {
+        return EINVAL;
+    }
+
+    return 0;
 }
 
 /*****************************************************************************

@@ -576,6 +576,77 @@ parse_arg_addr(char *name, ble_addr_t *addr)
 }
 
 int
+parse_arg_security_key(char *name, uint8_t *out_key)
+{
+    char *arg;
+    int len;
+    int to_copy;
+    uint8_t op = 0;
+    uint8_t tmp_key[30] = { 0 };
+    int rc;
+
+    arg = parse_arg_peek(name);
+    if (!arg) {
+        return ENOENT;
+    }
+
+    len = strlen(arg);
+    if (len < 2) {
+        return EINVAL;
+    }
+
+    if ((arg[len - 2] == ':') || (arg[len - 2] == '-')) {
+        if (tolower(arg[len - 1]) == 'c') {
+            op = 1;
+        } else if (tolower(arg[len - 1]) == 'r') {
+            op = 2;
+        } else if (tolower(arg[len - 1]) == 'f') {
+            op = 3;
+        } else if (tolower(arg[len - 1]) == 'e') {
+            op = 4;
+        }
+
+        if (op) {
+            arg[len - 2] = '\0';
+        }
+    }
+
+    len = 16;
+    rc = parse_arg_byte_stream(name, len, tmp_key, &len);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if ((!op && len != 16) || (len < 1) || (len > 16) || ((op == 3) && (len > 8))) {
+        return EINVAL;
+    }
+
+    switch (op) {
+    case 1:
+    case 2:
+        to_copy = len;
+        while (len < 16) {
+            memcpy(&tmp_key[len], tmp_key, to_copy);
+            if (op == 2) {
+                swap_in_place(&tmp_key[len], to_copy);
+            }
+            len += to_copy;
+        }
+        break;
+    case 4:
+        memset(&tmp_key[len], tmp_key[len - 1], 16 - len);
+        /* no break */
+    case 3:
+        swap_buf(&tmp_key[16 - len], tmp_key, len);
+        break;
+    }
+
+    swap_buf(out_key, tmp_key, 16);
+
+    return 0;
+}
+
+int
 parse_arg_uuid(char *str, ble_uuid_any_t *uuid)
 {
     uint16_t uuid16;
