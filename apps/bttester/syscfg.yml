@@ -71,6 +71,10 @@ syscfg.defs:
         description: Enable logging BTP traffic
         value: 0
 
+    BTTESTER_L2CAP_COC_MTU:
+        description: Maximum MTU size the application can handle
+        value: 230
+
 syscfg.vals:
     OS_MAIN_STACK_SIZE: 512
     SHELL_TASK: 0
@@ -86,6 +90,8 @@ syscfg.vals:
 
     BLE_L2CAP_COC_MAX_NUM: 2
     BLE_L2CAP_SIG_MAX_PROCS: 2
+    BLE_L2CAP_ENHANCED_COC: 1
+    BLE_VERSION: 52
     # Some testcases require MPS < MTU
     BLE_L2CAP_COC_MPS: 100
     BLE_RPA_TIMEOUT: 30

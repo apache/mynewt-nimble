@@ -747,6 +747,8 @@ struct l2cap_connect_cmd {
 	u8_t address_type;
 	u8_t address[6];
 	u16_t psm;
+	u16_t mtu;
+	u8_t num;
 } __packed;
 
 struct l2cap_connect_rp {
@@ -772,12 +774,23 @@ struct l2cap_send_data_cmd {
 struct l2cap_listen_cmd {
 	u16_t psm;
 	u8_t transport;
+	u16_t mtu;
+	u16_t response;
 } __packed;
 
 #define L2CAP_ACCEPT_CONNECTION		0x06
 struct l2cap_accept_connection_cmd {
 	u8_t chan_id;
 	u16_t result;
+} __packed;
+
+#define L2CAP_RECONFIGURE		0x07
+struct l2cap_reconfigure_cmd {
+    u8_t address_type;
+    u8_t address[6];
+    u16_t mtu;
+    u8_t num;
+    u8_t idxs[];
 } __packed;
 
 /* events */
@@ -793,6 +806,10 @@ struct l2cap_connection_req_ev {
 struct l2cap_connected_ev {
 	u8_t chan_id;
 	u16_t psm;
+	u16_t peer_mtu;
+	u16_t peer_mps;
+	u16_t our_mtu;
+	u16_t our_mps;
 	u8_t address_type;
 	u8_t address[6];
 } __packed;
@@ -811,6 +828,15 @@ struct l2cap_data_received_ev {
 	u8_t chan_id;
 	u16_t data_length;
 	u8_t data[0];
+} __packed;
+
+#define L2CAP_EV_RECONFIGURED		0x84
+struct l2cap_reconfigured_ev {
+	u8_t chan_id;
+	u16_t peer_mtu;
+	u16_t peer_mps;
+	u16_t our_mtu;
+	u16_t our_mps;
 } __packed;
 
 /* MESH Service */
