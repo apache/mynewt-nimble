@@ -22,19 +22,6 @@
 #define MYNEWT_VAL_HARDFLOAT (0)
 #endif
 
-/*** @apache-mynewt-core/crypto/tinycrypt */
-#ifndef MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE
-#define MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE (200)
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME ("trng")
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG (0)
-#endif
-
 /*** @apache-mynewt-core/hw/bsp/nordic_pca10056 */
 #ifndef MYNEWT_VAL_BSP_NRF52840
 #define MYNEWT_VAL_BSP_NRF52840 (1)
@@ -799,6 +786,10 @@
 #define MYNEWT_VAL_BLE_PERIODIC_ADV (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_PERIODIC_ADV_SYNC_TRANSFER
+#define MYNEWT_VAL_BLE_PERIODIC_ADV_SYNC_TRANSFER (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_ROLE_BROADCASTER
 #define MYNEWT_VAL_BLE_ROLE_BROADCASTER (1)
 #endif
@@ -850,10 +841,6 @@
 #define MYNEWT_VAL_BLE_LL_CFG_FEAT_DATA_LEN_EXT (0)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_EXT_SCAN_FILT
-#define MYNEWT_VAL_BLE_LL_CFG_FEAT_EXT_SCAN_FILT (0)
-#endif
-
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_LE_2M_PHY
 #define MYNEWT_VAL_BLE_LL_CFG_FEAT_LE_2M_PHY (0)
 #endif
@@ -889,6 +876,16 @@
 /* Value copied from BLE_MAX_PERIODIC_SYNCS */
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT
 #define MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT (0)
+#endif
+
+/* Value copied from BLE_MAX_PERIODIC_SYNCS */
+#ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT (0)
+#endif
+
+/* Value copied from BLE_PERIODIC_ADV_SYNC_TRANSFER */
+#ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER (0)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
@@ -974,6 +971,11 @@
 #define MYNEWT_VAL_BLE_LL_RESOLV_LIST_SIZE (4)
 #endif
 
+/* Overridden by @apache-mynewt-core/hw/bsp/nordic_pca10056 (defined by @apache-mynewt-nimble/nimble/controller) */
+#ifndef MYNEWT_VAL_BLE_LL_RFMGMT_ENABLE_TIME
+#define MYNEWT_VAL_BLE_LL_RFMGMT_ENABLE_TIME (1500)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_RNG_BUFSIZE
 #define MYNEWT_VAL_BLE_LL_RNG_BUFSIZE (32)
 #endif
@@ -986,14 +988,24 @@
 #define MYNEWT_VAL_BLE_LL_SCHED_AUX_MAFS_DELAY (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_SCHED_SCAN_AUX_PDU_LEN
+#define MYNEWT_VAL_BLE_LL_SCHED_SCAN_AUX_PDU_LEN (41)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_SCHED_SCAN_SYNC_PDU_LEN
+#define MYNEWT_VAL_BLE_LL_SCHED_SCAN_SYNC_PDU_LEN (32)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_STRICT_CONN_SCHEDULING
 #define MYNEWT_VAL_BLE_LL_STRICT_CONN_SCHEDULING (0)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
 #ifndef MYNEWT_VAL_BLE_LL_SUPP_MAX_RX_BYTES
 #define MYNEWT_VAL_BLE_LL_SUPP_MAX_RX_BYTES (MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
 #ifndef MYNEWT_VAL_BLE_LL_SUPP_MAX_TX_BYTES
 #define MYNEWT_VAL_BLE_LL_SUPP_MAX_TX_BYTES (MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE)
 #endif
@@ -1034,9 +1046,8 @@
 #define MYNEWT_VAL_BLE_PUBLIC_DEV_ADDR ((uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
 #endif
 
-/* Overridden by @apache-mynewt-core/hw/bsp/nordic_pca10056 (defined by @apache-mynewt-nimble/nimble/controller) */
 #ifndef MYNEWT_VAL_BLE_XTAL_SETTLE_TIME
-#define MYNEWT_VAL_BLE_XTAL_SETTLE_TIME (1500)
+#define MYNEWT_VAL_BLE_XTAL_SETTLE_TIME (0)
 #endif
 
 /*** @apache-mynewt-nimble/nimble/drivers/nrf52 */
@@ -1357,6 +1368,7 @@
 #define MYNEWT_VAL_BLE_SM_KEYPRESS (0)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/targets/riot (defined by @apache-mynewt-nimble/nimble/host) */
 #ifndef MYNEWT_VAL_BLE_SM_LEGACY
 #define MYNEWT_VAL_BLE_SM_LEGACY (0)
 #endif
@@ -1377,6 +1389,7 @@
 #define MYNEWT_VAL_BLE_SM_OUR_KEY_DIST (0)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/targets/riot (defined by @apache-mynewt-nimble/nimble/host) */
 #ifndef MYNEWT_VAL_BLE_SM_SC
 #define MYNEWT_VAL_BLE_SM_SC (0)
 #endif
