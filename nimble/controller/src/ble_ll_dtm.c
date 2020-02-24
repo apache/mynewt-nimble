@@ -58,6 +58,8 @@ struct dtm_ctx {
     struct os_mbuf *om;
     struct ble_npl_event evt;
     struct ble_ll_sched_item sch;
+    uint32_t pdu_start_ticks;
+    uint8_t pdu_start_usecs;
 };
 
 static struct dtm_ctx g_ble_ll_dtm_ctx;
@@ -150,12 +152,15 @@ ble_ll_dtm_set_next(struct dtm_ctx *ctx)
 {
     struct ble_ll_sched_item *sch = &ctx->sch;
 
-    sch->start_time += ctx->itvl_ticks;
-    sch->remainder += ctx->itvl_rem_usec;
-    if (sch->remainder >= 31) {
-       sch->start_time++;
-       sch->remainder -= 31;
+    ctx->pdu_start_ticks += ctx->itvl_ticks;
+    ctx->pdu_start_usecs += ctx->itvl_rem_usec;
+    if (ctx->pdu_start_usecs >= 31) {
+       ctx->pdu_start_ticks++;
+       ctx->pdu_start_usecs -= 31;
     }
+
+    sch->start_time = ctx->pdu_start_ticks;
+    sch->remainder = ctx->pdu_start_usecs;
 
     sch->start_time -= g_ble_ll_sched_offset_ticks;
 }
@@ -303,18 +308,19 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
     uint8_t byte_pattern;
     struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf *m;
-    struct ble_ll_sched_item *sch = &g_ble_ll_dtm_ctx.sch;
+    struct dtm_ctx *ctx = &g_ble_ll_dtm_ctx;
+    struct ble_ll_sched_item *sch = &ctx->sch;
 
     /* MSYS is big enough to get continues memory */
     m = os_msys_get_pkthdr(len, sizeof(struct ble_mbuf_hdr));
-    g_ble_ll_dtm_ctx.om = m;
+    ctx->om = m;
     BLE_LL_ASSERT(g_ble_ll_dtm_ctx.om);
 
-    g_ble_ll_dtm_ctx.phy_mode = phy_mode;
-    g_ble_ll_dtm_ctx.rf_channel = rf_channel;
-    g_ble_ll_dtm_ctx.num_of_packets = 0;
+    ctx->phy_mode = phy_mode;
+    ctx->rf_channel = rf_channel;
+    ctx->num_of_packets = 0;
 #if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
-    g_ble_ll_dtm_ctx.num_of_packets_max = cmd_pkt_count;
+    ctx->num_of_packets_max = cmd_pkt_count;
 #endif
 
     /* Set BLE transmit header */
@@ -364,23 +370,24 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
     }
 
 schedule:
+    ble_phy_enable_dtm();
 
     sch->sched_cb = ble_ll_dtm_tx_sched_cb;
-    sch->cb_arg = &g_ble_ll_dtm_ctx;
+    sch->cb_arg = ctx;
     sch->sched_type = BLE_LL_SCHED_TYPE_DTM;
-    sch->start_time =  ble_ll_rfmgmt_enable_now();
 
     /* Prepare os_event */
-    ble_npl_event_init(&g_ble_ll_dtm_ctx.evt, ble_ll_dtm_ev_tx_resched_cb,
-                       &g_ble_ll_dtm_ctx);
+    ble_npl_event_init(&ctx->evt, ble_ll_dtm_ev_tx_resched_cb, ctx);
 
-    ble_ll_dtm_calculate_itvl(&g_ble_ll_dtm_ctx, len, cmd_interval, phy_mode);
+    ble_ll_dtm_calculate_itvl(ctx, len, cmd_interval, phy_mode);
+
+    ctx->pdu_start_ticks = ble_ll_rfmgmt_enable_now();
+    ctx->pdu_start_usecs = 0;
+    ble_ll_dtm_set_next(ctx);
 
     /* Set some start point for TX packets */
     rc = ble_ll_sched_dtm(sch);
     BLE_LL_ASSERT(rc == 0);
-
-    ble_phy_enable_dtm();
 
     g_ble_ll_dtm_ctx.active = 1;
     return 0;
