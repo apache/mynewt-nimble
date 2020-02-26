@@ -1306,7 +1306,9 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     if (!req) {
         ble_l2cap_chan_free(conn, chan);
         ble_hs_unlock();
-        return BLE_HS_ENOMEM;
+        rc = BLE_HS_ENOMEM;
+        /* Goto done to clear proc */
+        goto done;
     }
 
     req->psm = htole16(psm);
@@ -1325,6 +1327,7 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
         ble_hs_unlock();
     }
 
+done:
     ble_l2cap_sig_process_status(proc, rc);
 
     return rc;
