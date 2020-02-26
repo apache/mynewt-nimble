@@ -692,7 +692,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     /* Fill up remote configuration. Note MPS is the L2CAP MTU*/
     chan->dcid = scid;
-    chan->peer_mtu = le16toh(req->mps);
+    chan->peer_coc_mps = le16toh(req->mps);
     chan->coc_tx.credits = le16toh(req->credits);
     chan->coc_tx.mtu = le16toh(req->mtu);
 
@@ -716,7 +716,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     rsp->dcid = htole16(chan->scid);
     rsp->credits = htole16(chan->coc_rx.credits);
-    rsp->mps = htole16(chan->my_mtu);
+    rsp->mps = htole16(chan->my_coc_mps);
     rsp->mtu = htole16(chan->coc_rx.mtu);
     rsp->result = htole16(BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS);
 
@@ -777,7 +777,7 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     /* Fill up remote configuration
      * Note MPS is the L2CAP MTU
      */
-    chan->peer_mtu = le16toh(rsp->mps);
+    chan->peer_coc_mps = le16toh(rsp->mps);
     chan->dcid = le16toh(rsp->dcid);
     chan->coc_tx.mtu = le16toh(rsp->mtu);
     chan->coc_tx.credits = le16toh(rsp->credits);
@@ -851,7 +851,7 @@ ble_l2cap_sig_coc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     req->psm = htole16(psm);
     req->scid = htole16(chan->scid);
     req->mtu = htole16(chan->coc_rx.mtu);
-    req->mps = htole16(chan->my_mtu);
+    req->mps = htole16(chan->my_coc_mps);
     req->credits = htole16(chan->coc_rx.credits);
 
     ble_hs_unlock();
