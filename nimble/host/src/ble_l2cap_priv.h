@@ -65,8 +65,20 @@ struct ble_l2cap_chan {
     uint16_t conn_handle;
     uint16_t dcid;
     uint16_t scid;
-    uint16_t my_mtu;
-    uint16_t peer_mtu;      /* 0 if not exchanged. */
+
+    /* Unions just to avoid confusion on MPS/MTU.
+     * In CoC context, L2CAP MTU is MPS
+     */
+    union {
+        uint16_t my_mtu;
+        uint16_t my_coc_mps;
+    };
+
+    union {
+        uint16_t peer_mtu;
+        uint16_t peer_coc_mps;
+    };
+
     ble_l2cap_chan_flags flags;
 
     struct os_mbuf *rx_buf;

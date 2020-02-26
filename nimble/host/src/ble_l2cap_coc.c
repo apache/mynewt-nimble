@@ -290,7 +290,7 @@ ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn, uint16_t psm, uint16_t mtu,
     chan->cb = cb;
     chan->cb_arg = cb_arg;
     chan->scid = ble_l2cap_coc_get_cid(conn->l2cap_coc_cid_mask);
-    chan->my_mtu = MYNEWT_VAL(BLE_L2CAP_COC_MPS);
+    chan->my_coc_mps = MYNEWT_VAL(BLE_L2CAP_COC_MPS);
     chan->rx_fn = ble_l2cap_coc_rx_fn;
     chan->coc_rx.mtu = mtu;
     chan->coc_rx.sdu = sdu_rx;
@@ -298,8 +298,8 @@ ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn, uint16_t psm, uint16_t mtu,
     /* Number of credits should allow to send full SDU with on given
      * L2CAP MTU
      */
-    chan->coc_rx.credits = mtu / chan->my_mtu;
-    if (mtu % chan->my_mtu) {
+    chan->coc_rx.credits = mtu / chan->my_coc_mps;
+    if (mtu % chan->my_coc_mps) {
         chan->coc_rx.credits++;
     }
 
@@ -412,7 +412,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         }
 
         /* Take into account peer MTU */
-        len = min(left_to_send, chan->peer_mtu);
+        len = min(left_to_send, chan->peer_coc_mps);
 
         /* Prepare packet */
         txom = ble_hs_mbuf_l2cap_pkt();
