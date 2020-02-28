@@ -121,7 +121,7 @@ syscfg.defs:
     # Security manager settings.
     BLE_SM_LEGACY:
         description: 'Security manager legacy pairing.'
-        value: 1
+        value: 0
     BLE_SM_SC:
         description: 'Security manager secure connections (4.2).'
         value: 0
