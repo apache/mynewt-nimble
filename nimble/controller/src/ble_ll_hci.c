@@ -33,10 +33,8 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_sync.h"
+#include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0 || MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
-#include "hal/hal_gpio.h"
-#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
@@ -100,9 +98,7 @@ ble_ll_hci_event_send(struct ble_hci_ev *hci_ev)
 {
     int rc;
 
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
-    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 1);
-#endif
+    BLE_LL_DEBUG_GPIO(HCI_EV, 1);
 
     BLE_LL_ASSERT(sizeof(*hci_ev) + hci_ev->length <= BLE_LL_MAX_EVT_LEN);
 
@@ -112,9 +108,7 @@ ble_ll_hci_event_send(struct ble_hci_ev *hci_ev)
     /* Send the event to the host */
     rc = ble_hci_trans_ll_evt_tx((uint8_t *)hci_ev);
 
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
-    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 0);
-#endif
+    BLE_LL_DEBUG_GPIO(HCI_EV, 0);
 
     return rc;
 }
@@ -1361,9 +1355,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     struct ble_hci_ev_command_complete *cmd_complete;
     uint8_t *rspbuf;
 
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
-    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 1);
-#endif
+    BLE_LL_DEBUG_GPIO(HCI_CMD, 1);
 
     /* The command buffer is the event argument */
     cmd = ble_npl_event_get_arg(ev);
@@ -1447,9 +1439,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
         post_cb();
     }
 
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
-    hal_gpio_write(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 0);
-#endif
+    BLE_LL_DEBUG_GPIO(HCI_CMD, 0);
 }
 
 /**
@@ -1498,12 +1488,8 @@ ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg)
 void
 ble_ll_hci_init(void)
 {
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN) >= 0
-    hal_gpio_init_out(MYNEWT_VAL(BLE_LL_DBG_HCI_CMD_PIN), 0);
-#endif
-#if MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN) >= 0
-    hal_gpio_init_out(MYNEWT_VAL(BLE_LL_DBG_HCI_EV_PIN), 0);
-#endif
+    BLE_LL_DEBUG_GPIO_INIT(HCI_CMD);
+    BLE_LL_DEBUG_GPIO_INIT(HCI_EV);
 
     /* Set event callback for command processing */
     ble_npl_event_init(&g_ble_ll_hci_cmd_ev, ble_ll_hci_cmd_proc, NULL);
