@@ -31,6 +31,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
+#include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 
 /* XXX: this is temporary. Not sure what I want to do here */
@@ -1469,8 +1470,10 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     }
 
 sched:
+    BLE_LL_DEBUG_GPIO(SCHED_ITEM_CB, 1);
     BLE_LL_ASSERT(sch->sched_cb);
     rc = sch->sched_cb(sch);
+    BLE_LL_DEBUG_GPIO(SCHED_ITEM_CB, 0);
     return rc;
 }
 
@@ -1485,6 +1488,8 @@ static void
 ble_ll_sched_run(void *arg)
 {
     struct ble_ll_sched_item *sch;
+
+    BLE_LL_DEBUG_GPIO(SCHED_RUN, 1);
 
     /* Look through schedule queue */
     sch = TAILQ_FIRST(&g_ble_ll_sched_q);
@@ -1514,6 +1519,8 @@ ble_ll_sched_run(void *arg)
         }
         ble_ll_rfmgmt_sched_changed(sch);
     }
+
+    BLE_LL_DEBUG_GPIO(SCHED_RUN, 0);
 }
 
 /**
@@ -1787,6 +1794,9 @@ ble_ll_sched_stop(void)
 int
 ble_ll_sched_init(void)
 {
+    BLE_LL_DEBUG_GPIO_INIT(SCHED_ITEM_CB);
+    BLE_LL_DEBUG_GPIO_INIT(SCHED_RUN);
+
     /*
      * Initialize max early to large negative number. This is used
      * to determine the worst-case "early" time the schedule was called. Dont

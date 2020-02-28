@@ -345,6 +345,16 @@ syscfg.defs:
             GPIO pin number to debug HCI events flow. Pin is set to high state
             when HCI event is being sent.
         value: -1
+    BLE_LL_DEBUG_GPIO_SCHED_RUN:
+        description: >
+            GPIO pin number to debug scheduler running (on timer). Pin is set
+            to high state while scheduler is running.
+        value: -1
+    BLE_LL_DEBUG_GPIO_SCHED_ITEM_CB:
+        description: >
+            GPIO pin number to debug scheduler item execution times. Pin is set
+            to high state while item is executed.
+        value: -1
 
 # Below settings allow to change scheduler timings. These should be left at
 # default values unless you know what you are doing!
