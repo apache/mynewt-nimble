@@ -335,17 +335,15 @@ syscfg.defs:
             Sysinit stage for the NimBLE controller.
         value: 250
 
-    BLE_LL_DBG_HCI_CMD_PIN:
+    BLE_LL_DEBUG_GPIO_HCI_CMD:
         description: >
-            When set to proper GPIO pin number, this pin will be set to high
-            state when HCI command is received and being processed and back
-            to low state when it was processed.
+            GPIO pin number to debug HCI commands flow. Pin is set to high state
+            when HCI command is being processed.
         value: -1
-    BLE_LL_DBG_HCI_EV_PIN:
+    BLE_LL_DEBUG_GPIO_HCI_EV:
         description: >
-            When set to proper GPIO pin number, this pin will be set to high
-            state when HCI event is being sent and back to low state when event
-            was sent from controller.
+            GPIO pin number to debug HCI events flow. Pin is set to high state
+            when HCI event is being sent.
         value: -1
 
 # Below settings allow to change scheduler timings. These should be left at
