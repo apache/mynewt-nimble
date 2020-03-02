@@ -58,14 +58,24 @@ ble_hs_id_set_rnd(const uint8_t *rnd_addr)
 {
     uint8_t addr_type_byte;
     int rc;
-    uint8_t all_zeros[BLE_DEV_ADDR_LEN] = {0}, all_ones[BLE_DEV_ADDR_LEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    int ones;
 
     ble_hs_lock();
 
-    /* Make sure all bits are neither one nor zero */
+    /* Make sure random part of rnd_addr is not all ones or zeros. Reference:
+     * Core v5.0, Vol 6, Part B, section 1.3.2.1 */
     addr_type_byte = rnd_addr[5] & 0xc0;
+
+    /* count bits set to 1 in random part of address */
+    ones = __builtin_popcount(rnd_addr[0]);
+    ones += __builtin_popcount(rnd_addr[1]);
+    ones += __builtin_popcount(rnd_addr[2]);
+    ones += __builtin_popcount(rnd_addr[3]);
+    ones += __builtin_popcount(rnd_addr[4]);
+    ones += __builtin_popcount(rnd_addr[5] & 0x3f);
+
     if ((addr_type_byte != 0x00 && addr_type_byte != 0xc0) ||
-        !memcmp(rnd_addr, all_zeros, BLE_DEV_ADDR_LEN) || !memcmp(rnd_addr, all_ones, BLE_DEV_ADDR_LEN)) {
+            (ones == 0 || ones == 46)) {
         rc = BLE_HS_EINVAL;
         goto done;
     }
@@ -76,8 +86,6 @@ ble_hs_id_set_rnd(const uint8_t *rnd_addr)
     }
 
     memcpy(ble_hs_id_rnd, rnd_addr, 6);
-
-    rc = 0;
 
 done:
     ble_hs_unlock();
