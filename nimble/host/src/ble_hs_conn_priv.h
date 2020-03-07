@@ -102,6 +102,9 @@ struct ble_hs_conn {
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct ble_hs_periodic_sync *psync;
 #endif
+
+    STAILQ_HEAD(, os_mbuf_pkthdr) att_tx_q;
+    bool client_att_busy;
 };
 
 struct ble_hs_conn_addrs {
