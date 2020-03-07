@@ -741,7 +741,7 @@ ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu)
 
     ble_hs_lock();
 
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    rc = ble_att_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT, &conn, &chan);
     assert(rc == 0);
     chan->my_mtu = mtu;
     chan->peer_mtu = mtu;
@@ -772,6 +772,7 @@ ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req, uint16_t mtu)
 
 int
 ble_hs_test_util_rx_att_find_info_req(uint16_t conn_handle,
+                                      uint16_t cid,
                                       uint16_t start_handle,
                                       uint16_t end_handle)
 {
@@ -784,7 +785,7 @@ ble_hs_test_util_rx_att_find_info_req(uint16_t conn_handle,
 
     ble_att_find_info_req_write(buf, sizeof buf, &req);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, sizeof buf);
 
     return rc;
@@ -1070,7 +1071,7 @@ ble_hs_test_util_rx_att_indicate_req(uint16_t conn_handle,
 }
 
 void
-ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
+ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint16_t cid, uint8_t req_op,
                                 uint8_t error_code, uint16_t err_handle)
 {
     struct ble_att_error_rsp rsp;
@@ -1083,7 +1084,7 @@ ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
 
     ble_att_error_rsp_write(buf, sizeof buf, &rsp);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, sizeof buf);
     TEST_ASSERT(rc == 0);
 }

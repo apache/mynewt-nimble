@@ -108,6 +108,7 @@ struct ble_gattc_proc {
 
     uint32_t exp_os_ticks;
     uint16_t conn_handle;
+    uint16_t cid;
     uint8_t op;
     uint8_t flags;
 
@@ -694,6 +695,14 @@ ble_gattc_proc_alloc(void)
     return proc;
 }
 
+static void
+ble_gattc_proc_prepare(struct ble_gattc_proc *proc, uint16_t conn_handle, uint8_t op)
+{
+    proc->conn_handle = conn_handle;
+    proc->op = op;
+    proc->cid = BLE_L2CAP_CID_ATT;
+}
+
 /**
  * Frees the specified proc entry.  No-op if passed a null pointer.
  */
@@ -845,6 +854,7 @@ typedef int ble_gattc_match_fn(struct ble_gattc_proc *proc, void *arg);
 
 struct ble_gattc_criteria_conn_op {
     uint16_t conn_handle;
+    uint16_t psm;
     uint8_t op;
 };
 
@@ -866,6 +876,28 @@ ble_gattc_proc_matches_conn_op(struct ble_gattc_proc *proc, void *arg)
     criteria = arg;
 
     if (criteria->conn_handle != proc->conn_handle) {
+        return 0;
+    }
+
+    if (criteria->op != proc->op && criteria->op != BLE_GATT_OP_NONE) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int
+ble_gattc_proc_matches_conn_cid_op(struct ble_gattc_proc *proc, void *arg)
+{
+    const struct ble_gattc_criteria_conn_op *criteria;
+
+    criteria = arg;
+
+    if (criteria->conn_handle != proc->conn_handle) {
+        return 0;
+    }
+
+    if (criteria->psm != proc->cid) {
         return 0;
     }
 
@@ -905,6 +937,7 @@ ble_gattc_proc_matches_expired(struct ble_gattc_proc *proc, void *arg)
 
 struct ble_gattc_criteria_conn_rx_entry {
     uint16_t conn_handle;
+    uint16_t cid;
     const void *rx_entries;
     int num_rx_entries;
     const void *matching_rx_entry;
@@ -918,7 +951,8 @@ ble_gattc_proc_matches_conn_rx_entry(struct ble_gattc_proc *proc, void *arg)
     criteria = arg;
 
     if (criteria->conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-        criteria->conn_handle != proc->conn_handle) {
+        criteria->conn_handle != proc->conn_handle &&
+        criteria->cid != proc->cid) {
 
         return 0;
     }
@@ -997,12 +1031,26 @@ ble_gattc_extract_by_conn_op(uint16_t conn_handle, uint8_t op, int max_procs,
     ble_gattc_extract(ble_gattc_proc_matches_conn_op, &criteria, max_procs, dst_list);
 }
 
+static void
+ble_gattc_extract_by_conn_cid_op(uint16_t conn_handle, uint16_t psm, uint8_t op,
+                                 int max_procs,
+                                 struct ble_gattc_proc_list *dst_list)
+{
+    struct ble_gattc_criteria_conn_op criteria;
+
+    criteria.conn_handle = conn_handle;
+    criteria.op = op;
+    criteria.psm = psm;
+
+    ble_gattc_extract(ble_gattc_proc_matches_conn_cid_op, &criteria, max_procs, dst_list);
+}
+
 static struct ble_gattc_proc *
-ble_gattc_extract_first_by_conn_op(uint16_t conn_handle, uint8_t op)
+ble_gattc_extract_first_by_conn_cid_op(uint16_t conn_handle, uint16_t cid, uint8_t op)
 {
     struct ble_gattc_proc_list dst_list;
 
-    ble_gattc_extract_by_conn_op(conn_handle, op, 1, &dst_list);
+    ble_gattc_extract_by_conn_cid_op(conn_handle, cid, op, 1, &dst_list);
     return STAILQ_FIRST(&dst_list);
 }
 
@@ -1037,7 +1085,7 @@ ble_gattc_extract_expired(struct ble_gattc_proc_list *dst_list)
 }
 
 static struct ble_gattc_proc *
-ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
+ble_gattc_extract_with_rx_entry(uint16_t conn_handle, uint16_t cid,
                                 const void *rx_entries, int num_rx_entries,
                                 const void **out_rx_entry)
 {
@@ -1045,6 +1093,7 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
     struct ble_gattc_proc *proc;
 
     criteria.conn_handle = conn_handle;
+    criteria.cid = cid;
     criteria.rx_entries = rx_entries;
     criteria.num_rx_entries = num_rx_entries;
     criteria.matching_rx_entry = NULL;
@@ -1062,6 +1111,7 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
  * list and returned.
  *
  * @param conn_handle           The connection handle to match against.
+ * @param cid                   Source CID of L2CAP channel used
  * @param rx_entries            The array of rx entries corresponding to the
  *                                  op code of the incoming response.
  * @param out_rx_entry          On success, the address of the matching rx
@@ -1070,9 +1120,9 @@ ble_gattc_extract_with_rx_entry(uint16_t conn_handle,
  * @return                      The matching proc entry on success;
  *                                  null on failure.
  */
-#define BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, rx_entries, out_rx_entry)  \
+#define BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, cid, rx_entries, out_rx_entry)  \
     ble_gattc_extract_with_rx_entry(                                          \
-        (conn_handle), (rx_entries),                                          \
+        (conn_handle), (cid), (rx_entries),                                   \
         sizeof (rx_entries) / sizeof (rx_entries)[0],                         \
         (const void **)(out_rx_entry))
 
@@ -1290,7 +1340,7 @@ ble_gattc_mtu_tx(struct ble_gattc_proc *proc)
     int rc;
 
     ble_hs_lock();
-    rc = ble_att_conn_chan_find(proc->conn_handle, &conn, &chan);
+    rc = ble_att_conn_chan_find(proc->conn_handle, proc->cid, &conn, &chan);
     if (rc == 0) {
         mtu = chan->my_mtu;
     }
@@ -1319,6 +1369,7 @@ ble_gattc_exchange_mtu(uint16_t conn_handle, ble_gatt_mtu_fn *cb, void *cb_arg)
 
     proc->op = BLE_GATT_OP_MTU;
     proc->conn_handle = conn_handle;
+    proc->cid = BLE_L2CAP_CID_ATT;
     proc->mtu.cb = cb;
     proc->mtu.cb_arg = cb_arg;
 
@@ -1395,7 +1446,7 @@ ble_gattc_disc_all_svcs_tx(struct ble_gattc_proc *proc)
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    rc = ble_att_clt_tx_read_group_type(proc->conn_handle,
+    rc = ble_att_clt_tx_read_group_type(proc->conn_handle, proc->cid,
                                         proc->disc_all_svcs.prev_handle + 1,
                                         0xffff, &uuid.u);
     if (rc != 0) {
@@ -1541,8 +1592,8 @@ ble_gattc_disc_all_svcs(uint16_t conn_handle, ble_gatt_disc_svc_fn *cb,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_DISC_ALL_SVCS;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_DISC_ALL_SVCS);
+
     proc->disc_all_svcs.prev_handle = 0x0000;
     proc->disc_all_svcs.cb = cb;
     proc->disc_all_svcs.cb_arg = cb_arg;
@@ -1621,7 +1672,7 @@ ble_gattc_disc_svc_uuid_tx(struct ble_gattc_proc *proc)
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     ble_uuid_flat(&proc->disc_svc_uuid.service_uuid.u, val);
-    rc = ble_att_clt_tx_find_type_value(proc->conn_handle,
+    rc = ble_att_clt_tx_find_type_value(proc->conn_handle, proc->cid,
                                         proc->disc_svc_uuid.prev_handle + 1,
                                         0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
                                         val,
@@ -1754,8 +1805,8 @@ ble_gattc_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_DISC_SVC_UUID;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_DISC_SVC_UUID);
+
     ble_uuid_to_any(uuid, &proc->disc_svc_uuid.service_uuid);
     proc->disc_svc_uuid.prev_handle = 0x0000;
     proc->disc_svc_uuid.cb = cb;
@@ -1836,7 +1887,7 @@ ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
 
     if (proc->find_inc_svcs.cur_start == 0) {
         /* Find the next included service. */
-        rc = ble_att_clt_tx_read_type(proc->conn_handle,
+        rc = ble_att_clt_tx_read_type(proc->conn_handle, proc->cid,
                                       proc->find_inc_svcs.prev_handle + 1,
                                       proc->find_inc_svcs.end_handle, &uuid.u);
         if (rc != 0) {
@@ -1844,7 +1895,7 @@ ble_gattc_find_inc_svcs_tx(struct ble_gattc_proc *proc)
         }
     } else {
         /* Read the UUID of the previously found service. */
-        rc = ble_att_clt_tx_read(proc->conn_handle,
+        rc = ble_att_clt_tx_read(proc->conn_handle, proc->cid,
                                  proc->find_inc_svcs.cur_start);
         if (rc != 0) {
             return rc;
@@ -2070,8 +2121,8 @@ ble_gattc_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_FIND_INC_SVCS;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_FIND_INC_SVCS);
+
     proc->find_inc_svcs.prev_handle = start_handle - 1;
     proc->find_inc_svcs.end_handle = end_handle;
     proc->find_inc_svcs.cb = cb;
@@ -2150,7 +2201,7 @@ ble_gattc_disc_all_chrs_tx(struct ble_gattc_proc *proc)
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    rc = ble_att_clt_tx_read_type(proc->conn_handle,
+    rc = ble_att_clt_tx_read_type(proc->conn_handle, proc->cid,
                                   proc->disc_all_chrs.prev_handle + 1,
                                   proc->disc_all_chrs.end_handle, &uuid.u);
     if (rc != 0) {
@@ -2298,8 +2349,8 @@ ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_DISC_ALL_CHRS;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_DISC_ALL_CHRS);
+
     proc->disc_all_chrs.prev_handle = start_handle - 1;
     proc->disc_all_chrs.end_handle = end_handle;
     proc->disc_all_chrs.cb = cb;
@@ -2378,7 +2429,7 @@ ble_gattc_disc_chr_uuid_tx(struct ble_gattc_proc *proc)
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    rc = ble_att_clt_tx_read_type(proc->conn_handle,
+    rc = ble_att_clt_tx_read_type(proc->conn_handle, proc->cid,
                                   proc->disc_chr_uuid.prev_handle + 1,
                                   proc->disc_chr_uuid.end_handle, &uuid.u);
     if (rc != 0) {
@@ -2537,8 +2588,8 @@ ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_DISC_CHR_UUID;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_DISC_CHR_UUID);
+
     ble_uuid_to_any(uuid, &proc->disc_chr_uuid.chr_uuid);
     proc->disc_chr_uuid.prev_handle = start_handle - 1;
     proc->disc_chr_uuid.end_handle = end_handle;
@@ -2617,7 +2668,7 @@ ble_gattc_disc_all_dscs_tx(struct ble_gattc_proc *proc)
 
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
-    rc = ble_att_clt_tx_find_info(proc->conn_handle,
+    rc = ble_att_clt_tx_find_info(proc->conn_handle, proc->cid,
                                   proc->disc_all_dscs.prev_handle + 1,
                                   proc->disc_all_dscs.end_handle);
     if (rc != 0) {
@@ -2747,8 +2798,8 @@ ble_gattc_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_DISC_ALL_DSCS;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_DISC_ALL_DSCS);
+
     proc->disc_all_dscs.chr_val_handle = start_handle;
     proc->disc_all_dscs.prev_handle = start_handle;
     proc->disc_all_dscs.end_handle = end_handle;
@@ -2858,7 +2909,7 @@ ble_gattc_read_tx(struct ble_gattc_proc *proc)
 {
     int rc;
 
-    rc = ble_att_clt_tx_read(proc->conn_handle, proc->read.handle);
+    rc = ble_att_clt_tx_read(proc->conn_handle, proc->cid, proc->read.handle);
     if (rc != 0) {
         return rc;
     }
@@ -2885,8 +2936,8 @@ ble_gattc_read(uint16_t conn_handle, uint16_t attr_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_READ;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ);
+
     proc->read.handle = attr_handle;
     proc->read.cb = cb;
     proc->read.cb_arg = cb_arg;
@@ -3021,7 +3072,7 @@ ble_gattc_read_uuid_rx_complete(struct ble_gattc_proc *proc, int status)
 static int
 ble_gattc_read_uuid_tx(struct ble_gattc_proc *proc)
 {
-    return ble_att_clt_tx_read_type(proc->conn_handle,
+    return ble_att_clt_tx_read_type(proc->conn_handle, proc->cid,
                                     proc->read_uuid.start_handle,
                                     proc->read_uuid.end_handle,
                                     &proc->read_uuid.chr_uuid.u);
@@ -3047,8 +3098,8 @@ ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_READ_UUID;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_UUID);
+
     ble_uuid_to_any(uuid, &proc->read_uuid.chr_uuid);
     proc->read_uuid.start_handle = start_handle;
     proc->read_uuid.end_handle = end_handle;
@@ -3126,12 +3177,12 @@ ble_gattc_read_long_tx(struct ble_gattc_proc *proc)
     ble_gattc_dbg_assert_proc_not_inserted(proc);
 
     if (proc->read_long.offset == 0) {
-        rc = ble_att_clt_tx_read(proc->conn_handle, proc->read_long.handle);
+        rc = ble_att_clt_tx_read(proc->conn_handle, proc->cid, proc->read_long.handle);
         if (rc != 0) {
             return rc;
         }
     } else {
-        rc = ble_att_clt_tx_read_blob(proc->conn_handle,
+        rc = ble_att_clt_tx_read_blob(proc->conn_handle, proc->cid,
                                       proc->read_long.handle,
                                       proc->read_long.offset);
         if (rc != 0) {
@@ -3202,7 +3253,7 @@ ble_gattc_read_long_rx_read_rsp(struct ble_gattc_proc *proc, int status,
     }
 
     /* Determine if this is the end of the attribute value. */
-    mtu = ble_att_mtu(proc->conn_handle);
+    mtu = ble_att_mtu_by_cid(proc->conn_handle, proc->cid);
     if (mtu == 0) {
         /* No longer connected. */
         return BLE_HS_EDONE;
@@ -3243,8 +3294,8 @@ ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_READ_LONG;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_LONG);
+
     proc->read_long.handle = handle;
     proc->read_long.offset = offset;
     proc->read_long.cb = cb;
@@ -3342,7 +3393,7 @@ ble_gattc_read_mult_tx(struct ble_gattc_proc *proc)
 {
     int rc;
 
-    rc = ble_att_clt_tx_read_mult(proc->conn_handle, proc->read_mult.handles,
+    rc = ble_att_clt_tx_read_mult(proc->conn_handle, proc->cid, proc->read_mult.handles,
                                   proc->read_mult.num_handles);
     if (rc != 0) {
         return rc;
@@ -3379,8 +3430,8 @@ ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_READ_MULT;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_MULT);
+
     memcpy(proc->read_mult.handles, handles, num_handles * sizeof *handles);
     proc->read_mult.num_handles = num_handles;
     proc->read_mult.cb = cb;
@@ -3419,7 +3470,7 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
 
     ble_gattc_log_write(attr_handle, OS_MBUF_PKTLEN(txom), 0);
 
-    rc = ble_att_clt_tx_write_cmd(conn_handle, attr_handle, txom);
+    rc = ble_att_clt_tx_write_cmd(conn_handle, BLE_L2CAP_CID_ATT, attr_handle, txom);
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, write);
     }
@@ -3525,15 +3576,15 @@ ble_gattc_write(uint16_t conn_handle, uint16_t attr_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_WRITE;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_WRITE);
+
     proc->write.att_handle = attr_handle;
     proc->write.cb = cb;
     proc->write.cb_arg = cb_arg;
 
     ble_gattc_log_write(attr_handle, OS_MBUF_PKTLEN(txom), 1);
 
-    rc = ble_att_clt_tx_write_req(conn_handle, attr_handle, txom);
+    rc = ble_att_clt_tx_write_req(conn_handle, proc->cid, attr_handle, txom);
     txom = NULL;
     if (rc != 0) {
         goto done;
@@ -3633,7 +3684,7 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
 
     om = NULL;
 
-    max_sz = ble_att_mtu(proc->conn_handle) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+    max_sz = ble_att_mtu_by_cid(proc->conn_handle, proc->cid) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
     if (max_sz <= 0) {
         /* Not connected. */
         rc = BLE_HS_ENOTCONN;
@@ -3645,7 +3696,7 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
                         proc->write_long.attr.offset);
 
     if (write_len <= 0) {
-        rc = ble_att_clt_tx_exec_write(proc->conn_handle,
+        rc = ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
                                        BLE_ATT_EXEC_WRITE_F_EXECUTE);
         goto done;
     }
@@ -3665,7 +3716,7 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
         goto done;
     }
 
-    rc = ble_att_clt_tx_prep_write(proc->conn_handle,
+    rc = ble_att_clt_tx_prep_write(proc->conn_handle, proc->cid,
                                    proc->write_long.attr.handle,
                                    proc->write_long.attr.offset, om);
     om = NULL;
@@ -3709,9 +3760,9 @@ ble_gattc_write_long_err(struct ble_gattc_proc *proc, int status,
      */
     if (proc->write_long.attr.offset > 0 &&
         proc->write_long.attr.offset <
-            OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
+        OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
 
-        ble_att_clt_tx_exec_write(proc->conn_handle,
+        ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
                                   BLE_ATT_EXEC_WRITE_F_CANCEL);
     }
 
@@ -3777,7 +3828,8 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
         rc = BLE_HS_EBADDATA;
 
         /* if data doesn't match up send cancel write */
-        ble_att_clt_tx_exec_write(proc->conn_handle, BLE_ATT_EXEC_WRITE_F_CANCEL);
+        ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
+                                  BLE_ATT_EXEC_WRITE_F_CANCEL);
         goto err;
     } else {
         /* Send follow-up request. */
@@ -3838,8 +3890,8 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_WRITE_LONG;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_WRITE_LONG);
+
     proc->write_long.attr.handle = attr_handle;
     proc->write_long.attr.offset = offset;
     proc->write_long.attr.om = txom;
@@ -3934,14 +3986,14 @@ ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
     attr_idx = proc->write_reliable.cur_attr;
 
     if (attr_idx >= proc->write_reliable.num_attrs) {
-        rc = ble_att_clt_tx_exec_write(proc->conn_handle,
+        rc = ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
                                        BLE_ATT_EXEC_WRITE_F_EXECUTE);
         goto done;
     }
 
     attr = proc->write_reliable.attrs + attr_idx;
 
-    max_sz = ble_att_mtu(proc->conn_handle) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+    max_sz = ble_att_mtu_by_cid(proc->conn_handle, proc->cid) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
     if (max_sz <= 0) {
         /* Not connected. */
         rc = BLE_HS_ENOTCONN;
@@ -3964,8 +4016,8 @@ ble_gattc_write_reliable_tx(struct ble_gattc_proc *proc)
         goto done;
     }
 
-    rc = ble_att_clt_tx_prep_write(proc->conn_handle, attr->handle,
-                                   attr->offset, om);
+    rc = ble_att_clt_tx_prep_write(proc->conn_handle, proc->cid,
+                                   attr->handle, attr->offset, om);
     om = NULL;
     if (rc != 0) {
         goto done;
@@ -4008,7 +4060,7 @@ ble_gattc_write_reliable_err(struct ble_gattc_proc *proc, int status,
      */
     if (proc->write_reliable.cur_attr < proc->write_reliable.num_attrs) {
 
-        ble_att_clt_tx_exec_write(proc->conn_handle,
+        ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
                                   BLE_ATT_EXEC_WRITE_F_CANCEL);
     }
 }
@@ -4121,8 +4173,8 @@ ble_gattc_write_reliable(uint16_t conn_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_WRITE_RELIABLE;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_WRITE_RELIABLE);
+
     proc->write_reliable.num_attrs = num_attrs;
     proc->write_reliable.cur_attr = 0;
     proc->write_reliable.cb = cb;
@@ -4344,8 +4396,8 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         goto done;
     }
 
-    proc->op = BLE_GATT_OP_INDICATE;
-    proc->conn_handle = conn_handle;
+    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_INDICATE);
+
     proc->indicate.chr_val_handle = chr_val_handle;
 
     ble_gattc_log_indicate(chr_val_handle);
@@ -4370,7 +4422,7 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         }
     }
 
-    rc = ble_att_clt_tx_indicate(conn_handle, chr_val_handle, txom);
+    rc = ble_att_clt_tx_indicate(conn_handle, proc->cid, chr_val_handle, txom);
     txom = NULL;
     if (rc != 0) {
         goto done;
@@ -4431,12 +4483,12 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
  * procedure.
  */
 void
-ble_gattc_rx_err(uint16_t conn_handle, uint16_t handle, uint16_t status)
+ble_gattc_rx_err(uint16_t conn_handle, uint16_t cid, uint16_t handle, uint16_t status)
 {
     struct ble_gattc_proc *proc;
     ble_gattc_err_fn *err_cb;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle, BLE_GATT_OP_NONE);
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid, BLE_GATT_OP_NONE);
     if (proc != NULL) {
         err_cb = ble_gattc_err_dispatch_get(proc->op);
         if (err_cb != NULL) {
@@ -4451,11 +4503,13 @@ ble_gattc_rx_err(uint16_t conn_handle, uint16_t handle, uint16_t status)
  * GATT procedure.
  */
 void
-ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu)
+ble_gattc_rx_mtu(uint16_t conn_handle, uint16_t cid, int status, uint16_t chan_mtu)
 {
     struct ble_gattc_proc *proc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle, BLE_GATT_OP_MTU);
+    assert(cid == BLE_L2CAP_CID_ATT);
+
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, BLE_L2CAP_CID_ATT, BLE_GATT_OP_MTU);
     if (proc != NULL) {
         ble_gattc_mtu_cb(proc, status, 0, chan_mtu);
         ble_gattc_process_status(proc, BLE_HS_EDONE);
@@ -4467,7 +4521,7 @@ ble_gattc_rx_mtu(uint16_t conn_handle, int status, uint16_t chan_mtu)
  * find-information-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_find_info_idata(uint16_t conn_handle,
+ble_gattc_rx_find_info_idata(uint16_t conn_handle, uint16_t cid,
                              struct ble_att_find_info_idata *idata)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_INFO
@@ -4477,7 +4531,7 @@ ble_gattc_rx_find_info_idata(uint16_t conn_handle,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_DISC_ALL_DSCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_dscs_rx_idata(proc, idata);
@@ -4490,7 +4544,7 @@ ble_gattc_rx_find_info_idata(uint16_t conn_handle,
  * find-information-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status)
+ble_gattc_rx_find_info_complete(uint16_t conn_handle, uint16_t cid, int status)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_INFO
     return;
@@ -4499,8 +4553,8 @@ ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status)
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
-                                              BLE_GATT_OP_DISC_ALL_DSCS);
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
+                                                  BLE_GATT_OP_DISC_ALL_DSCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_dscs_rx_complete(proc, status);
         ble_gattc_process_status(proc, rc);
@@ -4512,7 +4566,7 @@ ble_gattc_rx_find_info_complete(uint16_t conn_handle, int status)
  * find-by-type-value-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle,
+ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle, uint16_t cid,
                                    struct ble_att_find_type_value_hinfo *hinfo)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_TYPE
@@ -4522,7 +4576,7 @@ ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_DISC_SVC_UUID);
     if (proc != NULL) {
         rc = ble_gattc_disc_svc_uuid_rx_hinfo(proc, hinfo);
@@ -4535,7 +4589,7 @@ ble_gattc_rx_find_type_value_hinfo(uint16_t conn_handle,
  * find-by-type-value-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status)
+ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, uint16_t cid, int status)
 {
 #if !NIMBLE_BLE_ATT_CLT_FIND_TYPE
     return;
@@ -4544,8 +4598,8 @@ ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status)
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
-                                              BLE_GATT_OP_DISC_SVC_UUID);
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
+                                                  BLE_GATT_OP_DISC_SVC_UUID);
     if (proc != NULL) {
         rc = ble_gattc_disc_svc_uuid_rx_complete(proc, status);
         ble_gattc_process_status(proc, rc);
@@ -4557,7 +4611,7 @@ ble_gattc_rx_find_type_value_complete(uint16_t conn_handle, int status)
  * to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_read_type_adata(uint16_t conn_handle,
+ble_gattc_rx_read_type_adata(uint16_t conn_handle, uint16_t cid,
                              struct ble_att_read_type_adata *adata)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_TYPE
@@ -4568,7 +4622,7 @@ ble_gattc_rx_read_type_adata(uint16_t conn_handle,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, cid,
                                          ble_gattc_rx_read_type_elem_entries,
                                          &rx_entry);
     if (proc != NULL) {
@@ -4582,7 +4636,7 @@ ble_gattc_rx_read_type_adata(uint16_t conn_handle,
  * the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status)
+ble_gattc_rx_read_type_complete(uint16_t conn_handle, uint16_t cid, int status)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_TYPE
     return;
@@ -4593,7 +4647,7 @@ ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status)
     int rc;
 
     proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(
-        conn_handle, ble_gattc_rx_read_type_complete_entries,
+        conn_handle, cid, ble_gattc_rx_read_type_complete_entries,
         &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, status);
@@ -4606,7 +4660,7 @@ ble_gattc_rx_read_type_complete(uint16_t conn_handle, int status)
  * read-by-group-type-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_read_group_type_adata(uint16_t conn_handle,
+ble_gattc_rx_read_group_type_adata(uint16_t conn_handle, uint16_t cid,
                                    struct ble_att_read_group_type_adata *adata)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE
@@ -4616,7 +4670,7 @@ ble_gattc_rx_read_group_type_adata(uint16_t conn_handle,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_DISC_ALL_SVCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_svcs_rx_adata(proc, adata);
@@ -4629,7 +4683,7 @@ ble_gattc_rx_read_group_type_adata(uint16_t conn_handle,
  * read-by-group-type-response to the appropriate active GATT procedure.
  */
 void
-ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int status)
+ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, uint16_t cid, int status)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_GROUP_TYPE
     return;
@@ -4638,8 +4692,8 @@ ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int status)
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
-                                              BLE_GATT_OP_DISC_ALL_SVCS);
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
+                                                  BLE_GATT_OP_DISC_ALL_SVCS);
     if (proc != NULL) {
         rc = ble_gattc_disc_all_svcs_rx_complete(proc, status);
         ble_gattc_process_status(proc, rc);
@@ -4651,7 +4705,7 @@ ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, int status)
  * procedure.
  */
 void
-ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, struct os_mbuf **om)
+ble_gattc_rx_read_rsp(uint16_t conn_handle, uint16_t cid, int status, struct os_mbuf **om)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ
     return;
@@ -4661,7 +4715,7 @@ ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, struct os_mbuf **om)
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, cid,
                                          ble_gattc_rx_read_rsp_entries,
                                          &rx_entry);
     if (proc != NULL) {
@@ -4675,7 +4729,7 @@ ble_gattc_rx_read_rsp(uint16_t conn_handle, int status, struct os_mbuf **om)
  * procedure.
  */
 void
-ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
+ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, uint16_t cid, int status,
                            struct os_mbuf **om)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_BLOB
@@ -4685,7 +4739,7 @@ ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_READ_LONG);
     if (proc != NULL) {
         rc = ble_gattc_read_long_rx_read_rsp(proc, status, om);
@@ -4698,7 +4752,7 @@ ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, int status,
  * GATT procedure.
  */
 void
-ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
+ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, uint16_t cid, int status,
                            struct os_mbuf **om)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_MULT
@@ -4707,7 +4761,7 @@ ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
 
     struct ble_gattc_proc *proc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_READ_MULT);
     if (proc != NULL) {
         ble_gattc_read_mult_cb(proc, status, 0, om);
@@ -4720,7 +4774,7 @@ ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, int status,
  * procedure.
  */
 void
-ble_gattc_rx_write_rsp(uint16_t conn_handle)
+ble_gattc_rx_write_rsp(uint16_t conn_handle, uint16_t cid)
 {
 #if !NIMBLE_BLE_ATT_CLT_WRITE
     return;
@@ -4728,7 +4782,7 @@ ble_gattc_rx_write_rsp(uint16_t conn_handle)
 
     struct ble_gattc_proc *proc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_WRITE);
     if (proc != NULL) {
         ble_gattc_write_cb(proc, 0, 0);
@@ -4741,7 +4795,7 @@ ble_gattc_rx_write_rsp(uint16_t conn_handle)
  * GATT procedure.
  */
 void
-ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
+ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, uint16_t cid, int status,
                             uint16_t handle, uint16_t offset,
                             struct os_mbuf **om)
 {
@@ -4753,7 +4807,7 @@ ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, cid,
                                          ble_gattc_rx_prep_entries,
                                          &rx_entry);
     if (proc != NULL) {
@@ -4767,7 +4821,7 @@ ble_gattc_rx_prep_write_rsp(uint16_t conn_handle, int status,
  * GATT procedure.
  */
 void
-ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
+ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, uint16_t cid, int status)
 {
 #if !NIMBLE_BLE_ATT_CLT_EXEC_WRITE
     return;
@@ -4777,7 +4831,7 @@ ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
     struct ble_gattc_proc *proc;
     int rc;
 
-    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle,
+    proc = BLE_GATTC_RX_EXTRACT_RX_ENTRY(conn_handle, cid,
                                          ble_gattc_rx_exec_entries, &rx_entry);
     if (proc != NULL) {
         rc = rx_entry->cb(proc, status);
@@ -4790,7 +4844,7 @@ ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
  * active GATT procedure.
  */
 void
-ble_gatts_rx_indicate_rsp(uint16_t conn_handle)
+ble_gatts_rx_indicate_rsp(uint16_t conn_handle, uint16_t cid)
 {
 #if !NIMBLE_BLE_ATT_CLT_INDICATE
     return;
@@ -4798,7 +4852,7 @@ ble_gatts_rx_indicate_rsp(uint16_t conn_handle)
 
     struct ble_gattc_proc *proc;
 
-    proc = ble_gattc_extract_first_by_conn_op(conn_handle,
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
                                               BLE_GATT_OP_INDICATE);
     if (proc != NULL) {
         ble_gatts_indicate_rx_rsp(proc);

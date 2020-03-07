@@ -173,6 +173,7 @@ void ble_hs_test_util_set_att_mtu(uint16_t conn_handle, uint16_t mtu);
 int ble_hs_test_util_rx_att_mtu_cmd(uint16_t conn_handle, int is_req,
                                     uint16_t mtu);
 int ble_hs_test_util_rx_att_find_info_req(uint16_t conn_handle,
+                                          uint16_t cid,
                                           uint16_t start_handle,
                                           uint16_t end_handle);
 int ble_hs_test_util_rx_att_find_type_value_req(uint16_t conn_handle,
@@ -228,8 +229,9 @@ int ble_hs_test_util_rx_att_indicate_req(uint16_t conn_handle,
                                          uint16_t attr_handle,
                                          void *attr_val,
                                          uint16_t attr_len);
-void ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint8_t req_op,
-                                     uint8_t error_code, uint16_t err_handle);
+void ble_hs_test_util_rx_att_err_rsp(uint16_t conn_handle, uint16_t cid,
+                                     uint8_t req_op, uint8_t error_code,
+                                     uint16_t err_handle);
 void ble_hs_test_util_verify_tx_prep_write(uint16_t attr_handle,
                                            uint16_t offset,
                                            const void *data, int data_len);
