@@ -87,8 +87,8 @@ ble_gatt_write_test_rx_rsp(uint16_t conn_handle)
 }
 
 static void
-ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                                uint16_t offset,
+ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t cid,
+                                uint16_t attr_handle, uint16_t offset,
                                 const void *attr_data, uint16_t attr_data_len)
 {
     struct ble_att_prep_write_cmd rsp;
@@ -102,19 +102,19 @@ ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t attr_handle,
     memcpy(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, attr_data, attr_data_len);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf,
+        conn_handle, cid, buf,
         BLE_ATT_PREP_WRITE_CMD_BASE_SZ + attr_data_len);
     TEST_ASSERT(rc == 0);
 }
 
 static void
-ble_gatt_write_test_rx_exec_rsp(uint16_t conn_handle)
+ble_gatt_write_test_rx_exec_rsp(uint16_t conn_handle, uint16_t cid)
 {
     uint8_t op;
     int rc;
 
     op = BLE_ATT_OP_EXEC_WRITE_RSP;
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 &op, 1);
     TEST_ASSERT(rc == 0);
 }
@@ -129,10 +129,10 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
     ble_gatt_write_test_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]) {2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
 
-    mtu = ble_att_mtu(2);
+    mtu = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT);
 
     rc = ble_hs_test_util_gatt_write_long_flat(
         2, 100, ble_gatt_write_test_attr_value, attr_len,
@@ -152,7 +152,7 @@ ble_gatt_write_test_misc_long_good(int attr_len)
 
         /* Receive Prep Write response. */
         ble_gatt_write_test_rx_prep_rsp(
-            2, 100, off, ble_gatt_write_test_attr_value + off, len);
+            2, BLE_L2CAP_CID_ATT, 100, off, ble_gatt_write_test_attr_value + off, len);
 
         /* Verify callback hasn't gotten called. */
         TEST_ASSERT(!ble_gatt_write_test_cb_called);
@@ -164,13 +164,13 @@ ble_gatt_write_test_misc_long_good(int attr_len)
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_gatt_write_test_rx_exec_rsp(2);
+    ble_gatt_write_test_rx_exec_rsp(2, BLE_L2CAP_CID_ATT);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
 }
 
-typedef void ble_gatt_write_test_long_fail_fn(uint16_t conn_handle,
+typedef void ble_gatt_write_test_long_fail_fn(uint16_t conn_handle, uint16_t cid,
                                               int off, int len);
 
 static void
@@ -185,9 +185,9 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 
     ble_gatt_write_test_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]) {2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    mtu = ble_att_mtu(2);
+    mtu = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT);
 
     rc = ble_hs_test_util_gatt_write_long_flat(
         2, 100, ble_gatt_write_test_attr_value, attr_len,
@@ -214,9 +214,9 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
         }
         if (!fail_now) {
             ble_gatt_write_test_rx_prep_rsp(
-                2, 100, off, ble_gatt_write_test_attr_value + off, len);
+                2, BLE_L2CAP_CID_ATT, 100, off, ble_gatt_write_test_attr_value + off, len);
         } else {
-            cb(2, off, len);
+            cb(2, BLE_L2CAP_CID_ATT, off, len);
             break;
         }
 
@@ -233,38 +233,38 @@ ble_gatt_write_test_misc_long_bad(int attr_len,
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_handle(uint16_t conn_handle,
+ble_gatt_write_test_misc_long_fail_handle(uint16_t conn_handle, uint16_t cid,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn_handle, 99, off, ble_gatt_write_test_attr_value + off,
+        conn_handle, cid, 99, off, ble_gatt_write_test_attr_value + off,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_offset(uint16_t conn_handle,
+ble_gatt_write_test_misc_long_fail_offset(uint16_t conn_handle, uint16_t cid,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn_handle, 100, off + 1, ble_gatt_write_test_attr_value + off,
+        conn_handle, cid, 100, off + 1, ble_gatt_write_test_attr_value + off,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_value(uint16_t conn_handle,
+ble_gatt_write_test_misc_long_fail_value(uint16_t conn_handle, uint16_t cid,
                                          int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn_handle, 100, off, ble_gatt_write_test_attr_value + off + 1,
+        conn_handle, cid, 100, off, ble_gatt_write_test_attr_value + off + 1,
         len);
 }
 
 static void
-ble_gatt_write_test_misc_long_fail_length(uint16_t conn_handle,
+ble_gatt_write_test_misc_long_fail_length(uint16_t conn_handle, uint16_t cid,
                                           int off, int len)
 {
     ble_gatt_write_test_rx_prep_rsp(
-        conn_handle, 100, off, ble_gatt_write_test_attr_value + off,
+        conn_handle, cid, 100, off, ble_gatt_write_test_attr_value + off,
         len - 1);
 }
 
@@ -313,9 +313,9 @@ ble_gatt_write_test_misc_reliable_good(
                                         flat_attrs + num_attrs);
     }
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]) {2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    mtu = ble_att_mtu(2);
+    mtu = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT);
 
     rc = ble_gattc_write_reliable(2, attrs, num_attrs,
                                   ble_gatt_write_test_reliable_cb_good, NULL);
@@ -336,7 +336,7 @@ ble_gatt_write_test_misc_reliable_good(
                                               attr->value + off, len);
 
         /* Receive Prep Write response. */
-        ble_gatt_write_test_rx_prep_rsp(2, attr->handle, off,
+        ble_gatt_write_test_rx_prep_rsp(2, BLE_L2CAP_CID_ATT, attr->handle, off,
                                         attr->value + off, len);
 
         /* Verify callback hasn't gotten called. */
@@ -353,7 +353,7 @@ ble_gatt_write_test_misc_reliable_good(
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_gatt_write_test_rx_exec_rsp(2);
+    ble_gatt_write_test_rx_exec_rsp(2, BLE_L2CAP_CID_ATT);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
@@ -599,7 +599,7 @@ TEST_CASE_SELF(ble_gatt_write_test_long_queue_full)
         /* Receive Prep Write response. */
         len = BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
         ble_gatt_write_test_rx_prep_rsp(
-            2, 100, off, ble_gatt_write_test_attr_value + off, len);
+            2, BLE_L2CAP_CID_ATT, 100, off, ble_gatt_write_test_attr_value + off, len);
 
         /* Verify callback hasn't gotten called. */
         TEST_ASSERT(!ble_gatt_write_test_cb_called);
@@ -611,7 +611,8 @@ TEST_CASE_SELF(ble_gatt_write_test_long_queue_full)
     TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() != NULL);
 
     /* Receive queue full error. */
-    ble_hs_test_util_rx_att_err_rsp(2, BLE_ATT_OP_PREP_WRITE_REQ,
+    ble_hs_test_util_rx_att_err_rsp(2, BLE_L2CAP_CID_ATT,
+                                    BLE_ATT_OP_PREP_WRITE_REQ,
                                     BLE_ATT_ERR_PREPARE_QUEUE_FULL, 100);
 
     /* Verify callback was called. */
@@ -654,14 +655,14 @@ TEST_CASE_SELF(ble_gatt_write_test_long_oom)
         ble_gatt_write_test_cb_good, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    chunk_sz = ble_att_mtu(2) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+    chunk_sz = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
 
     ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
                                           attr.value + off, chunk_sz);
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_write_test_rx_prep_rsp(2, attr.handle, off, attr.value + off,
+    ble_gatt_write_test_rx_prep_rsp(2, BLE_L2CAP_CID_ATT, attr.handle, off, attr.value + off,
                                     chunk_sz);
     off += chunk_sz;
 
@@ -688,7 +689,7 @@ TEST_CASE_SELF(ble_gatt_write_test_long_oom)
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
     ble_gatt_write_test_rx_prep_rsp(
-        2, attr.handle, off, attr.value + off, chunk_sz);
+        2, BLE_L2CAP_CID_ATT, attr.handle, off, attr.value + off, chunk_sz);
     off += chunk_sz;
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
@@ -711,7 +712,7 @@ TEST_CASE_SELF(ble_gatt_write_test_long_oom)
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_gatt_write_test_rx_exec_rsp(2);
+    ble_gatt_write_test_rx_exec_rsp(2, BLE_L2CAP_CID_ATT);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);
@@ -750,14 +751,14 @@ TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
                                   ble_gatt_write_test_reliable_cb_good, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    chunk_sz = ble_att_mtu(2) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
+    chunk_sz = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT) - BLE_ATT_PREP_WRITE_CMD_BASE_SZ;
 
     ble_hs_test_util_verify_tx_prep_write(attr.handle, off,
                                           attr.value + off, chunk_sz);
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_write_test_rx_prep_rsp(2, attr.handle, off, attr.value + off,
+    ble_gatt_write_test_rx_prep_rsp(2, BLE_L2CAP_CID_ATT, attr.handle, off, attr.value + off,
                                     chunk_sz);
     off += chunk_sz;
 
@@ -784,7 +785,7 @@ TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
     ble_gatt_write_test_rx_prep_rsp(
-        2, attr.handle, off, attr.value + off, chunk_sz);
+        2, BLE_L2CAP_CID_ATT, attr.handle, off, attr.value + off, chunk_sz);
     off += chunk_sz;
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
@@ -807,7 +808,7 @@ TEST_CASE_SELF(ble_gatt_write_test_reliable_oom)
     ble_hs_test_util_verify_tx_exec_write(BLE_ATT_EXEC_WRITE_F_EXECUTE);
 
     /* Receive Exec Write response. */
-    ble_gatt_write_test_rx_exec_rsp(2);
+    ble_gatt_write_test_rx_exec_rsp(2, BLE_L2CAP_CID_ATT);
 
     /* Verify callback got called. */
     TEST_ASSERT(ble_gatt_write_test_cb_called);

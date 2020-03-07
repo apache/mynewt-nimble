@@ -440,8 +440,14 @@ void ble_att_indicate_rsp_write(void *payload, int len);
 
 void *ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom);
 void *ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
-int ble_att_tx(uint16_t conn_handle, struct os_mbuf *txom);
+int ble_att_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom);
 
+struct ble_l2cap_chan;
+struct ble_hs_conn;
+int ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
+                         struct os_mbuf *txom);
+bool ble_att_is_response_op(uint8_t opcode);
+bool ble_att_is_request_op(uint8_t opcode);
 #ifdef __cplusplus
 }
 #endif
