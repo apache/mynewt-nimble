@@ -1368,6 +1368,10 @@ ble_l2cap_sig_ecoc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
         return BLE_HS_ENOMEM;
     }
 
+    proc->op = BLE_L2CAP_SIG_PROC_OP_CONNECT;
+    proc->id = ble_l2cap_sig_next_id();
+    proc->conn_handle = conn_handle;
+
     req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ, proc->id,
                                 sizeof(*req) + num * sizeof(uint16_t), &txom);
     if (!req) {
@@ -1395,10 +1399,6 @@ ble_l2cap_sig_ecoc_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
         proc->connect.chan[i] = chan;
     }
     proc->connect.chan_cnt = num;
-
-    proc->op = BLE_L2CAP_SIG_PROC_OP_CONNECT;
-    proc->id = ble_l2cap_sig_next_id();
-    proc->conn_handle = conn_handle;
 
     req->psm = htole16(psm);
     req->mtu = htole16(chan->coc_rx.mtu);
