@@ -750,14 +750,14 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
 
     if (hdr->length <= sizeof(*req)) {
         rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
-        goto done;
+        goto failed;
     }
 
     req = (struct ble_l2cap_sig_credit_base_reconfig_req *)(*om)->om_data;
 
     if ((req->mps < BLE_L2CAP_ECOC_MIN_MTU) || (req->mtu < BLE_L2CAP_ECOC_MIN_MTU)) {
         rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
-        goto done;
+        goto failed;
     }
 
     /* Assume request will succeed. If not, result will be updated */
@@ -766,32 +766,31 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
     cid_cnt = (hdr->length - sizeof(*req)) / sizeof(uint16_t);
     if (cid_cnt > BLE_L2CAP_MAX_COC_CONN_REQ) {
         rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
-        goto done;
+        goto failed;
     }
 
     for (i = 0; i < cid_cnt; i++) {
         chan[i] = ble_hs_conn_chan_find_by_dcid(conn, req->dcids[i]);
         if (!chan[i]) {
              rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_INVALID_DCID);
-             ble_hs_unlock();
-             goto done;
+             goto failed;
         }
 
         if (chan[i]->peer_coc_mps > req->mps) {
             reduction_mps++;
             if (reduction_mps > 1) {
                 rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_REDUCTION_MPS_NOT_ALLOWED);
-                ble_hs_unlock();
-                goto done;
+                goto failed;
             }
         }
 
         if (chan[i]->coc_tx.mtu > req->mtu) {
             rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_REDUCTION_MTU_NOT_ALLOWED);
-            ble_hs_unlock();
-            goto done;
+            goto failed;
         }
     }
+
+    ble_hs_unlock();
 
     for (i = 0; i < cid_cnt; i++) {
         chan[i]->coc_tx.mtu = req->mtu;
@@ -799,8 +798,11 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
         ble_l2cap_event_coc_reconfigured(conn_handle, 0, chan[i], true);
     }
 
+    ble_l2cap_sig_tx(conn_handle, txom);
+    return 0;
+
+failed:
     ble_hs_unlock();
-done:
     ble_l2cap_sig_tx(conn_handle, txom);
     return 0;
 }
