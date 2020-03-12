@@ -33,6 +33,19 @@ git:
 
 matrix:
   include:
+    # Style checking
+    - os: linux
+      language: python
+      python:
+        - "3.5"
+      addons:
+        apt:
+          packages:
+            - "python3-pip"
+      env:
+        - TEST=STYLE
+        - DEBUG=1
+
     # newt build <targets>
     - os: linux
       addons: *addon_conf
@@ -114,24 +127,39 @@ before_install:
 install:
   - git clone https://github.com/JuulLabs-OSS/mynewt-travis-ci $HOME/ci
   - chmod +x $HOME/ci/*.sh
-  - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
+  - |
+    if [ "${TEST}" == "STYLE" ]; then
+      pip3 install requests
+    else
+      $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
+    fi
 
 before_script:
-  - newt version
-  - gcc --version
-  - if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
-  - cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
-  - mkdir -p targets
-  - cp -R $HOME/ci/mynewt-nimble-targets targets
-  - $HOME/ci/prepare_test.sh $VM_AMOUNT
-  - mkdir -p repos && pushd repos/
-  - git clone --depth=1 https://github.com/apache/mynewt-core apache-mynewt-core
-  - git clone --depth=1 https://github.com/JuulLabs-OSS/mcuboot mcuboot
-  - git clone --depth=1 https://github.com/apache/mynewt-mcumgr apache-mynewt-mcumgr
-  - popd
+  - |
+    if [ "${TEST}" == "STYLE" ]; then
+      $HOME/ci/install_uncrustify.sh
+    else
+      newt version
+      gcc --version
+      if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
+      cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
+      mkdir -p targets
+      cp -R $HOME/ci/mynewt-nimble-targets targets
+      $HOME/ci/prepare_test.sh $VM_AMOUNT
+      mkdir -p repos && pushd repos/
+      git clone --depth=1 https://github.com/apache/mynewt-core apache-mynewt-core
+      git clone --depth=1 https://github.com/JuulLabs-OSS/mcuboot mcuboot
+      git clone --depth=1 https://github.com/apache/mynewt-mcumgr apache-mynewt-mcumgr
+      popd
+    fi
 
 script:
-  - $HOME/ci/run_test.sh
+  - |
+    if [ "${TEST}" == "STYLE" ]; then
+      python3 $HOME/ci/check_style.py
+    else
+      $HOME/ci/run_test.sh
+    fi
 
 cache:
   directories:
