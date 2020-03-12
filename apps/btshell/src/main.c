@@ -869,6 +869,35 @@ btshell_on_disc_d(uint16_t conn_handle, const struct ble_gatt_error *error,
 
     return 0;
 }
+static int
+btshell_on_read_var(uint16_t conn_handle, const struct ble_gatt_error *error,
+                    struct ble_gatt_attr *attr, uint8_t num_attrs, void *arg)
+{
+    int i;
+
+    switch (error->status) {
+    case 0:
+        console_printf("characteristic read; conn_handle=%d , number of attributes=%d\n", conn_handle, num_attrs);
+
+        for (i = 0; i < num_attrs; i++) {
+            console_printf("\t attr_handle=%d, len=%d value=",
+                            attr[i].handle, OS_MBUF_PKTLEN(attr[i].om));
+            print_mbuf(attr[i].om);
+            console_printf("\n");
+        }
+        break;
+
+    case BLE_HS_EDONE:
+        console_printf("characteristic read complete\n");
+        break;
+
+    default:
+        btshell_print_error(NULL, conn_handle, error);
+        break;
+    }
+
+    return 0;
+}
 
 static int
 btshell_on_read(uint16_t conn_handle, const struct ble_gatt_error *error,
@@ -1670,13 +1699,17 @@ btshell_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
 
 int
 btshell_read_mult(uint16_t conn_handle, uint16_t *attr_handles,
-                   int num_attr_handles)
+                  int num_attr_handles, bool variable)
 {
-    int rc;
+    if (variable) {
+        return ble_gattc_read_mult_var(conn_handle, attr_handles, num_attr_handles,
+                                       btshell_on_read_var, NULL);
+    }
 
-    rc = ble_gattc_read_mult(conn_handle, attr_handles, num_attr_handles,
-                             btshell_on_read, NULL);
-    return rc;
+    return ble_gattc_read_mult(conn_handle, attr_handles,
+                               num_attr_handles,
+                               btshell_on_read, NULL);
+
 }
 
 int
