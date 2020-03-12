@@ -238,6 +238,7 @@ cmd_gatt_read(int argc, char **argv)
     uint8_t num_attr_handles;
     int is_uuid;
     int is_long;
+    bool is_var;
     int rc;
 
     rc = parse_arg_all(argc - 1, argv + 1);
@@ -256,6 +257,12 @@ cmd_gatt_read(int argc, char **argv)
         is_long = 0;
     } else if (rc != 0) {
         console_printf("invalid 'long' parameter\n");
+        return rc;
+    }
+
+    is_var = parse_arg_bool_dflt("variable", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'variable' parameter\n");
         return rc;
     }
 
@@ -313,7 +320,7 @@ cmd_gatt_read(int argc, char **argv)
             rc = btshell_read(conn_handle, attr_handles[0]);
         }
     } else if (num_attr_handles > 1) {
-        rc = btshell_read_mult(conn_handle, attr_handles, num_attr_handles);
+        rc = btshell_read_mult(conn_handle, attr_handles, num_attr_handles, is_var);
     } else if (is_uuid) {
         if (start == 0 || end == 0) {
             rc = EINVAL;

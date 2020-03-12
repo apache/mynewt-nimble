@@ -96,22 +96,22 @@ int btshell_exchange_mtu(uint16_t conn_handle);
 int btshell_disc_svcs(uint16_t conn_handle);
 int btshell_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid);
 int btshell_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
-                           uint16_t end_handle);
+                          uint16_t end_handle);
 int btshell_disc_all_chrs_in_svc(uint16_t conn_handle, struct btshell_svc *svc);
 int btshell_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                               uint16_t end_handle, const ble_uuid_t *uuid);
+                              uint16_t end_handle, const ble_uuid_t *uuid);
 int btshell_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
                           uint16_t end_handle);
 int btshell_disc_full(uint16_t conn_handle);
 int btshell_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
-                           uint16_t end_handle);
+                          uint16_t end_handle);
 int btshell_read(uint16_t conn_handle, uint16_t attr_handle);
 int btshell_read_long(uint16_t conn_handle, uint16_t attr_handle,
                       uint16_t offset);
 int btshell_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                          uint16_t end_handle, const ble_uuid_t *uuid);
+                         uint16_t end_handle, const ble_uuid_t *uuid);
 int btshell_read_mult(uint16_t conn_handle, uint16_t *attr_handles,
-                       int num_attr_handles);
+                      int num_attr_handles, bool variable);
 int btshell_write(uint16_t conn_handle, uint16_t attr_handle,
                   struct os_mbuf *om);
 int btshell_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
