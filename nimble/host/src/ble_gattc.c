@@ -93,11 +93,12 @@
 #define BLE_GATT_OP_READ_UUID                   8
 #define BLE_GATT_OP_READ_LONG                   9
 #define BLE_GATT_OP_READ_MULT                   10
-#define BLE_GATT_OP_WRITE                       11
-#define BLE_GATT_OP_WRITE_LONG                  12
-#define BLE_GATT_OP_WRITE_RELIABLE              13
-#define BLE_GATT_OP_INDICATE                    14
-#define BLE_GATT_OP_CNT                         15
+#define BLE_GATT_OP_READ_MULT_VAR               11
+#define BLE_GATT_OP_WRITE                       12
+#define BLE_GATT_OP_WRITE_LONG                  13
+#define BLE_GATT_OP_WRITE_RELIABLE              14
+#define BLE_GATT_OP_INDICATE                    15
+#define BLE_GATT_OP_CNT                         16
 
 /** Procedure stalled due to resource exhaustion. */
 #define BLE_GATTC_PROC_F_STALLED                0x01
@@ -189,7 +190,9 @@ struct ble_gattc_proc {
         struct {
             uint16_t handles[MYNEWT_VAL(BLE_GATT_READ_MAX_ATTRS)];
             uint8_t num_handles;
+            bool variable;
             ble_gatt_attr_fn *cb;
+            ble_gatt_attr_mult_fn *cb_mult;
             void *cb_arg;
         } read_mult;
 
@@ -584,7 +587,7 @@ ble_gattc_log_read_long(struct ble_gattc_proc *proc)
 }
 
 static void
-ble_gattc_log_read_mult(const uint16_t *handles, uint8_t num_handles)
+ble_gattc_log_read_mult(const uint16_t *handles, uint8_t num_handles, bool variable)
 {
     int i;
 
@@ -3324,8 +3327,74 @@ done:
 }
 
 /*****************************************************************************
- * $read multiple                                                            *
- *****************************************************************************/
+* $read multiple                                                             *
+*****************************************************************************/
+
+static int
+ble_gattc_read_mult_cb_var(struct ble_gattc_proc *proc, int status,
+                           uint16_t att_handle, struct os_mbuf **om)
+{
+    struct ble_gatt_attr attr[proc->read_mult.num_handles];
+    int rc;
+    int i;
+    uint16_t attr_len;
+
+    if (proc->read_mult.cb_mult == NULL) {
+        return 0;
+    }
+
+    memset(attr, 0, sizeof(*attr));
+
+    for (i = 0; i < proc->read_mult.num_handles; i++) {
+        attr[i].handle = proc->read_mult.handles[i];
+        attr[i].offset = 0;
+        if (om == NULL || OS_MBUF_PKTLEN(*om) == 0) {
+            continue;
+        }
+
+        *om = os_mbuf_pullup(*om, 2);
+        assert(*om);
+
+        attr_len = get_le16((*om)->om_data);
+
+        os_mbuf_adj(*om, 2);
+
+        if (attr_len > BLE_ATT_ATTR_MAX_LEN) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        attr[i].om = os_msys_get_pkthdr(attr_len, 0);
+        if (!attr[i].om) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        rc = os_mbuf_appendfrom(attr[i].om, *om, 0, attr_len);
+        if (rc) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        os_mbuf_adj(*om, attr_len);
+    }
+
+    /*FIXME Testing assert */
+    assert(i == proc->read_mult.num_handles);
+
+    proc->read_mult.cb_mult(proc->conn_handle,
+                    ble_gattc_error(status, att_handle), &attr[0],
+                    i,
+                    proc->read_mult.cb_arg);
+
+    for (i = 0; i < proc->read_mult.num_handles; i++) {
+        if (attr[i].om != NULL) {
+            os_mbuf_free_chain(attr[i].om);
+        }
+    }
+
+    return 0;
+}
 
 /**
  * Calls a read-multiple-characteristics proc's callback with the specified
@@ -3347,6 +3416,10 @@ ble_gattc_read_mult_cb(struct ble_gattc_proc *proc, int status,
 
     if (status != 0 && status != BLE_HS_EDONE) {
         STATS_INC(ble_gattc_stats, read_mult_fail);
+    }
+
+    if (proc->read_mult.variable) {
+        return ble_gattc_read_mult_cb_var(proc, status, att_handle, om);
     }
 
     attr.handle = 0;
@@ -3400,7 +3473,7 @@ ble_gattc_read_mult_tx(struct ble_gattc_proc *proc)
     int rc;
 
     rc = ble_att_clt_tx_read_mult(proc->conn_handle, proc->cid, proc->read_mult.handles,
-                                  proc->read_mult.num_handles);
+                                  proc->read_mult.num_handles, proc->read_mult.variable);
     if (rc != 0) {
         return rc;
     }
@@ -3409,10 +3482,11 @@ ble_gattc_read_mult_tx(struct ble_gattc_proc *proc)
 }
 
 
-int
-ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
-                    uint8_t num_handles, ble_gatt_attr_fn *cb,
-                    void *cb_arg)
+static int
+ble_gattc_read_mult_internal(uint16_t conn_handle, const uint16_t *handles,
+                             uint8_t num_handles, bool variable, ble_gatt_attr_fn *cb,
+                             ble_gatt_attr_mult_fn *cb_mult,
+                             void *cb_arg)
 {
 #if !MYNEWT_VAL(BLE_GATT_READ_MULT)
     return BLE_HS_ENOTSUP;
@@ -3436,14 +3510,20 @@ ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
         goto done;
     }
 
-    ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_MULT);
+    if (variable) {
+        ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_MULT_VAR);
+    } else {
+        ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_READ_MULT);
+    }
 
     memcpy(proc->read_mult.handles, handles, num_handles * sizeof *handles);
     proc->read_mult.num_handles = num_handles;
+    proc->read_mult.variable = variable;
     proc->read_mult.cb = cb;
+    proc->read_mult.cb_mult = cb_mult;
     proc->read_mult.cb_arg = cb_arg;
 
-    ble_gattc_log_read_mult(handles, num_handles);
+    ble_gattc_log_read_mult(handles, num_handles, variable);
     rc = ble_gattc_read_mult_tx(proc);
     if (rc != 0) {
         goto done;
@@ -3458,9 +3538,31 @@ done:
     return rc;
 }
 
+int
+ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
+                    uint8_t num_handles, ble_gatt_attr_fn *cb,
+                    void *cb_arg)
+{
+    return ble_gattc_read_mult_internal(conn_handle, handles,
+                                        num_handles, false, cb, NULL, cb_arg);
+}
+
+int
+ble_gattc_read_mult_var(uint16_t conn_handle, const uint16_t *handles,
+                        uint8_t num_handles, ble_gatt_attr_mult_fn *cb,
+                        void *cb_arg)
+{
+#if MYNEWT_VAL(BLE_GATT_READ_MULT_VAR)
+    return ble_gattc_read_mult_internal(conn_handle, handles, num_handles,
+                                        true, NULL, cb, cb_arg);
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
 /*****************************************************************************
- * $write no response                                                        *
- *****************************************************************************/
+* $write no response                                                        *
+*****************************************************************************/
 
 int
 ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
@@ -4762,16 +4864,18 @@ ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, uint16_t cid, int status,
  */
 void
 ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, uint16_t cid, int status,
-                           struct os_mbuf **om)
+                           struct os_mbuf **om, bool variable)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_MULT
     return;
 #endif
 
     struct ble_gattc_proc *proc;
+    uint8_t op;
 
-    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid,
-                                              BLE_GATT_OP_READ_MULT);
+    op = variable ? BLE_GATT_OP_READ_MULT_VAR : BLE_GATT_OP_READ_MULT;
+
+    proc = ble_gattc_extract_first_by_conn_cid_op(conn_handle, cid, op);
     if (proc != NULL) {
         ble_gattc_read_mult_cb(proc, status, 0, om);
         ble_gattc_process_status(proc, BLE_HS_EDONE);

@@ -310,6 +310,20 @@ struct ble_att_exec_write_req {
 #define BLE_ATT_EXEC_WRITE_RSP_SZ       1
 
 /**
+ * | Parameter                                     | Size (octets)     |
+ * +-----------------------------------------------+-------------------+
+ * | Attribute Opcode                              | 1                 |
+ * | Attribute Handle Length Value Tuple List      | 8 to (ATT_MTU-1)  |
+ */
+#define BLE_ATT_NOTIFY_MULTI_REQ_BASE_SZ      9
+
+struct ble_att_tuple_list {
+    uint16_t handle;
+    uint16_t value_len;
+    uint8_t data[0];
+} __attribute__((packed));
+
+/**
  * | Parameter                          | Size (octets)     |
  * +------------------------------------+-------------------+
  * | Attribute Opcode                   | 1                 |

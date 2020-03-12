@@ -540,7 +540,7 @@ ble_att_clt_rx_read_blob(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
  *****************************************************************************/
 int
 ble_att_clt_tx_read_mult(uint16_t conn_handle, uint16_t cid, const uint16_t *handles,
-                         int num_handles)
+                         int num_handles, bool variable)
 {
 #if !NIMBLE_BLE_ATT_CLT_READ_MULT
     return BLE_HS_ENOTSUP;
@@ -549,12 +549,15 @@ ble_att_clt_tx_read_mult(uint16_t conn_handle, uint16_t cid, const uint16_t *han
     struct ble_att_read_mult_req *req;
     struct os_mbuf *txom;
     int i;
+    uint8_t op;
 
     if (num_handles < 1) {
         return BLE_HS_EINVAL;
     }
 
-    req = ble_att_cmd_get(BLE_ATT_OP_READ_MULT_REQ,
+    op = variable ? BLE_ATT_OP_READ_MULT_VAR_REQ : BLE_ATT_OP_READ_MULT_REQ;
+
+    req = ble_att_cmd_get(op,
                           sizeof(req->handles[0]) * num_handles,
                           &txom);
     if (req == NULL) {
@@ -576,7 +579,19 @@ ble_att_clt_rx_read_mult(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
 #endif
 
     /* Pass the Attribute Value field to GATT. */
-    ble_gattc_rx_read_mult_rsp(conn_handle, cid, 0, rxom);
+    ble_gattc_rx_read_mult_rsp(conn_handle, cid, 0, rxom, false);
+    return 0;
+}
+
+int
+ble_att_clt_rx_read_mult_var(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+{
+#if !NIMBLE_BLE_ATT_CLT_READ_MULT_VAR
+    return BLE_HS_ENOTSUP;
+#endif
+
+    /* Pass the Attribute Value field to GATT. */
+    ble_gattc_rx_read_mult_rsp(conn_handle, cid, 0, rxom, true);
     return 0;
 }
 

@@ -195,6 +195,14 @@ struct os_mbuf;
 /** Indicate Response. */
 #define BLE_ATT_OP_INDICATE_RSP             0x1e
 
+/** Read Multiple Variable Lenght Request */
+#define BLE_ATT_OP_READ_MULT_VAR_REQ        0x20
+
+/** Read Multiple Variable Lenght Response */
+#define BLE_ATT_OP_READ_MULT_VAR_RSP        0x21
+
+/** Notify Multiple Request */
+#define BLE_ATT_OP_NOTIFY_MULTI_REQ         0x23
 /** Write Command. */
 #define BLE_ATT_OP_WRITE_CMD                0x52
 
