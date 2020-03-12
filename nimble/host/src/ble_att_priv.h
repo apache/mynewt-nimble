@@ -198,6 +198,8 @@ int ble_att_svr_rx_read_blob(uint16_t conn_handle, uint16_t cid,
                              struct os_mbuf **rxom);
 int ble_att_svr_rx_read_mult(uint16_t conn_handle, uint16_t cid,
                              struct os_mbuf **rxom);
+int ble_att_svr_rx_read_mult_var(uint16_t conn_handle, uint16_t cid,
+                                 struct os_mbuf **rxom);
 int ble_att_svr_rx_write(uint16_t conn_handle, uint16_t cid,
                          struct os_mbuf **rxom);
 int ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
@@ -207,6 +209,8 @@ int ble_att_svr_rx_exec_write(uint16_t conn_handle, uint16_t cid,
                               struct os_mbuf **rxom);
 int ble_att_svr_rx_notify(uint16_t conn_handle, uint16_t cid,
                           struct os_mbuf **rxom);
+int ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid,
+                                struct os_mbuf **rxom);
 int ble_att_svr_rx_indicate(uint16_t conn_handle, uint16_t cid,
                             struct os_mbuf **rxom);
 void ble_att_svr_prep_clear(struct ble_att_prep_entry_list *prep_list);
@@ -261,8 +265,9 @@ int ble_att_clt_tx_read_blob(uint16_t conn_handle, uint16_t cid, uint16_t handle
                              uint16_t offset);
 int ble_att_clt_rx_read_blob(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
 int ble_att_clt_tx_read_mult(uint16_t conn_handle, uint16_t cid,
-                             const uint16_t *handles, int num_handles);
+                             const uint16_t *handles, int num_handles, bool variable);
 int ble_att_clt_rx_read_mult(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
+int ble_att_clt_rx_read_mult_var(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
 int ble_att_clt_tx_read_type(uint16_t conn_handle, uint16_t cid, uint16_t start_handle,
                              uint16_t end_handle, const ble_uuid_t *uuid);
 int ble_att_clt_rx_read_type(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
