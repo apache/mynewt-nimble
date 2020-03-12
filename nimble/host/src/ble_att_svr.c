@@ -1630,6 +1630,113 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
 }
 
 static int
+ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
+                                    struct os_mbuf **rxom,
+                                    struct os_mbuf **out_txom,
+                                    uint8_t *att_err,
+                                    uint16_t *err_handle)
+{
+    struct os_mbuf *txom;
+    uint16_t handle;
+    uint16_t mtu;
+    uint16_t tuple_len;
+    struct os_mbuf *tmp = NULL;
+    int rc;
+
+    mtu = ble_att_mtu_by_cid(conn_handle, cid);
+
+    rc = ble_att_svr_pkt(rxom, &txom, att_err);
+    if (rc != 0) {
+        *err_handle = 0;
+        goto done;
+    }
+
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_MULT_VAR_RSP, 0, txom) == NULL) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    tmp = os_msys_get_pkthdr(2, 0);
+
+    /* Iterate through requested handles, reading the corresponding attribute
+     * for each.  Stop when there are no more handles to process, or the
+     * response is full.
+     */
+    while (OS_MBUF_PKTLEN(*rxom) >= 2 && OS_MBUF_PKTLEN(txom) < mtu) {
+        /* Ensure the full 16-bit handle is contiguous at the start of the
+         * mbuf.
+         */
+        rc = ble_att_svr_pullup_req_base(rxom, 2, att_err);
+        if (rc != 0) {
+            *err_handle = 0;
+            goto done;
+        }
+
+        /* Extract the 16-bit handle and strip it from the front of the
+         * mbuf.
+         */
+        handle = get_le16((*rxom)->om_data);
+        os_mbuf_adj(*rxom, 2);
+
+        rc = ble_att_svr_read_handle(conn_handle, handle, 0, tmp, att_err);
+        if (rc != 0) {
+            *err_handle = handle;
+            goto done;
+        }
+        tuple_len = OS_MBUF_PKTLEN(tmp);
+        rc = os_mbuf_append(txom, &tuple_len, sizeof(tuple_len));
+        if (rc != 0) {
+            *err_handle = handle;
+            goto done;
+        }
+        if (tuple_len != 0) {
+            rc = os_mbuf_appendfrom(txom, tmp, 0, tuple_len);
+            if (rc != 0) {
+                *err_handle = handle;
+                goto done;
+            }
+            os_mbuf_adj(tmp, tuple_len);
+        }
+    }
+    rc = 0;
+
+done:
+
+    if (tmp) {
+        os_mbuf_free_chain(tmp);
+    }
+    *out_txom = txom;
+    return rc;
+}
+
+int
+ble_att_svr_rx_read_mult_var(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+{
+#if (!MYNEWT_VAL(BLE_ATT_SVR_READ_MULT) || (!MYNEWT_VAL(BLE_VERSION) < 52))
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct os_mbuf *txom;
+    uint16_t err_handle;
+    uint8_t att_err;
+    int rc;
+
+    /* Initialize some values in case of early error. */
+    txom = NULL;
+    err_handle = 0;
+    att_err = 0;
+
+    rc = ble_att_svr_build_read_mult_rsp_var(conn_handle, cid, rxom, &txom, &att_err,
+                                         &err_handle);
+
+    return ble_att_svr_tx_rsp(conn_handle, cid, rc, txom,
+                              BLE_ATT_OP_READ_MULT_VAR_REQ,
+                              att_err, err_handle);
+}
+
+static int
 ble_att_svr_is_valid_read_group_type(const ble_uuid_t *uuid)
 {
     uint16_t uuid16;
@@ -2497,6 +2604,63 @@ ble_att_svr_rx_notify(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
     os_mbuf_adj(*rxom, sizeof(*req));
 
     ble_gap_notify_rx_event(conn_handle, handle, *rxom, 0);
+    *rxom = NULL;
+
+    return 0;
+}
+
+int
+ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_NOTIFY_MULTI)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct ble_att_tuple_list *req;
+    uint16_t handle;
+    int rc;
+    uint16_t pkt_len;
+    struct os_mbuf *tmp;
+    uint16_t attr_len;
+
+    pkt_len = OS_MBUF_PKTLEN(*rxom);
+    while (pkt_len > 0) {
+        rc = ble_att_svr_pullup_req_base(rxom, sizeof(struct ble_att_tuple_list), NULL);
+        if (rc != 0) {
+            return BLE_HS_ENOMEM;
+        }
+
+        req = (struct ble_att_tuple_list *)(*rxom)->om_data;
+
+        handle = le16toh(req->handle);
+        attr_len = le16toh(req->value_len);
+
+        os_mbuf_adj(*rxom, 4);
+
+        if (attr_len > BLE_ATT_ATTR_MAX_LEN) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        tmp = os_msys_get_pkthdr(attr_len, 0);
+        if (!tmp) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        rc = os_mbuf_appendfrom(tmp, *rxom, 0, attr_len);
+        if (rc) {
+            /*TODO Figure out what to do here */
+            break;
+        }
+
+        ble_gap_notify_rx_event(conn_handle, handle, tmp, 0);
+
+        os_mbuf_adj(*rxom, attr_len);
+        pkt_len = OS_MBUF_PKTLEN(*rxom);
+    }
+
+    os_mbuf_free_chain(*rxom);
     *rxom = NULL;
 
     return 0;

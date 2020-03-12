@@ -128,6 +128,17 @@ typedef int ble_gatt_attr_fn(uint16_t conn_handle,
                              void *arg);
 
 /**
+ * The host will free the attribute mbuf automatically after the callback is
+ * executed.  The application can take ownership of the mbuf and prevent it
+ * from being freed by assigning NULL to attr->om.
+ */
+typedef int ble_gatt_attr_mult_fn(uint16_t conn_handle,
+                                  const struct ble_gatt_error *error,
+                                  struct ble_gatt_attr *attrs,
+                                  uint8_t num_attrs,
+                                  void *arg);
+
+/**
  * The host will free the attribute mbufs automatically after the callback is
  * executed.  The application can take ownership of the mbufs and prevent them
  * from being freed by assigning NULL to each attribute's om field.
@@ -343,6 +354,9 @@ int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 
+int ble_gattc_read_mult_var(uint16_t conn_handle, const uint16_t *handles,
+                            uint8_t num_handles, ble_gatt_attr_mult_fn *cb,
+                            void *cb_arg);
 /**
  * Initiates GATT procedure: Write Without Response.  This function consumes
  * the supplied mbuf regardless of the outcome.

@@ -380,7 +380,7 @@ TEST_CASE_SELF(ble_att_clt_test_tx_read_mult)
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** Success. */
-    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT, ((uint16_t[]){ 1, 2 }), 2);
+    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT, ((uint16_t[]) { 1, 2 }), 2, false);
     TEST_ASSERT(rc == 0);
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
@@ -392,7 +392,7 @@ TEST_CASE_SELF(ble_att_clt_test_tx_read_mult)
     TEST_ASSERT(get_le16(om->om_data + BLE_ATT_READ_MULT_REQ_BASE_SZ + 2) == 2);
 
     /*** Error: no handles. */
-    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT, NULL, 0);
+    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT, NULL, 0, false);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
