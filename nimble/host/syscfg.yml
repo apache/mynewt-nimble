@@ -244,6 +244,11 @@ syscfg.defs:
             Enables the Read Multiple Characteristic Values GATT procedure.
             (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ_MULT_VAR:
+        description: >
+            Enables the Read Multiple Variable Characteristic Values GATT procedure.
+            (0/1)
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL && (MYNEWT_VAL_BLE_VERSION >= 52)
     BLE_GATT_WRITE_NO_RSP:
         description: >
             Enables the Write Without Response GATT procedure. (0/1)
@@ -362,6 +367,12 @@ syscfg.defs:
             Enables processing of incoming Handle Value Notification ATT
             commands. (0/1)
         value: 1
+    BLE_ATT_SVR_NOTIFY_MULTI:
+        description: >
+            Enables processing of incoming Multi Handle Value Notification ATT
+            commands. (0/1)
+        value: MYNEWT_VAL_BLE_ATT_SVR_NOTIFY && (MYNEWT_VAL_BLE_VERSION >= 52)
+
     BLE_ATT_SVR_INDICATE:
         description: >
             Enables processing of incoming Handle Value Indication ATT

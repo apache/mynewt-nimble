@@ -113,7 +113,7 @@ void ble_gattc_rx_read_rsp(uint16_t conn_handle, uint16_t cid, int status,
 void ble_gattc_rx_read_blob_rsp(uint16_t conn_handle, uint16_t cid, int status,
                                 struct os_mbuf **rxom);
 void ble_gattc_rx_read_mult_rsp(uint16_t conn_handle, uint16_t cid, int status,
-                                struct os_mbuf **rxom);
+                                struct os_mbuf **rxom, bool variable);
 void ble_gattc_rx_read_group_type_adata(uint16_t conn_handle, uint16_t cid,
                                         struct ble_att_read_group_type_adata *adata);
 void ble_gattc_rx_read_group_type_complete(uint16_t conn_handle, uint16_t cid, int rc);
