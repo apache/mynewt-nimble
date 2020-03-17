@@ -763,17 +763,20 @@ static uint16_t ble_l2cap_calculate_credits(uint16_t mtu, uint16_t mps)
 static void
 ble_l2cap_test_coc_connect_multi(struct test_data *t)
 {
-    struct ble_l2cap_sig_credit_base_connect_req req = {};
-    struct ble_l2cap_sig_credit_base_connect_rsp rsp = {};
+    struct ble_l2cap_sig_credit_base_connect_req *req;
+    struct ble_l2cap_sig_credit_base_connect_rsp *rsp;
     struct os_mbuf *sdu_rx[t->num];
     struct event *ev = &t->event[t->event_iter++];
     uint8_t id;
     int rc;
     int i;
 
+    req = malloc(sizeof(*req) + (sizeof(uint16_t) * t->num));
+    rsp = malloc(sizeof(*rsp) + (sizeof(uint16_t) * t->num));
+
     ble_l2cap_test_util_init();
 
-    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){1,2,3,4,5,6}),
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]) {1, 2, 3, 4, 5, 6}),
                                     ble_l2cap_test_util_conn_cb, NULL);
 
     for (i = 0; i < t->num; i++) {
@@ -794,34 +797,34 @@ ble_l2cap_test_coc_connect_multi(struct test_data *t)
         return;
     }
 
-    req.credits = htole16(
+    req->credits = htole16(
                         ble_l2cap_calculate_credits(t->mtu,
                                                     MYNEWT_VAL(BLE_L2CAP_COC_MPS)));
-    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
-    req.mtu = htole16(t->mtu);
-    req.psm = htole16(t->psm);
+    req->mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
+    req->mtu = htole16(t->mtu);
+    req->psm = htole16(t->psm);
     for (i = 0; i < t->num; i++) {
-        req.scids[i] = htole16(current_cid + i);
+        req->scids[i] = htole16(current_cid + i);
     }
 
     /* Ensure an update request got sent. */
     id = ble_hs_test_util_verify_tx_l2cap_sig(
                                             BLE_L2CAP_SIG_OP_CREDIT_CONNECT_REQ,
-                                            &req, sizeof(req) + t->num * sizeof(uint16_t));
+                                            req, sizeof(*req) + t->num * sizeof(uint16_t));
 
     /* Use some different parameters for peer. Just keep mtu same for testing
      * only*/
-    rsp.credits = htole16(10);
+    rsp->credits = htole16(10);
     for (i = 0; i < t->num; i++) {
-        rsp.dcids[i] = htole16(current_cid + i);
+        rsp->dcids[i] = htole16(current_cid + i);
     }
-    rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
-    rsp.mtu = htole16(t->mtu);
-    rsp.result = htole16(ev->l2cap_status);
+    rsp->mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
+    rsp->mtu = htole16(t->mtu);
+    rsp->result = htole16(ev->l2cap_status);
 
     rc = ble_hs_test_util_inject_rx_l2cap_sig(2,
                                               BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
-                                              id, &rsp, sizeof(rsp) + t->num * sizeof(uint16_t));
+                                              id, rsp, sizeof(*rsp) + t->num * sizeof(uint16_t));
     TEST_ASSERT(rc == 0);
 
     /* Ensure callback got called. */
