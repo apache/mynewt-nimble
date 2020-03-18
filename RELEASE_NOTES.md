@@ -1,26 +1,32 @@
 # RELEASE NOTES
 
-04 June 2018 - Apache NimBLE v1.0.0
+18 March 2020 - Apache NimBLE v1.3.0
 
 For full release notes, please visit the
 [Apache Mynewt Wiki](https://cwiki.apache.org/confluence/display/MYNEWT/Release+Notes).
 
-Apache NimBLE is an open-source Bluetooth 5.0 stack (both Host & Controller) that completely
+Apache NimBLE is an open-source Bluetooth 5.1 stack (both Host & Controller) that completely
 replaces the proprietary SoftDevice on Nordic chipsets.
 
 New features in this version of NimBLE include:
 
-* Initial version after moving to separate repo - https://github.com/apache/mynewt-nimble
-* removal of deprecated bletiny application (superseded by btshell)
-* Added NimBLE Porting Layer (NPL) which abstracts OS specific details to improve portability
-* Initial ports for FreeRTOS and RIOT OS
-* Support for advertising up to 1650 bytes of data with Extended Advertising
-* Support for host flow control
-* Support for Direct Test Mode (DTM) via HCI interface
-* Support for Device Information Service
-* Bugfixes for issues found on UPF59 and during BT certification testing
-* Lots of other bugfixes, minor enhancements and optimisations
-* Mesh improvements
+* Support for Bluetooth Core Specification 5.1
+* New blestress test application
+* Dialog DA1469x CMAC driver
+* Support for LE Secure Connections out-of-band (OOB) association model
+* Support for automated generation of syscfg for ports
+* Qualification related bugfixes
+* BLE Mesh improvements - fixes and resync with latest Zephyr code
+* RIOT OS port fixes and improvements
+* btshell sample application improvements
+* improvements for bttester application
+* Controller duplicates filtering improvements
+* Multi PHY support improvements
+* Memory and CPU usage optimizations
+* Use of packed structs for HCI (code size reduction)
+* Linux sample improvements
+* PTS test instructions updates
+* Clock managements improvements in controller
 
 If working on next-generation RTOS and Bluetooth protocol stack
 sounds exciting to you, get in touch, by sending a mail to the Apache Mynewt
