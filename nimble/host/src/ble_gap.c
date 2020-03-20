@@ -1020,7 +1020,7 @@ ble_gap_slave_set_timer(uint32_t ticks_from_now)
 }
 #endif
 
-#if NIMBLE_BLE_CONNECT
+#if (NIMBLE_BLE_CONNECT || NIMBLE_BLE_SCAN)
 /**
  * Called when an error is encountered while the master-connection-fsm is
  * active.
@@ -1034,12 +1034,22 @@ ble_gap_master_failed(int status)
         ble_gap_master_connect_failure(status);
         break;
 
+#if NIMBLE_BLE_SCAN
+    case BLE_GAP_OP_M_DISC:
+        STATS_INC(ble_gap_stats, initiate_fail);
+        ble_gap_disc_complete();
+        ble_gap_master_reset_state();
+        break;
+#endif
+
     default:
         BLE_HS_DBG_ASSERT(0);
         break;
     }
 }
+#endif
 
+#if NIMBLE_BLE_CONNECT
 static void
 ble_gap_update_failed(uint16_t conn_handle, int status)
 {
@@ -1235,6 +1245,46 @@ ble_gap_adv_active_instance(uint8_t instance)
 {
     /* Assume read is atomic; mutex not necessary. */
     return ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV;
+}
+
+/**
+ * Clears advertisement and discovery state.  This function is necessary
+ * when the controller loses its active state (e.g. on stack reset).
+ */
+void
+ble_gap_reset_state(int reason)
+{
+    uint16_t conn_handle;
+
+    while (1) {
+        conn_handle = ble_hs_atomic_first_conn_handle();
+        if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            break;
+        }
+
+        ble_gap_conn_broken(conn_handle, reason);
+    }
+
+#if NIMBLE_BLE_ADVERTISE
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    uint8_t i;
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_adv_active_instance(i)) {
+            /* Indicate to application that advertising has stopped. */
+            ble_gap_adv_finished(i, reason, 0, 0);
+        }
+    }
+#else
+    if (ble_gap_adv_active_instance(0)) {
+        /* Indicate to application that advertising has stopped. */
+        ble_gap_adv_finished(0, reason, 0, 0);
+    }
+#endif
+#endif
+
+#if (NIMBLE_BLE_SCAN || NIMBLE_BLE_CONNECT)
+    ble_gap_master_failed(reason);
+#endif
 }
 
 #if NIMBLE_BLE_CONNECT
