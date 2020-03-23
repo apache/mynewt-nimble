@@ -87,7 +87,8 @@
  */
 #define BLE_GAP_CANCEL_RETRY_TIMEOUT_MS         100 /* ms */
 
-#define BLE_GAP_UPDATE_TIMEOUT_MS               40000 /* ms */
+#define BLE_GAP_UPDATE_TIMEOUT_MS(itvl, latency) \
+            (6 * ((itvl) * BLE_HCI_CONN_ITVL / 1000) * ((latency) + 1))
 
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
@@ -1151,6 +1152,7 @@ ble_gap_rx_update_complete(const struct ble_hci_ev_le_subev_conn_upd_complete *e
     struct ble_gap_event event;
     struct ble_hs_conn *conn;
     uint16_t conn_handle;
+    uint32_t timeout;
     int cb_status;
     int call_cb;
     int rc;
@@ -1183,8 +1185,12 @@ ble_gap_rx_update_complete(const struct ble_hci_ev_le_subev_conn_upd_complete *e
             entry = ble_gap_update_entry_find(conn_handle, NULL);
             if (entry != NULL && !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
                 ble_gap_update_to_l2cap(&entry->params, &l2cap_params);
+                
+                timeout = BLE_GAP_UPDATE_TIMEOUT_MS(conn->bhc_itvl,
+                                                    conn->bhc_latency);
+
                 entry->exp_os_ticks = ble_npl_time_get() +
-                                      ble_npl_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
+                                      ble_npl_time_ms_to_ticks32(timeout);
             }
             break;
 
@@ -5312,6 +5318,7 @@ ble_gap_update_params(uint16_t conn_handle,
     struct ble_gap_update_entry *entry;
     struct ble_gap_update_entry *dup;
     struct ble_hs_conn *conn;
+    uint32_t timeout;
     int l2cap_update;
     int rc;
 
@@ -5350,8 +5357,10 @@ ble_gap_update_params(uint16_t conn_handle,
     entry->conn_handle = conn_handle;
     entry->params = *params;
 
+    timeout = BLE_GAP_UPDATE_TIMEOUT_MS(conn->bhc_itvl, conn->bhc_latency);
+
     entry->exp_os_ticks = ble_npl_time_get() +
-                          ble_npl_time_ms_to_ticks32(BLE_GAP_UPDATE_TIMEOUT_MS);
+                          ble_npl_time_ms_to_ticks32(timeout);
 
     BLE_HS_LOG(INFO, "GAP procedure initiated: ");
     ble_gap_log_update(conn_handle, params);
