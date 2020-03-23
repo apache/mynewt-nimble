@@ -88,7 +88,7 @@
 #define BLE_GAP_CANCEL_RETRY_TIMEOUT_MS         100 /* ms */
 
 #define BLE_GAP_UPDATE_TIMEOUT_MS(itvl, latency) \
-            (6 * ((itvl) * BLE_HCI_CONN_ITVL / 1000) * ((latency) + 1))
+    (6 * ((itvl) * BLE_HCI_CONN_ITVL / 1000) * ((latency) + 1))
 
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
@@ -1185,7 +1185,7 @@ ble_gap_rx_update_complete(const struct ble_hci_ev_le_subev_conn_upd_complete *e
             entry = ble_gap_update_entry_find(conn_handle, NULL);
             if (entry != NULL && !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
                 ble_gap_update_to_l2cap(&entry->params, &l2cap_params);
-                
+
                 timeout = BLE_GAP_UPDATE_TIMEOUT_MS(conn->bhc_itvl,
                                                     conn->bhc_latency);
 
