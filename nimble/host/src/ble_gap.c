@@ -1943,7 +1943,6 @@ ble_gap_update_timer(void)
         ble_hs_unlock();
 
         if (entry != NULL) {
-            ble_gap_update_notify(conn_handle, BLE_HS_ETIMEOUT);
             ble_gap_update_entry_free(entry);
         }
     } while (entry != NULL);
