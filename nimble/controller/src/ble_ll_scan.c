@@ -617,7 +617,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
 static int
 ble_ll_hci_send_legacy_ext_adv_report(uint8_t evtype,
                                       const uint8_t *addr, uint8_t addr_type,
-                                      uint8_t rssi,
+                                      int8_t rssi,
                                       uint8_t adv_data_len,
                                       struct os_mbuf *adv_data,
                                       const uint8_t *inita, uint8_t inita_type)
