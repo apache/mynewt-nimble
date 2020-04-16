@@ -1212,7 +1212,7 @@ struct ble_hci_ev_auth_pyld_tmo {
 struct ble_hci_ev_vendor_debug {
     uint8_t id;
     uint8_t data[0];
-}__attribute__((packed));
+} __attribute__((packed));
 
 /* LE sub-event codes */
 #define BLE_HCI_LE_SUBEV_CONN_COMPLETE          (0x01)
