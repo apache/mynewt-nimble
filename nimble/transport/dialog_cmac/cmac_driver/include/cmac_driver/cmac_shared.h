@@ -157,6 +157,31 @@ void cmac_rand_set_isr_cb(cmac_rand_isr_cb_t cb);
 void cmac_shared_init(void);
 void cmac_shared_sync(void);
 
+#if MYNEWT_VAL(BLE_HOST)
+#define CMAC_SHARED_LOCK_VAL    0x40000000
+#elif MYNEWT_VAL(BLE_CONTROLLER)
+#define CMAC_SHARED_LOCK_VAL    0xc0000000
+#endif
+
+static inline void
+cmac_shared_lock(void)
+{
+    volatile uint32_t *bsr_set = (void *)0x50050074;
+    volatile uint32_t *bsr_stat = (void *)0x5005007c;
+
+    while ((*bsr_stat & 0xc0000000) != CMAC_SHARED_LOCK_VAL) {
+        *bsr_set = CMAC_SHARED_LOCK_VAL;
+    }
+}
+
+static inline void
+cmac_shared_unlock(void)
+{
+    volatile uint32_t *bsr_reset = (void *)0x50050078;
+
+    *bsr_reset = CMAC_SHARED_LOCK_VAL;
+}
+
 #ifdef __cplusplus
 }
 #endif
