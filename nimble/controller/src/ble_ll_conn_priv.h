@@ -164,7 +164,7 @@ bool ble_ll_conn_init_pending_aux_conn_rsp(void);
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);
 void ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm);
-int ble_ll_conn_hci_disconnect_cmd(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_disconnect_cmd(const struct ble_hci_lc_disconnect_cp *cmd);
 int ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_create(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len);

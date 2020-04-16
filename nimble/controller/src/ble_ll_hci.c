@@ -1174,6 +1174,20 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     return rc;
 }
 
+static int
+ble_ll_hci_disconnect(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_lc_disconnect_cp *cmd;
+
+    cmd = (const void *) cmdbuf;
+
+    if (len != sizeof (*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return ble_ll_conn_hci_disconnect_cmd(cmd);
+}
+
 /**
  * Process a link control command sent from the host to the controller. The HCI
  * command has a 3 byte command header followed by data. The header is:
@@ -1194,7 +1208,7 @@ ble_ll_hci_link_ctrl_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf)
 
     switch (ocf) {
     case BLE_HCI_OCF_DISCONNECT_CMD:
-        rc = ble_ll_conn_hci_disconnect_cmd(cmdbuf, len);
+        rc = ble_ll_hci_disconnect(cmdbuf, len);
         /* Send command status instead of command complete */
         rc += (BLE_ERR_MAX + 1);
         break;

@@ -1128,16 +1128,11 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
  * @return int
  */
 int
-ble_ll_conn_hci_disconnect_cmd(const uint8_t *cmdbuf, uint8_t len)
+ble_ll_conn_hci_disconnect_cmd(const struct ble_hci_lc_disconnect_cp *cmd)
 {
     int rc;
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
-    const struct ble_hci_lc_disconnect_cp *cmd = (const void *) cmdbuf;
-
-    if (len != sizeof (*cmd)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
 
     /* Check for valid parameters */
     handle = le16toh(cmd->conn_handle);
