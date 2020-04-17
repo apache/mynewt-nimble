@@ -39,7 +39,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_LE_PING        (7)
 #define BLE_LL_CTRL_PROC_DATA_LEN_UPD   (8)
 #define BLE_LL_CTRL_PROC_PHY_UPDATE     (9)
-#define BLE_LL_CTRL_PROC_NUM            (10)
+#define BLE_LL_CTRL_PROC_SCA_UPDATE     (10)
+#define BLE_LL_CTRL_PROC_NUM            (11)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -305,6 +306,11 @@ void ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line);
 
 uint8_t ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask);
 uint8_t ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+void ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm,
+                              uint8_t status, uint8_t peer_sca);
+#endif
 
 #ifdef __cplusplus
 }

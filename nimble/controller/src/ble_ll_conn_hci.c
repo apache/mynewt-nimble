@@ -1560,6 +1560,34 @@ ltk_key_cmd_complete:
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+int
+ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
+                         uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_request_peer_sca_cp *params = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = ble_ll_conn_find_active_conn(params->conn_handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SCA_UPDATE >> 24))) {
+        return BLE_ERR_UNSUPP_REM_FEATURE;
+    }
+
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE)) {
+        /* Not really specified what we should return */
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE);
+
+    return 0;
+}
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
  * Read authenticated payload timeout (OGF=3, OCF==0x007B)

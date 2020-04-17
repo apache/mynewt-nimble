@@ -618,6 +618,9 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_GEN_DHKEY:
     case BLE_HCI_OCF_LE_SET_PHY:
     case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+    case BLE_HCI_OCF_LE_REQ_PEER_SCA:
+#endif
         rc = 1;
         break;
     default:
@@ -1152,6 +1155,12 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #if MYNEWT_VAL(BLE_VERSION) >= 52
     case BLE_HCI_OCF_LE_SET_HOST_FEAT:
         rc = ble_ll_set_host_feat(cmdbuf, len);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+    case BLE_HCI_OCF_LE_REQ_PEER_SCA:
+        rc = ble_ll_conn_req_peer_sca(cmdbuf, len,
+                                      rspbuf, rsplen);
         break;
 #endif
     default:

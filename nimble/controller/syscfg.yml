@@ -260,6 +260,13 @@ syscfg.defs:
             Advertising Sync Transfer Feature.
         value: MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
 
+    BLE_LL_CFG_FEAT_LL_SCA_UPDATE:
+        description: >
+            This option is used to enable/disable support for SCA update procedure
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
+
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
          description: >
             This option configure a max number of scheduled outstanding auxiliary

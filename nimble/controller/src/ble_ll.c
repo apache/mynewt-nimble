@@ -1678,6 +1678,9 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_SYNC_TRANS_SEND;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+    features |= BLE_LL_FEAT_SCA_UPDATE;
+#endif
     /* Initialize random number generation */
     ble_ll_rand_init();
 
