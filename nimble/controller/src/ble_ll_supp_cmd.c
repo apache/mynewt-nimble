@@ -404,10 +404,55 @@
 #define BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER_PARAMS (0 << 0)
 #define BLE_SUPP_CMD_LE_PADV_DEFAULT_SYNC_TRANSFER_PARAMS (0 << 1)
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
+#define BLE_SUPP_CMD_LE_READ_BUF_SIZE_V2    (1 << 5)
+#define BLE_SUPP_CMD_LE_READ_ISO_TX_SYNC    (1 << 6)
+#define BLE_SUPP_CMD_LE_SET_CIG_PARAM       (1 << 7)
+#else
+#define BLE_SUPP_CMD_LE_READ_BUF_SIZE_V2    (0 << 5)
+#define BLE_SUPP_CMD_LE_READ_ISO_TX_SYNC    (0 << 6)
+#define BLE_SUPP_CMD_LE_SET_CIG_PARAM       (0 << 7)
+#endif
+
 #define BLE_LL_SUPP_CMD_OCTET_41                        \
 (                                                       \
-    BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER_PARAMS |         \
-    BLE_SUPP_CMD_LE_PADV_DEFAULT_SYNC_TRANSFER_PARAMS   \
+    BLE_SUPP_CMD_LE_PADV_SYNC_TRANSFER_PARAMS         | \
+    BLE_SUPP_CMD_LE_PADV_DEFAULT_SYNC_TRANSFER_PARAMS | \
+    BLE_SUPP_CMD_LE_READ_BUF_SIZE_V2                  | \
+    BLE_SUPP_CMD_LE_READ_ISO_TX_SYNC                  | \
+    BLE_SUPP_CMD_LE_SET_CIG_PARAM                       \
+)
+
+/* Octet 42 */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
+#define BLE_SUPP_CMD_LE_SET_CIG_PARAM_TEST  (1 << 0)
+#define BLE_SUPP_CMD_LE_CREATE_CIS          (1 << 1)
+#define BLE_SUPP_CMD_LE_REMOVE_CIG          (1 << 2)
+#define BLE_SUPP_CMD_LE_ACCEPT_CIS_REQ      (1 << 3)
+#define BLE_SUPP_CMD_LE_REJECT_CIS_REQ      (1 << 4)
+#define BLE_SUPP_CMD_LE_CREATE_BIG          (1 << 5)
+#define BLE_SUPP_CMD_LE_CREATE_BIG_TEST     (1 << 6)
+#define BLE_SUPP_CMD_LE_TERMINATE_BIG       (1 << 7)
+#else
+#define BLE_SUPP_CMD_LE_SET_CIG_PARAM_TEST  (0 << 0)
+#define BLE_SUPP_CMD_LE_CREATE_CIS          (0 << 1)
+#define BLE_SUPP_CMD_LE_REMOVE_CIG          (0 << 2)
+#define BLE_SUPP_CMD_LE_ACCEPT_CIS_REQ      (0 << 3)
+#define BLE_SUPP_CMD_LE_REJECT_CIS_REQ      (0 << 4)
+#define BLE_SUPP_CMD_LE_CREATE_BIG          (0 << 5)
+#define BLE_SUPP_CMD_LE_CREATE_BIG_TEST     (0 << 6)
+#define BLE_SUPP_CMD_LE_TERMINATE_BIG       (0 << 7)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_42         \
+(                                        \
+    BLE_SUPP_CMD_LE_SET_CIG_PARAM_TEST | \
+    BLE_SUPP_CMD_LE_CREATE_CIS         | \
+    BLE_SUPP_CMD_LE_REMOVE_CIG         | \
+    BLE_SUPP_CMD_LE_ACCEPT_CIS_REQ     | \
+    BLE_SUPP_CMD_LE_REJECT_CIS_REQ     | \
+    BLE_SUPP_CMD_LE_CREATE_BIG         | \
+    BLE_SUPP_CMD_LE_CREATE_BIG_TEST    | \
+    BLE_SUPP_CMD_LE_TERMINATE_BIG        \
 )
 
 /* Octet 43 */
@@ -477,7 +522,7 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
     BLE_LL_SUPP_CMD_OCTET_39,
     BLE_LL_SUPP_CMD_OCTET_40,           /* Octet 40 */
     BLE_LL_SUPP_CMD_OCTET_41,
-    0,
+    BLE_LL_SUPP_CMD_OCTET_42,
     BLE_LL_SUPP_CMD_OCTET_43,
     BLE_LL_SUPP_CMD_OCTET_44,
 };

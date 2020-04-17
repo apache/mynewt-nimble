@@ -267,6 +267,21 @@ syscfg.defs:
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
 
+    BLE_LL_CFG_FEAT_LL_ISO:
+        description: >
+            This option is used to enable/disable support for LE Isochronous Channels
+            as per Bluetooth v5.2 channels
+        value: MYNEWT_VAL(BLE_ISO)
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
+
+    BLE_LL_CFG_FEAT_LL_ISO_TEST:
+        description: >
+            This option is used to enable/disbale test commands for ISO support
+        value: MYNEWT_VAL(BLE_ISO_TEST)
+        restrictions:
+            - 'BLE_LL_CFG_FEAT_LL_ISO if 1'
+
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
          description: >
             This option configure a max number of scheduled outstanding auxiliary

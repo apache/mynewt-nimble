@@ -58,6 +58,8 @@ extern "C" {
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
+#define BLE_LL_CONN_HANDLE_ISO_OFFSET   (0x0100)
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /*
  * Encryption states for a connection

@@ -1681,6 +1681,17 @@ ble_ll_init(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     features |= BLE_LL_FEAT_SCA_UPDATE;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
+    features |= BLE_LL_FEAT_CIS_MASTER;
+    features |= BLE_LL_FEAT_CIS_SLAVE;
+    features |= BLE_LL_FEAT_ISO_BROADCASTER;
+    features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
+
+    /* Set features controller by the Host */
+    g_ble_ll_supported_host_features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
+#endif
+
     /* Initialize random number generation */
     ble_ll_rand_init();
 
