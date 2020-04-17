@@ -825,6 +825,11 @@ struct ble_hci_le_set_default_periodic_sync_transfer_params_cp {
 #define BLE_HCI_OCF_LE_GENERATE_DHKEY_V2                 (0x005E)
 #define BLE_HCI_OCF_LE_MODIFY_SCA                        (0x005F)
 
+#define BLE_HCI_OCF_LE_REQ_PEER_SCA                      (0x006d)
+struct ble_hci_le_request_peer_sca_cp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_SET_HOST_FEAT                     (0x0074)
 struct ble_hci_le_set_host_feat_cp {
     uint8_t bit_num;
@@ -1442,6 +1447,14 @@ struct ble_hci_ev_le_subev_periodic_adv_sync_transfer {
     uint8_t  phy;
     uint16_t interval;
     uint8_t  aca;
+} __attribute__((packed));
+
+#define BLE_HCI_LE_SUBEV_REQ_PEER_SCA_COMP      (0x1F)
+struct ble_hci_ev_le_subev_peer_sca_complete {
+    uint8_t subev_code;
+    uint8_t status;
+    uint16_t conn_handle;
+    uint8_t sca;
 } __attribute__((packed));
 
 /* Data buffer overflow event */
