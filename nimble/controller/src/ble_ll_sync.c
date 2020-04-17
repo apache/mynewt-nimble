@@ -2091,7 +2091,7 @@ ble_ll_sync_send_sync_ind(struct ble_ll_sync_sm *syncsm,
     if (syncsm->flags & BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED) {
         sync_ind[24] |= 1 << 4;
     } else {
-        sync_ind[24] |= (syncsm->adv_addr_type == BLE_ADDR_RANDOM) << 4 ;
+        sync_ind[24] |= (syncsm->adv_addr_type == BLE_ADDR_RANDOM) << 4;
     }
 
     sync_ind[24] |= BLE_LL_SCA_ENUM << 5;

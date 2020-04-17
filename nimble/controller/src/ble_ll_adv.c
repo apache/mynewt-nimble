@@ -4022,7 +4022,7 @@ ble_ll_adv_periodic_send_sync_ind(struct ble_ll_adv_sm *advsm,
 
     /* SID, AType, SCA */
     sync_ind[24] = (advsm->adi >> 12);
-    sync_ind[24] |= !!(advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) << 4 ;
+    sync_ind[24] |= !!(advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) << 4;
     sync_ind[24] |= BLE_LL_SCA_ENUM << 5;
 
     /* PHY */
