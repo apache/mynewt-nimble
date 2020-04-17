@@ -1450,7 +1450,7 @@ ble_ll_conn_master_common_init(struct ble_ll_conn_sm *connsm)
      */
     connsm->tx_win_size = BLE_LL_CONN_TX_WIN_MIN + 1;
     connsm->tx_win_off = 0;
-    connsm->master_sca = MYNEWT_VAL(BLE_LL_MASTER_SCA);
+    connsm->master_sca = BLE_LL_SCA_ENUM;
 
     /* Hop increment is a random value between 5 and 16. */
     connsm->hop_inc = (rand() % 12) + 5;

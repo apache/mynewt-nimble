@@ -686,7 +686,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
     dptr[8] = advsm->periodic_chanmap[4] & 0x1f;
 
     /* SCA (3 bits) */
-    dptr[8] |= MYNEWT_VAL(BLE_LL_MASTER_SCA) << 5;
+    dptr[8] |= BLE_LL_SCA_ENUM << 5;
 
     /* AA (4 bytes) */
     put_le32(&dptr[9], advsm->periodic_access_addr);
@@ -4023,7 +4023,7 @@ ble_ll_adv_periodic_send_sync_ind(struct ble_ll_adv_sm *advsm,
     /* SID, AType, SCA */
     sync_ind[24] = (advsm->adi >> 12);
     sync_ind[24] |= !!(advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) << 4 ;
-    sync_ind[24] |= MYNEWT_VAL(BLE_LL_MASTER_SCA) << 5;
+    sync_ind[24] |= BLE_LL_SCA_ENUM << 5;
 
     /* PHY */
     sync_ind[25] = (0x01 << (advsm->sec_phy - 1));

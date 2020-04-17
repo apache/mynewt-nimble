@@ -2094,7 +2094,7 @@ ble_ll_sync_send_sync_ind(struct ble_ll_sync_sm *syncsm,
         sync_ind[24] |= (syncsm->adv_addr_type == BLE_ADDR_RANDOM) << 4 ;
     }
 
-    sync_ind[24] |= MYNEWT_VAL(BLE_LL_MASTER_SCA) << 5;
+    sync_ind[24] |= BLE_LL_SCA_ENUM << 5;
 
     /* PHY */
     sync_ind[25] = (0x01 << (ble_ll_sync_phy_mode_to_hci(syncsm->phy_mode) - 1));
