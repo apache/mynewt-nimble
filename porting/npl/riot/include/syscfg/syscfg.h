@@ -980,6 +980,11 @@
 #define MYNEWT_VAL_BLE_LL_RNG_BUFSIZE (32)
 #endif
 
+/* Value copied from BLE_LL_OUR_SCA */
+#ifndef MYNEWT_VAL_BLE_LL_SCA
+#define MYNEWT_VAL_BLE_LL_SCA (60)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY
 #define MYNEWT_VAL_BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY (0)
 #endif
