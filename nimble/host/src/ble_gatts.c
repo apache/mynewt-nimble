@@ -1679,7 +1679,7 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     conn = ble_hs_conn_find(conn_handle);
     BLE_HS_DBG_ASSERT(conn != NULL);
 
-    if(conn->bhc_sec_state.bonded) {
+    if (conn->bhc_sec_state.bonded) {
         cccd_value.peer_addr = conn->bhc_peer_addr;
         cccd_value.peer_addr.type =
             ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
