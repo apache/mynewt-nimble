@@ -410,6 +410,17 @@
     BLE_SUPP_CMD_LE_PADV_DEFAULT_SYNC_TRANSFER_PARAMS   \
 )
 
+/* Octet 44 */
+#if MYNEWT_VAL(BLE_VERSION) >= 52
+#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (1 << 0)
+#else
+#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (0 << 0)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_44                        \
+(                                                       \
+    BLE_SUPP_CMD_LE_SET_HOST_FEATURE  \
+)
+
 /* Defines the array of supported commands */
 const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
@@ -455,4 +466,7 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
     BLE_LL_SUPP_CMD_OCTET_39,
     BLE_LL_SUPP_CMD_OCTET_40,           /* Octet 40 */
     BLE_LL_SUPP_CMD_OCTET_41,
+    0,
+    0,
+    BLE_LL_SUPP_CMD_OCTET_44,
 };
