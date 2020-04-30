@@ -28,6 +28,7 @@
 #include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
+#include "controller/ble_phy_palna.h"
 #include "controller/ble_ll.h"
 #include "nrfx.h"
 #if MYNEWT
@@ -836,6 +837,10 @@ ble_phy_rx_xcvr_setup(void)
     }
 #endif
 
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_rx_prepare();
+#endif
+
     /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
     NRF_PPI->CHENCLR = PPI_CHEN_CH20_Msk | PPI_CHEN_CH23_Msk;
 
@@ -903,6 +908,10 @@ ble_phy_tx_end_isr(void)
     NRF_RADIO->EVENTS_END = 0;
     wfr_time = NRF_RADIO->SHORTS;
     (void)wfr_time;
+
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_idle();
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     /*
@@ -999,6 +1008,10 @@ ble_phy_rx_end_isr(void)
 
     /* Disable automatic RXEN */
     NRF_PPI->CHENCLR = PPI_CHEN_CH21_Msk;
+
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_idle();
+#endif
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -1498,6 +1511,10 @@ ble_phy_init(void)
 
     ble_phy_dbg_time_setup();
 
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_init();
+#endif
+
     return 0;
 }
 
@@ -1716,6 +1733,10 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
      * it is moving to disabled state. If so, let it get there.
      */
     nrf_wait_disabled();
+
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_tx_prepare();
+#endif
 
     /*
      * XXX: Although we may not have to do this here, I clear all the PPI
@@ -2008,6 +2029,10 @@ ble_phy_disable(void)
 
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
+
+#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
+    ble_phy_palna_idle();
+#endif
 }
 
 /* Gets the current access address */
@@ -2114,3 +2139,4 @@ ble_phy_rfclk_disable(void)
     NRF_CLOCK->TASKS_HFCLKSTOP = 1;
 #endif
 }
+
