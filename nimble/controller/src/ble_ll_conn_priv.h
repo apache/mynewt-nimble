@@ -207,6 +207,12 @@ void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 #define ble_ll_conn_auth_pyld_timer_start(x)
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+void ble_ll_conn_cth_flow_set_buffers(uint16_t num_buffers);
+bool ble_ll_conn_cth_flow_enable(bool enabled);
+void ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf);
+#endif
+
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 

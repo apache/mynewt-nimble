@@ -260,6 +260,13 @@ syscfg.defs:
             Advertising Sync Transfer Feature.
         value: MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
 
+    BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL:
+        description: >
+            Enable controller-to-host flow control support. This allows host to
+            limit number of ACL packets sent at once from controller to avoid
+            congestion on HCI transport if feature is also supported by host.
+        value: 0
+
     BLE_LL_CFG_FEAT_LL_SCA_UPDATE:
         description: >
             This option is used to enable/disable support for SCA update procedure

@@ -396,6 +396,12 @@ struct ble_dev_addr
 #define BLE_LL_LLID_DATA_START          (2)
 #define BLE_LL_LLID_CTRL                (3)
 
+#define BLE_LL_LLID_IS_CTRL(hdr) \
+    (((hdr) & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL)
+#define BLE_LL_LLID_IS_DATA(hdr) \
+    ((((hdr) & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_DATA_START) || \
+     (((hdr) & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_DATA_FRAG))
+
 /*
  * CONNECT_REQ
  *      -> InitA        (6 bytes)
