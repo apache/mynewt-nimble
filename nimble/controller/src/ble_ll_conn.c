@@ -225,6 +225,166 @@ STATS_NAME_END(ble_ll_conn_stats)
 
 static void ble_ll_conn_event_end(struct ble_npl_event *ev);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+struct ble_ll_conn_cth_flow {
+    bool enabled;
+    uint16_t max_buffers;
+    uint16_t num_buffers;
+};
+
+static struct ble_ll_conn_cth_flow g_ble_ll_conn_cth_flow;
+
+static struct ble_npl_event g_ble_ll_conn_cth_flow_error_ev;
+
+static bool
+ble_ll_conn_cth_flow_is_enabled(void)
+{
+    return g_ble_ll_conn_cth_flow.enabled;
+}
+
+static bool
+ble_ll_conn_cth_flow_alloc_credit(struct ble_ll_conn_sm *connsm)
+{
+    struct ble_ll_conn_cth_flow *cth = &g_ble_ll_conn_cth_flow;
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (!cth->num_buffers) {
+        OS_EXIT_CRITICAL(sr);
+        return false;
+    }
+
+    connsm->cth_flow_pending++;
+    cth->num_buffers--;
+
+    OS_EXIT_CRITICAL(sr);
+
+    return true;
+}
+
+static void
+ble_ll_conn_cth_flow_free_credit(struct ble_ll_conn_sm *connsm, uint16_t credits)
+{
+    struct ble_ll_conn_cth_flow *cth = &g_ble_ll_conn_cth_flow;
+    os_sr_t sr;
+
+    OS_ENTER_CRITICAL(sr);
+
+    /*
+     * It's not quite clear what we should do if host gives back more credits
+     * that we have allocated. For now let's just set invalid values back to
+     * sane values and continue.
+     */
+
+    cth->num_buffers += credits;
+    if (cth->num_buffers > cth->max_buffers) {
+        cth->num_buffers = cth->max_buffers;
+    }
+
+    if (connsm->cth_flow_pending < credits) {
+        connsm->cth_flow_pending = 0;
+    } else {
+        connsm->cth_flow_pending -= credits;
+    }
+
+    OS_EXIT_CRITICAL(sr);
+}
+
+static void
+ble_ll_conn_cth_flow_error_fn(struct ble_npl_event *ev)
+{
+    struct ble_hci_ev *hci_ev;
+    struct ble_hci_ev_command_complete *hci_ev_cp;
+    uint16_t opcode;
+
+    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    if (!hci_ev) {
+        /* Not much we can do anyway... */
+        return;
+    }
+
+    /*
+     * We are here in case length of HCI_Host_Number_Of_Completed_Packets was
+     * invalid. We will send an error back to host and we can only hope host is
+     * reasonable and will do some actions to recover, e.g. it should disconnect
+     * all connections to guarantee that all credits are back in pool and we're
+     * back in sync (although spec does not really say what should happen).
+     */
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND,
+                        BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS);
+
+    hci_ev->opcode = BLE_HCI_EVCODE_COMMAND_COMPLETE;
+    hci_ev->length = sizeof(*hci_ev_cp);
+
+    hci_ev_cp = (void *)hci_ev->data;
+    hci_ev_cp->num_packets = BLE_LL_CFG_NUM_HCI_CMD_PKTS;
+    hci_ev_cp->opcode = htole16(opcode);
+    hci_ev_cp->status = BLE_ERR_INV_HCI_CMD_PARMS;
+
+    ble_ll_hci_event_send(hci_ev);
+}
+
+void
+ble_ll_conn_cth_flow_set_buffers(uint16_t num_buffers)
+{
+    BLE_LL_ASSERT(num_buffers);
+
+    g_ble_ll_conn_cth_flow.max_buffers = num_buffers;
+    g_ble_ll_conn_cth_flow.num_buffers = num_buffers;
+}
+
+bool
+ble_ll_conn_cth_flow_enable(bool enabled)
+{
+    struct ble_ll_conn_cth_flow *cth = &g_ble_ll_conn_cth_flow;
+
+    if (cth->enabled == enabled) {
+        return true;
+    }
+
+    if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+        return false;
+    }
+
+    cth->enabled = enabled;
+
+    return true;
+}
+
+void
+ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
+{
+    const struct ble_hci_cmd *cmd;
+    const struct ble_hci_cb_host_num_comp_pkts_cp *cp;
+    struct ble_ll_conn_sm *connsm;
+    int i;
+
+    cmd = (const void *)cmdbuf;
+    cp = (const void *)cmd->data;
+
+    if (cmd->length != sizeof(cp->handles) + cp->handles * sizeof(cp->h[0])) {
+        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_conn_cth_flow_error_ev);
+        return;
+    }
+
+    for (i = 0; i < cp->handles; i++) {
+        /*
+         * It's probably ok that we do not have active connection with given
+         * handle - this can happen if disconnection already happened in LL but
+         * host sent credits back before processing disconnection event. In such
+         * case we can simply ignore command for that connection since credits
+         * are returned by LL already.
+         */
+        connsm = ble_ll_conn_find_active_conn(cp->h[i].handle);
+        if (connsm) {
+            ble_ll_conn_cth_flow_free_credit(connsm, cp->h[i].count);
+        }
+    }
+}
+#endif
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 /**
  * Checks to see if we should start a PHY update procedure
@@ -1860,6 +2020,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_HOST_TO_CTRL_FLOW_CONTROL)
+    ble_ll_conn_cth_flow_free_credit(connsm, connsm->cth_flow_pending);
+#endif
 
     /* Free the current transmit pdu if there is one. */
     if (connsm->cur_tx_pdu) {
@@ -3577,6 +3741,13 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 
     /* Free buffer */
 conn_rx_data_pdu_end:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    /* Need to give credit back if we allocated one for this PDU */
+    if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_CONN_CREDIT) {
+        ble_ll_conn_cth_flow_free_credit(connsm, 1);
+    }
+#endif
+
     os_mbuf_free_chain(rxpdu);
 }
 
@@ -3597,7 +3768,6 @@ int
 ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
-    int is_ctrl;
     uint8_t hdr_byte;
     uint8_t hdr_sn;
     uint8_t hdr_nesn;
@@ -3616,6 +3786,9 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     int rx_phy_mode;
     bool alloc_rxpdu = true;
 
+    rc = -1;
+    connsm = g_ble_ll_conn_cur_sm;
+
     /* Retrieve the header and payload length */
     hdr_byte = rxbuf[0];
     rx_pyld_len = rxbuf[1];
@@ -3627,6 +3800,23 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     if (!BLE_MBUF_HDR_CRC_OK(rxhdr)) {
         alloc_rxpdu = false;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    /*
+     * If flow control is enabled, we need to have credit available for each
+     * non-empty data packet that LL may send to host. If there are no credits
+     * available, we don't need to allocate buffer for this packet so LL will
+     * nak it.
+     */
+    if (ble_ll_conn_cth_flow_is_enabled() &&
+        BLE_LL_LLID_IS_DATA(hdr_byte) && (rx_pyld_len > 0)) {
+        if (ble_ll_conn_cth_flow_alloc_credit(connsm)) {
+            rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONN_CREDIT;
+        } else {
+            alloc_rxpdu = false;
+        }
+    }
+#endif
 
     /*
      * We need to attempt to allocate a buffer here. The reason we do this
@@ -3643,8 +3833,6 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * We should have a current connection state machine. If we dont, we just
      * hand the packet to the higher layer to count it.
      */
-    rc = -1;
-    connsm = g_ble_ll_conn_cur_sm;
     if (!connsm) {
         STATS_INC(ble_ll_conn_stats, rx_data_pdu_no_conn);
         goto conn_exit;
@@ -3706,9 +3894,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Set last received header byte */
         connsm->last_rxd_hdr_byte = hdr_byte;
 
-        is_ctrl = 0;
-        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
-            is_ctrl = 1;
+        if (BLE_LL_LLID_IS_CTRL(hdr_byte)) {
             opcode = rxbuf[2];
         }
 
@@ -3797,7 +3983,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         /* Adjust payload for max TX time and octets */
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-                        if (is_ctrl &&
+                        if (BLE_LL_LLID_IS_CTRL(hdr_byte) &&
                             (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
                             (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
                             connsm->phy_tx_transition =
@@ -3816,8 +4002,9 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* If this is a TERMINATE_IND, we have to reply */
 chk_rx_terminate_ind:
         /* If we received a terminate IND, we must set some flags */
-        if (is_ctrl && (opcode == BLE_LL_CTRL_TERMINATE_IND)
-                    && (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
+        if (BLE_LL_LLID_IS_CTRL(hdr_byte) &&
+            (opcode == BLE_LL_CTRL_TERMINATE_IND) &&
+            (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
             connsm->csmflags.cfbit.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxbuf[3];
         }
@@ -4239,6 +4426,12 @@ ble_ll_conn_module_reset(void)
     g_ble_ll_conn_sync_transfer_params.mode = 0;
     g_ble_ll_conn_sync_transfer_params.sync_timeout_us = 0;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    g_ble_ll_conn_cth_flow.enabled = false;
+    g_ble_ll_conn_cth_flow.max_buffers = 1;
+    g_ble_ll_conn_cth_flow.num_buffers = 1;
+#endif
 }
 
 /* Initialize the connection module */
@@ -4277,6 +4470,11 @@ ble_ll_conn_module_init(void)
                             STATS_NAME_INIT_PARMS(ble_ll_conn_stats),
                             "ble_ll_conn");
     BLE_LL_ASSERT(rc == 0);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    ble_npl_event_init(&g_ble_ll_conn_cth_flow_error_ev,
+                       ble_ll_conn_cth_flow_error_fn, NULL);
+#endif
 
     /* Call reset to finish reset of initialization */
     ble_ll_conn_module_reset();

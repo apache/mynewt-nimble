@@ -1343,6 +1343,64 @@ ble_ll_hci_cb_set_event_mask(const uint8_t *cmdbuf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+static int
+ble_ll_hci_cb_set_ctrlr_to_host_fc(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_cb_ctlr_to_host_fc_cp *cmd = (const void *) cmdbuf;
+
+    if (len != sizeof (*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* We only allow to either disable flow control or enable for ACL only */
+    if (cmd->enable > 1) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!ble_ll_conn_cth_flow_enable(cmd->enable)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_hci_cb_host_buf_size(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_cb_host_buf_size_cp *cmd = (const void *) cmdbuf;
+    uint16_t acl_num;
+    uint16_t acl_data_len;
+
+    if (len != sizeof (*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* We do not support SCO so those parameters should be set to 0 */
+    if (cmd->sco_num || cmd->sco_data_len) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /*
+     * Core 5.2 Vol 4 Part E section 7.3.39 states that "Both the Host and the
+     * Controller shall support command and event packets, where the data portion
+     * (excluding header) contained in the packets is 255 octets in size.".
+     * This means we can basically accept any allowed value since LL does not
+     * reassemble incoming data thus will not send more than 255 octets in single
+     * data packet.
+     */
+    acl_num = le16toh(cmd->acl_num);
+    acl_data_len = le16toh(cmd->acl_data_len);
+    if (acl_data_len < 255) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    ble_ll_conn_cth_flow_set_buffers(acl_num);
+
+    return BLE_ERR_SUCCESS;
+}
+#endif
+
 static int
 ble_ll_hci_cb_set_event_mask2(const uint8_t *cmdbuf, uint8_t len)
 {
@@ -1375,6 +1433,22 @@ ble_ll_hci_ctlr_bb_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
             rc = ble_ll_reset();
         }
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    case BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC:
+        rc = ble_ll_hci_cb_set_ctrlr_to_host_fc(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_CB_HOST_BUF_SIZE:
+        rc = ble_ll_hci_cb_host_buf_size(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS:
+        /*
+         * HCI_Host_Number_Of_Completed_Packets is handled immediately when
+         * received from transport so we should never receive it here.
+         */
+        BLE_LL_ASSERT(0);
+        rc = BLE_ERR_UNKNOWN_HCI_CMD;
+        break;
+#endif
     case BLE_HCI_OCF_CB_SET_EVENT_MASK2:
         rc = ble_ll_hci_cb_set_event_mask2(cmdbuf, len);
         break;
@@ -1570,9 +1644,33 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
  *                              BLE_ERR_MEM_CAPACITY on HCI buffer exhaustion.
  */
 int
-ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg)
+ble_ll_hci_cmd_rx(uint8_t *cmdbuf, void *arg)
 {
     struct ble_npl_event *ev;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    const struct ble_hci_cmd *cmd;
+    uint16_t opcode;
+    uint16_t ocf;
+    uint16_t ogf;
+
+    cmd = (const void *)cmdbuf;
+    opcode = le16toh(cmd->opcode);
+    ogf = BLE_HCI_OGF(opcode);
+    ocf = BLE_HCI_OCF(opcode);
+
+    /*
+     * HCI_Host_Number_Of_Completed_Packets is processed outside standard flow
+     * thus it can be sent at any time, even if another command is already
+     * pending. This means we should better process it here and send an event to
+     * LL in case of error.
+     */
+    if ((ogf == BLE_HCI_OGF_CTLR_BASEBAND) &&
+        (ocf == BLE_HCI_OCF_CB_HOST_NUM_COMP_PKTS)) {
+        ble_ll_conn_cth_flow_process_cmd(cmdbuf);
+        ble_hci_trans_buf_free(cmdbuf);
+        return 0;
+    }
+#endif
 
     /* Get an event structure off the queue */
     ev = &g_ble_ll_hci_cmd_ev;
@@ -1581,7 +1679,7 @@ ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg)
     }
 
     /* Fill out the event and post to Link Layer */
-    ble_npl_event_set_arg(ev, cmd);
+    ble_npl_event_set_arg(ev, cmdbuf);
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, ev);
 
     return 0;

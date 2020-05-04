@@ -36,7 +36,22 @@
 
 /* Octet 10 */
 #define BLE_SUPP_CMD_RD_TX_PWR              (0 << 2)
-#define BLE_LL_SUPP_CMD_OCTET_10            (BLE_SUPP_CMD_RD_TX_PWR)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+#define BLE_SUPP_CMD_SET_CTRL_TO_HOST_FLOW  (1 << 5)
+#define BLE_SUPP_CMD_HOST_BUFFER_SIZE       (1 << 6)
+#define BLE_SUPP_CMD_HOST_NUM_COMP_PACKETS  (1 << 7)
+#else
+#define BLE_SUPP_CMD_SET_CTRL_TO_HOST_FLOW  (0 << 5)
+#define BLE_SUPP_CMD_HOST_BUFFER_SIZE       (0 << 6)
+#define BLE_SUPP_CMD_HOST_NUM_COMP_PACKETS  (0 << 7)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_10            \
+(                                           \
+    BLE_SUPP_CMD_RD_TX_PWR              |   \
+    BLE_SUPP_CMD_SET_CTRL_TO_HOST_FLOW  |   \
+    BLE_SUPP_CMD_HOST_BUFFER_SIZE       |   \
+    BLE_SUPP_CMD_HOST_NUM_COMP_PACKETS      \
+)
 
 /* Octet 14 */
 #define BLE_SUPP_CMD_RD_LOC_VER             (1 << 3)

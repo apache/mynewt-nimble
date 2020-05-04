@@ -272,6 +272,10 @@ struct ble_ll_conn_sm
     uint8_t last_rxd_hdr_byte;  /* note: possibly can make 1 bit since we
                                    only use the MD bit now */
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
+    uint16_t cth_flow_pending;
+#endif
+
     /* connection event mgmt */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;
