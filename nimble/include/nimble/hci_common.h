@@ -108,7 +108,7 @@ struct ble_hci_cb_ctlr_to_host_fc_cp {
 #define BLE_HCI_OCF_CB_HOST_BUF_SIZE        (0x0033)
 struct ble_hci_cb_host_buf_size_cp {
     uint16_t acl_data_len;
-    uint16_t sco_data_len;
+    uint8_t  sco_data_len;
     uint16_t acl_num;
     uint16_t sco_num;
 } __attribute__((packed));
