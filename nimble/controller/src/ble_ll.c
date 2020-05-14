@@ -247,9 +247,6 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
-/** Our supported features which can be controller by the host */
-uint64_t g_ble_ll_supported_host_features = 0;
-
 static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
 {
     [BLE_PHY_MODE_1M] =
@@ -1305,10 +1302,6 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
 
     mask = (uint64_t)1 << (cmd->bit_num);
     if (!(mask & BLE_LL_HOST_CONTROLLED_FEATURES)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    if (!(mask & g_ble_ll_supported_host_features)) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -1687,9 +1680,6 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_CIS_SLAVE;
     features |= BLE_LL_FEAT_ISO_BROADCASTER;
     features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
-
-    /* Set features controller by the Host */
-    g_ble_ll_supported_host_features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif
 
     /* Initialize random number generation */
