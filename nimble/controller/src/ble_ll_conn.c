@@ -3452,9 +3452,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     uint16_t acl_hdr;
     struct ble_ll_conn_sm *connsm;
 
-    if (!BLE_MBUF_HDR_CRC_OK(hdr)) {
-        goto conn_rx_data_pdu_end;
-    }
+    /* Packets with invalid CRC are not sent to LL */
+    BLE_LL_ASSERT(BLE_MBUF_HDR_CRC_OK(hdr));
 
     /* XXX: there is a chance that the connection was thrown away and
        re-used before processing packets here. Fix this. */
@@ -3612,13 +3611,22 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint32_t add_usecs;
     struct os_mbuf *txpdu;
     struct ble_ll_conn_sm *connsm;
-    struct os_mbuf *rxpdu;
+    struct os_mbuf *rxpdu = NULL;
     struct ble_mbuf_hdr *txhdr;
     int rx_phy_mode;
+    bool alloc_rxpdu = true;
 
     /* Retrieve the header and payload length */
     hdr_byte = rxbuf[0];
     rx_pyld_len = rxbuf[1];
+
+    /*
+     * No need to alloc rxpdu for packets with invalid CRC, we would throw them
+     * away instantly from LL anyway.
+     */
+    if (!BLE_MBUF_HDR_CRC_OK(rxhdr)) {
+        alloc_rxpdu = false;
+    }
 
     /*
      * We need to attempt to allocate a buffer here. The reason we do this
@@ -3627,7 +3635,9 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * acked, but we should not ack the received frame if we cant hand it up.
      * NOTE: we hand up empty pdu's to the LL task!
      */
-    rxpdu = ble_ll_rxpdu_alloc(rx_pyld_len + BLE_LL_PDU_HDR_LEN);
+    if (alloc_rxpdu) {
+        rxpdu = ble_ll_rxpdu_alloc(rx_pyld_len + BLE_LL_PDU_HDR_LEN);
+    }
 
     /*
      * We should have a current connection state machine. If we dont, we just
