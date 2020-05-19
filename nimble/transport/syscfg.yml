@@ -33,6 +33,7 @@ syscfg.defs:
             - socket    # Socket transport (for native builds)
             - emspi     # SPI transport for EM Microelectionic controllers
             - da1469x   # Dialog DA1469x integrated controller
+            - usb       # USB
 
 # Deprecated settings
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:

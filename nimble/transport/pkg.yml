@@ -43,3 +43,6 @@ pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
 
 pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
     - nimble/transport/da1469x
+
+pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
+    - nimble/transport/usb
