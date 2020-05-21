@@ -53,7 +53,7 @@ syscfg.defs:
 
     BTTESTER_CONN_RETRY:
         description: Retry connections when connection failed to be established
-        value: 3
+        value: 0
 
     BTTESTER_BTP_DATA_SIZE_MAX:
         description: Maximum BTP payload
