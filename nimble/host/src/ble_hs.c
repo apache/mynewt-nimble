@@ -673,7 +673,7 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
     /* If flow control is enabled, mark this packet with its corresponding
      * connection handle.
      */
-    ble_hs_flow_fill_acl_usrhdr(om);
+    ble_hs_flow_track_data_mbuf(om);
 
     rc = ble_mqueue_put(&ble_hs_rx_q, ble_hs_evq, om);
     if (rc != 0) {
