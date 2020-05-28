@@ -31,6 +31,11 @@ declare -A targets=(
 
 for target in "${!targets[@]}"; do
     echo "Updating target $target"
-    newt build "$target" > /dev/null 2>&1
-    cp "bin/@apache-mynewt-nimble/targets/${target}/generated/include" "${targets[$target]}" -r
+    newt build "@apache-mynewt-nimble/porting/targets/$target" > /dev/null 2>&1
+    cp "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include" "${targets[$target]}" -r
+    # Remove repo version and hash MYNEWT_VALS as it doesn't make much sense to commit them and they
+    # defeat the purpose of this script.
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '/MYNEWT_VAL_REPO_*/,/#endif/d' {} \;
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '/\/\*\*\* Repository/,/\*\//d' {} \;
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '$!N;/^\n$/{$q;D;};P;D;' {} \;
 done
