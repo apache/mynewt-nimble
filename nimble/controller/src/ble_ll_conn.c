@@ -2021,7 +2021,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_HOST_TO_CTRL_FLOW_CONTROL)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     ble_ll_conn_cth_flow_free_credit(connsm, connsm->cth_flow_pending);
 #endif
 
