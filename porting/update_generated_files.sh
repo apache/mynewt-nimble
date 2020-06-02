@@ -31,6 +31,6 @@ declare -A targets=(
 
 for target in "${!targets[@]}"; do
     echo "Updating target $target"
-    newt build "$target" > /dev/null 2>&1
-    cp "bin/@apache-mynewt-nimble/targets/${target}/generated/include" "${targets[$target]}" -r
+    newt build "$target" # > /dev/null 2>&1
+#    cp "bin/@apache-mynewt-nimble/targets/${target}/generated/include" "${targets[$target]}" -r
 done
