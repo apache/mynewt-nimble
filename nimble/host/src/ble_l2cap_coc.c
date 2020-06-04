@@ -465,9 +465,9 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         rc = ble_l2cap_tx(conn, chan, txom);
 
         if (rc) {
-          /* txom is consumed by l2cap */
-          txom = NULL;
-          goto failed;
+            /* txom is consumed by l2cap */
+            txom = NULL;
+            goto failed;
         } else {
             tx->credits --;
             tx->data_offset += len - sdu_size_offset;
@@ -477,15 +477,15 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
                   len, tx->credits, OS_MBUF_PKTLEN(tx->sdu)- tx->data_offset );
 
         if (tx->data_offset == OS_MBUF_PKTLEN(tx->sdu)) {
-                BLE_HS_LOG(DEBUG, "Complete package sent\n");
-                os_mbuf_free_chain(tx->sdu);
-                tx->sdu = 0;
-                tx->data_offset = 0;
-                if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
-                    ble_l2cap_event_coc_unstalled(chan, 0);
-                    tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
-                }
-                break;
+            BLE_HS_LOG(DEBUG, "Complete package sent\n");
+            os_mbuf_free_chain(tx->sdu);
+            tx->sdu = NULL;
+            tx->data_offset = 0;
+            if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
+                ble_l2cap_event_coc_unstalled(chan, 0);
+                tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
+            }
+            break;
         }
     }
 
