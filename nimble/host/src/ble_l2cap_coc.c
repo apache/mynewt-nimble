@@ -469,12 +469,12 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             txom = NULL;
             goto failed;
         } else {
-            tx->credits --;
+            tx->credits--;
             tx->data_offset += len - sdu_size_offset;
         }
 
         BLE_HS_LOG(DEBUG, "Sent %d bytes, credits=%d, to send %d bytes \n",
-                  len, tx->credits, OS_MBUF_PKTLEN(tx->sdu)- tx->data_offset );
+                  len, tx->credits, OS_MBUF_PKTLEN(tx->sdu)- tx->data_offset);
 
         if (tx->data_offset == OS_MBUF_PKTLEN(tx->sdu)) {
             BLE_HS_LOG(DEBUG, "Complete package sent\n");
