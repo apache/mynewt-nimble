@@ -1557,6 +1557,8 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
                                 uint16_t *err_handle)
 {
     struct os_mbuf *txom;
+    struct os_mbuf **rxom_cpy = rxom;
+    struct ble_att_svr_entry *entry;
     uint16_t handle;
     uint16_t mtu;
     int rc;
@@ -1576,6 +1578,24 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         goto done;
     }
 
+    /* Iterate over list of handles and check read permissions. */
+    while (OS_MBUF_PKTLEN(*rxom_cpy) >= 2) {
+        handle = get_le16((*rxom_cpy)->om_data);
+        os_mbuf_adj(*rxom_cpy, 2);
+
+        entry = ble_att_svr_find_by_handle(handle);
+        if (entry == NULL) {
+            *err_handle = handle;
+            *att_err = BLE_ATT_ERR_INVALID_HANDLE;
+            rc = BLE_HS_ENOENT;
+            goto done;
+        }
+        rc = ble_att_svr_check_perms(conn_handle, 1, entry, att_err);
+        if (rc != 0) {
+            *err_handle = handle;
+            goto done;
+        }
+    }
     /* Iterate through requested handles, reading the corresponding attribute
      * for each.  Stop when there are no more handles to process, or the
      * response is full.
