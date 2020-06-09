@@ -1512,7 +1512,7 @@
 /*** @apache-mynewt-nimble/nimble/transport/ram */
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/transport/ram) */
 #ifndef MYNEWT_VAL_BLE_ACL_BUF_COUNT
-#define MYNEWT_VAL_BLE_ACL_BUF_COUNT (4)
+#define MYNEWT_VAL_BLE_ACL_BUF_COUNT (24)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_ACL_BUF_SIZE
