@@ -661,8 +661,8 @@ ble_l2cap_sig_coc_connect_cb(struct ble_l2cap_sig_proc *proc, int status)
             continue;
         }
 
-        if ((status == 0) && (chan->dcid != 0)) {
-            ble_l2cap_event_coc_connected(chan, status);
+        if (chan->dcid != 0) {
+            ble_l2cap_event_coc_connected(chan, 0);
             /* Let's forget about connected channel now.
              * Not connected will be freed later on.
              */
@@ -1066,7 +1066,15 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
 
     if (rsp->result) {
         rc = ble_l2cap_sig_coc_err2ble_hs_err(le16toh(rsp->result));
-        goto done;
+        /* Below results means that some of the channels has not been created
+         * and we have to look closer into the response.
+         * Any other results means that all the connections has been refused.
+         */
+        if ((rsp->result != BLE_L2CAP_COC_ERR_NO_RESOURCES) &&
+            (rsp->result != BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID) &&
+            (rsp->result != BLE_L2CAP_COC_ERR_SOURCE_CID_ALREADY_USED)) {
+            goto done;
+        }
     }
 
     ble_hs_lock();
