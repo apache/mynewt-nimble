@@ -864,6 +864,7 @@ ble_l2cap_sig_credit_base_reconfig_rsp_rx(uint16_t conn_handle,
 
     rsp = (struct ble_l2cap_sig_credit_base_reconfig_rsp *)(*om)->om_data;
     ble_l2cap_sig_coc_reconfig_cb(proc, (rsp->result > 0) ? BLE_HS_EREJECT : 0);
+    ble_l2cap_sig_proc_free(proc);
 
     return 0;
 }
