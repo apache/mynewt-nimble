@@ -3021,7 +3021,8 @@ ble_ll_scan_rx_pkt_in_on_legacy(uint8_t pdu_type, struct os_mbuf *om,
 
     if (!BLE_MBUF_HDR_DEVMATCH(hdr) ||
         !BLE_MBUF_HDR_CRC_OK(hdr) ||
-        BLE_MBUF_HDR_IGNORED(hdr)) {
+        BLE_MBUF_HDR_IGNORED(hdr) ||
+        !scansm->scan_enabled) {
         return;
     }
 
@@ -3075,7 +3076,8 @@ ble_ll_scan_rx_pkt_in_on_aux(uint8_t pdu_type, struct os_mbuf *om,
         BLE_MBUF_HDR_IGNORED(hdr) ||
         BLE_MBUF_HDR_AUX_INVALID(hdr) ||
         (aux_data->flags_ll & BLE_LL_AUX_FLAG_SCAN_ERROR) ||
-        (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND)) {
+        (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) ||
+        !scansm->scan_enabled) {
         if (aux_data) {
             ble_ll_scan_end_adv_evt(aux_data);
             ble_ll_scan_aux_data_unref(aux_data);
