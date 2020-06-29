@@ -3060,10 +3060,6 @@ ble_ll_scan_rx_pkt_in_on_aux(uint8_t pdu_type, struct os_mbuf *om,
     bool send_hci_report;
     int rc;
 
-    if (!scansm->ext_scanning) {
-        goto scan_continue;
-    }
-
     if (aux_data) {
         aux_data->flags_ll |= aux_data->flags_isr;
     }
