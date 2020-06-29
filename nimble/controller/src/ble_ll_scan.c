@@ -1125,6 +1125,22 @@ ble_ll_scan_sm_stop(int chk_disable)
     scansm = &g_ble_ll_scan_sm;
     os_cputime_timer_stop(&scansm->scan_timer);
 
+    /* Only set state if we are currently in a scan window */
+    if (chk_disable) {
+        OS_ENTER_CRITICAL(sr);
+        lls = ble_ll_state_get();
+
+        if ((lls == BLE_LL_STATE_SCANNING) ||
+                        (lls == BLE_LL_STATE_INITIATING && chk_disable == 1)) {
+            /* Disable phy */
+            ble_phy_disable();
+
+            /* Set LL state to standby */
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        }
+        OS_EXIT_CRITICAL(sr);
+    }
+
     OS_ENTER_CRITICAL(sr);
 
     /* Disable scanning state machine */
@@ -1148,22 +1164,6 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     /* Count # of times stopped */
     STATS_INC(ble_ll_stats, scan_stops);
-
-    /* Only set state if we are currently in a scan window */
-    if (chk_disable) {
-        OS_ENTER_CRITICAL(sr);
-        lls = ble_ll_state_get();
-
-        if ((lls == BLE_LL_STATE_SCANNING) ||
-                        (lls == BLE_LL_STATE_INITIATING && chk_disable == 1)) {
-            /* Disable phy */
-            ble_phy_disable();
-
-            /* Set LL state to standby */
-            ble_ll_state_set(BLE_LL_STATE_STANDBY);
-        }
-        OS_EXIT_CRITICAL(sr);
-    }
 
     /* No need for RF anymore */
     OS_ENTER_CRITICAL(sr);
