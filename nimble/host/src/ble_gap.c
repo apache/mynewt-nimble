@@ -998,7 +998,7 @@ ble_gap_update_next_exp(int32_t *out_ticks_from_now)
 
 }
 
-#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_OBSERVER)
+#if NIMBLE_BLE_SCAN
 static void
 ble_gap_master_set_timer(uint32_t ticks_from_now)
 {
