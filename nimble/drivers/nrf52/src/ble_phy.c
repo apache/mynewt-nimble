@@ -22,15 +22,16 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+#include "ble/palna.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
-#include "controller/ble_phy_palna.h"
 #include "controller/ble_ll.h"
 #include "nrfx.h"
+#include "hal/nrf_gpiote.h"
 #if MYNEWT
 #include "mcu/nrf52_clock.h"
 #include "mcu/cmsis_nvic.h"
@@ -790,6 +791,115 @@ ble_phy_get_ccm_datarate(void)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN)
+/**
+ * Shutdown pa/lna.
+ */
+static void
+ble_phy_palna_idle(void)
+{
+    /* disable PPI channels */
+    NRF_PPI->CHENCLR = PALNA_PPI_CHANNEL_MASK;
+    nrf_gpiote_te_default(NRF_GPIOTE, PALNA_GPIOTE_CHANNEL);
+
+    /* disable pa/lna directly, clearing from gpiote is ambiguous here */
+    #if MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN)
+    hal_gpio_write(MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN), MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN_ACTIVE_LOW));
+    #endif
+
+    #if MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN)
+    hal_gpio_write(MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN), MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN_ACTIVE_LOW));
+    #endif
+}
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN)
+/**
+ * Setup pa/lna for transmit.
+ */
+static void
+ble_phy_palna_tx_setup(void)
+{
+    uint32_t initial_val = NRF_GPIOTE_INITIAL_VALUE_LOW;
+    ble_phy_palna_idle();
+
+    /* determine the polarity of the pa pin, and set to inactive */
+    if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN_ACTIVE_LOW)) {
+        initial_val = NRF_GPIOTE_INITIAL_VALUE_HIGH;
+    }          
+    
+    nrf_gpiote_task_configure(
+            NRF_GPIOTE,
+            PALNA_GPIOTE_CHANNEL,
+            MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN),
+            NRF_GPIOTE_POLARITY_TOGGLE,
+            initial_val);
+
+    /* enable task, PPI channels */
+    nrf_gpiote_task_enable(NRF_GPIOTE, PALNA_GPIOTE_CHANNEL);
+    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;                      
+}
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN)
+/**
+ * Setup pa/lna for recieve.
+ */
+static void
+ble_phy_palna_rx_setup(void)
+{
+    uint32_t initial_val = NRF_GPIOTE_INITIAL_VALUE_LOW;
+    ble_phy_palna_idle();
+
+    /* determine the polarity of the lna pin, and set to inactive */
+    if (MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN_ACTIVE_LOW)) {
+        initial_val = NRF_GPIOTE_INITIAL_VALUE_HIGH;        
+    }
+    
+    nrf_gpiote_task_configure(
+        NRF_GPIOTE,
+        PALNA_GPIOTE_CHANNEL,
+        MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN),
+        NRF_GPIOTE_POLARITY_TOGGLE,
+        initial_val);
+
+    /* enable task, PPI channels */
+    nrf_gpiote_task_enable(NRF_GPIOTE, PALNA_GPIOTE_CHANNEL);
+    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;                      
+}
+#endif
+
+
+
+/**
+ * Initialize pa/lna.
+ */
+#if (MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN))
+static void
+ble_phy_palna_init(void)
+{
+    /* disable pa/lna */
+    #if MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN)
+    hal_gpio_init_out(MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN), MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN_ACTIVE_LOW));
+    #endif
+
+    #if MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN)
+    hal_gpio_init_out(MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN), MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN_ACTIVE_LOW));
+    #endif
+
+    /* Setup a PPI Channel for Radio Ready Event to enable PA-LNA */
+    NRF_PPI->CH[PALNA_PPI_CHANNEL_RADIO_READY].EEP = (uint32_t)&NRF_RADIO->EVENTS_READY;
+    NRF_PPI->CH[PALNA_PPI_CHANNEL_RADIO_READY].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[PALNA_GPIOTE_CHANNEL];
+
+    /* Setup PPI channel for Radio Disabled Event to disable PA-LNA */
+    NRF_PPI->CH[PALNA_PPI_CHANNEL_RADIO_DISABLED].EEP = (uint32_t)&NRF_RADIO->EVENTS_DISABLED;
+    NRF_PPI->CH[PALNA_PPI_CHANNEL_RADIO_DISABLED].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[PALNA_GPIOTE_CHANNEL];
+
+    /* off */
+    ble_phy_palna_idle();
+}
+#endif
+
 /**
  * Setup transceiver for receive.
  */
@@ -837,8 +947,8 @@ ble_phy_rx_xcvr_setup(void)
     }
 #endif
 
-#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
-    ble_phy_palna_rx_prepare();
+#if MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN)
+    ble_phy_palna_rx_setup();
 #endif
 
     /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
@@ -1734,8 +1844,8 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
      */
     nrf_wait_disabled();
 
-#if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN) || MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN))
-    ble_phy_palna_tx_prepare();
+#if MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN)
+    ble_phy_palna_tx_setup();
 #endif
 
     /*
