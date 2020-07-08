@@ -826,8 +826,8 @@ ble_phy_palna_tx_setup(void)
     /* determine the polarity of the pa pin, and set to inactive */
     if (MYNEWT_VAL(BLE_PHY_PALNA_PA_ENABLE_PIN_ACTIVE_LOW)) {
         initial_val = NRF_GPIOTE_INITIAL_VALUE_HIGH;
-    }          
-    
+    }
+
     nrf_gpiote_task_configure(
             NRF_GPIOTE,
             PALNA_GPIOTE_CHANNEL,
@@ -837,7 +837,7 @@ ble_phy_palna_tx_setup(void)
 
     /* enable task, PPI channels */
     nrf_gpiote_task_enable(NRF_GPIOTE, PALNA_GPIOTE_CHANNEL);
-    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;                      
+    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;
 }
 #endif
 
@@ -853,9 +853,9 @@ ble_phy_palna_rx_setup(void)
 
     /* determine the polarity of the lna pin, and set to inactive */
     if (MYNEWT_VAL(BLE_PHY_PALNA_LNA_ENABLE_PIN_ACTIVE_LOW)) {
-        initial_val = NRF_GPIOTE_INITIAL_VALUE_HIGH;        
+        initial_val = NRF_GPIOTE_INITIAL_VALUE_HIGH;
     }
-    
+
     nrf_gpiote_task_configure(
         NRF_GPIOTE,
         PALNA_GPIOTE_CHANNEL,
@@ -865,7 +865,7 @@ ble_phy_palna_rx_setup(void)
 
     /* enable task, PPI channels */
     nrf_gpiote_task_enable(NRF_GPIOTE, PALNA_GPIOTE_CHANNEL);
-    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;                      
+    NRF_PPI->CHENSET = PALNA_PPI_CHANNEL_MASK;
 }
 #endif
 
