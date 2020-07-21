@@ -33,11 +33,17 @@ extern "C" {
 #endif
 
 struct os_mbuf;
-
+#define BLE_ATT_SVR_HASH_KEY_SIZE_IN_BYTES               16
 #define BLE_ATT_UUID_PRIMARY_SERVICE        0x2800
 #define BLE_ATT_UUID_SECONDARY_SERVICE      0x2801
 #define BLE_ATT_UUID_INCLUDE                0x2802
 #define BLE_ATT_UUID_CHARACTERISTIC         0x2803
+#define BLE_ATT_UUID_CHARACTERISTIC_EXTENDED_PROPERTIES         0x2900
+#define BLE_ATT_UUID_CHARACTERISTIC_USER_DESCRIPTION        0x2901
+#define BLE_ATT_UUID_CLIENT_CHARACTERISTICS_CONFIGURATION   0x2902
+#define BLE_ATT_UUID_SERVER_CHARACTERISTICS_CONFIGURATION   0x2903
+#define BLE_ATT_UUID_CHARACTERISTIC_PRESENTATION_FORMAT     0x2904
+#define BLE_ATT_UUID_CHARACTERISTIC_AGGREGATE_FORMAT        0x2905
 
 #define BLE_ATT_ERR_INVALID_HANDLE          0x01
 #define BLE_ATT_ERR_READ_NOT_PERMITTED      0x02
@@ -56,6 +62,9 @@ struct os_mbuf;
 #define BLE_ATT_ERR_INSUFFICIENT_ENC        0x0f
 #define BLE_ATT_ERR_UNSUPPORTED_GROUP       0x10
 #define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
+#define BLE_ATT_ERR_DATA_OUT_OF_SYNC        0x12
+
+#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16                 0x2b2a
 
 #define BLE_ATT_OP_ERROR_RSP                0x01
 #define BLE_ATT_OP_MTU_REQ                  0x02
@@ -182,6 +191,24 @@ uint16_t ble_att_preferred_mtu(void);
  *                                  within the allowed range.
  */
 int ble_att_set_preferred_mtu(uint16_t mtu);
+
+int
+ble_att_svr_calculate_database_hash(void);
+
+void
+ble_hs_conn_set_awareness(uint16_t conn_handle, uint8_t aware);
+
+void
+ble_hs_conn_set_all_awareness(uint8_t aware);
+
+void
+ble_hs_conn_check_set_awareness_if_bonding(uint16_t conn_handle,
+        uint8_t aware);
+
+uint8_t
+ble_hs_conn_get_awareness(uint16_t conn_handle);
+
+uint8_t* ble_att_svr_get_database_hash(void);
 
 #ifdef __cplusplus
 }

@@ -575,6 +575,7 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     ble_sm_fill_store_value(&peer_addr, authenticated, sc, &proc->peer_keys,
                             &value_sec);
+    value_sec.aware = 1;
     ble_store_write_peer_sec(&value_sec);
 }
 
