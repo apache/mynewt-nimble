@@ -45,7 +45,6 @@ extern "C" {
 #define STRESS_FIND_CHR 2
 #define STRESS_FIND_DSC 3
 
-struct os_callout stress_timer_callout;
 struct stress_gatt_search_ctx;
 typedef void stress_gatt_disc_end_fn(struct stress_gatt_search_ctx *search_ctx);
 
