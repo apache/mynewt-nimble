@@ -121,7 +121,7 @@ stress_fill_mbuf_with_pattern(struct os_mbuf *om, uint16_t len)
     rest = len % STRESS_PAT_LEN;
 
     for (i = 0; i < mul; ++i) {
-        rc = os_mbuf_append(om, &test_6_pattern[29], STRESS_PAT_LEN);
+        rc = os_mbuf_append(om, &test_6_pattern[0], STRESS_PAT_LEN);
 
         if (rc) {
             os_mbuf_free_chain(om);
@@ -129,7 +129,7 @@ stress_fill_mbuf_with_pattern(struct os_mbuf *om, uint16_t len)
         }
     }
 
-    rc = os_mbuf_append(om, &test_6_pattern[29], rest);
+    rc = os_mbuf_append(om, &test_6_pattern[0], rest);
 
     if (rc) {
         os_mbuf_free_chain(om);
