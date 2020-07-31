@@ -44,6 +44,8 @@ extern "C" {
 #define STRESS_FIND_SRV 1
 #define STRESS_FIND_CHR 2
 #define STRESS_FIND_DSC 3
+/* L2CAP PSM */
+#define TEST_PSM 0x80
 
 struct stress_gatt_search_ctx;
 typedef void stress_gatt_disc_end_fn(struct stress_gatt_search_ctx *search_ctx);

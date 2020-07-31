@@ -1127,7 +1127,7 @@ tx_stress_10_gap_event(struct ble_gap_event *event, void *arg)
             assert(sdu_rx != NULL);
 
             tx_stress_ctx->conn_handle = event->connect.conn_handle;
-            rc = ble_l2cap_connect(event->connect.conn_handle, 1,
+            rc = ble_l2cap_connect(event->connect.conn_handle, TEST_PSM,
                                    STRESS_COC_MTU, sdu_rx,
                                    tx_stress_10_l2cap_event, NULL);
             assert(rc == 0);

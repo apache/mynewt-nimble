@@ -1365,7 +1365,7 @@ rx_stress_start(int test_num)
         break;
     case 10:
         console_printf("Stress L2CAP send\033[0m\n");
-        rc = ble_l2cap_create_server(1, STRESS_COC_MTU,
+        rc = ble_l2cap_create_server(TEST_PSM, STRESS_COC_MTU,
                                      rx_stress_10_l2cap_event, NULL);
         assert(rc == 0);
         rx_stress_simple_adv(&rx_stress_adv_sets[10]);
