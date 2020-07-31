@@ -837,14 +837,6 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     MODLOG_DFLT(INFO, "Data buf %s\n", data_buf ? "OK" : "NOK");
     assert(data_buf != NULL);
 
-    /* The first 2 bytes of data is the size of appended pattern data. */
-    rc = os_mbuf_append(data_buf, (uint8_t[]) {data_len >> 8, data_len},
-                        2);
-    if (rc) {
-        os_mbuf_free_chain(data_buf);
-        assert(0);
-    }
-
     /* Fill mbuf with the pattern */
     stress_fill_mbuf_with_pattern(data_buf, data_len);
 
