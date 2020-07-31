@@ -40,6 +40,8 @@ static os_membuf_t ble_l2cap_coc_srv_mem[
 
 static struct os_mempool ble_l2cap_coc_srv_pool;
 
+static struct os_callout l2cap_continuation_timeout;
+
 static void
 ble_l2cap_coc_dbg_assert_srv_not_inserted(struct ble_l2cap_coc_srv *srv)
 {
@@ -170,6 +172,35 @@ ble_l2cap_event_coc_received_data(struct ble_l2cap_chan *chan,
     chan->cb(&event, chan->cb_arg);
 }
 
+void
+l2cap_cont_timeout_ev(struct os_event *ev)
+{
+    int rc;
+    struct ble_l2cap_chan *chan = (struct ble_l2cap_chan *)ev->ev_arg;
+    struct ble_hs_conn *conn;
+    struct ble_l2cap_chan *c;
+    struct ble_l2cap_coc_endpoint *rx;
+
+    rx = &chan->coc_rx;
+    conn = ble_hs_conn_find_assert(chan->conn_handle);
+    c = ble_hs_conn_chan_find_by_scid(conn, chan->scid);
+
+    BLE_HS_LOG(INFO, "L2CAP receiving timeout! Connection info:\n"
+               "    conn_handle: %u,\n   scid: %u,\n   used credits: %u,\n"
+               "    psm: %u\n",
+               chan->conn_handle, chan->scid, chan->coc_rx.credits, c->psm);
+
+    rc = ble_l2cap_sig_le_credits(chan->conn_handle,
+                                  chan->scid, chan->coc_rx.credits);
+    assert(rc == 0);
+
+    rx->sdu = NULL;
+    rx->data_offset = 0;
+
+    ble_l2cap_event_coc_received_data(chan, rx->sdu);
+    BLE_HS_LOG(INFO, "Buffers cleared");
+}
+
 static int
 ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
 {
@@ -177,7 +208,14 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     struct os_mbuf **om;
     struct ble_l2cap_coc_endpoint *rx;
     uint16_t om_total;
+    int timeout_len = 1000;
 
+    /* Set timeout for receiveing continuation. If timeout
+     * expires, return credits.
+     */
+    os_callout_stop(&l2cap_continuation_timeout);
+    os_callout_init(&l2cap_continuation_timeout, os_eventq_dflt_get(),
+                    l2cap_cont_timeout_ev, chan);
     /* Create a shortcut to rx_buf */
     om = &chan->rx_buf;
     BLE_HS_DBG_ASSERT(*om != NULL);
@@ -191,6 +229,9 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
     /* First LE frame */
     if (OS_MBUF_PKTLEN(rx->sdu) == 0) {
         uint16_t sdu_len;
+        rc = os_callout_reset(&l2cap_continuation_timeout,
+                              os_time_ms_to_ticks32(timeout_len));
+        assert(rc == 0);
 
         rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SDU_SIZE);
         if (rc != 0) {
@@ -202,6 +243,10 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
             BLE_HS_LOG(INFO, "error: sdu_len > rx->mtu (%d>%d)\n",
                        sdu_len, rx->mtu);
 
+            /* Return initial credits */
+            os_callout_stop(&l2cap_continuation_timeout);
+            ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid,
+                                     chan->coc_rx.credits);
             /* Disconnect peer with invalid behaviour */
             ble_l2cap_disconnect(chan);
             return BLE_HS_EBADDATA;
@@ -225,9 +270,13 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
         rx->data_offset = sdu_len;
 
     } else {
+        /* Frame received - reset timer */
+        rc = os_callout_reset(&l2cap_continuation_timeout,
+                              os_time_ms_to_ticks32(timeout_len));
+        assert(rc == 0);
         BLE_HS_LOG(DEBUG, "Continuation...received %d\n", (*om)->om_len);
 
-        rc  = os_mbuf_appendfrom(rx->sdu, *om, 0, om_total);
+        rc = os_mbuf_appendfrom(rx->sdu, *om, 0, om_total);
         if (rc != 0) {
             /* FIXME: need to handle it better */
             BLE_HS_LOG(DEBUG, "Could not append data rc=%d\n", rc);
@@ -242,6 +291,8 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
 
         BLE_HS_LOG(DEBUG, "Received sdu_len=%d, credits left=%d\n",
                    OS_MBUF_PKTLEN(rx->sdu), rx->credits);
+        /* Complete SDU received - stop continuation timer */
+        os_callout_stop(&l2cap_continuation_timeout);
 
         /* Lets get back control to os_mbuf to application.
          * Since it this callback application might want to set new sdu
