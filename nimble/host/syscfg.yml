@@ -244,6 +244,11 @@ syscfg.defs:
             Enables the Read Multiple Characteristic Values GATT procedure.
             (0/1)
         value: MYNEWT_VAL_BLE_ROLE_CENTRAL
+    BLE_GATT_READ_MULT_VAR:
+        description: >
+            Enables the Read Multiple Variable Characteristic Values GATT procedure.
+            (0/1)
+        value: MYNEWT_VAL_BLE_ROLE_CENTRAL && (MYNEWT_VAL_BLE_VERSION >= 52)
     BLE_GATT_WRITE_NO_RSP:
         description: >
             Enables the Write Without Response GATT procedure. (0/1)
@@ -295,6 +300,16 @@ syscfg.defs:
         value: 1000
 
     # Supported server ATT commands. (0/1)
+    BLE_EATT_CHAN_NUM:
+        description: >
+            Number of CoC channels allocated to EATT
+        value: 0
+
+    BLE_EATT_MTU:
+        description: >
+            MTU used for EATT channels.
+        value: 128
+
     BLE_ATT_SVR_FIND_INFO:
         description: >
             Enables processing of incoming Find Information Request ATT
@@ -352,6 +367,12 @@ syscfg.defs:
             Enables processing of incoming Handle Value Notification ATT
             commands. (0/1)
         value: 1
+    BLE_ATT_SVR_NOTIFY_MULTI:
+        description: >
+            Enables processing of incoming Multi Handle Value Notification ATT
+            commands. (0/1)
+        value: MYNEWT_VAL_BLE_ATT_SVR_NOTIFY && (MYNEWT_VAL_BLE_VERSION >= 52)
+
     BLE_ATT_SVR_INDICATE:
         description: >
             Enables processing of incoming Handle Value Indication ATT
@@ -462,10 +483,21 @@ syscfg.defs:
         description: 'Minimum level for the BLE host log.'
         value: 1
 
+    BLE_EATT_LOG_MOD:
+        description: 'Numeric module ID to use for BLE EATT log messages.'
+        value: 22
+    BLE_EATT_LOG_LVL:
+        description: 'Minimum level for the BLE EATT log.'
+        value: 1
+
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
         level: MYNEWT_VAL(BLE_HS_LOG_LVL)
+
+    BLE_EATT_LOG:
+       module: MYNEWT_VAL(BLE_EATT_LOG_MOD)
+       level: MYNEWT_VAL(BLE_EATT_LOG_LVL)
 
 syscfg.vals.BLE_MESH:
     BLE_SM_SC: 1

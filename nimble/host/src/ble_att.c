@@ -24,7 +24,7 @@
 static uint16_t ble_att_preferred_mtu_val;
 
 /** Dispatch table for incoming ATT requests.  Sorted by op code. */
-typedef int ble_att_rx_fn(uint16_t conn_handle, struct os_mbuf **om);
+typedef int ble_att_rx_fn(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om);
 struct ble_att_rx_dispatch_entry {
     uint8_t bde_op;
     ble_att_rx_fn *bde_fn;
@@ -58,6 +58,9 @@ static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_NOTIFY_REQ,           ble_att_svr_rx_notify },
     { BLE_ATT_OP_INDICATE_REQ,         ble_att_svr_rx_indicate },
     { BLE_ATT_OP_INDICATE_RSP,         ble_att_clt_rx_indicate },
+    { BLE_ATT_OP_READ_MULT_VAR_REQ,    ble_att_svr_rx_read_mult_var },
+    { BLE_ATT_OP_READ_MULT_VAR_RSP,    ble_att_clt_rx_read_mult_var },
+    { BLE_ATT_OP_NOTIFY_MULTI_REQ,     ble_att_svr_rx_notify_multi},
     { BLE_ATT_OP_WRITE_CMD,            ble_att_svr_rx_write_no_rsp },
 };
 
@@ -143,11 +146,18 @@ ble_att_rx_dispatch_entry_find(uint8_t op)
 }
 
 int
-ble_att_conn_chan_find(uint16_t conn_handle, struct ble_hs_conn **out_conn,
+ble_att_conn_chan_find(uint16_t conn_handle, uint16_t cid, struct ble_hs_conn **out_conn,
                        struct ble_l2cap_chan **out_chan)
 {
-    return ble_hs_misc_conn_chan_find(conn_handle, BLE_L2CAP_CID_ATT,
+    return ble_hs_misc_conn_chan_find(conn_handle, cid,
                                       out_conn, out_chan);
+}
+
+int
+ble_att_conn_chan_find_by_psm(uint16_t conn_handle, uint16_t psm, struct ble_hs_conn **out_conn,
+                              struct ble_l2cap_chan **out_chan)
+{
+    return ble_hs_misc_conn_chan_find(conn_handle, psm, out_conn, out_chan);
 }
 
 void
@@ -399,7 +409,7 @@ ble_att_truncate_to_mtu(const struct ble_l2cap_chan *att_chan,
 }
 
 uint16_t
-ble_att_mtu(uint16_t conn_handle)
+ble_att_mtu_by_cid(uint16_t conn_handle, uint16_t cid)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -408,7 +418,7 @@ ble_att_mtu(uint16_t conn_handle)
 
     ble_hs_lock();
 
-    rc = ble_att_conn_chan_find(conn_handle, &conn, &chan);
+    rc = ble_att_conn_chan_find(conn_handle, cid, &conn, &chan);
     if (rc == 0) {
         mtu = ble_att_chan_mtu(chan);
     } else {
@@ -418,6 +428,12 @@ ble_att_mtu(uint16_t conn_handle)
     ble_hs_unlock();
 
     return mtu;
+}
+
+uint16_t
+ble_att_mtu(uint16_t conn_handle)
+{
+    return ble_att_mtu_by_cid(conn_handle, BLE_L2CAP_CID_ATT);
 }
 
 void
@@ -434,6 +450,13 @@ uint16_t
 ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
 {
     uint16_t mtu;
+
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+    if (chan->scid != BLE_L2CAP_CID_ATT) {
+        /* EATT case */
+        return chan->coc_tx.mtu;
+    }
+#endif
 
     /* If either side has not exchanged MTU size, use the default.  Otherwise,
      * use the lesser of the two exchanged values.
@@ -453,7 +476,7 @@ ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
 
 static void
 ble_att_rx_handle_unknown_request(uint8_t op, uint16_t conn_handle,
-                                  struct os_mbuf **om)
+                                  uint16_t cid, struct os_mbuf **om)
 {
     /* If this is command (bit6 is set to 1), do nothing */
     if (op & 0x40) {
@@ -461,27 +484,37 @@ ble_att_rx_handle_unknown_request(uint8_t op, uint16_t conn_handle,
     }
 
     os_mbuf_adj(*om, OS_MBUF_PKTLEN(*om));
-    ble_att_svr_tx_error_rsp(conn_handle, *om, op, 0,
+    ble_att_svr_tx_error_rsp(conn_handle, cid, *om, op, 0,
                              BLE_ATT_ERR_REQ_NOT_SUPPORTED);
 
     *om = NULL;
 }
 
+static void
+ble_att_send_outstanding_after_response(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+    struct ble_l2cap_chan *chan;
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
+                                         &chan);
+    if (rc) {
+        return;
+    }
+    conn->client_att_busy = false;
+    ble_att_tx_with_conn(conn, chan, NULL);
+    ble_hs_unlock();
+}
+
 static int
-ble_att_rx(struct ble_l2cap_chan *chan)
+ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 {
     const struct ble_att_rx_dispatch_entry *entry;
     uint8_t op;
-    uint16_t conn_handle;
-    struct os_mbuf **om;
     int rc;
 
-    conn_handle = ble_l2cap_get_conn_handle(chan);
-    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    om = &chan->rx_buf;
     BLE_HS_DBG_ASSERT(*om != NULL);
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
@@ -489,9 +522,13 @@ ble_att_rx(struct ble_l2cap_chan *chan)
         return BLE_HS_EMSGSIZE;
     }
 
+    if (cid == BLE_L2CAP_CID_ATT && ble_att_is_response_op(op)) {
+        ble_att_send_outstanding_after_response(conn_handle);
+    }
+
     entry = ble_att_rx_dispatch_entry_find(op);
     if (entry == NULL) {
-        ble_att_rx_handle_unknown_request(op, conn_handle, om);
+        ble_att_rx_handle_unknown_request(op, conn_handle, cid, om);
         return BLE_HS_ENOTSUP;
     }
 
@@ -500,15 +537,28 @@ ble_att_rx(struct ble_l2cap_chan *chan)
     /* Strip L2CAP ATT header from the front of the mbuf. */
     os_mbuf_adj(*om, 1);
 
-    rc = entry->bde_fn(conn_handle, om);
+    rc = entry->bde_fn(conn_handle, cid, om);
     if (rc != 0) {
         if (rc == BLE_HS_ENOTSUP) {
-            ble_att_rx_handle_unknown_request(op, conn_handle, om);
+            ble_att_rx_handle_unknown_request(op, conn_handle, cid, om);
         }
         return rc;
     }
 
     return 0;
+}
+
+static int
+ble_att_rx(struct ble_l2cap_chan *chan)
+{
+    uint16_t conn_handle;
+
+    conn_handle = ble_l2cap_get_conn_handle(chan);
+    if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    return ble_att_rx_extended(conn_handle, chan->scid, &chan->rx_buf);
 }
 
 uint16_t
@@ -571,6 +621,52 @@ ble_att_create_chan(uint16_t conn_handle)
     return chan;
 }
 
+bool
+ble_att_is_request_op(uint8_t opcode)
+{
+    switch(opcode) {
+    case BLE_ATT_OP_MTU_REQ:
+    case BLE_ATT_OP_FIND_INFO_REQ:
+    case BLE_ATT_OP_FIND_TYPE_VALUE_REQ:
+    case BLE_ATT_OP_READ_TYPE_REQ:
+    case BLE_ATT_OP_READ_REQ:
+    case BLE_ATT_OP_READ_BLOB_REQ:
+    case BLE_ATT_OP_READ_MULT_REQ:
+    case BLE_ATT_OP_READ_GROUP_TYPE_REQ:
+    case BLE_ATT_OP_WRITE_REQ:
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+    case BLE_ATT_OP_EXEC_WRITE_REQ:
+    case BLE_ATT_OP_INDICATE_REQ:
+    case BLE_ATT_OP_READ_MULT_VAR_REQ:
+    case BLE_ATT_OP_NOTIFY_MULTI_REQ:
+        return true;
+    }
+    return false;
+}
+
+bool
+ble_att_is_response_op(uint8_t opcode) {
+    switch(opcode) {
+    case BLE_ATT_OP_MTU_RSP:
+    case BLE_ATT_OP_ERROR_RSP:
+    case BLE_ATT_OP_FIND_INFO_RSP:
+    case BLE_ATT_OP_FIND_TYPE_VALUE_RSP:
+    case BLE_ATT_OP_READ_TYPE_RSP:
+    case BLE_ATT_OP_INDICATE_RSP:
+    case BLE_ATT_OP_READ_RSP:
+    case BLE_ATT_OP_READ_BLOB_RSP:
+    case BLE_ATT_OP_READ_MULT_RSP:
+    case BLE_ATT_OP_READ_GROUP_TYPE_RSP:
+    case BLE_ATT_OP_WRITE_RSP:
+    case BLE_ATT_OP_PREP_WRITE_RSP:
+    case BLE_ATT_OP_EXEC_WRITE_RSP:
+    case BLE_ATT_OP_READ_MULT_VAR_RSP:
+        return true;
+    }
+
+    return false;
+}
+
 int
 ble_att_init(void)
 {
@@ -584,6 +680,8 @@ ble_att_init(void)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
+
+    ble_eatt_init(ble_att_rx_extended);
 
     return 0;
 }

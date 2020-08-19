@@ -25,6 +25,7 @@
 #include "ble_hs_test.h"
 #include "host/ble_gatt.h"
 #include "host/ble_uuid.h"
+#include "host/ble_l2cap.h"
 #include "ble_hs_test_util.h"
 
 struct ble_gatt_disc_c_test_char {
@@ -50,8 +51,8 @@ ble_gatt_disc_c_test_init(void)
 }
 
 static int
-ble_gatt_disc_c_test_misc_rx_rsp_once(
-    uint16_t conn_handle, struct ble_gatt_disc_c_test_char *chars)
+ble_gatt_disc_c_test_misc_rx_rsp_once(uint16_t conn_handle, uint16_t cid,
+                                      struct ble_gatt_disc_c_test_char *chars)
 {
     struct ble_att_read_type_rsp rsp;
     uint8_t buf[1024];
@@ -86,14 +87,14 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
 
         if (chars[i].uuid->type == BLE_UUID_TYPE_16) {
             if (off + BLE_ATT_READ_TYPE_ADATA_SZ_16 >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle, cid)) {
 
                 /* Can't fit any more entries. */
                 break;
             }
         } else {
             if (off + BLE_ATT_READ_TYPE_ADATA_SZ_128 >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle, cid)) {
 
                 /* Can't fit any more entries. */
                 break;
@@ -121,7 +122,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(
 }
 
 static void
-ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
+ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle, uint16_t cid,
                                  uint16_t end_handle,
                                  struct ble_gatt_disc_c_test_char *chars)
 {
@@ -130,7 +131,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
 
     idx = 0;
     while (chars[idx].def_handle != 0) {
-        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle,
+        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle, cid,
                                                       chars + idx);
         if (count == 0) {
             break;
@@ -140,7 +141,8 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle,
 
     if (chars[idx - 1].def_handle != end_handle) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_TYPE_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
+                                        BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         chars[idx - 1].def_handle);
     }
@@ -229,7 +231,7 @@ ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
                                  ble_gatt_disc_c_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_c_test_misc_rx_rsp(2, end_handle, chars);
+    ble_gatt_disc_c_test_misc_rx_rsp(2, BLE_L2CAP_CID_ATT, end_handle, chars);
     ble_gatt_disc_c_test_misc_verify_chars(chars, stop_after);
 }
 
@@ -252,7 +254,7 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
                                      &stop_after);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_c_test_misc_rx_rsp(2, end_handle, rsp_chars);
+    ble_gatt_disc_c_test_misc_rx_rsp(2, BLE_L2CAP_CID_ATT, end_handle, rsp_chars);
     ble_gatt_disc_c_test_misc_verify_chars(ret_chars, 0);
 }
 
@@ -574,7 +576,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    num_chrs = ble_gatt_disc_c_test_misc_rx_rsp_once(1, chrs);
+    num_chrs = ble_gatt_disc_c_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, chrs);
 
     /* Make sure there are still undiscovered characteristics. */
     TEST_ASSERT_FATAL(num_chrs < sizeof chrs / sizeof chrs[0] - 1);
@@ -598,7 +600,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_c_test_misc_rx_rsp_once(1, chrs + num_chrs);
+    ble_gatt_disc_c_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, chrs + num_chrs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -617,7 +619,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
@@ -663,7 +665,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    num_chrs = ble_gatt_disc_c_test_misc_rx_rsp_once(1, chrs);
+    num_chrs = ble_gatt_disc_c_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, chrs);
 
     /* Make sure there are still undiscovered characteristics. */
     TEST_ASSERT_FATAL(num_chrs < sizeof chrs / sizeof chrs[0] - 1);
@@ -686,7 +688,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_c_test_misc_rx_rsp_once(1, chrs + num_chrs);
+    ble_gatt_disc_c_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, chrs + num_chrs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -704,7 +706,7 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);

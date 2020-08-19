@@ -8,6 +8,13 @@
 #include "modlog/modlog.h"
 #include "log_common/log_common.h"
 
+#define BLE_EATT_LOG_DEBUG(...) IGNORE(__VA_ARGS__)
+#define BLE_EATT_LOG_INFO(...) MODLOG_INFO(22, __VA_ARGS__)
+#define BLE_EATT_LOG_WARN(...) MODLOG_WARN(22, __VA_ARGS__)
+#define BLE_EATT_LOG_ERROR(...) MODLOG_ERROR(22, __VA_ARGS__)
+#define BLE_EATT_LOG_CRITICAL(...) MODLOG_CRITICAL(22, __VA_ARGS__)
+#define BLE_EATT_LOG_DISABLED(...) MODLOG_DISABLED(22, __VA_ARGS__)
+
 #define BLE_HS_LOG_DEBUG(...) IGNORE(__VA_ARGS__)
 #define BLE_HS_LOG_INFO(...) MODLOG_INFO(4, __VA_ARGS__)
 #define BLE_HS_LOG_WARN(...) MODLOG_WARN(4, __VA_ARGS__)

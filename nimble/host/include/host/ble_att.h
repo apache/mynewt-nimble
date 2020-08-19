@@ -83,6 +83,9 @@ struct os_mbuf;
 #define BLE_ATT_OP_NOTIFY_REQ               0x1b
 #define BLE_ATT_OP_INDICATE_REQ             0x1d
 #define BLE_ATT_OP_INDICATE_RSP             0x1e
+#define BLE_ATT_OP_READ_MULT_VAR_REQ        0x20
+#define BLE_ATT_OP_READ_MULT_VAR_RSP        0x21
+#define BLE_ATT_OP_NOTIFY_MULTI_REQ         0x23
 #define BLE_ATT_OP_WRITE_CMD                0x52
 
 #define BLE_ATT_ATTR_MAX_LEN                512

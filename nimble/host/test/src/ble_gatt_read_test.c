@@ -160,7 +160,7 @@ ble_gatt_read_test_long_cb(uint16_t conn_handle,
 }
 
 static void
-ble_gatt_read_test_misc_rx_rsp_good_raw(uint16_t conn_handle,
+ble_gatt_read_test_misc_rx_rsp_good_raw(uint16_t conn_handle, uint16_t cid,
                                         uint8_t att_op,
                                         const void *data, int data_len)
 {
@@ -174,27 +174,28 @@ ble_gatt_read_test_misc_rx_rsp_good_raw(uint16_t conn_handle,
     buf[0] = att_op;
     memcpy(buf + 1, data, data_len);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, 1 + data_len);
     TEST_ASSERT(rc == 0);
 }
 
 static void
-ble_gatt_read_test_misc_rx_rsp_good(uint16_t conn_handle,
+ble_gatt_read_test_misc_rx_rsp_good(uint16_t conn_handle, uint16_t cid,
                                     struct ble_hs_test_util_flat_attr *attr)
 {
-    ble_gatt_read_test_misc_rx_rsp_good_raw(conn_handle, BLE_ATT_OP_READ_RSP,
+    ble_gatt_read_test_misc_rx_rsp_good_raw(conn_handle, cid,
+                                            BLE_ATT_OP_READ_RSP,
                                             attr->value,
                                             attr->value_len);
 }
 
 static void
-ble_gatt_read_test_misc_rx_rsp_bad(uint16_t conn_handle,
+ble_gatt_read_test_misc_rx_rsp_bad(uint16_t conn_handle, uint16_t cid,
                                    uint8_t att_error, uint16_t err_handle)
 {
     /* Send the pending ATT Read Request. */
 
-    ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_REQ,
+    ble_hs_test_util_rx_att_err_rsp(conn_handle, cid, BLE_ATT_OP_READ_REQ,
                                     att_error, err_handle);
 }
 
@@ -255,7 +256,7 @@ ble_gatt_read_test_misc_verify_good(struct ble_hs_test_util_flat_attr *attr)
     rc = ble_gattc_read(2, attr->handle, ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_good(2, attr);
+    ble_gatt_read_test_misc_rx_rsp_good(2, BLE_L2CAP_CID_ATT, attr);
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 1);
     TEST_ASSERT(ble_gatt_read_test_attrs[0].conn_handle == 2);
@@ -278,7 +279,7 @@ ble_gatt_read_test_misc_verify_bad(uint8_t att_status,
     rc = ble_gattc_read(2, attr->handle, ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_bad(2, att_status, attr->handle);
+    ble_gatt_read_test_misc_rx_rsp_bad(2, BLE_L2CAP_CID_ATT, att_status, attr->handle);
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 0);
     TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == 2);
@@ -309,7 +310,8 @@ ble_gatt_read_test_misc_uuid_verify_good(
     while (1) {
         num_read = ble_gatt_read_test_misc_uuid_rx_rsp_good(2, attrs + idx);
         if (num_read == 0) {
-            ble_hs_test_util_rx_att_err_rsp(2, BLE_ATT_OP_READ_TYPE_REQ,
+            ble_hs_test_util_rx_att_err_rsp(2, BLE_L2CAP_CID_ATT,
+                                            BLE_ATT_OP_READ_TYPE_REQ,
                                             BLE_ATT_ERR_ATTR_NOT_FOUND,
                                             start_handle);
             break;
@@ -369,7 +371,7 @@ ble_gatt_read_test_misc_long_verify_good(
         } else {
             att_op = BLE_ATT_OP_READ_BLOB_RSP;
         }
-        ble_gatt_read_test_misc_rx_rsp_good_raw(2, att_op,
+        ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_L2CAP_CID_ATT, att_op,
                                                 attr->value + off, chunk_sz);
         rem_len -= chunk_sz;
         off += chunk_sz;
@@ -401,7 +403,7 @@ ble_gatt_read_test_misc_long_verify_bad(
                              ble_gatt_read_test_long_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_bad(2, att_status, attr->handle);
+    ble_gatt_read_test_misc_rx_rsp_bad(2, BLE_L2CAP_CID_ATT, att_status, attr->handle);
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 0);
     TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == 2);
@@ -458,7 +460,7 @@ ble_gatt_read_test_misc_mult_verify_good(
                              ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_MULT_RSP,
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_MULT_RSP,
                                             expected_value, off);
 
     TEST_ASSERT(ble_gatt_read_test_complete);
@@ -488,7 +490,7 @@ ble_gatt_read_test_misc_mult_verify_bad(
                              ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_bad(2, att_status, err_handle);
+    ble_gatt_read_test_misc_rx_rsp_bad(2, BLE_L2CAP_CID_ATT, att_status, err_handle);
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 0);
     TEST_ASSERT(ble_gatt_read_test_bad_conn_handle == 2);
@@ -801,9 +803,9 @@ TEST_CASE_SELF(ble_gatt_read_test_concurrent)
     rc = ble_gattc_read(2, attrs[2].handle, ble_gatt_read_test_cb, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 0);
-    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 1);
-    ble_gatt_read_test_misc_rx_rsp_good(2, attrs + 2);
+    ble_gatt_read_test_misc_rx_rsp_good(2, BLE_L2CAP_CID_ATT, attrs + 0);
+    ble_gatt_read_test_misc_rx_rsp_good(2, BLE_L2CAP_CID_ATT, attrs + 1);
+    ble_gatt_read_test_misc_rx_rsp_good(2, BLE_L2CAP_CID_ATT, attrs + 2);
 
     TEST_ASSERT(ble_gatt_read_test_num_attrs == 3);
 
@@ -852,8 +854,8 @@ TEST_CASE_SELF(ble_gatt_read_test_long_oom)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    chunk_sz = ble_att_mtu(2) - BLE_ATT_READ_RSP_BASE_SZ;
-    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+    chunk_sz = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT) - BLE_ATT_READ_RSP_BASE_SZ;
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_RSP,
                                             attr.value + off, chunk_sz);
     off += chunk_sz;
 
@@ -875,8 +877,8 @@ TEST_CASE_SELF(ble_gatt_read_test_long_oom)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    chunk_sz = ble_att_mtu(2) - BLE_ATT_READ_RSP_BASE_SZ;
-    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+    chunk_sz = ble_att_mtu_by_cid(2, BLE_L2CAP_CID_ATT) - BLE_ATT_READ_RSP_BASE_SZ;
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_RSP,
                                             attr.value + off, chunk_sz);
     off += chunk_sz;
 
@@ -897,7 +899,7 @@ TEST_CASE_SELF(ble_gatt_read_test_long_oom)
     ble_gattc_timer();
 
     chunk_sz = attr.value_len - off;
-    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_ATT_OP_READ_RSP,
+    ble_gatt_read_test_misc_rx_rsp_good_raw(2, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_RSP,
                                             attr.value + off, chunk_sz);
     off += chunk_sz;
 

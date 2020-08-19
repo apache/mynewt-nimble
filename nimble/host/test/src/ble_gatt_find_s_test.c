@@ -90,8 +90,8 @@ ble_gatt_find_s_test_misc_verify_incs(
 }
 
 static int
-ble_gatt_find_s_test_misc_rx_read_type(
-    uint16_t conn_handle, struct ble_gatt_find_s_test_entry *entries)
+ble_gatt_find_s_test_misc_rx_read_type(uint16_t conn_handle, uint16_t cid,
+                                       struct ble_gatt_find_s_test_entry *entries)
 {
     struct ble_att_read_type_rsp rsp;
     uint8_t buf[1024];
@@ -134,14 +134,15 @@ ble_gatt_find_s_test_misc_rx_read_type(
     }
 
     if (i == 0) {
-        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_READ_TYPE_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
+                                        BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND, 0);
         return 0;
     }
 
     ble_att_read_type_rsp_write(buf + 0, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, off);
     TEST_ASSERT(rc == 0);
 
@@ -149,7 +150,7 @@ ble_gatt_find_s_test_misc_rx_read_type(
 }
 
 static void
-ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, const ble_uuid_t *uuid)
+ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, uint16_t cid, const ble_uuid_t *uuid)
 {
     uint8_t buf[17];
     int rc;
@@ -159,7 +160,7 @@ ble_gatt_find_s_test_misc_rx_read(uint16_t conn_handle, const ble_uuid_t *uuid)
     buf[0] = BLE_ATT_OP_READ_RSP;
     ble_uuid_flat(uuid, buf + 1);
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, 17);
     TEST_ASSERT(rc == 0);
 }
@@ -200,7 +201,7 @@ ble_gatt_find_s_test_misc_verify_tx_read(uint16_t handle)
 }
 
 static void
-ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
+ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle, uint16_t cid,
                                    uint16_t start_handle, uint16_t end_handle,
                                    struct ble_gatt_find_s_test_entry *entries)
 {
@@ -219,7 +220,7 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
     idx = 0;
     while (1) {
         ble_gatt_find_s_test_misc_verify_tx_read_type(cur_start, end_handle);
-        num_found = ble_gatt_find_s_test_misc_rx_read_type(conn_handle,
+        num_found = ble_gatt_find_s_test_misc_rx_read_type(conn_handle, cid,
                                                            entries + idx);
         if (num_found == 0) {
             break;
@@ -229,7 +230,7 @@ ble_gatt_find_s_test_misc_find_inc(uint16_t conn_handle,
             TEST_ASSERT(num_found == 1);
             ble_gatt_find_s_test_misc_verify_tx_read(
                 entries[idx].start_handle);
-            ble_gatt_find_s_test_misc_rx_read(conn_handle,
+            ble_gatt_find_s_test_misc_rx_read(conn_handle, cid,
                                               entries[idx].uuid);
         }
 
@@ -255,7 +256,7 @@ TEST_CASE_SELF(ble_gatt_find_s_test_1)
     ble_gatt_find_s_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(2, 5, 10,
+    ble_gatt_find_s_test_misc_find_inc(2, BLE_L2CAP_CID_ATT, 5, 10,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 6,
             .start_handle = 35,
@@ -275,7 +276,7 @@ TEST_CASE_SELF(ble_gatt_find_s_test_1)
     ble_gatt_find_s_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(2, 34, 100,
+    ble_gatt_find_s_test_misc_find_inc(2, BLE_L2CAP_CID_ATT, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,
@@ -290,7 +291,7 @@ TEST_CASE_SELF(ble_gatt_find_s_test_1)
     ble_gatt_find_s_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(2, 34, 100,
+    ble_gatt_find_s_test_misc_find_inc(2, BLE_L2CAP_CID_ATT, 34, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,
@@ -310,7 +311,7 @@ TEST_CASE_SELF(ble_gatt_find_s_test_1)
     ble_gatt_find_s_test_misc_init();
     ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
                                  NULL, NULL);
-    ble_gatt_find_s_test_misc_find_inc(2, 1, 100,
+    ble_gatt_find_s_test_misc_find_inc(2, BLE_L2CAP_CID_ATT, 1, 100,
         ((struct ble_gatt_find_s_test_entry[]) { {
             .inc_handle = 36,
             .start_handle = 403,
@@ -379,7 +380,7 @@ TEST_CASE_SELF(ble_gatt_find_s_test_oom)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_find_s_test_misc_rx_read_type(1, incs);
+    ble_gatt_find_s_test_misc_rx_read_type(1, BLE_L2CAP_CID_ATT, incs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -402,11 +403,11 @@ TEST_CASE_SELF(ble_gatt_find_s_test_oom)
      * follow-up request, so there is always an mbuf available.
      */
     /* XXX: Find a way to test this. */
-    ble_gatt_find_s_test_misc_rx_read(1, incs[0].uuid);
+    ble_gatt_find_s_test_misc_rx_read(1, BLE_L2CAP_CID_ATT, incs[0].uuid);
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_find_s_test_misc_rx_read_type(1, incs + 1);
+    ble_gatt_find_s_test_misc_rx_read_type(1, BLE_L2CAP_CID_ATT, incs + 1);
 
     /* Verify the procedure succeeds after mbufs become available. */
     rc = os_mbuf_free_chain(oms);
@@ -414,9 +415,9 @@ TEST_CASE_SELF(ble_gatt_find_s_test_oom)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_gatt_find_s_test_misc_rx_read(1, incs[1].uuid);
+    ble_gatt_find_s_test_misc_rx_read(1, BLE_L2CAP_CID_ATT, incs[1].uuid);
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);

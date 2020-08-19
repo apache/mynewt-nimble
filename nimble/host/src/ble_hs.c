@@ -744,13 +744,13 @@ ble_hs_init(void)
     rc = ble_l2cap_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+    rc = ble_gap_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
     rc = ble_att_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_att_svr_init();
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = ble_gap_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gattc_init();

@@ -49,8 +49,8 @@ ble_gatt_disc_d_test_init(void)
 }
 
 static int
-ble_gatt_disc_d_test_misc_rx_rsp_once(
-    uint16_t conn_handle, struct ble_gatt_disc_d_test_dsc *dscs)
+ble_gatt_disc_d_test_misc_rx_rsp_once(uint16_t conn_handle, uint16_t cid,
+                                      struct ble_gatt_disc_d_test_dsc *dscs)
 {
     struct ble_att_find_info_rsp rsp;
     uint8_t buf[1024];
@@ -77,14 +77,14 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
 
         if (dscs[i].dsc_uuid.u.type == BLE_UUID_TYPE_16) {
             if (off + BLE_ATT_FIND_INFO_IDATA_16_SZ >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle, cid)) {
 
                 /* Can't fit any more entries. */
                 break;
             }
         } else {
             if (off + BLE_ATT_FIND_INFO_IDATA_128_SZ >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle, cid)) {
 
                 /* Can't fit any more entries. */
                 break;
@@ -104,7 +104,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
         off += ble_uuid_length(&dscs[i].dsc_uuid.u);
     }
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, off);
     TEST_ASSERT(rc == 0);
 
@@ -113,6 +113,7 @@ ble_gatt_disc_d_test_misc_rx_rsp_once(
 
 static void
 ble_gatt_disc_d_test_misc_rx_rsp(uint16_t conn_handle,
+                                 uint16_t cid,
                                  uint16_t end_handle,
                                  struct ble_gatt_disc_d_test_dsc *dscs)
 {
@@ -121,7 +122,7 @@ ble_gatt_disc_d_test_misc_rx_rsp(uint16_t conn_handle,
 
     idx = 0;
     while (dscs[idx].chr_val_handle != 0) {
-        count = ble_gatt_disc_d_test_misc_rx_rsp_once(conn_handle, dscs + idx);
+        count = ble_gatt_disc_d_test_misc_rx_rsp_once(conn_handle, cid, dscs + idx);
         if (count == 0) {
             break;
         }
@@ -130,7 +131,8 @@ ble_gatt_disc_d_test_misc_rx_rsp(uint16_t conn_handle,
 
     if (dscs[idx - 1].dsc_handle != end_handle) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_rx_att_err_rsp(conn_handle, BLE_ATT_OP_FIND_INFO_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
+                                        BLE_ATT_OP_FIND_INFO_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         end_handle);
     }
@@ -223,7 +225,7 @@ ble_gatt_disc_d_test_misc_all(uint16_t chr_val_handle, uint16_t end_handle,
                                  ble_gatt_disc_d_test_misc_cb, &num_left);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_d_test_misc_rx_rsp(2, end_handle, dscs);
+    ble_gatt_disc_d_test_misc_rx_rsp(2, BLE_L2CAP_CID_ATT, end_handle, dscs);
     ble_gatt_disc_d_test_misc_verify_dscs(dscs, stop_after);
 }
 
@@ -389,7 +391,7 @@ TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    num_dscs = ble_gatt_disc_d_test_misc_rx_rsp_once(1, dscs);
+    num_dscs = ble_gatt_disc_d_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, dscs);
 
     /* Make sure there are still undiscovered services. */
     TEST_ASSERT_FATAL(num_dscs < sizeof dscs / sizeof dscs[0] - 1);
@@ -412,7 +414,7 @@ TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_d_test_misc_rx_rsp_once(1, dscs + num_dscs);
+    ble_gatt_disc_d_test_misc_rx_rsp_once(1, BLE_L2CAP_CID_ATT, dscs + num_dscs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -430,7 +432,7 @@ TEST_CASE_SELF(ble_gatt_disc_d_test_oom_all)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);

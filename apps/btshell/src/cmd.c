@@ -3387,6 +3387,7 @@ static const struct shell_param gatt_read_params[] = {
     {"uuid", "read by uuid, usage: =[UUID]"},
     {"start", "start handle, usage: =<UINT16>"},
     {"end", "end handle, usage: =<UINT16>"},
+    {"variable", "used in case of multi read, usage: =[0-1], default=0"},
     {NULL, NULL}
 };
 

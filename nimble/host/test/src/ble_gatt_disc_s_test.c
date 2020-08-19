@@ -56,8 +56,8 @@ ble_gatt_disc_s_test_misc_svc_length(struct ble_gatt_disc_s_test_svc *service)
 }
 
 static int
-ble_gatt_disc_s_test_misc_rx_all_rsp_once(
-    uint16_t conn_handle, struct ble_gatt_disc_s_test_svc *services)
+ble_gatt_disc_s_test_misc_rx_all_rsp_once(uint16_t conn_handle, uint16_t cid,
+                                          struct ble_gatt_disc_s_test_svc *services)
 {
     struct ble_att_read_group_type_rsp rsp;
     uint8_t buf[1024];
@@ -86,14 +86,14 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
 
         if (services[i].uuid->type == BLE_UUID_TYPE_16) {
             if (off + BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_16 >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle, cid)) {
 
                 /* Can't fit any more entries. */
                 break;
             }
         } else {
             if (off + BLE_ATT_READ_GROUP_TYPE_ADATA_SZ_128 >
-                ble_att_mtu(conn_handle)) {
+                ble_att_mtu_by_cid(conn_handle,cid)) {
 
                 /* Can't fit any more entries. */
                 break;
@@ -110,7 +110,7 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
         off += ble_uuid_length(services[i].uuid);
     }
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, off);
     TEST_ASSERT(rc == 0);
 
@@ -118,22 +118,22 @@ ble_gatt_disc_s_test_misc_rx_all_rsp_once(
 }
 
 static void
-ble_gatt_disc_s_test_misc_rx_all_rsp(
-    uint16_t conn_handle, struct ble_gatt_disc_s_test_svc *services)
+ble_gatt_disc_s_test_misc_rx_all_rsp(uint16_t conn_handle, uint16_t cid,
+                                     struct ble_gatt_disc_s_test_svc *services)
 {
     int count;
     int idx;
 
     idx = 0;
     while (services[idx].start_handle != 0) {
-        count = ble_gatt_disc_s_test_misc_rx_all_rsp_once(conn_handle,
+        count = ble_gatt_disc_s_test_misc_rx_all_rsp_once(conn_handle, cid,
                                                           services + idx);
         idx += count;
     }
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_rx_att_err_rsp(conn_handle,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
                                         BLE_ATT_OP_READ_GROUP_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         services[idx - 1].start_handle);
@@ -141,8 +141,8 @@ ble_gatt_disc_s_test_misc_rx_all_rsp(
 }
 
 static int
-ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
-    uint16_t conn_handle, struct ble_gatt_disc_s_test_svc *services)
+ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(uint16_t conn_handle, uint16_t cid,
+                                           struct ble_gatt_disc_s_test_svc *services)
 {
     uint8_t buf[1024];
     int off;
@@ -160,7 +160,7 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
         }
 
         if (off + BLE_ATT_FIND_TYPE_VALUE_HINFO_BASE_SZ >
-            ble_att_mtu(conn_handle)) {
+            ble_att_mtu_by_cid(conn_handle, cid)) {
 
             /* Can't fit any more entries. */
             break;
@@ -173,7 +173,7 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
         off += 2;
     }
 
-    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT,
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, cid,
                                                 buf, off);
     TEST_ASSERT(rc == 0);
 
@@ -181,22 +181,22 @@ ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(
 }
 
 static void
-ble_gatt_disc_s_test_misc_rx_uuid_rsp(
-    uint16_t conn_handle, struct ble_gatt_disc_s_test_svc *services)
+ble_gatt_disc_s_test_misc_rx_uuid_rsp(uint16_t conn_handle, uint16_t cid,
+                                      struct ble_gatt_disc_s_test_svc *services)
 {
     int count;
     int idx;
 
     idx = 0;
     while (services[idx].start_handle != 0) {
-        count = ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(conn_handle,
+        count = ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(conn_handle, cid,
                                                            services + idx);
         idx += count;
     }
 
     if (services[idx - 1].end_handle != 0xffff) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_rx_att_err_rsp(conn_handle,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
                                         BLE_ATT_OP_FIND_TYPE_VALUE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         services[idx - 1].start_handle);
@@ -269,7 +269,7 @@ ble_gatt_disc_s_test_misc_good_all(struct ble_gatt_disc_s_test_svc *services)
     rc = ble_gattc_disc_all_svcs(2, ble_gatt_disc_s_test_misc_disc_cb, NULL);
     TEST_ASSERT(rc == 0);
 
-    ble_gatt_disc_s_test_misc_rx_all_rsp(2, services);
+    ble_gatt_disc_s_test_misc_rx_all_rsp(2, BLE_L2CAP_CID_ATT, services);
     ble_gatt_disc_s_test_misc_verify_services(services);
 }
 
@@ -290,7 +290,7 @@ ble_gatt_disc_s_test_misc_good_uuid(
 
     ble_hs_test_util_verify_tx_disc_svc_uuid(services[0].uuid);
 
-    ble_gatt_disc_s_test_misc_rx_uuid_rsp(2, services);
+    ble_gatt_disc_s_test_misc_rx_uuid_rsp(2, BLE_L2CAP_CID_ATT, services);
     ble_gatt_disc_s_test_misc_verify_services(services);
 }
 
@@ -425,7 +425,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    num_svcs = ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs);
+    num_svcs = ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, BLE_L2CAP_CID_ATT, svcs);
 
     /* Make sure there are still undiscovered services. */
     TEST_ASSERT_FATAL(num_svcs < sizeof svcs / sizeof svcs[0] - 1);
@@ -448,7 +448,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs + num_svcs);
+    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, BLE_L2CAP_CID_ATT, svcs + num_svcs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -465,7 +465,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_all)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_GROUP_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
@@ -504,7 +504,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    num_svcs = ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, svcs);
+    num_svcs = ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, BLE_L2CAP_CID_ATT, svcs);
 
     /* Make sure there are still undiscovered services. */
     TEST_ASSERT_FATAL(num_svcs < sizeof svcs / sizeof svcs[0] - 1);
@@ -527,7 +527,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, svcs + num_svcs);
+    ble_gatt_disc_s_test_misc_rx_uuid_rsp_once(1, BLE_L2CAP_CID_ATT, svcs + num_svcs);
 
     /* Ensure no follow-up request got sent.  It should not have gotten sent
      * due to mbuf exhaustion.
@@ -545,7 +545,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_uuid)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1,
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
                                     BLE_ATT_OP_READ_GROUP_TYPE_REQ,
                                     BLE_ATT_ERR_ATTR_NOT_FOUND,
                                     1);
@@ -579,7 +579,7 @@ TEST_CASE_SELF(ble_gatt_disc_s_test_oom_timeout)
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
     oms = ble_hs_test_util_mbuf_alloc_all_but(1);
-    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, svcs);
+    ble_gatt_disc_s_test_misc_rx_all_rsp_once(1, BLE_L2CAP_CID_ATT, svcs);
 
     /* Keep trying to resume for 30 seconds, but never free any mbufs.  Verify
      * procedure eventually times out.
