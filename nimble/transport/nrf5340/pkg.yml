@@ -17,38 +17,22 @@
 # under the License.
 #
 
-pkg.name: nimble/transport
-pkg.description: Meta-package for NimBLE HCI transport
+pkg.name: nimble/transport/nrf5340
+pkg.description: HCI transport for nRF5340
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
+    - nrf5340
 
-pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
-    - nimble/transport/ram
-    - nimble/controller
+pkg.deps:
+    - "@apache-mynewt-nimble/nimble"
+    - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/hw/drivers/ipc_nrf5340"
 
-pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
-    - nimble/transport/emspi
+pkg.apis:
+    - ble_transport
 
-pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
-    - nimble/transport/ram
-
-pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
-    - nimble/transport/socket
-
-pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
-    - nimble/transport/uart
-
-pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
-    - nimble/transport/da1469x
-
-pkg.deps.'BLE_HCI_TRANSPORT == "dialog_cmac"':
-    - nimble/transport/dialog_cmac
-
-pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
-    - nimble/transport/usb
-
-pkg.deps.'BLE_HCI_TRANSPORT == "nrf5340"':
-    - nimble/transport/nrf5340
+pkg.init:
+    nrf5340_ble_hci_init: 'MYNEWT_VAL(BLE_TRANS_NRF5340_SYSINIT_STAGE)'
