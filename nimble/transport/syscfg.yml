@@ -35,6 +35,7 @@ syscfg.defs:
             - da1469x           # Dialog DA1469x integrated controller
             - dialog_cmac       # Dialog CMAC via shared memory
             - usb               # USB
+            - nrf5340           # nRF5340
 
 # Deprecated settings
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
