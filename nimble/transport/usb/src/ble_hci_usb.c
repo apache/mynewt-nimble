@@ -95,18 +95,6 @@ ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
     ble_hci_usb_rx_acl_ll_arg = acl_arg;
 }
 
-int
-ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
-{
-    int rc;
-
-    assert(ble_hci_usb_rx_acl_ll_cb != NULL);
-
-    rc = ble_hci_usb_rx_acl_ll_cb(om, ble_hci_usb_rx_acl_ll_arg);
-
-    return rc;
-}
-
 #define BLE_HCI_USB_EVT_COUNT  \
     (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
