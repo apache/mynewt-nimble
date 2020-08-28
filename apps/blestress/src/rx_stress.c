@@ -844,8 +844,13 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     rc = ble_l2cap_send(rx_stress_ctx->chan, data_buf);
     MODLOG_DFLT(INFO, "Return code=%d\n", rc);
     if (rc) {
-        MODLOG_DFLT(INFO, "L2CAP stalled - waiting\n");
-        stalled = true;
+        if (rc == BLE_HS_ESTALLED) {
+            MODLOG_DFLT(INFO, "L2CAP stalled - waiting\n");
+            stalled = true;
+        } else {
+            MODLOG_DFLT(INFO, "Sending data via L2CAP failed with error "
+                        "code %d\n", rc);
+        }
     }
 
     MODLOG_DFLT(INFO, " %d, %d\n", ++send_cnt, data_len);
