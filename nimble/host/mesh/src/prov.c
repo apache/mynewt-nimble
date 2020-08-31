@@ -198,7 +198,9 @@ struct prov_rx {
 #define PROV_BUF_HEADROOM 5
 #else
 #define PROV_BUF_HEADROOM 0
+#ifdef BLE_MESH_PB_ADV
 static struct os_mbuf *rx_buf;
+#endif
 #endif
 
 #define PROV_BUF(len) NET_BUF_SIMPLE(PROV_BUF_HEADROOM + len)
@@ -565,6 +567,7 @@ static void prov_send_fail_msg(u8_t err)
 	os_mbuf_free_chain(buf);
 }
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void prov_invite(const u8_t *data)
 {
 	struct os_mbuf *buf = PROV_BUF(12);
@@ -616,7 +619,6 @@ done:
 	os_mbuf_free_chain(buf);
 }
 
-#if MYNEWT_VAL(BLE_MESH_PB_ADV)
 static void send_invite(void)
 {
 	struct os_mbuf *inv = PROV_BUF(2);
@@ -640,6 +642,7 @@ done:
 }
 #endif
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void send_start(void)
 {
 	struct os_mbuf *start = PROV_BUF(6);
@@ -878,6 +881,7 @@ static void prov_start(const u8_t *data)
 		prov_send_fail_msg(PROV_ERR_NVAL_FMT);
 	}
 }
+#endif
 
 static void send_confirm(void)
 {
@@ -1070,6 +1074,7 @@ static void prov_dh_key_gen(void)
 	}
 }
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void prov_pub_key(const u8_t *data)
 {
 	BT_DBG("Remote Public Key: %s", bt_hex(data, 64));
@@ -1099,6 +1104,7 @@ static void prov_pub_key(const u8_t *data)
 
 	prov_dh_key_gen();
 }
+#endif
 
 static void pub_key_ready(const u8_t *pkey)
 {
@@ -1118,6 +1124,7 @@ static void pub_key_ready(const u8_t *pkey)
 	}
 }
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void notify_input_complete(void)
 {
 	if (atomic_test_and_clear_bit(link.flags, NOTIFY_INPUT_COMPLETE) &&
@@ -1311,7 +1318,9 @@ static void prov_random(const u8_t *data)
 		send_random();
 	}
 }
+#endif
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void prov_confirm(const u8_t *data)
 {
 	BT_DBG("Remote Confirm: %s", bt_hex(data, 16));
@@ -1326,6 +1335,7 @@ static void prov_confirm(const u8_t *data)
 		send_confirm();
 	}
 }
+#endif
 
 static inline bool is_pb_gatt(void)
 {
@@ -1336,6 +1346,7 @@ static inline bool is_pb_gatt(void)
 #endif
 }
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void prov_data(const u8_t *data)
 {
 	struct os_mbuf *msg = PROV_BUF(1);
@@ -1426,7 +1437,9 @@ static void prov_data(const u8_t *data)
 done:
 	os_mbuf_free_chain(msg);
 }
+#endif
 
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 static void prov_failed(const u8_t *data)
 {
 	BT_WARN("Error: 0x%02x", data[0]);
@@ -1447,6 +1460,7 @@ static const struct {
 	{ prov_complete, 0 },
 	{ prov_failed, 1 },
 };
+#endif
 
 #if (MYNEWT_VAL(BLE_MESH_PB_ADV))
 static void prov_retransmit(struct ble_npl_event *work)
