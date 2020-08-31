@@ -1203,8 +1203,6 @@ ble_ll_task(void *arg)
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
 
-    ble_ll_rand_start();
-
     while (1) {
         ev = ble_npl_eventq_get(&g_ble_ll_data.ll_evq, BLE_NPL_TIME_FOREVER);
         assert(ev);
@@ -1440,23 +1438,6 @@ ble_ll_reset(void)
     return rc;
 }
 
-static void
-ble_ll_seed_prng(void)
-{
-    uint32_t seed;
-    int i;
-
-    /* Seed random number generator with least significant bytes of device
-     * address.
-     */
-    seed = 0;
-    for (i = 0; i < 4; ++i) {
-        seed |= g_dev_addr[i];
-        seed <<= 8;
-    }
-    srand(seed);
-}
-
 uint32_t
 ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
 {
@@ -1554,6 +1535,7 @@ ble_ll_init(void)
     uint64_t features;
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
+    unsigned seed;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
@@ -1682,15 +1664,16 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif
 
+    lldata->ll_supp_features = features;
+
     /* Initialize random number generation */
     ble_ll_rand_init();
-
-    /* XXX: This really doesn't belong here, as the address probably has not
-     * been set yet.
-     */
-    ble_ll_seed_prng();
-
-    lldata->ll_supp_features = features;
+    /* Start the random number generator */
+    ble_ll_rand_start();
+    /* Use the random number generator to seed the STDLIBs pseudo-number
+     * generator */
+    ble_ll_rand_data_get((uint8_t *)&seed, sizeof(seed));
+    srand(seed);
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
