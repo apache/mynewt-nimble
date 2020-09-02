@@ -26,14 +26,15 @@ syscfg.defs:
         value: builtin
         restrictions: $notnull
         choices:
-            - builtin   # Built-in NimBLE controller and RAM transport
-            - custom    # Custom transport, has to be included manually by user
-            - ram       # RAM transport
-            - uart      # UART HCI H4 transport
-            - socket    # Socket transport (for native builds)
-            - emspi     # SPI transport for EM Microelectionic controllers
-            - da1469x   # Dialog DA1469x integrated controller
-            - usb       # USB
+            - builtin           # Built-in NimBLE controller and RAM transport
+            - custom            # Custom transport, has to be included manually by user
+            - ram               # RAM transport
+            - uart              # UART HCI H4 transport
+            - socket            # Socket transport (for native builds)
+            - emspi             # SPI transport for EM Microelectionic controllers
+            - da1469x           # Dialog DA1469x integrated controller
+            - dialog_cmac       # Dialog CMAC via shared memory
+            - usb               # USB
 
 # Deprecated settings
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
