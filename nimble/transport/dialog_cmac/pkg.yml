@@ -6,7 +6,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-#
+# 
 #  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
@@ -17,35 +17,20 @@
 # under the License.
 #
 
-pkg.name: nimble/transport
-pkg.description: Meta-package for NimBLE HCI transport
+pkg.name: nimble/transport/dialog_cmac
+pkg.description: HCI H4 transport for Dialog CMAC
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
 
-pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
-    - nimble/transport/ram
-    - nimble/controller
+pkg.deps:
+    - nimble
+    - nimble/transport/dialog_cmac/cmac_driver
 
-pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
-    - nimble/transport/emspi
+pkg.apis:
+    - ble_transport
 
-pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
-    - nimble/transport/ram
-
-pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
-    - nimble/transport/socket
-
-pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
-    - nimble/transport/uart
-
-pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
-    - nimble/transport/da1469x
-
-pkg.deps.'BLE_HCI_TRANSPORT == "dialog_cmac"':
-    - nimble/transport/dialog_cmac
-
-pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
-    - nimble/transport/usb
+pkg.init:
+    ble_hci_cmac_init: 100

@@ -17,35 +17,23 @@
 # under the License.
 #
 
-pkg.name: nimble/transport
-pkg.description: Meta-package for NimBLE HCI transport
+pkg.name: nimble/transport/dialog_cmac/cmac_driver
+pkg.description: Driver for Dialog CMAC IPC
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
-    - ble
-    - bluetooth
+    - dialog
+    - da1469x
+    - cmac
 
-pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
-    - nimble/transport/ram
-    - nimble/controller
+pkg.req_apis.CMAC_DEBUG_DIAG_ENABLE:
+    - dialog_cmac_diag
 
-pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
-    - nimble/transport/emspi
+pkg.ign_files.BLE_CONTROLLER:
+    - cmac_host.c
 
-pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
-    - nimble/transport/ram
+pkg.post_link_cmds.BLE_CONTROLLER:
+    scripts/create_cmac_bin.sh: 100
 
-pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
-    - nimble/transport/socket
-
-pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
-    - nimble/transport/uart
-
-pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
-    - nimble/transport/da1469x
-
-pkg.deps.'BLE_HCI_TRANSPORT == "dialog_cmac"':
-    - nimble/transport/dialog_cmac
-
-pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
-    - nimble/transport/usb
+pkg.pre_link_cmds.BLE_HOST:
+    scripts/build_libcmac.sh: 100

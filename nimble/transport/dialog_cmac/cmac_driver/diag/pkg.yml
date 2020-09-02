@@ -17,35 +17,12 @@
 # under the License.
 #
 
-pkg.name: nimble/transport
-pkg.description: Meta-package for NimBLE HCI transport
+pkg.name: nimble/transport/dialog_cmac/cmac_driver/diag
+pkg.description: Default diag configuration for CMAC
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
-    - ble
-    - bluetooth
-
-pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
-    - nimble/transport/ram
-    - nimble/controller
-
-pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
-    - nimble/transport/emspi
-
-pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
-    - nimble/transport/ram
-
-pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
-    - nimble/transport/socket
-
-pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
-    - nimble/transport/uart
-
-pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
-    - nimble/transport/da1469x
-
-pkg.deps.'BLE_HCI_TRANSPORT == "dialog_cmac"':
-    - nimble/transport/dialog_cmac
-
-pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
-    - nimble/transport/usb
+    - dialog
+    - da1469x
+    - cmac
+pkg.apis: dialog_cmac_diag
