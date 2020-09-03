@@ -935,6 +935,11 @@ int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	u32_t poll_to;
 	int i;
 
+	if (rx->net_if == BT_MESH_NET_IF_LOCAL) {
+		BT_WARN("Ignoring Friend request from local interface");
+		return 0;
+	}
+
 	if (buf->om_len < sizeof(*msg)) {
 		BT_WARN("Too short Friend Request");
 		return -EINVAL;
