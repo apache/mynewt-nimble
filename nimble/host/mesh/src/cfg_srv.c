@@ -1748,6 +1748,7 @@ static void mod_sub_get_vnd(struct bt_mesh_model *model,
 			    struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
+	struct mod_sub_list_ctx visit_ctx;
 	struct bt_mesh_model *mod;
 	struct bt_mesh_elem *elem;
 	u16_t company, addr, id;
@@ -1789,8 +1790,10 @@ static void mod_sub_get_vnd(struct bt_mesh_model *model,
 	net_buf_simple_add_le16(msg, company);
 	net_buf_simple_add_le16(msg, id);
 
+	visit_ctx.msg = msg;
+	visit_ctx.elem_idx = mod->elem_idx;
 	bt_mesh_model_tree_walk(bt_mesh_model_root(mod), mod_sub_list_visitor,
-				msg);
+				&visit_ctx);
 
 send_list:
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
