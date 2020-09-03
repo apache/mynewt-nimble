@@ -86,7 +86,7 @@ struct bt_mesh_net bt_mesh = {
 #endif
 };
 
-static u32_t dup_cache[4];
+static u32_t dup_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static int   dup_cache_next;
 
 static bool check_dup(struct os_mbuf *data)
