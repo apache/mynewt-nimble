@@ -1505,7 +1505,7 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 
 	if (atomic_test_bit(link.flags, LINK_ACTIVE)) {
 		/* Send another link ack if the provisioner missed the last */
-		if (link.id == rx->link_id && link.expect == PROV_INVITE) {
+		if (link.id == rx->link_id) {
 			BT_DBG("Resending link ack");
 			bearer_ctl_send(LINK_ACK, NULL, 0);
 		} else {
