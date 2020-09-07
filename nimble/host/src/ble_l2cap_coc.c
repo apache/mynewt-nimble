@@ -392,6 +392,8 @@ ble_l2cap_event_coc_unstalled(struct ble_l2cap_chan *chan, int status)
     chan->cb(&event, chan->cb_arg);
 }
 
+/* WARNING: this function is called from different task contexts. We expect the
+ * host to be locked (ble_hs_lock()) before entering this function! */
 static int
 ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
 {
@@ -402,8 +404,6 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
     struct ble_hs_conn *conn;
     uint16_t sdu_size_offset;
     int rc;
-
-    ble_hs_lock();
 
     /* If there is no data to send, just return success */
     tx = &chan->coc_tx;
@@ -481,10 +481,6 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             os_mbuf_free_chain(tx->sdu);
             tx->sdu = NULL;
             tx->data_offset = 0;
-            if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
-                ble_l2cap_event_coc_unstalled(chan, 0);
-                tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
-            }
             break;
         }
     }
@@ -496,18 +492,27 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         return BLE_HS_ESTALLED;
     }
 
-    ble_hs_unlock();
+    if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
+        tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
+        ble_hs_unlock();
+        ble_l2cap_event_coc_unstalled(chan, 0);
+    } else {
+        ble_hs_unlock();
+    }
+
     return 0;
 
 failed:
     os_mbuf_free_chain(tx->sdu);
     tx->sdu = NULL;
-    ble_hs_unlock();
 
     os_mbuf_free_chain(txom);
     if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
-        ble_l2cap_event_coc_unstalled(chan, rc);
         tx->flags &= ~BLE_L2CAP_COC_FLAG_STALLED;
+        ble_hs_unlock();
+        ble_l2cap_event_coc_unstalled(chan, rc);
+    } else {
+        ble_hs_unlock();
     }
 
     return rc;
@@ -542,7 +547,8 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
     }
 
     chan->coc_tx.credits += credits;
-    ble_hs_unlock();
+
+    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
     ble_l2cap_coc_continue_tx(chan);
 }
 
@@ -591,18 +597,22 @@ ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
 {
     struct ble_l2cap_coc_endpoint *tx;
 
-    tx = &chan->coc_tx;
 
-    if (tx->sdu) {
-        return BLE_HS_EBUSY;
-    }
+    tx = &chan->coc_tx;
 
     if (OS_MBUF_PKTLEN(sdu_tx) > tx->mtu) {
         return BLE_HS_EBADDATA;
     }
 
+    ble_hs_lock();
+    if (tx->sdu) {
+        ble_hs_unlock();
+        return BLE_HS_EBUSY;
+    }
     tx->sdu = sdu_tx;
 
+
+    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
     return ble_l2cap_coc_continue_tx(chan);
 }
 
