@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,20 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_BAS_
-#define H_BLE_SVC_BAS_
+#ifndef __CONSOLE_H__
+#define __CONSOLE_H__
 
-/* 16 Bit Battery Service UUID */
-#define BLE_SVC_BAS_UUID16                                   0x180F
+#include <nuttx/config.h>
+#include <stdio.h>
 
-/* 16 Bit Battery Service Characteristic UUIDs */
-#define BLE_SVC_BAS_CHR_UUID16_BATTERY_LEVEL                 0x2A19
-
-int ble_svc_bas_battery_level_set(uint8_t level);
-
-void ble_svc_bas_init(void);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+#define console_printf(_fmt, ...) printf(_fmt, ##__VA_ARGS__)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __CONSOLE_H__ */

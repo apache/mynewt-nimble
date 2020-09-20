@@ -21,9 +21,9 @@
 #define H_MODLOG_
 
 #include <stdio.h>
+#include <stdint.h>
 
 #include "log_common/log_common.h"
-#include "log/log.h"
 
 #define MODLOG_MODULE_DFLT 255
 

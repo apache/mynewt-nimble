@@ -30,11 +30,13 @@ log_dummy(void *log, ...)
     (void)log;
 }
 
+#if MYNEWT
 #define LOG_DEBUG(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
 #define LOG_INFO(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)
 #define LOG_WARN(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)
 #define LOG_ERROR(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
 #define LOG_CRITICAL(_log, _mod, ...)   log_dummy(_log, ## __VA_ARGS__)
+#endif
 
 struct log {
 };

@@ -23,6 +23,7 @@ if [ ! -f "project.yml" ]; then
 fi
 
 declare -A targets=(
+    ["nuttx"]="repos/apache-mynewt-nimble/porting/examples/nuttx/"
     ["linux"]="repos/apache-mynewt-nimble/porting/examples/linux/"
     ["linux_blemesh"]="repos/apache-mynewt-nimble/porting/examples/linux_blemesh/"
     ["porting_default"]="repos/apache-mynewt-nimble/porting/nimble"
