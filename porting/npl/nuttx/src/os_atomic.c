@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,23 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_BAS_
-#define H_BLE_SVC_BAS_
+#include <nuttx/config.h>
+#include <stdint.h>
+#include <pthread.h>
 
-/* 16 Bit Battery Service UUID */
-#define BLE_SVC_BAS_UUID16                                   0x180F
+#include "nimble/nimble_npl.h"
 
-/* 16 Bit Battery Service Characteristic UUIDs */
-#define BLE_SVC_BAS_CHR_UUID16_BATTERY_LEVEL                 0x2A19
+static pthread_mutex_t s_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
-int ble_svc_bas_battery_level_set(uint8_t level);
+uint32_t
+ble_npl_hw_enter_critical(void)
+{
+    pthread_mutex_lock(&s_mutex);
+    return 0;
+}
 
-void ble_svc_bas_init(void);
-
-#endif
+void
+ble_npl_hw_exit_critical(uint32_t ctx)
+{
+    pthread_mutex_unlock(&s_mutex);
+}
