@@ -26,6 +26,7 @@ pkg.keywords:
     - bluetooth
 pkg.deps:
     - "@apache-mynewt-nimble/nimble/controller"
+    - "@apache-mynewt-core/crypto/tinycrypt"
 pkg.apis:
     - ble_driver
 pkg.req_apis:
