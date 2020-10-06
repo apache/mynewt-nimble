@@ -1015,8 +1015,14 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         /*
          * If we are encrypting, we are only allowed to send certain
          * kinds of LL control PDU's. If none is enqueued, send empty pdu!
+         *
+         * In Slave role, we are allowed to send unencrypted packets until
+         * LL_ENC_RSP is sent.
          */
-        if (connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) {
+        if (((connsm->enc_data.enc_state > CONN_ENC_S_ENCRYPTED) &&
+             CONN_IS_MASTER(connsm)) ||
+            ((connsm->enc_data.enc_state > CONN_ENC_S_ENC_RSP_TO_BE_SENT) &&
+             CONN_IS_SLAVE(connsm))) {
             if (!ble_ll_ctrl_enc_allowed_pdu_tx(pkthdr)) {
                 CONN_F_EMPTY_PDU_TXD(connsm) = 1;
                 goto conn_tx_pdu;
@@ -3652,10 +3658,14 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
      *
      * Reference: Core 5.0, Vol 6, Part B, 5.1.3.1
      */
-    if ((connsm->enc_data.enc_state > CONN_ENC_S_PAUSE_ENC_RSP_WAIT) &&
-            !ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
-        ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
-        goto conn_rx_data_pdu_end;
+    if ((connsm->enc_data.enc_state > CONN_ENC_S_PAUSE_ENC_RSP_WAIT &&
+         CONN_IS_MASTER(connsm)) ||
+        (connsm->enc_data.enc_state >= CONN_ENC_S_ENC_RSP_TO_BE_SENT &&
+         CONN_IS_SLAVE(connsm))) {
+        if (!ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
+            ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+            goto conn_rx_data_pdu_end;
+        }
     }
 #endif
 
