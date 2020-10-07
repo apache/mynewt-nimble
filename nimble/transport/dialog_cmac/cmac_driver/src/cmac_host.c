@@ -156,9 +156,17 @@ cmac_host_signal2cmac(void)
 static void
 cmac_host_lpclk_cb(uint32_t freq)
 {
+    /* No need to wakeup CMAC if LP clock frequency did not change */
+    if (g_cmac_shared_data->lp_clock_freq == freq) {
+        return;
+    }
+
     cmac_shared_lock();
     g_cmac_shared_data->lp_clock_freq = freq;
+    g_cmac_shared_data->pending_ops |= CMAC_PENDING_OP_LP_CLK;
     cmac_shared_unlock();
+
+    cmac_host_signal2cmac();
 }
 
 #if MYNEWT_VAL(CMAC_DEBUG_HOST_PRINT_ENABLE)
