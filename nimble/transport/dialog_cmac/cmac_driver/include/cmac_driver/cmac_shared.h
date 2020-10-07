@@ -106,10 +106,13 @@ struct cmac_coredump {
 };
 #endif
 
+#define CMAC_PENDING_OP_LP_CLK      0x0001
+
 struct cmac_shared_data {
     uint16_t magic_cmac;
     uint16_t magic_sys;
-    uint32_t lp_clock_freq;    /* LP clock frequency */
+    uint16_t pending_ops;
+    uint16_t lp_clock_freq;    /* LP clock frequency */
     uint32_t xtal32m_settle_us;/* XTAL32M settling time */
     struct cmac_mbox mbox_s2c; /* SYS2CMAC mailbox */
     struct cmac_mbox mbox_c2s; /* CMAC2SYS mailbox */
