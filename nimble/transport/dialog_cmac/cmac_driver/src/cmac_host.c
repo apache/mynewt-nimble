@@ -156,7 +156,9 @@ cmac_host_signal2cmac(void)
 static void
 cmac_host_lpclk_cb(uint32_t freq)
 {
+    cmac_shared_lock();
     g_cmac_shared_data->lp_clock_freq = freq;
+    cmac_shared_unlock();
 }
 
 #if MYNEWT_VAL(CMAC_DEBUG_HOST_PRINT_ENABLE)
