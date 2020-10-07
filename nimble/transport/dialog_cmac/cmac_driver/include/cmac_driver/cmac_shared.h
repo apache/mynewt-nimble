@@ -107,6 +107,7 @@ struct cmac_coredump {
 #endif
 
 #define CMAC_PENDING_OP_LP_CLK      0x0001
+#define CMAC_PENDING_OP_RF_CAL      0x0002
 
 struct cmac_shared_data {
     uint16_t magic_cmac;
