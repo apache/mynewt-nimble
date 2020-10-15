@@ -125,59 +125,6 @@ static void gen_level_set(struct bt_mesh_model *model,
 	gen_level_status(model, ctx);
 }
 
-static void light_lightness_status(struct bt_mesh_model *model,
-			     struct bt_mesh_msg_ctx *ctx)
-{
-	struct bt_mesh_light_lightness_srv *cb = model->user_data;
-	struct os_mbuf *msg = NET_BUF_SIMPLE(4);
-	s16_t *lightness;
-
-	bt_mesh_model_msg_init(msg, OP_LIGHT_LIGHTNESS_STATUS);
-	lightness = net_buf_simple_add(msg, 2);
-	if (cb && cb->get) {
-		cb->get(model, lightness);
-	}
-
-	BT_DBG("lightness: %d", *lightness);
-
-	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
-		BT_ERR("Send status failed");
-	}
-
-	os_mbuf_free_chain(msg);
-}
-
-static void light_lightness_get(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct os_mbuf *buf)
-{
-	BT_DBG("");
-
-	light_lightness_status(model, ctx);
-}
-
-static void light_lightness_set_unack(struct bt_mesh_model *model,
-				struct bt_mesh_msg_ctx *ctx,
-				struct os_mbuf *buf) {
-	struct bt_mesh_light_lightness_srv *cb = model->user_data;
-	s16_t lightness;
-
-	lightness = (s16_t) net_buf_simple_pull_le16(buf);
-	BT_DBG("lightness: %d", lightness);
-
-	if (cb && cb->set) {
-		cb->set(model, lightness);
-	}
-}
-
-static void light_lightness_set(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct os_mbuf *buf)
-{
-	light_lightness_set_unack(model, ctx, buf);
-	light_lightness_status(model, ctx);
-}
-
 const struct bt_mesh_model_op gen_onoff_srv_op[] = {
 	{ OP_GEN_ONOFF_GET, 		0, gen_onoff_get },
 	{ OP_GEN_ONOFF_SET, 		2, gen_onoff_set },
@@ -192,12 +139,6 @@ const struct bt_mesh_model_op gen_level_srv_op[] = {
 	BT_MESH_MODEL_OP_END,
 };
 
-const struct bt_mesh_model_op light_lightness_srv_op[] = {
-	{ OP_LIGHT_LIGHTNESS_GET, 		0, light_lightness_get },
-	{ OP_LIGHT_LIGHTNESS_SET, 		3, light_lightness_set },
-	{ OP_LIGHT_LIGHTNESS_SET_UNACK, 	3, light_lightness_set_unack },
-	BT_MESH_MODEL_OP_END,
-};
 
 static int onoff_srv_init(struct bt_mesh_model *model)
 {

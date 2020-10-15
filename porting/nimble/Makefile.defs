@@ -63,6 +63,7 @@ endif
 
 ifneq (,$(NIMBLE_CFG_MESH))
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.mesh
+include $(NIMBLE_ROOT)/porting/nimble/Makefile.modelframework
 endif
 
 NIMBLE_OBJ := $(NIMBLE_SRC:.c=.o)

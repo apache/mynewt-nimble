@@ -17,40 +17,32 @@
 # under the License.
 #
 
-pkg.name: nimble/host
-pkg.description: Host side of the nimble Bluetooth Smart stack.
+pkg.name: nimble/host/mesh_model_framework
+pkg.description: Bluetooth Mesh Model Framework
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
+    - mesh
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/util/mem"
+    - "@apache-mynewt-core/crypto/tinycrypt"
     - nimble
-
-pkg.deps.BLE_SM_LEGACY:
-    - "@apache-mynewt-core/crypto/tinycrypt"
-
-pkg.deps.BLE_SM_SC:
-    - "@apache-mynewt-core/crypto/tinycrypt"
-
-pkg.deps.BLE_MONITOR_RTT:
-    - "@apache-mynewt-core/hw/drivers/rtt"
-
-pkg.deps.BLE_MESH:
+    - nimble/host
     - nimble/host/mesh
-    - nimble/host/mesh_model_framework
+
+pkg.deps.BLE_MESH_SHELL:
+    - "@apache-mynewt-core/sys/shell"
+
+pkg.deps.BLE_MESH_SETTINGS:
+    - "@apache-mynewt-core/encoding/base64"
+    - "@apache-mynewt-core/sys/config"
 
 pkg.req_apis:
-    - ble_transport
-    - console
+    - log
     - stats
 
 pkg.init:
-    ble_hs_init: 'MYNEWT_VAL(BLE_HS_SYSINIT_STAGE)'
-
-pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
-    ble_hs_shutdown: 200

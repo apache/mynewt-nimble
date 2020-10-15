@@ -27,8 +27,7 @@
 #include "host/ble_hs.h"
 #include "mesh/glue.h"
 #include "mesh/testing.h"
-#include "mesh/model_srv.h"
-#include "light_model.h"
+#include "bt_mesh_node.h"
 
 
 static void model_bound_cb(u16_t addr, struct bt_mesh_model *model,
@@ -73,13 +72,7 @@ blemesh_on_sync(void)
 
     bt_test_cb_register(&bt_test_cb);
 
-    light_model_init();
-    bt_mesh_set_gen_onoff_srv_cb(light_model_gen_onoff_get,
-                                 light_model_gen_onoff_set);
-    bt_mesh_set_gen_level_srv_cb(light_model_gen_level_get,
-                                 light_model_gen_level_set);
-    bt_mesh_set_light_lightness_srv_cb(light_model_light_lightness_get,
-                                       light_model_light_lightness_set);
+    bt_mesh_node_init();
 
     console_printf("Mesh initialized\n");
 
@@ -90,9 +83,6 @@ blemesh_on_sync(void)
     if (bt_mesh_is_provisioned()) {
         printk("Mesh network restored from flash\n");
     }
-
-    /* Hack for demo purposes */
-    bt_test_shell_init();
 }
 
 int
