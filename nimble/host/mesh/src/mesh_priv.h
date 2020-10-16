@@ -16,6 +16,7 @@
 #define BT_MESH_ADDR_IS_VIRTUAL(addr) ((addr) >= 0x8000 && (addr) < 0xc000)
 #define BT_MESH_ADDR_IS_RFU(addr) ((addr) >= 0xff00 && (addr) <= 0xfffb)
 struct bt_mesh_net;
+int bt_mesh_start(void);
 
 #define OP_GEN_ONOFF_GET		BT_MESH_MODEL_OP_2(0x82, 0x01)
 #define OP_GEN_ONOFF_SET		BT_MESH_MODEL_OP_2(0x82, 0x02)

@@ -82,7 +82,7 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		bt_mesh_store_iv(false);
 	}
 
-	bt_mesh_net_start();
+	bt_mesh_start();
 
 	return 0;
 }
@@ -356,6 +356,22 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 #if (MYNEWT_VAL(BLE_MESH_SETTINGS))
 	bt_mesh_settings_init();
 #endif
+
+	return 0;
+}
+
+static void model_start(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
+			bool vnd, bool primary, void *user_data)
+{
+	if (mod->cb && mod->cb->start) {
+		mod->cb->start(mod);
+	}
+}
+
+int bt_mesh_start(void)
+{
+	bt_mesh_net_start();
+	bt_mesh_model_foreach(model_start, NULL);
 
 	return 0;
 }
