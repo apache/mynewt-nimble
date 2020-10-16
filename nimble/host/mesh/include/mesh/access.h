@@ -438,10 +438,10 @@ struct bt_mesh_model_cb {
 	 */
 	int (*const settings_set)(struct bt_mesh_model *model, char *val);
 
-	/** @brief Callback called when all settings have been loaded.
+	/** @brief Callback called when the mesh is started.
 	 *
-	 * This handler gets called after the settings have been loaded in
-	 * full.
+	 *  This handler gets called after the node has been provisioned, or
+	 *  after all mesh data has been loaded from persistent storage.
 	 *
 	 * @sa settings_handler::h_commit
 	 *
@@ -449,7 +449,7 @@ struct bt_mesh_model_cb {
 	 *
 	 * @return 0 on success, error otherwise.
 	 */
-	int (*const settings_commit)(struct bt_mesh_model *model);
+	int (*const start)(struct bt_mesh_model *model);
 
 	/** @brief Model init callback.
 	 *
