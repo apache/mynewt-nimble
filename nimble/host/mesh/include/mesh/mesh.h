@@ -22,5 +22,6 @@
 #include "cfg_cli.h"
 #include "health_cli.h"
 #include "proxy.h"
+#include "cdb.h"
 
 #endif /* __BT_MESH_H */

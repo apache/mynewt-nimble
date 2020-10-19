@@ -21,6 +21,7 @@
 #include "crypto.h"
 #include "beacon.h"
 #include "foundation.h"
+#include "atomic.h"
 
 #define UNPROVISIONED_INTERVAL    (K_SECONDS(5))
 #define PROVISIONED_INTERVAL      (K_SECONDS(10))
