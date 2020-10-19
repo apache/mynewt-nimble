@@ -77,13 +77,6 @@ struct bt_mesh_net bt_mesh = {
 			.net_idx = BT_MESH_KEY_UNUSED,
 		}
 	},
-#if MYNEWT_VAL(BLE_MESH_PROVISIONER)
-	.nodes = {
-		[0 ... (CONFIG_BT_MESH_NODE_COUNT - 1)] = {
-			.net_idx = BT_MESH_KEY_UNUSED,
-		}
-	},
-#endif
 };
 
 static u32_t dup_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
@@ -698,6 +691,10 @@ do_update:
 		if (bt_mesh.sub[i].net_idx != BT_MESH_KEY_UNUSED) {
 			bt_mesh_net_beacon_update(&bt_mesh.sub[i]);
 		}
+	}
+
+	if (MYNEWT_VAL(BLE_MESH_CDB)) {
+		bt_mesh_cdb_iv_update(iv_index, iv_update);
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {

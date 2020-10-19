@@ -8,6 +8,8 @@
 #ifndef __MESH_PRIV_H
 #define __MESH_PRIV_H
 
+#include <stdbool.h> 
+
 #define BT_MESH_KEY_PRIMARY 0x0000
 #define BT_MESH_KEY_ANY     0xffff
 

@@ -867,4 +867,3 @@ char *settings_str_from_bytes(const void *vp, int vp_len,
 }
 
 #endif /* MYNEWT_VAL(BLE_MESH_SETTINGS) */
-

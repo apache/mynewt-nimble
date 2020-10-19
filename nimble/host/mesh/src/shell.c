@@ -310,6 +310,53 @@ static u8_t hex2val(char c)
 	}
 }
 
+int char2hex(char c, uint8_t *x)
+{
+	if (c >= '0' && c <= '9') {
+		*x = c - '0';
+	} else if (c >= 'a' && c <= 'f') {
+		*x = c - 'a' + 10;
+	} else if (c >= 'A' && c <= 'F') {
+		*x = c - 'A' + 10;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int hex2char(uint8_t x, char *c)
+{
+	if (x <= 9) {
+		*c = x + '0';
+	} else  if (x <= 15) {
+		*c = x - 10 + 'a';
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+size_t bin2hex(const uint8_t *buf, size_t buflen, char *hex, size_t hexlen)
+{
+	if ((hexlen + 1) < buflen * 2) {
+		return 0;
+	}
+
+	for (size_t i = 0; i < buflen; i++) {
+		if (hex2char(buf[i] >> 4, &hex[2 * i]) < 0) {
+			return 0;
+		}
+		if (hex2char(buf[i] & 0xf, &hex[2 * i + 1]) < 0) {
+			return 0;
+		}
+	}
+
+	hex[2 * buflen] = '\0';
+	return 2 * buflen;
+}
+
 static size_t hex2bin(const char *hex, u8_t *bin, size_t bin_len)
 {
 	size_t len = 0;
@@ -337,7 +384,8 @@ static void prov_complete(u16_t net_idx, u16_t addr)
 	net.dst = addr;
 }
 
-static void prov_node_added(u16_t net_idx, u16_t addr, u8_t num_elem)
+static void prov_node_added(u16_t net_idx, u8_t uuid[16], u16_t addr,
+			    u8_t num_elem)
 {
 	printk("Node provisioned, net_idx 0x%04x address "
 	       "0x%04x elements %d", net_idx, addr, num_elem);
@@ -1054,7 +1102,37 @@ static int cmd_beacon(int argc, char *argv[])
 	return 0;
 }
 
+static void print_unprovisioned_beacon(u8_t uuid[16],
+				       bt_mesh_prov_oob_info_t oob_info,
+				       u32_t *uri_hash)
+{
+	char uuid_hex_str[32 + 1];
+
+	bin2hex(uuid, 16, uuid_hex_str, sizeof(uuid_hex_str));
+
+	printk("UUID %s, OOB Info 0x%04x, URI Hash 0x%lx",
+		   uuid_hex_str, oob_info,
+		   (uri_hash == NULL ? 0 : *uri_hash));
+}
+
+static int cmd_beacon_listen(int argc, char *argv[])
+{
+	u8_t val = str2u8(argv[1]);
+
+	if (val) {
+		prov.unprovisioned_beacon = print_unprovisioned_beacon;
+	} else {
+		prov.unprovisioned_beacon = NULL;
+	}
+
+	return 0;
+}
+
 struct shell_cmd_help cmd_beacon_help = {
+	NULL, "[val: off, on]", NULL
+};
+
+struct shell_cmd_help cmd_beacon_listen_help = {
 	NULL, "[val: off, on]", NULL
 };
 
@@ -2261,6 +2339,333 @@ struct shell_cmd_help cmd_del_fault_help = {
 	NULL, "[Fault ID]", NULL
 };
 
+#if defined(CONFIG_BT_MESH_CDB)
+struct shell_cmd_help cmd_cdb_create_help = {
+	NULL, "[NetKey]", NULL
+};
+struct shell_cmd_help cmd_cdb_clear_help = {
+	NULL, NULL, NULL
+};
+struct shell_cmd_help cmd_cdb_show_help = {
+	NULL, NULL, NULL
+};
+struct shell_cmd_help cmd_cdb_node_add_help = {
+	NULL, "<UUID> <addr> <num-elem> "
+		  "<NetKeyIdx> [DevKey]", NULL
+};
+struct shell_cmd_help cmd_cdb_node_del_help = {
+	NULL, "<addr>", NULL
+};
+struct shell_cmd_help cmd_cdb_subnet_add_help = {
+	NULL, "<NeyKeyIdx> [<NetKey>]", NULL
+};
+struct shell_cmd_help cmd_cdb_subnet_del_help = {
+	NULL, "<NetKeyIdx>", NULL
+};
+struct shell_cmd_help cmd_cdb_app_key_add_help = {
+	NULL, "<NetKeyIdx> <AppKeyIdx> [<AppKey>]", NULL
+};
+struct shell_cmd_help cmd_cdb_app_key_del_help = {
+	NULL, "<AppKeyIdx>", NULL
+};
+
+static int cmd_cdb_create(int argc, char *argv[])
+{
+	u8_t net_key[16];
+	size_t len;
+	int err;
+
+	if (argc < 2) {
+		bt_rand(net_key, 16);
+	} else {
+		len = hex2bin(argv[1], net_key, sizeof(net_key));
+		memset(net_key + len, 0, sizeof(net_key) - len);
+	}
+
+	err = bt_mesh_cdb_create(net_key);
+	if (err < 0) {
+		printk("Failed to create CDB (err %d)", err);
+	}
+
+	return 0;
+}
+
+static int cmd_cdb_clear(int argc, char *argv[])
+{
+	bt_mesh_cdb_clear();
+
+	printk("Cleared CDB");
+
+	return 0;
+}
+
+static void cdb_print_nodes(void)
+{
+	char key_hex_str[32 + 1], uuid_hex_str[32 + 1];
+	struct bt_mesh_cdb_node *node;
+	int i, total = 0;
+	bool configured;
+
+	printk("Address  Elements  Flags  %-32s  DevKey", "UUID");
+
+	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.nodes); ++i) {
+		node = &bt_mesh_cdb.nodes[i];
+		if (node->addr == BT_MESH_ADDR_UNASSIGNED) {
+			continue;
+		}
+
+		configured = atomic_test_bit(node->flags,
+					     BT_MESH_CDB_NODE_CONFIGURED);
+
+		total++;
+		bin2hex(node->uuid, 16, uuid_hex_str, sizeof(uuid_hex_str));
+		bin2hex(node->dev_key, 16, key_hex_str, sizeof(key_hex_str));
+		printk("0x%04x   %-8d  %-5s  %s  %s", node->addr,
+			    node->num_elem, configured ? "C" : "-",
+			    uuid_hex_str, key_hex_str);
+	}
+
+	printk("> Total nodes: %d", total);
+}
+
+static void cdb_print_subnets(void)
+{
+	struct bt_mesh_cdb_subnet *subnet;
+	char key_hex_str[32 + 1];
+	int i, total = 0;
+
+	printk("NetIdx  NetKey");
+
+	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i) {
+		subnet = &bt_mesh_cdb.subnets[i];
+		if (subnet->net_idx == BT_MESH_KEY_UNUSED) {
+			continue;
+		}
+
+		total++;
+		bin2hex(subnet->keys[0].net_key, 16, key_hex_str,
+			sizeof(key_hex_str));
+		printk("0x%03x   %s", subnet->net_idx,
+			    key_hex_str);
+	}
+
+	printk("> Total subnets: %d", total);
+}
+
+static void cdb_print_app_keys(void)
+{
+	struct bt_mesh_cdb_app_key *app_key;
+	char key_hex_str[32 + 1];
+	int i, total = 0;
+
+	printk("NetIdx  AppIdx  AppKey");
+
+	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i) {
+		app_key = &bt_mesh_cdb.app_keys[i];
+		if (app_key->net_idx == BT_MESH_KEY_UNUSED) {
+			continue;
+		}
+
+		total++;
+		bin2hex(app_key->keys[0].app_key, 16, key_hex_str,
+			sizeof(key_hex_str));
+		printk("0x%03x   0x%03x   %s",
+			    app_key->net_idx, app_key->app_idx, key_hex_str);
+	}
+
+	printk("> Total app-keys: %d", total);
+}
+
+static int cmd_cdb_show(int argc, char *argv[])
+{
+	if (!atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
+		printk("No valid networks");
+		return 0;
+	}
+
+	printk("Mesh Network Information");
+	printk("========================");
+
+	cdb_print_nodes();
+	printk("---");
+	cdb_print_subnets();
+	printk("---");
+	cdb_print_app_keys();
+
+	return 0;
+}
+
+static int cmd_cdb_node_add(int argc, char *argv[])
+{
+	struct bt_mesh_cdb_node *node;
+	u8_t uuid[16], dev_key[16];
+	u16_t addr, net_idx;
+	u8_t num_elem;
+	size_t len;
+
+	len = hex2bin(argv[1], uuid, sizeof(uuid));
+	memset(uuid + len, 0, sizeof(uuid) - len);
+
+	addr = strtoul(argv[2], NULL, 0);
+	num_elem = strtoul(argv[3], NULL, 0);
+	net_idx = strtoul(argv[4], NULL, 0);
+
+	if (argc < 6) {
+		bt_rand(dev_key, 16);
+	} else {
+		len = hex2bin(argv[5], dev_key, sizeof(dev_key));
+		memset(dev_key + len, 0, sizeof(dev_key) - len);
+	}
+
+	node = bt_mesh_cdb_node_alloc(uuid, addr, num_elem, net_idx);
+	if (node == NULL) {
+		printk("Failed to allocate node");
+		return 0;
+	}
+
+	memcpy(node->dev_key, dev_key, 16);
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		bt_mesh_store_cdb_node(node);
+	}
+
+	printk("Added node 0x%04x", addr);
+
+	return 0;
+}
+
+static int cmd_cdb_node_del(int argc, char *argv[])
+{
+	struct bt_mesh_cdb_node *node;
+	u16_t addr;
+
+	addr = strtoul(argv[1], NULL, 0);
+
+	node = bt_mesh_cdb_node_get(addr);
+	if (node == NULL) {
+		printk("No node with address 0x%04x", addr);
+		return 0;
+	}
+
+	bt_mesh_cdb_node_del(node, true);
+
+	printk("Deleted node 0x%04x", addr);
+
+	return 0;
+}
+
+static int cmd_cdb_subnet_add(int argc,
+			     char *argv[])
+{
+	struct bt_mesh_cdb_subnet *sub;
+	u8_t net_key[16];
+	u16_t net_idx;
+	size_t len;
+
+	net_idx = strtoul(argv[1], NULL, 0);
+
+	if (argc < 3) {
+		bt_rand(net_key, 16);
+	} else {
+		len = hex2bin(argv[2], net_key, sizeof(net_key));
+		memset(net_key + len, 0, sizeof(net_key) - len);
+	}
+
+	sub = bt_mesh_cdb_subnet_alloc(net_idx);
+	if (sub == NULL) {
+		printk("Could not add subnet");
+		return 0;
+	}
+
+	memcpy(sub->keys[0].net_key, net_key, 16);
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		bt_mesh_store_cdb_subnet(sub);
+	}
+
+	printk("Added Subnet 0x%03x", net_idx);
+
+	return 0;
+}
+
+static int cmd_cdb_subnet_del(int argc,
+			     char *argv[])
+{
+	struct bt_mesh_cdb_subnet *sub;
+	u16_t net_idx;
+
+	net_idx = strtoul(argv[1], NULL, 0);
+
+	sub = bt_mesh_cdb_subnet_get(net_idx);
+	if (sub == NULL) {
+		printk("No subnet with NetIdx 0x%03x", net_idx);
+		return 0;
+	}
+
+	bt_mesh_cdb_subnet_del(sub, true);
+
+	printk("Deleted subnet 0x%03x", net_idx);
+
+	return 0;
+}
+
+static int cmd_cdb_app_key_add(int argc,
+			      char *argv[])
+{
+	struct bt_mesh_cdb_app_key *key;
+	u16_t net_idx, app_idx;
+	u8_t app_key[16];
+	size_t len;
+
+	net_idx = strtoul(argv[1], NULL, 0);
+	app_idx = strtoul(argv[2], NULL, 0);
+
+	if (argc < 4) {
+		bt_rand(app_key, 16);
+	} else {
+		len = hex2bin(argv[3], app_key, sizeof(app_key));
+		memset(app_key + len, 0, sizeof(app_key) - len);
+	}
+
+	key = bt_mesh_cdb_app_key_alloc(net_idx, app_idx);
+	if (key == NULL) {
+		printk("Could not add AppKey");
+		return 0;
+	}
+
+	memcpy(key->keys[0].app_key, app_key, 16);
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		bt_mesh_store_cdb_app_key(key);
+	}
+
+	printk("Added AppKey 0x%03x", app_idx);
+
+	return 0;
+}
+
+static int cmd_cdb_app_key_del(int argc,
+			      char *argv[])
+{
+	struct bt_mesh_cdb_app_key *key;
+	u16_t app_idx;
+
+	app_idx = strtoul(argv[1], NULL, 0);
+
+	key = bt_mesh_cdb_app_key_get(app_idx);
+	if (key == NULL) {
+		printk("No AppKey 0x%03x", app_idx);
+		return 0;
+	}
+
+	bt_mesh_cdb_app_key_del(key, true);
+
+	printk("Deleted AppKey 0x%03x", app_idx);
+
+	return 0;
+}
+#endif
+
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 static int cmd_gen_onoff_get(int argc, char *argv[])
 {
@@ -2606,6 +3011,11 @@ static const struct shell_cmd mesh_commands[] = {
         .help = &cmd_beacon_help,
     },
     {
+        .sc_cmd = "beacon-listen",
+        .sc_cmd_func = cmd_beacon_listen,
+        .help = &cmd_beacon_listen_help,
+    },
+    {
         .sc_cmd = "ttl",
         .sc_cmd_func = cmd_ttl,
         .help = &cmd_ttl_help,
@@ -2747,6 +3157,46 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd_func = cmd_del_fault,
         .help = &cmd_del_fault_help,
     },
+
+#if MYNEWT_VAL(BLE_MESH_CDB)
+	{
+        .sc_cmd = "cdb-create",
+        .sc_cmd_func = cmd_cdb_create,
+        .help = &cmd_cdb_create_help,
+    },{
+        .sc_cmd = "cdb-clear",
+        .sc_cmd_func = cmd_cdb_clear,
+        .help = &cmd_cdb_clear_help,
+    },{
+        .sc_cmd = "cdb-show",
+        .sc_cmd_func = cmd_cdb_show,
+        .help = &cmd_cdb_show_help,
+    },{
+        .sc_cmd = "cdb-node-add",
+        .sc_cmd_func = cmd_cdb_node_add,
+        .help = &cmd_cdb_node_add_help,
+    },{
+        .sc_cmd = "cdb-node-del",
+        .sc_cmd_func = cmd_cdb_node_del,
+        .help = &cmd_cdb_node_del_help,
+    },{
+        .sc_cmd = "cdb-subnet-add",
+        .sc_cmd_func = cmd_cdb_subnet_add,
+        .help = &cmd_cdb_subnet_add_help,
+    },{
+        .sc_cmd = "cdb-subnet-del",
+        .sc_cmd_func = cmd_cdb_subnet_del,
+        .help = &cmd_cdb_subnet_del_help,
+    },{
+        .sc_cmd = "cdb-app-key-add",
+        .sc_cmd_func = cmd_cdb_app_key_add,
+        .help = &cmd_cdb_app_key_add_help,
+    },{
+        .sc_cmd = "cdb-app-key-add",
+        .sc_cmd_func = cmd_cdb_app_key_del,
+        .help = &cmd_cdb_app_key_del_help,
+    },
+#endif
 
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
     /* Generic Client Model Operations */
