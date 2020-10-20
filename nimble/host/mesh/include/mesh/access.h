@@ -414,6 +414,10 @@ struct bt_mesh_model_pub {
 	 *  will be called periodically and is expected to update
 	 *  @ref bt_mesh_model_pub.msg with a valid publication
 	 *  message.
+	 * 
+	 *  If the callback returns non-zero, the publication is skipped
+	 *  and will resume on the next periodic publishing interval.
+	 *
 	 *
 	 *  @param mod The Model the Publication Context belogs to.
 	 *
