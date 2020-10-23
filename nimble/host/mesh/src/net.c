@@ -61,7 +61,10 @@
 
 static struct friend_cred friend_cred[FRIEND_CRED_COUNT];
 
-static u64_t msg_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
+static struct {
+	u32_t src : 15, /* MSb of source is always 0 */
+	      seq : 17;
+} msg_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static u16_t msg_cache_next;
 
 /* Singleton network context (the implementation only supports one) */
@@ -102,37 +105,28 @@ static bool check_dup(struct os_mbuf *data)
 	return false;
 }
 
-static u64_t msg_hash(struct bt_mesh_net_rx *rx, struct os_mbuf *pdu)
-{
-	u32_t hash1, hash2;
-
-	/* Three least significant bytes of IVI + first byte of SEQ */
-	hash1 = (BT_MESH_NET_IVI_RX(rx) << 8) | pdu->om_data[2];
-
-	/* Two last bytes of SEQ + SRC */
-	memcpy(&hash2, &pdu->om_data[3], 4);
-
-	return (u64_t)hash1 << 32 | (u64_t)hash2;
-}
-
 static bool msg_cache_match(struct bt_mesh_net_rx *rx,
 			    struct os_mbuf *pdu)
 {
-	u64_t hash = msg_hash(rx, pdu);
 	u16_t i;
 
 	for (i = 0; i < ARRAY_SIZE(msg_cache); i++) {
-		if (msg_cache[i] == hash) {
+		if (msg_cache[i].src == SRC(pdu->om_data) &&
+		    msg_cache[i].seq == (SEQ(pdu->om_data) & BIT_MASK(17))) {
 			return true;
 		}
 	}
 
+	return false;
+}
+
+static void msg_cache_add(struct bt_mesh_net_rx *rx)
+{
 	/* Add to the cache */
 	rx->msg_cache_idx = msg_cache_next++;
-	msg_cache[rx->msg_cache_idx] = hash;
+	msg_cache[rx->msg_cache_idx].src = rx->ctx.addr;
+	msg_cache[rx->msg_cache_idx].seq = rx->seq;
 	msg_cache_next %= ARRAY_SIZE(msg_cache);
-
-	return false;
 }
 
 struct bt_mesh_subnet *bt_mesh_subnet_get(u16_t net_idx)
@@ -992,15 +986,15 @@ static int net_decrypt(struct bt_mesh_subnet *sub, const u8_t *enc,
 		return -ENOENT;
 	}
 
-	if (rx->net_if == BT_MESH_NET_IF_ADV && msg_cache_match(rx, buf)) {
-		BT_WARN("Duplicate found in Network Message Cache");
-		return -EALREADY;
-	}
-
 	rx->ctx.addr = SRC(buf->om_data);
 	if (!BT_MESH_ADDR_IS_UNICAST(rx->ctx.addr)) {
-		BT_WARN("Ignoring non-unicast src addr 0x%04x", rx->ctx.addr);
+		BT_DBG("Ignoring non-unicast src addr 0x%04x", rx->ctx.addr);
 		return -EINVAL;
+	}
+
+	if (rx->net_if == BT_MESH_NET_IF_ADV && msg_cache_match(rx, buf)) {
+		BT_DBG("Duplicate found in Network Message Cache");
+		return -EALREADY;
 	}
 
 	BT_DBG("src 0x%04x", rx->ctx.addr);
@@ -1293,6 +1287,8 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 	       rx->ctx.recv_ttl);
 	BT_DBG("PDU: %s", bt_hex(buf->om_data, buf->om_len));
 
+	msg_cache_add(rx);
+
 	return 0;
 }
 
@@ -1340,7 +1336,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 	 */
 	if (bt_mesh_trans_recv(buf, &rx) == -EAGAIN) {
 		BT_WARN("Removing rejected message from Network Message Cache");
-		msg_cache[rx.msg_cache_idx] = 0ULL;
+		msg_cache[rx.msg_cache_idx].src = BT_MESH_ADDR_UNASSIGNED;
 		/* Rewind the next index now that we're not using this entry */
 		msg_cache_next = rx.msg_cache_idx;
 	}
