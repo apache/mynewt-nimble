@@ -310,6 +310,12 @@ uint8_t *bt_pub_key_get(void);
 int bt_rand(void *buf, size_t len);
 const char * bt_hex(const void *buf, size_t len);
 int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data);
+int bt_ccm_decrypt(const u8_t key[16], u8_t nonce[13], const u8_t *enc_data,
+		   size_t len, const u8_t *aad, size_t aad_len,
+		   u8_t *plaintext, size_t mic_size);
+int bt_ccm_encrypt(const u8_t key[16], u8_t nonce[13], const u8_t *enc_data,
+		   size_t len, const u8_t *aad, size_t aad_len,
+		   u8_t *plaintext, size_t mic_size);
 void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *ad, size_t ad_len,
