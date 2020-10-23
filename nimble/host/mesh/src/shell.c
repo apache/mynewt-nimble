@@ -1270,6 +1270,7 @@ struct shell_cmd_help cmd_relay_help = {
 
 static int cmd_net_key_add(int argc, char *argv[])
 {
+	bool has_key_val = (argc > 2);
 	u8_t key_val[16];
 	u16_t key_net_idx;
 	u8_t status;
@@ -1281,13 +1282,36 @@ static int cmd_net_key_add(int argc, char *argv[])
 
 	key_net_idx = strtoul(argv[1], NULL, 0);
 
-	if (argc > 2) {
+	if (has_key_val) {
 		size_t len;
 
 		len = hex2bin(argv[3], key_val, sizeof(key_val));
 		memset(key_val, 0, sizeof(key_val) - len);
 	} else {
 		memcpy(key_val, default_key, sizeof(key_val));
+	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_CDB)) {
+		struct bt_mesh_cdb_subnet *subnet;
+
+		subnet = bt_mesh_cdb_subnet_get(key_net_idx);
+		if (subnet) {
+			if (has_key_val) {
+				printk("Subnet 0x%03x already has a value", key_net_idx);
+				return 0;
+			}
+
+			memcpy(key_val, subnet->keys[0].net_key, 16);
+		} else {
+			subnet = bt_mesh_cdb_subnet_alloc(key_net_idx);
+			if (!subnet) {
+				printk("No space for subnet in cdb");
+				return 0;
+			}
+
+			memcpy(subnet->keys[0].net_key, key_val, 16);
+			bt_mesh_cdb_subnet_store(subnet);
+		}
 	}
 
 	err = bt_mesh_cfg_net_key_add(net.net_idx, net.dst, key_net_idx,
@@ -1314,6 +1338,7 @@ static int cmd_app_key_add(int argc, char *argv[])
 {
 	u8_t key_val[16];
 	u16_t key_net_idx, key_app_idx;
+	bool has_key_val = (argc > 3);
 	u8_t status;
 	int err;
 
@@ -1324,13 +1349,37 @@ static int cmd_app_key_add(int argc, char *argv[])
 	key_net_idx = strtoul(argv[1], NULL, 0);
 	key_app_idx = strtoul(argv[2], NULL, 0);
 
-	if (argc > 3) {
+	if (has_key_val) {
 		size_t len;
 
 		len = hex2bin(argv[3], key_val, sizeof(key_val));
 		memset(key_val, 0, sizeof(key_val) - len);
 	} else {
 		memcpy(key_val, default_key, sizeof(key_val));
+	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_CDB)) {
+		struct bt_mesh_cdb_app_key *app_key;
+
+		app_key = bt_mesh_cdb_app_key_get(key_app_idx);
+		if (app_key) {
+			if (has_key_val) {
+				printk("App key 0x%03x already has a value", key_app_idx);
+				return 0;
+			}
+
+			memcpy(key_val, app_key->keys[0].app_key, 16);
+		} else {
+			app_key = bt_mesh_cdb_app_key_alloc(key_net_idx,
+							    key_app_idx);
+			if (!app_key) {
+				printk("No space for app key in cdb");
+				return 0;
+			}
+
+			memcpy(app_key->keys[0].app_key, key_val, 16);
+			bt_mesh_cdb_app_key_store(app_key);
+		}
 	}
 
 	err = bt_mesh_cfg_app_key_add(net.net_idx, net.dst, key_net_idx,
@@ -1949,6 +1998,7 @@ static int cmd_pb_gatt(int argc, char *argv[])
 
 static int cmd_provision(int argc, char *argv[])
 {
+	const u8_t *net_key = default_key;
 	u16_t net_idx, addr;
 	u32_t iv_index;
 	int err;
@@ -1966,7 +2016,19 @@ static int cmd_provision(int argc, char *argv[])
 		iv_index = 0;
 	}
 
-	err = bt_mesh_provision(default_key, net_idx, 0, iv_index, addr,
+	if (IS_ENABLED(CONFIG_BT_MESH_CDB)) {
+		const struct bt_mesh_cdb_subnet *sub;
+
+		sub = bt_mesh_cdb_subnet_get(net_idx);
+		if (!sub) {
+			printk("No cdb entry for subnet 0x%03x", net_idx);
+			return 0;
+		}
+
+		net_key = sub->keys[sub->kr_flag].net_key;
+	}
+
+	err = bt_mesh_provision(net_key, net_idx, 0, iv_index, addr,
 				default_key);
 	if (err) {
 		printk("Provisioning failed (err %d)\n", err);
