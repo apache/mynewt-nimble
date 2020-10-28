@@ -215,6 +215,14 @@ net_buf_simple_add_be16(struct os_mbuf *om, uint16_t val)
 }
 
 void
+net_buf_simple_add_le24(struct os_mbuf *om, uint32_t val)
+{
+    val = htole32(val);
+    os_mbuf_append(om, &val, 3);
+    ASSERT_NOT_CHAIN(om);
+}
+
+void
 net_buf_simple_add_be32(struct os_mbuf *om, uint32_t val)
 {
     val = htobe32(val);
@@ -265,6 +273,22 @@ net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val)
 
     if (om->om_pkthdr_len) {
         OS_MBUF_PKTHDR(om)->omp_len += 2;
+    }
+    ASSERT_NOT_CHAIN(om);
+}
+
+void
+net_buf_simple_push_be24(struct os_mbuf *om, uint32_t val)
+{
+    uint8_t headroom = om->om_data - &om->om_databuf[om->om_pkthdr_len];
+
+    assert(headroom >= 3);
+    om->om_data -= 3;
+    put_be24(om->om_data, val);
+    om->om_len += 3;
+
+    if (om->om_pkthdr_len) {
+        OS_MBUF_PKTHDR(om)->omp_len += 3;
     }
     ASSERT_NOT_CHAIN(om);
 }
