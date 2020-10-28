@@ -762,8 +762,9 @@ int bt_mesh_net_resend(struct bt_mesh_subnet *sub, struct os_mbuf *buf,
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
-	    bt_mesh_proxy_relay(buf, dst)) {
-		send_cb_finalize(cb, cb_data);
+		bt_mesh_proxy_relay(buf, dst) &&
+	    BT_MESH_ADDR_IS_UNICAST(dst)) {
+			send_cb_finalize(cb, cb_data);
 	} else {
 		bt_mesh_adv_send(buf, cb, cb_data);
 	}
