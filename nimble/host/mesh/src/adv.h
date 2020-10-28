@@ -42,11 +42,6 @@ struct bt_mesh_adv {
 		  busy:1;
 	u8_t      xmit;
 
-	/* For transport layer segment sending */
-	struct {
-		u8_t attempts;
-	} seg;
-
 	u8_t flags;
 
 	int ref_cnt;
