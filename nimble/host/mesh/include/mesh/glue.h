@@ -119,9 +119,13 @@ extern "C" {
 
 #define sys_put_be16(a,b) put_be16(b, a)
 #define sys_put_le16(a,b) put_le16(b, a)
+#define sys_put_le24(a,b) put_le24(b, a)
+#define sys_put_be24(a,b) put_be24(b, a)
 #define sys_put_be32(a,b) put_be32(b, a)
 #define sys_get_be16(a) get_be16(a)
+#define sys_get_be24(a) get_be24(a)
 #define sys_get_le16(a) get_le16(a)
+#define sys_get_le24(a) get_le24(a)
 #define sys_get_be32(a) get_be32(a)
 #define sys_cpu_to_be16(a) htobe16(a)
 #define sys_cpu_to_be32(a) htobe32(a)
@@ -248,12 +252,14 @@ uint32_t net_buf_simple_pull_le32(struct os_mbuf *om);
 uint8_t net_buf_simple_pull_u8(struct os_mbuf *om);
 void net_buf_simple_add_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_add_be16(struct os_mbuf *om, uint16_t val);
+void net_buf_simple_add_le24(struct os_mbuf *om, uint32_t val);
 void net_buf_simple_add_u8(struct os_mbuf *om, uint8_t val);
 void net_buf_simple_add_be32(struct os_mbuf *om, uint32_t val);
 void net_buf_simple_add_le32(struct os_mbuf *om, uint32_t val);
 void net_buf_add_zeros(struct os_mbuf *om, uint8_t len);
 void net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
+void net_buf_simple_push_be24(struct os_mbuf *om, uint32_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
 void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
