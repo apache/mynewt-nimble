@@ -209,55 +209,6 @@ bool bt_mesh_is_provisioned(void)
 	return atomic_test_bit(bt_mesh.flags, BT_MESH_VALID);
 }
 
-int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
-{
-	if (bt_mesh_is_provisioned()) {
-		return -EALREADY;
-	}
-
-	char uuid_buf[BLE_UUID_STR_LEN];
-	const struct bt_mesh_prov *prov = bt_mesh_prov_get();
-	ble_uuid_t *uuid = BLE_UUID128_DECLARE();
-
-	memcpy(BLE_UUID128(uuid)->value, prov->uuid, 16);
-	BT_INFO("Device UUID: %s", ble_uuid_to_str(uuid, uuid_buf));
-
-	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) &&
-	    (bearers & BT_MESH_PROV_ADV)) {
-		/* Make sure we're scanning for provisioning inviations */
-		bt_mesh_scan_enable();
-		/* Enable unprovisioned beacon sending */
-		bt_mesh_beacon_enable();
-	}
-
-	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT) &&
-	    (bearers & BT_MESH_PROV_GATT)) {
-		bt_mesh_proxy_prov_enable();
-		bt_mesh_adv_update();
-	}
-
-	return 0;
-}
-
-int bt_mesh_prov_disable(bt_mesh_prov_bearer_t bearers)
-{
-	if (bt_mesh_is_provisioned()) {
-		return -EALREADY;
-	}
-
-	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) &&
-	    (bearers & BT_MESH_PROV_ADV)) {
-		bt_mesh_beacon_disable();
-		bt_mesh_scan_disable();
-	}
-
-	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT) &&
-	    (bearers & BT_MESH_PROV_GATT)) {
-		bt_mesh_proxy_prov_disable(true);
-	}
-
-	return 0;
-}
 
 static int bt_mesh_gap_event(struct ble_gap_event *event, void *arg)
 {
@@ -373,11 +324,6 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	if (err) {
 		return err;
 	}
-#endif
-
-#if (MYNEWT_VAL(BLE_MESH_PROV))
-	/* Need this to proper link.rx.buf allocation */
-	bt_mesh_prov_reset_link();
 #endif
 
 	bt_mesh_net_init();

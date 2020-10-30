@@ -242,6 +242,12 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
     buf->om_len = 0;
 }
 
+static inline void net_buf_simple_reset(struct os_mbuf *om)
+{
+    om->om_len = 0;
+    om->om_data = om->om_databuf;
+}
+
 void net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *buf);
 void * net_buf_ref(struct os_mbuf *om);
 void net_buf_unref(struct os_mbuf *om);
@@ -285,6 +291,7 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 /** Description of different data types that can be encoded into
   * advertising data. Used to form arrays that are passed to the
   * bt_le_adv_start() function.
