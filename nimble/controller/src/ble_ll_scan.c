@@ -293,7 +293,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
         STATS_INC(ble_ll_stats, scan_req_txf);
     }
 
-    scansm->backoff_count = rand() & (scansm->upper_limit - 1);
+    scansm->backoff_count = ble_ll_rand() & (scansm->upper_limit - 1);
     ++scansm->backoff_count;
     BLE_LL_ASSERT(scansm->backoff_count <= 256);
 }

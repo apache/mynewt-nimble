@@ -574,6 +574,7 @@ void ble_ll_rand_sample(uint8_t rnum);
 int ble_ll_rand_data_get(uint8_t *buf, uint8_t len);
 void ble_ll_rand_prand_get(uint8_t *prand);
 int ble_ll_rand_start(void);
+int ble_ll_rand(void);
 
 static inline int
 ble_ll_get_addr_type(uint8_t txrxflag)

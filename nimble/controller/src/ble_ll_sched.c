@@ -1266,7 +1266,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
     if (!rc) {
         sch->enqueued = 1;
         if (rand_ticks) {
-            sch->start_time += rand() % rand_ticks;
+            sch->start_time += ble_ll_rand() % rand_ticks;
         }
         sch->end_time = sch->start_time + duration;
         *start = sch->start_time;

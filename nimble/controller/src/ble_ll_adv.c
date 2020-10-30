@@ -1379,7 +1379,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
                                            g_ble_ll_conn_params.num_used_chans,
                                            g_ble_ll_conn_params.master_chan_map);
 #else
-    aux->chan = ble_ll_utils_remapped_channel(rand() % BLE_PHY_NUM_DATA_CHANS,
+    aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
                                               g_ble_ll_conn_params.master_chan_map);
 #endif
 
@@ -1856,7 +1856,7 @@ ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
      * the previously used value.
      */
     do {
-        advsm->adi = (advsm->adi & 0xf000) | (rand() & 0x0fff);
+        advsm->adi = (advsm->adi & 0xf000) | (ble_ll_rand() & 0x0fff);
     } while (old_adi == advsm->adi);
 }
 #endif
@@ -2547,11 +2547,11 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     advsm->periodic_num_used_chans = g_ble_ll_conn_params.num_used_chans;
     advsm->periodic_event_cntr = 0;
     /* for chaining we start with random counter as we share access addr */
-    advsm->periodic_chain_event_cntr = rand();
+    advsm->periodic_chain_event_cntr = ble_ll_rand();
     advsm->periodic_access_addr = ble_ll_utils_calc_access_addr();
     advsm->periodic_channel_id = ((advsm->periodic_access_addr & 0xffff0000) >> 16) ^
                                  (advsm->periodic_access_addr & 0x0000ffff);
-    advsm->periodic_crcinit = rand() & 0xffffff;
+    advsm->periodic_crcinit = ble_ll_rand() & 0xffffff;
 
     usecs = (uint32_t)advsm->periodic_adv_itvl_max * BLE_LL_ADV_PERIODIC_ITVL;
     ticks = os_cputime_usecs_to_ticks(usecs);
@@ -2740,7 +2740,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      */
     earliest_start_time = ble_ll_rfmgmt_enable_now();
 
-    start_delay_us = rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
+    start_delay_us = ble_ll_rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
     advsm->adv_pdu_start_time = os_cputime_get32() +
                                 os_cputime_usecs_to_ticks(start_delay_us);
 

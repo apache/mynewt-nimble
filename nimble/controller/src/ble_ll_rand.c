@@ -120,6 +120,18 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 
+/* Simple wrapper to allow easy replacement of rand() */
+int
+ble_ll_rand(void)
+{
+    int data;
+
+    ble_ll_rand_data_get((uint8_t *)&data, sizeof(data));
+
+    /* rand returns signed integer but in range 0-RAND_MAX */
+    return data & RAND_MAX;
+}
+
 /**
  * Called to obtain a "prand" as defined in core V4.2 Vol 6 Part B 1.3.2.2
  *
