@@ -1552,7 +1552,6 @@ ble_ll_init(void)
     uint64_t features;
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
-    unsigned seed;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
@@ -1687,10 +1686,6 @@ ble_ll_init(void)
     ble_ll_rand_init();
     /* Start the random number generator */
     ble_ll_rand_start();
-    /* Use the random number generator to seed the STDLIBs pseudo-number
-     * generator */
-    ble_ll_rand_data_get((uint8_t *)&seed, sizeof(seed));
-    srand(seed);
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),

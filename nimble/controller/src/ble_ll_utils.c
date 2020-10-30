@@ -50,8 +50,8 @@ ble_ll_utils_calc_access_addr(void)
     aa = 0;
     while (1) {
         /* Get two, 16-bit random numbers */
-        aa_low = rand() & 0xFFFF;
-        aa_high = rand() & 0xFFFF;
+        aa_low = ble_ll_rand() & 0xFFFF;
+        aa_high = ble_ll_rand() & 0xFFFF;
 
         /* All four bytes cannot be equal */
         if (aa_low == aa_high) {
