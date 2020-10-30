@@ -1619,7 +1619,7 @@ ble_ll_conn_master_common_init(struct ble_ll_conn_sm *connsm)
     connsm->master_sca = BLE_LL_SCA_ENUM;
 
     /* Hop increment is a random value between 5 and 16. */
-    connsm->hop_inc = (rand() % 12) + 5;
+    connsm->hop_inc = (ble_ll_rand() % 12) + 5;
 
     /* Set channel map to map requested by host */
     connsm->num_used_chans = g_ble_ll_conn_params.num_used_chans;
@@ -1628,7 +1628,7 @@ ble_ll_conn_master_common_init(struct ble_ll_conn_sm *connsm)
 
     /*  Calculate random access address and crc initialization value */
     connsm->access_addr = ble_ll_utils_calc_access_addr();
-    connsm->crcinit = rand() & 0xffffff;
+    connsm->crcinit = ble_ll_rand() & 0xffffff;
 
     /* Set initial schedule callback */
     connsm->conn_sch.sched_cb = ble_ll_conn_event_start_cb;
