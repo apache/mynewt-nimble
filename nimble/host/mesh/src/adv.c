@@ -44,8 +44,7 @@ static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
  * an increased call stack whenever it's used.
  */
 #if MYNEWT
-#define ADV_STACK_SIZE 768
-OS_TASK_STACK_DEFINE(g_blemesh_stack, ADV_STACK_SIZE);
+OS_TASK_STACK_DEFINE(g_blemesh_stack, MYNEWT_VAL(BLE_MESH_ADV_STACK_SIZE));
 struct os_task adv_task;
 #endif
 
@@ -333,7 +332,7 @@ void bt_mesh_adv_init(void)
 #if MYNEWT
 	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,
 	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
-	             g_blemesh_stack, ADV_STACK_SIZE);
+	             g_blemesh_stack, MYNEWT_VAL(BLE_MESH_ADV_STACK_SIZE));
 #endif
 
 	/* For BT5 controllers we can have fast advertising interval */

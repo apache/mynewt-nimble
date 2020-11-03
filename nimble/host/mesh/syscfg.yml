@@ -158,6 +158,13 @@ syscfg.defs:
             supported outgoing segment count (BT_MESH_TX_SEG_MAX).
         value: 6
 
+    BLE_MESH_ADV_STACK_SIZE:
+        description: >
+            Mesh advertiser thread stack size.
+            NOTE: This is an advanced setting and should not be changed unless
+            absolutely necessary
+        value: 768
+
     BLE_MESH_IVU_DIVIDER:
         description: >
             When the IV Update state enters Normal operation or IV Update
