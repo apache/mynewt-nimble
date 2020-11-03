@@ -104,7 +104,7 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 	BT_DBG("conn %p", conn_handle);
 
 	if (link.conn_handle != conn_handle) {
-		BT_ERR("Not connected");
+		BT_DBG("Not connected");
 		return -ENOTCONN;
 	}
 
