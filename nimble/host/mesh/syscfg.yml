@@ -371,6 +371,12 @@ syscfg.defs:
             Friend node for a Low Power node.
         value: 3
 
+    BLE_MESH_LPN_SUB_ALL_NODES_ADDR:
+        description: >
+            Automatically subscribe all nodes address when friendship
+            established.
+        value: 0
+
     BLE_MESH_FRIEND_LPN_COUNT:
         description: >
             Number of Low Power Nodes the Friend can have a Friendship

@@ -100,6 +100,12 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		addr = node->addr;
 		iv_index = bt_mesh_cdb.iv_index;
 		memcpy(node->dev_key, dev_key, 16);
+
+		if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER) &&
+		    IS_ENABLED(CONFIG_BT_MESH_LPN_SUB_ALL_NODES_ADDR)) {
+				bt_mesh_lpn_group_add(BT_MESH_ADDR_ALL_NODES);
+		}
+
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
 			bt_mesh_store_cdb_node(node);
 		}
@@ -173,6 +179,12 @@ void bt_mesh_reset(void)
 	bt_mesh_tx_reset();
 
 	if ((MYNEWT_VAL(BLE_MESH_LOW_POWER))) {
+		if (IS_ENABLED(CONFIG_BT_MESH_LPN_SUB_ALL_NODES_ADDR)) {
+			u16_t group = BT_MESH_ADDR_ALL_NODES;
+
+			bt_mesh_lpn_group_del(&group, 1);
+		}
+
 		bt_mesh_lpn_disable(true);
 	}
 
