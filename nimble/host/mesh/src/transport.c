@@ -403,8 +403,7 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 					 BUF_TIMEOUT);
 		if (!seg) {
 			BT_DBG("Allocating segment failed");
-			tx->sending = 0U;
-			return;
+			goto end;
 		}
 
 		net_buf_reserve(seg, BT_MESH_NET_HDR_LEN);
@@ -420,12 +419,17 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 			seg_tx_complete(tx, -EIO);
 			BT_DBG("Sending segment failed");
 			tx->seg_pending--;
-			tx->sending = 0U;
-			return;
+			goto end;
 		}
 	}
-	tx->sending = 0U;
 	tx->seg_o = 0U;
+	end:
+	if (!tx->seg_pending) {
+		k_delayed_work_submit(&tx->retransmit,
+					  SEG_RETRANSMIT_TIMEOUT(tx));
+	}
+
+	tx->sending = 0U;
 	tx->attempts--;
 }
 
@@ -1349,6 +1353,10 @@ static void seg_rx_reset(struct seg_rx *rx, bool full_reset)
 	}
 
 	for (i = 0; i <= rx->seg_n; i++) {
+		if (!rx->seg[i]) {
+			continue;
+		}
+
 		k_mem_slab_free(&segs, &rx->seg[i]);
 		rx->seg[i] = NULL;
 	}
@@ -1457,12 +1465,12 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 				   const u8_t *hdr, const u64_t *seq_auth,
 				   u8_t seg_n)
 {
-	int i, j;
+	int i;
 
 	/* No race condition on this check, as this function only executes in
 	 * the collaborative Bluetooth rx thread:
 	 */
-	if (k_mem_slab_num_free_get(&segs) < seg_n) {
+	if (k_mem_slab_num_free_get(&segs) < 1) {
 		BT_WARN("Not enough segments for incoming message");
 		return NULL;
 	}
@@ -1484,14 +1492,6 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 		rx->src = net_rx->ctx.addr;
 		rx->dst = net_rx->ctx.recv_dst;
 		rx->block = 0;
-
-		/* Allocating everything at the beginning to avoid any failures
-		 * after initial rx. Could reduce overall buffer usage by
-		 * allocating as we go?
-		 */
-		for (j = 0; j <= seg_n; j++) {
-			k_mem_slab_alloc(&segs, &rx->seg[j]);
-		}
 
 		BT_DBG("New RX context. Block Complete 0x%08x",
 		       (unsigned) BLOCK_COMPLETE(seg_n));
@@ -1679,6 +1679,13 @@ found_rx:
 	if (!k_delayed_work_remaining_get(&rx->ack) &&
 	    !bt_mesh_lpn_established()) {
 		k_delayed_work_submit(&rx->ack, ack_timeout(rx));
+	}
+
+	/* Allocated segment here */
+	err = k_mem_slab_alloc(&segs, &rx->seg[seg_o]);
+	if (err) {
+		BT_WARN("Unable allocate buffer for Seg %u", seg_o);
+		return -ENOBUFS;
 	}
 
 	memcpy(rx->seg[seg_o], buf->om_data, buf->om_len);
