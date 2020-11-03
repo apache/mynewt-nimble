@@ -259,7 +259,7 @@ int bt_mesh_friend_clear(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	cfm.lpn_counter = msg->lpn_counter;
 
 	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_FRIEND_CLEAR_CFM, &cfm,
-			 sizeof(cfm), NULL, NULL, NULL);
+			 sizeof(cfm), NULL, NULL);
 
 	friend_clear(frnd);
 
@@ -784,7 +784,7 @@ static void send_friend_clear(struct bt_mesh_friend *frnd)
 	BT_DBG("");
 
 	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_FRIEND_CLEAR, &req,
-			 sizeof(req), NULL, &clear_sent_cb, frnd);
+			 sizeof(req), &clear_sent_cb, frnd);
 }
 
 static void clear_timeout(struct ble_npl_event *work)

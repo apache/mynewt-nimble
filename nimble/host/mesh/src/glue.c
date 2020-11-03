@@ -870,6 +870,31 @@ void net_buf_slist_merge_slist(struct net_buf_slist_t *list,
 	}
 }
 
+/** Memory slab methods */
+extern void  k_mem_slab_free(struct k_mem_slab *slab, void **mem)
+{
+    **(char ***)mem = slab->free_list;
+    slab->free_list = *(char **)mem;
+    slab->num_used--;
+}
+
+extern int k_mem_slab_alloc(struct k_mem_slab *slab, void **mem)
+{
+	int result;
+
+	if (slab->free_list != NULL) {
+		/* take a free block */
+		*mem = slab->free_list;
+		slab->free_list = *(char **)(slab->free_list);
+		slab->num_used++;
+		result = 0;
+	} else {
+		*mem = NULL;
+		result = -ENOMEM;
+	}
+	return result;
+}
+
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
 
 int settings_bytes_from_str(char *val_str, void *vp, int *len)
