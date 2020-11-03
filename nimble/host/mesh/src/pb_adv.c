@@ -43,7 +43,8 @@
 #define XACT_SEG_DATA(_seg) (&link.rx.buf->om_data[20 + ((_seg - 1) * 23)])
 #define XACT_SEG_RECV(_seg) (link.rx.seg &= ~(1 << (_seg)))
 
-#define XACT_NVAL 0xff
+#define XACT_ID_MAX  0x7f
+#define XACT_ID_NVAL 0xff
 
 #define RETRANSMIT_TIMEOUT  K_MSEC(500)
 #define BUF_TIMEOUT         K_MSEC(400)
@@ -169,7 +170,7 @@ static void free_segments(void)
 
 static u8_t next_transaction_id(u8_t id)
 {
-	return (((id + 1) & 0x7f) | (id & 0x80));
+	return (((id + 1) & XACT_ID_MAX) | (id & (XACT_ID_MAX+1)));
 }
 
 static void prov_clear_tx(void)
@@ -192,8 +193,8 @@ static void reset_adv_link(void)
 	 * delayed work objects.
 	 */
 	(void)memset(&link, 0, offsetof(struct pb_adv, tx.retransmit));
-	link.rx.id = XACT_NVAL;
-	link.tx.pending_ack = XACT_NVAL;
+	link.rx.id = XACT_ID_NVAL;
+	link.tx.pending_ack = XACT_ID_NVAL;
 	link.rx.buf = &rx_buf;
 	net_buf_simple_reset(link.rx.buf);
 }
@@ -783,8 +784,8 @@ static int prov_link_open(const u8_t uuid[16], s32_t timeout,
 	atomic_set_bit(link.flags, PROVISIONER);
 
 	bt_rand(&link.id, sizeof(link.id));
-	link.tx.id = 0x7F;
-	link.rx.id = 0xFF;
+	link.tx.id = XACT_ID_MAX;
+	link.rx.id = XACT_ID_NVAL;
 	link.cb = cb;
 	link.cb_data = cb_data;
 
@@ -801,8 +802,8 @@ static int prov_link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 		return -EBUSY;
 	}
 
-	link.rx.id = 0x7F;
-	link.tx.id = 0xFF;
+	link.rx.id = XACT_ID_MAX;
+	link.tx.id = XACT_ID_NVAL;
 	link.cb = cb;
 	link.cb_data = cb_data;
 
