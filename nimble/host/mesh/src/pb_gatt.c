@@ -44,16 +44,22 @@ static void reset_state(void)
 	link.rx.buf = bt_mesh_proxy_get_buf();
 }
 
-static void protocol_timeout(struct ble_npl_event *work)
+static void link_closed(enum prov_bearer_link_status status)
 {
 	const struct prov_bearer_cb *cb = link.cb;
 
-	BT_DBG("Protocol timeout");
+	void *cb_data = link.cb_data;
 
 	reset_state();
 
-	cb->link_closed(&pb_gatt, link.cb_data,
-			PROV_BEARER_LINK_STATUS_TIMEOUT);
+	cb->link_closed(&pb_gatt, cb_data, status);
+}
+
+static void protocol_timeout(struct ble_npl_event *work)
+{
+	BT_DBG("Protocol timeout");
+
+	link_closed(PROV_BEARER_LINK_STATUS_TIMEOUT);
 }
 
 int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf)
