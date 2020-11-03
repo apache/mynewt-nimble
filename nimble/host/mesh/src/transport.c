@@ -530,6 +530,8 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 		memcpy(buf, net_buf_simple_pull_mem(sdu, len), len);
 		BT_DBG("seg %u: %s", seg_o, bt_hex(buf, len));
 
+		tx->seg[seg_o] = buf;
+
 		if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
 			enum bt_mesh_friend_pdu_type type;
 
@@ -550,11 +552,10 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 				 * out through the Friend Queue.
 				 */
 				k_mem_slab_free(&segs, &buf);
-				continue;
+				tx->seg[seg_o] = NULL;
 			}
 		}
 
-		tx->seg[seg_o] = buf;
 	}
 
 	/* This can happen if segments only went into the Friend Queue */
