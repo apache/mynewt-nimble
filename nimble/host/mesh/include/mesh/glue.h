@@ -242,6 +242,10 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
     buf->om_len = 0;
 }
 
+#define net_buf_simple_init_with_data(buf, data, size)  \
+    buf = NET_BUF_SIMPLE(size); \
+    os_mbuf_copyinto(buf, 0, data, size);
+
 static inline void net_buf_simple_reset(struct os_mbuf *om)
 {
     om->om_len = 0;
@@ -413,6 +417,7 @@ static inline unsigned int find_msb_set(u32_t op)
 
 #define CONFIG_BT_MESH_LPN_GROUPS           MYNEWT_VAL(BLE_MESH_LPN_GROUPS)
 #define CONFIG_BT_MESH_ADV_BUF_COUNT        MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT)
+#define CONFIG_BT_MESH_SEG_BUFS             MYNEWT_VAL(BLE_MESH_SEG_BUFS )
 #define CONFIG_BT_MESH_FRIEND_QUEUE_SIZE    MYNEWT_VAL(BLE_MESH_FRIEND_QUEUE_SIZE)
 #define CONFIG_BT_MESH_FRIEND_RECV_WIN      MYNEWT_VAL(BLE_MESH_FRIEND_RECV_WIN)
 #define CONFIG_BT_MESH_LPN_POLL_TIMEOUT     MYNEWT_VAL(BLE_MESH_LPN_POLL_TIMEOUT)
@@ -427,7 +432,10 @@ static inline unsigned int find_msb_set(u32_t op)
 #define CONFIG_BT_MESH_STORE_TIMEOUT        MYNEWT_VAL(BLE_MESH_STORE_TIMEOUT)
 #define CONFIG_BT_MESH_IVU_DIVIDER          MYNEWT_VAL(BLE_MESH_IVU_DIVIDER)
 #define CONFIG_BT_DEVICE_NAME               MYNEWT_VAL(BLE_MESH_DEVICE_NAME)
+#define CONFIG_BT_RX_SEG_MAX                MYNEWT_VAL(BLE_MESH_RX_SEG_MAX)
 #define CONFIG_BT_MESH_TX_SEG_MAX           MYNEWT_VAL(BLE_MESH_TX_SEG_MAX)
+#define CONFIG_BT_MESH_RX_SEG_MAX           MYNEWT_VAL(BLE_MESH_RX_SEG_MAX)
+#define CONFIG_BT_MESH_RX_SEG_MSG_COUNT     MYNEWT_VAL(BLE_MESH_RX_SEG_MSG_COUNT)
 #define CONFIG_BT_MESH_LABEL_COUNT          MYNEWT_VAL(BLE_MESH_LABEL_COUNT)
 #define CONFIG_BT_MESH_NODE_COUNT           MYNEWT_VAL(BLE_MESH_CDB_NODE_COUNT)
 #define CONFIG_BT_MESH_CDB                  BLE_MESH_CDB
@@ -514,6 +522,56 @@ settings_load(void)
 #endif /* MYNEWT_VAL(MYNEWT_VAL_BLE_MESH_SETTINGS) */
 
 #define BUILD_ASSERT(cond) _Static_assert(cond, "")
+
+
+/* Memory slabs/blocks */
+
+/** Memory slab structure */
+struct k_mem_slab {
+    /**
+     * _wait_q_t is not required now, as we don't implement zephyr timeouts -
+     * if slab couldn't be allocated, we simply return error  
+     */
+    uint32_t num_blocks; /** number of memory blocks available for allocation */
+    size_t block_size; /** size of single block */
+	/**
+     * buffer for blocks - must be alligned to N-byte, where N is a power of 2.
+     * Minimal size of buffer is num_blocks * block_size
+     */
+    char *buffer;
+	char *free_list; /** list of free memory blocks */
+	uint32_t num_used; /** count of used memory blocks */
+};
+
+struct k_mem_block_id {
+	uint32_t pool : 8;
+	uint32_t level : 4;
+	uint32_t block : 20;
+};
+
+struct k_mem_block {
+	void *data;
+	struct k_mem_block_id id;
+};
+
+extern void k_mem_slab_free(struct k_mem_slab *slab, void **mem);
+extern int k_mem_slab_alloc(struct k_mem_slab *slab, void **mem);
+static inline uint32_t k_mem_slab_num_free_get(struct k_mem_slab *slab)
+{
+	return slab->num_blocks - slab->num_used;
+}
+
+/** slab_align must be power of 2 */
+#define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
+    char _k_mem_slab_buf_##name[slab_num_blocks * slab_block_size]; \
+    struct k_mem_slab name = { \
+        slab_num_blocks, \
+        slab_block_size, \
+        _k_mem_slab_buf_##name, \
+        NULL, \
+        0 \
+    };
+
 
 #ifdef __cplusplus
 }

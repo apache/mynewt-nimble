@@ -190,7 +190,7 @@ static int send_friend_clear(void)
 	BT_DBG("");
 
 	return bt_mesh_ctl_send(&tx, TRANS_CTL_OP_FRIEND_CLEAR, &req,
-				sizeof(req), NULL, &clear_sent_cb, NULL);
+				sizeof(req), &clear_sent_cb, NULL);
 }
 
 static void clear_friendship(bool force, bool disable)
@@ -308,7 +308,7 @@ static int send_friend_req(struct bt_mesh_lpn *lpn)
 	BT_DBG("");
 
 	return bt_mesh_ctl_send(&tx, TRANS_CTL_OP_FRIEND_REQ, &req,
-				sizeof(req), NULL, &friend_req_sent_cb, NULL);
+				sizeof(req), &friend_req_sent_cb, NULL);
 }
 
 static void req_sent(u16_t duration, int err, void *user_data)
@@ -378,7 +378,7 @@ static int send_friend_poll(void)
 	}
 
 	err = bt_mesh_ctl_send(&tx, TRANS_CTL_OP_FRIEND_POLL, &fsn, 1,
-			       NULL, &req_sent_cb, NULL);
+			       		   &req_sent_cb, NULL);
 	if (err == 0) {
 		lpn->pending_poll = 0;
 		lpn->sent_req = TRANS_CTL_OP_FRIEND_POLL;
@@ -689,8 +689,8 @@ static bool sub_update(u8_t op)
 
 	req.xact = lpn->xact_next++;
 
-	if (bt_mesh_ctl_send(&tx, op, &req, 1 + g * 2, NULL,
-			     &req_sent_cb, NULL) < 0) {
+	if (bt_mesh_ctl_send(&tx, op, &req, 1 + g * 2, 
+						 &req_sent_cb, NULL) < 0) {
 		group_zero(lpn->pending);
 		return false;
 	}

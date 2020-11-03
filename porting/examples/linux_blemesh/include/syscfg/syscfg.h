@@ -1070,8 +1070,12 @@
 #define MYNEWT_VAL_BLE_MESH_RPL_STORE_TIMEOUT (5)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_MESH_RX_SDU_MAX
-#define MYNEWT_VAL_BLE_MESH_RX_SDU_MAX (72)
+#ifndef MYNEWT_VAL_BLE_MESH_SEG_BUFS
+#define MYNEWT_VAL_BLE_MESH_SEG_BUFS (72)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_RX_SEG_MAX
+#define MYNEWT_VAL_BLE_MESH_RX_SEG_MAX (3)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_RX_SEG_MSG_COUNT
@@ -1141,6 +1145,10 @@
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_TX_SEG_MAX
 #define MYNEWT_VAL_BLE_MESH_TX_SEG_MAX (6)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_RX_SEG_MSG_COUNT
+#define MYNEWT_VAL_BLE_MESH_RX_SEG_MSG_COUNT (3)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_TX_SEG_MSG_COUNT
