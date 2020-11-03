@@ -19,6 +19,8 @@
 #include "foundation.h"
 #include "proxy.h"
 #include "settings.h"
+#include "lpn.h"
+
 
 #include "config/config.h"
 
@@ -1127,6 +1129,15 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		}
 	}
 
+	if (!IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
+		return;
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(mod->groups); i++) {
+		if (mod->groups[i] != BT_MESH_ADDR_UNASSIGNED) {
+			bt_mesh_lpn_group_add(mod->groups[i]);
+		}
+	}
 }
 
 static int mesh_commit(void)

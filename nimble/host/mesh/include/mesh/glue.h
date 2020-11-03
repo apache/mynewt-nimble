@@ -397,20 +397,21 @@ static inline unsigned int find_msb_set(u32_t op)
     return 32 - __builtin_clz(op);
 }
 
-#define CONFIG_BT_MESH_FRIEND               BLE_MESH_FRIEND
-#define CONFIG_BT_MESH_GATT_PROXY           BLE_MESH_GATT_PROXY
-#define CONFIG_BT_MESH_IV_UPDATE_TEST       BLE_MESH_IV_UPDATE_TEST
-#define CONFIG_BT_MESH_LOW_POWER            BLE_MESH_LOW_POWER
-#define CONFIG_BT_MESH_LPN_AUTO             BLE_MESH_LPN_AUTO
-#define CONFIG_BT_MESH_LPN_ESTABLISHMENT    BLE_MESH_LPN_ESTABLISHMENT
-#define CONFIG_BT_MESH_PB_ADV               BLE_MESH_PB_ADV
-#define CONFIG_BT_MESH_PB_GATT              BLE_MESH_PB_GATT
-#define CONFIG_BT_MESH_PROV                 BLE_MESH_PROV
-#define CONFIG_BT_MESH_PROXY                BLE_MESH_PROXY
-#define CONFIG_BT_TESTING                   BLE_MESH_TESTING
-#define CONFIG_BT_SETTINGS                  BLE_MESH_SETTINGS
-#define CONFIG_SETTINGS                     BLE_MESH_SETTINGS
-#define CONFIG_BT_MESH_PROVISIONER          BLE_MESH_PROVISIONER
+#define CONFIG_BT_MESH_FRIEND                 BLE_MESH_FRIEND
+#define CONFIG_BT_MESH_GATT_PROXY             BLE_MESH_GATT_PROXY
+#define CONFIG_BT_MESH_IV_UPDATE_TEST         BLE_MESH_IV_UPDATE_TEST
+#define CONFIG_BT_MESH_LOW_POWER              BLE_MESH_LOW_POWER
+#define CONFIG_BT_MESH_LPN_SUB_ALL_NODES_ADDR BLE_MESH_LPN_SUB_ALL_NODES_ADDR
+#define CONFIG_BT_MESH_LPN_AUTO               BLE_MESH_LPN_AUTO
+#define CONFIG_BT_MESH_LPN_ESTABLISHMENT      BLE_MESH_LPN_ESTABLISHMENT
+#define CONFIG_BT_MESH_PB_ADV                 BLE_MESH_PB_ADV
+#define CONFIG_BT_MESH_PB_GATT                BLE_MESH_PB_GATT
+#define CONFIG_BT_MESH_PROV                   BLE_MESH_PROV
+#define CONFIG_BT_MESH_PROXY                  BLE_MESH_PROXY
+#define CONFIG_BT_TESTING                     BLE_MESH_TESTING
+#define CONFIG_BT_SETTINGS                    BLE_MESH_SETTINGS
+#define CONFIG_SETTINGS                       BLE_MESH_SETTINGS
+#define CONFIG_BT_MESH_PROVISIONER            BLE_MESH_PROVISIONER
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
