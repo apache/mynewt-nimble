@@ -615,6 +615,7 @@ static int bearer_ctl_send(u8_t op, const void *data, u8_t data_len,
 		send_reliable();
 	} else {
 		bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
+		net_buf_unref(buf);
 	}
 
 	return 0;
