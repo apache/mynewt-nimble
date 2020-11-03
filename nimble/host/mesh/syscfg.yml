@@ -29,6 +29,12 @@ syscfg.defs:
            the advertising bearer.
         value: 1
 
+    BLE_MESH_UNPROV_BEACON_INT:
+        description: >
+           This option specifies the interval (in seconds) at which the
+           device sends unprovisioned beacon.
+        value: 5
+
     BLE_MESH_PROVISIONER:
         description: >
             Enable this option to have support for provisioning remote devices.
@@ -356,6 +362,12 @@ syscfg.defs:
             Maximum number of groups that the LPN can subscribe to.
         value: 10
 
+    BLE_MESH_LPN_SUB_ALL_NODES_ADDR:
+        description: >
+            Automatically subscribe all nodes address when friendship
+            established.
+        value: 1
+
     BLE_MESH_FRIEND:
         description: >
             Enable this option to be able to act as a Friend Node.
@@ -377,12 +389,6 @@ syscfg.defs:
             Size of the Subscription List that can be supported by a
             Friend node for a Low Power node.
         value: 3
-
-    BLE_MESH_LPN_SUB_ALL_NODES_ADDR:
-        description: >
-            Automatically subscribe all nodes address when friendship
-            established.
-        value: 0
 
     BLE_MESH_FRIEND_LPN_COUNT:
         description: >
