@@ -1334,6 +1334,32 @@ struct shell_cmd_help cmd_net_key_add_help = {
 	NULL, "<NetKeyIndex> [val]", NULL
 };
 
+static int cmd_net_key_get(int argc, char *argv[])
+{
+	u16_t keys[16];
+	size_t cnt;
+	int err, i;
+
+	cnt = ARRAY_SIZE(keys);
+
+	err = bt_mesh_cfg_net_key_get(net.net_idx, net.dst, keys, &cnt);
+	if (err) {
+		printk("Unable to send NetKeyGet (err %d)", err);
+		return 0;
+	}
+
+	printk("NetKeys known by 0x%04x:", net.dst);
+	for (i = 0; i < cnt; i++) {
+		printk("\t0x%03x", keys[i]);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_net_key_get_help = {
+	NULL, NULL, NULL
+};
+
 static int cmd_app_key_add(int argc, char *argv[])
 {
 	u8_t key_val[16];
@@ -1403,6 +1429,44 @@ struct shell_cmd_help cmd_app_key_add_help = {
 	NULL, "<NetKeyIndex> <AppKeyIndex> [val]", NULL
 };
 
+static int cmd_app_key_get(int argc, char *argv[])
+{
+	u16_t net_idx;
+	u16_t keys[16];
+	size_t cnt;
+	u8_t status;
+	int err, i;
+
+	net_idx = strtoul(argv[1], NULL, 0);
+	cnt = ARRAY_SIZE(keys);
+
+	err = bt_mesh_cfg_app_key_get(net.net_idx, net.dst, net_idx, &status,
+				      keys, &cnt);
+	if (err) {
+		printk("Unable to send AppKeyGet (err %d)", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("AppKeyGet failed with status 0x%02x",
+			    status);
+		return 0;
+	}
+
+	printk(
+		    "AppKeys for NetKey 0x%03x known by 0x%04x:", net_idx,
+		    net.dst);
+	for (i = 0; i < cnt; i++) {
+		printk("\t0x%03x", keys[i]);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_app_key_get_help = {
+	NULL, "<NetKeyIndex>", NULL
+};
+
 static int cmd_mod_app_bind(int argc, char *argv[])
 {
 	u16_t elem_addr, mod_app_idx, mod_id, cid;
@@ -1443,6 +1507,59 @@ static int cmd_mod_app_bind(int argc, char *argv[])
 
 struct shell_cmd_help cmd_mod_app_bind_help = {
 	NULL, "<addr> <AppIndex> <Model ID> [Company ID]", NULL
+};
+
+static int cmd_mod_app_get(int argc,
+			      char *argv[])
+{
+	u16_t elem_addr, mod_id, cid;
+	u16_t apps[16];
+	u8_t status;
+	size_t cnt;
+	int err, i;
+
+	elem_addr = strtoul(argv[1], NULL, 0);
+	mod_id = strtoul(argv[2], NULL, 0);
+	cnt = ARRAY_SIZE(apps);
+
+	if (argc > 3) {
+		cid = strtoul(argv[3], NULL, 0);
+		err = bt_mesh_cfg_mod_app_get_vnd(net.net_idx, net.dst,
+						  elem_addr, mod_id, cid,
+						  &status, apps, &cnt);
+	} else {
+		err = bt_mesh_cfg_mod_app_get(net.net_idx, net.dst, elem_addr,
+					      mod_id, &status, apps, &cnt);
+	}
+
+	if (err) {
+		printk("Unable to send Model App Get (err %d)",
+			    err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Model App Get failed with status 0x%02x",
+			    status);
+	} else {
+		printk(
+			"Apps bound to Element 0x%04x, Model 0x%04x %s:",
+			elem_addr, mod_id, argc > 3 ? argv[3] : "(SIG)");
+
+		if (!cnt) {
+			printk("\tNone.");
+		}
+
+		for (i = 0; i < cnt; i++) {
+			printk("\t0x%04x", apps[i]);
+		}
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_mod_app_get_help = {
+	NULL, "<elem addr> <Model ID> [Company ID]", NULL
 };
 
 static int cmd_mod_sub_add(int argc, char *argv[])
@@ -1631,6 +1748,60 @@ static int cmd_mod_sub_del_va(int argc, char *argv[])
 
 struct shell_cmd_help cmd_mod_sub_del_va_help = {
 	NULL, "<elem addr> <Label UUID> <Model ID> [Company ID]", NULL
+};
+
+static int cmd_mod_sub_get(int argc,
+			      char *argv[])
+{
+	u16_t elem_addr, mod_id, cid;
+	u16_t subs[16];
+	u8_t status;
+	size_t cnt;
+	int err, i;
+
+	elem_addr = strtoul(argv[1], NULL, 0);
+	mod_id = strtoul(argv[2], NULL, 0);
+	cnt = ARRAY_SIZE(subs);
+
+	if (argc > 3) {
+		cid = strtoul(argv[3], NULL, 0);
+		err = bt_mesh_cfg_mod_sub_get_vnd(net.net_idx, net.dst,
+						  elem_addr, mod_id, cid,
+						  &status, subs, &cnt);
+	} else {
+		err = bt_mesh_cfg_mod_sub_get(net.net_idx, net.dst, elem_addr,
+					      mod_id, &status, subs, &cnt);
+	}
+
+	if (err) {
+		printk("Unable to send Model Subscription Get "
+			    "(err %d)", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("Model Subscription Get failed with "
+			    "status 0x%02x", status);
+	} else {
+		printk(
+			"Model Subscriptions for Element 0x%04x, "
+			"Model 0x%04x %s:",
+			elem_addr, mod_id, argc > 3 ? argv[3] : "(SIG)");
+
+		if (!cnt) {
+			printk("\tNone.");
+		}
+
+		for (i = 0; i < cnt; i++) {
+			printk("\t0x%04x", subs[i]);
+		}
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_mod_sub_get_help = {
+	NULL, "<elem addr> <Model ID> [Company ID]", NULL
 };
 
 static int mod_pub_get(u16_t addr, u16_t mod_id, u16_t cid)
@@ -3101,14 +3272,29 @@ static const struct shell_cmd mesh_commands[] = {
         .help = &cmd_net_key_add_help,
     },
     {
+        .sc_cmd = "net-key-get",
+        .sc_cmd_func = cmd_net_key_get,
+        .help = &cmd_net_key_get_help,
+    },
+    {
         .sc_cmd = "app-key-add",
         .sc_cmd_func = cmd_app_key_add,
         .help = &cmd_app_key_add_help,
     },
     {
+        .sc_cmd = "app-key-get",
+        .sc_cmd_func = cmd_app_key_get,
+        .help = &cmd_app_key_get_help,
+    },
+    {
         .sc_cmd = "mod-app-bind",
         .sc_cmd_func = cmd_mod_app_bind,
         .help = &cmd_mod_app_bind_help,
+    },
+    {
+        .sc_cmd = "mod-app-get",
+        .sc_cmd_func = cmd_mod_app_get,
+        .help = &cmd_mod_app_get_help,
     },
     {
         .sc_cmd = "mod-pub",
@@ -3129,6 +3315,11 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd = "mod-sub-add-va",
         .sc_cmd_func = cmd_mod_sub_add_va,
         .help = &cmd_mod_sub_add_va_help,
+    },
+    {
+        .sc_cmd = "mod-sub-get",
+        .sc_cmd_func = cmd_mod_sub_get,
+        .help = &cmd_mod_sub_get_help,
     },
     {
         .sc_cmd = "mod-sub-del-va",
