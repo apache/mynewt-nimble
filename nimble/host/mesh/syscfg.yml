@@ -258,6 +258,12 @@ syscfg.defs:
             4-byte MIC and 52 bytes using an 8-byte MIC.
         value: 3
 
+    BLE_MESH_LOOPBACK_BUFS:
+        description: >
+            The number of buffers allocated for the network loopback mechanism.
+            Loopback is used when the device sends messages to itself.
+        value: 3
+
     BLE_MESH_SEG_RETRANSMIT_ATTEMPTS:
         description: >
             Number of retransmit attempts (after the initial transmit) per segment
