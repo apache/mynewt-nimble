@@ -79,12 +79,23 @@ int bt_mesh_cfg_app_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
 int bt_mesh_cfg_app_key_get(u16_t net_idx, u16_t addr, u16_t key_net_idx,
 			    u8_t *status, u16_t *keys, size_t *key_cnt);
 
+int bt_mesh_cfg_app_key_del(uint16_t net_idx, uint16_t addr,
+		uint16_t key_net_idx, uint16_t key_app_idx, uint8_t *status);
+
 int bt_mesh_cfg_mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			     u16_t mod_app_idx, u16_t mod_id, u8_t *status);
+
+int bt_mesh_cfg_mod_app_unbind(uint16_t net_idx, uint16_t addr,
+	uint16_t elem_addr, uint16_t mod_app_idx,
+	uint16_t mod_id, uint8_t *status);
 
 int bt_mesh_cfg_mod_app_bind_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				 u16_t mod_app_idx, u16_t mod_id, u16_t cid,
 				 u8_t *status);
+
+int bt_mesh_cfg_mod_app_unbind_vnd(uint16_t net_idx, uint16_t addr,
+	uint16_t elem_addr, uint16_t mod_app_idx, uint16_t mod_id,
+	uint16_t cid, uint8_t *status);
 
 int bt_mesh_cfg_mod_app_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			    u16_t mod_id, u8_t *status, u16_t *apps,
