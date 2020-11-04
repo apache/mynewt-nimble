@@ -18,6 +18,7 @@
 #include "atomic.h"
 #include "adv.h"
 #include "net.h"
+#include "rpl.h"
 #include "beacon.h"
 #include "access.h"
 #include "foundation.h"

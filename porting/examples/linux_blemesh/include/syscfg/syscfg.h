@@ -1147,6 +1147,15 @@
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
+#ifndef MYNEWT_VAL_BLE_MESH_RPL_LOG_LVL
+#define MYNEWT_VAL_BLE_MESH_RPL_LOG_LVL (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_MESH_RPL_LOG_MOD
+#define MYNEWT_VAL_BLE_MESH_RPL_LOG_MOD (22)
+#endif
+
+/* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_TX_SEG_MAX
 #define MYNEWT_VAL_BLE_MESH_TX_SEG_MAX (6)
 #endif

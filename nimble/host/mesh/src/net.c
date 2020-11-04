@@ -20,6 +20,7 @@
 #include "adv.h"
 #include "mesh_priv.h"
 #include "net.h"
+#include "rpl.h"
 #include "lpn.h"
 #include "friend.h"
 #include "proxy.h"
@@ -554,26 +555,6 @@ bool bt_mesh_kr_update(struct bt_mesh_subnet *sub, u8_t new_kr, bool new_key)
 	return false;
 }
 
-void bt_mesh_rpl_reset(void)
-{
-	int i;
-
-	/* Discard "old old" IV Index entries from RPL and flag
-	 * any other ones (which are valid) as old.
-	 */
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-
-		if (rpl->src) {
-			if (rpl->old_iv) {
-				memset(rpl, 0, sizeof(*rpl));
-			} else {
-				rpl->old_iv = true;
-			}
-		}
-	}
-}
-
 #if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
 void bt_mesh_iv_update_test(bool enable)
 {
@@ -651,7 +632,7 @@ bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update)
 
 		if (iv_index > bt_mesh.iv_index + 1) {
 			BT_WARN("Performing IV Index Recovery");
-			memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
+			bt_mesh_rpl_clear();
 			bt_mesh.iv_index = iv_index;
 			bt_mesh.seq = 0;
 			goto do_update;

@@ -101,8 +101,6 @@ int bt_mesh_trans_recv(struct os_mbuf *buf, struct bt_mesh_net_rx *rx);
 
 void bt_mesh_trans_init(void);
 
-void bt_mesh_rpl_clear(void);
-
 int bt_mesh_heartbeat_send(const struct bt_mesh_send_cb *cb, void *cb_data);
 
 int bt_mesh_app_key_get(const struct bt_mesh_subnet *subnet, u16_t app_idx,

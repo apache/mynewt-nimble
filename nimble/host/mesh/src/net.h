@@ -82,15 +82,6 @@ struct bt_mesh_subnet {
 	} keys[2];
 };
 
-struct bt_mesh_rpl {
-	u16_t src;
-	bool  old_iv;
-#if (MYNEWT_VAL(BLE_MESH_SETTINGS))
-	bool  store;
-#endif
-	u32_t seq;
-};
-
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 #define FRIEND_SEG_RX MYNEWT_VAL(BLE_MESH_FRIEND_SEG_RX)
 #define FRIEND_SUB_LIST_SIZE MYNEWT_VAL(BLE_MESH_FRIEND_SUB_LIST_SIZE)
@@ -265,8 +256,6 @@ struct bt_mesh_net {
 	struct bt_mesh_app_key app_keys[MYNEWT_VAL(BLE_MESH_APP_KEY_COUNT)];
 
 	struct bt_mesh_subnet sub[MYNEWT_VAL(BLE_MESH_SUBNET_COUNT)];
-
-	struct bt_mesh_rpl rpl[MYNEWT_VAL(BLE_MESH_CRPL)];
 };
 
 /* Network interface */
@@ -330,8 +319,6 @@ bool bt_mesh_kr_update(struct bt_mesh_subnet *sub, u8_t new_kr, bool new_key);
 void bt_mesh_net_revoke_keys(struct bt_mesh_subnet *sub);
 
 int bt_mesh_net_beacon_update(struct bt_mesh_subnet *sub);
-
-void bt_mesh_rpl_reset(void);
 
 bool bt_mesh_net_iv_update(u32_t iv_index, bool iv_update);
 
