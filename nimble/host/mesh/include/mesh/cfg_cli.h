@@ -69,6 +69,9 @@ int bt_mesh_cfg_net_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
 int bt_mesh_cfg_net_key_get(u16_t net_idx, u16_t addr, u16_t *keys,
 			    size_t *key_cnt);
 
+int bt_mesh_cfg_net_key_del(uint16_t net_idx, uint16_t addr,
+			    uint16_t key_net_idx, uint8_t *status);
+
 int bt_mesh_cfg_app_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
 			    u16_t key_app_idx, const u8_t app_key[16],
 			    u8_t *status);

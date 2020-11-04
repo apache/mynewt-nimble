@@ -1360,6 +1360,35 @@ struct shell_cmd_help cmd_net_key_get_help = {
 	NULL, NULL, NULL
 };
 
+static int cmd_net_key_del(size_t argc, char *argv[])
+{
+	uint16_t key_net_idx;
+	uint8_t status;
+	int err;
+
+	key_net_idx = strtoul(argv[1], NULL, 0);
+
+	err = bt_mesh_cfg_net_key_del(net.net_idx, net.dst, key_net_idx,
+				      &status);
+	if (err) {
+		printk("Unable to send NetKeyDel (err %d)", err);
+		return 0;
+	}
+
+	if (status) {
+		printk("NetKeyDel failed with status 0x%02x",
+			    status);
+	} else {
+		printk("NetKey 0x%03x deleted", key_net_idx);
+	}
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_net_key_del_help = {
+	NULL, "<NetKeyIndex>", NULL
+};
+
 static int cmd_app_key_add(int argc, char *argv[])
 {
 	u8_t key_val[16];
@@ -3275,6 +3304,11 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd = "net-key-get",
         .sc_cmd_func = cmd_net_key_get,
         .help = &cmd_net_key_get_help,
+    },
+    {
+        .sc_cmd = "net-key-del",
+        .sc_cmd_func = cmd_net_key_del,
+        .help = &cmdcmd_net_key_del_help,
     },
     {
         .sc_cmd = "app-key-add",
