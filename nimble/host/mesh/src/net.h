@@ -312,6 +312,11 @@ extern struct bt_mesh_net bt_mesh;
 
 #define BT_MESH_NET_HDR_LEN 9
 
+static inline void *net_buf_user_data(const struct os_mbuf *buf)
+{
+	return (void *)buf->om_data;
+}
+
 int bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys,
 			    const u8_t key[16]);
 
@@ -349,6 +354,8 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 
 void bt_mesh_net_recv(struct os_mbuf *data, s8_t rssi,
 		      enum bt_mesh_net_if net_if);
+
+void bt_mesh_net_loopback_clear(uint16_t net_idx);
 
 u32_t bt_mesh_next_seq(void);
 

@@ -29,6 +29,8 @@
 #include "beacon.h"
 #include "settings.h"
 #include "prov.h"
+#include "mesh/glue.h"
+#include "mesh/slist.h"
 
 /* Minimum valid Mesh Network PDU length. The Network headers
  * themselves take up 9 bytes. After that there is a minumum of 1 byte
@@ -37,6 +39,10 @@
  * a 32-bit (4 byte) NetMIC and AppMIC giving again a total of 8 bytes.
  */
 #define BT_MESH_NET_MIN_PDU_LEN (BT_MESH_NET_HDR_LEN + 1 + 8)
+
+#define LOOPBACK_MAX_PDU_LEN (BT_MESH_NET_HDR_LEN + 16)
+#define LOOPBACK_USER_DATA_SIZE sizeof(struct bt_mesh_subnet *)
+#define LOOPBACK_BUF_SUB(buf) (*(struct bt_mesh_subnet **)net_buf_user_data(buf))
 
 /* Seq limit after IV Update is triggered */
 #define IV_UPDATE_SEQ_LIMIT 8000000
@@ -81,6 +87,9 @@ struct bt_mesh_net bt_mesh = {
 	},
 };
 
+static struct os_mempool loopback_buf_pool_mem;
+static struct os_mbuf_pool loopback_buf_pool;
+
 static u32_t dup_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static int   dup_cache_next;
 
@@ -104,8 +113,7 @@ static bool check_dup(struct os_mbuf *data)
 	return false;
 }
 
-static bool msg_cache_match(struct bt_mesh_net_rx *rx,
-			    struct os_mbuf *pdu)
+static bool msg_cache_match(struct os_mbuf *pdu)
 {
 	u16_t i;
 
@@ -729,19 +737,63 @@ static void bt_mesh_net_local(struct ble_npl_event *work)
 	struct os_mbuf *buf;
 
 	while ((buf = net_buf_slist_get(&bt_mesh.local_queue))) {
-		BT_DBG("len %u: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
-		bt_mesh_net_recv(buf, 0, BT_MESH_NET_IF_LOCAL);
+		struct bt_mesh_subnet *sub = LOOPBACK_BUF_SUB(buf);
+		struct bt_mesh_net_rx rx = {
+			.ctx = {
+				.net_idx = sub->net_idx,
+				/* Initialize AppIdx to a sane value */
+				.app_idx = BT_MESH_KEY_UNUSED,
+				.recv_ttl = TTL(buf->om_data),
+				/* TTL=1 only goes to local IF */
+				.send_ttl = 1U,
+				.addr = SRC(buf->om_data),
+				.recv_dst = DST(buf->om_data),
+				.recv_rssi = 0,
+			},
+			.net_if = BT_MESH_NET_IF_LOCAL,
+			.sub = sub,
+			.old_iv = (IVI(buf->om_data) != (bt_mesh.iv_index & 0x01)),
+			.ctl = CTL(buf->om_data),
+			.seq = SEQ(buf->om_data),
+			.new_key = sub->kr_flag,
+			.local_match = 1U,
+			.friend_match = 0U,
+		};
+
+		BT_DBG("src: 0x%04x dst: 0x%04x seq 0x%06x sub %p", rx.ctx.addr,
+		       rx.ctx.addr, rx.seq, sub);
+
+		(void) bt_mesh_trans_recv(buf, &rx);
 		net_buf_unref(buf);
 	}
 }
 
-int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
-		       bool proxy)
+static void net_tx_cred_get(struct bt_mesh_net_tx *tx, uint8_t *nid,
+			    const uint8_t **enc, const uint8_t **priv)
+{
+	if (!IS_ENABLED(CONFIG_BT_MESH_LOW_POWER) || !tx->friend_cred) {
+		tx->friend_cred = 0U;
+		*nid = tx->sub->keys[tx->sub->kr_flag].nid;
+		*enc = tx->sub->keys[tx->sub->kr_flag].enc;
+		*priv = tx->sub->keys[tx->sub->kr_flag].privacy;
+		return;
+	}
+
+	if (friend_cred_get(tx->sub, BT_MESH_ADDR_UNASSIGNED, nid, enc, priv)) {
+		BT_WARN("Falling back to master credentials");
+
+		tx->friend_cred = 0U;
+
+		*nid = tx->sub->keys[tx->sub->kr_flag].nid;
+		*enc = tx->sub->keys[tx->sub->kr_flag].enc;
+		*priv = tx->sub->keys[tx->sub->kr_flag].privacy;
+	}
+}
+
+static int net_header_encode(struct bt_mesh_net_tx *tx, uint8_t nid,
+			     struct os_mbuf *buf)
 {
 	const bool ctl = (tx->ctx->app_idx == BT_MESH_KEY_UNUSED);
-	u8_t nid;
-	const u8_t *enc, *priv;
-	int err;
 
 	if (ctl && net_buf_simple_tailroom(buf) < 8) {
 		BT_ERR("Insufficient MIC space for CTL PDU");
@@ -765,25 +817,24 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		net_buf_simple_push_u8(buf, tx->ctx->send_ttl);
 	}
 
-	if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER) && tx->friend_cred) {
-		if (friend_cred_get(tx->sub, BT_MESH_ADDR_UNASSIGNED,
-				    &nid, &enc, &priv)) {
-			BT_WARN("Falling back to master credentials");
-
-			tx->friend_cred = 0;
-
-			nid = tx->sub->keys[tx->sub->kr_flag].nid;
-			enc = tx->sub->keys[tx->sub->kr_flag].enc;
-			priv = tx->sub->keys[tx->sub->kr_flag].privacy;
-		}
-	} else {
-		tx->friend_cred = 0;
-		nid = tx->sub->keys[tx->sub->kr_flag].nid;
-		enc = tx->sub->keys[tx->sub->kr_flag].enc;
-		priv = tx->sub->keys[tx->sub->kr_flag].privacy;
-	}
-
 	net_buf_simple_push_u8(buf, (nid | (BT_MESH_NET_IVI_TX & 1) << 7));
+
+	return 0;
+}
+
+int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
+		       bool proxy)
+{
+	const uint8_t *enc, *priv;
+	uint8_t nid;
+	int err;
+
+	net_tx_cred_get(tx, &nid, &enc, &priv);
+
+	err = net_header_encode(tx, nid, buf);
+	if (err) {
+		return err;
+	}
 
 	err = bt_mesh_net_encrypt(enc, buf, BT_MESH_NET_IVI_TX, proxy);
 	if (err) {
@@ -793,9 +844,35 @@ int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	return bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_TX, priv);
 }
 
+static int loopback(const struct bt_mesh_net_tx *tx, const uint8_t *data,
+		    size_t len)
+{
+	struct os_mbuf *buf;
+
+	buf = os_mbuf_get(&loopback_buf_pool, 0);
+	if (!buf) {
+		BT_WARN("Unable to allocate loopback");
+		return -ENOMEM;
+	}
+
+	BT_DBG("");
+
+	LOOPBACK_BUF_SUB(buf) = tx->sub;
+
+	net_buf_add_mem(buf, data, len);
+
+	net_buf_slist_put(&bt_mesh.local_queue, buf);
+
+	k_work_submit(&bt_mesh.local_work);
+
+	return 0;
+}
+
 int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
+	const uint8_t *enc, *priv;
+	uint8_t nid;
 	int err;
 
 	BT_DBG("src 0x%04x dst 0x%04x len %u headroom %zu tailroom %zu",
@@ -808,7 +885,8 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		tx->ctx->send_ttl = bt_mesh_default_ttl_get();
 	}
 
-	err = bt_mesh_net_encode(tx, buf, false);
+	net_tx_cred_get(tx, &nid, &enc, &priv);
+	err = net_header_encode(tx, nid, buf);
 	if (err) {
 		goto done;
 	}
@@ -816,47 +894,80 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	BT_DBG("encoded %u bytes: %s", buf->om_len,
 		   bt_hex(buf->om_data, buf->om_len));
 
-	/* Deliver to GATT Proxy Clients if necessary. Mesh spec 3.4.5.2:
-	 * "The output filter of the interface connected to advertising or
-	 * GATT bearers shall drop all messages with TTL value set to 1."
-	 */
-	if (MYNEWT_VAL(BLE_MESH_GATT_PROXY) &&
-	    tx->ctx->send_ttl != 1) {
-		if (bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
-		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
-			/* Notify completion if this only went
-			 * through the Mesh Proxy.
-			 */
-			send_cb_finalize(cb, cb_data);
-
-			err = 0;
-			goto done;
-		}
-	}
-
 	/* Deliver to local network interface if necessary */
 	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
 	    bt_mesh_elem_find(tx->ctx->addr)) {
-		if (cb && cb->start) {
-			cb->start(0, 0, cb_data);
+		err = loopback(tx, buf->om_data, buf->om_len);
+
+		/* Local unicast messages should not go out to network */
+		if (BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr) ||
+		    tx->ctx->send_ttl == 1U) {
+			if (!err) {
+				send_cb_finalize(cb, cb_data);
+			}
+
+			goto done;
 		}
-		net_buf_slist_put(&bt_mesh.local_queue, net_buf_ref(buf));
-		if (cb && cb->end) {
-			cb->end(0, cb_data);
-		}
-		k_work_submit(&bt_mesh.local_work);
-	} else if (tx->ctx->send_ttl != 1) {
-		/* Deliver to to the advertising network interface. Mesh spec
-		 * 3.4.5.2: "The output filter of the interface connected to
-		 * advertising or GATT bearers shall drop all messages with
-		 * TTL value set to 1."
-		 */
-		bt_mesh_adv_send(buf, cb, cb_data);
+	/* Mesh spec 3.4.5.2: "The output filter of the interface connected to
+	 * advertising or GATT bearers shall drop all messages with TTL value
+	 * set to 1." If a TTL=1 packet wasn't for a local interface, it is
+	 * invalid.
+	 */
+	if (tx->ctx->send_ttl == 1U) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	err = bt_mesh_net_encrypt(enc, buf, BT_MESH_NET_IVI_TX, false);
+	if (err) {
+		goto done;
+	}
+
+	err = bt_mesh_net_obfuscate(buf->om_data, BT_MESH_NET_IVI_TX, priv);
+	if (err) {
+		goto done;
+	}
+
+	/* Deliver to GATT Proxy Clients if necessary. */
+	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
+	    bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
+	    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
+		/* Notify completion if this only went through the Mesh Proxy */
+		send_cb_finalize(cb, cb_data);
+
+		err = 0;
+		goto done;
+	}
+
+	bt_mesh_adv_send(buf, cb, cb_data);
 	}
 
 done:
 	net_buf_unref(buf);
 	return err;
+}
+
+void bt_mesh_net_loopback_clear(uint16_t net_idx)
+{
+	struct net_buf_slist_t new_list;
+	struct os_mbuf *buf;
+
+	BT_DBG("0x%04x", net_idx);
+
+	net_buf_slist_init(&new_list);
+
+	while ((buf = net_buf_slist_get(&bt_mesh.local_queue))) {
+		struct bt_mesh_subnet *sub = LOOPBACK_BUF_SUB(buf);
+
+		if (net_idx == BT_MESH_KEY_ANY || net_idx == sub->net_idx) {
+			BT_DBG("Dropped 0x%06x", SEQ(buf->om_data));
+			net_buf_unref(buf);
+		} else {
+			net_buf_slist_put(&new_list, buf);
+		}
+	}
+
+	bt_mesh.local_queue = new_list;
 }
 
 static bool auth_match(struct bt_mesh_subnet_keys *keys,
@@ -936,7 +1047,12 @@ static int net_decrypt(struct bt_mesh_subnet *sub, const u8_t *enc,
 		return -EINVAL;
 	}
 
-	if (rx->net_if == BT_MESH_NET_IF_ADV && msg_cache_match(rx, buf)) {
+	if (bt_mesh_elem_find(rx->ctx.addr)) {
+		BT_DBG("Dropping locally originated packet");
+		return -EBADMSG;
+	}
+
+	if (rx->net_if == BT_MESH_NET_IF_ADV && msg_cache_match(buf)) {
 		BT_DBG("Duplicate found in Network Message Cache");
 		return -EALREADY;
 	}
@@ -1045,8 +1161,6 @@ static bool net_find_and_decrypt(const u8_t *data, size_t data_len,
 static bool relay_to_adv(enum bt_mesh_net_if net_if)
 {
 	switch (net_if) {
-	case BT_MESH_NET_IF_LOCAL:
-		return true;
 	case BT_MESH_NET_IF_ADV:
 		return (bt_mesh_relay_get() == BT_MESH_RELAY_ENABLED);
 	case BT_MESH_NET_IF_PROXY:
@@ -1063,20 +1177,8 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	struct os_mbuf *buf;
 	u8_t nid, transmit;
 
-	if (rx->net_if == BT_MESH_NET_IF_LOCAL) {
-		/* Locally originated PDUs with TTL=1 will only be delivered
-		 * to local elements as per Mesh Profile 1.0 section 3.4.5.2:
-		 * "The output filter of the interface connected to
-		 * advertising or GATT bearers shall drop all messages with
-		 * TTL value set to 1."
-		 */
-		if (rx->ctx.recv_ttl == 1) {
-			return;
-		}
-	} else {
-		if (rx->ctx.recv_ttl <= 1) {
-			return;
-		}
+	if (rx->ctx.recv_ttl <= 1U) {
+		return;
 	}
 
 	if (rx->net_if == BT_MESH_NET_IF_ADV &&
@@ -1104,12 +1206,9 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 		return;
 	}
 
-	/* Only decrement TTL for non-locally originated packets */
-	if (rx->net_if != BT_MESH_NET_IF_LOCAL) {
-		/* Leave CTL bit intact */
-		sbuf->om_data[1] &= 0x80;
-		sbuf->om_data[1] |= rx->ctx.recv_ttl - 1;
-	}
+	/* Leave CTL bit intact */
+	sbuf->om_data[1] &= 0x80;
+	sbuf->om_data[1] |= rx->ctx.recv_ttl - 1U;
 
 	net_buf_add_mem(buf, sbuf->om_data, sbuf->om_len);
 
@@ -1143,11 +1242,10 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	       bt_hex(buf->om_data, buf->om_len));
 
 	/* Sending to the GATT bearer should only happen if GATT Proxy
-	 * is enabled or the message originates from the local node.
+	 * is enabled.
 	 */
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
-	    (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED ||
-	     rx->net_if == BT_MESH_NET_IF_LOCAL)) {
+	    bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
 		if (bt_mesh_proxy_relay(buf, rx->ctx.recv_dst) &&
 		    BT_MESH_ADDR_IS_UNICAST(rx->ctx.recv_dst)) {
 			goto done;
@@ -1219,11 +1317,6 @@ int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
 	if (net_if != BT_MESH_NET_IF_PROXY_CFG &&
 	    rx->ctx.recv_dst == BT_MESH_ADDR_UNASSIGNED) {
 		BT_ERR("Destination address is unassigned; dropping packet");
-		return -EBADMSG;
-	}
-
-	if (net_if != BT_MESH_NET_IF_LOCAL && bt_mesh_elem_find(rx->ctx.addr)) {
-		BT_DBG("Dropping locally originated packet");
 		return -EBADMSG;
 	}
 
@@ -1362,4 +1455,10 @@ void bt_mesh_net_init(void)
 
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 	net_buf_slist_init(&bt_mesh.local_queue);
+
+	os_mbuf_pool_init(&loopback_buf_pool,
+					  &loopback_buf_pool_mem,
+					  (LOOPBACK_MAX_PDU_LEN + LOOPBACK_USER_DATA_SIZE),
+					  MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS));
+
 }

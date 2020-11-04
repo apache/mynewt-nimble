@@ -1163,6 +1163,10 @@
 #define MYNEWT_VAL_BLE_MESH_TX_SEG_MSG_COUNT (4)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_MESH_LOOPBACK_BUFS
+#define MYNEWT_VAL_BLE_MESH_LOOPBACK_BUFS (3)
+#endif
+
 /*** @apache-mynewt-nimble/nimble/host/services/ans */
 #ifndef MYNEWT_VAL_BLE_SVC_ANS_NEW_ALERT_CAT
 #define MYNEWT_VAL_BLE_SVC_ANS_NEW_ALERT_CAT (0)
