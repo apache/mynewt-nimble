@@ -10,6 +10,7 @@
 
 #include "mesh/mesh.h"
 #include "net.h"
+#include "rpl.h"
 #include "settings.h"
 #include "mesh_priv.h"
 #include "mesh/glue.h"

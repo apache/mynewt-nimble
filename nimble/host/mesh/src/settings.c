@@ -13,6 +13,7 @@
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
 #include "net.h"
+#include "rpl.h"
 #include "crypto.h"
 #include "transport.h"
 #include "access.h"
@@ -297,33 +298,6 @@ static int seq_set(int argc, char **argv, char *val)
 	return 0;
 }
 
-static struct bt_mesh_rpl *rpl_find(u16_t src)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		if (bt_mesh.rpl[i].src == src) {
-			return &bt_mesh.rpl[i];
-		}
-	}
-
-	return NULL;
-}
-
-static struct bt_mesh_rpl *rpl_alloc(u16_t src)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		if (!bt_mesh.rpl[i].src) {
-			bt_mesh.rpl[i].src = src;
-			return &bt_mesh.rpl[i];
-		}
-	}
-
-	return NULL;
-}
-
 static int rpl_set(int argc, char **argv, char *val)
 {
 	struct bt_mesh_rpl *entry;
@@ -339,7 +313,7 @@ static int rpl_set(int argc, char **argv, char *val)
 	BT_DBG("argv[0] %s val %s", argv[0], val ? val : "(null)");
 
 	src = strtol(argv[0], NULL, 16);
-	entry = rpl_find(src);
+	entry = bt_mesh_rpl_find(src);
 
 	if (!val) {
 		if (entry) {
@@ -352,7 +326,7 @@ static int rpl_set(int argc, char **argv, char *val)
 	}
 
 	if (!entry) {
-		entry = rpl_alloc(src);
+		entry = bt_mesh_rpl_alloc(src);
 		if (!entry) {
 			BT_ERR("Unable to allocate RPL entry for 0x%04x", src);
 			return -ENOMEM;
@@ -1399,45 +1373,33 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 	}
 }
 
-static void clear_rpl(void)
+static void clear_rpl(struct bt_mesh_rpl *rpl, void *user_data)
 {
-	int i, err;
+	int err;
+	char path[18];
 
-	BT_DBG("");
-
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-		char path[18];
-
-		if (!rpl->src) {
-			continue;
-		}
-
-		snprintk(path, sizeof(path), "bt_mesh/RPL/%x", rpl->src);
-		err = settings_save_one(path, NULL);
-		if (err) {
-			BT_ERR("Failed to clear RPL");
-		} else {
-			BT_DBG("Cleared RPL");
-		}
-
-		memset(rpl, 0, sizeof(*rpl));
+	if (!rpl->src) {
+		return;
 	}
+
+	snprintk(path, sizeof(path), "bt/mesh/RPL/%x", rpl->src);
+	err = settings_save_one(path, NULL);
+	if (err) {
+		BT_ERR("Failed to clear RPL");
+	} else {
+		BT_DBG("Cleared RPL");
+	}
+
+	(void)memset(rpl, 0, sizeof(*rpl));
 }
 
-static void store_pending_rpl(void)
+static void store_pending_rpl(struct bt_mesh_rpl *rpl, void *user_data)
 {
-	int i;
-
 	BT_DBG("");
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-
-		if (rpl->store) {
-			rpl->store = false;
-			store_rpl(rpl);
-		}
+	if (rpl->store) {
+		rpl->store = false;
+		store_rpl(rpl);
 	}
 }
 
@@ -2143,9 +2105,9 @@ static void store_pending(struct ble_npl_event *work)
 
 	if (atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_RPL_PENDING)) {
 		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-			store_pending_rpl();
+			bt_mesh_rpl_foreach(store_pending_rpl, NULL);
 		} else {
-			clear_rpl();
+			bt_mesh_rpl_foreach(clear_rpl, NULL);
 		}
 	}
 

@@ -19,6 +19,7 @@
 #include "mesh_priv.h"
 #include "adv.h"
 #include "net.h"
+#include "rpl.h"
 #include "prov.h"
 #include "beacon.h"
 #include "foundation.h"

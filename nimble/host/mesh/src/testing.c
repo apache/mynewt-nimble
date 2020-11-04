@@ -13,6 +13,7 @@
 #include "mesh/access.h"
 
 #include "net.h"
+#include "rpl.h"
 #include "testing.h"
 #include "access.h"
 #include "foundation.h"

@@ -18,6 +18,7 @@
 #include "mesh_priv.h"
 #include "adv.h"
 #include "net.h"
+#include "rpl.h"
 #include "lpn.h"
 #include "transport.h"
 #include "crypto.h"

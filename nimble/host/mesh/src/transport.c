@@ -19,6 +19,7 @@
 #include "crypto.h"
 #include "adv.h"
 #include "net.h"
+#include "rpl.h"
 #include "lpn.h"
 #include "friend.h"
 #include "access.h"
@@ -676,75 +677,6 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 	return err;
 }
 
-static void update_rpl(struct bt_mesh_rpl *rpl, struct bt_mesh_net_rx *rx)
-{
-	rpl->src = rx->ctx.addr;
-	rpl->seq = rx->seq;
-	rpl->old_iv = rx->old_iv;
-
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_rpl(rpl);
-	}
-}
-
-/* Check the Replay Protection List for a replay attempt. If non-NULL match
- * parameter is given the RPL slot is returned but it is not immediately
- * updated (needed for segmented messages), whereas if a NULL match is given
- * the RPL is immediately updated (used for unsegmented messages).
- */
-static bool is_replay(struct bt_mesh_net_rx *rx, struct bt_mesh_rpl **match)
-{
-	int i;
-
-	/* Don't bother checking messages from ourselves */
-	if (rx->net_if == BT_MESH_NET_IF_LOCAL) {
-		return false;
-	}
-
-	/* The RPL is used only for the local node */
-	if (!rx->local_match) {
-		return false;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
-		struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-
-		/* Empty slot */
-		if (!rpl->src) {
-			if (match) {
-				*match = rpl;
-			} else {
-				update_rpl(rpl, rx);
-			}
-
-			return false;
-		}
-
-		/* Existing slot for given address */
-		if (rpl->src == rx->ctx.addr) {
-			if (rx->old_iv && !rpl->old_iv) {
-				return true;
-			}
-
-			if ((!rx->old_iv && rpl->old_iv) ||
-			    rpl->seq < rx->seq) {
-				if (match) {
-					*match = rpl;
-				} else {
-					update_rpl(rpl, rx);
-				}
-
-				return false;
-			} else {
-				return true;
-			}
-		}
-	}
-
-	BT_ERR("RPL is full!");
-	return true;
-}
-
 static void seg_rx_assemble(struct seg_rx *rx, struct os_mbuf *buf,
 			    u8_t aszmic)
 {
@@ -1228,7 +1160,7 @@ static int trans_unseg(struct os_mbuf *buf, struct bt_mesh_net_rx *rx,
 		return -EINVAL;
 	}
 
-	if (is_replay(rx, NULL)) {
+	if (bt_mesh_rpl_check(rx, NULL)) {
 		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
 			rx->ctx.addr, rx->ctx.recv_dst, (unsigned) rx->seq);
 		return -EINVAL;
@@ -1520,7 +1452,7 @@ static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
 		return -EINVAL;
 	}
 
-	if (is_replay(net_rx, &rpl)) {
+	if (bt_mesh_rpl_check(net_rx, &rpl)) {
 		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
 			net_rx->ctx.addr, net_rx->ctx.recv_dst, net_rx->seq);
 		return -EINVAL;
@@ -1591,7 +1523,7 @@ static int trans_seg(struct os_mbuf *buf, struct bt_mesh_net_rx *net_rx,
 				 seq_auth, rx->block, rx->obo);
 
 			if (rpl) {
-				update_rpl(rpl, net_rx);
+				bt_mesh_rpl_update(rpl, net_rx);
 			}
 
 			return -EALREADY;
@@ -1704,7 +1636,7 @@ found_rx:
 	BT_DBG("Complete SDU");
 
 	if (rpl) {
-		update_rpl(rpl, net_rx);
+		bt_mesh_rpl_update(rpl, net_rx);
 	}
 
 	*pdu_type = BT_MESH_FRIEND_PDU_COMPLETE;
@@ -1827,11 +1759,7 @@ void bt_mesh_rx_reset(void)
 		seg_rx_reset(&seg_rx[i], true);
 	}
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_clear_rpl();
-	} else {
-		memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
-	}
+	bt_mesh_rpl_clear();
 }
 
 void bt_mesh_tx_reset(void)
@@ -1861,12 +1789,6 @@ void bt_mesh_trans_init(void)
 		k_delayed_work_init(&seg_rx[i].ack, seg_ack);
 		k_delayed_work_add_arg(&seg_rx[i].ack, &seg_rx[i]);
 	}
-}
-
-void bt_mesh_rpl_clear(void)
-{
-	BT_DBG("");
-	memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
 }
 
 int bt_mesh_heartbeat_send(const struct bt_mesh_send_cb *cb, void *cb_data)
