@@ -2918,6 +2918,11 @@ static void krp_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
 	    phase == BT_MESH_KR_PHASE_2) {
 		sub->kr_phase = BT_MESH_KR_PHASE_2;
 		sub->kr_flag = 1;
+		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+		    BT_DBG("Storing krp phase persistently");
+		    bt_mesh_store_subnet(sub);
+		}
+
 		bt_mesh_net_beacon_update(sub);
 	} else if ((sub->kr_phase == BT_MESH_KR_PHASE_1 ||
 		    sub->kr_phase == BT_MESH_KR_PHASE_2) &&
