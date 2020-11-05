@@ -39,7 +39,6 @@ static void reset_state(void)
 	link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 	k_delayed_work_cancel(&link.prot_timer);
-	memset(&link, 0, offsetof(struct prov_link, prot_timer));
 
 	link.rx.buf = bt_mesh_proxy_get_buf();
 }
