@@ -27,7 +27,7 @@ enum font_size {
 };
 
 struct font_info {
-	u8_t columns;
+	uint8_t columns;
 } fonts[] = {
 	[FONT_BIG] =    { .columns = 12 },
 	[FONT_MEDIUM] = { .columns = 16 },
@@ -66,7 +66,7 @@ struct k_delayed_work led_timer;
 static size_t print_line(enum font_size font_size, int row, const char *text,
 			 size_t len, bool center)
 {
-	u8_t font_height, font_width;
+	uint8_t font_height, font_width;
 	char line[fonts[FONT_SMALL].columns + 1];
 	int pad;
 
@@ -124,7 +124,7 @@ void board_blink_leds(void)
 	k_delayed_work_submit(&led_timer, K_MSEC(100));
 }
 
-void board_show_text(const char *text, bool center, s32_t duration)
+void board_show_text(const char *text, bool center, int32_t duration)
 {
 	int i;
 
@@ -156,12 +156,12 @@ void board_show_text(const char *text, bool center, s32_t duration)
 }
 
 static struct stat {
-	u16_t addr;
+	uint16_t addr;
 	char name[9];
-	u8_t min_hops;
-	u8_t max_hops;
-	u16_t hello_count;
-	u16_t heartbeat_count;
+	uint8_t min_hops;
+	uint8_t max_hops;
+	uint16_t hello_count;
+	uint16_t heartbeat_count;
 } stats[STAT_COUNT] = {
 	[0 ... (STAT_COUNT - 1)] = {
 		.min_hops = BT_MESH_TTL_MAX,
@@ -169,11 +169,11 @@ static struct stat {
 	},
 };
 
-static u32_t stat_count;
+static uint32_t stat_count;
 
 #define NO_UPDATE -1
 
-static int add_hello(u16_t addr, const char *name)
+static int add_hello(uint16_t addr, const char *name)
 {
 	int i;
 
@@ -204,7 +204,7 @@ static int add_hello(u16_t addr, const char *name)
 	return NO_UPDATE;
 }
 
-static int add_heartbeat(u16_t addr, u8_t hops)
+static int add_heartbeat(uint16_t addr, uint8_t hops)
 {
 	int i;
 
@@ -239,18 +239,18 @@ static int add_heartbeat(u16_t addr, u8_t hops)
 	return NO_UPDATE;
 }
 
-void board_add_hello(u16_t addr, const char *name)
+void board_add_hello(uint16_t addr, const char *name)
 {
-	u32_t sort_i;
+	uint32_t sort_i;
 
 	sort_i = add_hello(addr, name);
 	if (sort_i != NO_UPDATE) {
 	}
 }
 
-void board_add_heartbeat(u16_t addr, u8_t hops)
+void board_add_heartbeat(uint16_t addr, uint8_t hops)
 {
-	u32_t sort_i;
+	uint32_t sort_i;
 
 	sort_i = add_heartbeat(addr, hops);
 	if (sort_i != NO_UPDATE) {
@@ -362,7 +362,7 @@ static void long_press(struct ble_npl_event *work)
 
 static bool button_is_pressed(void)
 {
-	u32_t val;
+	uint32_t val;
 
 	val = (uint32_t) hal_gpio_read(BUTTON_1);
 

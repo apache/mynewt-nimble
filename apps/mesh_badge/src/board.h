@@ -8,8 +8,8 @@
 #include "mesh/mesh.h"
 
 void board_refresh_display(void);
-void board_show_text(const char *text, bool center, s32_t duration);
+void board_show_text(const char *text, bool center, int32_t duration);
 void board_blink_leds(void);
-void board_add_hello(u16_t addr, const char *name);
-void board_add_heartbeat(u16_t addr, u8_t hops);
+void board_add_hello(uint16_t addr, const char *name);
+void board_add_heartbeat(uint16_t addr, uint8_t hops);
 int board_init(void);

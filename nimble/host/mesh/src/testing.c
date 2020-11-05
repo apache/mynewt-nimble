@@ -32,7 +32,7 @@ void bt_test_cb_unregister(struct bt_test_cb *cb)
 	sys_slist_find_and_remove(&cb_slist, &cb->node);
 }
 
-void bt_test_mesh_net_recv(u8_t ttl, u8_t ctl, u16_t src, u16_t dst,
+void bt_test_mesh_net_recv(uint8_t ttl, uint8_t ctl, uint16_t src, uint16_t dst,
 			   const void *payload, size_t payload_len)
 {
 	struct bt_test_cb *cb;
@@ -45,8 +45,8 @@ void bt_test_mesh_net_recv(u8_t ttl, u8_t ctl, u16_t src, u16_t dst,
 	}
 }
 
-void bt_test_mesh_model_bound(u16_t addr, struct bt_mesh_model *model,
-			      u16_t key_idx)
+void bt_test_mesh_model_bound(uint16_t addr, struct bt_mesh_model *model,
+			      uint16_t key_idx)
 {
 	struct bt_test_cb *cb;
 
@@ -57,8 +57,8 @@ void bt_test_mesh_model_bound(u16_t addr, struct bt_mesh_model *model,
 	}
 }
 
-void bt_test_mesh_model_unbound(u16_t addr, struct bt_mesh_model *model,
-				u16_t key_idx)
+void bt_test_mesh_model_unbound(uint16_t addr, struct bt_mesh_model *model,
+				uint16_t key_idx)
 {
 	struct bt_test_cb *cb;
 
@@ -69,7 +69,7 @@ void bt_test_mesh_model_unbound(u16_t addr, struct bt_mesh_model *model,
 	}
 }
 
-void bt_test_mesh_prov_invalid_bearer(u8_t opcode)
+void bt_test_mesh_prov_invalid_bearer(uint8_t opcode)
 {
 	struct bt_test_cb *cb;
 
@@ -91,14 +91,14 @@ void bt_test_mesh_trans_incomp_timer_exp(void)
 	}
 }
 
-int bt_test_mesh_lpn_group_add(u16_t group)
+int bt_test_mesh_lpn_group_add(uint16_t group)
 {
 	bt_mesh_lpn_group_add(group);
 
 	return 0;
 }
 
-int bt_test_mesh_lpn_group_remove(u16_t *groups, size_t groups_count)
+int bt_test_mesh_lpn_group_remove(uint16_t *groups, size_t groups_count)
 {
 	bt_mesh_lpn_group_del(groups, groups_count);
 
@@ -115,9 +115,9 @@ int bt_test_mesh_rpl_clear(void)
 void bt_test_print_credentials(void)
 {
 	int i;
-	u8_t nid;
-	const u8_t *enc;
-	const u8_t *priv;
+	uint8_t nid;
+	const uint8_t *enc;
+	const uint8_t *priv;
 	struct bt_mesh_subnet *sub;
 	struct bt_mesh_app_key *app_key;
 
@@ -188,7 +188,7 @@ int bt_test_shell_init(void)
 #endif
 }
 
-int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, u16_t key_idx, u16_t id)
+int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, uint16_t key_idx, uint16_t id)
 {
 	struct bt_mesh_model *found_model;
 

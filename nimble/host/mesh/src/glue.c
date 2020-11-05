@@ -30,7 +30,7 @@
 #include "base64/base64.h"
 #endif
 
-extern u8_t g_mesh_addr_type;
+extern uint8_t g_mesh_addr_type;
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 /* Store configuration for different bearers */
@@ -44,8 +44,8 @@ bt_hex(const void *buf, size_t len)
 {
     static const char hex[] = "0123456789abcdef";
     static char hexbufs[4][137];
-    static u8_t curbuf;
-    const u8_t *b = buf;
+    static uint8_t curbuf;
+    const uint8_t *b = buf;
     char *str;
     int i;
 
@@ -357,7 +357,7 @@ k_fifo_is_empty(struct ble_npl_eventq *q)
     return ble_npl_eventq_is_empty(q);
 }
 
-void * net_buf_get(struct ble_npl_eventq *fifo, s32_t t)
+void * net_buf_get(struct ble_npl_eventq *fifo, int32_t t)
 {
     struct ble_npl_event *ev = ble_npl_eventq_get(fifo, 0);
 
@@ -464,7 +464,7 @@ int64_t k_uptime_get(void)
     return ble_npl_time_ticks_to_ms32(ble_npl_time_get());
 }
 
-u32_t k_uptime_get_32(void)
+uint32_t k_uptime_get_32(void)
 {
     return k_uptime_get();
 }
@@ -483,7 +483,7 @@ static uint8_t priv[32];
 static bool has_pub = false;
 
 int
-bt_dh_key_gen(const u8_t remote_pk[64], bt_dh_key_cb_t cb)
+bt_dh_key_gen(const uint8_t remote_pk[64], bt_dh_key_cb_t cb)
 {
     uint8_t dh[32];
 
@@ -534,7 +534,7 @@ bt_pub_key_get(void)
 }
 
 static int
-set_ad(const struct bt_data *ad, size_t ad_len, u8_t *buf, u8_t *buf_len)
+set_ad(const struct bt_data *ad, size_t ad_len, uint8_t *buf, uint8_t *buf_len)
 {
     int i;
 

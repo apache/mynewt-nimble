@@ -56,16 +56,16 @@ static struct os_eventq mesh_shell_queue;
 #define VND_MODEL_ID_1 0x1234
 
 /* Default net, app & dev key values, unless otherwise specified */
-static const u8_t default_key[16] = {
+static const uint8_t default_key[16] = {
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 };
 
 static struct {
-	u16_t local;
-	u16_t dst;
-	u16_t net_idx;
-	u16_t app_idx;
+	uint16_t local;
+	uint16_t dst;
+	uint16_t net_idx;
+	uint16_t app_idx;
 } net = {
 	.local = BT_MESH_ADDR_UNASSIGNED,
 	.dst = BT_MESH_ADDR_UNASSIGNED,
@@ -94,12 +94,12 @@ static struct bt_mesh_cfg_srv cfg_srv = {
 
 #define CUR_FAULTS_MAX 4
 
-static u8_t cur_faults[CUR_FAULTS_MAX];
-static u8_t reg_faults[CUR_FAULTS_MAX * 2];
+static uint8_t cur_faults[CUR_FAULTS_MAX];
+static uint8_t reg_faults[CUR_FAULTS_MAX * 2];
 
-static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
+static void get_faults(uint8_t *faults, uint8_t faults_size, uint8_t *dst, uint8_t *count)
 {
-	u8_t i, limit = *count;
+	uint8_t i, limit = *count;
 
 	for (i = 0, *count = 0; i < faults_size && *count < limit; i++) {
 		if (faults[i]) {
@@ -109,8 +109,8 @@ static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
 	}
 }
 
-static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
-			 u16_t *company_id, u8_t *faults, u8_t *fault_count)
+static int fault_get_cur(struct bt_mesh_model *model, uint8_t *test_id,
+			 uint16_t *company_id, uint8_t *faults, uint8_t *fault_count)
 {
 	printk("Sending current faults\n");
 
@@ -122,8 +122,8 @@ static int fault_get_cur(struct bt_mesh_model *model, u8_t *test_id,
 	return 0;
 }
 
-static int fault_get_reg(struct bt_mesh_model *model, u16_t cid,
-			 u8_t *test_id, u8_t *faults, u8_t *fault_count)
+static int fault_get_reg(struct bt_mesh_model *model, uint16_t cid,
+			 uint8_t *test_id, uint8_t *faults, uint8_t *fault_count)
 {
 	if (cid != CID_VENDOR) {
 		printk("Faults requested for unknown Company ID 0x%04x\n", cid);
@@ -190,7 +190,7 @@ static struct bt_mesh_cfg_cli cfg_cli = {
 #endif /* MYNEWT_VAL(BLE_MESH_CFG_CLI) */
 
 #if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
-void show_faults(u8_t test_id, u16_t cid, u8_t *faults, size_t fault_count)
+void show_faults(uint8_t test_id, uint16_t cid, uint8_t *faults, size_t fault_count)
 {
 	size_t i;
 
@@ -208,8 +208,8 @@ void show_faults(u8_t test_id, u16_t cid, u8_t *faults, size_t fault_count)
 	}
 }
 
-static void health_current_status(struct bt_mesh_health_cli *cli, u16_t addr,
-				  u8_t test_id, u16_t cid, u8_t *faults,
+static void health_current_status(struct bt_mesh_health_cli *cli, uint16_t addr,
+				  uint8_t test_id, uint16_t cid, uint8_t *faults,
 				  size_t fault_count)
 {
 	printk("Health Current Status from 0x%04x\n", addr);
@@ -243,22 +243,22 @@ static struct bt_mesh_light_lightness_srv light_lightness_srv = {
 	.set = light_model_light_lightness_set,
 };
 
-void bt_mesh_set_gen_onoff_srv_cb(int (*get)(struct bt_mesh_model *model, u8_t *state),
-				  int (*set)(struct bt_mesh_model *model, u8_t state))
+void bt_mesh_set_gen_onoff_srv_cb(int (*get)(struct bt_mesh_model *model, uint8_t *state),
+				  int (*set)(struct bt_mesh_model *model, uint8_t state))
 {
 	gen_onoff_srv.get = get;
 	gen_onoff_srv.set = set;
 }
 
-void bt_mesh_set_gen_level_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
-				  int (*set)(struct bt_mesh_model *model, s16_t level))
+void bt_mesh_set_gen_level_srv_cb(int (*get)(struct bt_mesh_model *model, int16_t *level),
+				  int (*set)(struct bt_mesh_model *model, int16_t level))
 {
 	gen_level_srv.get = get;
 	gen_level_srv.set = set;
 }
 
-void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, s16_t *level),
-					int (*set)(struct bt_mesh_model *model, s16_t level))
+void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, int16_t *level),
+					int (*set)(struct bt_mesh_model *model, int16_t level))
 {
 	light_lightness_srv.get = get;
 	light_lightness_srv.set = set;
@@ -298,7 +298,7 @@ static const struct bt_mesh_comp comp = {
 	.elem_count = ARRAY_SIZE(elements),
 };
 
-static u8_t hex2val(char c)
+static uint8_t hex2val(char c)
 {
 	if (c >= '0' && c <= '9') {
 		return c - '0';
@@ -358,7 +358,7 @@ size_t bin2hex(const uint8_t *buf, size_t buflen, char *hex, size_t hexlen)
 	return 2 * buflen;
 }
 
-static size_t hex2bin(const char *hex, u8_t *bin, size_t bin_len)
+static size_t hex2bin(const char *hex, uint8_t *bin, size_t bin_len)
 {
 	size_t len = 0;
 
@@ -376,7 +376,7 @@ static size_t hex2bin(const char *hex, u8_t *bin, size_t bin_len)
 	return len;
 }
 
-static void prov_complete(u16_t net_idx, u16_t addr)
+static void prov_complete(uint16_t net_idx, uint16_t addr)
 {
 	printk("Local node provisioned, net_idx 0x%04x address 0x%04x\n",
 	       net_idx, addr);
@@ -385,8 +385,8 @@ static void prov_complete(u16_t net_idx, u16_t addr)
 	net.dst = addr;
 }
 
-static void prov_node_added(u16_t net_idx, u8_t uuid[16], u16_t addr,
-			    u8_t num_elem)
+static void prov_node_added(uint16_t net_idx, uint8_t uuid[16], uint16_t addr,
+			    uint8_t num_elem)
 {
 	printk("Node provisioned, net_idx 0x%04x address "
 	       "0x%04x elements %d", net_idx, addr, num_elem);
@@ -418,7 +418,7 @@ static int output_string(const char *str)
 }
 
 static bt_mesh_input_action_t input_act;
-static u8_t input_size;
+static uint8_t input_size;
 
 static int cmd_input_num(int argc, char *argv[])
 {
@@ -486,7 +486,7 @@ struct shell_cmd_help cmd_input_str_help = {
 	NULL, "<string>", NULL
 };
 
-static int input(bt_mesh_input_action_t act, u8_t size)
+static int input(bt_mesh_input_action_t act, uint8_t size)
 {
 	switch (act) {
 	case BT_MESH_ENTER_NUMBER:
@@ -530,9 +530,9 @@ static void link_close(bt_mesh_prov_bearer_t bearer)
 	printk("Provisioning link closed on %s\n", bearer2str(bearer));
 }
 
-static u8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
+static uint8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
 
-static u8_t static_val[16];
+static uint8_t static_val[16];
 
 static struct bt_mesh_prov prov = {
 	.uuid = dev_uuid,
@@ -583,7 +583,7 @@ struct shell_cmd_help cmd_static_oob_help = {
 
 static int cmd_uuid(int argc, char *argv[])
 {
-	u8_t uuid[16];
+	uint8_t uuid[16];
 	size_t len;
 
 	if (argc < 2) {
@@ -614,7 +614,7 @@ static int cmd_reset(int argc, char *argv[])
 	return 0;
 }
 
-static u8_t str2u8(const char *str)
+static uint8_t str2u8(const char *str)
 {
 	if (isdigit(str[0])) {
 		return strtoul(str, NULL, 0);
@@ -680,7 +680,7 @@ static int cmd_poll(int argc, char *argv[])
 	return 0;
 }
 
-static void lpn_cb(u16_t friend_addr, bool established)
+static void lpn_cb(uint16_t friend_addr, bool established)
 {
 	if (established) {
 		printk("Friendship (as LPN) established to Friend 0x%04x\n",
@@ -877,7 +877,7 @@ static int cmd_rpl_clear(int argc, char *argv[])
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 static int cmd_lpn_subscribe(int argc, char *argv[])
 {
-	u16_t address;
+	uint16_t address;
 
 	if (argc < 2) {
 		return -EINVAL;
@@ -898,7 +898,7 @@ struct shell_cmd_help cmd_lpn_subscribe_help = {
 
 static int cmd_lpn_unsubscribe(int argc, char *argv[])
 {
-	u16_t address;
+	uint16_t address;
 
 	if (argc < 2) {
 		return -EINVAL;
@@ -961,7 +961,7 @@ struct shell_cmd_help cmd_iv_update_test_help = {
 
 int cmd_timeout(int argc, char *argv[])
 {
-	s32_t timeout;
+	int32_t timeout;
 
 	if (argc < 2) {
 		timeout = bt_mesh_cfg_cli_timeout_get();
@@ -1001,7 +1001,7 @@ struct shell_cmd_help cmd_timeout_help = {
 static int cmd_get_comp(int argc, char *argv[])
 {
 	struct os_mbuf *comp = NET_BUF_SIMPLE(32);
-	u8_t status, page = 0x00;
+	uint8_t status, page = 0x00;
 	int err = 0;
 
 	if (argc > 1) {
@@ -1029,8 +1029,8 @@ static int cmd_get_comp(int argc, char *argv[])
 	printk("\tFeatures 0x%04x\n", net_buf_simple_pull_le16(comp));
 
 	while (comp->om_len > 4) {
-		u8_t sig, vnd;
-		u16_t loc;
+		uint8_t sig, vnd;
+		uint16_t loc;
 		int i;
 
 		loc = net_buf_simple_pull_le16(comp);
@@ -1051,7 +1051,7 @@ static int cmd_get_comp(int argc, char *argv[])
 		}
 
 		for (i = 0; i < sig; i++) {
-			u16_t mod_id = net_buf_simple_pull_le16(comp);
+			uint16_t mod_id = net_buf_simple_pull_le16(comp);
 
 			printk("\t\t\t0x%04x\n", mod_id);
 		}
@@ -1063,8 +1063,8 @@ static int cmd_get_comp(int argc, char *argv[])
 		}
 
 		for (i = 0; i < vnd; i++) {
-			u16_t cid = net_buf_simple_pull_le16(comp);
-			u16_t mod_id = net_buf_simple_pull_le16(comp);
+			uint16_t cid = net_buf_simple_pull_le16(comp);
+			uint16_t mod_id = net_buf_simple_pull_le16(comp);
 
 			printk("\t\t\tCompany 0x%04x: 0x%04x\n", cid, mod_id);
 		}
@@ -1081,13 +1081,13 @@ struct shell_cmd_help cmd_get_comp_help = {
 
 static int cmd_beacon(int argc, char *argv[])
 {
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	if (argc < 2) {
 		err = bt_mesh_cfg_beacon_get(net.net_idx, net.dst, &status);
 	} else {
-		u8_t val = str2u8(argv[1]);
+		uint8_t val = str2u8(argv[1]);
 
 		err = bt_mesh_cfg_beacon_set(net.net_idx, net.dst, val,
 					     &status);
@@ -1103,9 +1103,9 @@ static int cmd_beacon(int argc, char *argv[])
 	return 0;
 }
 
-static void print_unprovisioned_beacon(u8_t uuid[16],
+static void print_unprovisioned_beacon(uint8_t uuid[16],
 				       bt_mesh_prov_oob_info_t oob_info,
-				       u32_t *uri_hash)
+				       uint32_t *uri_hash)
 {
 	char uuid_hex_str[32 + 1];
 
@@ -1118,7 +1118,7 @@ static void print_unprovisioned_beacon(u8_t uuid[16],
 
 static int cmd_beacon_listen(int argc, char *argv[])
 {
-	u8_t val = str2u8(argv[1]);
+	uint8_t val = str2u8(argv[1]);
 
 	if (val) {
 		prov.unprovisioned_beacon = print_unprovisioned_beacon;
@@ -1139,13 +1139,13 @@ struct shell_cmd_help cmd_beacon_listen_help = {
 
 static int cmd_ttl(int argc, char *argv[])
 {
-	u8_t ttl;
+	uint8_t ttl;
 	int err;
 
 	if (argc < 2) {
 		err = bt_mesh_cfg_ttl_get(net.net_idx, net.dst, &ttl);
 	} else {
-		u8_t val = strtoul(argv[1], NULL, 0);
+		uint8_t val = strtoul(argv[1], NULL, 0);
 
 		err = bt_mesh_cfg_ttl_set(net.net_idx, net.dst, val, &ttl);
 	}
@@ -1166,13 +1166,13 @@ struct shell_cmd_help cmd_ttl_help = {
 
 static int cmd_friend(int argc, char *argv[])
 {
-	u8_t frnd;
+	uint8_t frnd;
 	int err;
 
 	if (argc < 2) {
 		err = bt_mesh_cfg_friend_get(net.net_idx, net.dst, &frnd);
 	} else {
-		u8_t val = str2u8(argv[1]);
+		uint8_t val = str2u8(argv[1]);
 
 		err = bt_mesh_cfg_friend_set(net.net_idx, net.dst, val, &frnd);
 	}
@@ -1193,13 +1193,13 @@ struct shell_cmd_help cmd_friend_help = {
 
 static int cmd_gatt_proxy(int argc, char *argv[])
 {
-	u8_t proxy;
+	uint8_t proxy;
 	int err;
 
 	if (argc < 2) {
 		err = bt_mesh_cfg_gatt_proxy_get(net.net_idx, net.dst, &proxy);
 	} else {
-		u8_t val = str2u8(argv[1]);
+		uint8_t val = str2u8(argv[1]);
 
 		err = bt_mesh_cfg_gatt_proxy_set(net.net_idx, net.dst, val,
 						 &proxy);
@@ -1221,15 +1221,15 @@ struct shell_cmd_help cmd_gatt_proxy_help = {
 
 static int cmd_relay(int argc, char *argv[])
 {
-	u8_t relay, transmit;
+	uint8_t relay, transmit;
 	int err;
 
 	if (argc < 2) {
 		err = bt_mesh_cfg_relay_get(net.net_idx, net.dst, &relay,
 					    &transmit);
 	} else {
-		u8_t val = str2u8(argv[1]);
-		u8_t count, interval, new_transmit;
+		uint8_t val = str2u8(argv[1]);
+		uint8_t count, interval, new_transmit;
 
 		if (val) {
 			if (argc > 2) {
@@ -1272,9 +1272,9 @@ struct shell_cmd_help cmd_relay_help = {
 static int cmd_net_key_add(int argc, char *argv[])
 {
 	bool has_key_val = (argc > 2);
-	u8_t key_val[16];
-	u16_t key_net_idx;
-	u8_t status;
+	uint8_t key_val[16];
+	uint16_t key_net_idx;
+	uint8_t status;
 	int err;
 
 	if (argc < 2) {
@@ -1337,7 +1337,7 @@ struct shell_cmd_help cmd_net_key_add_help = {
 
 static int cmd_net_key_get(int argc, char *argv[])
 {
-	u16_t keys[16];
+	uint16_t keys[16];
 	size_t cnt;
 	int err, i;
 
@@ -1392,10 +1392,10 @@ struct shell_cmd_help cmd_net_key_del_help = {
 
 static int cmd_app_key_add(int argc, char *argv[])
 {
-	u8_t key_val[16];
-	u16_t key_net_idx, key_app_idx;
+	uint8_t key_val[16];
+	uint16_t key_net_idx, key_app_idx;
 	bool has_key_val = (argc > 3);
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	if (argc < 3) {
@@ -1461,10 +1461,10 @@ struct shell_cmd_help cmd_app_key_add_help = {
 
 static int cmd_app_key_get(int argc, char *argv[])
 {
-	u16_t net_idx;
-	u16_t keys[16];
+	uint16_t net_idx;
+	uint16_t keys[16];
 	size_t cnt;
-	u8_t status;
+	uint8_t status;
 	int err, i;
 
 	net_idx = strtoul(argv[1], NULL, 0);
@@ -1534,8 +1534,8 @@ struct shell_cmd_help cmd_app_key_del_help = {
 
 static int cmd_mod_app_bind(int argc, char *argv[])
 {
-	u16_t elem_addr, mod_app_idx, mod_id, cid;
-	u8_t status;
+	uint16_t elem_addr, mod_app_idx, mod_id, cid;
+	uint8_t status;
 	int err;
 
 	if (argc < 4) {
@@ -1621,9 +1621,9 @@ struct shell_cmd_help cmd_mod_app_unbind_help = {
 static int cmd_mod_app_get(int argc,
 			      char *argv[])
 {
-	u16_t elem_addr, mod_id, cid;
-	u16_t apps[16];
-	u8_t status;
+	uint16_t elem_addr, mod_id, cid;
+	uint16_t apps[16];
+	uint8_t status;
 	size_t cnt;
 	int err, i;
 
@@ -1673,8 +1673,8 @@ struct shell_cmd_help cmd_mod_app_get_help = {
 
 static int cmd_mod_sub_add(int argc, char *argv[])
 {
-	u16_t elem_addr, sub_addr, mod_id, cid;
-	u8_t status;
+	uint16_t elem_addr, sub_addr, mod_id, cid;
+	uint8_t status;
 	int err;
 
 	if (argc < 4) {
@@ -1716,8 +1716,8 @@ struct shell_cmd_help cmd_mod_sub_add_help = {
 
 static int cmd_mod_sub_del(int argc, char *argv[])
 {
-	u16_t elem_addr, sub_addr, mod_id, cid;
-	u8_t status;
+	uint16_t elem_addr, sub_addr, mod_id, cid;
+	uint8_t status;
 	int err;
 
 	if (argc < 4) {
@@ -1760,9 +1760,9 @@ struct shell_cmd_help cmd_mod_sub_del_help = {
 
 static int cmd_mod_sub_add_va(int argc, char *argv[])
 {
-	u16_t elem_addr, sub_addr, mod_id, cid;
-	u8_t label[16];
-	u8_t status;
+	uint16_t elem_addr, sub_addr, mod_id, cid;
+	uint8_t label[16];
+	uint8_t status;
 	size_t len;
 	int err;
 
@@ -1810,9 +1810,9 @@ struct shell_cmd_help cmd_mod_sub_add_va_help = {
 
 static int cmd_mod_sub_del_va(int argc, char *argv[])
 {
-	u16_t elem_addr, sub_addr, mod_id, cid;
-	u8_t label[16];
-	u8_t status;
+	uint16_t elem_addr, sub_addr, mod_id, cid;
+	uint8_t label[16];
+	uint8_t status;
 	size_t len;
 	int err;
 
@@ -1862,9 +1862,9 @@ struct shell_cmd_help cmd_mod_sub_del_va_help = {
 static int cmd_mod_sub_get(int argc,
 			      char *argv[])
 {
-	u16_t elem_addr, mod_id, cid;
-	u16_t subs[16];
-	u8_t status;
+	uint16_t elem_addr, mod_id, cid;
+	uint16_t subs[16];
+	uint8_t status;
 	size_t cnt;
 	int err, i;
 
@@ -1913,10 +1913,10 @@ struct shell_cmd_help cmd_mod_sub_get_help = {
 	NULL, "<elem addr> <Model ID> [Company ID]", NULL
 };
 
-static int mod_pub_get(u16_t addr, u16_t mod_id, u16_t cid)
+static int mod_pub_get(uint16_t addr, uint16_t mod_id, uint16_t cid)
 {
 	struct bt_mesh_cfg_mod_pub pub;
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	if (cid == CID_NVAL) {
@@ -1953,11 +1953,11 @@ static int mod_pub_get(u16_t addr, u16_t mod_id, u16_t cid)
 	return 0;
 }
 
-static int mod_pub_set(u16_t addr, u16_t mod_id, u16_t cid, char *argv[])
+static int mod_pub_set(uint16_t addr, uint16_t mod_id, uint16_t cid, char *argv[])
 {
 	struct bt_mesh_cfg_mod_pub pub;
-	u8_t status, count;
-	u16_t interval;
+	uint8_t status, count;
+	uint16_t interval;
 	int err;
 
 	pub.addr = strtoul(argv[0], NULL, 0);
@@ -2005,7 +2005,7 @@ static int mod_pub_set(u16_t addr, u16_t mod_id, u16_t cid, char *argv[])
 
 static int cmd_mod_pub(int argc, char *argv[])
 {
-	u16_t addr, mod_id, cid;
+	uint16_t addr, mod_id, cid;
 
 	if (argc < 3) {
 		return -EINVAL;
@@ -2057,7 +2057,7 @@ static void hb_sub_print(struct bt_mesh_cfg_hb_sub *sub)
 static int hb_sub_get(int argc, char *argv[])
 {
 	struct bt_mesh_cfg_hb_sub sub;
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	err = bt_mesh_cfg_hb_sub_get(net.net_idx, net.dst, &sub, &status);
@@ -2079,7 +2079,7 @@ static int hb_sub_get(int argc, char *argv[])
 static int hb_sub_set(int argc, char *argv[])
 {
 	struct bt_mesh_cfg_hb_sub sub;
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	sub.src = strtoul(argv[1], NULL, 0);
@@ -2122,7 +2122,7 @@ struct shell_cmd_help cmd_hb_sub_help = {
 static int hb_pub_get(int argc, char *argv[])
 {
 	struct bt_mesh_cfg_hb_pub pub;
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	err = bt_mesh_cfg_hb_pub_get(net.net_idx, net.dst, &pub, &status);
@@ -2149,7 +2149,7 @@ static int hb_pub_get(int argc, char *argv[])
 static int hb_pub_set(int argc, char *argv[])
 {
 	struct bt_mesh_cfg_hb_pub pub;
-	u8_t status;
+	uint8_t status;
 	int err;
 
 	pub.dst = strtoul(argv[1], NULL, 0);
@@ -2240,10 +2240,10 @@ static int cmd_pb_adv(int argc, char *argv[])
 #if MYNEWT_VAL(BLE_MESH_PROVISIONER)
 static int cmd_provision_adv(int argc, char *argv[])
 {
-	u8_t uuid[16];
-	u8_t attention_duration;
-	u16_t net_idx;
-	u16_t addr;
+	uint8_t uuid[16];
+	uint8_t attention_duration;
+	uint16_t net_idx;
+	uint16_t addr;
 	size_t len;
 	int err;
 
@@ -2278,9 +2278,9 @@ static int cmd_pb_gatt(int argc, char *argv[])
 
 static int cmd_provision(int argc, char *argv[])
 {
-	const u8_t *net_key = default_key;
-	u16_t net_idx, addr;
-	u32_t iv_index;
+	const uint8_t *net_key = default_key;
+	uint16_t net_idx, addr;
+	uint32_t iv_index;
 	int err;
 
 	if (argc < 3) {
@@ -2325,10 +2325,10 @@ struct shell_cmd_help cmd_provision_help = {
 
 static int cmd_fault_get(int argc, char *argv[])
 {
-	u8_t faults[32];
+	uint8_t faults[32];
 	size_t fault_count;
-	u8_t test_id;
-	u16_t cid;
+	uint8_t test_id;
+	uint16_t cid;
 	int err;
 
 	if (argc < 2) {
@@ -2355,10 +2355,10 @@ struct shell_cmd_help cmd_fault_get_help = {
 
 static int cmd_fault_clear(int argc, char *argv[])
 {
-	u8_t faults[32];
+	uint8_t faults[32];
 	size_t fault_count;
-	u8_t test_id;
-	u16_t cid;
+	uint8_t test_id;
+	uint16_t cid;
 	int err;
 
 	if (argc < 2) {
@@ -2385,7 +2385,7 @@ struct shell_cmd_help cmd_fault_clear_help = {
 
 static int cmd_fault_clear_unack(int argc, char *argv[])
 {
-	u16_t cid;
+	uint16_t cid;
 	int err;
 
 	if (argc < 2) {
@@ -2410,10 +2410,10 @@ struct shell_cmd_help cmd_fault_clear_unack_help = {
 
 static int cmd_fault_test(int argc, char *argv[])
 {
-	u8_t faults[32];
+	uint8_t faults[32];
 	size_t fault_count;
-	u8_t test_id;
-	u16_t cid;
+	uint8_t test_id;
+	uint16_t cid;
 	int err;
 
 	if (argc < 3) {
@@ -2441,8 +2441,8 @@ struct shell_cmd_help cmd_fault_test_help = {
 
 static int cmd_fault_test_unack(int argc, char *argv[])
 {
-	u16_t cid;
-	u8_t test_id;
+	uint16_t cid;
+	uint8_t test_id;
 	int err;
 
 	if (argc < 3) {
@@ -2468,7 +2468,7 @@ struct shell_cmd_help cmd_fault_test_unack_help = {
 
 static int cmd_period_get(int argc, char *argv[])
 {
-	u8_t divisor;
+	uint8_t divisor;
 	int err;
 
 	err = bt_mesh_health_period_get(net.dst, net.app_idx, &divisor);
@@ -2483,7 +2483,7 @@ static int cmd_period_get(int argc, char *argv[])
 
 static int cmd_period_set(int argc, char *argv[])
 {
-	u8_t divisor, updated_divisor;
+	uint8_t divisor, updated_divisor;
 	int err;
 
 	if (argc < 2) {
@@ -2509,7 +2509,7 @@ struct shell_cmd_help cmd_period_set_help = {
 
 static int cmd_period_set_unack(int argc, char *argv[])
 {
-	u8_t divisor;
+	uint8_t divisor;
 	int err;
 
 	if (argc < 2) {
@@ -2532,7 +2532,7 @@ struct shell_cmd_help cmd_period_set_unack_help = {
 
 static int cmd_attention_get(int argc, char *argv[])
 {
-	u8_t attention;
+	uint8_t attention;
 	int err;
 
 	err = bt_mesh_health_attention_get(net.dst, net.app_idx,
@@ -2548,7 +2548,7 @@ static int cmd_attention_get(int argc, char *argv[])
 
 static int cmd_attention_set(int argc, char *argv[])
 {
-	u8_t attention, updated_attention;
+	uint8_t attention, updated_attention;
 	int err;
 
 	if (argc < 2) {
@@ -2574,7 +2574,7 @@ struct shell_cmd_help cmd_attention_set_help = {
 
 static int cmd_attention_set_unack(int argc, char *argv[])
 {
-	u8_t attention;
+	uint8_t attention;
 	int err;
 
 	if (argc < 2) {
@@ -2600,8 +2600,8 @@ struct shell_cmd_help cmd_attention_set_unack_help = {
 
 static int cmd_add_fault(int argc, char *argv[])
 {
-	u8_t fault_id;
-	u8_t i;
+	uint8_t fault_id;
+	uint8_t i;
 
 	if (argc < 2) {
 		return -EINVAL;
@@ -2647,8 +2647,8 @@ struct shell_cmd_help cmd_add_fault_help = {
 
 static int cmd_del_fault(int argc, char *argv[])
 {
-	u8_t fault_id;
-	u8_t i;
+	uint8_t fault_id;
+	uint8_t i;
 
 	if (argc < 2) {
 		memset(cur_faults, 0, sizeof(cur_faults));
@@ -2711,7 +2711,7 @@ struct shell_cmd_help cmd_cdb_app_key_del_help = {
 
 static int cmd_cdb_create(int argc, char *argv[])
 {
-	u8_t net_key[16];
+	uint8_t net_key[16];
 	size_t len;
 	int err;
 
@@ -2838,9 +2838,9 @@ static int cmd_cdb_show(int argc, char *argv[])
 static int cmd_cdb_node_add(int argc, char *argv[])
 {
 	struct bt_mesh_cdb_node *node;
-	u8_t uuid[16], dev_key[16];
-	u16_t addr, net_idx;
-	u8_t num_elem;
+	uint8_t uuid[16], dev_key[16];
+	uint16_t addr, net_idx;
+	uint8_t num_elem;
 	size_t len;
 
 	len = hex2bin(argv[1], uuid, sizeof(uuid));
@@ -2877,7 +2877,7 @@ static int cmd_cdb_node_add(int argc, char *argv[])
 static int cmd_cdb_node_del(int argc, char *argv[])
 {
 	struct bt_mesh_cdb_node *node;
-	u16_t addr;
+	uint16_t addr;
 
 	addr = strtoul(argv[1], NULL, 0);
 
@@ -2898,8 +2898,8 @@ static int cmd_cdb_subnet_add(int argc,
 			     char *argv[])
 {
 	struct bt_mesh_cdb_subnet *sub;
-	u8_t net_key[16];
-	u16_t net_idx;
+	uint8_t net_key[16];
+	uint16_t net_idx;
 	size_t len;
 
 	net_idx = strtoul(argv[1], NULL, 0);
@@ -2932,7 +2932,7 @@ static int cmd_cdb_subnet_del(int argc,
 			     char *argv[])
 {
 	struct bt_mesh_cdb_subnet *sub;
-	u16_t net_idx;
+	uint16_t net_idx;
 
 	net_idx = strtoul(argv[1], NULL, 0);
 
@@ -2953,8 +2953,8 @@ static int cmd_cdb_app_key_add(int argc,
 			      char *argv[])
 {
 	struct bt_mesh_cdb_app_key *key;
-	u16_t net_idx, app_idx;
-	u8_t app_key[16];
+	uint16_t net_idx, app_idx;
+	uint8_t app_key[16];
 	size_t len;
 
 	net_idx = strtoul(argv[1], NULL, 0);
@@ -2988,7 +2988,7 @@ static int cmd_cdb_app_key_del(int argc,
 			      char *argv[])
 {
 	struct bt_mesh_cdb_app_key *key;
-	u16_t app_idx;
+	uint16_t app_idx;
 
 	app_idx = strtoul(argv[1], NULL, 0);
 
@@ -3009,7 +3009,7 @@ static int cmd_cdb_app_key_del(int argc,
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 static int cmd_gen_onoff_get(int argc, char *argv[])
 {
-	u8_t state;
+	uint8_t state;
 	int err;
 
 	err = bt_mesh_gen_onoff_get(net.net_idx, net.dst, net.app_idx,
@@ -3025,8 +3025,8 @@ static int cmd_gen_onoff_get(int argc, char *argv[])
 
 static int cmd_gen_onoff_set(int argc, char *argv[])
 {
-	u8_t state;
-	u8_t val;
+	uint8_t state;
+	uint8_t val;
 	int err;
 
 	if (argc < 2) {
@@ -3052,7 +3052,7 @@ struct shell_cmd_help cmd_gen_onoff_set_help = {
 
 static int cmd_gen_onoff_set_unack(int argc, char *argv[])
 {
-	u8_t val;
+	uint8_t val;
 	int err;
 
 	if (argc < 2) {
@@ -3076,7 +3076,7 @@ struct shell_cmd_help cmd_gen_onoff_set_unack_help = {
 
 static int cmd_gen_level_get(int argc, char *argv[])
 {
-	s16_t state;
+	int16_t state;
 	int err;
 
 	err = bt_mesh_gen_level_get(net.net_idx, net.dst, net.app_idx,
@@ -3092,15 +3092,15 @@ static int cmd_gen_level_get(int argc, char *argv[])
 
 static int cmd_gen_level_set(int argc, char *argv[])
 {
-	s16_t state;
-	s16_t val;
+	int16_t state;
+	int16_t val;
 	int err;
 
 	if (argc < 2) {
 		return -EINVAL;
 	}
 
-	val = (s16_t)strtoul(argv[1], NULL, 0);
+	val = (int16_t)strtoul(argv[1], NULL, 0);
 
 	err = bt_mesh_gen_level_set(net.net_idx, net.dst, net.app_idx,
 				    val, &state);
@@ -3119,14 +3119,14 @@ struct shell_cmd_help cmd_gen_level_set_help = {
 
 static int cmd_gen_level_set_unack(int argc, char *argv[])
 {
-	s16_t val;
+	int16_t val;
 	int err;
 
 	if (argc < 2) {
 		return -EINVAL;
 	}
 
-	val = (s16_t)strtoul(argv[1], NULL, 0);
+	val = (int16_t)strtoul(argv[1], NULL, 0);
 
 	err = bt_mesh_gen_level_set(net.net_idx, net.dst, net.app_idx,
 				    val, NULL);

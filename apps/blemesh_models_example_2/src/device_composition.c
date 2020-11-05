@@ -224,8 +224,8 @@ static void gen_onoff_set_unack(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
 				struct os_mbuf *buf)
 {
-	u8_t tid, onoff, tt, delay;
-	s64_t now;
+	uint8_t tid, onoff, tt, delay;
+	int64_t now;
 	struct generic_onoff_state *state = model->user_data;
 
 	onoff = net_buf_simple_pull_u8(buf);
@@ -290,8 +290,8 @@ static void gen_onoff_set(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct os_mbuf *buf)
 {
-	u8_t tid, onoff, tt, delay;
-	s64_t now;
+	uint8_t tid, onoff, tt, delay;
+	int64_t now;
 	struct generic_onoff_state *state = model->user_data;
 
 	onoff = net_buf_simple_pull_u8(buf);
@@ -422,12 +422,12 @@ static void gen_level_set_unack(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
 				struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t level;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t level;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	level = (s16_t) net_buf_simple_pull_le16(buf);
+	level = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -494,12 +494,12 @@ static void gen_level_set(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t level;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t level;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	level = (s16_t) net_buf_simple_pull_le16(buf);
+	level = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -569,12 +569,12 @@ static void gen_delta_set_unack(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
 				struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s32_t tmp32, delta;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int32_t tmp32, delta;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	delta = (s32_t) net_buf_simple_pull_le32(buf);
+	delta = (int32_t) net_buf_simple_pull_le32(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -658,12 +658,12 @@ static void gen_delta_set(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s32_t tmp32, delta;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int32_t tmp32, delta;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	delta = (s32_t) net_buf_simple_pull_le32(buf);
+	delta = (int32_t) net_buf_simple_pull_le32(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -805,13 +805,13 @@ static void gen_move_set_unack(struct bt_mesh_model *model,
 			       struct bt_mesh_msg_ctx *ctx,
 			       struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta;
-	s32_t tmp32;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta;
+	int32_t tmp32;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	delta = (s16_t) net_buf_simple_pull_le16(buf);
+	delta = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -886,13 +886,13 @@ static void gen_move_set(struct bt_mesh_model *model,
 			 struct bt_mesh_msg_ctx *ctx,
 			 struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta;
-	s32_t tmp32;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta;
+	int32_t tmp32;
+	int64_t now;
 	struct generic_level_state *state = model->user_data;
 
-	delta = (s16_t) net_buf_simple_pull_le16(buf);
+	delta = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	now = k_uptime_get();
@@ -1021,7 +1021,7 @@ static bool gen_def_trans_time_setunack(struct bt_mesh_model *model,
 					struct bt_mesh_msg_ctx *ctx,
 					struct os_mbuf *buf)
 {
-	u8_t tt;
+	uint8_t tt;
 	struct gen_def_trans_time_state *state = model->user_data;
 
 	tt = net_buf_simple_pull_u8(buf);
@@ -1122,7 +1122,7 @@ static bool gen_onpowerup_setunack(struct bt_mesh_model *model,
 				   struct bt_mesh_msg_ctx *ctx,
 				   struct os_mbuf *buf)
 {
-	u8_t onpowerup;
+	uint8_t onpowerup;
 	struct generic_onpowerup_state *state = model->user_data;
 
 	onpowerup = net_buf_simple_pull_u8(buf);
@@ -1187,9 +1187,9 @@ static void vnd_set_unack(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct os_mbuf *buf)
 {
-	u8_t tid;
+	uint8_t tid;
 	int current;
-	s64_t now;
+	int64_t now;
 	struct vendor_state *state = model->user_data;
 
 	current = net_buf_simple_pull_le16(buf);
@@ -1290,9 +1290,9 @@ static void light_lightness_set_unack(struct bt_mesh_model *model,
 				      struct bt_mesh_msg_ctx *ctx,
 				      struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	u16_t actual;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	uint16_t actual;
+	int64_t now;
 	struct light_lightness_state *state = model->user_data;
 
 	actual = net_buf_simple_pull_le16(buf);
@@ -1360,9 +1360,9 @@ static void light_lightness_set(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
 				struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	u16_t actual;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	uint16_t actual;
+	int64_t now;
 	struct light_lightness_state *state = model->user_data;
 
 	actual = net_buf_simple_pull_le16(buf);
@@ -1483,9 +1483,9 @@ static void light_lightness_linear_set_unack(struct bt_mesh_model *model,
 					     struct bt_mesh_msg_ctx *ctx,
 					     struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	u16_t linear;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	uint16_t linear;
+	int64_t now;
 	struct light_lightness_state *state = model->user_data;
 
 	linear = net_buf_simple_pull_le16(buf);
@@ -1546,9 +1546,9 @@ static void light_lightness_linear_set(struct bt_mesh_model *model,
 				       struct bt_mesh_msg_ctx *ctx,
 				       struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	u16_t linear;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	uint16_t linear;
+	int64_t now;
 	struct light_lightness_state *state = model->user_data;
 
 	linear = net_buf_simple_pull_le16(buf);
@@ -1690,7 +1690,7 @@ static void light_lightness_default_set_unack(struct bt_mesh_model *model,
 					      struct bt_mesh_msg_ctx *ctx,
 					      struct os_mbuf *buf)
 {
-	u16_t lightness;
+	uint16_t lightness;
 	struct light_lightness_state *state = model->user_data;
 
 	lightness = net_buf_simple_pull_le16(buf);
@@ -1741,7 +1741,7 @@ static bool light_lightness_range_setunack(struct bt_mesh_model *model,
 					   struct bt_mesh_msg_ctx *ctx,
 					   struct os_mbuf *buf)
 {
-	u16_t min, max;
+	uint16_t min, max;
 	struct light_lightness_state *state = model->user_data;
 
 	min = net_buf_simple_pull_le16(buf);
@@ -1908,15 +1908,15 @@ static void light_ctl_set_unack(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
 				struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta_uv;
-	u16_t lightness, temp;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta_uv;
+	uint16_t lightness, temp;
+	int64_t now;
 	struct light_ctl_state *state = model->user_data;
 
 	lightness = net_buf_simple_pull_le16(buf);
 	temp = net_buf_simple_pull_le16(buf);
-	delta_uv = (s16_t) net_buf_simple_pull_le16(buf);
+	delta_uv = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	if (temp < TEMP_MIN || temp > TEMP_MAX) {
@@ -1991,15 +1991,15 @@ static void light_ctl_set(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta_uv;
-	u16_t lightness, temp;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta_uv;
+	uint16_t lightness, temp;
+	int64_t now;
 	struct light_ctl_state *state = model->user_data;
 
 	lightness = net_buf_simple_pull_le16(buf);
 	temp = net_buf_simple_pull_le16(buf);
-	delta_uv = (s16_t) net_buf_simple_pull_le16(buf);
+	delta_uv = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	if (temp < TEMP_MIN || temp > TEMP_MAX) {
@@ -2140,13 +2140,13 @@ static bool light_ctl_default_setunack(struct bt_mesh_model *model,
 				       struct bt_mesh_msg_ctx *ctx,
 				       struct os_mbuf *buf)
 {
-	u16_t lightness, temp;
-	s16_t delta_uv;
+	uint16_t lightness, temp;
+	int16_t delta_uv;
 	struct light_ctl_state *state = model->user_data;
 
 	lightness = net_buf_simple_pull_le16(buf);
 	temp = net_buf_simple_pull_le16(buf);
-	delta_uv = (s16_t) net_buf_simple_pull_le16(buf);
+	delta_uv = (int16_t) net_buf_simple_pull_le16(buf);
 
 	/* Here, Model specification is silent about tid implementation */
 
@@ -2216,7 +2216,7 @@ static bool light_ctl_temp_range_setunack(struct bt_mesh_model *model,
 					  struct bt_mesh_msg_ctx *ctx,
 					  struct os_mbuf *buf)
 {
-	u16_t min, max;
+	uint16_t min, max;
 	struct light_ctl_state *state = model->user_data;
 
 	min = net_buf_simple_pull_le16(buf);
@@ -2384,14 +2384,14 @@ static void light_ctl_temp_set_unack(struct bt_mesh_model *model,
 				     struct bt_mesh_msg_ctx *ctx,
 				     struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta_uv;
-	u16_t temp;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta_uv;
+	uint16_t temp;
+	int64_t now;
 	struct light_ctl_state *state = model->user_data;
 
 	temp = net_buf_simple_pull_le16(buf);
-	delta_uv = (s16_t) net_buf_simple_pull_le16(buf);
+	delta_uv = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	if (temp < TEMP_MIN || temp > TEMP_MAX) {
@@ -2463,14 +2463,14 @@ static void light_ctl_temp_set(struct bt_mesh_model *model,
 			       struct bt_mesh_msg_ctx *ctx,
 			       struct os_mbuf *buf)
 {
-	u8_t tid, tt, delay;
-	s16_t delta_uv;
-	u16_t temp;
-	s64_t now;
+	uint8_t tid, tt, delay;
+	int16_t delta_uv;
+	uint16_t temp;
+	int64_t now;
 	struct light_ctl_state *state = model->user_data;
 
 	temp = net_buf_simple_pull_le16(buf);
-	delta_uv = (s16_t) net_buf_simple_pull_le16(buf);
+	delta_uv = (int16_t) net_buf_simple_pull_le16(buf);
 	tid = net_buf_simple_pull_u8(buf);
 
 	if (temp < TEMP_MIN || temp > TEMP_MAX) {

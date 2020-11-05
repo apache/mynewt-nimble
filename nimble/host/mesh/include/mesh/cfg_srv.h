@@ -25,38 +25,38 @@ extern "C" {
 struct bt_mesh_cfg_srv {
 	struct bt_mesh_model *model;
 
-	u8_t net_transmit;         /* Network Transmit state */
-	u8_t relay;                /* Relay Mode state */
-	u8_t relay_retransmit;     /* Relay Retransmit state */
-	u8_t beacon;               /* Secure Network Beacon state */
-	u8_t gatt_proxy;           /* GATT Proxy state */
-	u8_t frnd;                 /* Friend state */
-	u8_t default_ttl;          /* Default TTL */
+	uint8_t net_transmit;         /* Network Transmit state */
+	uint8_t relay;                /* Relay Mode state */
+	uint8_t relay_retransmit;     /* Relay Retransmit state */
+	uint8_t beacon;               /* Secure Network Beacon state */
+	uint8_t gatt_proxy;           /* GATT Proxy state */
+	uint8_t frnd;                 /* Friend state */
+	uint8_t default_ttl;          /* Default TTL */
 
 	/* Heartbeat Publication */
 	struct bt_mesh_hb_pub {
 		struct k_delayed_work timer;
 
-		u16_t dst;
-		u16_t count;
-		u8_t  period;
-		u8_t  ttl;
-		u16_t feat;
-		u16_t net_idx;
+		uint16_t dst;
+		uint16_t count;
+		uint8_t  period;
+		uint8_t  ttl;
+		uint16_t feat;
+		uint16_t net_idx;
 	} hb_pub;
 
 	/* Heartbeat Subscription */
 	struct bt_mesh_hb_sub {
-		s64_t  expiry;
+		int64_t  expiry;
 
-		u16_t src;
-		u16_t dst;
-		u16_t count;
-		u8_t  min_hops;
-		u8_t  max_hops;
+		uint16_t src;
+		uint16_t dst;
+		uint16_t count;
+		uint8_t  min_hops;
+		uint8_t  max_hops;
 
 		/* Optional subscription tracking function */
-		void (*func)(u8_t hops, u16_t feat);
+		void (*func)(uint8_t hops, uint16_t feat);
 	} hb_sub;
 };
 

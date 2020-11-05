@@ -36,15 +36,15 @@ static const ble_uuid16_t gatt_cpf_uuid = BLE_UUID16_INIT(0x2904);
 /** @brief GATT Characteristic Presentation Format Attribute Value. */
 struct bt_gatt_cpf {
     /** Format of the value of the characteristic */
-    u8_t format;
+    uint8_t format;
     /** Exponent field to determine how the value of this characteristic is further formatted */
-    s8_t exponent;
+    int8_t exponent;
     /** Unit of the characteristic */
-    u16_t unit;
+    uint16_t unit;
     /** Name space of the description */
-    u8_t name_space;
+    uint8_t name_space;
     /** Description of the characteristic as defined in a higher layer profile */
-    u16_t description;
+    uint16_t description;
 } __packed;
 
 #define CPF_FORMAT_UTF8 0x19
