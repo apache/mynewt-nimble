@@ -2393,6 +2393,7 @@ void bt_mesh_store_cdb_node(const struct bt_mesh_cdb_node *node)
 	}
 
 	free_slot->addr = node->addr;
+	free_slot->clear = false;
 
 	schedule_cdb_store(BT_MESH_CDB_NODES_PENDING);
 }
