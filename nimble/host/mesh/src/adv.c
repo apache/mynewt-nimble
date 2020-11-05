@@ -59,14 +59,6 @@ static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
 struct os_mbuf_pool adv_os_mbuf_pool;
 static struct os_mempool adv_buf_mempool;
 
-static const u8_t adv_type[] = {
-	[BT_MESH_ADV_PROV]   = BLE_HS_ADV_TYPE_MESH_PROV,
-	[BT_MESH_ADV_DATA]   = BLE_HS_ADV_TYPE_MESH_MESSAGE,
-	[BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
-	[BT_MESH_ADV_URI]    = BLE_HS_ADV_TYPE_URI,
-};
-
-
 static struct bt_mesh_adv adv_pool[CONFIG_BT_MESH_ADV_BUF_COUNT];
 
 static struct bt_mesh_adv *adv_alloc(int id)
@@ -93,6 +85,13 @@ static inline void adv_send_end(int err, const struct bt_mesh_send_cb *cb,
 
 static inline void adv_send(struct os_mbuf *buf)
 {
+	static const u8_t adv_type[] = {
+		[BT_MESH_ADV_PROV]   = BLE_HS_ADV_TYPE_MESH_PROV,
+		[BT_MESH_ADV_DATA]   = BLE_HS_ADV_TYPE_MESH_MESSAGE,
+		[BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
+		[BT_MESH_ADV_URI]    = BLE_HS_ADV_TYPE_URI,
+}	;
+
 	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
 	void *cb_data = BT_MESH_ADV(buf)->cb_data;
 	struct ble_gap_adv_params param = { 0 };
