@@ -669,9 +669,9 @@ static int mod_set_pub(struct bt_mesh_model *mod, char *val)
 }
 
 static int mod_data_set(struct bt_mesh_model *mod,
-			const char *name, size_t len_rd)
+			char *name, char *len_rd)
 {
-	const char *next;
+	char *next;
 
 	settings_name_next(name, &next);
 
@@ -720,7 +720,7 @@ static int mod_set(bool vnd, int argc, char **argv, char *val)
 	}
 
 	if (!strcmp(argv[1], "data")) {
-		return mod_data_set(mod, next, len_rd);	
+		return mod_data_set(mod, argv[1], val);	
 	}
 
 	BT_WARN("Unknown module key %s", argv[1]);
@@ -2590,7 +2590,7 @@ int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
 		}
 		err = settings_save_one(path, val);
 	} else {
-		err = settings_delete(path);
+		err = settings_save_one(path, NULL);
 	}
 
 	if (err) {
