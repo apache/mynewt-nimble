@@ -36,6 +36,10 @@ static struct bt_mesh_cfg_srv *conf;
 
 static struct label labels[CONFIG_BT_MESH_LABEL_COUNT];
 
+#if CONFIG_BT_MESH_LABEL_COUNT > 0
+static uint8_t va_del(uint8_t *label_uuid, uint16_t *addr);
+#endif
+
 static int comp_add_elem(struct os_mbuf *buf, struct bt_mesh_elem *elem,
 			 bool primary)
 {
@@ -229,6 +233,16 @@ static u8_t _mod_pub_set(struct bt_mesh_model *model, u16_t pub_addr,
 	if (!bt_mesh_app_key_find(app_idx)) {
 		return STATUS_INVALID_APPKEY;
 	}
+
+#if CONFIG_BT_MESH_LABEL_COUNT > 0
+	if (BT_MESH_ADDR_IS_VIRTUAL(model->pub->addr)) {
+		uint8_t *uuid = bt_mesh_label_uuid_get(model->pub->addr);
+
+		if (uuid) {
+			va_del(uuid, NULL);
+		}
+	}
+#endif
 
 	model->pub->addr = pub_addr;
 	model->pub->key = app_idx;
@@ -1280,9 +1294,14 @@ static void mod_pub_va_set(struct bt_mesh_model *model,
 	}
 
 	status = va_add(label_uuid, &pub_addr);
-	if (status == STATUS_SUCCESS) {
-		status = _mod_pub_set(mod, pub_addr, pub_app_idx, cred_flag,
-				      pub_ttl, pub_period, retransmit, true);
+	if (status != STATUS_SUCCESS) {
+		goto send_status;
+	}
+
+	status = _mod_pub_set(mod, pub_addr, pub_app_idx, cred_flag, pub_ttl,
+			      pub_period, retransmit, true);
+	if (status != STATUS_SUCCESS) {
+		va_del(label_uuid, NULL);
 	}
 
 send_status:
@@ -1859,6 +1878,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 	if (bt_mesh_model_find_group(&mod, sub_addr)) {
 		/* Tried to add existing subscription */
 		status = STATUS_SUCCESS;
+		va_del(label_uuid, NULL);
 		goto send_status;
 	}
 
@@ -1866,6 +1886,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 	entry = bt_mesh_model_find_group(&mod, BT_MESH_ADDR_UNASSIGNED);
 	if (!entry) {
 		status = STATUS_INSUFF_RESOURCES;
+		va_del(label_uuid, NULL);
 		goto send_status;
 		}
 
@@ -1993,11 +2014,10 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 	}
 
 	if (ARRAY_SIZE(mod->groups) > 0) {
-		bt_mesh_model_tree_walk(bt_mesh_model_root(mod),
-					mod_sub_clear_visitor, NULL);
-
 		status = va_add(label_uuid, &sub_addr);
 		if (status == STATUS_SUCCESS) {
+			bt_mesh_model_tree_walk(bt_mesh_model_root(mod),
+						mod_sub_clear_visitor, NULL);
 			mod->groups[0] = sub_addr;
 
 			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
