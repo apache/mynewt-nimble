@@ -844,9 +844,11 @@ static int sdu_recv_unseg(struct bt_mesh_net_rx *rx, u8_t hdr,
 		return 0;
 	}
 
-	BT_WARN("No matching AppKey");
+	if (rx->local_match) {
+		BT_WARN("No matching AppKey");
+	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int sdu_recv_seg(struct seg_rx *seg, u8_t hdr, u8_t aszmic,
@@ -937,15 +939,15 @@ static int sdu_recv_seg(struct seg_rx *seg, u8_t hdr, u8_t aszmic,
 		rx->ctx.app_idx = key->app_idx;
 
 		bt_mesh_model_recv(rx, sdu);
-		goto done;
+		return 0;
 	}
 
-	BT_WARN("No matching AppKey");
+	if (rx->local_match) {
+		BT_WARN("No matching AppKey");
+	}
 
-	err = -EINVAL;
-done:
     os_mbuf_free_chain(sdu);
-    return err;
+    return 0;
 }
 
 static struct seg_tx *seg_tx_lookup(u16_t seq_zero, u8_t obo, u16_t addr)
