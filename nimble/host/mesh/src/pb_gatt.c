@@ -22,11 +22,11 @@ struct prov_link {
 	const struct prov_bearer_cb *cb;
 	void *cb_data;
 	struct {
-		u8_t  id;        /* Transaction ID */
-		u8_t  prev_id;   /* Previous Transaction ID */
-		u8_t  seg;       /* Bit-field of unreceived segments */
-		u8_t  last_seg;  /* Last segment (to check length) */
-		u8_t  fcs;       /* Expected FCS value */
+		uint8_t  id;        /* Transaction ID */
+		uint8_t  prev_id;   /* Previous Transaction ID */
+		uint8_t  seg;       /* Bit-field of unreceived segments */
+		uint8_t  last_seg;  /* Last segment (to check length) */
+		uint8_t  fcs;       /* Expected FCS value */
 		struct os_mbuf *buf;
 	} rx;
 	struct k_delayed_work prot_timer;

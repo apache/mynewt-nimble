@@ -23,21 +23,21 @@ extern "C" {
 
 struct bt_mesh_health_srv_cb {
 	/* Fetch current faults */
-	int (*fault_get_cur)(struct bt_mesh_model *model, u8_t *test_id,
-			     u16_t *company_id, u8_t *faults,
-			     u8_t *fault_count);
+	int (*fault_get_cur)(struct bt_mesh_model *model, uint8_t *test_id,
+			     uint16_t *company_id, uint8_t *faults,
+			     uint8_t *fault_count);
 
 	/* Fetch registered faults */
-	int (*fault_get_reg)(struct bt_mesh_model *model, u16_t company_id,
-			     u8_t *test_id, u8_t *faults,
-			     u8_t *fault_count);
+	int (*fault_get_reg)(struct bt_mesh_model *model, uint16_t company_id,
+			     uint8_t *test_id, uint8_t *faults,
+			     uint8_t *fault_count);
 
 	/* Clear registered faults */
-	int (*fault_clear)(struct bt_mesh_model *model, u16_t company_id);
+	int (*fault_clear)(struct bt_mesh_model *model, uint16_t company_id);
 
 	/* Run a specific test */
-	int (*fault_test)(struct bt_mesh_model *model, u8_t test_id,
-			  u16_t company_id);
+	int (*fault_test)(struct bt_mesh_model *model, uint8_t test_id,
+			  uint16_t company_id);
 
 	/* Attention on */
 	void (*attn_on)(struct bt_mesh_model *model);

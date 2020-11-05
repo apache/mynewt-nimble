@@ -51,15 +51,6 @@
 extern "C" {
 #endif
 
-#define u8_t    uint8_t
-#define s8_t    int8_t
-#define u16_t   uint16_t
-#define s16_t   int16_t
-#define u32_t   uint32_t
-#define u64_t   uint64_t
-#define s64_t   int64_t
-#define s32_t   int32_t
-
 /** @brief Helper to declare elements of bt_data arrays
  *
  *  This macro is mainly for creating an array of struct bt_data
@@ -73,7 +64,7 @@ extern "C" {
     { \
         .type = (_type), \
         .data_len = (_data_len), \
-        .data = (const u8_t *)(_data), \
+        .data = (const uint8_t *)(_data), \
     }
 
 /** @brief Helper to declare elements of bt_data arrays
@@ -85,8 +76,8 @@ extern "C" {
  *  @param _bytes Variable number of single-byte parameters
  */
 #define BT_DATA_BYTES(_type, _bytes...) \
-    BT_DATA(_type, ((u8_t []) { _bytes }), \
-        sizeof((u8_t []) { _bytes }))
+    BT_DATA(_type, ((uint8_t []) { _bytes }), \
+        sizeof((uint8_t []) { _bytes }))
 
 /* EIR/AD data type definitions */
 #define BT_DATA_FLAGS                   0x01 /* AD flags */
@@ -200,9 +191,9 @@ typedef ble_addr_t bt_addr_le_t;
 
 struct net_buf_simple_state {
     /** Offset of the data pointer from the beginning of the storage */
-    u16_t offset;
+    uint16_t offset;
     /** Length of data */
-    u16_t len;
+    uint16_t len;
 };
 
 static inline struct os_mbuf * NET_BUF_SIMPLE(uint16_t size)
@@ -275,7 +266,7 @@ void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
 bool k_fifo_is_empty(struct ble_npl_eventq *q);
-void *net_buf_get(struct ble_npl_eventq *fifo,s32_t t);
+void *net_buf_get(struct ble_npl_eventq *fifo,int32_t t);
 uint8_t *net_buf_simple_push(struct os_mbuf *om, uint8_t len);
 void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 
@@ -301,9 +292,9 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
   * bt_le_adv_start() function.
   */
 struct bt_data {
-    u8_t type;
-    u8_t data_len;
-    const u8_t *data;
+    uint8_t type;
+    uint8_t data_len;
+    const uint8_t *data;
 };
 
 struct bt_pub_key_cb {
@@ -315,24 +306,24 @@ struct bt_pub_key_cb {
      *
      *  @param key The local public key, or NULL in case of no key.
      */
-    void (*func)(const u8_t key[64]);
+    void (*func)(const uint8_t key[64]);
 
     struct bt_pub_key_cb *_next;
 };
 
-typedef void (*bt_dh_key_cb_t)(const u8_t key[32]);
-int bt_dh_key_gen(const u8_t remote_pk[64], bt_dh_key_cb_t cb);
+typedef void (*bt_dh_key_cb_t)(const uint8_t key[32]);
+int bt_dh_key_gen(const uint8_t remote_pk[64], bt_dh_key_cb_t cb);
 int bt_pub_key_gen(struct bt_pub_key_cb *new_cb);
 uint8_t *bt_pub_key_get(void);
 int bt_rand(void *buf, size_t len);
 const char * bt_hex(const void *buf, size_t len);
 int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data);
-int bt_ccm_decrypt(const u8_t key[16], u8_t nonce[13], const u8_t *enc_data,
-		   size_t len, const u8_t *aad, size_t aad_len,
-		   u8_t *plaintext, size_t mic_size);
-int bt_ccm_encrypt(const u8_t key[16], u8_t nonce[13], const u8_t *enc_data,
-		   size_t len, const u8_t *aad, size_t aad_len,
-		   u8_t *plaintext, size_t mic_size);
+int bt_ccm_decrypt(const uint8_t key[16], uint8_t nonce[13], const uint8_t *enc_data,
+		   size_t len, const uint8_t *aad, size_t aad_len,
+		   uint8_t *plaintext, size_t mic_size);
+int bt_ccm_encrypt(const uint8_t key[16], uint8_t nonce[13], const uint8_t *enc_data,
+		   size_t len, const uint8_t *aad, size_t aad_len,
+		   uint8_t *plaintext, size_t mic_size);
 void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *ad, size_t ad_len,
@@ -348,7 +339,7 @@ void k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f);
 void k_delayed_work_cancel(struct k_delayed_work *w);
 void k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms);
 int64_t k_uptime_get(void);
-u32_t k_uptime_get_32(void);
+uint32_t k_uptime_get_32(void);
 void k_sleep(int32_t duration);
 void k_work_submit(struct ble_npl_callout *w);
 void k_work_add_arg(struct ble_npl_callout *w, void *arg);
@@ -378,18 +369,18 @@ static inline void sys_memcpy_swap(void *dst, const void *src, size_t length)
     src += length - 1;
 
     for (; length > 0; length--) {
-        *((u8_t *)dst++) = *((u8_t *)src--);
+        *((uint8_t *)dst++) = *((uint8_t *)src--);
     }
 }
 
 #define popcount(x) __builtin_popcount(x)
 
-static inline unsigned int find_lsb_set(u32_t op)
+static inline unsigned int find_lsb_set(uint32_t op)
 {
     return __builtin_ffs(op);
 }
 
-static inline unsigned int find_msb_set(u32_t op)
+static inline unsigned int find_msb_set(uint32_t op)
 {
     if (!op)
         return 0;
@@ -455,7 +446,7 @@ static inline void k_sem_init(struct k_sem *sem, unsigned int initial_count,
 	ble_npl_sem_init(sem, initial_count);
 }
 
-static inline int k_sem_take(struct k_sem *sem, s32_t timeout)
+static inline int k_sem_take(struct k_sem *sem, int32_t timeout)
 {
 	uint32_t ticks;
 
@@ -477,8 +468,8 @@ static inline void k_sem_give(struct k_sem *sem)
 static inline int net_buf_id(struct os_mbuf *buf)
 {
 	struct os_mbuf_pool *pool = buf->om_omp;
-	u8_t *pool_start = (u8_t *)pool->omp_pool->mp_membuf_addr;
-	u8_t *buf_ptr = (u8_t *)buf;
+	uint8_t *pool_start = (uint8_t *)pool->omp_pool->mp_membuf_addr;
+	uint8_t *buf_ptr = (uint8_t *)buf;
 
 	return (buf_ptr - pool_start) / BUF_SIZE(pool);
 }

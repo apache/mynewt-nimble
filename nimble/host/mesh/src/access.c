@@ -26,7 +26,7 @@
 #endif
 
 static const struct bt_mesh_comp *dev_comp;
-static u16_t dev_primary_addr;
+static uint16_t dev_primary_addr;
 
 void bt_mesh_model_foreach(void (*func)(struct bt_mesh_model *mod,
 					struct bt_mesh_elem *elem,
@@ -53,7 +53,7 @@ void bt_mesh_model_foreach(void (*func)(struct bt_mesh_model *mod,
 	}
 }
 
-s32_t bt_mesh_model_pub_period_get(struct bt_mesh_model *mod)
+int32_t bt_mesh_model_pub_period_get(struct bt_mesh_model *mod)
 {
 	int period;
 
@@ -89,10 +89,10 @@ s32_t bt_mesh_model_pub_period_get(struct bt_mesh_model *mod)
 	}
 }
 
-static s32_t next_period(struct bt_mesh_model *mod)
+static int32_t next_period(struct bt_mesh_model *mod)
 {
 	struct bt_mesh_model_pub *pub = mod->pub;
-	u32_t elapsed, period;
+	uint32_t elapsed, period;
 
 	period = bt_mesh_model_pub_period_get(mod);
 	if (!period) {
@@ -115,7 +115,7 @@ static s32_t next_period(struct bt_mesh_model *mod)
 static void publish_sent(int err, void *user_data)
 {
 	struct bt_mesh_model *mod = user_data;
-	s32_t delay;
+	int32_t delay;
 
 	BT_DBG("err %d", err);
 
@@ -131,7 +131,7 @@ static void publish_sent(int err, void *user_data)
 	}
 }
 
-static void publish_start(u16_t duration, int err, void *user_data)
+static void publish_start(uint16_t duration, int err, void *user_data)
 {
 	struct bt_mesh_model *mod = user_data;
 	struct bt_mesh_model_pub *pub = mod->pub;
@@ -203,7 +203,7 @@ static void publish_retransmit_end(int err, struct bt_mesh_model_pub *pub)
 static void mod_publish(struct ble_npl_event *work)
 {
 	struct bt_mesh_model_pub *pub = ble_npl_event_get_arg(work);
-	s32_t period_ms;
+	int32_t period_ms;
 	int err;
 
 	BT_DBG("");
@@ -253,7 +253,7 @@ struct bt_mesh_elem *bt_mesh_model_elem(struct bt_mesh_model *mod)
 	return &dev_comp->elem[mod->elem_idx];
 }
 
-struct bt_mesh_model *bt_mesh_model_get(bool vnd, u8_t elem_idx, u8_t mod_idx)
+struct bt_mesh_model *bt_mesh_model_get(bool vnd, uint8_t elem_idx, uint8_t mod_idx)
 {
 	struct bt_mesh_elem *elem;
 
@@ -330,7 +330,7 @@ int bt_mesh_comp_register(const struct bt_mesh_comp *comp)
 	return err;
 }
 
-void bt_mesh_comp_provision(u16_t addr)
+void bt_mesh_comp_provision(uint16_t addr)
 {
 	int i;
 
@@ -355,12 +355,12 @@ void bt_mesh_comp_unprovision(void)
 	dev_primary_addr = BT_MESH_ADDR_UNASSIGNED;
 }
 
-u16_t bt_mesh_primary_addr(void)
+uint16_t bt_mesh_primary_addr(void)
 {
 	return dev_primary_addr;
 }
 
-static u16_t *model_group_get(struct bt_mesh_model *mod, u16_t addr)
+static uint16_t *model_group_get(struct bt_mesh_model *mod, uint16_t addr)
 {
 	int i;
 
@@ -374,13 +374,13 @@ static u16_t *model_group_get(struct bt_mesh_model *mod, u16_t addr)
 }
 
 struct find_group_visitor_ctx {
-	u16_t *entry;
+	uint16_t *entry;
 	struct bt_mesh_model *mod;
-	u16_t addr;
+	uint16_t addr;
 };
 
 static enum bt_mesh_walk find_group_mod_visitor(struct bt_mesh_model *mod,
-						u32_t depth, void *user_data)
+						uint32_t depth, void *user_data)
 {
 	struct find_group_visitor_ctx *ctx = user_data;
 
@@ -397,7 +397,7 @@ static enum bt_mesh_walk find_group_mod_visitor(struct bt_mesh_model *mod,
 	return BT_MESH_WALK_CONTINUE;
 }
 
-u16_t *bt_mesh_model_find_group(struct bt_mesh_model **mod, u16_t addr)
+uint16_t *bt_mesh_model_find_group(struct bt_mesh_model **mod, uint16_t addr)
 {
 	struct find_group_visitor_ctx ctx = {
 		.mod = *mod,
@@ -413,10 +413,10 @@ u16_t *bt_mesh_model_find_group(struct bt_mesh_model **mod, u16_t addr)
 }
 
 static struct bt_mesh_model *bt_mesh_elem_find_group(struct bt_mesh_elem *elem,
-						     u16_t group_addr)
+						     uint16_t group_addr)
 {
 	struct bt_mesh_model *model;
-	u16_t *match;
+	uint16_t *match;
 	int i;
 
 	for (i = 0; i < elem->model_count; i++) {
@@ -440,9 +440,9 @@ static struct bt_mesh_model *bt_mesh_elem_find_group(struct bt_mesh_elem *elem,
 	return NULL;
 }
 
-struct bt_mesh_elem *bt_mesh_elem_find(u16_t addr)
+struct bt_mesh_elem *bt_mesh_elem_find(uint16_t addr)
 {
-	u16_t index;
+	uint16_t index;
 
 	if (BT_MESH_ADDR_IS_UNICAST(addr)) {
 		index = (addr - dev_comp->elem[0].addr);
@@ -464,12 +464,12 @@ struct bt_mesh_elem *bt_mesh_elem_find(u16_t addr)
 	return NULL;
 }
 
-u8_t bt_mesh_elem_count(void)
+uint8_t bt_mesh_elem_count(void)
 {
 	return dev_comp->elem_count;
 }
 
-static bool model_has_key(struct bt_mesh_model *mod, u16_t key)
+static bool model_has_key(struct bt_mesh_model *mod, uint16_t key)
 {
 	int i;
 
@@ -484,7 +484,7 @@ static bool model_has_key(struct bt_mesh_model *mod, u16_t key)
 	return false;
 }
 
-static bool model_has_dst(struct bt_mesh_model *mod, u16_t dst)
+static bool model_has_dst(struct bt_mesh_model *mod, uint16_t dst)
 {
 	if (BT_MESH_ADDR_IS_UNICAST(dst)) {
 		return (dev_comp->elem[mod->elem_idx].addr == dst);
@@ -496,10 +496,10 @@ static bool model_has_dst(struct bt_mesh_model *mod, u16_t dst)
 }
 
 static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
-					      u8_t model_count, u32_t opcode,
+					      uint8_t model_count, uint32_t opcode,
 					      struct bt_mesh_model **model)
 {
-	u8_t i;
+	uint8_t i;
 
 	for (i = 0; i < model_count; i++) {
 		const struct bt_mesh_model_op *op;
@@ -517,7 +517,7 @@ static const struct bt_mesh_model_op *find_op(struct bt_mesh_model *models,
 	return NULL;
 }
 
-static int get_opcode(struct os_mbuf *buf, u32_t *opcode)
+static int get_opcode(struct os_mbuf *buf, uint32_t *opcode)
 {
 	switch (buf->om_data[0] >> 6) {
 	case 0x00:
@@ -555,7 +555,7 @@ static int get_opcode(struct os_mbuf *buf, u32_t *opcode)
 	CODE_UNREACHABLE;
 }
 
-bool bt_mesh_fixed_group_match(u16_t addr)
+bool bt_mesh_fixed_group_match(uint16_t addr)
 {
 	/* Check for fixed group addresses */
 	switch (addr) {
@@ -576,8 +576,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 {
 	struct bt_mesh_model *models, *model;
 	const struct bt_mesh_model_op *op;
-	u32_t opcode;
-	u8_t count;
+	uint32_t opcode;
+	uint8_t count;
 	int i;
 
 	BT_DBG("app_idx 0x%04x src 0x%04x dst 0x%04x", rx->ctx.app_idx,
@@ -636,7 +636,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 	}
 }
 
-void bt_mesh_model_msg_init(struct os_mbuf *msg, u32_t opcode)
+void bt_mesh_model_msg_init(struct os_mbuf *msg, uint32_t opcode)
 {
 	net_buf_simple_init(msg, 0);
 
@@ -792,9 +792,9 @@ done:
 }
 
 struct bt_mesh_model *bt_mesh_model_find_vnd(const struct bt_mesh_elem *elem,
-					     u16_t company, u16_t id)
+					     uint16_t company, uint16_t id)
 {
-	u8_t i;
+	uint8_t i;
 
 	for (i = 0; i < elem->vnd_model_count; i++) {
 		if (elem->vnd_models[i].vnd.company == company &&
@@ -807,9 +807,9 @@ struct bt_mesh_model *bt_mesh_model_find_vnd(const struct bt_mesh_elem *elem,
 }
 
 struct bt_mesh_model *bt_mesh_model_find(const struct bt_mesh_elem *elem,
-					 u16_t id)
+					 uint16_t id)
 {
-	u8_t i;
+	uint8_t i;
 
 	for (i = 0; i < elem->model_count; i++) {
 		if (elem->models[i].id == id) {
@@ -837,12 +837,12 @@ struct bt_mesh_model *bt_mesh_model_root(struct bt_mesh_model *mod)
 
 void bt_mesh_model_tree_walk(struct bt_mesh_model *root,
 			     enum bt_mesh_walk (*cb)(struct bt_mesh_model *mod,
-						     u32_t depth,
+						     uint32_t depth,
 						     void *user_data),
 			     void *user_data)
 {
 	struct bt_mesh_model *m = root;
-	u32_t depth = 0;
+	uint32_t depth = 0;
 
 	do {
 		if (cb(m, depth, user_data) == BT_MESH_WALK_STOP) {

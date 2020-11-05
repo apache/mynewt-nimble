@@ -25,11 +25,11 @@
 #define DUMMY_2_BYTE_OP	BT_MESH_MODEL_OP_2(0xff, 0xff)
 
 struct comp_data {
-	u8_t *status;
+	uint8_t *status;
 	struct os_mbuf *comp;
 };
 
-static s32_t msg_timeout = K_SECONDS(5);
+static int32_t msg_timeout = K_SECONDS(5);
 
 static struct bt_mesh_cfg_cli *cli;
 
@@ -61,9 +61,9 @@ static void comp_data_status(struct bt_mesh_model *model,
 static void state_status_u8(struct bt_mesh_model *model,
 			    struct bt_mesh_msg_ctx *ctx,
 			    struct os_mbuf*buf,
-			    u32_t expect_status)
+			    uint32_t expect_status)
 {
-	u8_t *status;
+	uint8_t *status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -110,8 +110,8 @@ static void gatt_proxy_status(struct bt_mesh_model *model,
 }
 
 struct relay_param {
-	u8_t *status;
-	u8_t *transmit;
+	uint8_t *status;
+	uint8_t *transmit;
 };
 
 static void relay_status(struct bt_mesh_model *model,
@@ -137,8 +137,8 @@ static void relay_status(struct bt_mesh_model *model,
 }
 
 struct net_key_param {
-	u8_t *status;
-	u16_t net_idx;
+	uint8_t *status;
+	uint16_t net_idx;
 };
 
 static void net_key_status(struct bt_mesh_model *model,
@@ -146,8 +146,8 @@ static void net_key_status(struct bt_mesh_model *model,
 			   struct os_mbuf *buf)
 {
 	struct net_key_param *param;
-	u16_t net_idx;
-	u8_t status;
+	uint16_t net_idx;
+	uint8_t status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -175,7 +175,7 @@ static void net_key_status(struct bt_mesh_model *model,
 }
 
 struct net_key_list_param {
-	u16_t *keys;
+	uint16_t *keys;
 	size_t *key_cnt;
 };
 
@@ -211,9 +211,9 @@ static void net_key_list(struct bt_mesh_model *model,
 }
 
 struct app_key_param {
-	u8_t *status;
-	u16_t net_idx;
-	u16_t app_idx;
+	uint8_t *status;
+	uint16_t net_idx;
+	uint16_t app_idx;
 };
 
 static void app_key_status(struct bt_mesh_model *model,
@@ -221,8 +221,8 @@ static void app_key_status(struct bt_mesh_model *model,
 			   struct os_mbuf*buf)
 {
 	struct app_key_param *param;
-	u16_t net_idx, app_idx;
-	u8_t status;
+	uint16_t net_idx, app_idx;
+	uint8_t status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -250,9 +250,9 @@ static void app_key_status(struct bt_mesh_model *model,
 }
 
 struct app_key_list_param {
-	u16_t net_idx;
-	u8_t *status;
-	u16_t *keys;
+	uint16_t net_idx;
+	uint8_t *status;
+	uint16_t *keys;
 	size_t *key_cnt;
 };
 
@@ -261,8 +261,8 @@ static void app_key_list(struct bt_mesh_model *model,
 			 struct os_mbuf *buf)
 {
 	struct app_key_list_param *param;
-	u16_t net_idx;
-	u8_t status;
+	uint16_t net_idx;
+	uint8_t status;
 	int i;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
@@ -300,20 +300,20 @@ static void app_key_list(struct bt_mesh_model *model,
 }
 
 struct mod_app_param {
-	u8_t *status;
-	u16_t elem_addr;
-	u16_t mod_app_idx;
-	u16_t mod_id;
-	u16_t cid;
+	uint8_t *status;
+	uint16_t elem_addr;
+	uint16_t mod_app_idx;
+	uint16_t mod_id;
+	uint16_t cid;
 };
 
 static void mod_app_status(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf*buf)
 {
-	u16_t elem_addr, mod_app_idx, mod_id, cid;
+	uint16_t elem_addr, mod_app_idx, mod_id, cid;
 	struct mod_app_param *param;
-	u8_t status;
+	uint8_t status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -352,11 +352,11 @@ static void mod_app_status(struct bt_mesh_model *model,
 }
 
 struct mod_member_list_param {
-	u8_t *status;
-	u16_t elem_addr;
-	u16_t mod_id;
-	u16_t cid;
-	u16_t *members;
+	uint8_t *status;
+	uint16_t elem_addr;
+	uint16_t mod_id;
+	uint16_t cid;
+	uint16_t *members;
 	size_t *member_cnt;
 };
 
@@ -364,8 +364,8 @@ static void mod_member_list_handle(struct bt_mesh_msg_ctx *ctx,
 				   struct os_mbuf *buf, bool vnd)
 {
 	struct mod_member_list_param *param;
-	u16_t elem_addr, mod_id, cid;
-	u8_t status;
+	uint16_t elem_addr, mod_id, cid;
+	uint8_t status;
 	int i;
 
 	status = net_buf_simple_pull_u8(buf);
@@ -433,10 +433,10 @@ static void mod_app_list_vnd(struct bt_mesh_model *model,
 }
 
 struct mod_pub_param {
-	u16_t                       mod_id;
-	u16_t                       cid;
-	u16_t                       elem_addr;
-	u8_t                       *status;
+	uint16_t                       mod_id;
+	uint16_t                       cid;
+	uint16_t                       elem_addr;
+	uint8_t                       *status;
 	struct bt_mesh_cfg_mod_pub *pub;
 };
 
@@ -444,9 +444,9 @@ static void mod_pub_status(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf*buf)
 {
-	u16_t mod_id, cid, elem_addr;
+	uint16_t mod_id, cid, elem_addr;
 	struct mod_pub_param *param;
-	u8_t status;
+	uint8_t status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -508,21 +508,21 @@ static void mod_pub_status(struct bt_mesh_model *model,
 }
 
 struct mod_sub_param {
-	u8_t *status;
-	u16_t elem_addr;
-	u16_t *sub_addr;
-	u16_t *expect_sub;
-	u16_t mod_id;
-	u16_t cid;
+	uint8_t *status;
+	uint16_t elem_addr;
+	uint16_t *sub_addr;
+	uint16_t *expect_sub;
+	uint16_t mod_id;
+	uint16_t cid;
 };
 
 static void mod_sub_status(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf*buf)
 {
-	u16_t elem_addr, sub_addr, mod_id, cid;
+	uint16_t elem_addr, sub_addr, mod_id, cid;
 	struct mod_sub_param *param;
-	u8_t status;
+	uint8_t status;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -597,7 +597,7 @@ static void mod_sub_list_vnd(struct bt_mesh_model *model,
 }
 
 struct hb_sub_param {
-	u8_t *status;
+	uint8_t *status;
 	struct bt_mesh_cfg_hb_sub *sub;
 };
 
@@ -631,7 +631,7 @@ static void hb_sub_status(struct bt_mesh_model *model,
 }
 
 struct hb_pub_param {
-	u8_t *status;
+	uint8_t *status;
 	struct bt_mesh_cfg_hb_pub *pub;
 };
 
@@ -721,7 +721,7 @@ const struct bt_mesh_model_cb bt_mesh_cfg_cli_cb = {
 	.init = cfg_cli_init,
 };
 
-static int cli_prepare(void *param, u32_t op)
+static int cli_prepare(void *param, uint32_t op)
 {
 	if (!cli) {
 		BT_ERR("No available Configuration Client context!");
@@ -756,8 +756,8 @@ static int cli_wait(void)
 	return err;
 }
 
-int bt_mesh_cfg_comp_data_get(u16_t net_idx, u16_t addr, u8_t page,
-			      u8_t *status, struct os_mbuf *comp)
+int bt_mesh_cfg_comp_data_get(uint16_t net_idx, uint16_t addr, uint8_t page,
+			      uint8_t *status, struct os_mbuf *comp)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_DEV_COMP_DATA_GET, 1);
 	struct bt_mesh_msg_ctx ctx = {
@@ -793,8 +793,8 @@ done:
 	return err;
 }
 
-static int get_state_u8(u16_t net_idx, u16_t addr, u32_t op, u32_t rsp,
-			u8_t *val)
+static int get_state_u8(uint16_t net_idx, uint16_t addr, uint32_t op, uint32_t rsp,
+			uint8_t *val)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(DUMMY_2_BYTE_OP, 0);
 	struct bt_mesh_msg_ctx ctx = {
@@ -825,8 +825,8 @@ done:
 	return err;
 }
 
-static int set_state_u8(u16_t net_idx, u16_t addr, u32_t op, u32_t rsp,
-			u8_t new_val, u8_t *val)
+static int set_state_u8(uint16_t net_idx, uint16_t addr, uint32_t op, uint32_t rsp,
+			uint8_t new_val, uint8_t *val)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(DUMMY_2_BYTE_OP, 1);
 	struct bt_mesh_msg_ctx ctx = {
@@ -858,57 +858,57 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_beacon_get(u16_t net_idx, u16_t addr, u8_t *status)
+int bt_mesh_cfg_beacon_get(uint16_t net_idx, uint16_t addr, uint8_t *status)
 {
 	return get_state_u8(net_idx, addr, OP_BEACON_GET, OP_BEACON_STATUS,
 			    status);
 }
 
-int bt_mesh_cfg_beacon_set(u16_t net_idx, u16_t addr, u8_t val, u8_t *status)
+int bt_mesh_cfg_beacon_set(uint16_t net_idx, uint16_t addr, uint8_t val, uint8_t *status)
 {
 	return set_state_u8(net_idx, addr, OP_BEACON_SET, OP_BEACON_STATUS,
 			    val, status);
 }
 
-int bt_mesh_cfg_ttl_get(u16_t net_idx, u16_t addr, u8_t *ttl)
+int bt_mesh_cfg_ttl_get(uint16_t net_idx, uint16_t addr, uint8_t *ttl)
 {
 	return get_state_u8(net_idx, addr, OP_DEFAULT_TTL_GET,
 			    OP_DEFAULT_TTL_STATUS, ttl);
 }
 
-int bt_mesh_cfg_ttl_set(u16_t net_idx, u16_t addr, u8_t val, u8_t *ttl)
+int bt_mesh_cfg_ttl_set(uint16_t net_idx, uint16_t addr, uint8_t val, uint8_t *ttl)
 {
 	return set_state_u8(net_idx, addr, OP_DEFAULT_TTL_SET,
 			    OP_DEFAULT_TTL_STATUS, val, ttl);
 }
 
-int bt_mesh_cfg_friend_get(u16_t net_idx, u16_t addr, u8_t *status)
+int bt_mesh_cfg_friend_get(uint16_t net_idx, uint16_t addr, uint8_t *status)
 {
 	return get_state_u8(net_idx, addr, OP_FRIEND_GET,
 			    OP_FRIEND_STATUS, status);
 }
 
-int bt_mesh_cfg_friend_set(u16_t net_idx, u16_t addr, u8_t val, u8_t *status)
+int bt_mesh_cfg_friend_set(uint16_t net_idx, uint16_t addr, uint8_t val, uint8_t *status)
 {
 	return set_state_u8(net_idx, addr, OP_FRIEND_SET, OP_FRIEND_STATUS,
 			    val, status);
 }
 
-int bt_mesh_cfg_gatt_proxy_get(u16_t net_idx, u16_t addr, u8_t *status)
+int bt_mesh_cfg_gatt_proxy_get(uint16_t net_idx, uint16_t addr, uint8_t *status)
 {
 	return get_state_u8(net_idx, addr, OP_GATT_PROXY_GET,
 			    OP_GATT_PROXY_STATUS, status);
 }
 
-int bt_mesh_cfg_gatt_proxy_set(u16_t net_idx, u16_t addr, u8_t val,
-			       u8_t *status)
+int bt_mesh_cfg_gatt_proxy_set(uint16_t net_idx, uint16_t addr, uint8_t val,
+			       uint8_t *status)
 {
 	return set_state_u8(net_idx, addr, OP_GATT_PROXY_SET,
 			    OP_GATT_PROXY_STATUS, val, status);
 }
 
-int bt_mesh_cfg_relay_get(u16_t net_idx, u16_t addr, u8_t *status,
-			  u8_t *transmit)
+int bt_mesh_cfg_relay_get(uint16_t net_idx, uint16_t addr, uint8_t *status,
+			  uint8_t *transmit)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_RELAY_GET, 0);
 	struct bt_mesh_msg_ctx ctx = {
@@ -943,8 +943,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_relay_set(u16_t net_idx, u16_t addr, u8_t new_relay,
-			  u8_t new_transmit, u8_t *status, u8_t *transmit)
+int bt_mesh_cfg_relay_set(uint16_t net_idx, uint16_t addr, uint8_t new_relay,
+			  uint8_t new_transmit, uint8_t *status, uint8_t *transmit)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_RELAY_SET, 2);
 	struct bt_mesh_msg_ctx ctx = {
@@ -981,8 +981,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_net_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
-			    const u8_t net_key[16], u8_t *status)
+int bt_mesh_cfg_net_key_add(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,
+			    const uint8_t net_key[16], uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NET_KEY_ADD, 18);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1024,7 +1024,7 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_net_key_get(u16_t net_idx, u16_t addr, u16_t *keys,
+int bt_mesh_cfg_net_key_get(uint16_t net_idx, uint16_t addr, uint16_t *keys,
 			     size_t *key_cnt)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NET_KEY_GET, 0);
@@ -1096,9 +1096,9 @@ int bt_mesh_cfg_net_key_del(uint16_t net_idx, uint16_t addr,
 	return cli_wait();
 }
 
-int bt_mesh_cfg_app_key_add(u16_t net_idx, u16_t addr, u16_t key_net_idx,
-			    u16_t key_app_idx, const u8_t app_key[16],
-			    u8_t *status)
+int bt_mesh_cfg_app_key_add(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,
+			    uint16_t key_app_idx, const uint8_t app_key[16],
+			    uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_APP_KEY_ADD, 19);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1141,8 +1141,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_app_key_get(u16_t net_idx, u16_t addr, u16_t key_net_idx,
-			     u8_t *status, u16_t *keys, size_t *key_cnt)
+int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,
+			     uint8_t *status, uint16_t *keys, size_t *key_cnt)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_APP_KEY_GET, 2);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1217,9 +1217,9 @@ int bt_mesh_cfg_app_key_del(uint16_t net_idx, uint16_t addr,
 	return cli_wait();
 }
 
-static int mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			u16_t mod_app_idx, u16_t mod_id, u16_t cid,
-			u8_t *status)
+static int mod_app_bind(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			uint16_t mod_app_idx, uint16_t mod_id, uint16_t cid,
+			uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_MOD_APP_BIND, 8);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1270,16 +1270,16 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_mod_app_bind(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			     u16_t mod_app_idx, u16_t mod_id, u8_t *status)
+int bt_mesh_cfg_mod_app_bind(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			     uint16_t mod_app_idx, uint16_t mod_id, uint8_t *status)
 {
 	return mod_app_bind(net_idx, addr, elem_addr, mod_app_idx, mod_id,
 			    CID_NVAL, status);
 }
 
-int bt_mesh_cfg_mod_app_bind_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				 u16_t mod_app_idx, u16_t mod_id, u16_t cid,
-				 u8_t *status)
+int bt_mesh_cfg_mod_app_bind_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				 uint16_t mod_app_idx, uint16_t mod_id, uint16_t cid,
+				 uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1359,9 +1359,9 @@ int bt_mesh_cfg_mod_app_unbind_vnd(uint16_t net_idx, uint16_t addr,
 			mod_id, cid, status);
 }
 
-static int mod_member_list_get(u32_t op, u32_t expect_op, u16_t net_idx,
-			       u16_t addr, u16_t elem_addr, u16_t mod_id,
-			       u16_t cid, u8_t *status, u16_t *apps,
+static int mod_member_list_get(uint32_t op, uint32_t expect_op, uint16_t net_idx,
+			       uint16_t addr, uint16_t elem_addr, uint16_t mod_id,
+			       uint16_t cid, uint8_t *status, uint16_t *apps,
 			       size_t *app_cnt)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(DUMMY_2_BYTE_OP, 6);
@@ -1409,8 +1409,8 @@ static int mod_member_list_get(u32_t op, u32_t expect_op, u16_t net_idx,
 	return cli_wait();
 }
 
-int bt_mesh_cfg_mod_app_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t mod_id, u8_t *status, u16_t *apps,
+int bt_mesh_cfg_mod_app_get(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t mod_id, uint8_t *status, uint16_t *apps,
 			    size_t *app_cnt)
 {
 	return mod_member_list_get(OP_SIG_MOD_APP_GET, OP_SIG_MOD_APP_LIST,
@@ -1418,9 +1418,9 @@ int bt_mesh_cfg_mod_app_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				   status, apps, app_cnt);
 }
 
-int bt_mesh_cfg_mod_app_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				u16_t mod_id, u16_t cid, u8_t *status,
-				u16_t *apps, size_t *app_cnt)
+int bt_mesh_cfg_mod_app_get_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				uint16_t mod_id, uint16_t cid, uint8_t *status,
+				uint16_t *apps, size_t *app_cnt)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1431,8 +1431,8 @@ int bt_mesh_cfg_mod_app_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				   status, apps, app_cnt);
 }
 
-static int mod_sub(u32_t op, u16_t net_idx, u16_t addr, u16_t elem_addr,
-		   u16_t sub_addr, u16_t mod_id, u16_t cid, u8_t *status)
+static int mod_sub(uint32_t op, uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+		   uint16_t sub_addr, uint16_t mod_id, uint16_t cid, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(DUMMY_2_BYTE_OP, 8);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1478,16 +1478,16 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_mod_sub_add(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t sub_addr, u16_t mod_id, u8_t *status)
+int bt_mesh_cfg_mod_sub_add(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t sub_addr, uint16_t mod_id, uint8_t *status)
 {
 	return mod_sub(OP_MOD_SUB_ADD, net_idx, addr, elem_addr, sub_addr,
 		       mod_id, CID_NVAL, status);
 }
 
-int bt_mesh_cfg_mod_sub_add_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				 u16_t sub_addr, u16_t mod_id, u16_t cid,
-				 u8_t *status)
+int bt_mesh_cfg_mod_sub_add_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				 uint16_t sub_addr, uint16_t mod_id, uint16_t cid,
+				 uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1497,16 +1497,16 @@ int bt_mesh_cfg_mod_sub_add_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 		       mod_id, cid, status);
 }
 
-int bt_mesh_cfg_mod_sub_del(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t sub_addr, u16_t mod_id, u8_t *status)
+int bt_mesh_cfg_mod_sub_del(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t sub_addr, uint16_t mod_id, uint8_t *status)
 {
 	return mod_sub(OP_MOD_SUB_DEL, net_idx, addr, elem_addr, sub_addr,
 		       mod_id, CID_NVAL, status);
 }
 
-int bt_mesh_cfg_mod_sub_del_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				 u16_t sub_addr, u16_t mod_id, u16_t cid,
-				 u8_t *status)
+int bt_mesh_cfg_mod_sub_del_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				 uint16_t sub_addr, uint16_t mod_id, uint16_t cid,
+				 uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1516,16 +1516,16 @@ int bt_mesh_cfg_mod_sub_del_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 		       mod_id, cid, status);
 }
 
-int bt_mesh_cfg_mod_sub_overwrite(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				  u16_t sub_addr, u16_t mod_id, u8_t *status)
+int bt_mesh_cfg_mod_sub_overwrite(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				  uint16_t sub_addr, uint16_t mod_id, uint8_t *status)
 {
 	return mod_sub(OP_MOD_SUB_OVERWRITE, net_idx, addr, elem_addr,
 		       sub_addr, mod_id, CID_NVAL, status);
 }
 
-int bt_mesh_cfg_mod_sub_overwrite_vnd(u16_t net_idx, u16_t addr,
-				      u16_t elem_addr, u16_t sub_addr,
-				      u16_t mod_id, u16_t cid, u8_t *status)
+int bt_mesh_cfg_mod_sub_overwrite_vnd(uint16_t net_idx, uint16_t addr,
+				      uint16_t elem_addr, uint16_t sub_addr,
+				      uint16_t mod_id, uint16_t cid, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1535,9 +1535,9 @@ int bt_mesh_cfg_mod_sub_overwrite_vnd(u16_t net_idx, u16_t addr,
 		       sub_addr, mod_id, cid, status);
 }
 
-static int mod_sub_va(u32_t op, u16_t net_idx, u16_t addr, u16_t elem_addr,
-		      const u8_t label[16], u16_t mod_id, u16_t cid,
-		      u16_t *virt_addr, u8_t *status)
+static int mod_sub_va(uint32_t op, uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+		      const uint8_t label[16], uint16_t mod_id, uint16_t cid,
+		      uint16_t *virt_addr, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(DUMMY_2_BYTE_OP, 22);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1592,17 +1592,17 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_mod_sub_va_add(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			       const u8_t label[16], u16_t mod_id,
-			       u16_t *virt_addr, u8_t *status)
+int bt_mesh_cfg_mod_sub_va_add(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			       const uint8_t label[16], uint16_t mod_id,
+			       uint16_t *virt_addr, uint8_t *status)
 {
 	return mod_sub_va(OP_MOD_SUB_VA_ADD, net_idx, addr, elem_addr, label,
 			  mod_id, CID_NVAL, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_va_add_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				   const u8_t label[16], u16_t mod_id,
-				   u16_t cid, u16_t *virt_addr, u8_t *status)
+int bt_mesh_cfg_mod_sub_va_add_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				   const uint8_t label[16], uint16_t mod_id,
+				   uint16_t cid, uint16_t *virt_addr, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1612,17 +1612,17 @@ int bt_mesh_cfg_mod_sub_va_add_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			  mod_id, cid, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_va_del(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			       const u8_t label[16], u16_t mod_id,
-			       u16_t *virt_addr, u8_t *status)
+int bt_mesh_cfg_mod_sub_va_del(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			       const uint8_t label[16], uint16_t mod_id,
+			       uint16_t *virt_addr, uint8_t *status)
 {
 	return mod_sub_va(OP_MOD_SUB_VA_DEL, net_idx, addr, elem_addr, label,
 			  mod_id, CID_NVAL, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_va_del_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				   const u8_t label[16], u16_t mod_id,
-				   u16_t cid, u16_t *virt_addr, u8_t *status)
+int bt_mesh_cfg_mod_sub_va_del_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				   const uint8_t label[16], uint16_t mod_id,
+				   uint16_t cid, uint16_t *virt_addr, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1632,19 +1632,19 @@ int bt_mesh_cfg_mod_sub_va_del_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 			  mod_id, cid, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_va_overwrite(u16_t net_idx, u16_t addr,
-				     u16_t elem_addr, const u8_t label[16],
-				     u16_t mod_id, u16_t *virt_addr,
-				     u8_t *status)
+int bt_mesh_cfg_mod_sub_va_overwrite(uint16_t net_idx, uint16_t addr,
+				     uint16_t elem_addr, const uint8_t label[16],
+				     uint16_t mod_id, uint16_t *virt_addr,
+				     uint8_t *status)
 {
 	return mod_sub_va(OP_MOD_SUB_VA_OVERWRITE, net_idx, addr, elem_addr,
 			  label, mod_id, CID_NVAL, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_va_overwrite_vnd(u16_t net_idx, u16_t addr,
-					 u16_t elem_addr, const u8_t label[16],
-					 u16_t mod_id, u16_t cid,
-					 u16_t *virt_addr, u8_t *status)
+int bt_mesh_cfg_mod_sub_va_overwrite_vnd(uint16_t net_idx, uint16_t addr,
+					 uint16_t elem_addr, const uint8_t label[16],
+					 uint16_t mod_id, uint16_t cid,
+					 uint16_t *virt_addr, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1654,8 +1654,8 @@ int bt_mesh_cfg_mod_sub_va_overwrite_vnd(u16_t net_idx, u16_t addr,
 			  label, mod_id, cid, virt_addr, status);
 }
 
-int bt_mesh_cfg_mod_sub_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t mod_id, u8_t *status, u16_t *subs,
+int bt_mesh_cfg_mod_sub_get(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t mod_id, uint8_t *status, uint16_t *subs,
 			    size_t *sub_cnt)
 {
 	return mod_member_list_get(OP_MOD_SUB_GET, OP_MOD_SUB_LIST, net_idx,
@@ -1663,9 +1663,9 @@ int bt_mesh_cfg_mod_sub_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				   subs, sub_cnt);
 }
 
-int bt_mesh_cfg_mod_sub_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				u16_t mod_id, u16_t cid, u8_t *status,
-				u16_t *subs, size_t *sub_cnt)
+int bt_mesh_cfg_mod_sub_get_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				uint16_t mod_id, uint16_t cid, uint8_t *status,
+				uint16_t *subs, size_t *sub_cnt)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1676,9 +1676,9 @@ int bt_mesh_cfg_mod_sub_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 				   status, subs, sub_cnt);
 }
 
-static int mod_pub_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
-		       u16_t mod_id, u16_t cid,
-		       struct bt_mesh_cfg_mod_pub *pub, u8_t *status)
+static int mod_pub_get(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+		       uint16_t mod_id, uint16_t cid,
+		       struct bt_mesh_cfg_mod_pub *pub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_MOD_PUB_GET, 6);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1729,17 +1729,17 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_mod_pub_get(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t mod_id, struct bt_mesh_cfg_mod_pub *pub,
-			    u8_t *status)
+int bt_mesh_cfg_mod_pub_get(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t mod_id, struct bt_mesh_cfg_mod_pub *pub,
+			    uint8_t *status)
 {
 	return mod_pub_get(net_idx, addr, elem_addr, mod_id, CID_NVAL,
 			   pub, status);
 }
 
-int bt_mesh_cfg_mod_pub_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				u16_t mod_id, u16_t cid,
-				struct bt_mesh_cfg_mod_pub *pub, u8_t *status)
+int bt_mesh_cfg_mod_pub_get_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				uint16_t mod_id, uint16_t cid,
+				struct bt_mesh_cfg_mod_pub *pub, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1748,9 +1748,9 @@ int bt_mesh_cfg_mod_pub_get_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 	return mod_pub_get(net_idx, addr, elem_addr, mod_id, cid, pub, status);
 }
 
-static int mod_pub_set(u16_t net_idx, u16_t addr, u16_t elem_addr,
-		       u16_t mod_id, u16_t cid,
-		       struct bt_mesh_cfg_mod_pub *pub, u8_t *status)
+static int mod_pub_set(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+		       uint16_t mod_id, uint16_t cid,
+		       struct bt_mesh_cfg_mod_pub *pub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_MOD_PUB_SET, 13);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1806,17 +1806,17 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_mod_pub_set(u16_t net_idx, u16_t addr, u16_t elem_addr,
-			    u16_t mod_id, struct bt_mesh_cfg_mod_pub *pub,
-			    u8_t *status)
+int bt_mesh_cfg_mod_pub_set(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+			    uint16_t mod_id, struct bt_mesh_cfg_mod_pub *pub,
+			    uint8_t *status)
 {
 	return mod_pub_set(net_idx, addr, elem_addr, mod_id, CID_NVAL,
 			   pub, status);
 }
 
-int bt_mesh_cfg_mod_pub_set_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
-				u16_t mod_id, u16_t cid,
-				struct bt_mesh_cfg_mod_pub *pub, u8_t *status)
+int bt_mesh_cfg_mod_pub_set_vnd(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
+				uint16_t mod_id, uint16_t cid,
+				struct bt_mesh_cfg_mod_pub *pub, uint8_t *status)
 {
 	if (cid == CID_NVAL) {
 		return -EINVAL;
@@ -1825,8 +1825,8 @@ int bt_mesh_cfg_mod_pub_set_vnd(u16_t net_idx, u16_t addr, u16_t elem_addr,
 	return mod_pub_set(net_idx, addr, elem_addr, mod_id, cid, pub, status);
 }
 
-int bt_mesh_cfg_hb_sub_set(u16_t net_idx, u16_t addr,
-			   struct bt_mesh_cfg_hb_sub *sub, u8_t *status)
+int bt_mesh_cfg_hb_sub_set(uint16_t net_idx, uint16_t addr,
+			   struct bt_mesh_cfg_hb_sub *sub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_HEARTBEAT_SUB_SET, 5);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1869,8 +1869,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_hb_sub_get(u16_t net_idx, u16_t addr,
-			   struct bt_mesh_cfg_hb_sub *sub, u8_t *status)
+int bt_mesh_cfg_hb_sub_get(uint16_t net_idx, uint16_t addr,
+			   struct bt_mesh_cfg_hb_sub *sub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_HEARTBEAT_SUB_GET, 0);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1910,8 +1910,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_hb_pub_set(u16_t net_idx, u16_t addr,
-			   const struct bt_mesh_cfg_hb_pub *pub, u8_t *status)
+int bt_mesh_cfg_hb_pub_set(uint16_t net_idx, uint16_t addr,
+			   const struct bt_mesh_cfg_hb_pub *pub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_HEARTBEAT_PUB_SET, 9);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1956,8 +1956,8 @@ done:
 	return err;
 }
 
-int bt_mesh_cfg_hb_pub_get(u16_t net_idx, u16_t addr,
-			   struct bt_mesh_cfg_hb_pub *pub, u8_t *status)
+int bt_mesh_cfg_hb_pub_get(uint16_t net_idx, uint16_t addr,
+			   struct bt_mesh_cfg_hb_pub *pub, uint8_t *status)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_HEARTBEAT_PUB_GET, 0);
 	struct bt_mesh_msg_ctx ctx = {
@@ -1997,12 +1997,12 @@ done:
 	return err;
 }
 
-s32_t bt_mesh_cfg_cli_timeout_get(void)
+int32_t bt_mesh_cfg_cli_timeout_get(void)
 {
 	return msg_timeout;
 }
 
-void bt_mesh_cfg_cli_timeout_set(s32_t timeout)
+void bt_mesh_cfg_cli_timeout_set(int32_t timeout)
 {
 	msg_timeout = timeout;
 }

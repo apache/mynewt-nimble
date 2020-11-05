@@ -111,14 +111,14 @@ static bool prov_fast_adv;
 
 static struct bt_mesh_proxy_client {
 	uint16_t conn_handle;
-	u16_t filter[MYNEWT_VAL(BLE_MESH_PROXY_FILTER_SIZE)];
+	uint16_t filter[MYNEWT_VAL(BLE_MESH_PROXY_FILTER_SIZE)];
 	enum __packed {
 		NONE,
 		WHITELIST,
 		BLACKLIST,
 		PROV,
 	} filter_type;
-	u8_t msg_type;
+	uint8_t msg_type;
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 	struct ble_npl_callout send_beacons;
 #endif
@@ -198,13 +198,13 @@ static struct bt_mesh_proxy_client *find_client(uint16_t conn_handle)
 /* Next subnet in queue to be advertised */
 static int next_idx;
 
-static int proxy_segment_and_send(uint16_t conn_handle, u8_t type,
+static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 				  struct os_mbuf *msg);
 
 static int filter_set(struct bt_mesh_proxy_client *client,
 		      struct os_mbuf *buf)
 {
-	u8_t type;
+	uint8_t type;
 
 	if (buf->om_len < 1) {
 		BT_WARN("Too short Filter Set message");
@@ -231,7 +231,7 @@ static int filter_set(struct bt_mesh_proxy_client *client,
 	return 0;
 }
 
-static void filter_add(struct bt_mesh_proxy_client *client, u16_t addr)
+static void filter_add(struct bt_mesh_proxy_client *client, uint16_t addr)
 {
 	int i;
 
@@ -255,7 +255,7 @@ static void filter_add(struct bt_mesh_proxy_client *client, u16_t addr)
 	}
 }
 
-static void filter_remove(struct bt_mesh_proxy_client *client, u16_t addr)
+static void filter_remove(struct bt_mesh_proxy_client *client, uint16_t addr)
 {
 	int i;
 
@@ -282,7 +282,7 @@ static void send_filter_status(struct bt_mesh_proxy_client *client,
 		.ctx = &rx->ctx,
 		.src = bt_mesh_primary_addr(),
 	};
-	u16_t filter_size;
+	uint16_t filter_size;
 	int i, err;
 
 	/* Configuration messages always have dst unassigned */
@@ -324,7 +324,7 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
 {
 	struct os_mbuf *buf = NET_BUF_SIMPLE(29);
 	struct bt_mesh_net_rx rx;
-	u8_t opcode;
+	uint8_t opcode;
 	int err;
 
 	err = bt_mesh_net_decode(client->buf, BT_MESH_NET_IF_PROXY_CFG,
@@ -352,7 +352,7 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
 		break;
 	case CFG_FILTER_ADD:
 		while (buf->om_len >= 2) {
-			u16_t addr;
+			uint16_t addr;
 
 			addr = net_buf_simple_pull_be16(buf);
 			filter_add(client, addr);
@@ -361,7 +361,7 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
 		break;
 	case CFG_FILTER_REMOVE:
 		while (buf->om_len >= 2) {
-			u16_t addr;
+			uint16_t addr;
 
 			addr = net_buf_simple_pull_be16(buf);
 			filter_remove(client, addr);
@@ -530,8 +530,8 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 		      struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
 	struct bt_mesh_proxy_client *client;
-	const u8_t *data = ctxt->om->om_data;
-	u16_t len = ctxt->om->om_len;
+	const uint8_t *data = ctxt->om->om_data;
+	uint16_t len = ctxt->om->om_len;
 
 	client = find_client(conn_handle);
 
@@ -888,7 +888,7 @@ int bt_mesh_proxy_gatt_disable(void)
 	return 0;
 }
 
-void bt_mesh_proxy_addr_add(struct os_mbuf *buf, u16_t addr)
+void bt_mesh_proxy_addr_add(struct os_mbuf *buf, uint16_t addr)
 {
 	struct bt_mesh_proxy_client *client = NULL;
 	int i;
@@ -912,7 +912,7 @@ void bt_mesh_proxy_addr_add(struct os_mbuf *buf, u16_t addr)
 }
 
 static bool client_filter_match(struct bt_mesh_proxy_client *client,
-				u16_t addr)
+				uint16_t addr)
 {
 	int i;
 
@@ -943,7 +943,7 @@ static bool client_filter_match(struct bt_mesh_proxy_client *client,
 	return false;
 }
 
-bool bt_mesh_proxy_relay(struct os_mbuf *buf, u16_t dst)
+bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 {
 	bool relayed = false;
 	int i;
@@ -979,7 +979,7 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, u16_t dst)
 
 #endif /* MYNEWT_VAL(BLE_MESH_GATT_PROXY) */
 
-static int proxy_send(uint16_t conn_handle, const void *data, u16_t len)
+static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
 {
 	struct os_mbuf *om;
 
@@ -1004,10 +1004,10 @@ static int proxy_send(uint16_t conn_handle, const void *data, u16_t len)
 	return 0;
 }
 
-static int proxy_segment_and_send(uint16_t conn_handle, u8_t type,
+static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 				  struct os_mbuf *msg)
 {
-	u16_t mtu;
+	uint16_t mtu;
 
 	BT_DBG("conn_handle %d type 0x%02x len %u: %s", conn_handle, type, msg->om_len,
 	       bt_hex(msg->om_data, msg->om_len));
@@ -1038,7 +1038,7 @@ static int proxy_segment_and_send(uint16_t conn_handle, u8_t type,
 	return 0;
 }
 
-int bt_mesh_proxy_send(uint16_t conn_handle, u8_t type,
+int bt_mesh_proxy_send(uint16_t conn_handle, uint8_t type,
 		       struct os_mbuf *msg)
 {
 	struct bt_mesh_proxy_client *client = find_client(conn_handle);
@@ -1057,7 +1057,7 @@ int bt_mesh_proxy_send(uint16_t conn_handle, u8_t type,
 }
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-static u8_t prov_svc_data[20] = { 0x27, 0x18, };
+static uint8_t prov_svc_data[20] = { 0x27, 0x18, };
 
 static const struct bt_data prov_ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -1076,7 +1076,7 @@ static const struct bt_data prov_ad[] = {
 
 #define NODE_ID_TIMEOUT K_SECONDS(CONFIG_BT_MESH_NODE_ID_TIMEOUT)
 
-static u8_t proxy_svc_data[NODE_ID_LEN] = { 0x28, 0x18, };
+static uint8_t proxy_svc_data[NODE_ID_LEN] = { 0x28, 0x18, };
 
 static const struct bt_data node_id_ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -1092,7 +1092,7 @@ static const struct bt_data net_id_ad[] = {
 
 static int node_id_adv(struct bt_mesh_subnet *sub)
 {
-	u8_t tmp[16];
+	uint8_t tmp[16];
 	int err;
 
 	BT_DBG("");
@@ -1194,9 +1194,9 @@ static int sub_count(void)
 	return count;
 }
 
-static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
+static int32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 {
-	s32_t remaining = K_FOREVER;
+	int32_t remaining = K_FOREVER;
 	int subnet_count;
 
 	BT_DBG("");
@@ -1212,7 +1212,7 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	}
 
 	if (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING) {
-		u32_t active = k_uptime_get_32() - sub->node_id_start;
+		uint32_t active = k_uptime_get_32() - sub->node_id_start;
 
 		if (active < NODE_ID_TIMEOUT) {
 			remaining = NODE_ID_TIMEOUT - active;
@@ -1232,7 +1232,7 @@ static s32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	subnet_count = sub_count();
 	BT_DBG("sub_count %u", subnet_count);
 	if (subnet_count > 1) {
-		s32_t max_timeout;
+		int32_t max_timeout;
 
 		/* We use NODE_ID_TIMEOUT as a starting point since it may
 		 * be less than 60 seconds. Divide this period into at least
@@ -1300,7 +1300,7 @@ static size_t gatt_prov_adv_create(struct bt_data prov_sd[2])
 }
 #endif /* PB_GATT */
 
-s32_t bt_mesh_proxy_adv_start(void)
+int32_t bt_mesh_proxy_adv_start(void)
 {
 	BT_DBG("");
 

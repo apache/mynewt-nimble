@@ -38,7 +38,7 @@
 #define ADV_INT_DEFAULT_MS 100
 #define ADV_INT_FAST_MS    20
 
-static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
+static int32_t adv_int_min =  ADV_INT_DEFAULT_MS;
 
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
@@ -49,7 +49,7 @@ struct os_task adv_task;
 #endif
 
 static struct ble_npl_eventq adv_queue;
-extern u8_t g_mesh_addr_type;
+extern uint8_t g_mesh_addr_type;
 static int adv_initialized = false;
 
 static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
@@ -66,7 +66,7 @@ static struct bt_mesh_adv *adv_alloc(int id)
 	return &adv_pool[id];
 }
 
-static inline void adv_send_start(u16_t duration, int err,
+static inline void adv_send_start(uint16_t duration, int err,
 				  const struct bt_mesh_send_cb *cb,
 				  void *cb_data)
 {
@@ -85,7 +85,7 @@ static inline void adv_send_end(int err, const struct bt_mesh_send_cb *cb,
 
 static inline void adv_send(struct os_mbuf *buf)
 {
-	static const u8_t adv_type[] = {
+	static const uint8_t adv_type[] = {
 		[BT_MESH_ADV_PROV]   = BLE_HS_ADV_TYPE_MESH_PROV,
 		[BT_MESH_ADV_DATA]   = BLE_HS_ADV_TYPE_MESH_MESSAGE,
 		[BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
@@ -95,7 +95,7 @@ static inline void adv_send(struct os_mbuf *buf)
 	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
 	void *cb_data = BT_MESH_ADV(buf)->cb_data;
 	struct ble_gap_adv_params param = { 0 };
-	u16_t duration, adv_int;
+	uint16_t duration, adv_int;
 	struct bt_data ad;
 	int err;
 
@@ -152,7 +152,7 @@ mesh_adv_thread(void *args)
 	static struct ble_npl_event *ev;
 	struct os_mbuf *buf;
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
-	s32_t timeout;
+	int32_t timeout;
 #endif
 
 	BT_DBG("started");
@@ -206,7 +206,7 @@ void bt_mesh_adv_update(void)
 struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 					     bt_mesh_adv_alloc_t get_id,
 					     enum bt_mesh_adv_type type,
-					     u8_t xmit, s32_t timeout)
+					     uint8_t xmit, int32_t timeout)
 {
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
@@ -235,8 +235,8 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	return buf;
 }
 
-struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, u8_t xmit,
-				   s32_t timeout)
+struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, uint8_t xmit,
+				   int32_t timeout)
 {
 	return bt_mesh_adv_create_from_pool(&adv_os_mbuf_pool, adv_alloc, type,
 					    xmit, timeout);
@@ -255,8 +255,8 @@ void bt_mesh_adv_send(struct os_mbuf *buf, const struct bt_mesh_send_cb *cb,
 	net_buf_put(&adv_queue, net_buf_ref(buf));
 }
 
-static void bt_mesh_scan_cb(const bt_addr_le_t *addr, s8_t rssi,
-			    u8_t adv_type, struct os_mbuf *buf)
+static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
+			    uint8_t adv_type, struct os_mbuf *buf)
 {
 	if (adv_type != BLE_HCI_ADV_TYPE_ADV_NONCONN_IND) {
 		return;
@@ -268,7 +268,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, s8_t rssi,
 
 	while (buf->om_len > 1) {
 		struct net_buf_simple_state state;
-		u8_t len, type;
+		uint8_t len, type;
 
 		len = net_buf_simple_pull_u8(buf);
 		/* Check for early termination */

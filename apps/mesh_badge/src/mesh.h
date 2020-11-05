@@ -8,7 +8,7 @@
 
 void mesh_send_hello(void);
 
-u16_t mesh_get_addr(void);
+uint16_t mesh_get_addr(void);
 bool mesh_is_initialized(void);
 void mesh_start(void);
-int mesh_init(u8_t addr_type);
+int mesh_init(uint8_t addr_type);

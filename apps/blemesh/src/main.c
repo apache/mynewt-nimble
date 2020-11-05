@@ -385,7 +385,7 @@ static int output_number(bt_mesh_output_action_t action, uint32_t number)
     return 0;
 }
 
-static void prov_complete(u16_t net_idx, u16_t addr)
+static void prov_complete(uint16_t net_idx, uint16_t addr)
 {
     console_printf("Local node provisioned, primary address 0x%04x\n", addr);
 }
