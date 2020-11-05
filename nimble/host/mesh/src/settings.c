@@ -668,6 +668,20 @@ static int mod_set_pub(struct bt_mesh_model *mod, char *val)
 	return 0;
 }
 
+static int mod_data_set(struct bt_mesh_model *mod,
+			const char *name, size_t len_rd)
+{
+	const char *next;
+
+	settings_name_next(name, &next);
+
+	if (mod->cb && mod->cb->settings_set) {
+		return mod->cb->settings_set(mod, next, len_rd);
+	}
+
+	return 0;
+}
+
 static int mod_set(bool vnd, int argc, char **argv, char *val)
 {
 	struct bt_mesh_model *mod;
@@ -706,11 +720,7 @@ static int mod_set(bool vnd, int argc, char **argv, char *val)
 	}
 
 	if (!strcmp(argv[1], "data")) {
-		mod->flags |= BT_MESH_MOD_DATA_PRESENT;
-
-		if (mod->cb && mod->cb->settings_set) {
-			return mod->cb->settings_set(mod, val);
-		}
+		return mod_data_set(mod, next, len_rd);	
 	}
 
 	BT_WARN("Unknown module key %s", argv[1]);
@@ -2557,17 +2567,21 @@ void bt_mesh_clear_cdb_app_key(struct bt_mesh_cdb_app_key *key)
 }
 
 int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
-			     const void *data, size_t data_len)
+			     			 const char *name, const void *data,
+							 size_t data_len)
 {
-	char path[20];
+	char path[30];
 	char buf[BT_SETTINGS_SIZE(sizeof(struct mod_pub_val))];
 	char *val;
 	int err;
 
 	encode_mod_path(mod, vnd, "data", path, sizeof(path));
+	if (name) {
+		strcat(path, "/");
+		strncat(path, name, 8);
+	}
 
 	if (data_len) {
-		mod->flags |= BT_MESH_MOD_DATA_PRESENT;
 		val = settings_str_from_bytes(data, data_len,
 					      buf, sizeof(buf));
 		if (!val) {
@@ -2575,12 +2589,8 @@ int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
 			return -EINVAL;
 		}
 		err = settings_save_one(path, val);
-	} else if (mod->flags & BT_MESH_MOD_DATA_PRESENT) {
-		mod->flags &= ~BT_MESH_MOD_DATA_PRESENT;
-		err = settings_save_one(path, NULL);
 	} else {
-		/* Nothing to delete */
-		err = 0;
+		err = settings_delete(path);
 	}
 
 	if (err) {
