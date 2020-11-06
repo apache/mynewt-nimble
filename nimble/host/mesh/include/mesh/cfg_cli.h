@@ -57,6 +57,12 @@ int bt_mesh_cfg_gatt_proxy_get(uint16_t net_idx, uint16_t addr, uint8_t *status)
 int bt_mesh_cfg_gatt_proxy_set(uint16_t net_idx, uint16_t addr, uint8_t val,
 			       uint8_t *status);
 
+int bt_mesh_cfg_net_transmit_get(uint16_t net_idx, uint16_t addr,
+			  uint8_t *transmit);
+
+int bt_mesh_cfg_net_transmit_set(uint16_t net_idx, uint16_t addr,
+		uint8_t val, uint8_t *transmit);
+
 int bt_mesh_cfg_relay_get(uint16_t net_idx, uint16_t addr, uint8_t *status,
 			  uint8_t *transmit);
 
