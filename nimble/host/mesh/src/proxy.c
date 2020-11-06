@@ -128,6 +128,9 @@ static struct bt_mesh_proxy_client {
 	[0 ... (MYNEWT_VAL(BLE_MAX_CONNECTIONS) - 1)] = { 0 },
 };
 
+static sys_slist_t idle_waiters;
+static atomic_t pending_notifications;
+
 /* Track which service is enabled */
 static enum {
 	MESH_GATT_NONE,
@@ -979,27 +982,45 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 
 #endif /* MYNEWT_VAL(BLE_MESH_GATT_PROXY) */
 
+static void notify_complete(void)
+{
+	sys_snode_t *n;
+
+	if (atomic_dec(&pending_notifications) > 1) {
+		return;
+	}
+
+	BT_DBG("");
+
+	while ((n = sys_slist_get(&idle_waiters))) {
+		CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
+	}
+}
+
 static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
 {
 	struct os_mbuf *om;
+	int err;
 
 	BT_DBG("%u bytes: %s", len, bt_hex(data, len));
 
-#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-	if (gatt_svc == MESH_GATT_PROXY) {
+	/* Different from Zephyr implementation: no parameter structure is required,
+	 * so for PB and GATT procedure is the same
+	 */
+#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY) || MYNEWT_VAL(BLE_MESH_PB_GATT))
+	if (gatt_svc == MESH_GATT_PROXY || gatt_svc == MESH_GATT_PROV) {
 		om = ble_hs_mbuf_from_flat(data, len);
 		assert(om);
-		ble_gattc_notify_custom(conn_handle, svc_handles.proxy_data_out_h, om);
+		err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
+		if (!err) {
+			atomic_inc(&pending_notifications);
+			return err;
+		}
 	}
 #endif
 
-#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (gatt_svc == MESH_GATT_PROV) {
-		om = ble_hs_mbuf_from_flat(data, len);
-		assert(om);
-		ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
-	}
-#endif
+	
+	notify_complete();
 
 	return 0;
 }
@@ -1495,6 +1516,16 @@ int bt_mesh_proxy_init(void)
 	ble_gatts_svc_set_visibility(svc_handles.prov_h, 0);
 
 	return 0;
+}
+
+void bt_mesh_proxy_on_idle(struct bt_mesh_proxy_idle_cb *cb)
+{
+	if (!atomic_get(&pending_notifications)) {
+		cb->cb();
+		return;
+	}
+
+	sys_slist_append(&idle_waiters, &cb->n);
 }
 
 #endif /* MYNEWT_VAL(BLE_MESH_PROXY) */
