@@ -3409,6 +3409,12 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
              */
             memcpy(init_addr, rl->rl_local_rpa, BLE_DEV_ADDR_LEN);
         }
+    } else if (!ble_ll_is_rpa(adv_addr, adv_addr_type)) {
+        /* undirected with ID address, assure privacy if on RL */
+        rl = ble_ll_resolv_list_find(adv_addr, adv_addr_type);
+        if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+            goto init_rx_isr_exit;
+        }
     }
 #endif
 
