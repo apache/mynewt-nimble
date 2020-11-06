@@ -51,12 +51,14 @@
  * We use 400 since 300 is a common send duration for standard HCI, and we
  * need to have a timeout that's bigger than that.
  */
-#define SEG_RETRANSMIT_TIMEOUT_UNICAST(tx) (K_MSEC(400) + 50 * (tx)->ttl)
+#define SEG_RETRANSMIT_TIMEOUT_UNICAST(tx) \
+	(MYNEWT_VAL(BLE_MESH_TX_SEG_RETRANS_TIMEOUT_UNICAST) + 50 * (tx)->ttl)
 /* When sending to a group, the messages are not acknowledged, and there's no
  * reason to delay the repetitions significantly. Delaying by more than 0 ms
  * to avoid flooding the network.
  */
-#define SEG_RETRANSMIT_TIMEOUT_GROUP K_MSEC(50)
+#define SEG_RETRANSMIT_TIMEOUT_GROUP \
+	MYNEWT_VAL(BLE_MESH_TX_SEG_RETRANS_TIMEOUT_GROUP)
 
 #define SEG_RETRANSMIT_TIMEOUT(tx)                                             \
 	(BT_MESH_ADDR_IS_UNICAST(tx->dst) ?                                    \

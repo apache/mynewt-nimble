@@ -35,6 +35,11 @@ syscfg.defs:
            device sends unprovisioned beacon.
         value: 5
 
+    BLE_MESH_PB_ADV_RETRANS_TIMEOUT:
+        description: >
+           Timeout value of retransmit provisioning PDUs.
+        value: 500
+
     BLE_MESH_PROVISIONER:
         description: >
             Enable this option to have support for provisioning remote devices.
@@ -263,6 +268,22 @@ syscfg.defs:
             The number of buffers allocated for the network loopback mechanism.
             Loopback is used when the device sends messages to itself.
         value: 3
+
+    BLE_MESH_TX_SEG_RETRANS_COUNT:
+        description: >
+            Maximum number of transport message segment retransmit attempts
+            for outgoing segment message.
+        value: 4
+
+    BLE_MESH_TX_SEG_RETRANS_TIMEOUT_UNICAST:
+        description: >
+             Maximum time of retransmit segment message to unicast address.
+        value: 400
+
+    BLE_MESH_TX_SEG_RETRANS_TIMEOUT_GROUP:
+        description: >
+              Maximum time of retransmit segment message to group address.
+        value: 50
 
     BLE_MESH_SEG_RETRANSMIT_ATTEMPTS:
         description: >
