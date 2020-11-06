@@ -1219,6 +1219,49 @@ struct shell_cmd_help cmd_gatt_proxy_help = {
 	NULL, "[val: off, on]", NULL
 };
 
+static int cmd_net_transmit(int argc, char *argv[])
+{
+	uint8_t transmit;
+	int err;
+
+	if (argc < 2) {
+		err = bt_mesh_cfg_net_transmit_get(net.net_idx,
+				net.dst, &transmit);
+	} else {
+		if (argc != 3) {
+			printk("Wrong number of input arguments"
+						"(2 arguments are required)");
+			return -EINVAL;
+		}
+
+		uint8_t count, interval, new_transmit;
+
+		count = strtoul(argv[1], NULL, 0);
+		interval = strtoul(argv[2], NULL, 0);
+
+		new_transmit = BT_MESH_TRANSMIT(count, interval);
+
+		err = bt_mesh_cfg_net_transmit_set(net.net_idx, net.dst,
+				new_transmit, &transmit);
+	}
+
+	if (err) {
+		printk("Unable to send network transmit"
+				" Get/Set (err %d)", err);
+		return 0;
+	}
+
+	printk("Transmit 0x%02x (count %u interval %ums)",
+			transmit, BT_MESH_TRANSMIT_COUNT(transmit),
+			BT_MESH_TRANSMIT_INT(transmit));
+
+	return 0;
+}
+
+struct shell_cmd_help cmd_net_transmit_help = {
+	NULL, "[<count: 0-7> <interval: 10-320>]", NULL
+};
+
 static int cmd_relay(int argc, char *argv[])
 {
 	uint8_t relay, transmit;
@@ -3404,6 +3447,11 @@ static const struct shell_cmd mesh_commands[] = {
         .sc_cmd = "app-key-get",
         .sc_cmd_func = cmd_app_key_get,
         .help = &cmd_app_key_get_help,
+    },
+    {
+        .sc_cmd = "net-transmit-param",
+        .sc_cmd_func = cmd_net_transmit,
+        .help = &cmd_net_transmit_help,
     },
     {
         .sc_cmd = "mod-app-bind",
