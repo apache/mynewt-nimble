@@ -15,6 +15,12 @@
 #define BT_MESH_PROXY_PROV      0x03
 
 #include "mesh/mesh.h"
+#include "mesh/slist.h"
+
+struct bt_mesh_proxy_idle_cb {
+	sys_snode_t n;
+	void (*cb)(void);
+};
 
 int bt_mesh_proxy_send(uint16_t conn_handle, uint8_t type, struct os_mbuf *msg);
 
@@ -39,6 +45,7 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst);
 void bt_mesh_proxy_addr_add(struct os_mbuf *buf, uint16_t addr);
 
 int bt_mesh_proxy_init(void);
+void bt_mesh_proxy_on_idle(struct bt_mesh_proxy_idle_cb *cb);
 
 int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg);
 
