@@ -205,7 +205,7 @@ static void reset_adv_link(void)
 	}
 	link.tx.pending_ack = XACT_ID_NVAL;
 	link.rx.buf = &rx_buf;
-	net_buf_simple_reset(link.rx.buf);
+	os_mbuf_reset(link.rx.buf);
 }
 
 static void close_link(enum prov_bearer_link_status reason)
@@ -340,7 +340,7 @@ static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
 
 		link.rx.id = rx->xact_id;
 
-		net_buf_simple_reset(link.rx.buf);
+		os_mbuf_reset(link.rx.buf);
 		link.rx.seg = SEG_NVAL;
 		link.rx.last_seg = SEG_NVAL;
 
@@ -427,7 +427,7 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	net_buf_simple_reset(link.rx.buf);
+	os_mbuf_reset(link.rx.buf);
 	link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
 	link.rx.id = rx->xact_id;
 	link.rx.fcs = net_buf_simple_pull_u8(buf);
@@ -673,7 +673,7 @@ static int prov_send_adv(struct os_mbuf *msg,
 	seg_len = MIN(msg->om_len, START_PAYLOAD_MAX);
 	BT_DBG("seg 0 len %u: %s", seg_len, bt_hex(msg->om_data, seg_len));
 	net_buf_add_mem(start, msg->om_data, seg_len);
-	net_buf_simple_pull(msg, seg_len);
+	net_buf_simple_pull_mem(msg, seg_len);
 
 	buf = start;
 	for (seg_id = 1U; msg->om_len > 0; seg_id++) {
@@ -700,7 +700,7 @@ static int prov_send_adv(struct os_mbuf *msg,
 		net_buf_add_u8(buf, link.tx.id);
 		net_buf_add_u8(buf, GPC_CONT(seg_id));
 		net_buf_add_mem(buf, msg->om_data, seg_len);
-		net_buf_simple_pull(msg, seg_len);
+		net_buf_simple_pull_mem(msg, seg_len);
 	}
 
 	send_reliable();
@@ -740,7 +740,7 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 
 	link.id = rx->link_id;
 	atomic_set_bit(link.flags, LINK_ACTIVE);
-	net_buf_simple_reset(link.rx.buf);
+	os_mbuf_reset(link.rx.buf);
 
 	bearer_ctl_send(LINK_ACK, NULL, 0, false);
 
@@ -820,7 +820,7 @@ static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
 	link.cb = cb;
 	link.cb_data = cb_data;
 
-	net_buf_simple_reset(link.rx.buf);
+	os_mbuf_reset(link.rx.buf);
 
 	bearer_ctl_send(LINK_OPEN, uuid, 16, true);
 

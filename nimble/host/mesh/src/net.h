@@ -9,13 +9,7 @@
 #ifndef __NET_H__
 #define __NET_H__
 
-#define BT_MESH_NET_FLAG_KR       BIT(0)
-#define BT_MESH_NET_FLAG_IVU      BIT(1)
-
-#define BT_MESH_KR_NORMAL         0x00
-#define BT_MESH_KR_PHASE_1        0x01
-#define BT_MESH_KR_PHASE_2        0x02
-#define BT_MESH_KR_PHASE_3        0x03
+#include "subnet.h"
 
 #define BT_MESH_IV_UPDATE(flags)   ((flags >> 1) & 0x01)
 #define BT_MESH_KEY_REFRESH(flags) (flags & 0x01)
@@ -31,55 +25,13 @@
 				    CONFIG_BT_MESH_IVU_DIVIDER)
 #define BT_MESH_IVU_TIMEOUT        K_HOURS(BT_MESH_IVU_HOURS)
 
-struct bt_mesh_app_key {
-	uint16_t net_idx;
-	uint16_t app_idx;
-	bool  updated;
-	struct bt_mesh_app_keys {
-		uint8_t id;
-		uint8_t val[16];
-	} keys[2];
-};
+struct bt_mesh_net_cred;
 
 struct bt_mesh_node {
 	uint16_t addr;
 	uint16_t net_idx;
 	uint8_t  dev_key[16];
 	uint8_t  num_elem;
-};
-
-struct bt_mesh_subnet {
-	uint32_t beacon_sent;        /* Timestamp of last sent beacon */
-	uint8_t  beacons_last;       /* Number of beacons during last
-				   * observation window
-				   */
-	uint8_t  beacons_cur;        /* Number of beaconds observed during
-				   * currently ongoing window.
-				   */
-
-	uint8_t  beacon_cache[21];   /* Cached last authenticated beacon */
-
-	uint16_t net_idx;            /* NetKeyIndex */
-
-	bool  kr_flag;            /* Key Refresh Flag */
-	uint8_t  kr_phase;           /* Key Refresh Phase */
-
-	uint8_t  node_id;            /* Node Identity State */
-	uint32_t node_id_start;      /* Node Identity started timestamp */
-
-	uint8_t  auth[8];            /* Beacon Authentication Value */
-
-	struct bt_mesh_subnet_keys {
-		uint8_t net[16];       /* NetKey */
-		uint8_t nid;           /* NID */
-		uint8_t enc[16];       /* EncKey */
-		uint8_t net_id[8];     /* Network ID */
-#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-		uint8_t identity[16];  /* IdentityKey */
-#endif
-		uint8_t privacy[16];   /* PrivacyKey */
-		uint8_t beacon[16];    /* BeaconKey */
-	} keys[2];
 };
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
@@ -97,14 +49,15 @@ struct bt_mesh_friend {
 	      send_last:1,
 	      pending_req:1,
 	      pending_buf:1,
-	      valid:1,
 	      established:1;
 	int32_t poll_to;
 	uint8_t  num_elem;
 	uint16_t lpn_counter;
 	uint16_t counter;
 
-	uint16_t net_idx;
+	struct bt_mesh_subnet *subnet;
+
+	struct bt_mesh_net_cred cred[2];
 
 	uint16_t sub_list[FRIEND_SUB_LIST_SIZE];
 
@@ -181,8 +134,11 @@ struct bt_mesh_lpn {
 	/* Friend Queue Size */
 	uint8_t  queue_size;
 
+	/* FriendCounter */
+	uint16_t frnd_counter;
+
 	/* LPNCounter */
-	uint16_t counter;
+	uint16_t lpn_counter;
 
 	/* Previous Friend of this LPN */
 	uint16_t old_friend;
@@ -195,6 +151,10 @@ struct bt_mesh_lpn {
 
 	/* Subscribed groups */
 	uint16_t groups[LPN_GROUPS];
+
+	struct bt_mesh_subnet *sub;
+
+	struct bt_mesh_net_cred cred[2];
 
 	/* Bit fields for tracking which groups the Friend knows about */
 	ATOMIC_DEFINE(added, LPN_GROUPS);
@@ -252,10 +212,6 @@ struct bt_mesh_net {
 	struct k_delayed_work ivu_timer;
 
 	uint8_t dev_key[16];
-
-	struct bt_mesh_app_key app_keys[MYNEWT_VAL(BLE_MESH_APP_KEY_COUNT)];
-
-	struct bt_mesh_subnet sub[MYNEWT_VAL(BLE_MESH_SUBNET_COUNT)];
 };
 
 /* Network interface */
@@ -306,38 +262,19 @@ static inline void *net_buf_user_data(const struct os_mbuf *buf)
 	return (void *)buf->om_data;
 }
 
-int bt_mesh_net_keys_create(struct bt_mesh_subnet_keys *keys,
-			    const uint8_t key[16]);
-
 int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
 		       uint32_t iv_index);
 
-uint8_t bt_mesh_net_flags(struct bt_mesh_subnet *sub);
-
-bool bt_mesh_kr_update(struct bt_mesh_subnet *sub, uint8_t new_kr, bool new_key);
-
-void bt_mesh_net_revoke_keys(struct bt_mesh_subnet *sub);
-
-int bt_mesh_net_beacon_update(struct bt_mesh_subnet *sub);
-
 bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update);
-
-void bt_mesh_net_sec_update(struct bt_mesh_subnet *sub);
-
-struct bt_mesh_subnet *bt_mesh_subnet_get(uint16_t net_idx);
-
-struct bt_mesh_subnet *bt_mesh_subnet_find(const uint8_t net_id[8], uint8_t flags,
-					   uint32_t iv_index, const uint8_t auth[8],
-					   bool *new_key);
 
 int bt_mesh_net_encode(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		       bool proxy);
 
+int bt_mesh_net_decode(struct os_mbuf *in, enum bt_mesh_net_if net_if,
+		       struct bt_mesh_net_rx *rx, struct os_mbuf *out);
+
 int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		     const struct bt_mesh_send_cb *cb, void *cb_data);
-
-int bt_mesh_net_decode(struct os_mbuf *data, enum bt_mesh_net_if net_if,
-		       struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
 
 void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 		      enum bt_mesh_net_if net_if);
@@ -352,30 +289,6 @@ void bt_mesh_net_init(void);
 void bt_mesh_net_header_parse(struct os_mbuf *buf,
 			      struct bt_mesh_net_rx *rx);
 
-/* Friendship Credential Management */
-struct friend_cred {
-	uint16_t net_idx;
-	uint16_t addr;
-
-	uint16_t lpn_counter;
-	uint16_t frnd_counter;
-
-	struct {
-		uint8_t nid;         /* NID */
-		uint8_t enc[16];     /* EncKey */
-		uint8_t privacy[16]; /* PrivacyKey */
-	} cred[2];
-};
-
-int friend_cred_get(struct bt_mesh_subnet *sub, uint16_t addr, uint8_t *nid,
-			    const uint8_t **enc, const uint8_t **priv);
-int friend_cred_set(struct friend_cred *cred, uint8_t idx, const uint8_t net_key[16]);
-void friend_cred_refresh(uint16_t net_idx);
-int friend_cred_update(struct bt_mesh_subnet *sub);
-struct friend_cred *friend_cred_create(struct bt_mesh_subnet *sub, uint16_t addr,
-				       uint16_t lpn_counter, uint16_t frnd_counter);
-void friend_cred_clear(struct friend_cred *cred);
-int friend_cred_del(uint16_t net_idx, uint16_t addr);
 
 static inline void send_cb_finalize(const struct bt_mesh_send_cb *cb,
 				    void *cb_data)

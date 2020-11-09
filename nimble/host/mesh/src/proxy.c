@@ -202,7 +202,7 @@ static struct bt_mesh_proxy_client *find_client(uint16_t conn_handle)
 
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 /* Next subnet in queue to be advertised */
-static int next_idx;
+static struct bt_mesh_subnet *beacon_sub;
 
 static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 				  struct os_mbuf *msg);
@@ -341,7 +341,7 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
 	}
 
 	/* Remove network headers */
-	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);
+	net_buf_simple_pull_mem(buf, BT_MESH_NET_HDR_LEN);
 
 	BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
@@ -396,21 +396,20 @@ static int beacon_send(uint16_t conn_handle, struct bt_mesh_subnet *sub)
 	return rc;
 }
 
+static int send_beacon_cb(struct bt_mesh_subnet *sub, void *cb_data)
+{
+	struct bt_mesh_proxy_client *client = cb_data;
+
+	return beacon_send(client->conn_handle, sub);
+}
+
 static void proxy_send_beacons(struct ble_npl_event *work)
 {
 	struct bt_mesh_proxy_client *client;
-	int i;
-
 
 	client = ble_npl_event_get_arg(work);
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
-		struct bt_mesh_subnet *sub = &bt_mesh.sub[i];
-
-		if (sub->net_idx != BT_MESH_KEY_UNUSED) {
-			beacon_send(client->conn_handle, sub);
-		}
-	}
+	(void)bt_mesh_subnet_find(send_beacon_cb, client);
 }
 
 static void proxy_sar_timeout(struct ble_npl_event *work)
@@ -436,12 +435,7 @@ void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
 
 	if (!sub) {
 		/* NULL means we send on all subnets */
-		for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
-			if (bt_mesh.sub[i].net_idx != BT_MESH_KEY_UNUSED) {
-				bt_mesh_proxy_beacon_send(&bt_mesh.sub[i]);
-			}
-		}
-
+		bt_mesh_subnet_foreach(bt_mesh_proxy_beacon_send);
 		return;
 	}
 
@@ -452,13 +446,17 @@ void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
 	}
 }
 
-void bt_mesh_proxy_identity_start(struct bt_mesh_subnet *sub)
+static void node_id_start(struct bt_mesh_subnet *sub)
 {
 	sub->node_id = BT_MESH_NODE_IDENTITY_RUNNING;
 	sub->node_id_start = k_uptime_get_32();
+}
 
+void bt_mesh_proxy_identity_start(struct bt_mesh_subnet *sub)
+{
+	node_id_start(sub);
 	/* Prioritize the recently enabled subnet */
-	next_idx = sub - bt_mesh.sub;
+	beacon_sub = sub;
 }
 
 void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub)
@@ -469,30 +467,13 @@ void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub)
 
 int bt_mesh_proxy_identity_enable(void)
 {
-	int i, count = 0;
-
 	BT_DBG("");
 
 	if (!bt_mesh_is_provisioned()) {
 		return -EAGAIN;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
-		struct bt_mesh_subnet *sub = &bt_mesh.sub[i];
-
-		if (sub->net_idx == BT_MESH_KEY_UNUSED) {
-			continue;
-		}
-
-		if (sub->node_id == BT_MESH_NODE_IDENTITY_NOT_SUPPORTED) {
-			continue;
-		}
-
-		bt_mesh_proxy_identity_start(sub);
-		count++;
-	}
-
-	if (count) {
+	if (bt_mesh_subnet_foreach(node_id_start)) {
 		bt_mesh_adv_update();
 	}
 
@@ -1045,7 +1026,7 @@ static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 
 	net_buf_simple_push_u8(msg, PDU_HDR(SAR_FIRST, type));
 	proxy_send(conn_handle, msg->om_data, mtu);
-	net_buf_simple_pull(msg, mtu);
+	net_buf_simple_pull_mem(msg, mtu);
 
 	while (msg->om_len) {
 		if (msg->om_len + 1 < mtu) {
@@ -1056,7 +1037,7 @@ static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 
 		net_buf_simple_push_u8(msg, PDU_HDR(SAR_CONT, type));
 		proxy_send(conn_handle, msg->om_data, mtu);
-		net_buf_simple_pull(msg, mtu);
+		net_buf_simple_pull_mem(msg, mtu);
 	}
 
 	return 0;
@@ -1139,7 +1120,8 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 	memcpy(tmp + 6, proxy_svc_data + 11, 8);
 	sys_put_be16(bt_mesh_primary_addr(), tmp + 14);
 
-	err = bt_encrypt_be(sub->keys[sub->kr_flag].identity, tmp, tmp);
+	err = bt_encrypt_be(sub->keys[SUBNET_KEY_TX_IDX(sub)].identity, tmp,
+			    tmp);
 	if (err) {
 		return err;
 	}
@@ -1167,9 +1149,9 @@ static int net_id_adv(struct bt_mesh_subnet *sub)
 	proxy_svc_data[2] = ID_TYPE_NET;
 
 	BT_DBG("Advertising with NetId %s",
-	       bt_hex(sub->keys[sub->kr_flag].net_id, 8));
+	       bt_hex(sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8));
 
-	memcpy(proxy_svc_data + 3, sub->keys[sub->kr_flag].net_id, 8);
+	memcpy(proxy_svc_data + 3, sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8);
 
 	err = bt_le_adv_start(&slow_adv_param, net_id_ad,
 			      ARRAY_SIZE(net_id_ad), NULL, 0);
@@ -1195,33 +1177,47 @@ static bool advertise_subnet(struct bt_mesh_subnet *sub)
 
 static struct bt_mesh_subnet *next_sub(void)
 {
-	int i;
+	struct bt_mesh_subnet *sub = NULL;
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
-		struct bt_mesh_subnet *sub;
-
-		sub = &bt_mesh.sub[(i + next_idx) % ARRAY_SIZE(bt_mesh.sub)];
-		if (advertise_subnet(sub)) {
-			next_idx = (next_idx + 1) % ARRAY_SIZE(bt_mesh.sub);
-			return sub;
+	if (!beacon_sub) {
+		beacon_sub = bt_mesh_subnet_next(NULL);
+		if (!beacon_sub) {
+			/* No valid subnets */
+			return NULL;
 		}
 	}
+
+	sub = beacon_sub;
+	do {
+		if (advertise_subnet(sub)) {
+			beacon_sub = sub;
+			return sub;
+		}
+
+	sub = bt_mesh_subnet_next(sub);
+	} while (sub != beacon_sub);
+
+	/* No subnets to advertise on */
 
 	return NULL;
 }
 
-static int sub_count(void)
+static int sub_count_cb(struct bt_mesh_subnet *sub, void *cb_data)
 {
-	int i, count = 0;
+	int *count = cb_data;
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh.sub); i++) {
-		struct bt_mesh_subnet *sub = &bt_mesh.sub[i];
-
-		if (advertise_subnet(sub)) {
-			count++;
-		}
+	if (advertise_subnet(sub)) {
+		(*count)++;
 	}
 
+	return 0;
+}
+
+static int sub_count(void)
+{
+	int count = 0;
+
+	(void)bt_mesh_subnet_find(sub_count_cb, &count);
 	return count;
 }
 
@@ -1237,6 +1233,7 @@ static int32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 		return remaining;
 	}
 
+	sub = beacon_sub ? beacon_sub : bt_mesh_subnet_next(beacon_sub);
 	if (!sub) {
 		BT_WARN("No subnets to advertise on");
 		return remaining;
@@ -1280,6 +1277,8 @@ static int32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 
 	BT_DBG("Advertising %d ms for net_idx 0x%04x",
 	       (int) remaining, sub->net_idx);
+
+	beacon_sub = bt_mesh_subnet_next(beacon_sub);
 
 	return remaining;
 }
@@ -1392,6 +1391,19 @@ void bt_mesh_proxy_adv_stop(void)
 		proxy_adv_enabled = false;
 	}
 }
+
+#if defined(CONFIG_BT_MESH_GATT_PROXY)
+static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
+{
+	if (evt == BT_MESH_KEY_DELETED) {
+		if (sub == beacon_sub) {
+			beacon_sub = NULL;
+		}
+	} else {
+		bt_mesh_proxy_beacon_send(sub);
+	}
+}
+#endif
 
 static void ble_mesh_handle_connect(struct ble_gap_event *event, void *arg)
 {
@@ -1508,6 +1520,10 @@ int bt_mesh_proxy_svcs_register(void)
 int bt_mesh_proxy_init(void)
 {
 	int i;
+
+#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
+	bt_mesh_subnet_cb_list[4] = subnet_evt;
+#endif
 
 	for (i = 0; i < MYNEWT_VAL(BLE_MAX_CONNECTIONS); ++i) {
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))

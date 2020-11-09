@@ -39,7 +39,7 @@ void bt_mesh_friend_clear_incomplete(struct bt_mesh_subnet *sub, uint16_t src,
 
 void bt_mesh_friend_sec_update(uint16_t net_idx);
 
-void bt_mesh_friend_clear_net_idx(uint16_t net_idx);
+void bt_mesh_friends_clear(void);
 
 int bt_mesh_friend_poll(struct bt_mesh_net_rx *rx, struct os_mbuf *buf);
 int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf);

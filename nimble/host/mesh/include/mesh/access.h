@@ -28,6 +28,7 @@ extern "C" {
 #define BT_MESH_ADDR_RELAYS       0xfffe
 
 #define BT_MESH_KEY_UNUSED        0xffff
+#define BT_MESH_KEY_ANY           0xffff
 #define BT_MESH_KEY_DEV           0xfffe
 #define BT_MESH_KEY_DEV_LOCAL     BT_MESH_KEY_DEV
 #define BT_MESH_KEY_DEV_REMOTE    0xfffd
@@ -392,7 +393,7 @@ struct bt_mesh_model_pub {
 	/** @brief Publication buffer, containing the publication message.
 	 *
 	 *  The application is expected to initialize this with
-	 *  a valid net_buf_simple pointer, with the help of e.g.
+	 *  a valid os_mbuf pointer, with the help of e.g.
 	 *  the NET_BUF_SIMPLE() macro. The publication buffer must
 	 *  contain a valid publication message before calling the
 	 *  bt_mesh_model_publish() API or after the publication's
