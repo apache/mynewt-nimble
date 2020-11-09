@@ -336,7 +336,7 @@ net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len)
 {
     void *data = om->om_data;
 
-    net_buf_simple_pull(om, len);
+    net_buf_simple_pull_mem(om, len);
     return data;
 }
 

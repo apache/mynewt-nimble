@@ -156,29 +156,17 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 {
 	struct os_mbuf *sdu = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
 	struct bt_mesh_model_pub *pub = mod->pub;
-	struct bt_mesh_app_key *key;
 	struct bt_mesh_msg_ctx ctx = {
 		.addr = pub->addr,
 		.send_ttl = pub->ttl,
+		.app_idx = pub->key,
 	};
 	struct bt_mesh_net_tx tx = {
 		.ctx = &ctx,
 		.src = bt_mesh_model_elem(mod)->addr,
-		.xmit = bt_mesh_net_transmit_get(),
 		.friend_cred = pub->cred,
 	};
 	int err;
-
-	key = bt_mesh_app_key_find(pub->key);
-	if (!key) {
-		err = -EADDRNOTAVAIL;
-		goto done;
-	}
-
-	tx.sub = bt_mesh_subnet_get(key->net_idx);
-
-	ctx.net_idx = key->net_idx;
-	ctx.app_idx = key->app_idx;
 
 	net_buf_simple_init(sdu, 0);
 	net_buf_simple_add_mem(sdu, pub->msg->om_data, pub->msg->om_len);
@@ -187,7 +175,6 @@ static int publish_retransmit(struct bt_mesh_model *mod)
 
 	err = bt_mesh_trans_send(&tx, sdu, &pub_sent_cb, mod);
 
-done:
 	os_mbuf_free_chain(sdu);
 	return err;
 }
@@ -630,9 +617,9 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		 * store the parsing state in case multiple models
 		 * receive the message.
 		 */
-		net_buf_simple_save(buf, &state);
+		os_mbuf_save(buf, &state);
 		op->func(model, &rx->ctx, buf);
-		net_buf_simple_restore(buf, &state);
+		os_mbuf_restore(buf, &state);
 	}
 }
 
@@ -698,24 +685,9 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
 		       struct os_mbuf *msg,
 		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
-	struct bt_mesh_app_key *app_key;
-
-	if (!BT_MESH_IS_DEV_KEY(ctx->app_idx)) {
-		app_key = bt_mesh_app_key_find(ctx->app_idx);
-		if (!app_key) {
-			BT_ERR("Unknown app_idx 0x%04x", ctx->app_idx);
-			return -EINVAL;
-		}
-
-		ctx->net_idx = app_key->net_idx;
-	}
-
 	struct bt_mesh_net_tx tx = {
-		.sub = bt_mesh_subnet_get(ctx->net_idx),
 		.ctx = ctx,
 		.src = bt_mesh_model_elem(model)->addr,
-		.xmit = bt_mesh_net_transmit_get(),
-		.friend_cred = 0,
 	};
 
 	return model_send(model, &tx, false, msg, cb, cb_data);
@@ -725,13 +697,15 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 {
 	struct os_mbuf *sdu = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
 	struct bt_mesh_model_pub *pub = model->pub;
-	struct bt_mesh_app_key *key;
 	struct bt_mesh_msg_ctx ctx = {
+		.addr = pub->addr,
+		.send_ttl = pub->ttl,
+		.send_rel = pub->send_rel,
+		.app_idx = pub->key,
 	};
 	struct bt_mesh_net_tx tx = {
 		.ctx = &ctx,
 		.src = bt_mesh_model_elem(model)->addr,
-		.xmit = bt_mesh_net_transmit_get(),
 	};
 	int err;
 
@@ -743,12 +717,6 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 	}
 
 	if (pub->addr == BT_MESH_ADDR_UNASSIGNED) {
-		err = -EADDRNOTAVAIL;
-		goto done;
-	}
-
-	key = bt_mesh_app_key_find(pub->key);
-	if (!key) {
 		err = -EADDRNOTAVAIL;
 		goto done;
 	}
@@ -767,14 +735,7 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 	net_buf_simple_init(sdu, 0);
 	net_buf_simple_add_mem(sdu, pub->msg->om_data, pub->msg->om_len);
 
-	ctx.addr = pub->addr;
-	ctx.send_ttl = pub->ttl;
-	ctx.send_rel = pub->send_rel;
-	ctx.net_idx = key->net_idx;
-	ctx.app_idx = key->app_idx;
-
 	tx.friend_cred = pub->cred;
-	tx.sub = bt_mesh_subnet_get(ctx.net_idx),
 
 	pub->count = BT_MESH_PUB_TRANSMIT_COUNT(pub->retransmit);
 

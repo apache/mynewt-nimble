@@ -52,7 +52,7 @@ struct bt_mesh_health_srv_cb {
  *
  *  @param max_faults Maximum number of faults the element can have.
  *
- *  @return a New net_buf_simple of the needed size.
+ *  @return a New os_mbuf of the needed size.
  */
 #define BT_MESH_HEALTH_FAULT_MSG(max_faults) \
 	NET_BUF_SIMPLE(1 + 3 + (max_faults))

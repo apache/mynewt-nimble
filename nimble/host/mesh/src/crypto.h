@@ -135,18 +135,27 @@ int bt_mesh_app_encrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t as
 				 struct os_mbuf*buf, const uint8_t *ad, uint16_t src,
 				 uint16_t dst, uint32_t seq_num, uint32_t iv_index);
 
-int bt_mesh_app_encrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			struct os_mbuf*buf, const uint8_t *ad,
-			uint16_t src, uint16_t dst, uint32_t seq_num, uint32_t iv_index);
-
 int bt_mesh_app_decrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t aszmic,
 				 struct os_mbuf *buf, const uint8_t *ad, uint16_t src,
 				 uint16_t dst, uint32_t seq_num, uint32_t iv_index);
 
-int bt_mesh_app_decrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			struct os_mbuf*buf, struct os_mbuf*out,
-			const uint8_t *ad, uint16_t src, uint16_t dst, uint32_t seq_num,
-			uint32_t iv_index);
+struct bt_mesh_app_crypto_ctx {
+	bool dev_key;
+	uint8_t aszmic;
+	uint16_t src;
+	uint16_t dst;
+	uint32_t seq_num;
+	uint32_t iv_index;
+	const uint8_t *ad;
+};
+
+int bt_mesh_app_encrypt(const uint8_t key[16],
+			const struct bt_mesh_app_crypto_ctx *ctx,
+			struct os_mbuf *buf);
+
+int bt_mesh_app_decrypt(const uint8_t key[16],
+			const struct bt_mesh_app_crypto_ctx *ctx,
+			struct os_mbuf *buf, struct os_mbuf *out);
 
 uint8_t bt_mesh_fcs_calc(const uint8_t *data, uint8_t data_len);
 

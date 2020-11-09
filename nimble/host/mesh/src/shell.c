@@ -833,20 +833,12 @@ static int cmd_net_send(int argc, char *argv[])
 	struct bt_mesh_net_tx tx = {
 		.ctx = &ctx,
 		.src = net.local,
-		.xmit = bt_mesh_net_transmit_get(),
-		.sub = bt_mesh_subnet_get(net.net_idx),
 	};
 	size_t len;
 	int err = 0;
 
 	if (argc < 2) {
 		err = -EINVAL;
-		goto done;
-	}
-
-	if (!tx.sub) {
-		printk("No matching subnet for NetKey Index 0x%04x\n",
-		       net.net_idx);
 		goto done;
 	}
 

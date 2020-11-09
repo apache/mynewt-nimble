@@ -325,114 +325,70 @@ int bt_mesh_net_decrypt(const uint8_t key[16], struct os_mbuf *buf,
 				   NULL, 0, &buf->om_data[7], mic_len);
 }
 
-static void create_app_nonce(uint8_t nonce[13], bool dev_key, uint8_t aszmic,
-			     uint16_t src, uint16_t dst, uint32_t seq_num,
-			     uint32_t iv_index)
+static void create_app_nonce(uint8_t nonce[13],
+			     const struct bt_mesh_app_crypto_ctx *ctx)
 {
-	if (dev_key) {
+	if (ctx->dev_key) {
 		nonce[0] = 0x02;
 	} else {
 		nonce[0] = 0x01;
 	}
 
-	sys_put_be32((seq_num | ((uint32_t)aszmic << 31)), &nonce[1]);
+	sys_put_be32((ctx->seq_num | ((uint32_t)ctx->aszmic << 31)), &nonce[1]);
 
-	sys_put_be16(src, &nonce[5]);
-	sys_put_be16(dst, &nonce[7]);
+	sys_put_be16(ctx->src, &nonce[5]);
+	sys_put_be16(ctx->dst, &nonce[7]);
 
-	sys_put_be32(iv_index, &nonce[9]);
+	sys_put_be32(ctx->iv_index, &nonce[9]);
 }
 
-static int mesh_app_encrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			    struct os_mbuf *buf, const uint8_t *ad,
-			    uint16_t src, uint16_t dst, uint32_t seq_num, uint32_t iv_index)
+int bt_mesh_app_encrypt(const uint8_t key[16],
+			const struct bt_mesh_app_crypto_ctx *ctx,
+			struct os_mbuf *buf)
 {
+	int err;
 	uint8_t nonce[13];
 
 	BT_DBG("AppKey %s", bt_hex(key, 16));
-	BT_DBG("dev_key %u src 0x%04x dst 0x%04x", dev_key, src, dst);
-	BT_DBG("seq_num 0x%08x iv_index 0x%08x", (unsigned) seq_num,
-	       (unsigned) iv_index);
+	BT_DBG("dev_key %u src 0x%04x dst 0x%04x", ctx->dev_key, ctx->src,
+	       ctx->dst);
+	BT_DBG("seq_num 0x%08x iv_index 0x%08x", ctx->seq_num, ctx->iv_index);
 	BT_DBG("Clear: %s", bt_hex(buf->om_data, buf->om_len));
 
-	create_app_nonce(nonce, dev_key, aszmic, src, dst, seq_num, iv_index);
+	create_app_nonce(nonce, ctx);
 
 	BT_DBG("Nonce  %s", bt_hex(nonce, 13));
 
-	return bt_ccm_encrypt(key, nonce, buf->om_data, buf->om_len, ad,
-				   ad ? 16 : 0, buf->om_data,
-				   APP_MIC_LEN(aszmic));
-}
+	err = bt_ccm_encrypt(key, nonce, buf->om_data, buf->om_len, ctx->ad,
+			     ctx->ad ? 16 : 0, buf->om_data,
+			     APP_MIC_LEN(ctx->aszmic));
 
-int bt_mesh_app_encrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-				 struct os_mbuf *buf, const uint8_t *ad, uint16_t src,
-				 uint16_t dst, uint32_t seq_num, uint32_t iv_index)
-{
-	int err;
-
-	err = mesh_app_encrypt(key, dev_key, aszmic, buf, ad, src, dst,
-			       seq_num, iv_index);
 	if (!err) {
+		net_buf_simple_add(buf, APP_MIC_LEN(ctx->aszmic));
 		BT_DBG("Encr: %s", bt_hex(buf->om_data, buf->om_len));
 	}
 
 	return err;
 }
 
-int bt_mesh_app_encrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			struct os_mbuf *buf, const uint8_t *ad,
-			uint16_t src, uint16_t dst, uint32_t seq_num, uint32_t iv_index)
-{
-	int err;
-
-	err = mesh_app_encrypt(key, dev_key, aszmic, buf, ad, src, dst,
-			       seq_num, iv_index);
-
-	if (!err) {
-		net_buf_simple_add(buf, APP_MIC_LEN(aszmic));
-		BT_DBG("Encr: %s", bt_hex(buf->om_data, buf->om_len));
-	}
-
-	return err;
-}
-
-static int mesh_app_decrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			    struct os_mbuf *buf, struct os_mbuf *out,
-			    const uint8_t *ad, uint16_t src, uint16_t dst,
-			    uint32_t seq_num, uint32_t iv_index)
+int bt_mesh_app_decrypt(const uint8_t key[16],
+			const struct bt_mesh_app_crypto_ctx *ctx,
+			struct os_mbuf *buf, struct os_mbuf *out)
 {
 	uint8_t nonce[13];
+	int err;
 
 	BT_DBG("EncData (len %u) %s", buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
 
-	create_app_nonce(nonce, dev_key, aszmic, src, dst, seq_num, iv_index);
+	create_app_nonce(nonce, ctx);
 
 	BT_DBG("AppKey %s", bt_hex(key, 16));
 	BT_DBG("Nonce  %s", bt_hex(nonce, 13));
 
-	return bt_ccm_decrypt(key, nonce, buf->om_data, buf->om_len, ad,
-				   ad ? 16 : 0, out->om_data,
-				   APP_MIC_LEN(aszmic));
-}
-
-int bt_mesh_app_decrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-				 struct os_mbuf *buf, const uint8_t *ad, uint16_t src,
-				 uint16_t dst, uint32_t seq_num, uint32_t iv_index)
-{
-	return mesh_app_decrypt(key, dev_key, aszmic, buf, buf,
-				ad, src, dst, seq_num, iv_index);
-}
-
-int bt_mesh_app_decrypt(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-			struct os_mbuf *buf, struct os_mbuf *out,
-			const uint8_t *ad, uint16_t src, uint16_t dst, uint32_t seq_num,
-			uint32_t iv_index)
-{
-	int err;
-
-	err = mesh_app_decrypt(key, dev_key, aszmic, buf, out,
-			       ad, src, dst, seq_num, iv_index);
+	err = bt_ccm_decrypt(key, nonce, buf->om_data, buf->om_len, ctx->ad,
+			     ctx->ad ? 16 : 0, out->om_data,
+			     APP_MIC_LEN(ctx->aszmic));
 	if (!err) {
 		net_buf_simple_add(out, buf->om_len);
 	}

@@ -234,10 +234,9 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
 }
 
 #define net_buf_simple_init_with_data(buf, data, size)  \
-    buf = NET_BUF_SIMPLE(size); \
     os_mbuf_copyinto(buf, 0, data, size);
 
-static inline void net_buf_simple_reset(struct os_mbuf *om)
+static inline void os_mbuf_reset(struct os_mbuf *om)
 {
     om->om_len = 0;
     om->om_data = om->om_databuf;
@@ -262,7 +261,7 @@ void net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be24(struct os_mbuf *om, uint32_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
-void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
+void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
 bool k_fifo_is_empty(struct ble_npl_eventq *q);
@@ -278,7 +277,7 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 #define net_buf_clone(a, b) os_mbuf_dup(a)
 #define net_buf_add_be32(a, b) net_buf_simple_add_be32(a, b)
 #define net_buf_add_be16(a, b) net_buf_simple_add_be16(a, b)
-#define net_buf_pull(a, b) net_buf_simple_pull(a, b)
+#define net_buf_pull(a, b) net_buf_simple_pull_mem(a, b)
 #define net_buf_pull_mem(a, b) net_buf_simple_pull_mem(a, b)
 #define net_buf_pull_u8(a) net_buf_simple_pull_u8(a)
 #define net_buf_pull_be16(a) net_buf_simple_pull_be16(a)
@@ -346,14 +345,14 @@ void k_work_add_arg(struct ble_npl_callout *w, void *arg);
 void k_delayed_work_add_arg(struct k_delayed_work *w, void *arg);
 uint32_t k_delayed_work_remaining_get(struct k_delayed_work *w);
 
-static inline void net_buf_simple_save(struct os_mbuf *buf,
+static inline void os_mbuf_save(struct os_mbuf *buf,
                        struct net_buf_simple_state *state)
 {
     state->offset = net_buf_simple_headroom(buf);
     state->len = buf->om_len;
 }
 
-static inline void net_buf_simple_restore(struct os_mbuf *buf,
+static inline void os_mbuf_restore(struct os_mbuf *buf,
                                           struct net_buf_simple_state *state)
 {
       buf->om_data = &buf->om_databuf[buf->om_pkthdr_len] + state->offset;

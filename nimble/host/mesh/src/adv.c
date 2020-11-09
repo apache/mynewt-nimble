@@ -281,7 +281,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 			return;
 		}
 
-		net_buf_simple_save(buf, &state);
+		os_mbuf_save(buf, &state);
 
 		type = net_buf_simple_pull_u8(buf);
 
@@ -301,8 +301,8 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 			break;
 		}
 
-		net_buf_simple_restore(buf, &state);
-		net_buf_simple_pull(buf, len);
+		os_mbuf_restore(buf, &state);
+		net_buf_simple_pull_mem(buf, len);
 	}
 }
 
@@ -360,7 +360,7 @@ ble_adv_gap_mesh_cb(struct ble_gap_event *event, void *arg)
 	case BLE_GAP_EVENT_EXT_DISC:
 		ext_desc = &event->ext_disc;
 		buf = os_mbuf_get_pkthdr(&adv_os_mbuf_pool, 0);
-		if (!buf || os_mbuf_append(buf, ext_desc->data, ext_desc->length_data)) {
+		if (!buf || os_mbuf_append(buf, ext_desc->om_data, ext_desc->length_data)) {
 			BT_ERR("Could not append data");
 			goto done;
 		}
