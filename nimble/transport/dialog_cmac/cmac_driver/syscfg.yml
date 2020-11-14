@@ -94,5 +94,11 @@ syscfg.defs:
             CMAC binary.
         value: 128K
 
+    CMAC_CMAC2SYS_IRQ_PRIORITY:
+        description: >
+            The priority of the CMAC2SYS IRQ. Default is 0, or highest
+            priority.
+        value: 0
+
 syscfg.restrictions.BLE_HOST:
     - TRNG
