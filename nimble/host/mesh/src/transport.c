@@ -551,6 +551,8 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 				 */
 				k_mem_slab_free(&segs, &buf);
 				tx->seg[seg_o] = NULL;
+
+				os_mbuf_free_chain(seg);
 			}
 		}
 
@@ -977,6 +979,7 @@ static int trans_unseg(struct os_mbuf *buf, struct bt_mesh_net_rx *rx,
 	/* Adjust the length to not contain the MIC at the end */
 	buf->om_len -= APP_MIC_LEN(0);
 
+	os_mbuf_free_chain(buf);
 	return sdu_recv(rx, hdr, 0, buf, sdu, NULL);
 }
 
@@ -1474,6 +1477,7 @@ found_rx:
 
 	seg_rx_reset(rx, false);
 
+	os_mbuf_free_chain(buf);
 	return err;
 }
 

@@ -1068,6 +1068,7 @@ int bt_mesh_cfg_net_key_get(uint16_t net_idx, uint16_t addr, uint16_t *keys,
 		return err;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 
@@ -1107,6 +1108,7 @@ int bt_mesh_cfg_net_key_del(uint16_t net_idx, uint16_t addr,
 		return 0;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 
@@ -1188,6 +1190,7 @@ int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_id
 		return err;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 
@@ -1228,6 +1231,7 @@ int bt_mesh_cfg_app_key_del(uint16_t net_idx, uint16_t addr,
 		return 0;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 
@@ -1350,6 +1354,7 @@ static int mod_app_unbind(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
 		return 0;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 
@@ -1420,6 +1425,7 @@ static int mod_member_list_get(uint32_t op, uint32_t expect_op, uint16_t net_idx
 		return err;
 	}
 
+	os_mbuf_free_chain(msg);
 	return cli_wait();
 }
 

@@ -233,6 +233,7 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	ble_npl_event_set_arg(&adv->ev, buf);
 
 	return buf;
+	os_mbuf_free_chain(buf);
 }
 
 struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, uint8_t xmit,
