@@ -336,6 +336,8 @@ static void send_app_key_status(struct bt_mesh_model *model,
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send App Key Status response");
 	}
+
+	os_mbuf_free_chain(msg);
 }
 
 static void app_key_add(struct bt_mesh_model *model,
@@ -2120,6 +2122,8 @@ static void send_node_id_status(struct bt_mesh_model *model,
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Node Identity Status");
 	}
+
+	os_mbuf_free_chain(msg);
 }
 
 static void node_identity_get(struct bt_mesh_model *model,
