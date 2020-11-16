@@ -28,7 +28,6 @@ bool ble_rf_is_enabled(void);
 void ble_rf_configure(void);
 
 void ble_rf_calibrate(void);
-void ble_rf_calibrate_once(void);
 
 void ble_rf_setup_tx(uint8_t rf_chan, uint8_t mode);
 void ble_rf_setup_rx(uint8_t rf_chan, uint8_t mode);

@@ -1198,7 +1198,6 @@ ble_phy_init(void)
 #endif
 
     ble_rf_init();
-    ble_rf_calibrate_once();
 
     /*
      * 9_0_EQ_X can be linked to start RX/TX so we'll use this one for
