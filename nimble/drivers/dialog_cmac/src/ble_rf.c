@@ -45,6 +45,7 @@ struct ble_phy_rf_data {
     uint32_t trim_val1_tx_2;
     uint32_t trim_val2_tx;
     uint32_t trim_val2_rx;
+    uint8_t calibrate_req;
 };
 
 static struct ble_phy_rf_data g_ble_phy_rf_data;
@@ -324,6 +325,7 @@ ble_rf_calibration_1(void)
     bkp[10] = get_reg32(0x40020000);
     bkp[11] = get_reg32(0x40022000);
 
+    set_reg32(0x4002103c, 0x0124a21f);
     set_reg32(0x40020208, 0);
     set_reg32(0x40020250, 0);
     set_reg32(0x40020254, 0);
@@ -388,6 +390,7 @@ ble_rf_calibration_2(void)
     uint32_t k1;
 
     set_reg8(0x40020005, 3);
+    set_reg32(0x40022000, 0x00000300);
     set_reg32_bits(0x40022004, 0x0000007f, 20);
     bkp[0] = get_reg32(0x40022040);
     set_reg32(0x40022040, 0xffffffff);
@@ -464,6 +467,58 @@ ble_rf_calibration_2(void)
     g_ble_phy_rf_data.cal_res_2 = k1;
 }
 
+static void
+ble_rf_calibrate_int(uint8_t mask)
+{
+    __disable_irq();
+
+    ble_rf_enable();
+    delay_us(20);
+
+    ble_rf_synth_disable();
+    ble_rf_synth_enable();
+    ble_rf_synth_apply_settings();
+    set_reg8(0x40020005, 1);
+
+    if (mask & RF_CALIBRATION_0) {
+        ble_rf_calibration_0();
+    }
+    if (mask & RF_CALIBRATION_1) {
+        ble_rf_calibration_1();
+    }
+    if (mask & RF_CALIBRATION_2) {
+        ble_rf_calibration_2();
+    }
+
+    ble_rf_disable();
+
+    __enable_irq();
+
+#if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
+    g_cmac_shared_data.debug.cal_res_1 = g_ble_phy_rf_data.cal_res_1;
+    g_cmac_shared_data.debug.cal_res_2 = g_ble_phy_rf_data.cal_res_2;
+#endif
+}
+
+bool
+ble_rf_try_recalibrate(uint32_t idle_time_us)
+{
+    /* Run recalibration if we have at least 1ms of time to spare and RF is
+     * currently disabled. Calibration is much shorter than 1ms, but that gives
+     * us good margin to make sure we can finish before next event.
+     */
+    if (!g_ble_phy_rf_data.calibrate_req || (idle_time_us < 1000) ||
+        ble_rf_is_enabled()) {
+        return false;
+    }
+
+    ble_rf_calibrate_int(RF_CALIBRATION_2);
+
+    g_ble_phy_rf_data.calibrate_req = 0;
+
+    return true;
+}
+
 static uint32_t
 ble_rf_find_trim_reg(volatile uint32_t *tv, unsigned len, uint32_t reg)
 {
@@ -481,7 +536,14 @@ ble_rf_find_trim_reg(volatile uint32_t *tv, unsigned len, uint32_t reg)
 void
 ble_rf_init(void)
 {
+    static bool done = false;
     uint32_t val;
+
+    ble_rf_disable();
+
+    if (done) {
+        return;
+    }
 
     val = ble_rf_find_trim_reg(g_cmac_shared_data.trim.rfcu_mode1,
                                g_cmac_shared_data.trim.rfcu_mode1_len,
@@ -520,6 +582,17 @@ ble_rf_init(void)
     g_cmac_shared_data.debug.trim_val2_tx = g_ble_phy_rf_data.trim_val2_tx;
     g_cmac_shared_data.debug.trim_val2_rx = g_ble_phy_rf_data.trim_val2_rx;
 #endif
+
+    ble_rf_rfcu_enable();
+    ble_rf_rfcu_apply_settings();
+    g_ble_phy_rf_data.tx_power_cfg1 = get_reg32_bits(0x500000a4, 0xf0);
+    g_ble_phy_rf_data.tx_power_cfg2 = get_reg32_bits(0x40020238, 0x000003e0);
+    g_ble_phy_rf_data.tx_power_cfg3 = 0;
+    ble_rf_rfcu_disable();
+
+    ble_rf_calibrate_int(RF_CALIBRATION_0 | RF_CALIBRATION_1 | RF_CALIBRATION_2);
+
+    done = true;
 }
 
 void
@@ -566,65 +639,10 @@ ble_rf_is_enabled(void)
     return get_reg32_bits(0x40020008, 5) == 5;
 }
 
-static void
-ble_rf_calibrate_int(uint8_t mask)
-{
-    ble_rf_rfcu_enable();
-    ble_rf_rfcu_apply_settings();
-    ble_rf_ldo_on();
-    delay_us(20);
-
-    ble_rf_synth_disable();
-    ble_rf_synth_enable();
-    ble_rf_synth_apply_settings();
-    set_reg8(0x40020005, 1);
-
-    if (mask & RF_CALIBRATION_0) {
-        ble_rf_calibration_0();
-    }
-    if (mask & RF_CALIBRATION_1) {
-        ble_rf_calibration_1();
-    }
-    if (mask & RF_CALIBRATION_2) {
-        ble_rf_calibration_2();
-    }
-
-    ble_rf_ldo_off();
-    ble_rf_rfcu_disable();
-
-#if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
-    g_cmac_shared_data.debug.cal_res_1 = g_ble_phy_rf_data.cal_res_1;
-    g_cmac_shared_data.debug.cal_res_2 = g_ble_phy_rf_data.cal_res_2;
-#endif
-}
-
 void
-ble_rf_calibrate(void)
+ble_rf_calibrate_req(void)
 {
-    ble_rf_calibrate_int(RF_CALIBRATION_1 | RF_CALIBRATION_2);
-}
-
-void
-ble_rf_calibrate_once(void)
-{
-    static bool calibrated = false;
-
-    if (calibrated) {
-        return;
-    }
-
-    ble_rf_rfcu_enable();
-    ble_rf_rfcu_apply_settings();
-
-    g_ble_phy_rf_data.tx_power_cfg1 = get_reg32_bits(0x500000a4, 0xf0);
-    g_ble_phy_rf_data.tx_power_cfg2 = get_reg32_bits(0x40020238, 0x000003e0);
-    g_ble_phy_rf_data.tx_power_cfg3 = 0;
-
-    ble_rf_rfcu_disable();
-
-    ble_rf_calibrate_int(RF_CALIBRATION_0 | RF_CALIBRATION_1 | RF_CALIBRATION_2);
-
-    calibrated = true;
+    g_ble_phy_rf_data.calibrate_req = 1;
 }
 
 void

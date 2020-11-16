@@ -26,6 +26,7 @@ extern "C" {
 
 void cmac_host_init(void);
 void cmac_host_signal2cmac(void);
+void cmac_host_rf_calibrate(void);
 
 #ifdef __cplusplus
 }

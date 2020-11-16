@@ -184,6 +184,16 @@ cmac_host_print_trim(const char *name, const uint32_t *tv, unsigned len)
 #endif
 
 void
+cmac_host_rf_calibrate(void)
+{
+    cmac_shared_lock();
+    g_cmac_shared_data->pending_ops |= CMAC_PENDING_OP_RF_CAL;
+    cmac_shared_unlock();
+
+    cmac_host_signal2cmac();
+}
+
+void
 cmac_host_init(void)
 {
     struct trng_dev *trng;
