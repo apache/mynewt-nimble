@@ -235,7 +235,7 @@ cmac_host_init(void)
 
     /* Setup CMAC2SYS interrupt */
     NVIC_SetVector(CMAC2SYS_IRQn, (uint32_t)cmac2sys_isr);
-    NVIC_SetPriority(CMAC2SYS_IRQn, 0);
+    NVIC_SetPriority(CMAC2SYS_IRQn, MYNEWT_VAL(CMAC_CMAC2SYS_IRQ_PRIORITY));
     NVIC_DisableIRQ(CMAC2SYS_IRQn);
 
     /* Enable Radio LDO */
