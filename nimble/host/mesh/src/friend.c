@@ -1693,6 +1693,20 @@ bool bt_mesh_friend_enqueue_tx(struct bt_mesh_net_tx *tx,
 	return matched;
 }
 
+int bt_mesh_friend_terminate(uint16_t lpn_addr)
+{
+	struct bt_mesh_friend *frnd;
+
+	frnd = bt_mesh_friend_find(BT_MESH_KEY_ANY, lpn_addr, false, false);
+	if (!frnd) {
+		return -ENOENT;
+	}
+
+	friend_clear(frnd);
+
+	return 0;
+}
+
 void bt_mesh_friend_clear_incomplete(struct bt_mesh_subnet *sub, uint16_t src,
 				     uint16_t dst, uint64_t *seq_auth)
 {
