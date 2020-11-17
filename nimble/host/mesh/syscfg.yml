@@ -40,12 +40,19 @@ syscfg.defs:
            Timeout value of retransmit provisioning PDUs.
         value: 500
 
+    BLE_MESH_PROV_DEVICE:
+        description: >
+           Enable this option to allow the device to be provisioned into a mesh network.
+        value: 1
+        restrictions: BLE_MESH_PROV
+
     BLE_MESH_PROVISIONER:
         description: >
             Enable this option to have support for provisioning remote devices.
-        value: 0
+        value: 1
         restrictions:
-            - (BLE_MESH_PROV)
+            - BLE_MESH_PROV
+            - BLE_MESH_PB_ADV
 
     BLE_MESH_CDB:
         description: >
@@ -697,6 +704,24 @@ syscfg.defs:
             Minimum level for the BLE Mesh Replay protection list log.
         value: 1
 
+    BLE_MESH_PROV_DEVICE_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Replay protection list messages.
+        value: 24
+    BLE_MESH_PROV_DEVICE_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Replay protection list log.
+        value: 1
+
+    BLE_MESH_PROVISIONER_LOG_MOD:
+        description: >
+            Numeric module ID to use for BLE Mesh Replay protection list messages.
+        value: 25
+    BLE_MESH_PROVISIONER_LOG_LVL:
+        description: >
+            Minimum level for the BLE Mesh Replay protection list log.
+        value: 1
+
 syscfg.logs:
     BLE_MESH_LOG:
         module: MYNEWT_VAL(BLE_MESH_LOG_MOD)
@@ -757,6 +782,14 @@ syscfg.logs:
     BLE_MESH_NET_KEYS_LOG:
         module: MYNEWT_VAL(BLE_MESH_NET_KEYS_LOG_MOD)
         level: MYNEWT_VAL(BLE_MESH_NET_KEYS_LOG_LVL)
+
+    BLE_MESH_PROV_DEVICE_LOG:
+        module: MYNEWT_VAL(BLE_MESH_PROV_DEVICE_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_PROV_DEVICE_LOG_LVL)
+
+    BLE_MESH_PROVISIONER_LOG:
+        module: MYNEWT_VAL(BLE_MESH_PROVISIONER_LOG_MOD)
+        level: MYNEWT_VAL(BLE_MESH_PROVISIONER_LOG_LVL)
 
 syscfg.vals.BLE_MESH_SHELL:
     BLE_MESH_CFG_CLI: 1

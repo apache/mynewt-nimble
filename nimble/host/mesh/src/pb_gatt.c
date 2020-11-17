@@ -11,7 +11,7 @@
 #include "net.h"
 #include "proxy.h"
 #include "adv.h"
-#include "prov_bearer.h"
+#include "prov.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV)
 #define LOG_MODULE_NAME bt_mesh_pb_gatt
@@ -148,6 +148,10 @@ void pb_gatt_init(void)
 	k_delayed_work_init(&link.prot_timer, protocol_timeout);
 }
 
+void pb_gatt_reset(void)
+{
+	reset_state();
+}
 const struct prov_bearer pb_gatt = {
 	.type = BT_MESH_PROV_GATT,
 	.link_accept = link_accept,

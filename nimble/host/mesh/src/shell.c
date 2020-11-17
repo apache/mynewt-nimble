@@ -2229,7 +2229,7 @@ struct shell_cmd_help cmd_hb_pub_help = {
 
 #endif /* MYNEWT_VAL(BLE_MESH_CFG_CLI) */
 
-#if MYNEWT_VAL(BLE_MESH_PROV)
+#if MYNEWT_VAL(BLE_MESH_PROV_DEVICE)
 static int cmd_pb(bt_mesh_prov_bearer_t bearer, int argc, char *argv[])
 {
 	int err;

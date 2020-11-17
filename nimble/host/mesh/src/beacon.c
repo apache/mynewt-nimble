@@ -229,7 +229,7 @@ static void update_beacon_observation(void)
 static void beacon_send(struct ble_npl_event *work)
 {
 	/* Don't send anything if we have an active provisioning link */
-	if ((MYNEWT_VAL(BLE_MESH_PROV)) && bt_prov_active()) {
+	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) && bt_mesh_prov_active()) {
 		k_delayed_work_submit(&beacon_timer,
 							  K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
 		return;
