@@ -432,6 +432,16 @@ int bt_mesh_lpn_poll(void);
  */
 void bt_mesh_lpn_set_cb(void (*cb)(uint16_t friend_addr, bool established));
 
+/** @brief Terminate Friendship.
+ *
+ *  Terminated Friendship for given LPN.
+ *
+ *  @param lpn_addr Low Power Node address.
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_mesh_friend_terminate(uint16_t lpn_addr);
+
 #ifdef __cplusplus
 }
 #endif
