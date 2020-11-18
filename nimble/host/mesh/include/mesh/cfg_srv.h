@@ -33,8 +33,11 @@ struct bt_mesh_cfg_srv {
 	uint8_t frnd;                 /* Friend state */
 	uint8_t default_ttl;          /* Default TTL */
 
-	/* Heartbeat Publication */
-	struct bt_mesh_hb_pub {
+	/** Heartbeat Publication parameters.
+	 *
+	 * @deprecated in favor of standalone API in bluetooth/mesh/heartbeat.h.
+	 */
+	struct {
 		struct k_delayed_work timer;
 
 		uint16_t dst;
@@ -43,10 +46,13 @@ struct bt_mesh_cfg_srv {
 		uint8_t  ttl;
 		uint16_t feat;
 		uint16_t net_idx;
-	} hb_pub;
+	} hb_pub; /* _deprectated */
 
-	/* Heartbeat Subscription */
-	struct bt_mesh_hb_sub {
+	/** Heartbeat Subscription parameters.
+	 *
+	 * @deprecated in favor of standalone API in bluetooth/mesh/heartbeat.h.
+	 */
+	struct {
 		int64_t  expiry;
 
 		uint16_t src;
@@ -57,7 +63,7 @@ struct bt_mesh_cfg_srv {
 
 		/* Optional subscription tracking function */
 		void (*func)(uint8_t hops, uint16_t feat);
-	} hb_sub;
+	} hb_sub; /* _deprectated */
 };
 
 extern const struct bt_mesh_model_op bt_mesh_cfg_srv_op[];

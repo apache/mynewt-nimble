@@ -408,6 +408,12 @@ k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f)
 #endif
 }
 
+bool
+k_delayed_work_pending(struct k_delayed_work *w)
+{
+    return ble_npl_callout_is_active(&w->work);
+}
+
 void
 k_delayed_work_cancel(struct k_delayed_work *w)
 {
