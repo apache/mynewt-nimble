@@ -609,10 +609,36 @@ struct shell_cmd_help cmd_uuid_help = {
 
 static int cmd_reset(int argc, char *argv[])
 {
-	bt_mesh_reset();
-	printk("Local node reset complete\n");
+	uint16_t addr;
+	if (argc < 2) {
+		return -EINVAL;
+	}
+
+	addr = strtoul(argv[1], NULL, 0);
+
+	if (addr == net.local) {
+		bt_mesh_reset();
+		printk("Local node reset complete");
+	} else {
+		int err;
+		bool reset = false;
+
+		err = bt_mesh_cfg_node_reset(net.net_idx, net.dst, &reset);
+		if (err) {
+			printk("Unable to send "
+					"Remote Node Reset (err %d)", err);
+			return 0;
+		}
+
+		printk("Remote node reset complete");
+	}
+
 	return 0;
 }
+
+struct shell_cmd_help cmd_reset_help = {
+	NULL, "<addr>", NULL
+};
 
 static uint8_t str2u8(const char *str)
 {
@@ -3259,7 +3285,7 @@ static const struct shell_cmd mesh_commands[] = {
     {
         .sc_cmd = "reset",
         .sc_cmd_func = cmd_reset,
-        .help = NULL,
+        .help = &cmd_reset_help,
     },
     {
         .sc_cmd = "uuid",
