@@ -210,6 +210,26 @@ static void net_key_list(struct bt_mesh_model *model,
 	k_sem_give(&cli->op_sync);
 }
 
+static void node_reset_status(struct bt_mesh_model *model,
+		struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf)
+{
+	bool *param = NULL;
+	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x",
+		ctx->net_idx, ctx->app_idx, ctx->addr);
+
+	if (cli->op_pending != OP_NODE_RESET_STATUS) {
+		BT_WARN("Unexpected Node Reset Status message");
+		return;
+	}
+
+	param = cli->op_param;
+
+	if (param) {
+		*param = true;
+	}
+	k_sem_give(&cli->op_sync);
+}
+
 struct app_key_param {
 	uint8_t *status;
 	uint16_t net_idx;
@@ -686,6 +706,7 @@ const struct bt_mesh_model_op bt_mesh_cfg_cli_op[] = {
 	{ OP_MOD_SUB_LIST_VND,       7,   mod_sub_list_vnd},
 	{ OP_HEARTBEAT_SUB_STATUS,   9,   hb_sub_status },
 	{ OP_HEARTBEAT_PUB_STATUS,   10,  hb_pub_status },
+	{ OP_NODE_RESET_STATUS,      0,   node_reset_status},
 	BT_MESH_MODEL_OP_END,
 };
 
@@ -1155,6 +1176,44 @@ int bt_mesh_cfg_app_key_add(uint16_t net_idx, uint16_t addr, uint16_t key_net_id
 done:
 	os_mbuf_free_chain(msg);
 	return err;
+}
+
+int bt_mesh_cfg_node_reset(uint16_t net_idx, uint16_t addr, bool *status)
+{
+	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NODE_RESET, 0);
+	struct bt_mesh_msg_ctx ctx = {
+		.net_idx = net_idx,
+		.app_idx = BT_MESH_KEY_DEV_REMOTE,
+		.addr = addr,
+		.send_ttl = BT_MESH_TTL_DEFAULT,
+	};
+
+	int err;
+
+	if (status) {
+		*status = false;
+	}
+
+	err = cli_prepare(status, OP_NODE_RESET_STATUS);
+	if (err) {
+		return err;
+	}
+
+	bt_mesh_model_msg_init(msg, OP_NODE_RESET);
+
+	err = bt_mesh_model_send(cli->model, &ctx, msg, NULL, NULL);
+	if (err) {
+		BT_ERR("model_send() failed (err %d)", err);
+		cli_reset();
+		return err;
+	}
+
+	if (!status) {
+		cli_reset();
+		return 0;
+	}
+
+	return cli_wait();
 }
 
 int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,

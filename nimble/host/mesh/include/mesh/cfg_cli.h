@@ -37,6 +37,8 @@ extern const struct bt_mesh_model_cb bt_mesh_cfg_cli_cb;
 	BT_MESH_MODEL_CB(BT_MESH_MODEL_ID_CFG_CLI, bt_mesh_cfg_cli_op, NULL,   \
 			 cli_data, &bt_mesh_cfg_cli_cb)
 
+int bt_mesh_cfg_node_reset(uint16_t net_idx, uint16_t addr, bool *status);
+
 int bt_mesh_cfg_comp_data_get(uint16_t net_idx, uint16_t addr, uint8_t page,
 			      uint8_t *status, struct os_mbuf *comp);
 
