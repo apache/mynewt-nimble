@@ -30,6 +30,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "proxy.h"
+#include "heartbeat.h"
 #include "shell.h"
 #include "mesh_priv.h"
 #include "settings.h"
@@ -261,7 +262,7 @@ int bt_mesh_suspend(void)
 		return err;
 	}
 
-	bt_mesh_hb_pub_disable();
+	bt_mesh_hb_suspend();
 
 	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
 		bt_mesh_beacon_disable();
@@ -303,6 +304,8 @@ int bt_mesh_resume(void)
 		return err;
 	}
 
+	bt_mesh_hb_resume();
+
 	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
 		bt_mesh_beacon_enable();
 	}
@@ -340,6 +343,7 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 
 	bt_mesh_net_init();
 	bt_mesh_trans_init();
+	bt_mesh_hb_init();
 	bt_mesh_beacon_init();
 	bt_mesh_adv_init();
 
@@ -403,6 +407,9 @@ int bt_mesh_start(void)
 
 		bt_mesh_prov_complete(sub->net_idx, addr);
 	}
+
+	bt_mesh_hb_start();
+
 	bt_mesh_model_foreach(model_start, NULL);
 
 	return 0;

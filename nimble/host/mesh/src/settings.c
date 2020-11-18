@@ -18,6 +18,7 @@
 #include "rpl.h"
 #include "crypto.h"
 #include "transport.h"
+#include "heartbeat.h"
 #include "access.h"
 #include "foundation.h"
 #include "proxy.h"
@@ -420,26 +421,11 @@ static int app_key_set(int argc, char **argv, char *val)
 
 static int hb_pub_set(int argc, char **argv, char *val)
 {
-	struct bt_mesh_hb_pub *pub = bt_mesh_hb_pub_get();
+	struct bt_mesh_hb_pub pub;
 	struct hb_pub_val hb_val;
 	int len, err;
 
 	BT_DBG("val %s", val ? val : "(null)");
-
-	if (!pub) {
-		return -ENOENT;
-	}
-
-	if (!val) {
-		pub->dst = BT_MESH_ADDR_UNASSIGNED;
-		pub->count = 0;
-		pub->ttl = 0;
-		pub->period = 0;
-		pub->feat = 0;
-
-		BT_DBG("Cleared heartbeat publication");
-		return 0;
-	}
 
 	len = sizeof(hb_val);
 	err = settings_bytes_from_str(val, &hb_val, &len);
@@ -454,17 +440,19 @@ static int hb_pub_set(int argc, char **argv, char *val)
 		return -EINVAL;
 	}
 
-	pub->dst = hb_val.dst;
-	pub->period = hb_val.period;
-	pub->ttl = hb_val.ttl;
-	pub->feat = hb_val.feat;
-	pub->net_idx = hb_val.net_idx;
+	pub.dst = hb_val.dst;
+	pub.period = bt_mesh_hb_pwr2(hb_val.period);
+	pub.ttl = hb_val.ttl;
+	pub.feat = hb_val.feat;
+	pub.net_idx = hb_val.net_idx;
 
 	if (hb_val.indefinite) {
-		pub->count = 0xffff;
+		pub.count = 0xffff;
 	} else {
-		pub->count = 0;
+		pub.count = 0;
 	}
+
+	(void)bt_mesh_hb_pub_set(&pub);
 
 	BT_DBG("Restored heartbeat publication");
 
@@ -1032,7 +1020,6 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 static int mesh_commit(void)
 {
-	struct bt_mesh_hb_pub *hb_pub;
 	struct bt_mesh_cfg_srv *cfg;
 
 	if (!bt_mesh_subnet_next(NULL)) {
@@ -1049,13 +1036,6 @@ static int mesh_commit(void)
 	}
 
 	bt_mesh_model_foreach(commit_mod, NULL);
-
-	hb_pub = bt_mesh_hb_pub_get();
-	if (hb_pub && hb_pub->dst != BT_MESH_ADDR_UNASSIGNED &&
-	    hb_pub->count && hb_pub->period) {
-		BT_DBG("Starting heartbeat publication");
-		k_work_submit(&hb_pub->timer.work);
-	}
 
 	cfg = bt_mesh_cfg_get();
 	if (cfg && stored_cfg.valid) {
@@ -1305,24 +1285,20 @@ static void store_pending_rpl(struct bt_mesh_rpl *rpl, void *user_data)
 static void store_pending_hb_pub(void)
 {
 	char buf[BT_SETTINGS_SIZE(sizeof(struct hb_pub_val))];
-	struct bt_mesh_hb_pub *pub = bt_mesh_hb_pub_get();
 	struct hb_pub_val val;
 	char *str;
 	int err;
 
-	if (!pub) {
-		return;
-	}
-
-	if (pub->dst == BT_MESH_ADDR_UNASSIGNED) {
+	bt_mesh_hb_pub_get(&pub);
+	if (pub.dst == BT_MESH_ADDR_UNASSIGNED) {
 		str = NULL;
 	} else {
-		val.indefinite = (pub->count == 0xffff);
-		val.dst = pub->dst;
-		val.period = pub->period;
-		val.ttl = pub->ttl;
-		val.feat = pub->feat;
-		val.net_idx = pub->net_idx;
+		val.indefinite = (pub.count == 0xffff);
+		val.dst = pub.dst;
+		val.period = bt_mesh_hb_log(pub.period);
+		val.ttl = pub.ttl;
+		val.feat = pub.feat;
+		val.net_idx = pub.net_idx;
 
 		str = settings_str_from_bytes(&val, sizeof(val),
 					      buf, sizeof(buf));

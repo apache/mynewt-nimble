@@ -286,6 +286,7 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 /** Description of different data types that can be encoded into
   * advertising data. Used to form arrays that are passed to the
   * bt_le_adv_start() function.
@@ -336,6 +337,7 @@ struct k_delayed_work {
 void k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler);
 void k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f);
 void k_delayed_work_cancel(struct k_delayed_work *w);
+bool k_delayed_work_pending(struct k_delayed_work *w);
 void k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms);
 int64_t k_uptime_get(void);
 uint32_t k_uptime_get_32(void);
