@@ -592,8 +592,8 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 	return 0;
 }
 
-int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
-		       const struct bt_mesh_send_cb *cb, void *cb_data)
+static int trans_encrypt(const struct bt_mesh_net_tx *tx, const uint8_t *key,
+			 struct os_mbuf *msg)
 {
 	struct bt_mesh_app_crypto_ctx crypto = {
 		.dev_key = BT_MESH_IS_DEV_KEY(tx->ctx->app_idx),
@@ -603,6 +603,17 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 		.seq_num = bt_mesh.seq,
 		.iv_index = BT_MESH_NET_IVI_TX,
 	};
+
+	if (BT_MESH_ADDR_IS_VIRTUAL(tx->ctx->addr)) {
+		crypto.ad = bt_mesh_va_label_get(tx->ctx->addr);
+	}
+
+	return bt_mesh_app_encrypt(key, &crypto, msg);
+}
+
+int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
+		       const struct bt_mesh_send_cb *cb, void *cb_data)
+{
 	const uint8_t *key;
 	uint8_t aid;
 	int err;
@@ -645,11 +656,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 		tx->aszmic = 1;
 	}
 
-	if (BT_MESH_ADDR_IS_VIRTUAL(tx->ctx->addr)) {
-		crypto.ad = bt_mesh_va_label_get(tx->ctx->addr);
-	}
-
-	err = bt_mesh_app_encrypt(key, &crypto, msg);
+	err = trans_encrypt(tx, key, msg);
 	if (err) {
 		return err;
 	}
