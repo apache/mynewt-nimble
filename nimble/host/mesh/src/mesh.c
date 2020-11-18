@@ -171,8 +171,7 @@ void bt_mesh_reset(void)
 
 	bt_mesh_cfg_reset();
 
-	bt_mesh_rx_reset();
-	bt_mesh_tx_reset();
+	bt_mesh_trans_reset();
 	bt_mesh_app_keys_reset();
 	bt_mesh_net_keys_reset();
 

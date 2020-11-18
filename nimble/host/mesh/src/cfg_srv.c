@@ -35,12 +35,6 @@
 
 static struct bt_mesh_cfg_srv *conf;
 
-static struct label labels[CONFIG_BT_MESH_LABEL_COUNT];
-
-#if CONFIG_BT_MESH_LABEL_COUNT > 0
-static uint8_t va_del(uint8_t *label_uuid, uint16_t *addr);
-#endif
-
 void (*bt_mesh_app_key_cb_list[1]) (uint16_t app_idx, uint16_t net_idx,
 			enum bt_mesh_key_evt evt);
 
@@ -224,10 +218,10 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 
 #if CONFIG_BT_MESH_LABEL_COUNT > 0
 	if (BT_MESH_ADDR_IS_VIRTUAL(model->pub->addr)) {
-		uint8_t *uuid = bt_mesh_label_uuid_get(model->pub->addr);
+		uint8_t *uuid = bt_mesh_va_label_get(model->pub->addr);
 
 		if (uuid) {
-			va_del(uuid, NULL);
+			bt_mesh_va_del(uuid, NULL);
 		}
 	}
 #endif
@@ -933,100 +927,6 @@ send_status:
 			    status, mod_id);
 }
 
-struct label *get_label(uint16_t index)
-{
-	if (index >= ARRAY_SIZE(labels)) {
-		return NULL;
-	}
-
-	return &labels[index];
-}
-
-#if CONFIG_BT_MESH_LABEL_COUNT > 0
-static inline void va_store(struct label *store)
-{
-	atomic_set_bit(store->flags, BT_MESH_VA_CHANGED);
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_label();
-	}
-}
-
-static struct label *va_find(const uint8_t *label_uuid,
-				struct label **free_slot)
-{
-	struct label *match = NULL;
-	int i;
-
-	if (free_slot != NULL) {
-		*free_slot = NULL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(labels); i++) {
-		if (labels[i].ref == 0) {
-			if (free_slot != NULL) {
-				*free_slot = &labels[i];
-			}
-			continue;
-		}
-
-		if (!memcmp(labels[i].uuid, label_uuid, 16)) {
-			match = &labels[i];
-		}
-	}
-
-	return match;
-}
-
-static uint8_t va_add(uint8_t *label_uuid, uint16_t *addr)
-{
-	struct label *update, *free_slot = NULL;
-
-	update = va_find(label_uuid, &free_slot);
-	if (update) {
-		update->ref++;
-		va_store(update);
-		return STATUS_SUCCESS;
-	}
-
-	if (!free_slot) {
-		return STATUS_INSUFF_RESOURCES;
-	}
-
-	if (bt_mesh_virtual_addr(label_uuid, addr) < 0) {
-		return STATUS_UNSPECIFIED;
-	}
-
-	free_slot->ref = 1;
-	free_slot->addr = *addr;
-	memcpy(free_slot->uuid, label_uuid, 16);
-	va_store(free_slot);
-
-	return STATUS_SUCCESS;
-}
-
-static uint8_t va_del(uint8_t *label_uuid, uint16_t *addr)
-{
-	struct label *update;
-
-	update = va_find(label_uuid, NULL);
-	if (update) {
-		update->ref--;
-
-		if (addr) {
-			*addr = update->addr;
-		}
-
-		va_store(update);
-		return STATUS_SUCCESS;
-	}
-
-	if (addr) {
-		*addr = BT_MESH_ADDR_UNASSIGNED;
-	}
-
-	return STATUS_CANNOT_REMOVE;
-}
-
 static size_t mod_sub_list_clear(struct bt_mesh_model *mod)
 {
 	uint8_t *label_uuid;
@@ -1044,13 +944,13 @@ static size_t mod_sub_list_clear(struct bt_mesh_model *mod)
 			continue;
 		}
 
-		label_uuid = bt_mesh_label_uuid_get(mod->groups[i]);
+		label_uuid = bt_mesh_va_label_get(mod->groups[i]);
 
 		mod->groups[i] = BT_MESH_ADDR_UNASSIGNED;
 		clear_count++;
 
 		if (label_uuid) {
-			va_del(label_uuid, NULL);
+			bt_mesh_va_del(label_uuid, NULL);
 		} else {
 			BT_ERR("Label UUID not found");
 		}
@@ -1114,7 +1014,7 @@ static void mod_pub_va_set(struct bt_mesh_model *model,
 		goto send_status;
 	}
 
-	status = va_add(label_uuid, &pub_addr);
+	status = bt_mesh_va_add(label_uuid, &pub_addr);
 	if (status != STATUS_SUCCESS) {
 		goto send_status;
 	}
@@ -1122,81 +1022,13 @@ static void mod_pub_va_set(struct bt_mesh_model *model,
 	status = _mod_pub_set(mod, pub_addr, pub_app_idx, cred_flag, pub_ttl,
 			      pub_period, retransmit, true);
 	if (status != STATUS_SUCCESS) {
-		va_del(label_uuid, NULL);
+		bt_mesh_va_del(label_uuid, NULL);
 	}
 
 send_status:
 	send_mod_pub_status(model, ctx, elem_addr, pub_addr, vnd, mod,
 			    status, mod_id);
 }
-#else
-static size_t mod_sub_list_clear(struct bt_mesh_model *mod)
-{
-	size_t clear_count;
-	int i;
-
-	/* Unref stored labels related to this model */
-	for (i = 0, clear_count = 0; i < ARRAY_SIZE(mod->groups); i++) {
-		if (mod->groups[i] != BT_MESH_ADDR_UNASSIGNED) {
-			if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
-				bt_mesh_lpn_group_del(&mod->groups[i], 1);
-			}
-			mod->groups[i] = BT_MESH_ADDR_UNASSIGNED;
-			clear_count++;
-		}
-	}
-
-	return clear_count;
-}
-
-static void mod_pub_va_set(struct bt_mesh_model *model,
-			   struct bt_mesh_msg_ctx *ctx,
-			   struct os_mbuf *buf)
-{
-	uint8_t *mod_id, status;
-	struct bt_mesh_model *mod;
-	struct bt_mesh_elem *elem;
-	uint16_t elem_addr, pub_addr = 0;
-	bool vnd;
-
-	elem_addr = net_buf_simple_pull_le16(buf);
-	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
-		BT_WARN("Prohibited element address");
-		return;
-	}
-
-	net_buf_simple_pull_mem(buf, 16);
-	mod_id = net_buf_simple_pull_mem(buf, 4);
-
-	BT_DBG("elem_addr 0x%04x", elem_addr);
-
-	elem = bt_mesh_elem_find(elem_addr);
-	if (!elem) {
-		mod = NULL;
-		vnd = (buf->om_len == 4);
-		status = STATUS_INVALID_ADDRESS;
-		goto send_status;
-	}
-
-	mod = get_model(elem, buf, &vnd);
-	if (!mod) {
-		status = STATUS_INVALID_MODEL;
-		goto send_status;
-	}
-
-	if (!mod->pub) {
-		status = STATUS_NVAL_PUB_PARAM;
-		goto send_status;
-	}
-
-	pub_addr = mod->pub->addr;
-	status = STATUS_INSUFF_RESOURCES;
-
-send_status:
-	send_mod_pub_status(model, ctx, elem_addr, pub_addr, vnd, mod,
-			    status, mod_id);
-}
-#endif /* MYNEWT_VAL(BLE_MESH_LABEL_COUNT) > 0 */
 
 static void send_mod_sub_status(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx, uint8_t status,
@@ -1650,7 +1482,6 @@ done:
 
 }
 
-#if MYNEWT_VAL(BLE_MESH_LABEL_COUNT) > 0
 static void mod_sub_va_add(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf *buf)
@@ -1691,7 +1522,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 		goto send_status;
 	}
 
-	status = va_add(label_uuid, &sub_addr);
+	status = bt_mesh_va_add(label_uuid, &sub_addr);
 	if (status != STATUS_SUCCESS) {
 		goto send_status;
 	}
@@ -1699,7 +1530,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 	if (bt_mesh_model_find_group(&mod, sub_addr)) {
 		/* Tried to add existing subscription */
 		status = STATUS_SUCCESS;
-		va_del(label_uuid, NULL);
+		bt_mesh_va_del(label_uuid, NULL);
 		goto send_status;
 	}
 
@@ -1707,7 +1538,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 	entry = bt_mesh_model_find_group(&mod, BT_MESH_ADDR_UNASSIGNED);
 	if (!entry) {
 		status = STATUS_INSUFF_RESOURCES;
-		va_del(label_uuid, NULL);
+		bt_mesh_va_del(label_uuid, NULL);
 		goto send_status;
 		}
 
@@ -1769,7 +1600,7 @@ static void mod_sub_va_del(struct bt_mesh_model *model,
 		goto send_status;
 	}
 
-	status = va_del(label_uuid, &sub_addr);
+	status = bt_mesh_va_del(label_uuid, &sub_addr);
 	if (sub_addr == BT_MESH_ADDR_UNASSIGNED) {
 		goto send_status;
 	}
@@ -1835,7 +1666,7 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 	}
 
 	if (ARRAY_SIZE(mod->groups) > 0) {
-		status = va_add(label_uuid, &sub_addr);
+		status = bt_mesh_va_add(label_uuid, &sub_addr);
 		if (status == STATUS_SUCCESS) {
 			bt_mesh_model_tree_walk(bt_mesh_model_root(mod),
 						mod_sub_clear_visitor, NULL);
@@ -1857,127 +1688,6 @@ send_status:
 	send_mod_sub_status(model, ctx, status, elem_addr, sub_addr,
 			    mod_id, vnd);
 }
-#else
-static void mod_sub_va_add(struct bt_mesh_model *model,
-			   struct bt_mesh_msg_ctx *ctx,
-			   struct os_mbuf *buf)
-{
-	struct bt_mesh_model *mod;
-	struct bt_mesh_elem *elem;
-	uint16_t elem_addr;
-	uint8_t *mod_id;
-	uint8_t status;
-	bool vnd;
-
-	elem_addr = net_buf_simple_pull_le16(buf);
-	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
-		BT_WARN("Prohibited element address");
-		return;
-	}
-
-	net_buf_simple_pull_mem(buf, 16);
-
-	mod_id = buf->om_data;
-
-	elem = bt_mesh_elem_find(elem_addr);
-	if (!elem) {
-		mod = NULL;
-		vnd = (buf->om_len == 4);
-		status = STATUS_INVALID_ADDRESS;
-		goto send_status;
-	}
-
-	mod = get_model(elem, buf, &vnd);
-	if (!mod) {
-		status = STATUS_INVALID_MODEL;
-		goto send_status;
-	}
-
-	status = STATUS_INSUFF_RESOURCES;
-
-send_status:
-	send_mod_sub_status(model, ctx, status, elem_addr,
-			    BT_MESH_ADDR_UNASSIGNED, mod_id, vnd);
-}
-
-static void mod_sub_va_del(struct bt_mesh_model *model,
-			   struct bt_mesh_msg_ctx *ctx,
-			   struct os_mbuf *buf)
-{
-	struct bt_mesh_elem *elem;
-	uint16_t elem_addr;
-	uint8_t *mod_id;
-	uint8_t status;
-	bool vnd;
-
-	elem_addr = net_buf_simple_pull_le16(buf);
-	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
-		BT_WARN("Prohibited element address");
-		return;
-	}
-
-	net_buf_simple_pull_mem(buf, 16);
-
-	mod_id = buf->om_data;
-
-	elem = bt_mesh_elem_find(elem_addr);
-	if (!elem) {
-		vnd = (buf->om_len == 4);
-		status = STATUS_INVALID_ADDRESS;
-		goto send_status;
-	}
-
-	if (!get_model(elem, buf, &vnd)) {
-		status = STATUS_INVALID_MODEL;
-		goto send_status;
-	}
-
-	status = STATUS_INSUFF_RESOURCES;
-
-send_status:
-	send_mod_sub_status(model, ctx, status, elem_addr,
-			    BT_MESH_ADDR_UNASSIGNED, mod_id, vnd);
-}
-
-static void mod_sub_va_overwrite(struct bt_mesh_model *model,
-				 struct bt_mesh_msg_ctx *ctx,
-				 struct os_mbuf *buf)
-{
-	struct bt_mesh_elem *elem;
-	uint16_t elem_addr;
-	uint8_t *mod_id;
-	uint8_t status;
-	bool vnd;
-
-	elem_addr = net_buf_simple_pull_le16(buf);
-	if (!BT_MESH_ADDR_IS_UNICAST(elem_addr)) {
-		BT_WARN("Prohibited element address");
-		return;
-	}
-
-	net_buf_simple_pull_mem(buf, 18);
-
-	mod_id = buf->om_data;
-
-	elem = bt_mesh_elem_find(elem_addr);
-	if (!elem) {
-		vnd = (buf->om_len == 4);
-		status = STATUS_INVALID_ADDRESS;
-		goto send_status;
-	}
-
-	if (!get_model(elem, buf, &vnd)) {
-		status = STATUS_INVALID_MODEL;
-		goto send_status;
-	}
-
-	status = STATUS_INSUFF_RESOURCES;
-
-send_status:
-	send_mod_sub_status(model, ctx, status, elem_addr,
-			    BT_MESH_ADDR_UNASSIGNED, mod_id, vnd);
-}
-#endif /* MYNEWT_VAL(BLE_MESH_LABEL_COUNT) > 0 */
 
 static void send_net_key_status(struct bt_mesh_model *model,
 				struct bt_mesh_msg_ctx *ctx,
@@ -3129,8 +2839,6 @@ void bt_mesh_cfg_reset(void)
 	cfg->hb_sub.expiry = 0;
 
 	bt_mesh_model_foreach(mod_reset, NULL);
-
-	memset(labels, 0, sizeof(labels));
 }
 
 void bt_mesh_heartbeat(uint16_t src, uint16_t dst, uint8_t hops, uint16_t feat)
@@ -3225,25 +2933,6 @@ uint8_t bt_mesh_default_ttl_get(void)
 	}
 
 	return DEFAULT_TTL;
-}
-
-uint8_t *bt_mesh_label_uuid_get(uint16_t addr)
-{
-	int i;
-
-	BT_DBG("addr 0x%04x", addr);
-
-	for (i = 0; i < ARRAY_SIZE(labels); i++) {
-		if (labels[i].addr == addr) {
-			BT_DBG("Found Label UUID for 0x%04x: %s", addr,
-			       bt_hex(labels[i].uuid, 16));
-			return labels[i].uuid;
-		}
-	}
-
-	BT_WARN("No matching Label UUID for 0x%04x", addr);
-
-	return NULL;
 }
 
 struct bt_mesh_hb_pub *bt_mesh_hb_pub_get(void)
