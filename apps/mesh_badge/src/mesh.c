@@ -27,8 +27,6 @@
 static struct ble_npl_callout hello_work;
 static struct ble_npl_callout mesh_start_work;
 
-struct bt_mesh_hb_cb hb_cb;
-
 static void heartbeat(const struct bt_mesh_hb_sub *sub, uint8_t hops,
 		      uint16_t feat)
 {
