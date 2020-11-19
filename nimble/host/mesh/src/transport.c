@@ -635,6 +635,13 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct os_mbuf *msg,
 		tx->ctx->send_rel = true;
 	}
 
+	if (tx->ctx->addr == BT_MESH_ADDR_UNASSIGNED ||
+	    (!BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr) &&
+	     BT_MESH_IS_DEV_KEY(tx->ctx->app_idx))) {
+		BT_ERR("Invalid destination address");
+		return -EINVAL;
+	}
+
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x dst 0x%04x", tx->sub->net_idx,
 	       tx->ctx->app_idx, tx->ctx->addr);
 	BT_DBG("len %u: %s", msg->om_len, bt_hex(msg->om_data, msg->om_len));
@@ -1003,6 +1010,12 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, uint8_t ctl_op, void *data,
 	}
 
 	tx->ctx->app_idx = BT_MESH_KEY_UNUSED;
+
+	if (tx->ctx->addr == BT_MESH_ADDR_UNASSIGNED ||
+	    BT_MESH_ADDR_IS_VIRTUAL(tx->ctx->addr)) {
+		BT_ERR("Invalid destination address");
+		return -EINVAL;
+	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x", tx->src,
 	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
