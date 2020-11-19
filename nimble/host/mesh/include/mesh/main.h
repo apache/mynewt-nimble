@@ -385,25 +385,6 @@ int bt_mesh_prov_disable(bt_mesh_prov_bearer_t bearers);
 /* Primary Network Key index */
 #define BT_MESH_NET_PRIMARY                 0x000
 
-#define BT_MESH_RELAY_DISABLED              0x00
-#define BT_MESH_RELAY_ENABLED               0x01
-#define BT_MESH_RELAY_NOT_SUPPORTED         0x02
-
-#define BT_MESH_BEACON_DISABLED             0x00
-#define BT_MESH_BEACON_ENABLED              0x01
-
-#define BT_MESH_GATT_PROXY_DISABLED         0x00
-#define BT_MESH_GATT_PROXY_ENABLED          0x01
-#define BT_MESH_GATT_PROXY_NOT_SUPPORTED    0x02
-
-#define BT_MESH_FRIEND_DISABLED             0x00
-#define BT_MESH_FRIEND_ENABLED              0x01
-#define BT_MESH_FRIEND_NOT_SUPPORTED        0x02
-
-#define BT_MESH_NODE_IDENTITY_STOPPED       0x00
-#define BT_MESH_NODE_IDENTITY_RUNNING       0x01
-#define BT_MESH_NODE_IDENTITY_NOT_SUPPORTED 0x02
-
 /* Features */
 #define BT_MESH_FEAT_RELAY                  BIT(0)
 #define BT_MESH_FEAT_PROXY                  BIT(1)

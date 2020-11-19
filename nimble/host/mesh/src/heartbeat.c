@@ -17,6 +17,7 @@
 #include "foundation.h"
 #include "mesh/glue.h"
 
+struct bt_mesh_hb_cb hb_cb;
 
 static struct bt_mesh_hb_pub pub;
 static struct bt_mesh_hb_sub sub;

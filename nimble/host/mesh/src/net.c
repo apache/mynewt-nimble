@@ -30,6 +30,7 @@
 #include "beacon.h"
 #include "settings.h"
 #include "prov.h"
+#include "cfg.h"
 #include "mesh/glue.h"
 #include "mesh/slist.h"
 

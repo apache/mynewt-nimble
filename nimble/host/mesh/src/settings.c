@@ -24,6 +24,7 @@
 #include "proxy.h"
 #include "settings.h"
 #include "lpn.h"
+#include "cfg.h"
 
 
 #include "config/config.h"
@@ -182,14 +183,6 @@ int settings_name_next(char *name, char **next)
 
 	return rc;
 }
-
-/* We need this so we don't overwrite app-hardcoded values in case FCB
- * contains a history of changes but then has a NULL at the end.
- */
-static struct {
-	bool valid;
-	struct cfg_val cfg;
-} stored_cfg;
 
 static int net_set(int argc, char **argv, char *val)
 {
@@ -461,35 +454,36 @@ static int hb_pub_set(int argc, char **argv, char *val)
 
 static int cfg_set(int argc, char **argv, char *val)
 {
-	struct bt_mesh_cfg_srv *cfg = bt_mesh_cfg_get();
+	struct cfg_val cfg;
 	int len, err;
 
 	BT_DBG("val %s", val ? val : "(null)");
 
-	if (!cfg) {
-		return -ENOENT;
-	}
-
 	if (!val) {
-		stored_cfg.valid = false;
 		BT_DBG("Cleared configuration state");
 		return 0;
 	}
 
-	len = sizeof(stored_cfg.cfg);
-	err = settings_bytes_from_str(val, &stored_cfg.cfg, &len);
+	len = sizeof(cfg);
+	err = settings_bytes_from_str(val, &cfg, &len);
 	if (err) {
 		BT_ERR("Failed to decode value %s (err %d)", val, err);
 		return err;
 	}
 
-	if (len != sizeof(stored_cfg.cfg)) {
+	if (len != sizeof(cfg)) {
 		BT_ERR("Unexpected value length (%d != %zu)", len,
-		       sizeof(stored_cfg.cfg));
+		       sizeof(cfg));
 		return -EINVAL;
 	}
 
-	stored_cfg.valid = true;
+	bt_mesh_net_transmit_set(cfg.net_transmit);
+	bt_mesh_relay_set(cfg.relay, cfg.relay_retransmit);
+	bt_mesh_beacon_set(cfg.beacon);
+	bt_mesh_gatt_proxy_set(cfg.gatt_proxy);
+	bt_mesh_friend_set(cfg.frnd);
+	bt_mesh_default_ttl_set(cfg.default_ttl);
+
 	BT_DBG("Restored configuration state");
 
 	return 0;
@@ -1020,8 +1014,6 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 static int mesh_commit(void)
 {
-	struct bt_mesh_cfg_srv *cfg;
-
 	if (!bt_mesh_subnet_next(NULL)) {
 		/* Nothing to do since we're not yet provisioned */
 		return 0;
@@ -1036,17 +1028,6 @@ static int mesh_commit(void)
 	}
 
 	bt_mesh_model_foreach(commit_mod, NULL);
-
-	cfg = bt_mesh_cfg_get();
-	if (cfg && stored_cfg.valid) {
-		cfg->net_transmit = stored_cfg.cfg.net_transmit;
-		cfg->relay = stored_cfg.cfg.relay;
-		cfg->relay_retransmit = stored_cfg.cfg.relay_retransmit;
-		cfg->beacon = stored_cfg.cfg.beacon;
-		cfg->gatt_proxy = stored_cfg.cfg.gatt_proxy;
-		cfg->frnd = stored_cfg.cfg.frnd;
-		cfg->default_ttl = stored_cfg.cfg.default_ttl;
-	}
 
 	atomic_set_bit(bt_mesh.flags, BT_MESH_VALID);
 
@@ -1285,6 +1266,7 @@ static void store_pending_rpl(struct bt_mesh_rpl *rpl, void *user_data)
 static void store_pending_hb_pub(void)
 {
 	char buf[BT_SETTINGS_SIZE(sizeof(struct hb_pub_val))];
+	struct bt_mesh_hb_pub pub;
 	struct hb_pub_val val;
 	char *str;
 	int err;
@@ -1321,22 +1303,17 @@ static void store_pending_hb_pub(void)
 static void store_pending_cfg(void)
 {
 	char buf[BT_SETTINGS_SIZE(sizeof(struct cfg_val))];
-	struct bt_mesh_cfg_srv *cfg = bt_mesh_cfg_get();
 	struct cfg_val val;
 	char *str;
 	int err;
 
-	if (!cfg) {
-		return;
-	}
-
-	val.net_transmit = cfg->net_transmit;
-	val.relay = cfg->relay;
-	val.relay_retransmit = cfg->relay_retransmit;
-	val.beacon = cfg->beacon;
-	val.gatt_proxy = cfg->gatt_proxy;
-	val.frnd = cfg->frnd;
-	val.default_ttl = cfg->default_ttl;
+	val.net_transmit = bt_mesh_net_transmit_get();
+	val.relay = bt_mesh_relay_get();
+	val.relay_retransmit = bt_mesh_relay_retransmit_get();
+	val.beacon = bt_mesh_beacon_enabled();
+	val.gatt_proxy = bt_mesh_gatt_proxy_get();
+	val.frnd = bt_mesh_friend_get();
+	val.default_ttl = bt_mesh_default_ttl_get();
 
 	str = settings_str_from_bytes(&val, sizeof(val), buf, sizeof(buf));
 	if (!str) {

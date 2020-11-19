@@ -31,10 +31,7 @@
 #include "friend.h"
 #include "testing.h"
 #include "settings.h"
-
-#define DEFAULT_TTL 7
-
-static struct bt_mesh_cfg_srv *conf;
+#include "cfg.h"
 
 void (*bt_mesh_app_key_cb_list[1]) (uint16_t app_idx, uint16_t net_idx,
 			enum bt_mesh_key_evt evt);
@@ -472,7 +469,7 @@ static void beacon_get(struct bt_mesh_model *model,
 	       bt_hex(buf->om_data, buf->om_len));
 
 	bt_mesh_model_msg_init(msg, OP_BEACON_STATUS);
-	net_buf_simple_add_u8(msg, bt_mesh_beacon_get());
+	net_buf_simple_add_u8(msg, bt_mesh_beacon_enabled());
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Config Beacon Status response");
@@ -485,33 +482,20 @@ static void beacon_set(struct bt_mesh_model *model,
 		       struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_BEACON_STATUS, 1);
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
 
-	if (buf->om_data[0] == 0x00 || buf->om_data[0] == 0x01) {
-		if (buf->om_data[0] != cfg->beacon) {
-			cfg->beacon = buf->om_data[0];
-
-			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_cfg();
-			}
-
-			if (cfg->beacon) {
-				bt_mesh_beacon_enable();
-			} else {
-				bt_mesh_beacon_disable();
-			}
-		}
-	} else {
+	if (buf->om_data[0] != 0x00 && buf->om_data[0] != 0x01) {
 		BT_WARN("Invalid Config Beacon value 0x%02x", buf->om_data[0]);
 		goto done;
 	}
 
+	bt_mesh_beacon_set(buf->om_data[0]);
+
 	bt_mesh_model_msg_init(msg, OP_BEACON_STATUS);
-	net_buf_simple_add_u8(msg, bt_mesh_beacon_get());
+	net_buf_simple_add_u8(msg, buf->om_data[0]);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Config Beacon Status response");
@@ -548,27 +532,20 @@ static void default_ttl_set(struct bt_mesh_model *model,
 			    struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_DEFAULT_TTL_STATUS, 1);
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
+	int err;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
 
-	if (buf->om_data[0] <= BT_MESH_TTL_MAX && buf->om_data[0] != 0x01) {
-		if (cfg->default_ttl != buf->om_data[0]) {
-			cfg->default_ttl = buf->om_data[0];
-
-			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_cfg();
-			}
-		}
-	} else {
+	err = bt_mesh_default_ttl_set(buf->om_data[0]);
+	if (err) {
 		BT_WARN("Prohibited Default TTL value 0x%02x", buf->om_data[0]);
 		goto done;
 	}
 
 	bt_mesh_model_msg_init(msg, OP_DEFAULT_TTL_STATUS);
-	net_buf_simple_add_u8(msg, bt_mesh_default_ttl_get());
+	net_buf_simple_add_u8(msg, buf->om_data[0]);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Default TTL Status response");
@@ -609,8 +586,6 @@ static void gatt_proxy_set(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf *buf)
 {
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
-
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
@@ -620,33 +595,8 @@ static void gatt_proxy_set(struct bt_mesh_model *model,
 		return;
 	}
 
-	if (!(MYNEWT_VAL(BLE_MESH_GATT_PROXY)) ||
-	    bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_NOT_SUPPORTED) {
-		goto send_status;
-	}
+	(void)bt_mesh_gatt_proxy_set(buf->om_data[0]);
 
-	if (!cfg) {
-		BT_WARN("No Configuration Server context available");
-		goto send_status;
-	}
-
-	BT_DBG("GATT Proxy 0x%02x -> 0x%02x", cfg->gatt_proxy, buf->om_data[0]);
-
-	if (cfg->gatt_proxy == buf->om_data[0]) {
-		goto send_status;
-	}
-
-	cfg->gatt_proxy = buf->om_data[0];
-
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_cfg();
-	}
-
-	bt_mesh_adv_update();
-
-	bt_mesh_hb_feature_changed(BT_MESH_FEAT_PROXY);
-
-send_status:
 	send_gatt_proxy_status(model, ctx);
 }
 
@@ -676,7 +626,6 @@ static void net_transmit_set(struct bt_mesh_model *model,
 			     struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NET_TRANSMIT_STATUS, 1);
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
@@ -686,14 +635,10 @@ static void net_transmit_set(struct bt_mesh_model *model,
 	       BT_MESH_TRANSMIT_COUNT(buf->om_data[0]),
 	       BT_MESH_TRANSMIT_INT(buf->om_data[0]));
 
-	cfg->net_transmit = buf->om_data[0];
-
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_cfg();
-	}
+	bt_mesh_net_transmit_set(buf->om_data[0]);
 
 	bt_mesh_model_msg_init(msg, OP_NET_TRANSMIT_STATUS);
-	net_buf_simple_add_u8(msg, bt_mesh_net_transmit_get());
+	net_buf_simple_add_u8(msg, buf->om_data[0]);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Network Transmit Status");
@@ -729,38 +674,17 @@ static void relay_set(struct bt_mesh_model *model,
 		      struct os_mbuf *buf)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_RELAY_STATUS, 2);
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
 
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
 
-	if (buf->om_data[0] == 0x00 || buf->om_data[0] == 0x01) {
-		bool change;
-
-		if (cfg->relay == BT_MESH_RELAY_NOT_SUPPORTED) {
-			change = false;
-		} else {
-			change = (cfg->relay != buf->om_data[0]);
-			cfg->relay = buf->om_data[0];
-			cfg->relay_retransmit = buf->om_data[1];
-
-			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_cfg();
-			}
-		}
-
-		BT_DBG("Relay 0x%02x (%s) xmit 0x%02x (count %u interval %u)",
-		       cfg->relay, change ? "changed" : "not changed",
-		       cfg->relay_retransmit,
-		       BT_MESH_TRANSMIT_COUNT(cfg->relay_retransmit),
-		       BT_MESH_TRANSMIT_INT(cfg->relay_retransmit));
-
-		bt_mesh_hb_feature_changed(BT_MESH_FEAT_RELAY);
-	} else {
+	if (buf->om_data[0] != 0x00 && buf->om_data[0] != 0x01) {
 		BT_WARN("Invalid Relay value 0x%02x", buf->om_data[0]);
 		goto done;
 	}
+
+	(void)bt_mesh_relay_set(buf->om_data[0], buf->om_data[1]);
 
 	bt_mesh_model_msg_init(msg, OP_RELAY_STATUS);
 	net_buf_simple_add_u8(msg, bt_mesh_relay_get());
@@ -2131,10 +2055,9 @@ static void send_friend_status(struct bt_mesh_model *model,
 			       struct bt_mesh_msg_ctx *ctx)
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_FRIEND_STATUS, 1);
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
 
 	bt_mesh_model_msg_init(msg, OP_FRIEND_STATUS);
-	net_buf_simple_add_u8(msg, cfg->frnd);
+	net_buf_simple_add_u8(msg, bt_mesh_friend_get());
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send Friend Status");
@@ -2157,8 +2080,6 @@ static void friend_set(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
 		       struct os_mbuf *buf)
 {
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
-
 	BT_DBG("net_idx 0x%04x app_idx 0x%04x src 0x%04x len %u: %s",
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
@@ -2168,27 +2089,8 @@ static void friend_set(struct bt_mesh_model *model,
 		return;
 	}
 
-	BT_DBG("Friend 0x%02x -> 0x%02x", cfg->frnd, buf->om_data[0]);
+	(void)bt_mesh_friend_set(buf->om_data[0]);
 
-	if (cfg->frnd == buf->om_data[0]) {
-		goto send_status;
-	}
-
-	if (MYNEWT_VAL(BLE_MESH_FRIEND)) {
-		cfg->frnd = buf->om_data[0];
-
-		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_cfg();
-		}
-
-		if (cfg->frnd == BT_MESH_FRIEND_DISABLED) {
-			bt_mesh_friends_clear();
-		}
-	}
-
-	bt_mesh_hb_feature_changed(BT_MESH_FEAT_FRIEND);
-
-send_status:
 	send_friend_status(model, ctx);
 }
 
@@ -2543,43 +2445,8 @@ const struct bt_mesh_model_op bt_mesh_cfg_srv_op[] = {
 	BT_MESH_MODEL_OP_END,
 };
 
-static bool conf_is_valid(struct bt_mesh_cfg_srv *cfg)
-{
-	if (cfg->relay > 0x02) {
-		return false;
-	}
-
-	if (cfg->frnd > 0x02) {
-		return false;
-	}
-
-	if (cfg->gatt_proxy > 0x02) {
-		return false;
-	}
-
-	if (cfg->beacon > 0x01) {
-		return false;
-	}
-
-	if (cfg->default_ttl > BT_MESH_TTL_MAX) {
-		return false;
-	}
-
-	return true;
-}
-
-static void (*hb_sub_cb)(uint8_t hops, uint16_t features);
-struct bt_mesh_hb_cb hb_cb;
-
-static void hb_recv_wrapper(const struct bt_mesh_hb_sub *sub, uint8_t hops, uint16_t features)
-{
-	hb_sub_cb(hops, features);
-}
-
 static int cfg_srv_init(struct bt_mesh_model *model)
 {
-	struct bt_mesh_cfg_srv *cfg = model->user_data;
-
 	bt_mesh_app_key_cb_list[0] = app_key_evt;
 
 	BT_DBG("");
@@ -2589,42 +2456,11 @@ static int cfg_srv_init(struct bt_mesh_model *model)
 		return -EINVAL;
 	}
 
-	if (!cfg) {
-		BT_ERR("No Configuration Server context provided");
-		return -EINVAL;
-	}
-
-	if (!conf_is_valid(cfg)) {
-		BT_ERR("Invalid values in configuration");
-		return -EINVAL;
-	}
-
-	if (cfg->hb_sub.func) {
-		hb_sub_cb = cfg->hb_sub.func;
-		hb_cb.recv = hb_recv_wrapper;
-	}
-
 	/*
 	 * Configuration Model security is device-key based and only the local
 	 * device-key is allowed to access this model.
 	 */
 	model->keys[0] = BT_MESH_KEY_DEV_LOCAL;
-
-	if (!(MYNEWT_VAL(BLE_MESH_RELAY))) {
-		cfg->relay = BT_MESH_RELAY_NOT_SUPPORTED;
-	}
-
-	if (!(MYNEWT_VAL(BLE_MESH_FRIEND))) {
-		cfg->frnd = BT_MESH_FRIEND_NOT_SUPPORTED;
-	}
-
-	if (!(MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
-		cfg->gatt_proxy = BT_MESH_GATT_PROXY_NOT_SUPPORTED;
-	}
-
-	cfg->model = model;
-
-	conf = cfg;
 
 	return 0;
 }
@@ -2660,73 +2496,4 @@ static void mod_reset(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 void bt_mesh_cfg_reset(void)
 {
 	bt_mesh_model_foreach(mod_reset, NULL);
-}
-
-uint8_t bt_mesh_net_transmit_get(void)
-{
-	if (conf) {
-		return conf->net_transmit;
-	}
-
-	return 0;
-}
-
-uint8_t bt_mesh_relay_get(void)
-{
-	if (conf) {
-		return conf->relay;
-	}
-
-	return BT_MESH_RELAY_NOT_SUPPORTED;
-}
-
-uint8_t bt_mesh_friend_get(void)
-{
-	if (conf) {
-		BT_DBG("conf %p conf->frnd 0x%02x", conf, conf->frnd);
-		return conf->frnd;
-	}
-
-	return BT_MESH_FRIEND_NOT_SUPPORTED;
-}
-
-uint8_t bt_mesh_relay_retransmit_get(void)
-{
-	if (conf) {
-		return conf->relay_retransmit;
-	}
-
-	return 0;
-}
-
-uint8_t bt_mesh_beacon_get(void)
-{
-	if (conf) {
-		return conf->beacon;
-	}
-
-	return BT_MESH_BEACON_DISABLED;
-}
-
-uint8_t bt_mesh_gatt_proxy_get(void)
-{
-	if (conf) {
-		return conf->gatt_proxy;
-	}
-
-	return BT_MESH_GATT_PROXY_NOT_SUPPORTED;
-}
-
-uint8_t bt_mesh_default_ttl_get(void)
-{
-	if (conf) {
-		return conf->default_ttl;
-	}
-
-	return DEFAULT_TTL;
-}
-
-struct bt_mesh_cfg_srv *bt_mesh_cfg_get(void)
-{
-	return conf;
 }
