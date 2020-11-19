@@ -71,27 +71,6 @@ static struct {
 	.dst = BT_MESH_ADDR_UNASSIGNED,
 };
 
-static struct bt_mesh_cfg_srv cfg_srv = {
-	.relay = BT_MESH_RELAY_DISABLED,
-	.beacon = BT_MESH_BEACON_ENABLED,
-#if MYNEWT_VAL(BLE_MESH_FRIEND)
-	.frnd = BT_MESH_FRIEND_DISABLED,
-#else
-	.frnd = BT_MESH_FRIEND_NOT_SUPPORTED,
-#endif
-#if MYNEWT_VAL(BLE_MESH_GATT_PROXY)
-	.gatt_proxy = BT_MESH_GATT_PROXY_DISABLED,
-#else
-	.gatt_proxy = BT_MESH_GATT_PROXY_NOT_SUPPORTED,
-#endif
-
-	.default_ttl = 7,
-
-	/* 3 transmissions with 20ms interval */
-	.net_transmit = BT_MESH_TRANSMIT(2, 20),
-	.relay_retransmit = BT_MESH_TRANSMIT(2, 20),
-};
-
 #define CUR_FAULTS_MAX 4
 
 static uint8_t cur_faults[CUR_FAULTS_MAX];
@@ -266,7 +245,7 @@ void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, 
 #endif
 
 static struct bt_mesh_model root_models[] = {
-	BT_MESH_MODEL_CFG_SRV(&cfg_srv),
+	BT_MESH_MODEL_CFG_SRV,
 	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
 #if MYNEWT_VAL(BLE_MESH_CFG_CLI)
 	BT_MESH_MODEL_CFG_CLI(&cfg_cli),

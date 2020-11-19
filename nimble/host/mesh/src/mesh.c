@@ -23,6 +23,7 @@
 #include "subnet.h"
 #include "app_keys.h"
 #include "rpl.h"
+#include "cfg.h"
 #include "beacon.h"
 #include "lpn.h"
 #include "friend.h"
@@ -264,7 +265,7 @@ int bt_mesh_suspend(void)
 
 	bt_mesh_hb_suspend();
 
-	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
+	if (bt_mesh_beacon_enabled()) {
 		bt_mesh_beacon_disable();
 	}
 
@@ -306,7 +307,7 @@ int bt_mesh_resume(void)
 
 	bt_mesh_hb_resume();
 
-	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
+	if (bt_mesh_beacon_enabled()) {
 		bt_mesh_beacon_enable();
 	}
 
@@ -341,6 +342,7 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	}
 #endif
 
+	bt_mesh_cfg_init();
 	bt_mesh_net_init();
 	bt_mesh_trans_init();
 	bt_mesh_hb_init();
@@ -379,7 +381,7 @@ static void model_start(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 int bt_mesh_start(void)
 {
-	if (bt_mesh_beacon_get() == BT_MESH_BEACON_ENABLED) {
+	if (bt_mesh_beacon_enabled()) {
 		bt_mesh_beacon_enable();
 	} else {
 		bt_mesh_beacon_disable();
