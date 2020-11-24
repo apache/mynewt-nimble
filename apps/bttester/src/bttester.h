@@ -703,6 +703,14 @@ struct gatt_change_database {
     u8_t visibility;
 } __packed;
 
+#define GATT_READ_MULTIPLE_VAR		0x20
+struct gatt_read_multiple_var_cmd {
+    u8_t address_type;
+    u8_t address[6];
+    u8_t handles_count;
+    u16_t handles[0];
+} __packed;
+
 /* GATT events */
 #define GATT_EV_NOTIFICATION		0x80
 struct gatt_notification_ev {

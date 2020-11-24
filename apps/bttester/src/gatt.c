@@ -836,6 +836,83 @@ fail:
 		   BTP_STATUS_FAILED);
 }
 
+static int read_var_cb(uint16_t conn_handle,
+           const struct ble_gatt_error *error,
+           struct ble_gatt_attr *attr,
+           uint8_t num_attrs,
+           void *arg)
+{
+    struct gatt_read_rp *rp = (void *) gatt_buf.buf;
+    u8_t btp_opcode = (uint8_t) (int) arg;
+
+    SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0 && error->status != BLE_HS_EDONE) {
+        rp->att_response = (uint8_t) BLE_HS_ATT_ERR(error->status);
+        tester_send(BTP_SERVICE_ID_GATT, btp_opcode,
+                    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
+        read_destroy();
+        return 0;
+    }
+
+    if (error->status == BLE_HS_EDONE) {
+        tester_send(BTP_SERVICE_ID_GATT, btp_opcode,
+                    CONTROLLER_INDEX, gatt_buf.buf, gatt_buf.len);
+        read_destroy();
+        return 0;
+    }
+
+    if (gatt_buf_add(attr->om->om_data, attr->om->om_len) == NULL) {
+        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
+                   CONTROLLER_INDEX, BTP_STATUS_FAILED);
+        read_destroy();
+        return BLE_HS_ENOMEM;
+    }
+
+    rp->data_length += attr->om->om_len;
+
+    return 0;
+}
+
+static void read_multiple_var(u8_t *data, u16_t len)
+{
+    const struct gatt_read_multiple_var_cmd *cmd = (void *) data;
+    u16_t handles[cmd->handles_count];
+    struct ble_gap_conn_desc conn;
+    int rc, i;
+
+    SYS_LOG_DBG("");
+
+    for (i = 0; i < ARRAY_SIZE(handles); i++) {
+        handles[i] = sys_le16_to_cpu(cmd->handles[i]);
+	}
+
+    rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &conn);
+    if (rc) {
+        goto fail;
+	}
+
+	/* Clear buffer */
+    read_destroy();
+
+    if (!gatt_buf_reserve(sizeof(struct gatt_read_rp))) {
+        goto fail;
+	}
+
+    if (ble_gattc_read_mult_var(conn.conn_handle, handles,
+                                cmd->handles_count, read_var_cb,
+				                (void *)GATT_READ_MULTIPLE_VAR)) {
+        read_destroy();
+        goto fail;
+    }
+
+    return;
+
+fail:
+    tester_rsp(BTP_SERVICE_ID_GATT, GATT_READ_MULTIPLE_VAR, CONTROLLER_INDEX,
+               BTP_STATUS_FAILED);
+}
+
 static void write_without_rsp(u8_t *data, u16_t len, u8_t op, bool sign)
 {
 	const struct gatt_write_without_rsp_cmd *cmd = (void *) data;
@@ -1803,6 +1880,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GATT_READ);
 	tester_set_bit(cmds, GATT_READ_LONG);
 	tester_set_bit(cmds, GATT_READ_MULTIPLE);
+    tester_set_bit(cmds, GATT_READ_MULTIPLE_VAR);
 	tester_set_bit(cmds, GATT_WRITE_WITHOUT_RSP);
 #if 0
 	tester_set_bit(cmds, GATT_SIGNED_WRITE_WITHOUT_RSP);
@@ -1870,6 +1948,9 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 		return;
 	case GATT_READ_MULTIPLE:
 		read_multiple(data, len);
+		return;
+	case GATT_READ_MULTIPLE_VAR:
+		read_multiple_var(data, len);
 		return;
 	case GATT_WRITE_WITHOUT_RSP:
 		write_without_rsp(data, len, opcode, false);
