@@ -6,16 +6,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#define MESH_LOG_MODULE BLE_MESH_PROV_LOG
+
 #include "mesh/mesh.h"
 #include "prov.h"
 #include "net.h"
 #include "proxy.h"
 #include "adv.h"
 #include "prov.h"
-
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV)
-#define LOG_MODULE_NAME bt_mesh_pb_gatt
-#include "log/log.h"
 
 struct prov_link {
 	uint16_t conn_handle;

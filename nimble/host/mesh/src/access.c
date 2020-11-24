@@ -604,9 +604,9 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 		 * store the parsing state in case multiple models
 		 * receive the message.
 		 */
-		os_mbuf_save(buf, &state);
+		net_buf_simple_save(buf, &state);
 		op->func(model, &rx->ctx, buf);
-		os_mbuf_restore(buf, &state);
+		net_buf_simple_restore(buf, &state);
 	}
 }
 

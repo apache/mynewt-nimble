@@ -68,8 +68,12 @@ struct bt_mesh_net bt_mesh = {
 	.local_queue = STAILQ_HEAD_INITIALIZER(bt_mesh.local_queue),
 };
 
-static struct os_mempool loopback_buf_pool_mem;
-static struct os_mbuf_pool loopback_buf_pool;
+static struct os_mempool loopback_buf_mempool;
+static struct os_mbuf_pool loopback_os_mbuf_pool;
+
+static os_membuf_t loopback_buf_mem[OS_MEMPOOL_SIZE(
+		MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS),
+		LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE)];
 
 static uint32_t dup_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static int   dup_cache_next;
@@ -425,7 +429,7 @@ static int loopback(const struct bt_mesh_net_tx *tx, const uint8_t *data,
 {
 	struct os_mbuf *buf;
 
-	buf = os_mbuf_get(&loopback_buf_pool, 0);
+	buf = os_mbuf_get(&loopback_os_mbuf_pool, 0);
 	if (!buf) {
 		BT_WARN("Unable to allocate loopback");
 		return -ENOMEM;
@@ -479,6 +483,7 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 
 			goto done;
 		}
+	}
 	/* Mesh spec 3.4.5.2: "The output filter of the interface connected to
 	 * advertising or GATT bearers shall drop all messages with TTL value
 	 * set to 1." If a TTL=1 packet wasn't for a local interface, it is
@@ -506,7 +511,6 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 	}
 
 	bt_mesh_adv_send(buf, cb, cb_data);
-	}
 
 done:
 	net_buf_unref(buf);
@@ -550,7 +554,7 @@ static bool net_decrypt(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(in->om_data), bt_mesh.iv_index);
 
 	rx->old_iv = (IVI(in->om_data) != (bt_mesh.iv_index & 0x01));
-	os_mbuf_reset(out);
+	net_buf_simple_reset(out);
 	net_buf_simple_add_mem(out, in->om_data, in->om_len);
 
 	if (bt_mesh_net_obfuscate(out->om_data, BT_MESH_NET_IVI_RX(rx),
@@ -767,7 +771,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 	}
 
 	/* Save the state so the buffer can later be relayed */
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 
 	rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
 			  bt_mesh_elem_find(rx.ctx.recv_dst));
@@ -802,7 +806,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 	 */
 	if (!BT_MESH_ADDR_IS_UNICAST(rx.ctx.recv_dst) ||
 	    (!rx.local_match && !rx.friend_match)) {
-		os_mbuf_restore(buf, &state);
+		net_buf_simple_restore(buf, &state);
 		bt_mesh_net_relay(buf, &rx);
 	}
 
@@ -838,14 +842,15 @@ static void ivu_refresh(struct ble_npl_event *work)
 
 void bt_mesh_net_init(void)
 {
+	int rc;
+
 	k_delayed_work_init(&bt_mesh.ivu_timer, ivu_refresh);
 
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 	net_buf_slist_init(&bt_mesh.local_queue);
 
-	os_mbuf_pool_init(&loopback_buf_pool,
-					  &loopback_buf_pool_mem,
-					  (LOOPBACK_MAX_PDU_LEN + LOOPBACK_USER_DATA_SIZE),
-					  MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS));
-
+	rc = os_mempool_init(&loopback_buf_mempool, MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS),
+			     LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
+			     loopback_buf_mem, "loopback_buf_pool");
+	assert(rc == 0);
 }

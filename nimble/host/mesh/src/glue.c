@@ -336,7 +336,7 @@ net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len)
 {
     void *data = om->om_data;
 
-    net_buf_simple_pull_mem(om, len);
+    net_buf_simple_pull(om, len);
     return data;
 }
 
@@ -467,7 +467,7 @@ k_delayed_work_remaining_get (struct k_delayed_work *w)
 int64_t k_uptime_get(void)
 {
     /* We should return ms */
-    return ble_npl_time_ticks_to_ms32(ble_npl_time_get());
+    return os_cputime_get32();
 }
 
 uint32_t k_uptime_get_32(void)
@@ -899,6 +899,27 @@ extern int k_mem_slab_alloc(struct k_mem_slab *slab, void **mem)
 		result = -ENOMEM;
 	}
 	return result;
+}
+
+int create_free_list(struct k_mem_slab *slab)
+{
+	uint32_t j;
+	char *p;
+
+    if(((slab->block_size | (uintptr_t)slab->buffer) &
+				(sizeof(void *) - 1)) != 0) {
+		return -EINVAL;
+	}
+
+	slab->free_list = NULL;
+	p = slab->buffer;
+
+	for (j = 0U; j < slab->num_blocks; j++) {
+		*(char **)p = slab->free_list;
+		slab->free_list = p;
+		p += slab->block_size;
+	}
+	return 0;
 }
 
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)

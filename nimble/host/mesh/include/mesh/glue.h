@@ -236,10 +236,9 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
 #define net_buf_simple_init_with_data(buf, data, size)  \
     os_mbuf_copyinto(buf, 0, data, size);
 
-static inline void os_mbuf_reset(struct os_mbuf *om)
+static inline void net_buf_simple_reset(struct os_mbuf *om)
 {
-    om->om_len = 0;
-    om->om_data = om->om_databuf;
+    net_buf_simple_init(om, 0);
 }
 
 void net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *buf);
@@ -261,7 +260,7 @@ void net_buf_simple_push_le16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be16(struct os_mbuf *om, uint16_t val);
 void net_buf_simple_push_be24(struct os_mbuf *om, uint32_t val);
 void net_buf_simple_push_u8(struct os_mbuf *om, uint8_t val);
-void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
+void *net_buf_simple_pull(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_pull_mem(struct os_mbuf *om, uint8_t len);
 void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
 bool k_fifo_is_empty(struct ble_npl_eventq *q);
@@ -347,14 +346,14 @@ void k_work_add_arg(struct ble_npl_callout *w, void *arg);
 void k_delayed_work_add_arg(struct k_delayed_work *w, void *arg);
 uint32_t k_delayed_work_remaining_get(struct k_delayed_work *w);
 
-static inline void os_mbuf_save(struct os_mbuf *buf,
+static inline void net_buf_simple_save(struct os_mbuf *buf,
                        struct net_buf_simple_state *state)
 {
     state->offset = net_buf_simple_headroom(buf);
     state->len = buf->om_len;
 }
 
-static inline void os_mbuf_restore(struct os_mbuf *buf,
+static inline void net_buf_simple_restore(struct os_mbuf *buf,
                                           struct net_buf_simple_state *state)
 {
       buf->om_data = &buf->om_databuf[buf->om_pkthdr_len] + state->offset;
@@ -566,17 +565,7 @@ static inline uint32_t k_mem_slab_num_free_get(struct k_mem_slab *slab)
 	return slab->num_blocks - slab->num_used;
 }
 
-/** slab_align must be power of 2 */
-#define K_MEM_SLAB_DEFINE(name, slab_block_size, slab_num_blocks, slab_align) \
-    char _k_mem_slab_buf_##name[slab_num_blocks * slab_block_size]; \
-    struct k_mem_slab name = { \
-        slab_num_blocks, \
-        slab_block_size, \
-        _k_mem_slab_buf_##name, \
-        NULL, \
-        0 \
-    };
-
+int create_free_list(struct k_mem_slab *slab);
 
 #ifdef __cplusplus
 }

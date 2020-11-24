@@ -340,6 +340,14 @@ static void proxy_cfg(struct bt_mesh_proxy_client *client)
 		goto done;
 	}
 
+	rx.local_match = 1U;
+
+		if (bt_mesh_rpl_check(&rx, NULL)) {	
+			BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",	
+					rx.ctx.addr, rx.ctx.recv_dst, rx.seq);	
+		goto done;
+	}
+
 	/* Remove network headers */
 	net_buf_simple_pull_mem(buf, BT_MESH_NET_HDR_LEN);
 
@@ -516,7 +524,7 @@ static void proxy_complete_pdu(struct bt_mesh_proxy_client *client)
 static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 		      struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-	struct bt_mesh_proxy_client *client;
+	struct bt_mesh_proxy_client *client = find_client(conn_handle);
 	const uint8_t *data = ctxt->om->om_data;
 	uint16_t len = ctxt->om->om_len;
 
@@ -640,7 +648,9 @@ static void proxy_connected(uint16_t conn_handle)
 static void proxy_disconnected(uint16_t conn_handle, int reason)
 {
 	int i;
-	bool disconnected = false;
+
+	BT_DBG("conn handle %u reason 0x%02x", conn_handle, reason);	
+	conn_count--;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
@@ -653,16 +663,11 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 
 			k_delayed_work_cancel(&client->sar_timer);
 			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
-			conn_count--;
-			disconnected = true;
 			break;
 		}
 	}
 
-	if (disconnected) {
-		BT_INFO("conn_handle %d reason %d", conn_handle, reason);
-		bt_mesh_adv_update();
-	}
+	bt_mesh_adv_update();
 }
 
 struct os_mbuf *bt_mesh_proxy_get_buf(void)

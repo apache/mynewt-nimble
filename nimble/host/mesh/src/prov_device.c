@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define MESH_LOG_MODULE BLE_MESH_PROV_DEVICE_LOG
+#define MESH_LOG_MODULE BLE_MESH_PROV_LOG
 
 #include "testing.h"
 #include "crypto.h"
@@ -94,7 +94,7 @@ static void prov_invite(const uint8_t *data)
 	/* Input OOB Action */
 	net_buf_simple_add_be16(buf, bt_mesh_prov->input_actions);
 
-	memcpy(&bt_mesh_prov_link.conf_inputs[1], &buf->om_databuf[1], 11);
+	memcpy(&bt_mesh_prov_link.conf_inputs[1], &buf->om_data[1], 11);
 
 	if (bt_mesh_prov_send(buf, NULL)) {
 		BT_ERR("Failed to send capabilities");
@@ -237,7 +237,7 @@ static void send_pub_key(void)
 	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
 
 	/* PublicKeyRemote */
-	memcpy(&bt_mesh_prov_link.conf_inputs[81], &buf->om_databuf[1], 64);
+	memcpy(&bt_mesh_prov_link.conf_inputs[81], &buf->om_data[1], 64);
 
 	if (bt_mesh_prov_send(buf, public_key_sent)) {
 		BT_ERR("Failed to send Public Key");
@@ -526,6 +526,8 @@ static const struct bt_mesh_prov_role role_device = {
 
 int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 {
+	BT_DBG("bt_mesh_prov_enable");
+
 	if (bt_mesh_is_provisioned()) {
 		return -EALREADY;
 	}
@@ -540,6 +542,7 @@ int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 		pb_gatt.link_accept(bt_mesh_prov_bearer_cb_get(), NULL);
 	}
 
+	BT_DBG("bt_mesh_prov_link.role = &role_device");
 	bt_mesh_prov_link.role = &role_device;
 
 	return 0;

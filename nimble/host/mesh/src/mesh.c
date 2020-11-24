@@ -107,11 +107,6 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 		iv_index = bt_mesh_cdb.iv_index;
 		memcpy(node->dev_key, dev_key, 16);
 
-		if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER) &&
-		    IS_ENABLED(CONFIG_BT_MESH_LPN_SUB_ALL_NODES_ADDR)) {
-				bt_mesh_lpn_group_add(BT_MESH_ADDR_ALL_NODES);
-		}
-
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
 			bt_mesh_store_cdb_node(node);
 		}
@@ -133,6 +128,11 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 	bt_mesh_comp_provision(addr);
 
 	memcpy(bt_mesh.dev_key, dev_key, 16);
+
+	if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER) &&
+		IS_ENABLED(CONFIG_BT_MESH_LPN_SUB_ALL_NODES_ADDR)) {
+			bt_mesh_lpn_group_add(BT_MESH_ADDR_ALL_NODES);
+	}
 
 	bt_mesh_start();
 
@@ -196,10 +196,6 @@ void bt_mesh_reset(void)
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY))) {
 		bt_mesh_proxy_gatt_disable();
-	}
-
-	if ((MYNEWT_VAL(BLE_MESH_PB_GATT))) {
-		bt_mesh_proxy_prov_enable();
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
@@ -349,24 +345,12 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	bt_mesh_beacon_init();
 	bt_mesh_adv_init();
 
-#if (MYNEWT_VAL(BLE_MESH_PB_ADV))
-	/* Make sure we're scanning for provisioning inviations */
-	bt_mesh_scan_enable();
-	/* Enable unprovisioned beacon sending */
-
-	bt_mesh_beacon_enable();
-#endif
-
-#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	bt_mesh_proxy_prov_enable();
+#if (MYNEWT_VAL(BLE_MESH_SETTINGS))
+	bt_mesh_settings_init();
 #endif
 
 	ble_gap_event_listener_register(&mesh_event_listener,
 					bt_mesh_gap_event, NULL);
-
-#if (MYNEWT_VAL(BLE_MESH_SETTINGS))
-	bt_mesh_settings_init();
-#endif
 
 	return 0;
 }
