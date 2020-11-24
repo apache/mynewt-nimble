@@ -282,7 +282,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 			return;
 		}
 
-		os_mbuf_save(buf, &state);
+		net_buf_simple_save(buf, &state);
 
 		type = net_buf_simple_pull_u8(buf);
 
@@ -302,7 +302,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 			break;
 		}
 
-		os_mbuf_restore(buf, &state);
+		net_buf_simple_restore(buf, &state);
 		net_buf_simple_pull_mem(buf, len);
 	}
 }

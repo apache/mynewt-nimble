@@ -131,14 +131,6 @@ int bt_mesh_net_encrypt(const uint8_t key[16], struct os_mbuf *buf,
 int bt_mesh_net_decrypt(const uint8_t key[16], struct os_mbuf *buf,
 			uint32_t iv_index, bool proxy);
 
-int bt_mesh_app_encrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-				 struct os_mbuf*buf, const uint8_t *ad, uint16_t src,
-				 uint16_t dst, uint32_t seq_num, uint32_t iv_index);
-
-int bt_mesh_app_decrypt_in_place(const uint8_t key[16], bool dev_key, uint8_t aszmic,
-				 struct os_mbuf *buf, const uint8_t *ad, uint16_t src,
-				 uint16_t dst, uint32_t seq_num, uint32_t iv_index);
-
 struct bt_mesh_app_crypto_ctx {
 	bool dev_key;
 	uint8_t aszmic;

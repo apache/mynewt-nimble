@@ -7,7 +7,7 @@
  */
 
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_CRYPTO_LOG
+#define MESH_LOG_MODULE BLE_MESH_FRIEND_LOG
 
 #if MYNEWT_VAL(BLE_MESH_FRIEND)
 
@@ -122,9 +122,8 @@ static int friend_cred_create(struct bt_mesh_friend *frnd, uint8_t idx)
 
 static void purge_buffers(struct net_buf_slist_t *list)
 {
-	struct os_mbuf *buf;
-
 	while (!net_buf_slist_is_empty(list)) {
+		struct os_mbuf *buf;
 		buf = (void *)net_buf_slist_get(list);
 		BT_MESH_ADV(buf)->flags &= ~NET_BUF_FRAGS;
 		net_buf_unref(buf);
@@ -383,13 +382,13 @@ static int unseg_app_sdu_decrypt(struct bt_mesh_friend *frnd,
 
 	BT_DBG("");
 
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 	net_buf_simple_pull_mem(buf, 10);
 	buf->om_len -= 4;
 
 	err = bt_mesh_app_decrypt(meta->key, &meta->crypto, buf, buf);
 
-	os_mbuf_restore(buf, &state);
+	net_buf_simple_restore(buf, &state);
 	net_buf_unref(buf);
 	return err;
 }
@@ -403,13 +402,13 @@ static int unseg_app_sdu_encrypt(struct bt_mesh_friend *frnd,
 
 	BT_DBG("");
 
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 	net_buf_simple_pull_mem(buf, 10);
 	buf->om_len -= 4;
 
 	err = bt_mesh_app_encrypt(meta->key, &meta->crypto, buf);
 
-	os_mbuf_restore(buf, &state);
+	net_buf_simple_restore(buf, &state);
 	return err;
 }
 
@@ -1043,12 +1042,12 @@ static bool is_seg(struct bt_mesh_friend_seg *seg, uint16_t src, uint16_t seq_ze
 		return false;
 	}
 
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 	net_buf_skip(buf, 5);   /* skip IVI, NID, CTL, TTL, SEQ */
 	buf_src = net_buf_pull_be16(buf);
 	net_buf_skip(buf, 3);   /* skip DST, OP/AID */
 	buf_seq_zero = ((net_buf_pull_be16(buf) >> 2) & TRANS_SEQ_ZERO_MASK);
-	os_mbuf_restore(buf, &state);
+	net_buf_simple_restore(buf, &state);
 
 	return ((src == buf_src) && (seq_zero == buf_seq_zero));
 }
@@ -1161,7 +1160,7 @@ static void update_overwrite(struct os_mbuf *buf, uint8_t md)
 		return;
 	}
 
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 
 	net_buf_skip(buf, 1); /* skip IVI, NID */
 
@@ -1181,7 +1180,7 @@ static void update_overwrite(struct os_mbuf *buf, uint8_t md)
 	upd->md = md;
 
 end:
-	os_mbuf_restore(buf, &state);
+	net_buf_simple_restore(buf, &state);
 }
 
 static void friend_timeout(struct ble_npl_event *work)
@@ -1229,6 +1228,7 @@ static void friend_timeout(struct ble_npl_event *work)
 
 	/* Clear the flag we use for segment tracking */
 	BT_MESH_ADV(frnd->last)->flags &= ~NET_BUF_FRAGS;
+	BT_MESH_ADV(frnd->last)->flags = 0;
 
 	BT_DBG("Sending buf %p from Friend Queue of LPN 0x%04x",
 	       frnd->last, frnd->lpn);
@@ -1329,7 +1329,7 @@ static bool is_segack(struct os_mbuf *buf, uint64_t *seqauth, uint16_t src)
 		return false;
 	}
 
-	os_mbuf_save(buf, &state);
+	net_buf_simple_save(buf, &state);
 
 	net_buf_skip(buf, 1); /* skip IVI, NID */
 
@@ -1352,7 +1352,7 @@ static bool is_segack(struct os_mbuf *buf, uint64_t *seqauth, uint16_t src)
 	found = ((net_buf_pull_be16(buf) >> 2) & TRANS_SEQ_ZERO_MASK) ==
 		(*seqauth & TRANS_SEQ_ZERO_MASK);
 end:
-	os_mbuf_restore(buf, &state);
+	net_buf_simple_restore(buf, &state);
 	return found;
 }
 

@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME bt_mesh_provisioner
+#define MESH_LOG_MODULE BLE_MESH_PROV_LOG
 
 #include "testing.h"
 
@@ -136,7 +136,7 @@ static void send_start(void)
 
 	net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_size);
 
-	memcpy(&bt_mesh_prov_link.conf_inputs[12], &start->om_omp[1], 5);
+	memcpy(&bt_mesh_prov_link.conf_inputs[12], &start->om_data[1], 5);
 
 	if (bt_mesh_prov_auth(method, action, bt_mesh_prov_link.oob_size) < 0) {
 		BT_ERR("Invalid authentication method: 0x%02x; "
@@ -508,8 +508,8 @@ static void send_prov_data(void)
 	       prov_device.node->net_idx, bt_mesh.iv_index,
 	       prov_device.node->addr);
 
-	err = bt_mesh_prov_encrypt(session_key, nonce, &pdu->om_databuf[1],
-				   &pdu->om_databuf[1]);
+	err = bt_mesh_prov_encrypt(session_key, nonce, &pdu->om_data[1],
+				   &pdu->om_data[1]);
 	if (err) {
 		BT_ERR("Unable to encrypt provisioning data");
 		prov_fail(PROV_ERR_DECRYPT);

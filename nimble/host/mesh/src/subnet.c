@@ -44,7 +44,10 @@ static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
 {
 	int i;
 	for (i = 0; i < (sizeof(bt_mesh_subnet_cb_list)/sizeof(void *)); i++) {
-		bt_mesh_subnet_cb_list[i] (sub, evt);
+		BT_DBG("%d", i);
+		if (bt_mesh_subnet_cb_list[i]) {
+			bt_mesh_subnet_cb_list[i] (sub, evt);
+		}
 	}
 }
 

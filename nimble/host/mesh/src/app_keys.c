@@ -21,8 +21,7 @@
 #include "access.h"
 #include "subnet.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_KEYS)
-#define LOG_MODULE_NAME bt_mesh_app_keys
+#define MESH_LOG_MODULE BLE_MESH_LOG
 #include "log/log.h"
 
 static struct bt_mesh_app_key apps[CONFIG_BT_MESH_APP_KEY_COUNT] = {
