@@ -3412,7 +3412,8 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     } else if (!ble_ll_is_rpa(adv_addr, adv_addr_type)) {
         /* undirected with ID address, assure privacy if on RL */
         rl = ble_ll_resolv_list_find(adv_addr, adv_addr_type);
-        if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK)) {
+        if (rl && (rl->rl_priv_mode == BLE_HCI_PRIVACY_NETWORK) &&
+            rl->rl_has_peer) {
             goto init_rx_isr_exit;
         }
     }
