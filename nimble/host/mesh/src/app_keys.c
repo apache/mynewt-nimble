@@ -36,7 +36,10 @@ static void app_key_evt(struct bt_mesh_app_key *app, enum bt_mesh_key_evt evt)
 	int i;
 
 	for (i = 0; i < (sizeof(bt_mesh_app_key_cb_list)/sizeof(void *)); i++) {
-		bt_mesh_app_key_cb_list[i] (app->app_idx, app->net_idx, evt);
+		if (bt_mesh_app_key_cb_list[i]) {
+			BT_DBG("app_key_evt %d", i);
+			bt_mesh_app_key_cb_list[i] (app->app_idx, app->net_idx, evt);
+		}
 	}
 }
 
@@ -101,9 +104,42 @@ static void app_key_revoke(struct bt_mesh_app_key *app)
 	app_key_evt(app, BT_MESH_KEY_REVOKED);
 }
 
+
+static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
+{
+	if (evt == BT_MESH_KEY_UPDATED || evt == BT_MESH_KEY_ADDED) {
+		return;
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(apps); i++) {
+		struct bt_mesh_app_key *app = &apps[i];
+
+		if (app->app_idx == BT_MESH_KEY_UNUSED) {
+			continue;
+		}
+
+		if (app->net_idx != sub->net_idx) {
+			continue;
+		}
+
+		if (evt == BT_MESH_KEY_DELETED) {
+			app_key_del(app);
+		} else if (evt == BT_MESH_KEY_REVOKED) {
+			app_key_revoke(app);
+		} else if (evt == BT_MESH_KEY_SWAPPED && app->updated) {
+			app_key_evt(app, BT_MESH_KEY_SWAPPED);
+		}
+	}
+}
+
+
 uint8_t bt_mesh_app_key_add(uint16_t app_idx, uint16_t net_idx,
 			const uint8_t key[16])
 {
+	if (!bt_mesh_subnet_cb_list[0]) {
+		bt_mesh_subnet_cb_list[0] = subnet_evt;
+	}
+
 	struct bt_mesh_app_key *app;
 
 	BT_DBG("net_idx 0x%04x app_idx %04x val %s", net_idx, app_idx,
@@ -249,37 +285,9 @@ uint8_t bt_mesh_app_key_del(uint16_t app_idx, uint16_t net_idx)
 	return STATUS_SUCCESS;
 }
 
-static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
-{
-	if (evt == BT_MESH_KEY_UPDATED || evt == BT_MESH_KEY_ADDED) {
-		return;
-	}
-
-	for (int i = 0; i < ARRAY_SIZE(apps); i++) {
-		struct bt_mesh_app_key *app = &apps[i];
-
-		if (app->app_idx == BT_MESH_KEY_UNUSED) {
-			continue;
-		}
-
-		if (app->net_idx != sub->net_idx) {
-			continue;
-		}
-
-		if (evt == BT_MESH_KEY_DELETED) {
-			app_key_del(app);
-		} else if (evt == BT_MESH_KEY_REVOKED) {
-			app_key_revoke(app);
-		} else if (evt == BT_MESH_KEY_SWAPPED && app->updated) {
-			app_key_evt(app, BT_MESH_KEY_SWAPPED);
-		}
-	}
-}
-
 int bt_mesh_app_key_set(uint16_t app_idx, uint16_t net_idx,
 		    const uint8_t old_key[16], const uint8_t new_key[16])
 {
-	bt_mesh_subnet_cb_list[0] = subnet_evt;
 	struct bt_mesh_app_key *app;
 
 	app = app_key_alloc(app_idx);

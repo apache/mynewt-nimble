@@ -237,7 +237,7 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 		period_ms = bt_mesh_model_pub_period_get(model);
 		BT_DBG("period %u ms", (unsigned) period_ms);
 
-		if (period_ms) {
+		if (period_ms > 0) {
 			k_delayed_work_submit(&model->pub->timer, period_ms);
 		} else {
 			k_delayed_work_cancel(&model->pub->timer);
@@ -1731,7 +1731,7 @@ static void send_node_id_status(struct bt_mesh_model *model,
 				uint8_t status,
 				uint16_t net_idx, uint8_t node_id)
 {
-	struct os_mbuf *msg = NET_BUF_SIMPLE(4);
+	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NODE_IDENTITY_STATUS, 4);
 
 	bt_mesh_model_msg_init(msg, OP_NODE_IDENTITY_STATUS);
 	net_buf_simple_add_u8(msg, status);
