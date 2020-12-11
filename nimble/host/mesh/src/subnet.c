@@ -604,6 +604,7 @@ bool bt_mesh_net_cred_find(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 			if (cb(rx, in, out, &bt_mesh.lpn.cred[j])) {
 				rx->new_key = (j > 0);
 				rx->friend_cred = 1U;
+				rx->ctx.net_idx = rx->sub->net_idx;
 				return true;
 			}
 		}
@@ -638,6 +639,7 @@ bool bt_mesh_net_cred_find(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 			if (cb(rx, in, out, &frnd->cred[j])) {
 				rx->new_key = (j > 0);
 				rx->friend_cred = 1U;
+				rx->ctx.net_idx = rx->sub->net_idx;
 				return true;
 			}
 		}
@@ -658,6 +660,7 @@ bool bt_mesh_net_cred_find(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 			if (cb(rx, in, out, &rx->sub->keys[j].msg)) {
 				rx->new_key = (j > 0);
 				rx->friend_cred = 0U;
+				rx->ctx.net_idx = rx->sub->net_idx;
 				return true;
 			}
 		}
