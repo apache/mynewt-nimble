@@ -1527,7 +1527,9 @@ int bt_mesh_proxy_init(void)
 	int i;
 
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-	bt_mesh_subnet_cb_list[4] = subnet_evt;
+		if (!bt_mesh_subnet_cb_list[4]) {
+		bt_mesh_subnet_cb_list[4] = subnet_evt;
+	}
 #endif
 
 	for (i = 0; i < MYNEWT_VAL(BLE_MAX_CONNECTIONS); ++i) {

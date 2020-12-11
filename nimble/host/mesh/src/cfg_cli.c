@@ -1111,7 +1111,7 @@ int bt_mesh_cfg_net_key_del(uint16_t net_idx, uint16_t addr,
 
 	err = cli_prepare(&param, OP_NET_KEY_STATUS);
 	if (err) {
-		return err;
+		goto done;
 	}
 
 	bt_mesh_model_msg_init(msg, OP_NET_KEY_DEL);
@@ -1121,16 +1121,18 @@ int bt_mesh_cfg_net_key_del(uint16_t net_idx, uint16_t addr,
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
 		cli_reset();
-		return err;
+		goto done;
 	}
 
 	if (!status) {
 		cli_reset();
-		return 0;
+		goto done;
 	}
 
+	err = cli_wait();
+done:
 	os_mbuf_free_chain(msg);
-	return cli_wait();
+	return err;
 }
 
 int bt_mesh_cfg_app_key_add(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,
@@ -1196,7 +1198,7 @@ int bt_mesh_cfg_node_reset(uint16_t net_idx, uint16_t addr, bool *status)
 
 	err = cli_prepare(status, OP_NODE_RESET_STATUS);
 	if (err) {
-		return err;
+		goto done;
 	}
 
 	bt_mesh_model_msg_init(msg, OP_NODE_RESET);
@@ -1205,15 +1207,22 @@ int bt_mesh_cfg_node_reset(uint16_t net_idx, uint16_t addr, bool *status)
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
 		cli_reset();
-		return err;
+		goto done;
 	}
 
 	if (!status) {
 		cli_reset();
-		return 0;
+		goto done;
 	}
 
-	return cli_wait();
+	err = cli_wait();
+done:
+	os_mbuf_free_chain(msg);
+	if (err) {
+		return err;
+	} else {
+		return 0;
+	}
 }
 
 int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_idx,
@@ -1236,6 +1245,7 @@ int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_id
 
 	err = cli_prepare(&param, OP_APP_KEY_LIST);
 	if (err) {
+		os_mbuf_free_chain(msg);
 		return err;
 	}
 
@@ -1245,6 +1255,7 @@ int bt_mesh_cfg_app_key_get(uint16_t net_idx, uint16_t addr, uint16_t key_net_id
 	err = bt_mesh_model_send(cli->model, &ctx, msg, NULL, NULL);
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
+		os_mbuf_free_chain(msg);
 		cli_reset();
 		return err;
 	}
@@ -1272,6 +1283,7 @@ int bt_mesh_cfg_app_key_del(uint16_t net_idx, uint16_t addr,
 
 	err = cli_prepare(&param, OP_APP_KEY_STATUS);
 	if (err) {
+		os_mbuf_free_chain(msg);
 		return err;
 	}
 
@@ -1281,12 +1293,14 @@ int bt_mesh_cfg_app_key_del(uint16_t net_idx, uint16_t addr,
 	err = bt_mesh_model_send(cli->model, &ctx, msg, NULL, NULL);
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
+		os_mbuf_free_chain(msg);
 		cli_reset();
 		return err;
 	}
 
 	if (!status) {
 		cli_reset();
+		os_mbuf_free_chain(msg);
 		return 0;
 	}
 
@@ -1388,7 +1402,7 @@ static int mod_app_unbind(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
 
 	err = cli_prepare(&param, OP_MOD_APP_STATUS);
 	if (err) {
-		return err;
+		goto done;
 	}
 
 	bt_mesh_model_msg_init(msg, OP_MOD_APP_UNBIND);
@@ -1405,16 +1419,22 @@ static int mod_app_unbind(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
 		cli_reset();
-		return err;
+		goto done;
 	}
 
 	if (!status) {
 		cli_reset();
-		return 0;
+		err = 0;
+		goto done;
 	}
 
+done:
 	os_mbuf_free_chain(msg);
-	return cli_wait();
+	if (err) {
+		return err;
+	} else {
+		return cli_wait();
+	}
 }
 
 int bt_mesh_cfg_mod_app_unbind(uint16_t net_idx, uint16_t addr,
@@ -1461,7 +1481,7 @@ static int mod_member_list_get(uint32_t op, uint32_t expect_op, uint16_t net_idx
 
 	err = cli_prepare(&param, expect_op);
 	if (err) {
-		return err;
+		goto done;
 	}
 
 	BT_DBG("net_idx 0x%04x addr 0x%04x elem_addr 0x%04x",
@@ -1481,11 +1501,13 @@ static int mod_member_list_get(uint32_t op, uint32_t expect_op, uint16_t net_idx
 	if (err) {
 		BT_ERR("model_send() failed (err %d)", err);
 		cli_reset();
-		return err;
+		goto done;
 	}
 
+	err = cli_wait();
+done:
 	os_mbuf_free_chain(msg);
-	return cli_wait();
+	return err;
 }
 
 int bt_mesh_cfg_mod_app_get(uint16_t net_idx, uint16_t addr, uint16_t elem_addr,

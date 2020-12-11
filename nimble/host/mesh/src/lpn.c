@@ -1051,7 +1051,9 @@ int bt_mesh_lpn_init(void)
 {
 	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
 
-	bt_mesh_subnet_cb_list[2] = subnet_evt;
+	if (!bt_mesh_subnet_cb_list[2]) {
+		bt_mesh_subnet_cb_list[2] = subnet_evt;
+	}
 
 	BT_DBG("");
 

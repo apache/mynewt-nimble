@@ -68,12 +68,11 @@ struct bt_mesh_net bt_mesh = {
 	.local_queue = STAILQ_HEAD_INITIALIZER(bt_mesh.local_queue),
 };
 
-static struct os_mempool loopback_buf_mempool;
 static struct os_mbuf_pool loopback_os_mbuf_pool;
-
-static os_membuf_t loopback_buf_mem[OS_MEMPOOL_SIZE(
-		MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS),
-		LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE)];
+static struct os_mempool loopback_buf_mempool;
+os_membuf_t loopback_mbuf_membuf[
+		OS_MEMPOOL_SIZE(LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
+        MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS))];
 
 static uint32_t dup_cache[MYNEWT_VAL(BLE_MESH_MSG_CACHE_SIZE)];
 static int   dup_cache_next;
@@ -429,7 +428,7 @@ static int loopback(const struct bt_mesh_net_tx *tx, const uint8_t *data,
 {
 	struct os_mbuf *buf;
 
-	buf = os_mbuf_get(&loopback_os_mbuf_pool, 0);
+	buf = os_mbuf_get_pkthdr(&loopback_os_mbuf_pool, 0);
 	if (!buf) {
 		BT_WARN("Unable to allocate loopback");
 		return -ENOMEM;
@@ -851,6 +850,11 @@ void bt_mesh_net_init(void)
 
 	rc = os_mempool_init(&loopback_buf_mempool, MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS),
 			     LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
-			     loopback_buf_mem, "loopback_buf_pool");
+			     &loopback_mbuf_membuf[0], "loopback_buf_pool");
+	assert(rc == 0);
+
+	rc = os_mbuf_pool_init(&loopback_os_mbuf_pool, &loopback_buf_mempool,
+						   LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
+						   MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS));
 	assert(rc == 0);
 }
