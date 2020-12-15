@@ -815,7 +815,8 @@ done:
 
 static void ivu_refresh(struct ble_npl_event *work)
 {
-	bt_mesh.ivu_duration += BT_MESH_IVU_HOURS;
+	bt_mesh.ivu_duration = MIN(UINT8_MAX,
+	       bt_mesh.ivu_duration + BT_MESH_IVU_HOURS);
 
 	BT_DBG("%s for %u hour%s",
 	       atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ?
