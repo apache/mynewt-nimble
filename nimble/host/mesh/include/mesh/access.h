@@ -42,6 +42,9 @@ extern "C" {
 #define BT_MESH_IS_DEV_KEY(key) (key == BT_MESH_KEY_DEV_LOCAL || \
 				 key == BT_MESH_KEY_DEV_REMOTE)
 
+#define BT_MESH_APP_SEG_SDU_MAX        12
+#define BT_MESH_TX_SDU_MAX (CONFIG_BT_MESH_TX_SEG_MAX * BT_MESH_APP_SEG_SDU_MAX)
+#define BT_MESH_RX_SDU_MAX (CONFIG_BT_MESH_RX_SEG_MAX * BT_MESH_APP_SEG_SDU_MAX)
 /** Helper to define a mesh element within an array.
  *
  *  In case the element has no SIG or Vendor models the helper
