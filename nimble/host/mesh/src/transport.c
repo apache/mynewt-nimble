@@ -1684,6 +1684,8 @@ uint8_t bt_mesh_va_add(uint8_t uuid[16], uint16_t *addr)
 	va->ref = 1;
 	va_store(va);
 
+	*addr = va->addr;
+
 	return STATUS_SUCCESS;
 }
 
