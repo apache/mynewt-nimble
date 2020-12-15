@@ -236,7 +236,7 @@ uint8_t bt_mesh_hb_pub_set(struct bt_mesh_hb_pub *new_pub)
 	 * periodic publishing.
 	 */
 	if (pub.period && pub.count) {
-		k_work_submit(&pub_timer.work);
+		k_delayed_work_submit(&pub_timer, K_NO_WAIT);
 	} else {
 		k_delayed_work_cancel(&pub_timer);
 	}
@@ -333,7 +333,7 @@ void bt_mesh_hb_start(void)
 {
 	if (pub.count && pub.period) {
 		BT_DBG("Starting heartbeat publication");
-		k_work_submit(&pub_timer.work);
+		k_delayed_work_submit(&pub_timer, K_NO_WAIT);
 	}
 }
 
@@ -346,6 +346,6 @@ void bt_mesh_hb_resume(void)
 {
 	if (pub.period && pub.count) {
 		BT_DBG("Starting heartbeat publication");
-		k_work_submit(&pub_timer.work);
+		k_delayed_work_submit(&pub_timer, K_NO_WAIT);
 	}
 }
