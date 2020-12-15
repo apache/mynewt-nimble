@@ -1573,6 +1573,12 @@ static int mod_sub(uint32_t op, uint16_t net_idx, uint16_t addr, uint16_t elem_a
 		goto done;
 	}
 
+	if (!status) {
+		cli_reset();
+		err = 0;
+		goto done;
+	}
+
 	err = cli_wait();
 done:
 	os_mbuf_free_chain(msg);
