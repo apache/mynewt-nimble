@@ -354,6 +354,9 @@ static int input(bt_mesh_input_action_t action, uint8_t size)
 	return 0;
 }
 
+static uint8_t vnd_app_key[16];
+static uint16_t vnd_app_key_idx = 0x000f;
+
 static void prov_complete(uint16_t net_idx, uint16_t addr)
 {
 	SYS_LOG_DBG("net_idx 0x%04x addr 0x%04x", net_idx, addr);
@@ -454,9 +457,6 @@ static void init(uint8_t *data, uint16_t len)
 			status = BTP_STATUS_FAILED;
 		}
 	}
-
-	/* Set device key for vendor model */
-	vnd_models[0].keys[0] = BT_MESH_KEY_DEV;
 
 rsp:
 	tester_rsp(BTP_SERVICE_ID_MESH, MESH_INIT, CONTROLLER_INDEX,
@@ -587,10 +587,10 @@ static void lpn_poll(uint8_t *data, uint16_t len)
 static void net_send(uint8_t *data, uint16_t len)
 {
 	struct mesh_net_send_cmd *cmd = (void *) data;
-	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX);
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX); 
 	struct bt_mesh_msg_ctx ctx = {
 		.net_idx = net.net_idx,
-		.app_idx = BT_MESH_KEY_DEV,
+		.app_idx = vnd_app_key_idx,
 		.addr = sys_le16_to_cpu(cmd->dst),
 		.send_ttl = cmd->ttl,
 	};
@@ -598,6 +598,12 @@ static void net_send(uint8_t *data, uint16_t len)
 
 	SYS_LOG_DBG("ttl 0x%02x dst 0x%04x payload_len %d", ctx.send_ttl,
 		    ctx.addr, cmd->payload_len);
+
+	if (!bt_mesh_app_key_get(vnd_app_key_idx)) {
+		(void)bt_mesh_app_key_add(vnd_app_key_idx, net.net_idx,
+					  vnd_app_key);
+		vnd_models[0].keys[0] = vnd_app_key_idx;
+	}
 
 	net_buf_simple_add_mem(msg, cmd->payload, cmd->payload_len);
 

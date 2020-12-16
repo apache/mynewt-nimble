@@ -26,5 +26,6 @@
 #include "cdb.h"
 #include "cfg.h"
 #include "heartbeat.h"
+#include "../src/app_keys.h"
 
 #endif /* __BT_MESH_H */
