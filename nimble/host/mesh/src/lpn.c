@@ -1072,6 +1072,8 @@ int bt_mesh_lpn_init(void)
 
 	BT_DBG("");
 
+	lpn->groups_changed = 0;
+
 	k_delayed_work_init(&lpn->timer, lpn_timeout);
 
 	if (lpn->state == BT_MESH_LPN_ENABLED) {

@@ -881,7 +881,7 @@ static void enqueue_offer(struct bt_mesh_friend *frnd, int8_t rssi)
 	}
 
 	if (encrypt_friend_pdu(frnd, buf, true)) {
-		return;
+		goto done;
 	}
 
 	frnd->counter++;
@@ -922,11 +922,7 @@ static int32_t offer_delay(struct bt_mesh_friend *frnd, int8_t rssi, uint8_t cri
 
 	BT_DBG("Local Delay calculated as %d ms", (int) delay);
 
-	if (delay < 100) {
-		return K_MSEC(100);
-	}
-
-	return K_MSEC(delay);
+	return MAX(delay, 100);
 }
 
 int bt_mesh_friend_req(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
@@ -1648,6 +1644,11 @@ void bt_mesh_friend_enqueue_rx(struct bt_mesh_net_rx *rx,
 		if (!friend_lpn_matches(frnd, rx->sub->net_idx,
 					rx->ctx.recv_dst)) {
 			continue;
+		}
+
+		if (friend_lpn_matches(frnd, rx->sub->net_idx,	
+					rx->ctx.addr)) {	
+			continue;	
 		}
 
 		if (!friend_queue_prepare_space(frnd, rx->ctx.addr, seq_auth,

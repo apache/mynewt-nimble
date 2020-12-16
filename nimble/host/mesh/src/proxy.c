@@ -989,29 +989,33 @@ static void notify_complete(void)
 static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
 {
 	struct os_mbuf *om;
-	int err;
+	int err = 0;
 
 	BT_DBG("%u bytes: %s", len, bt_hex(data, len));
 
-	/* Different from Zephyr implementation: no parameter structure is required,
-	 * so for PB and GATT procedure is the same
-	 */
-#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY) || MYNEWT_VAL(BLE_MESH_PB_GATT))
-	if (gatt_svc == MESH_GATT_PROXY || gatt_svc == MESH_GATT_PROV) {
+#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
+	if (gatt_svc == MESH_GATT_PROXY) {
 		om = ble_hs_mbuf_from_flat(data, len);
 		assert(om);
-		err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
-		if (!err) {
-			atomic_inc(&pending_notifications);
-			return err;
-		}
+		err = ble_gattc_notify_custom(conn_handle, svc_handles.proxy_data_out_h, om);
+		notify_complete();
 	}
 #endif
 
-	
-	notify_complete();
+#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
+	if (gatt_svc == MESH_GATT_PROV) {
+		om = ble_hs_mbuf_from_flat(data, len);
+		assert(om);
+		err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
+		notify_complete();
+	}
+#endif
 
-	return 0;
+	if (!err) {
+			atomic_inc(&pending_notifications);
+	}
+
+	return err;
 }
 
 static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
@@ -1234,14 +1238,14 @@ static int32_t gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	BT_DBG("");
 
 	if (conn_count == CONFIG_BT_MAX_CONN) {
-		BT_DBG("Connectable advertising deferred (max connections)");
-		return remaining;
+		BT_DBG("Connectable advertising deferred (max connections %d)", conn_count);
+		return -ENOMEM;
 	}
 
 	sub = beacon_sub ? beacon_sub : bt_mesh_subnet_next(beacon_sub);
 	if (!sub) {
 		BT_WARN("No subnets to advertise on");
-		return remaining;
+		return -ENOENT;
 	}
 
 	if (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING) {

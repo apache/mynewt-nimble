@@ -467,7 +467,7 @@ k_delayed_work_remaining_get (struct k_delayed_work *w)
 int64_t k_uptime_get(void)
 {
     /* We should return ms */
-    return os_cputime_get32();
+    return ble_npl_time_ticks_to_ms32(ble_npl_time_get());
 }
 
 uint32_t k_uptime_get_32(void)
