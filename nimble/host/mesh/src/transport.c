@@ -546,6 +546,7 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 				k_mem_slab_free(&segs, &buf);
 				tx->seg[seg_o] = NULL;
 			}
+			os_mbuf_free_chain(seg);
 		}
 
 	}
@@ -1025,6 +1026,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, uint8_t ctl_op, void *data,
 	} else {
 		return send_unseg(tx, buf, cb, cb_data, &ctl_op);
 	}
+	os_mbuf_free_chain(buf);
 }
 
 static int send_ack(struct bt_mesh_subnet *sub, uint16_t src, uint16_t dst,
@@ -1425,9 +1427,6 @@ found_rx:
 
 	os_mbuf_copydata(buf, 0, buf->om_len, rx->seg[seg_o]);
 	BT_DBG("copied %s", bt_hex(rx->seg[seg_o], rx->len));
-	if (segs.free_list) {
-		BT_DBG("segs free list not null: %c", segs.free_list)
-	}	
 
 	BT_DBG("Received %u/%u", seg_o, seg_n);
 
@@ -1473,6 +1472,7 @@ found_rx:
 			sdu, seg_buf->om_data, rx->len - APP_MIC_LEN(ASZMIC(hdr)));
 
 		err = sdu_recv(net_rx, *hdr, ASZMIC(hdr), seg_buf, sdu, rx);
+		os_mbuf_free_chain(seg_buf);
 	}
 
 	seg_rx_reset(rx, false);

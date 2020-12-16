@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if BLE_MESH_CDB
-
 #define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_CDB)
 #define LOG_MODULE_NAME bt_mesh_cdb
 #include "log/log.h"
@@ -17,6 +15,8 @@
 #include "mesh_priv.h"
 #include "mesh/glue.h"
 
+
+#if MYNEWT_VAL(BLE_MESH_CDB)
 struct bt_mesh_cdb bt_mesh_cdb = {
 	.nodes = {
 		[0 ... (CONFIG_BT_MESH_NODE_COUNT - 1)] = {
@@ -85,7 +85,7 @@ static int addr_is_free(uint16_t addr_start, uint8_t num_elem, uint16_t *next)
  */
 static uint16_t find_lowest_free_addr(uint8_t num_elem)
 {
-	uint16_t addr = 1, next;
+	uint16_t addr = 1, next = 0;
 	int err, i;
 
 	/*
@@ -386,5 +386,4 @@ void bt_mesh_cdb_app_key_store(const struct bt_mesh_cdb_app_key *key)
 		bt_mesh_store_cdb_app_key(key);
 	}
 }
-
 #endif
