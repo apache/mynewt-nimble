@@ -745,7 +745,7 @@ ble_gap_has_client(struct ble_gap_master_state *out_state)
         return 0;
     }
 
-    return out_state->cb;
+    return out_state->cb != NULL;
 }
 
 static void
