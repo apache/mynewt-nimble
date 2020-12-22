@@ -173,6 +173,7 @@ static void friend_clear(struct bt_mesh_friend *frnd)
 		seg->seg_count = 0U;
 	}
 
+	frnd->counter++;
 	frnd->subnet = NULL;
 	frnd->established = 0;
 	frnd->pending_buf = 0;
@@ -883,8 +884,6 @@ static void enqueue_offer(struct bt_mesh_friend *frnd, int8_t rssi)
 	if (encrypt_friend_pdu(frnd, buf, true)) {
 		goto done;
 	}
-
-	frnd->counter++;
 
 	if (frnd->last) {
 		net_buf_unref(frnd->last);
