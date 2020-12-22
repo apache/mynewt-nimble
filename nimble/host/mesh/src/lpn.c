@@ -293,6 +293,9 @@ static int send_friend_req(struct bt_mesh_lpn *lpn)
 		.src = bt_mesh_primary_addr(),
 		.xmit = POLL_XMIT,
 	};
+
+	lpn->lpn_counter++;
+
 	struct bt_mesh_ctl_friend_req req = {
 		.criteria    = LPN_CRITERIA,
 		.recv_delay  = LPN_RECV_DELAY,
@@ -555,8 +558,6 @@ int bt_mesh_lpn_friend_offer(struct bt_mesh_net_rx *rx,
 		lpn->queue_size = 0;
 		return err;
 	}
-
-	lpn->lpn_counter++;
 
 	return 0;
 }
