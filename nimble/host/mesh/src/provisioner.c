@@ -37,10 +37,11 @@ static void pub_key_ready(const uint8_t *pkey);
 
 static int reset_state(void)
 {
+#if BLE_MESH_CDB
 	if (prov_device.node != NULL) {
 		bt_mesh_cdb_node_del(prov_device.node, false);
 	}
-
+#endif
 	return bt_mesh_prov_reset_state(pub_key_ready);
 }
 
@@ -237,7 +238,7 @@ static void prov_capabilities(const uint8_t *data)
 		prov_fail(PROV_ERR_NVAL_FMT);
 		return;
 	}
-
+#if BLE_MESH_CDB
 	prov_device.node =
 		bt_mesh_cdb_node_alloc(prov_device.uuid,
 				       prov_device.addr, data[0],
@@ -247,7 +248,7 @@ static void prov_capabilities(const uint8_t *data)
 		prov_fail(PROV_ERR_RESOURCES);
 		return;
 	}
-
+#endif
 	memcpy(&bt_mesh_prov_link.conf_inputs[1], data, 11);
 
 	if (bt_mesh_prov->capabilities) {
@@ -453,7 +454,9 @@ static void prov_input_complete(const uint8_t *data)
 static void send_prov_data(void)
 {
 	struct os_mbuf *pdu = PROV_BUF(34);
+#if BLE_MESH_CDB
 	struct bt_mesh_cdb_subnet *sub;
+#endif
 	uint8_t session_key[16];
 	uint8_t nonce[13];
 	int err;
@@ -487,7 +490,7 @@ static void send_prov_data(void)
 	}
 
 	BT_DBG("DevKey: %s", bt_hex(prov_device.node->dev_key, 16));
-
+#if BLE_MESH_CDB
 	sub = bt_mesh_cdb_subnet_get(prov_device.node->net_idx);
 	if (sub == NULL) {
 		BT_ERR("No subnet with net_idx %u",
@@ -495,12 +498,14 @@ static void send_prov_data(void)
 		prov_fail(PROV_ERR_UNEXP_ERR);
 		return;
 	}
-
+#endif
 	bt_mesh_prov_buf_init(pdu, PROV_DATA);
+#if BLE_MESH_CDB
 	net_buf_simple_add_mem(pdu, sub->keys[sub->kr_flag].net_key, 16);
 	net_buf_simple_add_be16(pdu, prov_device.node->net_idx);
 	net_buf_simple_add_u8(pdu, bt_mesh_cdb_subnet_flags(sub));
 	net_buf_simple_add_be32(pdu, bt_mesh_cdb.iv_index);
+#endif
 	net_buf_simple_add_be16(pdu, prov_device.node->addr);
 	net_buf_simple_add(pdu, 8); /* For MIC */
 

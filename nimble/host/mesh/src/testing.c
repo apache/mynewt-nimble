@@ -141,6 +141,7 @@ void bt_test_print_credentials(void)
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i)
 	{
+		app_key = &bt_mesh_cdb.app_keys[i];
 		if (app_key->net_idx == BT_MESH_KEY_UNUSED) {
 			continue;
 		}
@@ -160,6 +161,7 @@ void bt_test_print_credentials(void)
 	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i)
 	{
 		sub = bt_mesh_cdb_subnet_get(i);
+		app_key = &bt_mesh_cdb.app_keys[i];
 		if (sub[i].net_idx == BT_MESH_KEY_UNUSED) {
 			continue;
 		}

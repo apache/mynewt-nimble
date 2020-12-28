@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#if BLE_MESH_CDB
 #define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_CDB)
 #define LOG_MODULE_NAME bt_mesh_cdb
 #include "log/log.h"
@@ -16,7 +17,6 @@
 #include "mesh/glue.h"
 
 
-#if MYNEWT_VAL(BLE_MESH_CDB)
 struct bt_mesh_cdb bt_mesh_cdb = {
 	.nodes = {
 		[0 ... (CONFIG_BT_MESH_NODE_COUNT - 1)] = {
