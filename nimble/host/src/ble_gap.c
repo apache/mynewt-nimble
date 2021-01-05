@@ -5535,6 +5535,11 @@ done:
 #endif
 }
 
+int ble_gap_set_data_len(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time)
+{
+    return ble_hs_hci_util_set_data_len(conn_handle, tx_octets, tx_time);
+}
+
 /*****************************************************************************
  * $security                                                                 *
  *****************************************************************************/
