@@ -449,9 +449,10 @@ TEST_CASE_SELF(ble_gap_test_case_wl_bad_args)
 
     ble_gap_test_util_init();
 
-    /*** 0 white list entries. */
+    /*** 0 white list entries. This is acceptable now with the wl_set API
+     * change. */
     rc = ble_hs_test_util_wl_set(NULL, 0, 0, 0);
-    TEST_ASSERT(rc == BLE_HS_EINVAL);
+    TEST_ASSERT(rc == 0);
 
     /*** Invalid address type. */
     rc = ble_hs_test_util_wl_set(
