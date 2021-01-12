@@ -492,7 +492,7 @@ ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2)
     int rc;
 
     /* Set time that we last serviced the schedule */
-    if ((int32_t)(s1->last_scheduled - s2->last_scheduled) < 0) {
+    if (CPUTIME_LT(s1->last_scheduled, s2->last_scheduled)) {
         rc = 1;
     } else {
         rc = 0;
@@ -1157,10 +1157,10 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         }
 
         ticks = os_cputime_usecs_to_ticks(ticks);
-        if ((int32_t)((os_cputime_get32() + ticks) - next_event_time) < 0) {
+        if (CPUTIME_LT(os_cputime_get32() + ticks, next_event_time)) {
             md = 1;
         }
-     }
+    }
 
     /* If we send an empty PDU we need to initialize the header */
 conn_tx_pdu:
