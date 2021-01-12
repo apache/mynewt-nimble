@@ -227,7 +227,7 @@ struct bt_mesh_cdb_subnet *bt_mesh_cdb_subnet_get(uint16_t net_idx)
 
 void bt_mesh_cdb_subnet_store(const struct bt_mesh_cdb_subnet *sub)
 {
-	if MYNEWT_VAL(BLE_MESH_SETTINGS) {
+	if (MYNEWT_VAL(BLE_MESH_SETTINGS)) {
 		bt_mesh_store_cdb_subnet(sub);
 	}
 }
@@ -309,7 +309,7 @@ struct bt_mesh_cdb_node *bt_mesh_cdb_node_get(uint16_t addr)
 
 void bt_mesh_cdb_node_store(const struct bt_mesh_cdb_node *node)
 {
-	if MYNEWT_VAL(BLE_MESH_SETTINGS) {
+	if (MYNEWT_VAL(BLE_MESH_SETTINGS)) {
 		bt_mesh_store_cdb_node(node);
 	}
 }
@@ -382,7 +382,7 @@ struct bt_mesh_cdb_app_key *bt_mesh_cdb_app_key_get(uint16_t app_idx)
 
 void bt_mesh_cdb_app_key_store(const struct bt_mesh_cdb_app_key *key)
 {
-	if MYNEWT_VAL(BLE_MESH_SETTINGS) {
+	if (MYNEWT_VAL(BLE_MESH_SETTINGS)) {
 		bt_mesh_store_cdb_app_key(key);
 	}
 }
