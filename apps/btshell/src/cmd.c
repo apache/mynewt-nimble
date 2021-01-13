@@ -3479,6 +3479,38 @@ static const struct shell_cmd_help gatt_write_help = {
     .usage = NULL,
     .params = gatt_write_params,
 };
+
+/*****************************************************************************
+ * cmd-gatt-subscribe-notification                                            *
+ *****************************************************************************/
+
+static const struct shell_param cmd_gatt_subscribe_notification_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"cccd", "client-characteristic-configuration-descriptor, usage: =<UINT16>"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help cmd_gatt_subscribe_notification_help = {
+    .summary = "subscribe to notification for characteristic",
+    .usage = NULL,
+    .params = cmd_gatt_subscribe_notification_params,
+};
+
+/*****************************************************************************
+ * cmd-gatt-subscribe-indication                                            *
+ *****************************************************************************/
+
+static const struct shell_param cmd_gatt_subscribe_indication_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"cccd", "client-characteristic-configuration-descriptor, usage: =<UINT16>"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help cmd_gatt_subscribe_indication_help = {
+    .summary = "subscribe to indication for characteristic",
+    .usage = NULL,
+    .params = cmd_gatt_subscribe_indication_params,
+};
 #endif
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
@@ -4399,6 +4431,20 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_gatt_write,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &gatt_write_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-subscribe-notification",
+        .sc_cmd_func = cmd_gatt_subscribe_notification,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_gatt_subscribe_notification_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-subscribe-indication",
+        .sc_cmd_func = cmd_gatt_subscribe_indication,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_gatt_subscribe_indication_help,
 #endif
     },
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
