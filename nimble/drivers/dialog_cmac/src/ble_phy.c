@@ -1500,33 +1500,51 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /*
      * We do not want FIELD/FRAME interrupts or FIELD1_ERR until ble_phy_tx()
-     * has finished pushing all the fields. If we won't make it on time, we
-     * assume tx_late and abort TX.
+     * has finished pushing all the fields. Also we do not want premature
+     * FRAME_ERR so disable it until we program FRAME1 properly. If we won't
+     * make configuration on time, assume tx_late and abort TX.
      */
     NVIC_DisableIRQ(FRAME_IRQn);
     NVIC_DisableIRQ(FIELD_IRQn);
-    CMAC->CM_ERROR_DIS_REG |= CMAC_CM_ERROR_DIS_REG_CM_FIELD1_ERR_Msk;
+    CMAC->CM_ERROR_DIS_REG |= CMAC_CM_ERROR_DIS_REG_CM_FIELD1_ERR_Msk |
+                              CMAC_CM_ERROR_DIS_REG_CM_FRAME_ERR_Msk;
 
     CMAC->CM_LL_TIMER1_9_0_EQ_X_REG = ll_val32;
     CMAC->CM_EV_LINKUP_REG = CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_TMR1_9_0_EQ_X_Msk;
 
     if ((int32_t)(ll_val32 - cmac_timer_read32()) < 0) {
-        STATS_INC(ble_phy_stats, tx_late);
-        ble_phy_disable();
-        NVIC_EnableIRQ(FRAME_IRQn);
-        NVIC_EnableIRQ(FIELD_IRQn);
-        rc = BLE_PHY_ERR_TX_LATE;
-    } else {
-        /*
-         * Program frame now since it needs to be ready for FRAME_START, we can
-         * push fields later
-         */
-        CMAC->CM_FRAME_1_REG = CMAC_CM_FRAME_1_REG_FRAME_VALID_Msk |
-                               CMAC_CM_FRAME_1_REG_FRAME_TX_Msk |
-                               CMAC_CM_FRAME_2_REG_FRAME_EXC_ON_BS_START_Msk;
-        rc = 0;
+        goto tx_late;
     }
 
+    /*
+     * Program frame now since it needs to be ready for FRAME_START, we can
+     * push fields later
+     */
+    CMAC->CM_FRAME_1_REG = CMAC_CM_FRAME_1_REG_FRAME_VALID_Msk |
+                           CMAC_CM_FRAME_1_REG_FRAME_TX_Msk |
+                           CMAC_CM_FRAME_1_REG_FRAME_EXC_ON_BS_START_Msk;
+
+    /*
+     * There should be no EXC_FRAME_START here so if it already happened we
+     * need to assume tx_late and abort.
+     */
+    if (CMAC->CM_EXC_STAT_REG & CMAC_CM_EXC_STAT_REG_EXC_FRAME_START_Msk) {
+        goto tx_late;
+    }
+
+    CMAC->CM_ERROR_DIS_REG &= ~CMAC_CM_ERROR_DIS_REG_CM_FRAME_ERR_Msk;
+    rc = 0;
+
+    goto done;
+
+tx_late:
+    STATS_INC(ble_phy_stats, tx_late);
+    ble_phy_disable();
+    NVIC_EnableIRQ(FRAME_IRQn);
+    NVIC_EnableIRQ(FIELD_IRQn);
+    rc = BLE_PHY_ERR_TX_LATE;
+
+done:
     return rc;
 }
 
