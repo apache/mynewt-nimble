@@ -1242,6 +1242,15 @@ ble_phy_init(void)
     g_ble_phy_encrypt_data.ai[0] = 0x01;
 #endif
 
+    /*
+     * Disable FIELD1, FIELD2 and FRAME errors since they can happen
+     * sometimes if we are too late on scheduling and trigger CMAC
+     * error. We can detect if tx_late happened and recover properly.
+     */
+    CMAC->CM_ERROR_DIS_REG |= CMAC_CM_ERROR_DIS_REG_CM_FIELD1_ERR_Msk |
+                              CMAC_CM_ERROR_DIS_REG_CM_FIELD2_ERR_Msk |
+                              CMAC_CM_ERROR_DIS_REG_CM_FRAME_ERR_Msk;
+
     return 0;
 }
 
@@ -1273,8 +1282,6 @@ ble_phy_disable(void)
 
     os_arch_cmac_bs_ctrl_irq_unblock();
     g_sw_mac_exc = 0;
-
-    CMAC->CM_ERROR_DIS_REG = 0;
 
     ble_rf_stop();
 
@@ -1467,7 +1474,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     }
 
     /* Now we can handle BS_CTRL */
-    CMAC->CM_ERROR_DIS_REG &= ~CMAC_CM_ERROR_DIS_REG_CM_FIELD1_ERR_Msk;
     NVIC_EnableIRQ(FRAME_IRQn);
     NVIC_EnableIRQ(FIELD_IRQn);
 
@@ -1499,15 +1505,11 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     assert((int32_t)(ll_val32 - cmac_timer_read32()) < 1024);
 
     /*
-     * We do not want FIELD/FRAME interrupts or FIELD1_ERR until ble_phy_tx()
-     * has finished pushing all the fields. Also we do not want premature
-     * FRAME_ERR so disable it until we program FRAME1 properly. If we won't
-     * make configuration on time, assume tx_late and abort TX.
+     * We do not want FIELD/FRAME interrupts until ble_phy_tx() has
+     * pushed all fields.
      */
     NVIC_DisableIRQ(FRAME_IRQn);
     NVIC_DisableIRQ(FIELD_IRQn);
-    CMAC->CM_ERROR_DIS_REG |= CMAC_CM_ERROR_DIS_REG_CM_FIELD1_ERR_Msk |
-                              CMAC_CM_ERROR_DIS_REG_CM_FRAME_ERR_Msk;
 
     CMAC->CM_LL_TIMER1_9_0_EQ_X_REG = ll_val32;
     CMAC->CM_EV_LINKUP_REG = CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_TMR1_9_0_EQ_X_Msk;
@@ -1532,7 +1534,6 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         goto tx_late;
     }
 
-    CMAC->CM_ERROR_DIS_REG &= ~CMAC_CM_ERROR_DIS_REG_CM_FRAME_ERR_Msk;
     rc = 0;
 
     goto done;
