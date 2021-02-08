@@ -1856,15 +1856,31 @@ int
 ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                             struct ble_gap_upd_params *params)
 {
+    struct ble_gap_upd_params self_params;
     struct ble_gap_event event;
     int rc;
+
+    /* Copy the peer params into the self params to make it easy on the
+     * application.  The application callback will change only the fields which
+     * it finds unsuitable.
+     */
+    self_params = *params;
 
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_L2CAP_UPDATE_REQ;
     event.conn_update_req.conn_handle = conn_handle;
+    event.conn_update_req.self_params = &self_params;
     event.conn_update_req.peer_params = params;
 
     rc = ble_gap_call_conn_event_cb(&event, conn_handle);
+
+    if ((self_params.itvl_min <= self_params.itvl_max)
+         && (self_params.itvl_min >= params->itvl_min)
+         && (self_params.itvl_max <= params->itvl_max)) {
+             params->itvl_max = self_params.itvl_max;
+             params->itvl_min = self_params.itvl_min;
+    }
+
     return rc;
 }
 

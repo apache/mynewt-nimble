@@ -616,6 +616,16 @@ struct ble_gap_event {
              * like to use.  The application callback should fill this in.  By
              * default, this struct contains the requested parameters (i.e.,
              * it is a copy of 'peer_params').
+             *
+             * For BLE_GAP_EVENT_L2CAP_UPDATE_REQ, only connection interval
+             * min/max and connection event length min/max can be changed.
+             *
+             * If the connection interval min/max are changed, the new values
+             * must be within the original range, or else the change will
+             * be ignored.
+             *
+             * No restrictions are enforced on changes to the connection event
+             * length min/max.
              */
             struct ble_gap_upd_params *self_params;
 
