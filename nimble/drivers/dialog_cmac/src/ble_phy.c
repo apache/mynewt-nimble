@@ -46,6 +46,9 @@ STATS_SECT_START(ble_phy_stats)
     STATS_SECT_ENTRY(tx_good)
     STATS_SECT_ENTRY(tx_fail)
     STATS_SECT_ENTRY(tx_late)
+    STATS_SECT_ENTRY(tx_late_sched)
+    STATS_SECT_ENTRY(tx_late_frame)
+    STATS_SECT_ENTRY(tx_late_field)
     STATS_SECT_ENTRY(tx_bytes)
     STATS_SECT_ENTRY(rx_starts)
     STATS_SECT_ENTRY(rx_aborts)
@@ -63,6 +66,9 @@ STATS_NAME_START(ble_phy_stats)
     STATS_NAME(ble_phy_stats, tx_good)
     STATS_NAME(ble_phy_stats, tx_fail)
     STATS_NAME(ble_phy_stats, tx_late)
+    STATS_NAME(ble_phy_stats, tx_late_sched)
+    STATS_NAME(ble_phy_stats, tx_late_frame)
+    STATS_NAME(ble_phy_stats, tx_late_field)
     STATS_NAME(ble_phy_stats, tx_bytes)
     STATS_NAME(ble_phy_stats, rx_starts)
     STATS_NAME(ble_phy_stats, rx_aborts)
@@ -1462,6 +1468,7 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     if (CMAC->CM_EXC_STAT_REG & CMAC_CM_EXC_STAT_REG_EXC_FIELD_ON_THR_EXP_Msk) {
         ble_phy_disable();
         g_ble_phy_data.end_transition = BLE_PHY_TRANSITION_NONE;
+        STATS_INC(ble_phy_stats, tx_late_field);
         STATS_INC(ble_phy_stats, tx_late);
         rc = BLE_PHY_ERR_RADIO_STATE;
     } else {
@@ -1515,6 +1522,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     CMAC->CM_EV_LINKUP_REG = CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_TMR1_9_0_EQ_X_Msk;
 
     if ((int32_t)(ll_val32 - cmac_timer_read32()) < 0) {
+        STATS_INC(ble_phy_stats, tx_late_sched);
         goto tx_late;
     }
 
@@ -1531,6 +1539,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
      * need to assume tx_late and abort.
      */
     if (CMAC->CM_EXC_STAT_REG & CMAC_CM_EXC_STAT_REG_EXC_FRAME_START_Msk) {
+        STATS_INC(ble_phy_stats, tx_late_frame);
         goto tx_late;
     }
 
