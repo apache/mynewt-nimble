@@ -23,6 +23,7 @@
 #include "syscfg/syscfg.h"
 #include "nimble/nimble_opt.h"
 
+#if NIMBLE_BLE_CONNECT
 #if NIMBLE_BLE_SM
 
 #include "nimble/ble.h"
@@ -531,5 +532,6 @@ ble_sm_alg_ecc_init(void)
     uECC_set_rng(ble_sm_alg_rand);
 }
 
+#endif
 #endif
 #endif

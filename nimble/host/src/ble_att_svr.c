@@ -25,6 +25,7 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
+#if NIMBLE_BLE_CONNECT
 /**
  * ATT server - Attribute Protocol
  *
@@ -2727,3 +2728,5 @@ ble_att_svr_init(void)
 
     return 0;
 }
+
+#endif

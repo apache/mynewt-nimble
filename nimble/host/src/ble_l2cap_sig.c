@@ -48,6 +48,7 @@
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 
+#if NIMBLE_BLE_CONNECT
 /*****************************************************************************
  * $definitions / declarations                                               *
  *****************************************************************************/
@@ -1953,3 +1954,5 @@ ble_l2cap_sig_init(void)
 
     return 0;
 }
+
+#endif
