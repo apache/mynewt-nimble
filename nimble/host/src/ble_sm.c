@@ -48,6 +48,7 @@
 #include "host/ble_sm.h"
 #include "ble_hs_priv.h"
 
+#if NIMBLE_BLE_CONNECT
 #if NIMBLE_BLE_SM
 
 /** Procedure timeout; 30 seconds. */
@@ -2812,3 +2813,5 @@ ble_sm_create_chan(uint16_t conn_handle)
 
     return chan;
 }
+
+#endif

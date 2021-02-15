@@ -60,6 +60,7 @@
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
 
+#if NIMBLE_BLE_CONNECT
 /*****************************************************************************
  * $definitions / declarations                                               *
  *****************************************************************************/
@@ -4804,3 +4805,5 @@ ble_gattc_init(void)
 
     return 0;
 }
+
+#endif
