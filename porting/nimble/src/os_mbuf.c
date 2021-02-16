@@ -245,7 +245,7 @@ os_mbuf_get(struct os_mbuf_pool *omp, uint16_t leadingspace)
     struct os_mbuf *om;
 
     os_trace_api_u32x2(OS_TRACE_ID_MBUF_GET, (uint32_t)omp,
-                       (uint32_t)leadingspace);
+                       (uint32_t)(uintptr_t)leadingspace);
 
     if (leadingspace > omp->omp_databuf_len) {
         om = NULL;
@@ -265,7 +265,7 @@ os_mbuf_get(struct os_mbuf_pool *omp, uint16_t leadingspace)
     om->om_omp = omp;
 
 done:
-    os_trace_api_ret_u32(OS_TRACE_ID_MBUF_GET, (uint32_t)om);
+    os_trace_api_ret_u32(OS_TRACE_ID_MBUF_GET, (uint32_t)(uintptr_t)om);
     return om;
 }
 
@@ -276,7 +276,7 @@ os_mbuf_get_pkthdr(struct os_mbuf_pool *omp, uint8_t user_pkthdr_len)
     struct os_mbuf_pkthdr *pkthdr;
     struct os_mbuf *om;
 
-    os_trace_api_u32x2(OS_TRACE_ID_MBUF_GET_PKTHDR, (uint32_t)omp,
+    os_trace_api_u32x2(OS_TRACE_ID_MBUF_GET_PKTHDR, (uint32_t)(uintptr_t)omp,
                        (uint32_t)user_pkthdr_len);
 
     /* User packet header must fit inside mbuf */
@@ -298,7 +298,7 @@ os_mbuf_get_pkthdr(struct os_mbuf_pool *omp, uint8_t user_pkthdr_len)
     }
 
 done:
-    os_trace_api_ret_u32(OS_TRACE_ID_MBUF_GET_PKTHDR, (uint32_t)om);
+    os_trace_api_ret_u32(OS_TRACE_ID_MBUF_GET_PKTHDR, (uint32_t)(uintptr_t)om);
     return om;
 }
 
@@ -307,7 +307,7 @@ os_mbuf_free(struct os_mbuf *om)
 {
     int rc;
 
-    os_trace_api_u32(OS_TRACE_ID_MBUF_FREE, (uint32_t)om);
+    os_trace_api_u32(OS_TRACE_ID_MBUF_FREE, (uint32_t)(uintptr_t)om);
 
     if (om->om_omp != NULL) {
         rc = os_memblock_put(om->om_omp->omp_pool, om);
@@ -329,7 +329,7 @@ os_mbuf_free_chain(struct os_mbuf *om)
     struct os_mbuf *next;
     int rc;
 
-    os_trace_api_u32(OS_TRACE_ID_MBUF_FREE_CHAIN, (uint32_t)om);
+    os_trace_api_u32(OS_TRACE_ID_MBUF_FREE_CHAIN, (uint32_t)(uintptr_t)om);
 
     while (om != NULL) {
         next = SLIST_NEXT(om, om_next);

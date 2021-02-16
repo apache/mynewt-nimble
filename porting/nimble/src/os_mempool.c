@@ -333,7 +333,7 @@ os_memblock_get(struct os_mempool *mp)
     os_sr_t sr;
     struct os_memblock *block;
 
-    os_trace_api_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)mp);
+    os_trace_api_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)(uintptr_t)mp);
 
     /* Check to make sure they passed in a memory pool (or something) */
     block = NULL;
@@ -361,7 +361,7 @@ os_memblock_get(struct os_mempool *mp)
         }
     }
 
-    os_trace_api_ret_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)block);
+    os_trace_api_ret_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)(uintptr_t)block);
 
     return (void *)block;
 }
@@ -372,8 +372,8 @@ os_memblock_put_from_cb(struct os_mempool *mp, void *block_addr)
     os_sr_t sr;
     struct os_memblock *block;
 
-    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT_FROM_CB, (uint32_t)mp,
-                       (uint32_t)block_addr);
+    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT_FROM_CB, (uint32_t)(uintptr_t)mp,
+                       (uint32_t)(uintptr_t)block_addr);
 
     os_mempool_guard_check(mp, block_addr);
     os_mempool_poison(mp, block_addr);
@@ -405,8 +405,8 @@ os_memblock_put(struct os_mempool *mp, void *block_addr)
     struct os_memblock *block;
 #endif
 
-    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT, (uint32_t)mp,
-                       (uint32_t)block_addr);
+    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT, (uint32_t)(uintptr_t)mp,
+                       (uint32_t)(uintptr_t)block_addr);
 
     /* Make sure parameters are valid */
     if ((mp == NULL) || (block_addr == NULL)) {
