@@ -361,7 +361,7 @@ ble_adv_gap_mesh_cb(struct ble_gap_event *event, void *arg)
 	case BLE_GAP_EVENT_EXT_DISC:
 		ext_desc = &event->ext_disc;
 		buf = os_mbuf_get_pkthdr(&adv_os_mbuf_pool, 0);
-		if (!buf || os_mbuf_append(buf, ext_desc->om_data, ext_desc->length_data)) {
+		if (!buf || os_mbuf_append(buf, ext_desc->data, ext_desc->length_data)) {
 			BT_ERR("Could not append data");
 			goto done;
 		}
