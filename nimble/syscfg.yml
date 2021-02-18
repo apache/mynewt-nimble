@@ -59,10 +59,14 @@ syscfg.defs:
         description: >
             This enables periodic advertising feature.
         value: 0
+        restrictions:
+            - 'BLE_EXT_ADV if 1'
     BLE_PERIODIC_ADV_SYNC_TRANSFER:
         description: >
             This enables Periodic Advertising Sync Transfer Feature.
         value: 0
+        restrictions:
+            - 'BLE_PERIODIC_ADV if 1'
 
     BLE_EXT_ADV_MAX_SIZE:
         description: >
