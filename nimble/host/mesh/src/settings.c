@@ -147,9 +147,6 @@ static struct node_update cdb_node_updates[MYNEWT_VAL(BLE_MESH_CDB_NODE_COUNT)];
 static struct key_update cdb_key_updates[
 					MYNEWT_VAL(BLE_MESH_CDB_SUBNET_COUNT) +
 					MYNEWT_VAL(BLE_MESH_CDB_APP_KEY_COUNT)];
-#else
-static struct node_update cdb_node_updates[0];
-static struct key_update cdb_key_updates[0];
 #endif
 
 int settings_name_next(char *name, char **next)
@@ -1477,6 +1474,7 @@ static void store_pending_keys(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_CDB)
 static void clear_cdb(void)
 {
 	int err;
@@ -1752,6 +1750,7 @@ static struct node_update *cdb_node_update_find(uint16_t addr,
 
 	return match;
 }
+#endif
 
 static void encode_mod_path(struct bt_mesh_model *mod, bool vnd,
 			    const char *key, char *path, size_t path_len)
@@ -2002,6 +2001,7 @@ static void store_pending(struct ble_npl_event *work)
 		store_pending_va();
 	}
 
+#if MYNEWT_VAL(BLE_MESH_CDB)
 	if (IS_ENABLED(CONFIG_BT_MESH_CDB)) {
 		if (atomic_test_and_clear_bit(bt_mesh_cdb.flags,
 					      BT_MESH_CDB_SUBNET_PENDING)) {
@@ -2023,6 +2023,7 @@ static void store_pending(struct ble_npl_event *work)
 			store_pending_cdb_keys();
 		}
 	}
+#endif
 }
 
 void bt_mesh_store_rpl(struct bt_mesh_rpl *entry)
@@ -2210,6 +2211,7 @@ void bt_mesh_store_label(void)
 	schedule_store(BT_MESH_VA_PENDING);
 }
 
+#if MYNEWT_VAL(BLE_MESH_CDB)
 static void schedule_cdb_store(int flag)
 {
 	atomic_set_bit(bt_mesh_cdb.flags, flag);
@@ -2402,6 +2404,7 @@ void bt_mesh_clear_cdb_app_key(struct bt_mesh_cdb_app_key *key)
 
 	schedule_cdb_store(BT_MESH_CDB_KEYS_PENDING);
 }
+#endif
 
 int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
 			     			 const char *name, const void *data,
