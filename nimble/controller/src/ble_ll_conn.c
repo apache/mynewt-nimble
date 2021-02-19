@@ -223,6 +223,7 @@ STATS_NAME_START(ble_ll_conn_stats)
     STATS_NAME(ble_ll_conn_stats, conn_event_while_tmo)
 STATS_NAME_END(ble_ll_conn_stats)
 
+#if NIMBLE_BLE_CONNECT
 static void ble_ll_conn_event_end(struct ble_npl_event *ev);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
@@ -558,6 +559,7 @@ ble_ll_conn_current_sm_over(struct ble_ll_conn_sm *connsm)
         ble_ll_event_send(&connsm->conn_ev_end);
     }
 }
+#endif
 
 /**
  * Given a handle, find an active connection matching the handle
@@ -581,6 +583,7 @@ ble_ll_conn_find_active_conn(uint16_t handle)
     return connsm;
 }
 
+#if NIMBLE_BLE_CONNECT
 /**
  * Get a connection state machine.
  */
@@ -697,11 +700,12 @@ ble_ll_conn_reset_pending_aux_conn_rsp(void)
 
     return;
 }
+#endif
 
 bool
 ble_ll_conn_init_pending_aux_conn_rsp(void)
 {
-#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) || !NIMBLE_BLE_CONNECT
     return false;
 #endif
     struct ble_ll_conn_sm *connsm;
@@ -714,6 +718,7 @@ ble_ll_conn_init_pending_aux_conn_rsp(void)
     return CONN_F_AUX_CONN_REQ(connsm);
 }
 
+#if NIMBLE_BLE_CONNECT
 void
 ble_ll_conn_init_wfr_timer_exp(void)
 {
@@ -2931,6 +2936,7 @@ ble_ll_conn_connect_ind_send(struct ble_ll_conn_sm *connsm, uint8_t end_trans)
 
     return rc;
 }
+#endif
 
 /**
  * Called when a schedule item overlaps the currently running connection
@@ -2943,14 +2949,17 @@ ble_ll_conn_connect_ind_send(struct ble_ll_conn_sm *connsm, uint8_t end_trans)
 void
 ble_ll_conn_event_halt(void)
 {
+#if NIMBLE_BLE_CONNECT
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     if (g_ble_ll_conn_cur_sm) {
         g_ble_ll_conn_cur_sm->csmflags.cfbit.pkt_rxd = 0;
         ble_ll_event_send(&g_ble_ll_conn_cur_sm->conn_ev_end);
         g_ble_ll_conn_cur_sm = NULL;
     }
+#endif
 }
 
+#if NIMBLE_BLE_CONNECT
 /**
  * Process a received PDU while in the initiating state.
  *
@@ -4057,6 +4066,7 @@ conn_exit:
 
     return rc;
 }
+#endif
 
 /**
  * Called to adjust payload length to fit into max effective octets and TX time
@@ -4192,6 +4202,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
     }
 }
 
+#if NIMBLE_BLE_CONNECT
 /**
  * Called to set the global channel mask that we use for all connections.
  *
@@ -4221,6 +4232,7 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap)
         }
     }
 }
+#endif
 
 /**
  * Called when a device has received a connect request while advertising and
@@ -4239,6 +4251,7 @@ int
 ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
                         bool force_csa2)
 {
+#if NIMBLE_BLE_CONNECT
     int rc;
     uint32_t temp;
     uint32_t crcinit;
@@ -4349,8 +4362,12 @@ err_slave_start:
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
     STATS_INC(ble_ll_conn_stats, slave_rxd_bad_conn_req_params);
     return 0;
+#else
+    return 0;
+#endif
 }
 
+#if NIMBLE_BLE_CONNECT
 #define MAX_TIME_UNCODED(_maxbytes) \
         ble_ll_pdu_tx_time_get(_maxbytes + BLE_LL_DATA_MIC_LEN, \
                                BLE_PHY_MODE_1M);
@@ -4496,3 +4513,4 @@ ble_ll_conn_module_init(void)
     /* Call reset to finish reset of initialization */
     ble_ll_conn_module_reset();
 }
+#endif

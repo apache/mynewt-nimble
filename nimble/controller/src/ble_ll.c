@@ -575,11 +575,12 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
      *
      * Test specification extends this also to initiating.
      */
-
+#if NIMBLE_BLE_ADVERTISE || NIMBLE_BLE_SCAN
     if (g_ble_ll_conn_create_sm || ble_ll_scan_enabled() ||
                                 (!hci_adv_ext && ble_ll_adv_enabled())) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+#endif
 
     if (!ble_ll_is_valid_random_addr(cmd->addr)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -667,18 +668,24 @@ ble_ll_wfr_timer_exp(void *arg)
     /* If we have started a reception, there is nothing to do here */
     if (!rx_start) {
         switch (lls) {
+#if NIMBLE_BLE_ADVERTISE
         case BLE_LL_STATE_ADV:
             ble_ll_adv_wfr_timer_exp();
             break;
+#endif
+#if NIMBLE_BLE_CONNECT
         case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_wfr_timer_exp();
-            break;
-        case BLE_LL_STATE_SCANNING:
-            ble_ll_scan_wfr_timer_exp();
             break;
         case BLE_LL_STATE_INITIATING:
             ble_ll_conn_init_wfr_timer_exp();
             break;
+#endif
+#if NIMBLE_BLE_SCAN
+        case BLE_LL_STATE_SCANNING:
+            ble_ll_scan_wfr_timer_exp();
+            break;
+#endif
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_wfr_timer_exp();
@@ -822,20 +829,28 @@ ble_ll_rx_pkt_in(void)
         /* Process the data or advertising pdu */
         /* Process the PDU */
         switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
+#if NIMBLE_BLE_CONNECT
         case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_rx_data_pdu(m, ble_hdr);
             /* m is going to be free by function above */
             m = NULL;
             break;
+#endif
+#if NIMBLE_BLE_ADVERTISE
         case BLE_LL_STATE_ADV:
             ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
+#endif
+#if NIMBLE_BLE_SCAN
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_rx_pkt_in(pdu_type, m, ble_hdr);
             break;
+#endif
+#if NIMBLE_BLE_CONNECT
         case BLE_LL_STATE_INITIATING:
             ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
+#endif
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
@@ -960,18 +975,24 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
                        pdu_type);
 
     switch (g_ble_ll_data.ll_state) {
+#if NIMBLE_BLE_CONNECT
     case BLE_LL_STATE_CONNECTION:
         rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
-        break;
-    case BLE_LL_STATE_ADV:
-        rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
     case BLE_LL_STATE_INITIATING:
         rc = ble_ll_init_rx_isr_start(pdu_type, rxhdr);
         break;
+#endif
+#if NIMBLE_BLE_ADVERTISE
+    case BLE_LL_STATE_ADV:
+        rc = ble_ll_adv_rx_isr_start(pdu_type);
+        break;
+#endif
+#if NIMBLE_BLE_SCAN
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
         break;
+#endif
 #if MYNEWT_VAL(BLE_LL_DTM)
     case BLE_LL_STATE_DTM:
         rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
@@ -1032,10 +1053,12 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     }
 #endif
 
+#if NIMBLE_BLE_CONNECT
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CONNECTION) {
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_SYNC) {
@@ -1085,6 +1108,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     /* Hand packet to the appropriate state machine (if crc ok) */
     rxpdu = NULL;
     switch (BLE_MBUF_HDR_RX_STATE(rxhdr)) {
+#if NIMBLE_BLE_ADVERTISE
     case BLE_LL_STATE_ADV:
         if (!badpkt) {
             rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
@@ -1094,6 +1118,8 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
         rc = ble_ll_adv_rx_isr_end(pdu_type, rxpdu, crcok);
         break;
+#endif
+#if NIMBLE_BLE_SCAN
     case BLE_LL_STATE_SCANNING:
         if (!badpkt) {
             rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
@@ -1103,9 +1129,12 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
         rc = ble_ll_scan_rx_isr_end(rxpdu, crcok);
         break;
+#endif
+#if NIMBLE_BLE_CONNECT
     case BLE_LL_STATE_INITIATING:
         rc = ble_ll_init_rx_isr_end(rxbuf, crcok, rxhdr);
         break;
+#endif
     default:
         rc = -1;
         STATS_INC(ble_ll_stats, bad_ll_state);
@@ -1399,12 +1428,16 @@ ble_ll_reset(void)
     OS_ENTER_CRITICAL(sr);
     ble_phy_disable();
     ble_ll_sched_stop();
+#if NIMBLE_BLE_SCAN
     ble_ll_scan_reset();
+#endif
     ble_ll_rfmgmt_reset();
     OS_EXIT_CRITICAL(sr);
 
+#if NIMBLE_BLE_ADVERTISE
     /* Stop any advertising */
     ble_ll_adv_reset();
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     ble_ll_dtm_reset();
@@ -1426,8 +1459,10 @@ ble_ll_reset(void)
     g_ble_ll_data.ll_pref_tx_phys = 0;
     g_ble_ll_data.ll_pref_rx_phys = 0;
 
+#if NIMBLE_BLE_CONNECT
     /* Reset connection module */
     ble_ll_conn_module_reset();
+#endif
 
     /* All this does is re-initialize the event masks so call the hci init */
     ble_ll_hci_init();
@@ -1608,14 +1643,20 @@ ble_ll_init(void)
     /* Init the scheduler */
     ble_ll_sched_init();
 
+#if NIMBLE_BLE_ADVERTISE
     /* Initialize advertiser */
     ble_ll_adv_init();
+#endif
 
+#if NIMBLE_BLE_SCAN
     /* Initialize a scanner */
     ble_ll_scan_init();
+#endif
 
+#if NIMBLE_BLE_CONNECT
     /* Initialize the connection module */
     ble_ll_conn_module_init();
+#endif
 
     /* Set the supported features. NOTE: we always support extended reject. */
     features = BLE_LL_FEAT_EXTENDED_REJ;

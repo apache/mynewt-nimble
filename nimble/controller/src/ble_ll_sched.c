@@ -1449,13 +1449,17 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     ble_phy_disable();
 
     if (lls == BLE_LL_STATE_SCANNING) {
+#if NIMBLE_BLE_SCAN
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_scan_halt();
+#endif
     } else if (lls == BLE_LL_STATE_INITIATING) {
+#if NIMBLE_BLE_CONNECT
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_scan_halt();
         /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
         ble_ll_conn_reset_pending_aux_conn_rsp();
+#endif
     } else if (lls == BLE_LL_STATE_ADV) {
         STATS_INC(ble_ll_stats, sched_state_adv_errs);
         ble_ll_adv_halt();

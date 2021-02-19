@@ -426,7 +426,7 @@ ble_ll_hci_le_set_def_phy(const uint8_t *cmdbuf, uint8_t len)
 }
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+#if NIMBLE_BLE_CONNECT && MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
 /**
  * HCI write suggested default data length command.
  *
@@ -886,6 +886,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_set_random_addr(cmdbuf, len, false);
 #endif
         break;
+#if NIMBLE_BLE_ADVERTISE
     case BLE_HCI_OCF_LE_SET_ADV_PARAMS:
         rc = ble_ll_adv_set_adv_params(cmdbuf, len);
         break;
@@ -903,12 +904,16 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_SET_ADV_ENABLE:
         rc = ble_ll_hci_adv_set_enable(cmdbuf, len);
         break;
+#endif
+#if NIMBLE_BLE_SCAN
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
         rc = ble_ll_scan_set_scan_params(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
         rc = ble_ll_hci_scan_set_enable(cmdbuf, len);
         break;
+#endif
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_LE_CREATE_CONN:
         rc = ble_ll_conn_create(cmdbuf, len);
         break;
@@ -917,6 +922,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
             rc = ble_ll_conn_create_cancel(cb);
         }
         break;
+#endif
     case BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE:
         if (len == 0) {
             rc = ble_ll_whitelist_read_size(rspbuf, rsplen);
@@ -933,6 +939,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_RMV_WHITE_LIST:
         rc = ble_ll_whitelist_rmv(cmdbuf, len);
         break;
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_LE_CONN_UPDATE:
         rc = ble_ll_conn_hci_update(cmdbuf, len);
         break;
@@ -945,6 +952,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_RD_REM_FEAT:
         rc = ble_ll_conn_hci_read_rem_features(cmdbuf, len);
         break;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_HCI_OCF_LE_ENCRYPT:
         rc = ble_ll_hci_le_encrypt(cmdbuf, len, rspbuf, rsplen);
@@ -955,7 +963,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
             rc = ble_ll_hci_le_rand(rspbuf, rsplen);
         }
         break;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+#if NIMBLE_BLE_CONNECT && MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_HCI_OCF_LE_START_ENCRYPT:
         rc = ble_ll_conn_hci_le_start_encrypt(cmdbuf, len);
         break;
@@ -984,13 +992,15 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         }
         break;
 #endif
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_RR:
         rc = ble_ll_conn_hci_param_rr(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR:
         rc = ble_ll_conn_hci_param_nrr(cmdbuf, len, rspbuf, rsplen);
         break;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+#endif
+#if NIMBLE_BLE_CONNECT && MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
     case BLE_HCI_OCF_LE_SET_DATA_LEN:
         rc = ble_ll_conn_hci_set_data_len(cmdbuf, len, rspbuf, rsplen);
         break;
@@ -1033,7 +1043,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_resolv_set_rpa_tmo(cmdbuf, len);
         break;
 #endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+#if NIMBLE_BLE_CONNECT && MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
     case BLE_HCI_OCF_LE_RD_MAX_DATA_LEN:
         if (len == 0) {
             rc = ble_ll_hci_le_rd_max_data_len(rspbuf, rsplen);
@@ -1106,15 +1116,19 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #endif
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if NIMBLE_BLE_SCAN
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
         rc = ble_ll_set_ext_scan_params(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
         rc = ble_ll_hci_ext_scan_set_enable(cmdbuf, len);
         break;
+#endif
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
         rc = ble_ll_ext_conn_create(cmdbuf, len);
         break;
+#endif
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
@@ -1270,6 +1284,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     return rc;
 }
 
+#if NIMBLE_BLE_CONNECT
 static int
 ble_ll_hci_disconnect(const uint8_t *cmdbuf, uint8_t len)
 {
@@ -1289,6 +1304,7 @@ ble_ll_hci_disconnect(const uint8_t *cmdbuf, uint8_t len)
 
     return ble_ll_conn_hci_disconnect_cmd(cmd);
 }
+#endif
 
 /**
  * Process a link control command sent from the host to the controller. The HCI
@@ -1309,6 +1325,7 @@ ble_ll_hci_link_ctrl_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf)
     int rc;
 
     switch (ocf) {
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_DISCONNECT_CMD:
         rc = ble_ll_hci_disconnect(cmdbuf, len);
         /* Send command status instead of command complete */
@@ -1320,6 +1337,7 @@ ble_ll_hci_link_ctrl_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf)
         /* Send command status instead of command complete */
         rc += (BLE_ERR_MAX + 1);
         break;
+#endif
 
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
@@ -1452,6 +1470,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_CB_SET_EVENT_MASK2:
         rc = ble_ll_hci_cb_set_event_mask2(cmdbuf, len);
         break;
+#if NIMBLE_BLE_CONNECT
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     case BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO:
         rc = ble_ll_conn_hci_rd_auth_pyld_tmo(cmdbuf, len, rspbuf, rsplen);
@@ -1459,6 +1478,7 @@ ble_ll_hci_ctlr_bb_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_CB_WR_AUTH_PYLD_TMO:
         rc = ble_ll_conn_hci_wr_auth_pyld_tmo(cmdbuf, len, rspbuf, rsplen);
         break;
+#endif
 #endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
@@ -1514,9 +1534,11 @@ ble_ll_hci_status_params_cmd_proc(const uint8_t *cmdbuf, uint8_t len,
     int rc;
 
     switch (ocf) {
+#if NIMBLE_BLE_CONNECT
     case BLE_HCI_OCF_RD_RSSI:
         rc = ble_ll_conn_hci_rd_rssi(cmdbuf, len, rspbuf, rsplen);
         break;
+#endif
     default:
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;

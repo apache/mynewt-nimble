@@ -64,11 +64,15 @@
 #define SCAN_VALID_PHY_MASK     (BLE_HCI_LE_PHY_1M_PREF_MASK)
 #endif
 
-/* The scanning parameters set by host */
-static struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
-
+#if NIMBLE_BLE_SCAN || NIMBLE_BLE_CONNECT
 /* The scanning state machine global object */
 static struct ble_ll_scan_sm g_ble_ll_scan_sm;
+#endif
+
+#if NIMBLE_BLE_SCAN
+
+/* The scanning parameters set by host */
+static struct ble_ll_scan_params g_ble_ll_scan_params[BLE_LL_SCAN_PHY_NUMBER];
 
 struct ble_ll_ext_adv_hdr
 {
@@ -517,9 +521,11 @@ ble_ll_scan_clean_cur_aux_data(void)
 #endif
 }
 
+#endif
 void
 ble_ll_scan_halt(void)
 {
+#if NIMBLE_BLE_SCAN
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
 
     ble_ll_scan_clean_cur_aux_data();
@@ -529,8 +535,10 @@ ble_ll_scan_halt(void)
         scansm->scan_rsp_pending = 0;
         ble_ll_scan_req_backoff(scansm, 0);
     }
+#endif
 }
 
+#if NIMBLE_BLE_SCAN
 /**
  * Checks to see if we have received a scan response from this advertiser.
  *
@@ -1111,12 +1119,15 @@ ble_ll_scan_sched_remove(struct ble_ll_sched_item *sch)
     sch->cb_arg = NULL;
 }
 #endif
+
+#endif
 /**
  * Stop the scanning state machine
  */
 void
 ble_ll_scan_sm_stop(int chk_disable)
 {
+#if NIMBLE_BLE_SCAN
     os_sr_t sr;
     uint8_t lls;
     struct ble_ll_scan_sm *scansm;
@@ -1170,8 +1181,10 @@ ble_ll_scan_sm_stop(int chk_disable)
     ble_ll_rfmgmt_scan_changed(false, 0);
     ble_ll_rfmgmt_release();
     OS_EXIT_CRITICAL(sr);
+#endif
 }
 
+#if NIMBLE_BLE_SCAN
 static int
 ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
 {
@@ -1385,6 +1398,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
     case BLE_LL_STATE_SYNC:
          start_scan = false;
          break;
+#if NIMBLE_BLE_CONNECT
     case BLE_LL_STATE_INITIATING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
@@ -1394,6 +1408,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
         ble_ll_conn_reset_pending_aux_conn_rsp();
         break;
+#endif
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
@@ -1916,6 +1931,7 @@ done:
 }
 #endif
 
+#endif
 int
 ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
                             struct ble_mbuf_hdr *ble_hdr,
@@ -1947,7 +1963,7 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
     }
 
     /* Extended advertising */
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if NIMBLE_BLE_SCAN && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     return ble_ll_scan_get_addr_from_ext_adv(rxbuf, ble_hdr, addr, addr_type,
                                           inita, inita_type, ext_mode);
 #else
@@ -1957,6 +1973,7 @@ ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
     return 0;
 }
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_ll_scan_get_addr_data_from_legacy(uint8_t pdu_type, uint8_t *rxbuf,
                                      struct ble_ll_scan_addr_data *addrd)
@@ -2451,6 +2468,7 @@ scan_rx_isr_ignore:
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     return -1;
 }
+#endif
 
 /**
  * Called to resume scanning. This is called after an advertising event or
@@ -2465,6 +2483,7 @@ scan_rx_isr_ignore:
 void
 ble_ll_scan_chk_resume(void)
 {
+#if NIMBLE_BLE_SCAN
     os_sr_t sr;
     struct ble_ll_scan_sm *scansm;
     uint32_t now;
@@ -2488,8 +2507,10 @@ ble_ll_scan_chk_resume(void)
         }
         OS_EXIT_CRITICAL(sr);
     }
+#endif
 }
 
+#if NIMBLE_BLE_SCAN
 /**
  * Scan timer callback; means that the scan window timeout has been reached
  * and we should perform the appropriate actions.
@@ -3654,6 +3675,7 @@ int ble_ll_hci_ext_scan_set_enable(const uint8_t *cmdbuf, uint8_t len)
 }
 #endif
 
+#endif
 /**
  * Checks if controller can change the whitelist. If scanning is enabled and
  * using the whitelist the controller is not allowed to change the whitelist.
@@ -3663,6 +3685,7 @@ int ble_ll_hci_ext_scan_set_enable(const uint8_t *cmdbuf, uint8_t len)
 int
 ble_ll_scan_can_chg_whitelist(void)
 {
+#if NIMBLE_BLE_SCAN
     int rc;
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
@@ -3676,12 +3699,16 @@ ble_ll_scan_can_chg_whitelist(void)
     }
 
     return rc;
+#else
+    return 1;
+#endif
 }
 
 int
 ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
                             struct ble_ll_scan_sm **sm)
 {
+#if NIMBLE_BLE_SCAN
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_params *scanp;
     int rc;
@@ -3712,8 +3739,12 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
     }
 
     return rc;
+#else
+    return 0;
+#endif
 }
 
+#if NIMBLE_BLE_SCAN
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
 ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
@@ -3785,6 +3816,7 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
     return rc;
 }
 #endif
+#endif
 
 /**
  * Checks to see if the scanner is enabled.
@@ -3794,9 +3826,14 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
 int
 ble_ll_scan_enabled(void)
 {
+#if NIMBLE_BLE_SCAN
     return (int)g_ble_ll_scan_sm.scan_enabled;
+#else
+    return 0;
+#endif
 }
 
+#if NIMBLE_BLE_CONNECT
 /**
  * Returns the peer resolvable private address of last device connecting to us
  *
@@ -3811,7 +3848,9 @@ ble_ll_scan_get_peer_rpa(void)
     scansm = &g_ble_ll_scan_sm;
     return scansm->scan_peer_rpa;
 }
+#endif
 
+#if NIMBLE_BLE_SCAN || NIMBLE_BLE_CONNECT
 /**
  * Returns the local resolvable private address currently being using by
  * the scanner/initiator
@@ -3823,7 +3862,9 @@ ble_ll_scan_get_local_rpa(void)
 {
     return g_ble_ll_scan_sm.pdu_data.scana;
 }
+#endif
 
+#if NIMBLE_BLE_SCAN || NIMBLE_BLE_CONNECT
 /**
  * Set the Resolvable Private Address in the scanning (or initiating) state
  * machine.
@@ -3840,7 +3881,9 @@ ble_ll_scan_set_peer_rpa(uint8_t *rpa)
     scansm = &g_ble_ll_scan_sm;
     memcpy(scansm->scan_peer_rpa, rpa, BLE_DEV_ADDR_LEN);
 }
+#endif
 
+#if NIMBLE_BLE_SCAN || NIMBLE_BLE_CONNECT
 struct ble_ll_scan_pdu_data *
 ble_ll_scan_get_pdu_data(void)
 {
@@ -3853,7 +3896,9 @@ ble_ll_scan_whitelist_enabled(void)
 {
     return g_ble_ll_scan_sm.scanp->scan_filt_policy & 1;
 }
+#endif
 
+#if NIMBLE_BLE_SCAN
 static void
 ble_ll_scan_common_init(void)
 {
@@ -3975,3 +4020,4 @@ ble_ll_scan_init(void)
 
     ble_ll_scan_common_init();
 }
+#endif
