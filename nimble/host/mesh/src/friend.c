@@ -1236,7 +1236,7 @@ static void friend_timeout(struct ble_npl_event *work)
 
 	/* Clear the flag we use for segment tracking */
 	BT_MESH_ADV(frnd->last)->flags &= ~NET_BUF_FRAGS;
-	BT_MESH_ADV(frnd->last)->frags = 0;
+	BT_MESH_ADV(frnd->last)->frags = NULL;
 
 	BT_DBG("Sending buf %p from Friend Queue of LPN 0x%04x",
 	       frnd->last, frnd->lpn);
@@ -1382,8 +1382,8 @@ static void friend_purge_old_ack(struct bt_mesh_friend *frnd, uint64_t *seq_auth
 
 			net_buf_slist_remove(&frnd->queue, prev, cur);
 			frnd->queue_size--;
-			BT_MESH_ADV(buf)->frags = 0;
-
+			/* Make sure old slist entry state doesn't remain */
+			BT_MESH_ADV(buf)->frags = NULL;
 			net_buf_unref(buf);
 			break;
 		}
