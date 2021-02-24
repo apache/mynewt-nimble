@@ -512,6 +512,8 @@ gatt_svr_long_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_long_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
+        assert(0);
+        break;
 
     case PTS_LONG_CHR_READ_WRITE_ALT:
         if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
@@ -524,6 +526,8 @@ gatt_svr_long_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_long_val_alt);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
+        assert(0);
+        break;
 
     case PTS_LONG_CHR_READ_WRITE_ENC:
     case PTS_LONG_CHR_READ_WRITE_AUTHEN:
@@ -537,6 +541,8 @@ gatt_svr_long_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_long_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
+        assert(0);
+        break;
 
     case PTS_LONG_DSC_READ:
         assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC);
@@ -564,6 +570,8 @@ gatt_svr_long_access_test(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof gatt_svr_pts_static_long_val);
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
+        assert(0);
+        break;
 
     default:
         assert(0);
