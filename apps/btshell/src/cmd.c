@@ -99,22 +99,26 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
     char name[32];
     int rc;
 
-    /* XXX string operations below are not quite safe, but do we care? */
-
     if (!prefix) {
         name[0] = '\0';
     } else {
-        strcpy(name, prefix);
+        if (strlcpy(name, prefix, sizeof(name)) >= sizeof(name)) {
+            return EINVAL;
+        }
     }
 
-    strcat(name, "addr");
+    if (strlcat(name, "addr", sizeof(name)) >= sizeof(name)) {
+        return EINVAL;
+    }
     rc = parse_arg_addr(name, addr);
     if (rc == ENOENT) {
         /* not found */
         return rc;
     } else if (rc == EAGAIN) {
         /* address found, but no type provided */
-        strcat(name, "_type");
+        if (strlcat(name, "_type", sizeof(name)) >= sizeof(name)) {
+            return EINVAL;
+        }
         addr->type = parse_arg_kv(name, addr_types, &rc);
         if (rc == ENOENT) {
             addr->type = BLE_ADDR_PUBLIC;
@@ -126,7 +130,9 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
         return rc;
     } else {
         /* full address found, but let's just make sure there is no type arg */
-        strcat(name, "_type");
+        if (strlcat(name, "_type", sizeof(name)) >= sizeof(name)) {
+            return EINVAL;
+        }
         if (parse_arg_extract(name)) {
             return E2BIG;
         }
