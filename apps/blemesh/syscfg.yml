@@ -37,3 +37,6 @@ syscfg.vals:
 
     BLE_MESH_SETTINGS: 0
     CONFIG_NFFS: 0
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0

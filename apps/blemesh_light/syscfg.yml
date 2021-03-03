@@ -55,6 +55,9 @@ syscfg.vals:
 
     USE_NEOPIXEL: 0
 
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
 syscfg.vals.BLE_MESH_SHELL_MODELS:
     PWM_0: 1
     PWM_1: 1

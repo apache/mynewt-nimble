@@ -28,3 +28,6 @@ syscfg.vals:
     BLE_ROLE_CENTRAL: 1
     BLE_ROLE_OBSERVER: 1
     BLE_ROLE_PERIPHERAL: 0
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0

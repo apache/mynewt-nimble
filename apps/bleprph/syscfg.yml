@@ -66,3 +66,6 @@ syscfg.vals:
     MSYS_1_BLOCK_SIZE: 110
 
     BLE_SVC_GAP_DEVICE_NAME: '"nimble-bleprph"'
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
