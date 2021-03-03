@@ -428,11 +428,12 @@ parse_arg_byte_stream_delim(char *sval, char *delims, int max_len,
     char *endptr;
     char *token;
     int i;
+    char *tok_ptr;
 
     i = 0;
-    for (token = strtok(sval, delims);
+    for (token = strtok_r(sval, delims, &tok_ptr);
          token != NULL;
-         token = strtok(NULL, delims)) {
+         token = strtok_r(NULL, delims, &tok_ptr)) {
 
         if (i >= max_len) {
             return EINVAL;
@@ -618,12 +619,13 @@ parse_arg_all(int argc, char **argv)
     char *key;
     char *val;
     int i;
+    char *tok_ptr;
 
     cmd_num_args = 0;
 
     for (i = 0; i < argc; i++) {
-        key = strtok(argv[i], "=");
-        val = strtok(NULL, "=");
+        key = strtok_r(argv[i], "=", &tok_ptr);
+        val = strtok_r(NULL, "=", &tok_ptr);
 
         if (key != NULL && val != NULL) {
             if (strlen(key) == 0) {
