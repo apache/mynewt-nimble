@@ -36,3 +36,6 @@ syscfg.vals:
 
     # Set device appearance to Cycling Speed and Cadence Sensor
     BLE_SVC_GAP_APPEARANCE: BLE_SVC_GAP_APPEARANCE_CYC_SPEED_AND_CADENCE_SENSOR
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0

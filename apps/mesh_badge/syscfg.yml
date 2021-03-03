@@ -25,6 +25,9 @@ syscfg.vals:
     # Set log level to info (disable debug logging).
     LOG_LEVEL: 1
 
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
     # Default task settings
     OS_MAIN_STACK_SIZE: 768
 

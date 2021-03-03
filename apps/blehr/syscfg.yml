@@ -33,3 +33,6 @@ syscfg.vals:
 
     # Set public device address.
     BLE_PUBLIC_DEV_ADDR: ((uint8_t[6]){0xcc, 0xbb, 0xaa, 0x33, 0x22, 0x11})
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0

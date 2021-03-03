@@ -43,3 +43,6 @@ syscfg.vals:
     # Since we advertise a lot of data (~4k in total) at the same time we need
     # to increase block count.
     MSYS_1_BLOCK_COUNT: 24
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0

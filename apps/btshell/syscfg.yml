@@ -38,5 +38,8 @@ syscfg.vals:
     # SMP is not supported in this app, so disable smp-over-shell.
     SHELL_MGMT: 0
 
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
 syscfg.vals.BLE_MESH:
     MSYS_1_BLOCK_COUNT: 16
