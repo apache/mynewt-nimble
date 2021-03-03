@@ -698,12 +698,16 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
 
         switch (proc->op) {
         case BLE_GATT_OP_WRITE_LONG:
-            os_mbuf_free_chain(proc->write_long.attr.om);
+            if (MYNEWT_VAL(BLE_GATT_WRITE_LONG)) {
+                os_mbuf_free_chain(proc->write_long.attr.om);
+            }
             break;
 
         case BLE_GATT_OP_WRITE_RELIABLE:
-            for (i = 0; i < proc->write_reliable.num_attrs; i++) {
-                os_mbuf_free_chain(proc->write_reliable.attrs[i].om);
+            if (MYNEWT_VAL(BLE_GATT_WRITE_RELIABLE)) {
+                for (i = 0; i < proc->write_reliable.num_attrs; i++) {
+                    os_mbuf_free_chain(proc->write_reliable.attrs[i].om);
+                }
             }
             break;
 
