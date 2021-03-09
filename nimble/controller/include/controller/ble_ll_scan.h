@@ -80,7 +80,7 @@ struct ble_ll_scan_timing {
     uint32_t start_time;
 };
 
-struct ble_ll_scan_params
+struct ble_ll_scan_phy
 {
     uint8_t phy;
     uint8_t own_addr_type;
@@ -185,9 +185,9 @@ struct ble_ll_scan_sm
     uint8_t restart_timer_needed;
     struct ble_ll_aux_data *cur_aux_data;
 
-    struct ble_ll_scan_params *scanp;
-    struct ble_ll_scan_params *scanp_next;
-    struct ble_ll_scan_params scanp_phys[BLE_LL_SCAN_PHY_NUMBER];
+    struct ble_ll_scan_phy *scanp;
+    struct ble_ll_scan_phy *scanp_next;
+    struct ble_ll_scan_phy scan_phys[BLE_LL_SCAN_PHY_NUMBER];
 };
 
 /* Scan types */
