@@ -83,8 +83,6 @@ struct ble_ll_scan_timing {
 struct ble_ll_scan_phy
 {
     uint8_t phy;
-    uint8_t own_addr_type;
-    uint8_t scan_filt_policy;
     uint8_t configured;
     uint8_t scan_type;
     uint8_t scan_chan;
@@ -154,7 +152,9 @@ struct ble_ll_scan_pdu_data {
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
+
     uint8_t own_addr_type;
+    uint8_t scan_filt_policy;
     uint8_t scan_filt_dups;
     uint8_t scan_rsp_pending;
     uint8_t scan_rsp_cons_fails;
