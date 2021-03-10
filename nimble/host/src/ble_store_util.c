@@ -91,9 +91,6 @@ ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs, int *out_num_peers,
     if (rc != 0) {
         return rc;
     }
-    if (set.status != 0) {
-        return set.status;
-    }
 
     *out_num_peers = set.num_peers;
     return 0;
