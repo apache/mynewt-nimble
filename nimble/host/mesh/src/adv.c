@@ -232,7 +232,6 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	adv->ref_cnt = 1;
 	ble_npl_event_set_arg(&adv->ev, buf);
 
-	os_mbuf_free_chain(buf);
 	return buf;
 }
 
