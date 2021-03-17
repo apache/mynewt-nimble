@@ -1823,6 +1823,10 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         } else if (req->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        } else if (req->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MAX &&
+                   MYNEWT_VAL(BLE_SM_SC) && !MYNEWT_VAL(BLE_SM_LEGACY)) {
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
         } else if (!ble_sm_verify_auth_requirements(req->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
@@ -1886,6 +1890,10 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
         } else if (rsp->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        } else if (rsp->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MAX &&
+                   MYNEWT_VAL(BLE_SM_SC) && !MYNEWT_VAL(BLE_SM_LEGACY)) {
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
         } else if (!ble_sm_verify_auth_requirements(rsp->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
