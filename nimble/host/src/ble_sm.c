@@ -1726,16 +1726,22 @@ err:
 }
 
 static bool
-ble_sm_verify_auth_requirements(uint8_t authreq)
+ble_sm_verify_auth_requirements(uint8_t cmd)
 {
     /* For now we check only SC only mode. I.e.: when remote indicates
      * to not support SC pairing, let us make sure legacy pairing is supported
      * on our side. If not, we can fail right away.
      */
-    if (!(authreq & BLE_SM_PAIR_AUTHREQ_SC)) {
+    if (!(cmd & BLE_SM_PAIR_AUTHREQ_SC)) {
         if (MYNEWT_VAL(BLE_SM_LEGACY) == 0) {
             return false;
         }
+    }
+    /* Fail if Secure Connections level forces MITM protection and remote does not
+     * support it
+     */
+    if (MYNEWT_VAL(BLE_SM_SC_LVL) >= 3 && !(cmd & BLE_SM_PAIR_AUTHREQ_MITM)) {
+        return false;
     }
     return true;
 }
@@ -1817,12 +1823,21 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
             res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
+        } else if (MYNEWT_VAL(BLE_SM_SC_LVL) == 1) {
+            res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
         } else if (req->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN) {
             res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
         } else if (req->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        } else if (MYNEWT_VAL(BLE_SM_SC_ONLY) && (req->max_enc_key_size != BLE_SM_PAIR_KEY_SZ_MAX)) {
+            /* Fail if Secure Connections Only mode is on and remote does not meet
+            * key size requirements - MITM was checked in last step
+            */
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
         } else if (!ble_sm_verify_auth_requirements(req->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
@@ -1886,6 +1901,12 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
         } else if (rsp->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        } else if (MYNEWT_VAL(BLE_SM_SC_ONLY) && (rsp->max_enc_key_size != BLE_SM_PAIR_KEY_SZ_MAX)) {
+            /* Fail if Secure Connections Only mode is on and remote does not meet
+            * key size requirements - MITM was checked in last step
+            */
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
         } else if (!ble_sm_verify_auth_requirements(rsp->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
