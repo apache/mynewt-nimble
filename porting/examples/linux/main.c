@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include "nimble/nimble_npl.h"
 #include "nimble/nimble_port.h"
+#include "host/ble_hs.h"
 
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
@@ -39,6 +40,7 @@ void nimble_host_task(void *param);
 void ble_hci_sock_ack_handler(void *param);
 void ble_hci_sock_init(void);
 void ble_hci_sock_set_device(int dev);
+void ble_store_ram_init(void);
 
 #define TASK_DEFAULT_PRIORITY       1
 #define TASK_DEFAULT_STACK          NULL
@@ -56,6 +58,23 @@ void *ble_host_task(void *param)
     return NULL;
 }
 
+static void
+ble_pre_enable_cb(void)
+{
+    /* This example provides GATT Alert service */
+     ble_svc_gap_init();
+     ble_svc_gatt_init();
+     ble_svc_ans_init();
+     ble_svc_ias_init();
+     ble_svc_lls_init();
+     ble_svc_tps_init();
+}
+
+static void
+ble_post_stop_cb(void)
+{
+}
+
 int main(int argc, char *argv[])
 {
     int ret = 0;
@@ -66,15 +85,10 @@ int main(int argc, char *argv[])
     }
 
     ble_hci_sock_init();
-    nimble_port_init();
 
-    /* This example provides GATT Alert service */
-    ble_svc_gap_init();
-    ble_svc_gatt_init();
-    ble_svc_ans_init();
-    ble_svc_ias_init();
-    ble_svc_lls_init();
-    ble_svc_tps_init();
+    ble_hs_cfg.pre_enable_cb = ble_pre_enable_cb;
+    ble_hs_cfg.post_stop_cb = ble_post_stop_cb;
+    nimble_port_init();
 
     /* XXX Need to have template for store */
     ble_store_ram_init();
