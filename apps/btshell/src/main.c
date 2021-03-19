@@ -43,6 +43,7 @@
 #include "host/ble_gatt.h"
 #include "host/ble_store.h"
 #include "host/ble_sm.h"
+#include "host/util/util.h"
 
 /* Mandatory services. */
 #include "services/gap/ble_svc_gap.h"
@@ -2105,6 +2106,11 @@ btshell_on_reset(int reason)
 static void
 btshell_on_sync(void)
 {
+    /* Make sure we have proper identity address set (public preferred) */
+    if (ble_hs_util_ensure_addr(0) != 0) {
+        console_printf("Failed to set identity address\n");
+    }
+
 #if MYNEWT_VAL(BLE_SM_SC)
     int rc;
 
