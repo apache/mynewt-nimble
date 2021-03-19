@@ -959,8 +959,8 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
     uint8_t hdr_byte;
     uint8_t end_transition;
     uint8_t cur_txlen;
-    uint8_t next_txlen;
-    uint8_t cur_offset;
+    uint16_t next_txlen;
+    uint16_t cur_offset;
     uint16_t pktlen;
     uint32_t next_event_time;
     uint32_t ticks;
@@ -1129,11 +1129,10 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         if ((cur_offset + cur_txlen) < pktlen) {
             next_txlen = pktlen - (cur_offset + cur_txlen);
         } else {
-            if (nextpkthdr->omp_len > connsm->eff_max_tx_octets) {
-                next_txlen = connsm->eff_max_tx_octets;
-            } else {
-                next_txlen = nextpkthdr->omp_len;
-            }
+            next_txlen = connsm->eff_max_tx_octets;
+        }
+        if (next_txlen > connsm->eff_max_tx_octets) {
+            next_txlen = connsm->eff_max_tx_octets;
         }
 
         /*
@@ -1491,7 +1490,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
                               uint32_t add_usecs)
 {
     int rc;
-    uint8_t rem_bytes;
+    uint16_t rem_bytes;
     uint32_t ticks;
     uint32_t usecs;
     uint32_t next_sched_time;
@@ -3791,7 +3790,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t conn_sn;
     uint8_t conn_nesn;
     uint8_t reply;
-    uint8_t rem_bytes;
+    uint16_t rem_bytes;
     uint8_t opcode = 0;
     uint8_t rx_pyld_len;
     uint32_t begtime;
@@ -4074,7 +4073,7 @@ conn_exit:
  */
 void
 ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
-                        uint8_t hdr_byte, uint8_t length)
+                        uint8_t hdr_byte, uint16_t length)
 {
     os_sr_t sr;
     struct os_mbuf_pkthdr *pkthdr;
