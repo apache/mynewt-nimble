@@ -1369,6 +1369,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
     uint32_t ll_val32;
     int32_t time_till_start;
+    int rc = 0;
 
     MCU_DIAG_SER('r');
 
@@ -1404,11 +1405,12 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
             /* We missed start. Start now */
             CMAC->CM_EV_LINKUP_REG =
                 CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_ASAP_Msk;
+            rc = BLE_PHY_ERR_RX_LATE;
         }
     }
     __enable_irq();
 
-    return 0;
+    return rc;
 }
 
 int
