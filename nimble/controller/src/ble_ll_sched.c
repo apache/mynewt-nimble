@@ -28,6 +28,7 @@
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_scan_aux.h"
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
@@ -244,6 +245,9 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
             ble_ll_adv_event_rmvd_from_sched((struct ble_ll_adv_sm *)entry->cb_arg);
             break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_SCHED_TYPE_SCAN_AUX:
+            ble_ll_scan_aux_break(entry->cb_arg);
+            break;
         case BLE_LL_SCHED_TYPE_AUX_SCAN:
             ble_ll_scan_end_adv_evt((struct ble_ll_aux_data *)entry->cb_arg);
             break;
@@ -1464,6 +1468,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
         STATS_INC(ble_ll_stats, sched_state_sync_errs);
         ble_ll_sync_halt();
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    } else if (lls == BLE_LL_STATE_SCAN_AUX) {
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        ble_ll_scan_aux_halt();
+#endif
     } else {
         STATS_INC(ble_ll_stats, sched_state_conn_errs);
         ble_ll_conn_event_halt();
@@ -1711,6 +1720,65 @@ done:
     /* Restart timer */
     BLE_LL_ASSERT(sch != NULL);
     os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+
+int
+ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
+                      uint8_t pdu_time_rem, uint32_t offset_us)
+{
+    struct ble_ll_sched_item *entry;
+    uint32_t offset_ticks;
+    os_sr_t sr;
+    int rc;
+
+    offset_us += pdu_time_rem;
+    offset_ticks = os_cputime_usecs_to_ticks(offset_us);
+
+    sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
+    sch->remainder = offset_us - os_cputime_ticks_to_usecs(offset_ticks);
+    /* TODO: make some sane slot reservation */
+    sch->end_time = sch->start_time + os_cputime_usecs_to_ticks(5000);
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Scheduler was empty, inserted as 1st element */
+        rc = 0;
+        goto done;
+    }
+
+    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+        if (CPUTIME_LEQ(sch->end_time, entry->start_time)) {
+            TAILQ_INSERT_BEFORE(entry, sch, link);
+            sch->enqueued = 1;
+            rc = 0;
+            break;
+        }
+
+        if (ble_ll_sched_is_overlap(sch, entry)) {
+            rc = -1;
+            break;
+        }
+    }
+
+    if (!entry) {
+        TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+        sch->enqueued = 1;
+        rc = 0;
+    }
+
+done:
+    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    OS_EXIT_CRITICAL(sr);
+
+    if (entry == sch) {
+        ble_ll_rfmgmt_sched_changed(sch);
+    }
+    os_cputime_timer_start(&g_ble_ll_sched_timer, entry->start_time);
 
     return rc;
 }

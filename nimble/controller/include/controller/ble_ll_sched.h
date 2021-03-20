@@ -71,6 +71,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_DTM       (5)
 #define BLE_LL_SCHED_TYPE_PERIODIC  (6)
 #define BLE_LL_SCHED_TYPE_SYNC      (7)
+#define BLE_LL_SCHED_TYPE_SCAN_AUX  (8)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -200,6 +201,9 @@ int ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_aux_data *aux_scan);
 
 int ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode);
+
+int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
+                          uint8_t pdu_time_rem, uint32_t offset_us);
 #endif
 
 /* Stop the scheduler */

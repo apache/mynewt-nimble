@@ -220,6 +220,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_CONNECTION     (4)
 #define BLE_LL_STATE_DTM            (5)
 #define BLE_LL_STATE_SYNC           (6)
+#define BLE_LL_STATE_SCAN_AUX       (7)
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION    (0x0000000001)
@@ -354,6 +355,7 @@ struct ble_dev_addr
 #define BLE_LL_EXT_ADV_FLAGS_SIZE       (1)
 #define BLE_LL_EXT_ADV_ADVA_SIZE        (6)
 #define BLE_LL_EXT_ADV_TARGETA_SIZE     (6)
+#define BLE_LL_EXT_ADV_CTE_INFO_SIZE    (1)
 #define BLE_LL_EXT_ADV_DATA_INFO_SIZE   (2)
 #define BLE_LL_EXT_ADV_AUX_PTR_SIZE     (3)
 #define BLE_LL_EXT_ADV_SYNC_INFO_SIZE   (18)

@@ -1333,14 +1333,11 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
 }
 
 void
-ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type, int rpa_index,
+ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
                        uint8_t sid, struct ble_mbuf_hdr *rxhdr,
                        const uint8_t *syncinfo)
 {
     struct ble_ll_sync_sm *sm = NULL;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-    const uint8_t *rpa = NULL;
-#endif
     uint16_t max_skip;
     uint32_t offset;
     uint32_t usecs;
@@ -1365,28 +1362,21 @@ ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type, int rpa_index,
         return;
     }
 
-    /* check if resolved */
-    if (rpa_index >= 0) {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-        rpa = addr;
-#endif
-        addr = g_ble_ll_resolv_list[rpa_index].rl_identity_addr;
-        addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type;
-    }
-
     /* check peer */
     if (g_ble_ll_sync_create_params.options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER) {
-        if (ble_ll_sync_on_list(addr, addr_type, sid) < 0) {
+        if (ble_ll_sync_on_list(addrd->adv_addr,
+                                addrd->adv_addr_type, sid) < 0) {
             return;
         }
 
         /* set addr and sid in sm */
         sm->adv_sid = sid;
-        sm->adv_addr_type = addr_type;
-        memcpy(sm->adv_addr, addr, BLE_DEV_ADDR_LEN);
+        sm->adv_addr_type = addrd->adv_addr_type;
+        memcpy(sm->adv_addr, addrd->adv_addr, BLE_DEV_ADDR_LEN);
     } else {
-        if ((sm->adv_sid != sid) || (sm->adv_addr_type != addr_type) ||
-                memcmp(sm->adv_addr, addr, BLE_DEV_ADDR_LEN)) {
+        if ((sm->adv_sid != sid) ||
+                (sm->adv_addr_type != addrd->adv_addr_type) ||
+                memcmp(sm->adv_addr, addrd->adv_addr, BLE_DEV_ADDR_LEN)) {
             return;
         }
     }
@@ -1406,12 +1396,14 @@ ble_ll_sync_info_event(const uint8_t *addr, uint8_t addr_type, int rpa_index,
         return;
     }
 
-    if (rpa_index >= 0) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    if (addrd->adva_resolved) {
         sm->flags |= BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-        memcpy(sm->adv_addr_rpa, rpa, BLE_DEV_ADDR_LEN);
+        memcpy(sm->adv_addr_rpa, addrd->adva, BLE_DEV_ADDR_LEN);
 #endif
     }
+#endif
 
     /* set params from HCI LE Create Periodic Sync */
     sm->timeout = g_ble_ll_sync_create_params.timeout;

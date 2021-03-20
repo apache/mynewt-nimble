@@ -149,6 +149,20 @@ struct ble_ll_scan_pdu_data {
     uint8_t adva[BLE_DEV_ADDR_LEN];
 };
 
+struct ble_ll_scan_addr_data {
+    uint8_t *adva;
+    uint8_t *targeta;
+    uint8_t *adv_addr;
+    uint8_t adva_type : 1;
+    uint8_t targeta_type : 1;
+    uint8_t adv_addr_type : 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    uint8_t adva_resolved : 1;
+    uint8_t targeta_resolved : 1;
+    int8_t rpa_index;
+#endif
+};
+
 struct ble_ll_scan_sm
 {
     uint8_t scan_enabled;
@@ -285,6 +299,25 @@ void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 
 /* Called to halt currently running scan */
 void ble_ll_scan_halt(void);
+
+uint8_t *ble_ll_get_scan_nrpa(void);
+uint8_t ble_ll_scan_get_own_addr_type(void);
+uint8_t ble_ll_scan_get_filt_policy(void);
+uint8_t ble_ll_scan_get_filt_dups(void);
+uint8_t ble_ll_scan_backoff_kick(void);
+void ble_ll_scan_backoff_update(int success);
+
+int ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+                              uint16_t adi);
+int ble_ll_scan_dup_update_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+                               uint16_t adi);
+int ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
+                                  uint16_t adi);
+void ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
+                                  uint16_t adi);
+
+int ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
+                          struct ble_ll_scan_addr_data *addrd, uint8_t *scan_ok);
 
 #ifdef __cplusplus
 }
