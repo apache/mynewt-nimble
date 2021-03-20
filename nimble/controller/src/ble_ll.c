@@ -37,6 +37,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_scan_aux.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
@@ -689,6 +690,11 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_sync_wfr_timer_exp();
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_STATE_SCAN_AUX:
+            ble_ll_scan_aux_wfr_timer_exp();
+            break;
+#endif
         default:
             break;
         }
@@ -849,6 +855,11 @@ ble_ll_rx_pkt_in(void)
             ble_ll_sync_rx_pkt_in(m, ble_hdr);
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_STATE_SCAN_AUX:
+            ble_ll_scan_aux_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
         default:
             /* Any other state should never occur */
             STATS_INC(ble_ll_stats, bad_ll_state);
@@ -985,6 +996,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_sync_rx_isr_start(pdu_type, rxhdr);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_LL_STATE_SCAN_AUX:
+        rc = ble_ll_scan_aux_rx_isr_start(pdu_type, rxhdr);
+        break;
+#endif
     default:
         /* Should not be in this state! */
         rc = -1;
@@ -1109,6 +1125,17 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     case BLE_LL_STATE_INITIATING:
         rc = ble_ll_init_rx_isr_end(rxbuf, crcok, rxhdr);
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_LL_STATE_SCAN_AUX:
+        if (!badpkt) {
+            rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
+            if (rxpdu) {
+                ble_phy_rxpdu_copy(rxbuf, rxpdu);
+            }
+        }
+        rc = ble_ll_scan_aux_rx_isr_end(rxpdu, crcok);
+        break;
+#endif
     default:
         rc = -1;
         STATS_INC(ble_ll_stats, bad_ll_state);
