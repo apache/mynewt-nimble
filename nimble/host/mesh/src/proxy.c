@@ -86,7 +86,7 @@ ble_uuid16_t BT_UUID_MESH_PROXY_DATA_OUT       = BLE_UUID16_INIT(0x2ade);
 
 #define PDU_HDR(sar, type) (sar << 6 | (type & BIT_MASK(6)))
 
-#define CLIENT_BUF_SIZE 68
+#define CLIENT_BUF_SIZE 65
 
 static const struct ble_gap_adv_params slow_adv_param = {
 	.conn_mode = (BLE_GAP_CONN_MODE_UND),
