@@ -997,7 +997,7 @@ struct shell_cmd_help cmd_timeout_help = {
 
 static int cmd_get_comp(int argc, char *argv[])
 {
-	struct os_mbuf *comp = NET_BUF_SIMPLE(32);
+	struct os_mbuf *comp = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
 	uint8_t status, page = 0x00;
 	int err = 0;
 
