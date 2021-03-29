@@ -328,7 +328,7 @@ static void send_filter_status(struct bt_mesh_proxy_client *client,
 
 static void proxy_cfg(struct bt_mesh_proxy_client *client)
 {
-	struct os_mbuf *buf = NET_BUF_SIMPLE(29);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(BT_MESH_NET_MAX_PDU_LEN);
 	struct bt_mesh_net_rx rx;
 	uint8_t opcode;
 	int err;
