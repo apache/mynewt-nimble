@@ -1650,7 +1650,7 @@ static inline void va_store(struct bt_mesh_va *store)
 	}
 }
 
-uint8_t bt_mesh_va_add(uint8_t uuid[16], uint16_t *addr)
+uint8_t bt_mesh_va_add(const uint8_t uuid[16], uint16_t *addr)
 {
 	struct bt_mesh_va *va = NULL;
 	int err;
@@ -1692,7 +1692,7 @@ uint8_t bt_mesh_va_add(uint8_t uuid[16], uint16_t *addr)
 	return STATUS_SUCCESS;
 }
 
-uint8_t bt_mesh_va_del(uint8_t uuid[16], uint16_t *addr)
+uint8_t bt_mesh_va_del(const uint8_t uuid[16], uint16_t *addr)
 {
 	struct bt_mesh_va *va = NULL;
 
