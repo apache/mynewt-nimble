@@ -235,7 +235,7 @@ uint8_t bt_mesh_cdb_subnet_flags(const struct bt_mesh_cdb_subnet *sub)
 {
 	uint8_t flags = 0x00;
 
-	if (sub && sub->kr_flag) {
+	if (sub && SUBNET_KEY_TX_IDX(sub)) {
 		flags |= BT_MESH_NET_FLAG_KR;
 	}
 
