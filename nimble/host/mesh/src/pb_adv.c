@@ -125,6 +125,7 @@ static void gen_prov_ack_send(uint8_t xact_id);
 static void link_open(struct prov_rx *rx, struct os_mbuf *buf);
 static void link_ack(struct prov_rx *rx, struct os_mbuf *buf);
 static void link_close(struct prov_rx *rx, struct os_mbuf *buf);
+static void prov_link_close(enum prov_bearer_link_status status);
 
 static void buf_sent(int err, void *user_data)
 {
@@ -281,7 +282,7 @@ static void protocol_timeout(struct ble_npl_event *work)
 	BT_DBG("");
 
 	link.rx.seg = 0U;
-	close_link(PROV_BEARER_LINK_STATUS_TIMEOUT);
+	prov_link_close(PROV_BEARER_LINK_STATUS_TIMEOUT);
 }
 /*******************************************************************************
  * Generic provisioning
