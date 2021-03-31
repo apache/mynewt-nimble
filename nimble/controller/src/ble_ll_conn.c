@@ -1568,22 +1568,6 @@ ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
-void
-ble_ll_conn_rd_features_timer_cb(struct ble_npl_event *ev)
-{
-    struct ble_ll_conn_sm *connsm;
-
-    connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
-
-    if (!connsm->csmflags.cfbit.pending_hci_rd_features ||
-                                        !connsm->csmflags.cfbit.rxd_features) {
-        return;
-    }
-
-    ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-    connsm->csmflags.cfbit.pending_hci_rd_features = 0;
-}
-
 /**
  * Start (or restart) the authenticated payload timer
  *
