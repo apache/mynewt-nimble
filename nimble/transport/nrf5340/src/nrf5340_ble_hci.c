@@ -270,15 +270,29 @@ nrf5340_ble_hci_trans_rx_process(int channel)
         break;
 #if MYNEWT_VAL(BLE_CONTROLLER)
     case HCI_PKT_CMD:
-        /* commands are sent complete over IPC */
-        rxd->len = ipc_nrf5340_read(channel, rxd->hdr, 3);
-        assert(rxd->len == 3);
+        /* header */
+        if (rxd->len < 3) {
+            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
+                                         3 - rxd->len);
+            if (rxd->len < 3) {
+                break;
+            }
+        }
 
-        rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-        memcpy(rxd->buf, rxd->hdr, rxd->len);
+        if (rxd->expected_len == 0) {
+            rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+            memcpy(rxd->buf, rxd->hdr, rxd->len);
 
-        rxd->len += ipc_nrf5340_read(channel, &rxd->buf[rxd->len], rxd->hdr[2]);
-        assert(rxd->len == 3 + rxd->hdr[2]);
+            rxd->expected_len = 3 + rxd->hdr[2];
+        }
+
+        if (rxd->len < rxd->expected_len) {
+            rxd->len += ipc_nrf5340_read(channel, &rxd->buf[rxd->len],
+                                         rxd->expected_len - rxd->len);
+            if (rxd->len < rxd->expected_len) {
+                break;
+            }
+        }
 
         rc = nrf5340_ble_hci_api.cmd_cb(rxd->buf, nrf5340_ble_hci_api.cmd_arg);
         if (rc != 0) {
@@ -290,14 +304,23 @@ nrf5340_ble_hci_trans_rx_process(int channel)
 #endif
 #if MYNEWT_VAL(BLE_HOST)
     case HCI_PKT_EVT:
-        /* events are sent complete over IPC */
-        rxd->len = ipc_nrf5340_read(channel, rxd->hdr, 2);
-        assert(rxd->len == 2);
+        /* header */
+        if (rxd->len < 2) {
+            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
+                                         2 - rxd->len);
+            if (rxd->len < 2) {
+                break;
+            }
+        }
 
         if (rxd->hdr[0] == BLE_HCI_EVCODE_LE_META) {
-            /* For LE Meta event we need 3 bytes to parse header */
-            rxd->len += ipc_nrf5340_read(channel, rxd->hdr + 2, 1);
-            assert(rxd->len == 3);
+            if (rxd->len < 3) {
+                /* For LE Meta event we need 3 bytes to parse header */
+                rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len], 1);
+                if (rxd->len < 3) {
+                    break;
+                }
+            }
 
             /* Advertising reports shall be allocated from low-prio pool */
             if ((rxd->hdr[2] == BLE_HCI_LE_SUBEV_ADV_RPT) ||
@@ -306,26 +329,33 @@ nrf5340_ble_hci_trans_rx_process(int channel)
             }
         }
 
-        rxd->buf = ble_hci_trans_buf_alloc(pool);
-        if (!rxd->buf) {
-            /*
-             * Only care about valid buffer when shall be allocated from
-             * high-prio pool, otherwise NULL is fine and we'll just skip
-             * this event.
-             */
-            if (pool != BLE_HCI_TRANS_BUF_EVT_LO) {
-                rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+        if (rxd->expected_len == 0) {
+            rxd->buf = ble_hci_trans_buf_alloc(pool);
+            if (!rxd->buf) {
+                /*
+                 * Only care about valid buffer when shall be allocated from
+                 * high-prio pool, otherwise NULL is fine and we'll just skip
+                 * this event.
+                 */
+                if (pool != BLE_HCI_TRANS_BUF_EVT_LO) {
+                    rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+                }
+            }
+
+            rxd->expected_len = 2 + rxd->hdr[1];
+
+            /* copy header */
+            if (rxd->buf) {
+                memcpy(rxd->buf, rxd->hdr, rxd->len);
             }
         }
 
-        rxd->expected_len = 2 + rxd->hdr[1];
-
         if (rxd->buf) {
-            memcpy(rxd->buf, rxd->hdr, rxd->len);
-
             rxd->len += ipc_nrf5340_read(channel, &rxd->buf[rxd->len],
                                          rxd->expected_len - rxd->len);
-            assert(rxd->expected_len == rxd->len);
+            if (rxd->len < rxd->expected_len) {
+                break;
+            }
 
             rc = nrf5340_ble_hci_api.evt_cb(rxd->buf,
                                             nrf5340_ble_hci_api.evt_arg);
@@ -335,7 +365,9 @@ nrf5340_ble_hci_trans_rx_process(int channel)
         } else {
             rxd->len += ipc_nrf5340_consume(channel,
                                             rxd->expected_len - rxd->len);
-            assert(rxd->expected_len == rxd->len);
+            if (rxd->len < rxd->expected_len) {
+                break;
+            }
         }
 
         rxd->type = HCI_PKT_NONE;
@@ -343,8 +375,8 @@ nrf5340_ble_hci_trans_rx_process(int channel)
 #endif
     case HCI_PKT_ACL:
         if (rxd->len < 4) {
-            rxd->len += ipc_nrf5340_read(channel, rxd->hdr, 4 - rxd->len);
-
+            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
+                                         4 - rxd->len);
             if (rxd->len < 4) {
                 break;
             }
