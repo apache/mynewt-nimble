@@ -19,11 +19,9 @@
 #
 -->
 
-<div align="center">
   
 <img src="http://mynewt.apache.org/img/logo.svg" width="250" alt="Apache Mynewt">
 
-</div>
 
 ## Overview
 
