@@ -1687,8 +1687,6 @@ ble_ll_init(void)
 
     /* Initialize random number generation */
     ble_ll_rand_init();
-    /* Start the random number generator */
-    ble_ll_rand_start();
 
     rc = stats_init_and_reg(STATS_HDR(ble_ll_stats),
                             STATS_SIZE_INIT_PARMS(ble_ll_stats, STATS_SIZE_32),
