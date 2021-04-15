@@ -178,6 +178,7 @@ ble_ll_rand_init(void)
     if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
         ble_hw_rng_start();
     }
+#endif
 
     /* Seed the pseudo random number generator (jrand48) */
     ble_ll_rand_data_get((uint8_t *)xsubi, sizeof(xsubi));
@@ -186,6 +187,5 @@ ble_ll_rand_init(void)
      * want this to happen in interrupt context, which can happen if we wait for
      * the first actual call to ble_ll_rand(). */
     ble_ll_rand();
-#endif
     return 0;
 }
