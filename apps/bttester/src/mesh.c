@@ -41,7 +41,7 @@
 extern uint8_t own_addr_type;
 
 #define CONTROLLER_INDEX 0
-#define CID_LOCAL 0xffff
+#define CID_LOCAL 0x0002
 
 /* Health server data */
 #define CUR_FAULTS_MAX 4
