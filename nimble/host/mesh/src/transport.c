@@ -1413,8 +1413,9 @@ found_rx:
 	/* Reset the Incomplete Timer */
 	rx->last = k_uptime_get_32();
 
-	if (!k_delayed_work_remaining_get(&rx->ack) &&
-	    !bt_mesh_lpn_established()) {
+	if (!k_delayed_work_pending(&rx->ack) ||
+	    (!k_delayed_work_remaining_get(&rx->ack) &&
+	    !bt_mesh_lpn_established())) {
 		int32_t timeout = ack_timeout(rx);
 
 		k_delayed_work_submit(&rx->ack, K_MSEC(timeout));
