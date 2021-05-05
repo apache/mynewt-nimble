@@ -461,7 +461,7 @@ syscfg.defs:
         description: >
             Automatically subscribe all nodes address when friendship
             established.
-        value: 1
+        value: 0
 
     BLE_MESH_FRIEND:
         description: >
