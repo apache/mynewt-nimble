@@ -288,7 +288,7 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
      * require it on level 4
      */
     if (MYNEWT_VAL(BLE_SM_SC_ONLY)) {
-        if (sec_state.key_size != 128 ||
+        if (sec_state.key_size != 16 ||
             !sec_state.authenticated ||
             !sec_state.encrypted) {
             return BLE_ATT_ERR_INSUFFICIENT_KEY_SZ;
