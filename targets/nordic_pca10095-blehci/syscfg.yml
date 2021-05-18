@@ -17,36 +17,26 @@
 # under the License.
 #
 
-repo.name: apache-mynewt-nimble
-repo.versions:
-    "0.0.0": "master"
+syscfg.vals:
+    BLE_HCI_TRANSPORT: nrf5340
 
-    "0-dev": "0.0.0"
-    "0-latest": "1.4.0"
-    "1-latest": "1.4.0"
-
-    "1.0.0": "nimble_1_0_0_tag"
-    "1.1.0": "nimble_1_1_0_tag"
-    "1.2.0": "nimble_1_2_0_tag"
-    "1.3.0": "nimble_1_3_0_tag"
-    "1.4.0": "nimble_1_4_0_tag"
-
-    "1.0-latest": "1.0.0"
-    "1.1-latest": "1.1.0"
-    "1.2-latest": "1.2.0"
-    "1.3-latest": "1.3.0"
-    "1.4-latest": "1.4.0"
-
-repo.newt_compatibility:
-    0.0.0:
-        1.1.0: good
-    1.0.0:
-        1.1.0: good
-    1.1.0:
-        1.6.0: good
-    1.2.0:
-        1.7.0: good
-    1.3.0:
-        1.8.0: good
-    1.4.0:
-        1.9.0: good
+    MSYS_1_BLOCK_COUNT: 12
+    MSYS_1_BLOCK_SIZE: 292
+    BLE_LL_CFG_FEAT_DATA_LEN_EXT: 1
+    BLE_LL_CFG_FEAT_LE_2M_PHY: 1
+    BLE_LL_CFG_FEAT_LE_CODED_PHY: 1
+    BLE_LL_CFG_FEAT_LL_PRIVACY: 1
+    BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL: 1
+    BLE_LL_CONN_INIT_MAX_TX_BYTES: 251
+    BLE_LL_CONN_INIT_SLOTS: 4
+    BLE_LL_DTM: 1
+    BLE_LL_DTM_EXTENSIONS: 1
+    BLE_LL_VND_EVENT_ON_ASSERT: 1
+    BLE_MAX_CONNECTIONS: 5
+    BLE_EXT_ADV: 1
+    BLE_EXT_ADV_MAX_SIZE: 1650
+    BLE_MAX_PERIODIC_SYNCS: 5
+    BLE_MULTI_ADV_INSTANCES: 5
+    BLE_PERIODIC_ADV: 1
+    BLE_PERIODIC_ADV_SYNC_TRANSFER: 1
+    BLE_VERSION: 51
