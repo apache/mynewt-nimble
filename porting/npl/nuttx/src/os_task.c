@@ -18,6 +18,8 @@
  */
 
 #include <nuttx/config.h>
+#include <errno.h>
+
 #include "os/os.h"
 #include "nimble/nimble_npl.h"
 
