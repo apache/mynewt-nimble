@@ -202,6 +202,14 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 				 BLE_GATT_CHR_F_WRITE |
 				 BLE_GATT_CHR_F_WRITE_AUTHEN,
 		}, {
+			.uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHEN),
+			.access_cb = gatt_svr_read_write_auth_test,
+			.flags = BLE_GATT_CHR_F_READ_AUTHEN |
+				 BLE_GATT_CHR_F_READ |
+				 BLE_GATT_CHR_F_WRITE_AUTHEN |
+				 BLE_GATT_CHR_F_WRITE |
+				 BLE_GATT_CHR_F_WRITE_AUTHEN,
+		}, {
 			.uuid = PTS_UUID_DECLARE(PTS_CHR_RELIABLE_WRITE),
 			.access_cb = gatt_svr_rel_write_test,
 			.flags = BLE_GATT_CHR_F_WRITE |
