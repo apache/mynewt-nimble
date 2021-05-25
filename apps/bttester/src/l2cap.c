@@ -249,6 +249,7 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
 	struct ble_l2cap_chan_info chan_info;
 	int accept_response;
+	struct ble_gap_conn_desc conn;
 
 	switch (event->type) {
 		case BLE_L2CAP_EVENT_COC_CONNECTED:
@@ -288,6 +289,28 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 				event->disconnect.chan, &chan_info, arg);
 		return 0;
 	case BLE_L2CAP_EVENT_COC_ACCEPT:
+		ble_l2cap_get_chan_info(event->accept.chan, &chan_info);
+		if (chan_info.psm == 0x00F2) {
+			/* TSPX_psm_authentication_required */
+			ble_gap_conn_find(event->accept.conn_handle, &conn);
+			if (!conn.sec_state.authenticated) {
+				return BLE_HS_EAUTHEN;
+			}
+		} else if (chan_info.psm == 0x00F3) {
+			/* TSPX_psm_authorization_required */
+			ble_gap_conn_find(event->accept.conn_handle, &conn);
+			if (!conn.sec_state.encrypted) {
+				return BLE_HS_EAUTHOR;
+			}
+			return BLE_HS_EAUTHOR;
+		} else if (chan_info.psm == 0x00F4) {
+			/* TSPX_psm_encryption_key_size_required */
+			ble_gap_conn_find(event->accept.conn_handle, &conn);
+			if (conn.sec_state.key_size < 16) {
+				return BLE_HS_EENCRYPT_KEY_SZ;
+			}
+		}
+
 		accept_response = POINTER_TO_INT(arg);
 		if (accept_response) {
 			return accept_response;
