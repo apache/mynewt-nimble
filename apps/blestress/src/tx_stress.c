@@ -73,7 +73,7 @@ tx_stress_simple_scan(ble_gap_event_fn *cb, uint16_t duration)
     params.passive = 1;
     params.window = BLE_GAP_SCAN_FAST_WINDOW;
 
-    rc = ble_gap_ext_disc(own_addr_type, duration, 0, 1, 0, 0, &params, NULL,
+    rc = ble_gap_ext_disc(own_addr_type, duration, 0, 0, 0, 0, &params, NULL,
                           cb, NULL);
 
     if (rc != 0) {
