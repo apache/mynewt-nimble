@@ -82,3 +82,6 @@ syscfg.vals:
 
     # Whether to save data to sys/config, or just keep it in RAM.
     BLE_STORE_CONFIG_PERSIST: 0
+
+    # ACL buf size must be able to contain CoC MPS plus ACL header
+    BLE_TRANSPORT_ACL_SIZE: MYNEWT_VAL_BLE_L2CAP_COC_MPS + 4
