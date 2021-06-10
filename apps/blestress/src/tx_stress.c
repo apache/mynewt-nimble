@@ -83,7 +83,7 @@ tx_stress_simple_scan(ble_gap_event_fn *cb, uint16_t duration)
 }
 
 static int
-tx_stress_simple_connect(ble_gap_event_fn *cb, int test_num)
+tx_stress_simple_connect(ble_gap_event_fn *cb, int test_num, struct ble_gap_conn_params *params)
 {
     uint8_t own_addr_type;
     int rc;
@@ -105,7 +105,7 @@ tx_stress_simple_connect(ble_gap_event_fn *cb, int test_num)
     rc = ble_gap_ext_connect(own_addr_type, &tx_stress_ctx->dev_addr,
                              10000,
                              BLE_GAP_LE_PHY_1M_MASK | BLE_GAP_LE_PHY_2M_MASK,
-                             NULL, NULL, NULL, cb, NULL);
+                             params, params, NULL, cb, NULL);
 
     if (rc != 0) {
         MODLOG_DFLT(INFO, "\033[0;31mError during connection; rc=%d\033[0m\n",
@@ -175,7 +175,7 @@ tx_stress_switcher_gap_event(struct ble_gap_event *event, void *arg)
         }
         /* Connect to rx device just to give it a signal to switch test. */
         tx_stress_simple_connect(tx_stress_switcher_gap_event,
-                                 tx_stress_ctx->cur_test_id);
+                                 tx_stress_ctx->cur_test_id, NULL);
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
@@ -212,7 +212,7 @@ tx_stress_switch_test()
     tx_stress_simple_scan(tx_stress_switcher_gap_event, 0);
     os_sem_pend(&tx_stress_main_sem, OS_TIMEOUT_NEVER);
 
-    tx_stress_simple_connect(tx_stress_switcher_gap_event, 0);
+    tx_stress_simple_connect(tx_stress_switcher_gap_event, 0, NULL);
 }
 
 static int
@@ -363,7 +363,7 @@ tx_stress_2_gap_event(struct ble_gap_event *event, void *arg)
             return 0;
         }
         tx_stress_simple_connect(tx_stress_2_gap_event,
-                                 tx_stress_ctx->cur_test_id);
+                                 tx_stress_ctx->cur_test_id, NULL);
         return 0;
 
     default:
@@ -405,7 +405,7 @@ tx_stress_3_gap_event(struct ble_gap_event *event, void *arg)
             return 0;
         }
         tx_stress_simple_connect(tx_stress_3_gap_event,
-                                 tx_stress_ctx->cur_test_id);
+                                 tx_stress_ctx->cur_test_id, NULL);
         return 0;
 
     default:
@@ -848,6 +848,16 @@ tx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
 {
     ble_addr_t addr;
     int test;
+    struct ble_gap_conn_params conn_params = {
+        .scan_itvl = 0x0010,
+        .scan_window = 0x0010,
+        .itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN,
+        .itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX,
+        .latency = 0,
+        .supervision_timeout = 0x0C80,
+        .min_ce_len = 0x0010,
+        .max_ce_len = 0x0300,
+    };
 
     switch (event->type) {
     case BLE_GAP_EVENT_EXT_DISC:
@@ -860,7 +870,7 @@ tx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
             ble_gap_disc_cancel();
             tx_stress_ctx->dev_addr = event->ext_disc.addr;
             tx_stress_simple_connect(tx_stress_9_gap_event,
-                                     tx_stress_ctx->cur_test_id);
+                                     tx_stress_ctx->cur_test_id, &conn_params);
         }
         return 0;
 
@@ -1169,7 +1179,7 @@ tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
             ble_gap_disc_cancel();
             tx_stress_ctx->dev_addr = event->ext_disc.addr;
             tx_stress_simple_connect(tx_stress_11_gap_event,
-                                     tx_stress_ctx->cur_test_id);
+                                     tx_stress_ctx->cur_test_id, NULL);
         }
         return 0;
 
@@ -1467,7 +1477,7 @@ tx_stress_15_gap_event(struct ble_gap_event *event, void *arg)
             return 0;
         }
         /* Reconnect */
-        tx_stress_simple_connect(tx_stress_15_gap_event, 15);
+        tx_stress_simple_connect(tx_stress_15_gap_event, 15, NULL);
         return 0;
 
     default:
@@ -1537,19 +1547,19 @@ tx_stress_test_perform(int test_num)
         break;
     case 2:
         console_printf("Stress Connect/Disconnect legacy\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_2_gap_event, 2);
+        tx_stress_simple_connect(&tx_stress_2_gap_event, 2, NULL);
         break;
     case 3:
         console_printf("Stress Connect/Disconnect ext adv\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_3_gap_event, 3);
+        tx_stress_simple_connect(&tx_stress_3_gap_event, 3, NULL);
         break;
     case 4:
         console_printf("Stress connection params update (TX)\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_4_gap_event, 4);
+        tx_stress_simple_connect(&tx_stress_4_gap_event, 4, NULL);
         break;
     case 5:
         console_printf("Stress connection params update (RX)\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_5_gap_event, 5);
+        tx_stress_simple_connect(&tx_stress_5_gap_event, 5, NULL);
         break;
     case 6:
         console_printf("Stress Scan\033[0m\n");
@@ -1557,11 +1567,11 @@ tx_stress_test_perform(int test_num)
         break;
     case 7:
         console_printf("Stress PHY Update (TX)\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_7_gap_event, 7);
+        tx_stress_simple_connect(&tx_stress_7_gap_event, 7, NULL);
         break;
     case 8:
         console_printf("Stress PHY Update (RX)\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_8_gap_event, 8);
+        tx_stress_simple_connect(&tx_stress_8_gap_event, 8, NULL);
         break;
     case 9:
         console_printf("Stress multi connection\033[0m\n");
@@ -1569,27 +1579,27 @@ tx_stress_test_perform(int test_num)
         break;
     case 10:
         console_printf("Stress L2CAP send\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_10_gap_event, 10);
+        tx_stress_simple_connect(&tx_stress_10_gap_event, 10, NULL);
         break;
     case 11:
         console_printf("Stress Advertise/Connect/Disconnect\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_11_gap_event, 11);
+        tx_stress_simple_connect(&tx_stress_11_gap_event, 11, NULL);
         break;
     case 12:
         console_printf("Stress GATT indication\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_12_gap_event, 12);
+        tx_stress_simple_connect(&tx_stress_12_gap_event, 12, NULL);
         break;
     case 13:
         console_printf("Stress GATT notification\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_13_gap_event, 13);
+        tx_stress_simple_connect(&tx_stress_13_gap_event, 13, NULL);
         break;
     case 14:
         console_printf("Stress GATT Subscribe/Notify/Unsubscribe\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_14_gap_event, 14);
+        tx_stress_simple_connect(&tx_stress_14_gap_event, 14, NULL);
         break;
     case 15:
         console_printf("Stress Connect/Send/Disconnect\033[0m\n");
-        tx_stress_simple_connect(&tx_stress_15_gap_event, 15);
+        tx_stress_simple_connect(&tx_stress_15_gap_event, 15, NULL);
         break;
     default:
         console_printf("\033[0;31mFound test, but do not know how to perform."
