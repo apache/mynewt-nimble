@@ -1456,12 +1456,6 @@ rx_stress_main_task_fn(void *arg)
 
     /* Standard tests perform */
     for (i = 11; i < STRESS_UUIDS_NUM; ++i) {
-        if (i == 7 || i == 8 || i == 13) {
-            /* 7,8: PHY update tests cause that the device during the next test
-             * will stuck somewhere and will reset. Skip them for now.
-             * 13: Should work after fixing ble_gatts_notify_custom (nimble issue on GitHub)*/
-            continue;
-        }
         /* Start test. */
         rx_stress_start(i);
     }
