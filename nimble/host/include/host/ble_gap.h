@@ -986,6 +986,9 @@ typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
 #define BLE_GAP_DISC_MODE_LTD               1
 #define BLE_GAP_DISC_MODE_GEN               2
 
+
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+
 /**
  * Searches for a connection with the specified handle.  If a matching
  * connection is found, the supplied connection descriptor is filled
@@ -1032,7 +1035,10 @@ int ble_gap_conn_find_by_addr(const ble_addr_t *addr,
  */
 int ble_gap_set_event_cb(uint16_t conn_handle,
                          ble_gap_event_fn *cb, void *cb_arg);
+#endif
 
+#if (MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL))
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 /** @brief Start advertising
  *
  * This function configures and start advertising procedure.
@@ -1144,6 +1150,7 @@ int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
  *                      other error code on failure.
  */
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 /** @brief Extended advertising parameters  */
@@ -1323,6 +1330,7 @@ int ble_gap_ext_adv_remove(uint8_t instance);
  *                      other error code on failure.
  */
 int ble_gap_ext_adv_clear(void);
+#endif
 #endif
 
 /* Periodic Advertising */
@@ -1545,7 +1553,7 @@ int ble_gap_clear_periodic_adv_list(void);
 int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
 #endif
 
-
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_OBSERVER)
 /**
  * Performs the Limited or General Discovery Procedures.
  *
@@ -1579,6 +1587,7 @@ int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params,
                  ble_gap_event_fn *cb, void *cb_arg);
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
 /**
  * Performs the Limited or General Extended Discovery Procedures.
  *
@@ -1635,6 +1644,7 @@ int ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
                      const struct ble_gap_ext_disc_params *uncoded_params,
                      const struct ble_gap_ext_disc_params *coded_params,
                      ble_gap_event_fn *cb, void *cb_arg);
+#endif
 
 /**
  * Cancels the discovery procedure currently in progress.  A success return
@@ -1655,7 +1665,9 @@ int ble_gap_disc_cancel(void);
  *                              1: Discovery procedure in progress.
  */
 int ble_gap_disc_active(void);
+#endif
 
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 /**
  * Initiates a connect procedure.
  *
@@ -1749,12 +1761,14 @@ int ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
  *                                  connected;
  *                              Other nonzero on error.
  */
+#if MYNEWT_VAL(BLE_EXT_ADV)
 int ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
                         int32_t duration_ms, uint8_t phy_mask,
                         const struct ble_gap_conn_params *phy_1m_conn_params,
                         const struct ble_gap_conn_params *phy_2m_conn_params,
                         const struct ble_gap_conn_params *phy_coded_conn_params,
                         ble_gap_event_fn *cb, void *cb_arg);
+#endif
 
 /**
  * Aborts a connect procedure in progress.
@@ -1773,6 +1787,7 @@ int ble_gap_conn_cancel(void);
  *                              1: Connect procedure in progress.
  */
 int ble_gap_conn_active(void);
+#endif
 
 /**
  * Terminates an established connection.

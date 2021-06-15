@@ -281,7 +281,7 @@ ble_hs_hci_evt_le_meta(uint8_t event_code, const void *data, unsigned int len)
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
 static struct ble_gap_conn_complete pend_conn_complete;
 #endif
 
@@ -317,7 +317,7 @@ ble_hs_hci_evt_le_enh_conn_complete(uint8_t subevent, const void *data,
         evt.connection_handle = BLE_HS_CONN_HANDLE_NONE;
 #endif
     }
-#if MYNEWT_VAL(BLE_EXT_ADV)
+#if MYNEWT_VAL(BLE_EXT_ADV) && MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
     if (evt.status == BLE_ERR_DIR_ADV_TMO ||
                             evt.role == BLE_HCI_LE_CONN_COMPLETE_ROLE_SLAVE) {
     /* store this until we get set terminated event with adv handle */
@@ -488,6 +488,7 @@ static int
 ble_hs_hci_evt_le_rd_rem_used_feat_complete(uint8_t subevent, const void *data,
                                             unsigned int len)
 {
+#if NIMBLE_BLE_CONNECT
     const struct ble_hci_ev_le_subev_rd_rem_used_feat *ev = data;
 
     if (len != sizeof(*ev)) {
@@ -496,6 +497,7 @@ ble_hs_hci_evt_le_rd_rem_used_feat_complete(uint8_t subevent, const void *data,
 
     ble_gap_rx_rd_rem_sup_feat_complete(ev);
 
+#endif
     return 0;
 }
 
@@ -687,8 +689,10 @@ ble_hs_hci_evt_le_adv_set_terminated(uint8_t subevent, const void *data,
     }
 
     if (ev->status == 0) {
+#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
         /* ignore return code as we need to terminate advertising set anyway */
         ble_gap_rx_conn_complete(&pend_conn_complete, ev->adv_handle);
+#endif
     }
     ble_gap_rx_adv_set_terminated(ev);
 #endif

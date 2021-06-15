@@ -20,6 +20,7 @@
 #ifndef H_BLE_HS_ADV_
 #define H_BLE_HS_ADV_
 
+#include "syscfg/syscfg.h"
 #include <inttypes.h>
 #include "host/ble_uuid.h"
 
@@ -158,17 +159,21 @@ struct ble_hs_adv_fields {
 
 #define BLE_HS_ADV_SVC_DATA_UUID128_MIN_LEN     16
 
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
 int ble_hs_adv_set_fields_mbuf(const struct ble_hs_adv_fields *adv_fields,
                                struct os_mbuf *om);
 
 int ble_hs_adv_set_fields(const struct ble_hs_adv_fields *adv_fields,
                           uint8_t *dst, uint8_t *dst_len, uint8_t max_len);
+#endif
 
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_OBSERVER)
 int ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields,
                             const uint8_t *src, uint8_t src_len);
 
 int ble_hs_adv_parse(const uint8_t *data, uint8_t length,
                      ble_hs_adv_parse_func_t func, void *user_data);
+#endif
 
 #ifdef __cplusplus
 }
