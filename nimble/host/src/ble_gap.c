@@ -1303,6 +1303,14 @@ ble_gap_adv_active_instance(uint8_t instance)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+int
+ble_gap_ext_adv_active(uint8_t instance)
+{
+    return ble_gap_adv_active_instance(instance);
+}
+#endif
+
 /**
  * Clears advertisement and discovery state.  This function is necessary
  * when the controller loses its active state (e.g. on stack reset).

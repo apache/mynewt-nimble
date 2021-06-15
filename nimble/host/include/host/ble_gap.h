@@ -1274,6 +1274,15 @@ int ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events);
 int ble_gap_ext_adv_stop(uint8_t instance);
 
 /**
+ * Indicates whether an advertisement procedure is currently in progress.
+ *
+ * @param instance            Instance ID
+ *
+ * @return 0 if no advertisement procedure in progress, 1 otherwise.
+ */
+int ble_gap_ext_adv_active(uint8_t instance);
+
+/**
  * Configures the data to include in advertisements packets for specified
  * advertising instance.
  *
