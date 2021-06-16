@@ -301,7 +301,7 @@ parse_time_us(const char *str, int *out_status)
     uint32_t val_mult = 1;
     uint32_t val_us;
 
-    while (isdigit(*str)) {
+    while (isdigit((unsigned char)*str)) {
         val *= 10;
         val += *str - '0';
         str++;
@@ -309,7 +309,7 @@ parse_time_us(const char *str, int *out_status)
 
     if (*str == '.') {
         str++;
-        while (isdigit(*str)) {
+        while (isdigit((unsigned char)*str)) {
             val *= 10;
             val += *str - '0';
             val_div *= 10;
