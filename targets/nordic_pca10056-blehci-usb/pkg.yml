@@ -1,0 +1,9 @@
+pkg.name: "targets/nordic_pca10056-blehci-usb"
+pkg.type: target
+pkg.description: 
+pkg.author: 
+pkg.homepage:
+
+pkg.deps:
+    - "@apache-mynewt-core/hw/usb/tinyusb"
+    - "@apache-mynewt-core/hw/usb/tinyusb/std_descriptors"
