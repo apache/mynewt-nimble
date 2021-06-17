@@ -172,19 +172,35 @@ tud_bt_event_sent_cb(uint16_t sent_bytes)
 
     OS_ENTER_CRITICAL(sr);
     curr_evt = STAILQ_FIRST(&ble_hci_tx_evt_queue.queue);
-    OS_EXIT_CRITICAL(sr);
     assert(curr_evt != NULL);
-    hci_ev = curr_evt->data;
-
-    assert(hci_ev != NULL && hci_ev[1] + sizeof(struct ble_hci_ev) == sent_bytes);
-
-    ble_hci_trans_buf_free(hci_ev);
-
-    OS_ENTER_CRITICAL(sr);
     STAILQ_REMOVE_HEAD(&ble_hci_tx_evt_queue.queue, next);
-    next_evt = STAILQ_FIRST(&ble_hci_tx_evt_queue.queue);
     OS_EXIT_CRITICAL(sr);
+    hci_ev = curr_evt->data;
+    /*
+     * hci_ev is NULL when command (only HCI reset) from host arrived before
+     * command complete event for some other command was transmitted over USB.
+     */
+    if (hci_ev != NULL) {
+        assert(hci_ev[1] + sizeof(struct ble_hci_ev) == sent_bytes);
+        ble_hci_trans_buf_free(hci_ev);
+    }
+
     os_memblock_put(&ble_hci_pkt_pool, curr_evt);
+    OS_ENTER_CRITICAL(sr);
+    /* Remove scheduled events that don't have data pointers, those
+     * were removed by new HCI RESET command that arrived before
+     * some command complete event was transmitted out of USB.
+     */
+    while (1) {
+        next_evt = STAILQ_FIRST(&ble_hci_tx_evt_queue.queue);
+        if (next_evt != NULL && next_evt->data == NULL) {
+            STAILQ_REMOVE_HEAD(&ble_hci_tx_evt_queue.queue, next);
+            os_memblock_put(&ble_hci_pkt_pool, next_evt);
+        } else {
+            break;
+        }
+    }
+    OS_EXIT_CRITICAL(sr);
 
     if (next_evt != NULL) {
         hci_ev = next_evt->data;
@@ -223,20 +239,51 @@ void
 tud_bt_hci_cmd_cb(void *hci_cmd, size_t cmd_len)
 {
     uint8_t *buf;
+    const struct ble_hci_cmd *cmd;
+    uint16_t opcode;
+    int sr;
     int rc = -1;
+    struct ble_hci_pkt *evt;
+
 
     assert(ble_hci_usb_rx_cmd_ll_cb);
     if (ble_hci_usb_rx_cmd_ll_cb) {
-        buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-        assert(buf != NULL);
-        memcpy(buf, hci_cmd, cmd_len);
+        /*
+         * Previous command status not sent yet.
+         * This may happen when host is sending lost synchronization or
+         * host was restarted and is not aware of previous command.
+         * Free all events and accept only HCI_RESET command.
+         */
+        if (usb_ble_hci_pool_cmd.allocated) {
+            cmd = hci_cmd;
+            opcode = le16toh(cmd->opcode);
+            if (BLE_HCI_OGF(opcode) == BLE_HCI_OGF_CTLR_BASEBAND &&
+                BLE_HCI_OCF(opcode) == BLE_HCI_OCF_CB_RESET) {
+                OS_ENTER_CRITICAL(sr);
+                evt = STAILQ_FIRST(&ble_hci_tx_evt_queue.queue);
+                while (evt && evt->data != usb_ble_hci_pool_cmd.cmd) {
+                    evt = STAILQ_NEXT(evt, next);
+                }
+                if (evt) {
+                    evt->data = NULL;
+                    ble_hci_trans_buf_free(evt->data);
+                }
+                OS_EXIT_CRITICAL(sr);
+                usb_ble_hci_pool_cmd.allocated = false;
+            }
+        }
+        if (!usb_ble_hci_pool_cmd.allocated) {
+            buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+            assert(buf != NULL);
+            memcpy(buf, hci_cmd, cmd_len);
 
-        rc = ble_hci_usb_rx_cmd_ll_cb(buf, ble_hci_usb_rx_cmd_ll_arg);
+            rc = ble_hci_usb_rx_cmd_ll_cb(buf, ble_hci_usb_rx_cmd_ll_arg);
+            if (rc != 0) {
+                ble_hci_trans_buf_free(buf);
+            }
+        }
     }
 
-    if (rc != 0) {
-        ble_hci_trans_buf_free(buf);
-    }
 }
 
 static int
