@@ -550,11 +550,6 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* only ADV_EXT_IND goes on primary advertising channels */
     pdu_type = BLE_ADV_PDU_TYPE_ADV_EXT_IND;
 
-    /* Set TxAdd to random if needed. */
-    if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
-        pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
-    }
-
     *hdr_byte = pdu_type;
 
     adv_mode = 0;
