@@ -106,6 +106,29 @@ int ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                    uint8_t url_body_len, uint8_t suffix,
                                    int8_t measured_power);
 
+/**
+ * Configures the device to advertise Eddystone TLM (Unencrypted) beacons.
+ *
+ * @param adv_fields            The base advertisement fields to transform into
+ *                                  an eddystone beacon.  All configured fields
+ *                                  are preserved; you probably want to clear
+ *                                  this struct before calling this function.
+ * @param battery_voltage       The 2-byte battery voltage in mV to advertise.
+ * @param temperature           The 2-byte temperature to advertise.
+ * @param adv_pdu_count         The 4-byte total packet count to advertise.
+ * @param time_since_power_up   The 4-byte count in 0.1 Seconds since the device 
+ *                                  started / rebooted.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EBUSY if advertising is in progress;
+ *                              BLE_HS_EMSGSIZE if the specified data is too
+ *                                  large to fit in an advertisement;
+ *                              Other nonzero on failure.
+ */
+int ble_eddystone_set_adv_data_tlm_unencrypted(struct ble_hs_adv_fields *adv_fields,
+                                               uint16_t battery_voltage, float temperature,
+                                               uint32_t adv_pdu_count, uint32_t time_since_power_up);
+
 #ifdef __cplusplus
 }
 #endif
