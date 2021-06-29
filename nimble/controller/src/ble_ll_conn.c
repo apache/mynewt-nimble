@@ -4068,6 +4068,15 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     if (hdr_byte == BLE_LL_LLID_CTRL) {
         om->om_len = length;
         OS_MBUF_PKTHDR(om)->omp_len = length;
+
+#if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
+        /*
+         *  XXX this should be better sent when we actually send PDU, but it may
+         *      introduce some timing side-effects...
+         */
+        ble_ll_hci_ev_send_llcp_trace(0x04, connsm->conn_handle, connsm->event_cntr,
+                                      om->om_data, length);
+#endif
     }
 
     /* Set BLE transmit header */

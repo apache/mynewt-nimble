@@ -2473,6 +2473,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     len = dptr[1];
     opcode = dptr[2];
 
+#if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
+    ble_ll_hci_ev_send_llcp_trace(0x03, connsm->conn_handle, connsm->event_cntr,
+                                  &dptr[2], len);
+#endif
+
     /*
      * rspbuf points to first byte of response. The response buffer does not
      * contain the Data Channel PDU. Thus, the first byte of rspbuf is the

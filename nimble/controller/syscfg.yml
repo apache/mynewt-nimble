@@ -163,6 +163,11 @@ syscfg.defs:
             PHY enabled all the time.
         value: MYNEWT_VAL(BLE_XTAL_SETTLE_TIME)
 
+    BLE_LL_HCI_LLCP_TRACE:
+        description: >
+            Enables LLCP tracing using HCI vendor-specific events.
+        value: '0'
+
     # Configuration for LL supported features.
     #
     # There are a total 8 features that the LL can support. These can be found

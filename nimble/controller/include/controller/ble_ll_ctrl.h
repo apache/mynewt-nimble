@@ -316,6 +316,8 @@ void ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm);
 void ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm);
 void ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line);
+void ble_ll_hci_ev_send_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
+                                   void *pdu, size_t length);
 
 uint8_t ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask);
 uint8_t ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask);
