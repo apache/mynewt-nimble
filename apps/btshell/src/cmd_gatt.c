@@ -195,6 +195,54 @@ cmd_gatt_exchange_mtu(int argc, char **argv)
 }
 
 /*****************************************************************************
+ * $gatt-notify-indicate-custom                                              *
+ *****************************************************************************/
+
+int
+cmd_gatt_notify_indicate_custom(int argc, char **argv)
+{
+    int rc;
+    int len = 0;
+    uint16_t attr_handle;
+    uint16_t conn_handle = 0;
+    uint8_t bytes[32];
+    uint8_t indication;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    attr_handle = parse_arg_uint16("attr", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'attr' parameter\n");
+        return rc;
+    }
+
+    rc = parse_arg_byte_stream("bytes", sizeof(bytes), bytes, &len);
+    if (rc != 0) {
+        console_printf("Byte stream not provided\n");
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16_dflt("conn", 1, &rc);
+    if (rc) {
+        console_printf("Incorrect conn\n");
+        return rc;
+    }
+
+    indication = parse_arg_uint8_dflt("indication", 0, &rc);
+    if (rc) {
+        console_printf("Error reading indication \n");
+        return rc;
+    }
+
+    btshell_notify_indicate_custom(conn_handle, attr_handle, bytes, len, indication);
+
+    return 0;
+}
+
+/*****************************************************************************
  * $gatt-notify                                                              *
  *****************************************************************************/
 

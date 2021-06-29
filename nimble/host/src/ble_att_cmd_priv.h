@@ -28,6 +28,7 @@
 extern "C" {
 #endif
 
+#define BLE_ATT_BASE_HDR_SZ             1
 struct ble_att_hdr {
     uint8_t opcode;
     uint8_t data[0];
@@ -438,8 +439,9 @@ void ble_att_indicate_req_write(void *payload, int len,
 void ble_att_indicate_rsp_parse(const void *payload, int len);
 void ble_att_indicate_rsp_write(void *payload, int len);
 
-void *ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom);
-void *ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom);
+void *ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf **txom);
+void *ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **in_txdata_om,
+                      struct os_mbuf **out_txom);
 int ble_att_tx(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
