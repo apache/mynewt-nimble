@@ -179,6 +179,13 @@ ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info 
 }
 
 int
+ble_l2cap_ping(uint16_t conn_handle, ble_l2cap_ping_fn cb,
+               const void *data, uint16_t data_len)
+{
+    return ble_l2cap_sig_ping(conn_handle, cb, data, data_len);
+}
+
+int
 ble_l2cap_enhanced_connect(uint16_t conn_handle,
                                uint16_t psm, uint16_t mtu,
                                uint8_t num, struct os_mbuf *sdu_rx[],
