@@ -40,6 +40,7 @@
  * event to the host. This is the os time at which we can send an event.
  */
 static ble_npl_time_t g_ble_ll_last_num_comp_pkt_evt;
+#if NIMBLE_BLE_CONNECT
 extern uint8_t *g_ble_ll_conn_comp_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -123,6 +124,7 @@ ble_ll_conn_hci_chk_conn_params(uint16_t itvl_min, uint16_t itvl_max,
 
     return BLE_ERR_SUCCESS;
 }
+#endif
 
 /**
  * Send a connection complete event
@@ -133,6 +135,7 @@ void
 ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                             uint8_t *evbuf, struct ble_ll_adv_sm *advsm)
 {
+#if NIMBLE_BLE_CONNECT
     struct ble_hci_ev_le_subev_enh_conn_complete *enh_ev;
     struct ble_hci_ev_le_subev_conn_complete *ev;
     struct ble_hci_ev *hci_ev = (void *) evbuf;
@@ -236,6 +239,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
     }
 
     ble_hci_trans_buf_free(evbuf);
+#endif
 }
 
 /**
@@ -345,6 +349,7 @@ skip_conn:
     }
 }
 
+#if NIMBLE_BLE_CONNECT
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
  * Send a authenticated payload timeout event
@@ -1916,4 +1921,5 @@ ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len)
 
     return BLE_ERR_SUCCESS;
 }
+#endif
 #endif

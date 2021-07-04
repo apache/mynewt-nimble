@@ -42,6 +42,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "ble_ll_conn_priv.h"
 
+#if NIMBLE_BLE_ADVERTISE
 /* XXX: TODO
  * 1) Need to look at advertising and scan request PDUs. Do I allocate these
  * once? Do I use a different pool for smaller ones? Do I statically declare
@@ -303,8 +304,10 @@ ble_ll_adv_flags_clear(struct ble_ll_adv_sm *advsm, uint16_t flags)
 static void ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr);
 static void ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm);
 static void ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm);
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+#if NIMBLE_BLE_ADVERTISE
 static void
 ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
@@ -362,10 +365,12 @@ ble_ll_adv_chk_rpa_timeout(struct ble_ll_adv_sm *advsm)
         ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO);
     }
 }
+#endif
 
 void
 ble_ll_adv_rpa_timeout(void)
 {
+#if NIMBLE_BLE_ADVERTISE
     struct ble_ll_adv_sm *advsm;
     int i;
 
@@ -378,9 +383,11 @@ ble_ll_adv_rpa_timeout(void)
             ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_ADV_RPA_TMO);
         }
     }
+#endif
 }
 #endif
 
+#if NIMBLE_BLE_ADVERTISE
 /**
  * Calculate the first channel that we should advertise upon when we start
  * an advertising event.
@@ -1046,6 +1053,7 @@ ble_ll_adv_tx_done(void *arg)
     /* We no longer have a current state machine */
     g_ble_ll_cur_adv_sm = NULL;
 }
+#endif
 
 /*
  * Called when an advertising event has been removed from the scheduler
@@ -1054,14 +1062,17 @@ ble_ll_adv_tx_done(void *arg)
 void
 ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
 {
+#if NIMBLE_BLE_ADVERTISE
     /*
      * Need to set advertising channel to final chan so new event gets
      * scheduled.
      */
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+#endif
 }
 
+#if NIMBLE_BLE_ADVERTISE
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 /*
  * Called when a periodic event has been removed from the scheduler
@@ -1670,6 +1681,7 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
     }
 }
 #endif
+#endif
 
 /**
  * Called when advertising need to be halted. This normally should not be called
@@ -1681,6 +1693,7 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_halt(void)
 {
+#if NIMBLE_BLE_ADVERTISE
     struct ble_ll_adv_sm *advsm;
 
     if (g_ble_ll_cur_adv_sm != NULL) {
@@ -1715,8 +1728,10 @@ ble_ll_adv_halt(void)
     } else {
         ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, UINT32_MAX);
     }
+#endif
 }
 
+#if NIMBLE_BLE_ADVERTISE
 /**
  * Called by the HCI command parser when a set advertising parameters command
  * has been received.
@@ -4683,7 +4698,6 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
 #endif
 
         ble_ll_scan_chk_resume();
-
         /* This event is over. Set adv channel to first one */
         advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
@@ -4909,6 +4923,7 @@ ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
     ble_ll_adv_done(advsm);
 #endif
 }
+#endif
 
 /**
  * Checks if the controller can change the whitelist. If advertising is enabled
@@ -4920,6 +4935,7 @@ ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
 int
 ble_ll_adv_can_chg_whitelist(void)
 {
+#if NIMBLE_BLE_ADVERTISE
     struct ble_ll_adv_sm *advsm;
     int rc;
     int i;
@@ -4935,6 +4951,9 @@ ble_ll_adv_can_chg_whitelist(void)
     }
 
     return rc;
+#else
+    return 1;
+#endif
 }
 
 /**
@@ -4946,6 +4965,7 @@ void
 ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
                              struct ble_mbuf_hdr *rxhdr)
 {
+#if NIMBLE_BLE_ADVERTISE
     uint8_t *evbuf;
     struct ble_ll_adv_sm *advsm;
 
@@ -4971,6 +4991,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
                                           connsm->conn_handle, advsm->events);
     }
 #endif
+#endif
 }
 
 /**
@@ -4983,14 +5004,14 @@ uint8_t *
 ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm)
 {
     uint8_t *rpa = NULL;
-
+#if NIMBLE_BLE_ADVERTISE
     if (advsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
         if ((advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) &&
                                     ble_ll_is_rpa(advsm->adva, 1)) {
             rpa = advsm->adva;
         }
     }
-
+#endif
     return rpa;
 }
 
@@ -5002,10 +5023,15 @@ ble_ll_adv_get_local_rpa(struct ble_ll_adv_sm *advsm)
 uint8_t *
 ble_ll_adv_get_peer_rpa(struct ble_ll_adv_sm *advsm)
 {
+#if NIMBLE_BLE_ADVERTISE
     /* XXX: should this go into IRK list or connection? */
     return advsm->adv_rpa;
+#else
+    return NULL;
+#endif
 }
 
+#if NIMBLE_BLE_ADVERTISE
 /**
  * Called when the LL wait for response timer expires while in the advertising
  * state. Disables the phy and
@@ -5056,12 +5082,14 @@ ble_ll_adv_reset(void)
         ble_ll_adv_sm_init(advsm);
     }
 }
+#endif
 
 /* Called to determine if advertising is enabled.
  */
 uint8_t
 ble_ll_adv_enabled(void)
 {
+#if NIMBLE_BLE_ADVERTISE
     int i;
 
     for (i = 0; i < BLE_ADV_INSTANCES; i++) {
@@ -5069,10 +5097,11 @@ ble_ll_adv_enabled(void)
             return 1;
         }
     }
-
+#endif
     return 0;
 }
 
+#if NIMBLE_BLE_ADVERTISE
 static void
 ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
 {
@@ -5133,3 +5162,4 @@ ble_ll_adv_init(void)
         ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }
+#endif
