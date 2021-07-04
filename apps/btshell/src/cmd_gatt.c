@@ -585,3 +585,67 @@ done:
 
     return rc;
 }
+
+int
+cmd_gatt_subscribe_notification(int argc, char **argv)
+{
+    int rc;
+    uint16_t conn_handle;
+    uint16_t cccd_handle;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    cccd_handle = parse_arg_uint16("cccd", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'cccd' parameter\n");
+        return rc;
+    }
+
+    rc = btshell_subscribe_notification(conn_handle, cccd_handle);
+    if (rc != 0) {
+        console_printf("error subscribing to characteristic; rc=%d\n", rc);
+    }
+
+    return rc;
+}
+
+int
+cmd_gatt_subscribe_indication(int argc, char **argv)
+{
+    int rc;
+    uint16_t conn_handle;
+    uint16_t cccd_handle;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    cccd_handle = parse_arg_uint16("cccd", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'cccd' parameter\n");
+        return rc;
+    }
+
+    rc = btshell_subscribe_indication(conn_handle, cccd_handle);
+    if (rc != 0) {
+        console_printf("error subscribing to characteristic; rc=%d\n", rc);
+    }
+
+    return rc;
+}

@@ -35,5 +35,6 @@ int cmd_gatt_service_visibility(int argc, char **argv);
 int cmd_gatt_show(int argc, char **argv);
 int cmd_gatt_show_local(int argc, char **argv);
 int cmd_gatt_write(int argc, char **argv);
-
+int cmd_gatt_subscribe_notification(int argc, char **argv);
+int cmd_gatt_subscribe_indication(int argc, char **argv);
 #endif

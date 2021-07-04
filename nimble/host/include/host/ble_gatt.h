@@ -518,6 +518,30 @@ int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
  */
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
+/**
+ * Subscribes to notifications for characteristic of given CCCD.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param cccd_handle           CCCD handle of characteristic to subscribe to
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gattc_subscribe_notifications(uint16_t conn_handle, uint16_t cccd_handle,
+                                      ble_gatt_attr_fn *cb, void *cb_arg);
+
+/**
+ * Subscribes to indication for characteristic of given CCCD.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param cccd_handle           CCCD handle of characteristic to subscribe to
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gattc_subscribe_indications(uint16_t conn_handle, uint16_t cccd_handle,
+                                    ble_gatt_attr_fn *cb, void *cb_arg);
+
 int ble_gattc_init(void);
 
 /*** @server. */
