@@ -50,25 +50,17 @@ static uint8_t ble_svc_ans_unr_alert_cnt[BLE_SVC_ANS_CAT_NUM];
 static uint16_t ble_svc_ans_new_alert_val_handle;
 static uint16_t ble_svc_ans_unr_alert_val_handle;
 
-/* Connection handle
- *
- * TODO: In order to support multiple connections we would need to save
- *       the handles for every connection, not just the most recent. Then
- *       we would need to notify each connection when needed.
- * */
-static uint16_t ble_svc_ans_conn_handle;
-
 /* Access function */
 static int
 ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
                    struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 /* Notify new alert */
-static int
+static void
 ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str);
 
 /* Notify unread alert */
-static int
+static void
 ble_svc_ans_unr_alert_notify(uint8_t cat_id);
 
 /* Save written value to local characteristic value */
@@ -284,20 +276,6 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 /**
- * This function must be called with the connection handlewhen a gap
- * connect event is received in order to send notifications to the
- * client.
- *
- * @params conn_handle          The connection handle for the current
- *                                  connection.
- */
-void
-ble_svc_ans_on_gap_connect(uint16_t conn_handle)
-{
-    ble_svc_ans_conn_handle = conn_handle;
-}
-
-/**
  * Adds a new alert to the given category then notifies the client
  * if the given category is valid and enabled.
  *
@@ -324,7 +302,8 @@ ble_svc_ans_new_alert_add(uint8_t cat_id, const char * info_str)
     }
 
     ble_svc_ans_new_alert_cnt[cat_id] += 1;
-    return ble_svc_ans_new_alert_notify(cat_id, info_str);
+    ble_svc_ans_new_alert_notify(cat_id, info_str);
+    return 0;
 }
 
 /**
@@ -352,7 +331,8 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
     }
 
     ble_svc_ans_unr_alert_cnt[cat_id] += 1;
-    return ble_svc_ans_unr_alert_notify(cat_id);
+    ble_svc_ans_unr_alert_notify(cat_id);
+    return 0;
 }
 
 /**
@@ -363,10 +343,8 @@ ble_svc_ans_unr_alert_add(uint8_t cat_id)
  *                                  notification to.
  * @param info_str              The info string to send with the
  *                                  notification
- *
- * @return 0 on success, non-zero error code otherwise.
  */
-static int
+static void
 ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
 {
     int info_str_len;
@@ -390,25 +368,21 @@ ble_svc_ans_new_alert_notify(uint8_t cat_id, const char * info_str)
             memcpy(&ble_svc_ans_new_alert_val[2], info_str, info_str_len);
         }
     }
-    return ble_gattc_notify(ble_svc_ans_conn_handle,
-                            ble_svc_ans_new_alert_val_handle);
+    ble_gatts_chr_updated(ble_svc_ans_new_alert_val_handle);
 }
 
 /**
  * Send an unread alert notification to the given category.
  *
  * @param cat_id                The ID of the category to send the
- *                                  notificaiton to.
- *
- * @return 0 on success, non-zer0 error code otherwise.
+ *                                  Notification to.
  */
-static int
+static void
 ble_svc_ans_unr_alert_notify(uint8_t cat_id)
 {
     ble_svc_ans_unr_alert_stat[0] = cat_id;
     ble_svc_ans_unr_alert_stat[1] = ble_svc_ans_unr_alert_cnt[cat_id];
-    return ble_gattc_notify(ble_svc_ans_conn_handle,
-                            ble_svc_ans_unr_alert_val_handle);
+    ble_gatts_chr_updated(ble_svc_ans_unr_alert_val_handle);
 }
 
 /**
@@ -439,10 +413,7 @@ ble_svc_ans_chr_write(struct os_mbuf *om, uint16_t min_len,
 /**
  * Initialize the ANS with initial values for enabled categories
  * for new and unread alert characteristics. Bitwise or the
- * catagory bitmasks to enable multiple catagories.
- *
- * XXX: We should technically be able to change the new alert and
- *      unread alert catagories when we have no active connections.
+ * category bitmasks to enable multiple categories.
  */
 void
 ble_svc_ans_init(void)

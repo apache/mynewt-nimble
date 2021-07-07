@@ -73,8 +73,6 @@ struct ble_hs_cfg;
 /* Error Definitions */
 #define BLE_SVC_ANS_ERR_CMD_NOT_SUPPORTED                   0xA0
 
-void ble_svc_ans_on_gap_connect(uint16_t conn_handle);
-
 int ble_svc_ans_new_alert_add(uint8_t cat_id,
                               const char * info_str);
 int ble_svc_ans_unr_alert_add(uint8_t cat_id);
