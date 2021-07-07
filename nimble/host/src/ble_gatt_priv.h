@@ -186,6 +186,13 @@ int ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
 int ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                              uint8_t op, uint16_t offset, struct os_mbuf **om,
                              void *arg);
+int ble_gatts_check_cccd_enabled(struct ble_hs_conn *conn,
+                                 uint16_t chr_val_handle,
+                                 uint8_t flag);
+int ble_gattc_notify_now(uint16_t conn_handle, uint16_t chr_val_handle,
+                         struct os_mbuf *txom, uint8_t now);
+int ble_gattc_indicate_now(uint16_t conn_handle, uint16_t chr_val_handle,
+                           struct os_mbuf *txom, uint8_t now);
 
 /*** @misc. */
 int ble_gatts_conn_can_alloc(void);
