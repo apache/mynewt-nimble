@@ -33,12 +33,12 @@
 
 #include "bttester.h"
 
-static void on_reset(int reason)
+static void on_reset(int reason, void *arg)
 {
 	MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
-static void on_sync(void)
+static void on_sync(void *arg)
 {
 	MODLOG_DFLT(INFO, "Bluetooth initialized\n");
 

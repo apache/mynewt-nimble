@@ -36,13 +36,13 @@
 #include "stress_gatt.h"
 
 static void
-stress_test_on_reset(int reason)
+stress_test_on_reset(int reason, void *arg)
 {
     MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
 static void
-stress_test_on_sync(void)
+stress_test_on_sync(void *arg)
 {
     int rc;
 

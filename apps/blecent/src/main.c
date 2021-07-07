@@ -470,13 +470,13 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
 }
 
 static void
-blecent_on_reset(int reason)
+blecent_on_reset(int reason, void *arg)
 {
     MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
 static void
-blecent_on_sync(void)
+blecent_on_sync(void *arg)
 {
     int rc;
 

@@ -92,7 +92,7 @@ start_advertise(void)
 }
 
 static void
-app_ble_sync_cb(void)
+app_ble_sync_cb(void *arg)
 {
     int rc;
 
