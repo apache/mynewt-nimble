@@ -5813,6 +5813,39 @@ ble_gap_identity_event(uint16_t conn_handle)
 }
 
 int
+ble_gap_pairing_req_event(const struct ble_gap_pairing_req *req)
+{
+#if NIMBLE_BLE_SM && NIMBLE_BLE_CONNECT
+    struct ble_gap_event event;
+    int rc;
+    struct ble_gap_passkey_params passkey_params = {0};
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_PAIRING_REQUEST;
+    event.pairing_req.conn_handle = req->conn_handle;
+    event.pairing_req.io_cap = req->io_cap;
+    event.pairing_req.oob_data_flag = req->oob_data_flag;
+    event.pairing_req.authreq = req->authreq;
+
+    rc = ble_gap_call_conn_event_cb(&event, req->conn_handle);
+    if (rc != 0) {
+        /* Application to respond with pairing accept/reject using
+         * `ble_sm_inject_io` call */
+        passkey_params.action = BLE_SM_IOACT_REJECT;
+        ble_gap_passkey_event(event.pairing_req.conn_handle, &passkey_params);
+        BLE_HS_LOG(DEBUG, "Pairing request: Provided accept or reject prompt to app\n");
+    }
+
+    if (passkey_params.pairing_accept != 0) {
+        rc = 0;
+    }
+    return rc;
+#else
+    return 0;
+#endif
+}
+
+int
 ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp)
 {
 #if NIMBLE_BLE_SM && NIMBLE_BLE_CONNECT
