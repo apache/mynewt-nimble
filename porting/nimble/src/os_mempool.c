@@ -38,7 +38,8 @@
 #define OS_MEMPOOL_TRUE_BLOCK_SIZE(mp) OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size)
 #endif
 
-STAILQ_HEAD(, os_mempool) g_os_mempool_list;
+STAILQ_HEAD(, os_mempool) g_os_mempool_list =
+    STAILQ_HEAD_INITIALIZER(g_os_mempool_list);
 
 #if MYNEWT_VAL(OS_MEMPOOL_POISON)
 static uint32_t os_mem_poison = 0xde7ec7ed;
@@ -467,10 +468,4 @@ os_mempool_info_get_next(struct os_mempool *mp, struct os_mempool_info *omi)
     strncat(omi->omi_name, cur->name, sizeof(omi->omi_name) - 1);
 
     return (cur);
-}
-
-void
-os_mempool_module_init(void)
-{
-    STAILQ_INIT(&g_os_mempool_list);
 }
