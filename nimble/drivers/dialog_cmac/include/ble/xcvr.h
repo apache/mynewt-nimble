@@ -24,7 +24,12 @@
 extern "C" {
 #endif
 
+#if ((MYNEWT_VAL(CMAC_MBOX_SIZE_S2C) > 128) || (MYNEWT_VAL(CMA_CMBOX_SIZE_C2S) > 128))
+#define XCVR_TX_SCHED_DELAY_USECS       (300)
+#else
 #define XCVR_TX_SCHED_DELAY_USECS       (250)
+#endif
+
 
 /*
  * Define HW whitelist size. This is the total possible whitelist size;
