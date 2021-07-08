@@ -66,7 +66,7 @@ struct os_mempool {
     /** Bitmap of OS_MEMPOOL_F_[...] values. */
     uint8_t mp_flags;
     /** Address of memory buffer used by pool */
-    uint32_t mp_membuf_addr;
+    uintptr_t mp_membuf_addr;
     STAILQ_ENTRY(os_mempool) mp_list;
     SLIST_HEAD(,os_memblock);
     /** Name for memory block */
