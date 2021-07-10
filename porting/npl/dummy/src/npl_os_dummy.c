@@ -38,6 +38,12 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 
 }
 
+void
+ble_npl_eventq_deinit(struct ble_npl_eventq *evq)
+{
+
+}
+
 struct ble_npl_event *
 ble_npl_eventq_get(struct ble_npl_eventq *evq, ble_npl_time_t tmo)
 {
@@ -92,6 +98,12 @@ ble_npl_mutex_init(struct ble_npl_mutex *mu)
 }
 
 ble_npl_error_t
+ble_npl_mutex_deinit(struct ble_npl_mutex *mu)
+{
+    return BLE_NPL_ENOENT;
+}
+
+ble_npl_error_t
 ble_npl_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
 {
     return BLE_NPL_ENOENT;
@@ -105,6 +117,12 @@ ble_npl_mutex_release(struct ble_npl_mutex *mu)
 
 ble_npl_error_t
 ble_npl_sem_init(struct ble_npl_sem *sem, uint16_t tokens)
+{
+    return BLE_NPL_ENOENT;
+}
+
+ble_npl_error_t
+ble_npl_sem_deinit(struct ble_npl_sem *sem)
 {
     return BLE_NPL_ENOENT;
 }
@@ -132,6 +150,12 @@ ble_npl_callout_init(struct ble_npl_callout *c, struct ble_npl_eventq *evq,
                      ble_npl_event_fn *ev_cb, void *ev_arg)
 {
 }
+
+void
+ble_npl_callout_deinit(struct ble_npl_callout *co)
+{
+}
+
 
 ble_npl_error_t
 ble_npl_callout_reset(struct ble_npl_callout *c, ble_npl_time_t ticks)

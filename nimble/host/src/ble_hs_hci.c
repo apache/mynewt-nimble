@@ -620,3 +620,11 @@ ble_hs_hci_init(void)
                             "ble_hs_hci_frag");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 }
+
+void
+ble_hs_hci_deinit(void)
+{
+    ble_npl_mutex_deinit(&ble_hs_hci_mutex);
+
+    ble_npl_sem_deinit(&ble_hs_hci_sem);
+}

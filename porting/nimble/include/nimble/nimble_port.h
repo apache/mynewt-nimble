@@ -27,8 +27,10 @@ extern "C" {
 #endif
 
 void nimble_port_init(void);
+void nimble_port_deinit(void);
 
 void nimble_port_run(void);
+int nimble_port_stop(void);
 
 struct ble_npl_eventq *nimble_port_get_dflt_eventq(void);
 
