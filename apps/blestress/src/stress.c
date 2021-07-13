@@ -83,6 +83,7 @@ com_stress_print_report(const struct com_stress_test_ctx *test_ctxs)
     console_printf("\033[0;33mUse case 13 - "
                    "Stress GATT notification: \n\033[0m");
     console_printf("Average time = %d\n", test_ctxs->s13_notif_time);
+    console_printf("Max number of notifications = %d\n", test_ctxs->s13_notif_num);
 
     console_printf("\033[0;33mUse case 14 - "
                    "Stress GATT Subscribe/Notify/Unsubscribe: \n\033[0m");

@@ -62,7 +62,7 @@ syscfg.vals:
     # Controller uses msys pool for storing advertising data and scan responses.
     # Since we advertise a lot of data (~4k in total) at the same time we need
     # to increase block count.
-    MSYS_1_BLOCK_COUNT: 50
+    MSYS_1_BLOCK_COUNT: 400
 
     #
     BLE_L2CAP_COC_MAX_NUM: 2
@@ -75,3 +75,7 @@ syscfg.vals:
 
     # Whether to save data to sys/config, or just keep it in RAM.
     BLE_STORE_CONFIG_PERSIST: 0
+
+    # ACL buf size must be able to contain CoC MPS plus ACL header
+    BLE_ACL_BUF_SIZE: MYNEWT_VAL_BLE_L2CAP_COC_MPS+4
+    BLE_ACL_BUF_COUNT: MYNEWT_VAL_BLE_STRESS_REPEAT

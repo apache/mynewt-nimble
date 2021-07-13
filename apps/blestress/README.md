@@ -59,7 +59,7 @@ No | Use case
    | TX: Establish and maintain as many instances as possible
    |
 10 | Stress L2CAP send
-   | RX: Send 64kB of data with L2CAP
+   | RX: Send L2CAP packets of increasing SDU size, from 1k to STRESS_COC_MTU
    | TX: Measure bit rate and max received data MTU
    |
 11 | Stress Advertise/Connect/Continue Adv/Disconnect

@@ -39,7 +39,7 @@ extern "C" {
 #define TX_PHY_MASK 0
 #define RX_PHY_MASK 0
 /* L2CAP SDU */
-#define STRESS_COC_MTU (64000)
+#define STRESS_COC_MTU (8000)
 
 #define STRESS_FIND_SRV 1
 #define STRESS_FIND_CHR 2
@@ -164,6 +164,9 @@ struct com_stress_test_ctx {
 
     /* Average indication time */
     int s12_notif_time;
+
+    /* Average notification time */
+    int s13_notif_num;
 
     /* Average notification time */
     int s13_notif_time;
