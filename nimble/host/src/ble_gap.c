@@ -4634,8 +4634,7 @@ ble_gap_check_conn_params(uint8_t phy, const struct ble_gap_conn_params *params)
     }
 
     /* Check connection latency */
-    if ((params->latency < BLE_HCI_CONN_LATENCY_MIN) ||
-        (params->latency > BLE_HCI_CONN_LATENCY_MAX)) {
+    if (params->latency > BLE_HCI_CONN_LATENCY_MAX) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
