@@ -20,12 +20,18 @@
 #ifndef H_BLE_IBEACON_
 #define H_BLE_IBEACON_
 
+#include "syscfg/syscfg.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 int ble_ibeacon_set_adv_data(void *uuid128, uint16_t major,
                              uint16_t minor, int8_t measured_power);
+#endif
+#endif
 
 #ifdef __cplusplus
 }

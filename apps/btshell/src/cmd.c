@@ -1514,12 +1514,14 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     uint16_t uuid16;
     uint8_t uuid128[16];
     uint8_t public_tgt_addr[BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN];
+#if !MYNEWT_VAL(BLE_EXT_ADV)
     uint8_t eddystone_url_body_len;
     uint8_t eddystone_url_suffix;
     uint8_t eddystone_url_scheme;
     int8_t eddystone_measured_power = 0;
     char eddystone_url_body[BLE_EDDYSTONE_URL_MAX_LEN];
     char *eddystone_url_full;
+#endif
     int svc_data_uuid16_len;
     int svc_data_uuid32_len;
     int svc_data_uuid128_len;
@@ -1759,6 +1761,50 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
         return rc;
     }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    /* Default to legacy PDUs size, mbuf chain will be increased if needed
+     */
+    adv_data = os_msys_get_pkthdr(BLE_HCI_MAX_ADV_DATA_LEN, 0);
+    if (!adv_data) {
+        rc = ENOMEM;
+        goto done;
+    }
+
+    rc = ble_hs_adv_set_fields_mbuf(&adv_fields, adv_data);
+    if (rc) {
+        os_mbuf_free_chain(adv_data);
+        goto done;
+    }
+
+    /* Append some extra data, if requested */
+    extra_data_len = parse_arg_uint16("extra_data_len", &rc);
+    if (rc == 0) {
+        counter = 0;
+        extra_data_len = min(extra_data_len, 1650);
+        while (counter < extra_data_len) {
+            update_pattern(extra_data, counter);
+
+            rc = os_mbuf_append(adv_data, extra_data,
+                                min(extra_data_len - counter, 10));
+            if (rc) {
+                os_mbuf_free_chain(adv_data);
+                goto done;
+            }
+
+            counter += 10;
+        }
+    }
+
+    if (scan_rsp) {
+        rc = ble_gap_ext_adv_rsp_set_data(instance, adv_data);
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    } else if (periodic) {
+        rc = ble_gap_periodic_adv_set_data(instance, adv_data);
+#endif
+    } else {
+        rc = ble_gap_ext_adv_set_data(instance, adv_data);
+    }
+#else
     tmp = parse_arg_long_bounds("eddystone_measured_power", -100, 20, &rc);
     if (rc == 0) {
         eddystone_measured_power = tmp;
@@ -1783,57 +1829,13 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
                                             eddystone_url_suffix,
                                             eddystone_measured_power);
     } else {
-#if MYNEWT_VAL(BLE_EXT_ADV)
-        /* Default to legacy PDUs size, mbuf chain will be increased if needed
-         */
-        adv_data = os_msys_get_pkthdr(BLE_HCI_MAX_ADV_DATA_LEN, 0);
-        if (!adv_data) {
-            rc = ENOMEM;
-            goto done;
-        }
-
-        rc = ble_hs_adv_set_fields_mbuf(&adv_fields, adv_data);
-        if (rc) {
-            os_mbuf_free_chain(adv_data);
-            goto done;
-        }
-
-        /* Append some extra data, if requested */
-        extra_data_len = parse_arg_uint16("extra_data_len", &rc);
-        if (rc == 0) {
-            counter = 0;
-            extra_data_len = min(extra_data_len, 1650);
-            while (counter < extra_data_len) {
-                update_pattern(extra_data, counter);
-
-                rc = os_mbuf_append(adv_data, extra_data,
-                                    min(extra_data_len - counter, 10));
-                if (rc) {
-                    os_mbuf_free_chain(adv_data);
-                    goto done;
-                }
-
-                counter += 10;
-            }
-        }
-
-        if (scan_rsp) {
-            rc = ble_gap_ext_adv_rsp_set_data(instance, adv_data);
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
-        } else if (periodic) {
-            rc = ble_gap_periodic_adv_set_data(instance, adv_data);
-#endif
-        } else {
-            rc = ble_gap_ext_adv_set_data(instance, adv_data);
-        }
-#else
         if (scan_rsp) {
             rc = ble_gap_adv_rsp_set_fields(&adv_fields);
         } else {
             rc = ble_gap_adv_set_fields(&adv_fields);
         }
-#endif
     }
+#endif
 done:
     if (rc != 0) {
         console_printf("error setting advertisement data; rc=%d\n", rc);

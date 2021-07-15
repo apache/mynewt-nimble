@@ -108,7 +108,9 @@ extern "C" {
 /** Security manager settings. */
 
 #undef NIMBLE_BLE_SM
-#define NIMBLE_BLE_SM   (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC))
+#define NIMBLE_BLE_SM   ((MYNEWT_VAL(BLE_SM_LEGACY) || \
+                         MYNEWT_VAL(BLE_SM_SC))     && \
+                         NIMBLE_BLE_CONNECT)
 
 #ifdef __cplusplus
 }

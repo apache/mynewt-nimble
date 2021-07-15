@@ -17,11 +17,16 @@
  * under the License.
  */
 
+#include "syscfg/syscfg.h"
+
 #include <string.h>
 #include "os/endian.h"
 #include "host/ble_eddystone.h"
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
+
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 
 #define BLE_EDDYSTONE_MAX_SVC_DATA_LEN  22
 #define BLE_EDDYSTONE_SVC_DATA_BASE_SZ  3
@@ -176,3 +181,5 @@ ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
 
     return 0;
 }
+#endif
+#endif

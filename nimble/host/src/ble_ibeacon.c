@@ -17,9 +17,14 @@
  * under the License.
  */
 
+#include "syscfg/syscfg.h"
+
 #include <string.h>
 #include "host/ble_hs_adv.h"
 #include "ble_hs_priv.h"
+
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 
 #define BLE_IBEACON_MFG_DATA_SIZE       25
 
@@ -80,3 +85,5 @@ ble_ibeacon_set_adv_data(void *uuid128, uint16_t major,
     rc = ble_gap_adv_set_fields(&fields);
     return rc;
 }
+#endif
+#endif

@@ -319,13 +319,35 @@ ble_gatts_chr_inc_val_stat(uint8_t gatt_op)
 static bool
 ble_gatts_mutable(void)
 {
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
     /* Ensure no active GAP procedures. */
-    if (ble_gap_adv_active() ||
-        ble_gap_disc_active() ||
-        ble_gap_conn_active()) {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    uint8_t i;
 
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_ext_adv_active(i)) {
+            return false;
+        }
+    }
+#else
+    if (ble_gap_adv_active()) {
         return false;
     }
+#endif
+#endif
+
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_OBSERVER)
+    if (ble_gap_disc_active()) {
+        return false;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL)
+    /* Ensure no active GAP procedures. */
+    if (ble_gap_conn_active()) {
+        return false;
+    }
+#endif
 
     /* Ensure no established connections. */
     if (ble_hs_conn_first() != NULL) {

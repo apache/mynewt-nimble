@@ -230,6 +230,7 @@ ble_store_util_delete_oldest_peer(void)
 int
 ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
 {
+#if NIMBLE_BLE_SM
     switch (event->event_code) {
     case BLE_STORE_EVENT_OVERFLOW:
         switch (event->overflow.obj_type) {
@@ -253,4 +254,8 @@ ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
     default:
         return BLE_HS_EUNKNOWN;
     }
+
+#else
+    return BLE_HS_ENOTSUP;
+#endif
 }

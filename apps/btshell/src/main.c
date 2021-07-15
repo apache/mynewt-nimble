@@ -140,8 +140,7 @@ struct {
     bool restart;
     uint16_t conn_handle;
 } ext_adv_restart[BLE_ADV_INSTANCES];
-#endif
-
+#else
 static struct {
     bool restart;
     uint8_t own_addr_type;
@@ -149,6 +148,7 @@ static struct {
     int32_t duration_ms;
     struct ble_gap_adv_params params;
 } adv_params;
+#endif
 
 static void
 btshell_print_error(char *msg, uint16_t conn_handle,
@@ -1747,6 +1747,7 @@ btshell_ext_adv_stop(uint8_t instance)
 }
 #endif
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 int
 btshell_adv_stop(void)
 {
@@ -1783,6 +1784,7 @@ btshell_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                            btshell_gap_event, NULL);
     return rc;
 }
+#endif
 
 int
 btshell_conn_initiate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
