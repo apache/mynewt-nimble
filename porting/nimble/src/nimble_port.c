@@ -45,8 +45,10 @@ nimble_port_init(void)
 
 #if NIMBLE_CFG_CONTROLLER
     ble_hci_ram_init();
+#ifndef RIOT_VERSION
     hal_timer_init(5, NULL);
     os_cputime_init(32768);
+#endif
     ble_ll_init();
 #endif
 }
