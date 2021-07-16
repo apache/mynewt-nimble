@@ -244,7 +244,7 @@ os_mbuf_get(struct os_mbuf_pool *omp, uint16_t leadingspace)
 {
     struct os_mbuf *om;
 
-    os_trace_api_u32x2(OS_TRACE_ID_MBUF_GET, (uint32_t)omp,
+    os_trace_api_u32x2(OS_TRACE_ID_MBUF_GET, (uint32_t)(uintptr_t)omp,
                        (uint32_t)(uintptr_t)leadingspace);
 
     if (leadingspace > omp->omp_databuf_len) {
