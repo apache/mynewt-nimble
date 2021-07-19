@@ -1552,7 +1552,13 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
      * is from peer perspective. It is source CID from nimble perspective
      */
     chan = ble_hs_conn_chan_find_by_scid(conn, le16toh(req->dcid));
-    if (!chan || (le16toh(req->scid) != chan->dcid)) {
+    if (!chan) {
+        os_mbuf_free_chain(txom);
+        ble_hs_unlock();
+        ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, hdr->identifier, req->dcid, req->scid);
+        return 0;
+    }
+    if (le16toh(req->scid) != chan->dcid) {
         os_mbuf_free_chain(txom);
         ble_hs_unlock();
         return 0;
