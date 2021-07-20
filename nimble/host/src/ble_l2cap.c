@@ -394,6 +394,16 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
             goto err;
         }
 
+        /* For CIDs from dynamic range we check if SDU size isn't larger than MPS */
+        if (chan->dcid >= 0x0040 && chan->dcid <= 0x007F && l2cap_hdr.len > chan->my_coc_mps) {
+            /* Data exceeds MPS */
+            BLE_HS_LOG(ERROR, "error: sdu_len > chan->my_coc_mps (%d>%d)\n",
+                       l2cap_hdr.len, chan->my_coc_mps);
+            ble_l2cap_disconnect(chan);
+            rc = BLE_HS_EBADDATA;
+            goto err;
+        }
+
         if (chan->rx_buf != NULL) {
             /* Previous data packet never completed.  Discard old packet. */
             ble_l2cap_remove_rx(conn, chan);
