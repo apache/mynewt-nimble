@@ -2606,6 +2606,16 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         goto done;
     }
 
+    /* Just ignore PDU if truncated was already sent.
+     * This can happen if next PDU in chain was already received before we
+     * manage to cancel scan on error (which resulted in sending truncated HCI
+     * event)
+     */
+    if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED)) {
+        rc = -1;
+        goto done;
+    }
+
     /*
      * We keep one allocated event in aux_data to be able to truncate chain
      * properly in case of error. If there is no event in aux_data it means this
@@ -2646,7 +2656,6 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         /* Need to send truncated event if we already sent some reports */
         if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY)) {
             BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED));
-            BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED));
 
             aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
             aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED;
