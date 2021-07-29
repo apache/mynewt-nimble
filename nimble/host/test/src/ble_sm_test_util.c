@@ -1443,7 +1443,8 @@ ble_sm_test_util_io_inject_bad(uint16_t conn_handle, uint8_t correct_io_act)
     for (i = 1; i < BLE_SM_IOACT_MAX_PLUS_ONE; i++) {
         if (io_sm_state != proc->state  ||
             i != correct_io_act         ||
-            proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+            proc->flags & BLE_SM_PROC_F_IO_INJECTED ||
+            correct_io_act < BLE_SM_IOACT_JUSTWORKS) {
 
             already_injected = proc->flags & BLE_SM_PROC_F_IO_INJECTED;
 
@@ -1452,7 +1453,7 @@ ble_sm_test_util_io_inject_bad(uint16_t conn_handle, uint8_t correct_io_act)
 
             if (already_injected) {
                 TEST_ASSERT(rc == BLE_HS_EALREADY);
-            } else {
+            } else if ((i != BLE_SM_IOACT_JUSTWORKS) || (i != BLE_SM_IOACT_REJECT)) {
                 TEST_ASSERT(rc == BLE_HS_EINVAL);
             }
         }
