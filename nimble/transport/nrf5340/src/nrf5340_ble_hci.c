@@ -272,10 +272,10 @@ nrf5340_ble_hci_trans_rx_process(int channel)
         rxd->expected_len = 0;
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
-        assert((rxd->type == HCI_PKT_ACL) || (rxd->type = HCI_PKT_CMD));
+        assert((rxd->type == HCI_PKT_ACL) || (rxd->type == HCI_PKT_CMD));
 #endif
 #if MYNEWT_VAL(BLE_HOST)
-        assert((rxd->type == HCI_PKT_ACL) || (rxd->type = HCI_PKT_EVT));
+        assert((rxd->type == HCI_PKT_ACL) || (rxd->type == HCI_PKT_EVT));
 #endif
         break;
 #if MYNEWT_VAL(BLE_CONTROLLER)
