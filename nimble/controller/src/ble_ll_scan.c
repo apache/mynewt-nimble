@@ -3431,20 +3431,16 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
 static void
 ble_ll_scan_duration_period_timers_restart(struct ble_ll_scan_sm *scansm)
 {
-    ble_npl_time_t now;
-
-    now = ble_npl_time_get();
-
     ble_npl_callout_stop(&scansm->duration_timer);
     ble_npl_callout_stop(&scansm->period_timer);
 
     if (scansm->duration_ticks) {
         ble_npl_callout_reset(&scansm->duration_timer,
-                                                now + scansm->duration_ticks);
+                              scansm->duration_ticks);
 
         if (scansm->period_ticks) {
             ble_npl_callout_reset(&scansm->period_timer,
-                                                    now + scansm->period_ticks);
+                                  scansm->period_ticks);
         }
     }
 }
