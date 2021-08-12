@@ -2169,11 +2169,6 @@ ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count)
 
     ble_hs_lock();
 
-    if (white_list_count == 0) {
-        rc = BLE_HS_EINVAL;
-        goto done;
-    }
-
     for (i = 0; i < white_list_count; i++) {
         if (addrs[i].type != BLE_ADDR_PUBLIC &&
             addrs[i].type != BLE_ADDR_RANDOM) {

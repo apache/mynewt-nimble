@@ -125,6 +125,7 @@ static void purge_buffers(struct net_buf_slist_t *list)
 	while (!net_buf_slist_is_empty(list)) {
 		struct os_mbuf *buf;
 		buf = (void *)net_buf_slist_get(list);
+		BT_MESH_ADV(buf)->frags = NULL;
 		BT_MESH_ADV(buf)->flags &= ~NET_BUF_FRAGS;
 		net_buf_unref(buf);
 	}
@@ -345,7 +346,12 @@ static int unseg_app_sdu_unpack(struct bt_mesh_friend *frnd,
 				struct unseg_app_sdu_meta *meta)
 {
 	uint16_t app_idx = FRIEND_ADV(buf)->app_idx;
-	struct bt_mesh_net_rx net;
+	struct bt_mesh_net_rx net = {
+		.ctx = {
+			.app_idx = app_idx,
+			.net_idx = frnd->subnet->net_idx,
+		},
+	};
 	int err;
 
 	meta->subnet = frnd->subnet;
@@ -437,11 +443,16 @@ static int unseg_app_sdu_prepare(struct bt_mesh_friend *frnd,
 		return 0;
 	}
 
+	BT_DBG("Re-encrypting friend pdu (SeqNum %06x -> %06x)",
+	       meta.crypto.seq_num, bt_mesh.seq);
+
 	err = unseg_app_sdu_decrypt(frnd, buf, &meta);
 	if (err) {
 		BT_WARN("Decryption failed! %d", err);
 		return err;
 	}
+
+	meta.crypto.seq_num = bt_mesh.seq;
 
 	err = unseg_app_sdu_encrypt(frnd, buf, &meta);
 	if (err) {
@@ -1225,7 +1236,7 @@ static void friend_timeout(struct ble_npl_event *work)
 
 	/* Clear the flag we use for segment tracking */
 	BT_MESH_ADV(frnd->last)->flags &= ~NET_BUF_FRAGS;
-	BT_MESH_ADV(frnd->last)->flags = 0;
+	BT_MESH_ADV(frnd->last)->frags = NULL;
 
 	BT_DBG("Sending buf %p from Friend Queue of LPN 0x%04x",
 	       frnd->last, frnd->lpn);
@@ -1371,7 +1382,8 @@ static void friend_purge_old_ack(struct bt_mesh_friend *frnd, uint64_t *seq_auth
 
 			net_buf_slist_remove(&frnd->queue, prev, cur);
 			frnd->queue_size--;
-
+			/* Make sure old slist entry state doesn't remain */
+			BT_MESH_ADV(buf)->frags = NULL;
 			net_buf_unref(buf);
 			break;
 		}
@@ -1612,6 +1624,7 @@ static bool friend_queue_prepare_space(struct bt_mesh_friend *frnd, uint16_t add
 		BT_DBG("PENDING SEGMENTS %d", pending_segments);
 
 		/* Make sure old slist entry state doesn't remain */
+		BT_MESH_ADV(buf)->frags = NULL;
 		BT_MESH_ADV(buf)->flags &= ~NET_BUF_FRAGS;
 
 		net_buf_unref(buf);

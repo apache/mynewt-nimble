@@ -175,10 +175,10 @@ struct ble_ll_scan_sm
     struct ble_npl_event scan_interrupted_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct hal_timer duration_timer;
-    struct hal_timer period_timer;
-    uint32_t duration_ticks;
-    uint32_t period_ticks;
+    struct ble_npl_callout duration_timer;
+    struct ble_npl_callout period_timer;
+    ble_npl_time_t duration_ticks;
+    ble_npl_time_t period_ticks;
     uint8_t ext_scanning;
 #endif
 

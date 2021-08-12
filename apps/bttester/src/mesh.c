@@ -41,7 +41,7 @@
 extern uint8_t own_addr_type;
 
 #define CONTROLLER_INDEX 0
-#define CID_LOCAL 0xffff
+#define CID_LOCAL 0x0002
 
 /* Health server data */
 #define CUR_FAULTS_MAX 4
@@ -937,11 +937,48 @@ static struct bt_test_cb bt_test_cb = {
 	.mesh_trans_incomp_timer_exp = incomp_timer_exp_cb,
 };
 
+static void lpn_established(uint16_t friend_addr)
+{
+
+	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
+	struct mesh_lpn_established_ev ev = { lpn->sub->net_idx, friend_addr, lpn->queue_size,
+					      lpn->recv_win };
+
+	SYS_LOG_DBG("Friendship (as LPN) established with "
+		"Friend 0x%04x Queue Size %d Receive Window %d",
+		friend_addr, lpn->queue_size, lpn->recv_win);
+
+	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_LPN_ESTABLISHED,
+		    CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
+}
+
+static void lpn_terminated(uint16_t friend_addr)
+{
+	struct bt_mesh_lpn *lpn = &bt_mesh.lpn;
+	struct mesh_lpn_terminated_ev ev = { lpn->sub->net_idx, friend_addr };
+
+	SYS_LOG_DBG("Friendship (as LPN) lost with Friend "
+		"0x%04x", friend_addr);
+
+	tester_send(BTP_SERVICE_ID_MESH, MESH_EV_LPN_TERMINATED,
+		    CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
+}
+
+void lpn_cb(uint16_t friend_addr, bool established)
+{
+	if (established) {
+		lpn_established(friend_addr);
+	} else {
+		lpn_terminated(friend_addr);
+	}
+}
+
 uint8_t tester_init_mesh(void)
 {
 	health_pub_init();
 
 	if (IS_ENABLED(CONFIG_BT_TESTING)) {
+		bt_mesh_lpn_set_cb(lpn_cb);
 		bt_test_cb_register(&bt_test_cb);
 	}
 

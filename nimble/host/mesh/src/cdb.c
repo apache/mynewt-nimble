@@ -235,7 +235,7 @@ uint8_t bt_mesh_cdb_subnet_flags(const struct bt_mesh_cdb_subnet *sub)
 {
 	uint8_t flags = 0x00;
 
-	if (sub && sub->kr_flag) {
+	if (sub && SUBNET_KEY_TX_IDX(sub)) {
 		flags |= BT_MESH_NET_FLAG_KR;
 	}
 
@@ -359,7 +359,7 @@ void bt_mesh_cdb_app_key_del(struct bt_mesh_cdb_app_key *key, bool store)
 		bt_mesh_clear_cdb_app_key(key);
 	}
 
-	key->net_idx = BT_MESH_ADDR_UNASSIGNED;
+	key->net_idx = BT_MESH_KEY_UNUSED;
 	memset(key->keys, 0, sizeof(key->keys));
 }
 

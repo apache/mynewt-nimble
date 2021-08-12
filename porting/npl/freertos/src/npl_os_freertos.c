@@ -279,10 +279,6 @@ npl_freertos_callout_reset(struct ble_npl_callout *co, ble_npl_time_t ticks)
 {
     BaseType_t woken1, woken2, woken3;
 
-    if (ticks < 0) {
-        return BLE_NPL_INVALID_PARAM;
-    }
-
     if (ticks == 0) {
         ticks = 1;
     }

@@ -106,8 +106,8 @@ struct bt_mesh_va *bt_mesh_va_get(uint16_t index);
 
 struct bt_mesh_va *bt_mesh_va_find(uint8_t uuid[16]);
 
-uint8_t bt_mesh_va_add(uint8_t uuid[16], uint16_t *addr);
+uint8_t bt_mesh_va_add(const uint8_t uuid[16], uint16_t *addr);
 
-uint8_t bt_mesh_va_del(uint8_t uuid[16], uint16_t *addr);
+uint8_t bt_mesh_va_del(const uint8_t uuid[16], uint16_t *addr);
 
 uint8_t *bt_mesh_va_label_get(uint16_t addr);

@@ -17,7 +17,7 @@
 #define BT_MESH_ADV_DATA_SIZE 31
 
 /* The user data is a pointer (4 bytes) to struct bt_mesh_adv */
-#define BT_MESH_ADV_USER_DATA_SIZE (sizeof(struct bt_mesh_adv *))
+#define BT_MESH_ADV_USER_DATA_SIZE 4
 
 #define BT_MESH_MBUF_HEADER_SIZE (sizeof(struct os_mbuf_pkthdr) + \
                                     BT_MESH_ADV_USER_DATA_SIZE +\
@@ -35,6 +35,9 @@ typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, uint16_t duration,
 				   int err, void *user_data);
 
 struct bt_mesh_adv {
+	/** Fragments associated with this buffer. */
+	struct os_mbuf *frags;
+
 	const struct bt_mesh_send_cb *cb;
 	void *cb_data;
 

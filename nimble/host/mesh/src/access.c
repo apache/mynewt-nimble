@@ -682,8 +682,15 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
 
 int bt_mesh_model_publish(struct bt_mesh_model *model)
 {
+	int err;
 	struct os_mbuf *sdu = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
 	struct bt_mesh_model_pub *pub = model->pub;
+
+	if (!pub) {
+		err = -ENOTSUP;
+		goto done;
+	}
+
 	struct bt_mesh_msg_ctx ctx = {
 		.addr = pub->addr,
 		.send_ttl = pub->ttl,
@@ -694,14 +701,8 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 		.ctx = &ctx,
 		.src = bt_mesh_model_elem(model)->addr,
 	};
-	int err;
 
 	BT_DBG("");
-
-	if (!pub) {
-		err = -ENOTSUP;
-		goto done;
-	}
 
 	if (pub->addr == BT_MESH_ADDR_UNASSIGNED) {
 		err = -EADDRNOTAVAIL;

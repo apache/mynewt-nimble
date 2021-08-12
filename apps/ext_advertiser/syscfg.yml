@@ -30,6 +30,9 @@ syscfg.vals:
     # Enable Extended Advertising
     BLE_EXT_ADV: 1
 
+    # Enable Periodic Advertising
+    BLE_PERIODIC_ADV: 1
+
     # Max advertising data size
     BLE_EXT_ADV_MAX_SIZE: 1650
 
@@ -37,12 +40,12 @@ syscfg.vals:
     # to historical reasonds total number of advertising
     # instances is BLE_MULTI_ADV_INSTANCES + 1 as instance
     # 0 is always available
-    BLE_MULTI_ADV_INSTANCES: 4
+    BLE_MULTI_ADV_INSTANCES: 5
 
     # Controller uses msys pool for storing advertising data and scan responses.
-    # Since we advertise a lot of data (~4k in total) at the same time we need
+    # Since we advertise a lot of data (~6k in total) at the same time we need
     # to increase block count.
-    MSYS_1_BLOCK_COUNT: 24
+    MSYS_1_BLOCK_COUNT: 32
 
     # Whether to save data to sys/config, or just keep it in RAM.
     BLE_STORE_CONFIG_PERSIST: 0

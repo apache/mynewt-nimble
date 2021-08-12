@@ -2606,6 +2606,16 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         goto done;
     }
 
+    /* Just ignore PDU if truncated was already sent.
+     * This can happen if next PDU in chain was already received before we
+     * manage to cancel scan on error (which resulted in sending truncated HCI
+     * event)
+     */
+    if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED)) {
+        rc = -1;
+        goto done;
+    }
+
     /*
      * We keep one allocated event in aux_data to be able to truncate chain
      * properly in case of error. If there is no event in aux_data it means this
@@ -2646,7 +2656,6 @@ ble_ll_hci_send_ext_adv_report(uint8_t ptype, uint8_t *adva, uint8_t adva_type,
         /* Need to send truncated event if we already sent some reports */
         if (aux_data && (aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_ANY)) {
             BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED));
-            BLE_LL_ASSERT(!(aux_data->flags_ll & BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED));
 
             aux_data->flags_ll |= BLE_LL_AUX_FLAG_SCAN_ERROR;
             aux_data->flags_ll |= BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED;
@@ -3422,30 +3431,24 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
 static void
 ble_ll_scan_duration_period_timers_restart(struct ble_ll_scan_sm *scansm)
 {
-    uint32_t now;
-
-    now = os_cputime_get32();
-
-    os_cputime_timer_stop(&scansm->duration_timer);
-    os_cputime_timer_stop(&scansm->period_timer);
+    ble_npl_callout_stop(&scansm->duration_timer);
+    ble_npl_callout_stop(&scansm->period_timer);
 
     if (scansm->duration_ticks) {
-        os_cputime_timer_start(&scansm->duration_timer,
-                                                now + scansm->duration_ticks);
+        ble_npl_callout_reset(&scansm->duration_timer,
+                              scansm->duration_ticks);
 
         if (scansm->period_ticks) {
-            os_cputime_timer_start(&scansm->period_timer,
-                                                    now + scansm->period_ticks);
+            ble_npl_callout_reset(&scansm->period_timer,
+                                  scansm->period_ticks);
         }
     }
 }
 
 static void
-ble_ll_scan_duration_timer_cb(void *arg)
+ble_ll_scan_duration_timer_cb(struct ble_npl_event *ev)
 {
-    struct ble_ll_scan_sm *scansm;
-
-    scansm = (struct ble_ll_scan_sm *)arg;
+    struct ble_ll_scan_sm *scansm = ble_npl_event_get_arg(ev);
 
     ble_ll_scan_sm_stop(2);
 
@@ -3456,9 +3459,9 @@ ble_ll_scan_duration_timer_cb(void *arg)
 }
 
 static void
-ble_ll_scan_period_timer_cb(void *arg)
+ble_ll_scan_period_timer_cb(struct ble_npl_event *ev)
 {
-    struct ble_ll_scan_sm *scansm = arg;
+    struct ble_ll_scan_sm *scansm = ble_npl_event_get_arg(ev);
 
     ble_ll_scan_sm_start(scansm);
 
@@ -3488,8 +3491,8 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
     struct ble_ll_scan_params *scanp_phy;
     int i;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    uint32_t period_ticks = 0;
-    uint32_t dur_ticks = 0;
+    ble_npl_time_t period_ticks = 0;
+    ble_npl_time_t dur_ticks = 0;
 #endif
 
     /* Check for valid parameters */
@@ -3509,16 +3512,13 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
             period = 0;
         }
 
-        /* period is in 1.28 sec units
-         * TODO support full range, would require os_cputime milliseconds API
-         */
-        if (period > 3355) {
+        /* period is in 1.28 sec units */
+        if (ble_npl_time_ms_to_ticks(period * 1280, &period_ticks)) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
-        period_ticks = os_cputime_usecs_to_ticks(period * 1280000);
 
         /* duration is in 10ms units */
-        dur_ticks = os_cputime_usecs_to_ticks(dur * 10000);
+        dur_ticks = ble_npl_time_ms_to_ticks32(dur * 10);
 
         if (dur_ticks && period_ticks && (dur_ticks >= period_ticks)) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -3532,8 +3532,8 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
             ble_ll_scan_sm_stop(1);
         }
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        os_cputime_timer_stop(&scansm->duration_timer);
-        os_cputime_timer_stop(&scansm->period_timer);
+        ble_npl_callout_stop(&scansm->duration_timer);
+        ble_npl_callout_stop(&scansm->period_timer);
 #endif
 
         return BLE_ERR_SUCCESS;
@@ -3901,10 +3901,10 @@ ble_ll_scan_common_init(void)
 
     /* Initialize extended scan timers */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    os_cputime_timer_init(&scansm->duration_timer,
+    ble_npl_callout_init(&scansm->duration_timer, &g_ble_ll_data.ll_evq,
                                         ble_ll_scan_duration_timer_cb, scansm);
-    os_cputime_timer_init(&scansm->period_timer, ble_ll_scan_period_timer_cb,
-                                                                        scansm);
+    ble_npl_callout_init(&scansm->period_timer, &g_ble_ll_data.ll_evq,
+                                        ble_ll_scan_period_timer_cb, scansm);
 #endif
 
     ble_npl_event_init(&scansm->scan_interrupted_ev, ble_ll_scan_interrupted_event_cb, NULL);
@@ -3930,8 +3930,8 @@ ble_ll_scan_reset(void)
 
     /* stop extended scan timers */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    os_cputime_timer_stop(&scansm->duration_timer);
-    os_cputime_timer_stop(&scansm->period_timer);
+    ble_npl_callout_stop(&scansm->duration_timer);
+    ble_npl_callout_stop(&scansm->period_timer);
 #endif
 
     /* Reset duplicate advertisers and those from which we rxd a response */

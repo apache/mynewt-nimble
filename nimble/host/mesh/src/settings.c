@@ -552,6 +552,7 @@ static int mod_set_pub(struct bt_mesh_model *mod, char *val)
 		mod->pub->ttl = 0;
 		mod->pub->period = 0;
 		mod->pub->retransmit = 0;
+		mod->pub->period_div = pub.period_div;
 		mod->pub->count = 0;
 
 		BT_DBG("Cleared publication for model");
@@ -829,7 +830,6 @@ static int cdb_subnet_set(int argc, char *name)
 	if (sub) {
 		BT_DBG("Updating existing NetKeyIndex 0x%03x", net_idx);
 
-		sub->kr_flag = key.kr_flag;
 		sub->kr_phase = key.kr_phase;
 		memcpy(sub->keys[0].net_key, &key.val[0], 16);
 		memcpy(sub->keys[1].net_key, &key.val[1], 16);
@@ -843,7 +843,6 @@ static int cdb_subnet_set(int argc, char *name)
 		return -ENOMEM;
 	}
 
-	sub->kr_flag = key.kr_flag;
 	sub->kr_phase = key.kr_phase;
 	memcpy(sub->keys[0].net_key, &key.val[0], 16);
 	memcpy(sub->keys[1].net_key, &key.val[1], 16);
@@ -1191,7 +1190,7 @@ static void store_pending_seq(void)
 
 void bt_mesh_store_seq(void)
 {
-	if (CONFIG_BT_MESH_SEQ_STORE_RATE &&
+	if (CONFIG_BT_MESH_SEQ_STORE_RATE > 1 &&
 	    (bt_mesh.seq % CONFIG_BT_MESH_SEQ_STORE_RATE)) {
 		return;
 	}
@@ -1608,7 +1607,7 @@ static void store_cdb_subnet(const struct bt_mesh_cdb_subnet *sub)
 
 	memcpy(&key.val[0], sub->keys[0].net_key, 16);
 	memcpy(&key.val[1], sub->keys[1].net_key, 16);
-	key.kr_flag = sub->kr_flag;
+	key.kr_flag = 0U; /* Deprecated */
 	key.kr_phase = sub->kr_phase;
 
 	snprintk(path, sizeof(path), "bt/mesh/cdb/Subnet/%x", sub->net_idx);
