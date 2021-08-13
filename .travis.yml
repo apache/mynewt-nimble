@@ -127,7 +127,7 @@ before_install:
   - go version
 
 install:
-  - git clone https://github.com/JuulLabs-OSS/mynewt-travis-ci $HOME/ci
+  - git clone -b osx-fix https://github.com/michal-narajowski/mynewt-travis-ci $HOME/ci
   - chmod +x $HOME/ci/*.sh
   - |
     if [ "${TEST}" == "STYLE" ]; then
