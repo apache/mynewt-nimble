@@ -146,7 +146,7 @@ blehr_tx_hrate(struct os_event *ev)
 
     om = ble_hs_mbuf_from_flat(hrm, sizeof(hrm));
 
-    rc = ble_gattc_notify_custom(conn_handle, hrs_hrm_handle, om);
+    rc = ble_gatts_notify_custom(conn_handle, hrs_hrm_handle, om);
 
     assert(rc == 0);
     blehr_tx_hrate_reset();

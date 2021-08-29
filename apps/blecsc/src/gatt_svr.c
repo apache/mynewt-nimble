@@ -264,7 +264,7 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     }
 #endif
 
-    rc = ble_gattc_indicate_custom(conn_handle, csc_control_point_handle,
+    rc = ble_gatts_indicate_custom(conn_handle, csc_control_point_handle,
                                    om_indication);
 
     return rc;
@@ -321,7 +321,7 @@ gatt_svr_chr_notify_csc_measurement(uint16_t conn_handle)
 
     om = ble_hs_mbuf_from_flat(data_buf, data_offset);
 
-    rc = ble_gattc_notify_custom(conn_handle, csc_measurement_handle, om);
+    rc = ble_gatts_notify_custom(conn_handle, csc_measurement_handle, om);
     return rc;
 }
 
