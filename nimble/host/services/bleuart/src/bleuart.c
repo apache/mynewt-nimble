@@ -165,7 +165,7 @@ bleuart_uart_read(void)
         if (!om) {
             return;
         }
-        ble_gattc_notify_custom(g_console_conn_handle,
+        ble_gatts_notify_custom(g_console_conn_handle,
                                 g_bleuart_attr_read_handle, om);
         off = 0;
         break;

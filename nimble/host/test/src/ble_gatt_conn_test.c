@@ -485,7 +485,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
         3, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
-    rc = ble_gattc_indicate(3, attr_handle);
+    rc = ble_gatts_indicate(3, attr_handle);
     TEST_ASSERT_FATAL(rc == 0);
 
     /*** Start the procedures. */
@@ -732,7 +732,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
 
     /*** Indication. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_indicate(1, attr_handle);
+    rc = ble_gatts_indicate(1, attr_handle);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, NULL);
 

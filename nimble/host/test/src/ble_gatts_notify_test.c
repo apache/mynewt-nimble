@@ -586,7 +586,7 @@ TEST_CASE_SELF(ble_gatts_notify_test_n)
     om = ble_hs_mbuf_from_flat(fourbytes, sizeof fourbytes);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_gattc_notify_custom(conn_handle,
+    rc = ble_gatts_notify_custom(conn_handle,
                                  ble_gatts_notify_test_chr_1_def_handle + 1,
                                  om);
     TEST_ASSERT_FATAL(rc == 0);
@@ -675,7 +675,7 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
     om = ble_hs_mbuf_from_flat(fourbytes, sizeof fourbytes);
     TEST_ASSERT_FATAL(om != NULL);
 
-    rc = ble_gattc_indicate_custom(conn_handle,
+    rc = ble_gatts_indicate_custom(conn_handle,
                                    ble_gatts_notify_test_chr_1_def_handle + 1,
                                    om);
     TEST_ASSERT_FATAL(rc == 0);

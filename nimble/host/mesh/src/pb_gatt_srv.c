@@ -409,7 +409,7 @@ static int gatt_send(uint16_t conn_handle,
 	BT_DBG("%u bytes: %s", len, bt_hex(data, len));
 	om = ble_hs_mbuf_from_flat(data, len);
 	assert(om);
-	err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
+	err = ble_gatts_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
 	notify_complete();
 
 	if (!err) {

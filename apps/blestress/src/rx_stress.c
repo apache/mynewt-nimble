@@ -1005,7 +1005,7 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
     rx_stress_ctx->begin_us = os_get_uptime_usec();
     om = os_msys_get_pkthdr(om_len, 0);
     stress_fill_mbuf_with_pattern(om, om_len);
-    rc = ble_gattc_indicate_custom(rx_stress_ctx->conn_handle, hrs_hrm_handle,
+    rc = ble_gatts_indicate_custom(rx_stress_ctx->conn_handle, hrs_hrm_handle,
                                    om);
     assert(rc == 0);
     return 0;
@@ -1020,7 +1020,7 @@ rx_stress_13_notify_ev_func(struct ble_npl_event *ev)
     int rc;
 
     om = ble_hs_mbuf_from_flat(test_6_pattern, 10);
-    rc = ble_gattc_notify_custom(rx_stress_ctx->conn_handle,
+    rc = ble_gatts_notify_custom(rx_stress_ctx->conn_handle,
                                  hrs_hrm_handle, om);
     assert(rc == 0);
 
@@ -1142,7 +1142,7 @@ rx_stress_14_gap_event(struct ble_gap_event *event, void *arg)
             /* Notify data pattern */
             om = ble_hs_mbuf_from_flat(test_6_pattern, bytes_num);
 
-            rc = ble_gattc_notify_custom(rx_stress_ctx->conn_handle,
+            rc = ble_gatts_notify_custom(rx_stress_ctx->conn_handle,
                                          hrs_hrm_handle, om);
             assert(rc == 0);
 
@@ -1459,7 +1459,7 @@ rx_stress_main_task_fn(void *arg)
         if (i == 7 || i == 8 || i == 13) {
             /* 7,8: PHY update tests cause that the device during the next test
              * will stuck somewhere and will reset. Skip them for now.
-             * 13: Should work after fixing ble_gattc_notify_custom (nimble issue on GitHub)*/
+             * 13: Should work after fixing ble_gatts_notify_custom (nimble issue on GitHub)*/
             continue;
         }
         /* Start test. */

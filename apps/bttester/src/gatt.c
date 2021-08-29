@@ -1978,12 +1978,12 @@ void notify_test(struct os_event *ev)
 	om = ble_hs_mbuf_from_flat(ntf, sizeof(ntf));
 
 	if (notify_state) {
-		rc = ble_gattc_notify_custom(myconn_handle, notify_handle, om);
+		rc = ble_gatts_notify_custom(myconn_handle, notify_handle, om);
 		assert(rc == 0);
 	}
 
 	if (indicate_state) {
-		rc = ble_gattc_indicate_custom(myconn_handle, notify_handle, om);
+		rc = ble_gatts_indicate_custom(myconn_handle, notify_handle, om);
 		assert(rc == 0);
 	}
 }
