@@ -171,10 +171,9 @@ static int check_pub_addr_unassigned(void)
 #ifdef ARCH_sim
 	return 0;
 #else
-	uint8_t zero_addr[BLE_DEV_ADDR_LEN] = { 0 };
 
-	return memcmp(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
-		      zero_addr, BLE_DEV_ADDR_LEN) == 0;
+    return ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, NULL,
+                               NULL) == BLE_HS_ENOADDR;
 #endif
 }
 
@@ -219,8 +218,7 @@ static void controller_info(uint8_t *data, uint16_t len)
 			current_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
 		} else {
 			own_addr_type = BLE_OWN_ADDR_PUBLIC;
-			memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
-			       sizeof(rp.address));
+			ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, rp.address, NULL);
 		}
 	}
 
