@@ -55,8 +55,13 @@ ble_hs_util_ensure_rand_addr(void)
 
     /* Otherwise, try to load a random address. */
     rc = ble_hs_util_load_rand_addr(&addr);
+
     if (rc != 0) {
-        return rc;
+        /* If it didn't work, generate random address */
+        rc = ble_hs_id_gen_rnd(0, &addr);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     /* Configure nimble to use the random address. */
