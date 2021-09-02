@@ -3416,7 +3416,7 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
         }
 
         if (uncoded->timing.interval == uncoded->timing.window) {
-            uncoded->timing.window += coded->timing.window;
+            uncoded->timing.interval += coded->timing.window;
         }
     }
 
