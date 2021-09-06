@@ -283,7 +283,13 @@ struct ble_hs_cfg {
     void *store_status_arg;
 };
 
+extern uint16_t ble_hs_max_attrs;
+extern uint16_t ble_hs_max_services;
+extern uint16_t ble_hs_max_client_configs;
+
 extern struct ble_hs_cfg ble_hs_cfg;
+extern uint16_t ble_hs_gap_primary_svcs_count;
+extern uint16_t ble_hs_gap_primary_svcs_attrs_count;
 
 /**
  * @}

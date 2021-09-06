@@ -2671,6 +2671,11 @@ ble_att_svr_reset(void)
         ble_att_svr_entry_free(entry);
     }
 
+    /* All entries are freed - reset variables that kept track of their count */
+    ble_hs_max_services = ble_hs_gap_primary_svcs_count;
+    ble_hs_max_attrs = ble_hs_gap_primary_svcs_attrs_count;
+    ble_hs_max_client_configs = 0;
+
     /* Note: prep entries do not get freed here because it is assumed there are
      * no established connections.
      */
