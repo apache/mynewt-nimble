@@ -101,7 +101,8 @@ ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs, int *out_num_peers,
 
 /**
  * Deletes all entries from the store that are attached to the specified peer
- * address.  This function deletes security entries and CCCD records.
+ * address.  This function deletes security entries, CCCD records and stored 
+ * database hashes.
  *
  * @param peer_id_addr          Entries with this peer address get deleted.
  *
@@ -123,6 +124,11 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
     }
 
     rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_PEER_SEC, &key);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_HASH, &key);
     if (rc != 0) {
         return rc;
     }

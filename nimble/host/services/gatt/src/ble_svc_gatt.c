@@ -22,14 +22,20 @@
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include "host/ble_gatt.h"
 
 static uint16_t ble_svc_gatt_changed_val_handle;
+static uint16_t ble_svc_gatt_hash_val_handle;
 static uint16_t ble_svc_gatt_start_handle;
 static uint16_t ble_svc_gatt_end_handle;
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
                     struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int 
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
     {
@@ -41,7 +47,14 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
             .access_cb = ble_svc_gatt_access,
             .val_handle = &ble_svc_gatt_changed_val_handle,
             .flags = BLE_GATT_CHR_F_INDICATE,
-        }, {
+        },
+        {
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16),
+            .access_cb = ble_svc_gatt_db_hash_access,
+            .val_handle = &ble_svc_gatt_hash_val_handle,
+            .flags = BLE_GATT_CHR_F_READ,
+        },
+        {
             0, /* No more characteristics in this service. */
         } },
     },
@@ -50,6 +63,28 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
         0, /* No more services. */
     },
 };
+
+static int 
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    int rc;
+    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
+    assert(ctxt->chr == &ble_svc_gatt_defs[0].characteristics[1]);
+    uint8_t db_hash[16];
+    uint16_t len_data = sizeof(db_hash);
+    int res = ble_compute_db_hash(db_hash);
+    if(res != 0){
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    rc = os_mbuf_append(ctxt->om, db_hash, len_data);
+    if(rc !=0){
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    return 0;
+}
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -73,7 +108,7 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
 
     put_le16(u8p + 0, ble_svc_gatt_start_handle);
     put_le16(u8p + 2, ble_svc_gatt_end_handle);
-
+    
     return 0;
 }
 
@@ -89,7 +124,22 @@ ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle)
 {
     ble_svc_gatt_start_handle = start_handle;
     ble_svc_gatt_end_handle = end_handle;
-    ble_gatts_chr_updated(ble_svc_gatt_changed_val_handle);
+    ble_gatts_chr_updated(ble_svc_gatt_changed_val_handle);   
+}
+
+/**
+ * Indicates a change in attribute assignment to specified peer.
+ *
+ * @param conn_handle           The connection to indicate.
+ * @param start_handle          The start of the affected handle range.
+ * @param end_handle            The end of the affected handle range.
+ */
+void
+ble_svc_conn_gatt_changed(uint16_t conn_handle, uint16_t start_handle, uint16_t end_handle)
+{
+    ble_svc_gatt_start_handle = start_handle;
+    ble_svc_gatt_end_handle = end_handle;
+    ble_gattc_indicate(conn_handle, ble_svc_gatt_changed_val_handle);
 }
 
 void

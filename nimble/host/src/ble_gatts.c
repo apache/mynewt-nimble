@@ -28,6 +28,17 @@
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
 
+#if NIMBLE_BLE_SM
+#include "tinycrypt/aes.h"
+#include "tinycrypt/constants.h"
+#include "tinycrypt/utils.h"
+
+#if MYNEWT_VAL(BLE_SM_SC)
+#include "tinycrypt/cmac_mode.h"
+#include "tinycrypt/ecc_dh.h"
+#endif
+#endif
+
 static const ble_uuid_t *uuid_pri =
     BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE);
 static const ble_uuid_t *uuid_sec =
@@ -1719,6 +1730,8 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
 {
     struct ble_store_value_cccd cccd_value;
     struct ble_store_key_cccd cccd_key;
+    struct ble_store_value_hash hash_value;
+    struct ble_store_key_hash hash_key;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
     uint8_t att_op;
@@ -1799,6 +1812,13 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
 
         cccd_key.idx++;
     }
+
+    hash_key.peer_addr = conn->bhc_peer_addr;
+    hash_key.peer_addr.type =
+        ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
+    hash_key.idx = 0;
+
+    rc = ble_store_read_hash(conn_handle, &hash_key, &hash_value); // read peer hash, read the database hash characteristic and compare, if rc != 0 => ble_svc_conn_gatt_changed(0, 0xffff)
 }
 
 static struct ble_gatts_svc_entry *
@@ -2181,4 +2201,108 @@ ble_gatts_init(void)
 
     return 0;
 
+}
+
+static void ble_db_hash_message_append_u16(uint16_t val, uint8_t *buf, uint8_t *len) {
+    val = htole16(val);
+    memcpy(buf + *len, &val, sizeof(uint16_t));
+    *len += sizeof(uint16_t);
+}
+
+static void ble_db_hash_message_append_u32(uint32_t val, uint8_t *buf, uint8_t *len) {
+    val = htole32(val);
+    memcpy(buf + *len, &val, sizeof(uint32_t));
+    *len += sizeof(uint32_t);
+}
+
+static void ble_db_hash_message_append_uuid(const ble_uuid_t *uuid, uint8_t *buf, uint8_t *len) {
+  switch (uuid->type) {
+    case BLE_UUID_TYPE_16: {
+        ble_db_hash_message_append_u16( BLE_UUID16(uuid)->value, buf, len);
+        break;
+     }
+    case BLE_UUID_TYPE_32: {
+        ble_db_hash_message_append_u32(BLE_UUID32(uuid)->value, buf, len);
+        break;
+   }
+    case BLE_UUID_TYPE_128: {
+        memcpy(buf + *len, BLE_UUID128(uuid)->value, 16);
+        *len += 16;
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/**
+ * Called when the database cmac hash needs to be computed using the information
+ * from registered services, characteristics and descriptors.  This
+ * function:
+ *     o Sets up the cmac generator with a key of 0s
+ *     o Parse services, characteristics and descriptors and adds information
+ *       to the message to code.
+ *     o Computes the cmac coded message.
+ */
+int ble_compute_db_hash(uint8_t db_hash[16])
+{
+    uint8_t buf[24];
+    uint8_t buf_len;
+
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+    const uint8_t key[16] = {0};
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    for (int i = 0; i < ble_gatts_num_svc_entries; i++) {
+        struct ble_gatts_svc_entry *entry = &ble_gatts_svc_entries[i];
+        buf_len = 0;
+        ble_db_hash_message_append_u16(entry->handle, buf, &buf_len);
+        ble_db_hash_message_append_u16(BLE_ATT_UUID_PRIMARY_SERVICE, buf, &buf_len);
+        ble_db_hash_message_append_uuid(entry->svc->uuid, buf, &buf_len);
+
+       if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+          return BLE_HS_EUNKNOWN;
+       }
+       buf_len = 0;
+        
+        if (entry->svc->characteristics != NULL) {
+            for (const struct ble_gatt_chr_def *chr = entry->svc->characteristics; chr && chr->uuid; chr++) {
+                if (chr->val_handle == NULL) {
+                    continue;
+                }
+                ble_db_hash_message_append_u16(*chr->val_handle - 1, buf, &buf_len);
+                ble_db_hash_message_append_u16(BLE_ATT_UUID_CHARACTERISTIC, buf, &buf_len);
+                ble_db_hash_message_append_u16(chr->flags, buf, &buf_len);
+                ble_db_hash_message_append_u16(*chr->val_handle, buf, &buf_len);
+                ble_db_hash_message_append_uuid(chr->uuid, buf, &buf_len);
+
+                if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                    return BLE_HS_EUNKNOWN;
+                }
+                buf_len = 0;
+
+                if (chr->descriptors != NULL) {
+                    for (struct ble_gatt_dsc_def *dsc = chr->descriptors; dsc && dsc->uuid; dsc++) {
+                        ble_db_hash_message_append_u16(*chr->val_handle + 1, buf, &buf_len);
+                        ble_db_hash_message_append_u16(BLE_ATT_UUID_DESCRIPTOR, buf, &buf_len);
+
+                        if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                            return BLE_HS_EUNKNOWN;
+                        }
+                        buf_len = 0;
+                    }
+                }
+            }
+        }
+    }
+      
+    if (tc_cmac_final(db_hash, &state) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    return 0;
 }

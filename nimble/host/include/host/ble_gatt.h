@@ -894,3 +894,5 @@ int ble_gatts_start(void);
  */
 
 #endif
+
+int ble_compute_db_hash(uint8_t db_hash[16]);

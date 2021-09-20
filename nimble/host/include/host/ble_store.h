@@ -30,6 +30,7 @@ extern "C" {
 #define BLE_STORE_OBJ_TYPE_OUR_SEC      1
 #define BLE_STORE_OBJ_TYPE_PEER_SEC     2
 #define BLE_STORE_OBJ_TYPE_CCCD         3
+#define BLE_STORE_OBJ_TYPE_HASH         4
 
 /** Failed to persist record; insufficient storage capacity. */
 #define BLE_STORE_EVENT_OVERFLOW        1
@@ -121,12 +122,37 @@ struct ble_store_value_cccd {
 };
 
 /**
+ * Used as a key for lookups of stored database hashes. 
+ * This struct corresponds to the BLE_STORE_OBJ_TYPE_HASH store object type.
+ */
+struct ble_store_key_hash {
+    /**
+     * Key by peer identity address;
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
+     */
+    ble_addr_t peer_addr;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Represents the last stored server database hash for a paired client device.
+ * This struct corresponds to the BLE_STORE_OBJ_TYPE_HASH store object type.
+ */
+struct ble_store_value_hash{
+    ble_addr_t peer_addr;
+    uint8_t db_hash[16];
+};
+
+/**
  * Used as a key for store lookups.  This union must be accompanied by an
  * object type code to indicate which field is valid.
  */
 union ble_store_key {
     struct ble_store_key_sec sec;
     struct ble_store_key_cccd cccd;
+    struct ble_store_key_hash hash;
 };
 
 /**
@@ -136,6 +162,7 @@ union ble_store_key {
 union ble_store_value {
     struct ble_store_value_sec sec;
     struct ble_store_value_cccd cccd;
+    struct ble_store_value_hash hash;
 };
 
 struct ble_store_status_event {
@@ -266,10 +293,18 @@ int ble_store_read_cccd(const struct ble_store_key_cccd *key,
 int ble_store_write_cccd(const struct ble_store_value_cccd *value);
 int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
+int ble_store_read_hash(uint16_t conn_handle,
+                        const struct ble_store_key_hash *key,
+                        struct ble_store_value_hash *out_value);
+int ble_store_write_hash(const struct ble_store_value_hash *value);
+int ble_store_delete_hash(const struct ble_store_key_hash *key);
+
 void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
                                   const struct ble_store_value_sec *value);
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    const struct ble_store_value_cccd *value);
+void ble_store_key_from_value_hash(struct ble_store_key_hash *out_key,
+                                   const struct ble_store_value_hash *value);
 
 void ble_store_key_from_value(int obj_type,
                               union ble_store_key *out_key,

@@ -29,8 +29,10 @@ extern "C" {
 struct ble_hs_cfg;
 
 #define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
+#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16     0x2B2A
 
 void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
+void ble_svc_conn_gatt_changed(uint16_t conn_handle, uint16_t start_handle, uint16_t end_handle);
 void ble_svc_gatt_init(void);
 
 #ifdef __cplusplus
