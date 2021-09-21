@@ -320,6 +320,8 @@ struct gap_set_mitm_cmd {
     uint8_t mitm;
 } __packed;
 
+#define GAP_FORCE_PAIR		0x1c
+
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {

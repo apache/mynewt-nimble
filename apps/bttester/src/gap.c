@@ -1301,6 +1301,37 @@ rsp:
 	tester_rsp(BTP_SERVICE_ID_GAP, GAP_PAIR, CONTROLLER_INDEX, status);
 }
 
+static void force_pair(const uint8_t *data, uint16_t len)
+{
+    /**
+     * This method is used to force pairing instead of giving the option
+     * of automatically choosing pairing or encryption by ble_gap_security_initiate()
+     */
+    struct ble_gap_conn_desc desc;
+    uint8_t status;
+    int rc;
+
+    SYS_LOG_DBG("");
+
+    rc = gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+    if (rc) {
+        status = BTP_STATUS_FAILED;
+        goto rsp;
+    }
+
+    rc = ble_gap_pair_initiate(desc.conn_handle);
+    SYS_LOG_DBG("ble_gap_pair_initiate finished with rc=%d", rc);
+    if (rc) {
+        status = BTP_STATUS_FAILED;
+        goto rsp;
+    }
+
+    status = BTP_STATUS_SUCCESS;
+
+rsp:
+    tester_rsp(BTP_SERVICE_ID_GAP, GAP_FORCE_PAIR, CONTROLLER_INDEX, status);
+}
+
 static void unpair(const uint8_t *data, uint16_t len)
 {
 	uint8_t status;
@@ -1607,6 +1638,9 @@ void tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
 		return;
 	case GAP_PAIR:
 		pair(data, len);
+		return;
+	case GAP_FORCE_PAIR:
+		force_pair(data, len);
 		return;
 	case GAP_UNPAIR:
 		unpair(data, len);
