@@ -58,7 +58,7 @@ static struct os_callout blecsc_measure_timer;
 /* Variable holds current CSC measurement state */
 static struct ble_csc_measurement_state csc_measurement_state;
 
-/* Variable holds simulted speed (kilometers per hour) */
+/* Variable holds simulated speed (kilometers per hour) */
 static uint16_t csc_sim_speed_kph = CSC_SIM_SPEED_KPH_MIN;
 
 /* Variable holds simulated cadence (RPM) */

@@ -669,7 +669,7 @@ ble_phy_set_start_now(void)
 /**
  * Function is used to set PPI so that we can time out waiting for a reception
  * to occur. This happens for two reasons: we have sent a packet and we are
- * waiting for a respons (txrx should be set to ENABLE_TXRX) or we are
+ * waiting for a response (txrx should be set to ENABLE_TXRX) or we are
  * starting a connection event and we are a slave and we are waiting for the
  * master to send us a packet (txrx should be set to ENABLE_RX).
  *
