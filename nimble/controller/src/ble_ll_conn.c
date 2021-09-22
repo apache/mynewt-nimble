@@ -3163,7 +3163,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     /*
      * Check the packet CRC. A connection event can continue even if the
      * received PDU does not pass the CRC check. If we receive two consecutive
-     * CRC errors we end the conection event.
+     * CRC errors we end the connection event.
      */
     if (!BLE_MBUF_HDR_CRC_OK(rxhdr)) {
         /*
@@ -3753,7 +3753,7 @@ ble_ll_conn_module_init(void)
     uint16_t i;
     struct ble_ll_conn_sm *connsm;
 
-    /* Initialize list of active conections */
+    /* Initialize list of active connections */
     SLIST_INIT(&g_ble_ll_conn_active_list);
     STAILQ_INIT(&g_ble_ll_conn_free_list);
 

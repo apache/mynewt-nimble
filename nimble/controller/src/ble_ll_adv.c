@@ -4479,7 +4479,7 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
 #endif
 
     /*
-     * It is possible that advertising was stopped and a packet plcaed on the
+     * It is possible that advertising was stopped and a packet placed on the
      * LL receive packet queue. In this case, just ignore the received packet
      * as the advertising state machine is no longer "valid"
      */

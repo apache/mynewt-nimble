@@ -5784,7 +5784,7 @@ ble_gap_enc_event(uint16_t conn_handle, int status,
         return;
     }
 
-    /* If encryption succeded and encryption has been restored for bonded device,
+    /* If encryption succeeded and encryption has been restored for bonded device,
      * notify gatt server so it has chance to send notification/indication if needed.
      */
     if (security_restored) {
