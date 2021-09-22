@@ -980,6 +980,31 @@ static void le_identity_resolved(uint16_t conn_handle)
 		    CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
+static void le_pairing_failed(uint16_t conn_handle, int reason)
+{
+    struct ble_gap_conn_desc desc;
+    struct gap_sec_pairing_failed_ev ev;
+    int rc;
+
+    SYS_LOG_DBG("");
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc) {
+        return;
+    }
+
+    peer_id_addr = desc.peer_id_addr;
+    peer_ota_addr = desc.peer_ota_addr;
+
+    ev.address_type = desc.peer_ota_addr.type;
+    memcpy(ev.address, desc.peer_ota_addr.val, sizeof(ev.address));
+
+    ev.reason = reason;
+
+    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_SEC_PAIRING_FAILED,
+                CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
+}
+
 static void le_conn_param_update(struct ble_gap_conn_desc *desc)
 {
 	struct gap_conn_param_update_ev ev;
@@ -1262,7 +1287,15 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 			event->conn_update_req.peer_params->supervision_timeout == REJECT_SUPERVISION_TIMEOUT) {
 			return EINVAL;
 		}
-
+    case BLE_GAP_EVENT_PARING_COMPLETE:
+        console_printf("received pairing complete: "
+                       "conn_handle=%d status=%d\n",
+                       event->pairing_complete.conn_handle,
+                       event->pairing_complete.status);
+        if (event->pairing_complete.status != BLE_SM_ERR_SUCCESS) {
+    	    le_pairing_failed(event->pairing_complete.conn_handle, event->pairing_complete.status);
+        }
+        break;
 	default:
 		break;
 	}

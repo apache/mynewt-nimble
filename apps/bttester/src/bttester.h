@@ -418,6 +418,13 @@ struct gap_bond_lost_ev {
     uint8_t address[6];
 } __packed;
 
+#define GAP_EV_SEC_PAIRING_FAILED	0x8c
+struct gap_sec_pairing_failed_ev {
+    uint8_t address_type;
+    uint8_t address[6];
+    uint8_t reason;
+} __packed;
+
 /* GATT Service */
 /* commands */
 #define GATT_READ_SUPPORTED_COMMANDS	0x01
