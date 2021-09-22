@@ -137,6 +137,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_TRANSFER     24
 #define BLE_GAP_EVENT_PATHLOSS_THRESHOLD    25
 #define BLE_GAP_EVENT_TRANSMIT_POWER        26
+#define BLE_GAP_EVENT_PARING_COMPLETE       27
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -1023,6 +1024,24 @@ struct ble_gap_event {
 	    uint8_t delta;
 	} transmit_power;
 #endif
+        /**
+         * Represents a received Pairing Complete message
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_PARING_COMPLETE
+         */
+        struct {
+            /**
+             * Indicates the result of the encryption state change attempt;
+             *     o 0: the encrypted state was successfully updated;
+             *     o BLE host error code: the encryption state change attempt
+             *       failed for the specified reason.
+             */
+            int status;
+
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+        } pairing_complete;
     };
 };
 
