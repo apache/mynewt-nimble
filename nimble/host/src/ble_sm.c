@@ -933,6 +933,12 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 
         ble_hs_unlock();
 
+        if (res->enc_cb &&
+            res->app_status != BLE_HS_ENOTCONN) {
+            /* Do not send this event on broken connection */
+            ble_gap_pairing_complete_event(conn_handle, res->sm_err);
+        }
+
         if (proc == NULL) {
             break;
         }
@@ -2051,6 +2057,8 @@ ble_sm_key_exch_success(struct ble_sm_proc *proc, struct ble_sm_result *res)
     res->app_status = 0;
     res->enc_cb = 1;
     res->bonded = bonded;
+
+    res->sm_err = BLE_SM_ERR_SUCCESS;
 }
 
 static void
@@ -2421,6 +2429,7 @@ ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
         cmd = (struct ble_sm_pair_fail *)(*om)->om_data;
 
         res->app_status = BLE_HS_SM_PEER_ERR(cmd->reason);
+        res->sm_err =  cmd->reason;
     }
 }
 

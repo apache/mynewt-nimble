@@ -5884,6 +5884,20 @@ ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp)
 #endif
 }
 
+void
+ble_gap_pairing_complete_event(uint16_t conn_handle, int status)
+{
+#if NIMBLE_BLE_SM && NIMBLE_BLE_CONNECT
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_PARING_COMPLETE;
+    event.pairing_complete.conn_handle = conn_handle;
+    event.pairing_complete.status = status;
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+#endif
+}
+
 /*****************************************************************************
  * $rssi                                                                     *
  *****************************************************************************/
