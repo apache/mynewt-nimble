@@ -2057,7 +2057,6 @@ ble_sm_key_exch_success(struct ble_sm_proc *proc, struct ble_sm_result *res)
     res->app_status = 0;
     res->enc_cb = 1;
     res->bonded = bonded;
-
     res->sm_err = BLE_SM_ERR_SUCCESS;
 }
 
