@@ -1230,10 +1230,15 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 static void connect(const uint8_t *data, uint16_t len)
 {
 	uint8_t status = BTP_STATUS_SUCCESS;
+	ble_addr_t *addr = (ble_addr_t *) data;
 
 	SYS_LOG_DBG("");
 
-	if (ble_gap_connect(own_addr_type, (ble_addr_t *) data, 0,
+	if (ble_addr_cmp(BLE_ADDR_ANY, addr) == 0) {
+		addr = NULL;
+	}
+
+	if (ble_gap_connect(own_addr_type, addr, 0,
 			    &dflt_conn_params, gap_event_cb, NULL)) {
 		status = BTP_STATUS_FAILED;
 	}
@@ -1574,6 +1579,27 @@ static void set_mitm(const uint8_t *data, uint16_t len)
 		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
+static void set_filter_accept_list(const uint8_t *data, uint16_t len)
+{
+	uint8_t status = BTP_STATUS_SUCCESS;
+	struct gap_set_filter_accept_list_cmd *tmp =
+			(struct gap_set_filter_accept_list_cmd *) data;
+
+	SYS_LOG_DBG("");
+
+	/*
+	 * Check if the nb of bytes received matches the len of addrs list.
+	 * Then set the filter accept list.
+	 */
+	if (((len - sizeof(tmp->list_len))/sizeof(ble_addr_t) !=
+		tmp->list_len) || ble_gap_wl_set(tmp->addrs, tmp->list_len)) {
+		status = BTP_STATUS_FAILED;
+	}
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_FILTER_ACCEPT_LIST,
+		   			CONTROLLER_INDEX, status);
+}
+
 void tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
 		       uint16_t len)
 {
@@ -1664,6 +1690,9 @@ void tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
 		return;
 	case GAP_SET_MITM:
 		set_mitm(data, len);
+		return;
+	case GAP_SET_FILTER_ACCEPT_LIST:
+		set_filter_accept_list(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,

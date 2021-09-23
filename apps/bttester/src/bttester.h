@@ -320,6 +320,11 @@ struct gap_set_mitm_cmd {
     uint8_t mitm;
 } __packed;
 
+#define GAP_SET_FILTER_ACCEPT_LIST	0x1c
+struct gap_set_filter_accept_list_cmd {
+    uint8_t list_len;
+    ble_addr_t addrs[];
+} __packed;
 /* events */
 #define GAP_EV_NEW_SETTINGS		0x80
 struct gap_new_settings_ev {
