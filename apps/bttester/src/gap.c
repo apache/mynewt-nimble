@@ -1201,7 +1201,13 @@ static void connect(const uint8_t *data, uint16_t len)
 {
 	uint8_t status = BTP_STATUS_SUCCESS;
 
+	uint8_t tmp [6] = {0,0,0,0,0,0};
+	ble_addr_t *tmp_addr = (ble_addr_t *) data;
+
 	SYS_LOG_DBG("");
+
+	if (memcmp(tmp, tmp_addr->val, 6) == 0)
+		data = NULL;
 
 	if (ble_gap_connect(own_addr_type, (ble_addr_t *) data, 0,
 			    &dflt_conn_params, gap_event_cb, NULL)) {
@@ -1544,6 +1550,21 @@ static void set_mitm(const uint8_t *data, uint16_t len)
 		   CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
+static void set_filter_accept_list(const uint8_t *data, uint16_t len)
+{
+	uint8_t status = BTP_STATUS_SUCCESS;
+	struct gap_set_filter_accept_list_cmd *tmp =
+			(struct gap_set_filter_accept_list_cmd *) data;
+	SYS_LOG_DBG("");
+
+	if (ble_gap_wl_set(tmp->addrs, tmp->list_len)) {
+		status = BTP_STATUS_FAILED;
+	}
+
+	tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_FILTER_ACCEPT_LIST,
+		   			CONTROLLER_INDEX, status);
+}
+
 void tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
 		       uint16_t len)
 {
@@ -1634,6 +1655,9 @@ void tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
 		return;
 	case GAP_SET_MITM:
 		set_mitm(data, len);
+		return;
+	case GAP_SET_FILTER_ACCEPT_LIST:
+		set_filter_accept_list(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
