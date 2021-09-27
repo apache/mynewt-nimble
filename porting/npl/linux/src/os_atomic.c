@@ -22,10 +22,19 @@
 
 #include "nimble/nimble_npl.h"
 
+#ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 static pthread_mutex_t s_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+#else
+static pthread_mutex_t s_mutex = PTHREAD_MUTEX_INITIALIZER;
+static uint8_t s_mutex_inited = 0;
+#endif
 
 uint32_t ble_npl_hw_enter_critical(void)
 {
+    if( !s_mutex_inited ) {
+        pthread_mutexattr_settype(&s_mutex, PTHREAD_MUTEX_RECURSIVE);
+        s_mutex_inited = 1;
+    }
     pthread_mutex_lock(&s_mutex);
     return 0;
 }
