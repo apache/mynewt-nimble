@@ -31,7 +31,7 @@ ble_npl_mutex_init(struct ble_npl_mutex *mu)
     }
 
     pthread_mutexattr_init(&mu->attr);
-    pthread_mutexattr_settype(&mu->attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutexattr_settype(&mu->attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mu->lock, &mu->attr);
 
     return BLE_NPL_OK;
