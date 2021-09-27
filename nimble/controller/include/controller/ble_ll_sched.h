@@ -25,8 +25,8 @@ extern "C" {
 #endif
 
 /* Time per BLE scheduler slot */
-#define BLE_LL_SCHED_USECS_PER_SLOT         (1250)
-#define BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
+#define BLE_LL_SCHED_USECS_PER_SLOT   (1250)
+#define BLE_LL_SCHED_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
 
 /*
  * Worst case time needed for scheduled advertising item. This is the longest
@@ -160,8 +160,7 @@ int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
                          ble_ll_sched_adv_new_cb cb, void *arg);
 
 /* Schedule periodic advertising event */
-int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, uint32_t *start,
-                              bool after_overlap);
+int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, bool first_event);
 
 int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
                                  uint32_t anchor_point,
@@ -172,7 +171,7 @@ int ble_ll_sched_sync(struct ble_ll_sched_item *sch,
                       int8_t phy_mode);
 
 /* Reschedule an advertising event */
-int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
+int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch,
                                 uint32_t max_delay_ticks);
 
 /* Reschedule and advertising pdu */
