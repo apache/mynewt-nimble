@@ -2338,7 +2338,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     itvl = g_ble_ll_sched_data.sch_ticks_per_period;
 #else
-    itvl = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT;
+    itvl = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_TICKS_PER_SLOT;
 #endif
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
 
@@ -2452,7 +2452,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
 #else
         connsm->ce_end_time = connsm->anchor_point +
-            (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT)
+            (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_TICKS_PER_SLOT)
             + os_cputime_usecs_to_ticks(connsm->slave_cur_tx_win_usecs) + 1;
 #endif
         connsm->slave_cur_window_widening = BLE_LL_JITTER_USECS;

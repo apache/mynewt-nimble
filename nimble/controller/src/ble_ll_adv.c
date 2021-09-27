@@ -2283,7 +2283,6 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
 {
     struct ble_ll_adv_sync *sync;
     struct ble_ll_sched_item *sch;
-    uint32_t sch_start;
     uint32_t max_usecs;
     uint8_t chan;
     int rc;
@@ -2326,7 +2325,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     sch->end_time = sch->start_time + ble_ll_usecs_to_ticks_round_up(max_usecs);
     sch->start_time -= g_ble_ll_sched_offset_ticks;
 
-    rc = ble_ll_sched_periodic_adv(sch, &sch_start, first_pdu);
+    rc = ble_ll_sched_periodic_adv(sch, first_pdu);
     if (rc) {
         STATS_INC(ble_ll_stats, periodic_adv_drop_event);
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
@@ -2334,7 +2333,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
         return;
     }
 
-    sync->start_time = sch_start + g_ble_ll_sched_offset_ticks;
+    sync->start_time = sch->start_time + g_ble_ll_sched_offset_ticks;
 
     assert(first_pdu ||
            (sync->start_time == advsm->periodic_adv_event_start_time));
@@ -4588,13 +4587,15 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
 static void
 ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
 {
-    int rc;
-    uint32_t start_time;
+    struct ble_ll_sched_item *sch;
     uint32_t max_delay_ticks;
+    int rc;
 
     assert(advsm->adv_enabled);
 
-    if (!advsm->adv_sch.enqueued) {
+    sch = &advsm->adv_sch;
+
+    if (!sch->enqueued) {
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
             max_delay_ticks = 0;
         } else {
@@ -4602,16 +4603,15 @@ ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
                     os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
         }
 
-        rc = ble_ll_sched_adv_reschedule(&advsm->adv_sch, &start_time,
-                                         max_delay_ticks);
+        rc = ble_ll_sched_adv_reschedule(sch, max_delay_ticks);
         if (rc) {
             ble_ll_adv_drop_event(advsm);
             return;
         }
 
-        start_time += g_ble_ll_sched_offset_ticks;
-        advsm->adv_event_start_time = start_time;
-        advsm->adv_pdu_start_time = start_time;
+        advsm->adv_event_start_time = sch->start_time +
+                                      g_ble_ll_sched_offset_ticks;
+        advsm->adv_pdu_start_time = advsm->adv_event_start_time;
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
