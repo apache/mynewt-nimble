@@ -1563,53 +1563,6 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /**
- * Called to check if there is place for a planned scan req.
- *
- * @param chan
- * @param phy_mode
- *
- * @return int 0: Clear for scan req 1: there is an upcoming event
- */
-int
-ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode)
-{
-    struct ble_ll_sched_item *sch;
-    uint32_t usec_dur;
-    uint32_t now = os_cputime_get32();
-
-    /* Lets calculate roughly how much time we need for scan req and scan rsp */
-    usec_dur = ble_ll_pdu_tx_time_get(BLE_SCAN_REQ_LEN, phy_mode);
-    if (chan >=  BLE_PHY_NUM_DATA_CHANS) {
-        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_LEN, phy_mode);
-    } else {
-        usec_dur += ble_ll_pdu_tx_time_get(BLE_SCAN_RSP_MAX_EXT_LEN, phy_mode);
-    }
-
-    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
-    while (sch) {
-        /* Let's check if there is no scheduled item which want to start within
-         * given usecs.*/
-        if (CPUTIME_GT(sch->start_time, now + os_cputime_usecs_to_ticks(usec_dur))) {
-            /* We are fine. Have time for scan req */
-            return 0;
-        }
-
-        /* There is something in the scheduler. If it is not aux ptr we assume
-         * it is more important that scan req
-         */
-        if (sch->sched_type != BLE_LL_SCHED_TYPE_AUX_SCAN) {
-            return 1;
-        }
-
-        ble_ll_scan_end_adv_evt((struct ble_ll_aux_data *)sch->cb_arg);
-        TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
-        sch->enqueued = 0;
-        sch = TAILQ_FIRST(&g_ble_ll_sched_q);
-    }
-    return 0;
-}
-
-/**
  * Called to schedule a aux scan.
  *
  * Context: Interrupt

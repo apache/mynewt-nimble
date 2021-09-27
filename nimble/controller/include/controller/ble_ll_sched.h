@@ -200,8 +200,6 @@ int ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_scan_sm *scansm,
                           struct ble_ll_aux_data *aux_scan);
 
-int ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode);
-
 int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
                           uint8_t pdu_time_rem, uint32_t offset_us);
 #endif
