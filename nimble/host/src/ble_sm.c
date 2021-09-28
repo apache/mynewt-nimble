@@ -517,10 +517,12 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
     struct ble_hs_conn *conn;
+    struct ble_store_key_sec key_sec;
     ble_addr_t peer_addr;
     int authenticated;
     int identity_ev = 0;
     int sc;
+    int rc;
 
     ble_hs_lock();
 
@@ -569,6 +571,23 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;
     sc = proc->flags & BLE_SM_PROC_F_SC;
+
+    /*
+     * Pairing might have been initiated again for the same peer;
+     * delete old keys before saving new ones to avoid using them
+     * in the future
+     */
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = peer_addr;
+
+    rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+    if (rc == 0) {
+        ble_store_delete_peer_sec(&key_sec);
+    }
+    rc = ble_store_read_our_sec(&key_sec, &value_sec);
+    if (rc == 0) {
+        ble_store_delete_our_sec(&key_sec);
+    }
 
     ble_sm_fill_store_value(&peer_addr, authenticated, sc, &proc->our_keys,
                             &value_sec);
