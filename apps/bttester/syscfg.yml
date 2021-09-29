@@ -75,6 +75,10 @@ syscfg.defs:
         description: Maximum MTU size the application can handle
         value: 230
 
+    BTTESTER_NRPA_TIMEOUT:
+        description: NRPA rotation timeout in seconds
+        value: 5
+
 syscfg.vals:
     OS_MAIN_STACK_SIZE: 512
     SHELL_TASK: 0
