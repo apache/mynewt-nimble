@@ -206,6 +206,8 @@ struct ble_ll_adv_sm
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
+static void ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm);
+
 static struct ble_ll_adv_sm *
 ble_ll_adv_sm_find_configured(uint8_t instance)
 {
@@ -1049,12 +1051,7 @@ ble_ll_adv_tx_done(void *arg)
 void
 ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
 {
-    /*
-     * Need to set advertising channel to final chan so new event gets
-     * scheduled.
-     */
-    advsm->adv_chan = ble_ll_adv_final_chan(advsm);
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_ll_adv_drop_event(advsm);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
