@@ -2858,8 +2858,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
-        connsm->phy_tx_transition =
-                    ble_ll_ctrl_phy_tx_transition_get(connsm->phy_data.req_pref_tx_phys_mask);
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            connsm->phy_tx_transition =
+                    ble_ll_ctrl_phy_tx_transition_get(
+                            connsm->phy_data.req_pref_tx_phys_mask);
+        }
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
         connsm->phy_tx_transition =
