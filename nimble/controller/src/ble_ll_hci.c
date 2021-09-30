@@ -904,10 +904,10 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_hci_adv_set_enable(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_PARAMS:
-        rc = ble_ll_scan_set_scan_params(cmdbuf, len);
+        rc = ble_ll_scan_hci_set_params(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_SCAN_ENABLE:
-        rc = ble_ll_hci_scan_set_enable(cmdbuf, len);
+        rc = ble_ll_scan_hci_set_enable(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN:
         rc = ble_ll_conn_hci_create(cmdbuf, len);
@@ -1107,10 +1107,10 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_PARAM:
-        rc = ble_ll_set_ext_scan_params(cmdbuf, len);
+        rc = ble_ll_scan_hci_set_ext_params(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_SET_EXT_SCAN_ENABLE:
-        rc = ble_ll_hci_ext_scan_set_enable(cmdbuf, len);
+        rc = ble_ll_scan_hci_set_ext_enable(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_EXT_CREATE_CONN:
         rc = ble_ll_conn_hci_ext_create(cmdbuf, len);

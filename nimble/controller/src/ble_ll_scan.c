@@ -1961,7 +1961,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
 }
 
 int
-ble_ll_scan_set_scan_params(const uint8_t *cmdbuf, uint8_t len)
+ble_ll_scan_hci_set_params(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_scan_params_cp *cmd = (const void *)cmdbuf;
     uint16_t scan_itvl;
@@ -2049,7 +2049,7 @@ ble_ll_scan_check_phy_params(uint8_t type, uint16_t itvl, uint16_t window)
 }
 
 int
-ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
+ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_ext_scan_params_cp *cmd = (const void *) cmdbuf;
     const struct scan_params *params = cmd->scans;
@@ -2361,7 +2361,7 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
     return rc;
 }
 
-int ble_ll_hci_scan_set_enable(const uint8_t *cmdbuf, uint8_t len)
+int ble_ll_scan_hci_set_enable(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_scan_enable_cp *cmd = (const void *) cmdbuf;
 
@@ -2374,7 +2374,7 @@ int ble_ll_hci_scan_set_enable(const uint8_t *cmdbuf, uint8_t len)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_hci_ext_scan_set_enable(const uint8_t *cmdbuf, uint8_t len)
+int ble_ll_scan_hci_set_ext_enable(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_set_ext_scan_enable_cp *cmd = (const void *) cmdbuf;
 
