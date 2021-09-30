@@ -2983,6 +2983,12 @@ ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
     scanp->timing.interval = ble_ll_scan_time_hci_to_ticks(hcc->scan_itvl);
     scanp->timing.window = ble_ll_scan_time_hci_to_ticks(hcc->scan_window);
     scanp->scan_type = BLE_SCAN_TYPE_INITIATE;
+    scanp->configured = 1;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    scanp = &scansm->scan_phys[PHY_CODED];
+    scanp->configured = 0;
+#endif
 
     rc = ble_ll_scan_sm_start(scansm);
     if (sm == NULL) {
@@ -3016,20 +3022,23 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
     scansm->scanp_next = NULL;
     scansm->ext_scanning = 1;
 
+    params = &hcc->params[0];
+    scanp_uncoded = &scansm->scan_phys[PHY_UNCODED];
     if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
-        params = &hcc->params[0];
-        scanp_uncoded = &scansm->scan_phys[PHY_UNCODED];
-
+        scanp_uncoded->configured = 1;
         scanp_uncoded->timing.interval = ble_ll_scan_time_hci_to_ticks(params->scan_itvl);
         scanp_uncoded->timing.window = ble_ll_scan_time_hci_to_ticks(params->scan_window);
         scanp_uncoded->scan_type = BLE_SCAN_TYPE_INITIATE;
         scansm->scanp = scanp_uncoded;
+    } else {
+        scanp_uncoded->configured = 0;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    params = &hcc->params[2];
+    scanp_coded = &scansm->scan_phys[PHY_CODED];
     if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
-        params = &hcc->params[2];
-        scanp_coded = &scansm->scan_phys[PHY_CODED];
-
+        scanp_coded->configured = 1;
         scanp_coded->timing.interval = ble_ll_scan_time_hci_to_ticks(params->scan_itvl);
         scanp_coded->timing.window = ble_ll_scan_time_hci_to_ticks(params->scan_window);
         scanp_coded->scan_type = BLE_SCAN_TYPE_INITIATE;
@@ -3038,7 +3047,12 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
         } else {
             scansm->scanp = scanp_coded;
         }
+    } else {
+        scanp_coded->configured = 0;
     }
+#else
+    scanp_coded = NULL;
+#endif
 
     /* if any of PHYs is configured for continuous scan we alter interval to
      * fit other PHY
