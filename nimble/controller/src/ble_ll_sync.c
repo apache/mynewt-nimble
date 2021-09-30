@@ -1922,6 +1922,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
 
     rpa_index = -1;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     /* check if need to resolve */
     if (ble_ll_is_rpa(addr, addr_type)) {
         rpa_index = ble_ll_resolv_peer_rpa_any(addr);
@@ -1931,6 +1932,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
             addr_type = g_ble_ll_resolv_list[rpa_index].rl_addr_type;
         }
     }
+#endif
 
     OS_ENTER_CRITICAL(sr);
     /* check if already synchronized with this peer */
