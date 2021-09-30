@@ -163,14 +163,14 @@ struct ble_ll_scan_sm
 
 /*---- HCI ----*/
 /* Set scanning parameters */
-int ble_ll_scan_set_scan_params(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_scan_hci_set_params(const uint8_t *cmdbuf, uint8_t len);
 
 /* Turn scanning on/off */
-int ble_ll_hci_scan_set_enable(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_hci_ext_scan_set_enable(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_scan_hci_set_enable(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_scan_hci_set_ext_enable(const uint8_t *cmdbuf, uint8_t len);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len);
 #endif
 
 /*--- Controller Internal API ---*/
