@@ -2133,6 +2133,9 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
         }
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
+        /* Return here, we do not want any further processing since it's all
+         * handled in scan_aux.
+         */
         return -1;
 #endif
     default:
