@@ -2028,7 +2028,7 @@ ble_ll_scan_set_scan_params(const uint8_t *cmdbuf, uint8_t len)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static int
-ble_ll_check_scan_params(uint8_t type, uint16_t itvl, uint16_t window)
+ble_ll_scan_check_phy_params(uint8_t type, uint16_t itvl, uint16_t window)
 {
     /* Check scan type */
     if ((type != BLE_HCI_SCAN_TYPE_PASSIVE) &&
@@ -2038,9 +2038,9 @@ ble_ll_check_scan_params(uint8_t type, uint16_t itvl, uint16_t window)
 
     /* Check interval and window */
     if ((itvl < BLE_HCI_SCAN_ITVL_MIN) ||
-        (itvl > BLE_HCI_SCAN_ITVL_MAX) ||
+        (itvl > BLE_HCI_SCAN_ITVL_MAX_EXT) ||
         (window < BLE_HCI_SCAN_WINDOW_MIN) ||
-        (window > BLE_HCI_SCAN_WINDOW_MAX) ||
+        (window > BLE_HCI_SCAN_WINDOW_MAX_EXT) ||
         (itvl < window)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -2098,7 +2098,7 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
         interval = le16toh(params->itvl);
         window = le16toh(params->window);
 
-        rc = ble_ll_check_scan_params(params->type, interval, window);
+        rc = ble_ll_scan_check_phy_params(params->type, interval, window);
         if (rc) {
             return rc;
         }
@@ -2122,7 +2122,7 @@ ble_ll_set_ext_scan_params(const uint8_t *cmdbuf, uint8_t len)
         interval = le16toh(params->itvl);
         window = le16toh(params->window);
 
-        rc = ble_ll_check_scan_params(params->type, interval, window);
+        rc = ble_ll_scan_check_phy_params(params->type, interval, window);
         if (rc) {
             return rc;
         }
