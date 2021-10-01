@@ -918,6 +918,7 @@ static uint16_t
 ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
 {
     uint16_t phy_max_tx_octets;
+    uint16_t mic_len;
     uint16_t ret;
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -940,11 +941,19 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
 
     ret = pyld_len;
 
-    if (ret > connsm->eff_max_tx_octets) {
+    mic_len = 0;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    if (CONN_F_ENCRYPTED(connsm)) {
+        mic_len = BLE_LL_DATA_MIC_LEN;
+    }
+#endif
+
+
+    if (ret > connsm->eff_max_tx_octets - mic_len) {
         ret = connsm->eff_max_tx_octets;
     }
 
-    if (ret > phy_max_tx_octets) {
+    if (ret > phy_max_tx_octets - mic_len) {
         ret = phy_max_tx_octets;
     }
 
