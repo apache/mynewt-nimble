@@ -28,7 +28,7 @@ _addons: &addon_conf
       - gcc-7-multilib
 
 go:
-  - "1.12"
+  - "1.16"
 
 git:
   depth: false
