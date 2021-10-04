@@ -906,6 +906,7 @@ int create_free_list(struct k_mem_slab *slab)
 	uint32_t j;
 	char *p;
 
+    /* blocks must be word aligned */
     if(((slab->block_size | (uintptr_t)slab->buffer) &
 				(sizeof(void *) - 1)) != 0) {
 		return -EINVAL;
