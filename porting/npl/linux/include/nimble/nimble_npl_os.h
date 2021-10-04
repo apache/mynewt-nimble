@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <limits.h>
 
 #include "os_types.h"
 
@@ -30,7 +31,7 @@
 extern "C" {
 #endif
 
-#define BLE_NPL_OS_ALIGNMENT    4
+#define BLE_NPL_OS_ALIGNMENT    (__WORDSIZE / 8)
 
 #define BLE_NPL_TIME_FOREVER    INT32_MAX
 

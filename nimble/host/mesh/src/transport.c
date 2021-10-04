@@ -113,11 +113,12 @@ static struct seg_rx {
 	struct k_delayed_work    ack;
 } seg_rx[CONFIG_BT_MESH_RX_SEG_MSG_COUNT];
 
-char _k_mem_slab_buffer_[(BT_MESH_APP_SEG_SDU_MAX*CONFIG_BT_MESH_SEG_BUFS)];
+
+char _k_mem_slab_buffer_[OS_ALIGN((BT_MESH_APP_SEG_SDU_MAX)*(CONFIG_BT_MESH_SEG_BUFS), OS_ALIGNMENT)];
 
 struct k_mem_slab segs = {
 	.num_blocks = CONFIG_BT_MESH_SEG_BUFS,
-	.block_size = BT_MESH_APP_SEG_SDU_MAX,
+	.block_size = OS_ALIGN(BT_MESH_APP_SEG_SDU_MAX, OS_ALIGNMENT),
 	.buffer = _k_mem_slab_buffer_,
 	.free_list = NULL,
 	.num_used = 0
@@ -1616,7 +1617,7 @@ void bt_mesh_trans_init(void)
 	/* We need to initialize memslab free list here */
 	rc = create_free_list(&segs);
 	if (rc) {
-		BT_ERR("Failed to create free memslab list")
+		BT_ERR("Failed to create free memslab list (error: %d)", rc);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(seg_tx); i++) {
