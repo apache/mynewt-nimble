@@ -163,7 +163,7 @@ ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_state_set(BLE_LL_STATE_SCAN_AUX);
 
-    return BLE_LL_SCHED_STATE_DONE;
+    return BLE_LL_SCHED_STATE_RUNNING;
 }
 
 static struct ble_ll_scan_aux_data *

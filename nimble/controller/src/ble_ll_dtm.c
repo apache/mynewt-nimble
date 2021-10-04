@@ -261,7 +261,7 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_state_set(BLE_LL_STATE_DTM);
 
-    return BLE_LL_SCHED_STATE_DONE;
+    return BLE_LL_SCHED_STATE_RUNNING;
 
 resched:
     /* Reschedule from LL task if late for this PDU */
@@ -427,9 +427,10 @@ ble_ll_dtm_rx_sched_cb(struct ble_ll_sched_item *sch)
     if (ble_ll_dtm_rx_start() != 0) {
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
         STATS_INC(ble_ll_dtm_stats, rx_failed);
+        return BLE_LL_SCHED_STATE_DONE;
     }
 
-    return BLE_LL_SCHED_STATE_DONE;
+    return BLE_LL_SCHED_STATE_RUNNING;
 }
 
 static int
