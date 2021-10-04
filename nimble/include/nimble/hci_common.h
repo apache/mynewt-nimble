@@ -1152,11 +1152,13 @@ struct ble_hci_vs_rd_static_addr_rp {
 
 /* Scan interval and scan window timing */
 #define BLE_HCI_SCAN_ITVL                   (625)           /* usecs */
-#define BLE_HCI_SCAN_ITVL_MIN               (4)             /* units */
-#define BLE_HCI_SCAN_ITVL_MAX               (16384)         /* units */
+#define BLE_HCI_SCAN_ITVL_MIN               (0x0004)        /* units */
+#define BLE_HCI_SCAN_ITVL_MAX               (0x4000)        /* units */
+#define BLE_HCI_SCAN_ITVL_MAX_EXT           (0xffff)        /* units */
 #define BLE_HCI_SCAN_ITVL_DEF               (16)            /* units */
-#define BLE_HCI_SCAN_WINDOW_MIN             (4)             /* units */
-#define BLE_HCI_SCAN_WINDOW_MAX             (16384)         /* units */
+#define BLE_HCI_SCAN_WINDOW_MIN             (0x0004)        /* units */
+#define BLE_HCI_SCAN_WINDOW_MAX             (0x4000)        /* units */
+#define BLE_HCI_SCAN_WINDOW_MAX_EXT         (0xffff)        /* units */
 #define BLE_HCI_SCAN_WINDOW_DEF             (16)            /* units */
 
 /*

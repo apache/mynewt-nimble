@@ -1026,7 +1026,8 @@ ble_ll_scan_aux_rx_isr_end_on_ext(struct ble_ll_scan_sm *scansm,
             return -1;
         }
 
-        aux->scan_type = scansm->scanp->scan_type;
+        BLE_LL_ASSERT(scansm->scan_phy);
+        aux->scan_type = scansm->scan_phy->scan_type;
 
         aux->pri_phy = rxinfo->phy;
         aux->aux_ptr = aux_ptr;
