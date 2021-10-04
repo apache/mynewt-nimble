@@ -27,6 +27,7 @@
  * @{
  */
 
+#include "syscfg/syscfg.h"
 #include <inttypes.h>
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +59,8 @@ struct ble_hs_adv_fields;
 #define BLE_EDDYSTONE_URL_SUFFIX_GOV        0x0d
 #define BLE_EDDYSTONE_URL_SUFFIX_NONE       0xff
 
+#if MYNEWT_VAL(BLE_ROLE_BROADCASTER) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if !MYNEWT_VAL(BLE_EXT_ADV)
 /**
  * Configures the device to advertise Eddystone UID beacons.
  *
@@ -105,9 +108,10 @@ int ble_eddystone_set_adv_data_url(struct ble_hs_adv_fields *adv_fields,
                                    uint8_t url_scheme, char *url_body,
                                    uint8_t url_body_len, uint8_t suffix,
                                    int8_t measured_power);
-
+#endif
 #ifdef __cplusplus
 }
+#endif
 #endif
 
 /**
