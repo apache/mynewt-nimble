@@ -35,90 +35,25 @@ git:
 
 matrix:
   include:
-    # Style checking
-    - os: linux
-      language: python
-      python:
-        - "3.5"
-      addons:
-        apt:
-          packages:
-            - "python3-pip"
-      env:
-        - TEST=STYLE
-        - DEBUG=1
-
     # newt build <targets>
     - os: linux
+      arch: arm64
+      virt: lxd
+      dist: focal
       addons: *addon_conf
       env:
         - TEST=BUILD_TARGETS
         - VM_AMOUNT=4
         - TARGET_SET=1
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=2
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=3
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=4
-
     # newt test all (Linux)
     - os: linux
+      arch: arm64
+      virt: lxd
+      dist: focal
       addons: *addon_conf
       env:
         - TEST=TEST_ALL
         - VM_AMOUNT=2
-        - TARGET_SET=1
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=2
-        - TARGET_SET=2
-
-    # ports
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_PORTS
-        - VM_AMOUNT=1
-        - TARGET_SET=1
-
-    # newt test all
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=1
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=2
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=3
-    - os: windows
-      env:
-        - TEST=BUILD_TARGETS_WINDOWS
-        - VM_AMOUNT=1
         - TARGET_SET=1
 
 before_install:
