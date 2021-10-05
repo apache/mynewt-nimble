@@ -192,8 +192,9 @@ struct hci_ext_conn_params
 {
     uint16_t scan_itvl;
     uint16_t scan_window;
-    uint16_t conn_itvl_min;
-    uint16_t conn_itvl_max;
+    uint32_t conn_itvl;
+    uint16_t conn_itvl_ticks;
+    uint8_t conn_itvl_usecs;
     uint16_t conn_latency;
     uint16_t supervision_timeout;
     uint16_t min_ce_len;

@@ -556,6 +556,25 @@ ble_ll_conn_hcc_params_set_fallback(struct hci_ext_create_conn *hcc,
 #endif
 }
 
+static void
+ble_ll_conn_itvl_to_ticks(uint32_t itvl, uint16_t *itvl_ticks,
+                          uint8_t *itvl_usecs)
+{
+    uint32_t ticks;
+    uint32_t usecs;
+
+    usecs = itvl * BLE_LL_CONN_ITVL_USECS;
+    ticks = os_cputime_usecs_to_ticks(usecs);
+    usecs = usecs - os_cputime_ticks_to_usecs(ticks);
+    if (usecs == 31) {
+        usecs = 0;
+        ++ticks;
+    }
+
+    *itvl_ticks = ticks;
+    *itvl_usecs = usecs;
+}
+
 int
 ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
 {
@@ -564,6 +583,8 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
     const struct hci_ext_conn_params *fallback_params = NULL;
     struct hci_ext_create_conn hcc = { 0 };
     struct ble_ll_conn_sm *connsm;
+    uint16_t conn_itvl_min;
+    uint16_t conn_itvl_max;
     int rc;
 
     /* validate length */
@@ -629,13 +650,12 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
             return rc;
         }
 
-        hcc.params[0].conn_itvl_min = le16toh(params->conn_min_itvl);
-        hcc.params[0].conn_itvl_max = le16toh(params->conn_min_itvl);
+        conn_itvl_min = le16toh(params->conn_min_itvl);
+        conn_itvl_max = le16toh(params->conn_max_itvl);
         hcc.params[0].conn_latency = le16toh(params->conn_latency);
         hcc.params[0].supervision_timeout = le16toh(params->supervision_timeout);
 
-        rc = ble_ll_conn_hci_chk_conn_params(hcc.params[0].conn_itvl_min,
-                                             hcc.params[0].conn_itvl_max,
+        rc = ble_ll_conn_hci_chk_conn_params(conn_itvl_min, conn_itvl_max,
                                              hcc.params[0].conn_latency,
                                              hcc.params[0].supervision_timeout);
         if (rc) {
@@ -649,6 +669,10 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
+        hcc.params[0].conn_itvl = conn_itvl_max;
+        ble_ll_conn_itvl_to_ticks(conn_itvl_max, &hcc.params[0].conn_itvl_ticks,
+                                  &hcc.params[0].conn_itvl_usecs);
+
         fallback_params = &hcc.params[0];
         params++;
     }
@@ -660,13 +684,12 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
         }
         len -= sizeof(*params);
 
-        hcc.params[1].conn_itvl_min = le16toh(params->conn_min_itvl);
-        hcc.params[1].conn_itvl_max = le16toh(params->conn_min_itvl);
+        conn_itvl_min = le16toh(params->conn_min_itvl);
+        conn_itvl_max = le16toh(params->conn_max_itvl);
         hcc.params[1].conn_latency = le16toh(params->conn_latency);
         hcc.params[1].supervision_timeout = le16toh(params->supervision_timeout);
 
-        rc = ble_ll_conn_hci_chk_conn_params(hcc.params[1].conn_itvl_min,
-                                             hcc.params[1].conn_itvl_max,
+        rc = ble_ll_conn_hci_chk_conn_params(conn_itvl_min, conn_itvl_max,
                                              hcc.params[1].conn_latency,
                                              hcc.params[1].supervision_timeout);
         if (rc) {
@@ -679,6 +702,10 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
         if (hcc.params[1].min_ce_len > hcc.params[1].max_ce_len) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
+
+        hcc.params[1].conn_itvl = conn_itvl_max;
+        ble_ll_conn_itvl_to_ticks(conn_itvl_max, &hcc.params[1].conn_itvl_ticks,
+                                  &hcc.params[1].conn_itvl_usecs);
 
         params++;
     }
@@ -700,13 +727,12 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
             return rc;
         }
 
-        hcc.params[2].conn_itvl_min = le16toh(params->conn_min_itvl);
-        hcc.params[2].conn_itvl_max = le16toh(params->conn_min_itvl);
+        conn_itvl_min = le16toh(params->conn_min_itvl);
+        conn_itvl_max = le16toh(params->conn_max_itvl);
         hcc.params[2].conn_latency = le16toh(params->conn_latency);
         hcc.params[2].supervision_timeout = le16toh(params->supervision_timeout);
 
-        rc = ble_ll_conn_hci_chk_conn_params(hcc.params[2].conn_itvl_min,
-                                             hcc.params[2].conn_itvl_max,
+        rc = ble_ll_conn_hci_chk_conn_params(conn_itvl_min, conn_itvl_max,
                                              hcc.params[2].conn_latency,
                                              hcc.params[2].supervision_timeout);
         if (rc) {
@@ -719,6 +745,10 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
         if (hcc.params[2].min_ce_len > hcc.params[2].max_ce_len) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
+
+        hcc.params[2].conn_itvl = conn_itvl_max;
+        ble_ll_conn_itvl_to_ticks(conn_itvl_max, &hcc.params[2].conn_itvl_ticks,
+                                  &hcc.params[2].conn_itvl_usecs);
 
         if (!fallback_params) {
             fallback_params = &hcc.params[2];
