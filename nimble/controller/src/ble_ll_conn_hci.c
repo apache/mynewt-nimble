@@ -707,6 +707,9 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
         ble_ll_conn_itvl_to_ticks(conn_itvl_max, &hcc.params[1].conn_itvl_ticks,
                                   &hcc.params[1].conn_itvl_usecs);
 
+        if (!fallback_params) {
+            fallback_params = &hcc.params[1];
+        }
         params++;
     }
 #endif
