@@ -1755,14 +1755,6 @@ void
 ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
                            struct hci_ext_conn_params *hcc_params, int phy)
 {
-    /* Set slave latency and supervision timeout */
-    connsm->slave_latency = hcc_params->conn_latency;
-    connsm->supervision_tmo = hcc_params->supervision_timeout;
-
-    /* XXX: for now, just make connection interval equal to max */
-    connsm->conn_itvl = hcc_params->conn_itvl_max;
-
-
     /* Check the min/max CE lengths are less than connection interval */
     if (hcc_params->min_ce_len > (connsm->conn_itvl * 2)) {
         connsm->min_ce_len = connsm->conn_itvl * 2;
@@ -1775,8 +1767,6 @@ ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
     } else {
         connsm->max_ce_len = hcc_params->max_ce_len;
     }
-
-    ble_ll_conn_calc_itvl_ticks(connsm);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     ble_ll_conn_init_phy(connsm, phy);
@@ -3176,6 +3166,7 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     struct ble_ll_resolv_entry *rl;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct hci_ext_conn_params *hcp;
     struct ble_ll_scan_sm *scansm;
     uint8_t phy;
 #endif
@@ -3425,15 +3416,16 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
     }
 
     if (connsm->scansm->ext_scanning) {
-            phy = ble_hdr->rxinfo.phy;
+        phy = ble_hdr->rxinfo.phy;
 
-            /* Update connection state machine with appropriate parameters for
-             * certain PHY
-             */
-            ble_ll_conn_ext_set_params(connsm,
-                                       &connsm->initial_params.params[phy - 1],
-                                       phy);
+        hcp = &connsm->initial_params.params[phy - 1];
 
+        connsm->slave_latency = hcp->conn_latency;
+        connsm->supervision_tmo = hcp->supervision_timeout;
+
+        connsm->conn_itvl = hcp->conn_itvl;
+        connsm->conn_itvl_ticks = hcp->conn_itvl_ticks;
+        connsm->conn_itvl_usecs = hcp->conn_itvl_usecs;
     }
 #endif
 
@@ -3471,6 +3463,18 @@ ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
         scansm->cur_aux_data = ble_hdr->rxinfo.user_data;
         ble_hdr->rxinfo.user_data = NULL;
         STATS_INC(ble_ll_stats, aux_conn_req_tx);
+    }
+
+    if (connsm->scansm->ext_scanning) {
+        phy = ble_hdr->rxinfo.phy;
+
+        /* Update connection state machine with appropriate parameters for
+         * certain PHY
+         */
+        ble_ll_conn_ext_set_params(connsm,
+                                   &connsm->initial_params.params[phy - 1],
+                                   phy);
+
     }
 #endif
 
