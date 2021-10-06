@@ -37,7 +37,6 @@
 #define BLE_LL_SCHED_MAX_DELAY_ANY      (0x7fffffff)
 
 static struct hal_timer g_ble_ll_sched_timer;
-static uint8_t g_ble_ll_sched_timer_running;
 
 uint8_t g_ble_ll_sched_offset_ticks;
 
@@ -63,6 +62,7 @@ typedef int (* ble_ll_sched_preempt_cb_t)(struct ble_ll_sched_item *sch,
 
 /* Queue for timers */
 static TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
+static uint8_t g_ble_ll_sched_q_head_changed;
 
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
 struct ble_ll_sched_obj g_ble_ll_sched_data;
@@ -155,13 +155,13 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
 static inline void
 ble_ll_sched_q_head_changed(void)
 {
-    struct ble_ll_sched_item *first;
+    if (g_ble_ll_sched_q_head_changed) {
+        return;
+    }
 
-    g_ble_ll_sched_timer_running = 0;
+    g_ble_ll_sched_q_head_changed = 1;
+
     os_cputime_timer_stop(&g_ble_ll_sched_timer);
-
-    first = TAILQ_FIRST(&g_ble_ll_sched_q);
-    ble_ll_rfmgmt_sched_changed(first);
 }
 
 static inline void
@@ -169,10 +169,17 @@ ble_ll_sched_restart(void)
 {
     struct ble_ll_sched_item *first;
 
+    if (!g_ble_ll_sched_q_head_changed) {
+        return;
+    }
+
+    g_ble_ll_sched_q_head_changed = 0;
+
     first = TAILQ_FIRST(&g_ble_ll_sched_q);
 
-    if (!g_ble_ll_sched_timer_running && first) {
-        g_ble_ll_sched_timer_running = 1;
+    ble_ll_rfmgmt_sched_changed(first);
+
+    if (first) {
         os_cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
     }
 }
@@ -1182,8 +1189,6 @@ ble_ll_sched_run(void *arg)
 
     BLE_LL_DEBUG_GPIO(SCHED_RUN, 1);
 
-    g_ble_ll_sched_timer_running = 0;
-
     /* Look through schedule queue */
     sch = TAILQ_FIRST(&g_ble_ll_sched_q);
     if (sch) {
@@ -1203,7 +1208,10 @@ ble_ll_sched_run(void *arg)
         /* Remove schedule item and execute the callback */
         TAILQ_REMOVE(&g_ble_ll_sched_q, sch, link);
         sch->enqueued = 0;
+        g_ble_ll_sched_q_head_changed = 1;
+
         ble_ll_sched_execute_item(sch);
+
         ble_ll_sched_restart();
     }
 
@@ -1295,7 +1303,6 @@ int ble_ll_sched_dtm(struct ble_ll_sched_item *sch)
 void
 ble_ll_sched_stop(void)
 {
-    g_ble_ll_sched_timer_running = 0;
     os_cputime_timer_stop(&g_ble_ll_sched_timer);
 }
 
@@ -1337,6 +1344,8 @@ ble_ll_sched_init(void)
     g_ble_ll_sched_data.sch_ticks_per_epoch = BLE_LL_SCHED_PERIODS *
         g_ble_ll_sched_data.sch_ticks_per_period;
 #endif
+
+    g_ble_ll_sched_q_head_changed = 0;
 
     return 0;
 }
