@@ -307,7 +307,7 @@ do_update:
 		bt_mesh.seq = 0;
 	}
 
-	k_delayed_work_submit(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+	k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 
 	/* Notify other modules */
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
@@ -869,7 +869,7 @@ static void ivu_refresh(struct ble_npl_event *work)
 			store_iv(true);
 		}
 
-		k_delayed_work_submit(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+		k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ void bt_mesh_net_init(void)
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_seq conf");
 
-	k_delayed_work_init(&bt_mesh.ivu_timer, ivu_refresh);
+	k_work_init_delayable(&bt_mesh.ivu_timer, ivu_refresh);
 
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 	net_buf_slist_init(&bt_mesh.local_queue);
@@ -1181,6 +1181,6 @@ void bt_mesh_net_clear(void)
 void bt_mesh_net_settings_commit(void)
 {
 	if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
-		k_delayed_work_submit(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+		k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 	}
 }

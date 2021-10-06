@@ -125,7 +125,7 @@ static struct bt_mesh_proxy_client {
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 	struct ble_npl_callout send_beacons;
 #endif
-	struct k_delayed_work sar_timer;
+	struct k_work_delayable sar_timer;
 	struct os_mbuf    *buf;
 } clients[MYNEWT_VAL(BLE_MAX_CONNECTIONS)] = {
 	[0 ... (MYNEWT_VAL(BLE_MAX_CONNECTIONS) - 1)] = { 0 },
@@ -568,7 +568,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
-		k_delayed_work_submit(&client->sar_timer, PROXY_SAR_TIMEOUT);
+		k_work_reschedule(&client->sar_timer, PROXY_SAR_TIMEOUT);
 		client->msg_type = PDU_TYPE(data);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		break;
@@ -584,7 +584,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
-		k_delayed_work_submit(&client->sar_timer, PROXY_SAR_TIMEOUT);
+		k_work_reschedule(&client->sar_timer, PROXY_SAR_TIMEOUT);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		break;
 
@@ -599,7 +599,7 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
-		k_delayed_work_cancel(&client->sar_timer);
+		k_work_cancel_delayable(&client->sar_timer);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		proxy_complete_pdu(client);
 		break;
@@ -661,7 +661,7 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 				bt_mesh_pb_gatt_close(conn_handle);
 			}
 
-			k_delayed_work_cancel(&client->sar_timer);
+			k_work_cancel_delayable(&client->sar_timer);
 			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
 			break;
 		}
@@ -1543,8 +1543,8 @@ int bt_mesh_proxy_init(void)
 		clients[i].buf = NET_BUF_SIMPLE(CLIENT_BUF_SIZE);
 		clients[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-		k_delayed_work_init(&clients[i].sar_timer, proxy_sar_timeout);
-		k_delayed_work_add_arg(&clients[i].sar_timer, &clients[i]);
+		k_work_init_delayable(&clients[i].sar_timer, proxy_sar_timeout);
+		k_work_add_arg_delayable(&clients[i].sar_timer, &clients[i]);
 	}
 
 	resolve_svc_handles();

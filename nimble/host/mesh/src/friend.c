@@ -151,7 +151,7 @@ static void friend_clear(struct bt_mesh_friend *frnd)
 
 	BT_DBG("LPN 0x%04x", frnd->lpn);
 
-	k_delayed_work_cancel(&frnd->timer);
+	k_work_cancel_delayable(&frnd->timer);
 
 	memset(frnd->cred, 0, sizeof(frnd->cred));
 
@@ -605,7 +605,7 @@ static void friend_recv_delay(struct bt_mesh_friend *frnd)
 	int32_t delay = recv_delay(frnd);
 
 	frnd->pending_req = 1;
-	k_delayed_work_submit(&frnd->timer, K_MSEC(delay));
+	k_work_reschedule(&frnd->timer, K_MSEC(delay));
 	BT_DBG("Waiting RecvDelay of %d ms", delay);
 }
 
@@ -772,7 +772,7 @@ static void friend_clear_sent(int err, void *user_data)
 {
 	struct bt_mesh_friend *frnd = user_data;
 
-	k_delayed_work_submit(&frnd->clear.timer,
+	k_work_reschedule(&frnd->clear.timer,
 			      K_SECONDS(frnd->clear.repeat_sec));
 	frnd->clear.repeat_sec *= 2;
 }
@@ -867,7 +867,7 @@ int bt_mesh_friend_clear_cfm(struct bt_mesh_net_rx *rx,
 		return 0;
 	}
 
-	k_delayed_work_cancel(&frnd->clear.timer);
+	k_work_cancel_delayable(&frnd->clear.timer);
 	frnd->clear.frnd = BT_MESH_ADDR_UNASSIGNED;
 
 	return 0;
@@ -1037,7 +1037,7 @@ init_friend:
 	}
 
 	delay = offer_delay(frnd, rx->ctx.recv_rssi, msg->criteria);
-	k_delayed_work_submit(&frnd->timer, K_MSEC(delay));
+	k_work_reschedule(&frnd->timer, K_MSEC(delay));
 
 	enqueue_offer(frnd, rx->ctx.recv_rssi);
 
@@ -1154,12 +1154,12 @@ static void buf_send_end(int err, void *user_data)
 	}
 
 	if (frnd->established) {
-		k_delayed_work_submit(&frnd->timer, frnd->poll_to);
+		k_work_reschedule(&frnd->timer, frnd->poll_to);
 		BT_DBG("Waiting %u ms for next poll",
 		       (unsigned) frnd->poll_to);
 	} else {
 		/* Friend offer timeout is 1 second */
-		k_delayed_work_submit(&frnd->timer, K_SECONDS(1));
+		k_work_reschedule(&frnd->timer, K_SECONDS(1));
 		BT_DBG("Waiting for first poll");
 	}
 }
@@ -1322,10 +1322,10 @@ int bt_mesh_friend_init(void)
 
 		net_buf_slist_init(&frnd->queue);
 
-		k_delayed_work_init(&frnd->timer, friend_timeout);
-		k_delayed_work_add_arg(&frnd->timer, frnd);
-		k_delayed_work_init(&frnd->clear.timer, clear_timeout);
-		k_delayed_work_add_arg(&frnd->clear.timer, frnd);
+		k_work_init_delayable(&frnd->timer, friend_timeout);
+		k_work_add_arg_delayable(&frnd->timer, frnd);
+		k_work_init_delayable(&frnd->clear.timer, clear_timeout);
+		k_work_add_arg_delayable(&frnd->clear.timer, frnd);
 
 		for (j = 0; j < ARRAY_SIZE(frnd->seg); j++) {
 			net_buf_slist_init(&frnd->seg[j].queue);
