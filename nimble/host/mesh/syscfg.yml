@@ -58,6 +58,7 @@ syscfg.defs:
         description: >
             Mesh Configuration Database [EXPERIMENTAL]
         value: 0
+        restrictions: BLE_MESH_SETTINGS
 
     BLE_MESH_CDB_NODE_COUNT:
         description: >
@@ -80,6 +81,12 @@ syscfg.defs:
     BLE_MESH_DEBUG_CDB:
         description:
             Use this option to enable configuration database debug logs.
+        value: 1
+
+    BLE_MESH_DEBUG_CFG:
+        description:
+            Use this option to enable node configuration debug logs for the
+            Bluetooth Mesh functionality.
         value: 1
 
     BLE_MESH_PROXY:

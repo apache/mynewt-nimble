@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "mesh/mesh.h"
 #include "mesh/glue.h"
@@ -69,6 +70,20 @@
 /* How long to wait for available buffers before giving up */
 #define BUF_TIMEOUT                 K_NO_WAIT
 
+struct virtual_addr {
+	uint16_t ref:15,
+		 changed:1;
+	uint16_t addr;
+	uint8_t  uuid[16];
+};
+
+/* Virtual Address information for persistent storage. */
+struct va_val {
+	uint16_t ref;
+	uint16_t addr;
+	uint8_t  uuid[16];
+} __packed;
+
 static struct seg_tx {
 	struct bt_mesh_subnet *sub;
 	void                  *seg[CONFIG_BT_MESH_TX_SEG_MAX];
@@ -124,7 +139,7 @@ struct k_mem_slab segs = {
 	.num_used = 0
 };
 
-static struct bt_mesh_va virtual_addrs[CONFIG_BT_MESH_LABEL_COUNT];
+static struct virtual_addr virtual_addrs[CONFIG_BT_MESH_LABEL_COUNT];
 
 static int send_unseg(struct bt_mesh_net_tx *tx, struct os_mbuf *sdu,
 		      const struct bt_mesh_send_cb *cb, void *cb_data,
@@ -1584,6 +1599,11 @@ void bt_mesh_rx_reset(void)
 	}
 }
 
+static void store_va_label(void)
+{
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_VA_PENDING);
+}
+
 void bt_mesh_trans_reset(void)
 {
 	int i;
@@ -1606,7 +1626,7 @@ void bt_mesh_trans_reset(void)
 	bt_mesh_rpl_clear();
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_label();
+		store_va_label();
 	}
 }
 
@@ -1634,26 +1654,17 @@ void bt_mesh_trans_init(void)
 	}
 }
 
-struct bt_mesh_va *bt_mesh_va_get(uint16_t index)
-{
-	if (index >= ARRAY_SIZE(virtual_addrs)) {
-		return NULL;
-	}
-
-	return &virtual_addrs[index];
-}
-
-static inline void va_store(struct bt_mesh_va *store)
+static inline void va_store(struct virtual_addr *store)
 {
 	store->changed = 1U;
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_label();
+		store_va_label();
 	}
 }
 
 uint8_t bt_mesh_va_add(const uint8_t uuid[16], uint16_t *addr)
 {
-	struct bt_mesh_va *va = NULL;
+	struct virtual_addr *va = NULL;
 	int err;
 
 	for (int i = 0; i < ARRAY_SIZE(virtual_addrs); i++) {
@@ -1695,7 +1706,7 @@ uint8_t bt_mesh_va_add(const uint8_t uuid[16], uint16_t *addr)
 
 uint8_t bt_mesh_va_del(const uint8_t uuid[16], uint16_t *addr)
 {
-	struct bt_mesh_va *va = NULL;
+	struct virtual_addr *va = NULL;
 
 	for (int i = 0; i < ARRAY_SIZE(virtual_addrs); i++) {
 		if (virtual_addrs[i].ref &&
@@ -1719,19 +1730,6 @@ uint8_t bt_mesh_va_del(const uint8_t uuid[16], uint16_t *addr)
 	return STATUS_SUCCESS;
 }
 
-struct bt_mesh_va *bt_mesh_va_find(uint8_t uuid[16])
-{
-	for (int i = 0; i < ARRAY_SIZE(virtual_addrs); i++) {
-		if (virtual_addrs[i].ref &&
-		    !memcmp(uuid, virtual_addrs[i].uuid,
-			    ARRAY_SIZE(virtual_addrs[i].uuid))) {
-			return &virtual_addrs[i];
-		}
-	}
-
-	return NULL;
-}
-
 uint8_t *bt_mesh_va_label_get(uint16_t addr)
 {
 	int i;
@@ -1750,3 +1748,132 @@ uint8_t *bt_mesh_va_label_get(uint16_t addr)
 
 	return NULL;
 }
+
+static struct virtual_addr *bt_mesh_va_get(uint16_t index)
+{
+	if (index >= ARRAY_SIZE(virtual_addrs)) {
+		return NULL;
+	}
+
+	return &virtual_addrs[index];
+}
+
+#if CONFIG_BT_MESH_LABEL_COUNT > 0
+static int va_set(int argc, char **argv, char *val)
+{
+	struct va_val va;
+	struct virtual_addr *lab;
+	uint16_t index;
+	int len, err;
+
+	if (argc < 1) {
+			BT_ERR("Insufficient number of arguments");
+			return -ENOENT;
+	}
+
+	index = strtol(argv[0], NULL, 16);
+
+	if (val == NULL) {
+		BT_WARN("Mesh Virtual Address length = 0");
+		return 0;
+	}
+
+	err = settings_bytes_from_str(val, &va, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return -EINVAL;
+	}
+
+	if (len != sizeof(struct va_val)) {
+		BT_ERR("Invalid length for virtual address");
+		return -EINVAL;
+	}
+
+	if (va.ref == 0) {
+		BT_WARN("Ignore Mesh Virtual Address ref = 0");
+		return 0;
+	}
+
+	lab = bt_mesh_va_get(index);
+	if (lab == NULL) {
+		BT_WARN("Out of labels buffers");
+		return -ENOBUFS;
+	}
+
+	memcpy(lab->uuid, va.uuid, 16);
+	lab->addr = va.addr;
+	lab->ref = va.ref;
+
+	BT_DBG("Restored Virtual Address, addr 0x%04x ref 0x%04x",
+	       lab->addr, lab->ref);
+
+	return 0;
+}
+#endif
+
+#define IS_VA_DEL(_label)	((_label)->ref == 0)
+void bt_mesh_va_pending_store(void)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct va_val))];
+	struct virtual_addr *lab;
+	struct va_val va;
+	char path[18];
+	char *val;
+	uint16_t i;
+	int err = 0;
+
+	for (i = 0; (lab = bt_mesh_va_get(i)) != NULL; i++) {
+		if (!lab->changed) {
+			continue;
+		}
+
+		lab->changed = 0U;
+
+		snprintk(path, sizeof(path), "bt_mesh/Va/%x", i);
+
+		if (IS_VA_DEL(lab)) {
+			val = NULL;
+		} else {
+			va.ref = lab->ref;
+			va.addr = lab->addr;
+			memcpy(va.uuid, lab->uuid, 16);
+
+			val = settings_str_from_bytes(&va, sizeof(va),
+						      buf, sizeof(buf));
+			if (!val) {
+				BT_ERR("Unable to encode model publication as value");
+				return;
+			}
+
+			err = settings_save_one(path, val);
+		}
+
+		if (err) {
+			BT_ERR("Failed to %s %s value (err %d)",
+			       IS_VA_DEL(lab) ? "delete" : "store", path, err);
+		} else {
+			BT_DBG("%s %s value",
+			       IS_VA_DEL(lab) ? "Deleted" : "Stored", path);
+		}
+	}
+}
+
+#if CONFIG_BT_MESH_LABEL_COUNT > 0
+static struct conf_handler bt_mesh_va_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = va_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+	};
+
+void bt_mesh_va_init(void)
+{
+	int rc;
+
+	rc = conf_register(&bt_mesh_va_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_hb_pub conf");
+}
+#endif

@@ -10,6 +10,7 @@
 #define MESH_LOG_MODULE BLE_MESH_ACCESS_LOG
 
 #include <errno.h>
+#include <stdlib.h>
 #include <os/os_mbuf.h>
 
 #include "mesh/mesh.h"
@@ -21,9 +22,29 @@
 #include "transport.h"
 #include "access.h"
 #include "foundation.h"
+#include "settings.h"
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
 #include "mesh/model_cli.h"
 #endif
+
+/* bt_mesh_model.flags */
+enum {
+	BT_MESH_MOD_BIND_PENDING = BIT(0),
+	BT_MESH_MOD_SUB_PENDING = BIT(1),
+	BT_MESH_MOD_PUB_PENDING = BIT(2),
+	BT_MESH_MOD_NEXT_IS_PARENT = BIT(3),
+};
+
+/* Model publication information for persistent storage. */
+struct mod_pub_val {
+	uint16_t addr;
+	uint16_t key;
+	uint8_t  ttl;
+	uint8_t  retransmit;
+	uint8_t  period;
+	uint8_t  period_div:4,
+		 cred:1;
+};
 
 static const struct bt_mesh_comp *dev_comp;
 static uint16_t dev_primary_addr;
@@ -847,3 +868,433 @@ int bt_mesh_model_extend(struct bt_mesh_model *mod,
 	return 0;
 }
 #endif
+
+static int mod_set_bind(struct bt_mesh_model *mod, char *val)
+{
+	int len, err, i;
+
+	/* Start with empty array regardless of cleared or set value */
+	for (i = 0; i < ARRAY_SIZE(mod->keys); i++) {
+		mod->keys[i] = BT_MESH_KEY_UNUSED;
+	}
+
+	if (!val) {
+		BT_DBG("Cleared bindings for model");
+		return 0;
+	}
+
+	len = sizeof(mod->keys);
+	err = settings_bytes_from_str(val, mod->keys, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return -EINVAL;
+	}
+
+	BT_DBG("Decoded %u bound keys for model", len / sizeof(mod->keys[0]));
+	return 0;
+}
+
+static int mod_set_sub(struct bt_mesh_model *mod, char *val)
+{
+	int len, err;
+
+	/* Start with empty array regardless of cleared or set value */
+	memset(mod->groups, 0, sizeof(mod->groups));
+
+	if (!val) {
+		BT_DBG("Cleared subscriptions for model");
+		return 0;
+	}
+
+	len = sizeof(mod->groups);
+	err = settings_bytes_from_str(val, mod->groups, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return -EINVAL;
+	}
+
+	BT_DBG("Decoded %u subscribed group addresses for model",
+	       len / sizeof(mod->groups[0]));
+	return 0;
+}
+
+static int mod_set_pub(struct bt_mesh_model *mod, char *val)
+{
+	struct mod_pub_val pub;
+	int len, err;
+
+	if (!mod->pub) {
+		BT_WARN("Model has no publication context!");
+		return -EINVAL;
+	}
+
+	if (!val) {
+		mod->pub->addr = BT_MESH_ADDR_UNASSIGNED;
+		mod->pub->key = 0;
+		mod->pub->cred = 0;
+		mod->pub->ttl = 0;
+		mod->pub->period = 0;
+		mod->pub->retransmit = 0;
+		mod->pub->period_div = pub.period_div;
+		mod->pub->count = 0;
+
+		BT_DBG("Cleared publication for model");
+		return 0;
+	}
+
+	len = sizeof(pub);
+	err = settings_bytes_from_str(val, &pub, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return -EINVAL;
+	}
+
+	if (len != sizeof(pub)) {
+		BT_ERR("Invalid length for model publication");
+		return -EINVAL;
+	}
+
+	mod->pub->addr = pub.addr;
+	mod->pub->key = pub.key;
+	mod->pub->cred = pub.cred;
+	mod->pub->ttl = pub.ttl;
+	mod->pub->period = pub.period;
+	mod->pub->retransmit = pub.retransmit;
+	mod->pub->count = 0;
+
+	BT_DBG("Restored model publication, dst 0x%04x app_idx 0x%03x",
+			       pub.addr, pub.key);
+
+	return 0;
+}
+
+static int mod_data_set(struct bt_mesh_model *mod,
+			char *name, char *len_rd)
+{
+	char *next;
+
+	settings_name_next(name, &next);
+
+	if (mod->cb && mod->cb->settings_set) {
+		return mod->cb->settings_set(mod, next, len_rd);
+	}
+
+	return 0;
+}
+
+static int mod_set(bool vnd, int argc, char **argv, char *val)
+{
+	struct bt_mesh_model *mod;
+	uint8_t elem_idx, mod_idx;
+	uint16_t mod_key;
+
+	if (argc < 2) {
+			BT_ERR("Too small argc (%d)", argc);
+			return -ENOENT;
+		}
+
+		mod_key = strtol(argv[0], NULL, 16);
+	elem_idx = mod_key >> 8;
+	mod_idx = mod_key;
+
+	BT_DBG("Decoded mod_key 0x%04x as elem_idx %u mod_idx %u",
+			       mod_key, elem_idx, mod_idx);
+
+	mod = bt_mesh_model_get(vnd, elem_idx, mod_idx);
+	if (!mod) {
+		BT_ERR("Failed to get model for elem_idx %u mod_idx %u",
+					       elem_idx, mod_idx);
+		return -ENOENT;
+	}
+
+	if (!strcmp(argv[1], "bind")) {
+		return mod_set_bind(mod, val);
+	}
+
+	if (!strcmp(argv[1], "sub")) {
+		return mod_set_sub(mod, val);
+	}
+
+	if (!strcmp(argv[1], "pub")) {
+		return mod_set_pub(mod, val);
+	}
+
+	if (!strcmp(argv[1], "data")) {
+			return mod_data_set(mod, argv[1], val);
+	}
+
+	BT_WARN("Unknown module key %s", argv[1]);
+	return -ENOENT;
+}
+
+static int sig_mod_set(int argc, char **argv, char *val)
+{
+	return mod_set(false, argc, argv, val);
+}
+
+static int vnd_mod_set(int argc, char **argv, char *val)
+{
+	return mod_set(true, argc, argv, val);
+}
+
+static void encode_mod_path(struct bt_mesh_model *mod, bool vnd,
+			    const char *key, char *path, size_t path_len)
+{
+	uint16_t mod_key = (((uint16_t)mod->elem_idx << 8) | mod->mod_idx);
+
+	if (vnd) {
+		snprintk(path, path_len, "bt_mesh/v/%x/%s", mod_key, key);
+	} else {
+		snprintk(path, path_len, "bt_mesh/s/%x/%s", mod_key, key);
+	}
+}
+
+static void store_pending_mod_bind(struct bt_mesh_model *mod, bool vnd)
+{
+	uint16_t keys[CONFIG_BT_MESH_MODEL_KEY_COUNT];
+	char buf[BT_SETTINGS_SIZE(sizeof(keys))];
+	char path[20];
+	int i, count, err;
+	char *val;
+
+	for (i = 0, count = 0; i < ARRAY_SIZE(mod->keys); i++) {
+		if (mod->keys[i] != BT_MESH_KEY_UNUSED) {
+			keys[count++] = mod->keys[i];
+			BT_DBG("model key 0x%04x", mod->keys[i]);
+		}
+	}
+
+	if (count) {
+		val = settings_str_from_bytes(keys, count * sizeof(keys[0]),
+					      buf, sizeof(buf));
+		if (!val) {
+			BT_ERR("Unable to encode model bindings as value");
+			return;
+		}
+	} else {
+		val = NULL;
+	}
+
+	encode_mod_path(mod, vnd, "bind", path, sizeof(path));
+
+	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store bind");
+	} else {
+		BT_DBG("Stored bind");
+	}
+}
+
+static void store_pending_mod_sub(struct bt_mesh_model *mod, bool vnd)
+{
+	uint16_t groups[CONFIG_BT_MESH_MODEL_GROUP_COUNT];
+	char buf[BT_SETTINGS_SIZE(sizeof(groups))];
+	char path[20];
+	int i, count, err;
+	char *val;
+
+	for (i = 0, count = 0; i < CONFIG_BT_MESH_MODEL_GROUP_COUNT; i++) {
+		if (mod->groups[i] != BT_MESH_ADDR_UNASSIGNED) {
+				groups[count++] = mod->groups[i];
+			}
+	}
+
+	if (count) {
+		val = settings_str_from_bytes(groups, count * sizeof(groups[0]),
+				      buf, sizeof(buf));
+		if (!val) {
+			BT_ERR("Unable to encode model subscription as value");
+			return;
+		}
+	} else {
+		val = NULL;
+	}
+
+	encode_mod_path(mod, vnd, "sub", path, sizeof(path));
+
+	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store sub");
+	} else {
+		BT_DBG("Stored sub");
+	}
+}
+
+static void store_pending_mod_pub(struct bt_mesh_model *mod, bool vnd)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct mod_pub_val))];
+	struct mod_pub_val pub;
+	char path[20];
+	char *val;
+	int err;
+
+	if (!mod->pub || mod->pub->addr == BT_MESH_ADDR_UNASSIGNED) {
+		val = NULL;
+	} else {
+		pub.addr = mod->pub->addr;
+		pub.key = mod->pub->key;
+		pub.ttl = mod->pub->ttl;
+		pub.retransmit = mod->pub->retransmit;
+		pub.period = mod->pub->period;
+		pub.period_div = mod->pub->period_div;
+		pub.cred = mod->pub->cred;
+
+		val = settings_str_from_bytes(&pub, sizeof(pub), buf, sizeof(buf));
+		if (!val) {
+			BT_ERR("Unable to encode model publication as value");
+			return;
+		}
+	}
+
+	encode_mod_path(mod, vnd, "pub", path, sizeof(path));
+
+	BT_DBG("Saving %s as %s", path, val ? val : "(null)");
+	err = settings_save_one(path, val);
+	if (err) {
+		BT_ERR("Failed to store pub");
+	} else {
+		BT_DBG("Stored pub");
+	}
+}
+
+static void store_pending_mod(struct bt_mesh_model *mod,
+			      struct bt_mesh_elem *elem, bool vnd,
+			      bool primary, void *user_data)
+{
+	if (!mod->flags) {
+		return;
+	}
+
+	if (mod->flags & BT_MESH_MOD_BIND_PENDING) {
+		mod->flags &= ~BT_MESH_MOD_BIND_PENDING;
+		store_pending_mod_bind(mod, vnd);
+	}
+
+	if (mod->flags & BT_MESH_MOD_SUB_PENDING) {
+		mod->flags &= ~BT_MESH_MOD_SUB_PENDING;
+		store_pending_mod_sub(mod, vnd);
+	}
+
+	if (mod->flags & BT_MESH_MOD_PUB_PENDING) {
+		mod->flags &= ~BT_MESH_MOD_PUB_PENDING;
+		store_pending_mod_pub(mod, vnd);
+	}
+}
+
+void bt_mesh_model_pending_store(void)
+{
+	bt_mesh_model_foreach(store_pending_mod, NULL);
+}
+
+void bt_mesh_model_bind_store(struct bt_mesh_model *mod)
+{
+	mod->flags |= BT_MESH_MOD_BIND_PENDING;
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_MOD_PENDING);
+}
+
+void bt_mesh_model_sub_store(struct bt_mesh_model *mod)
+{
+	mod->flags |= BT_MESH_MOD_SUB_PENDING;
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_MOD_PENDING);
+}
+
+void bt_mesh_model_pub_store(struct bt_mesh_model *mod)
+{
+	mod->flags |= BT_MESH_MOD_PUB_PENDING;
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_MOD_PENDING);
+}
+
+int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
+			     const char *name, const void *data,
+			     size_t data_len)
+{
+	char path[30];
+	char buf[BT_SETTINGS_SIZE(sizeof(struct mod_pub_val))];
+	char *val;
+	int err;
+
+	encode_mod_path(mod, vnd, "data", path, sizeof(path));
+	if (name) {
+		strcat(path, "/");
+		strncat(path, name, 8);
+	}
+
+	if (data_len) {
+		val = settings_str_from_bytes(data, data_len, buf, sizeof(buf));
+		if (!val) {
+			BT_ERR("Unable to encode model publication as value");
+			return -EINVAL;
+		}
+		err = settings_save_one(path, val);
+	} else {
+		err = settings_save_one(path, NULL);
+	}
+
+	if (err) {
+		BT_ERR("Failed to store %s value", path);
+	} else {
+		BT_DBG("Stored %s value", path);
+	}
+	return err;
+}
+
+static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
+		       bool vnd, bool primary, void *user_data)
+{
+	if (mod->pub && mod->pub->update &&
+	    	mod->pub->addr != BT_MESH_ADDR_UNASSIGNED) {
+		int32_t ms = bt_mesh_model_pub_period_get(mod);
+
+		if (ms > 0) {
+			BT_DBG("Starting publish timer (period %u ms)", ms);
+			k_delayed_work_submit(&mod->pub->timer, K_MSEC(ms));
+		}
+	}
+
+	if (!IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
+		return;
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(mod->groups); i++) {
+		if (mod->groups[i] != BT_MESH_ADDR_UNASSIGNED) {
+			bt_mesh_lpn_group_add(mod->groups[i]);
+		}
+	}
+}
+
+void bt_mesh_model_settings_commit(void)
+{
+	bt_mesh_model_foreach(commit_mod, NULL);
+}
+
+static struct conf_handler bt_mesh_sig_mod_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = sig_mod_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+};
+
+static struct conf_handler bt_mesh_vnd_mod_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = vnd_mod_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+};
+
+void bt_mesh_access_init(void)
+{
+	int rc;
+
+	rc = conf_register(&bt_mesh_sig_mod_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_access conf");
+	rc = conf_register(&bt_mesh_vnd_mod_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_access conf");
+}

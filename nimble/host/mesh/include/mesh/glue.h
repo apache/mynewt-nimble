@@ -405,6 +405,7 @@ static inline unsigned int find_msb_set(uint32_t op)
 #define CONFIG_BT_MESH_PROVISIONER            BLE_MESH_PROVISIONER
 #define CONFIG_BT_MESH_PROV_DEVICE            BLE_MESH_PROV_DEVICE
 #define CONFIG_BT_MESH_CDB                    BLE_MESH_CDB
+#define CONFIG_BT_MESH_DEBUG_CFG              BLE_MESH_DEBUG_CFG
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)
