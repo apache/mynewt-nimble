@@ -200,7 +200,7 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 		model->pub->count = 0;
 
 		if (model->pub->update) {
-			k_delayed_work_cancel(&model->pub->timer);
+			k_work_cancel_delayable(&model->pub->timer);
 		}
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS) && store) {
@@ -238,9 +238,9 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 		BT_DBG("period %u ms", (unsigned) period_ms);
 
 		if (period_ms > 0) {
-			k_delayed_work_submit(&model->pub->timer, period_ms);
+			k_work_reschedule(&model->pub->timer, period_ms);
 		} else {
-			k_delayed_work_cancel(&model->pub->timer);
+			k_work_cancel_delayable(&model->pub->timer);
 		}
 	}
 
@@ -2128,7 +2128,8 @@ static void lpn_timeout_get(struct bt_mesh_model *model,
 		goto send_rsp;
 	}
 
-	timeout = k_delayed_work_remaining_get(&frnd->timer) / 100;
+	timeout = k_ticks_to_ms_floor32(
+		k_work_delayable_remaining_get(&frnd->timer)) / 100;
 
 send_rsp:
 	net_buf_simple_add_le24(msg, timeout);

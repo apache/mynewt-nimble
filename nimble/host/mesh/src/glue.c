@@ -399,7 +399,7 @@ k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler)
 }
 
 void
-k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f)
+k_work_init_delayable(struct k_work_delayable *w, ble_npl_event_fn *f)
 {
 #ifndef MYNEWT
     ble_npl_callout_init(&w->work, nimble_port_get_dflt_eventq(), f, NULL);
@@ -409,24 +409,38 @@ k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f)
 }
 
 bool
-k_delayed_work_pending(struct k_delayed_work *w)
+k_work_delayable_is_pending(struct k_work_delayable *w)
 {
     return ble_npl_callout_is_active(&w->work);
 }
 
 void
-k_delayed_work_cancel(struct k_delayed_work *w)
+k_work_cancel_delayable(struct k_work_delayable *w)
 {
     ble_npl_callout_stop(&w->work);
 }
 
 void
-k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms)
+k_work_schedule(struct k_work_delayable *w, uint32_t ms)
+	{
+	uint32_t ticks;
+
+	if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
+		assert(0);
+	}
+	ble_npl_callout_reset(&w->work, ticks);
+}
+
+void
+k_work_reschedule(struct k_work_delayable *w, uint32_t ms)
 {
     uint32_t ticks;
 
     if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
         assert(0);
+    }
+    if (ms == 0) {
+    	ble_npl_callout_stop(&w->work);
     }
     ble_npl_callout_reset(&w->work, ticks);
 }
@@ -444,13 +458,13 @@ k_work_add_arg(struct ble_npl_callout *w, void *arg)
 }
 
 void
-k_delayed_work_add_arg(struct k_delayed_work *w, void *arg)
+k_work_add_arg_delayable(struct k_work_delayable *w, void *arg)
 {
     k_work_add_arg(&w->work, arg);
 }
 
-uint32_t
-k_delayed_work_remaining_get (struct k_delayed_work *w)
+ble_npl_time_t
+k_work_delayable_remaining_get (struct k_work_delayable *w)
 {
     int sr;
     ble_npl_time_t t;
@@ -461,7 +475,13 @@ k_delayed_work_remaining_get (struct k_delayed_work *w)
 
     OS_EXIT_CRITICAL(sr);
 
-    return ble_npl_time_ticks_to_ms32(t);
+    return t;
+}
+
+uint32_t
+k_ticks_to_ms_floor32(ble_npl_time_t ticks)
+{
+    return ble_npl_time_ticks_to_ms32(ticks);
 }
 
 int64_t k_uptime_get(void)

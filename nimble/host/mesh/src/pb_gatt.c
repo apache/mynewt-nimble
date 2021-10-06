@@ -27,7 +27,7 @@ struct prov_link {
 		uint8_t  fcs;       /* Expected FCS value */
 		struct os_mbuf *buf;
 	} rx;
-	struct k_delayed_work prot_timer;
+	struct k_work_delayable prot_timer;
 };
 
 static struct prov_link link;
@@ -36,7 +36,7 @@ static void reset_state(void)
 {
 	link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-	k_delayed_work_cancel(&link.prot_timer);
+	k_work_cancel_delayable(&link.prot_timer);
 
 	link.rx.buf = bt_mesh_proxy_get_buf();
 }
@@ -73,7 +73,7 @@ int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf)
 		return -EINVAL;
 	}
 
-	k_delayed_work_submit(&link.prot_timer, PROTOCOL_TIMEOUT);
+	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
 
 	link.cb->recv(&pb_gatt, link.cb_data, buf);
 
@@ -89,7 +89,7 @@ int bt_mesh_pb_gatt_open(uint16_t conn_handle)
 	}
 
 	link.conn_handle = conn_handle;
-	k_delayed_work_submit(&link.prot_timer, PROTOCOL_TIMEOUT);
+	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
 
 	link.cb->link_opened(&pb_gatt, link.cb_data);
 
@@ -131,7 +131,7 @@ static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		return -ENOTCONN;
 	}
 
-	k_delayed_work_submit(&link.prot_timer, PROTOCOL_TIMEOUT);
+	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
 
 	return bt_mesh_proxy_send(link.conn_handle, BT_MESH_PROXY_PROV, buf);
 }
@@ -143,7 +143,7 @@ static void clear_tx(void)
 
 void pb_gatt_init(void)
 {
-	k_delayed_work_init(&link.prot_timer, protocol_timeout);
+	k_work_init_delayable(&link.prot_timer, protocol_timeout);
 }
 
 void pb_gatt_reset(void)

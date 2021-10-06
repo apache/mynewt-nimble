@@ -148,7 +148,7 @@ static void publish_sent(int err, void *user_data)
 
 	if (delay) {
 		BT_DBG("Publishing next time in %dms", (int) delay);
-		k_delayed_work_submit(&mod->pub->timer, delay);
+		k_work_reschedule(&mod->pub->timer, delay);
 	}
 }
 
@@ -228,7 +228,7 @@ static void mod_publish(struct ble_npl_event *work)
 
 			/* Continue with normal publication */
 			if (period_ms) {
-				k_delayed_work_submit(&pub->timer, period_ms);
+				k_work_reschedule(&pub->timer, period_ms);
 			}
 		}
 
@@ -301,8 +301,8 @@ static void mod_init(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 	if (mod->pub) {
 		mod->pub->mod = mod;
-		k_delayed_work_init(&mod->pub->timer, mod_publish);
-		k_delayed_work_add_arg(&mod->pub->timer, mod->pub);
+		k_work_init_delayable(&mod->pub->timer, mod_publish);
+		k_work_add_arg_delayable(&mod->pub->timer, mod->pub);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mod->keys); i++) {
@@ -738,7 +738,7 @@ int bt_mesh_model_publish(struct bt_mesh_model *model)
 
 	if (pub->count) {
 		BT_WARN("Clearing publish retransmit timer");
-		k_delayed_work_cancel(&pub->timer);
+		k_work_cancel_delayable(&pub->timer);
 	}
 
 	net_buf_simple_init(sdu, 0);
@@ -1249,7 +1249,7 @@ static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 		if (ms > 0) {
 			BT_DBG("Starting publish timer (period %u ms)", ms);
-			k_delayed_work_submit(&mod->pub->timer, K_MSEC(ms));
+			k_work_reschedule(&mod->pub->timer, K_MSEC(ms));
 		}
 	}
 

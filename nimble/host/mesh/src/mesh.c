@@ -174,7 +174,7 @@ void bt_mesh_reset(void)
 
 	memset(bt_mesh.flags, 0, sizeof(bt_mesh.flags));
 
-	k_delayed_work_cancel(&bt_mesh.ivu_timer);
+	k_work_cancel_delayable(&bt_mesh.ivu_timer);
 
 	bt_mesh_cfg_reset();
 
@@ -240,7 +240,7 @@ static void model_suspend(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 {
 	if (mod->pub && mod->pub->update) {
 		mod->pub->count = 0;
-		k_delayed_work_cancel(&mod->pub->timer);
+		k_work_cancel_delayable(&mod->pub->timer);
 	}
 }
 
@@ -281,7 +281,7 @@ static void model_resume(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		int32_t period_ms = bt_mesh_model_pub_period_get(mod);
 
 		if (period_ms) {
-			k_delayed_work_submit(&mod->pub->timer, period_ms);
+			k_work_reschedule(&mod->pub->timer, period_ms);
 		}
 	}
 }

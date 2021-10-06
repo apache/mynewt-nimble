@@ -107,7 +107,7 @@ static struct seg_tx {
 			      		  friend_cred:1; /* Using Friend credentials */
 	const struct bt_mesh_send_cb *cb;
 	void                  *cb_data;
-	struct k_delayed_work retransmit; /* Retransmit timer */
+	struct k_work_delayable retransmit; /* Retransmit timer */
 } seg_tx[MYNEWT_VAL(BLE_MESH_TX_SEG_MSG_COUNT)];
 
 static struct seg_rx {
@@ -125,7 +125,7 @@ static struct seg_rx {
 	uint8_t                     ttl;
 	uint32_t                    block;
 	uint32_t                    last;
-	struct k_delayed_work    ack;
+	struct k_work_delayable    ack;
 } seg_rx[CONFIG_BT_MESH_RX_SEG_MSG_COUNT];
 
 
@@ -248,7 +248,7 @@ static void seg_tx_unblock_check(struct seg_tx *tx)
 		BT_DBG("Unblocked 0x%04x",
 		       (uint16_t)(blocked->seq_auth & TRANS_SEQ_ZERO_MASK));
 		blocked->blocked = false;
-		k_delayed_work_submit(&blocked->retransmit, 0);
+		k_work_reschedule(&blocked->retransmit, 0);
 	}
 }
 
@@ -256,7 +256,7 @@ static void seg_tx_reset(struct seg_tx *tx)
 {
 	int i;
 
-	k_delayed_work_cancel(&tx->retransmit);
+	k_work_cancel_delayable(&tx->retransmit);
 
 	tx->cb = NULL;
 	tx->cb_data = NULL;
@@ -317,7 +317,7 @@ static void schedule_retransmit(struct seg_tx *tx)
 	 * called this from inside bt_mesh_net_send), we should continue the
 	 * retransmit immediately, as we just freed up a tx buffer.
 	 */
-	k_delayed_work_submit(&tx->retransmit,
+	k_work_reschedule(&tx->retransmit,
 			      tx->seg_o ? 0 : K_MSEC(SEG_RETRANSMIT_TIMEOUT(tx)));
 }
 
@@ -439,7 +439,7 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 	tx->attempts--;
 end:
 	if (!tx->seg_pending) {
-		k_delayed_work_submit(&tx->retransmit,
+		k_work_reschedule(&tx->retransmit,
 					  SEG_RETRANSMIT_TIMEOUT(tx));
 	}
 
@@ -860,7 +860,7 @@ static int trans_ack(struct bt_mesh_net_rx *rx, uint8_t hdr,
 		return -EINVAL;
 	}
 
-	k_delayed_work_cancel(&tx->retransmit);
+	k_work_cancel_delayable(&tx->retransmit);
 
 	while ((bit = find_lsb_set(ack))) {
 		if (tx->seg[bit - 1]) {
@@ -1094,7 +1094,7 @@ static void seg_rx_reset(struct seg_rx *rx, bool full_reset)
 
 	BT_DBG("rx %p", rx);
 
-	k_delayed_work_cancel(&rx->ack);
+	k_work_cancel_delayable(&rx->ack);
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && rx->obo &&
 	    rx->block != BLOCK_COMPLETE(rx->seg_n)) {
@@ -1148,7 +1148,7 @@ static void seg_ack(struct ble_npl_event *work)
 		 rx->block, rx->obo);
 
 	timeout = ack_timeout(rx);
-	k_delayed_work_submit(&rx->ack, K_MSEC(timeout));
+	k_work_reschedule(&rx->ack, K_MSEC(timeout));
 }
 
 static inline bool sdu_len_is_ok(bool ctl, uint8_t seg_n)
@@ -1429,11 +1429,11 @@ found_rx:
 	/* Reset the Incomplete Timer */
 	rx->last = k_uptime_get_32();
 
-	if (!k_delayed_work_remaining_get(&rx->ack) &&
+	if (!k_work_delayable_remaining_get(&rx->ack) &&
 	    !bt_mesh_lpn_established()) {
 		int32_t timeout = ack_timeout(rx);
 
-		k_delayed_work_submit(&rx->ack, K_MSEC(timeout));
+		k_work_reschedule(&rx->ack, K_MSEC(timeout));
 	}
 
 	/* Allocated segment here */
@@ -1464,7 +1464,7 @@ found_rx:
 
 	*pdu_type = BT_MESH_FRIEND_PDU_COMPLETE;
 
-	k_delayed_work_cancel(&rx->ack);
+	k_work_cancel_delayable(&rx->ack);
 	send_ack(net_rx->sub, net_rx->ctx.recv_dst, net_rx->ctx.addr,
 		 net_rx->ctx.send_ttl, seq_auth, rx->block, rx->obo);
 
@@ -1641,16 +1641,16 @@ void bt_mesh_trans_init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(seg_tx); i++) {
-		k_delayed_work_init(&seg_tx[i].retransmit, seg_retransmit);
-		k_delayed_work_add_arg(&seg_tx[i].retransmit, &seg_tx[i]);
+		k_work_init_delayable(&seg_tx[i].retransmit, seg_retransmit);
+		k_work_add_arg_delayable(&seg_tx[i].retransmit, &seg_tx[i]);
 	}
 
 	/* XXX Probably we need mempool for that.
 	 *  For now we increase MSYS_1_BLOCK_COUNT
 	 */
 	for (i = 0; i < ARRAY_SIZE(seg_rx); i++) {
-		k_delayed_work_init(&seg_rx[i].ack, seg_ack);
-		k_delayed_work_add_arg(&seg_rx[i].ack, &seg_rx[i]);
+		k_work_init_delayable(&seg_rx[i].ack, seg_ack);
+		k_work_add_arg_delayable(&seg_rx[i].ack, &seg_rx[i]);
 	}
 }
 
@@ -1856,12 +1856,6 @@ void bt_mesh_va_pending_store(void)
 		}
 	}
 }
-#else
-void bt_mesh_va_pending_store(void)
-{
-	/* Do nothing. */
-}
-#endif /* CONFIG_BT_MESH_LABEL_COUNT > 0 */
 
 static struct conf_handler bt_mesh_va_conf_handler = {
 	.ch_name = "bt_mesh",
@@ -1880,4 +1874,10 @@ void bt_mesh_va_init(void)
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_hb_pub conf");
 }
-#endif
+
+#else
+void bt_mesh_va_pending_store(void)
+{
+	/* Do nothing. */
+}
+#endif /* CONFIG_BT_MESH_LABEL_COUNT > 0 */

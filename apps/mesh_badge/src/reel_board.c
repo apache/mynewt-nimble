@@ -49,8 +49,8 @@ struct font_info {
 static struct os_dev *epd_dev;
 static bool pressed;
 static bool stats_view;
-static struct k_delayed_work epd_work;
-static struct k_delayed_work long_press_work;
+static struct k_work_delayable epd_work;
+static struct k_work_delayable long_press_work;
 
 static struct {
     int pin;
@@ -61,7 +61,7 @@ static struct {
 	{ .pin = RGB_LED_BLU, },
 };
 
-struct k_delayed_work led_timer;
+struct k_work_delayable led_timer;
 
 static size_t print_line(enum font_size font_size, int row, const char *text,
 			 size_t len, bool center)
@@ -121,7 +121,7 @@ static size_t get_len(enum font_size font, const char *text)
 
 void board_blink_leds(void)
 {
-	k_delayed_work_submit(&led_timer, K_MSEC(100));
+	k_work_reschedule(&led_timer, K_MSEC(100));
 }
 
 void board_show_text(const char *text, bool center, int32_t duration)
@@ -151,7 +151,7 @@ void board_show_text(const char *text, bool center, int32_t duration)
 	cfb_framebuffer_finalize(epd_dev);
 
 	if (duration != K_FOREVER) {
-		k_delayed_work_submit(&epd_work, duration);
+		k_work_reschedule(&epd_work, duration);
 	}
 }
 
@@ -381,11 +381,11 @@ static void button_interrupt(struct os_event *ev)
 	printk("Button %s\n", pressed ? "pressed" : "released");
 
 	if (pressed) {
-		k_delayed_work_submit(&long_press_work, LONG_PRESS_TIMEOUT);
+		k_work_reschedule(&long_press_work, LONG_PRESS_TIMEOUT);
 		return;
 	}
 
-	k_delayed_work_cancel(&long_press_work);
+	k_work_cancel_delayable(&long_press_work);
 
 	if (!mesh_is_initialized()) {
 		return;
@@ -441,7 +441,7 @@ static void led_timeout(struct ble_npl_event *work)
 	i = led_cntr++ % ARRAY_SIZE(leds);
 	hal_gpio_write(leds[i].pin, 0);
 
-	k_delayed_work_submit(&led_timer, K_MSEC(100));
+	k_work_reschedule(&led_timer, K_MSEC(100));
 }
 
 static int configure_leds(void)
@@ -452,7 +452,7 @@ static int configure_leds(void)
 		hal_gpio_init_out(leds[i].pin, 1);
 	}
 
-	k_delayed_work_init(&led_timer, led_timeout);
+	k_work_init_delayable(&led_timer, led_timeout);
 	return 0;
 }
 
@@ -466,7 +466,7 @@ static int erase_storage(void)
 
 void board_refresh_display(void)
 {
-	k_delayed_work_submit(&epd_work, K_NO_WAIT);
+	k_work_reschedule(&epd_work, K_NO_WAIT);
 }
 
 int board_init(void)
@@ -494,8 +494,8 @@ int board_init(void)
 		return -EIO;
 	}
 
-	k_delayed_work_init(&epd_work, epd_update);
-	k_delayed_work_init(&long_press_work, long_press);
+	k_work_init_delayable(&epd_work, epd_update);
+	k_work_init_delayable(&long_press_work, long_press);
 
 	pressed = button_is_pressed();
 	if (pressed) {

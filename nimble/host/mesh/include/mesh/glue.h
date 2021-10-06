@@ -329,22 +329,24 @@ int bt_le_adv_start(const struct ble_gap_adv_params *param,
                     const struct bt_data *sd, size_t sd_len);
 int bt_le_adv_stop(bool proxy);
 
-struct k_delayed_work {
+struct k_work_delayable {
     struct ble_npl_callout work;
 };
 
 void k_work_init(struct ble_npl_callout *work, ble_npl_event_fn handler);
-void k_delayed_work_init(struct k_delayed_work *w, ble_npl_event_fn *f);
-void k_delayed_work_cancel(struct k_delayed_work *w);
-bool k_delayed_work_pending(struct k_delayed_work *w);
-void k_delayed_work_submit(struct k_delayed_work *w, uint32_t ms);
+void k_work_init_delayable(struct k_work_delayable *w, ble_npl_event_fn *f);
+void k_work_cancel_delayable(struct k_work_delayable *w);
+bool k_work_delayable_is_pending(struct k_work_delayable *w);
+void k_work_reschedule(struct k_work_delayable *w, uint32_t ms);
 int64_t k_uptime_get(void);
 uint32_t k_uptime_get_32(void);
 void k_sleep(int32_t duration);
 void k_work_submit(struct ble_npl_callout *w);
 void k_work_add_arg(struct ble_npl_callout *w, void *arg);
-void k_delayed_work_add_arg(struct k_delayed_work *w, void *arg);
-uint32_t k_delayed_work_remaining_get(struct k_delayed_work *w);
+void k_work_add_arg_delayable(struct k_work_delayable *w, void *arg);
+ble_npl_time_t k_work_delayable_remaining_get(struct k_work_delayable *w);
+void k_work_schedule(struct k_work_delayable *w, uint32_t ms);
+uint32_t k_ticks_to_ms_floor32(ble_npl_time_t ticks);
 
 static inline void net_buf_simple_save(struct os_mbuf *buf,
                        struct net_buf_simple_state *state)
