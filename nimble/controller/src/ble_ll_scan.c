@@ -1939,9 +1939,7 @@ ble_ll_scan_rx_isr_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
 {
     struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
     struct ble_ll_scan_phy *scanp = scansm->scanp;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_mbuf_hdr_rxinfo *rxinfo = &hdr->rxinfo;
-#endif
     uint8_t scan_ok;
     int rc;
 
@@ -1957,8 +1955,8 @@ ble_ll_scan_rx_isr_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
         return 0;
     }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     rxinfo->flags |= BLE_MBUF_HDR_F_DEVMATCH;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     rxinfo->rpa_index = addrd->rpa_index;
     if (addrd->adva_resolved) {
         rxinfo->flags |= BLE_MBUF_HDR_F_RESOLVED;
