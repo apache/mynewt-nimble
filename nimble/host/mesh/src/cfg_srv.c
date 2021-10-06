@@ -204,7 +204,7 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 		}
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS) && store) {
-			bt_mesh_store_mod_pub(model);
+			bt_mesh_model_pub_store(model);
 		}
 
 		return STATUS_SUCCESS;
@@ -245,7 +245,7 @@ static uint8_t _mod_pub_set(struct bt_mesh_model *model, uint16_t pub_addr,
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS) && store) {
-		bt_mesh_store_mod_pub(model);
+		bt_mesh_model_pub_store(model);
 	}
 
 	return STATUS_SUCCESS;
@@ -273,7 +273,7 @@ uint8_t mod_bind(struct bt_mesh_model *model, uint16_t key_idx)
 			model->keys[i] = key_idx;
 
 			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_mod_bind(model);
+				bt_mesh_model_bind_store(model);
 			}
 
 			return STATUS_SUCCESS;
@@ -301,7 +301,7 @@ uint8_t mod_unbind(struct bt_mesh_model *model, uint16_t key_idx, bool store)
 		model->keys[i] = BT_MESH_KEY_UNUSED;
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS) && store) {
-			bt_mesh_store_mod_bind(model);
+			bt_mesh_model_bind_store(model);
 		}
 
 		if (model->pub && model->pub->key == key_idx) {
@@ -1040,7 +1040,7 @@ static void mod_sub_add(struct bt_mesh_model *model,
 	status = STATUS_SUCCESS;
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_mod_sub(mod);
+		bt_mesh_model_sub_store(mod);
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
@@ -1110,7 +1110,7 @@ static void mod_sub_del(struct bt_mesh_model *model,
 		*match = BT_MESH_ADDR_UNASSIGNED;
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_mod_sub(mod);
+			bt_mesh_model_sub_store(mod);
 		}
 	}
 
@@ -1181,7 +1181,7 @@ static void mod_sub_overwrite(struct bt_mesh_model *model,
 		status = STATUS_SUCCESS;
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_mod_sub(mod);
+			bt_mesh_model_sub_store(mod);
 		}
 
 		if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
@@ -1236,7 +1236,7 @@ static void mod_sub_del_all(struct bt_mesh_model *model,
 				NULL);
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_mod_sub(mod);
+		bt_mesh_model_sub_store(mod);
 	}
 
 	status = STATUS_SUCCESS;
@@ -1470,7 +1470,7 @@ static void mod_sub_va_add(struct bt_mesh_model *model,
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_mod_sub(mod);
+		bt_mesh_model_sub_store(mod);
 	}
 
 	status = STATUS_SUCCESS;
@@ -1535,7 +1535,7 @@ static void mod_sub_va_del(struct bt_mesh_model *model,
 		*match = BT_MESH_ADDR_UNASSIGNED;
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_mod_sub(mod);
+			bt_mesh_model_sub_store(mod);
 		}
 
 		status = STATUS_SUCCESS;
@@ -1594,7 +1594,7 @@ static void mod_sub_va_overwrite(struct bt_mesh_model *model,
 			mod->groups[0] = sub_addr;
 
 			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_mod_sub(mod);
+				bt_mesh_model_sub_store(mod);
 			}
 
 			if (IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)) {
@@ -2492,7 +2492,7 @@ static void mod_reset(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
 		if (clear_count) {
-			bt_mesh_store_mod_sub(mod);
+			bt_mesh_model_sub_store(mod);
 		}
 	}
 

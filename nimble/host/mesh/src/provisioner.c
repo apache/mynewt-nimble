@@ -541,7 +541,7 @@ static void prov_complete(const uint8_t *data)
 
 #if MYNEWT_VAL(BLE_MESH_CDB)
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_cdb_node(node);
+		bt_mesh_cdb_node_store(node);
 	}
 #endif
 

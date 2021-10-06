@@ -108,7 +108,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 		memcpy(node->dev_key, dev_key, 16);
 
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_cdb_node(node);
+			bt_mesh_cdb_node_store(node);
 		}
 	}
 
@@ -199,7 +199,7 @@ void bt_mesh_reset(void)
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_clear_net();
+		bt_mesh_net_clear();
 	}
 
 	memset(bt_mesh.dev_key, 0, sizeof(bt_mesh.dev_key));
@@ -338,6 +338,17 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	}
 #endif
 
+	bt_mesh_app_key_init();
+	bt_mesh_access_init();
+	bt_mesh_hb_pub_init();
+	bt_mesh_rpl_init();
+	bt_mesh_net_key_init();
+#if CONFIG_BT_MESH_LABEL_COUNT > 0
+	bt_mesh_va_init();
+#endif
+#if CONFIG_BT_MESH_CDB
+	bt_mesh_cdb_init();
+#endif
 	bt_mesh_cfg_init();
 	bt_mesh_net_init();
 	bt_mesh_trans_init();

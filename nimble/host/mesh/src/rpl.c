@@ -10,6 +10,7 @@
 #define MESH_LOG_MODULE BLE_MESH_RPL_LOG
 
 #include "log/log.h"
+#include <stdlib.h>
 
 #include "mesh_priv.h"
 #include "adv.h"
@@ -17,7 +18,26 @@
 #include "rpl.h"
 #include "settings.h"
 
+/* Replay Protection List information for persistent storage. */
+struct rpl_val {
+	uint32_t seq:24,
+	old_iv:1;
+};
+
 static struct bt_mesh_rpl replay_list[MYNEWT_VAL(BLE_MESH_CRPL)];
+
+static void schedule_rpl_store(struct bt_mesh_rpl *entry)
+{
+#ifdef CONFIG_BT_SETTINGS
+	entry->store = true;
+#endif
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
+}
+
+static void schedule_rpl_clear(void)
+{
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
+}
 
 void bt_mesh_rpl_update(struct bt_mesh_rpl *rpl,
 		struct bt_mesh_net_rx *rx)
@@ -27,7 +47,7 @@ void bt_mesh_rpl_update(struct bt_mesh_rpl *rpl,
 	rpl->old_iv = rx->old_iv;
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_rpl(rpl);
+		schedule_rpl_store(rpl);
 	}
 }
 
@@ -95,13 +115,13 @@ void bt_mesh_rpl_clear(void)
 	BT_DBG("");
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_clear_rpl();
+		schedule_rpl_clear();
 	} else {
 		(void)memset(replay_list, 0, sizeof(replay_list));
 	}
 }
 
-struct bt_mesh_rpl *bt_mesh_rpl_find(uint16_t src)
+static struct bt_mesh_rpl *bt_mesh_rpl_find(uint16_t src)
 {
 	int i;
 
@@ -114,7 +134,7 @@ struct bt_mesh_rpl *bt_mesh_rpl_find(uint16_t src)
 	return NULL;
 }
 
-struct bt_mesh_rpl *bt_mesh_rpl_alloc(uint16_t src)
+static struct bt_mesh_rpl *bt_mesh_rpl_alloc(uint16_t src)
 {
 	int i;
 
@@ -126,15 +146,6 @@ struct bt_mesh_rpl *bt_mesh_rpl_alloc(uint16_t src)
 	}
 
 	return NULL;
-}
-
-void bt_mesh_rpl_foreach(bt_mesh_rpl_func_t func, void *user_data)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(replay_list); i++) {
-		func(&replay_list[i], user_data);
-	}
 }
 
 void bt_mesh_rpl_reset(void)
@@ -155,8 +166,159 @@ void bt_mesh_rpl_reset(void)
 			}
 
 			if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-				bt_mesh_store_rpl(rpl);
+				schedule_rpl_store(rpl);
 			}
 		}
 	}
+}
+
+static int rpl_set(int argc, char **argv, char *val)
+{
+	struct bt_mesh_rpl *entry;
+	struct rpl_val rpl;
+	int len, err;
+	uint16_t src;
+
+	if (argc < 1) {
+		BT_ERR("Invalid argc (%d)", argc);
+		return -ENOENT;
+	}
+
+	BT_DBG("argv[0] %s val %s", argv[0], val ? val : "(null)");
+
+	src = strtol(argv[0], NULL, 16);
+	entry = bt_mesh_rpl_find(src);
+
+	if (!val) {
+		if (entry) {
+			memset(entry, 0, sizeof(*entry));
+		} else {
+			BT_WARN("Unable to find RPL entry for 0x%04x", src);
+		}
+
+		return 0;
+	}
+
+	if (!entry) {
+		entry = bt_mesh_rpl_alloc(src);
+		if (!entry) {
+			BT_ERR("Unable to allocate RPL entry for 0x%04x", src);
+			return -ENOMEM;
+		}
+	}
+
+	len = sizeof(rpl);
+	err = settings_bytes_from_str(val, &rpl, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return err;
+	}
+
+	if (len != sizeof(rpl)) {
+		BT_ERR("Unexpected value length (%d != %zu)", len, sizeof(rpl));
+		return -EINVAL;
+	}
+
+	entry->seq = rpl.seq;
+	entry->old_iv = rpl.old_iv;
+
+	BT_DBG("RPL entry for 0x%04x: Seq 0x%06x old_iv %u", entry->src,
+	       (unsigned) entry->seq, entry->old_iv);
+	return 0;
+}
+
+static void store_rpl(struct bt_mesh_rpl *entry)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct rpl_val))];
+	struct rpl_val rpl;
+	char path[18];
+	char *str;
+	int err;
+
+	BT_DBG("src 0x%04x seq 0x%06x old_iv %u", entry->src,
+	       (unsigned) entry->seq, entry->old_iv);
+
+	rpl.seq = entry->seq;
+	rpl.old_iv = entry->old_iv;
+
+	str = settings_str_from_bytes(&rpl, sizeof(rpl), buf, sizeof(buf));
+	if (!str) {
+		BT_ERR("Unable to encode RPL as value");
+		return;
+	}
+
+	snprintk(path, sizeof(path), "bt_mesh/RPL/%x", entry->src);
+
+	BT_DBG("Saving RPL %s as value %s", path, str);
+	err = settings_save_one(path, str);
+	if (err) {
+		BT_ERR("Failed to store RPL");
+	} else {
+		BT_DBG("Stored RPL");
+	}
+}
+
+static void clear_rpl(struct bt_mesh_rpl *rpl)
+{
+	int err;
+	char path[18];
+
+	if (!rpl->src) {
+		return;
+	}
+
+	snprintk(path, sizeof(path), "bt_mesh/RPL/%x", rpl->src);
+	err = settings_save_one(path, NULL);
+	if (err) {
+		BT_ERR("Failed to clear RPL");
+	} else {
+		BT_DBG("Cleared RPL");
+	}
+
+	(void)memset(rpl, 0, sizeof(*rpl));
+}
+
+static void store_pending_rpl(struct bt_mesh_rpl *rpl)
+{
+	BT_DBG("");
+
+#ifdef CONFIG_BT_SETTINGS
+	if (!rpl->store) {
+		return;
+	}
+
+	rpl->store = false;
+#endif
+	store_rpl(rpl);
+}
+
+void bt_mesh_rpl_pending_store(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(replay_list); i++) {
+		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+			store_pending_rpl(&replay_list[i]);
+		} else {
+			clear_rpl(&replay_list[i]);
+		}
+	}
+}
+
+static struct conf_handler bt_mesh_rpl_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = rpl_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+	};
+
+void bt_mesh_rpl_init(void)
+{
+	int rc;
+
+	rc = conf_register(&bt_mesh_rpl_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_rpl conf");
 }
