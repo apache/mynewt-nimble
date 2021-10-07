@@ -24,11 +24,7 @@ extern "C" {
 /** Mesh Configuration Client Model Context */
 struct bt_mesh_cfg_cli {
 	struct bt_mesh_model *model;
-
-	struct k_sem          op_sync;
-	uint32_t              op_pending;
-	void                 *op_param;
-    	uint16_t              op_addr;
+	struct bt_mesh_msg_ack_ctx ack_ctx;
 };
 
 extern const struct bt_mesh_model_op bt_mesh_cfg_cli_op[];
