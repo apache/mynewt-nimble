@@ -228,33 +228,30 @@ static void update_beacon_observation(void)
 
 static void beacon_send(struct ble_npl_event *work)
 {
-	/* Don't send anything if we have an active provisioning link */
-	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) && bt_mesh_prov_active()) {
-		k_work_reschedule(&beacon_timer,
-							  K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
-		return;
-	}
 
 	BT_DBG("");
 
 	if (bt_mesh_is_provisioned()) {
+		if (!bt_mesh_beacon_enabled() &&
+		!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
+			return;
+		}
+
 		update_beacon_observation();
 		(void)bt_mesh_subnet_find(secure_beacon_send, NULL);
 
-		/* Only resubmit if beaconing is still enabled */
-		if (bt_mesh_beacon_enabled() ||
-		    atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
-			k_work_reschedule(&beacon_timer,
-					      PROVISIONED_INTERVAL);
-		}
+		k_work_schedule(&beacon_timer, PROVISIONED_INTERVAL);
 
 		return;
 	}
 
 	if (IS_ENABLED(BLE_MESH_PB_ADV)) {
-		unprovisioned_beacon_send();
-		k_work_reschedule(&beacon_timer,
-							  K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
+		/* Don't send anything if we have an active provisioning link */
+		if (!bt_mesh_prov_active()) {
+			unprovisioned_beacon_send();
+		}
+
+		k_work_schedule(&beacon_timer, K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
 	}
 }
 
@@ -426,7 +423,7 @@ static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
 
 void bt_mesh_beacon_init(void)
 {
-		if (!bt_mesh_subnet_cb_list[1]) {
+	if (!bt_mesh_subnet_cb_list[1]) {
 		bt_mesh_subnet_cb_list[1] = subnet_evt;
 	}
 
@@ -437,11 +434,16 @@ void bt_mesh_beacon_ivu_initiator(bool enable)
 {
 	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_INITIATOR, enable);
 
-	if (enable) {
-		k_work_reschedule(&beacon_timer, K_NO_WAIT);
-	} else if (!bt_mesh_beacon_enabled()) {
-		k_work_cancel_delayable(&beacon_timer);
-	}
+	/* Fire the beacon handler straight away if it's not already pending -
+	 * in which case we'll fire according to the ongoing periodic sending.
+	 * If beacons are disabled, the handler will exit early.
+	 *
+	 * An alternative solution would be to check whether beacons are enabled
+	 * here, and cancel if not. As the cancel operation may fail, we would
+	 * still have to implement an early exit mechanism, so we might as well
+	 * just use this every time.
+	 */
+	k_work_schedule(&beacon_timer, K_NO_WAIT);
 }
 
 static void subnet_beacon_enable(struct bt_mesh_subnet *sub)
@@ -454,12 +456,9 @@ static void subnet_beacon_enable(struct bt_mesh_subnet *sub)
 
 void bt_mesh_beacon_enable(void)
 {
-	if (!bt_mesh_is_provisioned()) {
-		k_work_reschedule(&beacon_timer, K_NO_WAIT);
-		return;
+	if (bt_mesh_is_provisioned()) {
+		bt_mesh_subnet_foreach(subnet_beacon_enable);
 	}
-
-	bt_mesh_subnet_foreach(subnet_beacon_enable);
 
 	k_work_reschedule(&beacon_timer, K_NO_WAIT);
 }
@@ -467,6 +466,7 @@ void bt_mesh_beacon_enable(void)
 void bt_mesh_beacon_disable(void)
 {
 	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
-		k_work_cancel_delayable(&beacon_timer);
+		/* If this fails, we'll do an early exit in the work handler. */
+		(void)k_work_cancel_delayable(&beacon_timer);
 	}
 }
