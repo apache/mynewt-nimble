@@ -478,6 +478,10 @@ static inline void k_sem_give(struct k_sem *sem)
 	ble_npl_sem_release(sem);
 }
 
+static inline void k_sem_reset(struct k_sem *sem)
+{
+	ble_npl_sem_init(sem, 0);
+}
 /* Helpers to access the storage array, since we don't have access to its
  * type at this point anymore.
  */
