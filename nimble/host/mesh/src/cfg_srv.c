@@ -2106,8 +2106,8 @@ static void lpn_timeout_get(struct bt_mesh_model *model,
 {
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_LPN_TIMEOUT_STATUS, 5);
 	struct bt_mesh_friend *frnd;
+	int32_t timeout_steps;
 	uint16_t lpn_addr;
-	int32_t timeout;
 
 	lpn_addr = net_buf_simple_pull_le16(buf);
 
@@ -2124,21 +2124,21 @@ static void lpn_timeout_get(struct bt_mesh_model *model,
 	net_buf_simple_add_le16(msg, lpn_addr);
 
 	if (!IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
-		timeout = 0;
+		timeout_steps = 0;
 		goto send_rsp;
 	}
 
 	frnd = bt_mesh_friend_find(BT_MESH_KEY_ANY, lpn_addr, true, true);
 	if (!frnd) {
-		timeout = 0;
+		timeout_steps = 0;
 		goto send_rsp;
 	}
 
-	timeout = k_ticks_to_ms_floor32(
-		k_work_delayable_remaining_get(&frnd->timer)) / 100;
+	/* PollTimeout should be reported in steps of 100ms. */
+	timeout_steps = frnd->poll_to / 100;
 
 send_rsp:
-	net_buf_simple_add_le24(msg, timeout);
+	net_buf_simple_add_le24(msg, timeout_steps);
 
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Unable to send LPN PollTimeout Status");
