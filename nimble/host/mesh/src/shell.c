@@ -998,7 +998,7 @@ struct shell_cmd_help cmd_timeout_help = {
 static int cmd_get_comp(int argc, char *argv[])
 {
 	struct os_mbuf *comp = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
-	uint8_t status, page = 0x00;
+	uint8_t page = 0x00;
 	int err = 0;
 
 	if (argc > 1) {
@@ -1007,16 +1007,15 @@ static int cmd_get_comp(int argc, char *argv[])
 
 	net_buf_simple_init(comp, 0);
 	err = bt_mesh_cfg_comp_data_get(net.net_idx, net.dst, page,
-					&status, comp);
+					&page, comp);
 	if (err) {
 		printk("Getting composition failed (err %d)\n", err);
 		goto done;
 	}
 
-	if (status != 0x00) {
-		printk("Got non-success status 0x%02x\n", status);
-		goto done;
-	}
+	if (page != 0x00) {
+		shell_print(shell, "Got page 0x%02x. No parser available.",
+			    page);
 
 	printk("Got Composition Data for 0x%04x:\n", net.dst);
 	printk("\tCID      0x%04x\n", net_buf_simple_pull_le16(comp));

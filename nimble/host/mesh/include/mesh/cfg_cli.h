@@ -41,7 +41,7 @@ extern const struct bt_mesh_model_cb bt_mesh_cfg_cli_cb;
 int bt_mesh_cfg_node_reset(uint16_t net_idx, uint16_t addr, bool *status);
 
 int bt_mesh_cfg_comp_data_get(uint16_t net_idx, uint16_t addr, uint8_t page,
-			      uint8_t *status, struct os_mbuf *comp);
+			      uint8_t *rsp, struct os_mbuf *comp);
 
 int bt_mesh_cfg_beacon_get(uint16_t net_idx, uint16_t addr, uint8_t *status);
 
