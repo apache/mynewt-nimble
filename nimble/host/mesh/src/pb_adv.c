@@ -589,7 +589,7 @@ static void prov_retransmit(struct ble_npl_event *work)
 			close_link(PROV_BEARER_LINK_STATUS_SUCCESS);
 		} else {
 			BT_WARN("Giving up transaction");
-			close_link(PROV_BEARER_LINK_STATUS_TIMEOUT);
+			prov_link_close(PROV_BEARER_LINK_STATUS_TIMEOUT);
 		}
 
 		return;
