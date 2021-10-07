@@ -144,6 +144,10 @@ extern "C" {
 #define ASSERT_NOT_CHAIN(om) (void)(om)
 #endif
 
+#define CHECKIF(expr) \
+	__ASSERT_NO_MSG(!(expr));   \
+	if (0)
+
 #define __packed    __attribute__((__packed__))
 
 #define MSEC_PER_SEC   (1000)

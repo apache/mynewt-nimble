@@ -997,7 +997,9 @@ struct shell_cmd_help cmd_timeout_help = {
 
 static int cmd_get_comp(int argc, char *argv[])
 {
-	struct os_mbuf *comp = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
+	struct os_mbuf *buf = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
+	struct bt_mesh_comp_p0_elem elem;
+	struct bt_mesh_comp_p0 comp;
 	uint8_t page = 0x00;
 	int err = 0;
 
@@ -1005,69 +1007,69 @@ static int cmd_get_comp(int argc, char *argv[])
 		page = strtol(argv[1], NULL, 0);
 	}
 
-	net_buf_simple_init(comp, 0);
-	err = bt_mesh_cfg_comp_data_get(net.net_idx, net.dst, page,
-					&page, comp);
+	net_buf_simple_init(buf, 0);
+	err = bt_mesh_cfg_comp_data_get(net.net_idx, net.dst, page, &page,
+					buf);
 	if (err) {
 		printk("Getting composition failed (err %d)\n", err);
 		goto done;
 	}
 
 	if (page != 0x00) {
-		shell_print(shell, "Got page 0x%02x. No parser available.",
+		printk("Got page 0x%02x. No parser available.",
 			    page);
+		goto done;
+	}
 
-	printk("Got Composition Data for 0x%04x:\n", net.dst);
-	printk("\tCID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tPID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tVID      0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tCRPL     0x%04x\n", net_buf_simple_pull_le16(comp));
-	printk("\tFeatures 0x%04x\n", net_buf_simple_pull_le16(comp));
+	err = bt_mesh_comp_p0_get(&comp, buf);
+	if (err) {
+		printk("Getting composition failed (err %d)\n", err);
+		goto done;
+	}
 
-	while (comp->om_len > 4) {
-		uint8_t sig, vnd;
-		uint16_t loc;
+	printk("Got Composition Data for 0x%04x:", net.dst);
+	printk("\tCID      0x%04x", comp.cid);
+	printk("\tPID      0x%04x", comp.pid);
+	printk("\tVID      0x%04x", comp.vid);
+	printk("\tCRPL     0x%04x", comp.crpl);
+	printk("\tFeatures 0x%04x", comp.feat);
+
+	while (bt_mesh_comp_p0_elem_pull(&comp, &elem)) {
 		int i;
 
-		loc = net_buf_simple_pull_le16(comp);
-		sig = net_buf_simple_pull_u8(comp);
-		vnd = net_buf_simple_pull_u8(comp);
-
-		printk("\n\tElement @ 0x%04x:\n", loc);
-
-		if (comp->om_len < ((sig * 2) + (vnd * 4))) {
-			printk("\t\t...truncated data!\n");
-			break;
-		}
-
-		if (sig) {
+		printk("\tElement @ 0x%04x:", elem.loc);
+		if (elem.nsig) {
 			printk("\t\tSIG Models:\n");
 		} else {
 			printk("\t\tNo SIG Models\n");
 		}
 
-		for (i = 0; i < sig; i++) {
-			uint16_t mod_id = net_buf_simple_pull_le16(comp);
+		for (i = 0; i < elem.nsig; i++) {
+			uint16_t mod_id = bt_mesh_comp_p0_elem_mod(&elem, i);
 
 			printk("\t\t\t0x%04x\n", mod_id);
 		}
 
-		if (vnd) {
+		if (elem.nvnd) {
 			printk("\t\tVendor Models:\n");
 		} else {
 			printk("\t\tNo Vendor Models\n");
 		}
 
-		for (i = 0; i < vnd; i++) {
-			uint16_t cid = net_buf_simple_pull_le16(comp);
-			uint16_t mod_id = net_buf_simple_pull_le16(comp);
+		for (i = 0; i < elem.nvnd; i++) {
+			struct bt_mesh_mod_id_vnd mod =
+				bt_mesh_comp_p0_elem_mod_vnd(&elem, i);
 
-			printk("\t\t\tCompany 0x%04x: 0x%04x\n", cid, mod_id);
+			printk("\t\t\tCompany 0x%04x: 0x%04x",
+				    mod.company, mod.id);
 		}
+	}
+	if (buf->om_len) {
+		printk("\t\t...truncated data!");
 	}
 
 done:
-	os_mbuf_free_chain(comp);
+	os_mbuf_free_chain(buf);
 	return err;
 }
 

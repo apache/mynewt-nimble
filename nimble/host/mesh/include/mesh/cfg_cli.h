@@ -269,6 +269,42 @@ int bt_mesh_cfg_hb_pub_get(uint16_t net_idx, uint16_t addr,
 int32_t bt_mesh_cfg_cli_timeout_get(void);
 void bt_mesh_cfg_cli_timeout_set(int32_t timeout);
 
+struct bt_mesh_comp_p0 {
+	/** Company ID */
+	uint16_t cid;
+	/** Product ID */
+	uint16_t pid;
+	/** Version ID */
+	uint16_t vid;
+	/** Replay protection list size */
+	uint16_t crpl;
+	/** Supported features, see @ref BT_MESH_FEAT_SUPPORTED. */
+	uint16_t feat;
+
+	struct os_mbuf *_buf;
+};
+
+struct bt_mesh_comp_p0_elem {
+	/** Element location */
+	uint16_t loc;
+	/** The number of SIG models in this element */
+	size_t nsig;
+	/** The number of vendor models in this element */
+	size_t nvnd;
+
+	uint8_t *_buf;
+};
+
+int bt_mesh_comp_p0_get(struct bt_mesh_comp_p0 *comp,
+	struct os_mbuf *buf);
+
+struct bt_mesh_comp_p0_elem *bt_mesh_comp_p0_elem_pull(const struct bt_mesh_comp_p0 *comp,
+	struct bt_mesh_comp_p0_elem *elem);
+
+uint16_t bt_mesh_comp_p0_elem_mod(struct bt_mesh_comp_p0_elem *elem, int idx);
+
+struct bt_mesh_mod_id_vnd bt_mesh_comp_p0_elem_mod_vnd(struct bt_mesh_comp_p0_elem *elem, int idx);
+
 #ifdef __cplusplus
 }
 #endif
