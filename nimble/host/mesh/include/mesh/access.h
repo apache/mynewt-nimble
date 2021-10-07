@@ -310,17 +310,17 @@ struct bt_mesh_model_pub {
 	/** The model the context belongs to. Initialized by the stack. */
 	struct bt_mesh_model *mod;
 
-	uint16_t addr;         /**< Publish Address. */
-	uint16_t key;          /**< Publish AppKey Index. */
+	uint16_t addr;          /**< Publish Address. */
+	uint16_t key:12,        /**< Publish AppKey Index. */
+		 cred:1,        /**< Friendship Credentials Flag. */
+		 send_rel:1,    /**< Force reliable sending (segment acks) */
+		 fast_period:1; /**< Use FastPeriodDivisor */
 
 	uint8_t  ttl;          /**< Publish Time to Live. */
 	uint8_t  retransmit;   /**< Retransmit Count & Interval Steps. */
 	uint8_t  period;       /**< Publish Period. */
 	uint8_t  period_div:4, /**< Divisor for the Period. */
-	      cred:1,       /**< Friendship Credentials Flag. */
-		  send_rel:1,
-	      fast_period:1,/**< Use FastPeriodDivisor */
-	      count:3;      /**< Retransmissions left. */
+		 count:4;
 
 	uint32_t period_start; /**< Start of the current period. */
 

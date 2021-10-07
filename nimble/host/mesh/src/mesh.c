@@ -240,7 +240,10 @@ static void model_suspend(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 {
 	if (mod->pub && mod->pub->update) {
 		mod->pub->count = 0;
-		k_work_cancel_delayable(&mod->pub->timer);
+		/* If this fails, the work handler will check the suspend call
+		 * and exit without transmitting.
+		 */
+		(void)k_work_cancel_delayable(&mod->pub->timer);
 	}
 }
 
@@ -281,7 +284,8 @@ static void model_resume(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		int32_t period_ms = bt_mesh_model_pub_period_get(mod);
 
 		if (period_ms) {
-			k_work_reschedule(&mod->pub->timer, period_ms);
+			k_work_reschedule(&mod->pub->timer,
+					  K_MSEC(period_ms));
 		}
 	}
 }
