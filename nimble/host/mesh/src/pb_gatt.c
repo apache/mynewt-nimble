@@ -36,7 +36,8 @@ static void reset_state(void)
 {
 	link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-	k_work_cancel_delayable(&link.prot_timer);
+	/* If this fails, the protocol timeout handler will exit early. */
+	(void)k_work_cancel_delayable(&link.prot_timer);
 
 	link.rx.buf = bt_mesh_proxy_get_buf();
 }
@@ -54,6 +55,11 @@ static void link_closed(enum prov_bearer_link_status status)
 
 static void protocol_timeout(struct ble_npl_event *work)
 {
+	if (!link.conn_handle) {
+		/* Already disconnected */
+		return;
+	}
+
 	BT_DBG("Protocol timeout");
 
 	link_closed(PROV_BEARER_LINK_STATUS_TIMEOUT);
