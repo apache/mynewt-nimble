@@ -136,6 +136,12 @@ syscfg.defs:
             node supports.
         value: 1
 
+    BLE_MESH_PROXY_USE_DEVICE_NAME:
+        description: >
+            Include Bluetooth device name in scan response
+        value: 0
+        restrictions: BLE_MESH_GATT_PROXY
+
     BLE_MESH_SUBNET_COUNT:
         description: >
             This option specifies how many subnets a Mesh network can
