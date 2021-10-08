@@ -156,7 +156,7 @@ static void friend_clear(struct bt_mesh_friend *frnd)
 
 	BT_DBG("LPN 0x%04x", frnd->lpn);
 
-	k_work_cancel_delayable(&frnd->timer);
+	(void)k_work_cancel_delayable(&frnd->timer);
 
 	memset(frnd->cred, 0, sizeof(frnd->cred));
 
@@ -816,6 +816,11 @@ static void clear_timeout(struct ble_npl_event *work)
 	struct bt_mesh_friend *frnd = ble_npl_event_get_arg(work);
 	uint32_t duration;
 
+	if (frnd->clear.frnd == BT_MESH_ADDR_UNASSIGNED) {
+		/* Failed cancelling timer, return early. */
+		return;
+	}
+
 	BT_DBG("LPN 0x%04x (old) Friend 0x%04x", frnd->lpn, frnd->clear.frnd);
 
 	duration = k_uptime_get_32() - frnd->clear.start;
@@ -872,7 +877,8 @@ int bt_mesh_friend_clear_cfm(struct bt_mesh_net_rx *rx,
 		return 0;
 	}
 
-	k_work_cancel_delayable(&frnd->clear.timer);
+	/* If this fails, the unassigned check will make the handler return early. */
+	(void)k_work_cancel_delayable(&frnd->clear.timer);
 	frnd->clear.frnd = BT_MESH_ADDR_UNASSIGNED;
 
 	return 0;
@@ -1159,7 +1165,8 @@ static void buf_send_end(int err, void *user_data)
 	}
 
 	if (frnd->established) {
-		k_work_reschedule(&frnd->timer, frnd->poll_to);
+		/* Always restart poll timeout timer after sending */
+		k_work_reschedule(&frnd->timer, K_MSEC(frnd->poll_to));
 		BT_DBG("Waiting %u ms for next poll",
 		       (unsigned) frnd->poll_to);
 	} else {
@@ -1210,6 +1217,10 @@ static void friend_timeout(struct ble_npl_event *work)
 	};
 
 	uint8_t md;
+
+	if (!friend_is_allocated(frnd)) {
+		return;
+	}
 
 	__ASSERT_NO_MSG(frnd->pending_buf == 0);
 
