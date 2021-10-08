@@ -424,17 +424,21 @@ static void proxy_sar_timeout(struct ble_npl_event *work)
 {
 	struct bt_mesh_proxy_client *client;
 	int rc;
+	client = ble_npl_event_get_arg(work);
+
+	if (!client->conn_handle) {
+		return;
+	}
+
+	if (!client->buf->om_len) {
+		BT_DBG("No pending Proxy SAR message");
+		return;
+	}
 
 	BT_WARN("Proxy SAR timeout");
-
-	client = ble_npl_event_get_arg(work);
-	assert(client != NULL);
-
-	if ((client->conn_handle != BLE_HS_CONN_HANDLE_NONE)) {
-		rc = ble_gap_terminate(client->conn_handle,
-				       BLE_ERR_REM_USER_CONN_TERM);
-		assert(rc == 0);
-	}
+	rc = ble_gap_terminate(client->conn_handle,
+			       BLE_ERR_REM_USER_CONN_TERM);
+	assert(rc == 0);
 }
 
 void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub)
@@ -599,7 +603,10 @@ static int proxy_recv(uint16_t conn_handle, uint16_t attr_handle,
 			return -EINVAL;
 		}
 
-		k_work_cancel_delayable(&client->sar_timer);
+		/* If this fails, the work handler exits early, as there's no
+		 * active SAR buffer.
+		 */
+		(void)k_work_cancel_delayable(&client->sar_timer);
 		net_buf_simple_add_mem(client->buf, data + 1, len - 1);
 		proxy_complete_pdu(client);
 		break;
@@ -661,7 +668,10 @@ static void proxy_disconnected(uint16_t conn_handle, int reason)
 				bt_mesh_pb_gatt_close(conn_handle);
 			}
 
-			k_work_cancel_delayable(&client->sar_timer);
+			/* If this fails, the work handler exits early, as
+			 * there's no active connection.
+			 */
+			(void)k_work_cancel_delayable(&client->sar_timer);
 			client->conn_handle = BLE_HS_CONN_HANDLE_NONE;
 			break;
 		}
