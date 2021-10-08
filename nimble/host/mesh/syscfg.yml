@@ -23,6 +23,11 @@ syscfg.defs:
             BLE_MESH_PB_ADV or BLE_MESH_PB_GATT is set.
         value: 1
 
+    BLE_MESH_PROV_OOB_PUBLIC_KEY:
+        description: >
+            Enable this option if public key is to be exchanged via Out of Band (OOB) technology.
+        value: 0
+
     BLE_MESH_PB_ADV:
         description: >
            Enable this option to allow the device to be provisioned over
