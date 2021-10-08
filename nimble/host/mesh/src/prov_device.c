@@ -76,8 +76,9 @@ static void prov_invite(const uint8_t *data)
 	/* Supported algorithms - FIPS P-256 Eliptic Curve */
 	net_buf_simple_add_be16(buf, BIT(PROV_ALG_P256));
 
-	/* Public Key Type, Only "No OOB" Public Key is supported */
-	net_buf_simple_add_u8(buf, PUB_KEY_NO_OOB);
+	/* Public Key Type */
+	net_buf_simple_add_u8(buf,
+			      bt_mesh_prov->public_key_be == NULL ? PUB_KEY_NO_OOB : PUB_KEY_OOB);
 
 	/* Static OOB Type */
 	net_buf_simple_add_u8(buf, bt_mesh_prov->static_val ? BIT(0) : 0x00);
@@ -118,11 +119,15 @@ static void prov_start(const uint8_t *data)
 		return;
 	}
 
-	if (data[1] != PUB_KEY_NO_OOB) {
+	if (data[1] == PUB_KEY_OOB &&
+	    !(MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
+	    bt_mesh_prov->public_key_be)) {
 		BT_ERR("Invalid public key type: 0x%02x", data[1]);
 		prov_fail(PROV_ERR_NVAL_FMT);
 		return;
 	}
+
+	atomic_set_bit_to(bt_mesh_prov_link.flags, OOB_PUB_KEY, data[1] == PUB_KEY_OOB);
 
 	memcpy(&bt_mesh_prov_link.conf_inputs[12], data, 5);
 
@@ -216,6 +221,16 @@ static void public_key_sent(int err, void *cb_data)
 	}
 }
 
+static void start_auth(void)
+{
+	if (atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
+	atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
+		bt_mesh_prov_link.expect = PROV_NO_PDU; /* Wait for input */
+	} else {
+		bt_mesh_prov_link.expect = PROV_CONFIRM;
+	}
+}
+
 static void send_pub_key(void)
 {
 	struct os_mbuf *buf = PROV_BUF(65);
@@ -244,11 +259,18 @@ static void send_pub_key(void)
 		return;
 	}
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
-	    atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
-		bt_mesh_prov_link.expect = PROV_NO_PDU; /* Wait for input */
-	} else {
-		bt_mesh_prov_link.expect = PROV_CONFIRM;
+	start_auth();
+}
+
+static void dh_key_gen_complete(void)
+{
+	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, 32));
+
+	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY) &&
+	atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+		send_confirm();
+	} else if (!atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+		send_pub_key();
 	}
 }
 
@@ -264,16 +286,31 @@ static void prov_dh_key_cb(const uint8_t dhkey[32])
 
 	sys_memcpy_swap(bt_mesh_prov_link.dhkey, dhkey, 32);
 
-	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, 32));
-
-	send_pub_key();
+	dh_key_gen_complete();
 }
 
 static void prov_dh_key_gen(void)
 {
-	uint8_t remote_pk_le[64], *remote_pk;
+	const uint8_t *remote_pk;
+	uint8_t remote_pk_le[64];
 
 	remote_pk = &bt_mesh_prov_link.conf_inputs[17];
+	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
+	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+		if (uECC_valid_public_key(remote_pk, &curve_secp256r1)) {
+			BT_ERR("Public key is not valid");
+		} else if (uECC_shared_secret(remote_pk, bt_mesh_prov->private_key_be,
+					      bt_mesh_prov_link.dhkey,
+					      &curve_secp256r1) != TC_CRYPTO_SUCCESS) {
+			BT_ERR("DHKey generation failed");
+		} else {
+			dh_key_gen_complete();
+			return;
+		}
+
+		prov_fail(PROV_ERR_UNEXP_ERR);
+		return;
+	}
 
 	/* Copy remote key in little-endian for bt_dh_key_gen().
 	 * X and Y halves are swapped independently. The bt_dh_key_gen()
@@ -295,7 +332,21 @@ static void prov_pub_key(const uint8_t *data)
 	/* PublicKeyProvisioner */
 	memcpy(&bt_mesh_prov_link.conf_inputs[17], data, 64);
 
-	if (!bt_pub_key_get()) {
+	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
+	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+		if (!bt_mesh_prov->public_key_be || !bt_mesh_prov->private_key_be) {
+			BT_ERR("Public or private key is not ready");
+			prov_fail(PROV_ERR_UNEXP_ERR);
+			return;
+		}
+
+		/* No swap needed since user provides public key in big-endian */
+		memcpy(&bt_mesh_prov_link.conf_inputs[81], bt_mesh_prov->public_key_be, 64);
+
+		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY);
+
+		start_auth();
+	} else if (!bt_pub_key_get()) {
 		/* Clear retransmit timer */
 		bt_mesh_prov_link.bearer->clear_tx();
 		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
@@ -390,7 +441,9 @@ static void prov_confirm(const uint8_t *data)
 
 	notify_input_complete();
 
-	send_confirm();
+	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY)) {
+		send_confirm();
+	}
 }
 
 static inline bool is_pb_gatt(void)
@@ -492,7 +545,8 @@ static void prov_data(const uint8_t *data)
 
 static void local_input_complete(void)
 {
-	if (atomic_test_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT)) {
+	if (atomic_test_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT) ||
+	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		send_input_complete();
 	} else {
 		atomic_set_bit(bt_mesh_prov_link.flags, INPUT_COMPLETE);
