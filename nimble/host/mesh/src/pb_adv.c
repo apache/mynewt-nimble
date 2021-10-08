@@ -181,7 +181,12 @@ static void prov_clear_tx(void)
 {
 	BT_DBG("");
 
-	k_work_cancel_delayable(&link.tx.retransmit);
+	/* If this fails, the work handler will not find any buffers to send,
+	 * and return without rescheduling. The work handler also checks the
+	 * LINK_ACTIVE flag, so if this call is part of reset_adv_link, it'll
+	 * exit early.
+	 */
+	(void)k_work_cancel_delayable(&link.tx.retransmit);
 
 	free_segments();
 }
@@ -191,7 +196,10 @@ static void reset_adv_link(void)
 	BT_DBG("");
 	prov_clear_tx();
 
-	k_work_cancel_delayable(&link.prot_timer);
+	/* If this fails, the work handler will exit early on the LINK_ACTIVE
+	 * check.
+	 */
+	(void)k_work_cancel_delayable(&link.prot_timer);
 
 	if (atomic_test_bit(link.flags, ADV_PROVISIONER)) {
 		/* Clear everything except the retransmit and protocol timer
@@ -279,6 +287,10 @@ static void prov_msg_recv(void)
 
 static void protocol_timeout(struct ble_npl_event *work)
 {
+	if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
+		return;
+	}
+
 	BT_DBG("");
 
 	link.rx.seg = 0U;
@@ -553,6 +565,12 @@ static void send_reliable(void)
 			break;
 		}
 
+		if (BT_MESH_ADV(buf)->busy) {
+			continue;
+		}
+
+		BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
+
 		if (i + 1 < ARRAY_SIZE(link.tx.buf) && link.tx.buf[i + 1]) {
 			bt_mesh_adv_send(buf, NULL, NULL);
 		} else {
@@ -564,7 +582,6 @@ static void send_reliable(void)
 static void prov_retransmit(struct ble_npl_event *work)
 {
 	int32_t timeout_ms;
-	int i;
 
 	BT_DBG("");
 
@@ -595,25 +612,7 @@ static void prov_retransmit(struct ble_npl_event *work)
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(link.tx.buf); i++) {
-		struct os_mbuf *buf = link.tx.buf[i];
-
-		if (!buf) {
-			break;
-		}
-
-		if (BT_MESH_ADV(buf)->busy) {
-			continue;
-		}
-
-		BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
-
-		if (i + 1 < ARRAY_SIZE(link.tx.buf) && link.tx.buf[i + 1]) {
-			bt_mesh_adv_send(buf, NULL, NULL);
-		} else {
-			bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
-		}
-	}
+	send_reliable();
 }
 
 static int bearer_ctl_send(uint8_t op, const void *data, uint8_t data_len,
