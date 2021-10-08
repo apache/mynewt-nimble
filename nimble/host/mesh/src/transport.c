@@ -256,7 +256,8 @@ static void seg_tx_reset(struct seg_tx *tx)
 {
 	int i;
 
-	k_work_cancel_delayable(&tx->retransmit);
+	/* If this call fails, the handler will exit early, as nack_count is 0. */
+	(void)k_work_cancel_delayable(&tx->retransmit);
 
 	tx->cb = NULL;
 	tx->cb_data = NULL;
@@ -318,7 +319,8 @@ static void schedule_retransmit(struct seg_tx *tx)
 	 * retransmit immediately, as we just freed up a tx buffer.
 	 */
 	k_work_reschedule(&tx->retransmit,
-			      tx->seg_o ? 0 : K_MSEC(SEG_RETRANSMIT_TIMEOUT(tx)));
+			  tx->seg_o ? K_NO_WAIT :
+			  K_MSEC(SEG_RETRANSMIT_TIMEOUT(tx)));
 }
 
 static void seg_send_start(uint16_t duration, int err, void *user_data)
@@ -440,7 +442,7 @@ static void seg_tx_send_unacked(struct seg_tx *tx)
 end:
 	if (!tx->seg_pending) {
 		k_work_reschedule(&tx->retransmit,
-					  SEG_RETRANSMIT_TIMEOUT(tx));
+				  K_MSEC(SEG_RETRANSMIT_TIMEOUT(tx)));
 	}
 
 	tx->sending = 0U;
@@ -860,8 +862,6 @@ static int trans_ack(struct bt_mesh_net_rx *rx, uint8_t hdr,
 		return -EINVAL;
 	}
 
-	k_work_cancel_delayable(&tx->retransmit);
-
 	while ((bit = find_lsb_set(ack))) {
 		if (tx->seg[bit - 1]) {
 			BT_DBG("seg %u/%u acked", bit - 1, tx->seg_n);
@@ -872,7 +872,11 @@ static int trans_ack(struct bt_mesh_net_rx *rx, uint8_t hdr,
 	}
 
 	if (tx->nack_count) {
-		seg_tx_send_unacked(tx);
+		/* According to the Bluetooth Mesh Profile specification,
+		 * section 3.5.3.3, we should reset the retransmit timer and
+		 * retransmit immediately when receiving a valid ack message:
+		 */
+		k_work_reschedule(&tx->retransmit, K_NO_WAIT);
 	} else {
 		BT_DBG("SDU TX complete");
 		seg_tx_complete(tx, 0);
@@ -1094,7 +1098,10 @@ static void seg_rx_reset(struct seg_rx *rx, bool full_reset)
 
 	BT_DBG("rx %p", rx);
 
-	k_work_cancel_delayable(&rx->ack);
+	/* If this fails, the handler will exit early on the next execution, as
+	 * it checks rx->in_use.
+	 */
+	(void)k_work_cancel_delayable(&rx->ack);
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && rx->obo &&
 	    rx->block != BLOCK_COMPLETE(rx->seg_n)) {
@@ -1131,6 +1138,16 @@ static void seg_ack(struct ble_npl_event *work)
 	struct seg_rx *rx = ble_npl_event_get_arg(work);
 	int32_t timeout;
 
+	if (!rx->in_use || rx->block == BLOCK_COMPLETE(rx->seg_n)) {
+		/* Cancellation of this timer may have failed. If it fails as
+		 * part of seg_reset, in_use will be false.
+		 * If it fails as part of the processing of a fully received
+		 * SDU, the ack is already being sent from the receive handler,
+		 * and the timer based ack sending can be ignored.
+		 */
+		return;
+	}
+
 	BT_DBG("rx %p", rx);
 
 	if (k_uptime_get_32() - rx->last > K_SECONDS(60)) {
@@ -1148,7 +1165,7 @@ static void seg_ack(struct ble_npl_event *work)
 		 rx->block, rx->obo);
 
 	timeout = ack_timeout(rx);
-	k_work_reschedule(&rx->ack, K_MSEC(timeout));
+	k_work_schedule(&rx->ack, K_MSEC(timeout));
 }
 
 static inline bool sdu_len_is_ok(bool ctl, uint8_t seg_n)
@@ -1453,11 +1470,10 @@ found_rx:
 	/* Reset the Incomplete Timer */
 	rx->last = k_uptime_get_32();
 
-	if (!k_work_delayable_remaining_get(&rx->ack) &&
-	    !bt_mesh_lpn_established()) {
+	if (!bt_mesh_lpn_established()) {
 		int32_t timeout = ack_timeout(rx);
-
-		k_work_reschedule(&rx->ack, K_MSEC(timeout));
+		/* Should only start ack timer if it isn't running already: */
+		k_work_schedule(&rx->ack, K_MSEC(timeout));
 	}
 
 	/* Allocated segment here */
@@ -1494,7 +1510,10 @@ found_rx:
 
 	*pdu_type = BT_MESH_FRIEND_PDU_COMPLETE;
 
-	k_work_cancel_delayable(&rx->ack);
+	/* If this fails, the work handler will either exit early because the
+	 * block is fully received, or rx->in_use is false.
+	 */
+	(void)k_work_cancel_delayable(&rx->ack);
 	send_ack(net_rx->sub, net_rx->ctx.recv_dst, net_rx->ctx.addr,
 		 net_rx->ctx.send_ttl, seq_auth, rx->block, rx->obo);
 
