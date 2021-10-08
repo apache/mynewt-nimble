@@ -856,6 +856,10 @@ done:
 
 static void ivu_refresh(struct ble_npl_event *work)
 {
+	if (!bt_mesh_is_provisioned()) {
+		return;
+	}
+
 	bt_mesh.ivu_duration = MIN(UINT8_MAX,
 	       bt_mesh.ivu_duration + BT_MESH_IVU_HOURS);
 
