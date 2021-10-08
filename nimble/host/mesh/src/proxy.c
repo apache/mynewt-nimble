@@ -88,19 +88,27 @@ ble_uuid16_t BT_UUID_MESH_PROXY_DATA_OUT       = BLE_UUID16_INIT(0x2ade);
 
 #define CLIENT_BUF_SIZE 65
 
-static const struct ble_gap_adv_params slow_adv_param = {
-	.conn_mode = (BLE_GAP_CONN_MODE_UND),
-	.disc_mode = (BLE_GAP_DISC_MODE_GEN),
-	.itvl_min = BT_GAP_ADV_SLOW_INT_MIN,
-	.itvl_max = BT_GAP_ADV_SLOW_INT_MAX,
-};
+#if MYNEWT_VAL(BLE_MESH_PROXY_USE_DEVICE_NAME)
+#define ADV_OPT_USE_NAME BT_LE_ADV_OPT_USE_NAME
+#else
+#define ADV_OPT_USE_NAME 0
+#endif
 
-static const struct ble_gap_adv_params fast_adv_param = {
-	.conn_mode = (BLE_GAP_CONN_MODE_UND),
+#define ADV_OPT_PROV                                                           \
+	.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
 	.disc_mode = (BLE_GAP_DISC_MODE_GEN),
-	.itvl_min = BT_GAP_ADV_FAST_INT_MIN_2,
+
+#define ADV_OPT_PROXY                                                          \
+	.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
+	.disc_mode = (BLE_GAP_DISC_MODE_GEN),
+
+#define ADV_SLOW_INT                                                           \
+	.itvl_min = BT_GAP_ADV_SLOW_INT_MIN,                             \
+	.itvl_max = BT_GAP_ADV_SLOW_INT_MAX,
+
+#define ADV_FAST_INT                                                           \
+	.itvl_min = BT_GAP_ADV_FAST_INT_MIN_2,                             \
 	.itvl_max = BT_GAP_ADV_FAST_INT_MAX_2,
-};
 
 static bool proxy_adv_enabled;
 
@@ -1123,6 +1131,21 @@ static const struct bt_data net_id_ad[] = {
 
 static int node_id_adv(struct bt_mesh_subnet *sub)
 {
+	struct ble_gap_adv_params fast_adv_param = {
+		ADV_OPT_PROXY
+		ADV_FAST_INT
+	};
+#if ADV_OPT_USE_NAME
+	const char *name = CONFIG_BT_DEVICE_NAME;
+	size_t name_len = strlen(name);
+	struct bt_data sd = {
+		.type = BT_DATA_NAME_COMPLETE,
+		.data_len = name_len,
+		.data = (void *)name
+	};
+#else
+	struct bt_data *sd = NULL;
+#endif
 	uint8_t tmp[16];
 	int err;
 
@@ -1148,7 +1171,7 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 	memcpy(proxy_svc_data + 3, tmp + 8, 8);
 
 	err = bt_le_adv_start(&fast_adv_param, node_id_ad,
-			      ARRAY_SIZE(node_id_ad), NULL, 0);
+			      ARRAY_SIZE(node_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Node ID (err %d)", err);
 		return err;
@@ -1161,6 +1184,21 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 
 static int net_id_adv(struct bt_mesh_subnet *sub)
 {
+	struct ble_gap_adv_params slow_adv_param = {
+		ADV_OPT_PROXY
+		ADV_SLOW_INT
+	};
+#if ADV_OPT_USE_NAME
+	const char *name = CONFIG_BT_DEVICE_NAME;
+	size_t name_len = strlen(name);
+	struct bt_data sd = {
+		.type = BT_DATA_NAME_COMPLETE,
+		.data_len = name_len,
+		.data = (void *)name
+	};
+#else
+	struct bt_data *sd = NULL;
+#endif
 	int err;
 
 	BT_DBG("");
@@ -1171,9 +1209,8 @@ static int net_id_adv(struct bt_mesh_subnet *sub)
 	       bt_hex(sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8));
 
 	memcpy(proxy_svc_data + 3, sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8);
-
 	err = bt_le_adv_start(&slow_adv_param, net_id_ad,
-			      ARRAY_SIZE(net_id_ad), NULL, 0);
+			      ARRAY_SIZE(net_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Network ID (err %d)", err);
 		return err;
@@ -1360,12 +1397,20 @@ int32_t bt_mesh_proxy_adv_start(void)
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 	if (!bt_mesh_is_provisioned()) {
 		const struct ble_gap_adv_params *param;
-		struct bt_data prov_sd[2];
+		struct ble_gap_adv_params fast_adv_param = {
+			ADV_OPT_PROV
+			ADV_FAST_INT
+		};
+		struct bt_data prov_sd[1];
 		size_t prov_sd_len;
 
 		if (prov_fast_adv) {
 			param = &fast_adv_param;
 		} else {
+			struct ble_gap_adv_params slow_adv_param = {
+				ADV_OPT_PROV
+				ADV_SLOW_INT
+			};
 			param = &slow_adv_param;
 		}
 
