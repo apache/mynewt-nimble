@@ -69,7 +69,7 @@ syscfg.defs:
         description: >
             This option specifies how many nodes each network can at most
             save in the configuration database.
-        value: 1
+        value: 8
 
     BLE_MESH_CDB_SUBNET_COUNT:
         description: >
