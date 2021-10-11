@@ -214,6 +214,11 @@ syscfg.defs:
             absolutely necessary
         value: 768
 
+    BLE_MESH_IV_UPDATE_SEQ_LIMIT:
+        description: >
+            This option specifies the sequence number value to start iv update.
+        value: 0x800000
+
     BLE_MESH_IVU_DIVIDER:
         description: >
             When the IV Update state enters Normal operation or IV Update
