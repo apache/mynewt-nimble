@@ -23,3 +23,4 @@ enum bt_mesh_settings_flag {
 void bt_mesh_settings_init(void);
 int settings_name_next(char *name, char **next);
 void bt_mesh_settings_store_schedule(enum bt_mesh_settings_flag flag);
+void bt_mesh_settings_store_cancel(enum bt_mesh_settings_flag flag);
