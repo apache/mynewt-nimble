@@ -15,10 +15,16 @@
 #include "adv.h"
 #include "prov.h"
 
+struct prov_bearer_send_cb {
+	prov_bearer_send_complete_t cb;
+	void *cb_data;
+};
+
 struct prov_link {
 	uint16_t conn_handle;
 	const struct prov_bearer_cb *cb;
 	void *cb_data;
+	struct prov_bearer_send_cb comp;
 	struct {
 		uint8_t  id;        /* Transaction ID */
 		uint8_t  prev_id;   /* Previous Transaction ID */
@@ -130,6 +136,13 @@ static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 	return 0;
 }
 
+static void buf_send_end(uint16_t conn_handle, void *user_data)
+{
+	if (link.comp.cb) {
+		link.comp.cb(0, link.comp.cb_data);
+	}
+}
+
 static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		    void *cb_data)
 {
@@ -137,9 +150,12 @@ static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		return -ENOTCONN;
 	}
 
+	link.comp.cb = cb;
+	link.comp.cb_data = cb_data;
+
 	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
 
-	return bt_mesh_proxy_send(link.conn_handle, BT_MESH_PROXY_PROV, buf);
+	return bt_mesh_pb_gatt_send(link.conn_handle, buf, buf_send_end, NULL);
 }
 
 static void clear_tx(void)

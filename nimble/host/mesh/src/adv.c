@@ -66,15 +66,6 @@ static struct bt_mesh_adv *adv_alloc(int id)
 	return &adv_pool[id];
 }
 
-static inline void adv_send_start(uint16_t duration, int err,
-				  const struct bt_mesh_send_cb *cb,
-				  void *cb_data)
-{
-	if (cb && cb->start) {
-		cb->start(duration, err, cb_data);
-	}
-}
-
 static inline void adv_send_end(int err, const struct bt_mesh_send_cb *cb,
 				void *cb_data)
 {
