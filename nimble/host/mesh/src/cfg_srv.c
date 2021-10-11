@@ -2023,11 +2023,27 @@ done:
 	os_mbuf_free_chain(msg);
 }
 
+static void reset_send_start(uint16_t duration, int err, void *cb_data)
+{
+	if (err) {
+		BT_ERR("Sending Node Reset Status failed (err %d)", err);
+		bt_mesh_reset();
+	}
+}
+
+static void reset_send_end(int err, void *cb_data)
+{
+	bt_mesh_reset();
+}
+
 static void node_reset(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
 		       struct os_mbuf *buf)
 {
-	static struct bt_mesh_proxy_idle_cb proxy_idle = {.cb = bt_mesh_reset};
+	static const struct bt_mesh_send_cb reset_cb = {
+		.start = reset_send_start,
+		.end = reset_send_end,
+	};
 
 	struct os_mbuf *msg = BT_MESH_MODEL_BUF(OP_NODE_RESET_STATUS, 0);
 
@@ -2035,26 +2051,13 @@ static void node_reset(struct bt_mesh_model *model,
 	       ctx->net_idx, ctx->app_idx, ctx->addr, buf->om_len,
 	       bt_hex(buf->om_data, buf->om_len));
 
-
 	bt_mesh_model_msg_init(msg, OP_NODE_RESET_STATUS);
 
-	/* Send the response first since we wont have any keys left to
-	 * send it later.
-	 */
-	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+	if (bt_mesh_model_send(model, ctx, msg, &reset_cb, NULL)) {
 		BT_ERR("Unable to send Node Reset Status");
 	}
 
-	if (!IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-		bt_mesh_reset();
-		return;
-	}
-
-	/* If the response goes to a proxy node, we'll wait for the sending to
-	 * complete before moving on.
-	 */
-	bt_mesh_proxy_on_idle(&proxy_idle);
-    os_mbuf_free_chain(msg);
+	os_mbuf_free_chain(msg);
 }
 
 static void send_friend_status(struct bt_mesh_model *model,

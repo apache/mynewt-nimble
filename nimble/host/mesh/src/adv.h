@@ -34,6 +34,16 @@ enum bt_mesh_adv_type
 typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, uint16_t duration,
 				   int err, void *user_data);
 
+
+static inline void adv_send_start(uint16_t duration, int err,
+				  const struct bt_mesh_send_cb *cb,
+				  	void *cb_data)
+{
+	if (cb && cb->start) {
+		cb->start(duration, err, cb_data);
+	}
+}
+
 struct bt_mesh_adv {
 	/** Fragments associated with this buffer. */
 	struct os_mbuf *frags;

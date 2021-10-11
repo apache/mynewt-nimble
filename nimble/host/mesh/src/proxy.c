@@ -139,9 +139,6 @@ static struct bt_mesh_proxy_client {
 	[0 ... (MYNEWT_VAL(BLE_MAX_CONNECTIONS) - 1)] = { 0 },
 };
 
-static sys_slist_t idle_waiters;
-static atomic_t pending_notifications;
-
 /* Track which service is enabled */
 static enum {
 	MESH_GATT_NONE,
@@ -213,7 +210,8 @@ static struct bt_mesh_proxy_client *find_client(uint16_t conn_handle)
 static struct bt_mesh_subnet *beacon_sub;
 
 static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
-				  struct os_mbuf *msg);
+				  struct os_mbuf *msg,
+				  void (*end)(uint16_t, void *), void *user_data);
 
 static int filter_set(struct bt_mesh_proxy_client *client,
 		      struct os_mbuf *buf)
@@ -328,7 +326,8 @@ static void send_filter_status(struct bt_mesh_proxy_client *client,
 		return;
 	}
 
-	err = proxy_segment_and_send(client->conn_handle, BT_MESH_PROXY_CONFIG, buf);
+	err = proxy_segment_and_send(client->conn_handle, BT_MESH_PROXY_CONFIG, buf,
+				     NULL, NULL);
 	if (err) {
 		BT_ERR("Failed to send proxy cfg message (err %d)", err);
 	}
@@ -407,7 +406,8 @@ static int beacon_send(uint16_t conn_handle, struct bt_mesh_subnet *sub)
 	net_buf_simple_init(buf, 1);
 	bt_mesh_beacon_create(sub, buf);
 
-	rc = proxy_segment_and_send(conn_handle, BT_MESH_PROXY_BEACON, buf);
+	rc = proxy_segment_and_send(conn_handle, BT_MESH_PROXY_BEACON, buf,
+				    NULL, NULL);
 	os_mbuf_free_chain(buf);
 	return rc;
 }
@@ -953,10 +953,19 @@ static bool client_filter_match(struct bt_mesh_proxy_client *client,
 	return false;
 }
 
+static void buf_send_end(uint16_t conn_handle, void *user_data)
+{
+	struct os_mbuf *buf = user_data;
+
+	net_buf_unref(buf);
+}
+
 bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 {
+	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
+	void *cb_data = BT_MESH_ADV(buf)->cb_data;
 	bool relayed = false;
-	int i;
+	int i, err;
 
 	BT_DBG("%u bytes to dst 0x%04x", buf->om_len, dst);
 
@@ -972,6 +981,11 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 			continue;
 		}
 
+		if (client->filter_type == PROV) {
+			BT_ERR("Invalid PDU type for Proxy Client");
+			return -EINVAL;
+		}
+
 		/* Proxy PDU sending modifies the original buffer,
 		 * so we need to make a copy.
 		 */
@@ -979,7 +993,14 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 		net_buf_simple_init(msg, 1);
 		net_buf_simple_add_mem(msg, buf->om_data, buf->om_len);
 
-		bt_mesh_proxy_send(client->conn_handle, BT_MESH_PROXY_NET_PDU, msg);
+		err = proxy_segment_and_send(client->conn_handle, BT_MESH_PROXY_NET_PDU,
+					     msg, buf_send_end, net_buf_ref(buf));
+
+		adv_send_start(0, err, cb, cb_data);
+		if (err) {
+			BT_ERR("Failed to send proxy message (err %d)", err);
+			continue;
+		}
 		os_mbuf_free_chain(msg);
 		relayed = true;
 	}
@@ -989,22 +1010,9 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 
 #endif /* MYNEWT_VAL(BLE_MESH_GATT_PROXY) */
 
-static void notify_complete(void)
-{
-	sys_snode_t *n;
-
-	if (atomic_dec(&pending_notifications) > 1) {
-		return;
-	}
-
-	BT_DBG("");
-
-	while ((n = sys_slist_get(&idle_waiters))) {
-		CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
-	}
-}
-
-static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
+static int proxy_send(uint16_t conn_handle,
+		      const void *data, uint16_t len,
+		      void (*end)(uint16_t, void *), void *user_data)
 {
 	struct os_mbuf *om;
 	int err = 0;
@@ -1016,7 +1024,7 @@ static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
 		om = ble_hs_mbuf_from_flat(data, len);
 		assert(om);
 		err = ble_gattc_notify_custom(conn_handle, svc_handles.proxy_data_out_h, om);
-		notify_complete();
+		/* We do not pass cb into ble_gattc_notify_custom - execute it at the end */
 	}
 #endif
 
@@ -1025,19 +1033,16 @@ static int proxy_send(uint16_t conn_handle, const void *data, uint16_t len)
 		om = ble_hs_mbuf_from_flat(data, len);
 		assert(om);
 		err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
-		notify_complete();
 	}
 #endif
 
-	if (!err) {
-			atomic_inc(&pending_notifications);
-	}
-
+	end(conn_handle, user_data);
 	return err;
 }
 
 static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
-				  struct os_mbuf *msg)
+				  struct os_mbuf *msg,
+				  void (*end)(uint16_t, void *), void *user_data)
 {
 	uint16_t mtu;
 
@@ -1048,30 +1053,30 @@ static int proxy_segment_and_send(uint16_t conn_handle, uint8_t type,
 	mtu = ble_att_mtu(conn_handle) - 3;
 	if (mtu > msg->om_len) {
 		net_buf_simple_push_u8(msg, PDU_HDR(SAR_COMPLETE, type));
-		return proxy_send(conn_handle, msg->om_data, msg->om_len);
+		return proxy_send(conn_handle, msg->om_data, msg->om_len, end, user_data);
 	}
 
 	net_buf_simple_push_u8(msg, PDU_HDR(SAR_FIRST, type));
-	proxy_send(conn_handle, msg->om_data, mtu);
+	proxy_send(conn_handle, msg->om_data, mtu, NULL, NULL);
 	net_buf_simple_pull_mem(msg, mtu);
 
 	while (msg->om_len) {
 		if (msg->om_len + 1 < mtu) {
 			net_buf_simple_push_u8(msg, PDU_HDR(SAR_LAST, type));
-			proxy_send(conn_handle, msg->om_data, msg->om_len);
+			proxy_send(conn_handle, msg->om_data, msg->om_len, end, user_data);
 			break;
 		}
 
 		net_buf_simple_push_u8(msg, PDU_HDR(SAR_CONT, type));
-		proxy_send(conn_handle, msg->om_data, mtu);
+		proxy_send(conn_handle, msg->om_data, mtu, NULL, NULL);
 		net_buf_simple_pull_mem(msg, mtu);
 	}
 
 	return 0;
 }
 
-int bt_mesh_proxy_send(uint16_t conn_handle, uint8_t type,
-		       struct os_mbuf *msg)
+int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
+			 void (*end)(uint16_t, void *), void *user_data)
 {
 	struct bt_mesh_proxy_client *client = find_client(conn_handle);
 
@@ -1080,12 +1085,12 @@ int bt_mesh_proxy_send(uint16_t conn_handle, uint8_t type,
 		return -ENOTCONN;
 	}
 
-	if ((client->filter_type == PROV) != (type == BT_MESH_PROXY_PROV)) {
+	if (client->filter_type == PROV) {
 		BT_ERR("Invalid PDU type for Proxy Client");
 		return -EINVAL;
 	}
 
-	return proxy_segment_and_send(conn_handle, type, msg);
+	return proxy_segment_and_send(conn_handle, BT_MESH_PROXY_PROV, buf, end, user_data);
 }
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
@@ -1608,16 +1613,6 @@ int bt_mesh_proxy_init(void)
 	ble_gatts_svc_set_visibility(svc_handles.prov_h, 0);
 
 	return 0;
-}
-
-void bt_mesh_proxy_on_idle(struct bt_mesh_proxy_idle_cb *cb)
-{
-	if (!atomic_get(&pending_notifications)) {
-		cb->cb();
-		return;
-	}
-
-	sys_slist_append(&idle_waiters, &cb->n);
 }
 
 #endif /* MYNEWT_VAL(BLE_MESH_PROXY) */

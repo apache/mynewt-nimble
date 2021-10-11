@@ -534,12 +534,13 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		goto done;
 	}
 
+	BT_MESH_ADV(buf)->cb = cb;
+	BT_MESH_ADV(buf)->cb_data = cb_data;
+
 	/* Deliver to GATT Proxy Clients if necessary. */
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
 	    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
-		/* Notify completion if this only went through the Mesh Proxy */
-		send_cb_finalize(cb, cb_data);
 
 		err = 0;
 		goto done;
