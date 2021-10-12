@@ -170,8 +170,8 @@ void bt_mesh_reset(void)
 
 	k_work_cancel_delayable(&bt_mesh.ivu_timer);
 
-	bt_mesh_cfg_reset();
-
+	bt_mesh_model_reset();
+	bt_mesh_cfg_default_set();
 	bt_mesh_trans_reset();
 	bt_mesh_app_keys_reset();
 	bt_mesh_net_keys_reset();
@@ -351,7 +351,7 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 #if CONFIG_BT_MESH_CDB
 	bt_mesh_cdb_init();
 #endif
-	bt_mesh_cfg_init();
+	bt_mesh_cfg_default_set();
 	bt_mesh_net_init();
 	bt_mesh_trans_init();
 	bt_mesh_hb_init();
