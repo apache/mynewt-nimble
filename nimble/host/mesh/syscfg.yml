@@ -171,6 +171,12 @@ syscfg.defs:
             at most be subscribed to.
         value: 1
 
+    BLE_MESH_MODEL_VND_MSG_CID_FORCE:
+        description: >
+            This option forces vendor model to use messages for the
+              corresponding CID field.
+        value: 1
+
     BLE_MESH_LABEL_COUNT:
         description: >
             This option specifies how many Label UUIDs can be stored.
