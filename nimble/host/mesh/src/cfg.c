@@ -348,7 +348,7 @@ static struct conf_handler bt_mesh_cfg_conf_handler = {
 	.ch_export = NULL,
 };
 
-void bt_mesh_cfg_init(void)
+void bt_mesh_cfg_default_set(void)
 {
 	int rc;
 
