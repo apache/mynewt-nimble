@@ -658,8 +658,12 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			continue;
 		}
 
-		if (buf->om_len < op->min_len) {
+		if ((op->len >= 0) && (buf->om_len < (size_t)op->len)) {
 			BT_ERR("Too short message for OpCode 0x%08x", opcode);
+			continue;
+		} else if ((op->len < 0) && (buf->om_len != (size_t)(-op->len))) {
+			BT_ERR("Invalid message size for OpCode 0x%08x",
+			       opcode);
 			continue;
 		}
 
