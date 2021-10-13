@@ -100,11 +100,20 @@ syscfg.defs:
            BLE_MESH_GATT_PROXY is set.
         value: 0
 
+    BLE_MESH_GATT:
+        value: 1
+
+    BLE_MESH_GATT_SERVER:
+        value: 1
+        restrictions: BLE_MESH_GATT
+
     BLE_MESH_PB_GATT:
         description: >
            Enable this option to allow the device to be provisioned over
            the GATT bearer.
         value: 1
+        restrictions:
+            - '(BLE_MESH_GATT_SERVER && BLE_MESH_PROV)'
 
     BLE_MESH_GATT_PROXY:
         description: >
@@ -112,6 +121,8 @@ syscfg.defs:
             i.e. the ability to act as a proxy between a Mesh GATT Client
             and a Mesh network.
         value: 1
+        restrictions:
+            - '(BLE_MESH_GATT_SERVER && BLE_MESH_PROXY)'
 
     BLE_MESH_GATT_PROXY_ENABLED:
         description: >
@@ -140,6 +151,7 @@ syscfg.defs:
             This option specifies how many Proxy Filter entries the local
             node supports.
         value: 1
+        restrictions: BLE_MESH_GATT_SERVER
 
     BLE_MESH_PROXY_USE_DEVICE_NAME:
         description: >

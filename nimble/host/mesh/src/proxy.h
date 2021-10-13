@@ -9,9 +9,6 @@
 #ifndef ZEPHYR_SUBSYS_BLUETOOTH_MESH_PROXY_H_
 #define ZEPHYR_SUBSYS_BLUETOOTH_MESH_PROXY_H_
 
-int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
-			 void (*end)(uint16_t, void *), void *user_data);
-
 #define BT_MESH_PROXY_NET_PDU   0x00
 #define BT_MESH_PROXY_BEACON    0x01
 #define BT_MESH_PROXY_CONFIG    0x02
@@ -19,6 +16,9 @@ int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
 
 #include "mesh/mesh.h"
 #include "mesh/slist.h"
+
+int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
+	void (*end)(uint16_t, void *), void *user_data);
 
 int bt_mesh_proxy_prov_enable(void);
 int bt_mesh_proxy_prov_disable(bool disconnect);
