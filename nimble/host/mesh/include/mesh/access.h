@@ -148,9 +148,9 @@ struct bt_mesh_model_op {
 	const size_t min_len;
 
 	/* Message handler for the opcode */
-	void (*const func)(struct bt_mesh_model *model,
-			   struct bt_mesh_msg_ctx *ctx,
-			   struct os_mbuf *buf);
+	int (*const func)(struct bt_mesh_model *model,
+			  struct bt_mesh_msg_ctx *ctx,
+			  struct os_mbuf *buf);
 };
 
 #define BT_MESH_MODEL_OP_1(b0) (b0)
