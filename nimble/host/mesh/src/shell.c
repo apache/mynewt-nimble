@@ -2002,6 +2002,7 @@ static int mod_pub_set(uint16_t addr, uint16_t mod_id, uint16_t cid, char *argv[
 	int err;
 
 	pub.addr = strtoul(argv[0], NULL, 0);
+	pub.uuid = NULL;
 	pub.app_idx = strtoul(argv[1], NULL, 0);
 	pub.cred_flag = str2bool(argv[2]);
 	pub.ttl = strtoul(argv[3], NULL, 0);
