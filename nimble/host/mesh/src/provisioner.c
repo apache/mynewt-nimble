@@ -3,6 +3,7 @@
 /*
  * Copyright (c) 2017 Intel Corporation
  * Copyright (c) 2020 Lingao Meng
+ * Copyright (c) 2021 Manulytica Limited
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -103,6 +104,8 @@ static void send_start(void)
 
 	bt_mesh_prov_buf_init(start, PROV_START);
 	net_buf_simple_add_u8(start, PROV_ALG_P256);
+
+	memcpy(bt_mesh_prov_link.conf_inputs.start, &start->om_data[1], PDU_LEN_START);
 
 	if (atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY) && oob_pub_key) {
 		net_buf_simple_add_u8(start, PUB_KEY_OOB);
