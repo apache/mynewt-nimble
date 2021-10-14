@@ -42,8 +42,6 @@ static struct os_mempool friend_buf_mempool;
 
 #define NET_BUF_FRAGS        BIT(0)
 
-#define FRIEND_ADV(buf) CONTAINER_OF(BT_MESH_ADV(buf), struct friend_adv, adv)
-
 /* PDUs from Friend to the LPN should only be transmitted once with the
  * smallest possible interval (20ms).
  */
@@ -62,14 +60,15 @@ struct friend_pdu_info {
 };
 
 static struct friend_adv {
-	struct bt_mesh_adv adv;
 	uint16_t app_idx;
 } adv_pool[FRIEND_BUF_COUNT];
 
-static struct bt_mesh_adv *adv_alloc(int id)
+#define FRIEND_ADV(buf) (*(struct friend_adv **)net_buf_user_data(buf))
+
+static struct friend_adv *adv_alloc(int id)
 {
 	adv_pool[id].app_idx = BT_MESH_KEY_UNUSED;
-	return &adv_pool[id].adv;
+	return &adv_pool[id];
 }
 
 static bool friend_is_allocated(const struct bt_mesh_friend *frnd)
@@ -161,11 +160,6 @@ static void friend_clear(struct bt_mesh_friend *frnd)
 	memset(frnd->cred, 0, sizeof(frnd->cred));
 
 	if (frnd->last) {
-		/* Cancel the sending if necessary */
-		if (frnd->pending_buf) {
-			BT_MESH_ADV(frnd->last)->busy = 0;
-		}
-
 		net_buf_unref(frnd->last);
 		frnd->last = NULL;
 	}
@@ -314,12 +308,12 @@ static struct os_mbuf *create_friend_pdu(struct bt_mesh_friend *frnd,
 {
 	struct os_mbuf *buf;
 
-	buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool, adv_alloc,
-					   BT_MESH_ADV_DATA,
-					   FRIEND_XMIT, K_NO_WAIT);
+	buf = os_mbuf_get_pkthdr(&friend_os_mbuf_pool, BT_MESH_ADV_USER_DATA_SIZE);
 	if (!buf) {
 		return NULL;
 	}
+
+	FRIEND_ADV(buf) = adv_alloc(net_buf_id(buf));
 
 	net_buf_add_u8(buf, (info->iv_index & 1) << 7); /* Will be reset in encryption */
 
@@ -1222,7 +1216,7 @@ static void friend_timeout(struct ble_npl_event *work)
 		.start = buf_send_start,
 		.end = buf_send_end,
 	};
-
+	struct os_mbuf *buf;
 	uint8_t md;
 
 	if (!friend_is_allocated(frnd)) {
@@ -1271,9 +1265,17 @@ static void friend_timeout(struct ble_npl_event *work)
 	frnd->queue_size--;
 
 send_last:
+	buf = bt_mesh_adv_create(BT_MESH_ADV_DATA, FRIEND_XMIT, K_NO_WAIT);
+	if (!buf) {
+		BT_ERR("Unable to allocate friend adv buffer");
+		return;
+	}
+
+	net_buf_add_mem(buf, frnd->last->om_data, frnd->last->om_len);
 	frnd->pending_req = 0;
 	frnd->pending_buf = 1;
-	bt_mesh_adv_send(frnd->last, &buf_sent_cb, frnd);
+	bt_mesh_adv_send(buf, &buf_sent_cb, frnd);
+	net_buf_unref(buf);
 }
 
 static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
