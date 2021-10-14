@@ -552,7 +552,7 @@ uint8_t bt_mesh_elem_count(void)
 	return dev_comp->elem_count;
 }
 
-static bool model_has_key(struct bt_mesh_model *mod, uint16_t key)
+bool bt_mesh_model_has_key(struct bt_mesh_model *mod, uint16_t key)
 {
 	int i;
 
@@ -692,7 +692,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct os_mbuf *buf)
 			continue;
 		}
 
-		if (!model_has_key(model, rx->ctx.app_idx)) {
+		if (!bt_mesh_model_has_key(model, rx->ctx.app_idx)) {
 				continue;
 			}
 
@@ -727,7 +727,7 @@ int bt_mesh_model_send(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
 		       struct os_mbuf *msg,
 		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
-	if (!model_has_key(model, ctx->app_idx)) {
+	if (!bt_mesh_model_has_key(model, ctx->app_idx)) {
 		BT_ERR("Model not bound to AppKey 0x%04x", ctx->app_idx);
 		return -EINVAL;
 	}
