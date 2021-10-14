@@ -142,6 +142,20 @@ net_buf_simple_pull_le16(struct os_mbuf *om)
     return val;
 }
 
+uint32_t
+net_buf_simple_pull_le24(struct os_mbuf *om)
+{
+	uint16_t val;
+	struct os_mbuf *old = om;
+
+	om = os_mbuf_pullup(om, sizeof(val));
+	assert(om == old);
+	val = get_le24(om->om_data);
+	os_mbuf_adj(om, sizeof(val));
+
+	return val;
+}
+
 uint16_t
 net_buf_simple_pull_be16(struct os_mbuf *om)
 {

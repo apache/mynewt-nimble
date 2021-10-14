@@ -250,6 +250,7 @@ void * net_buf_ref(struct os_mbuf *om);
 void net_buf_unref(struct os_mbuf *om);
 uint16_t net_buf_simple_pull_le16(struct os_mbuf *om);
 uint16_t net_buf_simple_pull_be16(struct os_mbuf *om);
+uint32_t net_buf_simple_pull_le24(struct os_mbuf *om);
 uint32_t net_buf_simple_pull_be32(struct os_mbuf *om);
 uint32_t net_buf_simple_pull_le32(struct os_mbuf *om);
 uint8_t net_buf_simple_pull_u8(struct os_mbuf *om);
