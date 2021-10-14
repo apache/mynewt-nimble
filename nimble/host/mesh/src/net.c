@@ -704,7 +704,7 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	       bt_hex(buf->om_data, buf->om_len));
 
 	/* When the Friend node relays message for lpn, the message will be
-	 * retransmitted using the managed master security credentials and
+	 * retransmitted using the managed flooding security credentials and
 	 * the Network PDU shall be retransmitted to all network interfaces.
 	 */
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
