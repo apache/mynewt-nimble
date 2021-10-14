@@ -273,6 +273,10 @@ int bt_mesh_cfg_mod_sub_del_all(uint16_t net_idx, uint16_t addr,
 				uint16_t elem_addr, uint16_t mod_id,
 				uint8_t *status);
 
+int bt_mesh_cfg_mod_sub_del_all_vnd(uint16_t net_idx, uint16_t addr,
+				    uint16_t elem_addr, uint16_t mod_id,
+				    uint16_t cid, uint8_t *status);
+
 int bt_mesh_cfg_net_key_update(uint16_t net_idx, uint16_t addr,
 			       uint16_t key_net_idx, const uint8_t net_key[16],
 			       uint8_t *status);
