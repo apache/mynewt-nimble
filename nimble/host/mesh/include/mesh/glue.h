@@ -51,6 +51,8 @@
 extern "C" {
 #endif
 
+#define SETTINGS_MAX_DIR_DEPTH	8	/* max depth of settings tree */
+
 /** Key size used in Bluetooth's ECC domain. */
 #define BT_ECC_KEY_SIZE            32
 	/** Length of a Bluetooth ECC public key coordinate. */
