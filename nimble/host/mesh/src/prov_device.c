@@ -119,9 +119,9 @@ static void prov_start(const uint8_t *data)
 		return;
 	}
 
-	if (data[1] == PUB_KEY_OOB &&
-	    !(MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
-	    bt_mesh_prov->public_key_be)) {
+	if (data[1] > PUB_KEY_OOB ||
+	    (data[1] == PUB_KEY_OOB &&
+	    (!MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) || !bt_mesh_prov->public_key_be))) {
 		BT_ERR("Invalid public key type: 0x%02x", data[1]);
 		prov_fail(PROV_ERR_NVAL_FMT);
 		return;
