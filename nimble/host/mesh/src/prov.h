@@ -71,6 +71,8 @@
 
 #define PROV_ALG_P256          0x00
 
+#define PROV_IO_OOB_SIZE_MAX   8 /* in bytes */
+
 #define PROV_BUF(len) \
 	NET_BUF_SIMPLE(PROV_BEARER_BUF_HEADROOM + PDU_OP_LEN + len)
 
@@ -154,7 +156,7 @@ int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[BT_PUB_KEY_LEN]));
 
 bool bt_mesh_prov_active(void);
 
-int bt_mesh_prov_auth(uint8_t method, uint8_t action, uint8_t size);
+int bt_mesh_prov_auth(bool is_provisioner, uint8_t method, uint8_t action, uint8_t size);
 
 int bt_mesh_pb_gatt_open(uint16_t conn_handle);
 int bt_mesh_pb_gatt_close(uint16_t conn_handle);
