@@ -948,31 +948,33 @@ static void gatt_connected(uint16_t conn_handle)
 
 static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
 {
-	int i;
-
 	BT_DBG("conn handle %u reason 0x%02x", conn_handle, reason);
+	struct bt_mesh_proxy_client *client;
 
 	conn_count--;
 
-	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		struct bt_mesh_proxy_client *client = &clients[i];
-
-		if (client->cli.conn_handle != conn_handle) {
-			continue;
-		}
-
-		if ((MYNEWT_VAL(BLE_MESH_PB_GATT)) &&
-		    client->filter_type == PROV) {
-				bt_mesh_pb_gatt_close(conn_handle);
-		}
-
-		/* If this fails, the work handler exits early, as
-		 * there's no active connection.
-		 */
-		(void)k_work_cancel_delayable(&client->cli.sar_timer);
-		client->cli.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-		break;
+	client = find_client(conn_handle);
+	if (!client) {
+		BT_WARN("No Gatt Client found");
+		return;
 	}
+
+	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT) && client->filter_type == PROV) {
+		bt_mesh_pb_gatt_close(conn_handle);
+		client->filter_type = NONE;
+
+		if (bt_mesh_is_provisioned() &&
+		    IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
+		    bt_mesh_gatt_proxy_get() != BT_MESH_GATT_PROXY_NOT_SUPPORTED) {
+			(void)bt_mesh_proxy_gatt_enable();
+		}
+	}
+
+	/* If this fails, the work handler exits early, as
+	 * there's no active connection.
+	 */
+	(void)k_work_cancel_delayable(&client->cli.sar_timer);
+	client->cli.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 	bt_mesh_adv_update();
 }
@@ -1100,11 +1102,10 @@ int bt_mesh_proxy_prov_enable(void)
 	return 0;
 }
 
-int bt_mesh_proxy_prov_disable(bool disconnect)
+int bt_mesh_proxy_prov_disable(void)
 {
 	uint16_t handle;
 	int rc;
-	int i;
 
 	BT_DBG("");
 
@@ -1123,24 +1124,6 @@ int bt_mesh_proxy_prov_disable(bool disconnect)
 	ble_svc_gatt_changed(svc_handles.prov_h, 0xffff);
 
 	gatt_svc = MESH_GATT_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		struct bt_mesh_proxy_client *client = &clients[i];
-
-		if (client->cli.conn_handle == BLE_HS_CONN_HANDLE_NONE
-		    || client->filter_type != PROV) {
-			continue;
-		}
-
-		if (disconnect) {
-			rc = ble_gap_terminate(client->cli.conn_handle,
-					       BLE_ERR_REM_USER_CONN_TERM);
-			assert(rc == 0);
-		} else {
-			bt_mesh_pb_gatt_close(client->cli.conn_handle);
-			client->filter_type = NONE;
-		}
-	}
 
 	bt_mesh_adv_update();
 

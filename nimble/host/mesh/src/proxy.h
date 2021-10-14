@@ -21,7 +21,7 @@ int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
 	void (*end)(uint16_t, void *), void *user_data);
 
 int bt_mesh_proxy_prov_enable(void);
-int bt_mesh_proxy_prov_disable(bool disconnect);
+int bt_mesh_proxy_prov_disable(void);
 
 int bt_mesh_proxy_gatt_enable(void);
 int bt_mesh_proxy_gatt_disable(void);
