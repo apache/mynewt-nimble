@@ -65,8 +65,12 @@ int bt_mesh_msg_ack_ctx_wait(struct bt_mesh_msg_ack_ctx *ack, int32_t timeout)
 	err = k_sem_take(&ack->sem, timeout);
 	bt_mesh_msg_ack_ctx_clear(ack);
 
-	return err;
+	if (err == -EAGAIN) {
+		return -ETIMEDOUT;
 	}
+
+	return err;
+}
 
 bool bt_mesh_msg_ack_ctx_match(const struct bt_mesh_msg_ack_ctx *ack,
 	uint32_t op, uint16_t addr, void **user_data)
