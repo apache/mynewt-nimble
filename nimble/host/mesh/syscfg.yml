@@ -153,6 +153,13 @@ syscfg.defs:
         value: 1
         restrictions: BLE_MESH_GATT_SERVER
 
+    BLE_MESH_ACCESS_LAYER_MSG:
+        descryption: >
+            This option allows the applicaiton to directly access
+            Bluetooth access layer messages without the need to
+            instantiate Bluetooth mesh models.
+        value: 1
+
     BLE_MESH_PROXY_USE_DEVICE_NAME:
         description: >
             Include Bluetooth device name in scan response
