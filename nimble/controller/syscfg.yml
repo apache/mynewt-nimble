@@ -367,6 +367,11 @@ syscfg.defs:
             GPIO pin number to debug scheduler item execution times. Pin is set
             to high state while item is executed.
         value: -1
+    BLE_LL_DEBUG_GPIO_RFMGMT:
+        description: >
+            GPIO pin number to debug rfmgmt activity. Pin is set to high state
+            while rfmgmt is active.
+        value: -1
 
 # Below settings allow to change scheduler timings. These should be left at
 # default values unless you know what you are doing!
