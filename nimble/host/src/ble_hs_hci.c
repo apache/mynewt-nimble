@@ -45,7 +45,8 @@ static uint8_t ble_hs_hci_version;
     (BLE_ACL_MAX_PKT_SIZE +             \
      BLE_HCI_DATA_HDR_SZ +              \
      sizeof (struct os_mbuf_pkthdr) +   \
-     sizeof (struct os_mbuf))
+     sizeof (struct os_mbuf) +          \
+     sizeof (struct ble_mbuf_hdr))
 
 #define BLE_HS_HCI_FRAG_MEMBLOCK_SIZE   \
     (OS_ALIGN(BLE_HS_HCI_FRAG_DATABUF_SIZE, 4))
@@ -419,9 +420,12 @@ static struct os_mbuf *
 ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
 {
     struct os_mbuf *om;
-
     /* Prefer the dedicated one-element fragment pool. */
+#if MYNEWT_VAL(BLE_CONTROLLER) == 1
+    om = os_mbuf_get_pkthdr(&ble_hs_hci_frag_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+#else
     om = os_mbuf_get_pkthdr(&ble_hs_hci_frag_mbuf_pool, 0);
+#endif
     if (om != NULL) {
         om->om_data += BLE_HCI_DATA_HDR_SZ;
         return om;
