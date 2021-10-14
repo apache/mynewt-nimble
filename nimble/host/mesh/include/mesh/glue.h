@@ -538,7 +538,7 @@ settings_load(void)
 
 #endif /* MYNEWT_VAL(MYNEWT_VAL_BLE_MESH_SETTINGS) */
 
-#define BUILD_ASSERT(cond) _Static_assert(cond, "")
+#define BUILD_ASSERT(cond, msg) _Static_assert(cond, msg)
 
 
 /* Memory slabs/blocks */

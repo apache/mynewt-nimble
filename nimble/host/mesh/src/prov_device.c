@@ -32,7 +32,7 @@ static int reset_state(void)
 
 static void prov_send_fail_msg(uint8_t err)
 {
-	struct os_mbuf *buf = PROV_BUF(2);
+	struct os_mbuf *buf = PROV_BUF(PDU_LEN_FAILED);
 
 	BT_DBG("%u", err);
 
@@ -58,7 +58,7 @@ static void prov_fail(uint8_t reason)
 
 static void prov_invite(const uint8_t *data)
 {
-	struct os_mbuf *buf = PROV_BUF(12);
+	struct os_mbuf *buf = PROV_BUF(PDU_LEN_CAPABILITIES);
 
 	BT_DBG("Attention Duration: %u seconds", data[0]);
 
@@ -66,7 +66,7 @@ static void prov_invite(const uint8_t *data)
 		bt_mesh_attention(NULL, data[0]);
 	}
 
-	bt_mesh_prov_link.conf_inputs[0] = data[0];
+	memcpy(bt_mesh_prov_link.conf_inputs.invite, data, PDU_LEN_INVITE);
 
 	bt_mesh_prov_buf_init(buf, PROV_CAPABILITIES);
 
@@ -95,7 +95,7 @@ static void prov_invite(const uint8_t *data)
 	/* Input OOB Action */
 	net_buf_simple_add_be16(buf, bt_mesh_prov->input_actions);
 
-	memcpy(&bt_mesh_prov_link.conf_inputs[1], &buf->om_data[1], 11);
+	memcpy(bt_mesh_prov_link.conf_inputs.capabilities, &buf->om_data[1], PDU_LEN_CAPABILITIES);
 
 	if (bt_mesh_prov_send(buf, NULL)) {
 		BT_ERR("Failed to send capabilities");
@@ -129,7 +129,7 @@ static void prov_start(const uint8_t *data)
 
 	atomic_set_bit_to(bt_mesh_prov_link.flags, OOB_PUB_KEY, data[1] == PUB_KEY_OOB);
 
-	memcpy(&bt_mesh_prov_link.conf_inputs[12], data, 5);
+	memcpy(bt_mesh_prov_link.conf_inputs.start, data, PDU_LEN_START);
 
 	bt_mesh_prov_link.expect = PROV_PUB_KEY;
 
@@ -150,14 +150,15 @@ static void prov_start(const uint8_t *data)
 
 static void send_confirm(void)
 {
-	struct os_mbuf *cfm = PROV_BUF(17);
+	struct os_mbuf *cfm = PROV_BUF(PDU_LEN_CONFIRM);
 
-	BT_DBG("ConfInputs[0]   %s", bt_hex(bt_mesh_prov_link.conf_inputs, 64));
-	BT_DBG("ConfInputs[64]  %s", bt_hex(&bt_mesh_prov_link.conf_inputs[64], 64));
-	BT_DBG("ConfInputs[128] %s", bt_hex(&bt_mesh_prov_link.conf_inputs[128], 17));
+	uint8_t *inputs = (uint8_t *)&bt_mesh_prov_link.conf_inputs;
 
-	if (bt_mesh_prov_conf_salt(bt_mesh_prov_link.conf_inputs,
-				   bt_mesh_prov_link.conf_salt)) {
+	BT_DBG("ConfInputs[0]   %s", bt_hex(inputs, 64));
+	BT_DBG("ConfInputs[64]  %s", bt_hex(&inputs[64], 64));
+	BT_DBG("ConfInputs[128] %s", bt_hex(&inputs[128], 17));
+
+	if (bt_mesh_prov_conf_salt(inputs, bt_mesh_prov_link.conf_salt)) {
 		BT_ERR("Unable to generate confirmation salt");
 		prov_fail(PROV_ERR_UNEXP_ERR);
 		return;
@@ -202,7 +203,7 @@ static void send_confirm(void)
 
 static void send_input_complete(void)
 {
-	struct os_mbuf *buf = PROV_BUF(1);
+	struct os_mbuf *buf = PROV_BUF(PDU_LEN_INPUT_COMPLETE);
 
 	bt_mesh_prov_buf_init(buf, PROV_INPUT_COMPLETE);
 	if (bt_mesh_prov_send(buf, NULL)) {
@@ -233,7 +234,7 @@ static void start_auth(void)
 
 static void send_pub_key(void)
 {
-	struct os_mbuf *buf = PROV_BUF(65);
+	struct os_mbuf *buf = PROV_BUF(PDU_LEN_PUB_KEY);
 	const uint8_t *key;
 
 	key = bt_pub_key_get();
@@ -251,8 +252,8 @@ static void send_pub_key(void)
 	sys_memcpy_swap(net_buf_simple_add(buf, 32), key, 32);
 	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
 
-	/* PublicKeyRemote */
-	memcpy(&bt_mesh_prov_link.conf_inputs[81], &buf->om_data[1], 64);
+	/* PublicKeyDevice */
+	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, &buf->om_data[1], PDU_LEN_PUB_KEY);
 
 	if (bt_mesh_prov_send(buf, public_key_sent)) {
 		BT_ERR("Failed to send Public Key");
@@ -294,7 +295,7 @@ static void prov_dh_key_gen(void)
 	const uint8_t *remote_pk;
 	uint8_t remote_pk_le[64];
 
-	remote_pk = &bt_mesh_prov_link.conf_inputs[17];
+	remote_pk = bt_mesh_prov_link.conf_inputs.pub_key_provisioner;
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
 	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		if (uECC_valid_public_key(remote_pk, &curve_secp256r1)) {
@@ -330,7 +331,7 @@ static void prov_pub_key(const uint8_t *data)
 	BT_DBG("Remote Public Key: %s", bt_hex(data, 64));
 
 	/* PublicKeyProvisioner */
-	memcpy(&bt_mesh_prov_link.conf_inputs[17], data, 64);
+	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_provisioner, data, PDU_LEN_PUB_KEY);
 
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
 	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
@@ -341,7 +342,8 @@ static void prov_pub_key(const uint8_t *data)
 		}
 
 		/* No swap needed since user provides public key in big-endian */
-		memcpy(&bt_mesh_prov_link.conf_inputs[81], bt_mesh_prov->public_key_be, 64);
+		memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, bt_mesh_prov->public_key_be,
+		       PDU_LEN_PUB_KEY);
 
 		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY);
 
@@ -382,7 +384,7 @@ static void notify_input_complete(void)
 
 static void send_random(void)
 {
-	struct os_mbuf *rnd = PROV_BUF(17);
+	struct os_mbuf *rnd = PROV_BUF(PDU_LEN_RANDOM);
 
 	bt_mesh_prov_buf_init(rnd, PROV_RANDOM);
 	net_buf_simple_add_mem(rnd, bt_mesh_prov_link.rand, 16);
@@ -454,7 +456,7 @@ static inline bool is_pb_gatt(void)
 
 static void prov_data(const uint8_t *data)
 {
-	struct os_mbuf *msg = PROV_BUF(1);
+	struct os_mbuf *msg = PROV_BUF(PDU_LEN_COMPLETE);
 	uint8_t session_key[16];
 	uint8_t nonce[13];
 	uint8_t dev_key[16];
