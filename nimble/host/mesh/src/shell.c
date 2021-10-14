@@ -169,7 +169,7 @@ static struct bt_mesh_cfg_cli cfg_cli = {
 #endif /* MYNEWT_VAL(BLE_MESH_CFG_CLI) */
 
 #if MYNEWT_VAL(BLE_MESH_HEALTH_CLI)
-void show_faults(uint8_t test_id, uint16_t cid, uint8_t *faults, size_t fault_count)
+static void show_faults(uint8_t test_id, uint16_t cid, uint8_t *faults, size_t fault_count)
 {
 	size_t i;
 
