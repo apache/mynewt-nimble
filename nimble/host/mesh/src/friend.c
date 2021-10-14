@@ -390,15 +390,21 @@ static int unseg_app_sdu_decrypt(struct bt_mesh_friend *frnd,
 				 const struct unseg_app_sdu_meta *meta)
 {
 	struct net_buf_simple_state state;
+	struct os_mbuf *in = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
+	struct os_mbuf *out = NET_BUF_SIMPLE(BT_MESH_RX_SDU_MAX);
 	int err;
 
-	BT_DBG("");
-
 	net_buf_simple_save(buf, &state);
-	net_buf_simple_pull_mem(buf, 10);
-	buf->om_len -= 4;
+	/* Direct the input buffer at the Upper Transport Access PDU, accounting for
+	 * the network header and the 1 byte lower transport header
+	 */
+	net_buf_simple_clone(buf, in);
+	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);
+	net_buf_simple_pull(buf, 1);
+	in->om_len -= BT_MESH_MIC_SHORT;;
 
-	err = bt_mesh_app_decrypt(meta->key, &meta->crypto, buf, buf);
+	net_buf_simple_clone(in, out);
+	err = bt_mesh_app_decrypt(meta->key, &meta->crypto, in, out);
 
 	net_buf_simple_restore(buf, &state);
 	net_buf_unref(buf);
@@ -415,8 +421,9 @@ static int unseg_app_sdu_encrypt(struct bt_mesh_friend *frnd,
 	BT_DBG("");
 
 	net_buf_simple_save(buf, &state);
-	net_buf_simple_pull_mem(buf, 10);
-	buf->om_len -= 4;
+	net_buf_simple_pull_mem(buf, BT_MESH_NET_HDR_LEN);
+	net_buf_simple_pull_mem(buf, 1);
+	buf->om_len -= BT_MESH_MIC_SHORT;
 
 	err = bt_mesh_app_encrypt(meta->key, &meta->crypto, buf);
 

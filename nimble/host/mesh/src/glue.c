@@ -112,6 +112,14 @@ free:
     os_mbuf_free_chain(om);
 }
 
+
+void net_buf_simple_clone(const struct os_mbuf *original,
+	struct os_mbuf *clone)
+{
+	memcpy(clone, original, sizeof(struct os_mbuf));
+}
+
+
 int
 bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data)
 {

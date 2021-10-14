@@ -373,6 +373,8 @@ static inline void net_buf_simple_save(struct os_mbuf *buf,
     state->len = buf->om_len;
 }
 
+void net_buf_simple_clone(const struct os_mbuf *original, struct os_mbuf *clone);
+
 static inline void net_buf_simple_restore(struct os_mbuf *buf,
                                           struct net_buf_simple_state *state)
 {
