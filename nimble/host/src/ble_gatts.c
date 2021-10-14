@@ -364,7 +364,7 @@ ble_gatts_val_access(uint16_t conn_handle, uint16_t attr_handle,
             gatt_ctxt->om = *om;
         } else {
             new_om = 1;
-            gatt_ctxt->om = os_msys_get_pkthdr(0, 0);
+            gatt_ctxt->om = ble_hs_mbuf_att_pkt();
             if (gatt_ctxt->om == NULL) {
                 return BLE_ATT_ERR_INSUFFICIENT_RES;
             }
