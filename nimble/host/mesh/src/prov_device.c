@@ -244,13 +244,13 @@ static void send_pub_key(void)
 		return;
 	}
 
-	BT_DBG("Local Public Key: %s", bt_hex(key, 64));
+	BT_DBG("Local Public Key: %s", bt_hex(key, BT_PUB_KEY_LEN));
 
 	bt_mesh_prov_buf_init(buf, PROV_PUB_KEY);
 
 	/* Swap X and Y halves independently to big-endian */
-	sys_memcpy_swap(net_buf_simple_add(buf, 32), key, 32);
-	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
+	sys_memcpy_swap(net_buf_simple_add(buf, BT_PUB_KEY_COORD_LEN), key, BT_PUB_KEY_COORD_LEN);
+	sys_memcpy_swap(net_buf_simple_add(buf, BT_PUB_KEY_COORD_LEN), &key[BT_PUB_KEY_COORD_LEN], 32);
 
 	/* PublicKeyDevice */
 	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, &buf->om_data[1], PDU_LEN_PUB_KEY);
@@ -265,7 +265,7 @@ static void send_pub_key(void)
 
 static void dh_key_gen_complete(void)
 {
-	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, 32));
+	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, BT_DH_KEY_LEN));
 
 	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY) &&
 	atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
@@ -275,7 +275,7 @@ static void dh_key_gen_complete(void)
 	}
 }
 
-static void prov_dh_key_cb(const uint8_t dhkey[32])
+static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
 {
 	BT_DBG("%p", dhkey);
 
@@ -285,7 +285,7 @@ static void prov_dh_key_cb(const uint8_t dhkey[32])
 		return;
 	}
 
-	sys_memcpy_swap(bt_mesh_prov_link.dhkey, dhkey, 32);
+	sys_memcpy_swap(bt_mesh_prov_link.dhkey, dhkey, BT_DH_KEY_LEN);
 
 	dh_key_gen_complete();
 }
@@ -293,7 +293,7 @@ static void prov_dh_key_cb(const uint8_t dhkey[32])
 static void prov_dh_key_gen(void)
 {
 	const uint8_t *remote_pk;
-	uint8_t remote_pk_le[64];
+	uint8_t remote_pk_le[BT_PUB_KEY_LEN];
 
 	remote_pk = bt_mesh_prov_link.conf_inputs.pub_key_provisioner;
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
@@ -317,8 +317,9 @@ static void prov_dh_key_gen(void)
 	 * X and Y halves are swapped independently. The bt_dh_key_gen()
 	 * will also take care of validating the remote public key.
 	 */
-	sys_memcpy_swap(remote_pk_le, remote_pk, 32);
-	sys_memcpy_swap(&remote_pk_le[32], &remote_pk[32], 32);
+	sys_memcpy_swap(remote_pk_le, remote_pk, BT_PUB_KEY_COORD_LEN);
+	sys_memcpy_swap(&remote_pk_le[BT_PUB_KEY_COORD_LEN], &remote_pk[BT_PUB_KEY_COORD_LEN],
+			BT_PUB_KEY_COORD_LEN);
 
 	if (bt_dh_key_gen(remote_pk_le, prov_dh_key_cb)) {
 		BT_ERR("Failed to generate DHKey");
@@ -328,7 +329,7 @@ static void prov_dh_key_gen(void)
 
 static void prov_pub_key(const uint8_t *data)
 {
-	BT_DBG("Remote Public Key: %s", bt_hex(data, 64));
+	BT_DBG("Remote Public Key: %s", bt_hex(data, BT_PUB_KEY_LEN));
 
 	/* PublicKeyProvisioner */
 	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_provisioner, data, PDU_LEN_PUB_KEY);

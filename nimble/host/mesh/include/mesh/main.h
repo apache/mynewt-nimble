@@ -291,7 +291,7 @@ int bt_mesh_input_number(uint32_t num);
  *
  *  @return Zero on success or (negative) error code otherwise.
  */
-int bt_mesh_prov_remote_pub_key_set(const uint8_t public_key[64]);
+int bt_mesh_prov_remote_pub_key_set(const uint8_t public_key[BT_PUB_KEY_LEN]);
 
 /** @brief Use Input OOB authentication.
  *
