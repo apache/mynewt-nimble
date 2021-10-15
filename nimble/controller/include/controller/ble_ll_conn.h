@@ -225,9 +225,6 @@ struct ble_ll_conn_sm
     /* RSSI */
     int8_t conn_rssi;
 
-    /* For privacy */
-    int8_t rpa_index;
-
     /* Connection data length management */
     uint8_t max_tx_octets;
     uint8_t max_rx_octets;
@@ -328,6 +325,9 @@ struct ble_ll_conn_sm
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    uint8_t peer_addr_resolved;
+#endif
 
     /*
      * XXX: TODO. Could save memory. Have single event at LL and put these
@@ -379,7 +379,6 @@ struct ble_ll_conn_sm
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
 
-    struct ble_ll_scan_sm *scansm;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct hci_ext_create_conn initial_params;
 #endif
@@ -425,6 +424,34 @@ uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
 /* used to get anchor point for connection event specified */
 void ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
                             uint32_t *anchor, uint8_t *anchor_usecs);
+
+struct ble_ll_scan_addr_data;
+struct ble_ll_scan_pdu_data;
+
+uint8_t ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg,
+                                         uint8_t *hdr_byte);
+void ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
+                                    struct ble_ll_scan_pdu_data *pdu_data,
+                                    uint8_t adva_type, uint8_t *adva,
+                                    uint8_t inita_type, uint8_t *inita,
+                                    int rpa_index, uint8_t channel);
+
+/* Send CONNECT_IND/AUX_CONNECT_REQ */
+int ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
+                                 struct ble_ll_scan_addr_data *addrd,
+                                 uint8_t ext);
+/* Cancel connection after AUX_CONNECT_REQ was sent */
+void ble_ll_conn_send_connect_req_cancel(void);
+/* Signal connection created via CONNECT_IND */
+void ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
+                                   struct ble_ll_scan_addr_data *addrd,
+                                   uint8_t *targeta);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/* Signal connection created via AUX_CONNECT_REQ */
+void ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,
+                                struct ble_ll_scan_addr_data *addrd,
+                                uint8_t *targeta);
+#endif
 
 #ifdef __cplusplus
 }

@@ -148,18 +148,10 @@ void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
 int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
-void ble_ll_init_rx_pkt_in(uint8_t pdu_type, uint8_t *rxbuf,
-                           struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *ble_hdr);
-int ble_ll_init_rx_isr_end(uint8_t *rxbuf, uint8_t crcok,
-                           struct ble_mbuf_hdr *ble_hdr);
 void ble_ll_conn_wfr_timer_exp(void);
-void ble_ll_conn_init_wfr_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
 uint32_t ble_ll_conn_get_ce_end_time(void);
 void ble_ll_conn_event_halt(void);
-void ble_ll_conn_reset_pending_aux_conn_rsp(void);
-bool ble_ll_conn_init_pending_aux_conn_rsp(void);
 /* HCI */
 void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
                                     uint8_t reason);

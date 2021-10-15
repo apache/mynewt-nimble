@@ -67,7 +67,6 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_ADV       (1)
 #define BLE_LL_SCHED_TYPE_SCAN      (2)
 #define BLE_LL_SCHED_TYPE_CONN      (3)
-#define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
 #define BLE_LL_SCHED_TYPE_DTM       (5)
 #define BLE_LL_SCHED_TYPE_PERIODIC  (6)
 #define BLE_LL_SCHED_TYPE_SYNC      (7)

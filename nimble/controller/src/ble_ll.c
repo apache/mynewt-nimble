@@ -677,9 +677,6 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_wfr_timer_exp();
             break;
-        case BLE_LL_STATE_INITIATING:
-            ble_ll_conn_init_wfr_timer_exp();
-            break;
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_wfr_timer_exp();
@@ -842,9 +839,6 @@ ble_ll_rx_pkt_in(void)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_rx_pkt_in(pdu_type, m, ble_hdr);
             break;
-        case BLE_LL_STATE_INITIATING:
-            ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-            break;
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
@@ -979,9 +973,6 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         break;
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
-        break;
-    case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_isr_start(pdu_type, rxhdr);
         break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
@@ -1121,9 +1112,6 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             }
         }
         rc = ble_ll_scan_rx_isr_end(rxpdu, crcok);
-        break;
-    case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_isr_end(rxbuf, crcok, rxhdr);
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_LL_STATE_SCAN_AUX:

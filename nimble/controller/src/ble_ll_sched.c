@@ -134,9 +134,6 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
             case BLE_LL_SCHED_TYPE_SCAN_AUX:
                 ble_ll_scan_aux_break(entry->cb_arg);
                 break;
-            case BLE_LL_SCHED_TYPE_AUX_SCAN:
-                ble_ll_scan_end_adv_evt(entry->cb_arg);
-                break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
             case BLE_LL_SCHED_TYPE_PERIODIC:
                 ble_ll_adv_periodic_rmvd_from_sched(entry->cb_arg);
@@ -1133,20 +1130,6 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
         goto sched;
     }
 
-    /* If aux scan scheduled and LL is in state when scanner is running
-     * in 3 states:
-     * BLE_LL_STATE_SCANNING
-     * BLE_LL_STATE_INITIATING
-     * BLE_LL_STATE_STANDBY
-     *
-     * Let scanner to decide to disable phy or not.
-     */
-    if (sch->sched_type == BLE_LL_SCHED_TYPE_AUX_SCAN) {
-        if (lls == BLE_LL_STATE_INITIATING || lls == BLE_LL_STATE_SCANNING) {
-            goto sched;
-        }
-    }
-
     /*
      * This is either an advertising event or connection event start. If
      * we are scanning or initiating just stop it.
@@ -1158,11 +1141,6 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     if (lls == BLE_LL_STATE_SCANNING) {
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_scan_halt();
-    } else if (lls == BLE_LL_STATE_INITIATING) {
-        ble_ll_state_set(BLE_LL_STATE_STANDBY);
-        ble_ll_scan_halt();
-        /* PHY is disabled - make sure we do not wait for AUX_CONNECT_RSP */
-        ble_ll_conn_reset_pending_aux_conn_rsp();
     } else if (lls == BLE_LL_STATE_ADV) {
         STATS_INC(ble_ll_stats, sched_state_adv_errs);
         ble_ll_adv_halt();
@@ -1262,78 +1240,6 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-/**
- * Called to schedule a aux scan.
- *
- * Context: Interrupt
- *
- * @param ble_hdr
- * @param scansm
- * @param aux_scan
- *
- * @return 0 on success, 1 otherwise
- */
-int
-ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
-                      struct ble_ll_scan_sm *scansm,
-                      struct ble_ll_aux_data *aux_scan)
-{
-    int rc = 1;
-    os_sr_t sr;
-    uint32_t off_ticks;
-    uint32_t off_rem_usecs;
-    uint32_t start_time;
-    uint32_t start_time_rem_usecs;
-    uint32_t end_time;
-    uint32_t dur;
-    struct ble_ll_sched_item *sch;
-    int phy_mode;
-
-    sch = &aux_scan->sch;
-    BLE_LL_ASSERT(sch->cb_arg == NULL);
-
-    off_ticks = os_cputime_usecs_to_ticks(aux_scan->offset);
-    off_rem_usecs = aux_scan->offset - os_cputime_ticks_to_usecs(off_ticks);
-
-    start_time = ble_hdr->beg_cputime + off_ticks;
-    start_time_rem_usecs = ble_hdr->rem_usecs + off_rem_usecs;
-    if (start_time_rem_usecs >= 31) {
-        start_time++;
-        start_time_rem_usecs -= 31;
-    }
-    start_time -= g_ble_ll_sched_offset_ticks;
-
-    /* Let's calculate time we reserve for aux packet. For now we assume to wait
-     * for fixed number of bytes and handle possible interrupting it in
-     * ble_ll_sched_execute_item(). This is because aux packet can be up to
-     * 256bytes and we don't want to block sched that long
-     */
-    phy_mode = ble_ll_phy_to_phy_mode(aux_scan->aux_phy,
-                                      BLE_HCI_LE_PHY_CODED_ANY);
-    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
-                                 phy_mode);
-    end_time = start_time + os_cputime_usecs_to_ticks(dur);
-
-    sch->start_time = start_time;
-    sch->remainder = start_time_rem_usecs;
-    sch->end_time = end_time;
-
-    OS_ENTER_CRITICAL(sr);
-
-    rc = ble_ll_sched_insert(sch, 0, preempt_none);
-
-    if (rc == 0) {
-        sch->cb_arg = ble_ll_scan_aux_data_ref(aux_scan);
-        STATS_INC(ble_ll_stats, aux_scheduled);
-    }
-
-    OS_EXIT_CRITICAL(sr);
-
-    ble_ll_sched_restart();
-
-    return rc;
-}
-
 int
 ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
                       uint8_t pdu_time_rem, uint32_t offset_us)

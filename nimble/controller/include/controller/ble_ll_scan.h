@@ -89,56 +89,6 @@ struct ble_ll_scan_phy
     struct ble_ll_scan_timing timing;
 };
 
-#define BLE_LL_AUX_HAS_ADVA                     0x01
-#define BLE_LL_AUX_HAS_TARGETA                  0x02
-#define BLE_LL_AUX_HAS_ADI                      0x04
-#define BLE_LL_AUX_IS_MATCHED                   0x08
-#define BLE_LL_AUX_IS_TARGETA_RESOLVED          0x10
-
-#define BLE_LL_AUX_FLAG_HCI_SENT_ANY            0x02
-#define BLE_LL_AUX_FLAG_HCI_SENT_COMPLETED      0x04
-#define BLE_LL_AUX_FLAG_HCI_SENT_TRUNCATED      0x08
-#define BLE_LL_AUX_FLAG_SCAN_COMPLETE           0x10
-#define BLE_LL_AUX_FLAG_SCAN_ERROR              0x20
-#define BLE_LL_AUX_FLAG_AUX_ADV_RECEIVED        0x40
-#define BLE_LL_AUX_FLAG_AUX_CHAIN_RECEIVED      0x80
-
-struct ble_ll_aux_data {
-    uint8_t flags;
-
-    /*
-     * Since aux_data can be accessed from ISR and LL, we have separate copies
-     * of flags to make sure that ISR does not modify flags while LL uses them.
-     * ISR updates 'flags_isr' and LL adds these to 'flags_ll' which it then
-     * uses for further processing allowing to update 'flags_isr' if another
-     * scan for given 'aux_data' is scheduled. Note that flags must not be unset
-     * while aux_data is valid.
-     */
-    uint8_t flags_isr;
-    uint8_t flags_ll;
-
-    uint8_t ref_cnt;
-    uint8_t chan;
-    uint8_t aux_phy;
-    uint8_t aux_primary_phy;
-    uint8_t mode;
-    uint8_t scanning;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    int8_t rpa_index;
-#endif
-    uint16_t adi;
-    uint32_t offset;
-    uint8_t offset_units;
-    uint8_t adva[6];
-    uint8_t adva_type;
-    uint8_t targeta[6];
-    uint8_t targeta_type;
-    uint16_t evt_type;
-    struct ble_ll_sched_item sch;
-    struct ble_hci_ev *evt;
-    struct ble_npl_event ev;
-};
-
 struct ble_ll_scan_pdu_data {
     uint8_t hdr_byte;
     /* ScanA for SCAN_REQ and InitA for CONNECT_IND */
@@ -197,11 +147,13 @@ struct ble_ll_scan_sm
 #endif
 
     uint8_t restart_timer_needed;
-    struct ble_ll_aux_data *cur_aux_data;
 
     struct ble_ll_scan_phy *scanp;
     struct ble_ll_scan_phy *scanp_next;
     struct ble_ll_scan_phy scan_phys[BLE_LL_SCAN_PHY_NUMBER];
+
+    /* Connection sm for initiator scan */
+    struct ble_ll_conn_sm *connsm;
 };
 
 /* Scan types */
@@ -244,13 +196,11 @@ int ble_ll_scan_can_chg_whitelist(void);
 /* Boolean function returning true if scanning enabled */
 int ble_ll_scan_enabled(void);
 
-/* Boolean function returns true if whitelist is enabled for scanning */
-int ble_ll_scan_whitelist_enabled(void);
-
 /* Initialize the scanner when we start initiating */
 struct hci_create_conn;
-int ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
-                                struct ble_ll_scan_sm **sm);
+int
+ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
+                            struct ble_ll_conn_sm *connsm);
 
 /* Returns storage for PDU data (for SCAN_REQ or CONNECT_IND) */
 struct ble_ll_scan_pdu_data *ble_ll_scan_get_pdu_data(void);
@@ -276,24 +226,14 @@ void ble_ll_scan_wfr_timer_exp(void);
 /* Called when scan could be interrupted  */
 void ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm);
 
-int ble_ll_scan_adv_decode_addr(uint8_t pdu_type, uint8_t *rxbuf,
-                                struct ble_mbuf_hdr *ble_hdr,
-                                uint8_t **addr, uint8_t *addr_type,
-                                uint8_t **inita, uint8_t *init_addr_type,
-                                int *ext_mode);
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_scan_update_aux_data(struct ble_mbuf_hdr *ble_hdr, uint8_t *rxbuf,
-                                bool *adva_present);
-
 /* Initialize the extended scanner when we start initiating */
 struct hci_ext_create_conn;
-int ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
-                                    struct ble_ll_scan_sm **sm);
+int
+ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
+                                struct ble_ll_conn_sm *connsm);
 
 /* Called to parse extended advertising*/
-struct ble_ll_aux_data *ble_ll_scan_aux_data_ref(struct ble_ll_aux_data *aux_scan);
-void ble_ll_scan_aux_data_unref(struct ble_ll_aux_data *aux_scan);
 void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 #endif
 
@@ -316,8 +256,10 @@ int ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
 void ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
                                   uint16_t adi);
 
-int ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
-                          struct ble_ll_scan_addr_data *addrd, uint8_t *scan_ok);
+int
+ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
+                      struct ble_ll_scan_addr_data *addrd, uint8_t *scan_ok);
+int ble_ll_scan_rx_check_init(struct ble_ll_scan_addr_data *addrd);
 
 #ifdef __cplusplus
 }

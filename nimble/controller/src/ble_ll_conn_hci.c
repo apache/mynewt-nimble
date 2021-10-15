@@ -179,13 +179,12 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                 memcpy(enh_ev->local_rpa, rpa, BLE_DEV_ADDR_LEN);
             }
 
-            /* We need to adjust peer type if device connected using RPA
-             * and was resolved since RPA needs to be added to HCI event.
-             */
-             if (connsm->peer_addr_type < BLE_HCI_CONN_PEER_ADDR_PUBLIC_IDENT
-                     && (connsm->rpa_index > -1)) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+            /* Adjust address type if peer address was resolved */
+             if (connsm->peer_addr_resolved) {
                  enh_ev->peer_addr_type += 2;
              }
+#endif
 
              if (enh_ev->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
                  if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
@@ -220,10 +219,6 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             ev->conn_handle = htole16(connsm->conn_handle);
             ev->role = connsm->conn_role - 1;
             ev->peer_addr_type = connsm->peer_addr_type;
-
-            if (ev->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
-                ev->peer_addr_type -= 2;
-            }
             memcpy(ev->peer_addr, connsm->peer_addr, BLE_DEV_ADDR_LEN);
             ev->conn_itvl = htole16(connsm->conn_itvl);
             ev->conn_latency = htole16(connsm->slave_latency);
@@ -520,7 +515,7 @@ ble_ll_conn_create(const uint8_t *cmdbuf, uint8_t len)
     /* CSA will be selected when advertising is received */
 
     /* Start scanning */
-    rc = ble_ll_scan_initiator_start(&hcc, &connsm->scansm);
+    rc = ble_ll_scan_initiator_start(&hcc, connsm);
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
@@ -777,10 +772,8 @@ ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t len)
     ble_ll_conn_ext_master_init(connsm, &hcc);
     ble_ll_conn_sm_new(connsm);
 
-    /* CSA will be selected when advertising is received */
-
     /* Start scanning */
-    rc = ble_ll_scan_ext_initiator_start(&hcc, &connsm->scansm);
+    rc = ble_ll_scan_ext_initiator_start(&hcc, connsm);
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);

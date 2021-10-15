@@ -216,7 +216,6 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_STATE_STANDBY        (0)
 #define BLE_LL_STATE_ADV            (1)
 #define BLE_LL_STATE_SCANNING       (2)
-#define BLE_LL_STATE_INITIATING     (3)
 #define BLE_LL_STATE_CONNECTION     (4)
 #define BLE_LL_STATE_DTM            (5)
 #define BLE_LL_STATE_SYNC           (6)
