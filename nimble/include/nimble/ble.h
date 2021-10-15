@@ -88,6 +88,9 @@ struct ble_mbuf_hdr_rxinfo
  *       set for the same PDU (e.g. one use by scanner, other one used by
  *       connection)
  */
+#define BLE_MBUF_HDR_F_CONNECT_IND_TXD  (0x4000)
+#define BLE_MBUF_HDR_F_CONNECT_REQ_TXD  (0x4000)
+#define BLE_MBUF_HDR_F_CONNECT_RSP_RXD  (0x0008)
 #define BLE_MBUF_HDR_F_CONN_CREDIT      (0x8000)
 #define BLE_MBUF_HDR_F_IGNORED          (0x8000)
 #define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000)

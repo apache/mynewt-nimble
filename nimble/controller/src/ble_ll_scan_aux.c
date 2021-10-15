@@ -50,6 +50,8 @@
 #define BLE_LL_SCAN_AUX_F_HAS_ADI           0x0080
 #define BLE_LL_SCAN_AUX_F_RESOLVED_ADVA     0x0100
 #define BLE_LL_SCAN_AUX_F_RESOLVED_TARGETA  0x0200
+#define BLE_LL_SCAN_AUX_F_CONNECTABLE       0x0400
+#define BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP    0x0800
 
 #define BLE_LL_SCAN_AUX_H_SENT_ANY          0x01
 #define BLE_LL_SCAN_AUX_H_DONE              0x02
@@ -668,6 +670,10 @@ ble_ll_scan_aux_break_ev(struct ble_npl_event *ev)
 void
 ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
 {
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+        ble_ll_conn_send_connect_req_cancel();
+    }
+
     ble_npl_event_init(&aux->break_ev, ble_ll_scan_aux_break_ev, aux);
     ble_ll_event_send(&aux->break_ev);
 }
@@ -751,18 +757,29 @@ ble_ll_scan_aux_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
 {
     struct ble_ll_scan_aux_data *aux;
 
-    if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
-        return -1;
-    }
-
     BLE_LL_ASSERT(aux_data_current);
     aux = aux_data_current;
+
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+        if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
+            aux_data_current = NULL;
+            ble_ll_scan_aux_break(aux);
+            return -1;
+        }
+        return 0;
+    }
+
+    if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
+        aux_data_current = NULL;
+        ble_ll_scan_aux_break(aux);
+        return -1;
+    }
 
     /*
      * Prepare TX transition when doing active scanning and receiving 1st PDU
      * since we may want to send AUX_SCAN_REQ.
      */
-    if ((aux->scan_type == BLE_SCAN_TYPE_ACTIVE) &&
+    if ((aux->scan_type != BLE_SCAN_TYPE_PASSIVE) &&
         !(aux->flags & BLE_LL_SCAN_AUX_F_AUX_ADV)) {
         return 1;
     }
@@ -1012,6 +1029,10 @@ ble_ll_scan_aux_rx_isr_end_on_ext(struct ble_ll_scan_sm *scansm,
             return -1;
         }
 
+        /* Don't care about initiator here, there are no AdvA and TargetA
+         * in connectable ADV_EXT_IND so no filtering to do.
+         */
+
         if (!aux_ptr) {
             /* We do not allocate aux_data for ADV_EXT_IND without AuxPtr so
              * need to pass match data in rxinfo.
@@ -1045,6 +1066,10 @@ ble_ll_scan_aux_rx_isr_end_on_ext(struct ble_ll_scan_sm *scansm,
 
         aux->adi = adi;
         aux->flags |= BLE_LL_SCAN_AUX_F_HAS_ADI;
+
+        if (aux->scan_type == BLE_SCAN_TYPE_INITIATE) {
+            aux->flags |= BLE_LL_SCAN_AUX_F_CONNECTABLE;
+        }
 
         if (do_match) {
             aux->flags |= BLE_LL_SCAN_AUX_F_MATCHED;
@@ -1187,6 +1212,7 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     struct ble_mbuf_hdr_rxinfo *rxinfo;
     struct ble_ll_scan_aux_data *aux;
     struct ble_mbuf_hdr *rxhdr;
+    uint8_t scan_filt_policy;
     uint8_t scan_ok;
     uint8_t adv_mode;
     uint8_t *rxbuf;
@@ -1211,6 +1237,12 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     }
 
     rxbuf = rxpdu->om_data;
+
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+        aux->flags &= ~BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP;
+        rxinfo->flags |= BLE_MBUF_HDR_F_CONNECT_RSP_RXD;
+        goto done;
+    }
 
     if (aux->flags & BLE_LL_SCAN_AUX_F_W4_SCAN_RSP) {
         aux->flags &= ~BLE_LL_SCAN_AUX_F_W4_SCAN_RSP;
@@ -1251,9 +1283,10 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     addrd.rpa_index = aux->rpa_index;
 #endif
 
+    scan_filt_policy = ble_ll_scan_get_filt_policy();
+
     rc = ble_ll_scan_rx_filter(ble_ll_scan_get_own_addr_type(),
-                               ble_ll_scan_get_filt_policy(),
-                               &addrd, &scan_ok);
+                               scan_filt_policy, &addrd, &scan_ok);
     if (rc < 0) {
         rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
         /*
@@ -1269,21 +1302,42 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto done;
     }
 
+    if ((aux->scan_type == BLE_SCAN_TYPE_INITIATE) &&
+        !(scan_filt_policy & 0x01)) {
+        rc = ble_ll_scan_rx_check_init(&addrd);
+        if (rc < 0) {
+            goto done;
+        }
+    }
+
     aux->flags |= BLE_LL_SCAN_AUX_F_MATCHED;
 
     ble_ll_scan_aux_update_aux_data_from_addrd(&addrd, aux);
 
     adv_mode = rxbuf[2] >> 6;
 
-    if ((aux->scan_type == BLE_SCAN_TYPE_ACTIVE) &&
-        (adv_mode == BLE_LL_EXT_ADV_MODE_SCAN) && scan_ok) {
-        if (ble_ll_scan_aux_send_scan_req(aux, &addrd)) {
+    switch (aux->scan_type) {
+    case BLE_SCAN_TYPE_ACTIVE:
+        if ((adv_mode == BLE_LL_EXT_ADV_MODE_SCAN) && scan_ok &&
+            ble_ll_scan_aux_send_scan_req(aux, &addrd)) {
             /* AUX_SCAN_REQ sent, keep PHY enabled to continue */
             aux->flags |= BLE_LL_SCAN_AUX_F_W4_SCAN_RSP;
             rxinfo->flags |= BLE_MBUF_HDR_F_SCAN_REQ_TXD;
             aux_data_current = aux;
             return 0;
         }
+        break;
+    case BLE_SCAN_TYPE_INITIATE:
+        if (ble_ll_conn_send_connect_req(rxpdu, &addrd, 1) == 0) {
+            /* AUX_CONNECT_REQ sent, keep PHY enabled to continue */
+            aux->flags |= BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP;
+            rxinfo->flags |= BLE_MBUF_HDR_F_CONNECT_REQ_TXD;
+            aux_data_current = aux;
+            return 0;
+        } else {
+            rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
+        }
+        break;
     }
 
 done:
@@ -1399,6 +1453,137 @@ ble_ll_scan_aux_sync_check(struct os_mbuf *rxpdu,
 }
 #endif
 
+
+static int
+ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
+                                  struct ble_ll_scan_pdu_data *pdu_data,
+                                  struct ble_ll_scan_addr_data *addrd)
+{
+    uint8_t pdu_hdr;
+    uint8_t pdu_len;
+    uint8_t adv_mode;
+    uint8_t eh_len;
+    uint8_t eh_flags;
+    uint8_t *eh_data;
+    uint8_t adva_type;
+    uint8_t *adva;
+    uint8_t targeta_type;
+    uint8_t *targeta;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    struct ble_ll_resolv_entry *rl = NULL;
+#endif
+
+    pdu_hdr = rxbuf[0];
+    pdu_len = rxbuf[1];
+
+    if (pdu_len == 0) {
+        return -1;
+    }
+
+    adv_mode = rxbuf[2] >> 6;
+    eh_len = rxbuf[2] & 0x3f;
+
+    if ((adv_mode != 0) || (eh_len == 0)) {
+        return -1;
+    }
+
+    eh_flags = rxbuf[3];
+    eh_data = &rxbuf[4];
+
+    /* AUX_CONNECT_RSP without AdvA or TargetA is not valid */
+    if (!(eh_flags & ((1 << BLE_LL_EXT_ADV_ADVA_BIT) |
+                      (1 << BLE_LL_EXT_ADV_TARGETA_BIT)))) {
+        return -1;
+    }
+
+    adva = eh_data;
+    adva_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_TXADD_RAND);
+    eh_data += BLE_LL_EXT_ADV_ADVA_SIZE;
+
+    targeta = eh_data;
+    targeta_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_RAND);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    /* If AdvA was initially resolved, we need to check if current AdvA also
+     * resolved with the same IRK since it may have changes due to RPA timeout.
+     * Otherwise it shall be the same as in AUX_CONNECT_REQ.
+     */
+    if (addrd->adva_resolved) {
+        if (!adva_type) {
+            return -1;
+        }
+
+        BLE_LL_ASSERT(addrd->rpa_index >= 0);
+        rl = &g_ble_ll_resolv_list[addrd->rpa_index];
+
+        if (!ble_ll_resolv_rpa(adva, rl->rl_peer_irk)) {
+            return -1;
+        }
+
+        addrd->adva = adva;
+    } else if ((adva_type !=
+                !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK)) ||
+               (memcmp(adva, pdu_data->adva, 6) != 0)) {
+            return -1;
+    }
+#else
+    if ((adva_type != !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK)) ||
+        (memcmp(adva, pdu_data->adva, 6) != 0)) {
+            return -1;
+    }
+#endif /* BLE_LL_CFG_FEAT_LL_PRIVACY */
+
+    if ((targeta_type != !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK)) ||
+        (memcmp(targeta, pdu_data->inita, 6) != 0)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static void
+ble_ll_scan_aux_rx_pkt_in_for_initiator(struct os_mbuf *rxpdu,
+                                        struct ble_mbuf_hdr *rxhdr)
+{
+    struct ble_ll_scan_addr_data addrd;
+    struct ble_mbuf_hdr_rxinfo *rxinfo;
+    struct ble_ll_scan_aux_data *aux;
+
+    rxinfo = &rxhdr->rxinfo;
+    aux = rxinfo->user_data;
+
+    if (rxinfo->flags & BLE_MBUF_HDR_F_IGNORED) {
+        ble_ll_scan_chk_resume();
+        goto done;
+    }
+
+    if (!(rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_RSP_RXD)) {
+        BLE_LL_ASSERT(rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_REQ_TXD);
+        /* Waiting for AUX_CONNECT_RSP, do nothing */
+        return;
+    }
+
+    ble_ll_scan_aux_init_addrd_from_aux_data(aux, &addrd);
+
+    if (ble_ll_scan_aux_check_connect_rsp(rxpdu->om_data,
+                                          ble_ll_scan_get_pdu_data(),
+                                          &addrd) < 0) {
+        ble_ll_scan_chk_resume();
+        goto done;
+    }
+
+    aux->flags &= ~BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP;
+
+    ble_ll_scan_sm_stop(0);
+    ble_ll_conn_created_on_aux(rxpdu, &addrd, aux->targeta);
+
+done:
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+        ble_ll_conn_send_connect_req_cancel();
+    }
+    ble_ll_scan_aux_free(aux);
+}
+
 void
 ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
 {
@@ -1415,6 +1600,11 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
     aux = rxinfo->user_data;
 
     BLE_LL_ASSERT(aux);
+
+    if (aux->scan_type == BLE_SCAN_TYPE_INITIATE) {
+        ble_ll_scan_aux_rx_pkt_in_for_initiator(rxpdu, rxhdr);
+        return;
+    }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     sync_check = ble_ll_sync_enabled() &&
