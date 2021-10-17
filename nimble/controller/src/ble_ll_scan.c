@@ -2447,11 +2447,16 @@ ble_ll_scan_rx_pkt_in_restore_addr_data(struct ble_mbuf_hdr *hdr,
         addrd->adv_addr = rl->rl_identity_addr;
         addrd->adv_addr_type = rl->rl_addr_type;
         addrd->adva_resolved = 1;
+    } else {
+        addrd->adva_resolved = 0;
     }
+
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED) {
         addrd->targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
         addrd->targeta_type = scansm->own_addr_type & 1;
         addrd->targeta_resolved = 1;
+    } else {
+        addrd->targeta_resolved = 0;
     }
 #endif
 }
