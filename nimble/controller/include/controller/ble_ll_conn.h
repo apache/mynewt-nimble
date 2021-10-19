@@ -188,29 +188,6 @@ struct hci_conn_update
     uint16_t max_ce_len;
 };
 
-struct hci_ext_conn_params
-{
-    uint16_t scan_itvl;
-    uint16_t scan_window;
-    uint32_t conn_itvl;
-    uint16_t conn_itvl_ticks;
-    uint8_t conn_itvl_usecs;
-    uint16_t conn_latency;
-    uint16_t supervision_timeout;
-    uint16_t min_ce_len;
-    uint16_t max_ce_len;
-};
-
-struct hci_ext_create_conn
-{
-    uint8_t filter_policy;
-    uint8_t own_addr_type;
-    uint8_t peer_addr_type;
-    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
-    uint8_t init_phy_mask;
-    struct hci_ext_conn_params params[3];
-};
-
 /* Connection state machine */
 struct ble_ll_conn_sm
 {
@@ -378,10 +355,6 @@ struct ble_ll_conn_sm
 
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct hci_ext_create_conn initial_params;
-#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
     uint8_t  sync_transfer_mode;

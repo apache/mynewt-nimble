@@ -197,10 +197,11 @@ int ble_ll_scan_can_chg_whitelist(void);
 int ble_ll_scan_enabled(void);
 
 /* Initialize the scanner when we start initiating */
-struct hci_create_conn;
+struct ble_ll_conn_create_scan;
+struct ble_ll_conn_create_params;
 int
-ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
-                            struct ble_ll_conn_sm *connsm);
+ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
+                            struct ble_ll_conn_create_scan *cc_scan);
 
 /* Returns storage for PDU data (for SCAN_REQ or CONNECT_IND) */
 struct ble_ll_scan_pdu_data *ble_ll_scan_get_pdu_data(void);
@@ -227,12 +228,6 @@ void ble_ll_scan_wfr_timer_exp(void);
 void ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-/* Initialize the extended scanner when we start initiating */
-struct hci_ext_create_conn;
-int
-ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
-                                struct ble_ll_conn_sm *connsm);
-
 /* Called to parse extended advertising*/
 void ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data);
 #endif

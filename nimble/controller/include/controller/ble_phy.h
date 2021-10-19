@@ -202,6 +202,11 @@ void ble_phy_resolv_list_disable(void);
 #define BLE_PHY_MASK_2M             (BLE_HCI_LE_PHY_2M_PREF_MASK)
 #define BLE_PHY_MASK_CODED          (BLE_HCI_LE_PHY_CODED_PREF_MASK)
 
+/* PHY indices (for a zero-based array) */
+#define BLE_PHY_IDX_1M              (0)
+#define BLE_PHY_IDX_2M              (1)
+#define BLE_PHY_IDX_CODED           (2)
+
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
 uint32_t ble_phy_mode_pdu_start_off(int phy);
 void ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode);
