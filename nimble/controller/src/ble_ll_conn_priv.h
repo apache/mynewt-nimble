@@ -93,8 +93,38 @@ STAILQ_HEAD(ble_ll_conn_free_list, ble_ll_conn_sm);
 extern struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
 extern struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 
-/* Pointer to connection state machine we are trying to create */
-extern struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
+struct ble_ll_conn_create_scan {
+    uint8_t filter_policy;
+    uint8_t own_addr_type;
+    uint8_t peer_addr_type;
+    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint8_t init_phy_mask;
+#endif
+    struct {
+        uint16_t itvl;
+        uint16_t window;
+    } scan_params[2];
+};
+
+struct ble_ll_conn_create_params {
+    uint32_t conn_itvl;
+    uint32_t conn_itvl_ticks;
+    uint8_t conn_itvl_usecs;
+    uint16_t conn_latency;
+    uint16_t supervision_timeout;
+    uint16_t min_ce_len;
+    uint16_t max_ce_len;
+};
+
+struct ble_ll_conn_create_sm {
+    struct ble_ll_conn_sm *connsm;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    struct ble_ll_conn_create_params params[3];
+#endif
+};
+
+extern struct ble_ll_conn_create_sm g_ble_ll_conn_create_sm;
 
 /* Generic interface */
 struct ble_ll_len_req;
@@ -123,15 +153,8 @@ void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                              uint8_t hdr_byte, uint16_t length);
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
 void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
-                             struct hci_create_conn *hcc);
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-void ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
-                                 struct hci_ext_create_conn *hcc);
-
-void ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
-                                struct hci_ext_conn_params *hcc_params,
-                                int phy);
-#endif
+                             struct ble_ll_conn_create_scan *cc_scan,
+                             struct ble_ll_conn_create_params *cc_params);
 
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 void ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm);
@@ -158,7 +181,7 @@ void ble_ll_disconn_comp_event_send(struct ble_ll_conn_sm *connsm,
 void ble_ll_auth_pyld_tmo_event_send(struct ble_ll_conn_sm *connsm);
 int ble_ll_conn_hci_disconnect_cmd(const struct ble_hci_lc_disconnect_cp *cmd);
 int ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_conn_create(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
@@ -205,6 +228,9 @@ bool ble_ll_conn_cth_flow_enable(bool enabled);
 void ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf);
 #endif
 
+void ble_ll_conn_itvl_to_ticks(uint32_t itvl,
+                               uint32_t *itvl_ticks, uint8_t *itvl_usecs);
+
 int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
 int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
 
@@ -213,7 +239,7 @@ int ble_ll_conn_hci_le_rd_phy(const uint8_t *cmdbuf, uint8_t len,
 int ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *connsm);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_ext_conn_create(const uint8_t *cmdbuf, uint8_t cmdlen);
+int ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)

@@ -577,7 +577,7 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
      * Test specification extends this also to initiating.
      */
 
-    if (g_ble_ll_conn_create_sm || ble_ll_scan_enabled() ||
+    if (g_ble_ll_conn_create_sm.connsm || ble_ll_scan_enabled() ||
                                 (!hci_adv_ext && ble_ll_adv_enabled())) {
         return BLE_ERR_CMD_DISALLOWED;
     }

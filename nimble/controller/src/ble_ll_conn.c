@@ -143,8 +143,7 @@ struct ble_ll_conn_global_params g_ble_ll_conn_params;
 struct ble_ll_conn_sync_transfer_params g_ble_ll_conn_sync_transfer_params;
 #endif
 
-/* Pointer to connection state machine we are trying to create */
-struct ble_ll_conn_sm *g_ble_ll_conn_create_sm;
+struct ble_ll_conn_create_sm g_ble_ll_conn_create_sm;
 
 /* Pointer to current connection */
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
@@ -421,25 +420,23 @@ ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *csm)
 }
 #endif
 
-static void
-ble_ll_conn_calc_itvl_ticks(struct ble_ll_conn_sm *connsm)
+void
+ble_ll_conn_itvl_to_ticks(uint32_t itvl, uint32_t *itvl_ticks,
+                          uint8_t *itvl_usecs)
 {
     uint32_t ticks;
     uint32_t usecs;
 
-    /*
-     * Precalculate the number of ticks and remaining microseconds for
-     * the connection interval
-     */
-    usecs = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+    usecs = itvl * BLE_LL_CONN_ITVL_USECS;
     ticks = os_cputime_usecs_to_ticks(usecs);
-    connsm->conn_itvl_usecs = (uint8_t)(usecs -
-                                        os_cputime_ticks_to_usecs(ticks));
-    if (connsm->conn_itvl_usecs == 31) {
-        connsm->conn_itvl_usecs = 0;
+    usecs = usecs - os_cputime_ticks_to_usecs(ticks);
+    if (usecs == 31) {
+        usecs = 0;
         ++ticks;
     }
-    connsm->conn_itvl_ticks = ticks;
+
+    *itvl_ticks = ticks;
+    *itvl_usecs = usecs;
 }
 
 /**
@@ -1578,37 +1575,23 @@ ble_ll_conn_master_common_init(struct ble_ll_conn_sm *connsm)
  */
 void
 ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
-                        struct hci_create_conn *hcc)
+                        struct ble_ll_conn_create_scan *cc_scan,
+                        struct ble_ll_conn_create_params *cc_params)
 {
 
     ble_ll_conn_master_common_init(connsm);
 
-    /* Set slave latency and supervision timeout */
-    connsm->slave_latency = hcc->conn_latency;
-    connsm->supervision_tmo = hcc->supervision_timeout;
+    connsm->own_addr_type = cc_scan->own_addr_type;
+    memcpy(&connsm->peer_addr, &cc_scan->peer_addr, BLE_DEV_ADDR_LEN);
+    connsm->peer_addr_type = cc_scan->peer_addr_type;
 
-    /* Set own address type and peer address if needed */
-    connsm->own_addr_type = hcc->own_addr_type;
-    if (hcc->filter_policy == 0) {
-        memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
-        connsm->peer_addr_type = hcc->peer_addr_type;
-    }
-
-    /* XXX: for now, just make connection interval equal to max */
-    connsm->conn_itvl = hcc->conn_itvl_max;
-
-    /* Check the min/max CE lengths are less than connection interval */
-    if (hcc->min_ce_len > (connsm->conn_itvl * 2)) {
-        connsm->min_ce_len = connsm->conn_itvl * 2;
-    } else {
-        connsm->min_ce_len = hcc->min_ce_len;
-    }
-
-    if (hcc->max_ce_len > (connsm->conn_itvl * 2)) {
-        connsm->max_ce_len = connsm->conn_itvl * 2;
-    } else {
-        connsm->max_ce_len = hcc->max_ce_len;
-    }
+    connsm->conn_itvl = cc_params->conn_itvl;
+    connsm->conn_itvl_ticks = cc_params->conn_itvl_ticks;
+    connsm->conn_itvl_usecs = cc_params->conn_itvl_usecs;
+    connsm->slave_latency = cc_params->conn_latency;
+    connsm->supervision_tmo = cc_params->supervision_timeout;
+    connsm->min_ce_len = cc_params->min_ce_len;
+    connsm->max_ce_len = cc_params->max_ce_len;
 }
 
 static void
@@ -1684,54 +1667,20 @@ ble_ll_conn_init_phy(struct ble_ll_conn_sm *connsm, int phy)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-
-void
-ble_ll_conn_ext_master_init(struct ble_ll_conn_sm *connsm,
-                        struct hci_ext_create_conn *hcc)
+static void
+ble_ll_conn_create_set_params(struct ble_ll_conn_sm *connsm, uint8_t phy)
 {
+    struct ble_ll_conn_create_params *cc_params;
 
-    ble_ll_conn_master_common_init(connsm);
+    cc_params = &g_ble_ll_conn_create_sm.params[phy - 1];
 
-    /* Set own address type and peer address if needed */
-    connsm->own_addr_type = hcc->own_addr_type;
-    if (hcc->filter_policy == 0) {
-        memcpy(&connsm->peer_addr, &hcc->peer_addr, BLE_DEV_ADDR_LEN);
-        connsm->peer_addr_type = hcc->peer_addr_type;
-    }
+    connsm->slave_latency = cc_params->conn_latency;
+    connsm->supervision_tmo = cc_params->supervision_timeout;
 
-    connsm->initial_params = *hcc;
+    connsm->conn_itvl = cc_params->conn_itvl;
+    connsm->conn_itvl_ticks = cc_params->conn_itvl_ticks;
+    connsm->conn_itvl_usecs = cc_params->conn_itvl_usecs;
 }
-
-void
-ble_ll_conn_ext_set_params(struct ble_ll_conn_sm *connsm,
-                           struct hci_ext_conn_params *hcc_params, int phy)
-{
-    connsm->slave_latency = hcc_params->conn_latency;
-    connsm->supervision_tmo = hcc_params->supervision_timeout;
-
-    connsm->conn_itvl = hcc_params->conn_itvl;
-    connsm->conn_itvl_ticks = hcc_params->conn_itvl_ticks;
-    connsm->conn_itvl_usecs = hcc_params->conn_itvl_usecs;
-
-    /* Check the min/max CE lengths are less than connection interval */
-    if (hcc_params->min_ce_len > (connsm->conn_itvl * 2)) {
-        connsm->min_ce_len = connsm->conn_itvl * 2;
-    } else {
-        connsm->min_ce_len = hcc_params->min_ce_len;
-    }
-
-    if (hcc_params->max_ce_len > (connsm->conn_itvl * 2)) {
-        connsm->max_ce_len = connsm->conn_itvl * 2;
-    } else {
-        connsm->max_ce_len = hcc_params->max_ce_len;
-    }
-
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    ble_ll_conn_init_phy(connsm, phy);
-#endif
-}
-
-
 #endif
 
 static void
@@ -1861,8 +1810,6 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
                     ble_ll_conn_auth_pyld_timer_cb,
                     connsm);
 #endif
-
-    ble_ll_conn_calc_itvl_ticks(connsm);
 
     /* Add to list of active connections */
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
@@ -2170,7 +2117,10 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         connsm->tx_win_off = upd->winoffset;
         connsm->conn_itvl = upd->interval;
-        ble_ll_conn_calc_itvl_ticks(connsm);
+
+        ble_ll_conn_itvl_to_ticks(connsm->conn_itvl, &connsm->conn_itvl_ticks,
+                                  &connsm->conn_itvl_usecs);
+
         if (upd->winoffset != 0) {
             usecs = upd->winoffset * BLE_LL_CONN_ITVL_USECS;
             ticks = os_cputime_usecs_to_ticks(usecs);
@@ -2651,7 +2601,7 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
         }
     } else {
         /* Get pointer to our device address */
-        connsm = g_ble_ll_conn_create_sm;
+        connsm = g_ble_ll_conn_create_sm.connsm;
         if ((connsm->own_addr_type & 1) == 0) {
             addr = g_dev_addr;
         } else {
@@ -2764,12 +2714,11 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
     struct ble_mbuf_hdr *rxhdr;
     int8_t rpa_index;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct hci_ext_conn_params *ecp;
     uint8_t phy;
 #endif
     int rc;
 
-    connsm = g_ble_ll_conn_create_sm;
+    connsm = g_ble_ll_conn_create_sm.connsm;
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -2779,8 +2728,7 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
 #else
         phy = BLE_PHY_1M;
 #endif
-        ecp = &connsm->initial_params.params[phy - 1];
-        ble_ll_conn_ext_set_params(connsm, ecp, phy);
+        ble_ll_conn_create_set_params(connsm, phy);
     }
 #endif
 
@@ -2806,6 +2754,12 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
         return -1;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && BLE_LL_BT5_PHY_SUPPORTED
+    if (ext) {
+        ble_ll_conn_init_phy(connsm, phy);
+    }
+#endif
+
     return 0;
 }
 
@@ -2814,7 +2768,7 @@ ble_ll_conn_send_connect_req_cancel(void)
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = g_ble_ll_conn_create_sm;
+    connsm = g_ble_ll_conn_create_sm.connsm;
 
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
 }
@@ -2825,8 +2779,8 @@ ble_ll_conn_master_start(uint8_t phy, uint8_t csa,
 {
     struct ble_ll_conn_sm *connsm;
 
-    connsm = g_ble_ll_conn_create_sm;
-    g_ble_ll_conn_create_sm = NULL;
+    connsm = g_ble_ll_conn_create_sm.connsm;
+    g_ble_ll_conn_create_sm.connsm = NULL;
 
     connsm->peer_addr_type = addrd->adv_addr_type;
     memcpy(connsm->peer_addr, addrd->adv_addr, 6);
@@ -3688,6 +3642,9 @@ ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr,
         goto err_slave_start;
     }
 
+    ble_ll_conn_itvl_to_ticks(connsm->conn_itvl, &connsm->conn_itvl_ticks,
+                              &connsm->conn_itvl_usecs);
+
     /* Start the connection state machine */
     connsm->conn_role = BLE_LL_CONN_ROLE_SLAVE;
     ble_ll_conn_sm_new(connsm);
@@ -3751,7 +3708,7 @@ ble_ll_conn_module_reset(void)
     }
 
     /* Reset connection we are attempting to create */
-    g_ble_ll_conn_create_sm = NULL;
+    g_ble_ll_conn_create_sm.connsm = NULL;
 
     /* Now go through and end all the connections */
     while (1) {

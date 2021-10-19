@@ -2411,65 +2411,37 @@ ble_ll_scan_can_chg_whitelist(void)
 }
 
 int
-ble_ll_scan_initiator_start(struct hci_create_conn *hcc,
-                            struct ble_ll_conn_sm *connsm)
-{
-    struct ble_ll_scan_sm *scansm;
-    struct ble_ll_scan_phy *scanp;
-    int rc;
-
-    scansm = &g_ble_ll_scan_sm;
-    scansm->own_addr_type = hcc->own_addr_type;
-    scansm->scan_filt_policy = hcc->filter_policy;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    scansm->ext_scanning = 0;
-#endif
-    scansm->connsm = connsm;
-
-    scansm->scanp = &scansm->scan_phys[PHY_UNCODED];
-    scansm->scanp_next = NULL;
-
-    scanp = scansm->scanp;
-    scanp->timing.interval = ble_ll_scan_time_hci_to_ticks(hcc->scan_itvl);
-    scanp->timing.window = ble_ll_scan_time_hci_to_ticks(hcc->scan_window);
-    scanp->scan_type = BLE_SCAN_TYPE_INITIATE;
-    scanp->configured = 1;
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    scanp = &scansm->scan_phys[PHY_CODED];
-    scanp->configured = 0;
-#endif
-
-    rc = ble_ll_scan_sm_start(scansm);
-
-    return rc;
-}
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int
-ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
-                                struct ble_ll_conn_sm *connsm)
+ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
+                            struct ble_ll_conn_create_scan *cc_scan)
 {
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_phy *scanp_uncoded;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     struct ble_ll_scan_phy *scanp_coded;
-    struct hci_ext_conn_params *params;
+#endif
+    uint8_t init_phy_mask;
     int rc;
 
     scansm = &g_ble_ll_scan_sm;
-    scansm->own_addr_type = hcc->own_addr_type;
-    scansm->scan_filt_policy = hcc->filter_policy;
+    scansm->own_addr_type = cc_scan->own_addr_type;
+    scansm->scan_filt_policy = cc_scan->filter_policy;
     scansm->scanp = NULL;
     scansm->scanp_next = NULL;
-    scansm->ext_scanning = 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    scansm->ext_scanning = ext;
+    init_phy_mask = cc_scan->init_phy_mask;
+#else
+    init_phy_mask = BLE_PHY_MASK_1M;
+#endif
     scansm->connsm = connsm;
 
-    params = &hcc->params[0];
     scanp_uncoded = &scansm->scan_phys[PHY_UNCODED];
-    if (hcc->init_phy_mask & BLE_PHY_MASK_1M) {
+    if (init_phy_mask & BLE_PHY_MASK_1M) {
         scanp_uncoded->configured = 1;
-        scanp_uncoded->timing.interval = ble_ll_scan_time_hci_to_ticks(params->scan_itvl);
-        scanp_uncoded->timing.window = ble_ll_scan_time_hci_to_ticks(params->scan_window);
+        scanp_uncoded->timing.interval = ble_ll_scan_time_hci_to_ticks(
+                                cc_scan->scan_params[PHY_UNCODED].itvl);
+        scanp_uncoded->timing.window = ble_ll_scan_time_hci_to_ticks(
+                                cc_scan->scan_params[PHY_UNCODED].window);
         scanp_uncoded->scan_type = BLE_SCAN_TYPE_INITIATE;
         scansm->scanp = scanp_uncoded;
     } else {
@@ -2477,12 +2449,13 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    params = &hcc->params[2];
     scanp_coded = &scansm->scan_phys[PHY_CODED];
-    if (hcc->init_phy_mask & BLE_PHY_MASK_CODED) {
+    if (init_phy_mask & BLE_PHY_MASK_CODED) {
         scanp_coded->configured = 1;
-        scanp_coded->timing.interval = ble_ll_scan_time_hci_to_ticks(params->scan_itvl);
-        scanp_coded->timing.window = ble_ll_scan_time_hci_to_ticks(params->scan_window);
+        scanp_coded->timing.interval = ble_ll_scan_time_hci_to_ticks(
+                                cc_scan->scan_params[PHY_CODED].itvl);
+        scanp_coded->timing.window = ble_ll_scan_time_hci_to_ticks(
+                                cc_scan->scan_params[PHY_CODED].window);
         scanp_coded->scan_type = BLE_SCAN_TYPE_INITIATE;
         if (scansm->scanp) {
             scansm->scanp_next = scanp_coded;
@@ -2492,9 +2465,6 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
     } else {
         scanp_coded->configured = 0;
     }
-#else
-    scanp_coded = NULL;
-#endif
 
     /* if any of PHYs is configured for continuous scan we alter interval to
      * fit other PHY
@@ -2509,12 +2479,15 @@ ble_ll_scan_ext_initiator_start(struct hci_ext_create_conn *hcc,
             scanp_uncoded->timing.interval += scanp_coded->timing.window;
         }
     }
+#endif
 
     rc = ble_ll_scan_sm_start(scansm);
+    if (rc == 0) {
+        g_ble_ll_conn_create_sm.connsm = connsm;
+    }
 
     return rc;
 }
-#endif
 
 /**
  * Checks to see if the scanner is enabled.

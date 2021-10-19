@@ -57,7 +57,7 @@ ble_ll_is_controller_busy(void)
 #endif
 
     return ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
-           g_ble_ll_conn_create_sm;
+           g_ble_ll_conn_create_sm.connsm;
 }
 /**
  * Called to determine if a change is allowed to the resolving list at this
