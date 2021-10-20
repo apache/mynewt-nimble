@@ -53,8 +53,7 @@ static inline void adv_send(struct os_mbuf *buf)
 			[BT_MESH_ADV_BEACON] = BLE_HS_ADV_TYPE_MESH_BEACON,
 			[BT_MESH_ADV_URI]    = BLE_HS_ADV_TYPE_URI,
 	};
-	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
-	void *cb_data = BT_MESH_ADV(buf)->cb_data;
+
 	struct ble_gap_adv_params param = { 0 };
 	uint16_t duration, adv_int;
 	struct bt_data ad;
@@ -106,8 +105,8 @@ static inline void adv_send(struct os_mbuf *buf)
 
 	err = bt_le_adv_start(&param, duration, &ad, 1, NULL, 0);
 
-	net_buf_unref(buf);
-	adv_send_start(duration, err, cb, cb_data);
+
+	bt_mesh_adv_send_start(duration, err, BT_MESH_ADV(buf));
 	if (err) {
 		BT_ERR("Advertising failed: err %d", err);
 		return;
@@ -118,7 +117,6 @@ static inline void adv_send(struct os_mbuf *buf)
 	k_sleep(K_MSEC(duration));
 
 	err = bt_le_adv_stop();
-	bt_mesh_adv_send_end(err, cb, cb_data);
 	if (err) {
 		BT_ERR("Stopping advertising failed: err %d", err);
 		return;
@@ -167,9 +165,9 @@ adv_thread(void *args)
 		if (BT_MESH_ADV(buf)->busy) {
 			BT_MESH_ADV(buf)->busy = 0;
 			adv_send(buf);
-		} else {
-			net_buf_unref(buf);
 		}
+
+		net_buf_unref(buf);
 
 		/* os_sched(NULL); */
 	}
