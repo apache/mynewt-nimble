@@ -27,6 +27,10 @@
 #include "sema.h"
 #include "ztimer.h"
 
+#if defined(CPU_FAM_NRF51) || defined(CPU_FAM_NRF52)
+#include "nrf_clock.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -269,6 +273,22 @@ ble_npl_hw_is_in_critical(void)
 {
     return (bool)!irq_is_enabled();
 }
+
+/* XXX: these functions are required to build hal_timer.c, however with the
+*       default configuration they are never used... */
+#if defined(CPU_FAM_NRF51) || defined(CPU_FAM_NRF52)
+static inline void
+nrf52_clock_hfxo_request(void)
+{
+    clock_hfxo_request();
+}
+
+static inline void
+nrf52_clock_hfxo_release(void)
+{
+    clock_hfxo_release();
+}
+#endif
 
 #ifdef __cplusplus
 }
