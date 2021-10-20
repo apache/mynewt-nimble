@@ -232,6 +232,37 @@ syscfg.defs:
             supported outgoing segment count (BT_MESH_TX_SEG_MAX).
         value: 6
 
+    BLE_MESH_ADV:
+        description: >
+            Advertiser mode
+        value: 1
+
+    BLE_MESH_ADV_LEGACY:
+        description: >
+            Use legacy advertising commands for mesh sending. Legacy
+            advertising is significantly slower than the extended advertising, but
+            is supported by all controllers.
+        value: 1
+        restrictions:
+            - "BLE_MESH_ADV if 0"
+            - "!BLE_MESH_ADV_EXT"
+
+    BLE_MESH_ADV_EXT:
+        description: >
+            Use extended advertising commands for operating the advertiser.
+            Extended advertising is faster and uses less memory than legacy
+            advertising, but isn't supported by all controllers.
+        value: 0
+        restrictions:
+            - "BLE_MESH_ADV if 0"
+            - "!BLE_MESH_ADV_LEGACY"
+            - "BLE_EXT_ADV"
+
+    BLE_MESH_DEBUG_USE_ID_ADDR:
+        description: >
+            Use ID address for mesh advertisements, use random address otherwise.
+        value: 0
+
     BLE_MESH_ADV_STACK_SIZE:
         description: >
             Mesh advertiser thread stack size.

@@ -821,7 +821,15 @@ void bt_mesh_pb_adv_recv(struct os_mbuf *buf)
 static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
 			  const struct prov_bearer_cb *cb, void *cb_data)
 {
+	int err;
+
 	BT_DBG("uuid %s", bt_hex(uuid, 16));
+
+	err = bt_mesh_adv_enable();
+	if (err) {
+		BT_ERR("Failed enabling advertiser");
+		return err;
+	}
 
 	if (atomic_test_and_set_bit(link.flags, ADV_LINK_ACTIVE)) {
 		return -EBUSY;
@@ -842,6 +850,14 @@ static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
 
 static int prov_link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 {
+	int err;
+
+	err = bt_mesh_adv_enable();
+	if (err) {
+		BT_ERR("Failed enabling advertiser");
+		return err;
+	}
+
 	if (atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
 		return -EBUSY;
 	}

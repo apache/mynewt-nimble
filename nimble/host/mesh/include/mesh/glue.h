@@ -258,6 +258,12 @@ static inline void net_buf_simple_reset(struct os_mbuf *om)
     net_buf_simple_init(om, 0);
 }
 
+struct bt_le_ext_adv_start_param {
+	uint16_t timeout;
+
+	uint8_t  num_events;
+};
+
 void net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *buf);
 void * net_buf_ref(struct os_mbuf *om);
 void net_buf_unref(struct os_mbuf *om);
@@ -328,6 +334,74 @@ struct bt_pub_key_cb {
     struct bt_pub_key_cb *_next;
 };
 
+/** LE Advertising Parameters. */
+struct bt_le_adv_param {
+	/**
+	 * @brief Local identity.
+	 *
+	 * @note When extended advertising @kconfig{CONFIG_BT_EXT_ADV} is not
+	 *       enabled or not supported by the controller it is not possible
+	 *       to scan and advertise simultaneously using two different
+	 *       random addresses.
+	 */
+	uint8_t  id;
+
+	/**
+	 * @brief Advertising Set Identifier, valid range 0x00 - 0x0f.
+	 *
+	 * @note Requires @ref BT_LE_ADV_OPT_EXT_ADV
+	 **/
+	uint8_t  sid;
+
+	/**
+	 * @brief Secondary channel maximum skip count.
+	 *
+	 * Maximum advertising events the advertiser can skip before it must
+	 * send advertising data on the secondary advertising channel.
+	 *
+	 * @note Requires @ref BT_LE_ADV_OPT_EXT_ADV
+	 */
+	uint8_t  secondary_max_skip;
+
+	/** Bit-field of advertising options */
+	uint32_t options;
+
+	/** Minimum Advertising Interval (N * 0.625 milliseconds)
+	 * Minimum Advertising Interval shall be less than or equal to the
+	 * Maximum Advertising Interval. The Minimum Advertising Interval and
+	 * Maximum Advertising Interval should not be the same value (as stated
+	 * in Bluetooth Core Spec 5.2, section 7.8.5)
+	 * Range: 0x0020 to 0x4000
+	 */
+	uint32_t interval_min;
+
+	/** Maximum Advertising Interval (N * 0.625 milliseconds)
+	 * Minimum Advertising Interval shall be less than or equal to the
+	 * Maximum Advertising Interval. The Minimum Advertising Interval and
+	 * Maximum Advertising Interval should not be the same value (as stated
+	 * in Bluetooth Core Spec 5.2, section 7.8.5)
+	 * Range: 0x0020 to 0x4000
+	 */
+	uint32_t interval_max;
+
+	/**
+	 * @brief Directed advertising to peer
+	 *
+	 * When this parameter is set the advertiser will send directed
+	 * advertising to the remote device.
+	 *
+	 * The advertising type will either be high duty cycle, or low duty
+	 * cycle if the BT_LE_ADV_OPT_DIR_MODE_LOW_DUTY option is enabled.
+	 * When using @ref BT_LE_ADV_OPT_EXT_ADV then only low duty cycle is
+	 * allowed.
+	 *
+	 * In case of connectable high duty cycle if the connection could not
+	 * be established within the timeout the connected() callback will be
+	 * called with the status set to @ref BT_HCI_ERR_ADV_TIMEOUT.
+	 */
+	const bt_addr_le_t *peer;
+};
+
 typedef void (*bt_dh_key_cb_t)(const uint8_t key[BT_DH_KEY_LEN]);
 int bt_dh_key_gen(const uint8_t remote_pk[BT_PUB_KEY_LEN], bt_dh_key_cb_t cb);
 int bt_pub_key_gen(struct bt_pub_key_cb *new_cb);
@@ -343,9 +417,11 @@ int bt_ccm_encrypt(const uint8_t key[16], uint8_t nonce[13], const uint8_t *enc_
 		   uint8_t *plaintext, size_t mic_size);
 void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
+                    int64_t duration,
                     const struct bt_data *ad, size_t ad_len,
                     const struct bt_data *sd, size_t sd_len);
-int bt_le_adv_stop(bool proxy);
+
+int bt_le_adv_stop();
 
 struct k_work_delayable {
     struct ble_npl_callout work;
@@ -358,6 +434,7 @@ bool k_work_delayable_is_pending(struct k_work_delayable *w);
 void k_work_reschedule(struct k_work_delayable *w, uint32_t ms);
 int64_t k_uptime_get(void);
 uint32_t k_uptime_get_32(void);
+int64_t k_uptime_delta(int64_t *reftime);
 void k_sleep(int32_t duration);
 void k_work_submit(struct ble_npl_callout *w);
 void k_work_add_arg(struct ble_npl_callout *w, void *arg);
@@ -428,6 +505,7 @@ static inline unsigned int find_msb_set(uint32_t op)
 #define CONFIG_BT_MESH_PROV_DEVICE            BLE_MESH_PROV_DEVICE
 #define CONFIG_BT_MESH_CDB                    BLE_MESH_CDB
 #define CONFIG_BT_MESH_DEBUG_CFG              BLE_MESH_DEBUG_CFG
+#define CONFIG_BT_MESH_DEBUG_ADV              BLE_MESH_DEBUG_ADV
 
 /* Above flags are used with IS_ENABLED macro */
 #define IS_ENABLED(config) MYNEWT_VAL(config)

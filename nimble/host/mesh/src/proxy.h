@@ -31,8 +31,7 @@ void bt_mesh_proxy_beacon_send(struct bt_mesh_subnet *sub);
 
 struct os_mbuf *bt_mesh_proxy_get_buf(void);
 
-int32_t bt_mesh_proxy_adv_start(void);
-void bt_mesh_proxy_adv_stop(void);
+int bt_mesh_proxy_adv_start(void);
 
 void bt_mesh_proxy_identity_start(struct bt_mesh_subnet *sub);
 void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub);

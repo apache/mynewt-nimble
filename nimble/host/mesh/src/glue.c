@@ -517,6 +517,17 @@ uint32_t k_uptime_get_32(void)
     return k_uptime_get();
 }
 
+int64_t k_uptime_delta(int64_t *reftime)
+{
+	int64_t uptime, delta;
+
+	uptime = k_uptime_get();
+	delta = uptime - *reftime;
+	*reftime = uptime;
+
+	return delta;
+}
+
 void k_sleep(int32_t duration)
 {
     uint32_t ticks;
@@ -672,6 +683,7 @@ done:
 
 int
 bt_le_adv_start(const struct ble_gap_adv_params *param,
+		int64_t duration,
                 const struct bt_data *ad, size_t ad_len,
                 const struct bt_data *sd, size_t sd_len)
 {
@@ -737,7 +749,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
     }
 
     /*TODO: We could use duration and max events in the future */
-    err = ble_gap_ext_adv_start(instance, 0, 0);
+    err = ble_gap_ext_adv_start(instance, duration, 0);
     return err;
 
 error:
@@ -747,28 +759,11 @@ error:
 
     return err;
 }
-
-int bt_le_adv_stop(bool proxy)
-{
-#if MYNEWT_VAL(BLE_MESH_PROXY)
-    int rc;
-
-    if (proxy) {
-        rc = ble_gap_ext_adv_stop(BT_MESH_ADV_GATT_INST);
-    } else {
-        rc = ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
-    }
-
-    return rc;
-#else
-    return ble_gap_ext_adv_stop(BT_MESH_ADV_INST);
-#endif
-}
-
 #else
 
 int
 bt_le_adv_start(const struct ble_gap_adv_params *param,
+		int64_t duration,
                 const struct bt_data *ad, size_t ad_len,
                 const struct bt_data *sd, size_t sd_len)
 {
@@ -802,7 +797,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
         }
     }
 
-    err = ble_gap_adv_start(g_mesh_addr_type, NULL, BLE_HS_FOREVER, param,
+    err = ble_gap_adv_start(g_mesh_addr_type, NULL, duration, param,
                             NULL, NULL);
     if (err) {
         BT_ERR("Advertising failed: err %d", err);
@@ -812,7 +807,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
     return 0;
 }
 
-int bt_le_adv_stop(bool proxy)
+int bt_le_adv_stop()
 {
 	return ble_gap_adv_stop();
 }

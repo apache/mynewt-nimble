@@ -101,8 +101,6 @@ ble_uuid16_t BT_UUID_MESH_PROXY_DATA_OUT       = BLE_UUID16_INIT(0x2ade);
 .itvl_min = BT_GAP_ADV_FAST_INT_MIN_2,                             \
 .itvl_max = BT_GAP_ADV_FAST_INT_MAX_2,
 
-static bool gatt_adv_enabled;
-
 static struct {
 	uint16_t proxy_h;
 	uint16_t proxy_data_out_h;
@@ -479,7 +477,7 @@ static const struct bt_data net_id_ad[] = {
 		      BT_DATA(BT_DATA_SVC_DATA16, proxy_svc_data, NET_ID_LEN),
 };
 
-static int node_id_adv(struct bt_mesh_subnet *sub)
+static int node_id_adv(struct bt_mesh_subnet *sub, int32_t duration)
 {
 	struct ble_gap_adv_params fast_adv_param = {
 		ADV_OPT_PROXY
@@ -520,7 +518,7 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 
 	memcpy(proxy_svc_data + 3, tmp + 8, 8);
 
-	err = bt_le_adv_start(&fast_adv_param, node_id_ad,
+	err = bt_le_adv_start(&fast_adv_param, duration, node_id_ad,
 			      ARRAY_SIZE(node_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Node ID (err %d)", err);
@@ -530,7 +528,7 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 	return 0;
 }
 
-static int net_id_adv(struct bt_mesh_subnet *sub)
+static int net_id_adv(struct bt_mesh_subnet *sub, int32_t duration)
 {
 	struct ble_gap_adv_params slow_adv_param = {
 		ADV_OPT_PROXY
@@ -558,7 +556,7 @@ static int net_id_adv(struct bt_mesh_subnet *sub)
 
 	memcpy(proxy_svc_data + 3, sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8);
 
-	err = bt_le_adv_start(&slow_adv_param, net_id_ad,
+	err = bt_le_adv_start(&slow_adv_param, duration, net_id_ad,
 			      ARRAY_SIZE(net_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Network ID (err %d)", err);
@@ -628,6 +626,7 @@ static int gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 {
 	int32_t remaining = K_FOREVER;
 	int subnet_count;
+	int err = -EBUSY;
 
 	BT_DBG("");
 
@@ -640,24 +639,6 @@ static int gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 	if (!sub) {
 		BT_WARN("No subnets to advertise on");
 		return -ENOENT;
-	}
-
-	if (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING) {
-		uint32_t active = k_uptime_get_32() - sub->node_id_start;
-
-		if (active < NODE_ID_TIMEOUT) {
-			remaining = NODE_ID_TIMEOUT - active;
-			BT_DBG("Node ID active for %u ms, %d ms remaining",
-			       (unsigned) active, (int) remaining);
-			node_id_adv(sub);
-		} else {
-			bt_mesh_proxy_identity_stop(sub);
-			BT_DBG("Node ID stopped");
-		}
-	}
-
-	if (sub->node_id == BT_MESH_NODE_IDENTITY_STOPPED) {
-		net_id_adv(sub);
 	}
 
 	subnet_count = sub_count();
@@ -678,12 +659,30 @@ static int gatt_proxy_advertise(struct bt_mesh_subnet *sub)
 		}
 	}
 
+	if (sub->node_id == BT_MESH_NODE_IDENTITY_RUNNING) {
+		uint32_t active = k_uptime_get_32() - sub->node_id_start;
+
+		if (active < NODE_ID_TIMEOUT) {
+			remaining = NODE_ID_TIMEOUT - active;
+			BT_DBG("Node ID active for %u ms, %d ms remaining",
+			       active, remaining);
+			err = node_id_adv(sub, remaining);
+		} else {
+			bt_mesh_proxy_identity_stop(sub);
+			BT_DBG("Node ID stopped");
+		}
+	}
+
+	if (sub->node_id == BT_MESH_NODE_IDENTITY_STOPPED) {
+		err = net_id_adv(sub, remaining);
+	}
+
 	BT_DBG("Advertising %d ms for net_idx 0x%04x",
 	       (int) remaining, sub->net_idx);
 
 	beacon_sub = bt_mesh_subnet_next(beacon_sub);
 
-	return remaining;
+	return err;
 }
 
 static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
@@ -925,9 +924,6 @@ static void gatt_connected(uint16_t conn_handle)
 	BT_DBG("conn %d", conn_handle);
 
 	conn_count++;
-
-	/* Since we use ADV_OPT_ONE_TIME */
-	gatt_adv_enabled = false;
 
 	/* Try to re-enable advertising in case it's possible */
 	if (conn_count < CONFIG_BT_MAX_CONN) {
@@ -1234,12 +1230,12 @@ static int proxy_send(uint16_t conn_handle,
 	return err;
 }
 
-int32_t bt_mesh_proxy_adv_start(void)
+int bt_mesh_proxy_adv_start(void)
 {
 	BT_DBG("");
 
 	if (gatt_svc == MESH_GATT_NONE) {
-		return K_FOREVER;
+		return -ENOENT;
 	}
 
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
@@ -1249,30 +1245,32 @@ int32_t bt_mesh_proxy_adv_start(void)
 			ADV_OPT_PROV
 			ADV_FAST_INT
 		};
+		struct ble_gap_adv_params slow_adv_param = {
+			ADV_OPT_PROV
+			ADV_SLOW_INT
+		};
 		struct bt_data prov_sd[1];
 		size_t prov_sd_len;
-
-		if (prov_fast_adv) {
-			param = &fast_adv_param;
-		} else {
-			struct ble_gap_adv_params slow_adv_param = {
-				ADV_OPT_PROV
-				ADV_SLOW_INT
-			};
-			param = &slow_adv_param;
-		}
+		int err;
 
 		prov_sd_len = gatt_prov_adv_create(prov_sd);
-
-		if (bt_le_adv_start(param, prov_ad, ARRAY_SIZE(prov_ad),
-				    prov_sd, prov_sd_len) == 0) {
-			gatt_adv_enabled = true;
-
-			/* Advertise 60 seconds using fast interval */
-			if (prov_fast_adv) {
+		if (!prov_fast_adv) {
+			param = &slow_adv_param;
+			return bt_mesh_adv_start(param,
+						 K_FOREVER, prov_ad,
+						 ARRAY_SIZE(prov_ad), prov_sd,
+						 prov_sd_len);
+		} else {
+			param = &fast_adv_param;
+			err = bt_mesh_adv_start(param,
+						(60 * MSEC_PER_SEC), prov_ad,
+						ARRAY_SIZE(prov_ad), prov_sd,
+						prov_sd_len);
+			if (!err) {
 				prov_fast_adv = false;
-				return K_SECONDS(60);
 			}
+
+			return err;
 		}
 	}
 #endif /* PB_GATT */
@@ -1283,7 +1281,7 @@ int32_t bt_mesh_proxy_adv_start(void)
 	}
 #endif /* GATT_PROXY */
 
-	return K_FOREVER;
+	return -ENOTSUP;
 }
 
 
@@ -1306,7 +1304,7 @@ static void ble_mesh_handle_connect(struct ble_gap_event *event, void *arg)
 			return;
 		}
 
-		proxy_connected(event->adv_complete.conn_handle);
+		gatt_connected(event->adv_complete.conn_handle);
 	}
 #else
 	if (event->type == BLE_GAP_EVENT_CONNECT) {
@@ -1337,25 +1335,6 @@ int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 	}
 
 	return 0;
-}
-
-
-void bt_mesh_proxy_adv_stop(void)
-{
-	int err;
-
-	BT_DBG("adv_enabled %u", gatt_adv_enabled);
-
-	if (!gatt_adv_enabled) {
-		return;
-	}
-
-	err = bt_le_adv_stop(true);
-	if (err) {
-		BT_ERR("Failed to stop advertising (err %d)", err);
-	} else {
-		gatt_adv_enabled = false;
-	}
 }
 
 static void resolve_svc_handles(void)
