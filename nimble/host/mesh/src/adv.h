@@ -61,7 +61,9 @@ struct bt_mesh_adv {
 	void *cb_data;
 
 	uint8_t      type:2,
-		  busy:1;
+		     started:1,
+		     busy:1;
+
 	uint8_t      xmit;
 
 	uint8_t flags;
@@ -100,19 +102,26 @@ int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
 		      const struct bt_data *sd, size_t sd_len);
 
 static inline void bt_mesh_adv_send_start(uint16_t duration, int err,
-					  const struct bt_mesh_send_cb *cb,
-					  void *cb_data)
+					  struct bt_mesh_adv *adv)
 {
-	if (cb && cb->start) {
-		cb->start(duration, err, cb_data);
+	if (!adv->started) {
+		adv->started = 1;
+
+		if (adv->cb && adv->cb->start) {
+			adv->cb->start(duration, err, adv->cb_data);
+		}
+
+		if (err) {
+			adv->cb = NULL;
+		}
 	}
 }
 
 static inline void bt_mesh_adv_send_end(
-	int err, const struct bt_mesh_send_cb *cb, void *cb_data)
+	int err, struct bt_mesh_adv const *adv)
 {
-	if (cb && cb->end) {
-		cb->end(err, cb_data);
+	if (adv->started && adv->cb && adv->cb->end) {
+		adv->cb->end(err, adv->cb_data);
 	}
 }
 int ble_adv_gap_mesh_cb(struct ble_gap_event *event, void *arg);
