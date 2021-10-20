@@ -14,6 +14,10 @@
 
 #define BT_MESH_ADV(om) (*(struct bt_mesh_adv **) OS_MBUF_USRHDR(om))
 
+#define BT_MESH_ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
+#define BT_MESH_SCAN_INTERVAL_MS 30
+#define BT_MESH_SCAN_WINDOW_MS   30
+
 #define BT_MESH_ADV_DATA_SIZE 31
 
 /* The user data is a pointer (4 bytes) to struct bt_mesh_adv */
@@ -23,12 +27,17 @@
                                     BT_MESH_ADV_USER_DATA_SIZE +\
 				    sizeof(struct os_mbuf))
 
+/* We declare it as extern here to share it between 'adv' and 'adv_legacy' */
+extern struct os_mbuf_pool adv_os_mbuf_pool;
+
 enum bt_mesh_adv_type
 {
 	BT_MESH_ADV_PROV,
 	BT_MESH_ADV_DATA,
 	BT_MESH_ADV_BEACON,
 	BT_MESH_ADV_URI,
+
+	BT_MESH_ADV_TYPES,
 };
 
 typedef void (*bt_mesh_adv_func_t)(struct os_mbuf *buf, uint16_t duration,
@@ -82,6 +91,29 @@ void bt_mesh_adv_init(void);
 int bt_mesh_scan_enable(void);
 
 int bt_mesh_scan_disable(void);
+int bt_mesh_adv_enable(void);
 
+void bt_mesh_adv_buf_ready(void);
+
+int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
+		      const struct bt_data *ad, size_t ad_len,
+		      const struct bt_data *sd, size_t sd_len);
+
+static inline void bt_mesh_adv_send_start(uint16_t duration, int err,
+					  const struct bt_mesh_send_cb *cb,
+					  void *cb_data)
+{
+	if (cb && cb->start) {
+		cb->start(duration, err, cb_data);
+	}
+}
+
+static inline void bt_mesh_adv_send_end(
+	int err, const struct bt_mesh_send_cb *cb, void *cb_data)
+{
+	if (cb && cb->end) {
+		cb->end(err, cb_data);
+	}
+}
 int ble_adv_gap_mesh_cb(struct ble_gap_event *event, void *arg);
 #endif
