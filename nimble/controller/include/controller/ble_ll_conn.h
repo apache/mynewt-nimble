@@ -45,16 +45,6 @@ extern "C" {
 /* Channel map size */
 #define BLE_LL_CONN_CHMAP_LEN           (5)
 
-/* Definitions for source clock accuracy */
-#define BLE_MASTER_SCA_251_500_PPM      (0)
-#define BLE_MASTER_SCA_151_250_PPM      (1)
-#define BLE_MASTER_SCA_101_150_PPM      (2)
-#define BLE_MASTER_SCA_76_100_PPM       (3)
-#define BLE_MASTER_SCA_51_75_PPM        (4)
-#define BLE_MASTER_SCA_31_50_PPM        (5)
-#define BLE_MASTER_SCA_21_30_PPM        (6)
-#define BLE_MASTER_SCA_0_20_PPM         (7)
-
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
