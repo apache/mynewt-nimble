@@ -16,6 +16,7 @@
 #include "beacon.h"
 #include "prov.h"
 #include "proxy.h"
+#include "pb_gatt_srv.h"
 
 #if MYNEWT_VAL(BLE_MESH_ADV_LEGACY)
 /* Convert from ms to 0.625ms units */
@@ -140,8 +141,15 @@ adv_thread(void *args)
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
 		ev = ble_npl_eventq_get(&adv_queue, 0);
 		while (!ev) {
-			timeout = bt_mesh_proxy_adv_start();
-			BT_DBG("Proxy Advertising up to %d ms", (int) timeout);
+			if (bt_mesh_is_provisioned()) {
+				if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+					timeout = bt_mesh_proxy_adv_start();
+					BT_DBG("Proxy Advertising up to %d ms", (int) timeout);
+				}
+			} else if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
+				timeout = bt_mesh_pb_gatt_adv_start();
+				BT_DBG("PB-GATT Advertising up to %d ms", (int) timeout);
+			}
 
 			// FIXME: should we redefine K_SECONDS macro instead in glue?
 			if (timeout != K_FOREVER) {

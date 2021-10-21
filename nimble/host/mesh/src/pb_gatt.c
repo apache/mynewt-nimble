@@ -6,6 +6,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
 #define MESH_LOG_MODULE BLE_MESH_PROV_LOG
 
 #include "mesh/mesh.h"
@@ -14,7 +15,10 @@
 #include "proxy.h"
 #include "adv.h"
 #include "prov.h"
+#include "syscfg/syscfg.h"
+#include "pb_gatt_srv.h"
 
+#if MYNEWT_VAL(BLE_MESH_PB_GATT)
 struct prov_bearer_send_cb {
 	prov_bearer_send_complete_t cb;
 	void *cb_data;
@@ -45,7 +49,7 @@ static void reset_state(void)
 	/* If this fails, the protocol timeout handler will exit early. */
 	(void)k_work_cancel_delayable(&link.prot_timer);
 
-	link.rx.buf = bt_mesh_proxy_get_buf();
+	link.rx.buf = bt_mesh_pb_gatt_get_buf();
 }
 
 static void link_closed(enum prov_bearer_link_status status)
@@ -127,7 +131,7 @@ int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 
 static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 {
-	(void)bt_mesh_proxy_prov_enable();
+	(void)bt_mesh_pb_gatt_enable();
 	bt_mesh_adv_update();
 
 	link.cb = cb;
@@ -178,3 +182,4 @@ const struct prov_bearer pb_gatt = {
 	.send = buf_send,
 	.clear_tx = clear_tx,
 };
+#endif
