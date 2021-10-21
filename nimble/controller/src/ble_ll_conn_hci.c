@@ -435,23 +435,13 @@ ble_ll_conn_hci_create_check_scan(struct ble_ll_conn_create_scan *p)
 static int
 ble_ll_conn_hci_create_check_params(struct ble_ll_conn_create_params *cc_params)
 {
-    uint32_t supervision_tmo_us;
-    uint32_t conn_itvl_us;
+    int rc;
 
-    if ((cc_params->conn_itvl < BLE_HCI_CONN_ITVL_MIN) ||
-        (cc_params->conn_itvl > BLE_HCI_CONN_ITVL_MAX) ||
-        (cc_params->conn_latency > BLE_HCI_CONN_LATENCY_MAX) ||
-        (cc_params->supervision_timeout < BLE_HCI_CONN_SPVN_TIMEOUT_MIN) ||
-        (cc_params->supervision_timeout > BLE_HCI_CONN_SPVN_TIMEOUT_MAX)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Supervision timeout must be longer than (1 + latency) * interval * 2 */
-    supervision_tmo_us = cc_params->supervision_timeout *
-                         BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-    conn_itvl_us = cc_params->conn_itvl * BLE_LL_CONN_ITVL_USECS;
-
-    if (supervision_tmo_us <= (1 + cc_params->conn_latency) * conn_itvl_us * 2) {
+    rc = ble_ll_conn_hci_chk_conn_params(cc_params->conn_itvl,
+                                         cc_params->conn_itvl,
+                                         cc_params->conn_latency,
+                                         cc_params->supervision_timeout);
+    if (rc) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
