@@ -26,6 +26,17 @@
 #include "proxy_msg.h"
 #include "pb_gatt_srv.h"
 
+#if defined(CONFIG_BT_MESH_PROXY_USE_DEVICE_NAME)
+#define ADV_OPT_USE_NAME BT_LE_ADV_OPT_USE_NAME
+#else
+#define ADV_OPT_USE_NAME 0
+#endif
+
+#define ADV_OPT_PROXY                                                           \
+.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
+.disc_mode = (BLE_GAP_DISC_MODE_GEN),
+
+
 #define BT_UUID_MESH_PROXY_VAL            0x1828
 #define CLIENT_BUF_SIZE 66
 
@@ -642,7 +653,7 @@ int bt_mesh_proxy_gatt_enable(void)
 	service_registered = true;
 
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
-		if (clients[i].cli->conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+		if (clients[i].cli) {
 			clients[i].filter_type = ACCEPT;
 		}
 	}
@@ -659,7 +670,7 @@ void bt_mesh_proxy_gatt_disconnect(void)
 	for (i = 0; i < ARRAY_SIZE(clients); i++) {
 		struct bt_mesh_proxy_client *client = &clients[i];
 
-		if ((client->cli->conn_handle != BLE_HS_CONN_HANDLE_NONE) &&
+		if ((client->cli) &&
 		    (client->filter_type == ACCEPT ||
 		    client->filter_type == REJECT)) {
 			client->filter_type = NONE;

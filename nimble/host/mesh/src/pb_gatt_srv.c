@@ -23,6 +23,16 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "../../host/src/ble_hs_priv.h"
 
+#if defined(CONFIG_BT_MESH_PB_GATT_USE_DEVICE_NAME)
+#define ADV_OPT_USE_NAME BT_LE_ADV_OPT_USE_NAME
+#else
+#define ADV_OPT_USE_NAME 0
+#endif
+
+#define ADV_OPT_PROV                                                           \
+.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
+.disc_mode = (BLE_GAP_DISC_MODE_GEN),
+
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
 /** @def BT_UUID_MESH_PROV
  *  @brief Mesh Provisioning Service
@@ -405,7 +415,18 @@ int bt_mesh_pb_gatt_adv_start(void)
 		ADV_OPT_PROV
 		ADV_FAST_INT
 	};
-	struct bt_data prov_sd[1];
+#if ADV_OPT_USE_NAME
+	const char *name = CONFIG_BT_DEVICE_NAME;
+	size_t name_len = strlen(name);
+	struct bt_data prov_sd = {
+		.type = BT_DATA_NAME_COMPLETE,
+		.data_len = name_len,
+		.data = (void *)name
+	};
+#else
+	struct bt_data *prov_sd = NULL;
+#endif
+
 	size_t prov_sd_len;
 	int err;
 

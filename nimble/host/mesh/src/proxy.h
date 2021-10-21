@@ -15,20 +15,6 @@
 #define ADV_OPT_USE_IDENTITY 0
 #endif
 
-#if CONFIG_BT_MESH_PROXY_USE_DEVICE_NAME
-#define ADV_OPT_USE_NAME BT_LE_ADV_OPT_USE_NAME
-#else
-#define ADV_OPT_USE_NAME 0
-#endif
-
-#define ADV_OPT_PROV                                                           \
-.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
-.disc_mode = (BLE_GAP_DISC_MODE_GEN),
-
-#define ADV_OPT_PROXY                                                          \
-.conn_mode = (BLE_GAP_CONN_MODE_UND),                                  \
-.disc_mode = (BLE_GAP_DISC_MODE_GEN),
-
 #define ADV_SLOW_INT                                                           \
 .itvl_min = BT_GAP_ADV_SLOW_INT_MIN,                             \
 .itvl_max = BT_GAP_ADV_SLOW_INT_MAX,
