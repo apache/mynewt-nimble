@@ -35,6 +35,7 @@
 #include "shell.h"
 #include "mesh_priv.h"
 #include "settings.h"
+#include "pb_gatt_srv.h"
 
 
 uint8_t g_mesh_addr_type;
@@ -315,7 +316,7 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 		return err;
 	}
 
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
+#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 	bt_mesh_proxy_init();
 #endif
 
@@ -378,14 +379,13 @@ int bt_mesh_start(void)
 		bt_mesh_beacon_disable();
 	}
 
-	/* For PB-GATT provision, will enable in le disconnect handler. */
-	if (bt_mesh_prov_link.bearer->type == BT_MESH_PROV_ADV) {
+	if (!IS_ENABLED(CONFIG_BT_MESH_PROV) || !bt_mesh_prov_active() ||
+	bt_mesh_prov_link.bearer->type == BT_MESH_PROV_ADV) {
 		if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-			(void)bt_mesh_proxy_prov_disable();
+			(void)bt_mesh_pb_gatt_disable();
 		}
 
-		if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
-		bt_mesh_gatt_proxy_get() != BT_MESH_GATT_PROXY_NOT_SUPPORTED) {
+		if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
 			(void)bt_mesh_proxy_gatt_enable();
 			bt_mesh_adv_update();
 		}

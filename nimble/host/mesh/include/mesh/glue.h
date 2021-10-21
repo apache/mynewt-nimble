@@ -406,6 +406,7 @@ typedef void (*bt_dh_key_cb_t)(const uint8_t key[BT_DH_KEY_LEN]);
 int bt_dh_key_gen(const uint8_t remote_pk[BT_PUB_KEY_LEN], bt_dh_key_cb_t cb);
 int bt_pub_key_gen(struct bt_pub_key_cb *new_cb);
 uint8_t *bt_pub_key_get(void);
+void bt_conn_get_info(struct ble_hs_conn *conn, struct ble_gap_conn_desc *desc);
 int bt_rand(void *buf, size_t len);
 const char * bt_hex(const void *buf, size_t len);
 int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data);

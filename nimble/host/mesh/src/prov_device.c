@@ -21,6 +21,7 @@
 #include "proxy.h"
 #include "prov.h"
 #include "settings.h"
+#include "pb_gatt_srv.h"
 
 static void send_pub_key(void);
 static void pub_key_ready(const uint8_t *pkey);
@@ -626,7 +627,7 @@ int bt_mesh_prov_disable(bt_mesh_prov_bearer_t bearers)
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT) &&
 	    (bearers & BT_MESH_PROV_GATT)) {
-		(void)bt_mesh_proxy_prov_disable();
+		(void)bt_mesh_pb_gatt_disable();
 	}
 
 	return 0;

@@ -22,6 +22,7 @@
 
 #include "mesh/glue.h"
 #include "adv.h"
+#include "../src/ble_hs_conn_priv.h"
 #ifndef MYNEWT
 #include "nimble/nimble_port.h"
 #endif
@@ -553,6 +554,33 @@ bt_dh_key_gen(const uint8_t remote_pk[64], bt_dh_key_cb_t cb)
 
     cb(dh);
     return 0;
+}
+
+void
+bt_conn_get_info(struct ble_hs_conn *conn,
+		 struct ble_gap_conn_desc *desc)
+{
+	struct ble_hs_conn_addrs addrs;
+
+	ble_hs_conn_addrs(conn, &addrs);
+
+	desc->our_id_addr = addrs.our_id_addr;
+	desc->peer_id_addr = addrs.peer_id_addr;
+	desc->our_ota_addr = addrs.our_ota_addr;
+	desc->peer_ota_addr = addrs.peer_ota_addr;
+
+	desc->conn_handle = conn->bhc_handle;
+	desc->conn_itvl = conn->bhc_itvl;
+	desc->conn_latency = conn->bhc_latency;
+	desc->supervision_timeout = conn->bhc_supervision_timeout;
+	desc->master_clock_accuracy = conn->bhc_master_clock_accuracy;
+	desc->sec_state = conn->bhc_sec_state;
+
+	if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
+		desc->role = BLE_GAP_ROLE_MASTER;
+	} else {
+		desc->role = BLE_GAP_ROLE_SLAVE;
+	}
 }
 
 int

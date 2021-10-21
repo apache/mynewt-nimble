@@ -150,8 +150,8 @@ syscfg.defs:
         descryption: >
             This option specifies how many Proxy Filter entries the local
             node supports.
-        value: 1
-        restrictions: BLE_MESH_GATT_SERVER
+        value: 3
+        restrictions: BLE_MESH_GATT_PROXY
 
     BLE_MESH_ACCESS_LAYER_MSG:
         descryption: >
