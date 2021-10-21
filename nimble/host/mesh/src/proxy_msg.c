@@ -58,6 +58,8 @@
 static uint8_t bufs[PROXY_MSG_FIRST_BUF_LEN +
 		    ((CONFIG_BT_MAX_CONN - 1) * PROXY_BUF_LEN_MAX)];
 
+static struct bt_mesh_proxy_role roles[CONFIG_BT_MAX_CONN];
+
 ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 			       const void *buf, uint16_t len)
 {
@@ -172,7 +174,7 @@ int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	return 0;
 }
 
-void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role)
+static void proxy_msg_init(struct bt_mesh_proxy_role *role)
 {
 	uint8_t i, len;
 	uint8_t *buf;
@@ -197,6 +199,41 @@ void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role)
 	net_buf_simple_init_with_data(role->buf, buf, len);
 
 	net_buf_simple_reset(role->buf);
+}
+
+struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
+	proxy_send_cb_t send,
+	proxy_recv_cb_t recv)
+{
+	struct bt_mesh_proxy_role *role;
+
+	role = &roles[conn_handle];
+
+	role->conn_handle = conn_handle;
+	proxy_msg_init(role);
+
+	role->cb.recv = recv;
+	role->cb.send = send;
+
+	return role;
+}
+
+void gatt_disconnected_proxy_msg(uint16_t conn_handle, uint8_t reason)
+{
+	struct bt_mesh_proxy_role *role;
+
+	BT_DBG("conn_handle %d reason 0x%02x", conn_handle, reason);
+
+	role = &roles[conn_handle];
+
+	/* If this fails, the work handler exits early, as
+	 * there's no active connection.
+	 */
+	(void)k_work_cancel_delayable(&role->sar_timer);
+
+	role->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+	bt_mesh_adv_update();
 }
 
 #endif /* MYNEWT_VAL(BLE_MESH_PROXY) */

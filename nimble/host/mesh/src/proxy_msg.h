@@ -44,10 +44,26 @@ struct bt_mesh_proxy_role {
 	struct os_mbuf *buf;
 };
 
+struct bt_mesh_proxy_client {
+	struct bt_mesh_proxy_role *cli;
+	uint16_t filter[MYNEWT_VAL(BLE_MESH_PROXY_FILTER_SIZE)];
+	enum __packed {
+		NONE,
+		ACCEPT,
+		REJECT,
+		PROV,
+		} filter_type;
+	struct ble_npl_callout send_beacons;
+};
+
 ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 	const void *buf, uint16_t len);
 int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	struct os_mbuf *msg, void (*end)(uint16_t, void *), void *user_data);
 void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role);
-
+void gatt_disconnected_proxy_msg(uint16_t conn_handle, uint8_t reason);
+struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
+						    proxy_send_cb_t send,
+						    proxy_recv_cb_t recv);
+struct bt_mesh_proxy_client *find_client(uint16_t conn_handle);
 #endif /* ZEPHYR_SUBSYS_BLUETOOTH_MESH_PROXY_MSG_H_ */
