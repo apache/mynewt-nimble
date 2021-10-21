@@ -181,16 +181,6 @@ int prov_ccc_write(uint16_t conn_handle, uint8_t type)
 }
 
 /* Mesh Provisioning Service Declaration */
-struct os_mbuf *bt_mesh_pb_gatt_get_buf(void)
-{
-	struct os_mbuf *buf = cli.buf;
-
-	if (buf != NULL) {
-		net_buf_simple_init(buf, 0);
-	}
-
-	return buf;
-}
 
 static int
 dummy_access_cb(uint16_t conn_handle, uint16_t attr_handle,

@@ -35,7 +35,6 @@ struct prov_link {
 		uint8_t  seg;       /* Bit-field of unreceived segments */
 		uint8_t  last_seg;  /* Last segment (to check length) */
 		uint8_t  fcs;       /* Expected FCS value */
-		struct os_mbuf *buf;
 	} rx;
 	struct k_work_delayable prot_timer;
 };
@@ -48,8 +47,6 @@ static void reset_state(void)
 
 	/* If this fails, the protocol timeout handler will exit early. */
 	(void)k_work_cancel_delayable(&link.prot_timer);
-
-	link.rx.buf = bt_mesh_pb_gatt_get_buf();
 }
 
 static void link_closed(enum prov_bearer_link_status status)
