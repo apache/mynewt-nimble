@@ -14,8 +14,6 @@ int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
 int bt_mesh_pb_gatt_enable(void);
 int bt_mesh_pb_gatt_disable(void);
 
-struct os_mbuf *bt_mesh_pb_gatt_get_buf(void);
-
 int prov_ccc_write(uint16_t conn_handle, uint8_t type);
 void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t err);
 void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err);
