@@ -155,14 +155,8 @@ void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)
 
 	bt_mesh_pb_gatt_close(conn_handle);
 
-	if (!bt_mesh_is_provisioned()) {
-		return;
-	}
-
-	(void)bt_mesh_pb_gatt_disable();
-
-	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-		(void)bt_mesh_proxy_gatt_enable();
+	if (bt_mesh_is_provisioned()) {
+		(void)bt_mesh_pb_gatt_disable();
 	}
 }
 

@@ -847,11 +847,22 @@ static void gatt_connected(uint16_t conn_handle)
 
 static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
 {
-	BT_DBG("conn handle %u reason 0x%02x", conn_handle, reason);
+	struct ble_gap_conn_desc info;
 	struct bt_mesh_proxy_client *client;
+	struct ble_hs_conn *conn;
+
+	conn = ble_hs_conn_find(conn_handle);
+	bt_conn_get_info(conn, &info);
+	if (info.role != BLE_GAP_ROLE_SLAVE) {
+		return;
+	}
+
+	if (!service_registered && bt_mesh_is_provisioned()) {
+		(void)bt_mesh_proxy_gatt_enable();
+		return;
+	}
 
 	conn_count--;
-
 	client = find_client(conn_handle);
 	client->cli = NULL;
 }
