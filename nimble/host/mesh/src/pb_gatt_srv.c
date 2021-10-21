@@ -73,13 +73,30 @@ static struct {
 	uint16_t prov_data_out_h;
 } svc_handles;
 
+static void proxy_complete_pdu(struct bt_mesh_proxy_role *role);
 static int gatt_send(uint16_t conn_handle,
 		     const void *data, uint16_t len,
 		     void (*end)(uint16_t, void *), void *user_data);
 
 static struct bt_mesh_proxy_role cli = {
-	.cb.send = gatt_send,
+	.cb = {
+		.send = gatt_send,
+		.recv = proxy_complete_pdu,
+	},
 };
+
+static void proxy_complete_pdu(struct bt_mesh_proxy_role *role)
+{
+	switch (role->msg_type) {
+	case BT_MESH_PROXY_PROV:
+		BT_DBG("Mesh Provisioning PDU");
+		bt_mesh_pb_gatt_recv(role->conn_handle, role->buf);
+		break;
+	default:
+		BT_WARN("Unhandled Message Type 0x%02x", role->msg_type);
+		break;
+	}
+}
 
 static bool service_registered;
 
