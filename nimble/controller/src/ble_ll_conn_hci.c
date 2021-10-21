@@ -23,7 +23,6 @@
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
-#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_ll.h"

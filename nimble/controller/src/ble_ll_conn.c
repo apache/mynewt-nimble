@@ -25,10 +25,8 @@
 #include "os/os.h"
 #include "os/os_cputime.h"
 #include "nimble/ble.h"
-#include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
-#include "ble/xcvr.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
@@ -40,7 +38,6 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_phy.h"
-#include "controller/ble_hw.h"
 #include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
 
