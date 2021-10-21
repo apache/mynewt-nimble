@@ -58,75 +58,6 @@
 static uint8_t bufs[PROXY_MSG_FIRST_BUF_LEN +
 		    ((CONFIG_BT_MAX_CONN - 1) * PROXY_BUF_LEN_MAX)];
 
-#if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
-static void proxy_cfg(struct bt_mesh_proxy_role *role)
-{
-	struct os_mbuf *buf = NET_BUF_SIMPLE(BT_MESH_NET_MAX_PDU_LEN);
-	struct bt_mesh_net_rx rx;
-	int err;
-
-	err = bt_mesh_net_decode(role->buf, BT_MESH_NET_IF_PROXY_CFG,
-				 &rx, buf);
-	if (err) {
-		BT_ERR("Failed to decode Proxy Configuration (err %d)", err);
-		goto done;
-	}
-
-	rx.local_match = 1U;
-
-	if (bt_mesh_rpl_check(&rx, NULL)) {
-		BT_WARN("Replay: src 0x%04x dst 0x%04x seq 0x%06x",
-			rx.ctx.addr, rx.ctx.recv_dst, rx.seq);
-		goto done;
-	}
-
-	/* Remove network headers */
-	net_buf_simple_pull_mem(buf, BT_MESH_NET_HDR_LEN);
-
-	BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
-
-	if (buf->om_len < 1) {
-		BT_WARN("Too short proxy configuration PDU");
-		goto done;
-	}
-
-	role->cb.recv(role->conn_handle, &rx, buf);
-done:
-	os_mbuf_free_chain(buf);
-}
-#endif /* GATT_PROXY */
-
-static void proxy_complete_pdu(struct bt_mesh_proxy_role *role)
-{
-	switch (role->msg_type) {
-#if defined(CONFIG_BT_MESH_PROXY)
-	case BT_MESH_PROXY_NET_PDU:
-		BT_INFO("Mesh Network PDU");
-		bt_mesh_net_recv(role->buf, 0, BT_MESH_NET_IF_PROXY);
-		break;
-	case BT_MESH_PROXY_BEACON:
-		BT_INFO("Mesh Beacon PDU");
-		bt_mesh_beacon_recv(role->buf);
-		break;
-	case BT_MESH_PROXY_CONFIG:
-		BT_INFO("Mesh Configuration PDU");
-		proxy_cfg(role);
-		break;
-#endif
-#if (MYNEWT_VAL(BLE_MESH_PB_GATT))
-	case BT_MESH_PROXY_PROV:
-		BT_INFO("Mesh Provisioning PDU");
-		bt_mesh_pb_gatt_recv(role->conn_handle, role->buf);
-		break;
-#endif
-	default:
-		BT_WARN("Unhandled Message Type 0x%02x", role->msg_type);
-		break;
-	}
-
-	net_buf_simple_init(role->buf, 0);
-}
-
 ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 			       const void *buf, uint16_t len)
 {
@@ -141,7 +72,8 @@ ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 
 		role->msg_type = PDU_TYPE(data);
 		net_buf_simple_add_mem(role->buf, data + 1, len - 1);
-		proxy_complete_pdu(role);
+		role->cb.recv(role);
+		net_buf_simple_reset(role->buf);
 		break;
 
 	case SAR_FIRST:
@@ -186,7 +118,8 @@ ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 		 */
 		(void)k_work_cancel_delayable(&role->sar_timer);
 		net_buf_simple_add_mem(role->buf, data + 1, len - 1);
-		proxy_complete_pdu(role);
+		role->cb.recv(role);
+		net_buf_simple_reset(role->buf);
 		break;
 	}
 
