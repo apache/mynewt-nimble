@@ -51,7 +51,6 @@ struct bt_mesh_proxy_client {
 		NONE,
 		ACCEPT,
 		REJECT,
-		PROV,
 		} filter_type;
 	struct ble_npl_callout send_beacons;
 };

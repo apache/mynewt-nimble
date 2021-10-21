@@ -115,6 +115,12 @@ syscfg.defs:
         restrictions:
             - '(BLE_MESH_GATT_SERVER && BLE_MESH_PROV)'
 
+    BLE_MESH_PB_GATT_USE_DEVICE_NAME:
+        description: >
+            This option includes GAP device name in scan response when
+            the PB-GATT is enabled.
+        value: 1
+
     BLE_MESH_GATT_PROXY:
         description: >
             This option enables support for the Mesh GATT Proxy Service,
