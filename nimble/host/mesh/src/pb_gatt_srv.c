@@ -24,8 +24,6 @@
 #include "../../host/src/ble_hs_priv.h"
 
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-#define CLIENT_BUF_SIZE 66
-
 /** @def BT_UUID_MESH_PROV
  *  @brief Mesh Provisioning Service
  */
@@ -124,8 +122,6 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
 	cli.conn_handle = conn_handle;
 
 	BT_DBG("conn %p err 0x%02x", (void *)conn, err);
-
-	net_buf_simple_reset(cli.buf);
 }
 
 void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)

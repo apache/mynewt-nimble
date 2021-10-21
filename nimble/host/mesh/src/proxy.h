@@ -51,8 +51,6 @@ void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub);
 bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst);
 void bt_mesh_proxy_addr_add(struct os_mbuf *buf, uint16_t addr);
 
-int bt_mesh_proxy_init(void);
-
 int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg);
 
 #endif /* __PROXY_H__ */

@@ -818,7 +818,8 @@ static void gatt_connected(uint16_t conn_handle)
 	client->cli.conn_handle = conn_handle;
 	client->filter_type = NONE;
 	(void)memset(client->filter, 0, sizeof(client->filter));
-	net_buf_simple_init(client->cli.buf, 0);
+
+	bt_mesh_proxy_msg_init(&client->cli);
 }
 
 static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
@@ -950,8 +951,6 @@ int bt_mesh_proxy_init(void)
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 		k_work_init(&clients[i].send_beacons, proxy_send_beacons);
 #endif
-		clients[i].cli.buf = NET_BUF_SIMPLE(CLIENT_BUF_SIZE);
-		clients[i].cli.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 		k_work_init_delayable(&clients[i].cli.sar_timer, proxy_sar_timeout);
 		k_work_add_arg_delayable(&clients[i].cli.sar_timer, &clients[i]);
