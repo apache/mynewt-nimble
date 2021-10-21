@@ -73,19 +73,13 @@ static struct {
 	uint16_t prov_data_out_h;
 } svc_handles;
 
-static void proxy_complete_pdu(struct bt_mesh_proxy_role *role);
 static int gatt_send(uint16_t conn_handle,
 		     const void *data, uint16_t len,
 		     void (*end)(uint16_t, void *), void *user_data);
 
-static struct bt_mesh_proxy_role cli = {
-	.cb = {
-		.send = gatt_send,
-		.recv = proxy_complete_pdu,
-	},
-};
+static struct bt_mesh_proxy_role *cli;
 
-static void proxy_complete_pdu(struct bt_mesh_proxy_role *role)
+static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 {
 	switch (role->msg_type) {
 	case BT_MESH_PROXY_PROV:
@@ -105,9 +99,10 @@ static ssize_t gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
 {
 	const uint8_t *data = ctxt->om->om_data;
 	uint16_t len = ctxt->om->om_len;
+	struct bt_mesh_proxy_client *client = find_client(conn_handle);
 
 
-	if (conn_handle != cli.conn_handle) {
+	if (conn_handle != cli->conn_handle) {
 		return -ENOTCONN;
 	}
 
@@ -121,7 +116,7 @@ static ssize_t gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
 		return -EINVAL;
 	}
 
-	return bt_mesh_proxy_msg_recv(&cli, data, len);
+	return bt_mesh_proxy_msg_recv(client->cli, data, len);
 }
 
 void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
@@ -136,7 +131,7 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
 		return;
 	}
 
-	cli.conn_handle = conn_handle;
+	cli = bt_mesh_proxy_role_setup(conn_handle, gatt_send, proxy_msg_recv);
 
 	BT_DBG("conn %p err 0x%02x", (void *)conn, err);
 }
@@ -154,31 +149,26 @@ void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)
 		return;
 	}
 
-	if (cli.conn_handle != conn_handle) {
-		BT_WARN("No PB-GATT Client found");
-		return;
-	}
+	cli = NULL;
 
 	BT_DBG("conn %p reason 0x%02x", (void *)conn, reason);
 
 	bt_mesh_pb_gatt_close(conn_handle);
 
-	if (bt_mesh_is_provisioned()) {
-		(void)bt_mesh_pb_gatt_disable();
-
-		if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-			(void)bt_mesh_proxy_gatt_enable();
-		}
+	if (!bt_mesh_is_provisioned()) {
+		return;
 	}
 
-	cli.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+	(void)bt_mesh_pb_gatt_disable();
 
-	bt_mesh_adv_update();
+	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+		(void)bt_mesh_proxy_gatt_enable();
+	}
 }
 
 int prov_ccc_write(uint16_t conn_handle, uint8_t type)
 {
-	if (cli.conn_handle != conn_handle) {
+	if (cli->conn_handle != conn_handle) {
 		BT_ERR("No PB-GATT Client found");
 		return -ENOTCONN;
 	}
@@ -357,12 +347,12 @@ static const struct bt_data prov_ad[] = {
 int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
 			 void (*end)(uint16_t, void *), void *user_data)
 {
-	if (cli.conn_handle != conn_handle) {
+	if (!cli || cli->conn_handle != conn_handle) {
 		BT_ERR("No PB-GATT Client found");
 		return -ENOTCONN;
 	}
 
-	return bt_mesh_proxy_msg_send(&cli, BT_MESH_PROXY_PROV, buf, end, user_data);
+	return bt_mesh_proxy_msg_send(cli, BT_MESH_PROXY_PROV, buf, end, user_data);
 }
 
 static size_t gatt_prov_adv_create(struct bt_data prov_sd[1])
