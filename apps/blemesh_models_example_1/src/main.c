@@ -68,19 +68,19 @@
 #define BT_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK	BT_MESH_MODEL_OP_2(0x82, 0x03)
 #define BT_MESH_MODEL_OP_GEN_ONOFF_STATUS	BT_MESH_MODEL_OP_2(0x82, 0x04)
 
-static void gen_onoff_set(struct bt_mesh_model *model,
+static int gen_onoff_set(struct bt_mesh_model *model,
                           struct bt_mesh_msg_ctx *ctx,
                           struct os_mbuf *buf);
 
-static void gen_onoff_set_unack(struct bt_mesh_model *model,
+static int gen_onoff_set_unack(struct bt_mesh_model *model,
                                 struct bt_mesh_msg_ctx *ctx,
                                 struct os_mbuf *buf);
 
-static void gen_onoff_get(struct bt_mesh_model *model,
+static int gen_onoff_get(struct bt_mesh_model *model,
                           struct bt_mesh_msg_ctx *ctx,
                           struct os_mbuf *buf);
 
-static void gen_onoff_status(struct bt_mesh_model *model,
+static int gen_onoff_status(struct bt_mesh_model *model,
                              struct bt_mesh_msg_ctx *ctx,
                              struct os_mbuf *buf);
 
@@ -318,26 +318,29 @@ static uint16_t primary_net_idx;
  *
  */
 
-static void gen_onoff_get(struct bt_mesh_model *model,
+static int gen_onoff_get(struct bt_mesh_model *model,
                           struct bt_mesh_msg_ctx *ctx,
                           struct os_mbuf *buf)
 {
     struct os_mbuf *msg = NET_BUF_SIMPLE(2 + 1 + 4);
     struct onoff_state *state = model->user_data;
+    int rc;
 
     BT_INFO("addr 0x%04x onoff 0x%02x",
                 bt_mesh_model_elem(model)->addr, state->current);
     bt_mesh_model_msg_init(msg, BT_MESH_MODEL_OP_GEN_ONOFF_STATUS);
     net_buf_simple_add_u8(msg, state->current);
 
-    if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+    rc = bt_mesh_model_send(model, ctx, msg, NULL, NULL);
+    if (rc) {
         BT_ERR("Unable to send On Off Status response");
     }
 
     os_mbuf_free_chain(msg);
+    return rc;
 }
 
-static void gen_onoff_set_unack(struct bt_mesh_model *model,
+static int gen_onoff_set_unack(struct bt_mesh_model *model,
                                 struct bt_mesh_msg_ctx *ctx,
                                 struct os_mbuf *buf)
 {
@@ -372,23 +375,34 @@ static void gen_onoff_set_unack(struct bt_mesh_model *model,
                                BT_MESH_MODEL_OP_GEN_ONOFF_STATUS);
         net_buf_simple_add_u8(msg, state->current);
         err = bt_mesh_model_publish(model);
-        if (err) {
+        if (err != 0) {
             BT_ERR("bt_mesh_model_publish err %d", err);
+            return err;
         }
     }
+    return 0;
 }
 
-static void gen_onoff_set(struct bt_mesh_model *model,
+static int gen_onoff_set(struct bt_mesh_model *model,
                           struct bt_mesh_msg_ctx *ctx,
                           struct os_mbuf *buf)
 {
     BT_INFO("");
+    int rc;
 
-    gen_onoff_set_unack(model, ctx, buf);
-    gen_onoff_get(model, ctx, buf);
+    rc = gen_onoff_set_unack(model, ctx, buf);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = gen_onoff_get(model, ctx, buf);
+    if (rc != 0) {
+        return rc;
+    }
+    return 0;
 }
 
-static void gen_onoff_status(struct bt_mesh_model *model,
+static int gen_onoff_status(struct bt_mesh_model *model,
                              struct bt_mesh_msg_ctx *ctx,
                              struct os_mbuf *buf)
 {
@@ -398,6 +412,7 @@ static void gen_onoff_status(struct bt_mesh_model *model,
 
     BT_INFO("Node 0x%04x OnOff status from 0x%04x with state 0x%02x",
                 bt_mesh_model_elem(model)->addr, ctx->addr, state);
+    return 0;
 }
 
 static int output_number(bt_mesh_output_action_t action, uint32_t number)
