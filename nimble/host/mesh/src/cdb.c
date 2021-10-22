@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define BT_DBG_ENABLED MYNEWT_VAL(BLE_MESH_DEBUG_CDB)
-#define LOG_MODULE_NAME bt_mesh_cdb
+#define MESH_LOG_MODULE BLE_MESH_LOG
 #include "log/log.h"
 #include <stdlib.h>
 

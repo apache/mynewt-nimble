@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define BT_DBG_ENABLED CONFIG_BT_MESH_DEBUG_PROXY
-#define LOG_MODULE_NAME bt_mesh_gatt
+#define MESH_LOG_MODULE BLE_MESH_PROXY_LOG
 
 #include "../../host/src/ble_hs_priv.h"
 #include "services/gatt/ble_svc_gatt.h"

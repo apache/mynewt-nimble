@@ -8,7 +8,6 @@
  */
 
 #define MESH_LOG_MODULE BLE_MESH_ADV_LOG
-#define LOG_MODULE_NAME bt_mesh_adv_legacy
 
 #include "adv.h"
 #include "net.h"

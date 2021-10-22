@@ -8,9 +8,6 @@
 
 #include "mesh/mesh.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_ACCESS)
-#define LOG_MODULE_NAME bt_mesh_msg
-
 void bt_mesh_model_msg_init(struct os_mbuf *msg, uint32_t opcode)
 {
 	net_buf_simple_init(msg, 0);
