@@ -159,7 +159,10 @@ void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)
 		return;
 	}
 
-	cli = NULL;
+	if (cli) {
+		bt_mesh_proxy_role_cleanup(cli);
+		cli = NULL;
+	}
 
 	BT_DBG("conn %p reason 0x%02x", (void *)conn, reason);
 

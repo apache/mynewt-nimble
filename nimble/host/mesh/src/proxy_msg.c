@@ -200,13 +200,8 @@ struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
 	return role;
 }
 
-void gatt_disconnected_proxy_msg(uint16_t conn_handle, uint8_t reason)
+void bt_mesh_proxy_role_cleanup(struct bt_mesh_proxy_role *role)
 {
-	struct bt_mesh_proxy_role *role;
-
-	BT_DBG("conn_handle %d reason 0x%02x", conn_handle, reason);
-
-	role = &roles[conn_handle];
 
 	/* If this fails, the work handler exits early, as
 	 * there's no active connection.

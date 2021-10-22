@@ -60,7 +60,7 @@ ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	struct os_mbuf *msg, void (*end)(uint16_t, void *), void *user_data);
 void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role);
-void gatt_disconnected_proxy_msg(uint16_t conn_handle, uint8_t reason);
+void bt_mesh_proxy_role_cleanup(struct bt_mesh_proxy_role *role);
 struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
 						    proxy_send_cb_t send,
 						    proxy_recv_cb_t recv);
