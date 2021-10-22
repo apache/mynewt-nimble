@@ -15,6 +15,7 @@
 #include "beacon.h"
 #include "prov.h"
 #include "proxy.h"
+#include "mesh/glue.h"
 #include "pb_gatt_srv.h"
 
 #if MYNEWT_VAL(BLE_MESH_ADV_LEGACY)
@@ -29,7 +30,6 @@
 
 static int32_t adv_int_min =  ADV_INT_DEFAULT_MS;
 
-#if !MYNEWT_VAL(BLE_EXT_ADV)
 static int adv_initialized = false;
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
@@ -42,7 +42,6 @@ static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
 	MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
 	BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
 static struct os_mempool adv_buf_mempool;
-#endif
 static struct ble_npl_eventq adv_queue;
 
 static inline void adv_send(struct os_mbuf *buf)

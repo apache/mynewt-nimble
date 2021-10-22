@@ -866,7 +866,6 @@ int bt_mesh_model_extend(struct bt_mesh_model *extending_mod, struct bt_mesh_mod
 		a->next = b;
 	}
 
-	mod->extends = base_mod;
 	return 0;
 }
 #endif
