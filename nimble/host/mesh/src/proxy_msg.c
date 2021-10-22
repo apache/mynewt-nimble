@@ -46,17 +46,7 @@
 
 #define PDU_HDR(sar, type) (sar << 6 | (type & BIT_MASK(6)))
 
-#define PB_GATT_BUF_LEN_MAX	66
-#define PROXY_BUF_LEN_MAX	30
-
-#if defined(CONFIG_BT_MESH_PB_GATT)
-#define PROXY_MSG_BUF_LEN PB_GATT_BUF_LEN_MAX
-#else
-#define PROXY_MSG_BUF_LEN PROXY_BUF_LEN_MAX
-#endif
-
-static uint8_t bufs[CONFIG_BT_MAX_CONN +
-		    ((CONFIG_BT_MAX_CONN - 1) * PROXY_BUF_LEN_MAX)];
+static uint8_t bufs[CONFIG_BT_MAX_CONN * CONFIG_BT_MESH_PROXY_MSG_LEN];
 
 static struct bt_mesh_proxy_role roles[CONFIG_BT_MAX_CONN];
 
@@ -186,8 +176,9 @@ static void proxy_msg_init(struct bt_mesh_proxy_role *role)
 	}
 
 	net_buf_simple_init_with_data(role->buf,
-				      &bufs[role->conn_handle * PROXY_MSG_BUF_LEN],
-				      PROXY_MSG_BUF_LEN);
+				      &bufs[role->conn_handle *
+				      CONFIG_BT_MESH_PROXY_MSG_LEN],
+				      CONFIG_BT_MESH_PROXY_MSG_LEN);
 
 	net_buf_simple_reset(role->buf);
 }

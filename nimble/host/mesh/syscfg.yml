@@ -103,6 +103,12 @@ syscfg.defs:
     BLE_MESH_GATT:
         value: 1
 
+    BLE_MESH_PROXY_MSG_LEN:
+        description: >
+            Integer value
+        value:
+        restrictions: BLE_MESH_GATT
+
     BLE_MESH_GATT_SERVER:
         value: 1
         restrictions: BLE_MESH_GATT
@@ -970,3 +976,8 @@ syscfg.vals.BLE_MESH_PB_GATT:
 
 syscfg.vals.BLE_MESH_PB_ADV:
     BLE_MESH_PROV: 1
+
+syscfg.vals.'BLE_MESH_PB_GATT':
+    BLE_MESH_PROXY_MSG_LEN: 66
+syscfg.vals.'BLE_MESH_GATT_PROXY':
+    BLE_MESH_PROXY_MSG_LEN: 33

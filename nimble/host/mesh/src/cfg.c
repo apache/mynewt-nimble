@@ -15,8 +15,7 @@
 #include "cfg.h"
 #include "mesh/glue.h"
 
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_CFG)
-#define LOG_MODULE_NAME bt_mesh_cfg
+#define MESH_LOG_MODULE BLE_MESH_LOG
 #include "log/log.h"
 
 /* Miscellaneous configuration server model states */
