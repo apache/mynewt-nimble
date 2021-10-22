@@ -167,11 +167,11 @@ extern struct bt_mesh_model s0_models[];
 
 extern const struct bt_mesh_comp comp;
 
-void gen_onoff_publish(struct bt_mesh_model *model);
-void gen_level_publish(struct bt_mesh_model *model);
-void light_lightness_publish(struct bt_mesh_model *model);
-void light_lightness_linear_publish(struct bt_mesh_model *model);
-void light_ctl_publish(struct bt_mesh_model *model);
-void light_ctl_temp_publish(struct bt_mesh_model *model);
+int gen_onoff_publish(struct bt_mesh_model *model);
+int gen_level_publish(struct bt_mesh_model *model);
+int light_lightness_publish(struct bt_mesh_model *model);
+int light_lightness_linear_publish(struct bt_mesh_model *model);
+int light_ctl_publish(struct bt_mesh_model *model);
+int light_ctl_temp_publish(struct bt_mesh_model *model);
 
 #endif
