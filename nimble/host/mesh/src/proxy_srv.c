@@ -874,7 +874,10 @@ static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
 
 	conn_count--;
 	client = find_client(conn_handle);
-	client->cli = NULL;
+	if (client->cli) {
+		bt_mesh_proxy_role_cleanup(client->cli);
+		client->cli = NULL;
+	}
 }
 
 static int proxy_send(uint16_t conn_handle,
@@ -953,10 +956,6 @@ int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
 		gatt_disconnected_pb_gatt(event->disconnect.conn.conn_handle,
 				  event->disconnect.reason);
-#endif
-#if MYNEWT_VAL(BLE_MESH_PROXY)
-		gatt_disconnected_proxy_msg(event->disconnect.conn.conn_handle,
-					    event->disconnect.reason);
 #endif
 	} else if (event->type == BLE_GAP_EVENT_SUBSCRIBE) {
 		if (event->subscribe.attr_handle == svc_handles.proxy_data_out_h) {
