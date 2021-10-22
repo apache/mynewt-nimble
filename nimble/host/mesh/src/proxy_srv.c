@@ -932,7 +932,7 @@ static void ble_mesh_handle_connect(struct ble_gap_event *event, void *arg)
 		gatt_connected(event->adv_complete.conn_handle);
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
 		gatt_connected_pb_gatt(event->adv_complete.conn_handle,
-				       event->adv_complete.status);
+				       event->adv_complete.reason);
 #endif
 	}
 #else

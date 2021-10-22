@@ -834,13 +834,12 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
 
     return 0;
 }
+#endif
 
 int bt_le_adv_stop()
 {
-	return ble_gap_adv_stop();
+    return ble_gap_adv_stop();
 }
-
-#endif
 
 #if MYNEWT_VAL(BLE_MESH_PROXY)
 int bt_mesh_proxy_svcs_register(void);
