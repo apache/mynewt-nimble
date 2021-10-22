@@ -547,6 +547,7 @@ static inline unsigned int find_msb_set(uint32_t op)
 #define CONFIG_BT_MESH_RELAY                     MYNEWT_VAL(BLE_MESH_RELAY)
 #define CONFIG_BT_MESH_RELAY_RETRANSMIT_COUNT    MYNEWT_VAL(BLE_MESH_RELAY_RETRANSMIT_COUNT)
 #define CONFIG_BT_MESH_GATT_PROXY_ENABLED        MYNEWT_VAL(BLE_MESH_GATT_PROXY_ENABLED)
+#define CONFIG_BT_MESH_PROXY_MSG_LEN             MYNEWT_VAL(BLE_MESH_PROXY_MSG_LEN)
 
 #define printk console_printf
 
