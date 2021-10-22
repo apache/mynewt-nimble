@@ -85,6 +85,15 @@ struct bt_mesh_net bt_mesh = {
 	.local_queue = STAILQ_HEAD_INITIALIZER(bt_mesh.local_queue),
 };
 
+/* Mesh Profile Specification 3.10.6
+ * The node shall not execute more than one IV Index Recovery within a period of
+ * 192 hours.
+ *
+ * Mark that the IV Index Recovery has been done to prevent two recoveries to be
+ * done before a normal IV Index update has been completed within 96h+96h.
+ */
+static bool ivi_was_recovered;
+
 static struct os_mbuf_pool loopback_os_mbuf_pool;
 static struct os_mempool loopback_buf_mempool;
 os_membuf_t loopback_mbuf_membuf[
@@ -259,23 +268,23 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 			return false;
 		}
 
-		if (iv_index > bt_mesh.iv_index + 1) {
+		if ((iv_index > bt_mesh.iv_index + 1) ||
+		(iv_index == bt_mesh.iv_index + 1 && !iv_update)) {
+			if (ivi_was_recovered) {
+				BT_ERR("IV Index Recovery before minimum delay");
+				return false;
+			}
+			/* The Mesh profile specification allows to initiate an
+			 * IV Index Recovery procedure if previous IV update has
+			 * been missed. This allows the node to remain
+			 * functional.
+			 */
 			BT_WARN("Performing IV Index Recovery");
+			ivi_was_recovered = true;
 			bt_mesh_rpl_clear();
 			bt_mesh.iv_index = iv_index;
 			bt_mesh.seq = 0;
 			goto do_update;
-		}
-
-		if (iv_index == bt_mesh.iv_index + 1 && !iv_update) {
-			BT_WARN("Ignoring new index in normal mode");
-			return false;
-		}
-
-		if (!iv_update) {
-			/* Nothing to do */
-			BT_DBG("Already in Normal state");
-			return false;
 		}
 	}
 
@@ -294,20 +303,21 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 		return false;
 	}
 
-do_update:
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
-	bt_mesh.ivu_duration = 0U;
-
 	if (iv_update) {
 		bt_mesh.iv_index = iv_index;
 		BT_DBG("IV Update state entered. New index 0x%08x",
 		       (unsigned) bt_mesh.iv_index);
 
 		bt_mesh_rpl_reset();
+		ivi_was_recovered = false;
 	} else {
 		BT_DBG("Normal mode entered");
 		bt_mesh.seq = 0;
 	}
+
+do_update:
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
+	bt_mesh.ivu_duration = 0U;
 
 	k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 
