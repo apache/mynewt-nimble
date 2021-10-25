@@ -48,7 +48,6 @@ static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
 	MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
 	BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
 static struct os_mempool adv_buf_mempool;
-static struct ble_npl_eventq adv_queue;
 
 static inline void adv_send(struct os_mbuf *buf)
 {
@@ -143,7 +142,7 @@ mesh_adv_thread(void *args)
 
 	while (1) {
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
-		ev = ble_npl_eventq_get(&adv_queue, 0);
+		ev = ble_npl_eventq_get(&bt_mesh_adv_queue, 0);
 		while (!ev) {
 			if (bt_mesh_is_provisioned()) {
 				if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
@@ -160,11 +159,11 @@ mesh_adv_thread(void *args)
 				timeout = ble_npl_time_ms_to_ticks32(timeout);
 			}
 
-			ev = ble_npl_eventq_get(&adv_queue, timeout);
+			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, timeout);
 			bt_le_adv_stop();
 		}
 #else
-		ev = ble_npl_eventq_get(&adv_queue, BLE_NPL_TIME_FOREVER);
+		ev = ble_npl_eventq_get(&bt_mesh_adv_queue, BLE_NPL_TIME_FOREVER);
 #endif
 
 		if (!ev || !ble_npl_event_get_arg(ev)) {
@@ -191,7 +190,7 @@ void bt_mesh_adv_update(void)
 
 	BT_DBG("");
 
-	ble_npl_eventq_put(&adv_queue, &ev);
+	ble_npl_eventq_put(&bt_mesh_adv_queue, &ev);
 }
 
 void bt_mesh_adv_buf_ready(void)
@@ -219,7 +218,7 @@ void bt_mesh_adv_init(void)
 			       MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT));
 	assert(rc == 0);
 
-	ble_npl_eventq_init(&adv_queue);
+	ble_npl_eventq_init(&bt_mesh_adv_queue);
 
 #if MYNEWT
 	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,

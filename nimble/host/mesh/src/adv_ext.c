@@ -28,7 +28,7 @@ static struct ble_gap_ext_adv_params adv_param = {
 };
 
 bool ext_adv_configured = false;
-static struct ble_npl_eventq bt_mesh_adv_queue;
+struct ble_npl_eventq bt_mesh_adv_queue;
 
 enum {
 	/** Controller is currently advertising */
