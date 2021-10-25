@@ -36,7 +36,8 @@ const uint8_t bt_mesh_adv_type[BT_MESH_ADV_TYPES] = {
 extern uint8_t g_mesh_addr_type;
 
 struct os_mbuf_pool adv_os_mbuf_pool;
-static struct ble_npl_eventq bt_mesh_adv_queue;
+struct ble_npl_eventq bt_mesh_adv_queue;
+
 static struct bt_mesh_adv adv_pool[CONFIG_BT_MESH_ADV_BUF_COUNT];
 
 static struct bt_mesh_adv *adv_alloc(int id)
