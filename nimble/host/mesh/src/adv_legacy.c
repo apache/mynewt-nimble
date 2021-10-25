@@ -131,7 +131,7 @@ static inline void adv_send(struct os_mbuf *buf)
 }
 
 void
-adv_thread(void *args)
+mesh_adv_thread(void *args)
 {
 	static struct ble_npl_event *ev;
 	struct os_mbuf *buf;
@@ -222,7 +222,7 @@ void bt_mesh_adv_init(void)
 	ble_npl_eventq_init(&adv_queue);
 
 #if MYNEWT
-	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
+	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,
 	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
 	             g_blemesh_stack, MYNEWT_VAL(BLE_MESH_ADV_STACK_SIZE));
 #endif
