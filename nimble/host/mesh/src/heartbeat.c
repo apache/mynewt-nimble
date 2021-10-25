@@ -371,6 +371,7 @@ void bt_mesh_hb_resume(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int hb_pub_set(int argc, char **argv, char *val)
 {
 	struct bt_mesh_hb_pub pub;
@@ -447,14 +448,17 @@ static struct conf_handler bt_mesh_hb_pub_conf_handler = {
 	.ch_set = hb_pub_set,
 	.ch_commit = NULL,
 	.ch_export = NULL,
-	};
+};
+#endif
 
 void bt_mesh_hb_pub_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_hb_pub_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_hb_pub conf");
+#endif
 }

@@ -875,6 +875,7 @@ bool bt_mesh_model_is_extended(struct bt_mesh_model *model)
 	return model->flags & BT_MESH_MOD_EXTENDED;
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int mod_set_bind(struct bt_mesh_model *mod, char *val)
 {
 	int len, err, i;
@@ -1246,6 +1247,7 @@ int bt_mesh_model_data_store(struct bt_mesh_model *mod, bool vnd,
 	}
 	return err;
 }
+#endif
 
 static void commit_mod(struct bt_mesh_model *mod, struct bt_mesh_elem *elem,
 		       bool vnd, bool primary, void *user_data)
@@ -1276,6 +1278,7 @@ void bt_mesh_model_settings_commit(void)
 	bt_mesh_model_foreach(commit_mod, NULL);
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct conf_handler bt_mesh_sig_mod_conf_handler = {
 	.ch_name = "bt_mesh",
 	.ch_get = NULL,
@@ -1291,9 +1294,11 @@ static struct conf_handler bt_mesh_vnd_mod_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_access_init(void)
 {
+    #if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_sig_mod_conf_handler);
@@ -1304,4 +1309,5 @@ void bt_mesh_access_init(void)
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_access conf");
+    #endif
 }

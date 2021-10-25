@@ -76,6 +76,7 @@ static struct app_key *app_get(uint16_t app_idx)
 
 static void clear_app_key(uint16_t app_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[20];
 	int err;
 
@@ -88,10 +89,12 @@ static void clear_app_key(uint16_t app_idx)
 	} else {
 		BT_DBG("Cleared AppKeyIndex 0x%03x", app_idx);
 	}
+#endif
 }
 
 static void store_app_key(uint16_t app_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	const struct app_key *app;
 	struct app_key_val key;
 	char path[20];
@@ -120,8 +123,10 @@ static void store_app_key(uint16_t app_idx)
 	} else {
 		BT_DBG("Stored AppKey %s value");
 	}
+#endif
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct app_key_update *app_key_update_find(uint16_t key_idx,
 	struct app_key_update **free_slot)
 		{
@@ -146,9 +151,11 @@ static struct app_key_update *app_key_update_find(uint16_t key_idx,
 
 	return match;
 }
+#endif
 
 static void update_app_key_settings(uint16_t app_idx, bool store)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	struct app_key_update *update, *free_slot;
 	uint8_t clear = store ? 0U : 1U;
 
@@ -175,6 +182,7 @@ static void update_app_key_settings(uint16_t app_idx, bool store)
 	free_slot->clear = clear;
 
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_APP_KEYS_PENDING);
+#endif
 }
 
 static void app_key_evt(struct app_key *app, enum bt_mesh_key_evt evt)
@@ -629,6 +637,7 @@ void bt_mesh_app_keys_reset(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int app_key_set(int argc, char **argv, char *val)
 {
 	struct app_key_val key;
@@ -662,6 +671,7 @@ static int app_key_set(int argc, char **argv, char *val)
 
 	return 0;
 }
+#endif
 
 void bt_mesh_app_key_pending_store(void)
 {
@@ -684,6 +694,7 @@ void bt_mesh_app_key_pending_store(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct conf_handler bt_mesh_app_key_conf_handler = {
 	.ch_name = "bt_mesh",
 	.ch_get = NULL,
@@ -691,13 +702,16 @@ static struct conf_handler bt_mesh_app_key_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_app_key_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_app_key_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_app_key conf");
+#endif
 }

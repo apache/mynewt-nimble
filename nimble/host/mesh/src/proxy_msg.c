@@ -50,7 +50,7 @@ static uint8_t bufs[CONFIG_BT_MAX_CONN * CONFIG_BT_MESH_PROXY_MSG_LEN];
 
 static struct bt_mesh_proxy_role roles[CONFIG_BT_MAX_CONN];
 
-ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
+int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 			       const void *buf, uint16_t len)
 {
 	const uint8_t *data = buf;

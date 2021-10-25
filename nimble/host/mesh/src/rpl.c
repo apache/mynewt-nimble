@@ -34,6 +34,7 @@ static inline int rpl_idx(const struct bt_mesh_rpl *rpl)
 
 static void clear_rpl(struct bt_mesh_rpl *rpl)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int err;
 	char path[18];
 
@@ -51,10 +52,12 @@ static void clear_rpl(struct bt_mesh_rpl *rpl)
 
 	(void)memset(rpl, 0, sizeof(*rpl));
 	atomic_clear_bit(store, rpl_idx(rpl));
+#endif
 }
 
 static void schedule_rpl_store(struct bt_mesh_rpl *entry, bool force)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	atomic_set_bit(store, rpl_idx(entry));
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
 	if (force
@@ -64,11 +67,14 @@ static void schedule_rpl_store(struct bt_mesh_rpl *entry, bool force)
 	    ) {
 		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
 	}
+#endif
 }
 
 static void schedule_rpl_clear(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
+#endif
 }
 
 void bt_mesh_rpl_update(struct bt_mesh_rpl *rpl,
@@ -160,6 +166,7 @@ void bt_mesh_rpl_clear(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct bt_mesh_rpl *bt_mesh_rpl_find(uint16_t src)
 {
 	int i;
@@ -186,6 +193,7 @@ static struct bt_mesh_rpl *bt_mesh_rpl_alloc(uint16_t src)
 
 	return NULL;
 }
+#endif
 
 void bt_mesh_rpl_reset(void)
 {
@@ -214,6 +222,7 @@ void bt_mesh_rpl_reset(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int rpl_set(int argc, char **argv, char *val)
 {
 	struct bt_mesh_rpl *entry;
@@ -268,9 +277,11 @@ static int rpl_set(int argc, char **argv, char *val)
 	       (unsigned) entry->seq, entry->old_iv);
 	return 0;
 }
+#endif
 
 static void store_rpl(struct bt_mesh_rpl *entry)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct rpl_val))];
 	struct rpl_val rpl;
 	char path[18];
@@ -302,6 +313,7 @@ static void store_rpl(struct bt_mesh_rpl *entry)
 	} else {
 		BT_DBG("Stored RPL");
 	}
+#endif
 }
 
 static void store_pending_rpl(struct bt_mesh_rpl *rpl)
@@ -345,6 +357,7 @@ void bt_mesh_rpl_pending_store(uint16_t addr)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct conf_handler bt_mesh_rpl_conf_handler = {
 	.ch_name = "bt_mesh",
 	.ch_get = NULL,
@@ -352,13 +365,16 @@ static struct conf_handler bt_mesh_rpl_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_rpl_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_rpl_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_rpl conf");
+#endif
 }
