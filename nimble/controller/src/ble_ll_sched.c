@@ -222,6 +222,7 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
                     preempt_first = entry;
                 }
             } else {
+                preempt_first = NULL;
                 sch->start_time = entry->end_time;
 
                 if ((max_delay == 0) || CPUTIME_GEQ(sch->start_time,
@@ -231,7 +232,6 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
                 }
 
                 sch->end_time = sch->start_time + duration;
-                preempt_first = NULL;
             }
         }
     }
