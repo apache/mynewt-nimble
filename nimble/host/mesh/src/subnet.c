@@ -73,6 +73,7 @@ static void subnet_evt(struct bt_mesh_subnet *sub, enum bt_mesh_key_evt evt)
 
 static void clear_net_key(uint16_t net_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[20];
 	int err;
 
@@ -85,10 +86,12 @@ static void clear_net_key(uint16_t net_idx)
 	} else {
 		BT_DBG("Cleared NetKeyIndex 0x%03x", net_idx);
 	}
+#endif
 }
 
 static void store_subnet(uint16_t net_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	const struct bt_mesh_subnet *sub;
 	struct net_key_val key;
 	char buf[BT_SETTINGS_SIZE(sizeof(struct net_key_val))];
@@ -123,8 +126,10 @@ static void store_subnet(uint16_t net_idx)
 	} else {
 		BT_DBG("Stored NetKey");
 	}
+#endif
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct net_key_update *net_key_update_find(uint16_t key_idx,
 						  struct net_key_update **free_slot)
 {
@@ -149,6 +154,7 @@ static struct net_key_update *net_key_update_find(uint16_t key_idx,
 
 	return match;
 }
+#endif
 
 uint8_t bt_mesh_net_flags(struct bt_mesh_subnet *sub)
 {
@@ -167,6 +173,7 @@ uint8_t bt_mesh_net_flags(struct bt_mesh_subnet *sub)
 
 static void update_subnet_settings(uint16_t net_idx, bool store)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	struct net_key_update *update, *free_slot;
 	uint8_t clear = store ? 0U : 1U;
 
@@ -194,12 +201,15 @@ static void update_subnet_settings(uint16_t net_idx, bool store)
 	free_slot->clear = clear;
 
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_NET_KEYS_PENDING);
+#endif
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 void bt_mesh_subnet_store(uint16_t net_idx)
 {
 	update_subnet_settings(net_idx, true);
 }
+#endif
 
 static void key_refresh(struct bt_mesh_subnet *sub, uint8_t new_phase)
 {
@@ -800,6 +810,7 @@ bool bt_mesh_net_cred_find(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 	return false;
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int net_key_set(int argc, char **argv, char *val)
 {
 	struct net_key_val key;
@@ -828,6 +839,7 @@ static int net_key_set(int argc, char **argv, char *val)
 		net_idx, key.kr_phase, key.val[0],
 		(key.kr_phase != BT_MESH_KR_NORMAL) ? key.val[1] : NULL);
 }
+#endif
 
 void bt_mesh_subnet_pending_store(void)
 {
@@ -850,20 +862,24 @@ void bt_mesh_subnet_pending_store(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct conf_handler bt_mesh_net_key_conf_handler = {
 	.ch_name = "bt_mesh",
 	.ch_get = NULL,
 	.ch_set = net_key_set,
 	.ch_commit = NULL,
 	.ch_export = NULL,
-	};
+};
+#endif
 
 void bt_mesh_net_key_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_net_key_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_net_key conf");
+#endif
 }

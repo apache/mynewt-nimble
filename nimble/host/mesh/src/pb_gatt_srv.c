@@ -104,7 +104,7 @@ static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 
 static bool service_registered;
 
-static ssize_t gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
+static int gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
 			 struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
 	const uint8_t *data = ctxt->om->om_data;

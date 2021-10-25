@@ -1638,7 +1638,9 @@ void bt_mesh_rx_reset(void)
 
 static void store_va_label(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_VA_PENDING);
+#endif
 }
 
 void bt_mesh_trans_reset(void)
@@ -1787,6 +1789,7 @@ uint8_t *bt_mesh_va_label_get(uint16_t addr)
 }
 
 #if CONFIG_BT_MESH_LABEL_COUNT > 0
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct virtual_addr *bt_mesh_va_get(uint16_t index)
 {
 	if (index >= ARRAY_SIZE(virtual_addrs)) {
@@ -1901,15 +1904,18 @@ static struct conf_handler bt_mesh_va_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 	};
+#endif
 
 void bt_mesh_va_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_va_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_hb_pub conf");
+#endif
 }
 
 #else

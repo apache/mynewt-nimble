@@ -55,7 +55,7 @@ struct bt_mesh_proxy_client {
 	struct ble_npl_callout send_beacons;
 };
 
-ssize_t bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
+int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 	const void *buf, uint16_t len);
 int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	struct os_mbuf *msg, void (*end)(uint16_t, void *), void *user_data);

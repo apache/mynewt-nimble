@@ -148,22 +148,26 @@ static void msg_cache_add(struct bt_mesh_net_rx *rx)
 
 static void store_iv(bool only_duration)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_IV_PENDING);
 
 	if (!only_duration) {
 		/* Always update Seq whenever IV changes */
 		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
 	}
+#endif
 }
 
 static void store_seq(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	if (CONFIG_BT_MESH_SEQ_STORE_RATE > 1 &&
 	(bt_mesh.seq % CONFIG_BT_MESH_SEQ_STORE_RATE)) {
 		return;
 	}
 
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
+#endif
 }
 
 int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
@@ -898,6 +902,7 @@ static void ivu_refresh(struct ble_npl_event *work)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int net_set(int argc, char **argv, char *val)
 {
 	struct net_val net;
@@ -1031,11 +1036,13 @@ static struct conf_handler bt_mesh_seq_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_net_init(void)
 {
 	int rc;
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	rc = conf_register(&bt_mesh_net_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
@@ -1051,6 +1058,7 @@ void bt_mesh_net_init(void)
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_seq conf");
+#endif
 
 	k_work_init_delayable(&bt_mesh.ivu_timer, ivu_refresh);
 
@@ -1068,6 +1076,7 @@ void bt_mesh_net_init(void)
 	assert(rc == 0);
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static void clear_iv(void)
 {
 	int err;
@@ -1204,6 +1213,7 @@ void bt_mesh_net_clear(void)
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
 	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
 }
+#endif
 
 void bt_mesh_net_settings_commit(void)
 {

@@ -250,6 +250,7 @@ bool bt_mesh_fixed_group_match(uint16_t addr)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int cfg_set(int argc, char **argv, char *val)
 {
 	struct cfg_val cfg;
@@ -329,7 +330,6 @@ static void store_pending_cfg(void)
 	}
 }
 
-
 void bt_mesh_cfg_pending_store(void)
 {
 	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
@@ -346,15 +346,18 @@ static struct conf_handler bt_mesh_cfg_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_cfg_default_set(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_cfg_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_settings conf");
+#endif
 
 	bt_mesh.default_ttl = CONFIG_BT_MESH_DEFAULT_TTL;
 	bt_mesh.net_xmit =
