@@ -22,6 +22,12 @@
 /* Convert from ms to 0.625ms units */
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
 
+#if (MYNEWT_VAL(BSP_NRF51) && !MYNEWT_VAL(BLE_CONTROLLER))
+#define CONFIG_BT_CTLR_LOW_LAT 1
+#else
+#define CONFIG_BT_CTLR_LOW_LAT 0
+#endif
+
 /* Pre-5.0 controllers enforce a minimum interval of 100ms
  * whereas 5.0+ controllers can go down to 20ms.
  */
@@ -83,7 +89,7 @@ static inline void adv_send(struct os_mbuf *buf)
 	 * amount of scan window duration to compensate for the blocked
 	 * advertising events.
 	 */
-	if (MYNEWT_VAL(BSP_NRF51)) {
+	if (CONFIG_BT_CTLR_LOW_LAT) {
 		duration += BT_MESH_SCAN_WINDOW_MS;
 	}
 #endif

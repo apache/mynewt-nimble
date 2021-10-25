@@ -1013,6 +1013,11 @@
 #define MYNEWT_VAL_BLE_MESH_OOB_OUTPUT_SIZE (4)
 #endif
 
+
+#ifndef MYNEWT_VAL_BSP_NRF51
+#define MYNEWT_VAL_BSP_NRF51 (0)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_PB_ADV
 #define MYNEWT_VAL_BLE_MESH_PB_ADV (1)
