@@ -48,6 +48,7 @@ static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
 	MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
 	BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
 static struct os_mempool adv_buf_mempool;
+static int32_t adv_timeout;
 
 static inline void adv_send(struct os_mbuf *buf)
 {
@@ -134,9 +135,6 @@ mesh_adv_thread(void *args)
 {
 	static struct ble_npl_event *ev;
 	struct os_mbuf *buf;
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
-	int32_t timeout;
-#endif
 
 	BT_DBG("started");
 
@@ -144,22 +142,21 @@ mesh_adv_thread(void *args)
 #if (MYNEWT_VAL(BLE_MESH_PROXY))
 		ev = ble_npl_eventq_get(&bt_mesh_adv_queue, 0);
 		while (!ev) {
+		    /* Adv timeout may be set by a call from proxy
+             * to bt_mesh_adv_start:
+             */
+		    adv_timeout = K_FOREVER;
 			if (bt_mesh_is_provisioned()) {
 				if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-					timeout = bt_mesh_proxy_adv_start();
-					BT_DBG("Proxy Advertising up to %d ms", (int) timeout);
+				    (void)bt_mesh_proxy_adv_start();
+					BT_DBG("Proxy Advertising up to %d ms", (int) adv_timeout);
 				}
 			} else if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-				timeout = bt_mesh_pb_gatt_adv_start();
-				BT_DBG("PB-GATT Advertising up to %d ms", (int) timeout);
+				(void)bt_mesh_pb_gatt_adv_start();
+				BT_DBG("PB-GATT Advertising up to %d ms", (int) adv_timeout);
 			}
 
-			// FIXME: should we redefine K_SECONDS macro instead in glue?
-			if (timeout != K_FOREVER) {
-				timeout = ble_npl_time_ms_to_ticks32(timeout);
-			}
-
-			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, timeout);
+			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, adv_timeout);
 			bt_le_adv_stop();
 		}
 #else
@@ -244,6 +241,7 @@ int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
 		      const struct bt_data *ad, size_t ad_len,
 		      const struct bt_data *sd, size_t sd_len)
 {
+	adv_timeout = duration;
 	return bt_le_adv_start(param, duration, ad, ad_len, sd, sd_len);
 }
 #endif
