@@ -29,6 +29,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_scan_aux.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_timer.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_priv.h"
@@ -338,7 +339,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         usecs = connsm->slave_cur_window_widening;
-        sch->start_time -= (os_cputime_usecs_to_ticks(usecs) + 1);
+        sch->start_time -= (ble_ll_timer_usecs_to_ticks(usecs, NULL) + 1);
         sch->remainder = 0;
     } else {
         sch->remainder = connsm->anchor_point_usecs;
@@ -346,7 +347,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
-    if (CPUTIME_LT(sch->start_time, os_cputime_get32())) {
+    if (CPUTIME_LT(sch->start_time, ble_ll_timer_get())) {
         return -1;
     }
 
@@ -416,7 +417,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * request. At 1 Mbps, this is 1752 usecs, or 57.41 ticks. Using 57 ticks
      * makes us off ~13 usecs. Since we dont want to actually calculate the
      * receive end time tick (this would take too long), we assume the end of
-     * the advertising PDU is 'now' (we call os_cputime_get32). We dont know
+     * the advertising PDU is 'now' (we call ble_ll_timer_get). We dont know
      * how much time it will take to service the ISR but if we are more than the
      * rx to tx time of the chip we will not be successful transmitting the
      * connect request. All this means is that we presume that the slave will
@@ -448,8 +449,9 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
-    dur = os_cputime_usecs_to_ticks(g_ble_ll_sched_data.sch_ticks_per_period);
-    adv_rxend = os_cputime_get32();
+    dur = ble_ll_timer_usecs_to_ticks(g_ble_ll_sched_data.sch_ticks_per_period,
+                                      NULL);
+    adv_rxend = ble_ll_timer_get();
     if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
         /*
          * We received packet on advertising channel which means this is a legacy
@@ -580,7 +582,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
              * the transmit window slightly since the window size is currently
              * 2 when using a 32768 crystal.
              */
-            dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
+            dur = ble_ll_timer_ticks_to_usecs(earliest_start - initial_start);
             connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
         }
     }
@@ -637,7 +639,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * request. At 1 Mbps, this is 1752 usecs, or 57.41 ticks. Using 57 ticks
      * makes us off ~13 usecs. Since we dont want to actually calculate the
      * receive end time tick (this would take too long), we assume the end of
-     * the advertising PDU is 'now' (we call os_cputime_get32). We dont know
+     * the advertising PDU is 'now' (we call ble_ll_timer_get). We dont know
      * how much time it will take to service the ISR but if we are more than the
      * rx to tx time of the chip we will not be successful transmitting the
      * connect request. All this means is that we presume that the slave will
@@ -669,7 +671,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
-    adv_rxend = os_cputime_get32();
+    adv_rxend = ble_ll_timer_get();
     if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
         /*
          * We received packet on advertising channel which means this is a legacy
@@ -719,9 +721,9 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     rc = ble_ll_sched_insert(sch, max_delay, preempt_none);
 
     if (rc == 0) {
-        connsm->tx_win_off = os_cputime_ticks_to_usecs(sch->start_time -
-                                                       orig_start_time) /
-                             BLE_LL_CONN_TX_OFF_USECS;
+        connsm->tx_win_off = ble_ll_timer_ticks_to_usecs(sch->start_time -
+                                                         orig_start_time);
+        connsm->tx_win_off /= BLE_LL_CONN_TX_OFF_USECS;
 
         connsm->anchor_point = sch->start_time + g_ble_ll_sched_offset_ticks;
         connsm->anchor_point_usecs = 0;
@@ -764,7 +766,8 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      * usecs to ticks could be off by up to 1 tick.
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
-        os_cputime_usecs_to_ticks(connsm->slave_cur_window_widening) - 1;
+                      ble_ll_timer_usecs_to_ticks(
+                              connsm->slave_cur_window_widening, NULL) - 1;
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 
@@ -812,31 +815,26 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
                              int8_t phy_mode)
 {
     uint8_t start_time_rem_usecs;
-    uint8_t window_rem_usecs;
-    uint32_t window_ticks;
+    uint8_t ww_rem_usecs;
+    uint32_t ww_ticks;
     uint32_t start_time;
     uint32_t end_time;
     uint32_t dur;
     int rc = 0;
     os_sr_t sr;
 
-    window_ticks = os_cputime_usecs_to_ticks(window_widening);
-    window_rem_usecs = window_widening - os_cputime_ticks_to_usecs(window_ticks);
+    ww_ticks = ble_ll_timer_usecs_to_ticks(window_widening, &ww_rem_usecs);
 
-    /* adjust for subtraction */
-    anchor_point_usecs += 31;
-    anchor_point--;
-
-    start_time = anchor_point - window_ticks;
-    start_time_rem_usecs = anchor_point_usecs - window_rem_usecs;
-    if (start_time_rem_usecs >= 31) {
-        start_time++;
-        start_time_rem_usecs -= 31;
+    start_time = anchor_point - ww_ticks;
+    start_time_rem_usecs = anchor_point_usecs - ww_rem_usecs;
+    if ((int8_t)start_time_rem_usecs < 0) {
+        start_time--;
+        start_time_rem_usecs += 31;
     }
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                  phy_mode);
-    end_time = start_time + os_cputime_usecs_to_ticks(dur);
+    end_time = start_time + ble_ll_timer_usecs_to_ticks(dur, NULL) + 1;
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -846,7 +844,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
     sch->end_time = end_time;
 
     /* Better be past current time or we just leave */
-    if (CPUTIME_LEQ(sch->start_time, os_cputime_get32())) {
+    if (CPUTIME_LEQ(sch->start_time, ble_ll_timer_get())) {
         return -1;
     }
 
@@ -867,37 +865,32 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
 }
 
 int
-ble_ll_sched_sync(struct ble_ll_sched_item *sch,
-                  uint32_t beg_cputime, uint32_t rem_usecs,
-                  uint32_t offset, int8_t phy_mode)
+ble_ll_sched_sync(struct ble_ll_sched_item *sch, uint32_t beg_cputime,
+                  uint8_t rem_usecs, uint32_t offset, uint8_t phy_mode)
 {
-    uint32_t start_time_rem_usecs;
-    uint32_t off_rem_usecs;
-    uint32_t start_time;
-    uint32_t off_ticks;
+    uint32_t start_time_ticks;
+    uint8_t start_time_usecs;
+    uint32_t offset_ticks;
+    uint8_t offset_usecs;
     uint32_t end_time;
     uint32_t dur;
     os_sr_t sr;
     int rc = 0;
 
-    off_ticks = os_cputime_usecs_to_ticks(offset);
-    off_rem_usecs = offset - os_cputime_ticks_to_usecs(off_ticks);
+    offset_ticks = ble_ll_timer_usecs_to_ticks(offset, &offset_usecs);
 
-    start_time = beg_cputime + off_ticks;
-    start_time_rem_usecs = rem_usecs + off_rem_usecs;
-    if (start_time_rem_usecs >= 31) {
-        start_time++;
-        start_time_rem_usecs -= 31;
-    }
+    start_time_ticks = beg_cputime + offset_ticks;
+    start_time_usecs = rem_usecs + offset_usecs;
+    ble_ll_timer_wrap_usecs(&start_time_ticks, &start_time_usecs);
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                   phy_mode);
-    end_time = start_time + os_cputime_usecs_to_ticks(dur);
+    end_time = start_time_ticks + ble_ll_timer_usecs_to_ticks(dur, NULL) + 1;
 
-    start_time -= g_ble_ll_sched_offset_ticks;
+    start_time_ticks -= g_ble_ll_sched_offset_ticks;
 
-    sch->start_time = start_time;
-    sch->remainder = start_time_rem_usecs;
+    sch->start_time = start_time_ticks;
+    sch->remainder = start_time_usecs;
     sch->end_time = end_time;
 
     OS_ENTER_CRITICAL(sr);
@@ -1123,7 +1116,7 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 
     lls = ble_ll_state_get();
 
-    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_SCHED, lls, os_cputime_get32(),
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_SCHED, lls, ble_ll_timer_get(),
                        sch->start_time);
 
     if (lls == BLE_LL_STATE_STANDBY) {
@@ -1191,7 +1184,7 @@ ble_ll_sched_run(void *arg)
         int32_t dt;
 
         /* Make sure we have passed the start time of the first event */
-        dt = (int32_t)(os_cputime_get32() - sch->start_time);
+        dt = (int32_t)(ble_ll_timer_get() - sch->start_time);
         if (dt > g_ble_ll_sched_max_late) {
             g_ble_ll_sched_max_late = dt;
         }
@@ -1245,16 +1238,18 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
                       uint8_t pdu_time_rem, uint32_t offset_us)
 {
     uint32_t offset_ticks;
+    uint8_t offset_usecs;
     os_sr_t sr;
     int rc;
 
     offset_us += pdu_time_rem;
-    offset_ticks = os_cputime_usecs_to_ticks(offset_us);
+    offset_ticks = ble_ll_timer_usecs_to_ticks(offset_us, &offset_usecs);
 
     sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
-    sch->remainder = offset_us - os_cputime_ticks_to_usecs(offset_ticks);
+    sch->remainder = offset_usecs;
     /* TODO: make some sane slot reservation */
-    sch->end_time = sch->start_time + os_cputime_usecs_to_ticks(5000);
+    sch->end_time = sch->start_time +
+                    ble_ll_timer_usecs_to_ticks(5000, NULL) + 1;
 
     OS_ENTER_CRITICAL(sr);
 
@@ -1325,7 +1320,7 @@ ble_ll_sched_init(void)
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
     g_ble_ll_sched_offset_ticks =
-        (uint8_t) os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
+            ble_ll_timer_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30, NULL);
 
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
@@ -1333,7 +1328,7 @@ ble_ll_sched_init(void)
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     memset(&g_ble_ll_sched_data, 0, sizeof(struct ble_ll_sched_obj));
     g_ble_ll_sched_data.sch_ticks_per_period =
-        os_cputime_usecs_to_ticks(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD));
+        ble_ll_timer_usecs_to_ticks(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD), NULL);
     g_ble_ll_sched_data.sch_ticks_per_epoch = BLE_LL_SCHED_PERIODS *
         g_ble_ll_sched_data.sch_ticks_per_period;
 #endif

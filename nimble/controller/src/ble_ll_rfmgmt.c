@@ -27,6 +27,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_timer.h"
 #include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_RFMGMT_ENABLE_TIME) > 0
@@ -64,7 +65,7 @@ ble_ll_rfmgmt_enable(void)
 
     if (g_ble_ll_rfmgmt_data.state == RFMGMT_STATE_OFF) {
         g_ble_ll_rfmgmt_data.state = RFMGMT_STATE_ENABLING;
-        g_ble_ll_rfmgmt_data.enabled_at = os_cputime_get32();
+        g_ble_ll_rfmgmt_data.enabled_at = ble_ll_timer_get();
         ble_phy_rfclk_enable();
         BLE_LL_DEBUG_GPIO(RFMGMT, 1);
     }
@@ -128,7 +129,7 @@ ble_ll_rfmgmt_timer_reschedule(void)
      * such case it's absolutely harmless since we already have clock enabled
      * and this will do nothing.
      */
-    if (CPUTIME_LEQ(enable_at, os_cputime_get32())) {
+    if (CPUTIME_LEQ(enable_at, ble_ll_timer_get())) {
         ble_ll_rfmgmt_enable();
         return;
     }
@@ -156,7 +157,7 @@ ble_ll_rfmgmt_release_ev(struct ble_npl_event *ev)
 
     OS_ENTER_CRITICAL(sr);
 
-    now = os_cputime_get32();
+    now = ble_ll_timer_get();
 
     can_disable = true;
     lls = ble_ll_state_get();
@@ -191,7 +192,7 @@ ble_ll_rfmgmt_ticks_to_enabled(void)
         rem_ticks = rfmgmt->ticks_to_enabled;
         break;
     case RFMGMT_STATE_ENABLING:
-        now = os_cputime_get32();
+        now = ble_ll_timer_get();
         if (CPUTIME_LT(now, rfmgmt->enabled_at + rfmgmt->ticks_to_enabled)) {
             rem_ticks = rfmgmt->enabled_at + rfmgmt->ticks_to_enabled - now;
             break;
@@ -312,7 +313,7 @@ ble_ll_rfmgmt_enable_now(void)
     ble_ll_rfmgmt_enable();
 
     if (rfmgmt->state == RFMGMT_STATE_ENABLED) {
-        enabled_at = os_cputime_get32();
+        enabled_at = ble_ll_timer_get();
     } else {
         enabled_at = rfmgmt->enabled_at + rfmgmt->ticks_to_enabled + 1;
     }

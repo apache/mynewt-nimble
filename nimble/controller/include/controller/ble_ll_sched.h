@@ -166,8 +166,8 @@ int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
                                  uint8_t anchor_point_usecs,
                                  uint32_t window_widening, int8_t phy_mode);
 int ble_ll_sched_sync(struct ble_ll_sched_item *sch,
-                      uint32_t beg_cputime, uint32_t rem_usecs, uint32_t offset,
-                      int8_t phy_mode);
+                      uint32_t beg_cputime, uint8_t rem_usecs, uint32_t offset,
+                      uint8_t phy_mode);
 
 /* Reschedule an advertising event */
 int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch,

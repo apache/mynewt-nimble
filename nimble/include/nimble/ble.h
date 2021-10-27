@@ -123,8 +123,8 @@ struct ble_mbuf_hdr
         struct ble_mbuf_hdr_rxinfo rxinfo;
         struct ble_mbuf_hdr_txinfo txinfo;
     };
-    uint32_t beg_cputime;
-    uint32_t rem_usecs;
+    uint32_t tmr_ticks;
+    uint8_t tmr_usecs;
 };
 
 #define BLE_MBUF_HDR_IGNORED(hdr) \

@@ -1109,7 +1109,7 @@ ble_ll_scan_aux_pkt_in_on_ext(struct os_mbuf *rxpdu,
 
     BLE_LL_ASSERT(aux->aux_ptr);
 
-    rc = ble_ll_scan_aux_sched(aux, rxhdr->beg_cputime, rxhdr->rem_usecs,
+    rc = ble_ll_scan_aux_sched(aux, rxhdr->tmr_ticks, rxhdr->tmr_usecs,
                                aux->aux_ptr);
     if (rc < 0) {
         ble_ll_scan_aux_free(aux);
@@ -1637,7 +1637,7 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
 
     /* Try to schedule scan for subsequent aux asap, if needed */
     if (rxinfo->flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT) {
-        rc = ble_ll_scan_aux_sched(aux, rxhdr->beg_cputime, rxhdr->rem_usecs,
+        rc = ble_ll_scan_aux_sched(aux, rxhdr->tmr_ticks, rxhdr->tmr_usecs,
                                    aux->aux_ptr);
         if (rc < 0) {
             rxinfo->flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;

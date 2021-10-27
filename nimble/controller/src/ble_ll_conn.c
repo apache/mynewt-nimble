@@ -23,7 +23,6 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
-#include "os/os_cputime.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
@@ -37,6 +36,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_timer.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
@@ -421,19 +421,11 @@ void
 ble_ll_conn_itvl_to_ticks(uint32_t itvl, uint32_t *itvl_ticks,
                           uint8_t *itvl_usecs)
 {
-    uint32_t ticks;
     uint32_t usecs;
 
     usecs = itvl * BLE_LL_CONN_ITVL_USECS;
-    ticks = os_cputime_usecs_to_ticks(usecs);
-    usecs = usecs - os_cputime_ticks_to_usecs(ticks);
-    if (usecs == 31) {
-        usecs = 0;
-        ++ticks;
-    }
 
-    *itvl_ticks = ticks;
-    *itvl_usecs = usecs;
+    *itvl_ticks = ble_ll_timer_usecs_to_ticks(usecs, itvl_usecs);
 }
 
 /**
@@ -509,7 +501,7 @@ ble_ll_conn_get_ce_end_time(void)
     if (g_ble_ll_conn_cur_sm) {
         ce_end_time = g_ble_ll_conn_cur_sm->ce_end_time;
     } else {
-        ce_end_time = os_cputime_get32();
+        ce_end_time = ble_ll_timer_get();
     }
     return ce_end_time;
 }
@@ -909,6 +901,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
     uint16_t pktlen;
     uint32_t next_event_time;
     uint32_t ticks;
+    uint32_t usecs;
     struct os_mbuf *m;
     struct ble_mbuf_hdr *ble_hdr;
     struct os_mbuf_pkthdr *pkthdr = NULL;
@@ -1092,16 +1085,16 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         tx_phy_mode = BLE_PHY_MODE_1M;
 #endif
 
-        ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
-            ble_ll_pdu_tx_time_get(next_txlen, tx_phy_mode) +
-            ble_ll_pdu_tx_time_get(cur_txlen, tx_phy_mode);
+        usecs = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
+                ble_ll_pdu_tx_time_get(next_txlen, tx_phy_mode) +
+                ble_ll_pdu_tx_time_get(cur_txlen, tx_phy_mode);
 
         if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-            ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
+            usecs += (BLE_LL_IFS + connsm->eff_max_rx_time);
         }
 
-        ticks = os_cputime_usecs_to_ticks(ticks);
-        if (CPUTIME_LT(os_cputime_get32() + ticks, next_event_time)) {
+        ticks = ble_ll_timer_usecs_to_ticks(usecs, NULL);
+        if (CPUTIME_LT(ble_ll_timer_get() + ticks, next_event_time)) {
             md = 1;
         }
     }
@@ -1413,7 +1406,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Set time that we last serviced the schedule */
-    connsm->last_scheduled = os_cputime_get32();
+    connsm->last_scheduled = ble_ll_timer_get();
     return rc;
 }
 
@@ -1482,7 +1475,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
         usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
 
         ticks = (uint32_t)(next_sched_time - begtime);
-        allowed_usecs = os_cputime_ticks_to_usecs(ticks);
+        allowed_usecs = ble_ll_timer_ticks_to_usecs(ticks);
         if ((usecs + add_usecs) >= allowed_usecs) {
             rc = 0;
         }
@@ -1963,26 +1956,24 @@ ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
                        uint32_t *anchor, uint8_t *anchor_usecs)
 {
     uint32_t ticks;
-    uint32_t itvl;
+    uint8_t usecs;
+    uint32_t itvl_us;
 
-    itvl = (connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
+    itvl_us = (connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
 
     if ((int16_t)(conn_event - connsm->event_cntr) < 0) {
-        itvl *= connsm->event_cntr - conn_event;
-        ticks = os_cputime_usecs_to_ticks(itvl);
+        itvl_us *= connsm->event_cntr - conn_event;
+        ticks = ble_ll_timer_usecs_to_ticks(itvl_us, &usecs);
         *anchor = connsm->anchor_point - ticks;
     } else {
-        itvl *= conn_event - connsm->event_cntr;
-        ticks = os_cputime_usecs_to_ticks(itvl);
+        itvl_us *= conn_event - connsm->event_cntr;
+        ticks = ble_ll_timer_usecs_to_ticks(itvl_us, &usecs);
         *anchor = connsm->anchor_point + ticks;
     }
 
-    *anchor_usecs = connsm->anchor_point_usecs;
-    *anchor_usecs += (itvl - os_cputime_ticks_to_usecs(ticks));
-    if (*anchor_usecs >= 31) {
-        (*anchor)++;
-        *anchor_usecs -= 31;
-    }
+    usecs += connsm->anchor_point_usecs;
+    ble_ll_timer_wrap_usecs(anchor, &usecs);
+    *anchor_usecs = usecs;
 }
 #endif
 
@@ -2004,7 +1995,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint32_t max_ww;
     struct ble_ll_conn_upd_req *upd;
     uint32_t ticks;
-    uint32_t usecs;
+    uint32_t usecs32;
+    uint8_t usecs;
 
     /* XXX: deal with connection request procedure here as well */
     ble_ll_conn_chk_csm_flags(connsm);
@@ -2054,14 +2046,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->anchor_point += connsm->conn_itvl_ticks;
         connsm->anchor_point_usecs += connsm->conn_itvl_usecs;
     } else {
-        ticks = os_cputime_usecs_to_ticks(itvl);
+        ticks = ble_ll_timer_usecs_to_ticks(itvl, &usecs);
         connsm->anchor_point += ticks;
-        connsm->anchor_point_usecs += (itvl - os_cputime_ticks_to_usecs(ticks));
+        connsm->anchor_point_usecs += usecs;
     }
-    if (connsm->anchor_point_usecs >= 31) {
-        ++connsm->anchor_point;
-        connsm->anchor_point_usecs -= 31;
-    }
+    ble_ll_timer_wrap_usecs(&connsm->anchor_point, &connsm->anchor_point_usecs);
 
     /*
      * If a connection update has been scheduled and the event counter
@@ -2095,15 +2084,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
                                   &connsm->conn_itvl_usecs);
 
         if (upd->winoffset != 0) {
-            usecs = upd->winoffset * BLE_LL_CONN_ITVL_USECS;
-            ticks = os_cputime_usecs_to_ticks(usecs);
+            usecs32 = upd->winoffset * BLE_LL_CONN_ITVL_USECS;
+            ticks = ble_ll_timer_usecs_to_ticks(usecs32, &usecs);
             connsm->anchor_point += ticks;
-            usecs = usecs - os_cputime_ticks_to_usecs(ticks);
             connsm->anchor_point_usecs += usecs;
-            if (connsm->anchor_point_usecs >= 31) {
-                ++connsm->anchor_point;
-                connsm->anchor_point_usecs -= 31;
-            }
+            ble_ll_timer_wrap_usecs(&connsm->anchor_point,
+                                    &connsm->anchor_point_usecs);
         }
 
         /* Reset the starting point of the connection supervision timeout */
@@ -2221,7 +2207,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         }
         cur_ww += BLE_LL_JITTER_USECS;
         connsm->slave_cur_window_widening = cur_ww;
-        itvl += os_cputime_usecs_to_ticks(cur_ww + connsm->slave_cur_tx_win_usecs);
+        itvl += ble_ll_timer_usecs_to_ticks(cur_ww +
+                                            connsm->slave_cur_tx_win_usecs,
+                                            NULL);
     }
     itvl -= g_ble_ll_sched_offset_ticks;
     connsm->ce_end_time = connsm->anchor_point + itvl;
@@ -2249,7 +2237,6 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 {
     int rc;
     uint8_t *evbuf;
-    uint32_t endtime;
     uint32_t usecs;
 
     /* XXX: TODO this assumes we received in 1M phy */
@@ -2261,7 +2248,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     connsm->csmflags.cfbit.pkt_rxd = 0;
 
     /* Consider time created the last scheduled time */
-    connsm->last_scheduled = os_cputime_get32();
+    connsm->last_scheduled = ble_ll_timer_get();
 
     /*
      * Set the last rxd pdu time since this is where we want to start the
@@ -2282,9 +2269,9 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          * for is to calculate window widening. The effect of this is
          * negligible.
          */
-        connsm->last_anchor_point = rxhdr->beg_cputime;
+        connsm->last_anchor_point = rxhdr->tmr_ticks;
 
-        usecs = rxhdr->rem_usecs + 1250 +
+        usecs = rxhdr->tmr_usecs + 1250 +
                 (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
                 ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
                                        rxhdr->rxinfo.phy_mode);
@@ -2305,25 +2292,21 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         }
 
         /* Anchor point is cputime. */
-        endtime = os_cputime_usecs_to_ticks(usecs);
-        connsm->anchor_point = rxhdr->beg_cputime + endtime;
-        connsm->anchor_point_usecs = usecs - os_cputime_ticks_to_usecs(endtime);
-        if (connsm->anchor_point_usecs == 31) {
-            ++connsm->anchor_point;
-            connsm->anchor_point_usecs = 0;
-        }
+        connsm->anchor_point =
+                rxhdr->tmr_ticks +
+                ble_ll_timer_usecs_to_ticks(usecs, &connsm->anchor_point_usecs);
 
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
         connsm->ce_end_time = connsm->anchor_point +
             g_ble_ll_sched_data.sch_ticks_per_period +
-            os_cputime_usecs_to_ticks(connsm->slave_cur_tx_win_usecs) + 1;
+            ble_ll_timer_usecs_to_ticks(connsm->slave_cur_tx_win_usecs, NULL) + 1;
 
 #else
         connsm->ce_end_time = connsm->anchor_point +
             (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_TICKS_PER_SLOT)
-            + os_cputime_usecs_to_ticks(connsm->slave_cur_tx_win_usecs) + 1;
+            + ble_ll_timer_usecs_to_ticks(connsm->slave_cur_tx_win_usecs, NULL) + 1;
 #endif
         connsm->slave_cur_window_widening = BLE_LL_JITTER_USECS;
 
@@ -2509,7 +2492,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
         ble_err = BLE_ERR_CONN_SPVN_TMO;
     }
     /* XXX: Convert to ticks to usecs calculation instead??? */
-    tmo = os_cputime_usecs_to_ticks(tmo);
+    tmo = ble_ll_timer_usecs_to_ticks(tmo, NULL);
     if ((int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >= tmo) {
         ble_ll_conn_end(connsm, ble_err);
         return;
@@ -2893,9 +2876,9 @@ ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
         /* Set anchor point (and last) if 1st rxd frame in connection event */
         if (connsm->csmflags.cfbit.slave_set_last_anchor) {
             connsm->csmflags.cfbit.slave_set_last_anchor = 0;
-            connsm->last_anchor_point = rxhdr->beg_cputime;
+            connsm->last_anchor_point = rxhdr->tmr_ticks;
             connsm->anchor_point = connsm->last_anchor_point;
-            connsm->anchor_point_usecs = rxhdr->rem_usecs;
+            connsm->anchor_point_usecs = rxhdr->tmr_usecs;
         }
     }
     return 1;
@@ -3151,14 +3134,14 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * but for the 32768 crystal we add the time it takes to send the packet
      * to the 'additional usecs' field to save some calculations.
      */
-    begtime = rxhdr->beg_cputime;
+    begtime = rxhdr->tmr_ticks;
 #if BLE_LL_BT5_PHY_SUPPORTED
     rx_phy_mode = connsm->phy_data.rx_phy_mode;
 #else
     rx_phy_mode = BLE_PHY_MODE_1M;
 #endif
-    add_usecs = rxhdr->rem_usecs +
-            ble_ll_pdu_tx_time_get(rx_pyld_len, rx_phy_mode);
+    add_usecs = rxhdr->tmr_usecs +
+                ble_ll_pdu_tx_time_get(rx_pyld_len, rx_phy_mode);
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -3187,7 +3170,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 
         /* Set last valid received pdu time (resets supervision timer) */
         connsm->last_rxd_pdu_cputime = begtime +
-                                        os_cputime_usecs_to_ticks(add_usecs);
+                                       ble_ll_timer_usecs_to_ticks(add_usecs,
+                                                                   NULL);
 
         /*
          * Check for valid LLID before proceeding. We have seen some weird

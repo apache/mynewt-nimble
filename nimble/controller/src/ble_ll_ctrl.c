@@ -26,6 +26,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_ctrl.h"
+#include "controller/ble_ll_timer.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_sync.h"
@@ -2331,8 +2332,8 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
 
         /* Set terminate "timeout" */
         usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-        connsm->terminate_timeout = os_cputime_get32() +
-            os_cputime_usecs_to_ticks(usecs);
+        connsm->terminate_timeout = ble_ll_timer_get() +
+                                    ble_ll_timer_usecs_to_ticks(usecs, NULL);
     }
 }
 

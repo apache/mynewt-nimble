@@ -31,6 +31,7 @@
 #include "cmac_driver/cmac_shared.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_timer.h"
 #include "stats/stats.h"
 #include "CMAC.h"
 #include "ble_hw_priv.h"
@@ -531,6 +532,7 @@ ble_phy_rx_start_isr(void)
     uint32_t timestamp;
     uint32_t ticks;
     uint32_t usecs;
+    uint8_t rem_usecs;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Initialize the ble mbuf header */
@@ -600,9 +602,9 @@ ble_phy_rx_start_isr(void)
      * and the leftover usecs.
      */
     usecs = llt32 - g_ble_phy_data.llt_at_cputime;
-    ticks = os_cputime_usecs_to_ticks(usecs);
-    ble_hdr->beg_cputime = g_ble_phy_data.cputime_at_llt + ticks;
-    ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
+    ticks = ble_ll_timer_usecs_to_ticks(usecs, &rem_usecs);
+    ble_hdr->tmr_ticks = g_ble_phy_data.cputime_at_llt + ticks;
+    ble_hdr->tmr_usecs = rem_usecs;
 
     return true;
 }

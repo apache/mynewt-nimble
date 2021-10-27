@@ -21,10 +21,10 @@
 #define H_BLE_LL_
 
 #include "stats/stats.h"
-#include "os/os_cputime.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
+#include "controller/ble_ll_timer.h"
 
 #ifdef MYNEWT
 #include "controller/ble_ll_ctrl.h"
@@ -598,7 +598,7 @@ ble_ll_get_addr_type(uint8_t txrxflag)
 static inline uint32_t
 ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
 {
-    return os_cputime_usecs_to_ticks(usecs + 30);
+    return ble_ll_timer_usecs_to_ticks(usecs + 30, NULL);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)

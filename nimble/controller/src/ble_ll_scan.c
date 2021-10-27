@@ -35,6 +35,7 @@
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #include "controller/ble_ll_scan_aux.h"
 #endif
+#include "controller/ble_ll_timer.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
@@ -136,7 +137,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
 static inline uint32_t
 ble_ll_scan_time_hci_to_ticks(uint16_t value)
 {
-    return os_cputime_usecs_to_ticks(value * BLE_HCI_SCAN_ITVL);
+    return ble_ll_timer_usecs_to_ticks(value * BLE_HCI_SCAN_ITVL, NULL);
 }
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
@@ -779,7 +780,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
-    rc = ble_phy_rx_set_start_time(os_cputime_get32() +
+    rc = ble_phy_rx_set_start_time(ble_ll_timer_get() +
                                    g_ble_ll_sched_offset_ticks, 0);
     if (!rc || rc == BLE_PHY_ERR_RX_LATE) {
         /* If we are late here, it is still OK because we keep scanning.
@@ -1036,7 +1037,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         return;
     }
 
-    now = os_cputime_get32();
+    now = ble_ll_timer_get();
 
     inside_window = ble_ll_scan_is_inside_window(scanp, now);
 
@@ -1646,7 +1647,7 @@ ble_ll_scan_chk_resume(void)
             return;
         }
 
-        now = os_cputime_get32();
+        now = ble_ll_timer_get();
         if (ble_ll_state_get() == BLE_LL_STATE_STANDBY &&
             ble_ll_scan_is_inside_window(scansm->scanp, now)) {
             /* Turn on the receiver and set state */

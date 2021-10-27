@@ -642,7 +642,7 @@ ble_phy_set_start_now(void)
      * it to N+3 to account for possible extra tick on RTC0 during these
      * operations.
      */
-    now = os_cputime_get32();
+    now = ble_ll_timer_get();
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
     NRF_RTC0->CC[0] = now + 3;
     NRF_RTC0->EVTENSET = RTC_EVTENSET_COMPARE0_Msk;
@@ -1116,7 +1116,6 @@ ble_phy_rx_start_isr(void)
     uint32_t state;
     uint32_t usecs;
     uint32_t pdu_usecs;
-    uint32_t ticks;
     struct ble_mbuf_hdr *ble_hdr;
     uint8_t *dptr;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -1150,7 +1149,7 @@ ble_phy_rx_start_isr(void)
      * it is possible that actual transmission started before TIMER0 was
      * running - need to take this into account.
      */
-    ble_hdr->beg_cputime = g_ble_phy_data.phy_start_cputime;
+    ble_hdr->tmr_ticks = g_ble_phy_data.phy_start_cputime;
 
     usecs = NRF_TIMER0->CC[1];
     pdu_usecs = ble_phy_mode_pdu_start_off(ble_hdr->rxinfo.phy_mode) +
@@ -1161,15 +1160,8 @@ ble_phy_rx_start_isr(void)
     }
     usecs -= pdu_usecs;
 
-    ticks = os_cputime_usecs_to_ticks(usecs);
-    usecs -= os_cputime_ticks_to_usecs(ticks);
-    if (usecs == 31) {
-        usecs = 0;
-        ++ticks;
-    }
-
-    ble_hdr->beg_cputime += ticks;
-    ble_hdr->rem_usecs = usecs;
+    ble_hdr->tmr_ticks += ble_ll_timer_usecs_to_ticks(usecs,
+                                                      &ble_hdr->tmr_usecs);
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
      * rx chain delay, it could be 18 usecs from address interrupt. The

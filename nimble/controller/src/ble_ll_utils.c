@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include "nimble/ble.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_timer.h"
 #include "controller/ble_ll_utils.h"
 
 /* 37 bits require 5 bytes */
@@ -291,7 +292,7 @@ ble_ll_utils_calc_window_widening(uint32_t anchor_point,
 
     time_since_last_anchor = (int32_t)(anchor_point - last_anchor_point);
     if (time_since_last_anchor > 0) {
-        delta_msec = os_cputime_ticks_to_usecs(time_since_last_anchor) / 1000;
+        delta_msec = ble_ll_timer_ticks_to_usecs(time_since_last_anchor) / 1000;
         total_sca_ppm = g_ble_sca_ppm_tbl[master_sca] + MYNEWT_VAL(BLE_LL_SCA);
         window_widening = (total_sca_ppm * delta_msec) / 1000;
     }

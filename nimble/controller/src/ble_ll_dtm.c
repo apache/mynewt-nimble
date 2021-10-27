@@ -29,6 +29,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_timer.h"
 #include "ble_ll_dtm_priv.h"
 
 STATS_SECT_START(ble_ll_dtm_stats)
@@ -278,7 +279,6 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len,
 {
     uint32_t l;
     uint32_t itvl_usec;
-    uint32_t itvl_ticks;
 
     /* Calculate interval as per spec Bluetooth 5.0 Vol 6. Part F, 4.1.6 */
     l = ble_ll_pdu_tx_time_get(len + BLE_LL_PDU_HDR_LEN, phy_mode);
@@ -290,13 +290,8 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len,
     }
 #endif
 
-    itvl_ticks = os_cputime_usecs_to_ticks(itvl_usec);
-    ctx->itvl_rem_usec = (itvl_usec - os_cputime_ticks_to_usecs(itvl_ticks));
-    if (ctx->itvl_rem_usec == 31) {
-        ctx->itvl_rem_usec = 0;
-        ++itvl_ticks;
-    }
-    ctx->itvl_ticks = itvl_ticks;
+    ctx->itvl_ticks = ble_ll_timer_usecs_to_ticks(itvl_usec,
+                                                  &ctx->itvl_rem_usec);
 }
 
 static int
@@ -410,7 +405,7 @@ ble_ll_dtm_rx_start(void)
 #endif
 
     OS_ENTER_CRITICAL(sr);
-    rc = ble_phy_rx_set_start_time(os_cputime_get32(), 0);
+    rc = ble_phy_rx_set_start_time(ble_ll_timer_get(), 0);
     OS_EXIT_CRITICAL(sr);
     if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         return rc;
