@@ -1160,8 +1160,7 @@ ble_phy_rx_start_isr(void)
     }
     usecs -= pdu_usecs;
 
-    ble_hdr->tmr_ticks += ble_ll_timer_usecs_to_ticks(usecs,
-                                                      &ble_hdr->tmr_usecs);
+    ble_hdr->tmr_ticks += ble_ll_timer_u2t_rem(usecs, &ble_hdr->tmr_usecs);
 
     /* XXX: I wonder if we always have the 1st byte. If we need to wait for
      * rx chain delay, it could be 18 usecs from address interrupt. The

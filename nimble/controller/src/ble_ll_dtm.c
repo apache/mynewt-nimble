@@ -290,8 +290,8 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len,
     }
 #endif
 
-    ctx->itvl_ticks = ble_ll_timer_usecs_to_ticks(itvl_usec,
-                                                  &ctx->itvl_rem_usec);
+    ctx->itvl_ticks = ble_ll_timer_u2t_rem(itvl_usec,
+                                           &ctx->itvl_rem_usec);
 }
 
 static int

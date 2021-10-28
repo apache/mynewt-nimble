@@ -602,7 +602,7 @@ ble_phy_rx_start_isr(void)
      * and the leftover usecs.
      */
     usecs = llt32 - g_ble_phy_data.llt_at_cputime;
-    ticks = ble_ll_timer_usecs_to_ticks(usecs, &rem_usecs);
+    ticks = ble_ll_timer_u2t_rem(usecs, &rem_usecs);
     ble_hdr->tmr_ticks = g_ble_phy_data.cputime_at_llt + ticks;
     ble_hdr->tmr_usecs = rem_usecs;
 

@@ -598,7 +598,7 @@ ble_ll_get_addr_type(uint8_t txrxflag)
 static inline uint32_t
 ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
 {
-    return ble_ll_timer_usecs_to_ticks(usecs + 30, NULL);
+    return ble_ll_timer_u2t(usecs + 30);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)

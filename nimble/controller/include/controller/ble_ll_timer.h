@@ -30,14 +30,33 @@ ble_ll_timer_get(void)
     return os_cputime_get32();
 }
 
+static inline void
+ble_ll_timer_wrap_usecs(uint32_t *ticks, uint8_t *usecs)
+{
+    if (*usecs >= 31) {
+        *usecs -= 31;
+        *ticks = *ticks + 1;
+    }
+}
+
+static inline void
+ble_ll_timer_add(uint32_t *ticks_d, uint8_t *usecs_d, uint32_t ticks_n,
+                 uint8_t usecs_n)
+{
+    *ticks_d += ticks_n;
+    *usecs_d += usecs_n;
+
+    ble_ll_timer_wrap_usecs(ticks_d, usecs_d);
+}
+
 static inline uint32_t
-ble_ll_timer_ticks_to_usecs(uint32_t ticks)
+ble_ll_timer_t2u(uint32_t ticks)
 {
     return os_cputime_ticks_to_usecs(ticks);
 }
 
 static inline uint32_t
-ble_ll_timer_usecs_to_ticks(uint32_t usecs, uint8_t *rem_usecs)
+ble_ll_timer_u2t_fast(uint32_t usecs, uint8_t *rem_usecs)
 {
     uint32_t ticks;
 
@@ -49,23 +68,36 @@ ble_ll_timer_usecs_to_ticks(uint32_t usecs, uint8_t *rem_usecs)
 
     if (rem_usecs) {
         usecs -= os_cputime_ticks_to_usecs(ticks);
-        if (usecs >= 31) {
-            usecs -= 31;
-            ticks++;
-        }
         *rem_usecs = usecs;
+        ble_ll_timer_wrap_usecs(&ticks, rem_usecs);
     }
 
     return ticks;
 }
 
-static inline void
-ble_ll_timer_wrap_usecs(uint32_t *ticks, uint8_t *usecs)
+static inline uint32_t
+ble_ll_timer_u2t_rem(uint32_t usecs, uint8_t *rem_usecs)
 {
-    if (*usecs >= 31) {
-        *usecs -= 31;
-        *ticks = *ticks + 1;
-    }
+#if MYNEWT_VAL(BLE_LL_TIMER_FAST_U2T)
+    return ble_ll_timer_u2t_fast(usecs, rem_usecs);
+#else
+    uint32_t ticks;
+
+    ticks = os_cputime_usecs_to_ticks(usecs);
+
+    usecs -= os_cputime_ticks_to_usecs(ticks);
+    *rem_usecs = usecs;
+    ble_ll_timer_wrap_usecs(&ticks, rem_usecs);
+
+    return ticks;
+#endif
+}
+
+
+static inline uint32_t
+ble_ll_timer_u2t(uint32_t usecs)
+{
+    return os_cputime_usecs_to_ticks(usecs);
 }
 
 #ifdef __cplusplus

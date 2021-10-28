@@ -137,7 +137,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
 static inline uint32_t
 ble_ll_scan_time_hci_to_ticks(uint16_t value)
 {
-    return ble_ll_timer_usecs_to_ticks(value * BLE_HCI_SCAN_ITVL, NULL);
+    return ble_ll_timer_u2t(value * BLE_HCI_SCAN_ITVL);
 }
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */

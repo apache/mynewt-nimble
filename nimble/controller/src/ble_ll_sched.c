@@ -339,7 +339,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         usecs = connsm->slave_cur_window_widening;
-        sch->start_time -= (ble_ll_timer_usecs_to_ticks(usecs, NULL) + 1);
+        sch->start_time -= (ble_ll_timer_u2t(usecs) + 1);
         sch->remainder = 0;
     } else {
         sch->remainder = connsm->anchor_point_usecs;
@@ -721,8 +721,8 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     rc = ble_ll_sched_insert(sch, max_delay, preempt_none);
 
     if (rc == 0) {
-        connsm->tx_win_off = ble_ll_timer_ticks_to_usecs(sch->start_time -
-                                                         orig_start_time);
+        connsm->tx_win_off = ble_ll_timer_t2u(sch->start_time -
+                                              orig_start_time);
         connsm->tx_win_off /= BLE_LL_CONN_TX_OFF_USECS;
 
         connsm->anchor_point = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -766,8 +766,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      * usecs to ticks could be off by up to 1 tick.
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
-                      ble_ll_timer_usecs_to_ticks(
-                              connsm->slave_cur_window_widening, NULL) - 1;
+                      ble_ll_timer_u2t(connsm->slave_cur_window_widening) - 1;
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 
@@ -823,7 +822,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
     int rc = 0;
     os_sr_t sr;
 
-    ww_ticks = ble_ll_timer_usecs_to_ticks(window_widening, &ww_rem_usecs);
+    ww_ticks = ble_ll_timer_u2t_rem(window_widening, &ww_rem_usecs);
 
     start_time = anchor_point - ww_ticks;
     start_time_rem_usecs = anchor_point_usecs - ww_rem_usecs;
@@ -834,7 +833,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                  phy_mode);
-    end_time = start_time + ble_ll_timer_usecs_to_ticks(dur, NULL) + 1;
+    end_time = start_time + ble_ll_timer_u2t(dur) + 1;
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -877,15 +876,17 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch, uint32_t beg_cputime,
     os_sr_t sr;
     int rc = 0;
 
-    offset_ticks = ble_ll_timer_usecs_to_ticks(offset, &offset_usecs);
+    start_time_ticks = beg_cputime;
+    start_time_usecs = rem_usecs;
 
-    start_time_ticks = beg_cputime + offset_ticks;
-    start_time_usecs = rem_usecs + offset_usecs;
-    ble_ll_timer_wrap_usecs(&start_time_ticks, &start_time_usecs);
+    offset_ticks = ble_ll_timer_u2t_fast(offset, &offset_usecs);
+
+    ble_ll_timer_add(&start_time_ticks, &start_time_usecs, offset_ticks,
+                     offset_usecs);
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                   phy_mode);
-    end_time = start_time_ticks + ble_ll_timer_usecs_to_ticks(dur, NULL) + 1;
+    end_time = start_time_ticks + ble_ll_timer_u2t_fast(dur, NULL) + 1;
 
     start_time_ticks -= g_ble_ll_sched_offset_ticks;
 
@@ -1243,13 +1244,12 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
     int rc;
 
     offset_us += pdu_time_rem;
-    offset_ticks = ble_ll_timer_usecs_to_ticks(offset_us, &offset_usecs);
+    offset_ticks = ble_ll_timer_u2t_fast(offset_us, &offset_usecs);
 
     sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
     sch->remainder = offset_usecs;
     /* TODO: make some sane slot reservation */
-    sch->end_time = sch->start_time +
-                    ble_ll_timer_usecs_to_ticks(5000, NULL) + 1;
+    sch->end_time = sch->start_time + ble_ll_timer_u2t_fast(5000, NULL) + 1;
 
     OS_ENTER_CRITICAL(sr);
 
@@ -1319,8 +1319,8 @@ ble_ll_sched_init(void)
      * This is the offset from the start of the scheduled item until the actual
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
-    g_ble_ll_sched_offset_ticks =
-            ble_ll_timer_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30, NULL);
+    g_ble_ll_sched_offset_ticks = ble_ll_timer_u2t(XCVR_TX_SCHED_DELAY_USECS +
+                                                   30);
 
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);

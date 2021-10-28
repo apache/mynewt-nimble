@@ -425,7 +425,7 @@ ble_ll_conn_itvl_to_ticks(uint32_t itvl, uint32_t *itvl_ticks,
 
     usecs = itvl * BLE_LL_CONN_ITVL_USECS;
 
-    *itvl_ticks = ble_ll_timer_usecs_to_ticks(usecs, itvl_usecs);
+    *itvl_ticks = ble_ll_timer_u2t_rem(usecs, itvl_usecs);
 }
 
 /**
@@ -1093,7 +1093,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
             usecs += (BLE_LL_IFS + connsm->eff_max_rx_time);
         }
 
-        ticks = ble_ll_timer_usecs_to_ticks(usecs, NULL);
+        ticks = ble_ll_timer_u2t(usecs);
         if (CPUTIME_LT(ble_ll_timer_get() + ticks, next_event_time)) {
             md = 1;
         }
@@ -1475,7 +1475,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
         usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
 
         ticks = (uint32_t)(next_sched_time - begtime);
-        allowed_usecs = ble_ll_timer_ticks_to_usecs(ticks);
+        allowed_usecs = ble_ll_timer_t2u(ticks);
         if ((usecs + add_usecs) >= allowed_usecs) {
             rc = 0;
         }
@@ -1963,11 +1963,11 @@ ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
 
     if ((int16_t)(conn_event - connsm->event_cntr) < 0) {
         itvl_us *= connsm->event_cntr - conn_event;
-        ticks = ble_ll_timer_usecs_to_ticks(itvl_us, &usecs);
+        ticks = ble_ll_timer_u2t_rem(itvl_us, &usecs);
         *anchor = connsm->anchor_point - ticks;
     } else {
         itvl_us *= conn_event - connsm->event_cntr;
-        ticks = ble_ll_timer_usecs_to_ticks(itvl_us, &usecs);
+        ticks = ble_ll_timer_u2t_rem(itvl_us, &usecs);
         *anchor = connsm->anchor_point + ticks;
     }
 
@@ -2046,7 +2046,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->anchor_point += connsm->conn_itvl_ticks;
         connsm->anchor_point_usecs += connsm->conn_itvl_usecs;
     } else {
-        ticks = ble_ll_timer_usecs_to_ticks(itvl, &usecs);
+        ticks = ble_ll_timer_u2t_rem(itvl, &usecs);
         connsm->anchor_point += ticks;
         connsm->anchor_point_usecs += usecs;
     }
@@ -2085,7 +2085,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         if (upd->winoffset != 0) {
             usecs32 = upd->winoffset * BLE_LL_CONN_ITVL_USECS;
-            ticks = ble_ll_timer_usecs_to_ticks(usecs32, &usecs);
+            ticks = ble_ll_timer_u2t_rem(usecs32, &usecs);
             connsm->anchor_point += ticks;
             connsm->anchor_point_usecs += usecs;
             ble_ll_timer_wrap_usecs(&connsm->anchor_point,
@@ -2207,9 +2207,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         }
         cur_ww += BLE_LL_JITTER_USECS;
         connsm->slave_cur_window_widening = cur_ww;
-        itvl += ble_ll_timer_usecs_to_ticks(cur_ww +
-                                            connsm->slave_cur_tx_win_usecs,
-                                            NULL);
+        itvl += ble_ll_timer_u2t(cur_ww + connsm->slave_cur_tx_win_usecs);
     }
     itvl -= g_ble_ll_sched_offset_ticks;
     connsm->ce_end_time = connsm->anchor_point + itvl;
@@ -2292,9 +2290,9 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         }
 
         /* Anchor point is cputime. */
-        connsm->anchor_point =
-                rxhdr->tmr_ticks +
-                ble_ll_timer_usecs_to_ticks(usecs, &connsm->anchor_point_usecs);
+        connsm->anchor_point = rxhdr->tmr_ticks +
+                               ble_ll_timer_u2t_rem(usecs,
+                                                    &connsm->anchor_point_usecs);
 
         connsm->slave_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
@@ -2304,9 +2302,11 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
             ble_ll_timer_usecs_to_ticks(connsm->slave_cur_tx_win_usecs, NULL) + 1;
 
 #else
-        connsm->ce_end_time = connsm->anchor_point +
-            (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_TICKS_PER_SLOT)
-            + ble_ll_timer_usecs_to_ticks(connsm->slave_cur_tx_win_usecs, NULL) + 1;
+        connsm->ce_end_time =
+                connsm->anchor_point +
+                (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                 BLE_LL_SCHED_TICKS_PER_SLOT) +
+                ble_ll_timer_u2t(connsm->slave_cur_tx_win_usecs) + 1;
 #endif
         connsm->slave_cur_window_widening = BLE_LL_JITTER_USECS;
 
@@ -2492,7 +2492,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
         ble_err = BLE_ERR_CONN_SPVN_TMO;
     }
     /* XXX: Convert to ticks to usecs calculation instead??? */
-    tmo = ble_ll_timer_usecs_to_ticks(tmo, NULL);
+    tmo = ble_ll_timer_u2t(tmo);
     if ((int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >= tmo) {
         ble_ll_conn_end(connsm, ble_err);
         return;
@@ -3169,9 +3169,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         connsm->cons_rxd_bad_crc = 0;
 
         /* Set last valid received pdu time (resets supervision timer) */
-        connsm->last_rxd_pdu_cputime = begtime +
-                                       ble_ll_timer_usecs_to_ticks(add_usecs,
-                                                                   NULL);
+        connsm->last_rxd_pdu_cputime = begtime + ble_ll_timer_u2t(add_usecs);
 
         /*
          * Check for valid LLID before proceeding. We have seen some weird

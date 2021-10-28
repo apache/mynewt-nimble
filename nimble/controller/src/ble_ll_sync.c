@@ -1158,7 +1158,7 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
         usecs = sm->itvl_usecs;
     } else {
         itvl = sm->itvl * BLE_LL_SYNC_ITVL_USECS * (1 + skip);
-        ticks = ble_ll_timer_usecs_to_ticks(itvl, &usecs);
+        ticks = ble_ll_timer_u2t_rem(itvl, &usecs);
     }
 
     sm->anchor_point += ticks;
@@ -1209,8 +1209,7 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
      * BLE_LL_SYNC_ESTABLISH_CNT events before failing regardless of timeout
      */
     if (!(sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING)) {
-        if (CPUTIME_GT(sm->anchor_point -
-                       ble_ll_timer_usecs_to_ticks(cur_ww, NULL),
+        if (CPUTIME_GT(sm->anchor_point - ble_ll_timer_u2t(cur_ww),
                        sm->last_anchor_point + sm->timeout )) {
             return -1;
         }
@@ -1376,7 +1375,7 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
 
     /* precalculate interval ticks and usecs */
     usecs = sm->itvl * BLE_LL_SYNC_ITVL_USECS;
-    sm->itvl_ticks = ble_ll_timer_usecs_to_ticks(usecs, &sm->itvl_usecs);
+    sm->itvl_ticks = ble_ll_timer_u2t_rem(usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
     sm->chanmap[0] = syncinfo[4];
@@ -1409,7 +1408,7 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     }
 
     /* from now on we only need timeout in ticks */
-    sm->timeout = ble_ll_timer_usecs_to_ticks(sm->timeout, NULL);
+    sm->timeout = ble_ll_timer_u2t(sm->timeout);
 
     sm->phy_mode = rxhdr->rxinfo.phy_mode;
     sm->window_widening = BLE_LL_JITTER_USECS;
@@ -1898,7 +1897,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     }
 
     /* set params from transfer */
-    sm->timeout = ble_ll_timer_usecs_to_ticks(sync_timeout, NULL);
+    sm->timeout = ble_ll_timer_u2t(sync_timeout);
     sm->skip = max_skip;
     sm->sync_pending_cnt = BLE_LL_SYNC_ESTABLISH_CNT;
     sm->transfer_id = get_le16(sync_ind); /* first two bytes */
@@ -1928,7 +1927,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     sm->itvl = itvl;
 
     /* precalculate interval ticks and usecs */
-    sm->itvl_ticks = ble_ll_timer_usecs_to_ticks(itvl_usecs, &sm->itvl_usecs);
+    sm->itvl_ticks = ble_ll_timer_u2t_rem(itvl_usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
     sm->chanmap[0] = syncinfo[4];
@@ -2030,7 +2029,7 @@ ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
         ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
     }
 
-    offset = ble_ll_timer_ticks_to_usecs(syncsm->anchor_point - anchor);
+    offset = ble_ll_timer_t2u(syncsm->anchor_point - anchor);
     offset -= anchor_usecs;
     offset += syncsm->anchor_point_usecs;
 

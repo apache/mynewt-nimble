@@ -417,6 +417,14 @@ syscfg.defs:
         range: 1..257
         value: 32
 
+    BLE_LL_TIMER_FAST_U2T:
+        description: >
+            Always use optimized conversion of usecs_to_ticks. This increases
+            code size.
+            If disabled, optimized conversion routine is only used when strictly
+            necessary due to timing constraints.
+        value: 0
+
 # deprecated settings (to be defunct/removed eventually)
     BLE_LL_DIRECT_TEST_MODE:
         description: use BLE_LL_DTM instead
