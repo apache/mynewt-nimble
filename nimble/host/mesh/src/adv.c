@@ -38,6 +38,11 @@ extern uint8_t g_mesh_addr_type;
 struct os_mbuf_pool adv_os_mbuf_pool;
 struct ble_npl_eventq bt_mesh_adv_queue;
 
+os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
+        MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
+        BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
+struct os_mempool adv_buf_mempool;
+
 static struct bt_mesh_adv adv_pool[CONFIG_BT_MESH_ADV_BUF_COUNT];
 
 static struct bt_mesh_adv *adv_alloc(int id)

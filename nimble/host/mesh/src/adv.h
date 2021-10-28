@@ -30,6 +30,8 @@
 /* We declare it as extern here to share it between 'adv' and 'adv_legacy' */
 extern struct os_mbuf_pool adv_os_mbuf_pool;
 extern struct ble_npl_eventq bt_mesh_adv_queue;
+extern struct os_mempool adv_buf_mempool;
+extern os_membuf_t adv_buf_mem[];
 
 enum bt_mesh_adv_type
 {

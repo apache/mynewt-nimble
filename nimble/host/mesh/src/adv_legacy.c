@@ -44,10 +44,7 @@ static int adv_initialized = false;
 OS_TASK_STACK_DEFINE(g_blemesh_stack, MYNEWT_VAL(BLE_MESH_ADV_STACK_SIZE));
 struct os_task adv_task;
 #endif
-static os_membuf_t adv_buf_mem[OS_MEMPOOL_SIZE(
-	MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
-	BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE)];
-static struct os_mempool adv_buf_mempool;
+
 static int32_t adv_timeout;
 
 static inline void adv_send(struct os_mbuf *buf)
