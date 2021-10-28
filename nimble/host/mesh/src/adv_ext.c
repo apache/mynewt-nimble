@@ -28,7 +28,6 @@ static struct ble_gap_ext_adv_params adv_param = {
 };
 
 bool ext_adv_configured = false;
-struct ble_npl_eventq bt_mesh_adv_queue;
 
 enum {
 	/** Controller is currently advertising */
@@ -273,13 +272,13 @@ static void send_pending_adv(struct ble_npl_event *work)
 
 	/* No more pending buffers */
 	if (bt_mesh_is_provisioned()) {
-		if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-			err = bt_mesh_pb_gatt_adv_start();
-			BT_DBG("Proxy Advertising");
-		}
+	    if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+	        err = bt_mesh_proxy_adv_start();
+	        BT_DBG("Proxy Advertising");
+	    }
 	} else if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-		err = bt_mesh_prov_adv_start();
-		BT_DBG("PB-GATT Advertising");
+	    err = bt_mesh_pb_gatt_adv_start();
+	    BT_DBG("PB-GATT Advertising");
 	}
 
 	if (!err) {
@@ -301,47 +300,27 @@ void bt_mesh_adv_buf_ready(void)
 
 void bt_mesh_adv_init(void)
 {
+    int rc;
+
+    rc = os_mempool_init(&adv_buf_mempool, MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT),
+                         BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
+                         adv_buf_mem, "adv_buf_pool");
+    assert(rc == 0);
+
+    rc = os_mbuf_pool_init(&adv_os_mbuf_pool, &adv_buf_mempool,
+                           BT_MESH_ADV_DATA_SIZE + BT_MESH_MBUF_HEADER_SIZE,
+                           MYNEWT_VAL(BLE_MESH_ADV_BUF_COUNT));
+    assert(rc == 0);
+
+    ble_npl_eventq_init(&bt_mesh_adv_queue);
+
 	k_work_init_delayable(&adv.work, send_pending_adv);
 }
 
 int bt_mesh_adv_enable(void)
 {
-	struct ble_gap_ext_adv_params params;
-	ble_addr_t addr;
-	int rc;
-
-	if (ext_adv_configured) {
-		/* Already initialized */
-		return 0;
-	}
-
-	params.itvl_min = BT_MESH_ADV_SCAN_UNIT(ADV_INT_FAST_MS);
-	params.itvl_max = BT_MESH_ADV_SCAN_UNIT(ADV_INT_FAST_MS);
-
-	if (MYNEWT_VAL(BLE_MESH_DEBUG_USE_ID_ADDR)) {
-		params.own_addr_type = BLE_OWN_ADDR_PUBLIC;
-	} else {
-		params.own_addr_type = BLE_OWN_ADDR_RANDOM;
-		/* set random (NRPA) address for instance */
-		rc = ble_hs_id_gen_rnd(1, &addr);
-		assert (rc == 0);
-
-		rc = ble_gap_ext_adv_set_addr(BT_ID_DEFAULT, &addr );
-		assert (rc == 0);
-	}
-
-	params.primary_phy = BLE_HCI_LE_PHY_1M;
-	params.secondary_phy = BLE_HCI_LE_PHY_1M;
-	params.tx_power = 127;
-	params.sid = 4;
-
-	rc = ble_gap_ext_adv_configure(BT_ID_DEFAULT, &params, NULL,
-				       ble_mesh_ext_adv_event_handler, NULL);
-	if (rc == 0) {
-		ext_adv_configured = true;
-	}
-
-	return rc;
+    /* No need to initialize extended advertiser instance here */
+	return 0;
 }
 
 int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
