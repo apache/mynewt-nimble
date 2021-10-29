@@ -8,8 +8,7 @@
 #ifndef __PB_GATT_SRV_H__
 #define __PB_GATT_SRV_H__
 
-int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
-			 void (*end)(uint16_t, void *), void *user_data);
+int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf);
 
 int bt_mesh_pb_gatt_enable(void);
 int bt_mesh_pb_gatt_disable(void);
@@ -20,5 +19,13 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err);
 void resolve_svc_handles(void);
 
 int bt_mesh_pb_gatt_adv_start(void);
+
+extern struct svc_handles {
+	uint16_t proxy_h;
+	uint16_t proxy_data_out_h;
+	uint16_t prov_h;
+	uint16_t prov_data_in_h;
+	uint16_t prov_data_out_h;
+} svc_handles;
 
 #endif /* __PB_GATT_SRV_H__ */

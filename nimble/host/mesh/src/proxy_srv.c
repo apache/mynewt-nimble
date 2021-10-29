@@ -9,6 +9,8 @@
 
 #define MESH_LOG_MODULE BLE_MESH_PROXY_LOG
 
+#include "mesh/slist.h"
+#include "mesh/mesh.h"
 #include "../../host/src/ble_hs_priv.h"
 #include "services/gatt/ble_svc_gatt.h"
 
@@ -43,19 +45,13 @@
 	(((w16) >>  0) & 0xFF), \
 	(((w16) >>  8) & 0xFF)
 
-static struct {
-	uint16_t proxy_h;
-	uint16_t proxy_data_out_h;
-	uint16_t prov_h;
-	uint16_t prov_data_in_h;
-	uint16_t prov_data_out_h;
-} svc_handles;
+static sys_slist_t idle_waiters;
+static atomic_t pending_notifications;
 
 static void proxy_send_beacons(struct ble_npl_event *work);
 
 static int proxy_send(uint16_t conn_handle,
-	const void *data, uint16_t len,
-	void (*end)(uint16_t, void *), void *user_data);
+	const void *data, uint16_t len);
 
 
 static struct bt_mesh_proxy_client clients[CONFIG_BT_MAX_CONN];
@@ -185,8 +181,7 @@ static void send_filter_status(struct bt_mesh_proxy_client *client,
 		return;
 	}
 
-	err = bt_mesh_proxy_msg_send(client->cli, BT_MESH_PROXY_CONFIG,
-				     buf, NULL, NULL);
+	err = bt_mesh_proxy_msg_send(client->cli, BT_MESH_PROXY_CONFIG, buf);
 	if (err) {
 		BT_ERR("Failed to send proxy cfg message (err %d)", err);
 	}
@@ -262,7 +257,7 @@ static void proxy_cfg(struct bt_mesh_proxy_role *role)
 	}
 
 	proxy_filter_recv(role->conn_handle, &rx, buf);
-	}
+}
 
 static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 {
@@ -293,8 +288,7 @@ static int beacon_send(struct bt_mesh_proxy_client *client, struct bt_mesh_subne
 	net_buf_simple_init(buf, 1);
 	bt_mesh_beacon_create(sub, buf);
 
-	rc = bt_mesh_proxy_msg_send(client->cli, BT_MESH_PROXY_BEACON, buf,
-				    NULL, NULL);
+	rc = bt_mesh_proxy_msg_send(client->cli, BT_MESH_PROXY_BEACON, buf);
 	os_mbuf_free_chain(buf);
 	return rc;
 }
@@ -434,7 +428,7 @@ static int node_id_adv(struct bt_mesh_subnet *sub, int32_t duration)
 
 	memcpy(proxy_svc_data + 3, tmp + 8, 8);
 
-	err = bt_le_adv_start(&fast_adv_param, duration, node_id_ad,
+	err = bt_mesh_adv_start(&fast_adv_param, duration, node_id_ad,
 			      ARRAY_SIZE(node_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Node ID (err %d)", err);
@@ -472,7 +466,7 @@ static int net_id_adv(struct bt_mesh_subnet *sub, int32_t duration)
 
 	memcpy(proxy_svc_data + 3, sub->keys[SUBNET_KEY_TX_IDX(sub)].net_id, 8);
 
-	err = bt_le_adv_start(&slow_adv_param, duration, net_id_ad,
+	err = bt_mesh_adv_start(&slow_adv_param, duration, net_id_ad,
 			      ARRAY_SIZE(net_id_ad), sd, 0);
 	if (err) {
 		BT_WARN("Failed to advertise using Network ID (err %d)", err);
@@ -635,7 +629,7 @@ int bt_mesh_proxy_gatt_enable(void)
 
 	BT_DBG("");
 
-	if (bt_mesh_is_provisioned()) {
+	if (!bt_mesh_is_provisioned()) {
 		return -ENOTSUP;
 	}
 
@@ -751,13 +745,6 @@ static bool client_filter_match(struct bt_mesh_proxy_client *client,
 	return false;
 }
 
-static void buf_send_end(uint16_t conn_handle, void *user_data)
-{
-	struct os_mbuf *buf = user_data;
-
-	net_buf_unref(buf);
-}
-
 bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 {
 	const struct bt_mesh_send_cb *cb = BT_MESH_ADV(buf)->cb;
@@ -787,7 +774,7 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 		net_buf_simple_add_mem(msg, buf->om_data, buf->om_len);
 
 		err = bt_mesh_proxy_msg_send(client->cli, BT_MESH_PROXY_NET_PDU,
-					     msg, buf_send_end, net_buf_ref(buf));
+					     msg);
 
 		adv_send_start(0, err, cb, cb_data);
 		if (err) {
@@ -806,23 +793,6 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 	}
 
 	return relayed;
-}
-
-
-static void proxy_sar_timeout(struct ble_npl_event *work)
-{
-	struct bt_mesh_proxy_role *role;
-	int rc;
-	role = ble_npl_event_get_arg(work);
-
-
-	BT_WARN("Proxy SAR timeout");
-
-	if (role->conn_handle) {
-		rc = ble_gap_terminate(role->conn_handle,
-				       BLE_ERR_REM_USER_CONN_TERM);
-		assert(rc == 0);
-	}
 }
 
 static void gatt_connected(uint16_t conn_handle)
@@ -880,9 +850,23 @@ static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
 	}
 }
 
+void notify_complete(void)
+{
+	sys_snode_t *n;
+
+	if (atomic_dec(&pending_notifications) > 1) {
+		return;
+	}
+
+	BT_DBG("");
+
+	while ((n = sys_slist_get(&idle_waiters))) {
+		CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
+	}
+}
+
 static int proxy_send(uint16_t conn_handle,
-		      const void *data, uint16_t len,
-		      void (*end)(uint16_t, void *), void *user_data)
+		      const void *data, uint16_t len)
 {
 	struct os_mbuf *om;
 	int err = 0;
@@ -892,9 +876,12 @@ static int proxy_send(uint16_t conn_handle,
 	om = ble_hs_mbuf_from_flat(data, len);
 	assert(om);
 	err = ble_gattc_notify_custom(conn_handle, svc_handles.proxy_data_out_h, om);
-	/* We do not pass cb into ble_gattc_notify_custom - execute it at the end */
+	notify_complete();
 
-	end(conn_handle, user_data);
+	if (!err) {
+		atomic_inc(&pending_notifications);
+	}
+
 	return err;
 }
 
@@ -948,7 +935,7 @@ static void ble_mesh_handle_connect(struct ble_gap_event *event, void *arg)
 int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 {
 	if ((event->type == BLE_GAP_EVENT_CONNECT) ||
-	(event->type == BLE_GAP_EVENT_ADV_COMPLETE)) {
+	    (event->type == BLE_GAP_EVENT_ADV_COMPLETE)) {
 		ble_mesh_handle_connect(event, arg);
 	} else if (event->type == BLE_GAP_EVENT_DISCONNECT) {
 		gatt_disconnected(event->disconnect.conn.conn_handle,
@@ -963,7 +950,7 @@ int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 			proxy_ccc_write(event->subscribe.conn_handle);
 #endif
 		} else if (event->subscribe.attr_handle ==
-		svc_handles.prov_data_out_h) {
+			   svc_handles.prov_data_out_h) {
 #if (MYNEWT_VAL(BLE_MESH_PB_GATT))
 			prov_ccc_write(event->subscribe.conn_handle, event->type);
 #endif
@@ -987,9 +974,6 @@ int bt_mesh_proxy_init(void)
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 		k_work_init(&clients[i].send_beacons, proxy_send_beacons);
 #endif
-
-		k_work_init_delayable(&clients[i].cli->sar_timer, proxy_sar_timeout);
-		k_work_add_arg_delayable(&clients[i].cli->sar_timer, &clients[i]);
 	}
 
 	resolve_svc_handles();

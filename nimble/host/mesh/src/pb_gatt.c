@@ -137,13 +137,6 @@ static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 	return 0;
 }
 
-static void buf_send_end(uint16_t conn_handle, void *user_data)
-{
-	if (link.comp.cb) {
-		link.comp.cb(0, link.comp.cb_data);
-	}
-}
-
 static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		    void *cb_data)
 {
@@ -156,7 +149,7 @@ static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 
 	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
 
-	return bt_mesh_pb_gatt_send(link.conn_handle, buf, buf_send_end, NULL);
+	return bt_mesh_pb_gatt_send(link.conn_handle, buf);
 }
 
 static void clear_tx(void)

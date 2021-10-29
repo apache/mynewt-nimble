@@ -26,8 +26,7 @@
 struct bt_mesh_proxy_role;
 
 typedef int (*proxy_send_cb_t)(uint16_t conn_handle,
-	const void *data, uint16_t len,
-	void (*end)(uint16_t, void *), void *user_data);
+	const void *data, uint16_t len);
 
 typedef void (*proxy_recv_cb_t)(struct bt_mesh_proxy_role *role);
 
@@ -57,8 +56,7 @@ struct bt_mesh_proxy_client {
 
 int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 	const void *buf, uint16_t len);
-int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
-	struct os_mbuf *msg, void (*end)(uint16_t, void *), void *user_data);
+int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type, struct os_mbuf *msg);
 void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role);
 void bt_mesh_proxy_role_cleanup(struct bt_mesh_proxy_role *role);
 struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
