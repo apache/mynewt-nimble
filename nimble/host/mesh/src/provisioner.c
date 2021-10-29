@@ -349,7 +349,7 @@ static void send_pub_key(void)
 	sys_memcpy_swap(net_buf_simple_add(buf, 32), &key[32], 32);
 
 	/* PublicKeyProvisioner */
-	memcpy(&bt_mesh_prov_link.conf_inputs[17], &buf->om_databuf[1], 64);
+	memcpy(&bt_mesh_prov_link.conf_inputs[17], &buf->om_data[1], 64);
 
 	if (bt_mesh_prov_send(buf, public_key_sent)) {
 		BT_ERR("Failed to send Public Key");
