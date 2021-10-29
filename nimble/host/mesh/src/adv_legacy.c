@@ -105,6 +105,8 @@ static inline void adv_send(struct os_mbuf *buf)
 	param.itvl_max = param.itvl_min;
 	param.conn_mode = BLE_GAP_CONN_MODE_NON;
 
+	int64_t time = k_uptime_get();
+
 	err = bt_le_adv_start(&param, duration, &ad, 1, NULL, 0);
 
 
@@ -124,7 +126,7 @@ static inline void adv_send(struct os_mbuf *buf)
 		return;
 	}
 
-	BT_DBG("Advertising stopped");
+	BT_DBG("Advertising stopped (%u ms)", (uint32_t) k_uptime_delta(&time));
 }
 
 void
@@ -136,30 +138,29 @@ mesh_adv_thread(void *args)
 	BT_DBG("started");
 
 	while (1) {
-#if (MYNEWT_VAL(BLE_MESH_PROXY))
-		ev = ble_npl_eventq_get(&bt_mesh_adv_queue, 0);
-		while (!ev) {
-		    /* Adv timeout may be set by a call from proxy
-             * to bt_mesh_adv_start:
-             */
-		    adv_timeout = K_FOREVER;
-			if (bt_mesh_is_provisioned()) {
-				if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
-				    (void)bt_mesh_proxy_adv_start();
-					BT_DBG("Proxy Advertising up to %d ms", (int) adv_timeout);
+		if (MYNEWT_VAL(BLE_MESH_GATT_SERVER)) {
+			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, 0);
+			while (!ev) {
+				/* Adv timeout may be set by a call from proxy
+				 * to bt_mesh_adv_start:
+				 */
+				adv_timeout = K_FOREVER;
+				if (bt_mesh_is_provisioned()) {
+					if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY)) {
+						bt_mesh_proxy_adv_start();
+						BT_DBG("Proxy Advertising up to %d ms", (int) adv_timeout);
+					}
+				} else if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
+					bt_mesh_pb_gatt_adv_start();
+					BT_DBG("PB-GATT Advertising up to %d ms", (int) adv_timeout);
 				}
-			} else if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-				(void)bt_mesh_pb_gatt_adv_start();
-				BT_DBG("PB-GATT Advertising up to %d ms", (int) adv_timeout);
+
+				ev = ble_npl_eventq_get(&bt_mesh_adv_queue, adv_timeout);
+				bt_le_adv_stop();
 			}
-
-			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, adv_timeout);
-			bt_le_adv_stop();
+		} else {
+			ev = ble_npl_eventq_get(&bt_mesh_adv_queue, BLE_NPL_TIME_FOREVER);
 		}
-#else
-		ev = ble_npl_eventq_get(&bt_mesh_adv_queue, BLE_NPL_TIME_FOREVER);
-#endif
-
 		if (!ev || !ble_npl_event_get_arg(ev)) {
 			continue;
 		}

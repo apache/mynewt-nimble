@@ -75,17 +75,11 @@ ble_uuid16_t BT_UUID_MESH_PROXY_DATA_OUT       = BLE_UUID16_INIT(0x2ade);
 
 static bool prov_fast_adv;
 
-static struct {
-	uint16_t proxy_h;
-	uint16_t proxy_data_out_h;
-	uint16_t prov_h;
-	uint16_t prov_data_in_h;
-	uint16_t prov_data_out_h;
-} svc_handles;
+struct svc_handles svc_handles;
+static atomic_t pending_notifications;
 
 static int gatt_send(uint16_t conn_handle,
-		     const void *data, uint16_t len,
-		     void (*end)(uint16_t, void *), void *user_data);
+		     const void *data, uint16_t len);
 
 static struct bt_mesh_proxy_role *cli;
 
@@ -104,17 +98,12 @@ static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 
 static bool service_registered;
 
-static int gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
+static int gatt_recv_proxy(uint16_t conn_handle, uint16_t attr_handle,
 			 struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
 	const uint8_t *data = ctxt->om->om_data;
 	uint16_t len = ctxt->om->om_len;
 	struct bt_mesh_proxy_client *client = find_client(conn_handle);
-
-
-	if (conn_handle != cli->conn_handle) {
-		return -ENOTCONN;
-	}
 
 	if (len < 1) {
 		BT_WARN("Too small Proxy PDU");
@@ -127,6 +116,30 @@ static int gatt_recv(uint16_t conn_handle, uint16_t attr_handle,
 	}
 
 	return bt_mesh_proxy_msg_recv(client->cli, data, len);
+}
+
+static int gatt_recv_prov(uint16_t conn_handle, uint16_t attr_handle,
+		     struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+	const uint8_t *data = ctxt->om->om_data;
+	uint16_t len = ctxt->om->om_len;
+
+	if (conn_handle != cli->conn_handle) {
+		BT_WARN("conn_handle != cli->conn_handle");
+		return -ENOTCONN;
+	}
+
+	if (len < 1) {
+		BT_WARN("Too small Proxy PDU");
+		return -EINVAL;
+	}
+
+	if (PDU_TYPE(data) != BT_MESH_PROXY_PROV) {
+		BT_WARN("Proxy PDU type doesn't match GATT service");
+		return -EINVAL;
+	}
+
+	return bt_mesh_proxy_msg_recv(cli, data, len);
 }
 
 void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
@@ -180,7 +193,7 @@ int prov_ccc_write(uint16_t conn_handle, uint8_t type)
 		return -ENOTCONN;
 	}
 
-	if (type != BLE_GAP_EVENT_NOTIFY_RX) {
+	if (type != BLE_GAP_EVENT_SUBSCRIBE) {
 		BT_WARN("Client wrote instead enabling notify");
 		return BT_GATT_ERR(EINVAL);
 	}
@@ -211,7 +224,7 @@ static const struct ble_gatt_svc_def svc_defs [] = {
 		.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_VAL),
 		.characteristics = (struct ble_gatt_chr_def[]) { {
 				.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_DATA_IN_VAL),
-				.access_cb = gatt_recv,
+				.access_cb = gatt_recv_proxy,
 				.flags = BLE_GATT_CHR_F_WRITE_NO_RSP,
 			}, {
 				.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROXY_DATA_OUT_VAL),
@@ -225,7 +238,7 @@ static const struct ble_gatt_svc_def svc_defs [] = {
 		.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_VAL),
 		.characteristics = (struct ble_gatt_chr_def[]) { {
 				.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_DATA_IN_VAL),
-				.access_cb = gatt_recv,
+				.access_cb = gatt_recv_prov,
 				.flags = BLE_GATT_CHR_F_WRITE_NO_RSP,
 			}, {
 				.uuid = BLE_UUID16_DECLARE(BT_UUID_MESH_PROV_DATA_OUT_VAL),
@@ -351,15 +364,14 @@ static const struct bt_data prov_ad[] = {
 		      BT_DATA(BT_DATA_SVC_DATA16, prov_svc_data, sizeof(prov_svc_data)),
 };
 
-int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf,
-			 void (*end)(uint16_t, void *), void *user_data)
+int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf)
 {
 	if (!cli || cli->conn_handle != conn_handle) {
 		BT_ERR("No PB-GATT Client found");
 		return -ENOTCONN;
 	}
 
-	return bt_mesh_proxy_msg_send(cli, BT_MESH_PROXY_PROV, buf, end, user_data);
+	return bt_mesh_proxy_msg_send(cli, BT_MESH_PROXY_PROV, buf);
 }
 
 static size_t gatt_prov_adv_create(struct bt_data prov_sd[1])
@@ -389,8 +401,7 @@ static size_t gatt_prov_adv_create(struct bt_data prov_sd[1])
 }
 
 static int gatt_send(uint16_t conn_handle,
-	const void *data, uint16_t len,
-	void (*end)(uint16_t, void *), void *user_data)
+	const void *data, uint16_t len)
 {
 	struct os_mbuf *om;
 	int err = 0;
@@ -399,9 +410,11 @@ static int gatt_send(uint16_t conn_handle,
 	om = ble_hs_mbuf_from_flat(data, len);
 	assert(om);
 	err = ble_gattc_notify_custom(conn_handle, svc_handles.prov_data_out_h, om);
-	/* We do not pass cb into ble_gattc_notify_custom - execute it at the end */
+	notify_complete();
 
-	end(conn_handle, user_data);
+	if (!err) {
+		atomic_inc(&pending_notifications);
+	}
 
 	return err;
 }

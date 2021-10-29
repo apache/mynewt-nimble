@@ -105,6 +105,10 @@ net_buf_unref(struct os_mbuf *om)
     }
 
     adv = BT_MESH_ADV(om);
+    if (adv->started && adv->cb && adv->cb->end) {
+    	adv->cb->end(0, adv->cb_data);
+    }
+
     if (--adv->ref_cnt > 0) {
         return;
     }
@@ -154,13 +158,13 @@ net_buf_simple_pull_le16(struct os_mbuf *om)
 uint32_t
 net_buf_simple_pull_le24(struct os_mbuf *om)
 {
-	uint16_t val;
+	uint32_t val;
 	struct os_mbuf *old = om;
 
-	om = os_mbuf_pullup(om, sizeof(val));
+	om = os_mbuf_pullup(om, 3);
 	assert(om == old);
 	val = get_le24(om->om_data);
-	os_mbuf_adj(om, sizeof(val));
+	os_mbuf_adj(om, 3);
 
 	return val;
 }
@@ -445,7 +449,7 @@ k_work_cancel_delayable(struct k_work_delayable *w)
 
 void
 k_work_schedule(struct k_work_delayable *w, uint32_t ms)
-	{
+{
 	uint32_t ticks;
 
 	if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
@@ -457,15 +461,12 @@ k_work_schedule(struct k_work_delayable *w, uint32_t ms)
 void
 k_work_reschedule(struct k_work_delayable *w, uint32_t ms)
 {
-    uint32_t ticks;
+	uint32_t ticks;
 
-    if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
-        assert(0);
-    }
-    if (ms == 0) {
-    	ble_npl_callout_stop(&w->work);
-    }
-    ble_npl_callout_reset(&w->work, ticks);
+	if (ble_npl_time_ms_to_ticks(ms, &ticks) != 0) {
+		assert(0);
+	}
+	ble_npl_callout_reset(&w->work, ticks);
 }
 
 void
@@ -825,7 +826,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
         }
     }
 
-    err = ble_gap_adv_start(g_mesh_addr_type, NULL, duration, param,
+    err = ble_gap_adv_start(g_mesh_addr_type, NULL, BLE_HS_FOREVER, param,
                             NULL, NULL);
     if (err) {
         BT_ERR("Advertising failed: err %d", err);

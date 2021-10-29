@@ -60,15 +60,16 @@ struct friend_pdu_info {
 };
 
 static struct friend_adv {
+	struct bt_mesh_adv adv;
 	uint16_t app_idx;
 } adv_pool[FRIEND_BUF_COUNT];
 
-#define FRIEND_ADV(buf) (*(struct friend_adv **)net_buf_user_data(buf))
+#define FRIEND_ADV(buf) CONTAINER_OF(BT_MESH_ADV(buf), struct friend_adv, adv)
 
-static struct friend_adv *adv_alloc(int id)
+static struct bt_mesh_adv *adv_alloc(int id)
 {
 	adv_pool[id].app_idx = BT_MESH_KEY_UNUSED;
-	return &adv_pool[id];
+	return &adv_pool[id].adv;
 }
 
 static bool friend_is_allocated(const struct bt_mesh_friend *frnd)
@@ -308,12 +309,12 @@ static struct os_mbuf *create_friend_pdu(struct bt_mesh_friend *frnd,
 {
 	struct os_mbuf *buf;
 
-	buf = os_mbuf_get_pkthdr(&friend_os_mbuf_pool, BT_MESH_ADV_USER_DATA_SIZE);
+	buf = bt_mesh_adv_create_from_pool(&friend_os_mbuf_pool, adv_alloc,
+					   BT_MESH_ADV_DATA,
+					   FRIEND_XMIT, K_NO_WAIT);
 	if (!buf) {
 		return NULL;
 	}
-
-	FRIEND_ADV(buf) = adv_alloc(net_buf_id(buf));
 
 	net_buf_add_u8(buf, (info->iv_index & 1) << 7); /* Will be reset in encryption */
 
@@ -538,8 +539,8 @@ static struct os_mbuf *encode_friend_ctl(struct bt_mesh_friend *frnd,
 	info.src = bt_mesh_primary_addr();
 	info.dst = frnd->lpn;
 
-	info.ctl = 1;
-	info.ttl = 0;
+	info.ctl = 1U;
+	info.ttl = 0U;
 
 	memset(info.seq, 0, sizeof(info.seq));
 

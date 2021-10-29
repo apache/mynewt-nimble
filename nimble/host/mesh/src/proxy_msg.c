@@ -50,6 +50,22 @@ static uint8_t bufs[CONFIG_BT_MAX_CONN * CONFIG_BT_MESH_PROXY_MSG_LEN];
 
 static struct bt_mesh_proxy_role roles[CONFIG_BT_MAX_CONN];
 
+static void proxy_sar_timeout(struct ble_npl_event *work)
+{
+	struct bt_mesh_proxy_role *role;
+	int rc;
+	role = ble_npl_event_get_arg(work);
+
+
+	BT_WARN("Proxy SAR timeout");
+
+	if (role->conn_handle) {
+		rc = ble_gap_terminate(role->conn_handle,
+				       BLE_ERR_REM_USER_CONN_TERM);
+		assert(rc == 0);
+	}
+}
+
 int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 			       const void *buf, uint16_t len)
 {
@@ -119,8 +135,7 @@ int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 }
 
 int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
-			   struct os_mbuf *msg,
-			   	void (*end)(uint16_t, void *), void *user_data)
+			   struct os_mbuf *msg)
 {
 	int err;
 	uint16_t mtu;
@@ -133,11 +148,11 @@ int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	mtu = ble_att_mtu(conn_handle) - 3;
 	if (mtu > msg->om_len) {
 		net_buf_simple_push_u8(msg, PDU_HDR(SAR_COMPLETE, type));
-		return role->cb.send(conn_handle, msg->om_data, msg->om_len, end, user_data);
+		return role->cb.send(conn_handle, msg->om_data, msg->om_len);
 	}
 
 	net_buf_simple_push_u8(msg, PDU_HDR(SAR_FIRST, type));
-	err = role->cb.send(conn_handle, msg->om_data, mtu, NULL, NULL);
+	err = role->cb.send(conn_handle, msg->om_data, mtu);
 	if (err) {
 		return err;
 	}
@@ -146,7 +161,7 @@ int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 	while (msg->om_len) {
 		if (msg->om_len + 1 < mtu) {
 			net_buf_simple_push_u8(msg, PDU_HDR(SAR_LAST, type));
-			err = role->cb.send(conn_handle, msg->om_data, msg->om_len, end, user_data);
+			err = role->cb.send(conn_handle, msg->om_data, msg->om_len);
 			if (err) {
 				return err;
 			}
@@ -154,7 +169,7 @@ int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type,
 		}
 
 		net_buf_simple_push_u8(msg, PDU_HDR(SAR_CONT, type));
-		err = role->cb.send(conn_handle, msg->om_data, mtu, NULL, NULL);
+		err = role->cb.send(conn_handle, msg->om_data, mtu);
 		if (err) {
 			return err;
 		}
@@ -170,17 +185,21 @@ static void proxy_msg_init(struct bt_mesh_proxy_role *role)
 	/* Check if buf has been allocated, in this way, we no longer need
 	 * to repeat the operation.
 	 */
-	if (role->buf->om_data) {
+	if (role->buf != NULL) {
 		net_buf_simple_reset(role->buf);
 		return;
 	}
 
+	role->buf = NET_BUF_SIMPLE(CONFIG_BT_MESH_PROXY_MSG_LEN);
 	net_buf_simple_init_with_data(role->buf,
 				      &bufs[role->conn_handle *
 				      CONFIG_BT_MESH_PROXY_MSG_LEN],
 				      CONFIG_BT_MESH_PROXY_MSG_LEN);
 
 	net_buf_simple_reset(role->buf);
+
+	k_work_init_delayable(&role->sar_timer, proxy_sar_timeout);
+	k_work_add_arg_delayable(&role->sar_timer, role);
 }
 
 struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
