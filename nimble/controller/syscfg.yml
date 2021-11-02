@@ -367,10 +367,10 @@ syscfg.defs:
             GPIO pin number to debug scheduler running (on timer). Pin is set
             to high state while scheduler is running.
         value: -1
-    BLE_LL_DEBUG_GPIO_SCHED_ITEM_CB:
+    BLE_LL_DEBUG_GPIO_SCHED_ITEM:
         description: >
             GPIO pin number to debug scheduler item execution times. Pin is set
-            to high state while item is executed.
+            to high state while item is active.
         value: -1
     BLE_LL_DEBUG_GPIO_RFMGMT:
         description: >

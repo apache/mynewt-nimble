@@ -1183,11 +1183,14 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     }
 
 sched:
-    BLE_LL_DEBUG_GPIO(SCHED_ITEM_CB, 1);
     BLE_LL_ASSERT(sch->sched_cb);
 
+    BLE_LL_DEBUG_GPIO(SCHED_ITEM, 1);
     rc = sch->sched_cb(sch);
-    BLE_LL_DEBUG_GPIO(SCHED_ITEM_CB, 0);
+    if (rc != BLE_LL_SCHED_STATE_RUNNING) {
+        BLE_LL_DEBUG_GPIO(SCHED_ITEM, 0);
+    }
+
     return rc;
 }
 
@@ -1331,7 +1334,7 @@ ble_ll_sched_stop(void)
 int
 ble_ll_sched_init(void)
 {
-    BLE_LL_DEBUG_GPIO_INIT(SCHED_ITEM_CB);
+    BLE_LL_DEBUG_GPIO_INIT(SCHED_ITEM);
     BLE_LL_DEBUG_GPIO_INIT(SCHED_RUN);
 
     /*

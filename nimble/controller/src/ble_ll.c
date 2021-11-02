@@ -45,6 +45,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
@@ -1241,6 +1242,10 @@ void
 ble_ll_state_set(uint8_t ll_state)
 {
     g_ble_ll_data.ll_state = ll_state;
+
+    if (ll_state == BLE_LL_STATE_STANDBY) {
+        BLE_LL_DEBUG_GPIO(SCHED_ITEM, 0);
+    }
 }
 
 /**
