@@ -34,6 +34,8 @@
 #include <nimble/nimble_npl_os.h>
 #endif
 #include "os/os_trace_api.h"
+#include <hal/nrf_rng.h>
+#include "hal/nrf_ecb.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -43,6 +45,10 @@ static uint8_t g_ble_hw_whitelist_mask;
 
 /* Random number generator isr callback */
 ble_rng_isr_cb_t g_ble_rng_isr_cb;
+
+#if BABBLESIM
+extern void tm_tick(void);
+#endif
 
 /* If LL privacy is enabled, allocate memory for AAR */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -245,18 +251,21 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     uint32_t err;
 
     /* Stop ECB */
-    NRF_ECB->TASKS_STOPECB = 1;
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOPECB);
     /* XXX: does task stop clear these counters? Anyway to do this quicker? */
     NRF_ECB->EVENTS_ENDECB = 0;
     NRF_ECB->EVENTS_ERRORECB = 0;
     NRF_ECB->ECBDATAPTR = (uint32_t)ecb;
 
     /* Start ECB */
-    NRF_ECB->TASKS_STARTECB = 1;
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STARTECB);
 
     /* Wait till error or done */
     rc = 0;
     while (1) {
+#if BABBLESIM
+        tm_tick();
+#endif
         end = NRF_ECB->EVENTS_ENDECB;
         err = NRF_ECB->EVENTS_ERRORECB;
         if (end || err) {
@@ -282,7 +291,7 @@ ble_rng_isr(void)
 
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
-        NRF_RNG->INTENCLR = 1;
+        nrf_rng_int_disable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
         NRF_RNG->EVENTS_VALRDY = 0;
         (void)NRF_RNG->SHORTS;
         os_trace_isr_exit();
@@ -347,10 +356,11 @@ ble_hw_rng_start(void)
     /* No need for interrupt if there is no callback */
     OS_ENTER_CRITICAL(sr);
     NRF_RNG->EVENTS_VALRDY = 0;
+
     if (g_ble_rng_isr_cb) {
-        NRF_RNG->INTENSET = 1;
+        nrf_rng_int_enable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
     }
-    NRF_RNG->TASKS_START = 1;
+    nrf_rng_task_trigger(NRF_RNG, NRF_RNG_TASK_START);
     OS_EXIT_CRITICAL(sr);
 
     return 0;
@@ -368,8 +378,8 @@ ble_hw_rng_stop(void)
 
     /* No need for interrupt if there is no callback */
     OS_ENTER_CRITICAL(sr);
-    NRF_RNG->INTENCLR = 1;
-    NRF_RNG->TASKS_STOP = 1;
+    nrf_rng_int_disable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
+    nrf_rng_task_trigger(NRF_RNG, NRF_RNG_TASK_STOP);
     NRF_RNG->EVENTS_VALRDY = 0;
     OS_EXIT_CRITICAL(sr);
 
