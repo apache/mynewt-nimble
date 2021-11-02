@@ -358,11 +358,15 @@ static void ble_ll_event_dbuf_overflow(struct ble_npl_event *ev);
 
 #if MYNEWT
 
+#if BABBLESIM
+#define BLE_LL_STACK_SIZE   (4000)
+#else
 /* The BLE LL task data structure */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_LL_STACK_SIZE   (120)
 #else
 #define BLE_LL_STACK_SIZE   (90)
+#endif
 #endif
 
 struct os_task g_ble_ll_task;
