@@ -585,6 +585,10 @@ void ble_ll_rand_prand_get(uint8_t *prand);
 int ble_ll_rand_start(void);
 uint32_t ble_ll_rand(void);
 
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+uint8_t *ble_ll_rxbuf_get(void);
+#endif
+
 static inline int
 ble_ll_get_addr_type(uint8_t txrxflag)
 {

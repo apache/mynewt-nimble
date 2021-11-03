@@ -301,8 +301,12 @@ static const uint8_t g_ble_phy_chan_to_rf[BLE_PHY_NUM_CHANS] = {
 
 __attribute__((aligned(4)))
 static uint8_t g_ble_phy_tx_buf[BLE_PHY_MAX_PDU_LEN + 3];
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+static uint8_t *g_ble_phy_rx_buf;
+#else
 __attribute__((aligned(4)))
 static uint8_t g_ble_phy_rx_buf[BLE_PHY_MAX_PDU_LEN + 3];
+#endif
 
 static void ble_phy_irq_field_tx(void);
 static void ble_phy_irq_field_rx(void);
@@ -1075,6 +1079,7 @@ ble_phy_get_cur_phy(void)
 void
 ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
 {
+#if !MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
     uint32_t rem_len;
     uint32_t copy_len;
     uint32_t block_len;
@@ -1146,6 +1151,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
                       : [len] "+l" (rem_len)
                       : [dst] "l" (dst), [src] "l" (src)
                       : "r3", "memory");
+#endif
 
     /* Copy header */
     memcpy(BLE_MBUF_HDR_PTR(rxpdu), &g_ble_phy_data.rxhdr,
@@ -1322,6 +1328,10 @@ ble_phy_rx_setup_fields(void)
 {
     /* Make sure CRC LFSR initial value is set */
     CMAC_SETREGF(CM_CRC_REG, CRC_INIT_VAL, g_ble_phy_data.crc_init);
+
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+    g_ble_phy_rx_buf = ble_ll_rxbuf_get();
+#endif
 
     CMAC->CM_FIELD_PUSH_DATA_REG = g_ble_phy_data.access_addr;
     CMAC->CM_FIELD_PUSH_CTRL_REG = FIELD_CTRL_REG_RX_ACCESS_ADDR;

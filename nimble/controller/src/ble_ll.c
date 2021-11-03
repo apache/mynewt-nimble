@@ -248,6 +248,14 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+/* Preallocated rxpdu */
+static struct os_mbuf *g_ble_ll_rxpdu;
+/* ... */
+__attribute__((aligned(4)))
+static uint8_t g_ble_ll_rxbuf_dummy[4 + BLE_PHY_MAX_PDU_LEN + 3];
+#endif
+
 static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
 {
     [BLE_PHY_MODE_1M] =
@@ -311,6 +319,49 @@ ble_ll_count_rx_adv_pdus(uint8_t pdu_type)
     }
 }
 
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+uint8_t *
+ble_ll_rxbuf_get(void)
+{
+    struct os_mbuf *om;
+
+    if (g_ble_ll_rxpdu) {
+        return g_ble_ll_rxpdu->om_data;
+    }
+
+    om = os_msys_get_pkthdr(0, sizeof(struct ble_mbuf_hdr));
+    if (!om) {
+        return &g_ble_ll_rxbuf_dummy[4];
+    }
+
+    om->om_data += 4;
+    BLE_LL_ASSERT(OS_MBUF_TRAILINGSPACE(om) >= BLE_PHY_MAX_PDU_LEN + 3);
+
+    g_ble_ll_rxpdu = om;
+
+    return om->om_data;
+}
+
+struct os_mbuf *
+ble_ll_rxpdu_alloc(uint16_t len)
+{
+    struct os_mbuf *om;
+    struct os_mbuf_pkthdr *pkthdr;
+
+    om = g_ble_ll_rxpdu;
+    if (om) {
+        pkthdr = OS_MBUF_PKTHDR(om);
+        pkthdr->omp_len = len;
+        om->om_len = len;
+    } else {
+        STATS_INC(ble_ll_stats, no_bufs);
+    }
+
+    g_ble_ll_rxpdu = NULL;
+
+    return om;
+}
+#else
 struct os_mbuf *
 ble_ll_rxpdu_alloc(uint16_t len)
 {
@@ -383,6 +434,7 @@ rxpdu_alloc_fail:
     STATS_INC(ble_ll_stats, no_bufs);
     return NULL;
 }
+#endif
 
 int
 ble_ll_chk_txrx_octets(uint16_t octets)
