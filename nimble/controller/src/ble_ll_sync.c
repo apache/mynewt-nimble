@@ -863,7 +863,7 @@ static void
 ble_ll_sync_parse_aux_ptr(const uint8_t *buf, uint8_t *chan, uint32_t *offset,
                           uint8_t *offset_units, uint8_t *phy)
 {
-    uint32_t aux_ptr_field = get_le32(buf) & 0x00FFFFFF;
+    uint32_t aux_ptr_field = get_le24(buf);
 
     *chan = aux_ptr_field & 0x3F;
 
