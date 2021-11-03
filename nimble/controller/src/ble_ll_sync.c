@@ -581,7 +581,7 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
 
         /* Ignore CTE for now */
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
-            i += 1;
+            i += BLE_LL_EXT_ADV_CTE_INFO_SIZE;
         }
 
         /* there should be no ADI in Sync or chain, skip it */
