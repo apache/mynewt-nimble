@@ -786,6 +786,22 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static inline uint32_t
+usecs_to_ticks_fast(uint32_t usecs)
+{
+    uint32_t ticks;
+
+    if (usecs <= 31249) {
+        ticks = (usecs * 137439) / 4194304;
+    } else {
+        ticks = os_cputime_usecs_to_ticks(usecs);
+    }
+
+    return ticks;
+}
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 /*
  * Determines if the schedule item overlaps the currently running schedule
@@ -887,7 +903,7 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
     os_sr_t sr;
     int rc = 0;
 
-    off_ticks = os_cputime_usecs_to_ticks(offset);
+    off_ticks = usecs_to_ticks_fast(offset);
     off_rem_usecs = offset - os_cputime_ticks_to_usecs(off_ticks);
 
     start_time = beg_cputime + off_ticks;
@@ -899,7 +915,7 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                   phy_mode);
-    end_time = start_time + os_cputime_usecs_to_ticks(dur);
+    end_time = start_time + usecs_to_ticks_fast(dur);
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -1257,12 +1273,12 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
     int rc;
 
     offset_us += pdu_time_rem;
-    offset_ticks = os_cputime_usecs_to_ticks(offset_us);
+    offset_ticks = usecs_to_ticks_fast(offset_us);
 
     sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
     sch->remainder = offset_us - os_cputime_ticks_to_usecs(offset_ticks);
     /* TODO: make some sane slot reservation */
-    sch->end_time = sch->start_time + os_cputime_usecs_to_ticks(5000);
+    sch->end_time = sch->start_time + usecs_to_ticks_fast(5000);
 
     OS_ENTER_CRITICAL(sr);
 
