@@ -308,6 +308,11 @@ syscfg.defs:
             packets for receive on secondary advertising channel.
          value: 0
 
+    BLE_LL_ZERO_COPY_RX:
+        description: >
+            Enables zero-copy rx path.
+        value: 0
+
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address

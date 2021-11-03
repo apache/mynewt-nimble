@@ -130,12 +130,19 @@ struct ble_phy_obj g_ble_phy_data;
 
 /* XXX: if 27 byte packets desired we can make this smaller */
 /* Global transmit/receive buffer */
-static uint32_t g_ble_phy_tx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
-static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+__attribute__((aligned(4)))
+static uint8_t g_ble_phy_tx_buf[BLE_PHY_MAX_PDU_LEN + 1];
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+static uint8_t *g_ble_phy_rx_buf;
+#else
+__attribute__((aligned(4)))
+static uint8_t g_ble_phy_rx_buf[BLE_PHY_MAX_PDU_LEN + 3];
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /* Make sure word-aligned for faster copies */
-static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+__attribute__((aligned(4)))
+static uint8_t g_ble_phy_enc_buf[BLE_PHY_MAX_PDU_LEN + 1];
 #endif
 
 /* RF center frequency for each channel index (offset from 2400 MHz) */
@@ -434,6 +441,7 @@ ble_phy_get_cur_phy(void)
 void
 ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
 {
+#if !MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
     uint32_t rem_len;
     uint32_t copy_len;
     uint32_t block_len;
@@ -507,6 +515,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
                       : [dst] "r" (dst), [src] "r" (src)
                       : "r3", "memory"
                      );
+#endif
 
     /* Copy header */
     memcpy(BLE_MBUF_HDR_PTR(rxpdu), &g_ble_phy_data.rxhdr,
@@ -796,6 +805,11 @@ static void
 ble_phy_rx_xcvr_setup(void)
 {
     uint8_t *dptr;
+
+#if MYNEWT_VAL(BLE_LL_ZERO_COPY_RX)
+    g_ble_phy_rx_buf = ble_ll_rxbuf_get();
+    g_ble_phy_rx_buf -= 4;
+#endif
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
     dptr += 3;
