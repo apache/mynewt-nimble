@@ -40,3 +40,18 @@ syscfg.vals:
     BLE_PERIODIC_ADV: 1
     BLE_PERIODIC_ADV_SYNC_TRANSFER: 1
     BLE_VERSION: 51
+
+    # Maximum number of IPC channels that net core can handle
+    # It must be equel or greater of same syscfg value present on APP core side.
+    IPC_NRF5340_CHANNELS: 4
+
+    # Core dump
+    OS_COREDUMP: 1
+    OS_CRASH_FILE_LINE: 0
+    COREDUMP_SKIP_UNUSED_HEAP: 1
+
+syscfg.vals.OS_COREDUMP:
+    # Enable flash server that allows application core to read
+    # net core flash (it is used for reading core dump stored in
+    # net core flash).
+    IPC_NRF5340_FLASH_SERVER: 1
