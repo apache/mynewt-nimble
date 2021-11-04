@@ -703,17 +703,6 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
          * by waiting 1 usec more.
          */
         end_time += 1;
-#if MYNEWT_VAL(BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN) > 0
-        if ((phy == BLE_PHY_MODE_CODED_125KBPS) ||
-                                    (phy == BLE_PHY_MODE_CODED_500KBPS)) {
-            /*
-             * Some controllers exceed T_IFS when transmitting on coded phy
-             * so let's wait a bit longer to be able to talk to them if this
-             * workaround is enabled.
-             */
-            end_time += MYNEWT_VAL(BLE_PHY_CODED_RX_IFS_EXTRA_MARGIN);
-        }
-#endif
     } else {
         /*
          * RX shall start no later than wfr_usecs after RX enabled.
