@@ -1573,6 +1573,10 @@ ble_ll_init(void)
 {
     int rc;
     uint64_t features;
+#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
+    uint64_t pub_dev_addr;
+    int i;
+#endif
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
@@ -1584,10 +1588,17 @@ ble_ll_init(void)
 
     /* Set public device address if not already set */
     if (ble_ll_is_addr_empty(g_dev_addr)) {
-        /* Use sycfg address if configured, otherwise try to read from HW */
-        if (!ble_ll_is_addr_empty(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
-            memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
-        } else {
+#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
+        pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
+
+        for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
+            g_dev_addr[i] = pub_dev_addr & 0xff;
+            pub_dev_addr >>= 8;
+        }
+#else
+        memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
+#endif
+        if (ble_ll_is_addr_empty(g_dev_addr)) {
             rc = ble_hw_get_public_addr(&addr);
             if (!rc) {
                 memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
