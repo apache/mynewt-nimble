@@ -308,6 +308,13 @@ syscfg.defs:
             packets for receive on secondary advertising channel.
          value: 0
 
+    BLE_LL_PUBLIC_DEV_ADDR:
+        description: >
+            Set public device address. Address is specified as 48-bit number.
+            If non-zero, this setting has priority over BLE_PUBLIC_DEV_ADDR.
+            Note: this setting should only be used for testing purposes, it is
+                  not intended for production builds.
+        value: 0x000000000000
     BLE_PUBLIC_DEV_ADDR:
         description: >
             Allows the target or app to override the public device address
@@ -316,6 +323,7 @@ syscfg.defs:
             chip specific location. If non-zero, this address will
             be used.
         value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
+        deprecated: 1
 
     BLE_LL_DTM:
         description: >
@@ -462,3 +470,4 @@ syscfg.vals.!BLE_HOST:
 
 syscfg.restrictions:
     - OS_CPUTIME_FREQ == 32768
+    - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
