@@ -1306,6 +1306,7 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         !(scan_filt_policy & 0x01)) {
         rc = ble_ll_scan_rx_check_init(&addrd);
         if (rc < 0) {
+            rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
             goto done;
         }
     }
