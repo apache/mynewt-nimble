@@ -2069,7 +2069,9 @@ ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
 
     struct ble_ll_scan_phy new_params[BLE_LL_SCAN_PHY_NUMBER] = { };
     struct ble_ll_scan_phy *uncoded = &new_params[PHY_UNCODED];
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     struct ble_ll_scan_phy *coded = &new_params[PHY_CODED];
+#endif
     uint16_t interval;
     uint16_t window;
     int rc;
@@ -2147,7 +2149,6 @@ ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
         /* That means user wants to use this PHY for scanning */
         coded->configured = 1;
     }
-#endif
 
     /* if any of PHYs is configured for continuous scan we alter interval to
      * fit other PHY
@@ -2161,6 +2162,7 @@ ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
             uncoded->timing.interval += coded->timing.window;
         }
     }
+#endif
 
     g_ble_ll_scan_params.own_addr_type = cmd->own_addr_type;
     g_ble_ll_scan_params.scan_filt_policy = cmd->filter_policy;
@@ -2429,7 +2431,7 @@ ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
 {
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_phy *scanp_uncoded;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     struct ble_ll_scan_phy *scanp_coded;
 #endif
     uint8_t init_phy_mask;
@@ -2461,7 +2463,7 @@ ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
         scanp_uncoded->configured = 0;
     }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     scanp_coded = &scansm->scan_phys[PHY_CODED];
     if (init_phy_mask & BLE_PHY_MASK_CODED) {
         scanp_coded->configured = 1;
