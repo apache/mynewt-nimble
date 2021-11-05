@@ -1928,6 +1928,22 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_addr_data addrd;
     uint8_t *targeta;
+    uint8_t max_pdu_type;
+
+    scansm = &g_ble_ll_scan_sm;
+    rxinfo = &hdr->rxinfo;
+
+    /* Ignore PDUs we do not expect here */
+    max_pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (scansm->ext_scanning) {
+        /* Note: We do not expect AUX_CONNECT_RSP here */
+        max_pdu_type = BLE_ADV_PDU_TYPE_ADV_EXT_IND;
+    }
+#endif
+    if (ptype > max_pdu_type) {
+        return;
+    }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
@@ -1936,9 +1952,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         return;
     }
 #endif
-
-    scansm = &g_ble_ll_scan_sm;
-    rxinfo = &hdr->rxinfo;
 
     if (scansm->scanp->scan_type == BLE_SCAN_TYPE_INITIATE) {
         if (rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_IND_TXD) {
