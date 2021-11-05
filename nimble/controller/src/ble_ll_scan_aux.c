@@ -764,6 +764,7 @@ ble_ll_scan_aux_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
         if (pdu_type != BLE_ADV_PDU_TYPE_AUX_CONNECT_RSP) {
             aux_data_current = NULL;
             ble_ll_scan_aux_break(aux);
+            ble_ll_state_set(BLE_LL_STATE_STANDBY);
             return -1;
         }
         return 0;
@@ -772,6 +773,7 @@ ble_ll_scan_aux_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
     if (pdu_type != BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         aux_data_current = NULL;
         ble_ll_scan_aux_break(aux);
+        ble_ll_state_set(BLE_LL_STATE_STANDBY);
         return -1;
     }
 
