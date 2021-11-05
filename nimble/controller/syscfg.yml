@@ -348,6 +348,11 @@ syscfg.defs:
              depending on specified HCI command length.
         value: 0
 
+    BLE_LL_HCI_VS:
+        description: >
+            Enables support for vendor-specific HCI commands.
+        value: MYNEWT_VAL(BLE_HCI_VS)
+
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
             This options enables controller to send a vendor-specific event on

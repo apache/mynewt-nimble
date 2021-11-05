@@ -43,6 +43,20 @@ extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 typedef void (*ble_ll_hci_post_cmd_complete_cb)(void);
 
+#if MYNEWT_VAL(BLE_HCI_VS)
+typedef int (* ble_ll_hci_vs_cb_t)(uint16_t ocf,
+                                   const uint8_t *cmdbuf, uint8_t cmdlen,
+                                   uint8_t *rspbuf, uint8_t *rsplen);
+
+#define BLE_LL_HCI_VS_CMD(_ocf, _cb)    { .ocf = (_ocf), .cb = (_cb) }
+
+struct ble_ll_hci_vs_cmd {
+    uint16_t ocf;
+    ble_ll_hci_vs_cb_t cb;
+    SLIST_ENTRY(ble_ll_hci_vs_cmd) link;
+};
+#endif
+
 /* Initialize LL HCI */
 void ble_ll_hci_init(void);
 
@@ -67,6 +81,10 @@ bool ble_ll_hci_adv_mode_ext(void);
 
 /* Get TX power compensation rounded to integer dB */
 int8_t ble_ll_get_tx_pwr_compensation(void);
+
+#if MYNEWT_VAL(BLE_HCI_VS)
+void ble_ll_hci_vs_register(struct ble_ll_hci_vs_cmd *cmds, uint32_t num_cmds);
+#endif
 
 #ifdef __cplusplus
 }

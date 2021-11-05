@@ -45,6 +45,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DTM)
@@ -1729,6 +1730,10 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     ble_ll_dtm_init();
+#endif
+
+#if MYNEWT_VAL(BLE_HCI_VS)
+    ble_ll_hci_vs_init();
 #endif
 
 #if MYNEWT
