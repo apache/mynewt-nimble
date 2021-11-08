@@ -1389,7 +1389,7 @@ tx_stress_14_gap_event(struct ble_gap_event *event, void *arg)
         if (++tx_stress_ctx->rcv_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rc = ble_gap_terminate(event->notify_rx.conn_handle,
                                    BLE_ERR_REM_USER_CONN_TERM);
-            MODLOG_DFLT(INFO, "rc=%d\n");
+            MODLOG_DFLT(INFO, "rc=%d\n", rc);
             assert(rc == 0);
             return 0;
         }
