@@ -559,11 +559,6 @@ ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
 static void
 ble_ll_ctrl_start_rsp_timer(struct ble_ll_conn_sm *connsm)
 {
-    ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer,
-                    &g_ble_ll_data.ll_evq,
-                    ble_ll_ctrl_proc_rsp_timer_cb,
-                    connsm);
-
     /* Re-start timer. Control procedure timeout is 40 seconds */
     ble_npl_callout_reset(&connsm->ctrl_proc_rsp_timer,
                      ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
@@ -2885,4 +2880,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 
     os_mbuf_free_chain(txpdu);
     return rc;
+}
+
+void
+ble_ll_ctrl_init_conn_sm(struct ble_ll_conn_sm *connsm)
+{
+    ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer, &g_ble_ll_data.ll_evq,
+                         ble_ll_ctrl_proc_rsp_timer_cb, connsm);
 }

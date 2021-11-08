@@ -40,6 +40,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_ctrl_priv.h"
 
 #if (BLETEST_THROUGHPUT_TEST == 1)
 extern void bletest_completed_pkt(uint16_t handle);
@@ -3772,6 +3773,9 @@ ble_ll_conn_module_init(void)
         /* Initialize fixed schedule elements */
         connsm->conn_sch.sched_type = BLE_LL_SCHED_TYPE_CONN;
         connsm->conn_sch.cb_arg = connsm;
+
+        ble_ll_ctrl_init_conn_sm(connsm);
+
         ++connsm;
     }
 
