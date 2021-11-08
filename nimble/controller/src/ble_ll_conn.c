@@ -853,7 +853,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
 static uint16_t
 ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
 {
-    uint16_t phy_max_tx_octets;
+    uint16_t max_pyld_len;
     uint16_t ret;
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -866,22 +866,28 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
         phy_mode = connsm->phy_data.tx_phy_mode;
     }
 
-    phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
-                                                     phy_mode);
+    max_pyld_len = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
+                                                phy_mode);
 
 #else
-    phy_max_tx_octets = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
-                                                     BLE_PHY_MODE_1M);
+    max_pyld_len = ble_ll_pdu_max_tx_octets_get(connsm->eff_max_tx_time,
+                                                BLE_PHY_MODE_1M);
 #endif
 
     ret = pyld_len;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    if (CONN_F_ENCRYPTED(connsm)) {
+        max_pyld_len -= BLE_LL_DATA_MIC_LEN;
+    }
+#endif
 
     if (ret > connsm->eff_max_tx_octets) {
         ret = connsm->eff_max_tx_octets;
     }
 
-    if (ret > phy_max_tx_octets) {
-        ret = phy_max_tx_octets;
+    if (ret > max_pyld_len) {
+        ret = max_pyld_len;
     }
 
     return ret;
