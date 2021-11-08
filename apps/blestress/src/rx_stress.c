@@ -1060,7 +1060,7 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
         rx_stress_ctx->s13_notif_time = rx_stress_ctx->time_sum /
                                         rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(INFO, "Average time: %lld us\n",
+        MODLOG_DFLT(INFO, "Average time: %d us\n",
                     rx_stress_ctx->s13_notif_time);
         rx_stress_on_test_finish(13);
         return 0;
