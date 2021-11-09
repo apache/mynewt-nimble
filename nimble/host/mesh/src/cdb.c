@@ -159,6 +159,7 @@ static uint16_t find_lowest_free_addr(uint8_t num_elem)
 	return addr;
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static int cdb_net_set(int argc, char *val)
 {
 	struct net_val net;
@@ -385,9 +386,11 @@ static int cdb_set(int argc, char **argv, char *name)
 	BT_WARN("Unknown module key %s", name);
 	return -ENOENT;
 }
+#endif
 
 static void store_cdb_node(const struct bt_mesh_cdb_node *node)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct node_val))];
 	struct node_val val;
 	char path[30];
@@ -420,10 +423,12 @@ static void store_cdb_node(const struct bt_mesh_cdb_node *node)
 	} else {
 		BT_DBG("Stored Node %s value", path);
 	}
+#endif
 }
 
 static void clear_cdb_node(uint16_t addr)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[30];
 	int err;
 
@@ -436,10 +441,12 @@ static void clear_cdb_node(uint16_t addr)
 	} else {
 		BT_DBG("Cleared Node 0x%04x", addr);
 	}
+#endif
 }
 
 static void store_cdb_subnet(const struct bt_mesh_cdb_subnet *sub)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct net_key_val))];
 	struct net_key_val key;
 	char path[30];
@@ -468,10 +475,12 @@ static void store_cdb_subnet(const struct bt_mesh_cdb_subnet *sub)
 	} else {
 		BT_DBG("Stored Subnet value");
 	}
+#endif
 }
 
 static void clear_cdb_subnet(uint16_t net_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[30];
 	int err;
 
@@ -484,10 +493,12 @@ static void clear_cdb_subnet(uint16_t net_idx)
 	} else {
 		BT_DBG("Cleared NetKeyIndex 0x%03x", net_idx);
 	}
+#endif
 }
 
 static void store_cdb_app_key(const struct bt_mesh_cdb_app_key *app)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char buf[BT_SETTINGS_SIZE(sizeof(struct app_key_val))];
 	struct app_key_val key;
 	char path[30];
@@ -508,10 +519,12 @@ static void store_cdb_app_key(const struct bt_mesh_cdb_app_key *app)
 	} else {
 		BT_DBG("Stored AppKey");
 	}
+#endif
 }
 
 static void clear_cdb_app_key(uint16_t app_idx)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[30];
 	int err;
 
@@ -522,6 +535,7 @@ static void clear_cdb_app_key(uint16_t app_idx)
 	} else {
 		BT_DBG("Cleared AppKeyIndex 0x%03x", app_idx);
 	}
+#endif
 }
 
 static void schedule_cdb_store(int flag)
@@ -964,6 +978,7 @@ void bt_mesh_cdb_app_key_store(const struct bt_mesh_cdb_app_key *key)
 
 static void clear_cdb_net(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	char path[30];
 	int err;
 
@@ -974,10 +989,12 @@ static void clear_cdb_net(void)
 	} else {
 		BT_DBG("Cleared NetKeyIndex 0x%03x");
 	}
+#endif
 }
 
 static void store_cdb_pending_net(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	struct net_val net;
 	int err;
 	char buf[BT_SETTINGS_SIZE(sizeof(struct net_val))];
@@ -1000,6 +1017,7 @@ static void store_cdb_pending_net(void)
 	} else {
 		BT_DBG("Stored Network value");
 	}
+#endif
 }
 
 static void store_cdb_pending_nodes(void)
@@ -1100,6 +1118,7 @@ void bt_mesh_cdb_pending_store(void)
 	}
 }
 
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 static struct conf_handler bt_mesh_cdb_conf_handler = {
 	.ch_name = "bt_mesh",
 	.ch_get = NULL,
@@ -1107,14 +1126,17 @@ static struct conf_handler bt_mesh_cdb_conf_handler = {
 	.ch_commit = NULL,
 	.ch_export = NULL,
 };
+#endif
 
 void bt_mesh_cdb_init(void)
 {
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
 	int rc;
 
 	rc = conf_register(&bt_mesh_cdb_conf_handler);
 
 	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
 				 "Failed to register bt_mesh_net conf");
+#endif
 }
 #endif

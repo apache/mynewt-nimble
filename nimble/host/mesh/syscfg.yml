@@ -63,7 +63,6 @@ syscfg.defs:
         description: >
             Mesh Configuration Database [EXPERIMENTAL]
         value: 0
-        restrictions: BLE_MESH_SETTINGS
 
     BLE_MESH_CDB_NODE_COUNT:
         description: >
