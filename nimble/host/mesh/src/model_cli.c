@@ -302,4 +302,3 @@ done:
 	os_mbuf_free_chain(msg);
 	return err;
 }
-
