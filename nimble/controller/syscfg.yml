@@ -348,7 +348,7 @@ syscfg.defs:
              depending on specified HCI command length.
         value: 0
 
-    BLE_LL_VND_EVENT_ON_ASSERT:
+    BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
             This options enables controller to send a vendor-specific event on
             an assertion in controller code. The event contains file name and
@@ -438,6 +438,10 @@ syscfg.defs:
         description: use BLE_LL_SCA instead
         value: 60
         deprecated: 1
+    BLE_LL_VND_EVENT_ON_ASSERT:
+        description: use BLE_LL_HCI_VS_EVENT_ON_ASSERT
+        value: 0
+        deprecated: 1
 
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
@@ -466,7 +470,7 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host
 syscfg.vals.!BLE_HOST:
-    BLE_LL_VND_EVENT_ON_ASSERT: 1
+    BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
 syscfg.restrictions:
     - OS_CPUTIME_FREQ == 32768

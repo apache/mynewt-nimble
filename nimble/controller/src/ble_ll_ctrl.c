@@ -2469,8 +2469,9 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     opcode = dptr[2];
 
 #if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
-    ble_ll_hci_ev_send_llcp_trace(0x03, connsm->conn_handle, connsm->event_cntr,
-                                  &dptr[2], len);
+    ble_ll_hci_ev_send_vs_llcp_trace(0x03, connsm->conn_handle,
+                                     connsm->event_cntr,
+                                     &dptr[2], len);
 #endif
 
     /*
@@ -2803,8 +2804,9 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     uint8_t opcode;
 
 #if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
-    ble_ll_hci_ev_send_llcp_trace(0x04, connsm->conn_handle, connsm->event_cntr,
-                                  txpdu->om_data, txpdu->om_len);
+    ble_ll_hci_ev_send_vs_llcp_trace(0x04, connsm->conn_handle,
+                                     connsm->event_cntr,
+                                     txpdu->om_data, txpdu->om_len);
 #endif
 
     rc = 0;

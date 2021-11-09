@@ -1446,8 +1446,8 @@ struct ble_hci_ev_auth_pyld_tmo {
 
 #define BLE_HCI_EVCODE_SAM_STATUS_CHG       (0x58)
 
-#define BLE_HCI_EVCODE_VENDOR_DEBUG         (0xFF)
-struct ble_hci_ev_vendor_debug {
+#define BLE_HCI_EVCODE_VS_DEBUG             (0xFF)
+struct ble_hci_ev_vs_debug {
     uint8_t id;
     uint8_t data[0];
 } __attribute__((packed));
