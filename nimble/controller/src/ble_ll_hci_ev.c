@@ -493,9 +493,9 @@ ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm, uint8_t status,
 #endif
 
 void
-ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line)
+ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
 {
-    struct ble_hci_ev_vendor_debug *ev;
+    struct ble_hci_ev_vs_debug *ev;
     struct ble_hci_ev *hci_ev;
     unsigned int str_len;
     bool skip = true;
@@ -510,7 +510,7 @@ ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line)
 
     hci_ev = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
     if (hci_ev) {
-        hci_ev->opcode = BLE_HCI_EVCODE_VENDOR_DEBUG;
+        hci_ev->opcode = BLE_HCI_EVCODE_VS_DEBUG;
         hci_ev->length = sizeof(*ev);
         ev = (void *) hci_ev->data;
 
@@ -554,15 +554,15 @@ ble_ll_hci_ev_send_vendor_err(const char *file, uint32_t line)
 
 #if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
 void
-ble_ll_hci_ev_send_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
-                              void *pdu, size_t length)
+ble_ll_hci_ev_send_vs_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
+                                 void *pdu, size_t length)
 {
-    struct ble_hci_ev_vendor_debug *ev;
+    struct ble_hci_ev_vs_debug *ev;
     struct ble_hci_ev *hci_ev;
 
     hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
     if (hci_ev) {
-        hci_ev->opcode = BLE_HCI_EVCODE_VENDOR_DEBUG;
+        hci_ev->opcode = BLE_HCI_EVCODE_VS_DEBUG;
         hci_ev->length = sizeof(*ev) + 8 + length;
         ev = (void *) hci_ev->data;
 

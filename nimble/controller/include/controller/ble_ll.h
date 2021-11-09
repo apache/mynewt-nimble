@@ -48,7 +48,7 @@ extern "C" {
         if (hal_debugger_connected()) { \
             assert(0);\
         } else {\
-            ble_ll_hci_ev_send_vendor_err(__FILE__, __LINE__); \
+            ble_ll_hci_ev_send_vs_assert(__FILE__, __LINE__); \
             while(1) {}\
         }\
     }
