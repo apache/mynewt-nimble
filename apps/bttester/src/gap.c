@@ -1025,6 +1025,20 @@ static void le_encryption_changed(struct ble_gap_conn_desc *desc)
 		    CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
+static void bond_lost(uint16_t conn_handle)
+{
+    struct gap_bond_lost_ev ev;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    memcpy(ev.address, &desc.peer_id_addr, sizeof(ev.address));
+    ev.address_type = desc.peer_id_addr.type;
+    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_BOND_LOST, CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
+}
+
 static void print_bytes(const uint8_t *bytes, int len)
 {
 	int i;
@@ -1133,6 +1147,9 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 		assert(rc == 0);
 		print_conn_desc(&desc);
 		le_encryption_changed(&desc);
+		if (event->enc_change.status == BLE_HS_HCI_ERR(BLE_ERR_PINKEY_MISSING)) {
+		    bond_lost(event->enc_change.conn_handle);
+		}
 		break;
 	case BLE_GAP_EVENT_PASSKEY_ACTION:
 		console_printf("passkey action event; action=%d",
@@ -1201,6 +1218,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 		assert(rc == 0);
 		rc = ble_store_util_delete_peer(&desc.peer_id_addr);
 		assert(rc == 0);
+		bond_lost(event->repeat_pairing.conn_handle);
 		return BLE_GAP_REPEAT_PAIRING_RETRY;
 	case BLE_GAP_EVENT_CONN_UPDATE:
 		console_printf("connection update event; status=%d ",
