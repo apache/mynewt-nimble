@@ -552,6 +552,22 @@ l2cap_coc_err2hs_err(uint16_t coc_err)
 	}
 }
 
+static int
+l2cap_btp_listen_err2coc_err(uint16_t coc_err)
+{
+    switch (coc_err) {
+        case 0x01:
+            return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN;
+        case 0x02:
+            return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR;
+        case 0x03:
+            return BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ;
+        case 0x04:
+            return BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC;
+        default:
+            return 0;
+    }
+}
 
 static void listen(const uint8_t *data, uint16_t len)
 {
@@ -566,6 +582,7 @@ static void listen(const uint8_t *data, uint16_t len)
 		mtu = TESTER_COC_MTU;
 	}
 
+	rsp = l2cap_btp_listen_err2coc_err(rsp);
 	rsp = l2cap_coc_err2hs_err(rsp);
 
 	/* TODO: Handle cmd->transport flag */
