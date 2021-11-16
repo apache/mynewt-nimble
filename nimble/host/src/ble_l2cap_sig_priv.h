@@ -172,8 +172,6 @@ ble_l2cap_sig_coc_reconfig(uint16_t conn_handle, struct ble_l2cap_chan *chans[],
 }
 #endif
 
-int ble_l2cap_sig_ping(uint16_t conn_handle, ble_l2cap_ping_fn cb,
-                       const void *data, uint16_t data_len);
 void ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_l2cap_sig_timer(void);
 struct ble_l2cap_chan *ble_l2cap_sig_create_chan(uint16_t conn_handle);

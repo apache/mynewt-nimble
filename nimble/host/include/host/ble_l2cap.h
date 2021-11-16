@@ -246,8 +246,6 @@ struct ble_l2cap_chan_info {
 
 typedef int ble_l2cap_event_fn(struct ble_l2cap_event *event, void *arg);
 
-typedef void ble_l2cap_ping_fn(uint16_t conn_handle, uint32_t rtt_ms,
-                               struct os_mbuf *om);
 
 uint16_t ble_l2cap_get_conn_handle(struct ble_l2cap_chan *chan);
 int ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
@@ -260,26 +258,6 @@ int ble_l2cap_disconnect(struct ble_l2cap_chan *chan);
 int ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
 int ble_l2cap_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx);
 int ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info *chan_info);
-
-/**
- * Send an ECHO_REQ packet over the L2CAP signalling channel for the given
- * connection
- *
- * @param conn_handle   Connection handle
- * @param cb            Function called once the corresponding ECHO_RSP is
- *                      received. May be NULL.
- * @param data          User payload appended to the ECHO_REQ packet, may be
- *                      NULL
- * @param data_len      Length of @p data in bytes. Set to 0 to omit any user
- *                      payload
- *
- * @return              0 on success
- *                      BLE_HS_EBADDATA if given payload is invalid
- *                      BLE_HS_ENOMEM if request packet cannot be allocated
- *                      BLE_HS_ENOTCONN if not connected
- */
-int ble_l2cap_ping(uint16_t conn_handle, ble_l2cap_ping_fn cb,
-                   const void *data, uint16_t data_len);
 
 #ifdef __cplusplus
 }
