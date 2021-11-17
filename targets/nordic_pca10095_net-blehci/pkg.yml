@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: targets/nordic_pca10095-blehci
+pkg.name: targets/nordic_pca10095_net-blehci
 pkg.type: target
 pkg.description: Sample target for BLE controller on NRF5340
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
