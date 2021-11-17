@@ -200,11 +200,9 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             enh_ev->conn_itvl = htole16(connsm->conn_itvl);
             enh_ev->conn_latency = htole16(connsm->slave_latency);
             enh_ev->supervision_timeout = htole16(connsm->supervision_tmo);
-            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-                enh_ev->mca = 0;
-            } else{
+            if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 enh_ev->mca = connsm->master_sca;
-            }
+            } 
         }
 
         ble_ll_hci_event_send(hci_ev);
@@ -229,9 +227,7 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             ev->conn_itvl = htole16(connsm->conn_itvl);
             ev->conn_latency = htole16(connsm->slave_latency);
             ev->supervision_timeout = htole16(connsm->supervision_tmo);
-            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
-                ev->mca = 0;
-            } else{
+            if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 ev->mca = connsm->master_sca;
             }
         }
