@@ -397,6 +397,7 @@ static void connect(uint8_t *data, uint16_t len)
 	uint16_t mtu = htole16(cmd->mtu);
 	int rc;
 	int i, j;
+	bool ecfc = cmd->options & L2CAP_CONNECT_OPT_ECFC;
 
 	SYS_LOG_DBG("connect: type: %d addr: %s", addr->type, bt_hex(addr->val, 6));
 
@@ -439,11 +440,11 @@ static void connect(uint8_t *data, uint16_t len)
 	    }
 	}
 
-	if (cmd->num == 1) {
+	if (cmd->num == 1 && !ecfc) {
 		rc = ble_l2cap_connect(desc.conn_handle, htole16(cmd->psm),
 				       mtu, sdu_rx[0],
 				       tester_l2cap_event, NULL);
-	} else if (cmd->num > 1) {
+	} else if (ecfc) {
 		rc = ble_l2cap_enhanced_connect(desc.conn_handle,
 						htole16(cmd->psm), mtu,
 						cmd->num, sdu_rx,
