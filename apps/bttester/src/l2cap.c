@@ -48,6 +48,7 @@ static os_membuf_t tester_sdu_coc_mem[
 
 struct os_mbuf_pool sdu_os_mbuf_pool;
 static struct os_mempool sdu_coc_mbuf_mempool;
+static bool hold_credit = false;
 
 static struct channel {
 	uint8_t chan_id; /* Internal number that identifies L2CAP channel. */
@@ -105,10 +106,13 @@ tester_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 		    (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
 
 	os_mbuf_free_chain(sdu);
-	sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
-	assert(sdu != NULL);
+	if (!hold_credit) {
+	    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+	    assert(sdu != NULL);
 
-	ble_l2cap_recv_ready(chan, sdu);
+
+	    ble_l2cap_recv_ready(chan, sdu);
+	}
 }
 
 static void recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
@@ -398,6 +402,7 @@ static void connect(uint8_t *data, uint16_t len)
 	int rc;
 	int i, j;
 	bool ecfc = cmd->options & L2CAP_CONNECT_OPT_ECFC;
+	hold_credit = cmd->options & L2CAP_CONNECT_OPT_HOLD_CREDIT;
 
 	SYS_LOG_DBG("connect: type: %d addr: %s", addr->type, bt_hex(addr->val, 6));
 
@@ -611,6 +616,35 @@ fail:
 		   BTP_STATUS_FAILED);
 }
 
+static void credits(uint8_t *data, uint16_t len)
+{
+    const struct l2cap_credits_cmd *cmd = (void *)data;
+    struct os_mbuf *sdu;
+    int rc;
+
+    struct channel *channel = get_channel(cmd->chan_id);
+    if (channel == NULL) {
+        goto fail;
+    }
+
+    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    if (sdu == NULL) {
+        os_mbuf_free_chain(sdu);
+        goto fail;
+    }
+
+    rc = ble_l2cap_recv_ready(channel->chan, sdu);
+    if (rc != 0) {
+        goto fail;
+    }
+    tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_CREDITS, CONTROLLER_INDEX,
+               BTP_STATUS_SUCCESS);
+    return;
+fail:
+    tester_rsp(BTP_SERVICE_ID_L2CAP, L2CAP_CREDITS, CONTROLLER_INDEX,
+               BTP_STATUS_FAILED);
+}
+
 static void reconfigure(const uint8_t *data, uint16_t len)
 {
 	const struct l2cap_reconfigure_cmd *cmd = (void *) data;
@@ -695,6 +729,9 @@ void tester_handle_l2cap(uint8_t opcode, uint8_t index, uint8_t *data,
 		return;
 	case L2CAP_RECONFIGURE:
 		reconfigure(data, len);
+		return;
+	case L2CAP_CREDITS:
+		credits(data, len);
 		return;
 	default:
 		tester_rsp(BTP_SERVICE_ID_L2CAP, opcode, index,

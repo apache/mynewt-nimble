@@ -755,6 +755,7 @@ struct l2cap_read_supported_commands_rp {
 } __packed;
 
 #define L2CAP_CONNECT_OPT_ECFC		0x01
+#define L2CAP_CONNECT_OPT_HOLD_CREDIT	0x02
 
 #define L2CAP_CONNECT			0x02
 struct l2cap_connect_cmd {
@@ -807,6 +808,11 @@ struct l2cap_reconfigure_cmd {
     uint16_t mtu;
     uint8_t num;
     uint8_t idxs[];
+} __packed;
+
+#define L2CAP_CREDITS		0x08
+struct l2cap_credits_cmd {
+    uint8_t chan_id;
 } __packed;
 
 /* events */
