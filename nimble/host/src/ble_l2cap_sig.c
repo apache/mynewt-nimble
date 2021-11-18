@@ -796,16 +796,17 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
 
         if (chan[i]->peer_coc_mps > req->mps) {
             reduction_mps++;
-            if (reduction_mps > 1) {
-                rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_REDUCTION_MPS_NOT_ALLOWED);
-                goto failed;
-            }
         }
 
         if (chan[i]->coc_tx.mtu > req->mtu) {
             rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_REDUCTION_MTU_NOT_ALLOWED);
             goto failed;
         }
+    }
+
+    if (reduction_mps > 0 && cid_cnt > 1) {
+        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_REDUCTION_MPS_NOT_ALLOWED);
+        goto failed;
     }
 
     ble_hs_unlock();
