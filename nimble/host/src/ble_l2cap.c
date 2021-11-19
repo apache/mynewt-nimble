@@ -393,8 +393,11 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         }
 
         if (l2cap_hdr.len > ble_l2cap_get_mtu(chan)) {
-            /* More data then we expected on the channel */
+            /* More data than we expected on the channel.
+             * Disconnect peer with invalid behaviour
+             */
             rc = BLE_HS_EBADDATA;
+            ble_l2cap_disconnect(chan);
             goto err;
         }
 
