@@ -285,6 +285,11 @@ ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
 
     assert(hci_ev != NULL);
 
+    if (!tud_ready()) {
+        ble_hci_trans_buf_free(hci_ev);
+        return 0;
+    }
+
     pkt = os_memblock_get(&ble_hci_pkt_pool);
     if (pkt == NULL) {
         ble_hci_trans_buf_free(hci_ev);
