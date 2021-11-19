@@ -25,8 +25,8 @@ extern "C" {
 #endif
 
 /* Time per BLE scheduler slot */
-#define BLE_LL_SCHED_USECS_PER_SLOT         (1250)
-#define BLE_LL_SCHED_32KHZ_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
+#define BLE_LL_SCHED_USECS_PER_SLOT   (1250)
+#define BLE_LL_SCHED_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
 
 /*
  * Worst case time needed for scheduled advertising item. This is the longest
@@ -67,10 +67,10 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_ADV       (1)
 #define BLE_LL_SCHED_TYPE_SCAN      (2)
 #define BLE_LL_SCHED_TYPE_CONN      (3)
-#define BLE_LL_SCHED_TYPE_AUX_SCAN  (4)
 #define BLE_LL_SCHED_TYPE_DTM       (5)
 #define BLE_LL_SCHED_TYPE_PERIODIC  (6)
 #define BLE_LL_SCHED_TYPE_SYNC      (7)
+#define BLE_LL_SCHED_TYPE_SCAN_AUX  (8)
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -159,8 +159,7 @@ int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
                          ble_ll_sched_adv_new_cb cb, void *arg);
 
 /* Schedule periodic advertising event */
-int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, uint32_t *start,
-                              bool after_overlap);
+int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, bool first_event);
 
 int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
                                  uint32_t anchor_point,
@@ -171,7 +170,7 @@ int ble_ll_sched_sync(struct ble_ll_sched_item *sch,
                       int8_t phy_mode);
 
 /* Reschedule an advertising event */
-int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch, uint32_t *start,
+int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch,
                                 uint32_t max_delay_ticks);
 
 /* Reschedule and advertising pdu */
@@ -199,7 +198,8 @@ int ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_scan_sm *scansm,
                           struct ble_ll_aux_data *aux_scan);
 
-int ble_ll_sched_scan_req_over_aux_ptr(uint32_t chan, uint8_t phy_mode);
+int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
+                          uint8_t pdu_time_rem, uint32_t offset_us);
 #endif
 
 /* Stop the scheduler */

@@ -229,7 +229,7 @@ tud_bt_hci_cmd_cb(void *hci_cmd, size_t cmd_len)
     if (ble_hci_usb_rx_cmd_ll_cb) {
         buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
         assert(buf != NULL);
-        memcpy(buf, hci_cmd, cmd_len);
+        memcpy(buf, hci_cmd, min(cmd_len, BLE_HCI_TRANS_CMD_SZ));
 
         rc = ble_hci_usb_rx_cmd_ll_cb(buf, ble_hci_usb_rx_cmd_ll_arg);
     }

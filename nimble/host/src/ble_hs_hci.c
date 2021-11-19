@@ -41,11 +41,20 @@ static uint32_t ble_hs_hci_sup_feat;
 
 static uint8_t ble_hs_hci_version;
 
+#if MYNEWT_VAL(BLE_CONTROLLER)
+#define BLE_HS_HCI_FRAG_DATABUF_SIZE    \
+    (BLE_ACL_MAX_PKT_SIZE +             \
+     BLE_HCI_DATA_HDR_SZ +              \
+     sizeof (struct os_mbuf_pkthdr) +   \
+     sizeof (struct ble_mbuf_hdr) +      \
+     sizeof (struct os_mbuf))
+#else
 #define BLE_HS_HCI_FRAG_DATABUF_SIZE    \
     (BLE_ACL_MAX_PKT_SIZE +             \
      BLE_HCI_DATA_HDR_SZ +              \
      sizeof (struct os_mbuf_pkthdr) +   \
      sizeof (struct os_mbuf))
+#endif
 
 #define BLE_HS_HCI_FRAG_MEMBLOCK_SIZE   \
     (OS_ALIGN(BLE_HS_HCI_FRAG_DATABUF_SIZE, 4))
@@ -292,6 +301,20 @@ ble_hs_hci_wait_for_ack(void)
 }
 
 int
+ble_hs_hci_cmd_tx_no_rsp(uint16_t opcode, const void *cmd, uint8_t cmd_len)
+{
+    int rc;
+
+    ble_hs_hci_lock();
+
+    rc = ble_hs_hci_cmd_send_buf(opcode, cmd, cmd_len);
+
+    ble_hs_hci_unlock();
+
+    return rc;
+}
+
+int
 ble_hs_hci_cmd_tx(uint16_t opcode, const void *cmd, uint8_t cmd_len,
                   void *rsp, uint8_t rsp_len)
 {
@@ -407,7 +430,11 @@ ble_hs_hci_frag_alloc(uint16_t frag_size, void *arg)
     struct os_mbuf *om;
 
     /* Prefer the dedicated one-element fragment pool. */
+#if MYNEWT_VAL(BLE_CONTROLLER)
+    om = os_mbuf_get_pkthdr(&ble_hs_hci_frag_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+#else
     om = os_mbuf_get_pkthdr(&ble_hs_hci_frag_mbuf_pool, 0);
+#endif
     if (om != NULL) {
         om->om_data += BLE_HCI_DATA_HDR_SZ;
         return om;

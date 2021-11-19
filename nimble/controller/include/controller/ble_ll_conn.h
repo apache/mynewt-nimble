@@ -45,16 +45,6 @@ extern "C" {
 /* Channel map size */
 #define BLE_LL_CONN_CHMAP_LEN           (5)
 
-/* Definitions for source clock accuracy */
-#define BLE_MASTER_SCA_251_500_PPM      (0)
-#define BLE_MASTER_SCA_151_250_PPM      (1)
-#define BLE_MASTER_SCA_101_150_PPM      (2)
-#define BLE_MASTER_SCA_76_100_PPM       (3)
-#define BLE_MASTER_SCA_51_75_PPM        (4)
-#define BLE_MASTER_SCA_31_50_PPM        (5)
-#define BLE_MASTER_SCA_21_30_PPM        (6)
-#define BLE_MASTER_SCA_0_20_PPM         (7)
-
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
 
@@ -188,28 +178,6 @@ struct hci_conn_update
     uint16_t max_ce_len;
 };
 
-struct hci_ext_conn_params
-{
-    uint16_t scan_itvl;
-    uint16_t scan_window;
-    uint16_t conn_itvl_min;
-    uint16_t conn_itvl_max;
-    uint16_t conn_latency;
-    uint16_t supervision_timeout;
-    uint16_t min_ce_len;
-    uint16_t max_ce_len;
-};
-
-struct hci_ext_create_conn
-{
-    uint8_t filter_policy;
-    uint8_t own_addr_type;
-    uint8_t peer_addr_type;
-    uint8_t peer_addr[BLE_DEV_ADDR_LEN];
-    uint8_t init_phy_mask;
-    struct hci_ext_conn_params params[3];
-};
-
 /* Connection state machine */
 struct ble_ll_conn_sm
 {
@@ -224,9 +192,6 @@ struct ble_ll_conn_sm
     /* RSSI */
     int8_t conn_rssi;
 
-    /* For privacy */
-    int8_t rpa_index;
-
     /* Connection data length management */
     uint8_t max_tx_octets;
     uint8_t max_rx_octets;
@@ -240,7 +205,6 @@ struct ble_ll_conn_sm
     uint16_t rem_max_rx_time;
     uint16_t eff_max_tx_time;
     uint16_t eff_max_rx_time;
-    uint8_t max_tx_octets_phy_mode[BLE_PHY_NUM_MODE];
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     uint16_t host_req_max_tx_time;
 #endif
@@ -327,6 +291,9 @@ struct ble_ll_conn_sm
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
     uint8_t peer_addr[BLE_DEV_ADDR_LEN];
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    uint8_t peer_addr_resolved;
+#endif
 
     /*
      * XXX: TODO. Could save memory. Have single event at LL and put these
@@ -378,11 +345,6 @@ struct ble_ll_conn_sm
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
 
-    struct ble_ll_scan_sm *scansm;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    struct hci_ext_create_conn initial_params;
-#endif
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
     uint8_t  sync_transfer_mode;
     uint16_t sync_transfer_skip;
@@ -424,6 +386,34 @@ uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
 /* used to get anchor point for connection event specified */
 void ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
                             uint32_t *anchor, uint8_t *anchor_usecs);
+
+struct ble_ll_scan_addr_data;
+struct ble_ll_scan_pdu_data;
+
+uint8_t ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg,
+                                         uint8_t *hdr_byte);
+void ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
+                                    struct ble_ll_scan_pdu_data *pdu_data,
+                                    uint8_t adva_type, uint8_t *adva,
+                                    uint8_t inita_type, uint8_t *inita,
+                                    int rpa_index, uint8_t channel);
+
+/* Send CONNECT_IND/AUX_CONNECT_REQ */
+int ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
+                                 struct ble_ll_scan_addr_data *addrd,
+                                 uint8_t ext);
+/* Cancel connection after AUX_CONNECT_REQ was sent */
+void ble_ll_conn_send_connect_req_cancel(void);
+/* Signal connection created via CONNECT_IND */
+void ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
+                                   struct ble_ll_scan_addr_data *addrd,
+                                   uint8_t *targeta);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+/* Signal connection created via AUX_CONNECT_REQ */
+void ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,
+                                struct ble_ll_scan_addr_data *addrd,
+                                uint8_t *targeta);
+#endif
 
 #ifdef __cplusplus
 }

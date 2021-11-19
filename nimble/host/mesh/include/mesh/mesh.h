@@ -15,6 +15,7 @@
 #include "os/os_mbuf.h"
 
 #include "glue.h"
+#include "msg.h"
 #include "access.h"
 #include "main.h"
 #include "cfg.h"

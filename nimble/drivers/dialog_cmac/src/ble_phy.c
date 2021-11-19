@@ -935,6 +935,12 @@ ble_phy_irq_frame_rx_exc_phy_to_idle_4this(void)
     rf_chan = g_ble_phy_chan_to_rf[g_ble_phy_data.channel];
     ble_rf_setup_tx(rf_chan, g_ble_phy_data.phy_mode_tx);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
+
+    /* We do not want FIELD/FRAME interrupts until ble_phy_tx() has pushed all
+     * fields.
+     */
+    NVIC_DisableIRQ(FRAME_IRQn);
+    NVIC_DisableIRQ(FIELD_IRQn);
 }
 
 static void
@@ -1305,6 +1311,9 @@ ble_phy_disable(void)
 
     __enable_irq();
 
+    NVIC_EnableIRQ(FRAME_IRQn);
+    NVIC_EnableIRQ(FIELD_IRQn);
+
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }
 
@@ -1552,8 +1561,6 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 tx_late:
     STATS_INC(ble_phy_stats, tx_late);
     ble_phy_disable();
-    NVIC_EnableIRQ(FRAME_IRQn);
-    NVIC_EnableIRQ(FIELD_IRQn);
     rc = BLE_PHY_ERR_TX_LATE;
 
 done:

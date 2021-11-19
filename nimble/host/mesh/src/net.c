@@ -39,7 +39,7 @@
 #define LOOPBACK_BUF_SUB(buf) (*(struct bt_mesh_subnet **)net_buf_user_data(buf))
 
 /* Seq limit after IV Update is triggered */
-#define IV_UPDATE_SEQ_LIMIT 8000000
+#define IV_UPDATE_SEQ_LIMIT CONFIG_BT_MESH_IV_UPDATE_SEQ_LIMIT
 
 #define IVI(pdu)           ((pdu)[0] >> 7)
 #define NID(pdu)           ((pdu)[0] & 0x7f)
@@ -48,6 +48,31 @@
 #define SEQ(pdu)           (sys_get_be24(&pdu[2]))
 #define SRC(pdu)           (sys_get_be16(&(pdu)[5]))
 #define DST(pdu)           (sys_get_be16(&(pdu)[7]))
+
+/** Define CONFIG_BT_MESH_SEQ_STORE_RATE even if settings are disabled to
+ * compile the code.
+ */
+#ifndef CONFIG_BT_SETTINGS
+#define CONFIG_BT_MESH_SEQ_STORE_RATE 1
+#endif
+
+/* Mesh network information for persistent storage. */
+struct net_val {
+	uint16_t primary_addr;
+	uint8_t  dev_key[16];
+} __packed;
+
+/* Sequence number information for persistent storage. */
+struct seq_val {
+	uint8_t val[3];
+} __packed;
+
+/* IV Index & IV Update information for persistent storage. */
+struct iv_val {
+	uint32_t iv_index;
+	uint8_t  iv_update:1,
+	iv_duration:7;
+} __packed;
 
 static struct {
 	uint32_t src : 15, /* MSb of source is always 0 */
@@ -59,6 +84,15 @@ static uint16_t msg_cache_next;
 struct bt_mesh_net bt_mesh = {
 	.local_queue = STAILQ_HEAD_INITIALIZER(bt_mesh.local_queue),
 };
+
+/* Mesh Profile Specification 3.10.6
+ * The node shall not execute more than one IV Index Recovery within a period of
+ * 192 hours.
+ *
+ * Mark that the IV Index Recovery has been done to prevent two recoveries to be
+ * done before a normal IV Index update has been completed within 96h+96h.
+ */
+static bool ivi_was_recovered;
 
 static struct os_mbuf_pool loopback_os_mbuf_pool;
 static struct os_mempool loopback_buf_mempool;
@@ -112,6 +146,30 @@ static void msg_cache_add(struct bt_mesh_net_rx *rx)
 	msg_cache_next %= ARRAY_SIZE(msg_cache);
 }
 
+static void store_iv(bool only_duration)
+{
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_IV_PENDING);
+
+	if (!only_duration) {
+		/* Always update Seq whenever IV changes */
+		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
+	}
+#endif
+}
+
+static void store_seq(void)
+{
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+	if (CONFIG_BT_MESH_SEQ_STORE_RATE > 1 &&
+	(bt_mesh.seq % CONFIG_BT_MESH_SEQ_STORE_RATE)) {
+		return;
+	}
+
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
+#endif
+}
+
 int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
 		       uint32_t iv_index)
 {
@@ -139,17 +197,18 @@ int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
 	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS,
 			  BT_MESH_IV_UPDATE(flags));
 
-	/* Set minimum required hours, since the 96-hour minimum requirement
-	 * doesn't apply straight after provisioning (since we can't know how
-	 * long has actually passed since the network changed its state).
+	/* If IV Update is already in progress, set minimum required hours,
+	 * since the 96-hour minimum requirement doesn't apply in this case straight
+	 * after provisioning.
 	 */
-	bt_mesh.ivu_duration = BT_MESH_IVU_MIN_HOURS;
+	if (BT_MESH_IV_UPDATE(flags)) {
+		bt_mesh.ivu_duration = BT_MESH_IVU_MIN_HOURS;
+	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
 		BT_DBG("Storing network information persistently");
-		bt_mesh_store_net();
-		bt_mesh_store_subnet(idx);
-		bt_mesh_store_iv(false);
+		bt_mesh_subnet_store(idx);
+		store_iv(false);
 	}
 
 	return 0;
@@ -213,23 +272,23 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 			return false;
 		}
 
-		if (iv_index > bt_mesh.iv_index + 1) {
+		if ((iv_index > bt_mesh.iv_index + 1) ||
+		(iv_index == bt_mesh.iv_index + 1 && !iv_update)) {
+			if (ivi_was_recovered) {
+				BT_ERR("IV Index Recovery before minimum delay");
+				return false;
+			}
+			/* The Mesh profile specification allows to initiate an
+			 * IV Index Recovery procedure if previous IV update has
+			 * been missed. This allows the node to remain
+			 * functional.
+			 */
 			BT_WARN("Performing IV Index Recovery");
+			ivi_was_recovered = true;
 			bt_mesh_rpl_clear();
 			bt_mesh.iv_index = iv_index;
 			bt_mesh.seq = 0;
 			goto do_update;
-		}
-
-		if (iv_index == bt_mesh.iv_index + 1 && !iv_update) {
-			BT_WARN("Ignoring new index in normal mode");
-			return false;
-		}
-
-		if (!iv_update) {
-			/* Nothing to do */
-			BT_DBG("Already in Normal state");
-			return false;
 		}
 	}
 
@@ -248,41 +307,42 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 		return false;
 	}
 
-do_update:
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
-	bt_mesh.ivu_duration = 0U;
-
 	if (iv_update) {
 		bt_mesh.iv_index = iv_index;
 		BT_DBG("IV Update state entered. New index 0x%08x",
 		       (unsigned) bt_mesh.iv_index);
 
 		bt_mesh_rpl_reset();
+		ivi_was_recovered = false;
 	} else {
 		BT_DBG("Normal mode entered");
 		bt_mesh.seq = 0;
 	}
 
-	k_delayed_work_submit(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+do_update:
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
+	bt_mesh.ivu_duration = 0U;
+
+	k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 
 	/* Notify other modules */
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
 		bt_mesh_friend_sec_update(BT_MESH_KEY_ANY);
 	}
 
+	bt_mesh_subnet_foreach(bt_mesh_beacon_update);
+
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
 		bt_mesh_proxy_beacon_send(NULL);
 	}
-
-	bt_mesh_subnet_foreach(bt_mesh_beacon_update);
 
 	if (MYNEWT_VAL(BLE_MESH_CDB)) {
 		bt_mesh_cdb_iv_update(iv_index, iv_update);
 	}
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_iv(false);
+		store_iv(false);
 	}
 
 	return true;
@@ -293,7 +353,7 @@ uint32_t bt_mesh_next_seq(void)
 	uint32_t seq = bt_mesh.seq++;
 
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_seq();
+		store_seq();
 	}
 
 	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) &&
@@ -345,7 +405,7 @@ static void bt_mesh_net_local(struct ble_npl_event *work)
 static const struct bt_mesh_net_cred *net_tx_cred_get(struct bt_mesh_net_tx *tx)
 {
 #if IS_ENABLED(CONFIG_BT_MESH_LOW_POWER)
-	if (tx->friend_cred && bt_mesh_lpn_established()) {
+	if (tx->friend_cred && bt_mesh.lpn.frnd) {
 		return &bt_mesh.lpn.cred[SUBNET_KEY_TX_IDX(tx->sub)];
 	}
 #endif
@@ -462,7 +522,7 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 
 	/* Deliver to local network interface if necessary */
 	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
-	    bt_mesh_elem_find(tx->ctx->addr)) {
+	    bt_mesh_has_addr(tx->ctx->addr)) {
 		err = loopback(tx, buf->om_data, buf->om_len);
 
 		/* Local unicast messages should not go out to network */
@@ -490,12 +550,13 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		goto done;
 	}
 
+	BT_MESH_ADV(buf)->cb = cb;
+	BT_MESH_ADV(buf)->cb_data = cb_data;
+
 	/* Deliver to GATT Proxy Clients if necessary. */
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    bt_mesh_proxy_relay(buf, tx->ctx->addr) &&
 	    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
-		/* Notify completion if this only went through the Mesh Proxy */
-		send_cb_finalize(cb, cb_data);
 
 		err = 0;
 		goto done;
@@ -559,7 +620,7 @@ static bool net_decrypt(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 		return false;
 	}
 
-	if (bt_mesh_elem_find(rx->ctx.addr)) {
+	if (bt_mesh_has_addr(rx->ctx.addr)) {
 		BT_DBG("Dropping locally originated packet");
 		return false;
 	}
@@ -657,7 +718,7 @@ static void bt_mesh_net_relay(struct os_mbuf *sbuf,
 	       bt_hex(buf->om_data, buf->om_len));
 
 	/* When the Friend node relays message for lpn, the message will be
-	 * retransmitted using the managed master security credentials and
+	 * retransmitted using the managed flooding security credentials and
 	 * the Network PDU shall be retransmitted to all network interfaces.
 	 */
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
@@ -770,7 +831,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 	net_buf_simple_save(buf, &state);
 
 	rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
-			  bt_mesh_elem_find(rx.ctx.recv_dst));
+			  bt_mesh_has_addr(rx.ctx.recv_dst));
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY)) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
@@ -812,6 +873,10 @@ done:
 
 static void ivu_refresh(struct ble_npl_event *work)
 {
+	if (!bt_mesh_is_provisioned()) {
+		return;
+	}
+
 	bt_mesh.ivu_duration = MIN(UINT8_MAX,
 	       bt_mesh.ivu_duration + BT_MESH_IVU_HOURS);
 
@@ -822,10 +887,10 @@ static void ivu_refresh(struct ble_npl_event *work)
 
 	if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
 		if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-			bt_mesh_store_iv(true);
+			store_iv(true);
 		}
 
-		k_delayed_work_submit(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+		k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
 		return;
 	}
 
@@ -833,15 +898,169 @@ static void ivu_refresh(struct ble_npl_event *work)
 		bt_mesh_beacon_ivu_initiator(true);
 		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 	} else if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		bt_mesh_store_iv(true);
+		store_iv(true);
 	}
 }
+
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+static int net_set(int argc, char **argv, char *val)
+{
+	struct net_val net;
+	int len, err;
+
+	BT_DBG("val %s", val ? val : "(null)");
+
+	if (!val) {
+		bt_mesh_comp_unprovision();
+		memset(bt_mesh.dev_key, 0, sizeof(bt_mesh.dev_key));
+		return 0;
+	}
+
+	len = sizeof(net);
+	err = settings_bytes_from_str(val, &net, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return err;
+	}
+
+	if (len != sizeof(net)) {
+		BT_ERR("Unexpected value length (%d != %zu)", len, sizeof(net));
+		return -EINVAL;
+	}
+
+	memcpy(bt_mesh.dev_key, net.dev_key, sizeof(bt_mesh.dev_key));
+	bt_mesh_comp_provision(net.primary_addr);
+
+	BT_DBG("Provisioned with primary address 0x%04x", net.primary_addr);
+	BT_DBG("Recovered DevKey %s", bt_hex(bt_mesh.dev_key, 16));
+
+	return 0;
+}
+
+static int iv_set(int argc, char **argv, char *val)
+{
+	struct iv_val iv;
+	int len, err;
+
+	BT_DBG("val %s", val ? val : "(null)");
+
+	if (!val) {
+		bt_mesh.iv_index = 0U;
+		atomic_clear_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
+		return 0;
+	}
+
+	len = sizeof(iv);
+	err = settings_bytes_from_str(val, &iv, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return err;
+	}
+
+	if (len != sizeof(iv)) {
+		BT_ERR("Unexpected value length (%d != %zu)", len, sizeof(iv));
+		return -EINVAL;
+	}
+
+	bt_mesh.iv_index = iv.iv_index;
+	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv.iv_update);
+	bt_mesh.ivu_duration = iv.iv_duration;
+
+	BT_DBG("IV Index 0x%04x (IV Update Flag %u) duration %u hours",
+			       (unsigned) iv.iv_index, iv.iv_update, iv.iv_duration);
+
+	return 0;
+}
+
+static int seq_set(int argc, char **argv, char *val)
+{
+	struct seq_val seq;
+	int len, err;
+
+	BT_DBG("val %s", val ? val : "(null)");
+
+	if (!val) {
+		bt_mesh.seq = 0;
+		return 0;
+	}
+
+	len = sizeof(seq);
+	err = settings_bytes_from_str(val, &seq, &len);
+	if (err) {
+		BT_ERR("Failed to decode value %s (err %d)", val, err);
+		return err;
+	}
+
+	if (len != sizeof(seq)) {
+		BT_ERR("Unexpected value length (%d != %zu)", len, sizeof(seq));
+		return -EINVAL;
+	}
+
+	bt_mesh.seq = sys_get_le24(seq.val);
+
+	if (CONFIG_BT_MESH_SEQ_STORE_RATE > 0) {
+	/* Make sure we have a large enough sequence number. We
+	 * subtract 1 so that the first transmission causes a write
+	 * to the settings storage.
+	 */
+		bt_mesh.seq += (CONFIG_BT_MESH_SEQ_STORE_RATE -
+					(bt_mesh.seq % CONFIG_BT_MESH_SEQ_STORE_RATE));
+		bt_mesh.seq--;
+	}
+
+	BT_DBG("Sequence Number 0x%06x", bt_mesh.seq);
+
+	return 0;
+}
+
+static struct conf_handler bt_mesh_net_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = net_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+};
+
+static struct conf_handler bt_mesh_iv_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = iv_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+};
+
+static struct conf_handler bt_mesh_seq_conf_handler = {
+	.ch_name = "bt_mesh",
+	.ch_get = NULL,
+	.ch_set = seq_set,
+	.ch_commit = NULL,
+	.ch_export = NULL,
+};
+#endif
 
 void bt_mesh_net_init(void)
 {
 	int rc;
 
-	k_delayed_work_init(&bt_mesh.ivu_timer, ivu_refresh);
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+	rc = conf_register(&bt_mesh_net_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_net conf");
+
+
+	rc = conf_register(&bt_mesh_iv_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+			 "Failed to register bt_mesh_iv conf");
+
+	rc = conf_register(&bt_mesh_seq_conf_handler);
+
+	SYSINIT_PANIC_ASSERT_MSG(rc == 0,
+				 "Failed to register bt_mesh_seq conf");
+#endif
+
+	k_work_init_delayable(&bt_mesh.ivu_timer, ivu_refresh);
 
 	k_work_init(&bt_mesh.local_work, bt_mesh_net_local);
 	net_buf_slist_init(&bt_mesh.local_queue);
@@ -852,7 +1071,153 @@ void bt_mesh_net_init(void)
 	assert(rc == 0);
 
 	rc = os_mbuf_pool_init(&loopback_os_mbuf_pool, &loopback_buf_mempool,
-						   LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
-						   MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS));
+			       LOOPBACK_MAX_PDU_LEN + BT_MESH_MBUF_HEADER_SIZE,
+			       MYNEWT_VAL(BLE_MESH_LOOPBACK_BUFS));
 	assert(rc == 0);
+}
+
+#if MYNEWT_VAL(BLE_MESH_SETTINGS)
+static void clear_iv(void)
+{
+	int err;
+
+	err = settings_save_one("bt_mesh/IV", NULL);
+	if (err) {
+		BT_ERR("Failed to clear IV");
+	} else {
+		BT_DBG("Cleared IV");
+	}
+}
+
+static void store_pending_iv(void)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct iv_val))];
+	struct iv_val iv;
+	char *str;
+	int err;
+
+	iv.iv_index = bt_mesh.iv_index;
+	iv.iv_update = atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
+	iv.iv_duration = bt_mesh.ivu_duration;
+
+	str = settings_str_from_bytes(&iv, sizeof(iv), buf, sizeof(buf));
+	if (!str) {
+		BT_ERR("Unable to encode IV as value");
+		return;
+	}
+
+	BT_DBG("Saving IV as value %s", str);
+	err = settings_save_one("bt_mesh/IV", str);
+	if (err) {
+		BT_ERR("Failed to store IV");
+	} else {
+		BT_DBG("Stored IV");
+	}
+}
+
+void bt_mesh_net_pending_iv_store(void)
+{
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		store_pending_iv();
+	} else {
+		clear_iv();
+	}
+}
+
+static void clear_net(void)
+{
+	int err;
+
+	err = settings_save_one("bt_mesh/Net", NULL);
+	if (err) {
+		BT_ERR("Failed to clear Network");
+	} else {
+		BT_DBG("Cleared Network");
+	}
+}
+
+static void store_pending_net(void)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct net_val))];
+	struct net_val net;
+	char *str;
+	int err;
+
+	BT_DBG("addr 0x%04x DevKey %s", bt_mesh_primary_addr(),
+	       bt_hex(bt_mesh.dev_key, 16));
+
+	net.primary_addr = bt_mesh_primary_addr();
+	memcpy(net.dev_key, bt_mesh.dev_key, 16);
+
+	str = settings_str_from_bytes(&net, sizeof(net), buf, sizeof(buf));
+	if (!str) {
+		BT_ERR("Unable to encode Network as value");
+		return;
+	}
+
+	BT_DBG("Saving Network as value %s", str);
+	err = settings_save_one("bt_mesh/Net", str);
+	if (err) {
+		BT_ERR("Failed to store Network");
+	} else {
+		BT_DBG("Stored Network");
+	}
+}
+
+void bt_mesh_net_pending_net_store(void)
+{
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		store_pending_net();
+	} else {
+		clear_net();
+	}
+}
+
+void bt_mesh_net_pending_seq_store(void)
+{
+	char buf[BT_SETTINGS_SIZE(sizeof(struct seq_val))];
+	char *str;
+	struct seq_val seq;
+	int err;
+
+	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+		sys_put_le24(bt_mesh.seq, seq.val);
+
+		str = settings_str_from_bytes(&seq, sizeof(seq), buf, sizeof(buf));
+		if (!str) {
+			BT_ERR("Unable to encode Network as value");
+			return;
+		}
+
+		BT_DBG("Saving Network as value %s", str);
+		err = settings_save_one("bt_mesh/Seq", str);
+		if (err) {
+			BT_ERR("Failed to stor Seq value");
+		} else {
+			BT_DBG("Stored Seq value");
+		}
+	} else {
+		err = settings_save_one("bt_mesh/Seq", NULL);
+		if (err) {
+			BT_ERR("Failed to clear Seq value");
+		} else {
+			BT_DBG("Cleared Seq value");
+		}
+	}
+}
+
+void bt_mesh_net_clear(void)
+{
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_NET_PENDING);
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_IV_PENDING);
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_SEQ_PENDING);
+}
+#endif
+
+void bt_mesh_net_settings_commit(void)
+{
+	if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
+		k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
+	}
 }

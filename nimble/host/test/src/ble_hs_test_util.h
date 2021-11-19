@@ -162,6 +162,8 @@ int ble_hs_test_util_l2cap_rx_payload_flat(uint16_t conn_handle, uint16_t cid,
                                            const void *data, int len);
 uint8_t ble_hs_test_util_verify_tx_l2cap_sig(uint16_t opcode, void *cmd,
                                                  uint16_t cmd_size);
+uint8_t ble_hs_test_util_verify_tx_l2cap_discon_rej(uint16_t opcode, void *cmd,
+                                             uint16_t cmd_size);
 int ble_hs_test_util_inject_rx_l2cap_sig(uint16_t conn_handle, uint8_t opcode,
                                      uint8_t id, void *cmd, uint16_t cmd_size);
 void ble_hs_test_util_verify_tx_l2cap(struct os_mbuf *txom);

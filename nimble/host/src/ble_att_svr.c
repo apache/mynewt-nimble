@@ -30,7 +30,7 @@
  * ATT server - Attribute Protocol
  *
  * Notes on buffer reuse:
- * Most request handlers reuse the request buffer for the reponse.  This is
+ * Most request handlers reuse the request buffer for the response.  This is
  * done to prevent out-of-memory conditions.  However, there are two handlers
  * which do not reuse the request buffer:
  *     1. Write request.

@@ -46,7 +46,7 @@ ideal wireless technology for the Internet of Things (IoT).
 -  LE Secure Connections featuring FIPS-compliant algorithms.
 -  LE Data Length Extension for higher throughput
 -  **Coming Soon**: Assigning an Internet Protocol (IP) address
-   (complaint with the IPv6 or 6LoWPAN standard) to a Bluetooth device
+   (compliant with the IPv6 or 6LoWPAN standard) to a Bluetooth device
    through Internet Protocol Support Profile (IPSP)
 
 The Bluetooth 5 is backward compatible with previous Bluetooth version

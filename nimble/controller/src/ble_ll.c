@@ -37,6 +37,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_scan_aux.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
@@ -44,6 +45,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
@@ -576,7 +578,7 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
      * Test specification extends this also to initiating.
      */
 
-    if (g_ble_ll_conn_create_sm || ble_ll_scan_enabled() ||
+    if (g_ble_ll_conn_create_sm.connsm || ble_ll_scan_enabled() ||
                                 (!hci_adv_ext && ble_ll_adv_enabled())) {
         return BLE_ERR_CMD_DISALLOWED;
     }
@@ -676,9 +678,6 @@ ble_ll_wfr_timer_exp(void *arg)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_wfr_timer_exp();
             break;
-        case BLE_LL_STATE_INITIATING:
-            ble_ll_conn_init_wfr_timer_exp();
-            break;
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_wfr_timer_exp();
@@ -687,6 +686,11 @@ ble_ll_wfr_timer_exp(void *arg)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         case BLE_LL_STATE_SYNC:
             ble_ll_sync_wfr_timer_exp();
+            break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_STATE_SCAN_AUX:
+            ble_ll_scan_aux_wfr_timer_exp();
             break;
 #endif
         default:
@@ -836,9 +840,6 @@ ble_ll_rx_pkt_in(void)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_rx_pkt_in(pdu_type, m, ble_hdr);
             break;
-        case BLE_LL_STATE_INITIATING:
-            ble_ll_init_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
-            break;
 #if MYNEWT_VAL(BLE_LL_DTM)
         case BLE_LL_STATE_DTM:
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
@@ -847,6 +848,11 @@ ble_ll_rx_pkt_in(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         case BLE_LL_STATE_SYNC:
             ble_ll_sync_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_STATE_SCAN_AUX:
+            ble_ll_scan_aux_rx_pkt_in(m, ble_hdr);
             break;
 #endif
         default:
@@ -969,9 +975,6 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
-    case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_isr_start(pdu_type, rxhdr);
-        break;
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
         break;
@@ -983,6 +986,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     case BLE_LL_STATE_SYNC:
         rc = ble_ll_sync_rx_isr_start(pdu_type, rxhdr);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_LL_STATE_SCAN_AUX:
+        rc = ble_ll_scan_aux_rx_isr_start(pdu_type, rxhdr);
         break;
 #endif
     default:
@@ -1106,9 +1114,17 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
         rc = ble_ll_scan_rx_isr_end(rxpdu, crcok);
         break;
-    case BLE_LL_STATE_INITIATING:
-        rc = ble_ll_init_rx_isr_end(rxbuf, crcok, rxhdr);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    case BLE_LL_STATE_SCAN_AUX:
+        if (!badpkt) {
+            rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
+            if (rxpdu) {
+                ble_phy_rxpdu_copy(rxbuf, rxpdu);
+            }
+        }
+        rc = ble_ll_scan_aux_rx_isr_end(rxpdu, crcok);
         break;
+#endif
     default:
         rc = -1;
         STATS_INC(ble_ll_stats, bad_ll_state);
@@ -1226,6 +1242,10 @@ void
 ble_ll_state_set(uint8_t ll_state)
 {
     g_ble_ll_data.ll_state = ll_state;
+
+    if (ll_state == BLE_LL_STATE_STANDBY) {
+        BLE_LL_DEBUG_GPIO(SCHED_ITEM, 0);
+    }
 }
 
 /**
@@ -1553,6 +1573,10 @@ ble_ll_init(void)
 {
     int rc;
     uint64_t features;
+#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
+    uint64_t pub_dev_addr;
+    int i;
+#endif
     ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
@@ -1564,10 +1588,17 @@ ble_ll_init(void)
 
     /* Set public device address if not already set */
     if (ble_ll_is_addr_empty(g_dev_addr)) {
-        /* Use sycfg address if configured, otherwise try to read from HW */
-        if (!ble_ll_is_addr_empty(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR))) {
-            memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
-        } else {
+#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
+        pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
+
+        for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
+            g_dev_addr[i] = pub_dev_addr & 0xff;
+            pub_dev_addr >>= 8;
+        }
+#else
+        memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
+#endif
+        if (ble_ll_is_addr_empty(g_dev_addr)) {
             rc = ble_hw_get_public_addr(&addr);
             if (!rc) {
                 memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);

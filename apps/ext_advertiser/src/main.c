@@ -86,7 +86,7 @@ start_ext_max_events(uint8_t pattern, bool configure)
         params.primary_phy = BLE_HCI_LE_PHY_1M;
         params.secondary_phy = BLE_HCI_LE_PHY_1M;
         params.tx_power = 127;
-        params.sid = pattern % 16;
+        params.sid = 4;
 
         /* allow larger interval, 400 * 0.625ms with 100 events will give up to
          * ~2.5 seconds for instance
@@ -94,7 +94,7 @@ start_ext_max_events(uint8_t pattern, bool configure)
         params.itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN;
         params.itvl_max = 400;
 
-        /* configure instance 0 */
+        /* configure instance 4 */
         rc = ble_gap_ext_adv_configure(instance, &params, NULL,
                                         start_ext_max_events_gap_event, NULL);
         assert (rc == 0);
@@ -184,9 +184,9 @@ start_legacy_duration(uint8_t pattern, bool configure)
         params.primary_phy = BLE_HCI_LE_PHY_1M;
         params.secondary_phy = BLE_HCI_LE_PHY_1M;
         params.tx_power = 127;
-        params.sid = pattern % 16;
+        params.sid = 3;
 
-        /* configure instance 0 */
+        /* configure instance 3 */
         rc = ble_gap_ext_adv_configure(instance, &params, NULL,
                                         start_legacy_duration_gap_event, NULL);
         assert (rc == 0);
@@ -251,7 +251,7 @@ start_scannable_legacy_ext(void)
     params.tx_power = 127;
     params.sid = 2;
 
-    /* configure instance 0 */
+    /* configure instance 2 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
     assert (rc == 0);
 
@@ -335,7 +335,7 @@ start_scannable_ext(void)
     params.tx_power = 127;
     params.sid = 1;
 
-    /* configure instance 0 */
+    /* configure instance 1 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL,
                                    scannable_ext_gap_event, NULL);
     assert (rc == 0);
@@ -387,7 +387,7 @@ start_non_connectable_ext(void)
     params.tx_power = 127;
     params.sid = 0;
 
-    /* configure instance */
+    /* configure instance 0 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
     assert (rc == 0);
 
@@ -430,9 +430,9 @@ static void start_periodic(void)
     params.primary_phy = BLE_HCI_LE_PHY_1M;
     params.secondary_phy = BLE_HCI_LE_PHY_1M;
     params.tx_power = 127;
-    params.sid = 2;
+    params.sid = 5;
 
-    /* configure instance 0 */
+    /* configure instance 5 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
     assert (rc == 0);
 

@@ -27,6 +27,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_RFMGMT_ENABLE_TIME) > 0
 
@@ -65,6 +66,7 @@ ble_ll_rfmgmt_enable(void)
         g_ble_ll_rfmgmt_data.state = RFMGMT_STATE_ENABLING;
         g_ble_ll_rfmgmt_data.enabled_at = os_cputime_get32();
         ble_phy_rfclk_enable();
+        BLE_LL_DEBUG_GPIO(RFMGMT, 1);
     }
 }
 
@@ -74,6 +76,7 @@ ble_ll_rfmgmt_disable(void)
     OS_ASSERT_CRITICAL();
 
     if (g_ble_ll_rfmgmt_data.state != RFMGMT_STATE_OFF) {
+        BLE_LL_DEBUG_GPIO(RFMGMT, 0);
         ble_phy_rfclk_disable();
         g_ble_ll_rfmgmt_data.state = RFMGMT_STATE_OFF;
     }
@@ -211,6 +214,8 @@ void
 ble_ll_rfmgmt_init(void)
 {
     struct ble_ll_rfmgmt_data *rfmgmt = &g_ble_ll_rfmgmt_data;
+
+    BLE_LL_DEBUG_GPIO_INIT(RFMGMT);
 
     rfmgmt->state = RFMGMT_STATE_OFF;
 

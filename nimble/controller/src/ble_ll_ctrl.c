@@ -559,11 +559,6 @@ ble_ll_ctrl_proc_rsp_timer_cb(struct ble_npl_event *ev)
 static void
 ble_ll_ctrl_start_rsp_timer(struct ble_ll_conn_sm *connsm)
 {
-    ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer,
-                    &g_ble_ll_data.ll_evq,
-                    ble_ll_ctrl_proc_rsp_timer_cb,
-                    connsm);
-
     /* Re-start timer. Control procedure timeout is 40 seconds */
     ble_npl_callout_reset(&connsm->ctrl_proc_rsp_timer,
                      ble_npl_time_ms_to_ticks32(BLE_LL_CTRL_PROC_TIMEOUT_MS));
@@ -2473,6 +2468,11 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     len = dptr[1];
     opcode = dptr[2];
 
+#if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
+    ble_ll_hci_ev_send_llcp_trace(0x03, connsm->conn_handle, connsm->event_cntr,
+                                  &dptr[2], len);
+#endif
+
     /*
      * rspbuf points to first byte of response. The response buffer does not
      * contain the Data Channel PDU. Thus, the first byte of rspbuf is the
@@ -2802,6 +2802,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     int rc;
     uint8_t opcode;
 
+#if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
+    ble_ll_hci_ev_send_llcp_trace(0x04, connsm->conn_handle, connsm->event_cntr,
+                                  txpdu->om_data, txpdu->om_len);
+#endif
+
     rc = 0;
     opcode = txpdu->om_data[0];
     switch (opcode) {
@@ -2858,8 +2863,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 #endif
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     case BLE_LL_CTRL_PHY_REQ:
-        connsm->phy_tx_transition =
-                    ble_ll_ctrl_phy_tx_transition_get(connsm->phy_data.req_pref_tx_phys_mask);
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+            connsm->phy_tx_transition =
+                    ble_ll_ctrl_phy_tx_transition_get(
+                            connsm->phy_data.req_pref_tx_phys_mask);
+        }
         break;
     case BLE_LL_CTRL_PHY_UPDATE_IND:
         connsm->phy_tx_transition =
@@ -2872,4 +2880,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
 
     os_mbuf_free_chain(txpdu);
     return rc;
+}
+
+void
+ble_ll_ctrl_init_conn_sm(struct ble_ll_conn_sm *connsm)
+{
+    ble_npl_callout_init(&connsm->ctrl_proc_rsp_timer, &g_ble_ll_data.ll_evq,
+                         ble_ll_ctrl_proc_rsp_timer_cb, connsm);
 }

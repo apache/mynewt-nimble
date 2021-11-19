@@ -1010,12 +1010,24 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
+static struct ble_npl_event rx_stress_13_notify_ev;
+
+static void
+rx_stress_13_notify_ev_func(struct ble_npl_event *ev)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    om = ble_hs_mbuf_from_flat(test_6_pattern, 10);
+    rc = ble_gattc_notify_custom(rx_stress_ctx->conn_handle,
+                                 hrs_hrm_handle, om);
+    assert(rc == 0);
+
+}
+
 static int
 rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
 {
-    int rc;
-    struct os_mbuf *om = NULL;
-
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed */
@@ -1026,6 +1038,9 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
 
             rx_stress_ctx->begin_us = os_get_uptime_usec();
+
+            ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
+                               &rx_stress_13_notify_ev);
             break;
         } else {
             /* Connection failed; resume advertising */
@@ -1045,7 +1060,7 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
         rx_stress_ctx->s13_notif_time = rx_stress_ctx->time_sum /
                                         rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(INFO, "Average time: %lld us\n",
+        MODLOG_DFLT(INFO, "Average time: %d us\n",
                     rx_stress_ctx->s13_notif_time);
         rx_stress_on_test_finish(13);
         return 0;
@@ -1061,6 +1076,9 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
                               BLE_ERR_REM_USER_CONN_TERM);
             return 0;
         }
+
+        ble_npl_eventq_put((struct ble_npl_eventq *)os_eventq_dflt_get(),
+                           &rx_stress_13_notify_ev);
         break;
 
     default:
@@ -1068,10 +1086,6 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
     }
 
-    om = ble_hs_mbuf_from_flat(test_6_pattern, 10);
-    rc = ble_gattc_notify_custom(rx_stress_ctx->conn_handle,
-                                 hrs_hrm_handle, om);
-    assert(rc == 0);
     return 0;
 }
 
@@ -1377,6 +1391,8 @@ rx_stress_start(int test_num)
         break;
     case 13:
         console_printf("Stress GATT notification\033[0m\n");
+        ble_npl_event_init(&rx_stress_13_notify_ev,
+                           rx_stress_13_notify_ev_func, NULL);
         rx_stress_simple_adv(&rx_stress_adv_sets[13]);
         break;
     case 14:

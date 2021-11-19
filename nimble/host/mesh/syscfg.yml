@@ -23,6 +23,11 @@ syscfg.defs:
             BLE_MESH_PB_ADV or BLE_MESH_PB_GATT is set.
         value: 1
 
+    BLE_MESH_PROV_OOB_PUBLIC_KEY:
+        description: >
+            Enable this option if public key is to be exchanged via Out of Band (OOB) technology.
+        value: 0
+
     BLE_MESH_PB_ADV:
         description: >
            Enable this option to allow the device to be provisioned over
@@ -63,7 +68,7 @@ syscfg.defs:
         description: >
             This option specifies how many nodes each network can at most
             save in the configuration database.
-        value: 1
+        value: 8
 
     BLE_MESH_CDB_SUBNET_COUNT:
         description: >
@@ -82,16 +87,43 @@ syscfg.defs:
             Use this option to enable configuration database debug logs.
         value: 1
 
+    BLE_MESH_DEBUG_CFG:
+        description:
+            Use this option to enable node configuration debug logs for the
+            Bluetooth Mesh functionality.
+        value: 1
+
     BLE_MESH_PROXY:
         description: >
            Enable proxy. This is automatically set whenever BLE_MESH_PB_GATT or
            BLE_MESH_GATT_PROXY is set.
         value: 0
 
+    BLE_MESH_GATT:
+        value: 1
+
+    BLE_MESH_PROXY_MSG_LEN:
+        description: >
+            Integer value
+        value:
+        restrictions: BLE_MESH_GATT
+
+    BLE_MESH_GATT_SERVER:
+        value: 1
+        restrictions: BLE_MESH_GATT
+
     BLE_MESH_PB_GATT:
         description: >
            Enable this option to allow the device to be provisioned over
            the GATT bearer.
+        value: 1
+        restrictions:
+            - '(BLE_MESH_GATT_SERVER && BLE_MESH_PROV)'
+
+    BLE_MESH_PB_GATT_USE_DEVICE_NAME:
+        description: >
+            This option includes GAP device name in scan response when
+            the PB-GATT is enabled.
         value: 1
 
     BLE_MESH_GATT_PROXY:
@@ -100,6 +132,8 @@ syscfg.defs:
             i.e. the ability to act as a proxy between a Mesh GATT Client
             and a Mesh network.
         value: 1
+        restrictions:
+            - '(BLE_MESH_GATT_SERVER && BLE_MESH_PROXY)'
 
     BLE_MESH_GATT_PROXY_ENABLED:
         description: >
@@ -127,7 +161,21 @@ syscfg.defs:
         descryption: >
             This option specifies how many Proxy Filter entries the local
             node supports.
+        value: 3
+        restrictions: BLE_MESH_GATT_PROXY
+
+    BLE_MESH_ACCESS_LAYER_MSG:
+        descryption: >
+            This option allows the applicaiton to directly access
+            Bluetooth access layer messages without the need to
+            instantiate Bluetooth mesh models.
         value: 1
+
+    BLE_MESH_PROXY_USE_DEVICE_NAME:
+        description: >
+            Include Bluetooth device name in scan response
+        value: 0
+        restrictions: BLE_MESH_GATT_PROXY
 
     BLE_MESH_SUBNET_COUNT:
         description: >
@@ -151,6 +199,12 @@ syscfg.defs:
         description: >
             This option specifies how many group addresses each model can
             at most be subscribed to.
+        value: 1
+
+    BLE_MESH_MODEL_VND_MSG_CID_FORCE:
+        description: >
+            This option forces vendor model to use messages for the
+              corresponding CID field.
         value: 1
 
     BLE_MESH_LABEL_COUNT:
@@ -189,12 +243,48 @@ syscfg.defs:
             supported outgoing segment count (BT_MESH_TX_SEG_MAX).
         value: 6
 
+    BLE_MESH_ADV:
+        description: >
+            Advertiser mode
+        value: 1
+
+    BLE_MESH_ADV_LEGACY:
+        description: >
+            Use legacy advertising commands for mesh sending. Legacy
+            advertising is significantly slower than the extended advertising, but
+            is supported by all controllers.
+        value: 1
+        restrictions:
+            - "BLE_MESH_ADV if 0"
+            - "!BLE_MESH_ADV_EXT"
+
+    BLE_MESH_ADV_EXT:
+        description: >
+            Use extended advertising commands for operating the advertiser.
+            Extended advertising is faster and uses less memory than legacy
+            advertising, but isn't supported by all controllers.
+        value: 0
+        restrictions:
+            - "BLE_MESH_ADV if 0"
+            - "!BLE_MESH_ADV_LEGACY"
+            - "BLE_EXT_ADV"
+
+    BLE_MESH_DEBUG_USE_ID_ADDR:
+        description: >
+            Use ID address for mesh advertisements, use random address otherwise.
+        value: 0
+
     BLE_MESH_ADV_STACK_SIZE:
         description: >
             Mesh advertiser thread stack size.
             NOTE: This is an advanced setting and should not be changed unless
             absolutely necessary
         value: 768
+
+    BLE_MESH_IV_UPDATE_SEQ_LIMIT:
+        description: >
+            This option specifies the sequence number value to start iv update.
+        value: 0x800000
 
     BLE_MESH_IVU_DIVIDER:
         description: >
@@ -601,16 +691,22 @@ syscfg.defs:
 
     BLE_MESH_RPL_STORE_TIMEOUT:
         description: >
-            This value defines in seconds how soon the RPL gets written to
-            persistent storage after a change occurs. If the node receives
-            messages frequently it may make sense to have this set to a
-            large value, whereas if the RPL gets updated infrequently a
-            value as low as 0 (write immediately) may make sense. Note that
-            if the node operates a security sensitive use case, and there's
-            a risk of sudden power loss, it may be a security vulnerability
-            to set this value to anything else than 0 (a power loss before
-            writing to storage exposes the node to potential message
-            replay attacks).
+            Minimum interval after which unsaved RPL entries are updated in storage
+
+            This value defines in seconds how soon unsaved RPL entries
+            gets written to the persistent storage. Setting this value
+            to a large number may lead to security vulnerabilities if a node
+            gets powered off before the timer is fired. When flash is used
+            as the persistent storage setting this value to a low number
+            may wear out flash sooner or later. However, if the RPL gets
+            updated infrequently a value as low as 0 (write immediately)
+            may make sense. Setting this value to -1 will disable this timer.
+            In this case, a user is responsible to store pending RPL entries
+            using @ref bt_mesh_rpl_pending_store. In the mean time, when
+            IV Index is updated, the outdated RPL entries will still be
+            stored by @ref BT_MESH_STORE_TIMEOUT. Finding the right balance
+            between this timeout and calling @ref bt_mesh_rpl_pending_store
+            may reduce a risk of security vulnerability and flash wear out.
         value: 5
 
     BLE_MESH_DEVICE_NAME:
@@ -879,3 +975,8 @@ syscfg.vals.BLE_MESH_PB_GATT:
 
 syscfg.vals.BLE_MESH_PB_ADV:
     BLE_MESH_PROV: 1
+
+syscfg.vals.'BLE_MESH_PB_GATT':
+    BLE_MESH_PROXY_MSG_LEN: 66
+syscfg.vals.'BLE_MESH_GATT_PROXY':
+    BLE_MESH_PROXY_MSG_LEN: 33

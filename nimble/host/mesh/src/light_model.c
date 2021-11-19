@@ -55,4 +55,3 @@ int light_model_light_lightness_set(struct bt_mesh_model *model, int16_t lightne
 {
 	return light_model_gen_level_set(model, lightness);
 }
-
