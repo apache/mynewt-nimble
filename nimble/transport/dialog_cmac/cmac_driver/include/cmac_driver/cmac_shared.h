@@ -131,7 +131,7 @@ struct cmac_shared_data {
     uint8_t mbox_c2s_buf[ MYNEWT_VAL(CMAC_MBOX_SIZE_C2S) ];
 };
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 extern volatile struct cmac_shared_data *g_cmac_shared_data;
 #elif MYNEWT_VAL(BLE_CONTROLLER)
 extern volatile struct cmac_shared_data g_cmac_shared_data;
@@ -161,7 +161,7 @@ void cmac_rand_set_isr_cb(cmac_rand_isr_cb_t cb);
 void cmac_shared_init(void);
 void cmac_shared_sync(void);
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 #define CMAC_SHARED_LOCK_VAL    0x40000000
 #elif MYNEWT_VAL(BLE_CONTROLLER)
 #define CMAC_SHARED_LOCK_VAL    0xc0000000

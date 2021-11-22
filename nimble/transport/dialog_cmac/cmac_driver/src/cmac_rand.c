@@ -26,7 +26,7 @@
 #include "os/os_arch.h"
 #include "os/os.h"
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 int
 cmac_rand_is_active(void)
 {

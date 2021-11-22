@@ -34,7 +34,7 @@
 #define min(_a, _b)     ((_a) < (_b) ? (_a) : (_b))
 #endif
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 volatile struct cmac_shared_data *g_cmac_shared_data;
 #include "mcu/da1469x_clock.h"
 #define MCU_DIAG_SER(_x)
@@ -45,7 +45,7 @@ volatile struct cmac_shared_data g_cmac_shared_data     __attribute__((section("
 void
 cmac_shared_init(void)
 {
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     g_cmac_shared_data = (void *)(MCU_MEM_SYSRAM_START_ADDRESS +
                                   MEMCTRL->CMI_SHARED_BASE_REG);
 
@@ -77,7 +77,7 @@ cmac_shared_sync(void)
      * to wait until CMAC finished initialization as otherwise host may start
      * sending HCI packets which will timeout as there is no one to read them.
      */
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     assert(g_cmac_shared_data->magic_sys == 0);
 
     while (g_cmac_shared_data->magic_cmac != CMAC_SHARED_MAGIC_CMAC);

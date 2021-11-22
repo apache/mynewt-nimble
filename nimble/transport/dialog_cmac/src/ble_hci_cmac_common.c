@@ -41,6 +41,7 @@
                                          BLE_MBUF_MEMBLOCK_OVERHEAD +       \
                                          BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
 
+#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
 static uint8_t ble_hci_pool_cmd_mempool_buf[
     OS_MEMPOOL_BYTES(HCI_CMD_COUNT, BLE_HCI_TRANS_CMD_SZ)];
 static struct os_mempool ble_hci_pool_cmd_mempool;
@@ -54,6 +55,7 @@ static uint8_t ble_hci_pool_evt_lo_mempool_buf[
     OS_MEMPOOL_BYTES(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
                      MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))];
 static struct os_mempool ble_hci_pool_evt_lo_mempool;
+#endif
 
 static uint8_t ble_hci_pool_acl_mempool_buf[
     OS_MEMPOOL_BYTES(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
@@ -66,6 +68,7 @@ __attribute__((weak)) void ble_hci_trans_notify_free(void);
 static os_mempool_put_fn *g_ble_hci_pool_acl_mempool_put_cb;
 static void *g_ble_hci_pool_acl_mempool_put_arg;
 
+#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
 int
 ble_hci_trans_reset(void)
 {
@@ -117,6 +120,7 @@ ble_hci_trans_buf_free(uint8_t *buf)
 
     ble_hci_trans_notify_free();
 }
+#endif
 
 struct os_mbuf *
 ble_hci_cmac_alloc_acl_mbuf(void)
@@ -147,6 +151,7 @@ ble_hci_cmac_free_acl_cb(struct os_mempool_ext *mpe, void *data, void *arg)
 }
 
 
+#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
 int
 ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
 {
@@ -155,6 +160,7 @@ ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
 
     return 0;
 }
+#endif
 
 void
 ble_hci_cmac_init(void)
@@ -163,6 +169,7 @@ ble_hci_cmac_init(void)
 
     SYSINIT_ASSERT_ACTIVE();
 
+#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
     rc = os_mempool_init(&ble_hci_pool_cmd_mempool,
                          HCI_CMD_COUNT, BLE_HCI_TRANS_CMD_SZ,
                          ble_hci_pool_cmd_mempool_buf, "ble_hci_cmd");
@@ -179,6 +186,7 @@ ble_hci_cmac_init(void)
                          MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
                          ble_hci_pool_evt_lo_mempool_buf, "ble_hci_evt_lo");
     SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
 
     rc = os_mempool_ext_init(&ble_hci_pool_acl_mempool,
                              MYNEWT_VAL(BLE_ACL_BUF_COUNT), POOL_ACL_BLOCK_SIZE,

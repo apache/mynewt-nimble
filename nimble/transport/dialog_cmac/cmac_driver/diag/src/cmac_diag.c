@@ -20,7 +20,7 @@
 #include "syscfg/syscfg.h"
 #include "mcu/mcu.h"
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 void
 cmac_diag_setup_host(void)
 {

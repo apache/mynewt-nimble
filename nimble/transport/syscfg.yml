@@ -37,6 +37,47 @@ syscfg.defs:
             - usb               # USB
             - nrf5340           # nRF5340
 
+    BLE_HCI_BRIDGE_TRANSPORT:
+        description: >
+            Selects HCI transport to be included in bridge configuration build.
+            This applies to multi core configurations where controller runs
+            on separate core and main core forwards HCI traffic to external host.
+            This has virtually the same effect as including package dependency
+            manually, but it allows to easily override HCI transport package in
+            application or target settings.
+            This is the transport
+        value:
+        choices:
+            - dialog_cmac       # Dialog CMAC via shared memory
+            - nrf5340           # nRF5340
+
+    BLE_HCI_BRIDGE:
+        description: >
+            External interface (UART/USB/Socket) bridged to second core controller.
+        value: 0
+
+    BLE_HCI_EVT_HI_BUF_COUNT:
+        description: 'Number of high-priority event buffers.'
+        value:
+
+    BLE_HCI_EVT_LO_BUF_COUNT:
+        description: 'Number of low-priority event buffers.'
+        value:
+
+    BLE_HCI_EVT_BUF_SIZE:
+        description: 'Size of each event buffer, in bytes.'
+        value:
+
+    BLE_ACL_BUF_COUNT:
+        description: 'The number of ACL data buffers'
+        value:
+
+    BLE_ACL_BUF_SIZE:
+        description: >
+            This is the maximum size of the data portion of HCI ACL data
+            packets.
+        value:
+
 # Deprecated settings
     BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
         description: Use BLE_HCI_TRANSPORT instead.
@@ -69,3 +110,10 @@ syscfg.vals.BLE_HCI_TRANSPORT_SOCKET:
     BLE_HCI_TRANSPORT: socket
 syscfg.vals.BLE_HCI_TRANSPORT_EMSPI:
     BLE_HCI_TRANSPORT: emspi
+
+syscfg.vals.'(MCU_TARGET == "DA14691" || MCU_TARGET == "DA14695" || MCU_TARGET == "DA14697" || MCU_TARGET == "DA14699")':
+    BLE_HCI_BRIDGE_TRANSPORT: dialog_cmac
+
+syscfg.vals.'(MCU_TARGET == "nRF5340_APP")':
+    BLE_HCI_BRIDGE_TRANSPORT: nrf5340
+
