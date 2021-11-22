@@ -29,3 +29,4 @@ syscfg.vals:
     CONFIG_FCB: 1
     BLE_VERSION: 52
     BLE_L2CAP_ENHANCED_COC: 1
+    BLE_HCI_TRANSPORT: ram
