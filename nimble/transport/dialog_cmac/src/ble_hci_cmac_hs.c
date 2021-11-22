@@ -41,6 +41,27 @@ static struct ble_hci_cmac_hs_api g_ble_hci_cmac_hs_api;
 static struct ble_hci_trans_h4_rx_state g_ble_hci_cmac_hs_rx_state;
 static bool g_ble_hci_cmac_hs_read_err;
 
+#if MYNEWT_VAL(BLE_HCI_BRIDGE)
+/*
+ * TODO: Remove/fix functions ble_ll_data_buffer_overflow() ble_ll_hw_error()
+ * Following two functions are added to allowed build of HCI bridge configurations.
+ * Those functions are only used by UART transport, in RAM transport configuration
+ * they can be called directly in bridge mode controller code is on other core
+ * and those can't be called.
+ */
+void
+ble_ll_data_buffer_overflow(void)
+{
+
+}
+
+void
+ble_ll_hw_error(uint8_t err)
+{
+    (void)err;
+}
+#endif
+
 static int
 ble_hci_cmac_hs_frame_cb(uint8_t pkt_type, void *data)
 {

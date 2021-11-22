@@ -123,6 +123,27 @@ ble_hci_trans_reset(void)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_HCI_BRIDGE)
+/*
+ * TODO: Remove/fix functions ble_ll_data_buffer_overflow() ble_ll_hw_error()
+ * Following two functions are added to allowed build of HCI bridge configurations.
+ * Those functions are only used by UART transport, in RAM transport configuration
+ * they can be called directly in bridge mode controller code is on other core
+ * and those can't be called.
+ */
+void
+ble_ll_data_buffer_overflow(void)
+{
+
+}
+
+void
+ble_ll_hw_error(uint8_t err)
+{
+    (void)err;
+}
+#endif
+
 static int
 ble_hci_trans_acl_tx(struct os_mbuf *om)
 {
