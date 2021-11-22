@@ -31,4 +31,4 @@ pkg.deps.SELFTEST:
     - "@apache-mynewt-core/sys/log/full"
     - "@apache-mynewt-core/sys/stats/stub"
     - nimble/drivers/native
-    - nimble/transport/ram
+    - nimble/transport
