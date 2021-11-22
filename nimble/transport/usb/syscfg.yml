@@ -17,24 +17,6 @@
 #
 
 syscfg.defs:
-    BLE_HCI_EVT_BUF_SIZE:
-        description: 'The size of the allocated event buffers'
-        value: 70
-    BLE_HCI_EVT_HI_BUF_COUNT:
-        description: 'The number of high priority event buffers'
-        value: 8
-    BLE_HCI_EVT_LO_BUF_COUNT:
-        description: 'The number of low priority event buffers'
-        value: 8
-    BLE_ACL_BUF_COUNT:
-        description: 'The number of ACL data buffers'
-        value: 12
-    BLE_ACL_BUF_SIZE:
-        description: >
-            This is the maximum size of the data portion of HCI ACL data
-            packets. It does not include the HCI data header (of 4 bytes).
-        value: 255
-
     BLE_HCI_ACL_OUT_COUNT:
         description: >
             This count is used in creating a pool of elements used by the
@@ -52,6 +34,13 @@ syscfg.defs:
 
 syscfg.vals.BLE_EXT_ADV:
     BLE_HCI_EVT_BUF_SIZE: 257
+
+syscfg.vals:
+    BLE_HCI_EVT_BUF_SIZE: 70
+    BLE_HCI_EVT_HI_BUF_COUNT: 8
+    BLE_HCI_EVT_LO_BUF_COUNT: 8
+    BLE_ACL_BUF_COUNT: 12
+    BLE_ACL_BUF_SIZE: 255
 
 syscfg.restrictions:
     - '!BLE_HOST'

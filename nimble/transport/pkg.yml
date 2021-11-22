@@ -52,3 +52,9 @@ pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
 
 pkg.deps.'BLE_HCI_TRANSPORT == "nrf5340"':
     - nimble/transport/nrf5340
+
+pkg.deps.'BLE_HCI_BRIDGE_TRANSPORT == "nrf5340"':
+    - nimble/transport/nrf5340
+
+pkg.deps.'BLE_HCI_BRIDGE_TRANSPORT == "dialog_cmac"':
+    - nimble/transport/dialog_cmac

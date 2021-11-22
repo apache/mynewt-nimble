@@ -64,7 +64,7 @@ ble_hci_trans_h4_rxs_start(struct ble_hci_trans_h4_rx_state *rxs, uint8_t pkt_ty
     case BLE_HCI_TRANS_H4_PKT_TYPE_ACL:
         rxs->min_len = 4;
         break;
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_TRANS_H4_PKT_TYPE_EVT:
         rxs->min_len = 2;
         break;
@@ -95,7 +95,7 @@ static int
 ble_hci_trans_h4_rx_state_w4_header(struct ble_hci_trans_h4_rx_state *rxs,
                                     struct input_buffer *ib)
 {
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     int pool;
 #endif
     int rc;
@@ -127,7 +127,7 @@ ble_hci_trans_h4_rx_state_w4_header(struct ble_hci_trans_h4_rx_state *rxs,
         os_mbuf_append(rxs->om, rxs->hdr, rxs->len);
         rxs->expected_len = get_le16(&rxs->hdr[2]) + 4;
         break;
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_TRANS_H4_PKT_TYPE_EVT:
         pool = BLE_HCI_TRANS_BUF_EVT_HI;
         if (rxs->hdr[0] == BLE_HCI_EVCODE_LE_META) {
@@ -194,7 +194,7 @@ ble_hci_trans_h4_rx_state_w4_payload(struct ble_hci_trans_h4_rx_state *rxs,
 #if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_HCI_TRANS_H4_PKT_TYPE_CMD:
 #endif
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_TRANS_H4_PKT_TYPE_EVT:
 #endif
         if (rxs->buf) {
@@ -240,7 +240,7 @@ ble_hci_trans_h4_rx_state_completed(struct ble_hci_trans_h4_rx_state *rxs,
 #if MYNEWT_VAL(BLE_CONTROLLER)
     case BLE_HCI_TRANS_H4_PKT_TYPE_CMD:
 #endif
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_TRANS_H4_PKT_TYPE_EVT:
 #endif
         if (rxs->buf) {

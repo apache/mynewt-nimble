@@ -53,7 +53,7 @@
  */
 
 /* XXX: for now, define this here */
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 extern void ble_ll_data_buffer_overflow(void);
 extern void ble_ll_hw_error(void);
 
@@ -385,7 +385,7 @@ ble_hci_uart_tx_char(void *arg)
     return rc;
 }
 
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 /**
  * HCI uart sync lost.
  *
@@ -418,7 +418,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
 
     switch (ble_hci_uart_state.rx_type) {
     /* Host should never receive a command! */
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_state.rx_cmd.len = 0;
         ble_hci_uart_state.rx_cmd.cur = 0;
@@ -458,7 +458,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
         break;
 
     default:
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
         /*
          * If we receive an unknown HCI packet type this is considered a loss
          * of sync.
@@ -477,7 +477,7 @@ ble_hci_uart_rx_pkt_type(uint8_t data)
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 /**
  * HCI uart sync loss.
  *
@@ -708,7 +708,7 @@ ble_hci_uart_rx_acl(uint8_t data)
          */
         if (pktlen > MYNEWT_VAL(BLE_ACL_BUF_SIZE)) {
             os_mbuf_free_chain(ble_hci_uart_state.rx_acl.buf);
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
             ble_hci_uart_sync_lost();
 #else
         /*
@@ -769,7 +769,7 @@ ble_hci_uart_rx_char(void *arg, uint8_t data)
     switch (ble_hci_uart_state.rx_type) {
     case BLE_HCI_UART_H4_NONE:
         return ble_hci_uart_rx_pkt_type(data);
-#if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_CONTROLLER) || MYNEWT_VAL(BLE_HCI_BRIDGE)
     case BLE_HCI_UART_H4_CMD:
         ble_hci_uart_rx_cmd(data);
         return 0;
@@ -898,6 +898,7 @@ ble_hci_trans_ll_acl_tx(struct os_mbuf *om)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_HOST)
 /**
  * Sends an HCI command from the host to the controller.
  *
@@ -955,6 +956,7 @@ ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
 {
     ble_hci_uart_set_rx_cbs(cmd_cb, cmd_arg, acl_cb, acl_arg);
 }
+#endif
 
 /**
  * Configures the HCI transport to operate with a host.  The transport will

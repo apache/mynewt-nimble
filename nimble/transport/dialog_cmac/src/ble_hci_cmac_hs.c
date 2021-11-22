@@ -21,7 +21,7 @@
 #include <string.h>
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_HOST)
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 
 #include "cmac_driver/cmac_shared.h"
 #include "cmac_driver/cmac_host.h"

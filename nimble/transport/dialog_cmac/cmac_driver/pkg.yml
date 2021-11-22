@@ -37,3 +37,6 @@ pkg.post_link_cmds.BLE_CONTROLLER:
 
 pkg.pre_link_cmds.BLE_HOST:
     scripts/build_libcmac.sh: 100
+
+pkg.pre_link_cmds.BLE_HCI_BRIDGE:
+    scripts/build_libcmac.sh: 100
