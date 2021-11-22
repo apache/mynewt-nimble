@@ -33,7 +33,7 @@ pkg.deps:
     - nimble/host
     - nimble/host/services/gap
     - nimble/host/services/gatt
-    - nimble/transport/ram
+    - nimble/transport
 
 pkg.lflags:
     - -DFLOAT_SUPPORT
