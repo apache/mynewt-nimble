@@ -233,6 +233,11 @@ syscfg.defs:
             but has a different purpose.
         value: 10
 
+    BLE_MESH_NET_BUF_USER_DATA_SIZE:
+        description: >
+            Number of octets that are used as user_data at the end of os_mbufs
+        value: 4
+
     BLE_MESH_ADV_BUF_COUNT:
         description: >
             Number of advertising buffers available. This should be chosen

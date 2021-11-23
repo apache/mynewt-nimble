@@ -271,7 +271,12 @@ extern struct bt_mesh_net bt_mesh;
 
 static inline void *net_buf_user_data(const struct os_mbuf *buf)
 {
-	return (void *)buf->om_data;
+    /* In Zephyr at the end of net_buf (which is ported as os_mbuf) is place
+     * for user_data, which is array of octets, just like os_mbuf's om_data. Let's just
+     * use last octets (starting at start of om_data + total size of data mbuf can hold -
+     * intended user_data size) of om_data as Zephyr's user_data.
+     */
+    return (void *)(buf->om_data + buf->om_omp->omp_databuf_len - MYNEWT_VAL(BLE_MESH_NET_BUF_USER_DATA_SIZE));
 }
 
 int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
