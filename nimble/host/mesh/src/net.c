@@ -398,7 +398,7 @@ static void bt_mesh_net_local(struct ble_npl_event *work)
 		       rx.ctx.addr, rx.seq, sub);
 
 		(void) bt_mesh_trans_recv(buf, &rx);
-		net_buf_unref(buf);
+		os_mbuf_free_chain(buf);
 	}
 }
 
@@ -480,7 +480,7 @@ static int loopback(const struct bt_mesh_net_tx *tx, const uint8_t *data,
 {
 	struct os_mbuf *buf;
 
-	buf = os_mbuf_get_pkthdr(&loopback_os_mbuf_pool, 0);
+	buf = os_mbuf_get_pkthdr(&loopback_os_mbuf_pool, BT_MESH_NET_HDR_LEN);
 	if (!buf) {
 		BT_WARN("Unable to allocate loopback");
 		return -ENOMEM;

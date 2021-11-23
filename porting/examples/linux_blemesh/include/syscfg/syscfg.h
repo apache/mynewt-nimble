@@ -772,6 +772,10 @@
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
+#ifndef MYNEWT_VAL_BLE_MESH_NET_BUF_USER_DATA_SIZE
+#define MYNEWT_VAL_BLE_MESH_NET_BUF_USER_DATA_SIZE (4)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_MESH_ADV_BUF_COUNT
 #define MYNEWT_VAL_BLE_MESH_ADV_BUF_COUNT (20)
 #endif
