@@ -1048,6 +1048,7 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     struct ble_hs_conn *conn;
     int rc;
     int i;
+    uint16_t duplicated_cids[5] = {};
 
 #if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
@@ -1093,6 +1094,12 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
             chan->dcid = 0;
             continue;
         }
+        if (ble_hs_conn_chan_find_by_dcid(conn, rsp->dcids[i])) {
+            duplicated_cids[i] = rsp->dcids[i];
+            chan->dcid = 0;
+            continue;
+        }
+
         chan->peer_coc_mps = le16toh(rsp->mps);
         chan->dcid = le16toh(rsp->dcids[i]);
         chan->coc_tx.mtu = le16toh(rsp->mtu);
@@ -1104,6 +1111,16 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     ble_hs_unlock();
 
 done:
+    for (i = 0; i < 5; i++){
+        if (duplicated_cids[i] != 0){
+            ble_hs_lock();
+            conn = ble_hs_conn_find(conn_handle);
+            chan = ble_hs_conn_chan_find_by_dcid(conn, duplicated_cids[i]);
+            ble_hs_unlock();
+            rc = ble_l2cap_sig_disconnect(chan);
+        }
+    }
+
     ble_l2cap_sig_coc_connect_cb(proc, rc);
     ble_l2cap_sig_proc_free(proc);
 
