@@ -287,6 +287,7 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
+#ifndef BABBLESIM
 static void
 ble_phy_apply_errata_102_106_107(void)
 {
@@ -297,6 +298,7 @@ ble_phy_apply_errata_102_106_107(void)
     *(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
                                         0xfffffffe) | 0x01000000;
 }
+#endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
@@ -1898,7 +1900,9 @@ ble_phy_set_access_addr(uint32_t access_addr)
     NRF_RADIO->PREFIX0 = (NRF_RADIO->PREFIX0 & 0xFFFFFF00) | (access_addr >> 24);
 
     g_ble_phy_data.phy_access_address = access_addr;
-
+#ifndef BABBLESIM
+    ble_phy_apply_errata_102_106_107();
+#endif
     return 0;
 }
 

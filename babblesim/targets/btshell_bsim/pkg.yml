@@ -1,0 +1,13 @@
+pkg.name: targets/btshell_bsim
+pkg.type: target
+pkg.description:
+pkg.author:
+pkg.homepage:
+
+pkg.cflags:  # Just until final cleanup
+  - -Wimplicit-function-declaration
+  - -Wno-unused-variable
+  - -Wno-unused-function
+  - -Wno-comment
+  - -Wno-uninitialized
+  - -Wno-unused-but-set-variable
