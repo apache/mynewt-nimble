@@ -259,8 +259,6 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
 		if (event->connect.status) {
 			console_printf("LE COC error: %d\n", event->connect.status);
-			disconnected_cb(event->connect.conn_handle,
-					event->connect.chan, &chan_info, arg);
 			return 0;
 		}
 
