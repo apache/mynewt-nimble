@@ -1942,6 +1942,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     }
 #endif
     if (ptype > max_pdu_type) {
+        ble_ll_scan_chk_resume();
         return;
     }
 
