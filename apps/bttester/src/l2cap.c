@@ -398,7 +398,7 @@ static void connect(uint8_t *data, uint16_t len)
 	ble_addr_t *addr = (void *) data;
 	uint16_t mtu = htole16(cmd->mtu);
 	int rc;
-	int i;
+	int i, j;
 
 	SYS_LOG_DBG("connect: type: %d addr: %s", addr->type, bt_hex(addr->val, 6));
 
@@ -420,6 +420,8 @@ static void connect(uint8_t *data, uint16_t len)
 			SYS_LOG_ERR("No free channels");
 			goto fail;
 		}
+		/* temporarily mark channel as used to select next one */
+        chan->state = 1;
 
 		rp->chan_ids[i] = chan->chan_id;
 
@@ -428,6 +430,15 @@ static void connect(uint8_t *data, uint16_t len)
 			SYS_LOG_ERR("Failed to alloc buf");
 			goto fail;
 		}
+	}
+
+	/* mark selected channels as unused again */
+	for (i = 0; i < cmd->num; i++) {
+	    for (j = 0; j < CHANNELS; j++) {
+	        if (rp->chan_ids[i] == channels[j].chan_id) {
+	            channels[j].state = 0;
+	        }
+	    }
 	}
 
 	if (cmd->num == 1) {
