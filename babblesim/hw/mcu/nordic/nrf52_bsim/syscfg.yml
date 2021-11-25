@@ -1,0 +1,526 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.defs:
+    MCU_TARGET:
+        description: >
+            Specifies target MCU, shall be set by BSP.
+        value:
+        restrictions:
+            - $notnull
+        choices:
+            - nRF52810
+            - nRF52811
+            - nRF52832
+            - nRF52840
+
+    MCU_FLASH_MIN_WRITE_SIZE:
+        description: >
+            Specifies the required alignment for internal flash writes.
+            Used internally by the newt tool.
+        value: 1
+
+    MCU_DCDC_ENABLED:
+        description: >
+            Specifies whether or not to enable DC/DC regulator. This requires
+            external circuitry so is defined to be zero by default and
+            expected to be overridden by the BSP.
+        value: 0
+
+    MCU_HFCLK_SOURCE:
+        description: >
+            Selected source for high frequency clock (HFCLK).
+            Selecting HFXO will still mostly use the HFINT but will switch to HFXO when requested (BLE, certain timers, etc...)
+            Selecting HFINT should only be used in the case where an external 32MHz crystal oscillator is not present.
+        value: HFXO
+        choices:
+            - HFXO
+            - HFINT
+        restrictions:
+            - '(MCU_HFCLK_SOURCE == "HFXO") || (MCU_LFCLK_SOURCE != "LFSYNTH")'
+
+    MCU_LFCLK_SOURCE:
+        description: >
+            Selected source for low frequency clock (LFCLK).
+        value:
+        choices:
+            - LFRC      # 32.768 kHz RC oscillator
+            - LFXO      # 32.768 kHz crystal oscillator
+            - LFSYNTH   # 32.768 kHz synthesized from HFCLK
+
+    MCU_I2C_RECOVERY_DELAY_USEC:
+        description: >
+            Time to wait for activity on SCL line after triggering start task
+            before restarting TWI controller. This is to recover from state
+            where controller is unresponsive due to glitch on I2C bus.
+            Note: Default value seems to work fine, but may need to be tuned.
+        value: 100
+
+    MCU_BUS_DRIVER_I2C_USE_TWIM:
+        description: >
+            Enables usage of i2c_nrf52_twim bus driver for I2C.
+            If disabled, standard i2c_hal driver is used.
+        value: 0
+
+    MCU_GPIO_USE_PORT_EVENT:
+        description: >
+            When enabled, hal_gpio will use GPIOTE PORT event instead of PIN
+            events for interrupts. This mode may be less accurate (i.e. pulse
+            length needs to be longer in order to be detected) but it reduces
+            power consumption since it does not require HFCLK to be running.
+            Refer to nRF52xxx Product Specification document for more details.
+        value: 0
+
+    MCU_DEBUG_IGNORE_BKPT:
+       description: >
+            When enabled, asm(bkpt) will be ignored. If not set, it will hit
+            the breakpoint wherever it gets called, For example, reset and crash
+       value: 0
+
+
+# MCU peripherals definitions
+    I2C_0:
+        description: 'Enable nRF52xxx I2C (TWI) 0'
+        value: 0
+        restrictions:
+            - '!(SPI_0_MASTER && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+            - '!(SPI_0_SLAVE  && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+            - '!(SPI_1_MASTER && (MCU_TARGET == "nrf52811"))'
+            - '!(SPI_1_SLAVE  && (MCU_TARGET == "nrf52811"))'
+    I2C_0_PIN_SCL:
+        description: 'SCL pin for I2C_0'
+        value: ''
+    I2C_0_PIN_SDA:
+        description: 'SDA pin for I2C_0'
+        value: ''
+    I2C_0_FREQ_KHZ:
+        description: 'Frequency [kHz] for I2C_0'
+        value: 100
+
+    I2C_1:
+        description: 'Enable nRF52xxx I2C (TWI) 1'
+        value: 0
+        restrictions:
+            - "!SPI_1_MASTER"
+            - "!SPI_1_SLAVE"
+    I2C_1_PIN_SCL:
+        description: 'SCL pin for I2C_1'
+        value: ''
+    I2C_1_PIN_SDA:
+        description: 'SDA pin for I2C_1'
+        value: ''
+    I2C_1_FREQ_KHZ:
+        description: 'Frequency [kHz] for I2C_1'
+        value: 100
+
+    SPI_0_MASTER:
+        description: 'Enable nRF52xxx SPI Master 0'
+        value: 0
+        restrictions:
+            - "!SPI_0_SLAVE"
+            - '!(I2C_0 && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+    SPI_0_MASTER_PIN_SCK:
+        description: 'SCK pin for SPI_0_MASTER'
+        value: ''
+    SPI_0_MASTER_PIN_MOSI:
+        description: 'MOSI pin for SPI_0_MASTER'
+        value: ''
+    SPI_0_MASTER_PIN_MISO:
+        description: 'MISO pin for SPI_0_MASTER'
+        value: ''
+
+    SPI_0_SLAVE:
+        description: 'Enable nRF52xxx SPI Slave 0'
+        value: 0
+        restrictions:
+            - "!SPI_0_MASTER"
+            - '!(I2C_0 && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+    SPI_0_SLAVE_PIN_SCK:
+        description: 'SCK pin for SPI_0_SLAVE'
+        value: ''
+    SPI_0_SLAVE_PIN_MOSI:
+        description: 'MOSI pin for SPI_0_SLAVE'
+        value: ''
+    SPI_0_SLAVE_PIN_MISO:
+        description: 'MISO pin for SPI_0_SLAVE'
+        value: ''
+    SPI_0_SLAVE_PIN_SS:
+        description: 'SS pin for SPI_0_SLAVE'
+        value: ''
+
+    SPI_1_MASTER:
+        description: 'Enable nRF52xxx SPI Master 1'
+        value: 0
+        restrictions:
+            - "!SPI_1_SLAVE"
+            - '!(I2C_1 && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+            - '!(I2C_0 && ((MCU_TARGET == "nrf52811")))'
+    SPI_1_MASTER_PIN_SCK:
+        description: 'SCK pin for SPI_1_MASTER'
+        value: ''
+    SPI_1_MASTER_PIN_MOSI:
+        description: 'MOSI pin for SPI_1_MASTER'
+        value: ''
+    SPI_1_MASTER_PIN_MISO:
+        description: 'MISO pin for SPI_1_MASTER'
+        value: ''
+
+    SPI_1_SLAVE:
+        description: 'Enable nRF52xxx SPI Slave 1'
+        value: 0
+        restrictions:
+            - "!SPI_1_MASTER"
+            - '!(I2C_1 && ((MCU_TARGET == "nrf52832") || (MCU_TARGET == "nrf52840")))'
+            - '!(I2C_0 && ((MCU_TARGET == "nrf52811")))'
+    SPI_1_SLAVE_PIN_SCK:
+        description: 'SCK pin for SPI_1_SLAVE'
+        value: ''
+    SPI_1_SLAVE_PIN_MOSI:
+        description: 'MOSI pin for SPI_1_SLAVE'
+        value: ''
+    SPI_1_SLAVE_PIN_MISO:
+        description: 'MISO pin for SPI_1_SLAVE'
+        value: ''
+    SPI_1_SLAVE_PIN_SS:
+        description: 'SS pin for SPI_1_SLAVE'
+        value: ''
+
+    SPI_2_MASTER:
+        description: 'Enable nRF52xxx SPI Master 2'
+        value: 0
+        restrictions:
+            - "!SPI_2_SLAVE"
+    SPI_2_MASTER_PIN_SCK:
+        description: 'SCK pin for SPI_2_MASTER'
+        value: ''
+    SPI_2_MASTER_PIN_MOSI:
+        description: 'MOSI pin for SPI_2_MASTER'
+        value: ''
+    SPI_2_MASTER_PIN_MISO:
+        description: 'MISO pin for SPI_2_MASTER'
+        value: ''
+
+    SPI_2_SLAVE:
+        description: 'Enable nRF52xxx SPI Slave 2'
+        value: 0
+        restrictions:
+            - "!SPI_2_MASTER"
+    SPI_2_SLAVE_PIN_SCK:
+        description: 'SCK pin for SPI_2_SLAVE'
+        value: ''
+    SPI_2_SLAVE_PIN_MOSI:
+        description: 'MOSI pin for SPI_2_SLAVE'
+        value: ''
+    SPI_2_SLAVE_PIN_MISO:
+        description: 'MISO pin for SPI_2_SLAVE'
+        value: ''
+    SPI_2_SLAVE_PIN_SS:
+        description: 'SS pin for SPI_2_SLAVE'
+        value: ''
+
+    SPI_3_MASTER:
+        description: 'Enable nRF52xxx SPI Master 3'
+        value: 0
+        restrictions:
+            - 'MCU_TARGET == "nRF52840" || !SPI_3_MASTER'
+    SPI_3_MASTER_PIN_SCK:
+        description: 'SCK pin for SPI_3_MASTER'
+        value: ''
+    SPI_3_MASTER_PIN_MOSI:
+        description: 'MOSI pin for SPI_3_MASTER'
+        value: ''
+    SPI_3_MASTER_PIN_MISO:
+        description: 'MISO pin for SPI_3_MASTER'
+        value: ''
+
+    ADC_0:
+        description: 'Enable nRF52xxx ADC 0'
+        value:  0
+
+    ADC_0_REFMV_0:
+        description: 'reference mV in AREF0 if used'
+        value: 0
+
+    PWM_0:
+        description: 'Enable nRF52xxx PWM 0'
+        value: 0
+    PWM_1:
+        description: 'Enable nRF52xxx PWM 1'
+        value: 0
+    PWM_2:
+        description: 'Enable nRF52xxx PWM 2'
+        value: 0
+    PWM_3:
+        description: 'Enable nRF52xxx PWM 3'
+        value: 0
+        restrictions:
+            - 'MCU_TARGET == "nRF52840" || !PWM_3'
+
+    TRNG:
+        description: 'Enable nRF52xxx TRNG'
+        value: 0
+
+    CRYPTO:
+        description: 'Enable nRF52xxx CRYPTO'
+        value: 0
+
+    UART_0:
+        description: 'Enable nRF52xxx UART0'
+        value: 1
+    UART_0_PIN_TX:
+        description: 'TX pin for UART0'
+        value: ''
+    UART_0_PIN_RX:
+        description: 'RX pin for UART0'
+        value: ''
+    UART_0_PIN_RTS:
+        description: 'RTS pin for UART0'
+        value: -1
+    UART_0_PIN_CTS:
+        description: 'CTS pin for UART0'
+        value: -1
+
+    UART_1:
+        description: 'Enable nRF52xxx UART1'
+        value: 0
+        restrictions:
+            - 'MCU_TARGET == "nRF52840" || !UART_1'
+    UART_1_PIN_TX:
+        description: 'TX pin for UART1'
+        value: ''
+    UART_1_PIN_RX:
+        description: 'RX pin for UART1'
+        value: ''
+    UART_1_PIN_RTS:
+        description: 'RTS pin for UART1'
+        value: -1
+    UART_1_PIN_CTS:
+        description: 'CTS pin for UART1'
+        value: -1
+
+    TEMP:
+        description: 'Enable nRF52xxx internal temperature mesurement'
+        value:  0
+
+    TIMER_0:
+        description: 'Enable nRF52xxx Timer 0'
+        value:  1
+    TIMER_1:
+        description: 'Enable nRF52xxx Timer 1'
+        value:  0
+    TIMER_2:
+        description: 'Enable nRF52xxx Timer 2'
+        value:  0
+    TIMER_3:
+        description: 'Enable nRF52xxx Timer 3'
+        value:  0
+    TIMER_4:
+        description: 'Enable nRF52xxx Timer 4'
+        value:  0
+    TIMER_5:
+        description: 'Enable nRF52xxx RTC 0'
+        value:  0
+
+    QSPI_ENABLE:
+        description: 'NRF52 QSPI'
+        value: 0
+
+    QSPI_READOC:
+        description: >
+            QSPI Command to use
+            0 - 0x09 Fast Read
+            1 - 0x3B Fast Read Dual Output
+            2 - 0xBB Fast Read Dual I/O
+            3 - 0x6B Fast Read Quad Output
+            4 - 0xEB Fast Read Quad I/O
+        value: 0
+    QSPI_WRITEOC:
+        description: >
+            QSPI Command to use
+            0 - 0x02 Page program
+            1 - 0xA2 Page program Dual Data
+            2 - 0x32 Page program Quad Data
+            3 - 0x38 Page program Quad I/O
+        value: 0
+    QSPI_ADDRMODE:
+        description: 'Address lentgh 0=24 bits, 1=32 bits'
+        value: 0
+    QSPI_DPMCONFIG:
+        description: 'Deep power mode enable'
+        value: 0
+    QSPI_SCK_DELAY:
+        description: >
+            Minimum amount of time that the CSN pin must stay high
+            before it can go low again. Value is specified in number of 16
+            MHz periods (62.5 ns).
+        value: 0
+    QSPI_SCK_FREQ:
+        description: '32MHz clock divider (0-31). Clock = 32MHz / (1+divider)'
+        value: 0
+    QSPI_SPI_MODE:
+        description: 'SPI 0=Mode0 or 1=Mode3'
+        value: 0
+
+    QSPI_FLASH_SECTOR_SIZE:
+        description: 'QSPI sector size. In most cases it should be 4096.'
+        value: 0
+    QSPI_FLASH_PAGE_SIZE:
+        description: >
+            QSPI page size. Writes can only be performed to one page at a time.
+            In most cases it should be 256.
+        value: 0
+
+    QSPI_FLASH_SECTOR_COUNT:
+        description: 'QSPI sector count'
+        value: -1
+    QSPI_PIN_CS:
+        description: 'CS pin for QSPI'
+        value: -1
+    QSPI_PIN_SCK:
+        description: 'SCK pin for QSPI'
+        value: -1
+    QSPI_PIN_DIO0:
+        description: 'DIO0 pin for QSPI'
+        value: -1
+    QSPI_PIN_DIO1:
+        description: 'DIO1 pin for QSPI'
+        value: -1
+    QSPI_PIN_DIO2:
+        description: 'DIO2 pin for QSPI'
+        value: -1
+    QSPI_PIN_DIO3:
+        description: 'DIO3 pin for QSPI'
+        value: -1
+
+    NFC_PINS_AS_GPIO:
+        description: 'Use NFC pins as GPIOs instead of NFC functionality'
+        value: 1
+
+    GPIO_AS_PIN_RESET:
+        description: 'Enable pin reset'
+        value: 0
+
+# Deprecated settings
+
+    MCU_NRF52832:
+        description: Use MCU_TARGET instead
+        value: 0
+        restrictions:
+            - "!MCU_NRF52840"
+        deprecated: 1
+    MCU_NRF52840:
+        description: Use MCU_TARGET instead
+        value: 0
+        restrictions:
+            - "!MCU_NRF52832"
+        deprecated: 1
+
+    XTAL_32768:
+        description: Use MCU_LFCLK_SOURCE instead
+        value: 0
+        restrictions:
+            - "!XTAL_RC"
+            - "!XTAL_32768_SYNTH"
+        deprecated: 1
+    XTAL_RC:
+        description: Use MCU_LFCLK_SOURCE instead
+        value: 0
+        restrictions:
+            - "!XTAL_32768"
+            - "!XTAL_32768_SYNTH"
+        deprecated: 1
+    XTAL_32768_SYNTH:
+        description: Use MCU_LFCLK_SOURCE instead
+        value: 0
+        restrictions:
+            - "!XTAL_32768"
+            - "!XTAL_RC"
+        deprecated: 1
+
+    MCU_NATIVE_USE_SIGNALS:
+        description: >
+            Whether to use POSIX signals to implement context switches.  Valid
+            values are as follows:
+                1: More correctness; less stability.  The OS tick timer will
+                   cause a high-priority task to preempt a low-priority task.
+                   This causes stability issues because a task can be preempted
+                   while it is in the middle of a system call, potentially
+                   causing deadlock or memory corruption.
+
+                0: Less correctness; more stability.  The OS tick timer only
+                   runs while the idle task is active.  Therefore, a sleeping
+                   high-priority task will not preempt a low-priority task due
+                   to a timing event (e.g., delay or callout expired).
+                   However, this version of sim does not suffer from the
+                   stability issues that affect the "signals" implementation.
+
+            Unit tests should use 1.  Long-running sim processes should use 0.
+
+        value: 1
+    MCU_NATIVE:
+        description: >
+            Set to indicate that we are using native mcu.
+        value: 1
+    MCU_FLASH_STYLE_ST:
+        description: Emulated flash layout is similar to one in STM32.
+        value: 1
+        restrictions:
+            - "!MCU_FLASH_STYLE_NORDIC"
+    MCU_FLASH_STYLE_NORDIC:
+        description: >
+            Emulated flash layout is similar to one in NRF51/2 and SAMD21.
+        value: 0
+        restrictions:
+            - "!MCU_FLASH_STYLE_ST"
+    MCU_UART_POLLER_PRIO:
+        description: 'Priority of native UART poller task.'
+        type: task_priority
+        value: 1
+    MCU_TIMER_POLLER_PRIO:
+        description: 'Priority of native HAL timer task.'
+        type: task_priority
+        value: 0
+
+syscfg.vals:
+    OS_TICKS_PER_SEC: 128
+
+syscfg.vals.MCU_NRF52832:
+    MCU_TARGET: nRF52832
+syscfg.vals.MCU_NRF52840:
+    MCU_TARGET: nRF52840
+
+syscfg.vals.XTAL_32768:
+    MCU_LFCLK_SOURCE: LFXO
+syscfg.vals.XTAL_RC:
+    MCU_LFCLK_SOURCE: LFRC
+syscfg.vals.XTAL_32768_SYNTH:
+    MCU_LFCLK_SOURCE: LFSYNTH
+
+syscfg.restrictions:
+    - "!I2C_0 || (I2C_0_PIN_SCL && I2C_0_PIN_SDA)"
+    - "!I2C_1 || (I2C_1_PIN_SCL && I2C_1_PIN_SDA)"
+    - "!SPI_0_MASTER || (SPI_0_MASTER_PIN_SCK && SPI_0_MASTER_PIN_MOSI && SPI_0_MASTER_PIN_MISO)"
+    - "!SPI_1_MASTER || (SPI_1_MASTER_PIN_SCK && SPI_1_MASTER_PIN_MOSI && SPI_1_MASTER_PIN_MISO)"
+    - "!SPI_2_MASTER || (SPI_2_MASTER_PIN_SCK && SPI_2_MASTER_PIN_MOSI && SPI_2_MASTER_PIN_MISO)"
+    - "!SPI_3_MASTER || (SPI_3_MASTER_PIN_SCK && SPI_3_MASTER_PIN_MOSI && SPI_3_MASTER_PIN_MISO)"
+    - "!SPI_0_SLAVE || (SPI_0_SLAVE_PIN_SCK && SPI_0_SLAVE_PIN_MOSI && SPI_0_SLAVE_PIN_MISO && SPI_0_SLAVE_PIN_SS)"
+    - "!SPI_1_SLAVE || (SPI_1_SLAVE_PIN_SCK && SPI_1_SLAVE_PIN_MOSI && SPI_1_SLAVE_PIN_MISO && SPI_1_SLAVE_PIN_SS)"
+    - "!SPI_2_SLAVE || (SPI_2_SLAVE_PIN_SCK && SPI_2_SLAVE_PIN_MOSI && SPI_2_SLAVE_PIN_MISO && SPI_2_SLAVE_PIN_SS)"
+    - "!UART_0 || (UART_0_PIN_TX && UART_0_PIN_RX)"
+    - "!UART_1 || (UART_1_PIN_TX && UART_1_PIN_RX)"
+    - "(OS_TICKS_PER_SEC == 128 || OS_TICKS_PER_SEC == 256 || OS_TICKS_PER_SEC == 512 || OS_TICKS_PER_SEC == 1024)"
