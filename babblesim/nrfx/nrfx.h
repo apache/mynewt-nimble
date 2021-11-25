@@ -38,4 +38,9 @@
 #include <hal/nrf_common.h>
 #include <drivers/nrfx_errors.h>
 
+#undef NRF_DONT_DECLARE_ONLY
+#undef NRF_STATIC_INLINE
+#define NRF_DECLARE_ONLY
+#define NRF_STATIC_INLINE
+
 #endif // NRFX_H__
