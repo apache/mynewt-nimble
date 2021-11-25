@@ -1732,7 +1732,7 @@ ble_ll_init(void)
     ble_ll_dtm_init();
 #endif
 
-#if MYNEWT_VAL(BLE_HCI_VS)
+#if MYNEWT_VAL(BLE_LL_HCI_VS)
     ble_ll_hci_vs_init();
 #endif
 

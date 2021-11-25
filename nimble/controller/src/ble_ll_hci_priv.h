@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-#if MYNEWT_VAL(BLE_HCI_VS)
+#if MYNEWT_VAL(BLE_LL_HCI_VS)
 void ble_ll_hci_vs_init(void);
 int ble_ll_hci_vs_cmd_proc(const uint8_t *cmdbuf, uint8_t cmdlen, uint16_t ocf,
                            uint8_t *rspbuf, uint8_t *rsplen);
