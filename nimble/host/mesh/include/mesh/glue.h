@@ -560,8 +560,12 @@ static inline void k_sem_init(struct k_sem *sem, unsigned int initial_count,
 static inline int k_sem_take(struct k_sem *sem, int32_t timeout)
 {
 	uint32_t ticks;
+	int rc;
 
-	ble_npl_time_ms_to_ticks(timeout, &ticks);
+	rc = ble_npl_time_ms_to_ticks(timeout, &ticks);
+	if (rc) {
+		return rc;
+	}
 	return - ble_npl_sem_pend(sem,  ticks);
 }
 
