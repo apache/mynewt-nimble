@@ -1527,7 +1527,8 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
      * scheduled aux will fit inside duration. If not, remove it from scheduler
      * so advertising will stop after current aux.
      */
-    if (advsm->duration && (aux_next->sch.end_time > advsm->adv_end_time)) {
+    if (advsm->duration &&
+        CPUTIME_GT(aux_next->sch.end_time, advsm->adv_end_time)) {
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
 }
@@ -1657,7 +1658,7 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
      * not start extended advertising event which we cannot finish in time.
      */
     if (advsm->duration &&
-            (AUX_CURRENT(advsm)->sch.end_time > advsm->adv_end_time)) {
+        CPUTIME_GT(AUX_CURRENT(advsm)->sch.end_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
     }
 }
@@ -2414,8 +2415,8 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
                          sync_next);
 
     /* if we are pass advertising interval, drop chain */
-    if (sch->end_time > advsm->periodic_adv_event_start_time +
-            advsm->periodic_adv_itvl_ticks) {
+    if (CPUTIME_GT(sch->end_time, advsm->periodic_adv_event_start_time +
+                                  advsm->periodic_adv_itvl_ticks)) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
@@ -4730,7 +4731,8 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
         /* If we're past aux (unlikely, but can happen), just drop an event */
         if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                 advsm->aux_active &&
-                advsm->adv_pdu_start_time > AUX_CURRENT(advsm)->start_time) {
+                CPUTIME_GT(advsm->adv_pdu_start_time,
+                           AUX_CURRENT(advsm)->start_time)) {
             ble_ll_adv_drop_event(advsm);
             return;
         }
@@ -4742,7 +4744,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     /* check if advertising timed out */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->duration &&
-        advsm->adv_pdu_start_time >= advsm->adv_end_time) {
+        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         /* Legacy PDUs need to be stop here.
          * For ext adv it will be stopped when AUX is done (unless it was
          * dropped so check if AUX is active here as well).
@@ -4756,7 +4758,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     }
 #else
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) &&
-            (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
@@ -4860,7 +4862,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_scan_chk_resume();
 
     /* Check if advertising timed out */
-    if (advsm->duration && (advsm->adv_pdu_start_time >= advsm->adv_end_time)) {
+    if (advsm->duration &&
+        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
