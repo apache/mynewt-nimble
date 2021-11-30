@@ -315,15 +315,6 @@ syscfg.defs:
             Note: this setting should only be used for testing purposes, it is
                   not intended for production builds.
         value: 0x000000000000
-    BLE_PUBLIC_DEV_ADDR:
-        description: >
-            Allows the target or app to override the public device address
-            used by the controller. If all zero, the controller will
-            attempt to retrieve the public device address from its
-            chip specific location. If non-zero, this address will
-            be used.
-        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
-        deprecated: 1
 
     BLE_LL_DTM:
         description: >
@@ -446,6 +437,10 @@ syscfg.defs:
     BLE_LL_VND_EVENT_ON_ASSERT:
         description: use BLE_LL_HCI_VS_EVENT_ON_ASSERT
         value: 0
+        deprecated: 1
+    BLE_PUBLIC_DEV_ADDR:
+        description: use BLE_LL_PUBLIC_DEV_ADDR
+        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
         deprecated: 1
 
 # defunct settings (to be removed eventually)
