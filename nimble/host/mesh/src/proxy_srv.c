@@ -758,7 +758,7 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 		struct bt_mesh_proxy_client *client = &clients[i];
 		struct os_mbuf *msg;
 
-		if (client->cli->conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+		if (!client->cli) {
 			continue;
 		}
 
