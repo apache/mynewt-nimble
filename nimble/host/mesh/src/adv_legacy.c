@@ -154,7 +154,7 @@ mesh_adv_thread(void *args)
 					BT_DBG("PB-GATT Advertising up to %d ms", (int) adv_timeout);
 				}
 
-				ev = ble_npl_eventq_get(&bt_mesh_adv_queue, adv_timeout);
+				ev = ble_npl_eventq_get(&bt_mesh_adv_queue, ble_npl_time_ms_to_ticks32(adv_timeout));
 				bt_le_adv_stop();
 			}
 		} else {
