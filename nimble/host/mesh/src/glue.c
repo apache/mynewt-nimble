@@ -712,7 +712,6 @@ done:
 
 int
 bt_le_adv_start(const struct ble_gap_adv_params *param,
-		int64_t duration,
                 const struct bt_data *ad, size_t ad_len,
                 const struct bt_data *sd, size_t sd_len)
 {
@@ -778,7 +777,7 @@ bt_le_adv_start(const struct ble_gap_adv_params *param,
     }
 
     /*TODO: We could use duration and max events in the future */
-    err = ble_gap_ext_adv_start(instance, duration, 0);
+    err = ble_gap_ext_adv_start(instance, 0, 0);
     return err;
 
 error:
@@ -792,7 +791,6 @@ error:
 
 int
 bt_le_adv_start(const struct ble_gap_adv_params *param,
-		int64_t duration,
                 const struct bt_data *ad, size_t ad_len,
                 const struct bt_data *sd, size_t sd_len)
 {
