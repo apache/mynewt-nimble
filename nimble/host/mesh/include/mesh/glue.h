@@ -418,7 +418,6 @@ int bt_ccm_encrypt(const uint8_t key[16], uint8_t nonce[13], const uint8_t *enc_
 		   uint8_t *plaintext, size_t mic_size);
 void bt_mesh_register_gatt(void);
 int bt_le_adv_start(const struct ble_gap_adv_params *param,
-                    int64_t duration,
                     const struct bt_data *ad, size_t ad_len,
                     const struct bt_data *sd, size_t sd_len);
 

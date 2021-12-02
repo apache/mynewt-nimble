@@ -107,8 +107,7 @@ static inline void adv_send(struct os_mbuf *buf)
 
 	int64_t time = k_uptime_get();
 
-	err = bt_le_adv_start(&param, duration, &ad, 1, NULL, 0);
-
+	err = bt_le_adv_start(&param, &ad, 1, NULL, 0);
 
 	bt_mesh_adv_send_start(duration, err, BT_MESH_ADV(buf));
 	if (err) {
@@ -240,6 +239,6 @@ int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
 		      const struct bt_data *sd, size_t sd_len)
 {
 	adv_timeout = duration;
-	return bt_le_adv_start(param, duration, ad, ad_len, sd, sd_len);
+	return bt_le_adv_start(param, ad, ad_len, sd, sd_len);
 }
 #endif
