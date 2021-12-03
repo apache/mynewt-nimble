@@ -159,15 +159,9 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
 	BT_DBG("conn %p err 0x%02x", (void *)conn, err);
 }
 
-void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)
+void gatt_disconnected_pb_gatt(struct ble_gap_conn_desc conn, uint8_t reason)
 {
-	struct ble_gap_conn_desc info;
-
-	struct ble_hs_conn *conn;
-
-	conn = ble_hs_conn_find(conn_handle);
-	bt_conn_get_info(conn, &info);
-	if (info.role != BLE_GAP_ROLE_SLAVE ||
+	if (conn.role != BLE_GAP_ROLE_SLAVE ||
 	    !service_registered) {
 		return;
 	}
@@ -177,9 +171,9 @@ void gatt_disconnected_pb_gatt(uint16_t conn_handle, uint8_t reason)
 		cli = NULL;
 	}
 
-	BT_DBG("conn %p reason 0x%02x", (void *)conn, reason);
+	BT_DBG("conn_handle %d reason 0x%02x", conn.conn_handle, reason);
 
-	bt_mesh_pb_gatt_close(conn_handle);
+	bt_mesh_pb_gatt_close(conn.conn_handle);
 
 	if (bt_mesh_is_provisioned()) {
 		(void)bt_mesh_pb_gatt_disable();
