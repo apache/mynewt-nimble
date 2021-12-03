@@ -825,15 +825,11 @@ static void gatt_connected(uint16_t conn_handle)
 	}
 }
 
-static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
+static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
 {
-	struct ble_gap_conn_desc info;
 	struct bt_mesh_proxy_client *client;
-	struct ble_hs_conn *conn;
 
-	conn = ble_hs_conn_find(conn_handle);
-	bt_conn_get_info(conn, &info);
-	if (info.role != BLE_GAP_ROLE_SLAVE) {
+	if (conn.role != BLE_GAP_ROLE_SLAVE) {
 		return;
 	}
 
@@ -843,7 +839,7 @@ static void gatt_disconnected(uint16_t conn_handle, uint8_t reason)
 	}
 
 	conn_count--;
-	client = find_client(conn_handle);
+	client = find_client(conn.conn_handle);
 	if (client->cli) {
 		bt_mesh_proxy_role_cleanup(client->cli);
 		client->cli = NULL;
@@ -938,10 +934,10 @@ int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg)
 	    (event->type == BLE_GAP_EVENT_ADV_COMPLETE)) {
 		ble_mesh_handle_connect(event, arg);
 	} else if (event->type == BLE_GAP_EVENT_DISCONNECT) {
-		gatt_disconnected(event->disconnect.conn.conn_handle,
+		gatt_disconnected(event->disconnect.conn,
 				   event->disconnect.reason);
 #if MYNEWT_VAL(BLE_MESH_PB_GATT)
-		gatt_disconnected_pb_gatt(event->disconnect.conn.conn_handle,
+		gatt_disconnected_pb_gatt(event->disconnect.conn,
 				  event->disconnect.reason);
 #endif
 	} else if (event->type == BLE_GAP_EVENT_SUBSCRIBE) {
