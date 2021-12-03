@@ -1,0 +1,4 @@
+syscfg.vals:
+  BLE_LL_PUBLIC_DEV_ADDR: 0xbabb1e000002
+  # Default task settings
+  OS_MAIN_STACK_SIZE: 8000

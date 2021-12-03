@@ -1,0 +1,8 @@
+pkg.name: targets/bsim_btshell
+pkg.type: target
+pkg.description:
+pkg.author:
+pkg.homepage:
+
+pkg.deps:
+  - "@apache-mynewt-nimble/babblesim/libc"

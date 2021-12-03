@@ -45,6 +45,11 @@
 
 #define BTSHELL_MODULE "btshell"
 
+#if BABBLESIM
+extern size_t strlcpy(char *dst, const char *src, size_t size);
+extern size_t strlcat(char *dst, const char *src, size_t size);
+#endif
+
 int
 cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
                          uint16_t *out_end)

@@ -1,0 +1,5 @@
+syscfg.vals:
+  # Set public device address.
+  BLE_LL_PUBLIC_DEV_ADDR: 0xbabb1e000001
+  # Default task settings
+  OS_MAIN_STACK_SIZE: 8000

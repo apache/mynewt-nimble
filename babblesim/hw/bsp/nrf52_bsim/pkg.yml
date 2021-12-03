@@ -32,6 +32,8 @@ pkg.cflags.HARDFLOAT:
 
 pkg.deps:
     - "@apache-mynewt-core/hw/drivers/uart/uart_hal"
+    - "@apache-mynewt-core/hw/drivers/flash/enc_flash/ef_tinycrypt"
+    - "@apache-mynewt-core/hw/drivers/trng/trng_sw"
     - "babblesim/hw/mcu/nordic/nrf52_bsim"
     - "babblesim/hw/babblesim"
     - "babblesim/core"

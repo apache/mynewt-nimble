@@ -498,6 +498,8 @@ syscfg.defs:
 
 syscfg.vals:
     OS_TICKS_PER_SEC: 128
+    MCU_FLASH_STYLE_ST: 0
+    MCU_FLASH_STYLE_NORDIC: 1
 
 syscfg.vals.MCU_NRF52832:
     MCU_TARGET: nRF52832

@@ -1,0 +1,13 @@
+syscfg.vals:
+  # Set public device address.
+  BLE_LL_PUBLIC_DEV_ADDR: 0xbabb1e000004
+  # Use RAM transport by default
+  BLE_HCI_TRANSPORT: ram
+  # Default task settings
+  OS_MAIN_STACK_SIZE: 8000
+
+  CONSOLE_PROMPT_STICKY: 1
+  CONSOLE_PROMPT_SOFT_CURSOR: 1
+  CONSOLE_PROMPT_SOFT_CURSOR_ATTR: '"30;42m"'
+  CONSOLE_PROMPT_HIDE_CURSOR_IN_LOG_AREA: 1
+  CONSOLE_HISTORY: ram
