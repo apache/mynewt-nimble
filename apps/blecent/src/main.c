@@ -495,9 +495,21 @@ blecent_on_sync(void)
  *
  * @return int NOTE: this function should never return!
  */
+#ifdef BABBLESIM
+extern void bsim_init(int argc, char** argv, int (*main_fn)(int argc, char **arg));
+
+int
+main(int argc, char** argv)
+{
+    if (!g_os_started) {
+        bsim_init(argc, argv, main);
+    }
+#else
+
 int
 main(void)
 {
+#endif
     int rc;
 
     /* Initialize OS */

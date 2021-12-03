@@ -31,10 +31,13 @@
 #include "bsp/bsp.h"
 #include "defs/sections.h"
 #include "uart_hal/uart_hal.h"
+#include "mcu/native_bsp.h"
 #include "uart/uart.h"
 #if MYNEWT_VAL(ENC_FLASH_DEV)
 #include <ef_nrf5x/ef_nrf5x.h>
 #endif
+#include "ef_tinycrypt/ef_tinycrypt.h"
+#include <trng_sw/trng_sw.h>
 
 /*
  * What memory to include in coredump.
@@ -57,21 +60,26 @@ static sec_data_secret struct eflash_nrf5x_dev enc_flash_dev0 = {
 };
 #endif
 
+static sec_data_secret struct eflash_tinycrypt_dev ef_dev0 = {
+    .etd_dev = {
+        .efd_hal = {
+            .hf_itf = &enc_flash_funcs,
+            },
+            .efd_hwdev = &native_flash_dev
+    }
+};
+
 const struct hal_flash *
 hal_bsp_flash_dev(uint8_t id)
 {
-//    /*
-//     * Internal flash mapped to id 0.
-//     */
-//    if (id == 0) {
-//        return &nrf52k_flash_dev;
-//    }
-//#if MYNEWT_VAL(ENC_FLASH_DEV)
-//    if (id == 1) {
-//        return &enc_flash_dev0.end_dev.efd_hal;
-//    }
-//#endif
-    return NULL;
+    switch (id) {
+    case 0:
+        return &native_flash_dev;
+    case 1:
+        return &ef_dev0.etd_dev.efd_hal;
+    default:
+        return NULL;
+    }
 }
 
 const struct hal_bsp_mem_dump *

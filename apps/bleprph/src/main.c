@@ -302,9 +302,20 @@ bleprph_on_sync(void)
  *
  * @return int NOTE: this function should never return!
  */
+#ifdef BABBLESIM
+extern void bsim_init(int argc, char** argv, int (*main_fn)(int argc, char **arg));
+
+int
+main(int argc, char** argv)
+{
+    if (!g_os_started) {
+        bsim_init(argc, argv, main);
+    }
+#else
 int
 main(void)
 {
+#endif
 #if MYNEWT_VAL(BLE_SVC_DIS_FIRMWARE_REVISION_READ_PERM) >= 0
     struct image_version ver;
     static char ver_str[IMGMGR_NMGR_MAX_VER];
