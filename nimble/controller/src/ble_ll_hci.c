@@ -786,7 +786,7 @@ ble_ll_read_rf_path_compensation(uint8_t *rspbuf, uint8_t *rsplen)
     rsp->rx_path_compensation = htole16(rx_path_pwr_compensation);
     rsp->tx_path_compensation = htole16(tx_path_pwr_compensation);
 
-    *rsplen = sizeof(*rsp);;
+    *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
 }
 
