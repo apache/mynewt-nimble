@@ -19,7 +19,10 @@ ifeq (,$(NIMBLE_ROOT))
 $(error NIMBLE_ROOT shall be defined)
 endif
 
-NIMBLE_CFLAGS :=
+# For now this is required as there are places in NimBLE
+# assumingthat pointer is 4 bytes long.
+NIMBLE_CFLAGS := -m32
+NIMBLE_LDFLAGS := -m32
 
 NIMBLE_INCLUDE := \
 	$(NIMBLE_ROOT)/nimble/include \

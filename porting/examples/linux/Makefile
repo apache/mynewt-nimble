@@ -81,7 +81,7 @@ CFLAGS =                    \
     -D_GNU_SOURCE           \
     $(NULL)
 
-LIBS := -lrt -lpthread -lstdc++
+LIBS := $(NIMBLE_LDFLAGS) -lrt -lpthread -lstdc++
 
 .PHONY: all clean
 .DEFAULT: all

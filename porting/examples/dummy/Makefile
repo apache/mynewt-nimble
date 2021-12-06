@@ -60,6 +60,7 @@ OBJ := $(SRC:.c=.o)
 TINYCRYPT_OBJ := $(TINYCRYPT_SRC:.c=.o)
 
 CFLAGS := $(NIMBLE_CFLAGS)
+LDFLAGS := $(NIMBLE_LDFLAGS)
 
 .PHONY: all clean
 .DEFAULT: all
@@ -76,4 +77,4 @@ $(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
 	$(CC) -c $(addprefix -I, $(INC)) $(CFLAGS) -o $@ $<
 
 dummy: $(OBJ) $(TINYCRYPT_OBJ)
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
