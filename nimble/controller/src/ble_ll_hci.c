@@ -1152,10 +1152,14 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #endif
 #endif
     case BLE_HCI_OCF_LE_RD_TRANSMIT_POWER:
-        rc = ble_ll_read_tx_power(rspbuf, rsplen);
+        if (len == 0) {
+            rc = ble_ll_read_tx_power(rspbuf, rsplen);
+        }
         break;
     case BLE_HCI_OCF_LE_RD_RF_PATH_COMPENSATION:
-        rc = ble_ll_read_rf_path_compensation(rspbuf, rsplen);
+        if (len == 0) {
+            rc = ble_ll_read_rf_path_compensation(rspbuf, rsplen);
+        }
         break;
     case BLE_HCI_OCF_LE_WR_RF_PATH_COMPENSATION:
         rc = ble_ll_write_rf_path_compensation(cmdbuf, len);
@@ -1217,7 +1221,9 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
-        rc = ble_ll_hci_le_read_bufsize_v2(rspbuf, rsplen);
+        if (len == 0) {
+            rc = ble_ll_hci_le_read_bufsize_v2(rspbuf, rsplen);
+        }
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO_TEST)
