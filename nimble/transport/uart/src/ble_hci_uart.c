@@ -55,7 +55,7 @@
 /* XXX: for now, define this here */
 #if MYNEWT_VAL(BLE_CONTROLLER)
 extern void ble_ll_data_buffer_overflow(void);
-extern void ble_ll_hw_error(uint8_t err);
+extern void ble_ll_hw_error(void);
 
 static const uint8_t ble_hci_uart_reset_cmd[4] = { 0x01, 0x03, 0x0C, 0x00 };
 #endif
@@ -400,7 +400,7 @@ ble_hci_uart_sync_lost(void)
     ble_hci_uart_state.rx_cmd.cur = 0;
     ble_hci_uart_state.rx_cmd.data =
         ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-    ble_ll_hw_error(BLE_HW_ERR_HCI_SYNC_LOSS);
+    ble_ll_hw_error();
     ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_SYNC_LOSS;
 }
 #endif
