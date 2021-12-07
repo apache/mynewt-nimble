@@ -440,7 +440,7 @@ syscfg.defs:
         description: >
             Whether to enable host-side flow control.  This should only be
             enabled in host-only setups (i.e., not combined-host-controller).
-        value: 0
+        value: 1
 
     BLE_HS_FLOW_CTRL_ITVL:
         description: >

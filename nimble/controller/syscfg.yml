@@ -272,7 +272,7 @@ syscfg.defs:
             Enable controller-to-host flow control support. This allows host to
             limit number of ACL packets sent at once from controller to avoid
             congestion on HCI transport if feature is also supported by host.
-        value: 0
+        value: 1
 
     BLE_LL_CFG_FEAT_LL_SCA_UPDATE:
         description: >
