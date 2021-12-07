@@ -87,6 +87,9 @@ uint16_t ble_hs_max_attrs;
 uint16_t ble_hs_max_services;
 uint16_t ble_hs_max_client_configs;
 
+uint16_t ble_hs_gap_primary_svcs_count;
+uint16_t ble_hs_gap_primary_svcs_attrs_count;
+
 #if MYNEWT_VAL(BLE_HS_DEBUG)
 static uint8_t ble_hs_dbg_mutex_locked;
 #endif

@@ -296,6 +296,8 @@ ble_svc_gap_init(void)
 
 #if NIMBLE_BLE_CONNECT
     rc = ble_gatts_count_cfg(ble_svc_gap_defs);
+    ble_hs_gap_primary_svcs_count = ble_hs_max_services;
+    ble_hs_gap_primary_svcs_attrs_count = ble_hs_max_attrs;
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = ble_gatts_add_svcs(ble_svc_gap_defs);

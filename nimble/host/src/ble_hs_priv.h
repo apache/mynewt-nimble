@@ -98,10 +98,6 @@ extern uint8_t ble_hs_enabled_state;
 
 extern const uint8_t ble_hs_misc_null_addr[6];
 
-extern uint16_t ble_hs_max_attrs;
-extern uint16_t ble_hs_max_services;
-extern uint16_t ble_hs_max_client_configs;
-
 void ble_hs_process_rx_data_queue(void);
 int ble_hs_tx_data(struct os_mbuf *om);
 void ble_hs_wakeup_tx(void);
