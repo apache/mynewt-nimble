@@ -1260,11 +1260,8 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
      * This code is here because we add 256 to the return code to denote
      * that the reply to this command should be command status (as opposed to
      * command complete).
-     *
-     * For unknown HCI command let us return always command status as per
-     * specification Bluetooth 5, Vol. 2, Chapter 4.4
      */
-    if (ble_ll_hci_le_cmd_send_cmd_status(ocf) || rc == BLE_ERR_UNKNOWN_HCI_CMD) {
+    if (ble_ll_hci_le_cmd_send_cmd_status(ocf)) {
         rc += (BLE_ERR_MAX + 1);
     }
 
@@ -1594,6 +1591,13 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
         /* XXX: Need to support other OGF. For now, return unsupported */
         rc = BLE_ERR_UNKNOWN_HCI_CMD;
         break;
+    }
+
+    /* We always send command status for unknown command
+     * ref: Core 5.3, Vol 4, Part E, 4.5
+     */
+    if (rc == BLE_ERR_UNKNOWN_HCI_CMD) {
+        rc += (BLE_ERR_MAX + 1);
     }
 
     /* If no response is generated, we free the buffers */
