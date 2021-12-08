@@ -483,9 +483,9 @@
 
 /* Octet 44 */
 #if MYNEWT_VAL(BLE_VERSION) >= 52
-#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (1 << 0)
+#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (1 << 1)
 #else
-#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (0 << 0)
+#define BLE_SUPP_CMD_LE_SET_HOST_FEATURE (0 << 1)
 #endif
 #define BLE_LL_SUPP_CMD_OCTET_44                        \
 (                                                       \
