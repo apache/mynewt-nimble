@@ -2692,14 +2692,27 @@ ble_gap_ext_adv_params_tx(uint8_t instance,
     if (params->high_duty_directed) {
         cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED;
     }
-    if (params->legacy_pdu) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
-    }
     if (params->anonymous) {
         cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV;
     }
     if (params->include_tx_power) {
         cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR;
+    }
+    if (params->legacy_pdu) {
+        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
+
+        /* check right away if the applied configuration is valid before handing
+         * the command to the controller to improve error reporting */
+        switch (cmd.props) {
+            case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND:
+            case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR:
+            case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR:
+            case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN:
+            case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN:
+                break;
+            default:
+                return BLE_HS_EINVAL;
+        }
     }
 
     /* Fill optional fields if application did not specify them. */
