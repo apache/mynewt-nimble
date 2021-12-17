@@ -67,6 +67,7 @@ syscfg.defs:
         value: 0
         restrictions:
             - 'BLE_PERIODIC_ADV if 1'
+            - '(BLE_ROLE_CENTRAL || BLE_ROLE_PERIPHERAL) if 1'
 
     BLE_EXT_ADV_MAX_SIZE:
         description: >

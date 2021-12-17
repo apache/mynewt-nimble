@@ -755,7 +755,9 @@ ble_hci_uart_rx_skip_acl(uint8_t data)
     if (rxd_bytes == ble_hci_uart_state.rx_acl.len) {
 /* XXX: I dont like this but for now this denotes controller only */
 #if MYNEWT_VAL(BLE_CONTROLLER)
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         ble_ll_data_buffer_overflow();
+#endif
 #endif
         ble_hci_uart_state.rx_type = BLE_HCI_UART_H4_NONE;
     }

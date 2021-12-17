@@ -112,7 +112,9 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
 {
     struct ble_ll_sched_item *entry;
     struct ble_ll_sched_item *next;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     struct ble_ll_conn_sm *connsm;
+#endif
 
     entry = first;
 
@@ -123,24 +125,32 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
         entry->enqueued = 0;
 
         switch (entry->sched_type) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             case BLE_LL_SCHED_TYPE_CONN:
                 connsm = (struct ble_ll_conn_sm *)entry->cb_arg;
                 ble_ll_event_send(&connsm->conn_ev_end);
                 break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
             case BLE_LL_SCHED_TYPE_ADV:
                 ble_ll_adv_event_rmvd_from_sched(entry->cb_arg);
                 break;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
             case BLE_LL_SCHED_TYPE_SCAN_AUX:
                 ble_ll_scan_aux_break(entry->cb_arg);
                 break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
             case BLE_LL_SCHED_TYPE_PERIODIC:
                 ble_ll_adv_periodic_rmvd_from_sched(entry->cb_arg);
                 break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
             case BLE_LL_SCHED_TYPE_SYNC:
                 ble_ll_sync_rmvd_from_sched(entry->cb_arg);
                 break;
+#endif
 #endif
 #endif
             default:
@@ -302,16 +312,17 @@ ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
 static int
 ble_ll_sched_overlaps_current(struct ble_ll_sched_item *sch)
 {
-    int rc;
+    int rc = 0;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     uint32_t ce_end_time;
 
-    rc = 0;
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
         ce_end_time = ble_ll_conn_get_ce_end_time();
         if (CPUTIME_GT(ce_end_time, sch->start_time)) {
             rc = 1;
         }
     }
+#endif
     return rc;
 }
 
@@ -334,7 +345,9 @@ int
 ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_sched_item *sch;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint32_t usecs;
+#endif
     os_sr_t sr;
     int rc;
 
@@ -343,13 +356,24 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 
     /* Set schedule start and end times */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+    switch (connsm->conn_role) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_LL_CONN_ROLE_MASTER:
+        sch->remainder = connsm->anchor_point_usecs;
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_CONN_ROLE_SLAVE:
         usecs = connsm->slave_cur_window_widening;
         sch->start_time -= (os_cputime_usecs_to_ticks(usecs) + 1);
         sch->remainder = 0;
-    } else {
-        sch->remainder = connsm->anchor_point_usecs;
+        break;
+#endif
+    default:
+        BLE_LL_ASSERT(0);
+        break;
     }
+
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
@@ -802,7 +826,7 @@ usecs_to_ticks_fast(uint32_t usecs)
 }
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 /*
  * Determines if the schedule item overlaps the currently running schedule
  * item. This function cares about connection and sync.
@@ -815,9 +839,11 @@ ble_ll_sched_sync_overlaps_current(struct ble_ll_sched_item *sch)
 
     state = ble_ll_state_get();
     switch (state) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_STATE_CONNECTION:
         end_time = ble_ll_conn_get_ce_end_time();
         break;
+#endif
     case BLE_LL_STATE_SYNC:
         end_time = ble_ll_sync_get_event_end_time();
         break;
@@ -1037,10 +1063,24 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
     OS_ENTER_CRITICAL(sr);
 
     lls = ble_ll_state_get();
-    if ((lls == BLE_LL_STATE_ADV) || (lls == BLE_LL_STATE_CONNECTION) ||
-        (lls == BLE_LL_STATE_SYNC)) {
+    switch(lls) {
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    case BLE_LL_STATE_ADV:
         OS_EXIT_CRITICAL(sr);
         return -1;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_STATE_CONNECTION:
+        OS_EXIT_CRITICAL(sr);
+        return -1;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    case BLE_LL_STATE_SYNC:
+        OS_EXIT_CRITICAL(sr);
+        return -1;
+#endif
+    default:
+        break;
     }
 
     rc = ble_ll_sched_insert(sch, 0, preempt_none);
@@ -1161,25 +1201,40 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     /* We have to disable the PHY no matter what */
     ble_phy_disable();
 
-    if (lls == BLE_LL_STATE_SCANNING) {
+    switch (lls) {
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    case BLE_LL_STATE_SCANNING:
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_scan_halt();
-    } else if (lls == BLE_LL_STATE_ADV) {
-        STATS_INC(ble_ll_stats, sched_state_adv_errs);
-        ble_ll_adv_halt();
+        break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
-    } else if (lls == BLE_LL_STATE_SYNC) {
+    case BLE_LL_STATE_SYNC:
         STATS_INC(ble_ll_stats, sched_state_sync_errs);
         ble_ll_sync_halt();
+        break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    } else if (lls == BLE_LL_STATE_SCAN_AUX) {
+    case BLE_LL_STATE_SCAN_AUX:
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         ble_ll_scan_aux_halt();
+        break;
 #endif
-    } else {
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    case BLE_LL_STATE_ADV:
+        STATS_INC(ble_ll_stats, sched_state_adv_errs);
+        ble_ll_adv_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_STATE_CONNECTION:
         STATS_INC(ble_ll_stats, sched_state_conn_errs);
         ble_ll_conn_event_halt();
+        break;
+#endif
+    default:
+        BLE_LL_ASSERT(0);
+        break;
     }
 
 sched:

@@ -226,8 +226,10 @@ STATS_NAME_START(ble_ll_stats)
 STATS_NAME_END(ble_ll_stats)
 
 static void ble_ll_event_rx_pkt(struct ble_npl_event *ev);
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static void ble_ll_event_tx_pkt(struct ble_npl_event *ev);
 static void ble_ll_event_dbuf_overflow(struct ble_npl_event *ev);
+#endif
 
 #if MYNEWT
 
@@ -579,10 +581,23 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
      * Test specification extends this also to initiating.
      */
 
-    if (g_ble_ll_conn_create_sm.connsm || ble_ll_scan_enabled() ||
-                                (!hci_adv_ext && ble_ll_adv_enabled())) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (g_ble_ll_conn_create_sm.connsm) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_scan_enabled()){
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    if (!hci_adv_ext && ble_ll_adv_enabled()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+#endif
 
     if (!ble_ll_is_valid_random_addr(cmd->addr)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -591,12 +606,14 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
     memcpy(g_random_addr, cmd->addr, BLE_DEV_ADDR_LEN);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     /* For instance 0 we need same address if legacy advertising might be
      * used. If extended advertising is in use than this command doesn't
      * affect instance 0.
      */
     if (!hci_adv_ext)
         ble_ll_adv_set_random_addr(cmd->addr, 0);
+#endif
 #endif
 
     return BLE_ERR_SUCCESS;
@@ -670,18 +687,23 @@ ble_ll_wfr_timer_exp(void *arg)
     /* If we have started a reception, there is nothing to do here */
     if (!rx_start) {
         switch (lls) {
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
         case BLE_LL_STATE_ADV:
             ble_ll_adv_wfr_timer_exp();
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_wfr_timer_exp();
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_wfr_timer_exp();
             break;
-#if MYNEWT_VAL(BLE_LL_DTM)
-        case BLE_LL_STATE_DTM:
-            ble_ll_dtm_wfr_timer_exp();
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        case BLE_LL_STATE_SCAN_AUX:
+            ble_ll_scan_aux_wfr_timer_exp();
             break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
@@ -689,9 +711,10 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_sync_wfr_timer_exp();
             break;
 #endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        case BLE_LL_STATE_SCAN_AUX:
-            ble_ll_scan_aux_wfr_timer_exp();
+#endif
+#if MYNEWT_VAL(BLE_LL_DTM)
+        case BLE_LL_STATE_DTM:
+            ble_ll_dtm_wfr_timer_exp();
             break;
 #endif
         default:
@@ -708,6 +731,7 @@ ble_ll_wfr_timer_exp(void *arg)
  * Context: Link layer task
  *
  */
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static void
 ble_ll_tx_pkt_in(void)
 {
@@ -747,6 +771,7 @@ ble_ll_tx_pkt_in(void)
         ble_ll_conn_tx_pkt_in(om, handle, length);
     }
 }
+#endif
 
 /**
  * Count Link Layer statistics for received PDUs
@@ -763,7 +788,12 @@ ble_ll_count_rx_stats(struct ble_mbuf_hdr *hdr, uint16_t len, uint8_t pdu_type)
     bool connection_data;
 
     crcok = BLE_MBUF_HDR_CRC_OK(hdr);
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     connection_data = (BLE_MBUF_HDR_RX_STATE(hdr) == BLE_LL_STATE_CONNECTION);
+#else
+    connection_data = false;
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     /* Reuse connection stats for DTM */
@@ -830,22 +860,22 @@ ble_ll_rx_pkt_in(void)
         /* Process the data or advertising pdu */
         /* Process the PDU */
         switch (BLE_MBUF_HDR_RX_STATE(ble_hdr)) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_STATE_CONNECTION:
             ble_ll_conn_rx_data_pdu(m, ble_hdr);
             /* m is going to be free by function above */
             m = NULL;
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
         case BLE_LL_STATE_ADV:
             ble_ll_adv_rx_pkt_in(pdu_type, rxbuf, ble_hdr);
             break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
         case BLE_LL_STATE_SCANNING:
             ble_ll_scan_rx_pkt_in(pdu_type, m, ble_hdr);
             break;
-#if MYNEWT_VAL(BLE_LL_DTM)
-        case BLE_LL_STATE_DTM:
-            ble_ll_dtm_rx_pkt_in(m, ble_hdr);
-            break;
-#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         case BLE_LL_STATE_SYNC:
             ble_ll_sync_rx_pkt_in(m, ble_hdr);
@@ -854,6 +884,12 @@ ble_ll_rx_pkt_in(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         case BLE_LL_STATE_SCAN_AUX:
             ble_ll_scan_aux_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
+#endif
+#if MYNEWT_VAL(BLE_LL_DTM)
+        case BLE_LL_STATE_DTM:
+            ble_ll_dtm_rx_pkt_in(m, ble_hdr);
             break;
 #endif
         default:
@@ -883,6 +919,7 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 /**
  * Called to put a packet on the Link Layer transmit packet queue.
  *
@@ -913,6 +950,7 @@ ble_ll_data_buffer_overflow(void)
 {
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_dbuf_overflow_ev);
 }
+#endif
 
 /**
  * Called when a HW error occurs.
@@ -970,20 +1008,20 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
                        pdu_type);
 
     switch (g_ble_ll_data.ll_state) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_STATE_CONNECTION:
         rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTERL)
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     case BLE_LL_STATE_SCANNING:
         rc = ble_ll_scan_rx_isr_start(pdu_type, &rxhdr->rxinfo.flags);
         break;
-#if MYNEWT_VAL(BLE_LL_DTM)
-    case BLE_LL_STATE_DTM:
-        rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
-        break;
-#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     case BLE_LL_STATE_SYNC:
         rc = ble_ll_sync_rx_isr_start(pdu_type, rxhdr);
@@ -992,6 +1030,12 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_LL_STATE_SCAN_AUX:
         rc = ble_ll_scan_aux_rx_isr_start(pdu_type, rxhdr);
+        break;
+#endif
+#endif
+#if MYNEWT_VAL(BLE_LL_DTM)
+    case BLE_LL_STATE_DTM:
+        rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
 #endif
     default:
@@ -1044,12 +1088,14 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CONNECTION) {
         rc = ble_ll_conn_rx_isr_end(rxbuf, rxhdr);
         return rc;
     }
+#endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_SYNC) {
         rc = ble_ll_sync_rx_isr_end(rxbuf, rxhdr);
         return rc;
@@ -1097,6 +1143,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     /* Hand packet to the appropriate state machine (if crc ok) */
     rxpdu = NULL;
     switch (BLE_MBUF_HDR_RX_STATE(rxhdr)) {
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     case BLE_LL_STATE_ADV:
         if (!badpkt) {
             rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
@@ -1106,6 +1153,8 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
         rc = ble_ll_adv_rx_isr_end(pdu_type, rxpdu, crcok);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     case BLE_LL_STATE_SCANNING:
         if (!badpkt) {
             rxpdu = ble_ll_rxpdu_alloc(len + BLE_LL_PDU_HDR_LEN);
@@ -1125,6 +1174,7 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         }
         rc = ble_ll_scan_aux_rx_isr_end(rxpdu, crcok);
         break;
+#endif
 #endif
     default:
         rc = -1;
@@ -1181,6 +1231,7 @@ ble_ll_event_rx_pkt(struct ble_npl_event *ev)
     ble_ll_rx_pkt_in();
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static void
 ble_ll_event_tx_pkt(struct ble_npl_event *ev)
 {
@@ -1198,6 +1249,7 @@ ble_ll_event_comp_pkts(struct ble_npl_event *ev)
 {
     ble_ll_conn_num_comp_pkts_event_send(NULL);
 }
+#endif
 
 /**
  * Link Layer task.
@@ -1314,9 +1366,11 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+#endif
 
     if ((cmd->bit_num > 0x3F) || (cmd->val > 1)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
@@ -1423,19 +1477,23 @@ ble_ll_reset(void)
     OS_ENTER_CRITICAL(sr);
     ble_phy_disable();
     ble_ll_sched_stop();
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     ble_ll_scan_reset();
+#endif
     ble_ll_rfmgmt_reset();
     OS_EXIT_CRITICAL(sr);
 
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     /* Stop any advertising */
     ble_ll_adv_reset();
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     ble_ll_dtm_reset();
 #endif
 
     /* Stop sync */
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     ble_ll_sync_reset();
 #endif
 
@@ -1450,8 +1508,10 @@ ble_ll_reset(void)
     g_ble_ll_data.ll_pref_tx_phys = 0;
     g_ble_ll_data.ll_pref_rx_phys = 0;
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Reset connection module */
     ble_ll_conn_module_reset();
+#endif
 
     /* All this does is re-initialize the event masks so call the hci init */
     ble_ll_hci_init();
@@ -1612,9 +1672,11 @@ ble_ll_init(void)
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Set acl pkt size and number */
     lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_ACL_BUF_COUNT);
     lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
+#endif
 
     /* Initialize eventq */
     ble_npl_eventq_init(&lldata->ll_evq);
@@ -1625,11 +1687,15 @@ ble_ll_init(void)
 
     /* Initialize transmit (from host) and receive packet (from phy) event */
     ble_npl_event_init(&lldata->ll_rx_pkt_ev, ble_ll_event_rx_pkt, NULL);
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     ble_npl_event_init(&lldata->ll_tx_pkt_ev, ble_ll_event_tx_pkt, NULL);
+#endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Initialize data buffer overflow event and completed packets */
     ble_npl_event_init(&lldata->ll_dbuf_overflow_ev, ble_ll_event_dbuf_overflow, NULL);
     ble_npl_event_init(&lldata->ll_comp_pkt_ev, ble_ll_event_comp_pkts, NULL);
+#endif
 
     /* Initialize the HW error timer */
     ble_npl_callout_init(&g_ble_ll_data.ll_hw_err_timer,
@@ -1643,14 +1709,20 @@ ble_ll_init(void)
     /* Init the scheduler */
     ble_ll_sched_init();
 
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     /* Initialize advertiser */
     ble_ll_adv_init();
+#endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     /* Initialize a scanner */
     ble_ll_scan_init();
+#endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Initialize the connection module */
     ble_ll_conn_module_init();
+#endif
 
     /* Set the supported features. NOTE: we always support extended reject. */
     features = BLE_LL_FEAT_EXTENDED_REJ;
@@ -1696,7 +1768,9 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     features |= BLE_LL_FEAT_PERIODIC_ADV;
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     ble_ll_sync_init();
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)

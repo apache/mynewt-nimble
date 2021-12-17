@@ -50,14 +50,31 @@ struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SI
 static int
 ble_ll_is_controller_busy(void)
 {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     if (ble_ll_sync_enabled()) {
         return 1;
     }
 #endif
 
-    return ble_ll_adv_enabled() || ble_ll_scan_enabled() ||
-           g_ble_ll_conn_create_sm.connsm;
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    if (ble_ll_adv_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_scan_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (g_ble_ll_conn_create_sm.connsm) {
+        return 1;
+    }
+#endif
+
+    return 0;
 }
 /**
  * Called to determine if a change is allowed to the resolving list at this
@@ -155,7 +172,9 @@ ble_ll_resolv_rpa_timer_cb(struct ble_npl_event *ev)
     ble_npl_callout_reset(&g_ble_ll_resolv_data.rpa_timer,
                           g_ble_ll_resolv_data.rpa_tmo);
 
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     ble_ll_adv_rpa_timeout();
+#endif
 }
 
 /**

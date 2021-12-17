@@ -42,6 +42,8 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "ble_ll_conn_priv.h"
 
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+
 /* XXX: TODO
  * 1) Need to look at advertising and scan request PDUs. Do I allocate these
  * once? Do I use a different pool for smaller ones? Do I statically declare
@@ -118,7 +120,9 @@ struct ble_ll_adv_sm
     struct os_mbuf *new_adv_data;
     struct os_mbuf *scan_rsp_data;
     struct os_mbuf *new_scan_rsp_data;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint8_t *conn_comp_ev;
+#endif
     struct ble_npl_event adv_txdone_ev;
     struct ble_ll_sched_item adv_sch;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
@@ -954,6 +958,7 @@ struct aux_conn_rsp_data {
  *
  * @param advsm
  */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static uint8_t
 ble_ll_adv_aux_conn_rsp_pdu_make(uint8_t *dptr, void *pducb_arg,
                                  uint8_t *hdr_byte)
@@ -1001,6 +1006,7 @@ ble_ll_adv_aux_conn_rsp_pdu_make(uint8_t *dptr, void *pducb_arg,
 
     return pdulen;
 }
+#endif
 #endif
 
 /**
@@ -1750,6 +1756,7 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
     adv_filter_policy = cmd->filter_policy;
 
     switch (cmd->type) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD:
         adv_filter_policy = BLE_HCI_ADV_FILT_NONE;
         memcpy(advsm->peer_addr, cmd->peer_addr, BLE_DEV_ADDR_LEN);
@@ -1769,6 +1776,7 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
     case BLE_HCI_ADV_TYPE_ADV_IND:
         props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND;
         break;
+#endif
     case BLE_HCI_ADV_TYPE_ADV_NONCONN_IND:
         props = BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN;
         break;
@@ -1935,11 +1943,13 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
         ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         /* If there is an event buf we need to free it */
         if (advsm->conn_comp_ev) {
             ble_hci_trans_buf_free(advsm->conn_comp_ev);
             advsm->conn_comp_ev = NULL;
         }
+#endif
 
         ble_ll_adv_active_chanset_clear(advsm);
 
@@ -1962,6 +1972,7 @@ ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /*
      * For high duty directed advertising we need to send connection
      * complete event with proper status
@@ -1971,6 +1982,7 @@ ble_ll_adv_sm_stop_timeout(struct ble_ll_adv_sm *advsm)
                                     advsm->conn_comp_ev, advsm);
         advsm->conn_comp_ev = NULL;
     }
+#endif
 
     /* Disable advertising */
     ble_ll_adv_sm_stop(advsm);
@@ -1992,11 +2004,13 @@ ble_ll_adv_sm_stop_limit_reached(struct ble_ll_adv_sm *advsm)
      * be used if HD directed advertising was terminated before timeout due to
      * events count limit. For now just use same code as with duration timeout.
      */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         ble_ll_conn_comp_event_send(NULL, BLE_ERR_DIR_ADV_TMO,
                                     advsm->conn_comp_ev, advsm);
         advsm->conn_comp_ev = NULL;
     }
+#endif
 
     /* Disable advertising */
     ble_ll_adv_sm_stop(advsm);
@@ -2629,7 +2643,6 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
     uint8_t *addr;
-    uint8_t *evbuf;
     uint32_t start_delay_us;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint32_t access_addr;
@@ -2657,16 +2670,17 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
      * Get an event with which to send the connection complete event if
      * this is connectable
      */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         /* We expect this to be NULL but if not we wont allocate one... */
         if (advsm->conn_comp_ev == NULL) {
-            evbuf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
-            if (!evbuf) {
+            advsm->conn_comp_ev = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            if (!advsm->conn_comp_ev) {
                 return BLE_ERR_MEM_CAPACITY;
             }
-            advsm->conn_comp_ev = evbuf;
         }
     }
+#endif
 
     /* Set advertising address */
     if ((advsm->own_addr_type & 1) == 0) {
@@ -3282,9 +3296,11 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
         /* if legacy bit is set possible values are limited */
         switch (props) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND:
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR:
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR:
+#endif
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_SCAN:
         case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_NONCONN:
             break;
@@ -3293,6 +3309,12 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
             goto done;
         }
     } else {
+#if !MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+        if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
+        }
+#endif
         /* HD directed advertising allowed only on legacy PDUs */
         if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
             rc = BLE_ERR_INV_HCI_CMD_PARMS;
@@ -4096,6 +4118,7 @@ ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
  * @param   [in]    addr_type   Public address (0) or random address (1).
  * @return  Return 1 if already connected, 0 otherwise.
  */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static int
 ble_ll_adv_already_connected(const uint8_t* addr, uint8_t addr_type)
 {
@@ -4118,6 +4141,7 @@ ble_ll_adv_already_connected(const uint8_t* addr, uint8_t addr_type)
 
     return 0;
 }
+#endif
 
 /**
  * Called when the LL receives a scan request or connection request
@@ -4143,8 +4167,10 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     uint8_t *peer;
     struct ble_mbuf_hdr *ble_hdr;
     struct ble_ll_adv_sm *advsm;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     struct aux_conn_rsp_data rsp_data;
+#endif
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
@@ -4252,6 +4278,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             STATS_INC(ble_ll_stats, scan_rsp_txg);
         }
     } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         /* See if the device is already connected */
         if (ble_ll_adv_already_connected(peer, peer_addr_type)) {
             return -1;
@@ -4285,6 +4312,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
             STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
         }
 #endif
+#endif
     }
 
     return rc;
@@ -4300,6 +4328,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
  *
  * @return 0: no connection started. 1: connection started
  */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 static int
 ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
                         struct ble_ll_adv_sm *advsm)
@@ -4390,6 +4419,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 
     return valid;
 }
+#endif
 
 /**
  * Called on phy rx pdu end when in advertising state.
@@ -4498,9 +4528,11 @@ ble_ll_adv_rx_pkt_in(uint8_t ptype, uint8_t *rxbuf, struct ble_mbuf_hdr *hdr)
     adv_event_over = 1;
     if (BLE_MBUF_HDR_CRC_OK(hdr)) {
         if (ptype == BLE_ADV_PDU_TYPE_CONNECT_IND) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             if (ble_ll_adv_conn_req_rxd(rxbuf, hdr, advsm)) {
                 adv_event_over = 0;
             }
+#endif
         } else {
             if ((ptype == BLE_ADV_PDU_TYPE_SCAN_REQ) &&
                 (hdr->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_TXD)) {
@@ -4937,11 +4969,11 @@ ble_ll_adv_can_chg_whitelist(void)
  *
  * @return uint8_t* Pointer to event buffer
  */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 void
 ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
                              struct ble_mbuf_hdr *rxhdr)
 {
-    uint8_t *evbuf;
     struct ble_ll_adv_sm *advsm;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -4950,11 +4982,10 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm = &g_ble_ll_adv_sm[0];
 #endif
 
-    evbuf = advsm->conn_comp_ev;
-    assert(evbuf != NULL);
+    assert(advsm->conn_comp_ev != NULL);
+    ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, advsm->conn_comp_ev,
+                                advsm);
     advsm->conn_comp_ev = NULL;
-
-    ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     ble_ll_hci_ev_le_csa(connsm);
@@ -4967,6 +4998,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     }
 #endif
 }
+#endif
 
 /**
  * Returns the local resolvable private address currently being using by
@@ -5128,3 +5160,5 @@ ble_ll_adv_init(void)
         ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }
+
+#endif
