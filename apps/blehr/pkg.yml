@@ -32,7 +32,6 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/sys/sysinit"
     - "@apache-mynewt-core/sys/id"
-    - nimble/controller
     - nimble/host
     - nimble/host/services/gap
     - nimble/host/services/gatt
