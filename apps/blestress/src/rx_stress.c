@@ -155,7 +155,8 @@ rx_stress_simple_adv(struct rx_stress_adv_set *adv_set)
     assert (rc == 0);
 
     if (own_addr_type == 0) {
-        memcpy(addr.val, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), 6);
+        rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr.val, NULL);
+        assert (rc == 0);
     } else {
         rc = ble_hs_id_gen_rnd(1, &addr);
         assert (rc == 0);
