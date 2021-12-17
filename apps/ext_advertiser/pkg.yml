@@ -25,7 +25,6 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - nimble/controller
     - nimble/host
     - nimble/host/util
     - nimble/host/services/gap

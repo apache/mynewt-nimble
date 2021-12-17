@@ -31,7 +31,6 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/sys/shell"
-    - "@apache-mynewt-nimble/nimble/controller"
     - "@apache-mynewt-nimble/nimble/host"
     - "@apache-mynewt-nimble/nimble/host/util"
     - "@apache-mynewt-nimble/nimble/host/services/gap"

@@ -29,7 +29,6 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/encoding/base64"
     - "@apache-mynewt-core/sys/config"
-    - nimble/controller
     - nimble/host
     - nimble/host/services/gap
     - nimble/host/services/gatt
