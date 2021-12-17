@@ -83,6 +83,7 @@ static void supported_services(uint8_t *data, uint16_t len)
 #if MYNEWT_VAL(BLE_MESH)
 	tester_set_bit(buf, BTP_SERVICE_ID_MESH);
 #endif /* MYNEWT_VAL(BLE_MESH) */
+	tester_set_bit(buf, BTP_SERVICE_ID_GATTC);
 
 	tester_send(BTP_SERVICE_ID_CORE, CORE_READ_SUPPORTED_SERVICES,
 		    BTP_INDEX_NONE, (uint8_t *) rp, sizeof(buf));
@@ -232,6 +233,10 @@ static void cmd_handler(struct os_event *ev)
 					   cmd->hdr.data, len);
 			break;
 #endif /* MYNEWT_VAL(BLE_MESH) */
+		case BTP_SERVICE_ID_GATTC:
+			tester_handle_gattc(cmd->hdr.opcode, cmd->hdr.index,
+							   cmd->hdr.data, len);
+			break;
 		default:
 			tester_rsp(cmd->hdr.service, cmd->hdr.opcode,
 				   cmd->hdr.index, BTP_STATUS_FAILED);

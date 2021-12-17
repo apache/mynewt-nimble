@@ -20,6 +20,7 @@
 /* bttester.h - Bluetooth tester headers */
 
 /*
+ * Copyright (C) 2021 Codecoup
  * Copyright (c) 2015-2016 Intel Corporation
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -47,6 +48,7 @@
 #define BTP_SERVICE_ID_GATT	2
 #define BTP_SERVICE_ID_L2CAP	3
 #define BTP_SERVICE_ID_MESH	4
+#define BTP_SERVICE_ID_GATTC	6
 
 #define BTP_STATUS_SUCCESS	0x00
 #define BTP_STATUS_FAILED	0x01
@@ -486,6 +488,11 @@ struct gatt_service {
 struct gatt_included {
 	uint16_t included_handle;
 	struct gatt_service service;
+} __packed;
+
+struct gatt_read_uuid_chr {
+	uint16_t handle;
+	uint8_t data[0];
 } __packed;
 
 struct gatt_characteristic {
@@ -1033,7 +1040,9 @@ uint8_t tester_init_gatt(void);
 uint8_t tester_unregister_gatt(void);
 void tester_handle_gatt(uint8_t opcode, uint8_t index, uint8_t *data,
 			uint16_t len);
-int tester_gatt_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
+void tester_handle_gattc(uint8_t opcode, uint8_t index, uint8_t *data,
+						uint16_t len);
+int tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
 			     uint8_t indication, struct os_mbuf *om);
 int tester_gatt_subscribe_ev(uint16_t conn_handle, uint16_t attr_handle, uint8_t reason,
 			     uint8_t prev_notify, uint8_t cur_notify,
@@ -1054,5 +1063,245 @@ void tester_handle_mesh(uint8_t opcode, uint8_t index, uint8_t *data, uint16_t l
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 int gatt_svr_init(void);
+
+/* GATT Client Service */
+/* commands */
+#define GATTC_READ_SUPPORTED_COMMANDS    0x01
+struct gattc_read_supported_commands_rp {
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_EXCHANGE_MTU        0x02
+
+#define GATTC_DISC_ALL_PRIM_SVCS    0x03
+struct gattc_disc_all_prim_svcs_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+} __packed;
+
+#define GATTC_DISC_PRIM_UUID        0x04
+struct gattc_disc_prim_uuid_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t uuid_length;
+	uint8_t uuid[0];
+} __packed;
+
+#define GATTC_FIND_INCLUDED        0x05
+struct gattc_find_included_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t start_handle;
+	uint16_t end_handle;
+} __packed;
+
+#define GATTC_DISC_ALL_CHRC        0x06
+struct gattc_disc_all_chrc_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t start_handle;
+	uint16_t end_handle;
+} __packed;
+
+#define GATTC_DISC_CHRC_UUID        0x07
+struct gattc_disc_chrc_uuid_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t start_handle;
+	uint16_t end_handle;
+	uint8_t uuid_length;
+	uint8_t uuid[0];
+} __packed;
+
+#define GATTC_DISC_ALL_DESC        0x08
+struct gattc_disc_all_desc_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t start_handle;
+	uint16_t end_handle;
+} __packed;
+
+#define GATTC_READ            0x09
+struct gattc_read_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+} __packed;
+
+#define GATTC_READ_UUID            0x0a
+struct gattc_read_uuid_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t start_handle;
+	uint16_t end_handle;
+	uint8_t uuid_length;
+	uint8_t uuid[0];
+} __packed;
+struct gattc_read_uuid_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint16_t data_length;
+	uint8_t value_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_READ_LONG            0x0b
+struct gattc_read_long_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t offset;
+} __packed;
+
+#define GATTC_READ_MULTIPLE        0x0c
+struct gattc_read_multiple_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t handles_count;
+	uint16_t handles[0];
+} __packed;
+
+#define GATTC_WRITE_WITHOUT_RSP        0x0d
+struct gattc_write_without_rsp_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_SIGNED_WRITE_WITHOUT_RSP    0x0e
+struct gattc_signed_write_without_rsp_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_WRITE            0x0f
+struct gattc_write_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_WRITE_LONG        0x10
+struct gattc_write_long_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t offset;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_RELIABLE_WRITE        0x11
+struct gattc_reliable_write_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t handle;
+	uint16_t offset;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_CFG_NOTIFY        0x12
+#define GATTC_CFG_INDICATE        0x13
+struct gattc_cfg_notify_cmd {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t enable;
+	uint16_t ccc_handle;
+} __packed;
+
+/* events */
+#define GATTC_EV_MTU_EXCHANGED    0x80
+struct gattc_exchange_mtu_ev {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint16_t mtu;
+} __packed;
+
+#define GATTC_DISC_ALL_PRIM_RP    0x81
+struct gattc_disc_prim_svcs_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint8_t services_count;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_DISC_PRIM_UUID_RP    0x82
+
+#define GATTC_FIND_INCLUDED_RP    0x83
+struct gattc_find_included_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint8_t services_count;
+	struct gatt_included included[0];
+} __packed;
+
+#define GATTC_DISC_ALL_CHRC_RP    0x84
+#define GATTC_DISC_CHRC_UUID_RP    0x85
+struct gattc_disc_chrc_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint8_t characteristics_count;
+	struct gatt_characteristic characteristics[0];
+} __packed;
+
+#define GATTC_DISC_ALL_DESC_RP    0x86
+struct gattc_disc_all_desc_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint8_t descriptors_count;
+	struct gatt_descriptor descriptors[0];
+} __packed;
+
+#define GATTC_READ_RP            0x87
+#define GATTC_READ_UUID_RP        0x88
+#define GATTC_READ_LONG_RP        0x89
+#define GATTC_READ_MULTIPLE_RP    0x8a
+struct gattc_read_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
+
+#define GATTC_WRITE_RP            0x8b
+struct gattc_write_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+} __packed;
+#define GATTC_WRITE_LONG_RP        0x8c
+#define GATTC_RELIABLE_WRITE_RP    0x8d
+#define GATTC_RELIABLE_WRITE_RP    0x8d
+#define GATTC_CFG_NOTIFY_RP        0x8e
+#define GATTC_CFG_INDICATE_RP    0x8f
+struct subscribe_rp {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t status;
+} __packed;
+
+#define GATTC_EV_NOTIFICATION_RXED        0x90
+struct gattc_notification_ev {
+	uint8_t address_type;
+	uint8_t address[6];
+	uint8_t type;
+	uint16_t handle;
+	uint16_t data_length;
+	uint8_t data[0];
+} __packed;
 
 #endif /* __BTTESTER_H__ */
