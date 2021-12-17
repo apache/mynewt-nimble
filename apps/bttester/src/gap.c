@@ -1155,7 +1155,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
 		print_mbuf(event->notify_rx.om);
 		console_printf("\n");
-		tester_gatt_notify_rx_ev(event->notify_rx.conn_handle,
+		tester_gattc_notify_rx_ev(event->notify_rx.conn_handle,
 					 event->notify_rx.attr_handle,
 					 event->notify_rx.indication,
 					 event->notify_rx.om);
