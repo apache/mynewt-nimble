@@ -32,4 +32,4 @@ syscfg.vals:
     BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY: 150
 
     # NOTE: set public address in target settings
-    # BLE_PUBLIC_DEV_ADDR: "(uint8_t[6]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff}"
+    # BLE_LL_PUBLIC_DEV_ADDR: 0xffffffffffff

@@ -707,10 +707,9 @@ static int check_pub_addr_unassigned(void)
 #ifdef ARCH_sim
 	return 0;
 #else
-	uint8_t zero_addr[BLE_DEV_ADDR_LEN] = { 0 };
+	uint8_t addr[BLE_DEV_ADDR_LEN];
 
-	return memcmp(MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
-		      zero_addr, BLE_DEV_ADDR_LEN) == 0;
+	return ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr, NULL) != 0;
 #endif
 }
 
