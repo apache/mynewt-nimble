@@ -34,6 +34,8 @@
 #include "controller/ble_ll_adv.h"
 #include "ble_ll_conn_priv.h"
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+
 /*
  * Used to limit the rate at which we send the number of completed packets
  * event to the host. This is the os time at which we can send an event.
@@ -158,7 +160,9 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             enh_ev->peer_addr_type = connsm->peer_addr_type;
             memcpy(enh_ev->peer_addr, connsm->peer_addr, BLE_DEV_ADDR_LEN);
 
-            if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+            switch (connsm->conn_role) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+            case BLE_LL_CONN_ROLE_MASTER:
                 if (connsm->inita_identity_used) {
                     /* We used identity address in CONNECT_IND which can be just
                      * fine if
@@ -173,8 +177,16 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
                 } else {
                     rpa = NULL;
                 }
-            } else {
+                break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+            case BLE_LL_CONN_ROLE_SLAVE:
                 rpa = ble_ll_adv_get_local_rpa(advsm);
+                break;
+#endif
+            default:
+                BLE_LL_ASSERT(0);
+                break;
             }
 
             if (rpa) {
@@ -189,20 +201,33 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
 #endif
 
              if (enh_ev->peer_addr_type > BLE_HCI_CONN_PEER_ADDR_RANDOM) {
-                 if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
+                 switch (connsm->conn_role) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+                 case BLE_LL_CONN_ROLE_MASTER:
                      rpa = ble_ll_scan_get_peer_rpa();
-                 } else {
+                     break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+                 case BLE_LL_CONN_ROLE_SLAVE:
                      rpa = ble_ll_adv_get_peer_rpa(advsm);
+                 break;
+#endif
+                 default:
+                     BLE_LL_ASSERT(0);
+                     break;
                  }
+
                  memcpy(enh_ev->peer_rpa, rpa, BLE_DEV_ADDR_LEN);
              }
 
             enh_ev->conn_itvl = htole16(connsm->conn_itvl);
             enh_ev->conn_latency = htole16(connsm->slave_latency);
             enh_ev->supervision_timeout = htole16(connsm->supervision_tmo);
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 enh_ev->mca = connsm->master_sca;
             }
+#endif
         }
 
         ble_ll_hci_event_send(hci_ev);
@@ -227,9 +252,11 @@ ble_ll_conn_comp_event_send(struct ble_ll_conn_sm *connsm, uint8_t status,
             ev->conn_itvl = htole16(connsm->conn_itvl);
             ev->conn_latency = htole16(connsm->slave_latency);
             ev->supervision_timeout = htole16(connsm->supervision_tmo);
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
                 ev->mca = connsm->master_sca;
             }
+#endif
         }
 
         ble_ll_hci_event_send(hci_ev);
@@ -826,10 +853,12 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
      */
     if (!connsm->csmflags.cfbit.rxd_features &&
                 !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         if ((connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) &&
             !(ble_ll_read_supp_features() & BLE_LL_FEAT_SLAVE_INIT)) {
                 return BLE_ERR_CMD_DISALLOWED;
         }
+#endif
 
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
     }
@@ -880,9 +909,11 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
 
     /* See if this feature is supported on both sides */
     if ((connsm->conn_features & BLE_LL_FEAT_CONN_PARM_REQ) == 0) {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             return BLE_ERR_UNSUPP_REM_FEATURE;
         }
+#endif
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
     } else {
         ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
@@ -895,14 +926,24 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * slave.
      */
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
-            return BLE_ERR_LMP_COLLISION;
-        } else {
+        switch (connsm->conn_role) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+        case BLE_LL_CONN_ROLE_MASTER:
             connsm->csmflags.cfbit.awaiting_host_reply = 0;
 
             /* XXX: If this fails no reject ind will be sent! */
             ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
                                         BLE_ERR_LMP_COLLISION);
+            break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+        case BLE_LL_CONN_ROLE_SLAVE:
+            return BLE_ERR_LMP_COLLISION;
+        break;
+#endif
+        default:
+            BLE_LL_ASSERT(0);
+            break;
         }
     }
 
@@ -910,11 +951,13 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * If we are a slave and the master has initiated the channel map
      * update procedure we should deny the slave request for now.
      */
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
             return BLE_ERR_DIFF_TRANS_COLL;
         }
     }
+#endif
 
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
@@ -1301,6 +1344,7 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
     *rsplen = sizeof(*rsp);
     return rc;
 }
+#endif
 
 /**
  * Called when the host issues the LE command "set host channel classification"
@@ -1333,6 +1377,8 @@ ble_ll_conn_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t len)
     ble_ll_conn_set_global_chanmap(num_used_chans, cmd->chan_map);
     return BLE_ERR_SUCCESS;
 }
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
 int
@@ -1421,8 +1467,10 @@ ble_ll_conn_hci_le_start_encrypt(const uint8_t *cmdbuf, uint8_t len)
     connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     } else if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         rc = BLE_ERR_UNSPECIFIED;
+#endif
     } else if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT) {
         /*
          * The specification does not say what to do here but the host should
@@ -1475,11 +1523,13 @@ ble_ll_conn_hci_le_ltk_reply(const uint8_t *cmdbuf, uint8_t len,
         goto ltk_key_cmd_complete;
     }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Should never get this if we are a master! */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         rc = BLE_ERR_UNSPECIFIED;
         goto ltk_key_cmd_complete;
     }
+#endif
 
     /* The connection should be awaiting a reply. If not, just discard */
     if (connsm->enc_data.enc_state != CONN_ENC_S_LTK_REQ_WAIT) {
@@ -1532,11 +1582,13 @@ ble_ll_conn_hci_le_ltk_neg_reply(const uint8_t *cmdbuf, uint8_t len,
         goto ltk_key_cmd_complete;
     }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Should never get this if we are a master! */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_MASTER) {
         rc = BLE_ERR_UNSPECIFIED;
         goto ltk_key_cmd_complete;
     }
+#endif
 
     /* The connection should be awaiting a reply. If not, just discard */
     if (connsm->enc_data.enc_state != CONN_ENC_S_LTK_REQ_WAIT) {
@@ -1915,4 +1967,5 @@ ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len)
 
     return BLE_ERR_SUCCESS;
 }
+#endif
 #endif

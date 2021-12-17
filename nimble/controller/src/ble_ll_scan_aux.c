@@ -19,7 +19,7 @@
 
 #include <syscfg/syscfg.h>
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -670,9 +670,11 @@ ble_ll_scan_aux_break_ev(struct ble_npl_event *ev)
 void
 ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
 {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
         ble_ll_conn_send_connect_req_cancel();
     }
+#endif
 
     ble_npl_event_init(&aux->break_ev, ble_ll_scan_aux_break_ev, aux);
     ble_ll_event_send(&aux->break_ev);
@@ -1069,9 +1071,11 @@ ble_ll_scan_aux_rx_isr_end_on_ext(struct ble_ll_scan_sm *scansm,
         aux->adi = adi;
         aux->flags |= BLE_LL_SCAN_AUX_F_HAS_ADI;
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         if (aux->scan_type == BLE_SCAN_TYPE_INITIATE) {
             aux->flags |= BLE_LL_SCAN_AUX_F_CONNECTABLE;
         }
+#endif
 
         if (do_match) {
             aux->flags |= BLE_LL_SCAN_AUX_F_MATCHED;
@@ -1304,6 +1308,7 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto done;
     }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if ((aux->scan_type == BLE_SCAN_TYPE_INITIATE) &&
         !(scan_filt_policy & 0x01)) {
         rc = ble_ll_scan_rx_check_init(&addrd);
@@ -1312,6 +1317,7 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             goto done;
         }
     }
+#endif
 
     aux->flags |= BLE_LL_SCAN_AUX_F_MATCHED;
 
@@ -1330,6 +1336,7 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
             return 0;
         }
         break;
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_SCAN_TYPE_INITIATE:
         if (ble_ll_conn_send_connect_req(rxpdu, &addrd, 1) == 0) {
             /* AUX_CONNECT_REQ sent, keep PHY enabled to continue */
@@ -1340,6 +1347,9 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         } else {
             rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
         }
+        break;
+#endif
+    default:
         break;
     }
 
@@ -1456,7 +1466,7 @@ ble_ll_scan_aux_sync_check(struct os_mbuf *rxpdu,
 }
 #endif
 
-
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 static int
 ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
                                   struct ble_ll_scan_pdu_data *pdu_data,
@@ -1586,6 +1596,7 @@ done:
     }
     ble_ll_scan_aux_free(aux);
 }
+#endif
 
 void
 ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
@@ -1604,10 +1615,12 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
 
     BLE_LL_ASSERT(aux);
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (aux->scan_type == BLE_SCAN_TYPE_INITIATE) {
         ble_ll_scan_aux_rx_pkt_in_for_initiator(rxpdu, rxhdr);
         return;
     }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     sync_check = ble_ll_sync_enabled() &&

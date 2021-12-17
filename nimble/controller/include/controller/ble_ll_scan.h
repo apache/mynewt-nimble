@@ -152,14 +152,18 @@ struct ble_ll_scan_sm
     struct ble_ll_scan_phy *scanp_next;
     struct ble_ll_scan_phy scan_phys[BLE_LL_SCAN_PHY_NUMBER];
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Connection sm for initiator scan */
     struct ble_ll_conn_sm *connsm;
+#endif
 };
 
 /* Scan types */
 #define BLE_SCAN_TYPE_PASSIVE   (BLE_HCI_SCAN_TYPE_PASSIVE)
 #define BLE_SCAN_TYPE_ACTIVE    (BLE_HCI_SCAN_TYPE_ACTIVE)
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define BLE_SCAN_TYPE_INITIATE  (2)
+#endif
 
 /*---- HCI ----*/
 /* Set scanning parameters */
@@ -219,7 +223,11 @@ uint8_t *ble_ll_scan_get_local_rpa(void);
 void ble_ll_scan_sm_stop(int chk_disable);
 
 /* Resume scanning */
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 void ble_ll_scan_chk_resume(void);
+#else
+static inline void ble_ll_scan_chk_resume(void) { };
+#endif
 
 /* Called when wait for response timer expires in scanning mode */
 void ble_ll_scan_wfr_timer_exp(void);

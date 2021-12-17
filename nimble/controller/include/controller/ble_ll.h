@@ -108,11 +108,13 @@ struct ble_ll_obj
     /* Current Link Layer state */
     uint8_t ll_state;
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Number of ACL data packets supported */
     uint8_t ll_num_acl_pkts;
 
     /* ACL data packet size */
     uint16_t ll_acl_pkt_size;
+#endif
 
     /* Preferred PHY's */
     uint8_t ll_pref_tx_phys;
@@ -129,14 +131,18 @@ struct ble_ll_obj
     struct ble_ll_pkt_q ll_rx_pkt_q;
 
     /* Packet transmit queue */
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     struct ble_npl_event ll_tx_pkt_ev;
+#endif
     struct ble_ll_pkt_q ll_tx_pkt_q;
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Data buffer overflow event */
     struct ble_npl_event ll_dbuf_overflow_ev;
 
     /* Number of completed packets event */
     struct ble_npl_event ll_comp_pkt_ev;
+#endif
 
     /* HW error callout */
     struct ble_npl_callout ll_hw_err_timer;
@@ -214,12 +220,24 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
 /* States */
 #define BLE_LL_STATE_STANDBY        (0)
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
 #define BLE_LL_STATE_ADV            (1)
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 #define BLE_LL_STATE_SCANNING       (2)
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define BLE_LL_STATE_CONNECTION     (4)
+#endif
+#if MYNEWT_VAL(BLE_LL_DTM)
 #define BLE_LL_STATE_DTM            (5)
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 #define BLE_LL_STATE_SYNC           (6)
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_LL_STATE_SCAN_AUX       (7)
+#endif
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION    (0x0000000001)

@@ -23,6 +23,30 @@ syscfg.defs:
             this setting shall not be overriden.
         value: 1
 
+    BLE_LL_ROLE_CENTRAL:
+        description: 'Enables controller support for the Central role.'
+        value: MYNEWT_VAL(BLE_ROLE_CENTRAL)
+        restrictions:
+            - 'BLE_LL_ROLE_OBSERVER if 1'
+
+    BLE_LL_ROLE_PERIPHERAL:
+        description: 'Enables controller support for the Peripheral role.'
+        value: MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+        restrictions:
+            - 'BLE_LL_ROLE_BROADCASTER if 1'
+
+    BLE_LL_ROLE_BROADCASTER:
+        description: 'Enables controller support for the Broadcaster role.'
+        value: MYNEWT_VAL(BLE_ROLE_BROADCASTER)
+        restrictions:
+            - 'BLE_LL_ROLE_OBSERVER if 0'
+
+    BLE_LL_ROLE_OBSERVER:
+        description: 'Enables controller support for the Observer role.'
+        value: MYNEWT_VAL(BLE_ROLE_OBSERVER)
+        restrictions:
+            - 'BLE_LL_ROLE_BROADCASTER if 0'
+
     BLE_HW_WHITELIST_ENABLE:
         description: >
             Used to enable hardware white list
@@ -184,21 +208,21 @@ syscfg.defs:
         description: >
             This option enables/disables encryption support in the controller.
             This option saves both both code and RAM.
-        value: '1'
+        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
 
     BLE_LL_CFG_FEAT_CONN_PARAM_REQ:
         description: >
             This option enables/disables the connection parameter request
             procedure.  This is implemented in the controller but is disabled
             by default.
-        value: '1'
+        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
 
     BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
         description: >
             This option allows a slave to initiate the feature exchange
             procedure.  This feature is implemented but currently has no impact
             on code or ram size
-        value: '1'
+        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
 
     BLE_LL_CFG_FEAT_LE_PING:
         description: >
@@ -213,7 +237,7 @@ syscfg.defs:
             the controller. If enabled, the controller is allowed to change the
             size of tx/rx pdu's used in a connection. This option has only
             minor impact on code size and non on RAM.
-        value: '1'
+        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
 
     BLE_LL_CFG_FEAT_LL_PRIVACY:
         description: >
@@ -248,8 +272,6 @@ syscfg.defs:
             This option is used to enable/disable support for Periodic
             Advertising Feature.
         value: MYNEWT_VAL(BLE_PERIODIC_ADV)
-        restrictions:
-            - 'BLE_LL_CFG_FEAT_LL_EXT_ADV if 1'
 
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT:
         description: >
@@ -273,6 +295,8 @@ syscfg.defs:
             limit number of ACL packets sent at once from controller to avoid
             congestion on HCI transport if feature is also supported by host.
         value: 0
+        restrictions:
+            - '(BLE_ROLE_CENTRAL || BLE_ROLE_PERIPHERAL) if 1'
 
     BLE_LL_CFG_FEAT_LL_SCA_UPDATE:
         description: >

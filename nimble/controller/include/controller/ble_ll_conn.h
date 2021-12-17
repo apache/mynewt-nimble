@@ -34,8 +34,13 @@ extern "C" {
 
 /* Roles */
 #define BLE_LL_CONN_ROLE_NONE           (0)
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define BLE_LL_CONN_ROLE_MASTER         (1)
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 #define BLE_LL_CONN_ROLE_SLAVE          (2)
+#endif
 
 /* Connection states */
 #define BLE_LL_CONN_STATE_IDLE          (0)
@@ -370,8 +375,17 @@ struct ble_ll_conn_sm
 #define CONN_F_AUX_CONN_REQ(csm)  ((csm)->csmflags.cfbit.aux_conn_req)
 
 /* Role */
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
+#else
+#define CONN_IS_MASTER(csm)         (false)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
 #define CONN_IS_SLAVE(csm)          (csm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
+#else
+#define CONN_IS_SLAVE(csm)          (false)
+#endif
 
 /*
  * Given a handle, returns an active connection state machine (or NULL if the

@@ -41,7 +41,7 @@
 
 #include "stats/stats.h"
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 
 /* defines number of events that can be lost during sync establishment
  * before failed to be established error is reported

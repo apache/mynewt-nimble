@@ -43,6 +43,8 @@
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
 
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+
 /*
  * XXX:
  * 1) I think I can guarantee that we dont process things out of order if
@@ -879,7 +881,9 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     OS_ENTER_CRITICAL(sr);
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     scansm->connsm = NULL;
+#endif
 
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
@@ -1087,12 +1091,20 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
      */
     start_scan = inside_window;
     switch (ble_ll_state_get()) {
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     case BLE_LL_STATE_ADV:
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_STATE_CONNECTION:
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     case BLE_LL_STATE_SYNC:
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_LL_STATE_SCAN_AUX:
          start_scan = false;
          break;
+#endif
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
@@ -1184,6 +1196,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
         }
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_SCAN_TYPE_INITIATE:
         if ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
             (pdu_type == BLE_ADV_PDU_TYPE_ADV_DIRECT_IND)) {
@@ -1197,6 +1210,7 @@ ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
         }
 #endif
         break;
+#endif
     default:
         break;
     }
@@ -1342,6 +1356,7 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 int
 ble_ll_scan_rx_check_init(struct ble_ll_scan_addr_data *addrd)
 {
@@ -1364,6 +1379,7 @@ ble_ll_scan_rx_check_init(struct ble_ll_scan_addr_data *addrd)
 
     return 0;
 }
+#endif
 
 static int
 ble_ll_scan_rx_isr_end_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
@@ -1388,6 +1404,7 @@ ble_ll_scan_rx_isr_end_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
         return 0;
     }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if ((scanp->scan_type == BLE_SCAN_TYPE_INITIATE) &&
         !(scansm->scan_filt_policy & 0x01)) {
         rc = ble_ll_scan_rx_check_init(addrd);
@@ -1395,6 +1412,7 @@ ble_ll_scan_rx_isr_end_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
             return 0;
         }
     }
+#endif
 
     rxinfo->flags |= BLE_MBUF_HDR_F_DEVMATCH;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -1415,10 +1433,19 @@ ble_ll_scan_rx_isr_end_on_adv(uint8_t pdu_type, uint8_t *rxbuf,
     /* Allow responding to all PDUs when initiating since unwanted PDUs were
      * already filtered out in isr_start.
      */
-    return ((scanp->scan_type == BLE_SCAN_TYPE_ACTIVE) &&
-           ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
-            (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND))) ||
-            (scanp->scan_type == BLE_SCAN_TYPE_INITIATE);
+    if ((scanp->scan_type == BLE_SCAN_TYPE_ACTIVE) &&
+            ((pdu_type == BLE_ADV_PDU_TYPE_ADV_IND) ||
+             (pdu_type == BLE_ADV_PDU_TYPE_ADV_SCAN_IND))) {
+        return 1;
+    }
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (scanp->scan_type == BLE_SCAN_TYPE_INITIATE) {
+        return 1;
+    }
+#endif
+
+    return 0;
 }
 
 static int
@@ -1599,12 +1626,14 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
                 return 0;
             }
             break;
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_SCAN_TYPE_INITIATE:
             if (ble_ll_conn_send_connect_req(rxpdu, &addrd, 0) == 0) {
                 hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONNECT_IND_TXD;
                 return 0;
             }
             break;
+#endif
         }
     }
 
@@ -1924,14 +1953,15 @@ ble_ll_scan_rx_pkt_in_on_legacy(uint8_t pdu_type, struct os_mbuf *om,
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hdr)
 {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     struct ble_mbuf_hdr_rxinfo *rxinfo;
+    uint8_t *targeta;
+#endif
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_addr_data addrd;
-    uint8_t *targeta;
     uint8_t max_pdu_type;
 
     scansm = &g_ble_ll_scan_sm;
-    rxinfo = &hdr->rxinfo;
 
     /* Ignore PDUs we do not expect here */
     max_pdu_type = BLE_ADV_PDU_TYPE_ADV_SCAN_IND;
@@ -1954,7 +1984,10 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     }
 #endif
 
-    if (scansm->scanp->scan_type == BLE_SCAN_TYPE_INITIATE) {
+    switch (scansm->scanp->scan_type) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_SCAN_TYPE_INITIATE:
+        rxinfo = &hdr->rxinfo;
         if (rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_IND_TXD) {
             /* We need to keep original TargetA in case it was resolved, so rl
              * can be updated properly.
@@ -1967,8 +2000,11 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
             ble_ll_conn_created_on_legacy(om, &addrd, targeta);
             return;
         }
-    } else {
+        break;
+#endif
+    default:
         ble_ll_scan_rx_pkt_in_on_legacy(ptype, om, hdr, &addrd);
+        break;
     }
 
     ble_ll_scan_chk_resume();
@@ -2290,6 +2326,7 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
     /* if already enable we just need to update parameters */
     if (scansm->scan_enabled) {
         /* Controller does not allow initiating and scanning.*/
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
             scanp_phy = &scansm->scan_phys[i];
             if (scanp_phy->configured &&
@@ -2297,6 +2334,7 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
                 return BLE_ERR_CMD_DISALLOWED;
             }
         }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
         /* update filter policy */
@@ -2426,6 +2464,7 @@ ble_ll_scan_can_chg_whitelist(void)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 int
 ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
                             struct ble_ll_conn_create_scan *cc_scan)
@@ -2504,6 +2543,7 @@ ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
 
     return rc;
 }
+#endif
 
 /**
  * Checks to see if the scanner is enabled.
@@ -2679,3 +2719,5 @@ ble_ll_scan_init(void)
     ble_ll_scan_aux_init();
 #endif
 }
+
+#endif
