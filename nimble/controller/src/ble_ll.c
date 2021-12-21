@@ -65,48 +65,171 @@
  */
 
 /* Supported states */
-#define BLE_LL_S_NCA                    (0x00000000001)
-#define BLE_LL_S_SA                     (0x00000000002)
-#define BLE_LL_S_CA                     (0x00000000004)
-#define BLE_LL_S_HDCA                   (0x00000000008)
-#define BLE_LL_S_PS                     (0x00000000010)
-#define BLE_LL_S_AS                     (0x00000000020)
-#define BLE_LL_S_INIT                   (0x00000000040)
-#define BLE_LL_S_SLAVE                  (0x00000000080)
-#define BLE_LL_S_NCA_PS                 (0x00000000100)
-#define BLE_LL_S_SA_PS                  (0x00000000200)
-#define BLE_LL_S_CA_PS                  (0x00000000400)
-#define BLE_LL_S_HDCA_PS                (0x00000000800)
-#define BLE_LL_S_NCA_AS                 (0x00000001000)
-#define BLE_LL_S_SA_AS                  (0x00000002000)
-#define BLE_LL_S_CA_AS                  (0x00000004000)
-#define BLE_LL_S_HDCA_AS                (0x00000008000)
-#define BLE_LL_S_NCA_INIT               (0x00000010000)
-#define BLE_LL_S_SA_INIT                (0x00000020000)
-#define BLE_LL_S_NCA_MASTER             (0x00000040000)
-#define BLE_LL_S_SA_MASTER              (0x00000080000)
-#define BLE_LL_S_NCA_SLAVE              (0x00000100000)
-#define BLE_LL_S_SA_SLAVE               (0x00000200000)
-#define BLE_LL_S_PS_INIT                (0x00000400000)
-#define BLE_LL_S_AS_INIT                (0x00000800000)
-#define BLE_LL_S_PS_MASTER              (0x00001000000)
-#define BLE_LL_S_AS_MASTER              (0x00002000000)
-#define BLE_LL_S_PS_SLAVE               (0x00004000000)
-#define BLE_LL_S_AS_SLAVE               (0x00008000000)
-#define BLE_LL_S_INIT_MASTER            (0x00010000000)
-#define BLE_LL_S_LDCA                   (0x00020000000)
-#define BLE_LL_S_LDCA_PS                (0x00040000000)
-#define BLE_LL_S_LDCA_AS                (0x00080000000)
-#define BLE_LL_S_CA_INIT                (0x00100000000)
-#define BLE_LL_S_HDCA_INIT              (0x00200000000)
-#define BLE_LL_S_LDCA_INIT              (0x00400000000)
-#define BLE_LL_S_CA_MASTER              (0x00800000000)
-#define BLE_LL_S_HDCA_MASTER            (0x01000000000)
-#define BLE_LL_S_LDCA_MASTER            (0x02000000000)
-#define BLE_LL_S_CA_SLAVE               (0x04000000000)
-#define BLE_LL_S_HDCA_SLAVE             (0x08000000000)
-#define BLE_LL_S_LDCA_SLAVE             (0x10000000000)
-#define BLE_LL_S_INIT_SLAVE             (0x20000000000)
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+#define BLE_LL_S_NCA                    ((uint64_t)1 << 0)
+#define BLE_LL_S_SA                     ((uint64_t)1 << 1)
+#else
+#define BLE_LL_S_NCA                    ((uint64_t)0 << 0)
+#define BLE_LL_S_SA                     ((uint64_t)0 << 1)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_CA                     ((uint64_t)1 << 2)
+#define BLE_LL_S_HDCA                   ((uint64_t)1 << 3)
+#else
+#define BLE_LL_S_CA                     ((uint64_t)0 << 2)
+#define BLE_LL_S_HDCA                   ((uint64_t)0 << 3)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_PS                     ((uint64_t)1 << 4)
+#define BLE_LL_S_AS                     ((uint64_t)1 << 5)
+#else
+#define BLE_LL_S_PS                     ((uint64_t)0 << 4)
+#define BLE_LL_S_AS                     ((uint64_t)0 << 5)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_INIT                   ((uint64_t)1 << 6)
+#else
+#define BLE_LL_S_INIT                   ((uint64_t)0 << 6)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_SLAVE                  ((uint64_t)1 << 7)
+#else
+#define BLE_LL_S_SLAVE                  ((uint64_t)0 << 7)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_NCA_PS                 ((uint64_t)1 << 8)
+#define BLE_LL_S_SA_PS                  ((uint64_t)1 << 9)
+#else
+#define BLE_LL_S_NCA_PS                 ((uint64_t)0 << 8)
+#define BLE_LL_S_SA_PS                  ((uint64_t)0 << 9)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_CA_PS                  ((uint64_t)1 << 10)
+#define BLE_LL_S_HDCA_PS                ((uint64_t)1 << 11)
+#else
+#define BLE_LL_S_CA_PS                  ((uint64_t)0 << 10)
+#define BLE_LL_S_HDCA_PS                ((uint64_t)0 << 11)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_NCA_AS                 ((uint64_t)1 << 12)
+#define BLE_LL_S_SA_AS                  ((uint64_t)1 << 13)
+#else
+#define BLE_LL_S_NCA_AS                 ((uint64_t)0 << 12)
+#define BLE_LL_S_SA_AS                  ((uint64_t)0 << 13)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_CA_AS                  ((uint64_t)1 << 14)
+#define BLE_LL_S_HDCA_AS                ((uint64_t)1 << 15)
+#else
+#define BLE_LL_S_CA_AS                  ((uint64_t)0 << 14)
+#define BLE_LL_S_HDCA_AS                ((uint64_t)0 << 15)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_NCA_INIT               ((uint64_t)1 << 16)
+#define BLE_LL_S_SA_INIT                ((uint64_t)1 << 17)
+#define BLE_LL_S_NCA_MASTER             ((uint64_t)1 << 18)
+#define BLE_LL_S_SA_MASTER              ((uint64_t)1 << 19)
+#else
+#define BLE_LL_S_NCA_INIT               ((uint64_t)0 << 16)
+#define BLE_LL_S_SA_INIT                ((uint64_t)0 << 17)
+#define BLE_LL_S_NCA_MASTER             ((uint64_t)0 << 18)
+#define BLE_LL_S_SA_MASTER              ((uint64_t)0 << 19)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_NCA_SLAVE              ((uint64_t)1 << 20)
+#define BLE_LL_S_SA_SLAVE               ((uint64_t)1 << 21)
+#else
+#define BLE_LL_S_NCA_SLAVE              ((uint64_t)0 << 20)
+#define BLE_LL_S_SA_SLAVE               ((uint64_t)0 << 21)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+/* We do not support passive scanning while initiating yet */
+#define BLE_LL_S_PS_INIT                ((uint64_t)0 << 22)
+/* We do not support active scanning while initiating yet */
+#define BLE_LL_S_AS_INIT                ((uint64_t)0 << 23)
+#define BLE_LL_S_PS_MASTER              ((uint64_t)1 << 24)
+#define BLE_LL_S_AS_MASTER              ((uint64_t)1 << 25)
+#else
+#define BLE_LL_S_PS_INIT                ((uint64_t)0 << 22)
+#define BLE_LL_S_AS_INIT                ((uint64_t)0 << 23)
+#define BLE_LL_S_PS_MASTER              ((uint64_t)0 << 24)
+#define BLE_LL_S_AS_MASTER              ((uint64_t)0 << 25)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_PS_SLAVE               ((uint64_t)1 << 26)
+#define BLE_LL_S_AS_SLAVE               ((uint64_t)1 << 27)
+#else
+#define BLE_LL_S_PS_SLAVE               ((uint64_t)0 << 26)
+#define BLE_LL_S_AS_SLAVE               ((uint64_t)0 << 27)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_INIT_MASTER            ((uint64_t)1 << 28)
+#else
+#define BLE_LL_S_INIT_MASTER            ((uint64_t)0 << 28)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_LDCA                   ((uint64_t)1 << 29)
+#else
+#define BLE_LL_S_LDCA                   ((uint64_t)0 << 29)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+#define BLE_LL_S_LDCA_PS                ((uint64_t)1 << 30)
+#define BLE_LL_S_LDCA_AS                ((uint64_t)1 << 31)
+#else
+#define BLE_LL_S_LDCA_PS                ((uint64_t)0 << 30)
+#define BLE_LL_S_LDCA_AS                ((uint64_t)0 << 31)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_CA_INIT                ((uint64_t)1 << 32)
+#define BLE_LL_S_HDCA_INIT              ((uint64_t)1 << 33)
+#define BLE_LL_S_LDCA_INIT              ((uint64_t)1 << 34)
+#else
+#define BLE_LL_S_CA_INIT                ((uint64_t)0 << 32)
+#define BLE_LL_S_HDCA_INIT              ((uint64_t)0 << 33)
+#define BLE_LL_S_LDCA_INIT              ((uint64_t)0 << 34)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_CA_MASTER              ((uint64_t)1 << 35)
+#define BLE_LL_S_HDCA_MASTER            ((uint64_t)1 << 36)
+#define BLE_LL_S_LDCA_MASTER            ((uint64_t)1 << 37)
+#else
+#define BLE_LL_S_CA_MASTER              ((uint64_t)0 << 35)
+#define BLE_LL_S_HDCA_MASTER            ((uint64_t)0 << 36)
+#define BLE_LL_S_LDCA_MASTER            ((uint64_t)0 << 37)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+#define BLE_LL_S_CA_SLAVE               ((uint64_t)1 << 38)
+#define BLE_LL_S_HDCA_SLAVE             ((uint64_t)1 << 39)
+#define BLE_LL_S_LDCA_SLAVE             ((uint64_t)1 << 40)
+#else
+#define BLE_LL_S_CA_SLAVE               ((uint64_t)0 << 38)
+#define BLE_LL_S_HDCA_SLAVE             ((uint64_t)0 << 39)
+#define BLE_LL_S_LDCA_SLAVE             ((uint64_t)0 << 40)
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_LL_S_INIT_SLAVE             ((uint64_t)1 << 41)
+#else
+#define BLE_LL_S_INIT_SLAVE             ((uint64_t)0 << 41)
+#endif
 
 #define BLE_LL_SUPPORTED_STATES             \
 (                                           \
