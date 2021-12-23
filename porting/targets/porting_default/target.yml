@@ -17,5 +17,5 @@
 #
 
 target.app: "porting/targets/dummy_app"
-target.bsp: "porting/targets/dummy_bsp"
+target.bsp: "@apache-mynewt-core/hw/bsp/native"
 target.build_profile: "debug"
