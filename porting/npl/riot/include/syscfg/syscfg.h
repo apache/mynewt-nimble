@@ -15,81 +15,6 @@
 #define MYNEWT_VAL(_name)                       MYNEWT_VAL_ ## _name
 #define MYNEWT_VAL_CHOICE(_name, _val)          MYNEWT_VAL_ ## _name ## __ ## _val
 
-
-/*** Repository @apache-mynewt-core info */
-#ifndef MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_CORE
-#define MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_CORE ("49ac781dfadbeecfd03d60bcaac15617744783b7-dirty")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_CORE
-#define MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_CORE ("0.0.0")
-#endif
-
-/*** Repository @apache-mynewt-mcumgr info */
-#ifndef MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_MCUMGR
-#define MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_MCUMGR ("b03a5d43ef6640d4f8858f59140b256a0ee4e772-dirty")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_MCUMGR
-#define MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_MCUMGR ("0.0.0")
-#endif
-
-/*** Repository @apache-mynewt-nimble info */
-#ifndef MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_NIMBLE
-#define MYNEWT_VAL_REPO_HASH_APACHE_MYNEWT_NIMBLE ("846dda1f93c05aaf38281925b256fdbd5044492d-dirty")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_NIMBLE
-#define MYNEWT_VAL_REPO_VERSION_APACHE_MYNEWT_NIMBLE ("0.0.0")
-#endif
-
-/*** Repository @bsim info */
-#ifndef MYNEWT_VAL_REPO_HASH_BSIM
-#define MYNEWT_VAL_REPO_HASH_BSIM ("8c5297423a7602b2c0bf47c64c2ac22d55d646ac")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_BSIM
-#define MYNEWT_VAL_REPO_VERSION_BSIM ("0.0.0")
-#endif
-
-/*** Repository @mcuboot info */
-#ifndef MYNEWT_VAL_REPO_HASH_MCUBOOT
-#define MYNEWT_VAL_REPO_HASH_MCUBOOT ("d4c2d15c3ef524333abf7f1e5839265ad5055d96")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_MCUBOOT
-#define MYNEWT_VAL_REPO_VERSION_MCUBOOT ("0.0.0")
-#endif
-
-/*** Repository @mynewt_runtime info */
-#ifndef MYNEWT_VAL_REPO_HASH_MYNEWT_RUNTIME
-#define MYNEWT_VAL_REPO_HASH_MYNEWT_RUNTIME ("17c53cd08300587cb5b6e5647566799eff2de198")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_MYNEWT_RUNTIME
-#define MYNEWT_VAL_REPO_VERSION_MYNEWT_RUNTIME ("0.0.0")
-#endif
-
-/*** Repository @onsemi info */
-#ifndef MYNEWT_VAL_REPO_HASH_ONSEMI
-#define MYNEWT_VAL_REPO_HASH_ONSEMI ("a3bf406b581c1aba025b8fe9472a6d8628e94e53")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_ONSEMI
-#define MYNEWT_VAL_REPO_VERSION_ONSEMI ("0.0.0")
-#endif
-
-/*** Repository @tinyusb info */
-#ifndef MYNEWT_VAL_REPO_HASH_TINYUSB
-#define MYNEWT_VAL_REPO_HASH_TINYUSB ("aa1a5a11c7729548957e5d8baf1c18ba7a333d14")
-#endif
-
-#ifndef MYNEWT_VAL_REPO_VERSION_TINYUSB
-#define MYNEWT_VAL_REPO_VERSION_TINYUSB ("0.0.0")
-#endif
-
-
-
 /*** @apache-mynewt-core/compiler/arm-none-eabi-m4 */
 #ifndef MYNEWT_VAL_HARDFLOAT
 #define MYNEWT_VAL_HARDFLOAT (0)
@@ -945,7 +870,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_CONN_PARAM_REQ
-#define MYNEWT_VAL_BLE_LL_CFG_FEAT_CONN_PARAM_REQ (1)
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_CONN_PARAM_REQ (MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL
@@ -1024,7 +949,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
-#define MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG (1)
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG (MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
@@ -1090,10 +1015,6 @@
 #define MYNEWT_VAL_BLE_LL_HCI_VS_EVENT_ON_ASSERT (0)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_LL_HCI_VS_EVENT_STATS_ON_RESET
-#define MYNEWT_VAL_BLE_LL_HCI_VS_EVENT_STATS_ON_RESET (0)
-#endif
-
 #ifndef MYNEWT_VAL_BLE_LL_MASTER_SCA
 #define MYNEWT_VAL_BLE_LL_MASTER_SCA (4)
 #endif
@@ -1141,6 +1062,26 @@
 
 #ifndef MYNEWT_VAL_BLE_LL_RNG_BUFSIZE
 #define MYNEWT_VAL_BLE_LL_RNG_BUFSIZE (32)
+#endif
+
+/* Value copied from BLE_ROLE_BROADCASTER */
+#ifndef MYNEWT_VAL_BLE_LL_ROLE_BROADCASTER
+#define MYNEWT_VAL_BLE_LL_ROLE_BROADCASTER (1)
+#endif
+
+/* Value copied from BLE_ROLE_CENTRAL */
+#ifndef MYNEWT_VAL_BLE_LL_ROLE_CENTRAL
+#define MYNEWT_VAL_BLE_LL_ROLE_CENTRAL (1)
+#endif
+
+/* Value copied from BLE_ROLE_OBSERVER */
+#ifndef MYNEWT_VAL_BLE_LL_ROLE_OBSERVER
+#define MYNEWT_VAL_BLE_LL_ROLE_OBSERVER (1)
+#endif
+
+/* Value copied from BLE_ROLE_PERIPHERAL */
+#ifndef MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL
+#define MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL (1)
 #endif
 
 /* Value copied from BLE_LL_OUR_SCA */
