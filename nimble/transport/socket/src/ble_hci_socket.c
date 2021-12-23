@@ -333,7 +333,6 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
 static int
 ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 {
-    uint8_t btaddr[6];
     struct msghdr msg;
     struct iovec iov[8];
     int len;
