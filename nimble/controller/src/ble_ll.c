@@ -64,6 +64,8 @@
  * right thing to do.
  */
 
+int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+
 /* Supported states */
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
 #define BLE_LL_S_NCA                    ((uint64_t)1 << 0)
@@ -1390,7 +1392,7 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to 1mW (0 dBm) */
-    ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    ble_phy_txpwr_set(g_ble_ll_tx_power);
 
     /* Register callback for transport */
     ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
