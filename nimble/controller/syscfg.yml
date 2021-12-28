@@ -68,7 +68,9 @@ syscfg.defs:
         range: 0..500
 
     BLE_LL_TX_PWR_DBM:
-        description: 'Transmit power level.'
+        description: >
+            Default Transmit power level (in dBm). Actual transmit power
+            may be rounded up or down depending on used radio.
         value: '0'
 
     BLE_LL_NUM_COMP_PKT_ITVL_MS:

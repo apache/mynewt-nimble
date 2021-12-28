@@ -21,7 +21,12 @@
 #include "syscfg/syscfg.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
+#include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_scan.h"
 #include "controller/ble_hw.h"
+#include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
 
@@ -51,9 +56,89 @@ ble_ll_hci_vs_rd_static_addr(uint16_t ocf,
     return BLE_ERR_SUCCESS;
 }
 
+/* disallow changing TX power if there is any radio activity
+ * note: we could allow to change it if there is no TX activity (eg only
+ * passive scan or sync) but lets just keep this simple for now
+ */
+static int
+ble_ll_hci_vs_is_controller_busy(void)
+{
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    struct ble_ll_conn_sm *cur;
+    int i = 0;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_sync_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    if (ble_ll_adv_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_scan_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (g_ble_ll_conn_create_sm.connsm) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    STAILQ_FOREACH(cur, &g_ble_ll_conn_free_list, free_stqe) {
+        i++;
+    }
+
+    /* check if all connection objects are free */
+    if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
+        return 1;
+    }
+#endif
+
+    return 0;
+}
+
+static int
+ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
+                           uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_set_tx_pwr_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_vs_set_tx_pwr_rp *rsp = (void *) rspbuf;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_hci_vs_is_controller_busy()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (cmd->tx_power == 127) {
+        /* restore reset default */
+        g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    } else {
+        g_ble_ll_tx_power = ble_phy_txpower_round(cmd->tx_power);
+    }
+
+    rsp->tx_power = g_ble_ll_tx_power;
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
+}
+
 static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_RD_STATIC_ADDR,
                       ble_ll_hci_vs_rd_static_addr),
+    BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_TX_PWR,
+            ble_ll_hci_vs_set_tx_power),
 };
 
 static struct ble_ll_hci_vs_cmd *

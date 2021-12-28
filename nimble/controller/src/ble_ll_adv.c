@@ -41,6 +41,7 @@
 #include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_rfmgmt.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
 
@@ -1023,7 +1024,7 @@ ble_ll_adv_tx_done(void *arg)
     struct ble_ll_adv_sm *advsm;
 
     /* reset power to max after advertising */
-    ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    ble_phy_txpwr_set(g_ble_ll_tx_power);
 
     advsm = (struct ble_ll_adv_sm *)arg;
 
@@ -1687,7 +1688,7 @@ ble_ll_adv_halt(void)
 
         ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, advsm->adv_instance);
 
-        ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+        ble_phy_txpwr_set(g_ble_ll_tx_power);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING) {
@@ -2112,8 +2113,8 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 static void
 ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
 {
-    /* reset power to max after advertising */
-    ble_phy_txpwr_set(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    /* reset power to default after advertising */
+    ble_phy_txpwr_set(g_ble_ll_tx_power);
 
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
