@@ -237,7 +237,19 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
                 }
             } else {
                 preempt_first = NULL;
-                sch->start_time = entry->end_time;
+                /*
+                 * For the 32768 Hz crystal in nrf chip, 1 tick is 30.517us.
+                 * The connection state machine use anchor point to store the
+                 * cpu ticks and anchor_point_usec to store the remainder.
+                 * Therefore, to compensate the inaccuracy of the crystal, the
+                 * ticks of anchor_point will be add with 1 once the value of
+                 * anchor_point_usec exceed 31. If two connections have same
+                 * connection interval, the time difference between the two
+                 * start of schedule item will decreased 1, which lead to
+                 * an overlap. To prevent this from happenning, we set the
+                 * start_time of sch to 1 cpu tick after the end_time of entry.
+                 */
+                sch->start_time = entry->end_time + 1;
 
                 if ((max_delay == 0) || CPUTIME_GEQ(sch->start_time,
                                                     max_start_time)) {
