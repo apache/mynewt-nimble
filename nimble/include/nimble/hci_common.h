@@ -1061,7 +1061,7 @@ struct ble_hci_le_set_host_feat_cp {
     uint8_t val;
 } __attribute__((packed));
 
-/* --- Vendor specific commands (OGF 0x00FF) */
+/* --- Vendor specific commands (OGF 0x003F) */
 #define BLE_HCI_OCF_VS_RD_STATIC_ADDR                 (0x0001)
 struct ble_hci_vs_rd_static_addr_rp {
     uint8_t addr[6];
