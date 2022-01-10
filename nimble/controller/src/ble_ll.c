@@ -1136,7 +1136,7 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_conn_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
 #endif
-#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTERL)
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     case BLE_LL_STATE_ADV:
         rc = ble_ll_adv_rx_isr_start(pdu_type);
         break;
