@@ -29,6 +29,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_plna.h"
 #include "nrfx.h"
 #if MYNEWT
 #include "mcu/nrf52_clock.h"
@@ -49,9 +50,11 @@
  *       using PPI somewhere else.
  *
  * Pre-programmed channels: CH20, CH21, CH23, CH25, CH31
- * Regular channels: CH4, CH5 and optionally CH17, CH18, CH19
+ * Regular channels: CH4, CH5 and optionally CH6, CH7, CH17, CH18, CH19
  *  - CH4 = cancel wfr timer on address match
  *  - CH5 = disable radio on wfr timer expiry
+ *  - CH6 = PA/LNA control (enable)
+ *  - CH7 = PA/LNA control (disable)
  *  - CH17 = (optional) gpio debug for radio ramp-up
  *  - CH18 = (optional) gpio debug for wfr timer RX enabled
  *  - CH19 = (optional) gpio debug for wfr timer radio disabled
@@ -277,6 +280,27 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
+static int g_ble_phy_gpiote_idx;
+
+#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
+
+#define PLNA_SINGLE_GPIO \
+        (!MYNEWT_VAL(BLE_LL_PA) || !MYNEWT_VAL(BLE_LL_LNA) || \
+         (MYNEWT_VAL(BLE_LL_PA_GPIO) == MYNEWT_VAL(BLE_LL_LNA_GPIO)))
+
+#if PLNA_SINGLE_GPIO
+static uint8_t plna_idx;
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+static uint8_t plna_pa_idx;
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+static uint8_t plna_lna_idx;
+#endif
+#endif
+
+#endif
+
 static void
 ble_phy_apply_errata_102_106_107(void)
 {
@@ -399,6 +423,36 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
     g_ble_phy_data.phy_rx_phy_mode = rx_phy_mode;
 }
 #endif
+
+static void
+ble_phy_plna_enable_pa(void)
+{
+#if MYNEWT_VAL(BLE_LL_PA)
+    ble_ll_plna_pa_enable();
+
+#if !PLNA_SINGLE_GPIO
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_pa_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_pa_idx]);
+#endif
+
+    NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
+#endif
+}
+
+static void
+ble_phy_plna_enable_lna(void)
+{
+#if MYNEWT_VAL(BLE_LL_LNA)
+    ble_ll_plna_lna_enable();
+
+#if !PLNA_SINGLE_GPIO
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_lna_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_lna_idx]);
+#endif
+
+    NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
+#endif
+}
 
 int
 ble_phy_get_cur_phy(void)
@@ -925,6 +979,8 @@ ble_phy_tx_end_isr(void)
         NRF_TIMER0->CC[0] = rx_time;
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
+
+        ble_phy_plna_enable_lna();
     } else {
         /*
          * XXX: not sure we need to stop the timer here all the time. Or that
@@ -1052,6 +1108,8 @@ ble_phy_rx_end_isr(void)
     NRF_TIMER0->CC[0] = tx_time;
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
     NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
+
+    ble_phy_plna_enable_pa();
 
     /*
      * XXX: Hack warning!
@@ -1255,6 +1313,10 @@ ble_phy_isr(void)
 
         switch (g_ble_phy_data.phy_state) {
         case BLE_PHY_STATE_RX:
+#if MYNEWT_VAL(BLE_LL_LNA)
+            NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
+            ble_ll_plna_lna_disable();
+#endif
             if (g_ble_phy_data.phy_rx_started) {
                 ble_phy_rx_end_isr();
             } else {
@@ -1262,6 +1324,10 @@ ble_phy_isr(void)
             }
             break;
         case BLE_PHY_STATE_TX:
+#if MYNEWT_VAL(BLE_LL_PA)
+            NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
+            ble_ll_plna_pa_disable();
+#endif
             ble_phy_tx_end_isr();
             break;
         default:
@@ -1278,12 +1344,16 @@ ble_phy_isr(void)
 }
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-static inline void
-ble_phy_dbg_time_setup_gpiote(int index, int pin)
+    MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
+    MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0 || \
+    MYNEWT_VAL(BLE_LL_PA) || \
+    MYNEWT_VAL(BLE_LL_LNA)
+static int
+ble_phy_gpiote_configure(int pin)
 {
     NRF_GPIO_Type *port;
+
+    g_ble_phy_gpiote_idx--;
 
 #if NRF52840_XXAA
     port = pin > 31 ? NRF_P1 : NRF_P0;
@@ -1296,7 +1366,7 @@ ble_phy_dbg_time_setup_gpiote(int index, int pin)
     port->DIRSET = (1 << pin);
     port->OUTCLR = (1 << pin);
 
-    NRF_GPIOTE->CONFIG[index] =
+    NRF_GPIOTE->CONFIG[g_ble_phy_gpiote_idx] =
                         (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
                         ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
 #if NRF52840_XXAA
@@ -1304,13 +1374,17 @@ ble_phy_dbg_time_setup_gpiote(int index, int pin)
 #else
                         0;
 #endif
+
+    BLE_LL_ASSERT(g_ble_phy_gpiote_idx >= 0);
+
+    return g_ble_phy_gpiote_idx;
 }
 #endif
 
 static void
 ble_phy_dbg_time_setup(void)
 {
-    int gpiote_idx __attribute__((unused)) = 8;
+    int idx __attribute__((unused));
 
     /*
      * We setup GPIOTE starting from last configuration index to minimize risk
@@ -1319,44 +1393,41 @@ ble_phy_dbg_time_setup(void)
      */
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
-                              MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
 
     NRF_PPI->CH[17].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
-    NRF_PPI->CH[17].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CH[17].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[idx]);
     NRF_PPI->CHENSET = PPI_CHEN_CH17_Msk;
 
     /* CH[20] and PPI CH[21] are on to trigger TASKS_TXEN or TASKS_RXEN */
-    NRF_PPI->FORK[20].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
-    NRF_PPI->FORK[21].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->FORK[20].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[idx]);
+    NRF_PPI->FORK[21].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[idx]);
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
-                              MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
 
     /* CH[26] and CH[27] are always on for EVENT_ADDRESS and EVENT_END */
-    NRF_PPI->FORK[26].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
-    NRF_PPI->FORK[27].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->FORK[26].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[idx]);
+    NRF_PPI->FORK[27].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[idx]);
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
-                              MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
 
 #if NRF52840_XXAA
     NRF_PPI->CH[18].EEP = (uint32_t)&(NRF_RADIO->EVENTS_RXREADY);
 #else
     NRF_PPI->CH[18].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
 #endif
-    NRF_PPI->CH[18].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[gpiote_idx]);
+    NRF_PPI->CH[18].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[idx]);
     NRF_PPI->CH[19].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
-    NRF_PPI->CH[19].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->CH[19].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[idx]);
     NRF_PPI->CHENSET = PPI_CHEN_CH18_Msk | PPI_CHEN_CH19_Msk;
 
     /* CH[4] and CH[5] are always on for wfr */
-    NRF_PPI->FORK[4].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
-    NRF_PPI->FORK[5].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[gpiote_idx]);
+    NRF_PPI->FORK[4].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[idx]);
+    NRF_PPI->FORK[5].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[idx]);
 #endif
 }
 
@@ -1371,6 +1442,8 @@ int
 ble_phy_init(void)
 {
     int rc;
+
+    g_ble_phy_gpiote_idx = 8;
 
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
@@ -1454,6 +1527,27 @@ ble_phy_init(void)
     NRF_PPI->CH[4].TEP = (uint32_t)&(NRF_TIMER0->TASKS_CAPTURE[3]);
     NRF_PPI->CH[5].EEP = (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]);
     NRF_PPI->CH[5].TEP = (uint32_t)&(NRF_RADIO->TASKS_DISABLE);
+
+#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
+#if PLNA_SINGLE_GPIO
+    plna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_idx]);
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+    plna_pa_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
+    NRF_GPIOTE->TASKS_CLR[plna_pa_idx] = 1;
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+    plna_lna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_LNA_GPIO));
+    NRF_GPIOTE->TASKS_CLR[plna_lna_idx] = 1;
+#endif
+#endif
+
+    NRF_PPI->CH[6].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
+    NRF_PPI->CH[7].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
+    NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
+#endif
 
     /* Set isr in vector table and enable interrupt */
 #ifndef RIOT_VERSION
@@ -1617,7 +1711,10 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         /* Enable PPI to automatically start TXEN */
         NRF_PPI->CHENSET = PPI_CHEN_CH20_Msk;
         rc = 0;
+
+        ble_phy_plna_enable_pa();
     }
+
     return rc;
 }
 
@@ -1661,6 +1758,8 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /* Enable PPI to automatically start RXEN */
     NRF_PPI->CHENSET = PPI_CHEN_CH21_Msk;
+
+    ble_phy_plna_enable_lna();
 
     /* Start rx */
     rc = ble_phy_rx();
@@ -1959,6 +2058,7 @@ ble_phy_disable_irq_and_ppi(void)
     NRF_PPI->CHENCLR = PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk | PPI_CHEN_CH20_Msk |
           PPI_CHEN_CH21_Msk | PPI_CHEN_CH23_Msk |
           PPI_CHEN_CH25_Msk | PPI_CHEN_CH31_Msk;
+    NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
 }
