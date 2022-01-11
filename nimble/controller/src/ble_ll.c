@@ -44,6 +44,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_plna.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -1654,6 +1655,14 @@ ble_ll_reset(void)
     /* Reset resolving list */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_ll_resolv_list_reset();
+#endif
+
+
+#if MYNEWT_VAL(BLE_LL_PA)
+    ble_ll_plna_pa_init();
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+    ble_ll_plna_lna_init();
 #endif
 
     /* Re-initialize the PHY */

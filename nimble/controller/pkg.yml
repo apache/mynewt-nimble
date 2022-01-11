@@ -29,6 +29,10 @@ pkg.req_apis:
     - ble_driver
     - ble_transport
     - stats
+pkg.req_apis.BLE_LL_PA:
+    - ble_ll_pa
+pkg.req_apis.BLE_LL_LNA:
+    - ble_ll_lna
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"

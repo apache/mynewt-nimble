@@ -375,6 +375,23 @@ syscfg.defs:
             line number where assertion occured.
         value: 0
 
+    BLE_LL_PA:
+        description: Enable PA support
+        value: 0
+    BLE_LL_PA_GPIO:
+        description: >
+            GPIO pin number to control PA. Pin is set to high state when PA
+            should be enabled.
+        value: -1
+    BLE_LL_LNA:
+        description: Enable LNA support
+        value: 0
+    BLE_LL_LNA_GPIO:
+        description: >
+            GPIO pin number to control LNA. Pin is set to high state when LNA
+            should be enabled.
+        value: -1
+
     BLE_LL_SYSINIT_STAGE:
         description: >
             Sysinit stage for the NimBLE controller.
@@ -499,3 +516,5 @@ syscfg.vals.!BLE_HOST:
 syscfg.restrictions:
     - OS_CPUTIME_FREQ == 32768
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
+    - BLE_LL_PA == 0 || BLE_LL_PA_GPIO >= 0
+    - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0
