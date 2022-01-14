@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <syscfg/syscfg.h>
 #include <os/os.h>
+#include <bsp/bsp.h>
 #include <nimble/ble.h>
 #include <nimble/nimble_opt.h>
 #include <nimble/nimble_npl.h>
@@ -38,6 +39,8 @@
  * DPPI somewhere else.
  * TODO maybe we could reduce number of used channels if we reuse same channel
  * for mutually exclusive events but for now make it simpler to debug.
+ *
+ * Optionally channels 6,7,8 are used for GPIO DBG.
  */
 
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_0         0
@@ -81,6 +84,39 @@
                                                         ((_enable) << AAR_SUBSCRIBE_START_EN_Pos))
 #define DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(_enable)        ((DPPI_CH_RADIO_EVENTS_ADDRESS << CCM_SUBSCRIBE_CRYPT_CHIDX_Pos) | \
                                                         ((_enable) << CCM_SUBSCRIBE_CRYPT_EN_Pos))
+
+/* used for GPIO DBG */
+#define DPPI_CH_RADIO_EVENTS_READY              6
+#define DPPI_CH_RADIO_EVENTS_RXREADY            7
+#define DPPI_CH_RADIO_EVENTS_DISABLED           8
+
+#define DPPI_CH_ENABLE_RADIO_EVENTS_READY       DPPIC_CHEN_CH6_Msk
+#define DPPI_CH_ENABLE_RADIO_EVENTS_RXREADY     DPPIC_CHEN_CH7_Msk
+#define DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED    DPPIC_CHEN_CH8_Msk
+
+#define DPPI_PUBLISH_RADIO_EVENTS_READY                 ((DPPI_CH_RADIO_EVENTS_READY << RADIO_PUBLISH_READY_CHIDX_Pos) | \
+                                                         (RADIO_PUBLISH_READY_EN_Enabled << RADIO_PUBLISH_READY_EN_Pos))
+#define DPPI_PUBLISH_RADIO_EVENTS_RXREADY               ((DPPI_CH_RADIO_EVENTS_RXREADY << RADIO_PUBLISH_RXREADY_CHIDX_Pos) | \
+                                                         (RADIO_PUBLISH_RXREADY_EN_Enabled << RADIO_PUBLISH_RXREADY_EN_Pos))
+#define DPPI_PUBLISH_RADIO_EVENTS_DISABLED              ((DPPI_CH_RADIO_EVENTS_DISABLED << RADIO_PUBLISH_DISABLED_CHIDX_Pos) | \
+                                                         (RADIO_PUBLISH_DISABLED_EN_Enabled << RADIO_PUBLISH_DISABLED_EN_Pos))
+
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_TXRXEN     ((DPPI_CH_TIMER0_EVENTS_COMPARE_0 << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_ADDRESS    ((DPPI_CH_RADIO_EVENTS_ADDRESS << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_END        ((DPPI_CH_RADIO_EVENTS_END << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_READY      ((DPPI_CH_RADIO_EVENTS_READY << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_RXREADY    ((DPPI_CH_RADIO_EVENTS_RXREADY << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_DISABLED   ((DPPI_CH_RADIO_EVENTS_DISABLED << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_CAPTURE3   ((DPPI_CH_TIMER0_EVENTS_COMPARE_3 << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
+#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_ADDRESS    ((DPPI_CH_RADIO_EVENTS_ADDRESS << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
+                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
 
 extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
@@ -1179,6 +1215,84 @@ ble_phy_isr(void)
     os_trace_isr_exit();
 }
 
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+static inline void
+ble_phy_dbg_time_setup_gpiote(int index, int pin)
+{
+    NRF_GPIO_Type *port;
+
+    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
+    pin &= 0x1f;
+
+    /* Configure GPIO directly to avoid dependency to hal_gpio (for porting) */
+    port->DIRSET = (1 << pin);
+    port->OUTCLR = (1 << pin);
+
+    NRF_GPIOTE_NS->CONFIG[index] =
+                        (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
+                        ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
+                        ((port == NRF_P1_NS) << GPIOTE_CONFIG_PORT_Pos);
+}
+#endif
+
+static void
+ble_phy_dbg_time_setup(void)
+{
+    int gpiote_idx __attribute__((unused)) = 8;
+
+    /*
+     * We setup GPIOTE starting from last configuration index to minimize risk
+     * of conflict with GPIO setup via hal. It's not great solution, but since
+     * this is just debugging code we can live with this.
+     */
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
+
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_TXRXEN;
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_READY;
+
+    /* Publish RADIO->EVENTS_READY */
+    NRF_RADIO_NS->PUBLISH_READY = DPPI_PUBLISH_RADIO_EVENTS_READY;
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_READY;
+
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
+
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_ADDRESS;
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_END;
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
+
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_RXREADY;
+
+    /* TODO figure out how (if?) to subscribe task to multiple DPPI channels
+     * Currently only last one is working. Also using multiple GPIOTE for same
+     * PIN doesn't work...
+     */
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_DISABLED;
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_ADDRESS;
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_CAPTURE3;
+
+    /* Publish RADIO->EVENTS_RXREADY */
+    NRF_RADIO_NS->PUBLISH_RXREADY = DPPI_PUBLISH_RADIO_EVENTS_RXREADY;
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_RXREADY;
+
+    /* Publish RADIO->EVENTS_DISABLED */
+    NRF_RADIO_NS->PUBLISH_DISABLED = DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED;
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED;
+#endif
+}
+
 int
 ble_phy_init(void)
 {
@@ -1295,6 +1409,8 @@ ble_phy_init(void)
 
         g_ble_phy_data.phy_stats_initialized = 1;
     }
+
+    ble_phy_dbg_time_setup();
 
     return 0;
 }
@@ -1725,6 +1841,41 @@ ble_phy_restart_rx(void)
     ble_phy_rx();
 }
 
+static void
+ble_phy_dbg_clear_pins(void)
+{
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
+        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+    NRF_GPIO_Type *port;
+    int pin;
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
+    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN);
+    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
+    pin &= 0x1f;
+
+    port->OUTCLR = (1 << pin);
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
+    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN);
+    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
+    pin &= 0x1f;
+
+    port->OUTCLR = (1 << pin);
+#endif
+
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN);
+    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
+    pin &= 0x1f;
+
+    port->OUTCLR = (1 << pin);
+#endif
+#endif
+}
+
 void
 ble_phy_disable(void)
 {
@@ -1732,6 +1883,8 @@ ble_phy_disable(void)
 
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
+
+    ble_phy_dbg_clear_pins();
 }
 
 uint32_t
