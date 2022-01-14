@@ -21,3 +21,42 @@ syscfg.defs:
         description: >
             Enable SystemView tracing module for radio driver.
         value: 0
+
+    BLE_PHY_DBG_TIME_TXRXEN_READY_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state when radio is enabled (TASKS_TXEN or TASKS_RXEN)
+            and back to low state on radio EVENTS_READY.
+            This can be used to measure radio ram-up time.
+
+            Note:
+            GPIO control for selected pin needs to be assigned to Network
+            Core, configure IPC_NRF5340_NET_GPIO in ipc_nrf5340 driver on
+            Application Core.
+        value: -1
+
+    BLE_PHY_DBG_TIME_ADDRESS_END_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state on radio EVENTS_ADDRESS and back to low state
+            on radio EVENTS_END.
+            This can be used to measure radio pipeline delays.
+
+            Note:
+            GPIO control for selected pin needs to be assigned to Network
+            Core, configure IPC_NRF5340_NET_GPIO in ipc_nrf5340 driver on
+            Application Core.
+        value: -1
+
+    BLE_PHY_DBG_TIME_WFR_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state on radio EVENTS_RXREADY and back to low
+            state when wfr timer expires.
+            This can be used to check if wfr is calculated properly.
+
+            Note:
+            GPIO control for selected pin needs to be assigned to Network
+            Core, configure IPC_NRF5340_NET_GPIO in ipc_nrf5340 driver on
+            Application Core.
+        value: -1
