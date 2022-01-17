@@ -31,6 +31,7 @@ pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/util/mem"
     - nimble
+    - "@tinyusb/tinyusb"
 
 pkg.apis:
     - ble_transport
