@@ -63,3 +63,10 @@ syscfg.defs:
             - nRF52840 Engineering C
             - nRF52840 Rev 1 (final silicon)
         value: 1
+
+    BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
+        description: >
+            Ublox BMD-345 modules come with public address preprogrammed
+            in UICR register. If enabled public address will be read from
+            custom UICR instead of FICR register.
+        value: 0
