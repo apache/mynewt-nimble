@@ -3765,17 +3765,20 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
                      proc->write_long.length) != 0) {
 
         rc = BLE_HS_EBADDATA;
-        goto err;
-    }
 
-    /* Send follow-up request. */
-    proc->write_long.attr.offset += OS_MBUF_PKTLEN(om);
-    rc = ble_gattc_write_long_resume(proc);
-    if (rc != 0) {
+        /* if data doesn't match up send cancel write */
+        ble_att_clt_tx_exec_write(proc->conn_handle, BLE_ATT_EXEC_WRITE_F_CANCEL);
         goto err;
-    }
+    } else {
+        /* Send follow-up request. */
+        proc->write_long.attr.offset += OS_MBUF_PKTLEN(om);
+        rc = ble_gattc_write_long_resume(proc);
+        if (rc != 0) {
+            goto err;
+        }
 
-    return 0;
+        return 0;
+    }
 
 err:
     /* XXX: Might need to cancel pending writes. */
