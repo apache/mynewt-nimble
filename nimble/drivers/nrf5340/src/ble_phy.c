@@ -298,6 +298,16 @@ struct nrf_ccm_data {
 static struct nrf_ccm_data nrf_ccm_data;
 #endif
 
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
+static uint8_t phy_dbg_txrxen_ready_idx;
+#endif
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
+static uint8_t phy_dbg_address_end_idx;
+#endif
+#if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
+static uint8_t phy_dbg_wfr_idx;
+#endif
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
 uint32_t
@@ -1249,7 +1259,8 @@ ble_phy_dbg_time_setup(void)
      */
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+    phy_dbg_txrxen_ready_idx = --gpiote_idx;
+    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
 
     NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_TXRXEN;
@@ -1262,7 +1273,8 @@ ble_phy_dbg_time_setup(void)
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+    phy_dbg_address_end_idx = --gpiote_idx;
+    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
 
     NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_ADDRESS;
@@ -1270,7 +1282,8 @@ ble_phy_dbg_time_setup(void)
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-    ble_phy_dbg_time_setup_gpiote(--gpiote_idx,
+    phy_dbg_wfr_idx = --gpiote_idx;
+    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
 
     NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_RXREADY;
@@ -1844,35 +1857,14 @@ ble_phy_restart_rx(void)
 static void
 ble_phy_dbg_clear_pins(void)
 {
-#if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-    NRF_GPIO_Type *port;
-    int pin;
-
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
-    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN);
-    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
-    pin &= 0x1f;
-
-    port->OUTCLR = (1 << pin);
+    NRF_GPIOTE_NS->TASKS_CLR[phy_dbg_txrxen_ready_idx] = 1;
 #endif
-
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
-    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN);
-    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
-    pin &= 0x1f;
-
-    port->OUTCLR = (1 << pin);
+    NRF_GPIOTE_NS->TASKS_CLR[phy_dbg_address_end_idx] = 1;
 #endif
-
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-    pin = MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN);
-    port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
-    pin &= 0x1f;
-
-    port->OUTCLR = (1 << pin);
-#endif
+    NRF_GPIOTE_NS->TASKS_CLR[phy_dbg_wfr_idx] = 1;
 #endif
 }
 
