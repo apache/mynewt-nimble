@@ -326,21 +326,25 @@ ble_phy_mode_apply(uint8_t phy_mode)
     switch (phy_mode) {
     case BLE_PHY_MODE_1M:
         NRF_RADIO_NS->MODE = RADIO_MODE_MODE_Ble_1Mbit;
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
         NRF_RADIO_NS->PCNF0 = NRF_PCNF0_1M;
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
     case BLE_PHY_MODE_2M:
         NRF_RADIO_NS->MODE = RADIO_MODE_MODE_Ble_2Mbit;
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0084);
         NRF_RADIO_NS->PCNF0 = NRF_PCNF0_2M;
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case BLE_PHY_MODE_CODED_125KBPS:
         NRF_RADIO_NS->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
         NRF_RADIO_NS->PCNF0 = NRF_PCNF0_CODED;
         break;
     case BLE_PHY_MODE_CODED_500KBPS:
         NRF_RADIO_NS->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
         NRF_RADIO_NS->PCNF0 = NRF_PCNF0_CODED;
         break;
 #endif
