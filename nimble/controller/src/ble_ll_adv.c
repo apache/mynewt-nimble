@@ -267,7 +267,7 @@ ble_ll_adv_active_chanset_set_pri(struct ble_ll_adv_sm *advsm)
     os_sr_t sr;
 
     OS_ENTER_CRITICAL(sr);
-    assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
+    BLE_LL_ASSERT((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
     advsm->flags |= 0x10;
     OS_EXIT_CRITICAL(sr);
@@ -280,7 +280,7 @@ ble_ll_adv_active_chanset_set_sec(struct ble_ll_adv_sm *advsm)
     os_sr_t sr;
 
     OS_ENTER_CRITICAL(sr);
-    assert((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
+    BLE_LL_ASSERT((advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK) == 0);
     advsm->flags &= ~BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK;
     advsm->flags |= 0x20;
     OS_EXIT_CRITICAL(sr);
@@ -482,7 +482,7 @@ ble_ll_adv_legacy_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
     /* An invalid advertising data length indicates a memory overwrite */
-    assert(adv_data_len <= BLE_ADV_LEGACY_DATA_MAX_LEN);
+    BLE_LL_ASSERT(adv_data_len <= BLE_ADV_LEGACY_DATA_MAX_LEN);
 
     /* Set the PDU length in the state machine (includes header) */
     advsm->adv_pdu_len = pdulen + BLE_LL_PDU_HDR_LEN;
@@ -549,7 +549,7 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
     advsm = pducb_arg;
 
-    assert(ble_ll_adv_active_chanset_is_pri(advsm));
+    BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_pri(advsm));
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         return ble_ll_adv_legacy_pdu_make(dptr, advsm, hdr_byte);
     }
@@ -718,8 +718,8 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     advsm = pducb_arg;
     aux = AUX_CURRENT(advsm);
 
-    assert(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
-    assert(ble_ll_adv_active_chanset_is_sec(advsm));
+    BLE_LL_ASSERT(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
+    BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_sec(advsm));
 
     /* It's the same for AUX_ADV_IND and AUX_CHAIN_IND */
     pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
@@ -821,10 +821,10 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
 
     advsm = pducb_arg;
 
-    assert(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
-    assert(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE);
-    assert(advsm->aux_first_pdu);
-    assert(ble_ll_adv_active_chanset_is_sec(advsm));
+    BLE_LL_ASSERT(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
+    BLE_LL_ASSERT(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE);
+    BLE_LL_ASSERT(advsm->aux_first_pdu);
+    BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_sec(advsm));
 
     pdu_type = BLE_ADV_PDU_TYPE_AUX_ADV_IND;
 
@@ -899,7 +899,7 @@ ble_ll_adv_scan_rsp_legacy_pdu_make(uint8_t *dptr, void *pducb_arg,
 
     /* Make sure that the length is valid */
     scan_rsp_len = SCAN_RSP_DATA_LEN(advsm);
-    assert(scan_rsp_len <= BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN);
+    BLE_LL_ASSERT(scan_rsp_len <= BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN);
 
     /* Set BLE transmit header */
     pdulen = BLE_DEV_ADDR_LEN + scan_rsp_len;
@@ -1037,7 +1037,7 @@ ble_ll_adv_tx_done(void *arg)
     } else if (ble_ll_adv_active_chanset_is_sec(advsm)) {
         ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
     } else {
-        assert(0);
+        BLE_LL_ASSERT(0);
     }
 #else
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
@@ -1109,7 +1109,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     /* Set phy mode */
@@ -1256,7 +1256,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     aux = AUX_CURRENT(advsm);
     rc = ble_phy_setchan(aux->chan, BLE_ACCESS_ADDR_ADV,
                          BLE_LL_CRCINIT_ADV);
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     /* Set phy mode */
@@ -1362,9 +1362,9 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     uint8_t hdr_len;
     bool chainable;
 
-    assert(!aux->sch.enqueued);
-    assert((AUX_DATA_LEN(advsm) > aux_data_offset) ||
-           (AUX_DATA_LEN(advsm) == 0 && aux_data_offset == 0));
+    BLE_LL_ASSERT(!aux->sch.enqueued);
+    BLE_LL_ASSERT((AUX_DATA_LEN(advsm) > aux_data_offset) ||
+                  (AUX_DATA_LEN(advsm) == 0 && aux_data_offset == 0));
 
     aux->aux_data_offset = aux_data_offset;
     aux->aux_data_len = 0;
@@ -1461,7 +1461,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
             aux->aux_data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
 
             /* PDU payload should be full if chained */
-            assert(hdr_len + aux->aux_data_len == BLE_LL_MAX_PAYLOAD_LEN);
+            BLE_LL_ASSERT(hdr_len + aux->aux_data_len == BLE_LL_MAX_PAYLOAD_LEN);
     }
 
     aux->payload_len = hdr_len + aux->aux_data_len;
@@ -1486,12 +1486,12 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     uint16_t next_aux_data_offset;
     uint32_t max_usecs;
 
-    assert(advsm->aux_active);
+    BLE_LL_ASSERT(advsm->aux_active);
 
     aux = AUX_CURRENT(advsm);
     aux_next = AUX_NEXT(advsm);
 
-    assert(!aux_next->sch.enqueued);
+    BLE_LL_ASSERT(!aux_next->sch.enqueued);
 
     /*
      * Do not schedule next aux if current aux is no longer scheduled since we
@@ -1511,10 +1511,10 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
 
     next_aux_data_offset = aux->aux_data_offset + aux->aux_data_len;
 
-    assert(AUX_DATA_LEN(advsm) >= next_aux_data_offset);
+    BLE_LL_ASSERT(AUX_DATA_LEN(advsm) >= next_aux_data_offset);
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - next_aux_data_offset;
-    assert(rem_aux_data_len > 0);
+    BLE_LL_ASSERT(rem_aux_data_len > 0);
 
     ble_ll_adv_aux_calculate(advsm, aux_next, next_aux_data_offset);
     max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
@@ -1547,9 +1547,9 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
     struct ble_ll_sched_item *sch;
     uint32_t max_usecs;
 
-    assert(!advsm->aux_active);
-    assert(!advsm->aux[0].sch.enqueued);
-    assert(!advsm->aux[1].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->aux_active);
+    BLE_LL_ASSERT(!advsm->aux[0].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->aux[1].sch.enqueued);
 
     advsm->aux_active = 1;
     advsm->aux_index = 0;
@@ -1608,9 +1608,9 @@ ble_ll_adv_aux_set_start_time(struct ble_ll_adv_sm *advsm)
     uint32_t adv_event_dur;
     uint8_t chans;
 
-    assert(!advsm->aux_active);
-    assert(!advsm->aux[0].sch.enqueued);
-    assert(!advsm->aux[1].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->aux_active);
+    BLE_LL_ASSERT(!advsm->aux[0].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->aux[1].sch.enqueued);
 
     assert(advsm->adv_chanmask > 0 &&
            advsm->adv_chanmask <= BLE_HCI_ADV_CHANMASK_DEF);
@@ -2057,8 +2057,8 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     advsm = pducb_arg;
     sync = SYNC_CURRENT(advsm);
 
-    assert(!ble_ll_adv_active_chanset_is_sec(advsm));
-    assert(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
+    BLE_LL_ASSERT(!ble_ll_adv_active_chanset_is_sec(advsm));
+    BLE_LL_ASSERT(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
     /* It's the same for AUX_SYNC_IND and AUX_CHAIN_IND */
     pdu_type = BLE_ADV_PDU_TYPE_AUX_SYNC_IND;
@@ -2119,8 +2119,8 @@ ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
 
-    assert(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
-    assert(!ble_ll_adv_active_chanset_is_sec(advsm));
+    BLE_LL_ASSERT(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
+    BLE_LL_ASSERT(!ble_ll_adv_active_chanset_is_sec(advsm));
 
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
 
@@ -2177,7 +2177,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(sync->chan, advsm->periodic_access_addr,
                          advsm->periodic_crcinit);
 
-    assert(rc == 0);
+    BLE_LL_ASSERT(rc == 0);
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     /* Set phy mode */
@@ -2232,9 +2232,9 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
     uint16_t rem_sync_data_len;
     uint8_t hdr_len;
 
-    assert(!sync->sch.enqueued);
-    assert((SYNC_DATA_LEN(advsm) > sync_data_offset) ||
-           (SYNC_DATA_LEN(advsm) == 0 && sync_data_offset == 0));
+    BLE_LL_ASSERT(!sync->sch.enqueued);
+    BLE_LL_ASSERT((SYNC_DATA_LEN(advsm) > sync_data_offset) ||
+                  (SYNC_DATA_LEN(advsm) == 0 && sync_data_offset == 0));
 
     sync->sync_data_offset = sync_data_offset;
     sync->sync_data_len = 0;
@@ -2284,7 +2284,7 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
             sync->sync_data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
 
             /* PDU payload should be full if chained */
-            assert(hdr_len + sync->sync_data_len == BLE_LL_MAX_PAYLOAD_LEN);
+            BLE_LL_ASSERT(hdr_len + sync->sync_data_len == BLE_LL_MAX_PAYLOAD_LEN);
     }
 
     sync->payload_len = hdr_len + sync->sync_data_len;
@@ -2300,9 +2300,9 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     uint8_t chan;
     int rc;
 
-    assert(!advsm->periodic_sync_active);
-    assert(!advsm->periodic_sync[0].sch.enqueued);
-    assert(!advsm->periodic_sync[1].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->periodic_sync_active);
+    BLE_LL_ASSERT(!advsm->periodic_sync[0].sch.enqueued);
+    BLE_LL_ASSERT(!advsm->periodic_sync[1].sch.enqueued);
 
     advsm->periodic_sync_active = 1;
     advsm->periodic_sync_index = 0;
@@ -2375,12 +2375,12 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     uint32_t max_usecs;
     uint8_t chan;
 
-    assert(advsm->periodic_sync_active);
+    BLE_LL_ASSERT(advsm->periodic_sync_active);
 
     sync = SYNC_CURRENT(advsm);
     sync_next = SYNC_NEXT(advsm);
 
-    assert(!sync_next->sch.enqueued);
+    BLE_LL_ASSERT(!sync_next->sch.enqueued);
 
     /*
      * Do not schedule next sync if current sync is no longer scheduled since we
@@ -2400,10 +2400,10 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
 
     next_sync_data_offset = sync->sync_data_offset + sync->sync_data_len;
 
-    assert(SYNC_DATA_LEN(advsm) >= next_sync_data_offset);
+    BLE_LL_ASSERT(SYNC_DATA_LEN(advsm) >= next_sync_data_offset);
 
     rem_sync_data_len = SYNC_DATA_LEN(advsm) - next_sync_data_offset;
-    assert(rem_sync_data_len > 0);
+    BLE_LL_ASSERT(rem_sync_data_len > 0);
 
     /* we use separate counter for chaining */
     chan = ble_ll_utils_calc_dci_csa2(advsm->periodic_chain_event_cntr++,
@@ -2494,9 +2494,9 @@ ble_ll_adv_periodic_done(struct ble_ll_adv_sm *advsm)
     struct ble_ll_adv_sync *sync;
     struct ble_ll_adv_sync *sync_next;
 
-    assert(advsm->periodic_adv_enabled);
-    assert(advsm->periodic_adv_active);
-    assert(advsm->periodic_sync_active);
+    BLE_LL_ASSERT(advsm->periodic_adv_enabled);
+    BLE_LL_ASSERT(advsm->periodic_adv_active);
+    BLE_LL_ASSERT(advsm->periodic_sync_active);
 
     ble_ll_rfmgmt_release();
 
@@ -2890,7 +2890,7 @@ ble_ll_adv_update_data_mbuf(struct os_mbuf **omp, bool new_data, uint16_t maxlen
         }
     }
 
-    assert(om);
+    BLE_LL_ASSERT(om);
 
     if (OS_MBUF_PKTLEN(om) + datalen > maxlen) {
         os_mbuf_free_chain(om);
@@ -4461,7 +4461,7 @@ ble_ll_adv_rx_isr_end(uint8_t pdu_type, struct os_mbuf *rxpdu, int crcok)
         if (ble_ll_adv_active_chanset_is_sec(g_ble_ll_cur_adv_sm)) {
             rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_EXT_ADV_SEC;
         } else {
-            assert(ble_ll_adv_active_chanset_is_pri(g_ble_ll_cur_adv_sm));
+            BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_pri(g_ble_ll_cur_adv_sm));
         }
 #endif
         if (crcok) {
@@ -4622,7 +4622,7 @@ ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
     uint32_t max_delay_ticks;
     int rc;
 
-    assert(advsm->adv_enabled);
+    BLE_LL_ASSERT(advsm->adv_enabled);
 
     sch = &advsm->adv_sch;
 
@@ -4673,7 +4673,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     uint32_t tick_itvl;
     uint32_t start_time;
 
-    assert(advsm->adv_enabled);
+    BLE_LL_ASSERT(advsm->adv_enabled);
 
     ble_ll_rfmgmt_release();
 
@@ -4856,8 +4856,8 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     struct ble_ll_adv_aux *aux;
     struct ble_ll_adv_aux *aux_next;
 
-    assert(advsm->adv_enabled);
-    assert(advsm->aux_active);
+    BLE_LL_ASSERT(advsm->adv_enabled);
+    BLE_LL_ASSERT(advsm->aux_active);
 
     aux = AUX_CURRENT(advsm);
     aux_next = AUX_NEXT(advsm);
@@ -4923,12 +4923,12 @@ ble_ll_adv_make_done(struct ble_ll_adv_sm *advsm, struct ble_mbuf_hdr *hdr)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (BLE_MBUF_HDR_EXT_ADV_SEC(hdr)) {
-        assert(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
-        assert(ble_ll_adv_active_chanset_is_sec(advsm));
+        BLE_LL_ASSERT(!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
+        BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_sec(advsm));
         ble_ll_adv_active_chanset_clear(advsm);
         ble_ll_adv_sec_done(advsm);
     } else {
-        assert(ble_ll_adv_active_chanset_is_pri(advsm));
+        BLE_LL_ASSERT(ble_ll_adv_active_chanset_is_pri(advsm));
         ble_ll_adv_active_chanset_clear(advsm);
         ble_ll_adv_done(advsm);
     }
@@ -4983,7 +4983,7 @@ ble_ll_adv_send_conn_comp_ev(struct ble_ll_conn_sm *connsm,
     advsm = &g_ble_ll_adv_sm[0];
 #endif
 
-    assert(advsm->conn_comp_ev != NULL);
+    BLE_LL_ASSERT(advsm->conn_comp_ev != NULL);
     ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, advsm->conn_comp_ev,
                                 advsm);
     advsm->conn_comp_ev = NULL;
