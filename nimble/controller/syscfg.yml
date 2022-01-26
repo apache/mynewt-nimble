@@ -375,7 +375,7 @@ syscfg.defs:
             This options enables controller to send a vendor-specific event on
             an assertion in controller code. The event contains file name and
             line number where assertion occured.
-        value: 0
+        value: MYNEWT_VAL(BLE_LL_VND_EVENT_ON_ASSERT)
 
     BLE_LL_PA:
         description: Enable PA support
