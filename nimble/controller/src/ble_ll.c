@@ -1403,7 +1403,7 @@ ble_ll_task(void *arg)
 
     while (1) {
         ev = ble_npl_eventq_get(&g_ble_ll_data.ll_evq, BLE_NPL_TIME_FOREVER);
-        assert(ev);
+        BLE_LL_ASSERT(ev);
         ble_npl_event_run(ev);
     }
 }
