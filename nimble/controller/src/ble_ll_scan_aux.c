@@ -577,6 +577,7 @@ ble_ll_hci_ev_send_ext_adv_report(struct os_mbuf *rxpdu,
         ble_ll_hci_event_send(*hci_ev);
 
         *hci_ev = hci_ev_next;
+        hci_ev_next = NULL;
     } while ((offset < data_len) && *hci_ev);
 
     return truncated ? -1 : 0;
