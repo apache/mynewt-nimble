@@ -21,7 +21,7 @@
 #define H_BLE_LL_SCAN_
 
 #include "controller/ble_ll_sched.h"
-#include "hal/hal_timer.h"
+#include "controller/ble_ll_tmr.h"
 #include "syscfg/syscfg.h"
 #include "nimble/nimble_npl.h"
 
@@ -135,7 +135,7 @@ struct ble_ll_scan_sm
     uint16_t backoff_count;
     uint32_t scan_win_start_time;
     struct ble_npl_event scan_sched_ev;
-    struct hal_timer scan_timer;
+    struct ble_ll_tmr scan_timer;
     struct ble_npl_event scan_interrupted_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)

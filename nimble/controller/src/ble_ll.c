@@ -24,7 +24,6 @@
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "os/os.h"
-#include "os/os_cputime.h"
 #include "stats/stats.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"

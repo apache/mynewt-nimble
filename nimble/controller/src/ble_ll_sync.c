@@ -32,6 +32,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_tmr.h"
 
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
@@ -837,7 +838,7 @@ ble_ll_sync_get_event_end_time(void)
     if (g_ble_ll_sync_sm_current) {
         end_time = g_ble_ll_sync_sm_current->sch.end_time;
     } else {
-        end_time = os_cputime_get32();
+        end_time = ble_ll_tmr_get();
     }
     return end_time;
 }
@@ -1138,14 +1139,12 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
 {
     uint32_t cur_ww;
     uint32_t max_ww;
-    uint32_t ticks;
     uint32_t itvl;
-    uint8_t usecs;
     uint16_t skip = sm->skip;
 
     /* don't skip if are establishing sync or we missed last event */
     if (skip && ((sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) ||
-                  CPUTIME_LT(sm->last_anchor_point, sm->anchor_point))) {
+                  LL_TMR_LT(sm->last_anchor_point, sm->anchor_point))) {
         skip = 0;
     }
 
@@ -1153,19 +1152,12 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
      * interval if not skipping
      */
     if (skip == 0) {
-        ticks = sm->itvl_ticks;
-        usecs = sm->itvl_usecs;
+        sm->anchor_point += sm->itvl_ticks;
+        ble_ll_tmr_add_u(&sm->anchor_point, &sm->anchor_point_usecs,
+                         sm->itvl_usecs);
     } else {
         itvl = sm->itvl * BLE_LL_SYNC_ITVL_USECS * (1 + skip);
-        ticks = os_cputime_usecs_to_ticks(itvl);
-        usecs = itvl - os_cputime_ticks_to_usecs(ticks);
-    }
-
-    sm->anchor_point += ticks;
-    sm->anchor_point_usecs += usecs;
-    if (sm->anchor_point_usecs >= 31) {
-        sm->anchor_point++;
-        sm->anchor_point_usecs -= 31;
+        ble_ll_tmr_add(&sm->anchor_point, &sm->anchor_point_usecs, itvl);
     }
 
     /* Set event counter to the next event */
@@ -1212,7 +1204,7 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
      * BLE_LL_SYNC_ESTABLISH_CNT events before failing regardless of timeout
      */
     if (!(sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING)) {
-        if (CPUTIME_GT(sm->anchor_point - os_cputime_usecs_to_ticks(cur_ww),
+        if (LL_TMR_GT(sm->anchor_point - ble_ll_tmr_u2t(cur_ww),
                        sm->last_anchor_point + sm->timeout )) {
             return -1;
         }
@@ -1378,13 +1370,7 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
 
     /* precalculate interval ticks and usecs */
     usecs = sm->itvl * BLE_LL_SYNC_ITVL_USECS;
-    sm->itvl_ticks = os_cputime_usecs_to_ticks(usecs);
-    sm->itvl_usecs = (uint8_t)(usecs -
-                               os_cputime_ticks_to_usecs(sm->itvl_ticks));
-    if (sm->itvl_usecs == 31) {
-        sm->itvl_usecs = 0;
-        sm->itvl_ticks++;
-    }
+    sm->itvl_ticks = ble_ll_tmr_u2t_r(usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
     sm->chanmap[0] = syncinfo[4];
@@ -1417,7 +1403,7 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     }
 
     /* from now on we only need timeout in ticks */
-    sm->timeout = os_cputime_usecs_to_ticks(sm->timeout);
+    sm->timeout = ble_ll_tmr_u2t(sm->timeout);
 
     sm->phy_mode = rxhdr->rxinfo.phy_mode;
     sm->window_widening = BLE_LL_JITTER_USECS;
@@ -1906,7 +1892,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     }
 
     /* set params from transfer */
-    sm->timeout = os_cputime_usecs_to_ticks(sync_timeout);
+    sm->timeout = ble_ll_tmr_u2t(sync_timeout);
     sm->skip = max_skip;
     sm->sync_pending_cnt = BLE_LL_SYNC_ESTABLISH_CNT;
     sm->transfer_id = get_le16(sync_ind); /* first two bytes */
@@ -1936,13 +1922,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     sm->itvl = itvl;
 
     /* precalculate interval ticks and usecs */
-    sm->itvl_ticks = os_cputime_usecs_to_ticks(itvl_usecs);
-    sm->itvl_usecs = (uint8_t)(itvl_usecs -
-                               os_cputime_ticks_to_usecs(sm->itvl_ticks));
-    if (sm->itvl_usecs == 31) {
-        sm->itvl_usecs = 0;
-        sm->itvl_ticks++;
-    }
+    sm->itvl_ticks = ble_ll_tmr_u2t_r(itvl_usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
     sm->chanmap[0] = syncinfo[4];
@@ -1997,8 +1977,8 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
                                                   sync_anchor, sca);
 
     /* spin until we get anchor in future */
-    future = os_cputime_get32() + g_ble_ll_sched_offset_ticks;
-    while (CPUTIME_LT(sm->anchor_point, future)) {
+    future = ble_ll_tmr_get() + g_ble_ll_sched_offset_ticks;
+    while (LL_TMR_LT(sm->anchor_point, future)) {
         if (ble_ll_sync_next_event(sm, ww_adjust) < 0) {
             /* release SM if this failed */
             ble_ll_sync_transfer_received(sm, BLE_ERR_CONN_ESTABLISHMENT);
@@ -2040,11 +2020,11 @@ ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
     conn_cnt = connsm->event_cntr;
 
     /* get anchor for conn event that is before periodic_adv_event_start_time */
-    while (CPUTIME_GT(anchor, syncsm->anchor_point)) {
+    while (LL_TMR_GT(anchor, syncsm->anchor_point)) {
         ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
     }
 
-    offset = os_cputime_ticks_to_usecs(syncsm->anchor_point - anchor);
+    offset = ble_ll_tmr_t2u(syncsm->anchor_point - anchor);
     offset -= anchor_usecs;
     offset += syncsm->anchor_point_usecs;
 

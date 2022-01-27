@@ -23,7 +23,6 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
-#include "os/os_cputime.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
@@ -35,6 +34,7 @@
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #include "controller/ble_ll_scan_aux.h"
 #endif
+#include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
@@ -138,7 +138,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm);
 static inline uint32_t
 ble_ll_scan_time_hci_to_ticks(uint16_t value)
 {
-    return os_cputime_usecs_to_ticks(value * BLE_HCI_SCAN_ITVL);
+    return ble_ll_tmr_u2t(value * BLE_HCI_SCAN_ITVL);
 }
 
 /* See Vol 6 Part B Section 4.4.3.2. Active scanning backoff */
@@ -182,7 +182,7 @@ ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
     ble_npl_time_t now;
 
     now = ble_npl_time_get();
-    if (CPUTIME_GEQ(now, scansm->scan_nrpa_timer)) {
+    if (LL_TMR_GEQ(now, scansm->scan_nrpa_timer)) {
         /* Generate new NRPA */
         ble_ll_rand_data_get(scansm->scan_nrpa, BLE_DEV_ADDR_LEN);
         scansm->scan_nrpa[5] &= ~0xc0;
@@ -781,7 +781,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
-    rc = ble_phy_rx_set_start_time(os_cputime_get32() +
+    rc = ble_phy_rx_set_start_time(ble_ll_tmr_get() +
                                    g_ble_ll_sched_offset_ticks, 0);
     if (!rc || rc == BLE_PHY_ERR_RX_LATE) {
         /* If we are late here, it is still OK because we keep scanning.
@@ -824,7 +824,7 @@ ble_ll_scan_move_window_to(struct ble_ll_scan_phy *scanp, uint32_t time)
      */
 
     end_time = scanp->timing.start_time + scanp->timing.window;
-    while (CPUTIME_GEQ(time, end_time)) {
+    while (LL_TMR_GEQ(time, end_time)) {
         scanp->timing.start_time += scanp->timing.interval;
         scanp->scan_chan = ble_ll_scan_get_next_adv_prim_chan(scanp->scan_chan);
         end_time = scanp->timing.start_time + scanp->timing.window;
@@ -846,8 +846,8 @@ ble_ll_scan_is_inside_window(struct ble_ll_scan_phy *scanp, uint32_t time)
         return true;
     }
 
-    return CPUTIME_GEQ(time, start_time) &&
-           CPUTIME_LT(time, start_time + scanp->timing.window);
+    return LL_TMR_GEQ(time, start_time) &&
+           LL_TMR_LT(time, start_time + scanp->timing.window);
 }
 
 /**
@@ -862,7 +862,7 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     /* Stop the scanning timer  */
     scansm = &g_ble_ll_scan_sm;
-    os_cputime_timer_stop(&scansm->scan_timer);
+    ble_ll_tmr_stop(&scansm->scan_timer);
 
     /* Only set state if we are currently in a scan window */
     if (chk_disable) {
@@ -965,7 +965,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     }
 
     /* Start scan at 1st window */
-    os_cputime_timer_start(&scansm->scan_timer, scanp->timing.start_time);
+    ble_ll_tmr_start(&scansm->scan_timer, scanp->timing.start_time);
 
     return BLE_ERR_SUCCESS;
 }
@@ -1025,7 +1025,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
 
     OS_ENTER_CRITICAL(sr);
     if (!scansm->scan_enabled) {
-        os_cputime_timer_stop(&scansm->scan_timer);
+        ble_ll_tmr_stop(&scansm->scan_timer);
         ble_ll_rfmgmt_scan_changed(false, 0);
         ble_ll_rfmgmt_release();
         OS_EXIT_CRITICAL(sr);
@@ -1040,7 +1040,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         return;
     }
 
-    now = os_cputime_get32();
+    now = ble_ll_tmr_get();
 
     inside_window = ble_ll_scan_is_inside_window(scanp, now);
 
@@ -1054,8 +1054,8 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
          * inside window or has next window earlier than current PHY.
          */
         if (!inside_window &&
-            ((inside_window_next || CPUTIME_LEQ(scanp_next->timing.start_time,
-                                                scanp->timing.start_time)))) {
+            ((inside_window_next || LL_TMR_LEQ(scanp_next->timing.start_time,
+                                               scanp->timing.start_time)))) {
             scansm->scanp = scanp_next;
             scansm->scanp_next = scanp;
             scanp = scansm->scanp;
@@ -1126,7 +1126,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
     }
 
     OS_EXIT_CRITICAL(sr);
-    os_cputime_timer_start(&scansm->scan_timer, next_proc_time);
+    ble_ll_tmr_start(&scansm->scan_timer, next_proc_time);
 }
 
 /**
@@ -1675,7 +1675,7 @@ ble_ll_scan_chk_resume(void)
             return;
         }
 
-        now = os_cputime_get32();
+        now = ble_ll_tmr_get();
         if (ble_ll_state_get() == BLE_LL_STATE_STANDBY &&
             ble_ll_scan_is_inside_window(scansm->scanp, now)) {
             /* Turn on the receiver and set state */
@@ -2643,7 +2643,7 @@ ble_ll_scan_common_init(void)
 #endif
 
     /* Initialize scanning timer */
-    os_cputime_timer_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
+    ble_ll_tmr_init(&scansm->scan_timer, ble_ll_scan_timer_cb, scansm);
 
     /* Initialize extended scan timers */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
