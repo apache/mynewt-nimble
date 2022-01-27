@@ -22,7 +22,6 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
-#include "os/os_cputime.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -37,6 +36,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_rfmgmt.h"
@@ -587,7 +587,7 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 
     /* AuxPtr */
     if (AUX_CURRENT(advsm)->sch.enqueued) {
-        offset = os_cputime_ticks_to_usecs(AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time);
+        offset = ble_ll_tmr_t2u(AUX_CURRENT(advsm)->start_time - advsm->adv_pdu_start_time);
     } else {
         offset = 0;
     }
@@ -620,11 +620,11 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
         conn_cnt = connsm->event_cntr;
 
         /* get anchor for conn event that is before periodic_adv_event_start_time */
-        while (CPUTIME_GT(anchor, advsm->periodic_adv_event_start_time)) {
+        while (LL_TMR_GT(anchor, advsm->periodic_adv_event_start_time)) {
             ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
         }
 
-        offset = os_cputime_ticks_to_usecs(advsm->periodic_adv_event_start_time - anchor);
+        offset = ble_ll_tmr_t2u(advsm->periodic_adv_event_start_time - anchor);
         offset -= anchor_usecs;
         offset += advsm->periodic_adv_event_start_time_remainder;
 
@@ -639,12 +639,12 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
          * happen if advertising event is interleaved with periodic advertising
          * event (when chaining).
          */
-        while (CPUTIME_GT(AUX_CURRENT(advsm)->start_time, anchor)) {
+        while (LL_TMR_GT(AUX_CURRENT(advsm)->start_time, anchor)) {
             anchor += advsm->periodic_adv_itvl_ticks;
             event_cnt_off++;
         }
 
-        offset = os_cputime_ticks_to_usecs(anchor - AUX_CURRENT(advsm)->start_time);
+        offset = ble_ll_tmr_t2u(anchor - AUX_CURRENT(advsm)->start_time);
         offset += advsm->periodic_adv_event_start_time_remainder;
         offset += advsm->periodic_adv_itvl_rem_usec;
     }
@@ -776,10 +776,10 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
              */
             offset = 0;
         } else if (advsm->rx_ble_hdr) {
-            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime);
+            offset = ble_ll_tmr_t2u(AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime);
             offset -= (advsm->rx_ble_hdr->rem_usecs + ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS);
         } else {
-            offset = os_cputime_ticks_to_usecs(AUX_NEXT(advsm)->start_time - aux->start_time);
+            offset = ble_ll_tmr_t2u(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
 
         ble_ll_adv_put_aux_ptr(AUX_NEXT(advsm)->chan, advsm->sec_phy,
@@ -1226,8 +1226,7 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
 
     sch->start_time = advsm->adv_pdu_start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = advsm->adv_pdu_start_time +
-                    ble_ll_usecs_to_ticks_round_up(max_usecs);
+    sch->end_time = advsm->adv_pdu_start_time + ble_ll_tmr_u2t_up(max_usecs);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
@@ -1520,13 +1519,13 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
 
     aux_next->start_time = aux->sch.end_time +
-                           ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
+                           ble_ll_tmr_u2t_up(BLE_LL_MAFS +
+                                             MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
 
     sch = &aux_next->sch;
     sch->start_time = aux_next->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux_next->start_time +
-                    ble_ll_usecs_to_ticks_round_up(max_usecs);
+    sch->end_time = aux_next->start_time + ble_ll_tmr_u2t_up(max_usecs);
     ble_ll_sched_adv_new(&aux_next->sch, ble_ll_adv_aux_scheduled, aux_next);
 
     /*
@@ -1535,7 +1534,7 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
      * so advertising will stop after current aux.
      */
     if (advsm->duration &&
-        CPUTIME_GT(aux_next->sch.end_time, advsm->adv_end_time)) {
+        LL_TMR_GT(aux_next->sch.end_time, advsm->adv_end_time)) {
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
 }
@@ -1595,7 +1594,7 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
     sch = &aux->sch;
     sch->start_time = aux->start_time - g_ble_ll_sched_offset_ticks;
     sch->remainder = 0;
-    sch->end_time = aux->start_time + ble_ll_usecs_to_ticks_round_up(max_usecs);
+    sch->end_time = aux->start_time + ble_ll_tmr_u2t_up(max_usecs);
     ble_ll_sched_adv_new(sch, ble_ll_adv_aux_scheduled, aux);
 }
 
@@ -1641,7 +1640,8 @@ ble_ll_adv_aux_set_start_time(struct ble_ll_adv_sm *advsm)
     adv_event_dur = (adv_pdu_dur * chans) + (9 * (chans - 1));
 
     advsm->aux[0].start_time = advsm->adv_event_start_time + adv_event_dur +
-                               ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_MAFS_DELAY));
+                               ble_ll_tmr_u2t_up(BLE_LL_MAFS +
+                                                 MYNEWT_VAL(BLE_LL_SCHED_AUX_MAFS_DELAY));
 }
 
 static void
@@ -1665,7 +1665,7 @@ ble_ll_adv_aux_schedule(struct ble_ll_adv_sm *advsm)
      * not start extended advertising event which we cannot finish in time.
      */
     if (advsm->duration &&
-        CPUTIME_GT(AUX_CURRENT(advsm)->sch.end_time, advsm->adv_end_time)) {
+        LL_TMR_GT(AUX_CURRENT(advsm)->sch.end_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
     }
 }
@@ -2031,14 +2031,14 @@ ble_ll_adv_scheduled(struct ble_ll_adv_sm *advsm, uint32_t sch_start, void *arg)
      */
     if (advsm->duration) {
         advsm->adv_end_time = advsm->adv_event_start_time +
-                             os_cputime_usecs_to_ticks(advsm->duration * 10000);
+                             ble_ll_tmr_u2t(advsm->duration * 10000);
     }
 #else
     /* Set the time at which we must end directed, high-duty cycle advertising.
      */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
         advsm->adv_end_time = advsm->adv_event_start_time +
-                     os_cputime_usecs_to_ticks(BLE_LL_ADV_STATE_HD_MAX * 1000);
+                     ble_ll_tmr_u2t(BLE_LL_ADV_STATE_HD_MAX * 1000);
     }
 #endif
 }
@@ -2085,7 +2085,8 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
              */
             offset = 0;
         } else {
-            offset = os_cputime_ticks_to_usecs(SYNC_NEXT(advsm)->start_time - sync->start_time);
+            offset = ble_ll_tmr_t2u(SYNC_NEXT(advsm)->start_time -
+                                    sync->start_time);
         }
 
         ble_ll_adv_put_aux_ptr(SYNC_NEXT(advsm)->chan, advsm->sec_phy,
@@ -2327,15 +2328,13 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
 
     sch = &sync->sch;
 
-    advsm->periodic_adv_event_start_time_remainder += advsm->periodic_adv_itvl_rem_usec;
-    if (advsm->periodic_adv_event_start_time_remainder >= 31) {
-        advsm->periodic_adv_event_start_time++;
-        advsm->periodic_adv_event_start_time_remainder -= 31;
-    }
+    ble_ll_tmr_add_u(&advsm->periodic_adv_event_start_time,
+                     &advsm->periodic_adv_event_start_time_remainder,
+                     advsm->periodic_adv_itvl_rem_usec);
 
     sch->start_time = advsm->periodic_adv_event_start_time;
     sch->remainder = advsm->periodic_adv_event_start_time_remainder;
-    sch->end_time = sch->start_time + ble_ll_usecs_to_ticks_round_up(max_usecs);
+    sch->end_time = sch->start_time + ble_ll_tmr_u2t_up(max_usecs);
     sch->start_time -= g_ble_ll_sched_offset_ticks;
 
     rc = ble_ll_sched_periodic_adv(sch, first_pdu);
@@ -2415,22 +2414,22 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     max_usecs = ble_ll_pdu_tx_time_get(sync_next->payload_len, advsm->sec_phy);
 
     sync_next->start_time = sync->sch.end_time +
-                            ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
+                            ble_ll_tmr_u2t_up(BLE_LL_MAFS +
+                                              MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
 
     sch = &sync_next->sch;
     sch->start_time = sync_next->start_time - g_ble_ll_sched_offset_ticks;
 
     /* adjust for previous packets remainder */
     sch->remainder = sync->sch.remainder;
-    sch->end_time = sync_next->start_time +
-                    ble_ll_usecs_to_ticks_round_up(max_usecs);
+    sch->end_time = sync_next->start_time + ble_ll_tmr_u2t_up(max_usecs);
 
     /* here we can use ble_ll_sched_adv_new as we don't care about timing */
     ble_ll_sched_adv_new(&sync_next->sch, ble_ll_adv_sync_next_scheduled,
                          sync_next);
 
     /* if we are pass advertising interval, drop chain */
-    if (CPUTIME_GT(sch->end_time, advsm->periodic_adv_event_start_time +
+    if (LL_TMR_GT(sch->end_time, advsm->periodic_adv_event_start_time +
                                   advsm->periodic_adv_itvl_ticks)) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
@@ -2532,7 +2531,6 @@ static void
 ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
 {
     uint32_t usecs;
-    uint32_t ticks;
 
     /*
      * The Advertising DID is not required to change when a SyncInfo field is
@@ -2560,21 +2558,16 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     advsm->periodic_crcinit = ble_ll_rand() & 0xffffff;
 
     usecs = (uint32_t)advsm->periodic_adv_itvl_max * BLE_LL_ADV_PERIODIC_ITVL;
-    ticks = os_cputime_usecs_to_ticks(usecs);
 
-    advsm->periodic_adv_itvl_rem_usec = (usecs - os_cputime_ticks_to_usecs(ticks));
-    if (advsm->periodic_adv_itvl_rem_usec == 31) {
-        advsm->periodic_adv_itvl_rem_usec = 0;
-        ticks++;
-    }
-    advsm->periodic_adv_itvl_ticks = ticks;
+    advsm->periodic_adv_itvl_ticks = ble_ll_tmr_u2t_r(usecs,
+                                                      &advsm->periodic_adv_itvl_rem_usec);
 
     /* There is no point in starting periodic advertising until next advertising
      * event since SyncInfo is needed for synchronization
      */
     advsm->periodic_adv_event_start_time_remainder = 0;
     advsm->periodic_adv_event_start_time = advsm->adv_pdu_start_time +
-                      os_cputime_usecs_to_ticks(advsm->adv_itvl_usecs + 5000);
+                      ble_ll_tmr_u2t(advsm->adv_itvl_usecs + 5000);
 
     ble_ll_adv_sync_schedule(advsm, true);
 }
@@ -2747,8 +2740,8 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     earliest_start_time = ble_ll_rfmgmt_enable_now();
 
     start_delay_us = ble_ll_rand() % (BLE_LL_ADV_DELAY_MS_MAX * 1000);
-    advsm->adv_pdu_start_time = os_cputime_get32() +
-                                os_cputime_usecs_to_ticks(start_delay_us);
+    advsm->adv_pdu_start_time = ble_ll_tmr_get() +
+                                ble_ll_tmr_u2t(start_delay_us);
 
     ble_ll_adv_set_sched(advsm);
 
@@ -3760,8 +3753,8 @@ ble_ll_adv_periodic_check_data_itvl(uint16_t payload_len, uint16_t props,
         pdu_len = ble_ll_adv_sync_get_pdu_len(payload_len, &offset, props);
 
         max_usecs += ble_ll_pdu_tx_time_get(pdu_len, phy);
-        max_usecs += ble_ll_usecs_to_ticks_round_up(BLE_LL_MAFS +
-                                MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
+        max_usecs += ble_ll_tmr_u2t_up(BLE_LL_MAFS +
+                                       MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
     }
 
     itvl_usecs = (uint32_t)itvl * BLE_LL_ADV_PERIODIC_ITVL;
@@ -4630,8 +4623,7 @@ ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) {
             max_delay_ticks = 0;
         } else {
-            max_delay_ticks =
-                    os_cputime_usecs_to_ticks(BLE_LL_ADV_DELAY_MS_MAX * 1000);
+            max_delay_ticks = ble_ll_tmr_u2t(BLE_LL_ADV_DELAY_MS_MAX * 1000);
         }
 
         rc = ble_ll_sched_adv_reschedule(sch, max_delay_ticks);
@@ -4718,7 +4710,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * add the random advDelay as the scheduling code will do that.
          */
         itvl = advsm->adv_itvl_usecs;
-        tick_itvl = os_cputime_usecs_to_ticks(itvl);
+        tick_itvl = ble_ll_tmr_u2t(itvl);
         advsm->adv_event_start_time += tick_itvl;
         advsm->adv_pdu_start_time = advsm->adv_event_start_time;
 
@@ -4728,7 +4720,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          */
         start_time = advsm->adv_pdu_start_time - g_ble_ll_sched_offset_ticks;
 
-        delta_t = (int32_t)(start_time - os_cputime_get32());
+        delta_t = (int32_t)(start_time - ble_ll_tmr_get());
         if (delta_t < 0) {
             /*
              * NOTE: we just the same interval that we calculated earlier.
@@ -4757,14 +4749,14 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
          * We will transmit right away. Set next pdu start time to now
          * plus a xcvr start delay just so we dont count late adv starts
          */
-        advsm->adv_pdu_start_time = os_cputime_get32() +
+        advsm->adv_pdu_start_time = ble_ll_tmr_get() +
                                     g_ble_ll_sched_offset_ticks;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* If we're past aux (unlikely, but can happen), just drop an event */
         if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
                 advsm->aux_active &&
-                CPUTIME_GT(advsm->adv_pdu_start_time,
+                LL_TMR_GT(advsm->adv_pdu_start_time,
                            AUX_CURRENT(advsm)->start_time)) {
             ble_ll_adv_drop_event(advsm);
             return;
@@ -4777,7 +4769,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     /* check if advertising timed out */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->duration &&
-        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
+        LL_TMR_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         /* Legacy PDUs need to be stop here.
          * For ext adv it will be stopped when AUX is done (unless it was
          * dropped so check if AUX is active here as well).
@@ -4791,7 +4783,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     }
 #else
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED) &&
-        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
+        LL_TMR_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }
@@ -4896,7 +4888,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
 
     /* Check if advertising timed out */
     if (advsm->duration &&
-        CPUTIME_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
+        LL_TMR_GEQ(advsm->adv_pdu_start_time, advsm->adv_end_time)) {
         ble_ll_adv_sm_stop_timeout(advsm);
         return;
     }

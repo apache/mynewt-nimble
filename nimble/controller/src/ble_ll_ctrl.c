@@ -29,6 +29,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_tmr.h"
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -2439,8 +2440,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
 
         /* Set terminate "timeout" */
         usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
-        connsm->terminate_timeout = os_cputime_get32() +
-            os_cputime_usecs_to_ticks(usecs);
+        connsm->terminate_timeout = ble_ll_tmr_get() + ble_ll_tmr_u2t(usecs);
     }
 }
 

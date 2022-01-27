@@ -21,7 +21,6 @@
 #define H_BLE_LL_
 
 #include "stats/stats.h"
-#include "os/os_cputime.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/nimble_npl.h"
 #include "controller/ble_phy.h"
@@ -29,6 +28,9 @@
 #ifdef MYNEWT
 #include "controller/ble_ll_ctrl.h"
 #include "hal/hal_system.h"
+#endif
+#ifdef RIOT_VERSION
+#include "hal/hal_timer.h"
 #endif
 
 #ifdef __cplusplus
@@ -122,9 +124,6 @@ struct ble_ll_obj
 
     /* Task event queue */
     struct ble_npl_eventq ll_evq;
-
-    /* Wait for response timer */
-    struct hal_timer ll_wfr_timer;
 
     /* Packet receive queue (and event). Holds received packets from PHY */
     struct ble_npl_event ll_rx_pkt_ev;
@@ -610,13 +609,6 @@ ble_ll_get_addr_type(uint8_t txrxflag)
         return BLE_HCI_ADV_OWN_ADDR_RANDOM;
     }
     return BLE_HCI_ADV_OWN_ADDR_PUBLIC;
-}
-
-/* Convert usecs to ticks and round up to nearest tick */
-static inline uint32_t
-ble_ll_usecs_to_ticks_round_up(uint32_t usecs)
-{
-    return os_cputime_usecs_to_ticks(usecs + 30);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)

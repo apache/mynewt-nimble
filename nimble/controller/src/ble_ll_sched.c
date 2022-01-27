@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "os/os_cputime.h"
 #include "ble/xcvr.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
@@ -30,13 +29,14 @@
 #include "controller/ble_ll_scan_aux.h"
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
+#include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 
 #define BLE_LL_SCHED_MAX_DELAY_ANY      (0x7fffffff)
 
-static struct hal_timer g_ble_ll_sched_timer;
+static struct ble_ll_tmr g_ble_ll_sched_timer;
 
 uint8_t g_ble_ll_sched_offset_ticks;
 
@@ -102,8 +102,8 @@ ble_ll_sched_check_overlap(struct ble_ll_sched_item *sch1,
     /* Note: item ranges are defined as [start, end) so items do not overlap
      *       if one item starts at the same time as another ends.
      */
-    return CPUTIME_GT(sch1->end_time, sch2->start_time) &&
-           CPUTIME_GT(sch2->end_time, sch1->start_time);
+    return LL_TMR_GT(sch1->end_time, sch2->start_time) &&
+           LL_TMR_GT(sch2->end_time, sch1->start_time);
 }
 
 static void
@@ -171,7 +171,7 @@ ble_ll_sched_q_head_changed(void)
 
     g_ble_ll_sched_q_head_changed = 1;
 
-    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    ble_ll_tmr_stop(&g_ble_ll_sched_timer);
 }
 
 static inline void
@@ -190,7 +190,7 @@ ble_ll_sched_restart(void)
     ble_ll_rfmgmt_sched_changed(first);
 
     if (first) {
-        os_cputime_timer_start(&g_ble_ll_sched_timer, first->start_time);
+        ble_ll_tmr_start(&g_ble_ll_sched_timer, first->start_time);
     }
 }
 
@@ -219,7 +219,7 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
     }
 
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
-        if (CPUTIME_LEQ(sch->end_time, entry->start_time)) {
+        if (LL_TMR_LEQ(sch->end_time, entry->start_time)) {
             TAILQ_INSERT_BEFORE(entry, sch, link);
             sch->enqueued = 1;
             goto done;
@@ -251,7 +251,7 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
                  */
                 sch->start_time = entry->end_time + 1;
 
-                if ((max_delay == 0) || CPUTIME_GEQ(sch->start_time,
+                if ((max_delay == 0) || LL_TMR_GEQ(sch->start_time,
                                                     max_start_time)) {
                     sch->enqueued = 0;
                     goto done;
@@ -301,14 +301,14 @@ ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
     int rc;
 
     rc = 1;
-    if (CPUTIME_LT(s1->start_time, s2->start_time)) {
+    if (LL_TMR_LT(s1->start_time, s2->start_time)) {
         /* Make sure this event does not overlap current event */
-        if (CPUTIME_LEQ(s1->end_time, s2->start_time)) {
+        if (LL_TMR_LEQ(s1->end_time, s2->start_time)) {
             rc = 0;
         }
     } else {
         /* Check for overlap */
-        if (CPUTIME_GEQ(s1->start_time, s2->end_time)) {
+        if (LL_TMR_GEQ(s1->start_time, s2->end_time)) {
             rc = 0;
         }
     }
@@ -330,7 +330,7 @@ ble_ll_sched_overlaps_current(struct ble_ll_sched_item *sch)
 
     if (ble_ll_state_get() == BLE_LL_STATE_CONNECTION) {
         ce_end_time = ble_ll_conn_get_ce_end_time();
-        if (CPUTIME_GT(ce_end_time, sch->start_time)) {
+        if (LL_TMR_GT(ce_end_time, sch->start_time)) {
             rc = 1;
         }
     }
@@ -377,7 +377,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CONN_ROLE_SLAVE:
         usecs = connsm->slave_cur_window_widening;
-        sch->start_time -= (os_cputime_usecs_to_ticks(usecs) + 1);
+        sch->start_time -= (ble_ll_tmr_u2t(usecs) + 1);
         sch->remainder = 0;
         break;
 #endif
@@ -389,7 +389,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     sch->end_time = connsm->ce_end_time;
 
     /* Better be past current time or we just leave */
-    if (CPUTIME_LT(sch->start_time, os_cputime_get32())) {
+    if (LL_TMR_LT(sch->start_time, ble_ll_tmr_get())) {
         return -1;
     }
 
@@ -491,8 +491,8 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
-    dur = os_cputime_usecs_to_ticks(g_ble_ll_sched_data.sch_ticks_per_period);
-    adv_rxend = os_cputime_get32();
+    dur = ble_ll_tmr_u2t(g_ble_ll_sched_data.sch_ticks_per_period);
+    adv_rxend = ble_ll_tmr_get();
     if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
         /*
          * We received packet on advertising channel which means this is a legacy
@@ -584,14 +584,14 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
         rc = 0;
         connsm->tx_win_off = MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET);
     } else {
-        os_cputime_timer_stop(&g_ble_ll_sched_timer);
+        ble_ll_tmr_stop(&g_ble_ll_sched_timer);
         TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
             /* Set these because overlap function needs them to be set */
             sch->start_time = earliest_start;
             sch->end_time = earliest_end;
 
             /* We can insert if before entry in list */
-            if (CPUTIME_LEQ(sch->end_time, entry->start_time)) {
+            if (LL_TMR_LEQ(sch->end_time, entry->start_time)) {
                 if ((earliest_start - initial_start) <= itvl_t) {
                     rc = 0;
                     TAILQ_INSERT_BEFORE(entry, sch, link);
@@ -623,7 +623,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
              * the transmit window slightly since the window size is currently
              * 2 when using a 32768 crystal.
              */
-            dur = os_cputime_ticks_to_usecs(earliest_start - initial_start);
+            dur = ble_ll_tmr_t2u(earliest_start - initial_start);
             connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
         }
     }
@@ -650,7 +650,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
 
     OS_EXIT_CRITICAL(sr);
 
-    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+    ble_ll_tmr_start(&g_ble_ll_sched_timer, sch->start_time);
 
     return rc;
 }
@@ -712,7 +712,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
-    adv_rxend = os_cputime_get32();
+    adv_rxend = ble_ll_tmr_get();
     if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
         /*
          * We received packet on advertising channel which means this is a legacy
@@ -762,8 +762,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
     rc = ble_ll_sched_insert(sch, max_delay, preempt_none);
 
     if (rc == 0) {
-        connsm->tx_win_off = os_cputime_ticks_to_usecs(sch->start_time -
-                                                       orig_start_time) /
+        connsm->tx_win_off = ble_ll_tmr_t2u(sch->start_time - orig_start_time) /
                              BLE_LL_CONN_TX_OFF_USECS;
 
         connsm->anchor_point = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -807,7 +806,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      * usecs to ticks could be off by up to 1 tick.
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
-        os_cputime_usecs_to_ticks(connsm->slave_cur_window_widening) - 1;
+                      ble_ll_tmr_u2t(connsm->slave_cur_window_widening) - 1;
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 
@@ -821,22 +820,6 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
 
     return rc;
 }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static inline uint32_t
-usecs_to_ticks_fast(uint32_t usecs)
-{
-    uint32_t ticks;
-
-    if (usecs <= 31249) {
-        ticks = (usecs * 137439) / 4194304;
-    } else {
-        ticks = os_cputime_usecs_to_ticks(usecs);
-    }
-
-    return ticks;
-}
-#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 /*
@@ -863,7 +846,7 @@ ble_ll_sched_sync_overlaps_current(struct ble_ll_sched_item *sch)
         return 0;
     }
 
-    return CPUTIME_GT(end_time, sch->start_time);
+    return LL_TMR_GT(end_time, sch->start_time);
 }
 
 int
@@ -873,31 +856,20 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
                              int8_t phy_mode)
 {
     uint8_t start_time_rem_usecs;
-    uint8_t window_rem_usecs;
-    uint32_t window_ticks;
     uint32_t start_time;
     uint32_t end_time;
     uint32_t dur;
     int rc = 0;
     os_sr_t sr;
 
-    window_ticks = os_cputime_usecs_to_ticks(window_widening);
-    window_rem_usecs = window_widening - os_cputime_ticks_to_usecs(window_ticks);
+    start_time = anchor_point;
+    start_time_rem_usecs = anchor_point_usecs;
 
-    /* adjust for subtraction */
-    anchor_point_usecs += 31;
-    anchor_point--;
-
-    start_time = anchor_point - window_ticks;
-    start_time_rem_usecs = anchor_point_usecs - window_rem_usecs;
-    if (start_time_rem_usecs >= 31) {
-        start_time++;
-        start_time_rem_usecs -= 31;
-    }
+    ble_ll_tmr_sub(&start_time, &start_time_rem_usecs, window_widening);
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                  phy_mode);
-    end_time = start_time + os_cputime_usecs_to_ticks(dur);
+    end_time = start_time + ble_ll_tmr_u2t(dur);
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -907,7 +879,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
     sch->end_time = end_time;
 
     /* Better be past current time or we just leave */
-    if (CPUTIME_LEQ(sch->start_time, os_cputime_get32())) {
+    if (LL_TMR_LEQ(sch->start_time, ble_ll_tmr_get())) {
         return -1;
     }
 
@@ -932,28 +904,21 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
                   uint32_t beg_cputime, uint32_t rem_usecs,
                   uint32_t offset, int8_t phy_mode)
 {
-    uint32_t start_time_rem_usecs;
-    uint32_t off_rem_usecs;
+    uint8_t start_time_rem_usecs;
     uint32_t start_time;
-    uint32_t off_ticks;
     uint32_t end_time;
     uint32_t dur;
     os_sr_t sr;
     int rc = 0;
 
-    off_ticks = usecs_to_ticks_fast(offset);
-    off_rem_usecs = offset - os_cputime_ticks_to_usecs(off_ticks);
+    start_time = beg_cputime;
+    start_time_rem_usecs = rem_usecs;
 
-    start_time = beg_cputime + off_ticks;
-    start_time_rem_usecs = rem_usecs + off_rem_usecs;
-    if (start_time_rem_usecs >= 31) {
-        start_time++;
-        start_time_rem_usecs -= 31;
-    }
+    ble_ll_tmr_add(&start_time, &start_time_rem_usecs, offset);
 
     dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                   phy_mode);
-    end_time = start_time + usecs_to_ticks_fast(dur);
+    end_time = start_time + ble_ll_tmr_u2t(dur);
 
     start_time -= g_ble_ll_sched_offset_ticks;
 
@@ -1042,7 +1007,7 @@ ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch,
     if (rc == 0) {
         next = TAILQ_NEXT(sch, link);
         if (next) {
-            if (CPUTIME_LT(next->start_time, max_end_time)) {
+            if (LL_TMR_LT(next->start_time, max_end_time)) {
                 max_end_time = next->start_time;
             }
             rand_ticks = max_end_time - sch->end_time;
@@ -1198,7 +1163,7 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 
     lls = ble_ll_state_get();
 
-    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_SCHED, lls, os_cputime_get32(),
+    ble_ll_trace_u32x3(BLE_LL_TRACE_ID_SCHED, lls, ble_ll_tmr_get(),
                        sch->start_time);
 
     if (lls == BLE_LL_STATE_STANDBY) {
@@ -1282,7 +1247,7 @@ ble_ll_sched_run(void *arg)
         int32_t dt;
 
         /* Make sure we have passed the start time of the first event */
-        dt = (int32_t)(os_cputime_get32() - sch->start_time);
+        dt = (int32_t)(ble_ll_tmr_get() - sch->start_time);
         if (dt > g_ble_ll_sched_max_late) {
             g_ble_ll_sched_max_late = dt;
         }
@@ -1343,12 +1308,12 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
     int rc;
 
     offset_us += pdu_time_rem;
-    offset_ticks = usecs_to_ticks_fast(offset_us);
+    offset_ticks = ble_ll_tmr_u2t(offset_us);
 
     sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
-    sch->remainder = offset_us - os_cputime_ticks_to_usecs(offset_ticks);
+    sch->remainder = offset_us - ble_ll_tmr_t2u(offset_ticks);
     /* TODO: make some sane slot reservation */
-    sch->end_time = sch->start_time + usecs_to_ticks_fast(5000);
+    sch->end_time = sch->start_time + ble_ll_tmr_u2t(5000);
 
     OS_ENTER_CRITICAL(sr);
 
@@ -1389,7 +1354,7 @@ int ble_ll_sched_dtm(struct ble_ll_sched_item *sch)
 void
 ble_ll_sched_stop(void)
 {
-    os_cputime_timer_stop(&g_ble_ll_sched_timer);
+    ble_ll_tmr_stop(&g_ble_ll_sched_timer);
 }
 
 /**
@@ -1417,16 +1382,15 @@ ble_ll_sched_init(void)
      * This is the offset from the start of the scheduled item until the actual
      * tx/rx should occur, in ticks. We also "round up" to the nearest tick.
      */
-    g_ble_ll_sched_offset_ticks =
-        (uint8_t) os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS + 30);
+    g_ble_ll_sched_offset_ticks = ble_ll_tmr_u2t_up(XCVR_TX_SCHED_DELAY_USECS);
 
     /* Initialize cputimer for the scheduler */
-    os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
+    ble_ll_tmr_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
 
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
     memset(&g_ble_ll_sched_data, 0, sizeof(struct ble_ll_sched_obj));
     g_ble_ll_sched_data.sch_ticks_per_period =
-        os_cputime_usecs_to_ticks(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD));
+        ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD));
     g_ble_ll_sched_data.sch_ticks_per_epoch = BLE_LL_SCHED_PERIODS *
         g_ble_ll_sched_data.sch_ticks_per_period;
 #endif
