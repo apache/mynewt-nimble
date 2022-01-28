@@ -24,8 +24,8 @@
 #include "controller/ble_ll_plna.h"
 
 #define NO_BYPASS \
-        ((MYNEWT_VAL(SKY66112_TX_BYPASS) >= 0) && \
-         (MYNEWT_VAL(SKY66112_RX_BYPASS) >= 0))
+        ((MYNEWT_VAL(SKY66112_TX_BYPASS) == 0) && \
+         (MYNEWT_VAL(SKY66112_RX_BYPASS) == 0))
 
 static void
 sky66112_bypass(uint8_t enabled)
