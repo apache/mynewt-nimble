@@ -27,7 +27,8 @@
 extern "C" {
 #endif
 
-#define USECS_PER_TICK          (31)
+#define USECS_PER_TICK      ((1000000 + MYNEWT_VAL(OS_CPUTIME_FREQ) - 1) / \
+                             MYNEWT_VAL(OS_CPUTIME_FREQ))
 
 #define LL_TMR_LT(_t1, _t2)     ((int32_t)((_t1) - (_t2)) < 0)
 #define LL_TMR_GT(_t1, _t2)     ((int32_t)((_t1) - (_t2)) > 0)
@@ -49,15 +50,24 @@ ble_ll_tmr_get(void)
 static inline uint32_t
 ble_ll_tmr_t2u(uint32_t ticks)
 {
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 31250
+    return ticks * 32;
+#endif
+
     return os_cputime_ticks_to_usecs(ticks);
 }
 
 static inline uint32_t
 ble_ll_tmr_u2t(uint32_t usecs)
 {
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 31250
+    return usecs / 32;
+#endif
+#if MYNEWT_VAL(OS_CPUTIME_FREQ) == 32768
     if (usecs <= 31249) {
         return (usecs * 137439) / 4194304;
     }
+#endif
 
     return os_cputime_usecs_to_ticks(usecs);
 }

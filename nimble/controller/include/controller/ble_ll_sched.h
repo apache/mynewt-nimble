@@ -26,7 +26,6 @@ extern "C" {
 
 /* Time per BLE scheduler slot */
 #define BLE_LL_SCHED_USECS_PER_SLOT   (1250)
-#define BLE_LL_SCHED_TICKS_PER_SLOT   (41)    /* 1 tick = 30.517 usecs */
 
 /*
  * Worst case time needed for scheduled advertising item. This is the longest

@@ -718,7 +718,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
          * We received packet on advertising channel which means this is a legacy
          * PDU on 1 Mbps - we do as described above.
          */
-        earliest_start = adv_rxend + 57;
+        earliest_start = adv_rxend + ble_ll_tmr_u2t(1752);
     } else {
         /*
          * The calculations are similar as above.
@@ -731,27 +731,28 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
          *
          */
         if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
-            // 150 + 352 + 2500 = 3002us = 98.37 ticks
-            earliest_start = adv_rxend + 98;
+            /* 150 + 352 + 2500 = 3002us */
+            earliest_start = adv_rxend + ble_ll_tmr_u2t(3002);
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
-            // 150 + 180 + 2500 = 2830us = 92.73 ticks
-            earliest_start = adv_rxend + 93;
+            /* 150 + 180 + 2500 = 2830us */
+            earliest_start = adv_rxend + ble_ll_tmr_u2t(2830);
         } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
-            // 150 + 2896 + 3750 = 6796us = 222.69 ticks
-            earliest_start = adv_rxend + 223;
+            /* 150 + 2896 + 3750 = 6796us */
+            earliest_start = adv_rxend + ble_ll_tmr_u2t(6796);
         } else {
             BLE_LL_ASSERT(0);
         }
     }
 
     sch->start_time = earliest_start - g_ble_ll_sched_offset_ticks;
-    sch->end_time = earliest_start + MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
-                                     BLE_LL_SCHED_TICKS_PER_SLOT;
+    sch->end_time = earliest_start +
+                    ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                                   BLE_LL_SCHED_USECS_PER_SLOT);
 
     orig_start_time = sch->start_time;
 
-    min_win_offset = MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
-                     BLE_LL_SCHED_TICKS_PER_SLOT;
+    min_win_offset = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
+                                    BLE_LL_SCHED_USECS_PER_SLOT);
     sch->start_time += min_win_offset;
     sch->end_time += min_win_offset;
 
