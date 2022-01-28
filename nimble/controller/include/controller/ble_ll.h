@@ -37,10 +37,6 @@
 extern "C" {
 #endif
 
-#if MYNEWT_VAL(OS_CPUTIME_FREQ) != 32768
-#error 32.768kHz clock required
-#endif
-
 #if defined(MYNEWT) && MYNEWT_VAL(BLE_LL_HCI_VS_EVENT_ON_ASSERT)
 #ifdef NDEBUG
 #define BLE_LL_ASSERT(cond) (void(0))

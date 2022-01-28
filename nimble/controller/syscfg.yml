@@ -516,7 +516,6 @@ syscfg.vals.!BLE_HOST:
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
 syscfg.restrictions:
-    - OS_CPUTIME_FREQ == 32768
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
     - BLE_LL_PA == 0 || BLE_LL_PA_GPIO >= 0
     - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0
