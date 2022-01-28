@@ -258,9 +258,7 @@ struct ble_phy_data {
 #endif
     uint32_t access_addr;       /* Current access address */
     uint32_t crc_init;
-    uint32_t llt_at_cputime;
-    uint32_t cputime_at_llt;
-    uint64_t start_llt;
+    uint64_t llt_rx_start;
     struct ble_mbuf_hdr rxhdr;
     ble_phy_tx_end_func txend_cb;
     void *txend_arg;
@@ -454,24 +452,6 @@ SW_MAC_IRQHandler(void)
     MCU_DIAG_SER('s');
 }
 
-static inline uint32_t
-ble_phy_convert_and_record_start_time(uint32_t cputime, uint8_t rem_usecs)
-{
-    uint64_t ll_val;
-
-    ll_val = cmac_timer_convert_hal2llt(cputime);
-
-    /*
-     * Since we just converted cputime to the LL timer, record both these
-     * values as they will be used to calculate packet reception start time.
-     */
-    g_ble_phy_data.cputime_at_llt = cputime;
-    g_ble_phy_data.llt_at_cputime = ll_val;
-    g_ble_phy_data.start_llt = ll_val + rem_usecs;
-
-    return ll_val;
-}
-
 static inline void
 ble_phy_sw_mac_handover(uint8_t exc)
 {
@@ -525,12 +505,8 @@ ble_phy_rx_end_isr(void)
 static bool
 ble_phy_rx_start_isr(void)
 {
-    uint32_t llt32;
-    uint32_t llt_10_0;
-    uint32_t llt_10_0_mask;
+    uint64_t llt;
     uint32_t timestamp;
-    uint32_t ticks;
-    uint32_t usecs;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Initialize the ble mbuf header */
@@ -565,44 +541,31 @@ ble_phy_rx_start_isr(void)
     timestamp = CMAC->CM_TS1_REG;
     assert((timestamp & CMAC_CM_TS1_REG_TS1_DIRTY_Msk) != 0);
 
-    /* Get the LL timer (only need 32 bits) */
-    llt32 = cmac_timer_read32();
+    llt = cmac_timer_read37();
 
-    /*
-     * We assume that the timestamp was set within 11 bits, or 2047 usecs, of
-     * when we read the ll timer. We assume this because we need to calculate
-     * the LL timer value at the timestamp. If the low 11 bits of the LL timer
-     * are greater than the timestamp, it means that the upper bits of the
-     * timestamp are correct. If the timestamp value is greater, it means the
-     * timer wrapped the 11 bits and we need to adjust the LL timer value.
+    /* Captured timestamp has only 11lsb, we use current LL timer value to
+     * calculate 37-bit timestamp. To do this we will replace 11 lsb of current
+     * LL timer value with captured value, but we need to check if msb of
+     * captured timestamp (i.e. 11) is the same as in current LL timer value.
+     * If not, it means 10 lsb of LL timer value wrapped around since timestamp
+     * was captured and we need to adjust LL timer value. This assumes that
+     * LL timer value was read no later than 1024 usecs from timestamp capture,
+     * but that's fine since isr should be triggered immediately after capture.
      */
-    llt_10_0_mask = (CMAC_CM_TS1_REG_TS1_TIMER1_9_0_Msk |
-                     CMAC_CM_TS1_REG_TS1_TIMER1_10_Msk);
-    timestamp &= llt_10_0_mask;
-    llt_10_0 = llt32 & llt_10_0_mask;
-    llt32 &= ~llt_10_0_mask;
-    if (timestamp > llt_10_0) {
-        llt32 -= 2048;
+    if (((uint32_t)llt ^ timestamp) & (1 << 10)) {
+        llt -= 1024;
     }
-    llt32 |= timestamp;
+    llt &= ~((uint64_t)0x3ff);
+    llt |= timestamp & 0x3ff;
 
-    /* Actual RX start time needs to account for preamble and access address */
-    llt32 -= g_ble_phy_mode_pkt_start_off[g_ble_phy_data.phy_mode_rx] +
-             g_ble_phy_data.path_delay_rx;
-
-    if (llt32 < g_ble_phy_data.llt_at_cputime) {
-        g_ble_phy_data.llt_at_cputime -= 31;
-        g_ble_phy_data.cputime_at_llt--;
-    }
-
-    /*
-     * We now have the LL timer when the packet was received. Get the cputime
-     * and the leftover usecs.
+    /* Timestamp is captured after access address so we need to adjust rx start
+     * time accordingly.
      */
-    usecs = llt32 - g_ble_phy_data.llt_at_cputime;
-    ticks = os_cputime_usecs_to_ticks(usecs);
-    ble_hdr->beg_cputime = g_ble_phy_data.cputime_at_llt + ticks;
-    ble_hdr->rem_usecs = usecs - os_cputime_ticks_to_usecs(ticks);
+    llt -= g_ble_phy_mode_pkt_start_off[g_ble_phy_data.phy_mode_rx] +
+           g_ble_phy_data.path_delay_rx;
+
+    ble_hdr->beg_cputime = llt >> 5;
+    ble_hdr->rem_usecs = llt & 0x1f;
 
     return true;
 }
@@ -1180,7 +1143,7 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
         CMAC->CM_EV_LINKUP_REG = CMAC_CM_EV_LINKUP_REG_LU_CORR_TMR_LD_2_CORR_START_Msk;
     } else {
         wfr_usecs += aa_time;
-        llt = g_ble_phy_data.start_llt;
+        llt = g_ble_phy_data.llt_rx_start;
 
         /*
          * wfr is outside range of CORR_WINDOW so we need to use LLT to start
@@ -1380,7 +1343,8 @@ ble_phy_rx(void)
 int
 ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 {
-    uint32_t ll_val32;
+    uint64_t llt_rx_start;
+    uint32_t llt32;
     int32_t time_till_start;
     int rc = 0;
 
@@ -1394,21 +1358,22 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     ble_phy_rx();
 
-    /* Get LL timer at cputime */
-    ll_val32 = ble_phy_convert_and_record_start_time(cputime, rem_usecs);
+    /* Store LLT value at RX start, we'll need this to set wfr */
+    llt_rx_start = (uint64_t)cputime * 32 + rem_usecs;
+    g_ble_phy_data.llt_rx_start = llt_rx_start;
 
-    /* Add remaining usecs to get exact receive start time */
-    ll_val32 += rem_usecs;
-
-    /* Adjust start time for rx delays */
-    ll_val32 -= PHY_DELAY_POWER_UP_RX - g_ble_phy_data.path_delay_rx;
+    /* Adjust start time for rx delays.
+     * Note: we can use 32lsb for remaining calculations.
+     */
+    llt32 = llt_rx_start;
+    llt32 -= PHY_DELAY_POWER_UP_RX - g_ble_phy_data.path_delay_rx;
 
     __disable_irq();
-    CMAC->CM_LL_TIMER1_9_0_EQ_X_REG = ll_val32;
+    CMAC->CM_LL_TIMER1_9_0_EQ_X_REG = llt32;
     CMAC->CM_EV_LINKUP_REG =
         CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_TMR1_9_0_EQ_X_Msk;
 
-    time_till_start = (int32_t)(ll_val32 - cmac_timer_read32());
+    time_till_start = (int32_t)(llt32 - cmac_timer_read32());
     if (time_till_start <= 0) {
         /*
          * Possible we missed the frame start! If we have, we need to start
@@ -1520,8 +1485,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     ble_rf_configure();
     ble_rf_setup_tx(rf_chan, g_ble_phy_data.phy_mode_tx);
 
-    ll_val32 = ble_phy_convert_and_record_start_time(cputime, rem_usecs);
-    ll_val32 += rem_usecs;
+    ll_val32 = cputime * 32 + rem_usecs;
     ll_val32 -= PHY_DELAY_POWER_UP_TX + g_ble_phy_data.path_delay_tx;
     /* we can schedule TX only up to 1023us in advance */
     assert((int32_t)(ll_val32 - cmac_timer_read32()) < 1024);
