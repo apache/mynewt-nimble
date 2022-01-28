@@ -16,7 +16,7 @@
 # under the License.
 #
 
-syscfg.vals.'!BLE_HCI_BRIDGE && !(BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV)':
+syscfg.vals.'!BLE_HCI_BRIDGE:
     BLE_HCI_EVT_HI_BUF_COUNT: 2
     BLE_HCI_EVT_LO_BUF_COUNT: 8
     BLE_HCI_EVT_BUF_SIZE: 70
