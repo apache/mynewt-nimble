@@ -47,6 +47,18 @@ cmac_mbox_set_write_notif_cb(cmac_mbox_write_notif_cb *cb)
 }
 
 int
+cmac_mbox_has_data(void)
+{
+#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
+    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_c2s;
+#else
+    volatile struct cmac_mbox *mbox = &g_cmac_shared_data.mbox_s2c;
+#endif
+
+    return mbox->rd_off != mbox->wr_off;
+}
+
+int
 cmac_mbox_read(void)
 {
 #if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)

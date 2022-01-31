@@ -142,6 +142,7 @@ typedef int (cmac_mbox_read_cb)(const void *data, uint16_t len);
 typedef void (cmac_mbox_write_notif_cb)(void);
 void cmac_mbox_set_read_cb(cmac_mbox_read_cb *cb);
 void cmac_mbox_set_write_notif_cb(cmac_mbox_write_notif_cb *cb);
+int cmac_mbox_has_data(void);
 int cmac_mbox_read(void);
 int cmac_mbox_write(const void *data, uint16_t len);
 
