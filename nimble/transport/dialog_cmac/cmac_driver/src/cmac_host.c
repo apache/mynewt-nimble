@@ -65,6 +65,13 @@ static struct os_event g_cmac_host_rand_ev = {
 
 static void cmac_host_rand_chk_fill(void);
 
+#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
+static void cmac_host_error_w4flush(struct os_event *ev);
+static struct os_event g_cmac_host_error_ev = {
+        .ev_cb = cmac_host_error_w4flush
+};
+#endif
+
 static void
 cmac2sys_isr(void)
 {
@@ -105,6 +112,14 @@ cmac2sys_isr(void)
             for (;;);
         }
 #endif
+
+#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
+        NVIC_DisableIRQ(CMAC2SYS_IRQn);
+        /* Wait until UART is flushed and then assert */
+        cmac_host_error_w4flush(NULL);
+        return;
+#endif
+
         /* XXX CMAC is in error state, need to recover */
         assert(0);
         return;
@@ -146,6 +161,40 @@ cmac_host_rand_chk_fill(void)
         os_eventq_put(os_eventq_dflt_get(), &g_cmac_host_rand_ev);
     }
 }
+
+#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
+#if MYNEWT_VAL(BLE_HCI_UART_PORT) < 0 || MYNEWT_VAL(BLE_HCI_UART_PORT) > 2
+#error Invalid BLE_HCI_UART_PORT
+#endif
+static void
+cmac_host_error_w4flush(struct os_event *ev)
+{
+    static UART_Type * const regs[] = {
+            (void *)UART,
+            (void *)UART2,
+            (void *)UART3
+    };
+
+    if (!ev) {
+        /* Move to task context, we do not want to spin in interrupt */
+        os_eventq_put(os_eventq_dflt_get(), &g_cmac_host_error_ev);
+        return;
+    }
+
+    do {
+        cmac_mbox_read();
+        while ((regs[MYNEWT_VAL(BLE_HCI_UART_PORT)]->UART_LSR_REG &
+                UART_UART_LSR_REG_UART_TEMT_Msk) == 0) {
+            /* Wait until both FIFO and shift registers are empty */
+        }
+    } while (cmac_mbox_has_data());
+
+    /* Reset CMAC */
+    CRG_TOP->CLK_RADIO_REG |= CRG_TOP_CLK_RADIO_REG_CMAC_SYNCH_RESET_Msk;
+
+    assert(0);
+}
+#endif
 
 void
 cmac_host_signal2cmac(void)
