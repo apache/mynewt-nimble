@@ -3870,16 +3870,16 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
     switch (cmd->operation) {
     case BLE_HCI_LE_SET_DATA_OPER_LAST:
     case BLE_HCI_LE_SET_DATA_OPER_INT:
+        if (advsm->periodic_adv_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_DATA_INCOMPLETE)) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
         if (!advsm->periodic_adv_data || !cmd->adv_data_len) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
-        }
-
-        if (advsm->periodic_adv_enabled) {
-            return BLE_ERR_CMD_DISALLOWED;
         }
         break;
     case BLE_HCI_LE_SET_DATA_OPER_FIRST:
