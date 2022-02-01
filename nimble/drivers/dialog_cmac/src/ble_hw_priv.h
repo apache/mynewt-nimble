@@ -24,6 +24,7 @@
 
 void ble_hw_resolv_proc_enable(void);
 void ble_hw_resolv_proc_disable(void);
+void ble_hw_resolv_proc_reset(void);
 void ble_hw_resolv_proc_start(const uint8_t *addr);
 
 #endif /* _BLE_HW_PRIV_H_ */

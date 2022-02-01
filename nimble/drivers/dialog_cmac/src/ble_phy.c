@@ -1347,6 +1347,10 @@ ble_phy_rx_setup_xcvr(void)
 {
     uint8_t rf_chan = g_ble_phy_chan_to_rf[g_ble_phy_data.channel];
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    ble_hw_resolv_proc_reset();
+#endif
+
     CMAC->CM_EV_SET_REG = CMAC_CM_EV_SET_REG_EV1C_CALLBACK_VALID_SET_Msk;
 
     ble_rf_setup_rx(rf_chan, g_ble_phy_data.phy_mode_rx);
