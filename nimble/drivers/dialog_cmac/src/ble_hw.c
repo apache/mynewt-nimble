@@ -306,6 +306,12 @@ ble_hw_resolv_proc_disable(void)
 }
 
 void
+ble_hw_resolv_proc_reset(const uint8_t *addr)
+{
+    g_ble_hw_resolv_proc.f_match = 0;
+}
+
+void
 ble_hw_resolv_proc_start(const uint8_t *addr)
 {
     assert(g_ble_hw_resolv_proc.f_configured);
