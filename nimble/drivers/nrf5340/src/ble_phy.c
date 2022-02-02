@@ -27,6 +27,7 @@
 #include <nimble/nimble_opt.h>
 #include <nimble/nimble_npl.h>
 #include <controller/ble_phy.h>
+#include "controller/ble_ll_plna.h"
 
 #include <ble/xcvr.h>
 #include <controller/ble_phy_trace.h>
@@ -39,13 +40,9 @@
 #define DPPI_CH_UNSUB(_ch)      (((DPPI_CH_ ## _ch) & 0xff) | (0 << 31))
 #define DPPI_CH_MASK(_ch)       (1 << (DPPI_CH_ ## _ch))
 
-/*
- * NOTE: This code uses 0-5 DPPI channels so care should be taken when using
- * DPPI somewhere else.
- * TODO maybe we could reduce number of used channels if we reuse same channel
- * for mutually exclusive events but for now make it simpler to debug.
- *
- * Optionally channels 6,7,8 are used for GPIO DBG.
+/* Channels 0..5 are always used.
+ * Channels 6 and 7 are used for PA/LNA (optionally).
+ * Channels 6..8 are used for GPIO debugging (optionally).
  */
 
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_0         0
@@ -54,13 +51,15 @@
 #define DPPI_CH_RADIO_EVENTS_BCMATCH            3
 #define DPPI_CH_RADIO_EVENTS_ADDRESS            4
 #define DPPI_CH_RTC0_EVENTS_COMPARE_0           5
-/* used for GPIO DBG */
 #define DPPI_CH_RADIO_EVENTS_READY              6
-#define DPPI_CH_RADIO_EVENTS_RXREADY            7
-#define DPPI_CH_RADIO_EVENTS_DISABLED           8
+#define DPPI_CH_RADIO_EVENTS_DISABLED           7
+#define DPPI_CH_RADIO_EVENTS_RXREADY            8
 
 #define DPPI_CH_ENABLE_ALL (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | DPPIC_CHEN_CH2_Msk | \
                             DPPIC_CHEN_CH3_Msk |  DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk)
+
+#define DPPI_CH_MASK_PLNA   (DPPI_CH_MASK(RADIO_EVENTS_READY) | \
+                             DPPI_CH_MASK(RADIO_EVENTS_DISABLED))
 
 extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
@@ -242,6 +241,27 @@ struct nrf_ccm_data {
 static struct nrf_ccm_data nrf_ccm_data;
 #endif
 
+static int g_ble_phy_gpiote_idx;
+
+#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
+
+#define PLNA_SINGLE_GPIO \
+        (!MYNEWT_VAL(BLE_LL_PA) || !MYNEWT_VAL(BLE_LL_LNA) || \
+         (MYNEWT_VAL(BLE_LL_PA_GPIO) == MYNEWT_VAL(BLE_LL_LNA_GPIO)))
+
+#if PLNA_SINGLE_GPIO
+static uint8_t plna_idx;
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+static uint8_t plna_pa_idx;
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+static uint8_t plna_lna_idx;
+#endif
+#endif
+
+#endif
+
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
 static uint8_t phy_dbg_txrxen_ready_idx;
 #endif
@@ -305,6 +325,62 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
 {
     g_ble_phy_data.phy_tx_phy_mode = tx_phy_mode;
     g_ble_phy_data.phy_rx_phy_mode = rx_phy_mode;
+}
+
+static void
+ble_phy_plna_enable_pa(void)
+{
+#if MYNEWT_VAL(BLE_LL_PA)
+    ble_ll_plna_pa_enable();
+
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+#else
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+#endif
+#endif
+}
+
+static void
+ble_phy_plna_disable_pa(void)
+{
+#if MYNEWT_VAL(BLE_LL_PA)
+    ble_ll_plna_pa_disable();
+
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#else
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#endif
+#endif
+}
+
+static void
+ble_phy_plna_enable_lna(void)
+{
+#if MYNEWT_VAL(BLE_LL_LNA)
+    ble_ll_plna_lna_enable();
+
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+#else
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+#endif
+#endif
+}
+
+static void
+ble_phy_plna_disable_lna(void)
+{
+#if MYNEWT_VAL(BLE_LL_LNA)
+    ble_ll_plna_lna_disable();
+
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#else
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#endif
+#endif
 }
 
 int
@@ -814,6 +890,7 @@ ble_phy_tx_end_isr(void)
         /* Start radio on timer */
         NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
 
+        ble_phy_plna_enable_lna();
     } else {
         NRF_TIMER0_NS->TASKS_STOP = 1;
         NRF_TIMER0_NS->TASKS_SHUTDOWN = 1;
@@ -942,6 +1019,8 @@ ble_phy_rx_end_isr(void)
 
     /* Enable automatic TX */
     NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+
+    ble_phy_plna_enable_pa();
 
     /*
      * XXX: Hack warning!
@@ -1145,6 +1224,7 @@ ble_phy_isr(void)
 
         switch (g_ble_phy_data.phy_state) {
             case BLE_PHY_STATE_RX:
+                ble_phy_plna_disable_lna();
                 if (g_ble_phy_data.phy_rx_started) {
                     ble_phy_rx_end_isr();
                 } else {
@@ -1152,6 +1232,7 @@ ble_phy_isr(void)
                 }
                 break;
             case BLE_PHY_STATE_TX:
+                ble_phy_plna_disable_pa();
                 ble_phy_tx_end_isr();
                 break;
             default:
@@ -1167,12 +1248,16 @@ ble_phy_isr(void)
 }
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
-        MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-static inline void
-ble_phy_dbg_time_setup_gpiote(int index, int pin)
+    MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
+    MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0 || \
+    MYNEWT_VAL(BLE_LL_PA) || \
+    MYNEWT_VAL(BLE_LL_LNA)
+static int
+ble_phy_gpiote_configure(int pin)
 {
     NRF_GPIO_Type *port;
+
+    g_ble_phy_gpiote_idx--;
 
     port = pin > 31 ? NRF_P1_NS : NRF_P0_NS;
     pin &= 0x1f;
@@ -1181,17 +1266,21 @@ ble_phy_dbg_time_setup_gpiote(int index, int pin)
     port->DIRSET = (1 << pin);
     port->OUTCLR = (1 << pin);
 
-    NRF_GPIOTE_NS->CONFIG[index] =
-                        (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
-                        ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
-                        ((port == NRF_P1_NS) << GPIOTE_CONFIG_PORT_Pos);
+    NRF_GPIOTE_NS->CONFIG[g_ble_phy_gpiote_idx] =
+            (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos) |
+            ((pin & 0x1F) << GPIOTE_CONFIG_PSEL_Pos) |
+            ((port == NRF_P1_NS) << GPIOTE_CONFIG_PORT_Pos);
+
+    BLE_LL_ASSERT(g_ble_phy_gpiote_idx >= 0);
+
+    return g_ble_phy_gpiote_idx;
 }
 #endif
 
 static void
 ble_phy_dbg_time_setup(void)
 {
-    int gpiote_idx __attribute__((unused)) = 8;
+    int idx __attribute__((unused)) = 8;
 
     /*
      * We setup GPIOTE starting from last configuration index to minimize risk
@@ -1200,12 +1289,11 @@ ble_phy_dbg_time_setup(void)
      */
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0
-    phy_dbg_txrxen_ready_idx = --gpiote_idx;
-    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
-                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
+    phy_dbg_txrxen_ready_idx = idx;
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
 
     /* Publish RADIO->EVENTS_READY */
     NRF_RADIO_NS->PUBLISH_READY = DPPI_CH_PUB(RADIO_EVENTS_READY);
@@ -1214,28 +1302,26 @@ ble_phy_dbg_time_setup(void)
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
-    phy_dbg_address_end_idx = --gpiote_idx;
-    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
-                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
+    phy_dbg_address_end_idx = idx;
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_END);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[idx] = DPPI_CH_SUB(RADIO_EVENTS_END);
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
-    phy_dbg_wfr_idx = --gpiote_idx;
-    ble_phy_dbg_time_setup_gpiote(gpiote_idx,
-                                  MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
+    idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
+    phy_dbg_wfr_idx = idx;
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_RXREADY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[idx] = DPPI_CH_SUB(RADIO_EVENTS_RXREADY);
 
     /* TODO figure out how (if?) to subscribe task to multiple DPPI channels
      * Currently only last one is working. Also using multiple GPIOTE for same
      * PIN doesn't work...
      */
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
 
     /* Publish RADIO->EVENTS_RXREADY */
     NRF_RADIO_NS->PUBLISH_RXREADY = DPPI_CH_PUB(RADIO_EVENTS_READY);
@@ -1251,6 +1337,8 @@ int
 ble_phy_init(void)
 {
     int rc;
+
+    g_ble_phy_gpiote_idx = 8;
 
     /* Default phy to use is 1M */
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
@@ -1340,6 +1428,35 @@ ble_phy_init(void)
     /* Captures tx/rx start in timer0 cc 1 and tx/rx end in timer0 cc 2 */
     NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[1] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
     NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[2] = DPPI_CH_SUB(RADIO_EVENTS_END);
+
+#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
+    /* We keep both channels enabled and CLR task subscribed all the time. It's
+     * enough to just (un)subscribe SET task when needed.
+     * TODO: figure out if this affects power consumption
+     */
+
+#if PLNA_SINGLE_GPIO
+    plna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
+    NRF_GPIOTE_NS->TASKS_CLR[plna_idx] = 1;
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+    plna_pa_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_pa_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
+    NRF_GPIOTE_NS->TASKS_CLR[plna_pa_idx] = 1;
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+    plna_lna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_LNA_GPIO));
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_lna_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
+    NRF_GPIOTE_NS->TASKS_CLR[plna_lna_idx] = 1;
+#endif
+#endif
+
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK_PLNA;
+#endif
 
     /* Set isr in vector table and enable interrupt */
 #ifndef RIOT_VERSION
@@ -1471,6 +1588,8 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         /* Enable PPI to automatically start TXEN */
         NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
         rc = 0;
+
+        ble_phy_plna_enable_pa();
     }
     return rc;
 }
@@ -1502,6 +1621,8 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /* Enable PPI to automatically start RXEN */
     NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+
+    ble_phy_plna_enable_lna();
 
     /* Start rx */
     rc = ble_phy_rx();
@@ -1777,6 +1898,17 @@ ble_phy_disable_irq_and_ppi(void)
     NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_AAR_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
     NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+#endif
+#endif
 
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
