@@ -34,6 +34,11 @@
 #include <mcu/nrf5340_net_clock.h>
 #include <mcu/cmsis_nvic.h>
 
+#define DPPI_CH_PUB(_ch)        (((DPPI_CH_ ## _ch) & 0xff) | (1 << 31))
+#define DPPI_CH_SUB(_ch)        (((DPPI_CH_ ## _ch) & 0xff) | (1 << 31))
+#define DPPI_CH_UNSUB(_ch)      (((DPPI_CH_ ## _ch) & 0xff) | (0 << 31))
+#define DPPI_CH_MASK(_ch)       (1 << (DPPI_CH_ ## _ch))
+
 /*
  * NOTE: This code uses 0-5 DPPI channels so care should be taken when using
  * DPPI somewhere else.
@@ -49,74 +54,13 @@
 #define DPPI_CH_RADIO_EVENTS_BCMATCH            3
 #define DPPI_CH_RADIO_EVENTS_ADDRESS            4
 #define DPPI_CH_RTC0_EVENTS_COMPARE_0           5
-
-#define DPPI_CH_ENABLE_ALL (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | DPPIC_CHEN_CH2_Msk | \
-                            DPPIC_CHEN_CH3_Msk |  DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk)
-
-#define DPPI_PUBLISH_TIMER0_EVENTS_COMPARE_0    ((DPPI_CH_TIMER0_EVENTS_COMPARE_0 << TIMER_PUBLISH_COMPARE_CHIDX_Pos) | \
-                                                 (TIMER_PUBLISH_COMPARE_EN_Enabled << TIMER_PUBLISH_COMPARE_EN_Pos))
-#define DPPI_PUBLISH_TIMER0_EVENTS_COMPARE_3    ((DPPI_CH_TIMER0_EVENTS_COMPARE_3 << TIMER_PUBLISH_COMPARE_CHIDX_Pos) | \
-                                                 (TIMER_PUBLISH_COMPARE_EN_Enabled << TIMER_PUBLISH_COMPARE_EN_Pos))
-#define DPPI_PUBLISH_RADIO_EVENTS_END           ((DPPI_CH_RADIO_EVENTS_END << RADIO_PUBLISH_END_CHIDX_Pos) | \
-                                                 (RADIO_PUBLISH_END_EN_Enabled << RADIO_PUBLISH_END_EN_Pos))
-#define DPPI_PUBLISH_RADIO_EVENTS_BCMATCH       ((DPPI_CH_RADIO_EVENTS_BCMATCH << RADIO_PUBLISH_BCMATCH_CHIDX_Pos) | \
-                                                 (RADIO_PUBLISH_BCMATCH_EN_Enabled << RADIO_PUBLISH_BCMATCH_EN_Pos))
-#define DPPI_PUBLISH_RADIO_EVENTS_ADDRESS       ((DPPI_CH_RADIO_EVENTS_ADDRESS << RADIO_PUBLISH_ADDRESS_CHIDX_Pos) | \
-                                                 (RADIO_PUBLISH_ADDRESS_EN_Enabled << RADIO_PUBLISH_ADDRESS_EN_Pos))
-#define DPPI_PUBLISH_RTC0_EVENTS_COMPARE_0      ((DPPI_CH_RTC0_EVENTS_COMPARE_0 << RTC_PUBLISH_COMPARE_CHIDX_Pos) | \
-                                                 (RTC_PUBLISH_COMPARE_EN_Enabled << RTC_PUBLISH_COMPARE_EN_Pos))
-
-#define DPPI_SUBSCRIBE_TIMER0_TASKS_START(_enable)     ((DPPI_CH_RTC0_EVENTS_COMPARE_0 << TIMER_SUBSCRIBE_START_CHIDX_Pos) | \
-                                                        ((_enable) << TIMER_SUBSCRIBE_START_EN_Pos))
-#define DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE1(_enable)  ((DPPI_CH_RADIO_EVENTS_ADDRESS << TIMER_SUBSCRIBE_CAPTURE_CHIDX_Pos) | \
-                                                        ((_enable) << TIMER_SUBSCRIBE_CAPTURE_EN_Pos))
-#define DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE2(_enable)  ((DPPI_CH_RADIO_EVENTS_END << TIMER_SUBSCRIBE_CAPTURE_CHIDX_Pos) | \
-                                                        ((_enable) << TIMER_SUBSCRIBE_CAPTURE_EN_Pos))
-#define DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(_enable)  ((DPPI_CH_RADIO_EVENTS_ADDRESS << TIMER_SUBSCRIBE_CAPTURE_CHIDX_Pos) | \
-                                                        ((_enable) << TIMER_SUBSCRIBE_CAPTURE_EN_Pos))
-#define DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(_enable)    ((DPPI_CH_TIMER0_EVENTS_COMPARE_3 << RADIO_SUBSCRIBE_DISABLE_CHIDX_Pos) | \
-                                                        ((_enable) << RADIO_SUBSCRIBE_DISABLE_EN_Pos))
-#define DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(_enable)       ((DPPI_CH_TIMER0_EVENTS_COMPARE_0 << RADIO_SUBSCRIBE_RXEN_CHIDX_Pos) | \
-                                                        ((_enable) << RADIO_SUBSCRIBE_RXEN_EN_Pos))
-#define DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(_enable)       ((DPPI_CH_TIMER0_EVENTS_COMPARE_0 << RADIO_SUBSCRIBE_TXEN_CHIDX_Pos) | \
-                                                        ((_enable) << RADIO_SUBSCRIBE_TXEN_EN_Pos))
-#define DPPI_SUBSCRIBE_AAR_TASKS_START(_enable)        ((DPPI_CH_RADIO_EVENTS_BCMATCH << AAR_SUBSCRIBE_START_CHIDX_Pos) | \
-                                                        ((_enable) << AAR_SUBSCRIBE_START_EN_Pos))
-#define DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(_enable)        ((DPPI_CH_RADIO_EVENTS_ADDRESS << CCM_SUBSCRIBE_CRYPT_CHIDX_Pos) | \
-                                                        ((_enable) << CCM_SUBSCRIBE_CRYPT_EN_Pos))
-
 /* used for GPIO DBG */
 #define DPPI_CH_RADIO_EVENTS_READY              6
 #define DPPI_CH_RADIO_EVENTS_RXREADY            7
 #define DPPI_CH_RADIO_EVENTS_DISABLED           8
 
-#define DPPI_CH_ENABLE_RADIO_EVENTS_READY       DPPIC_CHEN_CH6_Msk
-#define DPPI_CH_ENABLE_RADIO_EVENTS_RXREADY     DPPIC_CHEN_CH7_Msk
-#define DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED    DPPIC_CHEN_CH8_Msk
-
-#define DPPI_PUBLISH_RADIO_EVENTS_READY                 ((DPPI_CH_RADIO_EVENTS_READY << RADIO_PUBLISH_READY_CHIDX_Pos) | \
-                                                         (RADIO_PUBLISH_READY_EN_Enabled << RADIO_PUBLISH_READY_EN_Pos))
-#define DPPI_PUBLISH_RADIO_EVENTS_RXREADY               ((DPPI_CH_RADIO_EVENTS_RXREADY << RADIO_PUBLISH_RXREADY_CHIDX_Pos) | \
-                                                         (RADIO_PUBLISH_RXREADY_EN_Enabled << RADIO_PUBLISH_RXREADY_EN_Pos))
-#define DPPI_PUBLISH_RADIO_EVENTS_DISABLED              ((DPPI_CH_RADIO_EVENTS_DISABLED << RADIO_PUBLISH_DISABLED_CHIDX_Pos) | \
-                                                         (RADIO_PUBLISH_DISABLED_EN_Enabled << RADIO_PUBLISH_DISABLED_EN_Pos))
-
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_TXRXEN     ((DPPI_CH_TIMER0_EVENTS_COMPARE_0 << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_ADDRESS    ((DPPI_CH_RADIO_EVENTS_ADDRESS << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_END        ((DPPI_CH_RADIO_EVENTS_END << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_READY      ((DPPI_CH_RADIO_EVENTS_READY << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_RXREADY    ((DPPI_CH_RADIO_EVENTS_RXREADY << GPIOTE_SUBSCRIBE_SET_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_SET_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_DISABLED   ((DPPI_CH_RADIO_EVENTS_DISABLED << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_CAPTURE3   ((DPPI_CH_TIMER0_EVENTS_COMPARE_3 << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
-#define DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_ADDRESS    ((DPPI_CH_RADIO_EVENTS_ADDRESS << GPIOTE_SUBSCRIBE_CLR_CHIDX_Pos) | \
-                                                    (1 << GPIOTE_SUBSCRIBE_CLR_EN_Pos))
+#define DPPI_CH_ENABLE_ALL (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | DPPIC_CHEN_CH2_Msk | \
+                            DPPIC_CHEN_CH3_Msk |  DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk)
 
 extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
@@ -562,7 +506,7 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
     NRF_RTC0_NS->EVTENSET = RTC_EVTENSET_COMPARE0_Msk;
 
     /* Enable PPI */
-    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_TIMER0_TASKS_START(1);
+    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_CH_SUB(RTC0_EVENTS_COMPARE_0);
 
     /* Store the cputime at which we set the RTC */
     g_ble_phy_data.phy_start_cputime = cputime;
@@ -598,7 +542,7 @@ ble_phy_set_start_now(void)
     NRF_RTC0_NS->EVTENSET = RTC_EVTENSET_COMPARE0_Msk;
 
     /* Enable PPI */
-    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_TIMER0_TASKS_START(1);
+    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_CH_SUB(RTC0_EVENTS_COMPARE_0);
 
     /*
      * Store the cputime at which we set the RTC
@@ -663,8 +607,8 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
     NRF_TIMER0_NS->EVENTS_COMPARE[3] = 0;
 
     /* Subscribe for wait for response events  */
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(1);
-    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(1);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
 
     /* Enable the disabled interrupt so we time out on events compare */
     NRF_RADIO_NS->INTENSET = RADIO_INTENSET_DISABLED_Msk;
@@ -684,8 +628,8 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
     NRF_TIMER0_NS->TASKS_CAPTURE[1] = 1;
     if (NRF_TIMER0_NS->CC[1] > NRF_TIMER0_NS->CC[3]) {
         /* Unsubscribe from wfr events */
-        NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(0);
-        NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(0);
+        NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+        NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 
         NRF_RADIO_NS->TASKS_DISABLE = 1;
     }
@@ -743,7 +687,7 @@ ble_phy_rx_xcvr_setup(void)
         NRF_CCM_NS->TASKS_KSGEN = 1;
 
         /* Subscribe to radio address event */
-        NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(1);
+        NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
     } else {
         NRF_RADIO_NS->PACKETPTR = (uint32_t)dptr;
     }
@@ -767,8 +711,8 @@ ble_phy_rx_xcvr_setup(void)
 #endif
 
     /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
-    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(0);
-    NRF_AAR_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_AAR_TASKS_START(0);
+    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_AAR_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
 
     /* Reset the rx started flag. Used for the wait for response */
     g_ble_phy_data.phy_rx_started = 0;
@@ -878,16 +822,16 @@ ble_phy_tx_end_isr(void)
         NRF_TIMER0_NS->EVENTS_COMPARE[0] = 0;
 
         /* Start radio on timer */
-        NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(1);
+        NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
 
     } else {
         NRF_TIMER0_NS->TASKS_STOP = 1;
         NRF_TIMER0_NS->TASKS_SHUTDOWN = 1;
 
-        NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(0);
-        NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(0);
-        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(0);
-        NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_TIMER0_TASKS_START(0);
+        NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+        NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+        NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
 
         assert(transition == BLE_PHY_TRANSITION_NONE);
     }
@@ -931,7 +875,7 @@ ble_phy_rx_end_isr(void)
     NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_END_Msk;
 
     /* Disable automatic RXEN */
-    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(0);
+    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -1011,7 +955,7 @@ ble_phy_rx_end_isr(void)
     NRF_TIMER0_NS->EVENTS_COMPARE[0] = 0;
 
     /* Enable automatic TX */
-    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(1);
+    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
 
     /*
      * XXX: Hack warning!
@@ -1027,7 +971,7 @@ ble_phy_rx_end_isr(void)
      */
     NRF_TIMER0_NS->TASKS_CAPTURE[3] = 1;
     if (NRF_TIMER0_NS->CC[3] > NRF_TIMER0_NS->CC[0]) {
-        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(0);
+        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
 
         g_ble_phy_data.phy_transition_late = 1;
     }
@@ -1066,8 +1010,8 @@ ble_phy_rx_start_isr(void)
 
     /* Clear wfr timer channels and DISABLED interrupt */
     NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_ADDRESS_Msk;
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(0);
-    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(0);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 
     /* Initialize the ble mbuf header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -1142,7 +1086,7 @@ ble_phy_rx_start_isr(void)
 
         /* Trigger AAR after last bit of AdvA is received */
         NRF_RADIO_NS->EVENTS_BCMATCH = 0;
-        NRF_AAR_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_AAR_TASKS_START(1);
+        NRF_AAR_NS->SUBSCRIBE_START = DPPI_CH_SUB(RADIO_EVENTS_BCMATCH);
         NRF_RADIO_NS->BCC = (BLE_LL_PDU_HDR_LEN + adva_offset + BLE_DEV_ADDR_LEN) * 8 +
                             g_ble_phy_data.phy_bcc_offset;
     }
@@ -1267,12 +1211,12 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN));
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_TXRXEN;
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_READY;
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
 
     /* Publish RADIO->EVENTS_READY */
-    NRF_RADIO_NS->PUBLISH_READY = DPPI_PUBLISH_RADIO_EVENTS_READY;
-    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_READY;
+    NRF_RADIO_NS->PUBLISH_READY = DPPI_CH_PUB(RADIO_EVENTS_READY);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_READY);
 
 #endif
 
@@ -1281,8 +1225,8 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN));
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_ADDRESS;
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_END;
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_END);
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0
@@ -1290,23 +1234,23 @@ ble_phy_dbg_time_setup(void)
     ble_phy_dbg_time_setup_gpiote(gpiote_idx,
                                   MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN));
 
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_SET_RXREADY;
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_RXREADY);
 
     /* TODO figure out how (if?) to subscribe task to multiple DPPI channels
      * Currently only last one is working. Also using multiple GPIOTE for same
      * PIN doesn't work...
      */
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_DISABLED;
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_ADDRESS;
-    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_SUBSCRIBE_GPIOTE_TASKS_CLR_CAPTURE3;
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_GPIOTE_NS->SUBSCRIBE_CLR[gpiote_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
 
     /* Publish RADIO->EVENTS_RXREADY */
-    NRF_RADIO_NS->PUBLISH_RXREADY = DPPI_PUBLISH_RADIO_EVENTS_RXREADY;
-    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_RXREADY;
+    NRF_RADIO_NS->PUBLISH_RXREADY = DPPI_CH_PUB(RADIO_EVENTS_READY);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_RXREADY);
 
     /* Publish RADIO->EVENTS_DISABLED */
-    NRF_RADIO_NS->PUBLISH_DISABLED = DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED;
-    NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_RADIO_EVENTS_DISABLED;
+    NRF_RADIO_NS->PUBLISH_DISABLED = DPPI_CH_PUB(RADIO_EVENTS_DISABLED);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_DISABLED);
 #endif
 }
 
@@ -1390,19 +1334,19 @@ ble_phy_init(void)
     NRF_TIMER0_NS->PRESCALER = 4;  /* gives us 1 MHz */
 
     /* Publish events */
-    NRF_TIMER0_NS->PUBLISH_COMPARE[0] = DPPI_PUBLISH_TIMER0_EVENTS_COMPARE_0;
-    NRF_TIMER0_NS->PUBLISH_COMPARE[3] = DPPI_PUBLISH_TIMER0_EVENTS_COMPARE_3;
-    NRF_RADIO_NS->PUBLISH_END = DPPI_PUBLISH_RADIO_EVENTS_END;
-    NRF_RADIO_NS->PUBLISH_BCMATCH = DPPI_PUBLISH_RADIO_EVENTS_BCMATCH;
-    NRF_RADIO_NS->PUBLISH_ADDRESS = DPPI_PUBLISH_RADIO_EVENTS_ADDRESS;
-    NRF_RTC0_NS->PUBLISH_COMPARE[0] = DPPI_PUBLISH_RTC0_EVENTS_COMPARE_0;
+    NRF_TIMER0_NS->PUBLISH_COMPARE[0] = DPPI_CH_PUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_TIMER0_NS->PUBLISH_COMPARE[3] = DPPI_CH_PUB(TIMER0_EVENTS_COMPARE_3);
+    NRF_RADIO_NS->PUBLISH_END = DPPI_CH_PUB(RADIO_EVENTS_END);
+    NRF_RADIO_NS->PUBLISH_BCMATCH = DPPI_CH_PUB(RADIO_EVENTS_BCMATCH);
+    NRF_RADIO_NS->PUBLISH_ADDRESS = DPPI_CH_PUB(RADIO_EVENTS_ADDRESS);
+    NRF_RTC0_NS->PUBLISH_COMPARE[0] = DPPI_CH_PUB(RTC0_EVENTS_COMPARE_0);
 
     /* Enable channels we publish on */
     NRF_DPPIC_NS->CHENSET = DPPI_CH_ENABLE_ALL;
 
     /* Captures tx/rx start in timer0 cc 1 and tx/rx end in timer0 cc 2 */
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[1] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE1(1);
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[2] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE2(1);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[1] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[2] = DPPI_CH_SUB(RADIO_EVENTS_END);
 
     /* Set isr in vector table and enable interrupt */
 #ifndef RIOT_VERSION
@@ -1464,7 +1408,7 @@ ble_phy_rx(void)
     ble_phy_rx_xcvr_setup();
 
     /* task to start RX should be subscribed here  */
-    assert(NRF_RADIO_NS->SUBSCRIBE_RXEN & DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(1));
+    assert(NRF_RADIO_NS->SUBSCRIBE_RXEN & DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0));
 
     return 0;
 }
@@ -1494,7 +1438,7 @@ ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
 void
 ble_phy_encrypt_disable(void)
 {
-    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(0);
+    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_CCM_NS->TASKS_STOP = 1;
     NRF_CCM_NS->EVENTS_ERROR = 0;
     NRF_CCM_NS->ENABLE = CCM_ENABLE_ENABLE_Disabled;
@@ -1524,7 +1468,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to RXEN since we are transmitting */
-    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(0);
+    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
 
     if (ble_phy_set_start_time(cputime, rem_usecs, true) != 0) {
         STATS_INC(ble_phy_stats, tx_late);
@@ -1532,7 +1476,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         rc = BLE_PHY_ERR_TX_LATE;
     } else {
         /* Enable PPI to automatically start TXEN */
-        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(1);
+        NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
         rc = 0;
     }
     return rc;
@@ -1552,7 +1496,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to TXEN since we are transmitting */
-    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(0);
+    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
 
     if (ble_phy_set_start_time(cputime, rem_usecs, false) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
@@ -1564,7 +1508,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     }
 
     /* Enable PPI to automatically start RXEN */
-    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(1);
+    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
 
     /* Start rx */
     rc = ble_phy_rx();
@@ -1610,10 +1554,10 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
      * paranoid, and if you are going to clear one, might as well clear them
      * all.
      */
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(0);
-    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(0);
-    NRF_AAR_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_AAR_TASKS_START(0);
-    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(0);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+    NRF_AAR_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
+    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (g_ble_phy_data.phy_encrypted) {
@@ -1833,13 +1777,13 @@ ble_phy_disable_irq_and_ppi(void)
     NRF_RADIO_NS->SHORTS = 0;
     NRF_RADIO_NS->TASKS_DISABLE = 1;
 
-    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_TIMER0_TASKS_START(0);
-    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_SUBSCRIBE_TIMER0_TASKS_CAPTURE3(0);
-    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_SUBSCRIBE_RADIO_TASKS_DISABLE(0);
-    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_SUBSCRIBE_RADIO_TASKS_TXEN(0);
-    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(0);
-    NRF_AAR_NS->SUBSCRIBE_START = DPPI_SUBSCRIBE_AAR_TASKS_START(0);
-    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_SUBSCRIBE_CCM_TASKS_CRYPT(0);
+    NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
+    NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+    NRF_RADIO_NS->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_AAR_NS->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
+    NRF_CCM_NS->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
 
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
@@ -1853,7 +1797,7 @@ ble_phy_restart_rx(void)
 
     ble_phy_set_start_now();
     /* Enable PPI to automatically start RXEN */
-    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_SUBSCRIBE_RADIO_TASKS_RXEN(1);
+    NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
 
     ble_phy_rx();
 }
