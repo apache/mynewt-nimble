@@ -262,6 +262,7 @@ struct ble_phy_data {
     struct ble_mbuf_hdr rxhdr;
     ble_phy_tx_end_func txend_cb;
     void *txend_arg;
+    uint8_t phy_tx_set;
 };
 
 static struct ble_phy_data g_ble_phy_data;
@@ -647,6 +648,8 @@ ble_phy_irq_frame_tx_exc_bs_stop(void)
                                  CMAC_CM_EV_LINKUP_REG_LU_FRAME_START_2_NONE_Msk;
     }
 
+    g_ble_phy_data.phy_tx_set = 0;
+
     if (g_ble_phy_data.txend_cb) {
         ble_phy_sw_mac_handover(SW_MAC_EXC_TXEND_CB);
         return;
@@ -897,13 +900,16 @@ ble_phy_irq_frame_rx_exc_phy_to_idle_4this(void)
 #endif
     rf_chan = g_ble_phy_chan_to_rf[g_ble_phy_data.channel];
     ble_rf_setup_tx(rf_chan, g_ble_phy_data.phy_mode_tx);
+
     g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
 
     /* We do not want FIELD/FRAME interrupts until ble_phy_tx() has pushed all
      * fields.
      */
-    NVIC_DisableIRQ(FRAME_IRQn);
-    NVIC_DisableIRQ(FIELD_IRQn);
+    if (!g_ble_phy_data.phy_tx_set) {
+        NVIC_DisableIRQ(FRAME_IRQn);
+        NVIC_DisableIRQ(FIELD_IRQn);
+    }
 }
 
 static void
@@ -1278,6 +1284,7 @@ ble_phy_disable(void)
     NVIC_EnableIRQ(FIELD_IRQn);
 
     g_ble_phy_data.phy_state = BLE_PHY_STATE_IDLE;
+    g_ble_phy_data.phy_tx_set = 0;
 }
 
 static void
@@ -1459,6 +1466,8 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         STATS_INCN(ble_phy_stats, tx_bytes, txbuf[1] + 2);
         rc = BLE_ERR_SUCCESS;
     }
+
+    g_ble_phy_data.phy_tx_set = 1;
 
     /* Now we can handle BS_CTRL */
     NVIC_EnableIRQ(FRAME_IRQn);
