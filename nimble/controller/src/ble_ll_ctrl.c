@@ -2106,6 +2106,16 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         return BLE_ERR_MAX;
     }
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    /* Reject any attempts to change connection parameters by peripheral */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
+        rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
+        rspbuf[2] = BLE_ERR_UNSUPPORTED;
+        return rsp_opcode;
+    }
+#endif
+
     /* XXX: remember to deal with this on the central: if the peripheral has
      * initiated a procedure we may have received its connection parameter
      * update request and have signaled the host with an event. If that
