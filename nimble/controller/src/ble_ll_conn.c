@@ -761,10 +761,6 @@ ble_ll_conn_continue_rx_encrypt(void *arg)
 static uint32_t
 ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 {
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-    uint32_t ce_end;
-    ce_end = connsm->ce_end_time;
-#else
     uint32_t ce_end;
     uint32_t next_sched_time;
     uint8_t rem_us;
@@ -781,7 +777,6 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
             ce_end = next_sched_time;
         }
     }
-#endif
 
     return ce_end;
 }
@@ -1934,16 +1929,6 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* Make sure events off queue */
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
 
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-    /* Remove from occupied periods */
-    OS_ENTER_CRITICAL(sr);
-    BLE_LL_ASSERT(g_ble_ll_sched_data.sch_num_occ_periods > 0);
-    BLE_LL_ASSERT(g_ble_ll_sched_data.sch_occ_period_mask & connsm->period_occ_mask);
-    --g_ble_ll_sched_data.sch_num_occ_periods;
-    g_ble_ll_sched_data.sch_occ_period_mask &= ~connsm->period_occ_mask;
-    OS_EXIT_CRITICAL(sr);
-#endif
-
     /* Connection state machine is now idle */
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
@@ -2219,12 +2204,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a peripgheral, we need to add window widening
      * and the transmit window if we still have one.
      */
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-    itvl = g_ble_ll_sched_data.sch_ticks_per_period;
-#else
     itvl = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
                           BLE_LL_SCHED_USECS_PER_SLOT);
-#endif
+
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
 
@@ -2333,17 +2315,10 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
         connsm->periph_cur_tx_win_usecs =
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-        connsm->ce_end_time = connsm->anchor_point +
-            g_ble_ll_sched_data.sch_ticks_per_period +
-            ble_ll_tmr_u2t(connsm->periph_cur_tx_win_usecs) + 1;
-
-#else
         connsm->ce_end_time = connsm->anchor_point +
                               ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
                                              BLE_LL_SCHED_USECS_PER_SLOT +
                                              connsm->periph_cur_tx_win_usecs) + 1;
-#endif
 
         /* Start the scheduler for the first connection event */
         while (ble_ll_sched_conn_periph_new(connsm)) {
