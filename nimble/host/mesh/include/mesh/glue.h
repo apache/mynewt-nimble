@@ -284,8 +284,14 @@ void net_buf_reserve(struct os_mbuf *om, size_t reserve);
 
 #define BT_GATT_CCC_NOTIFY BLE_GATT_CHR_PROP_NOTIFY
 
+#ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /** Description of different data types that can be encoded into
   * advertising data. Used to form arrays that are passed to the
   * bt_le_adv_start() function.
