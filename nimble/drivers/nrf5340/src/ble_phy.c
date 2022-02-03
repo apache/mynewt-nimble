@@ -610,9 +610,6 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
     NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
 
-    /* Enable the disabled interrupt so we time out on events compare */
-    NRF_RADIO_NS->INTENSET = RADIO_INTENSET_DISABLED_Msk;
-
     /*
      * It may happen that if CPU is halted for a brief moment (e.g. during flash
      * erase or write), TIMER0 already counted past CC[3] and thus wfr will not
@@ -746,7 +743,8 @@ ble_phy_rx_xcvr_setup(void)
                            RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
                            RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
 
-    NRF_RADIO_NS->INTENSET = RADIO_INTENSET_ADDRESS_Msk;
+    NRF_RADIO_NS->INTENSET = RADIO_INTENSET_ADDRESS_Msk |
+                             RADIO_INTENSET_DISABLED_Msk;
 }
 
 /**
@@ -760,7 +758,6 @@ ble_phy_tx_end_isr(void)
     uint8_t was_encrypted;
     uint8_t transition;
     uint32_t rx_time;
-    uint32_t wfr_time;
 
     /* Store PHY on which we've just transmitted smth */
     tx_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
@@ -771,13 +768,6 @@ ble_phy_tx_end_isr(void)
 
     /* Better be in TX state! */
     assert(g_ble_phy_data.phy_state == BLE_PHY_STATE_TX);
-
-    /* Clear events and clear interrupt on disabled event */
-    NRF_RADIO_NS->EVENTS_DISABLED = 0;
-    NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
-    NRF_RADIO_NS->EVENTS_END = 0;
-    wfr_time = NRF_RADIO_NS->SHORTS;
-    (void)wfr_time;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     /*
@@ -869,10 +859,6 @@ ble_phy_rx_end_isr(void)
     uint8_t crcok;
     uint32_t tx_time;
     struct ble_mbuf_hdr *ble_hdr;
-
-    /* Clear events and clear interrupt */
-    NRF_RADIO_NS->EVENTS_END = 0;
-    NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_END_Msk;
 
     /* Disable automatic RXEN */
     NRF_RADIO_NS->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
@@ -1007,9 +993,9 @@ ble_phy_rx_start_isr(void)
 
     /* Clear events and clear interrupt */
     NRF_RADIO_NS->EVENTS_ADDRESS = 0;
+    NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk;
 
     /* Clear wfr timer channels and DISABLED interrupt */
-    NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_ADDRESS_Msk;
     NRF_TIMER0_NS->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO_NS->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 
@@ -1099,7 +1085,6 @@ ble_phy_rx_start_isr(void)
     if (rc >= 0) {
         /* Set rx started flag and enable rx end ISR */
         g_ble_phy_data.phy_rx_started = 1;
-        NRF_RADIO_NS->INTENSET = RADIO_INTENSET_END_Msk;
     } else {
         /* Disable PHY */
         ble_phy_disable();
@@ -1145,28 +1130,36 @@ ble_phy_isr(void)
         }
     }
 
-    /* Check for disabled event. This only happens for transmits now */
-    if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO_NS->EVENTS_DISABLED) {
-        if (g_ble_phy_data.phy_state == BLE_PHY_STATE_RX) {
-            NRF_RADIO_NS->EVENTS_DISABLED = 0;
-            ble_ll_wfr_timer_exp(NULL);
-        } else if (g_ble_phy_data.phy_state == BLE_PHY_STATE_IDLE) {
-            assert(0);
-        } else {
-            ble_phy_tx_end_isr();
+    /* Handle disabled event. This is enabled for both TX and RX. On RX, we
+     * need to check phy_rx_started flag to make sure we actually were receiving
+     * a PDU, otherwise this is due to wfr.
+     */
+    if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) &&
+        NRF_RADIO_NS->EVENTS_DISABLED) {
+        BLE_LL_ASSERT(NRF_RADIO_NS->EVENTS_END ||
+                      ((g_ble_phy_data.phy_state == BLE_PHY_STATE_RX) &&
+                       !g_ble_phy_data.phy_rx_started));
+        NRF_RADIO_NS->EVENTS_END = 0;
+        NRF_RADIO_NS->EVENTS_DISABLED = 0;
+        NRF_RADIO_NS->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
+
+        switch (g_ble_phy_data.phy_state) {
+            case BLE_PHY_STATE_RX:
+                if (g_ble_phy_data.phy_rx_started) {
+                    ble_phy_rx_end_isr();
+                } else {
+                    ble_ll_wfr_timer_exp(NULL);
+                }
+                break;
+            case BLE_PHY_STATE_TX:
+                ble_phy_tx_end_isr();
+                break;
+            default:
+                BLE_LL_ASSERT(0);
         }
     }
 
-    /* Receive packet end (we dont enable this for transmit) */
-    if ((irq_en & RADIO_INTENCLR_END_Msk) && NRF_RADIO_NS->EVENTS_END) {
-        ble_phy_rx_end_isr();
-    }
-
     g_ble_phy_data.phy_transition_late = 0;
-
-    /* Ensures IRQ is cleared */
-    irq_en = NRF_RADIO_NS->SHORTS;
-
     /* Count # of interrupts */
     STATS_INC(ble_phy_stats, phy_isrs);
 
