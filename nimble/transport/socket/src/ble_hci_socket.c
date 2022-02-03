@@ -357,6 +357,7 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
         STATS_INC(hci_sock_stats, oevt);
     } else {
         assert(0);
+        return BLE_ERR_UNKNOWN_HCI_CMD;
     }
     iov[1].iov_len = len;
 
