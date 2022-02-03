@@ -64,10 +64,6 @@ typedef int (* ble_ll_sched_preempt_cb_t)(struct ble_ll_sched_item *sch,
 static TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
 static uint8_t g_ble_ll_sched_q_head_changed;
 
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-struct ble_ll_sched_obj g_ble_ll_sched_data;
-#endif
-
 static int
 preempt_any(struct ble_ll_sched_item *sch,
             struct ble_ll_sched_item *item)
@@ -284,39 +280,6 @@ done:
     return sch->enqueued ? 0 : -1;
 }
 
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-/**
- * Checks if two events in the schedule will overlap in time. NOTE: consecutive
- * schedule items can end and start at the same time.
- *
- * @param s1
- * @param s2
- *
- * @return int 0: dont overlap 1:overlap
- */
-static int
-ble_ll_sched_is_overlap(struct ble_ll_sched_item *s1,
-                        struct ble_ll_sched_item *s2)
-{
-    int rc;
-
-    rc = 1;
-    if (LL_TMR_LT(s1->start_time, s2->start_time)) {
-        /* Make sure this event does not overlap current event */
-        if (LL_TMR_LEQ(s1->end_time, s2->start_time)) {
-            rc = 0;
-        }
-    } else {
-        /* Check for overlap */
-        if (LL_TMR_GEQ(s1->start_time, s2->end_time)) {
-            rc = 0;
-        }
-    }
-
-    return rc;
-}
-#endif
-
 /*
  * Determines if the schedule item overlaps the currently running schedule
  * item. We only care about connection schedule items
@@ -337,21 +300,6 @@ ble_ll_sched_overlaps_current(struct ble_ll_sched_item *sch)
 #endif
     return rc;
 }
-
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-static struct ble_ll_sched_item *
-ble_ll_sched_insert_if_empty(struct ble_ll_sched_item *sch)
-{
-    struct ble_ll_sched_item *entry;
-
-    entry = TAILQ_FIRST(&g_ble_ll_sched_q);
-    if (!entry) {
-        TAILQ_INSERT_HEAD(&g_ble_ll_sched_q, sch, link);
-        sch->enqueued = 1;
-    }
-    return entry;
-}
-#endif
 
 int
 ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
@@ -420,241 +368,6 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
  *
  * @return int
  */
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-int
-ble_ll_sched_central_new(struct ble_ll_conn_sm *connsm,
-                         struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
-{
-    int rc;
-    os_sr_t sr;
-    uint32_t initial_start;
-    uint32_t earliest_start;
-    uint32_t earliest_end;
-    uint32_t dur;
-    uint32_t itvl_t;
-    uint32_t adv_rxend;
-    int i;
-    uint32_t tpp;
-    uint32_t tse;
-    uint32_t np;
-    uint32_t cp;
-    uint32_t tick_in_period;
-
-    struct ble_ll_sched_item *entry;
-    struct ble_ll_sched_item *sch;
-
-    /* Better have a connsm */
-    BLE_LL_ASSERT(connsm != NULL);
-
-    /* Get schedule element from connection */
-    rc = -1;
-    sch = &connsm->conn_sch;
-
-    /* XXX:
-     * The calculations for the 32kHz crystal bear alot of explanation. The
-     * earliest possible time that the central can start the connection with a
-     * peripheral is 1.25 msecs from the end of the connection request. The
-     * connection request is sent an IFS time from the end of the advertising
-     * packet that was received plus the time it takes to send the connection
-     * request. At 1 Mbps, this is 1752 usecs, or 57.41 ticks. Using 57 ticks
-     * makes us off ~13 usecs. Since we dont want to actually calculate the
-     * receive end time tick (this would take too long), we assume the end of
-     * the advertising PDU is 'now' (we call os_cputime_get32). We dont know
-     * how much time it will take to service the ISR but if we are more than the
-     * rx to tx time of the chip we will not be successful transmitting the
-     * connect request. All this means is that we presume that the peripheral will
-     * receive the connect request later than we expect but no earlier than
-     * 13 usecs before (this is important).
-     *
-     * The code then attempts to schedule the connection at the
-     * earliest time although this may not be possible. When the actual
-     * schedule start time is determined, the central has to determine if this
-     * time is more than a transmit window offset interval (1.25 msecs). The
-     * central has to tell the peripheral how many transmit window offsets there are
-     * from the earliest possible time to when the actual transmit start will
-     * occur. Later in this function you will see the calculation. The actual
-     * transmission start has to occur within the transmit window. The transmit
-     * window interval is in units of 1.25 msecs and has to be at least 1. To
-     * make things a bit easier (but less power efficient for the peripheral), we
-     * use a transmit window of 2. We do this because we dont quite know the
-     * exact start of the transmission and if we are too early or too late we
-     * could miss the transmit window. A final note: the actual transmission
-     * start (the anchor point) is sched offset ticks from the schedule start
-     * time. We dont add this to the calculation when calculating the window
-     * offset. The reason we dont do this is we want to insure we transmit
-     * after the window offset we tell the peripheral. For example, say we think
-     * we are transmitting 1253 usecs from the earliest start. This would cause
-     * us to send a transmit window offset of 1. Since we are actually
-     * transmitting earlier than the peripheral thinks we could end up transmitting
-     * before the window offset. Transmitting later is fine since we have the
-     * transmit window to do so. Transmitting before is bad, since the peripheral
-     * wont be listening. We could do better calculation if we wanted to use
-     * a transmit window of 1 as opposed to 2, but for now we dont care.
-     */
-    dur = ble_ll_tmr_u2t(g_ble_ll_sched_data.sch_ticks_per_period);
-    adv_rxend = ble_ll_tmr_get();
-    if (ble_hdr->rxinfo.channel >= BLE_PHY_NUM_DATA_CHANS) {
-        /*
-         * We received packet on advertising channel which means this is a legacy
-         * PDU on 1 Mbps - we do as described above.
-         */
-        earliest_start = adv_rxend + 57;
-    } else {
-        /*
-         * The calculations are similar as above.
-         *
-         * We received packet on data channel which means this is AUX_ADV_IND
-         * received on secondary adv channel. We can schedule first packet at
-         * the earliest after "T_IFS + AUX_CONNECT_REQ + transmitWindowDelay".
-         * AUX_CONNECT_REQ and transmitWindowDelay times vary depending on which
-         * PHY we received on.
-         *
-         */
-        if (ble_hdr->rxinfo.phy == BLE_PHY_1M) {
-            // 150 + 352 + 2500 = 3002us = 98.37 ticks
-            earliest_start = adv_rxend + 98;
-        } else if (ble_hdr->rxinfo.phy == BLE_PHY_2M) {
-            // 150 + 180 + 2500 = 2830us = 92.73 ticks
-            earliest_start = adv_rxend + 93;
-        } else if (ble_hdr->rxinfo.phy == BLE_PHY_CODED) {
-            // 150 + 2896 + 3750 = 6796us = 222.69 ticks
-            earliest_start = adv_rxend + 223;
-        } else {
-            BLE_LL_ASSERT(0);
-        }
-    }
-    earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
-                      BLE_LL_SCHED_USECS_PER_SLOT;
-    itvl_t = connsm->conn_itvl_ticks;
-
-    /* We have to find a place for this schedule */
-    OS_ENTER_CRITICAL(sr);
-
-    /*
-     * Are there any allocated periods? If not, set epoch start to earliest
-     * time
-     */
-    if (g_ble_ll_sched_data.sch_num_occ_periods == 0) {
-        g_ble_ll_sched_data.sch_epoch_start = earliest_start;
-        cp = 0;
-    } else {
-        /*
-         * Earliest start must occur on period boundary.
-         * (tse = ticks since epoch)
-         */
-        tpp = g_ble_ll_sched_data.sch_ticks_per_period;
-        tse = earliest_start - g_ble_ll_sched_data.sch_epoch_start;
-        np = tse / tpp;
-        cp = np % BLE_LL_SCHED_PERIODS;
-        tick_in_period = tse - (np * tpp);
-        if (tick_in_period != 0) {
-            ++cp;
-            if (cp == BLE_LL_SCHED_PERIODS) {
-                cp = 0;
-            }
-            earliest_start += (tpp - tick_in_period);
-        }
-
-        /* Now find first un-occupied period starting from cp */
-        for (i = 0; i < BLE_LL_SCHED_PERIODS; ++i) {
-            if (g_ble_ll_sched_data.sch_occ_period_mask & (1 << cp)) {
-                ++cp;
-                if (cp == BLE_LL_SCHED_PERIODS) {
-                    cp = 0;
-                }
-                earliest_start += tpp;
-            } else {
-                /* not occupied */
-                break;
-            }
-        }
-        /* Should never happen but if it does... */
-        if (i == BLE_LL_SCHED_PERIODS) {
-            OS_EXIT_CRITICAL(sr);
-            return rc;
-        }
-    }
-
-    sch->start_time = earliest_start;
-    initial_start = earliest_start;
-    earliest_end = earliest_start + dur;
-
-    if (!ble_ll_sched_insert_if_empty(sch)) {
-        /* Nothing in schedule. Schedule as soon as possible */
-        rc = 0;
-        connsm->tx_win_off = MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET);
-    } else {
-        ble_ll_tmr_stop(&g_ble_ll_sched_timer);
-        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
-            /* Set these because overlap function needs them to be set */
-            sch->start_time = earliest_start;
-            sch->end_time = earliest_end;
-
-            /* We can insert if before entry in list */
-            if (LL_TMR_LEQ(sch->end_time, entry->start_time)) {
-                if ((earliest_start - initial_start) <= itvl_t) {
-                    rc = 0;
-                    TAILQ_INSERT_BEFORE(entry, sch, link);
-                }
-                break;
-            }
-
-            /* Check for overlapping events */
-            if (ble_ll_sched_is_overlap(sch, entry)) {
-                /* Earliest start is end of this event since we overlap */
-                earliest_start = entry->end_time;
-                earliest_end = earliest_start + dur;
-            }
-        }
-
-        /* Must be able to schedule within one connection interval */
-        if (!entry) {
-            if ((earliest_start - initial_start) <= itvl_t) {
-                rc = 0;
-                TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
-            }
-        }
-
-        if (!rc) {
-            /* calculate number of window offsets. Each offset is 1.25 ms */
-            sch->enqueued = 1;
-            /*
-             * NOTE: we dont add sched offset ticks as we want to under-estimate
-             * the transmit window slightly since the window size is currently
-             * 2 when using a 32768 crystal.
-             */
-            dur = ble_ll_tmr_t2u(earliest_start - initial_start);
-            connsm->tx_win_off = dur / BLE_LL_CONN_TX_OFF_USECS;
-        }
-    }
-
-    if (!rc) {
-        sch->start_time = earliest_start;
-        sch->end_time = earliest_end;
-        /*
-         * Since we have the transmit window to transmit in, we dont need
-         * to set the anchor point usecs; just transmit to the nearest tick.
-         */
-        connsm->anchor_point = earliest_start + g_ble_ll_sched_offset_ticks;
-        connsm->anchor_point_usecs = 0;
-        connsm->ce_end_time = earliest_end;
-        connsm->period_occ_mask = (1 << cp);
-        g_ble_ll_sched_data.sch_occ_period_mask |= connsm->period_occ_mask;
-        ++g_ble_ll_sched_data.sch_num_occ_periods;
-    }
-
-
-    /* Get head of list to restart timer */
-    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
-    ble_ll_rfmgmt_sched_changed(sch);
-
-    OS_EXIT_CRITICAL(sr);
-
-    ble_ll_tmr_start(&g_ble_ll_sched_timer, sch->start_time);
-
-    return rc;
-}
-#else
 int
 ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
                               struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
@@ -778,7 +491,6 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
 
     return rc;
 }
-#endif
 
 /**
  * Schedules a peripheral connection for the first time.
@@ -1387,14 +1099,6 @@ ble_ll_sched_init(void)
 
     /* Initialize cputimer for the scheduler */
     ble_ll_tmr_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
-
-#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
-    memset(&g_ble_ll_sched_data, 0, sizeof(struct ble_ll_sched_obj));
-    g_ble_ll_sched_data.sch_ticks_per_period =
-        ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD));
-    g_ble_ll_sched_data.sch_ticks_per_epoch = BLE_LL_SCHED_PERIODS *
-        g_ble_ll_sched_data.sch_ticks_per_period;
-#endif
 
     g_ble_ll_sched_q_head_changed = 0;
 
