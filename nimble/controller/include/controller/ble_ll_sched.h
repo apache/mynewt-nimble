@@ -175,6 +175,14 @@ void ble_ll_sched_stop(void);
 int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+void ble_ll_sched_css_set_params(uint32_t slot_us, uint32_t period_slots);
+void ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm);
+uint32_t ble_ll_sched_css_get_slot_us(void);
+uint32_t ble_ll_sched_css_get_period_slots(void);
+uint32_t ble_ll_sched_css_get_conn_interval_us(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

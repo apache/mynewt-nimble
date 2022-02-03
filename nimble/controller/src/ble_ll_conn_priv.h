@@ -59,6 +59,10 @@ extern "C" {
 #define BLE_LL_CONN_DEF_AUTH_PYLD_TMO       (3000)
 #define BLE_LL_CONN_AUTH_PYLD_OS_TMO(x)     ble_npl_time_ms_to_ticks32((x) * 10)
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+#define BLE_LL_CONN_CSS_NO_SLOT             (UINT16_MAX)
+#endif
+
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params
 {
@@ -127,6 +131,7 @@ struct ble_ll_conn_create_sm {
 };
 
 extern struct ble_ll_conn_create_sm g_ble_ll_conn_create_sm;
+extern struct ble_ll_conn_sm *g_ble_ll_conn_css_ref;
 
 /* Generic interface */
 struct ble_ll_len_req;
@@ -248,6 +253,14 @@ int ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
                                     uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len);
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+void ble_ll_conn_css_set_next_slot(uint16_t slot_idx);
+uint16_t ble_ll_conn_css_get_next_slot(void);
+int ble_ll_conn_css_is_slot_busy(uint16_t slot_idx);
+int ble_ll_conn_css_move(struct ble_ll_conn_sm *connsm, uint16_t slot_idx);
+
 #endif
 
 #ifdef __cplusplus

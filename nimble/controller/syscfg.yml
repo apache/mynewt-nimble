@@ -146,6 +146,27 @@ syscfg.defs:
             ensure interoperability with such devices set this value to 2 (or more).
         value: '0'
 
+    BLE_LL_CONN_STRICT_SCHED:
+        description: >
+            Enable connection strict scheduling (css).
+            In css mode, connections in central role are scheduled in fixed time
+            intervals called periods. Each period is divided into an arbitrary
+            number of slots and each connection anchor point is always scheduled
+            at slot boundary. This means (assuming only central connections are
+            active) it's possible to reliably schedule up to number-of-slots
+            connections each at period-duration interval, each connection will
+            be allocated at least one slot in each connection event.
+        value: 0
+    BLE_LL_CONN_STRICT_SCHED_SLOT_US:
+        description: >
+            Slot duration in microseconds. Shall be multiply of 1250us.
+        value: 3750
+    BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS:
+        description: >
+            Number of slots per period. Duration of slot determines connection
+            interval used for each connection in central role.
+        value: 8
+
     # The number of random bytes to store
     BLE_LL_RNG_BUFSIZE:
         description: >

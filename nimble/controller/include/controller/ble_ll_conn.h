@@ -351,6 +351,12 @@ struct ble_ll_conn_sm
     uint16_t sync_transfer_skip;
     uint32_t sync_transfer_sync_timeout;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    uint16_t css_slot_idx;
+    uint16_t css_slot_idx_pending;
+    uint8_t css_period_idx;
+#endif
 };
 
 /* Flags */

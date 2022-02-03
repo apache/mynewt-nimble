@@ -46,6 +46,10 @@
 extern void bletest_completed_pkt(uint16_t handle);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+struct ble_ll_conn_sm *g_ble_ll_conn_css_ref;
+#endif
+
 /* XXX TODO
  * 1) I think if we are initiating and we already have a connection with
  * a device that we will still try and connect to it. Fix this.
@@ -385,6 +389,97 @@ ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
             ble_ll_conn_cth_flow_free_credit(connsm, cp->h[i].count);
         }
     }
+}
+#endif
+
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+static uint16_t g_ble_ll_conn_css_next_slot = BLE_LL_CONN_CSS_NO_SLOT;
+
+void
+ble_ll_conn_css_set_next_slot(uint16_t slot_idx)
+{
+    g_ble_ll_conn_css_next_slot = slot_idx;
+}
+
+uint16_t
+ble_ll_conn_css_get_next_slot(void)
+{
+    struct ble_ll_conn_sm *connsm;
+    uint16_t slot_idx = 0;
+
+    if (g_ble_ll_conn_css_next_slot != BLE_LL_CONN_CSS_NO_SLOT) {
+        return g_ble_ll_conn_css_next_slot;
+    }
+
+    /* CSS connections are sorted in active conn list so just need to find 1st
+     * free value.
+     */
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
+            (connsm->css_slot_idx != slot_idx) &&
+            (connsm->css_slot_idx_pending != slot_idx)) {
+            break;
+        }
+        slot_idx++;
+    }
+
+    if (slot_idx >= ble_ll_sched_css_get_period_slots()) {
+        slot_idx = BLE_LL_CONN_CSS_NO_SLOT;
+    }
+
+    return slot_idx;
+}
+
+int
+ble_ll_conn_css_is_slot_busy(uint16_t slot_idx)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
+            ((connsm->css_slot_idx == slot_idx) ||
+             (connsm->css_slot_idx_pending == slot_idx))) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_ll_conn_css_move(struct ble_ll_conn_sm *connsm, uint16_t slot_idx)
+{
+    int16_t slot_diff;
+    uint32_t offset;
+    int rc;
+
+    /* Assume connsm and slot_idx are valid */
+    BLE_LL_ASSERT(connsm->conn_state != BLE_LL_CONN_STATE_IDLE);
+    BLE_LL_ASSERT(connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL);
+    BLE_LL_ASSERT((slot_idx < ble_ll_sched_css_get_period_slots()) ||
+                  (slot_idx != BLE_LL_CONN_CSS_NO_SLOT));
+
+    slot_diff = slot_idx - connsm->css_slot_idx;
+
+    if (slot_diff > 0) {
+        offset = slot_diff * ble_ll_sched_css_get_slot_us() /
+                  BLE_LL_CONN_ITVL_USECS;
+    } else {
+        offset = (ble_ll_sched_css_get_period_slots() + slot_diff) *
+                 ble_ll_sched_css_get_slot_us() / BLE_LL_CONN_ITVL_USECS;
+    }
+
+    if (offset >= 0xffff) {
+        return -1;
+    }
+
+    rc = ble_ll_conn_move_anchor(connsm, offset);
+    if (!rc) {
+        connsm->css_slot_idx_pending = slot_idx;
+    }
+
+    return rc;
 }
 #endif
 
@@ -1720,6 +1815,10 @@ void
 ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_conn_global_params *conn_params;
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    struct ble_ll_conn_sm *connsm_css_prev = NULL;
+    struct ble_ll_conn_sm *connsm_css;
+#endif
 
     /* Reset following elements */
     connsm->csmflags.conn_flags = 0;
@@ -1813,7 +1912,35 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #endif
 
     /* Add to list of active connections */
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        /* We will insert sorted by css_slot_idx to make finding free slot
+         * easier.
+         */
+        SLIST_FOREACH(connsm_css, &g_ble_ll_conn_active_list, act_sle) {
+            if ((connsm_css->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
+                (connsm_css->css_slot_idx > connsm->css_slot_idx)) {
+                if (connsm_css_prev) {
+                    SLIST_INSERT_AFTER(connsm_css_prev, connsm, act_sle);
+                }
+                break;
+            }
+            connsm_css_prev = connsm_css;
+        }
+
+        if (!connsm_css_prev) {
+            /* List was empty or need to insert before 1st connection */
+            SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
+        } else if (!connsm_css) {
+            /* Insert at the end of list */
+            SLIST_INSERT_AFTER(connsm_css_prev, connsm, act_sle);
+        }
+    } else {
+        SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
+    }
+#else
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
+#endif
 }
 
 void
@@ -1902,6 +2029,20 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
 
     /* Remove from the active connection list */
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    /* If current connection was reference for CSS, we need to find another
+     * one. It does not matter which one we'll pick.
+     */
+    if (connsm == g_ble_ll_conn_css_ref) {
+        SLIST_FOREACH(g_ble_ll_conn_css_ref, &g_ble_ll_conn_active_list,
+                      act_sle) {
+            if (g_ble_ll_conn_css_ref->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+                break;
+            }
+        }
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     ble_ll_conn_cth_flow_free_credit(connsm, connsm->cth_flow_pending);
@@ -2039,6 +2180,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint32_t max_ww;
 #endif
     struct ble_ll_conn_upd_req *upd;
+    uint8_t skip_anchor_calc = 0;
     uint32_t usecs;
 
     /* XXX: deal with connection request procedure here as well */
@@ -2083,15 +2225,32 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
     connsm->event_cntr += latency;
 
-    /* Set next connection event start time */
-    /* We can use pre-calculated values for one interval if latency is 1. */
-    if (latency == 1) {
-        connsm->anchor_point += connsm->conn_itvl_ticks;
-        ble_ll_tmr_add_u(&connsm->anchor_point, &connsm->anchor_point_usecs,
-                         connsm->conn_itvl_usecs);
-    } else {
-        ble_ll_tmr_add(&connsm->anchor_point, &connsm->anchor_point_usecs,
-                       itvl);
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        connsm->css_period_idx += latency;
+
+        /* If this is non-reference connection, we set anchor from reference
+         * instead of calculating manually.
+         */
+        if (g_ble_ll_conn_css_ref != connsm) {
+            ble_ll_sched_css_set_conn_anchor(connsm);
+            skip_anchor_calc = 1;
+        }
+    }
+#endif
+
+    if (!skip_anchor_calc) {
+        /* Calculate next anchor point for connection.
+         * We can use pre-calculated values for one interval if latency is 1.
+         */
+        if (latency == 1) {
+            connsm->anchor_point += connsm->conn_itvl_ticks;
+            ble_ll_tmr_add_u(&connsm->anchor_point, &connsm->anchor_point_usecs,
+                             connsm->conn_itvl_usecs);
+        } else {
+            ble_ll_tmr_add(&connsm->anchor_point, &connsm->anchor_point_usecs,
+                           itvl);
+        }
     }
 
     /*
@@ -2133,6 +2292,15 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Reset the starting point of the connection supervision timeout */
         connsm->last_rxd_pdu_cputime = connsm->anchor_point;
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+            BLE_LL_ASSERT(connsm->css_slot_idx_pending !=
+                          BLE_LL_CONN_CSS_NO_SLOT);
+            connsm->css_slot_idx = connsm->css_slot_idx_pending;
+            connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
+        }
+#endif
 
         /* Reset update scheduled flag */
         connsm->csmflags.cfbit.conn_update_sched = 0;

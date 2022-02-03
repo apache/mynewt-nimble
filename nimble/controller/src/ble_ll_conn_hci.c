@@ -513,6 +513,9 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     struct ble_ll_conn_sm *connsm;
     uint16_t conn_itvl_min;
     uint16_t conn_itvl_max;
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    uint16_t css_slot_idx;
+#endif
     int rc;
 
     if (len < sizeof(*cmd)) {
@@ -528,6 +531,14 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     if (ble_ll_scan_enabled()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    css_slot_idx = ble_ll_conn_css_get_next_slot();
+    if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+#endif
 
     cc_scan.own_addr_type = cmd->own_addr_type;
     cc_scan.filter_policy = cmd->filter_policy;
@@ -560,7 +571,15 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    cc_params.conn_itvl = ble_ll_sched_css_get_conn_interval_us();
+    if ((cc_params.conn_itvl < conn_itvl_min) ||
+        (cc_params.conn_itvl > conn_itvl_max)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+#else
     cc_params.conn_itvl = conn_itvl_max;
+#endif
     cc_params.conn_latency = le16toh(cmd->conn_latency);
     cc_params.supervision_timeout = le16toh(cmd->tmo);
     cc_params.min_ce_len = le16toh(cmd->min_ce);
@@ -581,6 +600,11 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     if (connsm == NULL) {
         return BLE_ERR_CONN_LIMIT;
     }
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    connsm->css_slot_idx = css_slot_idx;
+    connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
+#endif
 
     /* Initialize state machine in central role and start state machine */
     ble_ll_conn_central_init(connsm, &cc_scan, &cc_params);
@@ -640,7 +664,15 @@ ble_ll_conn_hci_ext_create_parse_params(const struct conn_params *params,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    cc_params->conn_itvl = ble_ll_sched_css_get_conn_interval_us();
+    if ((cc_params->conn_itvl < conn_itvl_min) ||
+        (cc_params->conn_itvl > conn_itvl_max)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+#else
     cc_params->conn_itvl = conn_itvl_max;
+#endif
     cc_params->conn_latency = le16toh(params->conn_latency);
     cc_params->supervision_timeout = le16toh(params->supervision_timeout);
     cc_params->min_ce_len = le16toh(params->min_ce);
@@ -699,6 +731,9 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     struct ble_ll_conn_create_params *cc_params_fb;
     struct ble_ll_conn_sm *connsm;
     const struct init_phy *init_phy;
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    uint16_t css_slot_idx;
+#endif
     int rc;
 
     /* validate length */
@@ -716,6 +751,13 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     if (ble_ll_scan_enabled()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    css_slot_idx = ble_ll_conn_css_get_next_slot();
+    if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+#endif
 
     cc_scan.own_addr_type = cmd->own_addr_type;
     cc_scan.filter_policy = cmd->filter_policy;
@@ -769,6 +811,11 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     if (connsm == NULL) {
         return BLE_ERR_CONN_LIMIT;
     }
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    connsm->css_slot_idx = css_slot_idx;
+    connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
+#endif
 
     /* Initialize state machine in central role and start state machine */
     ble_ll_conn_central_init(connsm, &cc_scan,
