@@ -157,6 +157,12 @@ syscfg.defs:
             connections each at period-duration interval, each connection will
             be allocated at least one slot in each connection event.
         value: 0
+    BLE_LL_CONN_STRICT_SCHED_FIXED:
+        description: >
+            Enable fixed mode for connection strict scheduling, i.e. slot duration
+            and slots per period values are fixed to syscfg values and cannot
+            be changed in runtime. This allows for some compile-time optimizations.
+        value: 0
     BLE_LL_CONN_STRICT_SCHED_SLOT_US:
         description: >
             Slot duration in microseconds. Shall be multiply of 1250us.

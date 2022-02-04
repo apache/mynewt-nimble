@@ -47,8 +47,10 @@ int32_t g_ble_ll_sched_max_early;
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
 struct ble_ll_sched_css {
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
     uint32_t slot_us;
     uint32_t period_slots;
+#endif
     uint32_t period_anchor_ticks;
     uint8_t period_anchor_rem_us;
     uint8_t period_anchor_idx;
@@ -56,8 +58,10 @@ struct ble_ll_sched_css {
 };
 
 static struct ble_ll_sched_css g_ble_ll_sched_css = {
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
     .slot_us = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_SLOT_US),
     .period_slots = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS),
+#endif
 };
 #endif
 
@@ -1182,12 +1186,14 @@ ble_ll_sched_init(void)
 }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 void
 ble_ll_sched_css_set_params(uint32_t slot_us, uint32_t period_slots)
 {
     g_ble_ll_sched_css.slot_us = slot_us;
     g_ble_ll_sched_css.period_slots = period_slots;
 }
+#endif
 
 void
 ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm)
@@ -1215,6 +1221,7 @@ ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm)
     }
 }
 
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 inline uint32_t
 ble_ll_sched_css_get_slot_us(void)
 {
@@ -1234,5 +1241,6 @@ ble_ll_sched_css_get_conn_interval_us(void)
            ble_ll_sched_css_get_slot_us() /
            BLE_LL_CONN_ITVL_USECS;
 }
+#endif
 
 #endif

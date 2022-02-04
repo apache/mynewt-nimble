@@ -176,11 +176,34 @@ int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 void ble_ll_sched_css_set_params(uint32_t slot_us, uint32_t period_slots);
+#endif
 void ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm);
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
+static inline uint32_t
+ble_ll_sched_css_get_slot_us(void)
+{
+    return MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_SLOT_US);
+}
+
+static inline uint32_t
+ble_ll_sched_css_get_period_slots(void)
+{
+    return MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS);
+}
+
+static inline uint32_t
+ble_ll_sched_css_get_conn_interval_us(void)
+{
+    return ble_ll_sched_css_get_period_slots() *
+           ble_ll_sched_css_get_slot_us() / 1250;
+}
+#else
 uint32_t ble_ll_sched_css_get_slot_us(void);
 uint32_t ble_ll_sched_css_get_period_slots(void);
 uint32_t ble_ll_sched_css_get_conn_interval_us(void);
+#endif
 #endif
 
 #ifdef __cplusplus
