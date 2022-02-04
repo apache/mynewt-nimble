@@ -363,6 +363,9 @@ syscfg.defs:
         description: >
             Enables support for vendor-specific HCI commands.
         value: MYNEWT_VAL(BLE_HCI_VS)
+    BLE_LL_HCI_VS_CONN_STRICT_SCHED:
+        description: xxx
+        value: 0
 
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
