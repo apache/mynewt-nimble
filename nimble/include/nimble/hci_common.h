@@ -1079,6 +1079,28 @@ struct ble_hci_vs_set_tx_pwr_rp {
     int8_t tx_power;
 } __attribute__((packed));
 
+#define BLE_HCI_OCF_VS_CSS                              (0x0003)
+struct ble_hci_vs_css_cp {
+    uint8_t opcode;
+} __attribute__((packed));
+#define BLE_HCI_VS_CSS_OP_CONFIGURE                     0x01
+struct ble_hci_vs_css_configure_cp {
+    uint8_t opcode;
+    uint32_t slot_us;
+    uint32_t period_slots;
+} __attribute__((packed));
+#define BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT                 0x02
+struct ble_hci_vs_css_set_next_slot_cp {
+    uint8_t opcode;
+    uint16_t slot_idx;
+} __attribute__((packed));
+#define BLE_HCI_VS_CSS_OP_SET_CONN_SLOT                 0x03
+struct ble_hci_vs_css_set_conn_slot_cp {
+    uint8_t opcode;
+    uint16_t conn_handle;
+    uint16_t slot_idx;
+} __attribute__((packed));
+
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
 #define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)

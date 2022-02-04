@@ -134,11 +134,144 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
     return BLE_ERR_SUCCESS;
 }
 
+
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+static int
+ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
+                            uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_configure_cp *cmd = (const void *)cmdbuf;
+    uint32_t slot_us;
+    uint32_t period_slots;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    slot_us = le32toh(cmd->slot_us);
+    period_slots = le32toh(cmd->period_slots);
+
+    if (slot_us % BLE_LL_CONN_ITVL_USECS) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if ((slot_us == 0) || (period_slots == 0)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    ble_ll_sched_css_set_params(slot_us, period_slots);
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_hci_vs_css_set_next_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
+                                uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_set_next_slot_cp *cmd = (const void *)cmdbuf;
+    uint16_t slot_idx;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    slot_idx = le16toh(cmd->slot_idx);
+    if ((slot_idx >= ble_ll_sched_css_get_period_slots()) &&
+        (slot_idx != BLE_LL_CONN_CSS_NO_SLOT)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_conn_css_is_slot_busy(slot_idx)) {
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    ble_ll_conn_css_set_next_slot(slot_idx);
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_hci_vs_css_set_conn_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
+                                uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_set_conn_slot_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t conn_handle;
+    uint16_t slot_idx;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    slot_idx = le16toh(cmd->slot_idx);
+    if ((slot_idx >= ble_ll_sched_css_get_period_slots()) &&
+        (slot_idx != BLE_LL_CONN_CSS_NO_SLOT)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_conn_css_is_slot_busy(slot_idx)) {
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    conn_handle = le16toh(cmd->conn_handle);
+    connsm = ble_ll_conn_find_active_conn(conn_handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (connsm->css_slot_idx_pending != BLE_LL_CONN_CSS_NO_SLOT) {
+        return BLE_ERR_DIFF_TRANS_COLL;
+    }
+
+    if (connsm->css_slot_idx == slot_idx) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (ble_ll_conn_css_move(connsm, slot_idx) < 0) {
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
+ble_ll_hci_vs_css(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
+                  uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_cp *cmd = (const void *)cmdbuf;
+
+    if (cmdlen < sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    *rsplen = 0;
+
+    switch (cmd->opcode) {
+    case BLE_HCI_VS_CSS_OP_CONFIGURE:
+        return ble_ll_hci_vs_css_configure(cmdbuf, cmdlen, rspbuf, rsplen);
+    case BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT:
+        return ble_ll_hci_vs_css_set_next_slot(cmdbuf, cmdlen, rspbuf, rsplen);
+    case BLE_HCI_VS_CSS_OP_SET_CONN_SLOT:
+        return ble_ll_hci_vs_css_set_conn_slot(cmdbuf, cmdlen, rspbuf, rsplen);
+    }
+
+    return BLE_ERR_INV_HCI_CMD_PARMS;
+}
+#endif
+
 static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_RD_STATIC_ADDR,
                       ble_ll_hci_vs_rd_static_addr),
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_TX_PWR,
             ble_ll_hci_vs_set_tx_power),
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+    BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_CSS,
+                      ble_ll_hci_vs_css),
+#endif
 };
 
 static struct ble_ll_hci_vs_cmd *
