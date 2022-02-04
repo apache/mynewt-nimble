@@ -136,6 +136,7 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
 
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 static int
 ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
                             uint8_t *rspbuf, uint8_t *rsplen)
@@ -167,6 +168,7 @@ ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
 
     return BLE_ERR_SUCCESS;
 }
+#endif
 
 static int
 ble_ll_hci_vs_css_set_next_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
@@ -251,8 +253,10 @@ ble_ll_hci_vs_css(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
     *rsplen = 0;
 
     switch (cmd->opcode) {
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
     case BLE_HCI_VS_CSS_OP_CONFIGURE:
         return ble_ll_hci_vs_css_configure(cmdbuf, cmdlen, rspbuf, rsplen);
+#endif
     case BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT:
         return ble_ll_hci_vs_css_set_next_slot(cmdbuf, cmdlen, rspbuf, rsplen);
     case BLE_HCI_VS_CSS_OP_SET_CONN_SLOT:
