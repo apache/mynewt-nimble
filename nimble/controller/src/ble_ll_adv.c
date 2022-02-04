@@ -1806,7 +1806,7 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    advsm->adv_txpwr = g_ble_ll_tx_power;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (cmd->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
@@ -2790,7 +2790,7 @@ ble_ll_adv_read_txpwr(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_le_rd_adv_chan_txpwr_rp *rsp = (void *) rspbuf;
 
-    rsp->power_level = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+    rsp->power_level = g_ble_ll_tx_power;
 
     *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
@@ -3423,7 +3423,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
     if (cmd->tx_power == 127) {
         /* no preference */
-        advsm->adv_txpwr = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+        advsm->adv_txpwr = g_ble_ll_tx_power;
     } else {
         advsm->adv_txpwr = ble_phy_txpower_round(cmd->tx_power);
     }
