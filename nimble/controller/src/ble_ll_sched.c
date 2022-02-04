@@ -524,7 +524,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
         }
     }
     earliest_start += MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
-                      BLE_LL_SCHED_TICKS_PER_SLOT;
+                      BLE_LL_SCHED_USECS_PER_SLOT;
     itvl_t = connsm->conn_itvl_ticks;
 
     /* We have to find a place for this schedule */
