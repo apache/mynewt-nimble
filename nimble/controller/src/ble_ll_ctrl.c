@@ -1110,7 +1110,12 @@ static uint8_t
 ble_ll_ctrl_rx_sca_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                        uint8_t *rsp)
 {
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        connsm->master_sca = dptr[0];
+    }
+
     ble_ll_ctrl_sca_req_rsp_make(connsm, rsp);
+
     return BLE_LL_CTRL_CLOCK_ACCURACY_RSP;
 }
 
@@ -1128,8 +1133,14 @@ ble_ll_ctrl_rx_sca_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     if (connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_SCA_UPDATE) {
         return BLE_LL_CTRL_UNKNOWN_RSP;
     }
+
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
+        connsm->master_sca = dptr[0];
+    }
+
     ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE);
     ble_ll_hci_ev_sca_update(connsm, BLE_ERR_SUCCESS, dptr[0]);
+
     return BLE_ERR_MAX;
 }
 
