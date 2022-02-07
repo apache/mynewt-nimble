@@ -389,6 +389,32 @@ struct ble_ll_conn_sm
 #define CONN_IS_PERIPHERAL(csm)     (false)
 #endif
 
+static inline int
+ble_ll_conn_rem_feature_check(struct ble_ll_conn_sm *connsm, uint64_t feature)
+{
+    uint8_t byte_idx;
+
+    /* 8 lsb are conn features */
+    feature >>= 8;
+
+    byte_idx = __builtin_ctzll(feature) / 8;
+    return connsm->remote_features[byte_idx] & (feature >> (byte_idx * 8));
+}
+
+
+static inline void
+ble_ll_conn_rem_feature_add(struct ble_ll_conn_sm *connsm, uint64_t feature)
+{
+    uint8_t byte_idx;
+
+    /* 8 lsb are conn features */
+    feature >>= 8;
+
+    byte_idx = __builtin_ctzll(feature) / 8;
+    connsm->remote_features[byte_idx] |= (feature >> (byte_idx * 8));
+}
+
+
 struct ble_ll_conn_sm *ble_ll_conn_find_by_handle(uint16_t handle);
 struct ble_ll_conn_sm *ble_ll_conn_find_by_peer_addr(const uint8_t* addr,
                                                      uint8_t addr_type);

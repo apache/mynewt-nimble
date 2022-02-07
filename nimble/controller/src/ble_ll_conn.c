@@ -1763,7 +1763,7 @@ ble_ll_conn_init_phy(struct ble_ll_conn_sm *connsm, int phy)
         connsm->rem_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
         connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN_CODED;
         /* Assume peer does support coded */
-        connsm->remote_features[0] |= (BLE_LL_FEAT_LE_CODED_PHY >> 8);
+        ble_ll_conn_rem_feature_add(connsm, BLE_LL_FEAT_LE_CODED_PHY);
     } else {
         connsm->max_tx_time = conngp->conn_init_max_tx_time_uncoded;
         connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_UNCODED;
@@ -2389,8 +2389,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
          */
         if (((connsm->phy_data.cur_tx_phy == BLE_PHY_CODED) ||
              (connsm->phy_data.cur_rx_phy == BLE_PHY_CODED)) &&
-            !(connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8))) {
-            connsm->remote_features[0] |= (BLE_LL_FEAT_LE_CODED_PHY >> 8);
+            !ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
+            ble_ll_conn_rem_feature_add(connsm, BLE_LL_FEAT_LE_CODED_PHY);
             connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
             ble_ll_ctrl_initiate_dle(connsm);
         }

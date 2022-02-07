@@ -1970,7 +1970,7 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
          * LE Coded PHY. However, once we know that peer does support it we can
          * update those values to ones applicable for coded PHY.
          */
-        if (connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8)) {
+        if (ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
             if (connsm->host_req_max_tx_time) {
                 connsm->max_tx_time = max(connsm->max_tx_time,
                                           connsm->host_req_max_tx_time);

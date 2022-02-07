@@ -4094,7 +4094,7 @@ ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
       *
       * Allow initiate LL procedure only if remote supports it.
       */
-     if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SYNC_TRANS_RECV >> (8 * 3)))) {
+     if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_SYNC_TRANS_RECV)) {
          rc = BLE_ERR_UNSUPP_REM_FEATURE;
          goto done;
      }
