@@ -28,7 +28,7 @@ extern "C" {
 #include "nimble/transport.h"
 
 /* For supported commands */
-#define BLE_LL_SUPP_CMD_LEN (45)
+#define BLE_LL_SUPP_CMD_LEN (47)
 extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
 
 /* The largest event the controller will send. */
