@@ -582,6 +582,20 @@
     BLE_SUPP_CMD_LE_SET_HOST_FEATURE  \
 )
 
+/* Octet 46 */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+#define BLE_SUPP_CMD_LE_SET_DEFAULT_SUBRATE     (1 << 0)
+#define BLE_SUPP_CMD_LE_SUBRATE_REQ             (1 << 1)
+#else
+#define BLE_SUPP_CMD_LE_SET_DEFAULT_SUBRATE     (0 << 0)
+#define BLE_SUPP_CMD_LE_SUBRATE_REQ             (0 << 1)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_46                        \
+(                                                       \
+    BLE_SUPP_CMD_LE_SET_DEFAULT_SUBRATE               | \
+    BLE_SUPP_CMD_LE_SUBRATE_REQ                         \
+)
+
 /* Defines the array of supported commands */
 const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
@@ -630,4 +644,6 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
     BLE_LL_SUPP_CMD_OCTET_42,
     BLE_LL_SUPP_CMD_OCTET_43,
     BLE_LL_SUPP_CMD_OCTET_44,
+    0,
+    BLE_LL_SUPP_CMD_OCTET_46,
 };

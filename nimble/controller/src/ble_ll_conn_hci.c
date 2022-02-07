@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
@@ -1687,6 +1688,102 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
     }
 
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE, NULL);
+
+    return 0;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+int
+ble_ll_conn_hci_set_default_subrate(const uint8_t *cmdbuf, uint8_t len,
+                                    uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_set_default_subrate_cp *cp = (const void *)cmdbuf;
+    struct ble_ll_conn_global_params *gcp = &g_ble_ll_conn_params;
+    uint16_t subrate_min;
+    uint16_t subrate_max;
+    uint16_t max_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
+
+    subrate_min = le16toh(cp->subrate_min);
+    subrate_max = le16toh(cp->subrate_max);
+    max_latency = le16toh(cp->max_latency);
+    cont_num = le16toh(cp->cont_num);
+    supervision_tmo = le16toh(cp->supervision_tmo);
+
+    if ((subrate_min < 0x0001) || (subrate_min > 0x01f4) ||
+        (subrate_max < 0x0001) || (subrate_max > 0x01f4) ||
+        (max_latency > 0x01f3) || (cont_num > 0x01f3) ||
+        (supervision_tmo < 0x000a) || (supervision_tmo > 0x0c80)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (subrate_max * (max_latency + 1) > 500) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (subrate_max < subrate_min) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cont_num >= subrate_max) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    gcp->acc_subrate_min = subrate_min;
+    gcp->acc_subrate_max = subrate_max;
+    gcp->acc_max_latency = max_latency;
+    gcp->acc_cont_num = cont_num;
+    gcp->acc_supervision_tmo = supervision_tmo;
+
+    return 0;
+}
+
+int
+ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
+                            uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_subrate_req_cp *cp = (const void *)cmdbuf;
+    struct ble_ll_conn_subrate_req_params srp;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t conn_handle;
+    int rc;
+
+    conn_handle = le16toh(cp->conn_handle);
+    srp.subrate_min = le16toh(cp->subrate_min);
+    srp.subrate_max = le16toh(cp->subrate_max);
+    srp.max_latency = le16toh(cp->max_latency);
+    srp.cont_num = le16toh(cp->cont_num);
+    srp.supervision_tmo = le16toh(cp->supervision_tmo);
+
+    connsm = ble_ll_conn_find_by_handle(conn_handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    rc = ble_ll_conn_subrate_req_hci(connsm, &srp);
+    if (rc < 0) {
+        if (rc == -EINVAL) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        } else if (rc == -EBUSY) {
+            return BLE_ERR_CTLR_BUSY;
+        } else if (rc == -ENOTSUP) {
+            return BLE_ERR_UNSUPP_REM_FEATURE;
+        } else {
+            return BLE_ERR_UNSPECIFIED;
+        }
+    }
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        connsm->acc_subrate_min = srp.subrate_min;
+        connsm->acc_subrate_min = srp.subrate_max;
+        connsm->acc_max_latency = srp.max_latency;
+        connsm->acc_cont_num = srp.cont_num;
+        connsm->acc_supervision_tmo = srp.supervision_tmo;
+    }
+#endif
 
     return 0;
 }

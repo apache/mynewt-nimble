@@ -655,6 +655,7 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     case BLE_HCI_OCF_LE_REQ_PEER_SCA:
 #endif
+    case BLE_HCI_OCF_LE_SUBRATE_REQ:
         rc = 1;
         break;
     default:
@@ -1292,6 +1293,14 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_REQ_PEER_SCA:
         rc = ble_ll_conn_req_peer_sca(cmdbuf, len,
                                       rspbuf, rsplen);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    case BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE:
+        rc = ble_ll_conn_hci_set_default_subrate(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SUBRATE_REQ:
+        rc = ble_ll_conn_hci_subrate_req(cmdbuf, len, rspbuf, rsplen);
         break;
 #endif
     default:

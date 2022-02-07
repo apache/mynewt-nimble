@@ -134,6 +134,7 @@ union ble_ll_conn_sm_flags {
         uint32_t pending_initiate_dle:1;
         uint32_t subrate_trans:1;
         uint32_t subrate_ind_txd:1;
+        uint32_t subrate_host_req:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -494,6 +495,8 @@ void ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+int ble_ll_conn_subrate_req_hci(struct ble_ll_conn_sm *connsm,
+                                struct ble_ll_conn_subrate_req_params *srp);
 int ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
                                  struct ble_ll_conn_subrate_req_params *srp);
 void ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,

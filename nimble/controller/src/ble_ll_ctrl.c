@@ -1265,6 +1265,7 @@ ble_ll_ctrl_rx_subrate_ind(struct ble_ll_conn_sm *connsm, uint8_t *req,
 
     ble_ll_conn_subrate_set(connsm, sp);
     ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ);
+    connsm->csmflags.cfbit.subrate_host_req = 0;
 
     return BLE_ERR_MAX;
 }
@@ -1993,7 +1994,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     case BLE_LL_CTRL_PROC_SUBRATE_REQ:
-        /* TODO: send event to host */
+        ble_ll_hci_ev_subrate_change(connsm, ble_error);
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
         break;
 #endif

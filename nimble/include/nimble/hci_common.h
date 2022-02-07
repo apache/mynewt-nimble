@@ -1062,6 +1062,25 @@ struct ble_hci_le_set_host_feat_cp {
     uint8_t val;
 } __attribute__((packed));
 
+#define BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE               (0x007D)
+struct ble_hci_le_set_default_subrate_cp {
+    uint16_t subrate_min;
+    uint16_t subrate_max;
+    uint16_t max_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
+} __attribute__((packed));
+
+#define BLE_HCI_OCF_LE_SUBRATE_REQ                       (0x007E)
+struct ble_hci_le_subrate_req_cp {
+    uint16_t conn_handle;
+    uint16_t subrate_min;
+    uint16_t subrate_max;
+    uint16_t max_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
+} __attribute__((packed));
+
 /* --- Vendor specific commands (OGF 0x003F) */
 /* Read Random Static Address */
 #define BLE_HCI_OCF_VS_RD_STATIC_ADDR                   (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0001))
@@ -1819,6 +1838,17 @@ struct ble_hci_ev_le_subev_biginfo_adv_report {
     uint8_t phy;
     uint8_t framing;
     uint8_t encryption;
+} __attribute__((packed));
+
+#define BLE_HCI_LE_SUBEV_SUBRATE_CHANGE             (0x23)
+struct ble_hci_ev_le_subev_subrate_change {
+    uint8_t subev_code;
+    uint8_t status;
+    uint16_t conn_handle;
+    uint16_t subrate_factor;
+    uint16_t periph_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
 } __attribute__((packed));
 
 /* Data buffer overflow event */

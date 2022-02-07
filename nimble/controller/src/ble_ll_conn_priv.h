@@ -229,6 +229,12 @@ int ble_ll_conn_hci_rd_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
 int ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
                              uint8_t *rspbuf, uint8_t *rsplen);
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+int ble_ll_conn_hci_set_default_subrate(const uint8_t *cmdbuf, uint8_t len,
+                                        uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
+                                uint8_t *rspbuf, uint8_t *rsplen);
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);

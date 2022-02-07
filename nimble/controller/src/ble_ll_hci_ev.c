@@ -491,6 +491,38 @@ ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm, uint8_t status,
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+void
+ble_ll_hci_ev_subrate_change(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    struct ble_hci_ev_le_subev_subrate_change *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_SUBRATE_CHANGE)) {
+        return;
+    }
+
+    hci_ev = ble_transport_alloc_evt(0);
+    if (!hci_ev) {
+        return;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *)hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_SUBRATE_CHANGE;
+    ev->status = status;
+    ev->conn_handle = htole16(connsm->conn_handle);
+    ev->subrate_factor = htole16(connsm->subrate_factor);
+    ev->periph_latency = htole16(connsm->periph_latency);
+    ev->cont_num = htole16(connsm->cont_num);
+    ev->supervision_tmo = htole16(connsm->supervision_tmo);
+
+    ble_ll_hci_event_send(hci_ev);
+}
+#endif
+
 void
 ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
 {

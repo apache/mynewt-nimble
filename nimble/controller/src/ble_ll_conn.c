@@ -957,6 +957,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
         connsm->subrate_trans.subrate_factor = 0;
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
         connsm->csmflags.cfbit.subrate_ind_txd = 0;
+        connsm->csmflags.cfbit.subrate_host_req = 0;
     }
 #endif /* BLE_LL_CTRL_SUBRATE_IND */
 #endif /* BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE */
@@ -4041,6 +4042,77 @@ err_periph_start:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
 int
+ble_ll_conn_subrate_req_hci(struct ble_ll_conn_sm *connsm,
+                            struct ble_ll_conn_subrate_req_params *srp)
+{
+    uint32_t t1, t2;
+
+    if ((srp->subrate_min < 0x0001) || (srp->subrate_min > 0x01f4) ||
+        (srp->subrate_max < 0x0001) || (srp->subrate_max > 0x01f4) ||
+        (srp->max_latency > 0x01f3) || (srp->cont_num > 0x01f3) ||
+        (srp->supervision_tmo < 0x000a) || (srp->supervision_tmo > 0x0c80)) {
+        return -EINVAL;
+    }
+
+    if (srp->subrate_max * (srp->max_latency + 1) > 500) {
+        return -EINVAL;
+    }
+
+    t1 = connsm->conn_itvl * srp->subrate_max * (srp->max_latency + 1) *
+         BLE_LL_CONN_ITVL_USECS;
+    t2 = srp->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000 / 2;
+    if (t1 > t2) {
+        return -EINVAL;
+    }
+
+    if (srp->subrate_max < srp->subrate_min) {
+        return -EINVAL;
+    }
+
+    if (srp->cont_num >= srp->subrate_max) {
+        return -EINVAL;
+    }
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
+        !ble_ll_conn_rem_feature_check(connsm,
+                                       BLE_LL_FEAT_CONN_SUBRATING_HOST)) {
+        return -ENOTSUP;
+    }
+#endif
+
+    if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
+        return -EBUSY;
+    }
+
+    switch (connsm->conn_role) {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_LL_CONN_ROLE_CENTRAL:
+        connsm->subrate_trans.subrate_factor = srp->subrate_max;
+        connsm->subrate_trans.subrate_base_event = connsm->event_cntr;
+        connsm->subrate_trans.periph_latency = srp->max_latency;
+        connsm->subrate_trans.cont_num = srp->cont_num;
+        connsm->subrate_trans.supervision_tmo = srp->supervision_tmo;
+        connsm->csmflags.cfbit.subrate_host_req = 1;
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_CONN_ROLE_PERIPHERAL:
+        connsm->subrate_req = *srp;
+        connsm->csmflags.cfbit.subrate_host_req = 1;
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ, NULL);
+        break;
+#endif
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+
+    return 0;
+}
+
+int
 ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
                              struct ble_ll_conn_subrate_req_params *srp)
 {
@@ -4089,8 +4161,15 @@ ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
 {
     int16_t event_cntr_diff;
     int16_t subrate_events_diff;
+    uint8_t send_ev;
 
     /* Assume parameters were checked by caller */
+
+    send_ev = connsm->csmflags.cfbit.subrate_host_req ||
+              (connsm->subrate_factor != sp->subrate_factor) ||
+              (connsm->periph_latency != sp->periph_latency) ||
+              (connsm->cont_num != sp->cont_num) ||
+              (connsm->supervision_tmo != sp->supervision_tmo);
 
     connsm->subrate_factor = sp->subrate_factor;
     connsm->subrate_base_event = sp->subrate_base_event;
@@ -4103,7 +4182,9 @@ ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
     subrate_events_diff = event_cntr_diff / connsm->subrate_factor;
     connsm->subrate_base_event += connsm->subrate_factor * subrate_events_diff;
 
-    /* TODO send hci event */
+    if (send_ev) {
+        ble_ll_hci_ev_subrate_change(connsm, 0);
+    }
 }
 #endif
 

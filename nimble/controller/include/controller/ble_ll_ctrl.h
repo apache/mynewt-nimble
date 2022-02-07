@@ -346,6 +346,10 @@ void ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm,
                               uint8_t status, uint8_t peer_sca);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+void ble_ll_hci_ev_subrate_change(struct ble_ll_conn_sm *connsm, uint8_t status);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
