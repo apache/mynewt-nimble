@@ -47,7 +47,7 @@ extern "C" {
 #define BLE_LL_CONN_TX_OFF_USECS            (1250)
 #define BLE_LL_CONN_CE_USECS                (625)
 #define BLE_LL_CONN_TX_WIN_MIN              (1)         /* in tx win units */
-#define BLE_LL_CONN_SLAVE_LATENCY_MAX       (499)
+#define BLE_LL_CONN_PERIPH_LATENCY_MAX       (499)
 
 /* Connection handle range */
 #define BLE_LL_CONN_MAX_CONN_HANDLE         (0x0EFF)
@@ -62,7 +62,7 @@ extern "C" {
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params
 {
-    uint8_t master_chan_map[BLE_LL_CONN_CHMAP_LEN];
+    uint8_t central_chan_map[BLE_LL_CONN_CHMAP_LEN];
     uint8_t num_used_chans;
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint8_t supp_max_tx_octets;
@@ -154,16 +154,16 @@ void ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err);
 void ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
                              uint8_t hdr_byte, uint16_t length);
 struct ble_ll_conn_sm *ble_ll_conn_sm_get(void);
-void ble_ll_conn_master_init(struct ble_ll_conn_sm *connsm,
-                             struct ble_ll_conn_create_scan *cc_scan,
-                             struct ble_ll_conn_create_params *cc_params);
+void ble_ll_conn_central_init(struct ble_ll_conn_sm *connsm,
+                              struct ble_ll_conn_create_scan *cc_scan,
+                              struct ble_ll_conn_create_params *cc_params);
 
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
 void ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm);
 
 /* Advertising interface */
-int ble_ll_conn_slave_start(uint8_t *rxbuf, uint8_t pat,
-                            struct ble_mbuf_hdr *rxhdr, bool force_csa2);
+int ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat,
+                             struct ble_mbuf_hdr *rxhdr, bool force_csa2);
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
