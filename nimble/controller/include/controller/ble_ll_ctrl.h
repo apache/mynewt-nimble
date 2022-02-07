@@ -91,9 +91,16 @@ extern "C" {
 #define BLE_LL_CTRL_CIS_RSP             (0x20)
 #define BLE_LL_CTRL_CIS_IND             (0x21)
 #define BLE_LL_CTRL_CIS_TERMINATE_IND   (0x22)
+#define BLE_LL_CTRL_POWER_CONTROL_REQ   (0x23)
+#define BLE_LL_CTRL_POWER_CONTROL_RSP   (0x24)
+#define BLE_LL_CTRL_POWER_CHANGE_IND    (0x25)
+#define BLE_LL_CTRL_SUBRATE_REQ         (0x26)
+#define BLE_LL_CTRL_SUBRATE_IND         (0x27)
+#define BLE_LL_CTRL_CHAN_REPORTING_IND  (0x28)
+#define BLE_LL_CTRL_CHAN_STATUS_IND     (0x29)
 
 /* Maximum opcode value */
-#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_CIS_TERMINATE_IND + 1)
+#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_CHAN_STATUS_IND + 1)
 
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
@@ -274,6 +281,14 @@ struct ble_ll_len_req
 #define BLE_LL_CTRL_CIS_RSP_LEN         (8)
 #define BLE_LL_CTRL_CIS_IND_LEN         (15)
 #define BLE_LL_CTRL_CIS_TERMINATE_LEN   (3)
+
+#define BLE_LL_CTRL_POWER_CONTROL_REQ_LEN       (3)
+#define BLE_LL_CTRL_POWER_CONTROL_RSP_LEN       (4)
+#define BLE_LL_CTRL_POWER_CHANGE_IND_LEN        (4)
+#define BLE_LL_CTRL_SUBRATE_REQ_LEN             (10)
+#define BLE_LL_CTRL_SUBRATE_IND_LEN             (10)
+#define BLE_LL_CTRL_CHAN_REPORTING_IND_LEN      (3)
+#define BLE_LL_CTRL_CHAN_STATUS_IND_LEN         (10)
 
 /* API */
 struct ble_ll_conn_sm;
