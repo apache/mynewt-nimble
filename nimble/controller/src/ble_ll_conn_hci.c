@@ -1476,7 +1476,7 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
     connsm->host_req_max_tx_time = txtime;
 
     /* If peer does not support coded, we cannot use value larger than 2120us */
-    if (!(connsm->remote_features[0] & (BLE_LL_FEAT_LE_CODED_PHY >> 8))) {
+    if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
         txtime = min(txtime, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
     }
 #endif
@@ -1677,7 +1677,7 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SCA_UPDATE >> 24))) {
+    if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_SCA_UPDATE)) {
         return BLE_ERR_UNSUPP_REM_FEATURE;
     }
 

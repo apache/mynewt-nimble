@@ -2183,12 +2183,8 @@ ble_ll_sync_transfer(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    /* TODO should not need to shift
-     * byte 3 (0 byte is conn_feature) , bit 1
-     *
-     * Allow initiate LL procedure only if remote supports it.
-     */
-    if (!(connsm->remote_features[2] & (BLE_LL_FEAT_SYNC_TRANS_RECV >> (8 * 3)))) {
+     /* Allow initiate LL procedure only if remote supports it. */
+    if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_SYNC_TRANS_RECV)) {
         rc = BLE_ERR_UNSUPP_REM_FEATURE;
         goto done;
     }
