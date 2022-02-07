@@ -98,9 +98,9 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define BLE_LL_S_SLAVE                  ((uint64_t)1 << 7)
+#define BLE_LL_S_PERIPH                 ((uint64_t)1 << 7)
 #else
-#define BLE_LL_S_SLAVE                  ((uint64_t)0 << 7)
+#define BLE_LL_S_PERIPH                  ((uint64_t)0 << 7)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
@@ -138,21 +138,21 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define BLE_LL_S_NCA_INIT               ((uint64_t)1 << 16)
 #define BLE_LL_S_SA_INIT                ((uint64_t)1 << 17)
-#define BLE_LL_S_NCA_MASTER             ((uint64_t)1 << 18)
-#define BLE_LL_S_SA_MASTER              ((uint64_t)1 << 19)
+#define BLE_LL_S_NCA_CENTRAL            ((uint64_t)1 << 18)
+#define BLE_LL_S_SA_CENTRAL             ((uint64_t)1 << 19)
 #else
 #define BLE_LL_S_NCA_INIT               ((uint64_t)0 << 16)
 #define BLE_LL_S_SA_INIT                ((uint64_t)0 << 17)
-#define BLE_LL_S_NCA_MASTER             ((uint64_t)0 << 18)
-#define BLE_LL_S_SA_MASTER              ((uint64_t)0 << 19)
+#define BLE_LL_S_NCA_CENTRAL             ((uint64_t)0 << 18)
+#define BLE_LL_S_SA_CENTRAL              ((uint64_t)0 << 19)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER) && MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define BLE_LL_S_NCA_SLAVE              ((uint64_t)1 << 20)
-#define BLE_LL_S_SA_SLAVE               ((uint64_t)1 << 21)
+#define BLE_LL_S_NCA_PERIPH             ((uint64_t)1 << 20)
+#define BLE_LL_S_SA_PERIPH               ((uint64_t)1 << 21)
 #else
-#define BLE_LL_S_NCA_SLAVE              ((uint64_t)0 << 20)
-#define BLE_LL_S_SA_SLAVE               ((uint64_t)0 << 21)
+#define BLE_LL_S_NCA_PERIPH              ((uint64_t)0 << 20)
+#define BLE_LL_S_SA_PERIPH               ((uint64_t)0 << 21)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -160,27 +160,27 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 #define BLE_LL_S_PS_INIT                ((uint64_t)0 << 22)
 /* We do not support active scanning while initiating yet */
 #define BLE_LL_S_AS_INIT                ((uint64_t)0 << 23)
-#define BLE_LL_S_PS_MASTER              ((uint64_t)1 << 24)
-#define BLE_LL_S_AS_MASTER              ((uint64_t)1 << 25)
+#define BLE_LL_S_PS_CENTRAL             ((uint64_t)1 << 24)
+#define BLE_LL_S_AS_CENTRAL             ((uint64_t)1 << 25)
 #else
 #define BLE_LL_S_PS_INIT                ((uint64_t)0 << 22)
 #define BLE_LL_S_AS_INIT                ((uint64_t)0 << 23)
-#define BLE_LL_S_PS_MASTER              ((uint64_t)0 << 24)
-#define BLE_LL_S_AS_MASTER              ((uint64_t)0 << 25)
+#define BLE_LL_S_PS_CENTRAL              ((uint64_t)0 << 24)
+#define BLE_LL_S_AS_CENTRAL              ((uint64_t)0 << 25)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define BLE_LL_S_PS_SLAVE               ((uint64_t)1 << 26)
-#define BLE_LL_S_AS_SLAVE               ((uint64_t)1 << 27)
+#define BLE_LL_S_PS_PERIPH              ((uint64_t)1 << 26)
+#define BLE_LL_S_AS_PERIPH              ((uint64_t)1 << 27)
 #else
-#define BLE_LL_S_PS_SLAVE               ((uint64_t)0 << 26)
-#define BLE_LL_S_AS_SLAVE               ((uint64_t)0 << 27)
+#define BLE_LL_S_PS_PERIPH               ((uint64_t)0 << 26)
+#define BLE_LL_S_AS_PERIPH               ((uint64_t)0 << 27)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-#define BLE_LL_S_INIT_MASTER            ((uint64_t)1 << 28)
+#define BLE_LL_S_INIT_CENTRAL           ((uint64_t)1 << 28)
 #else
-#define BLE_LL_S_INIT_MASTER            ((uint64_t)0 << 28)
+#define BLE_LL_S_INIT_CENTRAL            ((uint64_t)0 << 28)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -208,29 +208,29 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-#define BLE_LL_S_CA_MASTER              ((uint64_t)1 << 35)
-#define BLE_LL_S_HDCA_MASTER            ((uint64_t)1 << 36)
-#define BLE_LL_S_LDCA_MASTER            ((uint64_t)1 << 37)
+#define BLE_LL_S_CA_CENTRAL             ((uint64_t)1 << 35)
+#define BLE_LL_S_HDCA_CENTRAL           ((uint64_t)1 << 36)
+#define BLE_LL_S_LDCA_CENTRAL           ((uint64_t)1 << 37)
 #else
-#define BLE_LL_S_CA_MASTER              ((uint64_t)0 << 35)
-#define BLE_LL_S_HDCA_MASTER            ((uint64_t)0 << 36)
-#define BLE_LL_S_LDCA_MASTER            ((uint64_t)0 << 37)
+#define BLE_LL_S_CA_CENTRAL              ((uint64_t)0 << 35)
+#define BLE_LL_S_HDCA_CENTRAL            ((uint64_t)0 << 36)
+#define BLE_LL_S_LDCA_CENTRAL            ((uint64_t)0 << 37)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define BLE_LL_S_CA_SLAVE               ((uint64_t)1 << 38)
-#define BLE_LL_S_HDCA_SLAVE             ((uint64_t)1 << 39)
-#define BLE_LL_S_LDCA_SLAVE             ((uint64_t)1 << 40)
+#define BLE_LL_S_CA_PERIPH              ((uint64_t)1 << 38)
+#define BLE_LL_S_HDCA_PERIPH            ((uint64_t)1 << 39)
+#define BLE_LL_S_LDCA_PERIPH            ((uint64_t)1 << 40)
 #else
-#define BLE_LL_S_CA_SLAVE               ((uint64_t)0 << 38)
-#define BLE_LL_S_HDCA_SLAVE             ((uint64_t)0 << 39)
-#define BLE_LL_S_LDCA_SLAVE             ((uint64_t)0 << 40)
+#define BLE_LL_S_CA_PERIPH               ((uint64_t)0 << 38)
+#define BLE_LL_S_HDCA_PERIPH             ((uint64_t)0 << 39)
+#define BLE_LL_S_LDCA_PERIPH             ((uint64_t)0 << 40)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) && MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-#define BLE_LL_S_INIT_SLAVE             ((uint64_t)1 << 41)
+#define BLE_LL_S_INIT_PERIPH            ((uint64_t)1 << 41)
 #else
-#define BLE_LL_S_INIT_SLAVE             ((uint64_t)0 << 41)
+#define BLE_LL_S_INIT_PERIPH             ((uint64_t)0 << 41)
 #endif
 
 #define BLE_LL_SUPPORTED_STATES             \
@@ -242,7 +242,7 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
     BLE_LL_S_PS                     |       \
     BLE_LL_S_AS                     |       \
     BLE_LL_S_INIT                   |       \
-    BLE_LL_S_SLAVE                  |       \
+    BLE_LL_S_PERIPH                  |       \
     BLE_LL_S_NCA_PS                 |       \
     BLE_LL_S_SA_PS                  |       \
     BLE_LL_S_CA_PS                  |       \
@@ -253,30 +253,30 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
     BLE_LL_S_HDCA_AS                |       \
     BLE_LL_S_NCA_INIT               |       \
     BLE_LL_S_SA_INIT                |       \
-    BLE_LL_S_NCA_MASTER             |       \
-    BLE_LL_S_SA_MASTER              |       \
-    BLE_LL_S_NCA_SLAVE              |       \
-    BLE_LL_S_SA_SLAVE               |       \
+    BLE_LL_S_NCA_CENTRAL             |       \
+    BLE_LL_S_SA_CENTRAL              |       \
+    BLE_LL_S_NCA_PERIPH              |       \
+    BLE_LL_S_SA_PERIPH               |       \
     BLE_LL_S_PS_INIT                |       \
     BLE_LL_S_AS_INIT                |       \
-    BLE_LL_S_PS_MASTER              |       \
-    BLE_LL_S_AS_MASTER              |       \
-    BLE_LL_S_PS_SLAVE               |       \
-    BLE_LL_S_AS_SLAVE               |       \
-    BLE_LL_S_INIT_MASTER            |       \
+    BLE_LL_S_PS_CENTRAL              |       \
+    BLE_LL_S_AS_CENTRAL              |       \
+    BLE_LL_S_PS_PERIPH               |       \
+    BLE_LL_S_AS_PERIPH               |       \
+    BLE_LL_S_INIT_CENTRAL            |       \
     BLE_LL_S_LDCA                   |       \
     BLE_LL_S_LDCA_PS                |       \
     BLE_LL_S_LDCA_AS                |       \
     BLE_LL_S_CA_INIT                |       \
     BLE_LL_S_HDCA_INIT              |       \
     BLE_LL_S_LDCA_INIT              |       \
-    BLE_LL_S_CA_MASTER              |       \
-    BLE_LL_S_HDCA_MASTER            |       \
-    BLE_LL_S_LDCA_MASTER            |       \
-    BLE_LL_S_CA_SLAVE               |       \
-    BLE_LL_S_HDCA_SLAVE             |       \
-    BLE_LL_S_LDCA_SLAVE             |       \
-    BLE_LL_S_INIT_SLAVE)
+    BLE_LL_S_CA_CENTRAL              |       \
+    BLE_LL_S_HDCA_CENTRAL            |       \
+    BLE_LL_S_LDCA_CENTRAL            |       \
+    BLE_LL_S_CA_PERIPH               |       \
+    BLE_LL_S_HDCA_PERIPH             |       \
+    BLE_LL_S_LDCA_PERIPH             |       \
+    BLE_LL_S_INIT_PERIPH)
 
 /* The global BLE LL data object */
 struct ble_ll_obj g_ble_ll_data;
@@ -1866,8 +1866,8 @@ ble_ll_init(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CONN_PARAM_REQ)
     features |= BLE_LL_FEAT_CONN_PARM_REQ;
 #endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG)
-    features |= BLE_LL_FEAT_SLAVE_INIT;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG)
+    features |= BLE_LL_FEAT_PERIPH_INIT;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     features |= BLE_LL_FEAT_LE_ENCRYPTION;
@@ -1916,8 +1916,8 @@ ble_ll_init(void)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
-    features |= BLE_LL_FEAT_CIS_MASTER;
-    features |= BLE_LL_FEAT_CIS_SLAVE;
+    features |= BLE_LL_FEAT_CIS_CENTRAL;
+    features |= BLE_LL_FEAT_CIS_PERIPH;
     features |= BLE_LL_FEAT_ISO_BROADCASTER;
     features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif

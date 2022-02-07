@@ -70,7 +70,7 @@ extern "C" {
 #define BLE_LL_CTRL_PAUSE_ENC_RSP       (0x0B)
 #define BLE_LL_CTRL_VERSION_IND         (0x0C)
 #define BLE_LL_CTRL_REJECT_IND          (0x0D)
-#define BLE_LL_CTRL_SLAVE_FEATURE_REQ   (0x0E)
+#define BLE_LL_CTRL_PERIPH_FEATURE_REQ   (0x0E)
 #define BLE_LL_CTRL_CONN_PARM_REQ       (0x0F)
 #define BLE_LL_CTRL_CONN_PARM_RSP       (0x10)
 #define BLE_LL_CTRL_REJECT_IND_EXT      (0x11)
@@ -205,7 +205,7 @@ struct ble_ll_version_ind
  * LL control slave feature req
  *  -> 8 bytes of data containing features supported by device.
  */
-#define BLE_LL_CTRL_SLAVE_FEATURE_REQ_LEN   (8)
+#define BLE_LL_CTRL_PERIPH_FEATURE_REQ_LEN   (8)
 
 /* LL control connection param req and connection param rsp */
 struct ble_ll_conn_params

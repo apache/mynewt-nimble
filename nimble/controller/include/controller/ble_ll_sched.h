@@ -143,11 +143,11 @@ void ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb);
 
 /* Schedule a new master connection */
 struct ble_ll_conn_sm;
-int ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
-                            struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len);
+int ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
+                                  struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len);
 
 /* Schedule a new slave connection */
-int ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm);
+int ble_ll_sched_conn_periph_new(struct ble_ll_conn_sm *connsm);
 
 struct ble_ll_adv_sm;
 typedef void ble_ll_sched_adv_new_cb(struct ble_ll_adv_sm *advsm,

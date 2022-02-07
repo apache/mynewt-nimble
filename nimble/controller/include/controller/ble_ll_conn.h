@@ -36,10 +36,10 @@ extern "C" {
 #define BLE_LL_CONN_ROLE_NONE           (0)
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-#define BLE_LL_CONN_ROLE_MASTER         (1)
+#define BLE_LL_CONN_ROLE_CENTRAL        (1)
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define BLE_LL_CONN_ROLE_SLAVE          (2)
+#define BLE_LL_CONN_ROLE_PERIPHERAL     (2)
 #endif
 
 /* Connection states */
@@ -106,8 +106,8 @@ union ble_ll_conn_sm_flags {
         uint32_t terminate_ind_txd:1;
         uint32_t terminate_ind_rxd:1;
         uint32_t terminate_ind_rxd_acked:1;
-        uint32_t allow_slave_latency:1;
-        uint32_t slave_set_last_anchor:1;
+        uint32_t allow_periph_latency:1;
+        uint32_t periph_set_last_anchor:1;
         uint32_t awaiting_host_reply:1;
         uint32_t terminate_started:1;
         uint32_t conn_update_sched:1;
@@ -249,7 +249,7 @@ struct ble_ll_conn_sm
     /* connection event mgmt */
     uint8_t reject_reason;
     uint8_t host_reply_opcode;
-    uint8_t master_sca;
+    uint8_t central_sca;
     uint8_t tx_win_size;
     uint8_t cur_ctrl_proc;
     uint8_t disconnect_reason;
@@ -273,7 +273,7 @@ struct ble_ll_conn_sm
 
     /* Connection timing */
     uint16_t conn_itvl;
-    uint16_t slave_latency;
+    uint16_t periph_latency;
     uint16_t supervision_tmo;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
@@ -283,8 +283,8 @@ struct ble_ll_conn_sm
     uint8_t conn_itvl_usecs;
     uint32_t conn_itvl_ticks;
     uint32_t last_anchor_point;     /* Slave only */
-    uint32_t slave_cur_tx_win_usecs;
-    uint32_t slave_cur_window_widening;
+    uint32_t periph_cur_tx_win_usecs;
+    uint32_t periph_cur_window_widening;
     uint32_t last_rxd_pdu_cputime;  /* Used exclusively for supervision timer */
 
     /*
@@ -376,15 +376,15 @@ struct ble_ll_conn_sm
 
 /* Role */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-#define CONN_IS_MASTER(csm)         (csm->conn_role == BLE_LL_CONN_ROLE_MASTER)
+#define CONN_IS_CENTRAL(csm)        (csm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)
 #else
-#define CONN_IS_MASTER(csm)         (false)
+#define CONN_IS_CENTRAL(csm)        (false)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-#define CONN_IS_SLAVE(csm)          (csm->conn_role == BLE_LL_CONN_ROLE_SLAVE)
+#define CONN_IS_PERIPHERAL(csm)     (csm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL)
 #else
-#define CONN_IS_SLAVE(csm)          (false)
+#define CONN_IS_PERIPHERAL(csm)     (false)
 #endif
 
 /*

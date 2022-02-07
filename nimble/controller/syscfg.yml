@@ -219,7 +219,7 @@ syscfg.defs:
             by default.
         value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
 
-    BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
+    BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG:
         description: >
             This option allows a slave to initiate the feature exchange
             procedure.  This feature is implemented but currently has no impact
@@ -503,7 +503,10 @@ syscfg.defs:
         description: use BLE_LL_SCA instead
         value: 4
         defunct: 1
-
+    BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
+        description: Superseded by BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG
+        value: 0
+        defaunt: 1
 
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1

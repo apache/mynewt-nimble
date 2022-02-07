@@ -117,7 +117,7 @@ ble_ll_hci_ev_conn_update(struct ble_ll_conn_sm *connsm, uint8_t status)
             ev->status = status;
             ev->conn_handle = htole16(connsm->conn_handle);
             ev->conn_itvl = htole16(connsm->conn_itvl);
-            ev->conn_latency = htole16(connsm->slave_latency);
+            ev->conn_latency = htole16(connsm->periph_latency);
             ev->supervision_timeout = htole16(connsm->supervision_tmo);
 
             ble_ll_hci_event_send(hci_ev);

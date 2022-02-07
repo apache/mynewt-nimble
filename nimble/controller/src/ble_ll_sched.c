@@ -370,13 +370,13 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
     switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    case BLE_LL_CONN_ROLE_MASTER:
+    case BLE_LL_CONN_ROLE_CENTRAL:
         sch->remainder = connsm->anchor_point_usecs;
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    case BLE_LL_CONN_ROLE_SLAVE:
-        usecs = connsm->slave_cur_window_widening;
+    case BLE_LL_CONN_ROLE_PERIPHERAL:
+        usecs = connsm->periph_cur_window_widening;
         sch->start_time -= (ble_ll_tmr_u2t(usecs) + 1);
         sch->remainder = 0;
         break;
@@ -422,8 +422,8 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
  */
 #if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
 int
-ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
-                        struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
+ble_ll_sched_central_new(struct ble_ll_conn_sm *connsm,
+                         struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
 {
     int rc;
     os_sr_t sr;
@@ -656,8 +656,8 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
 }
 #else
 int
-ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
-                        struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
+ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
+                              struct ble_mbuf_hdr *ble_hdr, uint8_t pyld_len)
 {
     struct ble_ll_sched_item *sch;
     uint32_t orig_start_time;
@@ -790,7 +790,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm,
  * @return int
  */
 int
-ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
+ble_ll_sched_conn_periph_new(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_sched_item *sch;
     os_sr_t sr;
@@ -807,7 +807,7 @@ ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
      * usecs to ticks could be off by up to 1 tick.
      */
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks -
-                      ble_ll_tmr_u2t(connsm->slave_cur_window_widening) - 1;
+                      ble_ll_tmr_u2t(connsm->periph_cur_window_widening) - 1;
     sch->end_time = connsm->ce_end_time;
     sch->remainder = 0;
 

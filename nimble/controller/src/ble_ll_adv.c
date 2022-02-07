@@ -1374,10 +1374,10 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->chan = ble_ll_utils_calc_dci_csa2(advsm->event_cntr++,
                                            advsm->channel_id,
                                            g_ble_ll_conn_params.num_used_chans,
-                                           g_ble_ll_conn_params.master_chan_map);
+                                           g_ble_ll_conn_params.central_chan_map);
 #else
     aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
-                                              g_ble_ll_conn_params.master_chan_map);
+                                              g_ble_ll_conn_params.central_chan_map);
 #endif
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
@@ -2546,7 +2546,7 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     advsm->periodic_adv_active = 1;
 
     /* keep channel map since we cannot change it later on */
-    memcpy(advsm->periodic_chanmap, g_ble_ll_conn_params.master_chan_map,
+    memcpy(advsm->periodic_chanmap, g_ble_ll_conn_params.central_chan_map,
            BLE_LL_CONN_CHMAP_LEN);
     advsm->periodic_num_used_chans = g_ble_ll_conn_params.num_used_chans;
     advsm->periodic_event_cntr = 0;
@@ -4118,7 +4118,7 @@ ble_ll_adv_already_connected(const uint8_t* addr, uint8_t addr_type)
 {
     struct ble_ll_conn_sm *connsm;
 
-    /* extracted from ble_ll_conn_slave_start function */
+    /* extracted from ble_ll_conn_periph_start function */
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
         if (!memcmp(&connsm->peer_addr, addr, BLE_DEV_ADDR_LEN)) {
             if (addr_type == BLE_ADDR_RANDOM) {
@@ -4401,8 +4401,9 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
 #endif
 
         /* Try to start slave connection. If successful, stop advertising */
-        valid = ble_ll_conn_slave_start(rxbuf, addr_type, hdr,
-                          !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
+        valid = ble_ll_conn_periph_start(rxbuf, addr_type, hdr,
+                                         !(advsm->props &
+                                           BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));
         if (valid) {
             /* stop advertising only if not transmitting connection response */
             if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {

@@ -281,7 +281,7 @@ ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
 uint32_t
 ble_ll_utils_calc_window_widening(uint32_t anchor_point,
                                   uint32_t last_anchor_point,
-                                  uint8_t master_sca)
+                                  uint8_t central_sca)
 {
     uint32_t total_sca_ppm;
     uint32_t window_widening;
@@ -293,7 +293,7 @@ ble_ll_utils_calc_window_widening(uint32_t anchor_point,
     time_since_last_anchor = (int32_t)(anchor_point - last_anchor_point);
     if (time_since_last_anchor > 0) {
         delta_msec = ble_ll_tmr_t2u(time_since_last_anchor) / 1000;
-        total_sca_ppm = g_ble_sca_ppm_tbl[master_sca] + MYNEWT_VAL(BLE_LL_SCA);
+        total_sca_ppm = g_ble_sca_ppm_tbl[central_sca] + MYNEWT_VAL(BLE_LL_SCA);
         window_widening = (total_sca_ppm * delta_msec) / 1000;
     }
 

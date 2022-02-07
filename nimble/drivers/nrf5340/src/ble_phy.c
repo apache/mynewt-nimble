@@ -1526,12 +1526,12 @@ ble_phy_rx(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 void
 ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
-                       uint8_t is_master)
+                       uint8_t is_central)
 {
     memcpy(nrf_ccm_data.key, key, 16);
     nrf_ccm_data.pkt_counter = pkt_counter;
     memcpy(nrf_ccm_data.iv, iv, 8);
-    nrf_ccm_data.dir_bit = is_master;
+    nrf_ccm_data.dir_bit = is_central;
     g_ble_phy_data.phy_encrypted = 1;
     /* Enable the module (AAR cannot be on while CCM on) */
     NRF_AAR_NS->ENABLE = AAR_ENABLE_ENABLE_Disabled;

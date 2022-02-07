@@ -164,7 +164,7 @@ uint32_t ble_phy_access_addr_get(void);
 
 /* Enable encryption */
 void ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
-                            uint8_t is_master);
+                            uint8_t is_central);
 
 /* Disable encryption */
 void ble_phy_encrypt_disable(void);
