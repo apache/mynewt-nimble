@@ -118,7 +118,14 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     BLE_LL_CTRL_CIS_REQ_LEN,
     BLE_LL_CTRL_CIS_RSP_LEN,
     BLE_LL_CTRL_CIS_IND_LEN,
-    BLE_LL_CTRL_CIS_TERMINATE_LEN
+    BLE_LL_CTRL_CIS_TERMINATE_LEN,
+    BLE_LL_CTRL_POWER_CONTROL_REQ_LEN,
+    BLE_LL_CTRL_POWER_CONTROL_RSP_LEN,
+    BLE_LL_CTRL_POWER_CHANGE_IND_LEN,
+    BLE_LL_CTRL_SUBRATE_REQ_LEN,
+    BLE_LL_CTRL_SUBRATE_IND_LEN,
+    BLE_LL_CTRL_CHAN_REPORTING_IND_LEN,
+    BLE_LL_CTRL_CHAN_STATUS_IND_LEN,
 };
 
 /**
@@ -2565,8 +2572,8 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 int
 ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 {
-    uint32_t features;
-    uint32_t feature;
+    uint64_t features;
+    uint64_t feature;
     uint8_t len;
     uint8_t opcode;
     uint8_t rsp_opcode;
@@ -2661,6 +2668,10 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     case BLE_LL_CTRL_PERIODIC_SYNC_IND:
         feature = BLE_LL_FEAT_SYNC_TRANS_RECV;
+        break;
+    case BLE_LL_CTRL_SUBRATE_REQ:
+    case BLE_LL_CTRL_SUBRATE_IND:
+        feature = BLE_LL_FEAT_CONN_SUBRATING;
         break;
     default:
         feature = 0;
