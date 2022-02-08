@@ -1063,7 +1063,7 @@ struct ble_hci_le_set_host_feat_cp {
 
 /* --- Vendor specific commands (OGF 0x003F) */
 /* Read Random Static Address */
-#define BLE_HCI_OCF_VS_RD_STATIC_ADDR                   (0x0001)
+#define BLE_HCI_OCF_VS_RD_STATIC_ADDR                   (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0001))
 struct ble_hci_vs_rd_static_addr_rp {
     uint8_t addr[6];
 } __attribute__((packed));
@@ -1071,7 +1071,7 @@ struct ble_hci_vs_rd_static_addr_rp {
 /* Set default transmit power. Actual selected TX power is returned
  * in reply. Setting 0xff restores controller reset default.
  */
-#define BLE_HCI_OCF_VS_SET_TX_PWR                       (0x0002)
+#define BLE_HCI_OCF_VS_SET_TX_PWR                       (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0002))
 struct ble_hci_vs_set_tx_pwr_cp {
     int8_t tx_power;
 } __attribute__((packed));
