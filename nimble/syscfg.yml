@@ -101,6 +101,13 @@ syscfg.defs:
             Enables support for NimBLE specific vendor HCI commands
         value: 0
 
+    BLE_HCI_VS_OCF_OFFSET:
+        description: >
+            This defines starting offset for NimBLE specific vendor HCI commands.
+            Purpose of this is to improve compatibility with other custom
+            implementations.
+        value: 0
+
 # Allow periodic sync transfer only if 5.1 or higher
 syscfg.restrictions:
     - "'BLE_PERIODIC_ADV_SYNC_TRANSFER == 0' || 'BLE_VERSION >= 51'"
