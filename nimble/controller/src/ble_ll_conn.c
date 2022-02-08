@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 #include "nimble/ble.h"
@@ -948,6 +949,17 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
         }
     }
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (connsm->csmflags.cfbit.subrate_ind_txd) {
+        ble_ll_conn_subrate_set(connsm, &connsm->subrate_trans);
+        connsm->subrate_trans.subrate_factor = 0;
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
+        connsm->csmflags.cfbit.subrate_ind_txd = 0;
+    }
+#endif /* BLE_LL_CTRL_SUBRATE_IND */
+#endif /* BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE */
 }
 
 /**
@@ -1109,6 +1121,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         pktlen = pkthdr->omp_len;
         if (llid == BLE_LL_LLID_CTRL) {
             cur_txlen = pktlen;
+            ble_ll_ctrl_tx_start(connsm, m);
         } else {
             cur_txlen = ble_ll_conn_adjust_pyld_len(connsm, pktlen);
         }
@@ -1689,6 +1702,14 @@ ble_ll_conn_central_common_init(struct ble_ll_conn_sm *connsm)
     memcpy(connsm->chanmap, g_ble_ll_conn_params.central_chan_map,
            BLE_LL_CONN_CHMAP_LEN);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    connsm->acc_subrate_min = g_ble_ll_conn_params.acc_subrate_min;
+    connsm->acc_subrate_max = g_ble_ll_conn_params.acc_subrate_max;
+    connsm->acc_max_latency = g_ble_ll_conn_params.acc_max_latency;
+    connsm->acc_cont_num = g_ble_ll_conn_params.acc_cont_num;
+    connsm->acc_supervision_tmo = g_ble_ll_conn_params.acc_supervision_tmo;
+#endif
+
     /*  Calculate random access address and crc initialization value */
     connsm->access_addr = ble_ll_utils_calc_access_addr();
     connsm->crcinit = ble_ll_rand() & 0xffffff;
@@ -2213,6 +2234,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint8_t next_is_subrated;
     uint16_t subrate_factor;
     uint16_t event_cntr_diff;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    struct ble_ll_conn_subrate_params *cstp;
+    uint16_t trans_next_event_cntr;
+    uint16_t subrate_conn_upd_event_cntr;
+#endif
+
 
     /* XXX: deal with connection request procedure here as well */
     ble_ll_conn_chk_csm_flags(connsm);
@@ -2272,17 +2299,62 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         if (use_periph_latency) {
             next_event_cntr += subrate_factor * connsm->periph_latency;
         }
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
-        /* Make this our next base event. This is technically incorrect, because
-         * subrate base event is determined by LL_SUBRATE_IND and shall only be
-         * changed if counter wrapped, but that does not really matter as once
-         * set it's only used internally.
+        /* If we are in subrate transition mode, we should also listen on
+         * subrated connection events based on new parameters.
          */
-        connsm->subrate_base_event = next_event_cntr;
+        if (connsm->csmflags.cfbit.subrate_trans) {
+            BLE_LL_ASSERT(CONN_IS_CENTRAL(connsm));
+
+            cstp = &connsm->subrate_trans;
+            trans_next_event_cntr = cstp->subrate_base_event;
+            while (INT16_LTE(trans_next_event_cntr, connsm->event_cntr)) {
+                trans_next_event_cntr += cstp->subrate_factor;
+            }
+            cstp->subrate_base_event = trans_next_event_cntr;
+
+            if (INT16_LT(trans_next_event_cntr, next_event_cntr)) {
+                next_event_cntr = trans_next_event_cntr;
+                next_is_subrated = 0;
+            }
+        }
 #endif
     } else {
         next_event_cntr = connsm->event_cntr + 1;
     }
+
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    /* If connection update is scheduled, peripheral shall listen at instant
+     * and one connection event before instant regardless of subrating.
+     */
+    if (CONN_IS_PERIPHERAL(connsm) &&
+        connsm->csmflags.cfbit.conn_update_sched &&
+        (connsm->subrate_factor > 1)) {
+        subrate_conn_upd_event_cntr = connsm->conn_update_req.instant - 1;
+        if (connsm->event_cntr == subrate_conn_upd_event_cntr) {
+            subrate_conn_upd_event_cntr++;
+        }
+
+        if (INT16_GT(next_event_cntr, subrate_conn_upd_event_cntr)) {
+            next_event_cntr = subrate_conn_upd_event_cntr;
+            next_is_subrated = 0;
+        }
+    }
+
+    /* Set next connection event as a subrate base event if that connection
+     * event is a subrated event, this simplifies calculations later.
+     * Note that according to spec base event should only be changed on
+     * wrap-around, but since we only use this value internally we can use any
+     * valid value.
+     */
+    if (next_is_subrated ||
+        (connsm->subrate_base_event +
+         connsm->subrate_factor == next_event_cntr)) {
+        connsm->subrate_base_event = next_event_cntr;
+    }
+#endif
 
     event_cntr_diff = next_event_cntr - connsm->event_cntr;
     BLE_LL_ASSERT(event_cntr_diff > 0);
@@ -2338,6 +2410,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             (connsm->supervision_tmo != upd->timeout)) {
             connsm->csmflags.cfbit.host_expects_upd_event = 1;
         }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+        if (connsm->conn_itvl != upd->interval) {
+            connsm->subrate_base_event = connsm->event_cntr;
+            connsm->subrate_factor = 1;
+            connsm->cont_num = 0;
+        }
+#endif
 
         connsm->supervision_tmo = upd->timeout;
         connsm->periph_latency = upd->latency;
@@ -3959,6 +4039,74 @@ err_periph_start:
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+int
+ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
+                             struct ble_ll_conn_subrate_req_params *srp)
+{
+    BLE_LL_ASSERT(connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL);
+
+    if ((srp->subrate_min < 0x0001) || (srp->subrate_min > 0x01f4) ||
+        (srp->subrate_max < 0x0001) || (srp->subrate_max > 0x01f4) ||
+        (srp->max_latency > 0x01f3) || (srp->cont_num > 0x01f3) ||
+        (srp->supervision_tmo < 0x000a) || (srp->supervision_tmo > 0x0c80)) {
+        return -EINVAL;
+    }
+
+    if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
+        return -EBUSY;
+    }
+
+    if ((srp->max_latency > connsm->acc_max_latency) ||
+        (srp->supervision_tmo > connsm->acc_supervision_tmo) ||
+        (srp->subrate_max < connsm->acc_subrate_min) ||
+        (srp->subrate_min > connsm->acc_subrate_max) ||
+        ((connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * srp->subrate_min *
+          (srp->max_latency + 1)) * 2 >= srp->supervision_tmo *
+                                         BLE_HCI_CONN_SPVN_TMO_UNITS * 1000)) {
+        return -EINVAL;
+    }
+
+    connsm->subrate_trans.subrate_factor = min(connsm->acc_subrate_max,
+                                               srp->subrate_max);
+    connsm->subrate_trans.subrate_base_event = connsm->event_cntr;
+    connsm->subrate_trans.periph_latency = min(connsm->acc_max_latency,
+                                               srp->max_latency);
+    connsm->subrate_trans.cont_num = min(max(connsm->acc_cont_num,
+                                             srp->cont_num),
+                                         connsm->subrate_trans.subrate_factor - 1);
+    connsm->subrate_trans.supervision_tmo = min(connsm->supervision_tmo,
+                                                srp->supervision_tmo);
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
+
+    return 0;
+}
+
+void
+ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
+                        struct ble_ll_conn_subrate_params *sp)
+{
+    int16_t event_cntr_diff;
+    int16_t subrate_events_diff;
+
+    /* Assume parameters were checked by caller */
+
+    connsm->subrate_factor = sp->subrate_factor;
+    connsm->subrate_base_event = sp->subrate_base_event;
+    connsm->periph_latency = sp->periph_latency;
+    connsm->cont_num = sp->cont_num;
+    connsm->supervision_tmo = sp->supervision_tmo;
+
+    /* Let's update subrate base event to "latest" one */
+    event_cntr_diff = connsm->event_cntr - connsm->subrate_base_event;
+    subrate_events_diff = event_cntr_diff / connsm->subrate_factor;
+    connsm->subrate_base_event += connsm->subrate_factor * subrate_events_diff;
+
+    /* TODO send hci event */
+}
+#endif
+
 #define MAX_TIME_UNCODED(_maxbytes) \
         ble_ll_pdu_tx_time_get(_maxbytes + BLE_LL_DATA_MIC_LEN, \
                                BLE_PHY_MODE_1M);
@@ -4043,6 +4191,14 @@ ble_ll_conn_module_reset(void)
     conn_params->num_used_chans = BLE_PHY_NUM_DATA_CHANS;
     memset(conn_params->central_chan_map, 0xff, BLE_LL_CONN_CHMAP_LEN - 1);
     conn_params->central_chan_map[4] = 0x1f;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    conn_params->acc_subrate_min = 0x0001;
+    conn_params->acc_subrate_max = 0x0001;
+    conn_params->acc_max_latency = 0x0000;
+    conn_params->acc_cont_num = 0x0000;
+    conn_params->acc_supervision_tmo = 0x0c80;
+#endif
 
     /* Reset statistics */
     STATS_RESET(ble_ll_conn_stats);

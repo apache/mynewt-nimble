@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <errno.h>
 #include "syscfg/syscfg.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -408,7 +409,12 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
      * request will actually get sent. We add one more event plus the
      * minimum as per the spec of 6 connection events.
      */
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    instant = connsm->subrate_base_event + 6 * connsm->subrate_factor *
+                                           (connsm->periph_latency + 1);
+#else
     instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
+#endif
 
     /*
      * XXX: This should change in the future, but for now we will just
@@ -1144,6 +1150,126 @@ ble_ll_ctrl_rx_sca_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+static void
+ble_ll_ctrl_subrate_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
+                             struct ble_ll_conn_subrate_req_params *srp)
+{
+    put_le16(pyld + 0, srp->subrate_min);
+    put_le16(pyld + 2, srp->subrate_max);
+    put_le16(pyld + 4, srp->max_latency);
+    put_le16(pyld + 6, srp->cont_num);
+    put_le16(pyld + 8, srp->supervision_tmo);
+}
+
+static void
+ble_ll_ctrl_subrate_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
+                             struct ble_ll_conn_subrate_params *sp)
+{
+    put_le16(pyld + 0, sp->subrate_factor);
+    put_le16(pyld + 2, sp->subrate_base_event);
+    put_le16(pyld + 4, sp->periph_latency);
+    put_le16(pyld + 6, sp->cont_num);
+    put_le16(pyld + 8, sp->supervision_tmo);
+}
+
+static uint8_t
+ble_ll_ctrl_rx_subrate_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
+                           uint8_t *rsp)
+{
+    struct ble_ll_conn_subrate_req_params params;
+    struct ble_ll_conn_subrate_req_params *srp = &params;
+    uint8_t err;
+    int rc;
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
+        return BLE_LL_CTRL_UNKNOWN_RSP;
+    }
+#endif
+
+    if ((ble_ll_read_supp_features() & BLE_LL_FEAT_CONN_SUBRATING_HOST) == 0) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_SUBRATE_REQ,
+                                     BLE_ERR_UNSUPP_REM_FEATURE, rsp);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    srp->subrate_min = get_le16(req + 0);
+    srp->subrate_max = get_le16(req + 2);
+    srp->max_latency = get_le16(req + 4);
+    srp->cont_num = get_le16(req + 6);
+    srp->supervision_tmo = get_le16(req + 8);
+
+    rc = ble_ll_conn_subrate_req_llcp(connsm, srp);
+    if (rc < 0) {
+        if (rc == -EINVAL) {
+            err = BLE_ERR_INV_LMP_LL_PARM;
+        } else if (rc == -ENOTSUP) {
+            err = BLE_ERR_UNSUPP_REM_FEATURE;
+        } else if (rc == -EBUSY) {
+            err = BLE_ERR_DIFF_TRANS_COLL;
+        } else {
+            err = BLE_ERR_UNSPECIFIED;
+        }
+
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_SUBRATE_REQ, err, rsp);
+
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    return BLE_ERR_MAX;
+}
+
+static uint8_t
+ble_ll_ctrl_rx_subrate_ind(struct ble_ll_conn_sm *connsm, uint8_t *req,
+                           uint8_t *rsp)
+{
+    struct ble_ll_conn_subrate_params params;
+    struct ble_ll_conn_subrate_params *sp = &params;
+    uint32_t t1, t2;
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        return BLE_LL_CTRL_UNKNOWN_RSP;
+    }
+#endif
+
+    sp->subrate_factor = get_le16(req + 0);
+    sp->subrate_base_event = get_le16(req + 2);
+    sp->periph_latency = get_le16(req + 4);
+    sp->cont_num = get_le16(req + 6);
+    sp->supervision_tmo = get_le16(req + 8);
+
+    /* This is probably not really useful since we shall apply new parameters
+     * immediately after receiving LL_SUBRATE_IND and central shall apply those
+     * parameters after receiving ack which it already did, so it's too late
+     * here to do anything useful. Let's just send LL_REJECT_EXT_IND anyway just
+     * for debugging purposes and reset to subrate factor of 1 and no latency,
+     * perhaps we can find some connection event from central and send our PDU.
+     */
+    t1 = connsm->conn_itvl * sp->subrate_factor * (sp->periph_latency + 1) *
+         BLE_LL_CONN_ITVL_USECS;
+    t2 = sp->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000 / 2;
+    if ((sp->subrate_factor < 1) || (sp->subrate_factor > 500) ||
+        (sp->cont_num > sp->subrate_factor - 1) ||
+        (sp->subrate_factor * (sp->periph_latency + 1) > 500) || (t1 >= t2)) {
+
+        sp->subrate_factor = 1;
+        sp->subrate_base_event = connsm->event_cntr;
+        sp->periph_latency = 0;
+        sp->cont_num = 0;
+        sp->supervision_tmo = connsm->supervision_tmo;
+
+        return BLE_ERR_MAX;
+    }
+
+    ble_ll_conn_subrate_set(connsm, sp);
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ);
+
+    return BLE_ERR_MAX;
+}
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
 static uint8_t
 ble_ll_ctrl_rx_cis_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
@@ -1865,6 +1991,13 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    case BLE_LL_CTRL_PROC_SUBRATE_REQ:
+        /* TODO: send event to host */
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
+        break;
+#endif
+
     default:
         break;
     }
@@ -2377,6 +2510,21 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             ble_ll_ctrl_cis_create(connsm, ctrdata);
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+        case BLE_LL_CTRL_PROC_SUBRATE_REQ:
+            opcode = BLE_LL_CTRL_SUBRATE_REQ;
+            ble_ll_ctrl_subrate_req_make(connsm, ctrdata, &connsm->subrate_req);
+            break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+        case BLE_LL_CTRL_PROC_SUBRATE_UPDATE:
+            opcode = BLE_LL_CTRL_SUBRATE_IND;
+            ble_ll_ctrl_subrate_ind_make(connsm, ctrdata,
+                                         &connsm->subrate_trans);
+            break;
+#endif
+#endif
         default:
             BLE_LL_ASSERT(0);
             break;
@@ -2841,6 +2989,14 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_ctrl_rx_periodic_sync_ind(connsm, dptr);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    case BLE_LL_CTRL_SUBRATE_REQ:
+        rsp_opcode = ble_ll_ctrl_rx_subrate_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_SUBRATE_IND:
+        rsp_opcode = ble_ll_ctrl_rx_subrate_ind(connsm, dptr, rspdata);
+        break;
+#endif
     default:
         /* Nothing to do here */
         break;
@@ -2922,6 +3078,21 @@ ble_ll_ctrl_reject_ind_send(struct ble_ll_conn_sm *connsm, uint8_t rej_opcode,
         rc = 1;
     }
     return rc;
+}
+
+int
+ble_ll_ctrl_tx_start(struct ble_ll_conn_sm *connsm, struct os_mbuf *txpdu)
+{
+    uint8_t opcode;
+
+    opcode = txpdu->om_data[0];
+    switch (opcode) {
+    case BLE_LL_CTRL_SUBRATE_IND:
+        connsm->csmflags.cfbit.subrate_trans = 1;
+        break;
+    }
+
+    return 0;
 }
 
 /**
@@ -3017,6 +3188,14 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
                     ble_ll_ctrl_phy_tx_transition_get(txpdu->om_data[2]);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_LL_CTRL_SUBRATE_IND:
+        connsm->csmflags.cfbit.subrate_trans = 0;
+        connsm->csmflags.cfbit.subrate_ind_txd = 1;
+        break;
+#endif /* BLE_LL_CTRL_SUBRATE_IND */
+#endif /* BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE */
     default:
         break;
     }

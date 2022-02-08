@@ -79,6 +79,13 @@ struct ble_ll_conn_global_params
     uint16_t conn_init_max_tx_time_coded;
     uint16_t supp_max_tx_time;
     uint16_t supp_max_rx_time;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    uint16_t acc_subrate_min;
+    uint16_t acc_subrate_max;
+    uint16_t acc_max_latency;
+    uint16_t acc_cont_num;
+    uint16_t acc_supervision_tmo;
+#endif
 #endif
 };
 extern struct ble_ll_conn_global_params g_ble_ll_conn_params;

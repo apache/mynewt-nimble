@@ -1929,6 +1929,10 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    features |= BLE_LL_FEAT_CONN_SUBRATING;
+#endif
+
     lldata->ll_supp_features = features;
 
     /* Initialize random number generation */
