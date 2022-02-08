@@ -4400,7 +4400,7 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
         }
 #endif
 
-        /* Try to start slave connection. If successful, stop advertising */
+        /* Try to start peripheral connection. If successful, stop advertising */
         valid = ble_ll_conn_periph_start(rxbuf, addr_type, hdr,
                                          !(advsm->props &
                                            BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY));

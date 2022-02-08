@@ -319,14 +319,14 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /*
      * A change has been requested. Is it within the values specified by
-     * the host? Note that for a master we will not be processing a
-     * connect param request from a slave if we are currently trying to
+     * the host? Note that for a central we will not be processing a
+     * connect param request from a peripheral if we are currently trying to
      * update the connection parameters. This means that the previous
-     * check is all we need for a master (when receiving a request).
+     * check is all we need for a central (when receiving a request).
      */
     if (CONN_IS_PERIPHERAL(connsm) || (opcode == BLE_LL_CTRL_CONN_PARM_RSP)) {
         /*
-         * Not sure what to do about the slave. It is possible that the
+         * Not sure what to do about the peripheral. It is possible that the
          * current connection parameters are not the same ones as the local host
          * has provided? Not sure what to do here. Do we need to remember what
          * host sent us? For now, I will assume that we need to remember what
@@ -403,7 +403,7 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
 
     /*
      * Set instant. We set the instant to the current event counter plus
-     * the amount of slave latency as the slave may not be listening
+     * the amount of peripheral latency as the peripheral may not be listening
      * at every connection interval and we are not sure when the connect
      * request will actually get sent. We add one more event plus the
      * minimum as per the spec of 6 connection events.
@@ -723,7 +723,7 @@ ble_ll_ctrl_find_new_phy(uint8_t phy_mask_prefs)
  * @param connsm Pointer to connection state machine
  * @param dptr Pointer to PHY_REQ or PHY_RSP data.
  * @param ctrdata: Pointer to where CtrData of UPDATE_IND pdu starts
- * @param periph_req flag denoting if slave requested this. 0: no 1:yes
+ * @param periph_req flag denoting if peripheral requested this. 0: no 1:yes
  */
 
 static void
@@ -741,7 +741,7 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     tx_phys = dptr[0];
     rx_phys = dptr[1];
 
-    /* If we are master, check if slave requested symmetric PHY */
+    /* If we are central, check if peripheral requested symmetric PHY */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         is_periph_sym = tx_phys == rx_phys;
@@ -765,9 +765,9 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
          * PHY in both directions
          *
          * Core 5.2, Vol 6, PartB, 5.1.10
-         *     If the slave specified a single PHY in both the TX_PHYS and
-         *     RX_PHYS fields and both fields are the same, the master shall
-         *     either select the PHY specified by the slave for both directions
+         *     If the peripheral specified a single PHY in both the TX_PHYS and
+         *     RX_PHYS fields and both fields are the same, the central shall
+         *     either select the PHY specified by the peripheral for both directions
          *     or shall leave both directions unchanged.
          */
         if ((s_to_m == 0) || (m_to_s == 0)) {
@@ -924,7 +924,7 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
         /* XXX: TODO: if we started another procedure with an instant
          * why are we doing this? Need to look into this.*/
 
-        /* Respond to master's phy update procedure */
+        /* Respond to central's phy update procedure */
         CONN_F_PEER_PHY_UPDATE(connsm) = 1;
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
@@ -988,7 +988,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         break;
     }
 
-    /* NOTE: slave should never receive one of these */
+    /* NOTE: peripheral should never receive one of these */
 
     return rsp_opcode;
 }
@@ -996,7 +996,7 @@ ble_ll_ctrl_rx_phy_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 /**
  * Called when a LL_PHY_UPDATE_IND pdu is received
  *
- * NOTE: slave is the only device that should receive this.
+ * NOTE: peripheral is the only device that should receive this.
  *
  * @param connsm
  * @param dptr
@@ -1044,8 +1044,8 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     } else {
         no_change = 0;
         /*
-         * NOTE: from the slaves perspective, the m to s phy is the one
-         * that the slave will receive on; s to m is the one it will
+         * NOTE: from the peripherals perspective, the m to s phy is the one
+         * that the peripheral will receive on; s to m is the one it will
          * transmit on
          */
         new_rx_phy = ble_ll_ctrl_phy_from_phy_mask(new_m_to_s_mask);
@@ -1239,7 +1239,7 @@ ble_ll_calc_session_key(struct ble_ll_conn_sm *connsm)
  * XXX: the current code may actually allow some control pdu's to be sent
  * in states where they shouldnt. I dont expect those states to occur so I
  * dont try to check for them but we could do more... for example there are
- * different PDUs allowed for master/slave and TX/RX
+ * different PDUs allowed for central/peripheral and TX/RX
  *
  * @param llid
  * @param opcode
@@ -1398,7 +1398,7 @@ ble_ll_ctrl_cis_create(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  *      IVm     (4)
  *
  * The random number and encrypted diversifier come from the host command.
- * Controller generates master portion of SDK and IV.
+ * Controller generates central portion of SDK and IV.
  *
  * NOTE: this function does not set the LL data pdu header nor does it
  * set the opcode in the buffer.
@@ -1428,7 +1428,7 @@ ble_ll_ctrl_enc_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 /**
- * Called when LL_ENC_RSP is received by the master.
+ * Called when LL_ENC_RSP is received by the central.
  *
  * Context: Link Layer Task.
  *
@@ -1436,7 +1436,7 @@ ble_ll_ctrl_enc_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  *      SKDs (8)
  *      IVs  (4)
  *
- *  The master now has the long term key (from the start encrypt command)
+ *  The central now has the long term key (from the start encrypt command)
  *  and the SKD (stored in the plain text encryption block). From this the
  *  sessionKey is generated.
  *
@@ -1462,7 +1462,7 @@ ble_ll_ctrl_rx_enc_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 
 /**
  * Called when we have received a LL control encryption request PDU. This
- * should only be received by a slave.
+ * should only be received by a peripheral.
  *
  * The LL_ENC_REQ PDU format is:
  *      Rand    (8)
@@ -1474,7 +1474,7 @@ ble_ll_ctrl_rx_enc_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  * but it could be a reject ind. Note that the caller of this function
  * will send the REJECT_IND_EXT if supported by remote.
  *
- * NOTE: if this is received by a master we will silently discard the PDU
+ * NOTE: if this is received by a central we will silently discard the PDU
  * (denoted by return BLE_ERR_MAX).
  *
  * @param connsm
@@ -1530,7 +1530,7 @@ ble_ll_ctrl_rx_start_enc_req(struct ble_ll_conn_sm *connsm)
 {
     int rc;
 
-    /* Only master should receive start enc request */
+    /* Only central should receive start enc request */
     rc = BLE_ERR_MAX;
 
     switch (connsm->conn_role) {
@@ -1651,7 +1651,7 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CONN_ROLE_PERIPHERAL:
-        /* Procedure has completed but slave needs to send START_ENC_RSP */
+        /* Procedure has completed but peripheral needs to send START_ENC_RSP */
         rc = BLE_LL_CTRL_START_ENC_RSP;
 
         /* Stop timer if it was started when sending START_ENC_REQ */
@@ -1667,7 +1667,7 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
 
     /*
      * XXX: for now, a Slave sends this event when it receivest the
-     * START_ENC_RSP from the master. It might be technically incorrect
+     * START_ENC_RSP from the central. It might be technically incorrect
      * to send it before we transmit our own START_ENC_RSP.
      */
     ble_ll_hci_ev_encrypt_chg(connsm, BLE_ERR_SUCCESS);
@@ -1830,7 +1830,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
             switch (connsm->conn_role) {
         #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
             case BLE_LL_CONN_ROLE_CENTRAL:
-                /* As a master we should send connection update indication in this point */
+                /* As a central we should send connection update indication in this point */
                 rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
                 ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
                 connsm->reject_reason = BLE_ERR_SUCCESS;
@@ -1896,7 +1896,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     uint16_t conn_events;
     struct ble_ll_conn_upd_req *reqdata;
 
-    /* Only a slave should receive this */
+    /* Only a peripheral should receive this */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         return BLE_LL_CTRL_UNKNOWN_RSP;
@@ -1996,7 +1996,7 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
 }
 
 /**
- * Called when we receive a feature request or a slave initiated feature
+ * Called when we receive a feature request or a peripheral initiated feature
  * request.
  *
  *
@@ -2016,8 +2016,8 @@ ble_ll_ctrl_rx_feature_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     uint64_t our_feat;
 
     /*
-     * Only accept slave feature requests if we are a master and feature
-     * requests if we are a slave.
+     * Only accept peripheral feature requests if we are a central and feature
+     * requests if we are a peripheral.
      */
     if (opcode == BLE_LL_CTRL_PERIPH_FEATURE_REQ) {
         if (!CONN_IS_CENTRAL(connsm)) {
@@ -2106,7 +2106,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         return BLE_ERR_MAX;
     }
 
-    /* XXX: remember to deal with this on the master: if the slave has
+    /* XXX: remember to deal with this on the central: if the peripheral has
      * initiated a procedure we may have received its connection parameter
      * update request and have signaled the host with an event. If that
      * is the case, we will need to drop the host command when we get it
@@ -2116,19 +2116,19 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * be pending (a connection update) that will cause collisions and the
        behavior below. */
     /*
-     * Check for procedure collision (Vol 6 PartB 5.3). If we are a slave
-     * and we receive a request we "consider the slave initiated
+     * Check for procedure collision (Vol 6 PartB 5.3). If we are a peripheral
+     * and we receive a request we "consider the peripheral initiated
      * procedure as complete". This means send a connection update complete
      * event (with error).
      *
-     * If a master, we send reject with a
+     * If a central, we send reject with a
      * transaction collision error code.
      */
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
-            /* The master sends reject ind ext w/error code 0x23 */
+            /* The central sends reject ind ext w/error code 0x23 */
             rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
             rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
             rspbuf[2] = BLE_ERR_LMP_COLLISION;
@@ -2147,7 +2147,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     }
 
     /*
-     * If we are a master and we currently performing a channel map
+     * If we are a central and we currently performing a channel map
      * update procedure we need to return an error
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -2172,7 +2172,7 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 {
     uint8_t rsp_opcode;
 
-    /* A slave should never receive this response */
+    /* A peripheral should never receive this response */
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
         return BLE_LL_CTRL_UNKNOWN_RSP;
@@ -2180,9 +2180,9 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 #endif
 
     /*
-     * This case should never happen! It means that the slave initiated a
-     * procedure and the master initiated one as well. If we do get in this
-     * state just clear the awaiting reply. The slave will hopefully stop its
+     * This case should never happen! It means that the peripheral initiated a
+     * procedure and the central initiated one as well. If we do get in this
+     * state just clear the awaiting reply. The peripheral will hopefully stop its
      * procedure when we reply.
      */
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
@@ -2562,7 +2562,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
  * NOTE: this function uses the received PDU for the response in some cases. If
  * the received PDU is not used it needs to be freed here.
  *
- * XXX: may want to check, for both master and slave, whether the control
+ * XXX: may want to check, for both central and peripheral, whether the control
  * pdu should be received by that role. Might make for less code...
  * Context: Link Layer
  *
@@ -2954,7 +2954,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_REJECT_IND_EXT:
         if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             /* If rejecting opcode is BLE_LL_CTRL_PROC_CONN_PARAM_REQ and
-             * reason is LMP collision that means we are master on the link and
+             * reason is LMP collision that means we are central on the link and
              * peer wanted to start procedure which we already started.
              * Let's wait for response and do not close procedure. */
             if (txpdu->om_data[1] == BLE_LL_CTRL_CONN_PARM_REQ &&

@@ -410,7 +410,7 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
 }
 
 /**
- * Called to schedule a connection when the current role is master.
+ * Called to schedule a connection when the current role is central.
  *
  * Context: Interrupt
  *
@@ -452,8 +452,8 @@ ble_ll_sched_central_new(struct ble_ll_conn_sm *connsm,
 
     /* XXX:
      * The calculations for the 32kHz crystal bear alot of explanation. The
-     * earliest possible time that the master can start the connection with a
-     * slave is 1.25 msecs from the end of the connection request. The
+     * earliest possible time that the central can start the connection with a
+     * peripheral is 1.25 msecs from the end of the connection request. The
      * connection request is sent an IFS time from the end of the advertising
      * packet that was received plus the time it takes to send the connection
      * request. At 1 Mbps, this is 1752 usecs, or 57.41 ticks. Using 57 ticks
@@ -462,32 +462,32 @@ ble_ll_sched_central_new(struct ble_ll_conn_sm *connsm,
      * the advertising PDU is 'now' (we call os_cputime_get32). We dont know
      * how much time it will take to service the ISR but if we are more than the
      * rx to tx time of the chip we will not be successful transmitting the
-     * connect request. All this means is that we presume that the slave will
+     * connect request. All this means is that we presume that the peripheral will
      * receive the connect request later than we expect but no earlier than
      * 13 usecs before (this is important).
      *
      * The code then attempts to schedule the connection at the
      * earliest time although this may not be possible. When the actual
-     * schedule start time is determined, the master has to determine if this
+     * schedule start time is determined, the central has to determine if this
      * time is more than a transmit window offset interval (1.25 msecs). The
-     * master has to tell the slave how many transmit window offsets there are
+     * central has to tell the peripheral how many transmit window offsets there are
      * from the earliest possible time to when the actual transmit start will
      * occur. Later in this function you will see the calculation. The actual
      * transmission start has to occur within the transmit window. The transmit
      * window interval is in units of 1.25 msecs and has to be at least 1. To
-     * make things a bit easier (but less power efficient for the slave), we
+     * make things a bit easier (but less power efficient for the peripheral), we
      * use a transmit window of 2. We do this because we dont quite know the
      * exact start of the transmission and if we are too early or too late we
      * could miss the transmit window. A final note: the actual transmission
      * start (the anchor point) is sched offset ticks from the schedule start
      * time. We dont add this to the calculation when calculating the window
      * offset. The reason we dont do this is we want to insure we transmit
-     * after the window offset we tell the slave. For example, say we think
+     * after the window offset we tell the peripheral. For example, say we think
      * we are transmitting 1253 usecs from the earliest start. This would cause
      * us to send a transmit window offset of 1. Since we are actually
-     * transmitting earlier than the slave thinks we could end up transmitting
+     * transmitting earlier than the peripheral thinks we could end up transmitting
      * before the window offset. Transmitting later is fine since we have the
-     * transmit window to do so. Transmitting before is bad, since the slave
+     * transmit window to do so. Transmitting before is bad, since the peripheral
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
@@ -673,8 +673,8 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
 
     /* XXX:
      * The calculations for the 32kHz crystal bear alot of explanation. The
-     * earliest possible time that the master can start the connection with a
-     * slave is 1.25 msecs from the end of the connection request. The
+     * earliest possible time that the central can start the connection with a
+     * peripheral is 1.25 msecs from the end of the connection request. The
      * connection request is sent an IFS time from the end of the advertising
      * packet that was received plus the time it takes to send the connection
      * request. At 1 Mbps, this is 1752 usecs, or 57.41 ticks. Using 57 ticks
@@ -683,32 +683,32 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
      * the advertising PDU is 'now' (we call os_cputime_get32). We dont know
      * how much time it will take to service the ISR but if we are more than the
      * rx to tx time of the chip we will not be successful transmitting the
-     * connect request. All this means is that we presume that the slave will
+     * connect request. All this means is that we presume that the peripheral will
      * receive the connect request later than we expect but no earlier than
      * 13 usecs before (this is important).
      *
      * The code then attempts to schedule the connection at the
      * earliest time although this may not be possible. When the actual
-     * schedule start time is determined, the master has to determine if this
+     * schedule start time is determined, the central has to determine if this
      * time is more than a transmit window offset interval (1.25 msecs). The
-     * master has to tell the slave how many transmit window offsets there are
+     * central has to tell the peripheral how many transmit window offsets there are
      * from the earliest possible time to when the actual transmit start will
      * occur. Later in this function you will see the calculation. The actual
      * transmission start has to occur within the transmit window. The transmit
      * window interval is in units of 1.25 msecs and has to be at least 1. To
-     * make things a bit easier (but less power efficient for the slave), we
+     * make things a bit easier (but less power efficient for the peripheral), we
      * use a transmit window of 2. We do this because we dont quite know the
      * exact start of the transmission and if we are too early or too late we
      * could miss the transmit window. A final note: the actual transmission
      * start (the anchor point) is sched offset ticks from the schedule start
      * time. We dont add this to the calculation when calculating the window
      * offset. The reason we dont do this is we want to insure we transmit
-     * after the window offset we tell the slave. For example, say we think
+     * after the window offset we tell the peripheral. For example, say we think
      * we are transmitting 1253 usecs from the earliest start. This would cause
      * us to send a transmit window offset of 1. Since we are actually
-     * transmitting earlier than the slave thinks we could end up transmitting
+     * transmitting earlier than the peripheral thinks we could end up transmitting
      * before the window offset. Transmitting later is fine since we have the
-     * transmit window to do so. Transmitting before is bad, since the slave
+     * transmit window to do so. Transmitting before is bad, since the peripheral
      * wont be listening. We could do better calculation if we wanted to use
      * a transmit window of 1 as opposed to 2, but for now we dont care.
      */
@@ -781,7 +781,7 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
 #endif
 
 /**
- * Schedules a slave connection for the first time.
+ * Schedules a peripheral connection for the first time.
  *
  * Context: Link Layer
  *
@@ -801,7 +801,7 @@ ble_ll_sched_conn_periph_new(struct ble_ll_conn_sm *connsm)
 
     /* Set schedule start and end times */
     /*
-     * XXX: for now, we dont care about anchor point usecs for the slave. It
+     * XXX: for now, we dont care about anchor point usecs for the peripheral. It
      * does not matter if we turn on the receiver up to one tick before w
      * need to. We also subtract one extra tick since the conversion from
      * usecs to ticks could be off by up to 1 tick.

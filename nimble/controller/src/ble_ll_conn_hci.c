@@ -582,7 +582,7 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CONN_LIMIT;
     }
 
-    /* Initialize state machine in master role and start state machine */
+    /* Initialize state machine in central role and start state machine */
     ble_ll_conn_central_init(connsm, &cc_scan, &cc_params);
     ble_ll_conn_sm_new(connsm);
 
@@ -770,7 +770,7 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CONN_LIMIT;
     }
 
-    /* Initialize state machine in master role and start state machine */
+    /* Initialize state machine in central role and start state machine */
     ble_ll_conn_central_init(connsm, &cc_scan,
                              &g_ble_ll_conn_create_sm.params[0]);
     ble_ll_conn_sm_new(connsm);
@@ -886,7 +886,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     struct hci_conn_update *hcu;
 
     /*
-     * XXX: must deal with slave not supporting this feature and using
+     * XXX: must deal with peripheral not supporting this feature and using
      * conn update! Right now, we only check if WE support the connection
      * parameters request procedure. We dont check if the remote does.
      * We should also be able to deal with sending the parameter request,
@@ -920,10 +920,10 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /*
-     * If we are a slave and the master has initiated the procedure already
-     * we should deny the slave request for now. If we are a master and the
-     * slave has initiated the procedure, we need to send a reject to the
-     * slave.
+     * If we are a peripheral and the central has initiated the procedure already
+     * we should deny the peripheral request for now. If we are a central and the
+     * peripheral has initiated the procedure, we need to send a reject to the
+     * peripheral.
      */
     if (connsm->csmflags.cfbit.awaiting_host_reply) {
         switch (connsm->conn_role) {
@@ -948,8 +948,8 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /*
-     * If we are a slave and the master has initiated the channel map
-     * update procedure we should deny the slave request for now.
+     * If we are a peripheral and the central has initiated the channel map
+     * update procedure we should deny the peripheral request for now.
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
@@ -1524,7 +1524,7 @@ ble_ll_conn_hci_le_ltk_reply(const uint8_t *cmdbuf, uint8_t len,
     }
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    /* Should never get this if we are a master! */
+    /* Should never get this if we are a central! */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         rc = BLE_ERR_UNSPECIFIED;
         goto ltk_key_cmd_complete;
@@ -1583,7 +1583,7 @@ ble_ll_conn_hci_le_ltk_neg_reply(const uint8_t *cmdbuf, uint8_t len,
     }
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    /* Should never get this if we are a master! */
+    /* Should never get this if we are a central! */
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         rc = BLE_ERR_UNSPECIFIED;
         goto ltk_key_cmd_complete;
@@ -1713,7 +1713,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
     } else {
         /*
          * The timeout is in units of 10 msecs. We need to make sure that the
-         * timeout is greater than or equal to connItvl * (1 + slaveLatency)
+         * timeout is greater than or equal to connItvl * (1 + peripheralLatency)
          */
         tmo = le16toh(cmd->tmo);
         min_tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
