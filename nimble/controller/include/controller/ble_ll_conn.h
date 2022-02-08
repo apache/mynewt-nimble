@@ -132,6 +132,8 @@ union ble_ll_conn_sm_flags {
         uint32_t rxd_features:1;
         uint32_t pending_hci_rd_features:1;
         uint32_t pending_initiate_dle:1;
+        uint32_t subrate_trans:1;
+        uint32_t subrate_ind_txd:1;
     } cfbit;
     uint32_t conn_flags;
 } __attribute__((packed));
@@ -181,6 +183,22 @@ struct hci_conn_update
     uint16_t supervision_timeout;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
+};
+
+struct ble_ll_conn_subrate_params {
+    uint16_t subrate_factor;
+    uint16_t subrate_base_event;
+    uint16_t periph_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
+};
+
+struct ble_ll_conn_subrate_req_params {
+    uint16_t subrate_min;
+    uint16_t subrate_max;
+    uint16_t max_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
 };
 
 /* Connection state machine */
@@ -284,10 +302,21 @@ struct ble_ll_conn_sm
 
     uint16_t periph_latency;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    uint16_t acc_subrate_min;
+    uint16_t acc_subrate_max;
+    uint16_t acc_max_latency;
+    uint16_t acc_cont_num;
+    uint16_t acc_supervision_tmo;
+
     uint16_t subrate_base_event;
     uint16_t subrate_factor;
     uint16_t cont_num;
     uint16_t last_pdu_event;
+
+    union {
+        struct ble_ll_conn_subrate_params subrate_trans;
+        struct ble_ll_conn_subrate_req_params subrate_req;
+    };
 #endif
 
     /*
@@ -462,6 +491,13 @@ void ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
 void ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,
                                 struct ble_ll_scan_addr_data *addrd,
                                 uint8_t *targeta);
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+int ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
+                                 struct ble_ll_conn_subrate_req_params *srp);
+void ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
+                             struct ble_ll_conn_subrate_params *sp);
 #endif
 
 #ifdef __cplusplus

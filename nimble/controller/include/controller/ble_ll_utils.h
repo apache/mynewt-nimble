@@ -19,6 +19,10 @@
 
 #include <stdint.h>
 
+#define INT16_GT(_a, _b) ((int16_t)((_a) - (_b)) > 0)
+#define INT16_LT(_a, _b) ((int16_t)((_a) - (_b)) < 0)
+#define INT16_LTE(_a, _b) ((int16_t)((_a) - (_b)) <= 0)
+
 uint32_t ble_ll_utils_calc_access_addr(void);
 uint8_t ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap);
 uint8_t ble_ll_utils_dci_csa2(uint16_t counter, uint16_t chan_id,

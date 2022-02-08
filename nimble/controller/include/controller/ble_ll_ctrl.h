@@ -41,7 +41,9 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_PHY_UPDATE     (9)
 #define BLE_LL_CTRL_PROC_SCA_UPDATE     (10)
 #define BLE_LL_CTRL_PROC_CIS_CREATE     (11)
-#define BLE_LL_CTRL_PROC_NUM            (12)
+#define BLE_LL_CTRL_PROC_SUBRATE_REQ    (12)
+#define BLE_LL_CTRL_PROC_SUBRATE_UPDATE (13)
+#define BLE_LL_CTRL_PROC_NUM            (14)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -307,6 +309,7 @@ int ble_ll_ctrl_reject_ind_send(struct ble_ll_conn_sm *connsm,
 int ble_ll_ctrl_start_enc_send(struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu);
 int ble_ll_ctrl_enc_allowed_pdu_tx(struct os_mbuf_pkthdr *pkthdr);
+int ble_ll_ctrl_tx_start(struct ble_ll_conn_sm *connsm, struct os_mbuf *txpdu);
 int ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm);
 int ble_ll_ctrl_is_start_enc_rsp(struct os_mbuf *txpdu);
 
