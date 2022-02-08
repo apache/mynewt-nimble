@@ -900,7 +900,7 @@ ble_ll_sync_schedule_chain(struct ble_ll_sync_sm *sm, struct ble_mbuf_hdr *hdr,
         return -1;
     }
 
-    /* chain should use same PHY as master PDU */
+    /* chain should use same PHY as central PDU */
     if (phy != ble_ll_sync_phy_mode_to_aux_phy(sm->phy_mode)) {
         return -1;
     }

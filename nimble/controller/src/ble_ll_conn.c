@@ -62,8 +62,8 @@ extern void bletest_completed_pkt(uint16_t handle);
  * 2) Make sure we check incoming data packets for size and all that. You
  * know, supported octets and all that. For both rx and tx.
  *
- * 3) Make sure we are setting the schedule end time properly for both slave
- * and master. We should just set this to the end of the connection event.
+ * 3) Make sure we are setting the schedule end time properly for both peripheral
+ * and central. We should just set this to the end of the connection event.
  * We might want to guarantee a IFS time as well since the next event needs
  * to be scheduled prior to the start of the event to account for the time it
  * takes to get a frame ready (which is pretty much the IFS time).
@@ -83,15 +83,15 @@ extern void bletest_completed_pkt(uint16_t handle);
  *
  * 8) Right now I use a fixed definition for required slots. CHange this.
  *
- * 10) See what connection state machine elements are purely master and
- * purely slave. We can make a union of them.
+ * 10) See what connection state machine elements are purely central and
+ * purely peripheral. We can make a union of them.
  *
  * 11) Not sure I am dealing with the connection terminate timeout perfectly.
  * I may extend a connection event too long although if it is always in terms
  * of connection events I am probably fine. Checking at end that the next
  * connection event will occur past terminate timeould would be fine.
  *
- * 12) When a slave receives a data packet in a connection it has to send a
+ * 12) When a peripheral receives a data packet in a connection it has to send a
  * response. Well, it should. If this packet will overrun the next scheduled
  * event, what should we do? Transmit anyway? Not transmit? For now, we just
  * transmit.
@@ -666,7 +666,7 @@ ble_ll_conn_wfr_timer_exp(void)
 }
 
 /**
- * Callback for slave when it transmits a data pdu and the connection event
+ * Callback for peripheral when it transmits a data pdu and the connection event
  * ends after the transmission.
  *
  * Context: Interrupt
@@ -973,8 +973,8 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
 
             /*
              * We will allow a next packet if it itself is allowed or we are
-             * a slave and we are sending the START_ENC_RSP. The master has
-             * to wait to receive the START_ENC_RSP from the slave before
+             * a peripheral and we are sending the START_ENC_RSP. The central has
+             * to wait to receive the START_ENC_RSP from the peripheral before
              * packets can be let go.
              */
             if (nextpkthdr && !ble_ll_ctrl_enc_allowed_pdu_tx(nextpkthdr)
@@ -1064,7 +1064,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
          *  -> wait IFS, send the next frame.
          *  -> wait IFS, receive a maximum size frame.
          *
-         *  For slave:
+         *  For peripheral:
          *  -> wait IFS, send current frame.
          *  -> wait IFS, receive maximum size frame.
          *  -> wait IFS, send next frame.
@@ -1141,13 +1141,13 @@ conn_tx_pdu:
     ble_hdr->txinfo.hdr_byte = hdr_byte;
 
     /*
-     * If we are a slave, check to see if this transmission will end the
+     * If we are a peripheral, check to see if this transmission will end the
      * connection event. We will end the connection event if we have
      * received a valid frame with the more data bit set to 0 and we dont
      * have more data.
      *
-     * XXX: for a slave, we dont check to see if we can:
-     *  -> wait IFS, rx frame from master (either big or small).
+     * XXX: for a peripheral, we dont check to see if we can:
+     *  -> wait IFS, rx frame from central (either big or small).
      *  -> wait IFS, send empty pdu or next pdu.
      *
      *  We could do this. Now, we just keep going and hope that we dont
@@ -1179,7 +1179,7 @@ conn_tx_pdu:
 
     if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_RSP)) {
         /*
-         * Both master and slave send the START_ENC_RSP encrypted and receive
+         * Both central and peripheral send the START_ENC_RSP encrypted and receive
          * encrypted
          */
         CONN_F_ENCRYPTED(connsm) = 1;
@@ -1190,7 +1190,7 @@ conn_tx_pdu:
                                CONN_IS_CENTRAL(connsm));
     } else if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_REQ)) {
         /*
-         * Only the slave sends this and it gets sent unencrypted but
+         * Only the peripheral sends this and it gets sent unencrypted but
          * we receive encrypted
          */
         CONN_F_ENCRYPTED(connsm) = 0;
@@ -1204,7 +1204,7 @@ conn_tx_pdu:
         }
     } else if (is_ctrl && (opcode == BLE_LL_CTRL_PAUSE_ENC_RSP)) {
         /*
-         * The slave sends the PAUSE_ENC_RSP encrypted. The master sends
+         * The peripheral sends the PAUSE_ENC_RSP encrypted. The central sends
          * it unencrypted (note that link was already set unencrypted).
          */
         switch (connsm->conn_role) {
@@ -1376,7 +1376,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         }
 #endif
 
-        /* XXX: what is this really for the slave? */
+        /* XXX: what is this really for the peripheral? */
         start = sch->start_time + g_ble_ll_sched_offset_ticks;
         rc = ble_phy_rx_set_start_time(start, sch->remainder);
         if (rc) {
@@ -1385,14 +1385,14 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
             rc = BLE_LL_SCHED_STATE_DONE;
         } else {
             /*
-             * Set flag that tells slave to set last anchor point if a packet
+             * Set flag that tells peripheral to set last anchor point if a packet
              * has been received.
              */
             connsm->csmflags.cfbit.periph_set_last_anchor = 1;
 
             /*
              * Set the wait for response time. The anchor point is when we
-             * expect the master to start transmitting. Worst-case, we expect
+             * expect the central to start transmitting. Worst-case, we expect
              * to hear a reply within the anchor point plus:
              *  -> current tx window size
              *  -> current window widening amount (includes +/- 16 usec jitter)
@@ -1441,9 +1441,9 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 
 /**
  * Called to determine if the device is allowed to send the next pdu in the
- * connection event. This will always return 'true' if we are a slave. If we
- * are a master, we must be able to send the next fragment and get a minimum
- * sized response from the slave.
+ * connection event. This will always return 'true' if we are a peripheral. If we
+ * are a central, we must be able to send the next fragment and get a minimum
+ * sized response from the peripheral.
  *
  * Context: Interrupt context (rx end isr).
  *
@@ -1590,7 +1590,7 @@ ble_ll_conn_central_common_init(struct ble_ll_conn_sm *connsm)
 }
 /**
  * Called when a create connection command has been received. This initializes
- * a connection state machine in the master role.
+ * a connection state machine in the central role.
  *
  * NOTE: Must be called before the state machine is started
  *
@@ -1715,7 +1715,7 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 /**
  * Create a new connection state machine. This is done once per
  * connection when the HCI command "create connection" is issued to the
- * controller or when a slave receives a connect request.
+ * controller or when a peripheral receives a connect request.
  *
  * Context: Link Layer task
  *
@@ -2053,9 +2053,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      */
 
     /*
-     * XXX TODO: I think this is technically incorrect. We can allow slave
+     * XXX TODO: I think this is technically incorrect. We can allow peripheral
      * latency if we are doing one of these updates as long as we
-     * know that the master has received the ACK to the PDU that set
+     * know that the central has received the ACK to the PDU that set
      * the instant
      */
     /* Set event counter to the next connection event that we will tx/rx in */
@@ -2140,9 +2140,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         ((int16_t)(connsm->chanmap_instant - connsm->event_cntr) <= 0)) {
 
         /* XXX: there is a chance that the control packet is still on
-         * the queue of the master. This means that we never successfully
+         * the queue of the central. This means that we never successfully
          * transmitted update request. Would end up killing connection
-           on slave side. Could ignore it or see if still enqueued. */
+           on peripheral side. Could ignore it or see if still enqueued. */
         connsm->num_used_chans =
             ble_ll_utils_calc_num_used_chans(connsm->req_chanmap);
         memcpy(connsm->chanmap, connsm->req_chanmap, BLE_LL_CONN_CHMAP_LEN);
@@ -2290,7 +2290,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     connsm->last_rxd_pdu_cputime = connsm->last_scheduled;
 
     /*
-     * Set first connection event time. If slave the endtime is the receive end
+     * Set first connection event time. If peripheral the endtime is the receive end
      * time of the connect request. The actual connection starts 1.25 msecs plus
      * the transmit window offset from the end of the connection request.
      */
@@ -2385,7 +2385,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
              *
              * XXX we do this only as a central as it was observed that sending
              * LL_PERIPH_FEATURE_REQ after connection breaks some recent iPhone
-             * models; for slave just assume master will initiate features xchg
+             * models; for peripheral just assume central will initiate features xchg
              * if it has some additional features to use.
              */
             ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
@@ -3016,8 +3016,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     connsm->conn_rssi = hdr->rxinfo.rssi;
 
     /*
-     * If we are a slave, we can only start to use slave latency
-     * once we have received a NESN of 1 from the master
+     * If we are a peripheral, we can only start to use peripheral latency
+     * once we have received a NESN of 1 from the central
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
@@ -3577,7 +3577,7 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap)
 /**
  * Called when a device has received a connect request while advertising and
  * the connect request has passed the advertising filter policy and is for
- * us. This will start a connection in the slave role assuming that we dont
+ * us. This will start a connection in the peripheral role assuming that we dont
  * already have a connection with this device and that the connect request
  * parameters are valid.
  *
