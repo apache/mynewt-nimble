@@ -443,6 +443,10 @@
 #define MYNEWT_VAL_BLE_HCI_VS (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_HCI_VS_OCF_OFFSET
+#define MYNEWT_VAL_BLE_HCI_VS_OCF_OFFSET (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_ISO
 #define MYNEWT_VAL_BLE_ISO (0)
 #endif
@@ -1003,29 +1007,102 @@
 #define MYNEWT_VAL_BLE_SVC_TPS_SYSINIT_STAGE (303)
 #endif
 
-/*** @apache-mynewt-nimble/nimble/transport/socket */
+/*** @apache-mynewt-nimble/nimble/transport */
+/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_ACL_BUF_COUNT
 #define MYNEWT_VAL_BLE_ACL_BUF_COUNT (24)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_ACL_BUF_SIZE
 #define MYNEWT_VAL_BLE_ACL_BUF_SIZE (255)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT
-#define MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT (12)
+#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE
+#define MYNEWT_VAL_BLE_HCI_BRIDGE (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac
+#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340
+#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340 (0)
+#endif
+#undef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT
+
+/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE
 #define MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE (70)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT
 #define MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT (8)
 #endif
 
+/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT
 #define MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT (8)
+#endif
+
+/* Overridden by @apache-mynewt-nimble/porting/targets/linux (defined by @apache-mynewt-nimble/nimble/transport) */
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__custom
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__custom (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340 (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__ram
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__ram (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__socket
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__socket (1)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__uart
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__uart (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__usb
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT__usb (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_UART
+#define MYNEWT_VAL_BLE_HCI_TRANSPORT_UART (0)
+#endif
+
+/*** @apache-mynewt-nimble/nimble/transport/socket */
+#ifndef MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT
+#define MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT (12)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SOCK_CLI_SYSINIT_STAGE
@@ -1053,6 +1130,10 @@
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux (defined by @apache-mynewt-nimble/nimble/transport/socket) */
 #ifndef MYNEWT_VAL_BLE_SOCK_USE_LINUX_BLUE
 #define MYNEWT_VAL_BLE_SOCK_USE_LINUX_BLUE (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_SOCK_USE_NUTTX
+#define MYNEWT_VAL_BLE_SOCK_USE_NUTTX (0)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux (defined by @apache-mynewt-nimble/nimble/transport/socket) */
