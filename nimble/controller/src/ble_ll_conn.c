@@ -1853,6 +1853,13 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->conn_rssi = BLE_LL_CONN_UNKNOWN_RSSI;
     connsm->inita_identity_used = 0;
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    connsm->subrate_base_event = 0;
+    connsm->subrate_factor = 1;
+    connsm->cont_num = 0;
+    connsm->last_pdu_event = 0;
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
     connsm->sync_transfer_sync_timeout = g_ble_ll_conn_sync_transfer_params.sync_timeout_us;
     connsm->sync_transfer_mode = g_ble_ll_conn_sync_transfer_params.mode;
@@ -2191,8 +2198,8 @@ ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
 static int
 ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 {
-    uint16_t latency;
-    uint32_t itvl;
+    uint32_t conn_itvl_us;
+    uint32_t ce_duration;
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint32_t cur_ww;
     uint32_t max_ww;
@@ -2200,6 +2207,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     struct ble_ll_conn_upd_req *upd;
     uint8_t skip_anchor_calc = 0;
     uint32_t usecs;
+    uint8_t use_periph_latency;
+    uint16_t base_event_cntr;
+    uint16_t next_event_cntr;
+    uint8_t next_is_subrated;
+    uint16_t subrate_factor;
+    uint16_t event_cntr_diff;
 
     /* XXX: deal with connection request procedure here as well */
     ble_ll_conn_chk_csm_flags(connsm);
@@ -2217,6 +2230,22 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->periph_latency = 0;
     }
 
+    next_is_subrated = 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    base_event_cntr = connsm->subrate_base_event;
+    subrate_factor = connsm->subrate_factor;
+
+    if ((connsm->cont_num > 0) &&
+        (connsm->event_cntr + 1 == connsm->subrate_base_event +
+                                   connsm->subrate_factor) &&
+        (connsm->event_cntr - connsm->last_pdu_event < connsm->cont_num)) {
+        next_is_subrated = 0;
+    }
+#else
+    base_event_cntr = connsm->event_cntr;
+    subrate_factor = 1;
+#endif
+
     /*
      * XXX: TODO Probably want to add checks to see if we need to start
      * a control procedure here as an instant may have prevented us from
@@ -2230,22 +2259,39 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * the instant
      */
     /* Set event counter to the next connection event that we will tx/rx in */
-    itvl = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
-    latency = 1;
-    if (connsm->csmflags.cfbit.allow_periph_latency     &&
-        !connsm->csmflags.cfbit.conn_update_sched       &&
-        !CONN_F_PHY_UPDATE_SCHED(connsm)                &&
-        !connsm->csmflags.cfbit.chanmap_update_scheduled) {
-        if (connsm->csmflags.cfbit.pkt_rxd) {
-            latency += connsm->periph_latency;
-            itvl = itvl * latency;
+
+    use_periph_latency = next_is_subrated &&
+                         connsm->csmflags.cfbit.allow_periph_latency &&
+                         !connsm->csmflags.cfbit.conn_update_sched &&
+                         !connsm->csmflags.cfbit.phy_update_sched &&
+                         !connsm->csmflags.cfbit.chanmap_update_scheduled &&
+                         connsm->csmflags.cfbit.pkt_rxd;
+
+    if (next_is_subrated) {
+        next_event_cntr = base_event_cntr + subrate_factor;
+        if (use_periph_latency) {
+            next_event_cntr += subrate_factor * connsm->periph_latency;
         }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+        /* Make this our next base event. This is technically incorrect, because
+         * subrate base event is determined by LL_SUBRATE_IND and shall only be
+         * changed if counter wrapped, but that does not really matter as once
+         * set it's only used internally.
+         */
+        connsm->subrate_base_event = next_event_cntr;
+#endif
+    } else {
+        next_event_cntr = connsm->event_cntr + 1;
     }
-    connsm->event_cntr += latency;
+
+    event_cntr_diff = next_event_cntr - connsm->event_cntr;
+    BLE_LL_ASSERT(event_cntr_diff > 0);
+
+    connsm->event_cntr = next_event_cntr;
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-        connsm->css_period_idx += latency;
+        connsm->css_period_idx += event_cntr_diff;
 
         /* If this is non-reference connection, we set anchor from reference
          * instead of calculating manually.
@@ -2261,13 +2307,15 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* Calculate next anchor point for connection.
          * We can use pre-calculated values for one interval if latency is 1.
          */
-        if (latency == 1) {
+        if (event_cntr_diff == 1) {
             connsm->anchor_point += connsm->conn_itvl_ticks;
             ble_ll_tmr_add_u(&connsm->anchor_point, &connsm->anchor_point_usecs,
                              connsm->conn_itvl_usecs);
         } else {
+            conn_itvl_us = connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+
             ble_ll_tmr_add(&connsm->anchor_point, &connsm->anchor_point_usecs,
-                           itvl);
+                           conn_itvl_us * event_cntr_diff);
         }
     }
 
@@ -2399,7 +2447,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 #endif
 
     /* Calculate data channel index of next connection event */
-    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, latency);
+    connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, event_cntr_diff);
 
     /*
      * If we are trying to terminate connection, check if next wake time is
@@ -2416,8 +2464,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a peripgheral, we need to add window widening
      * and the transmit window if we still have one.
      */
-    itvl = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
-                          BLE_LL_SCHED_USECS_PER_SLOT);
+    ce_duration = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                                 BLE_LL_SCHED_USECS_PER_SLOT);
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
@@ -2431,11 +2479,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         }
         cur_ww += BLE_LL_JITTER_USECS;
         connsm->periph_cur_window_widening = cur_ww;
-        itvl += ble_ll_tmr_u2t(cur_ww + connsm->periph_cur_tx_win_usecs);
+        ce_duration += ble_ll_tmr_u2t(cur_ww +
+                                      connsm->periph_cur_tx_win_usecs);
     }
 #endif
-    itvl -= g_ble_ll_sched_offset_ticks;
-    connsm->ce_end_time = connsm->anchor_point + itvl;
+    ce_duration -= g_ble_ll_sched_offset_ticks;
+    connsm->ce_end_time = connsm->anchor_point + ce_duration;
 
     return 0;
 }
@@ -3161,6 +3210,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     hdr_byte = rxbuf[0];
     acl_len = rxbuf[1];
     llid = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    connsm->last_pdu_event = connsm->event_cntr;
+#endif
 
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
