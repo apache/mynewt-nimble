@@ -269,7 +269,6 @@ struct ble_ll_conn_sm
 
     /* Connection timing */
     uint16_t conn_itvl;
-    uint16_t periph_latency;
     uint16_t supervision_tmo;
     uint16_t min_ce_len;
     uint16_t max_ce_len;
@@ -282,6 +281,14 @@ struct ble_ll_conn_sm
     uint32_t periph_cur_tx_win_usecs;
     uint32_t periph_cur_window_widening;
     uint32_t last_rxd_pdu_cputime;  /* Used exclusively for supervision timer */
+
+    uint16_t periph_latency;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    uint16_t subrate_base_event;
+    uint16_t subrate_factor;
+    uint16_t cont_num;
+    uint16_t last_pdu_event;
+#endif
 
     /*
      * Used to mark that identity address was used as InitA

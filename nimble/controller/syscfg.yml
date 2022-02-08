@@ -327,6 +327,15 @@ syscfg.defs:
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
 
+    BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE:
+        description: >
+            Enables support LE Enhanced Connection Update.
+            This allows to use Conenction Subrate Update and Connection Subrate
+            Request procedures to modify subrate paramters for a connection.
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 53) if 1'
+
     BLE_LL_CFG_FEAT_LL_ISO:
         description: >
             This option is used to enable/disable support for LE Isochronous Channels
