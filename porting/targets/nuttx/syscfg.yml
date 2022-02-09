@@ -17,6 +17,7 @@
 #
 
 syscfg.vals:
+    BLE_HCI_TRANSPORT: socket
     BLE_SOCK_USE_TCP: 0
     BLE_SOCK_USE_NUTTX: 1
     BLE_SOCK_TASK_PRIO: 3
@@ -25,4 +26,3 @@ syscfg.vals:
     LOG_LEVEL: 2
     BLE_SM_LEGACY: 1
     BLE_SM_SC: 1
-

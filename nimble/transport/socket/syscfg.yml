@@ -43,6 +43,10 @@ syscfg.defs:
         description: 'linux kernel device'
         value: 0
 
+    BLE_SOCK_USE_NUTTX:
+        description: 'Use NuttX socket'
+        value: 0
+
     BLE_SOCK_TASK_PRIO:
         description: 'Priority of the HCI socket task.'
         type: task_priority
