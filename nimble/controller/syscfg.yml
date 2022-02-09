@@ -326,13 +326,7 @@ syscfg.defs:
          description: >
             Number of auxiliary advertising segments that can be scanned
             concurrently (Core 5.2, Vol 6, Part B, 4.4.2.2.2).
-         value: 8
-
-    BLE_LL_EXT_ADV_AUX_PTR_CNT:
-         description: >
-            This option configure a max number of scheduled outstanding auxiliary
-            packets for receive on secondary advertising channel.
-         value: 0
+         value: MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT)
 
     BLE_LL_PUBLIC_DEV_ADDR:
         description: >
@@ -485,6 +479,10 @@ syscfg.defs:
         description: use BLE_LL_PUBLIC_DEV_ADDR
         value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
         deprecated: 1
+    BLE_LL_EXT_ADV_AUX_PTR_CNT:
+        description: use BLE_LL_SCAN_AUX_SEGMENT_CNT
+        value: 0
+        deprecated: 1
 
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
@@ -511,7 +509,7 @@ syscfg.defs:
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
-    BLE_LL_EXT_ADV_AUX_PTR_CNT: 5
+    BLE_LL_SCAN_AUX_SEGMENT_CNT: 8
 
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host
