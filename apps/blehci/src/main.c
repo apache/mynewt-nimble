@@ -17,11 +17,10 @@
  * under the License.
  */
 
-#include <assert.h>
 #include "os/mynewt.h"
 
-int
-main(void)
+static int
+main_fn(int argc, char **argv)
 {
     /* Initialize OS */
     sysinit();
@@ -29,5 +28,18 @@ main(void)
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
     }
+    return 0;
+}
+
+int
+main(int argc, char **argv)
+{
+#if BABBLESIM
+    extern void bsim_init(int argc, char** argv, void *main_fn);
+    bsim_init(argc, argv, main_fn);
+#else
+    main_fn(argc, argv);
+#endif
+
     return 0;
 }
