@@ -28,7 +28,6 @@ pkg.keywords:
 pkg.deps:
     - "@apache-mynewt-core/hw/hal"
     - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/util/mem"
     - nimble
 
 pkg.apis:
