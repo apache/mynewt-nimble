@@ -35,7 +35,6 @@ syscfg.defs:
 
 syscfg.vals:
     OS_MAIN_STACK_SIZE: 8000
-    BLE_HCI_TRANSPORT: uart
     MCU_TIMER_POLLER_PRIO: 0
     BLE_LL_PRIO: 1
     MCU_UART_POLLER_PRIO: 2
