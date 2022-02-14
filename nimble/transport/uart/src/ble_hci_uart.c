@@ -27,8 +27,6 @@
 #include "os/os_cputime.h"
 #include "bsp/bsp.h"
 #include "os/os.h"
-#include "mem/mem.h"
-#include "hal/hal_gpio.h"
 #include "hal/hal_uart.h"
 
 /* BLE */
