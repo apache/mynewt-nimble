@@ -17,72 +17,129 @@
  * under the License.
  */
 
-#include "os/mynewt.h"
-#include "os/sim.h"
-#include "sim_priv.h"
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <syscfg/syscfg.h>
+#include <os/os_task.h>
+#include <hal/hal_os_tick.h>
 #include <irq_ctrl.h>
 
-/*
- * From HAL_CM4.s
- */
-extern void SVC_Handler(void);
-extern void PendSV_Handler(void);
-extern void SysTick_Handler(void);
+static pthread_mutex_t bsim_ctx_sw_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int bsim_pend_sv;
 
-/*
- * Assert that 'sf_mainsp' and 'sf_jb' are at the specific offsets where
- * os_arch_frame_init() expects them to be.
- */
-CTASSERT(offsetof(struct stack_frame, sf_mainsp) == 0);
-CTASSERT(offsetof(struct stack_frame, sf_jb) == 4);
+struct task_info {
+    pthread_t tid;
+    pthread_cond_t cond;
+    void *arg;
+};
 
-void
-os_arch_task_start(struct stack_frame *sf, int rc)
+static void *
+task_wrapper(void *arg)
 {
-    sim_task_start(sf, rc);
+    struct os_task *me = arg;
+    struct task_info *ti = me->t_arg;
+
+    pthread_mutex_lock(&bsim_ctx_sw_mutex);
+    if (g_current_task != me) {
+        pthread_cond_wait(&ti->cond, &bsim_ctx_sw_mutex);
+        assert(g_current_task == me);
+    }
+
+    me->t_func(ti->arg);
+
+    assert(0);
 }
 
 os_stack_t *
 os_arch_task_stack_init(struct os_task *t, os_stack_t *stack_top, int size)
 {
-    return sim_task_stack_init(t, stack_top, size);
+    struct task_info *ti;
+    int err;
+
+    ti = calloc(1, sizeof(*ti));
+
+    pthread_cond_init(&ti->cond, NULL);
+    ti->arg = t->t_arg;
+    t->t_arg = ti;
+
+    err = pthread_create(&ti->tid, NULL, task_wrapper, t);
+    assert(err == 0);
+
+    pthread_setname_np(ti->tid, t->t_name);
+
+    return stack_top;
 }
 
 os_error_t
 os_arch_os_start(void)
 {
-    return sim_os_start();
-}
+    struct os_task *next_t;
+    struct task_info *ti;
 
-void
-os_arch_os_stop(void)
-{
-    sim_os_stop();
-}
+    os_tick_init(OS_TICKS_PER_SEC, 7);
 
-void
-PendSV_Handler(void)
-{
-    sim_switch_tasks();
+    next_t = os_sched_next_task();
+    assert(next_t);
+    os_sched_set_current_task(next_t);
+
+    g_os_started = 1;
+
+    ti = next_t->t_arg;
+    pthread_cond_signal(&ti->cond);
+
+    return 0;
 }
 
 os_error_t
 os_arch_os_init(void)
 {
-    NVIC_SetVector(PendSV_IRQn, (uint32_t)PendSV_Handler);
-    return sim_os_init();
+    STAILQ_INIT(&g_os_task_list);
+    TAILQ_INIT(&g_os_run_list);
+    TAILQ_INIT(&g_os_sleep_list);
+
+    os_init_idle_task();
+
+    return OS_OK;
 }
 
 void
 os_arch_ctx_sw(struct os_task *next_t)
 {
-    sim_ctx_sw(next_t);
+    os_sched_ctx_sw_hook(next_t);
+    bsim_pend_sv = 1;
+}
+
+static void
+do_ctx_sw(void)
+{
+    struct os_task *next_t;
+    struct os_task *me;
+    struct task_info *ti, *next_ti;
+
+    next_t = os_sched_next_task();
+    assert(next_t);
+
+    bsim_pend_sv = 0;
+
+    assert(g_current_task);
+    me = g_current_task;
+    ti = me->t_arg;
+
+    if (me == next_t) {
+        return;
+    }
+
+    g_current_task = next_t;
+    next_ti = g_current_task->t_arg;
+
+    pthread_cond_signal(&next_ti->cond);
+    pthread_cond_wait(&ti->cond, &bsim_ctx_sw_mutex);
+    assert(g_current_task == me);
 }
 
 os_sr_t
 os_arch_save_sr(void)
 {
-    sim_save_sr();
     return hw_irq_ctrl_change_lock(1);
 }
 
@@ -90,14 +147,16 @@ void
 os_arch_restore_sr(os_sr_t osr)
 {
     hw_irq_ctrl_change_lock(osr);
-    sim_restore_sr(osr);
-}
 
+    if (!osr && bsim_pend_sv) {
+        do_ctx_sw();
+    }
+}
 
 int
 os_arch_in_critical(void)
 {
-    return sim_in_critical();
+    return hw_irq_ctrl_get_current_lock();
 }
 
 void

@@ -22,6 +22,9 @@ pkg.description: nRF52 on BabbleSim
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 
+pkg.lflags:
+    - -lpthread
+
 pkg.deps:
     - "babblesim/nrfx"
 
