@@ -44,6 +44,8 @@ pkg.deps.'BLE_TRANSPORT_HS == "uart"':
     - nimble/transport/uart
 pkg.deps.'BLE_TRANSPORT_HS == "usb"':
     - nimble/transport/usb
+pkg.deps.'BLE_TRANSPORT_LL == "apollo3"':
+    - nimble/transport/apollo3
 
 pkg.deps.BLE_MONITOR_RTT:
     - "@apache-mynewt-core/hw/drivers/rtt"

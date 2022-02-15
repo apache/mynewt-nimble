@@ -44,6 +44,7 @@ syscfg.defs:
             - dialog_cmac
             - nrf5340
             - socket
+            - apollo3
             - custom
 
     BLE_TRANSPORT_ACL_COUNT:

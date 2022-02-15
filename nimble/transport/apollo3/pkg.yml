@@ -1,0 +1,46 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+pkg.name: nimble/transport/apollo3
+pkg.description: >
+    HCI transport for Ambiq Apollo3
+    The BLE subsystem implemented on Apollo3 is a fully integrated system which is accessed
+    via the BLE interface block, and provides autonomous clock and power management.
+    The subsystem has a 32-bit core which runs from a 32 MHz oscillator, and is dedicated
+    to running the lower portion of the BLE stack with a standard Host Controller interface (HCI).
+    This core does not support user programming, as all user code runs on the main Cortex M4 processor.
+    Software leverages the fully HCI compliant interface for Bluetooth operation.
+    A series of proprietary HCI commands are also leveraged to provide additional performance and low power operation.
+    The BLE controller and host can be configured to support up to seven simultaneous connections on chip revision A1 (4 on chip revision B0).
+    Secure connections and extended packet length are also supported.
+    See the Apollo3 Datasheet for a full description of the BLE subsystem.
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "http://mynewt.apache.org/"
+pkg.keywords:
+    - ble
+    - bluetooth
+    - apollo3
+
+pkg.deps:
+    - nimble
+    - nimble/transport/common/hci_h4
+    - "@apache-mynewt-core/kernel/os"
+
+pkg.apis:
+    - ble_transport
