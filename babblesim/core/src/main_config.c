@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <unistd.h>
 #include "NRF_HW_model_top.h"
 #include "NRF_HWLowL.h"
 #include "bs_tracing.h"
@@ -65,6 +66,10 @@ bsim_init(int argc, char** argv, int (*main_fn)(int argc, char **arg))
         nrf_hw_initialize(&args->nrf_hw);
         os_init(main_fn);
         os_start();
+
+        while (1) {
+            sleep(1);
+        }
 }
 
 void

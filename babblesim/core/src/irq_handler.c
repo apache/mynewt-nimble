@@ -57,9 +57,6 @@ void posix_interrupt_raised(void)
  */
 void posix_irq_handler_im_from_sw(void)
 {
-	int sr = 0;
-
-	sr = sig_block_irq_on();
 	/*
 	 * if a higher priority interrupt than the possibly currently running is
 	 * pending we go immediately into irq_handler() to vector into its
@@ -67,8 +64,5 @@ void posix_irq_handler_im_from_sw(void)
 	 */
 	if (hw_irq_ctrl_get_highest_prio_irq() != -1) {
 	    posix_interrupt_raised();
-	}
-	if (sr) {
-	    sig_unblock_irq_off();
 	}
 }
