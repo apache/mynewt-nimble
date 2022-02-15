@@ -35,6 +35,11 @@ git:
   depth: false
 
 matrix:
+  allow_failures:
+    - env:
+        - TEST=BUILD_PORTS
+        - VM_AMOUNT=1
+        - TARGET_SET=1
   include:
     # Style checking
     - os: linux
