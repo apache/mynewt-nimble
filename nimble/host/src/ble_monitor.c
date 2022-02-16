@@ -25,6 +25,11 @@
 #error "Cannot enable monitor over UART and RTT at the same time!"
 #endif
 
+#ifdef BABBLESIM
+#define _GNU_SOURCE
+#include <stdio.h>
+#endif
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -258,6 +263,7 @@ monitor_write_header(uint16_t opcode, uint16_t len)
     monitor_write(&ts_hdr, sizeof(ts_hdr));
 }
 
+#ifndef BABBLESIM
 static size_t
 btmon_write(FILE *instance, const char *bp, size_t n)
 {
@@ -271,6 +277,7 @@ static FILE *btmon = (FILE *) &(struct File) {
         .write = btmon_write,
     },
 };
+#endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT) && MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
 static void
@@ -436,9 +443,24 @@ ble_monitor_log(int level, const char *fmt, ...)
     monitor_write(&ulog, sizeof(ulog));
     monitor_write(id, sizeof(id));
 
+#ifdef BABBLESIM
+    do {
+        char *tmp;
+        int len;
+
+        va_start(va, fmt);
+        len =  vasprintf(&tmp, fmt, va);
+        assert(len >= 0);
+        va_end(va);
+
+        monitor_write(tmp, len);
+        free(tmp);
+    } while (0);
+#else
     va_start(va, fmt);
     vfprintf(btmon, fmt, va);
     va_end(va);
+#endif
 
     /* null-terminate string */
     monitor_write("", 1);
