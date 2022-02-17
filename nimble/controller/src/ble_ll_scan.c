@@ -1093,17 +1093,23 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
     switch (ble_ll_state_get()) {
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     case BLE_LL_STATE_ADV:
+        start_scan = false;
+        break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_STATE_CONNECTION:
+        start_scan = false;
+        break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     case BLE_LL_STATE_SYNC:
+        start_scan = false;
+        break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     case BLE_LL_STATE_SCAN_AUX:
-         start_scan = false;
-         break;
+        start_scan = false;
+        break;
 #endif
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
