@@ -18,20 +18,15 @@
 #
 
 pkg.name: babblesim/core
-pkg.type: sdk
 pkg.description: time machine, irq handeler, core
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-  - "@apache-mynewt-core/kernel/os"
-  - "@apache-mynewt-nimble/nimble/controller"
-  - "@apache-mynewt-nimble/nimble/transport"
-  - "babblesim/hw/babblesim"
+  - "babblesim/sdk"
 
-pkg.req_apis:
-  - ble_transport
+pkg.cflags: -std=gnu99
 
 pkg.init:
   bsim_start: 9999

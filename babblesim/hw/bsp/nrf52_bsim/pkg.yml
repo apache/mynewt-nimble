@@ -31,7 +31,7 @@ pkg.cflags.HARDFLOAT:
     - -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 pkg.deps:
-    - "@apache-mynewt-core/hw/drivers/uart/uart_hal"
-    - "babblesim/hw/mcu/nordic/nrf52_bsim"
-    - "babblesim/hw/babblesim"
     - "babblesim/core"
+    - "babblesim/hw/mcu/nordic/nrf52_bsim"
+    - "@apache-mynewt-core/hw/drivers/uart/uart_hal"
+    - "@apache-mynewt-nimble/nimble/controller"

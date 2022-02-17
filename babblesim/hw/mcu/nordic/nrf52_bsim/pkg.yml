@@ -26,7 +26,7 @@ pkg.lflags:
     - -lpthread
 
 pkg.deps:
-    - "babblesim/nrfx"
+    - "babblesim/core"
 
 pkg.deps.BLE_CONTROLLER:
     - "@apache-mynewt-nimble/nimble/drivers/nrf52"
