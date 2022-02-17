@@ -21,3 +21,5 @@ syscfg.vals:
     OS_MAIN_STACK_SIZE: 64
     # Use UART transport by default
     BLE_HCI_TRANSPORT: uart
+    # Stub console
+    CONSOLE_MODE: stub
