@@ -17,21 +17,31 @@
 # under the License.
 #
 
-pkg.name: babblesim/nrfx
-pkg.description: nrfx wrapper for BabbleSim
+pkg.name: babblesim/sdk
+pkg.type: sdk
+pkg.description: External files required to build BabbleSim
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "https://mynewt.apache.org/"
-pkg.type: sdk
 
 pkg.cflags: -std=gnu99
-pkg.include_dirs:
-    - src/
-    - src/drivers/
-    - src/hal/
-    - src/mdk/
 
-pkg.deps:
-    - "@apache-mynewt-core/hw/hal"
+pkg.include_dirs:
+  - components/ext_NRF52_hw_models/src/nrfx_config
+  - components/ext_NRF52_hw_models/src/nrfx/nrfx_replacements
+  - components/ext_NRF52_hw_models/src/nrfx/mdk_replacements
+  - components/ext_NRF52_hw_models/src/HW_models
+  - components/libUtilv1/src
+  - components/libPhyComv1/src
+  - components/libRandv2/src
+  - components/ext_libCryptov1/src
+  - nrfx
+  - nrfx/drivers
+  - nrfx/hal
+  - nrfx/mdk
 
 pkg.pre_build_cmds:
-    scripts/link_nrfx.sh: 1
+  scripts/link_babblesim.sh: 1
+  scripts/link_nrfx.sh: 2
+
+pkg.lflags:
+  - -ldl

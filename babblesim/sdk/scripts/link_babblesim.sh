@@ -34,36 +34,14 @@ if [ -z ${BSIM_OUT_PATH+x} ]; then
   exit 1
 fi
 
-if [[ -d "$(pwd)/components" ]]
-then
-    echo "Babblesim components: Directory exists. Removing and linking again..."
-    rm -r $(pwd)/components
-else
-    echo "Babblesim components: Linking components..."
-fi
+ln -sfn "${BSIM_COMPONENTS_PATH}" ./components
 
-ln -nsf $BSIM_OUT_PATH/components
-
-if [[ -d "$(pwd)/src" ]]
-then
-    echo "Babblesim libraries src: Directory exists. Removing and linking again..."
-    rm -r $(pwd)/src
-else
-    echo "Babblesim components: Linking components..."
-fi
-
-mkdir -p src
-ln -nsf $BSIM_OUT_PATH/components
-
-# Create links to all .32.a files
-# find $BSIM_OUT_PATH/lib/$lib -name "*.32.a" -type f -exec ln -t src -nsf {} \;
-
-# Copy all .32.a files
-find $BSIM_OUT_PATH/lib/$lib -name "*.32.a" -type f -exec cp -t src -f {} \;
+mkdir -p ./src/
+cp "${BSIM_OUT_PATH}"/lib/*.32.a ./src/
 
 # XXX: Workaround for bad linking by newt. Sometimes newt will link
 # nrf weak functions from nrf_hal_originals.o instead of their BabbleSim
 # replacements inside libNRF52_hw_models.32.a. But as long as the other
 # weak functions, that do not have their replacements, are not used,
 # we can just remove the file from the .a library here.
-ar d src/libNRF52_hw_models.32.a nrf_hal_originals.o
+ar d ./src/libNRF52_hw_models.32.a nrf_hal_originals.o

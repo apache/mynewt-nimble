@@ -23,7 +23,7 @@ pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 
 pkg.deps:
-    - "babblesim/nrfx"
+    - "babblesim/core"
 
 pkg.deps.BLE_CONTROLLER:
     - "@apache-mynewt-nimble/nimble/drivers/nrf52"

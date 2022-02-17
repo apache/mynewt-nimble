@@ -18,7 +18,4 @@
 # under the License.
 #
 
-mkdir -p ./src/
-for f in nrfx.h drivers hal mdk; do
-    ln -sfn ${NRFX_BASE}/${f} ./src/${f}
-done
+ln -sfn ${NRFX_BASE} ./nrfx
