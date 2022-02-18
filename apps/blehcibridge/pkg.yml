@@ -23,6 +23,7 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
+    - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/log/stub"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/kernel/os"
@@ -31,10 +32,3 @@ pkg.deps:
 
 pkg.req_apis:
     - ble_transport
-
-pkg.deps.'CONSOLE_MODE=="full"':
-    - "@apache-mynewt-core/sys/console/full"
-pkg.deps.'CONSOLE_MODE=="minimal":
-    - "@apache-mynewt-core/sys/console/minimal"
-pkg.deps.'CONSOLE_MODE=="stub":
-    - "@apache-mynewt-core/sys/console/stub"
