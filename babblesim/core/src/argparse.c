@@ -15,6 +15,7 @@
 #include "bs_dynargs.h"
 #include "bs_cmd_line_typical.h"
 #include "NRF_HWLowL.h"
+#include "controller/ble_ll.h"
 
 static bs_args_struct_t *args_struct;
 static struct nrf52_bsim_args_t arg;
@@ -34,6 +35,28 @@ static bool nosim;
 static void cmd_nosim_found(char *argv, int offset)
 {
 	hwll_set_nosim(true);
+}
+
+static void cmd_bdaddr_found(char *argv, int offset)
+{
+    union {
+        uint64_t u64;
+        uint8_t u8[8];
+    } bdaddr;
+    char *endptr;
+
+    if (sscanf(&argv[offset], "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+               &bdaddr.u8[5], &bdaddr.u8[4], &bdaddr.u8[3], &bdaddr.u8[2],
+               &bdaddr.u8[1], &bdaddr.u8[0]) < 6) {
+        bdaddr.u64 = strtoull(&argv[offset], &endptr, 0);
+        if (*endptr) {
+            return;
+        }
+
+        bdaddr.u64 = htole64(bdaddr.u64);
+    }
+
+    ble_ll_set_public_addr(bdaddr.u8);
 }
 
 static void print_no_sim_warning(void)
@@ -70,6 +93,9 @@ void nrfbsim_register_args(void)
 		 * destination, callback,
 		 * description
 		 */
+		{ false, false , false,
+		  "A", "bdaddr", 's',
+		  NULL, cmd_bdaddr_found, "Device public address"},
 		{false, false, true,
 		"nosim", "", 'b',
 		(void *)&nosim, cmd_nosim_found,
