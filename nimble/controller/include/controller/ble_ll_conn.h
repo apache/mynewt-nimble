@@ -407,10 +407,9 @@ struct ble_ll_scan_pdu_data;
 uint8_t ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg,
                                          uint8_t *hdr_byte);
 void ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
-                                    struct ble_ll_scan_pdu_data *pdu_data,
-                                    uint8_t adva_type, uint8_t *adva,
-                                    uint8_t inita_type, uint8_t *inita,
-                                    int rpa_index, uint8_t channel);
+                                     struct ble_ll_scan_pdu_data *pdu_data,
+                                     struct ble_ll_scan_addr_data *addrd,
+                                     uint8_t channel);
 
 /* Send CONNECT_IND/AUX_CONNECT_REQ */
 int ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
