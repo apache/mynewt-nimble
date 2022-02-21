@@ -2740,15 +2740,12 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
 void
 ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
                                 struct ble_ll_scan_pdu_data *pdu_data,
-                                uint8_t adva_type, uint8_t *adva,
-                                uint8_t inita_type, uint8_t *inita,
-                                int rpa_index, uint8_t channel)
+                                struct ble_ll_scan_addr_data *addrd,
+                                uint8_t channel)
 {
     uint8_t hdr;
     uint8_t *addr;
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    int is_rpa;
     struct ble_ll_resolv_entry *rl;
 #endif
 
@@ -2761,19 +2758,45 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
     }
 #endif
 
-    if (adva_type) {
+    if (addrd->adva_type) {
         /* Set random address */
         hdr |= BLE_ADV_PDU_HDR_RXADD_MASK;
     }
 
-    if (inita) {
-        memcpy(pdu_data->inita, inita, BLE_DEV_ADDR_LEN);
-        if (inita_type) {
+    if (addrd->targeta) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+        if (addrd->targeta_resolved) {
+            if (connsm->own_addr_type > BLE_OWN_ADDR_RANDOM) {
+                /* If TargetA was resolved we should reply with a different RPA
+                 * in InitA (see Core 5.3, Vol 6, Part B, 6.4).
+                 */
+                BLE_LL_ASSERT(addrd->rpa_index >= 0);
+                rl = &g_ble_ll_resolv_list[addrd->rpa_index];
+                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+                ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
+            } else {
+                /* Host does not want us to use RPA so use identity */
+                if ((connsm->own_addr_type & 1) == 0) {
+                    memcpy(pdu_data->inita, g_dev_addr, BLE_DEV_ADDR_LEN);
+                } else {
+                    hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+                    memcpy(pdu_data->inita, g_random_addr, BLE_DEV_ADDR_LEN);
+                }
+            }
+        } else {
+            memcpy(pdu_data->inita, addrd->targeta, BLE_DEV_ADDR_LEN);
+            if (addrd->targeta_type) {
+                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+            }
+        }
+#else
+        memcpy(pdu_data->inita, addrd->targeta, BLE_DEV_ADDR_LEN);
+        if (addrd->targeta_type) {
             hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
         }
+#endif
     } else {
         /* Get pointer to our device address */
-        connsm = g_ble_ll_conn_create_sm.connsm;
         if ((connsm->own_addr_type & 1) == 0) {
             addr = g_dev_addr;
         } else {
@@ -2783,27 +2806,13 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
 
     /* XXX: do this ahead of time? Calculate the local rpa I mean */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
-            rl = NULL;
-            is_rpa = ble_ll_is_rpa(adva, adva_type);
-            if (is_rpa) {
-                if (rpa_index >= 0) {
-                    rl = &g_ble_ll_resolv_list[rpa_index];
-                }
-            } else {
-                /* we look for RL entry to generate local RPA regardless if
-                 * resolving is enabled or not (as this is is for local RPA
-                 * not peer RPA)
-                 */
-                 rl = ble_ll_resolv_list_find(adva, adva_type);
-            }
-
-            /*
-             * If peer in on resolving list, we use RPA generated with Local IRK
-             * from resolving list entry. In other case, we need to use our identity
-             * address (see  Core 5.0, Vol 6, Part B, section 6.4).
+        if ((connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) &&
+            (addrd->rpa_index >= 0)) {
+            /* We are using RPA and advertiser was on our resolving list, so
+             * we'll use RPA to reply (see Core 5.3, Vol 6, Part B, 6.4).
              */
-            if (rl && rl->rl_has_local) {
+            rl = &g_ble_ll_resolv_list[addrd->rpa_index];
+            if (rl->rl_has_local) {
                 hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
                 ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
                 addr = NULL;
@@ -2818,7 +2827,7 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
         }
     }
 
-    memcpy(pdu_data->adva, adva, BLE_DEV_ADDR_LEN);
+    memcpy(pdu_data->adva, addrd->adva, BLE_DEV_ADDR_LEN);
 
     pdu_data->hdr_byte = hdr;
 }
@@ -2885,7 +2894,6 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
 {
     struct ble_ll_conn_sm *connsm;
     struct ble_mbuf_hdr *rxhdr;
-    int8_t rpa_index;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t phy;
 #endif
@@ -2909,15 +2917,8 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
         return -1;
     }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    rpa_index = addrd->rpa_index;
-#else
-    rpa_index = -1;
-#endif
-    ble_ll_conn_prepare_connect_ind(connsm, ble_ll_scan_get_pdu_data(),
-                                    addrd->adva_type, addrd->adva,
-                                    addrd->targeta_type, addrd->targeta,
-                                    rpa_index, rxhdr->rxinfo.channel);
+    ble_ll_conn_prepare_connect_ind(connsm, ble_ll_scan_get_pdu_data(), addrd,
+                                    rxhdr->rxinfo.channel);
 
     ble_phy_set_txend_cb(NULL, NULL);
     rc = ble_phy_tx(ble_ll_conn_tx_connect_ind_pducb, connsm,
@@ -2971,7 +2972,6 @@ ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
     if (addrd->targeta_resolved) {
         BLE_LL_ASSERT(addrd->rpa_index >= 0);
         BLE_LL_ASSERT(targeta);
-        ble_ll_resolv_set_local_rpa(addrd->rpa_index, targeta);
     }
 #endif
 
