@@ -35,6 +35,7 @@ syscfg.defs:
 
 syscfg.vals:
     HAL_SBRK: 0
+    OS_TICKS_PER_SEC: 1024
     OS_MAIN_STACK_SIZE: 8000
     MCU_TIMER_POLLER_PRIO: 0
     BLE_LL_PRIO: 1

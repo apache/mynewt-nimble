@@ -18,6 +18,7 @@
 
 #include <time_machine.h>
 #include "edtt_driver.h"
+#include "os/os_sched.h"
 
 /* Recheck if something arrived from the EDTT every 5ms */
 #define EDTT_IF_RECHECK_DELTA 5 /* ms */
@@ -124,7 +125,9 @@ int edtt_read(uint8_t *ptr, size_t size, int flags)
 				bs_trace_raw_time(9, "EDTT: No enough data yet,"
 						"sleeping for %i ms\n",
 						EDTT_IF_RECHECK_DELTA);
-                tm_tick_limited(6000);
+                os_sched_sleep(os_sched_get_current_task(),
+                               os_time_ms_to_ticks32(EDTT_IF_RECHECK_DELTA));
+                os_sched(NULL);
 			} else {
 				bs_trace_raw_time(9, "EDTT: No enough data yet,"
 						"returning\n");
