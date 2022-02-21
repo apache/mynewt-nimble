@@ -12,6 +12,7 @@
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "os/os_eventq.h"
+#include "controller/ble_ll.h"
 
 /* BLE */
 #include "nimble/ble.h"
@@ -832,7 +833,7 @@ le_data_write(uint16_t size)
 }
 
 static void
-fake_set_public_address()
+fake_write_bd_addr_cc()
 {
     struct ble_hci_ev_command_complete *ev;
     struct ble_hci_ev *hci_ev;
@@ -858,6 +859,7 @@ edtt_poller(void *arg) {
     uint16_t command;
     uint16_t size;
     uint16_t opcode;
+    uint8_t bdaddr[6];
 
     /* Initialize HCI command opcode and response variables */
     waiting_opcode = 0;
@@ -917,8 +919,11 @@ edtt_poller(void *arg) {
                 edtt_read((uint8_t *) &opcode, sizeof(opcode), EDTTT_BLOCK);
 
                 if (opcode == BT_HCI_OP_VS_WRITE_BD_ADDR) {
-                    fake_set_public_address();
-                    read_excess_bytes(size - 2);
+                    edtt_read((uint8_t *) &bdaddr, sizeof(bdaddr), EDTTT_BLOCK);
+                    ble_ll_set_public_addr(bdaddr);
+                    fake_write_bd_addr_cc();
+                } else {
+                    assert(0);
                 }
                 break;
             default:
