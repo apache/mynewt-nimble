@@ -179,31 +179,23 @@ static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = {
 #if BABBLESIM
 /* delay between EVENTS_READY and start of tx */
 static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
-    [BLE_PHY_MODE_1M] = 0,
-    [BLE_PHY_MODE_2M] = 3,
-    [BLE_PHY_MODE_CODED_125KBPS] = 5,
-    [BLE_PHY_MODE_CODED_500KBPS] = 5
+    [BLE_PHY_MODE_1M] = 1,
+    [BLE_PHY_MODE_2M] = 1,
 };
 /* delay between EVENTS_END and end of txd packet */
 static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 1,
-    [BLE_PHY_MODE_2M] = 3,
-    [BLE_PHY_MODE_CODED_125KBPS] = 9,
-    [BLE_PHY_MODE_CODED_500KBPS] = 3
+    [BLE_PHY_MODE_2M] = 1,
 };
 /* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
 static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9,
-    [BLE_PHY_MODE_2M] = 2,
-    [BLE_PHY_MODE_CODED_125KBPS] = 17,
-    [BLE_PHY_MODE_CODED_500KBPS] = 17
+    [BLE_PHY_MODE_2M] = 5,
 };
 /* delay between end of rxd packet and EVENTS_END */
 static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9,
-    [BLE_PHY_MODE_2M] = 2,
-    [BLE_PHY_MODE_CODED_125KBPS] = 27,
-    [BLE_PHY_MODE_CODED_500KBPS] = 22
+    [BLE_PHY_MODE_2M] = 5,
 };
 #else
 /* delay between EVENTS_READY and start of tx */
