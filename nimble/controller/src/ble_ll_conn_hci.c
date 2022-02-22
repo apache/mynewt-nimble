@@ -1872,9 +1872,9 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
         goto phy_cmd_param_err;
     }
 
-    connsm->phy_data.phy_options = phy_options & 0x03;
-    connsm->phy_data.host_pref_tx_phys_mask = tx_phys,
-    connsm->phy_data.host_pref_rx_phys_mask = rx_phys;
+    connsm->phy_data.pref_opts = phy_options & 0x03;
+    connsm->phy_data.pref_mask_tx = tx_phys,
+    connsm->phy_data.pref_mask_rx = rx_phys;
 
     /*
      * The host preferences override the default phy preferences. Currently,
@@ -1900,7 +1900,7 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
             CONN_F_HOST_PHY_UPDATE(connsm) = 1;
         } else {
             /* Check if we should start phy update procedure */
-            if (!ble_ll_conn_chk_phy_upd_start(connsm)) {
+            if (!ble_ll_conn_phy_update_if_needed(connsm)) {
                 CONN_F_HOST_PHY_UPDATE(connsm) = 1;
             } else {
                 /*

@@ -484,38 +484,40 @@ ble_ll_conn_css_move(struct ble_ll_conn_sm *connsm, uint16_t slot_idx)
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-/**
- * Checks to see if we should start a PHY update procedure
- *
- * If current phy is not one of the preferred we need to start control
- * procedure.
- *
- * XXX: we could also decide to change the PHY if RSSI is really good
- * and we are currently at 1Mbps or lower data rate and we could use
- * a higher data rate.
- *
- * @param connsm
- * @return 0: success; -1: no phy update procedure started
- */
-int
-ble_ll_conn_chk_phy_upd_start(struct ble_ll_conn_sm *csm)
+static inline int
+ble_ll_conn_phy_should_update(uint8_t pref_mask, uint8_t curr_mask)
 {
-    int rc;
+#if MYNEWT_VAL(BLE_LL_CONN_PHY_PREFER_2M)
+    /* Should change to 2M if preferred, but not active */
+    if ((pref_mask & BLE_PHY_MASK_2M) && (curr_mask != BLE_PHY_MASK_2M)) {
+        return 1;
+    }
+#endif
 
-    /* If no host preferences or  */
-    if (((csm->phy_data.host_pref_tx_phys_mask == 0) &&
-         (csm->phy_data.host_pref_rx_phys_mask == 0)) ||
-        ((csm->phy_data.host_pref_tx_phys_mask & CONN_CUR_TX_PHY_MASK(csm)) &&
-         (csm->phy_data.host_pref_rx_phys_mask & CONN_CUR_RX_PHY_MASK(csm)))) {
-        rc = -1;
-    } else {
-        csm->phy_data.req_pref_tx_phys_mask = csm->phy_data.host_pref_tx_phys_mask;
-        csm->phy_data.req_pref_rx_phys_mask = csm->phy_data.host_pref_rx_phys_mask;
-        ble_ll_ctrl_proc_start(csm, BLE_LL_CTRL_PROC_PHY_UPDATE, NULL);
-        rc = 0;
+    /* Should change to active phy is not preferred */
+    if ((curr_mask & pref_mask) == 0) {
+        return 1;
     }
 
-    return rc;
+    return 0;
+}
+
+int
+ble_ll_conn_phy_update_if_needed(struct ble_ll_conn_sm *connsm)
+{
+    if (!ble_ll_conn_phy_should_update(connsm->phy_data.pref_mask_tx,
+                                       CONN_CUR_TX_PHY_MASK(connsm)) &&
+        !ble_ll_conn_phy_should_update(connsm->phy_data.pref_mask_rx,
+                                       CONN_CUR_RX_PHY_MASK(connsm))) {
+        return -1;
+    }
+
+    connsm->phy_data.pref_mask_tx_req = connsm->phy_data.pref_mask_tx;
+    connsm->phy_data.pref_mask_rx_req = connsm->phy_data.pref_mask_rx;
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE, NULL);
+
+    return 0;
 }
 #endif
 
@@ -952,7 +954,7 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
 
     if (connsm->phy_tx_transition) {
         phy_mode = ble_ll_phy_to_phy_mode(connsm->phy_tx_transition,
-                                          connsm->phy_data.phy_options);
+                                          connsm->phy_data.pref_opts);
     } else {
         phy_mode = connsm->phy_data.tx_phy_mode;
     }
@@ -1847,11 +1849,11 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->phy_data.cur_rx_phy = BLE_PHY_1M;
     connsm->phy_data.tx_phy_mode = BLE_PHY_MODE_1M;
     connsm->phy_data.rx_phy_mode = BLE_PHY_MODE_1M;
-    connsm->phy_data.req_pref_tx_phys_mask = 0;
-    connsm->phy_data.req_pref_rx_phys_mask = 0;
-    connsm->phy_data.host_pref_tx_phys_mask = g_ble_ll_data.ll_pref_tx_phys;
-    connsm->phy_data.host_pref_rx_phys_mask = g_ble_ll_data.ll_pref_rx_phys;
-    connsm->phy_data.phy_options = 0;
+    connsm->phy_data.pref_mask_tx_req = 0;
+    connsm->phy_data.pref_mask_rx_req = 0;
+    connsm->phy_data.pref_mask_tx = g_ble_ll_data.ll_pref_tx_phys;
+    connsm->phy_data.pref_mask_rx = g_ble_ll_data.ll_pref_rx_phys;
+    connsm->phy_data.pref_opts = 0;
     connsm->phy_tx_transition = 0;
 #endif
 
@@ -2343,14 +2345,14 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             connsm->phy_data.cur_tx_phy = connsm->phy_data.new_tx_phy;
             connsm->phy_data.tx_phy_mode =
                                 ble_ll_phy_to_phy_mode(connsm->phy_data.cur_tx_phy,
-                                                   connsm->phy_data.phy_options);
+                                                   connsm->phy_data.pref_opts);
         }
 
         if (connsm->phy_data.new_rx_phy) {
             connsm->phy_data.cur_rx_phy = connsm->phy_data.new_rx_phy;
             connsm->phy_data.rx_phy_mode =
                                 ble_ll_phy_to_phy_mode(connsm->phy_data.cur_rx_phy,
-                                                   connsm->phy_data.phy_options);
+                                                   connsm->phy_data.pref_opts);
         }
 
         /* Clear flags and set flag to send event at next instant */
@@ -2527,7 +2529,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
     /* Send connection complete event to inform host of connection */
     if (rc) {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if (BLE_LL_BT5_PHY_SUPPORTED == 1) && MYNEWT_VAL(BLE_LL_CONN_PHY_INIT_UPDATE)
         /*
          * If we have default phy preferences and they are different than
          * the current PHY's in use, start update procedure.
@@ -2536,7 +2538,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          * XXX: should we attempt to start this without knowing if
          * the other side can support it?
          */
-        if (!ble_ll_conn_chk_phy_upd_start(connsm)) {
+        if (!ble_ll_conn_phy_update_if_needed(connsm)) {
             CONN_F_CTRLR_PHY_UPDATE(connsm) = 1;
         }
 #endif

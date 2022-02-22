@@ -103,6 +103,24 @@ syscfg.defs:
         description: 'Size of the resolving list.'
         value: '4'
 
+    BLE_LL_CONN_PHY_DEFAULT_PREF_MASK:
+        description: >
+            Default PHY preference mask used if no HCI LE Set Preferred PHY
+            was received.
+        value: 0x07
+    BLE_LL_CONN_PHY_PREFER_2M:
+        description: >
+            If enabled, LL will always attempt to switch to 2M PHY if present
+            in preferred mask even if active PHY is also allowed by that mask.
+            Otherwise LL will not attempt to switch PHY as long as active PHY
+            is present in preferred mask.
+        value: 0
+    BLE_LL_CONN_PHY_INIT_UPDATE:
+        description: >
+            If enabled, LL will attempt to switch PHY (depending on preferences
+            mask set) after connection was established.
+        value: 0
+
     # Data length management definitions for connections. These define the
     # maximum size of the PDU's that will be sent and/or received in a
     # connection.
