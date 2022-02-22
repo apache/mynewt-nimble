@@ -594,8 +594,8 @@ ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type)
     }
 }
 
-int
-ble_ll_is_valid_public_addr(const uint8_t *addr)
+static int
+ble_ll_is_valid_addr(const uint8_t *addr)
 {
     int i;
 
@@ -661,13 +661,13 @@ ble_ll_is_valid_own_addr_type(uint8_t own_addr_type, const uint8_t *random_addr)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     case BLE_HCI_ADV_OWN_ADDR_PRIV_PUB:
 #endif
-        rc = ble_ll_is_valid_public_addr(g_dev_addr);
+        rc = ble_ll_is_valid_addr(g_dev_addr);
         break;
     case BLE_HCI_ADV_OWN_ADDR_RANDOM:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     case BLE_HCI_ADV_OWN_ADDR_PRIV_RAND:
 #endif
-        rc = ble_ll_is_valid_random_addr(random_addr);
+        rc = ble_ll_is_valid_addr(random_addr);
         break;
     default:
         rc = 0;
@@ -727,10 +727,6 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
         return BLE_ERR_CMD_DISALLOWED;
     }
 #endif
-
-    if (!ble_ll_is_valid_random_addr(cmd->addr)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
 
     memcpy(g_random_addr, cmd->addr, BLE_DEV_ADDR_LEN);
 

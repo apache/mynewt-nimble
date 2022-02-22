@@ -478,8 +478,6 @@ void ble_ll_init(void);
 /* Reset the Link Layer */
 int ble_ll_reset(void);
 
-int ble_ll_is_valid_public_addr(const uint8_t *addr);
-
 /* 'Boolean' function returning true if address is a valid random address */
 int ble_ll_is_valid_random_addr(const uint8_t *addr);
 
