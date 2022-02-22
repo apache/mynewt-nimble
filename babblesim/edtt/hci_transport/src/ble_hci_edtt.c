@@ -553,6 +553,7 @@ service_events(void *arg)
 {
     struct ble_hci_edtt_pkt *pkt;
     struct ble_hci_ev *evt;
+    struct ble_hci_ev_num_comp_pkts *evt_ncp;
 
     while (1) {
         pkt = (void *)os_eventq_get(&edtt_q_svc);
@@ -575,7 +576,16 @@ service_events(void *arg)
                 command_status(evt);
                 break;
             case BLE_HCI_EVCODE_NUM_COMP_PKTS:
-                /* EDTT does not handle this event and treats like fail */
+                evt_ncp = (void *)evt->data;
+                /* This should always be true for NimBLE LL */
+                assert(evt_ncp->count == 1);
+                if (evt_ncp->completed[0].packets == 0) {
+                    /* Discard, because EDTT does not like it */
+                    ble_hci_trans_buf_free((void *)evt);
+                } else {
+                    queue_event(evt);
+                }
+                break;
             case BLE_HCI_OPCODE_NOP:
                 /* Ignore noop bytes from Link layer */
                 ble_hci_trans_buf_free((void *)evt);
@@ -766,8 +776,11 @@ le_data_read(uint16_t size)
     pkt = (void *)os_eventq_get(&edtt_q_data);
     if (pkt) {
         om = pkt->data;
-        size = OS_MBUF_PKTLEN(om);
+
+        size = sizeof(pkt->timestamp) + OS_MBUF_PKTLEN(om);
+
         edtt_write((uint8_t *)&size, sizeof(size), EDTTT_BLOCK);
+        edtt_write((uint8_t *)&pkt->timestamp, sizeof(pkt->timestamp), EDTTT_BLOCK);
 
         while (om != NULL) {
             edtt_write((uint8_t *)om->om_data, om->om_len, EDTTT_BLOCK);
@@ -801,17 +814,21 @@ le_data_write(uint16_t size)
     int err;
 
     if (size >= sizeof(hdr)) {
-        edtt_read((uint8_t *) &hdr, sizeof(hdr), EDTTT_BLOCK);
-        size -= sizeof(hdr);
         om = ble_hci_trans_acl_buf_alloc();
-
         if (om) {
-            memcpy(OS_MBUF_USRHDR(om), &hdr, sizeof(hdr));
-            uint16_t hdr_length = hdr.hdh_len;
+            edtt_read((void *)&hdr, sizeof(hdr), EDTTT_BLOCK);
+            size -= sizeof(hdr);
 
-            if (size >= hdr_length) {
-                edtt_read(om->om_data, hdr_length, EDTTT_BLOCK);
-                size -= hdr_length;
+            os_mbuf_append(om, &hdr, sizeof(hdr));
+
+            if (size >= hdr.hdh_len) {
+                /* Don't care, we have plenty of stack */
+                uint8_t tmp[hdr.hdh_len];
+
+                edtt_read(tmp, hdr.hdh_len, EDTTT_BLOCK);
+                size -= hdr.hdh_len;
+
+                os_mbuf_append(om, tmp, hdr.hdh_len);
             }
 
             err = ble_hci_edtt_rx_acl_cb(om, NULL);
