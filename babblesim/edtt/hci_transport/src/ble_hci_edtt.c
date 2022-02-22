@@ -330,10 +330,12 @@ ble_hci_trans_buf_free(uint8_t *buf)
     } else if (os_memblock_from(&ble_hci_edtt_evt_lo_pool, buf)) {
         rc = os_memblock_put(&ble_hci_edtt_evt_lo_pool, buf);
         assert(rc == 0);
-    } else {
+    } else if (os_memblock_from(&ble_hci_edtt_cmd_pool, buf)) {
         assert(os_memblock_from(&ble_hci_edtt_cmd_pool, buf));
         rc = os_memblock_put(&ble_hci_edtt_cmd_pool, buf);
         assert(rc == 0);
+    } else {
+        free(buf);
     }
 }
 
@@ -545,6 +547,19 @@ queue_data(struct os_mbuf *om)
     return pkt;
 }
 
+
+static void *
+dup_complete_evt(void *evt)
+{
+    struct ble_hci_ev *evt_copy;
+
+    evt_copy = calloc(1, BLE_HCI_TRANS_CMD_SZ);
+    memcpy(evt_copy, evt, BLE_HCI_TRANS_CMD_SZ);
+    ble_hci_trans_buf_free((void *)evt);
+
+    return evt_copy;
+}
+
 /**
  * @brief Thread to service events and ACL data packets from the HCI input queue
  */
@@ -568,10 +583,12 @@ service_events(void *arg)
             /* Prepare and send EDTT events */
             switch (evt->opcode) {
             case BLE_HCI_EVCODE_COMMAND_COMPLETE:
+                evt = dup_complete_evt(evt);
                 queue_event(evt);
                 command_complete(evt);
                 break;
             case BLE_HCI_EVCODE_COMMAND_STATUS:
+                evt = dup_complete_evt(evt);
                 queue_event(evt);
                 command_status(evt);
                 break;
