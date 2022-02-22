@@ -1931,6 +1931,13 @@ ble_ll_scan_rx_pkt_in_on_legacy(uint8_t pdu_type, struct os_mbuf *om,
     ble_ll_scan_get_addr_data_from_legacy(pdu_type, rxbuf, addrd);
     ble_ll_scan_rx_pkt_in_restore_addr_data(hdr, addrd);
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    if (addrd->adva_resolved) {
+        BLE_LL_ASSERT(addrd->rpa_index >= 0);
+        ble_ll_resolv_set_peer_rpa(addrd->rpa_index, addrd->adva);
+    }
+#endif
+
     send_hci_report = !scansm->scan_filt_dups ||
                       !ble_ll_scan_dup_check_legacy(addrd->adv_addr_type,
                                                     addrd->adv_addr,

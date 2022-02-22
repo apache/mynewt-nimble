@@ -1669,6 +1669,13 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    if (addrd.adva_resolved) {
+        BLE_LL_ASSERT(addrd.rpa_index >= 0);
+        ble_ll_resolv_set_peer_rpa(addrd.rpa_index, addrd.adva);
+    }
+#endif
+
     scan_duplicate = ble_ll_scan_get_filt_dups() &&
                      ble_ll_scan_dup_check_ext(addrd.adv_addr_type,
                                                addrd.adv_addr, true, aux->adi);
