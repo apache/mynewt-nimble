@@ -162,11 +162,11 @@ struct ble_ll_conn_phy_data
     uint32_t cur_rx_phy: 2;
     uint32_t new_tx_phy: 2;
     uint32_t new_rx_phy: 2;
-    uint32_t host_pref_tx_phys_mask: 3;
-    uint32_t host_pref_rx_phys_mask: 3;
-    uint32_t req_pref_tx_phys_mask: 3;
-    uint32_t req_pref_rx_phys_mask: 3;
-    uint32_t phy_options: 2;
+    uint32_t pref_mask_tx: 3;
+    uint32_t pref_mask_rx: 3;
+    uint32_t pref_mask_tx_req: 3;
+    uint32_t pref_mask_rx_req: 3;
+    uint32_t pref_opts: 2;
 }  __attribute__((packed));
 
 #define CONN_CUR_TX_PHY_MASK(csm)   (1 << ((csm)->phy_data.cur_tx_phy - 1))

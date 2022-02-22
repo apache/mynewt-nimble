@@ -1597,6 +1597,7 @@ ble_ll_validate_task(void)
 int
 ble_ll_reset(void)
 {
+    uint8_t phy_mask;
     int rc;
     os_sr_t sr;
 
@@ -1634,8 +1635,17 @@ ble_ll_reset(void)
     STATS_RESET(ble_ll_stats);
 
     /* Reset any preferred PHYs */
-    g_ble_ll_data.ll_pref_tx_phys = 0;
-    g_ble_ll_data.ll_pref_rx_phys = 0;
+    phy_mask = BLE_PHY_MASK_1M;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    phy_mask |= BLE_PHY_MASK_2M;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    phy_mask |= BLE_PHY_MASK_CODED;
+#endif
+    phy_mask &= MYNEWT_VAL(BLE_LL_CONN_PHY_DEFAULT_PREF_MASK);
+    BLE_LL_ASSERT(phy_mask);
+    g_ble_ll_data.ll_pref_tx_phys = phy_mask;
+    g_ble_ll_data.ll_pref_rx_phys = phy_mask;
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Reset connection module */

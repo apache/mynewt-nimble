@@ -672,7 +672,7 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
     /* Must check if we need to start host procedure */
     if (chk_host_phy) {
         if (CONN_F_HOST_PHY_UPDATE(connsm)) {
-            if (ble_ll_conn_chk_phy_upd_start(connsm)) {
+            if (ble_ll_conn_phy_update_if_needed(connsm)) {
                 CONN_F_HOST_PHY_UPDATE(connsm) = 0;
             } else {
                 chk_proc_stop = 0;
@@ -751,11 +751,11 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     /* Get m_to_s and s_to_m masks */
     if (periph_req) {
-        m_to_s = connsm->phy_data.host_pref_tx_phys_mask & rx_phys;
-        s_to_m = connsm->phy_data.host_pref_rx_phys_mask & tx_phys;
+        m_to_s = connsm->phy_data.pref_mask_tx & rx_phys;
+        s_to_m = connsm->phy_data.pref_mask_rx & tx_phys;
     } else {
-        m_to_s = connsm->phy_data.req_pref_tx_phys_mask & rx_phys;
-        s_to_m = connsm->phy_data.req_pref_rx_phys_mask & tx_phys;
+        m_to_s = connsm->phy_data.pref_mask_tx_req & rx_phys;
+        s_to_m = connsm->phy_data.pref_mask_rx_req & tx_phys;
     }
 
     if (is_periph_sym) {
@@ -844,17 +844,8 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 static void
 ble_ll_ctrl_phy_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
 {
-    /* If no preference we use current phy */
-    if (connsm->phy_data.host_pref_tx_phys_mask == 0) {
-        ctrdata[0] = CONN_CUR_TX_PHY_MASK(connsm);
-    } else {
-        ctrdata[0] = connsm->phy_data.host_pref_tx_phys_mask;
-    }
-    if (connsm->phy_data.host_pref_rx_phys_mask == 0) {
-        ctrdata[1] = CONN_CUR_RX_PHY_MASK(connsm);
-    } else {
-        ctrdata[1] = connsm->phy_data.host_pref_rx_phys_mask;
-    }
+    ctrdata[0] = connsm->phy_data.pref_mask_tx;
+    ctrdata[1] = connsm->phy_data.pref_mask_rx;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
@@ -3017,7 +3008,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->phy_tx_transition =
                     ble_ll_ctrl_phy_tx_transition_get(
-                            connsm->phy_data.req_pref_tx_phys_mask);
+                            connsm->phy_data.pref_mask_tx_req);
         }
         break;
 #endif
