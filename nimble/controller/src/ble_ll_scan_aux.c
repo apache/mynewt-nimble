@@ -1567,8 +1567,9 @@ ble_ll_scan_aux_rx_pkt_in_for_initiator(struct os_mbuf *rxpdu,
     aux = rxinfo->user_data;
 
     if (rxinfo->flags & BLE_MBUF_HDR_F_IGNORED) {
+        ble_ll_scan_aux_free(aux);
         ble_ll_scan_chk_resume();
-        goto done;
+        return;
     }
 
     if (!(rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_RSP_RXD)) {
@@ -1582,19 +1583,14 @@ ble_ll_scan_aux_rx_pkt_in_for_initiator(struct os_mbuf *rxpdu,
     if (ble_ll_scan_aux_check_connect_rsp(rxpdu->om_data,
                                           ble_ll_scan_get_pdu_data(),
                                           &addrd) < 0) {
+        ble_ll_conn_send_connect_req_cancel();
+        ble_ll_scan_aux_free(aux);
         ble_ll_scan_chk_resume();
-        goto done;
+        return;
     }
-
-    aux->flags &= ~BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP;
 
     ble_ll_scan_sm_stop(0);
     ble_ll_conn_created_on_aux(rxpdu, &addrd, aux->targeta);
-
-done:
-    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
-        ble_ll_conn_send_connect_req_cancel();
-    }
     ble_ll_scan_aux_free(aux);
 }
 #endif
