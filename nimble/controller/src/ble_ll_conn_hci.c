@@ -532,6 +532,9 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CMD_DISALLOWED;
     }
 
+    if (ble_ll_conn_find_by_peer_addr(cmd->peer_addr, cmd->peer_addr_type)) {
+        return BLE_ERR_ACL_CONN_EXISTS;
+    }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     css_slot_idx = ble_ll_conn_css_get_next_slot();
@@ -750,6 +753,10 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     /* If already enabled, we return an error */
     if (ble_ll_scan_enabled()) {
         return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (ble_ll_conn_find_by_peer_addr(cmd->peer_addr, cmd->peer_addr_type)) {
+        return BLE_ERR_ACL_CONN_EXISTS;
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)

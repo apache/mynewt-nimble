@@ -483,6 +483,21 @@ ble_ll_conn_css_move(struct ble_ll_conn_sm *connsm, uint16_t slot_idx)
 }
 #endif
 
+struct ble_ll_conn_sm *
+ble_ll_conn_find_by_peer_addr(const uint8_t *addr, uint8_t addr_type)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
+        if (!memcmp(&connsm->peer_addr, addr, BLE_DEV_ADDR_LEN) &&
+            !((connsm->peer_addr_type ^ addr_type) & 1)) {
+            return connsm;
+        }
+    }
+
+    return NULL;
+}
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 static inline int
 ble_ll_conn_phy_should_update(uint8_t pref_mask, uint8_t curr_mask)

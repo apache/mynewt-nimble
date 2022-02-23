@@ -4111,37 +4111,6 @@ ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
 #endif
 
 /**
- * Says whether the specified address is already connected or not.
- * @param   [in]    addr        The peer address.
- * @param   [in]    addr_type   Public address (0) or random address (1).
- * @return  Return 1 if already connected, 0 otherwise.
- */
-#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-static int
-ble_ll_adv_already_connected(const uint8_t* addr, uint8_t addr_type)
-{
-    struct ble_ll_conn_sm *connsm;
-
-    /* extracted from ble_ll_conn_periph_start function */
-    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
-        if (!memcmp(&connsm->peer_addr, addr, BLE_DEV_ADDR_LEN)) {
-            if (addr_type == BLE_ADDR_RANDOM) {
-                if (connsm->peer_addr_type & 1) {
-                    return 1;
-                }
-            } else {
-                if ((connsm->peer_addr_type & 1) == 0) {
-                    return 1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-#endif
-
-/**
  * Called when the LL receives a scan request or connection request
  *
  * Context: Called from interrupt context.
@@ -4278,7 +4247,7 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
     } else if (pdu_type == BLE_ADV_PDU_TYPE_AUX_CONNECT_REQ) {
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         /* See if the device is already connected */
-        if (ble_ll_adv_already_connected(peer, peer_addr_type)) {
+        if (ble_ll_conn_find_by_peer_addr(peer, peer_addr_type)) {
             return -1;
         }
 
