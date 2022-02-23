@@ -163,7 +163,7 @@ void ble_ll_conn_central_init(struct ble_ll_conn_sm *connsm,
                               struct ble_ll_conn_create_scan *cc_scan,
                               struct ble_ll_conn_create_params *cc_params);
 
-struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+struct ble_ll_conn_sm *ble_ll_conn_find_by_handle(uint16_t handle);
 void ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm);
 
 /* Advertising interface */

@@ -384,7 +384,7 @@ ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
          * case we can simply ignore command for that connection since credits
          * are returned by LL already.
          */
-        connsm = ble_ll_conn_find_active_conn(cp->h[i].handle);
+        connsm = ble_ll_conn_find_by_handle(cp->h[i].handle);
         if (connsm) {
             ble_ll_conn_cth_flow_free_credit(connsm, cp->h[i].count);
         }
@@ -670,7 +670,7 @@ ble_ll_conn_current_sm_over(struct ble_ll_conn_sm *connsm)
  * @return struct ble_ll_conn_sm*
  */
 struct ble_ll_conn_sm *
-ble_ll_conn_find_active_conn(uint16_t handle)
+ble_ll_conn_find_by_handle(uint16_t handle)
 {
     struct ble_ll_conn_sm *connsm;
 
@@ -3146,7 +3146,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     /* XXX: there is a chance that the connection was thrown away and
        re-used before processing packets here. Fix this. */
     /* We better have a connection state machine */
-    connsm = ble_ll_conn_find_active_conn(hdr->rxinfo.handle);
+    connsm = ble_ll_conn_find_by_handle(hdr->rxinfo.handle);
     if (!connsm) {
        STATS_INC(ble_ll_conn_stats, no_conn_sm);
        goto conn_rx_data_pdu_end;
@@ -3704,7 +3704,7 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
 
     /* See if we have an active matching connection handle */
     conn_handle = handle & 0x0FFF;
-    connsm = ble_ll_conn_find_active_conn(conn_handle);
+    connsm = ble_ll_conn_find_by_handle(conn_handle);
     if (connsm) {
         /* Construct LL header in buffer (NOTE: pb already checked) */
         pb = handle & 0x3000;

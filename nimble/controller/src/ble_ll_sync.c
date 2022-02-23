@@ -2177,7 +2177,7 @@ ble_ll_sync_transfer(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         OS_EXIT_CRITICAL(sr);

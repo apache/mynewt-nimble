@@ -389,12 +389,7 @@ struct ble_ll_conn_sm
 #define CONN_IS_PERIPHERAL(csm)     (false)
 #endif
 
-/*
- * Given a handle, returns an active connection state machine (or NULL if the
- * handle does not exist
- *
- */
-struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+struct ble_ll_conn_sm *ble_ll_conn_find_by_handle(uint16_t handle);
 struct ble_ll_conn_sm *ble_ll_conn_find_by_peer_addr(const uint8_t* addr,
                                                      uint8_t addr_type);
 

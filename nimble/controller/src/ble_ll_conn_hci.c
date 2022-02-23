@@ -891,7 +891,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /* If no connection handle exit with error */
-    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
@@ -950,7 +950,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
 
     /* If no connection handle exit with error */
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
@@ -1066,7 +1066,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
     }
 
     /* If we dont have a handle we cant do anything */
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto done;
@@ -1132,7 +1132,7 @@ ble_ll_conn_hci_param_nrr(const uint8_t *cmdbuf, uint8_t len,
     }
 
     /* If we dont have a handle we cant do anything */
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto done;
@@ -1244,7 +1244,7 @@ ble_ll_conn_hci_disconnect_cmd(const struct ble_hci_lc_disconnect_cp *cmd)
         case BLE_ERR_UNSUPP_REM_FEATURE:
         case BLE_ERR_UNIT_KEY_PAIRING:
         case BLE_ERR_CONN_PARMS:
-            connsm = ble_ll_conn_find_active_conn(handle);
+            connsm = ble_ll_conn_find_by_handle(handle);
             if (connsm) {
                 /* Do not allow command if we are in process of disconnecting */
                 if (connsm->disconnect_reason) {
@@ -1293,7 +1293,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /* Check for valid parameters */
-    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
@@ -1343,7 +1343,7 @@ ble_ll_conn_hci_rd_rssi(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uin
 
     rsp->handle = cmd->handle;
 
-    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->handle));
     if (!connsm) {
         rsp->rssi = 127;
         rc = BLE_ERR_UNK_CONN_ID;
@@ -1380,7 +1380,7 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
     }
 
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         memset(rsp->chan_map, 0, sizeof(rsp->chan_map));
@@ -1453,7 +1453,7 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
 
     /* Find connection */
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto done;
@@ -1518,7 +1518,7 @@ ble_ll_conn_hci_le_start_encrypt(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -1571,7 +1571,7 @@ ble_ll_conn_hci_le_ltk_reply(const uint8_t *cmdbuf, uint8_t len,
 
     /* Find connection handle */
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto ltk_key_cmd_complete;
@@ -1630,7 +1630,7 @@ ble_ll_conn_hci_le_ltk_neg_reply(const uint8_t *cmdbuf, uint8_t len,
 
     /* Find connection handle */
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto ltk_key_cmd_complete;
@@ -1673,7 +1673,7 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
     const struct ble_hci_le_request_peer_sca_cp *params = (const void *)cmdbuf;
     struct ble_ll_conn_sm *connsm;
 
-    connsm = ble_ll_conn_find_active_conn(le16toh(params->conn_handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(params->conn_handle));
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
@@ -1718,7 +1718,7 @@ ble_ll_conn_hci_rd_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
     }
 
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         rsp->tmo = 0;
@@ -1761,7 +1761,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
 
     handle = le16toh(cmd->conn_handle);
 
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
     } else {
@@ -1814,7 +1814,7 @@ ble_ll_conn_hci_le_rd_phy(const uint8_t *cmdbuf, uint8_t len,
     }
 
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rsp->tx_phy = 0;
         rsp->rx_phy = 0;
@@ -1854,7 +1854,7 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
     }
 
     handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
@@ -1965,7 +1965,7 @@ ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    connsm = ble_ll_conn_find_active_conn(le16toh(cmd->conn_handle));
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
         goto done;
