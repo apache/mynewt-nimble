@@ -4084,7 +4084,7 @@ ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
          goto done;
      }
 
-     connsm = ble_ll_conn_find_active_conn(handle);
+     connsm = ble_ll_conn_find_by_handle(handle);
      if (!connsm) {
          rc = BLE_ERR_UNK_CONN_ID;
          goto done;
