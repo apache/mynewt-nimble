@@ -395,6 +395,8 @@ struct ble_ll_conn_sm
  *
  */
 struct ble_ll_conn_sm *ble_ll_conn_find_active_conn(uint16_t handle);
+struct ble_ll_conn_sm *ble_ll_conn_find_by_peer_addr(const uint8_t* addr,
+                                                     uint8_t addr_type);
 
 /* required for unit testing */
 uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
