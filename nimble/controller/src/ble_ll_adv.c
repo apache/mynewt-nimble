@@ -3969,6 +3969,10 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
             return BLE_ERR_CMD_DISALLOWED;
         }
 
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED)) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         /* If Enable is set to 0x01 and the length of the periodic advertising
          * data is greater than the maximum that the Controller can transmit
          * within the chosen periodicadvertising interval, the Controller shall
