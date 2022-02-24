@@ -3831,7 +3831,8 @@ ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr
         (connsm->conn_itvl < BLE_HCI_CONN_ITVL_MIN) ||
         (connsm->conn_itvl > BLE_HCI_CONN_ITVL_MAX) ||
         (connsm->tx_win_size < BLE_LL_CONN_TX_WIN_MIN) ||
-        (connsm->periph_latency > BLE_LL_CONN_PERIPH_LATENCY_MAX)) {
+        (connsm->periph_latency > BLE_LL_CONN_PERIPH_LATENCY_MAX) ||
+        (connsm->hop_inc < 5) || (connsm->hop_inc > 16)) {
         goto err_periph_start;
     }
 
