@@ -40,7 +40,7 @@ ble_hs_startup_read_sup_f_tx(void)
     /* for now we don't use it outside of init sequence so check this here
      * LE Supported (Controller) byte 4, bit 6
      */
-    if (!(rsp.features & 0x0000006000000000)) {
+    if (!(le64toh(rsp.features) & 0x0000006000000000)) {
         BLE_HS_LOG(ERROR, "Controller doesn't support LE\n");
         return BLE_HS_ECONTROLLER;
     }
