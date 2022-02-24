@@ -3161,6 +3161,15 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     acl_len = rxbuf[1];
     llid = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
 
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
+        STATS_INC(ble_ll_conn_stats, mic_failures);
+        ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+        goto conn_rx_data_pdu_end;
+    }
+#endif
+
     /*
      * Check that the LLID and payload length are reasonable.
      * Empty payload is only allowed for LLID == 01b.
@@ -3231,18 +3240,6 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     if ((llid == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
         goto conn_rx_data_pdu_end;
     }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    /*
-     * XXX: should we check to see if we are in a state where we
-     * might expect to get an encrypted PDU?
-     */
-    if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
-        STATS_INC(ble_ll_conn_stats, mic_failures);
-        ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
-        goto conn_rx_data_pdu_end;
-    }
-#endif
 
     if (llid == BLE_LL_LLID_CTRL) {
         /* Process control frame */
