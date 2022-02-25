@@ -1547,7 +1547,7 @@ ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
     }
 #endif /* BLE_LL_CFG_FEAT_LL_PRIVACY */
 
-    if ((targeta_type != !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK)) ||
+    if ((targeta_type != !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_TXADD_MASK)) ||
         (memcmp(targeta, pdu_data->inita, 6) != 0)) {
         return -1;
     }
