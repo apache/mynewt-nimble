@@ -3417,16 +3417,6 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         /* Set last valid received pdu time (resets supervision timer) */
         connsm->last_rxd_pdu_cputime = begtime + ble_ll_tmr_u2t(add_usecs);
 
-        /*
-         * Check for valid LLID before proceeding. We have seen some weird
-         * things with the PHY where the CRC is OK but we dont have a valid
-         * LLID. This should really never happen but if it does we will just
-         * bail. An error stat will get incremented at the LL.
-         */
-        if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == 0) {
-            goto conn_exit;
-        }
-
         /* Set last received header byte */
         connsm->last_rxd_hdr_byte = hdr_byte;
 
