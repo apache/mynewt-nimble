@@ -1011,7 +1011,6 @@ struct ble_hci_le_request_peer_sca_cp {
     uint16_t conn_handle;
 } __attribute__((packed));
 
-#if MYNEWT_VAL(BLE_ISO)
 #define BLE_HCI_OCF_LE_SETUP_ISO_DATA_PATH               (0x006e)
 struct ble_hci_le_iso_setup_data_path_cp {
     uint16_t iso_handle;
@@ -1022,13 +1021,17 @@ struct ble_hci_le_iso_setup_data_path_cp {
     uint8_t codec_conf_len;
     uint8_t codec_conf[0];
 } __attribute__((packed));
+struct ble_hci_le_iso_setup_data_path_rp {
+    uint16_t iso_handle;
+} __attribute__((packed));
 
-#define BLE_HCI_LE_REMOVE_INPUT_DATA_PATH_BIT            (0x01)
-#define BLE_HCI_LE_REMOVE_OUTPUT_DATA_PATH_BIT           (0x02)
 #define BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH              (0x006f)
 struct ble_hci_le_iso_remove_data_path_cp {
     uint16_t iso_handle;
     uint8_t direction;
+} __attribute__((packed));
+struct ble_hci_le_iso_remove_data_path_rp {
+    uint16_t iso_handle;
 } __attribute__((packed));
 
 #if MYNEWT_VAL(BLE_ISO_TEST)
@@ -1052,7 +1055,6 @@ struct ble_hci_le_iso_read_test_counters_cp {
 struct ble_hci_le_iso_test_end_cp {
     uint16_t iso_handle;
 } __attribute__((packed));
-#endif
 #endif
 
 #define BLE_HCI_OCF_LE_SET_HOST_FEAT                     (0x0074)

@@ -44,6 +44,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_ll_plna.h"
+#include "controller/ble_ll_isoal.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -1951,6 +1952,10 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
     ble_ll_hci_vs_init();
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO)
+    ble_ll_isoal_init();
 #endif
 
 #if MYNEWT

@@ -33,6 +33,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_isoal.h"
 #include "controller/ble_ll_iso.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
@@ -335,7 +336,7 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
+#if MYNEWT_VAL(BLE_LL_ISO)
 /**
  * HCI read buffer size v2 command. Returns the ACL and ISO data packet length and
  * num data packets.
@@ -352,8 +353,9 @@ ble_ll_hci_le_read_bufsize_v2(uint8_t *rspbuf, uint8_t *rsplen)
 
     rp->data_len = htole16(g_ble_ll_data.ll_acl_pkt_size);
     rp->data_packets = g_ble_ll_data.ll_num_acl_pkts;
-    rp->iso_data_len = 0;
-    rp->iso_data_packets = 0;
+    /* XXX for testing only */
+    rp->iso_data_len = 512;
+    rp->iso_data_packets = 10;
 
     *rsplen = sizeof(*rp);
     return BLE_ERR_SUCCESS;
@@ -1252,18 +1254,20 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_BIG_TERMINATE_SYNC:
         rc = ble_ll_iso_big_terminate_sync(cmdbuf,len);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO)
     case BLE_HCI_OCF_LE_SETUP_ISO_DATA_PATH:
-        rc = ble_ll_iso_setup_iso_data_path(cmdbuf, len);
+        rc = ble_ll_isoal_hci_setup_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH:
-        rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len);
+        rc = ble_ll_isoal_hci_remove_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
         if (len == 0) {
             rc = ble_ll_hci_le_read_bufsize_v2(rspbuf, rsplen);
         }
         break;
-#endif
+#endif /* BLE_LL_ISO */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO_TEST)
     case BLE_HCI_OCF_LE_SET_CIG_PARAM_TEST:
         rc = ble_ll_iso_set_cig_param_test(cmdbuf, len, rspbuf, rsplen);
