@@ -472,6 +472,23 @@ syscfg.defs:
             Enable support for runtime antenna selection in FEM.
         value: 0
 
+    BLE_LL_ISO:
+        description: >
+            Enable support for isochronous data.
+            This enables common code (e.g. ISOAL) for all types of isochronous
+            data, particular ISO features have to be enabled separately.
+        restrictions:
+            - (BLE_VERSION >= 52) if 1
+        value: 0
+        state: experimental
+    BLE_LL_ISO_BROADCASTER:
+        description: >
+            Enable support for Isochronous Broadcasting state.
+        restrictions:
+            - BLE_LL_ISO if 1
+        value: 0
+        state: experimental
+
     BLE_LL_SYSINIT_STAGE:
         description: >
             Sysinit stage for the NimBLE controller.
