@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 uint32_t ble_ll_utils_calc_access_addr(void);
+uint32_t ble_ll_utils_calc_seed_aa(void);
 uint8_t ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap);
 uint8_t ble_ll_utils_dci_csa2(uint16_t counter, uint16_t chan_id,
                               uint8_t num_used_chans, const uint8_t *chan_map);
