@@ -144,6 +144,45 @@ ble_ll_utils_calc_access_addr(void)
     return aa;
 }
 
+uint32_t
+ble_ll_utils_calc_seed_aa(void)
+{
+    uint32_t seed_aa;
+
+    while (1) {
+        seed_aa = ble_ll_rand();
+
+        /* saa(19) == saa(15) */
+        if (!!(seed_aa & (1 << 19)) != !!(seed_aa & (1 << 15))) {
+            continue;
+        }
+
+        /* saa(22) = saa(16) */
+        if (!!(seed_aa & (1 << 22)) != !!(seed_aa & (1 << 16))) {
+            continue;
+        }
+
+        /* saa(22) != saa(15) */
+        if (!!(seed_aa & (1 << 22)) == !!(seed_aa & (1 << 15))) {
+            continue;
+        }
+
+        /* saa(25) == 0 */
+        if (seed_aa & (1 << 25)) {
+            continue;
+        }
+
+        /* saa(23) == 1 */
+        if (!(seed_aa & (1 << 23))) {
+            continue;
+        }
+
+        break;
+    }
+
+    return seed_aa;
+}
+
 uint8_t
 ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
 {
