@@ -32,6 +32,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_iso_big.h"
 #if MYNEWT_VAL(BLE_LL_EXT)
 #include "controller/ble_ll_ext.h"
 #endif
@@ -170,6 +171,12 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
                 break;
 #endif
 #endif
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+        case BLE_LL_SCHED_TYPE_BIG:
+            /* FIXME sometimes it may be useful to preempt... */
+            BLE_LL_ASSERT(0);
+            break;
 #endif
 #if MYNEWT_VAL(BLE_LL_EXT)
             case BLE_LL_SCHED_TYPE_EXTERNAL:
@@ -883,6 +890,30 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+int
+ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first)
+{
+    os_sr_t sr;
+    int rc;
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (first) {
+        rc = ble_ll_sched_insert(sch, BLE_LL_SCHED_MAX_DELAY_ANY, preempt_none);
+    } else {
+        /* XXX provide better strategy for preemption */
+        rc = ble_ll_sched_insert(sch, 0, preempt_any);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sched_restart();
+
+    return rc;
+}
+#endif /* BLE_LL_ISO_BROADCASTER */
+
 /**
  * Remove a schedule element
  *
@@ -1021,6 +1052,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     case BLE_LL_STATE_CONNECTION:
         STATS_INC(ble_ll_stats, sched_state_conn_errs);
         ble_ll_conn_event_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_LL_STATE_BIG:
+        ble_ll_iso_big_halt();
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_EXT)

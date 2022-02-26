@@ -46,6 +46,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_fem.h"
+#include "controller/ble_ll_iso_big.h"
 #if MYNEWT_VAL(BLE_LL_EXT)
 #include "controller/ble_ll_ext.h"
 #endif
@@ -1678,6 +1679,10 @@ ble_ll_reset(void)
     ble_fem_lna_init();
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    ble_ll_iso_big_reset();
+#endif
+
     /* Re-initialize the PHY */
     rc = ble_phy_init();
 
@@ -1913,8 +1918,11 @@ ble_ll_init(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
     features |= BLE_LL_FEAT_CIS_CENTRAL;
     features |= BLE_LL_FEAT_CIS_PERIPH;
+    features |= BLE_LL_FEAT_CIS_HOST;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     features |= BLE_LL_FEAT_ISO_BROADCASTER;
-    features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
@@ -1940,6 +1948,10 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
     ble_ll_hci_vs_init();
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    ble_ll_iso_big_init();
 #endif
 
 #if MYNEWT_VAL(BLE_LL_EXT)

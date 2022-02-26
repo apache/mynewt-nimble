@@ -35,6 +35,7 @@
 #include "controller/ble_ll_sync.h"
 #include <controller/ble_ll_utils.h>
 #include "controller/ble_ll_iso.h"
+#include "controller/ble_ll_iso_big.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
@@ -338,7 +339,7 @@ ble_ll_hci_le_read_bufsize(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
+#if MYNEWT_VAL(BLE_LL_ISO)
 /**
  * HCI read buffer size v2 command. Returns the ACL and ISO data packet length and
  * num data packets.
@@ -355,8 +356,9 @@ ble_ll_hci_le_read_bufsize_v2(uint8_t *rspbuf, uint8_t *rsplen)
 
     rp->data_len = htole16(g_ble_ll_data.ll_acl_pkt_size);
     rp->data_packets = g_ble_ll_data.ll_num_acl_pkts;
-    rp->iso_data_len = 0;
-    rp->iso_data_packets = 0;
+    /* XXX for testing only */
+    rp->iso_data_len = 512;
+    rp->iso_data_packets = 10;
 
     *rsplen = sizeof(*rp);
     return BLE_ERR_SUCCESS;
@@ -661,6 +663,11 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_GEN_DHKEY:
     case BLE_HCI_OCF_LE_SET_PHY:
     case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_HCI_OCF_LE_CREATE_BIG:
+    case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
+    case BLE_HCI_OCF_LE_TERMINATE_BIG:
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     case BLE_HCI_OCF_LE_REQ_PEER_SCA:
 #endif
@@ -862,6 +869,9 @@ ble_ll_hci_le_set_host_chan_class(const uint8_t *cmdbuf, uint8_t len)
     g_ble_ll_data.chan_map_used = chan_map_used;
 
     ble_ll_conn_chan_map_update();
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    ble_ll_iso_big_chan_map_update();
+#endif
 
     return BLE_ERR_SUCCESS;
 }
@@ -1254,6 +1264,17 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_set_default_sync_transfer_params(cmdbuf, len);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_HCI_OCF_LE_CREATE_BIG:
+        rc = ble_ll_iso_big_hci_create(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
+        rc = ble_ll_iso_big_hci_create_test(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_TERMINATE_BIG:
+        rc = ble_ll_iso_big_hci_terminate(cmdbuf, len);
+        break;
+#endif /* BLE_LL_ISO_BROADCASTER */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
         rc = ble_ll_iso_read_tx_sync(cmdbuf, len);
@@ -1273,12 +1294,6 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_REJECT_CIS_REQ:
         rc = ble_ll_iso_reject_cis_req(cmdbuf, len);
         break;
-    case BLE_HCI_OCF_LE_CREATE_BIG:
-        rc = ble_ll_iso_create_big(cmdbuf, len);
-        break;
-    case BLE_HCI_OCF_LE_TERMINATE_BIG:
-        rc = ble_ll_iso_terminate_big(cmdbuf, len);
-        break;
     case BLE_HCI_OCF_LE_BIG_CREATE_SYNC:
         rc = ble_ll_iso_big_create_sync(cmdbuf, len);
         break;
@@ -1291,12 +1306,14 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH:
         rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO)
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
         if (len == 0) {
             rc = ble_ll_hci_le_read_bufsize_v2(rspbuf, rsplen);
         }
         break;
-#endif
+#endif /* BLE_LL_ISO */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO_TEST)
     case BLE_HCI_OCF_LE_SET_CIG_PARAM_TEST:
         rc = ble_ll_iso_set_cig_param_test(cmdbuf, len, rspbuf, rsplen);
