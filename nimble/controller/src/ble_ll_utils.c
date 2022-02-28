@@ -202,10 +202,22 @@ ble_ll_utils_calc_num_used_chans(const uint8_t *chan_map)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
-static uint16_t
-ble_ll_utils_csa2_perm(uint16_t in)
+#if __thumb2__
+static inline uint32_t
+ble_ll_utils_csa2_perm(uint32_t val)
 {
-    uint16_t out = 0;
+    __asm__ volatile (".syntax unified      \n"
+                      "rbit %[val], %[val]  \n"
+                      "rev %[val], %[val]   \n"
+                      : [val] "+r" (val));
+
+    return val;
+}
+#else
+static uint32_t
+ble_ll_utils_csa2_perm(uint32_t in)
+{
+    uint32_t out = 0;
     int i;
 
     for (i = 0; i < 8; i++) {
@@ -218,6 +230,7 @@ ble_ll_utils_csa2_perm(uint16_t in)
 
     return out;
 }
+#endif
 
 static uint16_t
 ble_ll_utils_csa2_prng(uint16_t counter, uint16_t ch_id)
