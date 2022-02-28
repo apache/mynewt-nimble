@@ -269,6 +269,75 @@ ble_ll_utils_csa2_prng(uint16_t counter, uint16_t ch_id)
     return prn_e;
 }
 
+/* Find remap_idx for given chan_idx */
+static uint16_t
+ble_ll_utils_csa2_chan2remap(uint16_t chan_idx, const uint8_t *chan_map)
+{
+    uint16_t remap_idx = 0;
+    uint32_t u32 = 0;
+    unsigned idx;
+
+    for (idx = 0; idx < 37; idx++) {
+        if ((idx % 8) == 0) {
+            u32 = chan_map[idx / 8];
+        }
+        if (u32 & 1) {
+            if (idx == chan_idx) {
+                return remap_idx;
+            }
+            remap_idx++;
+        }
+        u32 >>= 1;
+    }
+
+    BLE_LL_ASSERT(0);
+
+    return 0;
+}
+
+/* Find chan_idx at given remap_idx */
+static uint16_t
+ble_ll_utils_csa2_remap2chan(uint16_t remap_idx, const uint8_t *chan_map)
+{
+    uint32_t u32 = 0;
+    unsigned idx;
+
+    for (idx = 0; idx < 37; idx++) {
+        if ((idx % 8) == 0) {
+            u32 = chan_map[idx / 8];
+        }
+        if (u32 & 1) {
+            if (!remap_idx) {
+                return idx;
+            }
+            remap_idx--;
+        }
+        u32 >>= 1;
+    }
+
+    BLE_LL_ASSERT(0);
+
+    return 0;
+}
+
+static uint16_t
+ble_ll_utils_csa2_calc_chan_idx(uint16_t prn_e, uint8_t num_used_chans,
+                                const uint8_t *chanm_map, uint16_t *remap_idx)
+{
+    uint16_t chan_idx;
+
+    chan_idx = prn_e % 37;
+    if (chanm_map[chan_idx / 8] & (1 << (chan_idx % 8))) {
+        *remap_idx = ble_ll_utils_csa2_chan2remap(chan_idx, chanm_map);
+        return chan_idx;
+    }
+
+    *remap_idx = (num_used_chans * prn_e) / 65536;
+    chan_idx = ble_ll_utils_csa2_remap2chan(*remap_idx, chanm_map);
+
+    return chan_idx;
+}
+
 uint8_t
 ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
                            uint8_t num_used_chans, const uint8_t *chanmap)
