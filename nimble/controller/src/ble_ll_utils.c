@@ -342,28 +342,61 @@ uint8_t
 ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
                            uint8_t num_used_chans, const uint8_t *chanmap)
 {
-    uint16_t channel_unmapped;
-    uint8_t remap_index;
-
     uint16_t prn_e;
-    uint8_t bitpos;
+    uint16_t chan_idx;
+    uint16_t remap_idx;
 
     prn_e = ble_ll_utils_csa2_prng(event_cntr, channel_id);
 
-    channel_unmapped = prn_e % 37;
+    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, num_used_chans, chanmap,
+                                               &remap_idx);
 
-    /*
-     * If unmapped channel is the channel index of a used channel it is used
-     * as channel index.
-     */
-    bitpos = 1 << (channel_unmapped & 0x07);
-    if (chanmap[channel_unmapped >> 3] & bitpos) {
-        return channel_unmapped;
-    }
+    return chan_idx;
+}
 
-    remap_index = (num_used_chans * prn_e) / 0x10000;
+uint16_t
+ble_ll_utils_dci_iso_event(uint16_t counter, uint16_t chan_id,
+                           uint16_t *prn_sub_lu, uint8_t num_used_chans,
+                           const uint8_t *chan_map, uint16_t *remap_idx)
+{
+    uint16_t prn_s;
+    uint16_t prn_e;
+    uint16_t chan_idx;
 
-    return ble_ll_utils_remapped_channel(remap_index, chanmap);
+    prn_s = ble_ll_utils_csa2_prn_s(counter, chan_id);
+    prn_e = prn_s ^ chan_id;
+
+    *prn_sub_lu = prn_s;
+
+    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, num_used_chans, chan_map,
+                                               remap_idx);
+
+    return chan_idx;
+}
+
+uint16_t
+ble_ll_utils_dci_iso_subevent(uint16_t chan_id, uint16_t *prn_sub_lu,
+                              uint8_t num_used_chans, const uint8_t *chan_map,
+                              uint16_t *remap_idx)
+{
+    uint16_t prn_sub_se;
+    uint16_t chan_idx;
+    uint16_t d;
+
+    *prn_sub_lu = ble_ll_utils_csa2_perm(*prn_sub_lu);
+    *prn_sub_lu = ble_ll_utils_csa2_mam(*prn_sub_lu, chan_id);
+    prn_sub_se = *prn_sub_lu ^ chan_id;
+
+    /* Core 5.3, Vol 6, Part B, 4.5.8.3.6 (enjoy!) */
+    /* TODO optimize this somehow */
+    d = max(1, max(min(3, num_used_chans - 5),
+                   min(11, (num_used_chans - 10) / 2)));
+    *remap_idx = (*remap_idx + d + prn_sub_se *
+                  (num_used_chans - 2 * d + 1) / 65536) % num_used_chans;
+
+    chan_idx = ble_ll_utils_csa2_remap2chan(*remap_idx, chan_map);
+
+    return chan_idx;
 }
 #endif
 
