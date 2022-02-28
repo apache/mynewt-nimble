@@ -22,6 +22,7 @@
 #include "testutil/testutil.h"
 #include "controller/ble_ll_test.h"
 #include "controller/ble_ll_conn.h"
+#include "controller/ble_ll_utils.h"
 #include "ble_ll_csa2_test.h"
 
 TEST_CASE_SELF(ble_ll_csa2_test_1)
@@ -108,8 +109,179 @@ TEST_CASE_SELF(ble_ll_csa2_test_2)
     TEST_ASSERT(rc == 34);
 }
 
+TEST_CASE_SELF(ble_ll_csa2_test_3)
+{
+    uint8_t chan_map[5];
+    uint8_t num_used_chans;
+    uint16_t chan_id;
+    uint16_t prn_sub_lu;
+    uint16_t chan_idx;
+    uint16_t remap_idx;
+
+    /* Sample data: Core 5.3, Vol 6, Part C, 3.1 */
+    chan_map[0] = 0xff;
+    chan_map[1] = 0xff;
+    chan_map[2] = 0xff;
+    chan_map[3] = 0xff;
+    chan_map[4] = 0x1f;
+    num_used_chans = ble_ll_utils_calc_num_used_chans(chan_map);
+    TEST_ASSERT(num_used_chans == 37);
+    chan_id = 0x305f;
+
+    chan_idx = ble_ll_utils_dci_iso_event(0, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 56857);
+    TEST_ASSERT(chan_idx == 25);
+    TEST_ASSERT(remap_idx == 25);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 11710);
+    TEST_ASSERT(chan_idx == 1);
+    TEST_ASSERT(remap_idx == 1);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 16649);
+    TEST_ASSERT(chan_idx == 16);
+    TEST_ASSERT(remap_idx == 16);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 38198);
+    TEST_ASSERT(chan_idx == 36);
+    TEST_ASSERT(remap_idx == 36);
+
+    chan_idx = ble_ll_utils_dci_iso_event(1, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 1685);
+    TEST_ASSERT(chan_idx == 20);
+    TEST_ASSERT(remap_idx == 20);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 20925);
+    TEST_ASSERT(chan_idx == 36);
+    TEST_ASSERT(remap_idx == 36);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 11081);
+    TEST_ASSERT(chan_idx == 12);
+    TEST_ASSERT(remap_idx == 12);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 48920);
+    TEST_ASSERT(chan_idx == 34);
+    TEST_ASSERT(remap_idx == 34);
+
+    chan_idx = ble_ll_utils_dci_iso_event(2, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 38301);
+    TEST_ASSERT(chan_idx == 6);
+    TEST_ASSERT(remap_idx == 6);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 6541);
+    TEST_ASSERT(chan_idx == 18);
+    TEST_ASSERT(remap_idx == 18);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 14597);
+    TEST_ASSERT(chan_idx == 32);
+    TEST_ASSERT(remap_idx == 32);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 62982);
+    TEST_ASSERT(chan_idx == 21);
+    TEST_ASSERT(remap_idx == 21);
+
+    chan_idx = ble_ll_utils_dci_iso_event(3, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 27475);
+    TEST_ASSERT(chan_idx == 21);
+    TEST_ASSERT(remap_idx == 21);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 40400);
+    TEST_ASSERT(chan_idx == 4);
+    TEST_ASSERT(remap_idx == 4);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 30015);
+    TEST_ASSERT(chan_idx == 22);
+    TEST_ASSERT(remap_idx == 22);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 49818);
+    TEST_ASSERT(chan_idx == 8);
+    TEST_ASSERT(remap_idx == 8);
+
+    /* Sample data: Core 5.3, Vol 6, Part C, 3.2 */
+    chan_map[0] = 0x00;
+    chan_map[1] = 0x06;
+    chan_map[2] = 0xe0;
+    chan_map[3] = 0x00;
+    chan_map[4] = 0x1e;
+    num_used_chans = ble_ll_utils_calc_num_used_chans(chan_map);
+    TEST_ASSERT(num_used_chans == 9);
+    chan_id = 0x305f;
+
+    chan_idx = ble_ll_utils_dci_iso_event(6, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 10975);
+    TEST_ASSERT(chan_idx == 23);
+    TEST_ASSERT(remap_idx == 4);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 14383);
+    TEST_ASSERT(chan_idx == 35);
+    TEST_ASSERT(remap_idx == 7);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 28946);
+    TEST_ASSERT(chan_idx == 21);
+    TEST_ASSERT(remap_idx == 2);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 61038);
+    TEST_ASSERT(chan_idx == 36);
+    TEST_ASSERT(remap_idx == 8);
+
+    chan_idx = ble_ll_utils_dci_iso_event(7, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 5490);
+    TEST_ASSERT(chan_idx == 9);
+    TEST_ASSERT(remap_idx == 0);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 4108);
+    TEST_ASSERT(chan_idx == 22);
+    TEST_ASSERT(remap_idx == 3);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 45462);
+    TEST_ASSERT(chan_idx == 36);
+    TEST_ASSERT(remap_idx == 8);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 64381);
+    TEST_ASSERT(chan_idx == 33);
+    TEST_ASSERT(remap_idx == 5);
+
+    chan_idx = ble_ll_utils_dci_iso_event(8, chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 46970);
+    TEST_ASSERT(chan_idx == 34);
+    TEST_ASSERT(remap_idx == 6);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 7196);
+    TEST_ASSERT(chan_idx == 9);
+    TEST_ASSERT(remap_idx == 0);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 33054);
+    TEST_ASSERT(chan_idx == 33);
+    TEST_ASSERT(remap_idx == 5);
+
+    chan_idx = ble_ll_utils_dci_iso_subevent(chan_id, &prn_sub_lu, num_used_chans, chan_map, &remap_idx);
+    TEST_ASSERT((prn_sub_lu ^ chan_id) == 42590);
+    TEST_ASSERT(chan_idx == 10);
+    TEST_ASSERT(remap_idx == 1);
+}
+
 TEST_SUITE(ble_ll_csa2_test_suite)
 {
     ble_ll_csa2_test_1();
     ble_ll_csa2_test_2();
+    ble_ll_csa2_test_3();
 }
