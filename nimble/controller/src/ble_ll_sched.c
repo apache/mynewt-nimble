@@ -222,6 +222,8 @@ ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
 
     OS_ASSERT_CRITICAL();
 
+    BLE_LL_ASSERT(!sch->enqueued);
+
     preempt_first = NULL;
 
     max_start_time = sch->start_time + max_delay;
@@ -862,6 +864,30 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+int
+ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first)
+{
+    os_sr_t sr;
+    int rc;
+
+    OS_ENTER_CRITICAL(sr);
+
+    if (first) {
+        rc = ble_ll_sched_insert(sch, BLE_LL_SCHED_MAX_DELAY_ANY, preempt_none);
+    } else {
+        /* XXX provide better strategy for preemption */
+        rc = ble_ll_sched_insert(sch, 0, preempt_none);
+    }
+
+    OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sched_restart();
+
+    return rc;
+}
+#endif /* BLE_LL_ISO_BROADCASTER */
+
 /**
  * Remove a schedule element
  *
@@ -1000,6 +1026,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     case BLE_LL_STATE_CONNECTION:
         STATS_INC(ble_ll_stats, sched_state_conn_errs);
         ble_ll_conn_event_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_LL_STATE_BIG:
+        BLE_LL_ASSERT(0);
         break;
 #endif
     default:

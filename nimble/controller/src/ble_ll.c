@@ -45,6 +45,7 @@
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_ll_plna.h"
 #include "controller/ble_ll_isoal.h"
+#include "controller/ble_ll_iso_big.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -1677,6 +1678,13 @@ ble_ll_reset(void)
     ble_ll_plna_lna_init();
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO)
+    ble_ll_isoal_init();
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    ble_ll_iso_big_init();
+#endif
+
     /* Re-initialize the PHY */
     rc = ble_phy_init();
 
@@ -1929,8 +1937,11 @@ ble_ll_init(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
     features |= BLE_LL_FEAT_CIS_CENTRAL;
     features |= BLE_LL_FEAT_CIS_PERIPH;
+    features |= BLE_LL_FEAT_CIS_HOST;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     features |= BLE_LL_FEAT_ISO_BROADCASTER;
-    features |= BLE_LL_FEAT_ISO_HOST_SUPPORT;
 #endif
 
     lldata->ll_supp_features = features;
@@ -1956,6 +1967,9 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_ISO)
     ble_ll_isoal_init();
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    ble_ll_iso_big_init();
 #endif
 
 #if MYNEWT

@@ -833,7 +833,7 @@ struct ble_hci_le_set_default_periodic_sync_transfer_params_cp {
 #define BLE_HCI_OCF_LE_GENERATE_DHKEY_V2                 (0x005E)
 #define BLE_HCI_OCF_LE_MODIFY_SCA                        (0x005F)
 
-#if MYNEWT_VAL(BLE_ISO)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
 #define BLE_HCI_OCF_LE_READ_ISO_TX_SYNC                  (0x0061)
 struct ble_hci_le_read_iso_tx_sync_cp {
     uint16_t conn_handle;
@@ -942,16 +942,17 @@ struct ble_hci_le_reject_cis_request_cp {
 struct ble_hci_le_reject_cis_request_rp {
     uint16_t conn_handle;
 } __attribute__((packed));
+#endif
 
 #define BLE_HCI_OCF_LE_CREATE_BIG                        (0x0068)
 struct ble_hci_le_create_big_cp {
     uint8_t big_handle;
     uint8_t adv_handle;
-    uint8_t bis_cnt;
+    uint8_t num_bis;
     uint8_t sdu_interval[3];
     uint16_t max_sdu;
     uint16_t max_transport_latency;
-    uint8_t rnt;
+    uint8_t rtn;
     uint8_t phy;
     uint8_t packing;
     uint8_t framing;
@@ -959,12 +960,11 @@ struct ble_hci_le_create_big_cp {
     uint8_t broadcast_code[16];
 } __attribute__((packed));
 
-#if MYNEWT_VAL(BLE_ISO_TEST)
 #define BLE_HCI_OCF_LE_CREATE_BIG_TEST                   (0x0069)
 struct ble_hci_le_create_big_test_cp {
     uint8_t big_handle;
     uint8_t adv_handle;
-    uint8_t bis_cnt;
+    uint8_t num_bis;
     uint8_t sdu_interval[3];
     uint16_t iso_interval;
     uint8_t nse;
@@ -979,7 +979,6 @@ struct ble_hci_le_create_big_test_cp {
     uint8_t encryption;
     uint8_t broadcast_code[16];
 } __attribute__((packed));
-#endif
 
 #define BLE_HCI_OCF_LE_TERMINATE_BIG                     (0x006a)
 struct ble_hci_le_terminate_big_cp {
@@ -987,6 +986,7 @@ struct ble_hci_le_terminate_big_cp {
     uint8_t reason;
 } __attribute__((packed));
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
 #define BLE_HCI_LE_BIG_CREATE_SYNC_LEN_MIN               (25)
 #define BLE_HCI_OCF_LE_BIG_CREATE_SYNC                   (0x006b)
 struct ble_hci_le_big_create_sync_cp {
@@ -1748,8 +1748,8 @@ struct ble_hci_ev_le_subev_cis_request {
     uint8_t cis_id;
 } __attribute__((packed));
 
-#define BLE_HCI_LE_SUBEV_BIG_COMP               (0x1B)
-struct ble_hci_ev_le_subev_big_complete {
+#define BLE_HCI_LE_SUBEV_CREATE_BIG_COMPLETE    (0x1B)
+struct ble_hci_ev_le_subev_create_big_complete {
     uint8_t subev_code;
     uint8_t status;
     uint8_t big_handle;

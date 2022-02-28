@@ -35,6 +35,7 @@
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_ll_isoal.h"
 #include "controller/ble_ll_iso.h"
+#include "controller/ble_ll_iso_big.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
@@ -655,6 +656,10 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_GEN_DHKEY:
     case BLE_HCI_OCF_LE_SET_PHY:
     case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC:
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_HCI_OCF_LE_CREATE_BIG:
+    case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     case BLE_HCI_OCF_LE_REQ_PEER_SCA:
 #endif
@@ -1223,6 +1228,19 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_set_default_sync_transfer_params(cmdbuf, len);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_HCI_OCF_LE_CREATE_BIG:
+        *cb = ble_ll_iso_big_hci_evt_complete;
+        rc = ble_ll_iso_big_hci_create(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
+        *cb = ble_ll_iso_big_hci_evt_complete;
+        rc = ble_ll_iso_big_hci_create_test(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_TERMINATE_BIG:
+        rc = ble_ll_iso_big_hci_terminate(cmdbuf, len);
+        break;
+#endif /* BLE_LL_ISO_BROADCASTER */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
         rc = ble_ll_iso_read_tx_sync(cmdbuf, len);
@@ -1241,12 +1259,6 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
     case BLE_HCI_OCF_LE_REJECT_CIS_REQ:
         rc = ble_ll_iso_reject_cis_req(cmdbuf, len);
-        break;
-    case BLE_HCI_OCF_LE_CREATE_BIG:
-        rc = ble_ll_iso_create_big(cmdbuf, len);
-        break;
-    case BLE_HCI_OCF_LE_TERMINATE_BIG:
-        rc = ble_ll_iso_terminate_big(cmdbuf, len);
         break;
     case BLE_HCI_OCF_LE_BIG_CREATE_SYNC:
         rc = ble_ll_iso_big_create_sync(cmdbuf, len);
