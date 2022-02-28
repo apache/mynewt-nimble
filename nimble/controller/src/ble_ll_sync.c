@@ -1178,8 +1178,8 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
     }
 
     /* Calculate channel index of next event */
-    sm->chan_index = ble_ll_utils_calc_dci_csa2(sm->event_cntr, sm->channel_id,
-                                                sm->num_used_chans, sm->chanmap);
+    sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
+                                           sm->num_used_chans, sm->chanmap);
 
     cur_ww = ble_ll_utils_calc_window_widening(sm->anchor_point,
                                                sm->last_anchor_point,
@@ -1409,8 +1409,8 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     sm->window_widening = BLE_LL_JITTER_USECS;
 
     /* Calculate channel index of first event */
-    sm->chan_index = ble_ll_utils_calc_dci_csa2(sm->event_cntr, sm->channel_id,
-                                                sm->num_used_chans, sm->chanmap);
+    sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
+                                           sm->num_used_chans, sm->chanmap);
 
     if (ble_ll_sched_sync(&sm->sch, rxhdr->beg_cputime, rxhdr->rem_usecs,
                           offset, sm->phy_mode)) {
@@ -1957,8 +1957,8 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     sm->phy_mode = phy_mode;
 
     /* Calculate channel index of first event */
-    sm->chan_index = ble_ll_utils_calc_dci_csa2(sm->event_cntr, sm->channel_id,
-                                                sm->num_used_chans, sm->chanmap);
+    sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
+                                           sm->num_used_chans, sm->chanmap);
 
     /* get anchor for specified conn event */
     conn_event_count = get_le16(sync_ind + 20);

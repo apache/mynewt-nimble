@@ -747,8 +747,8 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (CONN_F_CSA2_SUPP(conn)) {
-        return ble_ll_utils_calc_dci_csa2(conn->event_cntr, conn->channel_id,
-                                          conn->num_used_chans, conn->chanmap);
+        return ble_ll_utils_dci_csa2(conn->event_cntr, conn->channel_id,
+                                     conn->num_used_chans, conn->chanmap);
     }
 #endif
 

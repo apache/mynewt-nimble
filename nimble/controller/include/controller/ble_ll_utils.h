@@ -21,8 +21,8 @@
 
 uint32_t ble_ll_utils_calc_access_addr(void);
 uint8_t ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap);
-uint8_t ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
-                                   uint8_t num_used_chans, const uint8_t *chanmap);
+uint8_t ble_ll_utils_dci_csa2(uint16_t counter, uint16_t chan_id,
+                              uint8_t num_used_chans, const uint8_t *chan_map);
 uint16_t ble_ll_utils_dci_iso_event(uint16_t counter, uint16_t chan_id,
                                     uint16_t *prn_sub_lu, uint8_t num_used_chans,
                                     const uint8_t *chan_map, uint16_t *remap_idx);

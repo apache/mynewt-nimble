@@ -339,16 +339,16 @@ ble_ll_utils_csa2_calc_chan_idx(uint16_t prn_e, uint8_t num_used_chans,
 }
 
 uint8_t
-ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
-                           uint8_t num_used_chans, const uint8_t *chanmap)
+ble_ll_utils_dci_csa2(uint16_t counter, uint16_t chan_id,
+                      uint8_t num_used_chans, const uint8_t *chan_map)
 {
     uint16_t prn_e;
     uint16_t chan_idx;
     uint16_t remap_idx;
 
-    prn_e = ble_ll_utils_csa2_prng(event_cntr, channel_id);
+    prn_e = ble_ll_utils_csa2_prng(counter, chan_id);
 
-    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, num_used_chans, chanmap,
+    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, num_used_chans, chan_map,
                                                &remap_idx);
 
     return chan_idx;
