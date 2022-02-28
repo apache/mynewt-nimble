@@ -232,23 +232,39 @@ ble_ll_utils_csa2_perm(uint32_t in)
 }
 #endif
 
+static inline uint32_t
+ble_ll_utils_csa2_mam(uint32_t a, uint32_t b)
+{
+    return (17 * a + b) % 65536;
+}
+
+static uint16_t
+ble_ll_utils_csa2_prn_s(uint16_t counter, uint16_t ch_id)
+{
+    uint32_t prn_s;
+
+    prn_s = counter ^ ch_id;
+
+    prn_s = ble_ll_utils_csa2_perm(prn_s);
+    prn_s = ble_ll_utils_csa2_mam(prn_s, ch_id);
+
+    prn_s = ble_ll_utils_csa2_perm(prn_s);
+    prn_s = ble_ll_utils_csa2_mam(prn_s, ch_id);
+
+    prn_s = ble_ll_utils_csa2_perm(prn_s);
+    prn_s = ble_ll_utils_csa2_mam(prn_s, ch_id);
+
+    return prn_s;
+}
+
 static uint16_t
 ble_ll_utils_csa2_prng(uint16_t counter, uint16_t ch_id)
 {
+    uint16_t prn_s;
     uint16_t prn_e;
 
-    prn_e = counter ^ ch_id;
-
-    prn_e = ble_ll_utils_csa2_perm(prn_e);
-    prn_e = (prn_e * 17) + ch_id;
-
-    prn_e = ble_ll_utils_csa2_perm(prn_e);
-    prn_e = (prn_e * 17) + ch_id;
-
-    prn_e = ble_ll_utils_csa2_perm(prn_e);
-    prn_e = (prn_e * 17) + ch_id;
-
-    prn_e = prn_e ^ ch_id;
+    prn_s = ble_ll_utils_csa2_prn_s(counter, ch_id);
+    prn_e = prn_s ^ ch_id;
 
     return prn_e;
 }
