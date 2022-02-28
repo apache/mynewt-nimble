@@ -23,7 +23,7 @@ uint32_t ble_ll_utils_calc_access_addr(void);
 uint8_t ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap);
 uint8_t ble_ll_utils_calc_dci_csa2(uint16_t event_cntr, uint16_t channel_id,
                                    uint8_t num_used_chans, const uint8_t *chanmap);
-uint8_t ble_ll_utils_calc_num_used_chans(const uint8_t *chanmap);
+uint8_t ble_ll_utils_calc_num_used_chans(const uint8_t *chan_map);
 uint32_t ble_ll_utils_calc_window_widening(uint32_t anchor_point,
                                            uint32_t last_anchor_point,
                                            uint8_t central_sca);

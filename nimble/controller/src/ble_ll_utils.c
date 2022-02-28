@@ -182,32 +182,23 @@ ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
 }
 
 uint8_t
-ble_ll_utils_calc_num_used_chans(const uint8_t *chmap)
+ble_ll_utils_calc_num_used_chans(const uint8_t *chan_map)
 {
-    int i;
-    int j;
-    uint8_t mask;
-    uint8_t chanbyte;
-    uint8_t used_channels;
+    uint32_t u32 = 0;
+    uint32_t num_used_chans = 0;
+    unsigned idx;
 
-    used_channels = 0;
-    for (i = 0; i < BLE_LL_CHMAP_LEN; ++i) {
-        chanbyte = chmap[i];
-        if (chanbyte) {
-            if (chanbyte == 0xff) {
-                used_channels += 8;
-            } else {
-                mask = 0x01;
-                for (j = 0; j < 8; ++j) {
-                    if (chanbyte & mask) {
-                        ++used_channels;
-                    }
-                    mask <<= 1;
-                }
-            }
+    for (idx = 0; idx < 37; idx++) {
+        if ((idx % 8) == 0) {
+            u32 = chan_map[idx / 8];
         }
+        if (u32 & 1) {
+            num_used_chans++;
+        }
+        u32 >>= 1;
     }
-    return used_channels;
+
+    return num_used_chans;
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
