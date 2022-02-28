@@ -199,6 +199,13 @@ int ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
                                           uint8_t *rspbuf, uint8_t *rsplen);
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+struct ble_ll_iso_big;
+struct ble_ll_adv_sm *ble_ll_adv_sync_get(uint8_t handle);
+int ble_ll_adv_sync_add_big(struct ble_ll_adv_sm *advsm, struct ble_ll_iso_big *big);
+int ble_ll_adv_sync_remove_big(struct ble_ll_adv_sm *advsm, struct ble_ll_iso_big *big);
+#endif /* BLE_LL_ISO_BROADCASTER */
+
 /* Called to notify adv code about RPA rotation */
 void ble_ll_adv_rpa_timeout(void);
 

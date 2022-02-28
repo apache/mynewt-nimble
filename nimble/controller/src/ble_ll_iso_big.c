@@ -83,6 +83,8 @@ struct big_params {
 };
 
 struct ble_ll_iso_big {
+    struct ble_ll_adv_sm *advsm;
+
     uint8_t handle;
     uint8_t num_bis;
     uint16_t iso_interval;
@@ -454,6 +456,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 {
     struct ble_ll_iso_big *big = NULL;
     struct ble_ll_iso_bis *bis;
+    struct ble_ll_adv_sm *advsm;
     uint32_t seed_aa;
     uint8_t idx;
     int rc;
@@ -474,8 +477,16 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
     BLE_LL_ASSERT(big);
 
-    /* TODO find valid advertising instance */
+    advsm = ble_ll_adv_sync_get(adv_handle);
+    if (!advsm) {
+        return -ENOENT;
+    }
 
+    if (ble_ll_adv_sync_add_big(advsm, big) < 0) {
+        return -ENOENT;
+    }
+
+    big->advsm = advsm;
     big->handle = big_handle;
 
     seed_aa = ble_ll_utils_calc_seed_aa();

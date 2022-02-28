@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +42,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_rfmgmt.h"
+#include "controller/ble_ll_iso_big.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
 
@@ -75,6 +78,9 @@ struct ble_ll_adv_sync {
     uint8_t ext_hdr;
     uint8_t sync_data_len;
     uint8_t payload_len;
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    struct ble_ll_iso_big *big;
+#endif
 };
 
 /*
@@ -173,6 +179,9 @@ struct ble_ll_adv_sm
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
     uint16_t periodic_event_cntr_last_sent;
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    struct ble_ll_iso_big *big;
+#endif /* BLE_LL_ISO_BROADCASTER */
 #endif
 #endif
 };
@@ -2071,10 +2080,17 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     dptr += 1;
 
     /* only put flags if needed */
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    if (sync->ext_hdr || sync->big) {
+        dptr[0] = sync->ext_hdr;
+        dptr += 1;
+    }
+#else
     if (sync->ext_hdr) {
         dptr[0] = sync->ext_hdr;
         dptr += 1;
     }
+#endif
 
     if (sync->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (!SYNC_NEXT(advsm)->sch.enqueued) {
@@ -2099,6 +2115,14 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    if (advsm->big) {
+        ble_ll_iso_big_biginfo_copy(advsm->big, dptr, sync->sch.start_time +
+                                                      g_ble_ll_sched_offset_ticks,
+                                    sync->sch.remainder);
+    }
+#endif
 
     if (sync->sync_data_len) {
         os_mbuf_copydata(advsm->periodic_adv_data, sync->sync_data_offset,
@@ -2263,9 +2287,22 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
      * how Aux calculate works and this also make it easier to add more fields
      * into flags if needed in future
      */
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    sync->big = advsm->big;
+    if (sync->ext_hdr || sync->big) {
+        hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+    }
+#else
     if (sync->ext_hdr) {
         hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    if (advsm->big) {
+        hdr_len += ble_ll_iso_big_biginfo_len(advsm->big);
+    }
+#endif
 
     /* AdvData always */
     sync->sync_data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_sync_data_len);
@@ -5112,6 +5149,55 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
     advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
     advsm->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
 }
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+struct ble_ll_adv_sm *
+ble_ll_adv_sync_get(uint8_t handle)
+{
+    struct ble_ll_adv_sm *advsm;
+
+    advsm = ble_ll_adv_sm_find_configured(handle);
+    if (!advsm) {
+        return NULL;
+    }
+
+    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED)) {
+        return NULL;
+    }
+
+    return advsm;
+}
+
+int
+ble_ll_adv_sync_add_big(struct ble_ll_adv_sm *advsm,
+                        struct ble_ll_iso_big *big)
+{
+    if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED)) {
+        return -EINVAL;
+    }
+
+    if (advsm->big && (advsm->big != big)) {
+        return -EBUSY;
+    }
+
+    advsm->big = big;
+
+    return 0;
+}
+
+int
+ble_ll_adv_sync_remove_big(struct ble_ll_adv_sm *advsm,
+                           struct ble_ll_iso_big *big)
+{
+    if (advsm->big != big) {
+        return -EINVAL;
+    }
+
+    advsm->big = NULL;
+
+    return 0;
+}
+#endif /* BLE_LL_ISO_BROADCASTER */
 
 /**
  * Initialize the advertising functionality of a BLE device. This should
