@@ -1371,10 +1371,10 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
     aux->ext_hdr = 0;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
-    aux->chan = ble_ll_utils_calc_dci_csa2(advsm->event_cntr++,
-                                           advsm->channel_id,
-                                           g_ble_ll_conn_params.num_used_chans,
-                                           g_ble_ll_conn_params.central_chan_map);
+    aux->chan = ble_ll_utils_dci_csa2(advsm->event_cntr++,
+                                      advsm->channel_id,
+                                      g_ble_ll_conn_params.num_used_chans,
+                                      g_ble_ll_conn_params.central_chan_map);
 #else
     aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
                                               g_ble_ll_conn_params.central_chan_map);
@@ -2316,10 +2316,10 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
      * Preincrement event counter as we later send this in PDU so make sure
      * same values are used
      */
-    chan = ble_ll_utils_calc_dci_csa2(++advsm->periodic_event_cntr,
-                                      advsm->periodic_channel_id,
-                                      advsm->periodic_num_used_chans,
-                                      advsm->periodic_chanmap);
+    chan = ble_ll_utils_dci_csa2(++advsm->periodic_event_cntr,
+                                 advsm->periodic_channel_id,
+                                 advsm->periodic_num_used_chans,
+                                 advsm->periodic_chanmap);
 
     ble_ll_adv_sync_calculate(advsm, sync, 0, chan);
 
@@ -2405,10 +2405,10 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     BLE_LL_ASSERT(rem_sync_data_len > 0);
 
     /* we use separate counter for chaining */
-    chan = ble_ll_utils_calc_dci_csa2(advsm->periodic_chain_event_cntr++,
-                                      advsm->periodic_channel_id,
-                                      advsm->periodic_num_used_chans,
-                                      advsm->periodic_chanmap);
+    chan = ble_ll_utils_dci_csa2(advsm->periodic_chain_event_cntr++,
+                                 advsm->periodic_channel_id,
+                                 advsm->periodic_num_used_chans,
+                                 advsm->periodic_chanmap);
 
     ble_ll_adv_sync_calculate(advsm, sync_next, next_sync_data_offset, chan);
     max_usecs = ble_ll_pdu_tx_time_get(sync_next->payload_len, advsm->sec_phy);
