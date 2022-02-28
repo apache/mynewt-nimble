@@ -977,6 +977,7 @@ ble_phy_tx_end_isr(void)
     uint8_t was_encrypted;
     uint8_t transition;
     uint32_t rx_time;
+    uint32_t tx_time;
 
     /* Store PHY on which we've just transmitted smth */
     tx_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
@@ -1001,14 +1002,9 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
-    /* Call transmit end callback */
-    if (g_ble_phy_data.txend_cb) {
-        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
-    }
-
     transition = g_ble_phy_data.phy_transition;
-    if (transition == BLE_PHY_TRANSITION_TX_RX) {
 
+    if (transition == BLE_PHY_TRANSITION_TX_RX) {
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
         ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
 #endif
@@ -1032,6 +1028,25 @@ ble_phy_tx_end_isr(void)
         nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH21_Msk);
 
         ble_phy_plna_enable_lna();
+    } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
+        /* Schedule TX exactly T_IFS after TX end captured in CC[2] */
+        tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        /* Adjust for delay between EVENT_END and actual TX end time */
+        tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+        /* Adjust for radio ramp-up */
+        tx_time -= BLE_PHY_T_TXENFAST;
+        /* Adjust for delay between EVENT_READY and actual TX start time */
+        tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+
+        nrf_timer_cc_set(NRF_TIMER0, 0, tx_time);
+        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+        nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH20_Msk);
+
+        nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
+        if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
+            nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH20_Msk);
+            g_ble_phy_data.phy_transition_late = 1;
+        }
     } else {
         /*
          * XXX: not sure we need to stop the timer here all the time. Or that
@@ -1042,6 +1057,10 @@ ble_phy_tx_end_isr(void)
         nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk |
                                  PPI_CHEN_CH20_Msk | PPI_CHEN_CH31_Msk);
         assert(transition == BLE_PHY_TRANSITION_NONE);
+    }
+
+    if (g_ble_phy_data.txend_cb) {
+        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
 }
 
