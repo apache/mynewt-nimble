@@ -168,6 +168,8 @@ ble_hci_trans_acl_tx(struct os_mbuf *om)
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
 
+static void nrf5340_ble_hci_trans_rx(int channel, void *user_data);
+
 #if MYNEWT_VAL(BLE_CONTROLLER)
 void
 ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb, void *cmd_arg,
@@ -177,6 +179,8 @@ ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb, void *cmd_arg,
     nrf5340_ble_hci_api.cmd_arg = cmd_arg;
     nrf5340_ble_hci_api.acl_cb = acl_cb;
     nrf5340_ble_hci_api.acl_arg = acl_arg;
+
+    ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
 }
 
 int
@@ -212,6 +216,8 @@ ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *evt_cb, void *evt_arg,
     nrf5340_ble_hci_api.evt_arg = evt_arg;
     nrf5340_ble_hci_api.acl_cb = acl_cb;
     nrf5340_ble_hci_api.acl_arg = acl_arg;
+
+    ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
 }
 
 int
@@ -511,6 +517,4 @@ nrf5340_ble_hci_init(void)
                          "nrf5340_ble_hci_pool_cmd_mempool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 #endif
-
-    ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
 }
