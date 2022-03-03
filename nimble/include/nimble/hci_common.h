@@ -21,13 +21,14 @@
 #define H_BLE_HCI_COMMON_
 
 #include "ble.h"
+#include "nimble/transport.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define BLE_HCI_MAX_DATA_LEN (MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE) - \
-                              sizeof(struct ble_hci_ev))
+#define BLE_HCI_MAX_DATA_LEN    (MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE) - \
+                                 sizeof(struct ble_hci_ev))
 
 /* Generic command header */
 struct ble_hci_cmd {

@@ -26,7 +26,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
@@ -1947,7 +1946,7 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         /* If there is an event buf we need to free it */
         if (advsm->conn_comp_ev) {
-            ble_hci_trans_buf_free(advsm->conn_comp_ev);
+            ble_transport_free(advsm->conn_comp_ev);
             advsm->conn_comp_ev = NULL;
         }
 #endif
@@ -2668,7 +2667,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         /* We expect this to be NULL but if not we wont allocate one... */
         if (advsm->conn_comp_ev == NULL) {
-            advsm->conn_comp_ev = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            advsm->conn_comp_ev = ble_transport_alloc_evt(0);
             if (!advsm->conn_comp_ev) {
                 return BLE_ERR_MEM_CAPACITY;
             }

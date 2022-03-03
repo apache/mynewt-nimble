@@ -28,7 +28,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
+#include "nimble/transport.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
@@ -1394,9 +1394,6 @@ ble_ll_task(void *arg)
     /* Set output power to 1mW (0 dBm) */
     ble_phy_txpwr_set(g_ble_ll_tx_power);
 
-    /* Register callback for transport */
-    ble_hci_trans_cfg_ll(ble_ll_hci_cmd_rx, NULL, ble_ll_hci_acl_rx, NULL);
-
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
 
@@ -1817,8 +1814,8 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Set acl pkt size and number */
-    lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_ACL_BUF_COUNT);
-    lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_ACL_BUF_SIZE);
+    lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT);
+    lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE);
 #endif
 
     /* Initialize eventq */
@@ -1966,4 +1963,24 @@ ble_ll_init(void)
  */
 
 #endif
+}
+
+/* Transport APIs for LL side */
+
+int
+ble_transport_to_ll_cmd(void *buf)
+{
+    return ble_ll_hci_cmd_rx(buf, NULL);
+}
+
+int
+ble_transport_to_ll_acl(struct os_mbuf *om)
+{
+    return ble_ll_hci_acl_rx(om, NULL);
+}
+
+void
+ble_transport_ll_init(void)
+{
+    ble_ll_init();
 }
