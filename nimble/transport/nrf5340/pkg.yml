@@ -27,12 +27,10 @@ pkg.keywords:
     - nrf5340
 
 pkg.deps:
-    - "@apache-mynewt-nimble/nimble"
+    - nimble
+    - nimble/transport/common/hci_h4
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/hw/drivers/ipc_nrf5340"
 
 pkg.apis:
     - ble_transport
-
-pkg.init:
-    nrf5340_ble_hci_init: 'MYNEWT_VAL(BLE_TRANS_NRF5340_SYSINIT_STAGE)'

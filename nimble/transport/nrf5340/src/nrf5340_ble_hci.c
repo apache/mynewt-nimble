@@ -21,133 +21,24 @@
 #include <string.h>
 #include <sysinit/sysinit.h>
 #include <nimble/ble.h>
-#include <nimble/ble_hci_trans.h>
-#include <nimble/hci_common.h>
 #include <ipc_nrf5340/ipc_nrf5340.h>
-
-#define HCI_PKT_NONE    0x00
-#define HCI_PKT_CMD     0x01
-#define HCI_PKT_ACL     0x02
-#define HCI_PKT_EVT     0x04
-
-#define POOL_ACL_BLOCK_SIZE OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) +     \
-                                     BLE_MBUF_MEMBLOCK_OVERHEAD +       \
-                                     BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
+#include <nimble/transport.h>
+#include <nimble/transport/hci_h4.h>
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
 #define IPC_TX_CHANNEL 0
 #define IPC_RX_CHANNEL 1
-#endif
-
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
+#else
 #define IPC_TX_CHANNEL 1
 #define IPC_RX_CHANNEL 0
 #endif
 
-struct nrf5340_ble_hci_api {
-#if MYNEWT_VAL(BLE_CONTROLLER)
-    ble_hci_trans_rx_cmd_fn *cmd_cb;
-    void *cmd_arg;
-#endif
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    ble_hci_trans_rx_cmd_fn *evt_cb;
-    void *evt_arg;
-#endif
-    ble_hci_trans_rx_acl_fn *acl_cb;
-    void *acl_arg;
-};
-
-struct nrf5340_ble_hci_rx_data {
-    uint8_t type;
-    uint8_t hdr[4];
-    uint16_t len;
-    uint16_t expected_len;
-    union {
-        uint8_t *buf;
-        struct os_mbuf *om;
-    };
-};
-
-struct nrf5340_ble_hci_pool_cmd {
-    uint8_t cmd[BLE_HCI_TRANS_CMD_SZ];
-    bool allocated;
-};
-
-#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
-/*
- * If controller-to-host flow control is enabled we need to hold an extra command
- * buffer for HCI_Host_Number_Of_Completed_Packets which can be sent at any time.
- */
-#if MYNEWT_VAL(BLE_HS_FLOW_CTRL) || MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
-#define HCI_CMD_COUNT   2
-#else
-#define HCI_CMD_COUNT   1
-#endif
-
-static uint8_t nrf5340_ble_hci_pool_cmd_mempool_buf[OS_MEMPOOL_BYTES(
-                                                        HCI_CMD_COUNT,
-                                                        BLE_HCI_TRANS_CMD_SZ)];
-static struct os_mempool nrf5340_ble_hci_pool_cmd_mempool;
-
-/* Pools for HCI events (high and low priority) */
-static uint8_t nrf5340_ble_hci_pool_evt_hi_buf[OS_MEMPOOL_BYTES(
-                                            MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))];
-static struct os_mempool nrf5340_ble_hci_pool_evt_hi;
-static uint8_t nrf5340_ble_hci_pool_evt_lo_buf[OS_MEMPOOL_BYTES(
-                                            MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                                            MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))];
-static struct os_mempool nrf5340_ble_hci_pool_evt_lo;
-
-#endif
-
-/* Pool for ACL data */
-static uint8_t nrf5340_ble_hci_pool_acl_buf[OS_MEMPOOL_BYTES(
-                                            MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                                            POOL_ACL_BLOCK_SIZE)];
-static struct os_mempool_ext nrf5340_ble_hci_pool_acl;
-static struct os_mbuf_pool nrf5340_ble_hci_pool_acl_mbuf;
-
-/* Interface to host/ll */
-static struct nrf5340_ble_hci_api nrf5340_ble_hci_api;
-
-/* State of RX currently in progress (needs to reassemble frame) */
-static struct nrf5340_ble_hci_rx_data nrf5340_ble_hci_rx_data;
-
-#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
-int
-ble_hci_trans_reset(void)
-{
-    /* XXX Should we do something with RF and/or BLE core? */
-    return 0;
-}
-#endif
-
-#if MYNEWT_VAL(BLE_HCI_BRIDGE)
-/*
- * TODO: Remove/fix functions ble_ll_data_buffer_overflow() ble_ll_hw_error()
- * Following two functions are added to allowed build of HCI bridge configurations.
- * Those functions are only used by UART transport, in RAM transport configuration
- * they can be called directly in bridge mode controller code is on other core
- * and those can't be called.
- */
-void
-ble_ll_data_buffer_overflow(void)
-{
-
-}
-
-void
-ble_ll_hw_error(uint8_t err)
-{
-    (void)err;
-}
-#endif
+static struct hci_h4_sm hci_nrf5340_h4sm;
 
 static int
-ble_hci_trans_acl_tx(struct os_mbuf *om)
+nrf5340_ble_hci_acl_tx(struct os_mbuf *om)
 {
-    uint8_t ind = HCI_PKT_ACL;
+    uint8_t ind = HCI_H4_ACL;
     struct os_mbuf *x;
     int rc;
 
@@ -168,25 +59,66 @@ ble_hci_trans_acl_tx(struct os_mbuf *om)
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
 
-static void nrf5340_ble_hci_trans_rx(int channel, void *user_data);
-
-#if MYNEWT_VAL(BLE_CONTROLLER)
-void
-ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb, void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb, void *acl_arg)
+static int
+nrf5340_ble_hci_frame_cb(uint8_t pkt_type, void *data)
 {
-    nrf5340_ble_hci_api.cmd_cb = cmd_cb;
-    nrf5340_ble_hci_api.cmd_arg = cmd_arg;
-    nrf5340_ble_hci_api.acl_cb = acl_cb;
-    nrf5340_ble_hci_api.acl_arg = acl_arg;
+    int rc;
+
+    switch (pkt_type) {
+#if MYNEWT_VAL(BLE_CONTROLLER)
+    case HCI_H4_CMD:
+        rc = ble_transport_to_ll_cmd(data);
+        break;
+#endif
+    case HCI_H4_ACL:
+#if MYNEWT_VAL(BLE_CONTROLLER)
+        rc = ble_transport_to_ll_acl(data);
+#else
+        rc = ble_transport_to_hs_acl(data);
+#endif
+        break;
+#if !MYNEWT_VAL(BLE_CONTROLLER)
+    case HCI_H4_EVT:
+        rc = ble_transport_to_hs_evt(data);
+        break;
+#endif
+    default:
+        assert(0);
+        break;
+    }
+
+    return rc;
+}
+
+static void
+nrf5340_ble_hci_trans_rx(int channel, void *user_data)
+{
+    uint8_t byte;
+    int rlen;
+
+    while (ipc_nrf5340_available(channel) > 0) {
+        rlen = ipc_nrf5340_read(channel, &byte, 1);
+        assert(rlen == 1);
+
+        rlen = hci_h4_sm_rx(&hci_nrf5340_h4sm, &byte, 1);
+        assert(rlen == 1);
+    }
+}
+
+static void
+nrf5340_ble_hci_init(void)
+{
+    SYSINIT_ASSERT_ACTIVE();
 
     ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
 }
 
+#if MYNEWT_VAL(BLE_CONTROLLER)
 int
-ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
+ble_transport_to_hs_evt(void *buf)
 {
-    uint8_t ind = HCI_PKT_EVT;
+    uint8_t ind = HCI_H4_EVT;
+    uint8_t* hci_ev = buf;
     int len = 2 + hci_ev[1];
     int rc;
 
@@ -195,35 +127,32 @@ ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
         rc = ipc_nrf5340_send(IPC_TX_CHANNEL, hci_ev, len);
     }
 
-    ble_hci_trans_buf_free(hci_ev);
+    ble_transport_free(buf);
 
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
 
 int
-ble_hci_trans_ll_acl_tx(struct os_mbuf *om)
+ble_transport_to_hs_acl(struct os_mbuf *om)
 {
-    return ble_hci_trans_acl_tx(om);
+    return nrf5340_ble_hci_acl_tx(om);
 }
-#endif
 
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
 void
-ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *evt_cb, void *evt_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb, void *acl_arg)
+ble_transport_hs_init(void)
 {
-    nrf5340_ble_hci_api.evt_cb = evt_cb;
-    nrf5340_ble_hci_api.evt_arg = evt_arg;
-    nrf5340_ble_hci_api.acl_cb = acl_cb;
-    nrf5340_ble_hci_api.acl_arg = acl_arg;
-
-    ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
+    hci_h4_sm_init(&hci_nrf5340_h4sm, &hci_h4_allocs_from_hs,
+                   nrf5340_ble_hci_frame_cb);
+    nrf5340_ble_hci_init();
 }
+#endif /* BLE_CONTROLLER */
 
+#if !MYNEWT_VAL(BLE_CONTROLLER)
 int
-ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
+ble_transport_to_ll_cmd(void *buf)
 {
-    uint8_t ind = HCI_PKT_CMD;
+    uint8_t ind = HCI_H4_CMD;
+    uint8_t *cmd = buf;
     int len = 3 + cmd[2];
     int rc;
 
@@ -232,289 +161,22 @@ ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
         rc = ipc_nrf5340_send(IPC_TX_CHANNEL, cmd, len);
     }
 
-    ble_hci_trans_buf_free(cmd);
+    ble_transport_free(buf);
 
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY :  0;
 }
 
 int
-ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
+ble_transport_to_ll_acl(struct os_mbuf *om)
 {
-    return ble_hci_trans_acl_tx(om);
-}
-#endif
-
-#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
-uint8_t *
-ble_hci_trans_buf_alloc(int type)
-{
-    uint8_t *buf;
-
-    switch (type) {
-    case BLE_HCI_TRANS_BUF_CMD:
-        buf = os_memblock_get(&nrf5340_ble_hci_pool_cmd_mempool);
-        break;
-    case BLE_HCI_TRANS_BUF_EVT_HI:
-        buf = os_memblock_get(&nrf5340_ble_hci_pool_evt_hi);
-        if (buf) {
-            break;
-        }
-        /* no break */
-    case BLE_HCI_TRANS_BUF_EVT_LO:
-        buf = os_memblock_get(&nrf5340_ble_hci_pool_evt_lo);
-        break;
-    default:
-        assert(0);
-        buf = NULL;
-    }
-
-    return buf;
+    return nrf5340_ble_hci_acl_tx(om);
 }
 
 void
-ble_hci_trans_buf_free(uint8_t *buf)
+ble_transport_ll_init(void)
 {
-    int rc;
-
-    if (os_memblock_from(&nrf5340_ble_hci_pool_cmd_mempool, buf)) {
-        rc = os_memblock_put(&nrf5340_ble_hci_pool_cmd_mempool, buf);
-        assert(rc == 0);
-    } else if (os_memblock_from(&nrf5340_ble_hci_pool_evt_hi, buf)) {
-        rc = os_memblock_put(&nrf5340_ble_hci_pool_evt_hi, buf);
-        assert(rc == 0);
-    } else {
-        assert(os_memblock_from(&nrf5340_ble_hci_pool_evt_lo, buf));
-        rc = os_memblock_put(&nrf5340_ble_hci_pool_evt_lo, buf);
-        assert(rc == 0);
-    }
+    hci_h4_sm_init(&hci_nrf5340_h4sm, &hci_h4_allocs_from_ll,
+                   nrf5340_ble_hci_frame_cb);
+    nrf5340_ble_hci_init();
 }
-#endif
-
-static void
-nrf5340_ble_hci_trans_rx_process(int channel)
-{
-    struct nrf5340_ble_hci_rx_data *rxd = &nrf5340_ble_hci_rx_data;
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    int pool = BLE_HCI_TRANS_BUF_EVT_HI;
-#endif
-    int rc;
-
-    switch (rxd->type) {
-    case HCI_PKT_NONE:
-        ipc_nrf5340_read(channel, &rxd->type, 1);
-        rxd->len = 0;
-        rxd->expected_len = 0;
-
-#if MYNEWT_VAL(BLE_CONTROLLER)
-        assert((rxd->type == HCI_PKT_ACL) || (rxd->type == HCI_PKT_CMD));
-#endif
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-        assert((rxd->type == HCI_PKT_ACL) || (rxd->type == HCI_PKT_EVT));
-#endif
-        break;
-#if MYNEWT_VAL(BLE_CONTROLLER)
-    case HCI_PKT_CMD:
-        /* header */
-        if (rxd->len < 3) {
-            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
-                                         3 - rxd->len);
-            if (rxd->len < 3) {
-                break;
-            }
-        }
-
-        if (rxd->expected_len == 0) {
-            rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-            memcpy(rxd->buf, rxd->hdr, rxd->len);
-
-            rxd->expected_len = 3 + rxd->hdr[2];
-        }
-
-        if (rxd->len < rxd->expected_len) {
-            rxd->len += ipc_nrf5340_read(channel, &rxd->buf[rxd->len],
-                                         rxd->expected_len - rxd->len);
-            if (rxd->len < rxd->expected_len) {
-                break;
-            }
-        }
-
-        rc = nrf5340_ble_hci_api.cmd_cb(rxd->buf, nrf5340_ble_hci_api.cmd_arg);
-        if (rc != 0) {
-            ble_hci_trans_buf_free(rxd->buf);
-        }
-
-        rxd->type = HCI_PKT_NONE;
-        break;
-#endif
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    case HCI_PKT_EVT:
-        /* header */
-        if (rxd->len < 2) {
-            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
-                                         2 - rxd->len);
-            if (rxd->len < 2) {
-                break;
-            }
-        }
-
-        if (rxd->hdr[0] == BLE_HCI_EVCODE_LE_META) {
-            if (rxd->len < 3) {
-                /* For LE Meta event we need 3 bytes to parse header */
-                rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len], 1);
-                if (rxd->len < 3) {
-                    break;
-                }
-            }
-
-            /* Advertising reports shall be allocated from low-prio pool */
-            if ((rxd->hdr[2] == BLE_HCI_LE_SUBEV_ADV_RPT) ||
-                (rxd->hdr[2] == BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
-                pool = BLE_HCI_TRANS_BUF_EVT_LO;
-            }
-        }
-
-        if (rxd->expected_len == 0) {
-            rxd->buf = ble_hci_trans_buf_alloc(pool);
-            if (!rxd->buf) {
-                /*
-                 * Only care about valid buffer when shall be allocated from
-                 * high-prio pool, otherwise NULL is fine and we'll just skip
-                 * this event.
-                 */
-                if (pool != BLE_HCI_TRANS_BUF_EVT_LO) {
-                    rxd->buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
-                }
-            }
-
-            rxd->expected_len = 2 + rxd->hdr[1];
-
-            /* copy header */
-            if (rxd->buf) {
-                memcpy(rxd->buf, rxd->hdr, rxd->len);
-            }
-        }
-
-        if (rxd->buf) {
-            rxd->len += ipc_nrf5340_read(channel, &rxd->buf[rxd->len],
-                                         rxd->expected_len - rxd->len);
-            if (rxd->len < rxd->expected_len) {
-                break;
-            }
-
-            rc = nrf5340_ble_hci_api.evt_cb(rxd->buf,
-                                            nrf5340_ble_hci_api.evt_arg);
-            if (rc != 0) {
-                ble_hci_trans_buf_free(rxd->buf);
-            }
-        } else {
-            rxd->len += ipc_nrf5340_consume(channel,
-                                            rxd->expected_len - rxd->len);
-            if (rxd->len < rxd->expected_len) {
-                break;
-            }
-        }
-
-        rxd->type = HCI_PKT_NONE;
-        break;
-#endif
-    case HCI_PKT_ACL:
-        if (rxd->len < 4) {
-            rxd->len += ipc_nrf5340_read(channel, &rxd->hdr[rxd->len],
-                                         4 - rxd->len);
-            if (rxd->len < 4) {
-                break;
-            }
-        }
-
-        /* Parse header and allocate proper buffer if not done yet */
-        if (rxd->expected_len == 0) {
-            rxd->om = os_mbuf_get_pkthdr(&nrf5340_ble_hci_pool_acl_mbuf,
-                                         sizeof(struct ble_mbuf_hdr));
-            if (!rxd->om) {
-                /* TODO not much we can do here... */
-                assert(0);
-            }
-
-            os_mbuf_append(rxd->om, rxd->hdr, rxd->len);
-            rxd->expected_len = get_le16(&rxd->hdr[2]) + 4;
-        }
-
-        if (rxd->len != rxd->expected_len) {
-            rxd->len += ipc_nrf5340_read_om(channel, rxd->om,
-                                            rxd->expected_len - rxd->len);
-        }
-
-        if (rxd->len == rxd->expected_len) {
-            rc = nrf5340_ble_hci_api.acl_cb(rxd->om,
-                                            nrf5340_ble_hci_api.acl_arg);
-            if (rc != 0) {
-                os_mbuf_free_chain(rxd->om);
-            }
-            rxd->type = HCI_PKT_NONE;
-        }
-        break;
-    default:
-        assert(0);
-        break;
-    }
-}
-
-static void
-nrf5340_ble_hci_trans_rx(int channel, void *user_data)
-{
-    while (ipc_nrf5340_available(channel) > 0) {
-        nrf5340_ble_hci_trans_rx_process(channel);
-    }
-}
-
-#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
-int
-ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
-{
-    nrf5340_ble_hci_pool_acl.mpe_put_cb = cb;
-    nrf5340_ble_hci_pool_acl.mpe_put_arg = arg;
-
-    return 0;
-}
-#endif
-
-void
-nrf5340_ble_hci_init(void)
-{
-    int rc;
-
-    SYSINIT_ASSERT_ACTIVE();
-
-    rc = os_mempool_ext_init(&nrf5340_ble_hci_pool_acl,
-                             MYNEWT_VAL(BLE_ACL_BUF_COUNT), POOL_ACL_BLOCK_SIZE,
-                             nrf5340_ble_hci_pool_acl_buf,
-                             "nrf5340_ble_hci_pool_acl");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mbuf_pool_init(&nrf5340_ble_hci_pool_acl_mbuf,
-                           &nrf5340_ble_hci_pool_acl.mpe_mp, POOL_ACL_BLOCK_SIZE,
-                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-#if !MYNEWT_VAL(BLE_HCI_BRIDGE)
-    rc = os_mempool_init(&nrf5340_ble_hci_pool_evt_hi,
-                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         nrf5340_ble_hci_pool_evt_hi_buf,
-                         "nrf5340_ble_hci_pool_evt_hi");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&nrf5340_ble_hci_pool_evt_lo,
-                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         nrf5340_ble_hci_pool_evt_lo_buf,
-                         "nrf5340_ble_hci_pool_evt_lo");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&nrf5340_ble_hci_pool_cmd_mempool,
-                         HCI_CMD_COUNT, BLE_HCI_TRANS_CMD_SZ,
-                         nrf5340_ble_hci_pool_cmd_mempool_buf,
-                         "nrf5340_ble_hci_pool_cmd_mempool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-#endif
-}
+#endif /* !BLE_CONTROLLER */
