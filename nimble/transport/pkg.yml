@@ -25,36 +25,26 @@ pkg.keywords:
     - ble
     - bluetooth
 
-pkg.deps.'BLE_HCI_TRANSPORT == "builtin"':
-    - nimble/transport/ram
+pkg.apis:
+    - ble_transport
+
+pkg.deps.'BLE_TRANSPORT_HS == "native"':
+    - nimble/host
+pkg.deps.'BLE_TRANSPORT_LL == "native"':
     - nimble/controller
-
-pkg.deps.'BLE_HCI_TRANSPORT == "emspi"':
-    - nimble/transport/emspi
-
-pkg.deps.'BLE_HCI_TRANSPORT == "ram"':
-    - nimble/transport/ram
-
-pkg.deps.'BLE_HCI_TRANSPORT == "socket"':
-    - nimble/transport/socket
-
-pkg.deps.'BLE_HCI_TRANSPORT == "uart"':
-    - nimble/transport/uart
-
-pkg.deps.'BLE_HCI_TRANSPORT == "da1469x"':
-    - nimble/transport/da1469x
-
-pkg.deps.'BLE_HCI_TRANSPORT == "dialog_cmac"':
+pkg.deps.'BLE_TRANSPORT_HS == "dialog_cmac" || BLE_TRANSPORT_LL == "dialog_cmac"':
     - nimble/transport/dialog_cmac
-
-pkg.deps.'BLE_HCI_TRANSPORT == "usb"':
+pkg.deps.'BLE_TRANSPORT_HS == "nrf5340" || BLE_TRANSPORT_LL == "nrf5340"':
+    - nimble/transport/nrf5340
+pkg.deps.'BLE_TRANSPORT_HS == "uart"':
+    - nimble/transport/uart
+pkg.deps.'BLE_TRANSPORT_HS == "usb"':
     - nimble/transport/usb
 
-pkg.deps.'BLE_HCI_TRANSPORT == "nrf5340"':
-    - nimble/transport/nrf5340
-
-pkg.deps.'BLE_HCI_BRIDGE_TRANSPORT == "nrf5340"':
-    - nimble/transport/nrf5340
-
-pkg.deps.'BLE_HCI_BRIDGE_TRANSPORT == "dialog_cmac"':
-    - nimble/transport/dialog_cmac
+pkg.init:
+    ble_transport_init: 250
+    ble_transport_hs_init:
+        - $after:ble_transport_init
+        - $before:ble_transport_ll_init
+    ble_transport_ll_init:
+        - $after:ble_transport_hs_init
