@@ -19,7 +19,9 @@
 syscfg.vals:
     # Default task settings
     OS_MAIN_STACK_SIZE: 64
-    # Use UART transport by default
-    BLE_HCI_TRANSPORT: uart
     # Stub console
     CONSOLE_MODE: stub
+
+syscfg.vals.'!BLE_TRANSPORT_NETCORE':
+    # Use UART by default if not built on netcore
+    BLE_TRANSPORT_HS: uart
