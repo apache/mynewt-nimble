@@ -17,45 +17,23 @@
 #
 
 syscfg.defs:
-    BLE_HCI_ACL_OUT_COUNT:
-        description: >
-            This count is used in creating a pool of elements used by the
-            code to enqueue various elements. In the case of the controller
-            only HCI, this number should be equal to the number of mbufs in
-            the msys pool. For host only, it is really dependent on the
-            number of ACL buffers that the controller tells the host it
-            has.
-        value: 12
-
-    BLE_HCI_UART_PORT:
-        description: 'The uart to use for the HCI uart interface'
-        value:            0
-    BLE_HCI_UART_BAUD:
-        description: 'The baud rate of the HCI uart interface'
-        value:            1000000
-    BLE_HCI_UART_DATA_BITS:
-        description: 'Number of data bits used for HCI uart interface'
-        value:       8
-    BLE_HCI_UART_STOP_BITS:
-        description: 'Number of stop bits used for HCI uart interface'
-        value:       1
-    BLE_HCI_UART_PARITY:
-        description: 'Parity used for HCI uart interface'
-        value:          HAL_UART_PARITY_NONE
-    BLE_HCI_UART_FLOW_CTRL:
-        description: 'Flow control used for HCI uart interface'
-        value:       HAL_UART_FLOW_CTL_RTS_CTS
-    BLE_TRANS_UART_SYSINIT_STAGE:
-        description: >
-            Sysinit stage for the UART BLE transport.
-        value: 500
-
-syscfg.vals.BLE_EXT_ADV:
-    BLE_HCI_EVT_BUF_SIZE: 257
-
-syscfg.vals:
-    BLE_HCI_EVT_BUF_SIZE: 70
-    BLE_HCI_EVT_HI_BUF_COUNT: 8
-    BLE_HCI_EVT_LO_BUF_COUNT: 8
-    BLE_ACL_BUF_COUNT: 12
-    BLE_ACL_BUF_SIZE: 255
+    BLE_TRANSPORT_UART_PORT:
+        description: UART index to use for HCI interface
+        value: 0
+    BLE_TRANSPORT_UART_BAUDRATE:
+        description: Baudrate on UART
+        value: 1000000
+    BLE_TRANSPORT_UART_DATA_BITS:
+        description: Number of data bits on UART
+        value: 8
+    BLE_TRANSPORT_UART_STOP_BITS:
+        description: Number of stop bits on UART
+        value: 1
+    BLE_TRANSPORT_UART_PARITY:
+        description: Parity on UART
+        value: none
+        choices: none,even,odd
+    BLE_TRANSPORT_UART_FLOW_CONTROL:
+        description: Flow control on UART
+        choices: off,rtscts
+        value: rtscts

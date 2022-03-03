@@ -18,20 +18,15 @@
 #
 
 pkg.name: nimble/transport/uart
-pkg.description: XXX
+pkg.description: HCI H4 transport over UART
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
-pkg.keywords:
-    - ble
-    - bluetooth
+pkg.homepage: "https://mynewt.apache.org/"
 
 pkg.deps:
     - "@apache-mynewt-core/hw/hal"
     - "@apache-mynewt-core/kernel/os"
     - nimble
+    - nimble/transport/common/hci_h4
 
 pkg.apis:
     - ble_transport
-
-pkg.init:
-    ble_hci_uart_init: 'MYNEWT_VAL(BLE_TRANS_UART_SYSINIT_STAGE)'
