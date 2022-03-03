@@ -65,7 +65,7 @@ static struct os_event g_cmac_host_rand_ev = {
 
 static void cmac_host_rand_chk_fill(void);
 
-#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
+#if MYNEWT_VAL_CHOICE(BLE_TRANSPORT_HS, uart)
 static void cmac_host_error_w4flush(struct os_event *ev);
 static struct os_event g_cmac_host_error_ev = {
         .ev_cb = cmac_host_error_w4flush
@@ -113,7 +113,7 @@ cmac2sys_isr(void)
         }
 #endif
 
-#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
+#if MYNEWT_VAL_CHOICE(BLE_TRANSPORT_HS, uart)
         NVIC_DisableIRQ(CMAC2SYS_IRQn);
         /* Wait until UART is flushed and then assert */
         cmac_host_error_w4flush(NULL);
@@ -162,8 +162,8 @@ cmac_host_rand_chk_fill(void)
     }
 }
 
-#if MYNEWT_VAL(BLE_HCI_BRIDGE) && MYNEWT_VAL_CHOICE(BLE_HCI_TRANSPORT, uart)
-#if MYNEWT_VAL(BLE_HCI_UART_PORT) < 0 || MYNEWT_VAL(BLE_HCI_UART_PORT) > 2
+#if MYNEWT_VAL_CHOICE(BLE_TRANSPORT_HS, uart)
+#if MYNEWT_VAL(BLE_TRANSPORT_UART_PORT) < 0 || MYNEWT_VAL(BLE_TRANSPORT_UART_PORT) > 2
 #error Invalid BLE_HCI_UART_PORT
 #endif
 static void
@@ -183,7 +183,7 @@ cmac_host_error_w4flush(struct os_event *ev)
 
     do {
         cmac_mbox_read();
-        while ((regs[MYNEWT_VAL(BLE_HCI_UART_PORT)]->UART_LSR_REG &
+        while ((regs[MYNEWT_VAL(BLE_TRANSPORT_UART_PORT)]->UART_LSR_REG &
                 UART_UART_LSR_REG_UART_TEMT_Msk) == 0) {
             /* Wait until both FIFO and shift registers are empty */
         }

@@ -49,10 +49,10 @@ cmac_mbox_set_write_notif_cb(cmac_mbox_write_notif_cb *cb)
 int
 cmac_mbox_has_data(void)
 {
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_c2s;
-#else
+#if MYNEWT_VAL(BLE_CONTROLLER)
     volatile struct cmac_mbox *mbox = &g_cmac_shared_data.mbox_s2c;
+#else
+    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_c2s;
 #endif
 
     return mbox->rd_off != mbox->wr_off;
@@ -61,14 +61,14 @@ cmac_mbox_has_data(void)
 int
 cmac_mbox_read(void)
 {
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_c2s;
-    uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data->mbox_c2s_buf;
-    const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_C2S);
-#else
+#if MYNEWT_VAL(BLE_CONTROLLER)
     volatile struct cmac_mbox *mbox = &g_cmac_shared_data.mbox_s2c;
     uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data.mbox_s2c_buf;
     const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_S2C);
+#else
+    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_c2s;
+    uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data->mbox_c2s_buf;
+    const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_C2S);
 #endif
     uint16_t rd_off;
     uint16_t wr_off;
@@ -108,14 +108,14 @@ cmac_mbox_read(void)
 int
 cmac_mbox_write(const void *data, uint16_t len)
 {
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_s2c;
-    uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data->mbox_s2c_buf;
-    const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_S2C);
-#else
+#if MYNEWT_VAL(BLE_CONTROLLER)
     volatile struct cmac_mbox *mbox = &g_cmac_shared_data.mbox_c2s;
     uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data.mbox_c2s_buf;
     const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_C2S);
+#else
+    volatile struct cmac_mbox *mbox = &g_cmac_shared_data->mbox_s2c;
+    uint8_t *mbox_buf = (uint8_t *)&g_cmac_shared_data->mbox_s2c_buf;
+    const uint16_t mbox_size = MYNEWT_VAL(CMAC_MBOX_SIZE_S2C);
 #endif
     uint16_t rd_off;
     uint16_t wr_off;

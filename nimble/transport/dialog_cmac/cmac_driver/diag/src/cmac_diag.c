@@ -20,30 +20,6 @@
 #include "syscfg/syscfg.h"
 #include "mcu/mcu.h"
 
-#if MYNEWT_VAL(BLE_HOST) || MYNEWT_VAL(BLE_HCI_BRIDGE)
-void
-cmac_diag_setup_host(void)
-{
-    /* Setup pins for diagnostic signals */
-    mcu_gpio_set_pin_function(42, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG0); /* DIAG_0 @ P1.10 */
-    mcu_gpio_set_pin_function(43, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG1); /* DIAG_1 @ P1.11 */
-    mcu_gpio_set_pin_function(44, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG2); /* DIAG_2 @ P1.12 */
-    mcu_gpio_set_pin_function(24, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_3 @ P0.24 */
-    mcu_gpio_set_pin_function(21, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_4 @ P0.21 */
-    mcu_gpio_set_pin_function(20, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_5 @ P0.20 */
-    mcu_gpio_set_pin_function(19, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_6 @ P0.19 */
-    mcu_gpio_set_pin_function(18, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_7 @ P0.18 */
-    mcu_gpio_set_pin_function(31, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_8 @ P0.31 */
-    mcu_gpio_set_pin_function(30, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_9 @ P0.30 */
-    mcu_gpio_set_pin_function(29, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_10 @ P0.29 */
-    mcu_gpio_set_pin_function(28, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_11 @ P0.28 */
-    mcu_gpio_set_pin_function(27, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_12 @ P0.27 */
-    mcu_gpio_set_pin_function(26, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_13 @ P0.26 */
-    mcu_gpio_set_pin_function(38, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_14 @ P1.06 */
-    mcu_gpio_set_pin_function(41, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_15 @ P1.09 */
-}
-#endif
-
 #if MYNEWT_VAL(BLE_CONTROLLER)
 void
 cmac_diag_setup_cmac(void)
@@ -64,5 +40,27 @@ cmac_diag_setup_cmac(void)
     MCU_DIAG_MAP(13, 3, SLP_TIMER_ACTIVE);
     MCU_DIAG_MAP(14, 4, SLEEPING);
     MCU_DIAG_MAP(15, 8, LL_TIMER1_00);
+}
+#else
+void
+cmac_diag_setup_host(void)
+{
+    /* Setup pins for diagnostic signals */
+    mcu_gpio_set_pin_function(42, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG0); /* DIAG_0 @ P1.10 */
+    mcu_gpio_set_pin_function(43, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG1); /* DIAG_1 @ P1.11 */
+    mcu_gpio_set_pin_function(44, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAG2); /* DIAG_2 @ P1.12 */
+    mcu_gpio_set_pin_function(24, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_3 @ P0.24 */
+    mcu_gpio_set_pin_function(21, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_4 @ P0.21 */
+    mcu_gpio_set_pin_function(20, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_5 @ P0.20 */
+    mcu_gpio_set_pin_function(19, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_6 @ P0.19 */
+    mcu_gpio_set_pin_function(18, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_7 @ P0.18 */
+    mcu_gpio_set_pin_function(31, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_8 @ P0.31 */
+    mcu_gpio_set_pin_function(30, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_9 @ P0.30 */
+    mcu_gpio_set_pin_function(29, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_10 @ P0.29 */
+    mcu_gpio_set_pin_function(28, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_11 @ P0.28 */
+    mcu_gpio_set_pin_function(27, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_12 @ P0.27 */
+    mcu_gpio_set_pin_function(26, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_13 @ P0.26 */
+    mcu_gpio_set_pin_function(38, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_14 @ P1.06 */
+    mcu_gpio_set_pin_function(41, MCU_GPIO_MODE_OUTPUT, MCU_GPIO_FUNC_CMAC_DIAGX); /* DIAG_15 @ P1.09 */
 }
 #endif

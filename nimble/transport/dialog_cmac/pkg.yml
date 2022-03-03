@@ -26,11 +26,8 @@ pkg.keywords:
     - bluetooth
 
 pkg.deps:
-    - nimble
+    - nimble/transport/common/hci_h4
     - nimble/transport/dialog_cmac/cmac_driver
 
 pkg.apis:
     - ble_transport
-
-pkg.init:
-    ble_hci_cmac_init: 100
