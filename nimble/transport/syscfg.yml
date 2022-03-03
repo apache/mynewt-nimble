@@ -17,103 +17,76 @@
 #
 
 syscfg.defs:
-    BLE_HCI_TRANSPORT:
+    BLE_TRANSPORT: 1
+
+    BLE_TRANSPORT_HS:
         description: >
-            Selects HCI transport to be included in build.
-            This has virtually the same effect as including package dependency
-            manually, but it allows to easily override HCI transport package in
-            application or target settings.
-        value: builtin
-        restrictions: $notnull
+            Select HCI transport used towards host.
+            "native" means NimBLE host is running on the same core and no
+            transport is required.
+        value: native
         choices:
-            - builtin           # Built-in NimBLE controller and RAM transport
-            - custom            # Custom transport, has to be included manually by user
-            - ram               # RAM transport
-            - uart              # UART HCI H4 transport
-            - socket            # Socket transport (for native builds)
-            - emspi             # SPI transport for EM Microelectionic controllers
-            - da1469x           # Dialog DA1469x integrated controller
-            - dialog_cmac       # Dialog CMAC via shared memory
-            - usb               # USB
-            - nrf5340           # nRF5340
-
-    BLE_HCI_BRIDGE_TRANSPORT:
+            - native
+            - dialog_cmac
+            - nrf5340
+            - uart
+            - usb
+            - custom
+    BLE_TRANSPORT_LL:
         description: >
-            Selects HCI transport to be included in bridge configuration build.
-            This applies to multi core configurations where controller runs
-            on separate core and main core forwards HCI traffic to external host.
-            This has virtually the same effect as including package dependency
-            manually, but it allows to easily override HCI transport package in
-            application or target settings.
-            This is the transport
-        value:
+            Select HCI transport used towards controller.
+            "native" means NimBLE controller is running on the same core and no
+            transport is required.
+        value: native
         choices:
-            - dialog_cmac       # Dialog CMAC via shared memory
-            - nrf5340           # nRF5340
+            - native
+            - dialog_cmac
+            - nrf5340
+            - custom
 
-    BLE_HCI_BRIDGE:
+    BLE_TRANSPORT_ACL_COUNT:
         description: >
-            External interface (UART/USB/Socket) bridged to second core controller.
-        value: 0
-
-    BLE_HCI_EVT_HI_BUF_COUNT:
-        description: 'Number of high-priority event buffers.'
-        value:
-
-    BLE_HCI_EVT_LO_BUF_COUNT:
-        description: 'Number of low-priority event buffers.'
-        value:
-
-    BLE_HCI_EVT_BUF_SIZE:
-        description: 'Size of each event buffer, in bytes.'
-        value:
-
-    BLE_ACL_BUF_COUNT:
-        description: 'The number of ACL data buffers'
-        value:
-
-    BLE_ACL_BUF_SIZE:
+            Number of ACL buffers available in transport. This determines
+            number of buffers used by host/controller for flow control.
+            Buffers pool is allocated for each non-native transport side
+            selected, unless overriden by BLE_TRANSPORT_ACL_FROM_[HS|LL]_COUNT.
+        value: 10
+    BLE_TRANSPORT_ACL_SIZE:
+        description: Size of each buffer in ACL pool.
+        value: 255
+    BLE_TRANSPORT_EVT_COUNT:
         description: >
-            This is the maximum size of the data portion of HCI ACL data
-            packets.
-        value:
+            Number of event buffers available in transport.
+        value: 4
+    BLE_TRANSPORT_EVT_DISCARDABLE_COUNT:
+        description: >
+            Number of discardable event buffers available in transport.
+            Discardable event buffers are used for events that can be safely
+            dropped by controller if there's no free buffer available, e.g.
+            advertising reports.
+        value: 16
+    BLE_TRANSPORT_EVT_SIZE:
+        description: >
+            Size of each buffer in events pool. This applies to both regular
+            and discardable buffers. Value is automatically adjusted if
+            extended advertising is enabled so in most cases it's better to
+            leave it at default settings.
+        value: 70
 
-# Deprecated settings
-    BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
-        description: Use BLE_HCI_TRANSPORT instead.
-        value: 0
-        deprecated: 1
-    BLE_HCI_TRANSPORT_EMSPI:
-        description: Use BLE_HCI_TRANSPORT instead.
-        value: 0
-        deprecated: 1
-    BLE_HCI_TRANSPORT_RAM:
-        description: Use BLE_HCI_TRANSPORT instead.
-        value: 0
-        deprecated: 1
-    BLE_HCI_TRANSPORT_SOCKET:
-        description: Use BLE_HCI_TRANSPORT instead.
-        value: 0
-        deprecated: 1
-    BLE_HCI_TRANSPORT_UART:
-        description: Use BLE_HCI_TRANSPORT instead.
-        value: 0
-        deprecated: 1
+    BLE_TRANSPORT_ACL_FROM_HS_COUNT:
+        description: >
+            Overrides BLE_TRANSPORT_ACL_COUNT on host side, i.e. number
+            of ACL buffers available for host.
+        value: MYNEWT_VAL(BLE_TRANSPORT_ACL_COUNT)
+    BLE_TRANSPORT_ACL_FROM_LL_COUNT:
+        description: >
+            Overrides BLE_TRANSPORT_ACL_COUNT on controller side, i.e. number
+            of ACL buffers available for controller.
+        value: MYNEWT_VAL(BLE_TRANSPORT_ACL_COUNT)
 
-syscfg.vals.BLE_HCI_TRANSPORT_NIMBLE_BUILTIN:
-    BLE_HCI_TRANSPORT: builtin
-syscfg.vals.BLE_HCI_TRANSPORT_RAM:
-    BLE_HCI_TRANSPORT: ram
-syscfg.vals.BLE_HCI_TRANSPORT_UART:
-    BLE_HCI_TRANSPORT: uart
-syscfg.vals.BLE_HCI_TRANSPORT_SOCKET:
-    BLE_HCI_TRANSPORT: socket
-syscfg.vals.BLE_HCI_TRANSPORT_EMSPI:
-    BLE_HCI_TRANSPORT: emspi
+# import defunct settings from separate file to reduce clutter in main file
+$import:
+    - "@apache-mynewt-nimble/nimble/transport/syscfg.defunct.yml"
 
-syscfg.vals.'(MCU_TARGET == "DA14691" || MCU_TARGET == "DA14695" || MCU_TARGET == "DA14697" || MCU_TARGET == "DA14699")':
-    BLE_HCI_BRIDGE_TRANSPORT: dialog_cmac
-
-syscfg.vals.'(MCU_TARGET == "nRF5340_APP")':
-    BLE_HCI_BRIDGE_TRANSPORT: nrf5340
-
+syscfg.vals."BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV":
+    BLE_TRANSPORT_EVT_SIZE: 257
