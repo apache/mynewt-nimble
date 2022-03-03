@@ -100,5 +100,5 @@ syscfg.defs:
             priority.
         value: 0
 
-syscfg.restrictions.BLE_HOST:
+syscfg.restrictions.!BLE_CONTROLLER:
     - TRNG
