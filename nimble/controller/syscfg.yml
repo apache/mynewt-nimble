@@ -17,11 +17,7 @@
 #
 
 syscfg.defs:
-    BLE_CONTROLLER:
-        description: >
-            Indicates that NimBLE controller is present. The default value for
-            this setting shall not be overriden.
-        value: 1
+    BLE_CONTROLLER: 1
 
     BLE_LL_ROLE_CENTRAL:
         description: 'Enables controller support for the Central role.'
@@ -556,6 +552,7 @@ syscfg.vals.!BLE_HOST:
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
 syscfg.restrictions:
+    - BLE_TRANSPORT_LL == "native"
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
     - BLE_LL_PA == 0 || BLE_LL_PA_GPIO >= 0
     - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0

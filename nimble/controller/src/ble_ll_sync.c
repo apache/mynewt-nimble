@@ -36,7 +36,6 @@
 
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 
 #include "ble_ll_conn_priv.h"
 
@@ -201,7 +200,7 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
     }
 
     if (sm->next_report) {
-        ble_hci_trans_buf_free(sm->next_report);
+        ble_transport_free(sm->next_report);
     }
 
     if (g_ble_ll_sync_sm_current == sm) {
@@ -333,7 +332,7 @@ ble_ll_sync_transfer_received(struct ble_ll_sync_sm *sm, uint8_t status)
 
         ble_ll_hci_event_send(hci_ev);
     } else {
-        ble_hci_trans_buf_free(sm->transfer_received_ev);
+        ble_transport_free(sm->transfer_received_ev);
     }
 
     sm->transfer_received_ev = NULL;
@@ -371,7 +370,7 @@ ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
 
         ble_ll_hci_event_send(hci_ev);
     } else {
-        ble_hci_trans_buf_free(g_ble_ll_sync_create_comp_ev);
+        ble_transport_free(g_ble_ll_sync_create_comp_ev);
     }
 
     g_ble_ll_sync_create_comp_ev = NULL;
@@ -399,7 +398,7 @@ ble_ll_sync_est_event_failed(uint8_t status)
 
         ble_ll_hci_event_send(hci_ev);
     } else {
-        ble_hci_trans_buf_free(g_ble_ll_sync_create_comp_ev);
+        ble_transport_free(g_ble_ll_sync_create_comp_ev);
     }
 
     g_ble_ll_sync_create_comp_ev = NULL;
@@ -412,7 +411,7 @@ ble_ll_sync_lost_event(struct ble_ll_sync_sm *sm)
     struct ble_hci_ev *hci_ev;
 
     if (ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_LOST)) {
-        hci_ev = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+        hci_ev = ble_transport_alloc_evt(0);
         if (hci_ev) {
             hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
             hci_ev->length = sizeof(*ev);
@@ -642,7 +641,7 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT) ||
         (sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED)) {
-        ble_hci_trans_buf_free(evbuf);
+        ble_transport_free(evbuf);
         return;
     }
 
@@ -679,7 +678,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
         hci_ev = (void *) sm->next_report;
         sm->next_report = NULL;
     } else {
-        hci_ev = (void * )ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+        hci_ev = ble_transport_alloc_evt(1);
         if (!hci_ev) {
             goto done;
         }
@@ -714,7 +713,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
 
         /* Need another event for next fragment of this PDU */
         if (offset < datalen) {
-            hci_ev_next = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+            hci_ev_next = ble_transport_alloc_evt(1);
             if (hci_ev_next) {
                 ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
             } else {
@@ -725,7 +724,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
             if (aux) {
                 if (aux_scheduled) {
                     /* if we scheduled aux, we need buffer for next report */
-                    hci_ev_next = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+                    hci_ev_next = ble_transport_alloc_evt(1);
                     if (hci_ev_next) {
                         ev->data_status = BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE;
                     } else {
@@ -1517,7 +1516,7 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /* reserve buffer for sync complete event */
-    g_ble_ll_sync_create_comp_ev = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    g_ble_ll_sync_create_comp_ev = ble_transport_alloc_evt(0);
     if (!g_ble_ll_sync_create_comp_ev) {
         return BLE_ERR_MEM_CAPACITY;
     }
@@ -1527,7 +1526,7 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
     /* reserve 1 SM for created sync */
     sm = ble_ll_sync_reserve();
     if (!sm) {
-        ble_hci_trans_buf_free(g_ble_ll_sync_create_comp_ev);
+        ble_transport_free(g_ble_ll_sync_create_comp_ev);
         g_ble_ll_sync_create_comp_ev = NULL;
         OS_EXIT_CRITICAL(sr);
         return BLE_ERR_MEM_CAPACITY;
@@ -1789,7 +1788,7 @@ ble_ll_sync_transfer_get(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
 
         if (!sm->flags) {
             /* allocate event for transfer received event */
-            sm->transfer_received_ev = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            sm->transfer_received_ev = ble_transport_alloc_evt(0);
             if (!sm->transfer_received_ev) {
                 break;
             }
@@ -2246,7 +2245,7 @@ ble_ll_sync_reset(void)
     g_ble_ll_sync_sm_current = NULL;
 
     if (g_ble_ll_sync_create_comp_ev) {
-        ble_hci_trans_buf_free(g_ble_ll_sync_create_comp_ev);
+        ble_transport_free(g_ble_ll_sync_create_comp_ev);
         g_ble_ll_sync_create_comp_ev = NULL;
     }
 }

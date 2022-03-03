@@ -25,7 +25,7 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
+#include "nimble/transport.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
@@ -306,7 +306,7 @@ ble_ll_conn_cth_flow_error_fn(struct ble_npl_event *ev)
     struct ble_hci_ev_command_complete *hci_ev_cp;
     uint16_t opcode;
 
-    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    hci_ev = ble_transport_alloc_evt(0);
     if (!hci_ev) {
         /* Not much we can do anyway... */
         return;
@@ -3261,7 +3261,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         acl_hdr = (llid << 12) | connsm->conn_handle;
         put_le16(rxbuf, acl_hdr);
         put_le16(rxbuf + 2, acl_len);
-        ble_hci_trans_ll_acl_tx(rxpdu);
+        ble_transport_to_hs_acl(rxpdu);
     }
 
     /* NOTE: we dont free the mbuf since we handed it off! */
@@ -3916,7 +3916,7 @@ ble_ll_conn_module_reset(void)
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Free the global connection complete event if there is one */
     if (g_ble_ll_conn_comp_ev) {
-        ble_hci_trans_buf_free(g_ble_ll_conn_comp_ev);
+        ble_transport_free(g_ble_ll_conn_comp_ev);
         g_ble_ll_conn_comp_ev = NULL;
     }
 

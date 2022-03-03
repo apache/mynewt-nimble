@@ -28,7 +28,6 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
@@ -230,7 +229,7 @@ ble_ll_hci_ev_alloc_ext_adv_report_for_aux(struct ble_ll_scan_addr_data *addrd,
     struct ext_adv_report *report;
     struct ble_hci_ev *hci_ev;
 
-    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+    hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
         return NULL;
     }
@@ -286,7 +285,7 @@ ble_ll_hci_ev_dup_ext_adv_report(struct ble_hci_ev *hci_ev_src)
     struct ext_adv_report *report;
     struct ble_hci_ev *hci_ev;
 
-    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+    hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
         return NULL;
     }
@@ -639,7 +638,7 @@ ble_ll_hci_ev_send_ext_adv_report_for_ext(struct os_mbuf *rxpdu,
         return;
     }
 
-    hci_ev = (void *)ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_LO);
+    hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
         return;
     }
