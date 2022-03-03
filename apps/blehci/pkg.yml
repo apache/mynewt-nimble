@@ -27,7 +27,6 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log/stub"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/kernel/os"
-    - nimble/controller
     - nimble/transport
 
 pkg.req_apis:
