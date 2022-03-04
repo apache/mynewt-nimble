@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 #include "host/ble_gap.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
@@ -795,7 +794,7 @@ ble_hs_hci_evt_le_phy_update_complete(uint8_t subevent, const void *data,
 #endif
 
 int
-ble_hs_hci_evt_process(const struct ble_hci_ev *ev)
+ble_hs_hci_evt_process(struct ble_hci_ev *ev)
 {
     const struct ble_hs_hci_evt_dispatch_entry *entry;
     int rc;
@@ -812,7 +811,7 @@ ble_hs_hci_evt_process(const struct ble_hci_ev *ev)
         rc = entry->cb(ev->opcode, ev->data, ev->length);
     }
 
-    ble_hci_trans_buf_free((uint8_t *) ev);
+    ble_transport_free(ev);
 
     return rc;
 }

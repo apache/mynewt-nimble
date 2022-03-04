@@ -30,6 +30,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/util/mem"
     - nimble
+    - nimble/transport
 
 pkg.deps.BLE_SM_LEGACY:
     - "@apache-mynewt-core/crypto/tinycrypt"
@@ -47,9 +48,6 @@ pkg.req_apis:
     - ble_transport
     - console
     - stats
-
-pkg.init:
-    ble_hs_init: 'MYNEWT_VAL(BLE_HS_SYSINIT_STAGE)'
 
 pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
     ble_hs_shutdown: 200

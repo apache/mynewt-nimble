@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
@@ -38,7 +37,7 @@ ble_hs_hci_cmd_transport(struct ble_hci_cmd *cmd)
                      cmd->length + sizeof(*cmd));
 #endif
 
-    rc = ble_hci_trans_hs_cmd_tx((uint8_t *) cmd);
+    rc = ble_transport_to_ll_cmd(cmd);
     switch (rc) {
     case 0:
         return 0;
@@ -57,7 +56,7 @@ ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
     struct ble_hci_cmd *cmd;
     int rc;
 
-    cmd = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+    cmd = ble_transport_alloc_cmd();
     BLE_HS_DBG_ASSERT(cmd != NULL);
 
     cmd->opcode = htole16(opcode);
