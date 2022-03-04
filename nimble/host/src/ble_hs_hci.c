@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "mem/mem.h"
-#include "nimble/ble_hci_trans.h"
 #include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 #include "ble_monitor_priv.h"
@@ -269,8 +268,7 @@ ble_hs_hci_wait_for_ack(void)
     if (ble_hs_hci_phony_ack_cb == NULL) {
         rc = BLE_HS_ETIMEOUT_HCI;
     } else {
-        ble_hs_hci_ack =
-            (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+        ble_hs_hci_ack = ble_transport_alloc_cmd();
         BLE_HS_DBG_ASSERT(ble_hs_hci_ack != NULL);
         rc = ble_hs_hci_phony_ack_cb((void *)ble_hs_hci_ack, 260);
     }
@@ -351,7 +349,7 @@ ble_hs_hci_cmd_tx(uint16_t opcode, const void *cmd, uint8_t cmd_len,
 
 done:
     if (ble_hs_hci_ack != NULL) {
-        ble_hci_trans_buf_free((uint8_t *) ble_hs_hci_ack);
+        ble_transport_free((uint8_t *) ble_hs_hci_ack);
         ble_hs_hci_ack = NULL;
     }
 
@@ -364,7 +362,7 @@ ble_hs_hci_rx_ack(uint8_t *ack_ev)
 {
     if (ble_npl_sem_get_count(&ble_hs_hci_sem) > 0) {
         /* This ack is unexpected; ignore it. */
-        ble_hci_trans_buf_free(ack_ev);
+        ble_transport_free(ack_ev);
         return;
     }
     BLE_HS_DBG_ASSERT(ble_hs_hci_ack == NULL);

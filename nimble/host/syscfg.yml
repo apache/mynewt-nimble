@@ -497,3 +497,6 @@ syscfg.logs:
 
 syscfg.vals.BLE_MESH:
     BLE_SM_SC: 1
+
+syscfg.restrictions:
+    - BLE_TRANSPORT_HS == "native"
