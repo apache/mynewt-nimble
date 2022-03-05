@@ -18,8 +18,8 @@
 #
 
 syscfg.vals:
-    BLE_HOST: 0
-    BLE_HCI_TRANSPORT: custom
+    BLE_TRANSPORT_LL: native
+    BLE_TRANSPORT_HS: custom
 
     # EDTT requires 0x123456789ABC address for first device
     # and 0x456789ABCDEF for second

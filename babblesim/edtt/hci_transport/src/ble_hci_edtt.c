@@ -17,7 +17,6 @@
 /* BLE */
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 
 #include "bs_symbols.h"
 #include "bs_types.h"
@@ -26,58 +25,12 @@
 #include "edtt_driver.h"
 #include "commands.h"
 
-#define BLE_HCI_EDTT_EVT_COUNT  \
-    (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
-
 #define BLE_HCI_EDTT_NONE        0x00
 #define BLE_HCI_EDTT_CMD         0x01
 #define BLE_HCI_EDTT_ACL         0x02
 #define BLE_HCI_EDTT_EVT         0x04
 
 #define BT_HCI_OP_VS_WRITE_BD_ADDR 0xFC06
-
-/* Callbacks for sending commands and acl data to ble_ll task */
-static ble_hci_trans_rx_cmd_fn *ble_hci_edtt_rx_cmd_cb;
-static void *ble_hci_edtt_rx_cmd_arg;
-static ble_hci_trans_rx_acl_fn *ble_hci_edtt_rx_acl_cb;
-static void *ble_hci_edtt_rx_acl_arg;
-
-/* Memory pool for hci events (high prio). 16 blocks x 70 bytes */
-static struct os_mempool ble_hci_edtt_evt_hi_pool;
-static os_membuf_t ble_hci_edtt_evt_hi_buf[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                    MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-/* Memory pool for hci events (low prio). 16 blocks x 70 bytes */
-static struct os_mempool ble_hci_edtt_evt_lo_pool;
-static os_membuf_t ble_hci_edtt_evt_lo_buf[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                    MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-/* Memory pool for hci commands. Only 1 block, so supports only 1 command at once. */
-static struct os_mempool ble_hci_edtt_cmd_pool;
-static os_membuf_t ble_hci_edtt_cmd_buf[
-    OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
-];
-
-/*
- * The MBUF payload size must accommodate the HCI data header size plus the
- * maximum ACL data packet length. The ACL block size is the size of the
- * mbufs we will allocate.
- */
-#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
-                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
-                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
-
-/* mbuf pool for acl data. 15 buffers x (255 bytes + some hdrs len)  */
-static struct os_mbuf_pool ble_hci_edtt_acl_mbuf_pool;
-static struct os_mempool_ext ble_hci_edtt_acl_pool;
-static os_membuf_t ble_hci_edtt_acl_buf[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                    ACL_BLOCK_SIZE)
-];
 
 /* A packet for queueing EDTT/HCI commands and events */
 struct ble_hci_edtt_pkt {
@@ -145,28 +98,6 @@ log_hci_init()
 }
 #endif
 
-/**
- * Allocates a buffer (mbuf) for ACL operation.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-static struct os_mbuf *
-ble_hci_trans_acl_buf_alloc(void)
-{
-    struct os_mbuf *m;
-    uint8_t usrhdr_len;
-
-#if MYNEWT_VAL(BLE_CONTROLLER)
-    usrhdr_len = sizeof(struct ble_mbuf_hdr);
-#else
-    usrhdr_len = 0;
-#endif
-
-    m = os_mbuf_get_pkthdr(&ble_hci_edtt_acl_mbuf_pool, usrhdr_len);
-    return m;
-}
-
 static int
 ble_hci_edtt_acl_tx(struct os_mbuf *om)
 {
@@ -201,18 +132,6 @@ ble_hci_edtt_cmdevt_tx(uint8_t *hci_ev, uint8_t edtt_type)
     return 0;
 }
 
-static void
-ble_hci_edtt_set_rx_cbs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                        void *cmd_arg,
-                        ble_hci_trans_rx_acl_fn *acl_cb,
-                        void *acl_arg)
-{
-    ble_hci_edtt_rx_cmd_cb = cmd_cb;
-    ble_hci_edtt_rx_cmd_arg = cmd_arg;
-    ble_hci_edtt_rx_acl_cb = acl_cb;
-    ble_hci_edtt_rx_acl_arg = acl_arg;
-}
-
 /**
  * Sends an HCI event from the controller to the host.
  *
@@ -223,12 +142,9 @@ ble_hci_edtt_set_rx_cbs(ble_hci_trans_rx_cmd_fn *cmd_cb,
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_hci_trans_ll_evt_tx(uint8_t *cmd)
+ble_transport_to_hs_evt(void *buf)
 {
-    int rc;
-
-    rc = ble_hci_edtt_cmdevt_tx(cmd, BLE_HCI_EDTT_EVT);
-    return rc;
+    return ble_hci_edtt_cmdevt_tx(buf, BLE_HCI_EDTT_EVT);
 }
 
 /**
@@ -240,120 +156,9 @@ ble_hci_trans_ll_evt_tx(uint8_t *cmd)
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_hci_trans_ll_acl_tx(struct os_mbuf *om)
+ble_transport_to_hs_acl(struct os_mbuf *om)
 {
-    int rc;
-
-    rc = ble_hci_edtt_acl_tx(om);
-    return rc;
-}
-
-int
-ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
-{
-    int rc;
-
-    rc = ble_hci_edtt_cmdevt_tx(cmd, BLE_HCI_EDTT_CMD);
-    return rc;
-}
-
-int
-ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
-{
-    int rc;
-
-    rc = ble_hci_edtt_acl_tx(om);
-    return rc;
-}
-
-/**
- * Allocates a flat buffer of the specified type.
- *
- * @param type                  The type of buffer to allocate; one of the
- *                                  BLE_HCI_TRANS_BUF_[...] constants.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-uint8_t *
-ble_hci_trans_buf_alloc(int type) {
-    uint8_t *buf;
-
-    switch (type) {
-        case BLE_HCI_TRANS_BUF_CMD:
-            buf = os_memblock_get(&ble_hci_edtt_cmd_pool);
-            break;
-        case BLE_HCI_TRANS_BUF_EVT_HI:
-            buf = os_memblock_get(&ble_hci_edtt_evt_hi_pool);
-            if (buf == NULL) {
-                /* If no high-priority event buffers remain, try to grab a
-                 * low-priority one.
-                 */
-                buf = os_memblock_get(&ble_hci_edtt_evt_lo_pool);
-            }
-            break;
-
-        case BLE_HCI_TRANS_BUF_EVT_LO:
-            buf = os_memblock_get(&ble_hci_edtt_evt_lo_pool);
-            break;
-
-        default:
-            assert(0);
-            buf = NULL;
-    }
-
-    return buf;
-}
-
-/**
- * Frees the specified flat buffer.  The buffer must have been allocated via
- * ble_hci_trans_buf_alloc().
- *
- * @param buf                   The buffer to free.
- */
-void
-ble_hci_trans_buf_free(uint8_t *buf)
-{
-    int rc;
-
-    /*
-     * XXX: this may look a bit odd, but the controller uses the command
-     * buffer to send back the command complete/status as an immediate
-     * response to the command. This was done to insure that the controller
-     * could always send back one of these events when a command was received.
-     * Thus, we check to see which pool the buffer came from so we can free
-     * it to the appropriate pool
-     */
-    if (os_memblock_from(&ble_hci_edtt_evt_hi_pool, buf)) {
-        rc = os_memblock_put(&ble_hci_edtt_evt_hi_pool, buf);
-        assert(rc == 0);
-    } else if (os_memblock_from(&ble_hci_edtt_evt_lo_pool, buf)) {
-        rc = os_memblock_put(&ble_hci_edtt_evt_lo_pool, buf);
-        assert(rc == 0);
-    } else if (os_memblock_from(&ble_hci_edtt_cmd_pool, buf)) {
-        assert(os_memblock_from(&ble_hci_edtt_cmd_pool, buf));
-        rc = os_memblock_put(&ble_hci_edtt_cmd_pool, buf);
-        assert(rc == 0);
-    } else {
-        free(buf);
-    }
-}
-
-int
-ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
-{
-    ble_hci_edtt_acl_pool.mpe_put_cb = cb;
-    ble_hci_edtt_acl_pool.mpe_put_arg = arg;
-    return 0;
-}
-
-void
-ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                     void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb,
-                     void *acl_arg)
-{
-    ble_hci_edtt_set_rx_cbs(cmd_cb, cmd_arg, acl_cb, acl_arg);
+    return ble_hci_edtt_acl_tx(om);
 }
 
 /**
@@ -398,8 +203,7 @@ send_hci_cmd_to_ctrl(uint16_t opcode, uint8_t param_len, uint16_t response) {
     waiting_response = response;
     waiting_opcode = opcode;
 
-    buf = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
-
+    buf = ble_transport_alloc_cmd();
     if (buf != NULL) {
         buf->opcode = opcode;
         buf->length = param_len;
@@ -412,9 +216,9 @@ send_hci_cmd_to_ctrl(uint16_t opcode, uint8_t param_len, uint16_t response) {
         log_hci_cmd(opcode, buf->data, param_len);
 #endif
 
-        err = ble_hci_edtt_rx_cmd_cb((uint8_t *) buf, NULL);
+        err = ble_transport_to_ll_cmd(buf);
         if (err) {
-            ble_hci_trans_buf_free((uint8_t *) buf);
+            ble_transport_free(buf);
             bs_trace_raw_time(3, "Failed to send HCI command %d (err %d)", opcode, err);
             error_response(err);
         }
@@ -454,7 +258,9 @@ command_complete(struct ble_hci_ev *evt)
     uint16_t response = waiting_response;
     uint16_t size = evt->length - sizeof(evt_cc->num_packets) - sizeof(evt_cc->opcode);
 
-    if (evt_cc->opcode == waiting_opcode) {
+    if (evt_cc->opcode == 0) {
+        /* ignore nop */
+    } else if (evt_cc->opcode == waiting_opcode) {
         bs_trace_raw_time(9, "Command complete for 0x%04x", waiting_opcode);
 
         edtt_write((uint8_t *) &response, sizeof(response), EDTTT_BLOCK);
@@ -507,7 +313,7 @@ static void
 free_event(struct ble_hci_edtt_pkt *pkt)
 {
     assert(pkt);
-    ble_hci_trans_buf_free((void *)pkt->data);
+    ble_transport_free(pkt->data);
     free(pkt);
 }
 
@@ -553,9 +359,10 @@ dup_complete_evt(void *evt)
 {
     struct ble_hci_ev *evt_copy;
 
-    evt_copy = calloc(1, BLE_HCI_TRANS_CMD_SZ);
-    memcpy(evt_copy, evt, BLE_HCI_TRANS_CMD_SZ);
-    ble_hci_trans_buf_free((void *)evt);
+    /* max evt size is always 257 */
+    evt_copy = ble_transport_alloc_evt(0);
+    memcpy(evt_copy, evt, 257);
+    ble_transport_free(evt);
 
     return evt_copy;
 }
@@ -598,14 +405,14 @@ service_events(void *arg)
                 assert(evt_ncp->count == 1);
                 if (evt_ncp->completed[0].packets == 0) {
                     /* Discard, because EDTT does not like it */
-                    ble_hci_trans_buf_free((void *)evt);
+                    ble_transport_free(evt);
                 } else {
                     queue_event(evt);
                 }
                 break;
             case BLE_HCI_OPCODE_NOP:
                 /* Ignore noop bytes from Link layer */
-                ble_hci_trans_buf_free((void *)evt);
+                ble_transport_free(evt);
                 break;
             default:
                 /* Queue HCI events. We will send them to EDTT
@@ -831,7 +638,7 @@ le_data_write(uint16_t size)
     int err;
 
     if (size >= sizeof(hdr)) {
-        om = ble_hci_trans_acl_buf_alloc();
+        om = ble_transport_alloc_acl_from_hs();
         if (om) {
             edtt_read((void *)&hdr, sizeof(hdr), EDTTT_BLOCK);
             size -= sizeof(hdr);
@@ -848,7 +655,7 @@ le_data_write(uint16_t size)
                 os_mbuf_append(om, tmp, hdr.hdh_len);
             }
 
-            err = ble_hci_edtt_rx_acl_cb(om, NULL);
+            err = ble_transport_to_ll_acl(om);
             if (err) {
                 bs_trace_raw_time(3, "Failed to send ACL Data (err %d)", err);
             }
@@ -874,7 +681,7 @@ fake_write_bd_addr_cc()
     waiting_opcode = BT_HCI_OP_VS_WRITE_BD_ADDR;
     waiting_response = CMD_WRITE_BD_ADDR_RSP;
 
-    hci_ev = (void *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    hci_ev = ble_transport_alloc_evt(0);
     if (hci_ev) {
         hci_ev->opcode = BLE_HCI_EVCODE_COMMAND_COMPLETE;
         hci_ev->length = sizeof(*ev);
@@ -997,52 +804,8 @@ edtt_init(void)
 void
 ble_hci_edtt_init(void)
 {
-    int rc;
-
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
-
-    rc = os_mempool_ext_init(&ble_hci_edtt_acl_pool,
-                             MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                             ACL_BLOCK_SIZE,
-                             ble_hci_edtt_acl_buf,
-                             "ble_hci_edtt_acl_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mbuf_pool_init(&ble_hci_edtt_acl_mbuf_pool,
-                           &ble_hci_edtt_acl_pool.mpe_mp,
-                           ACL_BLOCK_SIZE,
-                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    /*
-     * Create memory pool of HCI command buffers. NOTE: we currently dont
-     * allow this to be configured. The controller will only allow one
-     * outstanding command. We decided to keep this a pool in case we allow
-     * allow the controller to handle more than one outstanding command.
-     */
-    rc = os_mempool_init(&ble_hci_edtt_cmd_pool,
-                         1,
-                         BLE_HCI_TRANS_CMD_SZ,
-                         ble_hci_edtt_cmd_buf,
-                         "ble_hci_edtt_cmd_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_edtt_evt_hi_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         ble_hci_edtt_evt_hi_buf,
-                         "ble_hci_edtt_evt_hi_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_edtt_evt_lo_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         ble_hci_edtt_evt_lo_buf,
-                         "ble_hci_edtt_evt_lo_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    SYSINIT_PANIC_ASSERT_MSG(rc == 0, "Failure configuring edtt HCI");
 
     os_eventq_init(&edtt_q_svc);
     os_eventq_init(&edtt_q_event);

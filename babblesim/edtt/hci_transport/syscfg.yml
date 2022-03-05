@@ -31,19 +31,10 @@ syscfg.defs:
         type: task_priority
         value: 2
 
-    BLE_HCI_ACL_OUT_COUNT:
-        description: >
-            This count is used in creating a pool of elements used by the
-            code to enqueue various elements. In the case of the controller
-            only HCI, this number should be equal to the number of mbufs in
-            the msys pool. For host only, it is really dependent on the
-            number of ACL buffers that the controller tells the host it
-            has.
-        value: 12
-
 syscfg.vals:
-    BLE_ACL_BUF_COUNT: 32
-    BLE_ACL_BUF_SIZE: 255
-    BLE_HCI_EVT_BUF_SIZE: 257
-    BLE_HCI_EVT_HI_BUF_COUNT: 32
-    BLE_HCI_EVT_LO_BUF_COUNT: 32
+    BLE_TRANSPORT_ACL_COUNT: 32
+    BLE_TRANSPORT_EVT_COUNT: 64
+
+syscfg.restrictions:
+    - BLE_TRANSPORT_HS == "custom"
+    - BLE_TRANSPORT_LL == "native"
