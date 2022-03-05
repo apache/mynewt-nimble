@@ -28,8 +28,11 @@ pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - nimble/controller
 
+# allows to override settings from nimble/transport
+pkg.subpriority: 1
+
 pkg.apis:
     - ble_transport
 
 pkg.init:
-    ble_hci_edtt_init: 500
+    ble_hci_edtt_init: 249
