@@ -20,7 +20,6 @@
 #include "adv.h"
 #include "crypto.h"
 #include "beacon.h"
-#include "prov.h"
 #include "mesh/glue.h"
 
 #define GPCF(gpc)           (gpc & 0x03)

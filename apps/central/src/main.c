@@ -22,7 +22,6 @@
 #include "console/console.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
-#include "console/console.h"
 #include "log/log.h"
 
 static uint8_t g_own_addr_type;

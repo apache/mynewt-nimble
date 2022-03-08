@@ -14,7 +14,6 @@
 #include "net.h"
 #include "proxy.h"
 #include "adv.h"
-#include "prov.h"
 #include "syscfg/syscfg.h"
 #include "pb_gatt_srv.h"
 

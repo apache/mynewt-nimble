@@ -25,7 +25,6 @@
 #include "bsp/bsp.h"
 #include "log/log.h"
 #include "stats/stats.h"
-#include "bsp/bsp.h"
 #include "hal/hal_gpio.h"
 #include "console/console.h"
 #include "btshell.h"
