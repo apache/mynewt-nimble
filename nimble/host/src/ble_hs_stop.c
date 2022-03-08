@@ -21,6 +21,7 @@
 #include "sysinit/sysinit.h"
 #include "syscfg/syscfg.h"
 #include "ble_hs_priv.h"
+#include "host/ble_hs_stop.h"
 #include "nimble/nimble_npl.h"
 #ifndef MYNEWT
 #include "nimble/nimble_port.h"
@@ -217,7 +218,7 @@ ble_hs_stop_begin(struct ble_hs_stop_listener *listener,
 }
 
 int
-ble_hs_stop(struct ble_hs_stop_listener *listener, 
+ble_hs_stop(struct ble_hs_stop_listener *listener,
             ble_hs_stop_fn *fn, void *arg)
 {
     int rc;

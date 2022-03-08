@@ -21,9 +21,11 @@
 #include <string.h>
 #include <errno.h>
 #include "nimble/nimble_opt.h"
+#include "host/ble_gap.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
+#include "ble_gap_priv.h"
 
 #if MYNEWT
 #include "bsp/bsp.h"

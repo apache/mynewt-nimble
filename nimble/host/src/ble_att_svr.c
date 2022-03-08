@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include "os/os.h"
+#include "host/ble_att.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"

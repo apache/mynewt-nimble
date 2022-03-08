@@ -21,6 +21,7 @@
 #include <errno.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+#include "host/ble_l2cap.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "ble_hs_priv.h"

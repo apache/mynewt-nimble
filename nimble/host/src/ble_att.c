@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <errno.h>
 #include "ble_hs_priv.h"
+#include "host/ble_att.h"
 
 #if NIMBLE_BLE_CONNECT
 static uint16_t ble_att_preferred_mtu_val;
