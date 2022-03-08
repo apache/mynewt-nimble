@@ -24,7 +24,6 @@
 #include "controller/ble_hw.h"
 #include "CMAC.h"
 #include "cmac_driver/cmac_shared.h"
-#include "mcu/mcu.h"
 #include "tinycrypt/aes.h"
 
 static struct tc_aes_key_sched_struct g_ctx;

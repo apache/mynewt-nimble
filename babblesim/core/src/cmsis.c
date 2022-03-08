@@ -14,12 +14,8 @@
 #include "cmsis.h"
 #include "os/sim.h"
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "irq_sources.h"
-#include <nrfx.h>
-#include "cmsis.h"
 
 extern void (* systemVectors[256])(void);
 

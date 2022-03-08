@@ -22,7 +22,6 @@
 #include "console/console.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
-#include "console/console.h"
 #include "log/log.h"
 
 /* scan_event() calls scan(), so forward declaration is required */

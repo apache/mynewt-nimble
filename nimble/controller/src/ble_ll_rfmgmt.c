@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
-#include <stddef.h>
 #include "syscfg/syscfg.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"

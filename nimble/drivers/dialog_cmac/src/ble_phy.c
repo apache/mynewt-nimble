@@ -24,7 +24,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <assert.h>
 #include "nimble/ble.h"
 #include "mcu/mcu.h"
 #include "mcu/cmac_timer.h"
