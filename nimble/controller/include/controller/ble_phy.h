@@ -83,9 +83,6 @@ typedef void (*ble_phy_tx_end_func)(void *arg);
 /* Initialize the PHY */
 int ble_phy_init(void);
 
-/* Reset the PHY */
-int ble_phy_reset(void);
-
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
