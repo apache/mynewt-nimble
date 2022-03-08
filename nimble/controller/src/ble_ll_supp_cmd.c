@@ -36,7 +36,12 @@
 
 /* Octet 5 */
 #define BLE_SUPP_CMD_SET_EVENT_MASK         (1 << 6)
-#define BLE_LL_SUPP_CMD_OCTET_5             (BLE_SUPP_CMD_SET_EVENT_MASK)
+#define BLE_SUPP_CMD_RESET                  (1 << 7)
+#define BLE_LL_SUPP_CMD_OCTET_5             \
+(                                           \
+    BLE_SUPP_CMD_SET_EVENT_MASK |           \
+    BLE_SUPP_CMD_RESET                      \
+)
 
 /* Octet 10 */
 #define BLE_SUPP_CMD_RD_TX_PWR              (0 << 2)
