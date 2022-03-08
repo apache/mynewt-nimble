@@ -42,4 +42,3 @@ pkg.deps:
     - nimble/host/services/gatt
     - nimble/host/store/config
     - nimble/host/util
-    - nimble/transport

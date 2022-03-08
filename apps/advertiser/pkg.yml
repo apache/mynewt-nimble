@@ -28,6 +28,6 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log/full"
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/sys/log/modlog"
+    - "@apache-mynewt-nimble/nimble/host"
     - "@apache-mynewt-nimble/nimble/host/util"
     - "@apache-mynewt-nimble/nimble/host/services/gap"
-    - "@apache-mynewt-nimble/nimble/transport"
