@@ -19,6 +19,7 @@
 
 #include "os/os.h"
 #include "host/ble_hs.h"
+#include "host/ble_hs_log.h"
 
 struct log ble_hs_log;
 

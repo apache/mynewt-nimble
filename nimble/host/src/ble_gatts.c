@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "nimble/ble.h"
+#include "host/ble_gatt.h"
 #include "host/ble_uuid.h"
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
