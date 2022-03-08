@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include "syscfg/syscfg.h"
 #include "os/os_trace_api.h"
+#include "controller/ble_ll_trace.h"
 
 #if MYNEWT_VAL(BLE_LL_SYSVIEW)
 

@@ -27,6 +27,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/ble_hci_trans.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
