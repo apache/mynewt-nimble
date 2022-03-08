@@ -19,7 +19,7 @@
 
 #include <assert.h>
 #include <string.h>
-#include <os/mynewt.h>
+#include <sysinit/sysinit.h>
 #include <nimble/ble.h>
 #include <nimble/ble_hci_trans.h>
 #include <nimble/hci_common.h>
