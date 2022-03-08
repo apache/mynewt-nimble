@@ -33,4 +33,3 @@ pkg.deps:
     - nimble/host/services/gap
     - nimble/host/services/gatt
     - nimble/host/store/config
-    - nimble/transport
