@@ -1571,6 +1571,62 @@ ble_ll_hci_status_params_cmd_proc(const uint8_t *cmdbuf, uint8_t len,
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
+static int
+ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
+                              uint8_t *rspbuf, uint8_t *rsplen)
+{
+    int rc;
+
+    switch (opcode) {
+    case BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL, 0x01): /* Inquiry */
+        rc = BLE_ERR_MAX + 1;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL, 0x02): /* Inquiry Cancel */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x13): /* Write Local Name */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x18): /* Write Page Timeout */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x1a): /* Write Scan Enable */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x1c): /* Write Page Scan Activity */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x1e): /* Write Inquiry Scan Activity */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x20): /* Write Authentication Enable */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x24): /* Write Class Of Device */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x33): /* Host Buffer Size */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x45): /* Write Inquiry Mode */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x52): /* Write Extended Inquiry Response */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x6d): /* Write LE Host Support */
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x58): /* Read Inquiry Response Transmit Power Level */
+        rspbuf[0] = 0x04;
+        *rsplen = 1;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT):
+        put_le64(rspbuf, 0x877bffdbfe0ffebf);
+        *rsplen = 8;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BUF_SIZE):
+        put_le16(rspbuf, 255);
+        rspbuf[2] = 0;
+        put_le16(rspbuf + 3, 4);
+        put_le16(rspbuf + 5, 0);
+        *rsplen = 7;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_SUPP_STATES):
+        put_le64(rspbuf, 0x000003ffffffffff);
+        *rsplen = 8;
+        rc = 0;
+        break;
+    default:
+        rc = -1;
+    }
+
+    return rc;
+}
+#endif
+
 /**
  * Called to process an HCI command from the host.
  *
@@ -1614,6 +1670,14 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     /* Assume response length is zero */
     rsplen = 0;
 
+#if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
+    rc = ble_ll_hci_cmd_fake_dual_mode(opcode, cmd->data, cmd->length,
+                                       rspbuf, &rsplen);
+    if (rc >= 0) {
+        goto send_cc_cs;
+    }
+#endif
+
     switch (ogf) {
     case BLE_HCI_OGF_LINK_CTRL:
         rc = ble_ll_hci_link_ctrl_cmd_proc(cmd->data, cmd->length, ocf);
@@ -1648,6 +1712,9 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
         rc += (BLE_ERR_MAX + 1);
     }
 
+#if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
+send_cc_cs:
+#endif
     /* If no response is generated, we free the buffers */
     BLE_LL_ASSERT(rc >= 0);
     if (rc <= BLE_ERR_MAX) {
