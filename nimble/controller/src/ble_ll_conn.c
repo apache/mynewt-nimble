@@ -3269,6 +3269,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 
     /* Free buffer */
 conn_rx_data_pdu_end:
+#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+    ble_transport_int_flow_ctl_put();
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     /* Need to give credit back if we allocated one for this PDU */
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_CONN_CREDIT) {
@@ -3328,6 +3332,16 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     if (!BLE_MBUF_HDR_CRC_OK(rxhdr)) {
         alloc_rxpdu = false;
     }
+
+#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+    /* Do not alloc PDU if there are no free buffers in transport. We'll nak
+     * this PDU in LL.
+     */
+    if (alloc_rxpdu && BLE_LL_LLID_IS_DATA(hdr_byte) && (rx_pyld_len > 0) &&
+        !ble_transport_int_flow_ctl_get()) {
+        alloc_rxpdu = false;
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     /*

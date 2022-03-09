@@ -48,6 +48,12 @@ void ble_transport_free(void *buf);
 /* Register put callback on acl_from_ll mbufs (for ll-hs flow control) */
 int ble_transport_register_put_acl_from_ll_cb(os_mempool_put_fn *cb);
 
+#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+/* To be implemented if transport supports internal flow control between cores */
+extern int ble_transport_int_flow_ctl_get(void);
+extern void ble_transport_int_flow_ctl_put(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
