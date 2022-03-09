@@ -559,3 +559,7 @@ syscfg.restrictions:
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
     - BLE_LL_PA == 0 || BLE_LL_PA_GPIO >= 0
     - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0
+
+$import:
+    # "Here be dragons" settings
+    - "@apache-mynewt-nimble/nimble/controller/syscfg.hbd.yml"
