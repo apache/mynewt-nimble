@@ -152,30 +152,33 @@ ble_transport_acl_put(struct os_mempool_ext *mpe, void *data, void *arg)
 {
     struct os_mbuf *om;
     struct os_mbuf_pkthdr *pkthdr;
+    bool do_put;
+    bool from_ll;
     os_error_t err;
 
     om = data;
     pkthdr = OS_MBUF_PKTHDR(om);
 
-    switch (pkthdr->omp_flags & OMP_FLAG_FROM_MASK) {
-    case OMP_FLAG_FROM_LL:
-        if (transport_put_acl_from_ll_cb) {
-            return transport_put_acl_from_ll_cb(mpe, data, arg);
-        }
-        break;
-    case OMP_FLAG_FROM_HS:
-        break;
-    default:
-        assert(0);
-        break;
+    do_put = true;
+    from_ll = (pkthdr->omp_flags & OMP_FLAG_FROM_MASK) == OMP_FLAG_FROM_LL;
+    err = 0;
+
+    if (from_ll && transport_put_acl_from_ll_cb) {
+        err = transport_put_acl_from_ll_cb(mpe, data, arg);
+        do_put = false;
     }
 
-    err = os_memblock_put_from_cb(&mpe->mpe_mp, data);
-    if (err) {
-        return err;
+    if (do_put) {
+        err = os_memblock_put_from_cb(&mpe->mpe_mp, data);
     }
 
-    return 0;
+#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+    if (from_ll && !err) {
+        ble_transport_int_flow_ctl_put();
+    }
+#endif
+
+    return err;
 }
 
 void
