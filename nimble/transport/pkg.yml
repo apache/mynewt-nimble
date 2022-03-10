@@ -45,6 +45,9 @@ pkg.deps.'BLE_TRANSPORT_HS == "uart"':
 pkg.deps.'BLE_TRANSPORT_HS == "usb"':
     - nimble/transport/usb
 
+pkg.deps.BLE_MONITOR_RTT:
+    - "@apache-mynewt-core/hw/drivers/rtt"
+
 pkg.init:
     ble_transport_init: 250
     ble_transport_hs_init:
@@ -52,3 +55,6 @@ pkg.init:
         - $before:ble_transport_ll_init
     ble_transport_ll_init:
         - $after:ble_transport_hs_init
+
+pkg.init.'BLE_MONITOR_RTT || BLE_MONITOR_UART':
+    ble_monitor_init: $before:ble_transport_init

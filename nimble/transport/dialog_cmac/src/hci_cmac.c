@@ -165,7 +165,7 @@ ble_transport_hs_init(void)
 
 #if !MYNEWT_VAL(BLE_CONTROLLER)
 int
-ble_transport_to_ll_cmd(void *buf)
+ble_transport_to_ll_cmd_impl(void *buf)
 {
     uint8_t pkt_type = HCI_H4_CMD;
     uint8_t *cmd = buf;
@@ -179,7 +179,7 @@ ble_transport_to_ll_cmd(void *buf)
 }
 
 int
-ble_transport_to_ll_acl(struct os_mbuf *om)
+ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
     return hci_cmac_acl_tx(om);
 }
@@ -187,13 +187,13 @@ ble_transport_to_ll_acl(struct os_mbuf *om)
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
 int
-ble_transport_to_hs_acl(struct os_mbuf *om)
+ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return hci_cmac_acl_tx(om);
 }
 
 int
-ble_transport_to_hs_evt(void *buf)
+ble_transport_to_hs_evt_impl(void *buf)
 {
     uint8_t pkt_type = HCI_H4_EVT;
     uint8_t *evt = buf;

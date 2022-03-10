@@ -1968,13 +1968,13 @@ ble_ll_init(void)
 /* Transport APIs for LL side */
 
 int
-ble_transport_to_ll_cmd(void *buf)
+ble_transport_to_ll_cmd_impl(void *buf)
 {
     return ble_ll_hci_cmd_rx(buf, NULL);
 }
 
 int
-ble_transport_to_ll_acl(struct os_mbuf *om)
+ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
     return ble_ll_hci_acl_rx(om, NULL);
 }

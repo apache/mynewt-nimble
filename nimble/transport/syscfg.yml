@@ -86,8 +86,9 @@ syscfg.defs:
             of ACL buffers available for controller.
         value: MYNEWT_VAL(BLE_TRANSPORT_ACL_COUNT)
 
-# import defunct settings from separate file to reduce clutter in main file
+# import monitor and defunct settings from separate file to reduce clutter in main file
 $import:
+    - "@apache-mynewt-nimble/nimble/transport/syscfg.monitor.yml"
     - "@apache-mynewt-nimble/nimble/transport/syscfg.defunct.yml"
 
 syscfg.vals."BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV":

@@ -38,9 +38,6 @@ pkg.deps.BLE_SM_LEGACY:
 pkg.deps.BLE_SM_SC:
     - "@apache-mynewt-core/crypto/tinycrypt"
 
-pkg.deps.BLE_MONITOR_RTT:
-    - "@apache-mynewt-core/hw/drivers/rtt"
-
 pkg.deps.BLE_MESH:
     - nimble/host/mesh
 

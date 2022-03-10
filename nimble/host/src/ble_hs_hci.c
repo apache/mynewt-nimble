@@ -22,9 +22,7 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "mem/mem.h"
-#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
-#include "ble_monitor_priv.h"
 
 #define BLE_HCI_CMD_TIMEOUT_MS  2000
 
@@ -278,12 +276,6 @@ ble_hs_hci_wait_for_ack(void)
     switch (rc) {
     case 0:
         BLE_HS_DBG_ASSERT(ble_hs_hci_ack != NULL);
-
-#if BLE_MONITOR
-        ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, (void *) ble_hs_hci_ack,
-                         sizeof(*ble_hs_hci_ack) + ble_hs_hci_ack->length);
-#endif
-
         break;
     case OS_TIMEOUT:
         rc = BLE_HS_ETIMEOUT_HCI;

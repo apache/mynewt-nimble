@@ -686,13 +686,13 @@ ble_transport_ll_init(void)
 }
 
 int
-ble_transport_to_ll_cmd(void *buf)
+ble_transport_to_ll_cmd_impl(void *buf)
 {
     return ble_hci_emspi_cmdevt_tx(buf, BLE_HCI_EMSPI_PKT_CMD);
 }
 
 int
-ble_transport_to_ll_acl(struct os_mbuf *om)
+ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
     return ble_hci_emspi_acl_tx(om);
 }

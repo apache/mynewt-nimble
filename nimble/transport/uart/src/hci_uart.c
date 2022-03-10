@@ -172,7 +172,7 @@ hci_uart_configure(void)
 }
 
 int
-ble_transport_to_hs_evt(void *buf)
+ble_transport_to_hs_evt_impl(void *buf)
 {
     struct hci_uart_tx *txe;
     os_sr_t sr;
@@ -200,7 +200,7 @@ ble_transport_to_hs_evt(void *buf)
 }
 
 int
-ble_transport_to_hs_acl(struct os_mbuf *om)
+ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     struct hci_uart_tx *txe;
     os_sr_t sr;

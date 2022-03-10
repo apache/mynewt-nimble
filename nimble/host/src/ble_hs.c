@@ -25,7 +25,6 @@
 #include "stats/stats.h"
 #include "host/ble_hs.h"
 #include "ble_hs_priv.h"
-#include "ble_monitor_priv.h"
 #include "nimble/nimble_npl.h"
 #ifndef MYNEWT
 #include "nimble/nimble_port.h"
@@ -220,10 +219,6 @@ ble_hs_process_rx_data_queue(void)
     struct os_mbuf *om;
 
     while ((om = ble_mqueue_get(&ble_hs_rx_q)) != NULL) {
-#if BLE_MONITOR
-        ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
-#endif
-
         ble_hs_hci_evt_acl_process(om);
     }
 }
@@ -498,11 +493,6 @@ ble_hs_event_rx_hci_ev(struct ble_npl_event *ev)
     rc = os_memblock_put(&ble_hs_hci_ev_pool, ev);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-#if BLE_MONITOR
-    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, hci_ev,
-                     hci_ev->length + sizeof(*hci_ev));
-#endif
-
     ble_hs_hci_evt_process(hci_ev);
 }
 
@@ -696,10 +686,6 @@ ble_hs_rx_data(struct os_mbuf *om, void *arg)
 int
 ble_hs_tx_data(struct os_mbuf *om)
 {
-#if BLE_MONITOR
-    ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_TX_PKT, om);
-#endif
-
     return ble_transport_to_ll_acl(om);
 }
 
@@ -784,11 +770,6 @@ ble_hs_init(void)
     ble_hs_evq_set(nimble_port_get_dflt_eventq());
 #endif
 
-#if BLE_MONITOR
-    rc = ble_monitor_init();
-    SYSINIT_PANIC_ASSERT(rc == 0);
-#endif
-
     /* Enqueue the start event to the default event queue.  Using the default
      * queue ensures the event won't run until the end of main().  This allows
      * the application to configure this package in the meantime.
@@ -801,22 +782,18 @@ ble_hs_init(void)
     ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &ble_hs_ev_start_stage1);
 #endif
 #endif
-
-#if BLE_MONITOR
-    ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
-#endif
 }
 
 /* Transport APIs for HS side */
 
 int
-ble_transport_to_hs_evt(void *buf)
+ble_transport_to_hs_evt_impl(void *buf)
 {
     return ble_hs_hci_rx_evt(buf, NULL);
 }
 
 int
-ble_transport_to_hs_acl(struct os_mbuf *om)
+ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return ble_hs_rx_data(om, NULL);
 }

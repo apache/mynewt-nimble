@@ -85,8 +85,6 @@ struct ble_monitor_user_logging {
     uint8_t  ident_len;
 } __attribute__((packed));
 
-int ble_monitor_init(void);
-
 int ble_monitor_send(uint16_t opcode, const void *data, size_t len);
 
 int ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om);

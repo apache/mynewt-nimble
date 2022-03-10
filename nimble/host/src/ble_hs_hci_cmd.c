@@ -23,19 +23,12 @@
 #include <stdio.h>
 #include "os/os.h"
 #include "nimble/hci_common.h"
-#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
-#include "ble_monitor_priv.h"
 
 static int
 ble_hs_hci_cmd_transport(struct ble_hci_cmd *cmd)
 {
     int rc;
-
-#if BLE_MONITOR
-    ble_monitor_send(BLE_MONITOR_OPCODE_COMMAND_PKT, cmd,
-                     cmd->length + sizeof(*cmd));
-#endif
 
     rc = ble_transport_to_ll_cmd(cmd);
     switch (rc) {
