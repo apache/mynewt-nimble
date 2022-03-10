@@ -242,13 +242,13 @@ ble_hci_trans_ll_evt_tx(void *buf)
 }
 
 int
-ble_transport_to_hs_acl(struct os_mbuf *om)
+ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return ble_hci_trans_ll_tx(&ble_hci_tx_acl_queue, om);
 }
 
 int
-ble_transport_to_hs_evt(void *buf)
+ble_transport_to_hs_evt_impl(void *buf)
 {
     return ble_hci_trans_ll_evt_tx(buf);
 }

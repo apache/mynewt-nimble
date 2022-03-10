@@ -17,38 +17,54 @@
  * under the License.
  */
 
-#ifndef H_NIMBLE_TRANSPORT_
-#define H_NIMBLE_TRANSPORT_
+#ifndef H_BLE_MONITOR_
+#define H_BLE_MONITOR_
+
+#include <syscfg/syscfg.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <nimble/transport_impl.h>
-#include <nimble/transport/monitor.h>
+#define BLE_MONITOR     (MYNEWT_VAL(BLE_MONITOR_RTT) || \
+                         MYNEWT_VAL(BLE_MONITOR_UART))
 
-struct os_mbuf;
+#if BLE_MONITOR
+int ble_monitor_log(int level, const char *fmt, ...);
+#else
+static inline int
+ble_monitor_log(int level, const char *fmt, ...)
+{
+    return 0;
+}
 
-/* Allocators for supported data types */
-void *ble_transport_alloc_cmd(void);
-void *ble_transport_alloc_evt(int discardable);
-struct os_mbuf *ble_transport_alloc_acl_from_hs(void);
-struct os_mbuf *ble_transport_alloc_acl_from_ll(void);
+static inline int
+ble_transport_to_ll_cmd(void *buf)
+{
+    return ble_transport_to_ll_cmd_impl(buf);
+}
 
-/* Generic deallocator for cmd/evt buffers */
-void ble_transport_free(void *buf);
+static inline int
+ble_transport_to_ll_acl(struct os_mbuf *om)
+{
+    return ble_transport_to_ll_acl_impl(om);
+}
 
-/* Register put callback on acl_from_ll mbufs (for ll-hs flow control) */
-int ble_transport_register_put_acl_from_ll_cb(os_mempool_put_fn *cb);
+static inline int
+ble_transport_to_hs_evt(void *buf)
+{
+    return ble_transport_to_hs_evt_impl(buf);
+}
 
-/* Send data to hs/ll side */
-int ble_transport_to_ll_cmd(void *buf);
-int ble_transport_to_ll_acl(struct os_mbuf *om);
-int ble_transport_to_hs_evt(void *buf);
-int ble_transport_to_hs_acl(struct os_mbuf *om);
+static inline int
+ble_transport_to_hs_acl(struct os_mbuf *om)
+{
+    return ble_transport_to_hs_acl_impl(om);
+}
+#endif /* BLE_MONITOR */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_NIMBLE_TRANSPORT_ */
+#endif

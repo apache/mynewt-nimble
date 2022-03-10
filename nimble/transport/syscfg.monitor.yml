@@ -1,0 +1,58 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.defs:
+    BLE_MONITOR_UART:
+        description: Enables monitor interface over UART
+        value: 0
+    BLE_MONITOR_UART_DEV:
+        description: Monitor interface UART device
+        value: '"uart0"'
+    BLE_MONITOR_UART_BAUDRATE:
+        description: Baudrate for monitor interface UART
+        value: 1000000
+    BLE_MONITOR_UART_BUFFER_SIZE:
+        description: >
+            Monitor interface ringbuffer size for UART.
+            This value should be a power of 2.
+        value: 64
+    BLE_MONITOR_RTT:
+        description: Enables monitor interface over RTT
+        value: 0
+    BLE_MONITOR_RTT_BUFFER_NAME:
+        description: Monitor interface upstream buffer name
+        value: '"btmonitor"'
+    BLE_MONITOR_RTT_BUFFER_SIZE:
+        description: Monitor interface upstream buffer size
+        value: 256
+    BLE_MONITOR_RTT_BUFFERED:
+        description: >
+            Enables buffering when using monitor interface over RTT. The data
+            are written to RTT once complete packet is created in intermediate
+            buffer. This allows to skip complete packet if there is not enough
+            space in RTT buffer (e.g. there is no reader connected). If disabled,
+            monitor will simply block waiting for RTT to free space in buffer.
+        value: 1
+    BLE_MONITOR_CONSOLE_BUFFER_SIZE:
+        description: >
+            Size of internal buffer for console output. Any line exceeding this
+            length value will be split.
+        value: 128
+
+syscfg.restrictions:
+    - '!(BLE_MONITOR_UART && BLE_MONITOR_RTT)'

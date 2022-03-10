@@ -42,7 +42,6 @@
 #include "ble_hs_periodic_sync_priv.h"
 #include "ble_uuid_priv.h"
 #include "host/ble_hs.h"
-#include "host/ble_monitor.h"
 #include "nimble/nimble_opt.h"
 #include "stats/stats.h"
 #ifdef __cplusplus

@@ -17,13 +17,9 @@
  * under the License.
  */
 
-#include "host/ble_monitor.h"
+#include <syscfg/syscfg.h>
 
-#if BLE_MONITOR
-
-#if MYNEWT_VAL(BLE_MONITOR_UART) && MYNEWT_VAL(BLE_MONITOR_RTT)
-#error "Cannot enable monitor over UART and RTT at the same time!"
-#endif
+#if MYNEWT_VAL(BLE_MONITOR_RTT) || MYNEWT_VAL(BLE_MONITOR_UART)
 
 #ifdef BABBLESIM
 #define _GNU_SOURCE
@@ -41,8 +37,10 @@
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #include "rtt/SEGGER_RTT.h"
 #endif
-#include "ble_hs_priv.h"
-#include "ble_monitor_priv.h"
+#include <nimble/hci_common.h>
+#include <nimble/transport.h>
+#include <nimble/nimble_npl.h>
+#include "monitor_priv.h"
 
 struct ble_npl_mutex lock;
 
@@ -297,9 +295,11 @@ drops_tmp_cb(struct ble_npl_event *ev)
 }
 #endif
 
-int
+void
 ble_monitor_init(void)
 {
+    SYSINIT_ASSERT_ACTIVE();
+
 #if MYNEWT_VAL(BLE_MONITOR_UART)
     struct uart_conf uc = {
         .uc_speed = MYNEWT_VAL(BLE_MONITOR_UART_BAUDRATE),
@@ -314,14 +314,12 @@ ble_monitor_init(void)
 
     uart = (struct uart_dev *)os_dev_open(MYNEWT_VAL(BLE_MONITOR_UART_DEV),
                                           OS_TIMEOUT_NEVER, &uc);
-    if (!uart) {
-        return -1;
-    }
+    SYSINIT_PANIC_ASSERT(uart);
 #endif
 
 #if MYNEWT_VAL(BLE_MONITOR_RTT)
 #if MYNEWT_VAL(BLE_MONITOR_RTT_BUFFERED)
-    ble_npl_callout_init(&rtt_drops.tmo, ble_hs_evq_get(), drops_tmp_cb, NULL);
+    ble_npl_callout_init(&rtt_drops.tmo, ble_npl_eventq_dflt_get(), drops_tmp_cb, NULL);
 
     /* Initialize types in header (we won't touch them later) */
     rtt_drops.drops_hdr.type_cmd = BLE_MONITOR_EXTHDR_COMMAND_DROPS;
@@ -339,14 +337,14 @@ ble_monitor_init(void)
                                          SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 #endif
 
-    if (rtt_index < 0) {
-        return -1;
-    }
+    SYSINIT_PANIC_ASSERT(rtt_index >= 0);
 #endif
 
     ble_npl_mutex_init(&lock);
 
-    return 0;
+#if BLE_MONITOR
+    ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
+#endif
 }
 
 int
@@ -492,4 +490,42 @@ ble_monitor_out(int c)
     return c;
 }
 
-#endif
+int
+ble_transport_to_ll_cmd(void *buf)
+{
+    struct ble_hci_cmd *cmd = buf;
+
+    ble_monitor_send(BLE_MONITOR_OPCODE_COMMAND_PKT, buf, cmd->length +
+                                                          sizeof(*cmd));
+
+    return ble_transport_to_ll_cmd_impl(buf);
+}
+
+int
+ble_transport_to_ll_acl(struct os_mbuf *om)
+{
+    ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_TX_PKT, om);
+
+    return ble_transport_to_ll_acl_impl(om);
+}
+
+int
+ble_transport_to_hs_acl(struct os_mbuf *om)
+{
+    ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
+
+    return ble_transport_to_hs_acl_impl(om);
+}
+
+int
+ble_transport_to_hs_evt(void *buf)
+{
+    struct ble_hci_ev *ev = buf;
+
+    ble_monitor_send(BLE_MONITOR_OPCODE_EVENT_PKT, buf, ev->length +
+                                                        sizeof(*ev));
+
+    return ble_transport_to_hs_evt_impl(buf);
+}
+
+#endif /* MYNEWT_VAL(BLE_MONITOR_RTT) || MYNEWT_VAL(BLE_MONITOR_UART) */

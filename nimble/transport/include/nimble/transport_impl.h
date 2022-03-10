@@ -17,24 +17,31 @@
  * under the License.
  */
 
-#ifndef H_BLE_MONITOR_
-#define H_BLE_MONITOR_
-
-#include <syscfg/syscfg.h>
-
-#undef BLE_MONITOR
-#define BLE_MONITOR (MYNEWT_VAL(BLE_MONITOR_UART) || MYNEWT_VAL(BLE_MONITOR_RTT))
+#ifndef H_NIMBLE_TRANSPORT_IMPL_
+#define H_NIMBLE_TRANSPORT_IMPL_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int ble_monitor_log(int level, const char *fmt, ...);
+/* Init functions to be implemented for transport acting as HS/LL side */
+extern void ble_transport_ll_init(void);
+extern void ble_transport_hs_init(void);
 
-int ble_monitor_out(int c);
+/* APIs to be implemented by HS/LL side of transports */
+extern int ble_transport_to_ll_cmd_impl(void *buf);
+extern int ble_transport_to_ll_acl_impl(struct os_mbuf *om);
+extern int ble_transport_to_hs_evt_impl(void *buf);
+extern int ble_transport_to_hs_acl_impl(struct os_mbuf *om);
+
+#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+/* To be implemented if transport supports internal flow control between cores */
+extern int ble_transport_int_flow_ctl_get(void);
+extern void ble_transport_int_flow_ctl_put(void);
+#endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* H_NIMBLE_TRANSPORT_IMPL_ */

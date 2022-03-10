@@ -23,7 +23,6 @@
 #include "os/os.h"
 #include "nimble/hci_common.h"
 #include "host/ble_gap.h"
-#include "host/ble_monitor.h"
 #include "ble_hs_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
