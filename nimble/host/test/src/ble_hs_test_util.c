@@ -24,11 +24,9 @@
 #include "testutil/testutil.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
 #include "host/ble_hs_adv.h"
 #include "host/ble_hs_id.h"
 #include "store/config/ble_store_config.h"
-#include "transport/ram/ble_hci_ram.h"
 #include "ble_hs_test_util.h"
 
 /* Our global device address. */
@@ -1850,18 +1848,18 @@ ble_hs_test_util_assert_mbufs_freed(
     TEST_ASSERT(count == ble_hs_test_util_num_mbufs());
 }
 
-static int
-ble_hs_test_util_pkt_txed(struct os_mbuf *om, void *arg)
+int
+ble_transport_to_ll_acl(struct os_mbuf *om)
 {
     ble_hs_test_util_prev_tx_enqueue(om);
     return 0;
 }
 
-static int
-ble_hs_test_util_hci_txed(uint8_t *cmdbuf, void *arg)
+int
+ble_transport_to_ll_cmd(void *buf)
 {
-    ble_hs_test_util_hci_out_enqueue(cmdbuf);
-    ble_hci_trans_buf_free(cmdbuf);
+    ble_hs_test_util_hci_out_enqueue(buf);
+    ble_transport_free(buf);
     return 0;
 }
 
@@ -2003,9 +2001,6 @@ ble_hs_test_util_init_no_sysinit_no_start(void)
 
     ble_hs_hci_set_phony_ack_cb(NULL);
 
-    ble_hci_trans_cfg_ll(ble_hs_test_util_hci_txed, NULL,
-                         ble_hs_test_util_pkt_txed, NULL);
-
     ble_hs_test_util_hci_ack_set_startup();
 
     ble_hs_enabled_state = BLE_HS_ENABLED_STATE_OFF;
@@ -2045,4 +2040,10 @@ ble_hs_test_util_init(void)
 
     /* Clear random address. */
     ble_hs_id_rnd_reset();
+}
+
+void
+ble_transport_ll_init(void)
+{
+    /* nothing here */
 }
