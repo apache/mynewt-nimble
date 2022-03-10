@@ -42,6 +42,7 @@ syscfg.defs:
             - native
             - dialog_cmac
             - nrf5340
+            - socket
             - custom
 
     BLE_TRANSPORT_ACL_COUNT:
