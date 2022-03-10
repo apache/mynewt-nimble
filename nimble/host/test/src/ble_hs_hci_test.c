@@ -21,7 +21,7 @@
 #include <errno.h>
 #include <string.h>
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
+#include "nimble/transport.h"
 #include "ble_hs_test.h"
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
@@ -34,7 +34,7 @@ TEST_CASE_SELF(ble_hs_hci_test_event_bad)
     int rc;
 
     /*** Invalid event code. */
-    buf = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    buf = ble_transport_alloc_evt(0);
     TEST_ASSERT_FATAL(buf != NULL);
 
     buf[0] = 0xff;
