@@ -15,7 +15,6 @@
 #define MYNEWT_VAL(_name)                       MYNEWT_VAL_ ## _name
 #define MYNEWT_VAL_CHOICE(_name, _val)          MYNEWT_VAL_ ## _name ## __ ## _val
 
-/*** @apache-mynewt-core/crypto/tinycrypt */
 #ifndef MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE
 #define MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE (200)
 #endif
@@ -1007,103 +1006,98 @@
 #endif
 
 /*** @apache-mynewt-nimble/nimble/transport */
-/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_ACL_BUF_COUNT
-#define MYNEWT_VAL_BLE_ACL_BUF_COUNT (24)
+#undef MYNEWT_VAL_BLE_ACL_BUF_COUNT
+
+#undef MYNEWT_VAL_BLE_ACL_BUF_SIZE
+
+#undef MYNEWT_VAL_BLE_HCI_BRIDGE
+
+#undef MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE
+
+#undef MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT
+
+#undef MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT
+
+#undef MYNEWT_VAL_BLE_HCI_TRANSPORT
+
+#ifndef MYNEWT_VAL_BLE_TRANSPORT
+#define MYNEWT_VAL_BLE_TRANSPORT (1)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_ACL_BUF_SIZE
-#define MYNEWT_VAL_BLE_ACL_BUF_SIZE (255)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_COUNT (10)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE
-#define MYNEWT_VAL_BLE_HCI_BRIDGE (0)
+/* Value copied from BLE_TRANSPORT_ACL_COUNT */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_HS_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_HS_COUNT (10)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac
-#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340
-#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340 (0)
-#endif
-#undef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT
-
-/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE
-#define MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE (70)
+/* Value copied from BLE_TRANSPORT_ACL_COUNT */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_LL_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_LL_COUNT (10)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT
-#define MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT (8)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_SIZE
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_SIZE (255)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/socket (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT
-#define MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT (8)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_COUNT (4)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT (16)
+#endif
+
+/* Overridden by @apache-mynewt-nimble/nimble/transport (defined by @apache-mynewt-nimble/nimble/transport) */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (257)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__custom
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__custom (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__dialog_cmac
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__dialog_cmac (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__native
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__native (1)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__nrf5340
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__nrf5340 (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__uart
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__uart (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__usb
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__usb (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS
+#define MYNEWT_VAL_BLE_TRANSPORT_HS (1)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/porting_default (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__custom
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__custom (0)
 #endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__custom
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__custom (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__dialog_cmac
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__dialog_cmac (0)
 #endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__native
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__native (0)
 #endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__nrf5340
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__nrf5340 (0)
 #endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__socket
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__socket (1)
 #endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340 (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__ram
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__ram (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__socket
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__socket (1)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__uart
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__uart (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__usb
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__usb (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT (1)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_UART
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_UART (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL
+#define MYNEWT_VAL_BLE_TRANSPORT_LL (1)
 #endif
 
 /*** @apache-mynewt-nimble/nimble/transport/socket */
-#ifndef MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT
-#define MYNEWT_VAL_BLE_HCI_ACL_OUT_COUNT (12)
-#endif
-
 #ifndef MYNEWT_VAL_BLE_SOCK_CLI_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SOCK_CLI_SYSINIT_STAGE (500)
 #endif
