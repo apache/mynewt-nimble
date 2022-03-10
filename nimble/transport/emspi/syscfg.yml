@@ -72,13 +72,3 @@ syscfg.defs:
         description: >
             Sysinit stage for the EMSPI BLE transport.
         value: 100
-
-syscfg.vals.'!BLE_HCI_BRIDGE && BLE_EXT_ADV':
-    BLE_HCI_EVT_BUF_SIZE: 257
-
-syscfg.vals.'!BLE_HCI_BRIDGE && !BLE_EXT_ADV':
-    BLE_HCI_EVT_HI_BUF_COUNT: 2
-    BLE_HCI_EVT_LO_BUF_COUNT: 8
-    BLE_HCI_EVT_BUF_SIZE: 70
-    BLE_ACL_BUF_COUNT: 4
-    BLE_ACL_BUF_SIZE: 255

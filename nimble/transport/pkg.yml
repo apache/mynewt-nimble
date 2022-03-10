@@ -32,6 +32,8 @@ pkg.deps.'BLE_TRANSPORT_HS == "native"':
     - nimble/host
 pkg.deps.'BLE_TRANSPORT_LL == "native"':
     - nimble/controller
+pkg.deps.'BLE_TRANSPORT_LL == "emspi"':
+    - nimble/transport/emspi
 pkg.deps.'BLE_TRANSPORT_HS == "dialog_cmac" || BLE_TRANSPORT_LL == "dialog_cmac"':
     - nimble/transport/dialog_cmac
 pkg.deps.'BLE_TRANSPORT_HS == "nrf5340" || BLE_TRANSPORT_LL == "nrf5340"':

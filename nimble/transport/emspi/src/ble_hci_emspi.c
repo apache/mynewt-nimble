@@ -35,22 +35,11 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
-#include "nimble/ble_hci_trans.h"
+#include "nimble/transport.h"
 
 #include "transport/emspi/ble_hci_emspi.h"
 
 #include "am_mcu_apollo.h"
-
-/***
- * NOTES:
- * The emspi HCI transport doesn't use event buffer priorities.  All incoming
- * and outgoing events use buffers from the same pool.
- *
- */
-
-#define BLE_HCI_EMSPI_PKT_EVT_COUNT         \
-    (MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT) + \
-     MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT))
 
 #define BLE_HCI_EMSPI_PKT_NONE          0x00
 #define BLE_HCI_EMSPI_PKT_CMD           0x01
@@ -71,46 +60,6 @@ static struct os_eventq ble_hci_emspi_evq;
 static struct os_task ble_hci_emspi_task;
 static os_stack_t ble_hci_emspi_stack[MYNEWT_VAL(BLE_HCI_EMSPI_STACK_SIZE)];
 
-static ble_hci_trans_rx_cmd_fn *ble_hci_emspi_rx_cmd_cb;
-static void *ble_hci_emspi_rx_cmd_arg;
-
-static ble_hci_trans_rx_acl_fn *ble_hci_emspi_rx_acl_cb;
-static void *ble_hci_emspi_rx_acl_arg;
-
-static struct os_mempool ble_hci_emspi_evt_hi_pool;
-static os_membuf_t ble_hci_emspi_evt_hi_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-static struct os_mempool ble_hci_emspi_evt_lo_pool;
-static os_membuf_t ble_hci_emspi_evt_lo_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-static struct os_mempool ble_hci_emspi_cmd_pool;
-static os_membuf_t ble_hci_emspi_cmd_buf[
-        OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
-];
-
-static struct os_mbuf_pool ble_hci_emspi_acl_mbuf_pool;
-static struct os_mempool_ext ble_hci_emspi_acl_pool;
-
-/*
- * The MBUF payload size must accommodate the HCI data header size plus the
- * maximum ACL data packet length. The ACL block size is the size of the
- * mbufs we will allocate.
- */
-#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
-                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
-                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
-
-static os_membuf_t ble_hci_emspi_acl_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                        ACL_BLOCK_SIZE)
-];
-
 /**
  * A packet to be sent over the EMSPI.  This can be a command, an event, or ACL
  * data.
@@ -124,8 +73,7 @@ STAILQ_HEAD(, ble_hci_emspi_pkt) ble_hci_emspi_tx_q;
 
 static struct os_mempool ble_hci_emspi_pkt_pool;
 static os_membuf_t ble_hci_emspi_pkt_buf[
-        OS_MEMPOOL_SIZE(BLE_HCI_EMSPI_PKT_EVT_COUNT + 1 +
-                        MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
+        OS_MEMPOOL_SIZE(1 + MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT),
                         sizeof (struct ble_hci_emspi_pkt))
 ];
 
@@ -287,18 +235,6 @@ done:
 }
 
 /**
- * Allocates a buffer (mbuf) for ACL operation.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-static struct os_mbuf *
-ble_hci_trans_acl_buf_alloc(void)
-{
-    return os_mbuf_get_pkthdr(&ble_hci_emspi_acl_mbuf_pool, 0);
-}
-
-/**
  * Transmits an ACL data packet to the controller.  The caller relinquishes the
  * specified mbuf, regardless of return status.
  */
@@ -344,7 +280,7 @@ ble_hci_emspi_cmdevt_tx(uint8_t *cmd_buf, uint8_t pkt_type)
 
     pkt = os_memblock_get(&ble_hci_emspi_pkt_pool);
     if (pkt == NULL) {
-        ble_hci_trans_buf_free(cmd_buf);
+        ble_transport_free(cmd_buf);
         return BLE_ERR_MEM_CAPACITY;
     }
 
@@ -449,7 +385,7 @@ ble_hci_emspi_tx_pkt(void)
     switch (pkt->type) {
     case BLE_HCI_EMSPI_PKT_CMD:
         rc = ble_hci_emspi_tx_cmd(pkt->data);
-        ble_hci_trans_buf_free(pkt->data);
+        ble_transport_free(pkt->data);
         break;
 
     case BLE_HCI_EMSPI_PKT_ACL:
@@ -477,7 +413,7 @@ ble_hci_emspi_rx_evt(void)
     /* XXX: we should not assert if host cannot allocate an event. Need
      * to determine what to do here.
      */
-    data = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+    data = ble_transport_alloc_evt(0);
     assert(data != NULL);
 
     rc = ble_hci_emspi_rx(data, sizeof(struct ble_hci_ev));
@@ -493,8 +429,7 @@ ble_hci_emspi_rx_evt(void)
         }
     }
 
-    assert(ble_hci_emspi_rx_cmd_cb != NULL);
-    ble_hci_emspi_rx_cmd_cb(data, ble_hci_emspi_rx_cmd_arg);
+    rc = ble_transport_to_hs_evt(data);
     if (rc != 0) {
         goto err;
     }
@@ -502,7 +437,7 @@ ble_hci_emspi_rx_evt(void)
     return 0;
 
 err:
-    ble_hci_trans_buf_free(data);
+    ble_transport_free(data);
     return rc;
 }
 
@@ -516,7 +451,7 @@ ble_hci_emspi_rx_acl(void)
     /* XXX: we should not assert if host cannot allocate an mbuf. Need to
      * determine what to do here.
      */
-    om = ble_hci_trans_acl_buf_alloc();
+    om = ble_transport_alloc_acl_from_ll();
     assert(om != NULL);
 
     rc = ble_hci_emspi_rx(om->om_data, BLE_HCI_DATA_HDR_SZ);
@@ -525,7 +460,7 @@ ble_hci_emspi_rx_acl(void)
     }
 
     len = get_le16(om->om_data + 2);
-    if (len > MYNEWT_VAL(BLE_ACL_BUF_SIZE)) {
+    if (len > MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE)) {
         /*
          * Data portion cannot exceed data length of acl buffer. If it does
          * this is considered to be a loss of sync.
@@ -544,8 +479,7 @@ ble_hci_emspi_rx_acl(void)
     OS_MBUF_PKTLEN(om) = BLE_HCI_DATA_HDR_SZ + len;
     om->om_len = BLE_HCI_DATA_HDR_SZ + len;
 
-    assert(ble_hci_emspi_rx_cmd_cb != NULL);
-    rc = ble_hci_emspi_rx_acl_cb(om, ble_hci_emspi_rx_acl_arg);
+    rc = ble_transport_to_hs_acl(om);
     if (rc != 0) {
         goto err;
     }
@@ -587,18 +521,6 @@ ble_hci_emspi_rx_pkt(void)
 }
 
 static void
-ble_hci_emspi_set_rx_cbs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                        void *cmd_arg,
-                        ble_hci_trans_rx_acl_fn *acl_cb,
-                        void *acl_arg)
-{
-    ble_hci_emspi_rx_cmd_cb = cmd_cb;
-    ble_hci_emspi_rx_cmd_arg = cmd_arg;
-    ble_hci_emspi_rx_acl_cb = acl_cb;
-    ble_hci_emspi_rx_acl_arg = acl_arg;
-}
-
-static void
 ble_hci_emspi_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
 {
     switch (type) {
@@ -607,7 +529,7 @@ ble_hci_emspi_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
 
     case BLE_HCI_EMSPI_PKT_CMD:
     case BLE_HCI_EMSPI_PKT_EVT:
-        ble_hci_trans_buf_free(cmdevt);
+        ble_transport_free(cmdevt);
         break;
 
     case BLE_HCI_EMSPI_PKT_ACL:
@@ -618,24 +540,6 @@ ble_hci_emspi_free_pkt(uint8_t type, uint8_t *cmdevt, struct os_mbuf *acl)
         assert(0);
         break;
     }
-}
-
-/**
- * Unsupported.  This is a host-only transport.
- */
-int
-ble_hci_trans_ll_evt_tx(uint8_t *cmd)
-{
-    return BLE_ERR_UNSUPPORTED;
-}
-
-/**
- * Unsupported.  This is a host-only transport.
- */
-int
-ble_hci_trans_ll_acl_tx(struct os_mbuf *om)
-{
-    return BLE_ERR_UNSUPPORTED;
 }
 
 /**
@@ -671,134 +575,6 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 
     rc = ble_hci_emspi_acl_tx(om);
     return rc;
-}
-
-/**
- * Configures the HCI transport to call the specified callback upon receiving
- * HCI packets from the controller.  This function should only be called by by
- * host.
- *
- * @param cmd_cb                The callback to execute upon receiving an HCI
- *                                  event.
- * @param cmd_arg               Optional argument to pass to the command
- *                                  callback.
- * @param acl_cb                The callback to execute upon receiving ACL
- *                                  data.
- * @param acl_arg               Optional argument to pass to the ACL
- *                                  callback.
- */
-void
-ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                     void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb,
-                     void *acl_arg)
-{
-    ble_hci_emspi_set_rx_cbs(cmd_cb, cmd_arg, acl_cb, acl_arg);
-}
-
-/**
- * Configures the HCI transport to operate with a host.  The transport will
- * execute specified callbacks upon receiving HCI packets from the controller.
- *
- * @param cmd_cb                The callback to execute upon receiving an HCI
- *                                  event.
- * @param cmd_arg               Optional argument to pass to the command
- *                                  callback.
- * @param acl_cb                The callback to execute upon receiving ACL
- *                                  data.
- * @param acl_arg               Optional argument to pass to the ACL
- *                                  callback.
- */
-void
-ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                     void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb,
-                     void *acl_arg)
-{
-    /* Unsupported. */
-    assert(0);
-}
-
-/**
- * Allocates a flat buffer of the specified type.
- *
- * @param type                  The type of buffer to allocate; one of the
- *                                  BLE_HCI_TRANS_BUF_[...] constants.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-uint8_t *
-ble_hci_trans_buf_alloc(int type)
-{
-    uint8_t *buf;
-
-    switch (type) {
-    case BLE_HCI_TRANS_BUF_CMD:
-        buf = os_memblock_get(&ble_hci_emspi_cmd_pool);
-        break;
-    case BLE_HCI_TRANS_BUF_EVT_HI:
-        buf = os_memblock_get(&ble_hci_emspi_evt_hi_pool);
-        if (buf == NULL) {
-            /* If no high-priority event buffers remain, try to grab a
-             * low-priority one.
-             */
-            buf = os_memblock_get(&ble_hci_emspi_evt_lo_pool);
-        }
-        break;
-
-    case BLE_HCI_TRANS_BUF_EVT_LO:
-        buf = os_memblock_get(&ble_hci_emspi_evt_lo_pool);
-        break;
-
-    default:
-        assert(0);
-        buf = NULL;
-    }
-
-    return buf;
-}
-
-/**
- * Frees the specified flat buffer.  The buffer must have been allocated via
- * ble_hci_trans_buf_alloc().
- *
- * @param buf                   The buffer to free.
- */
-void
-ble_hci_trans_buf_free(uint8_t *buf)
-{
-    int rc;
-
-    if (buf != NULL) {
-        if (os_memblock_from(&ble_hci_emspi_evt_hi_pool, buf)) {
-            rc = os_memblock_put(&ble_hci_emspi_evt_hi_pool, buf);
-            assert(rc == 0);
-        } else if (os_memblock_from(&ble_hci_emspi_evt_lo_pool, buf)) {
-            rc = os_memblock_put(&ble_hci_emspi_evt_lo_pool, buf);
-            assert(rc == 0);
-        } else {
-            assert(os_memblock_from(&ble_hci_emspi_cmd_pool, buf));
-            rc = os_memblock_put(&ble_hci_emspi_cmd_pool, buf);
-            assert(rc == 0);
-        }
-    }
-}
-
-/**
- * Configures a callback to get executed whenever an ACL data packet is freed.
- * The function is called in lieu of actually freeing the packet.
- *
- * @param cb                    The callback to configure.
- *
- * @return                      0 on success.
- */
-int
-ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
-{
-    ble_hci_emspi_acl_pool.mpe_put_cb = cb;
-    ble_hci_emspi_acl_pool.mpe_put_arg = arg;
-    return 0;
 }
 
 /**
@@ -875,69 +651,22 @@ ble_hci_emspi_init_hw(void)
     hal_gpio_write(MYNEWT_VAL(BLE_HCI_EMSPI_RESET_PIN), 1);
 }
 
-/**
- * Initializes the UART HCI transport module.
- *
- * @return                      0 on success;
- *                              A BLE_ERR_[...] error code on failure.
- */
 void
-ble_hci_emspi_init(void)
+ble_transport_ll_init(void)
 {
     int rc;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
 
-    rc = os_mempool_ext_init(&ble_hci_emspi_acl_pool,
-                             MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                             ACL_BLOCK_SIZE,
-                             ble_hci_emspi_acl_buf,
-                             "ble_hci_emspi_acl_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mbuf_pool_init(&ble_hci_emspi_acl_mbuf_pool,
-                           &ble_hci_emspi_acl_pool.mpe_mp,
-                           ACL_BLOCK_SIZE,
-                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    /*
-     * Create memory pool of HCI command buffers. NOTE: we currently dont
-     * allow this to be configured. The controller will only allow one
-     * outstanding command. We decided to keep this a pool in case we allow
-     * allow the controller to handle more than one outstanding command.
-     */
-    rc = os_mempool_init(&ble_hci_emspi_cmd_pool,
-                         1,
-                         BLE_HCI_TRANS_CMD_SZ,
-                         ble_hci_emspi_cmd_buf,
-                         "ble_hci_emspi_cmd_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_emspi_evt_hi_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         ble_hci_emspi_evt_hi_buf,
-                         "ble_hci_emspi_evt_hi_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_emspi_evt_lo_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         ble_hci_emspi_evt_lo_buf,
-                         "ble_hci_emspi_evt_lo_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
     /*
      * Create memory pool of packet list nodes. NOTE: the number of these
-     * buffers should be, at least, the total number of event buffers (hi
-     * and lo), the number of command buffers (currently 1) and the total
-     * number of buffers that the controller could possibly hand to the host.
+     * buffers should be, at least, the number of command buffers (currently 1)
+     * and the total number of buffers that the controller could possibly hand
+     * to the host.
      */
-    rc = os_mempool_init(&ble_hci_emspi_pkt_pool,
-                         BLE_HCI_EMSPI_PKT_EVT_COUNT + 1 +
-                         MYNEWT_VAL(BLE_HCI_ACL_OUT_COUNT),
+    rc = os_mempool_init(&ble_hci_emspi_pkt_pool, 1 +
+                         MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT),
                          sizeof (struct ble_hci_emspi_pkt),
                          ble_hci_emspi_pkt_buf,
                          "ble_hci_emspi_pkt_pool");
@@ -954,4 +683,16 @@ ble_hci_emspi_init(void)
                       ble_hci_emspi_stack,
                       MYNEWT_VAL(BLE_HCI_EMSPI_STACK_SIZE));
     SYSINIT_PANIC_ASSERT(rc == 0);
+}
+
+int
+ble_transport_to_ll_cmd(void *buf)
+{
+    return ble_hci_emspi_cmdevt_tx(buf, BLE_HCI_EMSPI_PKT_CMD);
+}
+
+int
+ble_transport_to_ll_acl(struct os_mbuf *om)
+{
+    return ble_hci_emspi_acl_tx(om);
 }
