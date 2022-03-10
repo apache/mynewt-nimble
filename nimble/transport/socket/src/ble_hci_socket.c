@@ -85,7 +85,7 @@ struct sockaddr_hci {
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "nimble/nimble_npl.h"
-#include "nimble/ble_hci_trans.h"
+#include "nimble/transport.h"
 #include "socket/ble_hci_socket.h"
 
 /***
@@ -155,45 +155,6 @@ struct os_task ble_sock_task;
 
 #endif
 
-static struct os_mempool ble_hci_sock_evt_hi_pool;
-static os_membuf_t ble_hci_sock_evt_hi_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-static struct os_mempool ble_hci_sock_evt_lo_pool;
-static os_membuf_t ble_hci_sock_evt_lo_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                        MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE))
-];
-
-static struct os_mempool ble_hci_sock_cmd_pool;
-static os_membuf_t ble_hci_sock_cmd_buf[
-        OS_MEMPOOL_SIZE(1, BLE_HCI_TRANS_CMD_SZ)
-];
-
-static struct os_mempool ble_hci_sock_acl_pool;
-static struct os_mbuf_pool ble_hci_sock_acl_mbuf_pool;
-
-#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
-                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
-                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
-/*
- * The MBUF payload size must accommodate the HCI data header size plus the
- * maximum ACL data packet length. The ACL block size is the size of the
- * mbufs we will allocate.
- */
-
-static os_membuf_t ble_hci_sock_acl_buf[
-        OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                        ACL_BLOCK_SIZE)
-];
-
-static ble_hci_trans_rx_cmd_fn *ble_hci_sock_rx_cmd_cb;
-static void *ble_hci_sock_rx_cmd_arg;
-static ble_hci_trans_rx_acl_fn *ble_hci_sock_rx_acl_cb;
-static void *ble_hci_sock_rx_acl_arg;
-
 static struct ble_hci_sock_state {
     int sock;
     struct ble_npl_eventq evq;
@@ -211,26 +172,6 @@ static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
 #elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
 static int s_ble_hci_device = 0;
 #endif
-
-/**
- * Allocates a buffer (mbuf) for ACL operation.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-static struct os_mbuf *
-ble_hci_trans_acl_buf_alloc(void)
-{
-    struct os_mbuf *m;
-
-    /*
-     * XXX: note that for host only there would be no need to allocate
-     * a user header. Address this later.
-     */
-    m = os_mbuf_get_pkthdr(&ble_hci_sock_acl_mbuf_pool,
-                           sizeof(struct ble_mbuf_hdr));
-    return m;
-}
 
 #if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
 static int
@@ -365,7 +306,7 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
     STATS_INCN(hci_sock_stats, obytes, len + 1);
 
     i = sendmsg(ble_hci_sock_state.sock, &msg, 0);
-    ble_hci_trans_buf_free(hci_ev);
+    ble_transport_free(hci_ev);
     if (i != len + 1) {
         if (i < 0) {
             dprintf(1, "sendmsg() failed : %d\n", errno);
@@ -468,17 +409,17 @@ ble_hci_sock_rx_msg(void)
             }
             STATS_INC(hci_sock_stats, imsg);
             STATS_INC(hci_sock_stats, icmd);
-            data = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+            data = ble_transport_alloc_cmd();
             if (!data) {
                 STATS_INC(hci_sock_stats, ierr);
                 break;
             }
             memcpy(data, &bhss->rx_data[1], len - 1);
             OS_ENTER_CRITICAL(sr);
-            rc = ble_hci_sock_rx_cmd_cb(data, ble_hci_sock_rx_cmd_arg);
+            rc = ble_transport_to_ll_cmd(data);
             OS_EXIT_CRITICAL(sr);
             if (rc) {
-                ble_hci_trans_buf_free(data);
+                ble_transport_free(data);
                 STATS_INC(hci_sock_stats, ierr);
                 break;
             }
@@ -495,17 +436,17 @@ ble_hci_sock_rx_msg(void)
             }
             STATS_INC(hci_sock_stats, imsg);
             STATS_INC(hci_sock_stats, ievt);
-            data = ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_EVT_HI);
+            data = ble_transport_alloc_evt(0);
             if (!data) {
                 STATS_INC(hci_sock_stats, ierr);
                 break;
             }
             memcpy(data, &bhss->rx_data[1], len - 1);
             OS_ENTER_CRITICAL(sr);
-            rc = ble_hci_sock_rx_cmd_cb(data, ble_hci_sock_rx_cmd_arg);
+            rc = ble_transport_to_hs_evt(data);
             OS_EXIT_CRITICAL(sr);
             if (rc) {
-                ble_hci_trans_buf_free(data);
+                ble_transport_free(data);
                 STATS_INC(hci_sock_stats, ierr);
                 return 0;
             }
@@ -522,7 +463,11 @@ ble_hci_sock_rx_msg(void)
             }
             STATS_INC(hci_sock_stats, imsg);
             STATS_INC(hci_sock_stats, iacl);
-            m = ble_hci_trans_acl_buf_alloc();
+#if MYNEWT_VAL(BLE_CONTROLLER)
+            m = ble_transport_alloc_acl_from_hs();
+#else
+            m = ble_transport_alloc_acl_from_ll();
+#endif
             if (!m) {
                 STATS_INC(hci_sock_stats, imem);
                 break;
@@ -533,7 +478,11 @@ ble_hci_sock_rx_msg(void)
                 break;
             }
             OS_ENTER_CRITICAL(sr);
-            ble_hci_sock_rx_acl_cb(m, ble_hci_sock_rx_acl_arg);
+#if MYNEWT_VAL(BLE_CONTROLLER)
+            ble_transport_to_ll_acl(m);
+#else
+            ble_transport_to_hs_acl(m);
+#endif
             OS_EXIT_CRITICAL(sr);
             break;
         default:
@@ -786,129 +735,6 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 }
 
 /**
- * Configures the HCI transport to call the specified callback upon receiving
- * HCI packets from the controller.  This function should only be called by by
- * host.
- *
- * @param cmd_cb                The callback to execute upon receiving an HCI
- *                                  event.
- * @param cmd_arg               Optional argument to pass to the command
- *                                  callback.
- * @param acl_cb                The callback to execute upon receiving ACL
- *                                  data.
- * @param acl_arg               Optional argument to pass to the ACL
- *                                  callback.
- */
-void
-ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                     void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb,
-                     void *acl_arg)
-{
-    ble_hci_sock_rx_cmd_cb = cmd_cb;
-    ble_hci_sock_rx_cmd_arg = cmd_arg;
-    ble_hci_sock_rx_acl_cb = acl_cb;
-    ble_hci_sock_rx_acl_arg = acl_arg;
-}
-
-/**
- * Configures the HCI transport to operate with a host.  The transport will
- * execute specified callbacks upon receiving HCI packets from the controller.
- *
- * @param cmd_cb                The callback to execute upon receiving an HCI
- *                                  event.
- * @param cmd_arg               Optional argument to pass to the command
- *                                  callback.
- * @param acl_cb                The callback to execute upon receiving ACL
- *                                  data.
- * @param acl_arg               Optional argument to pass to the ACL
- *                                  callback.
- */
-void
-ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
-                     void *cmd_arg,
-                     ble_hci_trans_rx_acl_fn *acl_cb,
-                     void *acl_arg)
-{
-    ble_hci_sock_rx_cmd_cb = cmd_cb;
-    ble_hci_sock_rx_cmd_arg = cmd_arg;
-    ble_hci_sock_rx_acl_cb = acl_cb;
-    ble_hci_sock_rx_acl_arg = acl_arg;
-}
-
-/**
- * Allocates a flat buffer of the specified type.
- *
- * @param type                  The type of buffer to allocate; one of the
- *                                  BLE_HCI_TRANS_BUF_[...] constants.
- *
- * @return                      The allocated buffer on success;
- *                              NULL on buffer exhaustion.
- */
-uint8_t *
-ble_hci_trans_buf_alloc(int type)
-{
-    uint8_t *buf;
-
-    switch (type) {
-    case BLE_HCI_TRANS_BUF_CMD:
-        buf = os_memblock_get(&ble_hci_sock_cmd_pool);
-        break;
-    case BLE_HCI_TRANS_BUF_EVT_HI:
-        buf = os_memblock_get(&ble_hci_sock_evt_hi_pool);
-        if (buf == NULL) {
-            /* If no high-priority event buffers remain, try to grab a
-             * low-priority one.
-             */
-            buf = os_memblock_get(&ble_hci_sock_evt_lo_pool);
-        }
-        break;
-
-    case BLE_HCI_TRANS_BUF_EVT_LO:
-        buf = os_memblock_get(&ble_hci_sock_evt_lo_pool);
-        break;
-
-    default:
-        assert(0);
-        buf = NULL;
-    }
-
-    return buf;
-}
-
-/**
- * Frees the specified flat buffer.  The buffer must have been allocated via
- * ble_hci_trans_buf_alloc().
- *
- * @param buf                   The buffer to free.
- */
-void
-ble_hci_trans_buf_free(uint8_t *buf)
-{
-    int rc;
-
-    /*
-     * XXX: this may look a bit odd, but the controller uses the command
-     * buffer to send back the command complete/status as an immediate
-     * response to the command. This was done to insure that the controller
-     * could always send back one of these events when a command was received.
-     * Thus, we check to see which pool the buffer came from so we can free
-     * it to the appropriate pool
-     */
-    if (os_memblock_from(&ble_hci_sock_evt_hi_pool, buf)) {
-        rc = os_memblock_put(&ble_hci_sock_evt_hi_pool, buf);
-        assert(rc == 0);
-    } else if (os_memblock_from(&ble_hci_sock_evt_lo_pool, buf)) {
-        rc = os_memblock_put(&ble_hci_sock_evt_lo_pool, buf);
-        assert(rc == 0);
-    } else {
-        assert(os_memblock_from(&ble_hci_sock_cmd_pool, buf));
-        rc = os_memblock_put(&ble_hci_sock_cmd_pool, buf);
-        assert(rc == 0);
-    }
-}
-
-/**
  * Resets the HCI UART transport to a clean state.  Frees all buffers and
  * reconfigures the UART.
  *
@@ -997,46 +823,6 @@ ble_hci_sock_init(void)
     ble_hci_sock_init_task();
     ble_npl_event_init(&ble_hci_sock_state.ev, ble_hci_sock_rx_ev, NULL);
 
-    rc = os_mempool_init(&ble_hci_sock_acl_pool,
-                         MYNEWT_VAL(BLE_ACL_BUF_COUNT),
-                         ACL_BLOCK_SIZE,
-                         ble_hci_sock_acl_buf,
-                         "ble_hci_sock_acl_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mbuf_pool_init(&ble_hci_sock_acl_mbuf_pool,
-                           &ble_hci_sock_acl_pool,
-                           ACL_BLOCK_SIZE,
-                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    /*
-     * Create memory pool of HCI command buffers. NOTE: we currently dont
-     * allow this to be configured. The controller will only allow one
-     * outstanding command. We decided to keep this a pool in case we allow
-     * allow the controller to handle more than one outstanding command.
-     */
-    rc = os_mempool_init(&ble_hci_sock_cmd_pool,
-                         1,
-                         BLE_HCI_TRANS_CMD_SZ,
-                         &ble_hci_sock_cmd_buf,
-                         "ble_hci_sock_cmd_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_sock_evt_hi_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_HI_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         &ble_hci_sock_evt_hi_buf,
-                         "ble_hci_sock_evt_hi_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_hci_sock_evt_lo_pool,
-                         MYNEWT_VAL(BLE_HCI_EVT_LO_BUF_COUNT),
-                         MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE),
-                         ble_hci_sock_evt_lo_buf,
-                         "ble_hci_sock_evt_lo_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
     rc = ble_hci_sock_config();
     SYSINIT_PANIC_ASSERT_MSG(rc == 0, "Failure configuring socket HCI");
 
@@ -1045,3 +831,23 @@ ble_hci_sock_init(void)
                             STATS_NAME_INIT_PARMS(hci_sock_stats), "hci_socket");
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
+
+void
+ble_transport_ll_init(void)
+{
+    ble_hci_sock_init();
+}
+
+int
+ble_transport_to_ll_acl(struct os_mbuf *om)
+{
+    return ble_hci_trans_hs_acl_tx(om);
+}
+
+int
+ble_transport_to_ll_cmd(void *buf)
+{
+    return ble_hci_trans_hs_cmd_tx(buf);
+}
+
+/* TODO: add ll-to-hs side if needed */
