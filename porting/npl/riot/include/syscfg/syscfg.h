@@ -15,7 +15,6 @@
 #define MYNEWT_VAL(_name)                       MYNEWT_VAL_ ## _name
 #define MYNEWT_VAL_CHOICE(_name, _val)          MYNEWT_VAL_ ## _name ## __ ## _val
 
-/*** @apache-mynewt-core/compiler/arm-none-eabi-m4 */
 #ifndef MYNEWT_VAL_HARDFLOAT
 #define MYNEWT_VAL_HARDFLOAT (0)
 #endif
@@ -107,6 +106,11 @@
 
 #ifndef MYNEWT_VAL_MCU_BUS_DRIVER_I2C_USE_TWIM
 #define MYNEWT_VAL_MCU_BUS_DRIVER_I2C_USE_TWIM (0)
+#endif
+
+/* Overridden by @apache-mynewt-core/hw/bsp/nordic_pca10056 (defined by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx) */
+#ifndef MYNEWT_VAL_MCU_COMMON_STARTUP
+#define MYNEWT_VAL_MCU_COMMON_STARTUP (1)
 #endif
 
 /* Overridden by @apache-mynewt-core/hw/bsp/nordic_pca10056 (defined by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx) */
@@ -951,8 +955,12 @@
 #define MYNEWT_VAL_BLE_LL_CFG_FEAT_LL_SCA_UPDATE (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG (MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG
-#define MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG (MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL)
+#define MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG (0)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
@@ -966,6 +974,34 @@
 
 #ifndef MYNEWT_VAL_BLE_LL_CONN_INIT_SLOTS
 #define MYNEWT_VAL_BLE_LL_CONN_INIT_SLOTS (4)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_PHY_DEFAULT_PREF_MASK
+#define MYNEWT_VAL_BLE_LL_CONN_PHY_DEFAULT_PREF_MASK (0x07)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_PHY_INIT_UPDATE
+#define MYNEWT_VAL_BLE_LL_CONN_PHY_INIT_UPDATE (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_PHY_PREFER_2M
+#define MYNEWT_VAL_BLE_LL_CONN_PHY_PREFER_2M (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED
+#define MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_FIXED
+#define MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_FIXED (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS
+#define MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS (8)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_SLOT_US
+#define MYNEWT_VAL_BLE_LL_CONN_STRICT_SCHED_SLOT_US (3750)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_DEBUG_GPIO_HCI_CMD
@@ -1005,6 +1041,10 @@
 #define MYNEWT_VAL_BLE_LL_EXT_ADV_AUX_PTR_CNT (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_HBD_FAKE_DUAL_MODE
+#define MYNEWT_VAL_BLE_LL_HBD_FAKE_DUAL_MODE (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_HCI_LLCP_TRACE
 #define MYNEWT_VAL_BLE_LL_HCI_LLCP_TRACE (0)
 #endif
@@ -1012,6 +1052,10 @@
 /* Value copied from BLE_HCI_VS */
 #ifndef MYNEWT_VAL_BLE_LL_HCI_VS
 #define MYNEWT_VAL_BLE_LL_HCI_VS (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_HCI_VS_CONN_STRICT_SCHED
+#define MYNEWT_VAL_BLE_LL_HCI_VS_CONN_STRICT_SCHED (0)
 #endif
 
 /* Value copied from BLE_LL_VND_EVENT_ON_ASSERT */
@@ -1109,8 +1153,9 @@
 #define MYNEWT_VAL_BLE_LL_SCA (60)
 #endif
 
+/* Value copied from BLE_LL_EXT_ADV_AUX_PTR_CNT */
 #ifndef MYNEWT_VAL_BLE_LL_SCAN_AUX_SEGMENT_CNT
-#define MYNEWT_VAL_BLE_LL_SCAN_AUX_SEGMENT_CNT (8)
+#define MYNEWT_VAL_BLE_LL_SCAN_AUX_SEGMENT_CNT (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY
@@ -1156,7 +1201,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_USECS_PER_PERIOD
-#define MYNEWT_VAL_BLE_LL_USECS_PER_PERIOD (3250)
+#define MYNEWT_VAL_BLE_LL_USECS_PER_PERIOD (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_VND_EVENT_ON_ASSERT
@@ -1606,101 +1651,96 @@
 #endif
 
 /*** @apache-mynewt-nimble/nimble/transport */
-/* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_ACL_BUF_COUNT
-#define MYNEWT_VAL_BLE_ACL_BUF_COUNT (24)
-#endif
+#undef MYNEWT_VAL_BLE_ACL_BUF_COUNT
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/ram (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_ACL_BUF_SIZE
-#define MYNEWT_VAL_BLE_ACL_BUF_SIZE (65535)
-#endif
+#undef MYNEWT_VAL_BLE_ACL_BUF_SIZE
 
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE
-#define MYNEWT_VAL_BLE_HCI_BRIDGE (0)
-#endif
+#undef MYNEWT_VAL_BLE_HCI_BRIDGE
 
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac
-#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__dialog_cmac (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340
-#define MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT__nrf5340 (0)
-#endif
-#undef MYNEWT_VAL_BLE_HCI_BRIDGE_TRANSPORT
+#undef MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/ram (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE
-#define MYNEWT_VAL_BLE_HCI_EVT_BUF_SIZE (70)
+#undef MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT
+
+#undef MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT
+
+#undef MYNEWT_VAL_BLE_HCI_TRANSPORT
+
+#ifndef MYNEWT_VAL_BLE_TRANSPORT
+#define MYNEWT_VAL_BLE_TRANSPORT (1)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT
-#define MYNEWT_VAL_BLE_HCI_EVT_HI_BUF_COUNT (2)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_COUNT (24)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport/ram (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT
-#define MYNEWT_VAL_BLE_HCI_EVT_LO_BUF_COUNT (8)
+/* Value copied from BLE_TRANSPORT_ACL_COUNT */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_HS_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_HS_COUNT (24)
+#endif
+
+/* Value copied from BLE_TRANSPORT_ACL_COUNT */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_LL_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_FROM_LL_COUNT (24)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_ACL_SIZE
+#define MYNEWT_VAL_BLE_TRANSPORT_ACL_SIZE (255)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/transport) */
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__builtin (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__custom
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__custom (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__da1469x (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__dialog_cmac (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__emspi (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__nrf5340 (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__ram
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__ram (1)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__socket
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__socket (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__uart
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__uart (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT__usb
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT__usb (0)
-#endif
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT (1)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_COUNT (2)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_EMSPI (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT (16)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_NIMBLE_BUILTIN (0)
+/* Overridden by @apache-mynewt-nimble/nimble/transport (defined by @apache-mynewt-nimble/nimble/transport) */
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (257)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_RAM (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__custom
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__custom (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__dialog_cmac
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__dialog_cmac (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__native
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__native (1)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__nrf5340
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__nrf5340 (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__uart
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__uart (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__usb
+#define MYNEWT_VAL_BLE_TRANSPORT_HS__usb (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_HS
+#define MYNEWT_VAL_BLE_TRANSPORT_HS (1)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_SOCKET (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__custom
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__custom (0)
 #endif
-
-#ifndef MYNEWT_VAL_BLE_HCI_TRANSPORT_UART
-#define MYNEWT_VAL_BLE_HCI_TRANSPORT_UART (0)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__dialog_cmac
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__dialog_cmac (0)
 #endif
-
-/*** @apache-mynewt-nimble/nimble/transport/ram */
-#ifndef MYNEWT_VAL_BLE_TRANS_RAM_SYSINIT_STAGE
-#define MYNEWT_VAL_BLE_TRANS_RAM_SYSINIT_STAGE (100)
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__native
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__native (1)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__nrf5340
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__nrf5340 (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL__socket
+#define MYNEWT_VAL_BLE_TRANSPORT_LL__socket (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_TRANSPORT_LL
+#define MYNEWT_VAL_BLE_TRANSPORT_LL (1)
 #endif
 
 /*** newt */
