@@ -102,25 +102,6 @@ matrix:
         - VM_AMOUNT=1
         - TARGET_SET=1
 
-    # newt test all
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=1
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=2
-    - os: osx
-      osx_image: xcode9.2
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=3
-        - TARGET_SET=3
     - os: windows
       env:
         - TEST=BUILD_TARGETS_WINDOWS
