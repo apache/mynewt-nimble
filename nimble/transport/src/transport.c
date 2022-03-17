@@ -80,11 +80,11 @@ ble_transport_alloc_cmd(void)
 }
 
 void *
-ble_transport_alloc_evt(int discarcable)
+ble_transport_alloc_evt(int discardable)
 {
     void *buf;
 
-    if (discarcable) {
+    if (discardable) {
         buf = os_memblock_get(&pool_evt_lo);
     } else {
         buf = os_memblock_get(&pool_evt);
