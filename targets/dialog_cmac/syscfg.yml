@@ -22,7 +22,7 @@ syscfg.vals:
     MCU_SLP_TIMER: 1
     MCU_SLP_TIMER_32K_ONLY: 1
 
-    BLE_HCI_TRANSPORT: dialog_cmac
+    BLE_TRANSPORT_HS: dialog_cmac
 
     # LL recommended settings (decreasing timing values is not recommended)
     BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL: 1
