@@ -1,5 +1,5 @@
 syscfg.vals:
-    BLE_HCI_TRANSPORT: usb
+    BLE_TRANSPORT_HS: usb
     USBD_BTH: 1
 
     USBD_PID: 0xC01A

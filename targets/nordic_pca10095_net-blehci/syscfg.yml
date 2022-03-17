@@ -18,7 +18,7 @@
 #
 
 syscfg.vals:
-    BLE_HCI_TRANSPORT: nrf5340
+    BLE_TRANSPORT_HS: nrf5340
 
     MSYS_1_BLOCK_COUNT: 12
     MSYS_1_BLOCK_SIZE: 292
