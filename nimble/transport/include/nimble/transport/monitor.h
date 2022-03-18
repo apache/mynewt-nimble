@@ -60,6 +60,12 @@ ble_transport_to_ll_acl(struct os_mbuf *om)
 }
 
 static inline int
+ble_transport_to_ll_iso(struct os_mbuf *om)
+{
+    return ble_transport_to_ll_iso_impl(om);
+}
+
+static inline int
 ble_transport_to_hs_evt(void *buf)
 {
     return ble_transport_to_hs_evt_impl(buf);
@@ -69,6 +75,12 @@ static inline int
 ble_transport_to_hs_acl(struct os_mbuf *om)
 {
     return ble_transport_to_hs_acl_impl(om);
+}
+
+static inline int
+ble_transport_to_hs_iso(struct os_mbuf *om)
+{
+    return ble_transport_to_hs_iso_impl(om);
 }
 #endif /* BLE_MONITOR */
 

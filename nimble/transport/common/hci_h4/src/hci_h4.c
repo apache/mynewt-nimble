@@ -39,6 +39,7 @@ const struct hci_h4_allocators hci_h4_allocs_from_ll = {
 const struct hci_h4_allocators hci_h4_allocs_from_hs = {
     .cmd = ble_transport_alloc_cmd,
     .acl = ble_transport_alloc_acl_from_hs,
+    .iso = ble_transport_alloc_iso_from_hs,
 };
 
 struct hci_h4_input_buffer {
@@ -58,6 +59,7 @@ hci_h4_frame_start(struct hci_h4_sm *rxs, uint8_t pkt_type)
         rxs->min_len = 3;
         break;
     case HCI_H4_ACL:
+    case HCI_H4_ISO:
         rxs->min_len = 4;
         break;
     case HCI_H4_EVT:
@@ -159,6 +161,16 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
 
         h4sm->exp_len = h4sm->hdr[1] + 2;
         break;
+    case HCI_H4_ISO:
+        assert(h4sm->allocs && h4sm->allocs->iso);
+        h4sm->om = h4sm->allocs->iso();
+        if (!h4sm->om) {
+            return -1;
+        }
+
+        os_mbuf_append(h4sm->om, h4sm->hdr, h4sm->len);
+        h4sm->exp_len = (get_le16(&h4sm->hdr[2]) & 0x7fff) + 4;
+        break;
     default:
         assert(0);
         break;
@@ -185,6 +197,7 @@ hci_h4_sm_w4_payload(struct hci_h4_sm *h4sm,
         }
         break;
     case HCI_H4_ACL:
+    case HCI_H4_ISO:
         assert(h4sm->om);
 
         mbuf_len = OS_MBUF_PKTLEN(h4sm->om);
@@ -230,6 +243,7 @@ hci_h4_sm_completed(struct hci_h4_sm *h4sm)
         }
         break;
     case HCI_H4_ACL:
+    case HCI_H4_ISO:
         if (h4sm->om) {
             assert(h4sm->frame_cb);
             rc = h4sm->frame_cb(h4sm->pkt_type, h4sm->om);

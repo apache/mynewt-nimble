@@ -58,6 +58,13 @@ hci_ipc_alloc(struct hci_ipc_sm *sm)
         sm->buf = ble_transport_alloc_cmd();
         break;
 #endif
+    case HCI_IPC_TYPE_ISO:
+#if MYNEWT_VAL(BLE_CONTROLLER)
+        sm->om = ble_transport_alloc_iso_from_hs();
+#else
+        sm->om = ble_transport_alloc_iso_from_ll();
+#endif
+        break;
     default:
         assert(0);
         break;
@@ -102,6 +109,13 @@ hci_ipc_frame(struct hci_ipc_sm *sm)
         ble_transport_to_hs_evt(sm->buf);
         break;
 #endif
+    case HCI_IPC_TYPE_ISO:
+#if MYNEWT_VAL(BLE_CONTROLLER)
+        ble_transport_to_ll_iso(sm->om);
+#else
+        ble_transport_to_hs_iso(sm->om);
+#endif
+        break;
     default:
         assert(0);
         break;
@@ -161,6 +175,7 @@ hci_ipc_copy_to_buf(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
         memcpy(sm->buf + sm->buf_len, buf, len);
         break;
     case HCI_IPC_TYPE_ACL:
+    case HCI_IPC_TYPE_ISO:
         rc = os_mbuf_append(sm->om, buf, len);
         assert(rc == 0);
         break;
