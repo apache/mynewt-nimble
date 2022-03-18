@@ -1849,14 +1849,14 @@ ble_hs_test_util_assert_mbufs_freed(
 }
 
 int
-ble_transport_to_ll_acl(struct os_mbuf *om)
+ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
     ble_hs_test_util_prev_tx_enqueue(om);
     return 0;
 }
 
 int
-ble_transport_to_ll_cmd(void *buf)
+ble_transport_to_ll_cmd_impl(void *buf)
 {
     ble_hs_test_util_hci_out_enqueue(buf);
     ble_transport_free(buf);
