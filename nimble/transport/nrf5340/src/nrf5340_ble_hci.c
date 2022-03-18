@@ -63,6 +63,35 @@ nrf5340_ble_hci_acl_tx(struct os_mbuf *om)
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
 
+#if !MYNEWT_VAL(BLE_CONTROLLER)
+static int
+nrf5340_ble_hci_iso_tx(struct os_mbuf *om)
+{
+    struct hci_ipc_hdr hdr;
+    struct os_mbuf *x;
+    int rc;
+
+    hdr.type = HCI_IPC_TYPE_ISO;
+    hdr.length = 4 + get_le16(&om->om_data[2]);
+
+    rc = ipc_nrf5340_write(IPC_TX_CHANNEL, &hdr, sizeof(hdr), false);
+    if (rc == 0) {
+        x = om;
+        while (x) {
+            rc = ipc_nrf5340_write(IPC_TX_CHANNEL, x->om_data, x->om_len, true);
+            if (rc < 0) {
+                break;
+            }
+            x = SLIST_NEXT(x, om_next);
+        }
+    }
+
+    os_mbuf_free_chain(om);
+
+    return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
+}
+#endif
+
 static void
 nrf5340_ble_hci_trans_rx(int channel, void *user_data)
 {
@@ -147,6 +176,12 @@ int
 ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
     return nrf5340_ble_hci_acl_tx(om);
+}
+
+int
+ble_transport_to_ll_iso_impl(struct os_mbuf *om)
+{
+    return nrf5340_ble_hci_iso_tx(om);
 }
 
 void

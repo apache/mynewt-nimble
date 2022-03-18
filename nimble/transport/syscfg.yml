@@ -58,6 +58,16 @@ syscfg.defs:
     BLE_TRANSPORT_ACL_SIZE:
         description: Size of each buffer in ACL pool.
         value: 251
+    BLE_TRANSPORT_ISO_COUNT:
+        description: >
+            Number of ISO buffers available in transport. This determines
+            number of buffers used by host/controller for flow control.
+            Buffers pool is allocated for each non-native transport side
+            selected, unless overriden by BLE_TRANSPORT_ISO_FROM_[HS|LL]_COUNT.
+        value: 10
+    BLE_TRANSPORT_ISO_SIZE:
+        description: Size of each buffer in ISO pool.
+        value: 300
     BLE_TRANSPORT_EVT_COUNT:
         description: >
             Number of event buffers available in transport.
@@ -87,6 +97,17 @@ syscfg.defs:
             Overrides BLE_TRANSPORT_ACL_COUNT on controller side, i.e. number
             of ACL buffers available for controller.
         value: MYNEWT_VAL(BLE_TRANSPORT_ACL_COUNT)
+
+    BLE_TRANSPORT_ISO_FROM_HS_COUNT:
+        description: >
+            Overrides BLE_TRANSPORT_ISO_COUNT on host side, i.e. number
+            of ISO buffers available for host.
+        value: MYNEWT_VAL(BLE_TRANSPORT_ISO_COUNT)
+    BLE_TRANSPORT_ISO_FROM_LL_COUNT:
+        description: >
+            Overrides BLE_TRANSPORT_ISO_COUNT on controller side, i.e. number
+            of ISO buffers available for controller.
+        value: MYNEWT_VAL(BLE_TRANSPORT_ISO_COUNT)
 
 # import monitor and defunct settings from separate file to reduce clutter in main file
 $import:

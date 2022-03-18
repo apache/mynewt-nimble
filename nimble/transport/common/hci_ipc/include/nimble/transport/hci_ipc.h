@@ -27,6 +27,7 @@
 #define HCI_IPC_TYPE_EVT                0x04
 #define HCI_IPC_TYPE_EVT_DISCARDABLE    0x05
 #define HCI_IPC_TYPE_EVT_IN_CMD         0x06
+#define HCI_IPC_TYPE_ISO                0x07
 
 struct __attribute__((packed)) hci_ipc_hdr {
     uint8_t type;

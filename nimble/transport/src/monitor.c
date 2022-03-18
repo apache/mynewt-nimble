@@ -510,6 +510,14 @@ ble_transport_to_ll_acl(struct os_mbuf *om)
 }
 
 int
+ble_transport_to_ll_iso(struct os_mbuf *om)
+{
+    ble_monitor_send_om(BLE_MONITOR_OPCODE_ISO_TX_PKT, om);
+
+    return ble_transport_to_ll_iso_impl(om);
+}
+
+int
 ble_transport_to_hs_acl(struct os_mbuf *om)
 {
     ble_monitor_send_om(BLE_MONITOR_OPCODE_ACL_RX_PKT, om);
@@ -526,6 +534,14 @@ ble_transport_to_hs_evt(void *buf)
                                                         sizeof(*ev));
 
     return ble_transport_to_hs_evt_impl(buf);
+}
+
+int
+ble_transport_to_hs_iso(struct os_mbuf *om)
+{
+    ble_monitor_send_om(BLE_MONITOR_OPCODE_ISO_RX_PKT, om);
+
+    return ble_transport_to_hs_iso_impl(om);
 }
 
 #endif /* MYNEWT_VAL(BLE_MONITOR_RTT) || MYNEWT_VAL(BLE_MONITOR_UART) */

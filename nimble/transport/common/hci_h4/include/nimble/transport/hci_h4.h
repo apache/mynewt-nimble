@@ -31,11 +31,13 @@
 typedef void *(hci_h4_alloc_cmd)(void);
 typedef void *(hci_h4_alloc_evt)(int);
 typedef struct os_mbuf *(hci_h4_alloc_acl)(void);
+typedef struct os_mbuf *(hci_h4_alloc_iso)(void);
 
 struct hci_h4_allocators {
     hci_h4_alloc_cmd *cmd;
     hci_h4_alloc_acl *acl;
     hci_h4_alloc_evt *evt;
+    hci_h4_alloc_iso *iso;
 };
 
 extern const struct hci_h4_allocators hci_h4_allocs_from_ll;

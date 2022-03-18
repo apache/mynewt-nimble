@@ -49,18 +49,26 @@
 #if MYNEWT_VAL_CHOICE(BLE_TRANSPORT_LL, native) && \
    MYNEWT_VAL_CHOICE(BLE_TRANSPORT_HS, native)
 #define POOL_ACL_COUNT      (0)
+#define POOL_ISO_COUNT      (0)
 #elif !MYNEWT_VAL_CHOICE(BLE_TRANSPORT_LL, native) && \
       !MYNEWT_VAL_CHOICE(BLE_TRANSPORT_HS, native)
 #define POOL_ACL_COUNT      ((MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT)) + \
                              (MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_LL_COUNT)))
+#define POOL_ISO_COUNT      ((MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_HS_COUNT)) + \
+                             (MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_LL_COUNT)))
 #elif MYNEWT_VAL_CHOICE(BLE_TRANSPORT_LL, native)
 #define POOL_ACL_COUNT      (MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT))
+#define POOL_ISO_COUNT      (MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_HS_COUNT))
 #else
 #define POOL_ACL_COUNT      (MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_LL_COUNT))
+#define POOL_ISO_COUNT      (MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_LL_COUNT))
 #endif
 #define POOL_ACL_SIZE       (OS_ALIGN( MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE) + \
                                        BLE_MBUF_MEMBLOCK_OVERHEAD +         \
                                        BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT))
+#define POOL_ISO_SIZE       (OS_ALIGN(MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE) + \
+                                      BLE_MBUF_MEMBLOCK_OVERHEAD +         \
+                                      BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT))
 
 static uint8_t pool_cmd_buf[ OS_MEMPOOL_BYTES(POOL_CMD_COUNT, POOL_CMD_SIZE) ];
 static struct os_mempool pool_cmd;
@@ -75,6 +83,12 @@ static struct os_mempool pool_evt_lo;
 static uint8_t pool_acl_buf[ OS_MEMPOOL_BYTES(POOL_ACL_COUNT, POOL_ACL_SIZE) ];
 static struct os_mempool_ext pool_acl;
 static struct os_mbuf_pool mpool_acl;
+#endif
+
+#if POOL_ISO_COUNT > 0
+static uint8_t pool_iso_buf[ OS_MEMPOOL_BYTES(POOL_ISO_COUNT, POOL_ISO_SIZE) ];
+static struct os_mempool_ext pool_iso;
+static struct os_mbuf_pool mpool_iso;
 #endif
 
 static os_mempool_put_fn *transport_put_acl_from_ll_cb;
@@ -160,6 +174,32 @@ ble_transport_alloc_acl_from_hs(void)
 }
 
 struct os_mbuf *
+ble_transport_alloc_iso_from_hs(void)
+{
+#if POOL_ISO_COUNT > 0
+    struct os_mbuf *om;
+    struct os_mbuf_pkthdr *pkthdr;
+    uint16_t usrhdr_len;
+
+#if MYNEWT_VAL_CHOICE(BLE_TRANSPORT_LL, native)
+    usrhdr_len = sizeof(struct ble_mbuf_hdr);
+#else
+    usrhdr_len = 0;
+#endif
+
+    om = os_mbuf_get_pkthdr(&mpool_iso, usrhdr_len);
+    if (om) {
+        pkthdr = OS_MBUF_PKTHDR(om);
+        pkthdr->omp_flags = OMP_FLAG_FROM_HS;
+    }
+
+    return om;
+#else
+    return NULL;
+#endif
+}
+
+struct os_mbuf *
 ble_transport_alloc_acl_from_ll(void)
 {
 #if POOL_ACL_COUNT > 0
@@ -167,6 +207,25 @@ ble_transport_alloc_acl_from_ll(void)
     struct os_mbuf_pkthdr *pkthdr;
 
     om = os_mbuf_get_pkthdr(&mpool_acl, 0);
+    if (om) {
+        pkthdr = OS_MBUF_PKTHDR(om);
+        pkthdr->omp_flags = OMP_FLAG_FROM_LL;
+    }
+
+    return om;
+#else
+    return NULL;
+#endif
+}
+
+struct os_mbuf *
+ble_transport_alloc_iso_from_ll(void)
+{
+#if POOL_ISO_COUNT > 0
+    struct os_mbuf *om;
+    struct os_mbuf_pkthdr *pkthdr;
+
+    om = os_mbuf_get_pkthdr(&mpool_iso, 0);
     if (om) {
         pkthdr = OS_MBUF_PKTHDR(om);
         pkthdr->omp_flags = OMP_FLAG_FROM_LL;
@@ -277,6 +336,16 @@ ble_transport_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     pool_acl.mpe_put_cb = ble_transport_acl_put;
+#endif
+
+#if POOL_ISO_COUNT > 0
+    rc = os_mempool_ext_init(&pool_iso, POOL_ISO_COUNT, POOL_ISO_SIZE,
+                             pool_iso_buf, "transport_pool_iso");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = os_mbuf_pool_init(&mpool_iso, &pool_iso.mpe_mp,
+                           POOL_ISO_SIZE, POOL_ISO_COUNT);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 #endif
 }
 

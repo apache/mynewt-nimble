@@ -61,6 +61,8 @@ hci_uart_frame_cb(uint8_t pkt_type, void *data)
         return ble_transport_to_ll_cmd(data);
     case HCI_H4_ACL:
         return ble_transport_to_ll_acl(data);
+    case HCI_H4_ISO:
+        return ble_transport_to_ll_iso(data);
     default:
         assert(0);
         break;
@@ -212,6 +214,34 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
     }
 
     txe->type = HCI_H4_ACL;
+    txe->sent_type = 0;
+    txe->len = OS_MBUF_PKTLEN(om);
+    txe->idx = 0;
+    txe->buf = NULL;
+    txe->om = om;
+
+    OS_ENTER_CRITICAL(sr);
+    STAILQ_INSERT_TAIL(&tx_q, txe, tx_q_next);
+    OS_EXIT_CRITICAL(sr);
+
+    hal_uart_start_tx(MYNEWT_VAL(BLE_TRANSPORT_UART_PORT));
+
+    return 0;
+}
+
+int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    struct hci_uart_tx *txe;
+    os_sr_t sr;
+
+    txe = os_memblock_get(&pool_tx_q);
+    if (!txe) {
+        assert(0);
+        return -ENOMEM;
+    }
+
+    txe->type = HCI_H4_ISO;
     txe->sent_type = 0;
     txe->len = OS_MBUF_PKTLEN(om);
     txe->idx = 0;
