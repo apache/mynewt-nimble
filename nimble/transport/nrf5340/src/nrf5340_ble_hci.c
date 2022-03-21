@@ -93,15 +93,14 @@ nrf5340_ble_hci_frame_cb(uint8_t pkt_type, void *data)
 static void
 nrf5340_ble_hci_trans_rx(int channel, void *user_data)
 {
-    uint8_t byte;
-    int rlen;
+    uint8_t *buf;
+    int len;
 
-    while (ipc_nrf5340_available(channel) > 0) {
-        rlen = ipc_nrf5340_read(channel, &byte, 1);
-        assert(rlen == 1);
-
-        rlen = hci_h4_sm_rx(&hci_nrf5340_h4sm, &byte, 1);
-        assert(rlen == 1);
+    len = ipc_nrf5340_available_buf(channel, (void **)&buf);
+    while (len > 0) {
+        len = hci_h4_sm_rx(&hci_nrf5340_h4sm, buf, len);
+        ipc_nrf5340_consume(channel, len);
+        len = ipc_nrf5340_available_buf(channel, (void **)&buf);
     }
 }
 
