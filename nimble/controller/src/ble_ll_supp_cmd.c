@@ -34,6 +34,14 @@
 #endif
 #define BLE_LL_SUPP_CMD_OCTET_0             (BLE_SUPP_CMD_DISCONNECT)
 
+/* Octet 2*/
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+#define BLE_SUPP_CMD_READ_REM_VER_INFO      (1 << 7)
+#else
+#define BLE_SUPP_CMD_READ_REM_VER_INFO      (0 << 7)
+#endif
+#define BLE_LL_SUPP_CMD_OCTET_2             (BLE_SUPP_CMD_READ_REM_VER_INFO)
+
 /* Octet 5 */
 #define BLE_SUPP_CMD_SET_EVENT_MASK         (1 << 6)
 #define BLE_SUPP_CMD_RESET                  (1 << 7)
@@ -579,7 +587,7 @@ const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN] =
 {
     BLE_LL_SUPP_CMD_OCTET_0,            /* Octet 0 */
     0,
-    0,
+    BLE_LL_SUPP_CMD_OCTET_2,            /* Octet 2 */
     0,
     0,
     BLE_LL_SUPP_CMD_OCTET_5,
