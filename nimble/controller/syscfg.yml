@@ -21,25 +21,25 @@ syscfg.defs:
 
     BLE_LL_ROLE_CENTRAL:
         description: 'Enables controller support for the Central role.'
-        value: MYNEWT_VAL(BLE_ROLE_CENTRAL)
+        value: BLE_ROLE_CENTRAL
         restrictions:
             - 'BLE_LL_ROLE_OBSERVER if 1'
 
     BLE_LL_ROLE_PERIPHERAL:
         description: 'Enables controller support for the Peripheral role.'
-        value: MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+        value: BLE_ROLE_PERIPHERAL
         restrictions:
             - 'BLE_LL_ROLE_BROADCASTER if 1'
 
     BLE_LL_ROLE_BROADCASTER:
         description: 'Enables controller support for the Broadcaster role.'
-        value: MYNEWT_VAL(BLE_ROLE_BROADCASTER)
+        value: BLE_ROLE_BROADCASTER
         restrictions:
             - 'BLE_LL_ROLE_OBSERVER if 0'
 
     BLE_LL_ROLE_OBSERVER:
         description: 'Enables controller support for the Observer role.'
-        value: MYNEWT_VAL(BLE_ROLE_OBSERVER)
+        value: BLE_ROLE_OBSERVER
         restrictions:
             - 'BLE_LL_ROLE_BROADCASTER if 0'
 
@@ -230,28 +230,28 @@ syscfg.defs:
         description: >
             This option enables/disables encryption support in the controller.
             This option saves both both code and RAM.
-        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
+        value: BLE_LL_ROLE_CENTRAL || BLE_LL_ROLE_PERIPHERAL
 
     BLE_LL_CFG_FEAT_CONN_PARAM_REQ:
         description: >
             This option enables/disables the connection parameter request
             procedure.  This is implemented in the controller but is disabled
             by default.
-        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
+        value: BLE_LL_ROLE_CENTRAL || BLE_LL_ROLE_PERIPHERAL
 
     BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG:
         description: >
             This option allows a slave to initiate the feature exchange
             procedure.  This feature is implemented but currently has no impact
             on code or ram size
-        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
+        value: BLE_LL_ROLE_CENTRAL || BLE_LL_ROLE_PERIPHERAL
 
     BLE_LL_CFG_FEAT_LE_PING:
         description: >
             This option allows a controller to send/receive LE pings.
             Currently, this feature is not implemented by the controller so
             turning it on or off has no effect.
-        value: 'MYNEWT_VAL_BLE_LL_CFG_FEAT_LE_ENCRYPTION'
+        value: BLE_LL_CFG_FEAT_LE_ENCRYPTION
 
     BLE_LL_CFG_FEAT_DATA_LEN_EXT:
         description: >
@@ -259,7 +259,7 @@ syscfg.defs:
             the controller. If enabled, the controller is allowed to change the
             size of tx/rx pdu's used in a connection. This option has only
             minor impact on code size and non on RAM.
-        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
+        value: BLE_LL_ROLE_CENTRAL || BLE_LL_ROLE_PERIPHERAL'
 
     BLE_LL_CFG_FEAT_LL_PRIVACY:
         description: >
@@ -500,7 +500,7 @@ syscfg.defs:
         deprecated: 1
     BLE_PUBLIC_DEV_ADDR:
         description: use BLE_LL_PUBLIC_DEV_ADDR
-        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
+        value: raw("(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}")
         deprecated: 1
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
         description: use BLE_LL_SCAN_AUX_SEGMENT_CNT

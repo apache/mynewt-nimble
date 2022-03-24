@@ -79,12 +79,12 @@ syscfg.defs:
     CMAC_IMAGE_TARGET_NAME:
         description: >
             Target name to build for CMAC binary for single image build.
-        value: "@apache-mynewt-nimble/targets/dialog_cmac"
+        value: '"@apache-mynewt-nimble/targets/dialog_cmac"'
     CMAC_IMAGE_PARTITION:
         description: >
             Flash partition to load CMAC binary from if single image build
             is disabled.
-        value: FLASH_AREA_IMAGE_1
+        value: raw("FLASH_AREA_IMAGE_1")
     CMAC_IMAGE_RAM_SIZE:
         description: >
             Size of RAM area in bytes reserved for CMAC if single image
