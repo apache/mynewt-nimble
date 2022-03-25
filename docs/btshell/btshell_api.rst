@@ -48,11 +48,11 @@ For example:
     set addr_type=public addr=01:02:03:04:05:06
     set addr_type=random addr=c1:aa:bb:cc:dd:ee
 
-The address configuration can be viewed with the ``gatt-show-addr`` command, as follows:
+The address configuration can be viewed with the ``show-addr`` command, as follows:
 
 ::
 
-    gatt-show-addr
+    show-addr
     public_id_addr=01:02:03:04:05:06 random_id_addr=c1:aa:bb:cc:dd:ee
 
 Initiate a direct connection to a device
