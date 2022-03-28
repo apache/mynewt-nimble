@@ -2472,6 +2472,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_notify_req *req;
+    struct ble_gap_sec_state sec_state;
     uint16_t handle;
     int rc;
 
@@ -2486,6 +2487,15 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
 
     if (handle == 0) {
         return BLE_HS_EBADDATA;
+    }
+
+    ble_att_svr_get_sec_state(conn_handle, &sec_state);
+
+    /* All indications shall be confirmed, but only these with required
+     * security established shall be pass to application
+     */
+    if (MYNEWT_VAL(BLE_SM_SC_LVL) >= 2 && !sec_state.encrypted) {
+        return 0;
     }
 
     /* Strip the request base from the front of the mbuf. */
@@ -2537,6 +2547,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_indicate_req *req;
+    struct ble_gap_sec_state sec_state;
     struct os_mbuf *txom;
     uint16_t handle;
     uint8_t att_err;
@@ -2566,6 +2577,15 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
      */
     rc = ble_att_svr_build_indicate_rsp(rxom, &txom, &att_err);
     if (rc != 0) {
+        goto done;
+    }
+
+    ble_att_svr_get_sec_state(conn_handle, &sec_state);
+
+    /* All indications shall be confirmed, but only these with required
+     * security established shall be pass to application
+     */
+    if (MYNEWT_VAL(BLE_SM_SC_LVL) >= 2 && !sec_state.encrypted) {
         goto done;
     }
 
