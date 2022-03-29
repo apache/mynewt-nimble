@@ -803,3 +803,17 @@ ble_transport_hs_init(void)
 {
     ble_hs_init();
 }
+
+void
+ble_hs_deinit(void)
+{
+    ble_gatts_stop();
+
+    ble_npl_callout_deinit(&ble_hs_timer);
+
+    ble_npl_mutex_deinit(&ble_hs_mutex);
+
+    ble_gap_deinit();
+
+    ble_hs_hci_deinit();
+}

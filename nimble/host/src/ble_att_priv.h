@@ -173,6 +173,7 @@ int ble_att_init(void);
 /*** @svr */
 
 int ble_att_svr_start(void);
+void ble_att_svr_stop(void);
 
 struct ble_att_svr_entry *
 ble_att_svr_find_by_uuid(struct ble_att_svr_entry *start_at,

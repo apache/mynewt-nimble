@@ -906,6 +906,12 @@ int ble_gatts_reset(void);
  */
 int ble_gatts_start(void);
 
+/**
+ * Resets the GATT configuration parameters and deallocates the memory of attributes.
+ *
+ */
+void ble_gatts_stop(void);
+
 #ifdef __cplusplus
 }
 #endif

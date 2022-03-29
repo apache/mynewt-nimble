@@ -150,6 +150,20 @@ npl_freertos_mutex_init(struct ble_npl_mutex *mu)
 }
 
 ble_npl_error_t
+npl_freertos_mutex_deinit(struct ble_npl_mutex *mu)
+{
+    if (!mu) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    if (mu->handle) {
+        vSemaphoreDelete(mu->handle);
+    }
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
 npl_freertos_mutex_pend(struct ble_npl_mutex *mu, ble_npl_time_t timeout)
 {
     BaseType_t ret;
@@ -199,6 +213,20 @@ npl_freertos_sem_init(struct ble_npl_sem *sem, uint16_t tokens)
 
     sem->handle = xSemaphoreCreateCounting(128, tokens);
     assert(sem->handle);
+
+    return BLE_NPL_OK;
+}
+
+ble_npl_error_t
+npl_freertos_sem_deinit(struct ble_npl_sem *sem)
+{
+    if (!sem) {
+        return BLE_NPL_INVALID_PARAM;
+    }
+
+    if (sem->handle) {
+        vSemaphoreDelete(sem->handle);
+    }
 
     return BLE_NPL_OK;
 }
@@ -272,6 +300,13 @@ npl_freertos_callout_init(struct ble_npl_callout *co, struct ble_npl_eventq *evq
     co->handle = xTimerCreate("co", 1, pdFALSE, co, os_callout_timer_cb);
     co->evq = evq;
     ble_npl_event_init(&co->ev, ev_cb, ev_arg);
+}
+void
+npl_freertos_callout_deinit(struct ble_npl_callout *co)
+{
+    if (co->handle) {
+        xTimerDelete(co->handle, portMAX_DELAY);
+    }
 }
 
 ble_npl_error_t

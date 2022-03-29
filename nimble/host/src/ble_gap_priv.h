@@ -141,6 +141,7 @@ void ble_gap_conn_broken(uint16_t conn_handle, int reason);
 int32_t ble_gap_timer(void);
 
 int ble_gap_init(void);
+void ble_gap_deinit(void);
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
 int ble_gap_dbg_update_active(uint16_t conn_handle);
