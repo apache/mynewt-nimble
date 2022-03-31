@@ -213,7 +213,7 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 
     txe->type = HCI_H4_ACL;
     txe->sent_type = 0;
-    txe->len = 2 + OS_MBUF_PKTLEN(om);
+    txe->len = OS_MBUF_PKTLEN(om);
     txe->idx = 0;
     txe->buf = NULL;
     txe->om = om;
