@@ -91,6 +91,8 @@ void ble_ll_assert(const char *file, unsigned line) __attribute((noreturn));
 /* Packet queue header definition */
 STAILQ_HEAD(ble_ll_pkt_q, os_mbuf_pkthdr);
 
+#define BLE_LL_CHAN_MAP_LEN (5)
+
 /*
  * Global Link Layer data object. There is only one Link Layer data object
  * per controller although there may be many instances of the link layer state
@@ -103,6 +105,10 @@ struct ble_ll_obj
 
     /* Current Link Layer state */
     uint8_t ll_state;
+
+    /* Global channel map */
+    uint8_t chan_map_num_used;
+    uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Number of ACL data packets supported */

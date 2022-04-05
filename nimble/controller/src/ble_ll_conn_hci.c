@@ -1386,9 +1386,9 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
         memset(rsp->chan_map, 0, sizeof(rsp->chan_map));
     } else {
         if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
-            memcpy(rsp->chan_map, connsm->req_chanmap, BLE_LL_CONN_CHMAP_LEN);
+            memcpy(rsp->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
         } else {
-            memcpy(rsp->chan_map, connsm->chanmap, BLE_LL_CONN_CHMAP_LEN);
+            memcpy(rsp->chan_map, connsm->chanmap, BLE_LL_CHAN_MAP_LEN);
         }
         rc = BLE_ERR_SUCCESS;
     }

@@ -1640,6 +1640,10 @@ ble_ll_reset(void)
     g_ble_ll_data.ll_pref_tx_phys = phy_mask;
     g_ble_ll_data.ll_pref_rx_phys = phy_mask;
 
+    /* Enable all channels in channel map */
+    g_ble_ll_data.chan_map_num_used = BLE_PHY_NUM_DATA_CHANS;
+    memset(g_ble_ll_data.chan_map, 0xff, BLE_LL_CHAN_MAP_LEN);
+
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Reset connection module */
     ble_ll_conn_module_reset();
