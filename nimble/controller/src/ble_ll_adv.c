@@ -162,7 +162,7 @@ struct ble_ll_adv_sm
     uint8_t periodic_sync_active : 1;
     uint8_t periodic_sync_index : 1;
     uint8_t periodic_num_used_chans;
-    uint8_t periodic_chanmap[BLE_LL_CONN_CHMAP_LEN];
+    uint8_t periodic_chanmap[BLE_LL_CHAN_MAP_LEN];
     uint32_t periodic_adv_itvl_ticks;
     uint8_t periodic_adv_itvl_rem_usec;
     uint8_t periodic_adv_event_start_time_remainder;
@@ -1372,8 +1372,8 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     aux->chan = ble_ll_utils_dci_csa2(advsm->event_cntr++,
                                       advsm->channel_id,
-                                      g_ble_ll_conn_params.num_used_chans,
-                                      g_ble_ll_conn_params.central_chan_map);
+                                      g_ble_ll_data.chan_map_num_used,
+                                      g_ble_ll_data.chan_map);
 #else
     aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
                                               g_ble_ll_conn_params.central_chan_map);
@@ -2545,9 +2545,8 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     advsm->periodic_adv_active = 1;
 
     /* keep channel map since we cannot change it later on */
-    memcpy(advsm->periodic_chanmap, g_ble_ll_conn_params.central_chan_map,
-           BLE_LL_CONN_CHMAP_LEN);
-    advsm->periodic_num_used_chans = g_ble_ll_conn_params.num_used_chans;
+    memcpy(advsm->periodic_chanmap, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
+    advsm->periodic_num_used_chans = g_ble_ll_data.chan_map_num_used;
     advsm->periodic_event_cntr = 0;
     /* for chaining we start with random counter as we share access addr */
     advsm->periodic_chain_event_cntr = ble_ll_rand();

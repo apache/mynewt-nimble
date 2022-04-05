@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
 #include "nimble/nimble_npl.h"
+#include "controller/ble_ll.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_phy.h"
@@ -46,9 +47,6 @@ extern "C" {
 #define BLE_LL_CONN_STATE_IDLE          (0)
 #define BLE_LL_CONN_STATE_CREATED       (1)
 #define BLE_LL_CONN_STATE_ESTABLISHED   (2)
-
-/* Channel map size */
-#define BLE_LL_CONN_CHMAP_LEN           (5)
 
 /* Definition for RSSI when the RSSI is unknown */
 #define BLE_LL_CONN_UNKNOWN_RSSI        (127)
@@ -240,8 +238,8 @@ struct ble_ll_conn_sm
 #endif
 
     /* Used to calculate data channel index for connection */
-    uint8_t chanmap[BLE_LL_CONN_CHMAP_LEN];
-    uint8_t req_chanmap[BLE_LL_CONN_CHMAP_LEN];
+    uint8_t chanmap[BLE_LL_CHAN_MAP_LEN];
+    uint8_t req_chanmap[BLE_LL_CHAN_MAP_LEN];
     uint16_t chanmap_instant;
     uint16_t channel_id; /* TODO could be union with hop and last chan used */
     uint8_t hop_inc;

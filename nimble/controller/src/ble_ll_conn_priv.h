@@ -66,8 +66,6 @@ extern "C" {
 /* Global Link Layer connection parameters */
 struct ble_ll_conn_global_params
 {
-    uint8_t central_chan_map[BLE_LL_CONN_CHMAP_LEN];
-    uint8_t num_used_chans;
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint8_t supp_max_tx_octets;
     uint8_t supp_max_rx_octets;

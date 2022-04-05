@@ -1868,12 +1868,12 @@ static void
 ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 {
     /* Copy channel map that host desires into request */
-    memcpy(pyld, g_ble_ll_conn_params.central_chan_map, BLE_LL_CONN_CHMAP_LEN);
-    memcpy(connsm->req_chanmap, pyld, BLE_LL_CONN_CHMAP_LEN);
+    memcpy(pyld, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
+    memcpy(connsm->req_chanmap, pyld, BLE_LL_CHAN_MAP_LEN);
 
     /* Place instant into request */
     connsm->chanmap_instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
-    put_le16(pyld + BLE_LL_CONN_CHMAP_LEN, connsm->chanmap_instant);
+    put_le16(pyld + BLE_LL_CHAN_MAP_LEN, connsm->chanmap_instant);
 
     /* Set scheduled flag */
     connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
@@ -2393,13 +2393,13 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 #endif
 
     /* If instant is in the past, we have to end the connection */
-    instant = get_le16(dptr + BLE_LL_CONN_CHMAP_LEN);
+    instant = get_le16(dptr + BLE_LL_CHAN_MAP_LEN);
     conn_events = (instant - connsm->event_cntr) & 0xFFFF;
     if (conn_events >= 32767) {
         ble_ll_conn_timeout(connsm, BLE_ERR_INSTANT_PASSED);
     } else {
         connsm->chanmap_instant = instant;
-        memcpy(connsm->req_chanmap, dptr, BLE_LL_CONN_CHMAP_LEN);
+        memcpy(connsm->req_chanmap, dptr, BLE_LL_CHAN_MAP_LEN);
         connsm->csmflags.cfbit.chanmap_update_scheduled = 1;
     }
 
