@@ -474,8 +474,8 @@ int
 ble_ll_resolv_peer_addr_rd(const uint8_t *cmdbuf, uint8_t len,
                            uint8_t *rspbuf, uint8_t *rsplen)
 {
-    const struct ble_hci_le_rd_peer_recolv_addr_cp *cmd = (const void *) cmdbuf;
-    struct ble_hci_le_rd_peer_recolv_addr_rp *rsp = (void *) rspbuf;
+    const struct ble_hci_le_rd_peer_resolv_addr_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_rd_peer_resolv_addr_rp *rsp = (void *) rspbuf;
     struct ble_ll_resolv_entry *rl;
     int rc;
 
@@ -500,8 +500,8 @@ int
 ble_ll_resolv_local_addr_rd(const uint8_t *cmdbuf, uint8_t len,
                             uint8_t *rspbuf, uint8_t *rsplen)
 {
-    const struct ble_hci_le_rd_local_recolv_addr_cp *cmd = (const void *) cmdbuf;
-    struct ble_hci_le_rd_local_recolv_addr_rp *rsp = (void *) rspbuf;
+    const struct ble_hci_le_rd_local_resolv_addr_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_rd_local_resolv_addr_rp *rsp = (void *) rspbuf;
     struct ble_ll_resolv_entry *rl;
     int rc;
 
