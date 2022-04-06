@@ -41,14 +41,12 @@ extern "C" {
 #ifdef NDEBUG
 #define BLE_LL_ASSERT(cond) (void(0))
 #else
+void ble_ll_assert(const char *file, unsigned line) __attribute((noreturn));
+#define BLE_LL_FILE  (__builtin_strrchr(__FILE__, '/') ? \
+                      __builtin_strrchr (__FILE__, '/') + 1 : __FILE__)
 #define BLE_LL_ASSERT(cond) \
     if (!(cond)) { \
-        if (hal_debugger_connected()) { \
-            assert(0);\
-        } else {\
-            ble_ll_hci_ev_send_vs_assert(__FILE__, __LINE__); \
-            while(1) {}\
-        }\
+        ble_ll_assert(BLE_LL_FILE, __LINE__); \
     }
 #endif
 #else

@@ -1764,6 +1764,20 @@ ble_ll_is_addr_empty(const uint8_t *addr)
     return memcmp(addr, BLE_ADDR_ANY, BLE_DEV_ADDR_LEN) == 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_EVENT_ON_ASSERT)
+void
+ble_ll_assert(const char *file, unsigned line)
+{
+    if (hal_debugger_connected()) {
+        __BKPT(0);
+    } else {
+        ble_ll_hci_ev_send_vs_assert(file, line); \
+    }
+
+    while (1);
+}
+#endif
+
 /**
  * Initialize the Link Layer. Should be called only once
  *
