@@ -483,20 +483,20 @@ struct ble_hci_le_rd_resolv_list_size_rp {
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_RD_PEER_RESOLV_ADDR          (0x002B)
-struct ble_hci_le_rd_peer_recolv_addr_cp {
+struct ble_hci_le_rd_peer_resolv_addr_cp {
     uint8_t peer_addr_type;
     uint8_t peer_id_addr[6];
 } __attribute__((packed));
-struct ble_hci_le_rd_peer_recolv_addr_rp {
+struct ble_hci_le_rd_peer_resolv_addr_rp {
     uint8_t rpa[6];
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_RD_LOCAL_RESOLV_ADDR         (0x002C)
-struct ble_hci_le_rd_local_recolv_addr_cp {
+struct ble_hci_le_rd_local_resolv_addr_cp {
     uint8_t peer_addr_type;
     uint8_t peer_id_addr[6];
 } __attribute__((packed));
-struct ble_hci_le_rd_local_recolv_addr_rp {
+struct ble_hci_le_rd_local_resolv_addr_rp {
     uint8_t rpa[6];
 } __attribute__((packed));
 
