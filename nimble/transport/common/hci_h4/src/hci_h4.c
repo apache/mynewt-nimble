@@ -139,15 +139,23 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
             }
         }
 
-        /* TODO lo/hi pool? */
-
         assert(h4sm->allocs && h4sm->allocs->evt);
-        h4sm->buf = h4sm->allocs->evt(0);
-        if (!h4sm->buf) {
-            return -1;
+
+        /* We can drop legacy advertising events if there's no free buffer in
+         * discardable pool.
+         */
+        if (h4sm->hdr[2] == BLE_HCI_LE_SUBEV_ADV_RPT) {
+            h4sm->buf = h4sm->allocs->evt(1);
+        } else {
+            h4sm->buf = h4sm->allocs->evt(0);
+            if (!h4sm->buf) {
+                return -1;
+            }
         }
 
-        memcpy(h4sm->buf, h4sm->hdr, h4sm->len);
+        if (h4sm->buf) {
+            memcpy(h4sm->buf, h4sm->hdr, h4sm->len);
+        }
 
         h4sm->exp_len = h4sm->hdr[1] + 2;
         break;
