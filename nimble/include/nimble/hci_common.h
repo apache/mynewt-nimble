@@ -709,6 +709,7 @@ struct ble_hci_le_ext_create_conn_cp {
 
 #define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_FILTER      0x01
 #define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED    0x02
+#define BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DUPLICATES  0x04
 
 #define BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC          (0x0044)
 struct ble_hci_le_periodic_adv_create_sync_cp {
