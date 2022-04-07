@@ -135,6 +135,8 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
 #define BLE_GAP_EVENT_SCAN_REQ_RCVD         23
 #define BLE_GAP_EVENT_PERIODIC_TRANSFER     24
+#define BLE_GAP_EVENT_PATHLOSS_THRESHOLD    25
+#define BLE_GAP_EVENT_TRANSMIT_POWER        26
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -972,6 +974,54 @@ struct ble_gap_event {
             /** Advertiser clock accuracy */
             uint8_t adv_clk_accuracy;
         } periodic_transfer;
+#endif
+
+#if MYNEWT_VAL(BLE_POWER_CONTROL)
+        /**
+         * Represents a change in either local transmit power or remote transmit
+         * power. Valid for the following event types:
+         *     o BLE_GAP_EVENT_PATHLOSS_THRESHOLD
+         */
+
+	struct {
+	    /** Connection handle */
+	    uint16_t conn_handle;
+
+	    /** Current Path Loss */
+	    uint8_t current_path_loss;
+
+	    /** Entered Zone */
+	    uint8_t zone_entered;
+	} pathloss_threshold;
+
+        /**
+         * Represents crossing of path loss threshold set via LE Set Path Loss
+         * Reporting Parameter command. Valid for the following event types:
+         *     o BLE_GAP_EVENT_TRANSMIT_POWER
+         */
+
+	struct {
+	    /** BLE_ERR_SUCCESS on success or error code on failure */
+	    uint8_t status;
+
+	    /** Connection Handle */
+	    uint16_t conn_handle;
+
+	    /** Reason indicating why event was sent */
+	    uint8_t reason;
+
+	    /** Advertising PHY */
+	    uint8_t phy;
+
+	    /** Transmit power Level */
+	    uint8_t transmit_power_level;
+
+	    /** Transmit Power Level Flag */
+	    uint8_t transmit_power_level_flag;
+
+	    /** Delta indicating change in transmit Power Level */
+	    uint8_t delta;
+	} transmit_power;
 #endif
     };
 };
@@ -2097,6 +2147,82 @@ int ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
  */
 int ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener);
 
+#if MYNEWT_VAL(BLE_POWER_CONTROL)
+/**
+ * Enable Set Path Loss Reporting.
+ *
+ * @param conn_handle       Connection handle
+ * @params enable           1: Enable
+ * 			    0: Disable
+ *
+ * @return                   0 on success; nonzero on failure.
+ */
+
+int ble_gap_set_path_loss_reporting_enable(uint16_t conn_handle, uint8_t enable);
+
+/**
+ * Enable Reporting of Transmit Power
+ *
+ * @param conn_handle       Connection handle
+ * @params local_enable     1: Enable local transmit power reports
+ *                          0: Disable local transmit power reports
+ *
+ * @params remote_enable    1: Enable remote transmit power reports
+ *                          0: Disable remote transmit power reports
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
+                                                uint8_t local_enable,
+                                                uint8_t remote_enable);
+
+/**
+ * LE Enhanced Read Transmit Power Level
+ *
+ * @param conn_handle            Connection handle
+ * @params phy                   Advertising Phy
+ *
+ * @params status                0 on success; nonzero on failure.
+ * @params conn_handle           Connection handle
+ * @params phy	                 Advertising Phy
+ *
+ * @params curr_tx_power_level   Current trasnmit Power Level
+ *
+ * @params mx_tx_power_level     Maximum transmit power level
+ *
+ * @return                       0 on success; nonzero on failure.
+ */
+int ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy,
+                                          uint8_t *out_status, uint8_t *out_phy,
+					  uint8_t *out_curr_tx_power_level,
+					  uint8_t *out_max_tx_power_level);
+
+/**
+ * Read Remote Transmit Power Level
+ *
+ * @param conn_handle       Connection handle
+ * @params phy              Advertising Phy
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gap_read_remote_transmit_power_level(uint16_t conn_handle, uint8_t phy);
+
+/**
+ * Set Path Loss Reproting Param
+ *
+ * @param conn_handle       Connection handle
+ * @params high_threshold   High Threshold value for path loss
+ * @params high_hysteresis  Hysteresis value for high threshold
+ * @params low_threshold    Low Threshold value for path loss
+ * @params low_hysteresis   Hysteresis value for low threshold
+ * @params min_time_spent   Minimum time controller observes the path loss
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gap_set_path_loss_reporting_param(uint16_t conn_handle, uint8_t high_threshold,
+                                          uint8_t high_hysteresis, uint8_t low_threshold,
+                                          uint8_t low_hysteresis, uint16_t min_time_spent);
+#endif
 #ifdef __cplusplus
 }
 #endif

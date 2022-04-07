@@ -499,6 +499,10 @@
 #define MYNEWT_VAL_BLE_WHITELIST (1)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_POWER_CONTROL
+#define MYNEWT_VAL_BLE_POWER_CONTROL (0)
+#endif
+
 /*** @apache-mynewt-nimble/nimble/host */
 #ifndef MYNEWT_VAL_BLE_ATT_PREFERRED_MTU
 #define MYNEWT_VAL_BLE_ATT_PREFERRED_MTU (256)
