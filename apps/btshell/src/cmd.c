@@ -103,24 +103,27 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
     if (!prefix) {
         name[0] = '\0';
     } else {
-        written = snprintf(name, sizeof(name) - 1, "%s", prefix);
+        written = snprintf(name, sizeof(name), "%s", prefix);
         if (written >= sizeof(name) || written < 0) {
             return EINVAL;
         }
     }
 
-    written = snprintf(name + written, sizeof(name) - written - 1, "%s", "addr");
-    if (written >= sizeof(name) || written < 0) {
+    rc = snprintf(name + written, sizeof(name) - written, "%s", "addr");
+    if (rc >= sizeof(name) - written || rc < 0) {
         return EINVAL;
     }
+    written += rc;
+
     rc = parse_arg_addr(name, addr);
     if (rc == ENOENT) {
         /* not found */
         return rc;
     } else if (rc == EAGAIN) {
         /* address found, but no type provided */
-        written = snprintf(name + written, sizeof(name) - written - 1, "%s", "_type");
-        if (written >= sizeof(name) || written < 0) {
+        rc = written;
+        written = snprintf(name + written, sizeof(name) - written, "%s", "_type");
+        if (written >= sizeof(name) - rc || written < 0) {
             return EINVAL;
         }
         addr->type = parse_arg_kv(name, addr_types, &rc);
@@ -134,8 +137,9 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
         return rc;
     } else {
         /* full address found, but let's just make sure there is no type arg */
+        rc = written;
         written = snprintf(name + written, sizeof(name) - written, "%s", "_type");
-        if (written >= sizeof(name) || written < 0) {
+        if (written >= sizeof(name) - rc || written < 0) {
             return EINVAL;
         }
         if (parse_arg_extract(name)) {
