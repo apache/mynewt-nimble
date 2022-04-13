@@ -393,8 +393,11 @@ syscfg.defs:
             Enables support for vendor-specific HCI commands.
         value: MYNEWT_VAL(BLE_HCI_VS)
     BLE_LL_HCI_VS_CONN_STRICT_SCHED:
-        description: xxx
+        description: >
+            Enable HCI commands to control connection strict scheduling.
         value: 0
+        restrictions:
+            - BLE_LL_HCI_VS if 1
 
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
