@@ -490,66 +490,6 @@ syscfg.defs:
         range: 1..257
         value: 32
 
-# deprecated settings (to be defunct/removed eventually)
-    BLE_LL_DIRECT_TEST_MODE:
-        description: use BLE_LL_DTM instead
-        value: 0
-        deprecated: 1
-    BLE_XTAL_SETTLE_TIME:
-        description: use BLE_LL_RFMGMT_ENABLE_TIME instead
-        value: 0
-        deprecated: 1
-    BLE_LL_OUR_SCA:
-        description: use BLE_LL_SCA instead
-        value: 60
-        deprecated: 1
-    BLE_LL_VND_EVENT_ON_ASSERT:
-        description: use BLE_LL_HCI_VS_EVENT_ON_ASSERT
-        value: 0
-        deprecated: 1
-    BLE_PUBLIC_DEV_ADDR:
-        description: use BLE_LL_PUBLIC_DEV_ADDR
-        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
-        deprecated: 1
-    BLE_LL_EXT_ADV_AUX_PTR_CNT:
-        description: use BLE_LL_SCAN_AUX_SEGMENT_CNT
-        value: 0
-        deprecated: 1
-
-# defunct settings (to be removed eventually)
-    BLE_DEVICE:
-        description: Superseded by BLE_CONTROLLER
-        value: 1
-        defunct: 1
-    BLE_LP_CLOCK:
-        description: Superseded by BLE_CONTROLLER
-        value: 1
-        defunct: 1
-    BLE_NUM_COMP_PKT_RATE:
-        description: Superseded by BLE_LL_NUM_COMP_PKT_ITVL_MS
-        value: '(2 * OS_TICKS_PER_SEC)'
-        defunct: 1
-    BLE_LL_MASTER_SCA:
-        description: use BLE_LL_SCA instead
-        value: 4
-        defunct: 1
-    BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
-        description: Superseded by BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG
-        value: 0
-        defaunt: 1
-    BLE_LL_STRICT_CONN_SCHEDULING:
-        description: Superseded by BLE_LL_CONN_STRICT_SCHED
-        value: 0
-        defunct: 1
-    BLE_LL_ADD_STRICT_SCHED_PERIODS:
-        description: Superseded by BLE_LL_CONN_STRICT_SCHED
-        value: 0
-        defunct: 1
-    BLE_LL_USECS_PER_PERIOD:
-        description: Superseded by BLE_LL_CONN_STRICT_SCHED
-        value: 0
-        defunct: 1
-
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
@@ -567,5 +507,7 @@ syscfg.restrictions:
     - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0
 
 $import:
+    # defunct and deprecated settings
+    - "@apache-mynewt-nimble/nimble/controller/syscfg.defunct.yml"
     # "Here be dragons" settings
     - "@apache-mynewt-nimble/nimble/controller/syscfg.hbd.yml"

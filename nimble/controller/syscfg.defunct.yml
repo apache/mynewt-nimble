@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.defs:
+# deprecated settings (to be defunct/removed eventually)
+    BLE_LL_DIRECT_TEST_MODE:
+        description: use BLE_LL_DTM instead
+        value: 0
+        deprecated: 1
+    BLE_XTAL_SETTLE_TIME:
+        description: use BLE_LL_RFMGMT_ENABLE_TIME instead
+        value: 0
+        deprecated: 1
+    BLE_LL_OUR_SCA:
+        description: use BLE_LL_SCA instead
+        value: 60
+        deprecated: 1
+    BLE_LL_VND_EVENT_ON_ASSERT:
+        description: use BLE_LL_HCI_VS_EVENT_ON_ASSERT
+        value: 0
+        deprecated: 1
+    BLE_PUBLIC_DEV_ADDR:
+        description: use BLE_LL_PUBLIC_DEV_ADDR
+        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
+        deprecated: 1
+    BLE_LL_EXT_ADV_AUX_PTR_CNT:
+        description: use BLE_LL_SCAN_AUX_SEGMENT_CNT
+        value: 0
+        deprecated: 1
+
+# defunct settings (to be removed eventually)
+    BLE_DEVICE:
+        description: Superseded by BLE_CONTROLLER
+        value: 1
+        defunct: 1
+    BLE_LP_CLOCK:
+        description: Superseded by BLE_CONTROLLER
+        value: 1
+        defunct: 1
+    BLE_NUM_COMP_PKT_RATE:
+        description: Superseded by BLE_LL_NUM_COMP_PKT_ITVL_MS
+        value: '(2 * OS_TICKS_PER_SEC)'
+        defunct: 1
+    BLE_LL_MASTER_SCA:
+        description: use BLE_LL_SCA instead
+        value: 4
+        defunct: 1
+    BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG:
+        description: Superseded by BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG
+        value: 0
+        defaunt: 1
+    BLE_LL_STRICT_CONN_SCHEDULING:
+        description: Superseded by BLE_LL_CONN_STRICT_SCHED
+        value: 0
+        defunct: 1
+    BLE_LL_ADD_STRICT_SCHED_PERIODS:
+        description: Superseded by BLE_LL_CONN_STRICT_SCHED
+        value: 0
+        defunct: 1
+    BLE_LL_USECS_PER_PERIOD:
+        description: Superseded by BLE_LL_CONN_STRICT_SCHED
+        value: 0
+        defunct: 1
