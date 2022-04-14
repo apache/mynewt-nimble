@@ -963,8 +963,30 @@ btshell_decode_adv_data(const uint8_t *adv_data, uint8_t adv_data_len, void *arg
 static void
 btshell_decode_event_type(struct ble_gap_ext_disc_desc *desc, void *arg)
 {
+    const struct ble_hs_adv_field *ad_name = NULL;
     struct btshell_scan_opts *scan_opts = arg;
     uint8_t directed = 0;
+
+    if (scan_opts && scan_opts->name_filter_len) {
+        if (ble_hs_adv_find_field(BLE_HS_ADV_TYPE_COMP_NAME, desc->data,
+                                  desc->length_data, &ad_name)) {
+            ble_hs_adv_find_field(BLE_HS_ADV_TYPE_INCOMP_NAME, desc->data,
+                                  desc->length_data, &ad_name);
+        }
+
+        if (!ad_name) {
+            return;
+        }
+
+        if (ad_name->length < scan_opts->name_filter_len) {
+            return;
+        }
+
+        if (strncasecmp(scan_opts->name_filter, (const char *)ad_name->value,
+                        scan_opts->name_filter_len)) {
+            return;
+        }
+    }
 
     if (desc->props & BLE_HCI_ADV_LEGACY_MASK) {
         if (scan_opts && scan_opts->ignore_legacy) {
