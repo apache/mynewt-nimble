@@ -83,10 +83,14 @@ struct btshell_conn {
     struct btshell_l2cap_coc_list coc_list;
 };
 
+#define NAME_FILTER_LEN_MAX 20
+
 struct btshell_scan_opts {
     uint16_t limit;
     uint8_t ignore_legacy:1;
     uint8_t periodic_only:1;
+    uint8_t name_filter_len;
+    char name_filter[NAME_FILTER_LEN_MAX];
 };
 
 extern struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];

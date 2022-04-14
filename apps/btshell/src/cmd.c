@@ -1107,11 +1107,14 @@ static const struct shell_cmd_help disconnect_help = {
 static struct btshell_scan_opts g_scan_opts = {
         .limit = UINT16_MAX,
         .ignore_legacy = 0,
+        .periodic_only = 0,
+        .name_filter_len = 0,
 };
 
 static int
 cmd_set_scan_opts(int argc, char **argv)
 {
+    char *name_filter;
     int rc;
 
     rc = parse_arg_all(argc - 1, argv + 1);
@@ -1137,6 +1140,16 @@ cmd_set_scan_opts(int argc, char **argv)
         return rc;
     }
 
+    name_filter = parse_arg_extract("name_filter");
+    if (name_filter) {
+        strncpy(g_scan_opts.name_filter, name_filter, NAME_FILTER_LEN_MAX);
+        g_scan_opts.name_filter[NAME_FILTER_LEN_MAX - 1] = '\0';
+    } else {
+        g_scan_opts.name_filter[0] = '\0';
+    }
+
+    g_scan_opts.name_filter_len = strlen(g_scan_opts.name_filter);
+
     return rc;
 }
 
@@ -1145,6 +1158,7 @@ static const struct shell_param set_scan_opts_params[] = {
     {"decode_limit", "usage: =[0-UINT16_MAX], default: UINT16_MAX"},
     {"ignore_legacy", "usage: =[0-1], default: 0"},
     {"periodic_only", "usage: =[0-1], default: 0"},
+    {"name_filter", "usage: =name, default: {none}"},
     {NULL, NULL}
 };
 
