@@ -1642,7 +1642,8 @@ ble_ll_reset(void)
 
     /* Enable all channels in channel map */
     g_ble_ll_data.chan_map_num_used = BLE_PHY_NUM_DATA_CHANS;
-    memset(g_ble_ll_data.chan_map, 0xff, BLE_LL_CHAN_MAP_LEN);
+    memset(g_ble_ll_data.chan_map, 0xff, BLE_LL_CHAN_MAP_LEN - 1);
+    g_ble_ll_data.chan_map[4] = 0x1f;
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Reset connection module */
