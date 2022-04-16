@@ -1517,23 +1517,22 @@ ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
     targeta_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_RAND);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    /* If AdvA was initially resolved, we need to check if current AdvA also
-     * resolved with the same IRK since it may have changes due to RPA timeout.
-     * Otherwise it shall be the same as in AUX_CONNECT_REQ.
+    /* If we have IRK for peer and AdvA is an RPA, we need to check if current
+     * RPA resolves using that IRK. This is to verify AdvA in case RPS changed
+     * due to timeout or AdvA in advertising was an identity address but is an
+     * RPA in AUX_CONNECT_RSP.
+     * Otherwise, it shall be the same as in AUX_CONNECT_REQ.
      */
-    if (addrd->adva_resolved) {
-        if (!adva_type) {
-            return -1;
-        }
-
-        BLE_LL_ASSERT(addrd->rpa_index >= 0);
+    if ((addrd->rpa_index >= 0) && ble_ll_is_rpa(adva, adva_type)) {
         rl = &g_ble_ll_resolv_list[addrd->rpa_index];
 
         if (!ble_ll_resolv_rpa(adva, rl->rl_peer_irk)) {
             return -1;
         }
 
+        addrd->adva_resolved = 1;
         addrd->adva = adva;
+        addrd->adva_type = adva_type;
     } else if ((adva_type !=
                 !!(pdu_data->hdr_byte & BLE_ADV_PDU_HDR_RXADD_MASK)) ||
                (memcmp(adva, pdu_data->adva, 6) != 0)) {
