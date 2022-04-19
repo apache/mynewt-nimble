@@ -45,6 +45,7 @@ struct bt_mesh_proxy_role {
 
 struct bt_mesh_proxy_client {
 	struct bt_mesh_proxy_role *cli;
+	uint16_t conn_handle;
 	uint16_t filter[MYNEWT_VAL(BLE_MESH_PROXY_FILTER_SIZE)];
 	enum __packed {
 		NONE,

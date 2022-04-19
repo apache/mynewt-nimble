@@ -62,7 +62,27 @@ static int conn_count;
 
 struct bt_mesh_proxy_client *find_client(uint16_t conn_handle)
 {
-	return &clients[conn_handle];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clients); i++) {
+		if (clients[i].conn_handle == conn_handle) {
+			return &clients[i];
+		}
+	}
+	return NULL;
+}
+
+static struct bt_mesh_proxy_client *get_client(uint16_t conn_handle)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clients); i++) {
+		if (clients[i].conn_handle == 0xffff) {
+			clients[i].conn_handle = conn_handle;
+			return &clients[i];
+		}
+	}
+	return NULL;
 }
 
 /* Next subnet in queue to be advertised */
@@ -811,7 +831,8 @@ static void gatt_connected(uint16_t conn_handle)
 
 	conn_count++;
 
-	client = find_client(conn_handle);
+	client = get_client(conn_handle);
+	assert(client);
 
 	client->filter_type = NONE;
 	(void)memset(client->filter, 0, sizeof(client->filter));
@@ -844,6 +865,8 @@ static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
 		bt_mesh_proxy_role_cleanup(client->cli);
 		client->cli = NULL;
 	}
+
+	client->conn_handle = 0xffff;
 }
 
 void notify_complete(void)
@@ -970,6 +993,7 @@ int bt_mesh_proxy_init(void)
 #if (MYNEWT_VAL(BLE_MESH_GATT_PROXY))
 		k_work_init(&clients[i].send_beacons, proxy_send_beacons);
 #endif
+		clients[i].conn_handle = 0xffff;
 	}
 
 	resolve_svc_handles();
