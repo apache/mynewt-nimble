@@ -47,6 +47,7 @@
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
+#include "hal/hal_system.h"
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
@@ -1788,7 +1789,7 @@ ble_ll_assert(const char *file, unsigned line)
  *
  * @return int
  */
-void
+static void
 ble_ll_init(void)
 {
     int rc;

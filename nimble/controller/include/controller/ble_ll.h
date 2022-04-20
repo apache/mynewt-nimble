@@ -476,9 +476,6 @@ struct ble_ll_acad_channel_map_update_ind {
 } __attribute__((packed));
 
 /*--- External API ---*/
-/* Initialize the Link Layer */
-void ble_ll_init(void);
-
 /* Reset the Link Layer */
 int ble_ll_reset(void);
 
