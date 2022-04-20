@@ -41,6 +41,12 @@
 #define BLE_AD_DISCOV_MASK (BLE_HS_ADV_F_DISC_LTD | BLE_HS_ADV_F_DISC_GEN)
 #define ADV_BUF_LEN (sizeof(struct gap_device_found_ev) + 2 * 31)
 
+/* parameter values to reject in CPUP if all match the pattern */
+#define REJECT_INTERVAL_MIN 0x0C80
+#define REJECT_INTERVAL_MAX 0x0C80
+#define REJECT_LATENCY 0x0000
+#define REJECT_SUPERVISION_TIMEOUT 0x0C80
+
 const uint8_t irk[16] = {
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
@@ -1220,6 +1226,25 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 		*event->conn_update_req.self_params =
 			*event->conn_update_req.peer_params;
 		break;
+	case BLE_GAP_EVENT_L2CAP_UPDATE_REQ:
+		console_printf("connection update request event; "
+					   "conn_handle=%d itvl_min=%d itvl_max=%d "
+					   "latency=%d supervision_timoeut=%d "
+					   "min_ce_len=%d max_ce_len=%d\n",
+					   event->conn_update_req.conn_handle,
+					   event->conn_update_req.peer_params->itvl_min,
+					   event->conn_update_req.peer_params->itvl_max,
+					   event->conn_update_req.peer_params->latency,
+					   event->conn_update_req.peer_params->supervision_timeout,
+					   event->conn_update_req.peer_params->min_ce_len,
+					   event->conn_update_req.peer_params->max_ce_len);
+		if (event->conn_update_req.peer_params->itvl_min == REJECT_INTERVAL_MIN &&
+			event->conn_update_req.peer_params->itvl_max == REJECT_INTERVAL_MAX &&
+			event->conn_update_req.peer_params->latency == REJECT_LATENCY &&
+			event->conn_update_req.peer_params->supervision_timeout == REJECT_SUPERVISION_TIMEOUT) {
+			return EINVAL;
+		}
+
 	default:
 		break;
 	}
