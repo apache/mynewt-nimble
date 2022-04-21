@@ -1867,11 +1867,14 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
          */
         tmo = le16toh(cmd->tmo);
         min_tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+        min_tmo *= connsm->subrate_factor;
+#endif
         min_tmo *= (connsm->periph_latency + 1);
         min_tmo /= 10000;
 
         if (tmo < min_tmo) {
-            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_CMD_DISALLOWED;
         } else {
             connsm->auth_pyld_tmo = tmo;
             if (ble_npl_callout_is_active(&connsm->auth_pyld_timer)) {
