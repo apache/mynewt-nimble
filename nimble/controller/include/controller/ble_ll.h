@@ -289,8 +289,7 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_CONN_CLEAR_FEATURE(connsm, feature)   (connsm->conn_features &= ~(feature))
 
 /* All the features which can be controlled by the Host */
-#define BLE_LL_HOST_CONTROLLED_FEATURES (BLE_LL_FEAT_CIS_HOST | \
-                                         BLE_LL_FEAT_CONN_SUBRATING_HOST)
+#define BLE_LL_HOST_CONTROLLED_FEATURES (BLE_LL_FEAT_CONN_SUBRATING_HOST)
 
 /* LL timing */
 #define BLE_LL_IFS                  (150)       /* usecs */
