@@ -3962,6 +3962,18 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
+#if MYNEWT_VAL(BLE_VERSION) >= 53
+    if (cmd->enable & 0x02) {
+        return BLE_ERR_UNSUPPORTED;
+    } else if (cmd->enable & 0xfc) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+#else
+    if (cmd->enable & 0xfe) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+#endif
+
     if (cmd->enable) {
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_DATA_INCOMPLETE) {
             return BLE_ERR_CMD_DISALLOWED;
