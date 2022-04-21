@@ -1580,6 +1580,43 @@ ble_ll_hci_status_params_cmd_proc(const uint8_t *cmdbuf, uint8_t len,
 }
 
 #if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
+static void
+ble_ll_hci_cmd_fake_dual_mode_inquiry_complete(struct ble_npl_event *ev)
+{
+    struct ble_hci_ev *hci_ev;
+
+    hci_ev = ble_transport_alloc_evt(1);
+    if (!hci_ev) {
+        return;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_INQUIRY_CMP;
+    hci_ev->length = 1;
+    hci_ev->data[0] = 0;
+
+    ble_ll_hci_event_send(hci_ev);
+}
+
+static void
+ble_ll_hci_cmd_fake_dual_mode_inquiry(uint32_t length)
+{
+    static struct ble_npl_callout inquiry_timer;
+    static bool init;
+
+    if (!init) {
+        ble_npl_callout_init(&inquiry_timer, &g_ble_ll_data.ll_evq,
+                             ble_ll_hci_cmd_fake_dual_mode_inquiry_complete,
+                             NULL);
+    }
+
+    if (length) {
+        ble_npl_callout_reset(&inquiry_timer,
+                              ble_npl_time_ms_to_ticks32(length * 1280));
+    } else {
+        ble_npl_callout_stop(&inquiry_timer);
+    }
+}
+
 static int
 ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
                               uint8_t *rspbuf, uint8_t *rsplen)
@@ -1588,10 +1625,16 @@ ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
 
     switch (opcode) {
     case BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL, 0x01): /* Inquiry */
+        ble_ll_hci_cmd_fake_dual_mode_inquiry(cmdbuf[3]);
         rc = BLE_ERR_MAX + 1;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_LINK_CTRL, 0x02): /* Inquiry Cancel */
+        ble_ll_hci_cmd_fake_dual_mode_inquiry(0);
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x05): /* Set Event Filter */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x13): /* Write Local Name */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x16): /* Write Connection Accept Timeout */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x18): /* Write Page Timeout */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x1a): /* Write Scan Enable */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x1c): /* Write Page Scan Activity */
@@ -1601,7 +1644,35 @@ ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x33): /* Host Buffer Size */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x45): /* Write Inquiry Mode */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x52): /* Write Extended Inquiry Response */
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x56): /* Write Simple Pairing Mode */
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x6d): /* Write LE Host Support */
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x14): /* Read Local Name */
+        memset(rspbuf, 0, 248);
+        strcpy((char *)rspbuf, "NimBLE");
+        *rsplen = 248;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x23): /* Read Class Of Device */
+        put_le24(rspbuf, 0);
+        *rsplen = 3;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x25): /* Read Voice Settings */
+        put_le16(rspbuf, 0);
+        *rsplen = 2;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x38): /* Read Number Of Supported IAC */
+        rspbuf[0] = 1;
+        *rsplen = 1;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x39): /* Read Current IAC LAP */
+        rspbuf[0] = 1;
+        put_le24(&rspbuf[1], 0x9e8b33);
+        *rsplen = 4;
         rc = 0;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, 0x58): /* Read Inquiry Response Transmit Power Level */
@@ -1612,6 +1683,13 @@ ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
     case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT):
         put_le64(rspbuf, 0x877bffdbfe0ffebf);
         *rsplen = 8;
+        rc = 0;
+        break;
+    case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, 0x04): /* Read Local Extended Features */
+        rspbuf[0] = 0;
+        rspbuf[1] = 0;
+        put_le64(&rspbuf[2], 0x877bffdbfe0ffebf);
+        *rsplen = 10;
         rc = 0;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BUF_SIZE):
