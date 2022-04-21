@@ -3975,6 +3975,13 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
 #endif
 
     if (cmd->enable) {
+        if (advsm->props & (BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV |
+                            BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
+                            BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
+                            BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_DATA_INCOMPLETE) {
             return BLE_ERR_CMD_DISALLOWED;
         }
