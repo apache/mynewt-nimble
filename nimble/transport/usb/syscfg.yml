@@ -17,12 +17,3 @@
 #
 
 syscfg.defs:
-    BLE_HCI_ACL_OUT_COUNT:
-        description: >
-            This count is used in creating a pool of elements used by the
-            code to enqueue various elements. In the case of the controller
-            only HCI, this number should be equal to the number of mbufs in
-            the msys pool. For host only, it is really dependent on the
-            number of ACL buffers that the controller tells the host it
-            has.
-        value: 12
