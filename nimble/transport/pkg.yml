@@ -52,9 +52,7 @@ pkg.deps.BLE_MONITOR_RTT:
 
 pkg.init:
     ble_transport_init: 250
-    ble_transport_hs_init:
-        - $after:ble_transport_init
-        - $before:ble_transport_ll_init
+    ble_transport_hs_init: 251
     ble_transport_ll_init:
         - $after:ble_transport_hs_init
 
