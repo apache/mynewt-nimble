@@ -24,7 +24,7 @@
 #include "nimble/nimble_port.h"
 #if NIMBLE_CFG_CONTROLLER
 #include "controller/ble_ll.h"
-#include "transport/ram/ble_hci_ram.h"
+#include "nimble/transport.h"
 #endif
 
 static struct ble_npl_eventq g_eventq_dflt;
@@ -46,7 +46,6 @@ nimble_port_init(void)
     ble_transport_hs_init();
 
 #if NIMBLE_CFG_CONTROLLER
-    ble_hci_ram_init();
 #ifndef RIOT_VERSION
     hal_timer_init(5, NULL);
     os_cputime_init(32768);
