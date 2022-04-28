@@ -132,12 +132,13 @@ struct os_mqueue {
     ((__om)->om_pkthdr_len >= sizeof (struct os_mbuf_pkthdr))
 
 /** Get a packet header pointer given an mbuf pointer */
-#define OS_MBUF_PKTHDR(__om) ((struct os_mbuf_pkthdr *)     \
-    (void *)((uint8_t *)&(__om)->om_data + sizeof(struct os_mbuf)))
+#define OS_MBUF_PKTHDR(__om) ((struct os_mbuf_pkthdr *)(uintptr_t)  \
+                              (void *)((uint8_t *)&(__om)->om_data  \
+                              + sizeof(struct os_mbuf)))
 
 /** Given a mbuf packet header pointer, return a pointer to the mbuf */
 #define OS_MBUF_PKTHDR_TO_MBUF(__hdr)   \
-     (struct os_mbuf *)(void *)((uint8_t *)(__hdr) - sizeof(struct os_mbuf))
+    (struct os_mbuf *)(uintptr_t)((uint8_t *)(__hdr) - sizeof(struct os_mbuf))
 
 /**
  * Gets the length of an entire mbuf chain.  The specified mbuf must have a
