@@ -35,6 +35,8 @@ int ble_monitor_log(int level, const char *fmt, ...);
 static inline int
 ble_monitor_log(int level, const char *fmt, ...)
 {
+    (void)level;
+    (void)fmt;
     return 0;
 }
 
