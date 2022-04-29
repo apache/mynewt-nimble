@@ -1889,17 +1889,57 @@ int ble_gap_update_params(uint16_t conn_handle,
  * Configure LE Data Length in controller (OGF = 0x08, OCF = 0x0022).
  *
  * @param conn_handle      Connection handle.
- * @param tx_octets        The preferred value of payload octets that the Controller
- *                         should use for a new connection (Range
- *                         0x001B-0x00FB).
- * @param tx_time          The preferred maximum number of microseconds that the local Controller
- *                         should use to transmit a single link layer packet
- *                         (Range 0x0148-0x4290).
+ * @param tx_octets        The preferred value of payload octets that the
+ *                         Controller should use for a new connection
+ *                         (Range 0x001B-0x00FB).
+ * @param tx_time          The preferred maximum number of microseconds that
+ *                         the local Controller should use to transmit a single
+ *                         link layer packet (Range 0x0148-0x4290).
  *
  * @return                 0 on success,
  *                         other error code on failure.
  */
-int ble_gap_set_data_len(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time);
+int ble_gap_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
+                         uint16_t tx_time);
+
+/**
+ * Read LE Suggested Default Data Length in controller
+ * (OGF = 0x08, OCF = 0x0024).
+ *
+ * @param out_sugg_max_tx_octets    The Host's suggested value for the
+ *                                  Controller's maximum transmitted number of
+ *                                  payload octets in LL Data PDUs to be used
+ *                                  for new connections. (Range 0x001B-0x00FB).
+ * @param out_sugg_max_tx_time      The Host's suggested value for the
+ *                                  Controller's maximum packet transmission
+ *                                  time for packets containing LL Data PDUs to
+ *                                  be used for new connections.
+ *                                  (Range 0x0148-0x4290).
+ *
+ * @return                          0 on success,
+ *                                  other error code on failure.
+ */
+int ble_gap_read_sugg_def_data_len(uint16_t *out_sugg_max_tx_octets,
+                                   uint16_t *out_sugg_max_tx_time);
+
+/**
+ * Configure LE Suggested Default Data Length in controller
+ * (OGF = 0x08, OCF = 0x0024).
+ *
+ * @param sugg_max_tx_octets    The Host's suggested value for the Controller's
+ *                              maximum transmitted number of payload octets in
+ *                              LL Data PDUs to be used for new connections.
+ *                              (Range 0x001B-0x00FB).
+ * @param sugg_max_tx_time      The Host's suggested value for the Controller's
+ *                              maximum packet transmission time for packets
+ *                              containing LL Data PDUs to be used for new
+ *                              connections. (Range 0x0148-0x4290).
+ *
+ * @return                      0 on success,
+ *                              other error code on failure.
+ */
+int ble_gap_write_sugg_def_data_len(uint16_t sugg_max_tx_octets,
+                                    uint16_t sugg_max_tx_time);
 
 /**
  * Initiates the GAP security procedure.
