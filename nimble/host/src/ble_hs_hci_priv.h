@@ -103,6 +103,10 @@ int ble_hs_hci_util_read_rssi(uint16_t conn_handle, int8_t *out_rssi);
 int ble_hs_hci_util_set_random_addr(const uint8_t *addr);
 int ble_hs_hci_util_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
                                  uint16_t tx_time);
+int ble_hs_hci_util_read_sugg_def_data_len(uint16_t *out_sugg_max_tx_octets,
+                                           uint16_t *out_sugg_max_tx_time);
+int ble_hs_hci_util_write_sugg_def_data_len(uint16_t sugg_max_tx_octets,
+                                            uint16_t sugg_max_tx_time);
 int ble_hs_hci_util_data_hdr_strip(struct os_mbuf *om,
                                    struct hci_data_hdr *out_hdr);
 int ble_hs_hci_evt_process(struct ble_hci_ev *ev);

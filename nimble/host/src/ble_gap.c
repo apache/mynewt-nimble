@@ -5590,14 +5590,32 @@ done:
 #endif
 }
 
-int ble_gap_set_data_len(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time)
+int
+ble_gap_set_data_len(uint16_t conn_handle, uint16_t tx_octets,
+                     uint16_t tx_time)
 {
     return ble_hs_hci_util_set_data_len(conn_handle, tx_octets, tx_time);
 }
 
+int
+ble_gap_read_sugg_def_data_len(uint16_t *out_sugg_max_tx_octets,
+                               uint16_t *out_sugg_max_tx_time)
+{
+    return ble_hs_hci_util_read_sugg_def_data_len(out_sugg_max_tx_octets,
+                                                  out_sugg_max_tx_time);
+}
+
+int
+ble_gap_write_sugg_def_data_len(uint16_t sugg_max_tx_octets,
+                                uint16_t sugg_max_tx_time)
+{
+    return ble_hs_hci_util_write_sugg_def_data_len(sugg_max_tx_octets,
+                                                   sugg_max_tx_time);
+}
+
 /*****************************************************************************
- * $security                                                                 *
- *****************************************************************************/
+* $security                                                                  *
+*****************************************************************************/
 int
 ble_gap_security_initiate(uint16_t conn_handle)
 {
