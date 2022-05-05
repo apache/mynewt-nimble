@@ -1298,7 +1298,6 @@ ble_phy_dbg_time_setup(void)
     /* Publish RADIO->EVENTS_READY */
     NRF_RADIO_NS->PUBLISH_READY = DPPI_CH_PUB(RADIO_EVENTS_READY);
     NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_READY);
-
 #endif
 
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0
@@ -1434,6 +1433,13 @@ ble_phy_init(void)
      * enough to just (un)subscribe SET task when needed.
      * TODO: figure out if this affects power consumption
      */
+
+    /* Publish RADIO->EVENTS_READY */
+    NRF_RADIO_NS->PUBLISH_READY = DPPI_CH_PUB(RADIO_EVENTS_READY);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_READY);
+    /* Publish RADIO->EVENTS_DISABLED */
+    NRF_RADIO_NS->PUBLISH_DISABLED = DPPI_CH_PUB(RADIO_EVENTS_DISABLED);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_DISABLED);
 
 #if PLNA_SINGLE_GPIO
     plna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
