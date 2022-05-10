@@ -22,6 +22,8 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+/* Keep os_cputime explicitly to enable build on non-Mynewt platforms */
+#include "os/os_cputime.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
