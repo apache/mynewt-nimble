@@ -17,3 +17,6 @@
 #
 
 syscfg.defs:
+
+syscfg.vals:
+    USBD_BTH: 1
