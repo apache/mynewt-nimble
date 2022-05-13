@@ -559,8 +559,11 @@ void ble_ll_state_set(uint8_t ll_state);
 /* Get the link layer state */
 uint8_t ble_ll_state_get(void);
 
-/* Send an event to LL task */
-void ble_ll_event_send(struct ble_npl_event *ev);
+/* Add an event to LL task */
+void ble_ll_event_add(struct ble_npl_event *ev);
+
+/* Remove an event from LL task */
+void ble_ll_event_remove(struct ble_npl_event *ev);
 
 /* Hand received pdu's to LL task  */
 void ble_ll_rx_pdu_in(struct os_mbuf *rxpdu);

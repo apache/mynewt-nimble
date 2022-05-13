@@ -197,7 +197,7 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
     if (sm->flags & (BLE_LL_SYNC_SM_FLAG_ESTABLISHING |
                      BLE_LL_SYNC_SM_FLAG_ESTABLISHED)) {
         ble_ll_sched_rmv_elem(&sm->sch);
-        ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &sm->sync_ev_end);
+        ble_ll_event_remove(&sm->sync_ev_end);
     }
 
     if (sm->next_report) {
@@ -481,7 +481,7 @@ ble_ll_sync_event_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_rx_set_start_time(start, sch->remainder);
     if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         STATS_INC(ble_ll_stats, sync_event_failed);
-        ble_ll_event_send(&sm->sync_ev_end);
+        ble_ll_event_add(&sm->sync_ev_end);
         ble_ll_sync_current_sm_over();
         rc = BLE_LL_SCHED_STATE_DONE;
     } else {
@@ -534,7 +534,7 @@ ble_ll_sync_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
 
     /* this also handles chains as those have same PDU type */
     if (pdu_type != BLE_ADV_PDU_TYPE_AUX_SYNC_IND) {
-        ble_ll_event_send(&g_ble_ll_sync_sm_current->sync_ev_end);
+        ble_ll_event_add(&g_ble_ll_sync_sm_current->sync_ev_end);
         ble_ll_sync_current_sm_over();
         STATS_INC(ble_ll_stats, sched_invalid_pdu);
         return -1;
@@ -786,7 +786,7 @@ ble_ll_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         ble_ll_rx_pdu_in(rxpdu);
     } else {
         STATS_INC(ble_ll_stats, sync_rx_buf_err);
-        ble_ll_event_send(&g_ble_ll_sync_sm_current->sync_ev_end);
+        ble_ll_event_add(&g_ble_ll_sync_sm_current->sync_ev_end);
     }
 
     /* PHY is disabled here */
@@ -809,7 +809,7 @@ ble_ll_sync_wfr_timer_exp(void)
     STATS_INC(ble_ll_stats, sync_missed_err);
 
     ble_ll_sync_current_sm_over();
-    ble_ll_event_send(&sm->sync_ev_end);
+    ble_ll_event_add(&sm->sync_ev_end);
 }
 
 /**
@@ -826,7 +826,7 @@ ble_ll_sync_halt(void)
     ble_ll_sync_current_sm_over();
 
     if (sm) {
-        ble_ll_event_send(&sm->sync_ev_end);
+        ble_ll_event_add(&sm->sync_ev_end);
     }
 }
 
@@ -1130,7 +1130,7 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
 end_event:
-    ble_ll_event_send(&sm->sync_ev_end);
+    ble_ll_event_add(&sm->sync_ev_end);
     ble_ll_rfmgmt_release();
 }
 
@@ -1234,7 +1234,7 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
     ble_ll_scan_chk_resume();
 
     /* Remove any end events that might be enqueued */
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &sm->sync_ev_end);
+    ble_ll_event_remove(&sm->sync_ev_end);
 
     /* don't schedule next event if sync is not established nor establishing
      * at this point SM is no longer valid
@@ -2227,7 +2227,7 @@ done:
 void
 ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
 {
-    ble_ll_event_send(&sm->sync_ev_end);
+    ble_ll_event_add(&sm->sync_ev_end);
 }
 
 bool

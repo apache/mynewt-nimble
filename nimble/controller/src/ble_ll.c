@@ -1042,7 +1042,7 @@ ble_ll_rx_pdu_in(struct os_mbuf *rxpdu)
 
     pkthdr = OS_MBUF_PKTHDR(rxpdu);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_rx_pkt_q, pkthdr, omp_next);
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_rx_pkt_ev);
+    ble_ll_event_add(&g_ble_ll_data.ll_rx_pkt_ev);
 }
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -1061,7 +1061,7 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
     OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&g_ble_ll_data.ll_tx_pkt_q, pkthdr, omp_next);
     OS_EXIT_CRITICAL(sr);
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_tx_pkt_ev);
+    ble_ll_event_add(&g_ble_ll_data.ll_tx_pkt_ev);
 }
 
 /**
@@ -1074,7 +1074,7 @@ ble_ll_acl_data_in(struct os_mbuf *txpkt)
 void
 ble_ll_data_buffer_overflow(void)
 {
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_data.ll_dbuf_overflow_ev);
+    ble_ll_event_add(&g_ble_ll_data.ll_dbuf_overflow_ev);
 }
 #endif
 
@@ -1442,14 +1442,27 @@ ble_ll_state_get(void)
 /**
  * ble ll event send
  *
- * Send an event to the Link Layer task
+ * Add an event to the Link Layer task
  *
  * @param ev Event to add to the Link Layer event queue.
  */
 void
-ble_ll_event_send(struct ble_npl_event *ev)
+ble_ll_event_add(struct ble_npl_event *ev)
 {
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, ev);
+}
+
+/**
+ * ble ll event remove
+ *
+ * Remove an event from the Link Layer task
+ *
+ * @param ev Event to remove from the Link Layer event queue.
+ */
+void
+ble_ll_event_remove(struct ble_npl_event *ev)
+{
+    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, ev);
 }
 
 /**

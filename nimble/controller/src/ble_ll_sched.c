@@ -144,7 +144,7 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             case BLE_LL_SCHED_TYPE_CONN:
                 connsm = (struct ble_ll_conn_sm *)entry->cb_arg;
-                ble_ll_event_send(&connsm->conn_ev_end);
+                ble_ll_event_add(&connsm->conn_ev_end);
                 break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
