@@ -677,7 +677,7 @@ ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
 #endif
 
     ble_npl_event_init(&aux->break_ev, ble_ll_scan_aux_break_ev, aux);
-    ble_ll_event_send(&aux->break_ev);
+    ble_ll_event_add(&aux->break_ev);
 }
 
 static int

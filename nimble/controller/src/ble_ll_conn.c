@@ -374,7 +374,7 @@ ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
     cp = (const void *)cmd->data;
 
     if (cmd->length != sizeof(cp->handles) + cp->handles * sizeof(cp->h[0])) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_conn_cth_flow_error_ev);
+        ble_ll_event_add(&g_ble_ll_conn_cth_flow_error_ev);
         return;
     }
 
@@ -660,7 +660,7 @@ ble_ll_conn_current_sm_over(struct ble_ll_conn_sm *connsm)
      * need to post to the LL the connection event end event
      */
     if (connsm) {
-        ble_ll_event_send(&connsm->conn_ev_end);
+        ble_ll_event_add(&connsm->conn_ev_end);
     }
 }
 
@@ -1550,7 +1550,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     }
 
     if (rc == BLE_LL_SCHED_STATE_DONE) {
-        ble_ll_event_send(&connsm->conn_ev_end);
+        ble_ll_event_add(&connsm->conn_ev_end);
         ble_phy_disable();
         ble_ll_state_set(BLE_LL_STATE_STANDBY);
         g_ble_ll_conn_cur_sm = NULL;
@@ -2114,7 +2114,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     }
 
     /* Make sure events off queue */
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
+    ble_ll_event_remove(&connsm->conn_ev_end);
 
     /* Connection state machine is now idle */
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
@@ -2781,7 +2781,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     }
 
     /* Remove any connection end events that might be enqueued */
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
+    ble_ll_event_remove(&connsm->conn_ev_end);
 
     /*
      * If we have received a packet, we can set the current transmit window
@@ -3028,7 +3028,7 @@ ble_ll_conn_event_halt(void)
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     if (g_ble_ll_conn_cur_sm) {
         g_ble_ll_conn_cur_sm->csmflags.cfbit.pkt_rxd = 0;
-        ble_ll_event_send(&g_ble_ll_conn_cur_sm->conn_ev_end);
+        ble_ll_event_add(&g_ble_ll_conn_cur_sm->conn_ev_end);
         g_ble_ll_conn_cur_sm = NULL;
     }
 }
@@ -3226,7 +3226,7 @@ ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
         if (aa != connsm->access_addr) {
             STATS_INC(ble_ll_conn_stats, rx_data_pdu_bad_aa);
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
-            ble_ll_event_send(&connsm->conn_ev_end);
+            ble_ll_event_add(&connsm->conn_ev_end);
             g_ble_ll_conn_cur_sm = NULL;
             return -1;
         }
@@ -3654,8 +3654,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #endif
                             ++connsm->completed_pkts;
                             if (connsm->completed_pkts > 2) {
-                                ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
-                                                   &g_ble_ll_data.ll_comp_pkt_ev);
+                                ble_ll_event_add(&g_ble_ll_data.ll_comp_pkt_ev);
                             }
                         }
                         os_mbuf_free_chain(txpdu);

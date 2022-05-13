@@ -1032,14 +1032,14 @@ ble_ll_adv_tx_done(void *arg)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ble_ll_adv_active_chanset_is_pri(advsm)) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_ll_event_add(&advsm->adv_txdone_ev);
     } else if (ble_ll_adv_active_chanset_is_sec(advsm)) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        ble_ll_event_add(&advsm->adv_sec_txdone_ev);
     } else {
         BLE_LL_ASSERT(0);
     }
 #else
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_ll_event_add(&advsm->adv_txdone_ev);
 #endif
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
@@ -1068,7 +1068,7 @@ ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_periodic_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
 {
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
+    ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
 }
 #endif
 
@@ -1693,18 +1693,17 @@ ble_ll_adv_halt(void)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING) {
             ble_ll_adv_flags_clear(advsm,
                                    BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
-            ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
-                               &advsm->adv_periodic_txdone_ev);
+            ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
             ble_ll_state_set(BLE_LL_STATE_STANDBY);
             g_ble_ll_cur_adv_sm = NULL;
             return;
         }
 #endif
 
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_ll_event_add(&advsm->adv_txdone_ev);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (!(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
-            ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+            ble_ll_event_add(&advsm->adv_sec_txdone_ev);
         }
 #endif
 
@@ -1938,9 +1937,9 @@ ble_ll_adv_sm_stop(struct ble_ll_adv_sm *advsm)
 #endif
         OS_EXIT_CRITICAL(sr);
 
-        ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_ll_event_remove(&advsm->adv_txdone_ev);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+        ble_ll_event_remove(&advsm->adv_sec_txdone_ev);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -2122,7 +2121,7 @@ ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
     BLE_LL_ASSERT(advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
     BLE_LL_ASSERT(!ble_ll_adv_active_chanset_is_sec(advsm));
 
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
+    ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
@@ -2339,8 +2338,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     rc = ble_ll_sched_periodic_adv(sch, first_pdu);
     if (rc) {
         STATS_INC(ble_ll_stats, periodic_adv_drop_event);
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
-                           &advsm->adv_periodic_txdone_ev);
+        ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
         return;
     }
 
@@ -2432,8 +2430,7 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
                                   advsm->periodic_adv_itvl_ticks)) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq,
-                           &advsm->adv_periodic_txdone_ev);
+        ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
     }
 }
 
@@ -2503,7 +2500,7 @@ ble_ll_adv_periodic_done(struct ble_ll_adv_sm *advsm)
 
     /* Remove anything else scheduled for periodic */
     ble_ll_sched_rmv_elem(&sync->sch);
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_periodic_txdone_ev);
+    ble_ll_event_remove(&advsm->adv_periodic_txdone_ev);
 
     /* If we have next SYNC scheduled, try to schedule another one */
     if (sync_next->sch.enqueued) {
@@ -2612,8 +2609,7 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
 
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq,
-                          &advsm->adv_periodic_txdone_ev);
+    ble_ll_event_remove(&advsm->adv_periodic_txdone_ev);
 
     ble_ll_adv_update_periodic_data(advsm);
 }
@@ -4591,12 +4587,12 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
     ble_ll_sched_rmv_elem(&advsm->aux[0].sch);
     ble_ll_sched_rmv_elem(&advsm->aux[1].sch);
 
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    ble_ll_event_remove(&advsm->adv_sec_txdone_ev);
     advsm->aux_active = 0;
 #endif
 
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_ll_event_add(&advsm->adv_txdone_ev);
 }
 
 static void
@@ -4675,7 +4671,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     /* Remove the element from the schedule if it is still there. */
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
 
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+    ble_ll_event_remove(&advsm->adv_txdone_ev);
 
     /*
      * Check if we have ended our advertising event. If our last advertising
@@ -4815,7 +4811,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     rc = ble_ll_sched_adv_resched_pdu(&advsm->adv_sch);
     if (rc) {
         STATS_INC(ble_ll_stats, adv_resched_pdu_fail);
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &advsm->adv_txdone_ev);
+        ble_ll_event_add(&advsm->adv_txdone_ev);
     }
 }
 
@@ -4859,7 +4855,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
 
     /* Remove anything else scheduled for secondary channel */
     ble_ll_sched_rmv_elem(&aux->sch);
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &advsm->adv_sec_txdone_ev);
+    ble_ll_event_remove(&advsm->adv_sec_txdone_ev);
 
     /* Stop advertising due to transmitting connection response */
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {

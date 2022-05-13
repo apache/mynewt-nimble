@@ -199,7 +199,7 @@ static int ble_ll_dtm_rx_start(void);
 static void
 ble_ll_dtm_ev_rx_restart_cb(struct ble_npl_event *evt) {
     if (ble_ll_dtm_rx_start() != 0) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        ble_ll_event_add(&g_ble_ll_dtm_ctx.evt);
         STATS_INC(ble_ll_dtm_stats, rx_failed);
     }
 }
@@ -217,7 +217,7 @@ ble_ll_dtm_tx_done(void *arg)
     g_ble_ll_dtm_ctx.num_of_packets++;
 
     /* Reschedule event in LL context */
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
+    ble_ll_event_add(&ctx->evt);
 
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 }
@@ -263,7 +263,7 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
 
 resched:
     /* Reschedule from LL task if late for this PDU */
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &ctx->evt);
+    ble_ll_event_add(&ctx->evt);
 
     STATS_INC(ble_ll_dtm_stats, tx_failed);
 
@@ -416,7 +416,7 @@ static int
 ble_ll_dtm_rx_sched_cb(struct ble_ll_sched_item *sch)
 {
     if (ble_ll_dtm_rx_start() != 0) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        ble_ll_event_add(&g_ble_ll_dtm_ctx.evt);
         STATS_INC(ble_ll_dtm_stats, rx_failed);
         return BLE_LL_SCHED_STATE_DONE;
     }
@@ -464,7 +464,7 @@ ble_ll_dtm_ctx_free(struct dtm_ctx * ctx)
     }
 
     ble_ll_sched_rmv_elem(&ctx->sch);
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+    ble_ll_event_remove(&g_ble_ll_dtm_ctx.evt);
 
     ble_phy_disable();
     ble_phy_disable_dtm();
@@ -665,7 +665,7 @@ ble_ll_dtm_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     if (ble_ll_dtm_rx_start() != 0) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &g_ble_ll_dtm_ctx.evt);
+        ble_ll_event_add(&g_ble_ll_dtm_ctx.evt);
         STATS_INC(ble_ll_dtm_stats, rx_failed);
     }
 }

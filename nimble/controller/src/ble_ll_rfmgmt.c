@@ -236,7 +236,7 @@ ble_ll_rfmgmt_reset(void)
     rfmgmt->timer_scheduled_at = 0;
     ble_ll_tmr_stop(&rfmgmt->timer);
 
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &rfmgmt->release_ev);
+    ble_ll_event_remove(&rfmgmt->release_ev);
 
     ble_ll_rfmgmt_disable();
 
@@ -290,10 +290,10 @@ ble_ll_rfmgmt_release(void)
 
     OS_ENTER_CRITICAL(sr);
 
-    ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &rfmgmt->release_ev);
+    ble_ll_event_remove(&rfmgmt->release_ev);
 
     if (g_ble_ll_rfmgmt_data.state != RFMGMT_STATE_OFF) {
-        ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &rfmgmt->release_ev);
+        ble_ll_event_add(&rfmgmt->release_ev);
     }
 
     OS_EXIT_CRITICAL(sr);

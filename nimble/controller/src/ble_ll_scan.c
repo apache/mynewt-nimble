@@ -1674,7 +1674,7 @@ ble_ll_scan_chk_resume(void)
         OS_ENTER_CRITICAL(sr);
         if (scansm->restart_timer_needed) {
             scansm->restart_timer_needed = 0;
-            ble_ll_event_send(&scansm->scan_sched_ev);
+            ble_ll_event_add(&scansm->scan_sched_ev);
             STATS_INC(ble_ll_stats, scan_timer_restarted);
             OS_EXIT_CRITICAL(sr);
             return;
@@ -1704,13 +1704,13 @@ ble_ll_scan_timer_cb(void *arg)
     struct ble_ll_scan_sm *scansm;
 
     scansm = (struct ble_ll_scan_sm *)arg;
-    ble_ll_event_send(&scansm->scan_sched_ev);
+    ble_ll_event_add(&scansm->scan_sched_ev);
 }
 
 void
 ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm)
 {
-    ble_ll_event_send(&scansm->scan_interrupted_ev);
+    ble_ll_event_add(&scansm->scan_interrupted_ev);
 }
 
 /**

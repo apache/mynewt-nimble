@@ -1813,7 +1813,7 @@ ble_ll_hci_cmd_rx(uint8_t *cmdbuf, void *arg)
 
     /* Fill out the event and post to Link Layer */
     ble_npl_event_set_arg(ev, cmdbuf);
-    ble_npl_eventq_put(&g_ble_ll_data.ll_evq, ev);
+    ble_ll_event_add(ev);
 
     return 0;
 }
