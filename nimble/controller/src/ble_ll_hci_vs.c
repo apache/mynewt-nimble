@@ -220,7 +220,7 @@ ble_ll_hci_vs_css_set_conn_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
     }
 
     conn_handle = le16toh(cmd->conn_handle);
-    connsm = ble_ll_conn_find_active_conn(conn_handle);
+    connsm = ble_ll_conn_find_by_handle(conn_handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
     }
