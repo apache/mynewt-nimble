@@ -1100,7 +1100,7 @@ struct ble_hci_vs_set_tx_pwr_rp {
     int8_t tx_power;
 } __attribute__((packed));
 
-#define BLE_HCI_OCF_VS_CSS                              (0x0003)
+#define BLE_HCI_OCF_VS_CSS                              (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0003))
 struct ble_hci_vs_css_cp {
     uint8_t opcode;
 } __attribute__((packed));
