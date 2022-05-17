@@ -42,11 +42,11 @@ nrf5340_ble_hci_acl_tx(struct os_mbuf *om)
     struct os_mbuf *x;
     int rc;
 
-    rc = ipc_nrf5340_send(IPC_TX_CHANNEL, &ind, 1);
+    rc = ipc_nrf5340_write(IPC_TX_CHANNEL, &ind, 1, false);
     if (rc == 0) {
         x = om;
         while (x) {
-            rc = ipc_nrf5340_send(IPC_TX_CHANNEL, x->om_data, x->om_len);
+            rc = ipc_nrf5340_write(IPC_TX_CHANNEL, x->om_data, x->om_len, true);
             if (rc < 0) {
                 break;
             }
@@ -121,9 +121,9 @@ ble_transport_to_hs_evt_impl(void *buf)
     int len = 2 + hci_ev[1];
     int rc;
 
-    rc = ipc_nrf5340_send(IPC_TX_CHANNEL, &ind, 1);
+    rc = ipc_nrf5340_write(IPC_TX_CHANNEL, &ind, 1, false);
     if (rc == 0) {
-        rc = ipc_nrf5340_send(IPC_TX_CHANNEL, hci_ev, len);
+        rc = ipc_nrf5340_write(IPC_TX_CHANNEL, hci_ev, len, true);
     }
 
     ble_transport_free(buf);
@@ -155,9 +155,9 @@ ble_transport_to_ll_cmd_impl(void *buf)
     int len = 3 + cmd[2];
     int rc;
 
-    rc = ipc_nrf5340_send(IPC_TX_CHANNEL, &ind, 1);
+    rc = ipc_nrf5340_write(IPC_TX_CHANNEL, &ind, 1, false);
     if (rc == 0) {
-        rc = ipc_nrf5340_send(IPC_TX_CHANNEL, cmd, len);
+        rc = ipc_nrf5340_write(IPC_TX_CHANNEL, cmd, len, true);
     }
 
     ble_transport_free(buf);
