@@ -104,6 +104,9 @@ syscfg.defs:
         value: 0
         restrictions:
             - 'BLE_SM_SC_LVL == 4 if 1'
+            - BLE_SM_MITM
+            - 'BLE_SM_SC if 1'
+            - '!BLE_SM_LEGACY if 1'
 
     BLE_SM_SC_LVL:
         description: >
