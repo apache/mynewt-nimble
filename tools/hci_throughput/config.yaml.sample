@@ -1,0 +1,55 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+num_of_bytes_to_send: 247
+num_of_packets_to_send: 2000
+show_tp_plots: true
+flag_testing: false
+test:
+  change_param_group:
+  - conn
+  - conn
+  change_param_variable:
+  - connection_interval_min
+  - connection_interval_max
+  start_value: 16
+  stop_value: 160
+  step: 8
+tp:
+  data_type: kb
+  sample_time: 0.1
+  flag_plot_packets: true
+phy: 2M
+adv:
+  advertising_interval_min: 2048
+  advertising_interval_max: 2048
+  advertising_type: 0
+  peer_address: 00:00:00:00:00:00
+  advertising_channel_map: 7
+  advertising_filter_policy: 0
+conn:
+  le_scan_interval: 2400
+  le_scan_window: 2400
+  initiator_filter_policy: 0
+  connection_interval_min: 0x0080
+  connection_interval_max: 0x0080
+  max_latency: 0
+  supervision_timeout: 3200
+  min_ce_length: 0
+  max_ce_length: 0
