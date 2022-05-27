@@ -6,6 +6,11 @@ Tool for measuring BLE throughput.
 Python 3.8.10 \
 Matplotlib 3.5.1
 
+Install all required packages with: 
+```
+sudo pip install -r requirements.txt
+```
+
 ## Usage
 ### Prepare devices
 This tool may be used with existing controller or with any board with ```blehci``` app.

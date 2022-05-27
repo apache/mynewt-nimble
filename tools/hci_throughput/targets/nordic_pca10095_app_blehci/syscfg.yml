@@ -1,0 +1,43 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.vals:
+    BSP_NRF5340_NET_ENABLE: 1
+    NRF5340_EMBED_NET_CORE: 1
+    NET_CORE_IMAGE_TARGET_NAME: '@apache-mynewt-nimble/tools/hci_throughput/targets/nordic_pca10095_net_blehci'
+
+    BLE_TRANSPORT_HS: usb
+    USBD_VID: 0xDCAB
+    USBD_PID: 0x1234
+    USBD_PRODUCT_STRING: '"throughput"'
+    USBD_BTH: 1
+    USBD_BTH_EVENT_EP: 0x81
+    USBD_BTH_DATA_IN_EP: 0x82
+    USBD_BTH_DATA_OUT_EP: 0x02
+    USBD_WINDOWS_COMP_ID: 1
+
+    BLE_TRANSPORT_ACL_COUNT: 80
+    BLE_TRANSPORT_ACL_SIZE: 255
+    MSYS_1_BLOCK_COUNT: 80
+    MSYS_1_BLOCK_SIZE: 308
+    IPC_NRF5340_BUF_SZ: 3072
+
+    BLE_LL_CFG_FEAT_DATA_LEN_EXT: 1
+    BLE_LL_CFG_FEAT_LE_2M_PHY: 1
+    BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
