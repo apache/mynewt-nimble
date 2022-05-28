@@ -51,6 +51,8 @@ struct ble_ll_rnum_data
 struct ble_ll_rnum_data g_ble_ll_rnum_data;
 uint8_t g_ble_ll_rnum_buf[MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)];
 
+static unsigned short xsubi[3];
+
 #define IS_RNUM_BUF_END(x)  \
     (x == &g_ble_ll_rnum_buf[MYNEWT_VAL(BLE_LL_RNG_BUFSIZE) - 1])
 
@@ -134,14 +136,6 @@ ble_ll_rand_data_get(uint8_t *buf, uint8_t len)
 uint32_t
 ble_ll_rand(void)
 {
-    static unsigned short xsubi[3];
-    static bool init = true;
-
-    if (init) {
-        init = false;
-        ble_ll_rand_data_get((uint8_t *)xsubi, sizeof(xsubi));
-    }
-
     return (uint32_t) jrand48(xsubi);
 }
 
@@ -172,25 +166,6 @@ ble_ll_rand_prand_get(uint8_t *prand)
 }
 
 /**
- * Start the generation of random numbers
- *
- * @return int
- */
-int
-ble_ll_rand_start(void)
-{
-#if MYNEWT_VAL(TRNG)
-    /* Nothing to do - this is handled by driver */
-#else
-    /* Start the generation of numbers if we are not full */
-    if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
-        ble_hw_rng_start();
-    }
-#endif
-    return 0;
-}
-
-/**
  * Initialize LL random number generation. Should be called only once on
  * initialization.
  *
@@ -205,6 +180,19 @@ ble_ll_rand_init(void)
     g_ble_ll_rnum_data.rnd_in = g_ble_ll_rnum_buf;
     g_ble_ll_rnum_data.rnd_out = g_ble_ll_rnum_buf;
     ble_hw_rng_init(ble_ll_rand_sample, 1);
+
+    /* Start the generation of numbers if we are not full */
+    if (g_ble_ll_rnum_data.rnd_size < MYNEWT_VAL(BLE_LL_RNG_BUFSIZE)) {
+        ble_hw_rng_start();
+    }
 #endif
+
+    /* Seed the pseudo random number generator (jrand48) */
+    ble_ll_rand_data_get((uint8_t *)xsubi, sizeof(xsubi));
+    /* We need to trigger jrand48 once discarding its output, as the initial
+     * call to jrand48 causes dynamic memory allocation by the libc. We do not
+     * want this to happen in interrupt context, which can happen if we wait for
+     * the first actual call to ble_ll_rand(). */
+    ble_ll_rand();
     return 0;
 }
