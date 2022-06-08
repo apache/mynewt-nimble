@@ -521,13 +521,13 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
     ble_ll_sched_css_set_conn_anchor(connsm);
 
     sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
+    sch->end_time = connsm->anchor_point;
     sch->remainder = connsm->anchor_point_usecs;
 
     OS_EXIT_CRITICAL(sr);
 
-    sch->end_time = sch->start_time;
     rem_us = sch->remainder;
-    ble_ll_tmr_add(&sch->end_time, &rem_us, ble_ll_sched_css_get_period_slots());
+    ble_ll_tmr_add(&sch->end_time, &rem_us, ble_ll_sched_css_get_slot_us());
     if (rem_us == 0) {
         sch->end_time--;
     }
