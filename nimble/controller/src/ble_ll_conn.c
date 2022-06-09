@@ -463,14 +463,11 @@ ble_ll_conn_css_move(struct ble_ll_conn_sm *connsm, uint16_t slot_idx)
                   (slot_idx != BLE_LL_CONN_CSS_NO_SLOT));
 
     slot_diff = slot_idx - connsm->css_slot_idx;
-
-    if (slot_diff > 0) {
-        offset = slot_diff * ble_ll_sched_css_get_slot_us() /
-                  BLE_LL_CONN_ITVL_USECS;
-    } else {
-        offset = (ble_ll_sched_css_get_period_slots() + slot_diff) *
-                 ble_ll_sched_css_get_slot_us() / BLE_LL_CONN_ITVL_USECS;
+    if (slot_diff < 0) {
+        slot_diff += ble_ll_sched_css_get_period_slots();
     }
+
+    offset = slot_diff * ble_ll_sched_css_get_slot_us() / BLE_LL_CONN_ITVL_USECS;
 
     if (offset >= 0xffff) {
         return -1;
