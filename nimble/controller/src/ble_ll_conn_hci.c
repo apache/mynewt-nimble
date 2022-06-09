@@ -955,6 +955,15 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNK_CONN_ID;
     }
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    /* Do not allow connection update if css in enabled, we only allow to move
+     * anchor point (i.e. change slot) via dedicated HCI command.
+     */
+    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+#endif
+
     /* Better not have this procedure ongoing! */
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ) ||
         IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
