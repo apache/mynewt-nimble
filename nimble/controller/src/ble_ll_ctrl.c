@@ -394,6 +394,7 @@ static void
 ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
                           struct ble_ll_conn_params *cp)
 {
+    struct ble_ll_conn_params offset_cp = { };
     uint16_t instant;
     uint32_t dt;
     uint32_t num_old_ce;
@@ -415,6 +416,18 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
 #else
     instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
 #endif
+
+    /* Check if this is a move anchor request and configure proper connection
+     * parameters */
+    if (connsm->conn_update_anchor_offset_req) {
+        offset_cp.interval_min = connsm->conn_itvl;
+        offset_cp.interval_max = connsm->conn_itvl;
+        offset_cp.latency = connsm->periph_latency;
+        offset_cp.timeout = connsm->supervision_tmo;
+        offset_cp.offset0 = connsm->conn_update_anchor_offset_req;
+        connsm->conn_update_anchor_offset_req = 0;
+        cp = &offset_cp;
+    }
 
     /*
      * XXX: This should change in the future, but for now we will just

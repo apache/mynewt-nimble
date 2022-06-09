@@ -2185,8 +2185,6 @@ ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
 int
 ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
 {
-    struct ble_ll_conn_params cp = { };
-
     BLE_LL_ASSERT(connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL);
 
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ) ||
@@ -2194,14 +2192,8 @@ ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
         return -1;
     }
 
-    /* Keep parameters, we just want to move anchor */
-    cp.interval_max = connsm->conn_itvl;
-    cp.interval_min = connsm->conn_itvl;
-    cp.latency = connsm->periph_latency;
-    cp.timeout = connsm->supervision_tmo;
-    cp.offset0 = offset;
-
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE, &cp);
+    connsm->conn_update_anchor_offset_req = offset;
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE, NULL);
 
     return 0;
 }
