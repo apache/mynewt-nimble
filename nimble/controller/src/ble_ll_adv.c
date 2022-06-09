@@ -190,6 +190,7 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_PERIODIC_DATA_INCOMPLETE 0x1000
 #define BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING    0x2000
 #define BLE_LL_ADV_SM_FLAG_PERIODIC_NEW_DATA        0x4000
+#define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR         0x8000
 
 #define ADV_DATA_LEN(_advsm) \
                 ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
@@ -4395,6 +4396,11 @@ ble_ll_adv_conn_req_rxd(uint8_t *rxbuf, struct ble_mbuf_hdr *hdr,
             if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD)) {
                 ble_ll_adv_sm_stop(advsm);
             }
+        } else if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+            ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR);
+            valid = 1;
+#endif
         }
     }
 
@@ -4859,8 +4865,13 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
 
     /* Stop advertising due to transmitting connection response */
     if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
-        ble_ll_adv_sm_stop(advsm);
-        return;
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR)) {
+            ble_ll_adv_sm_stop(advsm);
+            return;
+        } else {
+            ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD |
+                                          BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR);
+        }
     }
 
     /* If we have next AUX scheduled, try to schedule another one */
