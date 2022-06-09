@@ -2682,6 +2682,11 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+            ble_ll_sched_css_update_anchor(connsm);
+            ble_ll_conn_css_set_next_slot(BLE_LL_CONN_CSS_NO_SLOT);
+#endif
+
             evbuf = ble_ll_init_get_conn_comp_ev();
             ble_ll_conn_comp_event_send(connsm, BLE_ERR_SUCCESS, evbuf, NULL);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)

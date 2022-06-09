@@ -179,6 +179,7 @@ int ble_ll_sched_dtm(struct ble_ll_sched_item *sch);
 #if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 void ble_ll_sched_css_set_params(uint32_t slot_us, uint32_t period_slots);
 #endif
+void ble_ll_sched_css_update_anchor(struct ble_ll_conn_sm *connsm);
 void ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm);
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
 static inline uint32_t
