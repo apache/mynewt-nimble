@@ -377,6 +377,7 @@ struct ble_ll_conn_sm
 
     /* For connection update procedure */
     struct ble_ll_conn_upd_req conn_update_req;
+    uint16_t conn_update_anchor_offset_req;
 
     /* XXX: for now, just store them all */
     struct ble_ll_conn_params conn_cp;
