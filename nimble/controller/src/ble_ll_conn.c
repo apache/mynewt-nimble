@@ -2230,7 +2230,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     uint16_t trans_next_event_cntr;
     uint16_t subrate_conn_upd_event_cntr;
 #endif
-
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    uint8_t anchor_calc_for_css = 0;
+#endif
 
     /* XXX: deal with connection request procedure here as well */
     ble_ll_conn_chk_csm_flags(connsm);
@@ -2356,11 +2358,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         connsm->css_period_idx += event_cntr_diff;
 
-        /* If this is non-reference connection, we set anchor from reference
-         * instead of calculating manually.
+        /* If this is non-reference connection, we calculate anchor point from
+         * reference connection instead of using connection interval. This is
+         * to make sure connections do not drift over time.
          */
         if (g_ble_ll_conn_css_ref != connsm) {
-            ble_ll_sched_css_set_conn_anchor(connsm);
+            anchor_calc_for_css = 1;
             skip_anchor_calc = 1;
         }
     }
@@ -2410,6 +2413,28 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+            BLE_LL_ASSERT(connsm->css_slot_idx_pending !=
+                          BLE_LL_CONN_CSS_NO_SLOT);
+
+            /* If we are moving to an earlier slot, we are effectively skipping
+             * one period.
+             */
+            if (connsm->css_slot_idx_pending < connsm->css_slot_idx) {
+                connsm->css_period_idx++;
+            }
+
+            connsm->css_slot_idx = connsm->css_slot_idx_pending;
+            connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
+
+            if (anchor_calc_for_css) {
+                ble_ll_sched_css_set_conn_anchor(connsm);
+                anchor_calc_for_css = 0;
+            }
+        }
+#endif
+
         connsm->supervision_tmo = upd->timeout;
         connsm->periph_latency = upd->latency;
         connsm->tx_win_size = upd->winsize;
@@ -2429,15 +2454,6 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Reset the starting point of the connection supervision timeout */
         connsm->last_rxd_pdu_cputime = connsm->anchor_point;
-
-#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-            BLE_LL_ASSERT(connsm->css_slot_idx_pending !=
-                          BLE_LL_CONN_CSS_NO_SLOT);
-            connsm->css_slot_idx = connsm->css_slot_idx_pending;
-            connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
-        }
-#endif
 
         /* Reset update scheduled flag */
         connsm->csmflags.cfbit.conn_update_sched = 0;
@@ -2470,6 +2486,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* XXX: host could have resent channel map command. Need to
            check to make sure we dont have to restart! */
     }
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    if (anchor_calc_for_css) {
+        ble_ll_sched_css_set_conn_anchor(connsm);
+    }
+#endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
     if (CONN_F_PHY_UPDATE_SCHED(connsm) &&
