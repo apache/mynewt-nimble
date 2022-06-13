@@ -82,8 +82,37 @@ def parse_arguments():
         logging.error(traceback.format_exc())
         sys.exit()
 
+async def set_phy(bt_dev: hci_commands.HCI_Commands, conn_handle, cfg_phy,
+                          supported_features):
+    def error(info):
+        print("ERROR: Check log files")
+        raise Exception(info, ": Unsupported PHY. Closing...")
 
-async def init(bt_dev: hci_commands.HCI_Commands, ini: dict):
+    PHY_2M = supported_features & hci.LE_FEATURE_2M_PHY
+    PHY_CODED = supported_features & hci.LE_FEATURE_CODED_PHY
+
+    if (cfg_phy == "1M"):
+        await bt_dev.cmd_le_set_phy(conn_handle, all_phys=0, tx_phys=1, rx_phys=1, phy_options=0)
+        logging.info(f"PHY 1M")
+
+    elif (cfg_phy == "2M"):
+        if (PHY_2M):
+            await bt_dev.cmd_le_set_phy(conn_handle, all_phys=0, tx_phys=2, rx_phys=2, phy_options=0)
+            logging.info(f"PHY 2M")
+        else:
+            error("2M")
+
+    elif (cfg_phy == "Coded"):
+        if (PHY_CODED):
+            await bt_dev.cmd_le_set_phy(conn_handle, all_phys=0, tx_phys=3, rx_phys=3, phy_options=0)
+            logging.info(f"PHY Coded")
+        else:
+            error("Coded")
+
+    else:
+        error("Possible PHY in config.yaml: 1M, 2M, Coded")
+
+async def init(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict):
     """ init: Assumed to be the same for all devices """
     asyncio.create_task(bt_dev.rx_buffer_q_wait())
     await bt_dev.cmd_reset()
@@ -91,7 +120,7 @@ async def init(bt_dev: hci_commands.HCI_Commands, ini: dict):
         await bt_dev.cmd_le_set_random_addr(ini["own_address"])
     await bt_dev.cmd_set_event_mask(mask=0x200080000204e090)
     await bt_dev.cmd_le_set_event_mask(mask=0x00000007FFFFFFFF)
-    await bt_dev.cmd_le_set_dflt_phy(all_phys=0, tx_phys=2, rx_phys=2)
+    await bt_dev.cmd_le_read_local_supported_features()
     await bt_dev.cmd_le_read_buffer_size()
     await bt_dev.cmd_le_read_max_data_len()
 
@@ -112,7 +141,7 @@ async def finish(bt_dev: hci_commands.HCI_Commands, cfg: dict):
 
 
 async def async_main_rx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict):
-    await init(bt_dev, ini)
+    await init(bt_dev, ini, cfg)
 
     bt_dev.tp = tp.Throughput(name="tp_receiver", mode=bt_dev.device_mode,
                               total_packets_number=hci.num_of_packets_to_send,
@@ -154,7 +183,7 @@ async def async_main_rx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
     await finish(bt_dev, cfg)
 
 async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict):
-    await init(bt_dev, ini)
+    await init(bt_dev, ini, cfg)
 
     conn_params = hci.HCI_Connect()
     conn_params.set(
@@ -178,12 +207,8 @@ async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
     await bt_dev.cmd_le_set_data_len(hci.conn_handle, tx_octets=0, tx_time=0)
     await hci_commands.wait_for_event(bt_dev.async_ev_set_data_len, hci.WAIT_FOR_EVENT_TIMEOUT)
 
-    if cfg["phy"] == "1M":
-        await bt_dev.cmd_le_set_phy(hci.conn_handle, all_phys=0, tx_phys=1, rx_phys=1, phy_options=0)
-    elif cfg["phy"] == "2M":
-        await bt_dev.cmd_le_set_phy(hci.conn_handle, all_phys=0, tx_phys=2, rx_phys=2, phy_options=0)
-    else:
-        raise Exception("PHY parameter not valid.")
+    await set_phy(bt_dev, hci.conn_handle, cfg['phy'],
+                  hci.le_read_local_supported_features.le_features)
     await hci_commands.wait_for_event(bt_dev.async_ev_update_phy, hci.WAIT_FOR_EVENT_TIMEOUT)
 
     ############
