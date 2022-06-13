@@ -2077,6 +2077,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* If current connection was reference for CSS, we need to find another
      * one. It does not matter which one we'll pick.
      */
+    OS_ENTER_CRITICAL(sr);
     if (connsm == g_ble_ll_conn_css_ref) {
         SLIST_FOREACH(g_ble_ll_conn_css_ref, &g_ble_ll_conn_active_list,
                       act_sle) {
@@ -2085,6 +2086,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
             }
         }
     }
+    OS_EXIT_CRITICAL(sr);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
