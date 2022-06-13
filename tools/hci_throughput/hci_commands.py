@@ -131,6 +131,14 @@ class HCI_Commands():
             await self.async_ev_cmd_end.wait()
             self.async_ev_cmd_end.clear()
 
+    async def cmd_le_read_local_supported_features(self):
+        async with self.async_sem_cmd:
+            self.hci_send_cmd.set(hci.OGF_LE_CTL, hci.OCF_LE_READ_LOCAL_SUPPORTED_FEATURES)
+            logging.debug("%s %s", self.cmd_le_read_local_supported_features.__name__, self.hci_send_cmd)
+            await self.send(self.hci_send_cmd.ba_full_message)
+            await self.async_ev_cmd_end.wait()
+            self.async_ev_cmd_end.clear()
+
     async def cmd_le_set_random_addr(self, addr: str):
         async with self.async_sem_cmd:
             addr_ba = hci.cmd_addr_to_ba(addr)
@@ -382,6 +390,8 @@ class HCI_Commands():
 
         elif ogf == hci.OGF_INFO_PARAM:
             if ocf == hci.OCF_READ_LOCAL_COMMANDS:
+                hci.read_local_commands = hci.Read_Local_Commands()
+                hci.read_local_commands.set(bytes(current_ev.return_parameters))
                 return status()
             elif ocf == hci.OCF_READ_BD_ADDR:
                 hci.bdaddr = hci.ba_addr_to_str(
@@ -397,6 +407,10 @@ class HCI_Commands():
                                             current_ev.return_parameters))
                 logging.info(f"LE Buffer size: {hci.le_read_buffer_size}")
                 return hci.le_read_buffer_size.status
+            elif ocf == hci.OCF_LE_READ_LOCAL_SUPPORTED_FEATURES:
+                hci.le_read_local_supported_features = hci.LE_Read_Local_Supported_Features()
+                hci.le_read_local_supported_features.set(current_ev.return_parameters)
+                return status()
             elif ocf == hci.OCF_LE_SET_RANDOM_ADDRESS:
                 return status()
             elif ocf == hci.OCF_LE_SET_ADVERTISING_PARAMETERS:

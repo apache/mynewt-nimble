@@ -21,6 +21,7 @@ from dataclasses import dataclass
 import struct
 from binascii import unhexlify
 import random
+import ctypes
 
 ############
 # DEFINES
@@ -57,6 +58,7 @@ OCF_READ_BD_ADDR = 0x0009
 OGF_LE_CTL = 0x08
 OCF_LE_SET_EVENT_MASK = 0x0001
 OCF_LE_READ_BUFFER_SIZE_V1 = 0x0002
+OCF_LE_READ_LOCAL_SUPPORTED_FEATURES = 0x0003
 OCF_LE_READ_BUFFER_SIZE_V2 = 0x0060
 OCF_LE_SET_RANDOM_ADDRESS = 0x0005
 OCF_LE_SET_ADVERTISING_PARAMETERS = 0x0006
@@ -80,6 +82,9 @@ STATIC_RANDOM_ADDRESS_TYPE = 1
 WAIT_FOR_EVENT_TIMEOUT = 5
 WAIT_FOR_EVENT_CONN_TIMEOUT = 25
 
+LE_FEATURE_2M_PHY = ctypes.c_uint64(0x0100).value
+LE_FEATURE_CODED_PHY = ctypes.c_uint64(0x0800).value
+
 ############
 # GLOBAL VAR
 ############
@@ -99,6 +104,8 @@ phy = None
 ev_num_comp_pkts = None
 num_of_completed_packets_cnt = 0
 num_of_completed_packets_time  = 0
+read_local_commands = None
+le_read_local_supported_features = None
 
 ############
 # FUNCTIONS
@@ -203,6 +210,29 @@ class LE_Read_PHY:
         self.tx_phy = tx_phy
         self.rx_phy = rx_phy
 
+@dataclass
+class Read_Local_Commands:
+    status: int
+    supported_commands: bytes
+
+    def __init__(self):
+        self.set()
+
+    def set(self, rcv_bytes = bytes(65)):
+        self.status = int(rcv_bytes[0])
+        self.supported_commands = rcv_bytes[1:]
+
+@dataclass
+class LE_Read_Local_Supported_Features:
+    status: int
+    le_features: bytes
+
+    def __init__(self):
+        self.set()
+
+    def set(self, rcv_bytes = bytes(9)):
+        self.status = int(rcv_bytes[0])
+        self.le_features = ctypes.c_uint64.from_buffer_copy(rcv_bytes[1:]).value
 
 ############
 # EVENTS
