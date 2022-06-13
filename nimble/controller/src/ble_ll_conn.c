@@ -2532,11 +2532,16 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 
     /*
-     * Calculate ce end time. For a peripgheral, we need to add window widening
+     * Calculate ce end time. For a peripheral, we need to add window widening
      * and the transmit window if we still have one.
      */
-    ce_duration = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
-                                 BLE_LL_SCHED_USECS_PER_SLOT);
+    if (MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED) &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        ce_duration = ble_ll_tmr_u2t(BLE_LL_SCHED_USECS_PER_SLOT);
+    } else {
+        ce_duration = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                                     BLE_LL_SCHED_USECS_PER_SLOT);
+    }
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
