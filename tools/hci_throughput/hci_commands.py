@@ -422,10 +422,11 @@ class HCI_Commands():
                 hci.max_data_len.set(*struct.unpack("<BHHHH",
                                      current_ev.return_parameters))
                 logging.info(f"Suggested Max Data Len: {hci.max_data_len}")
-                if (hci.num_of_bytes_to_send > hci.max_data_len.supported_max_tx_octets - 4):
-                    logging.critical(f"Number of bytes to send: {hci.num_of_bytes_to_send}\
-                                     not supported. Closing.")
-                    raise SystemExit("Number of bytes to send not supported. Closing.")
+                if (hci.num_of_bytes_to_send > hci.max_data_len.supported_max_tx_octets - hci.L2CAP_HDR_BYTES):
+                    logging.critical(f"Number of data bytes to send + 4 bytes of L2CAP header: {hci.num_of_bytes_to_send + 4} "
+                                     f"exceeds allowed value of: {hci.max_data_len.supported_max_tx_octets}. Closing.")
+                    raise SystemExit(f"Number of data bytes to send + 4 bytes of L2CAP header: {hci.num_of_bytes_to_send + 4} "
+                                     f"exceeds allowed value of: {hci.max_data_len.supported_max_tx_octets}. Closing.")
 
                 return status()
             elif ocf == hci.OCF_LE_READ_PHY:
