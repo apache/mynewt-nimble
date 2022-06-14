@@ -21,6 +21,7 @@ syscfg.vals:
     OS_MAIN_STACK_SIZE: 64
     # Stub console
     CONSOLE_MODE: stub
+    LOG_IMPLEMENTATION: stub
 
 syscfg.vals.'!BLE_TRANSPORT_NETCORE':
     # Use UART by default if not built on netcore
