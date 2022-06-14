@@ -959,7 +959,8 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     /* Do not allow connection update if css in enabled, we only allow to move
      * anchor point (i.e. change slot) via dedicated HCI command.
      */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+    if (ble_ll_sched_css_is_enabled() &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 #endif

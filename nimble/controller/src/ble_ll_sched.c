@@ -47,6 +47,7 @@ int32_t g_ble_ll_sched_max_early;
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
 struct ble_ll_sched_css {
+    uint8_t enabled;
 #if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
     uint32_t slot_us;
     uint32_t period_slots;
@@ -408,15 +409,15 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
 {
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     struct ble_ll_sched_css *css = &g_ble_ll_sched_css;
+    uint8_t rem_us;
 #endif
     struct ble_ll_sched_item *sch;
     uint32_t orig_start_time;
     uint32_t earliest_start;
-#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     uint32_t min_win_offset;
-#endif
     uint32_t max_delay;
     uint32_t adv_rxend;
+    bool calc_sch = true;
     os_sr_t sr;
     int rc;
 
@@ -499,50 +500,55 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
     orig_start_time = earliest_start - g_ble_ll_sched_offset_ticks;
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    uint8_t rem_us;
+    if (ble_ll_sched_css_is_enabled()) {
+        OS_ENTER_CRITICAL(sr);
 
-    OS_ENTER_CRITICAL(sr);
+        if (!g_ble_ll_conn_css_ref) {
+            css->period_anchor_ticks = earliest_start;
+            css->period_anchor_rem_us = 0;
+            css->period_anchor_idx = 0;
+            css->period_anchor_slot_idx = connsm->css_slot_idx;
 
-    if (!g_ble_ll_conn_css_ref) {
-        css->period_anchor_ticks = earliest_start;
-        css->period_anchor_rem_us = 0;
-        css->period_anchor_idx = 0;
-        css->period_anchor_slot_idx = connsm->css_slot_idx;
+            connsm->css_period_idx = 0;
+            max_delay = connsm->conn_itvl_ticks;
+        } else {
+            connsm->css_period_idx = css->period_anchor_idx;
+            max_delay = 0;
+        }
 
-        connsm->css_period_idx = 0;
-        max_delay = connsm->conn_itvl_ticks;
-    } else {
-        connsm->css_period_idx = css->period_anchor_idx;
-        max_delay = 0;
+        ble_ll_sched_css_set_conn_anchor(connsm);
+
+        sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
+        sch->end_time = connsm->anchor_point;
+        sch->remainder = connsm->anchor_point_usecs;
+
+        OS_EXIT_CRITICAL(sr);
+
+        rem_us = sch->remainder;
+        ble_ll_tmr_add(&sch->end_time, &rem_us, ble_ll_sched_css_get_slot_us());
+        if (rem_us == 0) {
+            sch->end_time--;
+        }
+
+        calc_sch = false;
     }
-
-    ble_ll_sched_css_set_conn_anchor(connsm);
-
-    sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
-    sch->end_time = connsm->anchor_point;
-    sch->remainder = connsm->anchor_point_usecs;
-
-    OS_EXIT_CRITICAL(sr);
-
-    rem_us = sch->remainder;
-    ble_ll_tmr_add(&sch->end_time, &rem_us, ble_ll_sched_css_get_slot_us());
-    if (rem_us == 0) {
-        sch->end_time--;
-    }
-#else
-    sch->start_time = earliest_start - g_ble_ll_sched_offset_ticks;
-    sch->end_time = earliest_start +
-                    ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
-                                   BLE_LL_SCHED_USECS_PER_SLOT);
-
-    min_win_offset = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
-                                    BLE_LL_SCHED_USECS_PER_SLOT);
-    sch->start_time += min_win_offset;
-    sch->end_time += min_win_offset;
-    sch->remainder = 0;
-
-    max_delay = connsm->conn_itvl_ticks - min_win_offset;
 #endif
+
+    if (calc_sch) {
+        sch->start_time = earliest_start - g_ble_ll_sched_offset_ticks;
+        sch->end_time = earliest_start +
+                        ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                                       BLE_LL_SCHED_USECS_PER_SLOT);
+
+        min_win_offset = ble_ll_tmr_u2t(
+                MYNEWT_VAL(BLE_LL_CONN_INIT_MIN_WIN_OFFSET) *
+                BLE_LL_SCHED_USECS_PER_SLOT);
+        sch->start_time += min_win_offset;
+        sch->end_time += min_win_offset;
+        sch->remainder = 0;
+
+        max_delay = connsm->conn_itvl_ticks - min_win_offset;
+    }
 
     OS_ENTER_CRITICAL(sr);
 
@@ -1185,6 +1191,13 @@ ble_ll_sched_css_set_params(uint32_t slot_us, uint32_t period_slots)
     g_ble_ll_sched_css.period_slots = period_slots;
 }
 #endif
+
+void
+ble_ll_sched_css_set_enabled(uint8_t enabled)
+{
+    g_ble_ll_sched_css.enabled = enabled;
+}
+
 void
 ble_ll_sched_css_update_anchor(struct ble_ll_conn_sm *connsm)
 {
@@ -1224,6 +1237,12 @@ ble_ll_sched_css_set_conn_anchor(struct ble_ll_conn_sm *connsm)
 }
 
 #if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
+inline bool
+ble_ll_sched_css_is_enabled(void)
+{
+    return g_ble_ll_sched_css.enabled;
+}
+
 inline uint32_t
 ble_ll_sched_css_get_slot_us(void)
 {

@@ -1956,7 +1956,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 
     /* Add to list of active connections */
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+    if (ble_ll_sched_css_is_enabled() &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         /* We will insert sorted by css_slot_idx to make finding free slot
          * easier.
          */
@@ -2355,7 +2356,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     connsm->event_cntr = next_event_cntr;
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+    if (ble_ll_sched_css_is_enabled() &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         connsm->css_period_idx += event_cntr_diff;
 
         /* If this is non-reference connection, we calculate anchor point from
@@ -2414,7 +2416,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        if (ble_ll_sched_css_is_enabled() &&
+            connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
             BLE_LL_ASSERT(connsm->css_slot_idx_pending !=
                           BLE_LL_CONN_CSS_NO_SLOT);
 
@@ -2557,13 +2560,21 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a peripheral, we need to add window widening
      * and the transmit window if we still have one.
      */
-    if (MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED) &&
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    /* If css is enabled, use slot duration instead of conn_init_slots for
+     * reservation.
+     */
+    if (ble_ll_sched_css_is_enabled() &&
         connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-        ce_duration = ble_ll_tmr_u2t(BLE_LL_SCHED_USECS_PER_SLOT);
+        ce_duration = ble_ll_tmr_u2t(ble_ll_sched_css_get_slot_us());
     } else {
         ce_duration = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
                                      BLE_LL_SCHED_USECS_PER_SLOT);
     }
+#else
+    ce_duration = ble_ll_tmr_u2t(MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) *
+                                     BLE_LL_SCHED_USECS_PER_SLOT);
+#endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
@@ -2709,8 +2720,10 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-            ble_ll_sched_css_update_anchor(connsm);
-            ble_ll_conn_css_set_next_slot(BLE_LL_CONN_CSS_NO_SLOT);
+            if (ble_ll_sched_css_is_enabled()) {
+                ble_ll_sched_css_update_anchor(connsm);
+                ble_ll_conn_css_set_next_slot(BLE_LL_CONN_CSS_NO_SLOT);
+            }
 #endif
 
             evbuf = ble_ll_init_get_conn_comp_ev();

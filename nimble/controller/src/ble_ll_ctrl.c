@@ -2246,7 +2246,8 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     /* Reject any attempts to change connection parameters by peripheral */
-    if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+    if (ble_ll_sched_css_is_enabled() &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
         rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
         rspbuf[2] = BLE_ERR_UNSUPPORTED;
