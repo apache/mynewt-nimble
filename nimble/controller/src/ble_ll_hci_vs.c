@@ -149,7 +149,8 @@ ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+    if (ble_ll_sched_css_is_enabled() &&
+        !SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
         return BLE_ERR_CTLR_BUSY;
     }
 
@@ -169,6 +170,29 @@ ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
     return BLE_ERR_SUCCESS;
 }
 #endif
+
+static int
+ble_ll_hci_vs_css_enable(const uint8_t *cmdbuf, uint8_t cmdlen,
+                         uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_enable_cp *cmd = (const void *)cmdbuf;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+        return BLE_ERR_CTLR_BUSY;
+    }
+
+    if (cmd->enable & 0xfe) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    ble_ll_sched_css_set_enabled(cmd->enable);
+
+    return BLE_ERR_SUCCESS;
+}
 
 static int
 ble_ll_hci_vs_css_set_next_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
@@ -257,6 +281,8 @@ ble_ll_hci_vs_css(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
     case BLE_HCI_VS_CSS_OP_CONFIGURE:
         return ble_ll_hci_vs_css_configure(cmdbuf, cmdlen, rspbuf, rsplen);
 #endif
+    case BLE_HCI_VS_CSS_OP_ENABLE:
+        return ble_ll_hci_vs_css_enable(cmdbuf, cmdlen, rspbuf, rsplen);
     case BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT:
         return ble_ll_hci_vs_css_set_next_slot(cmdbuf, cmdlen, rspbuf, rsplen);
     case BLE_HCI_VS_CSS_OP_SET_CONN_SLOT:

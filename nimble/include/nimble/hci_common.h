@@ -1110,12 +1110,17 @@ struct ble_hci_vs_css_configure_cp {
     uint32_t slot_us;
     uint32_t period_slots;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT                 0x02
+#define BLE_HCI_VS_CSS_OP_ENABLE                        0x02
+struct ble_hci_vs_css_enable_cp {
+    uint8_t opcode;
+    uint8_t enable;
+} __attribute__((packed));
+#define BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT                 0x03
 struct ble_hci_vs_css_set_next_slot_cp {
     uint8_t opcode;
     uint16_t slot_idx;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_SET_CONN_SLOT                 0x03
+#define BLE_HCI_VS_CSS_OP_SET_CONN_SLOT                 0x04
 struct ble_hci_vs_css_set_conn_slot_cp {
     uint8_t opcode;
     uint16_t conn_handle;
