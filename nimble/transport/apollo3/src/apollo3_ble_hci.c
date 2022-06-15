@@ -256,7 +256,6 @@ apollo3_hci_write(hci_drv_write_t *write_buf)
 static int
 apollo3_ble_hci_acl_tx(struct os_mbuf *om)
 {
-    struct os_mbuf *x;
     int rc = 0;
     hci_drv_write_t write_buf;
     uint8_t *ptr = (uint8_t *)write_buf.data;
@@ -265,13 +264,8 @@ apollo3_ble_hci_acl_tx(struct os_mbuf *om)
     ptr++;
     write_buf.len = 1;
 
-    x = om;
-    while (x) {
-        memcpy(ptr, x->om_data, x->om_len);
-        ptr += x->om_len;
-        write_buf.len += x->om_len;
-        x = SLIST_NEXT(x, om_next);
-    }
+    os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), ptr);
+    write_buf.len += OS_MBUF_PKTLEN(om);
 
     rc = apollo3_hci_write(&write_buf);
 
