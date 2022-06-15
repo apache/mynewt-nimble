@@ -233,6 +233,10 @@ ble_ll_hci_vs_css_set_conn_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    if (!ble_ll_sched_css_is_enabled()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
     slot_idx = le16toh(cmd->slot_idx);
     if ((slot_idx >= ble_ll_sched_css_get_period_slots()) &&
         (slot_idx != BLE_LL_CONN_CSS_NO_SLOT)) {
