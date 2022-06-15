@@ -389,6 +389,7 @@ struct ble_ll_conn_sm
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    SLIST_ENTRY(ble_ll_conn_sm) css_sle;
     uint16_t css_slot_idx;
     uint16_t css_slot_idx_pending;
     uint8_t css_period_idx;

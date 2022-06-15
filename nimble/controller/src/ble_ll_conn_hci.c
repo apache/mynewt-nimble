@@ -618,6 +618,11 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+        if (ble_ll_sched_css_is_enabled()) {
+            SLIST_REMOVE(&g_ble_ll_conn_css_list, connsm, ble_ll_conn_sm, css_sle);
+        }
+#endif
     }
 
     return rc;
@@ -834,6 +839,11 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     if (rc) {
         SLIST_REMOVE(&g_ble_ll_conn_active_list,connsm,ble_ll_conn_sm,act_sle);
         STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+        if (ble_ll_sched_css_is_enabled()) {
+            SLIST_REMOVE(&g_ble_ll_conn_css_list, connsm, ble_ll_conn_sm, css_sle);
+        }
+#endif
     }
 
     return rc;

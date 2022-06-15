@@ -150,7 +150,7 @@ ble_ll_hci_vs_css_configure(const uint8_t *cmdbuf, uint8_t cmdlen,
     }
 
     if (ble_ll_sched_css_is_enabled() &&
-        !SLIST_EMPTY(&g_ble_ll_conn_active_list)) {
+        !SLIST_EMPTY(&g_ble_ll_conn_css_list)) {
         return BLE_ERR_CTLR_BUSY;
     }
 

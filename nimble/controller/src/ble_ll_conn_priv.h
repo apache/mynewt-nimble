@@ -104,6 +104,11 @@ STAILQ_HEAD(ble_ll_conn_free_list, ble_ll_conn_sm);
 extern struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
 extern struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+SLIST_HEAD(ble_ll_conn_css_list, ble_ll_conn_sm);
+extern struct ble_ll_conn_css_list g_ble_ll_conn_css_list;
+#endif
+
 struct ble_ll_conn_create_scan {
     uint8_t filter_policy;
     uint8_t own_addr_type;

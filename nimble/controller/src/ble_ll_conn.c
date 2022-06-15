@@ -167,6 +167,11 @@ struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
 /* List of free connections */
 struct ble_ll_conn_free_list g_ble_ll_conn_free_list;
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+static uint16_t g_ble_ll_conn_css_next_slot = BLE_LL_CONN_CSS_NO_SLOT;
+struct ble_ll_conn_css_list g_ble_ll_conn_css_list;
+#endif
+
 STATS_SECT_START(ble_ll_conn_stats)
     STATS_SECT_ENTRY(cant_set_sched)
     STATS_SECT_ENTRY(conn_ev_late)
@@ -394,9 +399,52 @@ ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
 }
 #endif
 
-
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-static uint16_t g_ble_ll_conn_css_next_slot = BLE_LL_CONN_CSS_NO_SLOT;
+static void
+ble_ll_conn_css_update_list(struct ble_ll_conn_sm *connsm)
+{
+    bool e_insert_found = false;
+    bool e_remove_found = false;
+    struct ble_ll_conn_sm *e_insert = NULL;
+    struct ble_ll_conn_sm *e_remove = NULL;
+    struct ble_ll_conn_sm *e_last = NULL;
+    struct ble_ll_conn_sm *e;
+
+    SLIST_FOREACH(e, &g_ble_ll_conn_css_list, css_sle) {
+        if (!e_remove_found && (e == connsm)) {
+            e_remove_found = true;
+            e_remove = e_last;
+        }
+        if (!e_insert_found && (e->css_slot_idx > connsm->css_slot_idx)) {
+            e_insert_found = true;
+            e_insert = e_last;
+        }
+
+        if (e_insert_found && e_remove_found) {
+            break;
+        }
+
+        e_last = e;
+    }
+
+    if (e_remove_found) {
+        if (e_remove == e_insert) {
+            return;
+        } else if (e_remove) {
+            SLIST_NEXT(e_remove, css_sle) = SLIST_NEXT(connsm, css_sle);
+        } else {
+            SLIST_REMOVE_HEAD(&g_ble_ll_conn_css_list, css_sle);
+        }
+    }
+
+    if (!e_insert_found && !e && e_last) {
+        SLIST_INSERT_AFTER(e_last, connsm, css_sle);
+    } else if (e_insert) {
+        SLIST_INSERT_AFTER(e_insert, connsm, css_sle);
+    } else {
+        SLIST_INSERT_HEAD(&g_ble_ll_conn_css_list, connsm, css_sle);
+    }
+}
 
 void
 ble_ll_conn_css_set_next_slot(uint16_t slot_idx)
@@ -417,9 +465,8 @@ ble_ll_conn_css_get_next_slot(void)
     /* CSS connections are sorted in active conn list so just need to find 1st
      * free value.
      */
-    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
-        if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
-            (connsm->css_slot_idx != slot_idx) &&
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_css_list, css_sle) {
+        if ((connsm->css_slot_idx != slot_idx) &&
             (connsm->css_slot_idx_pending != slot_idx)) {
             break;
         }
@@ -438,10 +485,13 @@ ble_ll_conn_css_is_slot_busy(uint16_t slot_idx)
 {
     struct ble_ll_conn_sm *connsm;
 
-    SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
-        if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
-            ((connsm->css_slot_idx == slot_idx) ||
-             (connsm->css_slot_idx_pending == slot_idx))) {
+    if (g_ble_ll_conn_css_next_slot == slot_idx) {
+        return 1;
+    }
+
+    SLIST_FOREACH(connsm, &g_ble_ll_conn_css_list, css_sle) {
+        if ((connsm->css_slot_idx == slot_idx) ||
+            (connsm->css_slot_idx_pending == slot_idx)) {
             return 1;
         }
     }
@@ -1851,10 +1901,6 @@ void
 ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 {
     struct ble_ll_conn_global_params *conn_params;
-#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    struct ble_ll_conn_sm *connsm_css_prev = NULL;
-    struct ble_ll_conn_sm *connsm_css;
-#endif
 
     /* Reset following elements */
     connsm->csmflags.conn_flags = 0;
@@ -1955,35 +2001,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #endif
 
     /* Add to list of active connections */
-#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    if (ble_ll_sched_css_is_enabled() &&
-        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-        /* We will insert sorted by css_slot_idx to make finding free slot
-         * easier.
-         */
-        SLIST_FOREACH(connsm_css, &g_ble_ll_conn_active_list, act_sle) {
-            if ((connsm_css->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
-                (connsm_css->css_slot_idx > connsm->css_slot_idx)) {
-                if (connsm_css_prev) {
-                    SLIST_INSERT_AFTER(connsm_css_prev, connsm, act_sle);
-                }
-                break;
-            }
-            connsm_css_prev = connsm_css;
-        }
-
-        if (!connsm_css_prev) {
-            /* List was empty or need to insert before 1st connection */
-            SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
-        } else if (!connsm_css) {
-            /* Insert at the end of list */
-            SLIST_INSERT_AFTER(connsm_css_prev, connsm, act_sle);
-        }
-    } else {
-        SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
-    }
-#else
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    if (ble_ll_sched_css_is_enabled()) {
+        ble_ll_conn_css_update_list(connsm);
+    }
 #endif
 }
 
@@ -2075,19 +2098,18 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     SLIST_REMOVE(&g_ble_ll_conn_active_list, connsm, ble_ll_conn_sm, act_sle);
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    /* If current connection was reference for CSS, we need to find another
-     * one. It does not matter which one we'll pick.
-     */
-    OS_ENTER_CRITICAL(sr);
-    if (connsm == g_ble_ll_conn_css_ref) {
-        SLIST_FOREACH(g_ble_ll_conn_css_ref, &g_ble_ll_conn_active_list,
-                      act_sle) {
-            if (g_ble_ll_conn_css_ref->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-                break;
-            }
+    if (ble_ll_sched_css_is_enabled() &&
+        (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)) {
+        /* If current connection was reference for CSS, we need to find another
+         * one. It does not matter which one we'll pick.
+         */
+        OS_ENTER_CRITICAL(sr);
+        SLIST_REMOVE(&g_ble_ll_conn_css_list, connsm, ble_ll_conn_sm, css_sle);
+        if (connsm == g_ble_ll_conn_css_ref) {
+            g_ble_ll_conn_css_ref = SLIST_FIRST(&g_ble_ll_conn_css_list);
         }
+        OS_EXIT_CRITICAL(sr);
     }
-    OS_EXIT_CRITICAL(sr);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
@@ -2430,6 +2452,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
             connsm->css_slot_idx = connsm->css_slot_idx_pending;
             connsm->css_slot_idx_pending = BLE_LL_CONN_CSS_NO_SLOT;
+
+            ble_ll_conn_css_update_list(connsm);
 
             if (anchor_calc_for_css) {
                 ble_ll_sched_css_set_conn_anchor(connsm);
@@ -4323,6 +4347,10 @@ ble_ll_conn_module_reset(void)
     g_ble_ll_conn_cth_flow.max_buffers = 1;
     g_ble_ll_conn_cth_flow.num_buffers = 1;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    g_ble_ll_conn_css_next_slot = BLE_LL_CONN_CSS_NO_SLOT;
+#endif
 }
 
 /* Initialize the connection module */
@@ -4336,6 +4364,10 @@ ble_ll_conn_module_init(void)
     /* Initialize list of active connections */
     SLIST_INIT(&g_ble_ll_conn_active_list);
     STAILQ_INIT(&g_ble_ll_conn_free_list);
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    SLIST_INIT(&g_ble_ll_conn_css_list);
+#endif
 
     /*
      * Take all the connections off the free memory pool and add them to
