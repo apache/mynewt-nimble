@@ -246,7 +246,8 @@ apollo3_hci_write(hci_drv_write_t *write_buf)
         os_time_delay(1);
     }
 
-    if(AM_HAL_STATUS_SUCCESS != am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_RAW, write_buf->data, write_buf->len)) {
+    if (AM_HAL_STATUS_SUCCESS !=
+        am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_RAW, write_buf->data, write_buf->len)) {
         return -1;
     }
 
@@ -259,7 +260,7 @@ apollo3_ble_hci_acl_tx(struct os_mbuf *om)
     int rc = 0;
     hci_drv_write_t write_buf;
     uint8_t *ptr = (uint8_t *)write_buf.data;
-    
+
     *ptr = HCI_H4_ACL;
     ptr++;
     write_buf.len = 1;
