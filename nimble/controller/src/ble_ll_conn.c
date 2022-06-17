@@ -1991,10 +1991,6 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
     CONN_F_LE_PING_SUPP(connsm) = 1;
-    ble_npl_callout_init(&connsm->auth_pyld_timer,
-                    &g_ble_ll_data.ll_evq,
-                    ble_ll_conn_auth_pyld_timer_cb,
-                    connsm);
 #endif
 
     /* Add to list of active connections */
