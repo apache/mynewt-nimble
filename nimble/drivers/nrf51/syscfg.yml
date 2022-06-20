@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,18 +16,6 @@
 # under the License.
 #
 
-pkg.name: nimble/drivers/nrf51
-pkg.description: BLE driver for nRF51 systems.
-pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
-pkg.keywords:
-    - ble
-    - bluetooth
 
-pkg.apis: ble_driver
-pkg.deps:
-    - nimble
-    - nimble/controller
-
-# allows to override nimble/controller settings
-pkg.subpriority: 1
+syscfg.vals.!BLE_LL_CFG_FEAT_LL_EXT_ADV:
+    BLE_LL_STACK_SIZE: 96
