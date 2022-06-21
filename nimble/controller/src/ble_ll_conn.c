@@ -1471,12 +1471,12 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     connsm = (struct ble_ll_conn_sm *)sch->cb_arg;
     g_ble_ll_conn_cur_sm = connsm;
     BLE_LL_ASSERT(connsm);
+
+    /* In rare cases 1st connection event is fired before LL finished processing
+     * new connection. In such case just skip this connection event and LL will
+     * reschedule to next connection event.
+     */
     if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
-        /* That should not happen. If it does it means connection
-         * is already closed
-         */
-        STATS_INC(ble_ll_conn_stats, sched_start_in_idle);
-        BLE_LL_ASSERT(0);
         ble_ll_conn_current_sm_over(connsm);
         return BLE_LL_SCHED_STATE_DONE;
     }
@@ -1597,10 +1597,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     }
 
     if (rc == BLE_LL_SCHED_STATE_DONE) {
-        ble_ll_event_add(&connsm->conn_ev_end);
-        ble_phy_disable();
-        ble_ll_state_set(BLE_LL_STATE_STANDBY);
-        g_ble_ll_conn_cur_sm = NULL;
+        ble_ll_conn_current_sm_over(connsm);
     }
 
     /* Set time that we last serviced the schedule */
