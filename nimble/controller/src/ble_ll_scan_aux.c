@@ -1237,7 +1237,10 @@ ble_ll_scan_aux_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     rxinfo = &rxhdr->rxinfo;
     rxinfo->user_data = aux;
 
-    if (!crcok) {
+    /* It's possible that we received aux while scan was just being disabled in
+     * LL task. In such case simply ignore aux.
+     */
+    if (!crcok || !ble_ll_scan_enabled()) {
         rxinfo->flags |= BLE_MBUF_HDR_F_IGNORED;
         goto done;
     }
