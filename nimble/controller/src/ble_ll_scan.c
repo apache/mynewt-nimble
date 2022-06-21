@@ -880,10 +880,6 @@ ble_ll_scan_sm_stop(int chk_disable)
 
     OS_ENTER_CRITICAL(sr);
 
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    scansm->connsm = NULL;
-#endif
-
     /* Disable scanning state machine */
     scansm->scan_enabled = 0;
     scansm->restart_timer_needed = 0;
@@ -893,6 +889,10 @@ ble_ll_scan_sm_stop(int chk_disable)
         ble_ll_sched_rmv_elem_type(BLE_LL_SCHED_TYPE_SCAN_AUX, ble_ll_scan_aux_sched_remove);
         scansm->ext_scanning = 0;
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    scansm->connsm = NULL;
 #endif
 
     /* Update backoff if we failed to receive scan response */
