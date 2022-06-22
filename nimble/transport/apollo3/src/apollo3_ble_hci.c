@@ -235,28 +235,9 @@ apollo3_update_wake(void)
  * The payload is placed into a queue and the controller is turned on. When it is ready
  * an interrupt will fire to handle sending a message
  */
-static uint8_t
-apollo3_hci_write(uint8_t type, uint16_t len, uint8_t *data)
+static int
+apollo3_hci_write(hci_drv_write_t *write_buf)
 {
-    uint8_t *write_ptr;
-    hci_drv_write_t write_buf;
-
-    /* comparison compensates for the type byte at index 0. */
-    if (len > (MYNEWT_VAL(BLE_TRANSPORT_APOLLO3_MAX_TX_PACKET)-1)) {
-        return 0;
-    }
-
-    /* Set all of the fields in the hci write structure. */
-    write_buf.len = len + 1;
-
-    write_ptr = (uint8_t *) write_buf.data;
-
-    *write_ptr++ = type;
-
-    for (uint32_t i = 0; i < len; i++) {
-        write_ptr[i] = data[i];
-    }
-
     /* Wake up the BLE controller. */
     apollo3_update_wake();
 
@@ -265,7 +246,10 @@ apollo3_hci_write(uint8_t type, uint16_t len, uint8_t *data)
         os_time_delay(1);
     }
 
-    am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_RAW, write_buf.data, write_buf.len);
+    if (AM_HAL_STATUS_SUCCESS !=
+        am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_RAW, write_buf->data, write_buf->len)) {
+        return -1;
+    }
 
     return 0;
 }
@@ -273,17 +257,18 @@ apollo3_hci_write(uint8_t type, uint16_t len, uint8_t *data)
 static int
 apollo3_ble_hci_acl_tx(struct os_mbuf *om)
 {
-    struct os_mbuf *x;
     int rc = 0;
+    hci_drv_write_t write_buf;
+    uint8_t *ptr = (uint8_t *)write_buf.data;
 
-    x = om;
-    while (x) {
-        rc = apollo3_hci_write(HCI_H4_ACL, x->om_len, x->om_data);
-        if (rc < 0) {
-            break;
-        }
-        x = SLIST_NEXT(x, om_next);
-    }
+    *ptr = HCI_H4_ACL;
+    ptr++;
+    write_buf.len = 1;
+
+    os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), ptr);
+    write_buf.len += OS_MBUF_PKTLEN(om);
+
+    rc = apollo3_hci_write(&write_buf);
 
     os_mbuf_free_chain(om);
 
@@ -327,9 +312,15 @@ ble_transport_to_ll_cmd_impl(void *buf)
 {
     int rc;
     uint8_t *cmd = buf;
-    int len = HCI_CMD_HDR_LEN + cmd[2];
+    hci_drv_write_t write_buf;
+    uint8_t *ptr = (uint8_t *)write_buf.data;
 
-    rc = apollo3_hci_write(HCI_H4_CMD, len, cmd);
+    *ptr = HCI_H4_CMD;
+    ptr++;
+    write_buf.len = HCI_CMD_HDR_LEN + cmd[2] + 1;
+    memcpy(ptr, cmd, write_buf.len - 1);
+
+    rc = apollo3_hci_write(&write_buf);
 
     ble_transport_free(cmd);
 
