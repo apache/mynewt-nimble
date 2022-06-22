@@ -514,7 +514,7 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     uint16_t conn_itvl_min;
     uint16_t conn_itvl_max;
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    uint16_t css_slot_idx;
+    uint16_t css_slot_idx = 0;
 #endif
     int rc;
 
@@ -537,9 +537,11 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    css_slot_idx = ble_ll_conn_css_get_next_slot();
-    if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
-        return BLE_ERR_MEM_CAPACITY;
+    if (ble_ll_sched_css_is_enabled()) {
+        css_slot_idx = ble_ll_conn_css_get_next_slot();
+        if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
     }
 #endif
 
@@ -575,10 +577,14 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    cc_params.conn_itvl = ble_ll_sched_css_get_conn_interval_us();
-    if ((cc_params.conn_itvl < conn_itvl_min) ||
-        (cc_params.conn_itvl > conn_itvl_max)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    if (ble_ll_sched_css_is_enabled()) {
+        cc_params.conn_itvl = ble_ll_sched_css_get_conn_interval_us();
+        if ((cc_params.conn_itvl < conn_itvl_min) ||
+            (cc_params.conn_itvl > conn_itvl_max)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    } else {
+        cc_params.conn_itvl = conn_itvl_max;
     }
 #else
     cc_params.conn_itvl = conn_itvl_max;
@@ -673,10 +679,14 @@ ble_ll_conn_hci_ext_create_parse_params(const struct conn_params *params,
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    cc_params->conn_itvl = ble_ll_sched_css_get_conn_interval_us();
-    if ((cc_params->conn_itvl < conn_itvl_min) ||
-        (cc_params->conn_itvl > conn_itvl_max)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+    if (ble_ll_sched_css_is_enabled()) {
+        cc_params->conn_itvl = ble_ll_sched_css_get_conn_interval_us();
+        if ((cc_params->conn_itvl < conn_itvl_min) ||
+            (cc_params->conn_itvl > conn_itvl_max)) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    } else {
+        cc_params->conn_itvl = conn_itvl_max;
     }
 #else
     cc_params->conn_itvl = conn_itvl_max;
@@ -740,7 +750,7 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     struct ble_ll_conn_sm *connsm;
     const struct init_phy *init_phy;
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    uint16_t css_slot_idx;
+    uint16_t css_slot_idx = 0;
 #endif
     int rc;
 
@@ -765,9 +775,11 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    css_slot_idx = ble_ll_conn_css_get_next_slot();
-    if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
-        return BLE_ERR_MEM_CAPACITY;
+    if (ble_ll_sched_css_is_enabled()) {
+        css_slot_idx = ble_ll_conn_css_get_next_slot();
+        if (css_slot_idx == BLE_LL_CONN_CSS_NO_SLOT) {
+            return BLE_ERR_MEM_CAPACITY;
+        }
     }
 #endif
 
