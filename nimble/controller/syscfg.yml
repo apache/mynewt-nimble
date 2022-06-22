@@ -75,10 +75,10 @@ syscfg.defs:
             number of completed packets event to the host. Rate is in milliseconds.
         value: 2000
 
-    BLE_LL_MFRG_ID:
+    BLE_LL_MANUFACTURER_ID:
         description: >
-            Manufacturer ID. Should be set to unique ID per manufacturer.
-        value: '0xFFFF'
+            Manufacturer ID, as assigned by Bluetooth SIG
+        value: MYNEWT_VAL(BLE_LL_MFRG_ID)
 
     # Configuration items for the number of duplicate advertisers and the
     # number of advertisers from which we have heard a scan response.

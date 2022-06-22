@@ -42,6 +42,10 @@ syscfg.defs:
         description: use BLE_LL_SCAN_AUX_SEGMENT_CNT
         value: 0
         deprecated: 1
+    BLE_LL_MFRG_ID:
+        description: use BLE_LL_MANUFACTURER_ID
+        value: 0x0B65
+        deprecated: 1
 
 # defunct settings (to be removed eventually)
     BLE_DEVICE:
