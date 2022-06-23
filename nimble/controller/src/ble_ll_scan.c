@@ -701,6 +701,14 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type,
     }
     if (BLE_MBUF_HDR_TARGETA_RESOLVED(hdr)) {
         inita_type += 2;
+    } else {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (scansm->ext_scanning) {
+            if (ble_ll_is_rpa(inita, inita_type)) {
+                inita_type = 0xfe;
+            }
+        }
+#endif
     }
 #endif
 
