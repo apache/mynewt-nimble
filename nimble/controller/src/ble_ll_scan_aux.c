@@ -270,6 +270,8 @@ ble_ll_hci_ev_alloc_ext_adv_report_for_aux(struct ble_ll_scan_addr_data *addrd,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         if (addrd->targeta_resolved) {
             report->dir_addr_type += 2;
+        } else if (ble_ll_is_rpa(addrd->targeta, addrd->targeta_type)) {
+            report->dir_addr_type = 0xfe;
         }
 #endif
     }
@@ -451,7 +453,12 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
             report->dir_addr_type = (ble_ll_scan_get_own_addr_type() & 1) + 2;
             memcpy(report->dir_addr, ble_ll_scan_aux_get_own_addr(), 6);
         } else {
-            report->dir_addr_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_MASK);
+            if (ble_ll_is_rpa(eh_data, pdu_hdr & BLE_ADV_PDU_HDR_RXADD_MASK)) {
+                report->dir_addr_type = 0xfe;
+            } else {
+                report->dir_addr_type = !!(pdu_hdr &
+                                           BLE_ADV_PDU_HDR_RXADD_MASK);
+            }
             memcpy(report->dir_addr, eh_data, 6);
         }
 #else
