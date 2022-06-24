@@ -2500,7 +2500,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     /* All indications shall be confirmed, but only these with required
      * security established shall be pass to application
      */
-    if (MYNEWT_VAL(BLE_SM_SC_LVL) >= 2 && !sec_state.encrypted) {
+    if (MYNEWT_VAL(BLE_SM_LVL) >= 2 && !sec_state.encrypted) {
         return 0;
     }
 
@@ -2591,7 +2591,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     /* All indications shall be confirmed, but only these with required
      * security established shall be pass to application
      */
-    if (MYNEWT_VAL(BLE_SM_SC_LVL) >= 2 && !sec_state.encrypted) {
+    if (MYNEWT_VAL(BLE_SM_LVL) >= 2 && !sec_state.encrypted) {
         goto done;
     }
 
