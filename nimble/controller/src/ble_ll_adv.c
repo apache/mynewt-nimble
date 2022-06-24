@@ -1377,7 +1377,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
                                       g_ble_ll_data.chan_map);
 #else
     aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
-                                              g_ble_ll_conn_params.central_chan_map);
+                                              g_ble_ll_data.chan_map);
 #endif
 
     rem_aux_data_len = AUX_DATA_LEN(advsm) - aux_data_offset;
