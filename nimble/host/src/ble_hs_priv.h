@@ -75,6 +75,9 @@ struct os_event;
     MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE_TMO)
 #endif
 
+#define BLE_HS_ATT_PKT_HDR_LEADINGSPACE(len)         (BLE_ATT_BASE_HDR_SZ + len +\
+		                                              BLE_L2CAP_HDR_SZ + BLE_HCI_DATA_HDR_SZ)
+
 STATS_SECT_START(ble_hs_stats)
     STATS_SECT_ENTRY(conn_create)
     STATS_SECT_ENTRY(conn_delete)

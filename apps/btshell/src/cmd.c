@@ -3390,7 +3390,25 @@ static const struct shell_cmd_help gatt_find_included_services_help = {
 };
 
 /*****************************************************************************
- * $gatt-notify                                                                *
+ * $gatt-notify-indicate-custom                                              *
+ *****************************************************************************/
+
+static const struct shell_param gatt_notify_indicate_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>, default 1"},
+    {"attr", "attribute handle, usage: =<UINT16>"},
+    {"bytes","custom bytes to send in the notification, usage: [XX:XX..:XX]"},
+    {"indication", "use indication instead of notification, usage: 0,1, default 0"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help gatt_notify_indicate_help = {
+    .summary = "send custom notification or indication",
+    .usage = NULL,
+    .params = gatt_notify_indicate_params,
+};
+
+/*****************************************************************************
+ * $gatt-notify                                                              *
  *****************************************************************************/
 
 static const struct shell_param gatt_notify_params[] = {
@@ -4386,6 +4404,13 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_gatt_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &gatt_read_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-notify-indicate-custom",
+        .sc_cmd_func = cmd_gatt_notify_indicate_custom,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &gatt_notify_indicate_help,
 #endif
     },
     {

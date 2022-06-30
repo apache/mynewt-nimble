@@ -161,6 +161,8 @@ int btshell_scan_cancel(void);
 int btshell_update_conn(uint16_t conn_handle,
                          struct ble_gap_upd_params *params);
 void btshell_notify(uint16_t attr_handle);
+void btshell_notify_indicate_custom(uint16_t conn_handle, uint16_t attr_handle,
+                                    uint8_t *bytes, uint8_t len, uint8_t indication);
 int btshell_datalen(uint16_t conn_handle, uint16_t tx_octets,
                     uint16_t tx_time);
 int btshell_l2cap_update(uint16_t conn_handle,

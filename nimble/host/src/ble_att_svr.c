@@ -380,7 +380,7 @@ static int
 ble_att_svr_pkt(struct os_mbuf **rxom, struct os_mbuf **out_txom,
                 uint8_t *out_att_err)
 {
-    *out_txom = ble_hs_mbuf_l2cap_pkt();
+    *out_txom = ble_hs_mbuf_att_pkt();
     if (*out_txom != NULL) {
         return 0;
     }
@@ -388,6 +388,9 @@ ble_att_svr_pkt(struct os_mbuf **rxom, struct os_mbuf **out_txom,
     /* Allocation failure.  Reuse receive buffer for response. */
     *out_txom = *rxom;
     *rxom = NULL;
+    if (ble_hs_mbuf_reuse_for_rsp(*out_txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(BLE_ATT_ERROR_RSP_SZ))) {
+        assert(0);
+    }
     *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
     return BLE_HS_ENOMEM;
 }
@@ -442,7 +445,7 @@ ble_att_svr_read_flat(uint16_t conn_handle,
     uint16_t len;
     int rc;
 
-    om = ble_hs_mbuf_l2cap_pkt();
+    om = ble_hs_mbuf_att_pkt();
     if (om == NULL) {
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -586,7 +589,7 @@ ble_att_svr_tx_error_rsp(uint16_t conn_handle, struct os_mbuf *txom,
     BLE_HS_DBG_ASSERT(error_code != 0);
     BLE_HS_DBG_ASSERT(OS_MBUF_PKTLEN(txom) == 0);
 
-    rsp = ble_att_cmd_prepare(BLE_ATT_OP_ERROR_RSP, sizeof(*rsp), txom);
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_ERROR_RSP, sizeof(*rsp), &txom);
     if (rsp == NULL) {
         return BLE_HS_ENOMEM;
     }
@@ -665,7 +668,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, int hs_status, struct os_mbuf *om,
 
             /* Reuse om for error response. */
             if (om == NULL) {
-                om = ble_hs_mbuf_l2cap_pkt();
+                om = ble_hs_mbuf_att_pkt();
             } else {
                 os_mbuf_adj(om, OS_MBUF_PKTLEN(om));
             }
@@ -710,9 +713,10 @@ ble_att_svr_build_mtu_rsp(uint16_t conn_handle, struct os_mbuf **rxom,
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(sizeof(*cmd)));
+    assert(rc == 0);
 
-    cmd = ble_att_cmd_prepare(BLE_ATT_OP_MTU_RSP, sizeof(*cmd), txom);
+    cmd = ble_att_cmd_prepare(BLE_ATT_OP_MTU_RSP, sizeof(*cmd), &txom);
     if (cmd == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -877,12 +881,13 @@ ble_att_svr_build_find_info_rsp(uint16_t conn_handle,
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(sizeof(*rsp)));
+    assert(rc == 0);
 
     /* Write the response base at the start of the buffer.  The format field is
      * unknown at this point; it will be filled in later.
      */
-    rsp = ble_att_cmd_prepare(BLE_ATT_OP_FIND_INFO_RSP, sizeof(*rsp), txom);
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_FIND_INFO_RSP, sizeof(*rsp), &txom);
     if (rsp == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1191,7 +1196,7 @@ ble_att_svr_build_find_type_value_rsp(uint16_t conn_handle,
     }
 
     /* info list is filled later on */
-    buf = ble_att_cmd_prepare(BLE_ATT_OP_FIND_TYPE_VALUE_RSP, 0, txom);
+    buf = ble_att_cmd_prepare(BLE_ATT_OP_FIND_TYPE_VALUE_RSP, 0, &txom);
     if (buf == NULL) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1301,13 +1306,14 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(sizeof(*rsp)));
+    assert(rc == 0);
 
     /* Allocate space for the respose base, but don't fill in the fields.  They
      * get filled in at the end, when we know the value of the length field.
      */
 
-    rsp = ble_att_cmd_prepare(BLE_ATT_OP_READ_TYPE_RSP, sizeof(*rsp), txom);
+    rsp = ble_att_cmd_prepare(BLE_ATT_OP_READ_TYPE_RSP, sizeof(*rsp), &txom);
     if (rsp == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
@@ -1484,9 +1490,10 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(0));
+    assert(rc == 0);
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_RSP, 0, &txom) == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -1534,9 +1541,10 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(0));
+    assert(rc == 0);
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_BLOB_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_BLOB_RSP, 0, &txom) == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -1576,7 +1584,7 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle,
         goto done;
     }
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_MULT_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_READ_MULT_RSP, 0, &txom) == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         *err_handle = 0;
         rc = BLE_HS_ENOMEM;
@@ -1734,11 +1742,12 @@ ble_att_svr_build_read_group_type_rsp(uint16_t conn_handle,
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(sizeof(*rsp)));
+    assert(rc == 0);
 
     /* Reserve space for the response base. */
     rsp = ble_att_cmd_prepare(BLE_ATT_OP_READ_GROUP_TYPE_RSP, sizeof(*rsp),
-                              txom);
+                              &txom);
     if (rsp == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
@@ -1964,7 +1973,7 @@ ble_att_svr_build_write_rsp(struct os_mbuf **rxom, struct os_mbuf **out_txom,
         goto done;
     }
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_WRITE_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_WRITE_RSP, 0, &txom) == NULL) {
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -2093,7 +2102,7 @@ ble_att_svr_prep_alloc(uint8_t *att_err)
     }
 
     memset(entry, 0, sizeof *entry);
-    entry->bape_value = ble_hs_mbuf_l2cap_pkt();
+    entry->bape_value = ble_hs_mbuf_att_pkt();
     if (entry->bape_value == NULL) {
         ble_att_svr_prep_free(entry);
         *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -2428,9 +2437,10 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
-    os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+    rc = ble_hs_mbuf_reuse_for_rsp(txom, BLE_HS_ATT_PKT_HDR_LEADINGSPACE(0));
+    assert(rc == 0);
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_EXEC_WRITE_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_EXEC_WRITE_RSP, 0, &txom) == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         rc = BLE_HS_ENOMEM;
         goto done;
@@ -2532,7 +2542,7 @@ ble_att_svr_build_indicate_rsp(struct os_mbuf **rxom,
         goto done;
     }
 
-    if (ble_att_cmd_prepare(BLE_ATT_OP_INDICATE_RSP, 0, txom) == NULL) {
+    if (ble_att_cmd_prepare(BLE_ATT_OP_INDICATE_RSP, 0, &txom) == NULL) {
         rc = BLE_HS_ENOMEM;
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto done;

@@ -27,16 +27,16 @@
 
 #if NIMBLE_BLE_CONNECT
 void *
-ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom)
+ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf **txom)
 {
     struct ble_att_hdr *hdr;
 
-    if (os_mbuf_extend(txom, sizeof(*hdr) + len) == NULL) {
-        os_mbuf_free_chain(txom);
+    *txom = os_mbuf_prepend(*txom, sizeof(*hdr) + len);
+    if (*txom == NULL) {
         return NULL;
     }
 
-    hdr = (struct ble_att_hdr *)(txom)->om_data;
+    hdr = (struct ble_att_hdr *)(*txom)->om_data;
 
     hdr->opcode = opcode;
 
@@ -44,14 +44,46 @@ ble_att_cmd_prepare(uint8_t opcode, size_t len, struct os_mbuf *txom)
 }
 
 void *
-ble_att_cmd_get(uint8_t opcode, size_t len, struct os_mbuf **txom)
+ble_att_cmd_get(uint8_t opcode, size_t len,
+                struct os_mbuf **in_txdata_om,
+                struct os_mbuf **out_txom)
 {
-    *txom = ble_hs_mbuf_l2cap_pkt();
-    if (*txom == NULL) {
+    bool data_present = false;
+
+    assert(out_txom);
+    assert(*out_txom == NULL);
+
+    if (in_txdata_om && *in_txdata_om) {
+        data_present = true;
+
+        /* Check if data buffer has enough leading space for headers,
+         * If so we are done here
+         */
+        if (OS_MBUF_LEADINGSPACE(*in_txdata_om)
+                    >= BLE_HS_ATT_PKT_HDR_LEADINGSPACE(len)) {
+            *out_txom = *in_txdata_om;
+            *in_txdata_om = NULL;
+            goto done;
+        }
+    }
+
+    /* Need new buffer for a header. */
+    *out_txom = ble_hs_mbuf_hdr_pkt(BLE_HS_ATT_PKT_HDR_LEADINGSPACE(len));
+    if (*out_txom == NULL) {
+        if (data_present) {
+            os_mbuf_free_chain(*in_txdata_om);
+            *in_txdata_om = NULL;
+        }
+        *out_txom = NULL;
         return NULL;
     }
 
-    return ble_att_cmd_prepare(opcode, len, *txom);
+    if (data_present) {
+        os_mbuf_concat(*out_txom, *in_txdata_om);
+    }
+
+done:
+    return ble_att_cmd_prepare(opcode, len, out_txom);
 }
 
 int

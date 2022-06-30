@@ -1935,6 +1935,31 @@ btshell_notify(uint16_t attr_handle)
     ble_gatts_chr_updated(attr_handle);
 }
 
+void
+btshell_notify_indicate_custom(uint16_t conn_handle, uint16_t attr_handle,
+                                uint8_t *bytes, uint8_t len,
+                                uint8_t indication)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    if (len == 0) {
+        ble_gatts_chr_updated(attr_handle);
+        return;
+    }
+
+    om = os_msys_get(len, 0);
+    rc = os_mbuf_append(om, bytes, len);
+    assert(rc == 0);
+
+    if (indication) {
+        rc = ble_gattc_indicate_custom(conn_handle, attr_handle, om);
+    } else {
+        rc = ble_gattc_notify_custom(conn_handle, attr_handle, om);
+    }
+    assert(rc == 0);
+}
+
 int
 btshell_datalen(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time)
 {
