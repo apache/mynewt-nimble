@@ -1222,7 +1222,7 @@ ble_sm_retrieve_ltk(uint16_t ediv, uint64_t rand, uint8_t peer_addr_type,
     struct ble_store_key_sec key_sec;
     int rc;
 
-    /* Tell applicaiton to look up LTK by peer address and ediv/rand pair. */
+    /* Tell application to look up LTK by peer address and ediv/rand pair. */
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr.type = peer_addr_type;
     memcpy(key_sec.peer_addr.val, peer_addr, 6);
