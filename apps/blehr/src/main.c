@@ -111,7 +111,7 @@ blehr_tx_hrate_stop(void)
     os_callout_stop(&blehr_tx_timer);
 }
 
-/* Reset heartrate measurment */
+/* Reset heartrate measurement */
 static void
 blehr_tx_hrate_reset(void)
 {

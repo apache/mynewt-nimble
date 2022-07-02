@@ -1733,7 +1733,7 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
      * and this can happen if we changed connection form uncoded to coded phy.
      * However, the lower bound for conn max tx time (all of them) depends on
      * current phy (uncoded/coded) but it always allows to send at least 27
-     * bytes of payload thus we alwyas return at least 27 from here.
+     * bytes of payload thus we always return at least 27 from here.
      *
      * Reference:
      * Core v5.0, Vol 6, Part B, section 4.5.10
