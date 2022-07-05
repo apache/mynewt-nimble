@@ -1303,7 +1303,7 @@ ble_att_svr_build_read_type_rsp(uint16_t conn_handle,
     *rxom = NULL;
     os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
 
-    /* Allocate space for the respose base, but don't fill in the fields.  They
+    /* Allocate space for the response base, but don't fill in the fields.  They
      * get filled in at the end, when we know the value of the length field.
      */
 

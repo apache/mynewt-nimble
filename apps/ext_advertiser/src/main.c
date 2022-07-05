@@ -421,7 +421,7 @@ static void start_periodic(void)
     ble_addr_t addr;
     int rc;
 
-    /* For periodic we use nstance with non-connectable advertising */
+    /* For periodic we use instance with non-connectable advertising */
     memset (&params, 0, sizeof(params));
 
     /* advertise using random addr */
