@@ -809,7 +809,7 @@ int bt_mesh_net_decode(struct os_mbuf *in, enum bt_mesh_net_if net_if,
 	return 0;
 }
 
-void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
+void bt_mesh_net_recv(struct os_mbuf **data, int8_t rssi,
 		      enum bt_mesh_net_if net_if)
 {
 	struct os_mbuf *buf = NET_BUF_SIMPLE(BT_MESH_NET_MAX_PDU_LEN);
@@ -823,7 +823,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 		goto done;
 	}
 
-	if (bt_mesh_net_decode(data, net_if, &rx, buf)) {
+	if (bt_mesh_net_decode(*data, net_if, &rx, buf)) {
 		goto done;
 	}
 
@@ -835,7 +835,7 @@ void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
 
 	if ((MYNEWT_VAL(BLE_MESH_GATT_PROXY)) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
-		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
+		bt_mesh_proxy_addr_add(*data, rx.ctx.addr);
 
 		if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_DISABLED &&
 		    !rx.local_match) {
