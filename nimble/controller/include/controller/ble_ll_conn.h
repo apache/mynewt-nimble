@@ -310,7 +310,8 @@ struct ble_ll_conn_sm
     uint16_t subrate_base_event;
     uint16_t subrate_factor;
     uint16_t cont_num;
-    uint16_t last_pdu_event;
+    uint16_t cont_num_left;
+    uint8_t has_nonempty_pdu;
 
     union {
         struct ble_ll_conn_subrate_params subrate_trans;
