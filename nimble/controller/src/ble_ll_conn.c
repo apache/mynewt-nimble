@@ -1436,9 +1436,15 @@ conn_tx_pdu:
             }
             STATS_INC(ble_ll_conn_stats, tx_empty_pdus);
         } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+            connsm->has_nonempty_pdu = 1;
+#endif
             STATS_INC(ble_ll_conn_stats, tx_ctrl_pdus);
             STATS_INCN(ble_ll_conn_stats, tx_ctrl_bytes, cur_txlen);
         } else {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+            connsm->has_nonempty_pdu = 1;
+#endif
             STATS_INC(ble_ll_conn_stats, tx_l2cap_pdus);
             STATS_INCN(ble_ll_conn_stats, tx_l2cap_bytes, cur_txlen);
         }
@@ -1918,7 +1924,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->subrate_base_event = 0;
     connsm->subrate_factor = 1;
     connsm->cont_num = 0;
-    connsm->last_pdu_event = 0;
+    connsm->cont_num_left = 0;
+    connsm->has_nonempty_pdu = 0;
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
@@ -2271,10 +2278,25 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     base_event_cntr = connsm->subrate_base_event;
     subrate_factor = connsm->subrate_factor;
 
-    if ((connsm->cont_num > 0) &&
-        (connsm->event_cntr + 1 == connsm->subrate_base_event +
-                                   connsm->subrate_factor) &&
-        (connsm->event_cntr - connsm->last_pdu_event < connsm->cont_num)) {
+    /* We need to restore remaining continuation events counter if a non-empty
+     * PDU was txd/rxd in this connection event. Also we need to set counter to
+     * 0 in case there was no valid PDU at subrated event, since we should not
+     * use continuation events in such case (i.e. ignore any valid PDUs prior
+     * to subrated event).
+     *
+     * Note that has_nonempty_pdu flag is also cleared here since LL may move to
+     * next connection event due to scheduling conflict and there will be no
+     * start callback for new event.
+     */
+    if (connsm->has_nonempty_pdu) {
+        connsm->cont_num_left = connsm->cont_num;
+        connsm->has_nonempty_pdu = 0;
+    } else if (connsm->event_cntr == connsm->subrate_base_event) {
+        connsm->cont_num_left = 0;
+    }
+
+    if (connsm->cont_num_left > 0) {
+        connsm->cont_num_left--;
         next_is_subrated = 0;
     }
 #else
@@ -3344,11 +3366,6 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     acl_len = rxbuf[1];
     llid = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
-    connsm->last_pdu_event = connsm->event_cntr;
-#endif
-
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
         STATS_INC(ble_ll_conn_stats, mic_failures);
@@ -3427,6 +3444,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     if ((llid == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
         goto conn_rx_data_pdu_end;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    connsm->has_nonempty_pdu = 1;
+#endif
 
     if (llid == BLE_LL_LLID_CTRL) {
         /* Process control frame */
