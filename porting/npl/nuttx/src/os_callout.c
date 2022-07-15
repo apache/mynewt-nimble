@@ -44,21 +44,23 @@ callout_handler(pthread_addr_t arg)
 {
     struct ble_npl_callout *c;
 
-    pthread_mutex_lock(&callout_mutex);
-    while (!pending_callout) {
-      pthread_cond_wait(&callout_cond, &callout_mutex);
-    }
+    while (true) {
+        pthread_mutex_lock(&callout_mutex);
+        while (!pending_callout) {
+          pthread_cond_wait(&callout_cond, &callout_mutex);
+        }
 
-    c = pending_callout;
-    pending_callout = NULL;
-    pthread_mutex_unlock(&callout_mutex);
+        c = pending_callout;
+        pending_callout = NULL;
+        pthread_mutex_unlock(&callout_mutex);
 
-    /* Invoke callback */
+        /* Invoke callback */
 
-    if (c->c_evq) {
-        ble_npl_eventq_put(c->c_evq, &c->c_ev);
-    } else {
-        c->c_ev.ev_cb(&c->c_ev);
+        if (c->c_evq) {
+            ble_npl_eventq_put(c->c_evq, &c->c_ev);
+        } else {
+            c->c_ev.ev_cb(&c->c_ev);
+        }
     }
 
     return NULL;
