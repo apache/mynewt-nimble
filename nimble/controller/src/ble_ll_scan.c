@@ -1275,17 +1275,17 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
 
     switch (ble_ll_addr_subtype(addrd->adva, addrd->adva_type)) {
     case BLE_LL_ADDR_SUBTYPE_RPA:
-        if (addrd->rpa_index < 0) {
+        if (addrd->rpa_index >= 0) {
+            addrd->adva_resolved = 1;
+
+            /* Use resolved identity address as advertiser address */
+            rl = &g_ble_ll_resolv_list[addrd->rpa_index];
+            addrd->adv_addr = rl->rl_identity_addr;
+            addrd->adv_addr_type = rl->rl_addr_type;
             break;
         }
 
-        addrd->adva_resolved = 1;
-
-        /* Use resolved identity address as advertiser address */
-        rl = &g_ble_ll_resolv_list[addrd->rpa_index];
-        addrd->adv_addr = rl->rl_identity_addr;
-        addrd->adv_addr_type = rl->rl_addr_type;
-        break;
+        /* fall-through */
     case BLE_LL_ADDR_SUBTYPE_IDENTITY:
         /* If AdvA is an identity address, we need to check if that device was
          * added to RL in order to use proper privacy mode.
