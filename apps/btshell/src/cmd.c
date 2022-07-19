@@ -260,7 +260,7 @@ cmd_advertise_configure(int argc, char **argv)
 
     params.own_addr_type = parse_arg_kv_dflt("own_addr_type",
                                              cmd_own_addr_types,
-                                             BLE_OWN_ADDR_PUBLIC, &rc);
+                                             btshell_get_default_own_addr_type(), &rc);
     if (rc != 0) {
         console_printf("invalid 'own_addr_type' parameter\n");
         return rc;
@@ -473,7 +473,7 @@ static const struct shell_param advertise_configure_params[] = {
     {"directed", "directed advertising, usage: =[0-1], default: 0"},
     {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
+    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
     {"channel_map", "usage: =[0x00-0xff], default: 0"},
     {"filter", "usage: =[none|scan|conn|both], default: none"},
     {"interval_min", "usage: =[0-UINT32_MAX], default: 0"},
@@ -615,7 +615,7 @@ cmd_advertise(int argc, char **argv)
     }
 
     own_addr_type = parse_arg_kv_dflt("own_addr_type", cmd_own_addr_types,
-                                      BLE_OWN_ADDR_PUBLIC, &rc);
+                                      btshell_get_default_own_addr_type(), &rc);
     if (rc != 0) {
         console_printf("invalid 'own_addr_type' parameter\n");
         return rc;
@@ -676,7 +676,7 @@ static const struct shell_param advertise_params[] = {
     {"discov", "discoverable mode, usage: =[non|ltd|gen], default: gen"},
     {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
+    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
     {"channel_map", "usage: =[0x00-0xff], default: 0"},
     {"filter", "usage: =[none|scan|conn|both], default: none"},
     {"interval_min", "usage: =[0-UINT16_MAX], default: 0"},
@@ -752,7 +752,7 @@ cmd_connect(int argc, char **argv)
     }
 
     own_addr_type = parse_arg_kv_dflt("own_addr_type", cmd_own_addr_types,
-                                      BLE_OWN_ADDR_PUBLIC, &rc);
+                                      btshell_get_default_own_addr_type(), &rc);
     if (rc != 0) {
         console_printf("invalid 'own_addr_type' parameter\n");
         return rc;
@@ -969,7 +969,7 @@ static const struct shell_param connect_params[] = {
     {"extended", "usage: =[none|1M|coded|both|all], default: none"},
     {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
     {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
+    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
     {"duration", "usage: =[1-INT32_MAX], default: 0"},
     {"scan_interval", "usage: =[0-UINT16_MAX], default: 0x0010"},
     {"scan_window", "usage: =[0-UINT16_MAX], default: 0x0010"},
@@ -1268,7 +1268,7 @@ cmd_scan(int argc, char **argv)
     }
 
     own_addr_type = parse_arg_kv_dflt("own_addr_type", cmd_own_addr_types,
-                                      BLE_OWN_ADDR_PUBLIC, &rc);
+                                      btshell_get_default_own_addr_type(), &rc);
     if (rc != 0) {
         console_printf("invalid 'own_addr_type' parameter\n");
         return rc;
@@ -1361,7 +1361,7 @@ static const struct shell_param scan_params[] = {
     {"window", "usage: =[0-UINT16_MAX], default: 0"},
     {"filter", "usage: =[no_wl|use_wl|no_wl_inita|use_wl_inita], default: no_wl"},
     {"nodups", "usage: =[0-1], default: 0"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public"},
+    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
     {"extended_duration", "usage: =[0-UINT16_MAX], default: 0"},
     {"extended_period", "usage: =[0-UINT16_MAX], default: 0"},
     {"longrange_interval", "usage: =[0-UINT16_MAX], default: 0"},

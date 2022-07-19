@@ -184,7 +184,7 @@ int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
 
 int btshell_gap_event(struct ble_gap_event *event, void *arg);
 void btshell_sync_stats(uint16_t handle);
-
+uint8_t btshell_get_default_own_addr_type(void);
 /** GATT server. */
 #define GATT_SVR_SVC_ALERT_UUID               0x1811
 #define GATT_SVR_CHR_SUP_NEW_ALERT_CAT_UUID   0x2A47

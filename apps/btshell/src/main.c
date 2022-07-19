@@ -76,6 +76,8 @@
 bssnz_t struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 int btshell_num_conns;
 
+static uint8_t default_own_addr_type;
+
 static os_membuf_t btshell_svc_mem[
     OS_MEMPOOL_SIZE(BTSHELL_MAX_SVCS, sizeof(struct btshell_svc))
 ];
@@ -2131,6 +2133,8 @@ btshell_on_sync(void)
         console_printf("Failed to set identity address\n");
     }
 
+    ble_hs_id_infer_auto(0, &default_own_addr_type);
+
 #if MYNEWT_VAL(BLE_SM_SC)
     int rc;
 
@@ -2567,6 +2571,12 @@ btshell_init_ext_adv_restart(void)
         ext_adv_restart[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
     }
 #endif
+}
+
+uint8_t
+btshell_get_default_own_addr_type(void)
+{
+    return default_own_addr_type;
 }
 
 /**
