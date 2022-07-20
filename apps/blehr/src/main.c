@@ -193,9 +193,6 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
         if (event->subscribe.attr_handle == hrs_hrm_handle) {
             notify_state = event->subscribe.cur_notify;
             blehr_tx_hrate_reset();
-        } else if (event->subscribe.attr_handle != hrs_hrm_handle) {
-            notify_state = event->subscribe.cur_notify;
-            blehr_tx_hrate_stop();
         }
         break;
 
