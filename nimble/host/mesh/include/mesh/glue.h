@@ -589,7 +589,7 @@ static inline void k_sem_reset(struct k_sem *sem)
  * type at this point anymore.
  */
 
-#define BUF_SIZE(pool) (pool->omp_pool->mp_block_size)
+#define BUF_SIZE(pool) OS_ALIGN(pool->omp_pool->mp_block_size, OS_ALIGNMENT)
 
 static inline int net_buf_id(struct os_mbuf *buf)
 {
