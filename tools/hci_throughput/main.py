@@ -43,6 +43,9 @@ def parse_arguments():
     parser.add_argument('-m', '--modes', type=str, nargs="*",
                         help='devices modes - receiver, transmitter',
                         choices=['rx', 'tx'], default=['rx', 'tx'])
+    parser.add_argument('-t', '--transport_directory', type=str, nargs='*',
+                        help='specify hci transport directory path. \
+                        The default is linux socket', default=["default"])
     parser.add_argument('-cf', '--config_file', type=str, nargs="*",
                         help='configuration file for devices',
                         default=["config.yaml"])
@@ -53,18 +56,20 @@ def parse_arguments():
 
     print(f"Indexes: {args.indexes}")
     print(f"Modes: {args.modes}")
+    print(f"Transport directory: {args.transport_directory}")
 
     return args
 
 
-def get_dev_addr_and_type(hci_indexes: list):
+def get_dev_addr_and_type(hci_indexes: list, transport_directory: str):
     if (len(hci_indexes) != 2):
         raise Exception("HCI index error.")
     manager = multiprocessing.Manager()
     addr_list = manager.list()
     check_addrs_proc = multiprocessing.Process(target=check_addr.check_addr,
                                                name="Check addresses",
-                                               args=(hci_indexes, addr_list))
+                                               args=(hci_indexes, addr_list,
+                                                     transport_directory))
     check_addrs_proc.start()
     print("check_addrs_proc pid: ", check_addrs_proc.pid)
     check_addrs_proc.join()
@@ -89,7 +94,8 @@ def change_config_var(filename: str, group: str, variable: str,
                        default_style=None, default_flow_style=False)
 
 
-def get_init_dict(filename: str, args_list: list, modes: list, dir: str):
+def get_init_dict(filename: str, args_list: list, modes: list, dir: str,
+                  transport_directory: str):
     ini = {
         modes[0]:{
             "dev_index": args_list[0][0],
@@ -107,7 +113,8 @@ def get_init_dict(filename: str, args_list: list, modes: list, dir: str):
             "peer_address_type": args_list[0][1],
             "peer_address": args_list[0][2]
         },
-        "test_dir": dir
+        "test_dir": dir,
+        "transport_directory": transport_directory
     }
 
     with open(filename, 'w') as file:
@@ -142,7 +149,8 @@ def run_once(modes: list, cfg_file: str, init_file: str):
 
 
 def testing_variable_influence(cfg: dict, modes: list, cfg_file: str,
-                               init_file: str, init_dict: dict, save_to_file: bool):
+                               init_file: str, init_dict: dict,
+                               save_to_file: bool):
     tp_test_counter = 1
     changed_params_list = []
     averages = []
@@ -201,18 +209,23 @@ def main():
 
     init_file = "init.yaml"
     cfg_file = args.config_file[0]
+    if (type(args.transport_directory) == list):
+        args.transport_directory = args.transport_directory.pop()
+    else:
+        args.transport_directory = args.transport_directory
 
     with open(cfg_file, "r") as file:
         cfg = yaml.safe_load(file)
 
-    addr_list = get_dev_addr_and_type(args.indexes)
+    addr_list = get_dev_addr_and_type(args.indexes, args.transport_directory)
     if len(addr_list) != len(args.indexes):
         raise Exception("No device address received. Check HCI indexes.")
     print(f"Received: {addr_list}")
 
     test_dir_path = util.create_test_directory()
     init_dict = get_init_dict(filename=init_file, args_list=addr_list,
-                                modes=args.modes, dir=test_dir_path)
+                                modes=args.modes, dir=test_dir_path,
+                                transport_directory=args.transport_directory)
 
     util.copy_config_files_to_test_directory([init_file, cfg_file],
                                             init_dict["test_dir"])

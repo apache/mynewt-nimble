@@ -58,7 +58,6 @@ class HCI_User_Channel_Socket():
         self.libc = ctypes.cdll.LoadLibrary('libc.so.6')
         self.rx_buffer_q = multiprocessing.Manager().Queue()
         self.counter = 0
-
         self.device_index = device_index
         self.device_mode = device_mode
         self.hci_socket = self.socket_create()

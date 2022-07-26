@@ -18,21 +18,39 @@
 #
 
 import hci_socket
+import logging
+import traceback
+import sys
+
 
 class TransportFactory:
-	def __init__(self, device_index=None, device_mode=None,
-                 asyncio_loop=None) -> None:
-		if (type(device_index) == int or device_index.isnumeric()):
-			self.transport = hci_socket.HCI_User_Channel_Socket(int(device_index),
-														device_mode, asyncio_loop)
-		else:
-			raise Exception("No such transport found.")
+    def __init__(self, device_index: str = None, device_mode=None,
+                 asyncio_loop=None, transport_directory=None) -> None:
+        if (device_index.isnumeric()):
+            self.transport = hci_socket.HCI_User_Channel_Socket(int(device_index),
+                                                                device_mode,
+                                                                asyncio_loop)
+        else:
+            try:
+                if (transport_directory != "default"):
+                    sys.path.append(transport_directory)
+                    print(sys.path)
+                    import custom_transport
+                    self.transport = custom_transport.Transport(device_index,
+                                                                device_mode,
+                                                                asyncio_loop)
+                else:
+                    raise Exception(
+                        "Device index and transport does not match.")
+            except Exception as e:
+                logging.error(traceback.format_exc())
+                sys.exit()
 
-		self.rx_buffer_q = self.transport.rx_buffer_q
-		self.send = self.transport.send
+        self.rx_buffer_q = self.transport.rx_buffer_q
+        self.send = self.transport.send
 
-	def start(self):
-		self.transport.start()
+    def start(self):
+        self.transport.start()
 
-	def stop(self):
-		self.transport.stop()
+    def stop(self):
+        self.transport.stop()

@@ -33,6 +33,7 @@ import signal
 
 show_tp_plots = False
 test_dir = None
+transport_directory = None
 
 class ParentCalledException(KeyboardInterrupt):
     """ This exception is raised when e.g. parent process sends signal.
@@ -273,7 +274,7 @@ def parse_cfg_files(args) -> dict:
         ini = {
             "own_address": args.own_addr,
             "own_address_type": args.own_addr_type,
-            "dev_index": str(args.dev_idx),
+            "dev_index": args.dev_idx,
             "peer_address": args.peer_addr,
             "peer_address_type": args.peer_addr_type,
             "peer_dev_index": args.peer_dev_idx
@@ -282,8 +283,9 @@ def parse_cfg_files(args) -> dict:
         with open(args.init_file, "r") as file:
             init_file = yaml.safe_load(file)
         ini = init_file[args.mode]
-        global test_dir
+        global test_dir, transport_directory
         test_dir = init_file["test_dir"]
+        transport_directory = init_file["transport_directory"]
 
     with open(args.config_file) as f:
         cfg = yaml.safe_load(f)
@@ -316,7 +318,8 @@ def main():
 
         transport = transport_factory.TransportFactory(device_index=ini['dev_index'],
                                                        device_mode=args.mode,
-                                                       asyncio_loop=loop)
+                                                       asyncio_loop=loop,
+                                                       transport_directory=transport_directory)
 
         signal.signal(signal.SIGTERM, signal_handler)
 
