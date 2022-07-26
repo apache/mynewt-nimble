@@ -34,8 +34,15 @@ def parse_arguments():
                 sudo python check_addr.py -i 0 1 2')
     parser.add_argument('-i', '--indexes', type=str, nargs='*',
                         help='specify hci adapters indexes', default=0)
+    parser.add_argument('-t', '--transport_directory', type=str, nargs='*',
+                        help='specify hci transport directory path', default="default")
     try:
         args = parser.parse_args()
+        if (type(args.transport_directory) == list):
+            args.transport_directory = args.transport_directory.pop()
+        else:
+            args.transport_directory = args.transport_directory
+
     except Exception as e:
         print(traceback.format_exc())
     return args
@@ -64,7 +71,7 @@ async def main(dev: hci_commands.HCI_Commands):
     task.cancel()
     return result
 
-def check_addr(device_indexes: list, addresses: list) -> list:
+def check_addr(device_indexes: list, addresses: list, transport_directory: str) -> list:
     util.configure_logging(f"log/check_addr.log", clear_log_file=True)
 
     logging.info(f"Devices indexes: {device_indexes}")
@@ -73,8 +80,9 @@ def check_addr(device_indexes: list, addresses: list) -> list:
         asyncio.set_event_loop(loop)
         loop.set_debug(True)
 
-        transport = transport_factory.TransportFactory(device_index=index,
-                                                       asyncio_loop=loop)
+        transport = transport_factory.TransportFactory(device_index=str(index),
+                                                       asyncio_loop=loop,
+                                                       transport_directory=transport_directory)
 
         bt_dev = hci_commands.HCI_Commands(send=transport.send,
                                            rx_buffer_q=transport.rx_buffer_q,
@@ -96,7 +104,7 @@ if __name__ == '__main__':
         args = parse_arguments()
         print(args)
         addresses = []
-        addresses = check_addr(args.indexes, addresses)
+        addresses = check_addr(args.indexes, addresses, args.transport_directory)
         print(addresses)
     except Exception as e:
         print(traceback.format_exc())
