@@ -35,7 +35,7 @@ static struct ble_l2cap_coc_srv_list ble_l2cap_coc_srvs;
 
 static os_membuf_t ble_l2cap_coc_srv_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
-                    sizeof (struct ble_l2cap_coc_srv))
+                    sizeof(struct ble_l2cap_coc_srv))
 ];
 
 static struct os_mempool ble_l2cap_coc_srv_pool;
@@ -67,9 +67,9 @@ ble_l2cap_coc_srv_alloc(void)
 
 int
 ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
-                                        ble_l2cap_event_fn *cb, void *cb_arg)
+                            ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    struct ble_l2cap_coc_srv * srv;
+    struct ble_l2cap_coc_srv *srv;
 
     srv = ble_l2cap_coc_srv_alloc();
     if (!srv) {
@@ -113,7 +113,7 @@ ble_l2cap_get_first_available_bit(uint32_t *cid_mask)
          * a) If bit == 0 means all the bits are used
          * b) this function returns 1 + index
          */
-        bit = __builtin_ffs(~(unsigned int)(cid_mask[i]));
+        bit = __builtin_ffs(~(unsigned int) (cid_mask[i]));
         if (bit != 0) {
             break;
         }
@@ -148,8 +148,8 @@ ble_l2cap_coc_srv_find(uint16_t psm)
     srv = NULL;
     STAILQ_FOREACH(cur, &ble_l2cap_coc_srvs, next) {
         if (cur->psm == psm) {
-                srv = cur;
-                break;
+            srv = cur;
+            break;
         }
     }
 
@@ -229,7 +229,7 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
                    "sdu_len=%d, received LE frame=%d, credits=%d, current_sdu_idx=%d\n",
                    sdu_len, om_total, rx->credits, chan->coc_rx.current_sdu_idx);
 
-        os_mbuf_adj(*om , BLE_L2CAP_SDU_SIZE);
+        os_mbuf_adj(*om, BLE_L2CAP_SDU_SIZE);
 
         rc = os_mbuf_appendfrom(rx_sdu, *om, 0, om_total - BLE_L2CAP_SDU_SIZE);
         if (rc != 0) {
@@ -306,7 +306,8 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
 }
 
 void
-ble_l2cap_coc_set_new_mtu_mps(struct ble_l2cap_chan *chan, uint16_t mtu, uint16_t mps)
+ble_l2cap_coc_set_new_mtu_mps(struct ble_l2cap_chan *chan, uint16_t mtu,
+                              uint16_t mps)
 {
     chan->my_coc_mps = mps;
     chan->coc_rx.mtu = mtu;
@@ -378,7 +379,7 @@ ble_l2cap_coc_create_srv_chan(struct ble_hs_conn *conn, uint16_t psm,
 static void
 ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
 {
-    struct ble_l2cap_event event = { };
+    struct ble_l2cap_event event = {};
 
     /* FIXME */
     if (!chan->cb) {
@@ -397,7 +398,7 @@ ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan
 {
     /* PSM 0 is used for fixed channels. */
     if (chan->psm == 0) {
-            return;
+        return;
     }
 
     ble_l2cap_event_coc_disconnected(chan);
@@ -416,7 +417,7 @@ ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan
 static void
 ble_l2cap_event_coc_unstalled(struct ble_l2cap_chan *chan, int status)
 {
-    struct ble_l2cap_event event = { };
+    struct ble_l2cap_event event = {};
 
     if (!chan->cb) {
         return;
@@ -669,10 +670,10 @@ ble_l2cap_coc_init(void)
     STAILQ_INIT(&ble_l2cap_coc_srvs);
 
     return os_mempool_init(&ble_l2cap_coc_srv_pool,
-                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
-                         sizeof (struct ble_l2cap_coc_srv),
-                         ble_l2cap_coc_srv_mem,
-                         "ble_l2cap_coc_srv_pool");
+                           MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                           sizeof(struct ble_l2cap_coc_srv),
+                           ble_l2cap_coc_srv_mem,
+                           "ble_l2cap_coc_srv_pool");
 }
 
 #endif
