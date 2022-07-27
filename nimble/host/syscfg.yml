@@ -79,7 +79,13 @@ syscfg.defs:
             the required HCI and L2CAP headers fit into the smallest available
             MSYS blocks.
         value: 'MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8'
-
+    BLE_L2CAP_COC_SDU_BUFF_COUNT:
+        description: >
+            Defines maximum number of SDU buffers in L2CAP COC endpoints.
+            Provides more currently available credits to receive more data packets.
+        value: 1
+        restrictions:
+            - 'BLE_L2CAP_COC_SDU_BUFF_COUNT > 0'
     BLE_L2CAP_ENHANCED_COC:
         description: >
             Enables LE Enhanced CoC mode.
