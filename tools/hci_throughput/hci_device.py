@@ -35,10 +35,12 @@ show_tp_plots = False
 test_dir = None
 transport_directory = None
 
+
 class ParentCalledException(KeyboardInterrupt):
     """ This exception is raised when e.g. parent process sends signal.
         This allows to terminate processes correctly. """
     pass
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -65,10 +67,12 @@ def parse_arguments():
                         help='device own address type, public e.g.: -oat 0')
     parser.add_argument('-di', '--dev_idx', type=str, nargs="?",
                         help='device own hci index, hci0 e.g.: -ohi 0')
-    parser.add_argument('-pa', '--peer_addr', type=str, nargs="?",
-                        help='peer device address, e.g.: -pa 00:00:00:00:00:00')
-    parser.add_argument('-pat', '--peer_addr_type', type=int, nargs="?",
-                        help='peer device own address type, public e.g.: -pat 0')
+    parser.add_argument(
+        '-pa', '--peer_addr', type=str, nargs="?",
+        help='peer device address, e.g.: -pa 00:00:00:00:00:00')
+    parser.add_argument(
+        '-pat', '--peer_addr_type', type=int, nargs="?",
+        help='peer device own address type, public e.g.: -pat 0')
     parser.add_argument('-pdi', '--peer_dev_idx', type=str, nargs="?",
                         help='peer device index, e.g. hci0: -phi 0')
     parser.add_argument('-cf', '--config_file', type=str, nargs="?",
@@ -83,8 +87,9 @@ def parse_arguments():
         logging.error(traceback.format_exc())
         sys.exit()
 
+
 async def set_phy(bt_dev: hci_commands.HCI_Commands, conn_handle, cfg_phy,
-                          supported_features):
+                  supported_features):
     def error(info):
         print("ERROR: Check log files")
         raise Exception(info, ": Unsupported PHY. Closing...")
@@ -113,6 +118,7 @@ async def set_phy(bt_dev: hci_commands.HCI_Commands, conn_handle, cfg_phy,
     else:
         error("Possible PHY in config.yaml: 1M, 2M, Coded")
 
+
 async def init(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict):
     """ init: Assumed to be the same for all devices """
     asyncio.create_task(bt_dev.rx_buffer_q_wait())
@@ -130,7 +136,7 @@ async def finish(bt_dev: hci_commands.HCI_Commands, cfg: dict):
     logging.info("Received %s good packets", bt_dev.valid_recv_data)
     if bt_dev.tp:
         if show_tp_plots:
-                bt_dev.tp.plot_tp_from_file(sample_time = cfg["tp"]["sample_time"])
+            bt_dev.tp.plot_tp_from_file(sample_time=cfg["tp"]["sample_time"])
         if bt_dev.device_mode == "rx":
             bt_dev.tp.save_average()
             util.copy_log_files_to_test_directory(test_dir)
@@ -156,14 +162,14 @@ async def async_main_rx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
     ############
     adv_params = hci.HCI_Advertising()
     adv_params.set(
-        advertising_interval_min    = cfg["adv"]["advertising_interval_min"],
-        advertising_interval_max    = cfg["adv"]["advertising_interval_max"],
-        advertising_type            = cfg["adv"]["advertising_type"],
-        own_address_type            = ini["own_address_type"],
-        peer_address_type           = ini["peer_address_type"],
-        peer_address                = cfg["adv"]["peer_address"],
-        advertising_channel_map     = cfg["adv"]["advertising_channel_map"],
-        advertising_filter_policy   = cfg["adv"]["advertising_filter_policy"]
+        advertising_interval_min=cfg["adv"]["advertising_interval_min"],
+        advertising_interval_max=cfg["adv"]["advertising_interval_max"],
+        advertising_type=cfg["adv"]["advertising_type"],
+        own_address_type=ini["own_address_type"],
+        peer_address_type=ini["peer_address_type"],
+        peer_address=cfg["adv"]["peer_address"],
+        advertising_channel_map=cfg["adv"]["advertising_channel_map"],
+        advertising_filter_policy=cfg["adv"]["advertising_filter_policy"]
     )
     await bt_dev.cmd_le_set_advertising_params(adv_params)
     await bt_dev.cmd_le_set_advertising_enable(1)
@@ -172,7 +178,6 @@ async def async_main_rx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
 
     await bt_dev.cmd_le_set_data_len(hci.conn_handle, tx_octets=0, tx_time=0)
     await hci_commands.wait_for_event(bt_dev.async_ev_set_data_len, hci.WAIT_FOR_EVENT_TIMEOUT)
-
 
     logging.debug("Before finish event")
     await asyncio.shield(bt_dev.async_ev_recv_data_finish.wait())
@@ -183,23 +188,24 @@ async def async_main_rx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
 
     await finish(bt_dev, cfg)
 
+
 async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict):
     await init(bt_dev, ini, cfg)
 
     conn_params = hci.HCI_Connect()
     conn_params.set(
-        le_scan_interval            = cfg["conn"]["le_scan_interval"],
-        le_scan_window              = cfg["conn"]["le_scan_window"],
-        initiator_filter_policy    = cfg["conn"]["initiator_filter_policy"],
-        peer_address_type           = ini['peer_address_type'],
-        peer_address                = ini['peer_address'],
-        own_address_type            = ini['own_address_type'],
-        connection_interval_min     = cfg["conn"]["connection_interval_min"],
-        connection_interval_max     = cfg["conn"]["connection_interval_max"],
-        max_latency                 = cfg["conn"]["max_latency"],
-        supervision_timeout         = cfg["conn"]["supervision_timeout"],
-        min_ce_length               = cfg["conn"]["min_ce_length"],
-        max_ce_length               = cfg["conn"]["max_ce_length"]
+        le_scan_interval=cfg["conn"]["le_scan_interval"],
+        le_scan_window=cfg["conn"]["le_scan_window"],
+        initiator_filter_policy=cfg["conn"]["initiator_filter_policy"],
+        peer_address_type=ini['peer_address_type'],
+        peer_address=ini['peer_address'],
+        own_address_type=ini['own_address_type'],
+        connection_interval_min=cfg["conn"]["connection_interval_min"],
+        connection_interval_max=cfg["conn"]["connection_interval_max"],
+        max_latency=cfg["conn"]["max_latency"],
+        supervision_timeout=cfg["conn"]["supervision_timeout"],
+        min_ce_length=cfg["conn"]["min_ce_length"],
+        max_ce_length=cfg["conn"]["max_ce_length"]
     )
 
     await bt_dev.cmd_le_create_connection(conn_params)
@@ -239,10 +245,11 @@ async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
 
     while sent_packets < hci.num_of_packets_to_send:
         if packet_credits > 0 and packets_to_send > 0:
-            data, last_value = tp.gen_data(hci.num_of_bytes_to_send, last_value)
+            data, last_value = tp.gen_data(
+                hci.num_of_bytes_to_send, last_value)
             l2cap_data.set(channel_id=0x0044, data=data)
-            acl_data.set(connection_handle=hci.conn_handle, pb_flag=0b00, bc_flag=0b00,
-                            data=l2cap_data.ba_full_message)
+            acl_data.set(connection_handle=hci.conn_handle, pb_flag=0b00,
+                         bc_flag=0b00, data=l2cap_data.ba_full_message)
             await bt_dev.acl_data_send(acl_data)
             async with bt_dev.async_lock_packets_cnt:
                 packets_to_send -= 1
@@ -261,7 +268,6 @@ async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
 
                 packet_credits += hci.num_of_completed_packets_cnt
                 hci.num_of_completed_packets_cnt = 0
-
 
     for timestamp in tx_sent_timestamps:
         bt_dev.tp.append_to_csv_file(*timestamp)
@@ -301,7 +307,8 @@ def parse_cfg_files(args) -> dict:
 
 def signal_handler(signum, frame):
     logging.critical(f"Received signal: {signal.Signals(signum).name}")
-    raise ParentCalledException(f"Received signal: {signal.Signals(signum).name}")
+    raise ParentCalledException(
+        f"Received signal: {signal.Signals(signum).name}")
 
 
 def main():
@@ -316,10 +323,10 @@ def main():
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
 
-        transport = transport_factory.TransportFactory(device_index=ini['dev_index'],
-                                                       device_mode=args.mode,
-                                                       asyncio_loop=loop,
-                                                       transport_directory=transport_directory)
+        transport = transport_factory.TransportFactory(
+            device_index=ini['dev_index'],
+            device_mode=args.mode, asyncio_loop=loop,
+            transport_directory=transport_directory)
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -335,14 +342,13 @@ def main():
         elif args.mode == 'tx':
             loop.run_until_complete(async_main_tx(bt_dev, ini, cfg))
 
-
     except Exception as e:
         logging.error(traceback.format_exc())
     except (KeyboardInterrupt or ParentCalledException):
         logging.critical("Hard exit triggered.")
         logging.error(traceback.format_exc())
     finally:
-        if transport != None:
+        if transport is not None:
             transport.stop()
         sys.exit()
 

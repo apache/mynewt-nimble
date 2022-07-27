@@ -27,6 +27,7 @@ import traceback
 import util
 import transport_factory
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Check HCI device address type and address',
@@ -34,11 +35,16 @@ def parse_arguments():
                 sudo python check_addr.py -i 0 1 2')
     parser.add_argument('-i', '--indexes', type=str, nargs='*',
                         help='specify hci adapters indexes', default=0)
-    parser.add_argument('-t', '--transport_directory', type=str, nargs='*',
-                        help='specify hci transport directory path', default="default")
+    parser.add_argument(
+        '-t',
+        '--transport_directory',
+        type=str,
+        nargs='*',
+        help='specify hci transport directory path',
+        default="default")
     try:
         args = parser.parse_args()
-        if (type(args.transport_directory) == list):
+        if (isinstance(args.transport_directory, list)):
             args.transport_directory = args.transport_directory.pop()
         else:
             args.transport_directory = args.transport_directory
@@ -47,6 +53,7 @@ def parse_arguments():
         print(traceback.format_exc())
     return args
 
+
 async def main(dev: hci_commands.HCI_Commands):
     result = tuple()
     task = asyncio.create_task(dev.rx_buffer_q_wait())
@@ -54,24 +61,31 @@ async def main(dev: hci_commands.HCI_Commands):
     await dev.cmd_read_bd_addr()
 
     if hci.bdaddr != '00:00:00:00:00:00':
-        logging.info("Type public: %s, address: %s", hci.PUBLIC_ADDRESS_TYPE, hci.bdaddr)
+        logging.info("Type public: %s, address: %s",
+                     hci.PUBLIC_ADDRESS_TYPE, hci.bdaddr)
         result = (0, hci.bdaddr)
         print("Public address: ", result)
     else:
         await dev.cmd_vs_read_static_addr()
         if hci.static_addr != '00:00:00:00:00:00':
-            logging.info("Type static random: %s, address: %s", hci.STATIC_RANDOM_ADDRESS_TYPE, hci.static_addr)
+            logging.info("Type static random: %s, address: %s",
+                         hci.STATIC_RANDOM_ADDRESS_TYPE, hci.static_addr)
             result = (1, hci.static_addr)
             print("Static random address: ", result)
         else:
             addr = hci.gen_static_rand_addr()
-            logging.info("Type static random: %s, generated address: %s", hci.STATIC_RANDOM_ADDRESS_TYPE, addr)
+            logging.info("Type static random: %s, generated address: %s",
+                         hci.STATIC_RANDOM_ADDRESS_TYPE, addr)
             result = (1, addr)
             print("Generated static random address: ", result)
     task.cancel()
     return result
 
-def check_addr(device_indexes: list, addresses: list, transport_directory: str) -> list:
+
+def check_addr(
+        device_indexes: list,
+        addresses: list,
+        transport_directory: str) -> list:
     util.configure_logging(f"log/check_addr.log", clear_log_file=True)
 
     logging.info(f"Devices indexes: {device_indexes}")
@@ -80,9 +94,8 @@ def check_addr(device_indexes: list, addresses: list, transport_directory: str) 
         asyncio.set_event_loop(loop)
         loop.set_debug(True)
 
-        transport = transport_factory.TransportFactory(device_index=str(index),
-                                                       asyncio_loop=loop,
-                                                       transport_directory=transport_directory)
+        transport = transport_factory.TransportFactory(device_index=str(
+            index), asyncio_loop=loop, transport_directory=transport_directory)
 
         bt_dev = hci_commands.HCI_Commands(send=transport.send,
                                            rx_buffer_q=transport.rx_buffer_q,
@@ -104,7 +117,8 @@ if __name__ == '__main__':
         args = parse_arguments()
         print(args)
         addresses = []
-        addresses = check_addr(args.indexes, addresses, args.transport_directory)
+        addresses = check_addr(args.indexes, addresses,
+                               args.transport_directory)
         print(addresses)
     except Exception as e:
         print(traceback.format_exc())

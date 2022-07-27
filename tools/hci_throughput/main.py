@@ -30,7 +30,8 @@ import util
 import os
 import math
 
-PROCESS_TIMEOUT = 500 # seconds, adjust if necessary
+PROCESS_TIMEOUT = 500  # seconds, adjust if necessary
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -97,7 +98,7 @@ def change_config_var(filename: str, group: str, variable: str,
 def get_init_dict(filename: str, args_list: list, modes: list, dir: str,
                   transport_directory: str):
     ini = {
-        modes[0]:{
+        modes[0]: {
             "dev_index": args_list[0][0],
             "own_address_type": args_list[0][1],
             "own_address": args_list[0][2],
@@ -105,7 +106,7 @@ def get_init_dict(filename: str, args_list: list, modes: list, dir: str,
             "peer_address_type": args_list[1][1],
             "peer_address": args_list[1][2]
         },
-        modes[1]:{
+        modes[1]: {
             "dev_index": args_list[1][0],
             "own_address_type": args_list[1][1],
             "own_address": args_list[1][2],
@@ -209,7 +210,7 @@ def main():
 
     init_file = "init.yaml"
     cfg_file = args.config_file[0]
-    if (type(args.transport_directory) == list):
+    if (isinstance(args.transport_directory, list)):
         args.transport_directory = args.transport_directory.pop()
     else:
         args.transport_directory = args.transport_directory
@@ -224,11 +225,11 @@ def main():
 
     test_dir_path = util.create_test_directory()
     init_dict = get_init_dict(filename=init_file, args_list=addr_list,
-                                modes=args.modes, dir=test_dir_path,
-                                transport_directory=args.transport_directory)
+                              modes=args.modes, dir=test_dir_path,
+                              transport_directory=args.transport_directory)
 
     util.copy_config_files_to_test_directory([init_file, cfg_file],
-                                            init_dict["test_dir"])
+                                             init_dict["test_dir"])
 
     try:
         if cfg["flag_testing"]:
