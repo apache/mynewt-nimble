@@ -27,9 +27,8 @@ class TransportFactory:
     def __init__(self, device_index: str = None, device_mode=None,
                  asyncio_loop=None, transport_directory=None) -> None:
         if (device_index.isnumeric()):
-            self.transport = hci_socket.HCI_User_Channel_Socket(int(device_index),
-                                                                device_mode,
-                                                                asyncio_loop)
+            self.transport = hci_socket.HCI_User_Channel_Socket(
+                int(device_index), device_mode, asyncio_loop)
         else:
             try:
                 if (transport_directory != "default"):

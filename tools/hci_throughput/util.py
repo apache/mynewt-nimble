@@ -22,6 +22,7 @@ import shutil
 import time
 import os
 
+
 def create_test_directory():
     test_dir_name = "tests/" + time.strftime("%Y_%m_%d_%H_%M_%S")
     path = os.path.join(os.getcwd(), test_dir_name)
@@ -32,8 +33,8 @@ def create_test_directory():
 
 def configure_logging(log_filename, clear_log_file=True):
     format_template = ("%(asctime)s %(threadName)s %(name)s %(levelname)s "
-                        "%(filename)-25s %(lineno)-5s "
-                        "%(funcName)-25s : %(message)s")
+                       "%(filename)-25s %(lineno)-5s "
+                       "%(funcName)-25s : %(message)s")
     logging.basicConfig(format=format_template,
                         filename=log_filename,
                         filemode='a',
@@ -53,10 +54,10 @@ def copy_config_files_to_test_directory(files: list, test_directory: str):
 
 
 def copy_log_files_to_test_directory(dir: str):
-	log_files = ["log/log_rx.log", "log/log_tx.log", "log/check_addr.log"]
-	for file in log_files:
-		shutil.copy(file, dir + "/" + time.strftime("%Y_%m_%d_%H_%M_%S_") +
-					file.replace("log/", ""))
+    log_files = ["log/log_rx.log", "log/log_tx.log", "log/check_addr.log"]
+    for file in log_files:
+        shutil.copy(file, dir + "/" + time.strftime("%Y_%m_%d_%H_%M_%S_") +
+                                file.replace("log/", ""))
 
 
 # Running tests as sudo implies root permissions on created directories/files.

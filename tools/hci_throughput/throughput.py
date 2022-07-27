@@ -24,6 +24,9 @@ import struct
 import argparse
 import traceback
 
+data_types = ['kb', 'kB']
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Plot throughput from the csv file.',
@@ -40,19 +43,18 @@ def parse_arguments():
         print(traceback.format_exc())
     return args
 
-data_types = ['kb', 'kB']
 
-
-def gen_data(num_of_bytes_in_packet: int, last_number_from_previous_data_packet: int):
+def gen_data(num_of_bytes_in_packet: int,
+             last_number_from_previous_data_packet: int):
     counter = last_number_from_previous_data_packet + 1
     rem = num_of_bytes_in_packet % 4
     valid_data_len = int((num_of_bytes_in_packet - rem) / 4)
     total_data_len = valid_data_len + rem
     data = [0] * total_data_len
-    for i in range(rem,total_data_len):
+    for i in range(rem, total_data_len):
         data[i] = counter
         counter += 1
-    last_value = data[len(data)-1]
+    last_value = data[len(data) - 1]
     if rem:
         fmt = "<" + str(rem) + "B" + str(valid_data_len) + "I"
     else:
@@ -62,13 +64,22 @@ def gen_data(num_of_bytes_in_packet: int, last_number_from_previous_data_packet:
 
 
 class Throughput():
-    def __init__(self, name="tp_chart", mode="rx", total_packets_number=0, bytes_number_in_packet=0,
-                 throughput_data_type='kb', flag_plot_packets=True, sample_time=1, test_directory=None):
+    def __init__(
+            self,
+            name="tp_chart",
+            mode="rx",
+            total_packets_number=0,
+            bytes_number_in_packet=0,
+            throughput_data_type='kb',
+            flag_plot_packets=True,
+            sample_time=1,
+            test_directory=None):
         self.name = name
         self.mode = mode
         self.total_packets_number = total_packets_number
         self.bytes_number_in_packet = bytes_number_in_packet
-        self.predef_packet_key = int((bytes_number_in_packet - (bytes_number_in_packet % 4))/4)
+        self.predef_packet_key = int(
+            (bytes_number_in_packet - (bytes_number_in_packet % 4)) / 4)
         self.total_bits_number = bytes_number_in_packet * 8
         assert throughput_data_type in data_types
         self.throughput_data_type = throughput_data_type
@@ -77,38 +88,45 @@ class Throughput():
         self.test_directory = test_directory
 
         if self.test_directory is not None:
-            self.csv_file_name = self.test_directory + "/" + time.strftime("%Y_%m_%d_%H_%M_%S_") + self.name + ".csv"
+            self.csv_file_name = self.test_directory + "/" + \
+                time.strftime("%Y_%m_%d_%H_%M_%S_") + self.name + ".csv"
         else:
-            self.csv_file_name = time.strftime("%Y_%m_%d_%H_%M_%S_") + self.name  + ".csv"
+            self.csv_file_name = time.strftime(
+                "%Y_%m_%d_%H_%M_%S_") + self.name + ".csv"
         self.clean_csv_file()
 
     def calc_throughput(self, current_num, last_num, current_time, last_time):
         if self.throughput_data_type == 'kb':
-            return float((((current_num - last_num) * \
-                self.total_bits_number) / (current_time-last_time))/1000)
+            return float(
+                (((current_num - last_num) * self.total_bits_number) /
+                 (current_time - last_time)) / 1000)
         elif self.throughput_data_type == 'kB':
-            return float((((current_num - last_num) * \
-                self.bytes_number_in_packet) / (current_time-last_time))/1000)
+            return float(
+                (((current_num - last_num) * self.bytes_number_in_packet) /
+                 (current_time - last_time)) / 1000)
 
     def clean_csv_file(self):
-            file = open(self.csv_file_name, 'w')
-            file.write("Time,Packet\n")
+        file = open(self.csv_file_name, 'w')
+        file.write("Time,Packet\n")
 
-    def append_to_csv_file(self, timestamp: float = 0.0, packet_number: int = 0):
+    def append_to_csv_file(
+            self,
+            timestamp: float = 0.0,
+            packet_number: int = 0):
         with open(self.csv_file_name, "a") as file:
             csv_writer = csv.writer(file)
             csv_writer.writerow([timestamp, packet_number])
 
     def get_average(self, packet_numbers, timestamps):
         if self.throughput_data_type == 'kb':
-            average_tp = ((packet_numbers * self.total_bits_number) \
-                                / (timestamps[-1] - timestamps[0]))/1000
+            average_tp = ((packet_numbers * self.total_bits_number)
+                          / (timestamps[-1] - timestamps[0])) / 1000
         elif self.throughput_data_type == 'kB':
-            average_tp = ((packet_numbers * self.bytes_number_in_packet) \
-                                / (timestamps[-1] - timestamps[0]))/1000
+            average_tp = ((packet_numbers * self.bytes_number_in_packet)
+                          / (timestamps[-1] - timestamps[0])) / 1000
         return average_tp
 
-    def save_average(self, tp_csv_filename = None):
+    def save_average(self, tp_csv_filename=None):
         if self.mode == "rx":
             timestamps = []
             packet_numbers = []
@@ -126,14 +144,15 @@ class Throughput():
                     packet_numbers.append(float(row[1]))
 
             average_tp = self.get_average(packet_numbers[-1], timestamps)
-            print(f"Average rx throughput: {round(average_tp, 3)} {self.throughput_data_type}ps")
+            print(
+                f"Average rx throughput: {round(average_tp, 3)} {self.throughput_data_type}ps")
 
             with open(self.test_directory + "/average_rx_tp.csv", "a") as file:
                 csv_writer = csv.writer(file)
                 csv_writer.writerow([average_tp])
 
     def plot_tp_from_file(self, filename: str = None, sample_time: float = 1,
-                            save_to_file: bool = True):
+                          save_to_file: bool = True):
         timestamps = []
         packet_numbers = []
 
@@ -158,7 +177,7 @@ class Throughput():
             if timestamps[i] - last_time > sample_time:
                 throughput.append((timestamps[i],
                                    self.calc_throughput(packet_numbers[i],
-                                                           last_number,
+                                                        last_number,
                                                         timestamps[i],
                                                         last_time)))
                 last_time = timestamps[i]

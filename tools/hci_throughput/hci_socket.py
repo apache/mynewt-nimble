@@ -53,7 +53,10 @@ class HCI_User_Channel_Socket_Error(BaseException):
 class HCI_User_Channel_Socket():
     def __init__(self, device_index=0, device_mode=None,
                  asyncio_loop=None):
-        logging.debug("Device index: %s, Device address: %s", device_index, device_mode)
+        logging.debug(
+            "Device index: %s, Device address: %s",
+            device_index,
+            device_mode)
         self.loop = asyncio_loop
         self.libc = ctypes.cdll.LoadLibrary('libc.so.6')
         self.rx_buffer_q = multiprocessing.Manager().Queue()
@@ -71,22 +74,28 @@ class HCI_User_Channel_Socket():
         new_socket = socket.socket(socket.AF_BLUETOOTH,
                                    socket.SOCK_RAW | socket.SOCK_NONBLOCK,
                                    socket.BTPROTO_HCI)
-        if new_socket == None:
+        if new_socket is None:
             raise HCI_User_Channel_Socket_Error("Socket error. \
                                                 Opening socket failed")
         new_socket.setblocking(False)
-        socket_size = new_socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+        socket_size = new_socket.getsockopt(
+            socket.SOL_SOCKET, socket.SO_RCVBUF)
         logging.info(f"Default socket recv buffer size: {socket_size}")
         new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 500000)
-        socket_size = new_socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+        socket_size = new_socket.getsockopt(
+            socket.SOL_SOCKET, socket.SO_RCVBUF)
         logging.info(f"Set socket recv buffer size: {socket_size}")
         return new_socket
 
     def socket_bind(self, index):
         logging.debug("%s index: %s", self.socket_bind.__name__, index)
         # addr: struct sockaddr_hci from /usr/include/bluetooth/hci.h
-        addr = struct.pack('HHH', hci.AF_BLUETOOTH, index, hci.HCI_CHANNEL_USER)
-        retry_binding=2
+        addr = struct.pack(
+            'HHH',
+            hci.AF_BLUETOOTH,
+            index,
+            hci.HCI_CHANNEL_USER)
+        retry_binding = 2
         for i in range(retry_binding):
             try:
                 bind = self.libc.bind(self.hci_socket.fileno(),
@@ -118,8 +127,8 @@ class HCI_User_Channel_Socket():
                 cnt += len(buff)
                 logging.debug(f"Read from buffer {cnt} bytes")
         except BlockingIOError:
-                logging.info("Buffer empty and ready!")
-                return
+            logging.info("Buffer empty and ready!")
+            return
 
     async def send(self, ba_message):
         await self.loop.sock_sendall(self.hci_socket, ba_message)
@@ -132,10 +141,11 @@ class HCI_User_Channel_Socket():
                     logging.info("listener_ev set")
                     break
                 buffer = self.hci_socket.recv(SOCKET_RECV_BUFFER_SIZE)
-                logging.info(f"Socket recv: {self.counter} th packet with len: {len(buffer)}")
+                logging.info(
+                    f"Socket recv: {self.counter} th packet with len: {len(buffer)}")
                 self.rx_buffer_q.put((buffer, time.perf_counter()))
-                recv_at_once +=1
-                self.counter +=1
+                recv_at_once += 1
+                self.counter += 1
 
             except BlockingIOError:
                 if recv_at_once > 1:
@@ -151,8 +161,8 @@ class HCI_User_Channel_Socket():
         return self.hci_socket.close()
 
     def start(self):
-        self.listener_proc = multiprocessing.Process(target=self.socket_listener,
-                                                     daemon=True)
+        self.listener_proc = multiprocessing.Process(
+            target=self.socket_listener, daemon=True)
         self.listener_proc.start()
         logging.info(f"start listener_proc pid: {self.listener_proc.pid}")
 

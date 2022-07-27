@@ -88,7 +88,7 @@ LE_FEATURE_CODED_PHY = ctypes.c_uint64(0x0800).value
 ############
 # GLOBAL VAR
 ############
-num_of_bytes_to_send = None # based on supported_max_tx_octets
+num_of_bytes_to_send = None  # based on supported_max_tx_octets
 num_of_packets_to_send = None
 
 events_list = []
@@ -103,44 +103,53 @@ max_data_len = None
 phy = None
 ev_num_comp_pkts = None
 num_of_completed_packets_cnt = 0
-num_of_completed_packets_time  = 0
+num_of_completed_packets_time = 0
 read_local_commands = None
 le_read_local_supported_features = None
 
 ############
 # FUNCTIONS
 ############
+
+
 def get_opcode(ogf: int, ocf: int):
-    return ((ocf & 0x03ff)|(ogf << 10))
+    return ((ocf & 0x03ff) | (ogf << 10))
+
 
 def get_ogf_ocf(opcode: int):
     ogf = opcode >> 10
     ocf = opcode & 0x03ff
     return ogf, ocf
 
+
 def cmd_addr_to_ba(addr_str: str):
     return unhexlify("".join(addr_str.split(':')))[::-1]
 
+
 def ba_addr_to_str(addr_ba: bytearray):
     addr_str = addr_ba.hex().upper()
-    return ':'.join(addr_str[i:i+2] for i in range(len(addr_str), -2, -2))[1:]
+    return ':'.join(addr_str[i:i + 2]
+                    for i in range(len(addr_str), -2, -2))[1:]
+
 
 def gen_static_rand_addr():
     while True:
-        x = [random.randint(0,1) for _ in range(0,48)]
+        x = [random.randint(0, 1) for _ in range(0, 48)]
 
         if 0 in x[:-2] and 1 in x[:-2]:
             x[0] = 1
             x[1] = 1
             break
-    addr_int = int("".join([str(x[i]) for i in range(0,len(x))]), 2)
+    addr_int = int("".join([str(x[i]) for i in range(0, len(x))]), 2)
     addr_hex = "{0:0{1}x}".format(addr_int, 12)
-    addr = ":".join(addr_hex[i:i+2] for i in range(0, len(addr_hex), 2))
+    addr = ":".join(addr_hex[i:i + 2] for i in range(0, len(addr_hex), 2))
     return addr.upper()
 
 ############
 # GLOBAL VAR CLASSES
 ############
+
+
 @dataclass
 class Suggested_Dflt_Data_Length():
     status: int
@@ -150,10 +159,15 @@ class Suggested_Dflt_Data_Length():
     def __init__(self):
         self.set()
 
-    def set(self, status=0, suggested_max_tx_octets=0, suggested_max_tx_time=0):
+    def set(
+            self,
+            status=0,
+            suggested_max_tx_octets=0,
+            suggested_max_tx_time=0):
         self.status = status
         self.suggested_max_tx_octets = suggested_max_tx_octets
         self.suggested_max_tx_time = suggested_max_tx_time
+
 
 @dataclass
 class Max_Data_Length():
@@ -173,6 +187,7 @@ class Max_Data_Length():
         self.supported_max_tx_time = supported_max_tx_time
         self.supported_max_rx_octets = supported_max_rx_octets
         self.supported_max_rx_time = supported_max_rx_time
+
 
 @dataclass
 class LE_Read_Buffer_Size:
@@ -194,6 +209,7 @@ class LE_Read_Buffer_Size:
         self.iso_data_packet_len = iso_data_packet_len
         self.total_num_iso_data_packets = total_num_iso_data_packets
 
+
 @dataclass
 class LE_Read_PHY:
     status: int
@@ -210,6 +226,7 @@ class LE_Read_PHY:
         self.tx_phy = tx_phy
         self.rx_phy = rx_phy
 
+
 @dataclass
 class Read_Local_Commands:
     status: int
@@ -218,9 +235,10 @@ class Read_Local_Commands:
     def __init__(self):
         self.set()
 
-    def set(self, rcv_bytes = bytes(65)):
+    def set(self, rcv_bytes=bytes(65)):
         self.status = int(rcv_bytes[0])
         self.supported_commands = rcv_bytes[1:]
+
 
 @dataclass
 class LE_Read_Local_Supported_Features:
@@ -230,13 +248,15 @@ class LE_Read_Local_Supported_Features:
     def __init__(self):
         self.set()
 
-    def set(self, rcv_bytes = bytes(9)):
+    def set(self, rcv_bytes=bytes(9)):
         self.status = int(rcv_bytes[0])
-        self.le_features = ctypes.c_uint64.from_buffer_copy(rcv_bytes[1:]).value
+        self.le_features = ctypes.c_uint64.from_buffer_copy(
+            rcv_bytes[1:]).value
 
 ############
 # EVENTS
 ############
+
 
 @dataclass
 class HCI_Ev_Disconn_Complete:
@@ -252,6 +272,7 @@ class HCI_Ev_Disconn_Complete:
         self.connection_handle = connection_handle
         self.reason = reason
 
+
 @dataclass
 class HCI_Ev_Cmd_Complete:
     num_hci_command_packets: int
@@ -266,6 +287,7 @@ class HCI_Ev_Cmd_Complete:
         self.opcode = opcode
         self.return_parameters = return_parameters
 
+
 @dataclass
 class HCI_Ev_Cmd_Status:
     status: int
@@ -275,10 +297,11 @@ class HCI_Ev_Cmd_Status:
     def __init__(self):
         self.set()
 
-    def set(self, status = 0, num_hci_cmd_packets=0, opcode=0):
+    def set(self, status=0, num_hci_cmd_packets=0, opcode=0):
         self.status = status
         self.num_hci_command_packets = num_hci_cmd_packets
         self.opcode = opcode
+
 
 @dataclass
 class HCI_Ev_LE_Meta:
@@ -327,6 +350,7 @@ class HCI_Ev_LE_Enhanced_Connection_Complete(HCI_Ev_LE_Meta):
         self.supervision_timeout = supervision_timeout
         self.central_clock_accuracy = central_clock_accuracy
 
+
 @dataclass
 class HCI_Ev_LE_Data_Length_Change(HCI_Ev_LE_Meta):
     conn_handle: int
@@ -341,13 +365,14 @@ class HCI_Ev_LE_Data_Length_Change(HCI_Ev_LE_Meta):
 
     def set(self, subevent_code=0, conn_handle=0, max_tx_octets=0,
             max_tx_time=0, max_rx_octets=0, max_rx_time=0, triggered=0):
-            super().set(subevent_code)
-            self.conn_handle = conn_handle
-            self.max_tx_octets = max_tx_octets
-            self.max_tx_time = max_tx_time
-            self.max_rx_octets = max_rx_octets
-            self.max_rx_time = max_rx_time
-            self.triggered = triggered
+        super().set(subevent_code)
+        self.conn_handle = conn_handle
+        self.max_tx_octets = max_tx_octets
+        self.max_tx_time = max_tx_time
+        self.max_rx_octets = max_rx_octets
+        self.max_rx_time = max_rx_time
+        self.triggered = triggered
+
 
 @dataclass
 class HCI_Ev_LE_PHY_Update_Complete(HCI_Ev_LE_Meta):
@@ -367,6 +392,7 @@ class HCI_Ev_LE_PHY_Update_Complete(HCI_Ev_LE_Meta):
         self.tx_phy = tx_phy
         self.rx_phy = rx_phy
 
+
 @dataclass
 class HCI_Number_Of_Completed_Packets:
     num_handles: int
@@ -380,6 +406,7 @@ class HCI_Number_Of_Completed_Packets:
         self.num_handles = num_handles
         self.connection_handle = connection_handle
         self.num_completed_packets = num_completed_packets
+
 
 class HCI_Ev_LE_Chan_Sel_Alg(HCI_Ev_LE_Meta):
     connection_handle: int
@@ -396,6 +423,8 @@ class HCI_Ev_LE_Chan_Sel_Alg(HCI_Ev_LE_Meta):
 ############
 # PARAMETERS
 ############
+
+
 @dataclass
 class HCI_Advertising:
     advertising_interval_min: int
@@ -411,9 +440,9 @@ class HCI_Advertising:
     def __init__(self):
         self.set()
 
-    def set(self, advertising_interval_min=0, advertising_interval_max=0, \
-            advertising_type=0, own_address_type=0, peer_address_type=0, \
-            peer_address='00:00:00:00:00:00', advertising_channel_map=0, \
+    def set(self, advertising_interval_min=0, advertising_interval_max=0,
+            advertising_type=0, own_address_type=0, peer_address_type=0,
+            peer_address='00:00:00:00:00:00', advertising_channel_map=0,
             advertising_filter_policy=0):
         self.advertising_interval_min = advertising_interval_min
         self.advertising_interval_max = advertising_interval_max
@@ -423,12 +452,19 @@ class HCI_Advertising:
         self.peer_address = peer_address
         self.advertising_channel_map = advertising_channel_map
         self.advertising_filter_policy = advertising_filter_policy
-        self.ba_full_message = bytearray(struct.pack('<HHBBBBB',
-            advertising_interval_min, advertising_interval_max,
-            advertising_type, own_address_type, peer_address_type,
-            advertising_channel_map, advertising_filter_policy))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                '<HHBBBBB',
+                advertising_interval_min,
+                advertising_interval_max,
+                advertising_type,
+                own_address_type,
+                peer_address_type,
+                advertising_channel_map,
+                advertising_filter_policy))
         peer_addr_ba = cmd_addr_to_ba(peer_address)
         self.ba_full_message[7:7] = peer_addr_ba
+
 
 @dataclass
 class HCI_Scan:
@@ -449,9 +485,15 @@ class HCI_Scan:
         self.le_scan_window = le_scan_window
         self.own_address_type = own_address_type
         self.scanning_filter_policy = scanning_filter_policy
-        self.ba_full_message = bytearray(struct.pack('<BHHBB',le_scan_type,
-            le_scan_interval, le_scan_window, own_address_type,
-            scanning_filter_policy))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                '<BHHBB',
+                le_scan_type,
+                le_scan_interval,
+                le_scan_window,
+                own_address_type,
+                scanning_filter_policy))
+
 
 @dataclass
 class HCI_Connect:
@@ -472,11 +514,11 @@ class HCI_Connect:
     def __init__(self):
         self.set()
 
-    def set(self, le_scan_interval=0, le_scan_window=0, \
-            initiator_filter_policy=0, peer_address_type=0, \
-            peer_address='00:00:00:00:00:00', own_address_type=0, \
-            connection_interval_min=0, connection_interval_max=0, \
-            max_latency=0, supervision_timeout=0, min_ce_length=0, \
+    def set(self, le_scan_interval=0, le_scan_window=0,
+            initiator_filter_policy=0, peer_address_type=0,
+            peer_address='00:00:00:00:00:00', own_address_type=0,
+            connection_interval_min=0, connection_interval_max=0,
+            max_latency=0, supervision_timeout=0, min_ce_length=0,
             max_ce_length=0):
         self.le_scan_interval = le_scan_interval
         self.le_scan_window = le_scan_window
@@ -490,17 +532,28 @@ class HCI_Connect:
         self.supervision_timeout = supervision_timeout
         self.min_ce_length = min_ce_length
         self.max_ce_length = max_ce_length
-        self.ba_full_message = bytearray(struct.pack('<HHBBBHHHHHH',
-            le_scan_interval, le_scan_window, initiator_filter_policy,
-            peer_address_type, own_address_type, connection_interval_min,
-            connection_interval_max, max_latency,supervision_timeout,
-            min_ce_length, max_ce_length))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                '<HHBBBHHHHHH',
+                le_scan_interval,
+                le_scan_window,
+                initiator_filter_policy,
+                peer_address_type,
+                own_address_type,
+                connection_interval_min,
+                connection_interval_max,
+                max_latency,
+                supervision_timeout,
+                min_ce_length,
+                max_ce_length))
         peer_addr_ba = cmd_addr_to_ba(peer_address)
         self.ba_full_message[6:6] = peer_addr_ba
 
 ############
 # RX / TX
 ############
+
+
 @dataclass
 class HCI_Receive:
     packet_type: int
@@ -508,8 +561,9 @@ class HCI_Receive:
     def __init__(self):
         self.set()
 
-    def set(self,packet_type=0):
+    def set(self, packet_type=0):
         self.packet_type = packet_type
+
 
 @dataclass
 class HCI_Recv_Event_Packet(HCI_Receive):
@@ -521,13 +575,14 @@ class HCI_Recv_Event_Packet(HCI_Receive):
     def __init__(self):
         self.set()
 
-    def set(self,packet_type=0, ev_code=0, packet_len=0,
+    def set(self, packet_type=0, ev_code=0, packet_len=0,
             recv_data=bytearray(256)):
         super().set(packet_type)
         self.ev_code = ev_code
         self.packet_len = packet_len
         self.recv_data = recv_data
         self.recv_data = recv_data[:packet_len]
+
 
 @dataclass
 class HCI_Recv_ACL_Data_Packet(HCI_Receive):
@@ -549,6 +604,7 @@ class HCI_Recv_ACL_Data_Packet(HCI_Receive):
         self.data_total_len = total_data_len
         self.data = data
 
+
 @dataclass
 class HCI_Recv_L2CAP_Data:
     pdu_length: int
@@ -562,6 +618,7 @@ class HCI_Recv_L2CAP_Data:
         self.pdu_length = pdu_length
         self.channel_id = channel_id
         self.data = data
+
 
 @dataclass
 class HCI_Cmd_Send:
@@ -582,9 +639,14 @@ class HCI_Cmd_Send:
         self.opcode = get_opcode(ogf, ocf)
         self.packet_len = len(data)
         self.data = data
-        self.ba_full_message = bytearray(struct.pack('<BHB',
-                            self.packet_type, self.opcode, self.packet_len))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                '<BHB',
+                self.packet_type,
+                self.opcode,
+                self.packet_len))
         self.ba_full_message.extend(self.data)
+
 
 @dataclass
 class HCI_ACL_Data_Send:
@@ -606,13 +668,16 @@ class HCI_ACL_Data_Send:
         self.bc_flag = bc_flag
         self.data_total_length = len(data)
         self.data = data
-        self.ba_full_message = bytearray(struct.pack('<BHH',
-            self.packet_type,
-            ((self.connection_handle & 0x0eff) |
-                (self.pb_flag << 12) |
-                (self.bc_flag << 14)),
-            self.data_total_length))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                '<BHH',
+                self.packet_type,
+                ((self.connection_handle & 0x0eff) | (
+                    self.pb_flag << 12) | (
+                    self.bc_flag << 14)),
+                self.data_total_length))
         self.ba_full_message.extend(self.data)
+
 
 @dataclass
 class L2CAP_Data_Send:
@@ -632,6 +697,9 @@ class L2CAP_Data_Send:
         self.channel_id = channel_id
         self.data = data
         fmt_conf = "<HH"
-        self.ba_full_message = bytearray(struct.pack(fmt_conf,
-                                        self.pdu_length, self.channel_id))
+        self.ba_full_message = bytearray(
+            struct.pack(
+                fmt_conf,
+                self.pdu_length,
+                self.channel_id))
         self.ba_full_message.extend(data)
