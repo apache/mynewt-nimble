@@ -156,8 +156,24 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     tester_set_bit(rp->data, BTP_GAP_OOB_SC_GET_LOCAL_DATA);
     tester_set_bit(rp->data, BTP_GAP_OOB_SC_SET_REMOTE_DATA);
     tester_set_bit(rp->data, BTP_GAP_SET_MITM);
+    tester_set_bit(rp->data, BTP_GAP_SET_FILTER_ACCEPT_LIST);
 
-    *rsp_len = sizeof(*rp) + 4;
+    /* octet 4 */
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    tester_set_bit(rp->data, GAP_PADV_CONFIGURE);
+    tester_set_bit(rp->data, GAP_PADV_START);
+    tester_set_bit(rp->data, GAP_PADV_SET_DATA);
+    tester_set_bit(rp->data, GAP_PADV_CREATE_SYNC);
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_SET_INFO);
+    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_START);
+    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_START);
+#endif
+
+    *rsp_len = sizeof(*rp) + 4 +
+               (MYNEWT_VAL(BLE_PERIODIC_ADV) ||
+                MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER) ? 1 : 0);
 
     return BTP_STATUS_SUCCESS;
 }
@@ -247,10 +263,20 @@ controller_info(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+int adv_duration = 0;
+static struct ble_gap_ext_adv_params adv_params = {
+    .primary_phy = BLE_HCI_LE_PHY_1M,
+    .secondary_phy = BLE_HCI_LE_PHY_1M,
+    .sid = 1,
+    .legacy_pdu = 1,
+};
+#else
 static struct ble_gap_adv_params adv_params = {
     .conn_mode = BLE_GAP_CONN_MODE_NON,
     .disc_mode = BLE_GAP_DISC_MODE_NON,
 };
+#endif
 
 #if MYNEWT_VAL(BTTESTER_PRIVACY_MODE) && MYNEWT_VAL(BTTESTER_USE_NRPA)
 static void rotate_nrpa_cb(struct os_event *ev)
@@ -295,10 +321,20 @@ set_connectable(const void *cmd, uint16_t cmd_len,
 
     if (cp->connectable) {
         current_settings |= BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        adv_params.connectable = 1;
+        adv_params.scannable = 1;
+#else
         adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+#endif
     } else {
         current_settings &= ~BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        adv_params.connectable = 0;
+        adv_params.scannable = 0;
+#else
         adv_params.conn_mode = BLE_GAP_CONN_MODE_NON;
+#endif
     }
 
     rp->current_settings = htole32(current_settings);
@@ -314,6 +350,7 @@ static uint8_t
 set_discoverable(const void *cmd, uint16_t cmd_len,
                  void *rsp, uint16_t *rsp_len)
 {
+#if !MYNEWT_VAL(BLE_EXT_ADV)
     const struct btp_gap_set_discoverable_cmd *cp = cmd;
     struct btp_gap_set_discoverable_rp *rp = rsp;
 
@@ -346,6 +383,9 @@ set_discoverable(const void *cmd, uint16_t cmd_len,
     *rsp_len = sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
+#else
+    return BTP_STATUS_FAILED;
+#endif
 }
 
 static uint8_t
@@ -457,10 +497,27 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    err = ble_gap_adv_set_data(buf, buf_len);
-    if (err != 0) {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    struct os_mbuf *ad_buf;
+
+    adv_params.own_addr_type = own_addr_type;
+    err = ble_gap_ext_adv_configure(0, &adv_params, NULL, gap_event_cb, NULL);
+    if (err) {
+        SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", err);
         return BTP_STATUS_FAILED;
     }
+
+    ad_buf = os_msys_get_pkthdr(BLE_HS_ADV_MAX_SZ, 0);
+
+    if (os_mbuf_append(ad_buf, buf, buf_len)) {
+        os_mbuf_free_chain(ad_buf);
+        return BTP_STATUS_FAILED;
+    }
+
+    err = ble_gap_ext_adv_set_data(0, ad_buf);
+#else
+    err = ble_gap_adv_set_data(buf, buf_len);
+#endif
 
     if (sd_len) {
         buf_len = 0;
@@ -478,9 +535,13 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         }
     }
 
+#if !MYNEWT_VAL(BLE_EXT_ADV)
     if (adv_params.disc_mode == BLE_GAP_DISC_MODE_LTD) {
         duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
     }
+#else
+    adv_duration = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+#endif
 
     /* In NimBLE, own_addr_type is configured in `controller_info` function.
      * Let's just verify restrictions for Privacy options.
@@ -513,8 +574,13 @@ start_advertising(const void *cmd, uint16_t cmd_len,
                          OS_TICKS_PER_SEC * MYNEWT_VAL(BTTESTER_NRPA_TIMEOUT));
     }
 #endif
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    err = ble_gap_ext_adv_start(0, duration_ms, 0);
+#else
     err = ble_gap_adv_start(own_addr_type, NULL, duration_ms,
-                            &adv_params, gap_event_cb, NULL);
+                &adv_params, gap_event_cb, NULL);
+#endif
     if (err) {
         SYS_LOG_ERR("Advertising failed: err %d", err);
         return BTP_STATUS_FAILED;
@@ -533,14 +599,18 @@ stop_advertising(const void *cmd, uint16_t cmd_len,
                  void *rsp, uint16_t *rsp_len)
 {
     struct btp_gap_stop_advertising_rp *rp = rsp;
-    int err;
 
     SYS_LOG_DBG("");
 
-    err = ble_gap_adv_stop();
-    if (err != 0) {
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    if (ble_gap_ext_adv_stop(0) != 0) {
         return BTP_STATUS_FAILED;
     }
+#else
+    if (ble_gap_adv_stop() != 0) {
+        return BTP_STATUS_FAILED;
+    }
+#endif
 
     current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
     rp->current_settings = htole32(current_settings);
@@ -1139,6 +1209,71 @@ bond_lost(uint16_t conn_handle)
                  (uint8_t *) &ev, sizeof(ev));
 }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+static void
+sync_established(struct ble_gap_event *event)
+{
+    struct gap_periodic_sync_est_ev ev;
+
+    ev.status = event->periodic_sync.status;
+    ev.sync_handle = event->periodic_sync.sync_handle;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_SYNC_ESTABLISHED,
+                 (uint8_t *) &ev, sizeof(ev));
+}
+
+static void
+sync_lost(struct ble_gap_event *event)
+{
+    struct gap_periodic_sync_lost_ev ev;
+
+    ev.reason = event->periodic_sync_lost.reason;
+    ev.sync_handle = event->periodic_sync_lost.sync_handle;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_SYNC_LOST,
+                 (uint8_t *) &ev, sizeof(ev));
+}
+
+static void
+periodic_report(struct ble_gap_event *event)
+{
+    struct gap_periodic_report_ev ev;
+
+    ev.sync_handle = event->periodic_report.sync_handle;
+    ev.tx_power = event->periodic_report.tx_power;
+    ev.rssi = event->periodic_report.rssi;
+    ev.cte_type = 0xFF;
+    ev.data_status = event->periodic_report.data_status;
+    ev.data_length = event->periodic_report.data_length;
+    memcpy(ev.data, event->periodic_report.data,
+           event->periodic_report.data_length);
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_REPORT,
+                 (uint8_t *) &ev, sizeof(ev));
+}
+#endif
+
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+static void
+periodic_transfer_received(struct ble_gap_event *event)
+{
+    struct gap_periodic_transfer_recieved_ev ev;
+
+    ev.status = event->periodic_transfer.status;
+    ev.sync_handle = event->periodic_transfer.sync_handle;
+    ev.conn_handle = event->periodic_transfer.conn_handle;
+    ev.service_data = event->periodic_transfer.service_data;
+    ev.sid = event->periodic_transfer.sid;
+    ev.adv_addr = event->periodic_transfer.adv_addr;
+    ev.adv_phy = event->periodic_transfer.adv_phy;
+    ev.per_adv_itvl = event->periodic_transfer.per_adv_itvl;
+    ev.adv_clk_accuracy = event->periodic_transfer.adv_clk_accuracy;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_TRANSFER_RECEIVED,
+                 (uint8_t *) &ev, sizeof(ev));
+}
+#endif
+
 static void
 print_bytes(const uint8_t *bytes, int len)
 {
@@ -1386,6 +1521,58 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                               event->pairing_complete.status);
         }
         break;
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    case BLE_GAP_EVENT_PERIODIC_SYNC:
+        console_printf("Periodic Sync established: "
+                       "sync_handle=%d, status=%d sid=%d adv_addr=",
+                       event->periodic_sync.sync_handle,
+                       event->periodic_sync.status, event->periodic_sync.sid);
+        print_addr(event->periodic_sync.adv_addr.val);
+        console_printf("adv_phy=%d per_adv_ival=%d adv_clk_accuracy=%d\n",
+                       event->periodic_sync.adv_phy,
+                       event->periodic_sync.per_adv_ival,
+                       event->periodic_sync.adv_clk_accuracy);
+        sync_established(event);
+        break;
+    case BLE_GAP_EVENT_PERIODIC_REPORT:
+        console_printf("Periodic Sync Report: "
+                       "sync_handle=%d, tx_power=%d rssi=%d data_status=%d"
+                       "data_length=%d data=",
+                       event->periodic_report.sync_handle,
+                       event->periodic_report.tx_power,
+                       event->periodic_report.rssi,
+                       event->periodic_report.data_status,
+                       event->periodic_report.data_length);
+        print_bytes(event->periodic_report.data,
+                    event->periodic_report.data_length);
+        console_printf("\n");
+        periodic_report(event);
+        break;
+    case BLE_GAP_EVENT_PERIODIC_SYNC_LOST:
+        console_printf("Periodic Sync lost: "
+                       "sync_handle=%d, reason=%d\n",
+                       event->periodic_sync_lost.sync_handle,
+                       event->periodic_sync_lost.reason);
+        sync_lost(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    case BLE_GAP_EVENT_PERIODIC_TRANSFER:
+        console_printf("Periodic transfer received:"
+                           "status=%d, sync_handle=%d, conn_handle=%d, service_data=%d, sid=%d addr=",
+                           event->periodic_transfer.status,
+                           event->periodic_transfer.sync_handle,
+                           event->periodic_transfer.conn_handle,
+                           event->periodic_transfer.service_data,
+                           event->periodic_transfer.sid);
+        print_addr(event->periodic_sync.adv_addr.val);
+        console_printf(" adv_phy=%d, per_adv_itvl=%d, adv_clk_accuracy=%d\n",
+                       event->periodic_transfer.adv_phy,
+                       event->periodic_transfer.per_adv_itvl,
+                       event->periodic_transfer.adv_clk_accuracy);
+        periodic_transfer_received(event);
+        break;
+#endif
     default:
         break;
     }
@@ -1766,6 +1953,213 @@ set_filter_accept_list(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+static uint8_t
+periodic_adv_configure(const void *cmd, uint16_t cmd_len,
+                       void *rsp, uint16_t *rsp_len)
+{
+    struct ble_gap_ext_adv_params ext_params = {0};
+    struct ble_gap_periodic_adv_params params = {0};
+    const struct gap_periodic_adv_configure_cmd *cp = cmd;
+    struct btp_gap_periodic_adv_configure_rp *rp = rsp;
+
+    int rc;
+
+    memset(&params, 0, sizeof(params));
+    params.include_tx_power = cp->flags & 0x01;
+    params.itvl_min = cp->itvl_min;
+    params.itvl_max = cp->itvl_max;
+
+    ext_params.connectable = 0;
+    ext_params.scannable = 0;
+    ext_params.legacy_pdu = 0;
+    ext_params.anonymous = 0;
+    ext_params.own_addr_type = own_addr_type;
+    ext_params.primary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.secondary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.sid = 1;
+
+    rc = ble_gap_ext_adv_configure(1, &ext_params, NULL, gap_event_cb, NULL);
+    if (rc) {
+        SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_periodic_adv_configure(1, &params);
+    if (rc) {
+        SYS_LOG_ERR("Failed to configure periodic advertiser; rc=%d\n"
+                    "params.itvl_min %d\n"
+                    "params.itvl_max %d\n", rc, params.itvl_min,
+                    params.itvl_max);
+        return BTP_STATUS_FAILED;
+    }
+
+    current_settings |= BIT(BTP_GAP_SETTINGS_PERIODIC_ADVERTISING);
+
+    rp->current_settings = htole32(current_settings);
+    *rsp_len = sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+periodic_adv_start(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    int rc;
+    struct btp_gap_periodic_adv_start_rp *rp = rsp;
+
+    rc = ble_gap_ext_adv_start(1, 0, 0);
+    if (rc) {
+        SYS_LOG_ERR("Failed to start extended advertiser; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_periodic_adv_start(1);
+    if (rc) {
+        SYS_LOG_ERR("Failed to start periodic advertiser; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    rp->current_settings = htole32(current_settings);
+    *rsp_len = sizeof(*rp);
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+periodic_adv_set_data(const void *cmd, uint16_t cmd_len,
+                      void *rsp, uint16_t *rsp_len)
+{
+    struct os_mbuf *adv_data;
+    const struct gap_periodic_adv_set_data_cmd *cp = cmd;
+    int rc;
+    uint16_t data_len = le16toh(cp->adv_data_len);
+
+    adv_data = os_msys_get_pkthdr(data_len, 0);
+    if (!adv_data) {
+        return BTP_STATUS_FAILED;
+    }
+
+    if (os_mbuf_append(adv_data, cp->adv_data, data_len)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_periodic_adv_set_data(1, adv_data);
+    if (rc) {
+        SYS_LOG_ERR("Failed to set periodic advertiser data; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+periodic_adv_create_sync(const void *cmd, uint16_t cmd_len,
+                         void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_periodic_adv_create_sync_cmd *cp = cmd;
+    struct ble_gap_periodic_sync_params params;
+    struct ble_gap_disc_params scan_params = {0};
+    int rc;
+
+    params.reports_disabled = BIT(0) & cp->flags;
+    params.skip = cp->skip;
+    params.sync_timeout = cp->sync_timeout;
+    SYS_LOG_DBG("\nreports_disabled %d\nskip %d\nsync_timeout %d\n",
+                params.reports_disabled, params.skip, params.sync_timeout);
+
+    scan_params.passive = 0;
+    scan_params.limited = 0;
+    scan_params.filter_duplicates = 0;
+
+    ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &scan_params, NULL, NULL);
+    rc = ble_gap_periodic_adv_sync_create(&cp->addr, cp->adv_sid, &params,
+                                          gap_event_cb, NULL);
+    if (rc) {
+        SYS_LOG_ERR("Failed to create sync; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+static uint8_t
+periodic_adv_sync_transfer_start(const void *cmd, uint16_t cmd_len,
+                                 void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_periodic_adv_sync_transfer_start_cmd *cp = cmd;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = gap_conn_find_by_addr(&cp->addr, &desc);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_periodic_adv_sync_transfer(cp->sync_handle, desc.conn_handle,
+                                            cp->svc_data);
+    if (rc) {
+        SYS_LOG_ERR("Failed to initiate sync transfer; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+periodic_adv_sync_transfer_recv(const void *cmd, uint16_t cmd_len,
+                                void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_periodic_adv_sync_transfer_recv_cmd *cp = cmd;
+    struct ble_gap_conn_desc desc;
+    struct ble_gap_periodic_sync_params params;
+    int rc;
+
+    rc = gap_conn_find_by_addr(&cp->addr, &desc);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    params.reports_disabled = BIT(0) & cp->flags;
+    params.skip = cp->skip;
+    params.sync_timeout = cp->sync_timeout;
+
+    rc = ble_gap_periodic_adv_sync_receive(desc.conn_handle, &params,
+                                           gap_event_cb, NULL);
+    if (rc) {
+        SYS_LOG_ERR("Failed to receive periodic sync; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+periodic_adv_sync_transfer_set_info(const void *cmd, uint16_t cmd_len,
+                                    void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_periodic_adv_sync_transfer_set_info_cmd *cp = cmd;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = gap_conn_find_by_addr(&cp->addr, &desc);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_periodic_adv_sync_set_info(1, desc.conn_handle,
+                                            cp->svc_data);
+    if (rc) {
+        SYS_LOG_ERR("Failed to set info; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+#endif
+
 static const struct btp_handler handlers[] = {
     {
         .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -1889,6 +2283,46 @@ static const struct btp_handler handlers[] = {
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_filter_accept_list,
     },
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    {
+        .opcode = GAP_PADV_CONFIGURE,
+        .expect_len = sizeof(struct gap_periodic_adv_configure_cmd),
+        .func = periodic_adv_configure,
+    },
+    {
+        .opcode = GAP_PADV_START,
+        .expect_len = sizeof(struct gap_periodic_adv_start_cmd),
+        .func = periodic_adv_start,
+    },
+    {
+        .opcode = GAP_PADV_SET_DATA,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+        .func = periodic_adv_set_data,
+    },
+    {
+        .opcode = GAP_PADV_CREATE_SYNC,
+        .expect_len = sizeof(struct gap_periodic_adv_create_sync_cmd),
+        .func = periodic_adv_create_sync,
+    },
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    {
+        .opcode = GAP_PADV_SYNC_TRANSFER_SET_INFO,
+        .expect_len =
+            sizeof(struct gap_periodic_adv_sync_transfer_set_info_cmd),
+        .func = periodic_adv_sync_transfer_set_info,
+    },
+    {
+        .opcode = GAP_PADV_SYNC_TRANSFER_START,
+        .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_start_cmd),
+        .func = periodic_adv_sync_transfer_start,
+    },
+    {
+        .opcode = GAP_PADV_SYNC_TRANSFER_RECV,
+        .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_recv_cmd),
+        .func = periodic_adv_sync_transfer_recv,
+    },
+#endif
 };
 
 static void
