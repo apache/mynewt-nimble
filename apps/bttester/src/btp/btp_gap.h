@@ -70,6 +70,7 @@ struct btp_gap_read_controller_index_list_rp {
 #define BTP_GAP_SETTINGS_PRIVACY        13
 #define BTP_GAP_SETTINGS_CONTROLLER_CONFIG    14
 #define BTP_GAP_SETTINGS_STATIC_ADDRESS    15
+#define BTP_GAP_SETTINGS_PERIODIC_ADVERTISING 18
 
 #define BTP_GAP_READ_CONTROLLER_INFO    0x03
 struct btp_gap_read_controller_info_rp {
@@ -257,6 +258,67 @@ struct btp_gap_set_filter_accept_list_cmd {
     uint8_t list_len;
     ble_addr_t addrs[];
 } __packed;
+
+#define GAP_PADV_CONFIGURE        0x22
+struct gap_periodic_adv_configure_cmd {
+    uint8_t flags;
+    uint16_t itvl_min;
+    uint16_t itvl_max;
+} __packed;
+
+struct btp_gap_periodic_adv_configure_rp {
+    uint32_t current_settings;
+} __packed;
+
+#define GAP_PADV_START            0x23
+struct gap_periodic_adv_start_cmd {
+    uint8_t flags;
+} __packed;
+
+struct btp_gap_periodic_adv_start_rp {
+    uint32_t current_settings;
+} __packed;
+
+#define GAP_PADV_STOP            0x24
+struct btp_gap_periodic_adv_stop_rp {
+    uint32_t current_settings;
+} __packed;
+
+#define GAP_PADV_SET_DATA        0x25
+struct gap_periodic_adv_set_data_cmd {
+    uint16_t adv_data_len;
+    uint8_t adv_data[0];
+} __packed;
+
+#define GAP_PADV_CREATE_SYNC        0x26
+struct gap_periodic_adv_create_sync_cmd {
+    ble_addr_t addr;
+    uint8_t adv_sid;
+    uint16_t skip;
+    uint16_t sync_timeout;
+    uint8_t flags;
+} __packed;
+
+#define GAP_PADV_SYNC_TRANSFER_SET_INFO        0x27
+struct gap_periodic_adv_sync_transfer_set_info_cmd {
+    ble_addr_t addr;
+    uint16_t svc_data;
+} __packed;
+
+#define GAP_PADV_SYNC_TRANSFER_START        0x28
+struct gap_periodic_adv_sync_transfer_start_cmd {
+    uint16_t sync_handle;
+    ble_addr_t addr;
+    uint16_t svc_data;
+} __packed;
+
+#define GAP_PADV_SYNC_TRANSFER_RECV        0x29
+struct gap_periodic_adv_sync_transfer_recv_cmd {
+    ble_addr_t addr;
+    uint16_t skip;
+    uint16_t sync_timeout;
+    uint8_t flags;
+} __packed;
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
@@ -341,4 +403,41 @@ struct btp_gap_bond_lost_ev {
 struct btp_gap_sec_pairing_failed_ev {
     ble_addr_t address;
     uint8_t reason;
+} __packed;
+
+#define GAP_EV_PERIODIC_SYNC_ESTABLISHED    0x8d
+struct gap_periodic_sync_est_ev {
+    ble_addr_t peer_addr;
+    uint16_t sync_handle;
+    uint8_t status;
+} __packed;
+
+#define GAP_EV_PERIODIC_SYNC_LOST    0x8e
+struct gap_periodic_sync_lost_ev {
+    uint16_t sync_handle;
+    uint8_t reason;
+} __packed;
+
+#define GAP_EV_PERIODIC_REPORT    0x8f
+struct gap_periodic_report_ev {
+    uint16_t sync_handle;
+    int8_t tx_power;
+    int8_t rssi;
+    uint8_t cte_type;
+    uint8_t data_status;
+    uint8_t data_length;
+    uint8_t data[247];
+} __packed;
+
+#define GAP_EV_PERIODIC_TRANSFER_RECEIVED   0x90
+struct gap_periodic_transfer_recieved_ev {
+    uint8_t status;
+    uint16_t sync_handle;
+    uint16_t conn_handle;
+    uint16_t service_data;
+    uint8_t sid;
+    ble_addr_t adv_addr;
+    uint8_t adv_phy;
+    uint16_t per_adv_itvl;
+    uint8_t adv_clk_accuracy;
 } __packed;
