@@ -516,9 +516,17 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
             max_delay = 0;
         }
 
-        ble_ll_sched_css_set_conn_anchor(connsm);
+        /* It's possible that calculated anchor point in current period has
+         * already passed, so just move to next period and recalculate.
+         */
+        connsm->css_period_idx--;
+        do {
+            connsm->css_period_idx++;
+            ble_ll_sched_css_set_conn_anchor(connsm);
+            sch->start_time =
+                    connsm->anchor_point - g_ble_ll_sched_offset_ticks;
+        } while (LL_TMR_LT(sch->start_time, orig_start_time));
 
-        sch->start_time = connsm->anchor_point - g_ble_ll_sched_offset_ticks;
         sch->end_time = connsm->anchor_point;
         sch->remainder = connsm->anchor_point_usecs;
 
