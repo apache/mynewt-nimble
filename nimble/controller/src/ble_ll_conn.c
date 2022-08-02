@@ -2817,20 +2817,6 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     /* Better be a connection state machine! */
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     BLE_LL_ASSERT(connsm);
-    if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
-        /* That should not happen. If it does it means connection
-         * is already closed.
-         * Make sure LL state machine is in idle
-         */
-        STATS_INC(ble_ll_conn_stats, sched_end_in_idle);
-        BLE_LL_ASSERT(0);
-
-        /* Just in case */
-        ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-        ble_ll_scan_chk_resume();
-        return;
-    }
 
     /* Log event end */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CONN_EV_END, connsm->conn_handle,
