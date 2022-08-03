@@ -29,6 +29,7 @@ import csv
 import util
 import os
 import math
+import random
 
 PROCESS_TIMEOUT = 500  # seconds, adjust if necessary
 
@@ -94,6 +95,10 @@ def change_config_var(filename: str, group: str, variable: str,
         yaml.safe_dump(cfg, file, indent=1, sort_keys=False,
                        default_style=None, default_flow_style=False)
 
+def generate_long_term_key():
+    rand_val = random.getrandbits(128)
+    return rand_val.to_bytes(16, byteorder='little')
+
 
 def get_init_dict(filename: str, args_list: list, modes: list, dir: str,
                   transport_directory: str):
@@ -115,7 +120,8 @@ def get_init_dict(filename: str, args_list: list, modes: list, dir: str,
             "peer_address": args_list[0][2]
         },
         "test_dir": dir,
-        "transport_directory": transport_directory
+        "transport_directory": transport_directory,
+        "ltk": hex(random.getrandbits(128))
     }
 
     with open(filename, 'w') as file:
