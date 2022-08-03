@@ -21,6 +21,7 @@ import logging
 import shutil
 import time
 import os
+from pathlib import Path
 
 
 def create_test_directory():
@@ -50,7 +51,7 @@ def configure_logging(log_filename, clear_log_file=True):
 
 def copy_config_files_to_test_directory(files: list, test_directory: str):
     for file in files:
-        shutil.copy(file, test_directory + "/" + file)
+        shutil.copy(file, test_directory + "/" + Path(file).name)
 
 
 def copy_log_files_to_test_directory(dir: str):
