@@ -35,6 +35,7 @@ HCI_EVENT_PACKET = 0x04
 L2CAP_HDR_BYTES = 4
 
 HCI_EV_CODE_DISCONN_CMP = 0x05
+HCI_EV_CODE_ENCRYPTION_CHANGE = 0x08
 HCI_EV_CODE_CMD_CMP = 0x0e
 HCI_EV_CODE_CMD_STATUS = 0x0f
 HCI_EV_CODE_LE_META_EVENT = 0x3e
@@ -42,6 +43,7 @@ HCI_SUBEV_CODE_LE_ENHANCED_CONN_CMP = 0x0a
 HCI_SUBEV_CODE_LE_DATA_LEN_CHANGE = 0x07
 HCI_SUBEV_CODE_LE_PHY_UPDATE_CMP = 0x0c
 HCI_SUBEV_CODE_LE_CHAN_SEL_ALG = 0x14
+HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST = 0x05
 HCI_EV_NUM_COMP_PKTS = 0x13
 
 CONN_FAILED_TO_BE_ESTABLISHED = 0x3e
@@ -66,6 +68,8 @@ OCF_LE_SET_ADVERTISE_ENABLE = 0x000a
 OCF_LE_SET_SCAN_PARAMETERS = 0x000b
 OCF_LE_SET_SCAN_ENABLE = 0x000c
 OCF_LE_CREATE_CONN = 0x000d
+OCF_LE_ENABLE_ENCRYPTION = 0x0019
+OCF_LE_LONG_TERM_KEY_REQUEST_REPLY = 0x001A
 OCF_LE_SET_DATA_LEN = 0x0022
 OCF_LE_READ_SUGGESTED_DFLT_DATA_LEN = 0x0023
 OCF_LE_READ_MAX_DATA_LEN = 0x002f
@@ -106,6 +110,7 @@ num_of_completed_packets_cnt = 0
 num_of_completed_packets_time = 0
 read_local_commands = None
 le_read_local_supported_features = None
+ltk = None
 
 ############
 # FUNCTIONS
@@ -304,6 +309,21 @@ class HCI_Ev_Cmd_Status:
 
 
 @dataclass
+class HCI_Ev_LE_Encryption_Change():
+    status: int
+    connection_handle: int
+    encryption_enabled: int
+
+    def __init__(self):
+        self.set()
+
+    def set(self, status=0, connection_handle=0, encryption_enabled=0):
+        self.status = status
+        self.connection_handle = connection_handle
+        self.encryption_enabled = encryption_enabled
+
+
+@dataclass
 class HCI_Ev_LE_Meta:
     subevent_code: int
 
@@ -372,6 +392,23 @@ class HCI_Ev_LE_Data_Length_Change(HCI_Ev_LE_Meta):
         self.max_rx_octets = max_rx_octets
         self.max_rx_time = max_rx_time
         self.triggered = triggered
+
+
+@dataclass
+class HCI_Ev_LE_Long_Term_Key_Request(HCI_Ev_LE_Meta):
+    conn_handle: int
+    random_number: int
+    encrypted_diversifier: int
+
+    def __init__(self):
+        self.set()
+
+    def set(self, subevent_code=0, conn_handle=0, random_number=0,
+            encrypted_diversifier=0):
+        super().set(subevent_code)
+        self.conn_handle = conn_handle
+        self.random_number = random_number
+        self.encrypted_diversifier = encrypted_diversifier
 
 
 @dataclass

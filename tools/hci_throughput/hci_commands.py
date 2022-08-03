@@ -47,6 +47,7 @@ class HCI_Commands():
         self.async_sem_cmd = asyncio.Semaphore()
         self.async_ev_cmd_end = asyncio.Event()
         self.async_ev_connected = asyncio.Event()
+        self.async_ev_encryption_change = asyncio.Event()
         self.async_ev_set_data_len = asyncio.Event()
         self.async_ev_update_phy = asyncio.Event()
         self.async_ev_num_cmp_pckts = asyncio.Event()
@@ -219,6 +220,41 @@ class HCI_Commands():
             await self.async_ev_cmd_end.wait()
             self.async_ev_cmd_end.clear()
 
+    async def cmd_le_enable_encryption(self, conn_handle: int, random_number: int, ediv: int, ltk: int):
+        async with self.async_sem_cmd:
+            hci.ltk = ltk
+            random_number_bytes = random_number.to_bytes(8, byteorder='little')
+            ltk_bytes = ltk.to_bytes(16, byteorder='little')
+            data_bytes = struct.pack("<H", conn_handle) + random_number_bytes + \
+                struct.pack("<H", ediv) + ltk_bytes
+            self.hci_send_cmd.set(
+                hci.OGF_LE_CTL,
+                hci.OCF_LE_ENABLE_ENCRYPTION,
+                data_bytes)
+            logging.debug("%s %s", self.cmd_le_enable_encryption.__name__,
+                          self.hci_send_cmd)
+            await self.send(self.hci_send_cmd.ba_full_message)
+            await self.async_ev_cmd_end.wait()
+            self.async_ev_cmd_end.clear()
+
+    async def cmd_le_long_term_key_request_reply(self, conn_handle: int, ltk: int):
+        async with self.async_sem_cmd:
+            ltk_bytes = ltk.to_bytes(16, byteorder='little')
+            data_bytes = struct.pack('<H', conn_handle) + ltk_bytes
+            self.hci_send_cmd.set(
+                hci.OGF_LE_CTL,
+                hci.OCF_LE_LONG_TERM_KEY_REQUEST_REPLY,
+                data_bytes)
+            logging.debug(
+                "%s %s",
+                self.cmd_le_long_term_key_request_reply.__name__,
+                self.hci_send_cmd)
+            await self.send(self.hci_send_cmd.ba_full_message)
+            # Is run from another command,
+            # don't need to wait for cmd complete.
+            # await self.async_ev_cmd_end.wait()
+            # self.async_ev_cmd_end.clear()
+
     async def cmd_le_set_data_len(self, conn_handle: int, tx_octets: int, tx_time: int):
         """ conn_handle: Range 0x0000 to 0x0EFF
             tx_octets: Range 0x001B to 0x00FB
@@ -358,6 +394,11 @@ class HCI_Commands():
         ev_cmd_stat.set(*struct.unpack('<BBH', bytes(data[:4])))
         return ev_cmd_stat
 
+    def parse_ev_encryption_change(self, data: bytes):
+        ev_encryption_change = hci.HCI_Ev_LE_Encryption_Change()
+        ev_encryption_change.set(*struct.unpack('<BHB', bytes(data[:4])))
+        return ev_encryption_change
+
     def parse_ev_le_meta(self, data: bytes):
         ev_le_meta = hci.HCI_Ev_LE_Meta()
         ev_le_meta.set(data[0])
@@ -376,6 +417,12 @@ class HCI_Commands():
         ev_le_data_len_change = hci.HCI_Ev_LE_Data_Length_Change()
         ev_le_data_len_change.set(*struct.unpack('<BHHHHH', bytes(data[:11])))
         return ev_le_data_len_change
+
+    def parse_subev_le_long_term_key_request(self, data: bytes):
+        ev_le_long_term_key_request = hci.HCI_Ev_LE_Long_Term_Key_Request()
+        ev_le_long_term_key_request.set(
+            *struct.unpack('<BHQH', bytes(data[:13])))
+        return ev_le_long_term_key_request
 
     def parse_subev_le_phy_update_cmp(self, data: bytes):
         le_phy_update_cmp = hci.HCI_Ev_LE_PHY_Update_Complete()
@@ -533,6 +580,15 @@ class HCI_Commands():
                                     self.hci_recv_ev_packet.current_event))
             return hci.HCI_SUBEV_CODE_LE_ENHANCED_CONN_CMP
 
+        elif subev_code == hci.HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST:
+            self.hci_recv_ev_packet.current_event = \
+                self.parse_subev_le_long_term_key_request(
+                    self.hci_recv_ev_packet.recv_data)
+            hci.events_list.append(
+                (hci.HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST,
+                 self.hci_recv_ev_packet.current_event))
+            return hci.HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST
+
         elif subev_code == hci.HCI_SUBEV_CODE_LE_DATA_LEN_CHANGE:
             self.hci_recv_ev_packet.current_event = \
                 self.parse_subev_le_data_len_change(
@@ -583,6 +639,14 @@ class HCI_Commands():
             hci.events_list.append((hci.HCI_EV_CODE_CMD_STATUS,
                                     self.hci_recv_ev_packet.current_event))
             return hci.HCI_EV_CODE_CMD_STATUS
+
+        elif self.hci_recv_ev_packet.ev_code == hci.HCI_EV_CODE_ENCRYPTION_CHANGE:
+            self.hci_recv_ev_packet.current_event = \
+                self.parse_ev_encryption_change(
+                    self.hci_recv_ev_packet.recv_data)
+            hci.events_list.append((hci.HCI_EV_CODE_ENCRYPTION_CHANGE,
+                                    self.hci_recv_ev_packet.current_event))
+            return hci.HCI_EV_CODE_ENCRYPTION_CHANGE
 
         elif self.hci_recv_ev_packet.ev_code == hci.HCI_EV_CODE_LE_META_EVENT:
             self.hci_recv_ev_packet.current_event = \
@@ -647,6 +711,19 @@ class HCI_Commands():
                     logging.error("Status: %s for event: %s", status, curr_ev)
                 self.async_ev_cmd_end.set()
 
+        elif event_code == hci.HCI_EV_CODE_ENCRYPTION_CHANGE:
+            logging.debug(
+                "Received code: %s - HCI_EV_CODE_ENCRYPTION_CHANGE",
+                event_code)
+            status = curr_ev.status
+            encryption_enabled = curr_ev.encryption_enabled
+            if (status == 0 and encryption_enabled != 0):
+                self.async_ev_encryption_change.set()
+            else:
+                raise Exception(
+                    "Encryption failed. Status: %d, encryption enabled: %d",
+                    status, encryption_enabled)
+
         elif event_code == hci.HCI_EV_CODE_LE_META_EVENT:
             logging.debug(
                 "Received code: %s - HCI_EV_CODE_LE_META_EVENT", event_code)
@@ -677,6 +754,13 @@ class HCI_Commands():
                 logging.debug(
                     "Received subev code: %s - HCI_SUBEV_CODE_LE_CHAN_SEL_ALG",
                     subev_code)
+
+            elif subev_code == hci.HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST:
+                logging.debug(
+                    "Received subev code: %s - HCI_SUBEV_CODE_LE_LONG_TERM_KEY_REQUEST",
+                    subev_code)
+                await self.cmd_le_long_term_key_request_reply(
+                    hci.conn_handle, hci.ltk)
 
             elif subev_code < 0:
                 logging.warning(f"Unknown received subevent: {buffer}\n")

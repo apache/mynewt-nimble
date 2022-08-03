@@ -43,6 +43,7 @@ adv:
   peer_address: 00:00:00:00:00:00
   advertising_channel_map: 7
   advertising_filter_policy: 0
+enable_encryption: true
 conn:
   le_scan_interval: 2400
   le_scan_window: 2400

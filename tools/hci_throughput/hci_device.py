@@ -218,6 +218,10 @@ async def async_main_tx(bt_dev: hci_commands.HCI_Commands, ini: dict, cfg: dict)
                   hci.le_read_local_supported_features.le_features)
     await hci_commands.wait_for_event(bt_dev.async_ev_update_phy, hci.WAIT_FOR_EVENT_TIMEOUT)
 
+    if cfg["enable_encryption"]:
+        await bt_dev.cmd_le_enable_encryption(hci.conn_handle, random_number=0, ediv=0, ltk=hci.ltk)
+        await hci_commands.wait_for_event(bt_dev.async_ev_encryption_change, 10)
+
     ############
     # L2CAP SEND
     ############
@@ -289,9 +293,10 @@ def parse_cfg_files(args) -> dict:
         with open(args.init_file, "r") as file:
             init_file = yaml.safe_load(file)
         ini = init_file[args.mode]
-        global test_dir, transport_directory
+        global test_dir, transport_directory, ltk
         test_dir = init_file["test_dir"]
         transport_directory = init_file["transport_directory"]
+        hci.ltk = int(init_file["ltk"], 16)
 
     with open(args.config_file) as f:
         cfg = yaml.safe_load(f)
