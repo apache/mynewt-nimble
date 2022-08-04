@@ -1100,6 +1100,10 @@ ble_phy_rx_end_isr(void)
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (g_ble_phy_data.phy_encrypted) {
+            while (NRF_CCM->EVENTS_ENDCRYPT == 0) {
+                /* Make sure CCM finished */
+            };
+
             /* Only set MIC failure flag if frame is not zero length */
             if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
@@ -1112,16 +1116,6 @@ ble_phy_rx_end_isr(void)
              * handle it? For now, just set CRC error flags
              */
             if (NRF_CCM->EVENTS_ERROR) {
-                STATS_INC(ble_phy_stats, rx_hw_err);
-                ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
-            }
-
-            /*
-             * XXX: This is a total hack work-around for now but I dont
-             * know what else to do. If ENDCRYPT is not set and we are
-             * encrypted we need to not trust this frame and drop it.
-             */
-            if (NRF_CCM->EVENTS_ENDCRYPT == 0) {
                 STATS_INC(ble_phy_stats, rx_hw_err);
                 ble_hdr->rxinfo.flags &= ~BLE_MBUF_HDR_F_CRC_OK;
             }
