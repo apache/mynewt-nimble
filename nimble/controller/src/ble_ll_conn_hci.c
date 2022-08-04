@@ -1475,8 +1475,8 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
     struct ble_hci_le_set_data_len_rp *rsp = (void *) rspbuf;
     int rc;
     uint16_t handle;
-    uint16_t txoctets;
-    uint16_t txtime;
+    uint16_t tx_octets;
+    uint16_t tx_time;
     struct ble_ll_conn_sm *connsm;
 
     if (len != sizeof(*cmd)) {
@@ -1491,42 +1491,19 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    txoctets = le16toh(cmd->tx_octets);
-    txtime = le16toh(cmd->tx_time);
+    tx_octets = le16toh(cmd->tx_octets);
+    tx_time = le16toh(cmd->tx_time);
 
-    /* Make sure it is valid */
-    if (!ble_ll_chk_txrx_octets(txoctets) ||
-        !ble_ll_chk_txrx_time(txtime)) {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
-        goto done;
+    if (!ble_ll_hci_check_dle(tx_octets, tx_time)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    /*
-     * Keep original value requested by host since we may want to recalculate
-     * MaxTxTime after PHY changes between coded and uncoded.
-     */
-    connsm->host_req_max_tx_time = txtime;
-
-    /* If peer does not support coded, we cannot use value larger than 2120us */
-    if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
-        txtime = min(txtime, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
-    }
-#endif
-
-    rc = BLE_ERR_SUCCESS;
-    if (connsm->max_tx_time != txtime ||
-        connsm->max_tx_octets != txoctets) {
-
-        connsm->max_tx_time = txtime;
-        connsm->max_tx_octets = txoctets;
-
-        ble_ll_ctrl_initiate_dle(connsm);
-    }
+    rc = ble_ll_conn_set_data_len(connsm, tx_octets, tx_time, 0, 0);
 
 done:
     rsp->conn_handle = htole16(handle);
     *rsplen = sizeof(*rsp);
+
     return rc;
 }
 #endif

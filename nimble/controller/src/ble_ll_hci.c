@@ -435,6 +435,15 @@ ble_ll_hci_le_set_def_phy(const uint8_t *cmdbuf, uint8_t len)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+int
+ble_ll_hci_check_dle(uint16_t max_octets, uint16_t max_time)
+{
+    return (max_octets >= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+           (max_octets <= BLE_LL_CONN_SUPP_BYTES_MAX) &&
+           (max_time >= BLE_LL_CONN_SUPP_TIME_MIN) &&
+           (max_time <= BLE_LL_CONN_SUPP_TIME_MAX);
+}
+
 /**
  * HCI write suggested default data length command.
  *
@@ -453,51 +462,47 @@ ble_ll_hci_le_set_def_phy(const uint8_t *cmdbuf, uint8_t len)
 static int
 ble_ll_hci_le_wr_sugg_data_len(const uint8_t *cmdbuf, uint8_t len)
 {
-    const struct ble_hci_le_wr_sugg_def_data_len_cp *cmd = (const void*) cmdbuf;
-    uint16_t tx_oct;
+    const struct ble_hci_le_wr_sugg_def_data_len_cp *cmd = (const void *)cmdbuf;
+    uint16_t tx_octets;
     uint16_t tx_time;
-    int rc;
 
     if (len != sizeof(*cmd)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
     /* Get suggested octets and time */
-    tx_oct = le16toh(cmd->max_tx_octets);
+    tx_octets = le16toh(cmd->max_tx_octets);
     tx_time = le16toh(cmd->max_tx_time);
 
-    /* If valid, write into suggested and change connection initial times */
-    if (ble_ll_chk_txrx_octets(tx_oct) && ble_ll_chk_txrx_time(tx_time)) {
-        g_ble_ll_conn_params.sugg_tx_octets = (uint8_t)tx_oct;
-        g_ble_ll_conn_params.sugg_tx_time = tx_time;
-
-        /*
-         * We can disregard host suggestion, but we are a nice controller so
-         * let's use host suggestion, unless they exceed max supported values
-         * in which case we just use our max.
-         */
-        g_ble_ll_conn_params.conn_init_max_tx_octets =
-                        min(tx_oct, g_ble_ll_conn_params.supp_max_tx_octets);
-        g_ble_ll_conn_params.conn_init_max_tx_time =
-                        min(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
-
-        /*
-         * Use the same for coded and uncoded defaults. These are used when PHY
-         * parameters are initialized and we want to use values overridden by
-         * host. Make sure we do not exceed max supported time on uncoded.
-         */
-        g_ble_ll_conn_params.conn_init_max_tx_time_uncoded =
-                                min(BLE_LL_CONN_SUPP_TIME_MAX_UNCODED,
-                                    g_ble_ll_conn_params.conn_init_max_tx_time);
-        g_ble_ll_conn_params.conn_init_max_tx_time_coded =
-                                g_ble_ll_conn_params.conn_init_max_tx_time;
-
-        rc = BLE_ERR_SUCCESS;
-    } else {
-        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    if (!ble_ll_hci_check_dle(tx_octets, tx_time)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    return rc;
+    g_ble_ll_conn_params.sugg_tx_octets = tx_octets;
+    g_ble_ll_conn_params.sugg_tx_time = tx_time;
+
+    /*
+     * We can disregard host suggestion, but we are a nice controller so
+     * let's use host suggestion, unless they exceed max supported values
+     * in which case we just use our max.
+     */
+    g_ble_ll_conn_params.conn_init_max_tx_octets =
+        min(tx_octets, g_ble_ll_conn_params.supp_max_tx_octets);
+    g_ble_ll_conn_params.conn_init_max_tx_time =
+        min(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
+
+    /*
+     * Use the same for coded and uncoded defaults. These are used when PHY
+     * parameters are initialized and we want to use values overridden by
+     * host. Make sure we do not exceed max supported time on uncoded.
+     */
+    g_ble_ll_conn_params.conn_init_max_tx_time_uncoded =
+        min(BLE_LL_CONN_SUPP_TIME_MAX_UNCODED,
+            g_ble_ll_conn_params.conn_init_max_tx_time);
+    g_ble_ll_conn_params.conn_init_max_tx_time_coded =
+        g_ble_ll_conn_params.conn_init_max_tx_time;
+
+    return 0;
 }
 
 /**

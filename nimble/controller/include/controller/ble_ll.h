@@ -596,10 +596,6 @@ int ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len);
 /* Read set of states supported by the Link Layer */
 uint64_t ble_ll_read_supp_states(void);
 
-/* Check if octets and time are valid. Returns 0 if not valid */
-int ble_ll_chk_txrx_octets(uint16_t octets);
-int ble_ll_chk_txrx_time(uint16_t time);
-
 /* Random numbers */
 int ble_ll_rand_init(void);
 void ble_ll_rand_sample(uint8_t rnum);
