@@ -3365,9 +3365,10 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     hdr_byte = rxbuf[0];
     acl_len = rxbuf[1];
     llid = hdr_byte & BLE_LL_DATA_HDR_LLID_MASK;
+    rxd_sn = hdr_byte & BLE_LL_DATA_HDR_SN_MASK;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
+    if (BLE_MBUF_HDR_MIC_FAILURE(hdr) && (rxd_sn != connsm->last_rxd_sn)) {
         STATS_INC(ble_ll_conn_stats, mic_failures);
         ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
         goto conn_rx_data_pdu_end;
@@ -3431,7 +3432,6 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
      * Discard the received PDU if the sequence number is the same
      * as the last received sequence number
      */
-    rxd_sn = hdr_byte & BLE_LL_DATA_HDR_SN_MASK;
     if (rxd_sn == connsm->last_rxd_sn) {
        STATS_INC(ble_ll_conn_stats, data_pdu_rx_dup);
        goto conn_rx_data_pdu_end;
