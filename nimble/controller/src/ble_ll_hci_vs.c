@@ -303,6 +303,54 @@ ble_ll_hci_vs_css_read_conn_slot(uint16_t ocf, const uint8_t *cmdbuf,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+static int
+ble_ll_hci_vs_set_data_len(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
+                           uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_set_data_len_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_vs_set_data_len_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t conn_handle;
+    uint16_t tx_octets;
+    uint16_t tx_time;
+    uint16_t rx_octets;
+    uint16_t rx_time;
+    int rc;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conn_handle = le16toh(cmd->conn_handle);
+    connsm = ble_ll_conn_find_by_handle(conn_handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    tx_octets = le16toh(cmd->tx_octets);
+    tx_time = le16toh(cmd->tx_time);
+    rx_octets = le16toh(cmd->rx_octets);
+    rx_time = le16toh(cmd->rx_time);
+
+    if (!ble_ll_hci_check_dle(tx_octets, tx_time) ||
+        !ble_ll_hci_check_dle(rx_octets, rx_time)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    rc = ble_ll_conn_set_data_len(connsm, tx_octets, tx_time, rx_octets,
+                                  rx_time);
+    if (rc) {
+        return rc;
+    }
+
+    rsp->conn_handle = htole16(conn_handle);
+    *rsplen = sizeof(*rsp);
+
+    return 0;
+}
+#endif
+
 static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_RD_STATIC_ADDR,
                       ble_ll_hci_vs_rd_static_addr),
@@ -321,6 +369,10 @@ static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
                       ble_ll_hci_vs_css_set_conn_slot),
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_CSS_READ_CONN_SLOT,
                       ble_ll_hci_vs_css_read_conn_slot),
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+    BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_DATA_LEN,
+                      ble_ll_hci_vs_set_data_len),
 #endif
 };
 

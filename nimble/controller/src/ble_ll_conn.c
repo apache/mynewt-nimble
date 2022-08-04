@@ -1798,6 +1798,58 @@ ble_ll_conn_central_init(struct ble_ll_conn_sm *connsm,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+int
+ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
+                         uint16_t tx_octets, uint16_t tx_time,
+                         uint16_t rx_octets, uint16_t rx_time)
+{
+    int init_dle = 0;
+
+    /* Note: octets/time shall be checked by caller! */
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    /* Keep original values requested by host since we may want to recalculate
+     * after PHY changes between coded and uncoded.
+     */
+    connsm->host_req_max_tx_time = tx_time;
+    connsm->host_req_max_rx_time = rx_time;
+
+    /* If peer does not support coded, we cannot use value larger than 2120us */
+    if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
+        tx_time = min(tx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+        rx_time = min(rx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+    }
+#endif
+
+    if (connsm->max_tx_time != tx_time) {
+        connsm->max_tx_time = tx_time;
+        init_dle = 1;
+    }
+
+    if (connsm->max_tx_octets != tx_octets) {
+        connsm->max_tx_octets = tx_octets;
+        init_dle = 1;
+    }
+
+    if (rx_time && (connsm->max_rx_time != rx_time)) {
+        connsm->max_rx_time = rx_time;
+        init_dle = 1;
+    }
+
+    if (rx_octets && (connsm->max_rx_octets != rx_octets)) {
+        connsm->max_rx_octets = rx_octets;
+        init_dle = 1;
+    }
+
+    if (init_dle) {
+        ble_ll_ctrl_initiate_dle(connsm);
+    }
+
+    return 0;
+}
+#endif
+
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
 static void
@@ -1988,6 +2040,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->eff_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     connsm->host_req_max_tx_time = 0;
+    connsm->host_req_max_rx_time = 0;
 #endif
 
     /* Reset encryption data */

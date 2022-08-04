@@ -2124,7 +2124,12 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
             } else {
                 connsm->max_tx_time = g_ble_ll_conn_params.conn_init_max_tx_time_coded;
             }
-            connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
+            if (connsm->host_req_max_rx_time) {
+                connsm->max_rx_time = max(connsm->max_rx_time,
+                                          connsm->host_req_max_rx_time);
+            } else {
+                connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
+            }
         }
 #endif
 

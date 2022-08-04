@@ -252,6 +252,12 @@ bool ble_ll_conn_cth_flow_enable(bool enabled);
 void ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)
+int ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
+                             uint16_t tx_octets, uint16_t tx_time,
+                             uint16_t rx_octets, uint16_t rx_time);
+#endif
+
 void ble_ll_conn_itvl_to_ticks(uint32_t itvl,
                                uint32_t *itvl_ticks, uint8_t *itvl_usecs);
 

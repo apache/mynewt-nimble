@@ -503,36 +503,6 @@ rxpdu_alloc_fail:
     return NULL;
 }
 
-int
-ble_ll_chk_txrx_octets(uint16_t octets)
-{
-    int rc;
-
-    if ((octets < BLE_LL_CONN_SUPP_BYTES_MIN) ||
-        (octets > BLE_LL_CONN_SUPP_BYTES_MAX)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-
-    return rc;
-}
-
-int
-ble_ll_chk_txrx_time(uint16_t time)
-{
-    int rc;
-
-    if ((time < BLE_LL_CONN_SUPP_TIME_MIN) ||
-        (time > BLE_LL_CONN_SUPP_TIME_MAX)) {
-        rc = 0;
-    } else {
-        rc = 1;
-    }
-
-    return rc;
-}
-
 /**
  * Checks to see if the address is a resolvable private address.
  *
