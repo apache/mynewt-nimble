@@ -1259,13 +1259,13 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         tx_phy_mode = BLE_PHY_MODE_1M;
 #endif
 
-        ticks = (BLE_LL_IFS * 3) + connsm->eff_max_rx_time +
+        ticks = (BLE_LL_IFS * 3) + connsm->ota_max_rx_time +
             ble_ll_pdu_tx_time_get(next_txlen, tx_phy_mode) +
             ble_ll_pdu_tx_time_get(cur_txlen, tx_phy_mode);
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-            ticks += (BLE_LL_IFS + connsm->eff_max_rx_time);
+            ticks += (BLE_LL_IFS + connsm->ota_max_rx_time);
         }
 #endif
 
@@ -1674,7 +1674,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             /* We will send empty pdu (just a LL header) */
             usecs = ble_ll_pdu_tx_time_get(0, tx_phy_mode);
         }
-        usecs += (BLE_LL_IFS * 2) + connsm->eff_max_rx_time;
+        usecs += (BLE_LL_IFS * 2) + connsm->ota_max_rx_time;
 
         ticks = (uint32_t)(next_sched_time - begtime);
         allowed_usecs = ble_ll_tmr_t2u(ticks);
@@ -1981,6 +1981,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->rem_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN;
     connsm->eff_max_tx_time = BLE_LL_CONN_SUPP_TIME_MIN;
     connsm->eff_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN;
+    connsm->ota_max_rx_time = BLE_LL_CONN_SUPP_TIME_MIN;
     connsm->rem_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->rem_max_rx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
     connsm->eff_max_tx_octets = BLE_LL_CONN_SUPP_BYTES_MIN;
@@ -2013,9 +2014,12 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 void
 ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
 {
+    int ota_max_rx_time_calc = 0;
     int send_event;
     uint16_t eff_time;
     uint16_t eff_bytes;
+    uint16_t ota_time;
+    uint8_t phy_mode;
 
     /* Assume no event sent */
     send_event = 0;
@@ -2029,6 +2033,7 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
 #endif
     if (eff_time != connsm->eff_max_rx_time) {
         connsm->eff_max_rx_time = eff_time;
+        ota_max_rx_time_calc = 1;
         send_event = 1;
     }
     eff_time = min(connsm->rem_max_rx_time, connsm->max_tx_time);
@@ -2044,12 +2049,29 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
     eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_rx_octets);
     if (eff_bytes != connsm->eff_max_rx_octets) {
         connsm->eff_max_rx_octets = eff_bytes;
+        ota_max_rx_time_calc = 1;
         send_event = 1;
     }
     eff_bytes = min(connsm->rem_max_rx_octets, connsm->max_tx_octets);
     if (eff_bytes != connsm->eff_max_tx_octets) {
         connsm->eff_max_tx_octets = eff_bytes;
         send_event = 1;
+    }
+
+    /* If effective rx octets and/or time value changes, we need to calculate
+     * actual OTA max rx time, i.e. lesser of effective max rx time and rx time
+     * of PDU containing max rx octets of payload. This is then used to calculate
+     * connection events timings.
+     */
+    if (ota_max_rx_time_calc) {
+#if BLE_LL_BT5_PHY_SUPPORTED
+        phy_mode = ble_ll_phy_to_phy_mode(connsm->phy_data.cur_rx_phy,
+                                          BLE_HCI_LE_PHY_CODED_S8_PREF);
+#else
+        phy_mode = BLE_PHY_MODE_1M;
+#endif
+        ota_time = ble_ll_pdu_tx_time_get(connsm->eff_max_rx_octets, phy_mode);
+        connsm->ota_max_rx_time = min(ota_time, connsm->eff_max_rx_time);
     }
 
     if (send_event) {

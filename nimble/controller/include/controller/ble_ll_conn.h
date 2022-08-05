@@ -227,6 +227,7 @@ struct ble_ll_conn_sm
     uint16_t rem_max_rx_time;
     uint16_t eff_max_tx_time;
     uint16_t eff_max_rx_time;
+    uint16_t ota_max_rx_time;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     uint16_t host_req_max_tx_time;
 #endif
