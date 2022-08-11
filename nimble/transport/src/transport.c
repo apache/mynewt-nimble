@@ -25,6 +25,9 @@
 #include <nimble/ble.h>
 #include <nimble/hci_common.h>
 #include <nimble/transport.h>
+#if BLE_TRANSPORT_IPC
+#include <nimble/transport/hci_ipc.h>
+#endif
 
 #define OMP_FLAG_FROM_HS        (0x01)
 #define OMP_FLAG_FROM_LL        (0x02)
@@ -79,17 +82,48 @@ ble_transport_alloc_cmd(void)
     return os_memblock_get(&pool_cmd);
 }
 
+static void *
+try_alloc_evt(struct os_mempool *mp)
+{
+#if BLE_TRANSPORT_IPC_ON_LL
+    uint8_t type;
+#endif
+    void *buf;
+
+#if BLE_TRANSPORT_IPC_ON_LL
+    if (mp == &pool_evt) {
+        type = HCI_IPC_TYPE_EVT;
+    } else {
+        type = HCI_IPC_TYPE_EVT_DISCARDABLE;
+    }
+
+    if (!hci_ipc_get(type)) {
+        return NULL;
+    }
+#endif
+
+    buf = os_memblock_get(mp);
+
+#if BLE_TRANSPORT_IPC_ON_LL
+    if (!buf) {
+        hci_ipc_put(type);
+    }
+#endif
+
+    return buf;
+}
+
 void *
 ble_transport_alloc_evt(int discardable)
 {
     void *buf;
 
     if (discardable) {
-        buf = os_memblock_get(&pool_evt_lo);
+        buf = try_alloc_evt(&pool_evt_lo);
     } else {
-        buf = os_memblock_get(&pool_evt);
+        buf = try_alloc_evt(&pool_evt);
         if (!buf) {
-            buf = os_memblock_get(&pool_evt_lo);
+            buf = try_alloc_evt(&pool_evt_lo);
         }
     }
 
@@ -140,6 +174,26 @@ ble_transport_free(void *buf)
         os_memblock_put(&pool_cmd, buf);
     } else if (os_memblock_from(&pool_evt, buf)) {
         os_memblock_put(&pool_evt, buf);
+#if BLE_TRANSPORT_IPC
+        hci_ipc_put(HCI_IPC_TYPE_EVT);
+#endif
+    } else if (os_memblock_from(&pool_evt_lo, buf)) {
+        os_memblock_put(&pool_evt_lo, buf);
+#if BLE_TRANSPORT_IPC
+        hci_ipc_put(HCI_IPC_TYPE_EVT_DISCARDABLE);
+#endif
+    } else {
+        assert(0);
+    }
+}
+
+void
+ble_transport_ipc_free(void *buf)
+{
+    if (os_memblock_from(&pool_cmd, buf)) {
+        os_memblock_put(&pool_cmd, buf);
+    } else if (os_memblock_from(&pool_evt, buf)) {
+        os_memblock_put(&pool_evt, buf);
     } else if (os_memblock_from(&pool_evt_lo, buf)) {
         os_memblock_put(&pool_evt_lo, buf);
     } else {
@@ -172,9 +226,9 @@ ble_transport_acl_put(struct os_mempool_ext *mpe, void *data, void *arg)
         err = os_memblock_put_from_cb(&mpe->mpe_mp, data);
     }
 
-#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+#if BLE_TRANSPORT_IPC_ON_HS
     if (from_ll && !err) {
-        ble_transport_int_flow_ctl_put();
+        hci_ipc_put(HCI_IPC_TYPE_ACL);
     }
 #endif
 
@@ -218,3 +272,19 @@ ble_transport_register_put_acl_from_ll_cb(os_mempool_put_fn (*cb))
 
     return 0;
 }
+
+#if BLE_TRANSPORT_IPC
+uint8_t
+ble_transport_ipc_buf_evt_type_get(void *buf)
+{
+    if (os_memblock_from(&pool_cmd, buf)) {
+        return HCI_IPC_TYPE_EVT_IN_CMD;
+    } else if (os_memblock_from(&pool_evt, buf)) {
+        return HCI_IPC_TYPE_EVT;
+    } else if (os_memblock_from(&pool_evt_lo, buf)) {
+        return HCI_IPC_TYPE_EVT_DISCARDABLE;
+    } else {
+        assert(0);
+    }
+}
+#endif

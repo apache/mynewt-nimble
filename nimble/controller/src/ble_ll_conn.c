@@ -43,6 +43,9 @@
 #include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_ctrl_priv.h"
+#if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
+#include <nimble/transport/hci_ipc.h>
+#endif
 
 #if (BLETEST_THROUGHPUT_TEST == 1)
 extern void bletest_completed_pkt(uint16_t handle);
@@ -3548,9 +3551,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 
     /* Free buffer */
 conn_rx_data_pdu_end:
-#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
+#if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_CONN_CREDIT_INT) {
-        ble_transport_int_flow_ctl_put();
+        hci_ipc_put(HCI_IPC_TYPE_ACL);
     }
 #endif
 
@@ -3614,12 +3617,12 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         alloc_rxpdu = false;
     }
 
-#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
-    /* Do not alloc PDU if there are no free buffers in transport. We'll nak
-     * this PDU in LL.
+#if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
+    /* If IPC transport is used, make sure there is buffer available on app side
+     * for this PDU. We'll just nak in LL if there are no free buffers.
      */
     if (alloc_rxpdu && BLE_LL_LLID_IS_DATA(hdr_byte) && (rx_pyld_len > 0)) {
-        if (ble_transport_int_flow_ctl_get()) {
+        if (hci_ipc_get(HCI_IPC_TYPE_ACL)) {
             rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONN_CREDIT_INT;
         } else {
             alloc_rxpdu = false;
@@ -3639,8 +3642,9 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         if (ble_ll_conn_cth_flow_alloc_credit(connsm)) {
             rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_CONN_CREDIT;
         } else {
-#if MYNEWT_VAL(BLE_TRANSPORT_INT_FLOW_CTL)
-            ble_transport_int_flow_ctl_put();
+#if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
+            /* Need to return app buffer to pool since we won't use it */
+            hci_ipc_put(HCI_IPC_TYPE_ACL);
 #endif
             alloc_rxpdu = false;
         }

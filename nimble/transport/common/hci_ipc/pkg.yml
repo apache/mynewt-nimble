@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,5 +17,10 @@
 # under the License.
 #
 
-syscfg.defs:
-    BLE_TRANSPORT_INT_FLOW_CTL: 1
+pkg.name: nimble/transport/common/hci_ipc
+pkg.description: Custom HCI IPC protocol
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://mynewt.apache.org/"
+
+pkg.deps:
+    - nimble
