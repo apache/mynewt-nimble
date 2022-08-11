@@ -392,6 +392,21 @@ ble_phy_plna_disable_lna(void)
 #endif
 }
 
+static void
+ble_phy_plna_force_disable(void)
+{
+#if PLNA_SINGLE_GPIO
+    NRF_GPIOTE_NS->TASKS_CLR[plna_idx] = 1;
+#else
+#if MYNEWT_VAL(BLE_LL_PA)
+    NRF_GPIOTE_NS->TASKS_CLR[plna_pa_idx] = 1;
+#endif
+#if MYNEWT_VAL(BLE_LL_LNA)
+    NRF_GPIOTE_NS->TASKS_CLR[plna_lna_idx] = 1;
+#endif
+#endif
+}
+
 int
 ble_phy_get_cur_phy(void)
 {
@@ -1973,7 +1988,7 @@ ble_phy_disable(void)
 
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
-
+    ble_phy_plna_force_disable();
     ble_phy_dbg_clear_pins();
 }
 
