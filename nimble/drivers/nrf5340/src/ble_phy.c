@@ -1386,6 +1386,7 @@ ble_phy_init(void)
     /* Toggle peripheral power to reset (just in case) */
     NRF_RADIO_NS->POWER = 0;
     NRF_RADIO_NS->POWER = 1;
+    *(volatile uint32_t *)(NRF_RADIO_NS_BASE + 0x774) = (*(volatile uint32_t* )(NRF_RADIO_NS_BASE + 0x774) & 0xfffffffe) | 0x01000000;
 
     /* Errata 16 - RADIO: POWER register is not functional
      * Workaround: Reset all RADIO registers in firmware.
