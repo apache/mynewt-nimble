@@ -42,7 +42,7 @@
 
 /* Channels 0..5 are always used.
  * Channels 6 and 7 are used for PA/LNA (optionally).
- * Channels 6..8 are used for GPIO debugging (optionally).
+ * Channels 7..9 are used for GPIO debugging (optionally).
  */
 
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_0         0
@@ -51,14 +51,15 @@
 #define DPPI_CH_RADIO_EVENTS_BCMATCH            3
 #define DPPI_CH_RADIO_EVENTS_ADDRESS            4
 #define DPPI_CH_RTC0_EVENTS_COMPARE_0           5
-#define DPPI_CH_RADIO_EVENTS_READY              6
+#define DPPI_CH_TIMER0_EVENTS_COMPARE_4         6
 #define DPPI_CH_RADIO_EVENTS_DISABLED           7
-#define DPPI_CH_RADIO_EVENTS_RXREADY            8
+#define DPPI_CH_RADIO_EVENTS_READY              8
+#define DPPI_CH_RADIO_EVENTS_RXREADY            9
 
 #define DPPI_CH_ENABLE_ALL (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | DPPIC_CHEN_CH2_Msk | \
                             DPPIC_CHEN_CH3_Msk |  DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk)
 
-#define DPPI_CH_MASK_PLNA   (DPPI_CH_MASK(RADIO_EVENTS_READY) | \
+#define DPPI_CH_MASK_PLNA   (DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_4) | \
                              DPPI_CH_MASK(RADIO_EVENTS_DISABLED))
 
 extern uint8_t g_nrf_num_irks;
@@ -333,10 +334,14 @@ ble_phy_plna_enable_pa(void)
 #if MYNEWT_VAL(BLE_LL_PA)
     ble_ll_plna_pa_enable();
 
+    /* CC[0] is set to radio enable */
+    NRF_TIMER0_NS->CC[4] = NRF_TIMER0_NS->CC[0] + BLE_PHY_T_RXENFAST -
+                           MYNEWT_VAL(BLE_LL_PA_TURN_ON_US);
+
 #if PLNA_SINGLE_GPIO
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_4);
 #else
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #endif
 }
@@ -348,9 +353,9 @@ ble_phy_plna_disable_pa(void)
     ble_ll_plna_pa_disable();
 
 #if PLNA_SINGLE_GPIO
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #else
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #endif
 }
@@ -361,10 +366,14 @@ ble_phy_plna_enable_lna(void)
 #if MYNEWT_VAL(BLE_LL_LNA)
     ble_ll_plna_lna_enable();
 
+    /* CC[0] is set to radio enable */
+    NRF_TIMER0_NS->CC[4] = NRF_TIMER0_NS->CC[0] + BLE_PHY_T_RXENFAST -
+                           MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US);
+
 #if PLNA_SINGLE_GPIO
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_4);
 #else
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_SUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #endif
 }
@@ -376,9 +385,9 @@ ble_phy_plna_disable_lna(void)
     ble_ll_plna_lna_disable();
 
 #if PLNA_SINGLE_GPIO
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #else
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #endif
 }
@@ -546,6 +555,22 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
     if (rem_usecs > 30) {
         cputime++;
         rem_usecs -= 30;
+    }
+
+    /* If PA/LNA is used, make sure CC[0] is set to more than turn-on time since
+     * it's used as a base for turn-on time calculation and thus cannot wrap
+     * around on subtraction.
+     */
+    if (MYNEWT_VAL(BLE_LL_PA) && tx &&
+        (rem_usecs + BLE_PHY_T_RXENFAST <= MYNEWT_VAL(BLE_LL_PA_TURN_ON_US))) {
+        cputime--;
+        rem_usecs += 30;
+    }
+
+    if (MYNEWT_VAL(BLE_LL_LNA) && !tx &&
+        (rem_usecs + BLE_PHY_T_RXENFAST <= MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US))) {
+        cputime--;
+        rem_usecs += 30;
     }
 
     /*
@@ -1428,28 +1453,28 @@ ble_phy_init(void)
      * TODO: figure out if this affects power consumption
      */
 
-    /* Publish RADIO->EVENTS_READY */
-    NRF_RADIO_NS->PUBLISH_READY = DPPI_CH_PUB(RADIO_EVENTS_READY);
-    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_READY);
+    /* Publish TIMER0->EVENTS_COMPARE4 */
+    NRF_TIMER0_NS->PUBLISH_COMPARE[4] = DPPI_CH_PUB(TIMER0_EVENTS_COMPARE_4);
+    NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_4);
     /* Publish RADIO->EVENTS_DISABLED */
     NRF_RADIO_NS->PUBLISH_DISABLED = DPPI_CH_PUB(RADIO_EVENTS_DISABLED);
     NRF_DPPIC_NS->CHENSET = DPPI_CH_MASK(RADIO_EVENTS_DISABLED);
 
 #if PLNA_SINGLE_GPIO
     plna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
     NRF_GPIOTE_NS->TASKS_CLR[plna_idx] = 1;
 #else
 #if MYNEWT_VAL(BLE_LL_PA)
     plna_pa_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
     NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_pa_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
     NRF_GPIOTE_NS->TASKS_CLR[plna_pa_idx] = 1;
 #endif
 #if MYNEWT_VAL(BLE_LL_LNA)
     plna_lna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_LNA_GPIO));
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
     NRF_GPIOTE_NS->SUBSCRIBE_CLR[plna_lna_idx] = DPPI_CH_SUB(RADIO_EVENTS_DISABLED);
     NRF_GPIOTE_NS->TASKS_CLR[plna_lna_idx] = 1;
 #endif
@@ -1903,10 +1928,10 @@ ble_phy_disable_irq_and_ppi(void)
     NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
 #else
 #if MYNEWT_VAL(BLE_LL_PA)
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_pa_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #if MYNEWT_VAL(BLE_LL_LNA)
-    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(RADIO_EVENTS_READY);
+    NRF_GPIOTE_NS->SUBSCRIBE_SET[plna_lna_idx] = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_4);
 #endif
 #endif
 
