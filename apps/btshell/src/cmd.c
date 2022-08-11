@@ -1209,7 +1209,7 @@ cmd_scan(int argc, char **argv)
         return rc;
     }
 
-    if (argc > 1 && strcmp(argv[1], "cancel") == 0) {
+    if (argc > 1 && (strcmp(argv[1], "cancel") == 0 || strcmp(argv[1], "off") == 0)) {
         rc = btshell_scan_cancel();
         if (rc != 0) {
             console_printf("scan cancel fail: %d\n", rc);
@@ -1353,6 +1353,7 @@ cmd_scan(int argc, char **argv)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param scan_params[] = {
     {"cancel", "cancel scan procedure"},
+    {"off", "\"cancel\" param substitute"},
     {"extended", "usage: =[none|1M|coded|both], default: none"},
     {"duration", "usage: =[1-INT32_MAX], default: INT32_MAX"},
     {"limited", "usage: =[0-1], default: 0"},
