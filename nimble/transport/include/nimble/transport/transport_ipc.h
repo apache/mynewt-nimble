@@ -17,25 +17,30 @@
  * under the License.
  */
 
-#ifndef H_NIMBLE_TRANSPORT_IMPL_
-#define H_NIMBLE_TRANSPORT_IMPL_
+#ifndef H_NIMBLE_TRANSPORT_IPC_
+#define H_NIMBLE_TRANSPORT_IPC_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Init functions to be implemented for transport acting as HS/LL side */
-extern void ble_transport_ll_init(void);
-extern void ble_transport_hs_init(void);
+/* NOTE: These APIs shall only be used by IPC transports */
 
-/* APIs to be implemented by HS/LL side of transports */
-extern int ble_transport_to_ll_cmd_impl(void *buf);
-extern int ble_transport_to_ll_acl_impl(struct os_mbuf *om);
-extern int ble_transport_to_hs_evt_impl(void *buf);
-extern int ble_transport_to_hs_acl_impl(struct os_mbuf *om);
+#define BLE_TRANSPORT_IPC \
+    MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
+#define BLE_TRANSPORT_IPC_ON_HS \
+    (BLE_TRANSPORT_IPC && !MYNEWT_VAL(BLE_CONTROLLER))
+#define BLE_TRANSPORT_IPC_ON_LL \
+    (BLE_TRANSPORT_IPC && MYNEWT_VAL(BLE_CONTROLLER))
+
+/* Free cmd/evt buffer sent over IPC */
+void ble_transport_ipc_free(void *buf);
+
+/* Get IPC type for cmd/evt buffer */
+uint8_t ble_transport_ipc_buf_evt_type_get(void *buf);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_NIMBLE_TRANSPORT_IMPL_ */
+#endif /* H_NIMBLE_TRANSPORT_IPC_ */

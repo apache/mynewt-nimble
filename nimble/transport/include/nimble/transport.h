@@ -26,6 +26,9 @@ extern "C" {
 
 #include <nimble/transport_impl.h>
 #include <nimble/transport/monitor.h>
+#if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
+#include <nimble/transport/transport_ipc.h>
+#endif
 
 struct os_mbuf;
 

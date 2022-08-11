@@ -28,7 +28,7 @@ pkg.keywords:
 
 pkg.deps:
     - nimble
-    - nimble/transport/common/hci_h4
+    - nimble/transport/common/hci_ipc
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/hw/drivers/ipc_nrf5340"
 
