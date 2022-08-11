@@ -414,6 +414,10 @@ syscfg.defs:
             GPIO pin number to control PA. Pin is set to high state when PA
             should be enabled.
         value: -1
+    BLE_LL_PA_TURN_ON_US:
+        description: >
+            Time required for PA to turn on, in microseconds.
+        value: 1
     BLE_LL_LNA:
         description: Enable LNA support
         value: 0
@@ -422,6 +426,10 @@ syscfg.defs:
             GPIO pin number to control LNA. Pin is set to high state when LNA
             should be enabled.
         value: -1
+    BLE_LL_LNA_TURN_ON_US:
+        description: >
+            Time required for LNA to turn on, in microseconds.
+        value: 1
 
     BLE_LL_SYSINIT_STAGE:
         description: >
