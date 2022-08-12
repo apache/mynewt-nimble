@@ -2496,6 +2496,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
                 ble_ll_sched_css_set_conn_anchor(connsm);
                 anchor_calc_for_css = 0;
             }
+
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+            ble_ll_hci_ev_send_vs_css_slot_changed(connsm->conn_handle,
+                                                   connsm->css_slot_idx);
+#endif
         }
 #endif
 
