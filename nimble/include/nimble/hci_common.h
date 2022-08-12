@@ -1554,11 +1554,18 @@ struct ble_hci_ev_auth_pyld_tmo {
 
 #define BLE_HCI_EVCODE_SAM_STATUS_CHG       (0x58)
 
-#define BLE_HCI_EVCODE_VS_DEBUG             (0xFF)
-struct ble_hci_ev_vs_debug {
+#define BLE_HCI_EVCODE_VS                   (0xff)
+struct ble_hci_ev_vs {
     uint8_t id;
     uint8_t data[0];
 } __attribute__((packed));
+
+#define BLE_HCI_VS_SUBEV_ID_ASSERT              (0x01)
+#define BLE_HCI_VS_SUBEV_ID_CSS_SLOT_CHANGED    (0x02)
+struct ble_hci_ev_vs_css_slot_changed {
+    uint16_t conn_handle;
+    uint16_t slot_idx;
+};
 
 /* LE sub-event codes */
 #define BLE_HCI_LE_SUBEV_CONN_COMPLETE          (0x01)

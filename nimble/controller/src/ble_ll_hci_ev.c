@@ -523,10 +523,36 @@ ble_ll_hci_ev_subrate_change(struct ble_ll_conn_sm *connsm, uint8_t status)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+void
+ble_ll_hci_ev_send_vs_css_slot_changed(uint16_t conn_handle, uint16_t slot_idx)
+{
+    struct ble_hci_ev_vs_css_slot_changed *ev;
+    struct ble_hci_ev_vs *ev_vs;
+    struct ble_hci_ev *hci_ev;
+
+    hci_ev = ble_transport_alloc_evt(0);
+    if (!hci_ev) {
+        return;
+
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_VS;
+    hci_ev->length = sizeof(*ev_vs) + sizeof(*ev);
+    ev_vs = (void *)hci_ev->data;
+    ev_vs->id = BLE_HCI_VS_SUBEV_ID_CSS_SLOT_CHANGED;
+    ev = (void *)ev_vs->data;
+    ev->conn_handle = htole16(conn_handle);
+    ev->slot_idx = htole16(slot_idx);
+
+    ble_ll_hci_event_send(hci_ev);
+}
+#endif
+
 void
 ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
 {
-    struct ble_hci_ev_vs_debug *ev;
+    struct ble_hci_ev_vs *ev;
     struct ble_hci_ev *hci_ev;
     unsigned int str_len;
     bool skip = true;
@@ -541,12 +567,12 @@ ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
 
     hci_ev = ble_transport_alloc_evt(0);
     if (hci_ev) {
-        hci_ev->opcode = BLE_HCI_EVCODE_VS_DEBUG;
+        hci_ev->opcode = BLE_HCI_EVCODE_VS;
         hci_ev->length = sizeof(*ev);
         ev = (void *) hci_ev->data;
 
         /* Debug id for future use */
-        ev->id = 0x00;
+        ev->id = BLE_HCI_VS_SUBEV_ID_ASSERT;
 
         /* snprintf would be nicer but this is heavy on flash
          * len = snprintf((char *) ev->data, max_len, "%s:%u", file, line);
