@@ -350,6 +350,11 @@ void ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm,
 void ble_ll_hci_ev_subrate_change(struct ble_ll_conn_sm *connsm, uint8_t status);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+void ble_ll_hci_ev_send_vs_css_slot_changed(uint16_t conn_handle,
+                                            uint16_t slot_idx);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
