@@ -53,6 +53,14 @@ extern "C" {
      (((x) & 0x00ff) << 8)))
 #endif
 
+#ifndef __BYTE_ORDER__ 
+#error  "Please define __BYTE_ORDER__ on complier"
+#endif
+
+#ifndef __ORDER_BIG_ENDIAN__ 
+#error  "Please define __ORDER_BIG_ENDIAN__ on complier"
+#endif
+
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 
 #ifndef ntohll
