@@ -30,7 +30,8 @@
 #include "nimble/nimble_port.h"
 #endif
 
-#define BLE_HS_HCI_EVT_COUNT    MYNEWT_VAL(BLE_TRANSPORT_EVT_COUNT)
+#define BLE_HS_HCI_EVT_COUNT    (MYNEWT_VAL(BLE_TRANSPORT_EVT_COUNT) + \
+                                 MYNEWT_VAL(BLE_TRANSPORT_EVT_DISCARDABLE_COUNT))
 
 static void ble_hs_event_rx_hci_ev(struct ble_npl_event *ev);
 #if NIMBLE_BLE_CONNECT
