@@ -1168,6 +1168,16 @@ struct ble_hci_vs_css_set_conn_slot_cp {
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
+#define BLE_HCI_VS_CSS_OP_READ_CONN_SLOT                0x05
+struct ble_hci_vs_css_read_conn_slot_cp {
+    uint8_t opcode;
+    uint16_t conn_handle;
+} __attribute__((packed));
+struct ble_hci_vs_css_read_conn_slot_rp {
+    uint8_t opcode;
+    uint16_t conn_handle;
+    uint16_t slot_idx;
+} __attribute__((packed));
 
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
