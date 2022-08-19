@@ -1333,7 +1333,8 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
             }
 
             /* Ignore if not directed to us */
-            if (!ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type)) {
+            if ((addrd->targeta_type != (own_addr_type & 0x01)) ||
+                !ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type)) {
                 return -1;
             }
             break;
@@ -1347,7 +1348,8 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
 #else
     /* Ignore if not directed to us */
     if (addrd->targeta &&
-        !ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type)) {
+        ((addrd->targeta_type != (own_addr_type & 0x01)) ||
+         !ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type))) {
         return -1;
     }
 
