@@ -269,6 +269,37 @@ ble_ll_hci_vs_css_set_conn_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
 }
 
 static int
+ble_ll_hci_vs_css_read_conn_slot(const uint8_t *cmdbuf, uint8_t cmdlen,
+                                uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_css_read_conn_slot_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_vs_css_read_conn_slot_rp *rsp = (void *)rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t conn_handle;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!ble_ll_sched_css_is_enabled()) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    conn_handle = le16toh(cmd->conn_handle);
+    connsm = ble_ll_conn_find_by_handle(conn_handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    *rsplen = sizeof(*rsp);
+    rsp->opcode = cmd->opcode;
+    rsp->conn_handle = cmd->conn_handle;
+    rsp->slot_idx = htole16(connsm->css_slot_idx);
+
+    return BLE_ERR_SUCCESS;
+}
+
+static int
 ble_ll_hci_vs_css(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
                   uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -291,6 +322,8 @@ ble_ll_hci_vs_css(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return ble_ll_hci_vs_css_set_next_slot(cmdbuf, cmdlen, rspbuf, rsplen);
     case BLE_HCI_VS_CSS_OP_SET_CONN_SLOT:
         return ble_ll_hci_vs_css_set_conn_slot(cmdbuf, cmdlen, rspbuf, rsplen);
+    case BLE_HCI_VS_CSS_OP_READ_CONN_SLOT:
+        return ble_ll_hci_vs_css_read_conn_slot(cmdbuf, cmdlen, rspbuf, rsplen);
     }
 
     return BLE_ERR_INV_HCI_CMD_PARMS;
