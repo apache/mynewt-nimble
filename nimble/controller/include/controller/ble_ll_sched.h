@@ -165,7 +165,8 @@ int ble_ll_sched_aux_scan(struct ble_mbuf_hdr *ble_hdr,
                           struct ble_ll_aux_data *aux_scan);
 
 int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
-                          uint8_t pdu_time_rem, uint32_t offset_us);
+                          uint8_t pdu_time_rem, uint32_t offset_us,
+                          uint32_t max_aux_time_us);
 #endif
 
 /* Stop the scheduler */

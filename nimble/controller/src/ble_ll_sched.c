@@ -1099,7 +1099,8 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
 ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
-                      uint8_t pdu_time_rem, uint32_t offset_us)
+                      uint8_t pdu_time_rem, uint32_t offset_us,
+                      uint32_t max_aux_time_us)
 {
     uint32_t offset_ticks;
     os_sr_t sr;
@@ -1108,10 +1109,10 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
     offset_us += pdu_time_rem;
     offset_ticks = ble_ll_tmr_u2t(offset_us);
 
-    sch->start_time = pdu_time + offset_ticks - g_ble_ll_sched_offset_ticks;
+    sch->start_time = pdu_time + offset_ticks;
     sch->remainder = offset_us - ble_ll_tmr_t2u(offset_ticks);
-    /* TODO: make some sane slot reservation */
-    sch->end_time = sch->start_time + ble_ll_tmr_u2t(5000);
+    sch->end_time = sch->start_time + ble_ll_tmr_u2t_up(max_aux_time_us);
+    sch->start_time -= g_ble_ll_sched_offset_ticks;
 
     OS_ENTER_CRITICAL(sr);
 
