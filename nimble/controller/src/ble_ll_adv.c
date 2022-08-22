@@ -106,8 +106,6 @@ struct ble_ll_adv_sm
     int8_t adv_txpwr;
     uint16_t flags;
     uint16_t props;
-    uint16_t adv_itvl_min;
-    uint16_t adv_itvl_max;
     uint32_t adv_itvl_usecs;
     uint32_t adv_event_start_time;
     uint32_t adv_pdu_start_time;
@@ -1903,8 +1901,6 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
     advsm->peer_addr_type = cmd->peer_addr_type;
     advsm->adv_filter_policy = adv_filter_policy;
     advsm->adv_chanmask = cmd->chan_map;
-    advsm->adv_itvl_min = adv_itvl_min;
-    advsm->adv_itvl_max = adv_itvl_max;
     advsm->adv_itvl_usecs = adv_itvl_usecs;
     advsm->props = props;
 
@@ -3543,8 +3539,6 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     advsm->own_addr_type = cmd->own_addr_type;
     advsm->adv_filter_policy = cmd->filter_policy;
     advsm->adv_chanmask = cmd->pri_chan_map;
-    advsm->adv_itvl_min = adv_itvl_min;
-    advsm->adv_itvl_max = adv_itvl_max;
     advsm->adv_itvl_usecs = adv_itvl_usecs;
     advsm->pri_phy = cmd->pri_phy;
     advsm->sec_phy = cmd->sec_phy;
@@ -5217,8 +5211,6 @@ ble_ll_adv_sm_init(struct ble_ll_adv_sm *advsm)
 {
     memset(advsm, 0, sizeof(struct ble_ll_adv_sm));
 
-    advsm->adv_itvl_min = BLE_HCI_ADV_ITVL_DEF;
-    advsm->adv_itvl_max = BLE_HCI_ADV_ITVL_DEF;
     advsm->adv_chanmask = BLE_HCI_ADV_CHANMASK_DEF;
 
     /* Initialize advertising tx done event */
