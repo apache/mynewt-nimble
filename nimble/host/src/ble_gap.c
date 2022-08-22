@@ -917,21 +917,17 @@ ble_gap_disc_report(void *desc)
 static void
 ble_gap_disc_complete(void)
 {
-#if NIMBLE_BLE_CONNECT
     struct ble_gap_master_state state;
-#endif
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_DISC_COMPLETE;
     event.disc_complete.reason = 0;
 
-#if NIMBLE_BLE_CONNECT
     ble_gap_master_extract_state(&state, 1);
     if (ble_gap_has_client(&state)) {
         ble_gap_call_event_cb(&event, state.cb, state.cb_arg);
     }
-#endif
 
     ble_gap_event_listener_call(&event);
 }
