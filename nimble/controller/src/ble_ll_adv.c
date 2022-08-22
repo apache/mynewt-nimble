@@ -3748,8 +3748,7 @@ ble_ll_adv_periodic_check_data_itvl(uint16_t payload_len, uint16_t props,
         pdu_len = ble_ll_adv_sync_get_pdu_len(payload_len, &offset, props);
 
         max_usecs += ble_ll_pdu_tx_time_get(pdu_len, phy);
-        max_usecs += ble_ll_tmr_u2t_up(BLE_LL_MAFS +
-                                       MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY));
+        max_usecs += BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY);
     }
 
     itvl_usecs = (uint32_t)itvl * BLE_LL_ADV_PERIODIC_ITVL;
