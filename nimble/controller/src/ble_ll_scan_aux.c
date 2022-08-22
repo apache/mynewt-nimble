@@ -68,7 +68,7 @@ struct ble_ll_scan_aux_data {
     uint8_t pri_phy;
     uint8_t sec_phy;
     uint8_t chan;
-    uint8_t offset_unit : 1;
+    uint16_t wfr_us;
     uint32_t aux_ptr;
     struct ble_ll_sched_item sch;
     struct ble_npl_event break_ev;
@@ -111,7 +111,6 @@ static int
 ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_scan_aux_data *aux = sch->cb_arg;
-    uint32_t wfr_us;
 #if BLE_LL_BT5_PHY_SUPPORTED
     uint8_t phy_mode;
 #endif
@@ -158,8 +157,7 @@ ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
         ble_ll_whitelist_disable();
     }
 
-    wfr_us = aux->offset_unit ? 300 : 30;
-    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, 0, wfr_us);
+    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RX, 0, aux->wfr_us);
 
     aux_data_current = aux;
 
@@ -683,82 +681,87 @@ ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
 }
 
 static int
-ble_ll_scan_aux_parse_aux_ptr(struct ble_ll_scan_aux_data *aux,
-                              uint32_t aux_ptr, uint32_t *offset_us)
+ble_ll_scan_aux_phy_to_phy(uint8_t aux_phy, uint8_t *phy)
 {
-    uint8_t offset_unit;
-    uint32_t offset;
-    uint8_t chan;
-    uint8_t phy;
-
-    phy = (aux_ptr >> 21) & 0x07;
-    switch (phy) {
+    switch (aux_phy) {
     case 0:
-        phy = BLE_PHY_1M;
+        *phy = BLE_PHY_1M;
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
     case 1:
-        phy = BLE_PHY_2M;
+        *phy = BLE_PHY_2M;
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case 2:
-        phy = BLE_PHY_CODED;
+        *phy = BLE_PHY_CODED;
         break;
 #endif
     default:
         return -1;
     }
 
-    chan = aux_ptr & 0x3f;
-    if (chan >= BLE_PHY_NUM_DATA_CHANS) {
-        return -1;
-    }
-
-    offset = 30 * ((aux_ptr >> 8) & 0x1fff);
-    if ((aux_ptr >> 7) & 0x01) {
-        offset *= 10;
-        offset_unit = 1;
-    } else {
-        offset_unit = 0;
-    }
-
-    if (offset < BLE_LL_MAFS) {
-        return -1;
-    }
-
-    aux->sec_phy = phy;
-    aux->chan = chan;
-    aux->offset_unit = offset_unit;
-
-    *offset_us = offset;
-
     return 0;
 }
 
 int
-ble_ll_scan_aux_sched(struct ble_ll_scan_aux_data *aux, uint32_t pdu_time,
-                      uint8_t pdu_time_rem, uint32_t aux_ptr)
+ble_ll_scan_aux_sched(struct ble_ll_scan_aux_data *aux, uint32_t pdu_ticks,
+                      uint8_t pdu_rem_us, uint32_t aux_ptr)
 {
+    struct ble_ll_sched_item *sch;
+    uint32_t aux_offset;
+    uint8_t offset_unit;
+    uint8_t aux_phy;
+    uint8_t chan;
+    uint8_t ca;
+    uint8_t phy;
     uint32_t offset_us;
-    uint32_t max_aux_time_us;
-    int rc;
+    uint16_t pdu_rx_us;
+    uint16_t aux_ww_us;
+    uint16_t aux_tx_win_us;
 
-    rc = ble_ll_scan_aux_parse_aux_ptr(aux, aux_ptr, &offset_us);
-    if (rc < 0) {
+    /* Parse AuxPtr */
+    chan = aux_ptr & 0x3f;
+    ca = aux_ptr & 0x40;
+    offset_unit = aux_ptr & 0x80;
+    aux_offset = (aux_ptr >> 8) & 0x1fff;
+    aux_phy = (aux_ptr >> 21) & 0x07;
+
+    if (chan >= BLE_PHY_NUM_DATA_CHANS) {
         return -1;
     }
 
-    max_aux_time_us = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
-                                             ble_ll_phy_to_phy_mode(aux->sec_phy, 0));
-
-    rc = ble_ll_sched_scan_aux(&aux->sch, pdu_time, pdu_time_rem, offset_us,
-                               max_aux_time_us);
-    if (rc < 0) {
+    if (ble_ll_scan_aux_phy_to_phy(aux_phy, &phy) < 0) {
         return -1;
     }
 
-    return 0;
+    /* Actual offset */
+    offset_us = aux_offset * (offset_unit ? 300 : 30);
+    /* Time to scan aux PDU */
+    pdu_rx_us = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
+                              ble_ll_phy_to_phy_mode(phy, 0));
+    /* Transmit window */
+    aux_tx_win_us = offset_unit ? 300 : 30;
+    /* Window widening to include drift due to sleep clock accuracy and jitter */
+    aux_ww_us = offset_us * (ca ? 50 : 500) / 1000000 + BLE_LL_JITTER_USECS;
+
+    aux->sec_phy = phy;
+    aux->chan = chan;
+    aux->wfr_us = aux_ww_us + aux_tx_win_us;
+
+    sch = &aux->sch;
+
+    sch->start_time = pdu_ticks;
+    sch->remainder = pdu_rem_us;
+    ble_ll_tmr_add(&sch->start_time, &sch->remainder, offset_us - aux_ww_us);
+
+    sch->end_time = sch->start_time +
+                    ble_ll_tmr_u2t_up(sch->remainder + 2 * aux_ww_us +
+                                      aux_tx_win_us + pdu_rx_us);
+
+    sch->start_time -= g_ble_ll_sched_offset_ticks;
+
+    return ble_ll_sched_scan_aux(&aux->sch);
 }
 
 int

@@ -172,9 +172,7 @@ int ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm * connsm);
 int ble_ll_sched_next_time(uint32_t *next_event_time);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch, uint32_t pdu_time,
-                          uint8_t pdu_time_rem, uint32_t offset_us,
-                          uint32_t max_aux_time_us);
+int ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch);
 #endif
 
 /* Stop the scheduler */
