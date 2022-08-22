@@ -564,6 +564,8 @@ ble_ll_hci_ev_send_ext_adv_report(struct os_mbuf *rxpdu,
             } else {
                 report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
             }
+        } else if (rxinfo->flags & BLE_MBUF_HDR_F_AUX_PTR_FAILED) {
+            report->evt_type |= BLE_HCI_ADV_DATA_STATUS_TRUNCATED;
         }
 
         switch (report->evt_type & BLE_HCI_ADV_DATA_STATUS_MASK) {
@@ -1662,6 +1664,7 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
                                    aux->aux_ptr);
         if (rc < 0) {
             rxinfo->flags &= ~BLE_MBUF_HDR_F_AUX_PTR_WAIT;
+            rxinfo->flags |= BLE_MBUF_HDR_F_AUX_PTR_FAILED;
         }
     }
 
