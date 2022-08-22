@@ -193,19 +193,23 @@ struct ble_ll_adv_sm
 #define BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR         0x8000
 
 #define ADV_DATA_LEN(_advsm) \
-                ((_advsm->adv_data) ? OS_MBUF_PKTLEN(advsm->adv_data) : 0)
+    (((_advsm)->adv_data) ? OS_MBUF_PKTLEN((_advsm)->adv_data) : 0)
 #define SCAN_RSP_DATA_LEN(_advsm) \
-                ((_advsm->scan_rsp_data) ? OS_MBUF_PKTLEN(advsm->scan_rsp_data) : 0)
+    (((_advsm)->scan_rsp_data) ? OS_MBUF_PKTLEN((_advsm)->scan_rsp_data) : 0)
+
+#define AUX_CURRENT(_advsm) \
+    (&((_advsm)->aux[(_advsm)->aux_index]))
+#define AUX_NEXT(_advsm) \
+    (&((_advsm)->aux[(_advsm)->aux_index ^ 1]))
 #define AUX_DATA_LEN(_advsm) \
-                (*(_advsm->aux_data) ? OS_MBUF_PKTLEN(*advsm->aux_data) : 0)
+    (*((_advsm)->aux_data) ? OS_MBUF_PKTLEN(*(_advsm)->aux_data) : 0)
 
-#define AUX_CURRENT(_advsm)     (&(_advsm->aux[_advsm->aux_index]))
-#define AUX_NEXT(_advsm)        (&(_advsm->aux[_advsm->aux_index ^ 1]))
-
-#define SYNC_CURRENT(_advsm) (&(_advsm->periodic_sync[_advsm->periodic_sync_index]))
-#define SYNC_NEXT(_advsm)    (&(_advsm->periodic_sync[_advsm->periodic_sync_index ^ 1]))
+#define SYNC_CURRENT(_advsm) \
+    (&((_advsm)->periodic_sync[(_advsm)->periodic_sync_index]))
+#define SYNC_NEXT(_advsm) \
+    (&((_advsm)->periodic_sync[(_advsm)->periodic_sync_index ^ 1]))
 #define SYNC_DATA_LEN(_advsm) \
-                (_advsm->periodic_adv_data ? OS_MBUF_PKTLEN(advsm->periodic_adv_data) : 0)
+    ((_advsm)->periodic_adv_data ? OS_MBUF_PKTLEN((_advsm)->periodic_adv_data) : 0)
 
 /* The advertising state machine global object */
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
