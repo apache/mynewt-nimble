@@ -746,6 +746,7 @@ ble_ll_scan_aux_sched(struct ble_ll_scan_aux_data *aux, uint32_t pdu_time,
                       uint8_t pdu_time_rem, uint32_t aux_ptr)
 {
     uint32_t offset_us;
+    uint32_t max_aux_time_us;
     int rc;
 
     rc = ble_ll_scan_aux_parse_aux_ptr(aux, aux_ptr, &offset_us);
@@ -753,7 +754,11 @@ ble_ll_scan_aux_sched(struct ble_ll_scan_aux_data *aux, uint32_t pdu_time,
         return -1;
     }
 
-    rc = ble_ll_sched_scan_aux(&aux->sch, pdu_time, pdu_time_rem, offset_us);
+    max_aux_time_us = ble_ll_pdu_tx_time_get(BLE_LL_MAX_PAYLOAD_LEN,
+                                             ble_ll_phy_to_phy_mode(aux->sec_phy, 0));
+
+    rc = ble_ll_sched_scan_aux(&aux->sch, pdu_time, pdu_time_rem, offset_us,
+                               max_aux_time_us);
     if (rc < 0) {
         return -1;
     }
