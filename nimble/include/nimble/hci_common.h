@@ -1063,6 +1063,48 @@ struct ble_hci_le_set_host_feat_cp {
     uint8_t val;
 } __attribute__((packed));
 
+#define BLE_HCI_OCF_LE_ENH_READ_TRANSMIT_POWER_LEVEL     (0x0076)
+struct ble_hci_le_enh_read_transmit_power_level_cp {
+    uint16_t conn_handle;
+    uint8_t phy;
+} __attribute__((packed));
+struct ble_hci_le_enh_read_transmit_power_level_rp {
+    uint8_t status;
+    uint16_t conn_handle;
+    uint8_t phy;
+    uint8_t curr_tx_power_level;
+    uint8_t max_tx_power_level;
+} __attribute__((packed));
+
+#define BLE_HCI_OCF_LE_READ_REMOTE_TRANSMIT_POWER_LEVEL  (0x0077)
+struct ble_hci_le_read_remote_transmit_power_level_cp {
+    uint16_t conn_handle;
+    uint8_t phy;
+} __attribute__((packed));
+
+#define BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_PARAM        (0x0078)
+struct ble_hci_le_set_path_loss_report_param_cp {
+    uint16_t conn_handle;
+    uint8_t high_threshold;
+    uint8_t high_hysteresis;
+    uint8_t low_threshold;
+    uint8_t low_hysteresis;
+    uint16_t min_time_spent;
+} __attribute__((packed));
+
+#define BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_ENABLE       (0x0079)
+struct ble_hci_le_set_path_loss_report_enable_cp {
+    uint16_t conn_handle;
+    uint8_t enable;
+} __attribute__((packed));
+
+#define BLE_HCI_OCF_LE_SET_TRANS_PWR_REPORT_ENABLE       (0x007A)
+struct ble_hci_le_set_transmit_power_report_enable_cp {
+    uint16_t conn_handle;
+    uint8_t local_enable;
+    uint8_t remote_enable;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE               (0x007D)
 struct ble_hci_le_set_default_subrate_cp {
     uint16_t subrate_min;
@@ -1126,49 +1168,6 @@ struct ble_hci_vs_css_set_conn_slot_cp {
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
-
-#define BLE_HCI_OCF_LE_ENH_READ_TRANSMIT_POWER_LEVEL     (0x0076)
-struct ble_hci_le_enh_read_transmit_power_level_cp {
-    uint16_t conn_handle;
-    uint8_t phy;
-} __attribute__((packed));
-struct ble_hci_le_enh_read_transmit_power_level_rp {
-    uint8_t status;
-    uint16_t conn_handle;
-    uint8_t phy;
-    uint8_t curr_tx_power_level;
-    uint8_t max_tx_power_level;
-} __attribute__((packed));
-
-#define BLE_HCI_OCF_LE_READ_REMOTE_TRANSMIT_POWER_LEVEL  (0x0077)
-struct ble_hci_le_read_remote_transmit_power_level_cp {
-    uint16_t conn_handle;
-    uint8_t phy;
-} __attribute__((packed));
-
-#define BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_PARAM        (0x0078)
-struct ble_hci_le_set_path_loss_report_param_cp {
-    uint16_t conn_handle;
-    uint8_t high_threshold;
-    uint8_t high_hysteresis;
-    uint8_t low_threshold;
-    uint8_t low_hysteresis;
-    uint16_t min_time_spent;
-} __attribute__((packed));
-
-#define BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_ENABLE       (0x0079)
-struct ble_hci_le_set_path_loss_report_enable_cp {
-    uint16_t conn_handle;
-    uint8_t enable;
-} __attribute__((packed));
-
-#define BLE_HCI_OCF_LE_SET_TRANS_PWR_REPORT_ENABLE       (0x007A)
-struct ble_hci_le_set_transmit_power_report_enable_cp {
-    uint16_t conn_handle;
-    uint8_t local_enable;
-    uint8_t remote_enable;
-} __attribute__((packed));
-
 
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
