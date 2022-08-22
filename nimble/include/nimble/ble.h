@@ -101,7 +101,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_EXT_ADV          (0x0800)
 #define BLE_MBUF_HDR_F_RESOLVED         (0x0400)
 #define BLE_MBUF_HDR_F_AUX_PTR_WAIT     (0x0200)
-#define BLE_MBUF_HDR_F_AUX_INVALID      (0x0100)
+#define BLE_MBUF_HDR_F_AUX_PTR_FAILED   (0x0100)
 #define BLE_MBUF_HDR_F_CRC_OK           (0x0080)
 #define BLE_MBUF_HDR_F_DEVMATCH         (0x0040)
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
@@ -145,9 +145,6 @@ struct ble_mbuf_hdr
 
 #define BLE_MBUF_HDR_SCAN_RSP_RXD(hdr) \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_SCAN_RSP_RXD))
-
-#define BLE_MBUF_HDR_AUX_INVALID(hdr) \
-    (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_INVALID))
 
 #define BLE_MBUF_HDR_WAIT_AUX(hdr)      \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT))
