@@ -58,10 +58,10 @@
 struct ble_ll_adv_aux {
     struct ble_ll_sched_item sch;
     uint32_t start_time;
-    uint16_t aux_data_offset;
+    uint16_t data_offset;
     uint8_t chan;
-    uint8_t ext_hdr;
-    uint8_t aux_data_len;
+    uint8_t ext_hdr_flags;
+    uint8_t data_len;
     uint8_t payload_len;
 };
 
@@ -69,10 +69,10 @@ struct ble_ll_adv_aux {
 struct ble_ll_adv_sync {
     struct ble_ll_sched_item sch;
     uint32_t start_time;
-    uint16_t sync_data_offset;
+    uint16_t data_offset;
     uint8_t chan;
-    uint8_t ext_hdr;
-    uint8_t sync_data_len;
+    uint8_t ext_hdr_flags;
+    uint8_t data_len;
     uint8_t payload_len;
 };
 
@@ -732,17 +732,17 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         adv_mode |= BLE_LL_EXT_ADV_MODE_CONN;
     }
 
-    ext_hdr_len = aux->payload_len - BLE_LL_EXT_ADV_HDR_LEN - aux->aux_data_len;
+    ext_hdr_len = aux->payload_len - BLE_LL_EXT_ADV_HDR_LEN - aux->data_len;
     dptr[0] = (adv_mode << 6) | ext_hdr_len;
     dptr += 1;
 
     /* only put flags if needed */
-    if (aux->ext_hdr) {
-        dptr[0] = aux->ext_hdr;
+    if (aux->ext_hdr_flags) {
+        dptr[0] = aux->ext_hdr_flags;
         dptr += 1;
     }
 
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
 
         /* Set TxAdd to random if needed. */
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
@@ -753,7 +753,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
 
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
         memcpy(dptr, advsm->initiator_addr, BLE_LL_EXT_ADV_TARGETA_SIZE);
         dptr += BLE_LL_EXT_ADV_TARGETA_SIZE;
 
@@ -763,13 +763,13 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         }
     }
 
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
         dptr[0] = advsm->adi & 0x00ff;
         dptr[1] = advsm->adi >> 8;
         dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
 
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (!AUX_NEXT(advsm)->sch.enqueued) {
             /*
              * Trim data here in case we do not have next aux scheduled. This
@@ -791,20 +791,20 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
         ble_ll_adv_put_syncinfo(advsm, NULL, NULL, dptr);
         dptr += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
     }
 #endif
 
-    if (aux->ext_hdr & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
+    if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
         dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
-    if (aux->aux_data_len) {
-        os_mbuf_copydata(*advsm->aux_data, aux->aux_data_offset,
-                         aux->aux_data_len, dptr);
+    if (aux->data_len) {
+        os_mbuf_copydata(*advsm->aux_data, aux->data_offset,
+                         aux->data_len, dptr);
     }
 
     *hdr_byte = pdu_type;
@@ -1476,12 +1476,12 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
                                               g_ble_ll_data.chan_map);
 #endif
 
-    aux->aux_data_offset = data_offset;
+    aux->data_offset = data_offset;
     aux->payload_len = ble_ll_adv_aux_calculate_payload(advsm, advsm->props,
                                                         *advsm->aux_data,
                                                         data_offset,
-                                                        &aux->aux_data_len,
-                                                        &aux->ext_hdr);
+                                                        &aux->data_len,
+                                                        &aux->ext_hdr_flags);
 }
 
 static bool
@@ -1562,11 +1562,11 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
      * Do not schedule next aux if current aux does not have AuxPtr in extended
      * header as this means we do not need subsequent ADV_CHAIN_IND to be sent.
      */
-    if (!(aux->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
+    if (!(aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
         return;
     }
 
-    next_data_offset = aux->aux_data_offset + aux->aux_data_len;
+    next_data_offset = aux->data_offset + aux->data_len;
 
     BLE_LL_ASSERT(AUX_DATA_LEN(advsm) >= next_data_offset);
 
@@ -2131,17 +2131,17 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* non-connectable and non-scannable */
     adv_mode = 0;
 
-    ext_hdr_len = sync->payload_len - BLE_LL_EXT_ADV_HDR_LEN - sync->sync_data_len;
+    ext_hdr_len = sync->payload_len - BLE_LL_EXT_ADV_HDR_LEN - sync->data_len;
     dptr[0] = (adv_mode << 6) | ext_hdr_len;
     dptr += 1;
 
     /* only put flags if needed */
-    if (sync->ext_hdr) {
-        dptr[0] = sync->ext_hdr;
+    if (sync->ext_hdr_flags) {
+        dptr[0] = sync->ext_hdr_flags;
         dptr += 1;
     }
 
-    if (sync->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+    if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (!SYNC_NEXT(advsm)->sch.enqueued) {
             /*
              * Trim data here in case we do not have next sync scheduled. This
@@ -2160,14 +2160,14 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         dptr += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
     }
 
-    if (sync->ext_hdr & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
+    if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
         dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
-    if (sync->sync_data_len) {
-        os_mbuf_copydata(advsm->periodic_adv_data, sync->sync_data_offset,
-                         sync->sync_data_len, dptr);
+    if (sync->data_len) {
+        os_mbuf_copydata(advsm->periodic_adv_data, sync->data_offset,
+                         sync->data_len, dptr);
     }
 
     *hdr_byte = pdu_type;
@@ -2291,34 +2291,33 @@ adv_tx_done:
 
 static void
 ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
-                          struct ble_ll_adv_sync *sync,
-                          uint16_t sync_data_offset,
+                          struct ble_ll_adv_sync *sync, uint16_t data_offset,
                           uint8_t chan)
 {
-    uint16_t rem_sync_data_len;
-    uint8_t hdr_len;
+    uint16_t rem_data_len;
+    uint8_t ext_hdr_len;
 
     BLE_LL_ASSERT(!sync->sch.enqueued);
-    BLE_LL_ASSERT((SYNC_DATA_LEN(advsm) > sync_data_offset) ||
-                  (SYNC_DATA_LEN(advsm) == 0 && sync_data_offset == 0));
+    BLE_LL_ASSERT((SYNC_DATA_LEN(advsm) > data_offset) ||
+                  (SYNC_DATA_LEN(advsm) == 0 && data_offset == 0));
 
-    sync->sync_data_offset = sync_data_offset;
-    sync->sync_data_len = 0;
+    sync->data_offset = data_offset;
+    sync->data_len = 0;
     sync->payload_len = 0;
-    sync->ext_hdr = 0;
+    sync->ext_hdr_flags = 0;
     sync->chan = chan;
 
-    rem_sync_data_len = SYNC_DATA_LEN(advsm) - sync_data_offset;
+    rem_data_len = SYNC_DATA_LEN(advsm) - data_offset;
 
-    hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
+    ext_hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
 
     /* TxPower if configured
      * Note: TxPower shall not be present in chain PDU for SYNC
      */
-    if (sync_data_offset == 0 &&
+    if (data_offset == 0 &&
         (advsm->periodic_adv_props & BLE_HCI_LE_SET_PERIODIC_ADV_PROP_INC_TX_PWR)) {
-        sync->ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
-        hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+        sync->ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
     /* if we have any fields in ext header we need to add flags, note that Aux
@@ -2328,32 +2327,32 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
      * how Aux calculate works and this also make it easier to add more fields
      * into flags if needed in future
      */
-    if (sync->ext_hdr) {
-        hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+    if (sync->ext_hdr_flags) {
+        ext_hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
     }
 
     /* AdvData always */
-    sync->sync_data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_sync_data_len);
+    sync->data_len = min(BLE_LL_MAX_PAYLOAD_LEN - ext_hdr_len, rem_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
-    if ((rem_sync_data_len > sync->sync_data_len)) {
-            /* adjust for flags that needs to be added if AuxPtr is only field
-             * in Extended Header
-             */
-            if (!sync->ext_hdr) {
-                hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
-                sync->sync_data_len -= BLE_LL_EXT_ADV_FLAGS_SIZE;
-            }
+    if ((rem_data_len > sync->data_len)) {
+        /* adjust for flags that needs to be added if AuxPtr is only field
+         * in Extended Header
+         */
+        if (!sync->ext_hdr_flags) {
+            ext_hdr_len += BLE_LL_EXT_ADV_FLAGS_SIZE;
+            sync->data_len -= BLE_LL_EXT_ADV_FLAGS_SIZE;
+        }
 
-            sync->ext_hdr |= (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
-            hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
-            sync->sync_data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+        sync->ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+        sync->data_len -= BLE_LL_EXT_ADV_AUX_PTR_SIZE;
 
-            /* PDU payload should be full if chained */
-            BLE_LL_ASSERT(hdr_len + sync->sync_data_len == BLE_LL_MAX_PAYLOAD_LEN);
+        /* PDU payload should be full if chained */
+        BLE_LL_ASSERT(ext_hdr_len + sync->data_len == BLE_LL_MAX_PAYLOAD_LEN);
     }
 
-    sync->payload_len = hdr_len + sync->sync_data_len;
+    sync->payload_len = ext_hdr_len + sync->data_len;
 }
 
 static void
@@ -2433,8 +2432,8 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     struct ble_ll_adv_sync *sync;
     struct ble_ll_adv_sync *sync_next;
     struct ble_ll_sched_item *sch;
-    uint16_t rem_sync_data_len;
-    uint16_t next_sync_data_offset;
+    uint16_t rem_data_len;
+    uint16_t next_data_offset;
     uint32_t max_usecs;
     uint8_t chan;
 
@@ -2457,16 +2456,16 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
      * Do not schedule next sync if current sync does not have AuxPtr in extended
      * header as this means we do not need subsequent ADV_CHAIN_IND to be sent.
      */
-    if (!(sync->ext_hdr & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
+    if (!(sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
         return;
     }
 
-    next_sync_data_offset = sync->sync_data_offset + sync->sync_data_len;
+    next_data_offset = sync->data_offset + sync->data_len;
 
-    BLE_LL_ASSERT(SYNC_DATA_LEN(advsm) >= next_sync_data_offset);
+    BLE_LL_ASSERT(SYNC_DATA_LEN(advsm) >= next_data_offset);
 
-    rem_sync_data_len = SYNC_DATA_LEN(advsm) - next_sync_data_offset;
-    BLE_LL_ASSERT(rem_sync_data_len > 0);
+    rem_data_len = SYNC_DATA_LEN(advsm) - next_data_offset;
+    BLE_LL_ASSERT(rem_data_len > 0);
 
     /* we use separate counter for chaining */
     chan = ble_ll_utils_dci_csa2(advsm->periodic_chain_event_cntr++,
@@ -2474,7 +2473,7 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
                                  advsm->periodic_num_used_chans,
                                  advsm->periodic_chanmap);
 
-    ble_ll_adv_sync_calculate(advsm, sync_next, next_sync_data_offset, chan);
+    ble_ll_adv_sync_calculate(advsm, sync_next, next_data_offset, chan);
     max_usecs = ble_ll_pdu_tx_time_get(sync_next->payload_len, advsm->sec_phy);
 
     sync_next->start_time = sync->sch.end_time +
