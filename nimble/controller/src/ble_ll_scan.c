@@ -362,11 +362,6 @@ ble_ll_scan_get_ext_adv_report(struct ext_adv_report *copy_from)
 
     return hci_ev;
 }
-
-void
-ble_ll_scan_end_adv_evt(struct ble_ll_aux_data *aux_data)
-{
-}
 #endif
 
 void
