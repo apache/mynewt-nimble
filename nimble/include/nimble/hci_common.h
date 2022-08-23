@@ -1142,39 +1142,29 @@ struct ble_hci_vs_set_tx_pwr_rp {
     int8_t tx_power;
 } __attribute__((packed));
 
-#define BLE_HCI_OCF_VS_CSS                              (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0003))
-struct ble_hci_vs_css_cp {
-    uint8_t opcode;
-} __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_CONFIGURE                     0x01
+#define BLE_HCI_OCF_VS_CSS_CONFIGURE                    (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0003))
 struct ble_hci_vs_css_configure_cp {
-    uint8_t opcode;
     uint32_t slot_us;
     uint32_t period_slots;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_ENABLE                        0x02
+#define BLE_HCI_OCF_VS_CSS_ENABLE                       (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0004))
 struct ble_hci_vs_css_enable_cp {
-    uint8_t opcode;
     uint8_t enable;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_SET_NEXT_SLOT                 0x03
+#define BLE_HCI_OCF_VS_CSS_SET_NEXT_SLOT                (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0005))
 struct ble_hci_vs_css_set_next_slot_cp {
-    uint8_t opcode;
     uint16_t slot_idx;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_SET_CONN_SLOT                 0x04
+#define BLE_HCI_OCF_VS_CSS_SET_CONN_SLOT                (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0006))
 struct ble_hci_vs_css_set_conn_slot_cp {
-    uint8_t opcode;
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
-#define BLE_HCI_VS_CSS_OP_READ_CONN_SLOT                0x05
+#define BLE_HCI_OCF_VS_CSS_READ_CONN_SLOT               (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0007))
 struct ble_hci_vs_css_read_conn_slot_cp {
-    uint8_t opcode;
     uint16_t conn_handle;
 } __attribute__((packed));
 struct ble_hci_vs_css_read_conn_slot_rp {
-    uint8_t opcode;
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
