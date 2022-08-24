@@ -202,17 +202,13 @@ int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
 #define BLE_LL_S_CA_INIT                ((uint64_t)1 << 32)
 #define BLE_LL_S_HDCA_INIT              ((uint64_t)1 << 33)
 #define BLE_LL_S_LDCA_INIT              ((uint64_t)1 << 34)
-#else
-#define BLE_LL_S_CA_INIT                ((uint64_t)0 << 32)
-#define BLE_LL_S_HDCA_INIT              ((uint64_t)0 << 33)
-#define BLE_LL_S_LDCA_INIT              ((uint64_t)0 << 34)
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define BLE_LL_S_CA_CENTRAL             ((uint64_t)1 << 35)
 #define BLE_LL_S_HDCA_CENTRAL           ((uint64_t)1 << 36)
 #define BLE_LL_S_LDCA_CENTRAL           ((uint64_t)1 << 37)
 #else
+#define BLE_LL_S_CA_INIT                ((uint64_t)0 << 32)
+#define BLE_LL_S_HDCA_INIT              ((uint64_t)0 << 33)
+#define BLE_LL_S_LDCA_INIT              ((uint64_t)0 << 34)
 #define BLE_LL_S_CA_CENTRAL              ((uint64_t)0 << 35)
 #define BLE_LL_S_HDCA_CENTRAL            ((uint64_t)0 << 36)
 #define BLE_LL_S_LDCA_CENTRAL            ((uint64_t)0 << 37)
