@@ -32,3 +32,5 @@ tx:
   peer_address_type: 1
   peer_address: C0:0D:A5:1A:98:EF
 test_dir: /path/to/blehci_throughput/tests/Mon_May_23_12:29:10_2022
+transport_directory: default or /path/to/custom_transport.py
+ltk: '0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'

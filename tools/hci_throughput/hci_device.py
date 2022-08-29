@@ -44,13 +44,13 @@ class ParentCalledException(KeyboardInterrupt):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='HCI device with User Channel Socket',
-        epilog='Start a device according to predefined mode (receiver/transmitter). \
+        description='HCI device with User Channel Socket. \
+                Start a device according to predefined mode (receiver/transmitter). \
                 The initialization of the device is based on received parameters \
                 or predefined init.yaml and config.yaml files.\
                 The tx device will try to connect to rx device and send data. \
-                After completion the throughput plots will pop up. \
-                How to run the python scripts, first specifying all params: \
+                After completion the throughput plots will pop up. ',
+        epilog='How to run the python script: \
                     sudo python hci_device.py -m rx -oa 00:00:00:00:00:00 -oat 0 -di 0 \
                         -pa 00:00:00:00:00:00 -pat 0 -pdi 0 -cf config.yaml\
                 or, if present, specifying init.yaml file \

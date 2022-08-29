@@ -32,16 +32,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Check HCI device address type and address',
         epilog='How to run script: \
-                sudo python check_addr.py -i 0 1 2')
+                sudo python check_addr.py -i 0 1 2 \
+                -t path/to/custom_transport_dir')
     parser.add_argument('-i', '--indexes', type=str, nargs='*',
                         help='specify hci adapters indexes', default=0)
-    parser.add_argument(
-        '-t',
-        '--transport_directory',
-        type=str,
-        nargs='*',
-        help='specify hci transport directory path',
-        default="default")
+    parser.add_argument('-t', '--transport_directory', type=str, nargs='*',
+                        help='specify hci transport directory path. \
+                        Use for transport other than the default linux socket.',
+                        default=["default"])
     try:
         args = parser.parse_args()
         if (isinstance(args.transport_directory, list)):
