@@ -13,9 +13,9 @@ sudo pip install -r requirements.txt
 
 ## Usage
 ### Prepare devices
-This tool may be used with existing controller or with any board with ```blehci``` app.
+This tool may be used with the existing controller or with any board with ```blehci``` app.
 
-  - If you want to use builtin PC controller, provide HCI index of the controller. Turn the Bluetooth ON on your device, run ```hciconfig``` in the terminal and get the HCI index. In the case below HCI index is equal to 0:
+  - If you want to use the builtin PC controller, provide HCI index of the controller. Turn the Bluetooth ON on your device, run ```hciconfig``` in the terminal and get the HCI index. In the case below HCI index is equal to 0:
 
 ```
 user@user:~$ hciconfig
@@ -27,20 +27,25 @@ hci0:	Type: Primary  Bus: USB
 ```
 
   - If you want to use the nimble controller, create the image and load the provided target (can be found under ```/targets``` for NRF52840 and NRF52832). 
-    - NRF52840 may use USB or UART transport. The target is configured for USB by default.
-    - NRF52832 uses UART as transport. This requires some additional configuration. Get the tty path and run in the terminal:
+    - NRF52840 may use USB or UART as HCI transport. The target is configured for USB by default.
+    - NRF52832 uses UART as HCI transport. This requires some additional configuration. Get the tty path and run in the terminal:
     ```
     sudo btattach -B /dev/ttyACM0 -S 1000000
     ```
     Then proceed with ```hciconfig``` as shown above.
 
 ### Run tests
-This tool opens a raw socket which requires running all scripts as ```sudo```. Copy the ```config.yaml.sample``` file, change the name to ```config.yaml``` and fill the parameters. Run ```main.py``` as shown below:
+
+
+This tool opens a raw socket which requires running all scripts as ```sudo```. Copy the ```config.yaml.sample``` file, change the name to ```config.yaml``` and fill the parameters. 
+Optionally pass the path to the custom transport directory if used. Run ```main.py``` as shown below:
 ```
-sudo python main.py -i <hci_idx_1> <hci_idx_2> -m rx tx -cf config.yaml
+sudo python main.py -i <hci_idx_1> <hci_idx_2> -m rx tx -t <path/to/custom_transport_directory> -cf config.yaml
 ```
-Switch ```<hci_idx_1>``` and ```<hci_idx_2>``` to corresponding hci indexes present in your computer. ```-m``` and ```-cf``` may be omitted if the defaults are correct. \
+Switch ```<hci_idx_1>``` and ```<hci_idx_2>``` to corresponding hci indexes present in your computer. ```-m```, ```-t``` and ```-cf``` may be omitted if the defaults are correct. \
 The output provides the plots of measured throughput in ```kb``` or ```kB``` as predefined in ```config.yaml```. In addition to the throughput plots, when the ```flag_plot_packets``` is turned on, the number of packets transmitted/received in time is visualized.
+
+**_When encountering issues with running tests, try to investigate the files in the log folder._**
 
 #### Set ```config.yaml``` file
 To run **once** the throughput measurement with given parameters, set the ```flag_testing``` to false.
@@ -93,9 +98,9 @@ sudo python hci_device.py -m tx -if init.yaml
 ```
 
 ### Check addr sub-tool
-When given hci indexes, ```check_addr.py``` returns devices' address types and addresses.
+When given hci indexes, ```check_addr.py``` returns devices' address types and addresses. Optionally pass the path to the custom transport directory if used.
 ```
-sudo python check_addr.py -i <hci_idx_1> <hci_idx_2> ... <hci_idx_N>
+sudo python check_addr.py -i <hci_idx_1> <hci_idx_2> ... <hci_idx_N> -t <path/to/custom_transport_directory>
 ```
 
 ### Throughput sub-tool

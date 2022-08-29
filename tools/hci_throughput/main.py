@@ -36,10 +36,10 @@ PROCESS_TIMEOUT = 500  # seconds, adjust if necessary
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Measure throughput',
-        epilog='How to run python scripts: \
-                    sudo python main.py -i 0 1 -m rx tx -cf config.yaml\
-                then hci0 -> rx and hci1 -> tx')
+        description='App for measuring BLE throughput over ACL.',
+        epilog='How to run python script for hci0 -> rx and hci1 -> tx: \
+                sudo python main.py -i 0 1 -m rx tx \
+                -t path/to/custom_transport_directory -cf config.yaml')
     parser.add_argument('-i', '--indexes', type=str, nargs='*',
                         help='specify adapters indexes', default=[0, 1])
     parser.add_argument('-m', '--modes', type=str, nargs="*",
@@ -47,7 +47,8 @@ def parse_arguments():
                         choices=['rx', 'tx'], default=['rx', 'tx'])
     parser.add_argument('-t', '--transport_directory', type=str, nargs='*',
                         help='specify hci transport directory path. \
-                        The default is linux socket', default=["default"])
+                        Use for transport other than the default linux socket.',
+                        default=["default"])
     parser.add_argument('-cf', '--config_file', type=str, nargs="*",
                         help='configuration file for devices',
                         default=["config.yaml"])
