@@ -17,6 +17,7 @@
 #
 
 syscfg.defs:
+    BABBLESIM: 1
     BSP_NRF52:
         description: 'Set to indicate that BSP has NRF52'
         value: 1
