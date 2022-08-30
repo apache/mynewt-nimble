@@ -1817,7 +1817,7 @@ ble_phy_txpower_round(int dbm)
     }
 
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg3dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm;
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg3dBm;
     }
 
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm) {
