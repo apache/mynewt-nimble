@@ -8,7 +8,6 @@
 
 #include <stdint.h>
 #include "irq_ctrl.h"
-#include "irq_sources.h"
 #include "os/sim.h"
 
 static int currently_running_irq = -1;

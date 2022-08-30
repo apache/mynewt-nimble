@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include "irq_ctrl.h"
 
-#include "irq_sources.h"
 #include <nrfx.h>
 #include "cmsis.h"
 #include "os/sim.h"
