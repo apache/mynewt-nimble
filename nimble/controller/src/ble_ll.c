@@ -44,6 +44,9 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_fem.h"
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+#include "controller/ble_ll_ext.h"
+#endif
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -801,6 +804,11 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_dtm_wfr_timer_exp();
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+        case BLE_LL_STATE_EXTERNAL:
+            ble_ll_ext_wfr_timer_exp();
+            break;
+#endif
         default:
             break;
         }
@@ -976,6 +984,11 @@ ble_ll_rx_pkt_in(void)
             ble_ll_dtm_rx_pkt_in(m, ble_hdr);
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+        case BLE_LL_STATE_EXTERNAL:
+            ble_ll_ext_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
         default:
             /* Any other state should never occur */
             STATS_INC(ble_ll_stats, bad_ll_state);
@@ -1122,6 +1135,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_dtm_rx_isr_start(rxhdr, ble_phy_access_addr_get());
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+    case BLE_LL_STATE_EXTERNAL:
+        rc = ble_ll_ext_rx_isr_start(pdu_type, rxhdr);
+        break;
+#endif
     default:
         /* Should not be in this state! */
         rc = -1;
@@ -1164,6 +1182,13 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 
     ble_ll_trace_u32x3(BLE_LL_TRACE_ID_RX_END, pdu_type, len,
                        rxhdr->rxinfo.flags);
+
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_EXTERNAL) {
+        rc = ble_ll_ext_rx_isr_end(rxbuf, rxhdr);
+        return rc;
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_DTM) {

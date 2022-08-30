@@ -1120,6 +1120,11 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         start_scan = false;
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+    case BLE_LL_STATE_EXTERNAL:
+        start_scan = false;
+        break;
+#endif
     case BLE_LL_STATE_SCANNING:
         /* Must disable PHY since we will move to a new channel */
         ble_phy_disable();
