@@ -31,6 +31,9 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_sync.h"
+#if MYNEWT_VAL(BLE_LL_EXT)
+#include "controller/ble_ll_ext.h"
+#endif
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 
@@ -65,9 +68,6 @@ static struct ble_ll_sched_css g_ble_ll_sched_css = {
 #endif
 };
 #endif
-
-typedef int (* ble_ll_sched_preempt_cb_t)(struct ble_ll_sched_item *sch,
-                                          struct ble_ll_sched_item *item);
 
 /* XXX: TODO:
  *  1) Add some accounting to the schedule code to see how late we are
@@ -170,6 +170,11 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
 #endif
 #endif
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT)
+            case BLE_LL_SCHED_TYPE_EXTERNAL:
+                ble_ll_ext_sched_removed(entry);
+                break;
+#endif
             default:
                 BLE_LL_ASSERT(0);
                 break;
@@ -191,7 +196,7 @@ ble_ll_sched_q_head_changed(void)
     ble_ll_tmr_stop(&g_ble_ll_sched_timer);
 }
 
-static inline void
+void
 ble_ll_sched_restart(void)
 {
     struct ble_ll_sched_item *first;
@@ -211,7 +216,7 @@ ble_ll_sched_restart(void)
     }
 }
 
-static int
+int
 ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
                     ble_ll_sched_preempt_cb_t preempt_cb)
 {
@@ -1005,6 +1010,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
     case BLE_LL_STATE_CONNECTION:
         STATS_INC(ble_ll_stats, sched_state_conn_errs);
         ble_ll_conn_event_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_EXT)
+    case BLE_LL_STATE_EXTERNAL:
+        ble_ll_ext_halt();
         break;
 #endif
     default:

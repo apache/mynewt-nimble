@@ -237,6 +237,9 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #define BLE_LL_STATE_SCAN_AUX       (7)
 #endif
+#if MYNEWT_VAL(BLE_LL_EXT)
+#define BLE_LL_STATE_EXTERNAL       (8)
+#endif
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION       (0x0000000001)

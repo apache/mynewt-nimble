@@ -70,6 +70,9 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_PERIODIC  (6)
 #define BLE_LL_SCHED_TYPE_SYNC      (7)
 #define BLE_LL_SCHED_TYPE_SCAN_AUX  (8)
+#if MYNEWT_VAL(BLE_LL_EXT)
+#define BLE_LL_SCHED_TYPE_EXTERNAL  (255)
+#endif
 
 /* Return values for schedule callback. */
 #define BLE_LL_SCHED_STATE_RUNNING  (0)
@@ -79,6 +82,10 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 struct ble_ll_sched_item;
 typedef int (*sched_cb_func)(struct ble_ll_sched_item *sch);
 typedef void (*sched_remove_cb_func)(struct ble_ll_sched_item *sch);
+
+typedef int (* ble_ll_sched_preempt_cb_t)(struct ble_ll_sched_item *sch,
+                                          struct ble_ll_sched_item *item);
+
 
 /*
  * Schedule item
@@ -91,6 +98,9 @@ typedef void (*sched_remove_cb_func)(struct ble_ll_sched_item *sch);
 struct ble_ll_sched_item
 {
     uint8_t         sched_type;
+#if MYNEWT_VAL(BLE_LL_EXT)
+    uint8_t         sched_ext_type;
+#endif
     uint8_t         enqueued;
     uint8_t         remainder;
     uint32_t        start_time;
@@ -102,6 +112,10 @@ struct ble_ll_sched_item
 
 /* Initialize the scheduler */
 int ble_ll_sched_init(void);
+
+int ble_ll_sched_insert(struct ble_ll_sched_item *sch, uint32_t max_delay,
+                        ble_ll_sched_preempt_cb_t preempt_cb);
+void ble_ll_sched_restart(void);
 
 /* Remove item(s) from schedule */
 int ble_ll_sched_rmv_elem(struct ble_ll_sched_item *sch);
