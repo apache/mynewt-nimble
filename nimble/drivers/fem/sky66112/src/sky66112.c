@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include "syscfg/syscfg.h"
 #include "hal/hal_gpio.h"
-#include "controller/ble_ll_plna.h"
+#include "controller/ble_ll_fem.h"
 
 #define NO_BYPASS \
         ((MYNEWT_VAL(SKY66112_TX_BYPASS) == 0) && \
@@ -38,13 +38,13 @@ sky66112_bypass(uint8_t enabled)
 }
 
 void
-ble_ll_plna_pa_init(void)
+ble_ll_fem_pa_init(void)
 {
     /* Nothing to do here */
 }
 
 void
-ble_ll_plna_pa_enable(void)
+ble_ll_fem_pa_enable(void)
 {
     if (!MYNEWT_VAL(SKY66112_TX_BYPASS)) {
         sky66112_bypass(0);
@@ -52,7 +52,7 @@ ble_ll_plna_pa_enable(void)
 }
 
 void
-ble_ll_plna_pa_disable(void)
+ble_ll_fem_pa_disable(void)
 {
     if (!MYNEWT_VAL(SKY66112_TX_BYPASS)) {
         sky66112_bypass(1);
@@ -60,13 +60,13 @@ ble_ll_plna_pa_disable(void)
 }
 
 void
-ble_ll_plna_lna_init(void)
+ble_ll_fem_lna_init(void)
 {
     /* Nothing to do here */
 }
 
 void
-ble_ll_plna_lna_enable(void)
+ble_ll_fem_lna_enable(void)
 {
     if (!MYNEWT_VAL(SKY66112_RX_BYPASS)) {
         sky66112_bypass(0);
@@ -74,7 +74,7 @@ ble_ll_plna_lna_enable(void)
 }
 
 void
-ble_ll_plna_lna_disable(void)
+ble_ll_fem_lna_disable(void)
 {
     if (!MYNEWT_VAL(SKY66112_RX_BYPASS)) {
         sky66112_bypass(1);
