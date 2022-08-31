@@ -27,7 +27,8 @@
 #include <nimble/nimble_opt.h>
 #include <nimble/nimble_npl.h>
 #include <controller/ble_phy.h>
-#include "controller/ble_ll_plna.h"
+#include <controller/ble_ll_plna.h>
+#include <controller/ble_ll_tmr.h>
 
 #include <ble/xcvr.h>
 #include <controller/ble_phy_trace.h>
@@ -335,7 +336,8 @@ ble_phy_plna_enable_pa(void)
     ble_ll_plna_pa_enable();
 
     /* CC[0] is set to radio enable */
-    NRF_TIMER0_NS->CC[4] = NRF_TIMER0_NS->CC[0] + BLE_PHY_T_RXENFAST -
+    NRF_TIMER0_NS->CC[4] = NRF_TIMER0_NS->CC[0] + BLE_PHY_T_TXENFAST +
+                           g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode] -
                            MYNEWT_VAL(BLE_LL_PA_TURN_ON_US);
 
 #if PLNA_SINGLE_GPIO
@@ -535,58 +537,51 @@ nrf_wait_disabled(void)
 }
 
 static int
-ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
+ble_phy_set_start_time(uint32_t ticks, uint8_t rem_us, bool tx)
 {
+    uint32_t radio_en_us;
+    uint32_t fem_en_us;
+    uint32_t rem_us_adj;
+    uint32_t ticks_adj;
     uint32_t next_cc;
     uint32_t cur_cc;
     uint32_t cntr;
     uint32_t delta;
 
-    /*
-     * We need to adjust start time to include radio ramp-up and TX pipeline
-     * delay (the latter only if applicable, so only for TX).
-     *
-     * Radio ramp-up time is 40 usecs and TX delay is 3 or 5 usecs depending on
-     * phy, thus we'll offset RTC by 2 full ticks (61 usecs) and then compensate
-     * using TIMER0 with 1 usec precision.
-     */
-
-    cputime -= 2;
-    rem_usecs += 61;
     if (tx) {
-        rem_usecs -= BLE_PHY_T_TXENFAST;
-        rem_usecs -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+        radio_en_us = BLE_PHY_T_TXENFAST +
+                      g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
     } else {
-        rem_usecs -= BLE_PHY_T_RXENFAST;
+        radio_en_us = BLE_PHY_T_RXENFAST;
     }
 
-    /*
-     * rem_usecs will be no more than 2 ticks, but if it is more than single
-     * tick then we should better count one more low-power tick rather than
-     * 30 high-power usecs. Also make sure we don't set TIMER0 CC to 0 as the
-     * compare won't occur.
+    if (MYNEWT_VAL(BLE_LL_PA) && tx) {
+        fem_en_us = MYNEWT_VAL(BLE_LL_PA_TURN_ON_US);
+    } else if (MYNEWT_VAL(BLE_LL_LNA) && !tx) {
+        fem_en_us = MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US);
+    } else {
+        fem_en_us = 0;
+    }
+
+    /* We need to adjust start time to include radio ramp-up and pipeline delay
+     * (the latter only for tx). If we also need to enable FEM, we have to make
+     * sure that TIMER0 is started early enough.
+     *
+     * Since radio ramp-up and pipeline delay are at least 40us but no more than
+     * 2 ticks, we can use simple path as long as FEM turn on time is no longer
+     * than 61us (2 ticks).
      */
-
-    if (rem_usecs > 30) {
-        cputime++;
-        rem_usecs -= 30;
+    if (fem_en_us > 61) {
+        rem_us_adj = fem_en_us - rem_us + 1;
+        ticks_adj = ble_ll_tmr_u2t_up(rem_us_adj);
+        ticks -= ticks_adj;
+        rem_us += ble_ll_tmr_t2u(ticks_adj);
+    } else {
+        ticks -= 2;
+        rem_us += 61;
     }
 
-    /* If PA/LNA is used, make sure CC[0] is set to more than turn-on time since
-     * it's used as a base for turn-on time calculation and thus cannot wrap
-     * around on subtraction.
-     */
-    if (MYNEWT_VAL(BLE_LL_PA) && tx &&
-        (rem_usecs + BLE_PHY_T_RXENFAST <= MYNEWT_VAL(BLE_LL_PA_TURN_ON_US))) {
-        cputime--;
-        rem_usecs += 30;
-    }
-
-    if (MYNEWT_VAL(BLE_LL_LNA) && !tx &&
-        (rem_usecs + BLE_PHY_T_RXENFAST <= MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US))) {
-        cputime--;
-        rem_usecs += 30;
-    }
+    rem_us -= radio_en_us;
 
     /*
      * Can we set the RTC compare to start TIMER0? We can do it if:
@@ -598,7 +593,7 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
      * NOTE: since the counter can tick 1 while we do these calculations we
      * need to account for it.
      */
-    next_cc = cputime & 0xffffff;
+    next_cc = ticks & 0xffffff;
     cur_cc = NRF_RTC0_NS->CC[0];
     cntr = NRF_RTC0_NS->COUNTER;
 
@@ -613,7 +608,7 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
 
     /* Clear and set TIMER0 to fire off at proper time */
     NRF_TIMER0_NS->TASKS_CLEAR = 1;
-    NRF_TIMER0_NS->CC[0] = rem_usecs;
+    NRF_TIMER0_NS->CC[0] = rem_us;
     NRF_TIMER0_NS->EVENTS_COMPARE[0] = 0;
 
     /* Set RTC compare to start TIMER0 */
@@ -625,7 +620,7 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
     NRF_TIMER0_NS->SUBSCRIBE_START = DPPI_CH_SUB(RTC0_EVENTS_COMPARE_0);
 
     /* Store the cputime at which we set the RTC */
-    g_ble_phy_data.phy_start_cputime = cputime;
+    g_ble_phy_data.phy_start_cputime = ticks;
 
     return 0;
 }
