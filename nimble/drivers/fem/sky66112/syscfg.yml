@@ -56,6 +56,13 @@ syscfg.defs:
             Enables bypass for RX which effectively disables operation as PA.
             Only valid if CPS signal is controller by driver.
         value: 0
+    SKY66112_ANTENNA_PORT:
+        description: >
+            Selects which antenna port should be enabled:
+             1 for ANT1 port enabled
+             2 for ANT2 port enabled
+        range: 1, 2
+        value: 1
 
 syscfg.vals.!BLE_LL_FEM_PA:
     # Enable TX bypass by default if PA is disabled

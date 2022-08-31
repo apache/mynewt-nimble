@@ -18,22 +18,25 @@
  */
 
 #include <assert.h>
-#include <stdint.h>
+#include <sky66112/sky66112.h>
 #include "syscfg/syscfg.h"
 #include "hal/hal_gpio.h"
 #include "controller/ble_ll_fem.h"
 
-#define NO_BYPASS \
-        ((MYNEWT_VAL(SKY66112_TX_BYPASS) == 0) && \
-         (MYNEWT_VAL(SKY66112_RX_BYPASS) == 0))
+static struct {
+    uint8_t rx_bypass : 1;
+    uint8_t tx_bypass : 1;
+} sky66112_config = {
+    .rx_bypass = MYNEWT_VAL(SKY66112_RX_BYPASS),
+    .tx_bypass = MYNEWT_VAL(SKY66112_TX_BYPASS),
+};
 
 static void
 sky66112_bypass(uint8_t enabled)
 {
-    if (NO_BYPASS) {
-        return;
-    }
-
+    /* this is called only if bypass is enabled which means CPS PIN is
+     * correctly set and there is no need to check it here.
+     */
     hal_gpio_write(MYNEWT_VAL(SKY66112_PIN_CPS), enabled);
 }
 
@@ -46,16 +49,16 @@ ble_ll_fem_pa_init(void)
 void
 ble_ll_fem_pa_enable(void)
 {
-    if (!MYNEWT_VAL(SKY66112_TX_BYPASS)) {
-        sky66112_bypass(0);
+    if (sky66112_config.tx_bypass) {
+        sky66112_bypass(1);
     }
 }
 
 void
 ble_ll_fem_pa_disable(void)
 {
-    if (!MYNEWT_VAL(SKY66112_TX_BYPASS)) {
-        sky66112_bypass(1);
+    if (sky66112_config.tx_bypass) {
+        sky66112_bypass(0);
     }
 }
 
@@ -68,16 +71,67 @@ ble_ll_fem_lna_init(void)
 void
 ble_ll_fem_lna_enable(void)
 {
-    if (!MYNEWT_VAL(SKY66112_RX_BYPASS)) {
-        sky66112_bypass(0);
+    if (sky66112_config.rx_bypass) {
+        sky66112_bypass(1);
     }
 }
 
 void
 ble_ll_fem_lna_disable(void)
 {
-    if (!MYNEWT_VAL(SKY66112_RX_BYPASS)) {
-        sky66112_bypass(1);
+    if (sky66112_config.rx_bypass) {
+        sky66112_bypass(0);
+    }
+}
+
+void
+sky66112_tx_hp_mode(uint8_t enabled)
+{
+    int pin = MYNEWT_VAL(SKY66112_PIN_CHL);
+
+    if (pin >= 0) {
+        hal_gpio_write(pin, enabled);
+    }
+}
+
+void
+sky66112_antenna_port(uint8_t port)
+{
+    int pin = MYNEWT_VAL(SKY66112_PIN_SEL);
+
+    if (pin >= 0) {
+        switch (port) {
+        case 1:
+            hal_gpio_init_out(pin, 0);
+            break;
+        case 2:
+            hal_gpio_init_out(pin, 1);
+            break;
+        default:
+            assert(0);
+        }
+    }
+}
+
+void
+sky66112_rx_bypass(uint8_t enabled)
+{
+    int pin = MYNEWT_VAL(SKY66112_PIN_CPS);
+
+    if (pin >= 0) {
+        sky66112_config.rx_bypass = enabled;
+        sky66112_bypass(enabled);
+    }
+}
+
+void
+sky66112_tx_bypass(uint8_t enabled)
+{
+    int pin = MYNEWT_VAL(SKY66112_PIN_CPS);
+
+    if (pin >= 0) {
+        sky66112_config.tx_bypass = enabled;
+        sky66112_bypass(enabled);
     }
 }
 
@@ -92,26 +146,18 @@ sky66112_init(void)
         hal_gpio_init_out(pin, 1);
     }
 
-    pin = MYNEWT_VAL(SKY66112_PIN_CPS);
-    if (NO_BYPASS) {
-        /* Disable bypass */
-        if (pin >= 0) {
-            hal_gpio_init_out(pin, 0);
-        }
-    } else {
-        /* Enable bypass, we'll disable it when needed */
-        assert(pin >= 0);
-        hal_gpio_init_out(pin, 1);
-    }
-
+    /* Set default tx power mode */
     pin = MYNEWT_VAL(SKY66112_PIN_CHL);
     if (pin >= 0) {
         hal_gpio_init_out(pin, MYNEWT_VAL(SKY66112_TX_HP_MODE));
     }
 
-    /* Select ANT1 */
-    pin = MYNEWT_VAL(SKY66112_PIN_SEL);
+    /* Disable bypass, we'll enable it when needed */
+    pin = MYNEWT_VAL(SKY66112_PIN_CPS);
     if (pin >= 0) {
         hal_gpio_init_out(pin, 0);
     }
+
+    sky66112_tx_hp_mode(MYNEWT_VAL(SKY66112_TX_HP_MODE));
+    sky66112_antenna_port(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
 }
