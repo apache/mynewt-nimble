@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <controller/ble_ll_fem.h>
 #include <hal/nrf_radio.h>
 #include <hal/nrf_ccm.h>
 #include <hal/nrf_aar.h>
@@ -37,7 +38,6 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
-#include "controller/ble_ll_plna.h"
 #include "nrfx.h"
 #if MYNEWT
 #include "mcu/nrf52_clock.h"
@@ -318,20 +318,20 @@ struct nrf_ccm_data g_nrf_ccm_data;
 
 static int g_ble_phy_gpiote_idx;
 
-#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
+#if MYNEWT_VAL(BLE_LL_FEM_PA) || MYNEWT_VAL(BLE_LL_FEM_LNA)
 
-#define PLNA_SINGLE_GPIO \
-        (!MYNEWT_VAL(BLE_LL_PA) || !MYNEWT_VAL(BLE_LL_LNA) || \
-         (MYNEWT_VAL(BLE_LL_PA_GPIO) == MYNEWT_VAL(BLE_LL_LNA_GPIO)))
+#define FEM_SINGLE_GPIO \
+    (!MYNEWT_VAL(BLE_LL_FEM_PA) || !MYNEWT_VAL(BLE_LL_FEM_LNA) || \
+     (MYNEWT_VAL(BLE_LL_FEM_PA_GPIO) == MYNEWT_VAL(BLE_LL_FEM_LNA_GPIO)))
 
-#if PLNA_SINGLE_GPIO
-static uint8_t plna_idx;
+#if FEM_SINGLE_GPIO
+static uint8_t fem_idx;
 #else
-#if MYNEWT_VAL(BLE_LL_PA)
-static uint8_t plna_pa_idx;
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+static uint8_t fem_pa_idx;
 #endif
-#if MYNEWT_VAL(BLE_LL_LNA)
-static uint8_t plna_lna_idx;
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+static uint8_t fem_lna_idx;
 #endif
 #endif
 
@@ -463,14 +463,14 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
 #endif
 
 static void
-ble_phy_plna_enable_pa(void)
+ble_phy_fem_enable_pa(void)
 {
-#if MYNEWT_VAL(BLE_LL_PA)
-    ble_ll_plna_pa_enable();
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+    ble_ll_fem_pa_enable();
 
-#if !PLNA_SINGLE_GPIO
-    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_pa_idx]);
-    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_pa_idx]);
+#if !FEM_SINGLE_GPIO
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[fem_pa_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[fem_pa_idx]);
 #endif
 
     NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
@@ -478,14 +478,14 @@ ble_phy_plna_enable_pa(void)
 }
 
 static void
-ble_phy_plna_enable_lna(void)
+ble_phy_fem_enable_lna(void)
 {
-#if MYNEWT_VAL(BLE_LL_LNA)
-    ble_ll_plna_lna_enable();
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+    ble_ll_fem_lna_enable();
 
-#if !PLNA_SINGLE_GPIO
-    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_lna_idx]);
-    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_lna_idx]);
+#if !FEM_SINGLE_GPIO
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[fem_lna_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[fem_lna_idx]);
 #endif
 
     NRF_PPI->CHENSET = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
@@ -1027,7 +1027,7 @@ ble_phy_tx_end_isr(void)
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH21_Msk);
 
-        ble_phy_plna_enable_lna();
+        ble_phy_fem_enable_lna();
     } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
         /* Schedule TX exactly T_IFS after TX end captured in CC[2] */
         tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
@@ -1173,7 +1173,7 @@ ble_phy_rx_end_isr(void)
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
     nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH20_Msk);
 
-    ble_phy_plna_enable_pa();
+    ble_phy_fem_enable_pa();
 
     /*
      * XXX: Hack warning!
@@ -1381,9 +1381,9 @@ ble_phy_isr(void)
 
         switch (g_ble_phy_data.phy_state) {
         case BLE_PHY_STATE_RX:
-#if MYNEWT_VAL(BLE_LL_LNA)
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
             NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
-            ble_ll_plna_lna_disable();
+            ble_ll_fem_lna_disable();
 #endif
             if (g_ble_phy_data.phy_rx_started) {
                 ble_phy_rx_end_isr();
@@ -1392,9 +1392,9 @@ ble_phy_isr(void)
             }
             break;
         case BLE_PHY_STATE_TX:
-#if MYNEWT_VAL(BLE_LL_PA)
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
             NRF_PPI->CHENCLR = PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk;
-            ble_ll_plna_pa_disable();
+            ble_ll_fem_pa_disable();
 #endif
             ble_phy_tx_end_isr();
             break;
@@ -1414,8 +1414,8 @@ ble_phy_isr(void)
 #if MYNEWT_VAL(BLE_PHY_DBG_TIME_TXRXEN_READY_PIN) >= 0 || \
     MYNEWT_VAL(BLE_PHY_DBG_TIME_ADDRESS_END_PIN) >= 0 || \
     MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0 || \
-    MYNEWT_VAL(BLE_LL_PA) || \
-    MYNEWT_VAL(BLE_LL_LNA)
+    MYNEWT_VAL(BLE_LL_FEM_PA) || \
+    MYNEWT_VAL(BLE_LL_FEM_LNA)
 static int
 ble_phy_gpiote_configure(int pin)
 {
@@ -1599,19 +1599,19 @@ ble_phy_init(void)
         (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
         (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
 
-#if MYNEWT_VAL(BLE_LL_PA) || MYNEWT_VAL(BLE_LL_LNA)
-#if PLNA_SINGLE_GPIO
-    plna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
-    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[plna_idx]);
-    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[plna_idx]);
+#if MYNEWT_VAL(BLE_LL_FEM_PA) || MYNEWT_VAL(BLE_LL_FEM_LNA)
+#if FEM_SINGLE_GPIO
+    fem_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_FEM_PA_GPIO));
+    NRF_PPI->CH[6].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_SET[fem_idx]);
+    NRF_PPI->CH[7].TEP = (uint32_t) &(NRF_GPIOTE->TASKS_CLR[fem_idx]);
 #else
-#if MYNEWT_VAL(BLE_LL_PA)
-    plna_pa_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_PA_GPIO));
-    NRF_GPIOTE->TASKS_CLR[plna_pa_idx] = 1;
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+    fem_pa_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_FEM_PA_GPIO));
+    NRF_GPIOTE->TASKS_CLR[fem_pa_idx] = 1;
 #endif
-#if MYNEWT_VAL(BLE_LL_LNA)
-    plna_lna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_LNA_GPIO));
-    NRF_GPIOTE->TASKS_CLR[plna_lna_idx] = 1;
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+    fem_lna_idx = ble_phy_gpiote_configure(MYNEWT_VAL(BLE_LL_FEM_LNA_GPIO));
+    NRF_GPIOTE->TASKS_CLR[fem_lna_idx] = 1;
 #endif
 #endif
 
@@ -1783,7 +1783,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH20_Msk);
         rc = 0;
 
-        ble_phy_plna_enable_pa();
+        ble_phy_fem_enable_pa();
     }
 
     return rc;
@@ -1830,7 +1830,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Enable PPI to automatically start RXEN */
     nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH21_Msk);
 
-    ble_phy_plna_enable_lna();
+    ble_phy_fem_enable_lna();
 
     /* Start rx */
     rc = ble_phy_rx();

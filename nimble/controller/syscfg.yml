@@ -406,30 +406,30 @@ syscfg.defs:
             line number where assertion occured.
         value: MYNEWT_VAL(BLE_LL_VND_EVENT_ON_ASSERT)
 
-    BLE_LL_PA:
-        description: Enable PA support
-        value: 0
-    BLE_LL_PA_GPIO:
+    BLE_LL_FEM_PA:
+        description: Enable FEM PA support
+        value: MYNEWT_VAL(BLE_LL_PA)
+    BLE_LL_FEM_PA_GPIO:
         description: >
             GPIO pin number to control PA. Pin is set to high state when PA
             should be enabled.
-        value: -1
-    BLE_LL_PA_TURN_ON_US:
+        value: MYNEWT_VAL(BLE_LL_PA_GPIO)
+    BLE_LL_FEM_PA_TURN_ON_US:
         description: >
             Time required for PA to turn on, in microseconds.
-        value: 1
-    BLE_LL_LNA:
+        value: MYNEWT_VAL(BLE_LL_PA_TURN_ON_US)
+    BLE_LL_FEM_LNA:
         description: Enable LNA support
-        value: 0
-    BLE_LL_LNA_GPIO:
+        value: MYNEWT_VAL(BLE_LL_LNA)
+    BLE_LL_FEM_LNA_GPIO:
         description: >
             GPIO pin number to control LNA. Pin is set to high state when LNA
             should be enabled.
-        value: -1
-    BLE_LL_LNA_TURN_ON_US:
+        value: MYNEWT_VAL(BLE_LL_LNA_GPIO)
+    BLE_LL_FEM_LNA_TURN_ON_US:
         description: >
             Time required for LNA to turn on, in microseconds.
-        value: 1
+        value: MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US)
 
     BLE_LL_SYSINIT_STAGE:
         description: >
@@ -519,8 +519,8 @@ syscfg.vals.!BLE_HOST:
 syscfg.restrictions:
     - BLE_TRANSPORT_LL == "native"
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
-    - BLE_LL_PA == 0 || BLE_LL_PA_GPIO >= 0
-    - BLE_LL_LNA == 0 || BLE_LL_LNA_GPIO >= 0
+    - BLE_LL_FEM_PA == 0 || BLE_LL_FEM_PA_GPIO >= 0
+    - BLE_LL_FEM_LNA == 0 || BLE_LL_FEM_LNA_GPIO >= 0
 
 $import:
     # defunct and deprecated settings

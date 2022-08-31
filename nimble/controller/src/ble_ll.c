@@ -43,7 +43,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
-#include "controller/ble_ll_plna.h"
+#include "controller/ble_ll_fem.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -1640,11 +1640,11 @@ ble_ll_reset(void)
 #endif
 
 
-#if MYNEWT_VAL(BLE_LL_PA)
-    ble_ll_plna_pa_init();
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+    ble_ll_fem_pa_init();
 #endif
-#if MYNEWT_VAL(BLE_LL_LNA)
-    ble_ll_plna_lna_init();
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+    ble_ll_fem_lna_init();
 #endif
 
     /* Re-initialize the PHY */

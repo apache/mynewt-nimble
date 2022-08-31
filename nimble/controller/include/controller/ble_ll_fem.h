@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef H_BLE_LL_PLNA_
-#define H_BLE_LL_PLNA_
+#ifndef H_BLE_LL_FEM_
+#define H_BLE_LL_FEM_
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,20 +26,20 @@ extern "C" {
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_LL_PA)
-void ble_ll_plna_pa_init(void);
-void ble_ll_plna_pa_enable(void);
-void ble_ll_plna_pa_disable(void);
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+void ble_ll_fem_pa_init(void);
+void ble_ll_fem_pa_enable(void);
+void ble_ll_fem_pa_disable(void);
 #endif
 
-#if MYNEWT_VAL(BLE_LL_LNA)
-void ble_ll_plna_lna_init(void);
-void ble_ll_plna_lna_enable(void);
-void ble_ll_plna_lna_disable(void);
+#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+void ble_ll_fem_lna_init(void);
+void ble_ll_fem_lna_enable(void);
+void ble_ll_fem_lna_disable(void);
 #endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_BLE_LL_PLNA_ */
+#endif /* H_BLE_LL_FEM_ */
