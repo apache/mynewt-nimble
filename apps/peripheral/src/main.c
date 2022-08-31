@@ -50,6 +50,7 @@ adv_event(struct ble_gap_event *event, void *arg)
         MODLOG_DFLT(INFO, "connection %s; status=%d\n",
                     event->connect.status == 0 ? "established" : "failed",
                     event->connect.status);
+        conn_handle = event->connect.conn_handle;
         break;
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
         /* connected device requests update of connection parameters,
