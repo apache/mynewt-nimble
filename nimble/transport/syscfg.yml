@@ -57,7 +57,7 @@ syscfg.defs:
         value: 10
     BLE_TRANSPORT_ACL_SIZE:
         description: Size of each buffer in ACL pool.
-        value: 255
+        value: 251
     BLE_TRANSPORT_EVT_COUNT:
         description: >
             Number of event buffers available in transport.
