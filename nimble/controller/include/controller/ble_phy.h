@@ -87,6 +87,11 @@ int ble_phy_init(void);
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 
+#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
+/* Set T_ifs time for next transition */
+void ble_phy_tifs_set(uint16_t tifs);
+#endif
+
 /* Set transmit start time */
 int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
 

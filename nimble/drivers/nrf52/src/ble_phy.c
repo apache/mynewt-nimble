@@ -140,6 +140,9 @@ struct ble_phy_obj
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
     uint32_t phy_start_cputime;
+#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
+    uint16_t tifs;
+#endif
 };
 struct ble_phy_obj g_ble_phy_data;
 
@@ -642,6 +645,26 @@ nrf_wait_disabled(void)
     }
 }
 
+#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
+static uint16_t
+ble_phy_tifs_get(void)
+{
+    return g_ble_phy_data.tifs;
+}
+
+void
+ble_phy_tifs_set(uint16_t tifs)
+{
+    g_ble_phy_data.tifs = tifs;
+}
+#else
+static uint16_t
+ble_phy_tifs_get(void)
+{
+    return BLE_LL_IFS;
+}
+#endif
+
 /**
  *
  *
@@ -796,7 +819,7 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 
     if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
         /* RX shall start exactly T_IFS after TX end captured in CC[2] */
-        end_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        end_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
         /* Adjust for delay between EVENT_END and actual TX end time */
         end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         /* Wait a bit longer due to allowed active clock accuracy */
@@ -1015,7 +1038,7 @@ ble_phy_tx_end_isr(void)
         ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, tx_phy_mode, 0);
 
         /* Schedule RX exactly T_IFS after TX end captured in CC[2] */
-        rx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        rx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
         /* Adjust for delay between EVENT_END and actual TX end time */
         rx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         /* Adjust for radio ramp-up */
@@ -1030,7 +1053,7 @@ ble_phy_tx_end_isr(void)
         ble_phy_plna_enable_lna();
     } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
         /* Schedule TX exactly T_IFS after TX end captured in CC[2] */
-        tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+        tx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
         /* Adjust for delay between EVENT_END and actual TX end time */
         tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         /* Adjust for radio ramp-up */
@@ -1161,7 +1184,7 @@ ble_phy_rx_end_isr(void)
      */
 
     /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
-    tx_time = NRF_TIMER0->CC[2] + BLE_LL_IFS;
+    tx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
     /* Adjust for delay between actual RX end time and EVENT_END */
     tx_time -= g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
     /* Adjust for radio ramp-up */
@@ -1379,6 +1402,10 @@ ble_phy_isr(void)
         NRF_RADIO->EVENTS_DISABLED = 0;
         nrf_radio_int_disable(NRF_RADIO, RADIO_INTENCLR_DISABLED_Msk);
 
+#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
+        g_ble_phy_data.tifs = BLE_LL_IFS;
+#endif
+
         switch (g_ble_phy_data.phy_state) {
         case BLE_PHY_STATE_RX:
 #if MYNEWT_VAL(BLE_LL_LNA)
@@ -1523,6 +1550,10 @@ ble_phy_init(void)
 
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
+
+#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
+    g_ble_phy_data.tifs = BLE_LL_IFS;
+#endif
 
     /* Toggle peripheral power to reset (just in case) */
     nrf_radio_power_set(NRF_RADIO, false);
