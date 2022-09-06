@@ -1168,7 +1168,7 @@ struct ble_hci_vs_css_read_conn_slot_rp {
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
-#define BLE_HCI_OCF_VS_SET_DATA_LEN                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0004))
+#define BLE_HCI_OCF_VS_SET_DATA_LEN                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0008))
 struct ble_hci_vs_set_data_len_cp {
     uint16_t conn_handle;
     uint16_t tx_octets;
