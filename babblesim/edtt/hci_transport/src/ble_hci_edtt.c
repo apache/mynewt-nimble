@@ -142,7 +142,7 @@ ble_hci_edtt_cmdevt_tx(uint8_t *hci_ev, uint8_t edtt_type)
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_transport_to_hs_evt(void *buf)
+ble_transport_to_hs_evt_impl(void *buf)
 {
     return ble_hci_edtt_cmdevt_tx(buf, BLE_HCI_EDTT_EVT);
 }
@@ -156,9 +156,15 @@ ble_transport_to_hs_evt(void *buf)
  *                              A BLE_ERR_[...] error code on failure.
  */
 int
-ble_transport_to_hs_acl(struct os_mbuf *om)
+ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return ble_hci_edtt_acl_tx(om);
+}
+
+void
+ble_transport_hs_init(void)
+{
+
 }
 
 /**
