@@ -18,4 +18,4 @@
 
 syscfg.vals:
   BLE_LL_PUBLIC_DEV_ADDR: 0xbabb1e000001
-  BLE_HCI_TRANSPORT: uart
+  BLE_HCI_TRANSPORT_HS: uart
