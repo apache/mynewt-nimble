@@ -513,7 +513,7 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
 
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host
-syscfg.vals.!BLE_HOST:
+syscfg.vals.'!BLE_HOST && !BABBLESIM':
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
 syscfg.restrictions:
