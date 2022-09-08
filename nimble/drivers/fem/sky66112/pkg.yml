@@ -24,6 +24,7 @@ pkg.homepage: "https://mynewt.apache.org/"
 pkg.apis:
     - ble_ll_fem_pa
     - ble_ll_fem_lna
+    - ble_ll_fem_antenna
 pkg.deps:
     - nimble/controller
 

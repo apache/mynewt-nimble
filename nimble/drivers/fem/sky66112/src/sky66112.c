@@ -94,23 +94,26 @@ sky66112_tx_hp_mode(uint8_t enabled)
     }
 }
 
-void
-sky66112_antenna_port(uint8_t port)
+int
+ble_ll_fem_antenna(uint8_t port)
 {
     int pin = MYNEWT_VAL(SKY66112_PIN_SEL);
 
     if (pin >= 0) {
         switch (port) {
+        case 0:
         case 1:
-            hal_gpio_init_out(pin, 0);
+            hal_gpio_write(pin, 0);
             break;
         case 2:
-            hal_gpio_init_out(pin, 1);
+            hal_gpio_write(pin, 1);
             break;
         default:
-            assert(0);
+            return -1;
         }
     }
+
+    return 0;
 }
 
 void
@@ -158,6 +161,18 @@ sky66112_init(void)
         hal_gpio_init_out(pin, 0);
     }
 
-    sky66112_tx_hp_mode(MYNEWT_VAL(SKY66112_TX_HP_MODE));
-    sky66112_antenna_port(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
+    /* configure default antenna */
+    pin = MYNEWT_VAL(SKY66112_PIN_SEL);
+    if (pin >= 0) {
+        switch (MYNEWT_VAL(SKY66112_ANTENNA_PORT)) {
+        case 1:
+            hal_gpio_init_out(pin, 0);
+            break;
+        case 2:
+            hal_gpio_init_out(pin, 1);
+            break;
+        default:
+            assert(0);
+        }
+    }
 }

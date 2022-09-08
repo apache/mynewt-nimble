@@ -38,6 +38,11 @@ void ble_ll_fem_lna_enable(void);
 void ble_ll_fem_lna_disable(void);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)
+/* 0 sets default antenna, any other value is FEM specific */
+int ble_ll_fem_antenna(uint8_t antenna);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
