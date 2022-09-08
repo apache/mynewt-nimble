@@ -1179,6 +1179,11 @@ struct ble_hci_vs_set_data_len_cp {
 struct ble_hci_vs_set_data_len_rp {
     uint16_t conn_handle;
 } __attribute__((packed));
+#define BLE_HCI_OCF_VS_SET_ANTENNA                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0009))
+struct ble_hci_vs_set_antenna_cp {
+    uint8_t antenna;
+} __attribute__((packed));
+
 
 
 /* Command Specific Definitions */

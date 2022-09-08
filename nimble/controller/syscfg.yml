@@ -430,6 +430,10 @@ syscfg.defs:
         description: >
             Time required for LNA to turn on, in microseconds.
         value: MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US)
+    BLE_LL_FEM_ANTENNA:
+        description: >
+            Enable support for runtime antenna selection in FEM.
+        value: 0
 
     BLE_LL_SYSINIT_STAGE:
         description: >

@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 void sky66112_tx_hp_mode(uint8_t enabled);
-void sky66112_antenna_port(uint8_t port);
 void sky66112_rx_bypass(uint8_t enabled);
 void sky66112_tx_bypass(uint8_t enabled);
 #ifdef __cplusplus
