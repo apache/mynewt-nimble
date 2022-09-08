@@ -163,3 +163,37 @@ phy_ppi_init(void)
                                    (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
                                    (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
 }
+
+int8_t
+phy_txpower_round(int8_t dbm)
+{
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_0dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_0dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm;
+    }
+
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm;
+    }
+
+    return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
+}

@@ -1803,8 +1803,8 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 int
 ble_phy_txpwr_set(int dbm)
 {
-    /* "Rail" power level if outside supported range */
-    dbm = ble_phy_txpower_round(dbm);
+    /* Get actual TX power supported by radio */
+    dbm = phy_txpower_round(dbm);
 
     NRF_RADIO->TXPOWER = dbm;
     g_ble_phy_data.phy_txpwr_dbm = dbm;
@@ -1821,40 +1821,10 @@ ble_phy_txpwr_set(int dbm)
  *
  * @return int Rounded power in dBm
  */
-int ble_phy_txpower_round(int dbm)
+int
+ble_phy_txpower_round(int dbm)
 {
-    /* TODO this should be per nRF52XXX */
-
-    /* "Rail" power level if outside supported range */
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_0dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_0dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm;
-    }
-
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm;
-    }
-
-    return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
+    return phy_txpower_round(dbm);
 }
 
 /**
