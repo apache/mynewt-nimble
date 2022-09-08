@@ -29,3 +29,8 @@ pkg.apis: ble_driver
 pkg.deps:
     - nimble
     - nimble/controller
+
+pkg.ign_dirs.'MCU_TARGET=="nRF5340_NET"':
+    - nrf52
+pkg.ign_dirs.'MCU_TARGET!="nRF5340_NET"':
+    - nrf53

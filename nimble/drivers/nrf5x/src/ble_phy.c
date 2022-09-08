@@ -39,7 +39,12 @@
 #include "controller/ble_ll.h"
 #include "nrfx.h"
 #if MYNEWT
-#include "mcu/nrf52_clock.h"
+#ifdef NRF52_SERIES
+#include <mcu/nrf52_clock.h>
+#endif
+#ifdef NRF53_SERIES
+#include <mcu/nrf5340_net_clock.h>
+#endif
 #include "mcu/cmsis_nvic.h"
 #include "hal/hal_gpio.h"
 #else
@@ -49,8 +54,10 @@
 #include "phy_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-#if !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840) && !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52811)
-#error LE Coded PHY can only be enabled on nRF52811 or nRF52840
+#if !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840) && \
+    !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52811) && \
+    !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF5340_NET)
+#error LE Coded PHY can only be enabled on nRF52811, nRF52840 or nRF5340
 #endif
 #endif
 
@@ -379,21 +386,33 @@ ble_phy_mode_apply(uint8_t phy_mode)
     switch (phy_mode) {
     case BLE_PHY_MODE_1M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_1Mbit;
+#ifdef NRF53_SERIES
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
+#endif
         NRF_RADIO->PCNF0 = NRF_PCNF0_1M;
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
     case BLE_PHY_MODE_2M:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_2Mbit;
+#ifdef NRF53_SERIES
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0084);
+#endif
         NRF_RADIO->PCNF0 = NRF_PCNF0_2M;
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case BLE_PHY_MODE_CODED_125KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR125Kbit;
+#ifdef NRF53_SERIES
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
+#endif
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
         break;
     case BLE_PHY_MODE_CODED_500KBPS:
         NRF_RADIO->MODE = RADIO_MODE_MODE_Ble_LR500Kbit;
+#ifdef NRF53_SERIES
+        *((volatile uint32_t *)0x41008588) = *((volatile uint32_t *)0x01FF0080);
+#endif
         NRF_RADIO->PCNF0 = NRF_PCNF0_CODED;
         break;
 #endif
@@ -1392,6 +1411,19 @@ ble_phy_init(void)
     nrf_radio_power_set(NRF_RADIO, false);
     nrf_radio_power_set(NRF_RADIO, true);
 
+#ifdef NRF53_SERIES
+    *(volatile uint32_t *)(NRF_RADIO_NS_BASE + 0x774) =
+        (*(volatile uint32_t* )(NRF_RADIO_NS_BASE + 0x774) & 0xfffffffe) | 0x01000000;
+#if NRF53_ERRATA_16_ENABLE_WORKAROUND
+    if (nrf53_errata_16()) {
+        /* [16] RADIO: POWER register is not functional */
+        NRF_RADIO_NS->SUBSCRIBE_TXEN = 0;
+        NRF_RADIO_NS->SUBSCRIBE_RXEN = 0;
+        NRF_RADIO_NS->SUBSCRIBE_DISABLE = 0;
+    }
+#endif
+#endif
+
     /* Disable all interrupts */
     nrf_radio_int_disable(NRF_RADIO, NRF_RADIO_IRQ_MASK_ALL);
 
@@ -2071,7 +2103,12 @@ void
 ble_phy_rfclk_enable(void)
 {
 #if MYNEWT || defined(RIOT_VERSION)
+#ifdef NRF52_SERIES
     nrf52_clock_hfxo_request();
+#endif
+#ifdef NRF53_SERIES
+    nrf5340_net_clock_hfxo_request();
+#endif
 #else
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLKSTART);
 #endif
@@ -2081,7 +2118,12 @@ void
 ble_phy_rfclk_disable(void)
 {
 #if MYNEWT || defined(RIOT_VERSION)
+#ifdef NRF52_SERIES
     nrf52_clock_hfxo_release();
+#endif
+#ifdef NRF53_SERIES
+    nrf5340_net_clock_hfxo_release();
+#endif
 #else
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLKSTOP);
 #endif
