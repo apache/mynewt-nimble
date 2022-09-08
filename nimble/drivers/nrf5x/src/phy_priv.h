@@ -20,6 +20,7 @@
 #ifndef H_PHY_PRIV_
 #define H_PHY_PRIV_
 
+#include <stdint.h>
 #include <nrf_gpio.h>
 #include <nrf_gpiote.h>
 
@@ -78,5 +79,12 @@ void phy_ppi_init(void);
 #endif
 
 int8_t phy_txpower_round(int8_t dbm);
+
+#ifdef NRF52_SERIES
+#include "nrf52/phy_ppi.h"
+#endif
+#ifdef NRF53_SERIES
+#include "nrf53/phy_ppi.h"
+#endif
 
 #endif /* H_PHY_PRIV_ */
