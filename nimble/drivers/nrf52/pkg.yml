@@ -18,14 +18,5 @@
 #
 
 pkg.name: nimble/drivers/nrf52
-pkg.description: BLE driver for nRF52 systems.
-pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
-pkg.keywords:
-    - ble
-    - bluetooth
-
-pkg.apis: ble_driver
-pkg.deps:
-    - nimble
-    - nimble/controller
+pkg.type: transient
+pkg.link: "@apache-mynewt-nimble/nimble/drivers/nrf5x"
