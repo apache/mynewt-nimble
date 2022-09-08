@@ -45,6 +45,7 @@
 #else
 #include "core_cm4.h"
 #endif
+#include <nrf_erratas.h>
 #include "phy_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
@@ -319,19 +320,6 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
-#ifndef BABBLESIM
-static void
-ble_phy_apply_errata_102_106_107(void)
-{
-    /* [102] RADIO: PAYLOAD/END events delayed or not triggered after ADDRESS
-     * [106] RADIO: Higher CRC error rates for some access addresses
-     * [107] RADIO: Immediate address match for access addresses containing MSBs 0x00
-     */
-    *(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
-                         0xfffffffe) | 0x01000000;
-}
-#endif
-
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
 
 /* Packet start offset (in usecs). This is the preamble plus access address.
@@ -342,8 +330,8 @@ ble_phy_mode_pdu_start_off(int phy_mode)
     return g_ble_phy_mode_pkt_start_off[phy_mode];
 }
 
-#if NRF52840_XXAA
-static inline bool
+#if NRF52_ERRATA_191_ENABLE_WORKAROUND
+static bool
 ble_phy_mode_is_coded(uint8_t phy_mode)
 {
     return (phy_mode == BLE_PHY_MODE_CODED_125KBPS) ||
@@ -351,48 +339,26 @@ ble_phy_mode_is_coded(uint8_t phy_mode)
 }
 
 static void
-ble_phy_apply_nrf52840_errata(uint8_t new_phy_mode)
+phy_nrf52_errata_191(uint8_t new_phy_mode)
 {
-    bool new_coded = ble_phy_mode_is_coded(new_phy_mode);
-    bool cur_coded = ble_phy_mode_is_coded(g_ble_phy_data.phy_cur_phy_mode);
+    bool from_coded = ble_phy_mode_is_coded(g_ble_phy_data.phy_cur_phy_mode);
+    bool to_coded = ble_phy_mode_is_coded(new_phy_mode);
 
-    /*
-     * Workarounds should be applied only when switching to/from LE Coded PHY
-     * so no need to apply them every time.
-     *
-     * nRF52840 Engineering A Errata v1.2
-     * [164] RADIO: Low sensitivity in long range mode
-     *
-     * nRF52840 Rev 1 Errata
-     * [191] RADIO: High packet error rate in BLE Long Range mode
+    /* [191] RADIO: High packet error rate in BLE Long Range mode
+     * Should be applied only if switching to/from LE Coded, no need to apply
+     * on each mode change.
      */
-    if (new_coded == cur_coded) {
+    if (from_coded == to_coded) {
         return;
     }
 
-    if (new_coded) {
-#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_164)
-        /* [164] */
-        *(volatile uint32_t *)0x4000173C |= 0x80000000;
-        *(volatile uint32_t *)0x4000173C =
-                        ((*(volatile uint32_t *)0x4000173C & 0xFFFFFF00) | 0x5C);
-#endif
-#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_191)
-        /* [191] */
-        *(volatile uint32_t *) 0x40001740 =
-                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFF00FF) |
-                        0x80000000 | (((uint32_t)(196)) << 8);
-#endif
+    if (to_coded) {
+        *(volatile uint32_t *)0x40001740 =
+            ((*((volatile uint32_t *)0x40001740)) & 0x7fff00ff) |
+            0x80000000 | (((uint32_t)(196)) << 8);
     } else {
-#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_164)
-        /* [164] */
-        *(volatile uint32_t *)0x4000173C &= ~0x80000000;
-#endif
-#if MYNEWT_VAL(BLE_PHY_NRF52840_ERRATA_191)
-        /* [191] */
         *(volatile uint32_t *) 0x40001740 =
-                        ((*((volatile uint32_t *) 0x40001740)) & 0x7FFFFFFF);
-#endif
+            ((*((volatile uint32_t *) 0x40001740)) & 0x7fffffff);
     }
 }
 #endif
@@ -404,8 +370,10 @@ ble_phy_mode_apply(uint8_t phy_mode)
         return;
     }
 
-#if NRF52840_XXAA
-    ble_phy_apply_nrf52840_errata(phy_mode);
+#if NRF52_ERRATA_191_ENABLE_WORKAROUND
+    if (nrf52_errata_191()) {
+        phy_nrf52_errata_191(phy_mode);
+    }
 #endif
 
     switch (phy_mode) {
@@ -1906,9 +1874,21 @@ ble_phy_set_access_addr(uint32_t access_addr)
 
     g_ble_phy_data.phy_access_address = access_addr;
 
+#if NRF52_ERRATA_102_ENABLE_WORKAROUND || \
+    NRF52_ERRATA_106_ENABLE_WORKAROUND || \
+    NRF52_ERRATA_107_ENABLE_WORKAROUND
 #ifndef BABBLESIM
-    ble_phy_apply_errata_102_106_107();
+    if (nrf52_errata_102() || nrf52_errata_106() || nrf52_errata_107()) {
+        /* [102] RADIO: PAYLOAD/END events delayed or not triggered after ADDRESS
+         * [106] RADIO: Higher CRC error rates for some access addresses
+         * [107] RADIO: Immediate address match for access addresses containing MSBs 0x00
+         */
+        *(volatile uint32_t *)0x40001774 =
+            ((*(volatile uint32_t *)0x40001774) & 0xfffffffe) | 0x01000000;
+    }
 #endif
+#endif
+
     return 0;
 }
 
