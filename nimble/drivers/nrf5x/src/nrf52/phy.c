@@ -139,6 +139,21 @@ phy_fem_enable_lna(void)
     nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk);
 }
 #endif
+
+void
+phy_fem_disable(void)
+{
+#if PHY_USE_FEM_SINGLE_GPIO
+    NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM] = 1;
+#else
+#if PHY_USE_FEM_PA
+    NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM_PA] = 1;
+#endif
+#if PHY_USE_FEM_LNA
+    NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM_LNA] = 1;
+#endif
+#endif
+}
 #endif /* PHY_USE_FEM */
 
 void

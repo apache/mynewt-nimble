@@ -68,6 +68,7 @@ void phy_fem_enable_pa(void);
 #if PHY_USE_FEM_LNA
 void phy_fem_enable_lna(void);
 #endif
+void phy_fem_disable(void);
 #endif
 
 void phy_ppi_init(void);
