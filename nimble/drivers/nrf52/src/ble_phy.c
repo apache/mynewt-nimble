@@ -1025,6 +1025,10 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
+    if (g_ble_phy_data.txend_cb) {
+        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
+    }
+
     transition = g_ble_phy_data.phy_transition;
 
     if (transition == BLE_PHY_TRANSITION_TX_RX) {
@@ -1080,10 +1084,6 @@ ble_phy_tx_end_isr(void)
         nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk |
                                  PPI_CHEN_CH20_Msk | PPI_CHEN_CH31_Msk);
         assert(transition == BLE_PHY_TRANSITION_NONE);
-    }
-
-    if (g_ble_phy_data.txend_cb) {
-        g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
 }
 
