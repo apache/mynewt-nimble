@@ -52,3 +52,9 @@ syscfg.defs:
             in UICR register. If enabled public address will be read from
             custom UICR instead of FICR register.
         value: 0
+
+syscfg.restrictions:
+    # code supports turn on times up to 90us due to some optimizations, but it
+    # should be enough for most (all?) cases
+    - "!BLE_LL_FEM_PA || BLE_LL_FEM_PA_TURN_ON_US <= 90"
+    - "!BLE_LL_FEM_LNA || BLE_LL_FEM_LNA_TURN_ON_US <= 90"

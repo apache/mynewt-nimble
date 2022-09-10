@@ -102,7 +102,7 @@ phy_fem_init(void)
 #endif
 #endif /* PHY_USE_FEM_SINGLE_GPIO */
 
-    NRF_PPI->CH[6].EEP = (uint32_t)&(NRF_RADIO->EVENTS_READY);
+    NRF_PPI->CH[6].EEP = (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[2]);
     NRF_PPI->CH[7].EEP = (uint32_t)&(NRF_RADIO->EVENTS_DISABLED);
 
     nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk);
