@@ -29,9 +29,9 @@ pkg.req_apis:
     - ble_driver
     - ble_transport
     - stats
-pkg.req_apis.BLE_LL_FEM_PA:
+pkg.req_apis.'BLE_LL_FEM_PA && !BLE_LL_FEM_DUMMY':
     - ble_ll_fem_pa
-pkg.req_apis.BLE_LL_FEM_LNA:
+pkg.req_apis.'BLE_LL_FEM_LNA && !BLE_LL_FEM_DUMMY':
     - ble_ll_fem_lna
 pkg.req_apis.BLE_LL_FEM_ANTENNA:
     - ble_ll_fem_antenna
