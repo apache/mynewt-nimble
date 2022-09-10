@@ -606,41 +606,65 @@ ble_phy_tifs_get(void)
  *
  */
 static int
-ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
+ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
 {
     uint32_t next_cc;
     uint32_t cur_cc;
     uint32_t cntr;
     uint32_t delta;
+    int radio_rem_us;
+#if PHY_USE_FEM
+    int fem_rem_us = 0;
+#endif
+    int rem_us_corr;
+    int min_rem_us;
 
-    /*
-     * We need to adjust start time to include radio ramp-up and TX pipeline
-     * delay (the latter only if applicable, so only for TX).
-     *
-     * Radio ramp-up time is 40 usecs and TX delay is 3 or 5 usecs depending on
-     * phy, thus we'll offset RTC by 2 full ticks (61 usecs) and then compensate
-     * using TIMER0 with 1 usec precision.
+    /* Calculate rem_us for radio and FEM enable. The result may be a negative
+     * value, but we'll adjust later.
      */
-
-    cputime -= 2;
-    rem_usecs += 61;
     if (tx) {
-        rem_usecs -= BLE_PHY_T_TXENFAST;
-        rem_usecs -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+        radio_rem_us = rem_us - BLE_PHY_T_TXENFAST -
+                       g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+#if PHY_USE_FEM_PA
+        fem_rem_us = rem_us - MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US);
+#endif
     } else {
-        rem_usecs -= BLE_PHY_T_RXENFAST;
+        radio_rem_us = rem_us - BLE_PHY_T_TXENFAST;
+#if PHY_USE_FEM_LNA
+        fem_rem_us = rem_us - MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+#endif
     }
 
-    /*
-     * rem_usecs will be no more than 2 ticks, but if it is more than single
-     * tick then we should better count one more low-power tick rather than
-     * 30 high-power usecs. Also make sure we don't set TIMER0 CC to 0 as the
-     * compare won't occur.
+#if PHY_USE_FEM
+    min_rem_us = min(radio_rem_us, fem_rem_us);
+#else
+    min_rem_us = radio_rem_us;
+#endif
+
+    /* We need to adjust rem_us values, so they are >=1 for TIMER0 compare
+     * event to be triggered.
+     *
+     * If FEM is not enabled, calculated rem_us is -45<=rem_us<=-15 since we
+     * only had to adjust earlier for ramp-up and txdelay, i.e. 40+5=45us in
+     * worst case, so we adjust by 1 or 2 tick(s) only.
+     *
+     * If FEM is enabled, turn on time may be a bit longer, so we also allow to
+     * adjust by 3 ticks so up to 90us which should be enough. If needed, we
+     * can extend this by another tick but having FEM with turn on time >90us
+     * means transition may become tricky.
      */
 
-    if (rem_usecs > 30) {
-        cputime++;
-        rem_usecs -= 30;
+    if ((PHY_USE_FEM) && (min_rem_us <= -61)) {
+        cputime -= 3;
+        rem_us_corr = 91;
+    } else if (min_rem_us <= -30) {
+        /* rem_us is -60..-30 */
+        cputime -= 2;
+        rem_us_corr = 61;
+    } else {
+        /* rem_us is -29..0 */
+        cputime -= 1;
+        rem_us_corr = 30;
     }
 
     /*
@@ -668,8 +692,14 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
 
     /* Clear and set TIMER0 to fire off at proper time */
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
-    nrf_timer_cc_set(NRF_TIMER0, 0, rem_usecs);
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_rem_us + rem_us_corr);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+#if PHY_USE_FEM
+    if (fem_rem_us) {
+        nrf_timer_cc_set(NRF_TIMER0, 2, fem_rem_us + rem_us_corr);
+        NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+    }
+#endif
 
     /* Set RTC compare to start TIMER0 */
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
@@ -677,6 +707,19 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_usecs, bool tx)
     nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 
     /* Enable PPI */
+#if PHY_USE_FEM
+    if (fem_rem_us) {
+        if (tx) {
+#if PHY_USE_FEM_PA
+            phy_fem_enable_pa();
+#endif
+        } else {
+#if PHY_USE_FEM_LNA
+            phy_fem_enable_lna();
+#endif
+        }
+    }
+#endif
     phy_ppi_rtc0_compare0_to_timer0_start_enable();
 
     /* Store the cputime at which we set the RTC */
@@ -690,16 +733,41 @@ ble_phy_set_start_now(void)
 {
     os_sr_t sr;
     uint32_t now;
+    uint32_t radio_rem_us;
+#if PHY_USE_FEM_LNA
+    uint32_t fem_rem_us;
+#endif
 
     OS_ENTER_CRITICAL(sr);
 
-    /*
-     * Set TIMER0 to fire immediately. We can't set CC to 0 as compare will not
-     * occur in such case.
+    /* We need to set TIMER0 compare registers to at least 1 as otherwise
+     * compare event won't be triggered. Event (FEM/radio) that have to be
+     * triggered first is set to 1, other event is set to 1+diff.
+     *
+     * Note that this is only used for rx, so only need to handle LNA.
      */
+
+#if PHY_USE_FEM_LNA
+    if (MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) > BLE_PHY_T_RXENFAST) {
+        radio_rem_us = 1 + MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) -
+                       BLE_PHY_T_RXENFAST;
+        fem_rem_us = 1;
+    } else {
+        radio_rem_us = 1;
+        fem_rem_us = 1 + BLE_PHY_T_RXENFAST -
+                     MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+    }
+#else
+    radio_rem_us = 1;
+#endif
+
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
-    nrf_timer_cc_set(NRF_TIMER0, 0, 1);
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_rem_us);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+#if PHY_USE_FEM_LNA
+    nrf_timer_cc_set(NRF_TIMER0, 2, fem_rem_us);
+    NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+#endif
 
     /*
      * Set RTC compare to start TIMER0. We need to set it to at least N+2 ticks
@@ -939,6 +1007,10 @@ ble_phy_tx_end_isr(void)
     uint8_t transition;
     uint32_t rx_time;
     uint32_t tx_time;
+#if PHY_USE_FEM_LNA
+    uint32_t fem_time;
+#endif
+    uint32_t radio_time;
 
     /* Store PHY on which we've just transmitted smth */
     tx_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
@@ -983,31 +1055,41 @@ ble_phy_tx_end_isr(void)
         rx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
         /* Adjust for delay between EVENT_END and actual TX end time */
         rx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
-        /* Adjust for radio ramp-up */
-        rx_time -= BLE_PHY_T_RXENFAST;
         /* Start listening a bit earlier due to allowed active clock accuracy */
         rx_time -= 2;
 
-        nrf_timer_cc_set(NRF_TIMER0, 0, rx_time);
+#if PHY_USE_FEM_LNA
+        fem_time = rx_time - MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
+        NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+        phy_fem_enable_lna();
+#endif
+
+        radio_time = rx_time - BLE_PHY_T_RXENFAST;
+        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_rxen_enable();
 
-#if PHY_USE_FEM_LNA
-        phy_fem_enable_lna();
-#endif
+        /* In case TIMER0 did already count past CC[0] and/or CC[2], radio
+         * and/or LNA may not be enabled. In any case we won't be stuck since
+         * wfr will cancel rx if needed.
+         *
+         * FIXME failing to enable LNA may result in unexpected RSSI drop in
+         *       case we still rxd something, so perhaps we could check it here
+         */
     } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
         /* Schedule TX exactly T_IFS after TX end captured in CC[2] */
         tx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
         /* Adjust for delay between EVENT_END and actual TX end time */
         tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
-        /* Adjust for radio ramp-up */
-        tx_time -= BLE_PHY_T_TXENFAST;
         /* Adjust for delay between EVENT_READY and actual TX start time */
         tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
         nrf_timer_cc_set(NRF_TIMER0, 0, tx_time);
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_txen_enable();
+
+        /* TODO handle PA */
 
         nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
         if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
@@ -1060,7 +1142,12 @@ ble_phy_rx_end_isr(void)
     uint8_t *dptr;
     uint8_t crcok;
     uint32_t tx_time;
+#if PHY_USE_FEM_PA
+    uint32_t fem_time;
+#endif
+    uint32_t radio_time;
     struct ble_mbuf_hdr *ble_hdr;
+    bool is_late;
 
     /* Disable automatic RXEN */
     phy_ppi_timer0_compare0_to_radio_rxen_disable();
@@ -1128,33 +1215,38 @@ ble_phy_rx_end_isr(void)
     tx_time = NRF_TIMER0->CC[2] + ble_phy_tifs_get();
     /* Adjust for delay between actual RX end time and EVENT_END */
     tx_time -= g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
-    /* Adjust for radio ramp-up */
-    tx_time -= BLE_PHY_T_TXENFAST;
+
+#if PHY_USE_FEM_PA
+    fem_time = tx_time - MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US);
+#endif
+
     /* Adjust for delay between EVENT_READY and actual TX start time */
     tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
-    nrf_timer_cc_set(NRF_TIMER0, 0, tx_time);
+    radio_time = tx_time - BLE_PHY_T_TXENFAST;
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
     phy_ppi_timer0_compare0_to_radio_txen_enable();
 
 #if PHY_USE_FEM_PA
+    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
+    NRF_TIMER0->EVENTS_COMPARE[2] = 0;
     phy_fem_enable_pa();
 #endif
 
-    /*
-     * XXX: Hack warning!
-     *
-     * It may happen (during flash erase) that CPU is stopped for a moment and
-     * TIMER0 already counted past CC[0]. In such case we will be stuck waiting
-     * for TX to start since EVENTS_COMPARE[0] will not happen any time soon.
-     * For now let's set a flag denoting that we are late in RX-TX transition so
-     * ble_phy_tx() will fail - this allows everything to cleanup nicely without
-     * the need for extra handling in many places.
+    /* Need to check if TIMER0 did not already count past CC[0] and/or CC[2], so
+     * we're not stuck waiting for events in case radio and/or PA was not
+     * started. If event was triggered we're fine regardless of timer value.
      *
      * Note: CC[3] is used only for wfr which we do not need here.
      */
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
-    if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
+    is_late = (NRF_TIMER0->CC[3] > radio_time) && !NRF_TIMER0->EVENTS_COMPARE[0];
+#if PHY_USE_FEM_PA
+    is_late = is_late ||
+              ((NRF_TIMER0->CC[3] > fem_time) && !NRF_TIMER0->EVENTS_COMPARE[2]);
+#endif
+    if (is_late) {
         phy_ppi_timer0_compare0_to_radio_txen_disable();
         g_ble_phy_data.phy_transition_late = 1;
     }
@@ -1644,10 +1736,6 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         /* Enable PPI to automatically start TXEN */
         phy_ppi_timer0_compare0_to_radio_txen_enable();
         rc = 0;
-
-#if PHY_USE_FEM_PA
-        phy_fem_enable_pa();
-#endif
     }
 
     return rc;
@@ -1693,10 +1781,6 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     /* Enable PPI to automatically start RXEN */
     phy_ppi_timer0_compare0_to_radio_rxen_enable();
-
-#if PHY_USE_FEM_LNA
-    phy_fem_enable_lna();
-#endif
 
     /* Start rx */
     rc = ble_phy_rx();
