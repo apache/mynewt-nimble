@@ -24,14 +24,23 @@
 extern "C" {
 #endif
 
+#include <syscfg/syscfg.h>
+
 #define XCVR_RX_RADIO_RAMPUP_USECS  (40)
 #define XCVR_TX_RADIO_RAMPUP_USECS  (40)
 
-/*
- * NOTE: we have to account for the RTC output compare issue. We want it to be
- * 5 ticks.
+/* We need to account for the RTC compare issue, we want it to be 5 ticks.
+ * In case FEM turn on time is more than radio enable (i.e. 2 ticks) we want
+ * to add 1 more tick to compensate for additional delay.
+ *
+ * TODO this file should be refactored...
  */
+#if (MYNEWT_VAL(BLE_LL_FEM_PA) && (MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US) > 60)) || \
+    (MYNEWT_VAL(BLE_LL_FEM_LNA) && (MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) > 60))
+#define XCVR_PROC_DELAY_USECS         (183)
+#else
 #define XCVR_PROC_DELAY_USECS         (153)
+#endif
 #define XCVR_RX_START_DELAY_USECS     (XCVR_RX_RADIO_RAMPUP_USECS)
 #define XCVR_TX_START_DELAY_USECS     (XCVR_TX_RADIO_RAMPUP_USECS)
 #define XCVR_TX_SCHED_DELAY_USECS     \
