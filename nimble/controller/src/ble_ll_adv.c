@@ -4842,12 +4842,12 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
             ++advsm->adv_chan;
         }
 
-        /*
-         * We will transmit right away. Set next pdu start time to now
-         * plus a xcvr start delay just so we dont count late adv starts
+        /* We want to send next PDU right away so start time is set to "now"
+         * plus scheduling offset. Add an extra tick since LL timer may tick
+         * when we calculate other things in the meantime.
          */
         advsm->adv_pdu_start_time = ble_ll_tmr_get() +
-                                    g_ble_ll_sched_offset_ticks;
+                                    g_ble_ll_sched_offset_ticks + 1;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         /* If we're past aux (unlikely, but can happen), just drop an event */
