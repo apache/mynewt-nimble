@@ -1674,28 +1674,18 @@ ble_ll_adv_aux_set_start_time(struct ble_ll_adv_sm *advsm)
 
     chans = bits[advsm->adv_chanmask];
 
-    /*
-     * We want to schedule auxiliary packet as soon as possible after the end
-     * of advertising event, but no sooner than T_MAFS. The interval between
-     * advertising packets is 250 usecs (8.19 ticks) on LE Coded and a bit less
-     * on 1M, but it can vary a bit due to scheduling which we can't really
-     * control. Since we round ticks up for both interval and T_MAFS, we still
-     * have some margin here. The worst thing that can happen is that we skip
-     * last advertising packet which is not a bit problem so leave it as-is, no
-     * need to make code more complicated.
-     */
-
-    /*
-     * XXX: this could be improved if phy has TX-TX transition with controlled
-     *      or predefined interval, but since it makes advertising code even
-     *      more complicated let's skip it for now...
-     */
-
     adv_pdu_dur = (int32_t)(sched->end_time - sched->start_time) -
                   g_ble_ll_sched_offset_ticks;
 
-    /* 9 is 8.19 ticks rounded up - see comment above */
-    adv_event_dur = (adv_pdu_dur * chans) + (9 * (chans - 1));
+    /* The interval between advertising PDUs may vary due to scheduling, but in
+     * general we reserve 3 ticks for end-to-schedule time and add scheduler
+     * offset. That should be more that enough to make sure there's at least
+     * T_mafs delay between last advertising PDU and auxiliary PDU.
+     *
+     * TODO we can make this much more efficient with TX-TX transition
+     */
+    adv_event_dur = (adv_pdu_dur * chans) +
+                    ((3 + g_ble_ll_sched_offset_ticks) * (chans - 1));
 
     advsm->aux[0].start_time = advsm->adv_event_start_time + adv_event_dur +
                                ble_ll_tmr_u2t_up(BLE_LL_MAFS +
