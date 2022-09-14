@@ -1,0 +1,38 @@
+project.name: "mynewt-ci"
+
+project.repositories:
+    - apache-mynewt-core
+    - apache-mynewt-nimble
+    - apache-mynewt-mcumgr
+    - mcuboot
+    - tinyusb
+
+repository.apache-mynewt-core:
+    type: github
+    vers: 0.0.0
+    user: apache
+    repo: mynewt-core
+
+repository.apache-mynewt-nimble:
+    type: github
+    vers: 0.0.0
+    user: apache
+    repo: mynewt-nimble
+
+repository.apache-mynewt-mcumgr:
+    type: github
+    vers: 0.0.0
+    user: apache
+    repo: mynewt-mcumgr
+
+repository.mcuboot:
+    type: github
+    vers: 0.0.0
+    user: mcu-tools
+    repo: mcuboot
+
+repository.tinyusb:
+    type: github
+    vers: 0.0.0
+    user: hathach
+    repo: tinyusb

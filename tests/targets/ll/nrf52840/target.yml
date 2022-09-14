@@ -1,0 +1,5 @@
+target.app: "@apache-mynewt-nimble/apps/blehci"
+target.bsp: "@apache-mynewt-core/hw/bsp/nordic_pca10056"
+target.build_profile: debug
+#target.build_profile: optimized
+#target.build_profile: speed

@@ -15,142 +15,122 @@
 # specific language governing permissions and limitations
 # under the License.
 
-language: go
-
-dist: bionic
-
-_addons: &addon_conf
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - gcc-multilib
-      - gcc-7-multilib
-      - g++-multilib
-
-go:
-  - "1.16"
+os: linux
+dist: jammy
+language: shell
 
 git:
-  depth: false
-
-matrix:
-  allow_failures:
-    - env:
-        - TEST=BUILD_PORTS
-        - VM_AMOUNT=1
-        - TARGET_SET=1
-  include:
-    # Style checking
-    - os: linux
-      language: python
-      python:
-        - "3.5"
-      addons:
-        apt:
-          packages:
-            - "python3-pip"
-      env:
-        - TEST=STYLE
-        - DEBUG=1
-
-    # newt build <targets>
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=1
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=2
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=3
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_TARGETS
-        - VM_AMOUNT=4
-        - TARGET_SET=4
-
-    # newt test all (Linux)
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=2
-        - TARGET_SET=1
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=TEST_ALL
-        - VM_AMOUNT=2
-        - TARGET_SET=2
-
-    # ports
-    - os: linux
-      addons: *addon_conf
-      env:
-        - TEST=BUILD_PORTS
-        - VM_AMOUNT=1
-        - TARGET_SET=1
-
-    - os: windows
-      env:
-        - TEST=BUILD_TARGETS_WINDOWS
-        - VM_AMOUNT=1
-        - TARGET_SET=1
-
-before_install:
-  - printenv
-  - export GOPATH=$HOME/gopath
-  - go version
-
-install:
-  - git clone https://github.com/JuulLabs-OSS/mynewt-travis-ci $HOME/ci
-  - chmod +x $HOME/ci/*.sh
-  - |
-    if [ "${TEST}" == "STYLE" ]; then
-      pip3 install requests
-    else
-      $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
-    fi
-
-before_script:
-  - |
-    if [ "${TEST}" == "STYLE" ]; then
-      $HOME/ci/install_uncrustify.sh
-    else
-      newt version
-      gcc --version
-      if [ "${TEST}" != "TEST_ALL" ]; then arm-none-eabi-gcc --version; fi
-      cp -R $HOME/ci/mynewt-nimble-project.yml project.yml
-      mkdir -p targets
-      cp -R $HOME/ci/mynewt-nimble-targets targets
-      $HOME/ci/prepare_test.sh $VM_AMOUNT
-      mkdir -p repos && pushd repos/
-      git clone --depth=1 https://github.com/apache/mynewt-core apache-mynewt-core
-      git clone --depth=1 https://github.com/JuulLabs-OSS/mcuboot mcuboot
-      git clone --depth=1 https://github.com/apache/mynewt-mcumgr apache-mynewt-mcumgr
-      popd
-    fi
-
-script:
-  - |
-    if [ "${TEST}" == "STYLE" ]; then
-      python3 $HOME/ci/check_style.py
-    else
-      $HOME/ci/run_test.sh
-    fi
+  depth: 1
 
 cache:
+  ccache: true
   directories:
-  - $HOME/TOOLCHAIN
-  - $HOME/Library/Caches/Homebrew
+    - $HOME/.ccache
+    - $HOME/bsim
+
+before_install:
+  - export PATH=/usr/lib/ccache:$PATH
+
+_install-build: &install-build
+  # install newt
+  - eval "$(gimme 1.16)"
+  - go version
+  - go get mynewt.apache.org/newt/newt@latest
+  - newt version
+  # install toolchain
+  - mkdir -p ~/gcc-arm-none-eabi
+  - wget -qO- "https://developer.arm.com/-/media/Files/downloads/gnu/11.2-2022.02/binrel/gcc-arm-11.2-2022.02-x86_64-arm-none-eabi.tar.xz" | tar xvJ --strip 1 -C ~/gcc-arm-none-eabi
+  - for t in ~/gcc-arm-none-eabi/bin/arm-none-eabi-*; do ln -sf $(which ccache) ~/bin/$(basename "$t"); done
+  - export PATH=$PATH:~/gcc-arm-none-eabi/bin
+
+_install-babblesim: &install-babblesim
+  - sudo apt update && sudo apt-get -y install gcc-multilib libfftw3-dev
+  # install newt
+  - eval "$(gimme 1.16)"
+  - go version
+  - go get mynewt.apache.org/newt/newt@latest
+  - newt version
+  # install repo
+  - curl -o ~/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+  - gpg --recv-key 8BB9AD793E8E6153AF0F9A4416530D5E920F5C65
+  - curl -s https://storage.googleapis.com/git-repo-downloads/repo.asc | gpg --verify - ~/bin/repo
+  - chmod +x ~/bin/repo
+  # install babblesim
+  - mkdir -p ~/nrfx && cd ~/nrfx
+  - git clone --depth=1 https://github.com/NordicSemiconductor/nrfx.git .
+  - mkdir -p ~/bsim && cd ~/bsim
+  - git config --global color.ui false
+  - repo init --depth=1 -u https://github.com/BabbleSim/manifest.git -m everything.xml -b master
+  - repo sync
+  - export NRFX_BASE=~/nrfx/
+  - export BSIM_OUT_PATH=~/bsim/
+  - export BSIM_COMPONENTS_PATH=${BSIM_OUT_PATH}/components/
+  - make everything -j 8
+
+_install-test: &install-test
+  - sudo apt update && sudo apt-get -y install gcc-multilib
+  # install newt
+  - eval "$(gimme 1.16)"
+  - go version
+  - go get mynewt.apache.org/newt/newt@latest
+  - newt version
+
+_prepare-style: &prepare-style
+  - cd ${TRAVIS_BUILD_DIR}
+  - git fetch origin --deepen=100 refs/pull/$TRAVIS_PULL_REQUEST/head
+  - git checkout -q FETCH_HEAD
+
+_prepare-project: &prepare-project
+  - mkdir -p ~/mynewt-ci && cd ~/mynewt-ci
+  - git clone --depth=1 https://github.com/apache/mynewt-core.git repos/apache-mynewt-core
+  - git clone --depth=1 https://github.com/apache/mynewt-mcumgr.git repos/apache-mynewt-mcumgr
+  - git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
+  - git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
+  - mv ${TRAVIS_BUILD_DIR} repos/apache-mynewt-nimble
+  - cd repos/apache-mynewt-nimble
+  - cp tests/project.yml ../..
+
+_prepare-project-test: &prepare-test
+  - mkdir -p ~/mynewt-ci && cd ~/mynewt-ci
+  - git clone --depth=1 https://github.com/apache/mynewt-core.git repos/apache-mynewt-core
+  - git clone --depth=1 https://github.com/apache/mynewt-mcumgr.git repos/apache-mynewt-mcumgr
+  - git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
+  - git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
+  - ln -s ${TRAVIS_BUILD_DIR} repos/apache-mynewt-nimble
+  - cp repos/apache-mynewt-nimble/tests/project.yml .
+  - newt target create unittest
+  - newt target set unittest bsp=@apache-mynewt-core/hw/bsp/native
+  - newt target set unittest build_profile=debug
+
+jobs:
+  include:
+    - name: Style check
+      env: CACHE=1
+      if: type IN (pull_request)
+      install: sudo apt update && sudo apt -y install uncrustify
+      before_script: *prepare-style
+      script: ./tests/scripts/check_style.py
+
+    - name: Build targets (LL)
+      env: CACHE=2
+      install: *install-build
+      before_script: *prepare-project
+      script: ./tests/scripts/build_targets.py tests/targets/ll/
+
+    - name: Build targets (samples)
+      env: CACHE=3
+      install: *install-build
+      before_script: *prepare-project
+      script: ./tests/scripts/build_targets.py targets/
+
+    - name: BabbleSim
+      env: CACHE=4
+      install: *install-babblesim
+      before_script: *prepare-project
+      script: ./tests/scripts/build_targets.py babblesim/targets/
+
+    - name: newt test
+      env: CACHE=5
+      install: *install-test
+      before_script: *prepare-test
+      script: newt test @apache-mynewt-nimble/nimble/host/test @apache-mynewt-nimble/nimble/controller/test

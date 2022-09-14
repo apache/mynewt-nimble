@@ -1,0 +1,4 @@
+pkg.name: tests/targets/ll/cmac
+pkg.type: target
+pkg.deps:
+  - tests/targets/ll

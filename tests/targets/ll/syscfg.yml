@@ -1,0 +1,36 @@
+syscfg.defs:
+    TESTS_VARIANT:
+        description:
+        value: default
+        choices:
+        - default
+        - no_coded
+        - no_privacy
+        - no_encryption
+
+syscfg.vals:
+    BLE_VERSION: 53
+    BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
+    BLE_LL_CFG_FEAT_CONN_PARAM_REQ: 1
+    BLE_LL_CFG_FEAT_PERIPH_INIT_FEAT_XCHG: 1
+    BLE_LL_CFG_FEAT_LE_PING: 1
+    BLE_LL_CFG_FEAT_DATA_LEN_EXT: 1
+    BLE_LL_CFG_FEAT_LL_PRIVACY: 1
+    BLE_LL_CFG_FEAT_LE_CSA2: 1
+    BLE_LL_CFG_FEAT_LE_2M_PHY: 1
+    BLE_LL_CFG_FEAT_LE_CODED_PHY: 1
+    BLE_LL_CFG_FEAT_LL_EXT_ADV: 1
+    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV: 1
+    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER: 1
+    BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL: 1
+    BLE_LL_CFG_FEAT_LL_SCA_UPDATE: 1
+    BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE: 1
+
+syscfg.vals.'TESTS_VARIANT=="no_coded"':
+    BLE_LL_CFG_FEAT_LE_CODED_PHY: 0
+
+syscfg.vals.'TESTS_VARIANT=="no_privacy"':
+    BLE_LL_CFG_FEAT_LL_PRIVACY: 0
+
+syscfg.vals.'TESTS_VARIANT=="no_encryption"':
+    BLE_LL_CFG_FEAT_LL_ENCRYPTION: 0
