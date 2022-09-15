@@ -65,7 +65,7 @@
  * right thing to do.
  */
 
-int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+int8_t g_ble_ll_tx_power;
 
 /* Supported states */
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
@@ -1347,8 +1347,9 @@ ble_ll_task(void *arg)
     /* Init ble phy */
     ble_phy_init();
 
-    /* Set output power to 1mW (0 dBm) */
-    ble_phy_txpwr_set(g_ble_ll_tx_power);
+    /* Set output power to selected default */
+    g_ble_ll_tx_power = ble_ll_txpower_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    ble_ll_txpower_set(g_ble_ll_tx_power);
 
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
@@ -1975,4 +1976,24 @@ void
 ble_transport_ll_init(void)
 {
     ble_ll_init();
+}
+
+void
+ble_ll_txpower_set(int dbm)
+{
+#if MYNEWT_VAL(BLE_LL_FEM_PA_TXPOWER_TUNE)
+    ble_ll_fem_txpower_set(dbm);
+#else
+    ble_phy_txpwr_set(dbm);
+#endif
+}
+
+int
+ble_ll_txpower_round(int dbm)
+{
+#if MYNEWT_VAL(BLE_LL_FEM_PA_TXPOWER_TUNE)
+    return ble_ll_fem_txpower_round(dbm);
+#else
+    return ble_phy_txpower_round(dbm);
+#endif
 }

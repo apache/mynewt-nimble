@@ -30,6 +30,11 @@ extern "C" {
 void ble_ll_fem_pa_init(void);
 void ble_ll_fem_pa_enable(void);
 void ble_ll_fem_pa_disable(void);
+
+#if MYNEWT_VAL(BLE_LL_FEM_PA_TXPOWER_TUNE)
+void ble_ll_fem_txpower_set(int dbm);
+int ble_ll_fem_txpower_round(int dbm);
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_LL_FEM_LNA)

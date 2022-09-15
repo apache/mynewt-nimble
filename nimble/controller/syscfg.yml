@@ -409,6 +409,12 @@ syscfg.defs:
     BLE_LL_FEM_PA:
         description: Enable FEM PA support
         value: MYNEWT_VAL(BLE_LL_PA)
+    BLE_LL_FEM_PA_TXPOWER_TUNE:
+        description: >
+          Indicates that FEM TX power tunning is provided. If enabled
+          ble_ll_fem_txpower_round() and ble_ll_fem_txpower_set() shall be
+          implemented. See controller/ble_ll_fem.h for defails.
+        value: 0
     BLE_LL_FEM_PA_GPIO:
         description: >
             GPIO pin number to control PA. Pin is set to high state when PA

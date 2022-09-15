@@ -26,6 +26,9 @@ extern "C" {
 
 extern int8_t g_ble_ll_tx_power;
 
+void ble_ll_txpower_set(int dbm);
+int ble_ll_txpower_round(int dbm);
+
 #ifdef MYNEWT
 
 #include "syscfg/syscfg.h"
