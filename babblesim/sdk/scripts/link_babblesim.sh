@@ -22,7 +22,7 @@ if [ -z ${BSIM_COMPONENTS_PATH+x} ]; then
   echo "This board requires the BabbleSim simulator. Please set" \
         "the environment variable BSIM_COMPONENTS_PATH to point to its components" \
         "folder. More information can be found in" \
-        "https://babblesim.github.io/folder_structure_and_env.html"
+        "https://babblesim.github.io/folder_structure_and_env.html" 1>&2
   exit 1
 fi
 
@@ -30,7 +30,7 @@ if [ -z ${BSIM_OUT_PATH+x} ]; then
   echo "This board requires the BabbleSim simulator. Please set" \
         "the environment variable BSIM_OUT_PATH to point to the folder where the" \
         "simulator is compiled to. More information can be found in" \
-        "https://babblesim.github.io/folder_structure_and_env.html"
+        "https://babblesim.github.io/folder_structure_and_env.html" 1>&2
   exit 1
 fi
 
