@@ -29,4 +29,4 @@ pkg.deps:
     - "babblesim/core"
 
 pkg.deps.BLE_CONTROLLER:
-    - "@apache-mynewt-nimble/nimble/drivers/nrf52"
+    - "@apache-mynewt-nimble/nimble/drivers/nrf5x"
