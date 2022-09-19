@@ -310,6 +310,7 @@ static bool ble_phy_rx_start_isr(void);
 static void ble_phy_rx_setup_fields(void);
 static void ble_phy_rx_setup_xcvr(void);
 static void ble_phy_mode_apply(uint8_t phy_mode);
+static int ble_phy_get_cur_phy(void);
 
 void
 FIELD_IRQHandler(void)
@@ -1012,7 +1013,7 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
     g_ble_phy_data.frame_offset_rxtx = g_ble_phy_frame_offset_rxtx[rxtx];
 }
 
-int
+static int
 ble_phy_get_cur_phy(void)
 {
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -1327,7 +1328,7 @@ ble_phy_rx_setup_xcvr(void)
     g_ble_phy_data.phy_rx_started = 0;
 }
 
-int
+static int
 ble_phy_rx(void)
 {
     MCU_DIAG_SER('R');

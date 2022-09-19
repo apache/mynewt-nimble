@@ -107,9 +107,6 @@ typedef uint8_t (*ble_phy_tx_pducb_t)(uint8_t *dptr, void *pducb_arg,
 /* Place the PHY into transmit mode */
 int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans);
 
-/* Place the PHY into receive mode */
-int ble_phy_rx(void);
-
 /* Copies the received PHY buffer into the allocated pdu */
 void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);
 
@@ -211,14 +208,9 @@ void ble_phy_resolv_list_disable(void);
 #define BLE_PHY_IDX_CODED           (2)
 
 #if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY))
-uint32_t ble_phy_mode_pdu_start_off(int phy);
 void ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode);
-#else
-#define ble_phy_mode_pdu_start_off(phy)     (40)
-
 #endif
 
-int ble_phy_get_cur_phy(void);
 static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
 {
     int phy_mode;

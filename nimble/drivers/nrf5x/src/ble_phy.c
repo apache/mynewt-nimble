@@ -152,7 +152,7 @@ struct ble_phy_obj
     uint16_t tifs;
 #endif
 };
-struct ble_phy_obj g_ble_phy_data;
+static struct ble_phy_obj g_ble_phy_data;
 
 /* XXX: if 27 byte packets desired we can make this smaller */
 /* Global transmit/receive buffer */
@@ -314,7 +314,7 @@ STATS_NAME_END(ble_phy_stats)
 //#define NRF_ENC_SCRATCH_WORDS (((MYNEWT_VAL(BLE_LL_MAX_PKT_SIZE) + 16) + 3) / 4)
 #define NRF_ENC_SCRATCH_WORDS   (67)
 
-uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
+static uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
 
 struct nrf_ccm_data
 {
@@ -331,7 +331,7 @@ struct nrf_ccm_data g_nrf_ccm_data;
 
 /* Packet start offset (in usecs). This is the preamble plus access address.
  * For LE Coded PHY this also includes CI and TERM1. */
-uint32_t
+static uint32_t
 ble_phy_mode_pdu_start_off(int phy_mode)
 {
     return g_ble_phy_mode_pkt_start_off[phy_mode];
@@ -429,9 +429,15 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
     g_ble_phy_data.phy_tx_phy_mode = tx_phy_mode;
     g_ble_phy_data.phy_rx_phy_mode = rx_phy_mode;
 }
+#else
+static uint32_t
+ble_phy_mode_pdu_start_off(int phy_mode)
+{
+    return 40;
+}
 #endif
 
-int
+static int
 ble_phy_get_cur_phy(void)
 {
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
@@ -1610,7 +1616,7 @@ ble_phy_init(void)
  *
  * @return int 0: success; BLE Phy error code otherwise
  */
-int
+static int
 ble_phy_rx(void)
 {
     /*
