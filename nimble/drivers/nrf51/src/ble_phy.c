@@ -47,6 +47,12 @@
 #error LE Coded PHY cannot be enabled on nRF51
 #endif
 
+static uint32_t
+ble_phy_mode_pdu_start_off(int phy_mode)
+{
+    return 40;
+}
+
 /* XXX: 4) Make sure RF is higher priority interrupt than schedule */
 
 /*
