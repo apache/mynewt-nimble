@@ -48,7 +48,10 @@
 #include "mcu/cmsis_nvic.h"
 #include "hal/hal_gpio.h"
 #else
+#include <hal/nrf_clock.h>
+#ifdef NRF52_SERIES
 #include "core_cm4.h"
+#endif
 #endif
 #include <nrf_erratas.h>
 #include "phy_priv.h"
