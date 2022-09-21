@@ -1113,7 +1113,7 @@ ble_gap_update_failed(uint16_t conn_handle, int status)
 }
 #endif
 
-void
+static void
 ble_gap_conn_broken(uint16_t conn_handle, int reason)
 {
 #if NIMBLE_BLE_CONNECT
