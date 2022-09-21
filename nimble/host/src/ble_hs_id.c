@@ -23,6 +23,8 @@
 
 static uint8_t ble_hs_id_pub[6];
 static uint8_t ble_hs_id_rnd[6];
+static const uint8_t ble_hs_misc_null_addr[6];
+
 
 void
 ble_hs_id_set_pub(const uint8_t *pub_addr)
