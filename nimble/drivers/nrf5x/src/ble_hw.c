@@ -30,7 +30,9 @@
 #if MYNEWT
 #include "mcu/cmsis_nvic.h"
 #else
+#ifdef NRF52_SERIES
 #include "core_cm4.h"
+#endif
 #include <nimble/nimble_npl_os.h>
 #endif
 #include "os/os_trace_api.h"
