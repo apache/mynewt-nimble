@@ -786,6 +786,10 @@ ble_phy_set_start_now(void)
     nrf_rtc_cc_set(NRF_RTC0, 0, now + 3);
     nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 
+#if PHY_USE_FEM_LNA
+    phy_fem_enable_lna();
+#endif
+
     /* Enable PPI */
     phy_ppi_rtc0_compare0_to_timer0_start_enable();
 
