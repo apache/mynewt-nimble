@@ -105,6 +105,15 @@ Implements a simple BLE peripheral that supports the Nordic
 UART / Serial Port Emulation service
 (https://developer.nordicsemi.com/nRF5_SDK/nRF51_SDK_v8.x.x/doc/8.0.0/s110/html/a00072.html).
 
+## External projects using NimBLE
+
+Several other projects provide support for using NimBLE either by [NPL port](https://github.com/apache/mynewt-nimble/tree/master/porting) or forking:
+
+ * [The Espressif ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/nimble/index.html) contains a NimBLE port for ESP-32 devices.
+ * [The RIOT](https://doc.riot-os.org/group__pkg__nimble.html) operating system contains a package for using NimBLE.
+
+ If you publish a NimBLE port, please let us know to include it here!
+
 # Getting Help
 
 If you are having trouble using or contributing to Apache Mynewt NimBLE, or just
