@@ -1582,6 +1582,9 @@ ble_ll_scan_aux_rx_pkt_in_for_initiator(struct os_mbuf *rxpdu,
     aux = rxinfo->user_data;
 
     if (rxinfo->flags & BLE_MBUF_HDR_F_IGNORED) {
+        if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+            ble_ll_conn_send_connect_req_cancel();
+        }
         ble_ll_scan_aux_free(aux);
         ble_ll_scan_chk_resume();
         return;
