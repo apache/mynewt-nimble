@@ -41,5 +41,8 @@ syscfg.vals:
     # Whether to save data to sys/config, or just keep it in RAM.
     BLE_STORE_CONFIG_PERSIST: 0
 
+    # L2CAP COC SDU buffers in RX endpoint
+    BLE_L2CAP_COC_SDU_BUFF_COUNT: 1
+
 syscfg.vals.BLE_MESH:
     MSYS_1_BLOCK_COUNT: 16
