@@ -27,15 +27,27 @@ extern "C" {
 #include "syscfg/syscfg.h"
 
 #if MYNEWT_VAL(BLE_LL_FEM_PA)
+#if MYNEWT_VAL(BLE_LL_FEM_DUMMY)
+static inline void ble_ll_fem_pa_init(void) {}
+static inline void ble_ll_fem_pa_enable(void) {}
+static inline void ble_ll_fem_pa_disable(void) {}
+#else
 void ble_ll_fem_pa_init(void);
 void ble_ll_fem_pa_enable(void);
 void ble_ll_fem_pa_disable(void);
 #endif
+#endif
 
 #if MYNEWT_VAL(BLE_LL_FEM_LNA)
+#if MYNEWT_VAL(BLE_LL_FEM_DUMMY)
+static inline void ble_ll_fem_lna_init(void) {}
+static inline void ble_ll_fem_lna_enable(void) {}
+static inline void ble_ll_fem_lna_disable(void) {}
+#else
 void ble_ll_fem_lna_init(void);
 void ble_ll_fem_lna_enable(void);
 void ble_ll_fem_lna_disable(void);
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)

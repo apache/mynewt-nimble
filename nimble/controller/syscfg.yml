@@ -434,6 +434,11 @@ syscfg.defs:
         description: >
             Enable support for runtime antenna selection in FEM.
         value: 0
+    BLE_LL_FEM_DUMMY:
+        description: >
+            Enable dummy FEM APIs. This enables FEM code but witout using actual
+            FEM driver, i.e. only PA/LNA-enable lines are active.
+        value: 0
 
     BLE_LL_SYSINIT_STAGE:
         description: >
