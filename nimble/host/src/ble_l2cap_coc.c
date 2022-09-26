@@ -604,7 +604,8 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     }
 
     if (chan->coc_rx.sdus[0] != NULL &&
-        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx) {
+        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx &&
+        BLE_L2CAP_SDU_BUFF_CNT != 1) {
         return BLE_HS_EBUSY;
     }
 
