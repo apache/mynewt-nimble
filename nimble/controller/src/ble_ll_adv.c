@@ -63,6 +63,7 @@ struct ble_ll_adv_aux {
     uint8_t ext_hdr_flags;
     uint8_t data_len;
     uint8_t payload_len;
+    uint8_t auxptr_zero;
 };
 
 /* Scheduling data for sync PDUs */
@@ -74,6 +75,7 @@ struct ble_ll_adv_sync {
     uint8_t ext_hdr_flags;
     uint8_t data_len;
     uint8_t payload_len;
+    uint8_t auxptr_zero;
 };
 
 /*
@@ -783,6 +785,8 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         } else {
             offset = ble_ll_tmr_t2u(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
+
+        aux->auxptr_zero = offset == 0;
 
         ble_ll_adv_put_aux_ptr(AUX_NEXT(advsm)->chan, advsm->sec_phy,
                                offset, dptr);
@@ -1586,13 +1590,12 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     sch->end_time = aux_next->start_time + ble_ll_tmr_u2t_up(max_usecs);
     ble_ll_sched_adv_new(&aux_next->sch, ble_ll_adv_aux_scheduled, aux_next);
 
-    /*
-     * In case duration is set for advertising set we need to check if newly
-     * scheduled aux will fit inside duration. If not, remove it from scheduler
-     * so advertising will stop after current aux.
+    /* Remove aux if previous one was already sent with zero offset or new one
+     * is scheduled past advertising duration (if set).
      */
-    if (advsm->duration &&
-        LL_TMR_GT(aux_next->sch.end_time, advsm->adv_end_time)) {
+    if (aux->auxptr_zero ||
+        (advsm->duration && LL_TMR_GT(aux_next->sch.end_time,
+                                      advsm->adv_end_time))) {
         ble_ll_sched_rmv_elem(&aux_next->sch);
     }
 }
@@ -1615,6 +1618,7 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
     advsm->aux_dropped = 0;
 
     aux = AUX_CURRENT(advsm);
+    aux->auxptr_zero = 0;
     ble_ll_adv_aux_calculate(advsm, aux, 0);
 
     /* Set end time to maximum time this schedule item may take */
@@ -2144,6 +2148,8 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
                                     sync->start_time);
         }
 
+        sync->auxptr_zero = offset == 0;
+
         ble_ll_adv_put_aux_ptr(SYNC_NEXT(advsm)->chan, advsm->sec_phy,
                                offset, dptr);
 
@@ -2363,6 +2369,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     advsm->periodic_sync_index = 0;
 
     sync = SYNC_CURRENT(advsm);
+    sync->auxptr_zero = 0;
 
     /* For first SYNC packet in chain we use separate CSA#2 state to maintain
      * freq hopping as advertised in SyncInfo
@@ -2481,12 +2488,14 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
     ble_ll_sched_adv_new(&sync_next->sch, ble_ll_adv_sync_next_scheduled,
                          sync_next);
 
-    /* if we are pass advertising interval, drop chain */
-    if (LL_TMR_GT(sch->end_time, advsm->periodic_adv_event_start_time +
-                                  advsm->periodic_adv_itvl_ticks)) {
+    /* Remove aux if previous one was already sent with zero offset or new one
+     * is scheduled past advertising interval.
+     */
+    if (sync->auxptr_zero ||
+        (LL_TMR_GT(sch->end_time, advsm->periodic_adv_event_start_time +
+                                  advsm->periodic_adv_itvl_ticks))) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
-        ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
     }
 }
 
