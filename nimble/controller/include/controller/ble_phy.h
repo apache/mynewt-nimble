@@ -111,13 +111,13 @@ int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans);
 void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);
 
 /* Set the transmit power */
-int ble_phy_txpwr_set(int dbm);
+int ble_phy_tx_power_set(int dbm);
 
 /* Get highest allowed power from range */
-int ble_phy_txpower_round(int dbm);
+int ble_phy_tx_power_round(int dbm);
 
 /* Get the transmit power */
-int ble_phy_txpwr_get(void);
+int ble_phy_tx_power_get(void);
 
 /* Disable the PHY */
 void ble_phy_disable(void);
