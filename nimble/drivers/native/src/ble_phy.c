@@ -464,7 +464,7 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
  * @return int 0: success; anything else is an error
  */
 int
-ble_phy_txpwr_set(int dbm)
+ble_phy_tx_power_set(int dbm)
 {
     /* Check valid range */
     assert(dbm <= BLE_PHY_MAX_PWR_DBM);
@@ -492,7 +492,8 @@ ble_phy_txpwr_set(int dbm)
  *
  * @return int Rounded power in dBm
  */
-int ble_phy_txpower_round(int dbm)
+int
+ble_phy_tx_power_round(int dbm)
 {
     /* "Rail" power level if outside supported range */
     if (dbm > BLE_XCVR_TX_PWR_MAX_DBM) {
@@ -514,7 +515,7 @@ int ble_phy_txpower_round(int dbm)
  * @return int  The current PHY transmit power, in dBm
  */
 int
-ble_phy_txpwr_get(void)
+ble_phy_tx_power_get(void)
 {
     return g_ble_phy_data.phy_txpwr_dbm;
 }

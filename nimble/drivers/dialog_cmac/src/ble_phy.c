@@ -1652,7 +1652,7 @@ ble_phy_encrypt_disable(void)
 #endif
 
 int
-ble_phy_txpwr_set(int dbm)
+ble_phy_tx_power_set(int dbm)
 {
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
     if (g_cmac_shared_data.debug.tx_power_override != INT8_MAX) {
@@ -1668,7 +1668,7 @@ ble_phy_txpwr_set(int dbm)
 }
 
 int
-ble_phy_txpower_round(int dbm)
+ble_phy_tx_power_round(int dbm)
 {
     return 0;
 }

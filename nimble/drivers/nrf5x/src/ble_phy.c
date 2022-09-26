@@ -1926,7 +1926,7 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
  * @return int 0: success; anything else is an error
  */
 int
-ble_phy_txpwr_set(int dbm)
+ble_phy_tx_power_set(int dbm)
 {
     /* Get actual TX power supported by radio */
     dbm = phy_txpower_round(dbm);
@@ -1947,7 +1947,7 @@ ble_phy_txpwr_set(int dbm)
  * @return int Rounded power in dBm
  */
 int
-ble_phy_txpower_round(int dbm)
+ble_phy_tx_power_round(int dbm)
 {
     return phy_txpower_round(dbm);
 }
@@ -1995,7 +1995,7 @@ ble_phy_set_access_addr(uint32_t access_addr)
  * @return int  The current PHY transmit power, in dBm
  */
 int
-ble_phy_txpwr_get(void)
+ble_phy_tx_power_get(void)
 {
     return g_ble_phy_data.phy_txpwr_dbm;
 }

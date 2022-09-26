@@ -1030,7 +1030,7 @@ ble_ll_adv_tx_done(void *arg)
     struct ble_ll_adv_sm *advsm;
 
     /* reset power to max after advertising */
-    ble_phy_txpwr_set(g_ble_ll_tx_power);
+    ble_phy_tx_power_set(g_ble_ll_tx_power);
 
     advsm = (struct ble_ll_adv_sm *)arg;
 
@@ -1111,7 +1111,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Set the power */
-    ble_phy_txpwr_set(advsm->adv_txpwr);
+    ble_phy_tx_power_set(advsm->adv_txpwr);
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
@@ -1255,7 +1255,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_active_chanset_set_sec(advsm);
 
     /* Set the power */
-    ble_phy_txpwr_set(advsm->adv_txpwr);
+    ble_phy_tx_power_set(advsm->adv_txpwr);
 
     /* Set channel */
     aux = AUX_CURRENT(advsm);
@@ -1740,7 +1740,7 @@ ble_ll_adv_halt(void)
 
         ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, advsm->adv_instance);
 
-        ble_phy_txpwr_set(g_ble_ll_tx_power);
+        ble_phy_tx_power_set(g_ble_ll_tx_power);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING) {
@@ -2176,7 +2176,7 @@ static void
 ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
 {
     /* reset power to default after advertising */
-    ble_phy_txpwr_set(g_ble_ll_tx_power);
+    ble_phy_tx_power_set(g_ble_ll_tx_power);
 
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
@@ -2232,7 +2232,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
     /* Set the power */
-    ble_phy_txpwr_set(advsm->adv_txpwr);
+    ble_phy_tx_power_set(advsm->adv_txpwr);
 
     /* Set channel */
     sync = SYNC_CURRENT(advsm);
@@ -3528,7 +3528,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         /* no preference */
         advsm->adv_txpwr = g_ble_ll_tx_power;
     } else {
-        advsm->adv_txpwr = ble_phy_txpower_round(cmd->tx_power);
+        advsm->adv_txpwr = ble_phy_tx_power_round(cmd->tx_power);
     }
 
     /* we can always store as those are validated and used only when needed */

@@ -786,8 +786,8 @@ ble_ll_read_tx_power(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_le_rd_transmit_power_rp *rsp = (void *) rspbuf;
 
-    rsp->min_tx_power = ble_phy_txpower_round(-127);
-    rsp->max_tx_power = ble_phy_txpower_round(126);
+    rsp->min_tx_power = ble_phy_tx_power_round(-127);
+    rsp->max_tx_power = ble_phy_tx_power_round(126);
 
     *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;

@@ -243,7 +243,7 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(ctx->phy_mode, ctx->phy_mode);
 #endif
     ble_phy_set_txend_cb(ble_ll_dtm_tx_done, ctx);
-    ble_phy_txpwr_set(0);
+    ble_phy_tx_power_set(0);
 
     sch->start_time += g_ble_ll_sched_offset_ticks;
 
