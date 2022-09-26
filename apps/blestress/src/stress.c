@@ -167,11 +167,13 @@ stress_l2cap_coc_accept(uint16_t peer_mtu, struct ble_l2cap_chan *chan)
     console_printf("LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
                    (uint32_t) chan, peer_mtu);
 
-    sdu_rx = os_msys_get_pkthdr(STRESS_COC_MTU, 0);
-    assert(sdu_rx != NULL);
+    for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
+        sdu_rx = os_msys_get_pkthdr(STRESS_COC_MTU, 0);
+        assert(sdu_rx != NULL);
 
-    rc = ble_l2cap_recv_ready(chan, sdu_rx);
-    assert(rc == 0);
+        rc = ble_l2cap_recv_ready(chan, sdu_rx);
+        assert(rc == 0);
+    }
 }
 
 void

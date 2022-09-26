@@ -2224,19 +2224,25 @@ btshell_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 
 static int
 btshell_l2cap_coc_accept(uint16_t conn_handle, uint16_t peer_mtu,
-                           struct ble_l2cap_chan *chan)
+                         struct ble_l2cap_chan *chan)
 {
     struct os_mbuf *sdu_rx;
+    int rc;
 
     console_printf("LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
                    (uint32_t) chan, peer_mtu);
 
-    sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
-    if (!sdu_rx) {
-        return BLE_HS_ENOMEM;
+    for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
+        sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+        if (!sdu_rx) {
+            return BLE_HS_ENOMEM;
+        }
+
+        rc = ble_l2cap_recv_ready(chan, sdu_rx);
+        assert(rc == 0);
     }
 
-    return ble_l2cap_recv_ready(chan, sdu_rx);
+    return rc;
 }
 
 static void

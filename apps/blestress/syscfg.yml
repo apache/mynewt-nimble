@@ -67,6 +67,9 @@ syscfg.vals:
     #
     BLE_L2CAP_COC_MAX_NUM: 2
 
+    # L2CAP COC SDU buffers in RX endpoint
+    BLE_L2CAP_COC_SDU_BUFF_COUNT: 1
+
     # Enable 2M PHY
     BLE_LL_CFG_FEAT_LE_2M_PHY: 1
 
