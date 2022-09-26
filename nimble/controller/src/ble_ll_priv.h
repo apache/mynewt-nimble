@@ -25,6 +25,8 @@ extern "C" {
 #endif
 
 extern int8_t g_ble_ll_tx_power;
+extern int8_t g_ble_ll_tx_power_compensation;
+extern int8_t g_ble_ll_rx_power_compensation;
 
 #ifdef MYNEWT
 

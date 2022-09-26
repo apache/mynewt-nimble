@@ -66,6 +66,8 @@
  */
 
 int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+int8_t g_ble_ll_tx_power_compensation;
+int8_t g_ble_ll_rx_power_compensation;
 
 /* Supported states */
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
@@ -1588,6 +1590,10 @@ ble_ll_reset(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     ble_ll_sync_reset();
 #endif
+
+    /* reset power compensation */
+    g_ble_ll_tx_power_compensation = 0;
+    g_ble_ll_rx_power_compensation = 0;
 
     /* FLush all packets from Link layer queues */
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_tx_pkt_q);
