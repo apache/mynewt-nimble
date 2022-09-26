@@ -169,6 +169,25 @@ extern "C" {
  * @}
  */
 
+/**
+ * @brief LE key distribution
+ * @defgroup bt_host_key_dist LE key distribution
+ *
+ * @{
+ */
+
+/** Distibute LTK */
+#define BLE_HS_KEY_DIST_ENC_KEY              0x01
+
+/** Distribute IRK */
+#define BLE_HS_KEY_DIST_ID_KEY               0x02
+
+/** CSRK distibution and LinkKey are not supported */
+
+/**
+ * @}
+ */
+
 /** @brief Stack reset callback
  *
  * @param reason Reason code for reset
