@@ -1673,11 +1673,6 @@ ble_phy_txpower_round(int dbm)
     return 0;
 }
 
-void
-ble_phy_set_rx_pwr_compensation(int8_t compensation)
-{
-}
-
 int
 ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crc_init)
 {

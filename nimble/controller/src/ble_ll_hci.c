@@ -826,7 +826,8 @@ ble_ll_write_rf_path_compensation(const uint8_t *cmdbuf, uint8_t len)
     tx_path_pwr_compensation = tx;
     rx_path_pwr_compensation = rx;
 
-    ble_phy_set_rx_pwr_compensation(rx_path_pwr_compensation / 10);
+    g_ble_ll_tx_power_compensation = tx / 10;
+    g_ble_ll_rx_power_compensation = rx / 10;
 
     return BLE_ERR_SUCCESS;
 }

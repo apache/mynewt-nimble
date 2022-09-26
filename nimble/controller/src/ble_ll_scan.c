@@ -41,6 +41,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
 
@@ -716,7 +717,7 @@ ble_ll_scan_send_adv_report(uint8_t pdu_type,
     if (scansm->ext_scanning) {
         rc = ble_ll_hci_send_legacy_ext_adv_report(evtype,
                                                    adva, adva_type,
-                                                   hdr->rxinfo.rssi,
+                                                   hdr->rxinfo.rssi + g_ble_ll_rx_power_compensation,
                                                    adv_data_len, om,
                                                    inita, inita_type);
 goto done;
@@ -725,11 +726,12 @@ goto done;
 
     if (subev == BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT) {
         rc = ble_ll_hci_send_dir_adv_report(adva, adva_type, inita, inita_type,
-                                            hdr->rxinfo.rssi);
+                                            hdr->rxinfo.rssi + g_ble_ll_rx_power_compensation);
         goto done;
     }
 
-    rc = ble_ll_hci_send_adv_report(evtype, adva, adva_type, hdr->rxinfo.rssi,
+    rc = ble_ll_hci_send_adv_report(evtype, adva, adva_type,
+                                    hdr->rxinfo.rssi + g_ble_ll_rx_power_compensation,
                                     adv_data_len, om);
 done:
     if (!rc && scansm->scan_filt_dups) {

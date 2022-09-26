@@ -43,6 +43,7 @@
 #include "controller/ble_ll_utils.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_ctrl_priv.h"
+#include "ble_ll_priv.h"
 #if MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_common_hci_ipc
 #include <nimble/transport/hci_ipc.h>
 #endif
@@ -3489,7 +3490,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 #endif
 
     /* Update RSSI */
-    connsm->conn_rssi = hdr->rxinfo.rssi;
+    connsm->conn_rssi = hdr->rxinfo.rssi + g_ble_ll_rx_power_compensation;
 
     /*
      * If we are a peripheral, we can only start to use peripheral latency
