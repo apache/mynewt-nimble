@@ -138,6 +138,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PATHLOSS_THRESHOLD    25
 #define BLE_GAP_EVENT_TRANSMIT_POWER        26
 #define BLE_GAP_EVENT_PARING_COMPLETE       27
+#define BLE_GAP_EVENT_SUBRATE_CHANGE        28
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -1042,6 +1043,34 @@ struct ble_gap_event {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
         } pairing_complete;
+
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+        /**
+         * Represents a subrate change event that indicates connection subrate update procedure
+         * has completed and some parameters have changed  Valid for
+         * the following event types:
+         *     o BLE_GAP_EVENT_SUBRATE_CHANGE
+         */
+        struct {
+            /** BLE_ERR_SUCCESS on success or error code on failure */
+            uint8_t status;
+
+            /** Connection Handle */
+            uint16_t conn_handle;
+
+            /** Subrate Factor */
+            uint16_t subrate_factor;
+
+            /** Peripheral Latency */
+            uint16_t periph_latency;
+
+            /** Continuation Number */
+            uint16_t cont_num;
+
+            /** Supervision Timeout */
+            uint16_t supervision_tmo;
+        } subrate_change;
+#endif
     };
 };
 
@@ -2167,6 +2196,45 @@ int ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask,
 int ble_gap_set_prefered_le_phy(uint16_t conn_handle, uint8_t tx_phys_mask,
                                 uint8_t rx_phys_mask, uint16_t phy_opts);
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+/**
+ * Set default subrate
+ *
+ * @param subrate_min       Min subrate factor allowed in request by a peripheral
+ * @param subrate_max       Max subrate factor allowed in request by a peripheral
+ * @param max_latency       Max peripheral latency allowed in units of
+ *                          subrated conn interval.
+ *
+ * @param cont_num          Min number of underlying conn event to remain active
+ *                          after a packet containing PDU with non-zero length field
+ *                          is sent or received in request by a peripheral.
+ *
+ * @param supervision_timeout Max supervision timeout allowed in request by a peripheral
+ */
+int ble_gap_set_default_subrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
+                                uint16_t cont_num, uint16_t supervision_timeout);
+
+/**
+ * Subrate Request
+ *
+ * @param conn_handle       Connection Handle of the ACL.
+ * @param subrate_min       Min subrate factor to be applied
+ * @param subrate_max       Max subrate factor to be applied
+ * @param max_latency       Max peripheral latency allowed in units of
+ *                          subrated conn interval.
+ *
+ * @param cont_num          Min number of underlying conn event to remain active
+ *                          after a packet containing PDU with non-zero length field
+ *                          is sent or received in request by a peripheral.
+ *
+ * @param supervision_timeout  Max supervision timeout allowed for this connection
+ */
+
+int
+ble_gap_subrate_req(uint16_t conn_handle, uint16_t subrate_min, uint16_t subrate_max,
+                    uint16_t max_latency, uint16_t cont_num,
+                    uint16_t supervision_timeout);
+#endif
 /**
  * Event listener structure
  *

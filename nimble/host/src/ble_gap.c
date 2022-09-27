@@ -1777,6 +1777,26 @@ ble_gap_rx_periodic_adv_sync_transfer(const struct ble_hci_ev_le_subev_periodic_
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+void
+ble_gap_rx_subrate_change(const struct ble_hci_ev_le_subev_subrate_change *ev)
+{
+    struct ble_gap_event event;
+
+    memset(&event, 0x0, sizeof event);
+
+    event.type = BLE_GAP_EVENT_SUBRATE_CHANGE;
+    event.subrate_change.status = ev->status;
+    event.subrate_change.conn_handle = le16toh(ev->conn_handle);
+    event.subrate_change.subrate_factor = le16toh(ev->subrate_factor);
+    event.subrate_change.periph_latency = le16toh(ev->periph_latency);
+    event.subrate_change.cont_num = le16toh(ev->cont_num);
+    event.subrate_change.supervision_tmo = le16toh(ev->supervision_tmo);
+
+    ble_gap_event_listener_call(&event);
+}
+#endif
+
 #if NIMBLE_BLE_CONNECT
 static int
 ble_gap_rd_rem_sup_feat_tx(uint16_t handle)
@@ -4658,6 +4678,46 @@ ble_gap_conn_create_tx(uint8_t own_addr_type, const ble_addr_t *peer_addr,
     cmd.max_ce = htole16(params->max_ce_len);
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN);
+
+    return ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), NULL, 0);
+}
+#endif
+
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+int
+ble_gap_set_default_subrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
+                            uint16_t cont_num, uint16_t supervision_tmo)
+{
+    struct ble_hci_le_set_default_subrate_cp cmd;
+    uint16_t opcode;
+
+    cmd.subrate_min = htole16(subrate_min);
+    cmd.subrate_max = htole16(subrate_max);
+    cmd.max_latency = htole16(max_latency);
+    cmd.cont_num = htole16(cont_num);
+    cmd.supervision_tmo = htole16(supervision_tmo);
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE);
+
+    return ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), NULL, 0);
+}
+
+int
+ble_gap_subrate_req(uint16_t conn_handle, uint16_t subrate_min, uint16_t subrate_max,
+                    uint16_t max_latency, uint16_t cont_num,
+                    uint16_t supervision_tmo)
+{
+    struct ble_hci_le_subrate_req_cp cmd;
+    uint16_t opcode;
+
+    cmd.conn_handle = htole16(conn_handle);
+    cmd.subrate_min = htole16(subrate_min);
+    cmd.subrate_max = htole16(subrate_max);
+    cmd.max_latency = htole16(max_latency);
+    cmd.cont_num = htole16(cont_num);
+    cmd.supervision_tmo = htole16(supervision_tmo);
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SUBRATE_REQ);
 
     return ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), NULL, 0);
 }
