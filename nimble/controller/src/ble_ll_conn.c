@@ -3434,9 +3434,15 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     rxd_sn = hdr_byte & BLE_LL_DATA_HDR_SN_MASK;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    if (BLE_MBUF_HDR_MIC_FAILURE(hdr) && (rxd_sn != connsm->last_rxd_sn)) {
-        STATS_INC(ble_ll_conn_stats, mic_failures);
-        ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+    if (BLE_MBUF_HDR_MIC_FAILURE(hdr)) {
+        /* MIC failure is expected on retransmissions since packet counter does
+         * not match, so we simply ignore retransmitted PDU with MIC failure as
+         * they do not have proper decrypted contents.
+         */
+        if (rxd_sn != connsm->last_rxd_sn) {
+            STATS_INC(ble_ll_conn_stats, mic_failures);
+            ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
+        }
         goto conn_rx_data_pdu_end;
     }
 #endif
