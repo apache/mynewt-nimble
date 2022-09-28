@@ -198,21 +198,6 @@ ble_ll_scan_aux_free(struct ble_ll_scan_aux_data *aux)
     os_memblock_put(&aux_data_pool, aux);
 }
 
-static void
-ble_ll_scan_aux_update_scan_backoff(struct ble_ll_scan_aux_data *aux)
-{
-    if (!(aux->flags & BLE_LL_SCAN_AUX_F_W4_SCAN_RSP) &&
-        !(aux->flags & BLE_LL_SCAN_AUX_F_SCANNED)) {
-        return;
-    }
-
-    if ((aux->hci_state & BLE_LL_SCAN_AUX_H_DONE) &&
-        !(aux->hci_state & BLE_LL_SCAN_AUX_H_TRUNCATED)) {
-        ble_ll_scan_backoff_update(1);
-    } else {
-        ble_ll_scan_backoff_update(0);
-    }
-}
 
 static inline bool
 ble_ll_scan_aux_need_truncation(struct ble_ll_scan_aux_data *aux)
@@ -670,7 +655,10 @@ ble_ll_scan_aux_break_ev(struct ble_npl_event *ev)
         ble_ll_hci_ev_send_ext_adv_truncated_report(aux);
     }
 
-    ble_ll_scan_aux_update_scan_backoff(aux);
+    /* Update backoff if we were waiting for scan response */
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_SCAN_RSP) {
+        ble_ll_scan_backoff_update(0);
+    }
 
     ble_ll_scan_aux_free(aux);
     ble_ll_scan_chk_resume();
@@ -1658,7 +1646,15 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
             aux->hci_state |= BLE_LL_SCAN_AUX_H_DONE;
         }
 
-        ble_ll_scan_aux_update_scan_backoff(aux);
+        /* Update backoff if we were waiting for scan response */
+        if (aux->flags & BLE_LL_SCAN_AUX_F_W4_SCAN_RSP) {
+            ble_ll_scan_backoff_update(0);
+        }
+    } else if (rxinfo->flags & BLE_MBUF_HDR_F_SCAN_RSP_RXD) {
+        /* We assume scan success when AUX_SCAN_RSP is received, no need to
+         * wait for complete chain (Core 5.3, Vol 6, Part B, 4.4.3.1).
+         */
+        ble_ll_scan_backoff_update(1);
     }
 
     if (aux->hci_state & BLE_LL_SCAN_AUX_H_DONE) {
@@ -1736,7 +1732,6 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
     if ((aux->hci_state & BLE_LL_SCAN_AUX_H_DONE) &&
         (!(rxinfo->flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT) ||
          (ble_ll_sched_rmv_elem(&aux->sch) == 0))) {
-        ble_ll_scan_aux_update_scan_backoff(aux);
         ble_ll_scan_aux_free(aux);
     }
 
