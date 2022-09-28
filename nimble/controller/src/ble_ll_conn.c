@@ -3490,7 +3490,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 #endif
 
     /* Update RSSI */
-    connsm->conn_rssi = hdr->rxinfo.rssi + g_ble_ll_rx_power_compensation;
+    connsm->conn_rssi = hdr->rxinfo.rssi - ble_ll_rx_gain();
 
     /*
      * If we are a peripheral, we can only start to use peripheral latency

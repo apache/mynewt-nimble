@@ -105,7 +105,7 @@ struct ble_ll_adv_sm
     uint8_t adv_chan;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
-    int8_t adv_txpwr;
+    int8_t tx_power;
     uint16_t flags;
     uint16_t props;
     uint32_t adv_itvl_usecs;
@@ -802,7 +802,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 #endif
 
     if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
-        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
+        dptr[0] = advsm->tx_power + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
@@ -879,7 +879,7 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
         *ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
         *ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
-        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
+        dptr[0] = advsm->tx_power + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
@@ -1029,8 +1029,8 @@ ble_ll_adv_tx_done(void *arg)
 {
     struct ble_ll_adv_sm *advsm;
 
-    /* reset power to max after advertising */
-    ble_phy_tx_power_set(g_ble_ll_tx_power);
+    /* reset power to default after advertising */
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     advsm = (struct ble_ll_adv_sm *)arg;
 
@@ -1111,7 +1111,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     }
 
     /* Set the power */
-    ble_phy_tx_power_set(advsm->adv_txpwr);
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
@@ -1255,7 +1255,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_active_chanset_set_sec(advsm);
 
     /* Set the power */
-    ble_phy_tx_power_set(advsm->adv_txpwr);
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set channel */
     aux = AUX_CURRENT(advsm);
@@ -1740,7 +1740,7 @@ ble_ll_adv_halt(void)
 
         ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, advsm->adv_instance);
 
-        ble_phy_tx_power_set(g_ble_ll_tx_power);
+        ble_ll_tx_power_set(g_ble_ll_tx_power);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING) {
@@ -1858,7 +1858,7 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    advsm->adv_txpwr = g_ble_ll_tx_power;
+    advsm->tx_power = ble_ll_tx_power_round(g_ble_ll_tx_power - g_ble_ll_tx_power_compensation);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (cmd->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
@@ -2157,7 +2157,7 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
     if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
-        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
+        dptr[0] = advsm->tx_power + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
@@ -2232,7 +2232,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
     /* Set the power */
-    ble_phy_tx_power_set(advsm->adv_txpwr);
+    ble_phy_tx_power_set(advsm->tx_power);
 
     /* Set channel */
     sync = SYNC_CURRENT(advsm);
@@ -3526,9 +3526,9 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
     if (cmd->tx_power == 127) {
         /* no preference */
-        advsm->adv_txpwr = g_ble_ll_tx_power;
+        advsm->tx_power = ble_ll_tx_power_round(g_ble_ll_tx_power - g_ble_ll_tx_power_compensation);
     } else {
-        advsm->adv_txpwr = ble_phy_tx_power_round(cmd->tx_power);
+        advsm->tx_power = ble_ll_tx_power_round(cmd->tx_power - g_ble_ll_tx_power_compensation);
     }
 
     /* we can always store as those are validated and used only when needed */
@@ -3564,7 +3564,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
 
 done:
     /* Update TX power */
-    rsp->tx_power = rc ? 0 : advsm->adv_txpwr;
+    rsp->tx_power = rc ? 0 : (advsm->tx_power + g_ble_ll_tx_power_compensation);
 
     *rsplen = sizeof(*rsp);
     return rc;
