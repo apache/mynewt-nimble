@@ -65,7 +65,8 @@
  * right thing to do.
  */
 
-int8_t g_ble_ll_tx_power = MYNEWT_VAL(BLE_LL_TX_PWR_DBM);
+/* This is TX power on PHY (or FEM PA if enabled) */
+int8_t g_ble_ll_tx_power;
 int8_t g_ble_ll_tx_power_compensation;
 int8_t g_ble_ll_rx_power_compensation;
 
@@ -1350,8 +1351,8 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_phy_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
-    ble_phy_tx_power_set(g_ble_ll_tx_power);
+    g_ble_ll_tx_power = ble_ll_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
@@ -1597,8 +1598,8 @@ ble_ll_reset(void)
     g_ble_ll_rx_power_compensation = 0;
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_phy_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
-    ble_phy_tx_power_set(g_ble_ll_tx_power);
+    g_ble_ll_tx_power = ble_ll_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* FLush all packets from Link layer queues */
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_tx_pkt_q);
@@ -1986,4 +1987,38 @@ void
 ble_transport_ll_init(void)
 {
     ble_ll_init();
+}
+
+int
+ble_ll_tx_power_round(int tx_power)
+{
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
+    tx_power = ble_ll_fem_pa_tx_power_round(tx_power);
+#else
+    tx_power = ble_phy_tx_power_round(tx_power);
+    tx_power += MYNEWT_VAL(BLE_LL_FEM_PA_GAIN);
+#endif
+#else
+    tx_power = ble_phy_tx_power_round(tx_power);
+#endif
+
+    return tx_power;
+}
+
+void
+ble_ll_tx_power_set(int tx_power)
+{
+#if MYNEWT_VAL(BLE_LL_FEM_PA)
+#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
+    /* TODO should rounding be in assert only? or just skip it and assume
+     * power is already rounded?
+     */
+    tx_power = ble_ll_fem_pa_tx_power_round(tx_power);
+    tx_power = ble_ll_fem_pa_tx_power_set(tx_power);
+#else
+    tx_power -= MYNEWT_VAL(BLE_LL_FEM_PA_GAIN);
+#endif
+#endif
+    ble_phy_tx_power_set(tx_power);
 }

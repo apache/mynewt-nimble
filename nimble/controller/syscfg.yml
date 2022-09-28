@@ -409,6 +409,15 @@ syscfg.defs:
     BLE_LL_FEM_PA:
         description: Enable FEM PA support
         value: MYNEWT_VAL(BLE_LL_PA)
+    BLE_LL_FEM_PA_GAIN:
+        description: PA fixed TX gain (in dBm).
+        value: 0
+    BLE_LL_FEM_PA_GAIN_TUNABLE:
+        description: >
+            PA TX gain is tunable and not constant. If enabled
+            ble_ll_fem_pa_tx_power_set() and ble_ll_fem_pa_tx_power_round()
+            shall be implemented (see ble_ll_fem.h for details).
+        value: 0
     BLE_LL_FEM_PA_GPIO:
         description: >
             GPIO pin number to control PA. Pin is set to high state when PA
@@ -421,6 +430,15 @@ syscfg.defs:
     BLE_LL_FEM_LNA:
         description: Enable LNA support
         value: MYNEWT_VAL(BLE_LL_LNA)
+    BLE_LL_FEM_LNA_GAIN:
+        description: LNA fixed RX gain (in dBm).
+        value: 0
+    BLE_LL_FEM_LNA_GAIN_TUNABLE:
+        description: >
+            LNA RX gain is tunable and not constant. If enabled
+            ble_ll_fem_lna_rx_gain() shall be implemented (see ble_ll_fem.h for
+            details).
+        value: 0
     BLE_LL_FEM_LNA_GPIO:
         description: >
             GPIO pin number to control LNA. Pin is set to high state when LNA

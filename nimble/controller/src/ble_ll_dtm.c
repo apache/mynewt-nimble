@@ -31,6 +31,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_tmr.h"
 #include "ble_ll_dtm_priv.h"
+#include "ble_ll_priv.h"
 
 STATS_SECT_START(ble_ll_dtm_stats)
     STATS_SECT_ENTRY(rx_count)
@@ -243,7 +244,7 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(ctx->phy_mode, ctx->phy_mode);
 #endif
     ble_phy_set_txend_cb(ble_ll_dtm_tx_done, ctx);
-    ble_phy_tx_power_set(0);
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     sch->start_time += g_ble_ll_sched_offset_ticks;
 

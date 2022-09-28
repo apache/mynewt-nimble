@@ -30,12 +30,25 @@ extern "C" {
 void ble_ll_fem_pa_init(void);
 void ble_ll_fem_pa_enable(void);
 void ble_ll_fem_pa_disable(void);
+#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
+/* Configures FEM to selected TX power and returns expected PHY TX power */
+int ble_ll_fem_pa_tx_power_set(int tx_power);
+
+/* returns rounded FEM TX power */
+int ble_ll_fem_pa_tx_power_round(int tx_power);
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_LL_FEM_LNA)
 void ble_ll_fem_lna_init(void);
 void ble_ll_fem_lna_enable(void);
 void ble_ll_fem_lna_disable(void);
+
+#if MYNEWT_VAL(BLE_LL_FEM_LNA_GAIN_TUNABLE)
+/* Return current value of FEM LNA RX gain (in dBm) */
+int ble_ll_fem_lna_rx_gain(void);
+#endif
+
 #endif
 
 #if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)
