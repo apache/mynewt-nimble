@@ -1724,12 +1724,14 @@ ble_ll_scan_aux_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *rxhdr)
         aux->hci_state |= BLE_LL_SCAN_AUX_H_DONE;
     }
 
-    /*
-     * If we are done processing this chain and aux scan was not scheduled or
-     * we removed it from scheduler, we can remove aux_data now. Otherwise we
-     * will remove on next pkt_in.
+    /* If we are done processing this chain we can remove aux_data now if:
+     * - we did not send AUX_SCAN_REQ for this PDU
+     * - there was no aux scan scheduled from this PDU
+     * - there was aux scan scheduled from this PDU but we removed it
+     * In other cases, we'll remove aux_data on next pkt_in.
      */
     if ((aux->hci_state & BLE_LL_SCAN_AUX_H_DONE) &&
+        !(rxinfo->flags & BLE_MBUF_HDR_F_SCAN_REQ_TXD) &&
         (!(rxinfo->flags & BLE_MBUF_HDR_F_AUX_PTR_WAIT) ||
          (ble_ll_sched_rmv_elem(&aux->sch) == 0))) {
         ble_ll_scan_aux_free(aux);
