@@ -1742,10 +1742,10 @@ ble_ll_is_addr_empty(const uint8_t *addr)
 void
 ble_ll_assert(const char *file, unsigned line)
 {
+    ble_ll_hci_ev_send_vs_assert(file, line);
+
     if (hal_debugger_connected()) {
         __BKPT(0);
-    } else {
-        ble_ll_hci_ev_send_vs_assert(file, line); \
     }
 
     while (1);
