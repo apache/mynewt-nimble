@@ -832,12 +832,6 @@ ble_ll_write_rf_path_compensation(const uint8_t *cmdbuf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 
-int8_t
-ble_ll_get_tx_pwr_compensation(void)
-{
-    return tx_path_pwr_compensation / 10;
-}
-
 /**
  * Process a LE command sent from the host to the controller. The HCI command
  * has a 3 byte command header followed by data. The header is:

@@ -80,9 +80,6 @@ int ble_ll_hci_chk_phy_masks(uint8_t all_phys, uint8_t tx_phys, uint8_t rx_phys,
 /* Returns true if Extended Advertising HCI commands are in use */
 bool ble_ll_hci_adv_mode_ext(void);
 
-/* Get TX power compensation rounded to integer dB */
-int8_t ble_ll_get_tx_pwr_compensation(void);
-
 /* Check if max octets/time are within allowed range */
 int ble_ll_hci_check_dle(uint16_t max_octets, uint16_t max_time);
 
