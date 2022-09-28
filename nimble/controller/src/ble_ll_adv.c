@@ -802,7 +802,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 #endif
 
     if (aux->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
-        dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
+        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
@@ -879,7 +879,7 @@ ble_ll_adv_aux_scannable_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_b
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR) {
         *ext_hdr_len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
         *ext_hdr |= (1 << BLE_LL_EXT_ADV_TX_POWER_BIT);
-        dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
+        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
@@ -2157,7 +2157,7 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     }
 
     if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
-        dptr[0] = advsm->adv_txpwr + ble_ll_get_tx_pwr_compensation();
+        dptr[0] = advsm->adv_txpwr + g_ble_ll_tx_power_compensation;
         dptr += BLE_LL_EXT_ADV_TX_POWER_SIZE;
     }
 
