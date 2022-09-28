@@ -1535,10 +1535,8 @@ ble_ll_scan_send_scan_req(uint8_t pdu_type, uint8_t *rxbuf,
     BLE_LL_ASSERT(scansm->scan_rsp_pending == 0);
 
     /* We want to send a request. See if backoff allows us */
-    if (scansm->backoff_count > 0) {
-        if (--scansm->backoff_count != 0) {
-            return false;
-        }
+    if (ble_ll_scan_backoff_kick() != 0) {
+        return false;
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
