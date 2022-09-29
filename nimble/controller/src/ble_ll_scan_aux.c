@@ -587,6 +587,7 @@ ble_ll_hci_ev_send_ext_adv_report_for_aux(struct os_mbuf *rxpdu,
     int rc;
 
     if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_EXT_ADV_RPT)) {
+        aux->hci_state = BLE_LL_SCAN_AUX_H_DONE;
         return -1;
     }
 
@@ -601,6 +602,7 @@ ble_ll_hci_ev_send_ext_adv_report_for_aux(struct os_mbuf *rxpdu,
     } else {
         hci_ev = ble_ll_hci_ev_alloc_ext_adv_report_for_aux(addrd, aux);
         if (!hci_ev) {
+            aux->hci_state = BLE_LL_SCAN_AUX_H_DONE;
             return -1;
         }
     }
