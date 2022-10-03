@@ -36,11 +36,11 @@ ble_ll_rx_gain(void)
 {
     int gain = g_ble_ll_rx_power_compensation;
 
-#if MYNEWT_VAL(BLE_LL_FEM_LNA)
-#if MYNEWT_VAL(BLE_LL_FEM_LNA_GAIN_TUNABLE)
-    gain += ble_ll_fem_lna_rx_gain();
+#if MYNEWT_VAL(BLE_FEM_LNA)
+#if MYNEWT_VAL(BLE_FEM_LNA_GAIN_TUNABLE)
+    gain += ble_fem_lna_rx_gain();
 #else
-    gain += MYNEWT_VAL(BLE_LL_FEM_LNA_GAIN);
+    gain += MYNEWT_VAL(BLE_FEM_LNA_GAIN);
 #endif
 #endif
 

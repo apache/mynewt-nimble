@@ -22,9 +22,9 @@ pkg.description: Driver for SKY66112 front-end module
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "https://mynewt.apache.org/"
 pkg.apis:
-    - ble_ll_fem_pa
-    - ble_ll_fem_lna
-    - ble_ll_fem_antenna
+    - ble_fem_pa
+    - ble_fem_lna
+    - ble_fem_antenna
 pkg.deps:
     - nimble/controller
 

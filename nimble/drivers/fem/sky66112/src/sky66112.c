@@ -21,7 +21,7 @@
 #include <sky66112/sky66112.h>
 #include "syscfg/syscfg.h"
 #include "hal/hal_gpio.h"
-#include "controller/ble_ll_fem.h"
+#include "controller/ble_fem.h"
 
 static struct {
     uint8_t rx_bypass : 1;
@@ -41,13 +41,13 @@ sky66112_bypass(uint8_t enabled)
 }
 
 void
-ble_ll_fem_pa_init(void)
+ble_fem_pa_init(void)
 {
     /* Nothing to do here */
 }
 
 void
-ble_ll_fem_pa_enable(void)
+ble_fem_pa_enable(void)
 {
     if (sky66112_config.tx_bypass) {
         sky66112_bypass(1);
@@ -55,7 +55,7 @@ ble_ll_fem_pa_enable(void)
 }
 
 void
-ble_ll_fem_pa_disable(void)
+ble_fem_pa_disable(void)
 {
     if (sky66112_config.tx_bypass) {
         sky66112_bypass(0);
@@ -63,13 +63,13 @@ ble_ll_fem_pa_disable(void)
 }
 
 void
-ble_ll_fem_lna_init(void)
+ble_fem_lna_init(void)
 {
     /* Nothing to do here */
 }
 
 void
-ble_ll_fem_lna_enable(void)
+ble_fem_lna_enable(void)
 {
     if (sky66112_config.rx_bypass) {
         sky66112_bypass(1);
@@ -77,7 +77,7 @@ ble_ll_fem_lna_enable(void)
 }
 
 void
-ble_ll_fem_lna_disable(void)
+ble_fem_lna_disable(void)
 {
     if (sky66112_config.rx_bypass) {
         sky66112_bypass(0);
@@ -95,7 +95,7 @@ sky66112_tx_hp_mode(uint8_t enabled)
 }
 
 int
-ble_ll_fem_antenna(uint8_t port)
+ble_fem_antenna(uint8_t port)
 {
     int pin = MYNEWT_VAL(SKY66112_PIN_SEL);
 

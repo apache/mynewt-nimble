@@ -64,10 +64,10 @@ syscfg.defs:
         range: 1, 2
         value: 1
 
-syscfg.vals.!BLE_LL_FEM_PA:
+syscfg.vals.!BLE_FEM_PA:
     # Enable TX bypass by default if PA is disabled
     SKY66112_TX_BYPASS: 1
 
-syscfg.vals.!BLE_LL_FEM_LNA:
+syscfg.vals.!BLE_FEM_LNA:
     # Enable RX bypass by default if LNA is disabled
     SKY66112_RX_BYPASS: 1

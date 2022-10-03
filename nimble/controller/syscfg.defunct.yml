@@ -47,27 +47,27 @@ syscfg.defs:
         value: 0x0B65
         deprecated: 1
     BLE_LL_PA:
-        description: use BLE_LL_FEM_PA
+        description: use BLE_FEM_PA
         value: 0
         deprecated: 1
     BLE_LL_PA_GPIO:
-        description: use BLE_LL_FEM_PA_GPIO
+        description: use BLE_FEM_PA_GPIO
         value: -1
         deprecated: 1
     BLE_LL_PA_TURN_ON_US:
-        description: use BLE_LL_FEM_PA_TURN_ON_US
+        description: use BLE_FEM_PA_TURN_ON_US
         value: 1
         deprecated: 1
     BLE_LL_LNA:
-        description: use BLE_LL_FEM_LNA
+        description: use BLE_FEM_LNA
         value: 0
         deprecated: 1
     BLE_LL_LNA_GPIO:
-        description: use BLE_LL_FEM_LNA_GPIO
+        description: use BLE_FEM_LNA_GPIO
         value: -1
         deprecated: 1
     BLE_LL_LNA_TURN_ON_US:
-        description: use BLE_LL_FEM_LNA_TURN_ON_US
+        description: use BLE_FEM_LNA_TURN_ON_US
         value: 1
         deprecated: 1
 

@@ -56,5 +56,5 @@ syscfg.defs:
 syscfg.restrictions:
     # code supports turn on times up to 90us due to some optimizations, but it
     # should be enough for most (all?) cases
-    - "!BLE_LL_FEM_PA || BLE_LL_FEM_PA_TURN_ON_US <= 90"
-    - "!BLE_LL_FEM_LNA || BLE_LL_FEM_LNA_TURN_ON_US <= 90"
+    - "!BLE_FEM_PA || BLE_FEM_PA_TURN_ON_US <= 90"
+    - "!BLE_FEM_LNA || BLE_FEM_LNA_TURN_ON_US <= 90"

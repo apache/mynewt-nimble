@@ -25,7 +25,7 @@
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_hw.h"
-#include "controller/ble_ll_fem.h"
+#include "controller/ble_fem.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
 
@@ -352,7 +352,7 @@ ble_ll_hci_vs_set_data_len(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
 }
 #endif
 
-#if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)
+#if MYNEWT_VAL(BLE_FEM_ANTENNA)
 static int
 ble_ll_hci_vs_set_antenna(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
                           uint8_t *rspbuf, uint8_t *rsplen)
@@ -367,7 +367,7 @@ ble_ll_hci_vs_set_antenna(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_CMD_DISALLOWED;
     }
 
-    if (ble_ll_fem_antenna(cmd->antenna)) {
+    if (ble_fem_antenna(cmd->antenna)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -398,7 +398,7 @@ static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_DATA_LEN,
                       ble_ll_hci_vs_set_data_len),
 #endif
-#if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)
+#if MYNEWT_VAL(BLE_FEM_ANTENNA)
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_ANTENNA, ble_ll_hci_vs_set_antenna),
 #endif
 };

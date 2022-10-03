@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef H_BLE_LL_FEM_
-#define H_BLE_LL_FEM_
+#ifndef H_BLE_FEM_
+#define H_BLE_FEM_
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,38 +26,38 @@ extern "C" {
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_LL_FEM_PA)
-void ble_ll_fem_pa_init(void);
-void ble_ll_fem_pa_enable(void);
-void ble_ll_fem_pa_disable(void);
-#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
+#if MYNEWT_VAL(BLE_FEM_PA)
+void ble_fem_pa_init(void);
+void ble_fem_pa_enable(void);
+void ble_fem_pa_disable(void);
+#if MYNEWT_VAL(BLE_FEM_PA_GAIN_TUNABLE)
 /* Configures FEM to selected TX power and returns expected PHY TX power */
-int ble_ll_fem_pa_tx_power_set(int tx_power);
+int ble_fem_pa_tx_power_set(int tx_power);
 
 /* returns rounded FEM TX power */
-int ble_ll_fem_pa_tx_power_round(int tx_power);
+int ble_fem_pa_tx_power_round(int tx_power);
 #endif
 #endif
 
-#if MYNEWT_VAL(BLE_LL_FEM_LNA)
-void ble_ll_fem_lna_init(void);
-void ble_ll_fem_lna_enable(void);
-void ble_ll_fem_lna_disable(void);
+#if MYNEWT_VAL(BLE_FEM_LNA)
+void ble_fem_lna_init(void);
+void ble_fem_lna_enable(void);
+void ble_fem_lna_disable(void);
 
-#if MYNEWT_VAL(BLE_LL_FEM_LNA_GAIN_TUNABLE)
+#if MYNEWT_VAL(BLE_FEM_LNA_GAIN_TUNABLE)
 /* Return current value of FEM LNA RX gain (in dBm) */
-int ble_ll_fem_lna_rx_gain(void);
+int ble_fem_lna_rx_gain(void);
 #endif
 
 #endif
 
-#if MYNEWT_VAL(BLE_LL_FEM_ANTENNA)
+#if MYNEWT_VAL(BLE_FEM_ANTENNA)
 /* 0 sets default antenna, any other value is FEM specific */
-int ble_ll_fem_antenna(uint8_t antenna);
+int ble_fem_antenna(uint8_t antenna);
 #endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_BLE_LL_FEM_ */
+#endif /* H_BLE_FEM_ */

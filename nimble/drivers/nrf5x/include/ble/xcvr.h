@@ -35,8 +35,8 @@ extern "C" {
  *
  * TODO this file should be refactored...
  */
-#if (MYNEWT_VAL(BLE_LL_FEM_PA) && (MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US) > 60)) || \
-    (MYNEWT_VAL(BLE_LL_FEM_LNA) && (MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) > 60))
+#if (MYNEWT_VAL(BLE_FEM_PA) && (MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US) > 60)) || \
+    (MYNEWT_VAL(BLE_FEM_LNA) && (MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US) > 60))
 #define XCVR_PROC_DELAY_USECS         (183)
 #else
 #define XCVR_PROC_DELAY_USECS         (153)
