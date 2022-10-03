@@ -17,6 +17,15 @@
 #
 
 syscfg.defs:
+    BLE_PHY_VARIABLE_TIFS:
+        description: >
+            Enables API to set custom T_ifs (inter-frame spacing) for each
+            transition. T_ifs is reset to default value after each transition.
+            When disabled, 150us is always used which enables some build-time
+            optimizations by compiler.
+        experimental: 1
+        value: 0
+
     BLE_PHY_SYSVIEW:
         description: >
             Enable SystemView tracing module for radio driver.
