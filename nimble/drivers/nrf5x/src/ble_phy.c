@@ -1047,11 +1047,11 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
+    transition = g_ble_phy_data.phy_transition;
+
     if (g_ble_phy_data.txend_cb) {
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
-
-    transition = g_ble_phy_data.phy_transition;
 
     if (transition == BLE_PHY_TRANSITION_TX_RX) {
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
