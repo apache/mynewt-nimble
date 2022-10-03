@@ -670,6 +670,10 @@
 #define MYNEWT_VAL_BASELIBC_PRESENT (1)
 #endif
 
+#ifndef MYNEWT_VAL_BASELIBC_THREAD_SAFE_HEAP_ALLOCATION
+#define MYNEWT_VAL_BASELIBC_THREAD_SAFE_HEAP_ALLOCATION (0)
+#endif
+
 /*** @apache-mynewt-core/sys/console/stub */
 #ifndef MYNEWT_VAL_CONSOLE_UART_BAUD
 #define MYNEWT_VAL_CONSOLE_UART_BAUD (115200)
@@ -869,6 +873,56 @@
 
 #ifndef MYNEWT_VAL_BLE_DEVICE
 #define MYNEWT_VAL_BLE_DEVICE (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_FEM_ANTENNA
+#define MYNEWT_VAL_BLE_FEM_ANTENNA (0)
+#endif
+
+/* Value copied from BLE_LL_LNA */
+#ifndef MYNEWT_VAL_BLE_FEM_LNA
+#define MYNEWT_VAL_BLE_FEM_LNA (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_FEM_LNA_GAIN
+#define MYNEWT_VAL_BLE_FEM_LNA_GAIN (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_FEM_LNA_GAIN_TUNABLE
+#define MYNEWT_VAL_BLE_FEM_LNA_GAIN_TUNABLE (0)
+#endif
+
+/* Value copied from BLE_LL_LNA_GPIO */
+#ifndef MYNEWT_VAL_BLE_FEM_LNA_GPIO
+#define MYNEWT_VAL_BLE_FEM_LNA_GPIO (-1)
+#endif
+
+/* Value copied from BLE_LL_LNA_TURN_ON_US */
+#ifndef MYNEWT_VAL_BLE_FEM_LNA_TURN_ON_US
+#define MYNEWT_VAL_BLE_FEM_LNA_TURN_ON_US (1)
+#endif
+
+/* Value copied from BLE_LL_PA */
+#ifndef MYNEWT_VAL_BLE_FEM_PA
+#define MYNEWT_VAL_BLE_FEM_PA (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_FEM_PA_GAIN
+#define MYNEWT_VAL_BLE_FEM_PA_GAIN (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_FEM_PA_GAIN_TUNABLE
+#define MYNEWT_VAL_BLE_FEM_PA_GAIN_TUNABLE (0)
+#endif
+
+/* Value copied from BLE_LL_PA_GPIO */
+#ifndef MYNEWT_VAL_BLE_FEM_PA_GPIO
+#define MYNEWT_VAL_BLE_FEM_PA_GPIO (-1)
+#endif
+
+/* Value copied from BLE_LL_PA_TURN_ON_US */
+#ifndef MYNEWT_VAL_BLE_FEM_PA_TURN_ON_US
+#define MYNEWT_VAL_BLE_FEM_PA_TURN_ON_US (1)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
@@ -1253,7 +1307,7 @@
 #define MYNEWT_VAL_BLE_XTAL_SETTLE_TIME (0)
 #endif
 
-/*** @apache-mynewt-nimble/nimble/drivers/nrf52 */
+/*** @apache-mynewt-nimble/nimble/drivers/nrf5x */
 #ifndef MYNEWT_VAL_BLE_PHY_DBG_TIME_ADDRESS_END_PIN
 #define MYNEWT_VAL_BLE_PHY_DBG_TIME_ADDRESS_END_PIN (-1)
 #endif
@@ -1264,14 +1318,6 @@
 
 #ifndef MYNEWT_VAL_BLE_PHY_DBG_TIME_WFR_PIN
 #define MYNEWT_VAL_BLE_PHY_DBG_TIME_WFR_PIN (-1)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_PHY_NRF52840_ERRATA_164
-#define MYNEWT_VAL_BLE_PHY_NRF52840_ERRATA_164 (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_PHY_NRF52840_ERRATA_191
-#define MYNEWT_VAL_BLE_PHY_NRF52840_ERRATA_191 (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_PHY_SYSVIEW
@@ -1499,12 +1545,12 @@
 #define MYNEWT_VAL_BLE_L2CAP_COC_MPS (MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC
-#define MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC (0)
-#endif
-
 #ifndef MYNEWT_VAL_BLE_L2CAP_COC_SDU_BUFF_COUNT
 #define MYNEWT_VAL_BLE_L2CAP_COC_SDU_BUFF_COUNT (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC
+#define MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_L2CAP_JOIN_RX_FRAGS
@@ -1821,5 +1867,39 @@
 #ifndef MYNEWT_VAL_TARGET_riot
 #define MYNEWT_VAL_TARGET_riot (1)
 #endif
+
+/*** Included packages */
+#define MYNEWT_PKG_apache_mynewt_core__compiler_arm_none_eabi_m4 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_bsp_nordic_pca10056 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_cmsis_core 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart_uart_hal 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_hal 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_mcu_nordic 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_mcu_nordic_nrf52xxx 1
+#define MYNEWT_PKG_apache_mynewt_core__kernel_os 1
+#define MYNEWT_PKG_apache_mynewt_core__libc_baselibc 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_console_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_defs 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_flash_map 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_common 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_modlog 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_stats_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sys 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sysdown 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sysinit 1
+#define MYNEWT_PKG_apache_mynewt_core__util_mem 1
+#define MYNEWT_PKG_apache_mynewt_core__util_rwlock 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_controller 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_drivers_nrf5x 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_gap 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_gatt 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_transport 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_npl_mynewt 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_targets_dummy_app 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_targets_riot 1
 
 #endif
