@@ -43,7 +43,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
-#include "controller/ble_ll_fem.h"
+#include "controller/ble_fem.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
 #include "ble_ll_priv.h"
@@ -1652,11 +1652,11 @@ ble_ll_reset(void)
 #endif
 
 
-#if MYNEWT_VAL(BLE_LL_FEM_PA)
-    ble_ll_fem_pa_init();
+#if MYNEWT_VAL(BLE_FEM_PA)
+    ble_fem_pa_init();
 #endif
-#if MYNEWT_VAL(BLE_LL_FEM_LNA)
-    ble_ll_fem_lna_init();
+#if MYNEWT_VAL(BLE_FEM_LNA)
+    ble_fem_lna_init();
 #endif
 
     /* Re-initialize the PHY */
@@ -1992,12 +1992,12 @@ ble_transport_ll_init(void)
 int
 ble_ll_tx_power_round(int tx_power)
 {
-#if MYNEWT_VAL(BLE_LL_FEM_PA)
-#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
-    tx_power = ble_ll_fem_pa_tx_power_round(tx_power);
+#if MYNEWT_VAL(BLE_FEM_PA)
+#if MYNEWT_VAL(BLE_FEM_PA_GAIN_TUNABLE)
+    tx_power = ble_fem_pa_tx_power_round(tx_power);
 #else
     tx_power = ble_phy_tx_power_round(tx_power);
-    tx_power += MYNEWT_VAL(BLE_LL_FEM_PA_GAIN);
+    tx_power += MYNEWT_VAL(BLE_FEM_PA_GAIN);
 #endif
 #else
     tx_power = ble_phy_tx_power_round(tx_power);
@@ -2009,15 +2009,15 @@ ble_ll_tx_power_round(int tx_power)
 void
 ble_ll_tx_power_set(int tx_power)
 {
-#if MYNEWT_VAL(BLE_LL_FEM_PA)
-#if MYNEWT_VAL(BLE_LL_FEM_PA_GAIN_TUNABLE)
+#if MYNEWT_VAL(BLE_FEM_PA)
+#if MYNEWT_VAL(BLE_FEM_PA_GAIN_TUNABLE)
     /* TODO should rounding be in assert only? or just skip it and assume
      * power is already rounded?
      */
-    tx_power = ble_ll_fem_pa_tx_power_round(tx_power);
-    tx_power = ble_ll_fem_pa_tx_power_set(tx_power);
+    tx_power = ble_fem_pa_tx_power_round(tx_power);
+    tx_power = ble_fem_pa_tx_power_set(tx_power);
 #else
-    tx_power -= MYNEWT_VAL(BLE_LL_FEM_PA_GAIN);
+    tx_power -= MYNEWT_VAL(BLE_FEM_PA_GAIN);
 #endif
 #endif
     ble_phy_tx_power_set(tx_power);

@@ -29,12 +29,12 @@ pkg.req_apis:
     - ble_driver
     - ble_transport
     - stats
-pkg.req_apis.BLE_LL_FEM_PA:
-    - ble_ll_fem_pa
-pkg.req_apis.BLE_LL_FEM_LNA:
-    - ble_ll_fem_lna
-pkg.req_apis.BLE_LL_FEM_ANTENNA:
-    - ble_ll_fem_antenna
+pkg.req_apis.BLE_FEM_PA:
+    - ble_fem_pa
+pkg.req_apis.BLE_FEM_LNA:
+    - ble_fem_lna
+pkg.req_apis.BLE_FEM_ANTENNA:
+    - ble_fem_antenna
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"

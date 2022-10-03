@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 #include <nrfx.h>
-#include <controller/ble_ll_fem.h>
+#include <controller/ble_fem.h>
 #include "../phy_priv.h"
 
 #if PHY_USE_DEBUG
@@ -85,19 +85,19 @@ phy_fem_init(void)
 {
 #if PHY_USE_FEM_SINGLE_GPIO
 #if PHY_USE_FEM_PA
-    phy_gpiote_configure(PHY_GPIOTE_FEM, MYNEWT_VAL(BLE_LL_FEM_PA_GPIO));
+    phy_gpiote_configure(PHY_GPIOTE_FEM, MYNEWT_VAL(BLE_FEM_PA_GPIO));
 #else
-    phy_gpiote_configure(PHY_GPIOTE_FEM, MYNEWT_VAL(BLE_LL_FEM_LNA_GPIO));
+    phy_gpiote_configure(PHY_GPIOTE_FEM, MYNEWT_VAL(BLE_FEM_LNA_GPIO));
 #endif
     NRF_PPI->CH[6].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_SET[PHY_GPIOTE_FEM]);
     NRF_PPI->CH[7].TEP = (uint32_t)&(NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM]);
 #else
 #if PHY_USE_FEM_PA
-    phy_gpiote_configure(PHY_GPIOTE_FEM_PA, MYNEWT_VAL(BLE_LL_FEM_PA_GPIO));
+    phy_gpiote_configure(PHY_GPIOTE_FEM_PA, MYNEWT_VAL(BLE_FEM_PA_GPIO));
     NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM_PA] = 1;
 #endif
 #if PHY_USE_FEM_LNA
-    phy_gpiote_configure(PHY_GPIOTE_FEM_LNA, MYNEWT_VAL(BLE_LL_FEM_LNA_GPIO));
+    phy_gpiote_configure(PHY_GPIOTE_FEM_LNA, MYNEWT_VAL(BLE_FEM_LNA_GPIO));
     NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM_LNA] = 1;
 #endif
 #endif /* PHY_USE_FEM_SINGLE_GPIO */
@@ -112,7 +112,7 @@ phy_fem_init(void)
 void
 phy_fem_enable_pa(void)
 {
-    ble_ll_fem_pa_enable();
+    ble_fem_pa_enable();
 
 #if !PHY_USE_FEM_SINGLE_GPIO
     /* Switch FEM channels to control PA */
@@ -128,7 +128,7 @@ phy_fem_enable_pa(void)
 void
 phy_fem_enable_lna(void)
 {
-    ble_ll_fem_lna_enable();
+    ble_fem_lna_enable();
 
 #if !PHY_USE_FEM_SINGLE_GPIO
     /* Switch FEM channels to control LNA */

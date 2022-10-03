@@ -406,49 +406,49 @@ syscfg.defs:
             line number where assertion occured.
         value: MYNEWT_VAL(BLE_LL_VND_EVENT_ON_ASSERT)
 
-    BLE_LL_FEM_PA:
+    BLE_FEM_PA:
         description: Enable FEM PA support
         value: MYNEWT_VAL(BLE_LL_PA)
-    BLE_LL_FEM_PA_GAIN:
+    BLE_FEM_PA_GAIN:
         description: PA fixed TX gain (in dBm).
         value: 0
-    BLE_LL_FEM_PA_GAIN_TUNABLE:
+    BLE_FEM_PA_GAIN_TUNABLE:
         description: >
             PA TX gain is tunable and not constant. If enabled
-            ble_ll_fem_pa_tx_power_set() and ble_ll_fem_pa_tx_power_round()
-            shall be implemented (see ble_ll_fem.h for details).
+            ble_fem_pa_tx_power_set() and ble_fem_pa_tx_power_round()
+            shall be implemented (see ble_fem.h for details).
         value: 0
-    BLE_LL_FEM_PA_GPIO:
+    BLE_FEM_PA_GPIO:
         description: >
             GPIO pin number to control PA. Pin is set to high state when PA
             should be enabled.
         value: MYNEWT_VAL(BLE_LL_PA_GPIO)
-    BLE_LL_FEM_PA_TURN_ON_US:
+    BLE_FEM_PA_TURN_ON_US:
         description: >
             Time required for PA to turn on, in microseconds.
         value: MYNEWT_VAL(BLE_LL_PA_TURN_ON_US)
-    BLE_LL_FEM_LNA:
+    BLE_FEM_LNA:
         description: Enable LNA support
         value: MYNEWT_VAL(BLE_LL_LNA)
-    BLE_LL_FEM_LNA_GAIN:
+    BLE_FEM_LNA_GAIN:
         description: LNA fixed RX gain (in dBm).
         value: 0
-    BLE_LL_FEM_LNA_GAIN_TUNABLE:
+    BLE_FEM_LNA_GAIN_TUNABLE:
         description: >
             LNA RX gain is tunable and not constant. If enabled
-            ble_ll_fem_lna_rx_gain() shall be implemented (see ble_ll_fem.h for
+            ble_fem_lna_rx_gain() shall be implemented (see ble_fem.h for
             details).
         value: 0
-    BLE_LL_FEM_LNA_GPIO:
+    BLE_FEM_LNA_GPIO:
         description: >
             GPIO pin number to control LNA. Pin is set to high state when LNA
             should be enabled.
         value: MYNEWT_VAL(BLE_LL_LNA_GPIO)
-    BLE_LL_FEM_LNA_TURN_ON_US:
+    BLE_FEM_LNA_TURN_ON_US:
         description: >
             Time required for LNA to turn on, in microseconds.
         value: MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US)
-    BLE_LL_FEM_ANTENNA:
+    BLE_FEM_ANTENNA:
         description: >
             Enable support for runtime antenna selection in FEM.
         value: 0
@@ -541,8 +541,8 @@ syscfg.vals.'!BLE_HOST && !BABBLESIM':
 syscfg.restrictions:
     - BLE_TRANSPORT_LL == "native"
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff
-    - BLE_LL_FEM_PA == 0 || BLE_LL_FEM_PA_GPIO >= 0
-    - BLE_LL_FEM_LNA == 0 || BLE_LL_FEM_LNA_GPIO >= 0
+    - BLE_FEM_PA == 0 || BLE_FEM_PA_GPIO >= 0
+    - BLE_FEM_LNA == 0 || BLE_FEM_LNA_GPIO >= 0
 
 $import:
     # defunct and deprecated settings

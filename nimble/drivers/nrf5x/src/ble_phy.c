@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-#include <controller/ble_ll_fem.h>
+#include <controller/ble_fem.h>
 #include <hal/nrf_radio.h>
 #include <hal/nrf_ccm.h>
 #include <hal/nrf_aar.h>
@@ -634,12 +634,12 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
         radio_rem_us = rem_us - BLE_PHY_T_TXENFAST -
                        g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 #if PHY_USE_FEM_PA
-        fem_rem_us = rem_us - MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US);
+        fem_rem_us = rem_us - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
 #endif
     } else {
         radio_rem_us = rem_us - BLE_PHY_T_TXENFAST;
 #if PHY_USE_FEM_LNA
-        fem_rem_us = rem_us - MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+        fem_rem_us = rem_us - MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
 #endif
     }
 
@@ -756,14 +756,14 @@ ble_phy_set_start_now(void)
      */
 
 #if PHY_USE_FEM_LNA
-    if (MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) > BLE_PHY_T_RXENFAST) {
-        radio_rem_us = 1 + MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US) -
+    if (MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US) > BLE_PHY_T_RXENFAST) {
+        radio_rem_us = 1 + MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US) -
                        BLE_PHY_T_RXENFAST;
         fem_rem_us = 1;
     } else {
         radio_rem_us = 1;
         fem_rem_us = 1 + BLE_PHY_T_RXENFAST -
-                     MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+                     MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
     }
 #else
     radio_rem_us = 1;
@@ -1071,7 +1071,7 @@ ble_phy_tx_end_isr(void)
         rx_time -= 2;
 
 #if PHY_USE_FEM_LNA
-        fem_time = rx_time - MYNEWT_VAL(BLE_LL_FEM_LNA_TURN_ON_US);
+        fem_time = rx_time - MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
         nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
         NRF_TIMER0->EVENTS_COMPARE[2] = 0;
         phy_fem_enable_lna();
@@ -1228,7 +1228,7 @@ ble_phy_rx_end_isr(void)
     tx_time -= g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
 
 #if PHY_USE_FEM_PA
-    fem_time = tx_time - MYNEWT_VAL(BLE_LL_FEM_PA_TURN_ON_US);
+    fem_time = tx_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
 #endif
 
     /* Adjust for delay between EVENT_READY and actual TX start time */
@@ -1454,9 +1454,9 @@ ble_phy_isr(void)
 
         switch (g_ble_phy_data.phy_state) {
         case BLE_PHY_STATE_RX:
-#if MYNEWT_VAL(BLE_LL_FEM_LNA)
+#if MYNEWT_VAL(BLE_FEM_LNA)
             phy_ppi_fem_disable();
-            ble_ll_fem_lna_disable();
+            ble_fem_lna_disable();
 #endif
             if (g_ble_phy_data.phy_rx_started) {
                 ble_phy_rx_end_isr();
@@ -1465,9 +1465,9 @@ ble_phy_isr(void)
             }
             break;
         case BLE_PHY_STATE_TX:
-#if MYNEWT_VAL(BLE_LL_FEM_PA)
+#if MYNEWT_VAL(BLE_FEM_PA)
             phy_ppi_fem_disable();
-            ble_ll_fem_pa_disable();
+            ble_fem_pa_disable();
 #endif
             ble_phy_tx_end_isr();
             break;

@@ -29,13 +29,13 @@
 #define PHY_USE_DEBUG_3     (MYNEWT_VAL(BLE_PHY_DBG_TIME_WFR_PIN) >= 0)
 #define PHY_USE_DEBUG       (PHY_USE_DEBUG_1 || PHY_USE_DEBUG_2 || PHY_USE_DEBUG_3)
 
-#define PHY_USE_FEM_PA      (MYNEWT_VAL(BLE_LL_FEM_PA) != 0)
-#define PHY_USE_FEM_LNA     (MYNEWT_VAL(BLE_LL_FEM_LNA) != 0)
+#define PHY_USE_FEM_PA      (MYNEWT_VAL(BLE_FEM_PA) != 0)
+#define PHY_USE_FEM_LNA     (MYNEWT_VAL(BLE_FEM_LNA) != 0)
 #define PHY_USE_FEM         (PHY_USE_FEM_PA || PHY_USE_FEM_LNA)
 #define PHY_USE_FEM_SINGLE_GPIO \
     (PHY_USE_FEM && (!PHY_USE_FEM_PA || !PHY_USE_FEM_LNA || \
-                     (MYNEWT_VAL(BLE_LL_FEM_PA_GPIO) == \
-                      MYNEWT_VAL(BLE_LL_FEM_LNA_GPIO))))
+                     (MYNEWT_VAL(BLE_FEM_PA_GPIO) == \
+                      MYNEWT_VAL(BLE_FEM_LNA_GPIO))))
 
 /* GPIOTE indexes, start assigning from last one */
 #define PHY_GPIOTE_DEBUG_1  (8 - PHY_USE_DEBUG_1)
