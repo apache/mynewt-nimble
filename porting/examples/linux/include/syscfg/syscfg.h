@@ -719,12 +719,12 @@
 #define MYNEWT_VAL_BLE_L2CAP_COC_MPS (MYNEWT_VAL_MSYS_1_BLOCK_SIZE-8)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC
-#define MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC (0)
-#endif
-
 #ifndef MYNEWT_VAL_BLE_L2CAP_COC_SDU_BUFF_COUNT
 #define MYNEWT_VAL_BLE_L2CAP_COC_SDU_BUFF_COUNT (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC
+#define MYNEWT_VAL_BLE_L2CAP_ENHANCED_COC (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_L2CAP_JOIN_RX_FRAGS
@@ -1192,5 +1192,50 @@
 #ifndef MYNEWT_VAL_TARGET_linux
 #define MYNEWT_VAL_TARGET_linux (1)
 #endif
+
+/*** Included packages */
+#define MYNEWT_PKG_apache_mynewt_core__compiler_sim 1
+#define MYNEWT_PKG_apache_mynewt_core__crypto_tinycrypt 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_bsp_native 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_flash_enc_flash 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_flash_enc_flash_ef_tinycrypt 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_trng 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_trng_trng_sw 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart_uart_hal 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_hal 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_mcu_native 1
+#define MYNEWT_PKG_apache_mynewt_core__kernel_os 1
+#define MYNEWT_PKG_apache_mynewt_core__kernel_sim 1
+#define MYNEWT_PKG_apache_mynewt_core__net_ip_mn_socket 1
+#define MYNEWT_PKG_apache_mynewt_core__net_ip_native_sockets 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_console_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_defs 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_flash_map 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_common 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_modlog 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_log_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_stats_stub 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sys 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sysdown 1
+#define MYNEWT_PKG_apache_mynewt_core__sys_sysinit 1
+#define MYNEWT_PKG_apache_mynewt_core__util_mem 1
+#define MYNEWT_PKG_apache_mynewt_core__util_rwlock 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_ans 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_bas 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_dis 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_gap 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_gatt 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_ias 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_ipss 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_lls 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_services_tps 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_transport 1
+#define MYNEWT_PKG_apache_mynewt_nimble__nimble_transport_socket 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_npl_mynewt 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_targets_dummy_app 1
+#define MYNEWT_PKG_apache_mynewt_nimble__porting_targets_linux 1
 
 #endif
