@@ -3528,7 +3528,8 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         /* no preference */
         advsm->tx_power = ble_ll_tx_power_round(g_ble_ll_tx_power - g_ble_ll_tx_power_compensation);
     } else {
-        advsm->tx_power = ble_ll_tx_power_round(cmd->tx_power - g_ble_ll_tx_power_compensation);
+        advsm->tx_power = ble_ll_tx_power_round(min(cmd->tx_power, MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)) -
+                                                g_ble_ll_tx_power_compensation);
     }
 
     /* we can always store as those are validated and used only when needed */
