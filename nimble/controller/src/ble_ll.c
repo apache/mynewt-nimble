@@ -1376,7 +1376,8 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_ll_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    g_ble_ll_tx_power = ble_ll_tx_power_round(min(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
+                                                  MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* Tell the host that we are ready to receive packets */
@@ -1623,7 +1624,8 @@ ble_ll_reset(void)
     g_ble_ll_rx_power_compensation = 0;
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_ll_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM));
+    g_ble_ll_tx_power = ble_ll_tx_power_round(min(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
+                                                  MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* FLush all packets from Link layer queues */

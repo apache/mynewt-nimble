@@ -124,9 +124,13 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
 
     if (cmd->tx_power == 127) {
         /* restore reset default */
-        g_ble_ll_tx_power = ble_ll_tx_power_round(MYNEWT_VAL(BLE_LL_TX_PWR_DBM)  - g_ble_ll_tx_power_compensation);
+        g_ble_ll_tx_power = ble_ll_tx_power_round(min(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
+                                                      MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)) -
+                                                  g_ble_ll_tx_power_compensation);
     } else {
-        g_ble_ll_tx_power = ble_ll_tx_power_round(cmd->tx_power - g_ble_ll_tx_power_compensation);
+        g_ble_ll_tx_power = ble_ll_tx_power_round(min(cmd->tx_power,
+                                                      MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)) -
+                                                  g_ble_ll_tx_power_compensation);
     }
 
     ble_ll_tx_power_set(g_ble_ll_tx_power);

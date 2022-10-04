@@ -69,6 +69,14 @@ syscfg.defs:
             may be rounded up or down depending on used radio.
         value: '0'
 
+    BLE_LL_TX_PWR_MAX_DBM:
+        description: >
+            Maximum allowed transmit power level (in dBm). This limits maximum
+            power to specified value (including FEM and/or host compensation).
+            Useful for ensuring selected power class of device. Defaults to
+            maximum allowed by specification (Power Class 1).
+        value: '20'
+
     BLE_LL_NUM_COMP_PKT_ITVL_MS:
         description: >
             Determines the interval at which the controller will send the
