@@ -2176,7 +2176,7 @@ static void
 ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
 {
     /* reset power to default after advertising */
-    ble_phy_tx_power_set(g_ble_ll_tx_power);
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
@@ -2232,7 +2232,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
     /* Set the power */
-    ble_phy_tx_power_set(advsm->tx_power);
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set channel */
     sync = SYNC_CURRENT(advsm);
