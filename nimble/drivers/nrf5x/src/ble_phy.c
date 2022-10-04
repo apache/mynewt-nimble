@@ -1097,7 +1097,8 @@ ble_phy_tx_end_isr(void)
         /* Adjust for delay between EVENT_READY and actual TX start time */
         tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
-        nrf_timer_cc_set(NRF_TIMER0, 0, tx_time);
+        radio_time = tx_time - BLE_PHY_T_TXENFAST;
+        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_txen_enable();
 
