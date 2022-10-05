@@ -349,6 +349,20 @@ done:
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_HCI_VS)
+int
+ble_hs_hci_send_vs_cmd(uint16_t ocf, const void *cmdbuf, uint8_t cmdlen,
+                       void *rspbuf, uint8_t rsplen)
+{
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_VENDOR, ocf),
+                           cmdbuf, cmdlen, rspbuf, rsplen);
+
+    return rc;
+}
+#endif
+
 static void
 ble_hs_hci_rx_ack(uint8_t *ack_ev)
 {
