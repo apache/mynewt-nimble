@@ -20,9 +20,12 @@
 #ifndef H_NIMBLE_TRANSPORT_IPC_
 #define H_NIMBLE_TRANSPORT_IPC_
 
+#include <syscfg/syscfg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 /* NOTE: These APIs shall only be used by IPC transports */
 
