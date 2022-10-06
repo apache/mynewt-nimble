@@ -287,5 +287,6 @@ ble_transport_ipc_buf_evt_type_get(void *buf)
     } else {
         assert(0);
     }
+    return 0;
 }
 #endif

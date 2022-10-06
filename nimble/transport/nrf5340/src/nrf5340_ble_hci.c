@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <syscfg/syscfg.h>
 #include <sysinit/sysinit.h>
 #include <nimble/ble.h>
 #include <ipc_nrf5340/ipc_nrf5340.h>
