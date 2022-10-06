@@ -43,7 +43,11 @@ sky66112_bypass(uint8_t enabled)
 void
 ble_fem_pa_init(void)
 {
-    /* Nothing to do here */
+    sky66112_tx_hp_mode(MYNEWT_VAL(SKY66112_TX_HP_MODE));
+    sky66112_tx_bypass(0);
+#if MYNEWT_VAL(BLE_FEM_ANTENNA)
+    ble_fem_antenna(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
+#endif
 }
 
 void
@@ -65,7 +69,10 @@ ble_fem_pa_disable(void)
 void
 ble_fem_lna_init(void)
 {
-    /* Nothing to do here */
+    sky66112_rx_bypass(0);
+#if MYNEWT_VAL(BLE_FEM_ANTENNA)
+    ble_fem_antenna(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
+#endif
 }
 
 void
