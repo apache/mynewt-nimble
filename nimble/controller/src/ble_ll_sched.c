@@ -1198,6 +1198,14 @@ ble_ll_sched_init(void)
 
     g_ble_ll_sched_q_head_changed = 0;
 
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    memset(&g_ble_ll_sched_css, 0, sizeof (g_ble_ll_sched_css));
+#if !MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_FIXED)
+    g_ble_ll_sched_css.slot_us = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_SLOT_US);
+    g_ble_ll_sched_css.period_slots = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS);
+#endif
+#endif
+
     return 0;
 }
 
