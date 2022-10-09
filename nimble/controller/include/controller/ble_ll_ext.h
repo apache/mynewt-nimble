@@ -36,6 +36,10 @@ extern "C" {
 
 struct ble_ll_sched_item;
 
+/* Called when LL package is initialized (before ll_task is started) */
+void ble_ll_ext_init(void);
+/* Called when LL is reset (i.e. HCI_Reset) */
+void ble_ll_ext_reset(void);
 /* Called when LL is in "external" state and PHY starts to receive a PDU */
 int ble_ll_ext_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr);
 /* Called when LL is in "external" state and PHY finished to receive a PDU */

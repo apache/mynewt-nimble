@@ -56,6 +56,10 @@
 #include "ble_ll_dtm_priv.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_EXT)
+#include <controller/ble_ll_ext.h>
+#endif
+
 /* XXX:
  *
  * 1) use the sanity task!
@@ -1605,6 +1609,10 @@ ble_ll_reset(void)
     ble_ll_rfmgmt_reset();
     OS_EXIT_CRITICAL(sr);
 
+#if MYNEWT_VAL(BLE_LL_EXT)
+    ble_ll_ext_reset();
+#endif
+
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
     /* Stop any advertising */
     ble_ll_adv_reset();
@@ -1979,6 +1987,10 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
     ble_ll_hci_vs_init();
+#endif
+
+#if MYNEWT_VAL(BLE_LL_EXT)
+    ble_ll_ext_init();
 #endif
 
 #if MYNEWT
