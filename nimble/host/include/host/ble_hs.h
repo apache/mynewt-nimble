@@ -276,6 +276,9 @@ struct ble_hs_cfg {
      */
     ble_hs_sync_fn *sync_cb;
 
+    /** Callback to handle generation of security keys */
+    ble_store_gen_key_fn *store_gen_key_cb;
+
     /* XXX: These need to go away. Instead, the nimble host package should
      * require the host-store API (not yet implemented)..
      */

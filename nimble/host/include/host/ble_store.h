@@ -178,6 +178,42 @@ struct ble_store_status_event {
     };
 };
 
+/* Generate LTK, EDIT and Rand */
+#define BLE_STORE_GEN_KEY_LTK       0x01
+/* Generate IRK */
+#define BLE_STORE_GEN_KEY_IRK       0x02
+/* Generate CSRK */
+#define BLE_STORE_GEN_KEY_CSRK      0x03
+
+struct ble_store_gen_key {
+    union {
+        uint8_t ltk_periph[16];
+        uint8_t irk[16];
+        uint8_t csrk[16];
+    };
+    uint16_t ediv;
+    uint64_t rand;
+};
+
+/**
+ * Generates key required by security module.
+ * This can be used to use custom routines to generate keys instead of simply
+ * randomizing them.
+ *
+ * \p conn_handle is set to \p BLE_HS_CONN_HANDLE_NONE if key is not requested
+ * for a specific connection (e.g. an IRK).
+ *
+ * @param key                   Key that shall be generated.
+ * @param gen_key               Storage for generated key.
+ * @param conn_handle           Connection handle for which keys are generated.
+ *
+ * @return                      0 if keys were generated successfully
+ *                              Other nonzero on error.
+ */
+typedef int ble_store_gen_key_fn(uint8_t key,
+                                 struct ble_store_gen_key *gen_key,
+                                 uint16_t conn_handle);
+
 /**
  * Searches the store for an object matching the specified criteria.  If a
  * match is found, it is read from the store and the dst parameter is populated
