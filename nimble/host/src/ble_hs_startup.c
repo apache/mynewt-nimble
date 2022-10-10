@@ -318,6 +318,7 @@ ble_hs_startup_reset_tx(void)
 int
 ble_hs_startup_go(void)
 {
+    struct ble_store_gen_key gen_key;
     int rc;
 
     rc = ble_hs_startup_reset_tx();
@@ -372,7 +373,20 @@ ble_hs_startup_go(void)
         return rc;
     }
 
-    ble_hs_pvcy_set_our_irk(NULL);
+    if (ble_hs_cfg.store_gen_key_cb) {
+        memset(&gen_key, 0, sizeof(gen_key));
+        rc = ble_hs_cfg.store_gen_key_cb(BLE_STORE_GEN_KEY_IRK, &gen_key,
+                                         BLE_HS_CONN_HANDLE_NONE);
+        if (rc == 0) {
+            ble_hs_pvcy_set_our_irk(gen_key.irk);
+        }
+    } else {
+        rc = -1;
+    }
+
+    if (rc != 0) {
+        ble_hs_pvcy_set_our_irk(NULL);
+    }
 
     /* If flow control is enabled, configure the controller to use it. */
     ble_hs_flow_startup();

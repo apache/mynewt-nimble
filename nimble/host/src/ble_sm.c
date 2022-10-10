@@ -2078,6 +2078,8 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     uint8_t our_key_dist;
     struct os_mbuf *txom;
     const uint8_t *irk;
+    struct ble_store_gen_key gen_key;
+    int ltk_gen = 0;
     int rc;
 
     ble_sm_key_dist(proc, &init_key_dist, &resp_key_dist);
@@ -2095,15 +2097,37 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
-        rc = ble_sm_gen_ltk(proc, enc_info->ltk);
-        if (rc != 0) {
-            os_mbuf_free_chain(txom);
-            goto err;
+        proc->our_keys.key_size = proc->key_size;
+
+        if (ble_hs_cfg.store_gen_key_cb) {
+            memset(&gen_key, 0, sizeof(gen_key));
+            rc = ble_hs_cfg.store_gen_key_cb(BLE_STORE_GEN_KEY_LTK, &gen_key,
+                                             proc->conn_handle);
+            if (rc == 0) {
+                /* Trim LRK to keysize */
+                memset(gen_key.ltk_periph + proc->key_size, 0,
+                       16 - proc->key_size);
+
+                proc->our_keys.ediv = gen_key.ediv;
+                proc->our_keys.rand_val = gen_key.rand;
+                memcpy(proc->our_keys.ltk, gen_key.ltk_periph, 16);
+
+                ltk_gen = 1;
+            }
         }
 
-        /* store LTK before sending since ble_sm_tx consumes tx mbuf */
-        memcpy(proc->our_keys.ltk, enc_info->ltk, 16);
-        proc->our_keys.key_size = proc->key_size;
+        if (!ltk_gen) {
+            rc = ble_sm_gen_ltk(proc, enc_info->ltk);
+            if (rc != 0) {
+                os_mbuf_free_chain(txom);
+                goto err;
+            }
+
+            /* store LTK before sending since ble_sm_tx consumes tx mbuf */
+            memcpy(proc->our_keys.ltk, enc_info->ltk, 16);
+        } else {
+            memcpy(enc_info->ltk, proc->our_keys.ltk, 16);
+        }
         proc->our_keys.ltk_valid = 1;
 
         rc = ble_sm_tx(proc->conn_handle, txom);
@@ -2119,20 +2143,25 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
-        rc = ble_sm_gen_ediv(master_id);
-        if (rc != 0) {
-            os_mbuf_free_chain(txom);
-            goto err;
-        }
-        rc = ble_sm_gen_master_id_rand(master_id);
-        if (rc != 0) {
-            os_mbuf_free_chain(txom);
-            goto err;
-        }
+        if (!ltk_gen) {
+            rc = ble_sm_gen_ediv(master_id);
+            if (rc != 0) {
+                os_mbuf_free_chain(txom);
+                goto err;
+            }
+            rc = ble_sm_gen_master_id_rand(master_id);
+            if (rc != 0) {
+                os_mbuf_free_chain(txom);
+                goto err;
+            }
 
+            proc->our_keys.rand_val = master_id->rand_val;
+            proc->our_keys.ediv = master_id->ediv;
+        } else {
+            master_id->ediv = proc->our_keys.ediv;
+            master_id->rand_val = proc->our_keys.rand_val;
+        }
         proc->our_keys.ediv_rand_valid = 1;
-        proc->our_keys.rand_val = master_id->rand_val;
-        proc->our_keys.ediv = master_id->ediv;
 
         rc = ble_sm_tx(proc->conn_handle, txom);
         if (rc != 0) {
@@ -2197,14 +2226,29 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             goto err;
         }
 
-        rc = ble_sm_gen_csrk(proc, sign_info->sig_key);
-        if (rc != 0) {
-            os_mbuf_free_chain(txom);
-            goto err;
+        if (ble_hs_cfg.store_gen_key_cb) {
+            memset(&gen_key, 0, sizeof(gen_key));
+            rc = ble_hs_cfg.store_gen_key_cb(BLE_STORE_GEN_KEY_CSRK, &gen_key,
+                                             proc->conn_handle);
+            if (rc == 0) {
+                memcpy(proc->our_keys.csrk, gen_key.csrk, 16);
+            }
+        } else {
+            rc = -1;
         }
 
+        if (rc != 0) {
+            rc = ble_sm_gen_csrk(proc, sign_info->sig_key);
+            if (rc != 0) {
+                os_mbuf_free_chain(txom);
+                goto err;
+            }
+
+            memcpy(proc->our_keys.csrk, sign_info->sig_key, 16);
+        } else {
+            memcpy(sign_info->sig_key, proc->our_keys.csrk, 16);
+        }
         proc->our_keys.csrk_valid = 1;
-        memcpy(proc->our_keys.csrk, sign_info->sig_key, 16);
 
         rc = ble_sm_tx(proc->conn_handle, txom);
         if (rc != 0) {
