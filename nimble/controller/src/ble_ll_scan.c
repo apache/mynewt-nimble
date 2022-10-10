@@ -2314,6 +2314,27 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
     scansm = &g_ble_ll_scan_sm;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    if (ext) {
+        /*
+         * If Enable is set to 0x01 and the Host has not issued the
+         * HCI_LE_Set_Extended_Scan_Parameters command, the Controller shall
+         * either use vendor-specified parameters or return the error code
+         * Command Disallowed (0x0C)
+         *
+         * To keep things simple for devices without public address we
+         * reject in such case.
+         */
+        for (i = 0; i < BLE_LL_SCAN_PHY_NUMBER; i++) {
+            if (g_ble_ll_scan_params.scan_phys[i].configured) {
+                break;
+            }
+        }
+
+        if (i == BLE_LL_SCAN_PHY_NUMBER) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+    }
+
     /* we can do that here since value will never change until reset */
     scansm->ext_scanning = ext;
 
