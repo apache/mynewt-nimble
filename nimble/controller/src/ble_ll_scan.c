@@ -1120,7 +1120,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         start_scan = false;
         break;
 #endif
-#if MYNEWT_VAL(BLE_LL_EXT_SCHED)
+#if MYNEWT_VAL(BLE_LL_EXT)
     case BLE_LL_STATE_EXTERNAL:
         start_scan = false;
         break;
