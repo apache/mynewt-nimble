@@ -261,7 +261,7 @@ ble_sm_gen_pair_rand(uint8_t *pair_rand)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(pair_rand, 16);
+    rc = ble_hs_hci_rand(pair_rand, 16);
     if (rc != 0) {
         return rc;
     }
@@ -282,7 +282,7 @@ ble_sm_gen_ediv(struct ble_sm_master_id *master_id)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(&master_id->ediv, sizeof master_id->ediv);
+    rc = ble_hs_hci_rand(&master_id->ediv, sizeof master_id->ediv);
     if (rc != 0) {
         return rc;
     }
@@ -303,7 +303,7 @@ ble_sm_gen_master_id_rand(struct ble_sm_master_id *master_id)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(&master_id->rand_val, sizeof master_id->rand_val);
+    rc = ble_hs_hci_rand(&master_id->rand_val, sizeof master_id->rand_val);
     if (rc != 0) {
         return rc;
     }
@@ -325,7 +325,7 @@ ble_sm_gen_ltk(struct ble_sm_proc *proc, uint8_t *ltk)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(ltk, proc->key_size);
+    rc = ble_hs_hci_rand(ltk, proc->key_size);
     if (rc != 0) {
         return rc;
     }
@@ -350,7 +350,7 @@ ble_sm_gen_csrk(struct ble_sm_proc *proc, uint8_t *csrk)
     }
 #endif
 
-    rc = ble_hs_hci_util_rand(csrk, 16);
+    rc = ble_hs_hci_rand(csrk, 16);
     if (rc != 0) {
         return rc;
     }

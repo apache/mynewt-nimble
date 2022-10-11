@@ -41,7 +41,7 @@ ble_hs_id_gen_rnd(int nrpa, ble_addr_t *out_addr)
 
     out_addr->type = BLE_ADDR_RANDOM;
 
-    rc = ble_hs_hci_util_rand(out_addr->val, 6);
+    rc = ble_hs_hci_rand(out_addr->val, 6);
     if (rc != 0) {
         return rc;
     }
