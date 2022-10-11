@@ -517,7 +517,7 @@ ble_sm_alg_rand(uint8_t *dst, unsigned int size)
         size -= num;
     }
 #else
-    if (ble_hs_hci_util_rand(dst, size)) {
+    if (ble_hs_hci_rand(dst, size)) {
         return 0;
     }
 #endif

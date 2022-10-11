@@ -893,7 +893,7 @@ ble_sm_sc_oob_generate_data(struct ble_sm_sc_oob_data *oob_data)
         return rc;
     }
 
-    rc = ble_hs_hci_util_rand(oob_data->r, 16);
+    rc = ble_hs_hci_rand(oob_data->r, 16);
     if (rc) {
         return rc;
     }

@@ -58,7 +58,7 @@ ble_hs_hci_util_read_adv_tx_pwr(int8_t *out_tx_pwr)
 }
 
 int
-ble_hs_hci_util_rand(void *dst, int len)
+ble_hs_hci_rand(void *dst, int len)
 {
     struct ble_hci_le_rand_rp rsp;
     uint8_t *u8ptr;
