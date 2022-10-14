@@ -46,6 +46,7 @@ syscfg.defs:
             - nrf5340
             - socket
             - apollo3
+            - uart_ll
             - custom
 
     BLE_TRANSPORT_ACL_COUNT:
