@@ -48,6 +48,8 @@ pkg.deps.'BLE_TRANSPORT_HS == "cdc"':
     - nimble/transport/cdc
 pkg.deps.'BLE_TRANSPORT_LL == "apollo3"':
     - nimble/transport/apollo3
+pkg.deps.'BLE_TRANSPORT_LL == "uart_ll"':
+    - nimble/transport/uart_ll
 
 pkg.deps.BLE_MONITOR_RTT:
     - "@apache-mynewt-core/hw/drivers/rtt"
