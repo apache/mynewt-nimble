@@ -93,5 +93,5 @@ $import:
     - "@apache-mynewt-nimble/nimble/transport/syscfg.monitor.yml"
     - "@apache-mynewt-nimble/nimble/transport/syscfg.defunct.yml"
 
-syscfg.vals."BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV":
+syscfg.vals.'BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV':
     BLE_TRANSPORT_EVT_SIZE: 257
