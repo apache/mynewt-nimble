@@ -345,7 +345,7 @@ ble_hs_sync(void)
         }
 
         if (ble_hs_cfg.sync_cb != NULL) {
-            ble_hs_cfg.sync_cb();
+            ble_hs_cfg.sync_cb(ble_hs_cfg.sync_cb_arg);
         }
 
         STATS_INC(ble_hs_stats, sync);
@@ -372,7 +372,7 @@ ble_hs_reset(void)
     ble_hs_id_reset();
 
     if (ble_hs_cfg.reset_cb != NULL && ble_hs_reset_reason != 0) {
-        ble_hs_cfg.reset_cb(ble_hs_reset_reason);
+        ble_hs_cfg.reset_cb(ble_hs_reset_reason, ble_hs_cfg.reset_cb_arg);
     }
     ble_hs_reset_reason = 0;
 

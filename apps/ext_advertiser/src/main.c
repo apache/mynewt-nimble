@@ -490,7 +490,7 @@ static void start_periodic(void)
 }
 
 static void
-on_sync(void)
+on_sync(void *arg)
 {
     int rc;
 

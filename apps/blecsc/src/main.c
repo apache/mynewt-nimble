@@ -257,7 +257,7 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
 }
 
 static void
-blecsc_on_sync(void)
+blecsc_on_sync(void *arg)
 {
     int rc;
 
