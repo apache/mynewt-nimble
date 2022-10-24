@@ -1204,6 +1204,9 @@ ble_ll_sched_init(void)
     g_ble_ll_sched_css.slot_us = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_SLOT_US);
     g_ble_ll_sched_css.period_slots = MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED_PERIOD_SLOTS);
 #endif
+#if !MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+    g_ble_ll_sched_css.enabled = 1;
+#endif
 #endif
 
     return 0;
