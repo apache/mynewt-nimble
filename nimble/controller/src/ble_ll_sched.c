@@ -517,12 +517,22 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
             connsm->css_period_idx = 0;
             max_delay = connsm->conn_itvl_ticks;
         } else {
-            connsm->css_period_idx = css->period_anchor_idx;
+            /* Reference connection may be already at next period if it has
+             * slot index lower than our, so we first try schedule one period
+             * earlier since our slot index in that period may not yet have
+             * passed. This avoids scheduling 1st connection event too far in
+             * the future, i.e. more than conn interval.
+             */
+            if (connsm->css_slot_idx > css->period_anchor_slot_idx) {
+                connsm->css_period_idx = css->period_anchor_idx - 1;
+            } else {
+                connsm->css_period_idx = css->period_anchor_idx;
+            }
             max_delay = 0;
         }
 
-        /* It's possible that calculated anchor point in current period has
-         * already passed, so just move to next period and recalculate.
+        /* Calculate anchor point and move to next period if scheduled too
+         * early.
          */
         connsm->css_period_idx--;
         do {
