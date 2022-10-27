@@ -17,30 +17,31 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_GATT_
-#define H_BLE_SVC_GATT_
+#ifndef _STORAGE_PORT_H
+#define _STORAGE_PORT_H
 
-#include <inttypes.h>
-#include "syscfg/syscfg.h"
+#include <stdio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef enum {
+    READONLY,
+    READWRITE
+} open_mode_t;
 
-struct ble_hs_cfg;
+typedef uint32_t cache_handle_t;
+typedef int (*open_cache)(const char *namespace_name, open_mode_t open_mode, cache_handle_t *out_handle);
+typedef void (*close_cache)(cache_handle_t handle);
+typedef int (*erase_all_cache)(cache_handle_t handle);
+typedef int (*write_cache)(cache_handle_t handle, const char *key, const void* value, size_t length);
+typedef int (*read_cache)(cache_handle_t handle, const char *key, void* out_value, size_t *length);
 
-#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
+struct cache_fn_mapping {
+    open_cache open;
+    close_cache close;
+    erase_all_cache erase_all;
+    write_cache write;
+    read_cache read;
+};
 
-#if MYNEWT_VAL(BLE_GATT_CACHING)
-#define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16   0x2b29
-#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16               0x2b2a
-#endif
-
-void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
-void ble_svc_gatt_init(void);
-
-#ifdef __cplusplus
-}
-#endif
+struct cache_fn_mapping link_storage_fn(void *storage_cb);
 
 #endif

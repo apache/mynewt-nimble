@@ -31,3 +31,4 @@ pkg.deps:
     - "@apache-mynewt-nimble/nimble/host"
     - "@apache-mynewt-nimble/nimble/host/util"
     - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - porting/nimble

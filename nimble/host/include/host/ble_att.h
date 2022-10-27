@@ -56,6 +56,7 @@ struct os_mbuf;
 #define BLE_ATT_ERR_INSUFFICIENT_ENC        0x0f
 #define BLE_ATT_ERR_UNSUPPORTED_GROUP       0x10
 #define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
+#define BLE_ATT_ERR_DB_OUT_OF_SYNC          0x12
 
 #define BLE_ATT_OP_ERROR_RSP                0x01
 #define BLE_ATT_OP_MTU_REQ                  0x02

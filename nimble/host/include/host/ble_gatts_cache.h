@@ -17,27 +17,27 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_GATT_
-#define H_BLE_SVC_GATT_
+#ifndef H_BLE_GATTS_CACHE_
+#define H_BLE_GATTS_CACHE_
 
-#include <inttypes.h>
-#include "syscfg/syscfg.h"
+#pragma once
+
+#include "modlog/modlog.h"
+#include "host/ble_hash_function.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ble_hs_cfg;
+typedef enum {
+    BLE_GATT_DB_FORMING,
+    BLE_GATT_DB_FORMED,
+    BLE_GATT_DB_CHANGED
+} ble_gatt_db_states;
 
-#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
+extern ble_gatt_db_states ble_gatt_db_state;
 
-#if MYNEWT_VAL(BLE_GATT_CACHING)
-#define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16   0x2b29
-#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16               0x2b2a
-#endif
-
-void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
-void ble_svc_gatt_init(void);
+void ble_gatts_calc_hash(ble_hash_key hash_key);
 
 #ifdef __cplusplus
 }

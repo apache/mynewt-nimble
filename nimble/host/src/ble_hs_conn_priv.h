@@ -102,6 +102,10 @@ struct ble_hs_conn {
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct ble_hs_periodic_sync *psync;
 #endif
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    bool aware_state;
+#endif
 };
 
 struct ble_hs_conn_addrs {

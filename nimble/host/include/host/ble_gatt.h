@@ -30,6 +30,12 @@
 #include <inttypes.h>
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+#include "services/gatt/ble_svc_gatt.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -108,6 +114,26 @@ struct ble_gatt_dsc {
     uint16_t handle;
     ble_uuid_any_t uuid;
 };
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+enum {
+    BLE_GATT_ATTR_TYPE_INCL_SRVC,
+    BLE_GATT_ATTR_TYPE_CHAR,
+    BLE_GATT_ATTR_TYPE_CHAR_DESCR,
+    BLE_GATT_ATTR_TYPE_SRVC
+};
+typedef uint8_t ble_gatt_attr_type;
+
+typedef struct ble_gatt_nv_attr {
+    uint16_t s_handle;
+    uint16_t e_handle;              /* used for service only */
+    ble_gatt_attr_type attr_type;
+    ble_uuid16_t uuid;
+    uint8_t properties;             /* used for characteristic only */
+    bool is_primary;                /* used for service only */
+} ble_gatt_nv_attr;
+typedef unsigned char hash_key_t[4];
+#endif
 
 typedef int ble_gatt_mtu_fn(uint16_t conn_handle,
                             const struct ble_gatt_error *error,
@@ -814,6 +840,19 @@ int ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs);
  * @param chr_val_handle        Characteristic value handle
  */
 void ble_gatts_chr_updated(uint16_t chr_val_handle);
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+
+/**
+ * Sends service change indication to a specified peer
+ */
+void ble_gatts_send_svc_change_ind_specified_peer(struct ble_hs_conn *conn);
+
+/**
+ * Sends service change indication to all connected peers
+ */
+void ble_gatts_send_svc_change_ind(void);
+#endif
 
 /**
  * Retrieves the attribute handle associated with a local GATT service.

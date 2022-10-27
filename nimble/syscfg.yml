@@ -118,6 +118,11 @@ syscfg.defs:
             This enables LE Connection Subrating feature
         value: 0
 
+    BLE_GATT_CACHING:
+        description: >
+            This enabled LE Gatt Caching feature
+        value: 0
+
 # Allow periodic sync transfer only if 5.1 or higher
 syscfg.restrictions:
     - "'BLE_PERIODIC_ADV_SYNC_TRANSFER == 0' || 'BLE_VERSION >= 51'"

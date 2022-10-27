@@ -23,6 +23,12 @@
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+#include "host/ble_gatts_cache.h"
+static uint16_t ble_svc_gatt_db_hash_handle;
+static uint16_t ble_svc_gatt_client_supp_feature_handle;
+#endif
+
 static uint16_t ble_svc_gatt_changed_val_handle;
 static uint16_t ble_svc_gatt_start_handle;
 static uint16_t ble_svc_gatt_end_handle;
@@ -41,7 +47,22 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
             .access_cb = ble_svc_gatt_access,
             .val_handle = &ble_svc_gatt_changed_val_handle,
             .flags = BLE_GATT_CHR_F_INDICATE,
-        }, {
+        },
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+        {
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16),
+            .access_cb = ble_svc_gatt_access,
+            .val_handle = &ble_svc_gatt_client_supp_feature_handle,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+        },
+        {
+            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16),
+            .access_cb = ble_svc_gatt_access,
+            .val_handle = &ble_svc_gatt_db_hash_handle,
+            .flags = BLE_GATT_CHR_F_READ,
+        },
+#endif
+        {
             0, /* No more characteristics in this service. */
         } },
     },
@@ -64,15 +85,29 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
      * read the characteristic.
      */
     assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-    assert(ctxt->chr == &ble_svc_gatt_defs[0].characteristics[0]);
 
     u8p = os_mbuf_extend(ctxt->om, 4);
     if (u8p == NULL) {
         return BLE_HS_ENOMEM;
     }
 
+
+#if !MYNEWT_VAL(BLE_GATT_CACHING)
+    assert(ctxt->chr == &ble_svc_gatt_defs[0].characteristics[0]);
+
     put_le16(u8p + 0, ble_svc_gatt_start_handle);
     put_le16(u8p + 2, ble_svc_gatt_end_handle);
+#else
+
+    if (ctxt->chr == &ble_svc_gatt_defs[0].characteristics[2]) {
+        ble_hash_key hash_key = {0};
+        ble_gatts_calc_hash(hash_key);
+
+        for (int i = 0; i < 4; i++) {
+            put_le16(u8p + i, hash_key[i]);
+        }
+    }
+#endif
 
     return 0;
 }
@@ -105,4 +140,8 @@ ble_svc_gatt_init(void)
 
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatt_db_state = BLE_GATT_DB_FORMING;
+#endif
 }

@@ -17,27 +17,34 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_GATT_
-#define H_BLE_SVC_GATT_
+#ifndef H_BLE_GATTC_CACHE_
+#define H_BLE_GATTC_CACHE_
 
-#include <inttypes.h>
-#include "syscfg/syscfg.h"
+#include "modlog/modlog.h"
+#include "sys/queue.h"
+#include "host/ble_gatt.h"
+#include "nimble/ble.h"
+#include "host/ble_hash_function.h"
+#include "host/ble_gattc_peer.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct ble_hs_adv_fields;
+struct ble_gap_conn_desc;
 struct ble_hs_cfg;
+union ble_store_value;
+union ble_store_key;
 
-#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
+#define BLE_GATTC_DATABASE_HASH_UUID128             0x2b2a
 
-#if MYNEWT_VAL(BLE_GATT_CACHING)
-#define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16   0x2b29
-#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16               0x2b2a
-#endif
-
-void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
-void ble_svc_gatt_init(void);
+void ble_gattc_cache_save(struct ble_gattc_p *peer, size_t num_attr);
+int ble_gattc_cache_init(void *storage_cb);
+int ble_gattc_cache_load(ble_addr_t peer_addr);
+int ble_gattc_cache_check_hash(struct ble_gattc_p *peer,struct os_mbuf *om);
+void ble_gattc_cacheReset(ble_addr_t *addr);
+void ble_gattc_db_hash_chr_present(ble_uuid16_t uuid);
 
 #ifdef __cplusplus
 }
