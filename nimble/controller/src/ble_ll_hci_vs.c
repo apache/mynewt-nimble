@@ -57,56 +57,6 @@ ble_ll_hci_vs_rd_static_addr(uint16_t ocf,
     return BLE_ERR_SUCCESS;
 }
 
-/* disallow changing TX power if there is any radio activity
- * note: we could allow to change it if there is no TX activity (eg only
- * passive scan or sync) but lets just keep this simple for now
- */
-static int
-ble_ll_hci_vs_is_controller_busy(void)
-{
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    struct ble_ll_conn_sm *cur;
-    int i = 0;
-#endif
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
-    if (ble_ll_sync_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
-    if (ble_ll_adv_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
-    if (ble_ll_scan_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    if (g_ble_ll_conn_create_sm.connsm) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    STAILQ_FOREACH(cur, &g_ble_ll_conn_free_list, free_stqe) {
-        i++;
-    }
-
-    /* check if all connection objects are free */
-    if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
-        return 1;
-    }
-#endif
-
-    return 0;
-}
-
 static int
 ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
                            uint8_t *rspbuf, uint8_t *rsplen)
@@ -118,7 +68,7 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_ll_hci_vs_is_controller_busy()) {
+    if (ble_ll_is_busy()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -367,7 +317,7 @@ ble_ll_hci_vs_set_antenna(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_ll_hci_vs_is_controller_busy()) {
+    if (ble_ll_is_busy()) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
