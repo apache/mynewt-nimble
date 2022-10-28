@@ -2063,7 +2063,7 @@ ble_ll_tx_power_set(int tx_power)
 }
 
 int
-ble_ll_is_busy(void)
+ble_ll_is_busy(unsigned int flags)
 {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     struct ble_ll_conn_sm *cur;
@@ -2095,13 +2095,15 @@ ble_ll_is_busy(void)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    STAILQ_FOREACH(cur, &g_ble_ll_conn_free_list, free_stqe) {
-        i++;
-    }
+    if (!(flags & BLE_LL_BUSY_EXCLUDE_CONNECTIONS)) {
+        STAILQ_FOREACH(cur, &g_ble_ll_conn_free_list, free_stqe) {
+            i++;
+        }
 
-    /* check if all connection objects are free */
-    if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
-        return 1;
+        /* check if all connection objects are free */
+        if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
+            return 1;
+        }
     }
 #endif
 
