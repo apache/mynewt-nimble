@@ -1756,6 +1756,22 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     /* Assume response length is zero */
     rsplen = 0;
 
+#if MYNEWT_VAL(BLE_LL_DTM)
+    /* if DTM test is enabled disallow any command other than LE Test End or
+     * HCI Reset
+     */
+    if (ble_ll_dtm_enabled()) {
+        switch (opcode) {
+        case BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_TEST_END):
+        case BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_RESET):
+            break;
+        default:
+            rc = BLE_ERR_CMD_DISALLOWED;
+            goto send_cc_cs;
+        }
+    }
+#endif
+
 #if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
     rc = ble_ll_hci_cmd_fake_dual_mode(opcode, cmd->data, cmd->length,
                                        rspbuf, &rsplen);
@@ -1798,7 +1814,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
         rc += (BLE_ERR_MAX + 1);
     }
 
-#if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE)
+#if MYNEWT_VAL(BLE_LL_HBD_FAKE_DUAL_MODE) || MYNEWT_VAL(BLE_LL_DTM)
 send_cc_cs:
 #endif
     /* If no response is generated, we free the buffers */

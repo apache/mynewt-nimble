@@ -705,6 +705,12 @@ ble_ll_dtm_reset(void)
     ble_ll_dtm_ctx_free(&g_ble_ll_dtm_ctx);
 }
 
+int
+ble_ll_dtm_enabled(void)
+{
+    return g_ble_ll_dtm_ctx.active;
+}
+
 void
 ble_ll_dtm_init(void)
 {
