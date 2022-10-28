@@ -31,6 +31,7 @@
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_hw.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 struct ble_ll_resolv_data
@@ -47,35 +48,6 @@ struct ble_ll_resolv_data g_ble_ll_resolv_data;
 __attribute__((aligned(4)))
 struct ble_ll_resolv_entry g_ble_ll_resolv_list[MYNEWT_VAL(BLE_LL_RESOLV_LIST_SIZE)];
 
-static int
-ble_ll_is_controller_busy(void)
-{
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
-    if (ble_ll_sync_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
-    if (ble_ll_adv_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
-    if (ble_ll_scan_enabled()) {
-        return 1;
-    }
-#endif
-
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    if (g_ble_ll_conn_create_sm.connsm) {
-        return 1;
-    }
-#endif
-
-    return 0;
-}
 /**
  * Called to determine if a change is allowed to the resolving list at this
  * time. We are not allowed to modify the resolving list if address translation
@@ -90,7 +62,7 @@ ble_ll_resolv_list_chg_allowed(void)
     int rc;
 
     if (g_ble_ll_resolv_data.addr_res_enabled &&
-       ble_ll_is_controller_busy()) {
+        ble_ll_is_busy(BLE_LL_BUSY_EXCLUDE_CONNECTIONS)) {
         rc = 0;
     } else {
         rc = 1;
@@ -456,8 +428,8 @@ ble_ll_resolv_enable_cmd(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_ll_is_controller_busy()) {
-        return  BLE_ERR_CMD_DISALLOWED;
+    if (ble_ll_is_busy(BLE_LL_BUSY_EXCLUDE_CONNECTIONS)) {
+        return BLE_ERR_CMD_DISALLOWED;
 
     }
 
@@ -561,7 +533,7 @@ ble_ll_resolve_set_priv_mode(const uint8_t *cmdbuf, uint8_t len)
     const struct ble_hci_le_set_privacy_mode_cp *cmd = (const void *) cmdbuf;
     struct ble_ll_resolv_entry *rl;
 
-    if (ble_ll_is_controller_busy()) {
+    if (ble_ll_is_busy(BLE_LL_BUSY_EXCLUDE_CONNECTIONS)) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
