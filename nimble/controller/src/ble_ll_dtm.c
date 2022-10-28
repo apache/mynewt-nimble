@@ -483,7 +483,7 @@ ble_ll_dtm_tx_test(uint8_t tx_chan, uint8_t len, uint8_t packet_payload,
 {
     uint8_t phy_mode;
 
-    if (g_ble_ll_dtm_ctx.active) {
+    if (g_ble_ll_dtm_ctx.active || ble_ll_is_busy()) {
         return BLE_ERR_CTLR_BUSY;
     }
 
@@ -585,7 +585,7 @@ ble_ll_dtm_rx_test(uint8_t rx_chan, uint8_t hci_phy)
 {
     uint8_t phy_mode;
 
-    if (g_ble_ll_dtm_ctx.active) {
+    if (g_ble_ll_dtm_ctx.active || ble_ll_is_busy()) {
         return BLE_ERR_CTLR_BUSY;
     }
 
