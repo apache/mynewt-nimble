@@ -47,6 +47,11 @@ ble_ll_rx_gain(void)
     return gain;
 }
 
+/* if there is any radio related activity enabled
+ * (scanning, advertising, connection etc)
+ */
+int ble_ll_is_busy(void);
+
 #ifdef MYNEWT
 
 #include "syscfg/syscfg.h"
