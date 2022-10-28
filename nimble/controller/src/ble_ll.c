@@ -2061,3 +2061,49 @@ ble_ll_tx_power_set(int tx_power)
 #endif
     ble_phy_tx_power_set(tx_power);
 }
+
+int
+ble_ll_is_busy(void)
+{
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    struct ble_ll_conn_sm *cur;
+    int i = 0;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_sync_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
+    if (ble_ll_adv_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
+    if (ble_ll_scan_enabled()) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (g_ble_ll_conn_create_sm.connsm) {
+        return 1;
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    STAILQ_FOREACH(cur, &g_ble_ll_conn_free_list, free_stqe) {
+        i++;
+    }
+
+    /* check if all connection objects are free */
+    if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
+        return 1;
+    }
+#endif
+
+    return 0;
+}
