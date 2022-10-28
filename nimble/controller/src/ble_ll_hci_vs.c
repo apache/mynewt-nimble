@@ -68,7 +68,7 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_ll_is_busy()) {
+    if (ble_ll_is_busy(0)) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -317,7 +317,7 @@ ble_ll_hci_vs_set_antenna(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_ll_is_busy()) {
+    if (ble_ll_is_busy(0)) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 

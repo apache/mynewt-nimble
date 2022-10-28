@@ -50,7 +50,9 @@ ble_ll_rx_gain(void)
 /* if there is any radio related activity enabled
  * (scanning, advertising, connection etc)
  */
-int ble_ll_is_busy(void);
+#define BLE_LL_BUSY_EXCLUDE_CONNECTIONS 0x01
+
+int ble_ll_is_busy(unsigned int flags);
 
 #ifdef MYNEWT
 
