@@ -28,8 +28,10 @@
  */
 
 #include <inttypes.h>
+#include "host/ble_hs.h"
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
+#include "syscfg/syscfg.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -476,8 +478,7 @@ int ble_gatts_notify_custom(uint16_t conn_handle, uint16_t att_handle,
 /**
  * Deprecated. Should not be used. Use ble_gatts_notify_custom instead.
  */
-int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
-                            struct os_mbuf *om);
+nimble_deprecated ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle, struct os_mbuf *om);
 
 /**
  * Sends a characteristic notification.  The content of the message is read
@@ -496,7 +497,7 @@ int ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 /**
  * Deprecated. Should not be used. Use ble_gatts_notify instead.
  */
-int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
+nimble_deprecated ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 
 /**
  * Sends a "free-form" characteristic indication.  The provided mbuf contains
@@ -517,8 +518,7 @@ int ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
 /**
  * Deprecated. Should not be used. Use ble_gatts_indicate_custom instead.
  */
-int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
-                              struct os_mbuf *txom);
+nimble_deprecated ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle, struct os_mbuf *txom);
 
 /**
  * Sends a characteristic indication.  The content of the message is read from
@@ -537,7 +537,7 @@ int ble_gatts_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 /**
  * Deprecated. Should not be used. Use ble_gatts_indicate instead.
  */
-int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
+nimble_deprecated ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
 int ble_gattc_init(void);
 
