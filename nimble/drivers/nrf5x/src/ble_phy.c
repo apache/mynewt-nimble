@@ -2191,6 +2191,22 @@ void ble_phy_disable_dtm(void)
     /* Enable whitening */
     NRF_RADIO->PCNF1 |= RADIO_PCNF1_WHITEEN_Msk;
 }
+
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+int
+ble_phy_test_carrier(uint8_t rf_channel)
+{
+    /* based on Nordic DTM sample */
+    ble_phy_disable();
+    ble_phy_enable_dtm();
+    ble_phy_mode_apply(BLE_PHY_MODE_1M);
+    nrf_radio_shorts_enable(NRF_RADIO, NRF_RADIO_SHORT_READY_START_MASK);
+    NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[rf_channel];
+    nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
+
+    return 0;
+}
+#endif
 #endif
 
 void

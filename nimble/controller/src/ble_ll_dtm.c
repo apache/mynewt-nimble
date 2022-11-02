@@ -351,6 +351,17 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
     case 0x07:
         byte_pattern = 0xAA;
         break;
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+    case 0xff:
+        /* TODO refactor so this is not needed */
+        os_mbuf_free_chain(m);
+        rc = ble_phy_test_carrier(channel_rf_to_index[rf_channel]);
+        if (rc) {
+            return 1;
+        }
+        g_ble_ll_dtm_ctx.active = 1;
+        return 0;
+#endif
     default:
         return 1;
     }
@@ -508,7 +519,29 @@ ble_ll_dtm_tx_test(uint8_t tx_chan, uint8_t len, uint8_t packet_payload,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (tx_chan > 0x27 || packet_payload > 0x07) {
+    if (tx_chan > 0x27) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (packet_payload > 0x07) {
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+        if (packet_payload != 255) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+#else
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+#endif
+    }
+
+    if (packet_payload > 0x07) {
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+        if (packet_payload == 0xff) {
+            if (!ble_phy_test_carrier(channel_rf_to_index[tx_chan])) {
+                g_ble_ll_dtm_ctx.active = 1;
+                return BLE_ERR_SUCCESS;
+            }
+        }
+#endif
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
