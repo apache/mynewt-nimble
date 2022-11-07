@@ -25,8 +25,6 @@
 #include <pthread.h>
 #include <list>
 
-using namespace std;
-
 template <typename T> class wqueue
 {
     list<T>              m_queue;
