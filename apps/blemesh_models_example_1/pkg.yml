@@ -30,3 +30,4 @@ pkg.deps:
     - nimble/host
     - nimble/host/services/gap
     - nimble/host/services/gatt
+    - porting/nimble

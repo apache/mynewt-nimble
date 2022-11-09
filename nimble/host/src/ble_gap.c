@@ -27,6 +27,11 @@
 #include "ble_hs_priv.h"
 #include "ble_gap_priv.h"
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+#include "host/ble_gattc_peer.h"
+#include "host/ble_gatts_cache.h"
+#endif
+
 #if MYNEWT
 #include "bsp/bsp.h"
 #else
@@ -1911,6 +1916,11 @@ ble_gap_rx_conn_complete(struct ble_gap_conn_complete *evt, uint8_t instance)
 #if MYNEWT_VAL(BLE_EXT_ADV)
         memcpy(conn->bhc_our_rnd_addr, ble_gap_slave[instance].rnd_addr, 6);
 #endif
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+        ble_gatts_send_svc_change_ind_specified_peer(conn);
+#endif
+
         ble_gap_slave_reset_state(instance);
     }
 
@@ -2527,6 +2537,14 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                   ble_gap_event_fn *cb, void *cb_arg)
 {
 #if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    /* If server is going for advertising, i.e db is formed */
+    if (ble_gatt_db_state == BLE_GATT_DB_FORMING) {
+        ble_gatt_db_state = BLE_GATT_DB_FORMED;
+    }
+#endif
+
     uint32_t duration_ticks;
     int rc;
 
@@ -2949,6 +2967,13 @@ ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
 int
 ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
 {
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    /* If server is going for advertising, i.e db is formed */
+    if (ble_gatt_db_state == BLE_GATT_DB_FORMING) {
+        ble_gatt_db_state = BLE_GATT_DB_FORMED;
+    }
+#endif
+
     struct ble_hci_le_set_ext_adv_enable_cp *cmd;
     uint8_t buf[sizeof(*cmd) + sizeof(cmd->sets[0])];
     const uint8_t *rnd_addr;
@@ -6005,6 +6030,12 @@ ble_gap_notify_rx_event(uint16_t conn_handle, uint16_t attr_handle,
     event.notify_rx.indication = is_indication;
     ble_gap_event_listener_call(&event);
     ble_gap_call_conn_event_cb(&event, conn_handle);
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (is_indication) {
+        ble_gattc_p_disc_after_ind(conn_handle, attr_handle, om);
+    }
+#endif
 
     os_mbuf_free_chain(event.notify_rx.om);
 #endif

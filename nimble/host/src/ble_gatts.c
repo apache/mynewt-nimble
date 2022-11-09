@@ -26,6 +26,16 @@
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+#include "host/ble_gatts_cache.h"
+#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16             0x2a05
+
+static uint16_t svc_change_val_handle;
+ble_gatt_db_states ble_gatt_db_state;
+struct ble_gatt_nv_attr *nv_attr;
+static int index_nv_attr;
+#endif
+
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
 
@@ -328,10 +338,12 @@ ble_gatts_mutable(void)
         return false;
     }
 
+#if !MYNEWT_VAL(BLE_GATT_CACHING)
     /* Ensure no established connections. */
     if (ble_hs_conn_first() != NULL) {
         return false;
     }
+#endif
 
     return true;
 }
@@ -459,6 +471,58 @@ ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
     return 1;
 }
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+static void
+ble_gatts_fill_nv_attr_entry(const ble_uuid_t *uuid, uint16_t s_handle, uint16_t e_handle,
+                             ble_gatt_attr_type attr_type, bool is_primary, uint8_t properties)
+{
+    nv_attr[index_nv_attr].uuid.u.type = BLE_UUID_TYPE_16;
+    nv_attr[index_nv_attr].s_handle = s_handle;
+    nv_attr[index_nv_attr].e_handle = e_handle;
+    nv_attr[index_nv_attr].is_primary = is_primary;
+    nv_attr[index_nv_attr].attr_type = attr_type;
+    nv_attr[index_nv_attr].properties = properties;
+
+    switch (uuid->type) {
+    case BLE_UUID_TYPE_16:
+        nv_attr[index_nv_attr].uuid.value = BLE_UUID16(uuid)->value;
+        break;
+
+    case BLE_UUID_TYPE_32:
+        nv_attr[index_nv_attr].uuid.value = BLE_UUID32(uuid)->value;
+        break;
+
+    case BLE_UUID_TYPE_128:
+        nv_attr[index_nv_attr].uuid.value =
+            BLE_UUID128(uuid)->value[1] | (BLE_UUID128(uuid)->value[2] << 8);
+        break;
+    }
+
+    index_nv_attr++;
+}
+
+int
+s_handle_compare(const void *s1, const void *s2)
+{
+    return ((struct ble_gatt_nv_attr *)s1)->s_handle - ((struct ble_gatt_nv_attr *)s2)->s_handle;
+}
+
+static void
+ble_gatts_sort_nv_attr(void)
+{
+    qsort(nv_attr, (index_nv_attr), sizeof(struct ble_gatt_nv_attr), s_handle_compare);
+}
+
+void
+ble_gatts_calc_hash(ble_hash_key hash_key)
+{
+    ble_gatts_sort_nv_attr();
+    ble_hash_function_blob((unsigned char *)(nv_attr),
+                           (index_nv_attr) * sizeof(struct ble_gatt_nv_attr),
+                           hash_key);
+}
+#endif
+
 static int
 ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
 {
@@ -473,6 +537,11 @@ ble_gatts_register_inc(struct ble_gatts_svc_entry *entry)
     if (rc != 0) {
         return rc;
     }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_fill_nv_attr_entry(uuid_inc, entry->handle, entry->end_group_handle,
+                                 BLE_GATT_ATTR_TYPE_INCL_SRVC, false, 0);
+#endif
 
     return 0;
 }
@@ -577,6 +646,11 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
     }
 
     STATS_INC(ble_gatts_stats, dscs);
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_fill_nv_attr_entry(dsc->uuid, dsc_handle, 0,
+                                 BLE_GATT_ATTR_TYPE_CHAR_DESCR, false, 0);
+#endif
 
     return 0;
 
@@ -798,6 +872,11 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
         return rc;
     }
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_fill_nv_attr_entry(uuid_ccc, *att_handle, 0,
+                                 BLE_GATT_ATTR_TYPE_CHAR_DESCR, false, 0);
+#endif
+
     STATS_INC(ble_gatts_stats, dscs);
 
     return 0;
@@ -860,6 +939,12 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         register_ctxt.chr.chr_def = chr;
         register_cb(&register_ctxt, cb_arg);
     }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    uint8_t properties = ble_gatts_chr_properties(chr);
+    ble_gatts_fill_nv_attr_entry(chr->uuid, val_handle, def_handle,
+                                 BLE_GATT_ATTR_TYPE_CHAR, false, properties);
+#endif
 
     if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
         rc = ble_gatts_register_clt_cfg_dsc(&dsc_handle);
@@ -1009,6 +1094,12 @@ ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
                 entry->handle = handle;
                 entry->end_group_handle = ble_att_svr_prev_handle();
                 (*out_num_registered)++;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+                ble_gatts_fill_nv_attr_entry(entry->svc->uuid, entry->handle,
+                                             entry->end_group_handle,
+                                             BLE_GATT_ATTR_TYPE_SRVC, true, 0);
+#endif
                 break;
 
             case BLE_HS_EAGAIN:
@@ -1262,6 +1353,12 @@ ble_gatts_start(void)
             ble_gatts_clt_cfgs[idx].chr_val_handle = ha->ha_handle_id + 1;
             ble_gatts_clt_cfgs[idx].allowed = allowed_flags;
             ble_gatts_clt_cfgs[idx].flags = 0;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+            if (ble_uuid_u16(chr->uuid) == BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16) {
+                svc_change_val_handle = ble_gatts_clt_cfgs[idx].chr_val_handle;
+            }
+#endif
             idx++;
         }
     }
@@ -1448,6 +1545,11 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
         clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
         BLE_HS_DBG_ASSERT(clt_cfg->chr_val_handle == chr_val_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+        /* Client ack the indication sent for service change, mark it as aware */
+        conn->aware_state = true;
+#endif
+
         persist = conn->bhc_sec_state.bonded &&
                   !(clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED);
         if (persist) {
@@ -1480,6 +1582,33 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+
+/* After connecting to a specific client, if db is updated and client has unaware state, send ind */
+void
+ble_gatts_send_svc_change_ind_specified_peer(struct ble_hs_conn *conn)
+{
+    if (ble_gatt_db_state != BLE_GATT_DB_CHANGED) {
+        /* Gatt DB is unchanged, no need to send indication to specified peer */
+        return;
+    }
+
+    if (conn->aware_state) {
+        /* Peer connected is in aware state */
+        return;
+    }
+
+    ble_gattc_indicate(conn->bhc_handle, svc_change_val_handle);
+}
+
+/* When db updates, change char updated ind */
+void
+ble_gatts_send_svc_change_ind(void)
+{
+    ble_gatts_chr_updated(svc_change_val_handle);
+}
+#endif
 
 void
 ble_gatts_chr_updated(uint16_t chr_val_handle)
@@ -1523,6 +1652,12 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
         /* Mark the CCCD entry as modified. */
         clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_MODIFIED;
         new_notifications = 1;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+        clt_cfg->flags |= BLE_GATTS_CLT_CFG_F_INDICATE;
+        conn->aware_state = false;
+#endif
+
     }
     ble_hs_unlock();
 
@@ -1573,6 +1708,10 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
         if (persist && !cccd_value.value_changed) {
             cccd_value.value_changed = 1;
             ble_store_write_cccd(&cccd_value);
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+            conn->aware_state = false;
+            conn->bhc_gatt_svr.clt_cfgs->flags |= BLE_GATTS_CLT_CFG_F_INDICATE;
+#endif
         }
 
         /* Read the next matching record. */
@@ -1977,6 +2116,14 @@ ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
 
 done:
     ble_hs_unlock();
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (rc == 0 && (ble_gatt_db_state != BLE_GATT_DB_FORMING)) {
+        ble_gatt_db_state = BLE_GATT_DB_CHANGED;
+        ble_gatts_send_svc_change_ind();
+    }
+#endif
+
     return rc;
 }
 
@@ -2180,6 +2327,17 @@ ble_gatts_init(void)
         return BLE_HS_EOS;
     }
 
-    return 0;
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    index_nv_attr = 0;
+    uint8_t num_attr = MYNEWT_VAL(BLE_ATT_SVR_MAX_PREP_ENTRIES);
+    nv_attr = (struct ble_gatt_nv_attr *) malloc (num_attr * sizeof(struct ble_gatt_nv_attr));
+
+    if (nv_attr == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    memset(nv_attr, 0, num_attr * sizeof(ble_gatt_nv_attr));
+#endif
+    return 0;
 }

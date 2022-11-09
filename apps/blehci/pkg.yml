@@ -28,6 +28,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats/full"
     - "@apache-mynewt-core/kernel/os"
     - nimble/transport
+    - porting/nimble
 
 pkg.req_apis:
     - ble_transport

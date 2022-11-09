@@ -17,30 +17,22 @@
  * under the License.
  */
 
-#ifndef H_BLE_SVC_GATT_
-#define H_BLE_SVC_GATT_
+#include <string.h>
+#include "host/ble_hash_function.h"
 
-#include <inttypes.h>
-#include "syscfg/syscfg.h"
+void
+ble_hash_function_blob(const unsigned char *s, unsigned int len, ble_hash_key h)
+{
+    size_t j;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+    while (len--) {
+        j = sizeof(ble_hash_key)-1;
 
-struct ble_hs_cfg;
+        while (j) {
+            h[j] = ((h[j] << 7) | (h[j-1] >> 1)) + h[j];
+            --j;
+        }
 
-#define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16     0x2a05
-
-#if MYNEWT_VAL(BLE_GATT_CACHING)
-#define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEATURES_UUID16   0x2b29
-#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16               0x2b2a
-#endif
-
-void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
-void ble_svc_gatt_init(void);
-
-#ifdef __cplusplus
+        h[0] = (h[0] << 7) + h[0] + *s++;
+    }
 }
-#endif
-
-#endif

@@ -26,6 +26,10 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_priv.h"
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+#include "host/ble_gatts_cache.h"
+#endif
+
 #if NIMBLE_BLE_CONNECT
 /**
  * ATT server - Attribute Protocol
@@ -61,6 +65,17 @@ static os_membuf_t ble_att_svr_prep_entry_mem[
 ];
 
 static struct os_mempool ble_att_svr_prep_entry_pool;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+static bool
+ble_att_svr_check_db_changed()
+{
+    if (ble_gatt_db_state == BLE_GATT_DB_CHANGED) {
+        return true;
+    }
+    return false;
+}
+#endif
 
 static struct ble_att_svr_entry *
 ble_att_svr_entry_alloc(void)
@@ -546,6 +561,12 @@ ble_att_svr_write(uint16_t conn_handle, struct ble_att_svr_entry *entry,
         goto done;
     }
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    MODLOG_DFLT(INFO, "%s() Sending indication after write op on conn_handle = %d, handle id = %d data = ", __func__,
+                conn_handle, entry->ha_handle_id);
+    ble_gatts_send_svc_change_ind();
+#endif
+
 done:
     if (out_att_err != NULL) {
         *out_att_err = att_err;
@@ -936,6 +957,15 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
     start_handle = le16toh(req->bafq_start_handle);
     end_handle = le16toh(req->bafq_end_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        err_handle = start_handle;
+        goto done;
+    }
+#endif
+
     /* Tx error response if start handle is greater than end handle or is equal
      * to 0 (Vol. 3, Part F, 3.4.3.1).
      */
@@ -1245,6 +1275,15 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
     end_handle = le16toh(req->bavq_end_handle);
     attr_type = (ble_uuid16_t) BLE_UUID16_INIT(le16toh(req->bavq_attr_type));
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        err_handle = start_handle;
+        goto done;
+    }
+#endif
+
     /* Tx error response if start handle is greater than end handle or is equal
      * to 0 (Vol. 3, Part F, 3.4.3.3).
      */
@@ -1431,6 +1470,15 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        err_handle = start_handle;
+        goto done;
+    }
+#endif
+
     rc = ble_uuid_init_from_att_mbuf(&uuid, *rxom, sizeof(*req),
                                      pktlen - sizeof(*req));
     if (rc != 0) {
@@ -1481,6 +1529,14 @@ ble_att_svr_rx_read(uint16_t conn_handle, struct os_mbuf **rxom)
 
     err_handle = le16toh(req->barq_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
+
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
     *rxom = NULL;
@@ -1530,6 +1586,14 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, struct os_mbuf **rxom)
 
     err_handle = le16toh(req->babq_handle);
     offset = le16toh(req->babq_offset);
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
 
     /* Just reuse the request buffer for the response. */
     txom = *rxom;
@@ -1634,9 +1698,20 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, struct os_mbuf **rxom)
     err_handle = 0;
     att_err = 0;
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
+
     rc = ble_att_svr_build_read_mult_rsp(conn_handle, rxom, &txom, &att_err,
                                          &err_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    done :
+#endif
     return ble_att_svr_tx_rsp(conn_handle, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
                               att_err, err_handle);
 }
@@ -1916,6 +1991,19 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
         goto done;
     }
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    /* Service disc happening */
+    MODLOG_DFLT(INFO, "%s() ble_gatt_db_state = %d start_handle = %d, end_handle = %d", __func__, ble_gatt_db_state,
+                start_handle, end_handle);
+
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        err_handle = start_handle;
+        goto done;
+    }
+#endif
+
     om_uuid_len = OS_MBUF_PKTHDR(*rxom)->omp_len - sizeof(*req);
     rc = ble_uuid_init_from_att_mbuf(&uuid, *rxom, sizeof(*req), om_uuid_len);
     if (rc != 0) {
@@ -2004,6 +2092,14 @@ ble_att_svr_rx_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
     handle = le16toh(req->bawq_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
+
     /* Allocate the write response.  This must be done prior to processing the
      * request.  See the note at the top of this file for details.
      */
@@ -2033,6 +2129,12 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, struct os_mbuf **rxom)
 {
 #if !MYNEWT_VAL(BLE_ATT_SVR_WRITE_NO_RSP)
     return BLE_HS_ENOTSUP;
+#endif
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        return BLE_HS_EREJECT;
+    }
 #endif
 
     struct ble_att_write_req *req;
@@ -2342,6 +2444,14 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, struct os_mbuf **rxom)
 
     err_handle = le16toh(req->bapc_handle);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
+
     attr_entry = ble_att_svr_find_by_handle(le16toh(req->bapc_handle));
 
     /* A prepare write request gets rejected for the following reasons:
@@ -2414,6 +2524,14 @@ ble_att_svr_rx_exec_write(uint16_t conn_handle, struct os_mbuf **rxom)
     /* Initialize some values in case of early error. */
     txom = NULL;
     err_handle = 0;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (ble_att_svr_check_db_changed()) {
+        att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+#endif
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
