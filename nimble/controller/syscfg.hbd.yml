@@ -23,3 +23,5 @@ syscfg.defs:
             device. It can be initialized and used by Windows 10 to some
             extent.
         value: 0
+        restrictions:
+           - '(BLE_TRANSPORT_EVT_SIZE == 257) if 1'
