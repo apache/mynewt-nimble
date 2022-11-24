@@ -2062,7 +2062,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    if (ble_ll_sched_css_is_enabled()) {
+    if (ble_ll_sched_css_is_enabled() &&
+        (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)) {
         ble_ll_conn_css_update_list(connsm);
     }
 #endif
