@@ -112,6 +112,7 @@ phy_fem_init()
     NRF_DPPIC->CHENSET = DPPI_CH_MASK_FEM;
 }
 
+#if PHY_USE_FEM_PA
 void
 phy_fem_enable_pa(void)
 {
@@ -125,7 +126,9 @@ phy_fem_enable_pa(void)
         DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_2);
 #endif
 }
+#endif
 
+#if PHY_USE_FEM_LNA
 void
 phy_fem_enable_lna(void)
 {
@@ -139,6 +142,7 @@ phy_fem_enable_lna(void)
         DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_2);
 #endif
 }
+#endif
 
 void
 phy_fem_disable(void)
