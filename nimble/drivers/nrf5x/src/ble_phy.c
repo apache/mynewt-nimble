@@ -1520,6 +1520,12 @@ ble_phy_init(void)
     nrf_radio_power_set(NRF_RADIO, true);
 
 #ifdef NRF53_SERIES
+    /* Errata 158: load trim values after toggling power */
+    for (uint32_t index = 0; index < 32ul &&
+         NRF_FICR_NS->TRIMCNF[index].ADDR != (uint32_t *)0xFFFFFFFFul; index++) {
+        *((volatile uint32_t *)NRF_FICR_NS->TRIMCNF[index].ADDR) = NRF_FICR_NS->TRIMCNF[index].DATA;
+    }
+
     *(volatile uint32_t *)(NRF_RADIO_NS_BASE + 0x774) =
         (*(volatile uint32_t* )(NRF_RADIO_NS_BASE + 0x774) & 0xfffffffe) | 0x01000000;
 #if NRF53_ERRATA_16_ENABLE_WORKAROUND
