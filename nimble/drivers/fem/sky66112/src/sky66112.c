@@ -31,6 +31,18 @@ static struct {
     .tx_bypass = MYNEWT_VAL(SKY66112_TX_BYPASS),
 };
 
+#if !MYNEWT_VAL_CHOICE(SKY66112_ANTENNA_PORT, runtime)
+static uint8_t
+sky66112_default_antenna_get(void)
+{
+    if (MYNEWT_VAL_CHOICE(SKY66112_ANTENNA_PORT, ANT2)) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+#endif
+
 static void
 sky66112_bypass(uint8_t enabled)
 {
@@ -46,7 +58,7 @@ ble_fem_pa_init(void)
     sky66112_tx_hp_mode(MYNEWT_VAL(SKY66112_TX_HP_MODE));
     sky66112_tx_bypass(0);
 #if MYNEWT_VAL(BLE_FEM_ANTENNA)
-    ble_fem_antenna(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
+    ble_fem_antenna(0);
 #endif
 }
 
@@ -71,7 +83,7 @@ ble_fem_lna_init(void)
 {
     sky66112_rx_bypass(0);
 #if MYNEWT_VAL(BLE_FEM_ANTENNA)
-    ble_fem_antenna(MYNEWT_VAL(SKY66112_ANTENNA_PORT));
+    ble_fem_antenna(0);
 #endif
 }
 
@@ -105,10 +117,14 @@ int
 ble_fem_antenna(uint8_t port)
 {
     int pin = MYNEWT_VAL(SKY66112_PIN_SEL);
+    uint8_t ant;
 
     if (pin >= 0) {
         switch (port) {
         case 0:
+            ant = sky66112_default_antenna_get();
+            assert(ant == 1 || ant == 2);
+            return ble_fem_antenna(ant);
         case 1:
             hal_gpio_write(pin, 0);
             break;
@@ -171,7 +187,7 @@ sky66112_init(void)
     /* configure default antenna */
     pin = MYNEWT_VAL(SKY66112_PIN_SEL);
     if (pin >= 0) {
-        switch (MYNEWT_VAL(SKY66112_ANTENNA_PORT)) {
+        switch (sky66112_default_antenna_get()) {
         case 1:
             hal_gpio_init_out(pin, 0);
             break;

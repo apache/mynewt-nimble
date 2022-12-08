@@ -58,11 +58,14 @@ syscfg.defs:
         value: 0
     SKY66112_ANTENNA_PORT:
         description: >
-            Selects which antenna port should be enabled:
-             1 for ANT1 port enabled
-             2 for ANT2 port enabled
-        range: 1, 2
-        value: 1
+            Selects which antenna port should be enabled. If 'runtime' is
+            selected sky66112_default_antenna_get() (see sky66112/sky66112.h)
+            shall be implemeneted by application.
+        choices:
+            - ANT1
+            - ANT2
+            - runtime
+        value: ANT1
 
 syscfg.vals.!BLE_FEM_PA:
     # Enable TX bypass by default if PA is disabled
