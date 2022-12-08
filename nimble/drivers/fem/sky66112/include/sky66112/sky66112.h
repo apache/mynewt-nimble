@@ -30,6 +30,11 @@ extern "C" {
 void sky66112_tx_hp_mode(uint8_t enabled);
 void sky66112_rx_bypass(uint8_t enabled);
 void sky66112_tx_bypass(uint8_t enabled);
+
+#if MYNEWT_VAL_CHOICE(SKY66112_ANTENNA_PORT, runtime)
+uint8_t sky66112_default_antenna_get(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
