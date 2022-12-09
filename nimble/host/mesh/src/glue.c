@@ -53,7 +53,7 @@ bt_hex(const void *buf, size_t len)
     str = hexbufs[curbuf++];
     curbuf %= ARRAY_SIZE(hexbufs);
 
-    len = min(len, (sizeof(hexbufs[0]) - 1) / 2);
+    len = MIN(len, (sizeof(hexbufs[0]) - 1) / 2);
 
     for (i = 0; i < len; i++) {
         str[i * 2] = hex[b[i] >> 4];

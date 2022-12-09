@@ -54,7 +54,7 @@ fault_get_cur(struct bt_mesh_model *model,
     *test_id = recent_test_id;
     *company_id = CID_VENDOR;
 
-    *fault_count = min(*fault_count, sizeof(reg_faults));
+    *fault_count = MIN(*fault_count, sizeof(reg_faults));
     memcpy(faults, reg_faults, *fault_count);
 
     return 0;
@@ -78,7 +78,7 @@ fault_get_reg(struct bt_mesh_model *model,
     if (has_reg_fault) {
         uint8_t reg_faults[FAULT_ARR_SIZE] = { [0 ... FAULT_ARR_SIZE-1] = 0xff };
 
-        *fault_count = min(*fault_count, sizeof(reg_faults));
+        *fault_count = MIN(*fault_count, sizeof(reg_faults));
         memcpy(faults, reg_faults, *fault_count);
     } else {
         *fault_count = 0;
