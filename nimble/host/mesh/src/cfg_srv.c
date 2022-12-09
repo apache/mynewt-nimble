@@ -2042,7 +2042,7 @@ static int mod_app_get(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
 		       struct os_mbuf *buf)
 {
-	struct os_mbuf *msg = NET_BUF_SIMPLE(max(BT_MESH_MODEL_BUF_LEN(OP_VND_MOD_APP_LIST,
+	struct os_mbuf *msg = NET_BUF_SIMPLE(MAX(BT_MESH_MODEL_BUF_LEN(OP_VND_MOD_APP_LIST,
 								       9 + KEY_LIST_LEN),
 						 BT_MESH_MODEL_BUF_LEN(OP_SIG_MOD_APP_LIST,
 								       9 + KEY_LIST_LEN)));
