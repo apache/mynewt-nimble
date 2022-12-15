@@ -67,3 +67,6 @@ syscfg.restrictions:
     # should be enough for most (all?) cases
     - "!BLE_FEM_PA || BLE_FEM_PA_TURN_ON_US <= 90"
     - "!BLE_FEM_LNA || BLE_FEM_LNA_TURN_ON_US <= 90"
+
+syscfg.vals:
+    BLE_LL_RESOLV_LIST_SIZE: 16

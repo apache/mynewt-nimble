@@ -105,7 +105,9 @@ syscfg.defs:
 
     BLE_LL_RESOLV_LIST_SIZE:
         description: 'Size of the resolving list.'
-        value: '4'
+        restrictions:
+            - $notnull
+        value:
 
     BLE_LL_CONN_PHY_DEFAULT_PREF_MASK:
         description: >

@@ -27,3 +27,6 @@ syscfg.defs:
 
 syscfg.restrictions:
     - BLE_LL_RFMGMT_ENABLE_TIME == 0 || BLE_LL_RFMGMT_ENABLE_TIME >= 20
+
+syscfg.vals:
+    BLE_LL_RESOLV_LIST_SIZE: 8

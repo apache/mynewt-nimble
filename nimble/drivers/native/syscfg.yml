@@ -17,8 +17,5 @@
 #
 
 
-syscfg.vals.!BLE_LL_CFG_FEAT_LL_EXT_ADV:
-    BLE_LL_STACK_SIZE: 96
-
 syscfg.vals:
-    BLE_LL_RESOLV_LIST_SIZE: 16
+    BLE_LL_RESOLV_LIST_SIZE: 0
