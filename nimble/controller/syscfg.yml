@@ -537,6 +537,15 @@ syscfg.defs:
         range: 1..257
         value: 32
 
+    BLE_LL_CONN_EVENT_END_MARGIN:
+        description: >
+            Extra time needed for scheduling next connection event. Setting this
+            value results in ending connection event sooner (in microseconds)
+            which gives more time to schedule next event. This value should be
+            tuned only after measuring performance as depends on various factors
+            like  build optimisation, cache, clock speed etc.
+        value: 0
+
     BLE_LL_STACK_SIZE:
         description: >
               This is the stack size for LL task.
