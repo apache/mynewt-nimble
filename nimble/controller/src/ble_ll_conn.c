@@ -939,6 +939,8 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
     rem_us = connsm->anchor_point_usecs;
     ble_ll_tmr_add_u(&ce_end, &rem_us, connsm->conn_itvl_usecs);
 
+    ce_end -= ble_ll_tmr_u2t_up(MYNEWT_VAL(BLE_LL_CONN_EVENT_END_MARGIN));
+
     if (ble_ll_sched_next_time(&next_sched_time)) {
         if (LL_TMR_LT(next_sched_time, ce_end)) {
             ce_end = next_sched_time;
