@@ -1014,7 +1014,7 @@ ble_phy_tx_end_isr(void)
     uint8_t transition;
     uint32_t rx_time;
     uint32_t tx_time;
-#if PHY_USE_FEM_LNA
+#if PHY_USE_FEM
     uint32_t fem_time;
 #endif
     uint32_t radio_time;
@@ -1096,6 +1096,11 @@ ble_phy_tx_end_isr(void)
         tx_time = NRF_TIMER0->CC[2] + tifs;
         /* Adjust for delay between EVENT_END and actual TX end time */
         tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+
+#if PHY_USE_FEM_PA
+        fem_time = tx_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
+#endif
+
         /* Adjust for delay between EVENT_READY and actual TX start time */
         tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
@@ -1104,7 +1109,11 @@ ble_phy_tx_end_isr(void)
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_txen_enable();
 
-        /* TODO handle PA */
+#if PHY_USE_FEM_PA
+        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
+        NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+        phy_fem_enable_pa();
+#endif
 
         nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
         if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
