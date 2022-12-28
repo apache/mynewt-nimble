@@ -2081,7 +2081,7 @@ ble_ll_ctrl_rx_conn_update(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 }
 
 void
-ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
+ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm, bool initial)
 {
     if (!(connsm->conn_features & BLE_LL_FEAT_DATA_LEN_EXT)) {
         return;
@@ -2090,12 +2090,15 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm)
     /*
      * Section 4.5.10 Vol 6 PART B. If the max tx/rx time or octets
      * exceeds the minimum, data length procedure needs to occur
+     * "at the earliest practical opportunity".
      */
-    if ((connsm->max_tx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
-        (connsm->max_rx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
-        (connsm->max_tx_time <= BLE_LL_CONN_SUPP_TIME_MIN) &&
-        (connsm->max_rx_time <= BLE_LL_CONN_SUPP_TIME_MIN)) {
-        return;
+    if (initial) {
+        if ((connsm->max_tx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+            (connsm->max_rx_octets <= BLE_LL_CONN_SUPP_BYTES_MIN) &&
+            (connsm->max_tx_time <= BLE_LL_CONN_SUPP_TIME_MIN) &&
+            (connsm->max_rx_time <= BLE_LL_CONN_SUPP_TIME_MIN)) {
+            return;
+        }
     }
 
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD, NULL);
@@ -3048,7 +3051,7 @@ ll_ctrl_send_rsp:
 
     if (connsm->csmflags.cfbit.pending_initiate_dle) {
         connsm->csmflags.cfbit.pending_initiate_dle = 0;
-        ble_ll_ctrl_initiate_dle(connsm);
+        ble_ll_ctrl_initiate_dle(connsm, true);
     }
 
     return rc;
