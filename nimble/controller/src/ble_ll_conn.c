@@ -1849,7 +1849,7 @@ ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
     }
 
     if (init_dle) {
-        ble_ll_ctrl_initiate_dle(connsm);
+        ble_ll_ctrl_initiate_dle(connsm, false);
     }
 
     return 0;
@@ -2662,7 +2662,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             !ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
             ble_ll_conn_rem_feature_add(connsm, BLE_LL_FEAT_LE_CODED_PHY);
             connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;
-            ble_ll_ctrl_initiate_dle(connsm);
+            ble_ll_ctrl_initiate_dle(connsm, false);
         }
 #endif
     }
