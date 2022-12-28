@@ -3127,6 +3127,7 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
     pdu_data->hdr_byte = hdr;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 uint8_t
 ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
@@ -3161,6 +3162,7 @@ ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_by
 
     return 34;
 }
+#endif
 
 /**
  * Called when a schedule item overlaps the currently running connection

@@ -495,6 +495,7 @@ ble_ll_conn_hci_create_check_params(struct ble_ll_conn_create_params *cc_params)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 /**
  * Process the HCI command to create a connection.
  *
@@ -633,6 +634,7 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
 
     return rc;
 }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
@@ -1205,6 +1207,7 @@ ble_ll_conn_hci_cancel_conn_complete_event(void)
     g_ble_ll_conn_comp_ev = NULL;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 /**
  * Called when HCI command to cancel a create connection command has been
  * received.
@@ -1245,6 +1248,7 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
 
     return rc;
 }
+#endif
 
 /**
  * Called to process a HCI disconnect command
