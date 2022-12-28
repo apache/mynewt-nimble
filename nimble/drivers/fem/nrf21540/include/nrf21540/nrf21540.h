@@ -18,8 +18,8 @@
  */
 
 
-#ifndef _SKY66112_H
-#define _SKY66112_H
+#ifndef _NRF21540_H
+#define _NRF21540_H
 
 #include <stdint.h>
 
@@ -27,16 +27,10 @@
 extern "C" {
 #endif
 
-void sky66112_tx_hp_mode(uint8_t enabled);
-void sky66112_rx_bypass(uint8_t enabled);
-void sky66112_tx_bypass(uint8_t enabled);
-
-#if MYNEWT_VAL_CHOICE(SKY66112_ANTENNA_PORT, runtime)
-uint8_t sky66112_default_antenna_get(void);
-#endif
+int nrf21540_mode_set(uint8_t mode);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _SKY66112_H */
+#endif /* _NRF21540_H */

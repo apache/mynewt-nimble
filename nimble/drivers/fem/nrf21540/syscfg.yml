@@ -17,11 +17,29 @@
 #
 
 syscfg.defs:
-    BLE_LL_HBD_FAKE_DUAL_MODE:
+    NRF21540_PIN_PDN:
         description: >
-            This enables hacks to allow initialize controler as dual-mode
-            device. It can be initialized and used by Windows 10 to some
-            extent.
-        value: 0
-        restrictions:
-           - '(BLE_TRANSPORT_EVT_SIZE == 257) if 1'
+            GPIO pin number to control PDN signal.
+        value:
+        restrictions: $notnull
+    NRF21540_PIN_ANT_SEL:
+        description: >
+            GPIO pin number to control ANT_SEL signal.
+        value:
+    NRF21540_PIN_MODE:
+        description: >
+            GPIO pin number to control MODE signal.
+        value:
+    NRF21540_ANTENNA_PORT:
+        description: >
+            Selects antenna port, valid only if ANT_SEL pin is configured.
+        range: 1, 2
+        value: 1
+    NRF21540_TX_GAIN_PRESET:
+        description: >
+            Selects TX gain preset, valid only if MODE pin is configured.
+        choices:
+            - none
+            - POUTA
+            - POUTB
+        value: none

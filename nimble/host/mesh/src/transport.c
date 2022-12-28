@@ -1008,7 +1008,7 @@ static inline int32_t ack_timeout(struct seg_rx *rx)
 	/* Make sure we don't send more frequently than the duration for
 	 * each packet (default is 300ms).
 	 */
-	return max(to, K_MSEC(400));
+	return MAX(to, K_MSEC(400));
 }
 
 int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, uint8_t ctl_op, void *data,

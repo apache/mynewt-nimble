@@ -27,6 +27,14 @@
 #include "ble_hs_priv.h"
 #include "ble_gap_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #if MYNEWT
 #include "bsp/bsp.h"
 #else
@@ -3410,12 +3418,11 @@ ble_gap_periodic_adv_params_tx(uint8_t instance,
 
     /* Fill optional fields if application did not specify them. */
     if (params->itvl_min == 0 && params->itvl_max == 0) {
-        /* TODO defines for those */
-        cmd.min_itvl = htole16(30 / 1.25);   //30 ms
-        cmd.max_itvl = htole16(60 / 1.25);   //150 ms
+        cmd.min_itvl = BLE_GAP_PERIODIC_ITVL_MS(30);
+        cmd.max_itvl = BLE_GAP_PERIODIC_ITVL_MS(60);
 
     } else {
-        cmd.min_itvl = htole16( params->itvl_min);
+        cmd.min_itvl = htole16(params->itvl_min);
         cmd.max_itvl = htole16(params->itvl_max);
     }
 

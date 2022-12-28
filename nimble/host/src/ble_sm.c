@@ -49,6 +49,15 @@
 #include "ble_hs_priv.h"
 
 #if NIMBLE_BLE_CONNECT
+
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #if NIMBLE_BLE_SM
 
 /** Procedure timeout; 30 seconds. */

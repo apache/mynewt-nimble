@@ -44,6 +44,7 @@ struct hci_conn_update;
 #define BLE_GAP_SCAN_WIN_MS(t)              ((t) * 1000 / BLE_HCI_SCAN_ITVL)
 #define BLE_GAP_CONN_ITVL_MS(t)             ((t) * 1000 / BLE_HCI_CONN_ITVL)
 #define BLE_GAP_SUPERVISION_TIMEOUT_MS(t)   ((t) / 10)
+#define BLE_GAP_PERIODIC_ITVL_MS(t)         ((t) * 1000 / BLE_HCI_PERIODIC_ADV_ITVL)
 
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      BLE_GAP_ADV_ITVL_MS(30)
@@ -1458,14 +1459,14 @@ int ble_gap_ext_adv_active(uint8_t instance);
 /** @brief Periodic advertising parameters  */
 struct ble_gap_periodic_adv_params {
     /** If include TX power in advertising PDU */
-    unsigned int include_tx_power:1;
+    unsigned int include_tx_power : 1;
 
-    /** Minimum advertising interval in 0.625ms units, if 0 stack use sane
+    /** Minimum advertising interval in 1.25ms units, if 0 stack use sane
      *  defaults
      */
     uint16_t itvl_min;
 
-    /** Maximum advertising interval in 0.625ms units, if 0 stack use sane
+    /** Maximum advertising interval in 1.25ms units, if 0 stack use sane
      *  defaults
      */
     uint16_t itvl_max;

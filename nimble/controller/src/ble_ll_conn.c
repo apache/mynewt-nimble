@@ -407,46 +407,48 @@ ble_ll_conn_cth_flow_process_cmd(const uint8_t *cmdbuf)
 static void
 ble_ll_conn_css_update_list(struct ble_ll_conn_sm *connsm)
 {
-    bool e_insert_found = false;
-    bool e_remove_found = false;
-    struct ble_ll_conn_sm *e_insert = NULL;
-    struct ble_ll_conn_sm *e_remove = NULL;
-    struct ble_ll_conn_sm *e_last = NULL;
     struct ble_ll_conn_sm *e;
+    struct ble_ll_conn_sm *e_last;
+    struct ble_ll_conn_sm *e_insert_after = NULL;
+    bool found_to_insert = false;
 
+    if (SLIST_FIRST(&g_ble_ll_conn_css_list) == connsm) {
+        SLIST_REMOVE_HEAD(&g_ble_ll_conn_css_list, css_sle);
+    } else {
+        e_last = NULL;
+        SLIST_FOREACH(e, &g_ble_ll_conn_css_list, css_sle) {
+            if (e == connsm) {
+                SLIST_NEXT(e_last, css_sle) = SLIST_NEXT(e, css_sle);
+                break;
+            }
+            e_last = e;
+        }
+    }
+
+    if (SLIST_EMPTY(&g_ble_ll_conn_css_list)) {
+        SLIST_INSERT_HEAD(&g_ble_ll_conn_css_list, connsm, css_sle);
+        return;
+    }
+
+    e_last = NULL;
     SLIST_FOREACH(e, &g_ble_ll_conn_css_list, css_sle) {
-        if (!e_remove_found && (e == connsm)) {
-            e_remove_found = true;
-            e_remove = e_last;
-        }
-        if (!e_insert_found && (e->css_slot_idx > connsm->css_slot_idx)) {
-            e_insert_found = true;
-            e_insert = e_last;
-        }
-
-        if (e_insert_found && e_remove_found) {
+        if (e->css_slot_idx > connsm->css_slot_idx) {
+            found_to_insert = true;
+            e_insert_after = e_last;
             break;
         }
 
         e_last = e;
     }
 
-    if (e_remove_found) {
-        if (e_remove == e_insert) {
-            return;
-        } else if (e_remove) {
-            SLIST_NEXT(e_remove, css_sle) = SLIST_NEXT(connsm, css_sle);
+    if (found_to_insert) {
+        if (e_insert_after) {
+            SLIST_INSERT_AFTER(e_last, connsm, css_sle);
         } else {
-            SLIST_REMOVE_HEAD(&g_ble_ll_conn_css_list, css_sle);
+            SLIST_INSERT_HEAD(&g_ble_ll_conn_css_list, connsm, css_sle);
         }
-    }
-
-    if (!e_insert_found && !e && e_last) {
-        SLIST_INSERT_AFTER(e_last, connsm, css_sle);
-    } else if (e_insert) {
-        SLIST_INSERT_AFTER(e_insert, connsm, css_sle);
     } else {
-        SLIST_INSERT_HEAD(&g_ble_ll_conn_css_list, connsm, css_sle);
+        SLIST_INSERT_AFTER(e_last, connsm, css_sle);
     }
 }
 
@@ -2062,7 +2064,8 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     SLIST_INSERT_HEAD(&g_ble_ll_conn_active_list, connsm, act_sle);
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    if (ble_ll_sched_css_is_enabled()) {
+    if (ble_ll_sched_css_is_enabled() &&
+        (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)) {
         ble_ll_conn_css_update_list(connsm);
     }
 #endif

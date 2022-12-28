@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,12 +17,14 @@
 # under the License.
 #
 
-syscfg.defs:
-    BLE_LL_HBD_FAKE_DUAL_MODE:
-        description: >
-            This enables hacks to allow initialize controler as dual-mode
-            device. It can be initialized and used by Windows 10 to some
-            extent.
-        value: 0
-        restrictions:
-           - '(BLE_TRANSPORT_EVT_SIZE == 257) if 1'
+pkg.name: nimble/drivers/fem/nrf21540
+pkg.description: Driver for nRF21540 front-end module
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://mynewt.apache.org/"
+pkg.apis:
+    - ble_fem_pa
+    - ble_fem_lna
+    - ble_fem_antenna
+
+pkg.init:
+    nrf21540_init: 999
