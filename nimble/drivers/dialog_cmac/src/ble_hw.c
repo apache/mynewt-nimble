@@ -23,7 +23,7 @@
 #include "nimble/ble.h"
 #include "controller/ble_hw.h"
 #include "CMAC.h"
-#include "cmac_driver/cmac_shared.h"
+#include <ipc_cmac/rand.h>
 #include "tinycrypt/aes.h"
 
 static struct tc_aes_key_sched_struct g_ctx;

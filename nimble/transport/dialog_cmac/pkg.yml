@@ -18,16 +18,16 @@
 #
 
 pkg.name: nimble/transport/dialog_cmac
-pkg.description: HCI H4 transport for Dialog CMAC
+pkg.description: IPC transport for Dialog CMAC
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
+pkg.homepage: "https://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
 
 pkg.deps:
     - nimble/transport/common/hci_h4
-    - nimble/transport/dialog_cmac/cmac_driver
+    - "@apache-mynewt-core/hw/drivers/ipc_cmac"
 
 pkg.apis:
     - ble_transport

@@ -23,7 +23,7 @@
 #include "mcu/mcu.h"
 #include "mcu/cmac_timer.h"
 #include "controller/ble_phy.h"
-#include "cmac_driver/cmac_shared.h"
+#include <ipc_cmac/shm.h>
 #include "ble_rf_priv.h"
 
 #define RF_CALIBRATION_0        (0x01)
@@ -206,8 +206,7 @@ ble_rf_rfcu_apply_recommended_settings(void)
 static void
 ble_rf_rfcu_apply_settings(void)
 {
-    ble_rf_apply_trim(g_cmac_shared_data.trim.rfcu,
-                      g_cmac_shared_data.trim.rfcu_len);
+    ble_rf_apply_trim(g_cmac_shm_trim.rfcu, g_cmac_shm_trim.rfcu_len);
     ble_rf_rfcu_apply_recommended_settings();
 }
 
@@ -242,8 +241,7 @@ ble_rf_synth_apply_recommended_settings(void)
 static void
 ble_rf_synth_apply_settings(void)
 {
-    ble_rf_apply_trim(g_cmac_shared_data.trim.synth,
-                      g_cmac_shared_data.trim.synth_len);
+    ble_rf_apply_trim(g_cmac_shm_trim.synth, g_cmac_shm_trim.synth_len);
     ble_rf_synth_apply_recommended_settings();
 }
 
@@ -495,8 +493,8 @@ ble_rf_calibrate_int(uint8_t mask)
     __enable_irq();
 
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
-    g_cmac_shared_data.debug.cal_res_1 = g_ble_phy_rf_data.cal_res_1;
-    g_cmac_shared_data.debug.cal_res_2 = g_ble_phy_rf_data.cal_res_2;
+    g_cmac_shm_debugdata.cal_res_1 = g_ble_phy_rf_data.cal_res_1;
+    g_cmac_shm_debugdata.cal_res_2 = g_ble_phy_rf_data.cal_res_2;
 #endif
 }
 
@@ -545,19 +543,19 @@ ble_rf_init(void)
         return;
     }
 
-    val = ble_rf_find_trim_reg(g_cmac_shared_data.trim.rfcu_mode1,
-                               g_cmac_shared_data.trim.rfcu_mode1_len,
+    val = ble_rf_find_trim_reg(g_cmac_shm_trim.rfcu_mode1,
+                               g_cmac_shm_trim.rfcu_mode1_len,
                                0x4002004c);
     g_ble_phy_rf_data.trim_val1_tx_1 = val;
 
-    val = ble_rf_find_trim_reg(g_cmac_shared_data.trim.rfcu_mode2,
-                               g_cmac_shared_data.trim.rfcu_mode2_len,
+    val = ble_rf_find_trim_reg(g_cmac_shm_trim.rfcu_mode2,
+                               g_cmac_shm_trim.rfcu_mode2_len,
                                0x4002004c);
     g_ble_phy_rf_data.trim_val1_tx_2 = val;
 
     if (!g_ble_phy_rf_data.trim_val1_tx_1 || !g_ble_phy_rf_data.trim_val1_tx_2) {
-        val = ble_rf_find_trim_reg(g_cmac_shared_data.trim.rfcu,
-                                   g_cmac_shared_data.trim.rfcu_len,
+        val = ble_rf_find_trim_reg(g_cmac_shm_trim.rfcu,
+                                   g_cmac_shm_trim.rfcu_len,
                                    0x4002004c);
         if (!val) {
             val = 0x0300;
@@ -566,8 +564,8 @@ ble_rf_init(void)
         g_ble_phy_rf_data.trim_val1_tx_2 = val;
     }
 
-    val = ble_rf_find_trim_reg(g_cmac_shared_data.trim.synth,
-                               g_cmac_shared_data.trim.synth_len,
+    val = ble_rf_find_trim_reg(g_cmac_shm_trim.synth,
+                               g_cmac_shm_trim.synth_len,
                                0x40022038);
     if (!val) {
         val = 0x0198ff03;
@@ -577,10 +575,10 @@ ble_rf_init(void)
     set_reg32_bits((uint32_t)&g_ble_phy_rf_data.trim_val2_tx, 0x0001ff00, 0x87);
 
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
-    g_cmac_shared_data.debug.trim_val1_tx_1 = g_ble_phy_rf_data.trim_val1_tx_1;
-    g_cmac_shared_data.debug.trim_val1_tx_2 = g_ble_phy_rf_data.trim_val1_tx_2;
-    g_cmac_shared_data.debug.trim_val2_tx = g_ble_phy_rf_data.trim_val2_tx;
-    g_cmac_shared_data.debug.trim_val2_rx = g_ble_phy_rf_data.trim_val2_rx;
+    g_cmac_shm_debugdata.trim_val1_tx_1 = g_ble_phy_rf_data.trim_val1_tx_1;
+    g_cmac_shm_debugdata.trim_val1_tx_2 = g_ble_phy_rf_data.trim_val1_tx_2;
+    g_cmac_shm_debugdata.trim_val2_tx = g_ble_phy_rf_data.trim_val2_tx;
+    g_cmac_shm_debugdata.trim_val2_rx = g_ble_phy_rf_data.trim_val2_rx;
 #endif
 
     ble_rf_rfcu_enable();
