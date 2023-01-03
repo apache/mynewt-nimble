@@ -27,7 +27,7 @@
 #include "nimble/ble.h"
 #include "mcu/mcu.h"
 #include "mcu/cmac_timer.h"
-#include "cmac_driver/cmac_shared.h"
+#include <ipc_cmac/shm.h>
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 #include "stats/stats.h"
@@ -524,7 +524,7 @@ ble_phy_rx_start_isr(void)
     /* Read the latched RSSI value */
     ble_hdr->rxinfo.rssi = ble_rf_get_rssi();
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
-    g_cmac_shared_data.debug.last_rx_rssi = ble_hdr->rxinfo.rssi;
+    g_cmac_shm_debugdata.last_rx_rssi = ble_hdr->rxinfo.rssi;
 #endif
 
     /* Count rx starts */
@@ -1659,8 +1659,8 @@ int
 ble_phy_tx_power_set(int dbm)
 {
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
-    if (g_cmac_shared_data.debug.tx_power_override != INT8_MAX) {
-        ble_rf_set_tx_power(g_cmac_shared_data.debug.tx_power_override);
+    if (g_cmac_shm_debugdata.tx_power_ovr_enable) {
+        ble_rf_set_tx_power(g_cmac_shm_debugdata.tx_power_ovr);
     } else {
         ble_rf_set_tx_power(dbm);
     }
