@@ -442,7 +442,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
 
     /* XXX: for now, if we dont have room, just leave */
     num_advs = g_ble_ll_scan_num_rsp_advs;
-    if (num_advs == MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)) {
+    if (num_advs >= MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)) {
         return;
     }
 
