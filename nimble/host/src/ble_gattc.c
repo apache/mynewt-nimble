@@ -434,41 +434,43 @@ static ble_npl_time_t ble_gattc_resume_at;
 /* Statistics. */
 STATS_SECT_DECL(ble_gattc_stats) ble_gattc_stats;
 STATS_NAME_START(ble_gattc_stats)
-    STATS_NAME(ble_gattc_stats, mtu)
-    STATS_NAME(ble_gattc_stats, mtu_fail)
-    STATS_NAME(ble_gattc_stats, disc_all_svcs)
-    STATS_NAME(ble_gattc_stats, disc_all_svcs_fail)
-    STATS_NAME(ble_gattc_stats, disc_svc_uuid)
-    STATS_NAME(ble_gattc_stats, disc_svc_uuid_fail)
-    STATS_NAME(ble_gattc_stats, find_inc_svcs)
-    STATS_NAME(ble_gattc_stats, find_inc_svcs_fail)
-    STATS_NAME(ble_gattc_stats, disc_all_chrs)
-    STATS_NAME(ble_gattc_stats, disc_all_chrs_fail)
-    STATS_NAME(ble_gattc_stats, disc_chrs_uuid)
-    STATS_NAME(ble_gattc_stats, disc_chrs_uuid_fail)
-    STATS_NAME(ble_gattc_stats, disc_all_dscs)
-    STATS_NAME(ble_gattc_stats, disc_all_dscs_fail)
-    STATS_NAME(ble_gattc_stats, read)
-    STATS_NAME(ble_gattc_stats, read_fail)
-    STATS_NAME(ble_gattc_stats, read_uuid)
-    STATS_NAME(ble_gattc_stats, read_uuid_fail)
-    STATS_NAME(ble_gattc_stats, read_long)
-    STATS_NAME(ble_gattc_stats, read_long_fail)
-    STATS_NAME(ble_gattc_stats, read_mult)
-    STATS_NAME(ble_gattc_stats, read_mult_fail)
-    STATS_NAME(ble_gattc_stats, write_no_rsp)
-    STATS_NAME(ble_gattc_stats, write_no_rsp_fail)
-    STATS_NAME(ble_gattc_stats, write)
-    STATS_NAME(ble_gattc_stats, write_fail)
-    STATS_NAME(ble_gattc_stats, write_long)
-    STATS_NAME(ble_gattc_stats, write_long_fail)
-    STATS_NAME(ble_gattc_stats, write_reliable)
-    STATS_NAME(ble_gattc_stats, write_reliable_fail)
-    STATS_NAME(ble_gattc_stats, notify)
-    STATS_NAME(ble_gattc_stats, notify_fail)
-    STATS_NAME(ble_gattc_stats, indicate)
-    STATS_NAME(ble_gattc_stats, indicate_fail)
-    STATS_NAME(ble_gattc_stats, proc_timeout)
+STATS_NAME(ble_gattc_stats, mtu)
+STATS_NAME(ble_gattc_stats, mtu_fail)
+STATS_NAME(ble_gattc_stats, disc_all_svcs)
+STATS_NAME(ble_gattc_stats, disc_all_svcs_fail)
+STATS_NAME(ble_gattc_stats, disc_svc_uuid)
+STATS_NAME(ble_gattc_stats, disc_svc_uuid_fail)
+STATS_NAME(ble_gattc_stats, find_inc_svcs)
+STATS_NAME(ble_gattc_stats, find_inc_svcs_fail)
+STATS_NAME(ble_gattc_stats, disc_all_chrs)
+STATS_NAME(ble_gattc_stats, disc_all_chrs_fail)
+STATS_NAME(ble_gattc_stats, disc_chrs_uuid)
+STATS_NAME(ble_gattc_stats, disc_chrs_uuid_fail)
+STATS_NAME(ble_gattc_stats, disc_all_dscs)
+STATS_NAME(ble_gattc_stats, disc_all_dscs_fail)
+STATS_NAME(ble_gattc_stats, read)
+STATS_NAME(ble_gattc_stats, read_fail)
+STATS_NAME(ble_gattc_stats, read_uuid)
+STATS_NAME(ble_gattc_stats, read_uuid_fail)
+STATS_NAME(ble_gattc_stats, read_long)
+STATS_NAME(ble_gattc_stats, read_long_fail)
+STATS_NAME(ble_gattc_stats, read_mult)
+STATS_NAME(ble_gattc_stats, read_mult_fail)
+STATS_NAME(ble_gattc_stats, write_no_rsp)
+STATS_NAME(ble_gattc_stats, write_no_rsp_fail)
+STATS_NAME(ble_gattc_stats, write)
+STATS_NAME(ble_gattc_stats, write_fail)
+STATS_NAME(ble_gattc_stats, write_long)
+STATS_NAME(ble_gattc_stats, write_long_fail)
+STATS_NAME(ble_gattc_stats, write_reliable)
+STATS_NAME(ble_gattc_stats, write_reliable_fail)
+STATS_NAME(ble_gattc_stats, notify)
+STATS_NAME(ble_gattc_stats, notify_fail)
+STATS_NAME(ble_gattc_stats, multi_notify)
+STATS_NAME(ble_gattc_stats, multi_notify_fail)
+STATS_NAME(ble_gattc_stats, indicate)
+STATS_NAME(ble_gattc_stats, indicate_fail)
+STATS_NAME(ble_gattc_stats, proc_timeout)
 STATS_NAME_END(ble_gattc_stats)
 
 /*****************************************************************************
@@ -638,6 +640,15 @@ ble_gattc_log_notify(uint16_t att_handle)
 {
     ble_gattc_log_proc_init("notify; ");
     BLE_HS_LOG(INFO, "att_handle=%d\n", att_handle);
+}
+
+static void
+ble_gattc_log_multi_notify(struct ble_gatt_hv * tuples, uint16_t num)
+{
+    ble_gattc_log_proc_init("multi handle notify; ");
+    for (int i = 0; i < num; i++) {
+        BLE_HS_LOG(INFO, "att_handle=%d", tuples[i].handle);
+    }
 }
 
 static void
@@ -4209,6 +4220,131 @@ done:
 
     os_mbuf_free_chain(txom);
 
+    return rc;
+}
+
+int
+ble_gatts_multi_notify_custom(uint16_t conn_handle,
+                              struct ble_gatt_hv * tuples, uint16_t num_tuples)
+{
+#if !MYNEWT_VAL(BLE_GATT_MULTI_NOTIFY)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int i;
+    int rc;
+    uint16_t mtu;
+    uint16_t pdu_size;
+    int split_at;
+    struct os_mbuf *om = NULL;
+
+    STATS_INC(ble_gattc_stats, multi_notify);
+    ble_gattc_log_multi_notify(tuples, num_tuples);
+
+    for (i = 0; i < num_tuples; i++) {
+        if (tuples[i].value == NULL) {
+            /* No custom attribute data; read the value from the specified
+             * attribute
+             */
+            tuples[i].value = ble_hs_mbuf_att_pkt();
+            if (tuples[i].value == NULL) {
+                rc = BLE_HS_ENOMEM;
+                goto done;
+            }
+            rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
+                                         tuples[i].handle, 0, tuples[i].value, NULL);
+            if (rc != 0) {
+                /* Fatal error; application disallowed attribute read. */
+                rc = BLE_HS_EAPP;
+                goto done;
+            }
+        }
+    }
+
+    mtu = ble_att_mtu(conn_handle);
+    pdu_size = sizeof(uint8_t); /* Opcode */
+    split_at = 0;
+
+    for (i = 0; i < num_tuples; i++) {
+        pdu_size += (2 * sizeof(uint16_t)) + OS_MBUF_PKTLEN(tuples[i].value);
+        if (pdu_size > mtu) {
+            /* The notification will need to be split */
+            if (i == split_at) {
+                /* Single notification too large for server,
+                 * cannot send notify without truncating.
+                 */
+                rc = BLE_HS_ENOMEM;
+                goto done;
+            }
+            split_at = i;
+            /* Reinitialize loop */
+            i--;
+            pdu_size = sizeof(uint8_t);
+        }
+    }
+
+    pdu_size = sizeof(uint8_t);
+    split_at = 0;
+    om = ble_hs_mbuf_att_pkt();
+    if(om == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+    for (i = 0; i < num_tuples; i++) {
+        pdu_size += (2 * sizeof(uint16_t)) + OS_MBUF_PKTLEN(tuples[i].value);
+        if (pdu_size > mtu) {
+            rc = ble_att_clt_tx_multi_notify(conn_handle, om);
+            if (rc != 0) {
+                goto done;
+            }
+            split_at = i;
+            i--;
+            pdu_size = sizeof(uint8_t);
+            om = ble_hs_mbuf_att_pkt();
+            if(om == NULL) {
+                rc = BLE_HS_ENOMEM;
+                goto done;
+            }
+            continue;
+        }
+        /* Handle */
+        rc = os_mbuf_copyinto(om, OS_MBUF_PKTLEN(om),
+                              &tuples[i].handle, sizeof tuples[i].handle);
+        if (rc != 0) {
+            rc = BLE_HS_ENOMEM;
+            os_mbuf_free_chain(om);
+            goto done;
+        }
+        /* Length */
+        rc = os_mbuf_copyinto(om, OS_MBUF_PKTLEN(om),
+                              &(OS_MBUF_PKTLEN(tuples[i].value)),
+                              sizeof(OS_MBUF_PKTLEN(tuples[i].value)));
+        if (rc != 0) {
+            rc = BLE_HS_ENOMEM;
+            os_mbuf_free_chain(om);
+            goto done;
+        }
+        /* Value */
+        rc = os_mbuf_appendfrom(om, tuples[i].value,
+                                0, OS_MBUF_PKTLEN(tuples[i].value));
+        if (rc != 0) {
+            rc = BLE_HS_ENOMEM;
+            os_mbuf_free_chain(om);
+            goto done;
+        }
+    }
+    rc = ble_att_clt_tx_multi_notify(conn_handle, om);
+
+done:
+    if (rc != 0) {
+        STATS_INC(ble_gattc_stats, multi_notify_fail);
+    }
+
+    /* Tell the application that multiple notification transmissions were attempted. */
+    for (i = 0; i < num_tuples; i++) {
+        ble_gap_notify_tx_event(rc, conn_handle, tuples[i].handle, 0);
+        os_mbuf_free_chain(tuples[i].value);
+    }
     return rc;
 }
 
