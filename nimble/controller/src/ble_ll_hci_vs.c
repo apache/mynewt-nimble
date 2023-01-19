@@ -29,6 +29,14 @@
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
 
 SLIST_HEAD(ble_ll_hci_vs_list, ble_ll_hci_vs_cmd);

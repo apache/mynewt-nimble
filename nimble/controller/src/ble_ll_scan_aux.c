@@ -40,6 +40,14 @@
 #include "controller/ble_ll_sync.h"
 #include "ble_ll_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #define BLE_LL_SCAN_AUX_F_AUX_ADV           0x0001
 #define BLE_LL_SCAN_AUX_F_AUX_CHAIN         0x0002
 #define BLE_LL_SCAN_AUX_F_MATCHED           0x0004

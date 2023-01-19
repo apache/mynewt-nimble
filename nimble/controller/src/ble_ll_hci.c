@@ -41,6 +41,14 @@
 #include "ble_ll_dtm_priv.h"
 #endif
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 static void ble_ll_hci_cmd_proc(struct ble_npl_event *ev);
 
 /* OS event to enqueue command */

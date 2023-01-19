@@ -60,6 +60,14 @@
 #include <controller/ble_ll_ext.h>
 #endif
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 /* XXX:
  *
  * 1) use the sanity task!

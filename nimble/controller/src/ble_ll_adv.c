@@ -42,6 +42,14 @@
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
 
 /* XXX: TODO
