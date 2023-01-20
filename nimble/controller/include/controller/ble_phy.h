@@ -92,6 +92,10 @@ int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 void ble_phy_tifs_set(uint16_t tifs);
 #endif
 
+/* Set T_ifs for tx-tx transitions. Anchor is 0 for start of previous PDU,
+ * non-zero for end of PDU */
+void ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor);
+
 /* Set transmit start time */
 int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
 
