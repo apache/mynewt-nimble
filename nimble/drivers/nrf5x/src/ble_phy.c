@@ -68,6 +68,8 @@
 extern void tm_tick(void);
 #endif
 
+#include <controller/ble_ll_pdu.h>
+
 /*
  * NOTE: This code uses a couple of PPI channels so care should be taken when
  *       using PPI somewhere else.
@@ -153,6 +155,9 @@ struct ble_phy_obj
 #if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
     uint16_t tifs;
 #endif
+
+    uint16_t txtx_time_us;
+    uint8_t txtx_time_anchor;
 };
 static struct ble_phy_obj g_ble_phy_data;
 
@@ -1092,8 +1097,20 @@ ble_phy_tx_end_isr(void)
          *       case we still rxd something, so perhaps we could check it here
          */
     } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
-        /* Schedule TX exactly T_IFS after TX end captured in CC[2] */
-        tx_time = NRF_TIMER0->CC[2] + tifs;
+        if (g_ble_phy_data.txtx_time_anchor) {
+            /* Schedule next TX relative to current TX end. TX end timestamp is
+             * captured in CC[2].
+             */
+            tx_time = NRF_TIMER0->CC[2] + g_ble_phy_data.txtx_time_us;
+        } else {
+            /* Schedule next TX relative to current TX start. AA timestamp is
+             * captured in CC[1], we need to adjust for sync word to get TX
+             * start.
+             */
+            tx_time = NRF_TIMER0->CC[1] - ble_ll_pdu_syncword_us(tx_phy_mode) +
+                      g_ble_phy_data.txtx_time_us;
+        }
+
         /* Adjust for delay between EVENT_END and actual TX end time */
         tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
 
@@ -2227,4 +2244,11 @@ ble_phy_rfclk_disable(void)
 #else
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLKSTOP);
 #endif
+}
+
+void
+ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
+{
+    g_ble_phy_data.txtx_time_us = usecs;
+    g_ble_phy_data.txtx_time_anchor = anchor;
 }
