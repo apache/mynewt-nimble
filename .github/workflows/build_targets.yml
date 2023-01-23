@@ -23,7 +23,11 @@ on: [push, pull_request]
 
 jobs:
   targets:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
@@ -33,6 +37,7 @@ jobs:
         with:
           release: '12.2.Rel1'
       - name: Install Dependencies
+        if: matrix.os == 'ubuntu-latest'
         run: |
              sudo apt-get update
              sudo apt-get install -y gcc-multilib
@@ -48,6 +53,15 @@ jobs:
              git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
              git clone --depth=1 https://github.com/apache/mynewt-mcumgr repos/apache-mynewt-mcumgr
              git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
-             ln -s .github/targets ci_targets
       - name: Build targets
-        run: ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+        shell: bash
+        run: |
+             cp -r .github/targets ci_targets
+             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+             rm -rf ci_targets
+      - name: Build native targets
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+             cp -r .github/targets_native ci_targets
+             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+             rm -rf ci_targets
