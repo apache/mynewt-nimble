@@ -24,10 +24,10 @@ pkg.keywords:
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/sys/log/full"
+    - "@apache-mynewt-core/sys/log"
     - "@apache-mynewt-core/sys/log/modlog"
-    - "@apache-mynewt-core/sys/stats/full"
-    - "@apache-mynewt-core/sys/console/full"
+    - "@apache-mynewt-core/sys/stats"
+    - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/shell"
     - nimble/host
     - nimble/host/services/gap

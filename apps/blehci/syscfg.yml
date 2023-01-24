@@ -20,8 +20,9 @@ syscfg.vals:
     # Default task settings
     OS_MAIN_STACK_SIZE: 64
     # Stub console
-    CONSOLE_MODE: stub
+    CONSOLE_IMPLEMENTATION: stub
     LOG_IMPLEMENTATION: stub
+    STATS_IMPLEMENTATION: full
 
 syscfg.vals.'!BLE_TRANSPORT_NETCORE':
     # Use UART by default if not built on netcore

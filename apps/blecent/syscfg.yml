@@ -17,6 +17,10 @@
 #
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # DEBUG logging is a bit noisy; use INFO.
     LOG_LEVEL: 1
 

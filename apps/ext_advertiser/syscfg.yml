@@ -17,6 +17,10 @@
 
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # Disable not used GAP roles (we only do non-connectable
     # advertising here)
     BLE_ROLE_BROADCASTER: 1

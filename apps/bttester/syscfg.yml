@@ -80,6 +80,10 @@ syscfg.defs:
         value: 5
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     OS_MAIN_STACK_SIZE: 512
     SHELL_TASK: 0
     SHELL_NEWTMGR: 0
