@@ -17,6 +17,10 @@
 #
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # Set log level to info (disable debug logging).
     LOG_LEVEL: 1
 

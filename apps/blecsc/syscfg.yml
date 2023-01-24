@@ -17,6 +17,10 @@
 
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # Disable central and observer roles.
     BLE_ROLE_BROADCASTER: 1
     BLE_ROLE_CENTRAL: 0

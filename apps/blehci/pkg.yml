@@ -25,7 +25,7 @@ pkg.keywords:
 pkg.deps:
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/log"
-    - "@apache-mynewt-core/sys/stats/full"
+    - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/kernel/os"
     - nimble/transport
 

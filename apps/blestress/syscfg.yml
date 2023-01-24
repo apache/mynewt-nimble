@@ -35,6 +35,10 @@ syscfg.defs:
 
 # Settings this app overrides.
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # Change these settings:
 
     # Set 0 to print all debug logs, but keep in mind that plenty of

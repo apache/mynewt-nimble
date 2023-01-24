@@ -21,6 +21,10 @@ syscfg.defs:
         value: 0
 
 syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
     # Enable the shell task.
     SHELL_TASK: 1
 
