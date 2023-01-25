@@ -17,12 +17,13 @@
 # under the License.
 #
 
-name: newt test all
+name: Unit tests
 
 on: [push, pull_request]
 
 jobs:
   newt_test:
+    name: Run newt test all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
