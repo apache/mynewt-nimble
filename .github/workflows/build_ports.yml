@@ -17,12 +17,13 @@
 # under the License.
 #
 
-name: newt test all
+name: Build check
 
 on: [push, pull_request]
 
 jobs:
   ports:
+    name: Build ports
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

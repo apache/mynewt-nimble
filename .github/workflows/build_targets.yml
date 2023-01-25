@@ -17,12 +17,13 @@
 # under the License.
 #
 
-name: build all targets
+name: Build check
 
 on: [push, pull_request]
 
 jobs:
   targets:
+    name: Build all test targets
     strategy:
       fail-fast: false
       matrix:
