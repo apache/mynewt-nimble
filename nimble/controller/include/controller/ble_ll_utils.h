@@ -28,6 +28,7 @@
 #define CLAMP(_n, _min, _max) (MAX(_min, MIN(_n, _max)))
 #define IN_RANGE(_n, _min, _max) (((_n) >= (_min)) && ((_n) <= (_max)))
 
+int ble_ll_utils_verify_aa(uint32_t aa);
 uint32_t ble_ll_utils_calc_access_addr(void);
 uint32_t ble_ll_utils_calc_seed_aa(void);
 uint32_t ble_ll_utils_calc_big_aa(uint32_t seed_aa, uint32_t n);
