@@ -29,7 +29,7 @@
 #define IN_RANGE(_n, _min, _max) (((_n) >= (_min)) && ((_n) <= (_max)))
 
 int ble_ll_utils_verify_aa(uint32_t aa);
-uint32_t ble_ll_utils_calc_access_addr(void);
+uint32_t ble_ll_utils_calc_aa(void);
 uint32_t ble_ll_utils_calc_seed_aa(void);
 uint32_t ble_ll_utils_calc_big_aa(uint32_t seed_aa, uint32_t n);
 uint8_t ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap);

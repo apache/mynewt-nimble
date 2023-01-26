@@ -1769,7 +1769,7 @@ ble_ll_conn_central_common_init(struct ble_ll_conn_sm *connsm)
 #endif
 
     /*  Calculate random access address and crc initialization value */
-    connsm->access_addr = ble_ll_utils_calc_access_addr();
+    connsm->access_addr = ble_ll_utils_calc_aa();
     connsm->crcinit = ble_ll_rand() & 0xffffff;
 
     /* Set initial schedule callback */

@@ -137,7 +137,7 @@ ble_ll_utils_verify_aa(uint32_t aa)
 }
 
 uint32_t
-ble_ll_utils_calc_access_addr(void)
+ble_ll_utils_calc_aa(void)
 {
     uint32_t aa;
 

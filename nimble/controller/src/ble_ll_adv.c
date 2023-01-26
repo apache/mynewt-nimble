@@ -2612,7 +2612,7 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
     advsm->periodic_event_cntr = 0;
     /* for chaining we start with random counter as we share access addr */
     advsm->periodic_chain_event_cntr = ble_ll_rand();
-    advsm->periodic_access_addr = ble_ll_utils_calc_access_addr();
+    advsm->periodic_access_addr = ble_ll_utils_calc_aa();
     advsm->periodic_channel_id = ((advsm->periodic_access_addr & 0xffff0000) >> 16) ^
                                  (advsm->periodic_access_addr & 0x0000ffff);
     advsm->periodic_crcinit = ble_ll_rand() & 0xffffff;
@@ -2767,7 +2767,7 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     advsm->event_cntr = 0;
-    access_addr = ble_ll_utils_calc_access_addr();
+    access_addr = ble_ll_utils_calc_aa();
     advsm->channel_id = ((access_addr & 0xffff0000) >> 16) ^
                          (access_addr & 0x0000ffff);
 #endif
