@@ -32,10 +32,9 @@ static const uint16_t g_ble_sca_ppm_tbl[8] = {
     500, 250, 150, 100, 75, 50, 30, 20
 };
 
-uint32_t
-ble_ll_utils_calc_access_addr(void)
+int
+ble_ll_utils_verify_aa(uint32_t aa)
 {
-    uint32_t aa;
     uint16_t aa_low;
     uint16_t aa_high;
     uint32_t temp;
@@ -47,100 +46,105 @@ ble_ll_utils_calc_access_addr(void)
     uint8_t ones;
     int tmp;
 
-    /* Calculate a random access address */
-    aa = 0;
-    while (1) {
-        /* Get two, 16-bit random numbers */
-        aa_low = ble_ll_rand() & 0xFFFF;
-        aa_high = ble_ll_rand() & 0xFFFF;
+    aa_low = aa & 0xffff;
+    aa_high = aa >> 16;
 
-        /* All four bytes cannot be equal */
-        if (aa_low == aa_high) {
-            continue;
-        }
-
-        /* Upper 6 bits must have 2 transitions */
-        tmp = (int16_t)aa_high >> 10;
-        if (__builtin_popcount(tmp ^ (tmp >> 1)) < 2) {
-            continue;
-        }
-
-        /* Cannot be access address or be 1 bit different */
-        aa = aa_high;
-        aa = (aa << 16) | aa_low;
-        bits_diff = 0;
-        temp = aa ^ BLE_ACCESS_ADDR_ADV;
-        for (mask = 0x00000001; mask != 0; mask <<= 1) {
-            if (mask & temp) {
-                ++bits_diff;
-                if (bits_diff > 1) {
-                    break;
-                }
-            }
-        }
-        if (bits_diff <= 1) {
-            continue;
-        }
-
-        /* Cannot have more than 24 transitions */
-        transitions = 0;
-        consecutive = 1;
-        ones = 0;
-        mask = 0x00000001;
-        while (mask < 0x80000000) {
-            prev_bit = aa & mask;
-            mask <<= 1;
-            if (mask & aa) {
-                if (prev_bit == 0) {
-                    ++transitions;
-                    consecutive = 1;
-                } else {
-                    ++consecutive;
-                }
-            } else {
-                if (prev_bit == 0) {
-                    ++consecutive;
-                } else {
-                    ++transitions;
-                    consecutive = 1;
-                }
-            }
-
-            if (prev_bit) {
-                ones++;
-            }
-
-            /* 8 lsb should have at least three 1 */
-            if (mask == 0x00000100 && ones < 3) {
-                break;
-            }
-
-            /* 16 lsb should have no more than 11 transitions */
-            if (mask == 0x00010000 && transitions > 11) {
-                break;
-            }
-
-            /* This is invalid! */
-            if (consecutive > 6) {
-                /* Make sure we always detect invalid sequence below */
-                mask = 0;
-                break;
-            }
-        }
-
-        /* Invalid sequence found */
-        if (mask != 0x80000000) {
-            continue;
-        }
-
-        /* Cannot be more than 24 transitions */
-        if (transitions > 24) {
-            continue;
-        }
-
-        /* We have a valid access address */
-        break;
+    /* All four bytes cannot be equal */
+    if (aa_low == aa_high) {
+        return 0;
     }
+
+    /* Upper 6 bits must have 2 transitions */
+    tmp = (int16_t)aa_high >> 10;
+    if (__builtin_popcount(tmp ^ (tmp >> 1)) < 2) {
+        return 0;
+    }
+
+    /* Cannot be access address or be 1 bit different */
+    aa = aa_high;
+    aa = (aa << 16) | aa_low;
+    bits_diff = 0;
+    temp = aa ^ BLE_ACCESS_ADDR_ADV;
+    for (mask = 0x00000001; mask != 0; mask <<= 1) {
+        if (mask & temp) {
+            ++bits_diff;
+            if (bits_diff > 1) {
+                break;
+            }
+        }
+    }
+    if (bits_diff <= 1) {
+        return 0;
+    }
+
+    /* Cannot have more than 24 transitions */
+    transitions = 0;
+    consecutive = 1;
+    ones = 0;
+    mask = 0x00000001;
+    while (mask < 0x80000000) {
+        prev_bit = aa & mask;
+        mask <<= 1;
+        if (mask & aa) {
+            if (prev_bit == 0) {
+                ++transitions;
+                consecutive = 1;
+            } else {
+                ++consecutive;
+            }
+        } else {
+            if (prev_bit == 0) {
+                ++consecutive;
+            } else {
+                ++transitions;
+                consecutive = 1;
+            }
+        }
+
+        if (prev_bit) {
+            ones++;
+        }
+
+        /* 8 lsb should have at least three 1 */
+        if (mask == 0x00000100 && ones < 3) {
+            break;
+        }
+
+        /* 16 lsb should have no more than 11 transitions */
+        if (mask == 0x00010000 && transitions > 11) {
+            break;
+        }
+
+        /* This is invalid! */
+        if (consecutive > 6) {
+            /* Make sure we always detect invalid sequence below */
+            mask = 0;
+            break;
+        }
+    }
+
+    /* Invalid sequence found */
+    if (mask != 0x80000000) {
+        return 0;
+    }
+
+    /* Cannot be more than 24 transitions */
+    if (transitions > 24) {
+        return 0;
+    }
+
+    return 1;
+}
+
+uint32_t
+ble_ll_utils_calc_access_addr(void)
+{
+    uint32_t aa;
+
+    do {
+        aa = ble_ll_rand();
+    } while (!ble_ll_utils_verify_aa(aa));
+
     return aa;
 }
 
