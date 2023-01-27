@@ -25,7 +25,7 @@ import subprocess
 import tempfile
 import sys
 
-coding_style_url = "https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
+INFO_URL = "https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
 
 def get_lines_range(m: re.Match) -> range:
     first = int(m.group(1))
@@ -100,32 +100,41 @@ def main() -> bool:
     mb = run_cmd(f"git merge-base {upstream} {commit}")
     upstream = mb[0]
 
-    has_error = False
-
     cfg_fname = os.path.join(os.path.dirname(__file__), "../.style_ignored_dirs")
     with open(cfg_fname, "r") as x:
         ign_dirs = [s.strip() for s in x.readlines() if
                     s.strip() and not s.startswith("#")]
 
+    results_ok = []
+    results_fail = []
+    results_ign = []
+
     files = run_cmd(f"git diff --diff-filter=AM --name-only {upstream} {commit}")
-    for cfg_fname in files:
-        if is_ignored(cfg_fname, ign_dirs):
-            print(f"\033[90m- {cfg_fname}\033[0m")
+    for fname in files:
+        if is_ignored(fname, ign_dirs):
+            results_ign.append(fname)
             continue
 
-        diff = check_file(cfg_fname, commit, upstream)
-        if len(diff) > 0:
-            print(f"\033[31m! See {coding_style_url} for details.\033[0m")
-            print()
-            print(f"\033[31m! {cfg_fname}\033[0m")
-            print()
-            print("\n".join(diff))
-            print()
-            has_error = True
+        diff = check_file(fname, commit, upstream)
+        if len(diff) == 0:
+            results_ok.append(fname)
         else:
-            print(f"+ {cfg_fname}")
+            results_fail.append((fname, diff))
 
-    return not has_error
+    for fname in results_ign:
+        print(f"\033[90m[ NA ] {fname}\033[0m")
+    for fname in results_ok:
+        print(f"\033[32m[ OK ] {fname}\033[0m")
+    for fname, diff in results_fail:
+        print(f"\033[31m[FAIL] {fname}\033[0m")
+        print("\n".join(diff))
+        print()
+
+    if len(results_fail) > 0:
+        print(f"\033[31mYour code has style problems, see {INFO_URL} for "
+              f"details.\033[0m")
+
+    return len(results_fail) == 0
 
 
 if __name__ == "__main__":
