@@ -160,14 +160,13 @@ uint8_t ble_phy_max_data_pdu_pyld(void);
 uint32_t ble_phy_access_addr_get(void);
 
 /* Enable encryption */
-void ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
-                            uint8_t is_central);
-
+void ble_phy_encrypt_enable(const uint8_t *key);
+/* Set encryption IV */
+void ble_phy_encrypt_iv_set(const uint8_t *iv);
+/* Set encryption packet counter and direction bit */
+void ble_phy_encrypt_counter_set(uint64_t counter, uint8_t dir_bit);
 /* Disable encryption */
 void ble_phy_encrypt_disable(void);
-
-/* Set the packet counters and dir used by LE encyption */
-void ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir);
 
 /* Enable phy resolving list */
 void ble_phy_resolv_list_enable(void);

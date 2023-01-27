@@ -342,24 +342,18 @@ ble_phy_restart_rx(void)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-/**
- * Called to enable encryption at the PHY. Note that this state will persist
- * in the PHY; in other words, if you call this function you have to call
- * disable so that future PHY transmits/receives will not be encrypted.
- *
- * @param pkt_counter
- * @param iv
- * @param key
- * @param is_master
- */
 void
-ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
-                       uint8_t is_master)
+ble_phy_encrypt_enable(const uint8_t *key)
 {
 }
 
 void
-ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
+ble_phy_encrypt_iv_set(const uint8_t *iv)
+{
+}
+
+void
+ble_phy_encrypt_counter_set(uint64_t counter, uint8_t dir_bit)
 {
 }
 

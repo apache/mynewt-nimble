@@ -859,10 +859,10 @@ ble_ll_conn_start_rx_encrypt(void *arg)
 
     connsm = (struct ble_ll_conn_sm *)arg;
     CONN_F_ENCRYPTED(connsm) = 1;
-    ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
-                           connsm->enc_data.iv,
-                           connsm->enc_data.enc_block.cipher_text,
-                           !CONN_IS_CENTRAL(connsm));
+    ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
+    ble_phy_encrypt_iv_set(connsm->enc_data.iv);
+    ble_phy_encrypt_counter_set(connsm->enc_data.rx_pkt_cntr,
+                                !CONN_IS_CENTRAL(connsm));
 }
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -905,8 +905,8 @@ ble_ll_conn_continue_rx_encrypt(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
-    ble_phy_encrypt_set_pkt_cntr(connsm->enc_data.rx_pkt_cntr,
-                                 !CONN_IS_CENTRAL(connsm));
+    ble_phy_encrypt_counter_set(connsm->enc_data.rx_pkt_cntr,
+                                !CONN_IS_CENTRAL(connsm));
 }
 #endif
 
@@ -1362,10 +1362,10 @@ conn_tx_pdu:
          */
         CONN_F_ENCRYPTED(connsm) = 1;
         connsm->enc_data.tx_encrypted = 1;
-        ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
-                               connsm->enc_data.iv,
-                               connsm->enc_data.enc_block.cipher_text,
-                               CONN_IS_CENTRAL(connsm));
+        ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
+        ble_phy_encrypt_iv_set(connsm->enc_data.iv);
+        ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr,
+                                    CONN_IS_CENTRAL(connsm));
     } else if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_REQ)) {
         /*
          * Only the peripheral sends this and it gets sent unencrypted but
@@ -1398,10 +1398,10 @@ conn_tx_pdu:
         case BLE_LL_CONN_ROLE_PERIPHERAL:
             CONN_F_ENCRYPTED(connsm) = 1;
             connsm->enc_data.tx_encrypted = 1;
-            ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
-                                   connsm->enc_data.iv,
-                                   connsm->enc_data.enc_block.cipher_text,
-                                   CONN_IS_CENTRAL(connsm));
+            ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
+            ble_phy_encrypt_iv_set(connsm->enc_data.iv);
+            ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr,
+                                        CONN_IS_CENTRAL(connsm));
             if (txend_func == NULL) {
                 txend_func = ble_ll_conn_start_rx_unencrypt;
             } else {
@@ -1417,8 +1417,8 @@ conn_tx_pdu:
         /* If encrypted set packet counter */
         if (CONN_F_ENCRYPTED(connsm)) {
             connsm->enc_data.tx_encrypted = 1;
-            ble_phy_encrypt_set_pkt_cntr(connsm->enc_data.tx_pkt_cntr,
-                                         CONN_IS_CENTRAL(connsm));
+            ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr,
+                                        CONN_IS_CENTRAL(connsm));
             if (txend_func == NULL) {
                 txend_func = ble_ll_conn_continue_rx_encrypt;
             }
@@ -1526,10 +1526,9 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         if (!rc) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
             if (CONN_F_ENCRYPTED(connsm)) {
-                ble_phy_encrypt_enable(connsm->enc_data.tx_pkt_cntr,
-                                       connsm->enc_data.iv,
-                                       connsm->enc_data.enc_block.cipher_text,
-                                       1);
+                ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
+                ble_phy_encrypt_iv_set(connsm->enc_data.iv);
+                ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr, 1);
             } else {
                 ble_phy_encrypt_disable();
             }
@@ -1551,10 +1550,9 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     case BLE_LL_CONN_ROLE_PERIPHERAL:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (CONN_F_ENCRYPTED(connsm)) {
-            ble_phy_encrypt_enable(connsm->enc_data.rx_pkt_cntr,
-                                   connsm->enc_data.iv,
-                                   connsm->enc_data.enc_block.cipher_text,
-                                   1);
+            ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
+            ble_phy_encrypt_iv_set(connsm->enc_data.iv);
+            ble_phy_encrypt_counter_set(connsm->enc_data.rx_pkt_cntr, 1);
         } else {
             ble_phy_encrypt_disable();
         }
