@@ -22,11 +22,26 @@ name: Build check
 on: [push, pull_request]
 
 jobs:
+  populate-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.set-matrix.outputs.targets }}
+      targets_native: ${{ steps.set-matrix.outputs.targets_native }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: set-matrix
+        shell: bash
+        run: |
+             echo "::set-output name=targets::$(ls .github/targets | jq -R -s -c 'split("\n")[:-1]')"
+             echo "::set-output name=targets_native::$(ls .github/targets_native | jq -R -s -c 'split("\n")[:-1]')"
+
   targets:
     name: Build all test targets
+    needs: populate-targets
     strategy:
       fail-fast: false
       matrix:
+        targets: ${{ fromJson(needs.populate-targets.outputs.targets) }}
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -54,15 +69,43 @@ jobs:
              git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
              git clone --depth=1 https://github.com/apache/mynewt-mcumgr repos/apache-mynewt-mcumgr
              git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
-      - name: Build targets
+      - name: Build target
         shell: bash
         run: |
-             cp -r .github/targets ci_targets
-             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
-             rm -rf ci_targets
-      - name: Build native targets
-        if: matrix.os == 'ubuntu-latest'
+             cp -r .github/targets/${{ matrix.targets }} targets
+             newt build ${{ matrix.targets }}
+
+  targets_native:
+    name: Build native test targets
+    needs: populate-targets
+    strategy:
+      fail-fast: false
+      matrix:
+        targets_native: ${{ fromJson(needs.populate-targets.outputs.targets_native) }}
+    # currently native targets are only supported on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.16'
+      - name: Install Dependencies
         run: |
-             cp -r .github/targets_native ci_targets
-             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
-             rm -rf ci_targets
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib
+      - name: Install newt
+        run: |
+             go version
+             go get mynewt.apache.org/newt/newt@latest
+      - name: Setup project
+        run: |
+             cp .github/project.yml project.yml
+             mkdir repos
+             git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
+             git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
+             git clone --depth=1 https://github.com/apache/mynewt-mcumgr repos/apache-mynewt-mcumgr
+             git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
+      - name: Build native target
+        run: |
+             cp -r .github/targets_native/${{ matrix.targets_native }} targets
+             newt build ${{ matrix.targets_native }}
