@@ -1598,19 +1598,12 @@ ble_phy_rx_enc_start(uint8_t len)
 }
 
 void
-ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
-                       uint8_t is_master)
+ble_phy_encrypt_enable(const uint8_t *key)
 {
     struct ble_phy_encrypt_obj *enc;
 
     enc = &g_ble_phy_encrypt_data;
     memcpy(enc->key, key, 16);
-    memcpy(&enc->b0[6], iv, 8);
-    put_le32(&enc->b0[1], pkt_counter);
-    enc->b0[5] = is_master ? 0x80 : 0;
-    memcpy(&enc->ai[6], iv, 8);
-    put_le32(&enc->ai[1], pkt_counter);
-    enc->ai[5] = enc->b0[5];
 
     g_ble_phy_data.phy_encrypted = 1;
 
@@ -1631,14 +1624,25 @@ ble_phy_encrypt_enable(uint64_t pkt_counter, uint8_t *iv, uint8_t *key,
 }
 
 void
-ble_phy_encrypt_set_pkt_cntr(uint64_t pkt_counter, int dir)
+ble_phy_encrypt_iv_set(const uint8_t *iv)
 {
     struct ble_phy_encrypt_obj *enc;
 
     enc = &g_ble_phy_encrypt_data;
-    put_le32(&enc->b0[1], pkt_counter);
-    enc->b0[5] = dir ? 0x80 : 0;
-    put_le32(&enc->ai[1], pkt_counter);
+    memcpy(&enc->b0[6], iv, 8);
+    memcpy(&enc->ai[6], iv, 8);
+}
+
+
+void
+ble_phy_encrypt_counter_set(uint64_t counter, uint8_t dir_bit)
+{
+    struct ble_phy_encrypt_obj *enc;
+
+    enc = &g_ble_phy_encrypt_data;
+    put_le32(&enc->b0[1], counter);
+    enc->b0[5] = dir_bit ? 0x80 : 0;
+    put_le32(&enc->ai[1], counter);
     enc->ai[5] = enc->b0[5];
 
     CMAC->CM_CRYPTO_CTRL_REG = CMAC_CM_CRYPTO_CTRL_REG_CM_CRYPTO_SW_REQ_PBUF_CLR_Msk;
