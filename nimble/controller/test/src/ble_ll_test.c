@@ -27,11 +27,13 @@
 #if MYNEWT_VAL(SELFTEST)
 
 TEST_SUITE_DECL(ble_ll_aa_test_suite);
+TEST_SUITE_DECL(ble_ll_crypto_test_suite);
 
 int
 main(int argc, char **argv)
 {
     ble_ll_aa_test_suite();
+    ble_ll_crypto_test_suite();
     ble_ll_csa2_test_suite();
     return tu_any_failed;
 }
