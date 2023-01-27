@@ -29,6 +29,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
@@ -781,7 +782,7 @@ ble_ll_adv_aux_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
             offset = 0;
         } else if (advsm->rx_ble_hdr) {
             offset = ble_ll_tmr_t2u(AUX_NEXT(advsm)->start_time - advsm->rx_ble_hdr->beg_cputime);
-            offset -= (advsm->rx_ble_hdr->rem_usecs + ble_ll_pdu_tx_time_get(12, advsm->sec_phy) + BLE_LL_IFS);
+            offset -= (advsm->rx_ble_hdr->rem_usecs + ble_ll_pdu_us(12, advsm->sec_phy) + BLE_LL_IFS);
         } else {
             offset = ble_ll_tmr_t2u(AUX_NEXT(advsm)->start_time - aux->start_time);
         }
@@ -1206,7 +1207,7 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
     /* Set end time to maximum time this schedule item may take */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
+        max_usecs = ble_ll_pdu_us(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
 
         if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
             max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
@@ -1218,10 +1219,10 @@ ble_ll_adv_set_sched(struct ble_ll_adv_sm *advsm)
          * In ADV_EXT_IND we always set only ADI and AUX so the payload length
          * is always 7 bytes.
          */
-        max_usecs = ble_ll_pdu_tx_time_get(7, advsm->pri_phy);
+        max_usecs = ble_ll_pdu_us(7, advsm->pri_phy);
     }
 #else
-    max_usecs = ble_ll_pdu_tx_time_get(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
+    max_usecs = ble_ll_pdu_us(advsm->adv_pdu_len, BLE_PHY_MODE_1M);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         max_usecs += BLE_LL_SCHED_DIRECT_ADV_MAX_USECS;
@@ -1509,7 +1510,7 @@ ble_ll_adv_aux_check_data_itvl(struct ble_ll_adv_sm *advsm, uint16_t props,
      * account, but we do not support max skip anyway for now.
      */
 
-    max_usecs = 3 * (ble_ll_pdu_tx_time_get(7, pri_phy) + 300) +
+    max_usecs = 3 * (ble_ll_pdu_us(7, pri_phy) + 300) +
                 BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_MAFS_DELAY);
 
     data_offset = 0;
@@ -1518,7 +1519,7 @@ ble_ll_adv_aux_check_data_itvl(struct ble_ll_adv_sm *advsm, uint16_t props,
         pdu_len = ble_ll_adv_aux_calculate_payload(advsm, props, data, data_offset,
                                                    &data_len, &ext_hdr_flags);
 
-        max_usecs += ble_ll_pdu_tx_time_get(pdu_len, sec_phy);
+        max_usecs += ble_ll_pdu_us(pdu_len, sec_phy);
         max_usecs += BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY);
 
         data_offset += data_len;
@@ -1578,7 +1579,7 @@ ble_ll_adv_aux_schedule_next(struct ble_ll_adv_sm *advsm)
     BLE_LL_ASSERT(rem_data_len > 0);
 
     ble_ll_adv_aux_calculate(advsm, aux_next, next_data_offset);
-    max_usecs = ble_ll_pdu_tx_time_get(aux_next->payload_len, advsm->sec_phy);
+    max_usecs = ble_ll_pdu_us(aux_next->payload_len, advsm->sec_phy);
 
     aux_next->start_time = aux->sch.end_time +
                            ble_ll_tmr_u2t_up(BLE_LL_MAFS +
@@ -1623,13 +1624,13 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
 
     /* Set end time to maximum time this schedule item may take */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-        max_usecs = ble_ll_pdu_tx_time_get(aux->payload_len, advsm->sec_phy) +
+        max_usecs = ble_ll_pdu_us(aux->payload_len, advsm->sec_phy) +
                     BLE_LL_IFS +
                     /* AUX_CONN_REQ */
-                    ble_ll_pdu_tx_time_get(34 + 14, advsm->sec_phy)  +
+                    ble_ll_pdu_us(34 + 14, advsm->sec_phy)  +
                     BLE_LL_IFS +
                     /* AUX_CONN_RSP */
-                    ble_ll_pdu_tx_time_get(14, advsm->sec_phy);
+                    ble_ll_pdu_us(14, advsm->sec_phy);
     } else if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) {
         /* For scannable advertising we need to calculate how much time we
          * need for AUX_ADV_IND along with AUX_SCAN_REQ, AUX_SCAN_RSP and
@@ -1641,16 +1642,16 @@ ble_ll_adv_aux_schedule_first(struct ble_ll_adv_sm *advsm)
          *  2. length of AUX_ADV_IND is calculated by special function:
          *      ble_ll_adv_aux_scannable_pdu_payload_len()
          */
-        max_usecs = ble_ll_pdu_tx_time_get(ble_ll_adv_aux_scannable_pdu_payload_len(advsm),
+        max_usecs = ble_ll_pdu_us(ble_ll_adv_aux_scannable_pdu_payload_len(advsm),
                                            advsm->sec_phy) +
                     BLE_LL_IFS +
                     /* AUX_SCAN_REQ */
-                    ble_ll_pdu_tx_time_get(12, advsm->sec_phy)  +
+                    ble_ll_pdu_us(12, advsm->sec_phy)  +
                     BLE_LL_IFS +
                     /* AUX_SCAN_RSP */
-                    ble_ll_pdu_tx_time_get(aux->payload_len, advsm->sec_phy);
+                    ble_ll_pdu_us(aux->payload_len, advsm->sec_phy);
     } else {
-        max_usecs = ble_ll_pdu_tx_time_get(aux->payload_len, advsm->sec_phy);
+        max_usecs = ble_ll_pdu_us(aux->payload_len, advsm->sec_phy);
     }
 
     sch = &aux->sch;
@@ -2385,7 +2386,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     ble_ll_adv_sync_calculate(advsm, sync, 0, chan);
 
     /* sync is always non-connectable and non-scannable*/
-    max_usecs = ble_ll_pdu_tx_time_get(sync->payload_len, advsm->sec_phy);
+    max_usecs = ble_ll_pdu_us(sync->payload_len, advsm->sec_phy);
 
     sch = &sync->sch;
 
@@ -2471,7 +2472,7 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
                                  advsm->periodic_chanmap);
 
     ble_ll_adv_sync_calculate(advsm, sync_next, next_data_offset, chan);
-    max_usecs = ble_ll_pdu_tx_time_get(sync_next->payload_len, advsm->sec_phy);
+    max_usecs = ble_ll_pdu_us(sync_next->payload_len, advsm->sec_phy);
 
     sync_next->start_time = sync->sch.end_time +
                             ble_ll_tmr_u2t_up(BLE_LL_MAFS +
@@ -3862,7 +3863,7 @@ ble_ll_adv_periodic_check_data_itvl(uint16_t payload_len, uint16_t props,
     while (offset < payload_len) {
         pdu_len = ble_ll_adv_sync_get_pdu_len(payload_len, &offset, props);
 
-        max_usecs += ble_ll_pdu_tx_time_get(pdu_len, phy);
+        max_usecs += ble_ll_pdu_us(pdu_len, phy);
         max_usecs += BLE_LL_MAFS + MYNEWT_VAL(BLE_LL_SCHED_AUX_CHAIN_MAFS_DELAY);
     }
 

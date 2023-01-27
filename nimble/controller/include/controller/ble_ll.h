@@ -495,10 +495,6 @@ int ble_ll_is_valid_random_addr(const uint8_t *addr);
 int ble_ll_is_valid_own_addr_type(uint8_t own_addr_type,
                                   const uint8_t *random_addr);
 
-/* Calculate the amount of time in microseconds a PDU with payload length of
- * 'payload_len' will take to transmit on a PHY 'phy_mode'. */
-uint32_t ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode);
-
 /* Calculate maximum octets of PDU payload which can be transmitted during
  * 'usecs' on a PHY 'phy_mode'. */
 uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
