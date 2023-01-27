@@ -183,6 +183,32 @@ ble_ll_utils_calc_seed_aa(void)
     return seed_aa;
 }
 
+uint32_t
+ble_ll_utils_calc_big_aa(uint32_t seed_aa, uint32_t n)
+{
+    uint32_t d;
+    uint32_t dw;
+
+    /* Core 5.3, Vol 6, Part B, 2.1.2 */
+    /* TODO simplify? */
+    d = ((35 * n) + 42) % 128;
+    dw = (!!(d & (1 << 0)) << 31) |
+         (!!(d & (1 << 0)) << 30) |
+         (!!(d & (1 << 0)) << 29) |
+         (!!(d & (1 << 0)) << 28) |
+         (!!(d & (1 << 0)) << 27) |
+         (!!(d & (1 << 0)) << 26) |
+         (!!(d & (1 << 1)) << 25) |
+         (!!(d & (1 << 6)) << 24) |
+         (!!(d & (1 << 1)) << 23) |
+         (!!(d & (1 << 5)) << 21) |
+         (!!(d & (1 << 4)) << 20) |
+         (!!(d & (1 << 3)) << 18) |
+         (!!(d & (1 << 2)) << 17);
+
+    return seed_aa ^ dw;
+}
+
 uint8_t
 ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
 {
