@@ -1484,7 +1484,7 @@ ble_ll_read_supp_features(void)
 int
 ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
 {
-    const struct ble_hci_le_set_host_feat_cp *cmd = (const void *) cmdbuf;
+    const struct ble_hci_le_set_host_feature_cp *cmd = (const void *) cmdbuf;
     uint64_t mask;
 
     if (len != sizeof(*cmd)) {
@@ -1497,7 +1497,7 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
     }
 #endif
 
-    if ((cmd->bit_num > 0x3F) || (cmd->val > 1)) {
+    if ((cmd->bit_num > 0x3F) || (cmd->bit_val > 1)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1506,7 +1506,7 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNSUPPORTED;
     }
 
-    if (cmd->val == 0) {
+    if (cmd->bit_val == 0) {
         g_ble_ll_data.ll_supp_features &= ~(mask);
     } else {
         g_ble_ll_data.ll_supp_features |= mask;
