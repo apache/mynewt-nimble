@@ -17,13 +17,10 @@
  * under the License.
  */
 
-#include <stddef.h>
-#include <string.h>
-#include "testutil/testutil.h"
-#include "controller/ble_ll_test.h"
-#include "controller/ble_ll_conn.h"
-#include "controller/ble_ll_utils.h"
-#include "ble_ll_csa2_test.h"
+#include <stdint.h>
+#include <controller/ble_ll_conn.h>
+#include <controller/ble_ll_utils.h>
+#include <testutil/testutil.h>
 
 TEST_CASE_SELF(ble_ll_csa2_test_1)
 {
