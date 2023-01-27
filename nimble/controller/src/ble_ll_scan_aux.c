@@ -31,6 +31,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_scan_aux.h"
@@ -747,7 +748,7 @@ ble_ll_scan_aux_sched(struct ble_ll_scan_aux_data *aux, uint32_t pdu_time,
         return -1;
     }
 
-    max_aux_time_us = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
+    max_aux_time_us = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_AUX_PDU_LEN),
                                              ble_ll_phy_to_phy_mode(aux->sec_phy, 0));
 
     rc = ble_ll_sched_scan_aux(&aux->sch, pdu_time, pdu_time_rem, offset_us,

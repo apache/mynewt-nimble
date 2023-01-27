@@ -28,6 +28,7 @@
 #include "nimble/hci_common.h"
 #include "nimble/transport.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
@@ -1268,8 +1269,8 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
 #endif
 
         ticks = (BLE_LL_IFS * 3) + connsm->ota_max_rx_time +
-            ble_ll_pdu_tx_time_get(next_txlen, tx_phy_mode) +
-            ble_ll_pdu_tx_time_get(cur_txlen, tx_phy_mode);
+                ble_ll_pdu_us(next_txlen, tx_phy_mode) +
+                ble_ll_pdu_us(cur_txlen, tx_phy_mode);
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
@@ -1677,10 +1678,10 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
             if (rem_bytes > connsm->eff_max_tx_octets) {
                 rem_bytes = connsm->eff_max_tx_octets;
             }
-            usecs = ble_ll_pdu_tx_time_get(rem_bytes, tx_phy_mode);
+            usecs = ble_ll_pdu_us(rem_bytes, tx_phy_mode);
         } else {
             /* We will send empty pdu (just a LL header) */
-            usecs = ble_ll_pdu_tx_time_get(0, tx_phy_mode);
+            usecs = ble_ll_pdu_us(0, tx_phy_mode);
         }
         usecs += (BLE_LL_IFS * 2) + connsm->ota_max_rx_time;
 
@@ -2132,7 +2133,7 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
 #else
         phy_mode = BLE_PHY_MODE_1M;
 #endif
-        ota_time = ble_ll_pdu_tx_time_get(connsm->eff_max_rx_octets, phy_mode);
+        ota_time = ble_ll_pdu_us(connsm->eff_max_rx_octets, phy_mode);
         connsm->ota_max_rx_time = min(ota_time, connsm->eff_max_rx_time);
     }
 
@@ -2787,7 +2788,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
         usecs = rxhdr->rem_usecs + 1250 +
                 (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS) +
-                ble_ll_pdu_tx_time_get(BLE_CONNECT_REQ_LEN,
+                ble_ll_pdu_us(BLE_CONNECT_REQ_LEN,
                                        rxhdr->rxinfo.phy_mode);
 
         if (rxhdr->rxinfo.channel < BLE_PHY_NUM_DATA_CHANS) {
@@ -3689,7 +3690,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     rx_phy_mode = BLE_PHY_MODE_1M;
 #endif
     add_usecs = rxhdr->rem_usecs +
-            ble_ll_pdu_tx_time_get(rx_pyld_len, rx_phy_mode);
+                ble_ll_pdu_us(rx_pyld_len, rx_phy_mode);
 
     /*
      * Check the packet CRC. A connection event can continue even if the
@@ -4341,11 +4342,9 @@ ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
 #endif
 
 #define MAX_TIME_UNCODED(_maxbytes) \
-        ble_ll_pdu_tx_time_get(_maxbytes + BLE_LL_DATA_MIC_LEN, \
-                               BLE_PHY_MODE_1M);
+    ble_ll_pdu_us(_maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_1M);
 #define MAX_TIME_CODED(_maxbytes) \
-        ble_ll_pdu_tx_time_get(_maxbytes + BLE_LL_DATA_MIC_LEN, \
-                               BLE_PHY_MODE_CODED_125KBPS);
+    ble_ll_pdu_us(_maxbytes + BLE_LL_DATA_MIC_LEN, BLE_PHY_MODE_CODED_125KBPS);
 
 /**
  * Called to reset the connection module. When this function is called the

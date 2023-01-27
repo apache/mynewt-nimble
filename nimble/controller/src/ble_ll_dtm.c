@@ -26,6 +26,7 @@
 #include "os/os.h"
 #include "stats/stats.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_rfmgmt.h"
@@ -269,7 +270,7 @@ ble_ll_dtm_calculate_itvl(struct dtm_ctx *ctx, uint8_t len,
     uint32_t itvl_usec;
 
     /* Calculate interval as per spec Bluetooth 5.0 Vol 6. Part F, 4.1.6 */
-    l = ble_ll_pdu_tx_time_get(len + BLE_LL_PDU_HDR_LEN, phy_mode);
+    l = ble_ll_pdu_us(len, phy_mode);
     itvl_usec = ((l + 249 + 624) / 625) * 625;
 
 #if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)

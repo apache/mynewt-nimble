@@ -33,6 +33,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
@@ -376,25 +377,6 @@ uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 
 /** Our random address */
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
-
-static const uint16_t g_ble_ll_pdu_header_tx_time[BLE_PHY_NUM_MODE] =
-{
-    [BLE_PHY_MODE_1M] =
-            (BLE_LL_PREAMBLE_LEN + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
-                    BLE_LL_PDU_HDR_LEN) << 3,
-    [BLE_PHY_MODE_2M] =
-            (BLE_LL_PREAMBLE_LEN * 2 + BLE_LL_ACC_ADDR_LEN + BLE_LL_CRC_LEN +
-                    BLE_LL_PDU_HDR_LEN) << 2,
-    /* For Coded PHY we have exact TX times provided by specification:
-     * - Preamble, Access Address, CI, TERM1 (always coded as S=8)
-     * - PDU, CRC, TERM2 (coded as S=2 or S=8)
-     * (Vol 6, Part B, 2.2).
-     */
-    [BLE_PHY_MODE_CODED_125KBPS] =
-            (80 + 256 + 16 + 24 + 8 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
-    [BLE_PHY_MODE_CODED_500KBPS] =
-            (80 + 256 + 16 + 24 + 2 * (BLE_LL_PDU_HDR_LEN * 8 + 24 + 3)),
-};
 
 /**
  * Counts the number of advertising PDU's received, by type. For advertising
@@ -1700,37 +1682,6 @@ ble_ll_reset(void)
     return rc;
 }
 
-uint32_t
-ble_ll_pdu_tx_time_get(uint16_t payload_len, int phy_mode)
-{
-    uint32_t usecs;
-
-#if (BLE_LL_BT5_PHY_SUPPORTED)
-    if (phy_mode == BLE_PHY_MODE_1M) {
-        /* 8 usecs per byte */
-        usecs = payload_len << 3;
-    } else if (phy_mode == BLE_PHY_MODE_2M) {
-        /* 4 usecs per byte */
-        usecs = payload_len << 2;
-    } else if (phy_mode == BLE_PHY_MODE_CODED_125KBPS) {
-        /* S=8 => 8 * 8 = 64 usecs per byte */
-        usecs = payload_len << 6;
-    } else if (phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
-        /* S=2 => 2 * 8 = 16 usecs per byte */
-        usecs = payload_len << 4;
-    } else {
-        BLE_LL_ASSERT(0);
-    }
-
-    usecs += g_ble_ll_pdu_header_tx_time[phy_mode];
-#else
-    usecs = (((payload_len) + BLE_LL_PDU_HDR_LEN + BLE_LL_ACC_ADDR_LEN
-            + BLE_LL_PREAMBLE_LEN + BLE_LL_CRC_LEN) << 3);
-#endif
-
-    return usecs;
-}
-
 uint16_t
 ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
 {
@@ -1739,7 +1690,7 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
 
     BLE_LL_ASSERT(phy_mode < BLE_PHY_NUM_MODE);
 
-    header_tx_time = g_ble_ll_pdu_header_tx_time[phy_mode];
+    header_tx_time = ble_ll_pdu_us(0, phy_mode);
 
     /*
      * Current conn max tx time can be too short to even send a packet header

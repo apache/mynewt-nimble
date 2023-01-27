@@ -23,6 +23,7 @@
 #include "ble/xcvr.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
@@ -680,7 +681,7 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
 
     ble_ll_tmr_sub(&start_time, &start_time_rem_usecs, window_widening);
 
-    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
+    dur = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                  phy_mode);
     end_time = start_time + ble_ll_tmr_u2t(dur);
 
@@ -729,7 +730,7 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
 
     ble_ll_tmr_add(&start_time, &start_time_rem_usecs, offset);
 
-    dur = ble_ll_pdu_tx_time_get(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
+    dur = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
                                   phy_mode);
     end_time = start_time + ble_ll_tmr_u2t(dur);
 
