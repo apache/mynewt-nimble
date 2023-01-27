@@ -2126,6 +2126,8 @@ ble_phy_disable(void)
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();
 
+    g_ble_phy_data.phy_transition_late = 0;
+
 #if PHY_USE_FEM
     phy_fem_disable();
 #endif
