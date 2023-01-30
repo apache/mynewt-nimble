@@ -165,6 +165,8 @@ uint32_t ble_phy_access_addr_get(void);
 
 /* Enable encryption */
 void ble_phy_encrypt_enable(const uint8_t *key);
+/* Set mask for PDU header (see Core 5.3, Vol 6, Part E, 2.2) */
+void ble_phy_encrypt_header_mask_set(uint8_t mask);
 /* Set encryption IV */
 void ble_phy_encrypt_iv_set(const uint8_t *iv);
 /* Set encryption packet counter and direction bit */

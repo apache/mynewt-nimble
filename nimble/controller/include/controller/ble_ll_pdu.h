@@ -26,6 +26,11 @@
 extern "C" {
 #endif
 
+/* Header mask for keystream generation */
+#define BLE_LL_PDU_HEADERMASK_DATA  (0xe3)
+#define BLE_LL_PDU_HEADERMASK_BIS   (0xc3)
+#define BLE_LL_PDU_HEADERMASK_CIS   (0xa3)
+
 #define BLE_LL_PDU_PREAMBLE_1M_LEN  (1)
 #define BLE_LL_PDU_PREAMBLE_2M_LEN  (2)
 #define BLE_LL_PDU_AA_LEN           (4)
