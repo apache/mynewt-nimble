@@ -1700,6 +1700,17 @@ ble_phy_encrypt_enable(const uint8_t *key)
     g_ble_phy_data.phy_encrypted = 1;
     NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Disabled;
     NRF_CCM->ENABLE = CCM_ENABLE_ENABLE_Enabled;
+#ifdef NRF5340_XXAA
+    NRF_CCM->HEADERMASK = BLE_LL_PDU_HEADERMASK_DATA;
+#endif
+}
+
+void
+ble_phy_encrypt_header_mask_set(uint8_t mask)
+{
+#ifdef NRF5340_XXAA
+    NRF_CCM->HEADERMASK = mask;
+#endif
 }
 
 void
