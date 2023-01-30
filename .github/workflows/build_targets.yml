@@ -57,12 +57,12 @@ jobs:
       - name: Build targets
         shell: bash
         run: |
-             cp -r .github/targets ci_targets
-             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
-             rm -rf ci_targets
+             cp -r .github/targets targets_ci
+             ls targets_ci | xargs -n1 sh -c 'echo "Testing $0"; newt build -q targets_ci/$0'
+             rm -rf targets_ci
       - name: Build native targets
         if: matrix.os == 'ubuntu-latest'
         run: |
-             cp -r .github/targets_native ci_targets
-             ls ci_targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
-             rm -rf ci_targets
+             cp -r .github/targets_native targets_ci
+             ls targets_ci | xargs -n1 sh -c 'echo "Testing $0"; newt build -q  targets_ci/$0'
+             rm -rf targets_ci

@@ -17,8 +17,8 @@
 # under the License.
 #
 
-### Package: targets/nordic_pca10056_btshell
-pkg.name: "targets/nordic_pca10056_ext_advertiser"
+### Package: "targets_ci/nordic_pca10056_btshell
+pkg.name: "targets_ci/nordic_pca10056_ext_advertiser"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 

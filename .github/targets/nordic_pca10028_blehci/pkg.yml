@@ -17,8 +17,8 @@
 # under the License.
 #
 
-### Package: targets/blehci-nordic_pca10028
-pkg.name: "targets/nordic_pca10028_blehci"
+### Package: "targets_ci/blehci-nordic_pca10028
+pkg.name: "targets_ci/nordic_pca10028_blehci"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 
