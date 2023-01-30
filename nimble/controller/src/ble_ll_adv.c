@@ -5310,6 +5310,24 @@ ble_ll_adv_sync_get(uint8_t handle)
 }
 
 int
+ble_ll_adv_sync_sched_get(struct ble_ll_adv_sm *advsm, uint32_t *start_time,
+                          uint32_t *end_time)
+{
+    struct ble_ll_adv_sync *sync;
+
+    if (!advsm || !advsm->periodic_adv_active) {
+        return -EIO;
+    }
+
+    sync = SYNC_CURRENT(advsm);
+
+    *start_time = sync->sch.start_time + g_ble_ll_sched_offset_ticks;
+    *end_time = sync->sch.end_time;
+
+    return 0;
+}
+
+int
 ble_ll_adv_sync_big_add(struct ble_ll_adv_sm *advsm,
                         struct ble_ll_iso_big *big)
 {

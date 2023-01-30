@@ -844,14 +844,14 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 int
-ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first)
+ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first, int fixed)
 {
     os_sr_t sr;
     int rc;
 
     OS_ENTER_CRITICAL(sr);
 
-    if (first) {
+    if (first && !fixed) {
         rc = ble_ll_sched_insert(sch, BLE_LL_SCHED_MAX_DELAY_ANY, preempt_none);
     } else {
         /* XXX provide better strategy for preemption */
