@@ -17,8 +17,8 @@
 # under the License.
 #
 
-### Package: targets/nordic_pca10056_btshell
-pkg.name: "targets/nordic_pca10095_btshell"
+### Package: "targets_ci/nordic_pca10056_btshell
+pkg.name: "targets_ci/nordic_pca10095_btshell"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 
