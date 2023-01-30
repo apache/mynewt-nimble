@@ -498,7 +498,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         }
 
         /* XXX this should always succeed since we preempt anything for now */
-        rc = ble_ll_sched_iso_big(&big->sch, 0);
+        rc = ble_ll_sched_iso_big(&big->sch, 0, 0);
         assert(rc == 0);
     } while (rc < 0);
 
@@ -1029,18 +1029,36 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
      * not enough for some phys to run scheduler item.
      */
 
-    /* Schedule 1st event a bit in future */
-    /* FIXME schedule 6ms in the future to avoid conflict with periodic
-     *       advertising when both are started at the same time; we should
-     *       select this value in some smart way later...
-     */
-    big->sch.start_time = ble_ll_tmr_get() + ble_ll_tmr_u2t(6000);
+    uint32_t start_time, end_time, big_time;
+    uint32_t sync_delay_ticks = ble_ll_tmr_u2t_up(big->sync_delay);
+    uint32_t iso_interval_ticks = ble_ll_tmr_u2t_up(big->iso_interval * 1250);
+    int big_event_fixed;
+
+    rc = ble_ll_adv_sync_sched_get(big->advsm, &start_time, &end_time);
+    if (rc) {
+        /* Set 1st BIG one interval after "now", this ensures it's always
+         * scheduled in the future.
+         */
+        big_time = ble_ll_tmr_get() + iso_interval_ticks;
+        big_event_fixed = 0;
+    } else {
+        /* Set 1st BIG event directly before periodic advertising event, this
+         * way it will not overlap it even if periodic advertising data changes.
+         * Make sure it's in the future.
+         */
+        big_time = start_time - g_ble_ll_sched_offset_ticks - sync_delay_ticks - 1;
+        while (big_time - g_ble_ll_sched_offset_ticks < ble_ll_tmr_get()) {
+            big_time += iso_interval_ticks;
+        }
+        big_event_fixed = 1;
+    }
+
+    big->sch.start_time = big_time;
     big->sch.remainder = 0;
-    big->sch.end_time = big->sch.start_time +
-                        ble_ll_tmr_u2t_up(big->sync_delay) + 1;
+    big->sch.end_time = big->sch.start_time + sync_delay_ticks + 1;
     big->sch.start_time -= g_ble_ll_sched_offset_ticks;
 
-    rc = ble_ll_sched_iso_big(&big->sch, 1);
+    rc = ble_ll_sched_iso_big(&big->sch, 1, big_event_fixed);
     if (rc < 0) {
         ble_ll_iso_big_free(big);
         return -EFAULT;
