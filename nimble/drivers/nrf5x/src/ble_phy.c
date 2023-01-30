@@ -140,6 +140,10 @@ struct ble_phy_obj
     uint8_t phy_transition_late;
     uint8_t phy_rx_started;
     uint8_t phy_encrypted;
+#if PHY_USE_HEADERMASK_WORKAROUND
+    uint8_t phy_headermask;
+    uint8_t phy_headerbyte;
+#endif
     uint8_t phy_privacy;
     uint8_t phy_tx_pyld_len;
     uint8_t phy_cur_phy_mode;
@@ -1517,6 +1521,20 @@ ble_phy_isr(void)
     os_trace_isr_exit();
 }
 
+#if PHY_USE_HEADERMASK_WORKAROUND
+static void
+ble_phy_ccm_isr(void)
+{
+    volatile uint8_t *tx_buf = (uint8_t *)g_ble_phy_tx_buf;
+
+    if (NRF_CCM->EVENTS_ENDKSGEN) {
+        while (tx_buf[0] == 0xff);
+        tx_buf[0] = g_ble_phy_data.phy_headerbyte;
+        NRF_CCM->INTENCLR = CCM_INTENCLR_ENDKSGEN_Msk;
+    }
+}
+#endif
+
 /**
  * ble phy init
  *
@@ -1599,6 +1617,12 @@ ble_phy_init(void)
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
+
+#if PHY_USE_HEADERMASK_WORKAROUND
+    NVIC_SetVector(CCM_AAR_IRQn, (uint32_t)ble_phy_ccm_isr);
+    NVIC_EnableIRQ(CCM_AAR_IRQn);
+    NRF_CCM->INTENCLR = CCM_INTENCLR_ENDKSGEN_Msk;;
+#endif
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -1703,6 +1727,9 @@ ble_phy_encrypt_enable(const uint8_t *key)
 #ifdef NRF5340_XXAA
     NRF_CCM->HEADERMASK = BLE_LL_PDU_HEADERMASK_DATA;
 #endif
+#if PHY_USE_HEADERMASK_WORKAROUND
+    g_ble_phy_data.phy_headermask = BLE_LL_PDU_HEADERMASK_DATA;
+#endif
 }
 
 void
@@ -1710,6 +1737,9 @@ ble_phy_encrypt_header_mask_set(uint8_t mask)
 {
 #ifdef NRF5340_XXAA
     NRF_CCM->HEADERMASK = mask;
+#endif
+#if PHY_USE_HEADERMASK_WORKAROUND
+    g_ble_phy_data.phy_headermask = mask;
 #endif
 }
 
@@ -1914,6 +1944,15 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     /* Start key-stream generation and encryption (via short) */
     if (g_ble_phy_data.phy_encrypted) {
+#if PHY_USE_HEADERMASK_WORKAROUND
+        if (g_ble_phy_data.phy_headermask != BLE_LL_PDU_HEADERMASK_DATA) {
+            g_ble_phy_data.phy_headerbyte = dptr[0];
+            dptr[0] &= g_ble_phy_data.phy_headermask;
+            g_ble_phy_tx_buf[0] = 0xffffffff;
+            NRF_CCM->EVENTS_ENDKSGEN = 0;
+            NRF_CCM->INTENSET = CCM_INTENSET_ENDKSGEN_Msk;
+        }
+#endif
         nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
     }
 #endif
@@ -2133,6 +2172,10 @@ void
 ble_phy_disable(void)
 {
     ble_phy_trace_void(BLE_PHY_TRACE_ID_DISABLE);
+
+#if PHY_USE_HEADERMASK_WORKAROUND
+    NRF_CCM->INTENCLR = CCM_INTENCLR_ENDKSGEN_Msk;
+#endif
 
     ble_phy_stop_usec_timer();
     ble_phy_disable_irq_and_ppi();

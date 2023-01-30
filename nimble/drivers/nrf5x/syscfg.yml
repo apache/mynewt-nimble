@@ -55,6 +55,15 @@ syscfg.defs:
             This can be used to check if wfr is calculated properly.
         value: -1
 
+    BLE_PHY_NRF52_HEADERMASK_WORKAROUND:
+        description: >
+            This enables workaround for lack of HEADERMASK register on some
+            nRF52 family MCUs (notably nRF52840) which is required for enabling
+            encryption for ISO PDUs.
+            Note: this requires exclusive access to CCM_AAR interrupt and only
+                   works for TX (i.e. ISO Broadcaster).
+        value: 0
+
     BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
         description: >
             Ublox BMD-345 modules come with public address preprogrammed
