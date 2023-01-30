@@ -250,6 +250,18 @@ static const uint8_t octet_41 = OCTET(
     BIT(0) /* HCI LE Set Periodic Advertising Sync Transfer Parameters */
     BIT(1) /* HCI LE Set Default Periodic Advertising Sync Transfer Parameters */
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO)
+    BIT(5) /* HCI LE Read Buffer Size [v2] */
+    BIT(6) /* HCI LE Read ISO TX Sync */
+#endif
+);
+
+static const uint8_t octet_42 = OCTET(
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    BIT(5) /* HCI LE Create BIG */
+    BIT(6) /* HCI LE Create BIG Test */
+    BIT(7) /* HCI LE Terminate BIG */
+#endif
 );
 
 static const uint8_t octet_43 = OCTET(
@@ -314,7 +326,7 @@ static const uint8_t g_ble_ll_hci_supp_cmds[64] = {
     octet_39,
     octet_40,
     octet_41,
-    0,
+    octet_42,
     octet_43,
     octet_44,
     0,
