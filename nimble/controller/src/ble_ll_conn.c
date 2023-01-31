@@ -776,14 +776,14 @@ ble_ll_conn_calc_dci_csa1(struct ble_ll_conn_sm *conn)
 
     /* Is this a valid channel? */
     bitpos = 1 << (curchan & 0x07);
-    if (conn->chanmap[curchan >> 3] & bitpos) {
+    if (conn->chan_map[curchan >> 3] & bitpos) {
         return curchan;
     }
 
     /* Calculate remap index */
-    remap_index = curchan % conn->num_used_chans;
+    remap_index = curchan % conn->chan_map_used;
 
-    return ble_ll_utils_remapped_channel(remap_index, conn->chanmap);
+    return ble_ll_utils_chan_map_remap(conn->chan_map, remap_index);
 }
 
 /**
@@ -803,7 +803,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (CONN_F_CSA2_SUPP(conn)) {
         return ble_ll_utils_dci_csa2(conn->event_cntr, conn->channel_id,
-                                     conn->num_used_chans, conn->chanmap);
+                                     conn->chan_map_used, conn->chan_map);
     }
 #endif
 
@@ -1756,8 +1756,8 @@ ble_ll_conn_central_common_init(struct ble_ll_conn_sm *connsm)
     connsm->hop_inc = (ble_ll_rand() % 12) + 5;
 
     /* Set channel map to map requested by host */
-    connsm->num_used_chans = g_ble_ll_data.chan_map_num_used;
-    memcpy(connsm->chanmap, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
+    connsm->chan_map_used = g_ble_ll_data.chan_map_used;
+    memcpy(connsm->chan_map, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     connsm->acc_subrate_min = g_ble_ll_conn_params.acc_subrate_min;
@@ -2605,9 +2605,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
          * the queue of the central. This means that we never successfully
          * transmitted update request. Would end up killing connection
            on peripheral side. Could ignore it or see if still enqueued. */
-        connsm->num_used_chans =
-            ble_ll_utils_calc_num_used_chans(connsm->req_chanmap);
-        memcpy(connsm->chanmap, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
+        connsm->chan_map_used =
+            ble_ll_utils_chan_map_used_get(connsm->req_chanmap);
+        memcpy(connsm->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
 
         connsm->csmflags.cfbit.chanmap_update_scheduled = 0;
 
@@ -3155,7 +3155,7 @@ ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_by
     put_le16(dptr + 10, connsm->conn_itvl);
     put_le16(dptr + 12, connsm->periph_latency);
     put_le16(dptr + 14, connsm->supervision_tmo);
-    memcpy(dptr + 16, &connsm->chanmap, BLE_LL_CHAN_MAP_LEN);
+    memcpy(dptr + 16, &connsm->chan_map, BLE_LL_CHAN_MAP_LEN);
     dptr[21] = connsm->hop_inc | (connsm->central_sca << 5);
 
     *hdr_byte = pdu_data->hdr_byte;
@@ -4042,7 +4042,7 @@ ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap)
     }
 
     /* Change channel map and cause channel map update procedure to start */
-    g_ble_ll_data.chan_map_num_used = num_used_chans;
+    g_ble_ll_data.chan_map_used = num_used_chans;
     memcpy(g_ble_ll_data.chan_map, chanmap, BLE_LL_CHAN_MAP_LEN);
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -4117,7 +4117,7 @@ ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr
     connsm->conn_itvl = get_le16(dptr + 10);
     connsm->periph_latency = get_le16(dptr + 12);
     connsm->supervision_tmo = get_le16(dptr + 14);
-    memcpy(&connsm->chanmap, dptr + 16, BLE_LL_CHAN_MAP_LEN);
+    memcpy(&connsm->chan_map, dptr + 16, BLE_LL_CHAN_MAP_LEN);
     connsm->hop_inc = dptr[21] & 0x1F;
     connsm->central_sca = dptr[21] >> 5;
 
@@ -4155,8 +4155,8 @@ ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr
     connsm->peer_addr_type = pat;
 
     /* Calculate number of used channels; make sure it meets min requirement */
-    connsm->num_used_chans = ble_ll_utils_calc_num_used_chans(connsm->chanmap);
-    if (connsm->num_used_chans < 2) {
+    connsm->chan_map_used = ble_ll_utils_chan_map_used_get(connsm->chan_map);
+    if (connsm->chan_map_used < 2) {
         goto err_periph_start;
     }
 

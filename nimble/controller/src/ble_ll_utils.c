@@ -214,7 +214,7 @@ ble_ll_utils_calc_big_aa(uint32_t seed_aa, uint32_t n)
 }
 
 uint8_t
-ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
+ble_ll_utils_chan_map_remap(const uint8_t *chan_map, uint8_t remap_index)
 {
     uint8_t cntr;
     uint8_t mask;
@@ -229,7 +229,7 @@ ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
     chan = 0;
     cntr = 0;
     for (i = 0; i < BLE_LL_CHMAP_LEN; i++) {
-        usable_chans = chanmap[i];
+        usable_chans = chan_map[i];
         if (usable_chans != 0) {
             mask = 0x01;
             for (j = 0; j < 8; j++) {
@@ -251,7 +251,7 @@ ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
 }
 
 uint8_t
-ble_ll_utils_calc_num_used_chans(const uint8_t *chan_map)
+ble_ll_utils_chan_map_used_get(const uint8_t *chan_map)
 {
     return __builtin_popcountll(((uint64_t)(chan_map[4] & 0x1f) << 32) |
                                 get_le32(chan_map));
@@ -412,7 +412,7 @@ ble_ll_utils_dci_csa2(uint16_t counter, uint16_t chan_id,
 
 uint16_t
 ble_ll_utils_dci_iso_event(uint16_t counter, uint16_t chan_id,
-                           uint16_t *prn_sub_lu, uint8_t num_used_chans,
+                           uint16_t *prn_sub_lu, uint8_t chan_map_used,
                            const uint8_t *chan_map, uint16_t *remap_idx)
 {
     uint16_t prn_s;
@@ -424,7 +424,7 @@ ble_ll_utils_dci_iso_event(uint16_t counter, uint16_t chan_id,
 
     *prn_sub_lu = prn_s;
 
-    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, num_used_chans, chan_map,
+    chan_idx = ble_ll_utils_csa2_calc_chan_idx(prn_e, chan_map_used, chan_map,
                                                remap_idx);
 
     return chan_idx;
@@ -432,7 +432,7 @@ ble_ll_utils_dci_iso_event(uint16_t counter, uint16_t chan_id,
 
 uint16_t
 ble_ll_utils_dci_iso_subevent(uint16_t chan_id, uint16_t *prn_sub_lu,
-                              uint8_t num_used_chans, const uint8_t *chan_map,
+                              uint8_t chan_map_used, const uint8_t *chan_map,
                               uint16_t *remap_idx)
 {
     uint16_t prn_sub_se;
@@ -445,10 +445,10 @@ ble_ll_utils_dci_iso_subevent(uint16_t chan_id, uint16_t *prn_sub_lu,
 
     /* Core 5.3, Vol 6, Part B, 4.5.8.3.6 (enjoy!) */
     /* TODO optimize this somehow */
-    d = MAX(1, MAX(MIN(3, num_used_chans - 5),
-                   MIN(11, (num_used_chans - 10) / 2)));
+    d = MAX(1, MAX(MIN(3, chan_map_used - 5),
+                   MIN(11, (chan_map_used - 10) / 2)));
     *remap_idx = (*remap_idx + d + prn_sub_se *
-                  (num_used_chans - 2 * d + 1) / 65536) % num_used_chans;
+                  (chan_map_used - 2 * d + 1) / 65536) % chan_map_used;
 
     chan_idx = ble_ll_utils_csa2_remap2chan(*remap_idx, chan_map);
 

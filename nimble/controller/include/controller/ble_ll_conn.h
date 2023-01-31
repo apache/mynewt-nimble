@@ -240,14 +240,14 @@ struct ble_ll_conn_sm
 #endif
 
     /* Used to calculate data channel index for connection */
-    uint8_t chanmap[BLE_LL_CHAN_MAP_LEN];
+    uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
     uint8_t req_chanmap[BLE_LL_CHAN_MAP_LEN];
     uint16_t chanmap_instant;
     uint16_t channel_id; /* TODO could be union with hop and last chan used */
     uint8_t hop_inc;
     uint8_t data_chan_index;
     uint8_t last_unmapped_chan;
-    uint8_t num_used_chans;
+    uint8_t chan_map_used;
 
     /* Ack/Flow Control */
     uint8_t tx_seqnum;          /* note: can be 1 bit */

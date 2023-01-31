@@ -107,8 +107,8 @@ struct ble_ll_obj
     uint8_t ll_state;
 
     /* Global channel map */
-    uint8_t chan_map_num_used;
     uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
+    uint8_t chan_map_used;
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     /* Number of ACL data packets supported */

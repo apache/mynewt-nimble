@@ -1420,7 +1420,7 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
         if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
             memcpy(rsp->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
         } else {
-            memcpy(rsp->chan_map, connsm->chanmap, BLE_LL_CHAN_MAP_LEN);
+            memcpy(rsp->chan_map, connsm->chan_map, BLE_LL_CHAN_MAP_LEN);
         }
         rc = BLE_ERR_SUCCESS;
     }
@@ -1454,7 +1454,7 @@ ble_ll_conn_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t len)
      * channel but the Link Layer needs minimum two channels to operate. So
      * I will not allow this command if there are less than 2 channels masked.
      */
-    num_used_chans = ble_ll_utils_calc_num_used_chans(cmd->chan_map);
+    num_used_chans = ble_ll_utils_chan_map_used_get(cmd->chan_map);
     if ((num_used_chans < 2) || ((cmd->chan_map[4] & 0xe0) != 0)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
