@@ -26,6 +26,12 @@ extern "C" {
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 
+struct ble_ll_iso_big;
+
+int ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
+                                uint32_t base_ticks, uint8_t base_rem_us);
+int ble_ll_iso_big_biginfo_len(struct ble_ll_iso_big *big);
+
 void ble_ll_iso_big_chan_map_update(void);
 
 void ble_ll_iso_big_halt(void);

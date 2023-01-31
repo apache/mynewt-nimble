@@ -24,6 +24,7 @@
 #include <nimble/hci_common.h>
 #include <nimble/transport.h>
 #include <controller/ble_ll.h>
+#include <controller/ble_ll_adv.h>
 #include <controller/ble_ll_crypto.h>
 #include <controller/ble_ll_hci.h>
 #include <controller/ble_ll_iso_big.h>
@@ -90,6 +91,8 @@ struct big_params {
 };
 
 struct ble_ll_iso_big {
+    struct ble_ll_adv_sm *advsm;
+
     uint8_t handle;
     uint8_t num_bis;
     uint16_t iso_interval;
@@ -118,6 +121,8 @@ struct ble_ll_iso_big {
     uint16_t crc_init;
     uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
     uint8_t chan_map_used;
+
+    uint8_t biginfo[33];
 
     uint64_t big_counter;
     uint64_t bis_counter;
@@ -154,6 +159,113 @@ static uint8_t bis_pool_free = BIS_POOL_SIZE;
 
 static struct ble_ll_iso_big *big_pending;
 static struct ble_ll_iso_big *big_active;
+
+static void
+ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
+{
+    uint8_t *buf;
+
+    buf = big->biginfo;
+
+    /* big_offset, big_offset_units, iso_interval, num_bis */
+    put_le32(buf, (big->num_bis << 27) | (big->iso_interval << 15));
+    buf += 4;
+
+    /* nse, bn */
+    *(uint8_t *)buf = (big->bn << 5) | (big->nse);
+    buf += 1;
+
+    /* sub_interval, pto */
+    put_le24(buf,(big->pto << 20) | (big->sub_interval));
+    buf += 3;
+
+    /* bis_spacing, irc */
+    put_le24(buf, (big->irc << 20) | (big->bis_spacing));
+    buf += 3;
+
+    /* max_pdu, rfu */
+    put_le16(buf, big->max_pdu);
+    buf += 2;
+
+    /* seed_access_address */
+    put_le32(buf, seed_aa);
+    buf += 4;
+
+    /* sdu_interval, max_sdu */
+    put_le32(buf, (big->max_sdu << 20) | (big->sdu_interval));
+    buf += 4;
+
+    /* base_crc_init */
+    put_le16(buf, big->crc_init);
+    buf += 2;
+
+    /* chm, phy */
+    memcpy(buf, big->chan_map, 5);
+    buf[4] |= (big->phy - 1) << 5;
+    buf += 5;
+
+    /* bis_payload_cnt, framing */
+    memset(buf, 0x00, 5);
+}
+
+int
+ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
+                            uint32_t base_ticks, uint8_t base_rem_us)
+{
+    uint8_t *dptr_start;
+    uint64_t counter;
+    uint32_t offset_us;
+    uint32_t offset;
+    uint32_t d_ticks;
+    uint8_t d_rem_us;
+
+    dptr_start = dptr;
+    counter = big->bis_counter;
+
+    d_ticks = big->event_start - base_ticks;
+    d_rem_us = big->event_start_us;
+    ble_ll_tmr_sub(&d_ticks, &d_rem_us, base_rem_us);
+
+    offset_us = ble_ll_tmr_t2u(d_ticks) + d_rem_us;
+    if (offset_us <= 600) {
+        counter += big->bn;
+        offset_us += big->iso_interval * 1250;
+    }
+    if (offset_us >= 491460) {
+        offset = 0x4000 | (offset_us / 300);
+    } else {
+        offset = offset_us / 30;
+    }
+
+    *dptr++ = ble_ll_iso_big_biginfo_len(big) - 1;
+    *dptr++ = 0x2c;
+
+    memcpy(dptr, big->biginfo, 33);
+    put_le32(dptr, get_le32(dptr) | (offset & 0x7fff));
+    dptr += 28;
+
+    *dptr++ = counter & 0xff;
+    *dptr++ = (counter >> 8) & 0xff;
+    *dptr++ = (counter >> 16) & 0xff;
+    *dptr++ = (counter >> 24) & 0xff;
+    *dptr++ = (counter >> 32) & 0xff;
+
+    if (big->encrypted) {
+        memcpy(dptr, big->giv, 8);
+        dptr += 8;
+        memcpy(dptr, big->gskd, 16);
+        dptr += 16;
+    }
+
+    return dptr - dptr_start;
+}
+
+int
+ble_ll_iso_big_biginfo_len(struct ble_ll_iso_big *big)
+{
+    return 2 + sizeof(big->biginfo) +
+           (big->encrypted ? sizeof(big->giv) + sizeof(big->gskd) : 0);
+}
 
 static void
 ble_ll_iso_big_free(struct ble_ll_iso_big *big)
@@ -655,6 +767,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 {
     struct ble_ll_iso_big *big = NULL;
     struct ble_ll_iso_bis *bis;
+    struct ble_ll_adv_sm *advsm;
     uint32_t seed_aa;
     uint8_t pte;
     uint8_t gc;
@@ -677,8 +790,16 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
     BLE_LL_ASSERT(big);
 
-    /* TODO find valid advertising instance */
+    advsm = ble_ll_adv_sync_get(adv_handle);
+    if (!advsm) {
+        return -ENOENT;
+    }
 
+    if (ble_ll_adv_sync_big_add(advsm, big) < 0) {
+        return -ENOENT;
+    }
+
+    big->advsm = advsm;
     big->handle = big_handle;
 
     big->crc_init = ble_ll_rand();
@@ -793,6 +914,8 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         ble_ll_iso_big_calculate_iv(big);
     }
 
+    ble_ll_iso_big_biginfo_calc(big, seed_aa);
+
     /* For now we will schedule complete event as single item. This allows for
      * shortest possible subevent space (150us) but can create sequence of long
      * events that will block scheduler from other activities. To mitigate this
@@ -844,6 +967,11 @@ ble_ll_iso_big_terminate(uint8_t big_handle, uint8_t reason)
     if (!big) {
         return -ENOENT;
     }
+
+    /* Not sure if this is correct, but let's remove BIGInfo now since there's
+     * no point for peer to syncing to a BIG that will be disconnected soon.
+     */
+    ble_ll_adv_sync_big_remove(big->advsm, big);
 
     big->term_reason = reason;
     big->term_pending = 1;
