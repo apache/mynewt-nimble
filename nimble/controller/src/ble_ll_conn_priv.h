@@ -182,7 +182,6 @@ int ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat,
 
 /* Link Layer interface */
 void ble_ll_conn_module_init(void);
-void ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap);
 void ble_ll_conn_module_reset(void);
 void ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t len);
 int ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);

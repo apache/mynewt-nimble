@@ -1432,38 +1432,6 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
 }
 #endif
 
-/**
- * Called when the host issues the LE command "set host channel classification"
- *
- * @param cmdbuf
- *
- * @return int
- */
-int
-ble_ll_conn_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t len)
-{
-    const struct ble_hci_le_set_host_chan_class_cp *cmd = (const void *) cmdbuf;
-    uint8_t num_used_chans;
-
-    if (len != sizeof(*cmd)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /*
-     * The HCI command states that the host is allowed to mask in just one
-     * channel but the Link Layer needs minimum two channels to operate. So
-     * I will not allow this command if there are less than 2 channels masked.
-     */
-    num_used_chans = ble_ll_utils_chan_map_used_get(cmd->chan_map);
-    if ((num_used_chans < 2) || ((cmd->chan_map[4] & 0xe0) != 0)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
-    }
-
-    /* Set the host channel mask */
-    ble_ll_conn_set_global_chanmap(num_used_chans, cmd->chan_map);
-    return BLE_ERR_SUCCESS;
-}
-
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_DATA_LEN_EXT)

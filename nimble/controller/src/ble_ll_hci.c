@@ -33,6 +33,7 @@
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_sync.h"
+#include <controller/ble_ll_utils.h>
 #include "controller/ble_ll_iso.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
@@ -833,6 +834,36 @@ ble_ll_write_rf_path_compensation(const uint8_t *cmdbuf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 
+static int
+ble_ll_hci_le_set_host_chan_class(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_le_set_host_chan_class_cp *cmd = (const void *)cmdbuf;
+    uint8_t chan_map_used;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* HCI command allows only single channel to be enabled, but LL needs at
+     * least 2 channels to work so let's reject in such case.
+     */
+    chan_map_used = ble_ll_utils_chan_map_used_get(cmd->chan_map);
+    if ((chan_map_used < 2) || (cmd->chan_map[4] & 0xe0)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!memcmp(g_ble_ll_data.chan_map, cmd->chan_map, BLE_LL_CHAN_MAP_LEN)) {
+        return BLE_ERR_SUCCESS;
+    }
+
+    memcpy(g_ble_ll_data.chan_map, cmd->chan_map, BLE_LL_CHAN_MAP_LEN);
+    g_ble_ll_data.chan_map_used = chan_map_used;
+
+    ble_ll_conn_chan_map_update();
+
+    return BLE_ERR_SUCCESS;
+}
+
 /**
  * Process a LE command sent from the host to the controller. The HCI command
  * has a 3 byte command header followed by data. The header is:
@@ -957,7 +988,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
 #endif
     case BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS:
-        rc = ble_ll_conn_hci_set_chan_class(cmdbuf, len);
+        rc = ble_ll_hci_le_set_host_chan_class(cmdbuf, len);
         break;
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_HCI_OCF_LE_RD_CHAN_MAP:
