@@ -27,6 +27,7 @@
 #include <controller/ble_ll_adv.h>
 #include <controller/ble_ll_crypto.h>
 #include <controller/ble_ll_hci.h>
+#include <controller/ble_ll_isoal.h>
 #include <controller/ble_ll_iso_big.h>
 #include <controller/ble_ll_pdu.h>
 #include <controller/ble_ll_sched.h>
@@ -67,6 +68,9 @@ struct ble_ll_iso_bis {
         uint8_t n;
         uint8_t g;
     } tx;
+
+    struct ble_ll_isoal_mux mux;
+    uint16_t num_completed_pkt;
 
     STAILQ_ENTRY(ble_ll_iso_bis) bis_q_next;
 };
@@ -159,6 +163,58 @@ static uint8_t bis_pool_free = BIS_POOL_SIZE;
 
 static struct ble_ll_iso_big *big_pending;
 static struct ble_ll_iso_big *big_active;
+
+struct ble_ll_iso_bis *
+ble_ll_iso_big_find_bis_by_handle(uint16_t conn_handle)
+{
+    struct ble_ll_iso_bis *bis;
+    uint8_t bis_idx;
+
+    if (!BLE_LL_CONN_HANDLE_IS_BIS(conn_handle)) {
+        return NULL;
+    }
+
+    bis_idx = BLE_LL_CONN_HANDLE_IDX(conn_handle);
+
+    if (bis_idx >= BIS_POOL_SIZE) {
+        return NULL;
+    }
+
+    bis = &bis_pool[bis_idx];
+    if (!bis->big) {
+        return NULL;
+    }
+
+    return bis;
+}
+
+struct ble_ll_isoal_mux *
+ble_ll_iso_big_find_mux_by_handle(uint16_t conn_handle)
+{
+    struct ble_ll_iso_bis *bis;
+
+    bis = ble_ll_iso_big_find_bis_by_handle(conn_handle);
+    if (bis) {
+        return &bis->mux;
+    }
+
+    return NULL;
+}
+
+int
+ble_ll_iso_big_last_tx_timestamp_get(struct ble_ll_iso_bis *bis,
+                                     uint16_t *packet_seq_num, uint32_t *timestamp)
+{
+    struct ble_ll_iso_big *big;
+
+    big = bis->big;
+
+    *packet_seq_num = big->bis_counter;
+    *timestamp = (uint64_t)big->event_start * 1000000 / 32768 +
+                 big->event_start_us;
+
+    return 0;
+}
 
 static void
 ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
@@ -281,6 +337,7 @@ ble_ll_iso_big_free(struct ble_ll_iso_big *big)
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &big->event_done);
 
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
+        ble_ll_isoal_mux_free(&bis->mux);
         bis->big = NULL;
         bis_pool_free++;
     }
@@ -339,6 +396,10 @@ ble_ll_iso_big_update_event_start(struct ble_ll_iso_big *big)
 static void
 ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 {
+    struct ble_ll_iso_bis *bis;
+    struct ble_hci_ev *hci_ev;
+    struct ble_hci_ev_num_comp_pkts *hci_ev_ncp;
+    int num_completed_pkt;
     int rc;
 
     ble_ll_rfmgmt_release();
@@ -348,6 +409,37 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         ble_ll_iso_big_hci_evt_complete();
     }
 
+    hci_ev = ble_transport_alloc_evt(1);
+    if (hci_ev) {
+        hci_ev->opcode = BLE_HCI_EVCODE_NUM_COMP_PKTS;
+        hci_ev->length = sizeof(*hci_ev_ncp);
+        hci_ev_ncp = (void *)hci_ev->data;
+        hci_ev_ncp->count = 0;
+    }
+
+    STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
+        num_completed_pkt = ble_ll_isoal_mux_event_done(&bis->mux);
+        if (hci_ev && num_completed_pkt) {
+            hci_ev_ncp->completed[hci_ev_ncp->count].handle =
+                htole16(bis->conn_handle);
+            hci_ev_ncp->completed[hci_ev_ncp->count].packets =
+                htole16(num_completed_pkt + bis->num_completed_pkt);
+            bis->num_completed_pkt = 0;
+            hci_ev_ncp->count++;
+        } else {
+            bis->num_completed_pkt += num_completed_pkt;
+        }
+    }
+
+    if (hci_ev) {
+        if (hci_ev_ncp->count) {
+            hci_ev->length = sizeof(*hci_ev_ncp) +
+                             hci_ev_ncp->count * sizeof(hci_ev_ncp->completed[0]);
+            ble_transport_to_hs_evt(hci_ev);
+        } else {
+            ble_transport_free(hci_ev);
+        }
+    }
 
     big->sch.start_time = big->event_start;
     big->sch.remainder = big->event_start_us;
@@ -532,6 +624,9 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
         ble_phy_encrypt_counter_set(big->bis_counter + idx, 1);
     }
 
+#if 1
+    pdu_len = ble_ll_isoal_mux_unframed_get(&bis->mux, idx, &llid, dptr);
+#else
     llid = 0;
     pdu_len = big->max_pdu;
     /* XXX dummy data for testing */
@@ -549,6 +644,7 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
         dptr[11] = 'P';
     }
     dptr[12] = 0xff;
+#endif
 
     *hdr_byte = llid | (big->cssn << 2) | (big->cstf << 5);
 
@@ -669,6 +765,10 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     /* XXX calculate this in advance at the end of previous event? */
     big->tx.subevents_rem = big->num_bis * big->nse;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
+        ble_ll_isoal_mux_event_start(&bis->mux, (uint64_t)big->event_start *
+                                                1000000 / 32768 +
+                                                big->event_start_us);
+
         bis->tx.subevent_num = 0;
         bis->tx.n = 0;
         bis->tx.g = 0;
@@ -820,7 +920,6 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     /* Calculate number of additional events for pre-transmissions */
     /* Core 5.3, Vol 6, Part B, 4.4.6.6 */
     gc = bp->nse / bp->bn;
-    (void)pte;
     if (bp->irc == gc) {
         pte = 0;
     } else {
@@ -844,6 +943,9 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         bis->crc_init = (big->crc_init << 8) | (big->num_bis);
 
         BLE_LL_ASSERT(!big->framed);
+
+        ble_ll_isoal_mux_init(&bis->mux, bp->max_pdu, bp->iso_interval * 1250,
+                              bp->sdu_interval, bp->bn, pte);
     }
 
     big_pool_free--;
