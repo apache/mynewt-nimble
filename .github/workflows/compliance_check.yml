@@ -33,6 +33,26 @@ jobs:
         run: |
              sudo apt-get update
              sudo apt-get install -y uncrustify
+             mkdir repos
+             git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
       - name: check style
         run: |
-             .github/check_style.py
+             ./repos/apache-mynewt-core/.github/check_style.py
+
+  style_license:
+    name: Licensing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Dependencies
+        run: |
+             mkdir repos
+             git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
+             wget https://dlcdn.apache.org//creadur/apache-rat-0.15/apache-rat-0.15-bin.tar.gz
+             tar zxf apache-rat-0.15-bin.tar.gz apache-rat-0.15/apache-rat-0.15.jar
+             mv apache-rat-0.15/apache-rat-0.15.jar apache-rat.jar
+      - name: check licensing
+        run: |
+             ./repos/apache-mynewt-core/.github/check_license.py
