@@ -253,21 +253,8 @@ ble_ll_utils_remapped_channel(uint8_t remap_index, const uint8_t *chanmap)
 uint8_t
 ble_ll_utils_calc_num_used_chans(const uint8_t *chan_map)
 {
-    uint32_t u32 = 0;
-    uint32_t num_used_chans = 0;
-    unsigned idx;
-
-    for (idx = 0; idx < 37; idx++) {
-        if ((idx % 8) == 0) {
-            u32 = chan_map[idx / 8];
-        }
-        if (u32 & 1) {
-            num_used_chans++;
-        }
-        u32 >>= 1;
-    }
-
-    return num_used_chans;
+    return __builtin_popcountll(((uint64_t)(chan_map[4] & 0x1f) << 32) |
+                                get_le32(chan_map));
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
