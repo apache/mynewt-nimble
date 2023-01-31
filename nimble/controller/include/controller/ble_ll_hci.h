@@ -57,6 +57,10 @@ struct ble_ll_hci_vs_cmd {
 /* Initialize LL HCI */
 void ble_ll_hci_init(void);
 
+int ble_ll_hci_cmd_rx(uint8_t *cmdbuf);
+int ble_ll_hci_acl_rx(struct os_mbuf *om);
+int ble_ll_hci_iso_rx(struct os_mbuf *om);
+
 /* Used to determine if the LE event is enabled/disabled */
 bool ble_ll_hci_is_le_event_enabled(unsigned int subev);
 
