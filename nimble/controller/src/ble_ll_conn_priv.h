@@ -260,9 +260,6 @@ int ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
 void ble_ll_conn_itvl_to_ticks(uint32_t itvl,
                                uint32_t *itvl_ticks, uint8_t *itvl_usecs);
 
-int ble_ll_hci_cmd_rx(uint8_t *cmd, void *arg);
-int ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg);
-
 int ble_ll_conn_hci_le_rd_phy(const uint8_t *cmdbuf, uint8_t len,
                               uint8_t *rsp, uint8_t *rsplen);
 int ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len);

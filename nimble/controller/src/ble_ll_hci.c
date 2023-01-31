@@ -1895,19 +1895,8 @@ send_cc_cs:
     BLE_LL_DEBUG_GPIO(HCI_CMD, 0);
 }
 
-/**
- * Sends an HCI command to the controller.  On success, the supplied buffer is
- * relinquished to the controller task.  On failure, the caller must free the
- * buffer.
- *
- * @param cmd                   A flat buffer containing the HCI command to
- *                                  send.
- *
- * @return                      0 on success;
- *                              BLE_ERR_MEM_CAPACITY on HCI buffer exhaustion.
- */
 int
-ble_ll_hci_cmd_rx(uint8_t *cmdbuf, void *arg)
+ble_ll_hci_cmd_rx(uint8_t *cmdbuf)
 {
     struct ble_npl_event *ev;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
@@ -1948,14 +1937,25 @@ ble_ll_hci_cmd_rx(uint8_t *cmdbuf, void *arg)
     return 0;
 }
 
-/* Send ACL data from host to contoller */
 int
-ble_ll_hci_acl_rx(struct os_mbuf *om, void *arg)
+ble_ll_hci_acl_rx(struct os_mbuf *om)
 {
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     ble_ll_acl_data_in(om);
 #else
     /* host should never send ACL in that case but if it does just ignore it */
+    os_mbuf_free_chain(om);
+#endif
+    return 0;
+}
+
+int
+ble_ll_hci_iso_rx(struct os_mbuf *om)
+{
+#if MYNEWT_VAL(BLE_LL_ISO)
+    /* FIXME send to isoal... */
+    os_mbuf_free_chain(om);
+#else
     os_mbuf_free_chain(om);
 #endif
     return 0;
