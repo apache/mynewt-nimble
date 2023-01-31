@@ -118,11 +118,16 @@ struct ble_mbuf_hdr_txinfo
     uint16_t pyld_len;
 };
 
+struct ble_mbuf_hdr_txiso {
+    uint16_t packet_seq_num;
+};
+
 struct ble_mbuf_hdr
 {
     union {
         struct ble_mbuf_hdr_rxinfo rxinfo;
         struct ble_mbuf_hdr_txinfo txinfo;
+        struct ble_mbuf_hdr_txiso txiso;
     };
     uint32_t beg_cputime;
     uint32_t rem_usecs;

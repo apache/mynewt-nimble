@@ -46,6 +46,7 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_fem.h"
+#include "controller/ble_ll_isoal.h"
 #include "controller/ble_ll_iso_big.h"
 #if MYNEWT_VAL(BLE_LL_EXT)
 #include "controller/ble_ll_ext.h"
@@ -1679,6 +1680,9 @@ ble_ll_reset(void)
     ble_fem_lna_init();
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO)
+    ble_ll_isoal_reset();
+#endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     ble_ll_iso_big_reset();
 #endif
@@ -1809,6 +1813,11 @@ ble_ll_init(void)
     /* Set acl pkt size and number */
     lldata->ll_num_acl_pkts = MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT);
     lldata->ll_acl_pkt_size = MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE);
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO)
+    lldata->ll_num_iso_pkts = MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_HS_COUNT);
+    lldata->ll_iso_pkt_size = MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE);
 #endif
 
     /* Initialize eventq */
@@ -1950,6 +1959,9 @@ ble_ll_init(void)
     ble_ll_hci_vs_init();
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO)
+    ble_ll_isoal_init();
+#endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     ble_ll_iso_big_init();
 #endif

@@ -118,6 +118,11 @@ struct ble_ll_obj
     uint16_t ll_acl_pkt_size;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO)
+    uint8_t ll_num_iso_pkts;
+    uint16_t ll_iso_pkt_size;
+#endif
+
     /* Preferred PHY's */
     uint8_t ll_pref_tx_phys;
     uint8_t ll_pref_rx_phys;
