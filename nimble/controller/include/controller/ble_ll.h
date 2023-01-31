@@ -335,6 +335,27 @@ struct ble_dev_addr
 #define BLE_LL_MAX_PDU_LEN      ((BLE_LL_PDU_HDR_LEN) + (BLE_LL_MAX_PAYLOAD_LEN))
 #define BLE_LL_CRCINIT_ADV      (0x555555)
 
+#define BLE_LL_CONN_HANDLE(t, h)            ((((t) << 8) & BLE_LL_CONN_HANDLE_TYPE_MASK) | \
+                                             ((h) & BLE_LL_CONN_HANDLE_IDX_MASK))
+#define BLE_LL_CONN_HANDLE_TYPE_MASK        (0x0700)
+#define BLE_LL_CONN_HANDLE_IDX_MASK         (0x00ff)
+#define BLE_LL_CONN_HANDLE_TYPE(conn_h)     (((conn_h) & BLE_LL_CONN_HANDLE_TYPE_MASK) >> 8)
+#define BLE_LL_CONN_HANDLE_IDX(conn_h)      ((conn_h) & BLE_LL_CONN_HANDLE_IDX_MASK)
+
+#define BLE_LL_CONN_HANDLE_TYPE_ACL         (0x00)
+#define BLE_LL_CONN_HANDLE_TYPE_CIS         (0x01)
+#define BLE_LL_CONN_HANDLE_TYPE_BIS         (0x02)
+#define BLE_LL_CONN_HANDLE_TYPE_BIS_SYNC    (0x03)
+
+#define BLE_LL_CONN_HANDLE_IS_ACL(ch) \
+    (BLE_LL_CONN_HANDLE_TYPE(ch) == BLE_LL_CONN_HANDLE_TYPE_ACL)
+#define BLE_LL_CONN_HANDLE_IS_CIS(ch) \
+    (BLE_LL_CONN_HANDLE_TYPE(ch) == BLE_LL_CONN_HANDLE_TYPE_CIS)
+#define BLE_LL_CONN_HANDLE_IS_BIS(ch) \
+    (BLE_LL_CONN_HANDLE_TYPE(ch) == BLE_LL_CONN_HANDLE_TYPE_BIS)
+#define BLE_LL_CONN_HANDLE_IS_BIS_SYNC(ch) \
+    (BLE_LL_CONN_HANDLE_TYPE(ch) == BLE_LL_CONN_HANDLE_TYPE_BIS_SYNC)
+
 /* Access address for advertising channels */
 #define BLE_ACCESS_ADDR_ADV             (0x8E89BED6)
 
