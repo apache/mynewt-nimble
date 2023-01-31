@@ -1164,9 +1164,63 @@ ble_ll_iso_big_hci_evt_complete(void)
 int
 ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
 {
-    /* TODO implement :) */
+    const struct ble_hci_le_create_big_cp *cmd = (void *)cmdbuf;
+    struct big_params bp;
+    int rc;
 
-    return BLE_ERR_UNSPECIFIED;
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (!IN_RANGE(cmd->big_handle, 0x00, 0xef) ||
+        !IN_RANGE(cmd->adv_handle, 0x00, 0xef) ||
+        !IN_RANGE(cmd->num_bis, 0x01, 0x1f) ||
+        !IN_RANGE(get_le24(cmd->sdu_interval), 0x0000ff, 0x0fffff) ||
+        !IN_RANGE(le16toh(cmd->max_sdu), 0x0001, 0x0fff) ||
+        !IN_RANGE(le16toh(cmd->max_transport_latency), 0x0005, 0x0fa0) ||
+        !IN_RANGE(cmd->rtn, 0x00, 0x1e) ||
+        (cmd->packing > 1) || (cmd->framing > 1) || (cmd->encryption) > 1) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    bp.sdu_interval = get_le24(cmd->sdu_interval);
+    bp.max_transport_latency = le16toh(cmd->max_transport_latency);
+    bp.max_sdu = le16toh(cmd->max_sdu);
+    if (cmd->phy & BLE_HCI_LE_PHY_2M_PREF_MASK) {
+        bp.phy = BLE_PHY_2M;
+    } else if (cmd->phy & BLE_HCI_LE_PHY_1M_PREF_MASK) {
+        bp.phy = BLE_PHY_1M;
+    } else {
+        bp.phy = BLE_PHY_CODED;
+    }
+    bp.interleaved = cmd->packing;
+    bp.framed = cmd->framing;
+    bp.encrypted = cmd->encryption;
+    memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
+
+    bp.nse = 1;
+    bp.bn = 1;
+    bp.irc = 1;
+    bp.pto = 0;
+    bp.iso_interval = bp.sdu_interval / 1250;
+    bp.max_pdu = bp.max_sdu;
+
+    rc = ble_ll_iso_big_create(cmd->big_handle, cmd->adv_handle, cmd->num_bis,
+                               &bp);
+    switch (rc) {
+    case 0:
+        break;
+    case -EINVAL:
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    case -ENOMEM:
+        return BLE_ERR_CONN_REJ_RESOURCES;
+    case -ENOENT:
+        return BLE_ERR_UNK_ADV_INDENT;
+    default:
+        return BLE_ERR_UNSPECIFIED;
+    }
+
+    return 0;
 }
 
 int
