@@ -1474,7 +1474,7 @@ ble_ll_adv_aux_calculate(struct ble_ll_adv_sm *advsm,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     aux->chan = ble_ll_utils_dci_csa2(advsm->event_cntr++,
                                       advsm->channel_id,
-                                      g_ble_ll_data.chan_map_num_used,
+                                      g_ble_ll_data.chan_map_used,
                                       g_ble_ll_data.chan_map);
 #else
     aux->chan = ble_ll_utils_remapped_channel(ble_ll_rand() % BLE_PHY_NUM_DATA_CHANS,
@@ -2609,7 +2609,7 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
 
     /* keep channel map since we cannot change it later on */
     memcpy(advsm->periodic_chanmap, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
-    advsm->periodic_num_used_chans = g_ble_ll_data.chan_map_num_used;
+    advsm->periodic_num_used_chans = g_ble_ll_data.chan_map_used;
     advsm->periodic_event_cntr = 0;
     /* for chaining we start with random counter as we share access addr */
     advsm->periodic_chain_event_cntr = ble_ll_rand();

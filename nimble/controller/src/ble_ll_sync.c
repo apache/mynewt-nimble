@@ -64,7 +64,6 @@
 #define BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP     0x0200
 #define BLE_LL_SYNC_SM_FLAG_CHAIN           0x0400
 
-#define BLE_LL_SYNC_CHMAP_LEN               5
 #define BLE_LL_SYNC_ITVL_USECS              1250
 
 struct ble_ll_sync_sm {
@@ -75,11 +74,11 @@ struct ble_ll_sync_sm {
     uint8_t adv_addr_type;
 
     uint8_t sca;
-    uint8_t chanmap[BLE_LL_SYNC_CHMAP_LEN];
-    uint8_t num_used_chans;
+    uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
+    uint8_t chan_map_used;
 
-    uint8_t chanmap_new[BLE_LL_SYNC_CHMAP_LEN];
-    uint16_t chanmap_new_instant;
+    uint8_t chan_map_new[BLE_LL_CHAN_MAP_LEN];
+    uint16_t chan_map_new_instant;
 
     uint8_t chan_index;
     uint8_t chan_chain;
@@ -997,18 +996,18 @@ ble_ll_sync_check_acad(struct ble_ll_sync_sm *sm,
             /* Channels Mask (37 bits)
              * TODO should we check this?
              */
-            sm->chanmap_new[0] = chmu->map[0];
-            sm->chanmap_new[1] = chmu->map[1];
-            sm->chanmap_new[2] = chmu->map[2];
-            sm->chanmap_new[3] = chmu->map[3];
-            sm->chanmap_new[4] = chmu->map[4] & 0x1f;
+            sm->chan_map_new[0] = chmu->map[0];
+            sm->chan_map_new[1] = chmu->map[1];
+            sm->chan_map_new[2] = chmu->map[2];
+            sm->chan_map_new[3] = chmu->map[3];
+            sm->chan_map_new[4] = chmu->map[4] & 0x1f;
 
             /* drop if channel map is invalid */
-            if (ble_ll_utils_calc_num_used_chans(sm->chanmap_new) == 0) {
+            if (ble_ll_utils_chan_map_used_get(sm->chan_map_new) == 0) {
                 return false;
             }
 
-            sm->chanmap_new_instant = le16toh(chmu->instant);
+            sm->chan_map_new_instant = le16toh(chmu->instant);
             sm->flags |= BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP;
             break;
         default:
@@ -1165,21 +1164,21 @@ ble_ll_sync_next_event(struct ble_ll_sync_sm *sm, uint32_t cur_ww_adjust)
 
     /* update channel map if needed */
     if (sm->flags & BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP) {
-        if (((int16_t)(sm->event_cntr - sm->chanmap_new_instant)) >= 0) {
+        if (((int16_t)(sm->event_cntr - sm->chan_map_new_instant)) >= 0) {
             /* map was verified on reception */
-            sm->chanmap[0] = sm->chanmap_new[0];
-            sm->chanmap[1] = sm->chanmap_new[1];
-            sm->chanmap[2] = sm->chanmap_new[2];
-            sm->chanmap[3] = sm->chanmap_new[3];
-            sm->chanmap[4] = sm->chanmap_new[4];
-            sm->num_used_chans = ble_ll_utils_calc_num_used_chans(sm->chanmap);
+            sm->chan_map[0] = sm->chan_map_new[0];
+            sm->chan_map[1] = sm->chan_map_new[1];
+            sm->chan_map[2] = sm->chan_map_new[2];
+            sm->chan_map[3] = sm->chan_map_new[3];
+            sm->chan_map[4] = sm->chan_map_new[4];
+            sm->chan_map_used = ble_ll_utils_chan_map_used_get(sm->chan_map);
             sm->flags &= ~BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP;
         }
     }
 
     /* Calculate channel index of next event */
     sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
-                                           sm->num_used_chans, sm->chanmap);
+                                           sm->chan_map_used, sm->chan_map);
 
     cur_ww = ble_ll_utils_calc_window_widening(sm->anchor_point,
                                                sm->last_anchor_point,
@@ -1373,12 +1372,12 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     sm->itvl_ticks = ble_ll_tmr_u2t_r(usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
-    sm->chanmap[0] = syncinfo[4];
-    sm->chanmap[1] = syncinfo[5];
-    sm->chanmap[2] = syncinfo[6];
-    sm->chanmap[3] = syncinfo[7];
-    sm->chanmap[4] = syncinfo[8] & 0x1f;
-    sm->num_used_chans = ble_ll_utils_calc_num_used_chans(sm->chanmap);
+    sm->chan_map[0] = syncinfo[4];
+    sm->chan_map[1] = syncinfo[5];
+    sm->chan_map[2] = syncinfo[6];
+    sm->chan_map[3] = syncinfo[7];
+    sm->chan_map[4] = syncinfo[8] & 0x1f;
+    sm->chan_map_used = ble_ll_utils_chan_map_used_get(sm->chan_map);
 
     /* SCA (3 bits) */
     sm->sca = syncinfo[8] >> 5;
@@ -1410,7 +1409,7 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
 
     /* Calculate channel index of first event */
     sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
-                                           sm->num_used_chans, sm->chanmap);
+                                           sm->chan_map_used, sm->chan_map);
 
     if (ble_ll_sched_sync(&sm->sch, rxhdr->beg_cputime, rxhdr->rem_usecs,
                           offset, sm->phy_mode)) {
@@ -1945,12 +1944,12 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     sm->itvl_ticks = ble_ll_tmr_u2t_r(itvl_usecs, &sm->itvl_usecs);
 
     /* Channels Mask (37 bits) */
-    sm->chanmap[0] = syncinfo[4];
-    sm->chanmap[1] = syncinfo[5];
-    sm->chanmap[2] = syncinfo[6];
-    sm->chanmap[3] = syncinfo[7];
-    sm->chanmap[4] = syncinfo[8] & 0x1f;
-    sm->num_used_chans = ble_ll_utils_calc_num_used_chans(sm->chanmap);
+    sm->chan_map[0] = syncinfo[4];
+    sm->chan_map[1] = syncinfo[5];
+    sm->chan_map[2] = syncinfo[6];
+    sm->chan_map[3] = syncinfo[7];
+    sm->chan_map[4] = syncinfo[8] & 0x1f;
+    sm->chan_map_used = ble_ll_utils_chan_map_used_get(sm->chan_map);
 
     /* SCA (3 bits) */
     sm->sca = syncinfo[8] >> 5;
@@ -1978,7 +1977,7 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
 
     /* Calculate channel index of first event */
     sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
-                                           sm->num_used_chans, sm->chanmap);
+                                           sm->chan_map_used, sm->chan_map);
 
     /* get anchor for specified conn event */
     conn_event_count = get_le16(sync_ind + 20);
@@ -2075,11 +2074,11 @@ ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
     put_le16(&dptr[2], syncsm->itvl);
 
     /* Channels Mask (37 bits) */
-    dptr[4] = syncsm->chanmap[0];
-    dptr[5] = syncsm->chanmap[1];
-    dptr[6] = syncsm->chanmap[2];
-    dptr[7] = syncsm->chanmap[3];
-    dptr[8] = syncsm->chanmap[4] & 0x1f;
+    dptr[4] = syncsm->chan_map[0];
+    dptr[5] = syncsm->chan_map[1];
+    dptr[6] = syncsm->chan_map[2];
+    dptr[7] = syncsm->chan_map[3];
+    dptr[8] = syncsm->chan_map[4] & 0x1f;
 
     /* SCA (3 bits) */
     dptr[8] |= syncsm->sca << 5;
