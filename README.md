@@ -25,6 +25,20 @@
 
 ## Overview
 
+<a href="https://github.com/apache/mynewt-nimble/actions/workflows/build_targets.yml">
+  <img src="https://github.com/apache/mynewt-nimble/actions/workflows/build_targets.yml/badge.svg">
+<a/>
+
+<a href="https://github.com/apache/mynewt-nimble/actions/workflows/build_ports.yml">
+  <img src="https://github.com/apache/mynewt-nimble/actions/workflows/build_ports.yml/badge.svg">
+<a/>
+
+<a href="https://github.com/apache/mynewt-nimble/actions/workflows/newt_test_all.yml/badge.svg">
+  <img src="https://github.com/apache/mynewt-nimble/actions/workflows/newt_test_all.yml/badge.svg">
+<a/>
+
+<p>
+
 Apache NimBLE is an open-source Bluetooth 5.1 stack (both Host & Controller)
 that completely replaces the proprietary SoftDevice on Nordic chipsets. It is
 part of [Apache Mynewt project](https://github.com/apache/mynewt-core).
