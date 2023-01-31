@@ -4023,29 +4023,13 @@ ble_ll_conn_tx_pkt_in(struct os_mbuf *om, uint16_t handle, uint16_t length)
     }
 }
 #endif
-/**
- * Called to set the global channel mask that we use for all connections.
- *
- * @param num_used_chans
- * @param chanmap
- */
+
 void
-ble_ll_conn_set_global_chanmap(uint8_t num_used_chans, const uint8_t *chanmap)
+ble_ll_conn_chan_map_update(void)
 {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     struct ble_ll_conn_sm *connsm;
-#endif
 
-    /* Do nothing if same channel map */
-    if (!memcmp(g_ble_ll_data.chan_map, chanmap, BLE_LL_CHAN_MAP_LEN)) {
-        return;
-    }
-
-    /* Change channel map and cause channel map update procedure to start */
-    g_ble_ll_data.chan_map_used = num_used_chans;
-    memcpy(g_ble_ll_data.chan_map, chanmap, BLE_LL_CHAN_MAP_LEN);
-
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Perform channel map update */
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
