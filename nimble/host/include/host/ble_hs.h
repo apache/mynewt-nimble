@@ -44,6 +44,7 @@
 #include "host/ble_store.h"
 #include "host/ble_uuid.h"
 #include "nimble/nimble_npl.h"
+#include "syscfg/syscfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -183,6 +184,22 @@ extern "C" {
 #define BLE_HS_KEY_DIST_ID_KEY               0x02
 
 /** CSRK distibution and LinkKey are not supported */
+
+/**
+ * @}
+ */
+
+/**
+ * @brief LE deprecate warning
+ *
+ * @{
+ */
+
+#if MYNEWT_VAL(BLE_SUPPRESS_DEPRECATE_WARN)
+#define nimble_deprecated (int __attribute__((deprecated("Deprecated. Should not be used. " __msg))))
+#else
+#define nimble_deprecated int
+#endif
 
 /**
  * @}
