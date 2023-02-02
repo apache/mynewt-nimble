@@ -1046,6 +1046,10 @@
 #define MYNEWT_VAL_BLE_LL_CONN_EVENT_END_MARGIN (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_CONN_INIT_AUTO_DLE
+#define MYNEWT_VAL_BLE_LL_CONN_INIT_AUTO_DLE (1)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
 #ifndef MYNEWT_VAL_BLE_LL_CONN_INIT_MAX_TX_BYTES
 #define MYNEWT_VAL_BLE_LL_CONN_INIT_MAX_TX_BYTES (MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE)

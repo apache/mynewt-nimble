@@ -140,11 +140,15 @@ syscfg.defs:
     BLE_LL_CONN_INIT_MAX_TX_BYTES:
         description: >
             Used to set the initial maximum transmit PDU size in a
-            connection. If this is set to a value greater than 27,
-            the controller will automatically attempt to do the
-            data length update procedure. The host can always tell
-            the controller to update this value.
+            connection. The host can always tell the controller to update this
+            value.
         value: '27'
+    BLE_LL_CONN_INIT_AUTO_DLE:
+        description: >
+            If BLE_LL_CONN_INIT_MAX_TX_BYTES is set to value greater than 27
+            controller will automatically attempt to do the data length update
+            procedure.
+        value: 1
 
     # The number of slots that will be allocated to each connection
     BLE_LL_CONN_INIT_SLOTS:
