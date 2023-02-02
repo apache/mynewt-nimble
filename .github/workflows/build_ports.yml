@@ -27,12 +27,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: carlosperate/arm-none-eabi-gcc-action@48db4484a55750df7a0ccca63347fcdea6534d78
+        with:
+          release: '12.2.Rel1'
       - name: Install Dependencies
         run: |
              sudo apt-get update
              sudo apt-get install -y make ccache gcc-multilib g++-multilib
-      - name: Build ports
+      - name: Build example ports
         run: |
              make -C porting/examples/dummy/ clean all
              make -C porting/examples/linux/ clean all
              make -C porting/examples/linux_blemesh/ clean all
+      - name: Build RIOT port
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+             git clone --depth=1 https://github.com/RIOT-OS/RIOT
+             rm RIOT/pkg/nimble/patches/ -rf
+             sed -i 's|PKG_URL.*|PKG_URL = '$(pwd)'|' RIOT/pkg/nimble/Makefile
+             sed -i 's|PKG_VERSION.*|PKG_VERSION = '${{ github.sha }}'|' RIOT/pkg/nimble/Makefile
+             make -C RIOT/examples/nimble_gatt
