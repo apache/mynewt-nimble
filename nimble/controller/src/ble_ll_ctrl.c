@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_ctrl.h"
@@ -2122,13 +2123,13 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
          */
         if (ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
             if (connsm->host_req_max_tx_time) {
-                connsm->max_tx_time = max(connsm->max_tx_time,
+                connsm->max_tx_time = MAX(connsm->max_tx_time,
                                           connsm->host_req_max_tx_time);
             } else {
                 connsm->max_tx_time = g_ble_ll_conn_params.conn_init_max_tx_time_coded;
             }
             if (connsm->host_req_max_rx_time) {
-                connsm->max_rx_time = max(connsm->max_rx_time,
+                connsm->max_rx_time = MAX(connsm->max_rx_time,
                                           connsm->host_req_max_rx_time);
             } else {
                 connsm->max_rx_time = BLE_LL_CONN_SUPP_TIME_MAX_CODED;

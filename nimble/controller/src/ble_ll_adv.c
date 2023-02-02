@@ -1438,7 +1438,7 @@ ble_ll_adv_aux_calculate_payload(struct ble_ll_adv_sm *advsm, uint16_t props,
     }
 
     /* AdvData */
-    data_len = min(BLE_LL_MAX_PAYLOAD_LEN - ext_hdr_len, rem_data_len);
+    data_len = MIN(BLE_LL_MAX_PAYLOAD_LEN - ext_hdr_len, rem_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
     if (chainable && (rem_data_len > data_len)) {
@@ -2329,7 +2329,7 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
     }
 
     /* AdvData always */
-    sync->data_len = min(BLE_LL_MAX_PAYLOAD_LEN - ext_hdr_len, rem_data_len);
+    sync->data_len = MIN(BLE_LL_MAX_PAYLOAD_LEN - ext_hdr_len, rem_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
     if ((rem_data_len > sync->data_len)) {
@@ -3529,7 +3529,7 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         /* no preference */
         advsm->tx_power = ble_ll_tx_power_round(g_ble_ll_tx_power - g_ble_ll_tx_power_compensation);
     } else {
-        advsm->tx_power = ble_ll_tx_power_round(min(cmd->tx_power, MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)) -
+        advsm->tx_power = ble_ll_tx_power_round(MIN(cmd->tx_power, MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)) -
                                                 g_ble_ll_tx_power_compensation);
     }
 
@@ -3827,7 +3827,7 @@ ble_ll_adv_sync_get_pdu_len(uint16_t data_len, uint16_t *data_offset,
     }
 
     /* AdvData always */
-    data_len = min(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_data_len);
+    data_len = MIN(BLE_LL_MAX_PAYLOAD_LEN - hdr_len, rem_data_len);
 
     /* AuxPtr if there are more AdvData remaining that we can fit here */
     if (rem_data_len > data_len) {

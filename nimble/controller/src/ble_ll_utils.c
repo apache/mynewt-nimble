@@ -458,8 +458,8 @@ ble_ll_utils_dci_iso_subevent(uint16_t chan_id, uint16_t *prn_sub_lu,
 
     /* Core 5.3, Vol 6, Part B, 4.5.8.3.6 (enjoy!) */
     /* TODO optimize this somehow */
-    d = max(1, max(min(3, num_used_chans - 5),
-                   min(11, (num_used_chans - 10) / 2)));
+    d = MAX(1, MAX(MIN(3, num_used_chans - 5),
+                   MIN(11, (num_used_chans - 10) / 2)));
     *remap_idx = (*remap_idx + d + prn_sub_se *
                   (num_used_chans - 2 * d + 1) / 65536) % num_used_chans;
 

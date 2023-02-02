@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll_adv.h"
 #include "controller/ble_ll_scan.h"
@@ -487,9 +488,9 @@ ble_ll_hci_le_wr_sugg_data_len(const uint8_t *cmdbuf, uint8_t len)
      * in which case we just use our max.
      */
     g_ble_ll_conn_params.conn_init_max_tx_octets =
-        min(tx_octets, g_ble_ll_conn_params.supp_max_tx_octets);
+        MIN(tx_octets, g_ble_ll_conn_params.supp_max_tx_octets);
     g_ble_ll_conn_params.conn_init_max_tx_time =
-        min(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
+        MIN(tx_time, g_ble_ll_conn_params.supp_max_tx_time);
 
     /*
      * Use the same for coded and uncoded defaults. These are used when PHY
@@ -497,7 +498,7 @@ ble_ll_hci_le_wr_sugg_data_len(const uint8_t *cmdbuf, uint8_t len)
      * host. Make sure we do not exceed max supported time on uncoded.
      */
     g_ble_ll_conn_params.conn_init_max_tx_time_uncoded =
-        min(BLE_LL_CONN_SUPP_TIME_MAX_UNCODED,
+        MIN(BLE_LL_CONN_SUPP_TIME_MAX_UNCODED,
             g_ble_ll_conn_params.conn_init_max_tx_time);
     g_ble_ll_conn_params.conn_init_max_tx_time_coded =
         g_ble_ll_conn_params.conn_init_max_tx_time;

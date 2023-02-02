@@ -29,6 +29,7 @@
 #include "nimble/nimble_opt.h"
 #include "nimble/hci_common.h"
 #include "nimble/transport.h"
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_phy_trace.h"
@@ -1362,7 +1363,7 @@ ble_ll_task(void *arg)
     ble_phy_init();
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_ll_tx_power_round(min(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
+    g_ble_ll_tx_power = ble_ll_tx_power_round(MIN(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
                                                   MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
@@ -1614,7 +1615,7 @@ ble_ll_reset(void)
     g_ble_ll_rx_power_compensation = 0;
 
     /* Set output power to default */
-    g_ble_ll_tx_power = ble_ll_tx_power_round(min(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
+    g_ble_ll_tx_power = ble_ll_tx_power_round(MIN(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
                                                   MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
@@ -1727,7 +1728,7 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
     }
 
     /* see comment at the beginning */
-    return max(27, octets);
+    return MAX(27, octets);
 }
 
 static inline bool

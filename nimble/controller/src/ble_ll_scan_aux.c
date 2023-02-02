@@ -28,6 +28,7 @@
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "nimble/hci_common.h"
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
@@ -533,7 +534,7 @@ ble_ll_hci_ev_send_ext_adv_report(struct os_mbuf *rxpdu,
 
         report->rssi = rxinfo->rssi - ble_ll_rx_gain();
 
-        report->data_len = min(max_data_len, data_len - offset);
+        report->data_len = MIN(max_data_len, data_len - offset);
         os_mbuf_copydata(rxpdu, offset, report->data_len, report->data);
         (*hci_ev)->length += report->data_len;
 
