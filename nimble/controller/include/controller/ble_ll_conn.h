@@ -129,7 +129,9 @@ union ble_ll_conn_sm_flags {
         uint32_t aux_conn_req: 1;
         uint32_t rxd_features:1;
         uint32_t pending_hci_rd_features:1;
+#if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
         uint32_t pending_initiate_dle:1;
+#endif
         uint32_t subrate_trans:1;
         uint32_t subrate_ind_txd:1;
         uint32_t subrate_host_req:1;

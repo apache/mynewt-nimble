@@ -2137,7 +2137,10 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
         }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
         connsm->csmflags.cfbit.pending_initiate_dle = 1;
+#endif
+
         connsm->csmflags.cfbit.rxd_features = 1;
     }
 }
@@ -3050,10 +3053,12 @@ ll_ctrl_send_rsp:
 #endif
     }
 
+#if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
     if (connsm->csmflags.cfbit.pending_initiate_dle) {
         connsm->csmflags.cfbit.pending_initiate_dle = 0;
         ble_ll_ctrl_initiate_dle(connsm, true);
     }
+#endif
 
     return rc;
 }
