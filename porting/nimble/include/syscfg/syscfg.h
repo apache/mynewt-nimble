@@ -429,6 +429,10 @@
 #endif
 
 /*** @apache-mynewt-nimble/nimble */
+#ifndef MYNEWT_VAL_BLE_CONN_SUBRATING
+#define MYNEWT_VAL_BLE_CONN_SUBRATING (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_EXT_ADV
 #define MYNEWT_VAL_BLE_EXT_ADV (0)
 #endif
@@ -475,10 +479,6 @@
 
 #ifndef MYNEWT_VAL_BLE_POWER_CONTROL
 #define MYNEWT_VAL_BLE_POWER_CONTROL (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_CONN_SUBRATING
-#define MYNEWT_VAL_BLE_CONN_SUBRATING (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_ROLE_BROADCASTER
@@ -1062,9 +1062,8 @@
 #define MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT (16)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE
-#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (257)
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (70)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__cdc
