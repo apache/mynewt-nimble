@@ -24,7 +24,7 @@
 #define INT16_LTE(_a, _b) ((int16_t)((_a) - (_b)) <= 0)
 
 #define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define MAX(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 #define CLAMP(_n, _min, _max) (MAX(_min, MIN(_n, _max)))
 #define IN_RANGE(_n, _min, _max) (((_n) >= (_min)) && ((_n) <= (_max)))
 
