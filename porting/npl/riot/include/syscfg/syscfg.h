@@ -19,6 +19,19 @@
 #define MYNEWT_VAL_HARDFLOAT (0)
 #endif
 
+/*** @apache-mynewt-core/crypto/tinycrypt */
+#ifndef MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE
+#define MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE (200)
+#endif
+
+#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME
+#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME "trng"
+#endif
+
+#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG
+#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG (0)
+#endif
+
 /*** @apache-mynewt-core/hw/bsp/nordic_pca10056 */
 #ifndef MYNEWT_VAL_BSP_NRF52840
 #define MYNEWT_VAL_BSP_NRF52840 (1)
@@ -145,7 +158,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_MCU_ICACHE_ENABLED
-#define MYNEWT_VAL_MCU_ICACHE_ENABLED (0)
+#define MYNEWT_VAL_MCU_ICACHE_ENABLED (1)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx) */
@@ -792,6 +805,10 @@
 #endif
 
 /*** @apache-mynewt-nimble/nimble */
+#ifndef MYNEWT_VAL_BLE_CONN_SUBRATING
+#define MYNEWT_VAL_BLE_CONN_SUBRATING (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_EXT_ADV
 #define MYNEWT_VAL_BLE_EXT_ADV (0)
 #endif
@@ -840,10 +857,6 @@
 
 #ifndef MYNEWT_VAL_BLE_POWER_CONTROL
 #define MYNEWT_VAL_BLE_POWER_CONTROL (0)
-#endif
-
-#ifndef MYNEWT_VAL_BLE_CONN_SUBRATING
-#define MYNEWT_VAL_BLE_CONN_SUBRATING (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_ROLE_BROADCASTER
@@ -1029,6 +1042,10 @@
 #define MYNEWT_VAL_BLE_LL_CFG_FEAT_SLAVE_INIT_FEAT_XCHG (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_CONN_EVENT_END_MARGIN
+#define MYNEWT_VAL_BLE_LL_CONN_EVENT_END_MARGIN (0)
+#endif
+
 /* Overridden by @apache-mynewt-nimble/porting/targets/riot (defined by @apache-mynewt-nimble/nimble/controller) */
 #ifndef MYNEWT_VAL_BLE_LL_CONN_INIT_MAX_TX_BYTES
 #define MYNEWT_VAL_BLE_LL_CONN_INIT_MAX_TX_BYTES (MYNEWT_VAL_BLE_LL_MAX_PKT_SIZE)
@@ -1101,6 +1118,10 @@
 
 #ifndef MYNEWT_VAL_BLE_LL_DTM_EXTENSIONS
 #define MYNEWT_VAL_BLE_LL_DTM_EXTENSIONS (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_LL_EXT
+#define MYNEWT_VAL_BLE_LL_EXT (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_LL_EXT_ADV_AUX_PTR_CNT
@@ -1283,6 +1304,10 @@
 #define MYNEWT_VAL_BLE_LL_TX_PWR_DBM (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_LL_TX_PWR_MAX_DBM
+#define MYNEWT_VAL_BLE_LL_TX_PWR_MAX_DBM (20)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_LL_USECS_PER_PERIOD
 #define MYNEWT_VAL_BLE_LL_USECS_PER_PERIOD (0)
 #endif
@@ -1330,6 +1355,10 @@
 
 #ifndef MYNEWT_VAL_BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR
 #define MYNEWT_VAL_BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_PHY_VARIABLE_TIFS
+#define MYNEWT_VAL_BLE_PHY_VARIABLE_TIFS (0)
 #endif
 
 /*** @apache-mynewt-nimble/nimble/host */
@@ -1776,9 +1805,8 @@
 #define MYNEWT_VAL_BLE_TRANSPORT_EVT_DISCARDABLE_COUNT (16)
 #endif
 
-/* Overridden by @apache-mynewt-nimble/nimble/transport (defined by @apache-mynewt-nimble/nimble/transport) */
 #ifndef MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE
-#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (257)
+#define MYNEWT_VAL_BLE_TRANSPORT_EVT_SIZE (70)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_TRANSPORT_HS__cdc
@@ -1874,6 +1902,7 @@
 
 /*** Included packages */
 #define MYNEWT_PKG_apache_mynewt_core__compiler_arm_none_eabi_m4 1
+#define MYNEWT_PKG_apache_mynewt_core__crypto_tinycrypt 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_bsp_nordic_pca10056 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_cmsis_core 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart 1
