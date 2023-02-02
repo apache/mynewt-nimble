@@ -1824,8 +1824,8 @@ ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
 
     /* If peer does not support coded, we cannot use value larger than 2120us */
     if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_LE_CODED_PHY)) {
-        tx_time = min(tx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
-        rx_time = min(rx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+        tx_time = MIN(tx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+        rx_time = MIN(rx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
     }
 #endif
 
@@ -2086,10 +2086,10 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
     send_event = 0;
 
     /* See if effective times have changed */
-    eff_time = min(connsm->rem_max_tx_time, connsm->max_rx_time);
+    eff_time = MIN(connsm->rem_max_tx_time, connsm->max_rx_time);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     if (connsm->phy_data.cur_rx_phy == BLE_PHY_CODED) {
-        eff_time = max(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
+        eff_time = MAX(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
     }
 #endif
     if (eff_time != connsm->eff_max_rx_time) {
@@ -2097,23 +2097,23 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
         ota_max_rx_time_calc = 1;
         send_event = 1;
     }
-    eff_time = min(connsm->rem_max_rx_time, connsm->max_tx_time);
+    eff_time = MIN(connsm->rem_max_rx_time, connsm->max_tx_time);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     if (connsm->phy_data.cur_tx_phy == BLE_PHY_CODED) {
-        eff_time = max(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
+        eff_time = MAX(eff_time, BLE_LL_CONN_SUPP_TIME_MIN_CODED);
     }
 #endif
     if (eff_time != connsm->eff_max_tx_time) {
         connsm->eff_max_tx_time = eff_time;
         send_event = 1;
     }
-    eff_bytes = min(connsm->rem_max_tx_octets, connsm->max_rx_octets);
+    eff_bytes = MIN(connsm->rem_max_tx_octets, connsm->max_rx_octets);
     if (eff_bytes != connsm->eff_max_rx_octets) {
         connsm->eff_max_rx_octets = eff_bytes;
         ota_max_rx_time_calc = 1;
         send_event = 1;
     }
-    eff_bytes = min(connsm->rem_max_rx_octets, connsm->max_tx_octets);
+    eff_bytes = MIN(connsm->rem_max_rx_octets, connsm->max_tx_octets);
     if (eff_bytes != connsm->eff_max_tx_octets) {
         connsm->eff_max_tx_octets = eff_bytes;
         send_event = 1;
@@ -2132,7 +2132,7 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
         phy_mode = BLE_PHY_MODE_1M;
 #endif
         ota_time = ble_ll_pdu_us(connsm->eff_max_rx_octets, phy_mode);
-        connsm->ota_max_rx_time = min(ota_time, connsm->eff_max_rx_time);
+        connsm->ota_max_rx_time = MIN(ota_time, connsm->eff_max_rx_time);
     }
 
     if (send_event) {
@@ -4290,15 +4290,15 @@ ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
         return -EINVAL;
     }
 
-    connsm->subrate_trans.subrate_factor = min(connsm->acc_subrate_max,
+    connsm->subrate_trans.subrate_factor = MIN(connsm->acc_subrate_max,
                                                srp->subrate_max);
     connsm->subrate_trans.subrate_base_event = connsm->event_cntr;
-    connsm->subrate_trans.periph_latency = min(connsm->acc_max_latency,
+    connsm->subrate_trans.periph_latency = MIN(connsm->acc_max_latency,
                                                srp->max_latency);
-    connsm->subrate_trans.cont_num = min(max(connsm->acc_cont_num,
+    connsm->subrate_trans.cont_num = MIN(MAX(connsm->acc_cont_num,
                                              srp->cont_num),
                                          connsm->subrate_trans.subrate_factor - 1);
-    connsm->subrate_trans.supervision_tmo = min(connsm->supervision_tmo,
+    connsm->subrate_trans.supervision_tmo = MIN(connsm->supervision_tmo,
                                                 srp->supervision_tmo);
 
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
@@ -4392,7 +4392,7 @@ ble_ll_conn_module_reset(void)
     /* Configure the global LL parameters */
     conn_params = &g_ble_ll_conn_params;
 
-    maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
+    maxbytes = MIN(MYNEWT_VAL(BLE_LL_SUPP_MAX_RX_BYTES), max_phy_pyld);
     conn_params->supp_max_rx_octets = maxbytes;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     conn_params->supp_max_rx_time = MAX_TIME_CODED(maxbytes);
@@ -4400,7 +4400,7 @@ ble_ll_conn_module_reset(void)
     conn_params->supp_max_rx_time = MAX_TIME_UNCODED(maxbytes);
 #endif
 
-    maxbytes = min(MYNEWT_VAL(BLE_LL_SUPP_MAX_TX_BYTES), max_phy_pyld);
+    maxbytes = MIN(MYNEWT_VAL(BLE_LL_SUPP_MAX_TX_BYTES), max_phy_pyld);
     conn_params->supp_max_tx_octets = maxbytes;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     conn_params->supp_max_tx_time = MAX_TIME_CODED(maxbytes);
@@ -4408,7 +4408,7 @@ ble_ll_conn_module_reset(void)
     conn_params->supp_max_tx_time = MAX_TIME_UNCODED(maxbytes);
 #endif
 
-    maxbytes = min(MYNEWT_VAL(BLE_LL_CONN_INIT_MAX_TX_BYTES), max_phy_pyld);
+    maxbytes = MIN(MYNEWT_VAL(BLE_LL_CONN_INIT_MAX_TX_BYTES), max_phy_pyld);
     conn_params->conn_init_max_tx_octets = maxbytes;
     conn_params->conn_init_max_tx_time = MAX_TIME_UNCODED(maxbytes);
     conn_params->conn_init_max_tx_time_uncoded = MAX_TIME_UNCODED(maxbytes);

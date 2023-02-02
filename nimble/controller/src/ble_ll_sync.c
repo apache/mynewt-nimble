@@ -705,7 +705,7 @@ ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
         ev->rssi = rssi;
         ev->cte_type = 0xff;
 
-        ev->data_len = min(max_data_len, datalen - offset);
+        ev->data_len = MIN(max_data_len, datalen - offset);
         /* adjust event length */
         hci_ev->length += ev->data_len;
 
