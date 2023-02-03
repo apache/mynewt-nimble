@@ -27,10 +27,6 @@ extern "C" {
 #include "nimble/hci_common.h"
 #include "nimble/transport.h"
 
-/* For supported commands */
-#define BLE_LL_SUPP_CMD_LEN (47)
-extern const uint8_t g_ble_ll_supp_cmds[BLE_LL_SUPP_CMD_LEN];
-
 /* The largest event the controller will send. */
 #define BLE_LL_MAX_EVT_LEN  MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)
 
@@ -82,6 +78,8 @@ bool ble_ll_hci_adv_mode_ext(void);
 
 /* Check if max octets/time are within allowed range */
 int ble_ll_hci_check_dle(uint16_t max_octets, uint16_t max_time);
+
+void ble_ll_hci_supp_cmd_get(uint8_t *buf);
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
 void ble_ll_hci_vs_register(struct ble_ll_hci_vs_cmd *cmds, uint32_t num_cmds);
