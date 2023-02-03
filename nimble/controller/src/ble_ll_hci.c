@@ -257,8 +257,7 @@ ble_ll_hci_rd_local_supp_cmd(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_ip_rd_loc_supp_cmd_rp *rsp = (void *) rspbuf;
 
-    memset(rsp->commands, 0, sizeof(rsp->commands));
-    memcpy(rsp->commands, g_ble_ll_supp_cmds, sizeof(g_ble_ll_supp_cmds));
+    ble_ll_hci_supp_cmd_get(rsp->commands);
 
     *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
