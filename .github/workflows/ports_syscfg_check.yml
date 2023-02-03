@@ -1,0 +1,63 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Check ports syscfg update
+
+on: [pull_request]
+
+jobs:
+  targets:
+    name: Check ports syscfg update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.16'
+      - uses: carlosperate/arm-none-eabi-gcc-action@48db4484a55750df7a0ccca63347fcdea6534d78
+        with:
+          release: '12.2.Rel1'
+      - name: Install Dependencies
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib
+      - name: Install newt
+        run: |
+             go version
+             go get mynewt.apache.org/newt/newt@latest
+      - name: Setup project
+        run: |
+             mkdir /tmp/proj
+             mkdir /tmp/proj/repos
+             cp .github/project_ports.yml /tmp/proj/project.yml
+             git clone --depth=1 https://github.com/apache/mynewt-core /tmp/proj/repos/apache-mynewt-core
+             git clone --depth=1 https://github.com/mcu-tools/mcuboot.git /tmp/proj/repos/mcuboot
+             git clone --depth=1 https://github.com/apache/mynewt-mcumgr /tmp/proj/repos/apache-mynewt-mcumgr
+             git clone --depth=1 https://github.com/hathach/tinyusb.git /tmp/proj/repos/tinyusb
+             cp -r `pwd` /tmp/proj/repos/apache-mynewt-nimble
+      - name: Check ports syscfg
+        run: |
+             cd /tmp/proj
+             ./repos/apache-mynewt-nimble/porting/update_generated_files.sh
+             cd repos/apache-mynewt-nimble
+             git diff --quiet || (\
+               echo -e "\033[0;31mChanges in system configration files detected.";
+               echo -e "\033[0;31mRun ./repos/apache-mynewt-nimble/porting/update_generated_files.sh" \
+                       "to update NimBLE ports configurations.";
+               exit 1)
