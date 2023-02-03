@@ -71,9 +71,11 @@ static struct os_mempool pool_evt;
 static uint8_t pool_evt_lo_buf[ OS_MEMPOOL_BYTES(POOL_EVT_LO_COUNT, POOL_EVT_SIZE) ];
 static struct os_mempool pool_evt_lo;
 
+#if POOL_ACL_COUNT > 0
 static uint8_t pool_acl_buf[ OS_MEMPOOL_BYTES(POOL_ACL_COUNT, POOL_ACL_SIZE) ];
 static struct os_mempool_ext pool_acl;
 static struct os_mbuf_pool mpool_acl;
+#endif
 
 static os_mempool_put_fn *transport_put_acl_from_ll_cb;
 
@@ -134,6 +136,7 @@ ble_transport_alloc_evt(int discardable)
 struct os_mbuf *
 ble_transport_alloc_acl_from_hs(void)
 {
+#if POOL_ACL_COUNT > 0
     struct os_mbuf *om;
     struct os_mbuf_pkthdr *pkthdr;
     uint16_t usrhdr_len;
@@ -151,11 +154,15 @@ ble_transport_alloc_acl_from_hs(void)
     }
 
     return om;
+#else
+    return NULL;
+#endif
 }
 
 struct os_mbuf *
 ble_transport_alloc_acl_from_ll(void)
 {
+#if POOL_ACL_COUNT > 0
     struct os_mbuf *om;
     struct os_mbuf_pkthdr *pkthdr;
 
@@ -166,6 +173,9 @@ ble_transport_alloc_acl_from_ll(void)
     }
 
     return om;
+#else
+    return NULL;
+#endif
 }
 
 void
@@ -202,6 +212,7 @@ ble_transport_ipc_free(void *buf)
     }
 }
 
+#if POOL_ACL_COUNT > 0
 static os_error_t
 ble_transport_acl_put(struct os_mempool_ext *mpe, void *data, void *arg)
 {
@@ -235,6 +246,7 @@ ble_transport_acl_put(struct os_mempool_ext *mpe, void *data, void *arg)
 
     return err;
 }
+#endif
 
 void
 ble_transport_init(void)
@@ -255,6 +267,7 @@ ble_transport_init(void)
                          pool_evt_lo_buf, "transport_pool_evt_lo");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+#if POOL_ACL_COUNT > 0
     rc = os_mempool_ext_init(&pool_acl, POOL_ACL_COUNT, POOL_ACL_SIZE,
                              pool_acl_buf, "transport_pool_acl");
     SYSINIT_PANIC_ASSERT(rc == 0);
@@ -264,6 +277,7 @@ ble_transport_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     pool_acl.mpe_put_cb = ble_transport_acl_put;
+#endif
 }
 
 int
