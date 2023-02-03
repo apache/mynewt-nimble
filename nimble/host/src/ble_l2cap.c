@@ -331,10 +331,6 @@ ble_l2cap_get_mtu(struct ble_l2cap_chan *chan)
  *                                  pointer to the appropriate handler gets
  *                                  written here.  The caller should pass the
  *                                  receive buffer to this callback.
- * @param out_rx_buf            If a full L2CAP packet has been received, this
- *                                  will point to the entire L2CAP packet.  To
- *                                  process the packet, pass this buffer to the
- *                                  receive handler (out_rx_cb).
  * @param out_reject_cid        Indicates whether an L2CAP Command Reject
  *                                  command should be sent.  If this equals -1,
  *                                  no reject should get sent.  Otherwise, the
