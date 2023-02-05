@@ -22,9 +22,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-
 #include <pthread.h>
+#include <unistd.h>
+
 #include "nimble/nimble_npl.h"
 #include "nimble/nimble_port.h"
 
