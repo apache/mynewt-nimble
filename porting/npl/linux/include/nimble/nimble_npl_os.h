@@ -37,13 +37,6 @@ extern "C" {
 
 #define SYSINIT_PANIC_MSG(msg) __assert_fail(msg, __FILE__, __LINE__, __func__)
 
-#define SYSINIT_PANIC_ASSERT_MSG(rc, msg) do \
-{                                            \
-    if (!(rc)) {                             \
-        SYSINIT_PANIC_MSG(msg);              \
-    }                                        \
-} while (0)
-
 #ifdef __cplusplus
 }
 #endif
