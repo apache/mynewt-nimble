@@ -356,7 +356,7 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
                (struct sockaddr *)&addr, sizeof(struct sockaddr_hci));
 
     free(buf);
-    ble_hci_trans_buf_free(hci_ev);
+    ble_transport_free(hci_ev);
     if (i != len + 1) {
         if (i < 0) {
             dprintf(1, "sendto() failed : %d\n", errno);
