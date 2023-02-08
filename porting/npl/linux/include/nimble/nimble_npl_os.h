@@ -35,8 +35,6 @@ extern "C" {
 
 #define BLE_NPL_TIME_FOREVER    INT32_MAX
 
-#define SYSINIT_PANIC_MSG(msg) __assert_fail(msg, __FILE__, __LINE__, __func__)
-
 #ifdef __cplusplus
 }
 #endif
