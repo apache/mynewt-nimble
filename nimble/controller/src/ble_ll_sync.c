@@ -2185,32 +2185,30 @@ ble_ll_sync_transfer(const uint8_t *cmdbuf, uint8_t len,
 
     if (!(sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHED)) {
         rc = BLE_ERR_UNK_ADV_INDENT;
-        OS_EXIT_CRITICAL(sr);
-        goto done;
+        goto exit_crit;
     }
 
     handle = le16toh(cmd->conn_handle);
     if (handle > 0xeff) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
-        OS_EXIT_CRITICAL(sr);
-        goto done;
+        goto exit_crit;
     }
 
     connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
-        OS_EXIT_CRITICAL(sr);
-        goto done;
+        goto exit_crit;
     }
 
      /* Allow initiate LL procedure only if remote supports it. */
     if (!ble_ll_conn_rem_feature_check(connsm, BLE_LL_FEAT_SYNC_TRANS_RECV)) {
         rc = BLE_ERR_UNSUPP_REM_FEATURE;
-        goto done;
+        goto exit_crit;
     }
 
     rc = ble_ll_sync_send_sync_ind(sm, connsm, cmd->service_data);
 
+exit_crit:
     OS_EXIT_CRITICAL(sr);
 done:
     rsp->conn_handle = cmd->conn_handle;
