@@ -22,6 +22,12 @@ extern void (* const systemVectors[256])(void);
  * handler and therefore its priority handling
  */
 
+int
+os_arch_in_isr(void)
+{
+    return currently_running_irq >= 0;
+}
+
 void posix_interrupt_raised(void)
 {
     uint64_t irq_lock;
