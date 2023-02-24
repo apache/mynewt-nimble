@@ -782,7 +782,7 @@ ble_phy_set_start_now(void)
      */
     now = os_cputime_get32();
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
-    nrf_rtc_cc_set(NRF_RTC0, 0, now + 3);
+    nrf_rtc_cc_set(NRF_RTC0, 0, (now + 3) & 0xffffff);
     nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 
 #if PHY_USE_FEM_LNA
