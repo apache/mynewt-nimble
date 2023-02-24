@@ -1954,6 +1954,9 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         ble_error = dptr[1];
     }
 
+    /* Suppress unused-but-set if not used by following code (due to syscfg) */
+    (void)ble_error;
+
     /* XXX: should I check to make sure the rejected opcode is sane
        if we receive ind ext? */
     switch (connsm->cur_ctrl_proc) {
