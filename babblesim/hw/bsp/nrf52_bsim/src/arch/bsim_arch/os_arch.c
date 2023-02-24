@@ -148,7 +148,7 @@ os_arch_restore_sr(os_sr_t osr)
 {
     hw_irq_ctrl_change_lock(osr);
 
-    if (!osr && bsim_pend_sv) {
+    if (!osr && bsim_pend_sv && !os_arch_in_isr()) {
         do_ctx_sw();
     }
 }
