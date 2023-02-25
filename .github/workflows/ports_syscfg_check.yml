@@ -51,11 +51,17 @@ jobs:
              git clone --depth=1 https://github.com/apache/mynewt-mcumgr /tmp/proj/repos/apache-mynewt-mcumgr
              git clone --depth=1 https://github.com/hathach/tinyusb.git /tmp/proj/repos/tinyusb
              cp -r `pwd` /tmp/proj/repos/apache-mynewt-nimble
-      - name: Check ports syscfg
+      - name: Build ports tests targets
         run: |
              cd /tmp/proj
              ./repos/apache-mynewt-nimble/porting/update_generated_files.sh
              cd repos/apache-mynewt-nimble
+      - name: Check ports syscfg (debug)
+        if:  runner.debug == '1'
+        run: |
+              git diff
+      - name: Check ports syscfg
+        run: |
              git diff --quiet || (\
                echo -e "\033[0;31mChanges in system configration files detected.";
                echo -e "\033[0;31mRun ./repos/apache-mynewt-nimble/porting/update_generated_files.sh" \
