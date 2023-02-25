@@ -36,8 +36,8 @@ another core).
 +----------+                       +----------+
   ||                                       ||
 +----+                                   +----+
-|    | <--- ble_transport_to_ll_acl ---- |    |
-|    | <--- ble_transport_to_ll_evt ---- |    |
+|    | <--- ble_transport_to_hs_acl ---- |    |
+|    | <--- ble_transport_to_hs_evt ---- |    |
 | HS |                                   | LL |
 |    | ---- ble_transport_to_ll_cmd ---> |    |
 |    | ---- ble_transport_to_ll_acl ---> |    |
