@@ -808,6 +808,8 @@ struct ble_gap_event {
         struct {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
+            /** Peer identity address */
+            ble_addr_t peer_id_addr;
         } identity_resolved;
 
         /**
