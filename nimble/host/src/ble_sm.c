@@ -573,7 +573,8 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     ble_hs_unlock();
 
     if (identity_ev) {
-        ble_gap_identity_event(proc->conn_handle);
+        /* Use peer_addr since it does have proper addr type (i.e. 0/1, not 2/3) */
+        ble_gap_identity_event(proc->conn_handle, &peer_addr);
     }
 
     authenticated = proc->flags & BLE_SM_PROC_F_AUTHENTICATED;

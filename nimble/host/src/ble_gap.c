@@ -6104,7 +6104,7 @@ ble_gap_enc_event(uint16_t conn_handle, int status,
 }
 
 void
-ble_gap_identity_event(uint16_t conn_handle)
+ble_gap_identity_event(uint16_t conn_handle, const ble_addr_t *peer_id_addr)
 {
 #if NIMBLE_BLE_SM && NIMBLE_BLE_CONNECT
     struct ble_gap_event event;
@@ -6114,6 +6114,7 @@ ble_gap_identity_event(uint16_t conn_handle)
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_IDENTITY_RESOLVED;
     event.identity_resolved.conn_handle = conn_handle;
+    event.identity_resolved.peer_id_addr = *peer_id_addr;
     ble_gap_call_conn_event_cb(&event, conn_handle);
 #endif
 }
