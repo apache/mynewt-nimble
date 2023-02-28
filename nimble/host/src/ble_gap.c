@@ -513,6 +513,57 @@ ble_gap_conn_find_by_addr(const ble_addr_t *addr,
 #endif
 }
 
+int
+ble_gap_conn_find_handle_by_addr(const ble_addr_t *addr, uint16_t *out_conn_handle)
+{
+#if NIMBLE_BLE_CONNECT
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find_by_addr(addr);
+    if (conn != NULL) {
+        *out_conn_handle = conn->bhc_handle;
+    } else {
+        *out_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    return 0;
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
+struct foreach_handle_cb_arg {
+    ble_gap_conn_foreach_handle_fn *cb;
+    void *arg;
+};
+
+static int
+ble_gap_conn_foreach_handle_callback(struct ble_hs_conn *conn, void *arg)
+{
+    struct foreach_handle_cb_arg *cb_arg = (struct foreach_handle_cb_arg *)arg;
+
+    return cb_arg->cb(conn->bhc_handle, cb_arg->arg);
+}
+
+void
+ble_gap_conn_foreach_handle(ble_gap_conn_foreach_handle_fn *cb, void *arg)
+{
+    struct foreach_handle_cb_arg cb_arg = {
+        .cb = cb,
+        .arg = arg,
+    };
+
+    ble_hs_conn_foreach(ble_gap_conn_foreach_handle_callback, &cb_arg);
+}
+
 #if NIMBLE_BLE_CONNECT
 static int
 ble_gap_extract_conn_cb(uint16_t conn_handle,
