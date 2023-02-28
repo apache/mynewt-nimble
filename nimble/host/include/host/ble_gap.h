@@ -1090,6 +1090,7 @@ struct ble_gap_event {
 };
 
 typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
+typedef int ble_gap_conn_foreach_handle_fn(uint16_t conn_handle, void *arg);
 
 #define BLE_GAP_CONN_MODE_NON               0
 #define BLE_GAP_CONN_MODE_DIR               1
