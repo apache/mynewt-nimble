@@ -334,6 +334,7 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 
     memcpy(&addr, &addr, sizeof(struct sockaddr_hci));
 
+    len = 0;
     if (h4_type == BLE_HCI_UART_H4_CMD) {
         len = sizeof(struct ble_hci_cmd) + hci_ev[2];
         STATS_INC(hci_sock_stats, ocmd);
