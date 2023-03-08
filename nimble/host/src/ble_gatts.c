@@ -44,13 +44,16 @@ static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
 static int ble_gatts_num_svc_defs;
 
 struct ble_gatts_svc_entry {
+    STAILQ_ENTRY(ble_gatts_svc_entry) next;
     const struct ble_gatt_svc_def *svc;
     uint16_t handle;            /* 0 means unregistered. */
     uint16_t end_group_handle;  /* 0xffff means unset. */
 };
 
-static struct ble_gatts_svc_entry *ble_gatts_svc_entries;
-static uint16_t ble_gatts_num_svc_entries;
+STAILQ_HEAD(ble_gatts_svc_entry_list, ble_gatts_svc_entry);
+static struct ble_gatts_svc_entry_list ble_gatts_svc_entries;
+static void *ble_gatts_svc_entry_mem;
+static struct os_mempool ble_gatts_svc_entry_pool;
 
 static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
@@ -78,6 +81,25 @@ STATS_NAME_START(ble_gatts_stats)
     STATS_NAME(ble_gatts_stats, dsc_reads)
     STATS_NAME(ble_gatts_stats, dsc_writes)
 STATS_NAME_END(ble_gatts_stats)
+
+static struct ble_gatts_svc_entry *
+ble_gatts_svc_entry_alloc(void)
+{
+    struct ble_gatts_svc_entry *entry;
+
+    entry = os_memblock_get(&ble_gatts_svc_entry_pool);
+    if (entry != NULL) {
+        memset(entry, 0, sizeof *entry);
+    }
+
+    return entry;
+}
+
+static void
+ble_gatts_svc_entry_free(struct ble_gatts_svc_entry *entry)
+{
+    os_memblock_put(&ble_gatts_svc_entry_pool, entry);
+}
 
 static int
 ble_gatts_svc_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -424,25 +446,25 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     return rc;
 }
 
-static int
-ble_gatts_find_svc_entry_idx(const struct ble_gatt_svc_def *svc)
+static struct ble_gatts_svc_entry *
+ble_gatts_find_svc_entry(const struct ble_gatt_svc_def *svc)
 {
-    int i;
+    struct ble_gatts_svc_entry *entry;
 
-    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
-        if (ble_gatts_svc_entries[i].svc == svc) {
-            return i;
+    STAILQ_FOREACH(entry, &ble_gatts_svc_entries, next) {
+        if (entry->svc == svc) {
+            return entry;
         }
     }
 
-    return -1;
+    return NULL;
 }
 
 static int
 ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
 {
-    int idx;
     int i;
+    struct ble_gatts_svc_entry *entry;
 
     if (svc->includes == NULL) {
         /* No included services. */
@@ -450,8 +472,8 @@ ble_gatts_svc_incs_satisfied(const struct ble_gatt_svc_def *svc)
     }
 
     for (i = 0; svc->includes[i] != NULL; i++) {
-        idx = ble_gatts_find_svc_entry_idx(svc->includes[i]);
-        if (idx == -1 || ble_gatts_svc_entries[idx].handle == 0) {
+        entry = ble_gatts_find_svc_entry(svc->includes[i]);
+        if (entry == NULL || entry->handle == 0) {
             return 0;
         }
     }
@@ -926,7 +948,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     const struct ble_gatt_chr_def *chr;
     struct ble_gatt_register_ctxt register_ctxt;
     const ble_uuid_t *uuid;
-    int idx;
+    struct ble_gatts_svc_entry *entry;
     int rc;
     int i;
 
@@ -963,10 +985,10 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     /* Register each include. */
     if (svc->includes != NULL) {
         for (i = 0; svc->includes[i] != NULL; i++) {
-            idx = ble_gatts_find_svc_entry_idx(svc->includes[i]);
-            BLE_HS_DBG_ASSERT_EVAL(idx != -1);
+            entry = ble_gatts_find_svc_entry(svc->includes[i]);
+            BLE_HS_DBG_ASSERT_EVAL(entry != NULL);
 
-            rc = ble_gatts_register_inc(ble_gatts_svc_entries + idx);
+            rc = ble_gatts_register_inc(entry);
             if (rc != 0) {
                 return rc;
             }
@@ -995,12 +1017,9 @@ ble_gatts_register_round(int *out_num_registered, ble_gatt_register_fn *cb,
     struct ble_gatts_svc_entry *entry;
     uint16_t handle;
     int rc;
-    int i;
 
     *out_num_registered = 0;
-    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
-        entry = ble_gatts_svc_entries + i;
-
+    STAILQ_FOREACH(entry, &ble_gatts_svc_entries, next) {
         if (entry->handle == 0) {
             rc = ble_gatts_register_svc(entry->svc, &handle, cb, cb_arg);
             switch (rc) {
@@ -1056,22 +1075,21 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     int total_registered;
     int cur_registered;
     int num_svcs;
-    int idx;
     int rc;
     int i;
+    struct ble_gatts_svc_entry *entry;
 
     for (i = 0; svcs[i].type != BLE_GATT_SVC_TYPE_END; i++) {
-        idx = ble_gatts_num_svc_entries + i;
-        if (idx >= ble_hs_max_services) {
+        entry = ble_gatts_svc_entry_alloc();
+        if (entry == NULL) {
             return BLE_HS_ENOMEM;
         }
-
-        ble_gatts_svc_entries[idx].svc = svcs + i;
-        ble_gatts_svc_entries[idx].handle = 0;
-        ble_gatts_svc_entries[idx].end_group_handle = 0xffff;
+        entry->svc = svcs + i;
+        entry->handle = 0;
+        entry->end_group_handle = 0xffff;
+        STAILQ_INSERT_TAIL(&ble_gatts_svc_entries, entry, next);
     }
     num_svcs = i;
-    ble_gatts_num_svc_entries += num_svcs;
 
     total_registered = 0;
     while (total_registered < num_svcs) {
@@ -1166,8 +1184,9 @@ ble_gatts_free_mem(void)
     free(ble_gatts_clt_cfg_mem);
     ble_gatts_clt_cfg_mem = NULL;
 
-    free(ble_gatts_svc_entries);
-    ble_gatts_svc_entries = NULL;
+    free(ble_gatts_svc_entry_mem);
+    ble_gatts_svc_entry_mem = NULL;
+
 }
 
 int
@@ -1206,16 +1225,22 @@ ble_gatts_start(void)
     }
 
     if (ble_hs_max_services > 0) {
-        ble_gatts_svc_entries =
-            malloc(ble_hs_max_services * sizeof *ble_gatts_svc_entries);
-        if (ble_gatts_svc_entries == NULL) {
+        ble_gatts_svc_entry_mem =
+            malloc(ble_hs_max_services * sizeof(struct ble_gatts_svc_entry));
+        if (ble_gatts_svc_entry_mem == NULL) {
             rc = BLE_HS_ENOMEM;
             goto done;
         }
     }
 
+    rc = os_mempool_init(&ble_gatts_svc_entry_pool, ble_hs_max_services,
+            sizeof (struct ble_gatts_svc_entry),
+            ble_gatts_svc_entry_mem, "ble_gatts_svc_entry_pool");
+    if (rc != 0) {
+        rc = BLE_HS_EOS;
+        goto done;
+    }
 
-    ble_gatts_num_svc_entries = 0;
     for (i = 0; i < ble_gatts_num_svc_defs; i++) {
         rc = ble_gatts_register_svcs(ble_gatts_svc_defs[i],
                                      ble_hs_cfg.gatts_register_cb,
@@ -1803,13 +1828,11 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
 }
 
 static struct ble_gatts_svc_entry *
-ble_gatts_find_svc_entry(const ble_uuid_t *uuid)
+ble_gatts_find_svc_entry_by_uuid(const ble_uuid_t *uuid)
 {
     struct ble_gatts_svc_entry *entry;
-    int i;
 
-    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
-        entry = ble_gatts_svc_entries + i;
+    STAILQ_FOREACH(entry, &ble_gatts_svc_entries, next) {
         if (ble_uuid_cmp(uuid, entry->svc->uuid) == 0) {
             return entry;
         }
@@ -1829,7 +1852,7 @@ ble_gatts_find_svc_chr_attr(const ble_uuid_t *svc_uuid,
     struct ble_att_svr_entry *next;
     struct ble_att_svr_entry *cur;
 
-    svc_entry = ble_gatts_find_svc_entry(svc_uuid);
+    svc_entry = ble_gatts_find_svc_entry_by_uuid(svc_uuid);
     if (svc_entry == NULL) {
         return BLE_HS_ENOENT;
     }
@@ -1874,7 +1897,7 @@ ble_gatts_find_svc(const ble_uuid_t *uuid, uint16_t *out_handle)
 {
     struct ble_gatts_svc_entry *entry;
 
-    entry = ble_gatts_find_svc_entry(uuid);
+    entry = ble_gatts_find_svc_entry_by_uuid(uuid);
     if (entry == NULL) {
         return BLE_HS_ENOENT;
     }
@@ -1983,11 +2006,9 @@ done:
 int
 ble_gatts_svc_set_visibility(uint16_t handle, int visible)
 {
-    int i;
+    struct ble_gatts_svc_entry *entry;
 
-    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
-        struct ble_gatts_svc_entry *entry = &ble_gatts_svc_entries[i];
-
+    STAILQ_FOREACH(entry, &ble_gatts_svc_entries, next) {
         if (entry->handle == handle) {
             if (visible) {
                 ble_att_svr_restore_range(entry->handle, entry->end_group_handle);
@@ -1997,7 +2018,6 @@ ble_gatts_svc_set_visibility(uint16_t handle, int visible)
             return 0;
         }
     }
-
     return BLE_HS_ENOENT;
 }
 
@@ -2133,12 +2153,12 @@ ble_gatts_count_cfg(const struct ble_gatt_svc_def *defs)
 void
 ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb, void *arg)
 {
-    int i;
+    struct ble_gatts_svc_entry *entry;
 
-    for (i = 0; i < ble_gatts_num_svc_entries; i++) {
-        cb(ble_gatts_svc_entries[i].svc,
-           ble_gatts_svc_entries[i].handle,
-           ble_gatts_svc_entries[i].end_group_handle, arg);
+    STAILQ_FOREACH(entry, &ble_gatts_svc_entries, next) {
+        cb(entry->svc,
+           entry->handle,
+           entry->end_group_handle, arg);
     }
 }
 
@@ -2146,6 +2166,7 @@ int
 ble_gatts_reset(void)
 {
     int rc;
+    struct ble_gatts_svc_entry *entry;
 
     ble_hs_lock();
 
@@ -2156,6 +2177,12 @@ ble_gatts_reset(void)
         ble_att_svr_reset();
         ble_gatts_num_cfgable_chrs = 0;
         rc = 0;
+        /* free svc entries */
+        while ((entry = STAILQ_FIRST(&ble_gatts_svc_entries)) != NULL) {
+            STAILQ_REMOVE_HEAD(&ble_gatts_svc_entries, next);
+            ble_gatts_svc_entry_free(entry);
+        }
+
 
         /* Note: gatts memory gets freed on next call to ble_gatts_start(). */
     }
@@ -2179,6 +2206,8 @@ ble_gatts_init(void)
     if (rc != 0) {
         return BLE_HS_EOS;
     }
+
+    STAILQ_INIT(&ble_gatts_svc_entries);
 
     return 0;
 
