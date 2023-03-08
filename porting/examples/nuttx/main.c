@@ -24,6 +24,9 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/boardctl.h>
+
+#include "netutils/netinit.h"
 
 #include "nimble/nimble_npl.h"
 #include "nimble/nimble_port.h"
@@ -70,6 +73,18 @@ int main(int argc, char *argv[])
     if (argc > 1) {
         ble_hci_sock_set_device(atoi(argv[1]));
     }
+
+#ifndef CONFIG_NSH_ARCHINIT
+    /* Perform architecture-specific initialization */
+
+    boardctl(BOARDIOC_INIT, 0);
+#endif
+
+#ifndef CONFIG_NSH_NETINIT
+    /* Bring up the network */
+
+    netinit_bringup();
+#endif
 
     printf("port init\n");
     nimble_port_init();
