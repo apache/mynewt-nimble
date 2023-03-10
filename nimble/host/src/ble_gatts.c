@@ -58,14 +58,7 @@ static struct os_mempool ble_gatts_svc_entry_pool;
 static os_membuf_t *ble_gatts_clt_cfg_mem;
 static struct os_mempool ble_gatts_clt_cfg_pool;
 
-struct ble_gatts_clt_cfg {
-    uint16_t chr_val_handle;
-    uint8_t flags;
-    uint8_t allowed;
-};
-
-/** A cached array of handles for the configurable characteristics. */
-static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
+static struct ble_gatts_clt_cfg_list ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
 
 STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
@@ -604,35 +597,18 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
 
 }
 
-static int
-ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
+static struct ble_gatts_clt_cfg *
+ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg_list *ble_gatts_clt_cfgs,
                            uint16_t chr_val_handle)
 {
     struct ble_gatts_clt_cfg *cfg;
-    int i;
-
-    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
-        cfg = cfgs + i;
+    STAILQ_FOREACH(cfg, ble_gatts_clt_cfgs, next) {
         if (cfg->chr_val_handle == chr_val_handle) {
-            return i;
+            return cfg;
         }
     }
 
-    return -1;
-}
-
-static struct ble_gatts_clt_cfg *
-ble_gatts_clt_cfg_find(struct ble_gatts_clt_cfg *cfgs,
-                       uint16_t chr_val_handle)
-{
-    int idx;
-
-    idx = ble_gatts_clt_cfg_find_idx(cfgs, chr_val_handle);
-    if (idx == -1) {
-        return NULL;
-    } else {
-        return cfgs + idx;
-    }
+    return NULL;
 }
 
 static void
@@ -697,7 +673,7 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+    clt_cfg = ble_gatts_clt_cfg_find(&conn->bhc_gatt_svr.clt_cfgs,
                                      chr_val_handle);
     if (clt_cfg == NULL) {
         return BLE_ATT_ERR_UNLIKELY;
@@ -1103,12 +1079,6 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     return 0;
 }
 
-static int
-ble_gatts_clt_cfg_size(void)
-{
-    return ble_gatts_num_cfgable_chrs * sizeof (struct ble_gatts_clt_cfg);
-}
-
 /**
  * Handles GATT server clean up for a terminated connection:
  *     o Informs the application that the peer is no longer subscribed to any
@@ -1118,11 +1088,10 @@ ble_gatts_clt_cfg_size(void)
 void
 ble_gatts_connection_broken(uint16_t conn_handle)
 {
-    struct ble_gatts_clt_cfg *clt_cfgs;
+    struct ble_gatts_clt_cfg_list clt_cfgs;
     struct ble_hs_conn *conn;
-    int num_clt_cfgs;
+    struct ble_gatts_clt_cfg *clt_cfg;
     int rc;
-    int i;
 
     /* Find the specified connection and extract its CCCD entries.  Extracting
      * the clt_cfg pointer and setting the original to null is done for two
@@ -1138,10 +1107,9 @@ ble_gatts_connection_broken(uint16_t conn_handle)
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        clt_cfgs = conn->bhc_gatt_svr.clt_cfgs;
-        num_clt_cfgs = conn->bhc_gatt_svr.num_clt_cfgs;
+        memcpy(&clt_cfgs, &(conn->bhc_gatt_svr.clt_cfgs), sizeof(struct ble_gatts_clt_cfg_list));
 
-        conn->bhc_gatt_svr.clt_cfgs = NULL;
+        STAILQ_INIT(&(conn->bhc_gatt_svr.clt_cfgs));
         conn->bhc_gatt_svr.num_clt_cfgs = 0;
     }
     ble_hs_unlock();
@@ -1158,15 +1126,15 @@ ble_gatts_connection_broken(uint16_t conn_handle)
     /* Now that the mutex is unlocked, inform the application that the peer is
      * no longer subscribed to any characteristic updates.
      */
-    if (clt_cfgs != NULL) {
-        for (i = 0; i < num_clt_cfgs; i++) {
-            ble_gatts_subscribe_event(conn_handle, clt_cfgs[i].chr_val_handle,
-                                      BLE_GAP_SUBSCRIBE_REASON_TERM,
-                                      clt_cfgs[i].flags, 0);
+    if (STAILQ_FIRST(&clt_cfgs) != NULL) {
+        STAILQ_FOREACH(clt_cfg, &ble_gatts_clt_cfgs, next) {
+            ble_gatts_subscribe_event(conn_handle, clt_cfg->chr_val_handle,
+                    BLE_GAP_SUBSCRIBE_REASON_TERM,
+                    clt_cfg->flags, 0);
+        rc = os_memblock_put(&ble_gatts_clt_cfg_pool, clt_cfg);
+        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
         }
 
-        rc = os_memblock_put(&ble_gatts_clt_cfg_pool, clt_cfgs);
-        BLE_HS_DBG_ASSERT_EVAL(rc == 0);
     }
 }
 
@@ -1193,10 +1161,10 @@ ble_gatts_start(void)
 {
     struct ble_att_svr_entry *ha;
     struct ble_gatt_chr_def *chr;
+    struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t allowed_flags;
     ble_uuid16_t uuid = BLE_UUID16_INIT(BLE_ATT_UUID_CHARACTERISTIC);
     int num_elems;
-    int idx;
     int rc;
     int i;
 
@@ -1256,37 +1224,30 @@ ble_gatts_start(void)
     }
 
     /* Initialize client-configuration memory pool. */
-    num_elems = ble_hs_max_client_configs / ble_gatts_num_cfgable_chrs;
+    num_elems = ble_hs_max_client_configs;
     rc = os_mempool_init(&ble_gatts_clt_cfg_pool, num_elems,
-                         ble_gatts_clt_cfg_size(), ble_gatts_clt_cfg_mem,
-                         "ble_gatts_clt_cfg_pool");
+                            sizeof(struct ble_gatts_clt_cfg),
+                            ble_gatts_clt_cfg_mem,
+                            "ble_gatts_clt_cfg_pool");
     if (rc != 0) {
         rc = BLE_HS_EOS;
         goto done;
     }
 
-    /* Allocate the cached array of handles for the configuration
-     * characteristics.
-     */
-    ble_gatts_clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
-    if (ble_gatts_clt_cfgs == NULL) {
-        rc = BLE_HS_ENOMEM;
-        goto done;
-    }
-
     /* Fill the cache. */
-    idx = 0;
     ha = NULL;
+    clt_cfg = NULL;
     while ((ha = ble_att_svr_find_by_uuid(ha, &uuid.u, 0xffff)) != NULL) {
         chr = ha->ha_cb_arg;
         allowed_flags = ble_gatts_chr_clt_cfg_allowed(chr);
         if (allowed_flags != 0) {
-            BLE_HS_DBG_ASSERT_EVAL(idx < ble_gatts_num_cfgable_chrs);
+            clt_cfg = os_memblock_get(&ble_gatts_clt_cfg_pool);
+            BLE_HS_DBG_ASSERT_EVAL(clt_cfg != NULL);
 
-            ble_gatts_clt_cfgs[idx].chr_val_handle = ha->ha_handle_id + 1;
-            ble_gatts_clt_cfgs[idx].allowed = allowed_flags;
-            ble_gatts_clt_cfgs[idx].flags = 0;
-            idx++;
+            clt_cfg->chr_val_handle = ha->ha_handle_id + 1;
+            clt_cfg->allowed = allowed_flags;
+            clt_cfg->flags = 0;
+            STAILQ_INSERT_TAIL(&ble_gatts_clt_cfgs, clt_cfg, next);
         }
     }
 
@@ -1310,21 +1271,40 @@ ble_gatts_conn_can_alloc(void)
 int
 ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
 {
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_gatts_clt_cfg *clt_cfg_new;
+    struct ble_gatts_clt_cfg_list clt_cfgs;
+    int rc;
+    STAILQ_INIT(&clt_cfgs);
+    rc = 0;
     if (ble_gatts_num_cfgable_chrs > 0) {
-        gatts_conn->clt_cfgs = os_memblock_get(&ble_gatts_clt_cfg_pool);
-        if (gatts_conn->clt_cfgs == NULL) {
-            return BLE_HS_ENOMEM;
-        }
-
         /* Initialize the client configuration with a copy of the cache. */
-        memcpy(gatts_conn->clt_cfgs, ble_gatts_clt_cfgs,
-               ble_gatts_clt_cfg_size());
+        STAILQ_FOREACH(clt_cfg, &ble_gatts_clt_cfgs, next) {
+            clt_cfg_new = os_memblock_get(&ble_gatts_clt_cfg_pool);
+            if(clt_cfg_new == NULL) {
+                rc = BLE_HS_ENOMEM;
+                goto done;
+            }
+            memcpy(clt_cfg_new, clt_cfg, sizeof(struct ble_gatts_clt_cfg));
+            STAILQ_INSERT_TAIL(&clt_cfgs, clt_cfg_new, next);
+        }
+        memcpy(&(gatts_conn->clt_cfgs), &clt_cfgs, sizeof(struct ble_gatts_clt_cfg_list));
         gatts_conn->num_clt_cfgs = ble_gatts_num_cfgable_chrs;
     } else {
-        gatts_conn->clt_cfgs = NULL;
+        STAILQ_INIT(&(gatts_conn->clt_cfgs));
         gatts_conn->num_clt_cfgs = 0;
     }
 
+done:
+    if(rc != 0) {
+    /* free clt_cfgs_list entries */
+        clt_cfg = NULL;
+        while ((clt_cfg = STAILQ_FIRST(&clt_cfgs)) != NULL) {
+            STAILQ_REMOVE_HEAD(&clt_cfgs, next);
+            os_memblock_put(&ble_gatts_clt_cfg_pool, clt_cfg);
+        }
+        return rc;
+    }
     return 0;
 }
 
@@ -1387,7 +1367,6 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
     struct ble_hs_conn *conn;
     uint16_t chr_val_handle;
     int rc;
-    int i;
 
     /* Assume no pending indications. */
     chr_val_handle = 0;
@@ -1396,8 +1375,7 @@ ble_gatts_send_next_indicate(uint16_t conn_handle)
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
-        for (i = 0; i < conn->bhc_gatt_svr.num_clt_cfgs; i++) {
-            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + i;
+        STAILQ_FOREACH(clt_cfg, &conn->bhc_gatt_svr.clt_cfgs, next) {
             if (clt_cfg->flags & BLE_GATTS_CLT_CFG_F_MODIFIED) {
                 BLE_HS_DBG_ASSERT(clt_cfg->flags &
                                   BLE_GATTS_CLT_CFG_F_INDICATE);
@@ -1435,18 +1413,16 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
     struct ble_store_value_cccd cccd_value;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
-    int clt_cfg_idx;
     int persist;
     int rc;
 
-    clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
+    clt_cfg = ble_gatts_clt_cfg_find(&ble_gatts_clt_cfgs,
                                              chr_val_handle);
-    if (clt_cfg_idx == -1) {
+    if (clt_cfg == NULL) {
         /* This characteristic does not have a CCCD. */
         return BLE_HS_ENOENT;
     }
 
-    clt_cfg = ble_gatts_clt_cfgs + clt_cfg_idx;
     if (!(clt_cfg->allowed & BLE_GATTS_CLT_CFG_F_INDICATE)) {
         /* This characteristic does not allow indications. */
         return BLE_HS_ENOENT;
@@ -1468,8 +1444,8 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
          * been modified since we sent the indication, there is no indication
          * pending.
          */
-        BLE_HS_DBG_ASSERT(conn->bhc_gatt_svr.num_clt_cfgs > clt_cfg_idx);
-        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
+        clt_cfg = ble_gatts_clt_cfg_find(&conn->bhc_gatt_svr.clt_cfgs, chr_val_handle);
+        BLE_HS_DBG_ASSERT(clt_cfg != NULL);
         BLE_HS_DBG_ASSERT(clt_cfg->chr_val_handle == chr_val_handle);
 
         persist = conn->bhc_sec_state.bonded &&
@@ -1513,7 +1489,6 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
     int new_notifications = 0;
-    int clt_cfg_idx;
     int persist;
     int rc;
     int i;
@@ -1521,9 +1496,9 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     /* Determine if notifications or indications are allowed for this
      * characteristic.  If not, return immediately.
      */
-    clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
+    clt_cfg = ble_gatts_clt_cfg_find(&ble_gatts_clt_cfgs,
                                              chr_val_handle);
-    if (clt_cfg_idx == -1) {
+    if (clt_cfg == NULL) {
         return;
     }
 
@@ -1539,9 +1514,6 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
             break;
         }
 
-        BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
-                               clt_cfg_idx);
-        clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
         BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
 
         /* Mark the CCCD entry as modified. */
@@ -1617,15 +1589,14 @@ ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
     struct ble_hs_conn *conn;
     uint16_t conn_handle;
     uint8_t att_op;
-    int clt_cfg_idx;
     int i;
 
     /* Determine if notifications / indications are enabled for this
      * characteristic.
      */
-    clt_cfg_idx = ble_gatts_clt_cfg_find_idx(ble_gatts_clt_cfgs,
+    clt_cfg = ble_gatts_clt_cfg_find(&ble_gatts_clt_cfgs,
                                              chr_val_handle);
-    if (clt_cfg_idx == -1) {
+    if (clt_cfg == NULL) {
         return;
     }
 
@@ -1634,9 +1605,6 @@ ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
 
         conn = ble_hs_conn_find_by_idx(i);
         if (conn != NULL) {
-            BLE_HS_DBG_ASSERT_EVAL(conn->bhc_gatt_svr.num_clt_cfgs >
-                                   clt_cfg_idx);
-            clt_cfg = conn->bhc_gatt_svr.clt_cfgs + clt_cfg_idx;
             BLE_HS_DBG_ASSERT_EVAL(clt_cfg->chr_val_handle == chr_val_handle);
 
             /* Determine what type of command should get sent, if any. */
@@ -1681,11 +1649,10 @@ ble_gatts_tx_notifications_one_chr(uint16_t chr_val_handle)
 void
 ble_gatts_tx_notifications(void)
 {
+    struct ble_gatts_clt_cfg *clt_cfg;
     uint16_t chr_val_handle;
-    int i;
-
-    for (i = 0; i < ble_gatts_num_cfgable_chrs; i++) {
-        chr_val_handle = ble_gatts_clt_cfgs[i].chr_val_handle;
+    STAILQ_FOREACH(clt_cfg, &ble_gatts_clt_cfgs, next) {
+        chr_val_handle = clt_cfg->chr_val_handle;
         ble_gatts_tx_notifications_one_chr(chr_val_handle);
     }
 }
@@ -1697,7 +1664,6 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_gatts_conn *gatt_srv;
     struct ble_hs_conn *conn;
-    int i;
 
     ble_hs_lock();
 
@@ -1710,8 +1676,7 @@ ble_gatts_bonding_established(uint16_t conn_handle)
         ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     gatt_srv = &conn->bhc_gatt_svr;
 
-    for (i = 0; i < gatt_srv->num_clt_cfgs; ++i) {
-        clt_cfg = &gatt_srv->clt_cfgs[i];
+    STAILQ_FOREACH(clt_cfg, &gatt_srv->clt_cfgs, next) {
 
         if (clt_cfg->flags != 0) {
             cccd_value.chr_val_handle = clt_cfg->chr_val_handle;
@@ -1777,7 +1742,7 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
         conn = ble_hs_conn_find(conn_handle);
         BLE_HS_DBG_ASSERT(conn != NULL);
 
-        clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+        clt_cfg = ble_gatts_clt_cfg_find(&conn->bhc_gatt_svr.clt_cfgs,
                                          cccd_value.chr_val_handle);
         if (clt_cfg != NULL) {
             clt_cfg->flags = cccd_value.flags;
@@ -2197,7 +2162,7 @@ ble_gatts_init(void)
     int rc;
 
     ble_gatts_num_cfgable_chrs = 0;
-    ble_gatts_clt_cfgs = NULL;
+    STAILQ_INIT(&ble_gatts_clt_cfgs);
 
     rc = stats_init_and_reg(
         STATS_HDR(ble_gatts_stats), STATS_SIZE_INIT_PARMS(ble_gatts_stats,

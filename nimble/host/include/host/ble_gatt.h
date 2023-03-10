@@ -762,6 +762,16 @@ struct ble_gatt_register_ctxt {
 typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
                                   void *arg);
 
+struct ble_gatts_clt_cfg {
+    STAILQ_ENTRY(ble_gatts_clt_cfg) next;
+    uint16_t chr_val_handle;
+    uint8_t flags;
+    uint8_t allowed;
+};
+
+/** A cached array of handles for the configurable characteristics. */
+STAILQ_HEAD(ble_gatts_clt_cfg_list, ble_gatts_clt_cfg);
+
 /**
  * Queues a set of service definitions for registration.  All services queued
  * in this manner get registered when ble_gatts_start() is called.
