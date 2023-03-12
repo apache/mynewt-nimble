@@ -525,11 +525,13 @@ static void
 ble_sm_persist_keys(struct ble_sm_proc *proc)
 {
     struct ble_store_value_sec value_sec;
+    struct ble_store_value_hash value_hash;
     struct ble_hs_conn *conn;
     ble_addr_t peer_addr;
     int authenticated;
     int identity_ev = 0;
     int sc;
+    int rc;
 
     ble_hs_lock();
 
@@ -587,6 +589,14 @@ ble_sm_persist_keys(struct ble_sm_proc *proc)
     ble_sm_fill_store_value(&peer_addr, authenticated, sc, &proc->peer_keys,
                             &value_sec);
     ble_store_write_peer_sec(&value_sec);
+
+
+    // Compute current database hash and store it
+    value_hash.peer_addr = peer_addr;
+    rc = ble_compute_db_hash(value_hash.db_hash);
+    if (rc == 0) {
+        rc = ble_store_write_hash(&value_hash);
+    }    
 }
 
 static int
