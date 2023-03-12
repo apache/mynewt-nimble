@@ -236,11 +236,19 @@ ble_store_write_peer_sec(const struct ble_store_value_sec *value_sec)
     if (ble_addr_cmp(&value_sec->peer_addr, BLE_ADDR_ANY) &&
         value_sec->irk_present) {
 
-        /* Write the peer IRK to the controller keycache
-         * There is not much to do here if it fails */
+        /*
+         * Core spec is not clear whether we can update existing entry by adding
+         * it again and NimBLE controller will reject such request. To make sure
+         * IRK is updated, let's try to remove entry before adding new one. We
+         * don't care if this fails since we do not know if the entry is there.
+         */
+        ble_hs_pvcy_remove_entry(value_sec->peer_addr.type,
+                                 value_sec->peer_addr.val);
+
+        /* Add new entry with new peer IRK to resolving list */
         rc = ble_hs_pvcy_add_entry(value_sec->peer_addr.val,
-                                          value_sec->peer_addr.type,
-                                          value_sec->irk);
+                                   value_sec->peer_addr.type,
+                                   value_sec->irk);
         if (rc != 0) {
             return rc;
         }
