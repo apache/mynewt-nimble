@@ -1113,6 +1113,10 @@ ble_phy_tx_end_isr(void)
              */
             tx_time = NRF_TIMER0->CC[1] - ble_ll_pdu_syncword_us(tx_phy_mode) +
                       g_ble_phy_data.txtx_time_us;
+            /* Adjust for delay between EVENT_ADDRESS and actual address TX time */
+            /* FIXME assume this is the same as EVENT_END to end, but we should
+             *       measure this to be sure */
+            tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
         }
 
         /* Adjust for delay between EVENT_END and actual TX end time */
