@@ -1671,9 +1671,6 @@ ble_sm_test_util_peer_bonding_good(int send_enc_req,
     TEST_ASSERT(ble_sm_test_store_obj_type == BLE_STORE_OBJ_TYPE_OUR_SEC);
     TEST_ASSERT(ble_sm_test_store_key.sec.peer_addr.type ==
                 ble_hs_misc_peer_addr_type_to_id(peer_addr_type));
-    TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
-    TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);
-    TEST_ASSERT(ble_sm_test_store_key.sec.rand_num == rand_num);
 
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_num_procs() == 1);
@@ -1738,9 +1735,6 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
     /* Ensure the LTK request event got sent to the application. */
     TEST_ASSERT(ble_sm_test_store_obj_type ==
                 BLE_STORE_OBJ_TYPE_OUR_SEC);
-    TEST_ASSERT(ble_sm_test_store_key.sec.ediv_rand_present);
-    TEST_ASSERT(ble_sm_test_store_key.sec.ediv == ediv);
-    TEST_ASSERT(ble_sm_test_store_key.sec.rand_num == rand_num);
 
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
 

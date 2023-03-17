@@ -84,10 +84,6 @@ ble_store_ram_print_key_sec(const struct ble_store_key_sec *key_sec)
         ble_hs_log_flat_buf(key_sec->peer_addr.val, 6);
         BLE_HS_LOG(DEBUG, " ");
     }
-    if (key_sec->ediv_rand_present) {
-        BLE_HS_LOG(DEBUG, "ediv=0x%02x rand=0x%llx ",
-                       key_sec->ediv, key_sec->rand_num);
-    }
 }
 
 static int
@@ -96,36 +92,20 @@ ble_store_ram_find_sec(const struct ble_store_key_sec *key_sec,
                        int num_value_secs)
 {
     const struct ble_store_value_sec *cur;
-    int skipped;
     int i;
 
-    skipped = 0;
+    if (!ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
+        if (key_sec->idx < num_value_secs) {
+            return key_sec->idx;
+        }
+    } else if (key_sec->idx == 0) {
+        for (i = 0; i < num_value_secs; i++) {
+            cur = &value_secs[i];
 
-    for (i = 0; i < num_value_secs; i++) {
-        cur = value_secs + i;
-
-        if (ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
-            if (ble_addr_cmp(&cur->peer_addr, &key_sec->peer_addr)) {
-                continue;
+            if (!ble_addr_cmp(&cur->peer_addr, &key_sec->peer_addr)) {
+                return i;
             }
         }
-
-        if (key_sec->ediv_rand_present) {
-            if (cur->ediv != key_sec->ediv) {
-                continue;
-            }
-
-            if (cur->rand_num != key_sec->rand_num) {
-                continue;
-            }
-        }
-
-        if (key_sec->idx > skipped) {
-            skipped++;
-            continue;
-        }
-
-        return i;
     }
 
     return -1;

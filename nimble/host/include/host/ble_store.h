@@ -50,14 +50,6 @@ struct ble_store_key_sec {
      */
     ble_addr_t peer_addr;
 
-    /** Key by ediv; ediv_rand_present=0 means don't key off ediv. */
-    uint16_t ediv;
-
-    /** Key by rand_num; ediv_rand_present=0 means don't key off rand_num. */
-    uint64_t rand_num;
-
-    unsigned ediv_rand_present:1;
-
     /** Number of results to skip; 0 means retrieve the first match. */
     uint8_t idx;
 };

@@ -1242,11 +1242,11 @@ ble_sm_retrieve_ltk(uint16_t ediv, uint64_t rand, uint8_t peer_addr_type,
     memset(&key_sec, 0, sizeof key_sec);
     key_sec.peer_addr.type = peer_addr_type;
     memcpy(key_sec.peer_addr.val, peer_addr, 6);
-    key_sec.ediv = ediv;
-    key_sec.rand_num = rand;
-    key_sec.ediv_rand_present = 1;
 
     rc = ble_store_read_our_sec(&key_sec, value_sec);
+    if (value_sec->ediv != ediv || value_sec->rand_num != rand) {
+        return BLE_HS_ENOENT;
+    }
     return rc;
 }
 
