@@ -2258,17 +2258,6 @@ cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out,
             return rc;
         }
 
-        out->sec.ediv = parse_arg_uint16("ediv", &rc);
-        if (rc != 0) {
-            console_printf("invalid 'ediv' parameter\n");
-            return rc;
-        }
-
-        out->sec.rand_num = parse_arg_uint64("rand", &rc);
-        if (rc != 0) {
-            console_printf("invalid 'rand' parameter\n");
-            return rc;
-        }
         return 0;
 
     default:
@@ -2317,8 +2306,6 @@ cmd_keystore_parse_valuedata(int argc, char **argv,
                 return rc;
             }
             out->sec.peer_addr = key->sec.peer_addr;
-            out->sec.ediv = key->sec.ediv;
-            out->sec.rand_num = key->sec.rand_num;
             break;
     }
 
