@@ -942,6 +942,12 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 
     ce_end -= ble_ll_tmr_u2t_up(MYNEWT_VAL(BLE_LL_CONN_EVENT_END_MARGIN));
 
+    if (connsm->max_ce_len_ticks) {
+        if (LL_TMR_LT(connsm->anchor_point + connsm->max_ce_len_ticks, ce_end)) {
+            ce_end = connsm->anchor_point + connsm->max_ce_len_ticks;
+        }
+    }
+
     if (ble_ll_sched_next_time(&next_sched_time)) {
         if (LL_TMR_LT(next_sched_time, ce_end)) {
             ce_end = next_sched_time;
@@ -1800,8 +1806,7 @@ ble_ll_conn_central_init(struct ble_ll_conn_sm *connsm,
     connsm->conn_itvl_usecs = cc_params->conn_itvl_usecs;
     connsm->periph_latency = cc_params->conn_latency;
     connsm->supervision_tmo = cc_params->supervision_timeout;
-    connsm->min_ce_len = cc_params->min_ce_len;
-    connsm->max_ce_len = cc_params->max_ce_len;
+    connsm->max_ce_len_ticks = ble_ll_tmr_u2t_up(cc_params->max_ce_len * BLE_LL_CONN_CE_USECS);
 }
 #endif
 
@@ -2575,6 +2580,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         ble_ll_conn_itvl_to_ticks(connsm->conn_itvl, &connsm->conn_itvl_ticks,
                                   &connsm->conn_itvl_usecs);
+
+        if (connsm->conn_param_req.handle != 0) {
+            connsm->max_ce_len_ticks = ble_ll_tmr_u2t_up(connsm->conn_param_req.max_ce_len * BLE_LL_CONN_CE_USECS);
+            connsm->conn_param_req.handle = 0;
+        }
 
         if (upd->winoffset != 0) {
             usecs = upd->winoffset * BLE_LL_CONN_ITVL_USECS;

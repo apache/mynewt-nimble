@@ -480,12 +480,14 @@ ble_ll_conn_hci_create_check_params(struct ble_ll_conn_create_params *cc_params)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Adjust min/max ce length to be less than interval */
-    if (cc_params->min_ce_len > cc_params->conn_itvl) {
-        cc_params->min_ce_len = cc_params->conn_itvl;
+    /* Adjust min/max ce length to be less than interval
+     * Note that interval is in 1.25ms and CE is in 625us
+     */
+    if (cc_params->min_ce_len > cc_params->conn_itvl * 2) {
+        cc_params->min_ce_len = cc_params->conn_itvl * 2;
     }
-    if (cc_params->max_ce_len > cc_params->conn_itvl) {
-        cc_params->max_ce_len = cc_params->conn_itvl;
+    if (cc_params->max_ce_len > cc_params->conn_itvl * 2) {
+        cc_params->max_ce_len = cc_params->conn_itvl * 2;
     }
 
     /* Precalculate conn interval */
