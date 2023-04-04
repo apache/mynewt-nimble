@@ -291,8 +291,7 @@ struct ble_ll_conn_sm
     /* Connection timing */
     uint16_t conn_itvl;
     uint16_t supervision_tmo;
-    uint16_t min_ce_len;
-    uint16_t max_ce_len;
+    uint32_t max_ce_len_ticks;
     uint16_t tx_win_off;
     uint32_t anchor_point;
     uint8_t anchor_point_usecs;     /* XXX: can this be uint8_t ?*/
