@@ -222,7 +222,7 @@ static struct ble_ll_adv_sm *
 ble_ll_adv_sm_find_configured(uint8_t instance)
 {
     struct ble_ll_adv_sm *advsm;
-    int i;
+    unsigned int i;
 
     /* in legacy mode we only allow instance 0 */
     if (!ble_ll_hci_adv_mode_ext()) {
@@ -3295,7 +3295,7 @@ static struct ble_ll_adv_sm *
 ble_ll_adv_sm_get(uint8_t instance)
 {
     struct ble_ll_adv_sm *advsm;
-    int i;
+    unsigned int i;
 
     advsm = ble_ll_adv_sm_find_configured(instance);
     if (advsm) {

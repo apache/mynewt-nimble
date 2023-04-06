@@ -137,7 +137,7 @@ static const struct ble_att_rx_dispatch_entry *
 ble_att_rx_dispatch_entry_find(uint8_t op)
 {
     const struct ble_att_rx_dispatch_entry *entry;
-    int i;
+    unsigned int i;
 
     for (i = 0; i < BLE_ATT_RX_DISPATCH_SZ; i++) {
         entry = ble_att_rx_dispatch + i;

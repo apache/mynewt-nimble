@@ -143,8 +143,8 @@ ble_hs_hci_rx_cmd_complete(const void *data, int len,
     const struct ble_hci_ev_command_complete_nop *nop = data;
     uint16_t opcode;
 
-    if (len < sizeof(*ev)) {
-        if (len < sizeof(*nop)) {
+    if (len < (int)sizeof(*ev)) {
+        if (len < (int)sizeof(*nop)) {
             return BLE_HS_ECONTROLLER;
         }
 

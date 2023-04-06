@@ -394,7 +394,7 @@ ble_store_clear(void)
     union ble_store_key key;
     int obj_type;
     int rc;
-    int i;
+    unsigned int i;
 
     /* A zeroed key will always retrieve the first value. */
     memset(&key, 0, sizeof key);

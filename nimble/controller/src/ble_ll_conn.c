@@ -1473,7 +1473,7 @@ conn_tx_pdu:
 static int
 ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 {
-    int rc;
+    int rc = 0;
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     uint32_t usecs;
 #endif
@@ -3594,7 +3594,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t hdr_nesn;
     uint8_t conn_sn;
     uint8_t conn_nesn;
-    uint8_t reply;
+    uint8_t reply = 0;
     uint16_t rem_bytes;
     uint8_t opcode = 0;
     uint8_t rx_pyld_len;

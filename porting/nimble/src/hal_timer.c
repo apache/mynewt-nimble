@@ -184,7 +184,7 @@ nrf_timer_set_ocmp(struct nrf52_hal_timer *bsptimer, uint32_t expiry)
         } else {
             rtctimer->INTENCLR = RTC_INTENCLR_TICK_Msk;
 
-            if (delta_t < (1UL << 24)) {
+            if (delta_t < (1L << 24)) {
                 rtctimer->CC[NRF_RTC_TIMER_CC_INT] = expiry & 0x00ffffff;
             } else {
                 /* CC too far ahead. Just make sure we set compare far ahead */
