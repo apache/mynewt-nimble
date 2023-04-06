@@ -144,7 +144,7 @@ static const struct ble_hs_hci_evt_dispatch_entry *
 ble_hs_hci_evt_dispatch_find(uint8_t event_code)
 {
     const struct ble_hs_hci_evt_dispatch_entry *entry;
-    int i;
+    unsigned int i;
 
     for (i = 0; i < BLE_HS_HCI_EVT_DISPATCH_SZ; i++) {
         entry = ble_hs_hci_evt_dispatch + i;

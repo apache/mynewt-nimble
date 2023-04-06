@@ -103,7 +103,7 @@ ble_l2cap_clear_used_cid(uint32_t *cid_mask, int bit)
 static inline int
 ble_l2cap_get_first_available_bit(uint32_t *cid_mask)
 {
-    int i;
+    unsigned int i;
     int bit = 0;
 
     for (i = 0; i < BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN; i++) {

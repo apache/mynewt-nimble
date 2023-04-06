@@ -419,7 +419,7 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
 #endif
     struct ble_ll_sched_item *sch;
     uint32_t orig_start_time;
-    uint32_t earliest_start;
+    uint32_t earliest_start = 0;
     uint32_t min_win_offset;
     uint32_t max_delay;
     uint32_t adv_rxend;

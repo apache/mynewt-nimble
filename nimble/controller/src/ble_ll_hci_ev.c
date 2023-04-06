@@ -585,7 +585,7 @@ ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
          *  hci_ev->length += len;
          */
         str_len = strlen(file);
-        if (str_len > max_len) {
+        if (str_len > (unsigned int)max_len) {
             str_len = max_len;
         }
 

@@ -143,7 +143,7 @@ static int ble_ll_sync_event_start_cb(struct ble_ll_sched_item *sch);
 static int
 ble_ll_sync_on_list(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(g_ble_ll_sync_adv_list); i++) {
         if ((g_ble_ll_sync_adv_list[i].adv_sid == sid) &&
@@ -159,7 +159,7 @@ ble_ll_sync_on_list(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
 static int
 ble_ll_sync_list_get_free(void)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(g_ble_ll_sync_adv_list); i++) {
         if (g_ble_ll_sync_adv_list[i].adv_sid == 0xff) {
@@ -172,7 +172,7 @@ ble_ll_sync_list_get_free(void)
 
 static bool
 ble_ll_sync_list_empty(void) {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(g_ble_ll_sync_adv_list); i++) {
         if (g_ble_ll_sync_adv_list[i].adv_sid != 0xff) {
@@ -1716,7 +1716,7 @@ ble_ll_sync_list_remove(const uint8_t *cmdbuf, uint8_t len)
 int
 ble_ll_sync_list_clear(void)
 {
-    int i;
+    unsigned int i;
 
     if (g_ble_ll_sync_create_comp_ev) {
         return BLE_ERR_CMD_DISALLOWED;
@@ -2241,7 +2241,7 @@ ble_ll_sync_enabled(void)
 void
 ble_ll_sync_reset(void)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < BLE_LL_SYNC_CNT; i++) {
         ble_ll_sync_sm_clear(&g_ble_ll_sync_sm[i]);
@@ -2267,7 +2267,7 @@ ble_ll_sync_reset(void)
 void
 ble_ll_sync_init(void)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(g_ble_ll_sync_adv_list); i++) {
         g_ble_ll_sync_adv_list[i].adv_sid = 0xff;

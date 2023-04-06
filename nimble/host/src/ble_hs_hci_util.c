@@ -81,7 +81,7 @@ ble_hs_hci_rand(void *dst, int len)
             return rc;
         }
 
-        chunk_sz = min(len, sizeof(rsp));
+        chunk_sz = min(len, (int)sizeof(rsp));
         memcpy(u8ptr, &rsp.random_number, chunk_sz);
 
         len -= chunk_sz;
