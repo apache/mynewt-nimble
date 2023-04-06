@@ -1464,17 +1464,9 @@ ble_ll_hci_cb_host_buf_size(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /*
-     * Core 5.2 Vol 4 Part E section 7.3.39 states that "Both the Host and the
-     * Controller shall support command and event packets, where the data portion
-     * (excluding header) contained in the packets is 255 octets in size.".
-     * This means we can basically accept any allowed value since LL does not
-     * reassemble incoming data thus will not send more than 255 octets in single
-     * data packet.
-     */
     acl_num = le16toh(cmd->acl_num);
     acl_data_len = le16toh(cmd->acl_data_len);
-    if (acl_data_len < 255) {
+    if ((acl_num < 1) || (acl_data_len < 1)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
