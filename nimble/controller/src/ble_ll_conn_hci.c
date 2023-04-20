@@ -946,6 +946,34 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 
+static bool
+ble_ll_conn_params_in_range(struct ble_ll_conn_sm *connsm,
+                            const struct ble_hci_le_conn_update_cp *cmd)
+{
+    if (!IN_RANGE(connsm->conn_itvl, le16toh(cmd->conn_itvl_min),
+                  le16toh(cmd->conn_itvl_max))) {
+        return false;
+    }
+
+    if (connsm->periph_latency != le16toh(cmd->conn_latency)) {
+        return false;
+    }
+
+    if (connsm->supervision_tmo != le16toh(cmd->supervision_timeout)) {
+        return false;
+    }
+
+    return true;
+}
+
+static void
+ble_ll_conn_hci_update_complete_event(void *user_data)
+{
+    struct ble_ll_conn_sm *connsm = user_data;
+
+    ble_ll_hci_ev_conn_update(connsm, BLE_ERR_SUCCESS);
+}
+
 /**
  * Called to process a connection update command.
  *
@@ -962,6 +990,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     uint16_t handle;
     struct ble_ll_conn_sm *connsm;
     struct hci_conn_update *hcu;
+    uint16_t max_ce_len;
 
     /*
      * XXX: must deal with peripheral not supporting this feature and using
@@ -977,6 +1006,26 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     connsm = ble_ll_conn_find_by_handle(handle);
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* if current connection parameters fit updated values we don't have to
+     * trigger LL procedure and just update local values (Min/Max CE Length)
+     *
+     * Note that this is also allowed for CSS as nothing changes WRT connections
+     * scheduling.
+     */
+    if (ble_ll_conn_params_in_range(connsm, cmd)) {
+        max_ce_len = le16toh(cmd->max_ce_len);
+
+        if (le16toh(cmd->min_ce_len) > max_ce_len) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        connsm->max_ce_len_ticks = ble_ll_tmr_u2t_up(max_ce_len * BLE_LL_CONN_CE_USECS);
+
+        ble_ll_hci_post_cmd_cb_set(ble_ll_conn_hci_update_complete_event, connsm);
+
+        return BLE_ERR_SUCCESS;
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
@@ -1198,7 +1247,7 @@ done:
  * safe to use g_ble_ll_conn_comp_ev
  */
 static void
-ble_ll_conn_hci_cancel_conn_complete_event(void)
+ble_ll_conn_hci_cancel_conn_complete_event(void *user_data)
 {
     BLE_LL_ASSERT(g_ble_ll_conn_comp_ev);
 
@@ -1216,7 +1265,7 @@ ble_ll_conn_hci_cancel_conn_complete_event(void)
  * @return int
  */
 int
-ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
+ble_ll_conn_create_cancel(void)
 {
     int rc;
     struct ble_ll_conn_sm *connsm;
@@ -1236,7 +1285,7 @@ ble_ll_conn_create_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
         ble_ll_scan_sm_stop(1);
         ble_ll_conn_end(connsm, BLE_ERR_UNK_CONN_ID);
 
-        *post_cmd_cb = ble_ll_conn_hci_cancel_conn_complete_event;
+        ble_ll_hci_post_cmd_cb_set(ble_ll_conn_hci_cancel_conn_complete_event, NULL);
 
         rc = BLE_ERR_SUCCESS;
     } else {

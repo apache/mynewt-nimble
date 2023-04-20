@@ -56,6 +56,9 @@ static uint64_t g_ble_ll_hci_event_mask2;
 static int16_t rx_path_pwr_compensation;
 static int16_t tx_path_pwr_compensation;
 
+static ble_ll_hci_post_cmd_complete_cb hci_cmd_post_cb = NULL;
+static void *hci_cmd_post_cb_user_data = NULL;
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static enum {
     ADV_MODE_ANY,
@@ -879,8 +882,7 @@ ble_ll_hci_le_set_host_chan_class(const uint8_t *cmdbuf, uint8_t len)
  */
 static int
 ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
-                       uint8_t *rspbuf, uint8_t *rsplen,
-                       ble_ll_hci_post_cmd_complete_cb *cb)
+                       uint8_t *rspbuf, uint8_t *rsplen)
 {
     int rc;
 
@@ -960,7 +962,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
     case BLE_HCI_OCF_LE_CREATE_CONN_CANCEL:
         if (len == 0) {
-            rc = ble_ll_conn_create_cancel(cb);
+            rc = ble_ll_conn_create_cancel();
         }
         break;
 #endif
@@ -1187,7 +1189,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
     case BLE_HCI_OCF_LE_PERIODIC_ADV_CREATE_SYNC_CANCEL:
         if (len == 0) {
-            rc = ble_ll_sync_cancel(cb);
+            rc = ble_ll_sync_cancel();
         }
         break;
     case BLE_HCI_OCF_LE_PERIODIC_ADV_TERM_SYNC:
@@ -1736,6 +1738,15 @@ ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
 }
 #endif
 
+
+void
+ble_ll_hci_post_cmd_cb_set(ble_ll_hci_post_cmd_complete_cb cb, void *user_data)
+{
+    BLE_LL_ASSERT(hci_cmd_post_cb == NULL);
+    hci_cmd_post_cb = cb;
+    hci_cmd_post_cb_user_data = user_data;
+}
+
 /**
  * Called to process an HCI command from the host.
  *
@@ -1750,7 +1761,6 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
     struct ble_hci_cmd *cmd;
     uint16_t opcode;
     uint16_t ocf;
-    ble_ll_hci_post_cmd_complete_cb post_cb = NULL;
     struct ble_hci_ev *hci_ev;
     struct ble_hci_ev_command_status *cmd_status;
     struct ble_hci_ev_command_complete *cmd_complete;
@@ -1817,7 +1827,7 @@ ble_ll_hci_cmd_proc(struct ble_npl_event *ev)
         rc = ble_ll_hci_status_params_cmd_proc(cmd->data, cmd->length, ocf, rspbuf, &rsplen);
         break;
     case BLE_HCI_OGF_LE:
-        rc = ble_ll_hci_le_cmd_proc(cmd->data, cmd->length, ocf, rspbuf, &rsplen, &post_cb);
+        rc = ble_ll_hci_le_cmd_proc(cmd->data, cmd->length, ocf, rspbuf, &rsplen);
         break;
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
     case BLE_HCI_OGF_VENDOR:
@@ -1875,8 +1885,11 @@ send_cc_cs:
     ble_ll_hci_event_send(hci_ev);
 
     /* Call post callback if set by command handler */
-    if (post_cb) {
-        post_cb();
+    if (hci_cmd_post_cb) {
+        hci_cmd_post_cb(hci_cmd_post_cb_user_data);
+
+        hci_cmd_post_cb = NULL;
+        hci_cmd_post_cb_user_data = NULL;
     }
 
     BLE_LL_DEBUG_GPIO(HCI_CMD, 0);
