@@ -1559,13 +1559,13 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
 }
 
 static void
-ble_ll_sync_cancel_complete_event(void)
+ble_ll_sync_cancel_complete_event(void *user_data)
 {
     ble_ll_sync_est_event_failed(BLE_ERR_OPERATION_CANCELLED);
 }
 
 int
-ble_ll_sync_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
+ble_ll_sync_cancel(void)
 {
     struct ble_ll_sync_sm *sm;
     os_sr_t sr;
@@ -1596,7 +1596,7 @@ ble_ll_sync_cancel(ble_ll_hci_post_cmd_complete_cb *post_cmd_cb)
     OS_EXIT_CRITICAL(sr);
 
     /* g_ble_ll_sync_create_comp_ev will be cleared by this callback */
-    *post_cmd_cb = ble_ll_sync_cancel_complete_event;
+    ble_ll_hci_post_cmd_cb_set(ble_ll_sync_cancel_complete_event, NULL);
 
     return BLE_ERR_SUCCESS;
 }
