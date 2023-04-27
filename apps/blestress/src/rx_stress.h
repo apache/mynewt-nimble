@@ -24,7 +24,7 @@
 #include <string.h>
 #include <console/console.h>
 #include <errno.h>
-#include <nrfx/hal/nrf_aar.h>
+#include <hal/nrf_aar.h>
 
 /* BLE */
 #include "nimble/ble.h"
