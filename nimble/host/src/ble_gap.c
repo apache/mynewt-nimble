@@ -1721,27 +1721,30 @@ void
 ble_gap_rx_le_pathloss_threshold(const struct ble_hci_ev_le_subev_path_loss_threshold *ev)
 {
     struct ble_gap_event event;
+    uint16_t conn_handle = le16toh(ev->conn_handle);
 
     memset(&event, 0, sizeof event);
 
     event.type = BLE_GAP_EVENT_PATHLOSS_THRESHOLD;
-    event.pathloss_threshold.conn_handle = le16toh(ev->conn_handle);
+    event.pathloss_threshold.conn_handle = conn_handle;
     event.pathloss_threshold.current_path_loss = ev->current_path_loss;
     event.pathloss_threshold.zone_entered = ev->zone_entered;
 
     ble_gap_event_listener_call(&event);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 
 void
 ble_gap_rx_transmit_power_report(const struct ble_hci_ev_le_subev_transmit_power_report *ev)
 {
     struct ble_gap_event event;
+    uint16_t conn_handle = le16toh(ev->conn_handle);
 
     memset(&event, 0, sizeof event);
 
     event.type = BLE_GAP_EVENT_TRANSMIT_POWER;
     event.transmit_power.status = ev->status;
-    event.transmit_power.conn_handle = le16toh(ev->conn_handle);
+    event.transmit_power.conn_handle = conn_handle;
     event.transmit_power.reason = ev->reason;
     event.transmit_power.phy = ev->phy;
     event.transmit_power.transmit_power_level = ev->transmit_power_level;
@@ -1749,6 +1752,7 @@ ble_gap_rx_transmit_power_report(const struct ble_hci_ev_le_subev_transmit_power
     event.transmit_power.delta = ev->delta;
 
     ble_gap_event_listener_call(&event);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
 }
 #endif
 
