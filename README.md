@@ -125,6 +125,7 @@ Several other projects provide support for using NimBLE either by [NPL port](htt
 
  * [The Espressif ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/nimble/index.html) contains a NimBLE port for ESP-32 devices.
  * [The RIOT](https://doc.riot-os.org/group__pkg__nimble.html) operating system contains a package for using NimBLE.
+ * [The Open IOT SDK](https://gitlab.arm.com/iot/open-iot-sdk/sdk) contains a NimBLE [port](https://gitlab.arm.com/iot/open-iot-sdk/sdk/-/tree/main/components/bluetooth) based on [CMSIS RTOSv2](https://www.keil.com/pack/doc/CMSIS/RTOS2/html/index.html), which is an RTOS interface implemented by either Amazon Freertos, CMSIS RTX or Azure ThreadX.
 
  If you publish a NimBLE port, please let us know to include it here!
 
