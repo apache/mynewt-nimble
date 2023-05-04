@@ -30,6 +30,14 @@
 #define RF_CALIBRATION_1        (0x02)
 #define RF_CALIBRATION_2        (0x04)
 
+enum chip_variant {
+    CHIP_VARIANT_TSMC,
+    CHIP_VARIANT_GF,
+    CHIP_VARIANT_UNKNOWN
+};
+
+static int g_chip_variant;
+
 static const int8_t g_ble_rf_power_lvls[] = {
     -18, -12, -8, -6, -3, -2, -1, 0, 1, 2, 3, 4, 4, 5, 6
 };
@@ -112,6 +120,21 @@ set_reg16_mask(uint32_t addr, uint16_t mask, uint16_t val)
     volatile uint16_t *reg = (volatile uint16_t *)addr;
 
     *reg = (*reg & (~mask)) | (val & mask);
+}
+
+static inline int 
+read_chip_variant(void)
+{
+    uint32_t chip_id1 = get_reg32_bits(0x50040200, 0xFF);
+
+    switch (chip_id1) {
+    case '2':
+        return CHIP_VARIANT_TSMC;
+    case '3':
+        return CHIP_VARIANT_GF;
+    default:
+        return CHIP_VARIANT_UNKNOWN;
+    }
 }
 
 static void
@@ -233,6 +256,9 @@ ble_rf_synth_is_enabled(void)
 static void
 ble_rf_synth_apply_recommended_settings(void)
 {
+    if (g_chip_variant == CHIP_VARIANT_GF) {
+        set_reg32_mask(0x40022034, 0x00000018, 0x0215807B);
+    }
     set_reg32_mask(0x40022048, 0x0000000c, 0x000000d5);
     set_reg32_mask(0x40022050, 0x00000300, 0x00000300);
     set_reg16_mask(0x40022024, 0x0001, 0x0001);
@@ -335,7 +361,11 @@ ble_rf_calibration_1(void)
     set_reg32(0x40020000, 0x0f168820);
     set_reg32_bits(0x40022000, 0x00000001, 0);
     set_reg32_bits(0x4002101c, 0x00001e00, 0);
-    set_reg32_bits(0x4002001c, 0x0000003f, 47);
+    if (g_chip_variant == CHIP_VARIANT_TSMC) {
+        set_reg32_bits(0x4002001c, 0x0000003f, 47);
+    } else {
+        set_reg32_bits(0x4002001c, 0x0000003f, 44);
+    }
     set_reg8(0x40020006, 1);
     set_reg32(0x40020020, 16);
     set_reg32_bits(0x4002003c, 0x00000800, 1);
@@ -536,6 +566,9 @@ ble_rf_init(void)
 {
     static bool done = false;
     uint32_t val;
+
+    g_chip_variant = read_chip_variant();
+    assert(g_chip_variant != CHIP_VARIANT_UNKNOWN);
 
     ble_rf_disable();
 
