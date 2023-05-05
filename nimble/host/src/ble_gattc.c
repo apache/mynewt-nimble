@@ -1956,7 +1956,7 @@ static int
 ble_gattc_find_inc_svcs_rx_adata(struct ble_gattc_proc *proc,
                                  struct ble_att_read_type_adata *adata)
 {
-    struct ble_gatt_svc service;
+    struct ble_gatt_svc service = {0};
     int call_cb;
     int cbrc;
     int rc;
