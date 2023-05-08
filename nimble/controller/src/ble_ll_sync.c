@@ -211,8 +211,7 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
     }
 
     ble_ll_rfmgmt_release();
-
-    BLE_LL_ASSERT(sm->sync_ev_end.ev.ev_queued == 0);
+    BLE_LL_ASSERT(ble_npl_event_is_queued(&sm->sync_ev_end) == 0);
     BLE_LL_ASSERT(sm->sch.enqueued == 0);
 
     memset(sm, 0, sizeof(*sm));
