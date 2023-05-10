@@ -1657,7 +1657,11 @@ ble_phy_init(void)
 
     /* Set isr in vector table and enable interrupt */
 #ifndef RIOT_VERSION
+#ifdef FREERTOS
+    NVIC_SetPriority(RADIO_IRQn, 5);
+#else
     NVIC_SetPriority(RADIO_IRQn, 0);
+#endif
 #endif
 #if MYNEWT
     NVIC_SetVector(RADIO_IRQn, (uint32_t)ble_phy_isr);
