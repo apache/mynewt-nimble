@@ -311,6 +311,8 @@ int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
 
 /**
  * Initiates GATT procedure: Read Long Characteristic Values.
+ * Partial Reading is reported with error->status = 0
+ * And Procedure complete is reported with error->status = BLE_HS_EDONE
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
@@ -325,6 +327,23 @@ int ble_gattc_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
 int ble_gattc_read_long(uint16_t conn_handle, uint16_t handle, uint16_t offset,
                         ble_gatt_attr_fn *cb, void *cb_arg);
 
+/**
+ * Initiates GATT procedure: Read Long Characteristic Values.
+ * The Full reading is reported with error->status = 0
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param handle                The handle of the characteristic value to read.
+ * @param cb                    The function to call to report procedure status
+ *                                  updates; null for no callback.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gattc_read_long_full(uint16_t conn_handle, uint16_t handle,
+                             uint16_t offset, ble_gatt_attr_fn *cb,
+                             void *cb_arg);
 /**
  * Initiates GATT procedure: Read Multiple Characteristic Values.
  *
