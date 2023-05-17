@@ -1697,6 +1697,12 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crc_init)
     return 0;
 }
 
+uint8_t
+ble_phy_chan_get(void)
+{
+    return g_ble_phy_data.channel;
+}
+
 void
 ble_phy_restart_rx(void)
 {

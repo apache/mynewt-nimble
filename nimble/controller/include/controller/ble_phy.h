@@ -86,6 +86,7 @@ int ble_phy_init(void);
 
 /* Set the PHY channel */
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
+uint8_t ble_phy_chan_get(void);
 
 #if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
 /* Set T_ifs time for next transition */
