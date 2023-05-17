@@ -551,6 +551,12 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     return 0;
 }
 
+uint8_t
+ble_phy_chan_get(void)
+{
+    return g_ble_phy_data.phy_chan;
+}
+
 /**
  * Disable the PHY. This will do the following:
  *  -> Turn off all phy interrupts.
