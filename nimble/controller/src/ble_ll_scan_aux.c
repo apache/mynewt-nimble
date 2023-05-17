@@ -142,6 +142,14 @@ ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
+    /* if scan is not passive we need to set tx power as we may end up sending
+     * package
+     */
+    /* TODO do this only on first AUX? */
+    if (aux->scan_type != BLE_SCAN_TYPE_PASSIVE) {
+        ble_ll_tx_power_set(g_ble_ll_tx_power);
+    }
+
     rc = ble_phy_rx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
                                    sch->remainder);
     if (rc != 0 && rc != BLE_PHY_ERR_RX_LATE) {
