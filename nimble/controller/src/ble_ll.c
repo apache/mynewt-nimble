@@ -76,6 +76,7 @@
 
 /* This is TX power on PHY (or FEM PA if enabled) */
 int8_t g_ble_ll_tx_power;
+static int8_t g_ble_ll_tx_power_phy_current;
 int8_t g_ble_ll_tx_power_compensation;
 int8_t g_ble_ll_rx_power_compensation;
 
@@ -1365,7 +1366,7 @@ ble_ll_task(void *arg)
     /* Set output power to default */
     g_ble_ll_tx_power = ble_ll_tx_power_round(MIN(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
                                                   MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
+    g_ble_ll_tx_power_phy_current = INT8_MAX;
 
     /* Tell the host that we are ready to receive packets */
     ble_ll_hci_send_noop();
@@ -1617,7 +1618,7 @@ ble_ll_reset(void)
     /* Set output power to default */
     g_ble_ll_tx_power = ble_ll_tx_power_round(MIN(MYNEWT_VAL(BLE_LL_TX_PWR_DBM),
                                                   MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
+    g_ble_ll_tx_power_phy_current = INT8_MAX;
 
     /* FLush all packets from Link layer queues */
     ble_ll_flush_pkt_queue(&g_ble_ll_data.ll_tx_pkt_q);
@@ -2011,6 +2012,15 @@ ble_ll_tx_power_set(int tx_power)
     tx_power -= MYNEWT_VAL(BLE_FEM_PA_GAIN);
 #endif
 #endif
+
+    /* If current TX power configuration matches requested one we don't need
+     * to update PHY tx power.
+     */
+    if (g_ble_ll_tx_power_phy_current == tx_power) {
+        return;
+    }
+
+    g_ble_ll_tx_power_phy_current = tx_power;
     ble_phy_tx_power_set(tx_power);
 }
 

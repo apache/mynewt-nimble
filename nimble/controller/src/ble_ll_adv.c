@@ -1030,9 +1030,6 @@ ble_ll_adv_tx_done(void *arg)
 {
     struct ble_ll_adv_sm *advsm;
 
-    /* reset power to default after advertising */
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
-
     advsm = (struct ble_ll_adv_sm *)arg;
 
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance,
@@ -1111,9 +1108,6 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
         goto adv_tx_done;
     }
 
-    /* Set the power */
-    ble_ll_tx_power_set(advsm->tx_power);
-
     /* Set channel */
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     BLE_LL_ASSERT(rc == 0);
@@ -1130,6 +1124,9 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
 #endif
 #endif
+
+    /* Set the power */
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set transmit start time. */
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -1255,9 +1252,6 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_adv_active_chanset_set_sec(advsm);
 
-    /* Set the power */
-    ble_ll_tx_power_set(advsm->tx_power);
-
     /* Set channel */
     aux = AUX_CURRENT(advsm);
     rc = ble_phy_setchan(aux->chan, BLE_ACCESS_ADDR_ADV,
@@ -1268,6 +1262,9 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     /* Set phy mode */
      ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
 #endif
+
+    /* Set the power */
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set transmit start time. */
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;
@@ -1741,8 +1738,6 @@ ble_ll_adv_halt(void)
 
         ble_ll_trace_u32(BLE_LL_TRACE_ID_ADV_HALT, advsm->adv_instance);
 
-        ble_ll_tx_power_set(g_ble_ll_tx_power);
-
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING) {
             ble_ll_adv_flags_clear(advsm,
@@ -2176,9 +2171,6 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 static void
 ble_ll_adv_sync_tx_done(struct ble_ll_adv_sm *advsm)
 {
-    /* reset power to default after advertising */
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
-
     /* for sync we trace a no pri nor sec set */
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_ADV_TXDONE, advsm->adv_instance, 0);
 
@@ -2232,9 +2224,6 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     ble_ll_adv_active_chanset_clear(advsm);
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_SYNC_SENDING);
 
-    /* Set the power */
-    ble_ll_tx_power_set(advsm->tx_power);
-
     /* Set channel */
     sync = SYNC_CURRENT(advsm);
     rc = ble_phy_setchan(sync->chan, advsm->periodic_access_addr,
@@ -2246,6 +2235,9 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
     /* Set phy mode */
      ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
 #endif
+
+    /* Set the power */
+    ble_ll_tx_power_set(advsm->tx_power);
 
     /* Set transmit start time. */
     txstart = sch->start_time + g_ble_ll_sched_offset_ticks;

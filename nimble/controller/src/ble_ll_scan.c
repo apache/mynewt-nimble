@@ -785,6 +785,13 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
+    /* if scan is not passive we need to set tx power as we may end up sending
+     * package
+     */
+    if (scansm->scanp->scan_type != BLE_SCAN_TYPE_PASSIVE) {
+        ble_ll_tx_power_set(g_ble_ll_tx_power);
+    }
+
     rc = ble_phy_rx_set_start_time(ble_ll_tmr_get() +
                                    g_ble_ll_sched_offset_ticks, 0);
     if (!rc || rc == BLE_PHY_ERR_RX_LATE) {

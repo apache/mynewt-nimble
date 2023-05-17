@@ -84,8 +84,6 @@ ble_ll_hci_vs_set_tx_power(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
                                                   g_ble_ll_tx_power_compensation);
     }
 
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
-
     rsp->tx_power = g_ble_ll_tx_power + g_ble_ll_tx_power_compensation;
     *rsplen = sizeof(*rsp);
 

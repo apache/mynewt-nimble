@@ -1523,6 +1523,9 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(connsm->phy_data.tx_phy_mode, connsm->phy_data.rx_phy_mode);
 #endif
 
+    /* Set the power */
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
+
     switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_CONN_ROLE_CENTRAL:
