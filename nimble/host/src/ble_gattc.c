@@ -4422,6 +4422,30 @@ ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
     return ble_gatts_indicate(conn_handle, chr_val_handle);
 }
 
+int
+ble_gattc_subscribe_notifications(uint16_t conn_handle, uint16_t cccd_handle,
+                                  ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    int rc;
+    uint16_t value = 0x0001;
+
+    rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                              &value, sizeof value, cb, cb_arg);
+    return rc;
+}
+
+int
+ble_gattc_subscribe_indications(uint16_t conn_handle, uint16_t cccd_handle,
+                                ble_gatt_attr_fn *cb, void *cb_arg)
+{
+    int rc;
+    uint16_t value = 0x0002;
+
+    rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                              &value, sizeof value, cb, cb_arg);
+    return rc;
+}
+
 /*****************************************************************************
  * $rx                                                                       *
  *****************************************************************************/

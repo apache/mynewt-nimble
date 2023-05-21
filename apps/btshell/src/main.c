@@ -1728,6 +1728,26 @@ btshell_write_reliable(uint16_t conn_handle,
     return rc;
 }
 
+int
+btshell_subscribe_notification(uint16_t conn_handle, uint16_t cccd_handle)
+{
+    int rc;
+
+    rc = ble_gattc_subscribe_notifications(conn_handle, cccd_handle,
+                                           btshell_on_write, NULL);
+    return rc;
+}
+
+int
+btshell_subscribe_indication(uint16_t conn_handle, uint16_t cccd_handle)
+{
+    int rc;
+
+    rc = ble_gattc_subscribe_notifications(conn_handle, cccd_handle,
+                                           btshell_on_write, NULL);
+    return rc;
+}
+
 #if MYNEWT_VAL(BLE_EXT_ADV)
 int
 btshell_ext_adv_configure(uint8_t instance,
