@@ -6608,7 +6608,7 @@ ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy, uint8_t
         return rc;
     }
 
-    *out_status = rsp.status;
+    *out_status = rc;
     *out_phy = rsp.phy;
     *out_curr_tx_power_level = rsp.curr_tx_power_level;
     *out_max_tx_power_level = rsp.max_tx_power_level;
