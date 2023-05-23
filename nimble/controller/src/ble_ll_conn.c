@@ -1372,6 +1372,9 @@ conn_tx_pdu:
         ble_phy_encrypt_iv_set(connsm->enc_data.iv);
         ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr,
                                     CONN_IS_CENTRAL(connsm));
+        if (txend_func == NULL) {
+            txend_func = ble_ll_conn_continue_rx_encrypt;
+        }
     } else if (is_ctrl && (opcode == BLE_LL_CTRL_START_ENC_REQ)) {
         /*
          * Only the peripheral sends this and it gets sent unencrypted but
