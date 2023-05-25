@@ -66,6 +66,9 @@
 
 #define BLE_LL_SYNC_ITVL_USECS              1250
 
+#define BLE_LL_SYNC_BIGINFO_LEN             33
+#define BLE_LL_SYNC_BIGINFO_LEN_ENC         57
+
 struct ble_ll_sync_sm {
     uint16_t flags;
 
@@ -661,6 +664,70 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
     ble_ll_hci_event_send(hci_ev);
 }
 
+#if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+static void
+ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *ev,
+                                const uint8_t *biginfo, uint8_t biginfo_len)
+{
+    uint32_t fields_buf;
+
+    fields_buf = get_le32(&biginfo[0]);
+    ev->iso_interval = (fields_buf >> 15) & 0x0FFF;
+    ev->bis_cnt = (fields_buf >> 27) & 0x1F;
+
+    fields_buf = get_le32(&biginfo[4]);
+    ev->nse = fields_buf & 0x1F;
+    ev->bn = (fields_buf >> 5) & 0x07;
+    ev->pto = (fields_buf >> 28) & 0x0F;
+
+    fields_buf = get_le32(&biginfo[8]);
+    ev->irc = (fields_buf >> 20) & 0x0F;
+    ev->max_pdu = (fields_buf >> 24) & 0xFF;
+
+    fields_buf = get_le32(&biginfo[17]);
+    ev->sdu_interval[0] = fields_buf & 0xFF;
+    ev->sdu_interval[1] = (fields_buf >> 8) & 0xFF;
+    ev->sdu_interval[2] = (fields_buf >> 16) & 0x0F;
+    ev->max_sdu = (fields_buf >> 20) & 0x0FFF;
+
+    ev->phy = (biginfo[27] >> 5) & 0x07;
+
+    ev->framing = (biginfo[32] >> 7) & 0x01;
+
+    if (biginfo_len == BLE_LL_SYNC_BIGINFO_LEN_ENC) {
+        ev->encryption = 1;
+    } else {
+        ev->encryption = 0;
+    }
+}
+
+static void
+ble_ll_sync_send_biginfo_adv_rpt(struct ble_ll_sync_sm *sm, const uint8_t *biginfo, uint8_t biginfo_len)
+{
+    struct ble_hci_ev_le_subev_biginfo_adv_report *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT)) {
+        return;
+    }
+
+    hci_ev = ble_transport_alloc_evt(1);
+    if (!hci_ev) {
+        return;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *) hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT;
+    ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
+    ble_ll_sync_parse_biginfo_to_ev(ev, biginfo, biginfo_len);
+
+    ble_ll_hci_event_send(hci_ev);
+}
+#endif
+
 static void
 ble_ll_sync_send_per_adv_rpt(struct ble_ll_sync_sm *sm, struct os_mbuf *rxpdu,
                              int8_t rssi, int8_t tx_power, int datalen,
@@ -963,7 +1030,8 @@ ble_ll_sync_check_failed(struct ble_ll_sync_sm *sm)
 
 static bool
 ble_ll_sync_check_acad(struct ble_ll_sync_sm *sm,
-                       const uint8_t *acad, uint8_t acad_len)
+                       const uint8_t *acad, uint8_t acad_len,
+                       const uint8_t **biginfo, uint8_t *biginfo_len)
 {
     const struct ble_ll_acad_channel_map_update_ind *chmu;
     unsigned int ad_len;
@@ -1009,6 +1077,18 @@ ble_ll_sync_check_acad(struct ble_ll_sync_sm *sm,
             sm->chan_map_new_instant = le16toh(chmu->instant);
             sm->flags |= BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP;
             break;
+
+#if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+        case BLE_LL_ACAD_BIGINFO:
+            if ((ad_len - 1 == BLE_LL_SYNC_BIGINFO_LEN) || (ad_len - 1 == BLE_LL_SYNC_BIGINFO_LEN_ENC)) {
+                *biginfo = &acad[2];
+                *biginfo_len = ad_len - 1;
+            } else {
+                return false;
+            }
+            break;
+#endif
+
         default:
             break;
         }
@@ -1034,6 +1114,8 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     uint8_t *aux = NULL;
     uint8_t *acad = NULL;
     uint8_t acad_len;
+    const uint8_t *biginfo = NULL;
+    uint8_t biginfo_len = 0;
     int datalen;
     bool reports_enabled;
 
@@ -1099,7 +1181,7 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     /* check ACAD, needs to be done before rxpdu is adjusted for ADV data  */
-    if (acad && !ble_ll_sync_check_acad(sm, acad, acad_len)) {
+    if (acad && !ble_ll_sync_check_acad(sm, acad, acad_len, &biginfo, &biginfo_len)) {
         /* we got bad packet (bad ACAD data), end event */
         goto end_event;
     }
@@ -1117,6 +1199,12 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         /* send reports from this PDU */
         ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr->rxinfo.rssi, tx_power,
                                      datalen, aux, aux_scheduled);
+
+#if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+        if (biginfo) {
+            ble_ll_sync_send_biginfo_adv_rpt(sm, biginfo, biginfo_len);
+        }
+#endif
     }
 
     /* if chain was scheduled we don't end event yet */

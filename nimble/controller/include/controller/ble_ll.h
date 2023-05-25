@@ -475,6 +475,7 @@ struct ble_dev_addr
 
 /* ACAD data types */
 #define BLE_LL_ACAD_CHANNEL_MAP_UPDATE_IND 0x28
+#define BLE_LL_ACAD_BIGINFO                0x2C
 
 struct ble_ll_acad_channel_map_update_ind {
     uint8_t map[5];

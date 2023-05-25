@@ -363,6 +363,12 @@ syscfg.defs:
         restrictions:
             - 'BLE_LL_CFG_FEAT_LL_ISO if 1'
 
+    BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS:
+        description: >
+            This option is used to enable/disable support for
+            handling BIGInfo data
+        value: 0
+
     BLE_LL_SCAN_AUX_SEGMENT_CNT:
          description: >
             Number of auxiliary advertising segments that can be scanned
