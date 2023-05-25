@@ -16,6 +16,12 @@
 # under the License.
 #
 
+syscfg.defs:
+    NIMBLE_DIALOG_CMAC_SYSINIT_STAGE:
+      description: >
+        sysinit stage for nimble dialog cmac
+      value: 100
+
 syscfg.vals.'!BLE_HCI_BRIDGE':
     BLE_HCI_EVT_HI_BUF_COUNT: 2
     BLE_HCI_EVT_LO_BUF_COUNT: 8

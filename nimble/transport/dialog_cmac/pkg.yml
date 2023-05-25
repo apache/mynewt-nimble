@@ -33,4 +33,4 @@ pkg.apis:
     - ble_transport
 
 pkg.init:
-    ble_hci_cmac_init: 100
+    ble_hci_cmac_init: 'MYNEWT_VAL(NIMBLE_DIALOG_CMAC_SYSINIT_STAGE)'
