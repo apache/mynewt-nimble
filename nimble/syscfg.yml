@@ -68,7 +68,13 @@ syscfg.defs:
         restrictions:
             - 'BLE_PERIODIC_ADV if 1'
             - '(BLE_ROLE_CENTRAL || BLE_ROLE_PERIPHERAL) if 1'
-
+    BLE_BIGINFO_REPORTS:
+        description: >
+            This enables BIGInfo reports.
+        value: 0
+        restrictions:
+            - 'BLE_PERIODIC_ADV if 1'
+            - '(BLE_VERSION >= 52) if 1'
     BLE_EXT_ADV_MAX_SIZE:
         description: >
             This allows to configure maximum size of advertising data and
