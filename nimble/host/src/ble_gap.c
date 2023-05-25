@@ -1849,6 +1849,47 @@ ble_gap_rx_periodic_adv_sync_transfer(const struct ble_hci_ev_le_subev_periodic_
 
     ble_hs_unlock();
 
+    cb(&event, cb_arg);
+}
+#endif
+
+#if MYNEWT_VAL(BLE_BIGINFO_REPORTS)
+void
+ble_gap_rx_biginfo_adv_rpt(const struct ble_hci_ev_le_subev_biginfo_adv_report *ev)
+{
+    struct ble_hs_periodic_sync *psync;
+    struct ble_gap_event event;
+    ble_gap_event_fn *cb;
+    void *cb_arg;
+
+    cb = NULL;
+    cb_arg = NULL;
+
+    ble_hs_lock();
+    psync = ble_hs_periodic_sync_find_by_handle(le16toh(ev->sync_handle));
+    if (psync) {
+        cb = psync->cb;
+        cb_arg = psync->cb_arg;
+    }
+    ble_hs_unlock();
+
+    memset(&event, 0, sizeof event);
+
+    event.type = BLE_GAP_EVENT_BIGINFO_REPORT;
+    event.biginfo_report.sync_handle = ev->sync_handle;
+    event.biginfo_report.bis_cnt = ev->bis_cnt;
+    event.biginfo_report.nse = ev->nse;
+    event.biginfo_report.iso_interval = ev->iso_interval;
+    event.biginfo_report.bn = ev->bn;
+    event.biginfo_report.pto = ev->pto;
+    event.biginfo_report.irc = ev->irc;
+    event.biginfo_report.max_pdu = ev->max_pdu;
+    event.biginfo_report.sdu_interval = get_le24(&ev->sdu_interval[0]);
+    event.biginfo_report.max_sdu = ev->max_sdu;
+    event.biginfo_report.phy = ev->phy;
+    event.biginfo_report.framing = ev->framing;
+    event.biginfo_report.encryption = ev->encryption;
+
     ble_gap_event_listener_call(&event);
     if (cb) {
         cb(&event, cb_arg);

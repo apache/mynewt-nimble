@@ -367,7 +367,7 @@ syscfg.defs:
         description: >
             This option is used to enable/disable support for
             handling BIGInfo data
-        value: 0
+        value: MYNEWT_VAL(BLE_BIGINFO_REPORTS)
 
     BLE_LL_SCAN_AUX_SEGMENT_CNT:
          description: >

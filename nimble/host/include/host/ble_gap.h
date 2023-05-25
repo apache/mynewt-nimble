@@ -141,6 +141,7 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_PARING_COMPLETE       27
 #define BLE_GAP_EVENT_SUBRATE_CHANGE        28
 #define BLE_GAP_EVENT_VS_HCI                29
+#define BLE_GAP_EVENT_BIGINFO_REPORT        30
 
 /*** Reason codes for the subscribe GAP event. */
 
@@ -980,6 +981,54 @@ struct ble_gap_event {
             /** Advertiser clock accuracy */
             uint8_t adv_clk_accuracy;
         } periodic_transfer;
+#endif
+
+#if MYNEWT_VAL(BLE_BIGINFO_REPORTS)
+        /**
+         * Represents a periodic advertising sync transfer received. Valid for
+         * the following event types:
+         *     o BLE_GAP_EVENT_BIGINFO_REPORT
+         */
+        struct {
+            /** Synchronization handle */
+            uint16_t sync_handle;
+
+            /** Number of present BISes */
+            uint8_t bis_cnt;
+
+            /** Number of SubEvents */
+            uint8_t nse;
+
+            /** ISO Interval */
+            uint16_t iso_interval;
+
+            /** Burst Number */
+            uint8_t bn;
+
+            /** Pre-Transmission Offset */
+            uint8_t pto;
+
+            /** Immediate Repetition Count */
+            uint8_t irc;
+
+            /** Maximum PDU size */
+            uint16_t max_pdu;
+
+            /** Maximum SDU size */
+            uint16_t max_sdu;
+
+            /** Service Data Unit Interval */
+            uint32_t sdu_interval;
+
+            /** BIG PHY */
+            uint8_t phy;
+
+            /** Framing of BIS Data PDUs */
+            uint8_t framing : 1;
+
+            /** Encryption */
+            uint8_t encryption : 1;
+        } biginfo_report;
 #endif
 
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
