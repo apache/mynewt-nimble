@@ -2019,6 +2019,7 @@ struct ble_hci_ev_le_subev_subrate_change {
 #define BLE_HCI_VER_BCS_5_1                 (10)
 #define BLE_HCI_VER_BCS_5_2                 (11)
 #define BLE_HCI_VER_BCS_5_3                 (12)
+#define BLE_HCI_VER_BCS_5_4                 (13)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -2033,6 +2034,7 @@ struct ble_hci_ev_le_subev_subrate_change {
 #define BLE_LMP_VER_BCS_5_1                 (10)
 #define BLE_LMP_VER_BCS_5_2                 (11)
 #define BLE_LMP_VER_BCS_5_3                 (12)
+#define BLE_LMP_VER_BCS_5_4                 (13)
 
 /* selected HCI and LMP version */
 #if MYNEWT_VAL(BLE_VERSION) == 50
@@ -2047,6 +2049,9 @@ struct ble_hci_ev_le_subev_subrate_change {
 #elif MYNEWT_VAL(BLE_VERSION) == 53
 #define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_3
 #define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_3
+#elif MYNEWT_VAL(BLE_VERSION) == 54
+#define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_4
+#define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_4
 #endif
 
 #define BLE_HCI_DATA_HDR_SZ                 4
