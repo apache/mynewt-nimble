@@ -100,7 +100,7 @@ syscfg.vals:
     BLE_L2CAP_COC_MAX_NUM: 2
     BLE_L2CAP_SIG_MAX_PROCS: 2
     BLE_L2CAP_ENHANCED_COC: 1
-    BLE_VERSION: 52
+    BLE_VERSION: 53
     # Some testcases require MPS < MTU
     BLE_L2CAP_COC_MPS: 100
     BLE_RPA_TIMEOUT: 30
