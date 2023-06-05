@@ -41,7 +41,7 @@ struct uart_pipe_ring {
 static struct uart_dev *uart_dev;
 static struct uart_pipe_ring cr_tx;
 static uint8_t cr_tx_buf[MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)];
-typedef void (*console_write_char)(struct uart_dev*, uint8_t);
+typedef void (*console_write_char)(struct uart_dev *, uint8_t);
 static console_write_char write_char_cb;
 
 static struct uart_pipe_ring cr_rx;
@@ -217,39 +217,39 @@ bttester_pipe_send(const uint8_t *data, int len)
 int
 bttester_pipe_send_buf(struct os_mbuf *buf)
 {
-	int i, len;
-	struct os_mbuf *om;
+    int i, len;
+    struct os_mbuf *om;
 
-	/* Assure that there is a write cb installed; this enables to debug
-	 * code that is faulting before the console was initialized.
-	 */
-	if (!write_char_cb) {
-		return -1;
-	}
+    /* Assure that there is a write cb installed; this enables to debug
+     * code that is faulting before the console was initialized.
+     */
+    if (!write_char_cb) {
+        return -1;
+    }
 
-	for (om = buf; om; om = SLIST_NEXT(om, om_next)) {
-		len = om->om_len;
-		for (i = 0; i < len; ++i) {
-			write_char_cb(uart_dev, om->om_data[i]);
-		}
-	}
+    for (om = buf; om; om = SLIST_NEXT(om, om_next)) {
+        len = om->om_len;
+        for (i = 0; i < len; ++i) {
+            write_char_cb(uart_dev, om->om_data[i]);
+        }
+    }
 
-	uart_start_tx(uart_dev);
+    uart_start_tx(uart_dev);
 
-	return 0;
+    return 0;
 }
 
 int
 bttester_pipe_init(void)
 {
     struct uart_conf uc = {
-            .uc_speed = MYNEWT_VAL(CONSOLE_UART_BAUD),
-            .uc_databits = 8,
-            .uc_stopbits = 1,
-            .uc_parity = UART_PARITY_NONE,
-            .uc_flow_ctl = MYNEWT_VAL(CONSOLE_UART_FLOW_CONTROL),
-            .uc_tx_char = uart_console_tx_char,
-            .uc_rx_char = uart_console_rx_char,
+        .uc_speed = MYNEWT_VAL(CONSOLE_UART_BAUD),
+        .uc_databits = 8,
+        .uc_stopbits = 1,
+        .uc_parity = UART_PARITY_NONE,
+        .uc_flow_ctl = MYNEWT_VAL(CONSOLE_UART_FLOW_CONTROL),
+        .uc_tx_char = uart_console_tx_char,
+        .uc_rx_char = uart_console_rx_char,
     };
 
     cr_tx.size = sizeof(cr_tx_buf);
@@ -262,8 +262,9 @@ bttester_pipe_init(void)
     rx_ev.ev_cb = uart_console_rx_char_event;
 
     if (!uart_dev) {
-        uart_dev = (struct uart_dev *)os_dev_open(MYNEWT_VAL(CONSOLE_UART_DEV),
-                                                  OS_TIMEOUT_NEVER, &uc);
+        uart_dev =
+            (struct uart_dev *) os_dev_open(MYNEWT_VAL(CONSOLE_UART_DEV),
+                                            OS_TIMEOUT_NEVER, &uc);
         if (!uart_dev) {
             return -1;
         }
@@ -274,8 +275,9 @@ bttester_pipe_init(void)
 void
 bttester_pipe_register(uint8_t *buf, size_t len, bttester_pipe_recv_cb cb)
 {
-	recv_buf = buf;
-	recv_buf_len = len;
-	app_cb = cb;
+    recv_buf = buf;
+    recv_buf_len = len;
+    app_cb = cb;
 }
+
 #endif /* MYNEWT_VAL(BTTESTER_PIPE_UART) */

@@ -33,40 +33,43 @@
 
 #include "bttester.h"
 
-static void on_reset(int reason)
+static void
+on_reset(int reason)
 {
-	MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
+    MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
 }
 
-static void on_sync(void)
+static void
+on_sync(void)
 {
-	MODLOG_DFLT(INFO, "Bluetooth initialized\n");
+    MODLOG_DFLT(INFO, "Bluetooth initialized\n");
 
-	tester_init();
+    tester_init();
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
-	int rc;
+    int rc;
 
 #ifdef ARCH_sim
-	mcu_sim_parse_args(argc, argv);
+    mcu_sim_parse_args(argc, argv);
 #endif
 
-	/* Initialize OS */
-	sysinit();
+    /* Initialize OS */
+    sysinit();
 
-	/* Initialize the NimBLE host configuration. */
-	ble_hs_cfg.reset_cb = on_reset;
-	ble_hs_cfg.sync_cb = on_sync;
-	ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb,
-	ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    /* Initialize the NimBLE host configuration. */
+    ble_hs_cfg.reset_cb = on_reset;
+    ble_hs_cfg.sync_cb = on_sync;
+    ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb,
+        ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
-	rc = gatt_svr_init();
-	assert(rc == 0);
+    rc = gatt_svr_init();
+    assert(rc == 0);
 
-	while (1) {
-		os_eventq_run(os_eventq_dflt_get());
-	}
-	return 0;
+    while (1) {
+        os_eventq_run(os_eventq_dflt_get());
+    }
+    return 0;
 }

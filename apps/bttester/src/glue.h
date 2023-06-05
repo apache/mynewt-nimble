@@ -49,15 +49,22 @@ struct bt_data {
         .data = (const uint8_t *)(_data), \
     }
 
-struct os_mbuf * NET_BUF_SIMPLE(uint16_t size);
-void net_buf_simple_init(struct os_mbuf *buf, size_t reserve_head);
-void net_buf_simple_add_le16(struct os_mbuf *om, uint16_t val);
-void net_buf_simple_add_u8(struct os_mbuf *om, uint8_t val);
-void *net_buf_simple_add(struct os_mbuf *om, uint8_t len);
-uint8_t *net_buf_simple_push(struct os_mbuf *om, uint8_t len);
+struct os_mbuf *
+NET_BUF_SIMPLE(uint16_t size);
+void
+net_buf_simple_init(struct os_mbuf *buf, size_t reserve_head);
+void
+net_buf_simple_add_le16(struct os_mbuf *om, uint16_t val);
+void
+net_buf_simple_add_u8(struct os_mbuf *om, uint8_t val);
+void *
+net_buf_simple_add(struct os_mbuf *om, uint8_t len);
+uint8_t *
+net_buf_simple_push(struct os_mbuf *om, uint8_t len);
 
-#define net_buf_simple_add_mem(a,b,c) os_mbuf_append(a,b,c)
+#define net_buf_simple_add_mem(a, b, c) os_mbuf_append(a,b,c)
 
-const char *bt_hex(const void *buf, size_t len);
+const char *
+bt_hex(const void *buf, size_t len);
 
 #endif /* __GLUE_H__ */
