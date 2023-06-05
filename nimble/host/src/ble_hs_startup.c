@@ -261,7 +261,7 @@ ble_hs_startup_le_set_evmask_tx(void)
     }
 #endif
 
-#if MYNEWT_VAL(BLE_BIGINFO_REPORTS)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
     if (version >= BLE_HCI_VER_BCS_5_2) {
         /**
          * Enable the following LE events:

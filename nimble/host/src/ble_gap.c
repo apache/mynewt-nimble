@@ -1853,7 +1853,7 @@ ble_gap_rx_periodic_adv_sync_transfer(const struct ble_hci_ev_le_subev_periodic_
 }
 #endif
 
-#if MYNEWT_VAL(BLE_BIGINFO_REPORTS)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
 void
 ble_gap_rx_biginfo_adv_rpt(const struct ble_hci_ev_le_subev_biginfo_adv_report *ev)
 {
