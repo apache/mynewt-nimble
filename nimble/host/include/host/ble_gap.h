@@ -983,7 +983,7 @@ struct ble_gap_event {
         } periodic_transfer;
 #endif
 
-#if MYNEWT_VAL(BLE_BIGINFO_REPORTS)
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
         /**
          * Represents a periodic advertising sync transfer received. Valid for
          * the following event types:
