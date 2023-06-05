@@ -55,12 +55,13 @@ typedef atomic_t atomic_val_t;
  * @param new_value New value to store.
  * @return 1 if @a new_value is written, 0 otherwise.
  */
-static inline int atomic_cas(atomic_t *target, atomic_val_t old_value,
-        atomic_val_t new_value)
+static inline int
+atomic_cas(atomic_t *target, atomic_val_t old_value,
+           atomic_val_t new_value)
 {
     return __atomic_compare_exchange_n(target, &old_value, new_value,
-            0, __ATOMIC_SEQ_CST,
-            __ATOMIC_SEQ_CST);
+                                       0, __ATOMIC_SEQ_CST,
+                                       __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -74,7 +75,8 @@ static inline int atomic_cas(atomic_t *target, atomic_val_t old_value,
  *
  * @return Previous value of @a target.
  */
-static inline atomic_val_t atomic_add(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_add(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_add(target, value, __ATOMIC_SEQ_CST);
 }
@@ -91,7 +93,8 @@ static inline atomic_val_t atomic_add(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_sub(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_sub(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_sub(target, value, __ATOMIC_SEQ_CST);
 }
@@ -107,7 +110,8 @@ static inline atomic_val_t atomic_sub(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_inc(atomic_t *target)
+static inline atomic_val_t
+atomic_inc(atomic_t *target)
 {
     return atomic_add(target, 1);
 }
@@ -123,7 +127,8 @@ static inline atomic_val_t atomic_inc(atomic_t *target)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_dec(atomic_t *target)
+static inline atomic_val_t
+atomic_dec(atomic_t *target)
 {
     return atomic_sub(target, 1);
 }
@@ -139,7 +144,8 @@ static inline atomic_val_t atomic_dec(atomic_t *target)
  * @return Value of @a target.
  */
 
-static inline atomic_val_t atomic_get(const atomic_t *target)
+static inline atomic_val_t
+atomic_get(const atomic_t *target)
 {
     return __atomic_load_n(target, __ATOMIC_SEQ_CST);
 }
@@ -157,7 +163,8 @@ static inline atomic_val_t atomic_get(const atomic_t *target)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_set(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_set(atomic_t *target, atomic_val_t value)
 {
     /* This builtin, as described by Intel, is not a traditional
      * test-and-set operation, but rather an atomic exchange operation. It
@@ -178,7 +185,8 @@ static inline atomic_val_t atomic_set(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_clear(atomic_t *target)
+static inline atomic_val_t
+atomic_clear(atomic_t *target)
 {
     return atomic_set(target, 0);
 }
@@ -196,7 +204,8 @@ static inline atomic_val_t atomic_clear(atomic_t *target)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_or(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_or(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_or(target, value, __ATOMIC_SEQ_CST);
 }
@@ -214,7 +223,8 @@ static inline atomic_val_t atomic_or(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_xor(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_xor(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_xor(target, value, __ATOMIC_SEQ_CST);
 }
@@ -232,7 +242,8 @@ static inline atomic_val_t atomic_xor(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_and(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_and(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_and(target, value, __ATOMIC_SEQ_CST);
 }
@@ -250,149 +261,150 @@ static inline atomic_val_t atomic_and(atomic_t *target, atomic_val_t value)
  * @return Previous value of @a target.
  */
 
-static inline atomic_val_t atomic_nand(atomic_t *target, atomic_val_t value)
+static inline atomic_val_t
+atomic_nand(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_nand(target, value, __ATOMIC_SEQ_CST);
 }
 
-    /**
-     * @brief Initialize an atomic variable.
-     *
-     * This macro can be used to initialize an atomic variable. For example,
-     * @code atomic_t my_var = ATOMIC_INIT(75); @endcode
-     *
-     * @param i Value to assign to atomic variable.
-     */
+/**
+ * @brief Initialize an atomic variable.
+ *
+ * This macro can be used to initialize an atomic variable. For example,
+ * @code atomic_t my_var = ATOMIC_INIT(75); @endcode
+ *
+ * @param i Value to assign to atomic variable.
+ */
 #define ATOMIC_INIT(i) (i)
 
-    /**
-     * @cond INTERNAL_HIDDEN
-     */
+/**
+ * @cond INTERNAL_HIDDEN
+ */
 
 #define ATOMIC_BITS (sizeof(atomic_val_t) * 8)
 #define ATOMIC_MASK(bit) (1 << ((bit) & (ATOMIC_BITS - 1)))
 #define ATOMIC_ELEM(addr, bit) ((addr) + ((bit) / ATOMIC_BITS))
 
-    /**
-     * INTERNAL_HIDDEN @endcond
-     */
+/**
+ * INTERNAL_HIDDEN @endcond
+ */
 
-    /**
-     * @brief Define an array of atomic variables.
-     *
-     * This macro defines an array of atomic variables containing at least
-     * @a num_bits bits.
-     *
-     * @note
-     * If used from file scope, the bits of the array are initialized to zero;
-     * if used from within a function, the bits are left uninitialized.
-     *
-     * @param name Name of array of atomic variables.
-     * @param num_bits Number of bits needed.
-     */
+/**
+ * @brief Define an array of atomic variables.
+ *
+ * This macro defines an array of atomic variables containing at least
+ * @a num_bits bits.
+ *
+ * @note
+ * If used from file scope, the bits of the array are initialized to zero;
+ * if used from within a function, the bits are left uninitialized.
+ *
+ * @param name Name of array of atomic variables.
+ * @param num_bits Number of bits needed.
+ */
 #define ATOMIC_DEFINE(name, num_bits) \
-	atomic_t name[1 + ((num_bits) - 1) / ATOMIC_BITS]
+    atomic_t name[1 + ((num_bits) - 1) / ATOMIC_BITS]
 
-    /**
-     * @brief Atomically test a bit.
-     *
-     * This routine tests whether bit number @a bit of @a target is set or not.
-     * The target may be a single atomic variable or an array of them.
-     *
-     * @param target Address of atomic variable or array.
-     * @param bit Bit number (starting from 0).
-     *
-     * @return 1 if the bit was set, 0 if it wasn't.
-     */
-    static inline int
-    atomic_test_bit(const atomic_t *target, int bit)
-    {
-        atomic_val_t val = atomic_get(ATOMIC_ELEM(target, bit));
+/**
+ * @brief Atomically test a bit.
+ *
+ * This routine tests whether bit number @a bit of @a target is set or not.
+ * The target may be a single atomic variable or an array of them.
+ *
+ * @param target Address of atomic variable or array.
+ * @param bit Bit number (starting from 0).
+ *
+ * @return 1 if the bit was set, 0 if it wasn't.
+ */
+static inline int
+atomic_test_bit(const atomic_t *target, int bit)
+{
+    atomic_val_t val = atomic_get(ATOMIC_ELEM(target, bit));
 
-        return (1 & (val >> (bit & (ATOMIC_BITS - 1))));
-    }
+    return (1 & (val >> (bit & (ATOMIC_BITS - 1))));
+}
 
-    /**
-     * @brief Atomically test and clear a bit.
-     *
-     * Atomically clear bit number @a bit of @a target and return its old value.
-     * The target may be a single atomic variable or an array of them.
-     *
-     * @param target Address of atomic variable or array.
-     * @param bit Bit number (starting from 0).
-     *
-     * @return 1 if the bit was set, 0 if it wasn't.
-     */
-    static inline int
-    atomic_test_and_clear_bit(atomic_t *target, int bit)
-    {
-        atomic_val_t mask = ATOMIC_MASK(bit);
-        atomic_val_t old;
+/**
+ * @brief Atomically test and clear a bit.
+ *
+ * Atomically clear bit number @a bit of @a target and return its old value.
+ * The target may be a single atomic variable or an array of them.
+ *
+ * @param target Address of atomic variable or array.
+ * @param bit Bit number (starting from 0).
+ *
+ * @return 1 if the bit was set, 0 if it wasn't.
+ */
+static inline int
+atomic_test_and_clear_bit(atomic_t *target, int bit)
+{
+    atomic_val_t mask = ATOMIC_MASK(bit);
+    atomic_val_t old;
 
-        old = atomic_and(ATOMIC_ELEM(target, bit), ~mask);
+    old = atomic_and(ATOMIC_ELEM(target, bit), ~mask);
 
-        return (old & mask) != 0;
-    }
+    return (old & mask) != 0;
+}
 
-    /**
-     * @brief Atomically set a bit.
-     *
-     * Atomically set bit number @a bit of @a target and return its old value.
-     * The target may be a single atomic variable or an array of them.
-     *
-     * @param target Address of atomic variable or array.
-     * @param bit Bit number (starting from 0).
-     *
-     * @return 1 if the bit was set, 0 if it wasn't.
-     */
-    static inline int
-    atomic_test_and_set_bit(atomic_t *target, int bit)
-    {
-        atomic_val_t mask = ATOMIC_MASK(bit);
-        atomic_val_t old;
+/**
+ * @brief Atomically set a bit.
+ *
+ * Atomically set bit number @a bit of @a target and return its old value.
+ * The target may be a single atomic variable or an array of them.
+ *
+ * @param target Address of atomic variable or array.
+ * @param bit Bit number (starting from 0).
+ *
+ * @return 1 if the bit was set, 0 if it wasn't.
+ */
+static inline int
+atomic_test_and_set_bit(atomic_t *target, int bit)
+{
+    atomic_val_t mask = ATOMIC_MASK(bit);
+    atomic_val_t old;
 
-        old = atomic_or(ATOMIC_ELEM(target, bit), mask);
+    old = atomic_or(ATOMIC_ELEM(target, bit), mask);
 
-        return (old & mask) != 0;
-    }
+    return (old & mask) != 0;
+}
 
-    /**
-     * @brief Atomically clear a bit.
-     *
-     * Atomically clear bit number @a bit of @a target.
-     * The target may be a single atomic variable or an array of them.
-     *
-     * @param target Address of atomic variable or array.
-     * @param bit Bit number (starting from 0).
-     *
-     * @return N/A
-     */
-    static inline void
-    atomic_clear_bit(atomic_t *target, int bit)
-    {
-        atomic_val_t mask = ATOMIC_MASK(bit);
+/**
+ * @brief Atomically clear a bit.
+ *
+ * Atomically clear bit number @a bit of @a target.
+ * The target may be a single atomic variable or an array of them.
+ *
+ * @param target Address of atomic variable or array.
+ * @param bit Bit number (starting from 0).
+ *
+ * @return N/A
+ */
+static inline void
+atomic_clear_bit(atomic_t *target, int bit)
+{
+    atomic_val_t mask = ATOMIC_MASK(bit);
 
-        atomic_and(ATOMIC_ELEM(target, bit), ~mask);
-    }
+    atomic_and(ATOMIC_ELEM(target, bit), ~mask);
+}
 
-    /**
-     * @brief Atomically set a bit.
-     *
-     * Atomically set bit number @a bit of @a target.
-     * The target may be a single atomic variable or an array of them.
-     *
-     * @param target Address of atomic variable or array.
-     * @param bit Bit number (starting from 0).
-     *
-     * @return N/A
-     */
-    static inline void
-    atomic_set_bit(atomic_t *target, int bit)
-    {
-        atomic_val_t mask = ATOMIC_MASK(bit);
+/**
+ * @brief Atomically set a bit.
+ *
+ * Atomically set bit number @a bit of @a target.
+ * The target may be a single atomic variable or an array of them.
+ *
+ * @param target Address of atomic variable or array.
+ * @param bit Bit number (starting from 0).
+ *
+ * @return N/A
+ */
+static inline void
+atomic_set_bit(atomic_t *target, int bit)
+{
+    atomic_val_t mask = ATOMIC_MASK(bit);
 
-        atomic_or(ATOMIC_ELEM(target, bit), mask);
-    }
+    atomic_or(ATOMIC_ELEM(target, bit), mask);
+}
 
 /**
  * @}
