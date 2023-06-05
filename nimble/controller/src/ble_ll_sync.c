@@ -25,6 +25,7 @@
 #include "syscfg/syscfg.h"
 
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_ll_utils.h"
@@ -946,6 +947,26 @@ ble_ll_sync_parse_aux_ptr(const uint8_t *buf, uint8_t *chan, uint32_t *offset,
     *phy = (aux_ptr_field >> 21) & 0x07;
 }
 
+static void
+ble_ll_sync_sched_set(struct ble_ll_sched_item *sch, uint32_t start_ticks,
+                      uint8_t start_rem_us, uint32_t offset, uint8_t phy_mode)
+{
+    uint32_t duration_us;
+    uint32_t duration;
+
+    if (offset > 0) {
+        ble_ll_tmr_add(&start_ticks, &start_rem_us, offset);
+    }
+
+    duration_us = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
+                                phy_mode);
+    duration = ble_ll_tmr_u2t(duration_us);
+
+    sch->start_time = start_ticks - g_ble_ll_sched_offset_ticks;
+    sch->remainder = start_rem_us;
+    sch->end_time = start_ticks + duration;
+}
+
 static int
 ble_ll_sync_schedule_chain(struct ble_ll_sync_sm *sm, struct ble_mbuf_hdr *hdr,
                            const uint8_t *aux)
@@ -980,8 +1001,10 @@ ble_ll_sync_schedule_chain(struct ble_ll_sync_sm *sm, struct ble_mbuf_hdr *hdr,
 
     sm->flags |= BLE_LL_SYNC_SM_FLAG_CHAIN;
 
-    return ble_ll_sched_sync(&sm->sch, hdr->beg_cputime, hdr->rem_usecs,
-                             offset, sm->phy_mode);
+    ble_ll_sync_sched_set(&sm->sch, hdr->beg_cputime, hdr->rem_usecs, offset,
+                          sm->phy_mode);
+
+    return ble_ll_sched_sync(&sm->sch);
 }
 
 static void
@@ -1358,9 +1381,10 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
             ble_ll_sync_sm_clear(sm);
             return;
         }
-    } while (ble_ll_sched_sync_reschedule(&sm->sch, sm->anchor_point,
-                                          sm->anchor_point_usecs,
-                                          sm->window_widening, sm->phy_mode));
+
+        ble_ll_sync_sched_set(&sm->sch, sm->anchor_point,
+                              sm->anchor_point_usecs, 0, sm->phy_mode);
+    } while (ble_ll_sched_sync_reschedule(&sm->sch, sm->window_widening));
 }
 
 void
@@ -1498,8 +1522,10 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     sm->chan_index = ble_ll_utils_dci_csa2(sm->event_cntr, sm->channel_id,
                                            sm->chan_map_used, sm->chan_map);
 
-    if (ble_ll_sched_sync(&sm->sch, rxhdr->beg_cputime, rxhdr->rem_usecs,
-                          offset, sm->phy_mode)) {
+    ble_ll_sync_sched_set(&sm->sch, rxhdr->beg_cputime, rxhdr->rem_usecs,
+                          offset, sm->phy_mode);
+
+    if (ble_ll_sched_sync(&sm->sch)) {
         return;
     }
 
@@ -2093,8 +2119,10 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
         }
     }
 
-    if (ble_ll_sched_sync(&sm->sch, sm->anchor_point, sm->anchor_point_usecs,
-                          offset, sm->phy_mode)) {
+    ble_ll_sync_sched_set(&sm->sch, sm->anchor_point, sm->anchor_point_usecs,
+                          offset, sm->phy_mode);
+
+    if (ble_ll_sched_sync(&sm->sch)) {
         /* release SM if this failed */
         ble_ll_sync_transfer_received(sm, BLE_ERR_CONN_ESTABLISHMENT);
         memset(sm, 0, sizeof(*sm));
