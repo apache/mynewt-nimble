@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <syscfg/syscfg.h>
+#include <controller/ble_ll.h>
 #include <controller/ble_ll_hci.h>
 
 /* Magic macros */
