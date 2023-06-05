@@ -16,8 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <stdint.h>
+
 #include <assert.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include "syscfg/syscfg.h"
 #include "nimble/ble.h"
@@ -607,6 +610,32 @@ ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line)
 
         ble_ll_hci_event_send(hci_ev);
     }
+}
+
+void
+ble_ll_hci_ev_send_vs_printf(uint8_t id, const char *fmt, ...)
+{
+    struct ble_hci_ev_vs *ev;
+    struct ble_hci_ev *hci_ev;
+    va_list ap;
+
+    hci_ev = ble_transport_alloc_evt(1);
+    if (!hci_ev) {
+        return;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_VS;
+    hci_ev->length = sizeof(*ev);
+
+    ev = (void *) hci_ev->data;
+    ev->id = id;
+
+    va_start(ap, fmt);
+    hci_ev->length += vsnprintf((void *)ev->data,
+                                BLE_HCI_MAX_DATA_LEN - sizeof(*ev), fmt, ap);
+    va_end(ap);
+
+    ble_ll_hci_event_send(hci_ev);
 }
 
 #if MYNEWT_VAL(BLE_LL_HCI_LLCP_TRACE)
