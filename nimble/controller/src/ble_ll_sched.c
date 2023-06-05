@@ -671,38 +671,13 @@ ble_ll_sched_sync_overlaps_current(struct ble_ll_sched_item *sch)
 }
 
 int
-ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
-                             uint32_t anchor_point, uint8_t anchor_point_usecs,
-                             uint32_t window_widening,
-                             int8_t phy_mode)
+ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch, uint32_t ww_us)
 {
-    uint8_t start_time_rem_usecs;
-    uint32_t start_time;
-    uint32_t end_time;
-    uint32_t dur;
-    int rc = 0;
     os_sr_t sr;
+    int rc = 0;
 
-    start_time = anchor_point;
-    start_time_rem_usecs = anchor_point_usecs;
-
-    ble_ll_tmr_sub(&start_time, &start_time_rem_usecs, window_widening);
-
-    dur = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
-                                 phy_mode);
-    end_time = start_time + ble_ll_tmr_u2t(dur);
-
-    start_time -= g_ble_ll_sched_offset_ticks;
-
-    /* Set schedule start and end times */
-    sch->start_time = start_time;
-    sch->remainder = start_time_rem_usecs;
-    sch->end_time = end_time;
-
-    /* Better be past current time or we just leave */
-    if (LL_TMR_LEQ(sch->start_time, ble_ll_tmr_get())) {
-        return -1;
-    }
+    /* Adjust start time to include window widening */
+    ble_ll_tmr_sub(&sch->start_time, &sch->remainder, ww_us);
 
     OS_ENTER_CRITICAL(sr);
 
@@ -721,31 +696,10 @@ ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
 }
 
 int
-ble_ll_sched_sync(struct ble_ll_sched_item *sch,
-                  uint32_t beg_cputime, uint32_t rem_usecs,
-                  uint32_t offset, int8_t phy_mode)
+ble_ll_sched_sync(struct ble_ll_sched_item *sch)
 {
-    uint8_t start_time_rem_usecs;
-    uint32_t start_time;
-    uint32_t end_time;
-    uint32_t dur;
     os_sr_t sr;
     int rc = 0;
-
-    start_time = beg_cputime;
-    start_time_rem_usecs = rem_usecs;
-
-    ble_ll_tmr_add(&start_time, &start_time_rem_usecs, offset);
-
-    dur = ble_ll_pdu_us(MYNEWT_VAL(BLE_LL_SCHED_SCAN_SYNC_PDU_LEN),
-                                  phy_mode);
-    end_time = start_time + ble_ll_tmr_u2t(dur);
-
-    start_time -= g_ble_ll_sched_offset_ticks;
-
-    sch->start_time = start_time;
-    sch->remainder = start_time_rem_usecs;
-    sch->end_time = end_time;
 
     OS_ENTER_CRITICAL(sr);
 
@@ -754,8 +708,6 @@ ble_ll_sched_sync(struct ble_ll_sched_item *sch,
     OS_EXIT_CRITICAL(sr);
 
     ble_ll_sched_restart();
-
-    STATS_INC(ble_ll_stats, sync_scheduled);
 
     return rc;
 }

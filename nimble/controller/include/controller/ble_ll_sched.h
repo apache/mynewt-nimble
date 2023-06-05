@@ -142,13 +142,8 @@ int ble_ll_sched_adv_new(struct ble_ll_sched_item *sch,
 /* Schedule periodic advertising event */
 int ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, bool first_event);
 
-int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch,
-                                 uint32_t anchor_point,
-                                 uint8_t anchor_point_usecs,
-                                 uint32_t window_widening, int8_t phy_mode);
-int ble_ll_sched_sync(struct ble_ll_sched_item *sch,
-                      uint32_t beg_cputime, uint32_t rem_usecs, uint32_t offset,
-                      int8_t phy_mode);
+int ble_ll_sched_sync_reschedule(struct ble_ll_sched_item *sch, uint32_t ww_us);
+int ble_ll_sched_sync(struct ble_ll_sched_item *sch);
 
 /* Reschedule an advertising event */
 int ble_ll_sched_adv_reschedule(struct ble_ll_sched_item *sch,
