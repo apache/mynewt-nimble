@@ -33,6 +33,3 @@ pkg.deps:
 
 pkg.apis:
     - ble_transport
-
-pkg.init:
-    ble_hci_sock_init: 'MYNEWT_VAL(BLE_SOCK_CLI_SYSINIT_STAGE)'
