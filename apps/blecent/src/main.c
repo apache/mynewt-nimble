@@ -272,7 +272,7 @@ blecent_should_connect(const struct ble_gap_disc_desc *disc)
 
     rc = ble_hs_adv_parse_fields(&fields, disc->data, disc->length_data);
     if (rc != 0) {
-        return rc;
+        return 0;
     }
 
     /* The device has to advertise support for the Alert Notification
