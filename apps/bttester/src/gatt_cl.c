@@ -844,7 +844,8 @@ read_uuid_cb(uint16_t conn_handle,
         rp->data_length = gatt_buf.len;
         rp->value_length = attr_len;
         rp->status = 0;
-        os_mbuf_append(buf, gatt_buf.buf + 1, gatt_buf.len - 1);
+        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
+
         tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
                         CONTROLLER_INDEX, buf);
         read_destroy();
@@ -853,12 +854,6 @@ read_uuid_cb(uint16_t conn_handle,
 
     if (error->status == 0) {
         attr_len = attr->om->om_len;
-    }
-
-    if (gatt_buf_add(attr->om->om_data, attr->om->om_len) == NULL) {
-        read_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
     }
 
     chr = gatt_buf_reserve(sizeof(*chr) + attr->om->om_len);
