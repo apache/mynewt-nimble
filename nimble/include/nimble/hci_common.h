@@ -1937,14 +1937,14 @@ struct ble_hci_ev_le_subev_path_loss_threshold {
 
 #define BLE_HCI_LE_SUBEV_TRANSMIT_POWER_REPORT   (0x21)
 struct ble_hci_ev_le_subev_transmit_power_report {
-    uint8_t  subev_code;
-    uint8_t  status;
+    uint8_t subev_code;
+    uint8_t status;
     uint16_t conn_handle;
-    uint8_t  reason;
-    uint8_t  phy;
-    uint8_t  transmit_power_level;
-    uint8_t  transmit_power_level_flag;
-    uint8_t delta;
+    uint8_t reason;
+    uint8_t phy;
+    int8_t transmit_power_level;
+    uint8_t transmit_power_level_flag;
+    int8_t delta;
 } __attribute__((packed));
 
 #define BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT         (0x22)
