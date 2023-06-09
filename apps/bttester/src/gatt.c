@@ -138,7 +138,7 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = PTS_UUID_DECLARE(PTS_INC_SVC),
+        .uuid = BLE_UUID16_DECLARE(PTS_INC_SVC),
         .characteristics = (struct ble_gatt_chr_def[]) {{
                                                             .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
                                                             .access_cb = gatt_svr_read_write_test,
@@ -1761,7 +1761,7 @@ get_attr_val(uint8_t *data, uint16_t len)
     struct ble_gap_conn_desc conn;
     struct os_mbuf *buf = os_msys_get(0, 0);
     uint16_t handle = sys_cpu_to_le16(cmd->handle);
-    uint8_t out_att_err;
+    uint8_t out_att_err = 0;
     int conn_status;
 
     conn_status = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
