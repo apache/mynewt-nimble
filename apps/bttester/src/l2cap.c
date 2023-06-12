@@ -261,7 +261,6 @@ static int
 tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_l2cap_chan_info chan_info;
-    int accept_response;
     struct ble_gap_conn_desc conn;
 
     switch (event->type) {
@@ -321,11 +320,12 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
             if (conn.sec_state.key_size < 16) {
                 return BLE_HS_EENCRYPT_KEY_SZ;
             }
-        }
-
-        accept_response = POINTER_TO_INT(arg);
-        if (accept_response) {
-            return accept_response;
+        } else if (chan_info.psm == 0x00F5) {
+            /* TSPX_psm_encryption_required */
+            ble_gap_conn_find(event->accept.conn_handle, &conn);
+            if (conn.sec_state.key_size == 0) {
+                return BLE_HS_EENCRYPT;
+            }
         }
 
         console_printf(
@@ -563,52 +563,11 @@ fail:
                BTP_STATUS_FAILED);
 }
 
-static int
-l2cap_coc_err2hs_err(uint16_t coc_err)
-{
-    switch (coc_err) {
-    case BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM:
-        return BLE_HS_ENOTSUP;
-    case BLE_L2CAP_COC_ERR_NO_RESOURCES:
-        return BLE_HS_ENOMEM;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN:
-        return BLE_HS_EAUTHEN;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR:
-        return BLE_HS_EAUTHOR;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC:
-        return BLE_HS_EENCRYPT;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ:
-        return BLE_HS_EENCRYPT_KEY_SZ;
-    case BLE_L2CAP_COC_ERR_UNACCEPTABLE_PARAMETERS:
-        return BLE_HS_EINVAL;
-    default:
-        return 0;
-    }
-}
-
-static int
-l2cap_btp_listen_err2coc_err(uint16_t coc_err)
-{
-    switch (coc_err) {
-    case 0x01:
-        return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN;
-    case 0x02:
-        return BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR;
-    case 0x03:
-        return BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ;
-    case 0x04:
-        return BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC;
-    default:
-        return 0;
-    }
-}
-
 static void
 listen(const uint8_t *data, uint16_t len)
 {
     const struct l2cap_listen_cmd *cmd = (void *) data;
     uint16_t mtu = htole16(cmd->mtu);
-    uint16_t rsp = htole16(cmd->response);
     int rc;
 
     SYS_LOG_DBG("");
@@ -617,12 +576,8 @@ listen(const uint8_t *data, uint16_t len)
         mtu = TESTER_COC_MTU;
     }
 
-    rsp = l2cap_btp_listen_err2coc_err(rsp);
-    rsp = l2cap_coc_err2hs_err(rsp);
-
     /* TODO: Handle cmd->transport flag */
-    rc = ble_l2cap_create_server(cmd->psm, mtu, tester_l2cap_event,
-                                 INT_TO_POINTER(rsp));
+    rc = ble_l2cap_create_server(cmd->psm, mtu, tester_l2cap_event, NULL);
     if (rc) {
         goto fail;
     }
