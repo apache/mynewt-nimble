@@ -1976,7 +1976,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     struct ble_ll_conn_global_params *conn_params;
 
     /* Reset following elements */
-    connsm->csmflags.conn_flags = 0;
+    memset(&connsm->csmflags, 0, sizeof(connsm->csmflags));
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->disconnect_reason = 0;
