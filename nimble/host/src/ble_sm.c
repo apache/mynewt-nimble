@@ -904,7 +904,8 @@ ble_sm_chk_repeat_pairing(uint16_t conn_handle,
 }
 
 void
-ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
+ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res,
+                      bool tx_fail)
 {
     struct ble_sm_proc *prev;
     struct ble_sm_proc *proc;
@@ -937,7 +938,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
             }
         }
 
-        if (res->sm_err != 0) {
+        if (res->sm_err != 0 && tx_fail) {
             ble_sm_pair_fail_tx(conn_handle, res->sm_err);
         }
 
@@ -1208,7 +1209,7 @@ ble_sm_enc_event_rx(uint16_t conn_handle, uint8_t evt_status, int encrypted)
     ble_hs_unlock();
 
     res.bonded = bonded;
-    ble_sm_process_result(conn_handle, &res);
+    ble_sm_process_result(conn_handle, &res, true);
 }
 
 void
@@ -1429,7 +1430,7 @@ ble_sm_ltk_req_rx(const struct ble_hci_ev_le_subev_lt_key_req *ev)
         }
     }
 
-    ble_sm_process_result(conn_handle, &res);
+    ble_sm_process_result(conn_handle, &res, true);
 
     return 0;
 }
@@ -2576,7 +2577,7 @@ ble_sm_pair_initiate(uint16_t conn_handle)
     }
 
     if (proc != NULL) {
-        ble_sm_process_result(conn_handle, &res);
+        ble_sm_process_result(conn_handle, &res, true);
     }
 
     return res.app_status;
@@ -2615,7 +2616,7 @@ ble_sm_slave_initiate(uint16_t conn_handle)
     ble_hs_unlock();
 
     if (proc != NULL) {
-        ble_sm_process_result(conn_handle, &res);
+        ble_sm_process_result(conn_handle, &res, true);
     }
 
     return res.app_status;
@@ -2669,7 +2670,7 @@ ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
 
     ble_hs_unlock();
 
-    ble_sm_process_result(conn_handle, &res);
+    ble_sm_process_result(conn_handle, &res, true);
 
     return res.app_status;
 }
@@ -2707,7 +2708,8 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
         memset(&res, 0, sizeof res);
 
         rx_cb(conn_handle, om, &res);
-        ble_sm_process_result(conn_handle, &res);
+        ble_sm_process_result(conn_handle, &res, op == BLE_SM_OP_PAIR_FAIL ?
+                              false : true);
         rc = res.app_status;
     } else {
         rc = BLE_HS_ENOTSUP;
@@ -2821,7 +2823,7 @@ ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey)
         return rc;
     }
 
-    ble_sm_process_result(conn_handle, &res);
+    ble_sm_process_result(conn_handle, &res, true);
     return res.app_status;
 }
 
@@ -2834,7 +2836,7 @@ ble_sm_connection_broken(uint16_t conn_handle)
     res.app_status = BLE_HS_ENOTCONN;
     res.enc_cb = 1;
 
-    ble_sm_process_result(conn_handle, &res);
+    ble_sm_process_result(conn_handle, &res, true);
 }
 
 int
