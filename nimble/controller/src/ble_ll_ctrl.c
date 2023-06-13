@@ -383,18 +383,28 @@ conn_param_pdu_exit:
     return rsp_opcode;
 }
 
-/**
- * Called to make a connection update request LL control PDU
- *
- * Context: Link Layer
- *
- * @param connsm
- * @param rsp
- */
 static void
-ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
-                          struct ble_ll_conn_params *cp)
+ble_ll_ctrl_conn_update_init_proc(struct ble_ll_conn_sm *connsm,
+                                  struct ble_ll_conn_params *cp)
 {
+    /* This only stores conn params, if any. The caller will enqueue LL Control
+     * PDU and we will calculate its contents when dequeued so we know that
+     * instant is in the future.
+     */
+
+    connsm->csmflags.cfbit.conn_update_sched = 0;
+    connsm->csmflags.cfbit.conn_update_use_cp = (cp != NULL);
+
+    if (cp) {
+        connsm->conn_cp = *cp;
+    }
+}
+
+static void
+ble_ll_ctrl_conn_update_make_ind_pdu(struct ble_ll_conn_sm *connsm,
+                                     uint8_t *ctrdata)
+{
+    struct ble_ll_conn_params *cp = NULL;
     struct ble_ll_conn_params offset_cp = { };
     uint16_t instant;
     uint32_t dt;
@@ -403,6 +413,10 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
     uint32_t old_itvl_usecs;
     struct hci_conn_update *hcu;
     struct ble_ll_conn_upd_req *req;
+
+    if (connsm->csmflags.cfbit.conn_update_use_cp) {
+        cp = &connsm->conn_cp;
+    }
 
     /*
      * Set instant. We set the instant to the current event counter plus
@@ -475,15 +489,12 @@ ble_ll_ctrl_conn_upd_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld,
     req->instant = instant;
 
     /* XXX: make sure this works for the connection parameter request proc. */
-    pyld[0] = req->winsize;
-    put_le16(pyld + 1, req->winoffset);
-    put_le16(pyld + 3, req->interval);
-    put_le16(pyld + 5, req->latency);
-    put_le16(pyld + 7, req->timeout);
-    put_le16(pyld + 9, instant);
-
-    /* Set flag in state machine to denote we have scheduled an update */
-    connsm->csmflags.cfbit.conn_update_sched = 1;
+    ctrdata[0] = req->winsize;
+    put_le16(ctrdata + 1, req->winoffset);
+    put_le16(ctrdata + 3, req->interval);
+    put_le16(ctrdata + 5, req->latency);
+    put_le16(ctrdata + 7, req->timeout);
+    put_le16(ctrdata + 9, instant);
 }
 
 /**
@@ -519,7 +530,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
         BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_CONN_PARM_REQ);
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-            ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
+            ble_ll_ctrl_conn_update_init_proc(connsm, NULL);
             connsm->reject_reason = BLE_ERR_SUCCESS;
             return BLE_LL_CTRL_CONN_UPDATE_IND;
         }
@@ -1912,8 +1923,7 @@ ble_ll_ctrl_conn_param_reply(struct ble_ll_conn_sm *connsm, uint8_t *rsp,
     switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_CONN_ROLE_CENTRAL:
-        /* Create a connection update pdu */
-        ble_ll_ctrl_conn_upd_make(connsm, rsp + 1, req);
+        ble_ll_ctrl_conn_update_init_proc(connsm, req);
         rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
         break;
 #endif
@@ -1967,7 +1977,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
             case BLE_LL_CONN_ROLE_CENTRAL:
                 /* As a central we should send connection update indication in this point */
                 rsp_opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
-                ble_ll_ctrl_conn_upd_make(connsm, rspdata, NULL);
+                ble_ll_ctrl_conn_update_init_proc(connsm, NULL);
                 connsm->reject_reason = BLE_ERR_SUCCESS;
                 break;
         #endif
@@ -2467,7 +2477,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
             opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
-            ble_ll_ctrl_conn_upd_make(connsm, ctrdata, data);
+            ble_ll_ctrl_conn_update_init_proc(connsm, data);
             break;
         case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
             opcode = BLE_LL_CTRL_CHANNEL_MAP_REQ;
@@ -3116,9 +3126,16 @@ int
 ble_ll_ctrl_tx_start(struct ble_ll_conn_sm *connsm, struct os_mbuf *txpdu)
 {
     uint8_t opcode;
+    uint8_t *ctrdata;
 
     opcode = txpdu->om_data[0];
+    ctrdata = &txpdu->om_data[1];
+
     switch (opcode) {
+    case BLE_LL_CTRL_CONN_UPDATE_IND:
+        ble_ll_ctrl_conn_update_make_ind_pdu(connsm, ctrdata);
+        connsm->csmflags.cfbit.conn_update_sched = 1;
+        break;
     case BLE_LL_CTRL_SUBRATE_IND:
         connsm->csmflags.cfbit.subrate_trans = 1;
         break;

@@ -109,6 +109,7 @@ union ble_ll_conn_sm_flags {
         uint32_t awaiting_host_reply:1;
         uint32_t terminate_started:1;
         uint32_t conn_update_sched:1;
+        uint32_t conn_update_use_cp:1;
         uint32_t host_expects_upd_event:1;
         uint32_t version_ind_sent:1;
         uint32_t rxd_version_ind:1;
