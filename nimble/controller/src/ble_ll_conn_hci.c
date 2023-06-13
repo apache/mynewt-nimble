@@ -921,7 +921,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /* If already pending exit with error */
-    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+    if (connsm->flags.pending_hci_rd_features) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -929,8 +929,8 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
      * Start control procedure if we did not receive peer's features and did not
      * start procedure already.
      */
-    if (!connsm->csmflags.cfbit.rxd_features &&
-                !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
+    if (!connsm->flags.rxd_features &&
+        !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         if ((connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) &&
             !(ble_ll_read_supp_features() & BLE_LL_FEAT_PERIPH_INIT)) {
@@ -941,7 +941,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG, NULL);
     }
 
-    connsm->csmflags.cfbit.pending_hci_rd_features = 1;
+    connsm->flags.pending_hci_rd_features = 1;
 
     return BLE_ERR_SUCCESS;
 }
@@ -1062,11 +1062,11 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * peripheral has initiated the procedure, we need to send a reject to the
      * peripheral.
      */
-    if (connsm->csmflags.cfbit.awaiting_host_reply) {
+    if (connsm->flags.awaiting_host_reply) {
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
-            connsm->csmflags.cfbit.awaiting_host_reply = 0;
+            connsm->flags.awaiting_host_reply = 0;
 
             /* XXX: If this fails no reject ind will be sent! */
             ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
@@ -1089,7 +1089,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * update procedure we should deny the peripheral request for now.
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
+    if (connsm->flags.chanmap_update_scheduled) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             return BLE_ERR_DIFF_TRANS_COLL;
         }
@@ -1159,7 +1159,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
     rc = ble_ll_conn_process_conn_params(cmd, connsm);
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->csmflags.cfbit.awaiting_host_reply) {
+    if (connsm->flags.awaiting_host_reply) {
         /* Get a control packet buffer */
         if (rc == BLE_ERR_SUCCESS) {
             om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
@@ -1177,7 +1177,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
             ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
                                         BLE_ERR_CONN_PARMS);
         }
-        connsm->csmflags.cfbit.awaiting_host_reply = 0;
+        connsm->flags.awaiting_host_reply = 0;
 
         /* XXX: if we cant get a buffer, what do we do? We need to remember
          * reason if it was a negative reply. We also would need to have
@@ -1224,11 +1224,11 @@ ble_ll_conn_hci_param_nrr(const uint8_t *cmdbuf, uint8_t len,
     rc = BLE_ERR_SUCCESS;
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->csmflags.cfbit.awaiting_host_reply) {
+    if (connsm->flags.awaiting_host_reply) {
         /* XXX: check return code and deal */
         ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
                                     cmd->reason);
-        connsm->csmflags.cfbit.awaiting_host_reply = 0;
+        connsm->flags.awaiting_host_reply = 0;
 
         /* XXX: if we cant get a buffer, what do we do? We need to remember
          * reason if it was a negative reply. We also would need to have
@@ -1393,7 +1393,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len)
      * NOTE: we cant just send the event here. That would cause the event to
      * be queued before the command status.
      */
-    if (!connsm->csmflags.cfbit.version_ind_sent) {
+    if (!connsm->flags.version_ind_sent) {
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG, NULL);
     } else {
         connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_VERSION_XCHG);
@@ -1468,7 +1468,7 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
         rc = BLE_ERR_UNK_CONN_ID;
         memset(rsp->chan_map, 0, sizeof(rsp->chan_map));
     } else {
-        if (connsm->csmflags.cfbit.chanmap_update_scheduled) {
+        if (connsm->flags.chanmap_update_scheduled) {
             memcpy(rsp->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
         } else {
             memcpy(rsp->chan_map, connsm->chan_map, BLE_LL_CHAN_MAP_LEN);
