@@ -801,7 +801,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
     uint8_t index;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
-    if (conn->flags.csa2_supp) {
+    if (conn->flags.csa2) {
         return ble_ll_utils_dci_csa2(conn->event_cntr, conn->channel_id,
                                      conn->chan_map_used, conn->chan_map);
     }
@@ -969,7 +969,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
     uint8_t update_status;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    if (connsm->flags.send_ltk_req) {
+    if (connsm->flags.encrypt_ltk_req) {
         /*
          * Send Long term key request event to host. If masked, we need to
          * send a REJECT_IND.
@@ -978,7 +978,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
             ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
                                         BLE_ERR_PINKEY_MISSING);
         }
-        connsm->flags.send_ltk_req = 0;
+        connsm->flags.encrypt_ltk_req = 0;
     }
 #endif
 
@@ -988,7 +988,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
      * has passed the instant.
      * 2) We successfully sent the reject reason.
      */
-    if (connsm->flags.host_expects_upd_event) {
+    if (connsm->flags.conn_update_host_w4event) {
         update_status = BLE_ERR_SUCCESS;
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
@@ -999,15 +999,15 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
             }
         }
         ble_ll_hci_ev_conn_update(connsm, update_status);
-        connsm->flags.host_expects_upd_event = 0;
+        connsm->flags.conn_update_host_w4event = 0;
     }
 
     /* Check if we need to send PHY update complete event */
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    if (connsm->flags.phy_update_event) {
+    if (connsm->flags.phy_update_host_w4event) {
         if (!ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS)) {
             /* Sent event. Clear flag */
-            connsm->flags.phy_update_event = 0;
+            connsm->flags.phy_update_host_w4event = 0;
         }
     }
 #endif
@@ -1113,7 +1113,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         /* We just received terminate indication.
          * Just send empty packet as an ACK
          */
-        connsm->flags.conn_empty_pdu_txd = 1;
+        connsm->flags.empty_pdu_txd = 1;
         goto conn_tx_pdu;
     }
 
@@ -1122,8 +1122,8 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
      * the transmit queue.
      */
     pkthdr = STAILQ_FIRST(&connsm->conn_txq);
-    if (!connsm->cur_tx_pdu && !connsm->flags.conn_empty_pdu_txd && !pkthdr) {
-        connsm->flags.conn_empty_pdu_txd = 1;
+    if (!connsm->cur_tx_pdu && !connsm->flags.empty_pdu_txd && !pkthdr) {
+        connsm->flags.empty_pdu_txd = 1;
         goto conn_tx_pdu;
     }
 
@@ -1132,7 +1132,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
      * the connection transmit queue
      */
     cur_offset = 0;
-    if (!connsm->cur_tx_pdu && !connsm->flags.conn_empty_pdu_txd) {
+    if (!connsm->cur_tx_pdu && !connsm->flags.empty_pdu_txd) {
         /* Convert packet header to mbuf */
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
@@ -1150,7 +1150,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
             ((connsm->enc_data.enc_state > CONN_ENC_S_ENC_RSP_TO_BE_SENT) &&
              CONN_IS_PERIPHERAL(connsm))) {
             if (!ble_ll_ctrl_enc_allowed_pdu_tx(pkthdr)) {
-                connsm->flags.conn_empty_pdu_txd = 1;
+                connsm->flags.empty_pdu_txd = 1;
                 goto conn_tx_pdu;
             }
 
@@ -1292,7 +1292,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
 
     /* If we send an empty PDU we need to initialize the header */
 conn_tx_pdu:
-    if (connsm->flags.conn_empty_pdu_txd) {
+    if (connsm->flags.empty_pdu_txd) {
         /*
          * This looks strange, but we dont use the data pointer in the mbuf
          * when we have an empty pdu.
@@ -1448,7 +1448,7 @@ conn_tx_pdu:
         connsm->flags.last_txd_md = md;
 
         /* Increment packets transmitted */
-        if (connsm->flags.conn_empty_pdu_txd) {
+        if (connsm->flags.empty_pdu_txd) {
             if (connsm->flags.terminate_ind_rxd) {
                 connsm->flags.terminate_ind_rxd_acked = 1;
             }
@@ -1945,7 +1945,7 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (chsel) {
-        connsm->flags.csa2_supp = 1;
+        connsm->flags.csa2 = 1;
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
                               (connsm->access_addr & 0x0000ffff);
 
@@ -2239,19 +2239,19 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      * If we have features and there's pending HCI command, send an event before
      * disconnection event so it does make sense to host.
      */
-    if (connsm->flags.pending_hci_rd_features &&
-        connsm->flags.rxd_features) {
+    if (connsm->flags.features_host_req &&
+        connsm->flags.features_rxd) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-        connsm->flags.pending_hci_rd_features = 0;
+        connsm->flags.features_host_req = 0;
     }
 
     /*
      * If there is still pending read features request HCI command, send an
      * event to complete it.
      */
-    if (connsm->flags.pending_hci_rd_features) {
+    if (connsm->flags.features_host_req) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, ble_err);
-        connsm->flags.pending_hci_rd_features = 0;
+        connsm->flags.features_host_req = 0;
     }
 
     /*
@@ -2263,7 +2263,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      * received and we should not send an event.
      */
     if (ble_err && (ble_err != BLE_ERR_UNK_CONN_ID ||
-                                connsm->flags.terminate_ind_rxd)) {
+                    connsm->flags.terminate_ind_rxd)) {
         ble_ll_disconn_comp_event_send(connsm, ble_err);
     }
 
@@ -2413,10 +2413,10 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* Set event counter to the next connection event that we will tx/rx in */
 
     use_periph_latency = next_is_subrated &&
-                         connsm->flags.allow_periph_latency &&
+                         connsm->flags.periph_use_latency &&
                          !connsm->flags.conn_update_sched &&
                          !connsm->flags.phy_update_sched &&
-                         !connsm->flags.chanmap_update_scheduled &&
+                         !connsm->flags.chanmap_update_sched &&
                          connsm->flags.pkt_rxd;
 
     if (next_is_subrated) {
@@ -2535,7 +2535,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             (connsm->conn_itvl != upd->interval) ||
             (connsm->periph_latency != upd->latency) ||
             (connsm->supervision_tmo != upd->timeout)) {
-            connsm->flags.host_expects_upd_event = 1;
+            connsm->flags.conn_update_host_w4event = 1;
         }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
@@ -2614,7 +2614,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * new channel map once the event counter equals or has passed channel
      * map update instant.
      */
-    if (connsm->flags.chanmap_update_scheduled &&
+    if (connsm->flags.chanmap_update_sched &&
         ((int16_t)(connsm->chanmap_instant - connsm->event_cntr) <= 0)) {
 
         /* XXX: there is a chance that the control packet is still on
@@ -2625,7 +2625,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             ble_ll_utils_chan_map_used_get(connsm->req_chanmap);
         memcpy(connsm->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
 
-        connsm->flags.chanmap_update_scheduled = 0;
+        connsm->flags.chanmap_update_sched = 0;
 
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
 
@@ -2660,7 +2660,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 
         /* Clear flags and set flag to send event at next instant */
         connsm->flags.phy_update_sched = 0;
-        connsm->flags.phy_update_event = 1;
+        connsm->flags.phy_update_host_w4event = 1;
 
         ble_ll_ctrl_phy_update_proc_complete(connsm);
 
@@ -2856,7 +2856,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          * the other side can support it?
          */
         if (!ble_ll_conn_phy_update_if_needed(connsm)) {
-            connsm->flags.ctrlr_phy_update = 1;
+            connsm->flags.phy_update_self_initiated = 1;
         }
 #endif
         switch (connsm->conn_role) {
@@ -3030,10 +3030,10 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     ble_ll_conn_num_comp_pkts_event_send(connsm);
 
     /* If we have features and there's pending HCI command, send an event */
-    if (connsm->flags.pending_hci_rd_features &&
-        connsm->flags.rxd_features) {
+    if (connsm->flags.features_host_req &&
+        connsm->flags.features_rxd) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-        connsm->flags.pending_hci_rd_features = 0;
+        connsm->flags.features_host_req = 0;
     }
 }
 
@@ -3519,7 +3519,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
         if (hdr_byte & BLE_LL_DATA_HDR_NESN_MASK) {
-            connsm->flags.allow_periph_latency = 1;
+            connsm->flags.periph_use_latency = 1;
         }
     }
 #endif
@@ -3773,7 +3773,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
          * Check NESN bit from header. If same as tx seq num, the transmission
          * is acknowledged. Otherwise we need to resend this PDU.
          */
-        if (connsm->flags.conn_empty_pdu_txd || connsm->cur_tx_pdu) {
+        if (connsm->flags.empty_pdu_txd || connsm->cur_tx_pdu) {
             hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
             conn_sn = connsm->tx_seqnum;
             if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
@@ -3785,8 +3785,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                 STATS_INC(ble_ll_conn_stats, data_pdu_txg);
 
                 /* If we transmitted the empty pdu, clear flag */
-                if (connsm->flags.conn_empty_pdu_txd) {
-                    connsm->flags.conn_empty_pdu_txd = 0;
+                if (connsm->flags.empty_pdu_txd) {
+                    connsm->flags.empty_pdu_txd = 0;
                     goto chk_rx_terminate_ind;
                 }
 

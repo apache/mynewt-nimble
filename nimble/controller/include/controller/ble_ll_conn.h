@@ -100,35 +100,33 @@ struct ble_ll_conn_enc_data
 /* Connection state machine flags. */
 struct ble_ll_conn_sm_flags {
     uint32_t pkt_rxd : 1;
+    uint32_t last_txd_md : 1;
+    uint32_t empty_pdu_txd : 1;
+    uint32_t periph_use_latency : 1;
+    uint32_t periph_set_last_anchor : 1;
+    uint32_t csa2 : 1;
+    uint32_t encrypted : 1;
+    uint32_t encrypt_ltk_req : 1;
+    uint32_t encrypt_event_sent : 1;
+    uint32_t version_ind_txd : 1;
+    uint32_t version_ind_rxd : 1;
+    uint32_t features_rxd : 1;
+    uint32_t features_host_req : 1;
+    uint32_t terminate_started : 1;
     uint32_t terminate_ind_txd : 1;
     uint32_t terminate_ind_rxd : 1;
     uint32_t terminate_ind_rxd_acked : 1;
-    uint32_t allow_periph_latency : 1;
-    uint32_t periph_set_last_anchor : 1;
-    uint32_t awaiting_host_reply : 1;
-    uint32_t terminate_started : 1;
     uint32_t conn_update_sched : 1;
     uint32_t conn_update_use_cp : 1;
-    uint32_t host_expects_upd_event : 1;
-    uint32_t version_ind_sent : 1;
-    uint32_t rxd_version_ind : 1;
-    uint32_t chanmap_update_scheduled : 1;
-    uint32_t conn_empty_pdu_txd : 1;
-    uint32_t last_txd_md : 1;
-    uint32_t conn_req_txd : 1;
-    uint32_t send_ltk_req : 1;
-    uint32_t encrypted : 1;
-    uint32_t encrypt_chg_sent : 1;
+    uint32_t conn_update_host_w4reply : 1;
+    uint32_t conn_update_host_w4event : 1;
+    uint32_t chanmap_update_sched : 1;
+    uint32_t phy_update_sched : 1;
+    uint32_t phy_update_self_initiated : 1;
+    uint32_t phy_update_peer_initiated : 1;
+    uint32_t phy_update_host_initiated : 1;
+    uint32_t phy_update_host_w4event : 1;
     uint32_t le_ping_supp : 1;
-    uint32_t csa2_supp : 1;
-    uint32_t host_phy_update: 1;
-    uint32_t phy_update_sched: 1;
-    uint32_t ctrlr_phy_update: 1;
-    uint32_t phy_update_event: 1;
-    uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
-    uint32_t aux_conn_req: 1;
-    uint32_t rxd_features : 1;
-    uint32_t pending_hci_rd_features : 1;
 #if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
     uint32_t pending_initiate_dle : 1;
 #endif

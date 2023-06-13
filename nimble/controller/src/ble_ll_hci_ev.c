@@ -135,7 +135,7 @@ ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
     struct ble_hci_ev_enrypt_chg *ev_enc_chf;
     struct ble_hci_ev *hci_ev;
 
-    if (connsm->flags.encrypt_chg_sent == 0) {
+    if (connsm->flags.encrypt_event_sent == 0) {
         if (ble_ll_hci_is_event_enabled(BLE_HCI_EVCODE_ENCRYPT_CHG)) {
             hci_ev = ble_transport_alloc_evt(0);
             if (hci_ev) {
@@ -151,7 +151,7 @@ ble_ll_hci_ev_encrypt_chg(struct ble_ll_conn_sm *connsm, uint8_t status)
             }
         }
 
-        connsm->flags.encrypt_chg_sent = 1;
+        connsm->flags.encrypt_event_sent = 1;
         return;
     }
 
@@ -331,7 +331,7 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
 
             ev->subev_code = BLE_HCI_LE_SUBEV_CHAN_SEL_ALG;
             ev->conn_handle = htole16(connsm->conn_handle);
-            ev->csa = connsm->flags.csa2_supp ? 0x01 : 0x00;
+            ev->csa = connsm->flags.csa2 ? 0x01 : 0x00;
 
             ble_ll_hci_event_send(hci_ev);
         }

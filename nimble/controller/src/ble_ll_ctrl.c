@@ -198,13 +198,13 @@ ble_ll_ctrl_phy_update_cancel(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
 
     /* Check if the host wants an event */
-    if (connsm->flags.host_phy_update) {
+    if (connsm->flags.phy_update_host_initiated) {
         ble_ll_hci_ev_phy_update(connsm, ble_err);
-        connsm->flags.host_phy_update = 0;
+        connsm->flags.phy_update_host_initiated = 0;
     }
 
     /* Clear any bits for phy updates that might be in progress */
-    connsm->flags.ctrlr_phy_update = 0;
+    connsm->flags.phy_update_self_initiated = 0;
 }
 #endif
 
@@ -367,7 +367,7 @@ conn_parm_req_do_indicate:
          */
         ble_ll_hci_ev_rem_conn_parm_req(connsm, req);
         connsm->host_reply_opcode = opcode;
-        connsm->flags.awaiting_host_reply = 1;
+        connsm->flags.conn_update_host_w4reply = 1;
         rsp_opcode = 255;
     } else {
         /* Create reply to connection request */
@@ -570,11 +570,11 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
         if (ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
             ble_ll_hci_ev_conn_update(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         } else if (ctrl_proc == BLE_LL_CTRL_PROC_FEATURE_XCHG) {
-            if (connsm->flags.pending_hci_rd_features) {
+            if (connsm->flags.features_host_req) {
                 ble_ll_hci_ev_rd_rem_used_feat(connsm,
                                                    BLE_ERR_UNSUPP_REM_FEATURE);
             }
-            connsm->flags.pending_hci_rd_features = 0;
+            connsm->flags.features_host_req = 0;
         }
     }
 
@@ -687,24 +687,24 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 
     connsm->phy_tx_transition = 0;
 
-    if (connsm->flags.peer_phy_update) {
-        connsm->flags.peer_phy_update = 0;
-    } else if (connsm->flags.ctrlr_phy_update) {
-        connsm->flags.ctrlr_phy_update = 0;
+    if (connsm->flags.phy_update_peer_initiated) {
+        connsm->flags.phy_update_peer_initiated = 0;
+    } else if (connsm->flags.phy_update_self_initiated) {
+        connsm->flags.phy_update_self_initiated = 0;
     } else {
         /* Must be a host-initiated update */
-        connsm->flags.host_phy_update = 0;
+        connsm->flags.phy_update_host_initiated = 0;
         chk_host_phy = 0;
-        if (connsm->flags.phy_update_event == 0) {
+        if (connsm->flags.phy_update_host_w4event == 0) {
             ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS);
         }
     }
 
     /* Must check if we need to start host procedure */
     if (chk_host_phy) {
-        if (connsm->flags.host_phy_update) {
+        if (connsm->flags.phy_update_host_initiated) {
             if (ble_ll_conn_phy_update_if_needed(connsm)) {
-                connsm->flags.host_phy_update = 0;
+                connsm->flags.phy_update_host_initiated = 0;
             } else {
                 chk_proc_stop = 0;
             }
@@ -829,14 +829,14 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * one running.
      */
     if ((m_to_s == 0) && (s_to_m == 0)) {
-        if (connsm->flags.peer_phy_update) {
-            connsm->flags.peer_phy_update = 0;
-        } else if (connsm->flags.ctrlr_phy_update) {
-            connsm->flags.ctrlr_phy_update = 0;
+        if (connsm->flags.phy_update_peer_initiated) {
+            connsm->flags.phy_update_peer_initiated = 0;
+        } else if (connsm->flags.phy_update_self_initiated) {
+            connsm->flags.phy_update_self_initiated = 0;
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         } else {
             ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS);
-            connsm->flags.host_phy_update = 0;
+            connsm->flags.phy_update_host_initiated = 0;
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         }
         instant = 0;
@@ -921,7 +921,7 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
              * NOTE: do not change order of these two lines as the call to
              * make the LL_PHY_UPDATE_IND pdu might clear the flag.
              */
-            connsm->flags.peer_phy_update = 1;
+            connsm->flags.phy_update_peer_initiated = 1;
             ble_ll_ctrl_phy_update_ind_make(connsm, req, rsp, 1);
             rsp_opcode = BLE_LL_CTRL_PHY_UPDATE_IND;
         }
@@ -940,14 +940,14 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
             ble_ll_ctrl_phy_update_cancel(connsm, err);
 
             /* XXX: ? Should not be any phy update events */
-            connsm->flags.phy_update_event = 0;
+            connsm->flags.phy_update_host_w4event = 0;
         }
 
         /* XXX: TODO: if we started another procedure with an instant
          * why are we doing this? Need to look into this.*/
 
         /* Respond to central's phy update procedure */
-        connsm->flags.peer_phy_update = 1;
+        connsm->flags.phy_update_peer_initiated = 1;
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
 
@@ -1875,7 +1875,7 @@ static void
 ble_ll_ctrl_version_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
 {
     /* Set flag to denote we have sent/received this */
-    connsm->flags.version_ind_sent = 1;
+    connsm->flags.version_ind_txd = 1;
 
     /* Fill out response */
     pyld[0] = BLE_HCI_VER_BCS;
@@ -1901,7 +1901,7 @@ ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
     put_le16(pyld + BLE_LL_CHAN_MAP_LEN, connsm->chanmap_instant);
 
     /* Set scheduled flag */
-    connsm->flags.chanmap_update_scheduled = 1;
+    connsm->flags.chanmap_update_sched = 1;
 }
 
 /**
@@ -2125,7 +2125,7 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
     memcpy(connsm->remote_features, feat + 1, 7);
 
     /* If we received peer's features for the 1st time, we should try DLE */
-    if (!connsm->flags.rxd_features) {
+    if (!connsm->flags.features_rxd) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
         /*
          * If connection was established on uncoded PHY, by default we use
@@ -2154,7 +2154,7 @@ ble_ll_ctrl_update_features(struct ble_ll_conn_sm *connsm, uint8_t *feat)
         connsm->flags.pending_initiate_dle = 1;
 #endif
 
-        connsm->flags.rxd_features = 1;
+        connsm->flags.features_rxd = 1;
     }
 }
 
@@ -2234,9 +2234,9 @@ ble_ll_ctrl_rx_feature_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     }
 
     /* Send event to host if pending features read */
-    if (connsm->flags.pending_hci_rd_features) {
+    if (connsm->flags.features_host_req) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-        connsm->flags.pending_hci_rd_features = 0;
+        connsm->flags.features_host_req = 0;
     }
 }
 
@@ -2265,7 +2265,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * well. This is not expected to happen anyway. A return of BLE_ERR_MAX
      * means that we will simply discard the connection parameter request
      */
-    if (connsm->flags.awaiting_host_reply) {
+    if (connsm->flags.conn_update_host_w4reply) {
         return BLE_ERR_MAX;
     }
 
@@ -2326,7 +2326,7 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if ((connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) &&
-        (connsm->flags.chanmap_update_scheduled)) {
+        (connsm->flags.chanmap_update_sched)) {
         rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
         rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
         rspbuf[2] = BLE_ERR_DIFF_TRANS_COLL;
@@ -2359,8 +2359,8 @@ ble_ll_ctrl_rx_conn_param_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * state just clear the awaiting reply. The peripheral will hopefully stop its
      * procedure when we reply.
      */
-    if (connsm->flags.awaiting_host_reply) {
-        connsm->flags.awaiting_host_reply = 0;
+    if (connsm->flags.conn_update_host_w4reply) {
+        connsm->flags.conn_update_host_w4reply = 0;
     }
 
     /* If we receive a response and no procedure is pending, just leave */
@@ -2395,10 +2395,10 @@ ble_ll_ctrl_rx_version_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     connsm->vers_nr = dptr[0];
     connsm->comp_id = get_le16(dptr + 1);
     connsm->sub_vers_nr = get_le16(dptr + 3);
-    connsm->flags.rxd_version_ind = 1;
+    connsm->flags.version_ind_rxd = 1;
 
     rsp_opcode = BLE_ERR_MAX;
-    if (!connsm->flags.version_ind_sent) {
+    if (!connsm->flags.version_ind_txd) {
         rsp_opcode = BLE_LL_CTRL_VERSION_IND;
         ble_ll_ctrl_version_ind_make(connsm, rspbuf);
     }
@@ -2439,7 +2439,7 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     } else {
         connsm->chanmap_instant = instant;
         memcpy(connsm->req_chanmap, dptr, BLE_LL_CHAN_MAP_LEN);
-        connsm->flags.chanmap_update_scheduled = 1;
+        connsm->flags.chanmap_update_sched = 1;
     }
 
     return BLE_ERR_MAX;
@@ -2734,7 +2734,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
                  * received the information dont start it.
                  */
                 if ((i == BLE_LL_CTRL_PROC_VERSION_XCHG) &&
-                    (connsm->flags.rxd_version_ind)) {
+                    (connsm->flags.version_ind_rxd)) {
                     ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
                     CLR_PENDING_CTRL_PROC(connsm, i);
                 } else {
@@ -3184,7 +3184,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
             if (txpdu->om_data[1] == BLE_LL_CTRL_CONN_PARM_REQ &&
                             txpdu->om_data[2] != BLE_ERR_LMP_COLLISION) {
                 connsm->reject_reason = txpdu->om_data[2];
-                connsm->flags.host_expects_upd_event = 1;
+                connsm->flags.conn_update_host_w4event = 1;
             }
         }
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
@@ -3206,7 +3206,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         break;
     case BLE_LL_CTRL_ENC_RSP:
         connsm->enc_data.enc_state = CONN_ENC_S_LTK_REQ_WAIT;
-        connsm->flags.send_ltk_req = 1;
+        connsm->flags.encrypt_ltk_req = 1;
         break;
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CTRL_START_ENC_RSP:
