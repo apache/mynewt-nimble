@@ -921,7 +921,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
     }
 
     /* If already pending exit with error */
-    if (connsm->flags.pending_hci_rd_features) {
+    if (connsm->flags.features_host_req) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -929,7 +929,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
      * Start control procedure if we did not receive peer's features and did not
      * start procedure already.
      */
-    if (!connsm->flags.rxd_features &&
+    if (!connsm->flags.features_rxd &&
         !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG)) {
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         if ((connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) &&
@@ -941,7 +941,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG, NULL);
     }
 
-    connsm->flags.pending_hci_rd_features = 1;
+    connsm->flags.features_host_req = 1;
 
     return BLE_ERR_SUCCESS;
 }
@@ -1062,11 +1062,11 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * peripheral has initiated the procedure, we need to send a reject to the
      * peripheral.
      */
-    if (connsm->flags.awaiting_host_reply) {
+    if (connsm->flags.conn_update_host_w4reply) {
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
-            connsm->flags.awaiting_host_reply = 0;
+            connsm->flags.conn_update_host_w4reply = 0;
 
             /* XXX: If this fails no reject ind will be sent! */
             ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
@@ -1089,7 +1089,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * update procedure we should deny the peripheral request for now.
      */
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    if (connsm->flags.chanmap_update_scheduled) {
+    if (connsm->flags.chanmap_update_sched) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             return BLE_ERR_DIFF_TRANS_COLL;
         }
@@ -1159,7 +1159,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
     rc = ble_ll_conn_process_conn_params(cmd, connsm);
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->flags.awaiting_host_reply) {
+    if (connsm->flags.conn_update_host_w4reply) {
         /* Get a control packet buffer */
         if (rc == BLE_ERR_SUCCESS) {
             om = os_msys_get_pkthdr(BLE_LL_CTRL_MAX_PDU_LEN,
@@ -1177,7 +1177,7 @@ ble_ll_conn_hci_param_rr(const uint8_t *cmdbuf, uint8_t len,
             ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
                                         BLE_ERR_CONN_PARMS);
         }
-        connsm->flags.awaiting_host_reply = 0;
+        connsm->flags.conn_update_host_w4reply = 0;
 
         /* XXX: if we cant get a buffer, what do we do? We need to remember
          * reason if it was a negative reply. We also would need to have
@@ -1224,11 +1224,11 @@ ble_ll_conn_hci_param_nrr(const uint8_t *cmdbuf, uint8_t len,
     rc = BLE_ERR_SUCCESS;
 
     /* The connection should be awaiting a reply. If not, just discard */
-    if (connsm->flags.awaiting_host_reply) {
+    if (connsm->flags.conn_update_host_w4reply) {
         /* XXX: check return code and deal */
         ble_ll_ctrl_reject_ind_send(connsm, connsm->host_reply_opcode,
                                     cmd->reason);
-        connsm->flags.awaiting_host_reply = 0;
+        connsm->flags.conn_update_host_w4reply = 0;
 
         /* XXX: if we cant get a buffer, what do we do? We need to remember
          * reason if it was a negative reply. We also would need to have
@@ -1393,7 +1393,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len)
      * NOTE: we cant just send the event here. That would cause the event to
      * be queued before the command status.
      */
-    if (!connsm->flags.version_ind_sent) {
+    if (!connsm->flags.version_ind_txd) {
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG, NULL);
     } else {
         connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_VERSION_XCHG);
@@ -1468,7 +1468,7 @@ ble_ll_conn_hci_rd_chan_map(const uint8_t *cmdbuf, uint8_t len,
         rc = BLE_ERR_UNK_CONN_ID;
         memset(rsp->chan_map, 0, sizeof(rsp->chan_map));
     } else {
-        if (connsm->flags.chanmap_update_scheduled) {
+        if (connsm->flags.chanmap_update_sched) {
             memcpy(rsp->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
         } else {
             memcpy(rsp->chan_map, connsm->chan_map, BLE_LL_CHAN_MAP_LEN);
@@ -1990,7 +1990,7 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
      * If host has requested a PHY update and we are not finished do
      * not allow another one
      */
-    if (connsm->flags.host_phy_update) {
+    if (connsm->flags.phy_update_host_initiated) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -2019,9 +2019,9 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
      */
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE)) {
         if (connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_PHY_UPDATE) {
-            connsm->flags.ctrlr_phy_update = 0;
+            connsm->flags.phy_update_self_initiated = 0;
         }
-        connsm->flags.host_phy_update = 1;
+        connsm->flags.phy_update_host_initiated = 1;
     } else {
         /*
          * We could be doing a peer-initiated PHY update procedure. If this
@@ -2029,20 +2029,20 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
          * we are not done with a peer-initiated procedure we just set the
          * pending bit but do not start the control procedure.
          */
-        if (connsm->flags.peer_phy_update) {
+        if (connsm->flags.phy_update_peer_initiated) {
             connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_PHY_UPDATE);
-            connsm->flags.host_phy_update = 1;
+            connsm->flags.phy_update_host_initiated = 1;
         } else {
             /* Check if we should start phy update procedure */
             if (!ble_ll_conn_phy_update_if_needed(connsm)) {
-                connsm->flags.host_phy_update = 1;
+                connsm->flags.phy_update_host_initiated = 1;
             } else {
                 /*
                  * Set flag to send a PHY update complete event. We set flag
                  * even if we do not do an update procedure since we have to
                  * inform the host even if we decide not to change anything.
                  */
-                connsm->flags.phy_update_event = 1;
+                connsm->flags.phy_update_host_w4event = 1;
             }
         }
     }
