@@ -1334,7 +1334,7 @@ ble_ll_conn_hci_disconnect_cmd(const struct ble_hci_lc_disconnect_cp *cmd)
                     rc = BLE_ERR_CMD_DISALLOWED;
                 } else {
                     /* This control procedure better not be pending! */
-                    BLE_LL_ASSERT(CONN_F_TERMINATE_STARTED(connsm) == 0);
+                    BLE_LL_ASSERT(connsm->flags.terminate_started == 0);
 
                     /* Record the disconnect reason */
                     connsm->disconnect_reason = cmd->reason;
@@ -1990,7 +1990,7 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
      * If host has requested a PHY update and we are not finished do
      * not allow another one
      */
-    if (CONN_F_HOST_PHY_UPDATE(connsm)) {
+    if (connsm->flags.host_phy_update) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 
@@ -2019,9 +2019,9 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
      */
     if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE)) {
         if (connsm->cur_ctrl_proc != BLE_LL_CTRL_PROC_PHY_UPDATE) {
-            CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+            connsm->flags.ctrlr_phy_update = 0;
         }
-        CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+        connsm->flags.host_phy_update = 1;
     } else {
         /*
          * We could be doing a peer-initiated PHY update procedure. If this
@@ -2029,20 +2029,20 @@ ble_ll_conn_hci_le_set_phy(const uint8_t *cmdbuf, uint8_t len)
          * we are not done with a peer-initiated procedure we just set the
          * pending bit but do not start the control procedure.
          */
-        if (CONN_F_PEER_PHY_UPDATE(connsm)) {
+        if (connsm->flags.peer_phy_update) {
             connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_PHY_UPDATE);
-            CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+            connsm->flags.host_phy_update = 1;
         } else {
             /* Check if we should start phy update procedure */
             if (!ble_ll_conn_phy_update_if_needed(connsm)) {
-                CONN_F_HOST_PHY_UPDATE(connsm) = 1;
+                connsm->flags.host_phy_update = 1;
             } else {
                 /*
                  * Set flag to send a PHY update complete event. We set flag
                  * even if we do not do an update procedure since we have to
                  * inform the host even if we decide not to change anything.
                  */
-                CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
+                connsm->flags.phy_update_event = 1;
             }
         }
     }

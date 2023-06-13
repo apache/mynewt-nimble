@@ -34,8 +34,7 @@ TEST_CASE_SELF(ble_ll_csa2_test_1)
      */
 
     memset(&conn, 0, sizeof(conn));
-
-    CONN_F_CSA2_SUPP(&conn) = 1;
+    conn.flags.csa2_supp = 1;
 
     /*
      * based on sample data from CoreSpec 5.0 Vol 6 Part C 3.1
@@ -76,8 +75,7 @@ TEST_CASE_SELF(ble_ll_csa2_test_2)
      */
 
     memset(&conn, 0, sizeof(conn));
-
-    CONN_F_CSA2_SUPP(&conn) = 1;
+    conn.flags.csa2_supp = 1;
 
     /*
      * based on sample data from CoreSpec 5.0 Vol 6 Part C 3.2

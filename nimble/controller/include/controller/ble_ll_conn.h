@@ -400,23 +400,6 @@ struct ble_ll_conn_sm
 #endif
 };
 
-/* Flags */
-#define CONN_F_UPDATE_SCHED(csm)        ((csm)->csmflags.conn_update_sched)
-#define CONN_F_EMPTY_PDU_TXD(csm)       ((csm)->flags.conn_empty_pdu_txd)
-#define CONN_F_LAST_TXD_MD(csm)         ((csm)->flags.last_txd_md)
-#define CONN_F_CONN_REQ_TXD(csm)        ((csm)->csmflags.conn_req_txd)
-#define CONN_F_ENCRYPTED(csm)           ((csm)->flags.encrypted)
-#define CONN_F_ENC_CHANGE_SENT(csm)     ((csm)->flags.encrypt_chg_sent)
-#define CONN_F_LE_PING_SUPP(csm)        ((csm)->flags.le_ping_supp)
-#define CONN_F_TERMINATE_STARTED(csm)   ((csm)->flags.terminate_started)
-#define CONN_F_CSA2_SUPP(csm)           ((csm)->flags.csa2_supp)
-#define CONN_F_HOST_PHY_UPDATE(csm)     ((csm)->flags.host_phy_update)
-#define CONN_F_PHY_UPDATE_SCHED(csm)    ((csm)->flags.phy_update_sched)
-#define CONN_F_CTRLR_PHY_UPDATE(csm)    ((csm)->flags.ctrlr_phy_update)
-#define CONN_F_PHY_UPDATE_EVENT(csm)    ((csm)->flags.phy_update_event)
-#define CONN_F_PEER_PHY_UPDATE(csm)     ((csm)->flags.peer_phy_update)
-#define CONN_F_AUX_CONN_REQ(csm)        ((csm)->csmflags.aux_conn_req)
-
 /* Role */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 #define CONN_IS_CENTRAL(csm)        (csm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)

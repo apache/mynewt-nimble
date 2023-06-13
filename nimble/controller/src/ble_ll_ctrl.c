@@ -198,13 +198,13 @@ ble_ll_ctrl_phy_update_cancel(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     CLR_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
 
     /* Check if the host wants an event */
-    if (CONN_F_HOST_PHY_UPDATE(connsm)) {
+    if (connsm->flags.host_phy_update) {
         ble_ll_hci_ev_phy_update(connsm, ble_err);
-        CONN_F_HOST_PHY_UPDATE(connsm) = 0;
+        connsm->flags.host_phy_update = 0;
     }
 
     /* Clear any bits for phy updates that might be in progress */
-    CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+    connsm->flags.ctrlr_phy_update = 0;
 }
 #endif
 
@@ -687,24 +687,24 @@ ble_ll_ctrl_phy_update_proc_complete(struct ble_ll_conn_sm *connsm)
 
     connsm->phy_tx_transition = 0;
 
-    if (CONN_F_PEER_PHY_UPDATE(connsm)) {
-        CONN_F_PEER_PHY_UPDATE(connsm) = 0;
-    } else if (CONN_F_CTRLR_PHY_UPDATE(connsm)) {
-        CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+    if (connsm->flags.peer_phy_update) {
+        connsm->flags.peer_phy_update = 0;
+    } else if (connsm->flags.ctrlr_phy_update) {
+        connsm->flags.ctrlr_phy_update = 0;
     } else {
         /* Must be a host-initiated update */
-        CONN_F_HOST_PHY_UPDATE(connsm) = 0;
+        connsm->flags.host_phy_update = 0;
         chk_host_phy = 0;
-        if (CONN_F_PHY_UPDATE_EVENT(connsm) == 0) {
+        if (connsm->flags.phy_update_event == 0) {
             ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS);
         }
     }
 
     /* Must check if we need to start host procedure */
     if (chk_host_phy) {
-        if (CONN_F_HOST_PHY_UPDATE(connsm)) {
+        if (connsm->flags.host_phy_update) {
             if (ble_ll_conn_phy_update_if_needed(connsm)) {
-                CONN_F_HOST_PHY_UPDATE(connsm) = 0;
+                connsm->flags.host_phy_update = 0;
             } else {
                 chk_proc_stop = 0;
             }
@@ -829,14 +829,14 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
      * one running.
      */
     if ((m_to_s == 0) && (s_to_m == 0)) {
-        if (CONN_F_PEER_PHY_UPDATE(connsm)) {
-            CONN_F_PEER_PHY_UPDATE(connsm) = 0;
-        } else if (CONN_F_CTRLR_PHY_UPDATE(connsm)) {
-            CONN_F_CTRLR_PHY_UPDATE(connsm) = 0;
+        if (connsm->flags.peer_phy_update) {
+            connsm->flags.peer_phy_update = 0;
+        } else if (connsm->flags.ctrlr_phy_update) {
+            connsm->flags.ctrlr_phy_update = 0;
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         } else {
             ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS);
-            CONN_F_HOST_PHY_UPDATE(connsm) = 0;
+            connsm->flags.host_phy_update = 0;
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         }
         instant = 0;
@@ -844,7 +844,7 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         /* Determine instant we will use. 6 more is minimum */
         instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
         connsm->phy_instant = instant;
-        CONN_F_PHY_UPDATE_SCHED(connsm) = 1;
+        connsm->flags.phy_update_sched = 1;
 
         /* Set new phys to use when instant occurs */
         connsm->phy_data.new_tx_phy = m_to_s;
@@ -921,7 +921,7 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
              * NOTE: do not change order of these two lines as the call to
              * make the LL_PHY_UPDATE_IND pdu might clear the flag.
              */
-            CONN_F_PEER_PHY_UPDATE(connsm) = 1;
+            connsm->flags.peer_phy_update = 1;
             ble_ll_ctrl_phy_update_ind_make(connsm, req, rsp, 1);
             rsp_opcode = BLE_LL_CTRL_PHY_UPDATE_IND;
         }
@@ -940,14 +940,14 @@ ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
             ble_ll_ctrl_phy_update_cancel(connsm, err);
 
             /* XXX: ? Should not be any phy update events */
-            CONN_F_PHY_UPDATE_EVENT(connsm) = 0;
+            connsm->flags.phy_update_event = 0;
         }
 
         /* XXX: TODO: if we started another procedure with an instant
          * why are we doing this? Need to look into this.*/
 
         /* Respond to central's phy update procedure */
-        CONN_F_PEER_PHY_UPDATE(connsm) = 1;
+        connsm->flags.peer_phy_update = 1;
         ble_ll_ctrl_phy_req_rsp_make(connsm, rsp);
         rsp_opcode = BLE_LL_CTRL_PHY_RSP;
 
@@ -1093,7 +1093,7 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
             connsm->phy_data.new_tx_phy = new_tx_phy;
             connsm->phy_data.new_rx_phy = new_rx_phy;
             connsm->phy_instant = instant;
-            CONN_F_PHY_UPDATE_SCHED(connsm) = 1;
+            connsm->flags.phy_update_sched = 1;
         }
         return BLE_ERR_MAX;
     }
@@ -2643,7 +2643,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
     om = ble_ll_ctrl_proc_init(connsm, ctrl_proc, NULL);
     if (om) {
-        CONN_F_TERMINATE_STARTED(connsm) = 1;
+        connsm->flags.terminate_started = 1;
 
         /* Set terminate "timeout" */
         usecs = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000;
@@ -2709,7 +2709,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
      * terminate if needed
      */
     if (connsm->disconnect_reason) {
-        if (!CONN_F_TERMINATE_STARTED(connsm)) {
+        if (!connsm->flags.terminate_started) {
             /*
              * If the terminate procedure has not started it means we were not
              * able to start it right away (no control pdu was available).
@@ -3212,7 +3212,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_START_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
-            if (CONN_F_LE_PING_SUPP(connsm)) {
+            if (connsm->flags.le_ping_supp) {
                 ble_ll_conn_auth_pyld_timer_start(connsm);
             }
         }

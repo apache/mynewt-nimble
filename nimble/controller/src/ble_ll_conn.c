@@ -801,7 +801,7 @@ ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency)
     uint8_t index;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
-    if (CONN_F_CSA2_SUPP(conn)) {
+    if (conn->flags.csa2_supp) {
         return ble_ll_utils_dci_csa2(conn->event_cntr, conn->channel_id,
                                      conn->chan_map_used, conn->chan_map);
     }
@@ -858,7 +858,7 @@ ble_ll_conn_start_rx_encrypt(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
-    CONN_F_ENCRYPTED(connsm) = 1;
+    connsm->flags.encrypted = 1;
     ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
     ble_phy_encrypt_iv_set(connsm->enc_data.iv);
     ble_phy_encrypt_counter_set(connsm->enc_data.rx_pkt_cntr,
@@ -872,7 +872,7 @@ ble_ll_conn_start_rx_unencrypt(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
-    CONN_F_ENCRYPTED(connsm) = 0;
+    connsm->flags.encrypted = 0;
     ble_phy_encrypt_disable();
 }
 #endif
@@ -883,7 +883,7 @@ ble_ll_conn_txend_encrypt(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
-    CONN_F_ENCRYPTED(connsm) = 1;
+    connsm->flags.encrypted = 1;
     ble_ll_conn_current_sm_over(connsm);
 }
 
@@ -894,7 +894,7 @@ ble_ll_conn_rxend_unencrypt(void *arg)
     struct ble_ll_conn_sm *connsm;
 
     connsm = (struct ble_ll_conn_sm *)arg;
-    CONN_F_ENCRYPTED(connsm) = 0;
+    connsm->flags.encrypted = 0;
     ble_ll_conn_current_sm_over(connsm);
 }
 #endif
@@ -1004,10 +1004,10 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
 
     /* Check if we need to send PHY update complete event */
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    if (CONN_F_PHY_UPDATE_EVENT(connsm)) {
+    if (connsm->flags.phy_update_event) {
         if (!ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS)) {
             /* Sent event. Clear flag */
-            CONN_F_PHY_UPDATE_EVENT(connsm) = 0;
+            connsm->flags.phy_update_event = 0;
         }
     }
 #endif
@@ -1061,7 +1061,7 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
     ret = pyld_len;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    if (CONN_F_ENCRYPTED(connsm)) {
+    if (connsm->flags.encrypted) {
         max_pyld_len -= BLE_LL_DATA_MIC_LEN;
     }
 #endif
@@ -1113,7 +1113,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
         /* We just received terminate indication.
          * Just send empty packet as an ACK
          */
-        CONN_F_EMPTY_PDU_TXD(connsm) = 1;
+        connsm->flags.conn_empty_pdu_txd = 1;
         goto conn_tx_pdu;
     }
 
@@ -1122,8 +1122,8 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
      * the transmit queue.
      */
     pkthdr = STAILQ_FIRST(&connsm->conn_txq);
-    if (!connsm->cur_tx_pdu && !CONN_F_EMPTY_PDU_TXD(connsm) && !pkthdr) {
-        CONN_F_EMPTY_PDU_TXD(connsm) = 1;
+    if (!connsm->cur_tx_pdu && !connsm->flags.conn_empty_pdu_txd && !pkthdr) {
+        connsm->flags.conn_empty_pdu_txd = 1;
         goto conn_tx_pdu;
     }
 
@@ -1132,7 +1132,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
      * the connection transmit queue
      */
     cur_offset = 0;
-    if (!connsm->cur_tx_pdu && !CONN_F_EMPTY_PDU_TXD(connsm)) {
+    if (!connsm->cur_tx_pdu && !connsm->flags.conn_empty_pdu_txd) {
         /* Convert packet header to mbuf */
         m = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         nextpkthdr = STAILQ_NEXT(pkthdr, omp_next);
@@ -1150,7 +1150,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
             ((connsm->enc_data.enc_state > CONN_ENC_S_ENC_RSP_TO_BE_SENT) &&
              CONN_IS_PERIPHERAL(connsm))) {
             if (!ble_ll_ctrl_enc_allowed_pdu_tx(pkthdr)) {
-                CONN_F_EMPTY_PDU_TXD(connsm) = 1;
+                connsm->flags.conn_empty_pdu_txd = 1;
                 goto conn_tx_pdu;
             }
 
@@ -1292,7 +1292,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
 
     /* If we send an empty PDU we need to initialize the header */
 conn_tx_pdu:
-    if (CONN_F_EMPTY_PDU_TXD(connsm)) {
+    if (connsm->flags.conn_empty_pdu_txd) {
         /*
          * This looks strange, but we dont use the data pointer in the mbuf
          * when we have an empty pdu.
@@ -1366,7 +1366,7 @@ conn_tx_pdu:
          * Both central and peripheral send the START_ENC_RSP encrypted and receive
          * encrypted
          */
-        CONN_F_ENCRYPTED(connsm) = 1;
+        connsm->flags.encrypted = 1;
         connsm->enc_data.tx_encrypted = 1;
         ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
         ble_phy_encrypt_iv_set(connsm->enc_data.iv);
@@ -1380,7 +1380,7 @@ conn_tx_pdu:
          * Only the peripheral sends this and it gets sent unencrypted but
          * we receive encrypted
          */
-        CONN_F_ENCRYPTED(connsm) = 0;
+        connsm->flags.encrypted = 0;
         connsm->enc_data.enc_state = CONN_ENC_S_START_ENC_RSP_WAIT;
         connsm->enc_data.tx_encrypted = 0;
         ble_phy_encrypt_disable();
@@ -1397,7 +1397,7 @@ conn_tx_pdu:
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
-            CONN_F_ENCRYPTED(connsm) = 0;
+            connsm->flags.encrypted = 0;
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSED;
             connsm->enc_data.tx_encrypted = 0;
             ble_phy_encrypt_disable();
@@ -1405,7 +1405,7 @@ conn_tx_pdu:
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
         case BLE_LL_CONN_ROLE_PERIPHERAL:
-            CONN_F_ENCRYPTED(connsm) = 1;
+            connsm->flags.encrypted = 1;
             connsm->enc_data.tx_encrypted = 1;
             ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
             ble_phy_encrypt_iv_set(connsm->enc_data.iv);
@@ -1424,7 +1424,7 @@ conn_tx_pdu:
         }
     } else {
         /* If encrypted set packet counter */
-        if (CONN_F_ENCRYPTED(connsm)) {
+        if (connsm->flags.encrypted) {
             connsm->enc_data.tx_encrypted = 1;
             ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr,
                                         CONN_IS_CENTRAL(connsm));
@@ -1445,10 +1445,10 @@ conn_tx_pdu:
                            ble_hdr->txinfo.offset);
 
         /* Set last transmitted MD bit */
-        CONN_F_LAST_TXD_MD(connsm) = md;
+        connsm->flags.last_txd_md = md;
 
         /* Increment packets transmitted */
-        if (CONN_F_EMPTY_PDU_TXD(connsm)) {
+        if (connsm->flags.conn_empty_pdu_txd) {
             if (connsm->flags.terminate_ind_rxd) {
                 connsm->flags.terminate_ind_rxd_acked = 1;
             }
@@ -1537,7 +1537,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
         rc = ble_phy_tx_set_start_time(start, sch->remainder);
         if (!rc) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-            if (CONN_F_ENCRYPTED(connsm)) {
+            if (connsm->flags.encrypted) {
                 ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
                 ble_phy_encrypt_iv_set(connsm->enc_data.iv);
                 ble_phy_encrypt_counter_set(connsm->enc_data.tx_pkt_cntr, 1);
@@ -1561,7 +1561,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CONN_ROLE_PERIPHERAL:
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-        if (CONN_F_ENCRYPTED(connsm)) {
+        if (connsm->flags.encrypted) {
             ble_phy_encrypt_enable(connsm->enc_data.enc_block.cipher_text);
             ble_phy_encrypt_iv_set(connsm->enc_data.iv);
             ble_phy_encrypt_counter_set(connsm->enc_data.rx_pkt_cntr, 1);
@@ -1945,7 +1945,7 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
 {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     if (chsel) {
-        CONN_F_CSA2_SUPP(connsm) = 1;
+        connsm->flags.csa2_supp = 1;
         connsm->channel_id = ((connsm->access_addr & 0xffff0000) >> 16) ^
                               (connsm->access_addr & 0x0000ffff);
 
@@ -2069,7 +2069,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
-    CONN_F_LE_PING_SUPP(connsm) = 1;
+    connsm->flags.le_ping_supp = 1;
 #endif
 
     /* Add to list of active connections */
@@ -2355,11 +2355,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     ble_ll_conn_chk_csm_flags(connsm);
 
     /* If unable to start terminate procedure, start it now */
-    if (connsm->disconnect_reason && !CONN_F_TERMINATE_STARTED(connsm)) {
+    if (connsm->disconnect_reason && !connsm->flags.terminate_started) {
         ble_ll_ctrl_terminate_start(connsm);
     }
 
-    if (CONN_F_TERMINATE_STARTED(connsm) && CONN_IS_PERIPHERAL(connsm)) {
+    if (connsm->flags.terminate_started && CONN_IS_PERIPHERAL(connsm)) {
         /* Some of the devices waits whole connection interval to ACK our
          * TERMINATE_IND sent as a Slave. Since we are here it means we are still waiting for ACK.
          * Make sure we catch it in next connection event.
@@ -2640,7 +2640,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
 #endif
 
 #if (BLE_LL_BT5_PHY_SUPPORTED == 1)
-    if (CONN_F_PHY_UPDATE_SCHED(connsm) &&
+    if (connsm->flags.phy_update_sched &&
         (connsm->event_cntr == connsm->phy_instant)) {
 
         /* Set cur phy to new phy */
@@ -2659,8 +2659,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         }
 
         /* Clear flags and set flag to send event at next instant */
-        CONN_F_PHY_UPDATE_SCHED(connsm) = 0;
-        CONN_F_PHY_UPDATE_EVENT(connsm) = 1;
+        connsm->flags.phy_update_sched = 0;
+        connsm->flags.phy_update_event = 1;
 
         ble_ll_ctrl_phy_update_proc_complete(connsm);
 
@@ -2693,7 +2693,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * passed the termination timeout. If so, no need to continue with
      * connection as we will time out anyway.
      */
-    if (CONN_F_TERMINATE_STARTED(connsm)) {
+    if (connsm->flags.terminate_started) {
         if ((int32_t)(connsm->terminate_timeout - connsm->anchor_point) <= 0) {
             return -1;
         }
@@ -2856,7 +2856,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
          * the other side can support it?
          */
         if (!ble_ll_conn_phy_update_if_needed(connsm)) {
-            CONN_F_CTRLR_PHY_UPDATE(connsm) = 1;
+            connsm->flags.ctrlr_phy_update = 1;
         }
 #endif
         switch (connsm->conn_role) {
@@ -3504,7 +3504,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
      * connection
      */
     if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) &&
-        CONN_F_LE_PING_SUPP(connsm) && (acl_len != 0)) {
+        connsm->flags.le_ping_supp && (acl_len != 0)) {
         ble_ll_conn_auth_pyld_timer_start(connsm);
     }
 #endif
@@ -3723,7 +3723,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
             switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
             case BLE_LL_CONN_ROLE_CENTRAL:
-                reply = CONN_F_LAST_TXD_MD(connsm);
+                reply = connsm->flags.last_txd_md;
                 break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -3760,7 +3760,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         if (rxpdu && ((hdr_sn && conn_nesn) || (!hdr_sn && !conn_nesn))) {
             connsm->next_exp_seqnum ^= 1;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-            if (CONN_F_ENCRYPTED(connsm) && !ble_ll_conn_is_empty_pdu(rxbuf)) {
+            if (connsm->flags.encrypted && !ble_ll_conn_is_empty_pdu(rxbuf)) {
                 ++connsm->enc_data.rx_pkt_cntr;
             }
 #endif
@@ -3773,7 +3773,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
          * Check NESN bit from header. If same as tx seq num, the transmission
          * is acknowledged. Otherwise we need to resend this PDU.
          */
-        if (CONN_F_EMPTY_PDU_TXD(connsm) || connsm->cur_tx_pdu) {
+        if (connsm->flags.conn_empty_pdu_txd || connsm->cur_tx_pdu) {
             hdr_nesn = hdr_byte & BLE_LL_DATA_HDR_NESN_MASK;
             conn_sn = connsm->tx_seqnum;
             if ((hdr_nesn && conn_sn) || (!hdr_nesn && !conn_sn)) {
@@ -3785,8 +3785,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                 STATS_INC(ble_ll_conn_stats, data_pdu_txg);
 
                 /* If we transmitted the empty pdu, clear flag */
-                if (CONN_F_EMPTY_PDU_TXD(connsm)) {
-                    CONN_F_EMPTY_PDU_TXD(connsm) = 0;
+                if (connsm->flags.conn_empty_pdu_txd) {
+                    connsm->flags.conn_empty_pdu_txd = 0;
                     goto chk_rx_terminate_ind;
                 }
 
@@ -3864,7 +3864,7 @@ chk_rx_terminate_ind:
         switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
         case BLE_LL_CONN_ROLE_CENTRAL:
-            reply = CONN_F_LAST_TXD_MD(connsm) || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
+            reply = connsm->flags.last_txd_md || (hdr_byte & BLE_LL_DATA_HDR_MD_MASK);
             break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -3881,7 +3881,7 @@ chk_rx_terminate_ind:
 
     /* If reply flag set, send data pdu and continue connection event */
     rc = -1;
-    if (rx_pyld_len && CONN_F_ENCRYPTED(connsm)) {
+    if (rx_pyld_len && connsm->flags.encrypted) {
         rx_pyld_len += BLE_LL_DATA_MIC_LEN;
     }
     if (reply && ble_ll_conn_can_send_next_pdu(connsm, begtime, add_usecs)) {
