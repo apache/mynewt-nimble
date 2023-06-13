@@ -98,47 +98,46 @@ struct ble_ll_conn_enc_data
 #endif
 
 /* Connection state machine flags. */
-union ble_ll_conn_sm_flags {
-    struct {
-        uint32_t pkt_rxd:1;
-        uint32_t terminate_ind_txd:1;
-        uint32_t terminate_ind_rxd:1;
-        uint32_t terminate_ind_rxd_acked:1;
-        uint32_t allow_periph_latency:1;
-        uint32_t periph_set_last_anchor:1;
-        uint32_t awaiting_host_reply:1;
-        uint32_t terminate_started:1;
-        uint32_t conn_update_sched:1;
-        uint32_t conn_update_use_cp:1;
-        uint32_t host_expects_upd_event:1;
-        uint32_t version_ind_sent:1;
-        uint32_t rxd_version_ind:1;
-        uint32_t chanmap_update_scheduled:1;
-        uint32_t conn_empty_pdu_txd:1;
-        uint32_t last_txd_md:1;
-        uint32_t conn_req_txd:1;
-        uint32_t send_ltk_req:1;
-        uint32_t encrypted:1;
-        uint32_t encrypt_chg_sent:1;
-        uint32_t le_ping_supp:1;
-        uint32_t csa2_supp:1;
-        uint32_t host_phy_update: 1;
-        uint32_t phy_update_sched: 1;
-        uint32_t ctrlr_phy_update: 1;
-        uint32_t phy_update_event: 1;
-        uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
-        uint32_t aux_conn_req: 1;
-        uint32_t rxd_features:1;
-        uint32_t pending_hci_rd_features:1;
+struct ble_ll_conn_sm_flags {
+    uint32_t pkt_rxd : 1;
+    uint32_t terminate_ind_txd : 1;
+    uint32_t terminate_ind_rxd : 1;
+    uint32_t terminate_ind_rxd_acked : 1;
+    uint32_t allow_periph_latency : 1;
+    uint32_t periph_set_last_anchor : 1;
+    uint32_t awaiting_host_reply : 1;
+    uint32_t terminate_started : 1;
+    uint32_t conn_update_sched : 1;
+    uint32_t conn_update_use_cp : 1;
+    uint32_t host_expects_upd_event : 1;
+    uint32_t version_ind_sent : 1;
+    uint32_t rxd_version_ind : 1;
+    uint32_t chanmap_update_scheduled : 1;
+    uint32_t conn_empty_pdu_txd : 1;
+    uint32_t last_txd_md : 1;
+    uint32_t conn_req_txd : 1;
+    uint32_t send_ltk_req : 1;
+    uint32_t encrypted : 1;
+    uint32_t encrypt_chg_sent : 1;
+    uint32_t le_ping_supp : 1;
+    uint32_t csa2_supp : 1;
+    uint32_t host_phy_update: 1;
+    uint32_t phy_update_sched: 1;
+    uint32_t ctrlr_phy_update: 1;
+    uint32_t phy_update_event: 1;
+    uint32_t peer_phy_update: 1; /* XXX:combine with ctrlr udpate bit? */
+    uint32_t aux_conn_req: 1;
+    uint32_t rxd_features : 1;
+    uint32_t pending_hci_rd_features : 1;
 #if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
-        uint32_t pending_initiate_dle:1;
+    uint32_t pending_initiate_dle : 1;
 #endif
-        uint32_t subrate_trans:1;
-        uint32_t subrate_ind_txd:1;
-        uint32_t subrate_host_req:1;
-    } cfbit;
-    uint32_t conn_flags;
-} __attribute__((packed));
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    uint8_t subrate_trans : 1;
+    uint8_t subrate_ind_txd : 1;
+    uint8_t subrate_host_req : 1;
+#endif
+};
 
 /**
  * Structure used for PHY data inside a connection.
@@ -207,7 +206,7 @@ struct ble_ll_conn_subrate_req_params {
 struct ble_ll_conn_sm
 {
     /* Connection state machine flags */
-    union ble_ll_conn_sm_flags csmflags;
+    struct ble_ll_conn_sm_flags flags;
 
     /* Current connection handle, state and role */
     uint16_t conn_handle;
@@ -402,21 +401,21 @@ struct ble_ll_conn_sm
 };
 
 /* Flags */
-#define CONN_F_UPDATE_SCHED(csm)    ((csm)->csmflags.cfbit.conn_update_sched)
-#define CONN_F_EMPTY_PDU_TXD(csm)   ((csm)->csmflags.cfbit.conn_empty_pdu_txd)
-#define CONN_F_LAST_TXD_MD(csm)     ((csm)->csmflags.cfbit.last_txd_md)
-#define CONN_F_CONN_REQ_TXD(csm)    ((csm)->csmflags.cfbit.conn_req_txd)
-#define CONN_F_ENCRYPTED(csm)       ((csm)->csmflags.cfbit.encrypted)
-#define CONN_F_ENC_CHANGE_SENT(csm) ((csm)->csmflags.cfbit.encrypt_chg_sent)
-#define CONN_F_LE_PING_SUPP(csm)    ((csm)->csmflags.cfbit.le_ping_supp)
-#define CONN_F_TERMINATE_STARTED(csm) ((csm)->csmflags.cfbit.terminate_started)
-#define CONN_F_CSA2_SUPP(csm)       ((csm)->csmflags.cfbit.csa2_supp)
-#define CONN_F_HOST_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.host_phy_update)
-#define CONN_F_PHY_UPDATE_SCHED(csm) ((csm)->csmflags.cfbit.phy_update_sched)
-#define CONN_F_CTRLR_PHY_UPDATE(csm) ((csm)->csmflags.cfbit.ctrlr_phy_update)
-#define CONN_F_PHY_UPDATE_EVENT(csm) ((csm)->csmflags.cfbit.phy_update_event)
-#define CONN_F_PEER_PHY_UPDATE(csm)  ((csm)->csmflags.cfbit.peer_phy_update)
-#define CONN_F_AUX_CONN_REQ(csm)  ((csm)->csmflags.cfbit.aux_conn_req)
+#define CONN_F_UPDATE_SCHED(csm)        ((csm)->csmflags.conn_update_sched)
+#define CONN_F_EMPTY_PDU_TXD(csm)       ((csm)->flags.conn_empty_pdu_txd)
+#define CONN_F_LAST_TXD_MD(csm)         ((csm)->flags.last_txd_md)
+#define CONN_F_CONN_REQ_TXD(csm)        ((csm)->csmflags.conn_req_txd)
+#define CONN_F_ENCRYPTED(csm)           ((csm)->flags.encrypted)
+#define CONN_F_ENC_CHANGE_SENT(csm)     ((csm)->flags.encrypt_chg_sent)
+#define CONN_F_LE_PING_SUPP(csm)        ((csm)->flags.le_ping_supp)
+#define CONN_F_TERMINATE_STARTED(csm)   ((csm)->flags.terminate_started)
+#define CONN_F_CSA2_SUPP(csm)           ((csm)->flags.csa2_supp)
+#define CONN_F_HOST_PHY_UPDATE(csm)     ((csm)->flags.host_phy_update)
+#define CONN_F_PHY_UPDATE_SCHED(csm)    ((csm)->flags.phy_update_sched)
+#define CONN_F_CTRLR_PHY_UPDATE(csm)    ((csm)->flags.ctrlr_phy_update)
+#define CONN_F_PHY_UPDATE_EVENT(csm)    ((csm)->flags.phy_update_event)
+#define CONN_F_PEER_PHY_UPDATE(csm)     ((csm)->flags.peer_phy_update)
+#define CONN_F_AUX_CONN_REQ(csm)        ((csm)->csmflags.aux_conn_req)
 
 /* Role */
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)

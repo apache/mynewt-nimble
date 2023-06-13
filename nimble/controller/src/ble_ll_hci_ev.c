@@ -331,7 +331,7 @@ ble_ll_hci_ev_le_csa(struct ble_ll_conn_sm *connsm)
 
             ev->subev_code = BLE_HCI_LE_SUBEV_CHAN_SEL_ALG;
             ev->conn_handle = htole16(connsm->conn_handle);
-            ev->csa = connsm->csmflags.cfbit.csa2_supp ? 0x01 : 0x00;
+            ev->csa = connsm->flags.csa2_supp ? 0x01 : 0x00;
 
             ble_ll_hci_event_send(hci_ev);
         }

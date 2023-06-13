@@ -969,7 +969,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
     uint8_t update_status;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    if (connsm->csmflags.cfbit.send_ltk_req) {
+    if (connsm->flags.send_ltk_req) {
         /*
          * Send Long term key request event to host. If masked, we need to
          * send a REJECT_IND.
@@ -978,7 +978,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
             ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
                                         BLE_ERR_PINKEY_MISSING);
         }
-        connsm->csmflags.cfbit.send_ltk_req = 0;
+        connsm->flags.send_ltk_req = 0;
     }
 #endif
 
@@ -988,7 +988,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
      * has passed the instant.
      * 2) We successfully sent the reject reason.
      */
-    if (connsm->csmflags.cfbit.host_expects_upd_event) {
+    if (connsm->flags.host_expects_upd_event) {
         update_status = BLE_ERR_SUCCESS;
         if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
@@ -999,7 +999,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
             }
         }
         ble_ll_hci_ev_conn_update(connsm, update_status);
-        connsm->csmflags.cfbit.host_expects_upd_event = 0;
+        connsm->flags.host_expects_upd_event = 0;
     }
 
     /* Check if we need to send PHY update complete event */
@@ -1014,12 +1014,12 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    if (connsm->csmflags.cfbit.subrate_ind_txd) {
+    if (connsm->flags.subrate_ind_txd) {
         ble_ll_conn_subrate_set(connsm, &connsm->subrate_trans);
         connsm->subrate_trans.subrate_factor = 0;
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
-        connsm->csmflags.cfbit.subrate_ind_txd = 0;
-        connsm->csmflags.cfbit.subrate_host_req = 0;
+        connsm->flags.subrate_ind_txd = 0;
+        connsm->flags.subrate_host_req = 0;
     }
 #endif /* BLE_LL_CTRL_SUBRATE_IND */
 #endif /* BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE */
@@ -1109,7 +1109,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
     md = 0;
     hdr_byte = BLE_LL_LLID_DATA_FRAG;
 
-    if (connsm->csmflags.cfbit.terminate_ind_rxd) {
+    if (connsm->flags.terminate_ind_rxd) {
         /* We just received terminate indication.
          * Just send empty packet as an ACK
          */
@@ -1337,7 +1337,7 @@ conn_tx_pdu:
      *  We could do this. Now, we just keep going and hope that we dont
      *  overrun next scheduled item.
      */
-    if ((connsm->csmflags.cfbit.terminate_ind_rxd) ||
+    if ((connsm->flags.terminate_ind_rxd) ||
         (CONN_IS_PERIPHERAL(connsm) && (md == 0) &&
          (connsm->cons_rxd_bad_crc == 0) &&
          ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
@@ -1449,8 +1449,8 @@ conn_tx_pdu:
 
         /* Increment packets transmitted */
         if (CONN_F_EMPTY_PDU_TXD(connsm)) {
-            if (connsm->csmflags.cfbit.terminate_ind_rxd) {
-                connsm->csmflags.cfbit.terminate_ind_rxd_acked = 1;
+            if (connsm->flags.terminate_ind_rxd) {
+                connsm->flags.terminate_ind_rxd_acked = 1;
             }
             STATS_INC(ble_ll_conn_stats, tx_empty_pdus);
         } else if ((hdr_byte & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_CTRL) {
@@ -1582,7 +1582,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
              * Set flag that tells peripheral to set last anchor point if a packet
              * has been received.
              */
-            connsm->csmflags.cfbit.periph_set_last_anchor = 1;
+            connsm->flags.periph_set_last_anchor = 1;
 
             /*
              * Set the wait for response time. The anchor point is when we
@@ -1976,7 +1976,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     struct ble_ll_conn_global_params *conn_params;
 
     /* Reset following elements */
-    memset(&connsm->csmflags, 0, sizeof(connsm->csmflags));
+    memset(&connsm->flags, 0, sizeof(connsm->flags));
     connsm->event_cntr = 0;
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
     connsm->disconnect_reason = 0;
@@ -2239,19 +2239,19 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      * If we have features and there's pending HCI command, send an event before
      * disconnection event so it does make sense to host.
      */
-    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
-                                        connsm->csmflags.cfbit.rxd_features) {
+    if (connsm->flags.pending_hci_rd_features &&
+        connsm->flags.rxd_features) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+        connsm->flags.pending_hci_rd_features = 0;
     }
 
     /*
      * If there is still pending read features request HCI command, send an
      * event to complete it.
      */
-    if (connsm->csmflags.cfbit.pending_hci_rd_features) {
+    if (connsm->flags.pending_hci_rd_features) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, ble_err);
-        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+        connsm->flags.pending_hci_rd_features = 0;
     }
 
     /*
@@ -2263,7 +2263,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
      * received and we should not send an event.
      */
     if (ble_err && (ble_err != BLE_ERR_UNK_CONN_ID ||
-                                connsm->csmflags.cfbit.terminate_ind_rxd)) {
+                                connsm->flags.terminate_ind_rxd)) {
         ble_ll_disconn_comp_event_send(connsm, ble_err);
     }
 
@@ -2413,11 +2413,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     /* Set event counter to the next connection event that we will tx/rx in */
 
     use_periph_latency = next_is_subrated &&
-                         connsm->csmflags.cfbit.allow_periph_latency &&
-                         !connsm->csmflags.cfbit.conn_update_sched &&
-                         !connsm->csmflags.cfbit.phy_update_sched &&
-                         !connsm->csmflags.cfbit.chanmap_update_scheduled &&
-                         connsm->csmflags.cfbit.pkt_rxd;
+                         connsm->flags.allow_periph_latency &&
+                         !connsm->flags.conn_update_sched &&
+                         !connsm->flags.phy_update_sched &&
+                         !connsm->flags.chanmap_update_scheduled &&
+                         connsm->flags.pkt_rxd;
 
     if (next_is_subrated) {
         next_event_cntr = base_event_cntr + subrate_factor;
@@ -2429,7 +2429,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* If we are in subrate transition mode, we should also listen on
          * subrated connection events based on new parameters.
          */
-        if (connsm->csmflags.cfbit.subrate_trans) {
+        if (connsm->flags.subrate_trans) {
             BLE_LL_ASSERT(CONN_IS_CENTRAL(connsm));
 
             cstp = &connsm->subrate_trans;
@@ -2455,7 +2455,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * and one connection event before instant regardless of subrating.
      */
     if (CONN_IS_PERIPHERAL(connsm) &&
-        connsm->csmflags.cfbit.conn_update_sched &&
+        connsm->flags.conn_update_sched &&
         (connsm->subrate_factor > 1)) {
         subrate_conn_upd_event_cntr = connsm->conn_update_req.instant - 1;
         if (connsm->event_cntr == subrate_conn_upd_event_cntr) {
@@ -2524,7 +2524,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * connection by the the transmit window offset. We also copy in the
      * update parameters as they now should take effect.
      */
-    if (connsm->csmflags.cfbit.conn_update_sched &&
+    if (connsm->flags.conn_update_sched &&
         (connsm->event_cntr == connsm->conn_update_req.instant)) {
 
         /* Set flag so we send connection update event */
@@ -2535,7 +2535,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             (connsm->conn_itvl != upd->interval) ||
             (connsm->periph_latency != upd->latency) ||
             (connsm->supervision_tmo != upd->timeout)) {
-            connsm->csmflags.cfbit.host_expects_upd_event = 1;
+            connsm->flags.host_expects_upd_event = 1;
         }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
@@ -2602,7 +2602,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         connsm->last_rxd_pdu_cputime = connsm->anchor_point;
 
         /* Reset update scheduled flag */
-        connsm->csmflags.cfbit.conn_update_sched = 0;
+        connsm->flags.conn_update_sched = 0;
     }
 
     /*
@@ -2614,7 +2614,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * new channel map once the event counter equals or has passed channel
      * map update instant.
      */
-    if (connsm->csmflags.cfbit.chanmap_update_scheduled &&
+    if (connsm->flags.chanmap_update_scheduled &&
         ((int16_t)(connsm->chanmap_instant - connsm->event_cntr) <= 0)) {
 
         /* XXX: there is a chance that the control packet is still on
@@ -2625,7 +2625,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             ble_ll_utils_chan_map_used_get(connsm->req_chanmap);
         memcpy(connsm->chan_map, connsm->req_chanmap, BLE_LL_CHAN_MAP_LEN);
 
-        connsm->csmflags.cfbit.chanmap_update_scheduled = 0;
+        connsm->flags.chanmap_update_scheduled = 0;
 
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
 
@@ -2773,7 +2773,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
     connsm->conn_state = BLE_LL_CONN_STATE_CREATED;
 
     /* Clear packet received flag */
-    connsm->csmflags.cfbit.pkt_rxd = 0;
+    connsm->flags.pkt_rxd = 0;
 
     /* Consider time created the last scheduled time */
     connsm->last_scheduled = ble_ll_tmr_get();
@@ -2929,10 +2929,10 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     ble_ll_scan_chk_resume();
 
     /* If we have transmitted the terminate IND successfully, we are done */
-    if ((connsm->csmflags.cfbit.terminate_ind_txd) ||
-                    (connsm->csmflags.cfbit.terminate_ind_rxd &&
-                     connsm->csmflags.cfbit.terminate_ind_rxd_acked)) {
-        if (connsm->csmflags.cfbit.terminate_ind_txd) {
+    if ((connsm->flags.terminate_ind_txd) ||
+        (connsm->flags.terminate_ind_rxd &&
+         connsm->flags.terminate_ind_rxd_acked)) {
+        if (connsm->flags.terminate_ind_txd) {
             ble_err = BLE_ERR_CONN_TERM_LOCAL;
         } else {
             /* Make sure the disconnect reason is valid! */
@@ -2952,7 +2952,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
      * If we have received a packet, we can set the current transmit window
      * usecs to 0 since we dont need to listen in the transmit window.
      */
-    if (connsm->csmflags.cfbit.pkt_rxd) {
+    if (connsm->flags.pkt_rxd) {
         connsm->periph_cur_tx_win_usecs = 0;
     }
 
@@ -2979,7 +2979,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
 
     /* Reset "per connection event" variables */
     connsm->cons_rxd_bad_crc = 0;
-    connsm->csmflags.cfbit.pkt_rxd = 0;
+    connsm->flags.pkt_rxd = 0;
 
     /* See if we need to start any control procedures */
     ble_ll_ctrl_chk_proc_start(connsm);
@@ -3030,10 +3030,10 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     ble_ll_conn_num_comp_pkts_event_send(connsm);
 
     /* If we have features and there's pending HCI command, send an event */
-    if (connsm->csmflags.cfbit.pending_hci_rd_features &&
-                                        connsm->csmflags.cfbit.rxd_features) {
+    if (connsm->flags.pending_hci_rd_features &&
+        connsm->flags.rxd_features) {
         ble_ll_hci_ev_rd_rem_used_feat(connsm, BLE_ERR_SUCCESS);
-        connsm->csmflags.cfbit.pending_hci_rd_features = 0;
+        connsm->flags.pending_hci_rd_features = 0;
     }
 }
 
@@ -3192,7 +3192,7 @@ ble_ll_conn_event_halt(void)
 {
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     if (g_ble_ll_conn_cur_sm) {
-        g_ble_ll_conn_cur_sm->csmflags.cfbit.pkt_rxd = 0;
+        g_ble_ll_conn_cur_sm->flags.pkt_rxd = 0;
         ble_ll_event_add(&g_ble_ll_conn_cur_sm->conn_ev_end);
         g_ble_ll_conn_cur_sm = NULL;
     }
@@ -3400,14 +3400,14 @@ ble_ll_conn_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
         rxhdr->rxinfo.handle = connsm->conn_handle;
 
         /* Set flag denoting we have received a packet in connection event */
-        connsm->csmflags.cfbit.pkt_rxd = 1;
+        connsm->flags.pkt_rxd = 1;
 
         /* Connection is established */
         connsm->conn_state = BLE_LL_CONN_STATE_ESTABLISHED;
 
         /* Set anchor point (and last) if 1st rxd frame in connection event */
-        if (connsm->csmflags.cfbit.periph_set_last_anchor) {
-            connsm->csmflags.cfbit.periph_set_last_anchor = 0;
+        if (connsm->flags.periph_set_last_anchor) {
+            connsm->flags.periph_set_last_anchor = 0;
             connsm->last_anchor_point = rxhdr->beg_cputime;
             connsm->anchor_point = connsm->last_anchor_point;
             connsm->anchor_point_usecs = rxhdr->rem_usecs;
@@ -3519,7 +3519,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
         if (hdr_byte & BLE_LL_DATA_HDR_NESN_MASK) {
-            connsm->csmflags.cfbit.allow_periph_latency = 1;
+            connsm->flags.allow_periph_latency = 1;
         }
     }
 #endif
@@ -3857,7 +3857,7 @@ chk_rx_terminate_ind:
         if (BLE_LL_LLID_IS_CTRL(hdr_byte) &&
             (opcode == BLE_LL_CTRL_TERMINATE_IND) &&
             (rx_pyld_len == (1 + BLE_LL_CTRL_TERMINATE_IND_LEN))) {
-            connsm->csmflags.cfbit.terminate_ind_rxd = 1;
+            connsm->flags.terminate_ind_rxd = 1;
             connsm->rxd_disconnect_reason = rxbuf[3];
         }
 
@@ -4244,14 +4244,14 @@ ble_ll_conn_subrate_req_hci(struct ble_ll_conn_sm *connsm,
         connsm->subrate_trans.periph_latency = srp->max_latency;
         connsm->subrate_trans.cont_num = srp->cont_num;
         connsm->subrate_trans.supervision_tmo = srp->supervision_tmo;
-        connsm->csmflags.cfbit.subrate_host_req = 1;
+        connsm->flags.subrate_host_req = 1;
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CONN_ROLE_PERIPHERAL:
         connsm->subrate_req = *srp;
-        connsm->csmflags.cfbit.subrate_host_req = 1;
+        connsm->flags.subrate_host_req = 1;
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ, NULL);
         break;
 #endif
@@ -4316,7 +4316,7 @@ ble_ll_conn_subrate_set(struct ble_ll_conn_sm *connsm,
 
     /* Assume parameters were checked by caller */
 
-    send_ev = connsm->csmflags.cfbit.subrate_host_req ||
+    send_ev = connsm->flags.subrate_host_req ||
               (connsm->subrate_factor != sp->subrate_factor) ||
               (connsm->periph_latency != sp->periph_latency) ||
               (connsm->cont_num != sp->cont_num) ||
