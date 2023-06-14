@@ -443,6 +443,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
     struct ble_hs_conn *conn;
     uint16_t sdu_size_offset;
     int rc;
+    uint16_t num_tx_credits = 0;
 
     /* If there is no data to send, just return success */
     tx = &chan->coc_tx;
@@ -511,6 +512,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
         } else {
             tx->credits--;
             tx->data_offset += len - sdu_size_offset;
+            num_tx_credits++;
         }
 
         BLE_HS_LOG(DEBUG, "Sent %d bytes, credits=%d, to send %d bytes \n",
@@ -522,6 +524,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             os_mbuf_free_chain(tx->sdus[0]);
             tx->sdus[0] = NULL;
             tx->data_offset = 0;
+            tx->credits += num_tx_credits;
             break;
         }
     }
