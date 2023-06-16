@@ -1457,7 +1457,8 @@ pair(const uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    if (ble_gap_security_initiate(desc.conn_handle)) {
+    rc = ble_gap_security_initiate(desc.conn_handle);
+    if (rc != 0 && rc != BLE_HS_EALREADY) {
         status = BTP_STATUS_FAILED;
         goto rsp;
     }
