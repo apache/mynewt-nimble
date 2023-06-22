@@ -22,6 +22,14 @@
 #include <controller/ble_fem.h>
 #include "../phy_priv.h"
 
+/*
+ * When the radio is operated on high voltage (see VREQCTRL - Voltage request
+ * control on page 62 for how to control voltage), the output power is increased
+ * by 3 dB. I.e. if the TXPOWER value is set to 0 dBm and high voltage is
+ * requested using VREQCTRL, the output power will be +3
+ * */
+#define NRF_TXPOWER_VREQH 3
+
 #if PHY_USE_DEBUG
 void
 phy_debug_init(void)
@@ -180,9 +188,50 @@ phy_ppi_init(void)
     NRF_TIMER0->SUBSCRIBE_CAPTURE[2] = DPPI_CH_SUB(RADIO_EVENTS_END);
 }
 
+void
+phy_txpower_set(int8_t dbm)
+{
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    switch (dbm) {
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_0dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg1dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg2dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg16dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) + NRF_TXPOWER_VREQH:
+    case ((int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm) + NRF_TXPOWER_VREQH:
+        NRF_VREQCTRL->VREGRADIO.VREQH = 1;
+        dbm -= NRF_TXPOWER_VREQH;
+        break;
+    default:
+        NRF_VREQCTRL->VREGRADIO.VREQH = 0;
+        break;
+    }
+#endif
+
+    NRF_RADIO->TXPOWER = dbm;
+}
+
 int8_t
 phy_txpower_round(int8_t dbm)
 {
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    /* +3 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_0dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_0dBm) + NRF_TXPOWER_VREQH;
+    }
+
+    /* +2 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg1dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg1dBm) + NRF_TXPOWER_VREQH;
+    }
+
+    /* +1 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg2dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg2dBm) + NRF_TXPOWER_VREQH;
+    }
+#endif
+
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_0dBm) {
         return (int8_t)RADIO_TXPOWER_TXPOWER_0dBm;
     }
@@ -219,21 +268,45 @@ phy_txpower_round(int8_t dbm)
         return (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm;
     }
 
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    /* -9 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) + NRF_TXPOWER_VREQH;
+    }
+#endif
+
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) {
         return (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm;
     }
+
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    /* -13 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg16dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg16dBm) + NRF_TXPOWER_VREQH;
+    }
+#endif
 
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg16dBm) {
         return (int8_t)RADIO_TXPOWER_TXPOWER_Neg16dBm;
     }
 
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    /* -17 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) + NRF_TXPOWER_VREQH;
+    }
+#endif
+
     if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) {
         return (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm;
     }
 
-    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm) {
-        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
+#if MYNEWT_VAL(BLE_PHY_NRF5340_VDDH)
+    /* -37 dBm */
+    if (dbm >= ((int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm) + NRF_TXPOWER_VREQH) {
+        return ((int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm) + NRF_TXPOWER_VREQH;
     }
+#endif
 
     return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
 }
