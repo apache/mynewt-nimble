@@ -179,6 +179,12 @@ phy_ppi_init(void)
                                    (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
 }
 
+void
+phy_txpower_set(int8_t dbm)
+{
+    NRF_RADIO->TXPOWER = dbm;
+}
+
 int8_t
 phy_txpower_round(int8_t dbm)
 {

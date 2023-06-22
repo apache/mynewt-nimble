@@ -64,6 +64,14 @@ syscfg.defs:
                    works for TX (i.e. ISO Broadcaster).
         value: 0
 
+    BLE_PHY_NRF5340_VDDH:
+       description: >
+            This indicates if VDDH pin of nRF5340 is connected to external
+            power source. If connected PHY driver will make use of high voltage
+            operation mode for additional TX power levels (+3, +2, +1, -9, -13,
+            -17, -37).
+       value: 0
+
     BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
         description: >
             Ublox BMD-345 modules come with public address preprogrammed

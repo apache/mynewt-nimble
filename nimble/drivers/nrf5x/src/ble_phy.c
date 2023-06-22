@@ -2019,7 +2019,7 @@ ble_phy_tx_power_set(int dbm)
     /* Get actual TX power supported by radio */
     dbm = phy_txpower_round(dbm);
 
-    NRF_RADIO->TXPOWER = dbm;
+    phy_txpower_set(dbm);
     g_ble_phy_data.phy_txpwr_dbm = dbm;
 
     return 0;
