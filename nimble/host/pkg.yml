@@ -29,6 +29,7 @@ pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/util/mem"
+    - "@apache-mynewt-core/crypto/tinycrypt"
     - nimble
     - nimble/transport
 
