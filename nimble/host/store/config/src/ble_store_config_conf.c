@@ -57,6 +57,14 @@ static struct conf_handler ble_store_config_conf_handler = {
 #define BLE_STORE_CONFIG_CCCD_SET_ENCODE_SZ \
     (MYNEWT_VAL(BLE_STORE_MAX_CCCDS) * BLE_STORE_CONFIG_CCCD_ENCODE_SZ + 1)
 
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+#define BLE_STORE_CONFIG_EAD_ENCODE_SZ     \
+    BASE64_ENCODE_SIZE(sizeof (struct ble_store_value_ead))
+
+#define BLE_STORE_CONFIG_EAD_SET_ENCODE_SZ \
+    (MYNEWT_VAL(BLE_STORE_MAX_EADS) * BLE_STORE_CONFIG_EAD_ENCODE_SZ + 1)
+#endif
+
 static void
 ble_store_config_serialize_arr(const void *arr, int obj_sz, int num_objs,
                                char *out_buf, int buf_sz)
@@ -114,6 +122,16 @@ ble_store_config_conf_set(int argc, char **argv, char *val)
                     &ble_store_config_num_cccds);
             return rc;
         }
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+        else if (strcmp(argv[0], "ead") == 0) {
+            rc = ble_store_config_deserialize_arr(
+                    val,
+                    ble_store_config_eads,
+                    sizeof *ble_store_config_eads,
+                    &ble_store_config_num_eads);
+            return rc;
+        }
+#endif
     }
     return OS_ENOENT;
 }
@@ -148,6 +166,14 @@ ble_store_config_conf_export(void (*func)(char *name, char *val),
                                    sizeof buf.cccd);
     func("ble_hs/cccd", buf.cccd);
 
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+    ble_store_config_serialize_arr(ble_store_config_eads,
+                                   sizeof *ble_store_config_eads,
+                                   ble_store_config_num_eads,
+                                   buf.ead,
+                                   sizeof buf.ead);
+    func("ble_hs/ead", buf.ead);
+#endif
     return 0;
 }
 
@@ -217,6 +243,25 @@ ble_store_config_persist_cccds(void)
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+int
+ble_store_config_persist_eads(void)
+{
+    char buf[BLE_STORE_CONFIG_CCCD_SET_ENCODE_SZ];
+    int rc;
+    ble_store_config_serialize_arr(ble_store_config_eads,
+                                   sizeof *ble_store_config_eads,
+                                   ble_store_config_num_eads,
+                                   buf,
+                                   sizeof buf);
+    rc = conf_save_one("ble_hs/ead", buf);
+    if (rc != 0) {
+        return BLE_HS_ESTORE_FAIL;
+    }
+    return 0;
+}
+#endif
 
 void
 ble_store_config_conf_init(void)
