@@ -1845,7 +1845,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
             rc = ble_gap_ext_adv_rsp_set_data(instance, adv_data);
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
         } else if (periodic) {
-            rc = ble_gap_periodic_adv_set_data(instance, adv_data);
+            rc = ble_gap_periodic_adv_set_data(instance, adv_data, NULL);
 #endif
         } else {
             rc = ble_gap_ext_adv_set_data(instance, adv_data);
@@ -3701,7 +3701,7 @@ cmd_periodic_start(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_start(instance);
+    rc = ble_gap_periodic_adv_start(instance, NULL);
     if (rc) {
         console_printf("failed to start periodic advertising\n");
         return rc;
@@ -3924,7 +3924,7 @@ cmd_sync_reporting(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_sync_reporting(sync_handle, enable);
+    rc = ble_gap_periodic_adv_sync_reporting(sync_handle, enable, NULL);
     if (rc) {
         console_printf("Failed to %s reporting (%d)\n",
                        enable ? "enable" : "disable", rc);
