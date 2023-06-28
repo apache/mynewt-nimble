@@ -475,11 +475,11 @@ static void start_periodic(void)
     rc = os_mbuf_append(data, ext_adv_pattern_1, sizeof(ext_adv_pattern_1));
     assert(rc == 0);
 
-    rc = ble_gap_periodic_adv_set_data(instance, data);
+    rc = ble_gap_periodic_adv_set_data(instance, data, NULL);
     assert (rc == 0);
 
     /* start periodic advertising */
-    rc = ble_gap_periodic_adv_start(instance);
+    rc = ble_gap_periodic_adv_start(instance, NULL);
     assert (rc == 0);
 
     /* start advertising */

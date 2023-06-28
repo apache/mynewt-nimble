@@ -2015,7 +2015,7 @@ periodic_adv_start(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_start(1);
+    rc = ble_gap_periodic_adv_start(1, NULL);
     if (rc) {
         SYS_LOG_ERR("Failed to start periodic advertiser; rc=%d", rc);
         return BTP_STATUS_FAILED;
@@ -2044,7 +2044,7 @@ periodic_adv_set_data(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_set_data(1, adv_data);
+    rc = ble_gap_periodic_adv_set_data(1, adv_data, NULL);
     if (rc) {
         SYS_LOG_ERR("Failed to set periodic advertiser data; rc=%d", rc);
         return BTP_STATUS_FAILED;
