@@ -795,14 +795,14 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
     }
 
     if (hdr->length <= sizeof(*req)) {
-        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
+        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCEPTED_PARAM);
         goto failed;
     }
 
     req = (struct ble_l2cap_sig_credit_base_reconfig_req *)(*om)->om_data;
 
     if ((req->mps < BLE_L2CAP_ECOC_MIN_MTU) || (req->mtu < BLE_L2CAP_ECOC_MIN_MTU)) {
-        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
+        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCEPTED_PARAM);
         goto failed;
     }
 
@@ -811,7 +811,7 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
 
     cid_cnt = (hdr->length - sizeof(*req)) / sizeof(uint16_t);
     if (cid_cnt > BLE_L2CAP_MAX_COC_CONN_REQ) {
-        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCAPTED_PARAM);
+        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCEPTED_PARAM);
         goto failed;
     }
 
