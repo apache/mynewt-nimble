@@ -3711,18 +3711,25 @@ ble_gap_periodic_adv_set(uint8_t instance, struct os_mbuf **data)
     static uint8_t buf[sizeof(struct ble_hci_le_set_periodic_adv_data_cp) +
                        MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)];
     struct ble_hci_le_set_periodic_adv_data_cp *cmd = (void *) buf;
-    uint16_t len = OS_MBUF_PKTLEN(*data);
+    uint16_t len = 0;
     uint16_t opcode;
+
+    if (*data) {
+        len = OS_MBUF_PKTLEN(*data);
+    }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA);
 
     cmd->adv_handle = instance;
     cmd->operation = BLE_HCI_LE_SET_DATA_OPER_COMPLETE;
     cmd->adv_data_len = len;
-    os_mbuf_copydata(*data, 0, len, cmd->adv_data);
 
-    os_mbuf_adj(*data, len);
-    *data = os_mbuf_trim_front(*data);
+    if (len) {
+        os_mbuf_copydata(*data, 0, len, cmd->adv_data);
+
+        os_mbuf_adj(*data, len);
+        *data = os_mbuf_trim_front(*data);
+    }
 
     return ble_hs_hci_cmd_tx(opcode, cmd, sizeof(*cmd) + cmd->adv_data_len,
                              NULL, 0);
@@ -3730,10 +3737,14 @@ ble_gap_periodic_adv_set(uint8_t instance, struct os_mbuf **data)
     static uint8_t buf[sizeof(struct ble_hci_le_set_periodic_adv_data_cp) +
                        BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN];
     struct ble_hci_le_set_periodic_adv_data_cp *cmd = (void *) buf;
-    uint16_t len = OS_MBUF_PKTLEN(*data);
+    uint16_t len = 0;
     uint16_t opcode;
     uint8_t op;
     int rc;
+
+    if (*data) {
+        len = OS_MBUF_PKTLEN(*data);
+    }
 
     opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PERIODIC_ADV_DATA);
     cmd->adv_handle = instance;
@@ -3742,10 +3753,13 @@ ble_gap_periodic_adv_set(uint8_t instance, struct os_mbuf **data)
     if (len <= BLE_HCI_MAX_PERIODIC_ADV_DATA_LEN) {
         cmd->operation = BLE_HCI_LE_SET_DATA_OPER_COMPLETE;
         cmd->adv_data_len = len;
-        os_mbuf_copydata(*data, 0, len, cmd->adv_data);
 
-        os_mbuf_adj(*data, len);
-        *data = os_mbuf_trim_front(*data);
+        if (len) {
+            os_mbuf_copydata(*data, 0, len, cmd->adv_data);
+
+            os_mbuf_adj(*data, len);
+            *data = os_mbuf_trim_front(*data);
+        }
 
         return ble_hs_hci_cmd_tx(opcode, cmd, sizeof(*cmd) + cmd->adv_data_len,
                                  NULL, 0);
