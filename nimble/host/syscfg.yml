@@ -272,6 +272,10 @@ syscfg.defs:
         description: >
             Enables sending and receiving of GATT indications. (0/1)
         value: 1
+    BLE_GATT_MULTI_NOTIFY:
+        description: >
+            Enables sending and receiving of GATT multi handle notifications.
+        value: 1
 
     # GATT options.
     BLE_GATT_READ_MAX_ATTRS:

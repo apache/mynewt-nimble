@@ -79,6 +79,12 @@ struct ble_hs_cfg;
 #define BLE_GATT_SVC_TYPE_PRIMARY                       1
 #define BLE_GATT_SVC_TYPE_SECONDARY                     2
 
+/*** @server. */
+struct ble_gatt_hv {
+    uint16_t handle;
+    struct os_mbuf* value;
+};
+
 /*** @client. */
 struct ble_gatt_error {
     uint16_t status;
@@ -472,6 +478,22 @@ int ble_gattc_write_reliable(uint16_t conn_handle,
  */
 int ble_gatts_notify_custom(uint16_t conn_handle, uint16_t att_handle,
                             struct os_mbuf *om);
+
+/**
+ * Sends multiple characteristic notifications on the specified
+ * attribute handles. This function consumes the mbuf of the
+ * notification value after sending notification.
+ *
+ * @param conn_handle       The connection over which to execute the
+ *                              procedure.
+ * @param tuples            The list of attribute handles and notification
+ *                              value tuples.
+ * @param num_tuples        The number of notifications to send.
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gatts_multi_notify_custom(uint16_t conn_handle,
+                                  struct ble_gatt_hv * tuples, uint16_t num_tuples);
 
 /**
  * Deprecated. Should not be used. Use ble_gatts_notify_custom instead.

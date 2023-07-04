@@ -2513,6 +2513,70 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     return 0;
 }
 
+int
+ble_att_svr_rx_multi_notify(uint16_t conn_handle, struct os_mbuf **rxom)
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_MULTI_NOTIFY)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    uint16_t handle;
+    uint16_t value_len;
+    struct os_mbuf * value;
+    int rc;
+    int offset = 0;
+    int datalen = (*rxom)->om_len;
+
+    while (offset < datalen) {
+        handle = 0;
+        value_len = 0;
+        value = NULL;
+
+        /* Handle */
+        rc = ble_hs_mbuf_pullup_base(rxom, 2);
+        if (rc != 0) {
+            os_mbuf_free_chain(*rxom);
+            return BLE_HS_ENOMEM;
+        }
+        handle = le16toh(*((*rxom)->om_data));
+        if (handle == 0) {
+            os_mbuf_free_chain(*rxom);
+            return BLE_HS_EBADDATA;
+        }
+        offset += 2;
+        os_mbuf_adj(*rxom, 2);
+
+        /* Length */
+        rc = ble_hs_mbuf_pullup_base(rxom, 2);
+        if (rc != 0) {
+            os_mbuf_free_chain(*rxom);
+            return BLE_HS_ENOMEM;
+        }
+        value_len = le16toh(*((*rxom)->om_data));
+        if (value_len == 0) {
+            os_mbuf_free_chain(*rxom);
+            return BLE_HS_EBADDATA;
+        }
+        offset += 2;
+        os_mbuf_adj(*rxom, 2);
+
+        /* Value */
+        value = ble_hs_mbuf_from_flat((*rxom)->om_data, value_len);
+        if (value == NULL) {
+            os_mbuf_free_chain(*rxom);
+            return BLE_HS_EBADDATA;
+        }
+        offset += value_len;
+        os_mbuf_adj(*rxom, value_len);
+
+        ble_gap_notify_rx_event(conn_handle, handle, value, 0);
+    }
+    os_mbuf_free_chain(*rxom);
+    *rxom = NULL;
+
+    return 0;
+}
+
 /**
  * @return                      0 on success; nonzero on failure.
  */

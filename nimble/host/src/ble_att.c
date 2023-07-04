@@ -69,6 +69,7 @@ static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
     { BLE_ATT_OP_NOTIFY_REQ,           ble_att_svr_rx_notify },
     { BLE_ATT_OP_INDICATE_REQ,         ble_att_svr_rx_indicate },
     { BLE_ATT_OP_INDICATE_RSP,         ble_att_clt_rx_indicate },
+    { BLE_ATT_OP_MULTI_NOTIFY_REQ,     ble_att_svr_rx_multi_notify },
     { BLE_ATT_OP_WRITE_CMD,            ble_att_svr_rx_write_no_rsp },
 };
 
@@ -77,60 +78,62 @@ static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
 
 STATS_SECT_DECL(ble_att_stats) ble_att_stats;
 STATS_NAME_START(ble_att_stats)
-    STATS_NAME(ble_att_stats, error_rsp_rx)
-    STATS_NAME(ble_att_stats, error_rsp_tx)
-    STATS_NAME(ble_att_stats, mtu_req_rx)
-    STATS_NAME(ble_att_stats, mtu_req_tx)
-    STATS_NAME(ble_att_stats, mtu_rsp_rx)
-    STATS_NAME(ble_att_stats, mtu_rsp_tx)
-    STATS_NAME(ble_att_stats, find_info_req_rx)
-    STATS_NAME(ble_att_stats, find_info_req_tx)
-    STATS_NAME(ble_att_stats, find_info_rsp_rx)
-    STATS_NAME(ble_att_stats, find_info_rsp_tx)
-    STATS_NAME(ble_att_stats, find_type_value_req_rx)
-    STATS_NAME(ble_att_stats, find_type_value_req_tx)
-    STATS_NAME(ble_att_stats, find_type_value_rsp_rx)
-    STATS_NAME(ble_att_stats, find_type_value_rsp_tx)
-    STATS_NAME(ble_att_stats, read_type_req_rx)
-    STATS_NAME(ble_att_stats, read_type_req_tx)
-    STATS_NAME(ble_att_stats, read_type_rsp_rx)
-    STATS_NAME(ble_att_stats, read_type_rsp_tx)
-    STATS_NAME(ble_att_stats, read_req_rx)
-    STATS_NAME(ble_att_stats, read_req_tx)
-    STATS_NAME(ble_att_stats, read_rsp_rx)
-    STATS_NAME(ble_att_stats, read_rsp_tx)
-    STATS_NAME(ble_att_stats, read_blob_req_rx)
-    STATS_NAME(ble_att_stats, read_blob_req_tx)
-    STATS_NAME(ble_att_stats, read_blob_rsp_rx)
-    STATS_NAME(ble_att_stats, read_blob_rsp_tx)
-    STATS_NAME(ble_att_stats, read_mult_req_rx)
-    STATS_NAME(ble_att_stats, read_mult_req_tx)
-    STATS_NAME(ble_att_stats, read_mult_rsp_rx)
-    STATS_NAME(ble_att_stats, read_mult_rsp_tx)
-    STATS_NAME(ble_att_stats, read_group_type_req_rx)
-    STATS_NAME(ble_att_stats, read_group_type_req_tx)
-    STATS_NAME(ble_att_stats, read_group_type_rsp_rx)
-    STATS_NAME(ble_att_stats, read_group_type_rsp_tx)
-    STATS_NAME(ble_att_stats, write_req_rx)
-    STATS_NAME(ble_att_stats, write_req_tx)
-    STATS_NAME(ble_att_stats, write_rsp_rx)
-    STATS_NAME(ble_att_stats, write_rsp_tx)
-    STATS_NAME(ble_att_stats, prep_write_req_rx)
-    STATS_NAME(ble_att_stats, prep_write_req_tx)
-    STATS_NAME(ble_att_stats, prep_write_rsp_rx)
-    STATS_NAME(ble_att_stats, prep_write_rsp_tx)
-    STATS_NAME(ble_att_stats, exec_write_req_rx)
-    STATS_NAME(ble_att_stats, exec_write_req_tx)
-    STATS_NAME(ble_att_stats, exec_write_rsp_rx)
-    STATS_NAME(ble_att_stats, exec_write_rsp_tx)
-    STATS_NAME(ble_att_stats, notify_req_rx)
-    STATS_NAME(ble_att_stats, notify_req_tx)
-    STATS_NAME(ble_att_stats, indicate_req_rx)
-    STATS_NAME(ble_att_stats, indicate_req_tx)
-    STATS_NAME(ble_att_stats, indicate_rsp_rx)
-    STATS_NAME(ble_att_stats, indicate_rsp_tx)
-    STATS_NAME(ble_att_stats, write_cmd_rx)
-    STATS_NAME(ble_att_stats, write_cmd_tx)
+STATS_NAME(ble_att_stats, error_rsp_rx)
+STATS_NAME(ble_att_stats, error_rsp_tx)
+STATS_NAME(ble_att_stats, mtu_req_rx)
+STATS_NAME(ble_att_stats, mtu_req_tx)
+STATS_NAME(ble_att_stats, mtu_rsp_rx)
+STATS_NAME(ble_att_stats, mtu_rsp_tx)
+STATS_NAME(ble_att_stats, find_info_req_rx)
+STATS_NAME(ble_att_stats, find_info_req_tx)
+STATS_NAME(ble_att_stats, find_info_rsp_rx)
+STATS_NAME(ble_att_stats, find_info_rsp_tx)
+STATS_NAME(ble_att_stats, find_type_value_req_rx)
+STATS_NAME(ble_att_stats, find_type_value_req_tx)
+STATS_NAME(ble_att_stats, find_type_value_rsp_rx)
+STATS_NAME(ble_att_stats, find_type_value_rsp_tx)
+STATS_NAME(ble_att_stats, read_type_req_rx)
+STATS_NAME(ble_att_stats, read_type_req_tx)
+STATS_NAME(ble_att_stats, read_type_rsp_rx)
+STATS_NAME(ble_att_stats, read_type_rsp_tx)
+STATS_NAME(ble_att_stats, read_req_rx)
+STATS_NAME(ble_att_stats, read_req_tx)
+STATS_NAME(ble_att_stats, read_rsp_rx)
+STATS_NAME(ble_att_stats, read_rsp_tx)
+STATS_NAME(ble_att_stats, read_blob_req_rx)
+STATS_NAME(ble_att_stats, read_blob_req_tx)
+STATS_NAME(ble_att_stats, read_blob_rsp_rx)
+STATS_NAME(ble_att_stats, read_blob_rsp_tx)
+STATS_NAME(ble_att_stats, read_mult_req_rx)
+STATS_NAME(ble_att_stats, read_mult_req_tx)
+STATS_NAME(ble_att_stats, read_mult_rsp_rx)
+STATS_NAME(ble_att_stats, read_mult_rsp_tx)
+STATS_NAME(ble_att_stats, read_group_type_req_rx)
+STATS_NAME(ble_att_stats, read_group_type_req_tx)
+STATS_NAME(ble_att_stats, read_group_type_rsp_rx)
+STATS_NAME(ble_att_stats, read_group_type_rsp_tx)
+STATS_NAME(ble_att_stats, write_req_rx)
+STATS_NAME(ble_att_stats, write_req_tx)
+STATS_NAME(ble_att_stats, write_rsp_rx)
+STATS_NAME(ble_att_stats, write_rsp_tx)
+STATS_NAME(ble_att_stats, prep_write_req_rx)
+STATS_NAME(ble_att_stats, prep_write_req_tx)
+STATS_NAME(ble_att_stats, prep_write_rsp_rx)
+STATS_NAME(ble_att_stats, prep_write_rsp_tx)
+STATS_NAME(ble_att_stats, exec_write_req_rx)
+STATS_NAME(ble_att_stats, exec_write_req_tx)
+STATS_NAME(ble_att_stats, exec_write_rsp_rx)
+STATS_NAME(ble_att_stats, exec_write_rsp_tx)
+STATS_NAME(ble_att_stats, notify_req_rx)
+STATS_NAME(ble_att_stats, notify_req_tx)
+STATS_NAME(ble_att_stats, indicate_req_rx)
+STATS_NAME(ble_att_stats, indicate_req_tx)
+STATS_NAME(ble_att_stats, indicate_rsp_rx)
+STATS_NAME(ble_att_stats, indicate_rsp_tx)
+STATS_NAME(ble_att_stats, multi_notify_req_rx)
+STATS_NAME(ble_att_stats, multi_notify_req_tx)
+STATS_NAME(ble_att_stats, write_cmd_rx)
+STATS_NAME(ble_att_stats, write_cmd_tx)
 STATS_NAME_END(ble_att_stats)
 
 static const struct ble_att_rx_dispatch_entry *
@@ -269,6 +272,10 @@ ble_att_inc_tx_stat(uint8_t att_op)
         STATS_INC(ble_att_stats, indicate_rsp_tx);
         break;
 
+    case BLE_ATT_OP_MULTI_NOTIFY_REQ:
+        STATS_INC(ble_att_stats, multi_notify_req_tx);
+        break;
+
     case BLE_ATT_OP_WRITE_CMD:
         STATS_INC(ble_att_stats, write_cmd_tx);
         break;
@@ -384,6 +391,10 @@ ble_att_inc_rx_stat(uint8_t att_op)
 
     case BLE_ATT_OP_INDICATE_RSP:
         STATS_INC(ble_att_stats, indicate_rsp_rx);
+        break;
+
+    case BLE_ATT_OP_MULTI_NOTIFY_REQ:
+        STATS_INC(ble_att_stats, multi_notify_req_rx);
         break;
 
     case BLE_ATT_OP_WRITE_CMD:

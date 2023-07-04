@@ -910,6 +910,28 @@ err:
 }
 
 /*****************************************************************************
+* $multi handle value notification                                           *
+*****************************************************************************/
+
+int
+ble_att_clt_tx_multi_notify(uint16_t conn_handle, struct os_mbuf * om)
+{
+#if !NIMBLE_BLE_ATT_CLT_MULTI_NOTIFY
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct os_mbuf * txom;
+    int rc;
+
+    if (ble_att_cmd_get(BLE_ATT_OP_MULTI_NOTIFY_REQ, 0, &txom) == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    os_mbuf_concat(txom, om);
+    return ble_att_tx(conn_handle, txom);
+}
+
+/*****************************************************************************
  * $handle value indication                                                  *
  *****************************************************************************/
 
