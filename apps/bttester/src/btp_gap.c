@@ -33,13 +33,13 @@
 #include "../../../nimble/host/src/ble_hs_hci_priv.h"
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
-#include "bttester.h"
+#include "btp/btp.h"
 
 #define CONTROLLER_INDEX 0
 #define CONTROLLER_NAME "btp_tester"
 
 #define BLE_AD_DISCOV_MASK (BLE_HS_ADV_F_DISC_LTD | BLE_HS_ADV_F_DISC_GEN)
-#define ADV_BUF_LEN (sizeof(struct gap_device_found_ev) + 2 * 31)
+#define ADV_BUF_LEN (sizeof(struct btp_gap_device_found_ev) + 2 * 31)
 
 /* parameter values to reject in CPUP if all match the pattern */
 #define REJECT_INTERVAL_MIN 0x0C80
@@ -62,11 +62,11 @@ static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
 
-static struct os_callout update_params_co;
-static struct gap_conn_param_update_cmd update_params;
+static struct os_callout                    update_params_co;
+static struct btp_gap_conn_param_update_cmd update_params;
 
-static struct os_callout connected_ev_co;
-static struct gap_device_connected_ev connected_ev;
+static struct os_callout                  connected_ev_co;
+static struct btp_gap_device_connected_ev connected_ev;
 #define CONNECTED_EV_DELAY_MS(itvl) 8 * BLE_HCI_CONN_ITVL * itvl / 1000
 static int connection_attempts;
 #if MYNEWT_VAL(BTTESTER_PRIVACY_MODE) && MYNEWT_VAL(BTTESTER_USE_NRPA)
@@ -124,46 +124,46 @@ gap_event_cb(struct ble_gap_event *event, void *arg);
 static void
 supported_commands(uint8_t *data, uint16_t len)
 {
-    uint8_t cmds[3];
-    struct gap_read_supported_commands_rp *rp = (void *) &cmds;
+    uint8_t                                   cmds[3];
+    struct btp_gap_read_supported_commands_rp *rp = (void *) &cmds;
 
     SYS_LOG_DBG("");
 
     memset(cmds, 0, sizeof(cmds));
 
-    tester_set_bit(cmds, GAP_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(cmds, GAP_READ_CONTROLLER_INDEX_LIST);
-    tester_set_bit(cmds, GAP_READ_CONTROLLER_INFO);
-    tester_set_bit(cmds, GAP_SET_CONNECTABLE);
-    tester_set_bit(cmds, GAP_SET_DISCOVERABLE);
-    tester_set_bit(cmds, GAP_SET_BONDABLE);
-    tester_set_bit(cmds, GAP_START_ADVERTISING);
-    tester_set_bit(cmds, GAP_STOP_ADVERTISING);
-    tester_set_bit(cmds, GAP_START_DISCOVERY);
-    tester_set_bit(cmds, GAP_STOP_DISCOVERY);
-    tester_set_bit(cmds, GAP_CONNECT);
-    tester_set_bit(cmds, GAP_DISCONNECT);
-    tester_set_bit(cmds, GAP_SET_IO_CAP);
-    tester_set_bit(cmds, GAP_PAIR);
-    tester_set_bit(cmds, GAP_UNPAIR);
-    tester_set_bit(cmds, GAP_PASSKEY_ENTRY);
-    tester_set_bit(cmds, GAP_PASSKEY_CONFIRM);
-    tester_set_bit(cmds, GAP_START_DIRECT_ADV);
-    tester_set_bit(cmds, GAP_CONN_PARAM_UPDATE);
-    tester_set_bit(cmds, GAP_OOB_LEGACY_SET_DATA);
-    tester_set_bit(cmds, GAP_OOB_SC_GET_LOCAL_DATA);
-    tester_set_bit(cmds, GAP_OOB_SC_SET_REMOTE_DATA);
-    tester_set_bit(cmds, GAP_SET_MITM);
+    tester_set_bit(cmds, BTP_GAP_READ_SUPPORTED_COMMANDS);
+    tester_set_bit(cmds, BTP_GAP_READ_CONTROLLER_INDEX_LIST);
+    tester_set_bit(cmds, BTP_GAP_READ_CONTROLLER_INFO);
+    tester_set_bit(cmds, BTP_GAP_SET_CONNECTABLE);
+    tester_set_bit(cmds, BTP_GAP_SET_DISCOVERABLE);
+    tester_set_bit(cmds, BTP_GAP_SET_BONDABLE);
+    tester_set_bit(cmds, BTP_GAP_START_ADVERTISING);
+    tester_set_bit(cmds, BTP_GAP_STOP_ADVERTISING);
+    tester_set_bit(cmds, BTP_GAP_START_DISCOVERY);
+    tester_set_bit(cmds, BTP_GAP_STOP_DISCOVERY);
+    tester_set_bit(cmds, BTP_GAP_CONNECT);
+    tester_set_bit(cmds, BTP_GAP_DISCONNECT);
+    tester_set_bit(cmds, BTP_GAP_SET_IO_CAP);
+    tester_set_bit(cmds, BTP_GAP_PAIR);
+    tester_set_bit(cmds, BTP_GAP_UNPAIR);
+    tester_set_bit(cmds, BTP_GAP_PASSKEY_ENTRY);
+    tester_set_bit(cmds, BTP_GAP_PASSKEY_CONFIRM);
+    tester_set_bit(cmds, BTP_GAP_START_DIRECT_ADV);
+    tester_set_bit(cmds, BTP_GAP_CONN_PARAM_UPDATE);
+    tester_set_bit(cmds, BTP_GAP_OOB_LEGACY_SET_DATA);
+    tester_set_bit(cmds, BTP_GAP_OOB_SC_GET_LOCAL_DATA);
+    tester_set_bit(cmds, BTP_GAP_OOB_SC_SET_REMOTE_DATA);
+    tester_set_bit(cmds, BTP_GAP_SET_MITM);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_READ_SUPPORTED_COMMANDS,
                 CONTROLLER_INDEX, (uint8_t *) rp, sizeof(cmds));
 }
 
 static void
 controller_index_list(uint8_t *data, uint16_t len)
 {
-    struct gap_read_controller_index_list_rp *rp;
-    uint8_t buf[sizeof(*rp) + 1];
+    struct btp_gap_read_controller_index_list_rp *rp;
+    uint8_t                                      buf[sizeof(*rp) + 1];
 
     SYS_LOG_DBG("");
 
@@ -172,15 +172,15 @@ controller_index_list(uint8_t *data, uint16_t len)
     rp->num = 1;
     rp->index[0] = CONTROLLER_INDEX;
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_READ_CONTROLLER_INDEX_LIST,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_READ_CONTROLLER_INDEX_LIST,
                 BTP_INDEX_NONE, (uint8_t *) rp, sizeof(buf));
 }
 
 static void
 controller_info(uint8_t *data, uint16_t len)
 {
-    struct gap_read_controller_info_rp rp;
-    uint32_t supported_settings = 0;
+    struct btp_gap_read_controller_info_rp rp;
+    uint32_t                               supported_settings = 0;
     ble_addr_t addr;
     int rc;
 
@@ -207,33 +207,33 @@ controller_info(uint8_t *data, uint16_t len)
         } else {
             own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
         }
-        current_settings |= BIT(GAP_SETTINGS_PRIVACY);
-        supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
+        current_settings |= BIT(BTP_GAP_SETTINGS_PRIVACY);
+        supported_settings |= BIT(BTP_GAP_SETTINGS_PRIVACY);
         memcpy(rp.address, addr.val, sizeof(rp.address));
     } else {
         rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, rp.address, NULL);
         if (rc) {
             own_addr_type = BLE_OWN_ADDR_RANDOM;
             memcpy(rp.address, addr.val, sizeof(rp.address));
-            supported_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
-            current_settings |= BIT(GAP_SETTINGS_STATIC_ADDRESS);
+            supported_settings |= BIT(BTP_GAP_SETTINGS_STATIC_ADDRESS);
+            current_settings |= BIT(BTP_GAP_SETTINGS_STATIC_ADDRESS);
         } else {
             own_addr_type = BLE_OWN_ADDR_PUBLIC;
         }
     }
 
-    supported_settings |= BIT(GAP_SETTINGS_POWERED);
-    supported_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
-    supported_settings |= BIT(GAP_SETTINGS_BONDABLE);
-    supported_settings |= BIT(GAP_SETTINGS_LE);
-    supported_settings |= BIT(GAP_SETTINGS_ADVERTISING);
-    supported_settings |= BIT(GAP_SETTINGS_SC);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_POWERED);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_BONDABLE);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_LE);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
+    supported_settings |= BIT(BTP_GAP_SETTINGS_SC);
 
     if (ble_hs_cfg.sm_bonding) {
-        current_settings |= BIT(GAP_SETTINGS_BONDABLE);
+        current_settings |= BIT(BTP_GAP_SETTINGS_BONDABLE);
     }
     if (ble_hs_cfg.sm_sc) {
-        current_settings |= BIT(GAP_SETTINGS_SC);
+        current_settings |= BIT(BTP_GAP_SETTINGS_SC);
     }
 
     rp.supported_settings = sys_cpu_to_le32(supported_settings);
@@ -241,7 +241,7 @@ controller_info(uint8_t *data, uint16_t len)
 
     memcpy(rp.name, CONTROLLER_NAME, sizeof(CONTROLLER_NAME));
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_READ_CONTROLLER_INFO,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_READ_CONTROLLER_INFO,
                 CONTROLLER_INDEX, (uint8_t *) &rp, sizeof(rp));
 }
 
@@ -285,22 +285,22 @@ static void rotate_nrpa_cb(struct os_event *ev)
 static void
 set_connectable(uint8_t *data, uint16_t len)
 {
-    const struct gap_set_connectable_cmd *cmd = (void *) data;
-    struct gap_set_connectable_rp rp;
+    const struct btp_gap_set_connectable_cmd *cmd = (void *) data;
+    struct btp_gap_set_connectable_rp        rp;
 
     SYS_LOG_DBG("");
 
     if (cmd->connectable) {
-        current_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
+        current_settings |= BIT(BTP_GAP_SETTINGS_CONNECTABLE);
         adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     } else {
-        current_settings &= ~BIT(GAP_SETTINGS_CONNECTABLE);
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_CONNECTABLE);
         adv_params.conn_mode = BLE_GAP_CONN_MODE_NON;
     }
 
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_SET_CONNECTABLE, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_SET_CONNECTABLE, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
 }
 
@@ -309,59 +309,59 @@ static uint8_t ad_flags = BLE_HS_ADV_F_BREDR_UNSUP;
 static void
 set_discoverable(uint8_t *data, uint16_t len)
 {
-    const struct gap_set_discoverable_cmd *cmd = (void *) data;
-    struct gap_set_discoverable_rp rp;
+    const struct btp_gap_set_discoverable_cmd *cmd = (void *) data;
+    struct btp_gap_set_discoverable_rp        rp;
 
     SYS_LOG_DBG("");
 
     switch (cmd->discoverable) {
-    case GAP_NON_DISCOVERABLE:
+    case BTP_GAP_NON_DISCOVERABLE:
         ad_flags &= ~(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_DISC_LTD);
         adv_params.disc_mode = BLE_GAP_DISC_MODE_NON;
-        current_settings &= ~BIT(GAP_SETTINGS_DISCOVERABLE);
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
-    case GAP_GENERAL_DISCOVERABLE:
+    case BTP_GAP_GENERAL_DISCOVERABLE:
         ad_flags &= ~BLE_HS_ADV_F_DISC_LTD;
         ad_flags |= BLE_HS_ADV_F_DISC_GEN;
         adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-        current_settings |= BIT(GAP_SETTINGS_DISCOVERABLE);
+        current_settings |= BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
-    case GAP_LIMITED_DISCOVERABLE:
+    case BTP_GAP_LIMITED_DISCOVERABLE:
         ad_flags &= ~BLE_HS_ADV_F_DISC_GEN;
         ad_flags |= BLE_HS_ADV_F_DISC_LTD;
         adv_params.disc_mode = BLE_GAP_DISC_MODE_LTD;
-        current_settings |= BIT(GAP_SETTINGS_DISCOVERABLE);
+        current_settings |= BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
     default:
-        tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_DISCOVERABLE,
+        tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_SET_DISCOVERABLE,
                    CONTROLLER_INDEX, BTP_STATUS_FAILED);
         return;
     }
 
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_SET_DISCOVERABLE, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_SET_DISCOVERABLE, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
 }
 
 static void
 set_bondable(const uint8_t *data, uint16_t len)
 {
-    const struct gap_set_bondable_cmd *cmd = (void *) data;
-    struct gap_set_bondable_rp rp;
+    const struct btp_gap_set_bondable_cmd *cmd = (void *) data;
+    struct btp_gap_set_bondable_rp        rp;
 
     SYS_LOG_DBG("");
 
     ble_hs_cfg.sm_bonding = cmd->bondable;
     if (ble_hs_cfg.sm_bonding) {
-        current_settings |= BIT(GAP_SETTINGS_BONDABLE);
+        current_settings |= BIT(BTP_GAP_SETTINGS_BONDABLE);
     } else {
-        current_settings &= ~BIT(GAP_SETTINGS_BONDABLE);
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_BONDABLE);
     }
 
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_SET_BONDABLE, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_SET_BONDABLE, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
 }
 
@@ -391,9 +391,9 @@ set_ad(const struct bt_data *ad, size_t ad_len,
 static void
 start_advertising(const uint8_t *data, uint16_t len)
 {
-    const struct gap_start_advertising_cmd *cmd = (void *) data;
-    struct gap_start_advertising_rp rp;
-    int32_t duration_ms = BLE_HS_FOREVER;
+    const struct btp_gap_start_advertising_cmd *cmd = (void *) data;
+    struct btp_gap_start_advertising_rp        rp;
+    int32_t                                    duration_ms = BLE_HS_FOREVER;
     uint8_t buf[BLE_HS_ADV_MAX_SZ];
     uint8_t buf_len = 0;
     uint8_t adv_len, sd_len;
@@ -471,34 +471,34 @@ start_advertising(const uint8_t *data, uint16_t len)
         goto fail;
     }
 
-    current_settings |= BIT(GAP_SETTINGS_ADVERTISING);
+    current_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_START_ADVERTISING, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_START_ADVERTISING, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
     return;
 fail:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_START_ADVERTISING, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_START_ADVERTISING, CONTROLLER_INDEX,
                BTP_STATUS_FAILED);
 }
 
 static void
 stop_advertising(const uint8_t *data, uint16_t len)
 {
-    struct gap_stop_advertising_rp rp;
+    struct btp_gap_stop_advertising_rp rp;
 
     SYS_LOG_DBG("");
 
     if (ble_gap_adv_stop() != 0) {
-        tester_rsp(BTP_SERVICE_ID_GAP, GAP_STOP_ADVERTISING,
+        tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_STOP_ADVERTISING,
                    CONTROLLER_INDEX, BTP_STATUS_FAILED);
         return;
     }
 
-    current_settings &= ~BIT(GAP_SETTINGS_ADVERTISING);
+    current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_STOP_ADVERTISING, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_STOP_ADVERTISING, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
 }
 
@@ -537,7 +537,7 @@ static void
 store_adv(const ble_addr_t *addr, int8_t rssi,
           const uint8_t *data, uint8_t len)
 {
-    struct gap_device_found_ev *ev;
+    struct btp_gap_device_found_ev *ev;
 
     /* cleanup */
     net_buf_simple_init(adv_buf, 0);
@@ -547,7 +547,7 @@ store_adv(const ble_addr_t *addr, int8_t rssi,
     memcpy(ev->address, addr->val, sizeof(ev->address));
     ev->address_type = addr->type;
     ev->rssi = rssi;
-    ev->flags = GAP_DEVICE_FOUND_FLAG_AD | GAP_DEVICE_FOUND_FLAG_RSSI;
+    ev->flags = BTP_GAP_DEVICE_FOUND_FLAG_AD | BTP_GAP_DEVICE_FOUND_FLAG_RSSI;
     ev->eir_data_len = len;
     memcpy(net_buf_simple_add(adv_buf, len), data, len);
 }
@@ -556,11 +556,11 @@ static void
 device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
              const uint8_t *data, uint8_t len)
 {
-    struct gap_device_found_ev *ev;
-    ble_addr_t a;
+    struct btp_gap_device_found_ev *ev;
+    ble_addr_t                     a;
 
     /* if General/Limited Discovery - parse Advertising data to get flags */
-    if (!(discovery_flags & GAP_DISCOVERY_FLAG_LE_OBSERVE) &&
+    if (!(discovery_flags & BTP_GAP_DISCOVERY_FLAG_LE_OBSERVE) &&
         (evtype != BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP)) {
         uint8_t flags = get_ad_flags(data, len);
 
@@ -571,7 +571,7 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
         }
 
         /* if Limited Discovery - ignore general discoverable devices */
-        if ((discovery_flags & GAP_DISCOVERY_FLAG_LIMITED) &&
+        if ((discovery_flags & BTP_GAP_DISCOVERY_FLAG_LIMITED) &&
             !(flags & BLE_HS_ADV_F_DISC_LTD)) {
             SYS_LOG_DBG("General discoverable, skipping");
             return;
@@ -601,7 +601,7 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
         }
 
         ev->eir_data_len += len;
-        ev->flags |= GAP_DEVICE_FOUND_FLAG_SD;
+        ev->flags |= BTP_GAP_DEVICE_FOUND_FLAG_SD;
 
         memcpy(net_buf_simple_add(adv_buf, len), data, len);
 
@@ -613,7 +613,7 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
      * current one
      */
     if (adv_buf->om_len) {
-        tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_FOUND,
+        tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
                     CONTROLLER_INDEX, adv_buf->om_data,
                     adv_buf->om_len);
     }
@@ -621,14 +621,14 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
     store_adv(addr, rssi, data, len);
 
     /* if Active Scan and scannable event - wait for Scan Response */
-    if ((discovery_flags & GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN) &&
+    if ((discovery_flags & BTP_GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN) &&
         (evtype == BLE_HCI_ADV_RPT_EVTYPE_ADV_IND ||
          evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND)) {
         SYS_LOG_DBG("Waiting for scan response");
         return;
     }
 done:
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_FOUND,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
                 CONTROLLER_INDEX, adv_buf->om_data, adv_buf->om_len);
 }
 
@@ -647,20 +647,20 @@ discovery_cb(struct ble_gap_event *event, void *arg)
 static void
 start_discovery(const uint8_t *data, uint16_t len)
 {
-    const struct gap_start_discovery_cmd *cmd = (void *) data;
-    struct ble_gap_disc_params params = {0};
+    const struct btp_gap_start_discovery_cmd *cmd   = (void *) data;
+    struct ble_gap_disc_params               params = {0};
     uint8_t status;
 
     SYS_LOG_DBG("");
 
     /* only LE scan is supported */
-    if (cmd->flags & GAP_DISCOVERY_FLAG_BREDR) {
+    if (cmd->flags & BTP_GAP_DISCOVERY_FLAG_BREDR) {
         status = BTP_STATUS_FAILED;
         goto reply;
     }
 
-    params.passive = (cmd->flags & GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN) == 0;
-    params.limited = (cmd->flags & GAP_DISCOVERY_FLAG_LIMITED) > 0;
+    params.passive = (cmd->flags & BTP_GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN) == 0;
+    params.limited = (cmd->flags & BTP_GAP_DISCOVERY_FLAG_LIMITED) > 0;
     params.filter_duplicates = 1;
 
     if (ble_gap_disc(own_addr_type, BLE_HS_FOREVER,
@@ -674,7 +674,7 @@ start_discovery(const uint8_t *data, uint16_t len)
 
     status = BTP_STATUS_SUCCESS;
 reply:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_START_DISCOVERY, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_START_DISCOVERY, CONTROLLER_INDEX,
                status);
 }
 
@@ -689,7 +689,7 @@ stop_discovery(const uint8_t *data, uint16_t len)
         status = BTP_STATUS_FAILED;
     }
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_STOP_DISCOVERY, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_STOP_DISCOVERY, CONTROLLER_INDEX,
                status);
 }
 
@@ -728,12 +728,12 @@ device_connected_ev_send(struct os_event *ev)
 
     rc = gap_conn_find_by_addr((ble_addr_t *) &connected_ev, &desc);
     if (rc) {
-        tester_rsp(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+        tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
                    CONTROLLER_INDEX, BTP_STATUS_FAILED);
         return;
     }
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
                 CONTROLLER_INDEX, (uint8_t *) &connected_ev,
                 sizeof(connected_ev));
 
@@ -774,7 +774,7 @@ le_connected(uint16_t conn_handle, int status)
              os_time_ms_to_ticks32(
                  CONNECTED_EV_DELAY_MS(desc.conn_itvl)));
 #else
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
                 CONTROLLER_INDEX, (uint8_t *) &connected_ev,
                 sizeof(connected_ev));
 #endif
@@ -783,8 +783,8 @@ le_connected(uint16_t conn_handle, int status)
 static void
 le_disconnected(struct ble_gap_conn_desc *conn, int reason)
 {
-    struct gap_device_disconnected_ev ev;
-    ble_addr_t *addr = &conn->peer_ota_addr;
+    struct btp_gap_device_disconnected_ev ev;
+    ble_addr_t                            *addr = &conn->peer_ota_addr;
 
     SYS_LOG_DBG("");
 
@@ -818,7 +818,7 @@ le_disconnected(struct ble_gap_conn_desc *conn, int reason)
     memcpy(ev.address, addr->val, sizeof(ev.address));
     ev.address_type = addr->type;
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_DISCONNECTED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_DISCONNECTED,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
@@ -846,9 +846,9 @@ auth_passkey_oob(uint16_t conn_handle)
 static void
 auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
 {
-    struct ble_gap_conn_desc desc;
-    struct gap_passkey_display_ev ev;
-    ble_addr_t *addr;
+    struct ble_gap_conn_desc          desc;
+    struct btp_gap_passkey_display_ev ev;
+    ble_addr_t                        *addr;
     struct ble_sm_io pk;
     int rc;
 
@@ -874,16 +874,16 @@ auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
     ev.address_type = addr->type;
     ev.passkey = sys_cpu_to_le32(pk.passkey);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_DISPLAY,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_DISPLAY,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 auth_passkey_entry(uint16_t conn_handle)
 {
-    struct ble_gap_conn_desc desc;
-    struct gap_passkey_entry_req_ev ev;
-    ble_addr_t *addr;
+    struct ble_gap_conn_desc            desc;
+    struct btp_gap_passkey_entry_req_ev ev;
+    ble_addr_t                          *addr;
     int rc;
 
     SYS_LOG_DBG("");
@@ -898,16 +898,16 @@ auth_passkey_entry(uint16_t conn_handle)
     memcpy(ev.address, addr->val, sizeof(ev.address));
     ev.address_type = addr->type;
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_ENTRY_REQ,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_ENTRY_REQ,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 auth_passkey_numcmp(uint16_t conn_handle, unsigned int passkey)
 {
-    struct ble_gap_conn_desc desc;
-    struct gap_passkey_confirm_req_ev ev;
-    ble_addr_t *addr;
+    struct ble_gap_conn_desc              desc;
+    struct btp_gap_passkey_confirm_req_ev ev;
+    ble_addr_t                            *addr;
     int rc;
 
     SYS_LOG_DBG("");
@@ -923,7 +923,7 @@ auth_passkey_numcmp(uint16_t conn_handle, unsigned int passkey)
     ev.address_type = addr->type;
     ev.passkey = sys_cpu_to_le32(passkey);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_CONFIRM_REQ,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
@@ -984,9 +984,9 @@ le_passkey_action(uint16_t conn_handle,
 static void
 le_identity_resolved(uint16_t conn_handle)
 {
-    struct ble_gap_conn_desc desc;
-    struct gap_identity_resolved_ev ev;
-    int rc;
+    struct ble_gap_conn_desc            desc;
+    struct btp_gap_identity_resolved_ev ev;
+    int                                 rc;
 
     SYS_LOG_DBG("");
 
@@ -1005,16 +1005,16 @@ le_identity_resolved(uint16_t conn_handle)
     memcpy(ev.identity_address, desc.peer_id_addr.val,
            sizeof(ev.identity_address));
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_IDENTITY_RESOLVED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_IDENTITY_RESOLVED,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 le_pairing_failed(uint16_t conn_handle, int reason)
 {
-    struct ble_gap_conn_desc desc;
-    struct gap_sec_pairing_failed_ev ev;
-    int rc;
+    struct ble_gap_conn_desc             desc;
+    struct btp_gap_sec_pairing_failed_ev ev;
+    int                                  rc;
 
     SYS_LOG_DBG("");
 
@@ -1031,14 +1031,14 @@ le_pairing_failed(uint16_t conn_handle, int reason)
 
     ev.reason = reason;
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_SEC_PAIRING_FAILED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_PAIRING_FAILED,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 le_conn_param_update(struct ble_gap_conn_desc *desc)
 {
-    struct gap_conn_param_update_ev ev;
+    struct btp_gap_conn_param_update_ev ev;
 
     SYS_LOG_DBG("");
 
@@ -1049,14 +1049,14 @@ le_conn_param_update(struct ble_gap_conn_desc *desc)
     ev.conn_latency = desc->conn_latency;
     ev.supervision_timeout = desc->supervision_timeout;
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_CONN_PARAM_UPDATE,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_CONN_PARAM_UPDATE,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 le_encryption_changed(struct ble_gap_conn_desc *desc)
 {
-    struct gap_sec_level_changed_ev ev;
+    struct btp_gap_sec_level_changed_ev ev;
 
     SYS_LOG_DBG("");
 
@@ -1078,15 +1078,15 @@ le_encryption_changed(struct ble_gap_conn_desc *desc)
         }
     }
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_SEC_LEVEL_CHANGED,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_LEVEL_CHANGED,
                 CONTROLLER_INDEX, (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 bond_lost(uint16_t conn_handle)
 {
-    struct gap_bond_lost_ev ev;
-    struct ble_gap_conn_desc desc;
+    struct btp_gap_bond_lost_ev ev;
+    struct ble_gap_conn_desc    desc;
     int rc;
 
     rc = ble_gap_conn_find(conn_handle, &desc);
@@ -1095,7 +1095,7 @@ bond_lost(uint16_t conn_handle)
     memcpy(ev.address, &desc.peer_id_addr, sizeof(ev.address));
     ev.address_type = desc.peer_id_addr.type;
     tester_send(BTP_SERVICE_ID_GAP,
-                GAP_EV_BOND_LOST,
+                BTP_GAP_EV_BOND_LOST,
                 CONTROLLER_INDEX,
                 (uint8_t *) &ev,
                 sizeof(ev));
@@ -1166,12 +1166,12 @@ print_conn_desc(const struct ble_gap_conn_desc *desc)
 static void
 adv_complete(void)
 {
-    struct gap_new_settings_ev ev;
+    struct btp_gap_new_settings_ev ev;
 
-    current_settings &= ~BIT(GAP_SETTINGS_ADVERTISING);
+    current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
     ev.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_EV_NEW_SETTINGS, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_NEW_SETTINGS, CONTROLLER_INDEX,
                 (uint8_t *) &ev, sizeof(ev));
 }
 
@@ -1372,7 +1372,7 @@ connect(const uint8_t *data, uint16_t len)
         status = BTP_STATUS_FAILED;
     }
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONNECT, CONTROLLER_INDEX, status);
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_CONNECT, CONTROLLER_INDEX, status);
 }
 
 static void
@@ -1397,36 +1397,36 @@ disconnect(const uint8_t *data, uint16_t len)
     }
 
 rsp:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_DISCONNECT, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_DISCONNECT, CONTROLLER_INDEX,
                status);
 }
 
 static void
 set_io_cap(const uint8_t *data, uint16_t len)
 {
-    const struct gap_set_io_cap_cmd *cmd = (void *) data;
-    uint8_t status;
+    const struct btp_gap_set_io_cap_cmd *cmd = (void *) data;
+    uint8_t                             status;
 
     SYS_LOG_DBG("");
 
     switch (cmd->io_cap) {
-    case GAP_IO_CAP_DISPLAY_ONLY:
+    case BTP_GAP_IO_CAP_DISPLAY_ONLY:
         ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_ONLY;
         ble_hs_cfg.sm_mitm = 1;
         break;
-    case GAP_IO_CAP_KEYBOARD_DISPLAY:
+    case BTP_GAP_IO_CAP_KEYBOARD_DISPLAY:
         ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISP;
         ble_hs_cfg.sm_mitm = 1;
         break;
-    case GAP_IO_CAP_NO_INPUT_OUTPUT:
+    case BTP_GAP_IO_CAP_NO_INPUT_OUTPUT:
         ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
         ble_hs_cfg.sm_mitm = 0;
         break;
-    case GAP_IO_CAP_KEYBOARD_ONLY:
+    case BTP_GAP_IO_CAP_KEYBOARD_ONLY:
         ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_ONLY;
         ble_hs_cfg.sm_mitm = 1;
         break;
-    case GAP_IO_CAP_DISPLAY_YESNO:
+    case BTP_GAP_IO_CAP_DISPLAY_YESNO:
         ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_YES_NO;
         ble_hs_cfg.sm_mitm = 1;
         break;
@@ -1438,7 +1438,7 @@ set_io_cap(const uint8_t *data, uint16_t len)
     status = BTP_STATUS_SUCCESS;
 
 rsp:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_IO_CAP, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_SET_IO_CAP, CONTROLLER_INDEX,
                status);
 }
 
@@ -1466,7 +1466,7 @@ pair(const uint8_t *data, uint16_t len)
     status = BTP_STATUS_SUCCESS;
 
 rsp:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_PAIR, CONTROLLER_INDEX, status);
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_PAIR, CONTROLLER_INDEX, status);
 }
 
 static void
@@ -1479,14 +1479,14 @@ unpair(const uint8_t *data, uint16_t len)
 
     err = ble_gap_unpair((ble_addr_t *) data);
     status = (uint8_t) (err != 0 ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS);
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_UNPAIR, CONTROLLER_INDEX, status);
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_UNPAIR, CONTROLLER_INDEX, status);
 }
 
 static void
 passkey_entry(const uint8_t *data, uint16_t len)
 {
-    const struct gap_passkey_entry_cmd *cmd = (void *) data;
-    struct ble_gap_conn_desc desc;
+    const struct btp_gap_passkey_entry_cmd *cmd = (void *) data;
+    struct ble_gap_conn_desc               desc;
     struct ble_sm_io pk;
     uint8_t status;
     int rc;
@@ -1511,15 +1511,15 @@ passkey_entry(const uint8_t *data, uint16_t len)
     status = BTP_STATUS_SUCCESS;
 
 rsp:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_PASSKEY_ENTRY, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_PASSKEY_ENTRY, CONTROLLER_INDEX,
                status);
 }
 
 static void
 passkey_confirm(const uint8_t *data, uint16_t len)
 {
-    const struct gap_passkey_confirm_cmd *cmd = (void *) data;
-    struct ble_gap_conn_desc desc;
+    const struct btp_gap_passkey_confirm_cmd *cmd = (void *) data;
+    struct ble_gap_conn_desc                 desc;
     struct ble_sm_io pk;
     uint8_t status;
     int rc;
@@ -1545,16 +1545,16 @@ passkey_confirm(const uint8_t *data, uint16_t len)
     status = BTP_STATUS_SUCCESS;
 
 rsp:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_PASSKEY_CONFIRM, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_PASSKEY_CONFIRM, CONTROLLER_INDEX,
                status);
 }
 
 static void
 start_direct_adv(const uint8_t *data, uint16_t len)
 {
-    const struct gap_start_direct_adv_cmd *cmd = (void *) data;
-    struct gap_start_advertising_rp rp;
-    static struct ble_gap_adv_params adv_params = {
+    const struct btp_gap_start_direct_adv_cmd *cmd = (void *) data;
+    struct btp_gap_start_advertising_rp       rp;
+    static struct ble_gap_adv_params      adv_params = {
         .conn_mode = BLE_GAP_CONN_MODE_DIR,
     };
     int err;
@@ -1571,14 +1571,14 @@ start_direct_adv(const uint8_t *data, uint16_t len)
         goto fail;
     }
 
-    current_settings |= BIT(GAP_SETTINGS_ADVERTISING);
+    current_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
     rp.current_settings = sys_cpu_to_le32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
                 (uint8_t *) &rp, sizeof(rp));
     return;
 fail:
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_START_DIRECT_ADV, CONTROLLER_INDEX,
                BTP_STATUS_FAILED);
 }
 
@@ -1591,7 +1591,7 @@ conn_param_update_cb(uint16_t conn_handle, int status, void *arg)
 
 static int
 conn_param_update_slave(uint16_t conn_handle,
-                        const struct gap_conn_param_update_cmd *cmd)
+                        const struct btp_gap_conn_param_update_cmd *cmd)
 {
     int rc;
     struct ble_l2cap_sig_update_params params;
@@ -1612,7 +1612,7 @@ conn_param_update_slave(uint16_t conn_handle,
 
 static int
 conn_param_update_master(uint16_t conn_handle,
-                         const struct gap_conn_param_update_cmd *cmd)
+                         const struct btp_gap_conn_param_update_cmd *cmd)
 {
     int rc;
     struct ble_gap_upd_params params;
@@ -1668,69 +1668,69 @@ rsp:
 static void
 conn_param_update_async(const uint8_t *data, uint16_t len)
 {
-    const struct gap_conn_param_update_cmd *cmd = (void *) data;
+    const struct btp_gap_conn_param_update_cmd *cmd = (void *) data;
     update_params = *cmd;
 
     os_callout_reset(&update_params_co, 0);
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_CONN_PARAM_UPDATE, CONTROLLER_INDEX,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_CONN_PARAM_UPDATE, CONTROLLER_INDEX,
                BTP_STATUS_SUCCESS);
 }
 
 static void
 oob_legacy_set_data(const uint8_t *data, uint16_t len)
 {
-    const struct gap_oob_legacy_set_data_cmd *cmd = (void *) data;
+    const struct btp_gap_oob_legacy_set_data_cmd *cmd = (void *) data;
 
     ble_hs_cfg.sm_oob_data_flag = 1;
     memcpy(oob, cmd->oob_data, sizeof(oob));
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_OOB_LEGACY_SET_DATA,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_OOB_LEGACY_SET_DATA,
                CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
 static void
 oob_sc_get_local_data(const uint8_t *data, uint16_t len)
 {
-    struct gap_oob_sc_get_local_data_rp rp;
+    struct btp_gap_oob_sc_get_local_data_rp rp;
 
     memcpy(rp.r, oob_data_local.r, 16);
     memcpy(rp.c, oob_data_local.c, 16);
 
-    tester_send(BTP_SERVICE_ID_GAP, GAP_OOB_SC_GET_LOCAL_DATA,
+    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_OOB_SC_GET_LOCAL_DATA,
                 CONTROLLER_INDEX, (uint8_t *) &rp, sizeof(rp));
 }
 
 static void
 oob_sc_set_remote_data(const uint8_t *data, uint16_t len)
 {
-    const struct gap_oob_sc_set_remote_data_cmd *cmd = (void *) data;
+    const struct btp_gap_oob_sc_set_remote_data_cmd *cmd = (void *) data;
 
     ble_hs_cfg.sm_oob_data_flag = 1;
     memcpy(oob_data_remote.r, cmd->r, 16);
     memcpy(oob_data_remote.c, cmd->c, 16);
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_OOB_SC_SET_REMOTE_DATA,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_OOB_SC_SET_REMOTE_DATA,
                CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
 static void
 set_mitm(const uint8_t *data, uint16_t len)
 {
-    const struct gap_set_mitm_cmd *cmd = (void *) data;
+    const struct btp_gap_set_mitm_cmd *cmd = (void *) data;
 
     ble_hs_cfg.sm_mitm = cmd->mitm;
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_MITM,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_SET_MITM,
                CONTROLLER_INDEX, BTP_STATUS_SUCCESS);
 }
 
 static void
 set_filter_accept_list(const uint8_t *data, uint16_t len)
 {
-    uint8_t status = BTP_STATUS_SUCCESS;
-    struct gap_set_filter_accept_list_cmd *tmp =
-        (struct gap_set_filter_accept_list_cmd *) data;
+    uint8_t                                   status = BTP_STATUS_SUCCESS;
+    struct btp_gap_set_filter_accept_list_cmd *tmp   =
+        (struct btp_gap_set_filter_accept_list_cmd *) data;
 
     SYS_LOG_DBG("");
 
@@ -1743,7 +1743,7 @@ set_filter_accept_list(const uint8_t *data, uint16_t len)
         status = BTP_STATUS_FAILED;
     }
 
-    tester_rsp(BTP_SERVICE_ID_GAP, GAP_SET_FILTER_ACCEPT_LIST,
+    tester_rsp(BTP_SERVICE_ID_GAP, BTP_GAP_SET_FILTER_ACCEPT_LIST,
                CONTROLLER_INDEX, status);
 }
 
@@ -1752,8 +1752,8 @@ tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
                   uint16_t len)
 {
     switch (opcode) {
-    case GAP_READ_SUPPORTED_COMMANDS:
-    case GAP_READ_CONTROLLER_INDEX_LIST:
+    case BTP_GAP_READ_SUPPORTED_COMMANDS:
+    case BTP_GAP_READ_CONTROLLER_INDEX_LIST:
         if (index != BTP_INDEX_NONE) {
             tester_rsp(BTP_SERVICE_ID_GAP, opcode, index,
                        BTP_STATUS_FAILED);
@@ -1770,76 +1770,76 @@ tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
     }
 
     switch (opcode) {
-    case GAP_READ_SUPPORTED_COMMANDS:
+    case BTP_GAP_READ_SUPPORTED_COMMANDS:
         supported_commands(data, len);
         return;
-    case GAP_READ_CONTROLLER_INDEX_LIST:
+    case BTP_GAP_READ_CONTROLLER_INDEX_LIST:
         controller_index_list(data, len);
         return;
-    case GAP_READ_CONTROLLER_INFO:
+    case BTP_GAP_READ_CONTROLLER_INFO:
         controller_info(data, len);
         return;
-    case GAP_SET_CONNECTABLE:
+    case BTP_GAP_SET_CONNECTABLE:
         set_connectable(data, len);
         return;
-    case GAP_SET_DISCOVERABLE:
+    case BTP_GAP_SET_DISCOVERABLE:
         set_discoverable(data, len);
         return;
-    case GAP_SET_BONDABLE:
+    case BTP_GAP_SET_BONDABLE:
         set_bondable(data, len);
         return;
-    case GAP_START_ADVERTISING:
+    case BTP_GAP_START_ADVERTISING:
         start_advertising(data, len);
         return;
-    case GAP_STOP_ADVERTISING:
+    case BTP_GAP_STOP_ADVERTISING:
         stop_advertising(data, len);
         return;
-    case GAP_START_DISCOVERY:
+    case BTP_GAP_START_DISCOVERY:
         start_discovery(data, len);
         return;
-    case GAP_STOP_DISCOVERY:
+    case BTP_GAP_STOP_DISCOVERY:
         stop_discovery(data, len);
         return;
-    case GAP_CONNECT:
+    case BTP_GAP_CONNECT:
         connect(data, len);
         return;
-    case GAP_DISCONNECT:
+    case BTP_GAP_DISCONNECT:
         disconnect(data, len);
         return;
-    case GAP_SET_IO_CAP:
+    case BTP_GAP_SET_IO_CAP:
         set_io_cap(data, len);
         return;
-    case GAP_PAIR:
+    case BTP_GAP_PAIR:
         pair(data, len);
         return;
-    case GAP_UNPAIR:
+    case BTP_GAP_UNPAIR:
         unpair(data, len);
         return;
-    case GAP_PASSKEY_ENTRY:
+    case BTP_GAP_PASSKEY_ENTRY:
         passkey_entry(data, len);
         return;
-    case GAP_PASSKEY_CONFIRM:
+    case BTP_GAP_PASSKEY_CONFIRM:
         passkey_confirm(data, len);
         return;
-    case GAP_START_DIRECT_ADV:
+    case BTP_GAP_START_DIRECT_ADV:
         start_direct_adv(data, len);
         return;
-    case GAP_CONN_PARAM_UPDATE:
+    case BTP_GAP_CONN_PARAM_UPDATE:
         conn_param_update_async(data, len);
         return;
-    case GAP_OOB_LEGACY_SET_DATA:
+    case BTP_GAP_OOB_LEGACY_SET_DATA:
         oob_legacy_set_data(data, len);
         return;
-    case GAP_OOB_SC_GET_LOCAL_DATA:
+    case BTP_GAP_OOB_SC_GET_LOCAL_DATA:
         oob_sc_get_local_data(data, len);
         return;
-    case GAP_OOB_SC_SET_REMOTE_DATA:
+    case BTP_GAP_OOB_SC_SET_REMOTE_DATA:
         oob_sc_set_remote_data(data, len);
         return;
-    case GAP_SET_MITM:
+    case BTP_GAP_SET_MITM:
         set_mitm(data, len);
         return;
-    case GAP_SET_FILTER_ACCEPT_LIST:
+    case BTP_GAP_SET_FILTER_ACCEPT_LIST:
         set_filter_accept_list(data, len);
         return;
     default:
@@ -1853,14 +1853,14 @@ static void
 tester_init_gap_cb(int err)
 {
     if (err) {
-        tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE,
+        tester_rsp(BTP_SERVICE_ID_CORE, BTP_CORE_REGISTER_SERVICE,
                    BTP_INDEX_NONE, BTP_STATUS_FAILED);
         return;
     }
 
     current_settings = 0;
-    current_settings |= BIT(GAP_SETTINGS_POWERED);
-    current_settings |= BIT(GAP_SETTINGS_LE);
+    current_settings |= BIT(BTP_GAP_SETTINGS_POWERED);
+    current_settings |= BIT(BTP_GAP_SETTINGS_LE);
 
     os_callout_init(&update_params_co, os_eventq_dflt_get(),
                     conn_param_update, NULL);
@@ -1868,7 +1868,7 @@ tester_init_gap_cb(int err)
     os_callout_init(&connected_ev_co, os_eventq_dflt_get(),
                     device_connected_ev_send, NULL);
 
-    tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
+    tester_rsp(BTP_SERVICE_ID_CORE, BTP_CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
                BTP_STATUS_SUCCESS);
 }
 
