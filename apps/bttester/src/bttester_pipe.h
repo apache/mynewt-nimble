@@ -21,7 +21,7 @@
 #define __BTTESTER_PIPE_H__
 
 #include <stdlib.h>
-#include "bttester.h"
+#include "btp/bttester.h"
 
 #ifdef __cplusplus
 extern "C" {

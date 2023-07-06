@@ -33,7 +33,7 @@
 #include "console/console.h"
 
 #include "bttester_pipe.h"
-#include "bttester.h"
+#include "btp/btp.h"
 
 #define CMD_QUEUED 2
 
@@ -50,145 +50,6 @@ struct btp_buf {
 };
 
 static struct btp_buf cmd_buf[CMD_QUEUED];
-
-static void
-supported_commands(uint8_t *data, uint16_t len)
-{
-    uint8_t buf[1];
-    struct core_read_supported_commands_rp *rp = (void *) buf;
-
-    memset(buf, 0, sizeof(buf));
-
-    tester_set_bit(buf, CORE_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(buf, CORE_READ_SUPPORTED_SERVICES);
-    tester_set_bit(buf, CORE_REGISTER_SERVICE);
-    tester_set_bit(buf, CORE_UNREGISTER_SERVICE);
-
-    tester_send(BTP_SERVICE_ID_CORE, CORE_READ_SUPPORTED_COMMANDS,
-                BTP_INDEX_NONE, (uint8_t *) rp, sizeof(buf));
-}
-
-static void
-supported_services(uint8_t *data, uint16_t len)
-{
-    uint8_t buf[1];
-    struct core_read_supported_services_rp *rp = (void *) buf;
-
-    memset(buf, 0, sizeof(buf));
-
-    tester_set_bit(buf, BTP_SERVICE_ID_CORE);
-    tester_set_bit(buf, BTP_SERVICE_ID_GAP);
-    tester_set_bit(buf, BTP_SERVICE_ID_GATT);
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-    tester_set_bit(buf, BTP_SERVICE_ID_L2CAP);
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
-#if MYNEWT_VAL(BLE_MESH)
-    tester_set_bit(buf, BTP_SERVICE_ID_MESH);
-#endif /* MYNEWT_VAL(BLE_MESH) */
-    tester_set_bit(buf, BTP_SERVICE_ID_GATTC);
-
-    tester_send(BTP_SERVICE_ID_CORE, CORE_READ_SUPPORTED_SERVICES,
-                BTP_INDEX_NONE, (uint8_t *) rp, sizeof(buf));
-}
-
-static void
-register_service(uint8_t *data, uint16_t len)
-{
-    struct core_register_service_cmd *cmd = (void *) data;
-    uint8_t status;
-
-    switch (cmd->id) {
-    case BTP_SERVICE_ID_GAP:
-        status = tester_init_gap();
-        /* Rsp with success status will be handled by bt enable cb */
-        if (status == BTP_STATUS_FAILED) {
-            goto rsp;
-        }
-        return;
-    case BTP_SERVICE_ID_GATT:
-        status = tester_init_gatt();
-        break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-    case BTP_SERVICE_ID_L2CAP:
-        status = tester_init_l2cap();
-        break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
-#if MYNEWT_VAL(BLE_MESH)
-    case BTP_SERVICE_ID_MESH:
-        status = tester_init_mesh();
-        break;
-#endif /* MYNEWT_VAL(BLE_MESH) */
-    default:
-        status = BTP_STATUS_FAILED;
-        break;
-    }
-
-rsp:
-    tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
-               status);
-}
-
-static void
-unregister_service(uint8_t *data, uint16_t len)
-{
-    struct core_unregister_service_cmd *cmd = (void *) data;
-    uint8_t status;
-
-    switch (cmd->id) {
-    case BTP_SERVICE_ID_GAP:
-        status = tester_unregister_gap();
-        break;
-    case BTP_SERVICE_ID_GATT:
-        status = tester_unregister_gatt();
-        break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-    case BTP_SERVICE_ID_L2CAP:
-        status = tester_unregister_l2cap();
-        break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
-#if MYNEWT_VAL(BLE_MESH)
-    case BTP_SERVICE_ID_MESH:
-        status = tester_unregister_mesh();
-        break;
-#endif /* MYNEWT_VAL(BLE_MESH) */
-    default:
-        status = BTP_STATUS_FAILED;
-        break;
-    }
-
-    tester_rsp(BTP_SERVICE_ID_CORE, CORE_UNREGISTER_SERVICE, BTP_INDEX_NONE,
-               status);
-}
-
-static void
-handle_core(uint8_t opcode, uint8_t index, uint8_t *data,
-            uint16_t len)
-{
-    if (index != BTP_INDEX_NONE) {
-        tester_rsp(BTP_SERVICE_ID_CORE, opcode, index,
-                   BTP_STATUS_FAILED);
-        return;
-    }
-
-    switch (opcode) {
-    case CORE_READ_SUPPORTED_COMMANDS:
-        supported_commands(data, len);
-        return;
-    case CORE_READ_SUPPORTED_SERVICES:
-        supported_services(data, len);
-        return;
-    case CORE_REGISTER_SERVICE:
-        register_service(data, len);
-        return;
-    case CORE_UNREGISTER_SERVICE:
-        unregister_service(data, len);
-        return;
-    default:
-        tester_rsp(BTP_SERVICE_ID_CORE, opcode, BTP_INDEX_NONE,
-                   BTP_STATUS_UNKNOWN_CMD);
-        return;
-    }
-}
 
 static void
 cmd_handler(struct os_event *ev)
@@ -216,7 +77,7 @@ cmd_handler(struct os_event *ev)
 
     switch (cmd->hdr.service) {
     case BTP_SERVICE_ID_CORE:
-        handle_core(cmd->hdr.opcode, cmd->hdr.index,
+        tester_handle_core(cmd->hdr.opcode, cmd->hdr.index,
                     cmd->hdr.data, len);
         break;
     case BTP_SERVICE_ID_GAP:
@@ -330,7 +191,7 @@ tester_init(void)
 
     bttester_pipe_register(buf->data, BTP_MTU, recv_cb);
 
-    tester_send(BTP_SERVICE_ID_CORE, CORE_EV_IUT_READY, BTP_INDEX_NONE,
+    tester_send(BTP_SERVICE_ID_CORE, BTP_CORE_EV_IUT_READY, BTP_INDEX_NONE,
                 NULL, 0);
 }
 
