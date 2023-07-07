@@ -111,8 +111,8 @@ int main(int argc, char *argv[])
 
     printf("hci_sock task init\n");
     ret = ble_npl_task_init(&s_task_hci, "hci_sock", ble_hci_sock_task,
-                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
-                      TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
+                            NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
+                            TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
     if (ret != 0)
       {
@@ -122,8 +122,8 @@ int main(int argc, char *argv[])
     /* Create task which handles default event queue for host stack. */
     printf("ble_host task init\n");
     ret = ble_npl_task_init(&s_task_host, "ble_host", ble_host_task,
-                      NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
-                      TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
+                            NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
+                            TASK_DEFAULT_STACK, TASK_DEFAULT_STACK_SIZE);
 
 
     if (ret != 0)
