@@ -91,6 +91,7 @@ ble_npl_callout_init(struct ble_npl_callout *c,
         pthread_attr_init(&attr);
         pthread_attr_setstacksize(&attr, CONFIG_NIMBLE_CALLOUT_THREAD_STACKSIZE);
         pthread_create(&callout_thread, &attr, callout_handler, NULL);
+        pthread_setname_np(callout_thread, "ble_npl_callout");
         thread_started = true;
     }
 

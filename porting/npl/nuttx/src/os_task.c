@@ -77,6 +77,10 @@ ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_func_t 
       {
         err = OS_ENOMEM;
       }
+    else
+      {
+        pthread_setname_np(t->handle, t->name);
+      }
 
     return err;
 }
