@@ -36,6 +36,7 @@
 #else
 #include "glue.h"
 #endif
+#include <sys/types.h>
 
 static inline void
 tester_set_bit(uint8_t *addr, unsigned int bit)
@@ -57,10 +58,21 @@ tester_test_bit(const uint8_t *addr, unsigned int bit)
 void
 tester_init(void);
 void
-tester_rsp(uint8_t service, uint8_t opcode, uint8_t index, uint8_t status);
+tester_rsp(uint8_t service, uint8_t opcode, uint8_t status);
 void
-tester_send(uint8_t service, uint8_t opcode, uint8_t index, uint8_t *data,
-            size_t len);
+tester_send(uint8_t service, uint8_t opcode, uint8_t *data, size_t len);
+
+struct btp_handler {
+    uint8_t opcode;
+    uint8_t index;
+    ssize_t expect_len;
+    uint8_t (*func)(const void *cmd, uint16_t cmd_len,
+                    void *rsp, uint16_t *rsp_len);
+};
+
+void tester_register_command_handlers(uint8_t service,
+                                      const struct btp_handler *handlers,
+                                      size_t num);
 void
 tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index,
                 struct os_mbuf *buf);
@@ -70,20 +82,16 @@ tester_init_gap(void);
 uint8_t
 tester_unregister_gap(void);
 void
-tester_handle_gap(uint8_t opcode, uint8_t index, uint8_t *data,
-                  uint16_t len);
-void
-tester_handle_core(uint8_t opcode, uint8_t index, uint8_t *data,
-                   uint16_t len);
+tester_init_core(void);
 uint8_t
 tester_init_gatt(void);
 uint8_t
 tester_unregister_gatt(void);
 void
-tester_handle_gatt(uint8_t opcode, uint8_t index, uint8_t *data,
+tester_handle_gatt(uint8_t opcode, uint8_t *data,
                    uint16_t len);
 void
-tester_handle_gattc(uint8_t opcode, uint8_t index, uint8_t *data,
+tester_handle_gattc(uint8_t opcode, uint8_t *data,
                     uint16_t len);
 int
 tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
@@ -103,7 +111,7 @@ tester_init_l2cap(void);
 uint8_t
 tester_unregister_l2cap(void);
 void
-tester_handle_l2cap(uint8_t opcode, uint8_t index, uint8_t *data,
+tester_handle_l2cap(uint8_t opcode, uint8_t *data,
                     uint16_t len);
 #endif
 
@@ -113,7 +121,7 @@ tester_init_mesh(void);
 uint8_t
 tester_unregister_mesh(void);
 void
-tester_handle_mesh(uint8_t opcode, uint8_t index, uint8_t *data, uint16_t len);
+tester_handle_mesh(uint8_t opcode, uint8_t *data, uint16_t len);
 #endif /* MYNEWT_VAL(BLE_MESH) */
 
 void

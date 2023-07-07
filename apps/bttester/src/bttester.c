@@ -47,15 +47,60 @@ struct btp_buf {
         uint8_t data[BTP_MTU];
         struct btp_hdr hdr;
     };
+    uint8_t rsp[BTP_MTU];
 };
 
 static struct btp_buf cmd_buf[CMD_QUEUED];
 
+static struct {
+    const struct btp_handler *handlers;
+    uint8_t num;
+} service_handler[BTP_SERVICE_ID_MAX + 1];
+
+static void
+tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
+                       uint8_t *data, size_t len);
+static void
+tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
+                      uint8_t status);
+
+void
+tester_register_command_handlers(uint8_t service,
+                                 const struct btp_handler *handlers,
+                                 size_t num)
+{
+    __ASSERT_NO_MSG(service <= BTP_SERVICE_ID_MAX);
+    __ASSERT_NO_MSG(service_handler[service].handlers == NULL);
+
+    service_handler[service].handlers = handlers;
+    service_handler[service].num = num;
+}
+
+static const struct btp_handler *
+find_btp_handler(uint8_t service, uint8_t opcode)
+{
+    if ((service > BTP_SERVICE_ID_MAX) ||
+        (service_handler[service].handlers == NULL)) {
+        return NULL;
+    }
+
+    for (uint8_t i = 0; i < service_handler[service].num; i++) {
+        if (service_handler[service].handlers[i].opcode == opcode) {
+            return &service_handler[service].handlers[i];
+        }
+    }
+
+    return NULL;
+}
+
 static void
 cmd_handler(struct os_event *ev)
 {
+    const struct btp_handler *btp;
     uint16_t len;
     struct btp_buf *cmd;
+    uint8_t status;
+    uint16_t rsp_len = 0;
 
     if (!ev || !ev->ev_arg) {
         return;
@@ -71,43 +116,30 @@ cmd_handler(struct os_event *ev)
                               sizeof(cmd->hdr) + len));
     }
 
-    /* TODO
-     * verify if service is registered before calling handler
-     */
+    btp = find_btp_handler(cmd->hdr.service, cmd->hdr.opcode);
+    if (btp) {
+        if (btp->index != cmd->hdr.index) {
+            status = BTP_STATUS_FAILED;
+        } else if ((btp->expect_len >= 0) && (btp->expect_len != len)) {
+            status = BTP_STATUS_FAILED;
+        } else {
+            status = btp->func(cmd->hdr.data, len,
+                               cmd->rsp, &rsp_len);
+        }
 
-    switch (cmd->hdr.service) {
-    case BTP_SERVICE_ID_CORE:
-        tester_handle_core(cmd->hdr.opcode, cmd->hdr.index,
-                    cmd->hdr.data, len);
-        break;
-    case BTP_SERVICE_ID_GAP:
-        tester_handle_gap(cmd->hdr.opcode, cmd->hdr.index,
-                          cmd->hdr.data, len);
-        break;
-    case BTP_SERVICE_ID_GATT:
-        tester_handle_gatt(cmd->hdr.opcode, cmd->hdr.index,
-                           cmd->hdr.data, len);
-        break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-    case BTP_SERVICE_ID_L2CAP:
-        tester_handle_l2cap(cmd->hdr.opcode, cmd->hdr.index,
-                            cmd->hdr.data, len);
-        break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
-#if MYNEWT_VAL(BLE_MESH)
-    case BTP_SERVICE_ID_MESH:
-        tester_handle_mesh(cmd->hdr.opcode, cmd->hdr.index,
-                           cmd->hdr.data, len);
-        break;
-#endif /* MYNEWT_VAL(BLE_MESH) */
-    case BTP_SERVICE_ID_GATTC:
-        tester_handle_gattc(cmd->hdr.opcode, cmd->hdr.index,
-                            cmd->hdr.data, len);
-        break;
-    default:
-        tester_rsp(cmd->hdr.service, cmd->hdr.opcode,
-                   cmd->hdr.index, BTP_STATUS_FAILED);
-        break;
+        __ASSERT_NO_MSG((rsp_len + sizeof(struct btp_hdr)) <= BTP_MTU);
+    } else {
+        status = BTP_STATUS_UNKNOWN_CMD;
+    }
+
+    if (status != BTP_STATUS_DELAY_REPLY) {
+        if ((status == BTP_STATUS_SUCCESS) && rsp_len > 0) {
+            tester_send_with_index(cmd->hdr.service, cmd->hdr.opcode,
+                                   cmd->hdr.index, cmd->rsp, rsp_len);
+        } else {
+            tester_rsp_with_index(cmd->hdr.service, cmd->hdr.opcode,
+                                  cmd->hdr.index, status);
+        }
     }
 
     os_eventq_put(&avail_queue, ev);
@@ -191,20 +223,23 @@ tester_init(void)
 
     bttester_pipe_register(buf->data, BTP_MTU, recv_cb);
 
-    tester_send(BTP_SERVICE_ID_CORE, BTP_CORE_EV_IUT_READY, BTP_INDEX_NONE,
-                NULL, 0);
+    /* core service is always available */
+    tester_init_core();
+
+    tester_send_with_index(BTP_SERVICE_ID_CORE, BTP_CORE_EV_IUT_READY,
+                           BTP_INDEX_NONE, NULL, 0);
 }
 
-void
-tester_send(uint8_t service, uint8_t opcode, uint8_t index, uint8_t *data,
-            size_t len)
+static void
+tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
+                       uint8_t *data, size_t len)
 {
     struct btp_hdr msg;
 
     msg.service = service;
     msg.opcode = opcode;
     msg.index = index;
-    msg.len = len;
+    msg.len = sys_cpu_to_le16(len);
 
     bttester_pipe_send((uint8_t *) &msg, sizeof(msg));
     if (data && len) {
@@ -238,16 +273,29 @@ tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index,
     }
 }
 
-void
-tester_rsp(uint8_t service, uint8_t opcode, uint8_t index, uint8_t status)
+static void
+tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
+                      uint8_t status)
 {
     struct btp_status s;
 
     if (status == BTP_STATUS_SUCCESS) {
-        tester_send(service, opcode, index, NULL, 0);
+        tester_send_with_index(service, opcode, index, NULL, 0);
         return;
     }
 
     s.code = status;
-    tester_send(service, BTP_STATUS, index, (uint8_t *) &s, sizeof(s));
+    tester_send_with_index(service, BTP_STATUS, index, (uint8_t *) &s, sizeof(s));
+}
+
+void
+tester_send(uint8_t service, uint8_t opcode, uint8_t *data, size_t len)
+{
+    tester_send_with_index(service, opcode, BTP_INDEX, data, len);
+}
+
+void
+tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
+{
+    tester_rsp_with_index(service, opcode, BTP_INDEX, status);
 }
