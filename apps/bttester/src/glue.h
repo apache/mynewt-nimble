@@ -67,4 +67,23 @@ net_buf_simple_push(struct os_mbuf *om, uint8_t len);
 const char *
 bt_hex(const void *buf, size_t len);
 
+/**
+ * INTERNAL_HIDDEN @endcond
+ */
+
+/**
+ * @brief Define an array of atomic variables.
+ *
+ * This macro defines an array of atomic variables containing at least
+ * @a num_bits bits.
+ *
+ * @note
+ * If used from file scope, the bits of the array are initialized to zero;
+ * if used from within a function, the bits are left uninitialized.
+ *
+ * @param name Name of array of atomic variables.
+ * @param num_bits Number of bits needed.
+ */
+#define ATOMIC_DEFINE(name, num_bits) \
+	atomic_t name[1 + ((num_bits) - 1) / ATOMIC_BITS]
 #endif /* __GLUE_H__ */
