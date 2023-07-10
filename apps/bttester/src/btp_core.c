@@ -26,9 +26,8 @@
  */
 
 #include "btp/btp.h"
-#include "atomic.h"
 
-static ATOMIC_DEFINE(registered_services, BTP_SERVICE_ID_MAX);
+static uint8_t registered_services[((BTP_SERVICE_ID_MAX - 1) / 8) + 1];
 
 static uint8_t
 supported_commands(const void *cmd, uint16_t cmd_len,
@@ -82,7 +81,7 @@ register_service(const void *cmd, uint16_t cmd_len,
     }
 
     /* already registered */
-    if (atomic_test_bit(registered_services, cp->id)) {
+    if (tester_test_bit(registered_services, cp->id)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -109,7 +108,7 @@ register_service(const void *cmd, uint16_t cmd_len,
     }
 
     if (status == BTP_STATUS_SUCCESS) {
-        atomic_set_bit(registered_services, cp->id);
+        tester_set_bit(registered_services, cp->id);
     }
 
     return status;
@@ -128,7 +127,7 @@ unregister_service(const void *cmd, uint16_t cmd_len,
     }
 
     /* not registered */
-    if (!atomic_test_bit(registered_services, cp->id)) {
+    if (!tester_test_bit(registered_services, cp->id)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -155,7 +154,7 @@ unregister_service(const void *cmd, uint16_t cmd_len,
     }
 
     if (status == BTP_STATUS_SUCCESS) {
-        atomic_clear_bit(registered_services, cp->id);
+        tester_clear_bit(registered_services, cp->id);
     }
 
     return status;
@@ -193,5 +192,5 @@ tester_init_core(void)
 {
     tester_register_command_handlers(BTP_SERVICE_ID_CORE, handlers,
                                      ARRAY_SIZE(handlers));
-    atomic_set_bit(registered_services, BTP_SERVICE_ID_CORE);
+    tester_set_bit(registered_services, BTP_SERVICE_ID_CORE);
 }
