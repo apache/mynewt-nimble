@@ -26,6 +26,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "nimble/ble.h"
+
+struct adv_data {
+    uint8_t type;
+    uint8_t data_len;
+    const uint8_t *data;
+};
+
+#define ADV_DATA(_type, _data, _data_len) \
+    { \
+        .type = (_type), \
+        .data_len = (_data_len), \
+        .data = (const uint8_t *)(_data), \
+    }
+
 /* GAP Service */
 /* commands */
 #define BTP_GAP_READ_SUPPORTED_COMMANDS    0x01

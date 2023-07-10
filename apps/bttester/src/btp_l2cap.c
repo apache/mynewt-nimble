@@ -421,7 +421,7 @@ connect(uint8_t *data, uint16_t len)
 
     SYS_LOG_DBG("connect: type: %d addr: %s",
                 addr->type,
-                bt_hex(addr->val, 6));
+                string_from_bytes(addr->val, 6));
 
     if (mtu == 0 || mtu > TESTER_COC_MTU) {
         mtu = TESTER_COC_MTU;
@@ -523,7 +523,7 @@ send_data(const uint8_t *data, uint16_t len)
     const struct btp_l2cap_send_data_cmd *cmd = (void *) data;
     struct os_mbuf *sdu_tx = NULL;
     int rc;
-    uint16_t data_len = sys_le16_to_cpu(cmd->data_len);
+    uint16_t data_len = le16toh(cmd->data_len);
     struct channel *chan = get_channel(cmd->chan_id);
 
     SYS_LOG_DBG("cmd->chan_id=%d", cmd->chan_id);
@@ -567,7 +567,7 @@ static void
 listen(const uint8_t *data, uint16_t len)
 {
     const struct btp_l2cap_listen_cmd *cmd = (void *) data;
-    uint16_t                          mtu  = htole16(cmd->mtu);
+    uint16_t mtu = htole16(cmd->mtu);
     int rc;
 
     SYS_LOG_DBG("");
@@ -625,7 +625,7 @@ static void
 reconfigure(const uint8_t *data, uint16_t len)
 {
     const struct btp_l2cap_reconfigure_cmd *cmd = (void *) data;
-    uint16_t                               mtu  = htole16(cmd->mtu);
+    uint16_t mtu = htole16(cmd->mtu);
     struct ble_gap_conn_desc desc;
     ble_addr_t *addr = (void *) data;
     struct ble_l2cap_chan *chans[cmd->num];

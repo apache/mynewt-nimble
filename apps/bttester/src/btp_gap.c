@@ -35,6 +35,8 @@
 
 #include "btp/btp.h"
 
+#include <errno.h>
+
 #define CONTROLLER_INDEX 0
 #define CONTROLLER_NAME "btp_tester"
 
@@ -235,8 +237,8 @@ controller_info(const void *cmd, uint16_t cmd_len,
         current_settings |= BIT(BTP_GAP_SETTINGS_SC);
     }
 
-    rp->supported_settings = sys_cpu_to_le32(supported_settings);
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->supported_settings = htole32(supported_settings);
+    rp->current_settings = htole32(current_settings);
 
     memcpy(rp->name, CONTROLLER_NAME, sizeof(CONTROLLER_NAME));
 
@@ -299,7 +301,7 @@ set_connectable(const void *cmd, uint16_t cmd_len,
         adv_params.conn_mode = BLE_GAP_CONN_MODE_NON;
     }
 
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
 
     *rsp_len = sizeof(*rp);
 
@@ -339,7 +341,7 @@ set_discoverable(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
 
     *rsp_len = sizeof(*rp);
 
@@ -362,18 +364,18 @@ set_bondable(const void *cmd, uint16_t cmd_len,
         current_settings &= ~BIT(BTP_GAP_SETTINGS_BONDABLE);
     }
 
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
     *rsp_len = sizeof(*rp);
     return BTP_STATUS_SUCCESS;
 }
 
-static struct bt_data ad[10] = {
-    BT_DATA(BLE_HS_ADV_TYPE_FLAGS, &ad_flags, sizeof(ad_flags)),
+static struct adv_data ad[10] = {
+    ADV_DATA(BLE_HS_ADV_TYPE_FLAGS, &ad_flags, sizeof(ad_flags)),
 };
-static struct bt_data sd[10];
+static struct adv_data sd[10];
 
 static int
-set_ad(const struct bt_data *ad_data, size_t ad_len,
+set_ad(const struct adv_data *ad_data, size_t ad_len,
        uint8_t *buf, uint8_t *buf_len)
 {
     int i;
@@ -519,7 +521,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     }
 
     current_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
 
     *rsp_len = sizeof(*rp);
 
@@ -541,7 +543,7 @@ stop_advertising(const void *cmd, uint16_t cmd_len,
     }
 
     current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
 
     *rsp_len = sizeof(*rp);
 
@@ -584,18 +586,27 @@ store_adv(const ble_addr_t *addr, int8_t rssi,
           const uint8_t *data, uint8_t len)
 {
     struct btp_gap_device_found_ev *ev;
-
+    void *adv_data;
     /* cleanup */
-    net_buf_simple_init(adv_buf, 0);
+    tester_mbuf_reset(adv_buf);
 
-    ev = net_buf_simple_add(adv_buf, sizeof(*ev));
+    ev = os_mbuf_extend(adv_buf, sizeof(*ev));
+    if (!ev) {
+        return;
+    }
 
     memcpy(ev->address, addr->val, sizeof(ev->address));
     ev->address_type = addr->type;
     ev->rssi = rssi;
     ev->flags = BTP_GAP_DEVICE_FOUND_FLAG_AD | BTP_GAP_DEVICE_FOUND_FLAG_RSSI;
     ev->eir_data_len = len;
-    memcpy(net_buf_simple_add(adv_buf, len), data, len);
+
+    adv_data = os_mbuf_extend(adv_buf, len);
+    if (!adv_data) {
+        return;
+    }
+
+    memcpy(adv_data, data, len);
 }
 
 static void
@@ -603,6 +614,7 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
              const uint8_t *data, uint8_t len)
 {
     struct btp_gap_device_found_ev *ev;
+    void *adv_data;
     ble_addr_t a;
 
     /* if General/Limited Discovery - parse Advertising data to get flags */
@@ -649,7 +661,12 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
         ev->eir_data_len += len;
         ev->flags |= BTP_GAP_DEVICE_FOUND_FLAG_SD;
 
-        memcpy(net_buf_simple_add(adv_buf, len), data, len);
+        adv_data = os_mbuf_extend(adv_buf, len);
+        if (!adv_data) {
+            return;
+        }
+
+        memcpy(adv_data, data, len);
 
         goto done;
     }
@@ -712,7 +729,7 @@ start_discovery(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    net_buf_simple_init(adv_buf, 0);
+    tester_mbuf_reset(adv_buf);
     discovery_flags = cp->flags;
 
     return BTP_STATUS_SUCCESS;
@@ -910,7 +927,7 @@ auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
 
     memcpy(ev.address, addr->val, sizeof(ev.address));
     ev.address_type = addr->type;
-    ev.passkey = sys_cpu_to_le32(pk.passkey);
+    ev.passkey = htole32(pk.passkey);
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_DISPLAY,
                 (uint8_t *) &ev, sizeof(ev));
@@ -959,7 +976,7 @@ auth_passkey_numcmp(uint16_t conn_handle, unsigned int passkey)
 
     memcpy(ev.address, addr->val, sizeof(ev.address));
     ev.address_type = addr->type;
-    ev.passkey = sys_cpu_to_le32(passkey);
+    ev.passkey = htole32(passkey);
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
                 (uint8_t *) &ev, sizeof(ev));
@@ -1206,7 +1223,7 @@ adv_complete(void)
     struct btp_gap_new_settings_ev ev;
 
     current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
-    ev.current_settings = sys_cpu_to_le32(current_settings);
+    ev.current_settings = htole32(current_settings);
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_NEW_SETTINGS,
                 (uint8_t *) &ev, sizeof(ev));
@@ -1525,7 +1542,7 @@ passkey_entry(const void *cmd, uint16_t cmd_len,
     }
 
     pk.action = BLE_SM_IOACT_INPUT;
-    pk.passkey = sys_le32_to_cpu(cp->passkey);
+    pk.passkey = le32toh(cp->passkey);
 
     rc = ble_sm_inject_io(desc.conn_handle, &pk);
     if (rc) {
@@ -1587,7 +1604,7 @@ start_direct_adv(const void *cmd, uint16_t cmd_len,
     }
 
     current_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
-    rp->current_settings = sys_cpu_to_le32(current_settings);
+    rp->current_settings = htole32(current_settings);
 
     *rsp_len = sizeof(*rp);
 
@@ -1920,7 +1937,8 @@ tester_init_gap(void)
     os_callout_init(&bttester_nrpa_rotate_timer, os_eventq_dflt_get(),
                     rotate_nrpa_cb, NULL);
 #endif
-    adv_buf = NET_BUF_SIMPLE(ADV_BUF_LEN);
+    adv_buf = os_msys_get(ADV_BUF_LEN, 0);
+    assert(adv_buf);
 
     tester_init_gap_cb();
 
