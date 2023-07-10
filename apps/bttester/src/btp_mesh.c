@@ -318,8 +318,8 @@ output_number(bt_mesh_output_action_t action, uint32_t number)
 
     SYS_LOG_DBG("action 0x%04x number 0x%08lx", action, number);
 
-    ev.action = sys_cpu_to_le16(action);
-    ev.number = sys_cpu_to_le32(number);
+    ev.action = htole16(action);
+    ev.number = htole32(number);
 
     tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_OUT_NUMBER_ACTION,
                 (uint8_t *) &ev, sizeof(ev));
@@ -358,7 +358,7 @@ input(bt_mesh_input_action_t action, uint8_t size)
 
     input_size = size;
 
-    ev.action = sys_cpu_to_le16(action);
+    ev.action = htole16(action);
     ev.size = size;
 
     tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_IN_ACTION,
@@ -441,7 +441,7 @@ provision_node(uint8_t *data, uint16_t len)
 
     addr = sys_le16_to_cpu(cmd->addr);
     flags = cmd->flags;
-    iv_index = sys_le32_to_cpu(cmd->iv_index);
+    iv_index = le32toh(cmd->iv_index);
     net_key_idx = sys_le16_to_cpu(cmd->net_key_idx);
 
     tester_rsp(BTP_SERVICE_ID_MESH, BTP_MESH_PROVISION_NODE,
@@ -499,7 +499,7 @@ input_number(uint8_t *data, uint16_t len)
     uint32_t number;
     int err;
 
-    number = sys_le32_to_cpu(cmd->number);
+    number = le32toh(cmd->number);
 
     SYS_LOG_DBG("number 0x%04lx", number);
 
@@ -896,8 +896,8 @@ net_recv_ev(uint8_t ttl,
     ev = net_buf_simple_add(buf, sizeof(*ev));
     ev->ttl = ttl;
     ev->ctl = ctl;
-    ev->src = sys_cpu_to_le16(src);
-    ev->dst = sys_cpu_to_le16(dst);
+    ev->src = htole16(src);
+    ev->dst = htole16(dst);
     ev->payload_len = payload_len;
     net_buf_simple_add_mem(buf, payload, payload_len);
 

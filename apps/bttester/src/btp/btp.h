@@ -34,12 +34,6 @@
 #include "btp_l2cap.h"
 #include "btp_mesh.h"
 
-#if MYNEWT_VAL(BLE_MESH)
-#include "mesh/glue.h"
-#else
-#include "../glue.h"
-#endif
-
 #define BTP_MTU MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 #define BTP_DATA_MAX_SIZE (BTP_MTU - sizeof(struct btp_hdr))
 
@@ -77,10 +71,6 @@
 
 #define SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
 #define SYS_LOG_DOMAIN "bttester"
-
-#define sys_cpu_to_le32 htole32
-#define sys_le32_to_cpu le32toh
-#define sys_cpu_to_le16 htole16
 
 struct btp_hdr {
     uint8_t service;

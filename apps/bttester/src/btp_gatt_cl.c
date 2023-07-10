@@ -44,7 +44,7 @@ btp2bt_uuid(const uint8_t *uuid, uint8_t len,
     case 0x02: /* UUID 16 */
         bt_uuid->u.type = BLE_UUID_TYPE_16;
         memcpy(&le16, uuid, sizeof(le16));
-        BLE_UUID16(bt_uuid)->value = sys_le16_to_cpu(le16);
+        BLE_UUID16(bt_uuid)->value = le16toh(le16);
         break;
     case 0x10: /* UUID 128*/
         bt_uuid->u.type = BLE_UUID_TYPE_128;
@@ -134,8 +134,10 @@ tester_mtu_exchanged_ev(uint16_t conn_handle,
         goto fail;
     }
 
-    net_buf_simple_init(buf, 0);
-    ev = net_buf_simple_add(buf, sizeof(*ev));
+    ev = os_mbuf_extend(buf, sizeof(*ev));
+    if (!ev) {
+        return 0;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -200,8 +202,11 @@ disc_prim_svcs_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -237,12 +242,12 @@ disc_prim_svcs_cb(uint16_t conn_handle,
         goto free;
     }
 
-    service->start_handle = sys_cpu_to_le16(gatt_svc->start_handle);
-    service->end_handle = sys_cpu_to_le16(gatt_svc->end_handle);
+    service->start_handle = htole16(gatt_svc->start_handle);
+    service->end_handle = htole16(gatt_svc->end_handle);
     service->uuid_length = uuid_length;
 
     if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = sys_cpu_to_le16(BLE_UUID16(uuid)->value);
+        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(service->uuid, &u16, uuid_length);
     } else {
         memcpy(service->uuid, BLE_UUID128(uuid)->value,
@@ -340,8 +345,11 @@ find_included_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -379,14 +387,14 @@ find_included_cb(uint16_t conn_handle,
         goto free;
     }
 
-    included->included_handle = sys_cpu_to_le16(service_handle + 1 +
+    included->included_handle = htole16(service_handle + 1 +
                                                 rp->services_count);
-    included->service.start_handle = sys_cpu_to_le16(gatt_svc->start_handle);
-    included->service.end_handle = sys_cpu_to_le16(gatt_svc->end_handle);
+    included->service.start_handle = htole16(gatt_svc->start_handle);
+    included->service.end_handle = htole16(gatt_svc->end_handle);
     included->service.uuid_length = uuid_length;
 
     if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = sys_cpu_to_le16(BLE_UUID16(uuid)->value);
+        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(included->service.uuid, &u16, uuid_length);
     } else {
         memcpy(included->service.uuid, BLE_UUID128(uuid)->value,
@@ -418,8 +426,8 @@ find_included(uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    start_handle = sys_le16_to_cpu(cmd->start_handle);
-    end_handle = sys_le16_to_cpu(cmd->end_handle);
+    start_handle = le16toh(cmd->start_handle);
+    end_handle = le16toh(cmd->end_handle);
     service_handle_arg = start_handle;
 
     if (ble_gattc_find_inc_svcs(conn.conn_handle, start_handle, end_handle,
@@ -455,8 +463,11 @@ disc_chrc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -498,13 +509,13 @@ disc_chrc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    chrc->characteristic_handle = sys_cpu_to_le16(gatt_chr->def_handle);
+    chrc->characteristic_handle = htole16(gatt_chr->def_handle);
     chrc->properties = gatt_chr->properties;
-    chrc->value_handle = sys_cpu_to_le16(gatt_chr->val_handle);
+    chrc->value_handle = htole16(gatt_chr->val_handle);
     chrc->uuid_length = uuid_length;
 
     if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = sys_cpu_to_le16(BLE_UUID16(uuid)->value);
+        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(chrc->uuid, &u16, uuid_length);
     } else {
         memcpy(chrc->uuid, BLE_UUID128(uuid)->value,
@@ -535,8 +546,8 @@ disc_all_chrc(uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    start_handle = sys_le16_to_cpu(cmd->start_handle);
-    end_handle = sys_le16_to_cpu(cmd->end_handle);
+    start_handle = le16toh(cmd->start_handle);
+    end_handle = le16toh(cmd->end_handle);
 
     rc = ble_gattc_disc_all_chrs(conn.conn_handle,
                                  start_handle,
@@ -576,8 +587,8 @@ disc_chrc_uuid(uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    start_handle = sys_le16_to_cpu(cmd->start_handle);
-    end_handle = sys_le16_to_cpu(cmd->end_handle);
+    start_handle = le16toh(cmd->start_handle);
+    end_handle = le16toh(cmd->end_handle);
 
     rc = ble_gattc_disc_chrs_by_uuid(conn.conn_handle, start_handle,
                                      end_handle, &uuid.u, disc_chrc_cb,
@@ -616,8 +627,11 @@ disc_all_desc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -654,11 +668,11 @@ disc_all_desc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    dsc->descriptor_handle = sys_cpu_to_le16(gatt_dsc->handle);
+    dsc->descriptor_handle = htole16(gatt_dsc->handle);
     dsc->uuid_length = uuid_length;
 
     if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = sys_cpu_to_le16(BLE_UUID16(uuid)->value);
+        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(dsc->uuid, &u16, uuid_length);
     } else {
         memcpy(dsc->uuid, BLE_UUID128(uuid)->value, uuid_length);
@@ -688,8 +702,8 @@ disc_all_desc(uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    start_handle = sys_le16_to_cpu(cmd->start_handle) - 1;
-    end_handle = sys_le16_to_cpu(cmd->end_handle);
+    start_handle = le16toh(cmd->start_handle) - 1;
+    end_handle = le16toh(cmd->end_handle);
 
     rc = ble_gattc_disc_all_dscs(conn.conn_handle,
                                  start_handle,
@@ -727,8 +741,11 @@ read_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -782,7 +799,7 @@ read(uint8_t *data, uint16_t len)
     /* Clear buffer */
     read_destroy();
 
-    if (ble_gattc_read(conn.conn_handle, sys_le16_to_cpu(cmd->handle),
+    if (ble_gattc_read(conn.conn_handle, le16toh(cmd->handle),
                        read_cb, (void *) BTP_GATTC_READ_RP)) {
         read_destroy();
         status = BTP_STATUS_FAILED;
@@ -816,8 +833,11 @@ read_uuid_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -857,7 +877,7 @@ read_uuid_cb(uint16_t conn_handle,
         goto free;
     }
 
-    chr->handle = sys_cpu_to_be16(attr->handle);
+    chr->handle = htobe16(attr->handle);
     memcpy(chr->data, attr->om->om_data, attr->om->om_len);
 
 free:
@@ -891,8 +911,8 @@ read_uuid(uint8_t *data, uint16_t len)
     read_destroy();
 
     if (ble_gattc_read_by_uuid(conn.conn_handle,
-                               sys_le16_to_cpu(cmd->start_handle),
-                               sys_le16_to_cpu(cmd->end_handle), &uuid.u,
+                               le16toh(cmd->start_handle),
+                               le16toh(cmd->end_handle), &uuid.u,
                                read_uuid_cb, (void *) BTP_GATTC_READ_UUID_RP)) {
         read_destroy();
         status = BTP_STATUS_FAILED;
@@ -923,8 +943,11 @@ read_long_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -984,8 +1007,8 @@ read_long(uint8_t *data, uint16_t len)
     read_destroy();
 
     if (ble_gattc_read_long(conn.conn_handle,
-                            sys_le16_to_cpu(cmd->handle),
-                            sys_le16_to_cpu(cmd->offset),
+                            le16toh(cmd->handle),
+                            le16toh(cmd->offset),
                             read_long_cb, (void *) BTP_GATTC_READ_LONG_RP)) {
         read_destroy();
         status = BTP_STATUS_FAILED;
@@ -1007,7 +1030,7 @@ read_multiple(uint8_t *data, uint16_t len)
     SYS_LOG_DBG("");
 
     for (i = 0; i < ARRAY_SIZE(handles); i++) {
-        handles[i] = sys_le16_to_cpu(cmd->handles[i]);
+        handles[i] = le16toh(cmd->handles[i]);
     }
 
     rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
@@ -1049,8 +1072,8 @@ write_without_rsp(uint8_t *data, uint16_t len, uint8_t op, bool sign)
     }
 
     if (ble_gattc_write_no_rsp_flat(conn.conn_handle,
-                                    sys_le16_to_cpu(cmd->handle), cmd->data,
-                                    sys_le16_to_cpu(cmd->data_length))) {
+                                    le16toh(cmd->handle), cmd->data,
+                                    le16toh(cmd->data_length))) {
         status = BTP_STATUS_FAILED;
     }
 
@@ -1078,8 +1101,11 @@ write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -1110,8 +1136,8 @@ write(uint8_t *data, uint16_t len)
         goto rsp;
     }
 
-    if (ble_gattc_write_flat(conn.conn_handle, sys_le16_to_cpu(cmd->handle),
-                             cmd->data, sys_le16_to_cpu(cmd->data_length),
+    if (ble_gattc_write_flat(conn.conn_handle, le16toh(cmd->handle),
+                             cmd->data, le16toh(cmd->data_length),
                              write_cb, (void *) BTP_GATTC_WRITE_RP)) {
         status = BTP_STATUS_FAILED;
     }
@@ -1136,7 +1162,7 @@ write_long(uint8_t *data, uint16_t len)
         goto fail;
     }
 
-    om = ble_hs_mbuf_from_flat(cmd->data, sys_le16_to_cpu(cmd->data_length));
+    om = ble_hs_mbuf_from_flat(cmd->data, le16toh(cmd->data_length));
     if (!om) {
         SYS_LOG_ERR("Insufficient resources");
         status = BTP_STATUS_FAILED;
@@ -1144,8 +1170,8 @@ write_long(uint8_t *data, uint16_t len)
     }
 
     rc = ble_gattc_write_long(conn.conn_handle,
-                              sys_le16_to_cpu(cmd->handle),
-                              sys_le16_to_cpu(cmd->offset),
+                              le16toh(cmd->handle),
+                              le16toh(cmd->offset),
                               om, write_cb,
                               (void *) BTP_GATTC_WRITE_LONG_RP);
     if (rc) {
@@ -1182,8 +1208,11 @@ reliable_write_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -1216,17 +1245,17 @@ reliable_write(uint8_t *data, uint16_t len)
         goto fail;
     }
 
-    om = ble_hs_mbuf_from_flat(cmd->data, sys_le16_to_cpu(cmd->data_length));
+    om = ble_hs_mbuf_from_flat(cmd->data, le16toh(cmd->data_length));
     /* This is required, because Nimble checks if
      * the data is longer than offset
      */
-    if (os_mbuf_extend(om, sys_le16_to_cpu(cmd->offset) + 1) == NULL) {
+    if (os_mbuf_extend(om, le16toh(cmd->offset) + 1) == NULL) {
         status = BTP_STATUS_FAILED;
         goto fail;
     }
 
-    attr.handle = sys_le16_to_cpu(cmd->handle);
-    attr.offset = sys_le16_to_cpu(cmd->offset);
+    attr.handle = le16toh(cmd->handle);
+    attr.offset = le16toh(cmd->offset);
     attr.om = om;
 
     if (ble_gattc_write_reliable(conn.conn_handle, &attr, 1,
@@ -1264,8 +1293,11 @@ subscribe_cb(uint16_t conn_handle,
         goto free;
     }
 
-    net_buf_simple_init(buf, 0);
-    rp = net_buf_simple_add(buf, sizeof(*rp));
+    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (!rp) {
+        rc = BLE_HS_ENOMEM;
+        goto free;
+    }
 
     addr = &conn.peer_ota_addr;
 
@@ -1340,7 +1372,7 @@ config_subscription(uint8_t *data, uint16_t len, uint8_t op)
 {
     const struct btp_gattc_cfg_notify_cmd *cmd = (void *) data;
     struct ble_gap_conn_desc conn;
-    uint16_t ccc_handle = sys_le16_to_cpu(cmd->ccc_handle);
+    uint16_t ccc_handle = le16toh(cmd->ccc_handle);
     uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
@@ -1399,16 +1431,18 @@ tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
         goto fail;
     }
 
-    net_buf_simple_init(buf, 0);
-    ev = net_buf_simple_add(buf, sizeof(*ev));
+    ev = os_mbuf_extend(buf, sizeof(*ev));
+    if (!ev) {
+        return 0;
+    }
 
     addr = &conn.peer_ota_addr;
 
     ev->address_type = addr->type;
     memcpy(ev->address, addr->val, sizeof(ev->address));
     ev->type = (uint8_t) (indication ? 0x02 : 0x01);
-    ev->handle = sys_cpu_to_le16(attr_handle);
-    ev->data_length = sys_cpu_to_le16(os_mbuf_len(om));
+    ev->handle = htole16(attr_handle);
+    ev->data_length = htole16(os_mbuf_len(om));
     os_mbuf_appendfrom(buf, om, 0, os_mbuf_len(om));
 
     tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_NOTIFICATION_RXED,

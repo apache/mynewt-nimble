@@ -31,12 +31,17 @@
 
 #include "syscfg/syscfg.h"
 #include "host/ble_gatt.h"
-#if MYNEWT_VAL(BLE_MESH)
-#include "mesh/glue.h"
-#else
-#include "glue.h"
-#endif
+#include "os/os_mbuf.h"
 #include <sys/types.h>
+
+#define BIT(n)  (1UL << (n))
+
+/* Reset os_mbuf to reusable state */
+void
+tester_mbuf_reset(struct os_mbuf *buf);
+
+const char *
+string_from_bytes(const void *buf, size_t len);
 
 static inline void
 tester_set_bit(uint8_t *addr, unsigned int bit)

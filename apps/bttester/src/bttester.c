@@ -57,6 +57,14 @@ static struct {
     uint8_t num;
 } service_handler[BTP_SERVICE_ID_MAX + 1];
 
+
+void
+tester_mbuf_reset(struct os_mbuf *buf)
+{
+    buf->om_data = &buf->om_databuf[buf->om_pkthdr_len];
+    buf->om_len = 0;
+}
+
 static void
 tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
                        uint8_t *data, size_t len);
@@ -69,11 +77,36 @@ tester_register_command_handlers(uint8_t service,
                                  const struct btp_handler *handlers,
                                  size_t num)
 {
-    __ASSERT_NO_MSG(service <= BTP_SERVICE_ID_MAX);
-    __ASSERT_NO_MSG(service_handler[service].handlers == NULL);
+    assert(service <= BTP_SERVICE_ID_MAX);
+    assert(service_handler[service].handlers == NULL);
 
     service_handler[service].handlers = handlers;
     service_handler[service].num = num;
+}
+
+const char *
+string_from_bytes(const void *buf, size_t len)
+{
+    static const char hex[] = "0123456789abcdef";
+    static char hexbufs[4][137];
+    static uint8_t curbuf;
+    const uint8_t *b = buf;
+    char *str;
+    int i;
+
+    str = hexbufs[curbuf++];
+    curbuf %= ARRAY_SIZE(hexbufs);
+
+    len = min(len, (sizeof(hexbufs[0]) - 1) / 2);
+
+    for (i = 0; i < len; i++) {
+        str[i * 2] = hex[b[i] >> 4];
+        str[i * 2 + 1] = hex[b[i] & 0xf];
+    }
+
+    str[i * 2] = '\0';
+
+    return str;
 }
 
 static const struct btp_handler *
@@ -108,12 +141,12 @@ cmd_handler(struct os_event *ev)
 
     cmd = ev->ev_arg;
 
-    len = sys_le16_to_cpu(cmd->hdr.len);
+    len = le16toh(cmd->hdr.len);
     if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
         console_printf("[DBG] received %d bytes: %s\n",
                        sizeof(cmd->hdr) + len,
-                       bt_hex(cmd->data,
-                              sizeof(cmd->hdr) + len));
+                       string_from_bytes(cmd->data,
+                                         sizeof(cmd->hdr) + len));
     }
 
     btp = find_btp_handler(cmd->hdr.service, cmd->hdr.opcode);
@@ -127,7 +160,7 @@ cmd_handler(struct os_event *ev)
                                cmd->rsp, &rsp_len);
         }
 
-        __ASSERT_NO_MSG((rsp_len + sizeof(struct btp_hdr)) <= BTP_MTU);
+        assert((rsp_len + sizeof(struct btp_hdr)) <= BTP_MTU);
     } else {
         status = BTP_STATUS_UNKNOWN_CMD;
     }
@@ -157,7 +190,7 @@ recv_cb(uint8_t *buf, size_t *off)
         return buf;
     }
 
-    len = sys_le16_to_cpu(cmd->len);
+    len = le16toh(cmd->len);
     if (len > BTP_MTU - sizeof(*cmd)) {
         *off = 0;
         return buf;
@@ -239,7 +272,7 @@ tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
     msg.service = service;
     msg.opcode = opcode;
     msg.index = index;
-    msg.len = sys_cpu_to_le16(len);
+    msg.len = htole16(len);
 
     bttester_pipe_send((uint8_t *) &msg, sizeof(msg));
     if (data && len) {
@@ -248,10 +281,10 @@ tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
 
     if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
         console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
-                       bt_hex((char *) &msg, sizeof(msg)));
+                       string_from_bytes((char *) &msg, sizeof(msg)));
         if (data && len) {
             console_printf("[DBG] send %d bytes data: %s\n", len,
-                           bt_hex((char *) data, len));
+                           string_from_bytes((char *) data, len));
         }
     }
 }
