@@ -59,6 +59,14 @@ tester_test_bit(const uint8_t *addr, unsigned int bit)
     return *p & BIT(bit % 8);
 }
 
+static inline void
+tester_clear_bit(uint8_t *addr, unsigned int bit)
+{
+    uint8_t *p = addr + (bit / 8);
+
+    *p &= ~BIT(bit % 8);
+}
+
 
 void
 tester_init(void);
