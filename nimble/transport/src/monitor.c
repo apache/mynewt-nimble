@@ -299,6 +299,7 @@ void
 ble_monitor_init(void)
 {
     SYSINIT_ASSERT_ACTIVE();
+    ble_npl_error_t rc;
 
 #if MYNEWT_VAL(BLE_MONITOR_UART)
     struct uart_conf uc = {
@@ -340,7 +341,8 @@ ble_monitor_init(void)
     SYSINIT_PANIC_ASSERT(rtt_index >= 0);
 #endif
 
-    ble_npl_mutex_init(&lock);
+    rc = ble_npl_mutex_init(&lock);
+    SYSINIT_PANIC_ASSERT(rc == 0);
 
 #if BLE_MONITOR
     ble_monitor_new_index(0, (uint8_t[6]){ }, "nimble0");
