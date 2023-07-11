@@ -128,6 +128,9 @@ struct btp_gatt_descriptor {
 } __packed;
 
 #define BTP_GATT_EXCHANGE_MTU        0x0a
+struct btp_gatt_exchange_mtu_cmd {
+    ble_addr_t address;
+} __packed;
 
 #define BTP_GATT_DISC_ALL_PRIM_SVCS        0x0b
 struct btp_gatt_disc_all_prim_svcs_cmd {
@@ -305,7 +308,7 @@ struct btp_gatt_get_attribute_value_rp {
 } __packed;
 
 #define BTP_GATT_CHANGE_DATABASE        0x1e
-struct btp_gatt_change_database {
+struct btp_gatt_change_database_cmd {
     uint16_t start_handle;
     uint16_t end_handle;
     uint8_t visibility;

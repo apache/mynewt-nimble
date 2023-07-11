@@ -101,9 +101,6 @@ tester_init_gatt(void);
 uint8_t
 tester_unregister_gatt(void);
 void
-tester_handle_gatt(uint8_t opcode, uint8_t *data,
-                   uint16_t len);
-void
 tester_handle_gattc(uint8_t opcode, uint8_t *data,
                     uint16_t len);
 int
