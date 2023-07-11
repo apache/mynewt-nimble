@@ -201,9 +201,7 @@ connected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     channel->chan = chan;
 
     if (!ble_gap_conn_find(conn_handle, &desc)) {
-        ev.address_type = desc.peer_ota_addr.type;
-        memcpy(ev.address, desc.peer_ota_addr.val,
-               sizeof(ev.address));
+        memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
     }
 
     tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_CONNECTED,
@@ -229,9 +227,7 @@ disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     ev.psm = chan_info->psm;
 
     if (!ble_gap_conn_find(conn_handle, &desc)) {
-        ev.address_type = desc.peer_ota_addr.type;
-        memcpy(ev.address, desc.peer_ota_addr.val,
-               sizeof(ev.address));
+        memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
     }
 
     tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DISCONNECTED,

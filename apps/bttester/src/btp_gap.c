@@ -210,7 +210,7 @@ controller_info(const void *cmd, uint16_t cmd_len,
         }
         current_settings |= BIT(BTP_GAP_SETTINGS_PRIVACY);
         supported_settings |= BIT(BTP_GAP_SETTINGS_PRIVACY);
-        memcpy(rp->address, addr.val, sizeof(rp->address));
+        memcpy(&rp->address, &addr, sizeof(rp->address));
     } else {
         rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, rp->address, NULL);
         if (rc) {
@@ -595,8 +595,7 @@ store_adv(const ble_addr_t *addr, int8_t rssi,
         return;
     }
 
-    memcpy(ev->address, addr->val, sizeof(ev->address));
-    ev->address_type = addr->type;
+    memcpy(&ev->address, addr, sizeof(ev->address));
     ev->rssi = rssi;
     ev->flags = BTP_GAP_DEVICE_FOUND_FLAG_AD | BTP_GAP_DEVICE_FOUND_FLAG_RSSI;
     ev->eir_data_len = len;
@@ -645,8 +644,7 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
         }
 
         ev = (void *) adv_buf->om_data;
-        a.type = ev->address_type;
-        memcpy(a.val, ev->address, sizeof(a.val));
+        memcpy(&a, &ev->address, sizeof(a));
 
         /*
          * in general, the Scan Response comes right after the
@@ -818,8 +816,7 @@ le_connected(uint16_t conn_handle, int status)
 
     addr = &desc.peer_id_addr;
 
-    memcpy(connected_ev.address, addr->val, sizeof(connected_ev.address));
-    connected_ev.address_type = addr->type;
+    memcpy(&connected_ev.address, addr, sizeof(connected_ev.address));
     connected_ev.conn_itvl = desc.conn_itvl;
     connected_ev.conn_latency = desc.conn_latency;
     connected_ev.supervision_timeout = desc.supervision_timeout;
@@ -870,8 +867,7 @@ le_disconnected(struct ble_gap_conn_desc *conn, int reason)
     connection_attempts = 0;
     memset(&connected_ev, 0, sizeof(connected_ev));
 
-    memcpy(ev.address, addr->val, sizeof(ev.address));
-    ev.address_type = addr->type;
+    memcpy(&ev.address, addr, sizeof(ev.address));
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_DISCONNECTED,
                 (uint8_t *) &ev, sizeof(ev));
@@ -925,8 +921,7 @@ auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
 
     addr = &desc.peer_ota_addr;
 
-    memcpy(ev.address, addr->val, sizeof(ev.address));
-    ev.address_type = addr->type;
+    memcpy(&ev.address, addr, sizeof(ev.address));
     ev.passkey = htole32(pk.passkey);
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_DISPLAY,
@@ -950,8 +945,7 @@ auth_passkey_entry(uint16_t conn_handle)
 
     addr = &desc.peer_ota_addr;
 
-    memcpy(ev.address, addr->val, sizeof(ev.address));
-    ev.address_type = addr->type;
+    memcpy(&ev.address, addr, sizeof(ev.address));
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_ENTRY_REQ,
                 (uint8_t *) &ev, sizeof(ev));
@@ -974,8 +968,7 @@ auth_passkey_numcmp(uint16_t conn_handle, unsigned int passkey)
 
     addr = &desc.peer_ota_addr;
 
-    memcpy(ev.address, addr->val, sizeof(ev.address));
-    ev.address_type = addr->type;
+    memcpy(&ev.address, addr, sizeof(ev.address));
     ev.passkey = htole32(passkey);
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
@@ -1053,11 +1046,9 @@ le_identity_resolved(uint16_t conn_handle)
     peer_id_addr = desc.peer_id_addr;
     peer_ota_addr = desc.peer_ota_addr;
 
-    ev.address_type = desc.peer_ota_addr.type;
-    memcpy(ev.address, desc.peer_ota_addr.val, sizeof(ev.address));
+    memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
 
-    ev.identity_address_type = desc.peer_id_addr.type;
-    memcpy(ev.identity_address, desc.peer_id_addr.val,
+    memcpy(&ev.identity_address, &desc.peer_id_addr,
            sizeof(ev.identity_address));
 
     tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_IDENTITY_RESOLVED,
@@ -1081,8 +1072,7 @@ le_pairing_failed(uint16_t conn_handle, int reason)
     peer_id_addr = desc.peer_id_addr;
     peer_ota_addr = desc.peer_ota_addr;
 
-    ev.address_type = desc.peer_ota_addr.type;
-    memcpy(ev.address, desc.peer_ota_addr.val, sizeof(ev.address));
+    memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
 
     ev.reason = reason;
 
@@ -1097,8 +1087,7 @@ le_conn_param_update(struct ble_gap_conn_desc *desc)
 
     SYS_LOG_DBG("");
 
-    ev.address_type = desc->peer_ota_addr.type;
-    memcpy(ev.address, desc->peer_ota_addr.val, sizeof(ev.address));
+    memcpy(&ev.address, &desc->peer_ota_addr, sizeof(ev.address));
 
     ev.conn_itvl = desc->conn_itvl;
     ev.conn_latency = desc->conn_latency;
@@ -1117,8 +1106,7 @@ le_encryption_changed(struct ble_gap_conn_desc *desc)
 
     encrypted = (bool) desc->sec_state.encrypted;
 
-    ev.address_type = desc->peer_ota_addr.type;
-    memcpy(ev.address, desc->peer_ota_addr.val, sizeof(ev.address));
+    memcpy(&ev.address, &desc->peer_ota_addr, sizeof(ev.address));
     ev.level = 0;
 
     if (desc->sec_state.encrypted) {
@@ -1147,8 +1135,7 @@ bond_lost(uint16_t conn_handle)
     rc = ble_gap_conn_find(conn_handle, &desc);
     assert(rc == 0);
 
-    memcpy(ev.address, &desc.peer_id_addr, sizeof(ev.address));
-    ev.address_type = desc.peer_id_addr.type;
+    memcpy(&ev.address, &desc.peer_id_addr, sizeof(ev.address));
     tester_send(BTP_SERVICE_ID_GAP,
                 BTP_GAP_EV_BOND_LOST,
                 (uint8_t *) &ev,
@@ -1415,7 +1402,7 @@ connect(const void *cmd, uint16_t cmd_len,
 {
     const struct btp_gap_connect_cmd *cp = cmd;
 
-    ble_addr_t *addr =  (ble_addr_t *)&cp->address_type;
+    ble_addr_t *addr =  (ble_addr_t *)&cp->address;
 
     SYS_LOG_DBG("");
 
@@ -1441,7 +1428,7 @@ disconnect(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    rc = gap_conn_find_by_addr((ble_addr_t *)&cp->address_type, &desc);
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -1499,7 +1486,7 @@ pair(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    rc = gap_conn_find_by_addr((ble_addr_t *)&cp->address_type, &desc);
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -1521,7 +1508,7 @@ unpair(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    err = ble_gap_unpair((ble_addr_t *)&cp->address_type);
+    err = ble_gap_unpair(&cp->address);
     return err != 0 ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
 }
 
@@ -1536,7 +1523,7 @@ passkey_entry(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    rc = gap_conn_find_by_addr((ble_addr_t *)&cp->address_type, &desc);
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -1563,7 +1550,7 @@ passkey_confirm(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    rc = gap_conn_find_by_addr((ble_addr_t *)&cp->address_type, &desc);
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -1595,7 +1582,7 @@ start_direct_adv(const void *cmd, uint16_t cmd_len,
 
     adv_params.high_duty_cycle = cp->high_duty;
 
-    err = ble_gap_adv_start(own_addr_type, (ble_addr_t *)&cp->address_type,
+    err = ble_gap_adv_start(own_addr_type, &cp->address,
                             BLE_HS_FOREVER, &adv_params,
                             gap_event_cb, NULL);
     if (err) {

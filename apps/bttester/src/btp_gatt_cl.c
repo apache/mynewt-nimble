@@ -126,7 +126,6 @@ tester_mtu_exchanged_ev(uint16_t conn_handle,
     struct btp_gattc_exchange_mtu_ev *ev;
     struct ble_gap_conn_desc conn;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
 
     SYS_LOG_DBG("");
 
@@ -139,10 +138,7 @@ tester_mtu_exchanged_ev(uint16_t conn_handle,
         return 0;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    ev->address_type = addr->type;
-    memcpy(ev->address, addr->val, sizeof(ev->address));
+    memcpy(&ev->address, &conn.peer_ota_addr, sizeof(ev->address));
 
     ev->mtu = mtu;
 
@@ -189,7 +185,6 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     struct ble_gap_conn_desc conn;
     struct btp_gatt_service *service;
     const ble_uuid_any_t *uuid;
-    const ble_addr_t *addr;
     uint8_t uuid_length;
     struct os_mbuf *buf = os_msys_get(0, 0);
     uint8_t opcode = (uint8_t) (int) arg;
@@ -208,10 +203,7 @@ disc_prim_svcs_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
@@ -334,7 +326,6 @@ find_included_cb(uint16_t conn_handle,
     uint8_t uuid_length;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -351,10 +342,7 @@ find_included_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
 
@@ -454,7 +442,6 @@ disc_chrc_cb(uint16_t conn_handle,
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -469,10 +456,7 @@ disc_chrc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
 
@@ -616,7 +600,6 @@ disc_all_desc_cb(uint16_t conn_handle,
     uint8_t uuid_length;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -633,10 +616,7 @@ disc_all_desc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
 
@@ -732,7 +712,6 @@ read_cb(uint16_t conn_handle,
     struct btp_gattc_read_rp *rp;
     uint8_t opcode = (uint8_t) (int) arg;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -747,10 +726,7 @@ read_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     SYS_LOG_DBG("status=%d", error->status);
 
@@ -821,7 +797,6 @@ read_uuid_cb(uint16_t conn_handle,
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
     static uint16_t attr_len;
@@ -839,10 +814,7 @@ read_uuid_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
 
@@ -932,7 +904,6 @@ read_long_cb(uint16_t conn_handle,
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -949,10 +920,7 @@ read_long_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
 
@@ -1090,7 +1058,6 @@ write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
     uint8_t err = (uint8_t) error->status;
     uint8_t opcode = (uint8_t) (int) arg;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -1107,10 +1074,7 @@ write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
     tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
@@ -1197,7 +1161,6 @@ reliable_write_cb(uint16_t conn_handle,
     struct btp_gattc_write_rp *rp;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -1214,10 +1177,7 @@ reliable_write_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
     tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_RELIABLE_WRITE_RP,
@@ -1282,7 +1242,6 @@ subscribe_cb(uint16_t conn_handle,
     uint8_t err = (uint8_t) error->status;
     uint8_t opcode = (uint8_t) (int) arg;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -1299,10 +1258,7 @@ subscribe_cb(uint16_t conn_handle,
         goto free;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    rp->address_type = addr->type;
-    memcpy(rp->address, addr->val, sizeof(rp->address));
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
     tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
@@ -1419,7 +1375,6 @@ tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
     struct btp_gattc_notification_ev *ev;
     struct ble_gap_conn_desc conn;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    const ble_addr_t *addr;
 
     SYS_LOG_DBG("");
 
@@ -1436,10 +1391,7 @@ tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
         return 0;
     }
 
-    addr = &conn.peer_ota_addr;
-
-    ev->address_type = addr->type;
-    memcpy(ev->address, addr->val, sizeof(ev->address));
+    memcpy(&ev->address, &conn.peer_ota_addr, sizeof(ev->address));
     ev->type = (uint8_t) (indication ? 0x02 : 0x01);
     ev->handle = htole16(attr_handle);
     ev->data_length = htole16(os_mbuf_len(om));
