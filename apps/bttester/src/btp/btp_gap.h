@@ -167,15 +167,13 @@ struct btp_gap_start_discovery_cmd {
 
 #define BTP_GAP_CONNECT            0x0e
 struct btp_gap_connect_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t own_addr_type;
 } __packed;
 
 #define BTP_GAP_DISCONNECT            0x0f
 struct btp_gap_disconnect_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_IO_CAP_DISPLAY_ONLY        0
@@ -191,41 +189,35 @@ struct btp_gap_set_io_cap_cmd {
 
 #define BTP_GAP_PAIR            0x11
 struct btp_gap_pair_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_UNPAIR            0x12
 struct btp_gap_unpair_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_PASSKEY_ENTRY        0x13
 struct btp_gap_passkey_entry_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint32_t passkey;
 } __packed;
 
 #define BTP_GAP_PASSKEY_CONFIRM        0x14
 struct btp_gap_passkey_confirm_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t match;
 } __packed;
 
 #define BTP_GAP_START_DIRECT_ADV        0x15
 struct btp_gap_start_direct_adv_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t high_duty;
 } __packed;
 
 #define BTP_GAP_CONN_PARAM_UPDATE        0x16
 struct btp_gap_conn_param_update_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint16_t conn_itvl_min;
     uint16_t conn_itvl_max;
     uint16_t conn_latency;
@@ -234,8 +226,7 @@ struct btp_gap_conn_param_update_cmd {
 
 #define BTP_GAP_PAIRING_CONSENT_RSP        0x17
 struct btp_gap_pairing_consent_rsp_cmd {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t consent;
 } __packed;
 
@@ -278,8 +269,7 @@ struct btp_gap_new_settings_ev {
 
 #define BTP_GAP_EV_DEVICE_FOUND        0x81
 struct btp_gap_device_found_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     int8_t rssi;
     uint8_t flags;
     uint16_t eir_data_len;
@@ -288,8 +278,7 @@ struct btp_gap_device_found_ev {
 
 #define BTP_GAP_EV_DEVICE_CONNECTED        0x82
 struct btp_gap_device_connected_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint16_t conn_itvl;
     uint16_t conn_latency;
     uint16_t supervision_timeout;
@@ -297,42 +286,36 @@ struct btp_gap_device_connected_ev {
 
 #define BTP_GAP_EV_DEVICE_DISCONNECTED    0x83
 struct btp_gap_device_disconnected_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_EV_PASSKEY_DISPLAY        0x84
 struct btp_gap_passkey_display_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint32_t passkey;
 } __packed;
 
 #define BTP_GAP_EV_PASSKEY_ENTRY_REQ    0x85
 struct btp_gap_passkey_entry_req_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_EV_PASSKEY_CONFIRM_REQ    0x86
 struct btp_gap_passkey_confirm_req_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint32_t passkey;
 } __packed;
 
 #define BTP_GAP_EV_IDENTITY_RESOLVED    0x87
 struct btp_gap_identity_resolved_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t identity_address_type;
-    uint8_t identity_address[6];
+    uint8_t identity_address;
 } __packed;
 
 #define BTP_GAP_EV_CONN_PARAM_UPDATE    0x88
 struct btp_gap_conn_param_update_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint16_t conn_itvl;
     uint16_t conn_latency;
     uint16_t supervision_timeout;
@@ -340,26 +323,22 @@ struct btp_gap_conn_param_update_ev {
 
 #define BTP_GAP_EV_SEC_LEVEL_CHANGED    0x89
 struct btp_gap_sec_level_changed_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t level;
 } __packed;
 
 #define BTP_GAP_EV_PAIRING_CONSENT_REQ    0x8a
 struct btp_gap_pairing_consent_req_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_EV_BOND_LOST            0x8b
 struct btp_gap_bond_lost_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
 } __packed;
 
 #define BTP_GAP_EV_SEC_PAIRING_FAILED    0x8c
 struct btp_gap_sec_pairing_failed_ev {
-    uint8_t address_type;
-    uint8_t address[6];
+    ble_addr_t address;
     uint8_t reason;
 } __packed;
