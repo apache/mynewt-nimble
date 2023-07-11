@@ -6596,7 +6596,12 @@ ble_gap_init(void)
     memset(&ble_gap_sync, 0, sizeof(ble_gap_sync));
 #endif
 
-    ble_npl_mutex_init(&preempt_done_mutex);
+    rc = ble_npl_mutex_init(&preempt_done_mutex);
+
+    if (rc) {
+       BLE_HS_LOG(ERROR, "mutex init failed with reason %d \n", rc);
+       return rc;
+    }
 
     SLIST_INIT(&ble_gap_update_entries);
     SLIST_INIT(&ble_gap_event_listener_list);
