@@ -40,6 +40,7 @@
 static struct os_eventq avail_queue;
 static struct os_eventq *cmds_queue;
 static struct os_event bttester_ev[CMD_QUEUED];
+static struct btp_buf *delayed_cmd;
 
 struct btp_buf {
     struct os_event *ev;
@@ -165,14 +166,22 @@ cmd_handler(struct os_event *ev)
         status = BTP_STATUS_UNKNOWN_CMD;
     }
 
-    if (status != BTP_STATUS_DELAY_REPLY) {
-        if ((status == BTP_STATUS_SUCCESS) && rsp_len > 0) {
-            tester_send_with_index(cmd->hdr.service, cmd->hdr.opcode,
-                                   cmd->hdr.index, cmd->rsp, rsp_len);
-        } else {
-            tester_rsp_with_index(cmd->hdr.service, cmd->hdr.opcode,
-                                  cmd->hdr.index, status);
-        }
+    /* Allow to delay only 1 command. This is for convenience only
+     * of using cmd data without need of copying those in async
+     * functions. Should be not needed eventually.
+     */
+    if (status == BTP_STATUS_DELAY_REPLY) {
+        assert(delayed_cmd == NULL);
+        delayed_cmd = cmd;
+        return;
+    }
+
+    if ((status == BTP_STATUS_SUCCESS) && rsp_len > 0) {
+        tester_send_with_index(cmd->hdr.service, cmd->hdr.opcode,
+                               cmd->hdr.index, cmd->rsp, rsp_len);
+    } else {
+        tester_rsp_with_index(cmd->hdr.service, cmd->hdr.opcode,
+                              cmd->hdr.index, status);
     }
 
     os_eventq_put(&avail_queue, ev);
@@ -325,10 +334,35 @@ void
 tester_send(uint8_t service, uint8_t opcode, uint8_t *data, size_t len)
 {
     tester_send_with_index(service, opcode, BTP_INDEX, data, len);
+
+    /* async response to command */
+    if (opcode < 0x80) {
+        struct btp_buf *cmd;
+
+        assert(delayed_cmd != NULL);
+
+        cmd = delayed_cmd;
+        delayed_cmd = NULL;
+
+        (void)memset(cmd, 0, sizeof(*cmd));
+        os_eventq_put(&avail_queue,
+                      CONTAINER_OF(cmd, struct btp_buf, data)->ev);
+    }
 }
 
 void
 tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
 {
+    struct btp_buf *cmd;
+
     tester_rsp_with_index(service, opcode, BTP_INDEX, status);
+
+    assert(delayed_cmd != NULL);
+
+    cmd = delayed_cmd;
+    delayed_cmd = NULL;
+
+    (void)memset(cmd, 0, sizeof(*cmd));
+    os_eventq_put(&avail_queue,
+                  CONTAINER_OF(cmd, struct btp_buf, data)->ev);
 }
