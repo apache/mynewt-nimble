@@ -120,9 +120,6 @@ uint8_t
 tester_init_l2cap(void);
 uint8_t
 tester_unregister_l2cap(void);
-void
-tester_handle_l2cap(uint8_t opcode, uint8_t *data,
-                    uint16_t len);
 #endif
 
 #if MYNEWT_VAL(BLE_MESH)
