@@ -727,7 +727,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_L2CAP_SEND_DATA,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = send_data,
     },
     {
@@ -737,7 +737,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_L2CAP_RECONFIGURE,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = reconfigure,
     },
     {
