@@ -1801,7 +1801,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GAP_START_ADVERTISING,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = start_advertising,
     },
     {
@@ -1886,7 +1886,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GAP_SET_FILTER_ACCEPT_LIST,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_filter_accept_list,
     },
 };

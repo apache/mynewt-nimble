@@ -77,6 +77,11 @@ tester_rsp_full(uint8_t service, uint8_t opcode, const void *rsp, size_t len);
 void
 tester_event(uint8_t service, uint8_t opcode, const void *data, size_t len);
 
+/* Used to indicate that command length is variable and that validation will
+ * be done in handler.
+ */
+#define BTP_HANDLER_LENGTH_VARIABLE (-1)
+
 struct btp_handler {
     uint8_t opcode;
     uint8_t index;
