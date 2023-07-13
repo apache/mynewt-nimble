@@ -1459,7 +1459,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GATTC_DISC_PRIM_UUID,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = disc_prim_uuid,
     },
     {
@@ -1474,7 +1474,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GATTC_DISC_CHRC_UUID,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = disc_chrc_uuid,
     },
     {
@@ -1489,7 +1489,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GATTC_READ_UUID,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = read_uuid,
     },
     {
@@ -1499,34 +1499,34 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_GATTC_READ_MULTIPLE,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = read_multiple,
     },
     {
         .opcode = BTP_GATTC_WRITE_WITHOUT_RSP,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = write_without_rsp,
     },
 #if 0
     {
         .opcode = BTP_GATTC_SIGNED_WRITE_WITHOUT_RSP,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = write_signed_without_rsp,
     },
 #endif
     {
         .opcode = BTP_GATTC_WRITE,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = write,
     },
     {
         .opcode = BTP_GATTC_WRITE_LONG,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = write_long,
     },
     {
         .opcode = BTP_GATTC_RELIABLE_WRITE,
-        .expect_len = -1,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = reliable_write,
     },
     {
