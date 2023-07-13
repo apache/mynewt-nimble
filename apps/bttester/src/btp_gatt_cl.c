@@ -142,8 +142,8 @@ tester_mtu_exchanged_ev(uint16_t conn_handle,
 
     ev->mtu = mtu;
 
-    tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_MTU_EXCHANGED,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_MTU_EXCHANGED,
+                 buf->om_data, buf->om_len);
 fail:
     os_mbuf_free_chain(buf);
     return 0;
@@ -205,8 +205,8 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     rp->status = err;
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->services_count = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -215,8 +215,8 @@ disc_prim_svcs_cb(uint16_t conn_handle,
         rp->status = 0;
         rp->services_count = gatt_buf.cnt;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -339,8 +339,8 @@ find_included_cb(uint16_t conn_handle,
     SYS_LOG_DBG("");
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->services_count = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -349,8 +349,8 @@ find_included_cb(uint16_t conn_handle,
         rp->status = 0;
         rp->services_count = gatt_buf.cnt;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -454,8 +454,8 @@ disc_chrc_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->characteristics_count = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -464,8 +464,8 @@ disc_chrc_cb(uint16_t conn_handle,
         rp->status = 0;
         rp->characteristics_count = gatt_buf.cnt;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -602,8 +602,8 @@ disc_all_desc_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->descriptors_count = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -612,8 +612,8 @@ disc_all_desc_cb(uint16_t conn_handle,
         rp->status = 0;
         rp->descriptors_count = gatt_buf.cnt;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
+                     buf->om_data, buf->om_len);
         discover_destroy();
         goto free;
     }
@@ -710,8 +710,8 @@ read_cb(uint16_t conn_handle,
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->status = (uint8_t) BLE_HS_ATT_ERR(error->status);
         rp->data_length = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         read_destroy();
         goto free;
     }
@@ -725,8 +725,8 @@ read_cb(uint16_t conn_handle,
     rp->status = 0;
     rp->data_length = attr->om->om_len;
     os_mbuf_appendfrom(buf, attr->om, 0, os_mbuf_len(attr->om));
-    tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                 buf->om_data, buf->om_len);
     read_destroy();
 free:
     os_mbuf_free_chain(buf);
@@ -794,8 +794,8 @@ read_uuid_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->data_length = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         read_destroy();
         goto free;
     }
@@ -806,8 +806,8 @@ read_uuid_cb(uint16_t conn_handle,
         rp->status = 0;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
 
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         read_destroy();
         goto free;
     }
@@ -897,8 +897,8 @@ read_long_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->data_length = 0;
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         read_destroy();
         goto free;
     }
@@ -907,8 +907,8 @@ read_long_cb(uint16_t conn_handle,
         rp->status = 0;
         rp->data_length = gatt_buf.len;
         os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                        CONTROLLER_INDEX, buf);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                     buf->om_data, buf->om_len);
         read_destroy();
         goto free;
     }
@@ -1047,8 +1047,8 @@ write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
     memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
-    tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                 buf->om_data, buf->om_len);
 free:
     os_mbuf_free_chain(buf);
     return rc;
@@ -1116,7 +1116,7 @@ write_long(const void *cmd, uint16_t cmd_len,
                               om, write_cb,
                               (void *) BTP_GATTC_WRITE_LONG_RP);
     if (!rc) {
-        return BTP_STATUS_DELAY_REPLY;
+        return BTP_STATUS_SUCCESS;
     }
 
 fail:
@@ -1154,8 +1154,8 @@ reliable_write_cb(uint16_t conn_handle,
     memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
-    tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_RELIABLE_WRITE_RP,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_RELIABLE_WRITE_RP,
+                 buf->om_data, buf->om_len);
 free:
     os_mbuf_free_chain(buf);
     return rc;
@@ -1232,8 +1232,8 @@ subscribe_cb(uint16_t conn_handle,
     memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
     rp->status = err;
-    tester_send_buf(BTP_SERVICE_ID_GATTC, opcode,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, opcode,
+                 buf->om_data, buf->om_len);
 free:
     os_mbuf_free_chain(buf);
     return rc;
@@ -1393,8 +1393,8 @@ tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
     ev->data_length = htole16(os_mbuf_len(om));
     os_mbuf_appendfrom(buf, om, 0, os_mbuf_len(om));
 
-    tester_send_buf(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_NOTIFICATION_RXED,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_NOTIFICATION_RXED,
+                 buf->om_data, buf->om_len);
 
 fail:
     os_mbuf_free_chain(buf);

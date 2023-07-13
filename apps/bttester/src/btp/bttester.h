@@ -73,7 +73,9 @@ tester_init(void);
 void
 tester_rsp(uint8_t service, uint8_t opcode, uint8_t status);
 void
-tester_send(uint8_t service, uint8_t opcode, uint8_t *data, size_t len);
+tester_rsp_full(uint8_t service, uint8_t opcode, const void *rsp, size_t len);
+void
+tester_event(uint8_t service, uint8_t opcode, const void *data, size_t len);
 
 struct btp_handler {
     uint8_t opcode;

@@ -674,8 +674,8 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
      * current one
      */
     if (adv_buf->om_len) {
-        tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
-                    adv_buf->om_data, adv_buf->om_len);
+        tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
+                     adv_buf->om_data, adv_buf->om_len);
     }
 
     store_adv(addr, rssi, data, len);
@@ -688,8 +688,8 @@ device_found(ble_addr_t *addr, int8_t rssi, uint8_t evtype,
         return;
     }
 done:
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
-                adv_buf->om_data, adv_buf->om_len);
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_FOUND,
+                 adv_buf->om_data, adv_buf->om_len);
 }
 
 static int
@@ -786,9 +786,8 @@ device_connected_ev_send(struct os_event *ev)
         return;
     }
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
-                (uint8_t *) &connected_ev,
-                sizeof(connected_ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
+                 (uint8_t *) &connected_ev, sizeof(connected_ev));
 
     periph_privacy(desc);
 }
@@ -826,9 +825,9 @@ le_connected(uint16_t conn_handle, int status)
              os_time_ms_to_ticks32(
                  CONNECTED_EV_DELAY_MS(desc.conn_itvl)));
 #else
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
-                (uint8_t *) &connected_ev,
-                sizeof(connected_ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_CONNECTED,
+                 (uint8_t *) &connected_ev,
+                 sizeof(connected_ev));
 #endif
 }
 
@@ -869,8 +868,8 @@ le_disconnected(struct ble_gap_conn_desc *conn, int reason)
 
     memcpy(&ev.address, addr, sizeof(ev.address));
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_DISCONNECTED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_DEVICE_DISCONNECTED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -924,8 +923,8 @@ auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
     memcpy(&ev.address, addr, sizeof(ev.address));
     ev.passkey = htole32(pk.passkey);
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_DISPLAY,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_DISPLAY,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -947,8 +946,8 @@ auth_passkey_entry(uint16_t conn_handle)
 
     memcpy(&ev.address, addr, sizeof(ev.address));
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_ENTRY_REQ,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_ENTRY_REQ,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -971,8 +970,8 @@ auth_passkey_numcmp(uint16_t conn_handle, unsigned int passkey)
     memcpy(&ev.address, addr, sizeof(ev.address));
     ev.passkey = htole32(passkey);
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1051,8 +1050,8 @@ le_identity_resolved(uint16_t conn_handle)
     memcpy(&ev.identity_address, &desc.peer_id_addr,
            sizeof(ev.identity_address));
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_IDENTITY_RESOLVED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_IDENTITY_RESOLVED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1076,8 +1075,8 @@ le_pairing_failed(uint16_t conn_handle, int reason)
 
     ev.reason = reason;
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_PAIRING_FAILED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_PAIRING_FAILED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1093,8 +1092,8 @@ le_conn_param_update(struct ble_gap_conn_desc *desc)
     ev.conn_latency = desc->conn_latency;
     ev.supervision_timeout = desc->supervision_timeout;
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_CONN_PARAM_UPDATE,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_CONN_PARAM_UPDATE,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1121,8 +1120,8 @@ le_encryption_changed(struct ble_gap_conn_desc *desc)
         }
     }
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_LEVEL_CHANGED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_SEC_LEVEL_CHANGED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1136,10 +1135,8 @@ bond_lost(uint16_t conn_handle)
     assert(rc == 0);
 
     memcpy(&ev.address, &desc.peer_id_addr, sizeof(ev.address));
-    tester_send(BTP_SERVICE_ID_GAP,
-                BTP_GAP_EV_BOND_LOST,
-                (uint8_t *) &ev,
-                sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_BOND_LOST,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1212,8 +1209,8 @@ adv_complete(void)
     current_settings &= ~BIT(BTP_GAP_SETTINGS_ADVERTISING);
     ev.current_settings = htole32(current_settings);
 
-    tester_send(BTP_SERVICE_ID_GAP, BTP_GAP_EV_NEW_SETTINGS,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_NEW_SETTINGS,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static int

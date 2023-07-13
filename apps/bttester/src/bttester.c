@@ -68,7 +68,7 @@ tester_mbuf_reset(struct os_mbuf *buf)
 
 static void
 tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
-                       uint8_t *data, size_t len);
+                       const uint8_t *data, size_t len);
 static void
 tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
                       uint8_t status);
@@ -274,7 +274,7 @@ tester_init(void)
 
 static void
 tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
-                       uint8_t *data, size_t len)
+                       const uint8_t *data, size_t len)
 {
     struct btp_hdr msg;
 
@@ -331,23 +331,29 @@ tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
 }
 
 void
-tester_send(uint8_t service, uint8_t opcode, uint8_t *data, size_t len)
+tester_event(uint8_t service, uint8_t opcode, const void *data, size_t len)
 {
+    assert(opcode >= 0x80);
     tester_send_with_index(service, opcode, BTP_INDEX, data, len);
+}
 
-    /* async response to command */
-    if (opcode < 0x80) {
-        struct btp_buf *cmd;
+void
+tester_rsp_full(uint8_t service, uint8_t opcode, const void *rsp, size_t len)
+{
+    struct btp_buf *cmd;
 
-        assert(delayed_cmd != NULL);
+    assert(opcode < 0x80);
+    assert(delayed_cmd != NULL);
 
-        cmd = delayed_cmd;
-        delayed_cmd = NULL;
+    tester_send_with_index(service, opcode, BTP_INDEX, rsp, len);
 
-        (void)memset(cmd, 0, sizeof(*cmd));
-        os_eventq_put(&avail_queue,
-                      CONTAINER_OF(cmd, struct btp_buf, data)->ev);
-    }
+    cmd = delayed_cmd;
+    delayed_cmd = NULL;
+
+    (void)memset(cmd, 0, sizeof(*cmd));
+
+    os_eventq_put(&avail_queue,
+                  CONTAINER_OF(cmd, struct btp_buf, data)->ev);
 }
 
 void
@@ -355,9 +361,10 @@ tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
 {
     struct btp_buf *cmd;
 
-    tester_rsp_with_index(service, opcode, BTP_INDEX, status);
-
+    assert(opcode < 0x80);
     assert(delayed_cmd != NULL);
+
+    tester_rsp_with_index(service, opcode, BTP_INDEX, status);
 
     cmd = delayed_cmd;
     delayed_cmd = NULL;
