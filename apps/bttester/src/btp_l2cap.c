@@ -137,8 +137,8 @@ recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     }
     os_mbuf_copydata(buf, 0, ev->data_length, ev->data);
 
-    tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DATA_RECEIVED,
-                recv_cb_buf, sizeof(*ev) + ev->data_length);
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DATA_RECEIVED,
+                 recv_cb_buf, sizeof(*ev) + ev->data_length);
 
     tester_l2cap_coc_recv(chan, buf);
 }
@@ -177,8 +177,8 @@ reconfigured_ev(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     ev.our_mtu = chan_info->our_coc_mtu;
     ev.our_mps = chan_info->our_l2cap_mtu;
 
-    tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_RECONFIGURED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_RECONFIGURED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -206,8 +206,8 @@ connected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
         memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
     }
 
-    tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_CONNECTED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_CONNECTED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -232,8 +232,8 @@ disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
         memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
     }
 
-    tester_send(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DISCONNECTED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DISCONNECTED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static int
