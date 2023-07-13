@@ -281,8 +281,8 @@ link_open(bt_mesh_prov_bearer_t bearer)
         return;
     }
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROV_LINK_OPEN,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROV_LINK_OPEN,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -305,8 +305,8 @@ link_close(bt_mesh_prov_bearer_t bearer)
         return;
     }
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROV_LINK_CLOSED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROV_LINK_CLOSED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static int
@@ -319,8 +319,8 @@ output_number(bt_mesh_output_action_t action, uint32_t number)
     ev.action = htole16(action);
     ev.number = htole32(number);
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_OUT_NUMBER_ACTION,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_OUT_NUMBER_ACTION,
+                 (uint8_t *) &ev, sizeof(ev));
 
     return 0;
 }
@@ -359,8 +359,8 @@ input(bt_mesh_input_action_t action, uint8_t size)
     ev.action = htole16(action);
     ev.size = size;
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_IN_ACTION,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_IN_ACTION,
+                 (uint8_t *) &ev, sizeof(ev));
 
     return 0;
 }
@@ -377,8 +377,8 @@ prov_complete(uint16_t net_idx, uint16_t addr)
     net.local = addr;
     net.dst = addr;
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROVISIONED,
-                NULL, 0);
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_PROVISIONED,
+                 NULL, 0);
 }
 
 static void
@@ -1014,15 +1014,15 @@ invalid_bearer_cb(uint8_t opcode)
 
     SYS_LOG_DBG("opcode 0x%02x", opcode);
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_INVALID_BEARER,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_INVALID_BEARER,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
 incomp_timer_exp_cb(void)
 {
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_INCOMP_TIMER_EXP,
-                NULL, 0);
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_INCOMP_TIMER_EXP,
+                 NULL, 0);
 }
 
 static struct bt_test_cb bt_test_cb = {
@@ -1046,8 +1046,8 @@ lpn_established(uint16_t friend_addr)
                 "Friend 0x%04x Queue Size %d Receive Window %d",
                 friend_addr, lpn->queue_size, lpn->recv_win);
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_LPN_ESTABLISHED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_LPN_ESTABLISHED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 static void
@@ -1059,8 +1059,8 @@ lpn_terminated(uint16_t friend_addr)
     SYS_LOG_DBG("Friendship (as LPN) lost with Friend "
                 "0x%04x", friend_addr);
 
-    tester_send(BTP_SERVICE_ID_MESH, BTP_MESH_EV_LPN_TERMINATED,
-                (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_MESH, BTP_MESH_EV_LPN_TERMINATED,
+                 (uint8_t *) &ev, sizeof(ev));
 }
 
 void

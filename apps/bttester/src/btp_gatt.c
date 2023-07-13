@@ -269,8 +269,8 @@ attr_value_changed_ev(uint16_t handle, struct os_mbuf *data)
     ev->data_length = htole16(os_mbuf_len(data));
     os_mbuf_appendfrom(buf, data, 0, os_mbuf_len(data));
 
-    tester_send_buf(BTP_SERVICE_ID_GATT, BTP_GATT_EV_ATTR_VALUE_CHANGED,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATT, BTP_GATT_EV_ATTR_VALUE_CHANGED,
+                 buf->om_data, buf->om_len);
 }
 
 static int
@@ -683,8 +683,8 @@ read_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->att_response = (uint8_t) BLE_HS_ATT_ERR(error->status);
-        tester_send(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf
-        .len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                        gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
@@ -697,8 +697,8 @@ read_cb(uint16_t conn_handle,
     }
 
     rp->data_length += attr->om->om_len;
-    tester_send(BTP_SERVICE_ID_GATT, btp_opcode,
-                gatt_buf.buf, gatt_buf.len);
+    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                    gatt_buf.buf, gatt_buf.len);
     read_destroy();
 
     return 0;
@@ -748,15 +748,15 @@ read_long_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->att_response = (uint8_t) BLE_HS_ATT_ERR(error->status);
-        tester_send(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf
-        .len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                        gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_send(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf
-        .len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                        gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
@@ -882,8 +882,8 @@ write_rsp(uint16_t conn_handle, const struct ble_gatt_error *error,
 
     SYS_LOG_DBG("");
 
-    tester_send(BTP_SERVICE_ID_GATT, btp_opcode,
-                &err, sizeof(err));
+    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                    &err, sizeof(err));
     return 0;
 }
 
@@ -969,8 +969,8 @@ reliable_write_rsp(uint16_t conn_handle,
 
     SYS_LOG_DBG("Reliable write status %d", err);
 
-    tester_send(BTP_SERVICE_ID_GATT, BTP_GATT_RELIABLE_WRITE,
-                &err, sizeof(err));
+    tester_rsp_full(BTP_SERVICE_ID_GATT, BTP_GATT_RELIABLE_WRITE,
+                    &err, sizeof(err));
     return 0;
 }
 
@@ -1081,7 +1081,8 @@ disc_prim_uuid_cb(uint16_t conn_handle,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_send(BTP_SERVICE_ID_GATT, opcode, gatt_buf.buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, opcode,
+                        gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
@@ -1136,8 +1137,8 @@ disc_all_desc_cb(uint16_t conn_handle,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_send(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC, gatt_buf
-        .buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC,
+                        gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
@@ -1253,8 +1254,8 @@ find_included_cb(uint16_t conn_handle,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_send(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED, gatt_buf
-            .buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED,
+                        gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
@@ -1310,8 +1311,8 @@ disc_chrc_cb(uint16_t conn_handle,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_send(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf
-            .len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
+                        gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
@@ -2046,8 +2047,8 @@ tester_gatt_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
     ev->data_length = htole16(os_mbuf_len(om));
     os_mbuf_appendfrom(buf, om, 0, os_mbuf_len(om));
 
-    tester_send_buf(BTP_SERVICE_ID_GATT, BTP_GATT_EV_NOTIFICATION,
-                    CONTROLLER_INDEX, buf);
+    tester_event(BTP_SERVICE_ID_GATT, BTP_GATT_EV_NOTIFICATION,
+                 buf->om_data, buf->om_len);
 
 fail:
     os_mbuf_free_chain(buf);
