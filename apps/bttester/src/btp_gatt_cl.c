@@ -149,31 +149,28 @@ fail:
     return 0;
 }
 
-static void
-exchange_mtu(uint8_t *data, uint16_t len)
+static uint8_t
+exchange_mtu(const void *cmd, uint16_t cmd_len,
+             void *rsp, uint16_t *rsp_len)
 {
+    const struct btp_gattc_exchange_mtu_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     if (ble_gattc_exchange_mtu(conn.conn_handle,
                                tester_mtu_exchanged_ev,
                                NULL)) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_EXCHANGE_MTU,
-               status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -253,65 +250,58 @@ free:
     return rc;
 }
 
-static void
-disc_all_prim_svcs(uint8_t *data, uint16_t len)
+static uint8_t
+disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
 {
+    const struct btp_gattc_disc_all_prim_svcs_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     if (ble_gattc_disc_all_svcs(conn.conn_handle, disc_prim_svcs_cb,
                                 (void *) BTP_GATTC_DISC_ALL_PRIM_RP)) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_PRIM_SVCS,
-               status);
+    return BTP_STATUS_SUCCESS;
 }
 
-static void
-disc_prim_uuid(uint8_t *data, uint16_t len)
+static uint8_t
+disc_prim_uuid(const void *cmd, uint16_t cmd_len,
+               void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_disc_prim_uuid_cmd *cmd = (void *) data;
+    const struct btp_gattc_disc_prim_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     ble_uuid_any_t uuid;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+    if (btp2bt_uuid(cp->uuid, cp->uuid_length, &uuid)) {
+        return BTP_STATUS_FAILED;
     }
 
     if (ble_gattc_disc_svc_by_uuid(conn.conn_handle,
                                    &uuid.u, disc_prim_svcs_cb,
                                    (void *) BTP_GATTC_DISC_PRIM_UUID_RP)) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_PRIM_UUID, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -396,38 +386,35 @@ free:
     return rc;
 }
 
-static void
-find_included(uint8_t *data, uint16_t len)
+static uint8_t
+find_included(const void *cmd, uint16_t cmd_len,
+              void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_find_included_cmd *cmd = (void *) data;
+    const struct btp_gattc_find_included_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     uint16_t start_handle, end_handle;
     int service_handle_arg;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    start_handle = le16toh(cmd->start_handle);
-    end_handle = le16toh(cmd->end_handle);
+    start_handle = le16toh(cp->start_handle);
+    end_handle = le16toh(cp->end_handle);
     service_handle_arg = start_handle;
 
     if (ble_gattc_find_inc_svcs(conn.conn_handle, start_handle, end_handle,
                                 find_included_cb,
                                 (void *) service_handle_arg)) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -512,26 +499,25 @@ free:
     return rc;
 }
 
-static void
-disc_all_chrc(uint8_t *data, uint16_t len)
+static uint8_t
+disc_all_chrc(const void *cmd, uint16_t cmd_len,
+              void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_disc_all_chrc_cmd *cmd = (void *) data;
+    const struct btp_gattc_disc_all_chrc_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     uint16_t start_handle, end_handle;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
         SYS_LOG_DBG("Conn find rsped");
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    start_handle = le16toh(cmd->start_handle);
-    end_handle = le16toh(cmd->end_handle);
+    start_handle = le16toh(cp->start_handle);
+    end_handle = le16toh(cp->end_handle);
 
     rc = ble_gattc_disc_all_chrs(conn.conn_handle,
                                  start_handle,
@@ -540,51 +526,45 @@ disc_all_chrc(uint8_t *data, uint16_t len)
                                  (void *) BTP_GATTC_DISC_ALL_CHRC_RP);
     if (rc) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_CHRC, status);
+    return BTP_STATUS_SUCCESS;
 }
 
-static void
-disc_chrc_uuid(uint8_t *data, uint16_t len)
+static uint8_t
+disc_chrc_uuid(const void *cmd, uint16_t cmd_len,
+               void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_disc_chrc_uuid_cmd *cmd = (void *) data;
+    const struct btp_gattc_disc_chrc_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     uint16_t start_handle, end_handle;
     ble_uuid_any_t uuid;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+    if (btp2bt_uuid(cp->uuid, cp->uuid_length, &uuid)) {
+        return BTP_STATUS_FAILED;
     }
 
-    start_handle = le16toh(cmd->start_handle);
-    end_handle = le16toh(cmd->end_handle);
+    start_handle = le16toh(cp->start_handle);
+    end_handle = le16toh(cp->end_handle);
 
     rc = ble_gattc_disc_chrs_by_uuid(conn.conn_handle, start_handle,
                                      end_handle, &uuid.u, disc_chrc_cb,
                                      (void *) BTP_GATTC_DISC_CHRC_UUID_RP);
     if (rc) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_CHRC_UUID, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -665,25 +645,24 @@ free:
     return rc;
 }
 
-static void
-disc_all_desc(uint8_t *data, uint16_t len)
+static uint8_t
+disc_all_desc(const void *cmd, uint16_t cmd_len,
+              void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_disc_all_desc_cmd *cmd = (void *) data;
+    const struct btp_gattc_disc_all_desc_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     uint16_t start_handle, end_handle;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    start_handle = le16toh(cmd->start_handle) - 1;
-    end_handle = le16toh(cmd->end_handle);
+    start_handle = le16toh(cp->start_handle) - 1;
+    end_handle = le16toh(cp->end_handle);
 
     rc = ble_gattc_disc_all_dscs(conn.conn_handle,
                                  start_handle,
@@ -695,12 +674,10 @@ disc_all_desc(uint8_t *data, uint16_t len)
 
     if (rc) {
         discover_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -756,34 +733,31 @@ free:
     return rc;
 }
 
-static void
-read(uint8_t *data, uint16_t len)
+static uint8_t
+read(const void *cmd, uint16_t cmd_len,
+     void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_read_cmd *cmd = (void *) data;
+    const struct btp_gattc_read_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     /* Clear buffer */
     read_destroy();
 
-    if (ble_gattc_read(conn.conn_handle, le16toh(cmd->handle),
+    if (ble_gattc_read(conn.conn_handle, le16toh(cp->handle),
                        read_cb, (void *) BTP_GATTC_READ_RP)) {
         read_destroy();
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -857,41 +831,38 @@ free:
     return rc;
 }
 
-static void
-read_uuid(uint8_t *data, uint16_t len)
+static uint8_t
+read_uuid(const void *cmd, uint16_t cmd_len,
+          void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_read_uuid_cmd *cmd = (void *) data;
+    const struct btp_gattc_read_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     ble_uuid_any_t uuid;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    if (btp2bt_uuid(cmd->uuid, cmd->uuid_length, &uuid)) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+    if (btp2bt_uuid(cp->uuid, cp->uuid_length, &uuid)) {
+        return BTP_STATUS_FAILED;
     }
 
     /* Clear buffer */
     read_destroy();
 
     if (ble_gattc_read_by_uuid(conn.conn_handle,
-                               le16toh(cmd->start_handle),
-                               le16toh(cmd->end_handle), &uuid.u,
+                               le16toh(cp->start_handle),
+                               le16toh(cp->end_handle), &uuid.u,
                                read_uuid_cb, (void *) BTP_GATTC_READ_UUID_RP)) {
         read_destroy();
-        status = BTP_STATUS_FAILED;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_UUID, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -955,56 +926,53 @@ free:
     return rc;
 }
 
-static void
-read_long(uint8_t *data, uint16_t len)
+static uint8_t
+read_long(const void *cmd, uint16_t cmd_len,
+          void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_read_long_cmd *cmd = (void *) data;
+    const struct btp_gattc_read_long_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     /* Clear buffer */
     read_destroy();
 
     if (ble_gattc_read_long(conn.conn_handle,
-                            le16toh(cmd->handle),
-                            le16toh(cmd->offset),
+                            le16toh(cp->handle),
+                            le16toh(cp->offset),
                             read_long_cb, (void *) BTP_GATTC_READ_LONG_RP)) {
         read_destroy();
-        status = BTP_STATUS_FAILED;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_LONG, status);
+    return BTP_STATUS_SUCCESS;
 }
 
-static void
-read_multiple(uint8_t *data, uint16_t len)
+static uint8_t
+read_multiple(const void *cmd, uint16_t cmd_len,
+              void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_read_multiple_cmd *cmd = (void *) data;
-    uint16_t handles[cmd->handles_count];
+    const struct btp_gattc_read_multiple_cmd *cp = cmd;
+    uint16_t handles[cp->handles_count];
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc, i;
 
     SYS_LOG_DBG("");
 
     for (i = 0; i < ARRAY_SIZE(handles); i++) {
-        handles[i] = le16toh(cmd->handles[i]);
+        handles[i] = le16toh(cp->handles[i]);
     }
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     /* Clear buffer */
@@ -1012,41 +980,43 @@ read_multiple(uint8_t *data, uint16_t len)
 
     if (ble_gattc_read_mult(conn.conn_handle,
                             handles,
-                            cmd->handles_count,
+                            cp->handles_count,
                             read_cb,
                             (void *) BTP_GATTC_READ_MULTIPLE_RP)) {
         read_destroy();
-        status = BTP_STATUS_FAILED;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_MULTIPLE, status);
+    return BTP_STATUS_SUCCESS;
 }
 
-static void
-write_without_rsp(uint8_t *data, uint16_t len, uint8_t op, bool sign)
+static uint8_t
+write_without_rsp(const void *cmd, uint16_t cmd_len,
+                  void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_write_without_rsp_cmd *cmd = (void *) data;
+    const struct btp_gattc_write_without_rsp_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    if (cmd_len < sizeof(*cp) ||
+        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
     if (ble_gattc_write_no_rsp_flat(conn.conn_handle,
-                                    le16toh(cmd->handle), cmd->data,
-                                    le16toh(cmd->data_length))) {
-        status = BTP_STATUS_FAILED;
+                                    le16toh(cp->handle), cp->data,
+                                    le16toh(cp->data_length))) {
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, op, status);
+    return BTP_STATUS_SUCCESS;
 }
 
 static int
@@ -1084,71 +1054,75 @@ free:
     return rc;
 }
 
-static void
-write(uint8_t *data, uint16_t len)
+static uint8_t
+write(const void *cmd, uint16_t cmd_len,
+      void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_write_cmd *cmd = (void *) data;
+    const struct btp_gattc_write_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    if (cmd_len < sizeof(*cp) ||
+        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_write_flat(conn.conn_handle, le16toh(cmd->handle),
-                             cmd->data, le16toh(cmd->data_length),
+    if (ble_gattc_write_flat(conn.conn_handle, le16toh(cp->handle),
+                             cp->data, le16toh(cp->data_length),
                              write_cb, (void *) BTP_GATTC_WRITE_RP)) {
-        status = BTP_STATUS_FAILED;
+        return BTP_STATUS_FAILED;
     }
 
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_WRITE, status);
+    return BTP_STATUS_SUCCESS;
 }
 
-static void
-write_long(uint8_t *data, uint16_t len)
+static uint8_t
+write_long(const void *cmd, uint16_t cmd_len,
+           void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_write_long_cmd *cmd = (void *) data;
+    const struct btp_gattc_write_long_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     struct os_mbuf *om = NULL;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc = 0;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    if (cmd_len < sizeof(*cp) ||
+        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+        goto fail;
+    }
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
         goto fail;
     }
 
-    om = ble_hs_mbuf_from_flat(cmd->data, le16toh(cmd->data_length));
+    om = ble_hs_mbuf_from_flat(cp->data, le16toh(cp->data_length));
     if (!om) {
         SYS_LOG_ERR("Insufficient resources");
-        status = BTP_STATUS_FAILED;
         goto fail;
     }
 
     rc = ble_gattc_write_long(conn.conn_handle,
-                              le16toh(cmd->handle),
-                              le16toh(cmd->offset),
+                              le16toh(cp->handle),
+                              le16toh(cp->offset),
                               om, write_cb,
                               (void *) BTP_GATTC_WRITE_LONG_RP);
-    if (rc) {
-        status = BTP_STATUS_FAILED;
-    } else {
-        goto rsp;
+    if (!rc) {
+        return BTP_STATUS_DELAY_REPLY;
     }
 
 fail:
     SYS_LOG_ERR("Failed to send Write Long request, rc=%d", rc);
     os_mbuf_free_chain(om);
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_WRITE_LONG, status);
+    return BTP_STATUS_FAILED;
 }
 
 static int
@@ -1187,49 +1161,46 @@ free:
     return rc;
 }
 
-static void
-reliable_write(uint8_t *data, uint16_t len)
+static uint8_t
+reliable_write(const void *cmd, uint16_t cmd_len,
+               void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_reliable_write_cmd *cmd = (void *) data;
+    const struct btp_gattc_reliable_write_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
     struct ble_gatt_attr attr;
     struct os_mbuf *om = NULL;
-    uint8_t status = BTP_STATUS_SUCCESS;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto fail;
+        return BTP_STATUS_SUCCESS;
     }
 
-    om = ble_hs_mbuf_from_flat(cmd->data, le16toh(cmd->data_length));
+    om = ble_hs_mbuf_from_flat(cp->data, le16toh(cp->data_length));
     /* This is required, because Nimble checks if
      * the data is longer than offset
      */
-    if (os_mbuf_extend(om, le16toh(cmd->offset) + 1) == NULL) {
-        status = BTP_STATUS_FAILED;
-        goto fail;
+    if (os_mbuf_extend(om, le16toh(cp->offset) + 1) == NULL) {
+        return BTP_STATUS_SUCCESS;
     }
 
-    attr.handle = le16toh(cmd->handle);
-    attr.offset = le16toh(cmd->offset);
+    attr.handle = le16toh(cp->handle);
+    attr.offset = le16toh(cp->offset);
     attr.om = om;
 
     if (ble_gattc_write_reliable(conn.conn_handle, &attr, 1,
                                  reliable_write_cb, NULL)) {
-        status = BTP_STATUS_FAILED;
         goto fail;
-    } else {
-        goto rsp;
     }
+
+    return BTP_STATUS_SUCCESS;
 
 fail:
     os_mbuf_free_chain(om);
-rsp:
-    tester_rsp(BTP_SERVICE_ID_GATTC, BTP_GATTC_WRITE_LONG, status);
+
+    return BTP_STATUS_FAILED;
 }
 
 static int
@@ -1323,37 +1294,30 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
     return 0;
 }
 
-static void
-config_subscription(uint8_t *data, uint16_t len, uint8_t op)
+static uint8_t
+config_subscription_notif(const void *cmd, uint16_t cmd_len,
+                          void *rsp, uint16_t *rsp_len)
 {
-    const struct btp_gattc_cfg_notify_cmd *cmd = (void *) data;
+    const struct btp_gattc_cfg_notify_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
-    uint16_t ccc_handle = le16toh(cmd->ccc_handle);
-    uint8_t status = BTP_STATUS_SUCCESS;
+    uint16_t ccc_handle = le16toh(cp->ccc_handle);
+    uint8_t status;
     int rc;
 
     SYS_LOG_DBG("");
 
-    rc = ble_gap_conn_find_by_addr((ble_addr_t *) data, &conn);
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
     if (rc) {
-        status = BTP_STATUS_FAILED;
-        goto rsp;
+        return BTP_STATUS_FAILED;
     }
 
-    if (cmd->enable) {
-        uint16_t value;
-
-        if (op == BTP_GATTC_CFG_NOTIFY) {
-            value = 0x0001;
-        } else {
-            value = 0x0002;
-        }
-
+    if (cp->enable) {
         if (enable_subscription(conn.conn_handle,
-                                ccc_handle, value) != 0) {
-            status = BTP_STATUS_FAILED;
-            goto rsp;
+                                ccc_handle, 0x0001) == 0) {
+            return BTP_STATUS_SUCCESS;
         }
+
+        status = BTP_STATUS_FAILED;
     } else {
         if (disable_subscription(conn.conn_handle, ccc_handle) < 0) {
             status = BTP_STATUS_FAILED;
@@ -1362,10 +1326,42 @@ config_subscription(uint8_t *data, uint16_t len, uint8_t op)
         }
     }
 
-rsp:
-    SYS_LOG_DBG("Config subscription (op %u) status %u", op, status);
+    return status;
+}
 
-    tester_rsp(BTP_SERVICE_ID_GATTC, op, status);
+static uint8_t
+config_subscription_ind(const void *cmd, uint16_t cmd_len,
+                        void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gattc_cfg_notify_cmd *cp = cmd;
+    struct ble_gap_conn_desc conn;
+    uint16_t ccc_handle = le16toh(cp->ccc_handle);
+    uint8_t status;
+    int rc;
+
+    SYS_LOG_DBG("");
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    if (cp->enable) {
+        if (enable_subscription(conn.conn_handle,
+                                ccc_handle, 0x0002) == 0) {
+            return BTP_STATUS_SUCCESS;
+        }
+
+        status = BTP_STATUS_FAILED;
+    } else {
+        if (disable_subscription(conn.conn_handle, ccc_handle) < 0) {
+            status = BTP_STATUS_FAILED;
+        } else {
+            status = BTP_STATUS_SUCCESS;
+        }
+    }
+
+    return status;
 }
 
 int
@@ -1405,109 +1401,157 @@ fail:
     return 0;
 }
 
-static void
-supported_commands(uint8_t *data, uint16_t len)
+static uint8_t
+supported_commands(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
 {
-    uint8_t cmds[3];
-    struct btp_gatt_read_supported_commands_rp *rp = (void *) cmds;
+    struct btp_gattc_read_supported_commands_rp *rp = rsp;
 
     SYS_LOG_DBG("");
 
-    memset(cmds, 0, sizeof(cmds));
-
-    tester_set_bit(cmds, BTP_GATTC_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(cmds, BTP_GATTC_EXCHANGE_MTU);
-    tester_set_bit(cmds, BTP_GATTC_DISC_ALL_PRIM_SVCS);
-    tester_set_bit(cmds, BTP_GATTC_DISC_PRIM_UUID);
-    tester_set_bit(cmds, BTP_GATTC_FIND_INCLUDED);
-    tester_set_bit(cmds, BTP_GATTC_DISC_ALL_CHRC);
-    tester_set_bit(cmds, BTP_GATTC_DISC_CHRC_UUID);
-    tester_set_bit(cmds, BTP_GATTC_DISC_ALL_DESC);
-    tester_set_bit(cmds, BTP_GATTC_READ);
-    tester_set_bit(cmds, BTP_GATTC_READ_UUID);
-    tester_set_bit(cmds, BTP_GATTC_READ_LONG);
-    tester_set_bit(cmds, BTP_GATTC_READ_MULTIPLE);
-    tester_set_bit(cmds, BTP_GATTC_WRITE_WITHOUT_RSP);
+    /* octet 0 */
+    tester_set_bit(rp->data, BTP_GATTC_READ_SUPPORTED_COMMANDS);
+    tester_set_bit(rp->data, BTP_GATTC_EXCHANGE_MTU);
+    tester_set_bit(rp->data, BTP_GATTC_DISC_ALL_PRIM_SVCS);
+    tester_set_bit(rp->data, BTP_GATTC_DISC_PRIM_UUID);
+    tester_set_bit(rp->data, BTP_GATTC_FIND_INCLUDED);
+    tester_set_bit(rp->data, BTP_GATTC_DISC_ALL_CHRC);
+    tester_set_bit(rp->data, BTP_GATTC_DISC_CHRC_UUID);
+    /* octet 1 */
+    tester_set_bit(rp->data, BTP_GATTC_DISC_ALL_DESC);
+    tester_set_bit(rp->data, BTP_GATTC_READ);
+    tester_set_bit(rp->data, BTP_GATTC_READ_UUID);
+    tester_set_bit(rp->data, BTP_GATTC_READ_LONG);
+    tester_set_bit(rp->data, BTP_GATTC_READ_MULTIPLE);
+    tester_set_bit(rp->data, BTP_GATTC_WRITE_WITHOUT_RSP);
 #if 0
-    tester_set_bit(cmds, BTP_GATTC_SIGNED_WRITE_WITHOUT_RSP);
+    tester_set_bit(rp->data, BTP_GATTC_SIGNED_WRITE_WITHOUT_RSP);
 #endif
-    tester_set_bit(cmds, BTP_GATTC_WRITE);
-    tester_set_bit(cmds, BTP_GATTC_WRITE_LONG);
-    tester_set_bit(cmds, BTP_GATTC_RELIABLE_WRITE);
-    tester_set_bit(cmds, BTP_GATTC_CFG_NOTIFY);
-    tester_set_bit(cmds, BTP_GATTC_CFG_INDICATE);
+    tester_set_bit(rp->data, BTP_GATTC_WRITE);
+    /* octet 2 */
+    tester_set_bit(rp->data, BTP_GATTC_WRITE_LONG);
+    tester_set_bit(rp->data, BTP_GATTC_RELIABLE_WRITE);
+    tester_set_bit(rp->data, BTP_GATTC_CFG_NOTIFY);
+    tester_set_bit(rp->data, BTP_GATTC_CFG_INDICATE);
 
-    tester_send(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_SUPPORTED_COMMANDS,
-                (uint8_t *) rp, sizeof(cmds));
+    *rsp_len = sizeof(*rp) + 3;
+
+    return BTP_STATUS_SUCCESS;
 }
 
-void
-tester_handle_gattc(uint8_t opcode, uint8_t *data,
-                    uint16_t len)
-{
-    switch (opcode) {
-    case BTP_GATTC_READ_SUPPORTED_COMMANDS:
-        supported_commands(data, len);
-        return;
-    case BTP_GATTC_EXCHANGE_MTU:
-        exchange_mtu(data, len);
-        return;
-    case BTP_GATTC_DISC_ALL_PRIM_SVCS:
-        disc_all_prim_svcs(data, len);
-        return;
-    case BTP_GATTC_DISC_PRIM_UUID:
-        disc_prim_uuid(data, len);
-        return;
-    case BTP_GATTC_FIND_INCLUDED:
-        find_included(data, len);
-        return;
-    case BTP_GATTC_DISC_ALL_CHRC:
-        disc_all_chrc(data, len);
-        return;
-    case BTP_GATTC_DISC_CHRC_UUID:
-        disc_chrc_uuid(data, len);
-        return;
-    case BTP_GATTC_DISC_ALL_DESC:
-        disc_all_desc(data, len);
-        return;
-    case BTP_GATTC_READ:
-        read(data, len);
-        return;
-    case BTP_GATTC_READ_UUID:
-        read_uuid(data, len);
-        return;
-    case BTP_GATTC_READ_LONG:
-        read_long(data, len);
-        return;
-    case BTP_GATTC_READ_MULTIPLE:
-        read_multiple(data, len);
-        return;
-    case BTP_GATTC_WRITE_WITHOUT_RSP:
-        write_without_rsp(data,
-                          len,
-                          opcode,
-                          false);
-        return;
+
+static const struct btp_handler handlers[] = {
+    {
+        .opcode = BTP_GATTC_READ_SUPPORTED_COMMANDS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_commands,
+    },
+    {
+        .opcode = BTP_GATTC_EXCHANGE_MTU,
+        .expect_len = sizeof(struct btp_gattc_exchange_mtu_cmd),
+        .func = exchange_mtu,
+    },
+    {
+        .opcode = BTP_GATTC_DISC_ALL_PRIM_SVCS,
+        .expect_len = sizeof(struct btp_gattc_disc_all_prim_svcs_cmd),
+        .func = disc_all_prim_svcs,
+    },
+    {
+        .opcode = BTP_GATTC_DISC_PRIM_UUID,
+        .expect_len = -1,
+        .func = disc_prim_uuid,
+    },
+    {
+        .opcode = BTP_GATTC_FIND_INCLUDED,
+        .expect_len = sizeof(struct btp_gattc_find_included_cmd),
+        .func = find_included,
+    },
+    {
+        .opcode = BTP_GATTC_DISC_ALL_CHRC,
+        .expect_len = sizeof(struct btp_gattc_disc_all_chrc_cmd),
+        .func = disc_all_chrc,
+    },
+    {
+        .opcode = BTP_GATTC_DISC_CHRC_UUID,
+        .expect_len = -1,
+        .func = disc_chrc_uuid,
+    },
+    {
+        .opcode = BTP_GATTC_DISC_ALL_DESC,
+        .expect_len = sizeof(struct btp_gattc_disc_all_desc_cmd),
+        .func = disc_all_desc,
+    },
+    {
+        .opcode = BTP_GATTC_READ,
+        .expect_len = sizeof(struct btp_gattc_read_cmd),
+        .func = read,
+    },
+    {
+        .opcode = BTP_GATTC_READ_UUID,
+        .expect_len = -1,
+        .func = read_uuid,
+    },
+    {
+        .opcode = BTP_GATTC_READ_LONG,
+        .expect_len = sizeof(struct btp_gattc_read_long_cmd),
+        .func = read_long,
+    },
+    {
+        .opcode = BTP_GATTC_READ_MULTIPLE,
+        .expect_len = -1,
+        .func = read_multiple,
+    },
+    {
+        .opcode = BTP_GATTC_WRITE_WITHOUT_RSP,
+        .expect_len = -1,
+        .func = write_without_rsp,
+    },
 #if 0
-    case BTP_GATTC_SIGNED_WRITE_WITHOUT_RSP:
-        write_without_rsp(data, len, opcode, true);
-        return;
+    {
+        .opcode = BTP_GATTC_SIGNED_WRITE_WITHOUT_RSP,
+        .expect_len = -1,
+        .func = write_signed_without_rsp,
+    },
 #endif
-    case BTP_GATTC_WRITE:
-        write(data, len);
-        return;
-    case BTP_GATTC_WRITE_LONG:
-        write_long(data, len);
-        return;
-    case BTP_GATTC_RELIABLE_WRITE:
-        reliable_write(data, len);
-        return;
-    case BTP_GATTC_CFG_NOTIFY:
-    case BTP_GATTC_CFG_INDICATE:
-        config_subscription(data, len, opcode);
-        return;
-    default:
-        tester_rsp(BTP_SERVICE_ID_GATTC, opcode, BTP_STATUS_UNKNOWN_CMD);
-        return;
-    }
+    {
+        .opcode = BTP_GATTC_WRITE,
+        .expect_len = -1,
+        .func = write,
+    },
+    {
+        .opcode = BTP_GATTC_WRITE_LONG,
+        .expect_len = -1,
+        .func = write_long,
+    },
+    {
+        .opcode = BTP_GATTC_RELIABLE_WRITE,
+        .expect_len = -1,
+        .func = reliable_write,
+    },
+    {
+        .opcode = BTP_GATTC_CFG_NOTIFY,
+        .expect_len = sizeof(struct btp_gattc_cfg_notify_cmd),
+        .func = config_subscription_notif,
+    },
+    {
+        .opcode = BTP_GATTC_CFG_INDICATE,
+        .expect_len = sizeof(struct btp_gattc_cfg_notify_cmd),
+        .func = config_subscription_ind,
+    },
+};
+
+uint8_t
+tester_init_gatt_cl(void)
+{
+    tester_register_command_handlers(BTP_SERVICE_ID_GATTC, handlers,
+                                     ARRAY_SIZE(handlers));
+
+    return BTP_STATUS_SUCCESS;
+}
+
+uint8_t
+tester_unregister_gatt_cl(void)
+{
+    return BTP_STATUS_SUCCESS;
 }
