@@ -100,9 +100,6 @@ uint8_t
 tester_init_gatt(void);
 uint8_t
 tester_unregister_gatt(void);
-void
-tester_handle_gattc(uint8_t opcode, uint8_t *data,
-                    uint16_t len);
 int
 tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
                           uint8_t indication, struct os_mbuf *om);
@@ -128,7 +125,10 @@ tester_init_mesh(void);
 uint8_t
 tester_unregister_mesh(void);
 #endif /* MYNEWT_VAL(BLE_MESH) */
-
+uint8_t
+tester_init_gatt_cl(void);
+uint8_t
+tester_unregister_gatt_cl(void);
 void
 gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 

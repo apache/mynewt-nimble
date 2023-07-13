@@ -34,6 +34,9 @@ struct btp_gattc_read_supported_commands_rp {
 } __packed;
 
 #define BTP_GATTC_EXCHANGE_MTU        0x02
+struct btp_gattc_exchange_mtu_cmd {
+    ble_addr_t address;
+} __packed;
 
 #define BTP_GATTC_DISC_ALL_PRIM_SVCS    0x03
 struct btp_gattc_disc_all_prim_svcs_cmd {
