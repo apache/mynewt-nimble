@@ -165,7 +165,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
     struct os_mbuf_pkthdr *pkthdr;
 
     /* Better be aligned */
-    assert(((uint32_t)dptr & 3) == 0);
+    assert(((uintptr_t)dptr & 3) == 0);
 
     pkthdr = OS_MBUF_PKTHDR(rxpdu);
     rem_bytes = pkthdr->omp_len;
