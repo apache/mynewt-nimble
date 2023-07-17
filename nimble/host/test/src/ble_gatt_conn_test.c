@@ -385,6 +385,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     uint16_t attr_handle;
     uint16_t offset = 0;
     int rc;
+    struct ble_hs_conn *conn;
 
     ble_gatt_conn_test_util_init();
 
@@ -405,65 +406,92 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     /*** Schedule some GATT procedures. */
     /* Connection 1. */
     mtu_arg.exp_conn_handle = 1;
+    ble_hs_lock();
+    conn = ble_hs_conn_find(1);
+    ble_hs_unlock();
+
+    /** In unit tests we are not receiving response - procedure will
+     * not complete. Reset `client_att_busy` flag so new request can be sent
+     */
+    conn->client_att_busy = false;
     ble_gattc_exchange_mtu(1, ble_gatt_conn_test_mtu_cb, &mtu_arg);
 
     disc_all_svcs_arg.exp_conn_handle = 1;
+    conn->client_att_busy = false;
     rc = ble_gattc_disc_all_svcs(1, ble_gatt_conn_test_disc_all_svcs_cb,
                                  &disc_all_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     disc_svc_uuid_arg.exp_conn_handle = 1;
+    conn->client_att_busy = false;
     rc = ble_gattc_disc_svc_by_uuid(1, BLE_UUID16_DECLARE(0x1111),
                                     ble_gatt_conn_test_disc_svc_uuid_cb,
                                     &disc_svc_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     find_inc_svcs_arg.exp_conn_handle = 1;
+    conn->client_att_busy = false;
     rc = ble_gattc_find_inc_svcs(1, 1, 0xffff,
                                  ble_gatt_conn_test_find_inc_svcs_cb,
                                  &find_inc_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     disc_all_chrs_arg.exp_conn_handle = 1;
+    conn->client_att_busy = false;
     rc = ble_gattc_disc_all_chrs(1, 1, 0xffff,
                                  ble_gatt_conn_test_disc_all_chrs_cb,
                                  &disc_all_chrs_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Connection 2. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    ble_hs_unlock();
+
     disc_all_dscs_arg.exp_conn_handle = 2;
+    conn->client_att_busy = false;
     rc = ble_gattc_disc_all_dscs(2, 3, 0xffff,
                                  ble_gatt_conn_test_disc_all_dscs_cb,
                                  &disc_all_dscs_arg);
 
     disc_chr_uuid_arg.exp_conn_handle = 2;
+    conn->client_att_busy = false;
     rc = ble_gattc_disc_chrs_by_uuid(2, 2, 0xffff, BLE_UUID16_DECLARE(0x2222),
                                      ble_gatt_conn_test_disc_chr_uuid_cb,
                                      &disc_chr_uuid_arg);
 
     read_arg.exp_conn_handle = 2;
+    conn->client_att_busy = false;
     rc = ble_gattc_read(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE,
                         ble_gatt_conn_test_read_cb, &read_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     read_uuid_arg.exp_conn_handle = 2;
+    conn->client_att_busy = false;
     rc = ble_gattc_read_by_uuid(2, 1, 0xffff, BLE_UUID16_DECLARE(0x3333),
                                 ble_gatt_conn_test_read_uuid_cb,
                                 &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     read_long_arg.exp_conn_handle = 2;
+    conn->client_att_busy = false;
     rc = ble_gattc_read_long(2, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
                              ble_gatt_conn_test_read_long_cb, &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Connection 3. */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(3);
+    ble_hs_unlock();
+
     read_mult_arg.exp_conn_handle = 3;
+    conn->client_att_busy = false;
     rc = ble_gattc_read_mult(3, ((uint16_t[3]){5,6,7}), 3,
                              ble_gatt_conn_test_read_mult_cb, &read_mult_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     write_arg.exp_conn_handle = 3;
+    conn->client_att_busy = false;
     rc = ble_hs_test_util_gatt_write_flat(
         3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
         ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
@@ -471,6 +499,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     TEST_ASSERT_FATAL(rc == 0);
 
     write_long_arg.exp_conn_handle = 3;
+    conn->client_att_busy = false;
     rc = ble_hs_test_util_gatt_write_long_flat(
         3, BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE,
         ble_gatt_conn_test_write_value, sizeof ble_gatt_conn_test_write_value,
@@ -481,10 +510,12 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     attr.offset = 0;
     attr.om = os_msys_get_pkthdr(0, 0);
     write_rel_arg.exp_conn_handle = 3;
+    conn->client_att_busy = false;
     rc = ble_gattc_write_reliable(
         3, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
+    conn->client_att_busy = false;
     rc = ble_gatts_indicate(3, attr_handle);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -528,6 +559,11 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(ble_gatt_conn_test_gap_event.type == 255);
 
     /* Connection 3. */
+    /** This is required because of call ble_att_clt_tx_exec_write
+     * from ble_att_clt_tx_exec_write after broken connection -
+     * ble_gattc_fail_procs is called
+     */
+    conn->client_att_busy = false;
     ble_gattc_connection_broken(3);
     TEST_ASSERT(mtu_arg.called == 1);
     TEST_ASSERT(disc_all_svcs_arg.called == 1);
