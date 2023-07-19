@@ -19,9 +19,12 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <sys/types.h>
 
 #include "os/os.h"
 #include "nimble/nimble_npl.h"
+
+pid_t gettid(void);
 
 ble_npl_error_t
 ble_npl_mutex_init(struct ble_npl_mutex *mu)
@@ -78,4 +81,10 @@ ble_npl_mutex_pend(struct ble_npl_mutex *mu, uint32_t timeout)
     }
 
     return (err) ? BLE_NPL_ERROR : BLE_NPL_OK;
+}
+
+int
+ble_npl_mutex_locked_by_cur_pthread(struct ble_npl_mutex *mtx)
+{
+    return (mtx->lock.__data.__owner == gettid());
 }
