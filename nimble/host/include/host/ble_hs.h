@@ -49,6 +49,7 @@
 extern "C" {
 #endif
 
+/** Represents an infinite value for timeouts or durations. */
 #define BLE_HS_FOREVER              INT32_MAX
 
 /** Connection handle not present */
@@ -64,36 +65,97 @@ extern "C" {
  * @{
  */
 
+/** Operation failed and should be retried later. */
 #define BLE_HS_EAGAIN               1
+
+/** Operation already in progress. */
 #define BLE_HS_EALREADY             2
+
+/** Invalid parameter. */
 #define BLE_HS_EINVAL               3
+
+/** Message too long. */
 #define BLE_HS_EMSGSIZE             4
+
+/** No such entry. */
 #define BLE_HS_ENOENT               5
+
+/** Out of memory. */
 #define BLE_HS_ENOMEM               6
+
+/** Not connected. */
 #define BLE_HS_ENOTCONN             7
+
+/** Not supported. */
 #define BLE_HS_ENOTSUP              8
+
+/** Application error. */
 #define BLE_HS_EAPP                 9
+
+/** Bad data. */
 #define BLE_HS_EBADDATA             10
+
+/** Operating System error. */
 #define BLE_HS_EOS                  11
+
+/** Controller error. */
 #define BLE_HS_ECONTROLLER          12
+
+/** Operation timed out. */
 #define BLE_HS_ETIMEOUT             13
+
+/** Operation completed. */
 #define BLE_HS_EDONE                14
+
+/** Resource busy. */
 #define BLE_HS_EBUSY                15
+
+/** Operation rejected. */
 #define BLE_HS_EREJECT              16
+
+/** Unknown error. */
 #define BLE_HS_EUNKNOWN             17
+
+/** Role error. */
 #define BLE_HS_EROLE                18
+
+/** HCI operation timed out. */
 #define BLE_HS_ETIMEOUT_HCI         19
+
+/** Out of memory to handle an event. */
 #define BLE_HS_ENOMEM_EVT           20
+
+/** No valid address. */
 #define BLE_HS_ENOADDR              21
+
+/** Not synchronized with the controller. */
 #define BLE_HS_ENOTSYNCED           22
+
+/** Authentication error. */
 #define BLE_HS_EAUTHEN              23
+
+/** Authorization error. */
 #define BLE_HS_EAUTHOR              24
+
+/** Encryption error. */
 #define BLE_HS_EENCRYPT             25
+
+/** Invalid encryption key size. */
 #define BLE_HS_EENCRYPT_KEY_SZ      26
+
+/** Storage capacity exceeded. */
 #define BLE_HS_ESTORE_CAP           27
+
+/** Storage operation failed. */
 #define BLE_HS_ESTORE_FAIL          28
+
+/** Operation was preempted. */
 #define BLE_HS_EPREEMPTED           29
+
+/** Operation disabled. */
 #define BLE_HS_EDISABLED            30
+
+/** Operation stalled. */
 #define BLE_HS_ESTALLED             31
 
 /** Error base for ATT errors */
@@ -305,6 +367,7 @@ struct ble_hs_cfg {
     void *store_status_arg;
 };
 
+/** Configuration structure for the NimBLE Host stack. */
 extern struct ble_hs_cfg ble_hs_cfg;
 
 /**
