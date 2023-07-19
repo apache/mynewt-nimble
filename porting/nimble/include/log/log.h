@@ -30,7 +30,7 @@ log_dummy(void *log, ...)
     (void)log;
 }
 
-#if MYNEWT
+#ifdef MYNEWT
 #define LOG_DEBUG(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
 #define LOG_INFO(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)
 #define LOG_WARN(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)

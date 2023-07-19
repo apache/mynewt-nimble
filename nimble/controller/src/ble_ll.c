@@ -368,7 +368,7 @@ static void ble_ll_event_tx_pkt(struct ble_npl_event *ev);
 static void ble_ll_event_dbuf_overflow(struct ble_npl_event *ev);
 #endif
 
-#if MYNEWT
+#ifdef MYNEWT
 /* The BLE LL task data structure */
 struct os_task g_ble_ll_task;
 
@@ -1970,7 +1970,7 @@ ble_ll_init(void)
     ble_ll_ext_init();
 #endif
 
-#if MYNEWT
+#ifdef MYNEWT
     /* Initialize the LL task */
     os_task_init(&g_ble_ll_task, "ble_ll", ble_ll_task, NULL,
                  MYNEWT_VAL(BLE_LL_PRIO), OS_WAIT_FOREVER, g_ble_ll_stack,

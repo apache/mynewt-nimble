@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#if MYNEWT
+#ifdef MYNEWT
 
 #include "os/mynewt.h"
 #include "ble_hs_priv.h"

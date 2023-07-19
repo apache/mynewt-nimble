@@ -120,7 +120,7 @@ ble_hs_evq_set(struct ble_npl_eventq *evq)
 int
 ble_hs_locked_by_cur_task(void)
 {
-#if MYNEWT
+#ifdef MYNEWT
     struct os_task *owner;
 
     if (!ble_npl_os_started()) {
