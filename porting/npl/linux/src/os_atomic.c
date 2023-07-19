@@ -18,6 +18,7 @@
  */
 
 #include <stdint.h>
+#define __USE_GNU
 #include <pthread.h>
 
 #include "nimble/nimble_npl.h"
