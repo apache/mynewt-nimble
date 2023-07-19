@@ -541,7 +541,7 @@ hal_timer_init(int timer_num, void *cfg)
 #ifndef RIOT_VERSION
     NVIC_SetPriority(irq_num, (1 << __NVIC_PRIO_BITS) - 1);
 #endif
-#if MYNEWT
+#ifdef MYNEWT
     NVIC_SetVector(irq_num, (uint32_t)irq_isr);
 #else
     ble_npl_hw_set_isr(irq_num, irq_isr);

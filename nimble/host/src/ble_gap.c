@@ -35,7 +35,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-#if MYNEWT
+#ifdef MYNEWT
 #include "bsp/bsp.h"
 #else
 #define bssnz_t

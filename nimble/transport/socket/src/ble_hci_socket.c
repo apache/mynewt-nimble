@@ -146,7 +146,7 @@ STATS_NAME_END(hci_sock_stats)
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
 
-#if MYNEWT
+#ifdef MYNEWT
 
 #define BLE_SOCK_STACK_SIZE         \
     OS_STACK_ALIGN(MYNEWT_VAL(BLE_SOCK_STACK_SIZE))
@@ -778,7 +778,7 @@ ble_hci_sock_init_task(void)
     ble_npl_callout_init(&ble_hci_sock_state.timer, &ble_hci_sock_state.evq,
                     ble_hci_sock_rx_ev, NULL);
 
-#if MYNEWT
+#ifdef MYNEWT
     {
         os_stack_t *pstack;
 
