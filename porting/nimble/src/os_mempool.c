@@ -150,7 +150,7 @@ os_mempool_init_internal(struct os_mempool *mp, uint16_t blocks,
     mp->mp_min_free = blocks;
     mp->mp_flags = flags;
     mp->mp_num_blocks = blocks;
-    mp->mp_membuf_addr = (uint32_t)(uintptr_t)membuf;
+    mp->mp_membuf_addr = (uintptr_t)membuf;
     mp->name = name;
     SLIST_FIRST(mp) = membuf;
 
@@ -304,23 +304,20 @@ int
 os_memblock_from(const struct os_mempool *mp, const void *block_addr)
 {
     uint32_t true_block_size;
-    uintptr_t baddr32;
-    uint32_t end;
+    uintptr_t baddr;
+    uintptr_t end;
 
-    static_assert(sizeof block_addr == sizeof baddr32,
-                  "Pointer to void must be 32-bits.");
-
-    baddr32 = (uint32_t)(uintptr_t)block_addr;
+    baddr = (uintptr_t)block_addr;
     true_block_size = OS_MEMPOOL_TRUE_BLOCK_SIZE(mp);
     end = mp->mp_membuf_addr + (mp->mp_num_blocks * true_block_size);
 
     /* Check that the block is in the memory buffer range. */
-    if ((baddr32 < mp->mp_membuf_addr) || (baddr32 >= end)) {
+    if ((baddr < mp->mp_membuf_addr) || (baddr >= end)) {
         return 0;
     }
 
     /* All freed blocks should be on true block size boundaries! */
-    if (((baddr32 - mp->mp_membuf_addr) % true_block_size) != 0) {
+    if (((baddr - mp->mp_membuf_addr) % true_block_size) != 0) {
         return 0;
     }
 
