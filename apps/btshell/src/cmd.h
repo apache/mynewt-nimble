@@ -24,9 +24,6 @@
 #include "host/ble_uuid.h"
 #include <parse_arg/parse_arg.h>
 
-//int parse_arg_mac(char *name, uint8_t *dst);
-//int parse_arg_addr(char *name, ble_addr_t *addr);
-//int parse_arg_uuid(char *name, ble_uuid_any_t *uuid);
 int parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,
                         uint8_t *out_body_len, uint8_t *out_suffix);
 

@@ -19,7 +19,7 @@
 
 #include "os/mynewt.h"
 #include <console/console.h>
-#include <parse.h>
+#include <parse_arg/parse_arg.h>
 #include <shell/shell.h>
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
@@ -28,14 +28,14 @@
 #include <img_mgmt/img_mgmt.h>
 #include <bootutil/image.h>
 
-static const struct kv_pair phy_opts[] = {
+static const struct parse_arg_kv_pair phy_opts[] = {
     { "1M",          0x01 },
     { "2M",          0x02 },
     { "coded",       0x03 },
     { NULL }
 };
 
-static const struct kv_pair modulation_index_opts[] = {
+static const struct parse_arg_kv_pair modulation_index_opts[] = {
     { "standard",    0x00 },
     { "stable",      0x01 },
     { NULL }
@@ -47,7 +47,7 @@ cmd_rx_test(int argc, char **argv)
     struct ble_dtm_rx_params params;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -87,7 +87,7 @@ cmd_tx_test(int argc, char **argv)
     struct ble_dtm_tx_params params;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -132,7 +132,7 @@ cmd_stop_test(int argc, char **argv)
     uint16_t num_packets;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -154,7 +154,7 @@ cmd_tx_power(int argc, char **argv)
     struct ble_hci_vs_set_tx_pwr_rp rsp;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -183,7 +183,7 @@ cmd_set_antenna(int argc, char **argv)
     struct ble_hci_vs_set_antenna_cp cmd;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
