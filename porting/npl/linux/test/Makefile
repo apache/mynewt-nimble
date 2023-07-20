@@ -99,7 +99,7 @@ show_objs:
 ### ===== Clean =====
 clean:
 	@echo "Cleaning artifacts."
-	rm *~ .depend $(OBJS) *.o *.exe
+	rm -f .depend $(OBJS) *.o *.exe
 
 ### ===== Dependencies =====
 ### Rebuild if headers change
