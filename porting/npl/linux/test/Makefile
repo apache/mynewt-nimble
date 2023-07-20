@@ -43,11 +43,12 @@ CFLAGS =                    \
     $(INCLUDES) $(DEFINES)  \
     -g                      \
     -D_GNU_SOURCE           \
+    -m32                    \
     $(NULL)
 
 LIBS = -lrt -lpthread -lstdc++
 
-LDFLAGS =
+LDFLAGS = -m32
 
 ### ===== Sources =====
 
