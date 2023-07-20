@@ -28,6 +28,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/shell"
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/util/parse_arg"
     - "@apache-mynewt-nimble/nimble/host"
     - "@apache-mynewt-mcumgr/cmd/img_mgmt"
     - "@mcuboot/boot/bootutil"
