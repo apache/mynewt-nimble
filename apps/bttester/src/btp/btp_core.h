@@ -17,59 +17,35 @@
  * under the License.
  */
 
-/* main.c - Application main entry point */
+/* btp_core.h - Bluetooth tester Core service headers */
 
 /*
  * Copyright (c) 2015-2016 Intel Corporation
+ * Copyright (C) 2023 Codecoup
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sysinit/sysinit.h"
+/* Core Service */
+#define BTP_CORE_READ_SUPPORTED_COMMANDS    0x01
+struct btp_core_read_supported_commands_rp {
+    uint8_t data[0];
+} __packed;
 
-#include "modlog/modlog.h"
-#include "host/ble_uuid.h"
-#include "host/ble_hs.h"
+#define BTP_CORE_READ_SUPPORTED_SERVICES    0x02
+struct btp_core_read_supported_services_rp {
+    uint8_t data[0];
+} __packed;
 
-#include "btp/btp.h"
+#define BTP_CORE_REGISTER_SERVICE        0x03
+struct btp_core_register_service_cmd {
+    uint8_t id;
+} __packed;
 
-static void
-on_reset(int reason)
-{
-    MODLOG_DFLT(ERROR, "Resetting state; reason=%d\n", reason);
-}
+#define BTP_CORE_UNREGISTER_SERVICE        0x04
+struct btp_core_unregister_service_cmd {
+    uint8_t id;
+} __packed;
 
-static void
-on_sync(void)
-{
-    MODLOG_DFLT(INFO, "Bluetooth initialized\n");
-
-    tester_init();
-}
-
-int
-main(int argc, char **argv)
-{
-    int rc;
-
-#ifdef ARCH_sim
-    mcu_sim_parse_args(argc, argv);
-#endif
-
-    /* Initialize OS */
-    sysinit();
-
-    /* Initialize the NimBLE host configuration. */
-    ble_hs_cfg.reset_cb = on_reset;
-    ble_hs_cfg.sync_cb = on_sync;
-    ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb,
-        ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-
-    rc = gatt_svr_init();
-    assert(rc == 0);
-
-    while (1) {
-        os_eventq_run(os_eventq_dflt_get());
-    }
-    return 0;
-}
+/* events */
+#define BTP_CORE_EV_IUT_READY        0x80
