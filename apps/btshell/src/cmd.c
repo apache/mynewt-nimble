@@ -69,7 +69,7 @@ cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
     return 0;
 }
 
-static const struct kv_pair cmd_own_addr_types[] = {
+static const struct parse_arg_kv_pair cmd_own_addr_types[] = {
     { "public",     BLE_OWN_ADDR_PUBLIC },
     { "random",     BLE_OWN_ADDR_RANDOM },
     { "rpa_pub",    BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT },
@@ -77,7 +77,7 @@ static const struct kv_pair cmd_own_addr_types[] = {
     { NULL }
 };
 
-static const struct kv_pair cmd_peer_addr_types[] = {
+static const struct parse_arg_kv_pair cmd_peer_addr_types[] = {
     { "public",     BLE_ADDR_PUBLIC },
     { "random",     BLE_ADDR_RANDOM },
     { "public_id",  BLE_ADDR_PUBLIC_ID },
@@ -85,7 +85,7 @@ static const struct kv_pair cmd_peer_addr_types[] = {
     { NULL }
 };
 
-static const struct kv_pair cmd_addr_type[] = {
+static const struct parse_arg_kv_pair cmd_addr_type[] = {
     { "public",     BLE_ADDR_PUBLIC },
     { "random",     BLE_ADDR_RANDOM },
     { NULL }
@@ -93,7 +93,7 @@ static const struct kv_pair cmd_addr_type[] = {
 
 
 static int
-parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
+parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
                ble_addr_t *addr)
 {
     char name[32];
@@ -115,7 +115,7 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
     }
     written += rc;
 
-    rc = parse_arg_addr(name, addr);
+    rc = parse_arg_ble_addr(name, addr);
     if (rc == ENOENT) {
         /* not found */
         return rc;
@@ -153,7 +153,7 @@ parse_dev_addr(const char *prefix, const struct kv_pair *addr_types,
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
-static const struct kv_pair cmd_adv_filt_types[] = {
+static const struct parse_arg_kv_pair cmd_adv_filt_types[] = {
     { "none", BLE_HCI_ADV_FILT_NONE },
     { "scan", BLE_HCI_ADV_FILT_SCAN },
     { "conn", BLE_HCI_ADV_FILT_CONN },
@@ -162,7 +162,7 @@ static const struct kv_pair cmd_adv_filt_types[] = {
 };
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-static struct kv_pair cmd_ext_adv_phy_opts[] = {
+static struct parse_arg_kv_pair cmd_ext_adv_phy_opts[] = {
     { "1M",          0x01 },
     { "2M",          0x02 },
     { "coded",       0x03 },
@@ -177,7 +177,7 @@ cmd_advertise_configure(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -338,7 +338,7 @@ cmd_advertise_set_addr(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -349,7 +349,7 @@ cmd_advertise_set_addr(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_mac("addr", addr.val);
+    rc = parse_arg_mac_addr("addr", addr.val);
     if (rc != 0) {
         console_printf("invalid 'addr' parameter\n");
                     return rc;
@@ -375,7 +375,7 @@ cmd_advertise_start(int argc, char **argv)
     bool restart;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -419,7 +419,7 @@ cmd_advertise_stop(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -445,7 +445,7 @@ cmd_advertise_remove(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -546,14 +546,14 @@ static const struct shell_cmd_help advertise_remove_help = {
 #endif
 
 #else
-static const struct kv_pair cmd_adv_conn_modes[] = {
+static const struct parse_arg_kv_pair cmd_adv_conn_modes[] = {
     { "non", BLE_GAP_CONN_MODE_NON },
     { "und", BLE_GAP_CONN_MODE_UND },
     { "dir", BLE_GAP_CONN_MODE_DIR },
     { NULL }
 };
 
-static const struct kv_pair cmd_adv_disc_modes[] = {
+static const struct parse_arg_kv_pair cmd_adv_disc_modes[] = {
     { "non", BLE_GAP_DISC_MODE_NON },
     { "ltd", BLE_GAP_DISC_MODE_LTD },
     { "gen", BLE_GAP_DISC_MODE_GEN },
@@ -571,7 +571,7 @@ cmd_advertise(int argc, char **argv)
     bool restart;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -699,7 +699,7 @@ static const struct shell_cmd_help advertise_help = {
  * $connect                                                                  *
  *****************************************************************************/
 
-static struct kv_pair cmd_ext_conn_phy_opts[] = {
+static struct parse_arg_kv_pair cmd_ext_conn_phy_opts[] = {
     { "none",        0x00 },
     { "1M",          0x01 },
     { "coded",       0x02 },
@@ -721,7 +721,7 @@ cmd_connect(int argc, char **argv)
     int own_addr_type;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1014,7 +1014,7 @@ cmd_disconnect(int argc, char **argv)
     uint8_t reason;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1117,7 +1117,7 @@ cmd_set_scan_opts(int argc, char **argv)
     char *name_filter;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1173,7 +1173,7 @@ static const struct shell_cmd_help set_scan_opts_help = {
  * $scan                                                                     *
  *****************************************************************************/
 
-static const struct kv_pair cmd_scan_filt_policies[] = {
+static const struct parse_arg_kv_pair cmd_scan_filt_policies[] = {
     { "no_wl", BLE_HCI_SCAN_FILT_NO_WL },
     { "use_wl", BLE_HCI_SCAN_FILT_USE_WL },
     { "no_wl_inita", BLE_HCI_SCAN_FILT_NO_WL_INITA },
@@ -1181,7 +1181,7 @@ static const struct kv_pair cmd_scan_filt_policies[] = {
     { NULL }
 };
 
-static struct kv_pair cmd_scan_ext_types[] = {
+static struct parse_arg_kv_pair cmd_scan_ext_types[] = {
     { "none",       0x00 },
     { "1M",         0x01 },
     { "coded",      0x02 },
@@ -1204,7 +1204,7 @@ cmd_scan(int argc, char **argv)
     uint16_t period;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1428,7 +1428,7 @@ cmd_set(int argc, char **argv)
     int good = 0;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1544,11 +1544,11 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     int8_t eddystone_measured_power = 0;
     char eddystone_url_body[BLE_EDDYSTONE_URL_MAX_LEN];
     char *eddystone_url_full;
-    int svc_data_uuid16_len;
-    int svc_data_uuid32_len;
-    int svc_data_uuid128_len;
-    int uri_len;
-    int mfg_data_len;
+    unsigned int svc_data_uuid16_len;
+    unsigned int svc_data_uuid32_len;
+    unsigned int svc_data_uuid128_len;
+    unsigned int uri_len;
+    unsigned int mfg_data_len;
     int tmp;
     int rc;
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -1566,7 +1566,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
 
     memset(&adv_fields, 0, sizeof adv_fields);
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1753,9 +1753,9 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
         return rc;
     }
 
-    rc = parse_arg_byte_stream("service_data_uuid128",
+    rc = parse_arg_byte_stream_custom("service_data_uuid128", ":-",
                                CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN,
-                               svc_data_uuid128, &svc_data_uuid128_len);
+                               svc_data_uuid128, 0, &svc_data_uuid128_len);
     if (rc == 0) {
         adv_fields.svc_data_uuid128 = svc_data_uuid128;
         adv_fields.svc_data_uuid128_len = svc_data_uuid128_len;
@@ -1932,7 +1932,7 @@ cmd_set_priv_mode(int argc, char **argv)
     uint8_t priv_mode;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -1980,7 +1980,7 @@ cmd_white_list(int argc, char **argv)
     int addrs_cnt;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2036,7 +2036,7 @@ cmd_conn_rssi(int argc, char **argv)
     int8_t rssi;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2082,7 +2082,7 @@ cmd_conn_update_params(int argc, char **argv)
     uint16_t conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2176,7 +2176,7 @@ cmd_conn_datalen(int argc, char **argv)
     uint16_t tx_time;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2229,7 +2229,7 @@ static const struct shell_cmd_help conn_datalen_help = {
  * keystore                                                                  *
  *****************************************************************************/
 
-static const struct kv_pair cmd_keystore_entry_type[] = {
+static const struct parse_arg_kv_pair cmd_keystore_entry_type[] = {
     { "msec",       BLE_STORE_OBJ_TYPE_PEER_SEC },
     { "ssec",       BLE_STORE_OBJ_TYPE_OUR_SEC },
     { "cccd",       BLE_STORE_OBJ_TYPE_CCCD },
@@ -2327,7 +2327,7 @@ cmd_keystore_add(int argc, char **argv)
     int obj_type;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2391,7 +2391,7 @@ cmd_keystore_del(int argc, char **argv)
     int obj_type;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2480,7 +2480,7 @@ cmd_keystore_show(int argc, char **argv)
     int type;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2546,7 +2546,7 @@ cmd_auth_passkey(int argc, char **argv)
     char *yesno;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2666,7 +2666,7 @@ cmd_security_pair(int argc, char **argv)
     uint16_t conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2710,7 +2710,7 @@ cmd_security_unpair(int argc, char **argv)
     int rc;
     int oldest;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2767,7 +2767,7 @@ cmd_security_start(int argc, char **argv)
     uint16_t conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2815,7 +2815,7 @@ cmd_security_encryption(int argc, char **argv)
     int rc;
     int auth;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -2896,7 +2896,7 @@ cmd_security_set_data(int argc, char **argv)
 
     good = 0;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3010,7 +3010,7 @@ cmd_test_tx(int argc, char **argv)
     uint16_t num;
     uint8_t stop;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3087,7 +3087,7 @@ cmd_phy_set(int argc, char **argv)
     uint16_t phy_opts;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3147,7 +3147,7 @@ cmd_phy_set_default(int argc, char **argv)
     uint8_t rx_phys_mask;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3193,7 +3193,7 @@ cmd_phy_read(int argc, char **argv)
     uint8_t rx_phy;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3634,7 +3634,7 @@ cmd_periodic_configure(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3690,7 +3690,7 @@ cmd_periodic_start(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3716,7 +3716,7 @@ cmd_periodic_stop(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3783,7 +3783,7 @@ cmd_sync_create(int argc, char **argv)
     uint8_t sid;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3868,7 +3868,7 @@ cmd_sync_transfer(int argc, char **argv)
     uint16_t sync_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3907,7 +3907,7 @@ cmd_sync_reporting(int argc, char **argv)
     bool enable;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -3968,7 +3968,7 @@ cmd_sync_transfer_set_info(int argc, char **argv)
     uint8_t instance;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -4023,7 +4023,7 @@ cmd_sync_transfer_receive(int argc, char **argv)
     bool disable;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -4100,7 +4100,7 @@ cmd_sync_terminate(int argc, char **argv)
     uint16_t sync_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -4138,7 +4138,7 @@ cmd_sync_stats(int argc, char **argv)
     uint16_t sync_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
