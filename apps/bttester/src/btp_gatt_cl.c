@@ -1364,6 +1364,89 @@ config_subscription_ind(const void *cmd, uint16_t cmd_len,
     return status;
 }
 
+static int
+read_var_cb(uint16_t conn_handle,
+            const struct ble_gatt_error *error,
+            struct ble_gatt_attr *attr,
+            uint8_t num_attrs,
+            void *arg)
+{
+    struct btp_gattc_read_rp *rp = (void *) gatt_buf.buf;
+    struct ble_gap_conn_desc conn;
+    uint8_t rp_data_off = 0;
+    struct ble_gatt_attr attrs[num_attrs];
+
+    SYS_LOG_DBG("status=%d", error->status);
+
+    if (ble_gap_conn_find(conn_handle, &conn)) {
+            return BTP_STATUS_FAILED;
+    }
+
+    memcpy(attrs, attr, sizeof(struct ble_gatt_attr) * num_attrs);
+
+    memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
+
+    rp->status = (uint8_t) BLE_HS_ATT_ERR(error->status);
+
+    if (error->status != 0) {
+        rp->data_length = 0;
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_MULTIPLE_VAR_RP,
+                     rp, sizeof(*rp));
+    }
+
+    for (int i = 0; i < num_attrs; i++) {
+        memcpy(rp->data + rp_data_off, &attrs[i].om->om_len, 2);
+        rp_data_off += 2;
+        memcpy(rp->data + rp_data_off, attrs[i].om->om_data,
+               attrs[i].om->om_len);
+        rp_data_off += attrs[i].om->om_len;
+    }
+
+    rp->data_length = rp_data_off;
+
+    if (error->status == 0) {
+        tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_MULTIPLE_VAR_RP,
+                     rp, sizeof(*rp) + rp->data_length);
+        read_destroy();
+        return 0;
+    }
+
+    return 0;
+}
+
+static uint8_t
+read_multiple_var(const void *cmd, uint16_t cmd_len,
+                  void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gattc_read_multiple_var_cmd *cp = cmd;
+    uint16_t handles[cp->handles_count];
+    struct ble_gap_conn_desc conn;
+    int rc, i;
+
+    SYS_LOG_DBG("");
+
+    for (i = 0; i < ARRAY_SIZE(handles); i++) {
+        handles[i] = le16toh(cp->handles[i]);
+    }
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    if (!gatt_buf_reserve(sizeof(struct btp_gatt_read_rp))) {
+        return BTP_STATUS_FAILED;
+    }
+
+    if (ble_gattc_read_mult_var(conn.conn_handle, handles,
+                                cp->handles_count, read_var_cb,
+                                NULL)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
 int
 tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
                           uint8_t indication, struct os_mbuf *om)
@@ -1433,6 +1516,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     tester_set_bit(rp->data, BTP_GATTC_RELIABLE_WRITE);
     tester_set_bit(rp->data, BTP_GATTC_CFG_NOTIFY);
     tester_set_bit(rp->data, BTP_GATTC_CFG_INDICATE);
+    tester_set_bit(rp->data, BTP_GATTC_READ_MULTIPLE_VAR);
 
     *rsp_len = sizeof(*rp) + 3;
 
@@ -1538,6 +1622,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATTC_CFG_INDICATE,
         .expect_len = sizeof(struct btp_gattc_cfg_notify_cmd),
         .func = config_subscription_ind,
+    },
+    {
+        .opcode = BTP_GATTC_READ_MULTIPLE_VAR,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+        .func = read_multiple_var,
     },
 };
 
