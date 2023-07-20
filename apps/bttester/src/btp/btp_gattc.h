@@ -166,6 +166,13 @@ struct btp_gattc_cfg_notify_cmd {
     uint16_t ccc_handle;
 } __packed;
 
+#define BTP_GATTC_READ_MULTIPLE_VAR      0x14
+struct btp_gattc_read_multiple_var_cmd {
+    ble_addr_t address;
+    uint8_t handles_count;
+    uint16_t handles[0];
+} __packed;
+
 /* events */
 #define BTP_GATTC_EV_MTU_EXCHANGED    0x80
 struct btp_gattc_exchange_mtu_ev {
@@ -241,3 +248,5 @@ struct btp_gattc_notification_ev {
     uint16_t data_length;
     uint8_t data[0];
 } __packed;
+
+#define BTP_GATTC_READ_MULTIPLE_VAR_RP    0x91
