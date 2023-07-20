@@ -29,6 +29,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/shell"
+    - "@apache-mynewt-core/util/parse_arg"
     - nimble/host
     - nimble/host/services/gap
     - nimble/host/services/gatt

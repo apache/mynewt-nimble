@@ -45,7 +45,7 @@ cmd_gatt_discover_characteristic(int argc, char **argv)
     ble_uuid_any_t uuid;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -56,7 +56,7 @@ cmd_gatt_discover_characteristic(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_uuid("uuid", &uuid);
+    rc = parse_arg_ble_uuid("uuid", &uuid);
     if (rc == 0) {
         rc = btshell_disc_chrs_by_uuid(conn_handle, start_handle, end_handle,
                                        &uuid.u);
@@ -82,7 +82,7 @@ cmd_gatt_discover_descriptor(int argc, char **argv)
     uint16_t end_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -109,7 +109,7 @@ cmd_gatt_discover_service(int argc, char **argv)
     int conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -120,7 +120,7 @@ cmd_gatt_discover_service(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_uuid("uuid", &uuid);
+    rc = parse_arg_ble_uuid("uuid", &uuid);
     if (rc == 0) {
         rc = btshell_disc_svc_by_uuid(conn_handle, &uuid.u);
     } else if (rc == ENOENT) {
@@ -144,7 +144,7 @@ cmd_gatt_discover_full(int argc, char **argv)
     int conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -174,7 +174,7 @@ cmd_gatt_exchange_mtu(int argc, char **argv)
     uint16_t conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -204,7 +204,7 @@ cmd_gatt_notify(int argc, char **argv)
     uint16_t attr_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -241,7 +241,7 @@ cmd_gatt_read(int argc, char **argv)
     bool is_var;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -279,7 +279,7 @@ cmd_gatt_read(int argc, char **argv)
         }
     }
 
-    rc = parse_arg_uuid("uuid", &uuid);
+    rc = parse_arg_ble_uuid("uuid", &uuid);
     if (rc == ENOENT) {
         is_uuid = 0;
     } else if (rc == 0) {
@@ -351,7 +351,7 @@ cmd_gatt_service_changed(int argc, char **argv)
     uint16_t end;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -384,7 +384,7 @@ cmd_gatt_service_visibility(int argc, char **argv)
     bool vis;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -418,7 +418,7 @@ cmd_gatt_find_included_services(int argc, char **argv)
     uint16_t end_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -482,13 +482,13 @@ cmd_gatt_write(int argc, char **argv)
     uint16_t offset;
     int total_attr_len;
     int num_attrs;
-    int attr_len;
+    unsigned int attr_len;
     int is_long;
     int no_rsp;
     int rc;
     int i;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }

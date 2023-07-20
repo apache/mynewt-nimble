@@ -40,7 +40,7 @@ cmd_l2cap_update(int argc, char **argv)
     uint16_t conn_handle;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -101,7 +101,7 @@ cmd_l2cap_create_server(int argc, char **argv)
     int accept_response = 0;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -159,7 +159,7 @@ cmd_l2cap_connect(int argc, char **argv)
     uint8_t num;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -202,7 +202,7 @@ cmd_l2cap_disconnect(int argc, char **argv)
     uint16_t idx;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -234,7 +234,7 @@ cmd_l2cap_send(int argc, char **argv)
     uint16_t bytes;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -294,7 +294,7 @@ cmd_l2cap_reconfig(int argc, char **argv)
     int num;
     int rc;
 
-    rc = parse_arg_all(argc - 1, argv + 1);
+    rc = parse_arg_init(argc - 1, argv + 1);
     if (rc != 0) {
         return rc;
     }
@@ -311,7 +311,7 @@ cmd_l2cap_reconfig(int argc, char **argv)
        return rc;
     }
 
-    rc = parse_arg_uint8_list_with_separator("idxs", ",", 5, idxs, &num);
+    rc = parse_arg_byte_stream_custom("idxs", ",", 5, idxs, 0, &num);
     if (rc != 0) {
        console_printf("invalid 'idxs' parameter\n");
        return rc;
