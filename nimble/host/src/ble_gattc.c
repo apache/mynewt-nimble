@@ -243,6 +243,7 @@ static ble_gattc_err_fn ble_gattc_read_err;
 static ble_gattc_err_fn ble_gattc_read_uuid_err;
 static ble_gattc_err_fn ble_gattc_read_long_err;
 static ble_gattc_err_fn ble_gattc_read_mult_err;
+static ble_gattc_err_fn ble_gattc_read_mult_var_err;
 static ble_gattc_err_fn ble_gattc_write_err;
 static ble_gattc_err_fn ble_gattc_write_long_err;
 static ble_gattc_err_fn ble_gattc_write_reliable_err;
@@ -260,6 +261,7 @@ static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_READ_UUID]         = ble_gattc_read_uuid_err,
     [BLE_GATT_OP_READ_LONG]         = ble_gattc_read_long_err,
     [BLE_GATT_OP_READ_MULT]         = ble_gattc_read_mult_err,
+    [BLE_GATT_OP_READ_MULT_VAR]     = ble_gattc_read_mult_var_err,
     [BLE_GATT_OP_WRITE]             = ble_gattc_write_err,
     [BLE_GATT_OP_WRITE_LONG]        = ble_gattc_write_long_err,
     [BLE_GATT_OP_WRITE_RELIABLE]    = ble_gattc_write_reliable_err,
@@ -3465,6 +3467,18 @@ ble_gattc_read_mult_err(struct ble_gattc_proc *proc, int status,
 {
     ble_gattc_dbg_assert_proc_not_inserted(proc);
     ble_gattc_read_mult_cb(proc, status, att_handle, NULL);
+}
+
+/**
+ * Handles an incoming ATT error response for the specified
+ * read-multiple-variable-lengthcharacteristics proc.
+ */
+static void
+ble_gattc_read_mult_var_err(struct ble_gattc_proc *proc, int status,
+                            uint16_t att_handle)
+{
+    ble_gattc_dbg_assert_proc_not_inserted(proc);
+    ble_gattc_read_mult_cb_var(proc, status, att_handle, NULL);
 }
 
 static int
