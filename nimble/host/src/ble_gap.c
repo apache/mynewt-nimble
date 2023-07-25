@@ -6461,6 +6461,9 @@ ble_gap_preempt_done(void)
         void *arg;
     } slaves[BLE_ADV_INSTANCES];
 
+    master_cb = NULL;
+    master_arg = NULL;
+
     disc_preempted = 0;
 
     /* Protects slaves from accessing by multiple threads */
