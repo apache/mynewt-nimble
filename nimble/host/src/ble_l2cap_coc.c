@@ -341,7 +341,12 @@ ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn, uint16_t psm, uint16_t mtu,
         chan->coc_rx.sdus[i] = NULL;
     }
     chan->coc_rx.current_sdu_idx = 0;
-    chan->coc_rx.next_sdu_alloc_idx = chan->coc_rx.sdus[0] == NULL ? 0 : 1;
+
+    if (BLE_L2CAP_SDU_BUFF_CNT == 1) {
+        chan->coc_rx.next_sdu_alloc_idx = 0;
+    } else {
+        chan->coc_rx.next_sdu_alloc_idx = chan->coc_rx.sdus[0] == NULL ? 0 : 1;
+    }
 
     /* Number of credits should allow to send full SDU with on given
      * L2CAP MTU
