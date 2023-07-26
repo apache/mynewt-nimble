@@ -8,7 +8,8 @@
  */
 
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_ADV_LOG
+#define BLE_NPL_LOG_MODULE BLE_MESH_ADV_LOG
+#include <nimble/nimble_npl_log.h>
 
 #include "mesh/mesh.h"
 #include "host/ble_hs_adv.h"

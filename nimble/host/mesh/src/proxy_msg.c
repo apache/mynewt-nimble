@@ -8,7 +8,9 @@
  */
 
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_PROXY_LOG
+
+#define BLE_NPL_LOG_MODULE BLE_MESH_PROXY_LOG
+#include <nimble/nimble_npl_log.h>
 
 #if MYNEWT_VAL(BLE_MESH_PROXY)
 

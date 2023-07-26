@@ -17,32 +17,21 @@
  * under the License.
  */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef _NIMBLE_NPL_OS_LOG_H_
+#define _NIMBLE_NPL_OS_LOG_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <stdarg.h>
+#include <stdio.h>
 
-static inline void
-log_dummy(void *log, ...)
-{
-    (void)log;
-}
+/* Example on how to use macro to generate module logging functions */
+#define BLE_NPL_LOG_IMPL(lvl) \
+        static inline void _BLE_NPL_LOG_CAT(BLE_NPL_LOG_MODULE, \
+                _BLE_NPL_LOG_CAT(_, lvl))(const char *fmt, ...)\
+        {                               \
+            va_list args;               \
+            va_start(args, fmt);        \
+            vprintf(fmt, args);          \
+            va_end(args);               \
+        }
 
-#ifdef MYNEWT
-#define LOG_DEBUG(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
-#define LOG_INFO(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)
-#define LOG_WARN(_log, _mod, ...)       log_dummy(_log, ## __VA_ARGS__)
-#define LOG_ERROR(_log, _mod, ...)      log_dummy(_log, ## __VA_ARGS__)
-#define LOG_CRITICAL(_log, _mod, ...)   log_dummy(_log, ## __VA_ARGS__)
-#endif
-
-struct log {
-};
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __LOG_H__ */
+#endif  /* _NIMBLE_NPL_OS_LOG_H_ */

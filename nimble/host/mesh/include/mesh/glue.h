@@ -24,8 +24,6 @@
 #include <errno.h>
 
 #include "syscfg/syscfg.h"
-#include "logcfg/logcfg.h"
-#include "modlog/modlog.h"
 #include "nimble/nimble_npl.h"
 
 #include "os/os_mbuf.h"
@@ -182,19 +180,10 @@ extern "C" {
 #define BT_GAP_ADV_SLOW_INT_MIN                 0x0640  /* 1 s      */
 #define BT_GAP_ADV_SLOW_INT_MAX                 0x0780  /* 1.2 s    */
 
-#ifndef MESH_LOG_MODULE
-#define MESH_LOG_MODULE BLE_MESH_LOG
-#endif
-
-#define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
-#define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
-
-#define BLE_MESH_LOG(lvl, ...) CAT(MESH_LOG_MODULE, CAT(_, lvl))(__VA_ARGS__)
-
-#define BT_DBG(fmt, ...)    BLE_MESH_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_INFO(fmt, ...)   BLE_MESH_LOG(INFO, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_WARN(fmt, ...)   BLE_MESH_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_ERR(fmt, ...)    BLE_MESH_LOG(ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_DBG(fmt, ...)    BLE_NPL_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_INFO(fmt, ...)   BLE_NPL_LOG(INFO, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_WARN(fmt, ...)   BLE_NPL_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_ERR(fmt, ...)    BLE_NPL_LOG(ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
 #define BT_GATT_ERR(_att_err)   (-(_att_err))
 
 typedef ble_addr_t bt_addr_le_t;

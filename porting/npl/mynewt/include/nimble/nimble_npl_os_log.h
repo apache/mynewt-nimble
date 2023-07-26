@@ -17,30 +17,15 @@
  * under the License.
  */
 
-#include "os/os.h"
-#include "host/ble_hs.h"
-#include "host/ble_hs_log.h"
+#ifndef _NIMBLE_NPL_OS_LOG_H_
+#define _NIMBLE_NPL_OS_LOG_H_
 
-void
-ble_hs_log_mbuf(const struct os_mbuf *om)
-{
-    uint8_t u8;
-    int i;
+#include <modlog/modlog.h>
+#include <log/log.h>
 
-    for (i = 0; i < OS_MBUF_PKTLEN(om); i++) {
-        os_mbuf_copydata(om, i, 1, &u8);
-        BLE_HS_LOG(DEBUG, "0x%02x ", u8);
-    }
-}
+/* Only include the logcfg header if this version of newt can generate it. */
+#if MYNEWT_VAL(NEWT_FEATURE_LOGCFG)
+#include <logcfg/logcfg.h>
+#endif
 
-void
-ble_hs_log_flat_buf(const void *data, int len)
-{
-    const uint8_t *u8ptr;
-    int i;
-
-    u8ptr = data;
-    for (i = 0; i < len; i++) {
-        BLE_HS_LOG(DEBUG, "0x%02x ", u8ptr[i]);
-    }
-}
+#endif  /* _NIMBLE_NPL_OS_LOG_H_ */

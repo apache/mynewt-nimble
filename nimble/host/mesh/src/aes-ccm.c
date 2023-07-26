@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define BLE_NPL_LOG_MODULE BLE_MESH_LOG
+#include <nimble/nimble_npl_log.h>
+
 #include "crypto.h"
-#define MESH_LOG_MODULE BLE_MESH_LOG
 
 static inline void xor16(uint8_t *dst, const uint8_t *a, const uint8_t *b)
 {

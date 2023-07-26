@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <syscfg/syscfg.h>
+#define BLE_NPL_LOG_MODULE BLE_EATT_LOG
+#include <nimble/nimble_npl_log.h>
+
 #include <errno.h>
 #include <string.h>
 #include "os/os.h"

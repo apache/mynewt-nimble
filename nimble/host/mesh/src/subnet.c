@@ -6,9 +6,9 @@
  */
 #include <stdlib.h>
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_NET_KEYS_LOG
 
-#include "log/log.h"
+#define BLE_NPL_LOG_MODULE BLE_MESH_NET_KEYS_LOG
+#include <nimble/nimble_npl_log.h>
 
 #include "crypto.h"
 #include "adv.h"

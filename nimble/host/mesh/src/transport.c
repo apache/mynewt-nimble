@@ -7,7 +7,9 @@
  */
 
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_TRANS_LOG
+
+#define BLE_NPL_LOG_MODULE BLE_MESH_TRANS_LOG
+#include <nimble/nimble_npl_log.h>
 
 #include <errno.h>
 #include <string.h>

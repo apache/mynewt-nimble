@@ -17,8 +17,6 @@
  * under the License.
  */
 
-#define MESH_LOG_MODULE BLE_MESH_LOG
-
 #include <assert.h>
 #include "os/mynewt.h"
 #include "mesh/mesh.h"
