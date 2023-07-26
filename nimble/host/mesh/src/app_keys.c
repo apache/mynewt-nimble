@@ -5,6 +5,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define BLE_NPL_LOG_MODULE BLE_MESH_LOG
+#include <nimble/nimble_npl_log.h>
+
 #include <string.h>
 #include <stdlib.h>
 #include "mesh/mesh.h"
@@ -20,10 +23,6 @@
 #include "foundation.h"
 #include "access.h"
 #include "subnet.h"
-
-#define MESH_LOG_MODULE BLE_MESH_LOG
-
-#include "log/log.h"
 
 /* Tracking of what storage changes are pending for App Keys. We track this in
  * a separate array here instead of within the respective bt_mesh_app_key

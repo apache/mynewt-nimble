@@ -7,7 +7,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define MESH_LOG_MODULE BLE_MESH_PROXY_LOG
+#define BLE_NPL_LOG_MODULE BLE_MESH_PROXY_LOG
+#include <nimble/nimble_npl_log.h>
 
 #include "mesh/slist.h"
 #include "mesh/mesh.h"

@@ -20,6 +20,12 @@
 #ifndef H_BLE_HS_LOG_
 #define H_BLE_HS_LOG_
 
+#ifndef BLE_NPL_LOG_MODULE
+#define BLE_NPL_LOG_MODULE BLE_HS_LOG
+#endif
+
+#include <nimble/nimble_npl_log.h>
+
 /**
  * @file ble_hs_log.h
  *
@@ -32,14 +38,6 @@
  * @ingroup bt_host
  * @{
  */
-
-#include "modlog/modlog.h"
-#include "log/log.h"
-
-/* Only include the logcfg header if this version of newt can generate it. */
-#if MYNEWT_VAL(NEWT_FEATURE_LOGCFG)
-#include "logcfg/logcfg.h"
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,7 +55,7 @@ struct os_mbuf;
  * @param ...           The format string and additional arguments for the log message.
  */
 #define BLE_HS_LOG(lvl, ...) \
-    BLE_HS_LOG_ ## lvl(__VA_ARGS__)
+    BLE_NPL_LOG(lvl, __VA_ARGS__)
 
 /**
  * @brief Macro for logging a Bluetooth address at a specified log level.
@@ -69,9 +67,9 @@ struct os_mbuf;
  *  @param addr         The Bluetooth address to be logged.
  */
 #define BLE_HS_LOG_ADDR(lvl, addr)                      \
-    BLE_HS_LOG_ ## lvl("%02x:%02x:%02x:%02x:%02x:%02x", \
-                       (addr)[5], (addr)[4], (addr)[3], \
-                       (addr)[2], (addr)[1], (addr)[0])
+    BLE_NPL_LOG(lvl, "%02x:%02x:%02x:%02x:%02x:%02x", \
+                (addr)[5], (addr)[4], (addr)[3], \
+                (addr)[2], (addr)[1], (addr)[0])
 
 
 /**

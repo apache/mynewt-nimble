@@ -5,7 +5,10 @@
  */
 
 #include "syscfg/syscfg.h"
-#define MESH_LOG_MODULE BLE_MESH_MODEL_LOG
+
+#define BLE_NPL_LOG_MODULE BLE_MESH_MODEL_LOG
+#include <nimble/nimble_npl_log.h>
+
 
 #include "mesh/mesh.h"
 #include "mesh/model_srv.h"
