@@ -1704,6 +1704,10 @@ get_attrs(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
+    if (!buf) {
+        return BTP_STATUS_FAILED;
+    }
+
     memset(str, 0, sizeof(str));
     memset(&uuid, 0, sizeof(uuid));
     start_handle = le16toh(cp->start_handle);
@@ -1712,7 +1716,7 @@ get_attrs(const void *cmd, uint16_t cmd_len,
     if (cp->type_length) {
         if (btp2bt_uuid(cp->type, cp->type_length, &uuid)) {
             status = BTP_STATUS_FAILED;
-            goto free;
+            goto done;
         }
 
         ble_uuid_to_str(&uuid.u, str);
@@ -1722,12 +1726,6 @@ get_attrs(const void *cmd, uint16_t cmd_len,
         uuid_ptr = &uuid.u;
     } else {
         SYS_LOG_DBG("start 0x%04x end 0x%04x", start_handle, end_handle);
-    }
-
-    rp = os_mbuf_extend(buf, sizeof(*rp));
-    if (!rp) {
-        status = BTP_STATUS_FAILED;
-        goto free;
     }
 
     entry = ble_att_svr_find_by_uuid(entry, uuid_ptr, end_handle);
@@ -1742,7 +1740,7 @@ get_attrs(const void *cmd, uint16_t cmd_len,
         gatt_attr = os_mbuf_extend(buf, sizeof(*gatt_attr));
         if (!gatt_attr) {
             status = BTP_STATUS_FAILED;
-            goto free;
+            goto done;
         }
         gatt_attr->handle = htole16(entry->ha_handle_id);
         gatt_attr->permission = flags_hs2btp(entry->ha_flags);
@@ -1765,10 +1763,11 @@ get_attrs(const void *cmd, uint16_t cmd_len,
     }
 
     rp->attrs_count = count;
+    memcpy(rp->attrs, buf->om_data, buf->om_len);
 
     *rsp_len = sizeof(*rp) + buf->om_len;
 
-free:
+done:
     os_mbuf_free_chain(buf);
     return status;
 }
