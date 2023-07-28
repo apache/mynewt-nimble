@@ -1750,11 +1750,17 @@ get_attrs(const void *cmd, uint16_t cmd_len,
 
             gatt_attr->type_length = 2;
             uuid_val = htole16(BLE_UUID16(entry->ha_uuid)->value);
-            os_mbuf_append(buf, &uuid_val, sizeof(uuid_val));
+            if (os_mbuf_append(buf, &uuid_val, sizeof(uuid_val))) {
+                status = BTP_STATUS_FAILED;
+                goto done;
+            }
         } else {
             gatt_attr->type_length = 16;
-            os_mbuf_append(buf, BLE_UUID128(entry->ha_uuid)->value,
-                           gatt_attr->type_length);
+            if (os_mbuf_append(buf, BLE_UUID128(entry->ha_uuid)->value,
+                               gatt_attr->type_length)) {
+                status = BTP_STATUS_FAILED;
+                goto done;
+            }
         }
 
         count++;
@@ -1763,9 +1769,9 @@ get_attrs(const void *cmd, uint16_t cmd_len,
     }
 
     rp->attrs_count = count;
-    memcpy(rp->attrs, buf->om_data, buf->om_len);
+    os_mbuf_copydata(buf, 0, os_mbuf_len(buf), rp->attrs);
 
-    *rsp_len = sizeof(*rp) + buf->om_len;
+    *rsp_len = sizeof(*rp) + os_mbuf_len(buf);
 
 done:
     os_mbuf_free_chain(buf);
