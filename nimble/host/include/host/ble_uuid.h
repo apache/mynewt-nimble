@@ -253,6 +253,25 @@ void ble_uuid_copy(ble_uuid_any_t *dst, const ble_uuid_t *src);
  */
 char *ble_uuid_to_str(const ble_uuid_t *uuid, char *dst);
 
+/**
+ * @brief Converts the specified UUID string to ble_uuid_any_t representation.
+ *        If the UUID is recognised as Bluetooth SIG UUID, it will provide its
+ *        32-bit or 16-bit representation.
+ *
+ * Example 128-bit string representations:
+ *     o "12345678-1234-1234-1234-123456789abc"
+ *     o "12345678123412341234123456789abc"
+ *
+ * @param uuid  Destination UUID.
+ * @param str   The source string UUID.
+ *
+ * @return      0 on success,
+ *              BLE_HS_EINVAL if the specified UUID string has wrong size or
+ *              contains disallowed characters.
+ */
+int
+ble_uuid_from_str(ble_uuid_any_t *uuid, const char *str);
+
 /** @brief Converts the specified 16-bit UUID to a uint16_t.
  *
  * @param uuid   The source UUID to convert.
