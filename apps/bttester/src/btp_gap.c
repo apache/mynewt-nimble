@@ -1577,7 +1577,7 @@ start_direct_adv(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    adv_params.high_duty_cycle = cp->high_duty;
+    adv_params.high_duty_cycle = cp->options & BIT(1);
 
     err = ble_gap_adv_start(own_addr_type, &cp->address,
                             BLE_HS_FOREVER, &adv_params,
