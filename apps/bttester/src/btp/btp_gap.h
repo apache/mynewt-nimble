@@ -212,7 +212,7 @@ struct btp_gap_passkey_confirm_cmd {
 #define BTP_GAP_START_DIRECT_ADV        0x15
 struct btp_gap_start_direct_adv_cmd {
     ble_addr_t address;
-    uint8_t high_duty;
+    uint16_t options;
 } __packed;
 
 #define BTP_GAP_CONN_PARAM_UPDATE        0x16
