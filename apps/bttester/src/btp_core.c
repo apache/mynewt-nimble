@@ -101,10 +101,10 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_MESH:
         status = tester_init_mesh();
         break;
+#endif /* MYNEWT_VAL(BLE_MESH) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
         break;
-#endif /* MYNEWT_VAL(BLE_MESH) */
     default:
         status = BTP_STATUS_FAILED;
         break;
