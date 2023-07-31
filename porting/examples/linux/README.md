@@ -59,7 +59,7 @@ in sysconfig.h to use hci0.
 
 ```no-highlight
    cd porting/examples/linux
-   sudo ./_build/nimble_linux.out
+   sudo ./nimble-linux
 ```
 
 3. Build and run the unit tests
@@ -68,6 +68,6 @@ The Operating System Abstraction Layer (OSAL) used to port Nimble to Linux
 has a suite of unit tests.
 
 ```no-highlight
-   cd tests/unit/porting/npl
+   cd porting/npl/linux/test
    make test
 ```
