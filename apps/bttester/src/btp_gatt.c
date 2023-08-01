@@ -1807,8 +1807,8 @@ get_attr_val(const void *cmd, uint16_t cmd_len,
         rp->att_response = out_att_err;
         rp->value_length = os_mbuf_len(buf) - sizeof(*rp);
 
-        (void)memcpy(rsp, buf->om_data,  buf->om_len);
-        *rsp_len = buf->om_len;
+        os_mbuf_copydata(buf, 0, os_mbuf_len(buf), rsp);
+        *rsp_len = os_mbuf_len(buf);
 
         goto free;
     } else {
@@ -1825,8 +1825,8 @@ get_attr_val(const void *cmd, uint16_t cmd_len,
         rp->att_response = out_att_err;
         rp->value_length = os_mbuf_len(buf) - sizeof(*rp);
 
-        (void)memcpy(rsp, buf->om_data,  buf->om_len);
-        *rsp_len = buf->om_len;
+        os_mbuf_copydata(buf, 0, os_mbuf_len(buf), rsp);
+        *rsp_len = os_mbuf_len(buf);
 
         goto free;
     }
