@@ -488,19 +488,19 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     switch (addr_type) {
     case 0x00:
         break;
-#if defined(CONFIG_BT_PRIVACY)
+#if MYNEWT_VAL(BTTESTER_PRIVACY_MODE)
     case 0x01:
-		/* RPA usage is is controlled via privacy settings */
-		if (!atomic_test_bit(&current_settings, BTP_GAP_SETTINGS_PRIVACY)) {
-			return BTP_STATUS_FAILED;
-		}
-		break;
-	case 0x02:
-		/* NRPA is used only for non-connectable advertising */
-		if (atomic_test_bit(&current_settings, BTP_GAP_SETTINGS_CONNECTABLE)) {
-			return BTP_STATUS_FAILED;
-		}
-		break;
+        /* RPA usage is is controlled via privacy settings */
+        if (!(current_settings & BIT(BTP_GAP_SETTINGS_PRIVACY))) {
+            return BTP_STATUS_FAILED;
+        }
+        break;
+    case 0x02:
+        /* NRPA is used only for non-connectable advertising */
+        if (!(current_settings & BIT(BTP_GAP_SETTINGS_CONNECTABLE))) {
+            return BTP_STATUS_FAILED;
+        }
+        break;
 #endif
     default:
         return BTP_STATUS_FAILED;
