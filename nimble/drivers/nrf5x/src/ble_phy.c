@@ -1570,7 +1570,7 @@ ble_phy_init(void)
 #ifdef NRF53_SERIES
     /* Errata 158: load trim values after toggling power */
     for (uint32_t index = 0; index < 32ul &&
-         NRF_FICR_NS->TRIMCNF[index].ADDR != (uint32_t *)0xFFFFFFFFul; index++) {
+         NRF_FICR_NS->TRIMCNF[index].ADDR != 0xFFFFFFFFul; index++) {
         if (((uint32_t)NRF_FICR_NS->TRIMCNF[index].ADDR & 0xFFFFF000ul) == (volatile uint32_t)NRF_RADIO_NS) {
             *((volatile uint32_t *)NRF_FICR_NS->TRIMCNF[index].ADDR) = NRF_FICR_NS->TRIMCNF[index].DATA;
         }
