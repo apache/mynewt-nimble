@@ -141,19 +141,6 @@ recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
 }
 
 static void
-unstalled_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
-             int status, void *arg)
-{
-    if (status) {
-        tester_rsp(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_SEND_DATA,
-                   BTP_STATUS_FAILED);
-    } else {
-        tester_rsp(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_SEND_DATA,
-                   BTP_STATUS_SUCCESS);
-    }
-}
-
-static void
 reconfigured_ev(uint16_t conn_handle, struct ble_l2cap_chan *chan,
                 struct ble_l2cap_chan_info *chan_info,
                 int status)
@@ -349,10 +336,6 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
             (uint32_t) event->tx_unstalled.chan,
             event->tx_unstalled.conn_handle,
             event->tx_unstalled.status);
-
-        unstalled_cb(event->tx_unstalled.conn_handle,
-                     event->tx_unstalled.chan,
-                     event->tx_unstalled.status, arg);
         return 0;
     case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
         if (ble_l2cap_get_chan_info(event->reconfigured.chan,
