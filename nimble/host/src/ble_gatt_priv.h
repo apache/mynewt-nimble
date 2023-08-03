@@ -86,8 +86,9 @@ STATS_SECT_START(ble_gatts_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 
-#define BLE_GATT_CHR_DECL_SZ_16     5
-#define BLE_GATT_CHR_DECL_SZ_128    19
+#define BLE_GATT_CHR_DECL_SZ_16         5
+#define BLE_GATT_CHR_DECL_SZ_128        19
+#define BLE_GATT_CHR_CLI_SUP_FEAT_SZ    1
 
 typedef uint8_t ble_gatts_conn_flags;
 
@@ -96,6 +97,14 @@ struct ble_gatts_conn {
     int num_clt_cfgs;
 
     uint16_t indicate_val_handle;
+
+    /**
+     * For now only 3 bits in one octet are defined, but specification expects
+     * this service to be variable length with no upper bound. Let's make this
+     * future proof if more octets might be used.
+     * (Vol. 3, Part G, 7.2)
+     */
+    uint8_t peer_cl_sup_feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ];
 };
 
 /*** @client. */
