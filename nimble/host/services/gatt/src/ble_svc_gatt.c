@@ -35,8 +35,8 @@ static uint16_t ble_svc_gatt_end_handle;
 #define BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT              (0x01)
 #define BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT          (0x02)
 
-static uint8_t ble_svc_gatt_srv_sup_feat = 0;
-static uint8_t ble_svc_gatt_cl_sup_feat = 0;
+static uint8_t ble_svc_gatt_local_srv_sup_feat = 0;
+static uint8_t ble_svc_gatt_local_cl_sup_feat = 0;
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
@@ -91,7 +91,7 @@ ble_svc_gatt_srv_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
     }
 
-    os_mbuf_append(ctxt->om, &ble_svc_gatt_srv_sup_feat, sizeof(ble_svc_gatt_srv_sup_feat));
+    os_mbuf_append(ctxt->om, &ble_svc_gatt_local_srv_sup_feat, sizeof(ble_svc_gatt_local_srv_sup_feat));
 
     return 0;
 }
@@ -106,7 +106,9 @@ ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
         os_mbuf_append(ctxt->om, &eatt_supported, sizeof(eatt_supported));
         return 0;
     }
-    /* TODO For write just return OK */
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+        return ble_gatts_peer_cl_sup_feat_update(conn_handle, ctxt->om);
+    }
 
     return 0;
 }
@@ -140,7 +142,7 @@ ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,
 uint8_t
 ble_svc_gatt_get_local_cl_supported_feat(void)
 {
-    return ble_svc_gatt_cl_sup_feat;
+    return ble_svc_gatt_local_cl_sup_feat;
 }
 
 /**
@@ -173,14 +175,14 @@ ble_svc_gatt_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
-        ble_svc_gatt_srv_sup_feat |= (1 << BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT);
+        ble_svc_gatt_local_srv_sup_feat |= (1 << BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT);
     }
 
     if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
-        ble_svc_gatt_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT);
+        ble_svc_gatt_local_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT);
     }
 
     if (MYNEWT_VAL(BLE_ATT_SVR_NOTIFY_MULTI) > 0) {
-        ble_svc_gatt_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT);
+        ble_svc_gatt_local_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT);
     }
 }

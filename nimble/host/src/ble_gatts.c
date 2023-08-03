@@ -1580,6 +1580,60 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
     }
 }
 
+int
+ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
+{
+    struct ble_hs_conn *conn;
+    int rc = 0;
+    int feat_idx = 0;
+    int i;
+
+    BLE_HS_LOG(DEBUG, "");
+
+    if (!om) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+    if (om->om_len == 0) {
+        /* Nothing to do */
+        goto done;
+    } else if (os_mbuf_len(om) > BLE_ATT_ATTR_MAX_LEN) {
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
+
+    while(om) {
+        for (i = 0; i < om->om_len; i++) {
+            /**
+             * Disabling already enabled features is not permitted
+             * (Vol. 3, Part F, 3.3.3)
+             * If value of saved octet, as uint8_t, is greatet than requested
+             * it means more bits are set.
+             */
+            if (conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] >
+                om->om_data[i]) {
+                rc = BLE_HS_EINVAL;
+                goto done;
+            }
+
+            conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] |= om->om_data[i];
+
+            feat_idx++;
+        }
+        om = SLIST_NEXT(om, om_next);
+    }
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
 /**
  * Sends notifications or indications for the specified characteristic to all
  * connected devices.  The bluetooth spec does not allow more than one
