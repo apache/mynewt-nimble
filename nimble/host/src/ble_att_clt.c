@@ -927,8 +927,9 @@ ble_att_clt_tx_notify(uint16_t conn_handle, uint16_t handle,
     os_mbuf_concat(txom2, txom);
 
     cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
-    return ble_att_tx(conn_handle, cid, txom2);
+    rc = ble_att_tx(conn_handle, cid, txom2);
     ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
+    return rc;
 
 err:
     os_mbuf_free_chain(txom);
