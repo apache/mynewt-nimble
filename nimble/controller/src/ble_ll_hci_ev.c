@@ -643,16 +643,16 @@ void
 ble_ll_hci_ev_send_vs_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
                                  void *pdu, size_t length)
 {
-    struct ble_hci_ev_vs_debug *ev;
+    struct ble_hci_ev_vs *ev;
     struct ble_hci_ev *hci_ev;
 
     hci_ev = ble_transport_alloc_evt(1);
     if (hci_ev) {
-        hci_ev->opcode = BLE_HCI_EVCODE_VS_DEBUG;
+        hci_ev->opcode = BLE_HCI_EVCODE_VS;
         hci_ev->length = sizeof(*ev) + 8 + length;
         ev = (void *) hci_ev->data;
 
-        ev->id = 0x17;
+        ev->id = BLE_HCI_VS_SUBEV_ID_LLCP_TRACE;
         ev->data[0] = type;
         put_le16(&ev->data[1], handle);
         put_le16(&ev->data[3], count);
