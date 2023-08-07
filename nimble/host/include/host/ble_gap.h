@@ -39,12 +39,35 @@ extern "C" {
 struct hci_le_conn_complete;
 struct hci_conn_update;
 
+/**
+ * @defgroup ble_gap_ms_convert Generic Access Profile (GAP) Time Conversion Macros
+ * @{
+ */
+
+/** Convert advertising interval from milliseconds to BLE HCI units. */
 #define BLE_GAP_ADV_ITVL_MS(t)              ((t) * 1000 / BLE_HCI_ADV_ITVL)
+
+/** Convert scan interval from milliseconds to BLE HCI units. */
 #define BLE_GAP_SCAN_ITVL_MS(t)             ((t) * 1000 / BLE_HCI_SCAN_ITVL)
+
+/** Convert scan window from milliseconds to BLE HCI units. */
 #define BLE_GAP_SCAN_WIN_MS(t)              ((t) * 1000 / BLE_HCI_SCAN_ITVL)
+
+/** Convert connection interval from milliseconds to BLE HCI units. */
 #define BLE_GAP_CONN_ITVL_MS(t)             ((t) * 1000 / BLE_HCI_CONN_ITVL)
+
+/** Convert supervision timeout from milliseconds to BLE HCI units. */
 #define BLE_GAP_SUPERVISION_TIMEOUT_MS(t)   ((t) / 10)
+
+/** Convert periodic advertising interval from milliseconds to BLE HCI units. */
 #define BLE_GAP_PERIODIC_ITVL_MS(t)         ((t) * 1000 / BLE_HCI_PERIODIC_ADV_ITVL)
+
+/** @} */
+
+/**
+ * @defgroup ble_gap_intervals Generic Access Profile (GAP) Intervals and Durations
+ * @{
+ */
 
 /** 30 ms. */
 #define BLE_GAP_ADV_FAST_INTERVAL1_MIN      BLE_GAP_ADV_ITVL_MS(30)
@@ -73,7 +96,7 @@ struct hci_conn_update;
 /** 30 ms; active scanning. */
 #define BLE_GAP_SCAN_FAST_WINDOW            BLE_GAP_SCAN_WIN_MS(30)
 
-/* 30.72 seconds; active scanning. */
+/** 30.72 seconds; active scanning. */
 #define BLE_GAP_SCAN_FAST_PERIOD            BLE_GAP_SCAN_ITVL_MS(30.72)
 
 /** 1.28 seconds; background scanning. */
@@ -94,56 +117,153 @@ struct hci_conn_update;
 /** 5 seconds. */
 #define BLE_GAP_CONN_PAUSE_PERIPHERAL       (5 * 1000)
 
-/* 30 ms. */
+/** 30 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MIN       BLE_GAP_CONN_ITVL_MS(30)
 
-/* 50 ms. */
+/** 50 ms. */
 #define BLE_GAP_INITIAL_CONN_ITVL_MAX       BLE_GAP_CONN_ITVL_MS(50)
+
+/** @} */
 
 /** Default channels mask: all three channels are used. */
 #define BLE_GAP_ADV_DFLT_CHANNEL_MAP        0x07
 
+/**
+ * @defgroup ble_gap_initial_conn_params Generic Access Profile (GAP) Initial Connection Parameters
+ * @{
+ */
+
+/** Initial connection latency. */
 #define BLE_GAP_INITIAL_CONN_LATENCY        0
+
+/** Initial supervision timeout. */
 #define BLE_GAP_INITIAL_SUPERVISION_TIMEOUT 0x0100
+
+/** Initial minimum connection event length. */
 #define BLE_GAP_INITIAL_CONN_MIN_CE_LEN     0x0000
+
+/** Initial maximum connection event length. */
 #define BLE_GAP_INITIAL_CONN_MAX_CE_LEN     0x0000
 
+/** @} */
+
+/**
+ * @defgroup ble_gap_roles Generic Access Profile (GAP) Roles
+ * @{
+ */
+
+/** GAP role: Master */
 #define BLE_GAP_ROLE_MASTER                 0
+
+/** GAP role: Slave */
 #define BLE_GAP_ROLE_SLAVE                  1
 
+/** @} */
+
+/**
+ * @defgroup ble_gap_events Generic Access Profile (GAP) Events
+ * @{
+ */
+
+/** GAP event: Connection established */
 #define BLE_GAP_EVENT_CONNECT               0
+
+/** GAP event: Connection terminated */
 #define BLE_GAP_EVENT_DISCONNECT            1
+
+/** GAP event: Reserved for future use */
 /* Reserved                                 2 */
+
+/** GAP event: Connection update */
 #define BLE_GAP_EVENT_CONN_UPDATE           3
+
+/** GAP event: Connection update request */
 #define BLE_GAP_EVENT_CONN_UPDATE_REQ       4
+
+/** GAP event: L2CAP update request */
 #define BLE_GAP_EVENT_L2CAP_UPDATE_REQ      5
+
+/** GAP event: Termination failure */
 #define BLE_GAP_EVENT_TERM_FAILURE          6
+
+/** GAP event: Discovery event */
 #define BLE_GAP_EVENT_DISC                  7
+
+/** GAP event: Discovery complete */
 #define BLE_GAP_EVENT_DISC_COMPLETE         8
+
+/** GAP event: Advertising complete */
 #define BLE_GAP_EVENT_ADV_COMPLETE          9
+
+/** GAP event: Encryption change */
 #define BLE_GAP_EVENT_ENC_CHANGE            10
+
+/** GAP event: Passkey action */
 #define BLE_GAP_EVENT_PASSKEY_ACTION        11
+
+/** GAP event: Notification received */
 #define BLE_GAP_EVENT_NOTIFY_RX             12
+
+/** GAP event: Notification transmitted */
 #define BLE_GAP_EVENT_NOTIFY_TX             13
+
+/** GAP event: Subscription */
 #define BLE_GAP_EVENT_SUBSCRIBE             14
+
+/** GAP event: MTU event */
 #define BLE_GAP_EVENT_MTU                   15
+
+/** GAP event: Identity resolved */
 #define BLE_GAP_EVENT_IDENTITY_RESOLVED     16
+
+/** GAP event: Repeat pairing */
 #define BLE_GAP_EVENT_REPEAT_PAIRING        17
+
+/** GAP event: PHY update complete */
 #define BLE_GAP_EVENT_PHY_UPDATE_COMPLETE   18
+
+/** GAP event: Extended discovery */
 #define BLE_GAP_EVENT_EXT_DISC              19
+
+/** GAP event: Periodic synchronization */
 #define BLE_GAP_EVENT_PERIODIC_SYNC         20
+
+/** GAP event: Periodic report */
 #define BLE_GAP_EVENT_PERIODIC_REPORT       21
+
+/** GAP event: Periodic synchronization lost */
 #define BLE_GAP_EVENT_PERIODIC_SYNC_LOST    22
+
+/** GAP event: Scan request received */
 #define BLE_GAP_EVENT_SCAN_REQ_RCVD         23
+
+/** GAP event: Periodic transfer */
 #define BLE_GAP_EVENT_PERIODIC_TRANSFER     24
+
+/** GAP event: Pathloss threshold */
 #define BLE_GAP_EVENT_PATHLOSS_THRESHOLD    25
+
+/** GAP event: Transmit power */
 #define BLE_GAP_EVENT_TRANSMIT_POWER        26
+
+/** GAP event: Pairing complete */
 #define BLE_GAP_EVENT_PARING_COMPLETE       27
+
+/** GAP event: Subrate change */
 #define BLE_GAP_EVENT_SUBRATE_CHANGE        28
+
+/** GAP event: Vendor specific HCI event */
 #define BLE_GAP_EVENT_VS_HCI                29
+
+/** GAP event: BIG (Broadcast Isochronous Group) information report */
 #define BLE_GAP_EVENT_BIGINFO_REPORT        30
 
-/*** Reason codes for the subscribe GAP event. */
+/** @} */
+
+/**
+ * @defgroup ble_gap_subscribe_reasons Generic Access Profile (GAP) Subscribe Event Reason Codes
+ * @{
+ */
 
 /** Peer's CCCD subscription state changed due to a descriptor write. */
 #define BLE_GAP_SUBSCRIBE_REASON_WRITE      1
@@ -157,8 +277,20 @@ struct hci_conn_update;
  */
 #define BLE_GAP_SUBSCRIBE_REASON_RESTORE    3
 
+/** @} */
+
+/**
+ * @defgroup ble_gap_repeat_pairing_options Generic Access Profile (GAP) Repeat Pairing Options
+ * @{
+ */
+
+/** GAP repeat pairing option: Retry the pairing procedure. */
 #define BLE_GAP_REPEAT_PAIRING_RETRY        1
+
+/** GAP repeat pairing option: Ignore the pairing procedure. */
 #define BLE_GAP_REPEAT_PAIRING_IGNORE       2
+
+/** @} */
 
 /** Connection security state */
 struct ble_gap_sec_state {
@@ -442,22 +574,53 @@ struct ble_gap_disc_desc {
     ble_addr_t direct_addr;
 };
 
+/**
+ * Represents a repeat pairing operation between two devices.
+ *
+ * This structure contains information about a repeat pairing operation between
+ * two devices. The host can use this information to determine whether it needs
+ * to initiate a pairing procedure with a remote device again.
+ */
 struct ble_gap_repeat_pairing {
     /** The handle of the relevant connection. */
     uint16_t conn_handle;
 
     /** Properties of the existing bond. */
+    /** The size of the current encryption key in octets. */
     uint8_t cur_key_size;
+
+    /** A flag indicating whether the current connection is authenticated. */
     uint8_t cur_authenticated:1;
+
+    /**
+     * A flag indicating whether the current connection is using secure
+     * connections.
+     */
     uint8_t cur_sc:1;
 
     /**
      * Properties of the imminent secure link if the pairing procedure is
      * allowed to continue.
      */
+
+    /** The size of the imminent encryption key in octets. */
     uint8_t new_key_size;
+
+    /**
+     * A flag indicating whether the imminent connection will be authenticated.
+     */
     uint8_t new_authenticated:1;
+
+    /**
+     * A flag indicating whether the imminent connection will use secure
+     * connections.
+     */
     uint8_t new_sc:1;
+
+    /**
+     * A flag indicating whether the pairing procedure will result in a new
+     * bonding,
+     */
     uint8_t new_bonding:1;
 };
 
@@ -1140,16 +1303,38 @@ struct ble_gap_event {
     };
 };
 
+/** Callback function type for handling BLE GAP events. */
 typedef int ble_gap_event_fn(struct ble_gap_event *event, void *arg);
+
+/** Callback function type for iterating through BLE connection handles. */
 typedef int ble_gap_conn_foreach_handle_fn(uint16_t conn_handle, void *arg);
 
+/**
+ * @defgroup ble_gap_advertising_modes Generic Access Profile (GAP) Advertising Modes
+ * @{
+ */
+
+/** Non-connectable mode for advertising. */
 #define BLE_GAP_CONN_MODE_NON               0
+
+/** Directed connectable mode for advertising. */
 #define BLE_GAP_CONN_MODE_DIR               1
+
+/** Undirected connectable mode for advertising. */
 #define BLE_GAP_CONN_MODE_UND               2
 
+
+/** Non-discoverable mode for advertising. */
 #define BLE_GAP_DISC_MODE_NON               0
+
+/** Limited discoverable mode for advertising. */
 #define BLE_GAP_DISC_MODE_LTD               1
+
+/** General discoverable mode for advertising. */
 #define BLE_GAP_DISC_MODE_GEN               2
+
+/** @} */
+
 
 /**
  * Searches for a connection with the specified handle.  If a matching
@@ -1294,13 +1479,13 @@ int ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len);
  *                      fit in an advertisement,
  *                      other error code on failure.
  */
-int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *rsp_fields);
+int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields);
 
 /**
  * Configures the fields to include in subsequent scan responses.  This is a
  * convenience wrapper for ble_gap_adv_rsp_set_data().
  *
- * @param adv_fields   Specifies the scan response data.
+ * @param rsp_fields   Specifies the scan response data.
  *
  * @return              0 on success,
  *                      BLE_HS_EBUSY if advertising is in progress,
@@ -1852,7 +2037,7 @@ int ble_gap_disc_active(void);
  *                                  On expiration, the procedure ends and a
  *                                  BLE_GAP_EVENT_DISC_COMPLETE event is
  *                                  reported.  Units are milliseconds.
- * @param conn_params           Additional arguments specifying the particulars
+ * @param params           Additional arguments specifying the particulars
  *                                  of the connect procedure.  Specify null for
  *                                  default values.
  * @param cb                    The callback to associate with this connect
@@ -2099,7 +2284,7 @@ int ble_gap_pair_initiate(uint16_t conn_handle);
  *                              start encryption.
  * @param key_size              Encryption key size
  * @param ltk                   Long Term Key to be used for encryption.
- * @param udiv                  Encryption Diversifier for LTK
+ * @param ediv                  Encryption Diversifier for LTK
  * @param rand_val              Random Value for EDIV and LTK
  * @param auth                  If LTK provided is authenticated.
  *
@@ -2171,8 +2356,19 @@ int ble_gap_unpair_oldest_peer(void);
  */
 int ble_gap_unpair_oldest_except(const ble_addr_t *peer_addr);
 
+/**
+ * @defgroup ble_gap_privacy_modes Generic Access Profile (GAP) Privacy Modes
+ * @{
+ */
+
+/** Network privacy mode. */
 #define BLE_GAP_PRIVATE_MODE_NETWORK        0
+
+/** Device privacy mode. */
 #define BLE_GAP_PRIVATE_MODE_DEVICE         1
+
+/** @} */
+
 
 /**
  * Set privacy mode for specified peer device
@@ -2187,9 +2383,22 @@ int ble_gap_unpair_oldest_except(const ble_addr_t *peer_addr);
  */
 int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
 
+/**
+ * @defgroup ble_gap_physical_layers Generic Access Profile (GAP) Physical Layers
+ * @{
+ */
+
+/** Physical layer: 1M PHY. */
 #define BLE_GAP_LE_PHY_1M                   1
+
+/** Physical layer: 2M PHY. */
 #define BLE_GAP_LE_PHY_2M                   2
+
+/** Physical layer: Coded PHY. */
 #define BLE_GAP_LE_PHY_CODED                3
+
+/** @} */
+
 /**
  * Read PHYs used for specified connection.
  *
@@ -2209,20 +2418,35 @@ int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
  */
 int ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy);
 
+/**
+ * @defgroup ble_gap_phy_masks Generic Access Profile (GAP) PHY Masks
+ * @{
+ */
+
+/** Bitmask for 1M PHY. */
 #define BLE_GAP_LE_PHY_1M_MASK              0x01
+
+/** Bitmask for 2M PHY. */
 #define BLE_GAP_LE_PHY_2M_MASK              0x02
+
+/** Bitmask for Coded PHY. */
 #define BLE_GAP_LE_PHY_CODED_MASK           0x04
+
+/** Bitmask for any PHY. */
 #define BLE_GAP_LE_PHY_ANY_MASK             0x0F
+
+/** @} */
+
 /**
  * Set preferred default PHYs to be used for connections.
  *
- * @params tx_phys_mask     Preferred TX PHY. Can be mask of following
+ * @param tx_phys_mask     Preferred TX PHY. Can be mask of following
  *                          constants:
  *                          - BLE_GAP_LE_PHY_1M_MASK
  *                          - BLE_GAP_LE_PHY_2M_MASK
  *                          - BLE_GAP_LE_PHY_CODED_MASK
  *                          - BLE_GAP_LE_PHY_ANY_MASK
- * @params rx_phys_mask     Preferred RX PHY. Can be mask of following
+ * @param rx_phys_mask     Preferred RX PHY. Can be mask of following
  *                          constants:
  *                          - BLE_GAP_LE_PHY_1M_MASK
  *                          - BLE_GAP_LE_PHY_2M_MASK
@@ -2234,20 +2458,33 @@ int ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy);
 int ble_gap_set_prefered_default_le_phy(uint8_t tx_phys_mask,
                                         uint8_t rx_phys_mask);
 
+/**
+ * @defgroup ble_gap_coded_phy_schemes Generic Access Profile (GAP) Coded PHY Schemes
+ * @{
+ */
+
+/** Coded PHY: any coding scheme. */
 #define BLE_GAP_LE_PHY_CODED_ANY            0
+
+/** Coded PHY: S2 coding scheme. */
 #define BLE_GAP_LE_PHY_CODED_S2             1
+
+/** Coded PHY: S8 coding scheme. */
 #define BLE_GAP_LE_PHY_CODED_S8             2
+
+/** @} */
+
 /**
  * Set preferred PHYs to be used for connection.
  *
  * @param conn_handle       Connection handle
- * @params tx_phys_mask     Preferred TX PHY. Can be mask of following
+ * @param tx_phys_mask     Preferred TX PHY. Can be mask of following
  *                          constants:
  *                          - BLE_GAP_LE_PHY_1M_MASK
  *                          - BLE_GAP_LE_PHY_2M_MASK
  *                          - BLE_GAP_LE_PHY_CODED_MASK
  *                          - BLE_GAP_LE_PHY_ANY_MASK
- * @params rx_phys_mask     Preferred RX PHY. Can be mask of following
+ * @param rx_phys_mask     Preferred RX PHY. Can be mask of following
  *                          constants:
  *                          - BLE_GAP_LE_PHY_1M_MASK
  *                          - BLE_GAP_LE_PHY_2M_MASK
@@ -2308,8 +2545,13 @@ ble_gap_subrate_req(uint16_t conn_handle, uint16_t subrate_min, uint16_t subrate
  * This should be used as an opaque structure and not modified manually.
  */
 struct ble_gap_event_listener {
+    /** The function to call when a GAP event occurs. */
     ble_gap_event_fn *fn;
+
+    /** An optional argument to pass to the event handler function. */
     void *arg;
+
+    /** Singly-linked list entry. */
     SLIST_ENTRY(ble_gap_event_listener) link;
 };
 
