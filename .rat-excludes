@@ -17,12 +17,10 @@ pts-sm.txt
 uncrustify.cfg
 .style_ignored_dirs
 .mailmap
+requirements.txt
 
 # tinycrypt - BSD License.
 tinycrypt
-
-# Bluetooth Mesh - Apache 2.0 License
-mesh
 
 # Queue implementation - BSD License
 queue.h
@@ -30,8 +28,8 @@ queue.h
 # mbuf implementation - BSD License
 os_mbuf.c
 
-# Bluetooth Mesh badge sample - Apache 2.0 License
-mesh_badge
+# Nordic nRF5 SDK - BSD License
+system_nrf52.c
 
-#BabbleSim and EDDT - Apache 2.0 License
-babblesim
+# CMSIS-CORE - BSD License.
+cmsis_nvic.h

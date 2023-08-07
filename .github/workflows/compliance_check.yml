@@ -50,9 +50,8 @@ jobs:
         run: |
              mkdir repos
              git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
-             wget https://dlcdn.apache.org//creadur/apache-rat-0.15/apache-rat-0.15-bin.tar.gz
-             tar zxf apache-rat-0.15-bin.tar.gz apache-rat-0.15/apache-rat-0.15.jar
-             mv apache-rat-0.15/apache-rat-0.15.jar apache-rat.jar
+             wget https://repository.apache.org/content/repositories/snapshots/org/apache/rat/apache-rat/0.16-SNAPSHOT/apache-rat-0.16-20230807.065048-315.jar
+             mv apache-rat-0.16-20230807.065048-315.jar apache-rat.jar
       - name: check licensing
         run: |
              ./repos/apache-mynewt-core/.github/check_license.py
