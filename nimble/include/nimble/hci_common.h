@@ -1611,6 +1611,8 @@ struct ble_hci_ev_vs_css_slot_changed {
     uint16_t slot_idx;
 };
 
+#define BLE_HCI_VS_SUBEV_ID_LLCP_TRACE          (0x17)
+
 /* LE sub-event codes */
 #define BLE_HCI_LE_SUBEV_CONN_COMPLETE          (0x01)
 struct ble_hci_ev_le_subev_conn_complete {
