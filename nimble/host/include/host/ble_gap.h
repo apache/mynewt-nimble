@@ -2587,6 +2587,25 @@ int ble_gap_event_listener_register(struct ble_gap_event_listener *listener,
  */
 int ble_gap_event_listener_unregister(struct ble_gap_event_listener *listener);
 
+/**
+ * Calls function defined by the user for every connection that is currently established
+ *
+ * @param cb            Callback function
+ * @param arg           Callback argument
+ */
+void ble_gap_conn_foreach_handle(ble_gap_conn_foreach_handle_fn *cb, void *arg);
+
+/**
+ * Looks for the connection with specified address.
+ *
+ * @param addr                  Address to look for
+ * @param out_conn_handle       Pointer to the variable in which conn_handle will be saved if found
+ *
+ * @return                      0 on success
+ *                              BLE_HS_ENOTCONN if connection with specified address was not found
+ */
+int ble_gap_conn_find_handle_by_addr(const ble_addr_t *addr, uint16_t *out_conn_handle);
+
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
 /**
  * Enable Set Path Loss Reporting.
