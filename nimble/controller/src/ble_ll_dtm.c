@@ -342,6 +342,18 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
     case 0x07:
         byte_pattern = 0xAA;
         break;
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+    case 0xff:
+        ble_ll_tx_power_set(g_ble_ll_tx_power);
+        rc = ble_phy_dtm_carrier(channel_rf_to_index[rf_channel]);
+        if (rc) {
+            return 1;
+        }
+
+        /* this is special as it doesn't involve scheduling */
+        g_ble_ll_dtm_ctx.active = 1;
+        return 0;
+#endif
     default:
         return 1;
     }
@@ -478,8 +490,18 @@ ble_ll_dtm_tx_test(uint8_t tx_chan, uint8_t len, uint8_t packet_payload,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (tx_chan > 0x27 || packet_payload > 0x07) {
+    if (tx_chan > 0x27) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (packet_payload > 0x07) {
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+        if (packet_payload != 255) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+#else
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+#endif
     }
 
     if (ble_ll_dtm_tx_create_ctx(packet_payload, len, tx_chan, phy_mode,
