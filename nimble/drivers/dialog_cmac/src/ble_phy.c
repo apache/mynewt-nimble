@@ -1796,4 +1796,12 @@ ble_phy_disable_dtm(void)
 {
     g_ble_phy_data.phy_whitening = 1;
 }
+
+#if MYNEWT_VAL(BLE_LL_DTM_EXTENSIONS)
+int
+ble_phy_dtm_carrier(uint8_t rf_channel)
+{
+    return 1;
+}
+#endif
 #endif
