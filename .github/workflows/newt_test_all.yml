@@ -46,5 +46,7 @@ jobs:
              git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
              git clone --depth=1 https://github.com/apache/mynewt-mcumgr repos/apache-mynewt-mcumgr
              git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
+             git clone --depth=1 https://github.com/NordicSemiconductor/nrfx --branch v2.11.0 repos/nordic-nrfx
+             git clone --depth=1 https://github.com/Mbed-TLS/mbedtls.git --branch v2.28.4 repos/mbedtls
       - name: newt test all
         run: newt test all
