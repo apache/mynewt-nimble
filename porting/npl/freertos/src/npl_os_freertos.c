@@ -22,6 +22,10 @@
 #include <string.h>
 #include "nimble/nimble_npl.h"
 
+#ifdef NIMBLE_NPL_OS_EXTRA_INCLUDE
+#include NIMBLE_NPL_OS_EXTRA_INCLUDE
+#endif
+
 static inline bool
 in_isr(void)
 {
