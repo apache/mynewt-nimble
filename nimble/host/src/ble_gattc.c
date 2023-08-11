@@ -4413,6 +4413,139 @@ ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle)
     return rc;
 }
 
+int
+ble_gatts_notify_multiple_custom(uint16_t conn_handle,
+                                 uint16_t chr_count,
+                                 struct ble_gatt_notif *tuples)
+{
+#if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+    int i = 0;
+    uint16_t cur_chr_cnt = 0;
+    /* mtu = MTU - 1 octet (OP code) */
+    uint16_t mtu = ble_att_mtu(conn_handle) - 1;
+    struct os_mbuf *txom;
+    struct ble_hs_conn *conn;
+
+    txom = ble_hs_mbuf_att_pkt();
+    if (txom == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        return ENOTCONN;
+    }
+
+    /* Read missing values */
+    for (i = 0; i < chr_count; i++) {
+        if (tuples->handle == 0) {
+            rc = BLE_HS_EINVAL;
+            goto done;
+        }
+        if (tuples[i].value == NULL) {
+            rc = ble_att_svr_read_local(tuples[i].handle, &tuples[i].value);
+            if (rc != 0) {
+                goto done;
+            }
+        }
+    }
+
+    /* If peer does not support fall back to multiple single value
+     * Notifications */
+    if ((conn->bhc_gatt_svr.peer_cl_sup_feat[0] & 0x04) == 0) {
+        for (i = 0; i < chr_count; i++) {
+            rc = ble_att_clt_tx_notify(conn_handle, tuples[chr_count].handle,
+                               tuples[chr_count].value);
+            if (rc != 0) {
+                goto done;
+            }
+        }
+    }
+
+    for (i = 0; i < chr_count; i++) {
+        if (txom->om_len + tuples[i].value->om_len > mtu && cur_chr_cnt < 2) {
+            rc = ble_att_clt_tx_notify(conn_handle, tuples[i].handle,
+                                       tuples[i].value);
+            if (rc != 0) {
+                goto done;
+            }
+            continue;
+        } else if (txom->om_len + tuples[i].value->om_len > mtu) {
+            rc = ble_att_clt_tx_notify_mult(conn_handle, txom);
+            if (rc != 0) {
+                goto done;
+            }
+            cur_chr_cnt = 0;
+            /* buffer was consumed, allocate new one */
+            txom = ble_hs_mbuf_att_pkt();
+            if (txom == NULL) {
+                return BLE_HS_ENOMEM;
+            }
+        }
+
+        os_mbuf_append(txom, &tuples[i].handle, sizeof(uint16_t));
+        os_mbuf_append(txom, &tuples[i].value->om_len,
+                       sizeof(uint16_t));
+        os_mbuf_concat(txom, tuples[i].value);
+        cur_chr_cnt++;
+    }
+
+    if (cur_chr_cnt == 1) {
+        rc = ble_att_clt_tx_notify(conn_handle, tuples[chr_count].handle,
+                                   tuples[chr_count].value);
+    } else {
+        rc = ble_att_clt_tx_notify_mult(conn_handle, txom);
+    }
+
+done:
+    return rc;
+}
+
+int
+ble_gatts_notify_multiple(uint16_t conn_handle,
+                          uint8_t num_handles,
+                          const uint16_t *chr_val_handles)
+{
+#if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+    return BLE_HS_ENOTSUP;
+#endif
+    int rc, i;
+    struct ble_gatt_notif tuples[num_handles];
+    struct ble_hs_conn *conn;
+
+    BLE_HS_LOG_DEBUG("conn_handle %d\n", conn_handle);
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        return ENOTCONN;
+    }
+
+    /** Skip sending to client that doesn't support this feature */
+    BLE_HS_LOG_DEBUG("ble_gatts_notify_multiple: peer_cl_sup_feat %d\n",
+                     conn->bhc_gatt_svr.peer_cl_sup_feat[0]);
+    if ((conn->bhc_gatt_svr.peer_cl_sup_feat[0] & 0x04) == 0) {
+        for (i = 0; i < num_handles; i++) {
+            rc = ble_gatts_notify(conn_handle, chr_val_handles[i]);
+            if (rc != 0) {
+                return rc;
+            }
+        }
+        return 0;
+    }
+
+    for (i = 0; i < num_handles; i++) {
+        tuples[i].handle = chr_val_handles[i];
+        tuples[i].value = NULL;
+        BLE_HS_LOG(DEBUG, "handle 0x%02x\n", tuples[i].handle);
+    }
+
+    rc = ble_gatts_notify_multiple_custom(conn_handle, num_handles, tuples);
+    return rc;
+}
+
 /**
  * Deprecated. Should not be used. Use ble_gatts_notify instead.
  */

@@ -302,6 +302,7 @@ int ble_att_clt_tx_notify(uint16_t conn_handle, uint16_t handle,
 int ble_att_clt_tx_indicate(uint16_t conn_handle, uint16_t cid,
                             uint16_t handle, struct os_mbuf *txom);
 int ble_att_clt_rx_indicate(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom);
+int ble_att_clt_tx_notify_mult(uint16_t conn_handle, struct os_mbuf *txom);
 
 #ifdef __cplusplus
 }
