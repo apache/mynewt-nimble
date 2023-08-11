@@ -246,6 +246,16 @@ struct ble_gatt_dsc {
     ble_uuid_any_t uuid;
 };
 
+
+/** Represents a handle-value tuple for multiple handle notifications. */
+struct ble_gatt_notif {
+    /** The handle of the GATT characteristic */
+    uint16_t handle;
+
+    /** The buffer with GATT characteristic value */
+    struct os_mbuf *value;
+};
+
 /** Function prototype for the GATT MTU exchange callback. */
 typedef int ble_gatt_mtu_fn(uint16_t conn_handle,
                             const struct ble_gatt_error *error,
@@ -635,6 +645,33 @@ int ble_gatts_notify_custom(uint16_t conn_handle, uint16_t att_handle,
                             struct os_mbuf *om);
 
 /**
+ * Sends a "free-form" multiple handle variable length characteristic
+ * notification. This function consumes supplied mbufs regardless of the
+ * outcome. Notifications are sent in order of supplied entries.
+ * Function tries to send minimum amount of PDUs. If PDU can't contain all
+ * of the characteristic values, multiple notifications are sent. If only one
+ * handle-value pair fits into PDU, or only one characteristic remains in the
+ * list, regular characteristic notification is sent.
+ *
+ * If GATT client doesn't support receiving multiple handle notifications,
+ * this will use GATT notification for each characteristic, separately.
+ *
+ * If value of characteristic is not specified it will be read from local
+ * GATT database.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_count             Number of characteristics to notify about.
+ * @param tuples                Handle-value pairs in form of `ble_gatt_notif`
+ *                                  structures.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gatts_notify_multiple_custom(uint16_t conn_handle,
+                                     uint16_t chr_count,
+                                     struct ble_gatt_notif *tuples);
+
+/**
  * Deprecated. Should not be used. Use ble_gatts_notify_custom instead.
  */
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
@@ -658,6 +695,32 @@ int ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle);
  * Deprecated. Should not be used. Use ble_gatts_notify instead.
  */
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
+
+/**
+ * Sends a multiple handle variable length characteristic notification.  The
+ * content of the message is read from the specified characteristics.
+ * Notifications are sent in order of supplied handles. Function tries to
+ * send minimum amount of PDUs. If PDU can't contain all of the
+ * characteristic values, multiple notifications are sent. If only one
+ * handle-value pair fits into PDU, or only one characteristic remains in the
+ * list, regular characteristic notification is sent.
+ *
+ * If GATT client doesn't support receiving multiple handle notifications,
+ * this will use GATT notification for each characteristic, separately.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param num_handles           The number of entries in the "chr_val_handles"
+ *                                  array.
+ * @param chr_val_handles       Array of attribute handles of the
+ *                                  characteristics to include in the outgoing
+ *                                  notification.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gatts_notify_multiple(uint16_t conn_handle,
+                              uint8_t num_handles,
+                              const uint16_t *chr_val_handles);
 
 /**
  * Sends a "free-form" characteristic indication.  The provided mbuf contains

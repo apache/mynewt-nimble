@@ -282,6 +282,12 @@ syscfg.defs:
         description: >
             Enables sending and receiving of GATT indications. (0/1)
         value: 1
+    BLE_GATT_NOTIFY_MULTIPLE:
+        description: >
+            Enables sending and receiving of GATT multiple handle notifications. (0/1)
+        value: (MYNEWT_VAL_BLE_VERSION >= 52)
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
 
     # GATT options.
     BLE_GATT_READ_MAX_ATTRS:
@@ -309,6 +315,7 @@ syscfg.defs:
         description: >
             Number of CoC channels allocated to EATT
         value: 0
+        restrictions: BLE_GATT_NOTIFY_MULTIPLE
 
     BLE_EATT_MTU:
         description: >

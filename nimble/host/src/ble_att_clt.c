@@ -986,3 +986,35 @@ ble_att_clt_rx_indicate(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxo
 }
 
 #endif
+
+/*****************************************************************************
+ * $multiple handle value notification                                       *
+ *****************************************************************************/
+
+int
+ble_att_clt_tx_notify_mult(uint16_t conn_handle, struct os_mbuf *txom)
+{
+#if !NIMBLE_BLE_ATT_CLT_NOTIFY_MULT
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct os_mbuf *txom2;
+    uint16_t cid;
+    int rc;
+
+    if (ble_att_cmd_get(BLE_ATT_OP_NOTIFY_MULTI_REQ, 0, &txom2) == NULL) {
+        rc = BLE_HS_ENOMEM;
+        goto err;
+    }
+
+    os_mbuf_concat(txom2, txom);
+
+    cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
+    rc = ble_att_tx(conn_handle, cid, txom2);
+    if (cid != BLE_L2CAP_CID_ATT) {
+        ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
+    }
+
+err:
+    return rc;
+}
