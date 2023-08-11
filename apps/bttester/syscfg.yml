@@ -145,3 +145,5 @@ syscfg.vals:
 
     BLE_MESH_ADV_BUF_COUNT: 20
     BLE_MESH_TX_SEG_MAX: 6
+
+    BLE_EATT_CHAN_NUM: 2

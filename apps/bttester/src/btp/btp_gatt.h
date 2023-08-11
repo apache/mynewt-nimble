@@ -314,6 +314,12 @@ struct btp_gatt_change_database_cmd {
     uint8_t visibility;
 } __packed;
 
+#define BTP_GATT_SET_MULT_VALUE        0x20
+struct btp_gatt_set_mult_val_cmd {
+    uint16_t count;
+    uint8_t data[0];
+} __packed;
+
 /* GATT events */
 #define BTP_GATT_EV_NOTIFICATION        0x80
 struct btp_gatt_notification_ev {

@@ -67,6 +67,7 @@
 #define  PTS_DSC_WRITE                     0x000a
 #define  PTS_DSC_READ_WRITE                0x000b
 #define  PTS_CHR_NOTIFY                    0x0025
+#define  PTS_CHR_NOTIFY_ALT                0x0026
 #define  PTS_LONG_CHR_READ_WRITE           0x0015
 #define  PTS_LONG_CHR_READ_WRITE_ALT       0x0016
 #define  PTS_LONG_DSC_READ_WRITE           0x001b
@@ -88,6 +89,11 @@ struct find_attr_data {
     int attr_type;
     void *ptr;
     uint16_t handle;
+};
+
+struct notify_mult_cb_data {
+    size_t tuple_cnt;
+    uint16_t handles[0];
 };
 
 static int
@@ -230,7 +236,17 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY),
                 .access_cb = gatt_svr_read_write_test,
                 .val_handle = &notify_handle,
-                .flags = BLE_GATT_CHR_F_NOTIFY |
+                .flags = BLE_GATT_CHR_F_READ |
+                         BLE_GATT_CHR_F_WRITE |
+                         BLE_GATT_CHR_F_NOTIFY |
+                         BLE_GATT_CHR_F_INDICATE,
+            }, {
+                .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY_ALT),
+                .access_cb = gatt_svr_read_write_test,
+                .val_handle = &notify_handle,
+                .flags = BLE_GATT_CHR_F_READ |
+                         BLE_GATT_CHR_F_WRITE |
+                         BLE_GATT_CHR_F_NOTIFY |
                          BLE_GATT_CHR_F_INDICATE,
             }, {
                 0, /* No more characteristics in this service. */
@@ -322,6 +338,8 @@ gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
     switch (uuid16) {
     case PTS_CHR_READ_WRITE:
     case PTS_CHR_READ_WRITE_ALT:
+    case PTS_CHR_NOTIFY:
+    case PTS_CHR_NOTIFY_ALT:
         if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
             rc = gatt_svr_chr_write(conn_handle, attr_handle,
                                     ctxt->om, 0,
@@ -1836,6 +1854,65 @@ free:
     return status;
 }
 
+int
+notify_multiple(uint16_t conn_handle, void *arg)
+{
+    struct notify_mult_cb_data *notify_data =
+        (struct notify_mult_cb_data *) arg;
+    int rc;
+
+    SYS_LOG_DBG("")
+
+    rc = ble_gatts_notify_multiple(conn_handle,
+                                   notify_data->tuple_cnt,
+                                   notify_data->handles);
+
+    return rc;
+}
+
+static uint8_t
+set_mult(const void *cmd, uint16_t cmd_len,
+         void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gatt_set_mult_val_cmd *cp = cmd;
+    struct ble_gatt_notif tuples[16];
+    int i;
+    int rc = 0;
+    int data_idx = 0;
+    uint16_t data_len;
+    struct notify_mult_cb_data cb_data;
+
+    for (i = 0; i < cp->count; i++) {
+        tuples[i].handle = get_le16(cp->data + data_idx);
+        data_idx += 2;
+        tuples[i].value = ble_hs_mbuf_att_pkt();
+        if (tuples[i].value == NULL) {
+            rc = ENOMEM;
+            goto done;
+        }
+
+        data_len = get_le16(cp->data + data_idx);
+        data_idx += 2;
+
+        os_mbuf_append(tuples[i].value, cp->data + data_idx, data_len);
+        data_idx += data_len;
+    }
+
+    for (i = 0; i < cp->count; i++) {
+        ble_att_svr_write_local(tuples[i].handle, tuples[i].value);
+        cb_data.handles[i] = tuples[i].handle;
+    }
+
+    cb_data.tuple_cnt = cp->count;
+    ble_gap_conn_foreach_handle(notify_multiple, (void *)&cb_data);
+done:
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
@@ -2017,6 +2094,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATT_GET_ATTRIBUTE_VALUE,
         .expect_len = sizeof(struct btp_gatt_get_attribute_value_cmd),
         .func = get_attr_val,
+    },
+    {
+        .opcode = BTP_GATT_SET_MULT_VALUE,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+        .func = set_mult,
     },
 };
 
