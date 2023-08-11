@@ -1379,7 +1379,7 @@ read_var_cb(uint16_t conn_handle,
     SYS_LOG_DBG("status=%d", error->status);
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
-            return BTP_STATUS_FAILED;
+        return BTP_STATUS_FAILED;
     }
 
     memcpy(attrs, attr, sizeof(struct ble_gatt_attr) * num_attrs);
