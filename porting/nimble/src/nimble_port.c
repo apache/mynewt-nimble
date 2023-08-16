@@ -22,9 +22,9 @@
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
 #include "nimble/nimble_port.h"
+#include "nimble/transport.h"
 #if NIMBLE_CFG_CONTROLLER
 #include "controller/ble_ll.h"
-#include "nimble/transport.h"
 #endif
 
 static struct ble_npl_eventq g_eventq_dflt;
@@ -50,8 +50,10 @@ nimble_port_init(void)
     hal_timer_init(5, NULL);
     os_cputime_init(32768);
 #endif
-    ble_transport_ll_init();
 #endif
+
+    /* Initialize the controller */
+    ble_transport_ll_init();
 }
 
 void
