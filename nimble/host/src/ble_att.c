@@ -649,6 +649,7 @@ ble_att_is_request_op(uint8_t opcode)
     case BLE_ATT_OP_EXEC_WRITE_REQ:
     case BLE_ATT_OP_INDICATE_REQ:
     case BLE_ATT_OP_READ_MULT_VAR_REQ:
+    case BLE_ATT_OP_NOTIFY_MULTI_REQ:
         return true;
     }
     return false;
