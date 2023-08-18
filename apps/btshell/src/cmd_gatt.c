@@ -592,3 +592,75 @@ done:
 
     return rc;
 }
+
+int
+cmd_gatt_enqueue_notif(int argc, char **argv)
+{
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+    int rc;
+    uint16_t handle;
+    unsigned int len;
+    uint8_t value[BLE_ATT_ATTR_MAX_LEN];
+
+    rc = parse_arg_init(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    handle = parse_arg_uint16("handle", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'handle' parameter\n");
+        return rc;
+    }
+
+    if (argc > 1) {
+        rc = parse_arg_byte_stream("value", BLE_ATT_ATTR_MAX_LEN, value, &len);
+        if (rc != 0) {
+            console_printf("invalid 'value' parameter\n");
+            return rc;
+        }
+        return btshell_enqueue_notif(handle, len, value);
+    } else {
+        return btshell_enqueue_notif(handle, 0, NULL);
+    }
+#else
+    console_printf("To enable this features set BLE_GATT_NOTIFY_MULTIPLE\n");
+    return ENOTSUP;
+#endif
+}
+
+int
+cmd_gatt_send_pending_notif(int argc, char **argv)
+{
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+    uint16_t conn_handle;
+    int rc;
+
+    rc = parse_arg_init(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    return btshell_send_pending_notif(conn_handle);
+#else
+    console_printf("To enable this features set BLE_GATT_NOTIFY_MULTIPLE\n");
+    return ENOTSUP;
+#endif
+}
+
+int
+cmd_gatt_clear_pending_notif(int argc, char **argv)
+{
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+    return btshell_clear_pending_notif();
+#else
+    console_printf("To enable this features set BLE_GATT_NOTIFY_MULTIPLE\n");
+    return ENOTSUP;
+#endif
+}

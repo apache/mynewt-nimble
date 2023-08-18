@@ -4415,7 +4415,7 @@ ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle)
 
 int
 ble_gatts_notify_multiple_custom(uint16_t conn_handle,
-                                 uint16_t chr_count,
+                                 size_t chr_count,
                                  struct ble_gatt_notif *tuples)
 {
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
@@ -4507,7 +4507,7 @@ done:
 
 int
 ble_gatts_notify_multiple(uint16_t conn_handle,
-                          uint8_t num_handles,
+                          size_t num_handles,
                           const uint16_t *chr_val_handles)
 {
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)

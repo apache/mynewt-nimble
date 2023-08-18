@@ -127,6 +127,12 @@ int btshell_write_long(uint16_t conn_handle, uint16_t attr_handle,
                        uint16_t offset, struct os_mbuf *om);
 int btshell_write_reliable(uint16_t conn_handle,
                            struct ble_gatt_attr *attrs, int num_attrs);
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+int btshell_enqueue_notif(uint16_t handle, uint16_t len, uint8_t *value);
+int btshell_send_pending_notif(uint16_t conn_handle);
+int btshell_clear_pending_notif(void);
+#endif
+
 #if MYNEWT_VAL(BLE_EXT_ADV)
 int btshell_ext_adv_configure(uint8_t instance,
                               const struct ble_gap_ext_adv_params *params,

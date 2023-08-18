@@ -109,6 +109,11 @@ struct os_mbuf_pool sdu_os_mbuf_pool;
 static struct os_mempool sdu_coc_mbuf_mempool;
 #endif
 
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+static struct ble_gatt_notif pending_notif[BTSHELL_MAX_CHRS];
+static size_t pending_notif_cnt;
+#endif
+
 static struct os_callout btshell_tx_timer;
 struct btshell_tx_data_s
 {
@@ -1813,6 +1818,79 @@ btshell_write_reliable(uint16_t conn_handle,
                                   btshell_on_write_reliable, NULL);
     return rc;
 }
+
+#if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
+int
+btshell_enqueue_notif(uint16_t handle, uint16_t len, uint8_t *value)
+{
+    struct ble_gatt_notif *notify = NULL;
+    struct os_mbuf *val_ptr;
+    int i;
+
+    for (i = 0; i < BTSHELL_MAX_CHRS; i++) {
+        if (pending_notif[i].handle == 0) {
+            notify = &pending_notif[i];
+            break;
+        }
+    }
+
+    if (notify == NULL) {
+        return ENOMEM;
+    }
+
+    notify->handle = handle;
+    if (value != NULL) {
+        notify->value = os_msys_get(0, 0);
+
+        val_ptr = os_mbuf_extend(notify->value, len);
+        if (val_ptr == NULL) {
+            return ENOMEM;
+        }
+        memcpy(val_ptr, value, len);
+    }
+
+    pending_notif_cnt++;
+
+    return 0;
+}
+
+int
+btshell_send_pending_notif(uint16_t conn_handle)
+{
+    int rc = 0;
+    int i;
+
+    if (pending_notif_cnt == 0) {
+        return EALREADY;
+    }
+
+    rc = ble_gatts_notify_multiple_custom(conn_handle, pending_notif_cnt,
+                                          pending_notif);
+    for (i = 0; i < pending_notif_cnt; i++) {
+        pending_notif[i].handle = 0;
+        pending_notif[i].value = NULL;
+    }
+
+    pending_notif_cnt = 0;
+
+    return rc;
+}
+
+int
+btshell_clear_pending_notif(void)
+{
+    int i;
+
+    for (i = 0; i < pending_notif_cnt; i++) {
+        pending_notif[i].handle = 0;
+        pending_notif[i].value = NULL;
+    }
+
+    pending_notif_cnt = 0;
+
+    return 0;
+}
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 int
