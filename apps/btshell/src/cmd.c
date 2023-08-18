@@ -3497,6 +3497,43 @@ static const struct shell_cmd_help gatt_write_help = {
     .usage = NULL,
     .params = gatt_write_params,
 };
+
+/*****************************************************************************
+ * $gatt-enqueue-notify                                                      *
+ *****************************************************************************/
+
+static const struct shell_param gatt_enqueue_notif_params[] = {
+    {"handle", "characteristic handle, usage: =<UINT16>"},
+    {"value", "usage: =<octets>"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help gatt_enqueue_notif_help = {
+    .summary = "enqueue notification to be sent",
+    .usage = NULL,
+    .params = gatt_enqueue_notif_params,
+};
+
+/*****************************************************************************
+ * $gatt-send-pending-notify                                                 *
+ *****************************************************************************/
+
+static const struct shell_param gatt_send_pending_notif_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help gatt_send_pending_notif_help = {
+    .summary = "send pending notifications",
+    .usage = NULL,
+    .params = gatt_send_pending_notif_params,
+};
+
+static const struct shell_cmd_help gatt_clear_pending_notif_help = {
+    .summary = "clear pending notifications",
+    .usage = NULL,
+    .params = NULL,
+};
 #endif
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
@@ -4417,6 +4454,27 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_gatt_write,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &gatt_write_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-enqueue-notif",
+        .sc_cmd_func = cmd_gatt_enqueue_notif,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &gatt_enqueue_notif_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-send-queued-notif",
+        .sc_cmd_func = cmd_gatt_send_pending_notif,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &gatt_send_pending_notif_help,
+#endif
+    },
+    {
+        .sc_cmd = "gatt-clear-queued-notif",
+        .sc_cmd_func = cmd_gatt_clear_pending_notif,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &gatt_clear_pending_notif_help,
 #endif
     },
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)

@@ -668,7 +668,7 @@ int ble_gatts_notify_custom(uint16_t conn_handle, uint16_t att_handle,
  * @return                      0 on success; nonzero on failure.
  */
 int ble_gatts_notify_multiple_custom(uint16_t conn_handle,
-                                     uint16_t chr_count,
+                                     size_t chr_count,
                                      struct ble_gatt_notif *tuples);
 
 /**
@@ -719,7 +719,7 @@ int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
  * @return                      0 on success; nonzero on failure.
  */
 int ble_gatts_notify_multiple(uint16_t conn_handle,
-                              uint8_t num_handles,
+                              size_t num_handles,
                               const uint16_t *chr_val_handles);
 
 /**
