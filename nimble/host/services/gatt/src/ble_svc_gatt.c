@@ -101,9 +101,10 @@ ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-        /* TODO For now just send 1*/
-        uint8_t eatt_supported = 2;
-        os_mbuf_append(ctxt->om, &eatt_supported, sizeof(eatt_supported));
+        uint8_t supported_feat =
+            (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) << 1 |
+            (MYNEWT_VAL(BLE_ATT_SVR_NOTIFY_MULTI) == 1) << 2;
+        os_mbuf_append(ctxt->om, &supported_feat, sizeof(supported_feat));
         return 0;
     }
     if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
