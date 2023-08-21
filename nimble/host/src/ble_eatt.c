@@ -35,9 +35,7 @@ struct ble_eatt {
     uint16_t conn_handle;
     struct ble_l2cap_chan *chan;
     uint8_t client_op;
-    bool client_proceed;
 
-    bool server_proceed;
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
 
@@ -209,6 +207,7 @@ static int
 ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
+    struct ble_gap_conn_desc desc;
     uint8_t opcode;
     int rc;
 
@@ -254,23 +253,46 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
         assert(eatt->chan == event->receive.chan);
         opcode = event->receive.sdu_rx->om_data[0];
-        if (ble_att_is_request_op(opcode)) {
-            eatt->server_proceed = true;
-        } else if (ble_att_is_response_op(opcode)) {
-            eatt->client_proceed = false;
+        if (ble_att_is_response_op(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
-        } else {
-            assert(0);
+        } else if (!ble_att_is_request_op(opcode)) {
+            /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
+             * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
+             * Channel Requirements):
+             * All packets sent on this L2CAP channel shall be Attribute PDUs.
+             *
+             * Disconnect peer with invalid behavior.
+             */
+            ble_l2cap_disconnect(eatt->chan);
+            return BLE_HS_EREJECT;
         }
+
+        assert (!ble_gap_conn_find(event->receive.conn_handle, &desc));
+        /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
+         * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
+         * Channel Requirements):
+         * The channel shall be encrypted.
+         *
+         * Disconnect peer with invalid behavior - ATT PDU received before
+         * encryption.
+         */
+        if (!desc.sec_state.encrypted) {
+            ble_l2cap_disconnect(eatt->chan);
+            return BLE_HS_EREJECT;
+        }
+
         ble_eatt_att_rx_cb(event->receive.conn_handle, eatt->chan->scid, &event->receive.sdu_rx);
         if (event->receive.sdu_rx) {
             os_mbuf_free_chain(event->receive.sdu_rx);
             event->receive.sdu_rx = NULL;
         }
-        rc = ble_eatt_prepare_rx_sdu(event->receive.chan);
 
-        /* FIXME Figure out what to do here, probably disconnect EATT */
-        assert(rc == 0);
+        /* Receiving L2CAP data is no longer possible, terminate connection */
+        rc = ble_eatt_prepare_rx_sdu(event->receive.chan);
+        if (rc) {
+            ble_l2cap_disconnect(eatt->chan);
+            return BLE_HS_ENOMEM;
+        }
         break;
     default:
         break;
