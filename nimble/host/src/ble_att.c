@@ -463,9 +463,12 @@ ble_att_chan_mtu(const struct ble_l2cap_chan *chan)
     uint16_t mtu;
 
 #if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
-    if (chan->scid != BLE_L2CAP_CID_ATT) {
-        /* EATT case */
-        return chan->coc_tx.mtu;
+    if (chan->psm == BLE_EATT_PSM) {
+        /* The ATT_MTU for the Enhanced ATT bearer shall be set to the minimum of the
+         * MTU field values of the two devices. Reference:
+         * Core v5.0, Vol 6, Part B, section 1.3.2.1
+         */
+        return min(chan->coc_tx.mtu, chan->coc_rx.mtu);
     }
 #endif
 
