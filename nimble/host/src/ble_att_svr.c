@@ -2620,7 +2620,7 @@ ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
 
     struct ble_att_tuple_list *req;
     uint16_t handle;
-    int rc;
+    int rc = 0;
     uint16_t pkt_len;
     struct os_mbuf *tmp;
     uint16_t attr_len;
@@ -2640,20 +2640,24 @@ ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
         os_mbuf_adj(*rxom, 4);
 
         if (attr_len > BLE_ATT_ATTR_MAX_LEN) {
-            /*TODO Figure out what to do here */
-            break;
+            BLE_HS_LOG_ERROR("attr length (%d) > max (%d)",
+                             attr_len, BLE_ATT_ATTR_MAX_LEN);
+            rc = BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            goto done;
         }
 
         tmp = os_msys_get_pkthdr(attr_len, 0);
         if (!tmp) {
-            /*TODO Figure out what to do here */
-            break;
+            BLE_HS_LOG_ERROR("not enough resources, aborting");
+            rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+            goto done;
         }
 
         rc = os_mbuf_appendfrom(tmp, *rxom, 0, attr_len);
         if (rc) {
-            /*TODO Figure out what to do here */
-            break;
+            BLE_HS_LOG_ERROR("not enough resources, aborting");
+            rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+            goto done;
         }
 
         ble_gap_notify_rx_event(conn_handle, handle, tmp, 0);
@@ -2661,11 +2665,11 @@ ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
         os_mbuf_adj(*rxom, attr_len);
         pkt_len = OS_MBUF_PKTLEN(*rxom);
     }
-
+done:
     os_mbuf_free_chain(*rxom);
     *rxom = NULL;
 
-    return 0;
+    return rc;
 }
 
 /**
