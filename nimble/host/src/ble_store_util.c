@@ -153,11 +153,7 @@ ble_store_util_delete_all(int type, const union ble_store_key *key)
         rc = ble_store_delete(type, key);
     } while (rc == 0);
 
-    if (rc != BLE_HS_ENOENT) {
-        return rc;
-    }
-
-    return 0;
+    return rc;
 }
 
 static int
