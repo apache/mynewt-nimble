@@ -6041,6 +6041,7 @@ int
 ble_gap_unpair(const ble_addr_t *peer_addr)
 {
 #if NIMBLE_BLE_SM
+    int rc;
     struct ble_hs_conn *conn;
 
     if (!ble_hs_is_enabled()) {
@@ -6060,8 +6061,11 @@ ble_gap_unpair(const ble_addr_t *peer_addr)
 
     ble_hs_unlock();
 
-    ble_hs_pvcy_remove_entry(peer_addr->type,
+    rc = ble_hs_pvcy_remove_entry(peer_addr->type,
                              peer_addr->val);
+    if (rc != 0) {
+        return rc;
+    }
 
     return ble_store_util_delete_peer(peer_addr);
 #else
