@@ -23,21 +23,21 @@
 
 #include "nimble/nimble_npl.h"
 
-static pthread_mutex_t s_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct ble_npl_mutex s_mutex;
 static uint8_t s_mutex_inited = 0;
 
 uint32_t ble_npl_hw_enter_critical(void)
 {
     if( !s_mutex_inited ) {
-        pthread_mutexattr_settype(&s_mutex, PTHREAD_MUTEX_RECURSIVE);
+        ble_npl_mutex_init(&s_mutex);
         s_mutex_inited = 1;
     }
 
-    pthread_mutex_lock(&s_mutex);
+    pthread_mutex_lock(&s_mutex.lock);
     return 0;
 }
 
 void ble_npl_hw_exit_critical(uint32_t ctx)
 {
-    pthread_mutex_unlock(&s_mutex);
+    pthread_mutex_unlock(&s_mutex.lock);
 }
