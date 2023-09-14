@@ -1905,9 +1905,10 @@ ble_l2cap_sig_extract_expired(struct ble_l2cap_sig_proc_list *dst_list)
 
     ble_hs_lock();
 
-    prev = NULL;
+    next = NULL;
     proc = STAILQ_FIRST(&ble_l2cap_sig_procs);
     while (proc != NULL) {
+        prev = next;
         next = STAILQ_NEXT(proc, next);
 
         time_diff = proc->exp_os_ticks - now;
