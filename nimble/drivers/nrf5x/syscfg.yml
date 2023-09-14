@@ -26,6 +26,16 @@ syscfg.defs:
         experimental: 1
         value: 0
 
+    BLE_PHY_EXTENDED_TIFS:
+        description: >
+            This allows to extend T_ifs (inter-frame spacing) by additional
+            microseconds to improve interoperability with peripherals that
+            send packets too late (eg 153us). This prolongs reception time by
+            additional microseconds. Defaults to 2us to improve operations with
+            devices already on the market.
+        range: 0..4
+        value: 2
+
     BLE_PHY_SYSVIEW:
         description: >
             Enable SystemView tracing module for radio driver.

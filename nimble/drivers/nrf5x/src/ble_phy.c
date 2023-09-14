@@ -852,6 +852,8 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
          * by waiting 1 usec more.
          */
         end_time += 1;
+
+        end_time += MYNEWT_VAL(BLE_PHY_EXTENDED_TIFS);
     } else {
         /*
          * RX shall start no later than wfr_usecs after RX enabled.
