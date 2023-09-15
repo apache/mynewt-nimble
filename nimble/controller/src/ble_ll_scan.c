@@ -1610,6 +1610,11 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
         goto scan_rx_isr_ignore;
     }
 
+    if (!scansm->scan_enabled) {
+        STATS_INC(ble_ll_stats, rx_pdu_on_scan_disabled);
+        goto scan_rx_isr_ignore;
+    }
+
     rxbuf = rxpdu->om_data;
     pdu_type = rxbuf[0] & BLE_ADV_PDU_HDR_TYPE_MASK;
 
