@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_PORTING_H
-#define __BT_MESH_PORTING_H
+#ifndef BT_MESH_PORTING_H_
+#define BT_MESH_PORTING_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,4 +24,4 @@ void mesh_adv_thread(void *args);
  * @}
  */
 
-#endif /* __BT_MESH_PORTING_H */
+#endif /* BT_MESH_PORTING_H_ */

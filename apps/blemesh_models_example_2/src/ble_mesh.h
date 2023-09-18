@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _BLE_MESH_H
-#define _BLE_MESH_H
+#ifndef BLE_MESH_H_
+#define BLE_MESH_H_
 
 #include "mesh/mesh.h"
 #include "mesh/glue.h"

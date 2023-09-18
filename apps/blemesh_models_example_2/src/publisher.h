@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _PUBLISHER_H
-#define _PUBLISHER_H
+#ifndef PUBLISHER_H_
+#define PUBLISHER_H_
 
 /* Others */
 #define LEVEL_S0   -32768

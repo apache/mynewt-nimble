@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __LPN_H__
-#define __LPN_H__
+#ifndef LPN_H_
+#define LPN_H_
 
 #include "mesh/mesh.h"
 

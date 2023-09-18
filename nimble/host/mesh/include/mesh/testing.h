@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __BT_TESTING_H
-#define __BT_TESTING_H
+#ifndef BT_TESTING_H_
+#define BT_TESTING_H_
 
 #include "slist.h"
 #include "glue.h"
@@ -102,4 +102,4 @@ int bt_test_bind_app_key_to_model(struct bt_mesh_model *model, uint16_t key_idx,
 }
 #endif
 
-#endif /* __BT_TESTING_H */
+#endif /* BT_TESTING_H_ */

@@ -14,8 +14,8 @@
  * calls to functions must be protected with synchronization primitives.
  */
 
-#ifndef __SLIST_H__
-#define __SLIST_H__
+#ifndef SLIST_H_
+#define SLIST_H_
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -465,4 +465,4 @@ static inline bool sys_slist_find_and_remove(sys_slist_t *list,
 }
 #endif
 
-#endif /* __SLIST_H__ */
+#endif /* SLIST_H_ */

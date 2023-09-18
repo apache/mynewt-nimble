@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _APP_GPIO_H
-#define _APP_GPIO_H
+#ifndef APP_GPIO_H_
+#define APP_GPIO_H_
 
 /* GPIO */
 extern int button_device[];

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _BLEUART_H_
-#define _BLEUART_H_
+#ifndef BLEUART_H_
+#define BLEUART_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,4 +39,4 @@ extern const ble_uuid128_t gatt_svr_svc_uart_uuid;
 }
 #endif
 
-#endif /* _BLEUART_H */
+#endif /* BLEUART_H */

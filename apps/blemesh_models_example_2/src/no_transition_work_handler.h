@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _NO_TRANSITION_WORK_HANDLER_H
-#define _NO_TRANSITION_WORK_HANDLER_H
+#ifndef NO_TRANSITION_WORK_HANDLER_H_
+#define NO_TRANSITION_WORK_HANDLER_H_
 
 extern struct os_callout no_transition_work;
 

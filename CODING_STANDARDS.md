@@ -170,8 +170,8 @@ purpose, parameters and return values.  Private APIs need not be documented.
 the package name is "os" and the file name is "callout.h":
 
 ```no-highlight
-#ifndef _OS_CALLOUT_H
-#define _OS_CALLOUT_H
+#ifndef OS_CALLOUT_H_
+#define OS_CALLOUT_H_
 ```
 
 * ```#include``` directives must happen prior to the cplusplus

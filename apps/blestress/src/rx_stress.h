@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _BLE_STRESS_RX_H
-#define _BLE_STRESS_RX_H
+#ifndef BLE_STRESS_RX_H_
+#define BLE_STRESS_RX_H_
 
 #include <assert.h>
 #include <string.h>
@@ -50,4 +50,4 @@ void rx_stress_start_auto();
 }
 #endif
 
-#endif //_BLE_STRESS_RX_H
+#endif /* BLE_STRESS_RX_H_ */

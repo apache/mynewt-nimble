@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _BLUETOOTH_MESH_SUBNET_H_
-#define _BLUETOOTH_MESH_SUBNET_H_
+#ifndef BLUETOOTH_MESH_SUBNET_H_
+#define BLUETOOTH_MESH_SUBNET_H_
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -203,4 +203,4 @@ void bt_mesh_subnet_store(uint16_t net_idx);
 /** @brief Store the pending Subnets in persistent storage. */
 void bt_mesh_subnet_pending_store(void);
 void bt_mesh_net_key_init(void);
-#endif /* _BLUETOOTH_MESH_SUBNET_H_ */
+#endif /* BLUETOOTH_MESH_SUBNET_H_ */

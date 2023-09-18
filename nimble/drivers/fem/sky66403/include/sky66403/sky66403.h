@@ -18,8 +18,8 @@
  */
 
 
-#ifndef _SKY66403_H
-#define _SKY66403_H
+#ifndef SKY66403_H_
+#define SKY66403_H_
 
 #include <stdint.h>
 
@@ -39,4 +39,4 @@ uint8_t sky66403_default_antenna_get(void);
 }
 #endif
 
-#endif /* _SKY66403_H */
+#endif /* SKY66403_H_ */

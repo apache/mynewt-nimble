@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_ACCESS_H
-#define __BT_MESH_ACCESS_H
+#ifndef BT_MESH_ACCESS_H_
+#define BT_MESH_ACCESS_H_
 
 #include "msg.h"
 #include <sys/types.h>
@@ -625,4 +625,4 @@ struct bt_mesh_comp {
  * @}
  */
 
-#endif /* __BT_MESH_ACCESS_H */
+#endif /* BT_MESH_ACCESS_H_ */

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_PORT_FREERTOS_H
-#define _NIMBLE_PORT_FREERTOS_H
+#ifndef NIMBLE_PORT_FREERTOS_H_
+#define NIMBLE_PORT_FREERTOS_H_
 
 #include "nimble/nimble_npl.h"
 
@@ -32,4 +32,4 @@ void nimble_port_freertos_init(TaskFunction_t host_task_fn);
 }
 #endif
 
-#endif /* _NIMBLE_PORT_FREERTOS_H */
+#endif /* NIMBLE_PORT_FREERTOS_H_ */

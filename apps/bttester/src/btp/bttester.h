@@ -26,8 +26,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __BTTESTER_H__
-#define __BTTESTER_H__
+#ifndef BTTESTER_H_
+#define BTTESTER_H_
 
 #include "syscfg/syscfg.h"
 #include "host/ble_gatt.h"
@@ -141,4 +141,4 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
 int
 gatt_svr_init(void);
-#endif /* __BTTESTER_H__ */
+#endif /* BTTESTER_H_ */

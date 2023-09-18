@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _BLUETOOTH_MESH_CDB_H_
-#define _BLUETOOTH_MESH_CDB_H_
+#ifndef BLUETOOTH_MESH_CDB_H_
+#define BLUETOOTH_MESH_CDB_H_
 
 #include "syscfg/syscfg.h"
 
@@ -262,4 +262,4 @@ struct bt_mesh_cdb_app_key *bt_mesh_cdb_app_key_get(uint16_t app_idx);
  */
 void bt_mesh_cdb_app_key_store(const struct bt_mesh_cdb_app_key *key);
 
-#endif /* ZEPHYR_INCLUDE_BLUETOOTH_MESH_CDB_H_ */
+#endif /* BLUETOOTH_MESH_CDB_H_ */

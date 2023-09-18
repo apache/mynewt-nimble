@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_NPL_OS_H_
-#define _NIMBLE_NPL_OS_H_
+#ifndef NIMBLE_NPL_OS_H_
+#define NIMBLE_NPL_OS_H_
 
 #include <stdint.h>
 
@@ -57,4 +57,4 @@ struct ble_npl_sem {
 }
 #endif
 
-#endif  /* _NPL_H_ */
+#endif  /* NIMBLE_NPL_OS_H_ */

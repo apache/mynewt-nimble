@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_HEALTH_SRV_H
-#define __BT_MESH_HEALTH_SRV_H
+#ifndef BT_MESH_HEALTH_SRV_H_
+#define BT_MESH_HEALTH_SRV_H_
 
 /**
  * @brief Mesh Bluetooth Mesh Health Server Model
@@ -97,4 +97,4 @@ extern const struct bt_mesh_model_cb bt_mesh_health_srv_cb;
  * @}
  */
 
-#endif /* __BT_MESH_HEALTH_SRV_H */
+#endif /* BT_MESH_HEALTH_SRV_H_ */

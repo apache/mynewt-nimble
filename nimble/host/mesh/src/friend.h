@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __FRIEND_H__
-#define __FRIEND_H__
+#ifndef FRIEND_H_
+#define FRIEND_H_
 
 #include "mesh/mesh.h"
 

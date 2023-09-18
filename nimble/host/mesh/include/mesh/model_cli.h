@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __MODEL_CLI_H__
-#define __MODEL_CLI_H__
+#ifndef MODEL_CLI_H_
+#define MODEL_CLI_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,4 +46,4 @@ int bt_mesh_gen_level_set(uint16_t net_idx, uint16_t addr, uint16_t app_idx,
 }
 #endif
 
-#endif /* __MODEL_CLI_H__ */
+#endif /* MODEL_CLI_H_ */

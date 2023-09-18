@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __MODEL_SRV_H__
-#define __MODEL_SRV_H__
+#ifndef MODEL_SRV_H_
+#define MODEL_SRV_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,4 +64,4 @@ void bt_mesh_set_light_lightness_srv_cb(int (*get)(struct bt_mesh_model *model, 
 }
 #endif
 
-#endif /* __MODEL_SRV_H__ */
+#endif /* MODEL_SRV_H_ */

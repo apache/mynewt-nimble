@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _BLE_STRESS_TX_H
-#define _BLE_STRESS_TX_H
+#ifndef BLE_STRESS_TX_H_
+#define BLE_STRESS_TX_H_
 
 #include <assert.h>
 #include <string.h>
@@ -46,4 +46,4 @@ void tx_stress_start_auto();
 }
 #endif
 
-#endif //_BLE_STRESS_TX_H
+#endif /*BLE_STRESS_TX_H_ */

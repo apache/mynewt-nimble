@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NPL_OS_TYPES_H
-#define _NPL_OS_TYPES_H
+#ifndef NPL_OS_TYPES_H_
+#define NPL_OS_TYPES_H_
 
 #include <time.h>
 #include <stdbool.h>
@@ -83,4 +83,4 @@ uint8_t ble_npl_task_count(void);
 
 void ble_npl_task_yield(void);
 
-#endif // _NPL_OS_TYPES_H
+#endif /* NPL_OS_TYPES_H_ */

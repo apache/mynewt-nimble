@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_H
-#define __BT_MESH_H
+#ifndef BT_MESH_H_
+#define BT_MESH_H_
 
 #include <stddef.h>
 #include "syscfg/syscfg.h"
@@ -30,4 +30,4 @@
 #include "../src/app_keys.h"
 #include "../src/net.h"
 
-#endif /* __BT_MESH_H */
+#endif /* BT_MESH_H_ */

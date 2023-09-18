@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _BLE_HCI_SOCKET_H_
-#define _BLE_HCI_SOCKET_H_
+#ifndef BLE_HCI_SOCKET_H_
+#define BLE_HCI_SOCKET_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,4 +31,4 @@ void ble_hci_sock_set_evq(struct os_eventq *);
 }
 #endif
 
-#endif
+#endif /* BLE_HCI_SOCKET_H_ */

@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __ADV_H__
-#define __ADV_H__
+#ifndef ADV_H_
+#define ADV_H_
 
 /* Maximum advertising data payload for a single data type */
 #include "mesh/mesh.h"
