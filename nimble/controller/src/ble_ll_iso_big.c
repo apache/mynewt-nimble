@@ -285,7 +285,7 @@ ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
     offset_us = ble_ll_tmr_t2u(d_ticks) + d_rem_us;
     if (offset_us <= 600) {
         counter += big->bn;
-        offset_us += big->iso_interval * 1250;
+        offset_us += big->iso_interval;
     }
     if (offset_us >= 491460) {
         offset = 0x4000 | (offset_us / 300);
@@ -487,7 +487,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         /* XXX precalculate some data here? */
 
         ble_ll_tmr_add(&big->sch.start_time, &big->sch.remainder,
-                       big->iso_interval * 1250);
+                       big->iso_interval);
         big->sch.end_time = big->sch.start_time +
                             ble_ll_tmr_u2t_up(big->sync_delay) + 1;
         big->sch.start_time -= g_ble_ll_sched_offset_ticks;
@@ -944,7 +944,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
         BLE_LL_ASSERT(!big->framed);
 
-        ble_ll_isoal_mux_init(&bis->mux, bp->max_pdu, bp->iso_interval * 1250,
+        ble_ll_isoal_mux_init(&bis->mux, bp->max_pdu, bp->iso_interval,
                               bp->sdu_interval, bp->bn, pte);
     }
 
@@ -1141,7 +1141,7 @@ ble_ll_iso_big_hci_evt_complete(void)
     /* Core 5.3, Vol 6, Part G, 3.2.2 */
     put_le24(evt->transport_latency_big,
              big->sync_delay +
-             (big->pto * (big->nse / big->bn - big->irc) + 1) * big->iso_interval * 1250 -
+             (big->pto * (big->nse / big->bn - big->irc) + 1) * big->iso_interval -
              big->sdu_interval);
     evt->phy = big->phy;
     evt->nse = big->nse;
@@ -1198,12 +1198,12 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
     bp.encrypted = cmd->encryption;
     memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
 
-    bp.nse = 1;
-    bp.bn = 1;
-    bp.irc = 1;
+    bp.irc = cmd->rtn;
     bp.pto = 0;
-    bp.iso_interval = bp.sdu_interval / 1250;
-    bp.max_pdu = bp.max_sdu;
+    bp.iso_interval = bp.max_transport_latency;
+    bp.bn = bp.iso_interval / bp.sdu_interval;
+    bp.nse = bp.irc * bp.bn;
+    bp.max_pdu = bp.framed == 0 ? bp.max_sdu : bp.max_sdu + 40;
 
     rc = ble_ll_iso_big_create(cmd->big_handle, cmd->adv_handle, cmd->num_bis,
                                &bp);
@@ -1228,7 +1228,6 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_create_big_test_cp *cmd = (void *)cmdbuf;
     struct big_params bp;
-    uint32_t iso_interval_us;
     int rc;
 
     if (len != sizeof(*cmd)) {
@@ -1277,16 +1276,14 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    iso_interval_us = bp.iso_interval * 1250;
-
     if (!bp.framed) {
         /* sdu_interval shall be an integer multiple of iso_interval */
-        if (iso_interval_us % bp.sdu_interval) {
+        if (bp.iso_interval % bp.sdu_interval) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
 
         /* bn shall be an integer multiple of (iso_interval / sdu_interval) */
-        if (bp.bn % (iso_interval_us / bp.sdu_interval)) {
+        if (bp.bn % (bp.iso_interval / bp.sdu_interval)) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
     }
