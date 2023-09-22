@@ -296,7 +296,9 @@ ble_hs_hci_evt_vs(uint8_t event_code, const void *data, unsigned int len)
         return BLE_HS_ECONTROLLER;
     }
 
-    ble_gap_vs_hci_event(data, len);
+#if MYNEWT_VAL(BLE_HS_GAP_UNHANDLED_HCI_EVENT)
+    ble_gap_unhandled_hci_event(false, true, data, len);
+#endif
 
     return 0;
 }
@@ -315,6 +317,10 @@ ble_hs_hci_evt_le_meta(uint8_t event_code, const void *data, unsigned int len)
     fn = ble_hs_hci_evt_le_dispatch_find(ev->subevent);
     if (fn) {
         return fn(ev->subevent, data, len);
+    } else {
+#if MYNEWT_VAL(BLE_HS_GAP_UNHANDLED_HCI_EVENT)
+        ble_gap_unhandled_hci_event(true, false, data, len);
+#endif
     }
 
     return 0;
@@ -910,6 +916,9 @@ ble_hs_hci_evt_process(struct ble_hci_ev *ev)
 
     entry = ble_hs_hci_evt_dispatch_find(ev->opcode);
     if (entry == NULL) {
+#if MYNEWT_VAL(BLE_HS_GAP_UNHANDLED_HCI_EVENT)
+        ble_gap_unhandled_hci_event(false, false, ev->data, ev->length);
+#endif
         STATS_INC(ble_hs_stats, hci_unknown_event);
         rc = BLE_HS_ENOTSUP;
     } else {

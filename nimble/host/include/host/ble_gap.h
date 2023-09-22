@@ -252,8 +252,8 @@ struct hci_conn_update;
 /** GAP event: Subrate change */
 #define BLE_GAP_EVENT_SUBRATE_CHANGE        28
 
-/** GAP event: Vendor specific HCI event */
-#define BLE_GAP_EVENT_VS_HCI                29
+/** GAP event: Unhandled HCI event */
+#define BLE_GAP_EVENT_UNHANDLED_HCI_EVENT   29
 
 /** GAP event: BIG (Broadcast Isochronous Group) information report */
 #define BLE_GAP_EVENT_BIGINFO_REPORT        30
@@ -1288,17 +1288,21 @@ struct ble_gap_event {
         } subrate_change;
 #endif
 
-#if MYNEWT_VAL(BLE_HCI_VS)
+#if MYNEWT_VAL(BLE_HS_GAP_UNHANDLED_HCI_EVENT)
         /**
-         * Represents a received vendor-specific HCI event
+         * Represents an HCI event received from controller that is not handled
+         * by the host. The event may be a regular event, LE meta event or
+         * vendor specific event which is denoted by included flags.
          *
          * Valid for the following event types:
-         *     o BLE_GAP_EVENT_VS_HCI
+         *     o BLE_GAP_EVENT_UNHANDLED_HCI_EVENT
          */
         struct {
+            bool is_le_meta;
+            bool is_vs;
             const void *ev;
             uint8_t length;
-        } vs_hci;
+        } unhandled_hci;
 #endif
     };
 };
