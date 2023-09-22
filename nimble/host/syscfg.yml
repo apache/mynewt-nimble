@@ -474,6 +474,13 @@ syscfg.defs:
             Sysinit stage for the NimBLE host.
         value: 200
 
+    BLE_HS_GAP_UNHANDLED_HCI_EVENT:
+        description: >
+            Enables GAP event for received HCI events that are not handled by
+            host. This can be used to implement/test features that are not yet
+            supported by host.
+        value: 0
+
     ### Log settings.
 
     BLE_HS_LOG_MOD:
