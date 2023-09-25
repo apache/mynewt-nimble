@@ -526,7 +526,7 @@ on_sync(void)
  * @return int NOTE: this function should never return!
  */
 int
-main(void)
+mynewt_main(int argc, char **argv)
 {
     /* Initialize OS */
     sysinit();

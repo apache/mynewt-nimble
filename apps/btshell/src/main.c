@@ -2626,14 +2626,10 @@ btshell_get_default_own_addr_type(void)
  *
  * @return int NOTE: this function should never return!
  */
-static int
-main_fn(int argc, char **argv)
+int
+mynewt_main(int argc, char **argv)
 {
     int rc;
-
-#ifdef ARCH_sim
-    mcu_sim_parse_args(argc, argv);
-#endif
 
     /* Initialize OS */
     sysinit();
@@ -2700,19 +2696,6 @@ main_fn(int argc, char **argv)
     }
     /* os start should never return. If it does, this should be an error */
     assert(0);
-
-    return 0;
-}
-
-int
-main(int argc, char **argv)
-{
-#if BABBLESIM
-    extern void bsim_init(int argc, char** argv, void *main_fn);
-    bsim_init(argc, argv, main_fn);
-#else
-    main_fn(argc, argv);
-#endif
 
     return 0;
 }

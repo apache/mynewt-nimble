@@ -96,7 +96,7 @@ blemesh_on_sync(void)
 }
 
 int
-main(void)
+mynewt_main(int argc, char **argv)
 {
     /* Initialize OS */
     sysinit();

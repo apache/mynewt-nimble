@@ -360,7 +360,8 @@ int bt_set_name(const char *name)
 	return 0;
 }
 
-int main(void)
+int
+mynewt_main(int argc, char **argv)
 {
 	int err;
 
