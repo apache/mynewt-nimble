@@ -214,12 +214,9 @@ void bt_initialized(void)
 	short_time_multireset_bt_mesh_unprovisioning();
 }
 
-int main(void)
+int
+mynewt_main(int argc, char **argv)
 {
-#ifdef ARCH_sim
-	mcu_sim_parse_args(argc, argv);
-#endif
-
 	/* Initialize OS */
 	sysinit();
 

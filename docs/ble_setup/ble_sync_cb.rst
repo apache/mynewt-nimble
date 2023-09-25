@@ -65,7 +65,7 @@ reset callbacks.
     }
 
     int
-    main(void)
+    mynewt_main(int argc, char **argv)
     {
         /* Initialize all packages. */
         sysinit();

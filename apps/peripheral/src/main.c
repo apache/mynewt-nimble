@@ -145,7 +145,7 @@ on_reset(int reason)
 }
 
 int
-main(int argc, char **argv)
+mynewt_main(int argc, char **argv)
 {
     int rc;
 

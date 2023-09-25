@@ -302,7 +302,7 @@ on_reset(int reason)
 }
 
 int
-main(void)
+mynewt_main(int argc, char **argv)
 {
     struct image_version the_version;
     char prompt[50];

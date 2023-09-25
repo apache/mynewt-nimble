@@ -27,8 +27,6 @@ extern char *native_flash_file;
 extern char *native_uart_log_file;
 extern const char *native_uart_dev_strs[];
 
-void mcu_sim_parse_args(int argc, char **argv);
-
 void static inline hal_debug_break(void) {}
 
 #ifdef __cplusplus
