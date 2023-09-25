@@ -31,16 +31,19 @@ jobs:
         with:
           release: '12.2.Rel1'
       - name: Install Dependencies
+        shell: bash
         run: |
              sudo apt-get update
              sudo apt-get install -y make ccache gcc-multilib g++-multilib
       - name: Build example ports
+        shell: bash
         run: |
              make -C porting/examples/dummy/ clean all
              make -C porting/examples/linux/ clean all
              make -C porting/examples/linux_blemesh/ clean all
              make -C porting/npl/linux/test/ clean all test
       - name: Build RIOT port
+        shell: bash
         if: success() || failure()
         continue-on-error: true
         run: |

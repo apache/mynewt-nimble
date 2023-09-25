@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: "targets_ci/nordic_pca10056_blesplit"
+pkg.name: "targets/nordic_pca10056_blesplit"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: targets_ci/native_btshell
+pkg.name: targets/native_btshell
 pkg.type: target
 pkg.description: 
 pkg.author: 

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-pkg.name: "targets_ci/nordic_pca10056_blemesh_models_example_1"
+pkg.name: "targets/nordic_pca10056_blemesh_models_example_1"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 
