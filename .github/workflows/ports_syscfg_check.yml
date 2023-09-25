@@ -34,35 +34,38 @@ jobs:
         with:
           release: '12.2.Rel1'
       - name: Install Dependencies
+        shell: bash
         run: |
              sudo apt-get update
              sudo apt-get install -y gcc-multilib
       - name: Install newt
+        shell: bash
         run: |
              go version
              go install mynewt.apache.org/newt/newt@latest
       - name: Setup project
+        shell: bash
         run: |
-             mkdir /tmp/proj
-             mkdir /tmp/proj/repos
-             cp .github/project_ports.yml /tmp/proj/project.yml
-             git clone --depth=1 https://github.com/apache/mynewt-core /tmp/proj/repos/apache-mynewt-core
-             git clone --depth=1 https://github.com/mcu-tools/mcuboot.git /tmp/proj/repos/mcuboot
-             git clone --depth=1 https://github.com/apache/mynewt-mcumgr /tmp/proj/repos/apache-mynewt-mcumgr
-             git clone --depth=1 https://github.com/hathach/tinyusb.git /tmp/proj/repos/tinyusb
-             git clone --depth=1 https://github.com/NordicSemiconductor/nrfx --branch v2.11.0 repos/nordic-nrfx
-             git clone --depth=1 https://github.com/Mbed-TLS/mbedtls.git --branch v2.28.4 repos/mbedtls
-             cp -r `pwd` /tmp/proj/repos/apache-mynewt-nimble
+             newt new build
+             cp -f .github/project.yml build/project.yml
+             cd build
+             newt upgrade --shallow=1
+             rm -rf repos/apache-mynewt-nimble
+             git clone .. repos/apache-mynewt-nimble
+             cd ..
       - name: Build ports tests targets
+        shell: bash
         run: |
-             cd /tmp/proj
+             cd build
              ./repos/apache-mynewt-nimble/porting/update_generated_files.sh
              cd repos/apache-mynewt-nimble
       - name: Check ports syscfg (debug)
+        shell: bash
         if:  runner.debug == '1'
         run: |
               git diff
       - name: Check ports syscfg
+        shell: bash
         run: |
              git diff --quiet || (\
                echo -e "\033[0;31mChanges in system configration files detected.";

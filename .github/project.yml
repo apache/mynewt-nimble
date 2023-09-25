@@ -6,7 +6,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
@@ -17,34 +17,16 @@
 # under the License.
 #
 
-project.name: "apache-mynewt-nimble"
+project.name: "my_project"
 
 project.repositories:
     - apache-mynewt-core
-    - mcuboot
-    - apache-mynewt-mcumgr
 
+# Use github's distribution mechanism for core ASF libraries.
+# This provides mirroring automatically for us.
+#
 repository.apache-mynewt-core:
     type: github
     vers: 0.0.0
     user: apache
     repo: mynewt-core
-
-repository.mcuboot:
-    type: github
-    vers: 0.0.0
-    user: mcu-tools
-    repo: mcuboot
-    branch: main
-
-repository.apache-mynewt-mcumgr:
-    type: github
-    vers: 0.0.0
-    user: apache
-    repo: mynewt-mcumgr
-
-repository.tinyusb:
-    type: github
-    vers: 0.0.0
-    user: hathach
-    repo: tinyusb

@@ -17,8 +17,8 @@
 # under the License.
 #
 
-### Package: "targets_ci/nordic_pca10056_btshell_xtal_settle_0
-pkg.name: "targets_ci/nordic_pca10056_btshell_xtal_settle_0"
+### Package: "targets/nordic_pca10056_btshell_xtal_settle_0
+pkg.name: "targets/nordic_pca10056_btshell_xtal_settle_0"
 pkg.type: "target"
 pkg.description: 
 pkg.author: 

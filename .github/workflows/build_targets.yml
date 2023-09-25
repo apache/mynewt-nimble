@@ -38,33 +38,41 @@ jobs:
         with:
           release: '12.2.Rel1'
       - name: Install Dependencies
+        shell: bash
         if: matrix.os == 'ubuntu-latest'
         run: |
              sudo apt-get update
              sudo apt-get install -y gcc-multilib
       - name: Install newt
+        shell: bash
         run: |
              go version
              go install mynewt.apache.org/newt/newt@latest
       - name: Setup project
+        shell: bash
         run: |
-             cp .github/project.yml project.yml
-             mkdir repos
-             git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
-             git clone --depth=1 https://github.com/mcu-tools/mcuboot.git repos/mcuboot
-             git clone --depth=1 https://github.com/apache/mynewt-mcumgr repos/apache-mynewt-mcumgr
-             git clone --depth=1 https://github.com/hathach/tinyusb.git repos/tinyusb
-             git clone --depth=1 https://github.com/NordicSemiconductor/nrfx --branch v2.11.0 repos/nordic-nrfx
-             git clone --depth=1 https://github.com/Mbed-TLS/mbedtls.git --branch v2.28.4 repos/mbedtls
+             newt new build
+             cp -f .github/project.yml build/project.yml
+             cd build
+             newt upgrade --shallow=1
+             rm -rf targets
+             rm -rf repos/apache-mynewt-nimble
+             git clone .. repos/apache-mynewt-nimble
+             cd ..
       - name: Build targets
         shell: bash
         run: |
-             cp -r .github/targets targets_ci
-             ls targets_ci | xargs -n1 sh -c 'echo "Testing $0"; newt build -q targets_ci/$0'
-             rm -rf targets_ci
+             cp -r .github/targets build/targets
+             cd build
+             ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+             rm -rf targets
+             cd ..
       - name: Build Linux-only targets
+        shell: bash
         if: matrix.os == 'ubuntu-latest'
         run: |
-             cp -r .github/targets_linux targets_ci
-             ls targets_ci | xargs -n1 sh -c 'echo "Testing $0"; newt build -q  targets_ci/$0'
-             rm -rf targets_ci
+             cp -r .github/targets_linux build/targets
+             cd build
+             ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q  $0'
+             rm -rf targets
+             cd ..

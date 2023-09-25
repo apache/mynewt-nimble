@@ -30,12 +30,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Dependencies
+        shell: bash
         run: |
              sudo apt-get update
              sudo apt-get install -y uncrustify
              mkdir repos
              git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
       - name: check style
+        shell: bash
         run: |
              ./repos/apache-mynewt-core/.github/check_style.py
 
@@ -47,6 +49,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Dependencies
+        shell: bash
         run: |
              sudo apt-get update
              sudo apt-get install -y libxml2-utils
@@ -58,5 +61,6 @@ jobs:
              VERSION=`xmllint --xpath "//snapshotVersion[1]/value/text()" version.xml`
              wget https://repository.apache.org/content/repositories/snapshots/org/apache/rat/apache-rat/$SNAPSHOT/apache-rat-$VERSION.jar -O apache-rat.jar
       - name: check licensing
+        shell: bash
         run: |
              ./repos/apache-mynewt-core/.github/check_license.py
