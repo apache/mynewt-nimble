@@ -69,7 +69,7 @@ hex2bin(const char *hex, uint8_t *bin, size_t bin_len)
 
     while (*hex && len < bin_len) {
         rc = hex2val(*hex++, &tmp_val);
-        if (rc < 0) {
+        if (rc != 0) {
             return 0;
         }
 
@@ -81,7 +81,7 @@ hex2bin(const char *hex, uint8_t *bin, size_t bin_len)
         }
 
         rc = hex2val(*hex++, &tmp_val);
-        if (rc < 0) {
+        if (rc != 0) {
             return 0;
         }
         bin[len++] |= tmp_val;
