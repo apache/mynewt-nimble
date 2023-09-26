@@ -291,7 +291,7 @@ cmd_l2cap_reconfig(int argc, char **argv)
     uint16_t conn;
     uint16_t mtu;
     uint8_t idxs[5];
-    int num;
+    unsigned int num;
     int rc;
 
     rc = parse_arg_init(argc - 1, argv + 1);
