@@ -164,6 +164,12 @@ struct ble_hs_adv_fields {
 
     /** Length of manufacturer specific data. */
     uint8_t mfg_data_len;
+
+    /** 0x30 - Broadcast name. */
+    const uint8_t *broadcast_name;
+
+    /** Length of the Broadcast name. */
+    uint8_t broadcast_name_len;
 };
 
 /**
