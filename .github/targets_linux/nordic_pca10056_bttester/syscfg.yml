@@ -17,7 +17,10 @@
 # under the License.
 #
 
-### Target: targets/nordic_pca10028_boot
-target.app: "@mcuboot/boot/mynewt"
-target.bsp: "@apache-mynewt-core/hw/bsp/nordic_pca10028"
-target.build_profile: "optimized"
+syscfg.vals:
+    BLE_EXT_ADV: 1
+    BLE_MULTI_ADV_INSTANCES: 1
+    BLE_PERIODIC_ADV: 1
+    BLE_PERIODIC_ADV_SYNC_TRANSFER: 1
+    BLE_SM_LEGACY: 1
+    BLE_SM_SC: 1
