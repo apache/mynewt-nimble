@@ -22,6 +22,7 @@
 #include <string.h>
 #include "nimble/nimble_npl.h"
 
+/* Include the file that defines the SCB for your HW. */
 #ifdef NIMBLE_NPL_OS_EXTRA_INCLUDE
 #include NIMBLE_NPL_OS_EXTRA_INCLUDE
 #endif
