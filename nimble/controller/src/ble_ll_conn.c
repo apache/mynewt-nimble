@@ -3118,15 +3118,20 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
 
     /* XXX: do this ahead of time? Calculate the local rpa I mean */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        if ((connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) &&
-            (addrd->rpa_index >= 0)) {
-            /* We are using RPA and advertiser was on our resolving list, so
-             * we'll use RPA to reply (see Core 5.3, Vol 6, Part B, 6.4).
-             */
-            rl = &g_ble_ll_resolv_list[addrd->rpa_index];
-            if (rl->rl_has_local) {
+        if (connsm->own_addr_type > BLE_HCI_ADV_OWN_ADDR_RANDOM) {
+            if (addrd->rpa_index >= 0) {
+                /* We are using RPA and advertiser was on our resolving list, so
+                 * we'll use RPA to reply (see Core 5.3, Vol 6, Part B, 6.4).
+                 */
+                rl = &g_ble_ll_resolv_list[addrd->rpa_index];
+                if (rl->rl_has_local) {
+                    hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+                    ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
+                    addr = NULL;
+                }
+            } else if (ble_ll_resolv_local_rpa_get(connsm->own_addr_type & 1,
+                                                   pdu_data->inita) == 0) {
                 hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-                ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
                 addr = NULL;
             }
         }

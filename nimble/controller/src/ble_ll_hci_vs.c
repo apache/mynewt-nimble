@@ -29,6 +29,7 @@
 #include "controller/ble_fem.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
+#include "controller/ble_ll_resolv.h"
 
 #if MYNEWT_VAL(BLE_LL_HCI_VS)
 
@@ -328,6 +329,33 @@ ble_ll_hci_vs_set_antenna(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_LOCAL_IRK)
+static int
+ble_ll_hci_vs_set_local_irk(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
+                            uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_set_local_irk_cp *cmd = (const void *)cmdbuf;
+    int rc;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_is_busy(BLE_LL_BUSY_EXCLUDE_CONNECTIONS)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    rc = ble_ll_resolv_local_irk_set(cmd->own_addr_type, cmd->irk);
+    if (rc) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    *rsplen = 0;
+
+    return 0;
+}
+#endif
+
 static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_RD_STATIC_ADDR,
                       ble_ll_hci_vs_rd_static_addr),
@@ -353,6 +381,10 @@ static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
 #endif
 #if MYNEWT_VAL(BLE_FEM_ANTENNA)
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_ANTENNA, ble_ll_hci_vs_set_antenna),
+#endif
+#if MYNEWT_VAL(BLE_LL_HCI_VS_LOCAL_IRK)
+    BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_LOCAL_IRK,
+                      ble_ll_hci_vs_set_local_irk),
 #endif
 };
 
