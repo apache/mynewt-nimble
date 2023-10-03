@@ -1208,8 +1208,11 @@ struct ble_hci_vs_set_data_len_rp {
 struct ble_hci_vs_set_antenna_cp {
     uint8_t antenna;
 } __attribute__((packed));
-
-
+#define BLE_HCI_OCF_VS_SET_LOCAL_IRK                   (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x000A))
+struct ble_hci_vs_set_local_irk_cp {
+    uint8_t own_addr_type;
+    uint8_t irk[16];
+} __attribute__((packed));
 
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */

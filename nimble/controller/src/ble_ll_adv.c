@@ -332,7 +332,9 @@ static void
 ble_ll_adv_rpa_update(struct ble_ll_adv_sm *advsm)
 {
     if (ble_ll_resolv_gen_rpa(advsm->peer_addr, advsm->peer_addr_type,
-                          advsm->adva, 1)) {
+                              advsm->adva, 1) ||
+        (ble_ll_resolv_local_rpa_get(advsm->own_addr_type & 1,
+                                     advsm->adva) == 0)) {
         ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_TX_ADD);
     } else {
         if (advsm->own_addr_type & 1) {

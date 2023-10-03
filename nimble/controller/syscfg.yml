@@ -402,6 +402,18 @@ syscfg.defs:
         value: 0
         restrictions:
             - BLE_LL_HCI_VS if 1
+    BLE_LL_HCI_VS_LOCAL_IRK:
+        description: >
+            Enables HCI command to set local IRK.
+            The local IRK is used by controller to generate RPA address in case
+            own address type 0x02 or 0x03 was requested by host but there is no
+            corresponding entry on resolving list. This allows to handle privacy
+            scenarios almost entirely in controller. If no local IRK is set, the
+            controller behaves as if feature is not enabled.
+        value: 0
+        restrictions:
+            - BLE_LL_HCI_VS if 1
+
 
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
