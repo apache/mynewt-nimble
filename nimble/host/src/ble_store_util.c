@@ -192,6 +192,7 @@ ble_store_util_count(int type, int *out_count)
 int
 ble_store_util_delete_oldest_peer(void)
 {
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
     ble_addr_t peer_id_addrs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
     int num_peers;
     int rc;
@@ -211,7 +212,7 @@ ble_store_util_delete_oldest_peer(void)
     if (rc != 0) {
         return rc;
     }
-
+#endif
     return 0;
 }
 
