@@ -23,12 +23,11 @@ on: [push, pull_request]
 
 jobs:
   targets:
-    name: Build GCC test target
+    name: Build all apps
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        gcc: ['12.2.Rel1', '11.3.Rel1', '10.3-2021.10', '9-2020-q2', '8-2019-q3']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -37,7 +36,13 @@ jobs:
           go-version: 'stable'
       - uses: carlosperate/arm-none-eabi-gcc-action@48db4484a55750df7a0ccca63347fcdea6534d78
         with:
-          release: ${{ matrix.gcc }}
+          release: '12.2.Rel1'
+      - name: Install Dependencies
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib
       - name: Install newt
         shell: bash
         run: |
@@ -50,15 +55,14 @@ jobs:
              cp -f .github/project.yml build/project.yml
              cd build
              newt upgrade --shallow=1
+             rm -rf targets
              rm -rf repos/apache-mynewt-nimble
              git clone .. repos/apache-mynewt-nimble
              cd ..
-      - name: Build test target
+      - name: Build applications
         shell: bash
+        if: matrix.os == 'ubuntu-latest'
         run: |
              cd build
-             newt target create cc_test
-             newt target set cc_test bsp="@apache-mynewt-core/hw/bsp/nordic_pca10056"
-             newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
-             cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
-             newt build -j 1 cc_test
+             bash ../.github/test_build_apps.sh
+             cd ..
