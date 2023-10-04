@@ -6106,6 +6106,7 @@ int
 ble_gap_unpair_oldest_except(const ble_addr_t *peer_addr)
 {
 #if NIMBLE_BLE_SM
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
     ble_addr_t peer_id_addrs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
     int num_peers;
     int rc, i;
@@ -6135,6 +6136,9 @@ ble_gap_unpair_oldest_except(const ble_addr_t *peer_addr)
     }
 
     return ble_gap_unpair(&peer_id_addrs[i]);
+#else
+    return BLE_HS_ENOTSUP;
+#endif
 #else
     return BLE_HS_ENOTSUP;
 #endif
