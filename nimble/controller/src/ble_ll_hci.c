@@ -1279,7 +1279,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
         rc = ble_ll_iso_read_tx_sync(cmdbuf, len);
         break;
-    case BLE_HCI_OCF_LE_SET_CIG_PARAM:
+    case BLE_HCI_OCF_LE_SET_CIG_PARAMS:
         rc = ble_ll_iso_set_cig_param(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_CREATE_CIS:
@@ -1318,7 +1318,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
 #endif /* BLE_LL_ISO */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO_TEST)
-    case BLE_HCI_OCF_LE_SET_CIG_PARAM_TEST:
+    case BLE_HCI_OCF_LE_SET_CIG_PARAMS_TEST:
         rc = ble_ll_iso_set_cig_param_test(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
