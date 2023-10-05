@@ -22,6 +22,8 @@
 
 #include <inttypes.h>
 #include "syscfg/syscfg.h"
+#include <stdbool.h>
+#include "nimble/ble.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,6 +113,23 @@ struct ble_sm_io {
 };
 
 int ble_sm_sc_oob_generate_data(struct ble_sm_sc_oob_data *oob_data);
+
+#if MYNEWT_VAL(BLE_SM_CSIS_SIRK)
+/**
+ * Resolves CSIS RSI to check if advertising device is part of the same Coordinated Set,
+ * as the device with specified SIRK
+ *
+ * @param rsi                   RSI value from Advertising Data
+ * @param sirk                  SIRK
+ * @param ltk_peer_addr         If SIRK is in plaintext form this should be set to NULL,
+ *                              otherwise peer address should be passed here to get
+ *                              LTK and decrypt SIRK
+ *
+ * @return                      0 if RSI was resolved succesfully; nonzero on failure.
+ */
+int ble_sm_csis_resolve_rsi(const uint8_t *rsi, const uint8_t *sirk,
+                            const ble_addr_t *ltk_peer_addr);
+#endif
 
 #if NIMBLE_BLE_SM
 int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);

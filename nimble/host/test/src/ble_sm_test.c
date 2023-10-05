@@ -142,6 +142,99 @@ TEST_CASE_SELF(ble_sm_test_case_g2)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_sm_test_case_csis_sih)
+{
+    uint8_t sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c, 0xcd, 0xce,
+                         0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
+    uint8_t prand[3] = { 0x63, 0xf5, 0x69 };
+    const uint8_t ah_expected[3] = { 0xda, 0x48, 0x19 };
+    uint8_t ah_out[3];
+    int err;
+
+    err = ble_sm_alg_csis_sih(sirk, prand, ah_out);
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(ah_out, ah_expected, 3) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_sm_test_case_csis_sef)
+{
+    uint8_t sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c, 0xcd, 0xce,
+                         0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
+    uint8_t k[16] = { 0xd9, 0xce, 0xe5, 0x3c, 0x22, 0xc6, 0x1e, 0x06,
+                      0x6f, 0x69, 0x48, 0xd4, 0x9b, 0x1b, 0x6e, 0x67 };
+    const uint8_t sef_expected[16] = { 0x46, 0xd3, 0x5f, 0xf2, 0xd5, 0x62, 0x25, 0x7e,
+                                       0xa0, 0x24, 0x35, 0xe1, 0x35, 0x38, 0x0a, 0x17 };
+    uint8_t sef_out[16];
+    int err;
+
+    err = ble_sm_alg_csis_sef(k, sirk, sef_out);
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(sef_out, sef_expected, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_sm_test_case_csis_s1_sirkenc)
+{
+    const uint8_t s1_expected[16] = { 0x72, 0x45, 0x77, 0x7d, 0x3a, 0x13, 0x7d, 0x3c,
+                                      0x82, 0x9e, 0x14, 0x18, 0x3f, 0x98, 0x01, 0x69 };
+    uint8_t s1_out[16];
+    int err;
+
+    err = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, s1_out);
+
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(s1_out, s1_expected, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_sm_test_case_csis_k1_csis)
+{
+    uint8_t k[16] = { 0xd9, 0xce, 0xe5, 0x3c, 0x22, 0xc6, 0x1e, 0x06,
+                      0x6f, 0x69, 0x48, 0xd4, 0x9b, 0x1b, 0x6e, 0x67 };
+    uint8_t k1_expected[16] = { 0x8b, 0x1f, 0x2d, 0x2f, 0x53, 0xee, 0xe8, 0xb0,
+                                0x82, 0xd9, 0x94, 0xc0, 0x3c, 0x45, 0x77, 0x52 };
+    uint8_t k1_out[16];
+    uint8_t s1_out[16];
+    int err;
+
+    err = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, s1_out);
+    TEST_ASSERT_FATAL(err == 0);
+
+    err = ble_sm_alg_csis_k1(k, 16, s1_out, (const uint8_t *) "csis", 4, k1_out);
+
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(k1_out, k1_expected, 16) == 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_sm_test_case_csis_enc_dec_sirk)
+{
+    uint8_t plaintext_sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c, 0xcd, 0xce,
+                                   0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
+    uint8_t k[16] = { 0xd9, 0xce, 0xe5, 0x3c, 0x22, 0xc6, 0x1e, 0x06,
+                      0x6f, 0x69, 0x48, 0xd4, 0x9b, 0x1b, 0x6e, 0x67 };
+    uint8_t enc_sirk[16] = {0};
+    uint8_t dec_sirk[16] = {0};
+    uint8_t rsi[6] = {0x0, 0x0, 0x0, 0xab, 0x34, 0xef};
+    int err;
+
+    /* Generate only hash part of rsi, as random part is already hard-coded */
+    err = ble_sm_alg_csis_sih(plaintext_sirk, rsi + 3, rsi);
+    TEST_ASSERT_FATAL(err == 0);
+
+    ble_sm_csis_encrypt_sirk(k, plaintext_sirk, enc_sirk);
+    TEST_ASSERT_FATAL(err == 0);
+
+    ble_sm_csis_decrypt_sirk(k, enc_sirk, dec_sirk);
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(dec_sirk, plaintext_sirk, 16) == 0);
+}
+
 TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 {
     struct ble_hci_ev_disconn_cmp disconn_evt;
@@ -403,6 +496,11 @@ TEST_SUITE(ble_sm_gen_test_suite)
     ble_sm_test_case_f5();
     ble_sm_test_case_f6();
     ble_sm_test_case_g2();
+    ble_sm_test_case_csis_sih();
+    ble_sm_test_case_csis_sef();
+    ble_sm_test_case_csis_s1_sirkenc();
+    ble_sm_test_case_csis_k1_csis();
+    ble_sm_test_case_csis_enc_dec_sirk();
 
     ble_sm_test_case_peer_fail_inval();
     ble_sm_test_case_peer_lgcy_fail_confirm();

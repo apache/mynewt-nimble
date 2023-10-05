@@ -188,6 +188,11 @@ syscfg.defs:
             allows to decrypt air traffic easily and thus should be only used
             for debugging.
         value: 0
+    BLE_SM_CSIS_SIRK:
+        description: >
+            Enable LE Audio CSIS SIRK Encryption and Decryption API.
+        value: 0
+        experimental: 1
 
     # GAP options.
     BLE_GAP_MAX_PENDING_CONN_PARAM_UPDATE:
