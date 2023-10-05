@@ -462,9 +462,9 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     }
 
     /* currently ignored */
-    duration = get_le32(cp->adv_data + cp->adv_data_len + cp->scan_rsp_len);
+    duration = get_le32(cp->adv_sr_data + cp->adv_data_len + cp->scan_rsp_len);
     (void)duration;
-    addr_type = cp->adv_data[cp->adv_data_len +
+    addr_type = cp->adv_sr_data[cp->adv_data_len +
                              cp->scan_rsp_len +
                              sizeof(duration)];
 
@@ -474,9 +474,9 @@ start_advertising(const void *cmd, uint16_t cmd_len,
             return BTP_STATUS_FAILED;
         }
 
-        ad[adv_len].type = cp->scan_rsp[i++];
-        ad[adv_len].data_len = cp->scan_rsp[i++];
-        ad[adv_len].data = &cp->scan_rsp[i];
+        ad[adv_len].type = cp->adv_sr_data[i++];
+        ad[adv_len].data_len = cp->adv_sr_data[i++];
+        ad[adv_len].data = &cp->adv_sr_data[i];
         i += ad[adv_len].data_len;
     }
 
@@ -486,9 +486,9 @@ start_advertising(const void *cmd, uint16_t cmd_len,
             return BTP_STATUS_FAILED;
         }
 
-        sd[sd_len].type = cp->scan_rsp[i++];
-        sd[sd_len].data_len = cp->scan_rsp[i++];
-        sd[sd_len].data = &cp->scan_rsp[i];
+        sd[sd_len].type = cp->adv_sr_data[i++];
+        sd[sd_len].data_len = cp->adv_sr_data[i++];
+        sd[sd_len].data = &cp->adv_sr_data[i];
         i += sd[sd_len].data_len;
     }
 
