@@ -135,8 +135,7 @@ struct btp_gap_set_bondable_rp {
 struct btp_gap_start_advertising_cmd {
     uint8_t adv_data_len;
     uint8_t scan_rsp_len;
-    uint8_t adv_data[0];
-    uint8_t scan_rsp[0];
+    uint8_t adv_sr_data[];
 /*
  * This command is very unfortunate because it has two fields after variable
  * data. Those needs to be handled explicitly by handler.
