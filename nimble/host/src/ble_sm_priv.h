@@ -314,11 +314,24 @@ int ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
                   const uint8_t *r, const uint8_t *iocap, uint8_t a1t,
                   const uint8_t *a1, uint8_t a2t, const uint8_t *a2,
                   uint8_t *check);
+int ble_sm_alg_csis_k1(const uint8_t *n, size_t n_len, const uint8_t *salt,
+                       const uint8_t *p, size_t p_len, uint8_t *out);
+int ble_sm_alg_csis_s1(const uint8_t *m, size_t m_len, uint8_t *out);
+int ble_sm_alg_csis_sef(const uint8_t *k, const uint8_t *plaintext_sirk,
+                        uint8_t *out);
+int ble_sm_alg_csis_sdf(const uint8_t *k, const uint8_t *enc_sirk,
+                        uint8_t *out);
+int ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out);
 int ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x,
                          const uint8_t *peer_pub_key_y,
                          const uint8_t *our_priv_key, uint8_t *out_dhkey);
 int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
 void ble_sm_alg_ecc_init(void);
+
+int ble_sm_csis_generate_rsi(const uint8_t *sirk, uint8_t *out);
+int ble_sm_csis_encrypt_sirk(const uint8_t *ltk, const uint8_t *plaintext_sirk,
+                             uint8_t *out);
+int ble_sm_csis_decrypt_sirk(const uint8_t *ltk, const uint8_t *enc_sirk, uint8_t *out);
 
 void ble_sm_enc_change_rx(const struct ble_hci_ev_enrypt_chg *ev);
 void ble_sm_enc_key_refresh_rx(const struct ble_hci_ev_enc_key_refresh *ev);

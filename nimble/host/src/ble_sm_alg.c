@@ -419,6 +419,139 @@ ble_sm_alg_g2(const uint8_t *u, const uint8_t *v, const uint8_t *x,
 }
 
 int
+ble_sm_alg_csis_k1(const uint8_t *n, size_t n_len, const uint8_t *salt,
+                   const uint8_t *p, size_t p_len, uint8_t *out)
+{
+    int rc;
+    uint8_t t[16] = {0};
+    uint8_t salt_be[16] = {0};
+    uint8_t n_be[16] = {0};
+
+    /* XXX: Spec does not specify the maximum N and P parameters length.
+     * We assume that 16 bytes is enough and return error if passed len value is greater
+     * than that */
+    if ((n_len > 16) || (p_len > 16)) {
+        return BLE_HS_EINVAL;
+    }
+
+    swap_buf(salt_be, salt, 16);
+    swap_buf(n_be, n, n_len);
+
+    /* T = AES-CMAC_SALT (N) */
+    rc = ble_sm_alg_aes_cmac(salt_be, n_be, n_len, t);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* AES-CMAC_T (P) */
+    rc = ble_sm_alg_aes_cmac(t, p, p_len, out);
+    if (rc != 0) {
+        return rc;
+    }
+
+    swap_in_place(out, 16);
+
+    return 0;
+}
+
+int
+ble_sm_alg_csis_s1(const uint8_t *m, size_t m_len, uint8_t *out)
+{
+    int rc;
+    uint8_t k_zero[16] = {0};
+
+    /* XXX: Spec does not specify the maximum M parameter length.
+     * We assume that 16 bytes is enough and return error if passed len value is greater
+     * than that */
+    if (m_len > 16) {
+        return BLE_HS_EINVAL;
+    }
+
+    /* AES-CMAC_zero (M) */
+    rc = ble_sm_alg_aes_cmac(k_zero, m, m_len, out);
+    if (rc != 0) {
+        return rc;
+    }
+
+    swap_in_place(out, 16);
+
+    return 0;
+}
+
+int
+ble_sm_alg_csis_sef(const uint8_t *k, const uint8_t *plaintext_sirk, uint8_t *out)
+{
+    uint8_t salt[16];
+    int rc;
+    int i;
+
+    /* s1("SIRKenc") */
+    rc = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, salt);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* k1(K, s1("SIRKenc"), "csis") */
+    rc = ble_sm_alg_csis_k1(k, 16, salt, (const uint8_t *) "csis", 4, out);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* k1(K, s1("SIRKenc"), "csis") ^ SIRK */
+    for (i = 0; i < 16; i++) {
+        out[i] ^= plaintext_sirk[i];
+    }
+
+    return 0;
+}
+
+int
+ble_sm_alg_csis_sdf(const uint8_t *k, const uint8_t *enc_sirk, uint8_t *out)
+{
+    uint8_t salt[16];
+    int rc;
+    int i;
+
+    /* s1("SIRKenc") */
+    rc = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, salt);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* k1(K, s1("SIRKenc"), "csis") */
+    rc = ble_sm_alg_csis_k1(k, 16, salt, (const uint8_t *) "csis", 4, out);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* k1(K, s1("SIRKenc"), "csis") ^ EncSIRK */
+    for (i = 0; i < 16; i++) {
+        out[i] ^= enc_sirk[i];
+    }
+
+    return 0;
+}
+
+int
+ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out)
+{
+    uint8_t r1[16];
+    int rc;
+
+    memcpy(r1, r, 3);
+    memset(r1 + 3, 0, 13);
+
+    rc = ble_sm_alg_encrypt(k, r1, r1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    memcpy(out, r1, 3);
+
+    return 0;
+}
+
+int
 ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x, const uint8_t *peer_pub_key_y,
                      const uint8_t *our_priv_key, uint8_t *out_dhkey)
 {
