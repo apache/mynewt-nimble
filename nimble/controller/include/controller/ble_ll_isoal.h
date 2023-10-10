@@ -39,6 +39,7 @@ struct ble_ll_isoal_mux {
     uint8_t sdu_in_event;
 
     STAILQ_HEAD(, os_mbuf_pkthdr) sdu_q;
+    uint16_t sdu_q_len;
 
     struct os_mbuf *frag;
 
