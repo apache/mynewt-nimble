@@ -485,6 +485,23 @@ syscfg.defs:
             - BLE_LL_ISO if 1
         value: MYNEWT_VAL(BLE_ISO_BROADCASTER)
         state: experimental
+    BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS:
+        description: >
+            Enables ISO synchronization feedback using vendor-specific HCI event.
+            The event is sent at configured interval after completed ISO event
+            and contains BIG handle, number of expected SDUs per ISO interval
+            and difference between expected vs actual number of SDUs queued in
+            controller.
+            The expected number of SDUs queued after each event is number of
+            SDUs required for each ISO event (i.e. including pre-transmissions)
+            minus number of SDUs expected per each ISO interval.
+            The host can use feedback to e.g. adjust for jitter between audio
+            clock and LL clock.
+            Set to 0 to disable.
+        value: 0
+        experimental: 1
+        restrictions:
+            - BLE_LL_HCI_VS || BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS == 0
 
     BLE_LL_SYSINIT_STAGE:
         description: >

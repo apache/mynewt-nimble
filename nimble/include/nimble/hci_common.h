@@ -1614,6 +1614,18 @@ struct ble_hci_ev_vs_css_slot_changed {
     uint16_t slot_idx;
 };
 
+#define BLE_HCI_VS_SUBEV_ISO_HCI_FEEDBACK       (0x03)
+struct feedback_pkt {
+    uint16_t handle;
+    uint8_t sdu_per_interval;
+    int8_t diff;
+} __attribute__((packed));
+struct ble_hci_vs_subev_iso_hci_feedback {
+    uint8_t big_handle;
+    uint8_t count;
+    struct feedback_pkt feedback[0];
+} __attribute__((packed));
+
 #define BLE_HCI_VS_SUBEV_ID_LLCP_TRACE          (0x17)
 
 /* LE sub-event codes */
