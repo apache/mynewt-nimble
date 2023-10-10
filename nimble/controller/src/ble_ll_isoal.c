@@ -46,6 +46,7 @@ ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
     mux->sdu_per_event = (1 + pte) * mux->sdu_per_interval;
 
     STAILQ_INIT(&mux->sdu_q);
+    mux->sdu_q_len = 0;
 }
 
 void
@@ -117,23 +118,14 @@ ble_ll_isoal_mux_tx_pkt_in(struct ble_ll_isoal_mux *mux, struct os_mbuf *om,
     OS_ENTER_CRITICAL(sr);
     pkthdr = OS_MBUF_PKTHDR(om);
     STAILQ_INSERT_TAIL(&mux->sdu_q, pkthdr, omp_next);
+    mux->sdu_q_len++;
     OS_EXIT_CRITICAL(sr);
 }
 
 int
 ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
 {
-    struct os_mbuf_pkthdr *pkthdr;
-    uint8_t num_sdu;
-
-    num_sdu = mux->sdu_per_event;
-
-    pkthdr = STAILQ_FIRST(&mux->sdu_q);
-    while (pkthdr && num_sdu--) {
-        pkthdr = STAILQ_NEXT(pkthdr, omp_next);
-    }
-
-    mux->sdu_in_event = mux->sdu_per_event - num_sdu;
+    mux->sdu_in_event = min(mux->sdu_q_len, mux->sdu_per_event);
     mux->event_tx_timestamp = timestamp;
 
     return mux->sdu_in_event;
@@ -148,6 +140,7 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
     struct os_mbuf *om_next;
     uint8_t num_sdu;
     int pkt_freed = 0;
+    os_sr_t sr;
 
     num_sdu = min(mux->sdu_in_event, mux->sdu_per_interval);
 
@@ -160,8 +153,13 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
     }
 
     while (pkthdr && num_sdu--) {
-        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+        OS_ENTER_CRITICAL(sr);
+        STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
+        BLE_LL_ASSERT(mux->sdu_q_len > 0);
+        mux->sdu_q_len--;
+        OS_EXIT_CRITICAL(sr);
 
+        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
         while (om) {
             om_next = SLIST_NEXT(om, om_next);
             os_mbuf_free(om);
@@ -169,7 +167,6 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
             om = om_next;
         }
 
-        STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
         pkthdr = STAILQ_FIRST(&mux->sdu_q);
     }
 
