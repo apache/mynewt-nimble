@@ -144,6 +144,10 @@ struct ble_ll_iso_big {
 
     struct ble_ll_iso_bis_q bis_q;
 
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
+    uint32_t last_feedback;
+#endif
+
     uint8_t cstf : 1;
     uint8_t cssn : 4;
     uint8_t control_active : 3;
@@ -398,8 +402,16 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 {
     struct ble_ll_iso_bis *bis;
     struct ble_hci_ev *hci_ev;
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
+    struct ble_hci_ev *fb_hci_ev = NULL;
+    struct ble_hci_ev_vs *fb_hci_ev_vs;
+    struct ble_hci_vs_subev_iso_hci_feedback *fb_hci_subev = NULL;
+    uint16_t exp;
+    uint32_t now;
+#endif
     struct ble_hci_ev_num_comp_pkts *hci_ev_ncp = NULL;
     int num_completed_pkt;
+    int idx;
     int rc;
 
     ble_ll_rfmgmt_release();
@@ -417,18 +429,49 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         hci_ev_ncp->count = 0;
     }
 
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
+    now = os_time_get();
+    if (OS_TIME_TICK_GEQ(now, big->last_feedback +
+                              os_time_ms_to_ticks32(MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)))) {
+        fb_hci_ev = ble_transport_alloc_evt(1);
+        if (fb_hci_ev) {
+            fb_hci_ev->opcode = BLE_HCI_EVCODE_VS;
+            fb_hci_ev->length = sizeof(*fb_hci_ev_vs) + sizeof(*fb_hci_subev);
+            fb_hci_ev_vs = (void *)fb_hci_ev->data;
+            fb_hci_ev_vs->id = BLE_HCI_VS_SUBEV_ISO_HCI_FEEDBACK;
+            fb_hci_subev = (void *)fb_hci_ev_vs->data;
+            fb_hci_subev->big_handle = big->handle;
+            fb_hci_subev->count = 0;
+        }
+    }
+#endif
+
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
         num_completed_pkt = ble_ll_isoal_mux_event_done(&bis->mux);
         if (hci_ev && num_completed_pkt) {
-            hci_ev_ncp->completed[hci_ev_ncp->count].handle =
-                htole16(bis->conn_handle);
-            hci_ev_ncp->completed[hci_ev_ncp->count].packets =
-                htole16(num_completed_pkt + bis->num_completed_pkt);
+            idx = hci_ev_ncp->count++;
+            hci_ev_ncp->completed[idx].handle = htole16(bis->conn_handle);
+            hci_ev_ncp->completed[idx].packets = htole16(num_completed_pkt +
+                                                         bis->num_completed_pkt);
             bis->num_completed_pkt = 0;
-            hci_ev_ncp->count++;
         } else {
             bis->num_completed_pkt += num_completed_pkt;
         }
+
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
+        if (fb_hci_ev) {
+            /* Expected SDUs in queue after an event -> host should send
+             * sdu_per_interval SDUs until next event so there are sdu_per_event
+             * SDUs queued at next event. Feedback value is the difference between
+             * expected and actual SDUs count.
+             */
+            exp = bis->mux.sdu_per_event - bis->mux.sdu_per_interval;
+            idx = fb_hci_subev->count++;
+            fb_hci_subev->feedback[idx].handle = htole16(bis->conn_handle);
+            fb_hci_subev->feedback[idx].sdu_per_interval = bis->mux.sdu_per_interval;
+            fb_hci_subev->feedback[idx].diff = (int8_t)(bis->mux.sdu_q_len - exp);
+        }
+#endif
     }
 
     if (hci_ev) {
@@ -440,6 +483,15 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
             ble_transport_free(hci_ev);
         }
     }
+
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
+    if (fb_hci_ev) {
+        fb_hci_ev->length = sizeof(*fb_hci_ev_vs) + sizeof(*fb_hci_subev) +
+                            fb_hci_subev->count * sizeof(fb_hci_subev->feedback[0]);
+        ble_transport_to_hs_evt(fb_hci_ev);
+        big->last_feedback = now;
+    }
+#endif
 
     big->sch.start_time = big->event_start;
     big->sch.remainder = big->event_start_us;
@@ -759,6 +811,8 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     phy_mode = ble_ll_phy_to_phy_mode(big->phy, 0);
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
+
+    ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     BLE_LL_ASSERT(!big->framed);
 
