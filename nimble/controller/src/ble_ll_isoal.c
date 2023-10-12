@@ -152,6 +152,20 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
         mux->last_tx_packet_seq_num = blehdr->txiso.packet_seq_num;
     }
 
+#if MYNEWT_VAL(BLE_LL_ISO_HCI_DISCARD_THRESHOLD)
+    /* Drop queued SDUs if number of queued SDUs exceeds defined threshold.
+     * Threshold is defined as number of ISO events. If number of queued SDUs
+     * exceeds number of SDUs required for single event (i.e. including pt)
+     * and number of subsequent ISO events defined by threshold value, we'll
+     * drop any excessive SDUs and notify host as if they were sent.
+     */
+    uint32_t thr = MYNEWT_VAL(BLE_LL_ISO_HCI_DISCARD_THRESHOLD);
+    if (mux->sdu_q_len > mux->sdu_per_event + thr * mux->sdu_per_interval) {
+        num_sdu = mux->sdu_q_len - mux->sdu_per_event -
+                  thr * mux->sdu_per_interval;
+    }
+#endif
+
     while (pkthdr && num_sdu--) {
         OS_ENTER_CRITICAL(sr);
         STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);

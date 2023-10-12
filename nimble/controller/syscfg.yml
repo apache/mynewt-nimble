@@ -502,6 +502,18 @@ syscfg.defs:
         experimental: 1
         restrictions:
             - BLE_LL_HCI_VS || BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS == 0
+    BLE_LL_ISO_HCI_DISCARD_THRESHOLD:
+        description: >
+            Enables automatic discarding of excessive ISO SDUs to avoid exhaustion
+            of HCI ISO buffers in case host sends too many SDUs.
+            Threshold is defined as number of ISO events. If number of queued
+            SDUs exceeds number of SDUs required for single event (i.e. including
+            pre-transmissions) and number of subsequent ISO events defined by
+            threshold value, the controller will drop any excessive SDUs and
+            notify to host as if they were already sent.
+            Set to 0 to disable.
+        value: 0
+        experimental: 1
 
     BLE_LL_SYSINIT_STAGE:
         description: >
