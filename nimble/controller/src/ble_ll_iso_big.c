@@ -398,7 +398,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 {
     struct ble_ll_iso_bis *bis;
     struct ble_hci_ev *hci_ev;
-    struct ble_hci_ev_num_comp_pkts *hci_ev_ncp;
+    struct ble_hci_ev_num_comp_pkts *hci_ev_ncp = NULL;
     int num_completed_pkt;
     int rc;
 
