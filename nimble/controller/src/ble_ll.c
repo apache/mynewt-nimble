@@ -1925,12 +1925,6 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_SCA_UPDATE;
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ISO)
-    features |= BLE_LL_FEAT_CIS_CENTRAL;
-    features |= BLE_LL_FEAT_CIS_PERIPH;
-    features |= BLE_LL_FEAT_CIS_HOST;
-#endif
-
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     features |= BLE_LL_FEAT_ISO_BROADCASTER;
 #endif
