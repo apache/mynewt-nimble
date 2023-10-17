@@ -95,7 +95,12 @@ syscfg.defs:
         value: 0
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
-
+    BLE_ISO_BROADCASTER:
+        description: >
+            This enables LE Audio Broadcaster feature
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
     BLE_ISO_TEST:
         description: >
             Enables BLE ISO Testing commands
