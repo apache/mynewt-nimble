@@ -132,6 +132,16 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
         return rc;
     }
 
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+    memset(&key, 0, sizeof key);
+    key.ead.peer_addr = *peer_id_addr;
+
+    rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_ENC_ADV_DATA, &key);
+    if (rc != 0) {
+        return rc;
+    }
+#endif
+
     return 0;
 }
 

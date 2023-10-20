@@ -32,6 +32,10 @@
 #include "host/ble_hs_adv.h"
 #include "syscfg/syscfg.h"
 
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+#include "../../src/ble_hs_hci_priv.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1498,6 +1502,44 @@ int ble_gap_adv_set_fields(const struct ble_hs_adv_fields *adv_fields);
  *                      other error code on failure.
  */
 int ble_gap_adv_rsp_set_fields(const struct ble_hs_adv_fields *rsp_fields);
+
+#if MYNEWT_VAL(BLE_ENC_ADV_DATA)
+/**
+ * @brief Bluetooth data serialized size.
+ *
+ * Get the size of a serialized @ref bt_data given its data length.
+ *
+ * Size of 'AD Structure'->'Length' field, equal to 1.
+ * Size of 'AD Structure'->'Data'->'AD Type' field, equal to 1.
+ * Size of 'AD Structure'->'Data'->'AD Data' field, equal to data_len.
+ *
+ * See Core Specification Version 5.4 Vol. 3 Part C, 11, Figure 11.1.
+ */
+#define BLE_GAP_DATA_SERIALIZED_SIZE(data_len) ((data_len) + 2)
+#define BLE_GAP_ENC_ADV_DATA    0x31
+struct enc_adv_data {
+    uint8_t len;
+    uint8_t type;
+    uint8_t *data;
+};
+
+/**
+ * @brief Helper to declare elements of enc_adv_data arrays
+ *
+ * This macro is mainly for creating an array of struct enc_adv_data
+ * elements which is then passed to e.g. @ref ble_gap_adv_start().
+ *
+ * @param _type Type of advertising data field
+ * @param _data Pointer to the data field payload
+ * @param _data_len Number of bytes behind the _data pointer
+ */
+#define ENC_ADV_DATA(_type, _data, _data_len) \
+    { \
+        .type = (_type), \
+        .len = (_data_len), \
+        .data = (uint8_t *)(_data), \
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 /** @brief Extended advertising parameters  */

@@ -441,6 +441,14 @@
 #define MYNEWT_VAL_BLE_EXT_ADV_MAX_SIZE (31)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_ENC_ADV_DATA
+#define MYNEWT_VAL_BLE_ENC_ADV_DATA (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_STORE_MAX_EADS
+#define MYNEWT_VAL_BLE_STORE_MAX_EADS (10)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_HCI_VS
 #define MYNEWT_VAL_BLE_HCI_VS (0)
 #endif
