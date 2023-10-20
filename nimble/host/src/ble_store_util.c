@@ -59,20 +59,6 @@ ble_store_util_iter_unique_peer(int obj_type,
     return 0;
 }
 
-/**
- * Retrieves the set of peer addresses for which a bond has been established.
- *
- * @param out_peer_id_addrs     On success, the set of bonded peer addresses
- *                                  gets written here.
- * @param out_num_peers         On success, the number of bonds gets written
- *                                  here.
- * @param max_peers             The capacity of the destination buffer.
- *
- * @return                      0 on success;
- *                              BLE_HS_ENOMEM if the destination buffer is too
- *                                  small;
- *                              Other nonzero on error.
- */
 int
 ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs, int *out_num_peers,
                             int max_peers)
@@ -96,15 +82,6 @@ ble_store_util_bonded_peers(ble_addr_t *out_peer_id_addrs, int *out_num_peers,
     return 0;
 }
 
-/**
- * Deletes all entries from the store that are attached to the specified peer
- * address.  This function deletes security entries and CCCD records.
- *
- * @param peer_id_addr          Entries with this peer address get deleted.
- *
- * @return                      0 on success;
- *                              Other nonzero on error.
- */
 int
 ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
 {
@@ -135,15 +112,6 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
     return 0;
 }
 
-/**
- * Deletes all entries from the store that match the specified key.
- *
- * @param type                  The type of store entry to delete.
- * @param key                   Entries matching this key get deleted.
- *
- * @return                      0 on success;
- *                              Other nonzero on error.
- */
 int
 ble_store_util_delete_all(int type, const union ble_store_key *key)
 {
@@ -216,15 +184,6 @@ ble_store_util_delete_oldest_peer(void)
     return 0;
 }
 
-/**
- * Round-robin status callback.  If a there is insufficient storage capacity
- * for a new record, delete the oldest bond and proceed with the persist
- * operation.
- *
- * Note: This is not the best behavior for an actual product because
- * uninteresting peers could cause important bonds to be deleted.  This is
- * useful for demonstrations and sample apps.
- */
 int
 ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
 {
