@@ -23,7 +23,9 @@
 #include "os/os.h"
 #include "nimble/hci_common.h"
 #include "host/ble_gap.h"
+#include "host/ble_iso.h"
 #include "ble_hs_priv.h"
+#include "ble_iso_priv.h"
 
 _Static_assert(sizeof (struct hci_data_hdr) == BLE_HCI_DATA_HDR_SZ,
                "struct hci_data_hdr must be 4 bytes");
@@ -63,6 +65,10 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_lost;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_req_rcvd;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_transfer;
+#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_create_big_complete;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_terminate_big_complete;
+#endif
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_biginfo_adv_report;
 #endif
@@ -131,6 +137,12 @@ static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
     [BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED] = ble_hs_hci_evt_le_adv_set_terminated,
     [BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD] = ble_hs_hci_evt_le_scan_req_rcvd,
     [BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_TRANSFER] = ble_hs_hci_evt_le_periodic_adv_sync_transfer,
+#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+    [BLE_HCI_LE_SUBEV_CREATE_BIG_COMPLETE] =
+        ble_hs_hci_evt_le_create_big_complete,
+    [BLE_HCI_LE_SUBEV_TERMINATE_BIG_COMPLETE] =
+        ble_hs_hci_evt_le_terminate_big_complete,
+#endif
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
     [BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT] = ble_hs_hci_evt_le_biginfo_adv_report,
 #endif
@@ -734,6 +746,38 @@ ble_hs_hci_evt_le_periodic_adv_sync_transfer(uint8_t subevent, const void *data,
 #endif
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+static int
+ble_hs_hci_evt_le_create_big_complete(uint8_t subevent, const void *data,
+                                      unsigned int len)
+{
+    const struct ble_hci_ev_le_subev_create_big_complete *ev = data;
+
+    if (len != sizeof(*ev) + (ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    ble_iso_rx_create_big_complete(ev);
+
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_terminate_big_complete(uint8_t subevent, const void *data,
+                                         unsigned int len)
+{
+    const struct ble_hci_ev_le_subev_terminate_big_complete *ev = data;
+
+    if (len != sizeof(*ev)) {
+        return BLE_HS_EBADDATA;
+    }
+
+    ble_iso_rx_terminate_big_complete(ev);
+
+    return 0;
+}
+#endif
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
 static int

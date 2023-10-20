@@ -486,6 +486,20 @@ syscfg.defs:
             supported by host.
         value: 0
 
+    BLE_MAX_BIG:
+        desciptrion: >
+            Number of available BIGs
+        value: 'MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES'
+        restrictions:
+            - 'BLE_ISO_BROADCASTER if 0'
+
+    BLE_MAX_BIS:
+        description: >
+            Number of supported BISes
+        value: 4
+        restrictions:
+            - 'BLE_ISO_BROADCASTER if 0'
+
     ### Log settings.
 
     BLE_HS_LOG_MOD:
