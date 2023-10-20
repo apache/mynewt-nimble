@@ -282,28 +282,24 @@ ble_iso_tx_complete(uint16_t conn_handle, const uint8_t *data,
 }
 
 static int
-ble_iso_tx_segmented(uint16_t conn_handle, uint16_t max_pdu,
-                     const uint8_t *data, uint16_t data_len)
+ble_iso_tx_segmented(uint16_t conn_handle, const uint8_t *data,
+                     uint16_t data_len)
 {
     struct os_mbuf *om;
     uint16_t data_left = data_len;
     uint16_t packet_len;
     uint16_t offset = 0;
     uint8_t pb;
-    uint8_t ts;
     int rc;
 
     while (data_left) {
-        packet_len = min(max_pdu - (BLE_HCI_DATA_HDR_SZ + 4), data_left);
+        packet_len = min(MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE), data_left);
         if (data_left == data_len) {
             pb = BLE_HCI_ISO_PB_FIRST;
-            ts = 1;
         } else if (packet_len == data_left) {
             pb = BLE_HCI_ISO_PB_LAST;
-            ts = 0;
         } else {
             pb = BLE_HCI_ISO_PB_CONTINUATION;
-            ts = 0;
         }
 
         om = ble_hs_mbuf_bare_pkt();
@@ -311,31 +307,25 @@ ble_iso_tx_segmented(uint16_t conn_handle, uint16_t max_pdu,
             return BLE_HS_ENOMEM;
         }
 
-        os_mbuf_extend(om, ts == 1 ? 10: 8);
+        os_mbuf_extend(om, pb == BLE_HCI_ISO_PB_FIRST ? 8: 4);
 
         /* Connection_Handle, PB_Flag, TS_Flag */
         put_le16(&om->om_data[0],
-                 BLE_HCI_ISO_HANDLE(conn_handle, pb, ts));
-        /* Data_Total_Length = Data length +
-         * Packet_Sequence_Number placeholder +
-         * optional timestamp*/
-        put_le16(&om->om_data[2], packet_len + 4 + 2 * ts);
+                 BLE_HCI_ISO_HANDLE(conn_handle, pb, 0));
 
-        if (ts) {
-            /* Timestamp placeholder */
-            put_le16(&om->om_data[4], 0);
+        if (pb == BLE_HCI_ISO_PB_FIRST) {
+            /* Data_Total_Length = Data length +
+             * Packet_Sequence_Number placeholder*/
+            put_le16(&om->om_data[2], packet_len + 4);
 
             /* Packet_Sequence_Number placeholder */
-            put_le16(&om->om_data[6], 0);
+            put_le16(&om->om_data[8], 0);
 
             /* ISO_SDU_Length */
-            put_le16(&om->om_data[8], packet_len);
+            put_le16(&om->om_data[10], packet_len);
+        } else {
+            put_le16(&om->om_data[2], packet_len);
         }
-
-        /* Packet_Sequence_Number placeholder */
-        put_le16(&om->om_data[4], 0);
-        /* ISO_SDU_Length */
-        put_le16(&om->om_data[6], packet_len);
 
         rc = os_mbuf_append(om, data + offset, packet_len);
         if (rc) {
@@ -345,40 +335,21 @@ ble_iso_tx_segmented(uint16_t conn_handle, uint16_t max_pdu,
         ble_transport_to_ll_iso(om);
 
         offset += packet_len;
-        data_len -= packet_len;
+        data_left -= packet_len;
     }
 
     return 0;
 }
 
 int
-ble_iso_tx(uint16_t conn_handle, const uint8_t *data, uint16_t data_len)
+ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len)
 {
-    struct ble_iso_big *big;
-    uint16_t max_pdu = 0;
     int rc;
-    int i;
 
-    SLIST_FOREACH(big, &ble_iso_bigs, next) {
-        for (i = 0; i < big->num_bis; i++) {
-            if (big->conn_handles[i] == conn_handle) {
-                max_pdu = big->max_pdu;
-                break;
-            }
-        }
-        if (max_pdu > 0) {
-            break;
-        }
-    }
-
-    if (!max_pdu) {
-        return BLE_HS_ENOENT;
-    }
-
-    if (data_len <= max_pdu) {
+    if (data_len <= MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE)) {
         rc = ble_iso_tx_complete(conn_handle, data, data_len);
     } else {
-        rc = ble_iso_tx_segmented(conn_handle, max_pdu, data, data_len);
+        rc = ble_iso_tx_segmented(conn_handle, data, data_len);
     }
 
     return rc;

@@ -42,6 +42,7 @@
 #include "btshell.h"
 #include "cmd_gatt.h"
 #include "cmd_l2cap.h"
+#include "cmd_leaudio.h"
 
 #define BTSHELL_MODULE "btshell"
 
@@ -4168,6 +4169,140 @@ static const struct shell_cmd_help sync_stats_help = {
 #endif
 #endif
 
+#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param leaudio_base_add_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "presentation_delay", "usage: =<UINT32>"  },
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_base_add_help = {
+    .summary = "Add BASE configuration for broadcast",
+    .usage = NULL,
+    .params = leaudio_base_add_params,
+};
+
+static const struct shell_param leaudio_big_sub_add_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "codec_fmt", "usage: <UINT8>"  },
+    { "company_id", "usage: =<UINT16>"  },
+    { "vendor_spec", "usage: =<UINT16>"  },
+    { "codec_spec_config", "usage: =[XX:XX...]"  },
+    { "metadata", "usage: =[XX:XX...]"  },
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_big_sub_add_help = {
+    .summary = "Add BIG subgroup configuration for broadcast",
+    .usage = NULL,
+    .params = leaudio_big_sub_add_params,
+};
+
+static const struct shell_param leaudio_bis_add_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "codec_spec_config", "usage: =[XX:XX...]"  },
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_bis_add_help = {
+    .summary = "Add BIS configuration for broadcast announcements to last "
+               "added BIG subgroup",
+    .usage = NULL,
+    .params = leaudio_bis_add_params,
+};
+
+static const struct shell_param leaudio_broadcast_create_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    {"ext_interval_min", "usage: =[0-UINT16_MAX], default: 0"},
+    {"ext_interval_max", "usage: =[0-UINT16_MAX], default: 0"},
+    {"per_interval_min", "usage: =[0-UINT16_MAX], default: 0"},
+    {"per_interval_max", "usage: =[0-UINT16_MAX], default: 0"},
+
+    {"name", "usage: =[string]"},
+
+    {"sdu_interval", "SDU interval, in us, usage: =<UINT32>"},
+    {"max_sdu", "max SDU size, in octets, usage: =<UINT16>"},
+    {"max_latency", "max transport latency, in ms, usage: =<UINT16>"},
+    {"rtn", "RTN, usage: =<UINT8>"},
+    {"phy", "PHY, usage: =<UINT8>"},
+    {"packing", "packing, optional, true if not given, usage: =<UINT8>"},
+    {"framing", "framing, optional, false if not given, usage: =<UINT8>"},
+    {"encryption", "optional, encryption, usage: =<UINT8>"},
+    {"broadcast_code", "optional, obligatory if encryption is enabled, "
+     "usage: =<XX:XX:...>, len=16 octets"},
+    {"extra_data", "usage: =[XX:XX...]"},
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_broadcast_create_help = {
+    .summary = "Add BIS configuration for broadcast to last added BIG "
+               "subgroup",
+    .usage = NULL,
+    .params = leaudio_broadcast_create_params,
+};
+
+static const struct shell_param leaudio_broadcast_destroy_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_broadcast_destroy_help = {
+    .summary = "Destroy BASE",
+    .usage = NULL,
+
+    .params = leaudio_broadcast_destroy_params,
+};
+
+static const struct shell_param leaudio_broadcast_update_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    {"name", "usage: =[string]"},
+    {"extra_data_len", "usage: =<UINT8>"},
+    {"extra_data", "usage: =[XX:XX...]"},
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_broadcast_update_help = {
+    .summary = "Update broadcast",
+    .usage = NULL,
+
+    .params = leaudio_broadcast_update_params,
+};
+
+static const struct shell_param leaudio_broadcast_start_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_broadcast_start_help = {
+    .summary = "Start broadcast",
+    .usage = NULL,
+
+    .params = leaudio_broadcast_start_params,
+};
+
+static const struct shell_param leaudio_broadcast_stop_params[] = {
+    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+
+    { NULL, NULL}
+};
+
+static const struct shell_cmd_help leaudio_broadcast_stop_help = {
+    .summary = "Stop broadcast",
+    .usage = NULL,
+
+    .params = leaudio_broadcast_stop_params,
+};
+#endif
+#endif
+
 static const struct shell_cmd btshell_commands[] = {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
@@ -4664,6 +4799,64 @@ static const struct shell_cmd btshell_commands[] = {
 #endif
     },
 #endif
+#endif
+#if MYNEWT_VAL(BLE_ISO)
+    {
+        .sc_cmd = "base_add",
+        .sc_cmd_func = cmd_leaudio_base_add,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_base_add_help,
+#endif
+    },
+    {
+        .sc_cmd = "big_sub_add",
+        .sc_cmd_func = cmd_leaudio_big_sub_add,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_big_sub_add_help,
+#endif
+    },
+    {
+        .sc_cmd = "bis_add",
+        .sc_cmd_func = cmd_leaudio_bis_add,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_bis_add_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast_create",
+        .sc_cmd_func = cmd_leaudio_broadcast_create,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_broadcast_create_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast_destroy",
+        .sc_cmd_func = cmd_leaudio_broadcast_destroy,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_broadcast_destroy_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast_update",
+        .sc_cmd_func = cmd_leaudio_broadcast_update,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_broadcast_update_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast_start",
+        .sc_cmd_func = cmd_leaudio_broadcast_start,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_broadcast_start_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast_stop",
+        .sc_cmd_func = cmd_leaudio_broadcast_stop,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &leaudio_broadcast_stop_help,
+#endif
+    },
 #endif
     { 0 },
 };
