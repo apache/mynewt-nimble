@@ -28,6 +28,9 @@
 
 #include "host/ble_gatt.h"
 #include "host/ble_gap.h"
+#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+#include "host/ble_audio_broadcast.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -181,6 +184,36 @@ int btshell_l2cap_disconnect(uint16_t conn, uint16_t idx);
 int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
 int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
                            uint8_t num, uint8_t idxs[]);
+
+#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+int btshell_broadcast_base_add(uint8_t adv_instance, uint32_t presentation_delay);
+int btshell_broadcast_big_sub_add(uint8_t adv_instance,
+                                  uint8_t codec_fmt,
+                                  uint16_t company_id,
+                                  uint16_t vendor_spec,
+                                  uint8_t *metadata,
+                                  unsigned int metadata_len,
+                                  uint8_t *codec_spec_cfg,
+                                  unsigned int codec_spec_cfg_len);
+int btshell_broadcast_bis_add(uint8_t adv_instance,
+                              uint8_t *codec_spec_cfg,
+                              unsigned int codec_spec_cfg_len);
+int btshell_broadcast_create(uint8_t adv_instance,
+                             struct ble_gap_ext_adv_params *ext_params,
+                             struct ble_gap_periodic_adv_params
+                             *per_params,
+                             const char *name,
+                             struct ble_iso_big_params big_params,
+                             uint8_t *extra_data,
+                             unsigned int extra_data_len);
+int btshell_broadcast_destroy(uint8_t adv_instance);
+int btshell_broadcast_update(uint8_t adv_instance,
+                             const char *name,
+                             uint8_t *extra_data,
+                             unsigned int extra_data_len);
+int btshell_broadcast_start(uint8_t adv_instance);
+int btshell_broadcast_stop(uint8_t adv_instance);
+#endif
 
 int btshell_gap_event(struct ble_gap_event *event, void *arg);
 void btshell_sync_stats(uint16_t handle);
