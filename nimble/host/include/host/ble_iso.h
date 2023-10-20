@@ -21,8 +21,6 @@
 #define H_BLE_ISO_
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_ISO)
-
 /** ISO event: BIG Create Completed */
 #define BLE_ISO_EVENT_BIG_CREATE_COMPLETE                  0
 
@@ -123,5 +121,4 @@ int ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len);
 
 int ble_iso_init(void);
 
-#endif
 #endif

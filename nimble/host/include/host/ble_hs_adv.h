@@ -249,6 +249,9 @@ struct ble_hs_adv_fields {
 /** Common Data Type: Mesh Beacon. */
 #define BLE_HS_ADV_TYPE_MESH_BEACON             0x2b
 
+/** Common Data Type: Broadcast Name. */
+#define BLE_HS_ADV_TYPE_BROADCAST_NAME          0x30
+
 /** Common Data Type: Manufacturer Specific Data. */
 #define BLE_HS_ADV_TYPE_MFG_DATA                0xff
 
