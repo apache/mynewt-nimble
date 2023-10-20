@@ -110,6 +110,14 @@ syscfg.defs:
             of ISO buffers available for controller.
         value: MYNEWT_VAL(BLE_TRANSPORT_ISO_COUNT)
 
+    BLE_TRANSPORT_RX_PRIO:
+        description: Priority of RX task
+        type: task_priority
+        value: 126
+    BLE_TRANSPORT_RX_STACK_SIZE:
+        description: Stack size of RX task
+        value:
+
 # import monitor and defunct settings from separate file to reduce clutter in main file
 $import:
     - "@apache-mynewt-nimble/nimble/transport/syscfg.monitor.yml"
