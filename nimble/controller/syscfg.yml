@@ -287,12 +287,12 @@ syscfg.defs:
     BLE_LL_CFG_FEAT_LE_2M_PHY:
         description: >
             This option is used to enable/disable support for the 2Mbps PHY.
-        value: '0'
+        value: MYNEWT_VAL(BLE_PHY_2M)
 
     BLE_LL_CFG_FEAT_LE_CODED_PHY:
         description: >
             This option is used to enable/disable support for the coded PHY.
-        value: '0'
+        value: MYNEWT_VAL(BLE_PHY_CODED)
 
     BLE_LL_CFG_FEAT_LL_EXT_ADV:
         description: >
