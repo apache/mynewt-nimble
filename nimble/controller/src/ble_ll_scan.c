@@ -749,7 +749,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     int rc;
     struct ble_ll_scan_phy *scanp = scansm->scanp;
     uint8_t chan;
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     uint8_t phy_mode;
     int phy;
 #endif
@@ -779,7 +779,7 @@ ble_ll_scan_start(struct ble_ll_scan_sm *scansm)
     }
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     phy = scanp->phy;
     phy_mode = ble_ll_phy_to_phy_mode(phy, BLE_HCI_LE_PHY_CODED_ANY);
     ble_phy_mode_set(phy_mode, phy_mode);

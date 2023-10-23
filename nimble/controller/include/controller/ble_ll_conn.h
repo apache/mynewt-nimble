@@ -233,7 +233,7 @@ struct ble_ll_conn_sm
     uint16_t host_req_max_rx_time;
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     struct ble_ll_conn_phy_data phy_data;
     uint16_t phy_instant;
     uint8_t phy_tx_transition;

@@ -554,7 +554,7 @@ ble_ll_conn_find_by_peer_addr(const uint8_t *addr, uint8_t addr_type)
     return NULL;
 }
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 static inline int
 ble_ll_conn_phy_should_update(uint8_t pref_mask, uint8_t curr_mask)
 {
@@ -1003,7 +1003,7 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
     }
 
     /* Check if we need to send PHY update complete event */
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     if (connsm->flags.phy_update_host_w4event) {
         if (!ble_ll_hci_ev_phy_update(connsm, BLE_ERR_SUCCESS)) {
             /* Sent event. Clear flag */
@@ -1040,7 +1040,7 @@ ble_ll_conn_adjust_pyld_len(struct ble_ll_conn_sm *connsm, uint16_t pyld_len)
     uint16_t max_pyld_len;
     uint16_t ret;
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     uint8_t phy_mode;
 
     if (connsm->phy_tx_transition) {
@@ -1268,7 +1268,7 @@ ble_ll_conn_tx_pdu(struct ble_ll_conn_sm *connsm)
          * now. This is not the most accurate especially if we have
          * received a frame and we are replying to it.
          */
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
         tx_phy_mode = connsm->phy_data.tx_phy_mode;
 #else
         tx_phy_mode = BLE_PHY_MODE_1M;
@@ -1522,7 +1522,7 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_resolv_list_disable();
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_set(connsm->phy_data.tx_phy_mode, connsm->phy_data.rx_phy_mode);
 #endif
 
@@ -1659,7 +1659,7 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
     uint32_t allowed_usecs;
     int tx_phy_mode;
 
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     tx_phy_mode = connsm->phy_data.tx_phy_mode;
 #else
     tx_phy_mode = BLE_PHY_MODE_1M;
@@ -1868,7 +1868,7 @@ ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
 }
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 
 static void
 ble_ll_conn_set_phy(struct ble_ll_conn_sm *connsm, int tx_phy, int rx_phy)
@@ -2005,7 +2005,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 #endif
 
     /* XXX: TODO set these based on PHY that started connection */
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     connsm->phy_data.cur_tx_phy = BLE_PHY_1M;
     connsm->phy_data.cur_rx_phy = BLE_PHY_1M;
     connsm->phy_data.tx_phy_mode = BLE_PHY_MODE_1M;
@@ -2136,7 +2136,7 @@ ble_ll_conn_update_eff_data_len(struct ble_ll_conn_sm *connsm)
      * connection events timings.
      */
     if (ota_max_rx_time_calc) {
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
         phy_mode = ble_ll_phy_to_phy_mode(connsm->phy_data.cur_rx_phy,
                                           BLE_HCI_LE_PHY_CODED_S8_PREF);
 #else
@@ -2639,7 +2639,7 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     }
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     if (connsm->flags.phy_update_sched &&
         (connsm->event_cntr == connsm->phy_instant)) {
 
@@ -2846,7 +2846,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 
     /* Send connection complete event to inform host of connection */
     if (rc) {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1) && MYNEWT_VAL(BLE_LL_CONN_PHY_INIT_UPDATE)
+#if MYNEWT_VAL(BLE_LL_PHY) && MYNEWT_VAL(BLE_LL_CONN_PHY_INIT_UPDATE)
         /*
          * If we have default phy preferences and they are different than
          * the current PHY's in use, start update procedure.
@@ -3216,7 +3216,7 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ext) {
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
         phy = rxhdr->rxinfo.phy;
 #else
         phy = BLE_PHY_1M;
@@ -3240,7 +3240,7 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
         return -1;
     }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && MYNEWT_VAL(BLE_LL_PHY)
     if (ext) {
         ble_ll_conn_init_phy(connsm, phy);
     }
@@ -3288,7 +3288,7 @@ ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
 #endif
 
     ble_ll_conn_set_csa(connsm, csa);
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_ll_conn_init_phy(connsm, phy);
 #endif
     ble_ll_conn_created(connsm, NULL);
@@ -3316,12 +3316,12 @@ ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,
                            struct ble_ll_scan_addr_data *addrd,
                            uint8_t *targeta)
 {
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     struct ble_mbuf_hdr *rxhdr;
 #endif
     uint8_t phy;
 
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
     phy = rxhdr->rxinfo.phy;
 #else
@@ -3698,7 +3698,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      * to the 'additional usecs' field to save some calculations.
      */
     begtime = rxhdr->beg_cputime;
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     rx_phy_mode = connsm->phy_data.rx_phy_mode;
 #else
     rx_phy_mode = BLE_PHY_MODE_1M;
@@ -3834,7 +3834,7 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
                         rem_bytes = OS_MBUF_PKTLEN(txpdu) - txhdr->txinfo.offset;
                         /* Adjust payload for max TX time and octets */
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
                         if (BLE_LL_LLID_IS_CTRL(hdr_byte) &&
                             CONN_IS_PERIPHERAL(connsm) &&
                             (opcode == BLE_LL_CTRL_PHY_UPDATE_IND)) {
@@ -4167,7 +4167,7 @@ ble_ll_conn_periph_start(uint8_t *rxbuf, uint8_t pat, struct ble_mbuf_hdr *rxhdr
     connsm->conn_role = BLE_LL_CONN_ROLE_PERIPHERAL;
     ble_ll_conn_sm_new(connsm);
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     /* Use the same PHY as we received CONNECT_REQ on */
     ble_ll_conn_init_phy(connsm, rxhdr->rxinfo.phy);
 #endif

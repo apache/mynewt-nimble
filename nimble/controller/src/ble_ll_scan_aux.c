@@ -111,7 +111,7 @@ static int
 ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_scan_aux_data *aux = sch->cb_arg;
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     uint8_t phy_mode;
 #endif
     uint8_t lls;
@@ -137,7 +137,7 @@ ble_ll_scan_aux_sched_cb(struct ble_ll_sched_item *sch)
     }
 #endif
 
-#if BLE_LL_BT5_PHY_SUPPORTED
+#if MYNEWT_VAL(BLE_LL_PHY)
     phy_mode = ble_ll_phy_to_phy_mode(aux->sec_phy, BLE_HCI_LE_PHY_CODED_ANY);
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
