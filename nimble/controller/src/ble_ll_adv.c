@@ -1123,7 +1123,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     rc = ble_phy_setchan(advsm->adv_chan, BLE_ACCESS_ADDR_ADV, BLE_LL_CRCINIT_ADV);
     BLE_LL_ASSERT(rc == 0);
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     /* Set phy mode */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
@@ -1269,7 +1269,7 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
                          BLE_LL_CRCINIT_ADV);
     BLE_LL_ASSERT(rc == 0);
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     /* Set phy mode */
      ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
 #endif
@@ -2264,7 +2264,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
 
     BLE_LL_ASSERT(rc == 0);
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     /* Set phy mode */
      ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
 #endif

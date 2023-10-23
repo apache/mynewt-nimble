@@ -432,7 +432,7 @@ ble_ll_hci_ev_send_adv_set_terminated(uint8_t status, uint8_t adv_handle,
  * @param connsm Pointer to connection state machine
  * @param status error status of event
  */
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 int
 ble_ll_hci_ev_phy_update(struct ble_ll_conn_sm *connsm, uint8_t status)
 {

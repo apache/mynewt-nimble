@@ -639,7 +639,7 @@ ble_phy_irq_frame_tx_exc_bs_stop(void)
     (void)CMAC->CM_TS1_REG;
 
     if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TX_RX) {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
         ble_phy_mode_apply(g_ble_phy_data.phy_mode_rx);
 #endif
         ble_phy_rx_setup_fields();
@@ -895,7 +895,7 @@ ble_phy_irq_frame_rx_exc_phy_to_idle_4this(void)
     CMAC->CM_EXC_STAT_REG = CMAC_CM_EXC_STAT_REG_EXC_PHY_TO_IDLE_4THIS_Msk;
 
     /* We are here only on transition, so switch to TX */
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_apply(g_ble_phy_data.phy_mode_tx);
 #endif
     rf_chan = g_ble_phy_chan_to_rf[g_ble_phy_data.channel];
@@ -1016,7 +1016,7 @@ ble_phy_mode_set(uint8_t tx_phy_mode, uint8_t rx_phy_mode)
 static int
 ble_phy_get_cur_phy(void)
 {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     switch (g_ble_phy_data.phy_mode_cur) {
     case BLE_PHY_MODE_1M:
         return BLE_PHY_1M;
@@ -1357,7 +1357,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     MCU_DIAG_SER('r');
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_apply(g_ble_phy_data.phy_mode_rx);
 #endif
 
@@ -1485,7 +1485,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 
     MCU_DIAG_SER('t');
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_apply(g_ble_phy_data.phy_mode_tx);
 #endif
 
@@ -1712,7 +1712,7 @@ ble_phy_restart_rx(void)
     ble_phy_disable();
 
     /* Apply mode before starting RX */
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_apply(g_ble_phy_data.phy_mode_rx);
 #endif
 

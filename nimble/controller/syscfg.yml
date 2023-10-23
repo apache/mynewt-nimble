@@ -564,6 +564,9 @@ syscfg.defs:
               This is the stack size for LL task.
         value: 120
 
+syscfg.defs.'BLE_LL_CFG_FEAT_LE_2M_PHY || BLE_LL_CFG_FEAT_LE_CODED_PHY':
+    BLE_LL_PHY: 1
+
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0

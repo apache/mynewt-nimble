@@ -741,7 +741,7 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
 {
     struct ble_ll_iso_big *big;
     struct ble_ll_iso_bis *bis;
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     uint8_t phy_mode;
 #endif
     int rc;
@@ -755,7 +755,7 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     ble_phy_resolv_list_disable();
 #endif
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     phy_mode = ble_ll_phy_to_phy_mode(big->phy, 0);
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif

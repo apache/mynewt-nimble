@@ -1917,7 +1917,7 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
 }
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 /**
  * Read current phy for connection (OGF=8, OCF==0x0030)
  *

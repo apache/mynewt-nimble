@@ -228,7 +228,7 @@ ble_ll_sync_sm_clear(struct ble_ll_sync_sm *sm)
 static uint8_t
 ble_ll_sync_phy_mode_to_hci(int8_t phy_mode)
 {
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     switch (phy_mode) {
     case BLE_PHY_MODE_1M:
         return BLE_HCI_LE_PHY_1M;
@@ -475,7 +475,7 @@ ble_ll_sync_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_encrypt_disable();
 #endif
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_set(sm->phy_mode, sm->phy_mode);
 #endif
 

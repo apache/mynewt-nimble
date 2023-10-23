@@ -184,7 +184,7 @@ ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata)
     ctrdata[1] = err;
 }
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 /**
  * Called to cancel a phy update procedure.
  *
@@ -546,7 +546,7 @@ ble_ll_ctrl_proc_unk_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *
         ctrl_proc = BLE_LL_CTRL_PROC_LE_PING;
         BLE_LL_CONN_CLEAR_FEATURE(connsm, BLE_LL_FEAT_LE_PING);
         break;
-#if (BLE_LL_BT5_PHY_SUPPORTED ==1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     case BLE_LL_CTRL_PHY_REQ:
         ble_ll_ctrl_phy_update_cancel(connsm, BLE_ERR_UNSUPP_REM_FEATURE);
         ctrl_proc = BLE_LL_CTRL_PROC_PHY_UPDATE;
@@ -656,7 +656,7 @@ ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
     return phy;
 }
 
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 uint8_t
 ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask)
 {
@@ -1970,7 +1970,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         connsm->enc_data.enc_state = CONN_ENC_S_UNENCRYPTED;
         break;
 #endif
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     case BLE_LL_CTRL_PROC_PHY_UPDATE:
         ble_ll_ctrl_phy_update_cancel(connsm, ble_error);
         ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
@@ -2502,7 +2502,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             }
             break;
 #endif
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
         case BLE_LL_CTRL_PROC_PHY_UPDATE:
             opcode = BLE_LL_CTRL_PHY_REQ;
             ble_ll_ctrl_phy_req_rsp_make(connsm, ctrdata);
@@ -2957,7 +2957,7 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         /* Sometimes reject triggers sending other LL CTRL msg */
         rsp_opcode = ble_ll_ctrl_rx_reject_ind(connsm, dptr, opcode, rspdata);
         break;
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
     case BLE_LL_CTRL_PHY_REQ:
         rsp_opcode = ble_ll_ctrl_rx_phy_req(connsm, dptr, rspdata);
         break;
@@ -3177,7 +3177,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         break;
 #endif
 #endif
-#if (BLE_LL_BT5_PHY_SUPPORTED == 1)
+#if MYNEWT_VAL(BLE_LL_PHY)
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CTRL_PHY_REQ:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {

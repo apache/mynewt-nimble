@@ -53,12 +53,6 @@ void ble_ll_assert(const char *file, unsigned line) __attribute((noreturn));
 #define BLE_LL_ASSERT(cond) assert(cond)
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY) || MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-#define BLE_LL_BT5_PHY_SUPPORTED    (1)
-#else
-#define BLE_LL_BT5_PHY_SUPPORTED    (0)
-#endif
-
 /* Controller revision. */
 #define BLE_LL_SUB_VERS_NR      (0x0000)
 
