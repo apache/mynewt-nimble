@@ -54,5 +54,8 @@ syscfg.defs:
             length value will be split.
         value: 128
 
+syscfg.defs.'BLE_MONITOR_UART || BLE_MONITOR_RTT':
+    BLE_MONITOR: 1
+
 syscfg.restrictions:
     - '!(BLE_MONITOR_UART && BLE_MONITOR_RTT)'
