@@ -1371,9 +1371,6 @@ ble_ll_task(void *arg)
                                                   MYNEWT_VAL(BLE_LL_TX_PWR_MAX_DBM)));
     g_ble_ll_tx_power_phy_current = INT8_MAX;
 
-    /* Tell the host that we are ready to receive packets */
-    ble_ll_hci_send_noop();
-
     while (1) {
         ev = ble_npl_eventq_get(&g_ble_ll_data.ll_evq, BLE_NPL_TIME_FOREVER);
         BLE_LL_ASSERT(ev);
@@ -1767,7 +1764,7 @@ ble_ll_assert(const char *file, unsigned line)
  *
  * @return int
  */
-static void
+void
 ble_ll_init(void)
 {
     int rc;
@@ -2003,7 +2000,8 @@ ble_transport_to_ll_iso_impl(struct os_mbuf *om)
 void
 ble_transport_ll_init(void)
 {
-    ble_ll_init();
+    /* Tell the host that we are ready to receive packets */
+    ble_ll_hci_send_noop();
 }
 
 int

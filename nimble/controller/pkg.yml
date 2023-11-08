@@ -41,3 +41,8 @@ pkg.deps:
     - "@apache-mynewt-core/crypto/tinycrypt"
     - nimble
     - nimble/transport
+
+pkg.init:
+    ble_ll_init:
+        - $before:ble_transport_hs_init
+        - $before:ble_transport_ll_init
