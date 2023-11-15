@@ -355,8 +355,14 @@ ble_ll_hci_le_read_bufsize_v2(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_le_rd_buf_size_v2_rp *rp = (void *) rspbuf;
 
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     rp->data_len = htole16(g_ble_ll_data.ll_acl_pkt_size);
     rp->data_packets = g_ble_ll_data.ll_num_acl_pkts;
+#else
+    rp->data_len = 0;
+    rp->data_packets = 0;
+#endif
     rp->iso_data_len = htole16(g_ble_ll_data.ll_iso_pkt_size);
     rp->iso_data_packets = g_ble_ll_data.ll_num_iso_pkts;
 
