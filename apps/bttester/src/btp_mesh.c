@@ -458,26 +458,18 @@ static uint8_t
 init(const void *cmd, uint16_t cmd_len,
      void *rsp, uint16_t *rsp_len)
 {
+    const struct btp_mesh_init_cmd *cp = cmd;
     int err;
 
     SYS_LOG_DBG("");
 
-    err = bt_mesh_init(own_addr_type, &prov, &comp);
-    if (err) {
+    if (cmd_len != sizeof(*cp)) {
         return BTP_STATUS_FAILED;
     }
 
-    if (addr) {
-        err = bt_mesh_provision(net_key, net_key_idx, flags, iv_index,
-                                addr, dev_key);
-        if (err) {
-            return BTP_STATUS_FAILED;
-        }
-    } else {
-        err = bt_mesh_prov_enable(BT_MESH_PROV_ADV | BT_MESH_PROV_GATT);
-        if (err) {
-            return BTP_STATUS_FAILED;
-        }
+    err = bt_mesh_init(own_addr_type, &prov, &comp);
+    if (err) {
+        return BTP_STATUS_FAILED;
     }
 
     return BTP_STATUS_SUCCESS;
@@ -828,6 +820,30 @@ proxy_identity_enable(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static uint8_t
+start(const void *cmd, uint16_t cmd_len,
+      void *rsp, uint16_t *rsp_len)
+{
+    int err;
+
+    SYS_LOG_DBG("");
+
+    if (addr) {
+        err = bt_mesh_provision(net_key, net_key_idx, flags, iv_index,
+                                addr, dev_key);
+        if (err) {
+            return BTP_STATUS_FAILED;
+        }
+    } else {
+        err = bt_mesh_prov_enable(BT_MESH_PROV_ADV | BT_MESH_PROV_GATT);
+        if (err) {
+            return BTP_STATUS_FAILED;
+        }
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static const struct btp_handler handlers[] = {
     {
         .opcode = BTP_MESH_READ_SUPPORTED_COMMANDS,
@@ -847,7 +863,7 @@ static const struct btp_handler handlers[] = {
     },
     {
         .opcode = BTP_MESH_INIT,
-        .expect_len = 0,
+        .expect_len = 1,
         .func = init,
     },
     {
@@ -924,6 +940,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_MESH_PROXY_IDENTITY,
         .expect_len = 0,
         .func = proxy_identity_enable,
+    },
+    {
+        .opcode = BTP_MESH_START,
+        .expect_len = 0,
+        .func = start,
     },
 };
 
