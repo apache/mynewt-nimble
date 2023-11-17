@@ -1692,6 +1692,14 @@ int ble_gap_ext_adv_clear(void);
  *
  */
 int ble_gap_ext_adv_active(uint8_t instance);
+
+/**
+ * Returns first not configured advertising instance.
+ *
+ * @return advertising instance if one was found, negative error code otherwise
+ *
+ */
+int ble_gap_adv_get_free_instance(void);
 #endif
 
 /* Periodic Advertising */
