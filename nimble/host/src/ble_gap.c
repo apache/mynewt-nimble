@@ -1390,6 +1390,20 @@ int ble_gap_ext_adv_active(uint8_t instance)
     }
     return ble_gap_adv_active_instance(instance);
 }
+
+int
+ble_gap_adv_get_free_instance(void)
+{
+    int i;
+
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (!ble_gap_slave[i].configured) {
+            return i;
+        }
+    }
+
+    return -BLE_HS_ENOENT;
+}
 #endif
 
 /**
