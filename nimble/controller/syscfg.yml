@@ -242,7 +242,7 @@ syscfg.defs:
         description: >
             This option enables/disables encryption support in the controller.
             This option saves both both code and RAM.
-        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL'
+        value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL || MYNEWT_VAL_BLE_LL_ISO'
 
     BLE_LL_CFG_FEAT_CONN_PARAM_REQ:
         description: >
