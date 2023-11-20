@@ -1527,7 +1527,7 @@ ble_phy_isr(void)
     os_trace_isr_exit();
 }
 
-#if PHY_USE_HEADERMASK_WORKAROUND
+#if PHY_USE_HEADERMASK_WORKAROUND && MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 static void
 ble_phy_ccm_isr(void)
 {

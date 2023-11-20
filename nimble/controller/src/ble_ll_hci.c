@@ -1503,7 +1503,8 @@ ble_ll_hci_ctlr_bb_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_CB_SET_EVENT_MASK2:
         rc = ble_ll_hci_cb_set_event_mask2(cmdbuf, len);
         break;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
+#if (MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)) \
+        && MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     case BLE_HCI_OCF_CB_RD_AUTH_PYLD_TMO:
         rc = ble_ll_conn_hci_rd_auth_pyld_tmo(cmdbuf, len, rspbuf, rsplen);
         break;
