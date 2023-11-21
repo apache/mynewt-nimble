@@ -6210,7 +6210,7 @@ ble_gap_unpair_oldest_peer(void)
     }
 
     rc = ble_store_util_bonded_peers(
-            &oldest_peer_id_addr, &num_peers, 1);
+            &oldest_peer_id_addr, &num_peers, MYNEWT_VAL(BLE_STORE_MAX_BONDS));
     if (rc != 0) {
         return rc;
     }
