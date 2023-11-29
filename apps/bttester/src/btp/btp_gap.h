@@ -370,8 +370,7 @@ struct btp_gap_passkey_confirm_req_ev {
 #define BTP_GAP_EV_IDENTITY_RESOLVED    0x87
 struct btp_gap_identity_resolved_ev {
     ble_addr_t address;
-    uint8_t identity_address_type;
-    uint8_t identity_address;
+    ble_addr_t identity_address;
 } __packed;
 
 #define BTP_GAP_EV_CONN_PARAM_UPDATE    0x88
