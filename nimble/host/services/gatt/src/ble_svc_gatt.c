@@ -100,10 +100,14 @@ static int
 ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
+    uint8_t supported_feat;
+    int rc;
+
     if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-        uint8_t supported_feat =
-            (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) << 1 |
-            (MYNEWT_VAL(BLE_ATT_SVR_NOTIFY_MULTI) == 1) << 2;
+        rc = ble_gatts_peer_cl_sup_feat_get(conn_handle, &supported_feat, 1);
+        if (rc != 0) {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
         os_mbuf_append(ctxt->om, &supported_feat, sizeof(supported_feat));
         return 0;
     }
