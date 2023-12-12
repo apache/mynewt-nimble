@@ -1591,20 +1591,20 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
     BLE_HS_LOG(DEBUG, "");
 
     if (!om) {
-        return BLE_HS_EINVAL;
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
+        rc = BLE_ATT_ERR_UNLIKELY;
         goto done;
     }
     if (om->om_len == 0) {
         /* Nothing to do */
         goto done;
     } else if (os_mbuf_len(om) > BLE_ATT_ATTR_MAX_LEN) {
-        rc = BLE_HS_ENOMEM;
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
         goto done;
     }
 
@@ -1618,8 +1618,13 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
              */
             if (conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] >
                 om->om_data[i]) {
-                rc = BLE_HS_EINVAL;
+                rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
                 goto done;
+            }
+
+            /* All RFU bits should be unset */
+            if (feat_idx == 0) {
+                om->om_data[i] &= BLE_GATT_CHR_CLI_SUP_FEAT_MASK;
             }
 
             conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] |= om->om_data[i];
