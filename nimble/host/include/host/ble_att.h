@@ -110,6 +110,9 @@ struct os_mbuf;
 /**Insufficient Resources to complete the request. */
 #define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
 
+/**Requested value is not allowed. */
+#define BLE_ATT_ERR_VALUE_NOT_ALLOWED       0x13
+
 /** @} */
 
 /**
