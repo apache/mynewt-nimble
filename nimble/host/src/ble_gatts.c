@@ -1581,6 +1581,35 @@ ble_gatts_chr_updated(uint16_t chr_val_handle)
 }
 
 int
+ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat, uint8_t len)
+{
+    struct ble_hs_conn *conn;
+    int rc = 0;
+
+    if (out_supported_feat == NULL) {
+        return BLE_HS_EINVAL;
+    }
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+
+    if (BLE_GATT_CHR_CLI_SUP_FEAT_SZ < len) {
+        len = BLE_GATT_CHR_CLI_SUP_FEAT_SZ;
+    }
+
+    memcpy(out_supported_feat, conn->bhc_gatt_svr.peer_cl_sup_feat,
+           sizeof(uint8_t) * len);
+
+done:
+    ble_hs_unlock();
+    return rc;
+}
+
+int
 ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 {
     struct ble_hs_conn *conn;
