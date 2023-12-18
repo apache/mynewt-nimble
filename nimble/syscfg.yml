@@ -95,9 +95,15 @@ syscfg.defs:
         value: 0
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
-    BLE_ISO_BROADCASTER:
+    BLE_ISO_BROADCAST_SOURCE:
         description: >
-            This enables LE Audio Broadcaster feature
+            This enables LE Audio Broadcast Source feature
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
+    BLE_ISO_BROADCAST_SINK:
+        description: >
+            This enables LE Audio Broadcast Sink feature
         value: 0
         restrictions:
             - '(BLE_VERSION >= 52) if 1'

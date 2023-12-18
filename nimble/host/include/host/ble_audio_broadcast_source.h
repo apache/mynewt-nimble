@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef H_BLE_AUDIO_BROADCAST_
-#define H_BLE_AUDIO_BROADCAST_
+#ifndef H_BLE_AUDIO_BROADCAST_SOURCE_
+#define H_BLE_AUDIO_BROADCAST_SOURCE_
 
 /**
  * @file ble_audio_broadcast.h

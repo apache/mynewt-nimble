@@ -18,11 +18,11 @@
  */
 
 #include "host/ble_uuid.h"
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 
 #include "os/util.h"
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 struct ble_audio_broadcast {
     SLIST_ENTRY(ble_audio_broadcast) next;
     uint8_t adv_instance;

@@ -42,6 +42,6 @@ syscfg.vals:
 
     BLE_VERSION: 54
     BLE_ISO: 1
-    BLE_ISO_BROADCASTER: 1
+    BLE_ISO_BROADCAST_SOURCE: 1
     BLE_MAX_BIG: 1
     BLE_MAX_BIS: 2
