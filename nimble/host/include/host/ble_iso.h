@@ -27,6 +27,15 @@
 /** ISO event: BIG Terminate Completed */
 #define BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE               1
 
+/** ISO event: BIG Sync Create Completed */
+#define BLE_ISO_EVENT_BIG_SYNC_CREATE_COMPLETE             2
+
+/** ISO event: BIG Sync Lost */
+#define BLE_ISO_EVENT_BIG_SYNC_LOST                        3
+
+/** ISO event: ISO data received */
+#define BLE_ISO_EVENT_DATA                                 4
+
 #include <inttypes.h>
 
 struct ble_iso_big_desc
@@ -80,6 +89,38 @@ struct ble_iso_event {
             uint16_t big_handle;
             uint8_t reason;
         } big_terminated;
+
+        /**
+         * Represents an establishment of BIG synchronisation. Valid for the
+         * following event types:
+         *     o BLE_ISO_EVENT_BIG_SYNC_CREATE_COMPLETE
+         */
+        struct {
+            uint8_t status;
+            uint8_t big_handle;
+            uint8_t bis_cnt;
+            uint16_t bis[0];
+        } big_sync_complete;
+
+        /**
+         * Represents a loss of BIG synchronisation. Valid for the
+         * following event types:
+         *     o BLE_ISO_EVENT_BIG_SYNC_LOST
+         */
+        struct {
+            uint8_t big_handle;
+            uint8_t reason;
+        } big_terminate_lost;
+
+        /**
+         * Represents a reception of ISO data packet. Valid for the
+         * following event types:
+         *     o BLE_ISO_EVENT_DATA
+         */
+        struct {
+            struct os_mbuf *om;
+            uint16_t handle;
+        } iso_data;
     };
 };
 
@@ -116,6 +157,14 @@ void
 ble_gap_rx_terminate_big_complete(const struct
                                   ble_hci_ev_le_subev_terminate_big_complete
                                   *ev);
+
+int ble_iso_create_big_sync(uint8_t *out_big_handle, uint16_t sync_handle,
+                            bool encrypted, uint8_t *broadcast_code,
+                            uint8_t mse, uint32_t sync_timeout_ms,
+                            uint8_t num_of_bis, uint8_t *bis,
+                            ble_iso_event_fn *cb, void *cb_arg);
+
+int ble_iso_terminate_big_sync(uint8_t big_handle);
 
 int ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len);
 
