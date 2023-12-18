@@ -24,7 +24,7 @@
 #include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "host/ble_hs.h"
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 #include "ble_hs_priv.h"
 #include "nimble/nimble_npl.h"
 #ifndef MYNEWT
@@ -756,7 +756,7 @@ ble_hs_init(void)
 #if MYNEWT_VAL(BLE_ISO)
     rc = ble_iso_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     rc = ble_audio_broadcast_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
 #endif

@@ -42,7 +42,7 @@
 #include "host/ble_store.h"
 #include "host/ble_sm.h"
 #include "host/ble_audio_common.h"
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 #include "host/util/util.h"
 
 /* Mandatory services. */
@@ -130,7 +130,7 @@ int btshell_full_disc_prev_chr_val;
 struct ble_sm_sc_oob_data oob_data_local;
 struct ble_sm_sc_oob_data oob_data_remote;
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static struct {struct ble_audio_base *base; uint8_t adv_instance;}
 btshell_base_list[MYNEWT_VAL(BLE_MAX_BIG)];
 
@@ -2749,7 +2749,7 @@ btshell_get_default_own_addr_type(void)
     return default_own_addr_type;
 }
 
-#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
 static int
 btshell_base_find_free(void)
 {
@@ -3068,7 +3068,7 @@ mynewt_main(int argc, char **argv)
                          "btshell_coc_conn_pool");
     assert(rc == 0);
 #endif
-#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
     rc = os_mempool_init(&btshell_base_pool, MYNEWT_VAL(BLE_MAX_BIG),
                          sizeof(struct ble_audio_base),
                          btshell_base_mem,

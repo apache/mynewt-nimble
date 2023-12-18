@@ -483,7 +483,7 @@ syscfg.defs:
             Enable support for Isochronous Broadcasting state.
         restrictions:
             - BLE_LL_ISO if 1
-        value: MYNEWT_VAL(BLE_ISO_BROADCASTER)
+        value: MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
         state: experimental
     BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS:
         description: >

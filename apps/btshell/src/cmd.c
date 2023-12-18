@@ -4206,7 +4206,7 @@ static const struct shell_cmd_help sync_stats_help = {
 #endif
 #endif
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param leaudio_base_add_params[] = {
     {"adv_instance", "Advertising instance, usage: =<UINT8>"},
