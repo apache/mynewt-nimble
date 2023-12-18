@@ -65,7 +65,7 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_rpt;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_lost;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_scan_req_rcvd;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_transfer;
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_create_big_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_terminate_big_complete;
 #endif
@@ -137,7 +137,7 @@ static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
     [BLE_HCI_LE_SUBEV_ADV_SET_TERMINATED] = ble_hs_hci_evt_le_adv_set_terminated,
     [BLE_HCI_LE_SUBEV_SCAN_REQ_RCVD] = ble_hs_hci_evt_le_scan_req_rcvd,
     [BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_TRANSFER] = ble_hs_hci_evt_le_periodic_adv_sync_transfer,
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     [BLE_HCI_LE_SUBEV_CREATE_BIG_COMPLETE] =
         ble_hs_hci_evt_le_create_big_complete,
     [BLE_HCI_LE_SUBEV_TERMINATE_BIG_COMPLETE] =
@@ -747,7 +747,7 @@ ble_hs_hci_evt_le_periodic_adv_sync_transfer(uint8_t subevent, const void *data,
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static int
 ble_hs_hci_evt_le_create_big_complete(uint8_t subevent, const void *data,
                                       unsigned int len)

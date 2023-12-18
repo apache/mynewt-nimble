@@ -1196,7 +1196,7 @@
 #define MYNEWT_VAL_BLE_LL_ISO (0)
 #endif
 
-/* Value copied from BLE_ISO_BROADCASTER */
+/* Value copied from BLE_ISO_BROADCAST_SOURCE */
 #ifndef MYNEWT_VAL_BLE_LL_ISO_BROADCASTER
 #define MYNEWT_VAL_BLE_LL_ISO_BROADCASTER (0)
 #endif

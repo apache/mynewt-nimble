@@ -17,13 +17,13 @@
  * under the License.
  */
 
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 #include "cmd_leaudio.h"
 #include "btshell.h"
 #include "console/console.h"
 #include "errno.h"
 
-#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
 int
 cmd_leaudio_base_add(int argc, char **argv)
 {

@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include "host/ble_gap.h"
 #include "host/ble_audio_common.h"
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 
 struct ble_svc_auracast_create_params {
     /** Broadcast Audio Source Endpoint */

@@ -28,8 +28,8 @@
 
 #include "host/ble_gatt.h"
 #include "host/ble_gap.h"
-#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
-#include "host/ble_audio_broadcast.h"
+#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
+#include "host/ble_audio_broadcast_source.h"
 #endif
 
 #ifdef __cplusplus
@@ -185,7 +185,7 @@ int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
 int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
                            uint8_t num, uint8_t idxs[]);
 
-#if (MYNEWT_VAL(BLE_ISO_BROADCASTER))
+#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
 int btshell_broadcast_base_add(uint8_t adv_instance, uint32_t presentation_delay);
 int btshell_broadcast_big_sub_add(uint8_t adv_instance,
                                   uint8_t codec_fmt,

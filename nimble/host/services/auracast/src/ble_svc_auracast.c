@@ -21,7 +21,7 @@
 
 #include "host/ble_gap.h"
 #include "host/ble_hs.h"
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 #include "services/auracast/ble_svc_auracast.h"
 
 int
@@ -60,7 +60,8 @@ ble_svc_auracast_create(const struct ble_svc_auracast_create_params *params,
 
     auracast_svc_data[data_offset] = BLE_HS_ADV_TYPE_SVC_DATA_UUID16;
     data_offset++;
-    put_le16(&auracast_svc_data[data_offset], 0x1856);
+    put_le16(&auracast_svc_data[data_offset],
+             BLE_BROADCAST_PUBLIC_BROADCAST_ANNOUNCEMENT_SVC_UUID);
     data_offset += 2;
     auracast_svc_data[data_offset] = features;
     data_offset++;

@@ -47,6 +47,7 @@
                                                       __VA_ARGS__)
 
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
+#define BLE_BROADCAST_PUBLIC_BROADCAST_ANNOUNCEMENT_SVC_UUID      0x1856
 
 #define BLE_AUDIO_SAMPLING_RATE_8000_HZ                           0x01
 #define BLE_AUDIO_SAMPLING_RATE_11025_HZ                          0x02

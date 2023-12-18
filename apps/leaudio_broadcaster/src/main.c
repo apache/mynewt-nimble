@@ -24,7 +24,7 @@
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 
-#include "host/ble_audio_broadcast.h"
+#include "host/ble_audio_broadcast_source.h"
 #include "host/ble_audio_common.h"
 #include "host/ble_iso.h"
 
