@@ -765,7 +765,6 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     uint8_t s_to_m;
     uint8_t tx_phys;
     uint8_t rx_phys;
-    uint16_t instant;
     uint8_t is_periph_sym = 0;
 
     /* Get preferences from PDU */
@@ -839,13 +838,7 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
             connsm->flags.phy_update_host_initiated = 0;
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
         }
-        instant = 0;
     } else {
-        /* Determine instant we will use. 6 more is minimum */
-        instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
-        connsm->phy_instant = instant;
-        connsm->flags.phy_update_sched = 1;
-
         /* Set new phys to use when instant occurs */
         connsm->phy_data.new_tx_phy = m_to_s;
         connsm->phy_data.new_rx_phy = s_to_m;
@@ -862,7 +855,31 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     ctrdata[0] = m_to_s;
     ctrdata[1] = s_to_m;
+}
+
+static bool
+ble_ll_ctrl_phy_update_ind_instant(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
+{
+    uint16_t instant;
+    uint8_t m_to_s;
+    uint8_t s_to_m;
+    bool schedule = false;
+
+    m_to_s = ctrdata[0];
+    s_to_m = ctrdata[1];
+
+    if ((m_to_s == 0) && (s_to_m == 0)) {
+        instant = 0;
+    } else {
+        /* Determine instant we will use. 6 more is minimum */
+        instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
+        connsm->phy_instant = instant;
+        schedule = true;
+    }
+
     put_le16(ctrdata + 2, instant);
+
+    return schedule;
 }
 #endif
 
@@ -3089,6 +3106,13 @@ ble_ll_ctrl_tx_start(struct ble_ll_conn_sm *connsm, struct os_mbuf *txpdu)
         ble_ll_ctrl_conn_update_make_ind_pdu(connsm, ctrdata);
         connsm->flags.conn_update_sched = 1;
         break;
+#if MYNEWT_VAL(BLE_LL_PHY)
+    case BLE_LL_CTRL_PHY_UPDATE_IND:
+        if (ble_ll_ctrl_phy_update_ind_instant(connsm, ctrdata)) {
+            connsm->flags.phy_update_sched = 1;
+        }
+        break;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     case BLE_LL_CTRL_SUBRATE_IND:
         connsm->flags.subrate_trans = 1;
