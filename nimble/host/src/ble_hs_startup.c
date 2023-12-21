@@ -69,6 +69,27 @@ ble_hs_startup_read_local_ver_tx(void)
 }
 
 static int
+ble_hs_startup_read_sup_cmd_tx(void)
+{
+    struct ble_hci_ip_rd_loc_supp_cmd_rp rsp;
+    struct ble_hs_hci_sup_cmd sup_cmd;
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS,
+                                      BLE_HCI_OCF_IP_RD_LOC_SUPP_CMD),
+                           NULL, 0, &rsp, sizeof(rsp));
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Only check support for Set Event ­Mask ­Page ­2 command */
+    sup_cmd.event_mask2 = (rsp.commands[22] & 0x04) != 0;
+    ble_hs_hci_set_hci_supported_cmd(sup_cmd);
+
+    return 0;
+}
+
+static int
 ble_hs_startup_le_read_sup_f_tx(void)
 {
     struct ble_hci_le_rd_loc_supp_feat_rp rsp;
@@ -289,9 +310,11 @@ ble_hs_startup_set_evmask_tx(void)
     struct ble_hci_cb_set_event_mask_cp cmd;
     struct ble_hci_cb_set_event_mask2_cp cmd2;
     uint8_t version;
+    struct ble_hs_hci_sup_cmd sup_cmd;
     int rc;
 
     version = ble_hs_hci_get_hci_version();
+    sup_cmd = ble_hs_hci_get_hci_supported_cmd();
 
     /**
      * Enable the following events:
@@ -311,7 +334,7 @@ ble_hs_startup_set_evmask_tx(void)
         return rc;
     }
 
-    if (version >= BLE_HCI_VER_BCS_4_1) {
+    if ((version >= BLE_HCI_VER_BCS_4_1) && sup_cmd.event_mask2) {
         /**
          * Enable the following events:
          *     0x0000000000800000 Authenticated Payload Timeout Event
@@ -352,7 +375,11 @@ ble_hs_startup_go(void)
         return rc;
     }
 
-    /* XXX: Read local supported commands. */
+    /* Read local supported commands. */
+    rc = ble_hs_startup_read_sup_cmd_tx();
+    if (rc != 0) {
+        return rc;
+    }
 
     /* we need to check this only if using external controller */
 #if !MYNEWT_VAL(BLE_CONTROLLER)

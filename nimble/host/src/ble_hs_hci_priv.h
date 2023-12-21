@@ -79,6 +79,10 @@ struct hci_periodic_adv_params
 #endif
 #endif
 
+struct ble_hs_hci_sup_cmd {
+    unsigned event_mask2 : 1; /** Indicates whether the controller supports the set event mask page 2 command */
+};
+
 extern uint16_t ble_hs_hci_avail_pkts;
 
 /* This function is not waiting for command status/complete HCI events */
@@ -91,6 +95,8 @@ void ble_hs_hci_set_le_supported_feat(uint32_t feat);
 uint32_t ble_hs_hci_get_le_supported_feat(void);
 void ble_hs_hci_set_hci_version(uint8_t hci_version);
 uint8_t ble_hs_hci_get_hci_version(void);
+void ble_hs_hci_set_hci_supported_cmd(struct ble_hs_hci_sup_cmd sup_cmd);
+struct ble_hs_hci_sup_cmd ble_hs_hci_get_hci_supported_cmd(void);
 
 #if MYNEWT_VAL(BLE_HS_PHONY_HCI_ACKS)
 typedef int ble_hs_hci_phony_ack_fn(uint8_t *ack, int ack_buf_len);
