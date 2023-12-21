@@ -38,6 +38,8 @@ static uint32_t ble_hs_hci_sup_feat;
 
 static uint8_t ble_hs_hci_version;
 
+static struct ble_hs_hci_sup_cmd ble_hs_hci_sup_cmd;
+
 #if MYNEWT_VAL(BLE_CONTROLLER)
 #define BLE_HS_HCI_FRAG_DATABUF_SIZE    \
     (BLE_ACL_MAX_PKT_SIZE +             \
@@ -630,6 +632,18 @@ uint8_t
 ble_hs_hci_get_hci_version(void)
 {
     return ble_hs_hci_version;
+}
+
+void
+ble_hs_hci_set_hci_supported_cmd(struct ble_hs_hci_sup_cmd sup_cmd)
+{
+    ble_hs_hci_sup_cmd = sup_cmd;
+}
+
+struct ble_hs_hci_sup_cmd
+ble_hs_hci_get_hci_supported_cmd(void)
+{
+    return ble_hs_hci_sup_cmd;
 }
 
 void
