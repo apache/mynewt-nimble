@@ -1883,12 +1883,15 @@ ble_ll_ctrl_chanmap_req_make(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
     memcpy(pyld, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
     memcpy(connsm->req_chanmap, pyld, BLE_LL_CHAN_MAP_LEN);
 
+    /* Instant is placed in ble_ll_ctrl_chanmap_req_instant()*/
+}
+
+static void
+ble_ll_ctrl_chanmap_req_instant(struct ble_ll_conn_sm *connsm, uint8_t *pyld)
+{
     /* Place instant into request */
     connsm->chanmap_instant = connsm->event_cntr + connsm->periph_latency + 6 + 1;
     put_le16(pyld + BLE_LL_CHAN_MAP_LEN, connsm->chanmap_instant);
-
-    /* Set scheduled flag */
-    connsm->flags.chanmap_update_sched = 1;
 }
 
 /**
@@ -3105,6 +3108,10 @@ ble_ll_ctrl_tx_start(struct ble_ll_conn_sm *connsm, struct os_mbuf *txpdu)
     case BLE_LL_CTRL_CONN_UPDATE_IND:
         ble_ll_ctrl_conn_update_make_ind_pdu(connsm, ctrdata);
         connsm->flags.conn_update_sched = 1;
+        break;
+    case BLE_LL_CTRL_CHANNEL_MAP_REQ:
+        ble_ll_ctrl_chanmap_req_instant(connsm, ctrdata);
+        connsm->flags.chanmap_update_sched = 1;
         break;
 #if MYNEWT_VAL(BLE_LL_PHY)
     case BLE_LL_CTRL_PHY_UPDATE_IND:
