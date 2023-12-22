@@ -201,6 +201,8 @@ int ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                              uint8_t op, uint16_t offset, struct os_mbuf **om,
                              void *arg);
 
+int ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle,
+                                      struct os_mbuf *om);
 /*** @misc. */
 int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
