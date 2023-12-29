@@ -144,6 +144,8 @@ void ble_gap_pairing_complete_event(uint16_t conn_handle, int status);
 void ble_gap_unhandled_hci_event(bool is_le_meta, bool is_vs, const void *buf,
                                  uint8_t len);
 int ble_gap_master_in_progress(void);
+int ble_gap_authorize_event(uint16_t conn_handle, uint16_t attr_handle,
+                            uint16_t access_opcode, uint16_t cid);
 
 void ble_gap_preempt(void);
 void ble_gap_preempt_done(void);
