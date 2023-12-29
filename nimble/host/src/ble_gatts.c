@@ -39,6 +39,10 @@ static const ble_uuid_t *uuid_chr =
     BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
 static const ble_uuid_t *uuid_ccc =
     BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
+static const ble_uuid_t *uuid_cpf =
+    BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_PRE_FMT16);
+static const ble_uuid_t *uuid_caf =
+    BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_AGG_FMT16);
 
 static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
 static int ble_gatts_num_svc_defs;
@@ -584,6 +588,33 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
 }
 
 static int
+ble_gatts_cpfd_is_sane(const struct ble_gatt_cpfd *cpfd)
+{
+    /** As per Assigned Numbers Specification (2023-09-07) */
+    if ((cpfd->format < 0x01) || (cpfd->format > 0x1C)) {
+        return 0;
+    }
+
+    if ((cpfd->unit < 0x2700) ||
+        ((cpfd->unit > 0x2707) && (cpfd->unit < 0x2710)) ||
+        (cpfd->unit == 0x271F) ||
+        ((cpfd->unit > 0x2735) && (cpfd->unit < 0x2740)) ||
+        ((cpfd->unit > 0x2757) && (cpfd->unit < 0x2760)) ||
+        ((cpfd->unit > 0x2768) && (cpfd->unit < 0x2780)) ||
+        ((cpfd->unit > 0x2787) && (cpfd->unit < 0x27A0)) ||
+        (cpfd->unit == 0x27BB) ||
+        (cpfd->unit > 0x27C8)) {
+        return 0;
+    }
+
+    if ((cpfd->namespace == BLE_GATT_CHR_NAMESPACE_BT_SIG) && (cpfd->description > 0x0110)) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int
 ble_gatts_clt_cfg_find_idx(struct ble_gatts_clt_cfg *cfgs,
                            uint16_t chr_val_handle)
 {
@@ -805,6 +836,110 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
 }
 
 static int
+ble_gatts_cafd_access(uint16_t conn_handle, uint16_t attr_handle,
+                      uint8_t op, uint16_t offset, struct os_mbuf **om,
+                      void *arg)
+{
+    struct ble_att_svr_entry * cpfd_entry;
+    uint16_t handle;
+    int rc;
+
+    BLE_HS_DBG_ASSERT(op == BLE_ATT_ACCESS_OP_READ);
+
+    STATS_INC(ble_gatts_stats, dsc_reads);
+
+    cpfd_entry = arg;
+
+    /**
+     * All the Client Presentation Format Descriptors of this characteristic
+     * are registered just before the Client Aggregate Format Descriptor.
+     * The handle of the first one is retrieved from arg.
+     */
+    rc = 0;
+    for (handle = cpfd_entry->ha_handle_id; handle < attr_handle; handle++) {
+        rc += os_mbuf_append(*om, &handle, sizeof(handle));
+    }
+
+    return ((rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES);
+}
+
+static int
+ble_gatts_cpfd_access(uint16_t conn_handle, uint16_t attr_handle,
+                      uint8_t op, uint16_t offset, struct os_mbuf **om,
+                      void *arg)
+{
+    struct ble_gatt_cpfd * cpfd;
+    int rc;
+
+    BLE_HS_DBG_ASSERT(op == BLE_ATT_ACCESS_OP_READ);
+    
+    STATS_INC(ble_gatts_stats, dsc_reads);
+
+    cpfd = arg;
+    
+    rc = 0;
+    rc += os_mbuf_append(*om, &(cpfd->format), sizeof(cpfd->format));
+    rc += os_mbuf_append(*om, &(cpfd->exponent), sizeof(cpfd->exponent));
+    rc += os_mbuf_append(*om, &(cpfd->unit), sizeof(cpfd->unit));
+    rc += os_mbuf_append(*om, &(cpfd->namespace), sizeof(cpfd->namespace));
+    rc += os_mbuf_append(*om, &(cpfd->description), sizeof(cpfd->description));
+
+    return ((rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES);
+}
+
+static int
+ble_gatts_register_cpfds(const struct ble_gatt_cpfd *cpfds)
+{
+    int idx;
+    int rc;
+    uint16_t first_cpfd_handle;
+    struct ble_att_svr_entry * first_cpfd_entry;
+
+    if (cpfds == NULL) {
+        /** No Client Presentation Format Descriptors to add */
+        return 0;
+    }
+
+    for (idx = 0; cpfds[idx].format != 0; idx++) {
+        rc = ble_att_svr_register(uuid_cpf, BLE_ATT_F_READ, 0, &first_cpfd_handle,
+                                  ble_gatts_cpfd_access, (void *)(cpfds + idx));
+        if (rc != 0) {
+            return rc;
+        }
+
+        STATS_INC(ble_gatts_stats, dscs);
+    }
+
+    /**
+     * Client Aggregate Format Descriptor required if
+     * more than one CPFDs are registered for the same characteristic
+     */
+    if (idx > 1) {
+        first_cpfd_handle -= (idx - 1);
+        first_cpfd_entry = ble_att_svr_find_by_handle(first_cpfd_handle);
+        if (first_cpfd_entry == NULL) {
+            return BLE_HS_ENOENT;
+        }
+        
+        /**
+         * The First CPFD entry will contain it's handle,
+         * Using that and the handle of this descriptor we can
+         * find the handles all CPFDs.
+         */
+        rc = ble_att_svr_register(uuid_caf, BLE_ATT_F_READ, 0, NULL,
+                                  ble_gatts_cafd_access, (void *)(first_cpfd_entry));
+        if (rc != 0) {
+            return rc;
+        }
+
+        STATS_INC(ble_gatts_stats, dscs);
+    }
+
+    return 0;
+}
+
+
+static int
 ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
                        const struct ble_gatt_chr_def *chr,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
@@ -868,6 +1003,12 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
             return rc;
         }
         BLE_HS_DBG_ASSERT(dsc_handle == def_handle + 2);
+    }
+
+    /* Register each Client Presentation Format Descriptor. */
+    rc = ble_gatts_register_cpfds(chr->cpfd);
+    if (rc != 0) {
+        return rc;
     }
 
     /* Register each descriptor. */
@@ -2113,6 +2254,7 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
     int i;
     int c;
     int d;
+    int pf;
 
     for (s = 0; svcs[s].type != BLE_GATT_SVC_TYPE_END; s++) {
         svc = svcs + s;
@@ -2183,6 +2325,31 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
                          *     o 1 descriptor
                          *     o 1 attribute
                          */
+                        res->dscs++;
+                        res->attrs++;
+                    }
+                }
+
+                if (chr->cpfd != NULL) {
+                    for (pf = 0; chr->cpfd[pf].format != 0; pf++) {
+                        if (!ble_gatts_cpfd_is_sane(chr->cpfd + pf)) {
+                            BLE_HS_DBG_ASSERT(0);
+                            return BLE_HS_EINVAL;
+                        }
+
+                        /** Each CPFD requires:
+                         *      o 1 descriptor
+                         *      o 1 CPFD
+                         *      o 1 attribute
+                         */
+                        res->dscs++;
+                        res->cpfds++;
+                        res->attrs++;
+                    }
+
+                    /** If more than one CPFD is present for a characteristic, one CAFD is required. */
+                    if (pf > 1) {
+                        res->cafds++;
                         res->dscs++;
                         res->attrs++;
                     }

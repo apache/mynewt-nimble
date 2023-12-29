@@ -65,6 +65,12 @@ struct ble_hs_cfg;
 /** GATT Client Characteristic Configuration descriptor 16-bit UUID. */
 #define BLE_GATT_DSC_CLT_CFG_UUID16                     0x2902
 
+/** GATT Client Presentation Format descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_CLT_PRE_FMT16                      0x2904
+
+/** GATT Client Aggregate Format descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_CLT_AGG_FMT16                      0x2905
+
 /** @} */
 
 /**
@@ -182,6 +188,558 @@ struct ble_hs_cfg;
 
 /** GATT Service Type: Secondary Service. */
 #define BLE_GATT_SVC_TYPE_SECONDARY                     2
+
+/** @} */
+
+/**
+ * @defgroup Client Presentation Format - GATT Format Types
+ * @{
+ */
+
+/** GATT Format Type: unsigned 1-bit; 0 = false; 1 = true */
+#define BLE_GATT_CHR_FORMAT_BOOLEAN                     0x01
+
+/** GATT Format Type: unsigned 2-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT2                       0x02
+
+/** GATT Format Type: unsigned 4-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT4                       0x03
+
+/** GATT Format Type: unsigned 8-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT8                       0x04
+
+/** GATT Format Type: unsigned 12-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT12                      0x05
+
+/** GATT Format Type: unsigned 16-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT16                      0x06
+
+/** GATT Format Type: unsigned 24-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT24                      0x07
+
+/** GATT Format Type: unsigned 32-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT32                      0x08
+
+/** GATT Format Type: unsigned 48-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT48                      0x09
+
+/** GATT Format Type: unsigned 64-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT64                      0x0A
+
+/** GATT Format Type: unsigned 128-bit integer */
+#define BLE_GATT_CHR_FORMAT_UINT128                     0x0B
+
+/** GATT Format Type: signed 8-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT8                       0x0C
+
+/** GATT Format Type: signed 12-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT12                      0x0D
+
+/** GATT Format Type: signed 16-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT16                      0x0E
+
+/** GATT Format Type: signed 24-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT24                      0x0F
+
+/** GATT Format Type: signed 32-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT32                      0x10
+
+/** GATT Format Type: signed 48-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT48                      0x11
+
+/** GATT Format Type: signed 64-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT64                      0x12
+
+/** GATT Format Type: signed 128-bit integer */
+#define BLE_GATT_CHR_FORMAT_SINT128                     0x13
+
+/** GATT Format Type: IEEE-754 32-bit floating point */
+#define BLE_GATT_CHR_FORMAT_FLOAT32                     0x14
+
+/** GATT Format Type: IEEE-754 64-bit floating point */
+#define BLE_GATT_CHR_FORMAT_FLOAT64                     0x15
+
+/** GATT Format Type: IEEE 11073-20601 16-bit SFLOAT */
+#define BLE_GATT_CHR_FORMAT_MEDFLOAT16                  0x16
+
+/** GATT Format Type: IEEE 11073-20601 32-bit FLOAT */
+#define BLE_GATT_CHR_FORMAT_MEDFLOAT32                  0x17
+
+/** GATT Format Type: IEEE 11073-20601 nomenclature code (uint16[2]) */
+#define BLE_GATT_CHR_FORMAT_UINT16_2                    0x18
+
+/** GATT Format Type: UTF-8 string */
+#define BLE_GATT_CHR_FORMAT_UTF8S                       0x19
+
+/** GATT Format Type: UTF-16 string */
+#define BLE_GATT_CHR_FORMAT_UTF16S                      0x1A
+
+/** GATT Format Type: opaque structure */
+#define BLE_GATT_CHR_FORMAT_STRUCT                      0x1B
+
+/** GATT Format Type: IEEE-11073 ASN.1/MDER structure */
+#define BLE_GATT_CHR_FORMAT_MEDASN1                     0x1C
+
+/** @} */
+
+/**
+ * @defgroup Client Presentation Format - GATT Unit UUIDs
+ * @{
+ */
+
+/** GATT Unit UUID: Unitless */
+#define BLE_GATT_CHR_UNIT_UNITLESS                              0x2700
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_METRE                                 0x2701
+
+/** GATT Unit UUID: Mass */
+#define BLE_GATT_CHR_UNIT_KILOGRAM                              0x2702
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_SECOND                                0x2703
+
+/** GATT Unit UUID: Electric Current */
+#define BLE_GATT_CHR_UNIT_AMPERE                                0x2704
+
+/** GATT Unit UUID: Thermodynamic Temperature */
+#define BLE_GATT_CHR_UNIT_KELVIN                                0x2705
+
+/** GATT Unit UUID: Amount Of Substance */
+#define BLE_GATT_CHR_UNIT_MOLE                                  0x2706
+
+/** GATT Unit UUID: Luminous Intensity */
+#define BLE_GATT_CHR_UNIT_CANDELA                               0x2707
+
+/** GATT Unit UUID: Area */
+#define BLE_GATT_CHR_UNIT_SQUARE_METRES                         0x2710
+
+/** GATT Unit UUID: Volume */
+#define BLE_GATT_CHR_UNIT_CUBIC_METRES                          0x2711
+
+/** GATT Unit UUID: Velocity */
+#define BLE_GATT_CHR_UNIT_METRES_PER_SECOND                     0x2712
+
+/** GATT Unit UUID: Acceleration */
+#define BLE_GATT_CHR_UNIT_METRES_PER_SECOND_SQUARED             0x2713
+
+/** GATT Unit UUID: Wavenumber */
+#define BLE_GATT_CHR_UNIT_RECIPROCAL_METRE                      0x2714
+
+/** GATT Unit UUID: Density */
+#define BLE_GATT_CHR_UNIT_KILOGRAM_PER_CUBIC_METRE_DENSITY      0x2715
+
+/** GATT Unit UUID: Surface Density */
+#define BLE_GATT_CHR_UNIT_KILOGRAM_PER_SQUARE_METRE             0x2716
+
+/** GATT Unit UUID: Specific Volume */
+#define BLE_GATT_CHR_UNIT_CUBIC_METRE_PER_KILOGRAM              0x2717
+
+/** GATT Unit UUID: Current Density */
+#define BLE_GATT_CHR_UNIT_AMPERE_PER_SQUARE_METRE               0x2718
+
+/** GATT Unit UUID: Magnetic Field Strength */
+#define BLE_GATT_CHR_UNIT_AMPERE_PER_METRE                      0x2719
+
+/** GATT Unit UUID: Amount Concentration */
+#define BLE_GATT_CHR_UNIT_MOLE_PER_CUBIC_METRE                  0x271A
+
+/** GATT Unit UUID: Mass Concentration */
+#define BLE_GATT_CHR_UNIT_KILOGRAM_PER_CUBIC_METRE_MASS_CONC    0x271B
+
+/** GATT Unit UUID: Luminance */
+#define BLE_GATT_CHR_UNIT_CANDELA_PER_SQUARE_METRE              0x271C
+
+/** GATT Unit UUID: Refractive Index */
+#define BLE_GATT_CHR_UNIT_REFRACTIVE_INDEX                      0x271D
+
+/** GATT Unit UUID: Relative Permeability */
+#define BLE_GATT_CHR_UNIT_RELATIVE_PERMEABILITY                 0x271E
+
+/** GATT Unit UUID: Plane Angle */
+#define BLE_GATT_CHR_UNIT_RADIAN                                0x2720
+
+/** GATT Unit UUID: Solid Angle */
+#define BLE_GATT_CHR_UNIT_STERADIAN                             0x2721
+
+/** GATT Unit UUID: Frequency */
+#define BLE_GATT_CHR_UNIT_HERTZ                                 0x2722
+
+/** GATT Unit UUID: Force */
+#define BLE_GATT_CHR_UNIT_NEWTON                                0x2723
+
+/** GATT Unit UUID: Pressure */
+#define BLE_GATT_CHR_UNIT_PASCAL                                0x2724
+
+/** GATT Unit UUID: Energy */
+#define BLE_GATT_CHR_UNIT_JOULE                                 0x2725
+
+/** GATT Unit UUID: Power */
+#define BLE_GATT_CHR_UNIT_WATT                                  0x2726
+
+/** GATT Unit UUID: Electric Charge */
+#define BLE_GATT_CHR_UNIT_COULOMB                               0x2727
+
+/** GATT Unit UUID: Electric Potential Difference */
+#define BLE_GATT_CHR_UNIT_VOLT                                  0x2728
+
+/** GATT Unit UUID: Capacitance */
+#define BLE_GATT_CHR_UNIT_FARAD                                 0x2729
+
+/** GATT Unit UUID: Electric Resistance */
+#define BLE_GATT_CHR_UNIT_OHM                                   0x272A
+
+/** GATT Unit UUID: Electric Conductance */
+#define BLE_GATT_CHR_UNIT_SIEMENS                               0x272B
+
+/** GATT Unit UUID: Magnetic Flux */
+#define BLE_GATT_CHR_UNIT_WEBER                                 0x272C
+
+/** GATT Unit UUID: Magnetic Flux Density */
+#define BLE_GATT_CHR_UNIT_TESLA                                 0x272D
+
+/** GATT Unit UUID: Inductance */
+#define BLE_GATT_CHR_UNIT_HENRY                                 0x272E
+
+/** GATT Unit UUID: celsius Temperature */
+#define BLE_GATT_CHR_UNIT_DEGREE_CELSIUS                        0x272F
+
+/** GATT Unit UUID: Luminous Flux */
+#define BLE_GATT_CHR_UNIT_LUMEN                                 0x2730
+
+/** GATT Unit UUID: Illuminance */
+#define BLE_GATT_CHR_UNIT_LUX                                   0x2731
+
+/** GATT Unit UUID: Activity Referred To A Radionuclide */
+#define BLE_GATT_CHR_UNIT_BECQUEREL                             0x2732
+
+/** GATT Unit UUID: Absorbed Dose */
+#define BLE_GATT_CHR_UNIT_GRAY                                  0x2733
+
+/** GATT Unit UUID: Dose Equivalent */
+#define BLE_GATT_CHR_UNIT_SIEVERT                               0x2734
+
+/** GATT Unit UUID: Catalytic Activity */
+#define BLE_GATT_CHR_UNIT_KATAL                                 0x2735
+
+/** GATT Unit UUID: Dynamic Viscosity */
+#define BLE_GATT_CHR_UNIT_PASCAL_SECOND                         0x2740
+
+/** GATT Unit UUID: Moment Of Force */
+#define BLE_GATT_CHR_UNIT_NEWTON_METRE                          0x2741
+
+/** GATT Unit UUID: Surface Tension */
+#define BLE_GATT_CHR_UNIT_NEWTON_PER_METRE                      0x2742
+
+/** GATT Unit UUID: Angular Velocity */
+#define BLE_GATT_CHR_UNIT_RADIAN_PER_SECOND                     0x2743
+
+/** GATT Unit UUID: Angular Acceleration */
+#define BLE_GATT_CHR_UNIT_RADIAN_PER_SECOND_SQUARED             0x2744
+
+/** GATT Unit UUID: Heat Flux Density */
+#define BLE_GATT_CHR_UNIT_WATT_PER_SQUARE_METRE_HEAT            0x2745
+
+/** GATT Unit UUID: Heat Capacity */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_KELVIN                      0x2746
+
+/** GATT Unit UUID: Specific Heat Capacity */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_KILOGRAM_KELVIN             0x2747
+
+/** GATT Unit UUID: Specific Energy */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_KILOGRAM                    0x2748
+
+/** GATT Unit UUID: Thermal Conductivity */
+#define BLE_GATT_CHR_UNIT_WATT_PER_METRE_KELVIN                 0x2749
+
+/** GATT Unit UUID: Energy Density */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_CUBIC_METRE                 0x274A
+
+/** GATT Unit UUID: Electric Field Strength */
+#define BLE_GATT_CHR_UNIT_VOLT_PER_METRE                        0x274B
+
+/** GATT Unit UUID: Electric Charge Density */
+#define BLE_GATT_CHR_UNIT_COULOMB_PER_CUBIC_METRE               0x274C
+
+/** GATT Unit UUID: Surface Charge Density */
+#define BLE_GATT_CHR_UNIT_COULOMB_PER_SQUARE_METRE_CHARGE       0x274D
+
+/** GATT Unit UUID: Electric Flux Density */
+#define BLE_GATT_CHR_UNIT_COULOMB_PER_SQUARE_METRE_FLUX         0x274E
+
+/** GATT Unit UUID: Permittivity */
+#define BLE_GATT_CHR_UNIT_FARAD_PER_METRE                       0x274F
+
+/** GATT Unit UUID: Permeability */
+#define BLE_GATT_CHR_UNIT_HENRY_PER_METRE                       0x2750
+
+/** GATT Unit UUID: Molar Energy */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_MOLE                        0x2751
+
+/** GATT Unit UUID: Molar Entropy */
+#define BLE_GATT_CHR_UNIT_JOULE_PER_MOLE_KELVIN                 0x2752
+
+/** GATT Unit UUID: Exposure */
+#define BLE_GATT_CHR_UNIT_COULOMB_PER_KILOGRAM                  0x2753
+
+/** GATT Unit UUID: Absorbed Dose Rate */
+#define BLE_GATT_CHR_UNIT_GRAY_PER_SECOND                       0x2754
+
+/** GATT Unit UUID: Radiant Intensity */
+#define BLE_GATT_CHR_UNIT_WATT_PER_STERADIAN                    0x2755
+
+/** GATT Unit UUID: Radiance */
+#define BLE_GATT_CHR_UNIT_WATT_PER_SQUARE_METRE_STERADIAN       0x2756
+
+/** GATT Unit UUID: Catalytic Activity Concentration */
+#define BLE_GATT_CHR_UNIT_KATAL_PER_CUBIC_METRE                 0x2757
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_MINUTE                                0x2760
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_HOUR                                  0x2761
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_DAY                                   0x2762
+
+/** GATT Unit UUID: Plane Angle */
+#define BLE_GATT_CHR_UNIT_DEGREE                                0x2763
+
+/** GATT Unit UUID: Plane Angle */
+#define BLE_GATT_CHR_UNIT_MINUTE_ANGLE                          0x2764
+
+/** GATT Unit UUID: Plane Angle */
+#define BLE_GATT_CHR_UNIT_SECOND_ANGLE                          0x2765
+
+/** GATT Unit UUID: Area */
+#define BLE_GATT_CHR_UNIT_HECTARE                               0x2766
+
+/** GATT Unit UUID: Volume */
+#define BLE_GATT_CHR_UNIT_LITRE                                 0x2767
+
+/** GATT Unit UUID: Mass */
+#define BLE_GATT_CHR_UNIT_TONNE                                 0x2768
+
+/** GATT Unit UUID: Pressure */
+#define BLE_GATT_CHR_UNIT_BAR                                   0x2780
+
+/** GATT Unit UUID: Pressure */
+#define BLE_GATT_CHR_UNIT_MILLIMETRE_OF_MERCURY                 0x2781
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_ANGSTROM                              0x2782
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_NAUTICAL_MILE                         0x2783
+
+/** GATT Unit UUID: Area */
+#define BLE_GATT_CHR_UNIT_BARN                                  0x2784
+
+/** GATT Unit UUID: Velocity */
+#define BLE_GATT_CHR_UNIT_KNOT                                  0x2785
+
+/** GATT Unit UUID: Logarithmic Radio Quantity */
+#define BLE_GATT_CHR_UNIT_NEPER                                 0x2786
+
+/** GATT Unit UUID: Logarithmic Radio Quantity */
+#define BLE_GATT_CHR_UNIT_BEL                                   0x2787
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_YARD                                  0x27A0
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_PARSEC                                0x27A1
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_INCH                                  0x27A2
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_FOOT                                  0x27A3
+
+/** GATT Unit UUID: Length */
+#define BLE_GATT_CHR_UNIT_MILE                                  0x27A4
+
+/** GATT Unit UUID: Pressure */
+#define BLE_GATT_CHR_UNIT_POUND_FORCE_PER_SQUARE_INCH           0x27A5
+
+/** GATT Unit UUID: Velocity */
+#define BLE_GATT_CHR_UNIT_KILOMETRE_PER_HOUR                    0x27A6
+
+/** GATT Unit UUID: Velocity */
+#define BLE_GATT_CHR_UNIT_MILE_PER_HOUR                         0x27A7
+
+/** GATT Unit UUID: Angular Velocity */
+#define BLE_GATT_CHR_UNIT_REVOLUTION_PER_MINUTE                 0x27A8
+
+/** GATT Unit UUID: Energy */
+#define BLE_GATT_CHR_UNIT_GRAM_CALORIE                          0x27A9
+
+/** GATT Unit UUID: Energy */
+#define BLE_GATT_CHR_UNIT_KILOGRAM_CALORIE                      0x27AA
+
+/** GATT Unit UUID: Energy */
+#define BLE_GATT_CHR_UNIT_KILOWATT_HOUR                         0x27AB
+
+/** GATT Unit UUID: Thermodynamic Temperature */
+#define BLE_GATT_CHR_UNIT_DEGREE_FAHRENHEIT                     0x27AC
+
+/** GATT Unit UUID: Percentage */
+#define BLE_GATT_CHR_UNIT_PERCENTAGE                            0x27AD
+
+/** GATT Unit UUID: Per Mille */
+#define BLE_GATT_CHR_UNIT_PER_MILLE                             0x27AE
+
+/** GATT Unit UUID: Period */
+#define BLE_GATT_CHR_UNIT_BEATS_PER_MINUTE                      0x27AF
+
+/** GATT Unit UUID: Electric Charge */
+#define BLE_GATT_CHR_UNIT_AMPERE_HOURS                          0x27B0
+
+/** GATT Unit UUID: Mass Density */
+#define BLE_GATT_CHR_UNIT_MILLIGRAM_PER_DECILITRE               0x27B1
+
+/** GATT Unit UUID: Mass Density */
+#define BLE_GATT_CHR_UNIT_MILLIMOLE_PER_LITRE                   0x27B2
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_YEAR                                  0x27B3
+
+/** GATT Unit UUID: Time */
+#define BLE_GATT_CHR_UNIT_MONTH                                 0x27B4
+
+/** GATT Unit UUID: Concentration */
+#define BLE_GATT_CHR_UNIT_COUNT_PER_CUBIC_METRE                 0x27B5
+
+/** GATT Unit UUID: Irradiance */
+#define BLE_GATT_CHR_UNIT_WATT_PER_SQUARE_METRE_IRRADIANCE      0x27B6
+
+/** GATT Unit UUID: Milliliter */
+#define BLE_GATT_CHR_UNIT_PER_KILOGRAM_PER_MINUTE               0x27B7
+
+/** GATT Unit UUID: Mass */
+#define BLE_GATT_CHR_UNIT_POUND                                 0x27B8
+
+/** GATT Unit UUID: Metabolic Equivalent */
+#define BLE_GATT_CHR_UNIT_METABOLIC_EQUIVALENT                  0x27B9
+
+/** GATT Unit UUID: Step */
+#define BLE_GATT_CHR_UNIT_PER_MINUTE_STEP                       0x27BA
+
+/** GATT Unit UUID: Stroke */
+#define BLE_GATT_CHR_UNIT_PER_MINUTE_STROKE                     0x27BC
+
+/** GATT Unit UUID: Pace */
+#define BLE_GATT_CHR_UNIT_KILOMETRE_PER_MINUTE                  0x27BD
+
+/** GATT Unit UUID: Luminous Efficacy */
+#define BLE_GATT_CHR_UNIT_LUMEN_PER_WATT                        0x27BE
+
+/** GATT Unit UUID: Luminous Energy */
+#define BLE_GATT_CHR_UNIT_LUMEN_HOUR                            0x27BF
+
+/** GATT Unit UUID: Luminous Exposure */
+#define BLE_GATT_CHR_UNIT_LUX_HOUR                              0x27C0
+
+/** GATT Unit UUID: Mass Flow */
+#define BLE_GATT_CHR_UNIT_GRAM_PER_SECOND                       0x27C1
+
+/** GATT Unit UUID: Volume Flow */
+#define BLE_GATT_CHR_UNIT_LITRE_PER_SECOND                      0x27C2
+
+/** GATT Unit UUID: Sound Pressure */
+#define BLE_GATT_CHR_UNIT_DECIBEL                               0x27C3
+
+/** GATT Unit UUID: Concentration */
+#define BLE_GATT_CHR_UNIT_PARTS_PER_MILLION                     0x27C4
+
+/** GATT Unit UUID: Concentration */
+#define BLE_GATT_CHR_UNIT_PARTS_PER_BILLION                     0x27C5
+
+/** GATT Unit UUID: Mass Density Rate */
+#define BLE_GATT_CHR_UNIT_MILLIGRAM_PER_DECILITRE_PER_MINUTE    0x27C6
+
+/** GATT Unit UUID: Electrical Apparent Energy */
+#define BLE_GATT_CHR_UNIT_KILOVOLT_AMPERE_HOUR                  0x27C7
+
+/** GATT Unit UUID: Electrical Apparent Power */
+#define BLE_GATT_CHR_UNIT_VOLT_AMPERE                           0x27C8
+
+/** @} */
+
+/**
+ * @defgroup Client Presentation Format - GATT Name Space
+ * @{
+ */
+
+/** GATT Name Space: Bluetooth SIG */
+#define BLE_GATT_CHR_NAMESPACE_BT_SIG                   0x01
+
+/** @} */
+
+/**
+ * @defgroup Client Presentation Format - GATT Description for name space Bluetooth SIG
+ * @{
+ */
+
+/** GATT Description: Unknown */
+#define BLE_GATT_CHR_BT_SIG_DESC_UNKNOWN                0x0000
+
+/**
+ * 0x0001 - 0x00FF represent themselves.
+ * See Assigned Numbers 2.4.2.1 for more info
+ */
+
+/** GATT Description: front */
+#define BLE_GATT_CHR_BT_SIG_DESC_FRONT                  0x0100
+
+/** GATT Description: back */
+#define BLE_GATT_CHR_BT_SIG_DESC_BACK                   0x0101
+
+/** GATT Description: top */
+#define BLE_GATT_CHR_BT_SIG_DESC_TOP                    0x0102
+
+/** GATT Description: bottom */
+#define BLE_GATT_CHR_BT_SIG_DESC_BOTTOM                 0x0103
+
+/** GATT Description: upper */
+#define BLE_GATT_CHR_BT_SIG_DESC_UPPER                  0x0104
+
+/** GATT Description: lower */
+#define BLE_GATT_CHR_BT_SIG_DESC_LOWER                  0x0105
+
+/** GATT Description: main */
+#define BLE_GATT_CHR_BT_SIG_DESC_MAIN                   0x0106
+
+/** GATT Description: backup */
+#define BLE_GATT_CHR_BT_SIG_DESC_BACKUP                 0x0107
+
+/** GATT Description: auxiliary */
+#define BLE_GATT_CHR_BT_SIG_DESC_AUXILIARY              0x0108
+
+/** GATT Description: supplementary */
+#define BLE_GATT_CHR_BT_SIG_DESC_SUPPLEMENTARY          0x0109
+
+/** GATT Description: flash */
+#define BLE_GATT_CHR_BT_SIG_DESC_FLASH                  0x010A
+
+/** GATT Description: inside */
+#define BLE_GATT_CHR_BT_SIG_DESC_INSIDE                 0x010B
+
+/** GATT Description: outside */
+#define BLE_GATT_CHR_BT_SIG_DESC_OUTSIDE                0x010C
+
+/** GATT Description: left */
+#define BLE_GATT_CHR_BT_SIG_DESC_LEFT                   0x010D
+
+/** GATT Description: right */
+#define BLE_GATT_CHR_BT_SIG_DESC_RIGHT                  0x010E
+
+/** GATT Description: internal */
+#define BLE_GATT_CHR_BT_SIG_DESC_INTERNAL               0x010F
+
+/** GATT Description: external */
+#define BLE_GATT_CHR_BT_SIG_DESC_EXTERNAL               0x0110
 
 /** @} */
 
@@ -861,6 +1419,9 @@ struct ble_gatt_chr_def {
      * attribute handle.
      */
     uint16_t *val_handle;
+
+    /** Client Presentation Format Descriptors */
+    struct ble_gatt_cpfd *cpfd;
 };
 
 /** Represents the definition of a GATT service. */
@@ -912,6 +1473,40 @@ struct ble_gatt_dsc_def {
 
     /** Optional argument for callback. */
     void *arg;
+};
+
+/**
+ * Client Presentation Format Descriptor
+ * Defines the format of the Characteristic Value.
+ *
+ * +-------------+------------+
+ * | Field Name  | Value Size |
+ * +-------------+------------+
+ * | Format      | 1 octet    |
+ * | Exponent    | 1 octet    |
+ * | Unit        | 2 octets   |
+ * | Name Space  | 1 octet    |
+ * | Description | 2 octets   |
+ * +-------------+------------+
+ */
+struct ble_gatt_cpfd {
+    /**
+     * Format of the value of this characteristic. e.g. UINT32
+     * Cannot be 0x00. 0x00 represents CPFD array is ended.
+     */
+    uint8_t format;
+
+    /** Exponent field. Multiplies the value to 10^exponent. Type: sint8 */
+    int8_t exponent;
+
+    /** The unit of this characteristic. e.g. meters per second */
+    uint16_t unit;
+
+    /** The name space of the description. */
+    uint8_t namespace;
+
+    /** The description of this characteristic. Depends on name space. */
+    uint16_t description;
 };
 
 /**
