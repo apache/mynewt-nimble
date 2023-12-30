@@ -43,7 +43,6 @@ static struct ble_npl_task s_task_hci;
 
 void nimble_host_task(void *param);
 void ble_hci_sock_ack_handler(void *param);
-void ble_hci_sock_init(void);
 void ble_hci_sock_set_device(int dev);
 void ble_store_ram_init(void);
 
@@ -88,9 +87,6 @@ int main(int argc, char *argv[])
 
     printf("port init\n");
     nimble_port_init();
-
-    printf("hci init\n");
-    ble_hci_sock_init();
 
     /* This example provides GATT Alert service */
     printf("gap init\n");
