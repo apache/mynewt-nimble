@@ -80,7 +80,6 @@ int main(int argc, char *argv[])
     }
 
     nimble_port_init();
-    ble_hci_sock_init();
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
