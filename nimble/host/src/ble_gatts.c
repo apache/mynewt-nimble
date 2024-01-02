@@ -1613,8 +1613,9 @@ int
 ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 {
     struct ble_hs_conn *conn;
+    uint8_t feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ] = {};
+    uint16_t len;
     int rc = 0;
-    int feat_idx = 0;
     int i;
 
     BLE_HS_LOG(DEBUG, "");
@@ -1623,45 +1624,41 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
         return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
+    /* RFU bits are ignored so we can skip any bytes larger than supported */
+    len = os_mbuf_len(om);
+    if (len > BLE_GATT_CHR_CLI_SUP_FEAT_SZ) {
+        len = BLE_GATT_CHR_CLI_SUP_FEAT_SZ;
+    }
+
+    if (os_mbuf_copydata(om, 0, len, feat) < 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    /* clear RFU bits */
+    for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
+        feat[i] &= (BLE_GATT_CHR_CLI_SUP_FEAT_MASK >> (8 * i));
+    }
+
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
         rc = BLE_ATT_ERR_UNLIKELY;
         goto done;
     }
-    if (om->om_len == 0) {
-        /* Nothing to do */
-        goto done;
-    } else if (os_mbuf_len(om) > BLE_ATT_ATTR_MAX_LEN) {
-        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
-        goto done;
-    }
 
-    while(om) {
-        for (i = 0; i < om->om_len; i++) {
-            /**
-             * Disabling already enabled features is not permitted
-             * (Vol. 3, Part F, 3.3.3)
-             * If value of saved octet, as uint8_t, is greatet than requested
-             * it means more bits are set.
-             */
-            if (conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] >
-                om->om_data[i]) {
-                rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
-                goto done;
-            }
-
-            /* All RFU bits should be unset */
-            if (feat_idx == 0) {
-                om->om_data[i] &= BLE_GATT_CHR_CLI_SUP_FEAT_MASK;
-            }
-
-            conn->bhc_gatt_svr.peer_cl_sup_feat[feat_idx] |= om->om_data[i];
-
-            feat_idx++;
+    /**
+     * Disabling already enabled features is not permitted
+     * (Vol. 3, Part F, 3.3.3)
+     */
+    for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
+        if ((conn->bhc_gatt_svr.peer_cl_sup_feat[i] & feat[i]) !=
+            conn->bhc_gatt_svr.peer_cl_sup_feat[i]) {
+            rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+            goto done;
         }
-        om = SLIST_NEXT(om, om_next);
     }
+
+    memcpy(conn->bhc_gatt_svr.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
 
 done:
     ble_hs_unlock();
