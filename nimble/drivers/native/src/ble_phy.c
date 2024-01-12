@@ -281,7 +281,7 @@ ble_phy_isr(void)
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
         ble_hdr->rxinfo.phy = BLE_PHY_1M;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        ble_hdr->rxinfo.aux_data = NULL;
+        ble_hdr->rxinfo.user_data = NULL;
 #endif
 
         /* Count PHY valid packets */
