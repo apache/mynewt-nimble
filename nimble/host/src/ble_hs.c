@@ -812,14 +812,6 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
     return ble_hs_rx_data(om, NULL);
 }
 
-int
-ble_transport_to_hs_iso_impl(struct os_mbuf *om)
-{
-    os_mbuf_free_chain(om);
-
-    return 0;
-}
-
 void
 ble_transport_hs_init(void)
 {

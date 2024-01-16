@@ -36,6 +36,10 @@
 #define BLE_ISO_GROUP_IDS_IDX (MYNEWT_VAL(BLE_MAX_ISO_GROUPS) / 32 + 1)
 #define BLE_ISO_INVALID_CIG_ID (0xFF)
 
+static struct ble_npl_eventq *ble_iso_evq;
+
+static struct ble_mqueue ble_iso_rx_q;
+
 struct ble_iso_big {
     SLIST_ENTRY(ble_iso_big) next;
     uint8_t id;
@@ -105,6 +109,12 @@ static struct ble_iso_free_groups g_ble_iso_free_group_list;
 static struct ble_iso_active_group g_ble_iso_group_list;
 
 static uint32_t ble_iso_group_ids[BLE_ISO_GROUP_IDS_IDX];
+
+void
+ble_iso_evq_set(struct ble_npl_eventq *evq)
+{
+    ble_iso_evq = evq;
+}
 
 static struct ble_iso_big *
 ble_iso_big_alloc(uint8_t adv_handle)
@@ -275,7 +285,7 @@ ble_iso_pick_and_set_group_id(struct ble_iso_group *cig)
     }
 
     BLE_ISO_SET_FLAG(ble_iso_group_ids[i], (bit - 1));
-    cig->id = (i * 32 + bit -1);
+    cig->id = (i * 32 + bit - 1);
 
     return cig->id;
 }
@@ -300,6 +310,23 @@ ble_iso_release_group(struct ble_iso_group * group)
     SLIST_REMOVE(group->list, group, ble_iso_group, active_group);
     STAILQ_INSERT_TAIL(&g_ble_iso_free_group_list, group, free_group);
 }
+
+void
+ble_iso_process_rx_data_queue(void)
+{
+    struct os_mbuf *om;
+
+    while ((om = ble_mqueue_get(&ble_iso_rx_q)) != NULL) {
+        ble_hs_hci_evt_iso_process(om);
+    }
+}
+
+static void
+ble_iso_event_rx_data(struct ble_npl_event *ev)
+{
+    ble_iso_process_rx_data_queue();
+}
+
 
 int
 ble_iso_create_big_sync(uint8_t *out_big_handle, uint16_t sync_handle,
@@ -329,10 +356,12 @@ ble_iso_create_big_sync(uint8_t *out_big_handle, uint16_t sync_handle,
                          bis_cnt, ble_iso_num_of_available_conns());
         return BLE_HS_ENOMEM;
     }
+
     big = ble_iso_get_new_group_and_put_to_active(&g_ble_iso_group_list);
     if (!big) {
         return BLE_HS_ENOMEM;
     }
+
     ble_iso_pick_and_set_group_id(big);
     big->is_broadcast = true;
     big->cb_arg = cb_arg;
@@ -359,6 +388,7 @@ ble_iso_create_big_sync(uint8_t *out_big_handle, uint16_t sync_handle,
         ble_iso_release_group(big);
         return rc;
     }
+
     *out_big_handle = big->id;
     return 0;
 }
@@ -413,11 +443,19 @@ ble_iso_init(void)
     SLIST_INIT(&g_ble_iso_group_list);
     STAILQ_INIT(&g_ble_iso_free_group_list);
 
+    ble_mqueue_init(&ble_iso_rx_q, ble_iso_event_rx_data, NULL);
+
     rc = os_mempool_init(&ble_iso_big_pool,
                          MYNEWT_VAL(BLE_MAX_BIG),
                          sizeof (struct ble_iso_big),
                          ble_iso_big_mem, "ble_iso_big_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
+
+#ifdef MYNEWT
+    ble_iso_evq_set((struct ble_npl_eventq *)os_eventq_dflt_get());
+#else
+    ble_iso_evq_set(nimble_port_get_dflt_eventq());
+#endif
 
     return 0;
 }
@@ -584,4 +622,25 @@ ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len)
 
     return rc;
 }
+
+int
+ble_iso_rx_data(struct os_mbuf *om, void *arg)
+{
+    int rc;
+
+    rc = ble_mqueue_put(&ble_iso_rx_q, ble_iso_evq, om);
+    if (rc != 0) {
+        os_mbuf_free_chain(om);
+        return BLE_HS_EOS;
+    }
+
+    return 0;
+}
+
+int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    return ble_iso_rx_data(om, NULL);
+}
+
 #endif
