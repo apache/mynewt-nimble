@@ -29,6 +29,7 @@
 #include "host/ble_iso.h"
 #include "nimble/hci_common.h"
 #include "sys/queue.h"
+#include "ble_hs_priv.h"
 #include "ble_hs_hci_priv.h"
 
 struct ble_iso_big {
@@ -213,6 +214,10 @@ ble_iso_rx_create_big_complete(const struct ble_hci_ev_le_subev_create_big_compl
     int i;
 
     big = ble_iso_big_find_by_handle(ev->big_handle);
+    if (big == NULL) {
+        BLE_HS_LOG_ERROR("No BIG with handle=%d\n", ev->big_handle);
+        return;
+    }
 
     big->num_bis = ev->num_bis;
 
@@ -250,6 +255,10 @@ ble_iso_rx_terminate_big_complete(const struct ble_hci_ev_le_subev_terminate_big
     struct ble_iso_big *big;
 
     big = ble_iso_big_find_by_handle(ev->big_handle);
+    if (big == NULL) {
+        BLE_HS_LOG_ERROR("No BIG with handle=%d\n", ev->big_handle);
+        return;
+    }
 
     event.type = BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE;
     event.big_terminated.big_handle = ev->big_handle;
