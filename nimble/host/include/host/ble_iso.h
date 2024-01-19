@@ -107,7 +107,7 @@ struct ble_iso_create_big_params {
 int ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
                        const struct ble_iso_big_params *big_params);
 
-int ble_iso_terminate_big(uint8_t big_id);
+int ble_iso_terminate_big(uint8_t big_handle);
 
 int ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len);
 

@@ -122,12 +122,19 @@ ble_audio_broadcast_create(const struct ble_broadcast_create_params *params,
     uint8_t broadcast_id[3];
     struct ble_audio_broadcast *broadcast;
 
+    if (params->adv_instance >= BLE_ADV_INSTANCES) {
+        BLE_HS_LOG_ERROR("Invalid advertising instance");
+        return BLE_HS_EINVAL;
+    }
+
     if (strlen(params->name) < 4 || strlen(params->name) > 32) {
         return BLE_HS_EINVAL;
     }
 
     broadcast = ble_audio_broadcast_find(params->adv_instance);
     if (broadcast) {
+        BLE_HS_LOG_ERROR("Advertising instance (%d) already in use",
+                         params->adv_instance);
         return BLE_HS_EALREADY;
     }
 
