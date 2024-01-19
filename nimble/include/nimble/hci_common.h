@@ -2104,6 +2104,9 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_PB_COMPLETE         (2)
 #define BLE_HCI_ISO_PB_LAST             (3)
 
+#define BLE_HCI_ISO_BIG_HANDLE_MIN      0x00
+#define BLE_HCI_ISO_BIG_HANDLE_MAX      0xEF
+
 struct ble_hci_iso {
     uint16_t handle;
     uint16_t length;

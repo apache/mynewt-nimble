@@ -33,7 +33,7 @@
 
 struct ble_iso_big {
     SLIST_ENTRY(ble_iso_big) next;
-    uint8_t id;
+    uint8_t handle;
     uint16_t max_pdu;
     uint8_t num_bis;
     uint16_t conn_handles[MYNEWT_VAL(BLE_MAX_BIS)];
@@ -47,57 +47,71 @@ static struct os_mempool ble_iso_big_pool;
 static os_membuf_t ble_iso_big_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG), sizeof (struct ble_iso_big))];
 
+static int
+ble_iso_big_handle_set(struct ble_iso_big *big)
+{
+    static uint8_t free_handle;
+    uint8_t i;
+
+    /* Set next free handle */
+    for (i = BLE_HCI_ISO_BIG_HANDLE_MIN; i < BLE_HCI_ISO_BIG_HANDLE_MAX; i++) {
+        struct ble_iso_big *node = NULL;
+
+        if (free_handle > BLE_HCI_ISO_BIG_HANDLE_MAX) {
+            free_handle = BLE_HCI_ISO_BIG_HANDLE_MIN;
+        }
+
+        big->handle = free_handle++;
+
+        SLIST_FOREACH(node, &ble_iso_bigs, next) {
+            if (node->handle == big->handle) {
+                break;
+            }
+        }
+
+        if (node == NULL || node->handle != big->handle) {
+            return 0;
+        }
+    }
+
+    BLE_HS_DBG_ASSERT(0);
+
+    return BLE_HS_EOS;
+}
+
 static struct ble_iso_big *
-ble_iso_big_alloc(uint8_t adv_handle)
+ble_iso_big_alloc(void)
 {
     struct ble_iso_big *new_big;
-    struct ble_iso_big *big;
-
-    if (adv_handle >= BLE_ADV_INSTANCES) {
-        BLE_HS_LOG_ERROR("Invalid advertising instance");
-        return NULL;
-    }
-
-    if (!ble_gap_ext_adv_active(adv_handle)) {
-        BLE_HS_LOG_ERROR("Instance not active");
-        return NULL;
-    }
+    int rc;
 
     new_big = os_memblock_get(&ble_iso_big_pool);
     if (new_big == NULL) {
-        BLE_HS_LOG_ERROR("No more memory in pool");
+        BLE_HS_LOG_ERROR("No more memory in pool\n");
         /* Out of memory. */
         return NULL;
     }
 
     memset(new_big, 0, sizeof *new_big);
 
-    SLIST_FOREACH(big, &ble_iso_bigs, next) {
-        if (big->id == adv_handle) {
-            BLE_HS_LOG_ERROR("Advertising instance (%d) already in use",
-                             adv_handle);
-            return NULL;
-        }
+    rc = ble_iso_big_handle_set(new_big);
+    if (rc != 0) {
+        os_memblock_put(&ble_iso_big_pool, new_big);
+        return NULL;
     }
 
-    new_big->id = adv_handle;
-
-    if (SLIST_EMPTY(&ble_iso_bigs)) {
-        SLIST_INSERT_HEAD(&ble_iso_bigs, new_big, next);
-    } else {
-        SLIST_INSERT_AFTER(big, new_big, next);
-    }
+    SLIST_INSERT_HEAD(&ble_iso_bigs, new_big, next);
 
     return new_big;
 }
 
 static struct ble_iso_big *
-ble_iso_big_find_by_id(uint8_t big_id)
+ble_iso_big_find_by_handle(uint8_t big_handle)
 {
     struct ble_iso_big *big;
 
     SLIST_FOREACH(big, &ble_iso_bigs, next) {
-        if (big->id == big_id) {
+        if (big->handle == big_handle) {
             return big;
         }
     }
@@ -120,20 +134,18 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
     struct ble_hci_le_create_big_cp cp = { 0 };
     struct ble_iso_big *big;
 
-    big = ble_iso_big_alloc(create_params->adv_handle);
-    if (big == NULL) {
-        return BLE_HS_ENOENT;
-    }
-
-    big->cb = create_params->cb;
-    big->cb_arg = create_params->cb_arg;
-
-    cp.big_handle = create_params->adv_handle;
-
     cp.adv_handle = create_params->adv_handle;
     if (create_params->bis_cnt > MYNEWT_VAL(BLE_MAX_BIS)) {
         return BLE_HS_EINVAL;
     }
+
+    big = ble_iso_big_alloc();
+    if (big == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    big->cb = create_params->cb;
+    big->cb_arg = create_params->cb_arg;
 
     cp.num_bis = create_params->bis_cnt;
     put_le24(cp.sdu_interval, big_params->sdu_interval);
@@ -154,19 +166,19 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
 }
 
 int
-ble_iso_terminate_big(uint8_t big_id)
+ble_iso_terminate_big(uint8_t big_handle)
 {
     struct ble_hci_le_terminate_big_cp cp;
     struct ble_iso_big *big;
     int rc;
 
-    big = ble_iso_big_find_by_id(big_id);
+    big = ble_iso_big_find_by_handle(big_handle);
     if (big == NULL) {
-        BLE_HS_LOG_ERROR("No BIG with id=%d\n", big_id);
+        BLE_HS_LOG_ERROR("No BIG with handle=%d\n", big_handle);
         return BLE_HS_ENOENT;
     }
 
-    cp.big_handle = big->id;
+    cp.big_handle = big->handle;
     cp.reason = BLE_ERR_CONN_TERM_LOCAL;
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
@@ -200,7 +212,7 @@ ble_iso_rx_create_big_complete(const struct ble_hci_ev_le_subev_create_big_compl
     struct ble_iso_big *big;
     int i;
 
-    big = ble_iso_big_find_by_id(ev->big_handle);
+    big = ble_iso_big_find_by_handle(ev->big_handle);
 
     big->num_bis = ev->num_bis;
 
@@ -237,7 +249,7 @@ ble_iso_rx_terminate_big_complete(const struct ble_hci_ev_le_subev_terminate_big
     struct ble_iso_event event;
     struct ble_iso_big *big;
 
-    big = ble_iso_big_find_by_id(ev->big_handle);
+    big = ble_iso_big_find_by_handle(ev->big_handle);
 
     event.type = BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE;
     event.big_terminated.big_handle = ev->big_handle;
