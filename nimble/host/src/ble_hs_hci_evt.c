@@ -69,6 +69,10 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_periodic_adv_sync_transfer;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_create_big_complete;
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_terminate_big_complete;
 #endif
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_big_sync_established;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_big_sync_lost;
+#endif
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_biginfo_adv_report;
 #endif
@@ -142,6 +146,12 @@ static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
         ble_hs_hci_evt_le_create_big_complete,
     [BLE_HCI_LE_SUBEV_TERMINATE_BIG_COMPLETE] =
         ble_hs_hci_evt_le_terminate_big_complete,
+#endif
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
+    [BLE_HCI_LE_SUBEV_BIG_SYNC_ESTABLISHED] =
+        ble_hs_hci_evt_le_big_sync_established,
+    [BLE_HCI_LE_SUBEV_BIG_SYNC_LOST] =
+        ble_hs_hci_evt_le_big_sync_lost,
 #endif
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
     [BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT] = ble_hs_hci_evt_le_biginfo_adv_report,
@@ -774,6 +784,39 @@ ble_hs_hci_evt_le_terminate_big_complete(uint8_t subevent, const void *data,
     }
 
     ble_iso_rx_terminate_big_complete(ev);
+
+    return 0;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
+static int
+ble_hs_hci_evt_le_big_sync_established(uint8_t subevent, const void *data,
+                                       unsigned int len)
+{
+    const struct ble_hci_ev_le_subev_big_sync_established *ev = data;
+
+    if (len < sizeof(*ev) ||
+        len != (sizeof(*ev) + ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    ble_iso_rx_big_sync_established(ev);
+
+    return 0;
+}
+
+static int
+ble_hs_hci_evt_le_big_sync_lost(uint8_t subevent, const void *data,
+                                unsigned int len)
+{
+    const struct ble_hci_ev_le_subev_big_sync_lost *ev = data;
+
+    if (len != sizeof(*ev)) {
+        return BLE_HS_EBADDATA;
+    }
+
+    ble_iso_rx_big_sync_lost(ev);
 
     return 0;
 }

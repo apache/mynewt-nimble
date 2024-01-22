@@ -31,6 +31,15 @@ ble_iso_rx_create_big_complete(const struct ble_hci_ev_le_subev_create_big_compl
 void
 ble_iso_rx_terminate_big_complete(const struct ble_hci_ev_le_subev_terminate_big_complete *ev);
 
+void
+ble_iso_rx_big_sync_established(const struct ble_hci_ev_le_subev_big_sync_established *ev);
+
+void
+ble_iso_rx_big_sync_lost(const struct ble_hci_ev_le_subev_big_sync_lost *ev);
+
+int
+ble_iso_rx_data(struct os_mbuf *om, void *arg);
+
 #ifdef __cplusplus
 }
 #endif

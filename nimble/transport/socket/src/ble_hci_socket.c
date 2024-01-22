@@ -103,11 +103,13 @@ STATS_SECT_START(hci_sock_stats)
     STATS_SECT_ENTRY(icmd)
     STATS_SECT_ENTRY(ievt)
     STATS_SECT_ENTRY(iacl)
+    STATS_SECT_ENTRY(iiso)
     STATS_SECT_ENTRY(ibytes)
     STATS_SECT_ENTRY(ierr)
     STATS_SECT_ENTRY(imem)
     STATS_SECT_ENTRY(omsg)
     STATS_SECT_ENTRY(oacl)
+    STATS_SECT_ENTRY(oiso)
     STATS_SECT_ENTRY(ocmd)
     STATS_SECT_ENTRY(oevt)
     STATS_SECT_ENTRY(obytes)
@@ -120,11 +122,13 @@ STATS_NAME_START(hci_sock_stats)
     STATS_NAME(hci_sock_stats, icmd)
     STATS_NAME(hci_sock_stats, ievt)
     STATS_NAME(hci_sock_stats, iacl)
+    STATS_NAME(hci_sock_stats, iiso)
     STATS_NAME(hci_sock_stats, ibytes)
     STATS_NAME(hci_sock_stats, ierr)
     STATS_NAME(hci_sock_stats, imem)
     STATS_NAME(hci_sock_stats, omsg)
     STATS_NAME(hci_sock_stats, oacl)
+    STATS_NAME(hci_sock_stats, oiso)
     STATS_NAME(hci_sock_stats, ocmd)
     STATS_NAME(hci_sock_stats, oevt)
     STATS_NAME(hci_sock_stats, obytes)
@@ -142,6 +146,7 @@ STATS_NAME_END(hci_sock_stats)
 #define BLE_HCI_UART_H4_ACL         0x02
 #define BLE_HCI_UART_H4_SCO         0x03
 #define BLE_HCI_UART_H4_EVT         0x04
+#define BLE_HCI_UART_H4_ISO         0x05
 #define BLE_HCI_UART_H4_SYNC_LOSS   0x80
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
@@ -483,6 +488,39 @@ ble_hci_sock_rx_msg(void)
             ble_transport_to_ll_acl(m);
 #else
             ble_transport_to_hs_acl(m);
+#endif
+            OS_EXIT_CRITICAL(sr);
+            break;
+        case BLE_HCI_UART_H4_ISO:
+            if (bhss->rx_off < BLE_HCI_DATA_HDR_SZ) {
+                return -1;
+            }
+            len = 1 + BLE_HCI_DATA_HDR_SZ + (bhss->rx_data[4] << 8) +
+                  bhss->rx_data[3];
+            if (bhss->rx_off < len) {
+                return -1;
+            }
+            STATS_INC(hci_sock_stats, imsg);
+            STATS_INC(hci_sock_stats, iiso);
+#if MYNEWT_VAL(BLE_CONTROLLER)
+            m = ble_transport_alloc_iso_from_hs();
+#else
+            m = ble_transport_alloc_iso_from_ll();
+#endif
+            if (!m) {
+                STATS_INC(hci_sock_stats, imem);
+                break;
+            }
+            if (os_mbuf_append(m, &bhss->rx_data[1], len - 1)) {
+                STATS_INC(hci_sock_stats, imem);
+                os_mbuf_free_chain(m);
+                break;
+            }
+            OS_ENTER_CRITICAL(sr);
+#if MYNEWT_VAL(BLE_CONTROLLER)
+            ble_transport_to_ll_iso(m);
+#else
+            ble_transport_to_hs_iso(m);
 #endif
             OS_EXIT_CRITICAL(sr);
             break;
