@@ -208,19 +208,184 @@
  */
 
 /** LE Audio Codec Config Type: Sampling Frequency. */
-#define BLE_AUDIO_CODEC_SAMPLING_FREQ_TYPE                        0x01
+#define BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE                   0x01
 
 /** LE Audio Codec Config Type: Frame Duration. */
-#define BLE_AUDIO_CODEC_FRAME_DURATION_TYPE                       0x02
+#define BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE                  0x02
 
 /** LE Audio Codec Config Type: Channel Allocation. */
-#define BLE_AUDIO_CODEC_AUDIO_CHANNEL_ALLOCATION_TYPE             0x03
+#define BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE        0x03
 
 /** LE Audio Codec Config Type: Octets Per Codec Frame. */
-#define BLE_AUDIO_CODEC_OCTETS_PER_CODEC_FRAME_TYPE               0x04
+#define BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE          0x04
 
 /** LE Audio Codec Config Type: Frame Blocks Per SDU. */
-#define BLE_AUDIO_CODEC_FRAME_BLOCKS_PER_SDU_TYPE                 0x05
+#define BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE            0x05
+
+/** @} */
+
+/**
+ * @defgroup ble_audio_codec_config Bluetooth Low Energy Audio Codec Specific Capabilities
+ * @{
+ */
+
+
+/** LE Audio Codec Specific Capability: Supported Sampling Frequencies. */
+#define BLE_AUDIO_CODEC_CAPS_SAMPLING_FREQ_TYPE                   0x01
+
+/** LE Audio Codec Specific Capability: Supported Frame Durations. */
+#define BLE_AUDIO_CODEC_CAPS_FRAME_DURATION_TYPE                  0x02
+
+/** LE Audio Codec Specific Capability: Supported Audio Channel Counts. */
+#define BLE_AUDIO_CODEC_CAPS_SUP_AUDIO_CHANNEL_COUNTS_TYPE        0x03
+
+/** LE Audio Codec Specific Capability: Supported Octets Per Codec Frame. */
+#define BLE_AUDIO_CODEC_CAPS_OCTETS_PER_CODEC_FRAME_TYPE          0x04
+
+/** LE Audio Codec Specific Capability: Supported Codec Frames Per SDU. */
+#define BLE_AUDIO_CODEC_CAPS_FRAMES_PER_SDU_TYPE                  0x05
+
+/** @} */
+
+/**
+ * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Context Types
+ * @{
+ */
+
+/** LE Audio Codec Context Type: Prohibited. */
+#define BLE_AUDIO_CONTEXT_TYPE_PROHIBITED                         0x0000
+
+/** LE Audio Codec Context Type: Unspecified. */
+#define BLE_AUDIO_CONTEXT_TYPE_UNSPECIFIED                        0x0001
+
+/** LE Audio Codec Context Type: Conversational. */
+#define BLE_AUDIO_CONTEXT_TYPE_CONVERSATIONAL                     0x0002
+
+/** LE Audio Codec Context Type: Media. */
+#define BLE_AUDIO_CONTEXT_TYPE_MEDIA                              0x0004
+
+/** LE Audio Codec Context Type: Game. */
+#define BLE_AUDIO_CONTEXT_TYPE_GAME                               0x0008
+
+/** LE Audio Codec Context Type: Instructional. */
+#define BLE_AUDIO_CONTEXT_TYPE_INSTRUCTIONAL                      0x0010
+
+/** LE Audio Codec Context Type: Voice Assistants. */
+#define BLE_AUDIO_CONTEXT_TYPE_VOICE_ASSISTANTS                   0x0020
+
+/** LE Audio Codec Context Type: Live. */
+#define BLE_AUDIO_CONTEXT_TYPE_LIVE                               0x0040
+
+/** LE Audio Codec Context Type: Sound Effects. */
+#define BLE_AUDIO_CONTEXT_TYPE_SOUND_EFFECTS                      0x0080
+
+/** LE Audio Codec Context Type: Notifications. */
+#define BLE_AUDIO_CONTEXT_TYPE_NOTIFICATIONS                      0x0100
+
+/** LE Audio Codec Context Type: Ringtone. */
+#define BLE_AUDIO_CONTEXT_TYPE_RINGTONE                           0x0200
+
+/** LE Audio Codec Context Type: Alerts. */
+#define BLE_AUDIO_CONTEXT_TYPE_ALERTS                             0x0400
+
+/** LE Audio Codec Context Type: EmergencyAlarm. */
+#define BLE_AUDIO_CONTEXT_TYPE_EMERGENCY_ALARM                    0x0800
+
+/** @} */
+
+/**
+ * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Frame Durations
+ * @{
+ */
+
+/** LE Audio Codec Supported Frame Duration: 7.5 ms frame duration. */
+#define BLE_AUDIO_CODEC_SUPPORTED_FRAME_DURATION_7_5_MS           0x0001
+
+/** LE Audio Codec Supported Frame Duration: 10 ms frame duration. */
+#define BLE_AUDIO_CODEC_SUPPORTED_FRAME_DURATION_10_MS            0x0002
+
+/** LE Audio Codec Supported Frame Duration: 7.5 ms preferred. */
+#define BLE_AUDIO_CODEC_PREFERED_FRAME_DURATION_7_5_MS            0x0010
+
+/** LE Audio Codec Supported Frame Duration: 10 ms preferred. */
+#define BLE_AUDIO_CODEC_PREFERED_FRAME_DURATION_10_MS             0x0020
+
+/** @} */
+
+/**
+ * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Sampling Frequencies
+ * @{
+ */
+
+/** LE Audio Codec Supported Sampling Frequency: 8000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_8000_HZ           (1ULL << 0)
+
+/** LE Audio Codec Supported Sampling Frequency: 11025 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_11025_HZ          (1ULL << 1)
+
+/** LE Audio Codec Supported Sampling Frequency: 16000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_16000_HZ          (1ULL << 2)
+
+/** LE Audio Codec Supported Sampling Frequency: 22050 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_22050_HZ          (1ULL << 3)
+
+/** LE Audio Codec Supported Sampling Frequency: 24000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_24000_HZ          (1ULL << 4)
+
+/** LE Audio Codec Supported Sampling Frequency: 32000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_32000_HZ          (1ULL << 5)
+
+/** LE Audio Codec Supported Sampling Frequency: 44100 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_44100_HZ          (1ULL << 6)
+
+/** LE Audio Codec Supported Sampling Frequency: 48000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_48000_HZ          (1ULL << 7)
+
+/** LE Audio Codec Supported Sampling Frequency: 88200 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_88200_HZ          (1ULL << 8)
+
+/** LE Audio Codec Supported Sampling Frequency: 96000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_96000_HZ          (1ULL << 9)
+
+/** LE Audio Codec Supported Sampling Frequency: 176400 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_176400_HZ         (1ULL << 10)
+
+/** LE Audio Codec Supported Sampling Frequency: 192000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_192000_HZ         (1ULL << 11)
+
+/** LE Audio Codec Supported Sampling Frequency: 384000 Hz. */
+#define BLE_AUDIO_CODEC_SUPPORTED_SAMPLING_RATE_384000_HZ         (1ULL << 12)
+
+/** @} */
+
+/**
+ * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Channel Counts
+ * @{
+ */
+
+/** LE Audio Codec Supported Channel Count: 1. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_1                 0x0001
+
+/** LE Audio Codec Supported Channel Count: 2. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_2                 0x0002
+
+/** LE Audio Codec Supported Channel Count: 3. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_3                 0x0004
+
+/** LE Audio Codec Supported Channel Count: 4. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_4                 0x0008
+
+/** LE Audio Codec Supported Channel Count: 5. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_5                 0x0010
+
+/** LE Audio Codec Supported Channel Count: 6. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_6                 0x0020
+
+/** LE Audio Codec Supported Channel Count: 7. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_7                 0x0040
+
+/** LE Audio Codec Supported Channel Count: 8. */
+#define BLE_AUDIO_CODEC_SUPPORTED_CHANNEL_COUNT_8                 0x0080
 
 /** @} */
 
@@ -244,14 +409,53 @@
                                      _octets_per_codec_frame,                 \
                                      _codec_frame_blocks_per_sdu)             \
     {                                                                         \
-        2, BLE_AUDIO_CODEC_SAMPLING_FREQ_TYPE, _sampling_freq,                \
-        2, BLE_AUDIO_CODEC_FRAME_DURATION_TYPE, _frame_duration,              \
-        OPTIONAL_FIELD(5, BLE_AUDIO_CODEC_AUDIO_CHANNEL_ALLOCATION_TYPE,      \
+        2, BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE, _sampling_freq,          \
+        2, BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE, _frame_duration,        \
+        OPTIONAL_FIELD(5, BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE, \
                        _audio_channel_alloc)                                  \
-        3, BLE_AUDIO_CODEC_OCTETS_PER_CODEC_FRAME_TYPE,                       \
+        3, BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE,                  \
         (_octets_per_codec_frame), ((_octets_per_codec_frame) >> 8),          \
-        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_FRAME_BLOCKS_PER_SDU_TYPE,          \
+        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE,     \
                        _codec_frame_blocks_per_sdu)                           \
+    }
+
+/**
+ * @brief Helper macro used to build LTV array of Codec_Specific_Capabilities.
+ *
+ * @param _sampling_freq               Supported_Sampling_Frequencies -
+ *                                     two octet value
+ * @param _frame_duration              Supported_Frame_Durations - single
+ *                                     octet value
+ * @param _audio_channel_counts        Supported_Audio_Channel_Counts -
+ *                                     single octet value
+ * @param _min_octets_per_codec_frame  minimum value of
+ *                                     Supported_Octets_Per_Codec_Frame -
+ *                                     two octet value
+ * @param _max_octets_per_codec_frame  maximum value of
+ *                                     Supported_Octets_Per_Codec_Frame -
+ *                                     two octet value
+ * @param _codec_frames_per_sdu  Supported_Max_Codec_Frames_Per_SDU -
+ *                                     single octet value
+ *
+ * @return          Pointer to a `ble_uuid16_t` structure.
+ */
+#define BLE_AUDIO_BUILD_CODEC_CAPS(_sampling_freq,                            \
+                                   _frame_duration,                           \
+                                   _audio_channel_counts,                     \
+                                   _min_octets_per_codec_frame,               \
+                                   _max_octets_per_codec_frame,               \
+                                   _codec_frames_per_sdu)                     \
+    {                                                                         \
+        3, BLE_AUDIO_CODEC_CAPS_SAMPLING_FREQ_TYPE,                           \
+        (_sampling_freq), ((_sampling_freq) >> 8),                            \
+        2, BLE_AUDIO_CODEC_CAPS_FRAME_DURATION_TYPE, _frame_duration,         \
+        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_SUP_AUDIO_CHANNEL_COUNTS_TYPE, \
+                       _audio_channel_counts)                                 \
+        5, BLE_AUDIO_CODEC_CAPS_OCTETS_PER_CODEC_FRAME_TYPE,                  \
+        (_min_octets_per_codec_frame), ((_min_octets_per_codec_frame) >> 8),  \
+        (_max_octets_per_codec_frame), ((_max_octets_per_codec_frame) >> 8),  \
+        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_FRAMES_PER_SDU_TYPE,           \
+                       _codec_frames_per_sdu)                                 \
     }
 
 /** Codec Information */
@@ -306,6 +510,12 @@ struct ble_audio_broadcast_name {
 /** BLE Audio event: Broadcast Announcement */
 #define BLE_AUDIO_EVENT_BROADCAST_ANNOUNCEMENT               0
 
+/** BLE Audio event: Codec Registered */
+#define BLE_AUDIO_EVENT_CODEC_REGISTERED                     1
+
+/** BLE Audio event: Codec Unregistered */
+#define BLE_AUDIO_EVENT_CODEC_UNREGISTERED                   2
+
 /** @} */
 
 /** @brief Broadcast Announcement */
@@ -327,6 +537,18 @@ struct ble_audio_event_broadcast_announcement {
 
     /** Optional Broadcast Name */
     struct ble_audio_broadcast_name *name;
+};
+
+/** @brief Codec Registered */
+struct ble_audio_event_codec_registered {
+    /** Codec Record */
+    const struct ble_audio_codec_record *record;
+};
+
+/** @brief Codec Unregistered */
+struct ble_audio_event_codec_unregistered {
+    /** Codec Record */
+    const struct ble_audio_codec_record *record;
 };
 
 /**
@@ -352,6 +574,20 @@ struct ble_audio_event {
          * Represents a received Broadcast Announcement.
          */
         struct ble_audio_event_broadcast_announcement broadcast_announcement;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_CODEC_REGISTERED
+         *
+         * Represents a codec registration.
+         */
+        struct ble_audio_event_codec_registered codec_registered;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_CODEC_UNREGISTERED
+         *
+         * Represents a codec registration.
+         */
+        struct ble_audio_event_codec_unregistered codec_unregistered;
     };
 };
 

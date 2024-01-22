@@ -26,6 +26,7 @@
 #include "ble_att_priv.h"
 #include "ble_eatt_priv.h"
 #include "ble_gap_priv.h"
+#include "ble_audio_codec_priv.h"
 #include "ble_gatt_priv.h"
 #include "ble_hs_hci_priv.h"
 #include "ble_hs_atomic_priv.h"

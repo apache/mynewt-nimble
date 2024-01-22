@@ -14,12 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-syscfg.defs:
-    BLE_AUDIO_MAX_CODEC_RECORDS:
-        description: >
-            Maximum number of registered audio codecs.
-        value: 0
+pkg.name: nimble/host/audio/services/pacs
+pkg.description: Published Audio Capabilities Service
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://mynewt.apache.org/"
+pkg.keywords:
+  - ble
+  - bluetooth
+  - pacs
+  - nimble
 
-syscfg.logs:
+pkg.deps:
+  - nimble/host
+  - nimble/host/services/gatt
+
+pkg.init:
+  ble_svc_audio_pacs_init: 'MYNEWT_VAL(BLE_SVC_AUDIO_PACS_SYSINIT_STAGE)'

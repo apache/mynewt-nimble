@@ -54,6 +54,7 @@ syscfg.vals:
     BLE_EATT_CHAN_NUM: 2
     BLE_PHY_2M: 1
     BLE_PHY_CODED: 1
+    BLE_AUDIO_MAX_CODEC_RECORDS: 2
 
     # controller
     BLE_LL_CFG_FEAT_LL_PRIVACY: 1
