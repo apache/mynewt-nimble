@@ -292,6 +292,17 @@ ble_hs_startup_le_set_evmask_tx(void)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+    if (version >= BLE_HCI_VER_BCS_5_2) {
+        /**
+         * Enable the following LE events:
+         * 0x0000000004000000 LE Create BIG Complete event
+         * 0x0000000008000000 LE Terminate BIG Complete event
+         */
+        mask |= 0x000000000C000000;
+    }
+#endif
+
     cmd.event_mask = htole64(mask);
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
