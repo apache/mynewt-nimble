@@ -441,6 +441,15 @@ void ble_hs_sched_reset(int reason);
 void ble_hs_evq_set(struct ble_npl_eventq *evq);
 
 /**
+ * Get event queue that is set for NimBLE host. By default, the
+ * host uses the default event queue and runs in the main task. This function
+ * is useful if you want to find out what eventq the host is running on
+ *
+ * @param evq The event queue to use for the host work.
+ */
+struct ble_npl_eventq *ble_hs_evq_get(void);
+
+/**
  * Initializes the NimBLE host. This function must be called before the OS is
  * started. The NimBLE stack requires an application task to function.  One
  * application task in particular is designated as the "host parent task". In
