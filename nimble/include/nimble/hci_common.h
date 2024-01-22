@@ -2087,31 +2087,45 @@ struct hci_data_hdr
 #define BLE_HCI_PB_FIRST_FLUSH              2
 #define BLE_HCI_PB_FULL                     3
 
-#define BLE_HCI_ISO_CONN_HANDLE_MASK    (0x07ff)
-#define BLE_HCI_ISO_PB_FLAG_MASK        (0x3000)
-#define BLE_HCI_ISO_TS_FLAG_MASK        (0x4000)
-#define BLE_HCI_ISO_LENGTH_MASK         (0x7fff)
+#define BLE_HCI_ISO_CONN_HANDLE_MASK        (0x07ff)
+#define BLE_HCI_ISO_PB_FLAG_MASK            (0x3000)
+#define BLE_HCI_ISO_TS_FLAG_MASK            (0x4000)
+#define BLE_HCI_ISO_LENGTH_MASK             (0x7fff)
+#define BLE_HCI_ISO_SDU_LENGTH_MASK         (0x0fff)
+#define BLE_HCI_ISO_PKT_STATUS_FLAG_MASK    (0xC000)
 
 #define BLE_HCI_ISO_HANDLE(ch, pb, ts)  ((ch) | ((pb) << 12) | ((ts) << 14))
 
 #define BLE_HCI_ISO_CONN_HANDLE(h)      ((h) & BLE_HCI_ISO_CONN_HANDLE_MASK)
 #define BLE_HCI_ISO_PB_FLAG(h)          (((h) & BLE_HCI_ISO_PB_FLAG_MASK) >> 12)
-#define BLE_HCI_ISO_TS_FLAG(h)          ((h) & BLE_HCI_ISO_TS_FLAG_MASK)
+#define BLE_HCI_ISO_TS_FLAG(h)          (((h) & BLE_HCI_ISO_TS_FLAG_MASK) >> 14)
 #define BLE_HCI_ISO_LENGTH(l)           ((l) & BLE_HCI_ISO_LENGTH_MASK)
+#define BLE_HCI_ISO_SDU_LENGTH(l)       ((l) & BLE_HCI_ISO_SDU_LENGTH_MASK)
+#define BLE_HCI_ISO_PKT_STATUS_FLAG(l)  (((l) & BLE_HCI_ISO_PKT_STATUS_FLAG_MASK) >> 14)
 
 #define BLE_HCI_ISO_PB_FIRST            (0)
 #define BLE_HCI_ISO_PB_CONTINUATION     (1)
 #define BLE_HCI_ISO_PB_COMPLETE         (2)
 #define BLE_HCI_ISO_PB_LAST             (3)
 
+#define BLE_HCI_ISO_PKT_STATUS_VALID    0x00
+#define BLE_HCI_ISO_PKT_STATUS_INVALID  0x01
+#define BLE_HCI_ISO_PKT_STATUS_LOST     0x10
+
 #define BLE_HCI_ISO_BIG_HANDLE_MIN      0x00
 #define BLE_HCI_ISO_BIG_HANDLE_MAX      0xEF
+
+#define BLE_HCI_ISO_BIG_ENCRYPTION_UNENCRYPTED  0x00
+#define BLE_HCI_ISO_BIG_ENCRYPTION_ENCRYPTED    0x01
+
+#define BLE_HCI_ISO_DATA_PATH_DIR_INPUT         0x00
+#define BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT        0x01
 
 struct ble_hci_iso {
     uint16_t handle;
     uint16_t length;
     uint8_t data[0];
-};
+} __attribute__((packed));
 
 #define BLE_HCI_ISO_HDR_SDU_LENGTH_MASK     (0x07ff)
 
@@ -2119,7 +2133,7 @@ struct ble_hci_iso_data {
     uint16_t packet_seq_num;
     uint16_t sdu_len;
     uint8_t data[0];
-};
+} __attribute__((packed));
 
 #ifdef __cplusplus
 }

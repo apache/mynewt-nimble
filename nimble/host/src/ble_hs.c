@@ -26,6 +26,7 @@
 #include "host/ble_hs.h"
 #include "host/ble_audio_broadcast_source.h"
 #include "ble_hs_priv.h"
+#include "ble_iso_priv.h"
 #include "nimble/nimble_npl.h"
 #ifndef MYNEWT
 #include "nimble/nimble_port.h"
@@ -815,9 +816,13 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 int
 ble_transport_to_hs_iso_impl(struct os_mbuf *om)
 {
+#if MYNEWT_VAL(BLE_ISO)
+    return ble_iso_rx_data(om, NULL);
+#else
     os_mbuf_free_chain(om);
 
     return 0;
+#endif
 }
 
 void
