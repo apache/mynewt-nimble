@@ -765,6 +765,11 @@ ble_hs_init(void)
 #endif
 #endif
 
+#if MYNEWT_VAL(BLE_AUDIO_MAX_CODEC_RECORDS)
+    rc = ble_audio_codec_init();
+    SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
+
     ble_hs_stop_init();
 
     ble_mqueue_init(&ble_hs_rx_q, ble_hs_event_rx_data, NULL);

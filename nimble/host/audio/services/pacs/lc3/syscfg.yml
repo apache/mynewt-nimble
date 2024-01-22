@@ -1,0 +1,131 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+syscfg.defs:
+    BLE_SVC_AUDIO_PACS_LC3_SRC_SAMPLING_FREQUENCIES:
+        description: >
+            Sampling frequencies supported by LC3 codec, as source. This setting is mandatory.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.1.
+            Default value: 48000Hz
+        value: 0x80
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SRC_FRAME_DURATIONS:
+        description: >
+            Frame Durations supported by LC3 codec, as source. This setting is mandatory.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.2.
+            Default value: 7.5ms and 10ms supported, 10ms preferred.
+        value: 0x23
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS:
+        description: >
+            Audio Channel Counts supported by LC3 codec, as source. This setting is optional.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.3.
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SRC_MIN_OCTETS_PER_CODEC_FRAME:
+        description: >
+            Minimum number of Octets Per Codec Frame supported by LC3 codec, as source.
+            This setting is mandatory. Default value: 80
+        value: 80
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_OCTETS_PER_CODEC_FRAME:
+        description: >
+            Maximum number of Octets Per Codec Frame supported by LC3 codec, as source.
+            This setting is mandatory. Default value: 120
+        value: 120
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU:
+        description: >
+            Maximum number of Codec Frames Per SDU supported by LC3 codec, as source.
+            This setting is optional.
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SRC_METADATA:
+        description: >
+            Optional Metadata to be attached to source codec capabilities. This value shall be in
+            form of bytes forming LTVs of Metadata. Example: '0x03, 0x01, 0x00, 0x08'
+            (lenght = 3, type = 0x01 (Preferred_Audio_Contexts), 0x00, 0x04 (Media))
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_LOCATIONS:
+        description: >
+            Audio Locations supported by source codec. Value is an any combination of values defined
+            in Bluetooth Assigned Numbers 6.12.1. Default: Front Left and Front Right
+        value: 0x00000003
+    BLE_SVC_AUDIO_PACS_LC3_SRC_SUP_CONTEXTS:
+        description: >
+            Audio Locations supported by source codec. Value is an any combination of values defined
+            in Bluetooth Assigned Numbers 6.12.3. Default: Media
+        value: 0x0004
+
+    BLE_SVC_AUDIO_PACS_LC3_SNK_SAMPLING_FREQUENCIES:
+        description: >
+            Sampling frequencies supported by LC3 codec, as sink. This setting is mandatory.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.1.
+            Default value: 48000Hz
+        value: 0x80
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SNK_FRAME_DURATIONS:
+        description: >
+            Frame Durations supported by LC3 codec, as sink. This setting is mandatory.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.2.
+            Default value: 7.5ms and 10ms supported, 10ms preferred.
+        value: 0x23
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SNK_AUDIO_CHANNEL_COUNTS:
+        description: >
+            Audio Channel Counts supported by LC3 codec, as sink. This setting is optional.
+            Accepts any combination of values defined in Bluetooth Assigned Numbers 6.12.4.3.
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SNK_MIN_OCTETS_PER_CODEC_FRAME:
+        description: >
+            Minimum number of Octets Per Codec Frame supported by LC3 codec, as source.
+            This setting is mandatory. Default value: 80
+        value: 80
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SNK_MAX_OCTETS_PER_CODEC_FRAME:
+        description: >
+            Maximum number of Octets Per Codec Frame supported by LC3 codec, as sink.
+            This setting is mandatory. Default value: 120
+        value: 120
+        restrictions:
+            - $notnull
+    BLE_SVC_AUDIO_PACS_LC3_SNK_MAX_CODEC_FRAMES_PER_SDU:
+        description: >
+            Maximum number of Codec Frames Per SDU supported by LC3 codec, as sink.
+            This setting is optional.
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SNK_METADATA:
+        description: >
+            Optional Metadata to be attached to sink codec capabilities. This value shall be in
+            form of bytes forming LTVs of Metadata. Example: '0x03, 0x01, 0x00, 0x08'
+            (lenght = 3, type = 0x01 (Preferred_Audio_Contexts), 0x00, 0x04 (Media))
+        value:
+    BLE_SVC_AUDIO_PACS_LC3_SNK_SUP_AUDIO_LOCATIONS:
+        description: >
+            Audio Locations supported by sink codec. Value is an any combination of values defined
+            in Bluetooth Assigned Numbers 6.12.1. Default: Front Left and Front Right
+        value: 0x00000003
+    BLE_SVC_AUDIO_PACS_LC3_SNK_SUP_CONTEXTS:
+        description: >
+            Audio Locations supported by sink codec. Value is an any combination of values defined
+            in Bluetooth Assigned Numbers 6.12.3. Default: Media
+        value: 0x0004
