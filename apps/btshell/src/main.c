@@ -2374,8 +2374,8 @@ btshell_l2cap_coc_remove(uint16_t conn_handle, struct ble_l2cap_chan *chan)
 static void
 btshell_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
-    console_printf("LE CoC SDU received, chan: 0x%08lx, data len %d\n",
-                   (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
+    console_printf("LE CoC SDU received, chan: %p, data len %d\n",
+                   chan, OS_MBUF_PKTLEN(sdu));
 
     os_mbuf_free_chain(sdu);
     sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
@@ -2393,8 +2393,8 @@ btshell_l2cap_coc_accept(uint16_t conn_handle, uint16_t peer_mtu,
     struct os_mbuf *sdu_rx;
     int rc;
 
-    console_printf("LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
-                   (uint32_t) chan, peer_mtu);
+    console_printf("LE CoC accepting, chan: %p, peer_mtu %d\n",
+                   chan, peer_mtu);
 
     for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
         sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
