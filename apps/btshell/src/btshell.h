@@ -92,6 +92,7 @@ struct btshell_scan_opts {
     uint16_t limit;
     uint8_t ignore_legacy : 1;
     uint8_t periodic_only : 1;
+    uint8_t silent : 1;
     uint8_t name_filter_len;
     char name_filter[NAME_FILTER_LEN_MAX];
 };

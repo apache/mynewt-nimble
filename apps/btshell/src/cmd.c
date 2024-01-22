@@ -1110,6 +1110,7 @@ static struct btshell_scan_opts g_scan_opts = {
     .limit = UINT16_MAX,
     .ignore_legacy = 0,
     .periodic_only = 0,
+    .silent = 0,
     .name_filter_len = 0,
 };
 
@@ -1133,6 +1134,12 @@ cmd_set_scan_opts(int argc, char **argv)
     g_scan_opts.ignore_legacy = parse_arg_bool_dflt("ignore_legacy", 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'ignore_legacy' parameter\n");
+        return rc;
+    }
+
+    g_scan_opts.silent = parse_arg_bool_dflt("silent", 0, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'silent' parameter\n");
         return rc;
     }
 
@@ -1160,6 +1167,7 @@ static const struct shell_param set_scan_opts_params[] = {
     {"decode_limit", "usage: =[0-UINT16_MAX], default: UINT16_MAX"},
     {"ignore_legacy", "usage: =[0-1], default: 0"},
     {"periodic_only", "usage: =[0-1], default: 0"},
+    {"silent", "usage: =[0-1], default: 0"},
     {"name_filter", "usage: =name, default: {none}"},
     {NULL, NULL}
 };

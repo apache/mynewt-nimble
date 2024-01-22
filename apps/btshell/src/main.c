@@ -1315,11 +1315,23 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
 
         return btshell_restart_adv(event);
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    case BLE_GAP_EVENT_EXT_DISC:
-        btshell_decode_event_type(&event->ext_disc, arg);
+    case BLE_GAP_EVENT_EXT_DISC: {
+        struct btshell_scan_opts *scan_opts = arg;
+
+        if (!scan_opts->silent) {
+            btshell_decode_event_type(&event->ext_disc, arg);
+        }
+
         return 0;
+    }
 #endif
-    case BLE_GAP_EVENT_DISC:
+    case BLE_GAP_EVENT_DISC: {
+        struct btshell_scan_opts *scan_opts = arg;
+
+        if (scan_opts->silent) {
+            return 0;
+        }
+
         console_printf("received advertisement; event_type=%d rssi=%d "
                        "addr_type=%d addr=", event->disc.event_type,
                        event->disc.rssi, event->disc.addr.type);
@@ -1337,6 +1349,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         btshell_decode_adv_data(event->disc.data, event->disc.length_data, arg);
 
         return 0;
+    }
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         console_printf("connection updated; status=%d ",
