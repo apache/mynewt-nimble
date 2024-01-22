@@ -445,7 +445,7 @@ void ble_hs_evq_set(struct ble_npl_eventq *evq);
  * host uses the default event queue and runs in the main task. This function
  * is useful if you want to find out what eventq the host is running on
  *
- * @param evq The event queue to use for the host work.
+ * @return evq The event queue thats being used for the host work.
  */
 struct ble_npl_eventq *ble_hs_evq_get(void);
 
