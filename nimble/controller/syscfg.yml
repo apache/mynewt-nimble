@@ -483,8 +483,9 @@ syscfg.defs:
             Enable support for Isochronous Broadcasting state.
         restrictions:
             - BLE_LL_ISO if 1
-        value: MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+        value: 0
         state: experimental
+
     BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS:
         description: >
             Enables ISO synchronization feedback using vendor-specific HCI event.
@@ -612,6 +613,9 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
     BLE_LL_SCAN_AUX_SEGMENT_CNT: 8
+
+syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
+    BLE_LL_ISO_BROADCASTER: 1
 
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
     BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
