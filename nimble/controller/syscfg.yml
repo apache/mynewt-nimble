@@ -614,6 +614,7 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_SCAN_AUX_SEGMENT_CNT: 8
 
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
+    BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
     BLE_LL_STACK_SIZE: 180
 
 # Enable vendor event on assert in standalone build to make failed assertions in
