@@ -348,6 +348,11 @@ ble_phy_encrypt_enable(const uint8_t *key)
 }
 
 void
+ble_phy_encrypt_header_mask_set(uint8_t mask)
+{
+}
+
+void
 ble_phy_encrypt_iv_set(const uint8_t *iv)
 {
 }
@@ -649,5 +654,10 @@ ble_phy_rfclk_enable(void)
 
 void
 ble_phy_rfclk_disable(void)
+{
+}
+
+void
+ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
 {
 }
