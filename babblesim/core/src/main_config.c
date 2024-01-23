@@ -23,6 +23,8 @@
 uint global_device_nbr;
 struct nrf52_bsim_args_t *args;
 
+extern int mynewt_main(int argc, char **argv);
+
 void
 bst_tick(bs_time_t time)
 {
@@ -46,7 +48,7 @@ main_clean_up_trace_wrap(void)
     return inner_main_clean_up(0);
 }
 
-void
+int
 main(int argc, char** argv)
 {
         setvbuf(stdout, NULL, _IOLBF, 512);

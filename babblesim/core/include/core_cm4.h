@@ -17,6 +17,8 @@
 extern void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority);
 extern void NVIC_EnableIRQ(IRQn_Type IRQn);
 extern void NVIC_DisableIRQ(IRQn_Type IRQn);
+extern void NVIC_SetPendingIRQ(IRQn_Type IRQn);
+extern void NVIC_ClearPendingIRQ(IRQn_Type IRQn);
 
 void __WFI(void);
 

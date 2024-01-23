@@ -663,7 +663,9 @@ hal_timer_config(int timer_num, uint32_t freq_hz)
     nrf_timer_task_trigger(hwtimer, NRF_TIMER_TASK_CLEAR);
 
     /* Put the timer in timer mode using 32 bits. */
-    nrf_timer_mode_set(hwtimer, NRF_TIMER_MODE_TIMER);
+    hwtimer->MODE = (hwtimer->MODE & ~TIMER_MODE_MODE_Msk) |
+                    ((NRF_TIMER_MODE_TIMER << TIMER_MODE_MODE_Pos) &
+                     TIMER_MODE_MODE_Msk);
     hwtimer->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
 
     /* Set the pre-scalar */

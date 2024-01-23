@@ -22,8 +22,8 @@
 #include "os/mynewt.h"
 #include "ble_hci_edtt.h"
 
-static int
-main_fn(int argc, char **argv)
+int
+mynewt_main(int argc, char **argv)
 {
     sysinit();
 
@@ -32,14 +32,5 @@ main_fn(int argc, char **argv)
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
     }
-    return 0;
-}
-
-int
-main(int argc, char **argv)
-{
-    extern void bsim_init(int argc, char** argv, void *main_fn);
-    bsim_init(argc, argv, main_fn);
-
     return 0;
 }
