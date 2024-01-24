@@ -23,7 +23,7 @@
 
 ## Overview
 
-See (https://mynewt.apache.org/network/ble/ble_intro/).
+See https://mynewt.apache.org/latest/network
 
 ## Building
 
