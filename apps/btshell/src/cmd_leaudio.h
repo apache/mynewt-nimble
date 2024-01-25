@@ -43,4 +43,18 @@ int cmd_leaudio_broadcast_update(int argc, char **argv);
 int cmd_leaudio_broadcast_start(int argc, char **argv);
 int cmd_leaudio_broadcast_stop(int argc, char **argv);
 
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_create_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_destroy_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_pa_sync_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_pa_sync_term_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_big_sync_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_big_sync_term_help;
+
+int cmd_leaudio_broadcast_sink_create(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_destroy(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_pa_sync(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_pa_sync_term(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_sync(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_big_sync_term(int argc, char **argv);
+
 #endif /* H_CMD_LEAUDIO_ */

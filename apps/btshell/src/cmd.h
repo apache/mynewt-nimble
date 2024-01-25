@@ -24,11 +24,16 @@
 #include "host/ble_uuid.h"
 #include <parse_arg/parse_arg.h>
 
+extern const struct parse_arg_kv_pair cmd_addr_type[];
+
 int parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,
                         uint8_t *out_body_len, uint8_t *out_suffix);
 
 int cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
                              uint16_t *out_end);
+
+int parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
+                   ble_addr_t *addr);
 
 void cmd_init(void);
 
