@@ -43,4 +43,24 @@ int cmd_leaudio_broadcast_update(int argc, char **argv);
 int cmd_leaudio_broadcast_start(int argc, char **argv);
 int cmd_leaudio_broadcast_stop(int argc, char **argv);
 
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_start_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_stop_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_metadata_update_help;
+
+int cmd_leaudio_broadcast_sink_start(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_stop(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv);
+
+extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_add_help;
+extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_remove_help;
+extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_set_help;
+extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_get_help;
+extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_show_help;
+
+int cmd_leaudio_scan_delegator_receive_state_add(int argc, char **argv);
+int cmd_leaudio_scan_delegator_receive_state_remove(int argc, char **argv);
+int cmd_leaudio_scan_delegator_receive_state_set(int argc, char **argv);
+int cmd_leaudio_scan_delegator_receive_state_get(int argc, char **argv);
+int cmd_leaudio_scan_delegator_receive_state_show(int argc, char **argv);
+
 #endif /* H_CMD_LEAUDIO_ */

@@ -30,6 +30,13 @@ int parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,
 int cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
                              uint16_t *out_end);
 
+int parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
+                   ble_addr_t *addr);
+
+int cmd_parse_addr(const char *prefix, ble_addr_t *addr);
+
+const char *cmd_addr_type_str(uint8_t type);
+
 void cmd_init(void);
 
 #endif

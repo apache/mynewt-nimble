@@ -24,3 +24,4 @@ pkg.description: Target for native btshell application with LE Audio
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.deps:
+  - nimble/host/audio

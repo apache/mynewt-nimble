@@ -30,7 +30,7 @@ syscfg.vals:
 
     # Disable security manager (pairing and bonding).
     BLE_SM_LEGACY: 0
-    BLE_SM_SC: 0
+    BLE_SM_SC: 1
 
     # Default task settings
     OS_MAIN_STACK_SIZE: 512
@@ -63,6 +63,9 @@ syscfg.vals:
     BLE_ISO_BROADCAST_SOURCE: 1
     BLE_ISO_MAX_BIGS: 1
     BLE_ISO_MAX_BISES: 2
+
+    BLE_AUDIO_BROADCAST_SINK: 1
+    BLE_AUDIO_SCAN_DELEGATOR: 1
 
     CONSOLE_UART: 1
     CONSOLE_UART_BAUD: 1000000
