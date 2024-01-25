@@ -68,6 +68,9 @@
 /** Broadcast Audio Broadcast Code Size. */
 #define BLE_AUDIO_BROADCAST_CODE_SIZE                             16
 
+/** Basic Audio Announcement Service UUID. */
+#define BLE_BASIC_AUDIO_ANNOUNCEMENT_SVC_UUID                     0x1851
+
 /** Broadcast Audio Announcement Service UUID. */
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
 
@@ -576,6 +579,15 @@ struct ble_audio_broadcast_name {
 /** BLE Audio event: BASS - Set Broadcast Code */
 #define BLE_AUDIO_EVENT_BASS_BROADCAST_CODE_SET              6
 
+/** BLE Audio event: Broadcast Sink - PA Sync state */
+#define BLE_AUDIO_EVENT_BROADCAST_SINK_PA_SYNC_STATE         7
+
+/** BLE Audio event: Broadcast Sink - BIS Sync state */
+#define BLE_AUDIO_EVENT_BROADCAST_SINK_BIS_SYNC_STATE        8
+
+/** BLE Audio event: Broadcast Sink - Metadata Updated */
+#define BLE_AUDIO_EVENT_BROADCAST_SINK_METADATA              9
+
 /** @} */
 
 /** @brief Broadcast Announcement */
@@ -650,6 +662,56 @@ struct ble_audio_event_bass_set_broadcast_code {
     uint8_t broadcast_code[BLE_AUDIO_BROADCAST_CODE_SIZE];
 };
 
+enum ble_audio_broadcast_sink_sync_state {
+    /** Broadcast Sink Sync State: Not Synced */
+    BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_NOT_SYNCED,
+
+    /** Broadcast Sink Sync State: Sync initiated */
+    BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_INITIATED,
+
+    /** Broadcast Sink Sync State: Sync established */
+    BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED,
+};
+
+/** @brief PA Synchronization state */
+struct ble_audio_event_broadcast_sink_pa_sync_state {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** Sync state */
+    enum ble_audio_broadcast_sink_sync_state state;
+};
+
+/** @brief BIS Synchronization state */
+struct ble_audio_event_broadcast_sink_bis_sync_state {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** BIS Index */
+    uint8_t bis_index;
+
+    /** Sync state */
+    enum ble_audio_broadcast_sink_sync_state state;
+
+    /** Connection Handle. Valid if `state` is @ref BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED */
+    uint16_t conn_handle;
+};
+
+/** @brief Broadcast Sink Metadata changed */
+struct ble_audio_event_broadcast_sink_metadata {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** BIS Index Mask */
+    uint8_t bis_sync;
+
+    /** Scan Delegator Subgroup: Metadata */
+    const uint8_t *metadata;
+
+    /** Scan Delegator Subgroup: Metadata length */
+    uint8_t metadata_length;
+};
+
 /**
  * Represents a BLE Audio related event. When such an event occurs, the host
  * notifies the application by passing an instance of this structure to an
@@ -715,6 +777,27 @@ struct ble_audio_event {
          * Represents a Broadcast Code baing set in BASS.
          */
         struct ble_audio_event_bass_set_broadcast_code bass_set_broadcast_code;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BROADCAST_SINK_PA_SYNC_STATE
+         *
+         * Represents a update of Broadcast Sink PA sync state.
+         */
+        struct ble_audio_event_broadcast_sink_pa_sync_state broadcast_sink_pa_sync_state;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BROADCAST_SINK_BIS_SYNC_STATE
+         *
+         * Represents an update of Broadcast Sink BIS sync state.
+         */
+        struct ble_audio_event_broadcast_sink_bis_sync_state broadcast_sink_bis_sync_state;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BROADCAST_SINK_METADATA
+         *
+         * Represents an update in Broadcast Sink Metadata.
+         */
+        struct ble_audio_event_broadcast_sink_metadata broadcast_sink_metadata;
     };
 };
 
@@ -949,6 +1032,21 @@ struct ble_audio_base {
     /** Link list of subgroups */
     STAILQ_HEAD(, ble_audio_big_subgroup) subs;
 };
+
+static inline const char *
+ble_audio_broadcast_sink_sync_state_str(enum ble_audio_broadcast_sink_sync_state state)
+{
+    switch (state) {
+    case BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_NOT_SYNCED:
+        return "not synced";
+    case BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_INITIATED:
+        return "initiated";
+    case BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED:
+        return "established";
+    default:
+        return "invalid";
+    }
+}
 
 /** @} */
 

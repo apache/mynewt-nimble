@@ -136,7 +136,9 @@ ble_audio_gap_event(struct ble_gap_event *gap_event, void *arg)
 {
     switch (gap_event->type) {
     case BLE_GAP_EVENT_EXT_DISC: {
-        struct ble_audio_adv_parse_broadcast_announcement_data data = { 0 };
+        struct ble_audio_adv_parse_broadcast_announcement_data data = {
+            .success = false,
+        };
         int rc;
 
         rc = ble_hs_adv_parse(gap_event->ext_disc.data,
