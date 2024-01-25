@@ -247,7 +247,10 @@ struct hci_conn_update;
 #define BLE_GAP_EVENT_TRANSMIT_POWER        26
 
 /** GAP event: Pairing complete */
-#define BLE_GAP_EVENT_PARING_COMPLETE       27
+#define BLE_GAP_EVENT_PAIRING_COMPLETE      27
+
+/** GAP event: Pairing complete (deprecated) */
+#define BLE_GAP_EVENT_PARING_COMPLETE BLE_GAP_EVENT_PAIRING_COMPLETE
 
 /** GAP event: Subrate change */
 #define BLE_GAP_EVENT_SUBRATE_CHANGE        28
@@ -1245,7 +1248,8 @@ struct ble_gap_event {
          * Represents a received Pairing Complete message
          *
          * Valid for the following event types:
-         *     o BLE_GAP_EVENT_PARING_COMPLETE
+         *     o BLE_GAP_EVENT_PAIRING_COMPLETE
+         *     o BLE_GAP_EVENT_PARING_COMPLETE (deprecated)
          */
         struct {
             /**
