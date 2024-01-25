@@ -1,0 +1,74 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
+    # Enable the shell task.
+    SHELL_TASK: 1
+
+    # Set log level to info (disable debug logging).
+    LOG_LEVEL: 1
+
+    # Disable security manager (pairing and bonding).
+    BLE_SM_LEGACY: 0
+    BLE_SM_SC: 0
+
+    # Default task settings
+    OS_MAIN_STACK_SIZE: 512
+
+    # SMP is not supported in this app, so disable smp-over-shell.
+    SHELL_MGMT: 0
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
+    # Enable Extended Advertising
+    BLE_EXT_ADV: 1
+    BLE_EXT_ADV_MAX_SIZE: 261
+
+    BLE_MULTI_ADV_INSTANCES: 1
+
+    # Enable Periodic Advertising
+    BLE_PERIODIC_ADV: 1
+    BLE_PERIODIC_ADV_SYNC_TRANSFER: 1
+    BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS: 1
+
+    BLE_SOCK_USE_TCP: 0
+    BLE_SOCK_USE_LINUX_BLUE: 1
+    BLE_SOCK_LINUX_DEV: 1
+    BLE_TRANSPORT_HS: native
+    BLE_TRANSPORT_LL: socket
+
+    BLE_VERSION: 54
+    BLE_ISO_BROADCAST_SINK: 1
+    BLE_ISO_BROADCAST_SOURCE: 1
+    BLE_MAX_BIG: 1
+    BLE_MAX_BIS: 2
+
+    CONSOLE_UART: 1
+    CONSOLE_UART_BAUD: 1000000
+    CONSOLE_STICKY_PROMPT: 1
+    CONSOLE_UART_TX_BUF_SIZE: 256
+    STATS_CLI: 1
+    STATS_NAMES: 1
+
+    MSYS_1_BLOCK_COUNT: 100
