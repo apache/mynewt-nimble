@@ -30,3 +30,12 @@ pkg.keywords:
 pkg.deps:
     - nimble
     - nimble/host
+
+pkg.deps.BLE_AUDIO_SCAN_DELEGATOR:
+    - nimble/host/audio/services/bass
+
+pkg.init.BLE_AUDIO_BROADCAST_SINK:
+    ble_audio_broadcast_sink_init: 'MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_SYSINIT_STAGE)'
+
+pkg.init.BLE_AUDIO_SCAN_DELEGATOR:
+    ble_audio_scan_delegator_init: 'MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_SYSINIT_STAGE)'

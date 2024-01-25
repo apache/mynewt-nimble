@@ -17,22 +17,18 @@
  * under the License.
  */
 
-#ifndef H_BLE_AUDIO_PRIV_
-#define H_BLE_AUDIO_PRIV_
+#ifndef H_BLE_AUDIO_BROADCAST_SINK_PRIV_
+#define H_BLE_AUDIO_BROADCAST_SINK_PRIV_
 
+#include <stdint.h>
 #include "audio/ble_audio.h"
+#include "audio/ble_audio_broadcast_sink.h"
+#include "audio/ble_audio_scan_delegator.h"
 
-#define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+int ble_audio_broadcast_sink_config(
+        uint8_t source_id, uint16_t conn_handle,
+        const struct ble_audio_scan_delegator_sync_opt *sync_opt);
+void ble_audio_broadcast_sink_code_set(
+        uint8_t source_id, const uint8_t broadcast_code[16]);
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
-#define BLE_AUDIO_DBG_ASSERT(x) assert(x)
-#define BLE_AUDIO_DBG_ASSERT_EVAL(x) assert(x)
-#else
-#define BLE_AUDIO_DBG_ASSERT(x)
-#define BLE_AUDIO_DBG_ASSERT_EVAL(x) ((void)(x))
-#endif
-
-int ble_audio_event_listener_call(struct ble_audio_event *event);
-
-#endif /* H_BLE_AUDIO_PRIV_ */
+#endif /* H_BLE_AUDIO_BROADCAST_SINK_PRIV_ */

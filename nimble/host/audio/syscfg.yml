@@ -16,10 +16,87 @@
 # under the License.
 #
 
+# syscfg.defs section
 syscfg.defs:
     BLE_AUDIO_MAX_CODEC_RECORDS:
         description: >
             Maximum number of registered audio codecs.
         value: 0
 
-syscfg.logs:
+    BLE_AUDIO_BROADCAST_SINK:
+        description: >
+            This option enables BLE Audio Sink support.
+        value: 0
+        restrictions:
+          - '(BLE_ISO_BROADCAST_SINK > 0) if 1'
+
+    BLE_AUDIO_SCAN_DELEGATOR:
+        description: >
+            This option enables BLE Audio Scan Delegator support.
+        value: 0
+
+syscfg.defs.BLE_AUDIO_BROADCAST_SINK:
+    BLE_AUDIO_BROADCAST_SINK_SYSINIT_STAGE:
+        description: >
+            Primary sysinit stage for BLE Audio Broadcast Sink.
+        value: 500
+
+    BLE_AUDIO_BROADCAST_SINK_LOG_MOD:
+        description: 'Numeric module ID to use for BLE Audio Broadcast Sink log messages.'
+        value: 28
+
+    BLE_AUDIO_BROADCAST_SINK_LOG_LVL:
+        description: 'Minimum level for the BLE Audio Broadcast Sink log log.'
+        value: 1
+
+    BLE_AUDIO_BROADCAST_SINK_MAX:
+        description: >
+            Maximum umber of Audio Broadcast Sink instances.
+        value: 'MYNEWT_VAL_BLE_ISO_MAX_BIGS'
+
+syscfg.defs.BLE_AUDIO_SCAN_DELEGATOR:
+    BLE_AUDIO_SCAN_DELEGATOR_SYSINIT_STAGE:
+        description: >
+            Primary sysinit stage for BLE Audio Scan Delegator.
+        value: 499
+
+    BLE_AUDIO_SCAN_DELEGATOR_LOG_MOD:
+        description: 'Numeric module ID to use for BLE Audio Scan Delegator log messages.'
+        value: 29
+
+    BLE_AUDIO_SCAN_DELEGATOR_LOG_LVL:
+        description: 'Minimum level for the BLE Audio Scan Delegator log log.'
+        value: 1
+
+    BLE_AUDIO_SCAN_DELEGATOR_RECEIVE_STATE_MAX:
+        description: >
+            Maximum number of Receive State instances.
+        value: MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX)
+
+    BLE_AUDIO_SCAN_DELEGATOR_SUBGROUP_MAX:
+        description: >
+            Maximum number of Subgroups per Receive State.
+        value: MYNEWT_VAL(BLE_SVC_AUDIO_BASS_SUB_NUM_MAX)
+
+    BLE_AUDIO_SCAN_DELEGATOR_STANDALONE:
+        description: >
+            This option enables the BLE Audio Scan Delegator as standalone device.
+        value: 1
+        restrictions:
+            - '(BLE_AUDIO_BROADCAST_SINK == 0) if 1'
+
+# syscfg.logs section
+syscfg.logs.BLE_AUDIO_BROADCAST_SINK:
+    BLE_AUDIO_BROADCAST_SINK_LOG:
+        module: MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_LOG_MOD)
+        level: MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_LOG_LVL)
+
+syscfg.logs.BLE_AUDIO_SCAN_DELEGATOR:
+    BLE_AUDIO_SCAN_DELEGATOR_LOG:
+        module: MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_LOG_MOD)
+        level: MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_LOG_LVL)
+
+# syscfg.vals section
+syscfg.vals.BLE_AUDIO_BROADCAST_SINK:
+    BLE_AUDIO_SCAN_DELEGATOR: 1
+    BLE_AUDIO_SCAN_DELEGATOR_STANDALONE: 0

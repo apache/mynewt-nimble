@@ -17,22 +17,17 @@
  * under the License.
  */
 
-#ifndef H_BLE_AUDIO_PRIV_
-#define H_BLE_AUDIO_PRIV_
+#ifndef H_BLE_AUDIO_SCAN_DELEGATOR_PRIV_
+#define H_BLE_AUDIO_SCAN_DELEGATOR_PRIV_
 
+#include <stdint.h>
 #include "audio/ble_audio.h"
+#include "audio/ble_audio_scan_delegator.h"
 
-#define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+int ble_audio_scan_delegator_source_desc_get(
+        uint8_t source_id, struct ble_audio_scan_delegator_source_desc *source_desc);
+int ble_audio_scan_delegator_metadata_update(
+        uint8_t source_id, uint8_t subgroup_index, const uint8_t *metadata,
+        uint8_t metadata_length);
 
-#if MYNEWT_VAL(BLE_HS_DEBUG)
-#define BLE_AUDIO_DBG_ASSERT(x) assert(x)
-#define BLE_AUDIO_DBG_ASSERT_EVAL(x) assert(x)
-#else
-#define BLE_AUDIO_DBG_ASSERT(x)
-#define BLE_AUDIO_DBG_ASSERT_EVAL(x) ((void)(x))
-#endif
-
-int ble_audio_event_listener_call(struct ble_audio_event *event);
-
-#endif /* H_BLE_AUDIO_PRIV_ */
+#endif /* H_BLE_AUDIO_SCAN_DELEGATOR_PRIV_ */
