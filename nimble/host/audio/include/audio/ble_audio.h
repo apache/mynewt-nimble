@@ -58,6 +58,9 @@
 /** Broadcast Audio Broadcast Code Size. */
 #define BLE_AUDIO_BROADCAST_CODE_SIZE                             16
 
+/** Basic Audio Announcement Service UUID. */
+#define BLE_BASIC_AUDIO_ANNOUNCEMENT_SVC_UUID                     0x1851
+
 /** Broadcast Audio Announcement Service UUID. */
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
 
@@ -537,6 +540,9 @@ struct ble_audio_broadcast_name {
 /** BLE Audio event: BASS - Remove Source */
 #define BLE_AUDIO_EVENT_BASS_REMOVE_SOURCE                   8
 
+/** BLE Audio event: Broadcast Sink - BASE Report Received */
+#define BLE_AUDIO_EVENT_BROADCAST_SINK_BASE_REPORT           9
+
 /** @} */
 
 /** @brief Broadcast Announcement */
@@ -620,6 +626,24 @@ struct ble_audio_event_bass_source_removed {
     uint8_t source_id;
 };
 
+/** @brief Broadcast Sink BASE Report Received */
+struct ble_audio_event_broadcast_sink_base_report {
+    /** Instance ID */
+    uint8_t instance_id;
+
+    /** Advertiser transmit power in dBm (127 if unavailable) */
+    int8_t tx_power;
+
+    /** Received signal strength indication in dBm (127 if unavailable) */
+    int8_t rssi;
+
+    /** BASE length */
+    uint8_t base_length;
+
+    /** BASE */
+    const uint8_t *base;
+};
+
 /**
  * Represents a BLE Audio related event. When such an event occurs, the host
  * notifies the application by passing an instance of this structure to an
@@ -698,6 +722,13 @@ struct ble_audio_event {
          * Represents a Broadcast Source being removed in BASS.
          */
         struct ble_audio_event_bass_source_removed bass_source_removed;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BROADCAST_SINK_BASE_REPORT
+         *
+         * Represents a BASE Report received.
+         */
+         struct ble_audio_event_broadcast_sink_base_report base_report;
     };
 };
 
