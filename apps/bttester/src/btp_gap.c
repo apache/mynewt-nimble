@@ -1511,7 +1511,7 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
             == REJECT_SUPERVISION_TIMEOUT) {
             return EINVAL;
         }
-    case BLE_GAP_EVENT_PARING_COMPLETE:
+    case BLE_GAP_EVENT_PAIRING_COMPLETE:
         console_printf("received pairing complete: "
                        "conn_handle=%d status=%d\n",
                        event->pairing_complete.conn_handle,

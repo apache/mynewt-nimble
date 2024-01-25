@@ -6381,7 +6381,7 @@ ble_gap_pairing_complete_event(uint16_t conn_handle, int status)
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
-    event.type = BLE_GAP_EVENT_PARING_COMPLETE;
+    event.type = BLE_GAP_EVENT_PAIRING_COMPLETE;
     event.pairing_complete.conn_handle = conn_handle;
     event.pairing_complete.status = status;
     ble_gap_call_conn_event_cb(&event, conn_handle);
