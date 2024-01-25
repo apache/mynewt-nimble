@@ -222,6 +222,8 @@ int btshell_broadcast_start(uint8_t adv_instance);
 int btshell_broadcast_stop(uint8_t adv_instance);
 #endif
 
+void btshell_leaudio_init(void);
+
 int btshell_gap_event(struct ble_gap_event *event, void *arg);
 void btshell_sync_stats(uint16_t handle);
 uint8_t btshell_get_default_own_addr_type(void);

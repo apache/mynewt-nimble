@@ -50,3 +50,6 @@ syscfg.vals:
 
 syscfg.vals.BLE_MESH:
     MSYS_1_BLOCK_COUNT: 16
+
+syscfg.vals.BLE_AUDIO_BROADCAST_SINK:
+    BLE_AUDIO_BROADCAST_SINK_MAX: 1

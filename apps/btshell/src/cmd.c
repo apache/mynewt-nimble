@@ -87,14 +87,28 @@ static const struct parse_arg_kv_pair cmd_peer_addr_types[] = {
     { NULL }
 };
 
-static const struct parse_arg_kv_pair cmd_addr_type[] = {
+const struct parse_arg_kv_pair cmd_addr_type[] = {
     { "public",     BLE_ADDR_PUBLIC },
     { "random",     BLE_ADDR_RANDOM },
     { NULL }
 };
 
+const char *
+cmd_addr_type_str(uint8_t type)
+{
+    const struct parse_arg_kv_pair *kvs = cmd_addr_type;
+    int i;
 
-static int
+    for (i = 0; kvs[i].key != NULL; i++) {
+        if (type == kvs[i].val) {
+            return kvs[i].key;
+        }
+    }
+
+    return "unknown";
+}
+
+int
 parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
                ble_addr_t *addr)
 {
@@ -150,6 +164,12 @@ parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
     }
 
     return 0;
+}
+
+int
+cmd_parse_addr(const char *prefix, ble_addr_t *addr)
+{
+    return parse_dev_addr(prefix, cmd_addr_type, addr);
 }
 
 /*****************************************************************************
@@ -4924,7 +4944,67 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &leaudio_broadcast_stop_help,
 #endif
     },
-#endif /* BLE_ISO_BROADCAST_SOURCE */
+#endif
+#if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
+    {
+        .sc_cmd = "broadcast-sink-start",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_start,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_start_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-stop",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_stop,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_stop_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-metadata",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_metadata_update,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
+#endif
+    },
+#endif /* BLE_AUDIO_BROADCAST_SINK */
+#if MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR)
+    {
+        .sc_cmd = "scan-delegator-add",
+        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_add,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_scan_delegator_receive_state_add_help,
+#endif
+    },
+    {
+        .sc_cmd = "scan-delegator-remove",
+        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_remove,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_scan_delegator_receive_state_remove_help,
+#endif
+    },
+    {
+        .sc_cmd = "scan-delegator-set",
+        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_set,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_scan_delegator_receive_state_set_help,
+#endif
+    },
+    {
+        .sc_cmd = "scan-delegator-get",
+        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_get,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_scan_delegator_receive_state_get_help,
+#endif
+    },
+    {
+        .sc_cmd = "scan-delegator-show",
+        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_show,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_scan_delegator_receive_state_show_help,
+#endif
+    },
+#endif /* BLE_AUDIO_SCAN_DELEGATOR */
 #if MYNEWT_VAL(BLE_ISO)
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {

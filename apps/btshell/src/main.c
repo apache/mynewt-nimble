@@ -2078,6 +2078,10 @@ btshell_ext_scan(uint8_t own_addr_type, uint16_t duration, uint16_t period,
                  const struct ble_gap_ext_disc_params *coded_params,
                  void *cb_args)
 {
+    struct btshell_scan_opts *scan_opts = cb_args;
+
+    console_printf("silent %d.", scan_opts->silent);
+
 #if !MYNEWT_VAL(BLE_EXT_ADV)
     console_printf("BLE extended advertising not supported.");
     console_printf(" Configure nimble host to enable it\n");
@@ -3142,6 +3146,8 @@ mynewt_main(int argc, char **argv)
                     btshell_tx_timer_cb, NULL);
 
     btshell_init_ext_adv_restart();
+
+    btshell_leaudio_init();
 
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
