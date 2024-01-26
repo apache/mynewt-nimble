@@ -1392,17 +1392,18 @@ int ble_gap_ext_adv_active(uint8_t instance)
 }
 
 int
-ble_gap_adv_get_free_instance(void)
+ble_gap_adv_get_free_instance(uint8_t *out_adv_instance)
 {
-    int i;
+    uint8_t i;
 
     for (i = 0; i < BLE_ADV_INSTANCES; i++) {
         if (!ble_gap_slave[i].configured) {
-            return i;
+            *out_adv_instance = i;
+            return 0;
         }
     }
 
-    return -BLE_HS_ENOENT;
+    return BLE_HS_ENOENT;
 }
 #endif
 
