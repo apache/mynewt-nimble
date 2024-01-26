@@ -42,6 +42,7 @@ ble_svc_auracast_create(const struct ble_svc_auracast_create_params *params,
     uint8_t data_offset = 1;
 
     uint8_t features = 0;
+    int rc;
 
     features |= params->big_params->encryption;
 
@@ -79,8 +80,8 @@ ble_svc_auracast_create(const struct ble_svc_auracast_create_params *params,
 
     auracast_svc_data[0] = data_offset - 1;
 
-    adv_instance = ble_gap_adv_get_free_instance();
-    if (adv_instance < 0) {
+    rc = ble_gap_adv_get_free_instance(&adv_instance);
+    if (rc) {
         return BLE_HS_ENOENT;
     }
 
