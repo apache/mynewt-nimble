@@ -103,11 +103,13 @@ STATS_SECT_START(hci_sock_stats)
     STATS_SECT_ENTRY(icmd)
     STATS_SECT_ENTRY(ievt)
     STATS_SECT_ENTRY(iacl)
+    STATS_SECT_ENTRY(iiso)
     STATS_SECT_ENTRY(ibytes)
     STATS_SECT_ENTRY(ierr)
     STATS_SECT_ENTRY(imem)
     STATS_SECT_ENTRY(omsg)
     STATS_SECT_ENTRY(oacl)
+    STATS_SECT_ENTRY(oiso)
     STATS_SECT_ENTRY(ocmd)
     STATS_SECT_ENTRY(oevt)
     STATS_SECT_ENTRY(obytes)
@@ -120,11 +122,13 @@ STATS_NAME_START(hci_sock_stats)
     STATS_NAME(hci_sock_stats, icmd)
     STATS_NAME(hci_sock_stats, ievt)
     STATS_NAME(hci_sock_stats, iacl)
+    STATS_NAME(hci_sock_stats, iiso)
     STATS_NAME(hci_sock_stats, ibytes)
     STATS_NAME(hci_sock_stats, ierr)
     STATS_NAME(hci_sock_stats, imem)
     STATS_NAME(hci_sock_stats, omsg)
     STATS_NAME(hci_sock_stats, oacl)
+    STATS_NAME(hci_sock_stats, oiso)
     STATS_NAME(hci_sock_stats, ocmd)
     STATS_NAME(hci_sock_stats, oevt)
     STATS_NAME(hci_sock_stats, obytes)
@@ -142,6 +146,7 @@ STATS_NAME_END(hci_sock_stats)
 #define BLE_HCI_UART_H4_ACL         0x02
 #define BLE_HCI_UART_H4_SCO         0x03
 #define BLE_HCI_UART_H4_EVT         0x04
+#define BLE_HCI_UART_H4_ISO         0x05
 #define BLE_HCI_UART_H4_SYNC_LOSS   0x80
 #define BLE_HCI_UART_H4_SKIP_CMD    0x81
 #define BLE_HCI_UART_H4_SKIP_ACL    0x82
@@ -172,6 +177,48 @@ static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
 #elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
 static int s_ble_hci_device = 0;
 #endif
+
+static int
+ble_hci_sock_iso_tx(struct os_mbuf *om)
+{
+    struct msghdr msg;
+    struct iovec iov[8];
+    int i;
+    struct os_mbuf *m;
+    uint8_t ch;
+
+    memset(&msg, 0, sizeof(msg));
+    memset(iov, 0, sizeof(iov));
+
+    msg.msg_iov = iov;
+
+    ch = BLE_HCI_UART_H4_ISO;
+    iov[0].iov_len = 1;
+    iov[0].iov_base = &ch;
+    i = 1;
+    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
+        iov[i].iov_base = m->om_data;
+        iov[i].iov_len = m->om_len;
+        i++;
+    }
+    msg.msg_iovlen = i;
+
+    STATS_INC(hci_sock_stats, omsg);
+    STATS_INC(hci_sock_stats, oiso);
+    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
+    i = sendmsg(ble_hci_sock_state.sock, &msg, 0);
+    os_mbuf_free_chain(om);
+    if (i != OS_MBUF_PKTLEN(om) + 1) {
+        if (i < 0) {
+            dprintf(1, "sendmsg() failed : %d\n", errno);
+        } else {
+            dprintf(1, "sendmsg() partial write: %d\n", i);
+        }
+        STATS_INC(hci_sock_stats, oerr);
+        return BLE_ERR_MEM_CAPACITY;
+    }
+    return 0;
+}
 
 #if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
 static int
@@ -486,6 +533,37 @@ ble_hci_sock_rx_msg(void)
 #endif
             OS_EXIT_CRITICAL(sr);
             break;
+#if MYNEWT_VAL(BLE_ISO)
+        case BLE_HCI_UART_H4_ISO:
+            if (bhss->rx_off < BLE_HCI_DATA_HDR_SZ) {
+                return -1;
+            }
+            len = 1 + BLE_HCI_DATA_HDR_SZ + (bhss->rx_data[4] << 8) +
+                  bhss->rx_data[3];
+            if (bhss->rx_off < len) {
+                return -1;
+            }
+            STATS_INC(hci_sock_stats, imsg);
+            STATS_INC(hci_sock_stats, iiso);
+#if MYNEWT_VAL(BLE_CONTROLLER)
+            ble_transport_to_ll_acl(m);
+#else
+            ble_transport_to_hs_acl(m);
+#endif
+            if (!m) {
+                STATS_INC(hci_sock_stats, imem);
+                break;
+            }
+            if (os_mbuf_append(m, &bhss->rx_data[1], len - 1)) {
+                STATS_INC(hci_sock_stats, imem);
+                os_mbuf_free_chain(m);
+                break;
+            }
+            OS_ENTER_CRITICAL(sr);
+            rc = ble_transport_to_ll_iso(m);
+            OS_EXIT_CRITICAL(sr);
+            break;
+#endif
         default:
             STATS_INC(hci_sock_stats, ierr);
             break;
@@ -736,6 +814,20 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 }
 
 /**
+ * Sends ISO data from host to controller.
+ *
+ * @param om                    The ISO data packet to send.
+ *
+ * @return                      0 on success;
+ *                              A BLE_ERR_[...] error code on failure.
+ */
+int
+ble_hci_trans_hs_iso_tx(struct os_mbuf *om)
+{
+    return ble_hci_sock_iso_tx(om);
+}
+
+/**
  * Resets the HCI UART transport to a clean state.  Frees all buffers and
  * reconfigures the UART.
  *
@@ -837,6 +929,12 @@ void
 ble_transport_ll_init(void)
 {
     ble_hci_sock_init();
+}
+
+int
+ble_transport_to_ll_iso_impl(struct os_mbuf *om)
+{
+    return ble_hci_trans_hs_iso_tx(om);
 }
 
 int

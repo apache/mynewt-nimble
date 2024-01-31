@@ -101,12 +101,14 @@ extern uint16_t ble_hs_max_client_configs;
 
 void ble_hs_process_rx_data_queue(void);
 int ble_hs_tx_data(struct os_mbuf *om);
+int ble_hs_tx_iso_data(struct os_mbuf *om);
 void ble_hs_wakeup_tx(void);
 void ble_hs_enqueue_hci_event(uint8_t *hci_evt);
 void ble_hs_event_enqueue(struct os_event *ev);
 
 int ble_hs_hci_rx_evt(uint8_t *hci_ev, void *arg);
 int ble_hs_hci_evt_acl_process(struct os_mbuf *om);
+int ble_hs_hci_evt_iso_process(struct os_mbuf *om);
 
 int ble_hs_misc_conn_chan_find(uint16_t conn_handle, uint16_t cid,
                                struct ble_hs_conn **out_conn,

@@ -79,6 +79,10 @@ static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_transmit_power_report;
 #if MYNEWT_VAL(BLE_CONN_SUBRATING)
 static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_subrate_change;
 #endif
+#if NIMBLE_BLE_CONNECT
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_cis_request;
+static ble_hs_hci_evt_le_fn ble_hs_hci_evt_le_cis_established;
+#endif
 
 /* Statistics */
 struct host_hci_stats {
@@ -152,6 +156,10 @@ static ble_hs_hci_evt_le_fn * const ble_hs_hci_evt_le_dispatch[] = {
 #endif
 #if MYNEWT_VAL(BLE_CONN_SUBRATING)
     [BLE_HCI_LE_SUBEV_SUBRATE_CHANGE] = ble_hs_hci_evt_le_subrate_change,
+#endif
+#if NIMBLE_BLE_CONNECT
+    [BLE_HCI_LE_SUBEV_CIS_ESTABLISHED] = ble_hs_hci_evt_le_cis_established,
+    [BLE_HCI_LE_SUBEV_CIS_REQUEST] = ble_hs_hci_evt_le_cis_request,
 #endif
 };
 
@@ -266,6 +274,9 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, const void *data,
 {
     const struct ble_hci_ev_num_comp_pkts *ev = data;
     struct ble_hs_conn *conn;
+#if MYNEWT_VAL(BLE_ISO)
+    struct ble_iso_conn *iso_conn;
+#endif
     uint16_t num_pkts;
     int i;
 
@@ -288,6 +299,20 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, const void *data,
 
                 ble_hs_hci_add_avail_pkts(num_pkts);
             }
+#if MYNEWT_VAL(BLE_ISO)
+            else {
+                iso_conn = ble_iso_find_by_iso_handle(le16toh(ev->completed[i].handle));
+                if (conn != NULL) {
+                    if (iso_conn->outstanding_pkts < num_pkts) {
+                        ble_hs_sched_reset(BLE_HS_ECONTROLLER);
+                    } else {
+                        iso_conn->outstanding_pkts -= num_pkts;
+                    }
+
+                    ble_hs_iso_hci_add_avail_pkts(num_pkts);
+                }
+            }
+#endif
             ble_hs_unlock();
         }
     }
@@ -869,6 +894,40 @@ ble_hs_hci_evt_le_subrate_change(uint8_t subevent, const void *data,
 
 #if NIMBLE_BLE_CONNECT
 static int
+ble_hs_hci_evt_le_cis_established(uint8_t subevent, const void *data,
+                                  unsigned int len)
+{
+#if MYNEWT_VAL(BLE_ISO)
+    const struct ble_hci_ev_le_subev_cis_established *ev = data;
+
+    if (len != sizeof(*ev)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    return ble_iso_rx_hci_evt_le_cis_established(ev);
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
+static int
+ble_hs_hci_evt_le_cis_request(uint8_t subevent, const void *data,
+                              unsigned int len)
+{
+#if MYNEWT_VAL(BLE_ISO)
+    const struct ble_hci_ev_le_subev_cis_request *ev = data;
+
+    if (len != sizeof(*ev)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    return ble_iso_rx_hci_evt_le_cis_request(ev);
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
+static int
 ble_hs_hci_evt_le_conn_upd_complete(uint8_t subevent, const void *data,
                                     unsigned int len)
 {
@@ -974,6 +1033,15 @@ ble_hs_hci_evt_process(struct ble_hci_ev *ev)
     return rc;
 }
 
+int
+ble_hs_hci_evt_iso_process(struct os_mbuf *om)
+{
+#if MYNEWT_VAL(BLE_ISO)
+    ble_hs_log_mbuf(om);
+    ble_iso_rx(om);
+#endif
+    return 0;
+}
 /**
  * Called when a data packet is received from the controller.  This function
  * consumes the supplied mbuf, regardless of the outcome.

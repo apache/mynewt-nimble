@@ -22,6 +22,7 @@
 #include "host/ble_hs.h"
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
+#include "ble_iso_priv.h"
 
 #if !MYNEWT_VAL(BLE_CONTROLLER)
 static int
@@ -107,7 +108,30 @@ ble_hs_startup_le_read_sup_f_tx(void)
     return 0;
 }
 
-#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if MYNEWT_VAL(BLE_ISO)
+static int
+ble_hs_startup_le_read_buf_sz_v2_tx(uint16_t *out_pktlen, uint8_t *out_max_pkts,
+                                    uint16_t *out_iso_pktlen, uint8_t *out_iso_max_pkts)
+{
+    struct ble_hci_le_rd_buf_size_v2_rp rsp;
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_BUF_SIZE_V2), NULL, 0,
+                           &rsp, sizeof(rsp));
+    if (rc != 0) {
+        return rc;
+    }
+
+    *out_pktlen = le16toh(rsp.data_len);
+    *out_max_pkts = rsp.data_packets;
+    *out_iso_pktlen = le16toh(rsp.data_len);
+    *out_iso_max_pkts = rsp.data_packets;
+    return 0;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_ISO)
 static int
 ble_hs_startup_le_read_buf_sz_tx(uint16_t *out_pktlen, uint8_t *out_max_pkts)
 {
@@ -153,9 +177,21 @@ ble_hs_startup_read_buf_sz(void)
     uint16_t max_pkts = 0;
     uint16_t pktlen = 0;
     uint8_t le_max_pkts = 0;
+#if MYNEWT_VAL(BLE_ISO)
+    uint16_t iso_pktlen = 0;
+    uint8_t iso_max_pkts = 0;
+#endif
     int rc;
 
+#if MYNEWT_VAL(BLE_ISO)
+    rc = ble_hs_startup_le_read_buf_sz_v2_tx(&le_pktlen, &le_max_pkts, &iso_pktlen, &iso_max_pkts);
+    if (rc != 0) {
+        /* Fallback to v1 */
+        rc = ble_hs_startup_le_read_buf_sz_tx(&le_pktlen, &le_max_pkts);
+    }
+#else
     rc = ble_hs_startup_le_read_buf_sz_tx(&le_pktlen, &le_max_pkts);
+#endif
     if (rc != 0) {
         return rc;
     }
@@ -174,6 +210,13 @@ ble_hs_startup_read_buf_sz(void)
     if (rc != 0) {
         return rc;
     }
+
+#if MYNEWT_VAL(BLE_ISO)
+    rc = ble_iso_hci_set_buf_sz(iso_pktlen, iso_max_pkts);
+    if (rc != 0) {
+        return rc;
+    }
+#endif
 
     return 0;
 }
@@ -250,6 +293,29 @@ ble_hs_startup_le_set_evmask_tx(void)
          */
         mask |= 0x00000000000ff800;
     }
+
+    if (version >= BLE_HCI_VER_BCS_5_2) {
+        /**
+         * Enable the following LE events:
+         *   0x0000000040000000 LE Request Peer SCA Complete event
+         */
+        mask |= 0x0000000040000000;
+    }
+
+#if MYNEWT_VAL(BLE_ISO)
+    if (version >= BLE_HCI_VER_BCS_5_2) {
+        /* Enable BLE ISO releated features.
+         *
+         *       0x0000000001000000  LE CIS Established
+         *       0x0000000002000000  LE CIS Request
+         *       0x0000000004000000  LE Create BIG Complete
+         *       0x0000000008000000  LE Terminate BIG Complete
+         *       0x0000000010000000  LE BIG Sync Established Complete
+         *       0x0000000020000000  LE BIG Sync lost
+         **/
+        mask |= 0x000000003f000000;
+    }
+#endif
 
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
     if (version >= BLE_HCI_VER_BCS_5_1) {
@@ -404,7 +470,7 @@ ble_hs_startup_go(void)
         return rc;
     }
 
-#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+#if MYNEWT_VAL(BLE_ROLE_CENTRAL) || MYNEWT_VAL(BLE_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_ISO)
     rc = ble_hs_startup_read_buf_sz();
     if (rc != 0) {
         return rc;
