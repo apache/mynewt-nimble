@@ -16,29 +16,14 @@
 # under the License.
 #
 
-syscfg.vals:
-    CONSOLE_IMPLEMENTATION: full
-    LOG_IMPLEMENTATION: full
-    STATS_IMPLEMENTATION: full
+pkg.name: babblesim/targets/cs_reflector
+pkg.type: target
+pkg.descrption: Sample target for running cs_reflector on BabbleSim
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://mynewt.apache.org/"
 
-    # DEBUG logging is a bit noisy; use INFO.
-    LOG_LEVEL: 1
-
-    # Default task settings
-    OS_MAIN_STACK_SIZE: 336
-
-# Disable peripheral and broadcaster roles.
-    BLE_ROLE_BROADCASTER: 0
-    BLE_ROLE_CENTRAL: 1
-    BLE_ROLE_OBSERVER: 1
-    BLE_ROLE_PERIPHERAL: 0
-
-    # Whether to save data to sys/config, or just keep it in RAM.
-    BLE_STORE_CONFIG_PERSIST: 0
-
-    BLE_VERSION: 54
-    BLE_CHANNEL_SOUNDING: 1
-    # MBEDTLS_CTR_DRBG_C: 1
-
-syscfg.vals.BLE_CONTROLLER:
-    TIMER_3: 1
+pkg.cflags:
+    - -Wimplicit-function-declaration
+    - -Wno-unused-variable
+    - -Wno-unused-function
+    - -m32

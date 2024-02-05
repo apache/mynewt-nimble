@@ -74,7 +74,7 @@ syscfg.vals:
     # Whether to save data to sys/config, or just keep it in RAM.
     BLE_STORE_CONFIG_PERSIST: 0
 
-    BLE_VERSION: 55
+    BLE_VERSION: 54
     BLE_CHANNEL_SOUNDING: 1
     MBEDTLS_CTR_DRBG_C: 1
 
