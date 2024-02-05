@@ -117,3 +117,7 @@ $import:
 
 syscfg.vals.'BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV':
     BLE_TRANSPORT_EVT_SIZE: 257
+
+syscfg.vals.'BLE_CHANNEL_SOUNDING && !(BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV)':
+    # A larger buffer is needed to sent the FAE table.
+    BLE_TRANSPORT_EVT_SIZE: 78
