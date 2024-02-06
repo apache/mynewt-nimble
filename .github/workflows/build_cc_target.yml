@@ -28,14 +28,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        gcc: ['12.2.Rel1', '11.3.Rel1', '10.3-2021.10', '9-2020-q2', '8-2019-q3']
+        gcc: ['13.2.Rel1', '12.2.Rel1', '11.3.Rel1', '10.3-2021.10', '9-2020-q2', '8-2019-q3']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
           go-version: 'stable'
-      - uses: carlosperate/arm-none-eabi-gcc-action@48db4484a55750df7a0ccca63347fcdea6534d78
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.8.1
         with:
           release: ${{ matrix.gcc }}
       - name: Install newt
