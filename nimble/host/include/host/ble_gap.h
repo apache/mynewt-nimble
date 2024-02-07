@@ -2237,6 +2237,15 @@ int ble_gap_terminate(uint16_t conn_handle, uint8_t hci_reason);
 int ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count);
 
 /**
+ * Removes the given address from controller's white list.
+ *
+ * @param addrs                 The entry to be removed from the white list.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gap_wl_tx_rmv(const ble_addr_t *addrs);
+
+/**
  * Initiates a connection parameter update procedure.
  *
  * @param conn_handle           The handle corresponding to the connection to

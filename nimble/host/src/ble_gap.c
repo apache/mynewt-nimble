@@ -2364,6 +2364,22 @@ ble_gap_wl_tx_clear(void)
 #endif
 
 int
+ble_gap_wl_tx_rmv(const ble_addr_t *addr)
+{
+    struct ble_hci_le_rmv_white_list_cp cmd;
+
+    if (addr->type > BLE_ADDR_RANDOM) {
+        return BLE_HS_EINVAL;
+    }
+
+    memcpy(cmd.addr, addr->val, BLE_DEV_ADDR_LEN);
+    cmd.addr_type = addr->type;
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_RMV_WHITE_LIST),
+                             &cmd, sizeof(cmd), NULL, 0);
+}
+
+int
 ble_gap_wl_set(const ble_addr_t *addrs, uint8_t white_list_count)
 {
 #if MYNEWT_VAL(BLE_WHITELIST)
