@@ -1509,7 +1509,7 @@ static int
 ble_gattc_disc_all_svcs_rx_adata(struct ble_gattc_proc *proc,
                                  struct ble_att_read_group_type_adata *adata)
 {
-    struct ble_gatt_svc service;
+    struct ble_gatt_svc service = {0};
     int cbrc;
     int rc;
 
