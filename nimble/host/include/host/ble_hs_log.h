@@ -20,12 +20,6 @@
 #ifndef H_BLE_HS_LOG_
 #define H_BLE_HS_LOG_
 
-#ifndef BLE_NPL_LOG_MODULE
-#define BLE_NPL_LOG_MODULE BLE_HS_LOG
-#endif
-
-#include <nimble/nimble_npl_log.h>
-
 /**
  * @file ble_hs_log.h
  *
@@ -38,6 +32,13 @@
  * @ingroup bt_host
  * @{
  */
+
+#ifndef BLE_NPL_LOG_MODULE
+/** Defines the logging module for NimBLE Porting Layer (NPL). */
+#define BLE_NPL_LOG_MODULE BLE_HS_LOG
+#endif
+
+#include <nimble/nimble_npl_log.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,4 +104,4 @@ void ble_hs_log_flat_buf(const void *data, int len);
  * @}
  */
 
-#endif
+#endif /* H_BLE_HS_LOG_*/
