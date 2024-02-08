@@ -510,6 +510,20 @@ int ble_gattc_read_mult(uint16_t conn_handle, const uint16_t *handles,
                         uint8_t num_handles, ble_gatt_attr_fn *cb,
                         void *cb_arg);
 
+/**
+ * Initiates GATT procedure: Read Multiple Variable Length Characteristic Values.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param handles               An array of 16-bit attribute handles to read.
+ * @param num_handles           The number of entries in the "handles" array.
+ * @param cb                    The function to call to report procedure status
+ *                                  updates; null for no callback.
+ * @param cb_arg                The optional argument to pass to the callback
+ *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int ble_gattc_read_mult_var(uint16_t conn_handle, const uint16_t *handles,
                             uint8_t num_handles, ble_gatt_attr_mult_fn *cb,
                             void *cb_arg);
@@ -1142,18 +1156,19 @@ int ble_gatts_start(void);
 /**
  * Gets Client Supported Features for specified connection.
  *
- * @param conn_handle           Connection handle identifying connection for
- *                              which Client Supported Features should be saved
+ * @param conn_handle           Connection handle identifying the connection for
+ *                                  which Client Supported Features should be saved
  * @param out_supported_feat    Client supported features to be returned.
+ * @param len                   The size of the Client Supported Features
+ *                                  characteristic in octets.
  *
  * @return                      0 on success;
  *                              BLE_HS_ENOTCONN if no matching connection
- *                              was found
+ *                                  was found
  *                              BLE_HS_EINVAL if supplied buffer is empty or
- *                              if any Client Supported Feature was
- *                              attempted to be disabled.
- *                              A BLE host core return code on unexpected
- *                              error.
+ *                                  if any Client Supported Feature was
+ *                                  attempted to be disabled.
+ *                              A BLE host core return code on unexpected error.
  *
  */
 int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat, uint8_t len);
@@ -1166,4 +1181,4 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
  * @}
  */
 
-#endif
+#endif /* H_BLE_GATT_ */
