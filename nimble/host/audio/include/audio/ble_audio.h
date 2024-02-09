@@ -55,6 +55,9 @@
  * @endcond
  */
 
+/** Broadcast Audio Broadcast Code Size. */
+#define BLE_AUDIO_BROADCAST_CODE_SIZE                             16
+
 /** Broadcast Audio Announcement Service UUID. */
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
 
@@ -516,6 +519,24 @@ struct ble_audio_broadcast_name {
 /** BLE Audio event: Codec Unregistered */
 #define BLE_AUDIO_EVENT_CODEC_UNREGISTERED                   2
 
+/** BLE Audio event: BASS - Remote Scan Stopped */
+#define BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STOPPED             3
+
+/** BLE Audio event: BASS - Remote Scan Started */
+#define BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STARTED             4
+
+/** BLE Audio event: BASS - Add Source */
+#define BLE_AUDIO_EVENT_BASS_ADD_SOURCE                      5
+
+/** BLE Audio event: BASS - Modify Source */
+#define BLE_AUDIO_EVENT_BASS_MODIFY_SOURCE                   6
+
+/** BLE Audio event: BASS - Set Broadcast Code */
+#define BLE_AUDIO_EVENT_BASS_SET_BROADCAST_CODE              7
+
+/** BLE Audio event: BASS - Remove Source */
+#define BLE_AUDIO_EVENT_BASS_REMOVE_SOURCE                   8
+
 /** @} */
 
 /** @brief Broadcast Announcement */
@@ -549,6 +570,54 @@ struct ble_audio_event_codec_registered {
 struct ble_audio_event_codec_unregistered {
     /** Codec Record */
     const struct ble_audio_codec_record *record;
+};
+
+/** @brief BASS Source Removed */
+struct ble_audio_event_bass_remote_scan {
+    /** Connection Handle of Broadcast Assistant that is performing Scan procedure for us */
+    uint16_t conn_handle;
+};
+
+/** @brief BASS Source Added */
+struct ble_audio_event_bass_source_added {
+    /** Source ID */
+    uint8_t source_id;
+};
+
+/** @brief BASS Source Modify */
+struct ble_audio_event_bass_source_modify {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** PA Sync operation to be performed by Broadcast Sink */
+    enum {
+        /** Do not synchronise to PA */
+        BLE_AUDIO_EVENT_BASS_NO_SYNC,
+
+        /** Synchronise to PA without using PAST */
+        BLE_AUDIO_EVENT_BASS_SYNC,
+
+        /** Terminate PA Sync */
+        BLE_AUDIO_EVENT_BASS_SYNC_TERMINATE,
+
+        /** Synchronise to PA using PAST */
+        BLE_AUDIO_EVENT_BASS_SYNC_PAST,
+    } pa_sync_operation;
+};
+
+/** @brief BASS Set Broadcast Code */
+struct ble_audio_event_bass_set_broadcast_code {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** Source ID */
+    uint8_t broadcast_code[BLE_AUDIO_BROADCAST_CODE_SIZE];
+};
+
+/** @brief BASS Source Removed */
+struct ble_audio_event_bass_source_removed {
+    /** Source ID */
+    uint8_t source_id;
 };
 
 /**
@@ -588,6 +657,47 @@ struct ble_audio_event {
          * Represents a codec registration.
          */
         struct ble_audio_event_codec_unregistered codec_unregistered;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STOPPED
+         *
+         * Represents a Scan procedure termination by Broadcast Assistant.
+         */
+        struct ble_audio_event_bass_remote_scan remote_scan_stopped;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STARTED
+         *
+         * Represents a Scan procedure start by Broadcast Assistant.
+         */
+        struct ble_audio_event_bass_remote_scan remote_scan_started;
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_SOURCE_ADDED
+         *
+         * Represents a Broadcast Source being added to BASS.
+         */
+        struct ble_audio_event_bass_source_added bass_source_added;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_SOURCE_MODIFY
+         *
+         * Represents a Broadcast Source being modified in BASS.
+         */
+        struct ble_audio_event_bass_source_modify bass_source_modify;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_SOURCE_MODIFY
+         *
+         * Represents a Broadcast Source being modified in BASS.
+         */
+        struct ble_audio_event_bass_set_broadcast_code bass_set_broadcast_code;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_SOURCE_REMOVED
+         *
+         * Represents a Broadcast Source being removed in BASS.
+         */
+        struct ble_audio_event_bass_source_removed bass_source_removed;
     };
 };
 
