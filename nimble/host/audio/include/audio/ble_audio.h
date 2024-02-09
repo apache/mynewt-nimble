@@ -65,6 +65,9 @@
  * @endcond
  */
 
+/** Broadcast Audio Broadcast Code Size. */
+#define BLE_AUDIO_BROADCAST_CODE_SIZE                             16
+
 /** Broadcast Audio Announcement Service UUID. */
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
 
@@ -561,6 +564,18 @@ struct ble_audio_broadcast_name {
 /** BLE Audio event: Codec Unregistered */
 #define BLE_AUDIO_EVENT_CODEC_UNREGISTERED                   2
 
+/** BLE Audio event: BASS - Remote Scan Stopped */
+#define BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STOPPED             3
+
+/** BLE Audio event: BASS - Remote Scan Started */
+#define BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STARTED             4
+
+/** BLE Audio event: BASS - Operation status */
+#define BLE_AUDIO_EVENT_BASS_OPERATION_STATUS                5
+
+/** BLE Audio event: BASS - Set Broadcast Code */
+#define BLE_AUDIO_EVENT_BASS_BROADCAST_CODE_SET              6
+
 /** @} */
 
 /** @brief Broadcast Announcement */
@@ -594,6 +609,45 @@ struct ble_audio_event_codec_registered {
 struct ble_audio_event_codec_unregistered {
     /** Codec Record */
     const struct ble_audio_codec_record *record;
+};
+
+/** @brief BASS Source Removed */
+struct ble_audio_event_bass_remote_scan {
+    /** Connection Handle of Broadcast Assistant that is performing Scan procedure for us */
+    uint16_t conn_handle;
+};
+
+/** BASS Operation status OP code */
+enum ble_audio_event_bass_operation_statu_op {
+    /** BLE Audio event: BASS - Add Source */
+    BLE_AUDIO_EVENT_BASS_SOURCE_ADDED,
+
+    /** BLE Audio event: BASS - Modify Source */
+    BLE_AUDIO_EVENT_BASS_SOURCE_MODIFIED,
+
+    /** BLE Audio event: BASS - Remove Source */
+    BLE_AUDIO_EVENT_BASS_SOURCE_REMOVED,
+};
+
+/** @brief BASS operation status */
+struct ble_audio_event_bass_op_status {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** Operation */
+    enum ble_audio_event_bass_operation_statu_op op;
+
+    /** Event status. 0 on success, BLE_HS Error code otherwise */
+    uint8_t status;
+};
+
+/** @brief BASS Set Broadcast Code */
+struct ble_audio_event_bass_set_broadcast_code {
+    /** Source ID */
+    uint8_t source_id;
+
+    /** Source ID */
+    uint8_t broadcast_code[BLE_AUDIO_BROADCAST_CODE_SIZE];
 };
 
 /**
@@ -633,6 +687,34 @@ struct ble_audio_event {
          * Represents a codec registration.
          */
         struct ble_audio_event_codec_unregistered codec_unregistered;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STOPPED
+         *
+         * Represents a Scan procedure termination by Broadcast Assistant.
+         */
+        struct ble_audio_event_bass_remote_scan remote_scan_stopped;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STARTED
+         *
+         * Represents a Scan procedure start by Broadcast Assistant.
+         */
+        struct ble_audio_event_bass_remote_scan remote_scan_started;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_SOURCE_ADDED
+         *
+         * Represents a Broadcast Source being added to BASS.
+         */
+        struct ble_audio_event_bass_op_status bass_operation_status;
+
+        /**
+         * @ref BLE_AUDIO_EVENT_BASS_BROADCAST_CODE_SET
+         *
+         * Represents a Broadcast Code baing set in BASS.
+         */
+        struct ble_audio_event_bass_set_broadcast_code bass_set_broadcast_code;
     };
 };
 
