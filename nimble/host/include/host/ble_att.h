@@ -113,6 +113,18 @@ struct os_mbuf;
 /**Requested value is not allowed. */
 #define BLE_ATT_ERR_VALUE_NOT_ALLOWED       0x13
 
+/**Write Request Rejected. */
+#define BLE_ATT_ERR_WRITE_REQ_REJECTED      0xFC
+
+/**Client Characteristic Configuration Descriptor Improperly Configured. */
+#define BLE_ATT_ERR_CCCD_IMPORER_CONF       0xFD
+
+/**Procedure Already in Progress. */
+#define BLE_ATT_ERR_PROC_IN_PROGRESS        0xFE
+
+/**Out of Range. */
+#define BLE_ATT_ERR_OUT_OF_RANGE            0xFF
+
 /** @} */
 
 /**
