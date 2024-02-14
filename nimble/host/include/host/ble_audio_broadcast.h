@@ -20,11 +20,22 @@
 #ifndef H_BLE_AUDIO_BROADCAST_
 #define H_BLE_AUDIO_BROADCAST_
 
+/**
+ * @file ble_audio_broadcast.h
+ *
+ * @brief Bluetooth Low Energy Audio Broadcast API
+ *
+ * @defgroup bt_le_audio_broadcast Bluetooth LE Audio Broadcast
+ * @ingroup bt_host
+ * @{
+ */
+
 #include <stdint.h>
 #include "host/ble_gap.h"
 #include "host/ble_iso.h"
 #include "host/ble_audio_common.h"
 
+/** Parameters used for creating BASE configuration. */
 struct ble_broadcast_create_params {
     /** Broadcast Audio Source Endpoint */
     struct ble_audio_base *base;
@@ -54,6 +65,7 @@ struct ble_broadcast_create_params {
     uint16_t svc_data_len;
 };
 
+/** Parameters used for updating BASE configuration. */
 struct ble_broadcast_update_params {
     /** Broadcast name - null terminated.
      * Set NULL to not include in advertising
@@ -73,6 +85,7 @@ struct ble_broadcast_update_params {
     uint32_t broadcast_id;
 };
 
+/** Function prototype for broadcast destroy callback. */
 typedef int ble_audio_broadcast_destroy_fn(struct ble_audio_base *base,
                                            void *args);
 
@@ -182,7 +195,7 @@ struct ble_broadcast_subgroup_params {
  * structure. Created subgroup extends subgroup list in provided BASE.
  * This function increases `num_subgroups` in BASE structure.
  *
- * @param[in/out] base          Pointer to a `ble_audio_base` structure,
+ * @param[in,out] base          Pointer to a `ble_audio_base` structure,
  *                              that will be extended by the new subgroup.
  *                              In case of error, filled out data may be
  *                              erroneous.
@@ -221,7 +234,7 @@ struct ble_broadcast_bis_params {
  * structure. Created BIS extends BIS list in provided subgroup.
  * This function increases `bis_cnt` in subgroup structure.
  *
- * @param[in/out] subgroup      Pointer to a updated `ble_audio_big_subgroup`
+ * @param[in,out] subgroup      Pointer to a updated `ble_audio_big_subgroup`
  *                              structure, that will be extended by the new
  *                              BIS.  In case of error, filled out data may be
  *                              erroneous.
@@ -241,5 +254,15 @@ int ble_audio_broadcast_build_bis(struct ble_audio_big_subgroup *subgroup,
                                   const struct ble_broadcast_bis_params
                                   *params);
 
+/**
+ * Initializes memory for LE Audio Broadcast.
+ *
+ * @return                      0 on success
+ */
 int ble_audio_broadcast_init(void);
-#endif
+
+/**
+ * @}
+ */
+
+#endif /* H_BLE_AUDIO_BROADCAST_*/
