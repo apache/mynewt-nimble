@@ -109,14 +109,6 @@ int ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
 
 int ble_iso_terminate_big(uint8_t big_id);
 
-void
-ble_gap_rx_create_big_complete(const struct
-                               ble_hci_ev_le_subev_create_big_complete *ev);
-void
-ble_gap_rx_terminate_big_complete(const struct
-                                  ble_hci_ev_le_subev_terminate_big_complete
-                                  *ev);
-
 int ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len);
 
 int ble_iso_init(void);
