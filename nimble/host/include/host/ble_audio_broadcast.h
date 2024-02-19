@@ -55,7 +55,9 @@ struct ble_broadcast_create_params {
     /** Advertising instance */
     uint8_t adv_instance;
 
-    /** BIG parameters */
+    /** BIG parameters. These parameters are not copied and shall be valid for the lifetime
+     * of the broadcast.
+     */
     struct ble_iso_big_params *big_params;
 
     /** Additional data to include in Extended Advertising  */
