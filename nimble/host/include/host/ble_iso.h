@@ -19,10 +19,24 @@
 
 #ifndef H_BLE_ISO_
 #define H_BLE_ISO_
-#include <inttypes.h>
 
+/**
+ * @file ble_iso.h
+ *
+ * @brief Bluetooth ISO
+ * @defgroup bt_iso Bluetooth ISO
+ * @ingroup bt_host
+ * @{
+ */
+
+#include <inttypes.h>
 #include "nimble/hci_common.h"
 #include "syscfg/syscfg.h"
+
+/**
+ * @defgroup ble_iso_events ISO Events
+ * @{
+ */
 
 /** ISO event: BIG Create Completed */
 #define BLE_ISO_EVENT_BIG_CREATE_COMPLETE                   0
@@ -39,18 +53,62 @@
 /** ISO event: ISO Data received */
 #define BLE_ISO_EVENT_ISO_RX                                4
 
+/** @} */
+
 /** @brief Broadcast Isochronous Group (BIG) description */
 struct ble_iso_big_desc {
+    /**
+     * The identifier of the BIG. Assigned by the Host when a new BIG is
+     * created.
+     */
     uint8_t big_handle;
+
+    /**
+     * The maximum time in microseconds for transmission of PDUs of all BISes in
+     * a BIG event.
+     */
     uint32_t big_sync_delay;
+
+    /**
+     * The actual transport latency of transmitting payloads of all BISes in the
+     * BIG in microseconds.
+     */
     uint32_t transport_latency_big;
+
+    /** The number of subevents per BIS in each BIG event. */
     uint8_t nse;
+
+    /**
+     * The Burst Number (BN) specifies the number of new payloads in each BIS
+     * event.
+     */
     uint8_t bn;
+
+    /**
+     * The Pre-Transmission Offset (PTO) specifies the offset of groups that
+     * carry data associated with the future BIS events.
+     */
     uint8_t pto;
+
+    /**
+     * The Immediate Repetition Count (IRC) specifies the number of groups that
+     * carry the data associated with the current BIS event.
+     */
     uint8_t irc;
+
+    /**
+     * The maximum number of data octets (excluding the MIC, if any) that can be
+     * carried in each BIS Data PDU in the BIG.
+     */
     uint16_t max_pdu;
+
+    /** The time between two adjacent BIG anchor points in units of 1.25 ms. */
     uint16_t iso_interval;
+
+    /** The total number of BISes in the BIG. */
     uint8_t num_bis;
+
+    /** The connection handles of all the BIS in the BIG. */
     uint16_t conn_handle[MYNEWT_VAL(BLE_MAX_BIS)];
 };
 
@@ -68,7 +126,7 @@ enum ble_iso_rx_data_status {
 
 /** @brief Received ISO data info structure */
 struct ble_iso_rx_data_info {
-    /** ISO Data timestamp. Valid if @ref ble_iso_data_info.ts_valid is set */
+    /** ISO Data timestamp. Valid if @ref ble_iso_rx_data_info.ts_valid is set */
     uint32_t ts;
 
     /** Packet sequence number */
@@ -77,7 +135,7 @@ struct ble_iso_rx_data_info {
     /** SDU length */
     uint16_t sdu_len : 12;
 
-    /** ISO Data status. See @ref ble_iso_data_status */
+    /** ISO Data status. See @ref ble_iso_rx_data_status */
     uint16_t status : 2;
 
     /** Timestamp is valid */
@@ -146,30 +204,127 @@ struct ble_iso_event {
     };
 };
 
+/** Function prototype for isochronous event callback. */
 typedef int ble_iso_event_fn(struct ble_iso_event *event, void *arg);
 
+/** Broadcast Isochronous Group (BIG) parameters */
 struct ble_iso_big_params {
+    /**
+     * The time interval of the periodic SDUs in microseconds. The value shall
+     * be between 0x0000FF and 0x0FFFFF.
+     */
     uint32_t sdu_interval;
+
+    /**
+     * The maximum size of an SDU in octets. The value shall be between 0x0001
+     * and 0x0FFF.
+     */
     uint16_t max_sdu;
+
+    /**
+     * The maximum transport latency in milliseconds. The value shall be between
+     * 0x0005 and 0x0FA0.
+     */
     uint16_t max_transport_latency;
+
+    /**
+     * The Retransmission Number (RTN) parameter contains the number of times
+     * every PDU should be retransmitted, irrespective of which BIG events the
+     * retransmissions occur in. The value shall be between 0x00 and 0x1E.
+     */
     uint8_t rtn;
+
+    /**
+     * The PHY parameter is a bit field that indicates the PHY used for
+     * transmission of PDUs of BISes in the BIG. The value shall be one of the
+     * following:
+     *     o BLE_HCI_LE_PHY_1M_PREF_MASK
+     *     o BLE_HCI_LE_PHY_2M_PREF_MASK
+     *     o BLE_HCI_LE_PHY_CODED_PREF_MASK
+     */
     uint8_t phy;
+
+    /**
+     * Indicates the preferred method of arranging subevents of multiple BISes.
+     * The value shall be one of the following:
+     *     o 0x00 - Sequential
+     *     o 0x01 - Interleaved
+     */
     uint8_t packing;
+
+    /**
+     * Indicates whether the BIG carries framed or unframed data. The value
+     * shall be one of the following:
+     *     o 0x00 - Unframed
+     *     o 0x01 - Framed
+     */
     uint8_t framing;
+
+    /**
+     * Indicates whether the BIG is encrypted or not. The value shall be one of
+     * the following:
+     *     o 0x00 - Unencrypted
+     *     o 0x01 - Encrypted
+     */
     uint8_t encryption;
+
+    /**
+     * The 128-bit code used to derive the session key that is used to encrypt
+     * and decrypt BIS payloads.
+     */
     const char *broadcast_code;
 };
 
+/** Create BIG parameters */
 struct ble_iso_create_big_params {
+    /** The associated periodic advertising train of the BIG. */
     uint8_t adv_handle;
+
+    /** The total number of BISes in the BIG. */
     uint8_t bis_cnt;
+
+    /** Callback function for reporting the status of the procedure. */
     ble_iso_event_fn *cb;
+
+    /**
+     * An optional user-defined argument to be passed to the callback function.
+     */
     void *cb_arg;
 };
 
+/**
+ * Initiates the creation of Broadcast Isochronous Group (BIG). It configures
+ * the BIG parameters based on the provided input and triggers the corresponding
+ * HCI command.
+ *
+ * @param create_params         A pointer to the structure holding the
+ *                                  parameters specific to creating the BIG.
+ *                                  These parameters define the general settings
+ *                                  and include a callback function for handling
+ *                                  creation events.
+ * @param big_params            A pointer to the structure holding detailed
+ *                                  parameters specific to the configuration of
+ *                                  the BIG. These parameters include settings
+ *                                  such as SDU interval, maximum SDU size,
+ *                                  transport latency, etc.
+ *
+ * @return                      0 on success;
+ *                              an error code on failure.
+ *
+ * @note The actual BIG creation result will be reported through the callback
+ * function specified in @p create_params.
+ */
 int ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
                        const struct ble_iso_big_params *big_params);
 
+/**
+ * Terminates an existing Broadcast Isochronous Group (BIG).
+ *
+ * @param big_handle            The identifier of the BIG to be terminated.
+ *
+ * @return                      0 on success;
+ *                              an error code on failure.
+ */
 int ble_iso_terminate_big(uint8_t big_handle);
 
 /** @brief BIS parameters for @ref ble_iso_big_sync_create */
@@ -295,7 +450,7 @@ struct ble_iso_data_path_setup_params {
  * between the Host and the Controller for a CIS, CIS configuration, or BIS
  * identified by the @p param->conn_handle parameter.
  *
- * @param[in] params            BIG synchronization parameters
+ * @param[in] param             BIG synchronization parameters
  *
  * @return                      0 on success;
  *                              A non-zero value on failure.
@@ -318,15 +473,34 @@ struct ble_iso_data_path_remove_params {
  * associated with a CIS, CIS configuration, or BIS identified by the
  * @p param->conn_handle parameter.
  *
- * @param[in] params            BIG synchronization parameters
+ * @param[in] param             BIG synchronization parameters
  *
  * @return                      0 on success;
  *                              A non-zero value on failure.
  */
 int ble_iso_data_path_remove(const struct ble_iso_data_path_remove_params *param);
 
+/**
+ * Initiates the transmission of isochronous data.
+ *
+ * @param conn_handle           The connection over which to execute the procedure.
+ * @param data                  A pointer to the data to be transmitted.
+ * @param data_len              Number of the data octets to be transmitted.
+ *
+ * @return                      0 on success;
+ *                              an error code on failure.
+ */
 int ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len);
 
+/**
+ * Initializes memory for ISO.
+ *
+ * @return                      0 on success
+ */
 int ble_iso_init(void);
+
+/**
+ * @}
+ */
 
 #endif /* H_BLE_ISO_ */
