@@ -67,7 +67,9 @@
 
 /** Broadcast Audio Announcement Service UUID. */
 #define BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID                 0x1852
-#define BLE_BROADCAST_PUBLIC_BROADCAST_ANNOUNCEMENT_SVC_UUID      0x1856
+
+/** Public Broadcast Announcement Service UUID. */
+#define BLE_BROADCAST_PUB_ANNOUNCEMENT_SVC_UUID                   0x1856
 
 /**
  * @defgroup ble_audio_sampling_rates Bluetooth Low Energy Audio Sampling Rates

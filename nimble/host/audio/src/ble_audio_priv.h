@@ -17,24 +17,11 @@
  * under the License.
  */
 
-#include "sysinit/sysinit.h"
-#include "testutil/testutil.h"
+#ifndef H_BLE_AUDIO_PRIV_
+#define H_BLE_AUDIO_PRIV_
 
-TEST_SUITE_DECL(ble_audio_base_parse_test_suite);
-TEST_CASE_DECL(ble_audio_listener_register_test);
+#include "host/audio/ble_audio.h"
 
-TEST_SUITE(ble_audio_test)
-{
-    ble_audio_base_parse_test_suite();
-    ble_audio_listener_register_test();
-}
+int ble_audio_event_listener_call(struct ble_audio_event *event);
 
-int
-main(int argc, char **argv)
-{
-    sysinit();
-
-    ble_audio_test();
-
-    return tu_any_failed;
-}
+#endif /* H_BLE_AUDIO_PRIV_ */
