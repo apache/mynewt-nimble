@@ -171,6 +171,7 @@
 #define MYNEWT_VAL_MCU_I2C_RECOVERY_DELAY_USEC (100)
 #endif
 
+/* Overridden by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx (defined by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx) */
 #ifndef MYNEWT_VAL_MCU_ICACHE_ENABLED
 #define MYNEWT_VAL_MCU_ICACHE_ENABLED (1)
 #endif
@@ -581,6 +582,10 @@
 
 #ifndef MYNEWT_VAL_OS_DEBUG_MODE
 #define MYNEWT_VAL_OS_DEBUG_MODE (0)
+#endif
+
+#ifndef MYNEWT_VAL_OS_DEFAULT_IRQ_CB
+#define MYNEWT_VAL_OS_DEFAULT_IRQ_CB (0)
 #endif
 
 #ifndef MYNEWT_VAL_OS_EVENTQ_DEBUG
@@ -1560,6 +1565,10 @@
 
 #ifndef MYNEWT_VAL_BLE_GATT_NOTIFY
 #define MYNEWT_VAL_BLE_GATT_NOTIFY (1)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_GATT_NOTIFY_MULTIPLE
+#define MYNEWT_VAL_BLE_GATT_NOTIFY_MULTIPLE ((MYNEWT_VAL_BLE_VERSION >= 52))
 #endif
 
 #ifndef MYNEWT_VAL_BLE_GATT_READ
