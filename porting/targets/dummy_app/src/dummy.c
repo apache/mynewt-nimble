@@ -20,7 +20,7 @@
 #pragma message ( "This will probably not compile. Used to generate syscfg.h file and other artifacts." )
 
 int
-main(void)
+mynewt_main(void)
 {
     return 0;
 }
