@@ -23,6 +23,238 @@
 #include "host/ble_hs.h"
 #include "host/audio/ble_audio.h"
 
+#include "ble_audio_priv.h"
+
+static struct ble_gap_event_listener ble_audio_gap_event_listener;
+static SLIST_HEAD(, ble_audio_event_listener) ble_audio_event_listener_list =
+    SLIST_HEAD_INITIALIZER(ble_audio_event_listener_list);
+
+struct ble_audio_adv_parse_bcst_announcement_data {
+    struct ble_audio_event event;
+    struct ble_audio_pub_bcst_announcement pub;
+    struct ble_audio_bcst_name name;
+    bool success;
+};
+
+static int
+ble_audio_adv_parse_bcst_announcement(const struct ble_hs_adv_field *field,
+                                      void *user_data)
+{
+    struct ble_audio_adv_parse_bcst_announcement_data *data = user_data;
+    struct ble_audio_event_bcst_announcement *event;
+    const uint8_t value_len = field->length - sizeof(field->length);
+    ble_uuid16_t uuid16 = BLE_UUID16_INIT(0);
+    uint8_t offset = 0;
+
+    event = &data->event.bcst_announcement;
+
+    data->success = false;
+
+    switch (field->type) {
+    case BLE_HS_ADV_TYPE_SVC_DATA_UUID16:
+        if (value_len < 2) {
+            break;
+        }
+
+        uuid16.value = get_le16(&field->value[offset]);
+        offset += 2;
+
+        switch (uuid16.value) {
+        case BLE_BROADCAST_AUDIO_ANNOUNCEMENT_SVC_UUID:
+            if ((value_len - offset) < 3) {
+                /* Stop parsing */
+                data->success = false;
+                return 0;
+            }
+
+            event->broadcast_id = get_le24(&field->value[offset]);
+            offset += 3;
+
+            if (value_len > offset) {
+                event->svc_data = &field->value[offset];
+                event->svc_data_len = value_len - offset;
+            }
+
+            data->success = true;
+            break;
+
+        case BLE_BROADCAST_PUB_ANNOUNCEMENT_SVC_UUID:
+            if (event->pub_announcement_data != NULL) {
+                /* Ignore */
+                break;
+            }
+
+            if ((value_len - offset) < 2) {
+                /* Stop parsing */
+                data->success = false;
+                return 0;
+            }
+
+            data->pub.features = field->value[offset++];
+            data->pub.metadata_len = field->value[offset++];
+
+            if ((value_len - offset) < data->pub.metadata_len) {
+                break;
+            }
+
+            data->pub.metadata = &field->value[offset];
+
+            event->pub_announcement_data = &data->pub;
+            break;
+
+        default:
+            break;
+        }
+
+        break;
+
+    case BLE_HS_ADV_TYPE_BROADCAST_NAME:
+        if (event->name != NULL) {
+            /* Ignore */
+            break;
+        }
+
+        if (value_len < 4 || value_len > 32) {
+            /* Stop parsing */
+            data->success = false;
+            return 0;
+        }
+
+        data->name.name = (char *)field->value;
+        data->name.name_len = value_len;
+
+        event->name = &data->name;
+        break;
+
+    default:
+        break;
+    }
+
+    /* Continue parsing */
+    return BLE_HS_ENOENT;
+}
+
+static int
+ble_audio_gap_event(struct ble_gap_event *gap_event, void *arg)
+{
+    switch (gap_event->type) {
+    case BLE_GAP_EVENT_EXT_DISC: {
+        struct ble_audio_adv_parse_bcst_announcement_data data = { 0 };
+        int rc;
+
+        rc = ble_hs_adv_parse(gap_event->ext_disc.data,
+                              gap_event->ext_disc.length_data,
+                              ble_audio_adv_parse_bcst_announcement, &data);
+        if (rc == 0 && data.success) {
+            data.event.type = BLE_AUDIO_EVENT_BCST_ANNOUNCEMENT;
+            data.event.bcst_announcement.ext_disc = &gap_event->ext_disc;
+
+            (void)ble_audio_event_listener_call(&data.event);
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+int
+ble_audio_event_listener_register(struct ble_audio_event_listener *listener,
+                                  ble_audio_event_fn *fn, void *arg)
+{
+    struct ble_audio_event_listener *evl = NULL;
+    int rc;
+
+    if (listener == NULL) {
+        BLE_HS_LOG_ERROR("NULL listener!\n");
+        return BLE_HS_EINVAL;
+    }
+
+    if (fn == NULL) {
+        BLE_HS_LOG_ERROR("NULL fn!\n");
+        return BLE_HS_EINVAL;
+    }
+
+    SLIST_FOREACH(evl, &ble_audio_event_listener_list, next) {
+        if (evl == listener) {
+            break;
+        }
+    }
+
+    if (evl) {
+        return BLE_HS_EALREADY;
+    }
+
+    if (SLIST_EMPTY(&ble_audio_event_listener_list)) {
+        rc = ble_gap_event_listener_register(
+                &ble_audio_gap_event_listener,
+                ble_audio_gap_event, NULL);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    memset(listener, 0, sizeof(*listener));
+    listener->fn = fn;
+    listener->arg = arg;
+    SLIST_INSERT_HEAD(&ble_audio_event_listener_list, listener, next);
+
+    return 0;
+}
+
+int
+ble_audio_event_listener_unregister(struct ble_audio_event_listener *listener)
+{
+    struct ble_audio_event_listener *evl = NULL;
+    int rc;
+
+    if (listener == NULL) {
+        BLE_HS_LOG_ERROR("NULL listener!\n");
+        return BLE_HS_EINVAL;
+    }
+
+    /* We check if element exists on the list only for sanity to let caller
+     * know whether it registered its listener before.
+     */
+    SLIST_FOREACH(evl, &ble_audio_event_listener_list, next) {
+        if (evl == listener) {
+            break;
+        }
+    }
+
+    if (!evl) {
+        return BLE_HS_ENOENT;
+    }
+
+    SLIST_REMOVE(&ble_audio_event_listener_list, listener,
+                 ble_audio_event_listener, next);
+
+    if (SLIST_EMPTY(&ble_audio_event_listener_list)) {
+        rc = ble_gap_event_listener_unregister(
+                &ble_audio_gap_event_listener);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
+int
+ble_audio_event_listener_call(struct ble_audio_event *event)
+{
+    struct ble_audio_event_listener *evl = NULL;
+
+    SLIST_FOREACH(evl, &ble_audio_event_listener_list, next) {
+        evl->fn(event, evl->arg);
+    }
+
+    return 0;
+}
+
 /* Get the next subgroup data pointer */
 static const uint8_t *
 ble_audio_base_subgroup_next(uint8_t num_bis, const uint8_t *data,

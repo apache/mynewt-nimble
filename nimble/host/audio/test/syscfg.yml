@@ -27,3 +27,5 @@ syscfg.vals:
 
   BLE_VERSION: 54
   BLE_HS_DEBUG: 1
+
+  BLE_EXT_ADV: 1

@@ -21,8 +21,146 @@
 #define H_BLE_AUDIO_
 
 #include <stdint.h>
+#include <sys/queue.h>
 
 #include "host/ble_audio_common.h"
+
+/** @brief Public Broadcast Announcement features bits */
+enum ble_audio_pub_bcst_announcement_feat {
+    /** Broadcast Stream Encryption */
+    BLE_AUDIO_PUB_BCST_ANNOUNCEMENT_FEAT_ENCRYPTION = 1 << 0,
+
+    /** Standard Quality Public Broadcast Audio */
+    BLE_AUDIO_PUB_BCST_ANNOUNCEMENT_FEAT_SQ = 1 << 1,
+
+    /** High Quality Public Broadcast Audio */
+    BLE_AUDIO_PUB_BCST_ANNOUNCEMENT_FEAT_HQ = 1 << 2,
+};
+
+/** @brief Public Broadcast Announcement structure */
+struct ble_audio_pub_bcst_announcement {
+    /** Public Broadcast Announcement features bitfield */
+    enum ble_audio_pub_bcst_announcement_feat features;
+
+    /** Metadata length */
+    uint8_t metadata_len;
+
+    /** Metadata */
+    const uint8_t *metadata;
+};
+
+struct ble_audio_bcst_name {
+    /** Broadcast Name length */
+    uint8_t name_len;
+
+    /** Broadcast Name */
+    const char *name;
+};
+
+/**
+ * @defgroup ble_audio_events Bluetooth Low Energy Audio Events
+ * @{
+ */
+
+/** BLE Audio event: Broadcast Announcement */
+#define BLE_AUDIO_EVENT_BCST_ANNOUNCEMENT               0
+
+/** @} */
+
+/** @brief Broadcast Announcement */
+struct ble_audio_event_bcst_announcement {
+    /** Extended advertising report */
+    const struct ble_gap_ext_disc_desc *ext_disc;
+
+    /** Broadcast ID */
+    uint32_t broadcast_id;
+
+    /** Additional service data included in Broadcast Audio Announcement */
+    const uint8_t *svc_data;
+
+    /** Additional service data length  */
+    uint16_t svc_data_len;
+
+    /** Optional Public Broadcast Announcement data */
+    struct ble_audio_pub_bcst_announcement *pub_announcement_data;
+
+    /** Optional Broadcast Name */
+    struct ble_audio_bcst_name *name;
+};
+
+/**
+ * Represents a BLE Audio related event. When such an event occurs, the host
+ * notifies the application by passing an instance of this structure to an
+ * application-specified callback.
+ */
+struct ble_audio_event {
+    /**
+     * Indicates the type of BLE Audio event that occurred. This is one of the
+     * BLE_AUDIO_EVENT codes.
+     */
+    uint8_t type;
+
+    /**
+     * A discriminated union containing additional details concerning the event.
+     * The 'type' field indicates which member of the union is valid.
+     */
+    union {
+        /**
+         * @ref BLE_AUDIO_EVENT_BCST_ANNOUNCEMENT
+         *
+         * Represents a received Broadcast Announcement.
+         */
+        struct ble_audio_event_bcst_announcement bcst_announcement;
+    };
+};
+
+/** Callback function type for handling BLE Audio events. */
+typedef int ble_audio_event_fn(struct ble_audio_event *event, void *arg);
+
+/**
+ * Event listener structure
+ *
+ * This should be used as an opaque structure and not modified manually.
+ */
+struct ble_audio_event_listener {
+    /** The function to call when a BLE Audio event occurs. */
+    ble_audio_event_fn *fn;
+
+    /** An optional argument to pass to the event handler function. */
+    void *arg;
+
+    /** Singly-linked list entry. */
+    SLIST_ENTRY(ble_audio_event_listener) next;
+};
+
+/**
+ * Registers listener for BLE Audio events
+ *
+ * On success listener structure will be initialized automatically and does not
+ * need to be initialized prior to calling this function. To change callback
+ * and/or argument unregister listener first and register it again.
+ *
+ * @param[in] listener          Listener structure
+ * @param[in] event_mask        Optional event mask
+ * @param[in] fn                Callback function
+ * @param[in] arg               Optional callback argument
+ *
+ * @return                      0 on success
+ *                              BLE_HS_EINVAL if no callback is specified
+ *                              BLE_HS_EALREADY if listener is already registered
+ */
+int ble_audio_event_listener_register(struct ble_audio_event_listener *listener,
+                                      ble_audio_event_fn *fn, void *arg);
+
+/**
+ * Unregisters listener for BLE Audio events
+ *
+ * @param[in] listener          Listener structure
+ *
+ * @return                      0 on success
+ *                              BLE_HS_ENOENT if listener was not registered
+ */
+int ble_audio_event_listener_unregister(struct ble_audio_event_listener *listener);
 
 /**
  * BASE iterator
