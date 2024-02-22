@@ -41,6 +41,7 @@
 #include "cmd.h"
 #include "btshell.h"
 #include "cmd_gatt.h"
+#include "cmd_iso.h"
 #include "cmd_l2cap.h"
 #include "cmd_leaudio.h"
 
@@ -4858,7 +4859,7 @@ static const struct shell_cmd btshell_commands[] = {
     },
 #endif
 #endif
-#if MYNEWT_VAL(BLE_ISO)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
         .sc_cmd = "base_add",
         .sc_cmd_func = cmd_leaudio_base_add,
@@ -4915,7 +4916,55 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &leaudio_broadcast_stop_help,
 #endif
     },
+#endif /* BLE_ISO_BROADCAST_SOURCE */
+#if MYNEWT_VAL(BLE_ISO)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+    {
+        .sc_cmd = "big-create",
+        .sc_cmd_func = cmd_iso_big_create,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_big_create_help,
 #endif
+    },
+    {
+        .sc_cmd = "big-terminate",
+        .sc_cmd_func = cmd_iso_big_terminate,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_big_terminate_help,
+#endif
+    },
+#endif /* BLE_ISO_BROADCAST_SOURCE */
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
+    {
+        .sc_cmd = "big-sync-create",
+        .sc_cmd_func = cmd_iso_big_sync_create,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_big_sync_create_help,
+#endif
+    },
+    {
+        .sc_cmd = "big-sync-terminate",
+        .sc_cmd_func = cmd_iso_big_sync_terminate,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_big_sync_terminate_help,
+#endif
+    },
+#endif /* BLE_ISO_BROADCAST_SINK */
+    {
+        .sc_cmd = "iso-data-path-setup",
+        .sc_cmd_func = cmd_iso_data_path_setup,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_data_path_setup_help,
+#endif
+    },
+    {
+        .sc_cmd = "iso-data-path-remove",
+        .sc_cmd_func = cmd_iso_data_path_remove,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_iso_data_path_remove_help,
+#endif
+    },
+#endif /* BLE_ISO */
     { 0 },
 };
 
