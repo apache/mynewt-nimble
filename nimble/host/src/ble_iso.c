@@ -225,6 +225,7 @@ ble_iso_big_free(struct ble_iso_big *big)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 int
 ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
                    const struct ble_iso_big_params *big_params)
@@ -296,28 +297,6 @@ ble_iso_terminate_big(uint8_t big_handle)
                            &cp, sizeof(cp),NULL, 0);
 
     return rc;
-}
-
-int
-ble_iso_init(void)
-{
-    int rc;
-
-    SLIST_INIT(&ble_iso_bigs);
-
-    rc = os_mempool_init(&ble_iso_big_pool,
-                         MYNEWT_VAL(BLE_MAX_BIG),
-                         sizeof (struct ble_iso_big),
-                         ble_iso_big_mem, "ble_iso_big_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    rc = os_mempool_init(&ble_iso_bis_pool,
-                         MYNEWT_VAL(BLE_MAX_BIS),
-                         sizeof (struct ble_iso_bis),
-                         ble_iso_bis_mem, "ble_iso_bis_pool");
-    SYSINIT_PANIC_ASSERT(rc == 0);
-
-    return 0;
 }
 
 void
@@ -497,6 +476,7 @@ ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len)
 
     return rc;
 }
+#endif /* BLE_ISO_BROADCAST_SOURCE */
 
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
 static struct ble_iso_conn *
@@ -932,5 +912,27 @@ ble_iso_data_path_remove(const struct ble_iso_data_path_remove_params *param)
                            &cp, sizeof(cp), &rp, sizeof(rp));
 
     return rc;
+}
+
+int
+ble_iso_init(void)
+{
+    int rc;
+
+    SLIST_INIT(&ble_iso_bigs);
+
+    rc = os_mempool_init(&ble_iso_big_pool,
+                         MYNEWT_VAL(BLE_MAX_BIG),
+                         sizeof (struct ble_iso_big),
+                         ble_iso_big_mem, "ble_iso_big_pool");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    rc = os_mempool_init(&ble_iso_bis_pool,
+                         MYNEWT_VAL(BLE_MAX_BIS),
+                         sizeof (struct ble_iso_bis),
+                         ble_iso_bis_mem, "ble_iso_bis_pool");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    return 0;
 }
 #endif /* BLE_ISO */
