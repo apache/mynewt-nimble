@@ -18,6 +18,7 @@ uncrustify.cfg
 .style_ignored_dirs
 .mailmap
 requirements.txt
+Doxyfile
 
 # tinycrypt - BSD License.
 tinycrypt

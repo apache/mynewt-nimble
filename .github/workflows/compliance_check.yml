@@ -56,7 +56,24 @@ jobs:
              wget https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz
              tar zxf apache-rat-0.16.1-bin.tar.gz apache-rat-0.16.1/apache-rat-0.16.1.jar
              mv apache-rat-0.16.1/apache-rat-0.16.1.jar apache-rat.jar
-      - name: check licensing
+      - name: Check licensing
         shell: bash
         run: |
              ./repos/apache-mynewt-core/.github/check_license.py
+
+  style_doxygen:
+    name: Doxygen Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Dependencies
+        shell: bash
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y doxygen
+      - name: Check Doxygen
+        shell: bash
+        run: |
+             .github/check_doxygen.py
