@@ -32,11 +32,17 @@ pkg.deps:
     - nimble
     - nimble/transport
 
-pkg.deps.BLE_SM_LEGACY:
+pkg.deps.(BLE_SM_LEGACY && BLE_SM_USE_TINYCRYPT):
     - "@apache-mynewt-core/crypto/tinycrypt"
 
-pkg.deps.BLE_SM_SC:
+pkg.deps.(BLE_SM_LEGACY && !BLE_SM_USE_TINYCRYPT):
+    - "@apache-mynewt-core/crypto/mbedtls"
+
+pkg.deps.(BLE_SM_SC && BLE_SM_USE_TINYCRYPT):
     - "@apache-mynewt-core/crypto/tinycrypt"
+
+pkg.deps.(BLE_SM_SC && !BLE_SM_USE_TINYCRYPT):
+    - "@apache-mynewt-core/crypto/mbedtls"
 
 pkg.deps.BLE_MESH:
     - nimble/host/mesh

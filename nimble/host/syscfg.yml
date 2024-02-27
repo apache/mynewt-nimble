@@ -101,6 +101,10 @@ syscfg.defs:
         description: 'Security manager secure connections (4.2).'
         value: 0
 
+    BLE_SM_USE_TINYCRYPT:
+        description: 'Use Tinycrypt for secure manager if not set MBedTLS is used'
+        value: 0
+
     BLE_SM_SC_ONLY:
         description: >
             Force global Secure Connections Pairing Only mode. This means

@@ -32,3 +32,4 @@ syscfg.vals:
     BLE_L2CAP_ENHANCED_COC: 1
     BLE_TRANSPORT_LL: custom
     BLE_EATT_CHAN_NUM: 0
+    MBEDTLS_CMAC_C: 1
