@@ -1,0 +1,174 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+syscfg.defs.TINYUSB:
+    USBD_STRING_DESCRIPTOR_MAX_LENGTH:
+        description: Maximum length of string descriptor in characters
+        value: 31
+    USBD_EP0_SIZE:
+        description: >
+            Endpoint 0 size
+        value: 64
+    USBD_SERIAL_ID:
+        description: Serial ID
+        value: 1
+        restrictions:
+            - $notnull
+    USBD_VID:
+        description: Vendor ID
+        value:
+        restrictions:
+            - $notnull
+    USBD_PID:
+        description: Product ID
+        value:
+        restrictions:
+            - $notnull
+    USBD_PRODUCT_RELEASE_NUMBER:
+        description: Product release number needed for USB descriptor
+        value: 0x100
+    USBD_CONFIGURATION_MAX_POWER:
+        description: >
+            Maximum power consumption of the USB device from the bus in this specific
+            configuration when the device is fully operational. Expressed in 2 mA units
+            (i.e., 50 = 100 mA).
+        value: 100
+    USBD_LANGID:
+        description: Language ID as specified by usb.org
+        value: 0x0409
+    USBD_VENDOR_STRING:
+        description: Manufacturer identification string
+        value: '"Apache Software Foundation"'
+    USBD_PRODUCT_STRING:
+        description: Device friendly name
+        value: '"NimBLE Auracast"'
+    USBD_CDC:
+        description: Enable CDC device
+        value: 0
+    USBD_CDC_CONSOLE:
+        description: Enable CDC device function for console in TinyUSB stack.
+        value:
+    USBD_HID:
+        description: Enable HID device
+        value: 0
+    USBD_MSC:
+        description: Enable MSC device
+        value: 0
+    USBD_BTH:
+        description: Enable BT HCI device
+        value: 0
+    USBD_AUDIO:
+        description: Enable Audio device
+        value: 0
+    USBD_AUDIO_IN:
+        description: Enable Audio device
+        value: 0
+    USBD_AUDIO_OUT:
+        description: Enable Audio device
+        value: 1
+    USBD_AUDIO_IN_OUT:
+        description: Enable Audio device
+        value: 0
+    USB_AUDIO_OUT_CHANNELS:
+        description: Number of audio channels on USB stream
+        value: MYNEWT_VAL(AURACAST_CHAN_NUM)
+    USB_AUDIO_OUT_SAMPLE_RATE:
+        description: USB sample rate
+        value: 48000
+
+    USBD_CDC_DATA_OUT_EP:
+        description: CDC data out endpoint number
+        value:
+    USBD_CDC_DATA_IN_EP:
+        description: CDC data out endpoint number
+        value:
+    USBD_CDC_DATA_EP_SIZE:
+        description: CDC data endpoint size
+        value:
+    USBD_CDC_NOTIFY_EP:
+        description: CDC notify endpoint number
+        value:
+    USBD_CDC_NOTIFY_EP_SIZE:
+        description: CDC notify endpoint size
+        value:
+
+    USBD_CDC_DESCRIPTOR_STRING:
+        description: String for CDC interface
+        value: NULL
+
+    USBD_MSC_DESCRIPTOR_STRING:
+        description: String for MSC interface
+        value: NULL
+
+    USBD_HID_DESCRIPTOR_STRING:
+        description: String for HID interface
+        value: NULL
+
+    USBD_BTH_DESCRIPTOR_STRING:
+        description: String for BT descriptor
+        value: NULL
+
+    USBD_HID_REPORT_EP:
+        description: HID report endpoint number
+        value:
+    USBD_HID_REPORT_EP_SIZE:
+        description: HID report endpoint size
+        value:
+    USBD_HID_REPORT_EP_INTERVAL:
+        description: HID report endpoint interval
+        value:
+
+    USBD_HID_REPORT_ID_KEYBOARD:
+        description: HID keyboard report ID
+        value:
+    USBD_HID_CAPS_LOCK_LED_PIN:
+        description: Caps Lock LED
+        value: -1
+    USBD_HID_CAPS_LOCK_LED_ON_VALUE:
+        description: Value to set to pin to turn led on
+        value: 0
+    USBD_HID_NUM_LOCK_LED_PIN:
+        description: Num Lock LED
+        value: -1
+    USBD_HID_NUM_LOCK_LED_ON_VALUE:
+        description: Value to set to pin to turn led on
+        value: 0
+    USBD_HID_REPORT_ID_MOUSE:
+        description: HID keyboard report ID
+        value:
+
+    USBD_BTH_EVENT_EP:
+        description: BTH event endpoint number
+        value:
+    USBD_BTH_EVENT_EP_SIZE:
+        description: BTH event endpoint size
+        value:
+    USBD_BTH_EVENT_EP_INTERVAL:
+        description: BTH event endpoint interval
+        value:
+    USBD_BTH_DATA_IN_EP:
+        description: BTH data in endpoint number
+        value:
+    USBD_BTH_DATA_OUT_EP:
+        description: BTH data out endpoint number
+        value:
+    USBD_BTH_DATA_EP_SIZE:
+        description: BTH data endpoints size
+        value:
+
+syscfg.restrictions:
+    - '!USBD_STD_DESCRIPTORS'
