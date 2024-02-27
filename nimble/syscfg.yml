@@ -95,6 +95,7 @@ syscfg.defs:
         value: 0
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
+            - '(BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK) if 1'
     BLE_ISO_BROADCAST_SOURCE:
         description: >
             This enables LE Audio Broadcast Source feature
@@ -160,3 +161,6 @@ syscfg.restrictions:
 # Enable VS HCI by default for combined or standalone controller build
 syscfg.vals.BLE_CONTROLLER:
     BLE_HCI_VS: 1
+
+syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
+    BLE_ISO: 1
