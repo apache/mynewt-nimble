@@ -36,6 +36,20 @@
 
 static struct hci_ipc_sm g_hci_ipc_sm;
 
+static void
+rx_func(void *arg)
+{
+    uint8_t *buf;
+    int len;
+
+    len = ipc_nrf5340_available_buf(IPC_RX_CHANNEL, (void **)&buf);
+    while (len > 0) {
+        len = hci_ipc_rx(&g_hci_ipc_sm, buf, len);
+        ipc_nrf5340_consume(IPC_RX_CHANNEL, len);
+        len = ipc_nrf5340_available_buf(IPC_RX_CHANNEL, (void **)&buf);
+    }
+}
+
 static int
 nrf5340_ble_hci_acl_tx(struct os_mbuf *om)
 {
@@ -95,15 +109,13 @@ nrf5340_ble_hci_iso_tx(struct os_mbuf *om)
 static void
 nrf5340_ble_hci_trans_rx(int channel, void *user_data)
 {
-    uint8_t *buf;
-    int len;
+    assert(channel == IPC_RX_CHANNEL);
 
-    len = ipc_nrf5340_available_buf(channel, (void **)&buf);
-    while (len > 0) {
-        len = hci_ipc_rx(&g_hci_ipc_sm, buf, len);
-        ipc_nrf5340_consume(channel, len);
-        len = ipc_nrf5340_available_buf(channel, (void **)&buf);
-    }
+#if MYNEWT_VAL(BLE_TRANSPORT_NRF5340_RX_TASK)
+    ble_transport_rx();
+#else
+    rx_func(NULL);
+#endif
 }
 
 static void
@@ -111,6 +123,9 @@ nrf5340_ble_hci_init(void)
 {
     SYSINIT_ASSERT_ACTIVE();
 
+#if MYNEWT_VAL(BLE_TRANSPORT_NRF5340_RX_TASK)
+    ble_transport_rx_register(rx_func, NULL);
+#endif
     ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
 }
 

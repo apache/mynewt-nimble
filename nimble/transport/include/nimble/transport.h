@@ -35,6 +35,11 @@ struct os_mbuf;
 /* Initialization */
 void ble_transport_init(void);
 
+/* Common HCI RX task functions */
+typedef void ble_transport_rx_func_t(void *arg);
+void ble_transport_rx_register(ble_transport_rx_func_t *func, void *arg);
+void ble_transport_rx(void);
+
 /* Allocators for supported data types */
 void *ble_transport_alloc_cmd(void);
 void *ble_transport_alloc_evt(int discardable);
