@@ -1930,6 +1930,11 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_CONN_SUBRATING;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    features |= BLE_LL_FEAT_CS;
+    features |= BLE_LL_FEAT_CS_PCT_QUALITY_IND;
+#endif
+
     lldata->ll_supp_features = features;
 
     /* Initialize random number generation */
