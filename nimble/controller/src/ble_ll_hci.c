@@ -37,6 +37,7 @@
 #include "controller/ble_ll_isoal.h"
 #include "controller/ble_ll_iso.h"
 #include "controller/ble_ll_iso_big.h"
+#include "controller/ble_ll_cs.h"
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
@@ -1314,6 +1315,52 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         break;
     case BLE_HCI_OCF_LE_SUBRATE_REQ:
         rc = ble_ll_conn_hci_subrate_req(cmdbuf, len, rspbuf, rsplen);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    case BLE_HCI_OCF_LE_CS_RD_LOC_SUPP_CAP:
+        rc = ble_ll_cs_hci_rd_loc_supp_cap(rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_CS_RD_REM_SUPP_CAP:
+        rc = ble_ll_cs_hci_rd_rem_supp_cap(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_WR_CACHED_REM_SUPP_CAP:
+        rc = ble_ll_cs_hci_wr_cached_rem_supp_cap(cmdbuf, len, rspbuf, rsplen);
+        break;
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_HCI_OCF_LE_CS_SEC_ENABLE:
+        rc = ble_ll_cs_hci_sec_enable(cmdbuf, len);
+        break;
+#endif
+    case BLE_HCI_OCF_LE_CS_SET_DEF_SETTINGS:
+        rc = ble_ll_cs_hci_set_def_settings(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_CS_RD_REM_FAE:
+        rc = ble_ll_cs_hci_rd_rem_fae(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_WR_CACHED_REM_FAE:
+        rc = ble_ll_cs_hci_wr_cached_rem_fae(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_CS_CREATE_CONFIG:
+        rc = ble_ll_cs_hci_create_config(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_REMOVE_CONFIG:
+        rc = ble_ll_cs_hci_remove_config(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_SET_CHAN_CLASS:
+        rc = ble_ll_cs_hci_set_chan_class(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_SET_PROC_PARAMS:
+        rc = ble_ll_cs_hci_set_proc_params(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_CS_PROC_ENABLE:
+        rc = ble_ll_cs_hci_proc_enable(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_CS_TEST:
+        rc = ble_ll_cs_hci_test(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_CS_TEST_END:
+        rc = ble_ll_cs_hci_test_end();
         break;
 #endif
     default:
