@@ -20,7 +20,7 @@
 #include "testutil/testutil.h"
 
 #include "host/ble_hs.h"
-#include "host/audio/ble_audio.h"
+#include "audio/ble_audio.h"
 
 static struct ble_audio_event_listener event_listener;
 

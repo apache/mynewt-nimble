@@ -16,7 +16,7 @@
 # under the License.
 #
 
-pkg.name: nimble/host/services/auracast
+pkg.name: nimble/host/audio/services/auracast
 pkg.description: Implements Auracast service
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -28,3 +28,4 @@ pkg.keywords:
 
 pkg.deps:
   - nimble/host
+  - nimble/host/audio

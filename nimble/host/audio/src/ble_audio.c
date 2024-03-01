@@ -21,7 +21,7 @@
 #include <stddef.h>
 
 #include "host/ble_hs.h"
-#include "host/audio/ble_audio.h"
+#include "audio/ble_audio.h"
 
 #include "ble_audio_priv.h"
 
@@ -29,24 +29,23 @@ static struct ble_gap_event_listener ble_audio_gap_event_listener;
 static SLIST_HEAD(, ble_audio_event_listener) ble_audio_event_listener_list =
     SLIST_HEAD_INITIALIZER(ble_audio_event_listener_list);
 
-struct ble_audio_adv_parse_bcst_announcement_data {
+struct ble_audio_adv_parse_broadcast_announcement_data {
     struct ble_audio_event event;
-    struct ble_audio_pub_bcst_announcement pub;
-    struct ble_audio_bcst_name name;
+    struct ble_audio_pub_broadcast_announcement pub;
+    struct ble_audio_broadcast_name name;
     bool success;
 };
 
 static int
-ble_audio_adv_parse_bcst_announcement(const struct ble_hs_adv_field *field,
-                                      void *user_data)
+ble_audio_adv_parse_broadcast_announcement(const struct ble_hs_adv_field *field, void *user_data)
 {
-    struct ble_audio_adv_parse_bcst_announcement_data *data = user_data;
-    struct ble_audio_event_bcst_announcement *event;
+    struct ble_audio_adv_parse_broadcast_announcement_data *data = user_data;
+    struct ble_audio_event_broadcast_announcement *event;
     const uint8_t value_len = field->length - sizeof(field->length);
     ble_uuid16_t uuid16 = BLE_UUID16_INIT(0);
     uint8_t offset = 0;
 
-    event = &data->event.bcst_announcement;
+    event = &data->event.broadcast_announcement;
 
     data->success = false;
 
@@ -139,15 +138,15 @@ ble_audio_gap_event(struct ble_gap_event *gap_event, void *arg)
 {
     switch (gap_event->type) {
     case BLE_GAP_EVENT_EXT_DISC: {
-        struct ble_audio_adv_parse_bcst_announcement_data data = { 0 };
+        struct ble_audio_adv_parse_broadcast_announcement_data data = { 0 };
         int rc;
 
         rc = ble_hs_adv_parse(gap_event->ext_disc.data,
                               gap_event->ext_disc.length_data,
-                              ble_audio_adv_parse_bcst_announcement, &data);
+                              ble_audio_adv_parse_broadcast_announcement, &data);
         if (rc == 0 && data.success) {
-            data.event.type = BLE_AUDIO_EVENT_BCST_ANNOUNCEMENT;
-            data.event.bcst_announcement.ext_disc = &gap_event->ext_disc;
+            data.event.type = BLE_AUDIO_EVENT_BROADCAST_ANNOUNCEMENT;
+            data.event.broadcast_announcement.ext_disc = &gap_event->ext_disc;
 
             (void)ble_audio_event_listener_call(&data.event);
         }

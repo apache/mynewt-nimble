@@ -51,7 +51,7 @@ static os_membuf_t bis_mem[
 static struct os_mempool bis_pool;
 
 static os_membuf_t codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS) * 2, 19)
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19)
 ];
 static struct os_mempool codec_spec_pool;
 
@@ -156,7 +156,7 @@ auracast_init()
     assert(rc == 0);
 
     rc = os_mempool_init(&codec_spec_pool,
-                         MYNEWT_VAL(BLE_MAX_BIS) * 2, 19,
+                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
                          codec_spec_mem, "codec_spec_pool");
     assert(rc == 0);
 }

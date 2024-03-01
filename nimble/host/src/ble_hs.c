@@ -24,7 +24,9 @@
 #include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "host/ble_hs.h"
-#include "host/ble_audio_broadcast_source.h"
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#include "audio/ble_audio_broadcast_source.h"
+#endif
 #include "ble_hs_priv.h"
 #include "ble_iso_priv.h"
 #include "nimble/nimble_npl.h"

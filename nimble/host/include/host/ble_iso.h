@@ -109,7 +109,7 @@ struct ble_iso_big_desc {
     uint8_t num_bis;
 
     /** The connection handles of all the BIS in the BIG. */
-    uint16_t conn_handle[MYNEWT_VAL(BLE_MAX_BIS)];
+    uint16_t conn_handle[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
 };
 
 /** @brief Received ISO Data status possible values */

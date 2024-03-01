@@ -29,7 +29,7 @@
 #include "host/ble_gatt.h"
 #include "host/ble_gap.h"
 #if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
-#include "host/ble_audio_broadcast_source.h"
+#include "audio/ble_audio_broadcast_source.h"
 #endif
 
 #ifdef __cplusplus
