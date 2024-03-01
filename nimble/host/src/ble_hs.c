@@ -818,7 +818,7 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 int
 ble_transport_to_hs_iso_impl(struct os_mbuf *om)
 {
-#if MYNEWT_VAL(BLE_ISO)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
     return ble_iso_rx_data(om, NULL);
 #else
     os_mbuf_free_chain(om);
