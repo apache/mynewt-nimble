@@ -30,10 +30,10 @@ pkg.deps:
     - nimble/host/util
     - nimble/host/services/gap
     - nimble/host/store/config
+    - nimble/host/audio/services/auracast
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/log"
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/sys/sysinit"
     - "@apache-mynewt-core/sys/id"
-    - "@apache-mynewt-nimble/nimble/host/services/auracast"

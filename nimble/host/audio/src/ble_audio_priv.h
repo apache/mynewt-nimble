@@ -20,7 +20,7 @@
 #ifndef H_BLE_AUDIO_PRIV_
 #define H_BLE_AUDIO_PRIV_
 
-#include "host/audio/ble_audio.h"
+#include "audio/ble_audio.h"
 
 int ble_audio_event_listener_call(struct ble_audio_event *event);
 

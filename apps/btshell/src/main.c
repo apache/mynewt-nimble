@@ -41,8 +41,10 @@
 #include "host/ble_gatt.h"
 #include "host/ble_store.h"
 #include "host/ble_sm.h"
-#include "host/ble_audio_common.h"
-#include "host/ble_audio_broadcast_source.h"
+#if MYNEWT_VAL(BLE_AUDIO)
+#include "audio/ble_audio_broadcast_source.h"
+#include "audio/ble_audio.h"
+#endif
 #include "host/util/util.h"
 
 /* Mandatory services. */
@@ -132,35 +134,35 @@ struct ble_sm_sc_oob_data oob_data_remote;
 
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static struct {struct ble_audio_base *base; uint8_t adv_instance;}
-btshell_base_list[MYNEWT_VAL(BLE_MAX_BIG)];
+btshell_base_list[MYNEWT_VAL(BLE_ISO_MAX_BIGS)];
 
 static os_membuf_t btshell_base_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                     sizeof(struct ble_audio_base))
 ];
 static struct os_mempool btshell_base_pool;
 
 static os_membuf_t btshell_big_params_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                     sizeof(struct ble_iso_big_params))
 ];
 static struct os_mempool btshell_big_params_pool;
 
 /** Mempool size: in worst case every BIS is in separate subgroup */
 static os_membuf_t btshell_big_sub_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
                     sizeof(struct ble_audio_big_subgroup))
 ];
 static struct os_mempool btshell_big_sub_pool;
 
 static os_membuf_t btshell_bis_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
                     sizeof(struct ble_audio_bis))
 ];
 static struct os_mempool btshell_bis_pool;
 
 static os_membuf_t btshell_metadata_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
                     MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
 ];
 static struct os_mempool btshell_metadata_pool;
@@ -171,12 +173,12 @@ static struct os_mempool btshell_metadata_pool;
  * has one. This is inefficient but possible and should not cause error if
  * used that way */
 static os_membuf_t btshell_codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS) * 2, 9)
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 9)
 ];
 static struct os_mempool btshell_codec_spec_pool;
 
 static os_membuf_t btshell_big_params_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG), sizeof(struct ble_iso_big_params))
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_iso_big_params))
 ];
 static struct os_mempool btshell_big_params_pool;
 #endif
@@ -2767,7 +2769,7 @@ static int
 btshell_base_find_free(void)
 {
     int i;
-    for (i = 0; i < MYNEWT_VAL(BLE_MAX_BIG); i++) {
+    for (i = 0; i < MYNEWT_VAL(BLE_ISO_MAX_BIGS); i++) {
         if (btshell_base_list[i].base == NULL) {
             return i;
         }
@@ -2780,7 +2782,7 @@ static struct ble_audio_base *
 btshell_base_find(uint8_t adv_instance)
 {
     int i;
-    for (i = 0; i < MYNEWT_VAL(BLE_MAX_BIG); i++) {
+    for (i = 0; i < MYNEWT_VAL(BLE_ISO_MAX_BIGS); i++) {
         if (btshell_base_list[i].adv_instance == adv_instance) {
             return btshell_base_list[i].base;
         }
@@ -3082,38 +3084,38 @@ mynewt_main(int argc, char **argv)
     assert(rc == 0);
 #endif
 #if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
-    rc = os_mempool_init(&btshell_base_pool, MYNEWT_VAL(BLE_MAX_BIG),
+    rc = os_mempool_init(&btshell_base_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_audio_base),
                          btshell_base_mem,
                          "btshell_base_pool");
     assert(rc == 0);
-    rc = os_mempool_init(&btshell_big_params_pool, MYNEWT_VAL(BLE_MAX_BIG),
+    rc = os_mempool_init(&btshell_big_params_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_iso_big_params),
                          btshell_big_params_mem,
                          "btshell_big_params_pool");
     assert(rc == 0);
-    rc = os_mempool_init(&btshell_big_sub_pool, MYNEWT_VAL(BLE_MAX_BIS),
+    rc = os_mempool_init(&btshell_big_sub_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          sizeof(struct ble_audio_big_subgroup),
                          btshell_big_sub_mem,
                    "btshell_big_sub_pool");
     assert(rc == 0);
-    rc = os_mempool_init(&btshell_bis_pool, MYNEWT_VAL(BLE_MAX_BIS),
+    rc = os_mempool_init(&btshell_bis_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          sizeof(struct ble_audio_bis), btshell_bis_mem,
                          "btshell_bis_pool");
     assert(rc == 0);
 
-    rc = os_mempool_init(&btshell_metadata_pool, MYNEWT_VAL(BLE_MAX_BIS),
+    rc = os_mempool_init(&btshell_metadata_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27,
                          btshell_metadata_mem, "btshell_metadata_pool");
     assert(rc == 0);
 
     rc = os_mempool_init(&btshell_codec_spec_pool,
-                         MYNEWT_VAL(BLE_MAX_BIS) * 2, 19,
+                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
                          btshell_codec_spec_mem, "btshell_codec_spec_pool");
     assert(rc == 0);
 
     rc = os_mempool_init(&btshell_big_params_pool,
-                         MYNEWT_VAL(BLE_MAX_BIG),
+                         MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_iso_big_params),
                          btshell_big_params_mem, "btshell_big_params_pool");
     assert(rc == 0);

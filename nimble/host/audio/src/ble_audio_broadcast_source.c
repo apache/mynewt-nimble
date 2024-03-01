@@ -18,7 +18,7 @@
  */
 
 #include "host/ble_uuid.h"
-#include "host/ble_audio_broadcast_source.h"
+#include "audio/ble_audio_broadcast_source.h"
 
 #include "os/util.h"
 
@@ -35,7 +35,7 @@ struct ble_audio_broadcast {
 static SLIST_HEAD(, ble_audio_broadcast) ble_audio_broadcasts;
 static struct os_mempool ble_audio_broadcast_pool;
 static os_membuf_t ble_audio_broadcast_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                     sizeof(struct ble_audio_broadcast))];
 
 static bool
@@ -483,7 +483,7 @@ ble_audio_broadcast_init(void)
     SLIST_INIT(&ble_audio_broadcasts);
 
     rc = os_mempool_init(&ble_audio_broadcast_pool,
-                         MYNEWT_VAL(BLE_MAX_BIG),
+                         MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_audio_broadcast),
                          ble_audio_broadcast_mem, "ble_audio_broadcast_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);

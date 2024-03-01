@@ -24,8 +24,8 @@
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 
-#include "host/ble_audio_broadcast_source.h"
-#include "host/ble_audio_common.h"
+#include "audio/ble_audio_broadcast_source.h"
+#include "audio/ble_audio.h"
 #include "host/ble_iso.h"
 
 #include "hal/hal_gpio.h"
@@ -53,7 +53,7 @@ static os_membuf_t bis_mem[
 static struct os_mempool bis_pool;
 
 static os_membuf_t codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS) * 2, 19)
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19)
 ];
 static struct os_mempool codec_spec_pool;
 
@@ -182,7 +182,7 @@ broadcaster_init()
     assert(rc == 0);
 
     rc = os_mempool_init(&codec_spec_pool,
-                         MYNEWT_VAL(BLE_MAX_BIS) * 2, 19,
+                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
                          codec_spec_mem, "codec_spec_pool");
     assert(rc == 0);
 }

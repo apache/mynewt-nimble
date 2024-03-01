@@ -87,10 +87,10 @@ static SLIST_HEAD(, ble_iso_big) ble_iso_bigs;
 static SLIST_HEAD(, ble_iso_conn) ble_iso_conns;
 static struct os_mempool ble_iso_big_pool;
 static os_membuf_t ble_iso_big_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIG), sizeof (struct ble_iso_big))];
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof (struct ble_iso_big))];
 static struct os_mempool ble_iso_bis_pool;
 static os_membuf_t ble_iso_bis_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_MAX_BIS), sizeof (struct ble_iso_bis))];
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES), sizeof (struct ble_iso_bis))];
 
 static void
 ble_iso_conn_append(struct ble_iso_conn *conn)
@@ -234,7 +234,7 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
     struct ble_iso_big *big;
 
     cp.adv_handle = create_params->adv_handle;
-    if (create_params->bis_cnt > MYNEWT_VAL(BLE_MAX_BIS)) {
+    if (create_params->bis_cnt > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
         return BLE_HS_EINVAL;
     }
 
@@ -498,7 +498,7 @@ ble_iso_big_sync_create(const struct ble_iso_big_sync_create_params *param,
                         uint8_t *big_handle)
 {
     struct ble_hci_le_big_create_sync_cp *cp;
-    uint8_t buf[sizeof(*cp) + MYNEWT_VAL(BLE_MAX_BIS)];
+    uint8_t buf[sizeof(*cp) + MYNEWT_VAL(BLE_ISO_MAX_BISES)];
     struct ble_iso_big *big;
     int rc;
 
@@ -922,13 +922,13 @@ ble_iso_init(void)
     SLIST_INIT(&ble_iso_bigs);
 
     rc = os_mempool_init(&ble_iso_big_pool,
-                         MYNEWT_VAL(BLE_MAX_BIG),
+                         MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof (struct ble_iso_big),
                          ble_iso_big_mem, "ble_iso_big_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
 
     rc = os_mempool_init(&ble_iso_bis_pool,
-                         MYNEWT_VAL(BLE_MAX_BIS),
+                         MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          sizeof (struct ble_iso_bis),
                          ble_iso_bis_mem, "ble_iso_bis_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);

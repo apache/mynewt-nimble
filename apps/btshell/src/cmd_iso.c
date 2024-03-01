@@ -34,7 +34,7 @@ static struct iso_rx_stats {
     uint64_t valid_cnt;
     uint64_t error_cnt;
     uint64_t lost_cnt;
-} rx_stats_pool[MYNEWT_VAL(BLE_MAX_BIS)];
+} rx_stats_pool[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
 
 static void
 iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *info,
@@ -305,9 +305,9 @@ const struct shell_cmd_help cmd_iso_big_sync_create_help = {
 int
 cmd_iso_big_sync_create(int argc, char **argv)
 {
-    struct ble_iso_bis_params bis_params[MYNEWT_VAL(BLE_MAX_BIS)];
+    struct ble_iso_bis_params bis_params[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
     struct ble_iso_big_sync_create_params params = { 0 };
-    uint8_t bis_idxs[MYNEWT_VAL(BLE_MAX_BIS)];
+    uint8_t bis_idxs[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
     uint8_t big_handle;
     int rc;
 

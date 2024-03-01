@@ -804,12 +804,12 @@
 #define MYNEWT_VAL_BLE_L2CAP_SIG_MAX_PROCS (1)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_MAX_BIG
-#define MYNEWT_VAL_BLE_MAX_BIG (MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES)
+#ifndef MYNEWT_VAL_BLE_ISO_MAX_BIGS
+#define MYNEWT_VAL_BLE_ISO_MAX_BIGS (MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES)
 #endif
 
-#ifndef MYNEWT_VAL_BLE_MAX_BIS
-#define MYNEWT_VAL_BLE_MAX_BIS (4)
+#ifndef MYNEWT_VAL_BLE_ISO_MAX_BISES
+#define MYNEWT_VAL_BLE_ISO_MAX_BISES (4)
 #endif
 
 /* Overridden by @apache-mynewt-nimble/porting/targets/linux_blemesh (defined by @apache-mynewt-nimble/nimble/host) */

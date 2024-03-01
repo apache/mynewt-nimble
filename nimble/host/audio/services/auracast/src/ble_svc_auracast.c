@@ -21,7 +21,7 @@
 
 #include "host/ble_gap.h"
 #include "host/ble_hs.h"
-#include "host/ble_audio_broadcast_source.h"
+#include "audio/ble_audio_broadcast_source.h"
 #include "services/auracast/ble_svc_auracast.h"
 
 int

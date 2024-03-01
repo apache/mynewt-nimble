@@ -440,6 +440,11 @@ syscfg.defs:
             that have been enabled in the stack, such as GATT support.
         value: 0
 
+    BLE_AUDIO:
+        description: 'This option enables Bluetooth LE Audio support'
+        value: 0
+        experimental: 1
+
     # Flow control settings.
     BLE_HS_FLOW_CTRL:
         description: >
@@ -493,20 +498,6 @@ syscfg.defs:
             supported by host.
         value: 0
 
-    BLE_MAX_BIG:
-        desciptrion: >
-            Number of available BIGs
-        value: 'MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES'
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
-    BLE_MAX_BIS:
-        description: >
-            Number of supported BISes
-        value: 4
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
     ### Log settings.
 
     BLE_HS_LOG_MOD:
@@ -522,6 +513,20 @@ syscfg.defs:
     BLE_EATT_LOG_LVL:
         description: 'Minimum level for the BLE EATT log.'
         value: 1
+
+    BLE_ISO_MAX_BIGS:
+        desciptrion: >
+            Number of available BIGs
+        value: 'MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES'
+        restrictions:
+            - 'BLE_ISO_BROADCAST_SOURCE if 0'
+
+    BLE_ISO_MAX_BISES:
+        description: >
+            Number of supported BISes
+        value: 4
+        restrictions:
+            - 'BLE_ISO_BROADCAST_SOURCE if 0'
 
 syscfg.logs:
     BLE_HS_LOG:

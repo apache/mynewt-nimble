@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include "host/ble_gap.h"
 #include "host/ble_iso.h"
-#include "host/ble_audio_common.h"
+#include "ble_audio.h"
 
 /** Parameters used for creating BASE configuration. */
 struct ble_broadcast_create_params {

@@ -20,7 +20,7 @@
 #include "testutil/testutil.h"
 
 #include "host/ble_hs.h"
-#include "host/audio/ble_audio.h"
+#include "audio/ble_audio.h"
 
 /**
  * BAP_v1.0.1 Table 3.16
