@@ -2772,7 +2772,7 @@ ble_gap_adv_set_data(const uint8_t *data, int data_len)
     /* Check for valid parameters */
     if (((data == NULL) && (data_len != 0)) ||
             (data_len > BLE_HCI_MAX_ADV_DATA_LEN)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        return BLE_HS_EINVAL;
     }
 
     memcpy(cmd.adv_data, data, data_len);
