@@ -164,6 +164,7 @@ cmd_iso_big_create(int argc, char **argv)
 {
     struct ble_iso_create_big_params params = { 0 };
     struct ble_iso_big_params big_params = { 0 };
+    uint8_t big_handle;
     int rc;
 
     rc = parse_arg_init(argc - 1, argv + 1);
@@ -235,11 +236,13 @@ cmd_iso_big_create(int argc, char **argv)
     big_params.broadcast_code = parse_arg_extract("broadcast_code");
     big_params.encryption = big_params.broadcast_code ? 1 : 0;
 
-    rc = ble_iso_create_big(&params, &big_params);
+    rc = ble_iso_create_big(&params, &big_params, &big_handle);
     if (rc != 0) {
         console_printf("BIG create failed (%d)\n", rc);
         return rc;
     }
+
+    console_printf("New big_handle %u created\n", big_handle);
 
     return 0;
 }
