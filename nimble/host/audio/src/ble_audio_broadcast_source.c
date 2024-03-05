@@ -25,6 +25,7 @@
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 struct ble_audio_broadcast {
     SLIST_ENTRY(ble_audio_broadcast) next;
+    uint8_t big_handle;
     uint8_t adv_instance;
     struct ble_audio_base *base;
     struct ble_iso_big_params *big_params;
@@ -332,7 +333,8 @@ ble_audio_broadcast_start(uint8_t adv_instance,
         return rc;
     }
 
-    rc = ble_iso_create_big(&create_big_params, broadcast->big_params);
+    rc = ble_iso_create_big(&create_big_params, broadcast->big_params,
+                            &broadcast->big_handle);
     if (rc) {
         BLE_HS_LOG_ERROR("Failed to create BIG (rc=%d)\n", rc);
         return rc;
@@ -378,7 +380,7 @@ ble_audio_broadcast_destroy(uint8_t adv_instance)
         return rc;
     }
 
-    rc = ble_iso_terminate_big(adv_instance);
+    rc = ble_iso_terminate_big(broadcast->big_handle);
     if (rc) {
         BLE_HS_LOG_ERROR("Failed to terminate BIG\n");
         return rc;

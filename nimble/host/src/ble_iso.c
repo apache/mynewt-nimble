@@ -228,7 +228,8 @@ ble_iso_big_free(struct ble_iso_big *big)
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 int
 ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
-                   const struct ble_iso_big_params *big_params)
+                   const struct ble_iso_big_params *big_params,
+                   uint8_t *big_handle)
 {
     struct ble_hci_le_create_big_cp cp = { 0 };
     struct ble_iso_big *big;
@@ -270,6 +271,8 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
     if (big_params->encryption) {
         memcpy(cp.broadcast_code, big_params->broadcast_code, 16);
     }
+
+    *big_handle = big->handle;
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_CREATE_BIG),

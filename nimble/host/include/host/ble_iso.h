@@ -307,6 +307,7 @@ struct ble_iso_create_big_params {
  *                                  the BIG. These parameters include settings
  *                                  such as SDU interval, maximum SDU size,
  *                                  transport latency, etc.
+ * @param[out] big_handle       BIG instance handle
  *
  * @return                      0 on success;
  *                              an error code on failure.
@@ -315,7 +316,8 @@ struct ble_iso_create_big_params {
  * function specified in @p create_params.
  */
 int ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
-                       const struct ble_iso_big_params *big_params);
+                       const struct ble_iso_big_params *big_params,
+                       uint8_t *big_handle);
 
 /**
  * Terminates an existing Broadcast Isochronous Group (BIG).
