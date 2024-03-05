@@ -16,15 +16,15 @@
 # under the License.
 
 syscfg.defs:
-    ENABLE_SINC_BEST_CONVERTER:
+    LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER:
         description: Enable SINC best converter
         value: 1
-    ENABLE_SINC_MEDIUM_CONVERTER:
+    LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER:
         description: Enable SINC medium converter
         value: 1
-    ENABLE_SINC_FAST_CONVERTER:
+    LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER:
         description: Enable SINC fastest converter
         value: 1
-    LIBSAMPLER_NDEBUG:
+    LIBSAMPLERATE_LIBSAMPLER_NDEBUG:
         description: Define NDEBUG for resampler code (turns off asserts)
         value: 0
