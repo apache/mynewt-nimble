@@ -233,6 +233,7 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
 {
     struct ble_hci_le_create_big_cp cp = { 0 };
     struct ble_iso_big *big;
+    int rc;
 
     cp.adv_handle = create_params->adv_handle;
     if (create_params->bis_cnt > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
@@ -272,11 +273,16 @@ ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
         memcpy(cp.broadcast_code, big_params->broadcast_code, 16);
     }
 
-    *big_handle = big->handle;
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_CREATE_BIG),
+                           &cp, sizeof(cp),NULL, 0);
+    if (rc != 0) {
+        ble_iso_big_free(big);
+    } else {
+        *big_handle = big->handle;
+    }
 
-    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                        BLE_HCI_OCF_LE_CREATE_BIG),
-                             &cp, sizeof(cp),NULL, 0);
+    return rc;
 }
 
 int
