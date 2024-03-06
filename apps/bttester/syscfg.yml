@@ -79,10 +79,27 @@ syscfg.defs:
         description: NRPA rotation timeout in seconds
         value: 5
 
+    BROADCASTER_CHAN_NUM:
+        description: Number of channels used for broadcast
+        value: 1
+    BROADCASTER_BROADCAST_NAME:
+        description: Broadcast name
+        value: '"test_broadcast"'
+
 syscfg.vals:
     CONSOLE_IMPLEMENTATION: full
     LOG_IMPLEMENTATION: full
     STATS_IMPLEMENTATION: full
+
+    BLE_ISO: 1
+    BLE_AUDIO: 1
+    BLE_ROLE_BROADCASTER: 1
+    BLE_ISO_MAX_BISES: 1
+    BLE_ISO_MAX_BIGS: 1
+    BLE_EXT_ADV: 1
+    BLE_PERIODIC_ADV: 1
+    BLE_ISO_BROADCAST_SOURCE: 1
+    BLE_MULTI_ADV_INSTANCES: 1
 
     OS_MAIN_STACK_SIZE: 512
     SHELL_TASK: 0
@@ -101,7 +118,7 @@ syscfg.vals:
     BLE_L2CAP_SIG_MAX_PROCS: 2
     BLE_L2CAP_ENHANCED_COC: 1
     BLE_EATT_CHAN_NUM: 5
-    BLE_VERSION: 53
+    BLE_VERSION: 54
     # Some testcases require MPS < MTU
     BLE_L2CAP_COC_MPS: 100
     BLE_RPA_TIMEOUT: 30
@@ -143,7 +160,5 @@ syscfg.vals:
     BLE_MESH_TX_SEG_MSG_COUNT: 2
     BLE_MAX_CONNECTIONS: 8
 
-    BLE_MESH_ADV_BUF_COUNT: 20
-    BLE_MESH_TX_SEG_MAX: 6
 
-    BLE_EATT_CHAN_NUM: 2
+

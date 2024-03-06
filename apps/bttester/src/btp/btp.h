@@ -33,6 +33,7 @@
 #include "btp_gattc.h"
 #include "btp_l2cap.h"
 #include "btp_mesh.h"
+#include "btp_bap.h"
 
 #define BTP_MTU MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 #define BTP_DATA_MAX_SIZE (BTP_MTU - sizeof(struct btp_hdr))
@@ -46,8 +47,9 @@
 #define BTP_SERVICE_ID_L2CAP    3
 #define BTP_SERVICE_ID_MESH    4
 #define BTP_SERVICE_ID_GATTC    6
+#define BTP_SERVICE_ID_BAP     14
 
-#define BTP_SERVICE_ID_MAX    BTP_SERVICE_ID_GATTC
+#define BTP_SERVICE_ID_MAX    BTP_SERVICE_ID_BAP
 
 #define BTP_STATUS_SUCCESS    0x00
 #define BTP_STATUS_FAILED    0x01
