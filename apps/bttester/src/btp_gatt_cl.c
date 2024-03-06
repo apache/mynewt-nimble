@@ -365,8 +365,7 @@ find_included_cb(uint16_t conn_handle,
         goto free;
     }
 
-    included->included_handle = htole16(service_handle + 1 +
-                                                rp->services_count);
+    included->included_handle = htole16(error->att_handle);
     included->service.start_handle = htole16(gatt_svc->start_handle);
     included->service.end_handle = htole16(gatt_svc->end_handle);
     included->service.uuid_length = uuid_length;
