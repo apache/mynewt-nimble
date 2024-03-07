@@ -727,7 +727,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 
     if (cid != BLE_L2CAP_CID_ATT) {
         /*TODO */
-        return BLE_ATT_ERR_INVALID_PDU;
+        return BLE_HS_ENOTSUP;
     }
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*cmd), &att_err);
