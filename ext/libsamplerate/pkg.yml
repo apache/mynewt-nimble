@@ -26,11 +26,7 @@ pkg.keywords:
 
 pkg.type: sdk
 
-pkg.cflags: -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H
-pkg.cflags.ENABLE_SINC_BEST_CONVERTER: -DENABLE_SINC_BEST_CONVERTER
-pkg.cflags.ENABLE_SINC_MEDIUM_CONVERTER: -DENABLE_SINC_MEDIUM_CONVERTER
-pkg.cflags.ENABLE_SINC_FAST_CONVERTER: -DENABLE_SINC_FAST_CONVERTER
-pkg.cflags.LIBSAMPLER_NDEBUG: -DNDEBUG
+pkg.cflags: -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H -DNDEBUG
 pkg.lflags: -lm
 
 pkg.ign_dirs:
