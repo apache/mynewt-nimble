@@ -209,6 +209,9 @@ struct os_mbuf;
 /** Write Command. */
 #define BLE_ATT_OP_WRITE_CMD                0x52
 
+/** Signed Write Command. */
+#define BLE_ATT_OP_SIGNED_WRITE_CMD         0xD2
+
 /** @} */
 
 /** Maximum length of an Attribute Protocol (ATT) attribute. */

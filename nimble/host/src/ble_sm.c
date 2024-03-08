@@ -490,6 +490,7 @@ ble_sm_fill_store_value(const ble_addr_t *peer_addr,
 
     if (keys->csrk_valid) {
         memcpy(value_sec->csrk, keys->csrk, sizeof value_sec->csrk);
+        value_sec->sign_counter = keys->sign_counter;
         value_sec->csrk_present = 1;
     }
 }
@@ -2264,6 +2265,7 @@ ble_sm_key_exch_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
             memcpy(sign_info->sig_key, proc->our_keys.csrk, 16);
         }
         proc->our_keys.csrk_valid = 1;
+        proc->our_keys.sign_counter = 0;
 
         rc = ble_sm_tx(proc->conn_handle, txom);
         if (rc != 0) {
@@ -2465,6 +2467,7 @@ ble_sm_sign_info_rx(uint16_t conn_handle, struct os_mbuf **om,
 
         memcpy(proc->peer_keys.csrk, cmd->sig_key, 16);
         proc->peer_keys.csrk_valid = 1;
+        proc->peer_keys.sign_counter = 0;
 
         ble_sm_key_rxed(proc, res);
     }
@@ -2496,6 +2499,106 @@ ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
 /*****************************************************************************
  * $api                                                                      *
  *****************************************************************************/
+
+/**
+ * API to be used to increment the sign-counter whenever the CSRK is used
+ * to sign a message.
+ *
+ * @param conn_handle           The connection_handle of the peer to whom
+ *                                the signed message is sent, and with
+ *                                whom the CSRK was shared that was used
+ *                                to sign the message.
+ */
+int
+ble_sm_incr_our_sign_counter(uint16_t conn_handle)
+{
+   struct ble_store_key_sec key_sec;
+   struct ble_store_value_sec value_sec;
+   struct ble_gap_conn_desc desc;
+   int rc;
+
+   rc = ble_gap_conn_find(conn_handle, &desc);
+   if (rc != 0) {
+      return rc;
+   }
+
+   memset(&key_sec, 0, sizeof key_sec);
+   key_sec.peer_addr = desc.peer_id_addr;
+
+   rc = ble_store_read_our_sec(&key_sec, &value_sec);
+   if (rc != 0) {
+      return rc;
+   }
+   if (value_sec.csrk_present != 1) {
+      return BLE_HS_ENOENT;
+   }
+   if (value_sec.sign_counter == (uint32_t)0xffffffff) {
+      return BLE_HS_ENOMEM;
+   }
+
+   rc = ble_store_delete_our_sec(&key_sec);
+   if (rc != 0) {
+      return rc;
+   }
+
+   value_sec.sign_counter += 1;
+   rc = ble_store_write_our_sec(&value_sec);
+   if (rc != 0) {
+      return rc;
+   }
+
+   return 0;
+}
+
+/**
+ * API to be used to increment the sign-counter whenever the CSRK is used
+ * to authenticate a received signed message.
+ *
+ * @param conn_handle           The connection_handle of the peer from whom
+ *                                the signed message is received, and with
+ *                                whom the CSRK was shared that was used
+ *                                to authenticate the signed message.
+ */
+int
+ble_sm_incr_peer_sign_counter(uint16_t conn_handle)
+{
+   struct ble_store_key_sec key_sec;
+   struct ble_store_value_sec value_sec;
+   struct ble_gap_conn_desc desc;
+   int rc;
+
+   rc = ble_gap_conn_find(conn_handle, &desc);
+   if (rc != 0) {
+      return rc;
+   }
+
+   memset(&key_sec, 0, sizeof key_sec);
+   key_sec.peer_addr = desc.peer_id_addr;
+
+   rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+   if (rc != 0) {
+      return rc;
+   }
+   if (value_sec.csrk_present != 1) {
+      return BLE_HS_ENOENT;
+   }
+   if (value_sec.sign_counter == (uint32_t)0xffffffff) {
+      return BLE_HS_ENOMEM;
+   }
+
+   rc = ble_store_delete_peer_sec(&key_sec);
+   if (rc != 0) {
+      return rc;
+   }
+
+   value_sec.sign_counter += 1;
+   rc = ble_store_write_peer_sec(&value_sec);
+   if (rc != 0) {
+      return rc;
+   }
+
+   return 0;
+}
 
 /**
  * Times out expired SM procedures.

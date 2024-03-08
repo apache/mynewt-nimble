@@ -69,7 +69,7 @@ ble_store_config_print_value_sec(const struct ble_store_value_sec *sec)
     if (sec->csrk_present) {
         BLE_HS_LOG(DEBUG, "csrk=");
         ble_hs_log_flat_buf(sec->csrk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG(DEBUG, " sign_counter = %u", sec->sign_counter);
     }
 
     BLE_HS_LOG(DEBUG, "\n");
