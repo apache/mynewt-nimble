@@ -203,6 +203,7 @@ base_create()
         return BLE_HS_ENOMEM;
     }
 
+    memset(bis_left, 0, sizeof(*bis_left));
     bis_left->codec_spec_config = os_memblock_get(&codec_spec_pool);
     memcpy(bis_left->codec_spec_config,
            codec_spec_config_left_chan,
@@ -215,6 +216,7 @@ base_create()
         return BLE_HS_ENOMEM;
     }
 
+    memset(bis_right, 0, sizeof(*bis_right));
     bis_right->codec_spec_config = os_memblock_get(&codec_spec_pool);
     memcpy(bis_right->codec_spec_config,
            codec_spec_config_right_chan,
@@ -230,6 +232,7 @@ base_create()
         return BLE_HS_ENOMEM;
     }
 
+    memset(bis, 0, sizeof(*bis));
     bis->codec_spec_config = os_memblock_get(&codec_spec_pool);
     memcpy(bis->codec_spec_config,
            codec_spec_config,

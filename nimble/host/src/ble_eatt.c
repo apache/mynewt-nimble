@@ -191,6 +191,8 @@ ble_eatt_alloc(void)
 
     SLIST_INSERT_HEAD(&g_ble_eatt_list, eatt, next);
 
+    memset(eatt, 0, sizeof(*eatt));
+
     eatt->conn_handle = BLE_HS_CONN_HANDLE_NONE;
     eatt->chan = NULL;
     eatt->client_op = 0;

@@ -256,6 +256,7 @@ ble_hci_emspi_acl_tx(struct os_mbuf *om)
         return BLE_ERR_MEM_CAPACITY;
     }
 
+    memset(pkt, 0, sizeof(*pkt));
     pkt->type = BLE_HCI_EMSPI_PKT_ACL;
     pkt->data = om;
 
@@ -284,6 +285,7 @@ ble_hci_emspi_cmdevt_tx(uint8_t *cmd_buf, uint8_t pkt_type)
         return BLE_ERR_MEM_CAPACITY;
     }
 
+    memset(pkt, 0, sizeof(*pkt));
     pkt->type = pkt_type;
     pkt->data = cmd_buf;
 
