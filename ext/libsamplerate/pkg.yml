@@ -29,16 +29,6 @@ pkg.type: sdk
 pkg.cflags: -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H -DNDEBUG
 pkg.lflags: -lm
 
-pkg.ign_dirs:
-    - "@libsamplerate/Octave"
-    - "@libsamplerate/Win32"
-    - "@libsamplerate/cmake"
-    - "@libsamplerate/docs"
-    - "@libsamplerate/examples"
-    - "@libsamplerate/include"
-    - "@libsamplerate/m4"
-    - "@libsamplerate/tests"
-
 pkg.src_dirs:
     - "@libsamplerate/src"
 
