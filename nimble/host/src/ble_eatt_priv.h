@@ -36,7 +36,6 @@ void ble_eatt_init(ble_eatt_att_rx_fn att_rx_fn);
 uint16_t ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op);
 void ble_eatt_release_chan(uint16_t conn_handle, uint8_t op);
 int ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom);
-int ble_eatt_start(uint16_t conn_handle);
 #else
 static inline void
 ble_eatt_init(ble_eatt_att_rx_fn att_rx_fn)
@@ -53,12 +52,6 @@ static inline uint16_t
 ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op)
 {
     return BLE_L2CAP_CID_ATT;
-}
-
-static inline int
-ble_eatt_start(uint16_t conn_handle)
-{
-    return 0;
 }
 #endif
 #endif
