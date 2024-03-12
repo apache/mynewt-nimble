@@ -114,6 +114,7 @@ ble_att_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
                                          &chan);
     if (rc != 0) {
+        ble_hs_unlock();
         os_mbuf_free_chain(txom);
         return rc;
     }
