@@ -19,6 +19,8 @@
 
 #include <host/ble_gap.h>
 #include "rx_stress.h"
+#include "tx_stress.h"
+#include "cmd_rx.h"
 
 /* UUID128 of stress test use cases*/
 static uint8_t rx_stress_uuid128[STRESS_UUIDS_NUM][16];
@@ -57,10 +59,21 @@ static struct os_task rx_stress_main_task;
 static os_stack_t rx_stress_main_task_stack[RX_STRESS_MAIN_TASK_STACK_SIZE];
 static struct os_sem rx_stress_main_sem;
 
+int all_test_run;
+extern int test_case_num;
+extern struct os_sem rx_stress_test_sem;
+
 static void
 rx_stress_on_test_finish(int test_num)
 {
     console_printf("\033[0;32m\nStress test %d completed\033[0m\n", test_num);
+
+    if (!all_test_run) {
+        /* Print test result of specific test case */
+        com_stress_print_report(rx_stress_ctx, test_case_num);
+        memset(&(rx_stress_ctx->con_stat[test_num]), 0,
+               sizeof(struct stress_con_stat));
+    }
     os_sem_release(&rx_stress_main_sem);
 }
 
@@ -215,6 +228,7 @@ rx_stress_0_gap_event(struct ble_gap_event *event, void *arg)
             ble_gap_ext_adv_stop(TEST_INSTANCE);
             ble_gap_terminate(event->connect.conn_handle,
                               BLE_ERR_REM_USER_CONN_TERM);
+            os_sem_release(&rx_stress_main_sem);
         } else {
             /* Connection failed; resume advertising */
             MODLOG_DFLT(INFO, "Connection failed; status=%d ",
@@ -777,8 +791,8 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
                     chan_info.peer_l2cap_mtu);
 
         struct ble_l2cap_sig_update_params params = {
-            .itvl_min = 0x0006,//BLE_GAP_INITIAL_CONN_ITVL_MIN
-            .itvl_max = 0x0006,//BLE_GAP_INITIAL_CONN_ITVL_MIN
+            .itvl_min = 0x0006,/*BLE_GAP_INITIAL_CONN_ITVL_MIN */
+            .itvl_max = 0x0006,/*BLE_GAP_INITIAL_CONN_ITVL_MIN */
             .slave_latency = 0x0000,
             .timeout_multiplier = 0x0100,
         };
@@ -1417,7 +1431,7 @@ rx_stress_start(int test_num)
     }
 
     /* Wait for the test to finish. Then 1 token will be released
-    * allowing to pass through semaphore. */
+     * allowing to pass through semaphore. */
     os_sem_pend(&rx_stress_main_sem, OS_TIMEOUT_NEVER);
 
     ble_gap_ext_adv_stop(SWITCHER_INSTANCE);
@@ -1439,43 +1453,36 @@ stress_uuid_init()
     }
 }
 
-static void
-rx_stress_read_command_cb(void)
-{
-    console_printf("Start testing\n");
-    os_sem_release(&rx_stress_main_sem);
-}
-
-static void
+void
 rx_stress_main_task_fn(void *arg)
 {
     int i;
 
     stress_uuid_init();
 
-    console_printf("\033[1;36mRX device\033[0m\n");
-    console_printf("Press ENTER to start: \n");
-    console_init(&rx_stress_read_command_cb);
-
-    /* Waite for pressing ENTER in console */
-    os_sem_pend(&rx_stress_main_sem, OS_TIMEOUT_NEVER);
-
-    /* Standard tests perform */
-    for (i = 1; i < STRESS_UUIDS_NUM; ++i) {
-        /* Start test. */
-        rx_stress_start(i);
-    }
-
-    /* Print tests results */
-    com_stress_print_report(rx_stress_ctx);
-
-    /* Task should never return */
     while (1) {
+        /* Waite for pressing ENTER in console */
+        os_sem_pend(&rx_stress_test_sem, OS_TIMEOUT_NEVER);
+
+        if (test_case_num == 0) {
+            for (i = 1; i < STRESS_UUIDS_NUM; ++i) {
+                /* Run all tests. */
+                rx_stress_start(i);
+            }
+            all_test_run = 1;
+            console_printf("\033[0;32mAll tests completed\033[0m\n");
+            for (i = 1; i < STRESS_UUIDS_NUM; ++i) {
+                /* Print test results of all tests */
+                com_stress_print_report(rx_stress_ctx, i);
+            }
+        } else {
+            rx_stress_start(test_case_num);
+        }
     }
 }
 
 void
-rx_stress_start_auto()
+rx_stress_task()
 {
     /* Start task that will run all stress tests one by one. */
     os_task_init(&rx_stress_main_task, "rx_stress_main_task",

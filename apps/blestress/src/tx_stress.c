@@ -19,13 +19,11 @@
 
 #include <host/ble_gap.h>
 #include <console/console.h>
-#include <host/util/util.h>
-#include <host/ble_l2cap.h>
 #include "tx_stress.h"
 
 /* Main test task priority. Set a high value so that the task does not
  * interfere with event handling */
-#define TX_STRESS_MAIN_TASK_PRIO 0xf0
+#define TX_STRESS_MAIN_TASK_PRIO 0xef
 #define BASE_UUID_LEN 13
 
 /* Contexts for stress tests. */
@@ -41,6 +39,7 @@ static struct com_stress_test_ctx *tx_stress_ctx;
 static struct os_task tx_stress_main_task;
 static os_stack_t tx_stress_main_task_stack[TX_STRESS_MAIN_TASK_STACK_SIZE];
 static struct os_sem tx_stress_main_sem;
+extern struct os_sem tx_stress_start_sem;
 /* Test use case and address of test advertiser. */
 static int tx_stress_use_case;
 static int completed_tests = 0;
@@ -50,7 +49,11 @@ tx_stress_on_test_finish(int test_num)
 {
     console_printf("\033[0;32m\nStress test %d completed\033[0m\n", test_num);
     ++completed_tests;
+    com_stress_print_report(tx_stress_ctx, tx_stress_use_case);
     tx_stress_ctx->completed[test_num] = true;
+    memset(&(tx_stress_ctx->con_stat[test_num]), 0,
+           sizeof(struct stress_con_stat));
+    tx_stress_ctx->s6_rcv_adv_suc = 0;
     os_sem_release(&tx_stress_main_sem);
 }
 
@@ -990,7 +993,8 @@ tx_stress_10_l2cap_send(struct ble_l2cap_chan *chan, uint8_t *data,
     return rc;
 }
 
-void tx_stress_10_timer_ev_cb(struct os_event *ev)
+void
+tx_stress_10_timer_ev_cb(struct os_event *ev)
 {
     assert(ev != NULL);
 
@@ -1527,9 +1531,11 @@ static void
 tx_stress_test_perform(int test_num)
 {
     /* Perform every test only once */
-//    if (test_num <= 0 || tx_stress_ctx->completed[test_num] == true) {
-//        return;
-//    }
+/*
+      if (test_num <= 0 || tx_stress_ctx->completed[test_num] == true) {
+          return;
+      }
+ */
 
     tx_stress_ctx->cur_test_id = test_num;
     tx_stress_ctx->completed[test_num] = false;
@@ -1608,7 +1614,7 @@ tx_stress_test_perform(int test_num)
     }
 
     /* Wait for the test to finish. Then 1 token will be released
-    * allowing to pass through semaphore. */
+     * allowing to pass through semaphore. */
     os_sem_pend(&tx_stress_main_sem, OS_TIMEOUT_NEVER);
 
     stress_clear_ctx_reusable_var(tx_stress_ctx);
@@ -1621,10 +1627,12 @@ tx_stress_read_command_cb(void)
     os_sem_release(&tx_stress_main_sem);
 }
 
-static void
+void
 tx_stress_main_task_fn(void *arg)
 {
     int rc;
+
+    os_sem_pend(&tx_stress_start_sem, OS_TIMEOUT_NEVER);
 
     tx_stress_ctx = &tx_stress_ctxD;
 
@@ -1640,13 +1648,13 @@ tx_stress_main_task_fn(void *arg)
     assert(rc == 0);
 
     /* Start test 1 - Connect/Connect cancel */
-    //tx_stress_test_perform(1);
+    /*tx_stress_test_perform(1); */
 
     while (1) {
         console_printf("\033[0;36mStart scan for test\033[0m\n");
 
         /* Scan for known UUID128 of one of the stress tests. */
-        tx_stress_simple_scan(scan_for_test_gap_event, 2000);
+        tx_stress_simple_scan(scan_for_test_gap_event, 6000);
 
         /* Wait for the scan to find the test. Then 1 token will be
          * released allowing to pass through semaphore. */
@@ -1661,7 +1669,7 @@ tx_stress_main_task_fn(void *arg)
     }
 
     /* Print tests results */
-    com_stress_print_report(tx_stress_ctx);
+    com_stress_print_report(tx_stress_ctx, tx_stress_use_case);
 
     /* Task should never return */
     while (1) {
@@ -1670,7 +1678,8 @@ tx_stress_main_task_fn(void *arg)
     }
 }
 
-void tx_stress_start_auto()
+void
+tx_stress_task()
 {
     /* Start task that will run all stress tests one by one. */
     os_task_init(&tx_stress_main_task, "tx_stress_main_task",

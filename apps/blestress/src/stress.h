@@ -348,7 +348,8 @@ static const uint8_t test_6_pattern[STRESS_PAT_LEN] = {
 
 void stress_clear_ctx_reusable_var(struct com_stress_test_ctx *ctx);
 
-void com_stress_print_report(const struct com_stress_test_ctx test_ctxs[]);
+void com_stress_print_report(const struct com_stress_test_ctx test_ctxs[],
+                             int test_num);
 
 int stress_fill_mbuf_with_pattern(struct os_mbuf *om, uint16_t len);
 
