@@ -76,6 +76,7 @@ static struct ble_npl_event g_read_sup_cl_feat_ev;
 static struct ble_npl_event g_read_sup_srv_feat_ev;
 
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
+static void ble_eatt_start(uint16_t conn_handle);
 
 static struct ble_eatt *
 ble_eatt_find_not_busy(uint16_t conn_handle)
@@ -520,7 +521,7 @@ error:
     return rc;
 }
 
-int
+static void
 ble_eatt_start(uint16_t conn_handle)
 {
     struct ble_gap_conn_desc desc;
@@ -533,21 +534,18 @@ ble_eatt_start(uint16_t conn_handle)
         /* Let master to create ecoc.
          * TODO: Slave could setup after some timeout
          */
-        return 0;
+        return;
     }
 
     eatt = ble_eatt_alloc();
     if (!eatt) {
-        BLE_EATT_LOG_ERROR("eatt: no available eatt resources\n");
-        return 0;
+        return;
     }
 
     eatt->conn_handle = conn_handle;
 
     /* Setup EATT  */
     ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
-
-    return 0;
 }
 
 void
