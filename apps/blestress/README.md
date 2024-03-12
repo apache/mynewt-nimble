@@ -5,18 +5,16 @@ BLE Stress Tests
     You need 2 controllers supported by MyNewt. One will become TX device,
     the other will become RX device.
 
-    1. Set role (TX=0, RX=1) for current device in syscfg.yml
-        BLE_STRESS_TEST_ROLE: 1
+    1. Set role (TX/RX) using shell command.
 
        The RX has LED2 turned on.
 
     2. Set (in syscfg.yml) number of times to repeat each tested action
        in use case, e.g. do 1000 times connect/disconnect to complete use case.
-        RX_STRESS_REPEAT: 1000
+        BLE_STRESS_REPEAT: 1000
 
-    3. To perform only specific test, go to rx_stress.c,
-       find definition of rx_stress_main_task_fn(void *arg) and in place of
-       for-loop just paste function rx_stress_start(i), where i is id of test.
+    3. To perform only specific test, as RX device use start_test command with
+       num parameter. NULL parameter or num=0 will run all tests.
 
 ******************************************************************************
 
@@ -90,13 +88,13 @@ No | Use case
    adapts to the advertised use case and runs a test.
 
    Stress Task vs Semaphore:
-   The rx_stress_start_auto function starts main stress test task that runs
-   all stress tests one by one. The tests are based on event handling, so to
-   synchronize main task with events, a semaphore is used. On use case start
-   there is 0 tokens for semaphore. After main task starts one of use cases,
-   it comes across a semaphore and has to wait. When use case is completed,
-   1 token is released, so main task can use it to pass through semaphore.
-   The tx_stress_start_auto function works analogically.
+   The rx_stress_main_task_fn function starts main stress test task that runs
+   selected test or all stress tests one by one. The tests are based on event
+   handling, so to synchronize main task with events, a semaphore is used.
+   On use case start there is 0 tokens for semaphore. After main task starts
+   one of use cases, it comes across a semaphore and has to wait. When use cass
+   is completed, 1 token is released, so main task can use it to pass through
+   semaphore. The tx_stress_main_task_fn function works analogically.
 
 
    Newt target set example:
