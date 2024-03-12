@@ -244,15 +244,17 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         if (!eatt) {
             return BLE_HS_ENOMEM;
         }
+
         eatt->conn_handle = event->accept.conn_handle;
         event->accept.chan->cb_arg = eatt;
 
         rc = ble_eatt_prepare_rx_sdu(event->accept.chan);
         if (rc) {
             ble_eatt_free(eatt);
+            return rc;
         }
-        assert(rc == 0);
-        return 0;
+
+        break;
     case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
         break;
