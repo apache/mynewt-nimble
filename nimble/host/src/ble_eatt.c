@@ -177,9 +177,12 @@ ble_eatt_alloc(void)
     struct ble_eatt *eatt;
 
     eatt = os_memblock_get(&ble_eatt_conn_pool);
-    if (eatt) {
-        SLIST_INSERT_HEAD(&g_ble_eatt_list, eatt, next);
+    if (!eatt) {
+        BLE_EATT_LOG_WARN("eatt: Failed to allocate new eatt context\n");
+        return NULL;
     }
+
+    SLIST_INSERT_HEAD(&g_ble_eatt_list, eatt, next);
 
     eatt->conn_handle = BLE_HS_CONN_HANDLE_NONE;
     eatt->chan = NULL;
