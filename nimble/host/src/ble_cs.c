@@ -689,7 +689,6 @@ ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data,
 int
 ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_params *params)
 {
-    struct ble_hci_le_cs_rd_loc_supp_cap_rp rsp;
     struct ble_cs_rd_rem_supp_cap_cp cmd;
     int rc;
 
@@ -700,6 +699,12 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
      * 4. Create CS configurations
      * 5. Start the CS Security Start procedure
      */
+
+    (void)ble_cs_set_chan_class;
+    (void)ble_cs_remove_config;
+    (void)ble_cs_wr_cached_rem_fae;
+    (void)ble_cs_wr_cached_rem_supp_cap;
+    (void)ble_cs_rd_loc_supp_cap;
 
     cs_state.cb = params->cb;
     cs_state.cb_arg = params->cb_arg;
