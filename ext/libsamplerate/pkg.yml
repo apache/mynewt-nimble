@@ -26,8 +26,11 @@ pkg.keywords:
 
 pkg.type: sdk
 
-pkg.cflags: -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H -DNDEBUG
+pkg.cflags: -O3 -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H -DNDEBUG -DLIBSAMPLERATE_SINGLE_PRECISION
 pkg.lflags: -lm
+
+app.cflags:
+    - -DLIBSAMPLERATE_SINGLE_PRECISION
 
 pkg.src_dirs:
     - "@libsamplerate/src"

@@ -34,10 +34,6 @@
 #define ENABLE_SINC_FAST_CONVERTER      1
 #endif
 
-#if MYNEWT_VAL(LIBSAMPLERATE_LIBSAMPLER_NDEBUG)
-#define LIBSAMPLER_NDEBUG      1
-#endif
-
 #define PACKAGE     "libsamplerate"
 #define VERSION     "0.2.2"
 
