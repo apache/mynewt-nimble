@@ -148,6 +148,12 @@ ble_eatt_prepare_rx_sdu(struct ble_l2cap_chan *chan)
     }
 
     rc = ble_l2cap_recv_ready(chan, om);
+    if (rc) {
+        BLE_EATT_LOG_ERROR("eatt: Failed to supply RX SDU conn_handle 0x%04x (status=%d)\n",
+                            chan->conn_handle, rc);
+        os_mbuf_free_chain(om);
+    }
+
     return rc;
 }
 
