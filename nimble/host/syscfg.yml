@@ -310,18 +310,22 @@ syscfg.defs:
             due to memory exhaustion. (0/1)  Units are milliseconds. (0/1)
         value: 1000
 
-    # Supported server ATT commands. (0/1)
+    # Enhanced ATT bearer options
     BLE_EATT_CHAN_NUM:
         description: >
-            Number of CoC channels allocated to EATT
+            Maximum number of supported EATT channels (in total). If set to 0
+            EATT support it disabled.
         value: 0
-        restrictions: BLE_GATT_NOTIFY_MULTIPLE
-
+        restrictions:
+            - BLE_GATT_NOTIFY_MULTIPLE
+            - BLE_L2CAP_ENHANCED_COC
+            - 'BLE_L2CAP_COC_MAX_NUM >= BLE_EATT_CHAN_NUM'
     BLE_EATT_MTU:
         description: >
             MTU used for EATT channels.
         value: 128
 
+    # Supported server ATT commands. (0/1)
     BLE_ATT_SVR_FIND_INFO:
         description: >
             Enables processing of incoming Find Information Request ATT
