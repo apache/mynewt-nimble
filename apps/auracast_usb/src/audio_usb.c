@@ -60,9 +60,9 @@ static int16_t samples_read[AUDIO_BUF_SIZE];
 /* 155 is maximum value Octets Per Codec Frame described in Table 3.5 of BAP specification */
 static float samples_read_float[AUDIO_BUF_SIZE];
 static float resampled_float[AUDIO_BUF_SIZE];
-double resampler_in_rate = AUDIO_PCM_SAMPLE_RATE;
-double resampler_out_rate = LC3_SAMPLING_FREQ;
-double resampler_ratio;
+float resampler_in_rate = AUDIO_PCM_SAMPLE_RATE;
+float resampler_out_rate = LC3_SAMPLING_FREQ;
+float resampler_ratio;
 SRC_STATE *resampler_state;
 static struct ble_gap_event_listener feedback_listener;
 #endif
@@ -74,7 +74,7 @@ static int
 ble_hs_gap_event_handler(struct ble_gap_event *event, void *arg)
 {
     struct ble_hci_vs_subev_iso_hci_feedback *feedback_pkt;
-    double adjust = 0;
+    float adjust = 0;
 
     if (event->type == BLE_GAP_EVENT_UNHANDLED_HCI_EVENT &&
         event->unhandled_hci.is_le_meta == false &&
@@ -266,7 +266,7 @@ audio_usb_init(void)
     int rc;
 
     assert(resampler_state == NULL);
-    resampler_state = src_new(SRC_ZERO_ORDER_HOLD, AUDIO_CHANNELS, NULL);
+    resampler_state = src_new(SRC_SINC_FASTEST, AUDIO_CHANNELS, NULL);
     assert(resampler_state != NULL);
 
     rc = ble_gap_event_listener_register(&feedback_listener,
