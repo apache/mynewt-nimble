@@ -320,6 +320,7 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
 {
     struct ble_eatt *eatt;
     struct os_mbuf *om;
+    int rc;
 
     eatt = ble_npl_event_get_arg(ev);
     assert(eatt);
@@ -332,8 +333,16 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     }
 
     BLE_EATT_LOG_DEBUG("eatt: connecting eatt on conn_handle 0x%04x\n", eatt->conn_handle);
-    ble_l2cap_enhanced_connect(eatt->conn_handle, BLE_EATT_PSM,
-                               MYNEWT_VAL(BLE_EATT_MTU), 1, &om, ble_eatt_l2cap_event_fn, eatt);
+
+    rc = ble_l2cap_enhanced_connect(eatt->conn_handle, BLE_EATT_PSM,
+                                    MYNEWT_VAL(BLE_EATT_MTU), 1, &om,
+                                    ble_eatt_l2cap_event_fn, eatt);
+    if (rc) {
+        BLE_EATT_LOG_ERROR("eatt: Failed to connect EATT on conn_handle 0x%04x (status=%d)\n",
+                            eatt->conn_handle, rc);
+        os_mbuf_free_chain(om);
+        ble_eatt_free(eatt);
+    }
 }
 
 static int
