@@ -168,7 +168,7 @@ int ble_ll_adv_can_chg_whitelist(void);
  * Called when an advertising event has been removed from the scheduler
  * without being run.
  */
-void ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm);
+void ble_ll_adv_preempted(struct ble_ll_adv_sm *advsm);
 
 /*
  * Called when a periodic event has been removed from the scheduler

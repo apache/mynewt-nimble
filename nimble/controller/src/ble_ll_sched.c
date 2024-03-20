@@ -151,9 +151,9 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
                 break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
-            case BLE_LL_SCHED_TYPE_ADV:
-                ble_ll_adv_event_rmvd_from_sched(entry->cb_arg);
-                break;
+        case BLE_LL_SCHED_TYPE_ADV:
+            ble_ll_adv_preempted(entry->cb_arg);
+            break;
 #endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) && MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
             case BLE_LL_SCHED_TYPE_SCAN_AUX:
