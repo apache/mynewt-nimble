@@ -450,15 +450,20 @@ ble_eatt_gap_event(struct ble_gap_event *event, void *arg)
     struct ble_eatt *eatt;
 
     switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
-        if (event->connect.status != 0) {
+    case BLE_GAP_EVENT_ENC_CHANGE:
+        if (event->enc_change.status != 0) {
             return 0;
         }
 
-        BLE_EATT_LOG_DEBUG("eatt: Device connected, waiting to write into "
-                           "client supported features\n");
+        /* don't try to connect if already connected */
+        if (ble_eatt_find_by_conn_handle(event->enc_change.conn_handle)) {
+            return 0;
+        }
 
-        ble_npl_event_set_arg(&g_read_sup_srv_feat_ev, UINT_TO_POINTER(event->connect.conn_handle));
+        BLE_EATT_LOG_DEBUG("eatt: Encryption enabled, connecting EATT (conn_handle=0x%04x)\n",
+                            event->enc_change.conn_handle);
+
+        ble_npl_event_set_arg(&g_read_sup_srv_feat_ev, UINT_TO_POINTER(event->enc_change.conn_handle));
         ble_npl_eventq_put(ble_hs_evq_get(), &g_read_sup_srv_feat_ev);
 
         break;
