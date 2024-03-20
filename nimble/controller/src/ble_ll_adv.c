@@ -159,8 +159,6 @@ struct ble_ll_adv_sm
     struct os_mbuf *periodic_new_data;
     uint32_t periodic_crcinit; /* only 3 bytes are used */
     uint32_t periodic_access_addr;
-    uint16_t periodic_adv_itvl_min;
-    uint16_t periodic_adv_itvl_max;
     uint16_t periodic_adv_props;
     uint16_t periodic_channel_id;
     uint16_t periodic_event_cntr;
@@ -171,8 +169,9 @@ struct ble_ll_adv_sm
     uint8_t periodic_sync_index : 1;
     uint8_t periodic_num_used_chans;
     uint8_t periodic_chanmap[BLE_LL_CHAN_MAP_LEN];
+    uint16_t periodic_adv_itvl;
     uint32_t periodic_adv_itvl_ticks;
-    uint8_t periodic_adv_itvl_rem_usec;
+    uint8_t periodic_adv_itvl_rem_us;
     uint8_t periodic_adv_event_start_time_remainder;
     uint32_t periodic_adv_event_start_time;
     struct ble_ll_adv_sync periodic_sync[2];
@@ -665,7 +664,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
 
         offset = ble_ll_tmr_t2u(anchor - AUX_CURRENT(advsm)->start_time);
         offset += advsm->periodic_adv_event_start_time_remainder;
-        offset += advsm->periodic_adv_itvl_rem_usec;
+        offset += advsm->periodic_adv_itvl_rem_us;
     }
 
     /* Sync Packet Offset (13 bits), Offset Units (1 bit), Offset Adjust (1 bit),
@@ -696,7 +695,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
     dptr[1] = ((offset >> 8) & 0x0000001f) | units;
 
     /* Interval (2 bytes) */
-    put_le16(&dptr[2], advsm->periodic_adv_itvl_max);
+    put_le16(&dptr[2], advsm->periodic_adv_itvl);
 
     /* Channels Mask (37 bits) */
     dptr[4] = advsm->periodic_chanmap[0];
@@ -2432,7 +2431,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
 
     ble_ll_tmr_add_u(&advsm->periodic_adv_event_start_time,
                      &advsm->periodic_adv_event_start_time_remainder,
-                     advsm->periodic_adv_itvl_rem_usec);
+                     advsm->periodic_adv_itvl_rem_us);
 
     sch->start_time = advsm->periodic_adv_event_start_time;
     sch->remainder = advsm->periodic_adv_event_start_time_remainder;
@@ -2658,10 +2657,9 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
                                  (advsm->periodic_access_addr & 0x0000ffff);
     advsm->periodic_crcinit = ble_ll_rand() & 0xffffff;
 
-    usecs = (uint32_t)advsm->periodic_adv_itvl_max * BLE_LL_ADV_PERIODIC_ITVL;
-
+    usecs = (uint32_t)advsm->periodic_adv_itvl * BLE_LL_ADV_PERIODIC_ITVL;
     advsm->periodic_adv_itvl_ticks = ble_ll_tmr_u2t_r(usecs,
-                                                      &advsm->periodic_adv_itvl_rem_usec);
+                                                      &advsm->periodic_adv_itvl_rem_us);
 
     /* There is no point in starting periodic advertising until next advertising
      * event since SyncInfo is needed for synchronization
@@ -3975,8 +3973,7 @@ ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_PACKET_TOO_LONG;
     }
 
-    advsm->periodic_adv_itvl_min = adv_itvl_min;
-    advsm->periodic_adv_itvl_max = adv_itvl_max;
+    advsm->periodic_adv_itvl = adv_itvl_max;
     advsm->periodic_adv_props = props;
 
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED);
@@ -4056,7 +4053,7 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
      */
     if (!ble_ll_adv_periodic_check_data_itvl(payload_total_len,
                                              advsm->periodic_adv_props,
-                                             advsm->periodic_adv_itvl_max,
+                                             advsm->periodic_adv_itvl,
                                              advsm->sec_phy)) {
         return BLE_ERR_PACKET_TOO_LONG;
     }
@@ -4149,7 +4146,7 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
          */
         if (!ble_ll_adv_periodic_check_data_itvl(SYNC_DATA_LEN(advsm),
                                                  advsm->periodic_adv_props,
-                                                 advsm->periodic_adv_itvl_max,
+                                                 advsm->periodic_adv_itvl,
                                                  advsm->sec_phy)) {
             return BLE_ERR_PACKET_TOO_LONG;
         }
