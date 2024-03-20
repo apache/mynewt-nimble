@@ -110,6 +110,7 @@ struct ble_ll_adv_sm
     uint8_t own_addr_type;
     uint8_t peer_addr_type;
     uint8_t adv_chan;
+    uint8_t retry_event;
     uint8_t adv_pdu_len;
     int8_t adv_rpa_index;
     int8_t tx_power;
@@ -227,7 +228,7 @@ struct ble_ll_adv_sm
 struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
-static void ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm);
+static void ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm, bool preempted);
 
 static struct ble_ll_adv_sm *
 ble_ll_adv_sm_find_configured(uint8_t instance)
@@ -1068,14 +1069,10 @@ ble_ll_adv_tx_done(void *arg)
     g_ble_ll_cur_adv_sm = NULL;
 }
 
-/*
- * Called when an advertising event has been removed from the scheduler
- * without being run.
- */
 void
-ble_ll_adv_event_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_preempted(struct ble_ll_adv_sm *advsm)
 {
-    ble_ll_adv_drop_event(advsm);
+    ble_ll_adv_drop_event(advsm, 1);
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
@@ -4742,8 +4739,10 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
 }
 
 static void
-ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
+ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm, bool preempted)
 {
+    os_sr_t sr;
+
     STATS_INC(ble_ll_stats, adv_drop_event);
 
     ble_ll_sched_rmv_elem(&advsm->adv_sch);
@@ -4754,6 +4753,12 @@ ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm)
     ble_ll_event_remove(&advsm->adv_sec_txdone_ev);
     advsm->aux_active = 0;
 #endif
+
+    if (preempted) {
+        OS_ENTER_CRITICAL(sr);
+        advsm->retry_event = !(advsm->flags & BLE_LL_ADV_SM_FLAG_ACTIVE_CHANSET_MASK);
+        OS_EXIT_CRITICAL(sr);
+    }
 
     advsm->adv_chan = ble_ll_adv_final_chan(advsm);
     ble_ll_event_add(&advsm->adv_txdone_ev);
@@ -4779,7 +4784,7 @@ ble_ll_adv_reschedule_event(struct ble_ll_adv_sm *advsm)
 
         rc = ble_ll_sched_adv_reschedule(sch, max_delay_ticks);
         if (rc) {
-            ble_ll_adv_drop_event(advsm);
+            ble_ll_adv_drop_event(advsm, 0);
             return;
         }
 
@@ -4845,25 +4850,35 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     final_adv_chan = ble_ll_adv_final_chan(advsm);
 
     if (advsm->adv_chan == final_adv_chan) {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        if (advsm->events_max) {
-            advsm->events++;
-        }
-#endif
-
         ble_ll_scan_chk_resume();
 
         /* This event is over. Set adv channel to first one */
         advsm->adv_chan = ble_ll_adv_first_chan(advsm);
 
-        /*
-         * Calculate start time of next advertising event. NOTE: we do not
-         * add the random advDelay as the scheduling code will do that.
-         */
         itvl = advsm->adv_itvl_usecs;
         tick_itvl = ble_ll_tmr_u2t(itvl);
-        advsm->adv_event_start_time += tick_itvl;
-        advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+
+        /* do not calculate new event time if current event should be retried;
+         * this happens if event was preempted, so we just try to schedule one
+         * more time with the same start time
+         */
+
+        if (!advsm->retry_event) {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+            if (advsm->events_max) {
+                advsm->events++;
+            }
+#endif
+
+            /*
+             * Calculate start time of next advertising event. NOTE: we do not
+             * add the random advDelay as the scheduling code will do that.
+             */
+            advsm->adv_event_start_time += tick_itvl;
+            advsm->adv_pdu_start_time = advsm->adv_event_start_time;
+        } else {
+            advsm->retry_event = 0;
+        }
 
         /*
          * The scheduled time better be in the future! If it is not, we will
@@ -4909,7 +4924,7 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
                 advsm->aux_active &&
                 LL_TMR_GT(advsm->adv_pdu_start_time,
                            AUX_CURRENT(advsm)->start_time)) {
-            ble_ll_adv_drop_event(advsm);
+            ble_ll_adv_drop_event(advsm, 0);
             return;
         }
 #endif
@@ -5009,7 +5024,7 @@ ble_ll_adv_sec_done(struct ble_ll_adv_sm *advsm)
     ble_ll_rfmgmt_release();
 
     if (advsm->aux_dropped) {
-        ble_ll_adv_drop_event(advsm);
+        ble_ll_adv_drop_event(advsm, 0);
         return;
     }
 
