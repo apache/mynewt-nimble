@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _HCI_IPC_H_
-#define _HCI_IPC_H_
+#ifndef HCI_IPC_H_
+#define HCI_IPC_H_
 
 #include <stdint.h>
 
@@ -96,4 +96,4 @@ hci_ipc_put(uint8_t type)
     }
 }
 
-#endif /* _HCI_IPC_H_ */
+#endif /* HCI_IPC_H_ */

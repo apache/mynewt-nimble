@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_CFG_SRV_H
-#define __BT_MESH_CFG_SRV_H
+#ifndef BT_MESH_CFG_SRV_H_
+#define BT_MESH_CFG_SRV_H_
 
 /**
  * @brief Bluetooth Mesh
@@ -37,4 +37,4 @@ extern const struct bt_mesh_model_cb bt_mesh_cfg_srv_cb;
  * @}
  */
 
-#endif /* __BT_MESH_CFG_SRV_H */
+#endif /* BT_MESH_CFG_SRV_H_ */

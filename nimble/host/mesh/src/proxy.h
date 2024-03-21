@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __PROXY_H__
-#define __PROXY_H__
+#ifndef PROXY_H_
+#define PROXY_H_
 
 #include "mesh/slist.h"
 
@@ -48,4 +48,4 @@ void bt_mesh_proxy_addr_add(struct os_mbuf *buf, uint16_t addr);
 int ble_mesh_proxy_gap_event(struct ble_gap_event *event, void *arg);
 int bt_mesh_proxy_init(void);
 
-#endif /* __PROXY_H__ */
+#endif /* PROXY_H_ */

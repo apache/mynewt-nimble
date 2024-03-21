@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _TEST_UTIL_H_
-#define _TEST_UTIL_H_
+#ifndef TEST_UTIL_H_
+#define TEST_UTIL_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,4 +53,4 @@ extern "C" {
 }
 #endif
 
-#endif  /* _TEST_UTIL_H_ */
+#endif  /* TEST_UTIL_H_ */

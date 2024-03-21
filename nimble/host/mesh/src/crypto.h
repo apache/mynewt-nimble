@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __CRYPTO_H__
-#define __CRYPTO_H__
+#ifndef CRYPTO_H_
+#define CRYPTO_H_
 
 #include "mesh/mesh.h"
 

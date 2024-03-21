@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __PROV_H__
-#define __PROV_H__
+#ifndef PROV_H_
+#define PROV_H_
 
 #include "prov_bearer.h"
 #include "os/os_mbuf.h"

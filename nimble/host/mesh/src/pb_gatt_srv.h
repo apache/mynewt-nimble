@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __PB_GATT_SRV_H__
-#define __PB_GATT_SRV_H__
+#ifndef PB_GATT_SRV_H_
+#define PB_GATT_SRV_H_
 
 int bt_mesh_pb_gatt_send(uint16_t conn_handle, struct os_mbuf *buf);
 
@@ -28,4 +28,4 @@ extern struct svc_handles {
 	uint16_t prov_data_out_h;
 } svc_handles;
 
-#endif /* __PB_GATT_SRV_H__ */
+#endif /* PB_GATT_SRV_H_ */

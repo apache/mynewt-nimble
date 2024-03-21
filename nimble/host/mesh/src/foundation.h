@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __FUNDATION_H__
-#define __FUNDATION_H__
+#ifndef FUNDATION_H_
+#define FUNDATION_H_
 
 #define OP_APP_KEY_ADD                     BT_MESH_MODEL_OP_1(0x00)
 #define OP_APP_KEY_UPDATE                  BT_MESH_MODEL_OP_1(0x01)

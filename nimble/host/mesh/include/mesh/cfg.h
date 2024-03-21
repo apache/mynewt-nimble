@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _BT_MESH_CFG_H_
-#define _BT_MESH_CFG_H_
+#ifndef BT_MESH_CFG_H_
+#define BT_MESH_CFG_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -488,4 +488,4 @@ ssize_t bt_mesh_app_keys_get(uint16_t net_idx, uint16_t app_idxs[], size_t max,
  * @}
  */
 
-#endif /* _BT_MESH_CFG_H_ */
+#endif /* BT_MESH_CFG_H_ */

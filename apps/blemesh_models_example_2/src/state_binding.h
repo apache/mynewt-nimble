@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _STATE_BINDING_H
-#define _STATE_BINDING_H
+#ifndef STATE_BINDING_H_
+#define STATE_BINDING_H_
 
 enum state_binding {
 	ONPOWERUP = 0x01,

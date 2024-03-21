@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_NPL_OS_H_
-#define _NIMBLE_NPL_OS_H_
+#ifndef NIMBLE_NPL_OS_H_
+#define NIMBLE_NPL_OS_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -294,4 +294,4 @@ nrf52_clock_hfxo_release(void)
 }
 #endif
 
-#endif  /* _NPL_H_ */
+#endif  /* NIMBLE_NPL_OS_H_ */

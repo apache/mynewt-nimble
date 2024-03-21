@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _BT_MESH_APP_KEYS_H_
-#define _BT_MESH_APP_KEYS_H_
+#ifndef BT_MESH_APP_KEYS_H_
+#define BT_MESH_APP_KEYS_H_
 
 #include "mesh/mesh.h"
 #include "subnet.h"
@@ -65,4 +65,4 @@ extern void (*bt_mesh_app_key_cb_list[1]) (uint16_t app_idx, uint16_t net_idx,
 /** @brief Store pending application keys in persistent storage. */
 void bt_mesh_app_key_pending_store(void);
 void bt_mesh_app_key_init(void);
-#endif /* _BT_MESH_APP_KEYS_H_ */
+#endif /* BT_MESH_APP_KEYS_H_ */

@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _TRANSITION_H
-#define _TRANSITION_H
+#ifndef TRANSITION_H_
+#define TRANSITION_H_
 
 #define UNKNOWN_VALUE 0x3F
 #define DEVICE_SPECIFIC_RESOLUTION 10

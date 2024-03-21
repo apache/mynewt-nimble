@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __NET_H__
-#define __NET_H__
+#ifndef NET_H_
+#define NET_H_
 
 #include "subnet.h"
 

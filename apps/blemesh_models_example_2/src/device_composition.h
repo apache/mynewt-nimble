@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _DEVICE_COMPOSITION_H
-#define _DEVICE_COMPOSITION_H
+#ifndef DEVICE_COMPOSITION_H_
+#define DEVICE_COMPOSITION_H_
 
 #define CID_RUNTIME 0x05C3
 

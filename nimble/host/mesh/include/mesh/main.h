@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_MAIN_H
-#define __BT_MESH_MAIN_H
+#ifndef BT_MESH_MAIN_H_
+#define BT_MESH_MAIN_H_
 
 /**
  * @brief Bluetooth Mesh Provisioning
@@ -586,4 +586,4 @@ void bt_mesh_rpl_pending_store(uint16_t addr);
  * @}
  */
 
-#endif /* __BT_MESH_MAIN_H */
+#endif /* BT_MESH_MAIN_H_ */

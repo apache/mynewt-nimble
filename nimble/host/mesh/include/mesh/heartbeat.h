@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _BLUETOOTH_MESH_HEARTBEAT_H_
-#define _BLUETOOTH_MESH_HEARTBEAT_H_
+#ifndef BLUETOOTH_MESH_HEARTBEAT_H_
+#define BLUETOOTH_MESH_HEARTBEAT_H_
 
 /**
  * @brief Bluetooth Mesh
@@ -120,4 +120,4 @@ extern struct bt_mesh_hb_cb hb_cb;
  * @}
  */
 
-#endif /* _BLUETOOTH_MESH_HEARTBEAT_H_ */
+#endif /* BLUETOOTH_MESH_HEARTBEAT_H_ */

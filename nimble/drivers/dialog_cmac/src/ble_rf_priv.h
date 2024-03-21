@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _BLE_RF_PRIV_H_
-#define _BLE_RF_PRIV_H_
+#ifndef BLE_RF_PRIV_H_
+#define BLE_RF_PRIV_H_
 
 void ble_rf_init(void);
 void ble_rf_enable(void);
@@ -35,4 +35,4 @@ void ble_rf_setup_rx(uint8_t rf_chan, uint8_t mode);
 void ble_rf_set_tx_power(int dbm);
 int8_t ble_rf_get_rssi(void);
 
-#endif /* _BLE_RF_PRIV_H_ */
+#endif /* BLE_RF_PRIV_H_ */

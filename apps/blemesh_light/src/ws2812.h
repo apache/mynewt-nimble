@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef __WS2812_H__
-#define __WS2812_H__
+#ifndef WS2812_H_
+#define WS2812_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -39,4 +39,4 @@ int ws2812_write(const uint32_t *rgb);
 }
 #endif
 
-#endif /* __WS2812_H__ */
+#endif /* WS2812_H_ */

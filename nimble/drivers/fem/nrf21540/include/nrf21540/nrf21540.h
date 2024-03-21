@@ -18,8 +18,8 @@
  */
 
 
-#ifndef _NRF21540_H
-#define _NRF21540_H
+#ifndef NRF21540_H_
+#define NRF21540_H_
 
 #include <stdint.h>
 
@@ -33,4 +33,4 @@ int nrf21540_mode_set(uint8_t mode);
 }
 #endif
 
-#endif /* _NRF21540_H */
+#endif /* NRF21540_H_ */

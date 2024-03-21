@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _COMMON_H
-#define _COMMON_H
+#ifndef COMMON_H_
+#define COMMON_H_
 
 void update_light_state(void);
 void bt_initialized(void);

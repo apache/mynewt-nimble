@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __MESH_PRIV_H
-#define __MESH_PRIV_H
+#ifndef MESH_PRIV_H_
+#define MESH_PRIV_H_
 
 #include <stdbool.h>
 #include <stdint.h>

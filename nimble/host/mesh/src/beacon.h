@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __BEACON_H__
-#define __BEACON_H__
+#ifndef BEACON_H_
+#define BEACON_H_
 
 #include "os/os_mbuf.h"
 

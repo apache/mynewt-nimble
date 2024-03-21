@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef __BT_MESH_LIGHT_MODEL_H
-#define __BT_MESH_LIGHT_MODEL_H
+#ifndef BT_MESH_LIGHT_MODEL_H_
+#define BT_MESH_LIGHT_MODEL_H_
 
 #include "syscfg/syscfg.h"
 #include "mesh/mesh.h"

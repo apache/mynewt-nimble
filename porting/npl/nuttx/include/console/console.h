@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef __CONSOLE_H__
-#define __CONSOLE_H__
+#ifndef CONSOLE_H_
+#define CONSOLE_H_
 
 #include <nuttx/config.h>
 #include <stdio.h>
@@ -33,4 +33,4 @@ extern "C" {
 }
 #endif
 
-#endif /* __CONSOLE_H__ */
+#endif /* CONSOLE_H_ */

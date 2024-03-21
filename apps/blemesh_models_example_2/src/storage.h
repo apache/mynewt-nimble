@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _STORAGE_H
-#define _STORAGE_H
+#ifndef STORAGE_H_
+#define STORAGE_H_
 
 enum ps_variables_id {
 	RESET_COUNTER = 0x01,

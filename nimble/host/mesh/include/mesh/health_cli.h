@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_MESH_HEALTH_CLI_H
-#define __BT_MESH_HEALTH_CLI_H
+#ifndef BT_MESH_HEALTH_CLI_H_
+#define BT_MESH_HEALTH_CLI_H_
 
 /**
  * @brief Bluetooth Mesh
@@ -74,4 +74,4 @@ void bt_mesh_health_cli_timeout_set(int32_t timeout);
  * @}
  */
 
-#endif /* __BT_MESH_HEALTH_CLI_H */
+#endif /* BT_MESH_HEALTH_CLI_H_ */

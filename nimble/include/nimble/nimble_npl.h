@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_NPL_H_
-#define _NIMBLE_NPL_H_
+#ifndef NIMBLE_NPL_H_
+#define NIMBLE_NPL_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -171,4 +171,4 @@ bool ble_npl_hw_is_in_critical(void);
 }
 #endif
 
-#endif  /* _NIMBLE_NPL_H_ */
+#endif  /* NIMBLE_NPL_H_ */

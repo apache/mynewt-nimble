@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef __BTTESTER_PIPE_H__
-#define __BTTESTER_PIPE_H__
+#ifndef BTTESTER_PIPE_H_
+#define BTTESTER_PIPE_H_
 
 #include <stdlib.h>
 #include "btp/bttester.h"
@@ -41,4 +41,4 @@ bttester_pipe_init(void);
 }
 #endif
 
-#endif /* __BTTESTER_PIPE_H__ */
+#endif /* BTTESTER_PIPE_H_ */

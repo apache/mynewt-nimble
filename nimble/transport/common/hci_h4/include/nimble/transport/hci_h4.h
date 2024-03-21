@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _HCI_H4_H_
-#define _HCI_H4_H_
+#ifndef HCI_H4_H_
+#define HCI_H4_H_
 
 #include <stdint.h>
 
@@ -67,4 +67,4 @@ void hci_h4_sm_init(struct hci_h4_sm *h4sm,
 
 int hci_h4_sm_rx(struct hci_h4_sm *h4sm, const uint8_t *buf, uint16_t len);
 
-#endif /* _HCI_H4_H_ */
+#endif /* HCI_H4_H_ */

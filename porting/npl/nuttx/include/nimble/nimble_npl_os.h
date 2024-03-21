@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NIMBLE_NPL_OS_H_
-#define _NIMBLE_NPL_OS_H_
+#ifndef NIMBLE_NPL_OS_H_
+#define NIMBLE_NPL_OS_H_
 
 #include <nuttx/config.h>
 #include <assert.h>
@@ -59,4 +59,4 @@ extern "C" {
 #define MYNEWT_VAL_TRNG 0
 #define MYNEWT_VAL_SELFTEST 0
 
-#endif  /* _NPL_H_ */
+#endif  /* NIMBLE_NPL_OS_H_ */

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _NPL_FREERTOS_H_
-#define _NPL_FREERTOS_H_
+#ifndef NPL_FREERTOS_H_
+#define NPL_FREERTOS_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,4 +73,4 @@ void npl_freertos_hw_exit_critical(uint32_t ctx);
 }
 #endif
 
-#endif  /* _NPL_FREERTOS_H_ */
+#endif  /* NPL_FREERTOS_H_ */
