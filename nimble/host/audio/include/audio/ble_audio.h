@@ -225,7 +225,7 @@
 /** @} */
 
 /**
- * @defgroup ble_audio_codec_config Bluetooth Low Energy Audio Codec Specific Capabilities
+ * @defgroup ble_audio_codec_caps Bluetooth Low Energy Audio Codec Specific Capabilities
  * @{
  */
 
@@ -294,7 +294,7 @@
 /** @} */
 
 /**
- * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Frame Durations
+ * @defgroup ble_audio_sup_frame_durations Bluetooth Low Energy Audio Supported Frame Durations
  * @{
  */
 
@@ -313,7 +313,7 @@
 /** @} */
 
 /**
- * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Sampling Frequencies
+ * @defgroup ble_audio_sup_sampling_freqs Bluetooth Low Energy Audio Supported Sampling Frequencies
  * @{
  */
 
@@ -359,7 +359,7 @@
 /** @} */
 
 /**
- * @defgroup ble_audio_contexts Bluetooth Low Energy Audio Supported Channel Counts
+ * @defgroup ble_audio_sup_chan_counts Bluetooth Low Energy Audio Supported Channel Counts
  * @{
  */
 
