@@ -494,6 +494,7 @@ struct ble_audio_pub_broadcast_announcement {
     const uint8_t *metadata;
 };
 
+/** Broadcast Name */
 struct ble_audio_broadcast_name {
     /** Broadcast Name length */
     uint8_t name_len;
