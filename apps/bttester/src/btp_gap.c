@@ -264,7 +264,6 @@ controller_info(const void *cmd, uint16_t cmd_len,
 }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-int adv_duration = 0;
 static struct ble_gap_ext_adv_params adv_params = {
     .primary_phy = BLE_HCI_LE_PHY_1M,
     .secondary_phy = BLE_HCI_LE_PHY_1M,
@@ -278,6 +277,8 @@ static struct ble_gap_adv_params adv_params = {
 };
 #endif
 
+static uint8_t ad_flags = BLE_HS_ADV_F_BREDR_UNSUP;
+
 #if MYNEWT_VAL(BTTESTER_PRIVACY_MODE) && MYNEWT_VAL(BTTESTER_USE_NRPA)
 static void rotate_nrpa_cb(struct os_event *ev)
 {
@@ -287,18 +288,29 @@ static void rotate_nrpa_cb(struct os_event *ev)
     int32_t remaining_time;
     os_time_t remaining_ticks;
 
-    if (adv_params.disc_mode == BLE_GAP_DISC_MODE_LTD) {
-        duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+    if (current_settings & BIT(BTP_GAP_SETTINGS_DISCOVERABLE)) {
+        if (ad_flags & BLE_HS_ADV_F_DISC_LTD) {
+            duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+        }
     }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    ble_gap_ext_adv_stop(0);
+#else
     ble_gap_adv_stop();
+#endif
+
     rc = ble_hs_id_gen_rnd(1, &addr);
     assert(rc == 0);
     rc = ble_hs_id_set_rnd(addr.val);
     assert(rc == 0);
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    ble_gap_ext_adv_start(0, duration_ms / 10, 0);
+#else
     ble_gap_adv_start(own_addr_type, NULL, duration_ms,
-                      &adv_params, gap_event_cb, NULL);
+                            &adv_params, gap_event_cb, NULL);
+#endif
 
     remaining_time = os_get_uptime_usec() - advertising_start;
     if (remaining_time > 0) {
@@ -344,13 +356,10 @@ set_connectable(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
-static uint8_t ad_flags = BLE_HS_ADV_F_BREDR_UNSUP;
-
 static uint8_t
 set_discoverable(const void *cmd, uint16_t cmd_len,
                  void *rsp, uint16_t *rsp_len)
 {
-#if !MYNEWT_VAL(BLE_EXT_ADV)
     const struct btp_gap_set_discoverable_cmd *cp = cmd;
     struct btp_gap_set_discoverable_rp *rp = rsp;
 
@@ -359,19 +368,25 @@ set_discoverable(const void *cmd, uint16_t cmd_len,
     switch (cp->discoverable) {
     case BTP_GAP_NON_DISCOVERABLE:
         ad_flags &= ~(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_DISC_LTD);
+#if !MYNEWT_VAL(BLE_EXT_ADV)
         adv_params.disc_mode = BLE_GAP_DISC_MODE_NON;
+#endif
         current_settings &= ~BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
     case BTP_GAP_GENERAL_DISCOVERABLE:
         ad_flags &= ~BLE_HS_ADV_F_DISC_LTD;
         ad_flags |= BLE_HS_ADV_F_DISC_GEN;
+#if !MYNEWT_VAL(BLE_EXT_ADV)
         adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+#endif
         current_settings |= BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
     case BTP_GAP_LIMITED_DISCOVERABLE:
         ad_flags &= ~BLE_HS_ADV_F_DISC_GEN;
         ad_flags |= BLE_HS_ADV_F_DISC_LTD;
+#if !MYNEWT_VAL(BLE_EXT_ADV)
         adv_params.disc_mode = BLE_GAP_DISC_MODE_LTD;
+#endif
         current_settings |= BIT(BTP_GAP_SETTINGS_DISCOVERABLE);
         break;
     default:
@@ -383,9 +398,6 @@ set_discoverable(const void *cmd, uint16_t cmd_len,
     *rsp_len = sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
-#else
-    return BTP_STATUS_FAILED;
-#endif
 }
 
 static uint8_t
@@ -438,16 +450,19 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 {
     const struct btp_gap_start_advertising_cmd *cp = cmd;
     struct btp_gap_start_advertising_rp *rp = rsp;
-    int32_t duration_ms = BLE_HS_FOREVER;
     uint8_t buf[BLE_HS_ADV_MAX_SZ];
     uint8_t buf_len = 0;
     uint8_t adv_len, sd_len;
     uint8_t addr_type;
     uint32_t duration;
-
     int err;
-
     int i;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    struct os_mbuf *ad_buf;
+    int duration_ms = 0;
+#else
+    int32_t duration_ms = BLE_HS_FOREVER;
+#endif
 
     SYS_LOG_DBG("");
 
@@ -498,8 +513,6 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    struct os_mbuf *ad_buf;
-
     adv_params.own_addr_type = own_addr_type;
     err = ble_gap_ext_adv_configure(0, &adv_params, NULL, gap_event_cb, NULL);
     if (err) {
@@ -513,7 +526,6 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         os_mbuf_free_chain(ad_buf);
         return BTP_STATUS_FAILED;
     }
-
     err = ble_gap_ext_adv_set_data(0, ad_buf);
 #else
     err = ble_gap_adv_set_data(buf, buf_len);
@@ -528,20 +540,28 @@ start_advertising(const void *cmd, uint16_t cmd_len,
             return BTP_STATUS_FAILED;
         }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        ad_buf = os_msys_get_pkthdr(BLE_HS_ADV_MAX_SZ, 0);
+
+        if (os_mbuf_append(ad_buf, buf, buf_len)) {
+            os_mbuf_free_chain(ad_buf);
+            return BTP_STATUS_FAILED;
+        }
+        err = ble_gap_ext_adv_rsp_set_data(0, ad_buf);
+#else
         err = ble_gap_adv_rsp_set_data(buf, buf_len);
+#endif
         if (err != 0) {
             SYS_LOG_ERR("Advertising failed: err %d", err);
             return BTP_STATUS_FAILED;
         }
     }
 
-#if !MYNEWT_VAL(BLE_EXT_ADV)
-    if (adv_params.disc_mode == BLE_GAP_DISC_MODE_LTD) {
-        duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+    if (current_settings & BIT(BTP_GAP_SETTINGS_DISCOVERABLE)) {
+        if (ad_flags & BLE_HS_ADV_F_DISC_LTD) {
+            duration_ms = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
+        }
     }
-#else
-    adv_duration = MYNEWT_VAL(BTTESTER_LTD_ADV_TIMEOUT);
-#endif
 
     /* In NimBLE, own_addr_type is configured in `controller_info` function.
      * Let's just verify restrictions for Privacy options.
@@ -576,10 +596,10 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 #endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    err = ble_gap_ext_adv_start(0, duration_ms, 0);
+    err = ble_gap_ext_adv_start(0, duration_ms / 10, 0);
 #else
     err = ble_gap_adv_start(own_addr_type, NULL, duration_ms,
-                &adv_params, gap_event_cb, NULL);
+                            &adv_params, gap_event_cb, NULL);
 #endif
     if (err) {
         SYS_LOG_ERR("Advertising failed: err %d", err);
@@ -1751,24 +1771,51 @@ passkey_confirm(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static struct ble_gap_ext_adv_params dir_adv_params = {
+    .primary_phy = BLE_HCI_LE_PHY_1M,
+    .secondary_phy = BLE_HCI_LE_PHY_1M,
+    .sid = 1,
+    .legacy_pdu = 1,
+    .directed = 1,
+    .connectable = 1,
+};
+#else
+static struct ble_gap_adv_params dir_adv_params = {
+    .conn_mode = BLE_GAP_CONN_MODE_DIR,
+};
+#endif
+
 static uint8_t
 start_direct_adv(const void *cmd, uint16_t cmd_len,
                  void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gap_start_direct_adv_cmd *cp = cmd;
     struct btp_gap_start_advertising_rp *rp = rsp;
-    static struct ble_gap_adv_params adv_params = {
-        .conn_mode = BLE_GAP_CONN_MODE_DIR,
-    };
     int err;
 
     SYS_LOG_DBG("");
 
-    adv_params.high_duty_cycle = cp->options & BIT(1);
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    dir_adv_params.high_duty_directed = cp->options & BIT(1);
+    dir_adv_params.own_addr_type = own_addr_type;
+    memcpy(&dir_adv_params.peer, &cp->address, sizeof(dir_adv_params.peer));
+
+    err = ble_gap_ext_adv_configure(0, &dir_adv_params, NULL, gap_event_cb, NULL);
+    if (err) {
+        SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", err);
+        return BTP_STATUS_FAILED;
+    }
+
+    err = ble_gap_ext_adv_start(0, 128, 0);
+#else
+    dir_adv_params.high_duty_cycle = cp->options & BIT(1);
 
     err = ble_gap_adv_start(own_addr_type, &cp->address,
-                            BLE_HS_FOREVER, &adv_params,
+                            BLE_HS_FOREVER, &dir_adv_params,
                             gap_event_cb, NULL);
+#endif
+
     if (err) {
         SYS_LOG_ERR("Advertising failed: err %d", err);
         return BTP_STATUS_FAILED;
