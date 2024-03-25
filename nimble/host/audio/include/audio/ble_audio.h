@@ -24,6 +24,16 @@
 #include <sys/queue.h>
 
 /**
+ * @file ble_audio.h
+ *
+ * @brief Bluetooth Low Energy Audio API
+ *
+ * @defgroup bt_le_audio Bluetooth LE Audio
+ * @ingroup bt_host
+ * @{
+ */
+
+/**
  * @cond
  * Helper macros for BLE_AUDIO_BUILD_CODEC_CONFIG
  * @private @{
@@ -644,7 +654,7 @@ int ble_audio_event_listener_unregister(struct ble_audio_event_listener *listene
  * BASE iterator
  *
  * The iterator structure used by @ref ble_audio_base_subgroup_iter and
- * @ble_audio_base_bis_iter functions to iterate the BASE Level 2 and 3 elements
+ * @ref ble_audio_base_bis_iter functions to iterate the BASE Level 2 and 3 elements
  * (Subgroups and BISes).
  * This should be used as an opaque structure and not modified manually.
  *
@@ -824,5 +834,7 @@ struct ble_audio_base {
     /** Link list of subgroups */
     STAILQ_HEAD(, ble_audio_big_subgroup) subs;
 };
+
+/** @} */
 
 #endif /* H_BLE_AUDIO_ */
