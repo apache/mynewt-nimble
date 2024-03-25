@@ -629,7 +629,6 @@ struct ble_audio_event_listener {
  * and/or argument unregister listener first and register it again.
  *
  * @param[in] listener          Listener structure
- * @param[in] event_mask        Optional event mask
  * @param[in] fn                Callback function
  * @param[in] arg               Optional callback argument
  *
