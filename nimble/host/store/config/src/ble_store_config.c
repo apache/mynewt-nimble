@@ -225,6 +225,7 @@ ble_store_config_delete_our_sec(const struct ble_store_key_sec *key_sec)
 #if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
     int rc;
 
+    assert(ble_store_config_num_our_secs <= ARRAY_SIZE(ble_store_config_our_secs));
     rc = ble_store_config_delete_sec(key_sec, ble_store_config_our_secs,
                                      &ble_store_config_num_our_secs);
     if (rc != 0) {
@@ -248,6 +249,7 @@ ble_store_config_delete_peer_sec(const struct ble_store_key_sec *key_sec)
 #if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
     int rc;
 
+    assert(ble_store_config_num_peer_secs <= ARRAY_SIZE(ble_store_config_peer_secs));
     rc = ble_store_config_delete_sec(key_sec, ble_store_config_peer_secs,
                                   &ble_store_config_num_peer_secs);
     if (rc != 0) {
@@ -369,10 +371,11 @@ ble_store_config_delete_cccd(const struct ble_store_key_cccd *key_cccd)
     int rc;
 
     idx = ble_store_config_find_cccd(key_cccd);
-    if (idx == -1) {
+    if (idx < 0) {
         return BLE_HS_ENOENT;
     }
 
+    assert(ble_store_config_num_cccds < ARRAY_SIZE(ble_store_config_cccds));
     rc = ble_store_config_delete_obj(ble_store_config_cccds,
                                      sizeof *ble_store_config_cccds,
                                      idx,
