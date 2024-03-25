@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-pkg.name: audio/targets/btshell_native
-pkg.type: target
-pkg.description: Target for native btshell application with LE Audio
-                 functionality enabled
+pkg.name: nimble/host/audio/services/bass
+pkg.description: Broadcast Audio Scan Service
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
+pkg.keywords:
+  - ble
+  - bluetooth
+  - pacs
+  - nimble
+
 pkg.deps:
-  - nimble/host/audio
+  - nimble/host
+
+pkg.init:
+  ble_svc_audio_bass_init: 'MYNEWT_VAL(BLE_SVC_AUDIO_BASS_SYSINIT_STAGE)'

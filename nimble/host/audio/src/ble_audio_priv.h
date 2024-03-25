@@ -22,6 +22,17 @@
 
 #include "audio/ble_audio.h"
 
+#define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+
+#if MYNEWT_VAL(BLE_HS_DEBUG)
+#define BLE_AUDIO_DBG_ASSERT(x) assert(x)
+#define BLE_AUDIO_DBG_ASSERT_EVAL(x) assert(x)
+#else
+#define BLE_AUDIO_DBG_ASSERT(x)
+#define BLE_AUDIO_DBG_ASSERT_EVAL(x) ((void)(x))
+#endif
+
 int ble_audio_event_listener_call(struct ble_audio_event *event);
 
 #endif /* H_BLE_AUDIO_PRIV_ */

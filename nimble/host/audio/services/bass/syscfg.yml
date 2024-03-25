@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-pkg.name: audio/targets/btshell_native
-pkg.type: target
-pkg.description: Target for native btshell application with LE Audio
-                 functionality enabled
-pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
-pkg.deps:
-  - nimble/host/audio
+syscfg.defs:
+    BLE_SVC_AUDIO_BASS_SYSINIT_STAGE:
+        description: >
+            Sysinit stage for Published Audio Capabilities Service.
+        value: 303
+    BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX:
+        description: >
+            Maximum number of Broadcast Receive State characteristics.
+        value: 2
+    BLE_SVC_AUDIO_BASS_MAX_SUBGROUPS_PER_RECV_STATE:
+        description: >
+            Maximum number of BIG Subgroups stored in Reveive State characteristic.
+        value: 2
+    BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ:
+        description: >
+            Maximum size of metadata that can be saved for subgroup. If set to 0 metadata is
+            not being saved.
+        value: 32

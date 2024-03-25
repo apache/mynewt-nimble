@@ -87,14 +87,14 @@ static const struct parse_arg_kv_pair cmd_peer_addr_types[] = {
     { NULL }
 };
 
-static const struct parse_arg_kv_pair cmd_addr_type[] = {
+const struct parse_arg_kv_pair cmd_addr_type[] = {
     { "public",     BLE_ADDR_PUBLIC },
     { "random",     BLE_ADDR_RANDOM },
     { NULL }
 };
 
 
-static int
+int
 parse_dev_addr(const char *prefix, const struct parse_arg_kv_pair *addr_types,
                ble_addr_t *addr)
 {
@@ -4922,6 +4922,50 @@ static const struct shell_cmd btshell_commands[] = {
         .sc_cmd_func = cmd_leaudio_broadcast_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
         .help = &leaudio_broadcast_stop_help,
+#endif
+    },
+#endif
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
+    {
+        .sc_cmd = "broadcast-sink-create",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_create,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_create_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-destroy",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_destroy,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_destroy_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-pa-sync",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_pa_sync,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_pa_sync_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-pa-sync-term",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_pa_sync_term,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_pa_sync_term_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-big-sync",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_sync,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_big_sync_help,
+#endif
+    },
+    {
+        .sc_cmd = "broadcast-sink-big-sync-term",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_big_sync_term,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_big_sync_term_help,
 #endif
     },
 #endif /* BLE_ISO_BROADCAST_SOURCE */

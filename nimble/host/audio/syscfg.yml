@@ -22,4 +22,32 @@ syscfg.defs:
             Maximum number of registered audio codecs.
         value: 0
 
+    BLE_AUDIO_BROADCAST_SINK:
+        description: >
+            This option enables BLE Audio Sink support.
+        value: 0
+        restrictions:
+          - '(BLE_ISO_BROADCAST_SINK > 0) if 1'
+
+    BLE_AUDIO_BROADCAST_SINK_SYSINIT_STAGE:
+        description: >
+            Primary sysinit stage for BLE Audio Broadcast Sink.
+        value: 500
+
+    BLE_AUDIO_BROADCAST_SINK_MAX:
+        description: >
+            Number of supported BLE Audio Broadcast Sink instances
+        value: 'MYNEWT_VAL_BLE_ISO_MAX_BIGS'
+
+    BLE_AUDIO_BROADCAST_SINK_LOG_MOD:
+        description: 'Numeric module ID to use for BLE Audio Broadcast Sink log messages.'
+        value: 28
+
+    BLE_AUDIO_BROADCAST_SINK_LOG_LVL:
+        description: 'Minimum level for the BLE Audio Broadcast Sink log log.'
+        value: 1
+
 syscfg.logs:
+    BLE_AUDIO_BROADCAST_SINK_LOG:
+        module: MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_LOG_MOD)
+        level: MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_LOG_LVL)
