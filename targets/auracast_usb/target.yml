@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-syscfg.defs:
-    LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER:
-        description: Enable SINC best converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER:
-        description: Enable SINC medium converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER:
-        description: Enable SINC fastest converter
-        value: 1
+target.app: "@apache-mynewt-nimble/apps/auracast_usb"
+target.bsp: "@apache-mynewt-core/hw/bsp/nordic_pca10121"
+target.build_profile: speed
+
+# linkerscrupt that moves audio processing to RAM, for better performance
+bsp.linkerscript:
+    - "@apache-mynewt-nimble/targets/auracast_usb/nrf5340.ld"
+    - "@apache-mynewt-nimble/targets/auracast_usb/nrf5340-mcu.ld"

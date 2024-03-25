@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,14 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-syscfg.defs:
-    LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER:
-        description: Enable SINC best converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER:
-        description: Enable SINC medium converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER:
-        description: Enable SINC fastest converter
-        value: 1
+pkg.name: targets/auracast_usb
+pkg.type: target
+pkg.description: 
+pkg.author: 
+pkg.homepage:

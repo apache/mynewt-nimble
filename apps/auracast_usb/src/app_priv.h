@@ -17,24 +17,29 @@
  * under the License.
  */
 
-#ifndef H_LIBSAMPLERATE_CONFIG_
-#define H_LIBSAMPLERATE_CONFIG_
+#ifndef H_APP_PRIV_
+#define H_APP_PRIV_
 
-#include "syscfg/syscfg.h"
+#include <syscfg/syscfg.h>
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER)
-#define ENABLE_SINC_BEST_CONVERTER      1
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER)
-#define ENABLE_SINC_MEDIUM_CONVERTER      1
-#endif
+#define AUDIO_CHANNELS          MYNEWT_VAL(AURACAST_CHAN_NUM)
+#define AUDIO_SAMPLE_SIZE       sizeof(int16_t)
+#define AUDIO_PCM_SAMPLE_RATE   MYNEWT_VAL(USB_AUDIO_OUT_SAMPLE_RATE)
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER)
-#define ENABLE_SINC_FAST_CONVERTER      1
-#endif
+#define LC3_FRAME_DURATION      (MYNEWT_VAL(LC3_FRAME_DURATION))
+#define LC3_SAMPLING_FREQ       (MYNEWT_VAL(LC3_SAMPLING_FREQ))
+#define LC3_BITRATE             (MYNEWT_VAL(LC3_BITRATE))
+#define LC3_FPDT                (LC3_SAMPLING_FREQ * LC3_FRAME_DURATION / 1000000)
+#define BIG_NUM_BIS             (MIN(AUDIO_CHANNELS, MYNEWT_VAL(BIG_NUM_BIS)))
 
-#define PACKAGE     "libsamplerate"
-#define VERSION     "0.2.2"
+struct chan {
+    void *encoder;
+    uint16_t handle;
+};
 
-#endif /* H_LIBSAMPLERATE_CONFIG_ */
+extern struct chan chans[AUDIO_CHANNELS];
+#endif /* H_APP_PRIV_ */

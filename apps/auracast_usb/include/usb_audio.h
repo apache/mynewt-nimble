@@ -17,24 +17,14 @@
  * under the License.
  */
 
-#ifndef H_LIBSAMPLERATE_CONFIG_
-#define H_LIBSAMPLERATE_CONFIG_
+#ifndef H_USB_AUDIO_
+#define H_USB_AUDIO_
 
-#include "syscfg/syscfg.h"
+#include <stdint.h>
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER)
-#define ENABLE_SINC_BEST_CONVERTER      1
-#endif
+typedef void (* usb_audio_sample_rate_cb_t)(uint32_t);
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER)
-#define ENABLE_SINC_MEDIUM_CONVERTER      1
-#endif
+/* Set default sample rate, should only be used before USB is initialized */
+void usb_desc_sample_rate_set(uint32_t sample_rate);
 
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER)
-#define ENABLE_SINC_FAST_CONVERTER      1
-#endif
-
-#define PACKAGE     "libsamplerate"
-#define VERSION     "0.2.2"
-
-#endif /* H_LIBSAMPLERATE_CONFIG_ */
+#endif /* H_USB_AUDIO_ */

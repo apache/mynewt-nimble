@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-syscfg.defs:
-    LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER:
-        description: Enable SINC best converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER:
-        description: Enable SINC medium converter
-        value: 1
-    LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER:
-        description: Enable SINC fastest converter
-        value: 1
+syscfg.vals.BSP_NRF5340:
+    MCU_MPU_ENABLE: 0
+    MCU_CACHE_ENABLED: 1
+    BSP_NRF5340_NET_ENABLE: 1
+    NRF5340_EMBED_NET_CORE: 1
+    NET_CORE_IMAGE_TARGET_NAME: "@apache-mynewt-nimble/targets/nordic_pca10095_net-blehci_broadcaster"

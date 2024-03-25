@@ -16,25 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+MEMORY
+{
+  FLASH (rx) : ORIGIN = 0x0000c000, LENGTH = 0x76000
+  RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 0x80000
+}
 
-#ifndef H_LIBSAMPLERATE_CONFIG_
-#define H_LIBSAMPLERATE_CONFIG_
-
-#include "syscfg/syscfg.h"
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER)
-#define ENABLE_SINC_BEST_CONVERTER      1
-#endif
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER)
-#define ENABLE_SINC_MEDIUM_CONVERTER      1
-#endif
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER)
-#define ENABLE_SINC_FAST_CONVERTER      1
-#endif
-
-#define PACKAGE     "libsamplerate"
-#define VERSION     "0.2.2"
-
-#endif /* H_LIBSAMPLERATE_CONFIG_ */
+/* This linker script is used for images and thus contains an image header */
+_imghdr_size = 0x20;

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,30 +16,31 @@
 # under the License.
 #
 
-pkg.name: ext/libsamplerate
-pkg.description: samplerate library
-pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.name: apps/auracast_usb
+pkg.type: app
+pkg.description: Auracast sample application.
+
+pkg.author: "Krzysztof Kopyściński"
+pkg.email: "krzysztof.kopyscinski@codecoup.pl"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
-    - samplerate
 
-pkg.type: sdk
+pkg.deps:
+    - "@apache-mynewt-core/sys/config"
+    - nimble/host
+    - nimble/host/util
+    - nimble/host/services/gap
+    - nimble/host/store/config
+    - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/sys/console"
+    - "@apache-mynewt-core/sys/log"
+    - "@apache-mynewt-core/sys/stats"
+    - "@apache-mynewt-core/sys/sysinit"
+    - "@apache-mynewt-core/sys/id"
+    - "@apache-mynewt-core/hw/usb/tinyusb"
+    - "@apache-mynewt-nimble/nimble/host/audio/services/auracast"
+    - "@apache-mynewt-nimble/ext/liblc3"
+    - "@apache-mynewt-nimble/ext/libsamplerate"
 
-pkg.cflags: -O3 -DHAVE_STDBOOL_H -fsingle-precision-constant -DHAVE_CONFIG_H -DNDEBUG -DLIBSAMPLERATE_SINGLE_PRECISION
-pkg.lflags: -lm
-
-app.cflags:
-    - -DLIBSAMPLERATE_SINGLE_PRECISION
-
-pkg.src_dirs:
-    - "@libsamplerate/src"
-
-pkg.include_dirs:
-    - "@libsamplerate/include"
-
-repository.libsamplerate:
-    type: github
-    vers: 0.2.2-commit
-    branch: release-0.2.2
-    user: libsndfile
-    repo: libsamplerate
+pkg.init:
+    audio_usb_init: 402

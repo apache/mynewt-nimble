@@ -1,0 +1,132 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+syscfg.defs:
+    ISO_HCI_FEEDBACK:
+        description: Enable HCI feedback for resampler. This reduces jitter between USB and ISO.
+        value: 1
+
+    AURACAST_CHAN_NUM: 2
+
+    BROADCAST_ID:
+        description: Broadcast ID value, will use random number if 0
+        value: 0x000000
+    BROADCAST_NAME:
+        description: Broadcast name
+        value: '"NimBLE Auracast"'
+    BROADCAST_CODE:
+        description: Broadcast code used for encrpytion
+        value: '"listen2nimble"'
+
+    LC3_FRAME_DURATION:
+        description: LC3 frame duration
+        value: 10000
+    LC3_SAMPLING_FREQ:
+        description: LC3 sampling frequency
+        value: 24000
+    LC3_BITRATE:
+        description: LC3 bitrate
+        value: 24000
+
+    BIG_PHY:
+        description:
+        value: 3
+    BIG_NUM_BIS:
+        description: Max number of BISes used
+        value: 2
+    BIG_RTN:
+        description: BIG RTN (number of retransmissions)
+        value: 0
+    BIG_PACKING:
+        description: Arrangement of BIS subevents (0 = sequential, 1 = interleaved)
+        value: 0
+    BIG_FRAMING:
+        description:
+        value: 0
+    BIG_ENCRYPTION:
+        description: BIS encryption
+        value: 0
+
+syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
+    # Disable not used GAP roles (we only do non-connectable
+    # advertising here)
+    BLE_ROLE_BROADCASTER: 1
+    BLE_ROLE_CENTRAL: 0
+    BLE_ROLE_OBSERVER: 0
+    BLE_ROLE_PERIPHERAL: 0
+
+    # Enable Extended Advertising
+    BLE_EXT_ADV: 1
+
+    # Enable Periodic Advertising
+    BLE_PERIODIC_ADV: 1
+
+    # Max advertising data size
+    BLE_EXT_ADV_MAX_SIZE: 261
+
+    # Number of multi-advertising instances. Note that due
+    # to historical reasonds total number of advertising
+    # instances is BLE_MULTI_ADV_INSTANCES + 1 as instance
+    # 0 is always available
+    BLE_MULTI_ADV_INSTANCES: 1
+
+    # Controller uses msys pool for storing advertising data and scan responses.
+    # Since we advertise a lot of data (~6k in total) at the same time we need
+    # to increase block count.
+    MSYS_1_BLOCK_COUNT: 32
+
+    BLE_PHY_2M: 1
+
+    BLE_VERSION: 54
+    BLE_ISO: 1
+    BLE_ISO_BROADCAST_SOURCE: 1
+    BLE_ISO_MAX_BIGS: 1
+    BLE_ISO_MAX_BISES: 2
+
+    USBD_VID: 0xFFFF
+    USBD_PID: 0x0001
+    USBD_VENDOR_STRING: '"Apache Software Foundation"'
+    USBD_PRODUCT_STRING: '"NimBLE Auracast"'
+    USBD_AUDIO_OUT: 1
+    USB_AUDIO_OUT_CHANNELS: MYNEWT_VAL(AURACAST_CHAN_NUM)
+
+    # resampler + encoder
+    LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER: 0
+    LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER: 0
+    LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER: 1
+    LIBSAMPLERATE_LIBSAMPLER_NDEBUG: 1
+
+    MCU_HFCLK_DIV: 1
+    HARDFLOAT: 1
+
+syscfg.vals.TINYUSB:
+    USBD_STACK_SIZE: 500
+    USBD_STD_DESCRIPTORS: 0
+
+syscfg.vals.ISO_HCI_FEEDBACK:
+    BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS: 1000
+    BLE_HS_GAP_UNHANDLED_HCI_EVENT: 1
+
+syscfg.vals.BSP_NRF52:
+    BLE_PHY_NRF52_HEADERMASK_WORKAROUND: 1
+
+$import:
+    - "@apache-mynewt-nimble/apps/auracast_usb/syscfg.usb.yml"
