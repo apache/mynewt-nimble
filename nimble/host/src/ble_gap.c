@@ -121,6 +121,10 @@ static const struct ble_gap_conn_params ble_gap_conn_params_dflt = {
 struct ble_gap_master_state {
     uint8_t op;
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    /* indicates if discovery was started with legacy API */
+    uint8_t legacy_discovery;
+#endif
     uint8_t exp_set:1;
     ble_npl_time_t exp_os_ticks;
 
@@ -979,13 +983,8 @@ ble_gap_disc_report(void *desc)
     struct ble_gap_event event;
 
     memset(&event, 0, sizeof event);
-#if MYNEWT_VAL(BLE_EXT_ADV)
-    event.type = BLE_GAP_EVENT_EXT_DISC;
-    event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
-#else
     event.type = BLE_GAP_EVENT_DISC;
     event.disc = *((struct ble_gap_disc_desc *)desc);
-#endif
 
     ble_gap_master_extract_state(&state, 0);
     if (ble_gap_has_client(&state)) {
@@ -994,6 +993,44 @@ ble_gap_disc_report(void *desc)
 
     ble_gap_event_listener_call(&event);
 }
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static void
+ble_gap_ext_disc_report(void *desc)
+{
+    struct ble_gap_ext_disc_desc *ext_desc = desc;
+    struct ble_gap_disc_desc legacy_desc;
+    struct ble_gap_master_state state;
+    struct ble_gap_event event;
+
+    if (ble_gap_master.legacy_discovery) {
+        /* ignore non-legacy events */
+        if (!(ext_desc->props & BLE_HCI_ADV_LEGACY_MASK)) {
+            return;
+        }
+
+        legacy_desc.event_type = ext_desc->legacy_event_type;
+        legacy_desc.length_data = ext_desc->length_data;
+        legacy_desc.addr = ext_desc->addr;
+        legacy_desc.rssi = ext_desc->rssi;
+        legacy_desc.data = ext_desc->data;
+        legacy_desc.direct_addr = ext_desc->direct_addr;
+        ble_gap_disc_report(&legacy_desc);
+        return;
+    }
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_EXT_DISC;
+    event.ext_disc = *((struct ble_gap_ext_disc_desc *)desc);
+
+    ble_gap_master_extract_state(&state, 0);
+    if (ble_gap_has_client(&state)) {
+        state.cb(&event, state.cb_arg);
+    }
+
+    ble_gap_event_listener_call(&event);
+}
+#endif
 
 static void
 ble_gap_disc_complete(void)
@@ -1557,7 +1594,7 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
         return;
     }
 
-    ble_gap_disc_report(desc);
+    ble_gap_ext_disc_report(desc);
 }
 #endif
 
@@ -4822,6 +4859,7 @@ ble_gap_ext_disc(uint8_t own_addr_type, uint16_t duration, uint16_t period,
     }
 
     ble_gap_master.op = BLE_GAP_OP_M_DISC;
+    ble_gap_master.legacy_discovery = 0;
 
     rc = ble_gap_ext_disc_enable_tx(1, filter_duplicates, duration, period);
     if (rc != 0) {
@@ -4898,6 +4936,7 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
 #if NIMBLE_BLE_SCAN
 #if MYNEWT_VAL(BLE_EXT_ADV)
     struct ble_gap_ext_disc_params p = {0};
+    int rc;
 
     if (!ble_hs_is_enabled()) {
         return BLE_HS_EDISABLED;
@@ -4913,10 +4952,14 @@ ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
         duration_ms = BLE_GAP_DISC_DUR_DFLT;
     }
 
-    return ble_gap_ext_disc(own_addr_type, duration_ms/10, 0,
+    rc = ble_gap_ext_disc(own_addr_type, duration_ms/10, 0,
                           disc_params->filter_duplicates,
                           disc_params->filter_policy, disc_params->limited,
                           &p, NULL, cb, cb_arg);
+
+    ble_gap_master.legacy_discovery = 1;
+
+    return rc;
 #else
     struct ble_gap_disc_params params;
     uint32_t duration_ticks = 0;
