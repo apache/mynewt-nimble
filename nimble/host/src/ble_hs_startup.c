@@ -314,6 +314,23 @@ ble_hs_startup_le_set_evmask_tx(void)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    if (version >= BLE_HCI_VER_BCS_5_4) {
+        /**
+         * Enable the following LE events:
+         * 0x0000080000000000 LE CS Read Remote Supported Capabilities Complete event
+         * 0x0000100000000000 LE CS Read Remote FAE Table Complete event
+         * 0x0000200000000000 LE CS Security Enable Complete event
+         * 0x0000400000000000 LE CS Config Complete event
+         * 0x0000800000000000 LE CS Procedure Enable Complete event
+         * 0x0001000000000000 LE CS Subevent Result event
+         * 0x0002000000000000 LE CS Subevent Result Continue event
+         * 0x0004000000000000 LE CS Test End Complete event
+         */
+        mask |= 0x0007f80000000000;
+    }
+#endif
+
     cmd.event_mask = htole64(mask);
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,

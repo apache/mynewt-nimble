@@ -115,6 +115,11 @@ syscfg.defs:
         restrictions:
             - 'BLE_ISO if 1'
 
+    BLE_CHANNEL_SOUNDING:
+        description: >
+            This enables Channel Sounding feature
+        value: 0
+
     BLE_HCI_VS:
         description: >
             Enables support for NimBLE specific vendor HCI commands

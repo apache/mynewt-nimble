@@ -516,6 +516,14 @@ syscfg.defs:
         value: 0
         experimental: 1
 
+    BLE_LL_CHANNEL_SOUNDING:
+        description: >
+            Enable support for Channel Sounding feature.
+        restrictions:
+            - (BLE_VERSION >= 54) if 1
+        value: MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+        state: experimental
+
     BLE_LL_SYSINIT_STAGE:
         description: >
             Sysinit stage for the NimBLE controller.
