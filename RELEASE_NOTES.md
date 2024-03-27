@@ -1,6 +1,6 @@
 # RELEASE NOTES
 
-09 August 2023 - Apache NimBLE v1.6.0
+27 March 2024 - Apache NimBLE v1.7.0
 
 For full release notes, please visit the
 [Apache Mynewt Wiki](https://cwiki.apache.org/confluence/display/MYNEWT/Release+Notes).
@@ -10,11 +10,10 @@ replaces the proprietary SoftDevice on Nordic chipsets.
 
 New features in this version of NimBLE include:
 
-* Initial support for ISO broacaster
-* Support for Bluetooth Core Specification 5.4
-* FEM antenna control
-* nRF PHY driver unification
-* IPC HCI transport improvements
+* Initial support for Enhanced ATT bearer
+* Initial support for Broadcast Source and Auracast
+* GATT host API additions
+* Doxygen API comments overhaul
 
 If working on next-generation RTOS and Bluetooth protocol stack
 sounds exciting to you, get in touch, by sending a mail to the Apache Mynewt
