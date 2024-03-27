@@ -1136,7 +1136,7 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     int8_t tx_power = 127; /* defaults to not available */
     uint8_t *aux = NULL;
     uint8_t *acad = NULL;
-    uint8_t acad_len;
+    uint8_t acad_len = 0;
     const uint8_t *biginfo = NULL;
     uint8_t biginfo_len = 0;
     int datalen;
