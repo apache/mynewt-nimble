@@ -22,75 +22,109 @@
 static struct os_callout stress_timer_callout;
 
 void
-com_stress_print_report(const struct com_stress_test_ctx *test_ctxs)
+com_stress_print_report(const struct com_stress_test_ctx *test_ctxs,
+                        int test_num)
 {
-    console_printf("\033[0;32mAll tests completed\033[0m\n");
-    console_printf("Tests results:\n");
+    console_printf("Tests result:\n");
 
-    console_printf(
-        "\033[0;33mUse case 1 - Stress Connect -> Connect Cancel: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[1].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[1].num);
+    switch (test_num) {
+    case 1:
+        console_printf(
+                "\033[0;33mUse case 1 - "
+                "Stress Connect -> Connect Cancel: \n\033[0m");
+        console_printf("Con attempts = %d\n",
+                           test_ctxs->con_stat[1].attempts_num);
+        console_printf("Con success = %d\n", test_ctxs->con_stat[1].num);
+        break;
+    case 2:
+        console_printf(
+                "\033[0;33mUse case 2 - "
+                "Stress Connect/Disconnect legacy: \n\033[0m");
+        console_printf("Con attempts = %d\n",
+                           test_ctxs->con_stat[2].attempts_num);
+        console_printf("Con success = %d\n", test_ctxs->con_stat[2].num);
+        break;
+    case 3:
+        console_printf(
+                "\033[0;33mUse case 3 - "
+                "Stress Connect/Disconnect ext adv: \n\033[0m");
+        console_printf("Con attempts = %d\n",
+                           test_ctxs->con_stat[3].attempts_num);
+        console_printf("Con success = %d\n", test_ctxs->con_stat[3].num);
+        break;
+    case 4:
+        console_printf(
+                "\033[0;33mUse case 4 - "
+                "Stress connection params update (TX): \n\033[0m");
+        console_printf("Params updates = %d\n",
+                       test_ctxs->con_stat[4].prms_upd_num);
+        break;
+    case 5:
+        console_printf(
+                "\033[0;33mUse case 5 - "
+                "Stress connection params update (RX): \n\033[0m");
+        console_printf("Params updates = %d\n",
+                       test_ctxs->con_stat[5].prms_upd_num);
+        break;
+    case 6:
+        console_printf("\033[0;33mUse case 6 - Stress Scan: \n\033[0m");
+        console_printf("Received first packets = %d\n",
+                       test_ctxs->s6_rcv_adv_first);
+        console_printf("Received all packets = %d\n",
+                           test_ctxs->s6_rcv_adv_suc);
+        break;
+    case 7:
+        console_printf("\033[0;33mUse case 7 - Stress PHY Update (TX): \n\033[0m");
+        console_printf("PHY updates = %d\n",
+                           test_ctxs->con_stat[7].phy_upd_num);
+        break;
+    case 8:
 
-    console_printf(
-        "\033[0;33mUse case 2 - Stress Connect/Disconnect legacy: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[2].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[2].num);
-
-    console_printf(
-        "\033[0;33mUse case 3 - Stress Connect/Disconnect ext adv: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[3].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[3].num);
-
-    console_printf(
-        "\033[0;33mUse case 4 - Stress connection params update (TX): \n\033[0m");
-    console_printf("Params updates = %d\n",
-                   test_ctxs->con_stat[4].prms_upd_num);
-
-    console_printf(
-        "\033[0;33mUse case 5 - Stress connection params update (RX): \n\033[0m");
-    console_printf("Params updates = %d\n",
-                   test_ctxs->con_stat[5].prms_upd_num);
-
-    console_printf("\033[0;33mUse case 6 - Stress Scan: \n\033[0m");
-    console_printf("Received first packets = %d\n",
-                   test_ctxs->s6_rcv_adv_first);
-    console_printf("Received all packets = %d\n", test_ctxs->s6_rcv_adv_suc);
-
-    console_printf("\033[0;33mUse case 7 - Stress PHY Update (TX): \n\033[0m");
-    console_printf("PHY updates = %d\n", test_ctxs->con_stat[7].phy_upd_num);
-
-    console_printf("\033[0;33mUse case 8 - Stress PHY Update (RX): \n\033[0m");
-    console_printf("PHY updates = %d\n", test_ctxs->con_stat[8].phy_upd_num);
-
-    console_printf(
-        "\033[0;33mUse case 9 - Stress multi connection: \n\033[0m");
-    console_printf("Max reached num of connections = %d\n",
-                   test_ctxs->con_stat[9].max_num);
-
-    console_printf("\033[0;33mUse case 10 - Stress L2CAP send: \n\033[0m");
-    console_printf("Average bit rate = %d\n", test_ctxs->s10_bit_rate);
-    console_printf("Max received MTU = %lld\n", test_ctxs->s10_max_mtu);
-
-    console_printf("\033[0;33mUse case 11 - "
-                   "Stress Advertise/Connect/Continue adv \n\033[0m");
-//    console_printf(" = %d\n",);
-
-    console_printf("\033[0;33mUse case 12 - "
-                   "Stress GATT indication: \n\033[0m");
-    console_printf("Average bit rate = %d\n", test_ctxs->s12_notif_time);
-
-    console_printf("\033[0;33mUse case 13 - "
-                   "Stress GATT notification: \n\033[0m");
-    console_printf("Average time = %d\n", test_ctxs->s13_notif_time);
-
-    console_printf("\033[0;33mUse case 14 - "
-                   "Stress GATT Subscribe/Notify/Unsubscribe: \n\033[0m");
-    console_printf("Average time = %d\n", test_ctxs->s14_notif_time);
-
-    console_printf("\033[0;33mUse case 15 - "
-                   "Stress Connect/Send/Disconnect: \n\033[0m");
-    console_printf("Con num = %d\n", test_ctxs->con_stat[15].num);
+        console_printf("\033[0;33mUse case 8 - "
+                           "Stress PHY Update (RX): \n\033[0m");
+        console_printf("PHY updates = %d\n",
+                           test_ctxs->con_stat[8].phy_upd_num);
+        break;
+    case 9:
+        console_printf(
+                "\033[0;33mUse case 9 - Stress multi connection: \n\033[0m");
+        console_printf("Max reached num of connections = %d\n",
+                       test_ctxs->con_stat[9].max_num);
+        break;
+    case 10:
+        console_printf("\033[0;33mUse case 10 - "
+                           "Stress L2CAP send: \n\033[0m");
+        console_printf("Average bit rate = %d\n", test_ctxs->s10_bit_rate);
+        console_printf("Max received MTU = %lld\n",
+                           test_ctxs->s10_max_mtu);
+        break;
+    case 11:
+        console_printf("\033[0;33mUse case 11 - "
+                           "Stress Advertise/Connect/Continue adv \n\033[0m");
+        break;
+    case 12:
+        console_printf("\033[0;33mUse case 12 - "
+                           "Stress GATT indication: \n\033[0m");
+        console_printf("Average bit rate = %d\n",
+                           test_ctxs->s12_notif_time);
+        break;
+    case 13:
+        console_printf("\033[0;33mUse case 13 - "
+                           "Stress GATT notification: \n\033[0m");
+        console_printf("Average time = %d\n", test_ctxs->s13_notif_time);
+        break;
+    case 14:
+        console_printf("\033[0;33mUse case 14 - "
+                           "Stress GATT Subscribe/Notify/Unsubscribe: \n\033[0m");
+        console_printf("Average time = %d\n",
+                           test_ctxs->s14_notif_time);
+        break;
+    case 15:
+        console_printf("\033[0;33mUse case 15 - "
+                           "Stress Connect/Send/Disconnect: \n\033[0m");
+        console_printf("Con num = %d\n", test_ctxs->con_stat[15].num);
+        break;
+    }
 }
 
 void
