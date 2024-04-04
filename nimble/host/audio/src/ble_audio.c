@@ -47,8 +47,6 @@ ble_audio_adv_parse_broadcast_announcement(const struct ble_hs_adv_field *field,
 
     event = &data->event.broadcast_announcement;
 
-    data->success = false;
-
     switch (field->type) {
     case BLE_HS_ADV_TYPE_SVC_DATA_UUID16:
         if (value_len < 2) {
