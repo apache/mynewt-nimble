@@ -27,6 +27,13 @@ syscfg.defs:
                 initialization.
         value: 1
 
+    BLE_HS_EXT_ADV_LEGACY_INSTANCE:
+        description: >
+            Advertising instance that is used when extended advertising
+            support is enabled but legacy GAP API is used.
+        range: 0..BLE_MULTI_ADV_INSTANCES
+        value: 0
+
     # Debug settings.
     BLE_HS_DEBUG:
         description: 'Enables extra runtime assertions.'
