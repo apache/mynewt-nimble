@@ -33,8 +33,9 @@ declare -A targets=(
 for target in "${!targets[@]}"; do
     echo "Updating target $target"
     newt build "@apache-mynewt-nimble/porting/targets/$target" > /dev/null 2>&1
-    # logcfg is not used in ports
+    # logcfg and sysflash is not used in ports
     rm -rf "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include/logcfg"
+    rm -rf "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include/sysflash"
     cp "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include" "${targets[$target]}" -r
     # Remove repo version and hash MYNEWT_VALS as it doesn't make much sense to commit them and they
     # defeat the purpose of this script.
