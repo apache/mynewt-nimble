@@ -1826,7 +1826,10 @@ int ble_gap_periodic_adv_set_data(uint8_t instance,
                                   const struct ble_gap_periodic_adv_set_data_params *params);
 
 /**
- * Performs the Synchronization procedure with periodic advertiser.
+ * Schedule the Synchronization procedure with periodic advertiser.
+ * Procedure is performed as soon as Extended Discovery procedure is started.
+ * If Extended Discovery is already active when issuing this procedure,
+ * it will be performed immediately. It is up to application to start Extended Discovery.
  *
  * @param addr               Peer address to synchronize with. If NULL than
  *                           peers from periodic list are used.
