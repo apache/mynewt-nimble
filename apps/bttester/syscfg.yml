@@ -87,6 +87,7 @@ syscfg.defs:
         value: '"test_broadcast"'
 
 syscfg.vals:
+    BLE_AUDIO_MAX_CODEC_RECORDS: 3
     CONSOLE_IMPLEMENTATION: full
     LOG_IMPLEMENTATION: full
     STATS_IMPLEMENTATION: full
