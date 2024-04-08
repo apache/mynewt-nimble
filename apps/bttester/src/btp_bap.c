@@ -21,7 +21,7 @@
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 
 #include "btp/btp_bap.h"
 
@@ -37,9 +37,6 @@
 #include "audio/ble_audio_broadcast_source.h"
 #include "audio/ble_audio.h"
 #include "host/ble_iso.h"
-
-#include "bsp/bsp.h"
-
 
 #define BROADCAST_ADV_INSTANCE                 1
 
@@ -158,7 +155,6 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT |
                         BLE_AUDIO_LOCATION_FRONT_RIGHT;
 
-
     uint8_t codec_spec_config[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(sampling_freq, frame_duration, chan_loc,
                                      max_sdu, );
@@ -166,25 +162,24 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     tester_base.broadcast_id = sampling_freq;
     tester_base.presentation_delay = sampling_freq * 10000;
 
-    big_subgroup.bis_cnt = MYNEWT_VAL(BROADCASTER_CHAN_NUM);
+    big_subgroup.bis_cnt = MYNEWT_VAL(BLE_ISO_MAX_BISES);
 
     /** LC3 */
     big_subgroup.codec_id.format = 0x06;
 
-    big_subgroup.codec_spec_config_len = sizeof(codec_spec_config);
-
-    big_subgroup.codec_spec_config_len = os_memblock_get(&codec_spec_pool);
-
-    memcpy(big_subgroup.codec_spec_config,
-           codec_spec_config,
-           sizeof(codec_spec_config));
+    big_subgroup.codec_spec_config_len = 0;
 
     bis = os_memblock_get(&bis_pool);
     if (!bis) {
-        return BLE_HS_ENOMEM
+        return BLE_HS_ENOMEM;
     }
 
-    bis->codec_spec_config_len = 0;
+    bis->codec_spec_config = os_memblock_get(&codec_spec_pool);
+    memcpy(bis->codec_spec_config,
+           codec_spec_config,
+           sizeof(codec_spec_config));
+    bis->codec_spec_config_len = sizeof(codec_spec_config);
+    bis->idx = 1;
 
     STAILQ_INSERT_HEAD(&big_subgroup.bises, bis, next);
     STAILQ_INSERT_HEAD(&tester_base.subs, &big_subgroup, next);
@@ -221,6 +216,15 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
 
     base_create(source_config);
 
+    big_params.sdu_interval = sdu_interval;
+    big_params.max_sdu = max_sdu;
+    big_params.max_transport_latency = 8;
+    big_params.rtn = source_config->rtn;
+    big_params.phy = BLE_HCI_LE_PHY_2M;
+    big_params.packing = 0;
+    big_params.framing = source_config->framing;
+    big_params.encryption = 0;
+
     struct ble_gap_periodic_adv_params periodic_params = {
         .itvl_min = 30,
         .itvl_max = 30,
@@ -236,15 +240,6 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
         .own_addr_type = id_addr_type,
         .sid = BROADCAST_ADV_INSTANCE,
     };
-
-    big_params.sdu_interval = sdu_interval;
-    big_params.max_sdu = max_sdu;
-    big_params.max_transport_latency = 8;
-    big_params.rtn = source_config->rtn;
-    big_params.phy = BLE_HCI_LE_PHY_2M;
-    big_params.packing = 0;
-    big_params.framing = source_config->framing;
-    big_params.encryption = 0;
 
     struct ble_broadcast_create_params create_params = {
         .base = &tester_base,
@@ -422,5 +417,5 @@ tester_unregister_bap(void)
     return BTP_STATUS_SUCCESS;
 }
 
-#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
 

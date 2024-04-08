@@ -142,12 +142,12 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 int
 gatt_svr_init(void);
 
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 uint8_t
 tester_init_bap(void);
 uint8_t
 tester_unregister_bap(void);
-#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
 
 #endif /* __BTTESTER_H__ */
 

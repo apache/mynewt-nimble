@@ -102,11 +102,11 @@ register_service(const void *cmd, uint16_t cmd_len,
         status = tester_init_mesh();
         break;
 #endif /* MYNEWT_VAL(BLE_MESH) */
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     case BTP_SERVICE_ID_BAP:
         status = tester_init_bap();
         break;
-#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
         break;
@@ -159,11 +159,11 @@ unregister_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATTC:
         status = tester_unregister_gatt_cl();
         break;
-#if MYNEWT_VAL(BLE_ISO_BROADCASTER)
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     case BTP_SERVICE_ID_BAP:
         status = tester_unregister_bap();
         break;
-#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
     default:
         status = BTP_STATUS_FAILED;
         break;
