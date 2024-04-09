@@ -84,8 +84,9 @@
 #define MYNEWT_VAL_CRYPTO (0)
 #endif
 
+/* Overridden by @apache-mynewt-core/hw/bsp/nordic_pca10056 (defined by @apache-mynewt-core/hw/mcu/nordic/nrf52xxx) */
 #ifndef MYNEWT_VAL_GPIO_AS_PIN_RESET
-#define MYNEWT_VAL_GPIO_AS_PIN_RESET (0)
+#define MYNEWT_VAL_GPIO_AS_PIN_RESET (1)
 #endif
 
 #ifndef MYNEWT_VAL_I2C_0
@@ -1641,6 +1642,10 @@
 
 #ifndef MYNEWT_VAL_BLE_HS_DEBUG
 #define MYNEWT_VAL_BLE_HS_DEBUG (0)
+#endif
+
+#ifndef MYNEWT_VAL_BLE_HS_EXT_ADV_LEGACY_INSTANCE
+#define MYNEWT_VAL_BLE_HS_EXT_ADV_LEGACY_INSTANCE (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_HS_FLOW_CTRL

@@ -729,6 +729,10 @@
 #define MYNEWT_VAL_BLE_HS_DEBUG (0)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_HS_EXT_ADV_LEGACY_INSTANCE
+#define MYNEWT_VAL_BLE_HS_EXT_ADV_LEGACY_INSTANCE (0)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_HS_FLOW_CTRL
 #define MYNEWT_VAL_BLE_HS_FLOW_CTRL (0)
 #endif
@@ -1329,7 +1333,7 @@
 
 /* Overridden by @apache-mynewt-nimble/nimble/host/mesh (defined by @apache-mynewt-nimble/nimble/host/mesh) */
 #ifndef MYNEWT_VAL_BLE_MESH_PROXY_MSG_LEN
-#define MYNEWT_VAL_BLE_MESH_PROXY_MSG_LEN (66)
+#define MYNEWT_VAL_BLE_MESH_PROXY_MSG_LEN (33)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MESH_PROXY_USE_DEVICE_NAME
