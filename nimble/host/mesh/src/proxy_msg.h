@@ -31,6 +31,7 @@ typedef int (*proxy_send_cb_t)(uint16_t conn_handle,
 typedef void (*proxy_recv_cb_t)(struct bt_mesh_proxy_role *role);
 
 struct bt_mesh_proxy_role {
+    unsigned int index;
 	uint16_t conn_handle;
 	uint8_t msg_type;
 
@@ -58,10 +59,13 @@ struct bt_mesh_proxy_client {
 int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 	const void *buf, uint16_t len);
 int bt_mesh_proxy_msg_send(struct bt_mesh_proxy_role *role, uint8_t type, struct os_mbuf *msg);
-void bt_mesh_proxy_msg_init(struct bt_mesh_proxy_role *role);
 void bt_mesh_proxy_role_cleanup(struct bt_mesh_proxy_role *role);
 struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
 						    proxy_send_cb_t send,
 						    proxy_recv_cb_t recv);
 struct bt_mesh_proxy_client *find_client(uint16_t conn_handle);
+
+struct bt_mesh_proxy_role *bt_mesh_proxy_role_find_with_buf(const struct os_mbuf *buf);
+
+void bt_mesh_proxy_msg_init(void);
 #endif /* ZEPHYR_SUBSYS_BLUETOOTH_MESH_PROXY_MSG_H_ */

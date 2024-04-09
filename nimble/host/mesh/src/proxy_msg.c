@@ -61,7 +61,7 @@ static void proxy_sar_timeout(struct ble_npl_event *work)
 
 	BT_WARN("Proxy SAR timeout");
 
-	if (role->conn_handle) {
+	if (role->conn_handle != BLE_HS_CONN_HANDLE_NONE) {
 		rc = ble_gap_terminate(role->conn_handle,
 				       BLE_ERR_REM_USER_CONN_TERM);
 		assert(rc == 0);
@@ -194,7 +194,7 @@ static void proxy_msg_init(struct bt_mesh_proxy_role *role)
 
 	role->buf = NET_BUF_SIMPLE(CONFIG_BT_MESH_PROXY_MSG_LEN);
 	net_buf_simple_init_with_data(role->buf,
-				      &bufs[role->conn_handle *
+				      &bufs[role->index *
 				      CONFIG_BT_MESH_PROXY_MSG_LEN],
 				      CONFIG_BT_MESH_PROXY_MSG_LEN);
 
@@ -204,15 +204,42 @@ static void proxy_msg_init(struct bt_mesh_proxy_role *role)
 	k_work_add_arg_delayable(&role->sar_timer, role);
 }
 
+struct bt_mesh_proxy_role *bt_mesh_proxy_role_find_with_buf(const struct os_mbuf *buf)
+{
+    unsigned int i;
+
+    for (i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (roles[i].buf == buf) {
+            return &roles[i];
+        }
+    }
+
+    return NULL;
+}
+
+struct bt_mesh_proxy_role *get_role(uint16_t conn_handle)
+{
+    unsigned int i;
+
+    for (i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (roles[i].conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            roles[i].conn_handle = conn_handle;
+            return &roles[i];
+        }
+    }
+
+    return NULL;
+}
+
 struct bt_mesh_proxy_role *bt_mesh_proxy_role_setup(uint16_t conn_handle,
 	proxy_send_cb_t send,
 	proxy_recv_cb_t recv)
 {
 	struct bt_mesh_proxy_role *role;
 
-	role = &roles[conn_handle];
+	role = get_role(conn_handle);
+	assert(role);
 
-	role->conn_handle = conn_handle;
 	proxy_msg_init(role);
 
 	role->cb.recv = recv;
@@ -232,6 +259,16 @@ void bt_mesh_proxy_role_cleanup(struct bt_mesh_proxy_role *role)
 	role->conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
 	bt_mesh_adv_update();
+}
+
+void bt_mesh_proxy_msg_init(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_MAX_CONNECTIONS); i++) {
+        roles[i].index = i;
+        roles[i].conn_handle = 0xffff;
+    }
 }
 
 #endif /* MYNEWT_VAL(BLE_MESH_PROXY) */
