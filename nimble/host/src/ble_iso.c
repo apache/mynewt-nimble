@@ -205,6 +205,10 @@ static int
 ble_iso_big_free(struct ble_iso_big *big)
 {
     struct ble_iso_conn *conn;
+    struct ble_iso_bis *rem_bis[MYNEWT_VAL(BLE_ISO_MAX_BISES)] = {
+        [0 ... MYNEWT_VAL(BLE_ISO_MAX_BISES) - 1] = NULL
+    };
+    uint8_t i = 0;
 
     SLIST_FOREACH(conn, &ble_iso_conns, next) {
         struct ble_iso_bis *bis;
@@ -216,8 +220,12 @@ ble_iso_big_free(struct ble_iso_big *big)
         bis = CONTAINER_OF(conn, struct ble_iso_bis, conn);
         if (bis->big == big) {
             SLIST_REMOVE(&ble_iso_conns, conn, ble_iso_conn, next);
-            os_memblock_put(&ble_iso_bis_pool, bis);
+            rem_bis[i++] = bis;
         }
+    }
+
+    while (i > 0) {
+        os_memblock_put(&ble_iso_bis_pool, rem_bis[--i]);
     }
 
     SLIST_REMOVE(&ble_iso_bigs, big, ble_iso_big, next);
