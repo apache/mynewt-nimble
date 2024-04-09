@@ -2447,7 +2447,7 @@ cmd_keystore_iterator(int obj_type,
             console_printf("Key: ");
             if (ble_addr_cmp(&val->sec.peer_addr, BLE_ADDR_ANY) == 0) {
                 console_printf("ediv=%u ", val->sec.ediv);
-                console_printf("ediv=%llu ", val->sec.rand_num);
+                console_printf("rand=%" PRIu64, val->sec.rand_num);
             } else {
                 console_printf("addr_type=%u ", val->sec.peer_addr.type);
                 print_addr(val->sec.peer_addr.val);
