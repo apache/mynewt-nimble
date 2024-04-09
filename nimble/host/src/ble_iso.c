@@ -796,6 +796,7 @@ ble_iso_conn_rx_data_load(struct ble_iso_conn *conn, struct os_mbuf *frag,
 
     if (pb_flag == BLE_HCI_ISO_PB_COMPLETE || pb_flag == BLE_HCI_ISO_PB_LAST) {
         ble_iso_event_iso_rx_emit(conn);
+        os_mbuf_free_chain(conn->rx_buf);
         ble_iso_conn_rx_reset(conn);
     }
 
