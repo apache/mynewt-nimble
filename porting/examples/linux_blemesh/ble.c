@@ -426,6 +426,8 @@ blemesh_on_sync(void)
     if (bt_mesh_is_provisioned()) {
         printk("Mesh network restored from flash\n");
     }
+
+    bt_mesh_prov_enable(BT_MESH_PROV_GATT | BT_MESH_PROV_ADV);
 }
 
 void
