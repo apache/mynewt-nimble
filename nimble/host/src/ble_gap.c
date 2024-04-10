@@ -3720,7 +3720,7 @@ ble_gap_ext_adv_clear(void)
         /* If there is an active instance or periodic adv instance,
          * Don't send the command
          * */
-        if ((ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV)) {
+        if (ble_gap_slave[instance].op == BLE_GAP_OP_S_ADV) {
             ble_hs_unlock();
             return BLE_HS_EBUSY;
         }
