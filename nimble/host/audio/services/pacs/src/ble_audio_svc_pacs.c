@@ -257,6 +257,9 @@ ble_svc_audio_pacs_avail_audio_ctx_read_access(uint16_t conn_handle,
     uint8_t *buf;
 
     avail_ctx = ble_svc_audio_pacs_find_avail_ctx(conn_handle);
+    if (!avail_ctx) {
+        return BLE_HS_ENOENT;
+    }
 
     buf = os_mbuf_extend(ctxt->om, 4);
     if (buf == NULL) {
@@ -400,6 +403,9 @@ ble_svc_audio_pacs_avail_contexts_set(uint16_t conn_handle,
                                       uint16_t source_contexts)
 {
     struct available_ctx *avail_ctx = ble_svc_audio_pacs_find_avail_ctx(conn_handle);
+    if (!avail_ctx) {
+        return BLE_HS_ENOENT;
+    }
 
     avail_ctx->ble_svc_audio_pacs_avail_sink_contexts = sink_contexts;
     avail_ctx->ble_svc_audio_pacs_avail_source_contexts = source_contexts;
@@ -441,10 +447,18 @@ ble_pacs_gap_event(struct ble_gap_event *event, void *arg)
             break;
         }
         avail_ctx = ble_svc_audio_pacs_find_avail_ctx(BLE_HS_CONN_HANDLE_NONE);
+        if (!avail_ctx) {
+            return BLE_HS_ENOENT;
+        }
+
         avail_ctx->conn_handle = event->connect.conn_handle;
         break;
     case BLE_GAP_EVENT_DISCONNECT:
         avail_ctx = ble_svc_audio_pacs_find_avail_ctx(event->disconnect.conn.conn_handle);
+        if (!avail_ctx) {
+            return BLE_HS_ENOENT;
+        }
+
         if (avail_ctx >= 0) {
             avail_ctx->conn_handle = BLE_HS_CONN_HANDLE_NONE;
         }
