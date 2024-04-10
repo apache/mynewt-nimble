@@ -385,7 +385,7 @@ ble_svc_audio_pacs_set(uint8_t flags, struct ble_svc_audio_pacs_set_param *param
     if (flags & BLE_AUDIO_CODEC_DIR_SINK_BIT) {
         ble_svc_audio_pacs_sink_audio_locations = param->audio_locations;
         ble_svc_audio_pacs_sup_sink_contexts = param->supported_contexts;
-        rc = pac_notify(BLE_SVC_AUDIO_PACS_CHR_UUID16_SOURCE_AUDIO_LOCATIONS);
+        rc = pac_notify(BLE_SVC_AUDIO_PACS_CHR_UUID16_SINK_AUDIO_LOCATIONS);
         if (rc != 0) {
             return rc;
         }
