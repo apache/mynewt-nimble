@@ -70,23 +70,23 @@
                                       BLE_MBUF_MEMBLOCK_OVERHEAD +         \
                                       BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT))
 
-static uint8_t pool_cmd_buf[ OS_MEMPOOL_BYTES(POOL_CMD_COUNT, POOL_CMD_SIZE) ];
+static os_membuf_t pool_cmd_buf[ OS_MEMPOOL_SIZE(POOL_CMD_COUNT, POOL_CMD_SIZE) ];
 static struct os_mempool pool_cmd;
 
-static uint8_t pool_evt_buf[ OS_MEMPOOL_BYTES(POOL_EVT_COUNT, POOL_EVT_SIZE) ];
+static os_membuf_t pool_evt_buf[ OS_MEMPOOL_SIZE(POOL_EVT_COUNT, POOL_EVT_SIZE) ];
 static struct os_mempool pool_evt;
 
-static uint8_t pool_evt_lo_buf[ OS_MEMPOOL_BYTES(POOL_EVT_LO_COUNT, POOL_EVT_SIZE) ];
+static os_membuf_t pool_evt_lo_buf[ OS_MEMPOOL_SIZE(POOL_EVT_LO_COUNT, POOL_EVT_SIZE) ];
 static struct os_mempool pool_evt_lo;
 
 #if POOL_ACL_COUNT > 0
-static uint8_t pool_acl_buf[ OS_MEMPOOL_BYTES(POOL_ACL_COUNT, POOL_ACL_SIZE) ];
+static os_membuf_t pool_acl_buf[ OS_MEMPOOL_SIZE(POOL_ACL_COUNT, POOL_ACL_SIZE) ];
 static struct os_mempool_ext pool_acl;
 static struct os_mbuf_pool mpool_acl;
 #endif
 
 #if POOL_ISO_COUNT > 0
-static uint8_t pool_iso_buf[ OS_MEMPOOL_BYTES(POOL_ISO_COUNT, POOL_ISO_SIZE) ];
+static os_membuf_t pool_iso_buf[ OS_MEMPOOL_SIZE(POOL_ISO_COUNT, POOL_ISO_SIZE) ];
 static struct os_mempool_ext pool_iso;
 static struct os_mbuf_pool mpool_iso;
 #endif
