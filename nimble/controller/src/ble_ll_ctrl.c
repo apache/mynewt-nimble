@@ -856,7 +856,9 @@ ble_ll_ctrl_phy_update_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     ctrdata[0] = m_to_s;
     ctrdata[1] = s_to_m;
 }
+#endif
 
+#if MYNEWT_VAL(BLE_LL_PHY)
 static bool
 ble_ll_ctrl_phy_update_ind_instant(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
 {
