@@ -164,7 +164,7 @@ typedef __uint128_t os_membuf_t;
 #else
 #error "Unhandled `OS_ALIGNMENT` for `os_membuf_t`"
 #endif /* OS_ALIGNMENT == * */
-#define OS_MEMPOOL_SIZE(n,blksize)      ((((blksize) + ((OS_ALIGNMENT)-1)) / (OS_ALIGNMENT)) * (n))
+#define OS_MEMPOOL_SIZE(n,blksize)      (((OS_MEMPOOL_BLOCK_SZ(blksize) + ((OS_ALIGNMENT)-1)) / (OS_ALIGNMENT)) * (n))
 
 /** Calculates the number of bytes required to initialize a memory pool. */
 #define OS_MEMPOOL_BYTES(n,blksize)     \
