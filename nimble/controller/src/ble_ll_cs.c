@@ -26,7 +26,8 @@
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_cs.h"
-#include "controller/ble_ll_cs_priv.h"
+#include "ble_ll_conn_priv.h"
+#include "ble_ll_cs_priv.h"
 
 #define T_IP1_CAP_ID_10US 0
 #define T_IP1_CAP_ID_20US 1
@@ -99,17 +100,257 @@ ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen)
     return BLE_ERR_SUCCESS;
 }
 
+void
+ble_ll_cs_capabilities_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    const struct ble_ll_cs_supp_cap *cap = &g_ble_ll_cs_local_cap;
+
+    *dptr = cap->mode_types;
+    dptr[1] = cap->rtt_capability;
+    dptr[2] = cap->rtt_aa_only_n;
+    dptr[3] = cap->rtt_sounding_n;
+    dptr[4] = cap->rtt_random_sequence_n;
+    put_le16(dptr + 5, cap->nadm_sounding_capability);
+    put_le16(dptr + 7, cap->nadm_random_sequence_capability);
+    dptr[9] = cap->cs_sync_phy_capability;
+    dptr[10] = cap->number_of_antennas | cap->max_number_of_antenna_paths << 4;
+    dptr[11] = cap->roles_supported |
+               cap->no_fae << 3 |
+               cap->channel_selection << 4 |
+               cap->sounding_pct_estimate << 5;
+    dptr[12] = cap->max_number_of_configs;
+    put_le16(dptr + 13, cap->max_number_of_procedures);
+    dptr[15] = cap->t_sw;
+    put_le16(dptr + 16, cap->t_ip1_capability & ~(1 << T_IP1_CAP_ID_145US));
+    put_le16(dptr + 18, cap->t_ip2_capability & ~(1 << T_IP2_CAP_ID_145US));
+    put_le16(dptr + 20, cap->t_fcs_capability & ~(1 << T_FCS_CAP_ID_150US));
+    put_le16(dptr + 22, cap->t_pm_capability & ~(1 << T_PM_CAP_ID_40US));
+    dptr[24] = cap->tx_snr_capablity << 1;
+}
+
+static void
+ble_ll_cs_update_rem_capabilities(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    struct ble_ll_cs_supp_cap *cap = &connsm->cssm->remote_cap;
+
+    cap->mode_types = *dptr & 0x01;
+    cap->rtt_capability = dptr[1] & 0x05;
+    cap->rtt_aa_only_n = dptr[2];
+    cap->rtt_sounding_n = dptr[3];
+    cap->rtt_random_sequence_n = dptr[4];
+    cap->nadm_sounding_capability = get_le16(dptr + 5) & 0x01;
+    cap->nadm_random_sequence_capability = get_le16(dptr + 7) & 0x01;
+    cap->cs_sync_phy_capability = dptr[9] & 0x06;
+
+    cap->number_of_antennas = dptr[10] & 0b00001111;
+    cap->max_number_of_antenna_paths = dptr[10] >> 4;
+
+    cap->roles_supported = dptr[11] & 0b00000011;
+    cap->no_fae = (dptr[11] & 0b00001000) >> 3;
+    cap->channel_selection = (dptr[11] & 0b00010000) >> 4;
+    cap->sounding_pct_estimate = (dptr[11] & 0b00100000) >> 5;
+
+    cap->max_number_of_configs = dptr[12];
+    cap->max_number_of_procedures = get_le16(dptr + 13);
+    cap->t_sw = dptr[15];
+    cap->t_ip1_capability = (get_le16(dptr + 16) & 0x00FF) | (1 << T_IP1_CAP_ID_145US);
+    cap->t_ip2_capability = (get_le16(dptr + 18) & 0x00FF) | (1 << T_IP1_CAP_ID_145US);
+    cap->t_fcs_capability = (get_le16(dptr + 20) & 0x03FF) | (1 << T_FCS_CAP_ID_150US);
+    cap->t_pm_capability = (get_le16(dptr + 22) & 0x07) | (1 << T_PM_CAP_ID_40US);
+    cap->tx_snr_capablity = (dptr[24] >> 1) & 0b01111111;
+
+    /* The capabilites contain info about allowed values for
+     * CS procedures. Ignore the RFU values here.
+     * We will be able to reject/renegotiate unsupported values
+     * if the remote controller will use them in the procedures.
+     */
+
+    if (cap->number_of_antennas > 4) {
+        cap->number_of_antennas = 4;
+    }
+
+    if (cap->max_number_of_antenna_paths > 4) {
+        cap->max_number_of_antenna_paths = 4;
+    }
+
+    if (cap->max_number_of_antenna_paths < cap->number_of_antennas) {
+        cap->number_of_antennas = cap->max_number_of_antenna_paths;
+    }
+
+    if (cap->max_number_of_configs > 4) {
+        cap->max_number_of_configs = 4;
+    }
+
+    if (!(cap->t_sw == 0x00 ||
+          cap->t_sw == 0x01 ||
+          cap->t_sw == 0x02 ||
+          cap->t_sw == 0x04 ||
+          cap->t_sw == 0x0A)) {
+        /* If the remote does not support a valid duration of the antenna switch period,
+         * lets assume it does not support the antenna switching at all.
+         */
+        cap->number_of_antennas = 1;
+        cap->t_sw = 0;
+    }
+}
+
+static void
+ble_ll_cs_ev_rd_rem_supp_cap(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    const struct ble_ll_cs_supp_cap *cap = &connsm->cssm->remote_cap;
+    struct ble_hci_ev_le_subev_cs_rd_rem_supp_cap_complete *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (ble_ll_hci_is_le_event_enabled(
+            BLE_HCI_LE_SUBEV_CS_RD_REM_SUPP_CAP_COMPLETE)) {
+        hci_ev = ble_transport_alloc_evt(0);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
+
+            memset(ev, 0, sizeof(*ev));
+            ev->subev_code = BLE_HCI_LE_SUBEV_CS_RD_REM_SUPP_CAP_COMPLETE;
+            ev->status = status;
+            ev->conn_handle = htole16(connsm->conn_handle);
+
+            if (status == BLE_ERR_SUCCESS) {
+                ev->num_config_supported = cap->max_number_of_configs;
+                ev->max_consecutive_procedures_supported = htole16(cap->max_number_of_procedures);
+                ev->num_antennas_supported = cap->number_of_antennas;
+                ev->max_antenna_paths_supported = cap->max_number_of_antenna_paths;
+                ev->roles_supported = cap->roles_supported;
+                ev->optional_modes_supported = cap->mode_types;
+                ev->rtt_capability = cap->rtt_capability;
+                ev->rtt_aa_only_n = cap->rtt_aa_only_n;
+                ev->rtt_sounding_n = cap->rtt_sounding_n;
+                ev->rtt_random_payload_n = cap->rtt_random_sequence_n;
+                ev->optional_nadm_sounding_capability = htole16(cap->nadm_sounding_capability);
+                ev->optional_nadm_random_capability = htole16(cap->nadm_random_sequence_capability);
+                ev->optional_cs_sync_phys_supported = cap->cs_sync_phy_capability;
+                ev->optional_subfeatures_supported = htole16(cap->no_fae << 1 |
+                                                            cap->channel_selection << 2 |
+                                                            cap->sounding_pct_estimate << 3);
+                ev->optional_t_ip1_times_supported = htole16(cap->t_ip1_capability & ~(1 << T_IP1_CAP_ID_145US));
+                ev->optional_t_ip2_times_supported = htole16(cap->t_ip2_capability & ~(1 << T_IP2_CAP_ID_145US));
+                ev->optional_t_fcs_times_supported = htole16(cap->t_fcs_capability & ~(1 << T_FCS_CAP_ID_150US));
+                ev->optional_t_pm_times_supported = htole16(cap->t_pm_capability & ~(1 << T_PM_CAP_ID_40US));
+                ev->t_sw_time_supported = cap->t_sw;
+                ev->optional_tx_snr_capability = cap->tx_snr_capablity;
+            }
+
+            ble_ll_hci_event_send(hci_ev);
+        }
+    }
+}
+
+int
+ble_ll_cs_rx_capabilities_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                              uint8_t *rspbuf)
+{
+    ble_ll_cs_update_rem_capabilities(connsm, dptr);
+
+    ble_ll_cs_capabilities_pdu_make(connsm, rspbuf);
+
+    return BLE_LL_CTRL_CS_CAPABILITIES_RSP;
+}
+
+void
+ble_ll_cs_rx_capabilities_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_CAP_XCHG);
+    ble_ll_cs_ev_rd_rem_supp_cap(connsm, ble_error);
+}
+
+void
+ble_ll_cs_rx_capabilities_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    if (!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CAP_XCHG)) {
+        /* Ignore */
+        return;
+    }
+
+    ble_ll_cs_update_rem_capabilities(connsm, dptr);
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_CAP_XCHG);
+    ble_ll_cs_ev_rd_rem_supp_cap(connsm, BLE_ERR_SUCCESS);
+}
+
 int
 ble_ll_cs_hci_rd_rem_supp_cap(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_rd_rem_supp_cap_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If no connection handle exit with error */
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* If already pending exit with error */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CAP_XCHG)) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_CAP_XCHG, NULL);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
 ble_ll_cs_hci_wr_cached_rem_supp_cap(const uint8_t *cmdbuf, uint8_t cmdlen,
                                      uint8_t *rspbuf, uint8_t *rsplen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_wr_cached_rem_supp_cap_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_cs_wr_cached_rem_supp_cap_rp *rsp = (void *)rspbuf;
+    struct ble_ll_cs_supp_cap *cap;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t subfeatures;
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    cap = &connsm->cssm->remote_cap;
+
+    cap->max_number_of_configs = cmd->num_config_supported;
+    cap->max_number_of_procedures = le16toh(cmd->max_consecutive_procedures_supported);
+    cap->number_of_antennas = cmd->num_antennas_supported;
+    cap->max_number_of_antenna_paths = cmd->max_antenna_paths_supported;
+    cap->roles_supported = cmd->roles_supported;
+    cap->mode_types = cmd->optional_modes_supported;
+    cap->rtt_capability = cmd->rtt_capability;
+    cap->rtt_aa_only_n = cmd->rtt_aa_only_n;
+    cap->rtt_sounding_n = cmd->rtt_sounding_n;
+    cap->rtt_random_sequence_n = cmd->rtt_random_payload_n;
+    cap->nadm_sounding_capability = le16toh(cmd->optional_nadm_sounding_capability);
+    cap->nadm_random_sequence_capability = le16toh(cmd->optional_nadm_random_capability);
+    cap->cs_sync_phy_capability = cmd->optional_cs_sync_phys_supported;
+
+    subfeatures = le16toh(cmd->optional_subfeatures_supported);
+    cap->no_fae = (subfeatures >> 1) & 1;
+    cap->channel_selection = (subfeatures >> 2) & 1;
+    cap->sounding_pct_estimate = (subfeatures >> 3) & 1;
+
+    cap->t_ip1_capability = le16toh(cmd->optional_t_ip1_times_supported) | (1 << T_IP1_CAP_ID_145US);
+    cap->t_ip2_capability = le16toh(cmd->optional_t_ip2_times_supported) | (1 << T_IP2_CAP_ID_145US);
+    cap->t_fcs_capability = le16toh(cmd->optional_t_fcs_times_supported) | (1 << T_FCS_CAP_ID_150US);
+    cap->t_pm_capability = le16toh(cmd->optional_t_pm_times_supported) | (1 << T_PM_CAP_ID_40US);
+    cap->t_sw = cmd->t_sw_time_supported;
+    cap->tx_snr_capablity = cmd->optional_tx_snr_capability;
+
+    rsp->conn_handle = cmd->conn_handle;
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
