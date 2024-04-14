@@ -27,6 +27,31 @@
 extern "C" {
 #endif
 
+struct ble_ll_cs_supp_cap {
+    uint8_t mode_types;
+    uint8_t roles_supported;
+    uint8_t rtt_capability;
+    uint8_t rtt_aa_only_n;
+    uint8_t rtt_sounding_n;
+    uint8_t rtt_random_sequence_n;
+    uint16_t nadm_sounding_capability;
+    uint16_t nadm_random_sequence_capability;
+    uint8_t cs_sync_phy_capability;
+    uint8_t number_of_antennas;
+    uint8_t max_number_of_antenna_paths;
+    uint8_t no_fae;
+    uint8_t channel_selection;
+    uint8_t sounding_pct_estimate;
+    uint8_t max_number_of_configs;
+    uint16_t max_number_of_procedures;
+    uint16_t t_ip1_capability;
+    uint16_t t_ip2_capability;
+    uint16_t t_fcs_capability;
+    uint16_t t_pm_capability;
+    uint8_t t_sw;
+    uint8_t tx_snr_capablity;
+};
+
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
 };
