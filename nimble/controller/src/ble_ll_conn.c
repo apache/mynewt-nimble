@@ -1975,6 +1975,11 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
 }
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+void ble_ll_cs_sm_init(struct ble_ll_conn_sm *connsm);
+void ble_ll_cs_sm_free(struct ble_ll_conn_sm *connsm);
+#endif
+
 /**
  * Create a new connection state machine. This is done once per
  * connection when the HCI command "create connection" is issued to the
@@ -2096,6 +2101,10 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
         (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)) {
         ble_ll_conn_css_update_list(connsm);
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_sm_init(connsm);
 #endif
 }
 
@@ -2220,6 +2229,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
         }
         OS_EXIT_CRITICAL(sr);
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_sm_free(connsm);
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
