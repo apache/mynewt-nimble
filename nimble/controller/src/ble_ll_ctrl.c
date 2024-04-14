@@ -49,6 +49,10 @@
 #include "console/console.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+#include "controller/ble_ll_cs.h"
+#endif
+
 /*
  * XXX:
  *  1) Do I need to keep track of which procedures have already been done?
