@@ -2569,6 +2569,12 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             break;
 #endif
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+        case BLE_LL_CTRL_PROC_CS_CAP_XCHG:
+            opcode = BLE_LL_CTRL_CS_CAPABILITIES_REQ;
+            ble_ll_cs_capabilities_pdu_make(connsm, ctrdata);
+            break;
+#endif
         default:
             BLE_LL_ASSERT(0);
             break;
@@ -3028,6 +3034,14 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     case BLE_LL_CTRL_SUBRATE_IND:
         rsp_opcode = ble_ll_ctrl_rx_subrate_ind(connsm, dptr, rspdata);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    case BLE_LL_CTRL_CS_CAPABILITIES_REQ:
+        rsp_opcode = ble_ll_cs_rx_capabilities_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_CAPABILITIES_RSP:
+        ble_ll_cs_rx_capabilities_rsp(connsm, dptr);
         break;
 #endif
     default:
