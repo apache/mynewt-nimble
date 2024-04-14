@@ -203,6 +203,10 @@ struct ble_ll_conn_subrate_req_params {
     uint16_t supervision_tmo;
 };
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+struct ble_ll_cs_sm;
+#endif
+
 /* Connection state machine */
 struct ble_ll_conn_sm
 {
@@ -400,6 +404,10 @@ struct ble_ll_conn_sm
     uint16_t css_slot_idx;
     uint16_t css_slot_idx_pending;
     uint8_t css_period_idx;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    struct ble_ll_cs_sm *cssm;
 #endif
 };
 
