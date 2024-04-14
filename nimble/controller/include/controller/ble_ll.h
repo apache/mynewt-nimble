@@ -301,7 +301,8 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 
 /* All the features which can be controlled by the Host */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE) | \
-    MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION) |             \
+    MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 #define BLE_LL_HOST_CONTROLLED_FEATURES (1)
 #else
 #define BLE_LL_HOST_CONTROLLED_FEATURES (0)

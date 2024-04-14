@@ -28,6 +28,9 @@
 extern "C" {
 #endif
 
+void ble_ll_cs_init(void);
+void ble_ll_cs_reset(void);
+
 /* HCI handlers */
 int ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_cs_hci_rd_rem_supp_cap(const uint8_t *cmdbuf, uint8_t cmdlen);
