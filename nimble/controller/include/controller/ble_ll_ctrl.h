@@ -43,7 +43,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_CIS_CREATE     (11)
 #define BLE_LL_CTRL_PROC_SUBRATE_REQ    (12)
 #define BLE_LL_CTRL_PROC_SUBRATE_UPDATE (13)
-#define BLE_LL_CTRL_PROC_NUM            (14)
+#define BLE_LL_CTRL_PROC_CS_CAP_XCHG    (14)
+#define BLE_LL_CTRL_PROC_NUM            (15)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
