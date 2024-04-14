@@ -27,6 +27,8 @@
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_cs.h"
 
+static struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
+
 int
 ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -114,6 +116,30 @@ int
 ble_ll_cs_hci_test_end(void)
 {
     return BLE_ERR_UNSUPPORTED;
+}
+
+void
+ble_ll_cs_sm_init(struct ble_ll_conn_sm *connsm)
+{
+    uint8_t i;
+
+    for (i = 0; i < ARRAY_SIZE(g_ble_ll_cs_sm); i++) {
+        if (g_ble_ll_cs_sm[i].connsm == NULL) {
+            connsm->cssm = &g_ble_ll_cs_sm[i];
+            memset(connsm->cssm, 0, sizeof(*connsm->cssm));
+            connsm->cssm->connsm = connsm;
+            break;
+        }
+    }
+}
+
+void
+ble_ll_cs_sm_free(struct ble_ll_conn_sm *connsm)
+{
+    if (connsm->cssm) {
+        memset(connsm->cssm, 0, sizeof(*connsm->cssm));
+        connsm->cssm = NULL;
+    }
 }
 
 #endif /* BLE_LL_CHANNEL_SOUNDING */
