@@ -54,6 +54,7 @@ struct ble_ll_cs_supp_cap {
 
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_supp_cap remote_cap;
 };
 
 #ifdef __cplusplus
