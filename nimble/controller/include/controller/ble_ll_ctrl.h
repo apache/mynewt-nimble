@@ -45,7 +45,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_SUBRATE_UPDATE (13)
 #define BLE_LL_CTRL_PROC_CS_CAP_XCHG    (14)
 #define BLE_LL_CTRL_PROC_CS_FAE_REQ     (15)
-#define BLE_LL_CTRL_PROC_NUM            (16)
+#define BLE_LL_CTRL_PROC_CS_CONF        (16)
+#define BLE_LL_CTRL_PROC_NUM            (17)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
