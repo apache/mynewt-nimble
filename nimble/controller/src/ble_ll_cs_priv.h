@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#define BLE_LL_CS_CONFIG_MAX_NUM 4
+
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
     uint8_t roles_supported;
@@ -52,9 +54,24 @@ struct ble_ll_cs_supp_cap {
     uint8_t tx_snr_capablity;
 };
 
+struct ble_ll_cs_config {
+    uint8_t config_enabled;
+    /* The role to use in CS procedure
+     * 0x00 = Initiator,
+     * 0x01 = Reflector
+     */
+    uint8_t role;
+};
+
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_cs_supp_cap remote_cap;
+    struct ble_ll_cs_config config[BLE_LL_CS_CONFIG_MAX_NUM];
+
+    /* Default Settings */
+    uint8_t roles_enabled;
+    uint8_t cs_sync_antenna_selection;
+    uint8_t max_tx_power;
 };
 
 #ifdef __cplusplus
