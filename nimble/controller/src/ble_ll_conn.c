@@ -3944,9 +3944,13 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     struct ble_mbuf_hdr *ble_hdr;
     int lifo;
 
-    /* Set mbuf length and packet length if a control PDU */
+    /* Set overall packet length if a control PDU */
     if (hdr_byte == BLE_LL_LLID_CTRL) {
-        om->om_len = length;
+        /* Set mbuf length if not chained mbufs */
+        if (SLIST_NEXT(om, om_next) == NULL) {
+            om->om_len = length;
+        }
+
         OS_MBUF_PKTHDR(om)->omp_len = length;
     }
 
