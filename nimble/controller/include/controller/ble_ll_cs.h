@@ -36,6 +36,9 @@ void ble_ll_cs_capabilities_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dpt
 int ble_ll_cs_rx_capabilities_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
 void ble_ll_cs_rx_capabilities_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
 void ble_ll_cs_rx_capabilities_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_fae_req(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+void ble_ll_cs_rx_fae_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_fae_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
 
 /* HCI handlers */
 int ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen);

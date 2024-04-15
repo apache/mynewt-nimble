@@ -72,6 +72,10 @@ struct ble_ll_cs_sm {
     uint8_t roles_enabled;
     uint8_t cs_sync_antenna_selection;
     uint8_t max_tx_power;
+
+    /* Cached FAE tables */
+    uint8_t remote_fae_table[72];
+    uint8_t local_fae_table[72];
 };
 
 #ifdef __cplusplus
