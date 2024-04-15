@@ -160,6 +160,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 
     /* octet 4 */
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    tester_set_bit(rp->data, GAP_SET_EXT_ADV);
     tester_set_bit(rp->data, GAP_PADV_CONFIGURE);
     tester_set_bit(rp->data, GAP_PADV_START);
     tester_set_bit(rp->data, GAP_PADV_SET_DATA);
@@ -2000,6 +2001,36 @@ set_filter_accept_list(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static uint8_t
+set_ext_advertising(const void *cmd, uint16_t cmd_len,
+                    void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gap_set_ext_advertising_rp *rp = rsp;
+    const struct btp_gap_set_ext_advertising_cmd *cp = cmd;
+
+    if (current_settings & BIT(BTP_GAP_SETTINGS_ADVERTISING)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    if (cp->setting) {
+        current_settings |= BIT(BTP_GAP_SETTINGS_EXTENDED_ADVERTISING);
+        adv_params.legacy_pdu = 0;
+        /* TODO: This is temporary until auto-pts nonscannable implementation */
+        adv_params.scannable = 0;
+    } else {
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_EXTENDED_ADVERTISING);
+        adv_params.legacy_pdu = 1;
+    }
+
+    rp->current_settings = htole32(current_settings);
+    *rsp_len = sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+#endif
+
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
 static uint8_t
 periodic_adv_configure(const void *cmd, uint16_t cmd_len,
@@ -2330,6 +2361,13 @@ static const struct btp_handler handlers[] = {
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_filter_accept_list,
     },
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    {
+        .opcode = GAP_SET_EXT_ADV,
+        .expect_len = sizeof(struct btp_gap_set_ext_advertising_cmd),
+        .func = set_ext_advertising,
+    },
+#endif /* BLE_EXT_ADV*/
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     {
         .opcode = GAP_PADV_CONFIGURE,
