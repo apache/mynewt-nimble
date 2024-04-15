@@ -421,6 +421,11 @@ ble_svc_audio_pacs_avail_contexts_set(uint16_t conn_handle,
         return BLE_HS_ENOENT;
     }
 
+    if ((sink_contexts & ble_svc_audio_pacs_sup_sink_contexts) != sink_contexts ||
+        (source_contexts & ble_svc_audio_pacs_sup_source_contexts) != source_contexts) {
+        return BLE_HS_ENOTSUP;
+    }
+
     avail_ctx->ble_svc_audio_pacs_avail_sink_contexts = sink_contexts;
     avail_ctx->ble_svc_audio_pacs_avail_source_contexts = source_contexts;
     avail_ctx->val_changed = true;
