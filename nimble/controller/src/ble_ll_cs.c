@@ -363,7 +363,68 @@ int
 ble_ll_cs_hci_set_def_settings(const uint8_t *cmdbuf, uint8_t cmdlen,
                                uint8_t *rspbuf, uint8_t *rsplen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_set_def_settings_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_cs_set_def_settings_rp *rsp = (void *)rspbuf;
+    const struct ble_ll_cs_supp_cap *cap = &g_ble_ll_cs_local_cap;
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_sm *cssm;
+    uint8_t i;
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    cssm = connsm->cssm;
+
+    /* Check if a disabled role is used in CS configs */
+    for (i = 0; i < ARRAY_SIZE(cssm->config); i++) {
+        struct ble_ll_cs_config *conf = &cssm->config[i];
+
+        if (conf->config_enabled && (1 << conf->role) & ~cmd->role_enable) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+    }
+
+    if ((cmd->role_enable & ~cap->roles_supported) != 0 ||
+        (cap->number_of_antennas < cmd->cs_sync_antenna_selection &&
+         cmd->cs_sync_antenna_selection < 0xFE)) {
+        /* Unsupported role or antenna selection used */
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    /* Allowed Transmit_Power_Level range: -127 to +20,
+     * (Complement system + special meaning for 0x7E and 0x7F)
+     */
+    if (!(IN_RANGE(cmd->max_tx_power, 0x00, 0x14) ||
+          IN_RANGE(cmd->max_tx_power, 0x7E, 0xFF))) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->max_tx_power == 0x7E) {
+        /* TODO: Set transmitter to minimum transmit power level
+         * supported by the board.
+         */
+        cssm->max_tx_power = 0x80;
+    } else if (cmd->max_tx_power == 0x7F) {
+        /* TODO: Set transmitter to maximum transmit power level
+         * supported by the board.
+         */
+        cssm->max_tx_power = 0x14;
+    } else {
+        /* TODO: Set transmitter to the nearest transmit power level
+         * supported by the board.
+         */
+        cssm->max_tx_power = cmd->max_tx_power;
+    }
+
+    cssm->roles_enabled = cmd->role_enable;
+    cssm->cs_sync_antenna_selection = cmd->cs_sync_antenna_selection;
+
+    rsp->conn_handle = cmd->conn_handle;
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
