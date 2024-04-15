@@ -31,7 +31,7 @@
  * @ingroup bt_host
  * @{
  *
- * This package is used to setup PACS for codecs registered with @ref ble_audio_codec.
+ * This package is used to setup PACS for codecs registered with ble_audio_codec.
  * To register a codec create it's definition as `ble_audio_codec_record` structure and register it
  * using `ble_audio_codec_register()`. Up to BLE_AUDIO_MAX_CODEC_RECORDS entries may be registered.
  * Registering and unregistering codecs, as well as setting PACS parameters will trigger sending
@@ -39,20 +39,33 @@
  *
  */
 
+/** BLE Audio Published Audio Capabilities Service UUID */
 #define BLE_SVC_AUDIO_PACS_UUID16                                   0x1850
+
+/** BLE Audio Published Audio Capabilities Service Sink PAC characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_SINK_PAC                      0x2BC9
+
+/** BLE Audio Published Audio Capabilities Service Sink Audio Locations characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_SINK_AUDIO_LOCATIONS          0x2BCA
+
+/** BLE Audio Published Audio Capabilities Service Source PAC characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_SOURCE_PAC                    0x2BCB
+
+/** BLE Audio Published Audio Capabilities Service Source Audio Locations characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_SOURCE_AUDIO_LOCATIONS        0x2BCC
+
+/** BLE Audio Published Audio Capabilities Service Available Audio Contexts characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_AVAILABLE_AUDIO_CONTEXTS      0x2BCD
+
+/** BLE Audio Published Audio Capabilities Service Supported Audio Contexts characteristic UUID */
 #define BLE_SVC_AUDIO_PACS_CHR_UUID16_SUPPORTED_AUDIO_CONTEXTS      0x2BCE
 
-
+/** Parameters used for setting supported Audio Locations and Contexts. */
 struct ble_svc_audio_pacs_set_param {
-    /* Supported Audio Locations */
+    /** Supported Audio Locations */
     uint32_t audio_locations;
 
-    /* Supported Contexts */
+    /** Supported Contexts */
     uint16_t supported_contexts;
 };
 
