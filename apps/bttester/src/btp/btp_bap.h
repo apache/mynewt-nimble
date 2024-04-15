@@ -83,12 +83,27 @@ struct bap_bap_broadcast_source_stop_cmd {
     uint8_t broadcast_id[3];
 } __packed;
 
-#define BTP_BAP_BROADCAST_SINK_SETUP            0x0a
+#define BTP_BAP_BROADCAST_SINK_SETUP            0xa
+struct btp_bap_broadcast_sink_setup_cmd {
+} __packed;
+
+#define BTP_BAP_BROADCAST_SINK_STOP             0x0f
+struct btp_bap_broadcast_sink_stop_cmd {
+    ble_addr_t address;
+    uint8_t broadcast_id[3];
+} __packed;
+
+#define BTP_BAP_SET_BROADCAST_CODE              0x17
+struct btp_bap_set_broadcast_code_cmd {
+        ble_addr_t addr;
+        uint8_t source_id;
+        uint8_t broadcast_code[16];
+} __packed;
+
 #define BTP_BAP_BROADCAST_SINK_RELEASE          0x0b
 #define BTP_BAP_BROADCAST_SCAN_START            0x0c
 #define BTP_BAP_BROADCAST_SCAN_STOP             0x0d
 #define BTP_BAP_BROADCAST_SINK_SYNC             0x0e
-#define BTP_BAP_BROADCAST_SINK_STOP             0x0f
 #define BTP_BAP_BROADCAST_SINK_BIS_SYNC         0x10
 #define BTP_BAP_DISCOVER_SCAN_DELEGATOR         0x11
 #define BTP_BAP_BROADCAST_ASSISTANT_SCAN_START  0x12

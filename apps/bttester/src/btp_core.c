@@ -106,7 +106,7 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_BAP:
         status = tester_init_bap();
         break;
-#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
         break;
