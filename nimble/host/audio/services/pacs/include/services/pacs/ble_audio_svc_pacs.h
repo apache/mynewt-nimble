@@ -71,7 +71,7 @@ struct ble_svc_audio_pacs_set_param {
  * @return                              0 on success;
  *                                      A non-zero value on failure.
  */
-int ble_svc_audio_pacs_set(uint8_t flags, struct ble_svc_audio_pacs_set_param *param);
+int ble_svc_audio_pacs_set(uint8_t flags, const struct ble_svc_audio_pacs_set_param *param);
 
 /**
  * @brief Set available context types.

@@ -386,7 +386,7 @@ pac_notify(uint16_t chrc_uuid)
 }
 
 int
-ble_svc_audio_pacs_set(uint8_t flags, struct ble_svc_audio_pacs_set_param *param)
+ble_svc_audio_pacs_set(uint8_t flags, const struct ble_svc_audio_pacs_set_param *param)
 {
     int rc;
 
