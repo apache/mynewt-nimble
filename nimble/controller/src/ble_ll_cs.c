@@ -65,6 +65,12 @@
 
 static struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 static struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
+static const uint8_t t_ip1[] = {10, 20, 30, 40, 50, 60, 80, 145};
+static const uint8_t t_ip2[] = {10, 20, 30, 40, 50, 60, 80, 145};
+static const uint8_t t_fcs[] = {15, 20, 30, 40, 50, 60, 80, 100, 120, 150};
+static const uint8_t t_pm[] = {10, 20, 40};
+
+void ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata);
 
 int
 ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen)
@@ -529,16 +535,466 @@ ble_ll_cs_hci_wr_cached_rem_fae(const uint8_t *cmdbuf, uint8_t cmdlen,
     return BLE_ERR_SUCCESS;
 }
 
+void
+ble_ll_cs_config_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t config_id = connsm->cssm->config_req_id;
+    uint8_t action = connsm->cssm->config_req_action;
+    const struct ble_ll_cs_config *conf;
+
+    assert(config_id < ARRAY_SIZE(connsm->cssm->config));
+
+    *dptr = config_id | action << 6;
+
+    if (action == 0x00) {
+        /* Removing the config, all remaining fields are RFU. */
+        memset(dptr + 1, 0, 26);
+
+        return;
+    }
+
+    conf = &connsm->cssm->tmp_config;
+    memcpy(dptr + 1, conf->chan_map, 10);
+    dptr[11] = conf->chan_map_repetition;
+    dptr[12] = conf->main_mode;
+    dptr[13] = conf->sub_mode;
+    dptr[14] = conf->main_mode_min_steps;
+    dptr[15] = conf->main_mode_max_steps;
+    dptr[16] = conf->main_mode_repetition;
+    dptr[17] = conf->mode_0_steps;
+    dptr[18] = conf->cs_sync_phy;
+    dptr[19] = conf->rtt_type |
+               conf->role << 4;
+    dptr[20] = conf->chan_sel |
+               conf->ch3cshape << 4;
+    dptr[21] = conf->ch3cjump;
+    dptr[22] = conf->t_ip1_index;
+    dptr[23] = conf->t_ip2_index;
+    dptr[24] = conf->t_fcs_index;
+    dptr[25] = conf->t_pm_index;
+    /* RFU octet */
+    dptr[26] = 0x00;
+}
+
+static int
+ble_ll_cs_verify_config(struct ble_ll_cs_config *conf)
+{
+    if (conf->chan_map[9] & 0x80) {
+        return 1;
+    }
+
+    if (conf->chan_map_repetition < 1) {
+        return 1;
+    }
+
+    /* Valid combinations of Main_Mode and Sub_Mode selections */
+    if (conf->main_mode == 0x01) {
+        if (conf->sub_mode != 0xFF) {
+            return 1;
+        }
+    } else if (conf->main_mode == 0x02) {
+        if (conf->sub_mode != 0x01 &&
+            conf->sub_mode != 0x03 &&
+            conf->sub_mode != 0xFF) {
+            return 1;
+        }
+    } else if (conf->main_mode == 0x03) {
+        if (conf->sub_mode != 0x02 &&
+            conf->sub_mode != 0xFF) {
+            return 1;
+        }
+    } else {
+        return 1;
+    }
+
+    if (conf->sub_mode == 0xFF) {
+        /* RFU if Sub_Mode is None */
+        conf->main_mode_min_steps = 0x00;
+        conf->main_mode_max_steps = 0x00;
+    }
+
+    if (conf->main_mode_repetition > 0x03) {
+        return 1;
+    }
+
+    if (conf->mode_0_steps < 1 || conf->mode_0_steps > 3) {
+        return 1;
+    }
+
+    if (conf->cs_sync_phy & 0xF0) {
+        return 1;
+    }
+
+    if (conf->rtt_type > 0x06) {
+        return 1;
+    }
+
+    if (conf->chan_sel > 0x01) {
+        return 1;
+    }
+
+    if (conf->chan_sel == 0x01) {
+        if (conf->ch3cshape > 0x01) {
+            return 1;
+        }
+
+        if (!IN_RANGE(conf->ch3cjump, 2, 8)) {
+            return 1;
+        }
+    }
+
+    if (conf->t_ip1_index > 7) {
+        return 1;
+    }
+
+    if (conf->t_ip2_index > 7) {
+        return 1;
+    }
+
+    if (conf->t_fcs_index > 9) {
+        return 1;
+    }
+
+    if (conf->t_pm_index > 2) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void
+ble_ll_cs_ev_config_complete(struct ble_ll_conn_sm *connsm, uint8_t config_id,
+                             uint8_t action, uint8_t status)
+{
+    struct ble_hci_ev_le_subev_cs_config_complete *ev;
+    const struct ble_ll_cs_config *conf;
+    struct ble_hci_ev *hci_ev;
+
+    if (ble_ll_hci_is_le_event_enabled(
+            BLE_HCI_LE_SUBEV_CS_CONFIG_COMPLETE)) {
+        hci_ev = ble_transport_alloc_evt(0);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
+
+            memset(ev, 0, sizeof(*ev));
+            ev->subev_code = BLE_HCI_LE_SUBEV_CS_CONFIG_COMPLETE;
+            ev->status = status;
+            ev->conn_handle = htole16(connsm->conn_handle);
+            ev->config_id = config_id;
+            ev->action = action;
+
+            if (action != 0x00 && status == BLE_ERR_SUCCESS) {
+                conf = &connsm->cssm->config[config_id];
+                ev->main_mode_type = conf->main_mode;
+                ev->sub_mode_type = conf->sub_mode;
+                ev->min_main_mode_steps = conf->main_mode_min_steps;
+                ev->max_main_mode_steps = conf->main_mode_max_steps;
+                ev->main_mode_repetition = conf->main_mode_repetition;
+                ev->mode_0_steps = conf->mode_0_steps;
+                ev->role = conf->role;
+                ev->rtt_type = conf->rtt_type;
+                ev->cs_sync_phy = conf->cs_sync_phy;
+                memcpy(ev->channel_map, conf->chan_map, 10);
+                ev->channel_map_repetition = conf->chan_map_repetition;
+                ev->channel_selection_type = conf->chan_sel;
+                ev->ch3c_shape = conf->ch3cshape;
+                ev->ch3c_jump = conf->ch3cjump;
+                ev->reserved = 0x00;
+                ev->t_ip1_time = conf->t_ip1;
+                ev->t_ip2_time = conf->t_ip2;
+                ev->t_fcs_time = conf->t_fcs;
+                ev->t_pm_time = conf->t_pm;
+            }
+
+            ble_ll_hci_event_send(hci_ev);
+        }
+    }
+}
+
+int
+ble_ll_cs_rx_config_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                        uint8_t *rspbuf)
+{
+    struct ble_ll_cs_config *conf;
+    uint8_t config_id = *dptr & 0b00111111;
+    uint8_t action = (*dptr & 0b11000000) >> 6;
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CONF)) {
+        if (CONN_IS_CENTRAL(connsm)) {
+            /* Reject CS config initiated by peripheral */
+            ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_CONFIG_REQ,
+                                         BLE_ERR_LMP_COLLISION, rspbuf);
+            return BLE_LL_CTRL_REJECT_IND_EXT;
+        } else {
+            /* Take no further action in the Peripheral-initiated procedure
+             * and proceed to handle the Central-initiated procedure.
+             */
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_CONF);
+        }
+    }
+
+    if (config_id >= ARRAY_SIZE(cssm->config)) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_CONFIG_REQ,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    conf = &cssm->config[config_id];
+    if (conf->config_in_use) {
+        /* CS procedure in progress exit with error */
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_CONFIG_REQ,
+                                     BLE_ERR_CMD_DISALLOWED, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    /* Respond with LL_CS_CONFIG_RSP PDU */
+    *rspbuf = config_id | action << 6;
+
+    if (action == 0x00) {
+        /* CS configuration removed. */
+        memset(conf, 0, sizeof(*conf));
+        ble_ll_cs_ev_config_complete(connsm, config_id, 0, BLE_ERR_SUCCESS);
+        return BLE_LL_CTRL_CS_CONFIG_RSP;
+    }
+
+    conf = &cssm->tmp_config;
+    memset(conf, 0, sizeof(*conf));
+    memcpy(conf->chan_map, dptr + 1, 10);
+    conf->chan_map_repetition = dptr[11];
+    conf->main_mode = dptr[12];
+    conf->sub_mode = dptr[13];
+    conf->main_mode_min_steps = dptr[14];
+    conf->main_mode_max_steps = dptr[15];
+    conf->main_mode_repetition = dptr[16];
+    conf->mode_0_steps = dptr[17];
+    conf->cs_sync_phy = dptr[18];
+    conf->rtt_type = dptr[19] & 0b00001111;
+    conf->role = (~dptr[19] >> 4) & 0b00000001;
+    conf->chan_sel = (dptr[20] & 0b00001111);
+    conf->ch3cshape = (dptr[20] & 0b11110000) >> 4;
+    conf->ch3cjump = dptr[21];
+    conf->t_ip1_index = dptr[22];
+    conf->t_ip2_index = dptr[23];
+    conf->t_fcs_index = dptr[24];
+    conf->t_pm_index = dptr[25];
+
+    if (ble_ll_cs_verify_config(conf)) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_CONFIG_REQ,
+                                     BLE_ERR_UNSUPP_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    conf->t_ip1 = t_ip1[conf->t_ip1_index];
+    conf->t_ip2 = t_ip2[conf->t_ip2_index];
+    conf->t_fcs = t_fcs[conf->t_fcs_index];
+    conf->t_pm = t_pm[conf->t_pm_index];
+    conf->config_enabled = 1;
+
+    memcpy(&cssm->config[config_id], conf, sizeof(*conf));
+    memset(conf, 0, sizeof(*conf));
+
+    ble_ll_cs_ev_config_complete(connsm, config_id, 1, BLE_ERR_SUCCESS);
+
+    return BLE_LL_CTRL_CS_CONFIG_RSP;
+}
+
+void
+ble_ll_cs_rx_config_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t config_id = *dptr & 0b00111111;
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+
+    if (config_id != cssm->config_req_id ||
+        !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CONF)) {
+        return;
+    }
+
+    /* Configure CS config locally */
+    memcpy(&cssm->config[config_id], &cssm->tmp_config, sizeof(cssm->tmp_config));
+    memset(&cssm->tmp_config, 0, sizeof(cssm->tmp_config));
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_CONF);
+    ble_ll_cs_ev_config_complete(connsm, config_id, cssm->config_req_action, BLE_ERR_SUCCESS);
+}
+
+void
+ble_ll_cs_rx_config_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+
+    memset(&cssm->tmp_config, 0, sizeof(cssm->tmp_config));
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_CONF);
+    ble_ll_cs_ev_config_complete(connsm, cssm->config_req_id,
+                                 cssm->config_req_action, ble_error);
+}
+
+static int
+ble_ll_cs_select_capability(uint8_t capability_values_count,
+                            uint8_t *out_index, uint16_t local_capability,
+                            uint16_t remote_capability)
+{
+    uint16_t common_capability = local_capability & remote_capability;
+    uint8_t i;
+
+    for (i = 0; i < capability_values_count; i++) {
+        if ((common_capability >> i) & 1) {
+            *out_index = i;
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 int
 ble_ll_cs_hci_create_config(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_create_config_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_sm *cssm;
+    struct ble_ll_cs_config *conf;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If no connection handle exit with error */
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    cssm = connsm->cssm;
+    if (cmd->config_id >= ARRAY_SIZE(cssm->config)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conf = &cssm->config[cmd->config_id];
+
+    /* If already pending or CS procedure in progress exit with error */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CONF) ||
+        conf->config_in_use) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* Save the CS configuration in temporary variable as the config
+     * might be rejected by the remote.
+     */
+    conf = &cssm->tmp_config;
+    memset(conf, 0, sizeof(*conf));
+    conf->config_enabled = 1;
+    conf->main_mode = cmd->main_mode_type;
+    conf->sub_mode = cmd->sub_mode_type;
+    conf->main_mode_min_steps = cmd->min_main_mode_steps;
+    conf->main_mode_max_steps = cmd->max_main_mode_steps;
+    conf->main_mode_repetition = cmd->main_mode_repetition;
+    conf->mode_0_steps = cmd->mode_0_steps;
+    conf->role = cmd->role;
+    conf->rtt_type = cmd->rtt_type;
+    conf->cs_sync_phy = cmd->cs_sync_phy;
+    memcpy(conf->chan_map, cmd->channel_map, 10);
+    conf->chan_map_repetition = cmd->channel_map_repetition;
+    conf->chan_sel = cmd->channel_selection_type;
+    conf->ch3cshape = cmd->ch3c_shape;
+    conf->ch3cjump = cmd->ch3c_jump;
+
+    if (ble_ll_cs_select_capability(ARRAY_SIZE(t_ip1), &conf->t_ip1_index,
+                                    cssm->remote_cap.t_ip1_capability,
+                                    g_ble_ll_cs_local_cap.t_ip1_capability)) {
+        memset(conf, 0, sizeof(*conf));
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_cs_select_capability(ARRAY_SIZE(t_ip2), &conf->t_ip2_index,
+                                    cssm->remote_cap.t_ip2_capability,
+                                    g_ble_ll_cs_local_cap.t_ip2_capability)) {
+        memset(conf, 0, sizeof(*conf));
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_cs_select_capability(ARRAY_SIZE(t_fcs), &conf->t_fcs_index,
+                                    cssm->remote_cap.t_fcs_capability,
+                                    g_ble_ll_cs_local_cap.t_fcs_capability)) {
+        memset(conf, 0, sizeof(*conf));
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_cs_select_capability(ARRAY_SIZE(t_pm), &conf->t_pm_index,
+                                    cssm->remote_cap.t_pm_capability,
+                                    g_ble_ll_cs_local_cap.t_pm_capability)) {
+        memset(conf, 0, sizeof(*conf));
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conf->t_ip1 = t_ip1[conf->t_ip1_index];
+    conf->t_ip2 = t_ip2[conf->t_ip2_index];
+    conf->t_fcs = t_fcs[conf->t_fcs_index];
+    conf->t_pm = t_pm[conf->t_pm_index];
+
+    if (ble_ll_cs_verify_config(conf)) {
+        assert(0);
+        memset(conf, 0, sizeof(*conf));
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->create_context == 0x01) {
+        /* Configure the CS config in the remote controller */
+        cssm->config_req_id = cmd->config_id;
+        cssm->config_req_action = 0x01;
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_CONF, NULL);
+    } else {
+        ble_ll_cs_ev_config_complete(connsm, cmd->config_id, 0x01, BLE_ERR_SUCCESS);
+    }
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
 ble_ll_cs_hci_remove_config(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_remove_config_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_sm *cssm;
+    struct ble_ll_cs_config *conf;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If no connection handle exit with error */
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    cssm = connsm->cssm;
+    if (cmd->config_id >= ARRAY_SIZE(cssm->config)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conf = &cssm->config[cmd->config_id];
+
+    /* If already pending or CS procedure in progress exit with error */
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_CONF) ||
+        conf->config_in_use) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    /* Remove the CS config locally */
+    memset(conf, 0, sizeof(*conf));
+
+    /* Configure the CS config in the remote controller */
+    cssm->config_req_id = cmd->config_id;
+    cssm->config_req_action = 0x00;
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_CONF, NULL);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
