@@ -1,0 +1,156 @@
+GNU gdb (Arm GNU Toolchain 12.2.Rel1 (Build arm-12.24)) 12.1.90.20221210-git
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "--host=i686-w64-mingw32 --target=arm-none-eabi".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://bugs.linaro.org/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+SEGGER J-Link GDB Server V7.96 Command Line Version
+
+JLinkARM.dll V7.96 (DLL compiled Mar  7 2024 16:49:04)
+
+Command line: -device nrf52840_xxaa -speed 1000 -if SWD -port 3333 -singlerun
+-----GDB Server start settings-----
+GDBInit file:                  none
+GDB Server Listening port:     3333
+SWO raw output listening port: 2332
+Terminal I/O port:             2333
+Accept remote connection:      localhost only
+Generate logfile:              off
+Verify download:               off
+Init regs on start:            off
+Silent mode:                   off
+Single run mode:               on
+Target connection timeout:     0 ms
+------J-Link related settings------
+J-Link Host interface:         USB
+J-Link script:                 none
+J-Link settings file:          none
+------Target related settings------
+Target device:                 nrf52840_xxaa
+Target device parameters:      none
+Target interface:              SWD
+Target interface speed:        1000kHz
+Target endian:                 little
+
+Connecting to J-Link...
+J-Link is connected.
+Firmware: J-Link OB-SAM3U128-V2-NordicSemi compiled Oct 30 2023 12:12:17
+Hardware: V1.00
+S/N: 683403725
+Feature(s): RDI, FlashBP, FlashDL, JFlash, GDB
+Checking target voltage...
+Target voltage: 3.30 V
+Listening on TCP/IP port 3333
+Connecting to target...
+Halting core...
+Connected to target
+Waiting for GDB connection...Connected to 0000:0000:0000:0000:0000:0000:0000:0001
+GDB client (conn. 888) requested target.xml from GDB Server
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+Reading common registers: Read register 'r0' (4 bytes) from hardware: 0xFF7F0000
+Read register 'r1' (4 bytes) from hardware: 0x01010600
+Read register 'r2' (4 bytes) from hardware: 0x00010600
+Read register 'r3' (4 bytes) from hardware: 0x00100140
+Read register 'r4' (4 bytes) from hardware: 0x80000000
+Read register 'r5' (4 bytes) from hardware: 0x80000000
+Read register 'r6' (4 bytes) from hardware: 0x00000000
+Read register 'r7' (4 bytes) from hardware: 0x01060000
+Read register 'r8' (4 bytes) from hardware: 0x00000000
+Read register 'r9' (4 bytes) from hardware: 0x40000000
+Read register 'r10' (4 bytes) from hardware: 0x00000000
+Read register 'r11' (4 bytes) from hardware: 0x00000000
+Read register 'r12' (4 bytes) from hardware: 0x00000000
+Read register 'sp' (4 bytes) from hardware: 0x00DA0020
+Read register 'lr' (4 bytes) from hardware: 0x19FE0400
+Read register 'pc' (4 bytes) from hardware: 0xA0FE0400
+Read register 'xpsr' (4 bytes) from hardware: 0x00000021
+Read 4 bytes @ address 0x0004FEA0 (Data = 0xBD38B954)
+Read 2 bytes @ address 0x0004FEA0 (Data = 0xB954)
+0x0004fea0 in ?? ()
+Received monitor command: reset
+Resetting target
+Resetting target
+Downloading 16000 bytes @ address 0x0000C000
+Downloading 15968 bytes @ address 0x0000FE80
+Downloading 16000 bytes @ address 0x00013CE0
+Downloading 16096 bytes @ address 0x00017B60
+Downloading 16048 bytes @ address 0x0001BA40
+Downloading 15824 bytes @ address 0x0001F8F0
+Downloading 16160 bytes @ address 0x000236C0
+Downloading 16064 bytes @ address 0x000275E0
+Downloading 16096 bytes @ address 0x0002B4A0
+Downloading 16048 bytes @ address 0x0002F380
+Downloading 16096 bytes @ address 0x00033230
+Downloading 16048 bytes @ address 0x00037110
+Downloading 16016 bytes @ address 0x0003AFC0
+Downloading 16016 bytes @ address 0x0003EE50
+Downloading 16064 bytes @ address 0x00042CE0
+Downloading 15936 bytes @ address 0x00046BA0
+Downloading 15952 bytes @ address 0x0004A9E0
+Downloading 16128 bytes @ address 0x0004E830
+Downloading 11416 bytes @ address 0x00052730
+Restoring binary file ..\..\bin\targets\bttester\app\@apache-mynewt-nimble\apps\bttester\bttester.img into memory (0xc000 to 0x553c8)
+Reading register 'msp' = 0x20040000
+Reading register 'psp' = 0x00000000
+Reading register 'primask' = 0x00000000
+Reading register 'basepri' = 0x00000000
+Reading register 'faultmask' = 0x00000000
+Reading register 'control' = 0x00000000
+Reading register 'apsr' = 0x00000000
+Reading register 'epsr' = 0x01000000
+Reading register 'ipsr' = 0x00000000
+Reading register 'iapsr' = 0x00000000
+Reading register 'eapsr' = 0x01000000
+Reading register 'iepsr' = 0x01000000
+Reading register 'fpscr' = 0x00000000
+r0             0x7fff              32767
+r1             0x60101             393473
+r2             0x60100             393472
+r3             0x40011000          1073811456
+r4             0x80                128
+r5             0x80                128
+r6             0x0                 0
+r7             0x601               1537
+r8             0x0                 0
+r9             0x40                64
+r10            0x0                 0
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000da00          0x2000da00
+lr             0x4fe19             327193
+pc             0x4fea0             0x4fea0
+xpsr           0x21000000          553648128
+msp            0x20040000          0x20040000
+psp            0x0                 0x0
+primask        0x0                 0
+basepri        0x0                 0
+faultmask      0x0                 0
+control        0x0                 0
+apsr           0x0                 0
+epsr           0x1000000           16777216
+ipsr           0x0                 0
+iapsr          0x0                 0
+eapsr          0x1000000           16777216
+iepsr          0x1000000           16777216
+fpscr          0x0                 0
+Received monitor command: reset
+Resetting target
+Resetting target
+GDB closed TCP/IP connection (Socket 888)
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be killed.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]
+Restoring target state and closing J-Link connection...
+Shutting down...

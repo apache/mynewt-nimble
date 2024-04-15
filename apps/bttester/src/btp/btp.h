@@ -48,6 +48,7 @@
 #define BTP_SERVICE_ID_MESH    4
 #define BTP_SERVICE_ID_GATTC    6
 #define BTP_SERVICE_ID_BAP     14
+#define BTP_SERVICE_ID_BASS     14
 
 #define BTP_SERVICE_ID_MAX    BTP_SERVICE_ID_BAP
 
