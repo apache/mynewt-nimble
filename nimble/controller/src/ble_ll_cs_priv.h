@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include "controller/ble_ll_conn.h"
+#include "ble_ll_cs_drbg_priv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,12 +56,44 @@ struct ble_ll_cs_supp_cap {
 };
 
 struct ble_ll_cs_config {
+    uint8_t config_in_use;
     uint8_t config_enabled;
     /* The role to use in CS procedure
      * 0x00 = Initiator,
      * 0x01 = Reflector
      */
     uint8_t role;
+    /* Map of allowed channels for this CS config */
+    uint8_t chan_map[10];
+    /* The number of times the map represented by the Channel_Map field is to
+     * be cycled through for non-mode 0 steps within a CS procedure
+     */
+    uint8_t chan_map_repetition;
+    uint8_t main_mode;
+    uint8_t sub_mode;
+    uint8_t main_mode_min_steps;
+    uint8_t main_mode_max_steps;
+    uint8_t main_mode_repetition;
+    uint8_t mode_0_steps;
+    /* PHY used for mode 0, 1 and 3 (use LE 1M PHY)*/
+    uint8_t cs_sync_phy;
+    /* Type of RTT (Round-Trip Time) packets */
+    uint8_t rtt_type;
+    /* The Channel Selection Algorithm to use */
+    uint8_t chan_sel;
+    /* Parameters for #3c algorithm */
+    uint8_t ch3cshape;
+    uint8_t ch3cjump;
+    /* Timings (indexes) selected from capabilities */
+    uint8_t t_ip1_index;
+    uint8_t t_ip2_index;
+    uint8_t t_fcs_index;
+    uint8_t t_pm_index;
+    /* Timings (usec) selected from capabilities */
+    uint8_t t_ip1;
+    uint8_t t_ip2;
+    uint8_t t_fcs;
+    uint8_t t_pm;
 };
 
 struct ble_ll_cs_sm {
@@ -76,6 +109,11 @@ struct ble_ll_cs_sm {
     /* Cached FAE tables */
     uint8_t remote_fae_table[72];
     uint8_t local_fae_table[72];
+
+    /* Arguments for ble_ll_cs_config_req_make */
+    uint8_t config_req_id;
+    uint8_t config_req_action;
+    struct ble_ll_cs_config tmp_config;
 };
 
 #ifdef __cplusplus
