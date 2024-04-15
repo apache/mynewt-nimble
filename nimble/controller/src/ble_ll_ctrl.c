@@ -2112,6 +2112,9 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     case BLE_LL_CTRL_PROC_CS_CAP_XCHG:
         ble_ll_cs_rx_capabilities_req_rejected(connsm, ble_error);
         break;
+    case BLE_LL_CTRL_PROC_CS_FAE_REQ:
+        ble_ll_cs_rx_fae_req_rejected(connsm, ble_error);
+        break;
 #endif
 
     default:
@@ -2641,6 +2644,10 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_CS_CAPABILITIES_REQ;
             ble_ll_cs_capabilities_pdu_make(connsm, ctrdata);
             break;
+        case BLE_LL_CTRL_PROC_CS_FAE_REQ:
+            opcode = BLE_LL_CTRL_CS_FAE_REQ;
+            /* No command parameters in LL_CS_FAE_REQ PDU */
+            break;
 #endif
         default:
             BLE_LL_ASSERT(0);
@@ -3117,6 +3124,12 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     case BLE_LL_CTRL_CS_CAPABILITIES_RSP:
         ble_ll_cs_rx_capabilities_rsp(connsm, dptr);
+        break;
+    case BLE_LL_CTRL_CS_FAE_REQ:
+        rsp_opcode = ble_ll_cs_rx_fae_req(connsm, om);
+        break;
+    case BLE_LL_CTRL_CS_FAE_RSP:
+        ble_ll_cs_rx_fae_rsp(connsm, dptr);
         break;
 #endif
     default:

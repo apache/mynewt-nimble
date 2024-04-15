@@ -28,6 +28,7 @@
 #include "controller/ble_ll_cs.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_cs_priv.h"
+#include "os/os_mbuf.h"
 
 #define T_IP1_CAP_ID_10US 0
 #define T_IP1_CAP_ID_20US 1
@@ -427,17 +428,105 @@ ble_ll_cs_hci_set_def_settings(const uint8_t *cmdbuf, uint8_t cmdlen,
     return BLE_ERR_SUCCESS;
 }
 
+static void
+ble_ll_cs_ev_rd_rem_fae_complete(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    struct ble_hci_ev_le_subev_cs_rd_rem_fae_complete *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (ble_ll_hci_is_le_event_enabled(
+            BLE_HCI_LE_SUBEV_CS_RD_REM_FAE_COMPLETE)) {
+        hci_ev = ble_transport_alloc_evt(0);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
+
+            memset(ev, 0, sizeof(*ev));
+            ev->subev_code = BLE_HCI_LE_SUBEV_CS_RD_REM_FAE_COMPLETE;
+            ev->status = status;
+            ev->conn_handle = htole16(connsm->conn_handle);
+
+            if (status == BLE_ERR_SUCCESS) {
+                memcpy(ev->remote_fae_table, connsm->cssm->remote_fae_table, 72);
+            }
+
+            ble_ll_hci_event_send(hci_ev);
+        }
+    }
+}
+
+int
+ble_ll_cs_rx_fae_req(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
+{
+    /* Space for response code */
+    om->om_len = 1;
+    OS_MBUF_PKTLEN(om) = om->om_len;
+    os_mbuf_append(om, connsm->cssm->local_fae_table, 72);
+
+    ble_ll_cs_ev_rd_rem_fae_complete(connsm, BLE_ERR_SUCCESS);
+
+    return BLE_LL_CTRL_CS_FAE_RSP;
+}
+
+void
+ble_ll_cs_rx_fae_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    if (!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_FAE_REQ)) {
+        /* Ignore */
+        return;
+    }
+
+    memcpy(connsm->cssm->remote_fae_table, dptr, 72);
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_FAE_REQ);
+    ble_ll_cs_ev_rd_rem_fae_complete(connsm, BLE_ERR_SUCCESS);
+}
+
+void
+ble_ll_cs_rx_fae_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_FAE_REQ);
+    ble_ll_cs_ev_rd_rem_fae_complete(connsm, ble_error);
+}
+
 int
 ble_ll_cs_hci_rd_rem_fae(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_rd_rem_fae_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_FAE_REQ, NULL);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
 ble_ll_cs_hci_wr_cached_rem_fae(const uint8_t *cmdbuf, uint8_t cmdlen,
                                 uint8_t *rspbuf, uint8_t *rsplen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_wr_cached_rem_fae_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_cs_wr_cached_rem_fae_rp *rsp = (void *)rspbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    memcpy(connsm->cssm->remote_fae_table, cmd->remote_fae_table, 72);
+
+    rsp->conn_handle = cmd->conn_handle;
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int

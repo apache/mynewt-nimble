@@ -44,7 +44,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_SUBRATE_REQ    (12)
 #define BLE_LL_CTRL_PROC_SUBRATE_UPDATE (13)
 #define BLE_LL_CTRL_PROC_CS_CAP_XCHG    (14)
-#define BLE_LL_CTRL_PROC_NUM            (15)
+#define BLE_LL_CTRL_PROC_CS_FAE_REQ     (15)
+#define BLE_LL_CTRL_PROC_NUM            (16)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -124,7 +125,9 @@ extern "C" {
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
 /* Maximum LL control PDU size */
-#if MYNEWT_VAL(BLE_ISO)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_LL_CTRL_MAX_PDU_LEN         (73)
+#elif MYNEWT_VAL(BLE_ISO)
 #define BLE_LL_CTRL_MAX_PDU_LEN         (42)
 #elif MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
 #define BLE_LL_CTRL_MAX_PDU_LEN         (35)
