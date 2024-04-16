@@ -360,10 +360,137 @@ ble_ll_cs_hci_wr_cached_rem_supp_cap(const uint8_t *cmdbuf, uint8_t cmdlen,
     return BLE_ERR_SUCCESS;
 }
 
+static void
+ble_ll_cs_ev_sec_enable_complete(struct ble_ll_conn_sm *connsm, uint8_t status)
+{
+    struct ble_hci_ev_le_subev_cs_sec_enable_complete *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (ble_ll_hci_is_le_event_enabled(
+            BLE_HCI_LE_SUBEV_CS_SEC_ENABLE_COMPLETE)) {
+        hci_ev = ble_transport_alloc_evt(0);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
+
+            ev->subev_code = BLE_HCI_LE_SUBEV_CS_SEC_ENABLE_COMPLETE;
+            ev->status = status;
+            ev->conn_handle = htole16(connsm->conn_handle);
+
+            ble_ll_hci_event_send(hci_ev);
+        }
+    }
+}
+
+int
+ble_ll_cs_rx_security_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                          uint8_t *rspbuf)
+{
+    uint8_t *iv = connsm->cssm->drbg_ctx.iv;
+    uint8_t *in = connsm->cssm->drbg_ctx.in;
+    uint8_t *pv = connsm->cssm->drbg_ctx.pv;
+
+    if (!connsm->flags.encrypted) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_SEC_REQ,
+                                     BLE_ERR_INSUFFICIENT_SEC, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    /* Vectors concatenation is done in the follwing manner:
+     * CS_IV = CS_IV_P || CS_IV_C
+     * The CS_IV_C is concatenated with the CS_IV_P. The least significant
+     * octet of CS_IV_C becomes the least significant octet of CS_IV. The most
+     * significant octet of CS_IV_P becomes the most significant octet of CS_IV.
+     */
+
+    /* Save Central's vector */
+    memcpy(iv, dptr, 8);
+    memcpy(in, dptr + 8, 4);
+    memcpy(pv, dptr + 12, 8);
+
+    /* Generate Peripheral's vector */
+    ble_ll_rand_data_get(iv + 8, 8);
+    ble_ll_rand_data_get(in + 4, 4);
+    ble_ll_rand_data_get(pv + 8, 8);
+
+    memcpy(rspbuf, iv + 8, 8);
+    memcpy(rspbuf + 8, in + 4, 4);
+    memcpy(rspbuf + 12, pv + 8, 8);
+
+    ble_ll_cs_drbg_init(&connsm->cssm->drbg_ctx);
+
+    ble_ll_cs_ev_sec_enable_complete(connsm, BLE_ERR_SUCCESS);
+
+    return BLE_LL_CTRL_CS_SEC_RSP;
+}
+
+void
+ble_ll_cs_rx_security_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    int rc = 0;
+    struct ble_ll_cs_drbg_ctx *drbg_ctx = &connsm->cssm->drbg_ctx;
+
+    if (!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_SEC_START)) {
+        /* Ignore */
+        return;
+    }
+
+    /* Save Peripheral's vector */
+    memcpy(drbg_ctx->iv + 8, dptr, 8);
+    memcpy(drbg_ctx->in + 4, dptr + 8, 4);
+    memcpy(drbg_ctx->pv + 8, dptr + 12, 8);
+
+    rc = ble_ll_cs_drbg_init(drbg_ctx);
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_SEC_START);
+    ble_ll_cs_ev_sec_enable_complete(connsm, rc ? BLE_ERR_INV_LMP_LL_PARM : BLE_ERR_SUCCESS);
+}
+
+void
+ble_ll_cs_rx_security_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_SEC_START);
+    ble_ll_cs_ev_sec_enable_complete(connsm, ble_error);
+}
+
+void
+ble_ll_cs_security_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t *iv = connsm->cssm->drbg_ctx.iv;
+    uint8_t *in = connsm->cssm->drbg_ctx.in;
+    uint8_t *pv = connsm->cssm->drbg_ctx.pv;
+
+    /* Generate Central's vector */
+    ble_ll_rand_data_get(iv, 8);
+    ble_ll_rand_data_get(in, 4);
+    ble_ll_rand_data_get(pv, 8);
+
+    memcpy(dptr, iv, 8);
+    memcpy(dptr + 8, in, 4);
+    memcpy(dptr + 12, pv, 8);
+}
+
 int
 ble_ll_cs_hci_sec_enable(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_sec_enable_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (!connsm->flags.encrypted) {
+        return BLE_ERR_INSUFFICIENT_SEC;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_SEC_START, NULL);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
