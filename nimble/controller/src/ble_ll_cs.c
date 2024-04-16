@@ -69,6 +69,12 @@ static const uint8_t t_ip1[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_ip2[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_fcs[] = {15, 20, 30, 40, 50, 60, 80, 100, 120, 150};
 static const uint8_t t_pm[] = {10, 20, 40};
+static const uint8_t default_channel_classification[10] = {
+    0xFC, 0xFF, 0x7F, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F
+};
+static uint8_t g_ble_ll_cs_chan_class[10];
+static uint8_t g_ble_ll_cs_chan_count = 0;
+static uint8_t g_ble_ll_cs_chan_indices[72];
 
 void ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata);
 
@@ -1120,10 +1126,64 @@ ble_ll_cs_hci_remove_config(const uint8_t *cmdbuf, uint8_t cmdlen)
     return BLE_ERR_SUCCESS;
 }
 
+static int
+ble_ll_cs_proc_set_chan_class(const uint8_t *channel_classification)
+{
+    uint8_t i, j, next_id, byte;
+
+    /* TODO:
+     * 1. The interval between two successive commands sent shall be at least 1 second.
+     * Otherwise, the Controller shall return the error code Command Disallowed (0x0C).
+     *
+     * 2. Combine the Host chan_class with local chan_class capabilities?
+     */
+
+    if (channel_classification[0] & 0b00000011 ||
+        channel_classification[2] & 0b10000000 ||
+        channel_classification[3] & 0b00000011 ||
+        channel_classification[9] & 0b11100000) {
+        /* Channels 0, 1, 23, 24, 25, 77, 78, and the bit 79 (non-channel)
+         * are RFU. At least 15 channels shall be enabled.
+         */
+        return -1;
+    }
+
+    for (i = 0, j = 0; i < ARRAY_SIZE(g_ble_ll_cs_chan_class); ++i) {
+        byte = channel_classification[i];
+        next_id = i * 8;
+
+        while (byte) {
+            if (byte & 1) {
+                g_ble_ll_cs_chan_indices[j++] = next_id;
+            }
+            ++next_id;
+            byte >>= 1;
+        }
+    }
+
+    g_ble_ll_cs_chan_count = j;
+    if (g_ble_ll_cs_chan_count < 15) {
+        return -1;
+    }
+
+    memcpy(g_ble_ll_cs_chan_class, channel_classification,
+           sizeof(g_ble_ll_cs_chan_class));
+
+    return 0;
+}
+
 int
 ble_ll_cs_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    int rc;
+    const struct ble_hci_le_cs_set_chan_class_cp *cmd = (const void *)cmdbuf;
+
+    rc = ble_ll_cs_proc_set_chan_class(cmd->channel_classification);
+    if (rc) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
@@ -1180,6 +1240,8 @@ ble_ll_cs_init(void)
     cap->t_fcs_capability = 1 << T_FCS_CAP_ID_150US;
     cap->t_pm_capability = 1 << T_PM_CAP_ID_40US;
     cap->tx_snr_capablity = 0x00;
+
+    ble_ll_cs_proc_set_chan_class(default_channel_classification);
 }
 
 void
