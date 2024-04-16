@@ -69,8 +69,45 @@ static const uint8_t t_ip1[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_ip2[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_fcs[] = {15, 20, 30, 40, 50, 60, 80, 100, 120, 150};
 static const uint8_t t_pm[] = {10, 20, 40};
+static const uint8_t default_channel_classification[10] = {
+    0xFC, 0xFF, 0x7F, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F
+};
+static uint8_t g_ble_ll_cs_chan_class[10];
 
 void ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata);
+
+static int
+ble_ll_cs_verify_chan_map(const uint8_t *chan_map)
+{
+    uint8_t i, j, byte;
+
+    if (chan_map[0] & 0b00000011 ||
+        chan_map[2] & 0b10000000 ||
+        chan_map[3] & 0b00000011 ||
+        chan_map[9] & 0b11100000) {
+        /* Channels 0, 1, 23, 24, 25, 77, 78, and the bit 79 (non-channel)
+         * are RFU. At least 15 channels shall be enabled.
+         */
+        return BLE_ERR_CHAN_CLASS;
+    }
+
+    for (i = 0, j = 0; i < 10; ++i) {
+        byte = chan_map[i];
+
+        while (byte) {
+            if (byte & 1) {
+                j++;
+            }
+            byte >>= 1;
+        }
+    }
+
+    if (j < 15) {
+        return BLE_ERR_INSUFFICIENT_CHAN;
+    }
+
+    return 0;
+}
 
 int
 ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen)
@@ -706,7 +743,7 @@ ble_ll_cs_config_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 static int
 ble_ll_cs_verify_config(struct ble_ll_cs_config *conf)
 {
-    if (conf->chan_map[9] & 0x80) {
+    if (ble_ll_cs_verify_chan_map(conf->chan_map)) {
         return 1;
     }
 
@@ -1124,10 +1161,38 @@ ble_ll_cs_hci_remove_config(const uint8_t *cmdbuf, uint8_t cmdlen)
     return BLE_ERR_SUCCESS;
 }
 
+static int
+ble_ll_cs_proc_set_chan_class(const uint8_t *channel_classification)
+{
+    /* TODO:
+     * 1. The interval between two successive commands sent shall be at least 1 second.
+     * Otherwise, the Controller shall return the error code Command Disallowed (0x0C).
+     *
+     * 2. Combine the Host chan_class with local chan_class capabilities?
+     */
+
+    if (ble_ll_cs_verify_chan_map(channel_classification)) {
+        return -1;
+    }
+
+    memcpy(g_ble_ll_cs_chan_class, channel_classification,
+           sizeof(g_ble_ll_cs_chan_class));
+
+    return 0;
+}
+
 int
 ble_ll_cs_hci_set_chan_class(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    int rc;
+    const struct ble_hci_le_cs_set_chan_class_cp *cmd = (const void *)cmdbuf;
+
+    rc = ble_ll_cs_proc_set_chan_class(cmd->channel_classification);
+    if (rc) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
@@ -1184,6 +1249,8 @@ ble_ll_cs_init(void)
     cap->t_fcs_capability = 1 << T_FCS_CAP_ID_150US;
     cap->t_pm_capability = 1 << T_PM_CAP_ID_40US;
     cap->tx_snr_capablity = 0x00;
+
+    ble_ll_cs_proc_set_chan_class(default_channel_classification);
 }
 
 void
