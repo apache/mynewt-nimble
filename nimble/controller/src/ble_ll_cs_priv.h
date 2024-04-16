@@ -55,6 +55,22 @@ struct ble_ll_cs_supp_cap {
     uint8_t tx_snr_capablity;
 };
 
+struct ble_ll_cs_pref_proc_params {
+    uint16_t max_procedure_len;
+    uint16_t min_procedure_interval;
+    uint16_t max_procedure_interval;
+    uint16_t max_procedure_count;
+    uint32_t min_subevent_len;
+    uint32_t max_subevent_len;
+    uint8_t aci;
+    uint8_t phy;
+    uint8_t tx_power_delta;
+    uint8_t preferred_peer_antenna;
+    uint8_t snr_control_initiator;
+    uint8_t snr_control_reflector;
+    uint8_t params_ready;
+};
+
 struct ble_ll_cs_config {
     uint8_t config_in_use;
     uint8_t config_enabled;
@@ -94,6 +110,8 @@ struct ble_ll_cs_config {
     uint8_t t_ip2;
     uint8_t t_fcs;
     uint8_t t_pm;
+    /* CS procedure parameters preferred by our Host */
+    struct ble_ll_cs_pref_proc_params pref_proc_params;
 };
 
 struct ble_ll_cs_sm {
@@ -117,6 +135,8 @@ struct ble_ll_cs_sm {
 
     /* DRBG context, initialized onece per LE Connection */
     struct ble_ll_cs_drbg_ctx drbg_ctx;
+
+    uint8_t measurement_enabled;
 };
 
 #ifdef __cplusplus
