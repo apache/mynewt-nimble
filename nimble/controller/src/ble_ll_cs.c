@@ -26,6 +26,7 @@
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_cs.h"
+#include "controller/ble_ll_tmr.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_cs_priv.h"
 #include "os/os_mbuf.h"
@@ -74,7 +75,13 @@ static const uint8_t default_channel_classification[10] = {
 };
 static uint8_t g_ble_ll_cs_chan_class[10];
 
+#define MIN_CONN_EVENT_COUNT_BEFORE_START 8
+#define OFFSET_FROM_CONN_EVENT_TICKS 10
+
+extern int8_t g_ble_ll_tx_power;
 void ble_ll_ctrl_rej_ext_ind_make(uint8_t rej_opcode, uint8_t err, uint8_t *ctrdata);
+
+#define div_ceil(a, b) (((a) + (b) - 1) / (b))
 
 static int
 ble_ll_cs_verify_chan_map(const uint8_t *chan_map)
@@ -1327,7 +1334,787 @@ ble_ll_cs_hci_set_proc_params(const uint8_t *cmdbuf, uint8_t cmdlen,
 int
 ble_ll_cs_hci_proc_enable(const uint8_t *cmdbuf, uint8_t cmdlen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_proc_enable_cp *cmd = (const void *)cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_config *conf;
+
+    if (cmdlen != sizeof(*cmd) || cmd->config_id >= ARRAY_SIZE(connsm->cssm->config)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If no connection handle exit with error */
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    conf = &connsm->cssm->config[cmd->config_id];
+    if (!conf->config_enabled) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->enable) {
+        if (!conf->pref_proc_params.params_ready ||
+            connsm->cssm->measurement_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        memset(&conf->proc_params, 0, sizeof(conf->proc_params));
+        if (ble_ll_cs_proc_params_channels_setup(conf)) {
+            return BLE_ERR_INSUFFICIENT_CHAN;
+        }
+
+        /* Start scheduling CS procedures */
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_START);
+    } else {
+        /* TODO: Terminate the CS measurement early */
+    }
+
+    return BLE_ERR_SUCCESS;
+}
+
+static void
+ble_ll_cs_ev_cs_proc_enable_complete(struct ble_ll_conn_sm *connsm,
+                                     uint8_t config_id, uint8_t status)
+{
+    struct ble_hci_ev_le_subev_cs_proc_enable_complete *ev;
+    const struct ble_ll_cs_proc_params *params;
+    struct ble_hci_ev *hci_ev;
+
+    if (ble_ll_hci_is_le_event_enabled(
+            BLE_HCI_LE_SUBEV_CS_PROC_ENABLE_COMPLETE)) {
+        hci_ev = ble_transport_alloc_evt(0);
+        if (hci_ev) {
+            hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+            hci_ev->length = sizeof(*ev);
+            ev = (void *) hci_ev->data;
+
+            memset(ev, 0, sizeof(*ev));
+            ev->subev_code = BLE_HCI_LE_SUBEV_CS_PROC_ENABLE_COMPLETE;
+            ev->status = status;
+            ev->conn_handle = htole16(connsm->conn_handle);
+            ev->config_id = config_id;
+            ev->state = connsm->cssm->measurement_enabled;
+
+            if (status == BLE_ERR_SUCCESS) {
+                params = &connsm->cssm->config[config_id].proc_params;
+                ev->tone_antenna_config_selection = params->aci;
+                ev->selected_tx_power = g_ble_ll_tx_power;
+                put_le24(ev->subevent_len, params->subevent_len);
+                ev->subevents_per_event = params->subevents_per_event;
+                ev->subevent_interval = htole16(params->subevent_interval);
+                ev->event_interval = htole16(params->event_interval);
+                ev->procedure_interval = htole16(params->procedure_interval);
+                ev->procedure_count = htole16(connsm->cssm->pending_procedure_id);
+            }
+
+            ble_ll_hci_event_send(hci_ev);
+        }
+    }
+}
+
+void
+ble_ll_cs_start_req_parameters_setup(struct ble_ll_cs_proc_params *ps,
+                                     struct ble_ll_cs_pref_proc_params *pps,
+                                     uint32_t conn_itvl_us, uint32_t ce_duration_us,
+                                     uint16_t subrate_base_event, uint16_t subrate_factor,
+                                     uint16_t event_cntr)
+{
+    uint32_t max_procedure_len_us;
+    uint32_t time_until_next_ce_us;
+    uint32_t min_subevent_len;
+    uint32_t subevents_available_us;
+    uint32_t subevents_remainder_us;
+    uint32_t subevent_interval_us;
+
+    /* Use Host preferences */
+    ps->max_procedure_count = pps->max_procedure_count;
+    ps->max_procedure_len = pps->max_procedure_len;
+    ps->procedure_interval = pps->max_procedure_interval;
+    ps->aci = pps->aci;
+    ps->preferred_peer_antenna = pps->preferred_peer_antenna;
+    ps->phy = pps->phy;
+    ps->tx_power_delta = pps->tx_power_delta;
+    ps->tx_snr_i = pps->snr_control_initiator;
+    ps->tx_snr_r = pps->snr_control_reflector;
+
+    /* The extent of a CS subevent may exceed that of the underlying
+     * LE connection interval. To avoid a collision with a CE, let's set
+     * the anchor event_cntr to be relatively offset from subrate_base_event
+     * by a multiple of subrate_factor.
+     */
+    if (subrate_factor > 1) {
+        if (MIN_CONN_EVENT_COUNT_BEFORE_START > subrate_factor) {
+            event_cntr = subrate_base_event + div_ceil(MIN_CONN_EVENT_COUNT_BEFORE_START,
+                                                       subrate_factor) * subrate_factor;
+        } else {
+            event_cntr = subrate_base_event + subrate_factor;
+        }
+    } else {
+        event_cntr = event_cntr + MIN_CONN_EVENT_COUNT_BEFORE_START;
+    }
+
+    ps->anchor_conn_event_cntr = event_cntr;
+
+    /* The earliest time the radio scheduler will be ready after CE */
+    ps->offset_min = MAX(BLE_LL_CS_EVENT_OFFSET_MIN_US, ce_duration_us +
+                         BLE_LL_CS_SUBEVENT_SAFE_SPACE_FROM_CE);
+
+    max_procedure_len_us = ps->max_procedure_len * BLE_LL_CS_PROCEDURE_LEN_UNIT_US;
+    /* The total time we can use for subevents before next CE */
+    time_until_next_ce_us = conn_itvl_us * subrate_factor;
+    time_until_next_ce_us = MIN(max_procedure_len_us, time_until_next_ce_us);
+    subevents_available_us = time_until_next_ce_us - ps->offset_min;
+
+    /* Use Host preferences as boundary values for subevent_len */
+    min_subevent_len = MAX(BLE_LL_CS_SUBEVENT_LEN_MIN, pps->min_subevent_len);
+    ps->subevent_len = MIN(subevents_available_us - BLE_LL_CS_SUBEVENT_T_MES_US,
+                           pps->max_subevent_len);
+    ps->subevent_len = CLAMP(ps->subevent_len, min_subevent_len, BLE_LL_CS_SUBEVENT_LEN_MAX);
+
+    BLE_LL_CS_ASSERT(time_until_next_ce_us > min_subevent_len + BLE_LL_CS_SUBEVENT_T_MES_US);
+
+    ps->offset_max = MIN(BLE_LL_CS_EVENT_OFFSET_MAX_US, time_until_next_ce_us -
+                         min_subevent_len - BLE_LL_CS_SUBEVENT_T_MES_US);
+
+    subevent_interval_us = ps->subevent_len + BLE_LL_CS_SUBEVENT_MIN_SPACING_US;
+
+    ps->subevents_per_event = subevents_available_us / subevent_interval_us;
+    if (BLE_LL_CS_SUBEVENTS_PER_EVENT_MAX <= ps->subevents_per_event) {
+        ps->subevents_per_event = BLE_LL_CS_SUBEVENTS_PER_EVENT_MAX;
+    } else {
+        subevents_remainder_us = subevents_available_us - ps->subevents_per_event * subevent_interval_us;
+        if (min_subevent_len <= subevents_remainder_us) {
+            ps->subevents_per_event++;
+        }
+    }
+
+    if (ps->subevents_per_event <= 1) {
+        ps->subevents_per_event = 1;
+        ps->subevent_interval = 0;
+    } else {
+        ps->subevent_interval = div_ceil(subevent_interval_us,
+                                         BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US);
+    }
+
+    ps->event_interval = subrate_factor;
+}
+
+void
+ble_ll_cs_start_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t config_id = connsm->cssm->config_req_id;
+    struct ble_ll_cs_pref_proc_params *pps;
+    struct ble_ll_cs_proc_params *ps;
+    uint32_t ce_duration_us;
+    uint32_t conn_itvl_us;
+    uint16_t subrate_base_event;
+    uint16_t subrate_factor;
+
+    assert(config_id < ARRAY_SIZE(connsm->cssm->config));
+    pps = &connsm->cssm->config[config_id].pref_proc_params;
+    ps = &connsm->cssm->config[config_id].proc_params;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    subrate_factor = connsm->subrate_factor;
+    subrate_base_event = connsm->subrate_base_event;
+#else
+    subrate_factor = 1;
+    subrate_base_event = connsm->event_cntr;
+#endif
+
+    conn_itvl_us = ble_ll_tmr_t2u(connsm->conn_itvl_ticks);
+    ce_duration_us = ble_ll_tmr_t2u(connsm->conn_sch.end_time - connsm->conn_sch.start_time);
+
+    ble_ll_cs_start_req_parameters_setup(ps, pps, conn_itvl_us, ce_duration_us, subrate_base_event,
+                                         subrate_factor, connsm->event_cntr);
+
+    *dptr = config_id;
+    put_le16(dptr + 1, ps->anchor_conn_event_cntr);
+    put_le24(dptr + 3, ps->offset_min);
+    put_le24(dptr + 6, ps->offset_max);
+    put_le16(dptr + 9, ps->max_procedure_len);
+    put_le16(dptr + 11, ps->event_interval);
+    dptr[13] = ps->subevents_per_event;
+    put_le16(dptr + 14, ps->subevent_interval);
+    put_le24(dptr + 16, ps->subevent_len);
+    put_le16(dptr + 19, ps->procedure_interval);
+    put_le16(dptr + 21, ps->max_procedure_count);
+    dptr[23] = ps->aci;
+    dptr[24] = ps->preferred_peer_antenna;
+    dptr[25] = ps->phy;
+    dptr[26] = ps->tx_power_delta;
+    dptr[27] = ps->tx_snr_i |
+               ps->tx_snr_r << 4;
+}
+
+static int
+ble_ll_cs_start_ind_make(struct ble_ll_conn_sm *connsm, uint8_t *rspbuf)
+{
+    uint8_t config_id = connsm->cssm->config_req_id;
+    struct ble_ll_cs_proc_params *ps;
+
+    assert(config_id < ARRAY_SIZE(connsm->cssm->config));
+    ps = &connsm->cssm->config[config_id].proc_params;
+
+    *rspbuf = config_id;
+    put_le16(rspbuf + 1, ps->anchor_conn_event_cntr);
+    put_le24(rspbuf + 3, ps->event_offset);
+    put_le16(rspbuf + 6, ps->event_interval);
+    rspbuf[8] = ps->subevents_per_event;
+    put_le16(rspbuf + 9, ps->subevent_interval);
+    put_le24(rspbuf + 11, ps->subevent_len);
+    rspbuf[14] = ps->aci;
+    rspbuf[15] = ps->phy;
+    rspbuf[16] = ps->tx_power_delta;
+    rspbuf[17] = 0x00;
+
+    return BLE_LL_CTRL_CS_IND;
+}
+
+static int
+ble_ll_cs_start_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *rspbuf)
+{
+    uint8_t config_id = connsm->cssm->config_req_id;
+    struct ble_ll_cs_proc_params *ps;
+
+    assert(config_id < ARRAY_SIZE(connsm->cssm->config));
+    ps = &connsm->cssm->config[config_id].proc_params;
+
+    *rspbuf = config_id;
+    put_le16(rspbuf + 1, ps->anchor_conn_event_cntr);
+    put_le24(rspbuf + 3, ps->offset_min);
+    put_le24(rspbuf + 6, ps->offset_max);
+    put_le16(rspbuf + 9, ps->event_interval);
+    rspbuf[11] = ps->subevents_per_event;
+    put_le16(rspbuf + 12, ps->subevent_interval);
+    put_le24(rspbuf + 14, ps->subevent_len);
+    rspbuf[17] = ps->aci;
+    rspbuf[18] = ps->phy;
+    rspbuf[19] = ps->tx_power_delta;
+    /* 1 RFU octet */
+    rspbuf[20] = 0x00;
+
+    return BLE_LL_CTRL_CS_RSP;
+}
+
+static void
+ble_ll_cs_offset_clamp(uint32_t loc_offset_min, uint32_t loc_offset_max,
+                       uint32_t rem_offset_min, uint32_t rem_offset_max,
+                       uint32_t *res_offset_min, uint32_t *res_offset_max)
+{
+    if (loc_offset_max < rem_offset_min || rem_offset_max < loc_offset_min) {
+        *res_offset_min = loc_offset_min;
+        *res_offset_max = loc_offset_max;
+    } else {
+        *res_offset_min = MAX(loc_offset_min, rem_offset_min);
+        *res_offset_max = MIN(loc_offset_max, rem_offset_max);
+    }
+}
+
+uint16_t
+round_up_to_subrate_factor(uint16_t event, uint16_t ref_event, uint16_t subrate_factor)
+{
+    uint16_t result_event = event;
+    uint16_t align_subrate;
+
+    if (ref_event < event) {
+        align_subrate = (event - ref_event) % subrate_factor;
+        if (align_subrate != 0) {
+            result_event += subrate_factor - align_subrate;
+        }
+    } else {
+        result_event = ref_event;
+    }
+
+    return result_event;
+}
+
+int
+ble_ll_cs_start_req_parameters_apply(struct ble_ll_cs_proc_params *ps, uint32_t conn_itvl_us,
+                                     uint32_t ce_duration_us, uint16_t subrate_base_event,
+                                     uint16_t subrate_factor, uint16_t event_cntr)
+{
+    uint32_t offset_min;
+    uint32_t offset_max;
+    uint32_t max_procedure_len_us;
+    uint32_t time_until_next_ce_us;
+    uint32_t subevent_interval_us;
+    uint32_t event_interval_us;
+    uint32_t align_subrate;
+
+    if (subrate_factor > 1) {
+        /* Use the multiple of subrate_factor to make sure we will not overlap a CE */
+        if (MIN_CONN_EVENT_COUNT_BEFORE_START > subrate_factor) {
+            event_cntr = subrate_base_event + div_ceil(MIN_CONN_EVENT_COUNT_BEFORE_START,
+                                                       subrate_factor) * subrate_factor;
+        } else {
+            event_cntr = subrate_base_event + subrate_factor;
+        }
+    } else {
+        event_cntr = event_cntr + MIN_CONN_EVENT_COUNT_BEFORE_START;
+    }
+
+    ps->anchor_conn_event_cntr = round_up_to_subrate_factor(ps->anchor_conn_event_cntr,
+                                                            event_cntr,
+                                                            subrate_factor);
+
+    offset_min = MAX(BLE_LL_CS_EVENT_OFFSET_MIN_US, ce_duration_us +
+                     BLE_LL_CS_SUBEVENT_SAFE_SPACE_FROM_CE);
+
+    max_procedure_len_us = ps->max_procedure_len * BLE_LL_CS_PROCEDURE_LEN_UNIT_US;
+    /* The total time we can use for subevents before next CE */
+    time_until_next_ce_us = conn_itvl_us * subrate_factor;
+    time_until_next_ce_us = MIN(max_procedure_len_us, time_until_next_ce_us);
+
+    BLE_LL_CS_ASSERT(time_until_next_ce_us > BLE_LL_CS_SUBEVENT_LEN_MIN + BLE_LL_CS_SUBEVENT_T_MES_US);
+
+    offset_max = MIN(BLE_LL_CS_EVENT_OFFSET_MAX_US, time_until_next_ce_us -
+                     BLE_LL_CS_SUBEVENT_LEN_MIN - BLE_LL_CS_SUBEVENT_T_MES_US);
+    ble_ll_cs_offset_clamp(offset_min, offset_max,
+                           ps->offset_min, ps->offset_max,
+                           &ps->offset_min, &ps->offset_max);
+
+    ps->subevent_len = MIN(MIN(time_until_next_ce_us - offset_min - BLE_LL_CS_SUBEVENT_T_MES_US,
+                               BLE_LL_CS_SUBEVENT_LEN_MAX), ps->subevent_len);
+    ps->event_offset = ps->offset_min;
+
+    ps->subevents_per_event = MIN(BLE_LL_CS_SUBEVENTS_PER_EVENT_MAX, ps->subevents_per_event);
+    if (ps->subevents_per_event == 1) {
+        ps->subevent_interval = 0;
+    } else if (ps->subevent_interval == 0) {
+        ps->subevents_per_event = 1;
+    } else {
+        subevent_interval_us = ps->subevent_interval * BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US;
+        if (subevent_interval_us < ps->subevent_len + BLE_LL_CS_SUBEVENT_MIN_SPACING_US) {
+            subevent_interval_us = ps->subevent_len + BLE_LL_CS_SUBEVENT_MIN_SPACING_US;
+            ps->subevent_interval = div_ceil(subevent_interval_us,
+                                             BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US);
+        }
+
+        if (ps->max_procedure_len < ps->subevent_interval) {
+            ps->subevent_interval = 0;
+            ps->subevents_per_event = 1;
+        }
+
+        event_interval_us = ps->event_interval * conn_itvl_us;
+        if (event_interval_us < subevent_interval_us) {
+            ps->event_interval = subrate_factor;
+        }
+    }
+
+    if (subrate_factor < ps->event_interval) {
+        align_subrate = (ps->event_interval - subrate_factor) % subrate_factor;
+        if (align_subrate != 0) {
+            ps->event_interval += subrate_factor - align_subrate;
+        }
+    }
+
+    if (ps->aci > 7) {
+        /* Resuggest ACI with ID 0 as the controller does not support antenna switching yet */
+        ps->aci = 0;
+    }
+
+    if (ps->phy != 0b0001 && ps->phy != 0b0010) {
+        /* Resuggest using LE 1M PHY */
+        ps->phy = 1;
+    }
+
+    if (!(IN_RANGE(ps->tx_power_delta, 0x00, 0x14) ||
+          IN_RANGE(ps->tx_power_delta, 0x7E, 0xFF))) {
+        /* Invalid range. Resuggest to not change the power level */
+        ps->tx_power_delta = 0x00;
+    }
+
+    if ((ps->tx_snr_i > 4 && ps->tx_snr_i != 0xF) ||
+        (ps->tx_snr_r > 4 && ps->tx_snr_r != 0xF) ||
+        ps->preferred_peer_antenna == 0) {
+        /* We cannot resuggest these, so reject them */
+        return 1;
+    }
+
+    return 0;
+}
+
+int
+ble_ll_cs_start_rsp_parameters_apply(struct ble_ll_cs_proc_params *ps,
+                                     struct ble_ll_cs_proc_params *rx_ps, uint32_t conn_itvl_us,
+                                     uint32_t ce_duration_us, uint16_t subrate_factor,
+                                     uint16_t event_cntr)
+{
+    uint32_t subevent_interval_us;
+    uint32_t event_interval_us;
+
+    ps->anchor_conn_event_cntr = round_up_to_subrate_factor(rx_ps->anchor_conn_event_cntr,
+                                                            ps->anchor_conn_event_cntr,
+                                                            subrate_factor);
+
+    ble_ll_cs_offset_clamp(ps->offset_min, ps->offset_max,
+                           rx_ps->offset_min, rx_ps->offset_max,
+                           &ps->offset_min, &ps->offset_max);
+
+    ps->event_offset = ps->offset_min;
+    ps->event_interval = round_up_to_subrate_factor(rx_ps->event_interval, ps->event_interval,
+                                                    subrate_factor);
+
+    ps->subevent_len = MIN(ps->subevent_len, rx_ps->subevent_len);
+    ps->subevents_per_event = MIN(MIN(ps->subevents_per_event, BLE_LL_CS_SUBEVENTS_PER_EVENT_MAX),
+                                  rx_ps->subevents_per_event);
+    if (ps->subevents_per_event == 1) {
+        ps->subevent_interval = 0;
+    } else if (ps->subevent_interval == 0) {
+        ps->subevents_per_event = 1;
+    } else {
+        ps->subevent_interval = MAX(ps->subevent_interval, rx_ps->subevent_interval);
+
+        subevent_interval_us = ps->subevent_interval * BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US;
+        if (subevent_interval_us < ps->subevent_len + BLE_LL_CS_SUBEVENT_MIN_SPACING_US) {
+            subevent_interval_us = ps->subevent_len + BLE_LL_CS_SUBEVENT_MIN_SPACING_US;
+            ps->subevent_interval = div_ceil(subevent_interval_us,
+                                             BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US);
+        }
+
+        event_interval_us = rx_ps->event_interval * conn_itvl_us;
+        if (event_interval_us < subevent_interval_us || ps->max_procedure_len < ps->subevent_interval) {
+            ps->subevent_interval = 0;
+            ps->subevents_per_event = 1;
+        }
+    }
+
+    if (rx_ps->aci > 7) {
+        /* Resuggest ACI with ID 0 as the controller does not support antenna switching yet */
+        rx_ps->aci = 0;
+    }
+    ps->aci = rx_ps->aci;
+
+    if (rx_ps->phy != 0b0001 && rx_ps->phy != 0b0010) {
+        /* Resuggest using LE 1M PHY */
+        rx_ps->phy = 1;
+    }
+    ps->phy = rx_ps->phy;
+
+    if (!(IN_RANGE(rx_ps->tx_power_delta, 0x00, 0x14) ||
+          IN_RANGE(rx_ps->tx_power_delta, 0x7E, 0xFF))) {
+        /* Invalid range. Resuggest to not change the power level */
+        rx_ps->tx_power_delta = 0x00;
+    }
+    ps->tx_power_delta = rx_ps->tx_power_delta;
+
+    return 0;
+}
+
+int
+ble_ll_cs_start_ind_parameters_apply(struct ble_ll_cs_proc_params *ps,
+                                     struct ble_ll_cs_proc_params *rx_ps, uint32_t conn_itvl_us,
+                                     uint32_t ce_duration_us, uint16_t subrate_factor,
+                                     uint16_t event_cntr)
+{
+    uint32_t subevent_interval_us;
+    uint32_t event_interval_us;
+    uint16_t event_interval;
+
+    event_cntr = round_up_to_subrate_factor(rx_ps->anchor_conn_event_cntr,
+                                            ps->anchor_conn_event_cntr,
+                                            subrate_factor);
+    if (event_cntr != rx_ps->anchor_conn_event_cntr) {
+        return 1;
+    }
+    ps->anchor_conn_event_cntr = event_cntr;
+
+    if (rx_ps->event_offset < ps->offset_min || ps->offset_max < rx_ps->event_offset) {
+        return 1;
+    }
+    ps->event_offset = rx_ps->event_offset;
+
+    event_interval = round_up_to_subrate_factor(rx_ps->event_interval, ps->event_interval,
+                                                subrate_factor);
+    if (event_interval != rx_ps->event_interval) {
+        return 1;
+    }
+    ps->event_interval = event_interval;
+
+    if (ps->subevent_len < rx_ps->subevent_len) {
+        return 1;
+    }
+    ps->subevent_len = rx_ps->subevent_len;
+
+    if (ps->subevents_per_event < rx_ps->subevents_per_event ||
+        BLE_LL_CS_SUBEVENTS_PER_EVENT_MAX < rx_ps->subevents_per_event) {
+        return 1;
+    }
+    ps->subevents_per_event = rx_ps->subevents_per_event;
+
+    if (ps->subevents_per_event == 1) {
+        if (ps->subevent_interval != 0) {
+            return 1;
+        }
+    } else if (rx_ps->subevent_interval < ps->subevent_interval) {
+        return 1;
+    } else if (ps->subevent_interval < rx_ps->subevent_interval) {
+        subevent_interval_us = rx_ps->subevent_interval * BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US;
+        event_interval_us = ps->event_interval * conn_itvl_us;
+        if (event_interval_us < subevent_interval_us) {
+            return 1;
+        }
+        ps->subevent_interval = rx_ps->subevent_interval;
+    }
+
+    if (ps->aci > 7) {
+        return 1;
+    }
+
+    if (ps->phy != 0b0001 && ps->phy != 0b0010) {
+        return 1;
+    }
+
+    if (!(IN_RANGE(ps->tx_power_delta, 0x00, 0x14) ||
+          IN_RANGE(ps->tx_power_delta, 0x7E, 0xFF))) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int
+ble_ll_cs_rx_cs_start_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf)
+{
+    uint32_t conn_itvl_us;
+    uint32_t ce_duration_us;
+    uint16_t subrate_base_event;
+    uint16_t subrate_factor;
+    uint8_t config_id = *dptr & 0b00111111;
+    struct ble_ll_cs_config *conf;
+    struct ble_ll_cs_proc_params *ps;
+    int rc;
+
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_START)) {
+        if (CONN_IS_CENTRAL(connsm)) {
+            /* Reject CS config initiated by peripheral */
+            ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_REQ,
+                                         BLE_ERR_LMP_COLLISION, rspbuf);
+            return BLE_LL_CTRL_REJECT_IND_EXT;
+        } else {
+            /* Take no further action in the Peripheral-initiated procedure
+             * and proceed to handle the Central-initiated procedure.
+             */
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_START);
+        }
+    }
+
+    if (config_id >= ARRAY_SIZE(connsm->cssm->config)) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_REQ,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    conf = &connsm->cssm->config[config_id];
+    ps = &conf->proc_params;
+    memset(ps, 0, sizeof(*ps));
+
+    if (ble_ll_cs_proc_params_channels_setup(conf)) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_REQ,
+                                     BLE_ERR_INSUFFICIENT_CHAN, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    ps->anchor_conn_event_cntr = get_le16(dptr + 1);
+    ps->offset_min = get_le24(dptr + 3);
+    ps->offset_max = get_le24(dptr + 6);
+    ps->max_procedure_len = get_le16(dptr + 9);
+    ps->event_interval = get_le16(dptr + 11);
+    ps->subevents_per_event = dptr[13];
+    ps->subevent_interval = get_le16(dptr + 14);
+    ps->subevent_len = get_le24(dptr + 16);
+    ps->procedure_interval = get_le16(dptr + 19);
+    ps->max_procedure_count = get_le16(dptr + 21);
+    ps->aci = dptr[23];
+    ps->preferred_peer_antenna = dptr[24] & 0b00001111;
+    ps->phy = dptr[25] & 0b00001111;
+    ps->tx_power_delta = dptr[26];
+    ps->tx_snr_i = dptr[27] & 0b00001111;
+    ps->tx_snr_r = (dptr[27] >> 4) & 0b00001111;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    subrate_factor = connsm->subrate_factor;
+    subrate_base_event = connsm->subrate_base_event;
+#else
+    subrate_factor = 1;
+    subrate_base_event = connsm->event_cntr;
+#endif
+    conn_itvl_us = ble_ll_tmr_t2u(connsm->conn_itvl_ticks);
+    ce_duration_us = ble_ll_tmr_t2u(connsm->conn_sch.end_time - connsm->conn_sch.start_time);
+
+    rc = ble_ll_cs_start_req_parameters_apply(ps, conn_itvl_us, ce_duration_us, subrate_base_event,
+                                              subrate_factor, connsm->event_cntr);
+    if (rc) {
+        memset(ps, 0, sizeof(*ps));
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_REQ,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    /* In Central role reply with LL_CS_IND instead of LL_CS_RSP */
+    if (CONN_IS_CENTRAL(connsm)) {
+        rc = ble_ll_cs_proc_scheduling_start(connsm, config_id);
+        if (rc) {
+            memset(ps, 0, sizeof(*ps));
+            ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_REQ, rc, rspbuf);
+            return BLE_LL_CTRL_REJECT_IND_EXT;
+        }
+
+        ble_ll_cs_ev_cs_proc_enable_complete(connsm, config_id, BLE_ERR_SUCCESS);
+
+        return ble_ll_cs_start_ind_make(connsm, rspbuf);
+    }
+
+    connsm->cssm->config_req_id = config_id;
+
+    return ble_ll_cs_start_rsp_make(connsm, rspbuf);
+}
+
+int
+ble_ll_cs_rx_cs_start_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf)
+{
+    int rc;
+    struct ble_ll_cs_config *conf;
+    struct ble_ll_cs_proc_params *ps;
+    struct ble_ll_cs_proc_params rx_ps;
+    uint32_t conn_itvl_us;
+    uint32_t ce_duration_us;
+    uint16_t subrate_factor;
+    uint8_t config_id = *dptr & 0b00111111;
+
+    if (!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_START) ||
+        CONN_IS_PERIPHERAL(connsm)) {
+        /* Ignore */
+        return BLE_ERR_MAX;
+    }
+
+    if (config_id != connsm->cssm->config_req_id) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_RSP,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    conf = &connsm->cssm->config[config_id];
+    ps = &conf->proc_params;
+
+    rx_ps.anchor_conn_event_cntr = get_le16(dptr + 1);
+    rx_ps.offset_min = get_le24(dptr + 3);
+    rx_ps.offset_max = get_le24(dptr + 6);
+    rx_ps.event_interval = get_le16(dptr + 9);
+    rx_ps.subevents_per_event = dptr[11];
+    rx_ps.subevent_interval = get_le16(dptr + 12);
+    rx_ps.subevent_len = get_le24(dptr + 14);
+    rx_ps.aci = dptr[17];
+    rx_ps.phy = dptr[18] & 0b00001111;
+    rx_ps.tx_power_delta = dptr[19];
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    subrate_factor = connsm->subrate_factor;
+#else
+    subrate_factor = 1;
+#endif
+    conn_itvl_us = ble_ll_tmr_t2u(connsm->conn_itvl_ticks);
+    ce_duration_us = ble_ll_tmr_t2u(connsm->conn_sch.end_time - connsm->conn_sch.start_time);
+
+    rc = ble_ll_cs_start_rsp_parameters_apply(ps, &rx_ps, conn_itvl_us, ce_duration_us,
+                                              subrate_factor, connsm->event_cntr);
+    if (rc) {
+        memset(ps, 0, sizeof(*ps));
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_RSP,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_START);
+
+    rc = ble_ll_cs_proc_scheduling_start(connsm, config_id);
+    if (rc) {
+        memset(ps, 0, sizeof(*ps));
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_RSP, rc, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    ble_ll_cs_ev_cs_proc_enable_complete(connsm, config_id, BLE_ERR_SUCCESS);
+
+    return ble_ll_cs_start_ind_make(connsm, rspbuf);
+}
+
+int
+ble_ll_cs_rx_cs_start_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                          uint8_t *rspbuf)
+{
+    int rc;
+    struct ble_ll_cs_config *conf;
+    struct ble_ll_cs_proc_params *ps;
+    struct ble_ll_cs_proc_params rx_ps;
+    uint32_t conn_itvl_us;
+    uint32_t ce_duration_us;
+    uint16_t subrate_factor;
+    uint8_t config_id = *dptr & 0b00111111;
+
+    if (CONN_IS_CENTRAL(connsm)) {
+        /* Ignore unexpected response */
+        return BLE_ERR_MAX;
+    }
+
+    if (config_id != connsm->cssm->config_req_id) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_IND,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    conf = &connsm->cssm->config[config_id];
+    ps = &conf->proc_params;
+
+    /* Overwrite ressugested values */
+    rx_ps.anchor_conn_event_cntr = get_le16(dptr + 1);
+    rx_ps.event_offset = get_le24(dptr + 3);
+    rx_ps.event_interval = get_le16(dptr + 6);
+    rx_ps.subevents_per_event = dptr[8];
+    rx_ps.subevent_interval = get_le16(dptr + 9);
+    rx_ps.subevent_len = get_le24(dptr + 11);
+    rx_ps.aci = dptr[14];
+    rx_ps.phy = dptr[15];
+    rx_ps.tx_power_delta = dptr[16];
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    subrate_factor = connsm->subrate_factor;
+#else
+    subrate_factor = 1;
+#endif
+    conn_itvl_us = ble_ll_tmr_t2u(connsm->conn_itvl_ticks);
+    ce_duration_us = ble_ll_tmr_t2u(connsm->conn_sch.end_time - connsm->conn_sch.start_time);
+
+    rc = ble_ll_cs_start_ind_parameters_apply(ps, &rx_ps, conn_itvl_us, ce_duration_us,
+                                              subrate_factor, connsm->event_cntr);
+    if (rc) {
+        memset(ps, 0, sizeof(*ps));
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_IND,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    rc = ble_ll_cs_proc_scheduling_start(connsm, config_id);
+    if (rc) {
+        memset(ps, 0, sizeof(*ps));
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_IND, rc, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    ble_ll_cs_ev_cs_proc_enable_complete(connsm, config_id, BLE_ERR_SUCCESS);
+
+    return BLE_ERR_MAX;
+}
+
+void
+ble_ll_cs_rx_cs_start_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    /* Stop the control procedure and send an event to the host */
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_START);
+    ble_ll_cs_ev_cs_proc_enable_complete(connsm, connsm->cssm->config_req_id, ble_error);
 }
 
 int

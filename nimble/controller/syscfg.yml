@@ -569,6 +569,17 @@ syscfg.defs:
             - (BLE_VERSION >= 54) if 1
         value: MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
         state: experimental
+    BLE_LL_CHANNEL_SOUNDING_SUBEVENTS_PER_EVENT_MAX:
+        description: >
+            The maximum number of the CS subevents per CS event that the controller
+            can request during CS start parameters negotiation.
+        range: 1..32
+        value: 32
+    BLE_LL_CHANNEL_SOUNDING_SUBEVENT_MIN_SPACING_US:
+        description: >
+            The minimum delay in microseconds after a CS subevent ends before
+            the next one can start.
+        value: 2000
 
     BLE_LL_SYSINIT_STAGE:
         description: >
