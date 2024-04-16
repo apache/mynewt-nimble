@@ -114,6 +114,9 @@ struct ble_ll_cs_sm {
     uint8_t config_req_id;
     uint8_t config_req_action;
     struct ble_ll_cs_config tmp_config;
+
+    /* DRBG context, initialized onece per LE Connection */
+    struct ble_ll_cs_drbg_ctx drbg_ctx;
 };
 
 #ifdef __cplusplus
