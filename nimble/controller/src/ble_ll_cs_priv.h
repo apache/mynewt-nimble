@@ -107,6 +107,9 @@ struct ble_ll_cs_sm {
     /* Arguments for ble_ll_cs_config_req_make */
     uint8_t config_req_id;
     uint8_t config_req_action;
+
+    /* DRBG context, initialized onece per LE Connection */
+    struct ble_ll_cs_drbg_ctx drbg_ctx;
 };
 
 #ifdef __cplusplus
