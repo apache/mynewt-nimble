@@ -2588,6 +2588,10 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             ble_ll_cs_security_req_make(connsm, ctrdata);
             break;
 #endif
+        case BLE_LL_CTRL_PROC_CS_START:
+            opcode = BLE_LL_CTRL_CS_REQ;
+            ble_ll_cs_req_make(connsm, ctrdata);
+            break;
 #endif
         default:
             BLE_LL_ASSERT(0);
@@ -3088,6 +3092,17 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_LL_CTRL_CS_SEC_RSP:
         ble_ll_cs_rx_security_rsp(connsm, dptr);
+        break;
+#endif
+    case BLE_LL_CTRL_CS_REQ:
+        rsp_opcode = ble_ll_cs_rx_cs_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_RSP:
+        rsp_opcode = ble_ll_cs_rx_cs_rsp(connsm, dptr, rspdata);
+        break;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_CTRL_CS_IND:
+        rsp_opcode = ble_ll_cs_rx_cs_ind(connsm, dptr, rspdata);
         break;
 #endif
 #endif
