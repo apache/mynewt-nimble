@@ -109,6 +109,35 @@ ble_ll_cs_verify_chan_map(const uint8_t *chan_map)
     return 0;
 }
 
+static int
+ble_ll_cs_proc_params_channels_setup(struct ble_ll_cs_config *config)
+{
+    uint8_t i, j, byte, next_id;
+    struct ble_ll_cs_proc_params *params = &config->proc_params;
+
+    for (i = 0, j = 0; i < 10; ++i) {
+        byte = config->chan_map[i] & g_ble_ll_cs_chan_class[i];
+        next_id = i * 8;
+
+        while (byte) {
+            if (byte & 1) {
+                params->filtered_channels[j++] = next_id;
+            }
+            ++next_id;
+            byte >>= 1;
+        }
+    }
+
+    if (j < 15) {
+        params->filtered_channels_count = 0;
+        return BLE_ERR_INSUFFICIENT_CHAN;
+    }
+
+    params->filtered_channels_count = j;
+
+    return 0;
+}
+
 int
 ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen)
 {
@@ -1199,7 +1228,61 @@ int
 ble_ll_cs_hci_set_proc_params(const uint8_t *cmdbuf, uint8_t cmdlen,
                               uint8_t *rspbuf, uint8_t *rsplen)
 {
-    return BLE_ERR_UNSUPPORTED;
+    const struct ble_hci_le_cs_set_proc_params_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_cs_set_proc_params_rp *rsp = (void *)rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    struct ble_ll_cs_config *conf;
+    struct ble_ll_cs_pref_proc_params *params;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If no connection handle exit with error */
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (cmd->config_id >= ARRAY_SIZE(connsm->cssm->config)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conf = &connsm->cssm->config[cmd->config_id];
+
+    /* If CS configuration with Config_ID does not exists */
+    if (!conf->config_enabled) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* If CS measurement is enabled exit with error */
+    if (connsm->cssm->measurement_enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (ble_ll_cs_proc_params_channels_setup(conf)) {
+        return BLE_ERR_INSUFFICIENT_CHAN;
+    }
+
+    params = &conf->pref_proc_params;
+    params->max_procedure_len = htole16(cmd->max_procedure_len);
+    params->min_procedure_interval = htole16(cmd->min_procedure_interval);
+    params->max_procedure_interval = htole16(cmd->max_procedure_interval);
+    params->max_procedure_count = htole16(cmd->max_procedure_count);
+    params->min_subevent_len = get_le24(cmd->min_subevent_len);
+    params->max_subevent_len = get_le24(cmd->max_subevent_len);
+    params->aci = cmd->tone_antenna_config_selection;
+    params->phy = cmd->phy;
+    params->tx_power_delta = cmd->tx_power_delta;
+    params->preferred_peer_antenna = cmd->preferred_peer_antenna;
+    params->snr_control_initiator = cmd->snr_control_initiator & 0x0F;
+    params->snr_control_reflector = cmd->snr_control_reflector & 0x0F;
+    params->params_ready = 1;
+
+    rsp->conn_handle = cmd->conn_handle;
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
 }
 
 int
