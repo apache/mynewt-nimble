@@ -506,7 +506,12 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
             goto failed;
         }
 
-        conn = ble_hs_conn_find_assert(chan->conn_handle);
+        conn = ble_hs_conn_find(chan->conn_handle);
+        if (!conn) {
+            rc = BLE_HS_ENOTCONN;
+            BLE_HS_LOG(DEBUG, "Connection does not exist");
+            goto failed;
+        }
         rc = ble_l2cap_tx(conn, chan, txom);
 
         if (rc) {
@@ -619,7 +624,13 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
         (chan->coc_rx.next_sdu_alloc_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
 
     ble_hs_lock();
-    conn = ble_hs_conn_find_assert(chan->conn_handle);
+    conn = ble_hs_conn_find(chan->conn_handle);
+    if (!conn) {
+        BLE_HS_LOG(DEBUG, "Connection does not exist");
+        ble_hs_unlock();
+        return BLE_HS_ENOTCONN;
+    }
+
     c = ble_hs_conn_chan_find_by_scid(conn, chan->scid);
     if (!c) {
         ble_hs_unlock();
