@@ -29,6 +29,19 @@
 extern "C" {
 #endif
 
+#define BLE_LL_CS_MODE0 (0)
+#define BLE_LL_CS_MODE1 (1)
+#define BLE_LL_CS_MODE2 (2)
+#define BLE_LL_CS_MODE3 (3)
+
+/* States within step */
+#define STEP_STATE_INIT          (0)
+#define STEP_STATE_CS_SYNC_I     (1)
+#define STEP_STATE_CS_SYNC_R     (2)
+#define STEP_STATE_CS_TONE_I     (3)
+#define STEP_STATE_CS_TONE_R     (4)
+#define STEP_STATE_COMPLETE      (5)
+
 #define BLE_LL_CS_ROLE_INITIATOR (0)
 #define BLE_LL_CS_ROLE_REFLECTOR (1)
 
@@ -64,6 +77,55 @@ extern "C" {
 #define BLE_LL_CS_STEPS_PER_SUBEVENT_MIN  (2)
 #define BLE_LL_CS_STEPS_PER_SUBEVENT_MAX  (160)
 #define BLE_LL_CS_STEPS_PER_PROCEDURE_MAX (256)
+
+#define BLE_LL_CS_SYNC_PHY_1M (0x01)
+#define BLE_LL_CS_SYNC_PHY_2M (0x02)
+/* The duration of the CS_SYNC (T_SY) without sequence in usecs */
+#define BLE_LL_CS_SYNC_TIME_1M (44)
+#define BLE_LL_CS_SYNC_TIME_2M (26)
+
+#define BLE_LL_CS_CSA_TYPE_3B (0)
+#define BLE_LL_CS_CSA_TYPE_3C (1)
+
+#define BLE_LL_CS_CH3C_SHAPE_HAT (0)
+#define BLE_LL_CS_CH3C_SHAPE_X   (1)
+
+#define BLE_LL_CS_MODE0_CHANNELS_COUNT_MAX (72)
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING_CSA3C)
+/* Max size of NonMode0ShuffledChannelArray for CSA #3c:
+ * maxShapeSize + maxInitialSalt + maxMiddleSalt + maxFinalSalt
+ * 158 + 9 + 79 + 4 = 250 + safe = 256
+ */
+#define BLE_LL_CS_CSA3C_CHAN_COUNT_MAX (256)
+#define BLE_LL_CS_NONMODE0_CHANNELS_COUNT_MAX (BLE_LL_CS_CSA3C_CHAN_COUNT_MAX)
+#else
+/* Max size of NonMode0ShuffledChannelArray for CSA #3b */
+#define BLE_LL_CS_NONMODE0_CHANNELS_COUNT_MAX (72)
+#endif
+
+typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
+
+struct ble_ll_cs_step_transmission {
+    struct ble_phy_cs_transmission phy_transm;
+    uint8_t state;
+};
+
+struct ble_ll_cs_step {
+    uint8_t mode;
+    uint8_t channel;
+    uint8_t tone_ext_presence_i;
+    uint8_t tone_ext_presence_r;
+    uint32_t initiator_aa;
+    uint32_t reflector_aa;
+    struct ble_ll_cs_step_transmission *next_transm;
+    struct ble_ll_cs_step_transmission *last_transm;
+};
+
+struct ble_ll_cs_aci {
+    uint8_t n_ap;
+    uint8_t n_a_antennas;
+    uint8_t n_b_antennas;
+};
 
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
@@ -189,6 +251,27 @@ struct ble_ll_cs_config {
     uint8_t filtered_channels_count;
 };
 
+struct ble_ll_cs_step_result {
+    uint8_t sounding_pct_estimate;
+    uint8_t packet_rssi;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint32_t time_of_departure_ns;
+    uint32_t time_of_arrival_ns;
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    uint16_t measured_freq_offset;
+    uint32_t tone_pct[5];
+    uint8_t tone_quality_ind[5];
+    uint8_t tone_count;
+};
+
+struct ble_ll_cs_subevent {
+    struct ble_hci_ev *hci_ev;
+    unsigned int subev;
+    uint8_t num_steps_reported;
+};
+
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_cs_supp_cap remote_cap;
@@ -211,14 +294,89 @@ struct ble_ll_cs_sm {
     uint8_t config_req_action;
     struct ble_ll_cs_config tmp_config;
 
+    /* Arguments for ble_ll_cs_hci_proc_enable */
+    uint8_t terminate_config_id;
+    uint8_t terminate_error_code;
+
     /* DRBG context, initialized onece per LE Connection */
     struct ble_ll_cs_drbg_ctx drbg_ctx;
 
+    /* Helper flags */
     uint8_t measurement_enabled;
+    uint8_t terminate_measurement;
+
+    /* Scheduling data for current CS procedure */
+    struct ble_ll_sched_item sch;
+    ble_ll_cs_sched_cb_func sched_cb;
+    uint32_t anchor_ticks;
+    uint8_t anchor_rem_us;
+    struct ble_ll_cs_step *current_step;
+    struct ble_ll_cs_step *last_step;
+    /* Cached main mode channels that will be used in repetition steps */
+    uint8_t repetition_channels[3];
+    uint8_t n_ap;
+
+    /* Counters of complete CS procedures/events/subevents/steps */
+    uint16_t next_procedure_id;
+    /* The ID of the pending CS procedure */
+    uint16_t pending_procedure_id;
+    /* The first CS procedure ID in the pending repeat series */
+    uint16_t first_procedure_id;
+    /* The ID of the last CS procedure to complete before measurement termination */
+    uint16_t terminate_procedure_id;
+    uint16_t events_in_procedure_count;
+    uint16_t subevents_in_procedure_count;
+    uint16_t subevents_in_event_count;
+    uint16_t steps_in_procedure_count;
+    uint8_t steps_in_subevent_count;
+
+    /* Down-counters of remaining steps */
+    uint8_t mode0_step_count;
+    uint8_t repetition_count;
+    uint8_t main_step_count;
+
+    /* Anchor time of current CS procedure */
+    uint32_t procedure_anchor_ticks;
+    uint8_t procedure_anchor_rem_us;
+    uint32_t event_interval_usecs;
+    uint32_t subevent_interval_usecs;
+    uint32_t procedure_interval_usecs;
+    /* Estimated time of step modes (ToF not included) */
+    uint32_t mode_duration_usecs[4];
+    /* Time of antenna swith */
+    uint8_t t_sw;
+    /* Time of CS_SYNC packet without sequence */
+    uint8_t t_sy;
+    /* Time of CS_SYNC sequence only */
+    uint8_t t_sy_seq;
+    uint8_t cs_sync_antenna;
+    uint32_t estimated_subevent_len;
+
+    /* Cache for HCI Subevent Result event */
+    struct ble_ll_cs_subevent buffered_subevent;
+    struct ble_ll_cs_step_result step_result;
+    uint8_t cs_schedule_status;
+    uint8_t proc_abort_reason;
+    uint8_t subev_abort_reason;
+
+    uint8_t number_of_generated_steps;
+
+    /* Channel selection stuff */
+    uint8_t mode0_channels[BLE_LL_CS_MODE0_CHANNELS_COUNT_MAX];
+    uint8_t non_mode0_channels[BLE_LL_CS_NONMODE0_CHANNELS_COUNT_MAX];
+    uint8_t mode0_next_chan_id;
+    uint8_t non_mode0_next_chan_id;
+
+    uint8_t csa3c_start_jitter;
+    uint8_t ch3c_shape_iter;
 };
 
+void ble_ll_cs_proc_init(void);
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
-
+int ble_ll_cs_csa3c(struct ble_ll_cs_drbg_ctx *drbg_ctx, uint8_t *channels_out,
+                    const uint8_t *filter_mask, uint8_t *start_jitter,
+                    uint8_t *csa3c_iter, uint16_t step_count, uint8_t shape,
+                    uint8_t chan_jump, uint8_t chan_map_repetition);
 #ifdef __cplusplus
 }
 #endif
