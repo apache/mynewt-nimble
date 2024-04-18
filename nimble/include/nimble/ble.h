@@ -115,7 +115,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
 #define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x000f)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo

@@ -69,6 +69,12 @@ int ble_ll_cs_hci_proc_enable(const uint8_t *cmdbuf, uint8_t cmdlen);
 int ble_ll_cs_hci_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_cs_hci_test_end(void);
 
+int ble_ll_cs_proc_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa);
+int ble_ll_cs_proc_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
+void ble_ll_cs_proc_wfr_timer_exp(void);
+void ble_ll_cs_proc_rm_from_sched(void *cb_arg);
+void ble_ll_cs_proc_halt(void);
+
 #ifdef __cplusplus
 }
 #endif
