@@ -807,6 +807,11 @@ ble_ll_wfr_timer_exp(void *arg)
             ble_ll_ext_wfr_timer_exp();
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+        case BLE_LL_STATE_CS:
+            ble_ll_cs_sync_wfr_timer_exp();
+            break;
+#endif
         default:
             break;
         }
@@ -987,6 +992,11 @@ ble_ll_rx_pkt_in(void)
             ble_ll_ext_rx_pkt_in(m, ble_hdr);
             break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+        case BLE_LL_STATE_CS:
+            ble_ll_cs_sync_rx_pkt_in(m, ble_hdr);
+            break;
+#endif
         default:
             /* Any other state should never occur */
             STATS_INC(ble_ll_stats, bad_ll_state);
@@ -1138,6 +1148,11 @@ ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *rxhdr)
         rc = ble_ll_ext_rx_isr_start(pdu_type, rxhdr);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    case BLE_LL_STATE_CS:
+        rc = ble_ll_cs_sync_rx_isr_start(rxhdr, ble_phy_access_addr_get());
+        break;
+#endif
     default:
         /* Should not be in this state! */
         rc = -1;
@@ -1170,6 +1185,13 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     uint8_t len;
     uint8_t crcok;
     struct os_mbuf *rxpdu;
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_CS) {
+        rc = ble_ll_cs_sync_rx_isr_end(rxbuf, rxhdr);
+        return rc;
+    }
+#endif
 
     /* Get CRC status from BLE header */
     crcok = BLE_MBUF_HDR_CRC_OK(rxhdr);
