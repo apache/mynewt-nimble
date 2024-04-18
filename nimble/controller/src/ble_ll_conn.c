@@ -2288,7 +2288,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
                        connsm->event_cntr, (uint32_t)ble_err);
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER) || MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 void
 ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
                        uint32_t *anchor, uint8_t *anchor_usecs)
