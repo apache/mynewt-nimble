@@ -33,6 +33,10 @@
 #include "hal/hal_timer.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+#include "controller/ble_ll_cs.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -242,6 +246,9 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 #define BLE_LL_STATE_BIG            (9)
+#endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+#define BLE_LL_STATE_CS             (10)
 #endif
 
 /* LL Features */
