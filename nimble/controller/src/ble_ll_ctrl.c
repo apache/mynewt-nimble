@@ -143,11 +143,12 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     BLE_LL_CTRL_CS_REQ_LEN,
     BLE_LL_CTRL_CS_RSP_LEN,
     BLE_LL_CTRL_CS_IND_LEN,
-    BLE_LL_CTRL_CS_TERMINATE_IND_LEN,
+    BLE_LL_CTRL_CS_TERMINATE_REQ_LEN,
     BLE_LL_CTRL_CS_FAE_REQ_LEN,
     BLE_LL_CTRL_CS_FAE_RSP_LEN,
     BLE_LL_CTRL_CS_CHANNEL_MAP_IND_LEN,
     BLE_LL_CTRL_CS_SEC_REQ_LEN,
+    BLE_LL_CTRL_CS_TERMINATE_RSP_LEN
 };
 
 /**
@@ -2124,6 +2125,9 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     case BLE_LL_CTRL_PROC_CS_START:
         ble_ll_cs_rx_cs_start_rejected(connsm, ble_error);
         break;
+    case BLE_LL_CTRL_PROC_CS_TERMINATE:
+        ble_ll_cs_rx_cs_terminate_req_rejected(connsm, ble_error);
+        break;
 #endif
 
     default:
@@ -2671,6 +2675,10 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
             opcode = BLE_LL_CTRL_CS_REQ;
             ble_ll_cs_start_req_make(connsm, ctrdata);
             break;
+        case BLE_LL_CTRL_PROC_CS_TERMINATE:
+            opcode = BLE_LL_CTRL_CS_TERMINATE_REQ;
+            ble_ll_cs_terminate_req_make(connsm, ctrdata);
+            break;
 #endif
         default:
             BLE_LL_ASSERT(0);
@@ -3181,6 +3189,12 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         rsp_opcode = ble_ll_cs_rx_cs_start_ind(connsm, dptr, rspdata);
         break;
 #endif
+    case BLE_LL_CTRL_CS_TERMINATE_REQ:
+        rsp_opcode = ble_ll_cs_rx_cs_terminate_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_TERMINATE_RSP:
+        ble_ll_cs_rx_cs_terminate_rsp(connsm, dptr);
+        break;
 #endif
     default:
         /* Nothing to do here */

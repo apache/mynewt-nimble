@@ -28,6 +28,19 @@
 extern "C" {
 #endif
 
+#define BLE_LL_CS_MODE0 (0)
+#define BLE_LL_CS_MODE1 (1)
+#define BLE_LL_CS_MODE2 (2)
+#define BLE_LL_CS_MODE3 (3)
+
+/* States within step */
+#define STEP_STATE_INIT          (0)
+#define STEP_STATE_CS_SYNC_I     (1)
+#define STEP_STATE_CS_SYNC_R     (2)
+#define STEP_STATE_CS_TONE_I     (3)
+#define STEP_STATE_CS_TONE_R     (4)
+#define STEP_STATE_COMPLETE      (5)
+
 #define BLE_LL_CS_ROLE_INITIATOR (0)
 #define BLE_LL_CS_ROLE_REFLECTOR (1)
 
@@ -43,6 +56,48 @@ extern "C" {
 /* CS Subevent interval in microseconds */
 #define BLE_LL_CS_SUBEVENT_LEN_MIN (1250)
 #define BLE_LL_CS_SUBEVENT_LEN_MAX (4000000)
+
+/* CS Event interval in units of the number of connection intervals */
+#define BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US (625)
+#define BLE_LL_CS_PROCEDURE_LEN_UNIT_US (625)
+
+#define BLE_LL_CS_STEPS_PER_SUBEVENT_MIN  (2)
+#define BLE_LL_CS_STEPS_PER_SUBEVENT_MAX  (160)
+#define BLE_LL_CS_STEPS_PER_PROCEDURE_MAX (256)
+
+#define BLE_LL_CS_SYNC_PHY_1M (0x01)
+#define BLE_LL_CS_SYNC_PHY_2M (0x02)
+/* The duration of the CS_SYNC (T_SY) without sequence in usec */
+#define BLE_LL_CS_SYNC_TIME_1M (44)
+#define BLE_LL_CS_SYNC_TIME_2M (26)
+
+typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
+
+struct ble_ll_cs_step_transmission {
+    struct ble_phy_cs_transmission phy_transm;
+    uint8_t state;
+};
+
+struct ble_ll_cs_step {
+    uint8_t mode;
+    uint8_t channel;
+    uint8_t tone_ext_presence_i;
+    uint8_t tone_ext_presence_r;
+    uint32_t initiator_aa;
+    uint32_t reflector_aa;
+    struct ble_ll_cs_step_transmission *next_transm;
+    struct ble_ll_cs_step_transmission *last_transm;
+    uint8_t *rtt_tx;
+    uint8_t *rtt_rx;
+    uint8_t rtt_tx_len;
+    uint8_t rtt_rx_len;
+};
+
+struct ble_ll_cs_aci {
+    uint8_t n_ap;
+    uint8_t n_a_antennas;
+    uint8_t n_b_antennas;
+};
 
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
@@ -119,6 +174,8 @@ struct ble_ll_cs_proc_params {
     /* SNR Output Index (SOI) for SNR control adjustment */
     uint8_t tx_snr_i;
     uint8_t tx_snr_r;
+    uint8_t filtered_channels[72];
+    uint8_t filtered_channels_count;
 };
 
 struct ble_ll_cs_config {
@@ -166,6 +223,27 @@ struct ble_ll_cs_config {
     struct ble_ll_cs_proc_params proc_params;
 };
 
+struct ble_ll_cs_step_result {
+    uint8_t sounding_pct_estimate;
+    uint8_t packet_rssi;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint32_t time_of_departure_ns;
+    uint64_t time_of_arrival_ns;
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    uint16_t measured_freq_offset;
+    uint32_t tone_pct[5];
+    uint8_t tone_quality_ind[5];
+    uint8_t tone_count;
+};
+
+struct ble_ll_cs_subevent {
+    struct ble_hci_ev *hci_ev;
+    unsigned int subev;
+    uint8_t num_steps_reported;
+};
+
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_cs_supp_cap remote_cap;
@@ -188,13 +266,82 @@ struct ble_ll_cs_sm {
     uint8_t config_req_action;
     struct ble_ll_cs_config tmp_config;
 
+    /* Arguments for ble_ll_cs_hci_proc_enable */
+    uint8_t terminate_config_id;
+    uint8_t terminate_error_code;
+
     /* DRBG context, initialized onece per LE Connection */
     struct ble_ll_cs_drbg_ctx drbg_ctx;
 
+    /* Helper flags */
     uint8_t measurement_enabled;
+    uint8_t terminate_measurement;
+
+    /* Scheduling data for current CS procedure */
+    struct ble_ll_sched_item sch;
+    ble_ll_cs_sched_cb_func sched_cb;
+    uint32_t anchor_usecs;
+    struct ble_ll_cs_step *current_step;
+    struct ble_ll_cs_step *last_step;
+    uint8_t *next_rtt_ptr;
+    /* Cached main mode channels that will be used in repetition steps */
+    uint8_t repetition_channels[3];
+    uint8_t n_ap;
+
+    /* Counters of complete CS procedures/events/subevents/steps */
+    uint16_t procedure_count;
+    uint16_t events_in_procedure_count;
+    uint16_t subevents_in_procedure_count;
+    uint16_t subevents_in_event_count;
+    uint16_t steps_in_procedure_count;
+    uint8_t steps_in_subevent_count;
+
+    /* Down-counters of remaining steps */
+    uint8_t mode0_step_count;
+    uint8_t repetition_count;
+    uint8_t main_step_count;
+
+    /* Anchor time of current CS procedure */
+    uint32_t procedure_anchor_usecs;
+    /* Anchor time of current CS event */
+    uint32_t event_anchor_usecs;
+    /* Anchor time of current CS subevent */
+    uint32_t subevent_anchor_usecs;
+    /* Anchor time of next CS step */
+    uint32_t step_anchor_usecs;
+    uint32_t event_interval_usecs;
+    uint32_t subevent_interval_usecs;
+    uint32_t procedure_interval_usecs;
+    /* Estimated time of step modes (ToF not included) */
+    uint32_t mode_duration_usecs[4];
+    /* Time of antenna swith */
+    uint8_t t_sw;
+    /* Time of CS_SYNC packet without sequence */
+    uint8_t t_sy;
+    /* Time of CS_SYNC sequence only */
+    uint8_t t_sy_seq;
+    uint8_t cs_sync_antenna;
+
+    /* Cache for HCI Subevent Result event */
+    struct ble_ll_cs_subevent buffered_subevent;
+    struct ble_ll_cs_step_result step_result;
+    uint8_t cs_schedule_status;
+    uint8_t proc_abort_reason;
+    uint8_t subev_abort_reason;
+
+    /* Channel selection stuff */
+    uint8_t mode0_channels[72];
+    uint8_t non_mode0_channels[72];
+    uint8_t mode0_next_chan_id;
+    uint8_t non_mode0_next_chan_id;
+
+    /* Procedure counter for backtracking resistance */
+    uint16_t start_procedure_count;
 };
 
+int ble_ll_cs_proc_next_state(struct ble_ll_cs_sm *cssm, struct ble_phy_cs_transmission *transm);
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
+void ble_ll_cs_proc_sync_lost(struct ble_ll_cs_sm *cssm);
 
 #ifdef __cplusplus
 }

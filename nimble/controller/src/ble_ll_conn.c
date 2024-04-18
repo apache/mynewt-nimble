@@ -2313,7 +2313,7 @@ ble_ll_conn_anchor_get(struct ble_ll_conn_sm *connsm, uint16_t *event_cntr,
     *anchor_usecs = connsm->anchor_point_usecs;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER) || MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 void
 ble_ll_conn_anchor_event_cntr_get(struct ble_ll_conn_sm *connsm,
                                   uint16_t event_cntr, uint32_t *anchor,

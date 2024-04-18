@@ -39,6 +39,11 @@
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+void ble_ll_cs_proc_rm_from_sched(void *cb_arg);
+void ble_ll_cs_proc_halt(void);
+#endif
+
 #define BLE_LL_SCHED_MAX_DELAY_ANY      (0x7fffffff)
 
 static struct ble_ll_tmr g_ble_ll_sched_timer;
@@ -193,9 +198,14 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
                 ble_ll_ext_sched_removed(entry);
                 break;
 #endif
-            default:
-                BLE_LL_ASSERT(0);
-                break;
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+        case BLE_LL_SCHED_TYPE_CS:
+            ble_ll_cs_proc_rm_from_sched(entry->cb_arg);
+            break;
+#endif
+        default:
+            BLE_LL_ASSERT(0);
+            break;
         }
 
         entry = next;
@@ -875,6 +885,25 @@ ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first, int fixed)
 }
 #endif /* BLE_LL_ISO_BROADCASTER */
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+int
+ble_ll_sched_cs_proc(struct ble_ll_sched_item *sch)
+{
+    os_sr_t sr;
+    int rc;
+
+    OS_ENTER_CRITICAL(sr);
+
+    rc = ble_ll_sched_insert(sch, 0, preempt_none);
+
+    OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sched_restart();
+
+    return rc;
+}
+#endif /* BLE_LL_CHANNEL_SOUNDING */
+
 /**
  * Remove a schedule element
  *
@@ -1023,6 +1052,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 #if MYNEWT_VAL(BLE_LL_EXT)
     case BLE_LL_STATE_EXTERNAL:
         ble_ll_ext_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    case BLE_LL_STATE_CS:
+        ble_ll_cs_proc_halt();
         break;
 #endif
     default:

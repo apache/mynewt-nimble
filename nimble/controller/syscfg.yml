@@ -569,6 +569,10 @@ syscfg.defs:
             - (BLE_VERSION >= 54) if 1
         value: MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
         state: experimental
+    BLE_LL_CHANNEL_SOUNDING_SUBEVENT_EV_MAX_CNT:
+        description: >
+            The maximum number of queued HCI Subevent Results (Continue) events.
+        value: 30
 
     BLE_LL_SYSINIT_STAGE:
         description: >
