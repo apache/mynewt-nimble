@@ -184,9 +184,23 @@ struct ble_ll_cs_sm {
     struct ble_ll_cs_drbg_ctx drbg_ctx;
 
     uint8_t measurement_enabled;
+
+    /* Scheduling data for current CS procedure */
+    struct ble_ll_sched_item sch;
+    sched_cb_func cb;
+    uint32_t duration_usecs;
+    uint32_t anchor_usecs;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, struct ble_ll_cs_config *conf);
+int ble_ll_cs_proc_schedule_next_tx_or_rx(struct ble_ll_cs_sm *cssm);
+void ble_ll_cs_proc_current_sm_over(void);
+void ble_ll_cs_proc_set_now_as_anchor_point(struct ble_ll_cs_sm *cssm);
+
+int ble_ll_cs_sync_tx_sched_cb(struct ble_ll_sched_item *sch);
+int ble_ll_cs_sync_rx_sched_cb(struct ble_ll_sched_item *sch);
+int ble_ll_cs_tone_tx_sched_cb(struct ble_ll_sched_item *sch);
+int ble_ll_cs_tone_rx_sched_cb(struct ble_ll_sched_item *sch);
 
 #ifdef __cplusplus
 }
