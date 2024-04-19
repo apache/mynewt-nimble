@@ -28,6 +28,11 @@
 extern "C" {
 #endif
 
+#define BLE_LL_CS_MODE0 (0)
+#define BLE_LL_CS_MODE1 (1)
+#define BLE_LL_CS_MODE2 (2)
+#define BLE_LL_CS_MODE3 (3)
+
 #define BLE_LL_CS_ROLE_INITIATOR (0)
 #define BLE_LL_CS_ROLE_REFLECTOR (1)
 
@@ -43,6 +48,8 @@ extern "C" {
 /* CS Subevent interval in microseconds */
 #define BLE_LL_CS_SUBEVENT_LEN_MIN (1250)
 #define BLE_LL_CS_SUBEVENT_LEN_MAX (4000000)
+
+typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
 
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
@@ -198,6 +205,15 @@ struct ble_ll_cs_sm {
     sched_cb_func cb;
     uint32_t duration_usecs;
     uint32_t anchor_usecs;
+    ble_ll_cs_sched_cb_func sched_cb;
+    uint32_t anchor_cputime;
+    uint8_t anchor_rem_usecs;
+    uint8_t rx_window_offset_usecs;
+
+    uint8_t step_mode;
+    uint8_t step_state;
+    uint8_t tone_ext_presence_i;
+    uint8_t tone_ext_presence_r;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
