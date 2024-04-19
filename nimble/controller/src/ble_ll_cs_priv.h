@@ -49,6 +49,14 @@ extern "C" {
 #define BLE_LL_CS_SUBEVENT_LEN_MIN (1250)
 #define BLE_LL_CS_SUBEVENT_LEN_MAX (4000000)
 
+/* CS Event interval in units of the number of connection intervals */
+#define BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US (625)
+#define BLE_LL_CS_PROCEDURE_LEN_UNIT_US (625)
+
+#define BLE_LL_CS_STEPS_PER_SUBEVENT_MIN  (2)
+#define BLE_LL_CS_STEPS_PER_SUBEVENT_MAX  (160)
+#define BLE_LL_CS_STEPS_PER_PROCEDURE_MAX (256)
+
 typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
 
 struct ble_ll_cs_aci {
@@ -218,10 +226,48 @@ struct ble_ll_cs_sm {
 
     uint8_t step_mode;
     uint8_t step_state;
+    uint8_t subevent_state;
     uint8_t tone_ext_presence_i;
     uint8_t tone_ext_presence_r;
     uint8_t n_ap;
     uint8_t antenna_path_count;
+
+    /* Counters of complete CS procedures/events/subevents/steps */
+    uint16_t procedure_count;
+    uint16_t events_in_procedure_count;
+    uint16_t subevents_in_procedure_count;
+    uint16_t subevents_in_event_count;
+    uint16_t steps_in_procedure_count;
+    uint8_t steps_in_subevent_count;
+
+    /* Down-counters of remaining steps */
+    uint8_t mode0_step_count;
+    uint8_t repetition_count;
+    uint8_t main_step_count;
+
+    /* Anchor time of current CS procedure */
+    uint32_t procedure_anchor_usecs;
+    /* Anchor time of current CS event */
+    uint32_t event_anchor_usecs;
+    /* Anchor time of current CS subevent */
+    uint32_t subevent_anchor_usecs;
+    /* Anchor time of next CS step */
+    uint32_t step_anchor_usecs;
+    uint32_t event_interval_usecs;
+    uint32_t subevent_interval_usecs;
+    uint32_t procedure_interval_usecs;
+    /* Estimated time of the step (ToF not included) */
+    uint32_t step_duration_usecs;
+
+    /* CS Access Addresses to use in current step */
+    uint32_t initiator_aa;
+    uint32_t reflector_aa;
+    uint32_t tx_aa;
+    uint32_t rx_aa;
+    /* PHY channel */
+    uint8_t channel;
+    /* Cached main mode channels that will be used in repetiton steps */
+    uint8_t repetition_channels[3];
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
