@@ -40,6 +40,11 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 #define STEP_STATE_CS_TONE_R  (4)
 #define STEP_STATE_COMPLETE   (5)
 
+static struct ble_ll_cs_aci aci_table[] = {
+    {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
+    {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
+};
+
 /**
  * Called when scheduled event needs to be halted. This normally should not be called
  * and is only called when a scheduled item executes but scanning for sync/chain
@@ -65,6 +70,8 @@ static int
 ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
 {
     /* TODO: Setup new CS step */
+
+    cssm->antenna_path_count = cssm->n_ap;
 
     return 0;
 }
@@ -126,10 +133,20 @@ ble_ll_cs_proc_mode2_next_state(struct ble_ll_cs_sm *cssm)
         state = STEP_STATE_CS_TONE_I;
         break;
     case STEP_STATE_CS_TONE_I:
-        state = STEP_STATE_CS_TONE_R;
+        if (cssm->antenna_path_count != 0) {
+            --cssm->antenna_path_count;
+        } else {
+            state = STEP_STATE_CS_TONE_R;
+            cssm->antenna_path_count = cssm->n_ap;
+        }
         break;
     case STEP_STATE_CS_TONE_R:
-        state = STEP_STATE_COMPLETE;
+        if (cssm->antenna_path_count != 0) {
+            --cssm->antenna_path_count;
+        } else {
+            state = STEP_STATE_COMPLETE;
+            cssm->antenna_path_count = cssm->n_ap;
+        }
         break;
     default:
         assert(0);
@@ -151,10 +168,20 @@ ble_ll_cs_proc_mode3_next_state(struct ble_ll_cs_sm *cssm)
         state = STEP_STATE_CS_TONE_I;
         break;
     case STEP_STATE_CS_TONE_I:
-        state = STEP_STATE_CS_TONE_R;
+        if (cssm->antenna_path_count != 0) {
+            --cssm->antenna_path_count;
+        } else {
+            state = STEP_STATE_CS_TONE_R;
+            cssm->antenna_path_count = cssm->n_ap;
+        }
         break;
     case STEP_STATE_CS_TONE_R:
-        state = STEP_STATE_CS_SYNC_R;
+        if (cssm->antenna_path_count != 0) {
+            --cssm->antenna_path_count;
+        } else {
+            state = STEP_STATE_CS_SYNC_R;
+            cssm->antenna_path_count = cssm->n_ap;
+        }
         break;
     case STEP_STATE_CS_SYNC_R:
         state = STEP_STATE_COMPLETE;
@@ -315,6 +342,7 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm,
     cssm->anchor_usecs = ble_ll_tmr_t2u(anchor_ticks);
     cssm->step_mode = BLE_LL_CS_MODE0;
     cssm->step_state = STEP_STATE_INIT;
+    cssm->n_ap = aci_table[cssm->active_config->proc_params.aci].n_ap;
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {

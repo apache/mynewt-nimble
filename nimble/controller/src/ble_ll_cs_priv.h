@@ -44,6 +44,12 @@ extern "C" {
 #define BLE_LL_CS_SUBEVENT_LEN_MIN (1250)
 #define BLE_LL_CS_SUBEVENT_LEN_MAX (4000000)
 
+struct ble_ll_cs_aci {
+    uint8_t n_ap;
+    uint8_t n_a_antennas;
+    uint8_t n_b_antennas;
+};
+
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
     uint8_t roles_supported;
@@ -193,6 +199,8 @@ struct ble_ll_cs_sm {
 
     uint8_t step_mode;
     uint8_t step_state;
+    uint8_t n_ap;
+    uint8_t antenna_path_count;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, struct ble_ll_cs_config *conf);
