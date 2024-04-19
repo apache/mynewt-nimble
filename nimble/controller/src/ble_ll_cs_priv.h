@@ -190,6 +190,9 @@ struct ble_ll_cs_sm {
     sched_cb_func cb;
     uint32_t duration_usecs;
     uint32_t anchor_usecs;
+
+    uint8_t step_mode;
+    uint8_t step_state;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, struct ble_ll_cs_config *conf);
