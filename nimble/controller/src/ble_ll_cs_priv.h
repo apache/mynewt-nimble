@@ -51,6 +51,12 @@ extern "C" {
 
 typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
 
+struct ble_ll_cs_aci {
+    uint8_t n_ap;
+    uint8_t n_a_antennas;
+    uint8_t n_b_antennas;
+};
+
 struct ble_ll_cs_supp_cap {
     uint8_t mode_types;
     uint8_t roles_supported;
@@ -213,6 +219,8 @@ struct ble_ll_cs_sm {
     uint8_t step_state;
     uint8_t tone_ext_presence_i;
     uint8_t tone_ext_presence_r;
+    uint8_t n_ap;
+    uint8_t antenna_path_count;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
