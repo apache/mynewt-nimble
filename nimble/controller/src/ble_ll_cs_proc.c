@@ -27,6 +27,16 @@
 
 struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 
+/* States within step */
+#define STEP_STATE_INIT          (0)
+#define STEP_STATE_CS_SYNC_I     (1)
+#define STEP_STATE_CS_SYNC_R     (2)
+#define STEP_STATE_CS_TONE_I     (3)
+#define STEP_STATE_CS_TONE_R     (4)
+#define STEP_STATE_CS_TONE_EXT_I (5)
+#define STEP_STATE_CS_TONE_EXT_R (6)
+#define STEP_STATE_COMPLETE      (7)
+
 /**
  * Called when scheduled event needs to be halted. This normally should not be called
  * and is only called when a scheduled item executes but scanning for sync/chain
@@ -47,19 +57,282 @@ ble_ll_cs_proc_rm_from_sched(void *cb_args)
 {
 }
 
+
+static int
+ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
+{
+    /* TODO: Setup new CS step */
+
+    return 0;
+}
+
+static void
+ble_ll_cs_proc_mode0_next_state(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t state = cssm->step_state;
+
+    switch (state) {
+    case STEP_STATE_INIT:
+        state = STEP_STATE_CS_SYNC_I;
+        break;
+    case STEP_STATE_CS_SYNC_I:
+        state = STEP_STATE_CS_SYNC_R;
+        break;
+    case STEP_STATE_CS_SYNC_R:
+        state = STEP_STATE_CS_TONE_R;
+        break;
+    case STEP_STATE_CS_TONE_R:
+        state = STEP_STATE_COMPLETE;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    cssm->step_state = state;
+}
+
+static void
+ble_ll_cs_proc_mode1_next_state(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t state = cssm->step_state;
+
+    switch (state) {
+    case STEP_STATE_INIT:
+        state = STEP_STATE_CS_SYNC_I;
+        break;
+    case STEP_STATE_CS_SYNC_I:
+        state = STEP_STATE_CS_SYNC_R;
+        break;
+    case STEP_STATE_CS_SYNC_R:
+        state = STEP_STATE_COMPLETE;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    cssm->step_state = state;
+}
+
+static void
+ble_ll_cs_proc_mode2_next_state(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t state = cssm->step_state;
+
+    switch (state) {
+    case STEP_STATE_INIT:
+        state = STEP_STATE_CS_TONE_I;
+        break;
+    case STEP_STATE_CS_TONE_I:
+        state = STEP_STATE_CS_TONE_EXT_I;
+        break;
+    case STEP_STATE_CS_TONE_EXT_I:
+        state = STEP_STATE_CS_TONE_R;
+        break;
+    case STEP_STATE_CS_TONE_R:
+        state = STEP_STATE_CS_TONE_EXT_R;
+        break;
+    case STEP_STATE_CS_TONE_EXT_R:
+        state = STEP_STATE_COMPLETE;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    cssm->step_state = state;
+}
+
+static void
+ble_ll_cs_proc_mode3_next_state(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t state = cssm->step_state;
+
+    switch (state) {
+    case STEP_STATE_INIT:
+        state = STEP_STATE_CS_SYNC_I;
+        break;
+    case STEP_STATE_CS_SYNC_I:
+        state = STEP_STATE_CS_TONE_I;
+        break;
+    case STEP_STATE_CS_TONE_I:
+        state = STEP_STATE_CS_TONE_EXT_I;
+        break;
+    case STEP_STATE_CS_TONE_EXT_I:
+        state = STEP_STATE_CS_TONE_R;
+        break;
+    case STEP_STATE_CS_TONE_R:
+        state = STEP_STATE_CS_TONE_EXT_R;
+        break;
+    case STEP_STATE_CS_TONE_EXT_R:
+        state = STEP_STATE_CS_SYNC_R;
+        break;
+    case STEP_STATE_CS_SYNC_R:
+        state = STEP_STATE_COMPLETE;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    cssm->step_state = state;
+}
+
+static void
+ble_ll_cs_proc_step_next_state(struct ble_ll_cs_sm *cssm)
+{
+    switch (cssm->step_mode) {
+    case BLE_LL_CS_MODE0:
+        ble_ll_cs_proc_mode0_next_state(cssm);
+        break;
+    case BLE_LL_CS_MODE1:
+        ble_ll_cs_proc_mode1_next_state(cssm);
+        break;
+    case BLE_LL_CS_MODE2:
+        ble_ll_cs_proc_mode2_next_state(cssm);
+        break;
+    case BLE_LL_CS_MODE3:
+        ble_ll_cs_proc_mode3_next_state(cssm);
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+}
+
+static int
+ble_ll_cs_proc_next_state(struct ble_ll_cs_sm *cssm)
+{
+    int rc;
+
+    if (cssm->step_state != STEP_STATE_INIT) {
+        ble_ll_cs_proc_step_next_state(cssm);
+
+        if (cssm->step_state != STEP_STATE_COMPLETE) {
+            /* Continue pending step */
+            return 0;
+        }
+
+        /* TODO: Send step results */
+    }
+
+    /* Setup a new step */
+
+    cssm->step_state = STEP_STATE_INIT;
+
+    rc = ble_ll_cs_setup_next_step(cssm);
+    if (rc) {
+        return rc;
+    }
+
+    ble_ll_cs_proc_step_next_state(cssm);
+
+    return 0;
+}
+
+static int
+ble_ll_cs_proc_skip_txrx(struct ble_ll_cs_sm *cssm)
+{
+    int rc;
+
+    rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
+    (void) rc;
+
+    return 0;
+}
+
+static ble_ll_cs_sched_cb_func
+ble_ll_cs_proc_sched_cb_get(struct ble_ll_cs_sm *cssm)
+{
+    ble_ll_cs_sched_cb_func cb;
+    bool is_initiator = (cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR);
+
+    cssm->rx_window_offset_usecs = 0;
+
+    switch (cssm->step_state) {
+    case STEP_STATE_CS_SYNC_I:
+        if (is_initiator) {
+            cb = ble_ll_cs_sync_tx_start;
+        } else {
+            cb = ble_ll_cs_sync_rx_start;
+            cssm->rx_window_offset_usecs = 2;
+        }
+        break;
+    case STEP_STATE_CS_SYNC_R:
+        if (is_initiator) {
+            cb = ble_ll_cs_sync_rx_start;
+            cssm->rx_window_offset_usecs = 2;
+        } else {
+            cb = ble_ll_cs_sync_tx_start;
+        }
+        break;
+    case STEP_STATE_CS_TONE_I:
+        cb = is_initiator ? ble_ll_cs_tone_tx_start : ble_ll_cs_tone_rx_start;
+        break;
+    case STEP_STATE_CS_TONE_R:
+        cb = is_initiator ? ble_ll_cs_tone_rx_start : ble_ll_cs_tone_tx_start;
+        break;
+    case STEP_STATE_CS_TONE_EXT_I:
+        if (cssm->tone_ext_presence_i) {
+            cb = is_initiator ? ble_ll_cs_tone_tx_start : ble_ll_cs_tone_rx_start;
+        } else {
+            cb = ble_ll_cs_proc_skip_txrx;
+        }
+        break;
+    case STEP_STATE_CS_TONE_EXT_R:
+        if (cssm->tone_ext_presence_r) {
+            cb = is_initiator ? ble_ll_cs_tone_rx_start : ble_ll_cs_tone_tx_start;
+        } else {
+            cb = ble_ll_cs_proc_skip_txrx;
+        }
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    return cb;
+}
+
+static int
+ble_ll_cs_proc_sched_cb(struct ble_ll_sched_item *sch)
+{
+    int rc;
+    struct ble_ll_cs_sm *cssm = sch->cb_arg;
+
+    BLE_LL_ASSERT(cssm != NULL);
+
+    rc = cssm->sched_cb(cssm);
+    if (rc) {
+        return BLE_LL_SCHED_STATE_DONE;
+    }
+
+    return BLE_LL_SCHED_STATE_RUNNING;
+}
+
 int
 ble_ll_cs_proc_schedule_next_tx_or_rx(struct ble_ll_cs_sm *cssm)
 {
     int rc;
+    uint32_t anchor_cputime;
+    ble_ll_cs_sched_cb_func cb;
 
-    /* TODO: Setup CS step TX or RX */
+    rc = ble_ll_cs_proc_next_state(cssm);
+    if (rc) {
+        return rc;
+    }
 
-    cssm->sch.start_time = ble_ll_tmr_u2t_up(cssm->anchor_usecs) - g_ble_ll_sched_offset_ticks;
-    cssm->sch.end_time = cssm->sch.start_time + ble_ll_tmr_u2t_up(cssm->duration_usecs);
+    cb = ble_ll_cs_proc_sched_cb_get(cssm);
+    cssm->anchor_usecs -= cssm->rx_window_offset_usecs;
+    anchor_cputime = ble_ll_tmr_u2t(cssm->anchor_usecs);
+
+    if (anchor_cputime - g_ble_ll_sched_offset_ticks > ble_ll_tmr_get()) {
+        cssm->sch.start_time = anchor_cputime - g_ble_ll_sched_offset_ticks;
+    } else {
+        cssm->sch.start_time = ble_ll_tmr_get();
+    }
+
+    cssm->sched_cb = cb;
+    cssm->sch.end_time = anchor_cputime + ble_ll_tmr_u2t_up(cssm->duration_usecs);
     cssm->sch.remainder = 0;
     cssm->sch.sched_type = BLE_LL_SCHED_TYPE_CS;
     cssm->sch.cb_arg = cssm;
-    /* TODO: cssm->sch.sched_cb = */
+    cssm->sch.sched_cb = ble_ll_cs_proc_sched_cb;
 
     rc = ble_ll_sched_cs_proc(&cssm->sch);
 
@@ -99,6 +372,8 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id
 
     g_ble_ll_cs_sm_current = cssm;
     cssm->anchor_usecs = ble_ll_tmr_t2u(anchor_ticks);
+    cssm->step_mode = BLE_LL_CS_MODE0;
+    cssm->step_state = STEP_STATE_INIT;
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {
