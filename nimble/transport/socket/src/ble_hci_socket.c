@@ -178,7 +178,7 @@ static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
 static int s_ble_hci_device = 0;
 #endif
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
 static int
 ble_hci_sock_acl_tx(struct os_mbuf *om)
 {
@@ -275,7 +275,7 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
 }
 #endif
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
 static int
 ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 {
