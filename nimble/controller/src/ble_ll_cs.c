@@ -64,7 +64,7 @@
 #define T_PM_CAP_ID_20US 1
 #define T_PM_CAP_ID_40US 2
 
-static struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
+struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 static struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 static const uint8_t t_ip1[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_ip2[] = {10, 20, 30, 40, 50, 60, 80, 145};
@@ -74,8 +74,8 @@ static const uint8_t default_channel_classification[10] = {
     0xFC, 0xFF, 0x7F, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F
 };
 static uint8_t g_ble_ll_cs_chan_class[10];
-static uint8_t g_ble_ll_cs_chan_count = 0;
-static uint8_t g_ble_ll_cs_chan_indices[72];
+uint8_t g_ble_ll_cs_chan_count = 0;
+uint8_t g_ble_ll_cs_chan_indices[72];
 
 #define MIN_CONN_EVENT_COUNT_BEFORE_START 10
 #define OFFSET_FROM_CONN_EVENT_TICKS 10
