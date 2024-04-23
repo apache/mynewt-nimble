@@ -267,6 +267,12 @@ struct ble_ll_cs_sm {
     uint8_t channel;
     /* Cached main mode channels that will be used in repetition steps */
     uint8_t repetition_channels[3];
+
+    /* Channel selection stuff */
+    uint8_t mode0_channels[72];
+    uint8_t non_mode0_channels[72];
+    uint8_t mode0_next_chan_id;
+    uint8_t non_mode0_next_chan_id;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);
