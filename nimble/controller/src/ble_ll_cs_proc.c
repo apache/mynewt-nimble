@@ -25,6 +25,8 @@
 #include "controller/ble_ll_tmr.h"
 #include "ble_ll_cs_priv.h"
 
+extern uint8_t g_ble_ll_cs_chan_count;
+extern uint8_t g_ble_ll_cs_chan_indices[72];
 struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 
 /* States within step */
@@ -57,7 +59,34 @@ static struct ble_ll_cs_aci aci_table[] = {
 static int
 ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm)
 {
-    /* TODO: cssm->channel = ? */
+    int rc;
+    uint8_t transaction_id;
+    uint8_t *channel_array;
+    uint8_t *next_channel_id;
+
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        transaction_id = BLE_LL_CS_DRBG_HOP_CHAN_MODE0;
+        channel_array = cssm->mode0_channels;
+        next_channel_id = &cssm->mode0_next_chan_id;
+    } else {
+        transaction_id = BLE_LL_CS_DRBG_HOP_CHAN_NON_MODE0;
+        channel_array = cssm->non_mode0_channels;
+        next_channel_id = &cssm->non_mode0_next_chan_id;
+    }
+
+    if (g_ble_ll_cs_chan_count <= *next_channel_id) {
+        rc = ble_ll_cs_drbg_shuffle_cr1(&cssm->drbg_ctx, cssm->steps_in_procedure_count,
+                                        transaction_id, g_ble_ll_cs_chan_indices,
+                                        channel_array, g_ble_ll_cs_chan_count);
+        if (rc) {
+            return rc;
+        }
+
+        *next_channel_id = 0;
+    }
+
+    cssm->channel = channel_array[(*next_channel_id)++];
+
     return 0;
 }
 
@@ -715,6 +744,9 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id
 
     cssm->steps_in_procedure_count = ~0;
     cssm->steps_in_subevent_count = ~0;
+
+    cssm->mode0_next_chan_id = 0xFF;
+    cssm->non_mode0_next_chan_id = 0xFF;
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {
