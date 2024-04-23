@@ -41,8 +41,8 @@ static const uint8_t default_channel_classification[10] = {
     0xFC, 0xFF, 0x7F, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F
 };
 static uint8_t g_ble_ll_cs_chan_class[10];
-static uint8_t g_ble_ll_cs_chan_count = 0;
-static uint8_t g_ble_ll_cs_chan_indices[72];
+uint8_t g_ble_ll_cs_chan_count = 0;
+uint8_t g_ble_ll_cs_chan_indices[72];
 
 #define MIN_CONN_EVENT_COUNT_BEFORE_START 10
 #define OFFSET_FROM_CONN_EVENT_TICKS 10
