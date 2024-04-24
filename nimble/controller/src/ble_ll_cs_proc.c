@@ -20,11 +20,13 @@
 #include <syscfg/syscfg.h>
 #if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 #include <stdint.h>
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_tmr.h"
 #include "ble_ll_cs_priv.h"
 
+extern struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 extern uint8_t g_ble_ll_cs_chan_count;
 extern uint8_t g_ble_ll_cs_chan_indices[72];
 struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
@@ -54,10 +56,18 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 
 #define BLE_LL_CONN_ITVL_USECS    (1250)
 
+/* The ramp-down window in µs */
+#define T_RD (5)
+/* The guard time duration in µs */
+#define T_GD (10)
+/* The requency measurement period in µs */
+#define T_FM (80)
+
 static struct ble_ll_cs_aci aci_table[] = {
     {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
     {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
 };
+static const uint8_t rtt_seq_len[] = {0, 4, 12, 4, 8, 12, 16};
 
 static int
 ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm)
@@ -113,10 +123,110 @@ ble_ll_cs_proc_rm_from_sched(void *cb_args)
 {
 }
 
+static uint8_t
+ble_ll_cs_proc_set_t_sw(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t t_sw;
+    uint8_t t_sw_i;
+    uint8_t t_sw_r;
+    uint8_t aci = cssm->active_config->proc_params.aci;
+
+    if (cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
+        t_sw_i = g_ble_ll_cs_local_cap.t_sw;
+        t_sw_r = cssm->remote_cap.t_sw;
+    } else { /* BLE_LL_CS_ROLE_REFLECTOR */
+        t_sw_i = cssm->remote_cap.t_sw;
+        t_sw_r = g_ble_ll_cs_local_cap.t_sw;
+    }
+
+    if (aci == 0) {
+        t_sw = 0;
+    } else if (IN_RANGE(aci, 1, 3)) {
+        t_sw = t_sw_i;
+    } else if (IN_RANGE(aci, 4, 6)) {
+        t_sw = t_sw_r;
+    } else { /* ACI == 7 */
+        if (g_ble_ll_cs_local_cap.t_sw > cssm->remote_cap.t_sw) {
+            t_sw = g_ble_ll_cs_local_cap.t_sw;
+        } else {
+            t_sw = cssm->remote_cap.t_sw;
+        }
+    }
+
+    cssm->t_sw = t_sw;
+
+    return t_sw;
+}
+
+static int
+ble_ll_cs_proc_calculate_timing(struct ble_ll_cs_sm *cssm)
+{
+    struct ble_ll_cs_config *conf = cssm->active_config;
+    uint8_t t_ip1 = conf->t_ip1;
+    uint8_t t_ip2 = conf->t_ip2;
+    uint8_t t_pm = conf->t_pm;
+    uint8_t t_sw;
+    uint8_t n_ap = cssm->n_ap;
+    uint8_t t_sy;
+    uint8_t t_sy_seq;
+    uint8_t sequence_len;
+
+    t_sw = ble_ll_cs_proc_set_t_sw(cssm);
+
+    /* CS packets with no Sounding Sequence or Random Sequence fields take 44 µs
+     * to transmit when sent using the LE 1M PHY and 26 µs to transmit when using
+     * the LE 2M and the LE 2M 2BT PHYs. CS packets that include a Sounding Sequence
+     * or Random Sequence field take proportionally longer to transmit based on
+     * the length of the field and the PHY selection.
+     */
+
+    sequence_len = rtt_seq_len[conf->rtt_type];
+
+    switch (conf->cs_sync_phy) {
+    case BLE_LL_CS_SYNC_PHY_1M:
+        t_sy = BLE_LL_CS_SYNC_TIME_1M;
+        t_sy_seq = sequence_len;
+        break;
+    case BLE_LL_CS_SYNC_PHY_2M:
+        t_sy = BLE_LL_CS_SYNC_TIME_2M;
+        t_sy_seq = sequence_len / 2;
+        break;
+    }
+
+    cssm->mode0_step_duration_usecs = t_ip1 + T_GD + T_FM + 2 * (t_sy + T_RD);
+
+    cssm->mode1_step_duration_usecs = t_ip1 + 2 * (t_sy + t_sy_seq + T_RD);
+
+    cssm->mode2_step_duration_usecs = t_ip2 + 2 * ((t_sw + t_pm) * (n_ap + 1) + T_RD);
+
+    cssm->mode3_step_duration_usecs = t_ip2 + 2 * ((t_sy + t_sy_seq + T_GD + T_RD) +
+                                                   (t_sw + t_pm) * (n_ap + 1));
+
+    cssm->t_sy = t_sy;
+    cssm->t_sy_seq = t_sy_seq;
+
+    return 0;
+}
+
 static void
 ble_ll_cs_set_step_duration(struct ble_ll_cs_sm *cssm)
 {
-    /* TODO: cssm->step_duration_usecs = ? */
+    switch (cssm->step_mode) {
+    case BLE_LL_CS_MODE0:
+        cssm->step_duration_usecs = cssm->mode0_step_duration_usecs;
+        break;
+    case BLE_LL_CS_MODE1:
+        cssm->step_duration_usecs = cssm->mode1_step_duration_usecs;
+        break;
+    case BLE_LL_CS_MODE2:
+        cssm->step_duration_usecs = cssm->mode2_step_duration_usecs;
+        break;
+    case BLE_LL_CS_MODE3:
+        cssm->step_duration_usecs = cssm->mode3_step_duration_usecs;
+        break;
+    default:
+        assert(0);
+    }
 }
 
 static int
@@ -324,6 +434,7 @@ ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
     int rc;
     const struct ble_ll_cs_config *conf = cssm->active_config;
 
+    cssm->step_anchor_usecs = cssm->anchor_usecs;
     ++cssm->steps_in_procedure_count;
     ++cssm->steps_in_subevent_count;
 
@@ -367,123 +478,190 @@ ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
     }
 
     cssm->antenna_path_count = cssm->n_ap;
+    cssm->anchor_usecs = cssm->step_anchor_usecs;
+
     return 0;
 }
 
 static void
 ble_ll_cs_proc_mode0_next_state(struct ble_ll_cs_sm *cssm)
 {
+    uint32_t duration = 0;
+    uint32_t delay = 0;
     uint8_t state = cssm->step_state;
+    uint8_t t_ip1 = cssm->active_config->t_ip1;
+    uint8_t t_fcs = cssm->active_config->t_fcs;
+    uint8_t t_sy = cssm->t_sy;
 
     switch (state) {
     case STEP_STATE_INIT:
         state = STEP_STATE_CS_SYNC_I;
+        duration = t_sy;
+        delay = 0;
         break;
     case STEP_STATE_CS_SYNC_I:
         state = STEP_STATE_CS_SYNC_R;
+        duration = t_sy;
+        delay = T_RD + t_ip1;
         break;
     case STEP_STATE_CS_SYNC_R:
         state = STEP_STATE_CS_TONE_R;
+        duration = T_FM;
+        delay = T_GD;
         break;
     case STEP_STATE_CS_TONE_R:
         state = STEP_STATE_COMPLETE;
+        duration = 0;
+        delay = T_RD + t_fcs;
         break;
     default:
         assert(0);
     }
 
+    cssm->duration_usecs = duration;
+    cssm->anchor_usecs += delay;
     cssm->step_state = state;
 }
 
 static void
 ble_ll_cs_proc_mode1_next_state(struct ble_ll_cs_sm *cssm)
 {
+    uint32_t duration = 0;
+    uint32_t delay = 0;
     uint8_t state = cssm->step_state;
+    uint8_t t_ip1 = cssm->active_config->t_ip1;
+    uint8_t t_fcs = cssm->active_config->t_fcs;
+    uint8_t t_sy = cssm->t_sy + cssm->t_sy_seq;
 
     switch (state) {
     case STEP_STATE_INIT:
         state = STEP_STATE_CS_SYNC_I;
+        duration = t_sy;
+        delay = 0;
         break;
     case STEP_STATE_CS_SYNC_I:
         state = STEP_STATE_CS_SYNC_R;
+        duration = t_sy;
+        delay = T_RD + t_ip1;
         break;
     case STEP_STATE_CS_SYNC_R:
         state = STEP_STATE_COMPLETE;
+        duration = 0;
+        delay = T_RD + t_fcs;
         break;
     default:
         assert(0);
     }
 
+    cssm->duration_usecs = duration;
+    cssm->anchor_usecs += delay;
     cssm->step_state = state;
 }
 
 static void
 ble_ll_cs_proc_mode2_next_state(struct ble_ll_cs_sm *cssm)
 {
+    uint32_t duration = 0;
+    uint32_t delay = 0;
     uint8_t state = cssm->step_state;
+    uint8_t t_ip2 = cssm->active_config->t_ip2;
+    uint8_t t_fcs = cssm->active_config->t_fcs;
+    uint8_t t_pm = cssm->active_config->t_pm;
 
     switch (state) {
     case STEP_STATE_INIT:
         state = STEP_STATE_CS_TONE_I;
+        duration = t_pm;
+        delay = 0;
         break;
     case STEP_STATE_CS_TONE_I:
+        duration = t_pm;
         if (cssm->antenna_path_count != 0) {
             --cssm->antenna_path_count;
+            delay = cssm->t_sw;
         } else {
             state = STEP_STATE_CS_TONE_R;
             cssm->antenna_path_count = cssm->n_ap;
+            delay = T_RD + t_ip2;
         }
         break;
     case STEP_STATE_CS_TONE_R:
         if (cssm->antenna_path_count != 0) {
             --cssm->antenna_path_count;
+            duration = t_pm;
+            delay = cssm->t_sw;
         } else {
             state = STEP_STATE_COMPLETE;
             cssm->antenna_path_count = cssm->n_ap;
+            duration = 0;
+            delay = T_RD + t_fcs;
         }
         break;
     default:
         assert(0);
     }
 
+    cssm->duration_usecs = duration;
+    cssm->anchor_usecs += delay;
     cssm->step_state = state;
 }
 
 static void
 ble_ll_cs_proc_mode3_next_state(struct ble_ll_cs_sm *cssm)
 {
+    uint32_t duration = 0;
+    uint32_t delay = 0;
     uint8_t state = cssm->step_state;
+    uint8_t t_ip2 = cssm->active_config->t_ip2;
+    uint8_t t_fcs = cssm->active_config->t_fcs;
+    uint8_t t_sy = cssm->t_sy + cssm->t_sy_seq;
+    uint8_t t_pm = cssm->active_config->t_pm;
 
     switch (state) {
     case STEP_STATE_INIT:
         state = STEP_STATE_CS_SYNC_I;
+        duration = t_sy;
+        delay = 0;
         break;
     case STEP_STATE_CS_SYNC_I:
         state = STEP_STATE_CS_TONE_I;
+        duration = t_pm;
+        delay = T_GD;
         break;
     case STEP_STATE_CS_TONE_I:
+        duration = t_pm;
         if (cssm->antenna_path_count != 0) {
             --cssm->antenna_path_count;
+            delay = cssm->t_sw;
         } else {
             state = STEP_STATE_CS_TONE_R;
             cssm->antenna_path_count = cssm->n_ap;
+            delay = T_RD + t_ip2;
         }
         break;
     case STEP_STATE_CS_TONE_R:
         if (cssm->antenna_path_count != 0) {
             --cssm->antenna_path_count;
+            duration = t_pm;
+            delay = cssm->t_sw;
         } else {
             state = STEP_STATE_CS_SYNC_R;
             cssm->antenna_path_count = cssm->n_ap;
+            duration = t_sy;
+            delay = T_RD;
         }
         break;
     case STEP_STATE_CS_SYNC_R:
         state = STEP_STATE_COMPLETE;
+        duration = 0;
+        delay = T_RD + t_fcs;
         break;
     default:
         assert(0);
     }
 
+    cssm->duration_usecs = duration;
+    cssm->anchor_usecs += delay;
     cssm->step_state = state;
 }
 
@@ -646,6 +824,8 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm,
 
     cssm->mode0_next_chan_id = 0xFF;
     cssm->non_mode0_next_chan_id = 0xFF;
+
+    ble_ll_cs_proc_calculate_timing(cssm);
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {

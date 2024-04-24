@@ -52,6 +52,12 @@ extern "C" {
 #define BLE_LL_CS_STEPS_PER_SUBEVENT_MAX  (160)
 #define BLE_LL_CS_STEPS_PER_PROCEDURE_MAX (256)
 
+#define BLE_LL_CS_SYNC_PHY_1M (0x01)
+#define BLE_LL_CS_SYNC_PHY_2M (0x02)
+/* The duration of the CS_SYNC (T_SY) without sequence in usec */
+#define BLE_LL_CS_SYNC_TIME_1M (44)
+#define BLE_LL_CS_SYNC_TIME_2M (26)
+
 struct ble_ll_cs_aci {
     uint8_t n_ap;
     uint8_t n_a_antennas;
@@ -232,6 +238,16 @@ struct ble_ll_cs_sm {
     uint32_t step_anchor_usecs;
     /* Estimated time of the step (ToF not included) */
     uint32_t step_duration_usecs;
+    uint32_t mode0_step_duration_usecs;
+    uint32_t mode1_step_duration_usecs;
+    uint32_t mode2_step_duration_usecs;
+    uint32_t mode3_step_duration_usecs;
+    /* Time of antenna swith */
+    uint8_t t_sw;
+    /* Time of CS_SYNC packet without sequence */
+    uint8_t t_sy;
+    /* Time of CS_SYNC sequence only */
+    uint8_t t_sy_seq;
 
     /* CS Access Addresses to use in current step */
     uint32_t initiator_aa;

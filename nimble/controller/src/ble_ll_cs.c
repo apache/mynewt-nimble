@@ -30,7 +30,7 @@
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_cs_priv.h"
 
-static struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
+struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 static struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 static const uint8_t t_ip1[] = {10, 20, 30, 40, 50, 60, 80, 145};
 static const uint8_t t_ip2[] = {10, 20, 30, 40, 50, 60, 80, 145};
