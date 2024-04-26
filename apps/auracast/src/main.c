@@ -60,12 +60,12 @@ static uint16_t bis_handles[MYNEWT_VAL(BROADCASTER_CHAN_NUM)];
 static struct os_callout audio_broadcast_callout;
 
 static int audio_data_offset;
+static uint8_t auracast_adv_instance;
+
+#if MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0
 static struct os_task auracast_interrupt_task_str;
 static struct os_eventq auracast_interrupt_eventq;
 static os_stack_t auracast_interrupt_task_stack[BROADCASTER_INTERRUPT_TASK_STACK_SZ];
-
-static uint8_t auracast_adv_instance;
-
 static void
 auracast_interrupt_task(void *arg)
 {
@@ -90,6 +90,7 @@ auracast_gpio_irq(void *arg)
 {
     os_eventq_put(&auracast_interrupt_eventq, &broadcast_stop_ev);
 }
+#endif /* MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0 */
 
 static void
 audio_broadcast_event_cb(struct os_event *ev)
@@ -373,6 +374,7 @@ mynewt_main(int argc, char **argv)
     /* Set sync callback */
     ble_hs_cfg.sync_cb = on_sync;
 
+#if MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0
     os_eventq_init(&auracast_interrupt_eventq);
     os_task_init(&auracast_interrupt_task_str, "auracast_interrupt_task",
                  auracast_interrupt_task, NULL,
@@ -380,9 +382,10 @@ mynewt_main(int argc, char **argv)
                  auracast_interrupt_task_stack,
                  BROADCASTER_INTERRUPT_TASK_STACK_SZ);
 
-    hal_gpio_irq_init(BUTTON_3, auracast_gpio_irq, NULL,
-                      HAL_GPIO_TRIG_RISING, HAL_GPIO_PULL_UP);
-    hal_gpio_irq_enable(BUTTON_3);
+    hal_gpio_irq_init(MYNEWT_VAL(BROADCASTER_STOP_BUTTON), auracast_gpio_irq,
+                      NULL, HAL_GPIO_TRIG_RISING, HAL_GPIO_PULL_UP);
+    hal_gpio_irq_enable(MYNEWT_VAL(BROADCASTER_STOP_BUTTON));
+#endif /* MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0 */
 
     /* As the last thing, process events from default event queue */
     while (1) {
