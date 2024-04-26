@@ -18,6 +18,11 @@
 syscfg.defs:
     BROADCASTER_CHAN_NUM: 2
     BROADCASTER_BROADCAST_NAME: '"NimBLE Auracast"'
+    BROADCASTER_STOP_BUTTON:
+        description: >
+            Button number for Broadcast Stop action.
+            Negative value if disabled.
+        value: BUTTON_3
 
 syscfg.vals:
     CONSOLE_IMPLEMENTATION: full
