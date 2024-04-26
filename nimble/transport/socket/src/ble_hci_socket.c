@@ -277,6 +277,50 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
 
 #if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
 static int
+ble_hci_sock_iso_tx(struct os_mbuf *om)
+{
+    struct msghdr msg;
+    struct iovec iov[8];
+    int i;
+    struct os_mbuf *m;
+    uint8_t ch;
+
+    memset(&msg, 0, sizeof(msg));
+    memset(iov, 0, sizeof(iov));
+
+    msg.msg_iov = iov;
+
+    ch = BLE_HCI_UART_H4_ISO;
+    iov[0].iov_len = 1;
+    iov[0].iov_base = &ch;
+    i = 1;
+    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
+        iov[i].iov_base = m->om_data;
+        iov[i].iov_len = m->om_len;
+        i++;
+    }
+    msg.msg_iovlen = i;
+
+    STATS_INC(hci_sock_stats, omsg);
+    STATS_INC(hci_sock_stats, oiso);
+    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
+    i = sendmsg(ble_hci_sock_state.sock, &msg, 0);
+    os_mbuf_free_chain(om);
+    if (i != OS_MBUF_PKTLEN(om) + 1) {
+        if (i < 0) {
+            dprintf(1, "sendmsg() failed : %d\n", errno);
+        } else {
+            dprintf(1, "sendmsg() partial write: %d\n", i);
+        }
+        STATS_INC(hci_sock_stats, oerr);
+        return BLE_ERR_MEM_CAPACITY;
+    }
+    return 0;
+}
+#endif /* BLE_SOCK_USE_LINUX_BLUE */
+
+#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+static int
 ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 {
     struct msghdr msg;
@@ -869,6 +913,12 @@ ble_hci_sock_init(void)
                             STATS_SIZE_INIT_PARMS(hci_sock_stats, STATS_SIZE_32),
                             STATS_NAME_INIT_PARMS(hci_sock_stats), "hci_socket");
     SYSINIT_PANIC_ASSERT(rc == 0);
+}
+
+int
+ble_transport_to_ll_iso_impl(struct os_mbuf *om)
+{
+    return ble_hci_sock_iso_tx(om);
 }
 
 void
