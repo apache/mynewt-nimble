@@ -72,6 +72,40 @@
 #define BLE_BROADCAST_PUB_ANNOUNCEMENT_SVC_UUID                   0x1856
 
 /**
+ * @defgroup ble_audio_codec_formats Bluetooth Low Energy Audio Codec Formats
+ * @{
+ */
+
+/** BLE Audio codec format - μ-law log */
+#define BLE_AUDIO_CODEC_FORMAT_MU_LAW_LOG                         0x00
+
+/** BLE Audio codec format - A-law log */
+#define BLE_AUDIO_CODEC_FORMAT_A_LAW_LOG                          0x01
+
+/** BLE Audio codec format - CVSD */
+#define BLE_AUDIO_CODEC_FORMAT_CVSD                               0x02
+
+/** BLE Audio codec format - Transparent */
+#define BLE_AUDIO_CODEC_FORMAT_TRANSPARENT                        0x03
+
+/** BLE Audio codec format - Linear PCM */
+#define BLE_AUDIO_CODEC_FORMAT_LINEAR_PCM                         0x04
+
+/** BLE Audio codec format - mSBC  */
+#define BLE_AUDIO_CODEC_FORMAT_MSBC                               0x05
+
+/** BLE Audio codec format - LC3 */
+#define BLE_AUDIO_CODEC_FORMAT_LC3                                0x06
+
+/** BLE Audio codec format - G.729A */
+#define BLE_AUDIO_CODEC_FORMAT_G_729A                             0x07
+
+/** BLE Audio codec format - Vendor Specific */
+#define BLE_AUDIO_CODEC_FORMAT_VENDOR_SPECIFIC                    0xFF
+
+/** @} */
+
+/**
  * @defgroup ble_audio_sampling_rates Bluetooth Low Energy Audio Sampling Rates
  * @{
  */
