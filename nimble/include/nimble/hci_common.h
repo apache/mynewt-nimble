@@ -2423,6 +2423,8 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_DATA_PATH_DIR_INPUT         0x00
 #define BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT        0x01
 
+#define BLE_HCI_ISO_DATA_PATH_ID_HCI            0x00
+
 struct ble_hci_iso {
     uint16_t handle;
     uint16_t length;

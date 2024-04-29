@@ -333,14 +333,6 @@ int ble_iso_terminate_big(uint8_t big_handle);
 struct ble_iso_bis_params {
     /** BIS index */
     uint8_t bis_index;
-
-    /** The callback to associate with the BIS.
-     *  Received ISO data is reported through this callback.
-     */
-    ble_iso_event_fn *cb;
-
-    /** The optional argument to pass to the callback function */
-    void *cb_arg;
 };
 
 /** @brief BIG Sync parameters for @ref ble_iso_big_sync_create */
@@ -443,6 +435,15 @@ struct ble_iso_data_path_setup_params {
 
     /** Codec Configuration */
     const uint8_t *codec_config;
+
+    /**
+     * The ISO Data callback. Must be set if @p data_path_id is HCI.
+     * Received ISO data is reported through this callback.
+     */
+    ble_iso_event_fn *cb;
+
+    /** The optional argument to pass to the callback function */
+    void *cb_arg;
 };
 
 /**

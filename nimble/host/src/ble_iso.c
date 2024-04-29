@@ -233,6 +233,20 @@ ble_iso_big_free(struct ble_iso_big *big)
     return 0;
 }
 
+static struct ble_iso_conn *
+ble_iso_conn_lookup_handle(uint16_t handle)
+{
+    struct ble_iso_conn *conn;
+
+    SLIST_FOREACH(conn, &ble_iso_conns, next) {
+        if (conn->handle == handle) {
+            return conn;
+        }
+    }
+
+    return NULL;
+}
+
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 int
 ble_iso_create_big(const struct ble_iso_create_big_params *create_params,
@@ -496,20 +510,6 @@ ble_iso_tx(uint16_t conn_handle, void *data, uint16_t data_len)
 #endif /* BLE_ISO_BROADCAST_SOURCE */
 
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
-static struct ble_iso_conn *
-ble_iso_conn_lookup_handle(uint16_t handle)
-{
-    struct ble_iso_conn *conn;
-
-    SLIST_FOREACH(conn, &ble_iso_conns, next) {
-        if (conn->handle == handle) {
-            return conn;
-        }
-    }
-
-    return NULL;
-}
-
 int
 ble_iso_big_sync_create(const struct ble_iso_big_sync_create_params *param,
                         uint8_t *big_handle)
@@ -552,9 +552,6 @@ ble_iso_big_sync_create(const struct ble_iso_big_sync_create_params *param,
             ble_iso_big_free(big);
             return BLE_HS_ENOMEM;
         }
-
-        bis->conn.cb = param->bis_params[i].cb;
-        bis->conn.cb_arg = param->bis_params[i].cb_arg;
 
         cp->bis[i] = param->bis_params[i].bis_index;
     }
@@ -867,7 +864,14 @@ ble_iso_data_path_setup(const struct ble_iso_data_path_setup_params *param)
     struct ble_hci_le_setup_iso_data_path_rp rp;
     struct ble_hci_le_setup_iso_data_path_cp *cp;
     uint8_t buf[sizeof(*cp) + UINT8_MAX];
+    struct ble_iso_conn *conn;
     int rc;
+
+    conn = ble_iso_conn_lookup_handle(param->conn_handle);
+    if (conn == NULL) {
+        BLE_HS_LOG_ERROR("invalid conn_handle\n");
+        return BLE_HS_ENOTCONN;
+    }
 
     if (param->codec_config_len > 0 && param->codec_config == NULL) {
         BLE_HS_LOG_ERROR("Missing codec_config\n");
@@ -886,6 +890,14 @@ ble_iso_data_path_setup(const struct ble_iso_data_path_setup_params *param)
     if (param->data_path_dir & BLE_ISO_DATA_DIR_RX) {
         /* Output (Controller to Host) */
         cp->data_path_dir |= BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT;
+
+        if (cp->data_path_id == BLE_HCI_ISO_DATA_PATH_ID_HCI && param->cb == NULL) {
+            BLE_HS_LOG_ERROR("param->cb is NULL\n");
+            return BLE_HS_EINVAL;
+        }
+
+        conn->cb = param->cb;
+        conn->cb_arg = param->cb_arg;
     }
 
     cp->data_path_id = param->data_path_id;
@@ -910,7 +922,14 @@ ble_iso_data_path_remove(const struct ble_iso_data_path_remove_params *param)
 {
     struct ble_hci_le_remove_iso_data_path_rp rp;
     struct ble_hci_le_remove_iso_data_path_cp cp = { 0 };
+    struct ble_iso_conn *conn;
     int rc;
+
+    conn = ble_iso_conn_lookup_handle(param->conn_handle);
+    if (conn == NULL) {
+        BLE_HS_LOG_ERROR("invalid conn_handle\n");
+        return BLE_HS_ENOTCONN;
+    }
 
     put_le16(&cp.conn_handle, param->conn_handle);
 
@@ -922,6 +941,9 @@ ble_iso_data_path_remove(const struct ble_iso_data_path_remove_params *param)
     if (param->data_path_dir & BLE_ISO_DATA_DIR_RX) {
         /* Output (Controller to Host) */
         cp.data_path_dir |= BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT;
+
+        conn->cb = NULL;
+        conn->cb_arg = NULL;
     }
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
