@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "host/ble_hs.h"
 #include "host/ble_iso.h"
 
 #include "cmd_iso.h"
@@ -26,7 +27,7 @@
 
 #if (MYNEWT_VAL(BLE_ISO))
 static struct iso_rx_stats {
-    uint8_t bis_index;
+    uint16_t conn_handle;
     bool ts_valid;
     uint32_t ts;
     uint16_t seq_num;
@@ -34,12 +35,60 @@ static struct iso_rx_stats {
     uint64_t valid_cnt;
     uint64_t error_cnt;
     uint64_t lost_cnt;
-} rx_stats_pool[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
+} rx_stats_pool[MYNEWT_VAL(BLE_ISO_MAX_BISES)] = {
+    [0 ... MYNEWT_VAL(BLE_ISO_MAX_BISES) - 1] = {
+        .conn_handle = BLE_HS_CONN_HANDLE_NONE
+    }
+};
+
+static struct iso_rx_stats *
+iso_rx_stats_lookup_conn_handle(uint16_t conn_handle)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(rx_stats_pool); i++) {
+        if (rx_stats_pool[i].conn_handle == conn_handle) {
+            return &rx_stats_pool[i];
+        }
+    }
+
+    return NULL;
+}
+
+static struct iso_rx_stats *
+iso_rx_stats_get_or_new(uint16_t conn_handle)
+{
+    struct iso_rx_stats *rx_stats;
+
+    rx_stats = iso_rx_stats_lookup_conn_handle(conn_handle);
+    if (rx_stats == NULL) {
+        rx_stats = iso_rx_stats_lookup_conn_handle(BLE_HS_CONN_HANDLE_NONE);
+        if (rx_stats == NULL) {
+            return NULL;
+        }
+    }
+
+    rx_stats->conn_handle = conn_handle;
+
+    return rx_stats;
+}
 
 static void
-iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *info,
-                    struct iso_rx_stats *stats)
+iso_rx_stats_reset(void)
 {
+    for (size_t i = 0; i < ARRAY_SIZE(rx_stats_pool); i++) {
+        memset(&rx_stats_pool[i], 0, sizeof(rx_stats_pool[i]));
+        rx_stats_pool[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+}
+
+static void
+iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *info, void *arg)
+{
+    struct iso_rx_stats *stats = arg;
+
+    if (!stats) {
+        return;
+    }
+
     stats->ts_valid = info->ts_valid;
     if (stats->ts_valid) {
         stats->ts = info->ts;
@@ -58,9 +107,9 @@ iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *inf
     stats->total_cnt++;
 
     if ((stats->total_cnt % 100) == 0) {
-        console_printf("BIS=%d, seq_num=%d, num_rx=%lld, "
+        console_printf("conn_handle=0x%04x, seq_num=%d, num_rx=%lld, "
                        "(valid=%lld, error=%lld, lost=%lld) ",
-                       stats->bis_index, stats->seq_num,
+                       stats->conn_handle, stats->seq_num,
                        stats->total_cnt, stats->valid_cnt,
                        stats->error_cnt, stats->lost_cnt);
 
@@ -122,6 +171,7 @@ ble_iso_event_handler(struct ble_iso_event *event, void *arg)
         console_printf("BIG Sync Terminated handle=0x%02x reason: %u\n",
                        event->big_terminated.big_handle,
                        event->big_terminated.reason);
+        iso_rx_stats_reset();
         break;
 
     case BLE_ISO_EVENT_ISO_RX:
@@ -349,12 +399,6 @@ cmd_iso_big_sync_create(int argc, char **argv)
 
     for (uint8_t i = 0; i < params.bis_cnt; i++) {
         bis_params[i].bis_index = bis_idxs[i];
-        bis_params[i].cb = ble_iso_event_handler;
-        bis_params[i].cb_arg = &rx_stats_pool[i];
-
-        /* Reset stats */
-        memset(&rx_stats_pool[i], 0, sizeof(rx_stats_pool[i]));
-        rx_stats_pool[i].bis_index = bis_idxs[i];
     }
 
     params.bis_params = bis_params;
@@ -457,6 +501,8 @@ cmd_iso_data_path_setup(int argc, char **argv)
     }
 
     /* For now, the Data Path ID is set to HCI by default */
+    params.cb = ble_iso_event_handler;
+    params.cb_arg = iso_rx_stats_get_or_new(params.conn_handle);
 
     rc = ble_iso_data_path_setup(&params);
     if (rc != 0) {
