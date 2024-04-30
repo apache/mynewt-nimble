@@ -31,6 +31,9 @@ pkg.deps:
     - nimble
     - nimble/host
 
+pkg.deps.BLE_AUDIO_BROADCAST_SINK:
+    - nimble/host/audio/services/pacs/lc3
+
 pkg.deps.BLE_AUDIO_SCAN_DELEGATOR:
     - nimble/host/audio/services/bass
 
