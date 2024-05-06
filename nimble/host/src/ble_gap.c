@@ -2398,6 +2398,23 @@ ble_gap_wl_tx_clear(void)
                                         BLE_HCI_OCF_LE_CLEAR_WHITE_LIST),
                              NULL, 0, NULL, 0 );
 }
+
+int
+ble_gap_wl_read_size(uint8_t *size)
+{
+    struct ble_hci_le_rd_white_list_rp rsp;
+    int rc;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                      BLE_HCI_OCF_LE_RD_WHITE_LIST_SIZE),
+                           NULL, 0, &rsp, sizeof(rsp));
+
+    if (rc == 0) {
+        *size = rsp.size;
+    }
+
+    return rc;
+}
 #endif
 
 int
