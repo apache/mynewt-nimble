@@ -1617,6 +1617,18 @@ ble_gap_rx_adv_set_terminated(const struct ble_hci_ev_le_subev_adv_set_terminate
     ble_gap_adv_finished(ev->adv_handle, reason, conn_handle, ev->num_events);
 }
 
+static void
+ble_gap_slave_get_cb(uint8_t instance,
+                     ble_gap_event_fn **out_cb, void **out_cb_arg)
+{
+    ble_hs_lock();
+
+    *out_cb = ble_gap_slave[instance].cb;
+    *out_cb_arg = ble_gap_slave[instance].cb_arg;
+
+    ble_hs_unlock();
+}
+
 void
 ble_gap_rx_scan_req_rcvd(const struct ble_hci_ev_le_subev_scan_req_rcvd *ev)
 {
@@ -1624,7 +1636,7 @@ ble_gap_rx_scan_req_rcvd(const struct ble_hci_ev_le_subev_scan_req_rcvd *ev)
     ble_gap_event_fn *cb;
     void *cb_arg;
 
-    ble_gap_slave_extract_cb(ev->adv_handle, &cb, &cb_arg);
+    ble_gap_slave_get_cb(ev->adv_handle, &cb, &cb_arg);
     if (cb != NULL) {
         memset(&event, 0, sizeof event);
         event.type = BLE_GAP_EVENT_SCAN_REQ_RCVD;
