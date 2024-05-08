@@ -202,6 +202,10 @@ struct ble_gap_slave_state {
 
 static bssnz_t struct ble_gap_slave_state ble_gap_slave[BLE_ADV_INSTANCES];
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static bool ext_adv_legacy_configured = false;
+#endif
+
 struct ble_gap_update_entry {
     SLIST_ENTRY(ble_gap_update_entry) next;
     struct ble_gap_upd_params params;
@@ -1471,6 +1475,8 @@ ble_gap_reset_state(int reason)
             ble_gap_adv_finished(i, reason, 0, 0);
         }
     }
+
+    ext_adv_legacy_configured = false;
 #else
     if (ble_gap_adv_active_instance(0)) {
         /* Indicate to application that advertising has stopped. */
@@ -2552,7 +2558,13 @@ ble_gap_adv_stop(void)
         return rc;
     }
 
-    return ble_gap_ext_adv_remove(MYNEWT_VAL(BLE_HS_EXT_ADV_LEGACY_INSTANCE));
+    rc = ble_gap_ext_adv_remove(MYNEWT_VAL(BLE_HS_EXT_ADV_LEGACY_INSTANCE));
+    if (rc) {
+        return rc;
+    }
+
+    ext_adv_legacy_configured = false;
+    return 0;
 #else
     int rc;
 
@@ -2804,12 +2816,14 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
     ext_params.filter_policy = adv_params->filter_policy;
     ext_params.high_duty_directed = adv_params->high_duty_cycle;
 
-    /* configure instance 0 */
+    /* configure legacy instance */
     rc = ble_gap_ext_adv_configure(MYNEWT_VAL(BLE_HS_EXT_ADV_LEGACY_INSTANCE),
                                    &ext_params, NULL, cb, cb_arg);
     if (rc) {
         return rc;
     }
+
+    ext_adv_legacy_configured = true;
 
     if (duration_ms == BLE_HS_FOREVER) {
         duration = 0;
@@ -2900,6 +2914,38 @@ done:
 #endif
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static int
+ble_gap_ext_adv_legacy_preconfigure(void)
+{
+    struct ble_gap_ext_adv_params ext_params;
+    int rc;
+
+    if (ext_adv_legacy_configured) {
+        return 0;
+    }
+
+    memset(&ext_params, 0, sizeof(ext_params));
+    ext_params.own_addr_type = BLE_ADDR_RANDOM;
+    ext_params.primary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.secondary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.tx_power = 127;
+    ext_params.sid = 0;
+    ext_params.legacy_pdu = 1;
+    ext_params.scannable = 1;
+    ext_params.connectable = 1;
+
+    rc = ble_gap_ext_adv_configure(MYNEWT_VAL(BLE_HS_EXT_ADV_LEGACY_INSTANCE),
+                                   &ext_params, NULL, NULL, NULL);
+    if (rc) {
+        return rc;
+    }
+
+    ext_adv_legacy_configured = true;
+    return 0;
+}
+#endif
+
 int
 ble_gap_adv_set_data(const uint8_t *data, int data_len)
 {
@@ -2911,6 +2957,11 @@ ble_gap_adv_set_data(const uint8_t *data, int data_len)
     if (((data == NULL) && (data_len != 0)) ||
         (data_len > BLE_HCI_MAX_ADV_DATA_LEN)) {
         return BLE_HS_EINVAL;
+    }
+
+    rc = ble_gap_ext_adv_legacy_preconfigure();
+    if (rc) {
+        return rc;
     }
 
     mbuf = os_msys_get_pkthdr(data_len, 0);
@@ -2964,6 +3015,11 @@ ble_gap_adv_rsp_set_data(const uint8_t *data, int data_len)
     if (((data == NULL) && (data_len != 0)) ||
         (data_len > BLE_HCI_MAX_ADV_DATA_LEN)) {
         return BLE_HS_EINVAL;
+    }
+
+    rc = ble_gap_ext_adv_legacy_preconfigure();
+    if (rc) {
+        return rc;
     }
 
     mbuf = os_msys_get_pkthdr(data_len, 0);
