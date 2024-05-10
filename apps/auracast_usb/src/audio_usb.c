@@ -60,7 +60,7 @@ static int16_t samples_read[AUDIO_BUF_SIZE];
 /* 155 is maximum value Octets Per Codec Frame described in Table 3.5 of BAP specification */
 static float samples_read_float[AUDIO_BUF_SIZE];
 static float resampled_float[AUDIO_BUF_SIZE];
-float resampler_in_rate = AUDIO_PCM_SAMPLE_RATE;
+float resampler_in_rate = MYNEWT_VAL(USB_AUDIO_OUT_SAMPLE_RATE);
 float resampler_out_rate = LC3_SAMPLING_FREQ;
 float resampler_ratio;
 SRC_STATE *resampler_state;
@@ -250,14 +250,14 @@ audio_usb_init(void)
     usb_desc_sample_rate_set(AUDIO_PCM_SAMPLE_RATE);
 
     assert(LC3_FPDT == lc3_frame_samples(LC3_FRAME_DURATION,
-                                         LC3_SAMPLING_FREQ));
+                                         AUDIO_PCM_SAMPLE_RATE));
 
     unsigned esize = lc3_encoder_size(LC3_FRAME_DURATION,
-                                      LC3_SAMPLING_FREQ);
+                                      AUDIO_PCM_SAMPLE_RATE);
     for (int i = 0; i < AUDIO_CHANNELS; i++) {
         chans[i].encoder = calloc(1, esize);
         lc3_setup_encoder(LC3_FRAME_DURATION, LC3_SAMPLING_FREQ,
-                          0, chans[i].encoder);
+                          AUDIO_PCM_SAMPLE_RATE, chans[i].encoder);
     }
 
     g_usb_enabled = 1;
