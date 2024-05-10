@@ -18,7 +18,7 @@
 syscfg.defs:
     ISO_HCI_FEEDBACK:
         description: Enable HCI feedback for resampler. This reduces jitter between USB and ISO.
-        value: 1
+        value: 0
 
     AURACAST_CHAN_NUM: 2
 
@@ -37,10 +37,10 @@ syscfg.defs:
         value: 10000
     LC3_SAMPLING_FREQ:
         description: LC3 sampling frequency
-        value: 24000
+        value: 48000
     LC3_BITRATE:
         description: LC3 bitrate
-        value: 24000
+        value: 96000
 
     BIG_PHY:
         description:
