@@ -32,15 +32,21 @@
 
 #define BROADCAST_SID                       1
 #define BROADCAST_SDU_INTVL                 MYNEWT_VAL(LC3_FRAME_DURATION)
-#if (MYNEWT_VAL(LC3_BITRATE) == 24000)
+
+#if (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 8000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_8000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 16000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_16000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 24000)
 #define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_24000_HZ
-#elif (MYNEWT_VAL(LC3_BITRATE) == 48000)
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 32000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_32000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 48000)
 #define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_48000_HZ
-#elif (MYNEWT_VAL(LC3_BITRATE) == 96000)
-#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_96000_HZ
 #else
-BUILD_ASSERT(0, "Only 24kHz and 48kHz supported");
+BUILD_ASSERT(0, "Sample frequency not supported");
 #endif
+
 #define BROADCAST_MAX_SDU                   (BROADCAST_SDU_INTVL * \
                                              MYNEWT_VAL(LC3_BITRATE) / \
                                              (1000 * 1000 * 8) *   \
