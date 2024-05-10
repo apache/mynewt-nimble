@@ -154,7 +154,11 @@ usb_data_func(struct os_event *ev)
     }
 
     while ((num_bytes = tud_audio_available()) > 0) {
-        num_samples = num_bytes / AUDIO_SAMPLE_SIZE;
+        num_frames = num_bytes / (AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE);
+        num_samples = num_frames * AUDIO_CHANNELS;
+        if (out_idx + num_samples >= ARRAY_SIZE(out_buf)) {
+            num_samples = ARRAY_SIZE(out_buf) - out_idx - 1;
+        }
         num_frames = num_samples / AUDIO_CHANNELS;
         num_bytes = num_frames * AUDIO_SAMPLE_SIZE * AUDIO_CHANNELS;
 
