@@ -136,31 +136,31 @@ hci_uart_configure(void)
     enum hal_uart_flow_ctl flowctl;
     int rc;
 
-    rc = hal_uart_init_cbs(MYNEWT_VAL(BLE_TRANSPORT_UART_PORT),
+    rc = hal_uart_init_cbs(MYNEWT_VAL(BLE_TRANSPORT_UART_LL_PORT),
                            hci_uart_tx_char, NULL,
                            hci_uart_rx_char, NULL);
     if (rc != 0) {
         return -1;
     }
 
-    if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_PARITY, odd)) {
+    if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_LL_PARITY, odd)) {
         parity = HAL_UART_PARITY_ODD;
-    } else if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_PARITY, even)) {
+    } else if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_LL_PARITY, even)) {
         parity = HAL_UART_PARITY_EVEN;
     } else {
         parity = HAL_UART_PARITY_NONE;
     }
 
-    if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_FLOW_CONTROL, rtscts)) {
+    if (MYNEWT_VAL_CHOICE(BLE_TRANSPORT_UART_LL_FLOW_CONTROL, rtscts)) {
         flowctl = HAL_UART_FLOW_CTL_RTS_CTS;
     } else {
         flowctl = HAL_UART_FLOW_CTL_NONE;
     }
 
-    rc = hal_uart_config(MYNEWT_VAL(BLE_TRANSPORT_UART_PORT),
-                         MYNEWT_VAL(BLE_TRANSPORT_UART_BAUDRATE),
-                         MYNEWT_VAL(BLE_TRANSPORT_UART_DATA_BITS),
-                         MYNEWT_VAL(BLE_TRANSPORT_UART_STOP_BITS),
+    rc = hal_uart_config(MYNEWT_VAL(BLE_TRANSPORT_UART_LL_PORT),
+                         MYNEWT_VAL(BLE_TRANSPORT_UART_LL_BAUDRATE),
+                         MYNEWT_VAL(BLE_TRANSPORT_UART_LL_DATA_BITS),
+                         MYNEWT_VAL(BLE_TRANSPORT_UART_LL_STOP_BITS),
                          parity, flowctl);
     if (rc != 0) {
         return -1;
@@ -192,7 +192,7 @@ ble_transport_to_ll_cmd_impl(void *buf)
     STAILQ_INSERT_TAIL(&tx_q, txe, tx_q_next);
     OS_EXIT_CRITICAL(sr);
 
-    hal_uart_start_tx(MYNEWT_VAL(BLE_TRANSPORT_UART_PORT));
+    hal_uart_start_tx(MYNEWT_VAL(BLE_TRANSPORT_UART_LL_PORT));
 
     return 0;
 }
@@ -220,7 +220,7 @@ ble_transport_to_ll_acl_impl(struct os_mbuf *om)
     STAILQ_INSERT_TAIL(&tx_q, txe, tx_q_next);
     OS_EXIT_CRITICAL(sr);
 
-    hal_uart_start_tx(MYNEWT_VAL(BLE_TRANSPORT_UART_PORT));
+    hal_uart_start_tx(MYNEWT_VAL(BLE_TRANSPORT_UART_LL_PORT));
 
     return 0;
 }
