@@ -22,7 +22,7 @@ pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
   - ble
   - bluetooth
-  - pacs
+  - bass
   - nimble
 
 pkg.deps:
