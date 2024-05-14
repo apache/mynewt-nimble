@@ -18,7 +18,7 @@
 syscfg.defs:
     BLE_SVC_AUDIO_BASS_SYSINIT_STAGE:
         description: >
-            Sysinit stage for Published Audio Capabilities Service.
+            Sysinit stage for Broadcast Audio Scan Service.
         value: 303
     BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX:
         description: >
