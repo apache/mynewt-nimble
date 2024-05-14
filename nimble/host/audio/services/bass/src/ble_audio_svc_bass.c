@@ -861,7 +861,9 @@ ble_svc_audio_bass_init(void)
 
     ble_svc_audio_bass_chrs[0].uuid = bass_cp_uuid;
     ble_svc_audio_bass_chrs[0].access_cb = ble_svc_audio_bass_access;
-    ble_svc_audio_bass_chrs[0].flags = BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_WRITE_ENC;
+    ble_svc_audio_bass_chrs[0].flags = BLE_GATT_CHR_F_WRITE_NO_RSP |
+                                       BLE_GATT_CHR_F_WRITE |
+                                       BLE_GATT_CHR_F_WRITE_ENC;
 
     for (i = 1; i <= MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX); i++) {
         ble_svc_audio_bass_chrs[i].uuid = bass_receive_state_uuid;
