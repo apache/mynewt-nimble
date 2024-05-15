@@ -334,6 +334,8 @@ int ble_gattc_exchange_mtu(uint16_t conn_handle,
  *                                  updates; null for no callback.
  * @param cb_arg                The optional argument to pass to the callback
  *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_disc_all_svcs(uint16_t conn_handle,
                             ble_gatt_disc_svc_fn *cb, void *cb_arg);
@@ -637,6 +639,8 @@ int ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
  *                                  updates; null for no callback.
  * @param cb_arg                The optional argument to pass to the callback
  *                                  function.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_write_reliable(uint16_t conn_handle,
                              struct ble_gatt_attr *attrs,
@@ -686,7 +690,15 @@ int ble_gatts_notify_multiple_custom(uint16_t conn_handle,
                                      struct ble_gatt_notif *tuples);
 
 /**
- * Deprecated. Should not be used. Use ble_gatts_notify_custom instead.
+ * @deprecated Should not be used. Use ble_gatts_notify_custom instead.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param att_handle            The attribute handle to indicate in the
+ *                                  outgoing notification.
+ * @param om                    The value to write to the characteristic.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
                             struct os_mbuf *om);
@@ -706,7 +718,15 @@ int ble_gattc_notify_custom(uint16_t conn_handle, uint16_t att_handle,
 int ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 
 /**
- * Deprecated. Should not be used. Use ble_gatts_notify instead.
+ * @deprecated Should not be used. Use ble_gatts_notify instead.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The value attribute handle of the
+ *                                  characteristic to include in the outgoing
+ *                                  notification.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle);
 
@@ -752,8 +772,18 @@ int ble_gatts_notify_multiple(uint16_t conn_handle,
  */
 int ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                               struct os_mbuf *txom);
+
 /**
- * Deprecated. Should not be used. Use ble_gatts_indicate_custom instead.
+ * @deprecated Should not be used. Use ble_gatts_indicate_custom instead.
+ *
+ * @param conn_handle           The connection over which to execute the
+ *                                  procedure.
+ * @param chr_val_handle        The value attribute handle of the
+ *                                  characteristic to include in the outgoing
+ *                                  indication.
+ * @param txom                  The data to include in the indication.
+ *
+ * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                               struct os_mbuf *txom);
@@ -773,11 +803,16 @@ int ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
 int ble_gatts_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
 /**
- * Deprecated. Should not be used. Use ble_gatts_indicate instead.
+ * @deprecated Should not be used. Use ble_gatts_indicate instead.
+ * @copydoc ble_gatts_indicate
  */
 int ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle);
 
-/** Initialize the BLE GATT client. */
+/**
+ * Initialize the BLE GATT client
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
 int ble_gattc_init(void);
 
 /*** @server. */
