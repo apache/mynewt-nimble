@@ -121,49 +121,49 @@ struct ble_hs_cfg;
  * @{
  */
 
-/** GATT Characteristic Flag: Broadcast. */
+/** GATT Characteristic Flag: Broadcast property. */
 #define BLE_GATT_CHR_F_BROADCAST                        0x0001
 
-/** GATT Characteristic Flag: Read. */
+/** GATT Characteristic Flag: Read property. */
 #define BLE_GATT_CHR_F_READ                             0x0002
 
-/** GATT Characteristic Flag: Write without Response. */
+/** GATT Characteristic Flag: Write without Response property. */
 #define BLE_GATT_CHR_F_WRITE_NO_RSP                     0x0004
 
-/** GATT Characteristic Flag: Write. */
+/** GATT Characteristic Flag: Write property. */
 #define BLE_GATT_CHR_F_WRITE                            0x0008
 
-/** GATT Characteristic Flag: Notify. */
+/** GATT Characteristic Flag: Notify property. */
 #define BLE_GATT_CHR_F_NOTIFY                           0x0010
 
-/** GATT Characteristic Flag: Indicate. */
+/** GATT Characteristic Flag: Indicate property. */
 #define BLE_GATT_CHR_F_INDICATE                         0x0020
 
-/** GATT Characteristic Flag: Authenticated Signed Writes. */
+/** GATT Characteristic Flag: Authenticated Signed Writes property. */
 #define BLE_GATT_CHR_F_AUTH_SIGN_WRITE                  0x0040
 
-/** GATT Characteristic Flag: Reliable Writes. */
+/** GATT Characteristic Flag: Reliable Writes property. */
 #define BLE_GATT_CHR_F_RELIABLE_WRITE                   0x0080
 
-/** GATT Characteristic Flag: Auxiliary Writes. */
+/** GATT Characteristic Flag: Auxiliary Writes permission. */
 #define BLE_GATT_CHR_F_AUX_WRITE                        0x0100
 
-/** GATT Characteristic Flag: Read Encrypted. */
+/** GATT Characteristic Flag: Read Encrypted permission. */
 #define BLE_GATT_CHR_F_READ_ENC                         0x0200
 
-/** GATT Characteristic Flag: Read Authenticated. */
+/** GATT Characteristic Flag: Read Authenticated permission. */
 #define BLE_GATT_CHR_F_READ_AUTHEN                      0x0400
 
-/** GATT Characteristic Flag: Read Authorized. */
+/** GATT Characteristic Flag: Read Authorized permission. */
 #define BLE_GATT_CHR_F_READ_AUTHOR                      0x0800
 
-/** GATT Characteristic Flag: Write Encrypted. */
+/** GATT Characteristic Flag: Write Encrypted permission. */
 #define BLE_GATT_CHR_F_WRITE_ENC                        0x1000
 
-/** GATT Characteristic Flag: Write Authenticated. */
+/** GATT Characteristic Flag: Write Authenticated permission. */
 #define BLE_GATT_CHR_F_WRITE_AUTHEN                     0x2000
 
-/** GATT Characteristic Flag: Write Authorized. */
+/** GATT Characteristic Flag: Write Authorized permission. */
 #define BLE_GATT_CHR_F_WRITE_AUTHOR                     0x4000
 
 
