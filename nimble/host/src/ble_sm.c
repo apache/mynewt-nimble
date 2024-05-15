@@ -2873,7 +2873,7 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
     int rc;
 
     handle = ble_l2cap_get_conn_handle(chan);
-    if (!handle) {
+    if (handle == BLE_HS_CONN_HANDLE_NONE) {
         return BLE_HS_ENOTCONN;
     }
 
