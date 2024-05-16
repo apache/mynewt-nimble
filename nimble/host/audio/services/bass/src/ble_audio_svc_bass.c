@@ -408,7 +408,6 @@ done:
     if (!rc) {
         rc = ble_svc_audio_bass_receive_state_notify(rcv_state);
         ev.bass_operation_status.status = rc;
-        goto done;
     }
 
     ble_audio_event_listener_call(&ev);
