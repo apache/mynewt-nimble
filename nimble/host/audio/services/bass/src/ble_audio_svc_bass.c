@@ -385,7 +385,7 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
 
     ev.bass_operation_status.source_id = rcv_state->source_id;
     rcv_state->state.source_addr.type = operation.add_source.adv_addr.type;
-    memcpy(&rcv_state->state.source_addr.type, operation.add_source.adv_addr.val, 6);
+    memcpy(&rcv_state->state.source_addr.val, operation.add_source.adv_addr.val, 6);
     rcv_state->state.source_adv_sid = operation.add_source.adv_sid;
     rcv_state->state.broadcast_id = operation.add_source.broadcast_id;
 
@@ -514,7 +514,6 @@ done:
     if (!rc) {
         rc = ble_svc_audio_bass_receive_state_notify(rcv_state);
         ev.bass_operation_status.status = rc;
-        goto done;
     }
 
     ble_audio_event_listener_call(&ev);
@@ -549,7 +548,7 @@ static int
 ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
     struct ble_audio_event ev = {
-        .type = BLE_AUDIO_EVENT_BASS_BROADCAST_CODE_SET,
+        .type = BLE_AUDIO_EVENT_BASS_OPERATION_STATUS,
         .bass_operation_status = {
             .op = BLE_AUDIO_EVENT_BASS_SOURCE_REMOVED,
             .status = 0
@@ -557,6 +556,7 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
     };
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
     struct ble_svc_audio_bass_operation operation;
+    uint16_t chr_val;
     int rc = 0;
     int i;
 
@@ -569,6 +569,8 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
         ev.bass_operation_status.status = BLE_HS_ENOENT;
         goto done;
     }
+
+    chr_val = rcv_state->chr_val;
 
     operation.remove_source.source_id = ev.bass_operation_status.source_id;
     operation.conn_handle = conn_handle;
@@ -587,12 +589,12 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
 
     memset(rcv_state, 0, sizeof(*rcv_state));
     rcv_state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
+    rcv_state->chr_val = chr_val;
 
 done:
     if (!rc) {
         rc = ble_svc_audio_bass_receive_state_notify(rcv_state);
         ev.bass_operation_status.status = rc;
-        goto done;
     }
 
     ble_audio_event_listener_call(&ev);
