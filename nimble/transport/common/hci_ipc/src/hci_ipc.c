@@ -26,6 +26,14 @@
 #include <nimble/transport.h>
 #include <nimble/transport/hci_ipc.h>
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 volatile struct hci_ipc_shm *g_ipc_shm;
 
 static void
