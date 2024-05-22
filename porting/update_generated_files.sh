@@ -37,9 +37,10 @@ for target in "${!targets[@]}"; do
     rm -rf "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include/logcfg"
     rm -rf "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include/sysflash"
     cp "bin/@apache-mynewt-nimble/porting/targets/${target}/generated/include" "${targets[$target]}" -r
-    # Remove repo version and hash MYNEWT_VALS as it doesn't make much sense to commit them and they
-    # defeat the purpose of this script.
+    # Remove all comments and hash MYNEWT_VALS as it doesn't make much sense to commit them and they
+    # defeat the purpose of this script. Prepend the license header.
     find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '/MYNEWT_VAL_REPO_*/,/#endif/d' {} \;
-    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '/\/\*\*\* Repository/,/\*\//d' {} \;
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i -E ':a;N;$!ba;s:/\*([^*]|(\*+([^*/])))*\*+/::g' {} \;
     find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '$!N;/^\n$/{$q;D;};P;D;' {} \;
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sh -c 'cat "$0" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' "../.github/LICENSE_TEMPLATE" {} \;
 done
