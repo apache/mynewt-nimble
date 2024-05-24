@@ -73,7 +73,6 @@ static struct os_mempool ble_eatt_sdu_mbuf_mempool;
 static struct ble_gap_event_listener ble_eatt_listener;
 
 static struct ble_npl_event g_read_sup_cl_feat_ev;
-static struct ble_npl_event g_read_sup_srv_feat_ev;
 
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
 static void ble_eatt_start(uint16_t conn_handle);
@@ -389,49 +388,6 @@ ble_gatt_eatt_read_cl_uuid_cb(uint16_t conn_handle,
     return BLE_HS_EDONE;
 }
 
-static int
-ble_gatt_eatt_read_uuid_cb(uint16_t conn_handle,
-                           const struct ble_gatt_error *error,
-                           struct ble_gatt_attr *attr, void *arg)
-{
-    uint8_t supported_features;
-    int rc;
-
-    if (error == NULL || (error->status != 0 && error->status != BLE_HS_EDONE)) {
-        BLE_EATT_LOG_DEBUG("eatt: Cannot find Server Supported features on peer device\n");
-        return BLE_HS_EDONE;
-    }
-
-    if (attr == NULL) {
-        BLE_EATT_LOG_ERROR("eatt: Invalid attribute \n");
-        return BLE_HS_EDONE;
-    }
-
-    rc = os_mbuf_copydata(attr->om, 0, 1, &supported_features);
-    if (rc) {
-        BLE_EATT_LOG_ERROR("eatt: Cannot read srv supported features \n");
-        return BLE_HS_EDONE;
-    }
-
-    if (supported_features & 0x01) {
-        ble_npl_event_set_arg(&g_read_sup_cl_feat_ev, UINT_TO_POINTER(conn_handle));
-        ble_npl_eventq_put(ble_hs_evq_get(), &g_read_sup_cl_feat_ev);
-    }
-    return BLE_HS_EDONE;
-}
-
-static void
-ble_gatt_eatt_read_svr_uuid(struct ble_npl_event *ev)
-{
-    uint16_t conn_handle;
-
-    conn_handle = POINTER_TO_UINT(ble_npl_event_get_arg(ev));
-
-    ble_gattc_read_by_uuid(conn_handle, 1, 0xffff,
-                           BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_SERVER_SUPPORTED_FEAT_UUID16),
-                           ble_gatt_eatt_read_uuid_cb, NULL);
-}
-
 static void
 ble_gatt_eatt_read_cl_uuid(struct ble_npl_event *ev)
 {
@@ -463,8 +419,8 @@ ble_eatt_gap_event(struct ble_gap_event *event, void *arg)
         BLE_EATT_LOG_DEBUG("eatt: Encryption enabled, connecting EATT (conn_handle=0x%04x)\n",
                             event->enc_change.conn_handle);
 
-        ble_npl_event_set_arg(&g_read_sup_srv_feat_ev, UINT_TO_POINTER(event->enc_change.conn_handle));
-        ble_npl_eventq_put(ble_hs_evq_get(), &g_read_sup_srv_feat_ev);
+        ble_npl_event_set_arg(&g_read_sup_cl_feat_ev, UINT_TO_POINTER(event->enc_change.conn_handle));
+        ble_npl_eventq_put(ble_hs_evq_get(), &g_read_sup_cl_feat_ev);
 
         break;
     case BLE_GAP_EVENT_DISCONNECT:
@@ -591,7 +547,6 @@ ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
     ble_gap_event_listener_register(&ble_eatt_listener, ble_eatt_gap_event, NULL);
     ble_l2cap_create_server(BLE_EATT_PSM, MYNEWT_VAL(BLE_EATT_MTU), ble_eatt_l2cap_event_fn, NULL);
 
-    ble_npl_event_init(&g_read_sup_srv_feat_ev, ble_gatt_eatt_read_svr_uuid, NULL);
     ble_npl_event_init(&g_read_sup_cl_feat_ev, ble_gatt_eatt_read_cl_uuid, NULL);
 
     ble_eatt_att_rx_cb = att_rx_cb;
