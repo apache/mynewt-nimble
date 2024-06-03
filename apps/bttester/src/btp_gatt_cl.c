@@ -1392,6 +1392,7 @@ read_var_cb(uint16_t conn_handle,
         rp->data_length = 0;
         tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_READ_MULTIPLE_VAR_RP,
                      rp, sizeof(*rp));
+        return 0;
     }
 
     for (int i = 0; i < num_attrs; i++) {
