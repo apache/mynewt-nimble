@@ -35,6 +35,7 @@ void ble_ll_cs_capabilities_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dpt
 void ble_ll_cs_config_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
 void ble_ll_cs_security_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
 void ble_ll_cs_start_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_terminate_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
 
 int ble_ll_cs_rx_capabilities_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
 void ble_ll_cs_rx_capabilities_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
@@ -52,6 +53,9 @@ int ble_ll_cs_rx_cs_start_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint
 int ble_ll_cs_rx_cs_start_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
 int ble_ll_cs_rx_cs_start_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
 void ble_ll_cs_rx_cs_start_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_cs_terminate_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_cs_terminate_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_cs_terminate_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
 
 /* HCI handlers */
 int ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen);
