@@ -1289,7 +1289,16 @@ ble_ll_cs_hci_proc_enable(const uint8_t *cmdbuf, uint8_t cmdlen)
         /* Start scheduling CS procedures */
         ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_START, NULL);
     } else {
-        /* TODO: Terminate the CS measurement early */
+        if (!connsm->cssm->measurement_enabled) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+
+        connsm->cssm->terminate_measurement = 1;
+        connsm->cssm->terminate_config_id = cmd->config_id;
+        connsm->cssm->terminate_error_code = BLE_ERR_SUCCESS;
+
+        /* Terminate the CS measurement early */
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE, NULL);
     }
 
     return BLE_ERR_SUCCESS;
@@ -1737,6 +1746,69 @@ ble_ll_cs_rx_cs_start_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
 {
     /* Stop the control procedure and send an event to the host */
     ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_START);
+    ble_ll_cs_ev_cs_proc_enable_complete(connsm, connsm->cssm->config_req_id, ble_error);
+}
+
+void
+ble_ll_cs_terminate_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+    uint8_t config_id = cssm->terminate_config_id;
+
+    assert(config_id < ARRAY_SIZE(cssm->config));
+
+    *dptr = config_id;
+    put_le16(dptr + 1, cssm->procedure_count);
+    dptr[3] = cssm->terminate_error_code;
+}
+
+int
+ble_ll_cs_rx_cs_terminate_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                              uint8_t *rspbuf)
+{
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+    uint8_t config_id = *dptr & 0b00111111;
+
+    if (config_id >= ARRAY_SIZE(cssm->config)) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_TERMINATE_REQ,
+                                     BLE_ERR_INV_LMP_LL_PARM, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    cssm->terminate_measurement = 1;
+
+    *rspbuf = config_id;
+    put_le16(rspbuf + 1, cssm->procedure_count);
+    rspbuf[3] = BLE_ERR_SUCCESS;
+
+    return BLE_LL_CTRL_CS_TERMINATE_RSP;
+}
+
+void
+ble_ll_cs_rx_cs_terminate_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    struct ble_ll_cs_sm *cssm = connsm->cssm;
+    uint8_t config_id = *dptr & 0b00111111;
+    uint8_t error_code = dptr[3];
+
+    if (config_id != cssm->config_req_id ||
+        !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE)) {
+        return;
+    }
+
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE);
+
+    /* TODO: In d1.0r06 the LL_CS_TERMINATE_IND was replaced with
+     * LL_CS_TERMINATE_REQ/RSP, but not all descriptions and diagrams
+     * have been updated yet.
+     */
+    ble_ll_cs_ev_cs_proc_enable_complete(connsm, config_id, error_code);
+}
+
+void
+ble_ll_cs_rx_cs_terminate_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error)
+{
+    ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE);
     ble_ll_cs_ev_cs_proc_enable_complete(connsm, connsm->cssm->config_req_id, ble_error);
 }
 
