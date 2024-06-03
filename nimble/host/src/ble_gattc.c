@@ -3345,7 +3345,7 @@ ble_gattc_read_mult_cb_var(struct ble_gattc_proc *proc, int status,
         return 0;
     }
 
-    memset(attr, 0, sizeof(*attr));
+    memset(attr, 0, sizeof(attr));
 
     for (i = 0; i < proc->read_mult.num_handles; i++) {
         attr[i].handle = proc->read_mult.handles[i];
