@@ -410,6 +410,8 @@ ble_ll_cs_rx_security_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 
     ble_ll_cs_drbg_init(&connsm->cssm->drbg_ctx);
 
+    connsm->cssm->start_procedure_count = 0;
+
     return BLE_LL_CTRL_CS_SEC_RSP;
 }
 
@@ -453,6 +455,8 @@ ble_ll_cs_rx_security_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     memcpy(drbg_ctx->pv + 8, dptr + 12, 8);
 
     rc = ble_ll_cs_drbg_init(drbg_ctx);
+
+    connsm->cssm->start_procedure_count = 0;
 
     /* Stop the control procedure and send an event to the host */
     ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_SEC_START);
@@ -1758,7 +1762,7 @@ ble_ll_cs_terminate_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     assert(config_id < ARRAY_SIZE(cssm->config));
 
     *dptr = config_id;
-    put_le16(dptr + 1, cssm->procedure_count);
+    put_le16(dptr + 1, cssm->start_procedure_count + cssm->procedure_count);
     dptr[3] = cssm->terminate_error_code;
 }
 
@@ -1768,6 +1772,8 @@ ble_ll_cs_rx_cs_terminate_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 {
     struct ble_ll_cs_sm *cssm = connsm->cssm;
     uint8_t config_id = *dptr & 0b00111111;
+    uint16_t procedure_count = get_le16(dptr + 1);
+    struct ble_ll_cs_proc_params *params;
 
     if (config_id >= ARRAY_SIZE(cssm->config)) {
         ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_TERMINATE_REQ,
@@ -1775,10 +1781,19 @@ ble_ll_cs_rx_cs_terminate_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         return BLE_LL_CTRL_REJECT_IND_EXT;
     }
 
+    params = &cssm->config[config_id].proc_params;
+
+    if (procedure_count > cssm->start_procedure_count + params->max_procedure_count ||
+        procedure_count < cssm->start_procedure_count) {
+        ble_ll_ctrl_rej_ext_ind_make(BLE_LL_CTRL_CS_TERMINATE_REQ,
+                                     BLE_ERR_CMD_DISALLOWED, rspbuf);
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
     cssm->terminate_measurement = 1;
 
     *rspbuf = config_id;
-    put_le16(rspbuf + 1, cssm->procedure_count);
+    put_le16(rspbuf + 1, cssm->start_procedure_count + cssm->procedure_count);
     rspbuf[3] = BLE_ERR_SUCCESS;
 
     return BLE_LL_CTRL_CS_TERMINATE_RSP;
@@ -1790,10 +1805,19 @@ ble_ll_cs_rx_cs_terminate_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     struct ble_ll_cs_sm *cssm = connsm->cssm;
     uint8_t config_id = *dptr & 0b00111111;
     uint8_t error_code = dptr[3];
+    uint16_t procedure_count = get_le16(dptr + 1);
+    uint16_t total_procedure_count;
 
     if (config_id != cssm->config_req_id ||
         !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE)) {
         return;
+    }
+
+    total_procedure_count = cssm->start_procedure_count + cssm->procedure_count;
+    if (total_procedure_count < procedure_count) {
+        cssm->start_procedure_count = procedure_count;
+    } else {
+        cssm->start_procedure_count = total_procedure_count;
     }
 
     ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CS_TERMINATE);
