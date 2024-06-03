@@ -397,8 +397,11 @@ ble_ll_cs_proc_subevent_next_state(struct ble_ll_cs_sm *cssm)
             ble_ll_cs_setup_next_event(cssm);
             break;
         case CS_SCHEDULE_NEW_PROCEDURE:
-            if (conf->proc_params.max_procedure_count <= cssm->procedure_count + 1) {
-                /* All CS procedures have been completed */
+            if (conf->proc_params.max_procedure_count <= cssm->procedure_count + 1 ||
+                cssm->terminate_measurement) {
+                /* All CS procedures have been completed or
+                 * the CS procedure repeat series has been terminated.
+                 */
                 return 1;
             }
 
