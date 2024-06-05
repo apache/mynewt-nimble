@@ -84,6 +84,9 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 #define SUBEVENT_ABORT_LIMITED_RESOURCES    (0x03)
 #define SUBEVENT_ABORT_UNSPECIFIED          (0x0F)
 
+/* Complement to full byte (4 bits) + header (16 bits) + CRC (24 bits) */
+#define BSIM_PACKET_OVERHEAD 4 + 16 + 24;
+
 static struct ble_ll_cs_aci aci_table[] = {
     {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
     {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
@@ -123,6 +126,10 @@ ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm)
     }
 
     cssm->channel = channel_array[(*next_channel_id)++];
+
+#if BABBLESIM
+    cssm->channel %= 40;
+#endif
 
     return 0;
 }
@@ -628,6 +635,14 @@ ble_ll_cs_proc_calculate_timing(struct ble_ll_cs_sm *cssm)
 
     cssm->procedure_interval_usecs = params->procedure_interval * cssm->connsm->conn_itvl *
                                      BLE_LL_CONN_ITVL_USECS;
+
+#if BABBLESIM
+    cssm->mode0_step_duration_usecs += BSIM_PACKET_OVERHEAD;
+    cssm->mode1_step_duration_usecs += BSIM_PACKET_OVERHEAD;
+    cssm->mode2_step_duration_usecs += BSIM_PACKET_OVERHEAD;
+    cssm->mode3_step_duration_usecs += BSIM_PACKET_OVERHEAD;
+#endif
+
     return 0;
 }
 
@@ -949,6 +964,10 @@ ble_ll_cs_proc_mode0_next_state(struct ble_ll_cs_sm *cssm)
     uint8_t t_fcs = cssm->active_config->t_fcs;
     uint8_t t_sy = cssm->t_sy;
 
+#if BABBLESIM
+    t_sy += BSIM_PACKET_OVERHEAD;
+#endif
+
     switch (state) {
     case STEP_STATE_INIT:
         state = STEP_STATE_CS_SYNC_I;
@@ -988,6 +1007,10 @@ ble_ll_cs_proc_mode1_next_state(struct ble_ll_cs_sm *cssm)
     uint8_t t_ip1 = cssm->active_config->t_ip1;
     uint8_t t_fcs = cssm->active_config->t_fcs;
     uint8_t t_sy = cssm->t_sy + cssm->t_sy_seq;
+
+#if BABBLESIM
+    t_sy += BSIM_PACKET_OVERHEAD;
+#endif
 
     switch (state) {
     case STEP_STATE_INIT:
@@ -1078,6 +1101,10 @@ ble_ll_cs_proc_mode3_next_state(struct ble_ll_cs_sm *cssm)
     uint8_t t_fcs = cssm->active_config->t_fcs;
     uint8_t t_sy = cssm->t_sy + cssm->t_sy_seq;
     uint8_t t_pm = cssm->active_config->t_pm;
+
+#if BABBLESIM
+    t_sy += BSIM_PACKET_OVERHEAD;
+#endif
 
     switch (state) {
     case STEP_STATE_INIT:
