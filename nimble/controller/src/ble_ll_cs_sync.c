@@ -173,7 +173,11 @@ ble_ll_cs_sync_rx_start(struct ble_ll_cs_sm *cssm)
     rc = ble_phy_rx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
                                    sch->remainder);
 
-    if (rc) {
+    /* Accept the risk of being late just for testing
+     * with slower clocks without increasing the T_RD.
+     * The nRF52 is too slow for this CS ping pong.
+     */
+    if (rc && rc != BLE_PHY_ERR_RX_LATE) {
         ble_ll_cs_proc_sync_lost(cssm);
         return 1;
     }

@@ -97,6 +97,10 @@ ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm)
 
     cssm->channel = channel_array[(*next_channel_id)++];
 
+#if BABBLESIM
+    cssm->channel %= 40;
+#endif
+
     return 0;
 }
 
