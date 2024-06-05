@@ -162,6 +162,11 @@ struct ble_phy_obj
 
     uint16_t txtx_time_us;
     uint8_t txtx_time_anchor;
+    uint8_t phy_cs_timer;
+    uint32_t txend_time_us;
+    uint32_t txend_time_ns;
+    uint32_t rxend_time_us;
+    uint32_t rxend_time_ns;
 };
 static struct ble_phy_obj g_ble_phy_data;
 
@@ -1076,6 +1081,12 @@ ble_phy_tx_end_isr(void)
 #endif
     transition = g_ble_phy_data.phy_transition;
 
+    if (g_ble_phy_data.phy_cs_timer == BLE_PHY_CS_TIMER_START) {
+        phy_ppi_radio_address_to_timer3_start_disable();
+    } else if (g_ble_phy_data.phy_cs_timer == BLE_PHY_CS_TIMER_CAPTURE) {
+        phy_ppi_radio_address_to_timer3_capture0_disable();
+    }
+
     if (g_ble_phy_data.txend_cb) {
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
@@ -1261,6 +1272,8 @@ ble_phy_rx_end_isr(void)
     ble_phy_mode_apply(g_ble_phy_data.phy_tx_phy_mode);
 #endif
 
+    g_ble_phy_data.rxend_time_us = NRF_TIMER0->CC[2] - g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
+
     /*
      * Let's schedule TX now and we will just cancel it after processing RXed
      * packet if we don't need TX.
@@ -1443,6 +1456,12 @@ ble_phy_rx_start_isr(void)
             BLE_DEV_ADDR_LEN) * 8 + g_ble_phy_data.phy_bcc_offset);
     }
 #endif
+
+    if (g_ble_phy_data.phy_cs_timer == BLE_PHY_CS_TIMER_START) {
+        phy_ppi_radio_address_to_timer3_start_disable();
+    } else if (g_ble_phy_data.phy_cs_timer == BLE_PHY_CS_TIMER_CAPTURE) {
+        phy_ppi_radio_address_to_timer3_capture0_disable();
+    }
 
     /* Call Link Layer receive start function */
     rc = ble_ll_rx_start(dptr + 3,
@@ -2354,4 +2373,78 @@ ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
 {
     g_ble_phy_data.txtx_time_us = usecs;
     g_ble_phy_data.txtx_time_anchor = anchor;
+}
+
+void
+ble_phy_get_txend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns)
+{
+    *cputime = g_ble_phy_data.phy_start_cputime;
+    *rem_us = g_ble_phy_data.txend_time_us;
+    *rem_ns = g_ble_phy_data.txend_time_ns;
+}
+
+void
+ble_phy_get_rxend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns)
+{
+    *cputime = g_ble_phy_data.phy_start_cputime;
+    *rem_us = g_ble_phy_data.rxend_time_us;
+    *rem_ns = g_ble_phy_data.rxend_time_ns;
+}
+
+uint32_t
+ble_phy_cs_timer_read(void)
+{
+    return NRF_TIMER3->CC[0];
+}
+
+void
+ble_phy_cs_sync_mode_set(uint8_t mode)
+{
+#if !BABBLESIM
+    if (mode == 0) {
+        /* Configure back the registers */
+        NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
+        NRF_RADIO->PCNF0 = NRF_PCNF0;
+    } else {
+        /* CS SYNC packet has no PDU or CRC */
+        NRF_RADIO->CRCCNF = 0;
+        NRF_RADIO->PCNF0 = NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos;
+    }
+#endif
+}
+
+int
+ble_phy_tx_cs_sync(ble_phy_tx_cs_sync_cb_t pktcb, void *pktcb_arg)
+{
+    int rc;
+
+    /* Temporary, for babblesim testing */
+    rc = ble_phy_tx(pktcb, pktcb_arg, BLE_PHY_TRANSITION_NONE);
+    /* TODO: Adjustments for CS SYNC packet:
+     * - Turn off CRC
+     * - set 4 bits in S1
+     */
+    return rc;
+}
+
+int
+ble_phy_cs_sync_configure(uint8_t chan, uint32_t access_addr, uint8_t cs_timer)
+{
+//    int rc;
+
+    ble_phy_setchan(chan, access_addr, 0);
+
+    if (cs_timer == BLE_PHY_CS_TIMER_START) {
+        /* Measure time between ADDRESS events of TX and RX CS_SYNCs */
+        nrf_timer_task_trigger(NRF_TIMER3, NRF_TIMER_TASK_CLEAR);
+        phy_ppi_radio_address_to_timer3_start_enable();
+    } else if (cs_timer == BLE_PHY_CS_TIMER_CAPTURE) {
+        /* Prepare to catch the time of ADDRESS event of TX CS_SYNC. */
+        nrf_timer_cc_set(NRF_TIMER3, 0, 8);
+        phy_ppi_radio_address_to_timer3_capture0_enable();
+    }
+
+    g_ble_phy_data.phy_cs_timer = cs_timer;
+
+    return 0;
 }
