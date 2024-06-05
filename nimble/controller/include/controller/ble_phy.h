@@ -78,6 +78,10 @@ struct os_mbuf;
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
 
+#define BLE_PHY_CS_TIMER_NONE       (0)
+#define BLE_PHY_CS_TIMER_START      (1)
+#define BLE_PHY_CS_TIMER_CAPTURE    (2)
+
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
 
@@ -234,6 +238,14 @@ static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
 
     return phy_mode;
 }
+
+void ble_phy_get_txend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns);
+void ble_phy_get_rxend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns);
+typedef uint8_t (*ble_phy_tx_cs_sync_cb_t)(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte);
+uint32_t ble_phy_cs_timer_read(void);
+void ble_phy_cs_sync_mode_set(uint8_t mode);
+int ble_phy_tx_cs_sync(ble_phy_tx_cs_sync_cb_t pktcb, void *pktcb_arg);
+int ble_phy_cs_sync_configure(uint8_t chan, uint32_t access_addr, uint8_t cs_timer);
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 void ble_phy_enable_dtm(void);
