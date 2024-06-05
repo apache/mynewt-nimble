@@ -47,7 +47,9 @@ ble_ll_cs_tone_tx_start(struct ble_ll_cs_sm *cssm)
 {
     /* TODO: Start TX of CS tones */
 
-    return 0;
+    cssm->anchor_usecs += cssm->duration_usecs;
+
+    return ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 }
 
 int
@@ -55,7 +57,9 @@ ble_ll_cs_tone_rx_start(struct ble_ll_cs_sm *cssm)
 {
     /* TODO: Start RX of CS tones */
 
-    return 0;
+    cssm->anchor_usecs += cssm->duration_usecs;
+
+    return ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 }
 
 /**
