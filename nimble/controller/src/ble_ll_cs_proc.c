@@ -74,6 +74,9 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 /* The requency measurement period in µs */
 #define T_FM (80)
 
+/* Complement to full byte (4 bits) + header (16 bits) + CRC (24 bits) */
+#define BSIM_PACKET_OVERHEAD 4 + 16 + 24;
+
 static struct ble_ll_cs_aci aci_table[] = {
     {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
     {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
@@ -660,6 +663,14 @@ ble_ll_cs_proc_calculate_timing(struct ble_ll_cs_sm *cssm)
 
     cssm->procedure_interval_usecs = params->procedure_interval * cssm->connsm->conn_itvl *
                                      BLE_LL_CONN_ITVL_USECS;
+
+#if BABBLESIM
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE0] += BSIM_PACKET_OVERHEAD;
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE1] += BSIM_PACKET_OVERHEAD;
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE2] += BSIM_PACKET_OVERHEAD;
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE3] += BSIM_PACKET_OVERHEAD;
+#endif
+
     return 0;
 }
 
@@ -668,6 +679,10 @@ ble_ll_cs_proc_step_state_duration_get(uint8_t state, uint8_t mode,
                                        uint8_t t_sy, uint8_t t_sy_seq)
 {
     uint32_t duration = 0;
+
+#if BABBLESIM
+    t_sy += BSIM_PACKET_OVERHEAD;
+#endif
 
     switch (state) {
     case STEP_STATE_CS_SYNC_I:
@@ -855,6 +870,12 @@ ble_ll_cs_proc_sched_cb_get(uint8_t role, uint8_t step_state)
     default:
         BLE_LL_ASSERT(0);
     }
+
+#if BABBLESIM
+    if (cb == ble_ll_cs_tone_tx_start || cb == ble_ll_cs_tone_rx_start) {
+        cb = ble_ll_cs_proc_skip_txrx;
+    }
+#endif
 
     return cb;
 }
