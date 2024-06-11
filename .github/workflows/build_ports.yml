@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
              sudo apt-get update
-             sudo apt-get install -y make ccache gcc-multilib g++-multilib
+             sudo apt-get install -y make ccache gcc-multilib g++-multilib kconfig-frontends
       - name: Build example ports
         shell: bash
         run: |
@@ -52,3 +52,14 @@ jobs:
              sed -i 's|PKG_URL.*|PKG_URL = '$(pwd)'|' RIOT/pkg/nimble/Makefile
              sed -i 's|PKG_VERSION.*|PKG_VERSION = '${{ github.sha }}'|' RIOT/pkg/nimble/Makefile
              make -C RIOT/examples/nimble_gatt
+      - name: Build Nuttx port
+        shell: bash
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+             mkdir nuttx-build
+             git clone --depth=1 https://github.com/apache/nuttx.git nuttx-build/nuttx
+             git clone --depth=1 https://github.com/apache/nuttx-apps nuttx-build/apps
+             ./nuttx-build/nuttx/tools/configure.sh -l nrf52840-dk:sdc_nimble
+             sed -i 's|CONFIG_NIMBLE_REF :=.*|CONFIG_NIMBLE_REF := ${{ github.sha }}|' nuttx-build/apps/wireless/bluetooth/nimble/Makefile
+             make -C nuttx-build/nuttx
