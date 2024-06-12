@@ -2154,6 +2154,111 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
 }
 
 int
+ble_att_svr_rx_signed_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_SIGNED_WRITE)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct ble_att_signed_write_cmd *req;
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_gap_conn_desc desc;
+    uint8_t att_err;
+    uint16_t handle;
+    uint8_t sign[12];
+    uint8_t cmac[16];
+    uint8_t *message = NULL;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc != 0) {
+        goto err;
+    }
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = desc.peer_id_addr;
+
+    /* Getting the CSRK for authentication */
+    rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+    if (rc != 0) {
+        goto err;
+    }
+    if (value_sec.csrk_present != 1) {
+        rc = BLE_HS_EAUTHEN;
+        goto err;
+    }
+
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
+    if (rc != 0) {
+        return rc;
+    }
+
+    req = (struct ble_att_signed_write_cmd *)(*rxom)->om_data;
+
+    handle = le16toh(req->handle);
+
+    /* Strip the request base from the front of the mbuf. */
+    os_mbuf_adj(*rxom, sizeof(*req));
+
+    os_mbuf_copydata(*rxom,
+                    OS_MBUF_PKTLEN(*rxom) - (BLE_ATT_SIGNED_WRITE_CMD_BASE_SZ - BLE_ATT_SIGNED_WRITE_DATA_OFFSET),
+                    BLE_ATT_SIGNED_WRITE_CMD_BASE_SZ - BLE_ATT_SIGNED_WRITE_DATA_OFFSET,
+                    sign);
+
+    /* Strip the signature from the end of the mbuf. */
+    os_mbuf_adj(*rxom, -(BLE_ATT_SIGNED_WRITE_CMD_BASE_SZ - BLE_ATT_SIGNED_WRITE_DATA_OFFSET));
+
+    /* Authentication procedure */
+    message = malloc(OS_MBUF_PKTLEN(*rxom) + sizeof(value_sec.sign_counter));
+    os_mbuf_copydata(*rxom, 0, OS_MBUF_PKTLEN(*rxom), message);
+    memcpy(&message[OS_MBUF_PKTLEN(*rxom)], &value_sec.sign_counter, sizeof(value_sec.sign_counter));
+
+    /* Converting message into little endian format */
+    swap_in_place(message, OS_MBUF_PKTLEN(*rxom) + sizeof(value_sec.sign_counter));
+
+    /* Using AES-CMAC to get the CMAC from the message and CSRK of this device */
+    memset(cmac, 0, sizeof cmac);
+    rc = ble_sm_alg_aes_cmac(value_sec.csrk, message, OS_MBUF_PKTLEN(*rxom) + sizeof(value_sec.sign_counter), cmac);
+    if (rc != 0) {
+        goto err;
+    }
+
+    /* Converting cmac to little endian */
+    swap_in_place(cmac, sizeof cmac);
+
+    /* Comparing sign counter */
+    if(memcmp(sign, &value_sec.sign_counter, sizeof(value_sec.sign_counter)) != 0) {
+        rc = BLE_HS_EAUTHEN;
+        goto err;
+    }
+
+    /* Comparing signature */
+    if(memcmp(&sign[sizeof(value_sec.sign_counter)], &cmac[sizeof(cmac) / 2], sizeof(cmac) / 2) != 0) {
+        rc = BLE_HS_EAUTHEN;
+        goto err;
+    }
+
+    /* Signature matches, increment sign counter and pass the data to the upper layer */
+    rc = ble_sm_incr_peer_sign_counter(conn_handle);
+    if (rc != 0) {
+        goto err;
+    }
+
+    rc = ble_att_svr_write_handle(conn_handle, handle, 0, rxom, &att_err);
+    if (rc != 0) {
+        goto err;
+    }
+
+    if(message != NULL) free(message);
+    return 0;
+err:
+    if(message != NULL) free(message);
+    ble_gap_terminate(conn_handle, BLE_ERR_AUTH_FAIL);
+    return rc;
+}
+
+int
 ble_att_svr_write_local(uint16_t attr_handle, struct os_mbuf *om)
 {
     int rc;
@@ -2858,7 +2963,7 @@ ble_att_svr_reset(void)
     }
 
     ble_att_svr_id = 0;
-    
+
     /* Note: prep entries do not get freed here because it is assumed there are
      * no established connections.
      */
