@@ -108,6 +108,7 @@ struct ble_ll_conn_sm_flags {
     uint32_t encrypted : 1;
     uint32_t encrypt_ltk_req : 1;
     uint32_t encrypt_event_sent : 1;
+    uint32_t pending_encrypt_restart : 1;
     uint32_t version_ind_txd : 1;
     uint32_t version_ind_rxd : 1;
     uint32_t features_rxd : 1;

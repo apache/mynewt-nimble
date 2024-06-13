@@ -2684,6 +2684,9 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc,
 void
 ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
 {
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    struct os_mbuf *om;
+#endif
     int i;
 
     /* XXX: TODO new rules! Cannot start certain control procedures if other
@@ -2705,6 +2708,22 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
         }
         return;
     }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
+    if (connsm->flags.pending_encrypt_restart) {
+        /* This flag should only be set after LL_PAUSE_ENC_RSP was txd from
+         * central and there should be already active encryption procedure
+         * ongoing. We need to restart encryption to complete key refresh.
+         */
+        BLE_LL_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT);
+        BLE_LL_ASSERT(IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_ENCRYPT));
+
+        om = ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT, NULL);
+        if (om) {
+            connsm->flags.pending_encrypt_restart = 0;
+        }
+    }
+#endif
 
     /* If there is a running procedure or no pending, do nothing */
     if ((connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) &&
@@ -2755,9 +2774,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     uint8_t *dptr;
     uint8_t *rspbuf;
     uint8_t *rspdata;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    int restart_encryption;
-#endif
     int rc = 0;
     uint8_t rsp_opcode = 0;
 
@@ -2801,10 +2817,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     --len;
 
     ble_ll_trace_u32x2(BLE_LL_TRACE_ID_CTRL_RX, opcode, len);
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-    restart_encryption = 0;
-#endif
 
     /* If opcode comes from reserved value or CtrlData fields is invalid
      * we shall respond with LL_UNKNOWN_RSP
@@ -2956,9 +2968,6 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
         break;
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         rsp_opcode = ble_ll_ctrl_rx_pause_enc_rsp(connsm);
-        if (rsp_opcode == BLE_LL_CTRL_PAUSE_ENC_RSP) {
-            restart_encryption = 1;
-        }
         break;
 #endif
     case BLE_LL_CTRL_PING_REQ:
@@ -3032,13 +3041,6 @@ ll_ctrl_send_rsp:
         }
         len = g_ble_ll_ctrl_pkt_lengths[rsp_opcode] + 1;
         ble_ll_conn_enqueue_pkt(connsm, om, BLE_LL_LLID_CTRL, len);
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-        if (restart_encryption) {
-            /* XXX: what happens if this fails? Meaning we cant allocate
-               mbuf? */
-            ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT, NULL);
-        }
-#endif
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
@@ -3206,6 +3208,8 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+        } else {
+            connsm->flags.pending_encrypt_restart = 1;
         }
         break;
 #endif
