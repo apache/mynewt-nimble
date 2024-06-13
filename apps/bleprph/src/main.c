@@ -270,6 +270,16 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
         phy_update(event->phy_updated.tx_phy);
         return 0;
 #endif
+
+    case BLE_GAP_EVENT_AUTHORIZE:
+        MODLOG_DFLT(INFO, "authorize event: conn_handle=%d attr_handle=%d is_read=%d",
+                    event->authorize.conn_handle,
+                    event->authorize.attr_handle,
+                    event->authorize.is_read);
+
+        /* The default behaviour for the event is to reject authorize request */
+        event->authorize.out_response = BLE_GAP_AUTHORIZE_REJECT;
+        return 0;
     }
 
     return 0;
