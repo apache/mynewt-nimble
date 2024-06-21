@@ -23,8 +23,8 @@ on:
   push:
     branches:
       - 'master'
-    paths:
-      - '*/syscfg.h'
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   targets:
