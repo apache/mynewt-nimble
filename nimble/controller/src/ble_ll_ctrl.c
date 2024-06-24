@@ -49,6 +49,10 @@
 #include "console/console.h"
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+#include "controller/ble_ll_cs.h"
+#endif
+
 /*
  * XXX:
  *  1) Do I need to keep track of which procedures have already been done?
@@ -128,6 +132,22 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     BLE_LL_CTRL_SUBRATE_IND_LEN,
     BLE_LL_CTRL_CHAN_REPORTING_IND_LEN,
     BLE_LL_CTRL_CHAN_STATUS_IND_LEN,
+    BLE_LL_CTRL_PERIODIC_SYNC_WR_IND_LEN,
+    BLE_LL_CTRL_FEATURE_EXT_REQ_LEN,
+    BLE_LL_CTRL_FEATURE_EXT_RSP_LEN,
+    BLE_LL_CTRL_CS_SEC_RSP_LEN,
+    BLE_LL_CTRL_CS_CAPABILITIES_REQ_LEN,
+    BLE_LL_CTRL_CS_CAPABILITIES_RSP_LEN,
+    BLE_LL_CTRL_CS_CONFIG_REQ_LEN,
+    BLE_LL_CTRL_CS_CONFIG_RSP_LEN,
+    BLE_LL_CTRL_CS_REQ_LEN,
+    BLE_LL_CTRL_CS_RSP_LEN,
+    BLE_LL_CTRL_CS_IND_LEN,
+    BLE_LL_CTRL_CS_TERMINATE_IND_LEN,
+    BLE_LL_CTRL_CS_FAE_REQ_LEN,
+    BLE_LL_CTRL_CS_FAE_RSP_LEN,
+    BLE_LL_CTRL_CS_CHANNEL_MAP_IND_LEN,
+    BLE_LL_CTRL_CS_SEC_REQ_LEN,
 };
 
 /**
@@ -2551,6 +2571,26 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             break;
 #endif
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+        case BLE_LL_CTRL_PROC_CS_CAP_XCHG:
+            opcode = BLE_LL_CTRL_CS_CAPABILITIES_REQ;
+            ble_ll_cs_capabilities_pdu_make(connsm, ctrdata);
+            break;
+        case BLE_LL_CTRL_PROC_CS_FAE_REQ:
+            opcode = BLE_LL_CTRL_CS_FAE_REQ;
+            /* No command parameters in LL_CS_FAE_REQ PDU */
+            break;
+        case BLE_LL_CTRL_PROC_CS_CONF:
+            opcode = BLE_LL_CTRL_CS_CONFIG_REQ;
+            ble_ll_cs_config_req_make(connsm, ctrdata);
+            break;
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+        case BLE_LL_CTRL_PROC_CS_SEC_START:
+            opcode = BLE_LL_CTRL_CS_SEC_REQ;
+            ble_ll_cs_security_req_make(connsm, ctrdata);
+            break;
+#endif
+#endif
         default:
             BLE_LL_ASSERT(0);
             break;
@@ -3020,6 +3060,47 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_SUBRATE_IND:
         rsp_opcode = ble_ll_ctrl_rx_subrate_ind(connsm, dptr, rspdata);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    case BLE_LL_CTRL_CS_CAPABILITIES_REQ:
+        rsp_opcode = ble_ll_cs_rx_capabilities_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_CAPABILITIES_RSP:
+        ble_ll_cs_rx_capabilities_rsp(connsm, dptr);
+        break;
+    case BLE_LL_CTRL_CS_FAE_REQ:
+        if (om->om_len < BLE_LL_CTRL_CS_FAE_RSP_LEN + 1) {
+            os_mbuf_free_chain(om);
+            om = os_msys_get_pkthdr(BLE_LL_CTRL_CS_FAE_RSP_LEN + 1, sizeof(struct ble_mbuf_hdr));
+            if (om == NULL) {
+                return 1;
+            }
+
+            rspbuf = om->om_data;
+            rspdata = rspbuf + 1;
+        }
+
+        rsp_opcode = ble_ll_cs_rx_fae_req(connsm, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_FAE_RSP:
+        ble_ll_cs_rx_fae_rsp(connsm, dptr);
+        break;
+    case BLE_LL_CTRL_CS_CONFIG_REQ:
+        rsp_opcode = ble_ll_cs_rx_config_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_CS_CONFIG_RSP:
+        ble_ll_cs_rx_config_rsp(connsm, dptr);
+        break;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    case BLE_LL_CTRL_CS_SEC_REQ:
+        rsp_opcode = ble_ll_cs_rx_security_req(connsm, dptr, rspdata);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_LL_CTRL_CS_SEC_RSP:
+        ble_ll_cs_rx_security_rsp(connsm, dptr);
+        break;
+#endif
 #endif
     default:
         /* Nothing to do here */
