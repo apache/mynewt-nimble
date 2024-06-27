@@ -24,7 +24,7 @@ on:
     branches:
       - 'master'
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '37 21 * * *'
 
 jobs:
   targets:
@@ -33,6 +33,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    if: github.event.repository.fork == false
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
