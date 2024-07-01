@@ -40,7 +40,8 @@ extern "C" {
 /*
  * Scan and execute tests one by one.
  */
-void tx_stress_start_auto();
+void tx_stress_task();
+void tx_stress_main_task_fn(void *arg);
 
 #ifdef __cplusplus
 }
