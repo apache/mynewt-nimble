@@ -160,6 +160,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 
     /* octet 4 */
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    tester_set_bit(rp->data, GAP_SET_EXT_ADV);
     tester_set_bit(rp->data, GAP_PADV_CONFIGURE);
     tester_set_bit(rp->data, GAP_PADV_START);
     tester_set_bit(rp->data, GAP_PADV_SET_DATA);
@@ -2000,6 +2001,44 @@ set_filter_accept_list(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static uint8_t set_ext_advertising(const void *cmd, uint16_t cmd_len,
+                                   void *rsp, uint16_t *rsp_len)
+{
+    int rc;
+    //const struct btp_gap_set_ext_advertising_cmd *cp = cmd;
+    struct ble_gap_ext_adv_params ext_params = {0};
+    struct btp_gap_set_ext_advertising_rp *rp = rsp;
+
+    ext_params.connectable = 0;
+    ext_params.scannable = 0;
+    ext_params.legacy_pdu = 0;
+    ext_params.anonymous = 0;
+    ext_params.own_addr_type = own_addr_type;
+    ext_params.primary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.secondary_phy = BLE_HCI_LE_PHY_1M;
+    ext_params.sid = 1;
+
+    rc = ble_gap_ext_adv_configure(1, &ext_params, NULL, gap_event_cb, NULL);
+    if (rc) {
+        SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_ext_adv_start(1,0,0);
+    if (rc) {
+        SYS_LOG_ERR("Failed to start extended advertiser; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    current_settings |= BIT(BTP_GAP_SETTINGS_EXTENDED_ADVERTISING);
+
+    rp->current_settings = htole32(current_settings);
+    *rsp_len = sizeof(*rp);
+    return BTP_STATUS_SUCCESS;
+}
+#endif
+
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
 static uint8_t
 periodic_adv_configure(const void *cmd, uint16_t cmd_len,
@@ -2330,6 +2369,13 @@ static const struct btp_handler handlers[] = {
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_filter_accept_list,
     },
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    {
+        .opcode = GAP_SET_EXT_ADV,
+        .expect_len = sizeof(struct btp_gap_set_ext_advertising_cmd),
+        .func = set_ext_advertising,
+    },
+#endif /* BLE_EXT_ADV*/
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     {
         .opcode = GAP_PADV_CONFIGURE,

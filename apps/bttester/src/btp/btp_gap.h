@@ -70,6 +70,7 @@ struct btp_gap_read_controller_index_list_rp {
 #define BTP_GAP_SETTINGS_PRIVACY        13
 #define BTP_GAP_SETTINGS_CONTROLLER_CONFIG    14
 #define BTP_GAP_SETTINGS_STATIC_ADDRESS    15
+#define BTP_GAP_SETTINGS_EXTENDED_ADVERTISING 17
 #define BTP_GAP_SETTINGS_PERIODIC_ADVERTISING 18
 
 #define BTP_GAP_READ_CONTROLLER_INFO    0x03
@@ -256,6 +257,15 @@ struct btp_gap_set_mitm_cmd {
 struct btp_gap_set_filter_accept_list_cmd {
     uint8_t list_len;
     ble_addr_t addrs[];
+} __packed;
+
+#define GAP_SET_EXT_ADV           0x21
+struct btp_gap_set_ext_advertising_cmd  {
+    uint8_t flags;
+} __packed;
+
+struct btp_gap_set_ext_advertising_rp {
+    uint32_t current_settings;
 } __packed;
 
 #define GAP_PADV_CONFIGURE        0x22

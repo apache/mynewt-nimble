@@ -148,6 +148,9 @@ tester_init_bap(void);
 uint8_t
 tester_unregister_bap(void);
 #endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
-
-#endif /* __BTTESTER_H__ */
+uint8_t
+tester_init_bass(void);
+uint8_t
+tester_unregister_bass(void);
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCASTER) */
 
