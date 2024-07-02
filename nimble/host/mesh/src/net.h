@@ -293,7 +293,7 @@ int bt_mesh_net_decode(struct os_mbuf *in, enum bt_mesh_net_if net_if,
 int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct os_mbuf *buf,
 		     const struct bt_mesh_send_cb *cb, void *cb_data);
 
-void bt_mesh_net_recv(struct os_mbuf *data, int8_t rssi,
+void bt_mesh_net_recv(struct os_mbuf **data, int8_t rssi,
 		      enum bt_mesh_net_if net_if);
 
 void bt_mesh_net_loopback_clear(uint16_t net_idx);
