@@ -462,6 +462,8 @@ STATS_NAME_START(ble_gattc_stats)
     STATS_NAME(ble_gattc_stats, read_long_fail)
     STATS_NAME(ble_gattc_stats, read_mult)
     STATS_NAME(ble_gattc_stats, read_mult_fail)
+    STATS_NAME(ble_gattc_stats, signed_write)
+    STATS_NAME(ble_gattc_stats, signed_write_fail)
     STATS_NAME(ble_gattc_stats, write_no_rsp)
     STATS_NAME(ble_gattc_stats, write_no_rsp_fail)
     STATS_NAME(ble_gattc_stats, write)
@@ -613,6 +615,13 @@ ble_gattc_log_write(uint16_t att_handle, uint16_t len, int expecting_rsp)
     }
 
     ble_gattc_log_proc_init(name);
+    BLE_HS_LOG(INFO, "att_handle=%d len=%d\n", att_handle, len);
+}
+
+static void
+ble_gattc_log_signed_write(uint16_t att_handle, uint16_t len)
+{
+    ble_gattc_log_proc_init("signed write; ");
     BLE_HS_LOG(INFO, "att_handle=%d len=%d\n", att_handle, len);
 }
 
@@ -3621,6 +3630,62 @@ ble_gattc_write_no_rsp_flat(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     return 0;
+}
+
+/*****************************************************************************
+ * $signed write                                                             *
+ ****************************************************************************/
+
+int
+ble_gattc_signed_write(uint16_t conn_handle, uint16_t attr_handle,
+                       struct os_mbuf *txom)
+{
+#if !MYNEWT_VAL(BLE_GATT_SIGNED_WRITE)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    int rc;
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_gap_conn_desc desc;
+
+    STATS_INC(ble_gattc_stats, signed_write);
+
+    ble_gattc_log_signed_write(attr_handle, OS_MBUF_PKTLEN(txom));
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc != 0) {
+        goto err;
+    }
+    if (desc.sec_state.encrypted == 1) {
+        rc = BLE_HS_EENCRYPT;
+        goto err;
+    }
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = desc.peer_id_addr;
+
+    /* Getting the CSRK for signing */
+    rc = ble_store_read_our_sec(&key_sec, &value_sec);
+    if (rc != 0) {
+        goto err;
+    }
+    if (value_sec.csrk_present != 1) {
+        rc = BLE_HS_EAUTHEN;
+        goto err;
+    }
+
+    rc = ble_att_clt_tx_signed_write_cmd(conn_handle, attr_handle,
+                                         value_sec.csrk, value_sec.sign_counter, txom);
+    if (rc != 0) {
+        goto err;
+    }
+
+    return 0;
+err:
+    STATS_INC(ble_gattc_stats, signed_write_fail);
+    os_mbuf_free_chain(txom);
+    return rc;
 }
 
 /*****************************************************************************
