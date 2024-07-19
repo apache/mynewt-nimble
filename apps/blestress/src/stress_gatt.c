@@ -82,23 +82,23 @@ stress_gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 
     switch(uuid){
     case STRESS_GATT_READ_UUID:
-        MODLOG_DFLT(INFO, "GATT Read event\n");
+        MODLOG_DFLT(DEBUG, "GATT Read event\n");
         rc = os_mbuf_append(ctxt->om, &chr_value, sizeof(chr_value));
         assert(rc == 0);
         //return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         return 0;
     case STRESS_GATT_WRITE_UUID:
-        MODLOG_DFLT(INFO, "GATT Write event\n");
+        MODLOG_DFLT(DEBUG, "GATT Write event\n");
         print_mbuf(ctxt->om);
         return 0;
     case STRESS_GATT_NOTIFY_UUID:
-        MODLOG_DFLT(INFO, "GATT Notify event\n");
+        MODLOG_DFLT(DEBUG, "GATT Notify event\n");
         return 0;
     case STRESS_GATT_INDICATE_UUID:
-        MODLOG_DFLT(INFO, "GATT Indicate event\n");
+        MODLOG_DFLT(DEBUG, "GATT Indicate event\n");
         return 0;
     default:
-        MODLOG_DFLT(ERROR, "GATT UUID does not exist\n");
+        MODLOG_DFLT(DEBUG, "GATT UUID does not exist\n");
         assert(0);
         return BLE_ATT_ERR_UNLIKELY;
     }

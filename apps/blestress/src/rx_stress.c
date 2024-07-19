@@ -60,7 +60,7 @@ static struct os_sem rx_stress_main_sem;
 static void
 rx_stress_on_test_finish(int test_num)
 {
-    console_printf("\033[0;32m\nStress test %d completed\033[0m\n", test_num);
+    MODLOG_DFLT(INFO, "\nStress test %d completed\n", test_num);
     os_sem_release(&rx_stress_main_sem);
 }
 
@@ -72,7 +72,8 @@ rx_stress_adv_start(uint8_t instance)
     /* Resume advertising earlier configured instance */
     rc = ble_gap_ext_adv_start(instance, 0, 0);
     assert (rc == 0 || rc == 2);
-    MODLOG_DFLT(INFO, "Instance %d started; rc: %d\n", instance, rc);
+    MODLOG_DFLT(DEBUG, "Ext Adv - Test Instance %d started; rc: %d\n",
+                instance, rc);
     return rc;
 }
 
@@ -109,8 +110,7 @@ rx_stress_simple_adv(struct rx_stress_adv_set *adv_set)
     /* Determine own address type */
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc != 0) {
-        MODLOG_DFLT(ERROR, "\033[0;31mError determining own address type; "
-                           "rc=%d\033[0m\n", rc);
+        MODLOG_DFLT(ERROR, "Error determining own address type; rc=%d\n", rc);
         return;
     }
 
@@ -209,7 +209,7 @@ rx_stress_0_gap_event(struct ble_gap_event *event, void *arg)
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
                         event->connect.status,
-                        ++rx_stress_ctx->con_stat[0].num);
+                        ++rx_stress_ctx->con_stat[1].num);
 
             /* Stop test advert */
             ble_gap_ext_adv_stop(TEST_INSTANCE);
@@ -222,9 +222,9 @@ rx_stress_0_gap_event(struct ble_gap_event *event, void *arg)
         }
         return 0;
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
-        console_printf("\033[0;32mReceived signal to switch test\033[0m\n");
+        MODLOG_DFLT(INFO, "Received signal to switch test\n");
         /* Add token to semaphore. Main task will start next test. */
         os_sem_release(&rx_stress_main_sem);
 
@@ -243,22 +243,24 @@ rx_stress_2_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[2].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
+            MODLOG_DFLT(INFO, "\nConnection established; "
+                              "status=%d; num=%d; conn handle=%d;\n",
                         event->connect.status,
-                        ++rx_stress_ctx->con_stat[2].num);
+                        ++rx_stress_ctx->con_stat[2].num,
+                        event->connect.conn_handle);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d;"
+                              "\n ",
+                        event->connect.status, event->connect.conn_handle);
 
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
-        console_printf("\033[0;32m>\033[0m");
         if (rx_stress_ctx->con_stat[2].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(2);
         } else {
@@ -268,7 +270,7 @@ rx_stress_2_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -281,19 +283,24 @@ rx_stress_3_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[3].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
+            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d;"
+                              " handle=%d;\n",
                         event->connect.status,
-                        ++rx_stress_ctx->con_stat[3].num);
+                        ++rx_stress_ctx->con_stat[3].num,
+                        event->connect.conn_handle);
         } else {
             /* Connection failed; resume advertising. */
+            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d;"
+                              "\n ",
+                        event->connect.status, event->connect.conn_handle);
+
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
-        console_printf("\033[0;32m>\033[0m");
         if (rx_stress_ctx->con_stat[3].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(3);
         } else {
@@ -303,7 +310,7 @@ rx_stress_3_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -319,7 +326,7 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[4].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
+            MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[4].num);
 
@@ -329,14 +336,14 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d",
+                        event->connect.status, event->connect.conn_handle);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d ", event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[4].prms_upd_num >=
             MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(4);
@@ -348,11 +355,11 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         if (event->conn_update.status != 0) {
-            MODLOG_DFLT(INFO, "Connection update failed\n");
+            MODLOG_DFLT(WARN, "Connection update failed\n; conn handle=%d",
+                        event->connect.conn_handle);
         } else {
             MODLOG_DFLT(INFO, "Connection updated; num=%d\n",
                         ++rx_stress_ctx->con_stat[4].prms_upd_num);
-            console_printf("\033[0;32m>\033[0m");
         }
 
         if (rx_stress_ctx->con_stat[4].prms_upd_num >=
@@ -364,7 +371,7 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -393,13 +400,12 @@ rx_stress_5_con_update(void)
     rc = ble_gap_update_params(rx_stress_ctx->conn_handle, &params);
 
     if (rc == BLE_HS_ENOTCONN) {
-        MODLOG_DFLT(INFO, "Device disconnected. Connection update failed\n");
+        MODLOG_DFLT(ERROR, "Device disconnected. Connection update failed\n");
         assert(0);
     }
 
     if (rc != 0) {
-        MODLOG_DFLT(ERROR, "\033[0;31mError during connection update; "
-                           "rc=%d\033[0m\n", rc);
+        MODLOG_DFLT(ERROR, "Error during connection update; rc=%d\n", rc);
         assert(0);
     }
 
@@ -418,7 +424,7 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
 
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
+            MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[5].num);
 
@@ -432,14 +438,14 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
             assert(rc == 0);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d",
+                        event->connect.status, event->connect.conn_handle);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d ", event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[5].prms_upd_num >=
             MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(5);
@@ -451,11 +457,10 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         if (event->conn_update.status != 0) {
-            MODLOG_DFLT(INFO, "Connection update failed\n");
+            MODLOG_DFLT(DEBUG, "Connection update failed\n");
         } else {
             MODLOG_DFLT(INFO, "Connection updated; num=%d\n",
                         ++rx_stress_ctx->con_stat[5].prms_upd_num);
-            console_printf("\033[0;32m>\033[0m");
         }
 
         if (rx_stress_ctx->con_stat[5].prms_upd_num >=
@@ -495,7 +500,7 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
 
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
+            MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[7].num);
 
@@ -505,14 +510,14 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
                         event->connect.status);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d ", event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[7].phy_upd_num >=
             MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(7);
@@ -524,11 +529,11 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_PHY_UPDATE_COMPLETE:
         if (event->phy_updated.status != 0) {
-            MODLOG_DFLT(INFO, "PHY update failed\n");
+            MODLOG_DFLT(WARN, "PHY update failed\n");
         } else {
-            MODLOG_DFLT(INFO, "PHY updated; num=%d\n",
-                        ++rx_stress_ctx->con_stat[7].phy_upd_num);
-            console_printf("\033[0;32m>\033[0m");
+            MODLOG_DFLT(INFO, "PHY updated; num=%d; rx:%d, tx:%d\n",
+                        ++rx_stress_ctx->con_stat[7].phy_upd_num,
+                        event->phy_updated.rx_phy, event->phy_updated.tx_phy);
         }
 
         if (rx_stress_ctx->con_stat[7].phy_upd_num >=
@@ -593,14 +598,16 @@ rx_stress_8_con_update(void)
     rc = ble_gap_set_prefered_le_phy(rx_stress_ctx->conn_handle,
                                      tx_phys_mask, rx_phys_mask, 0);
 
+    MODLOG_DFLT(INFO, "Set PHY params: tx_phys_mask=%d; rx_phys_mask=%d\n",
+                tx_phys_mask, rx_phys_mask);
+
     if (rc == BLE_HS_ENOTCONN) {
         MODLOG_DFLT(INFO, "Device disconnected. Connection update failed\n");
         return rc;
     }
 
     if (rc != 0) {
-        MODLOG_DFLT(ERROR, "\033[0;31mError during PHY update; "
-                           "rc=%d\033[0m\n", rc);
+        MODLOG_DFLT(ERROR, "Error during PHY update; rc=%d\n", rc);
     }
 
     return rc;
@@ -618,7 +625,7 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
 
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
+            MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[8].num);
 
@@ -632,14 +639,14 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
             assert(rc == 0);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
                         event->connect.status);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d ", event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[8].phy_upd_num >=
             MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(8);
@@ -651,12 +658,11 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_PHY_UPDATE_COMPLETE:
         if (event->phy_updated.status != 0) {
-            MODLOG_DFLT(INFO, "PHY update failed\n");
+            MODLOG_DFLT(WARN, "PHY update failed\n");
         } else {
             MODLOG_DFLT(INFO, "PHY updated; num=%d; rx:%d, tx:%d\n",
                         ++rx_stress_ctx->con_stat[8].phy_upd_num,
                         event->phy_updated.rx_phy, event->phy_updated.tx_phy);
-            console_printf("\033[0;32m>\033[0m");
         }
 
         if (rx_stress_ctx->con_stat[8].phy_upd_num >=
@@ -686,10 +692,9 @@ rx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
 
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
+            MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d\n",
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[9].num);
-            console_printf("\033[0;32m>\033[0m");
 
             /* Remember max number of established connections */
             if (rx_stress_ctx->con_stat[9].num >
@@ -698,14 +703,14 @@ rx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
             }
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
+            MODLOG_DFLT(INFO, "Connection failed; status=%d\n",
                         event->connect.status);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d ", event->disconnect.reason);
-        console_printf("\033[0;31mX\033[0m");
+        MODLOG_DFLT(INFO, "Disconnect; reason=%d; conn handle=%d\n",
+                    event->disconnect.reason, event->connect.conn_handle);
         MODLOG_DFLT(INFO, "Connections num: %d\n",
                     --rx_stress_ctx->con_stat[9].num);
 
@@ -731,7 +736,7 @@ rx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
     }
     return 0;
 }
@@ -740,9 +745,11 @@ static void
 tx_stress_10_l2cap_update_event(uint16_t conn_handle, int status, void *arg)
 {
     if (status == 0) {
-        MODLOG_DFLT(INFO, "L2CAP params updated\n");
+        MODLOG_DFLT(INFO, "L2CAP params updated; conn handle=%d\n",
+                    conn_handle);
     } else {
-        MODLOG_DFLT(INFO, "L2CAP params update failed; rc=%d\n", status);
+        MODLOG_DFLT(ERROR, "L2CAP params update failed; rc=%d; conn "
+                           "handle=%d\n", status, conn_handle);
         assert(0);
     }
 }
@@ -760,7 +767,7 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
         if (event->connect.status) {
-            MODLOG_DFLT(INFO, "LE COC error: %d\n", event->connect.status);
+            MODLOG_DFLT(ERROR, "LE COC error: %d\n", event->connect.status);
             return 0;
         }
 
@@ -801,7 +808,7 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
         stress_l2cap_coc_recv(event->receive.chan, event->receive.sdu_rx);
 
-        MODLOG_DFLT(INFO, "L2CAP server received data; num=%d\n",
+        MODLOG_DFLT(DEBUG, "L2CAP server received data; num=%d\n",
                     ++rx_stress_ctx->rcv_num);
         rx_stress_ctx->chan = event->receive.chan;
 
@@ -835,7 +842,7 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
     /* Get mbuf for adv data */
     data_buf = os_msys_get_pkthdr(data_len, 0);
 
-    MODLOG_DFLT(INFO, "Data buf %s\n", data_buf ? "OK" : "NOK");
+    MODLOG_DFLT(DEBUG, "Data buf %s\n", data_buf ? "OK" : "NOK");
     assert(data_buf != NULL);
 
     /* Fill mbuf with the pattern */
@@ -843,13 +850,13 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
     /* Send data */
     rc = ble_l2cap_send(rx_stress_ctx->chan, data_buf);
-    MODLOG_DFLT(INFO, "Return code=%d\n", rc);
+    MODLOG_DFLT(DEBUG, "Return code=%d\n", rc);
     if (rc) {
         if (rc == BLE_HS_ESTALLED) {
-            MODLOG_DFLT(INFO, "L2CAP stalled - waiting\n");
+            MODLOG_DFLT(ERROR, "L2CAP stalled - waiting\n");
             stalled = true;
         } else {
-            MODLOG_DFLT(INFO, "Sending data via L2CAP failed with error "
+            MODLOG_DFLT(ERROR, "Sending data via L2CAP failed with error "
                         "code %d\n", rc);
         }
     }
@@ -905,12 +912,13 @@ rx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[11].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[11].num);
+            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d; "
+                              "conn handle=%d\n", event->connect.status,
+                              ++rx_stress_ctx->con_stat[11].num,
+                              event->connect.conn_handle);
         } else {
-            MODLOG_DFLT(INFO, "\033[0;31mError: connection attempt failed; "
-                              "status=%d\033[0m\n", event->connect.status);
+            MODLOG_DFLT(ERROR, "Error: connection attempt failed; status=%d\n",
+                        event->connect.status);
         }
 
         ble_gap_terminate(event->connect.conn_handle,
@@ -918,9 +926,8 @@ rx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
-        console_printf("\033[0;32m>\033[0m");
         if (rx_stress_ctx->con_stat[11].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(11);
         } else {
@@ -930,7 +937,7 @@ rx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -955,19 +962,19 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
             break;
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
                         event->connect.status);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
 
         rx_stress_ctx->s12_notif_time = rx_stress_ctx->time_sum /
                                         rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(INFO, "Average time: %d us\n",
+        MODLOG_DFLT(DEBUG, "Average time: %d us\n",
                     rx_stress_ctx->s12_notif_time);
 
         rx_stress_on_test_finish(12);
@@ -975,7 +982,7 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_NOTIFY_TX:
         rx_stress_ctx->end_us = os_get_uptime_usec();
-        MODLOG_DFLT(INFO, "Notify TX event\n");
+        MODLOG_DFLT(DEBUG, "Notify TX event\n");
 
         if (!event->notify_tx.status) {
             /* Send next only after previous indication is done */
@@ -991,13 +998,12 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
 
         /* Time of data sending */
         us = rx_stress_ctx->end_us - rx_stress_ctx->begin_us;
-        console_printf("Indication time: %lld\n", us);
+        MODLOG_DFLT(DEBUG, "Indication time: %lld\n", us);
         rx_stress_ctx->time_sum += us;
-        console_printf("\033[0;32m>\033[0m");
         break;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 
@@ -1107,35 +1113,35 @@ rx_stress_14_gap_event(struct ble_gap_event *event, void *arg)
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
                         event->connect.status);
             assert(0);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
 
         rx_stress_ctx->s14_notif_time = rx_stress_ctx->time_sum /
                                         rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(INFO, "Average time: %d us\n",
+        MODLOG_DFLT(DEBUG, "Average time: %d us\n",
                     rx_stress_ctx->s14_notif_time);
 
         rx_stress_on_test_finish(14);
         return 0;
 
     case BLE_GAP_EVENT_NOTIFY_TX:
-        MODLOG_DFLT(INFO, "Notify TX event\n");
+        MODLOG_DFLT(DEBUG, "Notify TX event\n");
         assert(event->notify_tx.status == 0);
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        MODLOG_DFLT(INFO, "Subscribe event\n");
+        MODLOG_DFLT(DEBUG, "Subscribe event\n");
 
         if (event->subscribe.cur_notify) {
-            MODLOG_DFLT(INFO, "Notification subscribed\n");
+            MODLOG_DFLT(DEBUG, "Notification subscribed\n");
 
             ++rx_stress_ctx->send_num;
 
@@ -1145,17 +1151,15 @@ rx_stress_14_gap_event(struct ble_gap_event *event, void *arg)
             rc = ble_gatts_notify_custom(rx_stress_ctx->conn_handle,
                                          hrs_hrm_handle, om);
             assert(rc == 0);
-
-            console_printf("\033[0;32m>\033[0m");
         } else if (event->subscribe.prev_notify) {
-            MODLOG_DFLT(INFO, "Notification unsubscribed\n");
+            MODLOG_DFLT(DEBUG, "Notification unsubscribed\n");
         } else {
-            MODLOG_DFLT(INFO, "Other subscription\n");
+            MODLOG_DFLT(DEBUG, "Other subscription\n");
         }
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -1172,16 +1176,15 @@ rx_stress_15_gap_event(struct ble_gap_event *event, void *arg)
                         event->connect.status,
                         ++rx_stress_ctx->con_stat[15].num);
         } else {
-            MODLOG_DFLT(INFO, "\033[0;31mError: connection attempt failed; "
-                              "status=%d\033[0m\n", event->connect.status);
+            MODLOG_DFLT(DEBUG, "Error: connection attempt failed; "
+                              "status=%d\n", event->connect.status);
             assert(0);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
                     event->disconnect.reason);
-        console_printf("\033[0;32m>\033[0m");
         if (rx_stress_ctx->con_stat[15].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(15);
         } else {
@@ -1191,7 +1194,7 @@ rx_stress_15_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     default:
-        MODLOG_DFLT(INFO, "Other event occurs=%d\n", event->type);
+        MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
         return 0;
     }
 }
@@ -1336,83 +1339,82 @@ rx_stress_start(int test_num)
     /* Init semaphore with 0 tokens. */
     os_sem_init(&rx_stress_main_sem, 0);
 
-    console_printf("\033[1;36mStart test num %d - ", test_num);
+    MODLOG_DFLT(INFO, "Start test num %d - ", test_num);
 
     /* Start test. */
     switch (test_num) {
     case 0:
         return;
     case 1:
-        console_printf("Nothing to do");
+        MODLOG_DFLT(INFO, "Nothing to do\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[1]);
         return;
     case 2:
-        console_printf("Stress Connect/Disconnect legacy\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress Connect/Disconnect legacy\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[2]);
         break;
     case 3:
-        console_printf("Stress Connect/Disconnect ext adv\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress Connect/Disconnect ext adv\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[3]);
         break;
     case 4:
-        console_printf("Stress connection params update (TX)\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress connection params update (TX)\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[4]);
         break;
     case 5:
-        console_printf("Stress connection params update (RX)\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress connection params update (RX)\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[5]);
         break;
     case 6:
         /* Start SWITCHER advert that gives possibility to remotely start
          * next test advert */
-        console_printf("Stress Scan\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress Scan\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[0]);
         rx_stress_simple_adv(&rx_stress_adv_sets[6]);
         break;
     case 7:
-        console_printf("Stress PHY Update (TX)\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress PHY Update (TX)\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[7]);
         break;
     case 8:
-        console_printf("Stress PHY Update (RX)\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress PHY Update (RX)\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[8]);
         break;
     case 9:
-        console_printf("Stress multi connection\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress multi connection\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[9]);
         break;
     case 10:
-        console_printf("Stress L2CAP send\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress L2CAP send\n");
         rc = ble_l2cap_create_server(TEST_PSM, STRESS_COC_MTU,
                                      rx_stress_10_l2cap_event, NULL);
         assert(rc == 0);
         rx_stress_simple_adv(&rx_stress_adv_sets[10]);
         break;
     case 11:
-        console_printf("Stress Advertise/Connect/Disconnect\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress Advertise/Connect/Disconnect\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[11]);
         break;
     case 12:
-        console_printf("Stress GATT indication\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress GATT indication\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[12]);
         break;
     case 13:
-        console_printf("Stress GATT notification\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress GATT notification\n");
         ble_npl_event_init(&rx_stress_13_notify_ev,
                            rx_stress_13_notify_ev_func, NULL);
         rx_stress_simple_adv(&rx_stress_adv_sets[13]);
         break;
     case 14:
-        console_printf("Stress GATT Subscribe/Notify/Unsubscribe\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress GATT Subscribe/Notify/Unsubscribe\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[14]);
         break;
     case 15:
-        console_printf("Stress Connect/Send/Disconnect\033[0m\n");
+        MODLOG_DFLT(INFO, "Stress Connect/Send/Disconnect\n");
         rx_stress_simple_adv(&rx_stress_adv_sets[15]);
         break;
     default:
-        console_printf("\033[0;31mFound test, but do not know how to perform."
-                       "\033[0m\n");
+        MODLOG_DFLT(ERROR, "Found test, but do not know how to perform.\n");
         assert(0);
     }
 
@@ -1442,7 +1444,7 @@ stress_uuid_init()
 static void
 rx_stress_read_command_cb(void)
 {
-    console_printf("Start testing\n");
+    MODLOG_DFLT(INFO, "Start testing\n");
     os_sem_release(&rx_stress_main_sem);
 }
 
@@ -1453,8 +1455,8 @@ rx_stress_main_task_fn(void *arg)
 
     stress_uuid_init();
 
-    console_printf("\033[1;36mRX device\033[0m\n");
-    console_printf("Press ENTER to start: \n");
+    MODLOG_DFLT(INFO, "RX device\n");
+    MODLOG_DFLT(INFO, "Press ENTER to start: \n");
     console_init(&rx_stress_read_command_cb);
 
     /* Waite for pressing ENTER in console */
