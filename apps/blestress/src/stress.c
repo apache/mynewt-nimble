@@ -24,73 +24,80 @@ static struct os_callout stress_timer_callout;
 void
 com_stress_print_report(const struct com_stress_test_ctx *test_ctxs)
 {
-    console_printf("\033[0;32mAll tests completed\033[0m\n");
-    console_printf("Tests results:\n");
+    MODLOG_DFLT(INFO, "All tests completed\n");
+    MODLOG_DFLT(INFO, "Tests results:\n");
 
-    console_printf(
-        "\033[0;33mUse case 1 - Stress Connect -> Connect Cancel: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[1].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[1].num);
+    MODLOG_DFLT(INFO, "Use case 1 - "
+                      "Stress Connect -> Connect Cancel: \n");
+    MODLOG_DFLT(INFO, "Con attempts = %d\n",
+                test_ctxs->con_stat[1].attempts_num);
+    MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[1].num);
 
-    console_printf(
-        "\033[0;33mUse case 2 - Stress Connect/Disconnect legacy: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[2].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[2].num);
+    MODLOG_DFLT(INFO, "Use case 2 - "
+                      "Stress Connect/Disconnect legacy: \n");
+    MODLOG_DFLT(INFO, "Con attempts = %d\n",
+                test_ctxs->con_stat[2].attempts_num);
+    MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[2].num);
 
-    console_printf(
-        "\033[0;33mUse case 3 - Stress Connect/Disconnect ext adv: \n\033[0m");
-    console_printf("Con attempts = %d\n", test_ctxs->con_stat[3].attempts_num);
-    console_printf("Con success = %d\n", test_ctxs->con_stat[3].num);
+    MODLOG_DFLT(INFO, "Use case 3 - "
+                      "Stress Connect/Disconnect ext adv: \n");
+    MODLOG_DFLT(INFO, "Con attempts = %d\n",
+                test_ctxs->con_stat[3].attempts_num);
+    MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[3].num);
 
-    console_printf(
-        "\033[0;33mUse case 4 - Stress connection params update (TX): \n\033[0m");
-    console_printf("Params updates = %d\n",
-                   test_ctxs->con_stat[4].prms_upd_num);
+    MODLOG_DFLT(INFO, "Use case 4 - "
+                      "Stress connection params update (TX): \n");
+    MODLOG_DFLT(INFO, "Params updates = %d\n",
+                test_ctxs->con_stat[4].prms_upd_num);
 
-    console_printf(
-        "\033[0;33mUse case 5 - Stress connection params update (RX): \n\033[0m");
-    console_printf("Params updates = %d\n",
-                   test_ctxs->con_stat[5].prms_upd_num);
+    MODLOG_DFLT(INFO, "Use case 5 - "
+                      "Stress connection params update (RX): \n");
+    MODLOG_DFLT(INFO, "Params updates = %d\n",
+                test_ctxs->con_stat[5].prms_upd_num);
 
-    console_printf("\033[0;33mUse case 6 - Stress Scan: \n\033[0m");
-    console_printf("Received first packets = %d\n",
-                   test_ctxs->s6_rcv_adv_first);
-    console_printf("Received all packets = %d\n", test_ctxs->s6_rcv_adv_suc);
+    MODLOG_DFLT(INFO, "Use case 6 - Stress Scan: \n");
+    MODLOG_DFLT(INFO, "Received first packets = %d\n",
+                test_ctxs->s6_rcv_adv_first);
+    MODLOG_DFLT(INFO, "Received all packets = %d\n",
+                test_ctxs->s6_rcv_adv_suc);
 
-    console_printf("\033[0;33mUse case 7 - Stress PHY Update (TX): \n\033[0m");
-    console_printf("PHY updates = %d\n", test_ctxs->con_stat[7].phy_upd_num);
+    MODLOG_DFLT(INFO, "Use case 7 - "
+                      "Stress PHY Update (TX): \n");
+    MODLOG_DFLT(INFO, "PHY updates = %d\n",
+                test_ctxs->con_stat[7].phy_upd_num);
 
-    console_printf("\033[0;33mUse case 8 - Stress PHY Update (RX): \n\033[0m");
-    console_printf("PHY updates = %d\n", test_ctxs->con_stat[8].phy_upd_num);
+    MODLOG_DFLT(INFO, "Use case 8 - "
+                      "Stress PHY Update (RX): \n");
+    MODLOG_DFLT(INFO, "PHY updates = %d\n",
+                test_ctxs->con_stat[8].phy_upd_num);
 
-    console_printf(
-        "\033[0;33mUse case 9 - Stress multi connection: \n\033[0m");
-    console_printf("Max reached num of connections = %d\n",
-                   test_ctxs->con_stat[9].max_num);
+    MODLOG_DFLT(INFO, "Use case 9 - "
+                      "Stress multi connection: \n");
+    MODLOG_DFLT(INFO, "Max reached num of connections = %d\n",
+                test_ctxs->con_stat[9].max_num);
 
-    console_printf("\033[0;33mUse case 10 - Stress L2CAP send: \n\033[0m");
-    console_printf("Average bit rate = %d\n", test_ctxs->s10_bit_rate);
-    console_printf("Max received MTU = %lld\n", test_ctxs->s10_max_mtu);
+    MODLOG_DFLT(INFO, "Use case 10 - Stress L2CAP send: \n");
+    MODLOG_DFLT(INFO, "Average bit rate = %d\n", test_ctxs->s10_bit_rate);
+    MODLOG_DFLT(INFO, "Max received MTU = %lld\n", test_ctxs->s10_max_mtu);
 
-    console_printf("\033[0;33mUse case 11 - "
-                   "Stress Advertise/Connect/Continue adv \n\033[0m");
-//    console_printf(" = %d\n",);
+    MODLOG_DFLT(INFO, "Use case 11 - "
+                      "Stress Advertise/Connect/Continue adv \n");
 
-    console_printf("\033[0;33mUse case 12 - "
-                   "Stress GATT indication: \n\033[0m");
-    console_printf("Average bit rate = %d\n", test_ctxs->s12_notif_time);
+    MODLOG_DFLT(INFO, "Use case 12 - "
+                      "Stress GATT indication: \n");
+    MODLOG_DFLT(INFO, "Average bit rate = %d\n", test_ctxs->s12_notif_time);
 
-    console_printf("\033[0;33mUse case 13 - "
-                   "Stress GATT notification: \n\033[0m");
-    console_printf("Average time = %d\n", test_ctxs->s13_notif_time);
+    MODLOG_DFLT(INFO, "Use case 13 - "
+                      "Stress GATT notification: \n");
+    MODLOG_DFLT(INFO, "Average time = %d\n", test_ctxs->s13_notif_time);
 
-    console_printf("\033[0;33mUse case 14 - "
-                   "Stress GATT Subscribe/Notify/Unsubscribe: \n\033[0m");
-    console_printf("Average time = %d\n", test_ctxs->s14_notif_time);
+    MODLOG_DFLT(INFO, "Use case 14 - "
+                      "Stress GATT Subscribe/Notify/Unsubscribe: \n");
+    MODLOG_DFLT(INFO, "Average time = %d\n", test_ctxs->s14_notif_time);
 
-    console_printf("\033[0;33mUse case 15 - "
-                   "Stress Connect/Send/Disconnect: \n\033[0m");
-    console_printf("Con num = %d\n", test_ctxs->con_stat[15].num);
+    MODLOG_DFLT(INFO, "Use case 15 - "
+                      "Stress Connect/Send/Disconnect: \n");
+    MODLOG_DFLT(INFO, "Con num = %d\n", test_ctxs->con_stat[15].num);
 }
 
 void
@@ -143,8 +150,8 @@ void
 stress_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
     int rc;
-    console_printf("LE CoC SDU received, chan: 0x%08lx, data len %d\n",
-                   (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
+    MODLOG_DFLT(DEBUG, "LE CoC SDU received, chan: 0x%08lx, data len %d\n",
+                (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
 
     rc = os_mbuf_free_chain(sdu);
     assert(rc == 0);
@@ -164,8 +171,8 @@ stress_l2cap_coc_accept(uint16_t peer_mtu, struct ble_l2cap_chan *chan)
     struct os_mbuf *sdu_rx;
     int rc;
 
-    console_printf("LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
-                   (uint32_t) chan, peer_mtu);
+    MODLOG_DFLT(DEBUG, "LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
+                (uint32_t) chan, peer_mtu);
 
     for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
         sdu_rx = os_msys_get_pkthdr(STRESS_COC_MTU, 0);
@@ -216,9 +223,9 @@ stress_disc_dsc_fn(uint16_t conn_handle,
 
     if (error->status == 0) {
         if (!ble_uuid_cmp(&dsc->uuid.u, &search_ctx->dsc_uuid.u) && !found) {
-            MODLOG_DFLT(INFO, "Found chr descriptor\n");
+            MODLOG_DFLT(DEBUG, "Found chr descriptor\n");
             search_ctx->dsc_handle = dsc->handle;
-            MODLOG_DFLT(INFO, "uuid=%#06x; handle=%#06x", dsc->uuid.u16.value,
+            MODLOG_DFLT(DEBUG, "uuid=%#06x; handle=%#06x", dsc->uuid.u16.value,
                         dsc->handle);
             found = true;
         }
@@ -226,7 +233,7 @@ stress_disc_dsc_fn(uint16_t conn_handle,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        MODLOG_DFLT(INFO, "Done descriptor discovery\n");
+        MODLOG_DFLT(DEBUG, "Done descriptor discovery\n");
 
         if (found) {
             found = false;
@@ -234,13 +241,11 @@ stress_disc_dsc_fn(uint16_t conn_handle,
             return 0;
         }
 
-        MODLOG_DFLT(ERROR, "\033[0;31mDid not find particular descriptor"
-                           "\033[0m\n");
+        MODLOG_DFLT(ERROR, "Did not find particular descriptor\n");
         return 0;
     }
 
-    MODLOG_DFLT(ERROR, "\033[0;31mError during descriptor discovery"
-                       "\033[0m\n");
+    MODLOG_DFLT(ERROR, "Error during descriptor discovery\n");
     assert(0);
     return 0;
 }
@@ -257,14 +262,14 @@ stress_disc_chr_fn(uint16_t conn_handle,
     search_ctx = (struct stress_gatt_search_ctx *) arg;
 
     if (error->status == 0) {
-        MODLOG_DFLT(INFO, "Found characteristic\n");
+        MODLOG_DFLT(DEBUG, "Found characteristic\n");
         search_ctx->chr_start_handle = chr->val_handle;
         found = true;
         return 0;
     }
 
     if (error->status == BLE_HS_EDONE) {
-        MODLOG_DFLT(INFO, "Done characteristic discovery\n");
+        MODLOG_DFLT(DEBUG, "Done characteristic discovery\n");
 
         if (found) {
             found = false;
@@ -282,13 +287,11 @@ stress_disc_chr_fn(uint16_t conn_handle,
             return 0;
         }
 
-        MODLOG_DFLT(ERROR, "\033[0;31mDid not find particular "
-                           "characteristic\033[0m\n");
+        MODLOG_DFLT(ERROR, "Did not find particular characteristic\n");
         return 0;
     }
 
-    MODLOG_DFLT(ERROR,
-                "\033[0;31mError during characteristic discovery\033[0m\n");
+    MODLOG_DFLT(ERROR, "Error during characteristic discovery\n");
     assert(0);
     return 0;
 }
@@ -304,7 +307,7 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
     search_ctx = (struct stress_gatt_search_ctx *) arg;
 
     if (error->status == 0) {
-        MODLOG_DFLT(INFO, "Found service\n");
+        MODLOG_DFLT(DEBUG, "Found service\n");
         search_ctx->srv_start_handle = service->start_handle;
         search_ctx->srv_end_handle = service->end_handle;
         found = true;
@@ -312,7 +315,7 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
     }
 
     if (error->status == BLE_HS_EDONE) {
-        MODLOG_DFLT(INFO, "Done service discovery\n");
+        MODLOG_DFLT(DEBUG, "Done service discovery\n");
 
         if (found) {
             found = false;
@@ -327,17 +330,17 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
                                              &search_ctx->chr_uuid.u,
                                              &stress_disc_chr_fn,
                                              search_ctx);
-            MODLOG_DFLT(INFO, "rc=%d\n", rc);
+            MODLOG_DFLT(DEBUG, "rc=%d\n", rc);
             assert(rc == 0);
             return 0;
         }
 
         MODLOG_DFLT(ERROR,
-                    "\033[0;31mDid not find particular service\033[0m\n");
+                    "Did not find particular service\n");
         return 0;
     }
 
-    MODLOG_DFLT(ERROR, "\033[0;31mError during service discovery\033[0m\n");
+    MODLOG_DFLT(ERROR, "Error during service discovery\n");
     assert(0);
     return 0;
 }
