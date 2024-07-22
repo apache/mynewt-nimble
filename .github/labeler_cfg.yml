@@ -24,3 +24,7 @@ host:
 controller:
   - changed-files:
       - any-glob-to-any-file: nimble/controller/**
+
+CI:
+  - changed-files:
+      - any-glob-to-any-file: .github/workflows/**
