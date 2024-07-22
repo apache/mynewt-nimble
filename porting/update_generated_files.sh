@@ -42,5 +42,5 @@ for target in "${!targets[@]}"; do
     find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '/MYNEWT_VAL_REPO_*/,/#endif/d' {} \;
     find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i -E ':a;N;$!ba;s:/\*([^*]|(\*+([^*/])))*\*+/::g' {} \;
     find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sed -i '$!N;/^\n$/{$q;D;};P;D;' {} \;
-    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sh -c 'cat "$0" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' "../.github/LICENSE_TEMPLATE" {} \;
+    find "${targets[$target]}/include" -type f -name 'syscfg.h' -exec sh -c 'cat "$0" "$1" > "$1.tmp" && mv "$1.tmp" "$1"' "repos/apache-mynewt-nimble/.github/LICENSE_TEMPLATE" {} \;
 done
