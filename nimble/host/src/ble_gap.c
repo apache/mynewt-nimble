@@ -6779,6 +6779,32 @@ ble_gap_unhandled_hci_event(bool is_le_meta, bool is_vs, const void *buf,
 }
 #endif
 
+int
+ble_gap_authorize_event(uint16_t conn_handle, uint16_t attr_handle,
+                        int is_read)
+{
+#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_AUTHORIZE;
+    event.authorize.conn_handle = conn_handle;
+    event.authorize.attr_handle = attr_handle;
+    event.authorize.is_read = is_read;
+
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+
+    /* Make sure reject is sent back if the application
+     * sets response to anything but accept.
+     */
+    if (event.authorize.out_response != BLE_GAP_AUTHORIZE_ACCEPT) {
+        return BLE_GAP_AUTHORIZE_REJECT;
+    }
+    return event.authorize.out_response;
+#endif
+    return BLE_GAP_AUTHORIZE_REJECT;
+}
+
 /*****************************************************************************
  * $preempt                                                                  *
  *****************************************************************************/
