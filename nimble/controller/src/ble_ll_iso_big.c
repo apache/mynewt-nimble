@@ -134,6 +134,9 @@ struct ble_ll_iso_big {
     uint32_t sync_delay;
     uint32_t event_start;
     uint8_t event_start_us;
+    uint32_t anchor_base_ticks;
+    uint8_t anchor_base_rem_us;
+    uint16_t anchor_offset;
     struct ble_ll_sched_item sch;
     struct ble_npl_event event_done;
 
@@ -167,6 +170,35 @@ static uint8_t bis_pool_free = BIS_POOL_SIZE;
 
 static struct ble_ll_iso_big *big_pending;
 static struct ble_ll_iso_big *big_active;
+
+static void
+big_sched_set(struct ble_ll_iso_big *big)
+{
+    uint32_t offset_us;
+
+    big->sch.start_time = big->anchor_base_ticks;
+    big->sch.remainder = big->anchor_base_rem_us;
+
+    offset_us = big->anchor_offset * big->iso_interval * 1250;
+
+    ble_ll_tmr_add(&big->sch.start_time, &big->sch.remainder, offset_us);
+
+    /* Reset anchor base every 30mins to avoid overflows in calculations later. */
+    if (offset_us >= 30 * 60 * 1000000) {
+        big->anchor_base_ticks = big->sch.start_time;
+        big->anchor_base_rem_us = big->sch.remainder;
+        big->anchor_offset = 0;
+    }
+
+    big->sch.end_time = big->sch.start_time +
+                        ble_ll_tmr_u2t_up(big->sync_delay) + 1;
+    big->sch.start_time -= g_ble_ll_sched_offset_ticks;
+
+    if (big->control_active) {
+        /* XXX calculate proper time */
+        big->sch.end_time += 10;
+    }
+}
 
 struct ble_ll_iso_bis *
 ble_ll_iso_big_find_bis_by_handle(uint16_t conn_handle)
@@ -536,18 +568,12 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
             }
         }
 
-        /* XXX precalculate some data here? */
+        big->anchor_offset++;
+        big_sched_set(big);
 
-        ble_ll_tmr_add(&big->sch.start_time, &big->sch.remainder,
-                       big->iso_interval * 1250);
         big->sch.end_time = big->sch.start_time +
                             ble_ll_tmr_u2t_up(big->sync_delay) + 1;
         big->sch.start_time -= g_ble_ll_sched_offset_ticks;
-
-        if (big->control_active) {
-            /* XXX fixme */
-            big->sch.end_time += 10;
-        }
 
         /* XXX this should always succeed since we preempt anything for now */
         rc = ble_ll_sched_iso_big(&big->sch, 0, 0);
@@ -1107,10 +1133,11 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         big_event_fixed = 1;
     }
 
-    big->sch.start_time = big_time;
-    big->sch.remainder = 0;
-    big->sch.end_time = big->sch.start_time + sync_delay_ticks + 1;
-    big->sch.start_time -= g_ble_ll_sched_offset_ticks;
+    big->anchor_base_ticks = big_time;
+    big->anchor_base_rem_us = 0;
+    big->anchor_offset = 0;
+
+    big_sched_set(big);
 
     rc = ble_ll_sched_iso_big(&big->sch, 1, big_event_fixed);
     if (rc < 0) {
