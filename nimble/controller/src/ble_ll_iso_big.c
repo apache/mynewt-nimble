@@ -1270,9 +1270,12 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
     bp.encrypted = cmd->encryption;
     memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
 
-    bp.nse = 1;
+    /* FIXME for now we only care about retransmissions, so set both NSE and IRC
+     * to RTN
+     */
+    bp.nse = MIN(cmd->rtn, 0x0f);;
     bp.bn = 1;
-    bp.irc = 1;
+    bp.irc = MIN(cmd->rtn, 0x0f);
     bp.pto = 0;
     bp.iso_interval = bp.sdu_interval / 1250;
     bp.max_pdu = bp.max_sdu;
