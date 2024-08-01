@@ -227,6 +227,13 @@ static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_CODED_125KBPS] = 5,
     [BLE_PHY_MODE_CODED_500KBPS] = 5
 };
+/* delay between EVENTS_ADDRESS and txd access address  */
+static const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 7,
+    [BLE_PHY_MODE_2M] = 5,
+    [BLE_PHY_MODE_CODED_125KBPS] = 17,
+    [BLE_PHY_MODE_CODED_500KBPS] = 17
+};
 /* delay between EVENTS_END and end of txd packet */
 static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 6,
@@ -1104,25 +1111,24 @@ ble_phy_tx_end_isr(void)
          */
     } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
         if (g_ble_phy_data.txtx_time_anchor) {
-            /* Schedule next TX relative to current TX end. TX end timestamp is
-             * captured in CC[2].
-             */
-            tx_time = NRF_TIMER0->CC[2] + g_ble_phy_data.txtx_time_us;
-        } else {
-            /* Schedule next TX relative to current TX start. AA timestamp is
-             * captured in CC[1], we need to adjust for sync word to get TX
-             * start.
-             */
-            tx_time = NRF_TIMER0->CC[1] - ble_ll_pdu_syncword_us(tx_phy_mode) +
-                      g_ble_phy_data.txtx_time_us;
-            /* Adjust for delay between EVENT_ADDRESS and actual address TX time */
-            /* FIXME assume this is the same as EVENT_END to end, but we should
-             *       measure this to be sure */
+            /* Calculate TX anchor relative to current TX end */
+
+            /* TX end timestamp is captured in CC[2] */
+            tx_time = NRF_TIMER0->CC[2];
+            /* Adjust for delay between EVENT_END and actual TX end time */
             tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+        } else {
+            /* Calculate TX anchor relative to current TX start */
+
+            /* AA timestamp is captured in CC[1] */
+            tx_time = NRF_TIMER0->CC[1];
+            /* Adjust for delay between EVENT_ADDRESS and actual AA time ota */
+            tx_time += g_ble_phy_t_txaddrdelay[tx_phy_mode];
+            /* Adjust by sync word length to get TX start time */
+            tx_time -= ble_ll_pdu_syncword_us(tx_phy_mode);
         }
 
-        /* Adjust for delay between EVENT_END and actual TX end time */
-        tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+        tx_time += g_ble_phy_data.txtx_time_us;
 
 #if PHY_USE_FEM_PA
         fem_time = tx_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
