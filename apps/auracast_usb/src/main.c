@@ -31,7 +31,6 @@
 #include "app_priv.h"
 
 #define BROADCAST_SID                       1
-#define BROADCAST_SDU_INTVL                 MYNEWT_VAL(LC3_FRAME_DURATION)
 
 #if (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 8000)
 #define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_8000_HZ
@@ -47,11 +46,17 @@
 BUILD_ASSERT(0, "Sample frequency not supported");
 #endif
 
-#define BROADCAST_MAX_SDU                   (BROADCAST_SDU_INTVL * \
-                                             MYNEWT_VAL(LC3_BITRATE) / \
-                                             (1000 * 1000 * 8) *   \
-                                             MYNEWT_VAL(AURACAST_CHAN_NUM) / \
-                                             MYNEWT_VAL(BIG_NUM_BIS))
+/* Note: values need to be adjusted if sampling frequency is 44100 (currently
+ *       not supported by app) or SDU interval is different from LC3 frame
+ *       length
+ */
+#define OCTETS_PER_CODEC_FRAME      (MYNEWT_VAL(LC3_BITRATE) / \
+                                     8 * MYNEWT_VAL(LC3_FRAME_DURATION) / \
+                                     1000000)
+#define BIG_SDU_INTERVAL            (MYNEWT_VAL(LC3_FRAME_DURATION))
+#define BIG_MAX_SDU                 (OCTETS_PER_CODEC_FRAME * \
+                                     MYNEWT_VAL(AURACAST_CHAN_NUM) / \
+                                     MYNEWT_VAL(BIG_NUM_BIS))
 
 #define BROADCASTER_INTERRUPT_TASK_PRIO  4
 #define BROADCASTER_INTERRUPT_TASK_STACK_SZ    512
@@ -104,14 +109,14 @@ base_create(void)
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      BLE_AUDIO_LOCATION_FRONT_LEFT,
-                                     BROADCAST_MAX_SDU, );
+                                     OCTETS_PER_CODEC_FRAME, );
     uint8_t codec_spec_config_right_chan[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(BROADCAST_SAMPLE_RATE,
                                      MYNEWT_VAL(LC3_FRAME_DURATION) == 10000 ?
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      BLE_AUDIO_LOCATION_FRONT_RIGHT,
-                                     BROADCAST_MAX_SDU, );
+                                     OCTETS_PER_CODEC_FRAME, );
 #else
     uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT |
                         BLE_AUDIO_LOCATION_FRONT_RIGHT;
@@ -121,7 +126,7 @@ base_create(void)
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
                                      BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      chan_loc,
-                                     BROADCAST_MAX_SDU * 2, );
+                                     OCTETS_PER_CODEC_FRAME, );
 
     struct ble_audio_bis *bis;
 #endif
@@ -239,8 +244,8 @@ auracast_create(void)
 {
     const char *program_info = "NimBLE Auracast Test";
     static struct ble_iso_big_params big_params = {
-        .sdu_interval = MYNEWT_VAL(LC3_FRAME_DURATION),
-        .max_sdu = BROADCAST_MAX_SDU,
+        .sdu_interval = BIG_SDU_INTERVAL,
+        .max_sdu = BIG_MAX_SDU,
         .max_transport_latency = MYNEWT_VAL(LC3_FRAME_DURATION) / 1000,
         .rtn = MYNEWT_VAL(BIG_RTN),
         .phy = MYNEWT_VAL(BIG_PHY),
