@@ -704,6 +704,18 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
 
 #if 1
     pdu_len = ble_ll_isoal_mux_unframed_get(&bis->mux, idx, &llid, dptr);
+
+    /* FIXME
+     * This is a very ugly workaround for missing pretransmission data.
+     * We can't (for now) simply skip single subevent without affecting timing
+     * of other subevents so in case we have an empty BIS PDU to be sent for
+     * pretransmission, we'll send it as invalid packet so receiver doesn't
+     * receive it. It's a temporary solution until we find a better way to
+     * schedule BIS PDUs.
+     */
+    if ((pdu_len == 0) && (bis->tx.g >= big->irc)) {
+        ble_phy_setchan(0, 0, 0);
+    }
 #else
     llid = 0;
     pdu_len = big->max_pdu;
