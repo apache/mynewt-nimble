@@ -183,8 +183,10 @@ big_sched_set(struct ble_ll_iso_big *big)
 
     ble_ll_tmr_add(&big->sch.start_time, &big->sch.remainder, offset_us);
 
-    /* Reset anchor base every 30mins to avoid overflows in calculations later. */
-    if (offset_us >= 30 * 60 * 1000000) {
+    /* Reset anchor base before anchor offset wraps-around.
+     * This happens much earlier than possible overflow in calculations.
+     */
+    if (big->anchor_offset == UINT16_MAX) {
         big->anchor_base_ticks = big->sch.start_time;
         big->anchor_base_rem_us = big->sch.remainder;
         big->anchor_offset = 0;
