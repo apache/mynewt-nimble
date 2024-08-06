@@ -205,7 +205,7 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
     pdu_idx = idx - sdu_idx * mux->pdu_per_sdu;
 
     if (sdu_idx >= mux->sdu_in_event) {
-        *llid = 1;
+        *llid = 0;
         return 0;
     }
 
@@ -215,7 +215,7 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
     }
 
     if (!pkthdr) {
-        *llid = 1;
+        *llid = 0;
         return 0;
     }
 
