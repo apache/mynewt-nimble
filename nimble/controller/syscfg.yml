@@ -516,6 +516,15 @@ syscfg.defs:
         value: 0
         experimental: 1
 
+    BLE_LL_ISOAL_MUX_PREFILL:
+        description: >
+            Waits until number of SDUs enqueued in mux is enough to fill complete
+            ISO event before providing data to ISO.
+            This is useful for pre-transmissions as it ensures that all subevents
+            in 1st ISO event are non-empty.
+        value: 0
+        experimental: 1
+
     BLE_LL_CHANNEL_SOUNDING:
         description: >
             Enable support for Channel Sounding feature.
