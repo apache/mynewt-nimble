@@ -119,13 +119,31 @@ ble_ll_isoal_mux_tx_pkt_in(struct ble_ll_isoal_mux *mux, struct os_mbuf *om,
     pkthdr = OS_MBUF_PKTHDR(om);
     STAILQ_INSERT_TAIL(&mux->sdu_q, pkthdr, omp_next);
     mux->sdu_q_len++;
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_PREFILL)
+    if (mux->sdu_q_len == mux->sdu_per_event) {
+        mux->active = 1;
+    }
+#endif
     OS_EXIT_CRITICAL(sr);
 }
 
 int
 ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
 {
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_PREFILL)
+    /* If prefill is enabled, we always expect to have required number of SDUs
+     * in queue, otherwise we disable mux until enough SDUs are queued again.
+     */
+    mux->sdu_in_event = mux->sdu_per_event;
+    if (mux->sdu_in_event > mux->sdu_q_len) {
+        mux->active = 0;
+    }
+    if (!mux->active) {
+        mux->sdu_in_event = 0;
+    }
+#else
     mux->sdu_in_event = min(mux->sdu_q_len, mux->sdu_per_event);
+#endif
     mux->event_tx_timestamp = timestamp;
 
     return mux->sdu_in_event;

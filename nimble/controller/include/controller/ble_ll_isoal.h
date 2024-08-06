@@ -27,6 +27,10 @@ extern "C" {
 #if MYNEWT_VAL(BLE_LL_ISO)
 
 struct ble_ll_isoal_mux {
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_PREFILL)
+    uint8_t active;
+#endif
+
     /* Max PDU length */
     uint8_t max_pdu;
     /* Number of expected SDUs per ISO interval */
