@@ -477,6 +477,7 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
             .status = 0
         }
     };
+    uint8_t *metadata_ptr;
     uint8_t offset = 0;
     int rc = 0;
     int i;
@@ -518,6 +519,16 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
         operation.modify_source.bis_sync[i] = get_le32(&data[offset]);
         offset += 4;
+        operation.modify_source.subgroups[i].metadata_length = data[offset++];
+        data_len -= 5;
+        if (data_len < operation.modify_source.subgroups[i].metadata_length) {
+            rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
+            ev.bass_operation_status.status = BLE_HS_ERJECT;
+            goto done;
+        }
+        operation.modify_source.subgroups[i].metadata = &data[offset];
+        offset += operation_modify_source.subgroups[i].metadata_length;
+        data_len -= operation.modify_source.subgroups[i].metadata_length;
     }
 
     if (check_bis_sync(operation.modify_source.num_subgroups,
@@ -525,6 +536,18 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
         rc = BLE_HS_EINVAL;
         ev.bass_operation_status.status = BLE_HS_EREJECT;
         goto done;
+    }
+
+    for (i = 0; i < operation.modify_source.num_subgroups; i++) {
+        metadata_ptr = os_memblock_get(&ble_audio_svc_bass_metadata_pool);
+        if (metadata_ptr == NULL) {
+            rc = BLE_HS_ENOMEM;
+            ev.bass_operation_status.status = BLE_HS_ENOMEM;
+            goto done;
+    }
+        memcpy(metadata_ptr, operation.modify_source.subgroups[i].metadata,
+               min(operation.modify_source.subgroups[i].metadata_length,
+               MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)));
     }
 
     if (accept_fn.ctrl_point_ev_fn) {
@@ -542,7 +565,6 @@ done:
     if (!rc) {
         rc = ble_svc_audio_bass_receive_state_notify(rcv_state);
         ev.bass_operation_status.status = rc;
-        goto done;
     }
 
     ble_audio_event_listener_call(&ev);
