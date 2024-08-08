@@ -961,10 +961,12 @@ ble_gattc_proc_matches_conn_rx_entry(struct ble_gattc_proc *proc, void *arg)
 
     criteria = arg;
 
-    if (criteria->conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-        criteria->conn_handle != proc->conn_handle &&
-        criteria->cid != proc->cid) {
+    if ((criteria->conn_handle != BLE_HS_CONN_HANDLE_NONE) &&
+        (criteria->conn_handle != proc->conn_handle)) {
+        return 0;
+    }
 
+    if (criteria->cid != proc->cid) {
         return 0;
     }
 
