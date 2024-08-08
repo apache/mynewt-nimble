@@ -415,13 +415,14 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
     fail.reason = BLE_SM_ERR_CMD_NOT_SUPP;
     ble_sm_test_util_verify_tx_pair_fail(&fail);
 
-    /*** Pairing already in progress; ignore security request. */
+    /*** Pairing already in progress; ignore security request before pairing
+     * response was received. */
     ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
     rc = ble_sm_pair_initiate(2);
     TEST_ASSERT_FATAL(rc == 0);
     ble_hs_test_util_prev_tx_queue_clear();
 
-    ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
+    ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
     TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
