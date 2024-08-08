@@ -2007,6 +2007,14 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
     ble_hs_lock();
 
     conn = ble_hs_conn_find_assert(conn_handle);
+
+    /* Check if pairing procedure is already in progress */
+    if (ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, NULL)) {
+        ble_hs_unlock();
+        res->app_status = 0;
+        return;
+    }
+
     if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
         res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
         res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
