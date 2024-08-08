@@ -251,6 +251,10 @@ ble_svc_audio_bass_receive_state_free(struct ble_svc_audio_bass_rcv_state_entry 
 static int
 ble_svc_audio_bass_remote_scan_stopped(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
+    if (data_len > 1) {
+        return BLE_ATT_ERR_WRITE_REQ_REJECTED;
+    }
+
     struct ble_audio_event ev = {
         .type = BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STOPPED
     };
@@ -264,6 +268,10 @@ ble_svc_audio_bass_remote_scan_stopped(uint8_t *data, uint16_t data_len, uint16_
 static int
 ble_svc_audio_bass_remote_scan_started(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
+    if (data_len > 1) {
+        return BLE_ATT_ERR_WRITE_REQ_REJECTED;
+    }
+
     struct ble_audio_event ev = {
         .type = BLE_AUDIO_EVENT_BASS_REMOTE_SCAN_STARTED
     };
