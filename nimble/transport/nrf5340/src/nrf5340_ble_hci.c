@@ -111,7 +111,7 @@ nrf5340_ble_hci_trans_rx(int channel, void *user_data)
 {
     assert(channel == IPC_RX_CHANNEL);
 
-#if MYNEWT_VAL(BLE_TRANSPORT_NRF5340_RX_TASK)
+#if MYNEWT_VAL(BLE_TRANSPORT_RX_TASK)
     ble_transport_rx();
 #else
     rx_func(NULL);
@@ -123,7 +123,7 @@ nrf5340_ble_hci_init(void)
 {
     SYSINIT_ASSERT_ACTIVE();
 
-#if MYNEWT_VAL(BLE_TRANSPORT_NRF5340_RX_TASK)
+#if MYNEWT_VAL(BLE_TRANSPORT_RX_TASK)
     ble_transport_rx_register(rx_func, NULL);
 #endif
     ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
