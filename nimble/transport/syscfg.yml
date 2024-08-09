@@ -110,12 +110,18 @@ syscfg.defs:
             of ISO buffers available for controller.
         value: MYNEWT_VAL(BLE_TRANSPORT_ISO_COUNT)
 
-    BLE_TRANSPORT_RX_PRIO:
+    BLE_TRANSPORT_RX_TASK_STACK_SIZE:
+        description: >
+            Stack size of RX task.
+            RX task is started if stack size is set to a valid value.
+        value:
+
+syscfg.defs.BLE_TRANSPORT_RX_TASK_STACK_SIZE:
+    BLE_TRANSPORT_RX_TASK: 1
+    BLE_TRANSPORT_RX_TASK_PRIO:
         description: Priority of RX task
         type: task_priority
-        value: 126
-    BLE_TRANSPORT_RX_STACK_SIZE:
-        description: Stack size of RX task
+        restrictions: $notnull
         value:
 
 # import monitor and defunct settings from separate file to reduce clutter in main file

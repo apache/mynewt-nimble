@@ -26,13 +26,13 @@
 #include <nimble/transport.h>
 #include <nimble/nimble_npl.h>
 
-#if !defined(MYNEWT) || MYNEWT_VAL(BLE_TRANSPORT_RX_STACK_SIZE) > 0
+#if !defined(MYNEWT) || MYNEWT_VAL(BLE_TRANSPORT_RX_TASK_STACK_SIZE)
 
 static ble_transport_rx_func_t *rx_func;
 static void *rx_func_arg;
 
 #if MYNEWT
-OS_TASK_STACK_DEFINE(rx_stack, MYNEWT_VAL(BLE_TRANSPORT_RX_STACK_SIZE));
+OS_TASK_STACK_DEFINE(rx_stack, MYNEWT_VAL(BLE_TRANSPORT_RX_TASK_STACK_SIZE));
 static struct os_task rx_task;
 #endif
 
@@ -70,8 +70,8 @@ ble_transport_rx_register(ble_transport_rx_func_t *func, void *arg)
 
 #ifdef MYNEWT
     os_task_init(&rx_task, "hci_rx_task", rx_task_func, NULL,
-                 MYNEWT_VAL(BLE_TRANSPORT_RX_PRIO), OS_WAIT_FOREVER, rx_stack,
-                 MYNEWT_VAL(BLE_TRANSPORT_RX_STACK_SIZE));
+                 MYNEWT_VAL(BLE_TRANSPORT_RX_TASK_PRIO), OS_WAIT_FOREVER,
+                 rx_stack, MYNEWT_VAL(BLE_TRANSPORT_RX_TASK_STACK_SIZE));
 #endif
 }
 
