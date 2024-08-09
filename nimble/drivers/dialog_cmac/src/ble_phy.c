@@ -1655,18 +1655,38 @@ ble_phy_encrypt_disable(void)
 }
 #endif
 
+static int8_t
+phy_txpower_round(int8_t dbm)
+{
+    static const int8_t supported_pwr_levels[] = {-18, -12, -8, -6, -3, -2,
+                                                  -1, 0, 1, 2, 3, 4, 5, 6 };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(supported_pwr_levels); i++) {
+        if (dbm <= supported_pwr_levels[i]) {
+            dbm = supported_pwr_levels[i];
+            break;
+        }
+    }
+
+    if (i == ARRAY_SIZE(supported_pwr_levels)) {
+        dbm = supported_pwr_levels[ARRAY_SIZE(supported_pwr_levels) - 1];
+    }
+
+    return dbm;
+}
+
 int
 ble_phy_tx_power_set(int dbm)
 {
 #if MYNEWT_VAL(CMAC_DEBUG_DATA_ENABLE)
     if (g_cmac_shm_debugdata.tx_power_ovr_enable) {
-        ble_rf_set_tx_power(g_cmac_shm_debugdata.tx_power_ovr);
-    } else {
-        ble_rf_set_tx_power(dbm);
+        dbm = g_cmac_shm_debugdata.tx_power_ovr;
     }
-#else
-    ble_rf_set_tx_power(dbm);
 #endif
+
+    dbm = phy_txpower_round(dbm);
+    ble_rf_set_tx_power(dbm);
 
     return 0;
 }
@@ -1674,7 +1694,7 @@ ble_phy_tx_power_set(int dbm)
 int
 ble_phy_tx_power_round(int dbm)
 {
-    return 0;
+    return phy_txpower_round(dbm);
 }
 
 int
