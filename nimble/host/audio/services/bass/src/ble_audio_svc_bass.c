@@ -618,12 +618,16 @@ static int
 ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, uint16_t conn_handle)
 {
     struct ble_svc_audio_bass_ctrl_point_handler *handler;
+	uint16_t mbuf_len = OS_MBUF_PKTLEN(ctxt->om);
+	uint8_t opcode;
+	uint8_t data[MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)];
 
-    uint8_t opcode = ctxt->om->om_data[0];
+	os_mbuf_copydata(ctxt->om, 0, mbuf_len, data);
+	opcode = data[0];
 
     handler = ble_svc_audio_bass_find_handler(opcode);
 
-    if (!handler) {
+    if (handler == NULL) {
         return BLE_SVC_AUDIO_BASS_ERR_OPCODE_NOT_SUPPORTED;
     }
 
@@ -633,7 +637,7 @@ ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, ui
         return BLE_ATT_ERR_WRITE_REQ_REJECTED;
     }
 
-    return handler->handler_cb(&ctxt->om->om_data[1], ctxt->om->om_len - 1, conn_handle);
+    return handler->handler_cb(data, mbuf_len, conn_handle);
 }
 
 static int
