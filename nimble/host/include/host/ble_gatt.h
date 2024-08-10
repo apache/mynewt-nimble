@@ -960,6 +960,12 @@ struct ble_gatt_access_ctxt {
          */
         const struct ble_gatt_dsc_def *dsc;
     };
+
+    /**
+     * An offset in case of BLE_ATT_OP_READ_BLOB_REQ.
+     * If the value is greater than zero it's an indication of a long attribute read.
+     */
+    uint16_t offset;
 };
 
 /**

@@ -416,6 +416,7 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
 
     gatt_ctxt.op = ble_gatts_chr_op(att_op);
     gatt_ctxt.chr = chr_def;
+    gatt_ctxt.offset = offset;
 
     ble_gatts_chr_inc_val_stat(gatt_ctxt.op);
     rc = ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt, om,
