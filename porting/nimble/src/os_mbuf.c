@@ -540,28 +540,21 @@ struct os_mbuf *
 os_mbuf_off(const struct os_mbuf *om, int off, uint16_t *out_off)
 {
     struct os_mbuf *next;
-    struct os_mbuf *cur;
-
     /* Cast away const. */
-    cur = (struct os_mbuf *)om;
-
-    while (1) {
-        if (cur == NULL) {
-            return NULL;
-        }
-
+    struct os_mbuf *cur = (struct os_mbuf *) om;
+    while (cur != NULL) {
         next = SLIST_NEXT(cur, om_next);
-
-        if (cur->om_len > off ||
-            (cur->om_len == off && next == NULL)) {
-
+        if (cur->om_len > off || (cur->om_len == off && next == NULL)) {
             *out_off = off;
+
             return cur;
         }
 
         off -= cur->om_len;
         cur = next;
     }
+
+    return NULL;
 }
 
 int
@@ -633,18 +626,19 @@ os_mbuf_adj(struct os_mbuf *mp, int req_len)
          * after the remaining size.
          */
         len = -len;
+        if (m->om_len >= len) {
+            m->om_len -= len;
+            if (OS_MBUF_IS_PKTHDR(mp))
+                OS_MBUF_PKTHDR(mp)->omp_len -= len;
+            return;
+        }
+
         count = 0;
         for (;;) {
             count += m->om_len;
             if (SLIST_NEXT(m, om_next) == (struct os_mbuf *)0)
                 break;
             m = SLIST_NEXT(m, om_next);
-        }
-        if (m->om_len >= len) {
-            m->om_len -= len;
-            if (OS_MBUF_IS_PKTHDR(mp))
-                OS_MBUF_PKTHDR(mp)->omp_len -= len;
-            return;
         }
         count -= len;
         if (count < 0)
