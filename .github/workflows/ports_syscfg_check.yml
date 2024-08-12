@@ -92,6 +92,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
+          author: Mynewt Bot <dev@mynewt.apache.org>
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
             porting: Update ports syscfg
