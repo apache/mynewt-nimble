@@ -3124,45 +3124,38 @@ ble_gap_adv_active(void)
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static int
-ble_gap_ext_adv_params_tx(uint8_t instance,
-                          const struct ble_gap_ext_adv_params *params,
-                          int8_t *selected_tx_power)
-
+ble_gap_set_ext_adv_params(struct ble_hci_le_set_ext_adv_params_cp *cmd,
+                           uint8_t instance, const struct ble_gap_ext_adv_params *params,
+                           int8_t *selected_tx_power)
 {
-    struct ble_hci_le_set_ext_adv_params_cp cmd;
-    struct ble_hci_le_set_ext_adv_params_rp rsp;
-    int rc;
-
-    memset(&cmd, 0, sizeof(cmd));
-
-    cmd.adv_handle = instance;
+    cmd->adv_handle = instance;
 
     if (params->connectable) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE;
     }
     if (params->scannable) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE;
     }
     if (params->directed) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED;
-        cmd.peer_addr_type = params->peer.type;
-        memcpy(cmd.peer_addr, params->peer.val, BLE_DEV_ADDR_LEN);
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED;
+        cmd->peer_addr_type = params->peer.type;
+        memcpy(cmd->peer_addr, params->peer.val, BLE_DEV_ADDR_LEN);
     }
     if (params->high_duty_directed) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED;
     }
     if (params->anonymous) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV;
     }
     if (params->include_tx_power) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_INC_TX_PWR;
     }
     if (params->legacy_pdu) {
-        cmd.props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
+        cmd->props |= BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY;
 
         /* check right away if the applied configuration is valid before handing
          * the command to the controller to improve error reporting */
-        switch (cmd.props) {
+        switch (cmd->props) {
             case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_IND:
             case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_LD_DIR:
             case BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY_HD_DIR:
@@ -3177,38 +3170,58 @@ ble_gap_ext_adv_params_tx(uint8_t instance,
     /* Fill optional fields if application did not specify them. */
     if (params->itvl_min == 0 && params->itvl_max == 0) {
         /* TODO for now limited to legacy values*/
-        put_le24(cmd.pri_itvl_min, BLE_GAP_ADV_FAST_INTERVAL1_MIN);
-        put_le24(cmd.pri_itvl_max, BLE_GAP_ADV_FAST_INTERVAL2_MAX);
+        put_le24(cmd->pri_itvl_min, BLE_GAP_ADV_FAST_INTERVAL1_MIN);
+        put_le24(cmd->pri_itvl_max, BLE_GAP_ADV_FAST_INTERVAL2_MAX);
     } else {
-        put_le24(cmd.pri_itvl_min, params->itvl_min);
-        put_le24(cmd.pri_itvl_max, params->itvl_max);
+        put_le24(cmd->pri_itvl_min, params->itvl_min);
+        put_le24(cmd->pri_itvl_max, params->itvl_max);
     }
 
     if (params->channel_map == 0) {
-        cmd.pri_chan_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP;
+        cmd->pri_chan_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP;
     } else {
-        cmd.pri_chan_map = params->channel_map;
+        cmd->pri_chan_map = params->channel_map;
     }
 
     /* Zero is the default value for filter policy and high duty cycle */
-    cmd.filter_policy = params->filter_policy;
-    cmd.tx_power = params->tx_power;
+    cmd->filter_policy = params->filter_policy;
+    cmd->tx_power = params->tx_power;
 
     if (params->legacy_pdu) {
-        cmd.pri_phy = BLE_HCI_LE_PHY_1M;
-        cmd.sec_phy = BLE_HCI_LE_PHY_1M;
+        cmd->pri_phy = BLE_HCI_LE_PHY_1M;
+        cmd->sec_phy = BLE_HCI_LE_PHY_1M;
     } else {
-        cmd.pri_phy = params->primary_phy;
-        cmd.sec_phy = params->secondary_phy;
+        cmd->pri_phy = params->primary_phy;
+        cmd->sec_phy = params->secondary_phy;
     }
 
-    cmd.own_addr_type = params->own_addr_type;
-    cmd.sec_max_skip = 0;
-    cmd.sid = params->sid;
-    cmd.scan_req_notif = params->scan_req_notif;
+    cmd->own_addr_type = params->own_addr_type;
+    cmd->sec_max_skip = 0;
+    cmd->sid = params->sid;
+    cmd->scan_req_notif = params->scan_req_notif;
+
+    return 0;
+}
+
+static int
+ble_gap_ext_adv_params_tx_v1(uint8_t instance,
+                             const struct ble_gap_ext_adv_params *params,
+                             int8_t *selected_tx_power)
+{
+    struct ble_hci_le_set_ext_adv_params_cp cmd;
+    struct ble_hci_le_set_ext_adv_params_rp rsp;
+    int rc;
+
+    memset(&cmd, 0, sizeof(cmd));
+
+    rc = ble_gap_set_ext_adv_params(&cmd, instance, params, selected_tx_power);
+
+    if (rc != 0) {
+        return rc;
+    }
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
-                                      BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM),
+                           BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM),
                            &cmd, sizeof(cmd), &rsp, sizeof(rsp));
 
     if (rc != 0) {
@@ -3220,6 +3233,69 @@ ble_gap_ext_adv_params_tx(uint8_t instance,
     }
 
     return 0;
+
+}
+
+static int
+ble_gap_ext_adv_params_tx_v2(uint8_t instance,
+                             const struct ble_gap_ext_adv_params *params,
+                             int8_t *selected_tx_power)
+{
+
+    struct ble_hci_le_set_ext_adv_params_v2_cp cmd;
+    struct ble_hci_le_set_ext_adv_params_rp rsp;
+    int rc;
+
+    memset(&cmd, 0, sizeof(cmd));
+
+    rc = ble_gap_set_ext_adv_params(&(cmd.cmd), instance, params, selected_tx_power);
+
+    if (rc != 0) {
+        return rc;
+    }
+
+    cmd.pri_phy_opt = params->pri_phy_opt;
+    cmd.sec_phy_opt = params->sec_phy_opt;
+
+    rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                  BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM_V2),
+                           &cmd, sizeof(cmd), &rsp, sizeof(rsp));
+
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (selected_tx_power) {
+        *selected_tx_power = rsp.tx_power;
+    }
+
+    return 0;
+}
+
+static int
+ble_gap_ext_adv_params_tx(uint8_t instance,
+                          const struct ble_gap_ext_adv_params *params,
+                          int8_t *selected_tx_power)
+{
+    struct ble_hs_hci_sup_cmd sup_cmd;
+    int rc = 0;
+
+    sup_cmd = ble_hs_hci_get_hci_supported_cmd();
+
+    /* Return Error if phy is non-zero and controller doesn't support V2 */
+    if (!((sup_cmd.commands[46] & 0x04) != 0) &&
+        (params->primary_phy || params->secondary_phy)) {
+        return BLE_HS_EINVAL;
+    }
+
+    if ((sup_cmd.commands[46] & 0x04) != 0) {
+        rc = ble_gap_ext_adv_params_tx_v2(instance, params, selected_tx_power);
+        return rc;
+    }
+
+    rc = ble_gap_ext_adv_params_tx_v1(instance, params, selected_tx_power);
+
+    return rc;
 }
 
 static int

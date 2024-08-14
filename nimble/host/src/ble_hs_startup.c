@@ -82,8 +82,7 @@ ble_hs_startup_read_sup_cmd_tx(void)
         return rc;
     }
 
-    /* Only check support for Set Event ­Mask ­Page ­2 command */
-    sup_cmd.event_mask2 = (rsp.commands[22] & 0x04) != 0;
+    memcpy(&sup_cmd.commands, &rsp.commands, sizeof(sup_cmd));
     ble_hs_hci_set_hci_supported_cmd(sup_cmd);
 
     return 0;
@@ -373,7 +372,7 @@ ble_hs_startup_set_evmask_tx(void)
         return rc;
     }
 
-    if ((version >= BLE_HCI_VER_BCS_4_1) && sup_cmd.event_mask2) {
+    if ((version >= BLE_HCI_VER_BCS_4_1) && ((sup_cmd.commands[22] & 0x04) != 0)) {
         /**
          * Enable the following events:
          *     0x0000000000800000 Authenticated Payload Timeout Event
