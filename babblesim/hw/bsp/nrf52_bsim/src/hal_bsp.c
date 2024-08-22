@@ -129,6 +129,9 @@ nrf52_periph_create_timers(void)
     rc = os_cputime_init(MYNEWT_VAL(OS_CPUTIME_FREQ));
     assert(rc == 0);
 #endif
+
+    rc = hal_timer_config(3, 16000000);
+    assert(rc == 0);
 }
 
 static struct uart_dev os_bsp_uart0;
