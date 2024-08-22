@@ -30,9 +30,40 @@
 #include "ble_ll_priv.h"
 #include "ble_ll_cs_priv.h"
 
+extern struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 extern struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 extern struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 extern int8_t g_ble_ll_tx_power;
+
+static uint8_t
+ble_ll_cs_sync_calc_seq_quality(struct ble_ll_cs_sm *cssm, uint8_t *rxpdu,
+                                struct ble_mbuf_hdr *hdr)
+{
+    /* TODO: Check if all bits match the expected sequence.
+     * For now returns "all bits match".
+     */
+    return 0;
+}
+
+static uint8_t
+ble_ll_cs_sync_calc_nadm(struct ble_ll_cs_sm *cssm, uint8_t *rxpdu,
+                         struct ble_mbuf_hdr *hdr)
+{
+    uint8_t nadm;
+
+    if (cssm->active_config->rtt_type == 0x00) {
+        /* No sequence, so NADM unknown. */
+        nadm = 0xFF;
+    } else {
+        /* TODO: Estimate how much a received GFSK modulated packet signal
+         * differs from the expected packet signal. Use the normalized attack
+         * detector metric (NADM). For now return "Attack extremely unlikely".
+         */
+        nadm = 0x00;
+    }
+
+    return nadm;
+}
 
 static uint8_t
 ble_ll_cs_sync_make(struct ble_ll_cs_sm *cssm, uint8_t *buf)
@@ -278,7 +309,6 @@ ble_ll_cs_sync_rx_isr_start(struct ble_mbuf_hdr *rxhdr, uint32_t aa)
 int
 ble_ll_cs_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 {
-    struct os_mbuf *rxpdu;
     struct ble_ll_cs_sm *cssm = g_ble_ll_cs_sm_current;
     uint32_t cputime;
     uint32_t rem_us;
@@ -297,6 +327,22 @@ ble_ll_cs_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
         cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
         cssm->step_result.time_of_arrival = cssm->anchor_usecs;
     }
+
+    cssm->step_result.packet_rssi = rxhdr->rxinfo.rssi;
+    cssm->step_result.packet_quality =
+        ble_ll_cs_sync_calc_seq_quality(cssm, rxbuf, rxhdr);
+    cssm->step_result.packet_nadm =
+        ble_ll_cs_sync_calc_nadm(cssm, rxbuf, rxhdr);
+
+    if (g_ble_ll_cs_local_cap.sounding_pct_estimate &&
+        cssm->active_config->rtt_type != BLE_LL_CS_RTT_AA_ONLY) {
+        /* TODO: Read PCT estimates from sounding sequence.
+         * For now set "Phase Correction Term is not available".
+         */
+        cssm->step_result.packet_pct1 = 0xFFFFFFFF;
+        cssm->step_result.packet_pct2 = 0xFFFFFFFF;
+    }
+
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 
     ble_phy_disable();
