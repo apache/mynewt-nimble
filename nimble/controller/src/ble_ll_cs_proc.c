@@ -24,6 +24,7 @@
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_tmr.h"
+#include "controller/ble_ll_hci.h"
 #include "ble_ll_cs_priv.h"
 
 extern struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
@@ -50,6 +51,7 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 #define CS_SCHEDULE_NEW_SUBEVENT  (1)
 #define CS_SCHEDULE_NEW_EVENT     (2)
 #define CS_SCHEDULE_NEW_PROCEDURE (3)
+#define CS_SCHEDULE_COMPLETED     (4)
 
 #define BLE_LL_CONN_ITVL_USECS    (1250)
 
@@ -60,11 +62,39 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 /* The requency measurement period in µs */
 #define T_FM (80)
 
+#define TIME_DIFF_NOT_AVAILABLE  (0x00008000)
+/* TODO: Hardcorded for 16MHz timer, should be configurable. */
+/* units of 0.5 nanoseconds */
+#define GET_TIME_DIFF(_diff_ticks, _center_delta_us) (_diff_ticks * 125 - _center_delta_us * 2000);
+
+#define SUBEVENT_DONE_STATUS_COMPLETED (0x0)
+#define SUBEVENT_DONE_STATUS_PARTIAL   (0x1)
+#define SUBEVENT_DONE_STATUS_ABORTED   (0xF)
+
+#define PROC_DONE_STATUS_COMPLETED (0x0)
+#define PROC_DONE_STATUS_PARTIAL   (0x1)
+#define PROC_DONE_STATUS_ABORTED   (0xF)
+
+#define PROC_ABORT_SUCCESS              (0x00)
+#define PROC_ABORT_REQUESTED            (0x01)
+#define PROC_ABORT_CHANNEL_MAP_CHANNELS (0x02)
+#define PROC_ABORT_CHANNEL_MAP_UPDATE   (0x03)
+#define PROC_ABORT_UNSPECIFIED          (0x0F)
+
+#define SUBEVENT_ABORT_SUCCESS              (0x00)
+#define SUBEVENT_ABORT_REQUESTED            (0x01)
+#define SUBEVENT_ABORT_NO_CS_SYNC           (0x02)
+#define SUBEVENT_ABORT_LIMITED_RESOURCES    (0x03)
+#define SUBEVENT_ABORT_UNSPECIFIED          (0x0F)
+
 static struct ble_ll_cs_aci aci_table[] = {
     {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
     {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
 };
 static const uint8_t rtt_seq_len[] = {0, 4, 12, 4, 8, 12, 16};
+
+/* For queueing the HCI Subevent Result (Continue) events */
+static struct ble_npl_event subevent_pool[MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING_SUBEVENT_EV_MAX_CNT)];
 
 static int
 ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm)
@@ -130,6 +160,347 @@ ble_ll_cs_proc_halt(void)
 void
 ble_ll_cs_proc_rm_from_sched(void *cb_args)
 {
+}
+
+static int
+ble_ll_cs_init_subevent(struct ble_ll_cs_subevent *subevent,
+                        struct ble_ll_cs_sm *cssm)
+{
+    struct ble_hci_ev_le_subev_cs_subevent_result *ev;
+    struct ble_hci_ev *hci_ev;
+    const struct ble_ll_cs_proc_params *params = &cssm->active_config->proc_params;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT)) {
+        return 0;
+    }
+
+    hci_ev = ble_transport_alloc_evt(0);
+    if (!hci_ev) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *)hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT;
+    ev->conn_handle = htole16(cssm->connsm->conn_handle);
+    ev->config_id = cssm->active_config_id;
+    ev->start_acl_conn_event_counter = params->anchor_conn_event +
+                                       cssm->events_in_procedure_count *
+                                       params->event_interval;
+    ev->procedure_counter = cssm->procedure_count;
+    ev->frequency_compensation = 0xC000;
+    ev->reference_power_level = 0x7F;
+    ev->num_antenna_paths = cssm->n_ap;
+    ev->num_steps_reported = 0;
+
+    memset(subevent, 0, sizeof(*subevent));
+    subevent->hci_ev = hci_ev;
+    subevent->subev = BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT;
+
+    return 0;
+}
+
+static int
+ble_ll_cs_init_subevent_continue(struct ble_ll_cs_subevent *subevent,
+                                 struct ble_ll_cs_sm *cssm)
+{
+    struct ble_hci_ev_le_subev_cs_subevent_result_continue *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT_CONTINUE)) {
+        return 0;
+    }
+
+    hci_ev = ble_transport_alloc_evt(0);
+    if (!hci_ev) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *)hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT_CONTINUE;
+    ev->conn_handle = htole16(cssm->connsm->conn_handle);
+    ev->config_id = cssm->active_config_id;
+    ev->abort_reason = 0x00;
+    ev->num_antenna_paths = cssm->n_ap;
+    ev->num_steps_reported = 0;
+
+    memset(subevent, 0, sizeof(*subevent));
+    subevent->hci_ev = hci_ev;
+    subevent->subev = BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT_CONTINUE;
+
+    return 0;
+}
+
+/**
+ * Send HCI_LE_CS_Subevent_Result (or _Continue)
+ *
+ * Context: Link Layer task.
+ *
+ */
+static void
+ble_ll_cs_proc_send_subevent(struct ble_npl_event *ev)
+{
+    struct ble_ll_cs_subevent *subevent;
+    struct ble_hci_ev *hci_ev;
+
+    hci_ev = ble_npl_event_get_arg(ev);
+    BLE_LL_ASSERT(hci_ev);
+
+    ble_ll_hci_event_send(hci_ev);
+
+    ble_npl_event_set_arg(ev, NULL);
+}
+
+static int
+ble_ll_cs_proc_queue_subevent(struct ble_ll_cs_subevent *subevent,
+                              uint8_t cs_schedule_status,
+                              uint8_t proc_abort_reason,
+                              uint8_t subev_abort_reason)
+{
+    int i;
+    struct ble_hci_ev *hci_ev = subevent->hci_ev;
+    struct ble_npl_event *ev;
+    uint8_t abort_reason = 0x00;
+    uint8_t procedure_done;
+    uint8_t subevent_done;
+
+    switch (cs_schedule_status) {
+    case CS_SCHEDULE_NEW_STEP:
+        procedure_done = PROC_DONE_STATUS_PARTIAL;
+        subevent_done = SUBEVENT_DONE_STATUS_PARTIAL;
+        break;
+    case CS_SCHEDULE_NEW_SUBEVENT:
+    case CS_SCHEDULE_NEW_EVENT:
+        procedure_done = PROC_DONE_STATUS_PARTIAL;
+        subevent_done = SUBEVENT_DONE_STATUS_COMPLETED;
+        break;
+    case CS_SCHEDULE_NEW_PROCEDURE:
+    case CS_SCHEDULE_COMPLETED:
+        if (proc_abort_reason == PROC_ABORT_SUCCESS) {
+            procedure_done = PROC_DONE_STATUS_COMPLETED;
+        } else {
+            procedure_done = PROC_DONE_STATUS_ABORTED;
+        }
+
+        if (subev_abort_reason == SUBEVENT_ABORT_SUCCESS) {
+            subevent_done = SUBEVENT_DONE_STATUS_COMPLETED;
+        } else {
+            subevent_done = SUBEVENT_DONE_STATUS_ABORTED;
+        }
+
+        abort_reason = subev_abort_reason << 4 | proc_abort_reason;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    if (subevent->subev == BLE_HCI_LE_SUBEV_CS_SUBEVENT_RESULT) {
+        struct ble_hci_ev_le_subev_cs_subevent_result *ev =
+            (struct ble_hci_ev_le_subev_cs_subevent_result *)hci_ev->data;
+
+        ev->procedure_done_status = procedure_done;
+        ev->subevent_done_status = subevent_done;
+        ev->abort_reason = abort_reason;
+        ev->num_steps_reported = subevent->num_steps_reported;
+    } else {
+        struct ble_hci_ev_le_subev_cs_subevent_result_continue *ev =
+            (struct ble_hci_ev_le_subev_cs_subevent_result_continue *)hci_ev->data;
+
+        ev->procedure_done_status = procedure_done;
+        ev->subevent_done_status = subevent_done;
+        ev->abort_reason = abort_reason;
+        ev->num_steps_reported = subevent->num_steps_reported;
+    }
+
+    memset(subevent, 0, sizeof(*subevent));
+
+    for (i = 0; i < ARRAY_SIZE(subevent_pool); ++i) {
+        ev = &subevent_pool[i];
+
+        if (ble_npl_event_get_arg(ev) == NULL) {
+            break;
+        }
+
+        ev = NULL;
+    }
+
+    if (!ev) {
+        ble_transport_free(hci_ev);
+        return 1;
+    }
+
+    ble_npl_event_init(ev, ble_ll_cs_proc_send_subevent, hci_ev);
+    ble_ll_event_add(ev);
+
+    return 0;
+}
+
+static void
+ble_ll_cs_proc_add_step_result(struct ble_ll_cs_sm *cssm)
+{
+    int rc;
+    struct ble_hci_ev *hci_ev;
+    struct ble_ll_cs_config *conf = cssm->active_config;
+    struct ble_ll_cs_step_result *result = &cssm->step_result;
+    struct cs_steps_data *step_data;
+    uint8_t *data;
+    int32_t t_sy_center_delta_us;
+    int32_t time_diff_ticks;
+    int32_t time_diff = TIME_DIFF_NOT_AVAILABLE;
+    uint8_t t_ip1 = conf->t_ip1;
+    uint8_t t_ip2 = conf->t_ip2;
+    uint8_t t_sw = cssm->t_sw;
+    uint8_t t_pm = conf->t_pm;
+    uint8_t n_ap = cssm->n_ap;
+    uint8_t t_sy = cssm->t_sy + cssm->t_sy_seq;
+    uint8_t data_len = 0;
+    uint8_t role = cssm->active_config->role;
+    uint8_t i;
+
+    /* Estimate the size of the step results */
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        data_len = 3;
+        if (role == BLE_LL_CS_ROLE_INITIATOR) {
+            data_len += 2;
+        }
+    } else if (cssm->step_mode == BLE_LL_CS_MODE1) {
+        data_len = 6;
+        if (result->sounding_pct_estimate) {
+            data_len += 8;
+        }
+        t_sy_center_delta_us = t_sy + T_RD + t_ip1;
+    } else if (cssm->step_mode == BLE_LL_CS_MODE2) {
+        data_len = 1 + (n_ap + 1) * 3 * 2;
+    } else if (cssm->step_mode == BLE_LL_CS_MODE3) {
+        data_len = 6 + 1 + (n_ap + 1) * 3 * 2;
+        if (result->sounding_pct_estimate) {
+            data_len += 8;
+        }
+        t_sy_center_delta_us = t_sy + T_RD + 2 * (t_sw + t_pm) * (n_ap + 1) + t_ip2;
+    }
+
+    BLE_LL_ASSERT(cssm->buffered_subevent.hci_ev);
+    hci_ev = cssm->buffered_subevent.hci_ev;
+
+    /* Validate if the step results will fit into the current hci event
+     * buffer or mark it as pending and create a new buffer.
+     */
+    if (hci_ev->length + data_len <= BLE_HCI_MAX_DATA_LEN) {
+        ++cssm->buffered_subevent.num_steps_reported;
+    } else {
+        BLE_LL_ASSERT(cssm->steps_in_subevent_count != 0);
+
+        rc = ble_ll_cs_proc_queue_subevent(&cssm->buffered_subevent, CS_SCHEDULE_NEW_STEP,
+                                           PROC_ABORT_SUCCESS, SUBEVENT_ABORT_SUCCESS);
+        BLE_LL_ASSERT(rc == 0);
+
+        ble_ll_cs_init_subevent_continue(&cssm->buffered_subevent, cssm);
+        hci_ev = cssm->buffered_subevent.hci_ev;
+
+        BLE_LL_ASSERT(hci_ev);
+        BLE_LL_ASSERT(hci_ev->length + data_len <= BLE_HCI_MAX_DATA_LEN);
+
+        cssm->buffered_subevent.hci_ev = hci_ev;
+        cssm->buffered_subevent.num_steps_reported = 1;
+    }
+
+    step_data = (struct cs_steps_data *)(hci_ev->data + hci_ev->length);
+    step_data->mode = cssm->step_mode;
+    step_data->channel = cssm->channel;
+    data = step_data->data;
+
+    if (cssm->step_mode == BLE_LL_CS_MODE1 || cssm->step_mode == BLE_LL_CS_MODE3) {
+        if (role == BLE_LL_CS_ROLE_INITIATOR) {
+            if (result->time_of_arrival > result->time_of_departure) {
+                time_diff_ticks = result->time_of_arrival - result->time_of_departure;
+                time_diff = GET_TIME_DIFF(time_diff_ticks, t_sy_center_delta_us);
+            }
+        } else { /* BLE_LL_CS_ROLE_REFLECTOR */
+            if (result->time_of_arrival < result->time_of_departure) {
+                time_diff_ticks = result->time_of_departure - result->time_of_arrival;
+                time_diff = GET_TIME_DIFF(time_diff_ticks, t_sy_center_delta_us);
+            }
+        }
+
+        if (time_diff != TIME_DIFF_NOT_AVAILABLE && (time_diff < -0x7FFF || 0x7FFF < time_diff)) {
+            time_diff = TIME_DIFF_NOT_AVAILABLE;
+        }
+    }
+
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        data[0] = result->packet_quality;
+        data[1] = result->packet_rssi;
+        data[2] = cssm->cs_sync_antenna;
+        data_len = 3;
+
+        if (role == BLE_LL_CS_ROLE_INITIATOR) {
+            put_le16(data + 3, result->measured_freq_offset);
+            data_len += 2;
+        }
+
+    } else if (cssm->step_mode == BLE_LL_CS_MODE1) {
+        data[0] = result->packet_quality;
+        data[1] = result->packet_nadm;
+        data[2] = result->packet_rssi;
+        put_le16(data + 3, time_diff);
+        data[5] = cssm->cs_sync_antenna;
+        data_len = 6;
+
+        if (result->sounding_pct_estimate) {
+            put_le32(data + 6, result->packet_pct1);
+            put_le32(data + 10, result->packet_pct2);
+            data_len += 8;
+        }
+
+    } else if (cssm->step_mode == BLE_LL_CS_MODE2) {
+        data[0] = cssm->active_config->proc_params.aci;
+        data_len = 1;
+
+        for (i = 0; i < cssm->n_ap + 1; ++i) {
+            put_le24(data + data_len, result->tone_pct[i]);
+            data_len += 3;
+        }
+
+        for (i = 0; i < cssm->n_ap + 1; ++i) {
+            data[data_len] = result->tone_quality_ind[i];
+            ++data_len;
+        }
+
+    } else if (cssm->step_mode == BLE_LL_CS_MODE3) {
+        data[0] = result->packet_quality;
+        data[1] = result->packet_nadm;
+        data[2] = result->packet_rssi;
+        put_le16(data + 3, time_diff);
+        data[5] = cssm->cs_sync_antenna;
+        data_len = 6;
+
+        if (result->sounding_pct_estimate) {
+            put_le32(data + 6, result->packet_pct1);
+            put_le32(data + 10, result->packet_pct2);
+            data_len += 8;
+        }
+
+        data[data_len] = cssm->active_config->proc_params.aci;
+        data_len += 1;
+
+        for (i = 0; i < cssm->n_ap + 1; ++i) {
+            put_le24(data + data_len, result->tone_pct[i]);
+            data_len += 3;
+        }
+
+        for (i = 0; i < cssm->n_ap + 1; ++i) {
+            data[data_len++] = result->tone_quality_ind[i];
+        }
+    }
+
+    hci_ev->length += data_len;
+    step_data->data_len = data_len;
+    memset(result, 0, sizeof(*result));
 }
 
 static uint8_t
@@ -404,9 +775,11 @@ ble_ll_cs_proc_subevent_next_state(struct ble_ll_cs_sm *cssm)
         switch (rc) {
         case CS_SCHEDULE_NEW_SUBEVENT:
             ble_ll_cs_setup_next_subevent(cssm);
+            cssm->cs_schedule_status = CS_SCHEDULE_NEW_SUBEVENT;
             break;
         case CS_SCHEDULE_NEW_EVENT:
             ble_ll_cs_setup_next_event(cssm);
+            cssm->cs_schedule_status = CS_SCHEDULE_NEW_EVENT;
             break;
         case CS_SCHEDULE_NEW_PROCEDURE:
             if (conf->proc_params.max_procedure_count <= cssm->procedure_count + 1 ||
@@ -414,10 +787,17 @@ ble_ll_cs_proc_subevent_next_state(struct ble_ll_cs_sm *cssm)
                 /* All CS procedures have been completed or
                  * the CS procedure repeat series has been terminated.
                  */
-                return 1;
+                cssm->cs_schedule_status = CS_SCHEDULE_COMPLETED;
+
+                if (cssm->terminate_measurement) {
+                    cssm->proc_abort_reason = PROC_ABORT_REQUESTED;
+                }
+
+                return 0;
             }
 
             ble_ll_cs_setup_next_procedure(cssm);
+            cssm->cs_schedule_status = CS_SCHEDULE_NEW_PROCEDURE;
             break;
         default:
             BLE_LL_ASSERT(0);
@@ -432,6 +812,8 @@ ble_ll_cs_proc_subevent_next_state(struct ble_ll_cs_sm *cssm)
 
         return 0;
     }
+
+    cssm->cs_schedule_status = CS_SCHEDULE_NEW_STEP;
 
     if (cssm->subevent_state == SUBEVENT_STATE_MAINMODE_STEP &&
         conf->sub_mode != 0xFF) {
@@ -466,7 +848,7 @@ ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
     ++cssm->steps_in_subevent_count;
 
     rc = ble_ll_cs_proc_subevent_next_state(cssm);
-    if (rc) {
+    if (rc || cssm->cs_schedule_status == CS_SCHEDULE_COMPLETED) {
         return rc;
     }
 
@@ -506,6 +888,9 @@ ble_ll_cs_setup_next_step(struct ble_ll_cs_sm *cssm)
 
     cssm->antenna_path_count = cssm->n_ap;
     cssm->anchor_usecs = cssm->step_anchor_usecs;
+
+    /* TODO: Generate antenna ID if multiple antennas available */
+    cssm->cs_sync_antenna = 0x01;
 
     rc = ble_ll_cs_drbg_rand_tone_ext_presence(
         &cssm->drbg_ctx, cssm->steps_in_procedure_count, &cssm->tone_ext_presence_i);
@@ -748,7 +1133,8 @@ ble_ll_cs_proc_next_state(struct ble_ll_cs_sm *cssm)
             return 0;
         }
 
-        /* TODO: Send step results */
+        /* Save step results */
+        ble_ll_cs_proc_add_step_result(cssm);
     }
 
     /* Setup a new step */
@@ -757,10 +1143,31 @@ ble_ll_cs_proc_next_state(struct ble_ll_cs_sm *cssm)
 
     rc = ble_ll_cs_setup_next_step(cssm);
     if (rc) {
-        return rc;
+        if (!cssm->proc_abort_reason) {
+            cssm->proc_abort_reason = PROC_ABORT_UNSPECIFIED;
+        }
+
+        cssm->cs_schedule_status = CS_SCHEDULE_COMPLETED;
+    }
+
+    if (cssm->cs_schedule_status == CS_SCHEDULE_COMPLETED) {
+        rc = ble_ll_cs_proc_queue_subevent(&cssm->buffered_subevent, cssm->cs_schedule_status,
+                                           cssm->proc_abort_reason, cssm->subev_abort_reason);
+        BLE_LL_ASSERT(rc == 0);
+
+        return 1;
     }
 
     ble_ll_cs_proc_step_next_state(cssm);
+
+    if (cssm->cs_schedule_status != CS_SCHEDULE_NEW_STEP) {
+        rc = ble_ll_cs_proc_queue_subevent(&cssm->buffered_subevent, cssm->cs_schedule_status,
+                                           cssm->proc_abort_reason, cssm->subev_abort_reason);
+        BLE_LL_ASSERT(rc == 0);
+
+        rc = ble_ll_cs_init_subevent(&cssm->buffered_subevent, cssm);
+        BLE_LL_ASSERT(rc == 0);
+    }
 
     return 0;
 }
@@ -949,7 +1356,15 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id
     cssm->mode0_next_chan_id = 0xFF;
     cssm->non_mode0_next_chan_id = 0xFF;
 
+    if (g_ble_ll_cs_local_cap.sounding_pct_estimate &&
+        cssm->active_config->rtt_type != BLE_LL_CS_RTT_AA_ONLY) {
+        cssm->step_result.sounding_pct_estimate = 1;
+    }
+
     ble_ll_cs_proc_calculate_timing(cssm);
+
+    rc = ble_ll_cs_init_subevent(&cssm->buffered_subevent, cssm);
+    BLE_LL_ASSERT(rc == 0);
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {
