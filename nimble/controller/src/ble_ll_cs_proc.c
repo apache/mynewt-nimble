@@ -871,12 +871,6 @@ ble_ll_cs_proc_sched_cb_get(uint8_t role, uint8_t step_state)
         BLE_LL_ASSERT(0);
     }
 
-#if BABBLESIM
-    if (cb == ble_ll_cs_tone_tx_start || cb == ble_ll_cs_tone_rx_start) {
-        cb = ble_ll_cs_proc_skip_txrx;
-    }
-#endif
-
     return cb;
 }
 
