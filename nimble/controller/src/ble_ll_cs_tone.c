@@ -94,6 +94,7 @@ ble_ll_cs_tone_rx_isr_start(void)
 int
 ble_ll_cs_tone_rx_isr_end(void)
 {
+    uint8_t i;
     struct ble_ll_cs_sm *cssm = g_ble_ll_cs_sm_current;
 
     assert(cssm != NULL);
@@ -101,6 +102,19 @@ ble_ll_cs_tone_rx_isr_end(void)
 
     ble_phy_disable();
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
+
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        /* TODO: Read measured frequency offset.
+         * For now set "Frequency offset is not available".
+         */
+        cssm->step_result.measured_freq_offset = 0xC000;
+    } else if (cssm->step_mode == BLE_LL_CS_MODE2 ||
+               cssm->step_mode == BLE_LL_CS_MODE3) {
+        for (i = 0; i < cssm->n_ap; ++i) {
+            cssm->step_result.tone_pct[i] = 0;
+            cssm->step_result.tone_quality_ind[i] = 0;
+        }
+    }
 
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 
