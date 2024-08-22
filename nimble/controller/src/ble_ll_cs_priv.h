@@ -234,6 +234,7 @@ struct ble_ll_cs_sm {
     ble_ll_cs_sched_cb_func sched_cb;
     uint8_t anchor_rem_usecs;
     uint8_t rx_window_offset_usecs;
+    uint8_t phy_transition;
 
     uint8_t step_mode;
     uint8_t step_state;

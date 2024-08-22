@@ -823,6 +823,19 @@ ble_ll_cs_proc_sched_cb_get(struct ble_ll_cs_sm *cssm)
         BLE_LL_ASSERT(0);
     }
 
+    switch (ble_phy_state_get()) {
+    case BLE_PHY_STATE_TX:
+        cssm->phy_transition = (cb == ble_ll_cs_sync_tx_start || cb == ble_ll_cs_tone_tx_start)
+                               ? BLE_PHY_TRANSITION_TX_TX : BLE_PHY_TRANSITION_TX_RX;
+        break;
+    case BLE_PHY_STATE_RX:
+        cssm->phy_transition = (cb == ble_ll_cs_sync_tx_start || cb == ble_ll_cs_tone_tx_start)
+                               ? BLE_PHY_TRANSITION_RX_TX : BLE_PHY_TRANSITION_RX_RX;
+        break;
+    default:
+        cssm->phy_transition = BLE_PHY_TRANSITION_NONE;
+    }
+
     return cb;
 }
 
@@ -851,6 +864,7 @@ ble_ll_cs_proc_schedule_next_tx_or_rx(struct ble_ll_cs_sm *cssm)
 
     rc = ble_ll_cs_proc_next_state(cssm);
     if (rc) {
+        cssm->phy_transition = BLE_PHY_TRANSITION_NONE;
         return rc;
     }
 
@@ -858,20 +872,20 @@ ble_ll_cs_proc_schedule_next_tx_or_rx(struct ble_ll_cs_sm *cssm)
     cssm->anchor_usecs -= cssm->rx_window_offset_usecs;
     anchor_cputime = ble_ll_tmr_u2t(cssm->anchor_usecs);
 
-    if (anchor_cputime - g_ble_ll_sched_offset_ticks > ble_ll_tmr_get()) {
+    if (anchor_cputime - g_ble_ll_sched_offset_ticks - 1 > ble_ll_tmr_get()) {
+        cssm->phy_transition = BLE_PHY_TRANSITION_NONE;
         cssm->sch.start_time = anchor_cputime - g_ble_ll_sched_offset_ticks;
+        cssm->sched_cb = cb;
+        cssm->sch.end_time = anchor_cputime + ble_ll_tmr_u2t_up(cssm->duration_usecs);
+        cssm->sch.remainder = 0;
+        cssm->sch.sched_type = BLE_LL_SCHED_TYPE_CS;
+        cssm->sch.cb_arg = cssm;
+        cssm->sch.sched_cb = ble_ll_cs_proc_sched_cb;
+        rc = ble_ll_sched_cs_proc(&cssm->sch);
     } else {
-        cssm->sch.start_time = ble_ll_tmr_get();
+        /* Radio start already scheduled, just configure. */
+        rc = cb(cssm);
     }
-
-    cssm->sched_cb = cb;
-    cssm->sch.end_time = anchor_cputime + ble_ll_tmr_u2t_up(cssm->duration_usecs);
-    cssm->sch.remainder = 0;
-    cssm->sch.sched_type = BLE_LL_SCHED_TYPE_CS;
-    cssm->sch.cb_arg = cssm;
-    cssm->sch.sched_cb = ble_ll_cs_proc_sched_cb;
-
-    rc = ble_ll_sched_cs_proc(&cssm->sch);
 
     return rc;
 }
@@ -938,8 +952,8 @@ void
 ble_ll_cs_proc_sync_lost(struct ble_ll_cs_sm *cssm)
 {
     ble_phy_disable();
+    ble_phy_cs_sync_mode_set(0);
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
-
-    ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
+    /* TODO: Handle a lost sync */
 }
 #endif /* BLE_LL_CHANNEL_SOUNDING */
