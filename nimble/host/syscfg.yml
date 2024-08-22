@@ -539,6 +539,27 @@ syscfg.defs:
         restrictions:
             - 'BLE_ISO_BROADCAST_SOURCE if 0'
 
+    BLE_PEER:
+        description: >
+            Number of supported
+        value: 0
+    BLE_PEER_MAX_PEERS:
+        description: >
+            Number of supported
+        value: 'MYNEWT_VAL_BLE_MAX_CONNECTIONS'
+    BLE_PEER_MAX_SVCS:
+        description: >
+            Number of supported
+        value: 64
+    BLE_PEER_MAX_CHRS:
+        description: >
+            Number of supported
+        value: 96
+    BLE_PEER_MAX_DSCS:
+        description: >
+            Number of supported
+        value: 64
+
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
