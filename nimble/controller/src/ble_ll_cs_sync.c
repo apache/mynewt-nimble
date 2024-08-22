@@ -93,11 +93,24 @@ void
 ble_ll_cs_sync_tx_end_cb(void *arg)
 {
     struct ble_ll_cs_sm *cssm = g_ble_ll_cs_sm_current;
+    uint32_t cputime;
+    uint32_t rem_us;
+    uint32_t rem_ns;
+    uint32_t anchor_usecs;
 
     assert(cssm != NULL);
-    ble_ll_cs_proc_set_now_as_anchor_point(cssm);
+
+    ble_phy_get_txend_time(&cputime, &rem_us, &rem_ns);
+    anchor_usecs = ble_ll_tmr_t2u(cputime) + rem_us;
+
+    cssm->anchor_usecs = anchor_usecs;
+    if (cssm->step_mode != BLE_LL_CS_MODE0 &&
+        cssm->active_config->role == BLE_LL_CS_ROLE_REFLECTOR) {
+        cssm->step_result.time_of_departure = cssm->anchor_usecs;
+    }
 
     ble_phy_disable();
+    ble_phy_cs_sync_mode_set(0);
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
@@ -120,35 +133,42 @@ int
 ble_ll_cs_sync_tx_start(struct ble_ll_cs_sm *cssm)
 {
     int rc;
+    uint8_t cs_timer;
 
     BLE_LL_ASSERT(ble_ll_state_get() == BLE_LL_STATE_STANDBY);
 
+    ble_phy_cs_sync_mode_set(1);
+
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
-    /* TODO: Add to PHY a support for 72 RF channels for CS exchanges.
-     * rc = ble_phy_cs_sync_configure();
-     * if (rc) {
-     *     ble_ll_cs_proc_sync_lost(cssm);
-     *     return 1;
-     * }
-     */
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        cs_timer = BLE_PHY_CS_TIMER_NONE;
+    } else if (cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
+        cs_timer = BLE_PHY_CS_TIMER_START;
+        cssm->step_result.time_of_departure = cssm->anchor_usecs;
+    } else { /* BLE_LL_CS_ROLE_REFLECTOR */
+        cs_timer = BLE_PHY_CS_TIMER_CAPTURE;
+    }
 
-    rc = ble_phy_tx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
-                                   sch->remainder);
+    rc = ble_phy_cs_sync_configure(cssm->channel, cssm->tx_aa, cs_timer);
     if (rc) {
         ble_ll_cs_proc_sync_lost(cssm);
-        return BLE_LL_SCHED_STATE_DONE;
+        return 1;
+    }
+
+    rc = ble_phy_tx_set_start_time(cssm->anchor_cputime, cssm->anchor_rem_usecs);
+    if (rc) {
+        ble_ll_cs_proc_sync_lost(cssm);
+        return 1;
     }
 
     ble_phy_set_txend_cb(ble_ll_cs_sync_tx_end_cb, cssm);
 
-    /* TODO: Add to PHY a support for CS_SYNC transmission.
-     * rc = ble_phy_tx_cs_sync(ble_ll_cs_sync_tx_make, cssm);
-     * if (rc) {
-     *     ble_ll_cs_proc_sync_lost(cssm);
-     *     return 1;
-     * }
-     */
+    rc = ble_phy_tx_cs_sync(ble_ll_cs_sync_tx_make, cssm);
+    if (rc) {
+        ble_ll_cs_proc_sync_lost(cssm);
+        return 1;
+    }
 
     ble_ll_state_set(BLE_LL_STATE_CS);
 
@@ -160,18 +180,28 @@ ble_ll_cs_sync_rx_start(struct ble_ll_cs_sm *cssm)
 {
     int rc;
     uint32_t wfr_usecs;
+    uint8_t cs_timer;
 
     BLE_LL_ASSERT(ble_ll_state_get() == BLE_LL_STATE_STANDBY);
 
-    /* rc = ble_phy_cs_sync_configure();
-     * if (rc) {
-     *     ble_ll_cs_proc_sync_lost(cssm);
-     *     return 1;
-     * }
-     */
+    ble_phy_cs_sync_mode_set(1);
 
-    rc = ble_phy_rx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
-                                   sch->remainder);
+    if (cssm->step_mode == BLE_LL_CS_MODE0) {
+        cs_timer = BLE_PHY_CS_TIMER_NONE;
+    } else if (cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
+        cs_timer = BLE_PHY_CS_TIMER_CAPTURE;
+    } else { /* BLE_LL_CS_ROLE_REFLECTOR */
+        cs_timer = BLE_PHY_CS_TIMER_START;
+        cssm->step_result.time_of_arrival = cssm->anchor_usecs;
+    }
+
+    rc = ble_phy_cs_sync_configure(cssm->channel, cssm->rx_aa, cs_timer);
+    if (rc) {
+        ble_ll_cs_proc_sync_lost(cssm);
+        return 1;
+    }
+
+    rc = ble_phy_rx_set_start_time(cssm->anchor_cputime, cssm->anchor_rem_usecs);
 
     /* Accept the risk of being late just for testing
      * with slower clocks without increasing the T_RD.
@@ -250,22 +280,27 @@ ble_ll_cs_sync_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 {
     struct os_mbuf *rxpdu;
     struct ble_ll_cs_sm *cssm = g_ble_ll_cs_sm_current;
+    uint32_t cputime;
+    uint32_t rem_us;
+    uint32_t rem_ns;
+    uint32_t anchor_usecs;
 
     /* Packet type was verified in isr_start */
 
-    rxpdu = ble_ll_rxpdu_alloc(rxbuf[1] + BLE_LL_PDU_HDR_LEN);
-    if (rxpdu) {
-        ble_phy_rxpdu_copy(rxbuf, rxpdu);
+    assert(cssm != NULL);
 
-        assert(cssm != NULL);
-        ble_ll_cs_proc_set_now_as_anchor_point(cssm);
-        ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
+    ble_phy_get_rxend_time(&cputime, &rem_us, &rem_ns);
+    anchor_usecs = ble_ll_tmr_t2u(cputime) + rem_us;
 
-        /* Send the packet to Link Layer context */
-        ble_ll_rx_pdu_in(rxpdu);
+    cssm->anchor_usecs = anchor_usecs;
+    if (cssm->step_mode != BLE_LL_CS_MODE0 &&
+        cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
+        cssm->step_result.time_of_arrival = cssm->anchor_usecs;
     }
+    ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 
     ble_phy_disable();
+    ble_phy_cs_sync_mode_set(0);
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     return 1;
