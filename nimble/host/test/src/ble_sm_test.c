@@ -428,6 +428,36 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_reject)
+{
+    struct ble_sm_sec_req sec_req;
+    int rc;
+
+    struct ble_sm_pair_cmd pair_rsp = {0x04, 0, 0x0D, 10, 0x02, 0x02};
+
+    ble_sm_test_util_init();
+
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]) {0}));
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]) {1,2,3,5,6,7}),
+                                 ble_sm_test_util_conn_cb,
+                                 NULL);
+
+    /*** Pairing already in progress; reject security request after pairing
+     * response was received. */
+
+    ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 1);
+    rc = ble_sm_pair_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_prev_tx_queue_clear();
+
+    ble_sm_test_util_rx_pair_rsp(2, &pair_rsp, 0);
+    ble_sm_test_util_rx_sec_req(2, &sec_req, BLE_HS_EALREADY);
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() != 0);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 /*****************************************************************************
  * $us                                                                       *
  *****************************************************************************/
@@ -509,5 +539,6 @@ TEST_SUITE(ble_sm_gen_test_suite)
     ble_sm_test_case_peer_bonding_bad();
     ble_sm_test_case_conn_broken();
     ble_sm_test_case_peer_sec_req_inval();
+    ble_sm_test_case_peer_sec_req_reject();
 }
 #endif

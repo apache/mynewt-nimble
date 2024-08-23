@@ -717,7 +717,7 @@ ble_sm_test_util_rx_pair_req(uint16_t conn_handle,
                                  req, rx_status);
 }
 
-static void
+void
 ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle, struct ble_sm_pair_cmd *rsp,
                              int rx_status)
 {

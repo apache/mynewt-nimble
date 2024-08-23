@@ -96,6 +96,9 @@ void ble_sm_test_util_io_check_post(
 void ble_sm_test_util_rx_sec_req(uint16_t conn_handle,
                                  struct ble_sm_sec_req *cmd,
                                  int exp_status);
+void ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
+                                  struct ble_sm_pair_cmd *rsp,
+                                  int rx_status);
 void ble_sm_test_util_verify_tx_pair_fail(struct ble_sm_pair_fail *exp_cmd);
 void ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params);
 void ble_sm_test_util_peer_fail_inval(int we_are_master,
