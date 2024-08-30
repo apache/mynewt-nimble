@@ -121,12 +121,18 @@ nrf5340_ble_hci_trans_rx(int channel, void *user_data)
 static void
 nrf5340_ble_hci_init(void)
 {
+    os_sr_t sr;
+
     SYSINIT_ASSERT_ACTIVE();
 
 #if MYNEWT_VAL(BLE_TRANSPORT_RX_TASK)
     ble_transport_rx_register(rx_func, NULL);
 #endif
     ipc_nrf5340_recv(IPC_RX_CHANNEL, nrf5340_ble_hci_trans_rx, NULL);
+
+    OS_ENTER_CRITICAL(sr);
+    nrf5340_ble_hci_trans_rx(IPC_RX_CHANNEL, NULL);
+    OS_EXIT_CRITICAL(sr);
 }
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
