@@ -32,7 +32,7 @@ ble_npl_callout_timer_cb(union sigval sv)
 {
     struct ble_npl_callout *c = (struct ble_npl_callout *)sv.sival_ptr;
     assert(c);
-
+    c->c_active = false;
     if (c->c_evq) {
         ble_npl_eventq_put(c->c_evq, &c->c_ev);
     } else {
