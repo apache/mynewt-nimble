@@ -71,9 +71,14 @@ ble_npl_sem_pend(struct ble_npl_sem *sem, uint32_t timeout)
         wait.tv_sec  += timeout / 1000;
         wait.tv_nsec += (timeout % 1000) * 1000000;
 
-        err = sem_timedwait(&sem->lock, &wait);
-        if (err && errno == ETIMEDOUT) {
-            return BLE_NPL_TIMEOUT;
+        while ((err = sem_timedwait(&sem->lock, &wait)) != 0) {
+            switch (errno) {
+            case EINTR:
+                continue;
+            case ETIMEDOUT:
+                return BLE_NPL_TIMEOUT;
+            }
+            break;
         }
     }
 
