@@ -202,8 +202,10 @@ struct ble_gap_slave_state {
 
 static bssnz_t struct ble_gap_slave_state ble_gap_slave[BLE_ADV_INSTANCES];
 
+#if NIMBLE_BLE_ADVERTISE
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static bool ext_adv_legacy_configured = false;
+#endif
 #endif
 
 struct ble_gap_update_entry {
@@ -2914,6 +2916,7 @@ done:
 #endif
 }
 
+#if NIMBLE_BLE_ADVERTISE
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static int
 ble_gap_ext_adv_legacy_preconfigure(void)
@@ -2944,6 +2947,7 @@ ble_gap_ext_adv_legacy_preconfigure(void)
     ext_adv_legacy_configured = true;
     return 0;
 }
+#endif
 #endif
 
 int
