@@ -1583,11 +1583,11 @@ struct ble_gap_ext_adv_params {
     /** Advertising Set ID */
     uint8_t sid;
 
-    /** Primary phy options */
-    uint8_t pri_phy_opt;
+    /** Primary PHY options */
+    uint8_t primary_phy_opt;
 
-    /** Secondary phy options */
-    uint8_t sec_phy_opt;
+    /** Secondary PHY options */
+    uint8_t secondary_phy_opt;
 };
 
 /**
