@@ -3258,8 +3258,8 @@ ble_gap_ext_adv_params_tx_v2(uint8_t instance,
         return rc;
     }
 
-    cmd.pri_phy_opt = params->pri_phy_opt;
-    cmd.sec_phy_opt = params->sec_phy_opt;
+    cmd.pri_phy_opt = params->primary_phy_opt;
+    cmd.sec_phy_opt = params->secondary_phy_opt;
 
     rc = ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                   BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM_V2),
@@ -3288,7 +3288,7 @@ ble_gap_ext_adv_params_tx(uint8_t instance,
 
     /* Return Error if phy is non-zero and controller doesn't support V2 */
     if (!((sup_cmd.commands[46] & 0x04) != 0) &&
-        (params->primary_phy || params->secondary_phy)) {
+        (params->primary_phy_opt || params->secondary_phy_opt)) {
         return BLE_HS_EINVAL;
     }
 
