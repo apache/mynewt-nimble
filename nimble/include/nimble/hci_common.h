@@ -1152,7 +1152,7 @@ struct ble_hci_le_subrate_req_cp {
 
 #define BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM_V2             (0x007F)
 struct ble_hci_le_set_ext_adv_params_v2_cp {
-    struct ble_hci_le_set_ext_adv_params_cp cmd;
+    struct ble_hci_le_set_ext_adv_params_cp params_v1;
     uint8_t pri_phy_opt;
     uint8_t sec_phy_opt;
 } __attribute__((packed));
