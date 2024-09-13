@@ -3252,7 +3252,7 @@ ble_gap_ext_adv_params_tx_v2(uint8_t instance,
 
     memset(&cmd, 0, sizeof(cmd));
 
-    rc = ble_gap_set_ext_adv_params(&(cmd.cmd), instance, params, selected_tx_power);
+    rc = ble_gap_set_ext_adv_params(&(cmd.params_v1), instance, params, selected_tx_power);
 
     if (rc != 0) {
         return rc;
