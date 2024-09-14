@@ -41,6 +41,7 @@
 #define bssnz_t
 #endif
 
+#undef SET_BIT
 #define SET_BIT(t, n)  (t |= 1UL << (n))
 
 /**
