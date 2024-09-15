@@ -2175,13 +2175,17 @@ ble_gap_rx_l2cap_update_req(uint16_t conn_handle,
                             struct ble_gap_upd_params *params)
 {
 #if NIMBLE_BLE_CONNECT
+    struct ble_gap_upd_params peer_params;
     struct ble_gap_event event;
     int rc;
+
+    peer_params = *params;
 
     memset(&event, 0, sizeof event);
     event.type = BLE_GAP_EVENT_L2CAP_UPDATE_REQ;
     event.conn_update_req.conn_handle = conn_handle;
-    event.conn_update_req.peer_params = params;
+    event.conn_update_req.peer_params = &peer_params;
+    event.conn_update_req.self_params = params;
 
     rc = ble_gap_call_conn_event_cb(&event, conn_handle);
     return rc;
