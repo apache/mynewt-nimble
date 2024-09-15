@@ -1621,8 +1621,16 @@ ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok)
     switch (pdu_type) {
     case BLE_ADV_PDU_TYPE_ADV_IND:
     case BLE_ADV_PDU_TYPE_ADV_DIRECT_IND:
+        rc = ble_ll_scan_rx_isr_end_on_adv(pdu_type, rxbuf, hdr, &addrd);
+        break;
     case BLE_ADV_PDU_TYPE_ADV_NONCONN_IND:
     case BLE_ADV_PDU_TYPE_ADV_SCAN_IND:
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+        if (scansm->scanp->scan_type == BLE_SCAN_TYPE_INITIATE) {
+            rc = -1;
+            break;
+        }
+#endif
         rc = ble_ll_scan_rx_isr_end_on_adv(pdu_type, rxbuf, hdr, &addrd);
         break;
     case BLE_ADV_PDU_TYPE_SCAN_RSP:
