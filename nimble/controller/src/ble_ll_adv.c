@@ -1916,10 +1916,10 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static void
-ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
+static uint16_t
+ble_ll_adv_update_did(uint16_t old_adi)
 {
-    uint16_t old_adi = advsm->adi;
+    uint16_t new_adi;
 
     /*
      * The Advertising DID for a given advertising set shall be initialized
@@ -1930,8 +1930,10 @@ ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
      * the previously used value.
      */
     do {
-        advsm->adi = (advsm->adi & 0xf000) | (ble_ll_rand() & 0x0fff);
-    } while (old_adi == advsm->adi);
+        new_adi = (old_adi & 0xf000) | (ble_ll_rand() & 0x0fff);
+    } while (old_adi == new_adi);
+
+    return new_adi;
 }
 #endif
 
@@ -1965,7 +1967,7 @@ ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new advertising data */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
 }
 
@@ -2661,7 +2663,7 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
      * advertisers should update the Advertising DID when a periodic advertising
      * train is enabled.
      */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
 
     advsm->periodic_adv_active = 1;
 
@@ -2704,7 +2706,7 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
      * advertisers should update the Advertising DID when a periodic advertising
      * train is disabled.
      */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
 
     /* Remove any scheduled advertising items */
     advsm->periodic_adv_active = 0;
@@ -3126,7 +3128,7 @@ ble_ll_adv_set_scan_rsp_data(const uint8_t *data, uint8_t datalen,
         }
 
         /* DID shall be updated when host provides new scan response data */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
     }
 
@@ -3201,7 +3203,7 @@ ble_ll_adv_set_adv_data(const uint8_t *data, uint8_t datalen, uint8_t instance,
         }
 
         /* update DID only */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_DATA_OPER_LAST:
         ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
@@ -3289,7 +3291,7 @@ ble_ll_adv_set_adv_data(const uint8_t *data, uint8_t datalen, uint8_t instance,
         }
 
         /* DID shall be updated when host provides new advertising data */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
         }
 
