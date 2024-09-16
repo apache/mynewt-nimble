@@ -1135,11 +1135,9 @@ ble_ll_ctrl_rx_phy_update_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 static uint8_t
 ble_ll_ctrl_rx_periodic_sync_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 {
-    if (connsm->sync_transfer_mode) {
-        ble_ll_sync_periodic_ind(connsm, dptr, connsm->sync_transfer_mode == 1,
-                                 connsm->sync_transfer_skip,
-                                 connsm->sync_transfer_sync_timeout);
-    }
+    ble_ll_sync_periodic_ind(connsm, dptr, connsm->sync_transfer_mode,
+                             connsm->sync_transfer_skip,
+                             connsm->sync_transfer_sync_timeout);
     return BLE_ERR_MAX;
 }
 #endif
