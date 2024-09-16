@@ -64,6 +64,7 @@
 #define BLE_LL_SYNC_SM_FLAG_HCI_TRUNCATED   0x0100
 #define BLE_LL_SYNC_SM_FLAG_NEW_CHANMAP     0x0200
 #define BLE_LL_SYNC_SM_FLAG_CHAIN           0x0400
+#define BLE_LL_SYNC_SM_FLAG_DUPLICATES      0x0800
 
 #define BLE_LL_SYNC_ITVL_USECS              1250
 
@@ -120,6 +121,10 @@ struct ble_ll_sync_sm {
     uint16_t transfer_id;
     uint16_t event_cntr_last_received;
     uint8_t adv_addr_rpa[6];
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    uint16_t prev_adi;
 #endif
 };
 
@@ -548,7 +553,7 @@ ble_ll_sync_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
 
 static int
 ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
-                          uint8_t **acad, uint8_t *acad_len)
+                          uint8_t **acad, uint8_t *acad_len, uint16_t **adi)
 {
     uint8_t *rxbuf = om->om_data;
     uint8_t ext_hdr_flags;
@@ -587,8 +592,10 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
             i += BLE_LL_EXT_ADV_CTE_INFO_SIZE;
         }
 
-        /* there should be no ADI in Sync or chain, skip it */
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+            if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT) {
+                *adi = (uint16_t *) ext_hdr + i;
+            }
             i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
         }
 
@@ -1137,10 +1144,12 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     uint8_t *aux = NULL;
     uint8_t *acad = NULL;
     uint8_t acad_len = 0;
+    uint16_t *adi = NULL;
     const uint8_t *biginfo = NULL;
     uint8_t biginfo_len = 0;
     int datalen;
     bool reports_enabled;
+    bool is_duplicate = false;
 
     BLE_LL_ASSERT(sm);
 
@@ -1186,14 +1195,22 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     /* get ext header data */
-    datalen = ble_ll_sync_parse_ext_hdr(rxpdu, &aux, &tx_power, &acad, &acad_len);
+    datalen = ble_ll_sync_parse_ext_hdr(rxpdu, &aux, &tx_power, &acad, &acad_len, &adi);
     if (datalen < 0) {
         /* we got bad packet, end event */
         goto end_event;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    if (adi != NULL) {
+        is_duplicate = (sm->flags & BLE_LL_SYNC_SM_FLAG_DUPLICATES) && (*adi == sm->prev_adi);
+        sm->prev_adi = *adi;
+    }
+#endif
+
     reports_enabled = ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_PERIODIC_ADV_RPT) &&
-                      !(sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED);
+                      !(sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED) &&
+                      !is_duplicate;
 
     /* no need to schedule for chain if reporting is disabled */
     if (reports_enabled) {
@@ -1539,6 +1556,12 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
     }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    if (g_ble_ll_sync_create_params.options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DUPLICATES) {
+        sm->flags |= BLE_LL_SYNC_SM_FLAG_DUPLICATES;
+    }
+#endif
+
     sm->flags &= ~BLE_LL_SYNC_SM_FLAG_RESERVED;
     sm->flags |= BLE_LL_SYNC_SM_FLAG_ESTABLISHING;
     sm->flags |= BLE_LL_SYNC_SM_FLAG_SYNC_INFO;
@@ -1583,7 +1606,8 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
             return BLE_ERR_INV_HCI_CMD_PARMS;
         }
         if (!(cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DISABLED) &&
-            (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DUPLICATES)) {
+            (cmd->options & BLE_HCI_LE_PERIODIC_ADV_CREATE_SYNC_OPT_DUPLICATES) &&
+            !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)) {
             /* We do not support ADI in periodic advertising thus cannot enable
              * duplicate filtering.
              */
@@ -1870,7 +1894,8 @@ ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len)
     if (MYNEWT_VAL(BLE_VERSION) >= 53) {
         if (cmd->enable > 0x03) {
             return BLE_ERR_INV_HCI_CMD_PARMS;
-        } else if (cmd->enable == 0x03) {
+        } else if ((cmd->enable == 0x03) &&
+                   !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)) {
             /* We do not support ADI in periodic advertising thus cannot enable
              * duplicate filtering.
              */
@@ -1898,8 +1923,14 @@ ble_ll_sync_receive_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
-    if (cmd->enable) {
+    if (cmd->enable & 0x1) {
         sm->flags &= ~BLE_LL_SYNC_SM_FLAG_DISABLED;
+
+        if (cmd->enable & 0x2) {
+            sm->flags |= BLE_LL_SYNC_SM_FLAG_DUPLICATES;
+        } else {
+            sm->flags &= ~BLE_LL_SYNC_SM_FLAG_DUPLICATES;
+        }
     } else {
         sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
     }
@@ -1940,7 +1971,7 @@ ble_ll_sync_transfer_get(const uint8_t *addr, uint8_t addr_type, uint8_t sid)
 
 void
 ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
-                         const uint8_t *sync_ind, bool reports_disabled,
+                         const uint8_t *sync_ind, uint8_t mode,
                          uint16_t max_skip, uint32_t sync_timeout)
 {
     const uint8_t *syncinfo = sync_ind + 2;
@@ -1965,6 +1996,10 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     uint8_t sid;
     uint8_t sca;
     os_sr_t sr;
+
+    if (!mode) {
+        return;
+    }
 
     phy_mode = ble_ll_ctrl_phy_from_phy_mask(sync_ind[25]);
     itvl = get_le16(syncinfo + 2);
@@ -2133,8 +2168,15 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     sm->anchor_point = sm->sch.start_time + g_ble_ll_sched_offset_ticks;
     sm->anchor_point_usecs = sm->sch.remainder;
 
-    if (reports_disabled) {
+    switch (mode) {
+    case 0x1:
         sm->flags |= BLE_LL_SYNC_SM_FLAG_DISABLED;
+        break;
+    case 0x3:
+        sm->flags |= BLE_LL_SYNC_SM_FLAG_DUPLICATES;
+        break;
+    default:
+        break;
     }
 }
 
