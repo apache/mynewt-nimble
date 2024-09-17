@@ -59,8 +59,8 @@ ble_hs_pvcy_set_resolve_enabled(int enable)
                              &cmd, sizeof(cmd), NULL, 0);
 }
 
-int
-ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
+static int
+ble_hs_pvcy_remove_entry_hci(uint8_t addr_type, const uint8_t *addr)
 {
     struct ble_hci_le_rmv_resolve_list_cp cmd;
 
@@ -74,6 +74,21 @@ ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_RMV_RESOLV_LIST),
                              &cmd, sizeof(cmd), NULL, 0);
+}
+
+int
+ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr)
+{
+    int rc;
+
+    /* Need to preempt all GAP procedures (advertising, pending connections)
+     * before modifying resolving list in the controller
+     */
+    ble_gap_preempt();
+    rc = ble_hs_pvcy_remove_entry_hci(addr_type, addr);
+    ble_gap_preempt_done();
+
+    return rc;
 }
 
 static int
