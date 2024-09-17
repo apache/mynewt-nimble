@@ -1,5 +1,5 @@
 NimBLE Bluetooth Stack Documentation
-#################################
+####################################
 
 This folder holds the documentation for the NimBLE Bluetooth stack from the
 `Apache Mynewt`_ project. It is  built using `Sphinx`_.
@@ -19,8 +19,8 @@ Previewing Changes
 ==========================
 
 In order to preview any changes you make you must first install a Sphinx
-toolchain as described at https://github.com/apache/mynewt-documentation#id3.
- Then:
+toolchain as described at https://github.com/apache/mynewt-documentation.
+Then:
 
 .. code-block:: bash
 
