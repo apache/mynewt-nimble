@@ -17,39 +17,13 @@
  * under the License.
  */
 
-#ifndef _BLE_STRESS_RX_H
-#define _BLE_STRESS_RX_H
+#ifndef CMD_RX_H
+#define CMD_RX_H
 
-#include <assert.h>
-#include <string.h>
-#include <console/console.h>
-#include <errno.h>
-#include <hal/nrf_aar.h>
+#include <inttypes.h>
+#include "host/ble_uuid.h"
+#include "cmd.h"
 
-/* BLE */
-#include "nimble/ble.h"
-#include "host/ble_hs.h"
-#include "services/gap/ble_svc_gap.h"
-#include "host/ble_gap.h"
-#include <host/ble_l2cap.h>
+void rx_cmd_init(void);
 
-#include "misc.h"
-#include "stress.h"
-#include "stress_gatt.h"
-
-#ifdef __cplusplus
-extern "C" {
 #endif
-
-/*
- * Executes stress tests one by one.
- */
-void rx_stress_task();
-void rx_stress_main_task_fn(void *arg);
-void rx_stress_start_auto();
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /*_BLE_STRESS_RX_H */
