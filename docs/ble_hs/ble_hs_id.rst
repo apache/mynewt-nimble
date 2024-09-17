@@ -43,3 +43,10 @@ Header
 .. code-block:: cpp
 
     #include "host/ble_hs.h"
+
+API
+~~~
+
+.. doxygengroup:: bt_host_id
+   :content-only:
+   :members:
