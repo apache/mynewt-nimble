@@ -3622,6 +3622,57 @@ done:
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+static uint8_t
+ble_ll_adv_ext_phy_mode_get(uint8_t phy, uint8_t phy_opt)
+{
+    if (phy != BLE_HCI_LE_PHY_CODED) {
+        return phy;
+    }
+
+    switch (phy_opt) {
+    case BLE_HCI_ADVERTISING_PHY_OPT_S2_PREF:
+    case BLE_HCI_ADVERTISING_PHY_OPT_S2_REQ:
+        return BLE_PHY_MODE_CODED_500KBPS;
+    case BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF:
+    case BLE_HCI_ADVERTISING_PHY_OPT_S8_PREF:
+    case BLE_HCI_ADVERTISING_PHY_OPT_S8_REQ:
+        return BLE_PHY_MODE_CODED_125KBPS;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+}
+
+int
+ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
+                            uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_set_ext_adv_params_v2_cp *cmd = (const void *) cmdbuf;
+    struct ble_ll_adv_sm *advsm;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if ((cmd->pri_phy_opt > 4) || (cmd->sec_phy_opt > 4)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    rc = ble_ll_adv_ext_set_param(cmdbuf, len - 2, rspbuf, rsplen);
+    if (rc != 0) {
+        return rc;
+    }
+
+    advsm = ble_ll_adv_sm_get(cmd->params_v1.adv_handle);
+
+    advsm->pri_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.pri_phy, cmd->pri_phy_opt);
+    advsm->sec_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.pri_phy, cmd->sec_phy_opt);
+
+    return rc;
+}
+#endif
+
 int
 ble_ll_adv_ext_set_adv_data(const uint8_t *cmdbuf, uint8_t cmdlen)
 {

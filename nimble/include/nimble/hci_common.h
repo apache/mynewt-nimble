@@ -1637,6 +1637,13 @@ struct ble_hci_vs_set_local_irk_cp {
 #define BLE_HCI_PRIVACY_NETWORK                     (0)
 #define BLE_HCI_PRIVACY_DEVICE                      (1)
 
+/* --- LE set advertising coded PHY options (OCF 0x007F) */
+#define BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF      0x0
+#define BLE_HCI_ADVERTISING_PHY_OPT_S2_PREF      0x1
+#define BLE_HCI_ADVERTISING_PHY_OPT_S8_PREF      0x2
+#define BLE_HCI_ADVERTISING_PHY_OPT_S2_REQ       0x3
+#define BLE_HCI_ADVERTISING_PHY_OPT_S8_REQ       0x4
+
 /* Event Codes */
 #define BLE_HCI_EVCODE_INQUIRY_CMP          (0x01)
 #define BLE_HCI_EVCODE_INQUIRY_RESULT       (0x02)

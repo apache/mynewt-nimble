@@ -216,6 +216,11 @@ int ble_ll_adv_sync_big_remove(struct ble_ll_adv_sm *advsm,
                                struct ble_ll_iso_big *big);
 #endif /* BLE_LL_ISO_BROADCASTER */
 
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+int ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
+                                uint8_t *rspbuf, uint8_t *rsplen);
+#endif
+
 /* Called to notify adv code about RPA rotation */
 void ble_ll_adv_rpa_timeout(void);
 
