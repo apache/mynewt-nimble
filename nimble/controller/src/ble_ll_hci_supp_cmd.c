@@ -286,6 +286,9 @@ static const uint8_t octet_46 = OCTET(
     BIT(0) /* HCI LE Set Default Subrate */
     BIT(1) /* HCI LE Subrate Request */
 #endif
+#if MYNEWT_VAL(BLE_VERSION) >= 54 && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    BIT(2) /* HCI LE Set Extended Advertising Parameters [v2] */
+#endif
 );
 
 static const uint8_t g_ble_ll_hci_supp_cmds[64] = {

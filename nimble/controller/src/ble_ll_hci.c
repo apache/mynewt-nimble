@@ -1317,6 +1317,13 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_conn_hci_subrate_req(cmdbuf, len, rspbuf, rsplen);
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+    case BLE_HCI_OCF_LE_SET_EXT_ADV_PARAM_V2:
+        rc = ble_ll_adv_ext_set_param_v2(cmdbuf, len, rspbuf, rsplen);
+        break;
+#endif
+#endif
 #if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
     case BLE_HCI_OCF_LE_CS_RD_LOC_SUPP_CAP:
         rc = ble_ll_cs_hci_rd_loc_supp_cap(rspbuf, rsplen);
