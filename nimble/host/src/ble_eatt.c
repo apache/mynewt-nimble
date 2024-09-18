@@ -476,6 +476,8 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
         goto error;
     }
 
+    ble_att_truncate_to_mtu(eatt->chan, txom);
+
     rc = ble_l2cap_send(eatt->chan, txom);
     if (rc == 0) {
         goto done;
