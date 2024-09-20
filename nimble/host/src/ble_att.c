@@ -636,6 +636,51 @@ ble_att_create_chan(uint16_t conn_handle)
 }
 
 bool
+ble_eatt_supported_req(uint8_t opcode)
+{
+    switch (opcode) {
+    case BLE_ATT_OP_WRITE_CMD:
+    case BLE_ATT_OP_FIND_INFO_REQ:
+    case BLE_ATT_OP_FIND_TYPE_VALUE_REQ:
+    case BLE_ATT_OP_READ_TYPE_REQ:
+    case BLE_ATT_OP_READ_REQ:
+    case BLE_ATT_OP_READ_BLOB_REQ:
+    case BLE_ATT_OP_READ_MULT_REQ:
+    case BLE_ATT_OP_READ_GROUP_TYPE_REQ:
+    case BLE_ATT_OP_WRITE_REQ:
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+    case BLE_ATT_OP_EXEC_WRITE_REQ:
+    case BLE_ATT_OP_INDICATE_REQ:
+    case BLE_ATT_OP_READ_MULT_VAR_REQ:
+    case BLE_ATT_OP_NOTIFY_MULTI_REQ:
+        return true;
+    }
+    return false;
+}
+
+bool
+ble_eatt_supported_rsp(uint8_t opcode)
+{
+    switch (opcode) {
+    case BLE_ATT_OP_ERROR_RSP:
+    case BLE_ATT_OP_FIND_INFO_RSP:
+    case BLE_ATT_OP_FIND_TYPE_VALUE_RSP:
+    case BLE_ATT_OP_READ_TYPE_RSP:
+    case BLE_ATT_OP_INDICATE_RSP:
+    case BLE_ATT_OP_READ_RSP:
+    case BLE_ATT_OP_READ_BLOB_RSP:
+    case BLE_ATT_OP_READ_MULT_RSP:
+    case BLE_ATT_OP_READ_GROUP_TYPE_RSP:
+    case BLE_ATT_OP_WRITE_RSP:
+    case BLE_ATT_OP_PREP_WRITE_RSP:
+    case BLE_ATT_OP_EXEC_WRITE_RSP:
+    case BLE_ATT_OP_READ_MULT_VAR_RSP:
+        return true;
+    }
+    return false;
+}
+
+bool
 ble_att_is_request_op(uint8_t opcode)
 {
     switch (opcode) {

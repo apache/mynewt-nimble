@@ -462,6 +462,8 @@ int ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
                          struct os_mbuf *txom);
 bool ble_att_is_response_op(uint8_t opcode);
 bool ble_att_is_request_op(uint8_t opcode);
+bool ble_eatt_supported_req(uint8_t opcode);
+bool ble_eatt_supported_rsp(uint8_t opcode);
 #ifdef __cplusplus
 }
 #endif
