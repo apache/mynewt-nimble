@@ -44,7 +44,7 @@ syscfg.defs:
 
     BIG_PHY:
         description:
-        value: 3
+        value: 2
     BIG_NUM_BIS:
         description: Max number of BISes used
         value: 2
