@@ -170,10 +170,16 @@ struct ble_ll_adv_sm
     uint8_t periodic_num_used_chans;
     uint8_t periodic_chanmap[BLE_LL_CHAN_MAP_LEN];
     uint16_t periodic_adv_itvl;
-    uint32_t periodic_adv_itvl_ticks;
-    uint8_t periodic_adv_itvl_rem_us;
-    uint8_t periodic_adv_event_start_time_remainder;
-    uint32_t periodic_adv_event_start_time;
+
+    uint32_t padv_itvl_us;
+
+    uint16_t padv_anchor_offset;
+    uint32_t padv_anchor;
+    uint8_t padv_anchor_rem_us;
+
+    uint32_t padv_event_start;
+    uint8_t padv_event_start_rem_us;
+
     struct ble_ll_adv_sync periodic_sync[2];
     struct ble_npl_event adv_periodic_txdone_ev;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
@@ -639,20 +645,20 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
         conn_cnt = connsm->event_cntr;
 
         /* get anchor for conn event that is before periodic_adv_event_start_time */
-        while (LL_TMR_GT(anchor_ticks, advsm->periodic_adv_event_start_time)) {
+        while (LL_TMR_GT(anchor_ticks, advsm->padv_event_start)) {
             ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor_ticks, &anchor_rem_us);
         }
 
-        offset = ble_ll_tmr_t2u(advsm->periodic_adv_event_start_time - anchor_ticks);
+        offset = ble_ll_tmr_t2u(advsm->padv_event_start - anchor_ticks);
         offset -= anchor_rem_us;
-        offset += advsm->periodic_adv_event_start_time_remainder;
+        offset += advsm->padv_event_start_rem_us;
 
         /* connEventCount */
         put_le16(conn_event_cnt, conn_cnt);
 #endif
     } else {
-        anchor_ticks = advsm->periodic_adv_event_start_time;
-        anchor_rem_us = advsm->periodic_adv_event_start_time_remainder;
+        anchor_ticks = advsm->padv_event_start;
+        anchor_rem_us = advsm->padv_event_start_rem_us;
         itvl_us = advsm->periodic_adv_itvl * BLE_LL_ADV_PERIODIC_ITVL;
 
         /* Get periodic event that is past AUX start time (so that we always
@@ -2420,7 +2426,7 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
      * Preincrement event counter as we later send this in PDU so make sure
      * same values are used
      */
-    chan = ble_ll_utils_dci_csa2(++advsm->periodic_event_cntr,
+    chan = ble_ll_utils_dci_csa2(advsm->periodic_event_cntr,
                                  advsm->periodic_channel_id,
                                  advsm->periodic_num_used_chans,
                                  advsm->periodic_chanmap);
@@ -2432,14 +2438,20 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
 
     sch = &sync->sch;
 
-    ble_ll_tmr_add_u(&advsm->periodic_adv_event_start_time,
-                     &advsm->periodic_adv_event_start_time_remainder,
-                     advsm->periodic_adv_itvl_rem_us);
+    advsm->padv_event_start = advsm->padv_anchor;
+    advsm->padv_event_start_rem_us = advsm->padv_anchor_rem_us;
+    ble_ll_tmr_add(&advsm->padv_event_start, &advsm->padv_event_start_rem_us,
+                   advsm->padv_itvl_us * advsm->padv_anchor_offset);
 
-    sch->start_time = advsm->periodic_adv_event_start_time;
-    sch->remainder = advsm->periodic_adv_event_start_time_remainder;
-    sch->end_time = sch->start_time + ble_ll_tmr_u2t_up(max_usecs);
-    sch->start_time -= g_ble_ll_sched_offset_ticks;
+    if (advsm->padv_anchor_offset == UINT16_MAX) {
+        advsm->padv_anchor_offset = 0;
+        advsm->padv_anchor = advsm->padv_event_start;
+        advsm->padv_anchor_rem_us = advsm->padv_event_start_rem_us;
+    }
+
+    sch->start_time = advsm->padv_event_start - g_ble_ll_sched_offset_ticks;
+    sch->remainder = advsm->padv_event_start_rem_us;
+    sch->end_time = advsm->padv_event_start + ble_ll_tmr_u2t_up(max_usecs);
 
     rc = ble_ll_sched_periodic_adv(sch, first_pdu);
     if (rc) {
@@ -2451,10 +2463,14 @@ ble_ll_adv_periodic_schedule_first(struct ble_ll_adv_sm *advsm,
     sync->start_time = sch->start_time + g_ble_ll_sched_offset_ticks;
 
     assert(first_pdu ||
-           (sync->start_time == advsm->periodic_adv_event_start_time));
+           (sync->start_time == advsm->padv_event_start));
 
-    /* The event start time is when we start transmission of the SYNC PDU */
-    advsm->periodic_adv_event_start_time = sync->start_time;
+    if (first_pdu) {
+        /* Need to update anchor on 1st PDU since it's start time can be changed
+         * while scheduling */
+        advsm->padv_anchor = sync->start_time;
+        advsm->padv_event_start = sync->start_time;
+    }
 }
 
 static void
@@ -2535,8 +2551,8 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
      * is scheduled past advertising interval.
      */
     if (sync->auxptr_zero ||
-        (LL_TMR_GT(sch->end_time, advsm->periodic_adv_event_start_time +
-                                  advsm->periodic_adv_itvl_ticks))) {
+        (LL_TMR_GT(sch->end_time, advsm->padv_event_start +
+                                  advsm->periodic_adv_itvl))) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
     }
@@ -2560,7 +2576,9 @@ ble_ll_adv_sync_schedule(struct ble_ll_adv_sm *advsm, bool first_pdu)
 static void
 ble_ll_adv_reschedule_periodic_event(struct ble_ll_adv_sm *advsm)
 {
-    advsm->periodic_adv_event_start_time += advsm->periodic_adv_itvl_ticks;
+    advsm->periodic_event_cntr++;
+    advsm->padv_anchor_offset++;
+
     ble_ll_adv_sync_schedule(advsm, false);
 }
 
@@ -2634,8 +2652,6 @@ ble_ll_adv_periodic_event_done(struct ble_npl_event *ev)
 static void
 ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
 {
-    uint32_t usecs;
-
     /*
      * The Advertising DID is not required to change when a SyncInfo field is
      * added to or removed from an advertising set. However, if it does not
@@ -2660,16 +2676,9 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
                                  (advsm->periodic_access_addr & 0x0000ffff);
     advsm->periodic_crcinit = ble_ll_rand() & 0xffffff;
 
-    usecs = (uint32_t)advsm->periodic_adv_itvl * BLE_LL_ADV_PERIODIC_ITVL;
-    advsm->periodic_adv_itvl_ticks = ble_ll_tmr_u2t_r(usecs,
-                                                      &advsm->periodic_adv_itvl_rem_us);
-
-    /* There is no point in starting periodic advertising until next advertising
-     * event since SyncInfo is needed for synchronization
-     */
-    advsm->periodic_adv_event_start_time_remainder = 0;
-    advsm->periodic_adv_event_start_time = advsm->adv_pdu_start_time +
-                      ble_ll_tmr_u2t(advsm->adv_itvl_usecs + 5000);
+    advsm->padv_anchor_offset = 1;
+    advsm->padv_anchor = ble_ll_tmr_get();
+    advsm->padv_anchor_rem_us = 0;
 
     ble_ll_adv_sync_schedule(advsm, true);
 }
@@ -3977,6 +3986,7 @@ ble_ll_adv_periodic_set_param(const uint8_t *cmdbuf, uint8_t len)
     }
 
     advsm->periodic_adv_itvl = adv_itvl_max;
+    advsm->padv_itvl_us = adv_itvl_max * BLE_LL_ADV_PERIODIC_ITVL;
     advsm->periodic_adv_props = props;
 
     ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_CONFIGURED);
