@@ -597,6 +597,48 @@ ble_hs_hci_decode_legacy_type(uint16_t evt_type)
         return -1;
     }
 }
+
+static int
+ble_hs_hci_evt_le_ext_adv_rpt_first_pass(const void *data, unsigned int len)
+{
+    const struct ble_hci_ev_le_subev_ext_adv_rpt *ev = data;
+    const struct ext_adv_report *report;
+    int i;
+
+    if (len < sizeof(*ev)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    len -= sizeof(*ev);
+    data += sizeof(*ev);
+
+    if (ev->num_reports < BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN ||
+        ev->num_reports > BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX) {
+        return BLE_HS_EBADDATA;
+    }
+
+    for (i = 0; i < ev->num_reports; i++) {
+        if (len < sizeof(*report)) {
+            return BLE_HS_ECONTROLLER;
+        }
+
+        report = data;
+
+        if (report->data_len > len) {
+            return BLE_HS_ECONTROLLER;
+        }
+
+        len -= sizeof(*report) + report->data_len;
+        data += sizeof(*report) + report->data_len;
+    }
+
+    /* Make sure length was correct */
+    if (len) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    return 0;
+}
 #endif
 
 static int
@@ -607,19 +649,14 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, const void *data,
     const struct ble_hci_ev_le_subev_ext_adv_rpt *ev = data;
     const struct ext_adv_report *report;
     struct ble_gap_ext_disc_desc desc;
-    int i;
     int legacy_event_type;
+    int rc;
+    int i;
 
-    if (len < sizeof(*ev)) {
-        return BLE_HS_EBADDATA;
+    rc = ble_hs_hci_evt_le_ext_adv_rpt_first_pass(data, len);
+    if (rc != 0) {
+        return rc;
     }
-
-    if (ev->num_reports < BLE_HCI_LE_ADV_RPT_NUM_RPTS_MIN ||
-        ev->num_reports > BLE_HCI_LE_ADV_RPT_NUM_RPTS_MAX) {
-        return BLE_HS_EBADDATA;
-    }
-
-    /* TODO properly validate len of the event */
 
     report = &ev->reports[0];
     for (i = 0; i < ev->num_reports; i++) {
