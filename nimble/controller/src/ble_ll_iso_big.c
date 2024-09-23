@@ -1111,41 +1111,40 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
      * not enough for some phys to run scheduler item.
      */
 
-    uint32_t start_time, end_time, big_time;
+    uint32_t padv_start_time, big_start_time;
     uint32_t sync_delay_ticks = ble_ll_tmr_u2t_up(big->sync_delay);
-    uint32_t iso_interval_ticks = ble_ll_tmr_u2t_up(big->iso_interval * 1250);
     int big_event_fixed;
 
-    rc = ble_ll_adv_sync_sched_get(big->advsm, &start_time, &end_time);
+    rc = ble_ll_adv_padv_event_start_get(big->advsm, &padv_start_time, NULL);
     if (rc) {
-        /* Set 1st BIG one interval after "now", this ensures it's always
-         * scheduled in the future.
-         */
-        big_time = ble_ll_tmr_get() + iso_interval_ticks;
+        /* 1st event will be moved by 1 interval before scheduling so this will
+         * be always in the future */
+        big_start_time = ble_ll_tmr_get();
         big_event_fixed = 0;
     } else {
         /* Set 1st BIG event directly before periodic advertising event, this
          * way it will not overlap it even if periodic advertising data changes.
          * Make sure it's in the future.
          */
-        big_time = start_time - g_ble_ll_sched_offset_ticks - sync_delay_ticks - 1;
-        while (big_time - g_ble_ll_sched_offset_ticks < ble_ll_tmr_get()) {
-            big_time += iso_interval_ticks;
-        }
+        big_start_time = padv_start_time - g_ble_ll_sched_offset_ticks -
+                         sync_delay_ticks - 1;
         big_event_fixed = 1;
     }
 
-    big->anchor_base_ticks = big_time;
+    big->anchor_base_ticks = big_start_time;
     big->anchor_base_rem_us = 0;
     big->anchor_offset = 0;
 
-    big_sched_set(big);
+    do {
+        big->anchor_offset++;
+        big_sched_set(big);
 
-    rc = ble_ll_sched_iso_big(&big->sch, 1, big_event_fixed);
-    if (rc < 0) {
-        ble_ll_iso_big_free(big);
-        return -EFAULT;
-    }
+        if (LL_TMR_LEQ(big->sch.start_time, ble_ll_tmr_get())) {
+            rc = -1;
+        } else {
+            rc = ble_ll_sched_iso_big(&big->sch, 1, big_event_fixed);
+        }
+    } while (rc < 0);
 
     ble_ll_iso_big_update_event_start(big);
 
