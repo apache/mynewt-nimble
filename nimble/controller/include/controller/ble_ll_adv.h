@@ -201,9 +201,9 @@ int ble_ll_adv_periodic_set_info_transfer(const uint8_t *cmdbuf, uint8_t len,
 
 /* Get advertising instance with periodic advertising configured */
 struct ble_ll_adv_sm *ble_ll_adv_sync_get(uint8_t handle);
-/* Get periodic advertising event scheduled time */
-int ble_ll_adv_sync_sched_get(struct ble_ll_adv_sm *advsm,
-                              uint32_t *start_time, uint32_t *end_time);
+int ble_ll_adv_padv_event_start_get(struct ble_ll_adv_sm *advsm,
+                                    uint32_t *event_start,
+                                    uint8_t *event_start_rem_us);
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 struct ble_ll_iso_big;

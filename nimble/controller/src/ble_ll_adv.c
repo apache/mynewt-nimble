@@ -5337,19 +5337,18 @@ ble_ll_adv_sync_get(uint8_t handle)
 }
 
 int
-ble_ll_adv_sync_sched_get(struct ble_ll_adv_sm *advsm, uint32_t *start_time,
-                          uint32_t *end_time)
+ble_ll_adv_padv_event_start_get(struct ble_ll_adv_sm *advsm,
+                                uint32_t *event_start,
+                                uint8_t *event_start_rem_us)
 {
-    struct ble_ll_adv_sync *sync;
-
     if (!advsm || !advsm->periodic_adv_active) {
-        return -EIO;
+        return -EINVAL;
     }
 
-    sync = SYNC_CURRENT(advsm);
-
-    *start_time = sync->sch.start_time + g_ble_ll_sched_offset_ticks;
-    *end_time = sync->sch.end_time;
+    *event_start = advsm->padv_event_start;
+    if (event_start_rem_us) {
+        *event_start_rem_us = advsm->padv_event_start_rem_us;
+    }
 
     return 0;
 }
