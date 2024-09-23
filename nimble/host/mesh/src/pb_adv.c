@@ -32,6 +32,7 @@
 
 #define START_PAYLOAD_MAX 20
 #define CONT_PAYLOAD_MAX  23
+#define RX_BUFFER_MAX     65
 
 #define START_LAST_SEG(gpc) (gpc >> 2)
 #define CONT_SEG_INDEX(gpc) (gpc >> 2)
@@ -41,7 +42,8 @@
 #define LINK_ACK        0x01
 #define LINK_CLOSE      0x02
 
-#define XACT_SEG_DATA(_seg) (&link.rx.buf->om_data[20 + ((_seg - 1) * 23)])
+#define XACT_SEG_OFFSET(_seg) (20 + ((_seg - 1) * 23))
+#define XACT_SEG_DATA(_seg) (&link.rx.buf->om_data[XACT_SEG_OFFSET(_seg)])
 #define XACT_SEG_RECV(_seg) (link.rx.seg &= ~(1 << (_seg)))
 
 #define XACT_ID_MAX  0x7f
@@ -224,7 +226,7 @@ static void reset_adv_link(void)
 	}
 	link.tx.pending_ack = XACT_ID_NVAL;
 	if (!rx_buf) {
-		rx_buf = NET_BUF_SIMPLE(65);
+		rx_buf = NET_BUF_SIMPLE(RX_BUFFER_MAX);
 	}
 	link.rx.buf = rx_buf;
 	net_buf_simple_reset(link.rx.buf);
@@ -385,6 +387,11 @@ static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
 
 	if (!(link.rx.seg & BIT(seg))) {
 		BT_DBG("Ignoring already received segment");
+		return;
+	}
+
+	if (XACT_SEG_OFFSET(seg) + buf->om_len > RX_BUFFER_MAX) {
+		BT_WARN("Rx buffer overflow. Malformed generic prov frame?");
 		return;
 	}
 
@@ -892,7 +899,7 @@ void pb_adv_init(void)
 	k_work_init_delayable(&link.tx.retransmit, prov_retransmit);
 
     if (!rx_buf) {
-        rx_buf = NET_BUF_SIMPLE(65);
+        rx_buf = NET_BUF_SIMPLE(RX_BUFFER_MAX);
     }
     link.rx.buf = rx_buf;
     net_buf_simple_reset(link.rx.buf);
