@@ -683,7 +683,8 @@ ble_hs_hci_evt_le_ext_adv_rpt(uint8_t subevent, const void *data,
                 desc.data_status = BLE_GAP_EXT_ADV_DATA_STATUS_TRUNCATED;
                 break;
             default:
-                assert(false);
+                report = (const void *) &report->data[report->data_len];
+                continue;
             }
         }
         desc.addr.type = report->addr_type;
