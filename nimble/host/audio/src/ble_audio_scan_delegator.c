@@ -194,7 +194,7 @@ bass_modify_source_op_handler(struct ble_svc_audio_bass_operation *op, void *arg
     sync_opt = &action.source_modify.sync_opt;
     sync_opt_init(sync_opt, op->modify_source.pa_sync, op->modify_source.pa_interval, NULL, 0);
 
-    BLE_AUDIO_DBG_ASSERT(sync_opt->num_subgroups < ARRAY_SIZE(subgroups));
+    BLE_AUDIO_DBG_ASSERT(sync_opt->num_subgroups < ARRAY_SIZE(sync_opt->subgroups));
 
     for (uint8_t i = 0; i < sync_opt->num_subgroups; i++) {
         sync_opt->subgroups[i].bis_sync = op->modify_source.bis_sync[i];
