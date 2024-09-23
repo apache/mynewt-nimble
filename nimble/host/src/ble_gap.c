@@ -7129,7 +7129,7 @@ err:
 
 int
 ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy, uint8_t *out_status, uint8_t *out_phy ,
-				      uint8_t *out_curr_tx_power_level, uint8_t *out_max_tx_power_level)
+                                      uint8_t *out_curr_tx_power_level, uint8_t *out_max_tx_power_level)
 
 {
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
@@ -7162,7 +7162,7 @@ ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy, uint8_t
 
 int
 ble_gap_read_remote_transmit_power_level(uint16_t conn_handle,
-				      uint8_t phy)
+                                         uint8_t phy)
 {
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
     struct ble_hci_le_read_remote_transmit_power_level_cp cmd;
@@ -7181,11 +7181,11 @@ ble_gap_read_remote_transmit_power_level(uint16_t conn_handle,
 
 int
 ble_gap_set_path_loss_reporting_param(uint16_t conn_handle,
-				      uint8_t high_threshold,
-				      uint8_t high_hysteresis,
-				      uint8_t low_threshold,
-				      uint8_t low_hysteresis,
-				      uint16_t min_time_spent)
+                                      uint8_t high_threshold,
+                                      uint8_t high_hysteresis,
+                                      uint8_t low_threshold,
+                                      uint8_t low_hysteresis,
+                                      uint16_t min_time_spent)
 {
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
     struct ble_hci_le_set_path_loss_report_param_cp cmd;
@@ -7208,7 +7208,7 @@ ble_gap_set_path_loss_reporting_param(uint16_t conn_handle,
 
 int
 ble_gap_set_path_loss_reporting_enable(uint16_t conn_handle,
-				       uint8_t enable)
+                                       uint8_t enable)
 {
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
     struct ble_hci_le_set_path_loss_report_enable_cp cmd;
@@ -7227,8 +7227,8 @@ ble_gap_set_path_loss_reporting_enable(uint16_t conn_handle,
 
 int
 ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
-					    uint8_t local_enable,
-					    uint8_t remote_enable)
+                                            uint8_t local_enable,
+                                            uint8_t remote_enable)
 {
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
     struct ble_hci_le_set_transmit_power_report_enable_cp cmd;
