@@ -879,6 +879,13 @@ ble_hs_hci_evt_le_adv_set_terminated(uint8_t subevent, const void *data,
         return BLE_HS_ECONTROLLER;
     }
 
+    /* this indicates bug in controller as host uses instances from
+     * 0-BLE_ADV_INSTANCES range only
+     */
+    if (ev->adv_handle >= BLE_ADV_INSTANCES) {
+        return BLE_HS_ECONTROLLER;
+    }
+
     if (ev->status == 0) {
         /* ignore return code as we need to terminate advertising set anyway */
         ble_gap_rx_conn_complete(&pend_conn_complete, ev->adv_handle);
@@ -897,6 +904,13 @@ ble_hs_hci_evt_le_scan_req_rcvd(uint8_t subevent, const void *data,
     const struct ble_hci_ev_le_subev_scan_req_rcvd *ev = data;
 
     if (len != sizeof(*ev)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
+    /* this indicates bug in controller as host uses instances from
+     * 0-BLE_ADV_INSTANCES range only
+     */
+    if (ev->adv_handle >= BLE_ADV_INSTANCES) {
         return BLE_HS_ECONTROLLER;
     }
 
