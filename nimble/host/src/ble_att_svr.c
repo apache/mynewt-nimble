@@ -625,6 +625,8 @@ static int
 ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status, struct os_mbuf *om,
                    uint8_t att_op, uint8_t err_status, uint16_t err_handle)
 {
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
     int do_tx;
 
     if (hs_status != 0 && err_status == 0) {
@@ -636,6 +638,24 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status, struct os_
 
     if (do_tx) {
         if (hs_status == 0) {
+            ble_hs_lock();
+            conn = ble_hs_conn_find(conn_handle);
+            if (conn == NULL) {
+                hs_status = BLE_HS_ENOTCONN;
+                ble_hs_unlock();
+                goto done;
+            }
+
+            chan = ble_hs_conn_chan_find_by_scid(conn, cid);
+            if (chan == NULL) {
+                hs_status = BLE_HS_ENOENT;
+                ble_hs_unlock();
+                goto done;
+            }
+
+            ble_att_truncate_to_mtu(chan, om);
+            ble_hs_unlock();
+
             hs_status = ble_att_tx(conn_handle, cid, om);
             om = NULL;
             if (hs_status) {
@@ -643,6 +663,7 @@ ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status, struct os_
             }
         }
 
+done:
         if (hs_status != 0) {
             STATS_INC(ble_att_stats, error_rsp_tx);
 
