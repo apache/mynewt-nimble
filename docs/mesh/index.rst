@@ -84,6 +84,7 @@ Lightness Server Model.
 
 .. figure:: mesh_lightning_model.jpg
    :alt: Light Lightness Server model (source: Mesh Model Specification 1.0)
+   :width: 450
 
 Mesh Node features supported by Apache Mynewt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
