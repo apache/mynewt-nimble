@@ -38,6 +38,8 @@ pkg.deps.'BLE_TRANSPORT_HS == "dialog_cmac" || BLE_TRANSPORT_LL == "dialog_cmac"
     - nimble/transport/dialog_cmac
 pkg.deps.'BLE_TRANSPORT_HS == "nrf5340" || BLE_TRANSPORT_LL == "nrf5340"':
     - nimble/transport/nrf5340
+pkg.deps.'BLE_TRANSPORT_HS == "ipc" || BLE_TRANSPORT_LL == "ipc"':
+    - nimble/transport/ipc
 pkg.deps.'BLE_TRANSPORT_LL == "socket"':
     - nimble/transport/socket
 pkg.deps.'BLE_TRANSPORT_HS == "uart"':
