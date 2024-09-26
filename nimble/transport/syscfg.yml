@@ -29,6 +29,7 @@ syscfg.defs:
             - native
             - dialog_cmac
             - nrf5340
+            - ipc
             - uart
             - usb
             - cdc
@@ -44,6 +45,7 @@ syscfg.defs:
             - emspi
             - dialog_cmac
             - nrf5340
+            - ipc
             - socket
             - apollo3
             - uart_ll
