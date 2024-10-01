@@ -218,3 +218,43 @@ phy_txpower_round(int8_t dbm)
 
     return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
 }
+
+/* TODO(m): Add this to other BSPs */
+int8_t
+phy_txpower_round_up(int8_t dbm)
+{
+    if (dbm >= (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos4dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_0dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Pos3dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_0dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg4dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg8dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg12dBm;
+    }
+
+    if (dbm > (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm) {
+        return (int8_t)RADIO_TXPOWER_TXPOWER_Neg20dBm;
+    }
+
+    return (int8_t)RADIO_TXPOWER_TXPOWER_Neg40dBm;
+}
+
