@@ -2069,11 +2069,18 @@ ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
-    if ((MYNEWT_VAL(BLE_VERSION) >= 53 ) && (cmd->mode == 0x03)) {
-        /* We do not support ADI in periodic advertising thus cannot enable
-         * duplicate filtering.
-         */
-        return BLE_ERR_UNSUPPORTED;
+    if (MYNEWT_VAL(BLE_VERSION) >= 53) {
+        if (cmd->mode > 0x03) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if ((cmd->mode == 0x03) &&
+            !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)) {
+            /* We do not support ADI in periodic advertising thus cannot enable
+             * duplicate filtering.
+             */
+            return BLE_ERR_UNSUPPORTED;
+        }
     } else if (cmd->mode > 0x02) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -2126,11 +2133,18 @@ ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if ((MYNEWT_VAL(BLE_VERSION) >= 53 ) && (cmd->mode == 0x03)) {
-        /* We do not support ADI in periodic advertising thus cannot enable
-         * duplicate filtering.
-         */
-        return BLE_ERR_UNSUPPORTED;
+    if (MYNEWT_VAL(BLE_VERSION) >= 53) {
+        if (cmd->mode > 0x03) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if ((cmd->mode == 0x03) &&
+            !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)) {
+            /* We do not support ADI in periodic advertising thus cannot enable
+             * duplicate filtering.
+             */
+            return BLE_ERR_UNSUPPORTED;
+        }
     } else if (cmd->mode > 0x02) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }

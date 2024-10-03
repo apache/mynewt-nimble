@@ -167,6 +167,10 @@ struct ble_ll_adv_sm
     uint8_t periodic_adv_active : 1;
     uint8_t periodic_sync_active : 1;
     uint8_t periodic_sync_index : 1;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    uint8_t periodic_include_adi : 1;
+    uint16_t periodic_adv_adi;
+#endif
     uint8_t periodic_num_used_chans;
     uint8_t periodic_chanmap[BLE_LL_CHAN_MAP_LEN];
     uint16_t periodic_adv_itvl;
@@ -1916,10 +1920,10 @@ ble_ll_adv_set_adv_params(const uint8_t *cmdbuf, uint8_t len)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-static void
-ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
+static uint16_t
+ble_ll_adv_update_did(uint16_t old_adi)
 {
-    uint16_t old_adi = advsm->adi;
+    uint16_t new_adi;
 
     /*
      * The Advertising DID for a given advertising set shall be initialized
@@ -1930,8 +1934,9 @@ ble_ll_adv_update_did(struct ble_ll_adv_sm *advsm)
      * the previously used value.
      */
     do {
-        advsm->adi = (advsm->adi & 0xf000) | (ble_ll_rand() & 0x0fff);
-    } while (old_adi == advsm->adi);
+        new_adi = (old_adi & 0xf000) | (ble_ll_rand() & 0x0fff);
+    } while (old_adi == new_adi);
+    return new_adi;
 }
 #endif
 
@@ -1965,7 +1970,7 @@ ble_ll_adv_update_adv_scan_rsp_data(struct ble_ll_adv_sm *advsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     /* DID shall be updated when host provides new advertising data */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
 }
 
@@ -2158,6 +2163,12 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         dptr += 1;
     }
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+        put_le16(dptr, advsm->periodic_adv_adi);
+        dptr += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
+#endif
 
     if (sync->ext_hdr_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
         if (!SYNC_NEXT(advsm)->sch.enqueued) {
@@ -2339,6 +2350,13 @@ ble_ll_adv_sync_calculate(struct ble_ll_adv_sm *advsm,
     rem_data_len = SYNC_DATA_LEN(advsm) - data_offset;
 
     ext_hdr_len = BLE_LL_EXT_ADV_HDR_LEN;
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    if (advsm->periodic_include_adi) {
+        sync->ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT);
+        ext_hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
+#endif
 
     /* TxPower if configured
      * Note: TxPower shall not be present in chain PDU for SYNC
@@ -2597,6 +2615,9 @@ ble_ll_adv_update_periodic_data(struct ble_ll_adv_sm *advsm)
         os_mbuf_free_chain(advsm->periodic_adv_data);
         advsm->periodic_adv_data = advsm->periodic_new_data;
         advsm->periodic_new_data = NULL;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+        advsm->periodic_adv_adi = ble_ll_adv_update_did(advsm->periodic_adv_adi);
+#endif
     }
 
     ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_PERIODIC_NEW_DATA);
@@ -2661,7 +2682,15 @@ ble_ll_adv_sm_start_periodic(struct ble_ll_adv_sm *advsm)
      * advertisers should update the Advertising DID when a periodic advertising
      * train is enabled.
      */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    /*
+     * Since periodic advertising can be started without data we initialize DID here
+     * instead of after setting periodic advertising data.
+     */
+    advsm->periodic_adv_adi = ble_ll_adv_update_did(advsm->periodic_adv_adi);
+#endif
 
     advsm->periodic_adv_active = 1;
 
@@ -2704,7 +2733,7 @@ ble_ll_adv_sm_stop_periodic(struct ble_ll_adv_sm *advsm)
      * advertisers should update the Advertising DID when a periodic advertising
      * train is disabled.
      */
-    ble_ll_adv_update_did(advsm);
+    advsm->adi = ble_ll_adv_update_did(advsm->adi);
 
     /* Remove any scheduled advertising items */
     advsm->periodic_adv_active = 0;
@@ -3126,7 +3155,7 @@ ble_ll_adv_set_scan_rsp_data(const uint8_t *data, uint8_t datalen,
         }
 
         /* DID shall be updated when host provides new scan response data */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
     }
 
@@ -3201,7 +3230,7 @@ ble_ll_adv_set_adv_data(const uint8_t *data, uint8_t datalen, uint8_t instance,
         }
 
         /* update DID only */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
         return BLE_ERR_SUCCESS;
     case BLE_HCI_LE_SET_DATA_OPER_LAST:
         ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_ADV_DATA_INCOMPLETE);
@@ -3289,7 +3318,7 @@ ble_ll_adv_set_adv_data(const uint8_t *data, uint8_t datalen, uint8_t instance,
         }
 
         /* DID shall be updated when host provides new advertising data */
-        ble_ll_adv_update_did(advsm);
+        advsm->adi = ble_ll_adv_update_did(advsm->adi);
 #endif
         }
 
@@ -3594,6 +3623,9 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     advsm->sec_phy = cmd->sec_phy;
     /* Update SID only */
     advsm->adi = (advsm->adi & 0x0fff) | ((cmd->sid << 12));
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    advsm->periodic_adv_adi = (advsm->periodic_adv_adi & 0x0fff) | ((cmd->sid << 12));
+#endif
 
     advsm->props = props;
 
@@ -4099,6 +4131,23 @@ ble_ll_adv_periodic_set_data(const uint8_t *cmdbuf, uint8_t len)
     case BLE_HCI_LE_SET_DATA_OPER_COMPLETE:
         new_data = true;
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    case BLE_HCI_LE_SET_DATA_OPER_UNCHANGED:
+        if (!advsm->periodic_adv_enabled) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (advsm->periodic_adv_data->om_len == 0) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        if (cmd->adv_data_len != 0) {
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
+        advsm->periodic_adv_adi = ble_ll_adv_update_did(advsm->periodic_adv_adi);
+        return BLE_ERR_SUCCESS;
+#endif
     default:
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
@@ -4175,10 +4224,14 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_UNK_ADV_INDENT;
     }
 
-#if MYNEWT_VAL(BLE_VERSION) >= 53
+#if !MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
     if (cmd->enable & 0x02) {
         return BLE_ERR_UNSUPPORTED;
-    } else if (cmd->enable & 0xfc) {
+    }
+#endif
+
+#if MYNEWT_VAL(BLE_VERSION) >= 53
+    if (cmd->enable & 0xfc) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 #else
@@ -4187,7 +4240,7 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
     }
 #endif
 
-    if (cmd->enable) {
+    if (cmd->enable & 0x1) {
         if (advsm->props & (BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV |
                             BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
                             BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
@@ -4205,7 +4258,7 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
 
         /* If Enable is set to 0x01 and the length of the periodic advertising
          * data is greater than the maximum that the Controller can transmit
-         * within the chosen periodicadvertising interval, the Controller shall
+         * within the chosen periodic advertising interval, the Controller shall
          * return the error code Packet Too Long (0x45).
          */
         if (!ble_ll_adv_periodic_check_data_itvl(SYNC_DATA_LEN(advsm),
@@ -4214,6 +4267,10 @@ ble_ll_adv_periodic_enable(const uint8_t *cmdbuf, uint8_t len)
                                                  advsm->sec_phy)) {
             return BLE_ERR_PACKET_TOO_LONG;
         }
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+        advsm->periodic_include_adi = !!(cmd->enable & 0x2);
+#endif
 
         /* If the advertising set is not currently enabled (see the
          * LE_Set_Extended_Advertising_Enable command), the periodic advertising
