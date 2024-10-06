@@ -570,6 +570,7 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     uint8_t ext_hdr_len;
     uint8_t ext_hdr_flags;
     uint32_t offset;
+    bool has_adva;
 
     advsm = pducb_arg;
 
@@ -581,8 +582,6 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* only ADV_EXT_IND goes on primary advertising channels */
     pdu_type = BLE_ADV_PDU_TYPE_ADV_EXT_IND;
 
-    *hdr_byte = pdu_type;
-
     adv_mode = 0;
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
         adv_mode |= BLE_LL_EXT_ADV_MODE_CONN;
@@ -591,10 +590,18 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
         adv_mode |= BLE_LL_EXT_ADV_MODE_SCAN;
     }
 
+    has_adva = !MYNEWT_VAL(BLE_LL_EXT_ADV_ADVA_IN_AUX) &&
+               !(advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV);
+
     ext_hdr_len = BLE_LL_EXT_ADV_FLAGS_SIZE + BLE_LL_EXT_ADV_DATA_INFO_SIZE +
                   BLE_LL_EXT_ADV_AUX_PTR_SIZE;
     ext_hdr_flags = (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT) |
                     (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT);
+
+    if (has_adva) {
+        ext_hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
+        ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
+    }
 
     /* ext hdr len and adv mode */
     dptr[0] = ext_hdr_len | (adv_mode << 6);
@@ -603,6 +610,15 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* ext hdr flags */
     dptr[0] = ext_hdr_flags;
     dptr += 1;
+
+    if (has_adva) {
+        /* AdvA */
+        if (advsm->flags & BLE_LL_ADV_SM_FLAG_TX_ADD) {
+            pdu_type |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        }
+        memcpy(dptr, advsm->adva, BLE_LL_EXT_ADV_ADVA_SIZE);
+        dptr += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
 
     /* ADI */
     dptr[0] = advsm->adi & 0x00ff;
@@ -618,6 +634,8 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
     /* Always use channel from 1st AUX */
     ble_ll_adv_put_aux_ptr(AUX_CURRENT(advsm)->chan, advsm->sec_phy,
                            offset, dptr);
+
+    *hdr_byte = pdu_type;
 
     return BLE_LL_EXT_ADV_HDR_LEN + ext_hdr_len;
 }
@@ -1407,9 +1425,16 @@ ble_ll_adv_aux_calculate_payload(struct ble_ll_adv_sm *advsm, uint16_t props,
         ext_hdr_len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
     }
 
-    /* AdvA in 1st PDU, except for anonymous */
+    /* AdvA if:
+     * - 1st PDU
+     * - not anonymous
+     * - scannable/connectable or ADVA_IN_AUX selected
+     */
     if (first_pdu &&
-        !(props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV)) {
+        !(props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV) &&
+        ((props & (BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
+                   BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE)) ||
+         MYNEWT_VAL(BLE_LL_EXT_ADV_ADVA_IN_AUX))) {
         ext_hdr_flags |= (1 << BLE_LL_EXT_ADV_ADVA_BIT);
         ext_hdr_len += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
