@@ -197,8 +197,9 @@ bass_modify_source_op_handler(struct ble_svc_audio_bass_operation *op, void *arg
     BLE_AUDIO_DBG_ASSERT(sync_opt->num_subgroups < ARRAY_SIZE(sync_opt->subgroups));
 
     for (uint8_t i = 0; i < sync_opt->num_subgroups; i++) {
-        sync_opt->subgroups[i].bis_sync = op->modify_source.bis_sync[i];
-        /* FIXME: Missing metadata in Modify Source */
+        sync_opt->subgroups[i].bis_sync = op->modify_source.subgroups[i].bis_sync_state;
+        sync_opt->subgroups[i].metadata_length = op->modify_source.subgroups[i].metadata_length;
+        sync_opt->subgroups[i].metadata = op->modify_source.subgroups[i].metadata;
     }
 
     action.type = BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_MODIFY;
