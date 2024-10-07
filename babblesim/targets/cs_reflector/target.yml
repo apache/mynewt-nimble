@@ -16,14 +16,6 @@
 # under the License.
 #
 
-syscfg.vals:
-    BLE_LL_CFG_FEAT_LE_CSA2: 1
-
-    # Prevent priority conflict with controller task.
-    MCU_TIMER_POLLER_PRIO: 1
-    MCU_UART_POLLER_PRIO: 2
-    NATIVE_SOCKETS_PRIO: 3
-    MBEDTLS_AES_C: 1
-    BLE_VERSION: 54
-    BLE_CHANNEL_SOUNDING: 1
-    BLE_LL_CHANNEL_SOUNDING: 1
+target.app: "@apache-mynewt-nimble/apps/cs_reflector"
+target.bsp: "@apache-mynewt-nimble/babblesim/hw/bsp/nrf52_bsim"
+target.build_profile: debug
