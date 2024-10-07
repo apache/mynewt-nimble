@@ -19,22 +19,24 @@
 
 /* btp_bap.c - Bluetooth Basic Audio Profile Tester */
 
+#include "btp/bttester.h"
 #include "syscfg/syscfg.h"
+#include <string.h>
+
 
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 
 #include "btp/btp_bap.h"
 
-
 #include "btp/btp.h"
 #include "console/console.h"
 
-#include "nimble/ble.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 #include "math.h"
 
 #include "audio/ble_audio_broadcast_source.h"
+#include "audio/ble_audio_broadcast_sink.h"
 #include "audio/ble_audio.h"
 #include "host/ble_iso.h"
 
@@ -42,6 +44,13 @@
 
 static struct ble_audio_big_subgroup big_subgroup;
 
+static struct broadcast_sink {
+    ble_addr_t addr;
+    uint8_t source_id;
+    uint8_t broadcast_code[BLE_AUDIO_BROADCAST_CODE_SIZE];
+} sinks[MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_MAX)];
+
+static uint8_t sink_num = 0;
 static uint8_t id_addr_type;
 static uint8_t audio_data[155];
 static uint16_t max_sdu;
@@ -107,7 +116,7 @@ iso_event(struct ble_iso_event *event, void *arg)
 
     switch (event->type) {
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
-        console_printf("BIG created\n");
+        console_printf("%s: BIG created\n", __func__);
         if (event->big_created.desc.num_bis >
             MYNEWT_VAL(BROADCASTER_CHAN_NUM)) {
             return BLE_HS_EINVAL;
@@ -117,7 +126,7 @@ iso_event(struct ble_iso_event *event, void *arg)
         }
         return 0;
     case BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE:
-        console_printf("BIG terminated\n");
+        console_printf("%s: BIG terminated\n", __func__);
         return 0;
     default:
         return BLE_HS_ENOTSUP;
@@ -320,6 +329,74 @@ broadcast_source_start(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
+broadcast_code_set(const void *cmd, uint16_t cmd_len, void *rsp,
+                   uint16_t *rsp_len)
+{
+    const struct btp_bap_set_broadcast_code_cmd *cp = cmd;
+
+    if (sink_num > MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_MAX)) {
+        return BTP_STATUS_FAILED;
+    }
+
+    sinks[sink_num].addr = cp->addr;
+    sinks[sink_num].addr.type = cp->addr.type;
+    sinks[sink_num].source_id = cp->source_id;
+
+    memcpy(sinks[sink_num].broadcast_code, cp->broadcast_code,
+           BLE_AUDIO_BROADCAST_CODE_SIZE);
+
+    sink_num++;
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+broadcast_sink_setup(const void *cmd, uint16_t cmd_len, void *rsp,
+                     uint16_t *rsp_len)
+{
+    int rc, i;
+    struct ble_audio_broadcast_sink_add_params params = {0};
+
+    for (i = 0; i < sink_num; i++) {
+        memcpy(params.broadcast_code, sinks[i].broadcast_code,
+               BLE_AUDIO_BROADCAST_CODE_SIZE);
+        params.broadcast_code_is_valid = true;
+        rc = ble_audio_broadcast_sink_start(sinks[i].source_id, &params);
+        if (rc) {
+            return BTP_STATUS_FAILED;
+        }
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static int
+scan_delegator_receive_state_foreach_fn(struct ble_audio_scan_delegator_receive_state_entry *entry,
+                                        void *addr)
+{
+    if (ble_addr_cmp(addr, &entry->source_desc.addr)) {
+        ble_audio_broadcast_sink_stop(entry->source_id);
+    }
+
+    return 0;
+}
+
+static uint8_t
+broadcast_sink_stop(const void *cmd, uint16_t cmd_len, void *rsp,
+                    uint16_t *rsp_len)
+{
+    ble_addr_t addr;
+    const struct btp_bap_broadcast_sink_stop_cmd *cp = cmd;
+
+    addr = cp->address;
+
+    ble_audio_scan_delegator_receive_state_foreach(scan_delegator_receive_state_foreach_fn,
+                                                   &addr);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 broadcast_source_stop(const void *cmd, uint16_t cmd_len, void *rsp,
                       uint16_t *rsp_len)
 {
@@ -371,7 +448,171 @@ static const struct btp_handler handlers[] = {
         .expect_len = sizeof(struct bap_bap_broadcast_source_stop_cmd),
         .func = broadcast_source_stop,
     },
+    {
+        .opcode = BTP_BAP_SET_BROADCAST_CODE,
+        .index = BTP_INDEX,
+        .expect_len = sizeof(struct btp_bap_set_broadcast_code_cmd),
+        .func = broadcast_code_set,
+    },
+    {
+        .opcode = BTP_BAP_BROADCAST_SINK_SETUP,
+        .index = BTP_INDEX,
+        .expect_len = 0,
+        .func = broadcast_sink_setup,
+    },
+    {
+        .opcode = BTP_BAP_BROADCAST_SINK_STOP,
+        .index = BTP_INDEX,
+        .expect_len = sizeof(struct btp_bap_broadcast_sink_stop_cmd),
+        .func = broadcast_sink_stop,
+    },
 };
+
+#define BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT  0x07D0
+
+static int
+broadcast_sink_pa_sync_params_get(struct ble_gap_periodic_sync_params *params)
+{
+    params->skip = 0;
+    params->sync_timeout = BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT;
+    params->reports_disabled = false;
+
+    return 0;
+}
+
+static int
+broadcast_sink_disc_start(const struct ble_gap_ext_disc_params *params)
+{
+    uint8_t own_addr_type;
+    int rc;
+
+    /* Figure out address to use while scanning. */
+    rc = ble_hs_id_infer_auto(0, &own_addr_type);
+    if (rc != 0) {
+        console_printf("%s: determining own address type failed (%d)", __func__, rc);
+        assert(0);
+    }
+
+    rc = ble_gap_ext_disc(own_addr_type, 0, 0, 0, 0, 0, params, NULL, NULL, NULL);
+    if (rc != 0) {
+        console_printf("%s: ext disc failed (%d)", __func__, rc);
+    }
+
+    return rc;
+}
+
+static int
+broadcast_sink_disc_stop(void)
+{
+    int rc;
+
+    rc = ble_gap_disc_cancel();
+    if (rc != 0) {
+        console_printf("%s: disc cancel failed (%d)", __func__, rc);
+    }
+
+    return rc;
+}
+
+static int
+broadcast_sink_action_fn(struct ble_audio_broadcast_sink_action *action, void *arg)
+{
+    switch (action->type) {
+    case BLE_AUDIO_BROADCAST_SINK_ACTION_PA_SYNC:
+        return broadcast_sink_pa_sync_params_get(action->pa_sync.out_params);
+    case BLE_AUDIO_BROADCAST_SINK_ACTION_BIG_SYNC:
+        break;
+    case BLE_AUDIO_BROADCAST_SINK_ACTION_BIS_SYNC:
+        return 0;
+    case BLE_AUDIO_BROADCAST_SINK_ACTION_DISC_START:
+        return broadcast_sink_disc_start(action->disc_start.params_preferred);
+    case BLE_AUDIO_BROADCAST_SINK_ACTION_DISC_STOP:
+        return broadcast_sink_disc_stop();
+    default:
+        assert(false);
+        return BLE_HS_ENOTSUP;
+    }
+
+    return 0;
+}
+
+static int
+broadcast_sink_audio_event_handler(struct ble_audio_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_AUDIO_EVENT_BROADCAST_SINK_PA_SYNC_STATE:
+        console_printf("%s: source_id=0x%02x PA sync: %s\n", __func__,
+                       event->broadcast_sink_pa_sync_state.source_id,
+                       ble_audio_broadcast_sink_sync_state_str(
+                               event->broadcast_sink_pa_sync_state.state));
+        break;
+    case BLE_AUDIO_EVENT_BROADCAST_SINK_BIS_SYNC_STATE:
+        console_printf("%s: source_id=0x%02x bis_index=0x%02x BIS sync: %s\n",
+                       __func__, event->broadcast_sink_bis_sync_state.source_id,
+                       event->broadcast_sink_bis_sync_state.bis_index,
+                       ble_audio_broadcast_sink_sync_state_str(
+                               event->broadcast_sink_bis_sync_state.state));
+        if (event->broadcast_sink_bis_sync_state.state ==
+            BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED) {
+            console_printf("%s: conn_handle=0x%04x\n", __func__,
+                           event->broadcast_sink_bis_sync_state.conn_handle);
+        }
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+static int
+scan_delegator_pick_source_id_to_swap(uint8_t *out_source_id_to_swap)
+{
+    /* TODO: Add some logic here */
+    *out_source_id_to_swap = 0;
+
+    return 0;
+}
+
+static int
+scan_delegator_action_fn(struct ble_audio_scan_delegator_action *action, void *arg)
+{
+    switch (action->type) {
+    case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_ADD:
+        console_printf("%s: Source Add:\nsource_id=%u\n", __func__,
+                       action->source_add.source_id);
+        if (action->source_add.out_source_id_to_swap == NULL) {
+            return 0;
+        }
+        return scan_delegator_pick_source_id_to_swap(action->source_add.out_source_id_to_swap);
+    case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_MODIFY:
+        console_printf("%s: Source Modify:\nsource_id=%u\n", __func__,
+                       action->source_modify.source_id);
+        break;
+    case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_REMOVE:
+        console_printf("%s: Source Remove:\nsource_id=%u\n", __func__,
+                       action->source_remove.source_id);
+        break;
+    default:
+        assert(false);
+        return BLE_HS_ENOTSUP;
+    }
+
+    return 0;
+}
+
+static int
+scan_delegator_audio_event_handler(struct ble_audio_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_AUDIO_EVENT_BROADCAST_ANNOUNCEMENT:
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
 
 uint8_t
 tester_init_bap(void)
@@ -404,6 +645,23 @@ tester_init_bap(void)
     if (rc) {
         return BTP_STATUS_FAILED;
     }
+
+    static struct ble_audio_event_listener broadcast_sink_listener;
+
+    rc = ble_audio_broadcast_sink_cb_set(broadcast_sink_action_fn, NULL);
+    assert(rc == 0);
+
+    rc = ble_audio_event_listener_register(&broadcast_sink_listener,
+                                           broadcast_sink_audio_event_handler, NULL);
+
+    static struct ble_audio_event_listener scan_delegator_listener;
+
+    rc = ble_audio_scan_delegator_action_fn_set(scan_delegator_action_fn, NULL);
+    assert(rc == 0);
+
+    rc = ble_audio_event_listener_register(&scan_delegator_listener,
+                                           scan_delegator_audio_event_handler, NULL);
+    assert(rc == 0);
 
     tester_register_command_handlers(BTP_SERVICE_ID_BAP, handlers,
                                      ARRAY_SIZE(handlers));
