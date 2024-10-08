@@ -2504,7 +2504,7 @@ int ble_gap_set_priv_mode(const ble_addr_t *peer_addr, uint8_t priv_mode);
  *                            - BLE_GAP_LE_PHY_2M
  *                            - BLE_GAP_LE_PHY_CODED
  *
- * @return                   0 on success; nonzero on failure.
+ * @return                  0 on success; nonzero on failure.
  */
 int ble_gap_read_le_phy(uint16_t conn_handle, uint8_t *tx_phy, uint8_t *rx_phy);
 
@@ -2700,7 +2700,7 @@ int ble_gap_conn_find_handle_by_addr(const ble_addr_t *addr, uint16_t *out_conn_
  * @params enable           1: Enable
  * 			    0: Disable
  *
- * @return                   0 on success; nonzero on failure.
+ * @return                  0 on success; nonzero on failure.
  */
 
 int ble_gap_set_path_loss_reporting_enable(uint16_t conn_handle, uint8_t enable);
@@ -2724,18 +2724,17 @@ int ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
 /**
  * LE Enhanced Read Transmit Power Level
  *
- * @param conn_handle            Connection handle
- * @params phy                   Advertising Phy
+ * @param conn_handle               Connection handle
+ * @params phy                      Advertising Phy
  *
- * @params status                0 on success; nonzero on failure.
- * @params conn_handle           Connection handle
- * @params phy	                 Advertising Phy
+ * @params out_status               0 on success; nonzero on failure.
+ * @params out_phy	                Advertising Phy
  *
- * @params curr_tx_power_level   Current trasnmit Power Level
+ * @params out_curr_tx_power_level  Current trasnmit Power Level
  *
- * @params mx_tx_power_level     Maximum transmit power level
+ * @params out_max_tx_power_level   Maximum transmit power level
  *
- * @return                       0 on success; nonzero on failure.
+ * @return                          0 on success; nonzero on failure.
  */
 int ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy,
                                           uint8_t *out_status, uint8_t *out_phy,
