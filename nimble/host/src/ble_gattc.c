@@ -2299,7 +2299,9 @@ ble_gattc_disc_all_chrs_rx_adata(struct ble_gattc_proc *proc,
         rc = BLE_HS_EBADDATA;
         goto done;
     }
-    proc->disc_all_chrs.prev_handle = adata->att_handle;
+
+    /* We'll resume after characteristic value */
+    proc->disc_all_chrs.prev_handle = chr.val_handle;
 
     rc = 0;
 
@@ -2328,7 +2330,10 @@ ble_gattc_disc_all_chrs_rx_complete(struct ble_gattc_proc *proc, int status)
         return BLE_HS_EDONE;
     }
 
-    if (proc->disc_all_chrs.prev_handle == proc->disc_all_chrs.end_handle) {
+    /* We can stop discovery if there are less than 2 attributes left since
+     * complete characteristic requires at least 2 handles.
+     */
+    if (proc->disc_all_chrs.prev_handle + 1 >= proc->disc_all_chrs.end_handle - 1) {
         /* Characteristic discovery complete. */
         ble_gattc_disc_all_chrs_cb(proc, BLE_HS_EDONE, 0, NULL);
         return BLE_HS_EDONE;
