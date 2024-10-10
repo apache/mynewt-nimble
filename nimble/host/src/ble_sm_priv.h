@@ -216,6 +216,7 @@ struct ble_sm_dhkey_check {
 #define BLE_SM_PROC_F_AUTHENTICATED         0x08
 #define BLE_SM_PROC_F_SC                    0x10
 #define BLE_SM_PROC_F_BONDING               0x20
+#define BLE_SM_PROC_F_PAIRING               0x40
 
 #define BLE_SM_KE_F_ENC_INFO                0x01
 #define BLE_SM_KE_F_MASTER_ID               0x02
