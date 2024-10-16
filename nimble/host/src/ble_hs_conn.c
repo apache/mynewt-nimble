@@ -255,6 +255,11 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
         os_mbuf_free_chain(OS_MBUF_PKTHDR_TO_MBUF(omp));
     }
 
+    while ((omp = STAILQ_FIRST(&conn->att_tx_q)) != NULL) {
+        STAILQ_REMOVE_HEAD(&conn->att_tx_q, omp_next);
+        os_mbuf_free_chain(OS_MBUF_PKTHDR_TO_MBUF(omp));
+    }
+
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     memset(conn, 0xff, sizeof *conn);
 #endif
