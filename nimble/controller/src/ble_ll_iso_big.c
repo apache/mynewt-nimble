@@ -573,10 +573,6 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         big->anchor_offset++;
         big_sched_set(big);
 
-        big->sch.end_time = big->sch.start_time +
-                            ble_ll_tmr_u2t_up(big->sync_delay) + 1;
-        big->sch.start_time -= g_ble_ll_sched_offset_ticks;
-
         /* XXX this should always succeed since we preempt anything for now */
         rc = ble_ll_sched_iso_big(&big->sch, 0, 0);
         assert(rc == 0);
