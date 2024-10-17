@@ -307,20 +307,38 @@ ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
                             uint32_t base_ticks, uint8_t base_rem_us)
 {
     uint8_t *dptr_start;
+    uint32_t event_start;
+    uint8_t event_start_us;
     uint64_t counter;
     uint32_t offset_us;
     uint32_t offset;
-    uint32_t d_ticks;
-    uint8_t d_rem_us;
 
     dptr_start = dptr;
     counter = big->bis_counter;
 
-    d_ticks = big->event_start - base_ticks;
-    d_rem_us = big->event_start_us;
-    ble_ll_tmr_sub(&d_ticks, &d_rem_us, base_rem_us);
+    event_start = big->event_start;
+    event_start_us = big->event_start_us;
 
-    offset_us = ble_ll_tmr_t2u(d_ticks) + d_rem_us;
+    /* Use next BIG event in case current one is before AUX_SYNC_IND. This can
+     * happen if AUX_SYNC_IND is scheduled right after BIG event and the BIG
+     * was not yet advanced to next event.
+     */
+    if (event_start <= base_ticks) {
+        ble_ll_tmr_add(&event_start, &event_start_us, big->iso_interval * 1250);
+        counter++;
+    }
+
+    /* Drop BIGInfo if BIG event is still before AUX_SYNC_IND. This should not
+     * happen but better not send invalid offset.
+     */
+    if (event_start <= base_ticks) {
+        return 0;
+    }
+
+    offset_us = ble_ll_tmr_t2u(event_start - base_ticks);
+    offset_us += event_start_us;
+    offset_us -= base_rem_us;
+
     if (offset_us <= 600) {
         counter += big->bn;
         offset_us += big->iso_interval * 1250;
