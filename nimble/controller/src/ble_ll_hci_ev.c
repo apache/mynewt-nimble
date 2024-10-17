@@ -618,6 +618,7 @@ ble_ll_hci_ev_send_vs_printf(uint8_t id, const char *fmt, ...)
     struct ble_hci_ev_vs *ev;
     struct ble_hci_ev *hci_ev;
     va_list ap;
+    int len;
 
     hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
@@ -631,9 +632,11 @@ ble_ll_hci_ev_send_vs_printf(uint8_t id, const char *fmt, ...)
     ev->id = id;
 
     va_start(ap, fmt);
-    hci_ev->length += vsnprintf((void *)ev->data,
-                                BLE_HCI_MAX_DATA_LEN - sizeof(*ev), fmt, ap);
+    len = vsnprintf((void *)ev->data, BLE_HCI_MAX_DATA_LEN - sizeof(*ev), fmt, ap);
     va_end(ap);
+
+    ev->data[len] = 0;
+    hci_ev->length += len + 1;
 
     ble_ll_hci_event_send(hci_ev);
 }
