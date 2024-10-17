@@ -625,83 +625,73 @@ ble_ll_adv_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
 static void
 ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
-                        struct ble_ll_conn_sm *connsm, uint8_t *conn_event_cnt,
+                        struct ble_ll_conn_sm *connsm, uint8_t *conn_event_cntr,
                         uint8_t *dptr)
 {
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-    uint16_t conn_cnt;
-#endif
-    unsigned int event_cnt_off = 0;
-    uint32_t offset = 0;
-    uint32_t itvl_us;
+    uint32_t offset_us;
+    uint32_t offset;
     uint32_t anchor_ticks;
     uint8_t anchor_rem_us;
-    uint8_t units;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+    uint16_t anchor_event_cntr;
+#endif
+    uint32_t event_start;
+    uint8_t event_start_us;
+    uint32_t event_cntr_offset = 0;
 
     if (connsm) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
-        anchor_ticks = connsm->anchor_point;
-        anchor_rem_us = connsm->anchor_point_usecs;
-        conn_cnt = connsm->event_cntr;
-
-        /* get anchor for conn event that is before periodic_adv_event_start_time */
-        while (LL_TMR_GT(anchor_ticks, advsm->padv_event_start)) {
-            ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor_ticks, &anchor_rem_us);
-        }
-
-        offset = ble_ll_tmr_t2u(advsm->padv_event_start - anchor_ticks);
-        offset -= anchor_rem_us;
-        offset += advsm->padv_event_start_rem_us;
+        ble_ll_conn_anchor_get(connsm, &anchor_event_cntr,
+                               &anchor_ticks, &anchor_rem_us);
 
         /* connEventCount */
-        put_le16(conn_event_cnt, conn_cnt);
+        put_le16(conn_event_cntr, anchor_event_cntr);
+#else
+        BLE_LL_ASSERT(0);
 #endif
     } else {
-        anchor_ticks = advsm->padv_event_start;
-        anchor_rem_us = advsm->padv_event_start_rem_us;
-        itvl_us = advsm->periodic_adv_itvl * BLE_LL_ADV_PERIODIC_ITVL;
-
-        /* Get periodic event that is past AUX start time (so that we always
-         * provide valid offset if it is not too far in future). This can
-         * happen if advertising event is interleaved with periodic advertising
-         * event (when chaining).
-         */
-        while (LL_TMR_GEQ(AUX_CURRENT(advsm)->start_time, anchor_ticks)) {
-            ble_ll_tmr_add(&anchor_ticks, &anchor_rem_us, itvl_us);
-            event_cnt_off++;
-        }
-
-        /* We always schedule aux with 0 rem_us so no need to include it here */
-        offset = ble_ll_tmr_t2u(anchor_ticks - AUX_CURRENT(advsm)->start_time);
-        offset += anchor_rem_us;
+        anchor_ticks = AUX_CURRENT(advsm)->start_time;
+        anchor_rem_us = 0;
     }
+
+    event_start = advsm->padv_event_start;
+    event_start_us = advsm->padv_event_start_rem_us;
+
+    /* Find padv event that is past anchor item */
+    while (LL_TMR_LEQ(event_start, anchor_ticks)) {
+        ble_ll_tmr_add(&event_start, &event_start_us, advsm->padv_itvl_us);
+        event_cntr_offset++;
+    }
+
+    offset_us = ble_ll_tmr_t2u(event_start - anchor_ticks);
+    offset_us += event_start_us;
+    offset_us -= anchor_rem_us;
 
     /* Sync Packet Offset (13 bits), Offset Units (1 bit), Offset Adjust (1 bit),
      * RFU (1 bit)
      */
-    if (offset > 245700) {
-        units = 0x20;
-        offset = offset / 300;
-
+    if (offset_us > 245700) {
+        offset = offset_us / 300;
         if (offset >= 0x2000) {
             if (connsm) {
                 offset -= 0x2000;
-                units |= 0x40;
+                /* Offset Units = 1, Offset Adjust = 1 */
+                offset |= 0x6000;
             } else {
-                /* not able to represent time in offset */
                 offset = 0;
-                units = 0x00;
-                event_cnt_off = 0;
+                event_cntr_offset = 0;
             }
+        } else {
+            /* Offset Units = 1, Offset Adjust = 0 */
+            offset |= 0x2000;
         }
 
     } else {
-        units = 0x00;
-        offset = offset / 30;
+        offset = offset_us / 30;
+        /* Offset Units = 0, Offset Adjust = 0 */
     }
 
-    dptr[0] = (offset & 0x000000ff);
-    dptr[1] = ((offset >> 8) & 0x0000001f) | units;
+    put_le16(&dptr[0], offset);
 
     /* Interval (2 bytes) */
     put_le16(&dptr[2], advsm->periodic_adv_itvl);
@@ -725,7 +715,7 @@ ble_ll_adv_put_syncinfo(struct ble_ll_adv_sm *advsm,
     dptr[15] = (uint8_t)(advsm->periodic_crcinit >> 16);
 
     /* Event Counter (2 bytes) */
-    put_le16(&dptr[16], advsm->periodic_event_cntr + event_cnt_off);
+    put_le16(&dptr[16], advsm->periodic_event_cntr + event_cntr_offset);
 }
 #endif
 
