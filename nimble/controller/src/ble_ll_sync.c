@@ -2094,8 +2094,8 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
 
     /* get anchor for specified conn event */
     conn_event_count = get_le16(sync_ind + 20);
-    ble_ll_conn_get_anchor(connsm, conn_event_count, &sm->anchor_point,
-                           &sm->anchor_point_usecs);
+    ble_ll_conn_anchor_event_cntr_get(connsm, conn_event_count, &sm->anchor_point,
+                                      &sm->anchor_point_usecs);
 
     /* Set last anchor point */
     sm->last_anchor_point = sm->anchor_point - (last_pa_diff * sm->itvl_ticks);
@@ -2103,8 +2103,8 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     /* calculate extra window widening */
     sync_conn_event_count = get_le16(sync_ind + 32);
     sca = sync_ind[24] >> 5;
-    ble_ll_conn_get_anchor(connsm, sync_conn_event_count, &sync_anchor,
-                           &sync_anchor_usecs);
+    ble_ll_conn_anchor_event_cntr_get(connsm, sync_conn_event_count, &sync_anchor,
+                                      &sync_anchor_usecs);
     ww_adjust = ble_ll_utils_calc_window_widening(connsm->anchor_point,
                                                   sync_anchor, sca);
 
@@ -2155,7 +2155,7 @@ ble_ll_sync_put_syncinfo(struct ble_ll_sync_sm *syncsm,
 
     /* get anchor for conn event that is before periodic_adv_event_start_time */
     while (LL_TMR_GT(anchor, syncsm->anchor_point)) {
-        ble_ll_conn_get_anchor(connsm, --conn_cnt, &anchor, &anchor_usecs);
+        ble_ll_conn_anchor_event_cntr_get(connsm, --conn_cnt, &anchor, &anchor_usecs);
     }
 
     offset = ble_ll_tmr_t2u(syncsm->anchor_point - anchor);
