@@ -3427,6 +3427,32 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
         goto done;
     }
 
+    /* Anonymous advertising only makes sense for non-connectable, non-scannable
+     * and non-legacy. This is not explicitly stated anywhere in HCI/LL part of
+     * the spec, but Vol 3, Part C, 9.1.1.2 (GAP) states:
+     *   "A device in the Broadcast mode may send non-connectable and non-
+     *    scannable undirected or non-connectable and non-scannable directed
+     *    advertising events anonymously by excluding the Broadcaster's address."
+     * And Vol 4, Part E, 7.8.53 (HCI) states:
+     *   "If the Advertising_Event_Properties parameter does not describe an
+     *    event type supported by the Controller, contains an invalid bit
+     *    combination, or specifies a type that does not support advertising
+     *    data when the advertising set already contains some, the Controller
+     *    shall return the error code Invalid HCI Command Parameters (0x12)."
+     *
+     * So let's just assume anonymous on connectable/scannable/legacy is an
+     * invalid bit combination.
+     */
+    if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_ANON_ADV) {
+        if (props & (BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE |
+                     BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE |
+                     BLE_HCI_LE_SET_EXT_ADV_PROP_HD_DIRECTED |
+                     BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY)) {
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
+        }
+    }
+
     if (props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         if (ADV_DATA_LEN(advsm) > BLE_ADV_LEGACY_DATA_MAX_LEN ||
             SCAN_RSP_DATA_LEN(advsm) > BLE_SCAN_RSP_LEGACY_DATA_MAX_LEN) {
