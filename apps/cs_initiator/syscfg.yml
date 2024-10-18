@@ -17,13 +17,29 @@
 #
 
 syscfg.vals:
-    BLE_LL_CFG_FEAT_LE_CSA2: 1
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
 
-    # Prevent priority conflict with controller task.
-    MCU_TIMER_POLLER_PRIO: 1
-    MCU_UART_POLLER_PRIO: 2
-    NATIVE_SOCKETS_PRIO: 3
-    MBEDTLS_AES_C: 1
+    # DEBUG logging is a bit noisy; use INFO.
+    LOG_LEVEL: 1
+
+    # Default task settings
+    OS_MAIN_STACK_SIZE: 336
+
+# Disable peripheral and broadcaster roles.
+    BLE_ROLE_BROADCASTER: 0
+    BLE_ROLE_CENTRAL: 1
+    BLE_ROLE_OBSERVER: 1
+    BLE_ROLE_PERIPHERAL: 0
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
     BLE_VERSION: 54
     BLE_CHANNEL_SOUNDING: 1
-    BLE_LL_CHANNEL_SOUNDING: 1
+    # MBEDTLS_CTR_DRBG_C: 1
+    QUASI_CHANNEL_SOUNDING: 1
+
+syscfg.vals.BLE_CONTROLLER:
+    TIMER_3: 1

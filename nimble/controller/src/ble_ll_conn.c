@@ -1961,6 +1961,11 @@ ble_ll_conn_set_csa(struct ble_ll_conn_sm *connsm, bool chsel)
     connsm->data_chan_index = ble_ll_conn_calc_dci(connsm, 1);
 }
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+void ble_ll_cs_sm_init(struct ble_ll_conn_sm *connsm);
+void ble_ll_cs_sm_free(struct ble_ll_conn_sm *connsm);
+#endif
+
 /**
  * Create a new connection state machine. This is done once per
  * connection when the HCI command "create connection" is issued to the
@@ -2080,6 +2085,10 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
         (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL)) {
         ble_ll_conn_css_update_list(connsm);
     }
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_sm_init(connsm);
 #endif
 }
 
@@ -2206,6 +2215,10 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_sm_free(connsm);
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     ble_ll_conn_cth_flow_free_credit(connsm, connsm->cth_flow_pending);
 #endif
@@ -2275,7 +2288,7 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
                        connsm->event_cntr, (uint32_t)ble_err);
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER) || MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 void
 ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
                        uint32_t *anchor, uint8_t *anchor_usecs)
@@ -3931,9 +3944,13 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     struct ble_mbuf_hdr *ble_hdr;
     int lifo;
 
-    /* Set mbuf length and packet length if a control PDU */
+    /* Set overall packet length if a control PDU */
     if (hdr_byte == BLE_LL_LLID_CTRL) {
-        om->om_len = length;
+        /* Set mbuf length if not chained mbufs */
+        if (SLIST_NEXT(om, om_next) == NULL) {
+            om->om_len = length;
+        }
+
         OS_MBUF_PKTHDR(om)->omp_len = length;
     }
 

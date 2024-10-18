@@ -17,25 +17,27 @@
  * under the License.
  */
 
-#include <syscfg/syscfg.h>
-#include <testutil/testutil.h>
+#include "cs_reflector.h"
 
-#if MYNEWT_VAL(SELFTEST)
-
-TEST_SUITE_DECL(ble_ll_aa_test_suite);
-TEST_SUITE_DECL(ble_ll_crypto_test_suite);
-TEST_SUITE_DECL(ble_ll_csa2_test_suite);
-TEST_SUITE_DECL(ble_ll_cs_drbg_test_suite);
-
-int
-main(int argc, char **argv)
+/**
+ * Utility function to log an array of bytes.
+ */
+void
+print_bytes(const uint8_t *bytes, int len)
 {
-    ble_ll_aa_test_suite();
-    ble_ll_crypto_test_suite();
-    ble_ll_csa2_test_suite();
-    ble_ll_cs_drbg_test_suite();
+    int i;
 
-    return tu_any_failed;
+    for (i = 0; i < len; i++) {
+        MODLOG_DFLT(INFO, "%s0x%02x", i != 0 ? ":" : "", bytes[i]);
+    }
 }
 
-#endif
+void
+print_addr(const void *addr)
+{
+    const uint8_t *u8p;
+
+    u8p = addr;
+    MODLOG_DFLT(INFO, "%02x:%02x:%02x:%02x:%02x:%02x",
+                u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+}
