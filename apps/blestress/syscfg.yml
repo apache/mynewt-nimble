@@ -41,6 +41,9 @@ syscfg.vals:
 
     # Change these settings:
 
+    # Enable the shell task.
+    SHELL_TASK: 1
+
     # Set 0 to print all debug logs, but keep in mind that plenty of
     # adv packets will be lost during scan tests.
     LOG_LEVEL: 1

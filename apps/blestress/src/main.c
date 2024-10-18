@@ -21,8 +21,7 @@
 #include <stdio.h>
 #include "os/mynewt.h"
 #include "config/config.h"
-#include "bsp.h"
-#include "hal/hal_gpio.h"
+#include "console/console.h"
 
 /* BLE */
 #include "nimble/ble.h"
@@ -33,7 +32,8 @@
 /* Application-specified header. */
 #include "rx_stress.h"
 #include "tx_stress.h"
-#include "stress_gatt.h"
+#include "cmd.h"
+#include "cmd_rx.h"
 
 static void
 stress_test_on_reset(int reason)
@@ -50,11 +50,8 @@ stress_test_on_sync(void)
     rc = ble_hs_util_ensure_addr(1);
     assert(rc == 0);
 
-#if MYNEWT_VAL(BLE_STRESS_TEST_ROLE)
-    rx_stress_start_auto();
-#else
-    tx_stress_start_auto();
-#endif
+    rx_stress_task();
+    tx_stress_task();
 }
 
 /**
@@ -71,10 +68,13 @@ mynewt_main(int argc, char **argv)
     int rc;
 
     sysinit();
+    cmd_stress_init();
+    rx_cmd_init();
 
     ble_hs_cfg.reset_cb = stress_test_on_reset;
     ble_hs_cfg.sync_cb = stress_test_on_sync;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
 
     /* Please do not change name. Otherwise some tests could fail. */
     rc = ble_svc_gap_device_name_set("STRESS");
@@ -85,12 +85,8 @@ mynewt_main(int argc, char **argv)
     rc = gatt_svr_init();
     assert(rc == 0);
 
-#if MYNEWT_VAL(BLE_STRESS_TEST_ROLE)
-    /* RX device */
-    ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
-    hal_gpio_init_out(LED_2, 1);
-    hal_gpio_toggle(LED_2);
-#endif
+    console_printf("\033[1;36mBLE Stress app\033[0m\n");
+    console_printf("Please type rx or tx to choose device role \n");
 
     while (1) {
         os_eventq_run(os_eventq_dflt_get());
