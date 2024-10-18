@@ -1,0 +1,1211 @@
+From 3fd55570e0b6f57a6f3601e693d72e7947c2b8a4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Krzysztof=20Kopy=C5=9Bci=C5=84ski?=
+ <krzysztof.kopyscinski@codecoup.pl>
+Date: Thu, 7 Mar 2024 13:00:08 +0100
+Subject: [PATCH] Introduce single precision float compilation option
+
+This patch aims to add possibility for library to be compiled using
+single precision floating point numbers. This allows to use this library
+on embedded systems, where FPU may not support double precision floating
+point math, thus, is resource intensive and to slow for audio processing.
+---
+ cmake/ClipMode.cmake              |  4 +--
+ examples/timewarp-file.c          |  2 +-
+ examples/varispeed-play.c         |  2 +-
+ include/samplerate.h              | 13 +++++++---
+ m4/clip_mode.m4                   |  4 +--
+ src/common.h                      | 10 ++++----
+ src/samplerate.c                  |  8 +++---
+ src/src_linear.c                  |  6 ++---
+ src/src_sinc.c                    | 42 +++++++++++++++----------------
+ src/src_zoh.c                     |  2 +-
+ tests/calc_snr.c                  | 40 ++++++++++++++---------------
+ tests/callback_hang_test.c        |  4 +--
+ tests/callback_test.c             |  8 +++---
+ tests/clone_test.c                |  2 +-
+ tests/misc_test.c                 |  2 +-
+ tests/multi_channel_test.c        | 20 +++++++--------
+ tests/multichan_throughput_test.c |  4 +--
+ tests/reset_test.c                |  2 +-
+ tests/simple_test.c               | 14 +++++------
+ tests/snr_bw_test.c               | 36 +++++++++++++-------------
+ tests/src-evaluate.c              | 34 ++++++++++++-------------
+ tests/streaming_test.c            |  6 ++---
+ tests/termination_test.c          | 12 ++++-----
+ tests/throughput_test.c           |  4 +--
+ tests/util.c                      |  6 ++---
+ tests/util.h                      | 12 ++++++---
+ tests/varispeed_test.c            | 12 ++++-----
+ 27 files changed, 161 insertions(+), 150 deletions(-)
+
+diff --git a/cmake/ClipMode.cmake b/cmake/ClipMode.cmake
+index d1f71de..f81e9e4 100644
+--- a/cmake/ClipMode.cmake
++++ b/cmake/ClipMode.cmake
+@@ -24,7 +24,7 @@ macro(CLIP_MODE)
+       "
+       #include <math.h>
+       int main (void)
+-      {   double  fval ;
++      {   fp_t  fval ;
+           int k, ival ;
+ 
+           fval = 1.0 * 0x7FFFFFFF ;
+@@ -45,7 +45,7 @@ macro(CLIP_MODE)
+         "
+         #include <math.h>
+         int main (void)
+-        {   double  fval ;
++        {   fp_t  fval ;
+             int k, ival ;
+ 
+             fval = -8.0 * 0x10000000 ;
+diff --git a/examples/timewarp-file.c b/examples/timewarp-file.c
+index 4f9f3fa..f619b97 100644
+--- a/examples/timewarp-file.c
++++ b/examples/timewarp-file.c
+@@ -32,7 +32,7 @@
+ 
+ typedef struct
+ {	sf_count_t	index ;
+-	double		ratio ;
++	fp_t		ratio ;
+ } TIMEWARP_FACTOR ;
+ 
+ static void usage_exit (const char *progname) ;
+diff --git a/examples/varispeed-play.c b/examples/varispeed-play.c
+index 72a5a9c..242849a 100644
+--- a/examples/varispeed-play.c
++++ b/examples/varispeed-play.c
+@@ -206,7 +206,7 @@ varispeed_get_data (SRC_CB_DATA *data, float *samples, int out_frames)
+ 		} ;
+ 
+ 	for (out_frame_count = 0 ; out_frame_count < out_frames ; out_frame_count += VARISPEED_BLOCK_LEN)
+-	{	double	src_ratio = 1.0 - 0.5 * sin (data->freq_point * 2 * M_PI / 20000) ;
++	{	fp_t	src_ratio = 1.0 - 0.5 * sin (data->freq_point * 2 * M_PI / 20000) ;
+ 
+ 		data->freq_point ++ ;
+ 
+diff --git a/include/samplerate.h b/include/samplerate.h
+index a3d5ae1..6cf1079 100644
+--- a/include/samplerate.h
++++ b/include/samplerate.h
+@@ -18,6 +18,11 @@
+ extern "C" {
+ #endif	/* __cplusplus */
+ 
++#ifdef LIBSAMPLERATE_SINGLE_PRECISION
++typedef float fp_t;
++#else
++typedef double fp_t;
++#endif
+ 
+ /* Opaque data type SRC_STATE. */
+ typedef struct SRC_STATE_tag SRC_STATE ;
+@@ -32,7 +37,7 @@ typedef struct
+ 
+ 	int		end_of_input ;
+ 
+-	double	src_ratio ;
++	fp_t	src_ratio ;
+ } SRC_DATA ;
+ 
+ /*
+@@ -89,7 +94,7 @@ int src_process (SRC_STATE *state, SRC_DATA *data) ;
+ **	Callback based processing function. Read up to frames worth of data from
+ **	the converter int *data and return frames read or -1 on error.
+ */
+-long src_callback_read (SRC_STATE *state, double src_ratio, long frames, float *data) ;
++long src_callback_read (SRC_STATE *state, fp_t src_ratio, long frames, float *data) ;
+ 
+ /*
+ **	Simple interface for performing a single conversion from input buffer to
+@@ -119,7 +124,7 @@ const char *src_get_version (void) ;
+ **	Returns non zero on error.
+ */
+ 
+-int src_set_ratio (SRC_STATE *state, double new_ratio) ;
++int src_set_ratio (SRC_STATE *state, fp_t new_ratio) ;
+ 
+ /*
+ **	Get the current channel count.
+@@ -142,7 +147,7 @@ int src_reset (SRC_STATE *state) ;
+ ** otherwise.
+ */
+ 
+-int src_is_valid_ratio (double ratio) ;
++int src_is_valid_ratio (fp_t ratio) ;
+ 
+ /*
+ **	Return an error number.
+diff --git a/m4/clip_mode.m4 b/m4/clip_mode.m4
+index 57c94a9..b2b7d23 100644
+--- a/m4/clip_mode.m4
++++ b/m4/clip_mode.m4
+@@ -38,7 +38,7 @@ if test $ac_cv_c_clip_positive = unknown ; then
+ 	#define __USE_ISOC9X	1
+ 	#include <math.h>
+ 	int main (void)
+-	{	double	fval ;
++	{	fp_t	fval ;
+ 		int k, ival ;
+ 
+ 		fval = 1.0 * 0x7FFFFFFF ;
+@@ -66,7 +66,7 @@ if test $ac_cv_c_clip_positive = unknown ; then
+ 	#define __USE_ISOC9X	1
+ 	#include <math.h>
+ 	int main (void)
+-	{	double	fval ;
++	{	fp_t	fval ;
+ 		int k, ival ;
+ 
+ 		fval = -8.0 * 0x10000000 ;
+diff --git a/src/common.h b/src/common.h
+index 3643afc..3e144b1 100644
+--- a/src/common.h
++++ b/src/common.h
+@@ -126,7 +126,7 @@ struct SRC_STATE_tag
+ {
+ 	SRC_STATE_VT *vt ;
+ 
+-	double	last_ratio, last_position ;
++	fp_t	last_ratio, last_position ;
+ 
+ 	SRC_ERROR	error ;
+ 	int		channels ;
+@@ -166,9 +166,9 @@ SRC_STATE *zoh_state_new (int channels, SRC_ERROR *error) ;
+ **	Common static inline functions.
+ */
+ 
+-static inline double
+-fmod_one (double x)
+-{	double res ;
++static inline fp_t
++fmod_one (fp_t x)
++{	fp_t res ;
+ 
+ 	res = x - lrint (x) ;
+ 	if (res < 0.0)
+@@ -178,7 +178,7 @@ fmod_one (double x)
+ } /* fmod_one */
+ 
+ static inline int
+-is_bad_src_ratio (double ratio)
++is_bad_src_ratio (fp_t ratio)
+ {	return (ratio < (1.0 / SRC_MAX_RATIO) || ratio > (1.0 * SRC_MAX_RATIO)) ;
+ } /* is_bad_src_ratio */
+ 
+diff --git a/src/samplerate.c b/src/samplerate.c
+index 30dcbc9..1a70af4 100644
+--- a/src/samplerate.c
++++ b/src/samplerate.c
+@@ -143,7 +143,7 @@ src_process (SRC_STATE *state, SRC_DATA *data)
+ } /* src_process */
+ 
+ long
+-src_callback_read (SRC_STATE *state, double src_ratio, long frames, float *data)
++src_callback_read (SRC_STATE *state, fp_t src_ratio, long frames, float *data)
+ {
+ 	SRC_DATA	src_data ;
+ 
+@@ -238,7 +238,7 @@ src_callback_read (SRC_STATE *state, double src_ratio, long frames, float *data)
+ */
+ 
+ int
+-src_set_ratio (SRC_STATE *state, double new_ratio)
++src_set_ratio (SRC_STATE *state, fp_t new_ratio)
+ {
+ 	if (state == NULL)
+ 		return SRC_ERR_BAD_STATE ;
+@@ -321,7 +321,7 @@ src_get_version (void)
+ } /* src_get_version */
+ 
+ int
+-src_is_valid_ratio (double ratio)
++src_is_valid_ratio (fp_t ratio)
+ {
+ 	if (is_bad_src_ratio (ratio))
+ 		return SRC_FALSE ;
+@@ -461,7 +461,7 @@ src_int_to_float_array (const int *in, float *out, int len)
+ 
+ void
+ src_float_to_int_array (const float *in, int *out, int len)
+-{	double scaled_value ;
++{	fp_t scaled_value ;
+ 
+ 	for (int i = 0 ; i < len ; i++)
+ 	{	scaled_value = in [i] * (8.0 * 0x10000000) ;
+diff --git a/src/src_linear.c b/src/src_linear.c
+index 11707d2..6aff37d 100644
+--- a/src/src_linear.c
++++ b/src/src_linear.c
+@@ -53,7 +53,7 @@ static SRC_STATE_VT linear_state_vt =
+ static SRC_ERROR
+ linear_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	LINEAR_DATA *priv ;
+-	double		src_ratio, input_index, rem ;
++	fp_t		src_ratio, input_index, rem ;
+ 	int			ch ;
+ 
+ 	if (data->input_frames <= 0)
+@@ -93,7 +93,7 @@ linear_vari_process (SRC_STATE *state, SRC_DATA *data)
+ 
+ 		for (ch = 0 ; ch < state->channels ; ch++)
+ 		{	data->data_out [priv->out_gen] = (float) (priv->last_value [ch] + input_index *
+-										((double) data->data_in [ch] - priv->last_value [ch])) ;
++										((fp_t) data->data_in [ch] - priv->last_value [ch])) ;
+ 			priv->out_gen ++ ;
+ 			} ;
+ 
+@@ -120,7 +120,7 @@ linear_vari_process (SRC_STATE *state, SRC_DATA *data)
+ 
+ 		for (ch = 0 ; ch < state->channels ; ch++)
+ 		{	data->data_out [priv->out_gen] = (float) (data->data_in [priv->in_used - state->channels + ch] + input_index *
+-						((double) data->data_in [priv->in_used + ch] - data->data_in [priv->in_used - state->channels + ch])) ;
++						((fp_t) data->data_in [priv->in_used + ch] - data->data_in [priv->in_used - state->channels + ch])) ;
+ 			priv->out_gen ++ ;
+ 			} ;
+ 
+diff --git a/src/src_sinc.c b/src/src_sinc.c
+index 51e2997..2cb94db 100644
+--- a/src/src_sinc.c
++++ b/src/src_sinc.c
+@@ -26,7 +26,7 @@
+ #define MAKE_INCREMENT_T(x) 	((increment_t) (x))
+ 
+ #define	SHIFT_BITS				12
+-#define	FP_ONE					((double) (((increment_t) 1) << SHIFT_BITS))
++#define	FP_ONE					((fp_t) (((increment_t) 1) << SHIFT_BITS))
+ #define	INV_FP_ONE				(1.0 / FP_ONE)
+ 
+ /* Customixe max channls from Kconfig. */
+@@ -61,14 +61,14 @@ typedef struct
+ 
+ 	int		coeff_half_len, index_inc ;
+ 
+-	double	src_ratio, input_index ;
++	fp_t	src_ratio, input_index ;
+ 
+ 	coeff_t const	*coeffs ;
+ 
+ 	int		b_current, b_end, b_real_end, b_len ;
+ 
+ 	/* Sure hope noone does more than 128 channels at once. */
+-	double left_calc [MAX_CHANNELS], right_calc [MAX_CHANNELS] ;
++	fp_t left_calc [MAX_CHANNELS], right_calc [MAX_CHANNELS] ;
+ 
+ 	float	*buffer ;
+ } SINC_FILTER ;
+@@ -131,7 +131,7 @@ static SRC_STATE_VT sinc_mono_state_vt =
+ } ;
+ 
+ static inline increment_t
+-double_to_fp (double x)
++double_to_fp (fp_t x)
+ {	return (increment_t) (lrint ((x) * FP_ONE)) ;
+ } /* double_to_fp */
+ 
+@@ -150,7 +150,7 @@ fp_fraction_part (increment_t x)
+ {	return ((x) & ((((increment_t) 1) << SHIFT_BITS) - 1)) ;
+ } /* fp_fraction_part */
+ 
+-static inline double
++static inline fp_t
+ fp_to_double (increment_t x)
+ {	return fp_fraction_part (x) * INV_FP_ONE ;
+ } /* fp_to_double */
+@@ -367,9 +367,9 @@ sinc_copy (SRC_STATE *state)
+ **	Beware all ye who dare pass this point. There be dragons here.
+ */
+ 
+-static inline double
++static inline fp_t
+ calc_output_single (SINC_FILTER *filter, increment_t increment, increment_t start_filter_index)
+-{	double		fraction, left, right, icoeff ;
++{	fp_t		fraction, left, right, icoeff ;
+ 	increment_t	filter_index, max_filter_index ;
+ 	int			data_index, coeff_count, indx ;
+ 
+@@ -430,7 +430,7 @@ calc_output_single (SINC_FILTER *filter, increment_t increment, increment_t star
+ static SRC_ERROR
+ sinc_mono_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	SINC_FILTER *filter ;
+-	double		input_index, src_ratio, count, float_increment, terminate, rem ;
++	fp_t		input_index, src_ratio, count, float_increment, terminate, rem ;
+ 	increment_t	increment, start_filter_index ;
+ 	int			half_filter_chan_len, samples_in_hand ;
+ 
+@@ -521,8 +521,8 @@ sinc_mono_vari_process (SRC_STATE *state, SRC_DATA *data)
+ } /* sinc_mono_vari_process */
+ 
+ static inline void
+-calc_output_stereo (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, double scale, float * output)
+-{	double		fraction, left [2], right [2], icoeff ;
++calc_output_stereo (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, fp_t scale, float * output)
++{	fp_t		fraction, left [2], right [2], icoeff ;
+ 	increment_t	filter_index, max_filter_index ;
+ 	int			data_index, coeff_count, indx ;
+ 
+@@ -586,7 +586,7 @@ calc_output_stereo (SINC_FILTER *filter, int channels, increment_t increment, in
+ SRC_ERROR
+ sinc_stereo_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	SINC_FILTER *filter ;
+-	double		input_index, src_ratio, count, float_increment, terminate, rem ;
++	fp_t		input_index, src_ratio, count, float_increment, terminate, rem ;
+ 	increment_t	increment, start_filter_index ;
+ 	int			half_filter_chan_len, samples_in_hand ;
+ 
+@@ -676,8 +676,8 @@ sinc_stereo_vari_process (SRC_STATE *state, SRC_DATA *data)
+ } /* sinc_stereo_vari_process */
+ 
+ static inline void
+-calc_output_quad (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, double scale, float * output)
+-{	double		fraction, left [4], right [4], icoeff ;
++calc_output_quad (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, fp_t scale, float * output)
++{	fp_t		fraction, left [4], right [4], icoeff ;
+ 	increment_t	filter_index, max_filter_index ;
+ 	int			data_index, coeff_count, indx ;
+ 
+@@ -742,7 +742,7 @@ calc_output_quad (SINC_FILTER *filter, int channels, increment_t increment, incr
+ SRC_ERROR
+ sinc_quad_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	SINC_FILTER *filter ;
+-	double		input_index, src_ratio, count, float_increment, terminate, rem ;
++	fp_t		input_index, src_ratio, count, float_increment, terminate, rem ;
+ 	increment_t	increment, start_filter_index ;
+ 	int			half_filter_chan_len, samples_in_hand ;
+ 
+@@ -832,8 +832,8 @@ sinc_quad_vari_process (SRC_STATE *state, SRC_DATA *data)
+ } /* sinc_quad_vari_process */
+ 
+ static inline void
+-calc_output_hex (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, double scale, float * output)
+-{	double		fraction, left [6], right [6], icoeff ;
++calc_output_hex (SINC_FILTER *filter, int channels, increment_t increment, increment_t start_filter_index, fp_t scale, float * output)
++{	fp_t		fraction, left [6], right [6], icoeff ;
+ 	increment_t	filter_index, max_filter_index ;
+ 	int			data_index, coeff_count, indx ;
+ 
+@@ -897,7 +897,7 @@ calc_output_hex (SINC_FILTER *filter, int channels, increment_t increment, incre
+ SRC_ERROR
+ sinc_hex_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	SINC_FILTER *filter ;
+-	double		input_index, src_ratio, count, float_increment, terminate, rem ;
++	fp_t		input_index, src_ratio, count, float_increment, terminate, rem ;
+ 	increment_t	increment, start_filter_index ;
+ 	int			half_filter_chan_len, samples_in_hand ;
+ 
+@@ -987,10 +987,10 @@ sinc_hex_vari_process (SRC_STATE *state, SRC_DATA *data)
+ } /* sinc_hex_vari_process */
+ 
+ static inline void
+-calc_output_multi (SINC_FILTER *filter, increment_t increment, increment_t start_filter_index, int channels, double scale, float * output)
+-{	double		fraction, icoeff ;
++calc_output_multi (SINC_FILTER *filter, increment_t increment, increment_t start_filter_index, int channels, fp_t scale, float * output)
++{	fp_t		fraction, icoeff ;
+ 	/* The following line is 1999 ISO Standard C. If your compiler complains, get a better compiler. */
+-	double		*left, *right ;
++	fp_t		*left, *right ;
+ 	increment_t	filter_index, max_filter_index ;
+ 	int			data_index, coeff_count, indx ;
+ 
+@@ -1062,7 +1062,7 @@ calc_output_multi (SINC_FILTER *filter, increment_t increment, increment_t start
+ static SRC_ERROR
+ sinc_multichan_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	SINC_FILTER *filter ;
+-	double		input_index, src_ratio, count, float_increment, terminate, rem ;
++	fp_t		input_index, src_ratio, count, float_increment, terminate, rem ;
+ 	increment_t	increment, start_filter_index ;
+ 	int			half_filter_chan_len, samples_in_hand ;
+ 
+diff --git a/src/src_zoh.c b/src/src_zoh.c
+index 4dba3d4..d1fe966 100644
+--- a/src/src_zoh.c
++++ b/src/src_zoh.c
+@@ -51,7 +51,7 @@ static SRC_STATE_VT zoh_state_vt =
+ static SRC_ERROR
+ zoh_vari_process (SRC_STATE *state, SRC_DATA *data)
+ {	ZOH_DATA 	*priv ;
+-	double		src_ratio, input_index, rem ;
++	fp_t		src_ratio, input_index, rem ;
+ 	int			ch ;
+ 
+ 	if (data->input_frames <= 0)
+diff --git a/tests/calc_snr.c b/tests/calc_snr.c
+index 35a37f7..54e820b 100644
+--- a/tests/calc_snr.c
++++ b/tests/calc_snr.c
+@@ -24,21 +24,21 @@
+ #define	MAX_SPEC_LEN	(1<<18)
+ #define	MAX_PEAKS		10
+ 
+-static void log_mag_spectrum (double *input, int len, double *magnitude) ;
+-static void smooth_mag_spectrum (double *magnitude, int len) ;
+-static double find_snr (const double *magnitude, int len, int expected_peaks) ;
++static void log_mag_spectrum (fp_t *input, int len, fp_t *magnitude) ;
++static void smooth_mag_spectrum (fp_t *magnitude, int len) ;
++static fp_t find_snr (const fp_t *magnitude, int len, int expected_peaks) ;
+ 
+ typedef struct
+-{	double	peak ;
++{	fp_t	peak ;
+ 	int		index ;
+ } PEAK_DATA ;
+ 
+-double
++fp_t
+ calculate_snr (float *data, int len, int expected_peaks)
+-{	static double magnitude [MAX_SPEC_LEN] ;
+-	static double datacopy [MAX_SPEC_LEN] ;
++{	static fp_t magnitude [MAX_SPEC_LEN] ;
++	static fp_t datacopy [MAX_SPEC_LEN] ;
+ 
+-	double snr = 200.0 ;
++	fp_t snr = 200.0 ;
+ 	int k ;
+ 
+ 	if (len > MAX_SPEC_LEN)
+@@ -71,10 +71,10 @@ calculate_snr (float *data, int len, int expected_peaks)
+ ** This removes side lobe peaks without affecting noise/aliasing peaks.
+ */
+ 
+-static void linear_smooth (double *mag, PEAK_DATA *larger, PEAK_DATA *smaller) ;
++static void linear_smooth (fp_t *mag, PEAK_DATA *larger, PEAK_DATA *smaller) ;
+ 
+ static void
+-smooth_mag_spectrum (double *mag, int len)
++smooth_mag_spectrum (fp_t *mag, int len)
+ {	PEAK_DATA peaks [2] ;
+ 
+ 	int k ;
+@@ -107,7 +107,7 @@ smooth_mag_spectrum (double *mag, int len)
+ } /* smooth_mag_spectrum */
+ 
+ static void
+-linear_smooth (double *mag, PEAK_DATA *larger, PEAK_DATA *smaller)
++linear_smooth (fp_t *mag, PEAK_DATA *larger, PEAK_DATA *smaller)
+ {	int k ;
+ 
+ 	if (smaller->index < larger->index)
+@@ -134,12 +134,12 @@ peak_compare (const void *vp1, const void *vp2)
+ 	return (peak1->peak < peak2->peak) ? 1 : -1 ;
+ } /* peak_compare */
+ 
+-static double
+-find_snr (const double *magnitude, int len, int expected_peaks)
++static fp_t
++find_snr (const fp_t *magnitude, int len, int expected_peaks)
+ {	PEAK_DATA peaks [MAX_PEAKS] ;
+ 
+ 	int		k, peak_count = 0 ;
+-	double	snr ;
++	fp_t	snr ;
+ 
+ 	memset (peaks, 0, sizeof (peaks)) ;
+ 
+@@ -177,10 +177,10 @@ find_snr (const double *magnitude, int len, int expected_peaks)
+ } /* find_snr */
+ 
+ static void
+-log_mag_spectrum (double *input, int len, double *magnitude)
++log_mag_spectrum (fp_t *input, int len, fp_t *magnitude)
+ {	fftw_plan plan = NULL ;
+ 
+-	double	maxval ;
++	fp_t	maxval ;
+ 	int		k ;
+ 
+ 	if (input == NULL || magnitude == NULL)
+@@ -206,8 +206,8 @@ log_mag_spectrum (double *input, int len, double *magnitude)
+ 		**
+ 		**      r0, r1, r2, ..., rn/2, i(n+1)/2-1, ..., i2, i1
+ 		*/
+-		double re = magnitude [k] ;
+-		double im = magnitude [len - k] ;
++		fp_t re = magnitude [k] ;
++		fp_t im = magnitude [len - k] ;
+ 		magnitude [k] = sqrt (re * re + im * im) ;
+ 		maxval = (maxval < magnitude [k]) ? magnitude [k] : maxval ;
+ 		} ;
+@@ -228,9 +228,9 @@ log_mag_spectrum (double *input, int len, double *magnitude)
+ 
+ #else /* ! (HAVE_LIBFFTW && HAVE_LIBRFFTW) */
+ 
+-double
++fp_t
+ calculate_snr (float *data, int len, int expected_peaks)
+-{	double snr = 200.0 ;
++{	fp_t snr = 200.0 ;
+ 
+ 	data = data ;
+ 	len = len ;
+diff --git a/tests/callback_hang_test.c b/tests/callback_hang_test.c
+index 42a1bb0..6dff378 100644
+--- a/tests/callback_hang_test.c
++++ b/tests/callback_hang_test.c
+@@ -29,7 +29,7 @@
+ #define	LONG_BUFFER_LEN		(1 << 14)
+ 
+ typedef struct
+-{	double ratio ;
++{	fp_t ratio ;
+ 	int count ;
+ } SRC_PAIR ;
+ 
+@@ -69,7 +69,7 @@ callback_hang_test (int converter)
+ 
+ 	SRC_STATE	*src_state ;
+ 
+-	double src_ratio = 1.0 ;
++	fp_t src_ratio = 1.0 ;
+ 	int k, error ;
+ 
+ 	printf ("\tcallback_hang_test  (%-28s) ....... ", src_get_name (converter)) ;
+diff --git a/tests/callback_test.c b/tests/callback_test.c
+index 79b1b75..8006d47 100644
+--- a/tests/callback_test.c
++++ b/tests/callback_test.c
+@@ -22,12 +22,12 @@
+ #define	BUFFER_LEN		10000
+ #define CB_READ_LEN		256
+ 
+-static void callback_test (int converter, double ratio) ;
++static void callback_test (int converter, fp_t ratio) ;
+ static void end_of_stream_test (int converter) ;
+ 
+ int
+ main (void)
+-{	static double src_ratios [] =
++{	static fp_t src_ratios [] =
+ 	{	1.0, 0.099, 0.1, 0.33333333, 0.789, 1.0001, 1.9, 3.1, 9.9
+ 	} ;
+ 
+@@ -96,7 +96,7 @@ test_callback_func (void *cb_data, float **data)
+ 
+ 
+ static void
+-callback_test (int converter, double src_ratio)
++callback_test (int converter, fp_t src_ratio)
+ {	static TEST_CB_DATA test_callback_data ;
+ 	static float output [BUFFER_LEN] ;
+ 
+@@ -196,7 +196,7 @@ end_of_stream_test (int converter)
+ 
+ 	SRC_STATE	*src_state ;
+ 
+-	double	src_ratio = 0.3 ;
++    fp_t	src_ratio = 0.3 ;
+ 	long	read_count, read_total ;
+ 	int 	error ;
+ 
+diff --git a/tests/clone_test.c b/tests/clone_test.c
+index 0e420e1..2ea3962 100644
+--- a/tests/clone_test.c
++++ b/tests/clone_test.c
+@@ -26,7 +26,7 @@ static void
+ clone_test (int converter)
+ {	static float input_serial [BUFFER_LEN * NUM_CHANNELS], input_interleaved [BUFFER_LEN * NUM_CHANNELS] ;
+ 	static float output [BUFFER_LEN * NUM_CHANNELS], output_cloned [BUFFER_LEN * NUM_CHANNELS] ;
+-	double sine_freq ;
++	fp_t sine_freq ;
+ 
+ 	SRC_STATE* src_state ;
+ 	SRC_STATE* src_state_cloned ;
+diff --git a/tests/misc_test.c b/tests/misc_test.c
+index 6d3c0d4..967e48a 100644
+--- a/tests/misc_test.c
++++ b/tests/misc_test.c
+@@ -77,7 +77,7 @@ name_test (void)
+ */
+ 
+ typedef struct
+-{	double	ratio ;
++{	fp_t	ratio ;
+ 	int		should_pass ;
+ } RATIO_TEST ;
+ 
+diff --git a/tests/multi_channel_test.c b/tests/multi_channel_test.c
+index 0afb639..ac6a998 100644
+--- a/tests/multi_channel_test.c
++++ b/tests/multi_channel_test.c
+@@ -33,13 +33,13 @@ fftw_cleanup (void)
+ 
+ #define	MAX_CHANNELS	10
+ 
+-static void simple_test (int converter, int channel_count, double target_snr) ;
+-static void process_test (int converter, int channel_count, double target_snr) ;
+-static void callback_test (int converter, int channel_count, double target_snr) ;
++static void simple_test (int converter, int channel_count, fp_t target_snr) ;
++static void process_test (int converter, int channel_count, fp_t target_snr) ;
++static void callback_test (int converter, int channel_count, fp_t target_snr) ;
+ 
+ int
+ main (void)
+-{	double target ;
++{	fp_t target ;
+ 	int k ;
+ 
+ 	puts ("\n    Zero Order Hold interpolator :") ;
+@@ -83,10 +83,10 @@ static float output_interleaved	[BUFFER_LEN * MAX_CHANNELS] ;
+ static float output_serial		[BUFFER_LEN * MAX_CHANNELS] ;
+ 
+ static void
+-simple_test (int converter, int channel_count, double target_snr)
++simple_test (int converter, int channel_count, fp_t target_snr)
+ {	SRC_DATA	src_data ;
+ 
+-	double	freq, snr ;
++	fp_t	freq, snr ;
+ 	int		ch, error, frames ;
+ 
+ 	printf ("\t%-22s (%2d channel%c) ............ ", "simple_test", channel_count, channel_count > 1 ? 's' : ' ') ;
+@@ -154,11 +154,11 @@ simple_test (int converter, int channel_count, double target_snr)
+ */
+ 
+ static void
+-process_test (int converter, int channel_count, double target_snr)
++process_test (int converter, int channel_count, fp_t target_snr)
+ {	SRC_STATE	*src_state ;
+ 	SRC_DATA	src_data ;
+ 
+-	double	freq, snr ;
++	fp_t	freq, snr ;
+ 	int		ch, error, frames, current_in, current_out ;
+ 
+ 	printf ("\t%-22s (%2d channel%c) ............ ", "process_test", channel_count, channel_count > 1 ? 's' : ' ') ;
+@@ -282,11 +282,11 @@ test_callback_func (void *cb_data, float **data)
+ } /* test_callback_func */
+ 
+ static void
+-callback_test (int converter, int channel_count, double target_snr)
++callback_test (int converter, int channel_count, fp_t target_snr)
+ {	TEST_CB_DATA test_callback_data ;
+ 	SRC_STATE	*src_state = NULL ;
+ 
+-	double	freq, snr, src_ratio ;
++	fp_t	freq, snr, src_ratio ;
+ 	int		ch, error, frames, read_total, read_count ;
+ 
+ 	printf ("\t%-22s (%2d channel%c) ............ ", "callback_test", channel_count, channel_count > 1 ? 's' : ' ') ;
+diff --git a/tests/multichan_throughput_test.c b/tests/multichan_throughput_test.c
+index 5cab44a..9327419 100644
+--- a/tests/multichan_throughput_test.c
++++ b/tests/multichan_throughput_test.c
+@@ -42,7 +42,7 @@ static void
+ throughput_test (int converter, int channels, long *best_throughput)
+ {	SRC_DATA src_data ;
+ 	clock_t start_time, clock_time ;
+-	double duration ;
++	fp_t duration ;
+ 	long total_frames = 0, throughput ;
+ 	int error ;
+ 
+@@ -230,7 +230,7 @@ usage_exit (const char * argv0)
+ 
+ int
+ main (int argc, char ** argv)
+-{	double freq ;
++{	fp_t freq ;
+ 
+ 	memset (input, 0, sizeof (input)) ;
+ 	freq = 0.01 ;
+diff --git a/tests/reset_test.c b/tests/reset_test.c
+index 819236b..26504b4 100644
+--- a/tests/reset_test.c
++++ b/tests/reset_test.c
+@@ -155,7 +155,7 @@ callback_reset_test (int converter)
+ 
+ 	SRC_STATE *src_state ;
+ 
+-	double src_ratio = 1.1 ;
++	fp_t src_ratio = 1.1 ;
+ 	long read_count, read_total ;
+ 	int k, error ;
+ 
+diff --git a/tests/simple_test.c b/tests/simple_test.c
+index f9014fd..0f79194 100644
+--- a/tests/simple_test.c
++++ b/tests/simple_test.c
+@@ -21,13 +21,13 @@
+ 
+ #define	BUFFER_LEN		2048
+ 
+-static void simple_test (int converter, double ratio) ;
+-static void src_simple_produces_output (int converter, int channels, double src_ratio) ;
+-static void src_simple_produces_output_test (int converter, double src_ratio) ;
++static void simple_test (int converter, fp_t ratio) ;
++static void src_simple_produces_output (int converter, int channels, fp_t src_ratio) ;
++static void src_simple_produces_output_test (int converter, fp_t src_ratio) ;
+ 
+ int
+ main (void)
+-{	static double src_ratios [] =
++{	static fp_t src_ratios [] =
+ 	{	1.0001, 0.099, 0.1, 0.33333333, 0.789, 1.9, 3.1, 9.9, 256.0, 1.0 / 256.0
+ 	} ;
+ 
+@@ -61,14 +61,14 @@ main (void)
+ } /* main */
+ 
+ static void
+-src_simple_produces_output_test (int converter, double src_ratio)
++src_simple_produces_output_test (int converter, fp_t src_ratio)
+ {
+ 	for (int channels = 1; channels <= 9; channels++)
+ 		src_simple_produces_output(converter, channels, src_ratio);
+ }
+ 
+ static void
+-src_simple_produces_output (int converter, int channels, double src_ratio)
++src_simple_produces_output (int converter, int channels, fp_t src_ratio)
+ {
+ 	// Choose a suitable number of frames.
+ 	// At least 256 so a conversion ratio of 1/256 can produce any output
+@@ -108,7 +108,7 @@ src_simple_produces_output (int converter, int channels, double src_ratio)
+ 
+ 
+ static void
+-simple_test (int converter, double src_ratio)
++simple_test (int converter, fp_t src_ratio)
+ {	static float input [BUFFER_LEN], output [BUFFER_LEN] ;
+ 
+ 	SRC_DATA	src_data ;
+diff --git a/tests/snr_bw_test.c b/tests/snr_bw_test.c
+index 223a637..3efe87d 100644
+--- a/tests/snr_bw_test.c
++++ b/tests/snr_bw_test.c
+@@ -40,13 +40,13 @@ enum
+ 
+ typedef struct
+ {	int		freq_count ;
+-	double	freqs [MAX_FREQS] ;
++	fp_t	freqs [MAX_FREQS] ;
+ 
+-	double	src_ratio ;
++	fp_t	src_ratio ;
+ 	int		pass_band_peaks ;
+ 
+-	double	snr ;
+-	double	peak_value ;
++	fp_t	snr ;
++	fp_t	peak_value ;
+ } SINGLE_TEST ;
+ 
+ typedef struct
+@@ -56,9 +56,9 @@ typedef struct
+ 	SINGLE_TEST	test_data [10] ;
+ } CONVERTER_TEST ;
+ 
+-static double snr_test (SINGLE_TEST *snr_test_data, int number, int converter, int verbose) ;
+-static double find_peak (float *output, int output_len) ;
+-static double bandwidth_test (int converter, int verbose) ;
++static fp_t snr_test (SINGLE_TEST *snr_test_data, int number, int converter, int verbose) ;
++static fp_t find_peak (float *output, int output_len) ;
++static fp_t bandwidth_test (int converter, int verbose) ;
+ 
+ int
+ main (int argc, char *argv [])
+@@ -145,7 +145,7 @@ main (int argc, char *argv [])
+ 
+ 		} ; /* snr_test_data */
+ 
+-	double	best_snr, snr, freq3dB ;
++	fp_t	best_snr, snr, freq3dB ;
+ 	int 	j, k, converter, verbose = 0 ;
+ 
+ 	if (argc == 2 && strcmp (argv [1], "--verbose") == 0)
+@@ -187,7 +187,7 @@ main (int argc, char *argv [])
+ /*==============================================================================
+ */
+ 
+-static double
++static fp_t
+ snr_test (SINGLE_TEST *test_data, int number, int converter, int verbose)
+ {	static float data [BUFFER_LEN + 1] ;
+ 	static float output [MAX_SPEC_LEN] ;
+@@ -195,7 +195,7 @@ snr_test (SINGLE_TEST *test_data, int number, int converter, int verbose)
+ 	SRC_STATE	*src_state ;
+ 	SRC_DATA	src_data ;
+ 
+-	double		output_peak, snr ;
++	fp_t		output_peak, snr ;
+ 	int 		k, output_len, input_len, error ;
+ 
+ 	if (verbose != 0)
+@@ -301,9 +301,9 @@ snr_test (SINGLE_TEST *test_data, int number, int converter, int verbose)
+ 	return snr ;
+ } /* snr_test */
+ 
+-static double
++static fp_t
+ find_peak (float *data, int len)
+-{	double 	peak = 0.0 ;
++{	fp_t 	peak = 0.0 ;
+ 	int		k = 0 ;
+ 
+ 	for (k = 0 ; k < len ; k++)
+@@ -314,13 +314,13 @@ find_peak (float *data, int len)
+ } /* find_peak */
+ 
+ 
+-static double
+-find_attenuation (double freq, int converter, int verbose)
++static fp_t
++find_attenuation (fp_t freq, int converter, int verbose)
+ {	static float input	[BUFFER_LEN] ;
+ 	static float output [2 * BUFFER_LEN] ;
+ 
+ 	SRC_DATA	src_data ;
+-	double 		output_peak ;
++	fp_t 		output_peak ;
+ 	int			error ;
+ 
+ 	gen_windowed_sines (1, &freq, 1.0, input, BUFFER_LEN) ;
+@@ -349,10 +349,10 @@ find_attenuation (double freq, int converter, int verbose)
+ 	return 20.0 * log10 (1.0 / output_peak) ;
+ } /* find_attenuation */
+ 
+-static double
++static fp_t
+ bandwidth_test (int converter, int verbose)
+-{	double	f1, f2, a1, a2 ;
+-	double	freq, atten ;
++{	fp_t	f1, f2, a1, a2 ;
++	fp_t	freq, atten ;
+ 
+ 	f1 = 0.35 ;
+ 	a1 = find_attenuation (f1, converter, verbose) ;
+diff --git a/tests/src-evaluate.c b/tests/src-evaluate.c
+index d55d648..4d8e58f 100644
+--- a/tests/src-evaluate.c
++++ b/tests/src-evaluate.c
+@@ -46,12 +46,12 @@
+ 
+ typedef struct
+ {	int		freq_count ;
+-	double	freqs [MAX_FREQS] ;
++	fp_t	freqs [MAX_FREQS] ;
+ 
+ 	int		output_samplerate ;
+ 	int		pass_band_peaks ;
+ 
+-	double	peak_value ;
++	fp_t	peak_value ;
+ } SNR_TEST ;
+ 
+ typedef struct
+@@ -65,7 +65,7 @@ typedef struct
+ static char *get_progname (char *) ;
+ static void usage_exit (const char *, const RESAMPLE_PROG *prog, int count) ;
+ static void measure_program (const RESAMPLE_PROG *prog, int verbose) ;
+-static void generate_source_wav (const char *filename, const double *freqs, int freq_count, int format) ;
++static void generate_source_wav (const char *filename, const fp_t *freqs, int freq_count, int format) ;
+ static const char* get_machine_details (void) ;
+ 
+ static char	version_string [512] ;
+@@ -253,7 +253,7 @@ get_version_string (const RESAMPLE_PROG *prog)
+ } /* get_version_string */
+ 
+ static void
+-generate_source_wav (const char *filename, const double *freqs, int freq_count, int format)
++generate_source_wav (const char *filename, const fp_t *freqs, int freq_count, int format)
+ {	static float buffer [BUFFER_LEN] ;
+ 
+ 	SNDFILE *sndfile ;
+@@ -280,13 +280,13 @@ generate_source_wav (const char *filename, const double *freqs, int freq_count,
+ 	sf_close (sndfile) ;
+ } /* generate_source_wav */
+ 
+-static double
++static fp_t
+ measure_destination_wav (char *filename, int *output_samples, int expected_peaks)
+ {	static float buffer [250000] ;
+ 
+ 	SNDFILE *sndfile ;
+ 	SF_INFO sfinfo ;
+-	double snr ;
++	fp_t snr ;
+ 
+ 	if ((sndfile = sf_open (filename, SFM_READ, &sfinfo)) == NULL)
+ 	{	printf ("Line %d : Cound not open '%s' : %s\n", __LINE__, filename, sf_strerror (NULL)) ;
+@@ -317,7 +317,7 @@ measure_destination_wav (char *filename, int *output_samples, int expected_peaks
+ 	return snr ;
+ } /* measure_desination_wav */
+ 
+-static double
++static fp_t
+ measure_snr (const RESAMPLE_PROG *prog, int *output_samples, int verbose)
+ {	static SNR_TEST snr_test [] =
+ 	{
+@@ -335,7 +335,7 @@ measure_snr (const RESAMPLE_PROG *prog, int *output_samples, int verbose)
+ 		} ; /* snr_test */
+ 	static char command [256] ;
+ 
+-	double snr, worst_snr = 500.0 ;
++	fp_t snr, worst_snr = 500.0 ;
+ 	int k , retval, sample_count ;
+ 
+ 	*output_samples = 0 ;
+@@ -371,12 +371,12 @@ measure_snr (const RESAMPLE_PROG *prog, int *output_samples, int verbose)
+ /*------------------------------------------------------------------------------
+ */
+ 
+-static double
++static fp_t
+ measure_destination_peak (const char *filename)
+ {	static float data [2 * BUFFER_LEN] ;
+ 	SNDFILE		*sndfile ;
+ 	SF_INFO		sfinfo ;
+-	double		peak = 0.0 ;
++	fp_t		peak = 0.0 ;
+ 	int			k = 0 ;
+ 
+ 	if ((sndfile = sf_open (filename, SFM_READ, &sfinfo)) == NULL)
+@@ -408,10 +408,10 @@ measure_destination_peak (const char *filename)
+ 	return peak ;
+ } /* measure_destination_peak */
+ 
+-static double
+-find_attenuation (double freq, const RESAMPLE_PROG *prog, int verbose)
++static fp_t
++find_attenuation (fp_t freq, const RESAMPLE_PROG *prog, int verbose)
+ {	static char	command [256] ;
+-	double	output_peak ;
++	fp_t	output_peak ;
+ 	int		retval ;
+ 	char	*filename ;
+ 
+@@ -434,10 +434,10 @@ find_attenuation (double freq, const RESAMPLE_PROG *prog, int verbose)
+ 	return fabs (20.0 * log10 (output_peak)) ;
+ } /* find_attenuation */
+ 
+-static double
++static fp_t
+ bandwidth_test (const RESAMPLE_PROG *prog, int verbose)
+-{	double	f1, f2, a1, a2 ;
+-	double	freq, atten ;
++{	fp_t	f1, f2, a1, a2 ;
++	fp_t	freq, atten ;
+ 
+ 	f1 = 0.35 ;
+ 	a1 = find_attenuation (f1, prog, verbose) ;
+@@ -475,7 +475,7 @@ bandwidth_test (const RESAMPLE_PROG *prog, int verbose)
+ 
+ static void
+ measure_program (const RESAMPLE_PROG *prog, int verbose)
+-{	double	snr, bandwidth, conversion_rate ;
++{	fp_t	snr, bandwidth, conversion_rate ;
+ 	int		output_samples ;
+ 	struct	tms	time_data ;
+ 	time_t	time_now ;
+diff --git a/tests/streaming_test.c b/tests/streaming_test.c
+index 45ad251..0082413 100644
+--- a/tests/streaming_test.c
++++ b/tests/streaming_test.c
+@@ -22,11 +22,11 @@
+ 
+ #define BLOCK_LEN		100
+ 
+-static void stream_test (int converter, double ratio) ;
++static void stream_test (int converter, fp_t ratio) ;
+ 
+ int
+ main (void)
+-{	static double src_ratios [] =
++{	static fp_t src_ratios [] =
+ 	{	0.3, 0.9, 1.1, 3.0
+ 	} ;
+ 
+@@ -50,7 +50,7 @@ main (void)
+ } /* main */
+ 
+ static void
+-stream_test (int converter, double src_ratio)
++stream_test (int converter, fp_t src_ratio)
+ {	static float input [BUFFER_LEN], output [BUFFER_LEN] ;
+ 
+ 	SRC_STATE	*src_state ;
+diff --git a/tests/termination_test.c b/tests/termination_test.c
+index 0b27a21..6bce9b0 100644
+--- a/tests/termination_test.c
++++ b/tests/termination_test.c
+@@ -24,14 +24,14 @@
+ #ifdef ENABLE_SINC_FAST_CONVERTER
+ static void simple_test (int converter) ;
+ #endif
+-static void stream_test (int converter, double ratio) ;
+-static void init_term_test (int converter, double ratio) ;
++static void stream_test (int converter, fp_t ratio) ;
++static void init_term_test (int converter, fp_t ratio) ;
+ 
+ static int	next_block_length (int reset) ;
+ 
+ int
+ main (void)
+-{	static double src_ratios [] =
++{	static fp_t src_ratios [] =
+ 	{	0.999900, 1.000100, 0.789012, 1.200000, 0.333333, 3.100000,
+ 		0.125000, 8.000000, 0.099900, 9.990000, 0.100000, 10.00000
+ 	} ;
+@@ -83,7 +83,7 @@ simple_test (int converter)
+ 	{
+ 		float in [ilen] ;
+ 		float out [olen] ;
+-		double ratio = (1.0 * olen) / ilen ;
++		fp_t ratio = (1.0 * olen) / ilen ;
+ 		SRC_DATA src_data =
+ 		{	in, out,
+ 			ilen, olen,
+@@ -103,7 +103,7 @@ simple_test (int converter)
+ #endif
+ 
+ static void
+-init_term_test (int converter, double src_ratio)
++init_term_test (int converter, fp_t src_ratio)
+ {	static float input [SHORT_BUFFER_LEN], output [SHORT_BUFFER_LEN] ;
+ 
+ 	SRC_DATA	src_data ;
+@@ -179,7 +179,7 @@ init_term_test (int converter, double src_ratio)
+ } /* init_term_test */
+ 
+ static void
+-stream_test (int converter, double src_ratio)
++stream_test (int converter, fp_t src_ratio)
+ {	static float input [LONG_BUFFER_LEN], output [LONG_BUFFER_LEN] ;
+ 
+ 	SRC_STATE	*src_state ;
+diff --git a/tests/throughput_test.c b/tests/throughput_test.c
+index e997480..e702a76 100644
+--- a/tests/throughput_test.c
++++ b/tests/throughput_test.c
+@@ -39,7 +39,7 @@ static long
+ throughput_test (int converter, long best_throughput)
+ {	SRC_DATA src_data ;
+ 	clock_t start_time, clock_time ;
+-	double duration ;
++	fp_t duration ;
+ 	long total_frames = 0, throughput ;
+ 	int error ;
+ 
+@@ -222,7 +222,7 @@ usage_exit (const char * argv0)
+ 
+ int
+ main (int argc, char ** argv)
+-{	double freq ;
++{	fp_t freq ;
+ 
+ 	memset (input, 0, sizeof (input)) ;
+ 	freq = 0.01 ;
+diff --git a/tests/util.c b/tests/util.c
+index 0e4a233..3a697b2 100644
+--- a/tests/util.c
++++ b/tests/util.c
+@@ -23,9 +23,9 @@
+ #endif
+ 
+ void
+-gen_windowed_sines (int freq_count, const double *freqs, double max, float *output, int output_len)
++gen_windowed_sines (int freq_count, const fp_t *freqs, fp_t max, float *output, int output_len)
+ {	int 	k, freq ;
+-	double	amplitude, phase ;
++	fp_t	amplitude, phase ;
+ 
+ 	amplitude = max / freq_count ;
+ 
+@@ -89,7 +89,7 @@ save_oct_float (char *filename, float *input, int in_len, float *output, int out
+ } /* save_oct_float */
+ 
+ void
+-save_oct_double (char *filename, double *input, int in_len, double *output, int out_len)
++save_oct_double (char *filename, fp_t *input, int in_len, fp_t *output, int out_len)
+ {	FILE 	*file ;
+ 	int		k ;
+ 
+diff --git a/tests/util.h b/tests/util.h
+index 3303a29..4947de3 100644
+--- a/tests/util.h
++++ b/tests/util.h
+@@ -6,6 +6,12 @@
+ ** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
+ */
+ 
++#if LIBSAMPLERATE_SINGLE_PRECISION
++typedef float fp_t;
++#else
++typedef double fp_t;
++#endif
++
+ #define	ABS(a)			(((a) < 0) ? - (a) : (a))
+ 
+ #ifndef MAX
+@@ -18,10 +24,10 @@
+ 
+ #define	ARRAY_LEN(x)	((int) (sizeof (x) / sizeof ((x) [0])))
+ 
+-void gen_windowed_sines (int freq_count, const double *freqs, double max, float *output, int output_len) ;
++void gen_windowed_sines (int freq_count, const fp_t *freqs, fp_t max, float *output, int output_len) ;
+ 
+ void save_oct_float (char *filename, float *input, int in_len, float *output, int out_len) ;
+-void save_oct_double (char *filename, double *input, int in_len, double *output, int out_len) ;
++void save_oct_double (char *filename, fp_t *input, int in_len, fp_t *output, int out_len) ;
+ 
+ void interleave_data (const float *in, float *out, int frames, int channels) ;
+ 
+@@ -29,7 +35,7 @@ void deinterleave_data (const float *in, float *out, int frames, int channels) ;
+ 
+ void reverse_data (float *data, int datalen) ;
+ 
+-double calculate_snr (float *data, int len, int expected_peaks) ;
++fp_t calculate_snr (float *data, int len, int expected_peaks) ;
+ 
+ const char * get_cpu_name (void) ;
+ 
+diff --git a/tests/varispeed_test.c b/tests/varispeed_test.c
+index 3c9531c..1eeeb58 100644
+--- a/tests/varispeed_test.c
++++ b/tests/varispeed_test.c
+@@ -27,9 +27,9 @@
+ 
+ #define	BUFFER_LEN		(1 << 14)
+ 
+-static void varispeed_test (int converter, double target_snr) ;
++static void varispeed_test (int converter, fp_t target_snr) ;
+ static void varispeed_bounds_test (int converter) ;
+-static void set_ratio_test (int converter, int channels, double initial_ratio, double second_ratio) ;
++static void set_ratio_test (int converter, int channels, fp_t initial_ratio, fp_t second_ratio) ;
+ 
+ int
+ main (void)
+@@ -77,9 +77,9 @@ main (void)
+ } /* main */
+ 
+ static void
+-varispeed_test (int converter, double target_snr)
++varispeed_test (int converter, fp_t target_snr)
+ {	static float input [BUFFER_LEN], output [BUFFER_LEN] ;
+-	double sine_freq, snr ;
++	fp_t sine_freq, snr ;
+ 
+ 	SRC_STATE	*src_state ;
+ 	SRC_DATA	src_data ;
+@@ -179,7 +179,7 @@ varispeed_test (int converter, double target_snr)
+ 
+ static void
+ varispeed_bounds_test (int converter)
+-{	double ratios [] = { 0.1, 0.01, 20 } ;
++{	fp_t ratios [] = { 0.1, 0.01, 20 } ;
+ 	int chan, r1, r2 ;
+ 
+ 	for (chan = 1 ; chan <= 9 ; chan ++)
+@@ -190,7 +190,7 @@ varispeed_bounds_test (int converter)
+ } /* varispeed_bounds_test */
+ 
+ static void
+-set_ratio_test (int converter, int channels, double initial_ratio, double second_ratio)
++set_ratio_test (int converter, int channels, fp_t initial_ratio, fp_t second_ratio)
+ {	const int total_input_frames = BUFFER_LEN ;
+ 	/* Maximum upsample ratio is 20, use a value beigger. */
+ 	const int total_output_frames = 25 * BUFFER_LEN ;
+-- 
+2.44.0
+
