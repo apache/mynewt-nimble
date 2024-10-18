@@ -2050,6 +2050,12 @@ ble_phy_tx_power_round(int dbm)
     return phy_txpower_round(dbm);
 }
 
+int
+ble_phy_tx_power_round_up(int dbm)
+{
+    return phy_txpower_round_up(dbm);
+}
+
 /**
  * ble phy set access addr
  *
