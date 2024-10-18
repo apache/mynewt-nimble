@@ -71,6 +71,9 @@
 /** BLE AUDIO BASS Error: Invalid Source ID */
 #define BLE_SVC_AUDIO_BASS_ERR_INVALID_SOURCE_ID                         0x81
 
+/** BLE AUDIO BASS ADVERTISING SID MAX VALUE */
+#define BLE_SVC_AUDIO_BASS_ADV_SID_MAX_VAL                               0x0F
+
 /** BLE AUDIO BASS Encryption States */
 enum ble_svc_audio_bass_big_enc {
     /** BLE AUDIO BASS BIG Encryption: Not Encrypted */
