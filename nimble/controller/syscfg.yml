@@ -618,6 +618,11 @@ syscfg.defs:
             like  build optimisation, cache, clock speed etc.
         value: 0
 
+    BLE_LL_EXT_ADV_ADVA_IN_AUX:
+        description: >
+            Put AdvA in AUX_ADV_IND instead of ADV_EXT_IND.
+        value: 1
+
     BLE_LL_STACK_SIZE:
         description: >
               This is the stack size for LL task.
