@@ -36,8 +36,8 @@ static struct ipc_ept_cfg hci_ept_cfg = {
     .cb = {
         .received = ble_hci_trans_rx,
     },
-    .tx_channel = 1,
-    .rx_channel = 0,
+    .tx_channel = MYNEWT_VAL(BLE_TRANSPORT_IPC_TX_CHANNEL),
+    .rx_channel = MYNEWT_VAL(BLE_TRANSPORT_IPC_RX_CHANNEL),
 };
 static uint8_t hci_ept_local_addr;
 
@@ -91,6 +91,8 @@ ble_hci_trans_rx(const void *data, size_t len, void *user_data)
 {
     hci_ipc_rx(&g_hci_ipc_sm, data, len);
 }
+
+volatile int hello = 1;
 
 static void
 icbmsg_ble_hci_init(void)

@@ -17,22 +17,15 @@
 # under the License.
 #
 
-pkg.name: nimble/transport/ipc/icbmsg
-pkg.description: HCI transport via IPC with ICBMsg backend
+pkg.name: nimble/drivers/nrf54h20
+pkg.description: PHY for nRF54h20
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
-pkg.homepage: "http://mynewt.apache.org/"
+pkg.homepage: "https://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
-    - ipc
-    - icbmsg
 
+pkg.apis: ble_driver
 pkg.deps:
     - nimble
-    - nimble/transport/common/hci_ipc
-    - "@apache-mynewt-core/hw/drivers/ipc/icbmsg"
-    - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/hw/drivers/ipc"
-
-pkg.apis:
-    - ble_transport
+    - nimble/controller

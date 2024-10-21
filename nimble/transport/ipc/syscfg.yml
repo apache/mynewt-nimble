@@ -14,3 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+syscfg.defs:
+    BLE_TRANSPORT_IPC_BACKEND:
+        description: >
+            Select IPC backend.
+        choices:
+            - icbmsg
+        value: icbmsg
+
+    BLE_TRANSPORT_IPC_TX_CHANNEL:
+        description: >
+            Select IPC channel to be used for TX.
+        range: 0..31
+        value: 0
+
+    BLE_TRANSPORT_IPC_RX_CHANNEL:
+        description: >
+            Select IPC channel to be used for RX.
+        range: 0..31
+        value: 1

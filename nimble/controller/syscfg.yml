@@ -648,7 +648,7 @@ syscfg.vals.BLE_LL_ISO_BROADCASTER:
 syscfg.vals.'!BLE_HOST && !BABBLESIM':
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
-syscfg.vals.'BLE_TRANSPORT_HS=="ipc_icbmsg"':
+syscfg.vals.'BLE_TRANSPORT_HS=="ipc"':
     BLE_LL_HCI_NOOP_AFTER_INIT: 0
 
 syscfg.restrictions:
