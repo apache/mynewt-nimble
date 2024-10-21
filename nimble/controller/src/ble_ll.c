@@ -1935,6 +1935,10 @@ ble_ll_init(void)
     features |= BLE_LL_FEAT_CS_PCT_QUALITY_IND;
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
+    features |= BLE_LL_FEAT_PERIODIC_ADV_ADI;
+#endif
+
     lldata->ll_supp_features = features;
 
     /* Initialize random number generation */

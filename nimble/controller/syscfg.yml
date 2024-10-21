@@ -319,9 +319,18 @@ syscfg.defs:
 
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER:
         description: >
-            This option is use to enable/disable support for Periodic
+            This option is used to enable/disable support for Periodic
             Advertising Sync Transfer Feature.
         value: MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+
+    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT:
+        description: >
+            This option is used to enable/disable support for Periodic
+            Advertising ADI.
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 53) if 1'
+            - '(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV == 1)'
 
     BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL:
         description: >
