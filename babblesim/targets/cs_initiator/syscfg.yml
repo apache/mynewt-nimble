@@ -17,13 +17,6 @@
 #
 
 syscfg.vals:
-    BLE_LL_CFG_FEAT_LE_CSA2: 1
-
-    # Prevent priority conflict with controller task.
-    MCU_TIMER_POLLER_PRIO: 1
-    MCU_UART_POLLER_PRIO: 2
-    NATIVE_SOCKETS_PRIO: 3
-    MBEDTLS_AES_C: 1
-    BLE_VERSION: 54
-    BLE_CHANNEL_SOUNDING: 1
-    BLE_LL_CHANNEL_SOUNDING: 1
+  BLE_LL_PUBLIC_DEV_ADDR: 0xbabb1e000002
+  BLE_MONITOR_UART: 1
+  BLE_MONITOR_UART_DEV: '"uart1"'
