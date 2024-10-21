@@ -308,7 +308,7 @@
 /** LE Audio Codec Context Type: Unspecified. */
 #define BLE_AUDIO_CONTEXT_TYPE_UNSPECIFIED                        0x0001
 
-/** LE Audio Codec Context Type: Conversational. */
+/** LE Audio Codec Context Type: Conversettional. */
 #define BLE_AUDIO_CONTEXT_TYPE_CONVERSATIONAL                     0x0002
 
 /** LE Audio Codec Context Type: Media. */
