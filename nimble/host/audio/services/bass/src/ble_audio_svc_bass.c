@@ -424,20 +424,20 @@ done:
 }
 
 static int
-check_bis_sync(uint16_t num_subgroups, const uint32_t *bis_sync_list)
+check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgroups)
 {
     uint32_t bis_sync_mask = 0;
     int i;
     int j;
 
     for (i = 0; i < num_subgroups; i++) {
-        if (bis_sync_list[i] != 0xFFFFFFFF) {
+        if (subgroups[i].bis_sync != 0xFFFFFFFF) {
             for (j = 0; j < num_subgroups; j++) {
-                if (bis_sync_list[i] & bis_sync_mask) {
+                if (subgroups[i].bis_sync & bis_sync_mask) {
                     return BLE_HS_EINVAL;
                 }
 
-                bis_sync_mask |= bis_sync_list[i];
+                bis_sync_mask |= subgroups[i].bis_sync;
             }
         }
     }
@@ -496,12 +496,12 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
     }
 
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
-        operation.modify_source.bis_sync[i] = get_le32(&data[offset]);
+        operation.modify_source.subgroups.bis_sync[i] = get_le32(&data[offset]);
         offset += 4;
     }
 
     if (check_bis_sync(operation.modify_source.num_subgroups,
-                       operation.modify_source.bis_sync)) {
+                       operation.modify_source.subgroups)) {
         rc = BLE_HS_EINVAL;
         ev.bass_operation_status.status = BLE_HS_EREJECT;
         goto done;
