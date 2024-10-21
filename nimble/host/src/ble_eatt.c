@@ -266,15 +266,16 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
         assert(eatt->chan == event->receive.chan);
         opcode = event->receive.sdu_rx->om_data[0];
-        if (ble_att_is_response_op(opcode)) {
+        if (ble_eatt_supported_rsp(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
-        } else if (!ble_att_is_request_op(opcode)) {
-            /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
-             * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
-             * Channel Requirements):
-             * All packets sent on this L2CAP channel shall be Attribute PDUs.
-             *
-             * Disconnect peer with invalid behavior.
+        } else if (!ble_eatt_supported_req(opcode)) {
+            /* If an ATT PDU is supported on any ATT bearer, then it shall be
+             * supported on all supported ATT bearers with the following
+             * exceptions:
+             *  • The Exchange MTU sub-procedure shall only be supported on the
+             *  LE Fixed Channel Unenhanced ATT bearer.
+             *  • The Signed Write Without Response sub-procedure shall only be
+             *  supported on the LE Fixed Channel Unenhanced ATT bearer.
              */
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
