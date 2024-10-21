@@ -2216,7 +2216,6 @@ ble_ll_adv_sync_pdu_make(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
                                                   sync->sch.start_time +
                                                   g_ble_ll_sched_offset_ticks,
                                                   sync->sch.remainder);
-        BLE_LL_ASSERT(biginfo_len > 0);
 
         dptr += biginfo_len;
     }
