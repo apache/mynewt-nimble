@@ -60,6 +60,10 @@ struct ble_npl_mutex {
     struct timespec         wait;
 };
 
+int ble_npl_mutex_locked_by_cur_pthread(struct ble_npl_mutex *mtx);
+#define ble_npl_mutex_locked_by_cur_task(mtx) \
+  ble_npl_mutex_locked_by_cur_pthread(mtx)
+
 struct ble_npl_sem {
     sem_t                   lock;
 };
