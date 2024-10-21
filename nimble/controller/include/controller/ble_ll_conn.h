@@ -448,9 +448,14 @@ void ble_ll_conn_chan_map_update(void);
 /* required for unit testing */
 uint8_t ble_ll_conn_calc_dci(struct ble_ll_conn_sm *conn, uint16_t latency);
 
-/* used to get anchor point for connection event specified */
-void ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
+/* get current event counter and anchor point */
+void ble_ll_conn_anchor_get(struct ble_ll_conn_sm *connsm, uint16_t *event_cntr,
                             uint32_t *anchor, uint8_t *anchor_usecs);
+
+/* get anchor point for specified connection event */
+void ble_ll_conn_anchor_event_cntr_get(struct ble_ll_conn_sm *connsm,
+                                       uint16_t event_cntr, uint32_t *anchor,
+                                       uint8_t *anchor_usecs);
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 int ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset);

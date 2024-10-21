@@ -2275,10 +2275,20 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
                        connsm->event_cntr, (uint32_t)ble_err);
 }
 
+void
+ble_ll_conn_anchor_get(struct ble_ll_conn_sm *connsm, uint16_t *event_cntr,
+                       uint32_t *anchor, uint8_t *anchor_usecs)
+{
+    *event_cntr = connsm->event_cntr;
+    *anchor = connsm->anchor_point;
+    *anchor_usecs = connsm->anchor_point_usecs;
+}
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER)
 void
-ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
-                       uint32_t *anchor, uint8_t *anchor_usecs)
+ble_ll_conn_anchor_event_cntr_get(struct ble_ll_conn_sm *connsm,
+                                  uint16_t event_cntr, uint32_t *anchor,
+                                  uint8_t *anchor_usecs)
 {
     uint32_t itvl;
 
@@ -2287,11 +2297,11 @@ ble_ll_conn_get_anchor(struct ble_ll_conn_sm *connsm, uint16_t conn_event,
     *anchor = connsm->anchor_point;
     *anchor_usecs = connsm->anchor_point_usecs;
 
-    if ((int16_t)(conn_event - connsm->event_cntr) < 0) {
-        itvl *= connsm->event_cntr - conn_event;
+    if ((int16_t)(event_cntr - connsm->event_cntr) < 0) {
+        itvl *= connsm->event_cntr - event_cntr;
         ble_ll_tmr_sub(anchor, anchor_usecs, itvl);
     } else {
-        itvl *= conn_event - connsm->event_cntr;
+        itvl *= event_cntr - connsm->event_cntr;
         ble_ll_tmr_add(anchor, anchor_usecs, itvl);
     }
 }
