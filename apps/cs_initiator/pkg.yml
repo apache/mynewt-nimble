@@ -15,15 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+pkg.name: apps/cs_initiator
+pkg.type: app
+pkg.description: Simple BLE central application.
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "http://mynewt.apache.org/"
+pkg.keywords:
 
-syscfg.vals:
-    BLE_LL_CFG_FEAT_LE_CSA2: 1
-
-    # Prevent priority conflict with controller task.
-    MCU_TIMER_POLLER_PRIO: 1
-    MCU_UART_POLLER_PRIO: 2
-    NATIVE_SOCKETS_PRIO: 3
-    MBEDTLS_AES_C: 1
-    BLE_VERSION: 54
-    BLE_CHANNEL_SOUNDING: 1
-    BLE_LL_CHANNEL_SOUNDING: 1
+pkg.deps:
+    - "@apache-mynewt-core/kernel/os"
+    - "@apache-mynewt-core/sys/console"
+    - "@apache-mynewt-core/sys/log"
+    - "@apache-mynewt-core/sys/log/modlog"
+    - "@apache-mynewt-core/sys/stats"
+    - "@apache-mynewt-core/crypto/mbedtls"
+    - "@apache-mynewt-core/test/testutil"
+    - nimble/host
+    - nimble/host/util
+    - nimble/host/services/gap
+    - nimble/host/services/gatt
+    - nimble/host/store/config
