@@ -31,6 +31,9 @@ extern int8_t g_ble_ll_rx_power_compensation;
 int ble_ll_tx_power_round(int tx_power);
 void ble_ll_tx_power_set(int tx_power);
 
+/* TODO(m) wyjebac */
+int ble_ll_tx_power_round_up(int tx_power);
+
 static inline int
 ble_ll_rx_gain(void)
 {
