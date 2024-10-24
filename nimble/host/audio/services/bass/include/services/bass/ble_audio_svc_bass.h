@@ -327,8 +327,6 @@ struct ble_svc_audio_bass_operation {
             /** Number of subgroups */
             uint16_t num_subgroups;
 
-            /** BIS Synchronisation of subgroups */
-            uint32_t bis_sync[BLE_SVC_AUDIO_BASS_SUB_NUM_MAX];
             /** Subgroup entries */
             struct ble_svc_audio_bass_subgroup
                 subgroups[BLE_SVC_AUDIO_BASS_SUB_NUM_MAX];
