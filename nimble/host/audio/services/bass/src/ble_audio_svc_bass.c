@@ -283,6 +283,28 @@ ble_svc_audio_bass_remote_scan_started(uint8_t *data, uint16_t data_len, uint16_
 }
 
 static int
+check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgroups)
+{
+    uint32_t bis_sync_mask = 0;
+    int i;
+    int j;
+
+    for (i = 0; i < num_subgroups; i++) {
+        if (subgroups[i].bis_sync_state != 0xFFFFFFFF) {
+            for (j = 0; j < num_subgroups; j++) {
+                if (subgroups[i].bis_sync_state & bis_sync_mask) {
+                    return BLE_HS_EINVAL;
+                }
+
+                bis_sync_mask |= subgroups[i].bis_sync_state;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int
 ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
     struct ble_audio_event ev = {
@@ -307,8 +329,9 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
     operation.conn_handle = conn_handle;
 
     operation.add_source.adv_addr.type = data[offset++];
-    if (operation.add_source.adv_addr.type != BLE_ADDR_PUBLIC ||
-        operation.add_source.adv_addr.type != BLE_ADDR_RANDOM) {
+
+    if (!(operation.add_source.adv_addr.type != BLE_ADDR_PUBLIC ||
+        operation.add_source.adv_addr.type != BLE_ADDR_RANDOM)) {
         rc = BLE_HS_EINVAL;
         ev.bass_operation_status.status = BLE_HS_EINVAL;
         goto done;
@@ -444,27 +467,6 @@ done:
 }
 
 static int
-check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgroups)
-{
-    uint32_t bis_sync_mask = 0;
-    int i;
-    int j;
-
-    for (i = 0; i < num_subgroups; i++) {
-        if (subgroups[i].bis_sync != 0xFFFFFFFF) {
-            for (j = 0; j < num_subgroups; j++) {
-                if (subgroups[i].bis_sync & bis_sync_mask) {
-                    return BLE_HS_EINVAL;
-                }
-
-                bis_sync_mask |= subgroups[i].bis_sync;
-            }
-        }
-    }
-
-    return 0;
-}
-
 ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
     struct ble_svc_audio_bass_operation operation;
@@ -516,17 +518,17 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
     }
 
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
-        operation.modify_source.subgroups.bis_sync[i] = get_le32(&data[offset]);
+        operation.modify_source.subgroups[i].bis_sync_state = get_le32(&data[offset]);
         offset += 4;
         operation.modify_source.subgroups[i].metadata_length = data[offset++];
         data_len -= 5;
         if (data_len < operation.modify_source.subgroups[i].metadata_length) {
             rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
-            ev.bass_operation_status.status = BLE_HS_ERJECT;
+            ev.bass_operation_status.status = BLE_HS_EREJECT;
             goto done;
         }
         operation.modify_source.subgroups[i].metadata = &data[offset];
-        offset += operation_modify_source.subgroups[i].metadata_length;
+        offset += operation.modify_source.subgroups[i].metadata_length;
         data_len -= operation.modify_source.subgroups[i].metadata_length;
     }
 
@@ -606,23 +608,21 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
     };
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
     struct ble_svc_audio_bass_operation operation;
-    uint16_t chr_val;
     int rc = 0;
     int i;
 
-    ev.bass_set_broadcast_code.source_id = data[0];
+    operation.remove_source.source_id = data[0];
+    operation.conn_handle = conn_handle;
     operation.op = BLE_SVC_AUDIO_BASS_OPERATION_REMOVE_SOURCE;
 
     ble_svc_audio_bass_receive_state_find_by_source_id(&rcv_state,
-                                                       ev.bass_operation_status.source_id);
+                                                       operation.remove_source.source_id);
     if (rcv_state == NULL) {
         rc = BLE_SVC_AUDIO_BASS_ERR_INVALID_SOURCE_ID;
         ev.bass_operation_status.status = BLE_HS_ENOENT;
         goto done;
     }
 
-    operation.remove_source.source_id = ev.bass_operation_status.source_id;
-    operation.conn_handle = conn_handle;
     if (accept_fn.ctrl_point_ev_fn) {
         rc = accept_fn.ctrl_point_ev_fn(&operation, accept_fn.arg);
         if (rc != 0) {
@@ -636,9 +636,7 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
         os_memblock_put(&ble_audio_svc_bass_metadata_pool, rcv_state->state.subgroups[i].metadata);
     }
 
-    memset(rcv_state, 0, sizeof(*rcv_state));
     rcv_state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
-    rcv_state->chr_val = chr_val;
 
 done:
     if (!rc) {
@@ -669,7 +667,6 @@ static int
 ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, uint16_t conn_handle)
 {
     uint8_t opcode;
-    struct os_mbuf *om;
     uint16_t mbuf_len = OS_MBUF_PKTLEN(ctxt->om);
     struct ble_svc_audio_bass_ctrl_point_handler *handler;
 
@@ -692,7 +689,7 @@ ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, ui
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    return handler->handler_cb(&om->om_data[1], mbuf_len - 1, conn_handle);
+    return handler->handler_cb(&ctxt->om->om_data[1], mbuf_len - 1, conn_handle);
 }
 
 static int
