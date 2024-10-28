@@ -27,6 +27,7 @@
 #include "console/console.h"
 
 #include <lc3.h>
+#include <config.h>
 #include <samplerate.h>
 #include <nrf_clock.h>
 

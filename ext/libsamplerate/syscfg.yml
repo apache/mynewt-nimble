@@ -25,3 +25,6 @@ syscfg.defs:
     LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER:
         description: Enable SINC fastest converter
         value: 1
+    LIBSAMPLERATE_USE_SINGLE_PRECISION_FP:
+        description: Use single-point floating-point precision
+        value: 1

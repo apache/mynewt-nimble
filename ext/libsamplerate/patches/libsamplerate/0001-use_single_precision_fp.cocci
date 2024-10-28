@@ -17,24 +17,8 @@
  * under the License.
  */
 
-#ifndef H_LIBSAMPLERATE_CONFIG_
-#define H_LIBSAMPLERATE_CONFIG_
-
-#include "syscfg/syscfg.h"
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_BEST_CONVERTER)
-#define ENABLE_SINC_BEST_CONVERTER      1
-#endif
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_MEDIUM_CONVERTER)
-#define ENABLE_SINC_MEDIUM_CONVERTER      1
-#endif
-
-#if MYNEWT_VAL(LIBSAMPLERATE_ENABLE_SINC_FAST_CONVERTER)
-#define ENABLE_SINC_FAST_CONVERTER      1
-#endif
-
-#define PACKAGE     "libsamplerate"
-#define VERSION     "0.2.2"
-
-#endif /* H_LIBSAMPLERATE_CONFIG_ */
+@replace_double@
+typedef fp_t;
+@@
+-double
++fp_t
