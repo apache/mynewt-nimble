@@ -33,6 +33,7 @@
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_ll_tmr.h"
 #include "ble_ll_conn_priv.h"
+#include "ble_ll_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 
@@ -1313,6 +1314,188 @@ ble_ll_ctrl_rx_subrate_ind(struct ble_ll_conn_sm *connsm, uint8_t *req,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+static int8_t
+ble_ll_ctrl_rx_power_control_phy_bit_to_mode(uint8_t phy_bit)
+{
+    switch (phy_bit) {
+    case 0x1:
+        return BLE_PHY_MODE_1M;
+#if MYNEWT_VAL(BLE_PHY_2M)
+    case 0x2:
+        return BLE_PHY_MODE_2M;
+#endif
+#if MYNEWT_VAL(BLE_PHY_CODED)
+    case 0x4:
+        return BLE_PHY_MODE_CODED_500KBPS;
+    case 0x8:
+        return BLE_PHY_MODE_CODED_125KBPS;
+#endif
+    default:
+        return -1;
+    }
+}
+
+static void
+ble_ll_ctrl_power_control_req_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
+{
+    switch (connsm->pwr_ctrl.req_phy_mode) {
+    case BLE_PHY_MODE_1M:
+        ctrdata[0] = 0x1;
+        break;
+    case BLE_PHY_MODE_2M:
+        ctrdata[0] = 0x2;
+        break;
+    case BLE_PHY_MODE_CODED_500KBPS:
+        ctrdata[0] = 0x4;
+        break;
+    case BLE_PHY_MODE_CODED_125KBPS:
+        ctrdata[0] = 0x8;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    ctrdata[1] = connsm->pwr_ctrl.req_delta;
+    ctrdata[2] = connsm->pwr_ctrl.local_tx_power[connsm->pwr_ctrl.req_phy_mode];
+}
+
+static void
+ble_ll_ctrl_power_control_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata,
+                                   uint8_t phy_mode, int8_t delta)
+{
+    int8_t prev_tx_power;
+    int8_t new_tx_power;
+    int8_t max_tx_power;
+    int8_t min_tx_power;
+    int16_t result;
+
+    prev_tx_power = connsm->pwr_ctrl.local_tx_power[phy_mode];
+    max_tx_power = ble_ll_tx_power_round(INT8_MAX);
+    min_tx_power = ble_ll_tx_power_round(INT8_MIN);
+
+    if (delta == 0x7F) {
+        new_tx_power = max_tx_power;
+    } else if (delta == 0) {
+        new_tx_power = prev_tx_power;
+    } else {
+        result = prev_tx_power + delta;
+        new_tx_power = ble_ll_tx_power_round_up(result);
+    }
+
+    if (new_tx_power == max_tx_power) {
+        connsm->pwr_ctrl.local_min_max[phy_mode] = 0x02;
+        ctrdata[0] = 0x02;
+    } else if (new_tx_power == min_tx_power) {
+        connsm->pwr_ctrl.local_min_max[phy_mode] = 0x01;
+        ctrdata[0] = 0x01;
+    } else {
+        connsm->pwr_ctrl.local_min_max[phy_mode] = 0x0;
+        ctrdata[0] = 0x0;
+    }
+
+    connsm->pwr_ctrl.local_tx_power[phy_mode] = new_tx_power;
+
+    ctrdata[1] = connsm->pwr_ctrl.local_tx_power[phy_mode] - prev_tx_power;
+    ctrdata[2] = connsm->pwr_ctrl.local_tx_power[phy_mode];
+    /* For now, we don't support Acceptable Power Reduction (Vol 6 Part B 5.1.17.1) */
+    ctrdata[3] = 0xff;
+}
+
+static uint8_t
+ble_ll_ctrl_rx_power_control_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
+                                 uint8_t *rspbuf)
+{
+    uint8_t phy_bit;
+    int8_t phy_mode;
+    int8_t delta;
+    int8_t tx_power;
+
+    phy_bit = dptr[0];
+    delta = dptr[1];
+    tx_power = dptr[2];
+
+    phy_mode = ble_ll_ctrl_rx_power_control_phy_bit_to_mode(phy_bit);
+
+    if (phy_mode < 0) {
+        rspbuf[0] = BLE_LL_CTRL_POWER_CONTROL_REQ;
+        rspbuf[1] = BLE_ERR_UNSUPP_LMP_LL_PARM;
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    if (tx_power == 126) {
+        rspbuf[0] = BLE_LL_CTRL_POWER_CONTROL_REQ;
+        rspbuf[1] = BLE_ERR_INV_LMP_LL_PARM;
+        return BLE_LL_CTRL_REJECT_IND_EXT;
+    }
+
+    ble_ll_ctrl_power_control_rsp_make(connsm, rspbuf, phy_mode, delta);
+
+#if MYNEWT_VAL(BLE_LL_PHY)
+    if (connsm->phy_data.tx_phy_mode == phy_mode) {
+        ble_ll_conn_update_local_tx_power(connsm);
+    }
+#else
+    ble_ll_conn_update_local_tx_power(connsm, connsm->pwr_ctrl.local_phy_mode_tx_power[phy_mode]);
+#endif
+
+    return BLE_LL_CTRL_POWER_CONTROL_RSP;
+}
+
+static void
+ble_ll_ctrl_rx_power_control_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t tx_power_flags;
+    int8_t delta;
+    int8_t tx_power;
+
+    if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_POWER_CTRL_REQ) {
+        ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
+
+        tx_power = dptr[2];
+        if (tx_power == 126) {
+            return;
+        }
+
+        tx_power_flags = dptr[0]; /* TODO(m): check this */
+        delta = dptr[1];
+
+        if (connsm->flags.power_request_host_w4event) {
+            ble_ll_hci_ev_transmit_power_report(connsm, BLE_ERR_SUCCESS, 0x02,
+                                                connsm->pwr_ctrl.req_phy_mode,
+                                                tx_power, tx_power_flags, delta);
+            connsm->flags.power_request_host_w4event = 0;
+        }
+    }
+}
+
+void
+ble_ll_ctrl_rx_power_change_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
+{
+    uint8_t phy_bit;
+    uint8_t tx_power_flags;
+    int8_t delta;
+    int8_t tx_power;
+    uint8_t phy_mode;
+
+    phy_bit = dptr[0];
+    tx_power_flags = dptr[1];
+    delta = dptr[2];
+    tx_power = dptr[3];
+
+    phy_mode = ble_ll_ctrl_rx_power_control_phy_bit_to_mode(phy_bit);
+
+    if (phy_mode < 0) {
+        return;
+    }
+
+    if (connsm->pwr_ctrl.remote_reports_enabled) {
+        ble_ll_hci_ev_transmit_power_report(connsm, BLE_ERR_SUCCESS, 0x01,
+                                            phy_mode, tx_power, tx_power_flags, delta);
+    }
+}
+#endif
+
 /**
  * Create a link layer length request or length response PDU.
  *
@@ -2549,6 +2732,12 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
             break;
 #endif
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+        case BLE_LL_CTRL_PROC_POWER_CTRL_REQ:
+            opcode = BLE_LL_CTRL_POWER_CONTROL_REQ;
+            ble_ll_ctrl_power_control_req_make(connsm, ctrdata);
+            break;
+#endif
         default:
             BLE_LL_ASSERT(0);
             break;
@@ -3018,6 +3207,16 @@ ble_ll_ctrl_rx_pdu(struct ble_ll_conn_sm *connsm, struct os_mbuf *om)
     case BLE_LL_CTRL_SUBRATE_IND:
         rsp_opcode = ble_ll_ctrl_rx_subrate_ind(connsm, dptr, rspdata);
         break;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+    case BLE_LL_CTRL_POWER_CONTROL_REQ:
+        rsp_opcode = ble_ll_ctrl_rx_power_control_req(connsm, dptr, rspdata);
+        break;
+    case BLE_LL_CTRL_POWER_CONTROL_RSP:
+        ble_ll_ctrl_rx_power_control_rsp(connsm, dptr);
+        break;
+    case BLE_LL_CTRL_POWER_CHANGE_IND:
+        ble_ll_ctrl_rx_power_change_ind(connsm, dptr);
 #endif
     default:
         /* Nothing to do here */

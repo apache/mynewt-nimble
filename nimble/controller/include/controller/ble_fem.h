@@ -36,6 +36,9 @@ int ble_fem_pa_tx_power_set(int tx_power);
 
 /* returns rounded FEM TX power */
 int ble_fem_pa_tx_power_round(int tx_power);
+
+/* returns rounded up FEM TX power */
+int ble_fem_pa_tx_power_round(int tx_power);
 #endif
 #endif
 

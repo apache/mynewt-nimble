@@ -494,6 +494,57 @@ ble_ll_hci_ev_sca_update(struct ble_ll_conn_sm *connsm, uint8_t status,
 
 #endif
 
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+void
+ble_ll_hci_ev_transmit_power_report(struct ble_ll_conn_sm *connsm, uint8_t status,
+                                    uint8_t reason, uint8_t phy_mode, int8_t tx_power,
+                                    uint8_t tx_power_flags, int8_t delta)
+{
+    struct ble_hci_ev_le_subev_transmit_power_report *ev;
+    struct ble_hci_ev *hci_ev;
+
+    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_TRANSMIT_POWER_REPORT)) {
+        return;
+    }
+
+    hci_ev = ble_transport_alloc_evt(0);
+    if (!hci_ev) {
+        return;
+    }
+
+    hci_ev->opcode = BLE_HCI_EVCODE_LE_META;
+    hci_ev->length = sizeof(*ev);
+    ev = (void *) hci_ev->data;
+
+    ev->subev_code = BLE_HCI_LE_SUBEV_TRANSMIT_POWER_REPORT;
+    ev->status = status;
+    ev->conn_handle = htole16(connsm->conn_handle);
+    ev->reason = reason;
+
+    switch (phy_mode) {
+    case BLE_PHY_MODE_1M:
+    case BLE_PHY_MODE_2M:
+        ev->phy = phy_mode;
+        break;
+    case BLE_PHY_MODE_CODED_500KBPS:
+        ev->phy = 0x03;
+        break;
+    case BLE_PHY_MODE_CODED_125KBPS:
+        ev->phy = 0x04;
+        break;
+    default:
+        return;
+    }
+
+    ev->transmit_power_level = tx_power;
+    ev->transmit_power_level_flag = tx_power_flags;
+    ev->delta = delta;
+
+    ble_ll_hci_event_send(hci_ev);
+}
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
 void
 ble_ll_hci_ev_subrate_change(struct ble_ll_conn_sm *connsm, uint8_t status)

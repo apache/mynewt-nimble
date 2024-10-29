@@ -121,6 +121,9 @@ int ble_phy_tx_power_set(int dbm);
 /* Get highest allowed power from range */
 int ble_phy_tx_power_round(int dbm);
 
+/* Get the next allowed power level above the specified value */
+int ble_phy_tx_power_round_up(int dbm);
+
 /* Get the transmit power */
 int ble_phy_tx_power_get(void);
 

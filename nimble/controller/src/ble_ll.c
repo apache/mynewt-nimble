@@ -2030,6 +2030,24 @@ ble_ll_tx_power_round(int tx_power)
     return tx_power;
 }
 
+/* TODO(m): is this necessary? */
+int
+ble_ll_tx_power_round_up(int tx_power)
+{
+#if MYNEWT_VAL(BLE_FEM_PA)
+#if MYNEWT_VAL(BLE_FEM_PA_GAIN_TUNABLE)
+    tx_power = ble_fem_pa_tx_power_round_up(tx_power);
+#else
+    tx_power = ble_phy_tx_power_round_up(tx_power);
+    tx_power += MYNEWT_VAL(BLE_FEM_PA_GAIN);
+#endif
+#else
+    tx_power = ble_phy_tx_power_round_up(tx_power);
+#endif
+
+    return tx_power;
+}
+
 void
 ble_ll_tx_power_set(int tx_power)
 {
