@@ -1514,7 +1514,8 @@ ble_ll_conn_hci_set_data_len(const uint8_t *cmdbuf, uint8_t len,
     tx_time = le16toh(cmd->tx_time);
 
     if (!ble_ll_hci_check_dle(tx_octets, tx_time)) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     rc = ble_ll_conn_set_data_len(connsm, tx_octets, tx_time, 0, 0);
@@ -2071,7 +2072,8 @@ ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
 
     if (MYNEWT_VAL(BLE_VERSION) >= 53) {
         if (cmd->mode > 0x03) {
-            return BLE_ERR_INV_HCI_CMD_PARMS;
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+            goto done;
         }
 
         if ((cmd->mode == 0x03) &&
@@ -2079,10 +2081,12 @@ ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
             /* We do not support ADI in periodic advertising thus cannot enable
              * duplicate filtering.
              */
-            return BLE_ERR_UNSUPPORTED;
+            rc = BLE_ERR_UNSUPPORTED;
+            goto done;
         }
     } else if (cmd->mode > 0x02) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
     }
 
     skip = le16toh(cmd->skip);
