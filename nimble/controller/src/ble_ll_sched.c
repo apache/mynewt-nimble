@@ -428,7 +428,7 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
     uint32_t orig_start_time;
     uint32_t earliest_start = 0;
     uint32_t min_win_offset;
-    uint32_t max_delay;
+    uint32_t max_delay = 0;
     uint32_t adv_rxend;
     bool calc_sch = true;
     os_sr_t sr;
@@ -536,7 +536,6 @@ ble_ll_sched_conn_central_new(struct ble_ll_conn_sm *connsm,
             } else {
                 connsm->css_period_idx = css->period_anchor_idx;
             }
-            max_delay = 0;
         }
 
         /* Calculate anchor point and move to next period if scheduled too
