@@ -24,13 +24,18 @@ on: [push, pull_request]
 jobs:
   newt_test:
     name: Run newt test all
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
           go-version: 'stable'
       - name: Install Dependencies
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
              sudo apt-get update
