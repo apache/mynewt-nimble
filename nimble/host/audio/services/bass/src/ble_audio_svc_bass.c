@@ -283,6 +283,28 @@ ble_svc_audio_bass_remote_scan_started(uint8_t *data, uint16_t data_len, uint16_
 }
 
 static int
+check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgroups)
+{
+    uint32_t bis_sync_mask = 0;
+    int i;
+    int j;
+
+    for (i = 0; i < num_subgroups; i++) {
+        if (subgroups[i].bis_sync_state != 0xFFFFFFFF) {
+            for (j = 0; j < num_subgroups; j++) {
+                if (subgroups[i].bis_sync_state & bis_sync_mask) {
+                    return BLE_HS_EINVAL;
+                }
+
+                bis_sync_mask |= subgroups[i].bis_sync_state;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int
 ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
     struct ble_audio_event ev = {
@@ -444,27 +466,6 @@ done:
 }
 
 static int
-check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgroups)
-{
-    uint32_t bis_sync_mask = 0;
-    int i;
-    int j;
-
-    for (i = 0; i < num_subgroups; i++) {
-        if (subgroups[i].bis_sync != 0xFFFFFFFF) {
-            for (j = 0; j < num_subgroups; j++) {
-                if (subgroups[i].bis_sync & bis_sync_mask) {
-                    return BLE_HS_EINVAL;
-                }
-
-                bis_sync_mask |= subgroups[i].bis_sync;
-            }
-        }
-    }
-
-    return 0;
-}
-
 ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
     struct ble_svc_audio_bass_operation operation;
