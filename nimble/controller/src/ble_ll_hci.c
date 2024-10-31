@@ -1314,6 +1314,16 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_READ_REMOTE_TRANSMIT_POWER_LEVEL:
         rc = ble_ll_conn_hci_read_remote_tx_power_level(cmdbuf, len);
         break;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+    case BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_PARAM:
+        rc = ble_ll_conn_hci_set_path_loss_report_param(cmdbuf, len,
+                                                        rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_ENABLE:
+        rc = ble_ll_conn_hci_set_path_loss_report_enable(cmdbuf, len,
+                                                         rspbuf, rsplen);
+        break;
+#endif /* BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON */
     case BLE_HCI_OCF_LE_SET_TRANS_PWR_REPORT_ENABLE:
         rc = ble_ll_conn_hci_set_trans_pwr_report_enable(cmdbuf, len,
                                                          rspbuf, rsplen);

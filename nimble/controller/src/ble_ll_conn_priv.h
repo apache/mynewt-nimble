@@ -283,6 +283,13 @@ int ble_ll_conn_hci_set_trans_pwr_report_enable(const uint8_t *cmdbuf, uint8_t l
 void ble_ll_conn_update_local_tx_power(struct ble_ll_conn_sm *connsm);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+int ble_ll_conn_hci_set_path_loss_report_param(const uint8_t *cmdbuf, uint8_t len,
+                                                uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_set_path_loss_report_enable(const uint8_t *cmdbuf, uint8_t len,
+                                               uint8_t *rspbuf, uint8_t *rsplen);
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
 void ble_ll_conn_css_set_next_slot(uint16_t slot_idx);
 uint16_t ble_ll_conn_css_get_next_slot(void);

@@ -1489,6 +1489,12 @@ ble_ll_ctrl_rx_power_change_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
         return;
     }
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+    if (tx_power != 126) {
+        connsm->path_loss.remote_tx_power = tx_power;
+    }
+#endif
+
     if (connsm->pwr_ctrl.remote_reports_enabled) {
         ble_ll_hci_ev_transmit_power_report(connsm, BLE_ERR_SUCCESS, 0x01,
                                             phy_mode, tx_power, tx_power_flags, delta);

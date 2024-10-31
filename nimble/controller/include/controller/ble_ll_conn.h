@@ -134,6 +134,9 @@ struct ble_ll_conn_sm_flags {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
     uint32_t power_request_host_w4event : 1;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+    uint32_t path_loss_configured : 1;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     uint8_t subrate_trans : 1;
     uint8_t subrate_ind_txd : 1;
@@ -227,6 +230,34 @@ struct ble_ll_conn_power_control_data {
     /* Flags that indicate if reports are enabled */
     uint8_t local_reports_enabled : 1;
     uint8_t remote_reports_enabled : 1;
+};
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+struct ble_ll_conn_path_loss_data {
+    /* High threshold for the path loss */
+    uint8_t high_threshold;
+
+    /* Hysteresis value for the high threshold */
+    uint8_t high_hysteresis;
+
+    /* Low threshold for the path loss */
+    uint8_t low_threshold;
+
+    /* Hysteresis value for the low threshold */
+    uint8_t low_hysteresis;
+
+    /*
+     * Minimum time in number of connection events to be observed
+     * once the path loss crosses the threshold before an event is generated
+     */
+    uint16_t min_time_spent;
+
+    /* Flag that indicates if reports are enabled */
+    uint8_t reports_enabled;
+
+    /* Remote TxPower */
+    int8_t remote_tx_power;
 };
 #endif
 
@@ -429,6 +460,10 @@ struct ble_ll_conn_sm
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
     struct ble_ll_conn_power_control_data pwr_ctrl;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+    struct ble_ll_conn_path_loss_data path_loss;
 #endif
 };
 
