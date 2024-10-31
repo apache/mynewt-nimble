@@ -153,24 +153,30 @@ os_msys_reset(void)
 }
 
 static struct os_mbuf_pool *
-_os_msys_find_pool(uint16_t dsize)
+os_msys_find_pool(uint16_t dsize)
 {
     struct os_mbuf_pool *pool;
+    struct os_mbuf_pool *pool_with_free_blocks = NULL;
+    uint16_t pool_free_blocks;
 
-    pool = NULL;
     STAILQ_FOREACH(pool, &g_msys_pool_list, omp_next) {
-        if (dsize <= pool->omp_databuf_len) {
-            break;
+        pool_free_blocks = pool->omp_pool->mp_num_free;
+        if (pool_free_blocks != 0) {
+            pool_with_free_blocks = pool;
+            if (dsize <= pool->omp_databuf_len) {
+                break;
+            }
         }
     }
 
-    if (!pool) {
-        pool = STAILQ_LAST(&g_msys_pool_list, os_mbuf_pool, omp_next);
-    }
-
-    return (pool);
+    return pool_with_free_blocks;
 }
 
+static struct os_mbuf_pool *
+os_msys_find_biggest_pool(void)
+{
+    return os_msys_find_pool(0xFFFF);
+}
 
 struct os_mbuf *
 os_msys_get(uint16_t dsize, uint16_t leadingspace)
@@ -178,7 +184,15 @@ os_msys_get(uint16_t dsize, uint16_t leadingspace)
     struct os_mbuf *m;
     struct os_mbuf_pool *pool;
 
-    pool = _os_msys_find_pool(dsize);
+    /* If dsize = 0 that means user has no idea how big block size is needed,
+     * therefore lets find for him the biggest one
+     */
+    if (dsize == 0) {
+        pool = os_msys_find_biggest_pool();
+    } else {
+        pool = os_msys_find_pool(dsize);
+    }
+
     if (!pool) {
         goto err;
     }
@@ -197,7 +211,16 @@ os_msys_get_pkthdr(uint16_t dsize, uint16_t user_hdr_len)
     struct os_mbuf_pool *pool;
 
     total_pkthdr_len =  user_hdr_len + sizeof(struct os_mbuf_pkthdr);
-    pool = _os_msys_find_pool(dsize + total_pkthdr_len);
+
+    /* If dsize = 0 that means user has no idea how big block size is needed,
+     * therefore lets find for him the biggest one
+     */
+    if (dsize == 0) {
+        pool = os_msys_find_biggest_pool();
+    } else {
+        pool = os_msys_find_pool(dsize + total_pkthdr_len);
+    }
+
     if (!pool) {
         goto err;
     }
