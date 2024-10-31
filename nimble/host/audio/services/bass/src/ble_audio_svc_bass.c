@@ -606,7 +606,6 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
     };
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
     struct ble_svc_audio_bass_operation operation;
-    uint16_t chr_val;
     int rc = 0;
     int i;
 
@@ -638,7 +637,6 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
 
     memset(rcv_state, 0, sizeof(*rcv_state));
     rcv_state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
-    rcv_state->chr_val = chr_val;
 
 done:
     if (!rc) {
