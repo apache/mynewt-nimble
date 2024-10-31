@@ -516,17 +516,17 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
     }
 
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
-        operation.modify_source.subgroups.bis_sync[i] = get_le32(&data[offset]);
+        operation.modify_source.subgroups[i].bis_sync_state = get_le32(&data[offset]);
         offset += 4;
         operation.modify_source.subgroups[i].metadata_length = data[offset++];
         data_len -= 5;
         if (data_len < operation.modify_source.subgroups[i].metadata_length) {
             rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
-            ev.bass_operation_status.status = BLE_HS_ERJECT;
+            ev.bass_operation_status.status = BLE_HS_EREJECT;
             goto done;
         }
         operation.modify_source.subgroups[i].metadata = &data[offset];
-        offset += operation_modify_source.subgroups[i].metadata_length;
+        offset += operation.modify_source.subgroups[i].metadata_length;
         data_len -= operation.modify_source.subgroups[i].metadata_length;
     }
 
