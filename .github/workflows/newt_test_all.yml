@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
              newt new build
-             cp -f .github/project.yml build/project.yml
+             cp -f .github/project_newt_test_all.yml build/project.yml
              cd build
              newt upgrade --shallow=1
              rm -rf repos/apache-mynewt-nimble

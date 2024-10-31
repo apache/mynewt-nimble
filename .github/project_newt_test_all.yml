@@ -31,6 +31,9 @@ repository.apache-mynewt-core:
     user: apache
     repo: mynewt-core
 
-project.repositories.ignored:
-       - stm-*
-       - atmel-samd21xx
+project.repositories.allowed:
+       - apache-mynewt-core
+       - apache-mynewt-nimble
+       - apache-mynewt-mcumgr
+       - mcuboot
+       - mbedtls
