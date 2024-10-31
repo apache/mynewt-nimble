@@ -329,7 +329,8 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
     operation.conn_handle = conn_handle;
 
     operation.add_source.adv_addr.type = data[offset++];
-    if (operation.add_source.adv_addr.type != BLE_ADDR_PUBLIC ||
+
+    if (operation.add_source.adv_addr.type != BLE_ADDR_PUBLIC &&
         operation.add_source.adv_addr.type != BLE_ADDR_RANDOM) {
         rc = BLE_HS_EINVAL;
         ev.bass_operation_status.status = BLE_HS_EINVAL;
