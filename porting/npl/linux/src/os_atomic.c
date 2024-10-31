@@ -17,8 +17,9 @@
  * under the License.
  */
 
-#include <stdint.h>
 #define __USE_GNU
+
+#include <stdint.h>
 #include <pthread.h>
 
 #include "nimble/nimble_npl.h"
