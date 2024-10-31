@@ -669,7 +669,6 @@ static int
 ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, uint16_t conn_handle)
 {
     uint8_t opcode;
-    struct os_mbuf *om;
     uint16_t mbuf_len = OS_MBUF_PKTLEN(ctxt->om);
     struct ble_svc_audio_bass_ctrl_point_handler *handler;
 
@@ -692,7 +691,7 @@ ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, ui
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    return handler->handler_cb(&om->om_data[1], mbuf_len - 1, conn_handle);
+    return handler->handler_cb(&ctxt->om->om_data[1], mbuf_len - 1, conn_handle);
 }
 
 static int
