@@ -292,6 +292,10 @@ ble_hs_hci_evt_num_completed_pkts(uint8_t event_code, const void *data,
     uint16_t num_pkts;
     int i;
 
+    if (len < sizeof(*ev)) {
+        return BLE_HS_ECONTROLLER;
+    }
+
     if (len != sizeof(*ev) + (ev->count * sizeof(ev->completed[0]))) {
         return BLE_HS_ECONTROLLER;
     }
