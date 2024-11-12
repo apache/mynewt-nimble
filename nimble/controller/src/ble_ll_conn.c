@@ -3221,24 +3221,46 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
 {
     struct ble_ll_conn_sm *connsm;
     struct ble_mbuf_hdr *rxhdr;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     uint8_t phy;
-#endif
+    uint8_t phy_mode;
+    uint32_t sch_next;
+    uint32_t conn_req_us;
+    uint32_t conn_req_end;
     int rc;
 
     connsm = g_ble_ll_conn_create_sm.connsm;
     rxhdr = BLE_MBUF_HDR_PTR(rxpdu);
 
+#if MYNEWT_VAL(BLE_LL_PHY)
+    phy = rxhdr->rxinfo.phy;
+    phy_mode = rxhdr->rxinfo.phy_mode;
+#else
+    phy = BLE_PHY_1M;
+    phy_mode = BLE_PHY_MODE_1M;
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ext) {
-#if MYNEWT_VAL(BLE_LL_PHY)
-        phy = rxhdr->rxinfo.phy;
-#else
-        phy = BLE_PHY_1M;
-#endif
         ble_ll_conn_create_set_params(connsm, phy);
     }
+#else
+    (void)phy;
 #endif
+
+    rc = ble_ll_sched_next_time(&sch_next);
+    if (rc) {
+        conn_req_us = rxhdr->rem_usecs + ble_ll_pdu_us(34, phy_mode);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+        if (ext) {
+            conn_req_us += BLE_LL_IFS + ble_ll_pdu_us(14, phy_mode);
+        }
+#endif
+        conn_req_end = rxhdr->beg_cputime + ble_ll_tmr_u2t_up(conn_req_us);
+
+        if (LL_TMR_LEQ(sch_next, conn_req_end)) {
+            return -1;
+        }
+    }
 
     if (ble_ll_sched_conn_central_new(connsm, rxhdr, 0)) {
         return -1;
