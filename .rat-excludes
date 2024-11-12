@@ -34,3 +34,6 @@ system_nrf52.c
 
 # CMSIS-CORE - BSD License.
 cmsis_nvic.h
+
+# Linker scripts for Nordics nRF5X - TCL license
+nrf5340-mcu.ld
