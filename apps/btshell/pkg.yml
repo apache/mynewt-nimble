@@ -38,3 +38,6 @@ pkg.deps:
 
 pkg.deps.BTSHELL_ANS:
     - nimble/host/services/ans
+
+pkg.deps.BLE_AUDIO:
+    - nimble/host/audio
