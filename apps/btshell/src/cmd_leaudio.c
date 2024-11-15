@@ -482,7 +482,7 @@ broadcast_sink_action_fn(struct ble_audio_broadcast_sink_action *action, void *a
         return broadcast_sink_pa_sync_params_get(action->pa_sync.out_params);
     case BLE_AUDIO_BROADCAST_SINK_ACTION_BIG_SYNC:
         console_printf("BIG Sync:\nsource_id=0x%02x iso_interval=0x%04x"
-                       " presentation_delay=%u[us]\n",
+                       " presentation_delay=%" PRIu32 "[us]\n",
                        action->big_sync.source_id, action->big_sync.iso_interval,
                        action->big_sync.presentation_delay);
         break;
@@ -684,7 +684,7 @@ broadcast_sink_audio_event_handler(struct ble_audio_event *event, void *arg)
 static void
 scan_delegator_source_desc_printf(const struct ble_audio_scan_delegator_source_desc *source_desc)
 {
-    console_printf("broadcast_id=0x%6x adv_sid=%d adv_addr_type=%s adv_addr=",
+    console_printf("broadcast_id=0x%06" PRIx32 " adv_sid=%d adv_addr_type=%s adv_addr=",
                    source_desc->broadcast_id, source_desc->adv_sid,
                    cmd_addr_type_str(source_desc->addr.type));
     print_addr(source_desc->addr.val);
@@ -697,7 +697,7 @@ scan_delegator_sync_opt_printf(const struct ble_audio_scan_delegator_sync_opt *s
     console_printf("pa_sync=%d pa_interval=0x%04x num_subgroups=%d",
                    sync_opt->pa_sync, sync_opt->pa_interval, sync_opt->num_subgroups);
     for (uint8_t i = 0; i < sync_opt->num_subgroups; i++) {
-        console_printf("\n\tbis_sync=0x%04x metadata_length=%d metadata=",
+        console_printf("\n\tbis_sync=0x%04" PRIx32 " metadata_length=%d metadata=",
                        sync_opt->subgroups[i].bis_sync, sync_opt->subgroups[i].metadata_length);
         print_bytes(sync_opt->subgroups[i].metadata, sync_opt->subgroups[i].metadata_length);
     }
@@ -957,7 +957,7 @@ scan_delegator_receive_state_printf(const struct ble_audio_scan_delegator_receiv
     }
 
     for (uint8_t i = 0; i < state->num_subgroups; i++) {
-        console_printf("\n\tbis_sync=0x%04x metadata_length=%d metadata=",
+        console_printf("\n\tbis_sync=0x%04" PRIu32 " metadata_length=%d metadata=",
                        state->subgroups[i].bis_sync, state->subgroups[i].metadata_length);
         print_bytes(state->subgroups[i].metadata, state->subgroups[i].metadata_length);
         console_printf("\n");
@@ -1045,7 +1045,7 @@ scan_delegator_audio_event_handler(struct ble_audio_event *event, void *arg)
     switch (event->type) {
     case BLE_AUDIO_EVENT_BROADCAST_ANNOUNCEMENT:
         console_printf("Broadcast Announcement\n");
-        console_printf("broadcast_id=0x%6x adv_sid=%d addr_type=%s addr=",
+        console_printf("broadcast_id=0x%06" PRIx32 " adv_sid=%d addr_type=%s addr=",
                        event->broadcast_announcement.broadcast_id,
                        event->broadcast_announcement.ext_disc->sid,
                        cmd_addr_type_str(event->broadcast_announcement.ext_disc->addr.type));
