@@ -222,7 +222,11 @@ int btshell_broadcast_start(uint8_t adv_instance);
 int btshell_broadcast_stop(uint8_t adv_instance);
 #endif
 
+#if MYNEWT_VAL(BLE_AUDIO)
 void btshell_leaudio_init(void);
+#else
+#define btshell_leaudio_init()
+#endif /* BLE_AUDIO */
 
 int btshell_gap_event(struct ble_gap_event *event, void *arg);
 void btshell_sync_stats(uint16_t handle);

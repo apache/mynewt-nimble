@@ -26,6 +26,7 @@
 
 #define STR_NULL        "null"
 
+#if (MYNEWT_VAL(BLE_AUDIO))
 #if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
 #include "audio/ble_audio_broadcast_source.h"
 int
@@ -1086,3 +1087,4 @@ btshell_leaudio_init(void)
 #endif /* BLE_AUDIO_BROADCAST_SINK */
     assert(rc == 0);
 }
+#endif /* BLE_AUDIO */
