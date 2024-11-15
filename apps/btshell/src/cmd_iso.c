@@ -107,8 +107,8 @@ iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *inf
     stats->total_cnt++;
 
     if ((stats->total_cnt % 100) == 0) {
-        console_printf("conn_handle=0x%04x, seq_num=%d, num_rx=%lld, "
-                       "(valid=%lld, error=%lld, lost=%lld) ",
+        console_printf("conn_handle=0x%04x, seq_num=%d, num_rx=%" PRIu64 ", "
+                       "(valid=%" PRIu64 ", error=%" PRIu64 ", lost=%" PRIu64 ") ",
                        stats->conn_handle, stats->seq_num,
                        stats->total_cnt, stats->valid_cnt,
                        stats->error_cnt, stats->lost_cnt);
