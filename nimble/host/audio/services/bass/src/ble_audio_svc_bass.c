@@ -245,7 +245,9 @@ ble_svc_audio_bass_receive_state_find_free(struct ble_svc_audio_bass_rcv_state_e
 static void
 ble_svc_audio_bass_receive_state_free(struct ble_svc_audio_bass_rcv_state_entry *state)
 {
+    memset(&state->state, 0, sizeof(state->state));
     state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
+    /* state->chr_val shall not be cleared */
 }
 
 static int
@@ -637,8 +639,7 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
         os_memblock_put(&ble_audio_svc_bass_metadata_pool, rcv_state->state.subgroups[i].metadata);
     }
 
-    memset(rcv_state, 0, sizeof(*rcv_state));
-    rcv_state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
+    ble_svc_audio_bass_receive_state_free(rcv_state);
 
 done:
     if (!rc) {
@@ -809,8 +810,7 @@ ble_svc_audio_bass_receive_state_remove(uint8_t source_id)
         return rc;
     }
 
-    memset(&rcv_state->state, 0, sizeof(rcv_state->state));
-    rcv_state->source_id = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
+    ble_svc_audio_bass_receive_state_free(rcv_state);
 
     for (i = 0; i < rcv_state->state.num_subgroups; i++) {
         os_memblock_put(&ble_audio_svc_bass_metadata_pool, rcv_state->state.subgroups[i].metadata);
