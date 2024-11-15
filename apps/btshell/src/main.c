@@ -41,10 +41,10 @@
 #include "host/ble_gatt.h"
 #include "host/ble_store.h"
 #include "host/ble_sm.h"
-#if MYNEWT_VAL(BLE_AUDIO)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 #include "audio/ble_audio_broadcast_source.h"
 #include "audio/ble_audio.h"
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #include "host/util/util.h"
 
 /* Mandatory services. */
@@ -132,7 +132,7 @@ int btshell_full_disc_prev_chr_val;
 struct ble_sm_sc_oob_data oob_data_local;
 struct ble_sm_sc_oob_data oob_data_remote;
 
-#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static struct {struct ble_audio_base *base; uint8_t adv_instance;}
 btshell_base_list[MYNEWT_VAL(BLE_ISO_MAX_BIGS)];
 
@@ -181,7 +181,7 @@ static os_membuf_t btshell_big_params_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_iso_big_params))
 ];
 static struct os_mempool btshell_big_params_pool;
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 
 #define XSTR(s) STR(s)
 #ifndef STR
@@ -2768,7 +2768,7 @@ btshell_get_default_own_addr_type(void)
     return default_own_addr_type;
 }
 
-#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static int
 btshell_base_find_free(void)
 {
@@ -3036,7 +3036,7 @@ btshell_broadcast_stop(uint8_t adv_instance)
 {
     return ble_audio_broadcast_stop(adv_instance);
 }
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 
 /**
  * main
@@ -3087,7 +3087,7 @@ mynewt_main(int argc, char **argv)
                          "btshell_coc_conn_pool");
     assert(rc == 0);
 #endif
-#if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     rc = os_mempool_init(&btshell_base_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_audio_base),
                          btshell_base_mem,
@@ -3123,7 +3123,7 @@ mynewt_main(int argc, char **argv)
                          sizeof(struct ble_iso_big_params),
                          btshell_big_params_mem, "btshell_big_params_pool");
     assert(rc == 0);
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
     /* Initialize the NimBLE host configuration. */
     ble_hs_cfg.reset_cb = btshell_on_reset;
     ble_hs_cfg.sync_cb = btshell_on_sync;

@@ -4235,7 +4235,7 @@ static const struct shell_cmd_help sync_stats_help = {
 #endif
 #endif
 
-#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param leaudio_base_add_params[] = {
     {"adv_instance", "Advertising instance, usage: =<UINT8>"},
@@ -4367,7 +4367,7 @@ static const struct shell_cmd_help leaudio_broadcast_stop_help = {
     .params = leaudio_broadcast_stop_params,
 };
 #endif
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 
 static const struct shell_cmd btshell_commands[] = {
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -4887,7 +4887,7 @@ static const struct shell_cmd btshell_commands[] = {
     },
 #endif
 #endif
-#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
         .sc_cmd = "base_add",
         .sc_cmd_func = cmd_leaudio_base_add,
@@ -4944,7 +4944,7 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &leaudio_broadcast_stop_help,
 #endif
     },
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
     {
         .sc_cmd = "broadcast-sink-start",

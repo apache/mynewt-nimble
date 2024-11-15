@@ -24,9 +24,9 @@
 #include "syscfg/syscfg.h"
 #include "stats/stats.h"
 #include "host/ble_hs.h"
-#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 #include "audio/ble_audio_broadcast_source.h"
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #include "ble_hs_priv.h"
 #include "ble_iso_priv.h"
 #include "nimble/nimble_npl.h"
@@ -759,10 +759,10 @@ ble_hs_init(void)
 #if MYNEWT_VAL(BLE_ISO)
     rc = ble_iso_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
-#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+#if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     rc = ble_audio_broadcast_init();
     SYSINIT_PANIC_ASSERT(rc == 0);
-#endif
+#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #endif
 
 #if MYNEWT_VAL(BLE_AUDIO_MAX_CODEC_RECORDS)
