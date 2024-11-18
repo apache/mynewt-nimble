@@ -392,17 +392,14 @@ cmd_leaudio_broadcast_stop(int argc, char **argv)
 #if (MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK))
 #include "audio/ble_audio_broadcast_sink.h"
 
-#define BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT  0x07D0
+#define BROADCAST_SINK_PA_SYNC_SKIP_DFLT    0x0000
+#define BROADCAST_SINK_PA_SYNC_TIMEOUT_DFLT 0x07D0
 
-static int
-broadcast_sink_pa_sync_params_get(struct ble_gap_periodic_sync_params *params)
-{
-    params->skip = 0;
-    params->sync_timeout = BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT;
-    params->reports_disabled = false;
-
-    return 0;
-}
+static struct ble_gap_periodic_sync_params broadcast_sink_periodic_sync_params = {
+    .skip = BROADCAST_SINK_PA_SYNC_SKIP_DFLT,
+    .sync_timeout = BROADCAST_SINK_PA_SYNC_TIMEOUT_DFLT,
+    .reports_disabled = false
+};
 
 static void
 codec_specific_config_printf(const struct ble_audio_codec_id *unused, const uint8_t *data,
@@ -479,7 +476,8 @@ broadcast_sink_action_fn(struct ble_audio_broadcast_sink_action *action, void *a
     switch (action->type) {
     case BLE_AUDIO_BROADCAST_SINK_ACTION_PA_SYNC:
         console_printf("PA Sync:\n");
-        return broadcast_sink_pa_sync_params_get(action->pa_sync.out_params);
+        *action->pa_sync.out_params = broadcast_sink_periodic_sync_params;
+        break;
     case BLE_AUDIO_BROADCAST_SINK_ACTION_BIG_SYNC:
         console_printf("BIG Sync:\nsource_id=0x%02x iso_interval=0x%04x"
                        " presentation_delay=%" PRIu32 "[us]\n",
@@ -643,6 +641,46 @@ cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv)
     rc = ble_audio_broadcast_sink_metadata_update(source_id, &params);
     if (rc != 0) {
         console_printf("metadata update failed (%d)\n", rc);
+    }
+
+    return rc;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param cmd_leaudio_broadcast_sink_sync_params_set_params[] = {
+    {"skip",         "usage: =[0x0000-0x01F3], default: 0x0000"},
+    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x07D0"},
+    {NULL, NULL}
+};
+
+const struct shell_cmd_help cmd_leaudio_broadcast_sink_sync_params_set_help = {
+    .summary = "Set Broadcast Sink sync parameters",
+    .usage = NULL,
+    .params = cmd_leaudio_broadcast_sink_sync_params_set_params
+};
+#endif /* SHELL_CMD_HELP */
+
+int
+cmd_leaudio_broadcast_sink_sync_params_set(int argc, char **argv)
+{
+    int rc;
+
+    rc = parse_arg_init(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    broadcast_sink_periodic_sync_params.skip = parse_arg_uint16_dflt("skip", BROADCAST_SINK_PA_SYNC_SKIP_DFLT, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'skip' parameter\n");
+        return rc;
+    }
+
+    broadcast_sink_periodic_sync_params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000,
+                                                                           BROADCAST_SINK_PA_SYNC_TIMEOUT_DFLT, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'sync_timeout' parameter\n");
+        return rc;
     }
 
     return rc;

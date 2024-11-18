@@ -4967,6 +4967,13 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
 #endif
     },
+    {
+        .sc_cmd = "broadcast-sink-set-sync-params",
+        .sc_cmd_func = cmd_leaudio_broadcast_sink_sync_params_set,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &cmd_leaudio_broadcast_sink_sync_params_set_help,
+#endif
+    },
 #endif /* BLE_AUDIO_BROADCAST_SINK */
 #if MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR)
     {
