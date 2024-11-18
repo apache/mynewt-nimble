@@ -4152,13 +4152,13 @@ static const struct shell_param sync_transfer_receive_params[] = {
     {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
     {NULL, NULL}
 };
-#endif
 
 static const struct shell_cmd_help sync_transfer_receive_help = {
     .summary = "start/stop periodic sync reception with specific parameters",
     .usage = NULL,
     .params = sync_transfer_receive_params,
 };
+#endif /* SHELL_CMD_HELP */
 #endif
 
 static int
