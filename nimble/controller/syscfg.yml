@@ -422,6 +422,17 @@ syscfg.defs:
         value: 0
         restrictions:
             - BLE_LL_HCI_VS if 1
+    BLE_LL_HCI_VS_SET_SCAN_CFG:
+        description: >
+            Enables HCI command to set global PDU filter for scanner.
+            It allows: 
+            - ignoring extended or legacy PDUs while scanning,
+            - setting minimal RSSI filter on primary channel
+        value: 0
+        restrictions:
+            - BLE_LL_HCI_VS if 1
+            - BLE_LL_CFG_FEAT_LL_EXT_ADV if 1
+            - BLE_LL_ROLE_OBSERVER if 1
 
 
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
