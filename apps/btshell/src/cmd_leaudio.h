@@ -46,10 +46,12 @@ int cmd_leaudio_broadcast_stop(int argc, char **argv);
 extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_start_help;
 extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_stop_help;
 extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_metadata_update_help;
+extern const struct shell_cmd_help cmd_leaudio_broadcast_sink_sync_params_set_help;
 
 int cmd_leaudio_broadcast_sink_start(int argc, char **argv);
 int cmd_leaudio_broadcast_sink_stop(int argc, char **argv);
 int cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv);
+int cmd_leaudio_broadcast_sink_sync_params_set(int argc, char **argv);
 
 extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_add_help;
 extern const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_remove_help;
