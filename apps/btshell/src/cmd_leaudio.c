@@ -502,20 +502,19 @@ broadcast_sink_action_fn(struct ble_audio_broadcast_sink_action *action, void *a
     return 0;
 }
 
-
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_start_params[] = {
     {"source_id", "usage: =<UINT8>"},
     {"broadcast_code", "usage: =[string], default: NULL"},
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_start_help = {
     .summary = "Start audio Broadcast Sink",
     .usage = NULL,
     .params = cmd_leaudio_broadcast_sink_start_params
 };
-#endif
+#endif /* SHELL_CMD_HELP */
 
 int
 cmd_leaudio_broadcast_sink_start(int argc, char **argv)
@@ -550,18 +549,18 @@ cmd_leaudio_broadcast_sink_start(int argc, char **argv)
     return rc;
 }
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_stop_params[] = {
     {"source_id", "usage: =<UINT8>"},
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_stop_help = {
     .summary = "Stop audio Broadcast Sink",
     .usage = NULL,
     .params = cmd_leaudio_broadcast_sink_stop_params
 };
-#endif
+#endif /* SHELL_CMD_HELP */
 
 int
 cmd_leaudio_broadcast_sink_stop(int argc, char **argv)
@@ -588,6 +587,7 @@ cmd_leaudio_broadcast_sink_stop(int argc, char **argv)
     return rc;
 }
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_metadata_update_params[] = {
     {"source_id", "usage: =<UINT8>"},
     {"subgroup_index", "usage: =<UINT8>"},
@@ -595,13 +595,12 @@ static const struct shell_param cmd_leaudio_broadcast_sink_metadata_update_param
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_metadata_update_help = {
     .summary = "Update Broadcast Sink metadata",
     .usage = NULL,
     .params = cmd_leaudio_broadcast_sink_metadata_update_params
 };
-#endif
+#endif /* SHELL_CMD_HELP */
 
 int
 cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv)
@@ -779,6 +778,7 @@ scan_delegator_action_fn(struct ble_audio_scan_delegator_action *action, void *a
     return 0;
 }
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_add_params[] = {
     {"addr_type", "usage: =[public|random], default: public"},
     {"addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
@@ -787,7 +787,6 @@ static const struct shell_param cmd_leaudio_scan_delegator_receive_state_add_par
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_add_help = {
     .summary = "Add receive state",
     .usage = NULL,
@@ -835,12 +834,12 @@ cmd_leaudio_scan_delegator_receive_state_add(int argc, char **argv)
     return rc;
 }
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_remove_params[] = {
     {"source_id", "usage: =<UINT8>"},
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_remove_help = {
     .summary = "Remove receive state",
     .usage = NULL,
@@ -890,17 +889,15 @@ const struct parse_arg_kv_pair cmd_big_enc_type[] = {
     { NULL }
 };
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_set_params[] = {
     {"source_id", "usage: =<UINT8>"},
-    {"pa_sync_state", "usage: =[not_synced|sync_info_req|synced|failed|no_past],"
-     " default: not_synced"},
-    {"big_enc", "usage: =[not_encrypted|code_req|decrypting|bad_code],"
-     " default: not_encrypted"},
+    {"pa_sync_state", "usage: =[not_synced|sync_info_req|synced|failed|no_past], default: not_synced"},
+    {"big_enc", "usage: =[not_encrypted|code_req|decrypting|bad_code], default: not_encrypted"},
     {"bad_code", "usage: =[string], default: NULL"},
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_set_help = {
     .summary = "Set receive state",
     .usage = NULL,
@@ -1002,12 +999,12 @@ scan_delegator_receive_state_printf(const struct ble_audio_scan_delegator_receiv
     }
 }
 
+#if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_get_params[] = {
     {"source_id", "usage: =<UINT8>"},
     {NULL, NULL}
 };
 
-#if MYNEWT_VAL(SHELL_CMD_HELP)
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_get_help = {
     .summary = "Get receive state",
     .usage = NULL,
