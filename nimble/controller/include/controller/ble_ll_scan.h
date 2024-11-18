@@ -99,6 +99,14 @@ struct ble_ll_scan_pdu_data {
     uint8_t adva[BLE_DEV_ADDR_LEN];
 };
 
+struct ble_ll_scan_vs_config {
+    uint8_t ignore_legacy : 1;
+    uint8_t ignore_ext : 1;
+    uint8_t rssi_filter : 1;
+
+    int8_t rssi_threshold;
+};
+
 struct ble_ll_scan_addr_data {
     uint8_t *adva;
     uint8_t *targeta;
@@ -155,6 +163,10 @@ struct ble_ll_scan_sm
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     /* Connection sm for initiator scan */
     struct ble_ll_conn_sm *connsm;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
+    struct ble_ll_scan_vs_config vs_config;
 #endif
 };
 
@@ -258,6 +270,10 @@ int
 ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
                       struct ble_ll_scan_addr_data *addrd, uint8_t *scan_ok);
 int ble_ll_scan_rx_check_init(struct ble_ll_scan_addr_data *addrd);
+
+#if MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
+int ble_ll_scan_set_vs_config(uint32_t flags, int8_t rssi_threshold);
+#endif
 
 #ifdef __cplusplus
 }
