@@ -86,6 +86,17 @@ static int8_t g_ble_ll_tx_power_phy_current;
 int8_t g_ble_ll_tx_power_compensation;
 int8_t g_ble_ll_rx_power_compensation;
 
+#if BLE_LL_HOST_CONTROLLED_FEATURES
+static const uint64_t g_ble_ll_host_controlled_features =
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    BLE_LL_FEAT_CONN_SUBRATING_HOST |
+#endif
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    BLE_LL_FEAT_ADV_CODING_SEL_HOST |
+#endif
+    0;
+#endif
+
 /* Supported states */
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
 #define BLE_LL_S_NCA                    ((uint64_t)1 << 0)
@@ -1491,7 +1502,7 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
     }
 
     mask = (uint64_t)1 << (cmd->bit_num);
-    if (!(mask & BLE_LL_HOST_CONTROLLED_FEATURES)) {
+    if (!(mask & g_ble_ll_host_controlled_features)) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -1945,6 +1956,10 @@ ble_ll_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
     features |= BLE_LL_FEAT_PERIODIC_ADV_ADI;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    features |= BLE_LL_FEAT_ADV_CODING_SEL;
 #endif
 
     lldata->ll_supp_features = features;

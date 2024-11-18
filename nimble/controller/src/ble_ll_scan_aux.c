@@ -84,6 +84,9 @@ struct ble_ll_scan_aux_data {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int8_t rpa_index;
 #endif
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    uint8_t pri_phy_mode;
+#endif
 };
 
 #define AUX_MEMPOOL_SIZE    (OS_MEMPOOL_SIZE( \
@@ -216,7 +219,8 @@ ble_ll_scan_aux_need_truncation(struct ble_ll_scan_aux_data *aux)
 }
 
 static struct ble_hci_ev *
-ble_ll_hci_ev_alloc_ext_adv_report_for_aux(struct ble_ll_scan_addr_data *addrd,
+ble_ll_hci_ev_alloc_ext_adv_report_for_aux(struct ble_mbuf_hdr_rxinfo *rxinfo,
+                                           struct ble_ll_scan_addr_data *addrd,
                                            struct ble_ll_scan_aux_data *aux)
 {
     struct ble_hci_ev_le_subev_ext_adv_rpt *hci_subev;
@@ -257,6 +261,16 @@ ble_ll_hci_ev_alloc_ext_adv_report_for_aux(struct ble_ll_scan_addr_data *addrd,
     report->tx_power = 0x7f;
     report->rssi = 0x7f;
     report->periodic_itvl = 0;
+
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    if (aux->pri_phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        report->pri_phy = 0x04;
+    }
+    if (rxinfo->phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        report->sec_phy = 0x04;
+    }
+#endif
+
     if (addrd->targeta) {
         report->evt_type |= BLE_HCI_ADV_DIRECT_MASK;
         report->dir_addr_type = addrd->targeta_type;
@@ -325,6 +339,12 @@ ble_ll_hci_ev_update_ext_adv_report_from_aux(struct ble_hci_ev *hci_ev,
         report->evt_type |= BLE_HCI_ADV_SCAN_MASK | BLE_HCI_ADV_SCAN_RSP_MASK;
     }
     report->sec_phy = rxhdr->rxinfo.phy;
+
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    if (rxhdr->rxinfo.phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        report->sec_phy = 0x04;
+    }
+#endif
 
     /* Strip PDU header and ext header, leave only AD */
     os_mbuf_adj(rxpdu, 3 + eh_len);
@@ -418,6 +438,12 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
     report->rssi = rxhdr->rxinfo.rssi - ble_ll_rx_gain();
     report->periodic_itvl = 0;
     report->data_len = 0;
+
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+    if (rxinfo->phy_mode == BLE_PHY_MODE_CODED_500KBPS) {
+        report->pri_phy = 0x04;
+    }
+#endif
 
     /* Now parse extended header... */
 
@@ -609,7 +635,7 @@ ble_ll_hci_ev_send_ext_adv_report_for_aux(struct os_mbuf *rxpdu,
         hci_ev = aux->hci_ev;
         aux->hci_ev = NULL;
     } else {
-        hci_ev = ble_ll_hci_ev_alloc_ext_adv_report_for_aux(addrd, aux);
+        hci_ev = ble_ll_hci_ev_alloc_ext_adv_report_for_aux(&rxhdr->rxinfo, addrd, aux);
         if (!hci_ev) {
             aux->hci_state = BLE_LL_SCAN_AUX_H_DONE;
             return -1;
@@ -1076,6 +1102,10 @@ ble_ll_scan_aux_rx_isr_end_on_ext(struct ble_ll_scan_sm *scansm,
 
         aux->pri_phy = rxinfo->phy;
         aux->aux_ptr = aux_ptr;
+
+#if MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+        aux->pri_phy_mode = rxinfo->phy_mode;
+#endif
 
         if (addrd.adva) {
             memcpy(aux->adva, addrd.adva, 6);

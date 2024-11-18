@@ -357,6 +357,13 @@ syscfg.defs:
         restrictions:
             - '(BLE_VERSION >= 53) if 1'
 
+    BLE_LL_ADV_CODING_SELECTION:
+        description: >
+            Enables support Advertising Coding Selection.
+        value: 0
+        restrictions:
+            - '(BLE_VERSION >= 54) if 1'
+
     BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS:
         description: >
             This option is used to enable/disable support for
