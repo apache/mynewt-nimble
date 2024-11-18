@@ -89,8 +89,8 @@ ble_svc_audio_bass_rcv_state_read_access(struct ble_gatt_access_ctxt *ctxt, void
 
 static struct ble_svc_audio_bass_ctrl_point_handler {
     uint8_t op_code;
-    uint8_t length_min;
-    uint8_t length_max;
+    int16_t length_min;
+    int16_t length_max;
     ble_svc_audio_bass_ctrl_point_handler_cb *handler_cb;
 } ble_svc_audio_bass_ctrl_point_handlers[] = {
     {
@@ -670,10 +670,15 @@ static int
 ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, uint16_t conn_handle)
 {
     uint8_t opcode;
-    uint16_t mbuf_len = OS_MBUF_PKTLEN(ctxt->om);
     struct ble_svc_audio_bass_ctrl_point_handler *handler;
 
+    ctxt->om = os_mbuf_pullup(ctxt->om, OS_MBUF_PKTLEN(ctxt->om));
+    if (!ctxt->om) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
     opcode = ctxt->om->om_data[0];
+    os_mbuf_adj(ctxt->om, sizeof(opcode));
 
     handler = ble_svc_audio_bass_find_handler(opcode);
 
@@ -681,18 +686,12 @@ ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, ui
         return BLE_SVC_AUDIO_BASS_ERR_OPCODE_NOT_SUPPORTED;
     }
 
-    if (ctxt->om->om_len - 1 < handler->length_min &&
-        handler->length_max >= 0 ?
-        ctxt->om->om_len > handler->length_max : 0) {
+    if ((handler->length_min != BLE_SVC_AUDIO_BASS_CHR_LEN_UNLIMITED && (ctxt->om->om_len < handler->length_min)) ||
+        (handler->length_max != BLE_SVC_AUDIO_BASS_CHR_LEN_UNLIMITED && (ctxt->om->om_len > handler->length_max))) {
         return BLE_ATT_ERR_WRITE_REQ_REJECTED;
     }
 
-    ctxt->om = os_mbuf_pullup(ctxt->om, mbuf_len);
-    if (!ctxt->om) {
-        return BLE_ATT_ERR_UNLIKELY;
-    }
-
-    return handler->handler_cb(&ctxt->om->om_data[1], mbuf_len - 1, conn_handle);
+    return handler->handler_cb(ctxt->om->om_data, OS_MBUF_PKTLEN(ctxt->om), conn_handle);
 }
 
 static int
