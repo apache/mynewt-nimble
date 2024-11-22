@@ -1029,11 +1029,11 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     }
 
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    /* Do not allow connection update if css in enabled, we only allow to move
-     * anchor point (i.e. change slot) via dedicated HCI command.
-     */
+    /* We only allow to change connection parameters if conn_itvl can stay unchanged */
     if (ble_ll_sched_css_is_enabled() &&
-        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL &&
+        (connsm->conn_itvl < le16toh(cmd->conn_itvl_min) ||
+         connsm->conn_itvl > le16toh(cmd->conn_itvl_max))) {
         return BLE_ERR_CMD_DISALLOWED;
     }
 #endif
@@ -1098,8 +1098,13 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
 
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    hcu->conn_itvl_max = connsm->conn_itvl;
+    hcu->conn_itvl_min = connsm->conn_itvl;
+#else
     hcu->conn_itvl_min = le16toh(cmd->conn_itvl_min);
     hcu->conn_itvl_max = le16toh(cmd->conn_itvl_max);
+#endif
     hcu->conn_latency = le16toh(cmd->conn_latency);
     hcu->supervision_timeout = le16toh(cmd->supervision_timeout);
     hcu->min_ce_len = le16toh(cmd->min_ce_len);
@@ -1115,6 +1120,10 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
                                          hcu->supervision_timeout);
     if (!rc) {
         hcu->handle = handle;
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+        connsm->css_slot_idx_pending = connsm->css_slot_idx;
+#endif
 
         /* Start the control procedure */
         ble_ll_ctrl_proc_start(connsm, ctrl_proc, NULL);
