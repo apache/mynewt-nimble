@@ -3740,7 +3740,7 @@ ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
     advsm = ble_ll_adv_sm_get(cmd->params_v1.adv_handle);
 
     advsm->pri_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.pri_phy, cmd->pri_phy_opt);
-    advsm->sec_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.pri_phy, cmd->sec_phy_opt);
+    advsm->sec_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.sec_phy, cmd->sec_phy_opt);
 
     return rc;
 }
