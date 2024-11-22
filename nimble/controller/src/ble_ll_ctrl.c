@@ -291,8 +291,25 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     req->offset4 = get_le16(dptr + 19);
     req->offset5 = get_le16(dptr + 21);
 
-    /* Check if parameters are valid */
     ble_err = BLE_ERR_SUCCESS;
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    /* Allow to change connection parameters only if conn_itvl can stay unchanged
+     * and anchor point change is not requested */
+    if (ble_ll_sched_css_is_enabled() &&
+        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL &&
+        ((connsm->conn_itvl < le16toh(req->interval_min)) ||
+         (connsm->conn_itvl > le16toh(req->interval_max)) ||
+         (le16toh(req->offset0) != 0xffff))) {
+        ble_err = BLE_ERR_INV_LMP_LL_PARM;
+        goto conn_param_pdu_exit;
+    }
+
+    req->interval_min = connsm->conn_itvl;
+    req->interval_max = connsm->conn_itvl;
+#endif
+
+    /* Check if parameters are valid */
     rc = ble_ll_conn_hci_chk_conn_params(req->interval_min,
                                          req->interval_max,
                                          req->latency,
@@ -380,6 +397,13 @@ conn_param_pdu_exit:
         rspbuf[1] = opcode;
         rspbuf[2] = ble_err;
     }
+
+#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
+    if (!ble_err) {
+        connsm->css_slot_idx_pending = connsm->css_slot_idx;
+    }
+#endif
+
     return rsp_opcode;
 }
 
@@ -2258,17 +2282,6 @@ ble_ll_ctrl_rx_conn_param_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
     if (connsm->flags.conn_update_host_w4reply) {
         return BLE_ERR_MAX;
     }
-
-#if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    /* Reject any attempts to change connection parameters by peripheral */
-    if (ble_ll_sched_css_is_enabled() &&
-        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-        rsp_opcode = BLE_LL_CTRL_REJECT_IND_EXT;
-        rspbuf[1] = BLE_LL_CTRL_CONN_PARM_REQ;
-        rspbuf[2] = BLE_ERR_UNSUPPORTED;
-        return rsp_opcode;
-    }
-#endif
 
     /* XXX: remember to deal with this on the central: if the peripheral has
      * initiated a procedure we may have received its connection parameter
