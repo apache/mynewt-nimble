@@ -3750,30 +3750,15 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
      */
     if (!BLE_MBUF_HDR_CRC_OK(rxhdr)) {
         /*
-         * Increment # of consecutively received CRC errors. If more than
-         * one we will end the connection event.
+         * Increment # of consecutively received CRC errors.
+         *
+         * If more than one, we will end the connection event and no reply is needed.
+         * If less or equal to one, we always reply:
+         * - peripheral always replies
+         * - central replies to allow peripheral retransmit the packet
          */
         ++connsm->cons_rxd_bad_crc;
-        if (connsm->cons_rxd_bad_crc >= 2) {
-            reply = 0;
-        } else {
-            switch (connsm->conn_role) {
-#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-            case BLE_LL_CONN_ROLE_CENTRAL:
-                reply = connsm->flags.last_txd_md;
-                break;
-#endif
-#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-            case BLE_LL_CONN_ROLE_PERIPHERAL:
-                /* A peripheral always responds with a packet */
-                reply = 1;
-                break;
-#endif
-            default:
-                BLE_LL_ASSERT(0);
-                break;
-            }
-        }
+        reply = connsm->cons_rxd_bad_crc < 2;
     } else {
         /* Reset consecutively received bad crcs (since this one was good!) */
         connsm->cons_rxd_bad_crc = 0;
