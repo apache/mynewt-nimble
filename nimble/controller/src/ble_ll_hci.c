@@ -1735,16 +1735,21 @@ ble_ll_hci_cmd_fake_dual_mode(uint16_t opcode,  uint8_t *cmdbuf, uint8_t len,
         rc = 0;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_LOC_SUPP_FEAT):
-        put_le64(rspbuf, 0x877bffdbfe0ffebf);
+        put_le64(rspbuf, 0x077bffdbfe0ffebf);
         *rsplen = 8;
         rc = 0;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, 0x04): /* Read Local Extended Features */
-        rspbuf[0] = 0;
+        rspbuf[0] = cmdbuf[0];
         rspbuf[1] = 0;
-        put_le64(&rspbuf[2], 0x877bffdbfe0ffebf);
+        if (rspbuf[0] == 0) {
+            put_le64(&rspbuf[2], 0x077bffdbfe0ffebf);
+            rc = 0;
+        } else {
+            put_le64(&rspbuf[2], 0);
+            rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        }
         *rsplen = 10;
-        rc = 0;
         break;
     case BLE_HCI_OP(BLE_HCI_OGF_INFO_PARAMS, BLE_HCI_OCF_IP_RD_BUF_SIZE):
         put_le16(rspbuf, 255);
