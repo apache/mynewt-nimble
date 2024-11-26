@@ -18,13 +18,26 @@
  */
 
 #include <assert.h>
+#include <os/os.h>
+#include <stdint.h>
 #include <string.h>
 #include <syscfg/syscfg.h>
-#include <os/os.h>
+
+#include "console/console.h"
+#include "host/ble_hs.h"
+#include "host/ble_iso.h"
+
+#include "app_priv.h"
+
+struct chan {
+    void *encoder;
+    uint16_t handle;
+} chans[AUDIO_CHANNELS];
+
+#if MYNEWT_VAL(AUDIO_USB)
 #include <common/tusb_fifo.h>
 #include <class/audio/audio_device.h>
 #include <usb_audio.h>
-#include "console/console.h"
 
 #include <lc3.h>
 #include <samplerate.h>
@@ -33,15 +46,11 @@
 #include "host/ble_gap.h"
 #include "os/os_cputime.h"
 
-#include "app_priv.h"
-
 #define AUDIO_BUF_SIZE      1024
 
 static uint8_t g_usb_enabled;
 
 static void usb_data_func(struct os_event *ev);
-
-struct chan chans[AUDIO_CHANNELS];
 
 static struct os_event usb_data_ev = {
     .ev_cb = usb_data_func,
@@ -239,7 +248,7 @@ tud_audio_rx_done_post_read_cb(uint8_t rhport, uint16_t n_bytes_received,
     return true;
 }
 
-void
+static void
 audio_usb_init(void)
 {
     /* Need to reference those explicitly, so they are always pulled by linker
@@ -279,4 +288,91 @@ audio_usb_init(void)
 
     resampler_ratio = resampler_out_rate / resampler_in_rate;
 #endif
+}
+#else
+#include "audio_data.h"
+
+#define BROADCAST_MAX_SDU 120
+
+static int audio_data_offset;
+static struct os_callout audio_broadcast_callout;
+
+static void
+audio_broadcast_event_cb(struct os_event *ev)
+{
+    assert(ev != NULL);
+    uint32_t ev_start_time = os_cputime_ticks_to_usecs(os_cputime_get32());
+
+#if MYNEWT_VAL(AURACAST_CHAN_NUM) > 1
+    if (audio_data_offset + BROADCAST_MAX_SDU >= sizeof(audio_data)) {
+        audio_data_offset = 0;
+    }
+
+    if (chans[0].handle != BLE_HS_CONN_HANDLE_NONE) {
+        ble_iso_tx(chans[0].handle, (void *) (audio_data + audio_data_offset),
+                   BROADCAST_MAX_SDU);
+    }
+    if (chans[1].handle != BLE_HS_CONN_HANDLE_NONE) {
+        ble_iso_tx(chans[1].handle, (void *) (audio_data + audio_data_offset),
+                   BROADCAST_MAX_SDU);
+    }
+#else
+    if (audio_data_offset + 2 * BROADCAST_MAX_SDU >= sizeof(audio_data)) {
+        audio_data_offset = 0;
+    }
+
+    uint8_t lr_payload[BROADCAST_MAX_SDU * 2];
+    memcpy(lr_payload, audio_data + audio_data_offset, BROADCAST_MAX_SDU);
+    memcpy(lr_payload + BROADCAST_MAX_SDU, audio_data + audio_data_offset,
+           BROADCAST_MAX_SDU);
+
+    if (chans[0].handle != BLE_HS_CONN_HANDLE_NONE) {
+        ble_iso_tx(chans[0].handle, (void *) (lr_payload),
+                   BROADCAST_MAX_SDU * 2);
+    }
+#endif
+    audio_data_offset += BROADCAST_MAX_SDU;
+
+    /** Use cputime to time LC3_FRAME_DURATION, as these ticks are more
+     *  accurate than os_time ones. This assures that we do not push
+     *  LC3 data to ISO before interval, which could lead to
+     *  controller running out of buffers. This is only needed because
+     *  we already have coded data in an array - in real world application
+     *  we usually wait for new audio to arrive, and lose time to code it too.
+     */
+    while (os_cputime_ticks_to_usecs(os_cputime_get32()) - ev_start_time <
+           (MYNEWT_VAL(LC3_FRAME_DURATION)));
+
+    os_callout_reset(&audio_broadcast_callout, 0);
+}
+
+static void
+audio_dummy_init(void)
+{
+    os_callout_init(&audio_broadcast_callout, os_eventq_dflt_get(),
+                    audio_broadcast_event_cb, NULL);
+
+    os_callout_reset(&audio_broadcast_callout, 0);
+}
+#endif /* AUDIO_USB */
+
+void
+audio_init(void)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(chans); i++) {
+        chans[i].handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+
+#if MYNEWT_VAL(AUDIO_USB)
+    audio_usb_init();
+#else
+    audio_dummy_init();
+#endif /* AUDIO_USB */
+}
+
+void
+audio_chan_set_conn_handle(uint8_t chan_idx, uint16_t conn_handle)
+{
+    assert(chan_idx < ARRAY_SIZE(chans));
+    chans[chan_idx].handle = conn_handle;
 }

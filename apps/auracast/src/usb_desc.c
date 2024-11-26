@@ -17,8 +17,10 @@
  * under the License.
  */
 
-#include <assert.h>
 #include <syscfg/syscfg.h>
+
+#if MYNEWT_VAL(AUDIO_USB)
+#include <assert.h>
 #include <bsp/bsp.h>
 #include <string.h>
 #include <tusb.h>
@@ -393,3 +395,4 @@ usb_desc_sample_rate_set(uint32_t sample_rate)
 {
     g_sample_rate = sample_rate;
 }
+#endif /* AUDIO_USB */

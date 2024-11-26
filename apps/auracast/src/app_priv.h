@@ -21,6 +21,7 @@
 #define H_APP_PRIV_
 
 #include <syscfg/syscfg.h>
+#include <stdint.h>
 
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -40,10 +41,5 @@
 #define LC3_FPDT                (AUDIO_PCM_SAMPLE_RATE * LC3_FRAME_DURATION / 1000000)
 #define BIG_NUM_BIS             (MIN(AUDIO_CHANNELS, MYNEWT_VAL(BIG_NUM_BIS)))
 
-struct chan {
-    void *encoder;
-    uint16_t handle;
-};
-
-extern struct chan chans[AUDIO_CHANNELS];
+void audio_chan_set_conn_handle(uint8_t chan_idx, uint16_t conn_handle);
 #endif /* H_APP_PRIV_ */
