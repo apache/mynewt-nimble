@@ -28,13 +28,35 @@
 
 #include "hal/hal_gpio.h"
 #include "bsp/bsp.h"
-
-#include "audio_data.h"
+#include "app_priv.h"
 
 #define BROADCAST_SID                       1
-#define BROADCAST_MAX_SDU                   120
-#define BROADCAST_SDU_INTVL                 10000
+
+#if (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 8000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_8000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 16000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_16000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 24000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_24000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 32000)
+#define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_32000_HZ
+#elif (MYNEWT_VAL(LC3_SAMPLING_FREQ) == 48000)
 #define BROADCAST_SAMPLE_RATE               BLE_AUDIO_SAMPLING_RATE_48000_HZ
+#else
+BUILD_ASSERT(0, "Sample frequency not supported");
+#endif
+
+/* Note: values need to be adjusted if sampling frequency is 44100 (currently
+ *       not supported by app) or SDU interval is different from LC3 frame
+ *       length
+ */
+#define OCTETS_PER_CODEC_FRAME      (MYNEWT_VAL(LC3_BITRATE) / \
+                                     8 * MYNEWT_VAL(LC3_FRAME_DURATION) / \
+                                     1000000)
+#define BIG_SDU_INTERVAL            (MYNEWT_VAL(LC3_FRAME_DURATION))
+#define BIG_MAX_SDU                 (OCTETS_PER_CODEC_FRAME * \
+                                     MYNEWT_VAL(AURACAST_CHAN_NUM) / \
+                                     MYNEWT_VAL(BIG_NUM_BIS))
 
 #define BROADCASTER_INTERRUPT_TASK_PRIO  4
 #define BROADCASTER_INTERRUPT_TASK_STACK_SZ    512
@@ -45,160 +67,83 @@ static struct ble_audio_base auracast_base;
 static struct ble_audio_big_subgroup big_subgroup;
 
 static os_membuf_t bis_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BROADCASTER_CHAN_NUM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BIG_NUM_BIS),
                     sizeof(struct ble_audio_bis))
 ];
 static struct os_mempool bis_pool;
 
 static os_membuf_t codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19)
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BIG_NUM_BIS) * 2, 19)
 ];
 static struct os_mempool codec_spec_pool;
 
-static uint16_t bis_handles[MYNEWT_VAL(BROADCASTER_CHAN_NUM)];
-/* The timer callout */
-static struct os_callout audio_broadcast_callout;
-
-static int audio_data_offset;
 static uint8_t auracast_adv_instance;
 
-#if MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0
-static struct os_task auracast_interrupt_task_str;
-static struct os_eventq auracast_interrupt_eventq;
-static os_stack_t auracast_interrupt_task_stack[BROADCASTER_INTERRUPT_TASK_STACK_SZ];
 static void
-auracast_interrupt_task(void *arg)
-{
-    while (1) {
-        os_eventq_run(&auracast_interrupt_eventq);
-    }
-}
-
-static void
-broadcast_stop_ev_cb(struct os_event *ev)
-{
-    ble_svc_auracast_stop(auracast_adv_instance);
-    ble_svc_auracast_terminate(auracast_adv_instance);
-}
-
-static struct os_event broadcast_stop_ev = {
-    .ev_cb = broadcast_stop_ev_cb,
-};
-
-static void
-auracast_gpio_irq(void *arg)
-{
-    os_eventq_put(&auracast_interrupt_eventq, &broadcast_stop_ev);
-}
-#endif /* MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0 */
-
-static void
-audio_broadcast_event_cb(struct os_event *ev)
-{
-    assert(ev != NULL);
-    uint32_t ev_start_time = os_cputime_ticks_to_usecs(os_cputime_get32());
-
-#if MYNEWT_VAL(BROADCASTER_CHAN_NUM) > 1
-    if (audio_data_offset + BROADCAST_MAX_SDU >= sizeof(audio_data)) {
-        audio_data_offset = 0;
-    }
-
-    ble_iso_tx(bis_handles[0], (void *)(audio_data + audio_data_offset),
-               BROADCAST_MAX_SDU);
-    ble_iso_tx(bis_handles[1], (void *)(audio_data + audio_data_offset),
-               BROADCAST_MAX_SDU);
-#else
-    if (audio_data_offset + 2 * BROADCAST_MAX_SDU >= sizeof(audio_data)) {
-        audio_data_offset = 0;
-    }
-
-    uint8_t lr_payload[BROADCAST_MAX_SDU * 2];
-    memcpy(lr_payload, audio_data + audio_data_offset, BROADCAST_MAX_SDU);
-    memcpy(lr_payload + BROADCAST_MAX_SDU, audio_data + audio_data_offset,
-           BROADCAST_MAX_SDU);
-    ble_iso_tx(bis_handles[0], (void *)(lr_payload),
-               BROADCAST_MAX_SDU * 2);
-#endif
-    audio_data_offset += BROADCAST_MAX_SDU;
-
-    /** Use cputime to time BROADCAST_SDU_INTVL, as these ticks are more
-     *  accurate than os_time ones. This assures that we do not push
-     *  LC3 data to ISO before interval, which could lead to
-     *  controller running out of buffers. This is only needed because
-     *  we already have coded data in an array - in real world application
-     *  we usually wait for new audio to arrive, and lose time to code it too.
-     */
-    while (os_cputime_ticks_to_usecs(os_cputime_get32()) - ev_start_time <
-           (BROADCAST_SDU_INTVL));
-
-    os_callout_reset(&audio_broadcast_callout, 0);
-}
-static int
-broadcast_audio()
-{
-    os_callout_reset(&audio_broadcast_callout, 0);
-
-    return 0;
-}
-
-static void
-auracast_init()
+auracast_init(void)
 {
     int rc;
 
-    os_callout_init(&audio_broadcast_callout, os_eventq_dflt_get(),
-                    audio_broadcast_event_cb, NULL);
+    assert(MYNEWT_VAL(AURACAST_CHAN_NUM) > 0);
 
-    assert(MYNEWT_VAL(BROADCASTER_CHAN_NUM) > 0);
-
-    rc = os_mempool_init(&bis_pool, MYNEWT_VAL(BROADCASTER_CHAN_NUM),
+    rc = os_mempool_init(&bis_pool, MYNEWT_VAL(BIG_NUM_BIS),
                          sizeof(struct ble_audio_bis), bis_mem,
                          "bis_pool");
     assert(rc == 0);
 
     rc = os_mempool_init(&codec_spec_pool,
-                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
+                         MYNEWT_VAL(BIG_NUM_BIS) * 2, 19,
                          codec_spec_mem, "codec_spec_pool");
     assert(rc == 0);
 }
 
 static int
-base_create()
+base_create(void)
 {
-#if MYNEWT_VAL(BROADCASTER_CHAN_NUM) > 1
+#if MYNEWT_VAL(BIG_NUM_BIS) > 1
     struct ble_audio_bis *bis_left;
     struct ble_audio_bis *bis_right;
     uint8_t codec_spec_config_left_chan[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(BROADCAST_SAMPLE_RATE,
-                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS,
+                                     MYNEWT_VAL(LC3_FRAME_DURATION) == 10000 ?
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      BLE_AUDIO_LOCATION_FRONT_LEFT,
-                                     BROADCAST_MAX_SDU, );
+                                     OCTETS_PER_CODEC_FRAME, );
     uint8_t codec_spec_config_right_chan[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(BROADCAST_SAMPLE_RATE,
-                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS,
+                                     MYNEWT_VAL(LC3_FRAME_DURATION) == 10000 ?
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      BLE_AUDIO_LOCATION_FRONT_RIGHT,
-                                     BROADCAST_MAX_SDU, );
+                                     OCTETS_PER_CODEC_FRAME, );
 #else
     uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT |
                         BLE_AUDIO_LOCATION_FRONT_RIGHT;
     uint8_t codec_spec_config[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(BROADCAST_SAMPLE_RATE,
-                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS,
+                                     MYNEWT_VAL(LC3_FRAME_DURATION) == 10000 ?
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_10_MS :
+                                     BLE_AUDIO_SELECTED_FRAME_DURATION_7_5_MS,
                                      chan_loc,
-                                     BROADCAST_MAX_SDU * 2, );
+                                     OCTETS_PER_CODEC_FRAME, );
 
     struct ble_audio_bis *bis;
 #endif
-    auracast_base.broadcast_id = 0x42;
+    if (MYNEWT_VAL(BROADCAST_ID) != 0) {
+        auracast_base.broadcast_id = MYNEWT_VAL(BROADCAST_ID);
+    } else {
+        ble_hs_hci_rand(&auracast_base.broadcast_id, 3);
+    }
     auracast_base.presentation_delay = 20000;
 
-    big_subgroup.bis_cnt = MYNEWT_VAL(BROADCASTER_CHAN_NUM);
+    big_subgroup.bis_cnt = MYNEWT_VAL(BIG_NUM_BIS);
 
     /** LC3 */
     big_subgroup.codec_id.format = 0x06;
 
     big_subgroup.codec_spec_config_len = 0;
-#if MYNEWT_VAL(BROADCASTER_CHAN_NUM) > 1
+#if MYNEWT_VAL(BIG_NUM_BIS) > 1
     bis_left = os_memblock_get(&bis_pool);
     if (!bis_left) {
         return BLE_HS_ENOMEM;
@@ -248,6 +193,7 @@ static int
 auracast_destroy_fn(struct ble_audio_base *base, void *args)
 {
     struct ble_audio_bis *bis;
+    int i;
 
     STAILQ_FOREACH(bis, &big_subgroup.bises, next) {
         os_memblock_put(&codec_spec_pool, bis->codec_spec_config);
@@ -255,6 +201,10 @@ auracast_destroy_fn(struct ble_audio_base *base, void *args)
     }
 
     memset(&big_subgroup, 0, sizeof(big_subgroup));
+
+    for (i = 0; i < MYNEWT_VAL(AURACAST_CHAN_NUM); i++) {
+        audio_chan_set_conn_handle(i, BLE_HS_CONN_HANDLE_NONE);
+    }
 
     return 0;
 }
@@ -268,13 +218,18 @@ iso_event(struct ble_iso_event *event, void *arg)
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
         console_printf("BIG created\n");
         if (event->big_created.desc.num_bis >
-            MYNEWT_VAL(BROADCASTER_CHAN_NUM)) {
+            MYNEWT_VAL(AURACAST_CHAN_NUM)) {
             return BLE_HS_EINVAL;
         }
-        for (i = 0; i < MYNEWT_VAL(BROADCASTER_CHAN_NUM); i++) {
-            bis_handles[i] = event->big_created.desc.conn_handle[i];
+        if (MYNEWT_VAL(AURACAST_CHAN_NUM) == event->big_created.desc.num_bis) {
+            for (i = 0; i < MYNEWT_VAL(AURACAST_CHAN_NUM); i++) {
+                audio_chan_set_conn_handle(i, event->big_created.desc.conn_handle[i]);
+            }
+        } else {
+            for (i = 0; i < MYNEWT_VAL(AURACAST_CHAN_NUM); i++) {
+                audio_chan_set_conn_handle(i, event->big_created.desc.conn_handle[0]);
+            }
         }
-        broadcast_audio();
         return 0;
     case BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE:
         console_printf("BIG terminated\n");
@@ -285,32 +240,32 @@ iso_event(struct ble_iso_event *event, void *arg)
 }
 
 static int
-auracast_create()
+auracast_create(void)
 {
     const char *program_info = "NimBLE Auracast Test";
     static struct ble_iso_big_params big_params = {
-        .sdu_interval = BROADCAST_SDU_INTVL,
-        .max_sdu = MYNEWT_VAL(BROADCASTER_CHAN_NUM) > 1 ?
-                   BROADCAST_MAX_SDU : BROADCAST_MAX_SDU * 2,
-        .max_transport_latency = BROADCAST_SDU_INTVL / 1000,
-        .rtn = 0,
-        .phy = BLE_HCI_LE_PHY_2M,
-        .packing = 0,
-        .framing = 0,
-        .encryption = 0,
+        .sdu_interval = BIG_SDU_INTERVAL,
+        .max_sdu = BIG_MAX_SDU,
+        .max_transport_latency = MYNEWT_VAL(LC3_FRAME_DURATION) / 1000,
+        .rtn = MYNEWT_VAL(BIG_RTN),
+        .phy = MYNEWT_VAL(BIG_PHY),
+        .packing = MYNEWT_VAL(BIG_PACKING),
+        .framing = MYNEWT_VAL(BIG_FRAMING),
+        .encryption = MYNEWT_VAL(BIG_ENCRYPTION),
+        .broadcast_code = MYNEWT_VAL(BROADCAST_CODE),
     };
 
     struct ble_svc_auracast_create_params create_params = {
         .base = &auracast_base,
         .big_params = &big_params,
-        .name = MYNEWT_VAL(BROADCASTER_BROADCAST_NAME),
+        .name = MYNEWT_VAL(BROADCAST_NAME),
         .program_info = program_info,
         .own_addr_type = id_addr_type,
         .secondary_phy = BLE_HCI_LE_PHY_2M,
         .sid = BROADCAST_SID,
-        .frame_duration = 10000,
-        .sampling_frequency = 48000,
-        .bitrate = 48000,
+        .frame_duration = MYNEWT_VAL(LC3_FRAME_DURATION),
+        .sampling_frequency = MYNEWT_VAL(LC3_SAMPLING_FREQ),
+        .bitrate = MYNEWT_VAL(LC3_BITRATE),
     };
 
     return ble_svc_auracast_create(&create_params,
@@ -321,7 +276,7 @@ auracast_create()
 }
 
 static int
-auracast_start()
+auracast_start(void)
 {
     return ble_svc_auracast_start(auracast_adv_instance, iso_event, NULL);
 }
@@ -351,9 +306,43 @@ on_sync(void)
 
     rc = auracast_start();
     assert(rc == 0);
-
-    broadcast_audio();
 }
+
+#if MYNEWT_VAL(AURACAST_STOP_BUTTON) >= 0
+#include "hal/hal_gpio.h"
+#include "bsp/bsp.h"
+
+#define AURACAST_INTERRUPT_TASK_PRIO        4
+#define AURACAST_INTERRUPT_TASK_STACK_SZ    512
+
+static struct os_task auracast_interrupt_task_str;
+static struct os_eventq auracast_interrupt_eventq;
+static os_stack_t auracast_interrupt_task_stack[AURACAST_INTERRUPT_TASK_STACK_SZ];
+static void
+auracast_interrupt_task(void *arg)
+{
+    while (1) {
+        os_eventq_run(&auracast_interrupt_eventq);
+    }
+}
+
+static void
+broadcast_stop_ev_cb(struct os_event *ev)
+{
+    ble_svc_auracast_stop(auracast_adv_instance);
+    ble_svc_auracast_terminate(auracast_adv_instance);
+}
+
+static struct os_event broadcast_stop_ev = {
+    .ev_cb = broadcast_stop_ev_cb,
+};
+
+static void
+auracast_gpio_irq(void *arg)
+{
+    os_eventq_put(&auracast_interrupt_eventq, &broadcast_stop_ev);
+}
+#endif /* MYNEWT_VAL(AURACAST_STOP_BUTTON) >= 0 */
 
 /*
  * main
@@ -374,18 +363,18 @@ mynewt_main(int argc, char **argv)
     /* Set sync callback */
     ble_hs_cfg.sync_cb = on_sync;
 
-#if MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0
+#if MYNEWT_VAL(AURACAST_STOP_BUTTON) >= 0
     os_eventq_init(&auracast_interrupt_eventq);
     os_task_init(&auracast_interrupt_task_str, "auracast_interrupt_task",
                  auracast_interrupt_task, NULL,
-                 BROADCASTER_INTERRUPT_TASK_PRIO, OS_WAIT_FOREVER,
+                 AURACAST_INTERRUPT_TASK_PRIO, OS_WAIT_FOREVER,
                  auracast_interrupt_task_stack,
-                 BROADCASTER_INTERRUPT_TASK_STACK_SZ);
+                 AURACAST_INTERRUPT_TASK_STACK_SZ);
 
-    hal_gpio_irq_init(MYNEWT_VAL(BROADCASTER_STOP_BUTTON), auracast_gpio_irq,
+    hal_gpio_irq_init(MYNEWT_VAL(AURACAST_STOP_BUTTON), auracast_gpio_irq,
                       NULL, HAL_GPIO_TRIG_RISING, HAL_GPIO_PULL_UP);
-    hal_gpio_irq_enable(MYNEWT_VAL(BROADCASTER_STOP_BUTTON));
-#endif /* MYNEWT_VAL(BROADCASTER_STOP_BUTTON) >= 0 */
+    hal_gpio_irq_enable(MYNEWT_VAL(AURACAST_STOP_BUTTON));
+#endif /* MYNEWT_VAL(AURACAST_STOP_BUTTON) >= 0 */
 
     /* As the last thing, process events from default event queue */
     while (1) {
