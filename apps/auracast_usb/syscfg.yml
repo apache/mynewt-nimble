@@ -101,6 +101,8 @@ syscfg.vals:
     BLE_ISO_MAX_BIGS: 1
     BLE_ISO_MAX_BISES: 2
 
+    BLE_AUDIO: 1
+
     USBD_VID: 0xFFFF
     USBD_PID: 0x0001
     USBD_VENDOR_STRING: '"Apache Software Foundation"'

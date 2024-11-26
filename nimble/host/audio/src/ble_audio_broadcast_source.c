@@ -22,6 +22,7 @@
 
 #include "os/util.h"
 
+#if MYNEWT_VAL(BLE_AUDIO)
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 struct ble_audio_broadcast {
     SLIST_ENTRY(ble_audio_broadcast) next;
@@ -492,4 +493,5 @@ ble_audio_broadcast_init(void)
 
     return 0;
 }
-#endif
+#endif /* BLE_ISO_BROADCAST_SOURCE */
+#endif /* BLE_AUDIO */
