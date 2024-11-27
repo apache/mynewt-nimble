@@ -747,7 +747,7 @@ ble_att_svr_rx_mtu(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
     mtu = 0;
 
     if (cid != BLE_L2CAP_CID_ATT) {
-        /*TODO */
+        /* This operation is not supported over enhanced ATT bearer */
         return BLE_HS_ENOTSUP;
     }
 
