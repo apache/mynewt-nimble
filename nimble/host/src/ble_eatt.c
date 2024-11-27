@@ -269,6 +269,9 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         if (ble_eatt_supported_rsp(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
         } else if (!ble_eatt_supported_req(opcode)) {
+            if (opcode == BLE_ATT_OP_MTU_REQ) {
+                return BLE_HS_ENOTSUP;
+            }
             /* If an ATT PDU is supported on any ATT bearer, then it shall be
              * supported on all supported ATT bearers with the following
              * exceptions:

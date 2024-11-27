@@ -639,6 +639,7 @@ bool
 ble_eatt_supported_req(uint8_t opcode)
 {
     switch (opcode) {
+    case BLE_ATT_OP_MTU_REQ:
     case BLE_ATT_OP_WRITE_CMD:
     case BLE_ATT_OP_FIND_INFO_REQ:
     case BLE_ATT_OP_FIND_TYPE_VALUE_REQ:
