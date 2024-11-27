@@ -46,8 +46,12 @@
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_fem.h"
+#if MYNEWT_VAL(BLE_LL_ISO)
 #include "controller/ble_ll_isoal.h"
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 #include "controller/ble_ll_iso_big.h"
+#endif
 #if MYNEWT_VAL(BLE_LL_EXT)
 #include "controller/ble_ll_ext.h"
 #endif
