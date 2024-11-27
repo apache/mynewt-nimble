@@ -64,9 +64,9 @@ struct ble_ll_iso_bis {
         uint16_t prn_sub_lu;
         uint16_t remap_idx;
 
-        uint8_t subevent_num;
-        uint8_t n;
-        uint8_t g;
+        uint8_t subevent_num; /* 1-NSE, current subevent number */
+        uint8_t n; /* 1-BN, current burst number */
+        uint8_t g; /* 0-(NSE/BN), group number. Each group consists of BN subevents */
     } tx;
 
     struct ble_ll_isoal_mux mux;
@@ -111,7 +111,6 @@ struct ble_ll_iso_big {
     uint8_t irc; /* 1-15  */
     uint8_t nse; /* 1-31 */
     uint8_t interleaved : 1;
-    uint8_t framed : 1;
     uint8_t encrypted : 1;
     uint8_t giv[8];
     uint8_t gskd[16];
@@ -707,8 +706,10 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
 
     /* Core 5.3, Vol 6, Part B, 4.4.6.6 */
     if (bis->tx.g < big->irc) {
+        /* Group carry the data associated with the current BIS event */
         idx = bis->tx.n;
     } else {
+        /* Group carry the data associated with the future BIS event specified by PTO */
         idx = big->bn * big->pto * (bis->tx.g - big->irc + 1) + bis->tx.n;
     }
 
@@ -718,26 +719,54 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
         ble_phy_encrypt_counter_set(big->bis_counter + idx, 1);
     }
 
-#if 1
-    pdu_len = ble_ll_isoal_mux_unframed_get(&bis->mux, idx, &llid, dptr);
+#if 0
+    pdu_len = ble_ll_isoal_mux_pdu_get(&bis->mux, idx, &llid, dptr);
 #else
-    llid = 0;
     pdu_len = big->max_pdu;
     /* XXX dummy data for testing */
     memset(dptr, bis->num | (bis->num << 4), pdu_len);
-    put_be32(dptr, big->big_counter);
-    put_be32(&dptr[4], big->bis_counter + idx);
-    dptr[8] = bis->tx.subevent_num;
-    dptr[9] = bis->tx.g;
-    dptr[10] = bis->tx.n;
-    if (bis->tx.g == 0) {
-        dptr[11] = 'B';
-    } else if (bis->tx.g < big->irc) {
-        dptr[11] = 'R';
+    if (bis->mux.framed) {
+        llid = 2;
+        /* Segmentation Header */
+        union {
+            uint16_t u16;
+            struct {
+                uint8_t sc: 1;
+                uint8_t cmplt: 1;
+                uint8_t length;
+            };
+        } seg_hdr = {
+                .sc = 0,
+                .cmplt = 1,
+                .length = pdu_len - 2,
+        };
+        put_le16(dptr, seg_hdr.u16);
+        dptr += 2;
+        /* TimeOffset */
+        put_le24(dptr, 1000);
+        dptr += 3;
     } else {
-        dptr[11] = 'P';
+        llid = 0;
     }
-    dptr[12] = 0xff;
+    put_be32(dptr, big->big_counter);
+    dptr += 4;
+    put_be32(dptr, big->bis_counter + idx);
+    dptr += 4;
+    *dptr = bis->tx.subevent_num;
+    dptr++;
+    *dptr = bis->tx.g;
+    dptr++;
+    *dptr = bis->tx.n;
+    dptr++;
+    if (bis->tx.g == 0) {
+        *dptr = 'B'; /* (B)urst */
+    } else if (bis->tx.g < big->irc) {
+        *dptr = 'R'; /* (R)epetition */
+    } else {
+        *dptr = 'P'; /* (P)retransmission */
+    }
+    dptr++;
+    *dptr = 0xff;
 #endif
 
     *hdr_byte = llid | (big->cssn << 2) | (big->cstf << 5);
@@ -855,8 +884,6 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
 #endif
 
     ble_ll_tx_power_set(g_ble_ll_tx_power);
-
-    BLE_LL_ASSERT(!big->framed);
 
     /* XXX calculate this in advance at the end of previous event? */
     big->tx.subevents_rem = big->num_bis * big->nse;
@@ -1038,10 +1065,8 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         bis->num = big->num_bis;
         bis->crc_init = (big->crc_init << 8) | (big->num_bis);
 
-        BLE_LL_ASSERT(!big->framed);
-
         ble_ll_isoal_mux_init(&bis->mux, bp->max_pdu, bp->iso_interval * 1250,
-                              bp->sdu_interval, bp->bn, pte);
+                              bp->sdu_interval, bp->bn, pte, bp->framed);
     }
 
     big_pool_free--;
@@ -1077,7 +1102,6 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     big->irc = bp->irc;
     big->nse = bp->nse;
     big->interleaved = bp->interleaved;
-    big->framed = bp->framed;
     big->encrypted = bp->encrypted;
     big->sdu_interval = bp->sdu_interval;
     big->iso_interval = bp->iso_interval;
