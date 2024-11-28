@@ -35,3 +35,5 @@ pkg.deps:
     - "@apache-mynewt-nimble/nimble/host/services/gap"
     - "@apache-mynewt-nimble/nimble/host/services/gatt"
     - "@apache-mynewt-nimble/nimble/host/store/config"
+    - "@apache-mynewt-core/sys/shell"
+    - "@apache-mynewt-core/util/parse_arg"
