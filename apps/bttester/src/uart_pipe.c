@@ -48,7 +48,7 @@ static struct uart_pipe_ring cr_rx;
 static uint8_t cr_rx_buf[MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)];
 static volatile bool uart_console_rx_stalled;
 
-struct os_event rx_ev;
+static struct os_event rx_ev;
 
 static inline int
 inc_and_wrap(int i, int max)
@@ -243,11 +243,11 @@ int
 bttester_pipe_init(void)
 {
     struct uart_conf uc = {
-        .uc_speed = MYNEWT_VAL(CONSOLE_UART_BAUD),
+        .uc_speed = MYNEWT_VAL(BTTESTER_UART_BAUD),
         .uc_databits = 8,
         .uc_stopbits = 1,
         .uc_parity = UART_PARITY_NONE,
-        .uc_flow_ctl = MYNEWT_VAL(CONSOLE_UART_FLOW_CONTROL),
+        .uc_flow_ctl = MYNEWT_VAL(BTTESTER_UART_FLOW_CONTROL),
         .uc_tx_char = uart_console_tx_char,
         .uc_rx_char = uart_console_rx_char,
     };
@@ -263,7 +263,7 @@ bttester_pipe_init(void)
 
     if (!uart_dev) {
         uart_dev =
-            (struct uart_dev *) os_dev_open(MYNEWT_VAL(CONSOLE_UART_DEV),
+            (struct uart_dev *) os_dev_open(MYNEWT_VAL(BTTESTER_UART_DEV),
                                             OS_TIMEOUT_NEVER, &uc);
         if (!uart_dev) {
             return -1;

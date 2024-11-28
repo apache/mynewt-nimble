@@ -19,6 +19,18 @@
 # Package: apps/blemesh
 
 syscfg.defs:
+    BTTESTER_UART_BAUD:
+        description: 'Console UART baud rate.'
+        value: '115200'
+
+    BTTESTER_UART_FLOW_CONTROL:
+        description: 'Console UART flow control.'
+        value: 'UART_FLOW_CTL_RTS_CTS'
+
+    BTTESTER_UART_DEV:
+        description: 'Console UART device.'
+        value: '"uart0"'
+
     BTTESTER_PIPE_UART:
         description: 'Set communication pipe to UART'
         value: 1
