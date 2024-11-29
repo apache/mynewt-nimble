@@ -85,6 +85,7 @@ void phy_ppi_init(void);
 
 void phy_txpower_set(int8_t dbm);
 int8_t phy_txpower_round(int8_t dbm);
+int8_t phy_txpower_round_up(int8_t dbm);
 
 #ifdef NRF52_SERIES
 #include "nrf52/phy_ppi.h"

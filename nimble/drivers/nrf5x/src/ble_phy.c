@@ -2051,6 +2051,21 @@ ble_phy_tx_power_round(int dbm)
 }
 
 /**
+ * ble phy txpwr round
+ *
+ * Get the rounded up transmit output power (in dBm).
+ *
+ * @param dbm Power output in dBm.
+ *
+ * @return int Rounded up power in dBm
+ */
+int
+ble_phy_tx_power_round_up(int dbm)
+{
+    return phy_txpower_round_up(dbm);
+}
+
+/**
  * ble phy set access addr
  *
  * Set access address.
