@@ -2000,8 +2000,10 @@ ble_ll_scan_rx_pkt_in_on_legacy(uint8_t pdu_type, struct os_mbuf *om,
 void
 ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hdr)
 {
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
+    struct ble_mbuf_hdr_rxinfo *rxinfo = &hdr->rxinfo;
+#endif
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    struct ble_mbuf_hdr_rxinfo *rxinfo;
     uint8_t *targeta;
 #endif
     struct ble_ll_scan_sm *scansm;
@@ -2023,6 +2025,26 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
         return;
     }
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
+    if ((scansm->vs_config.ignore_ext) &&
+        (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND)) {
+        ble_ll_scan_chk_resume();
+        return;
+    }
+
+    if ((scansm->vs_config.ignore_legacy) &&
+        (ptype != BLE_ADV_PDU_TYPE_ADV_EXT_IND)) {
+        ble_ll_scan_chk_resume();
+        return;
+    }
+
+    if ((scansm->vs_config.rssi_filter) &&
+        (rxinfo->rssi < scansm->vs_config.rssi_threshold)) {
+        ble_ll_scan_chk_resume();
+        return;
+    }
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (ptype == BLE_ADV_PDU_TYPE_ADV_EXT_IND) {
         ble_ll_scan_aux_pkt_in_on_ext(om, hdr);
@@ -2034,7 +2056,6 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     switch (scansm->scanp->scan_type) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     case BLE_SCAN_TYPE_INITIATE:
-        rxinfo = &hdr->rxinfo;
         if (rxinfo->flags & BLE_MBUF_HDR_F_CONNECT_IND_TXD) {
             /* We need to keep original TargetA in case it was resolved, so rl
              * can be updated properly.
@@ -2256,6 +2277,27 @@ ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
     return 0;
 }
 
+#endif
+
+#if MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
+int
+ble_ll_scan_set_vs_config(uint32_t flags, int8_t rssi_threshold)
+{
+    struct ble_ll_scan_sm *scansm;
+
+    scansm = &g_ble_ll_scan_sm;
+
+    if (scansm->scan_enabled || scansm->connsm) {
+        return 1;
+    }
+
+    scansm->vs_config.ignore_legacy = !!(flags & BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_LEGACY);
+    scansm->vs_config.ignore_ext = !!(flags & BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_EXT);
+    scansm->vs_config.rssi_filter = !!(flags & BLE_HCI_VS_SET_SCAN_CFG_FLAG_RSSI_FILTER);
+    scansm->vs_config.rssi_threshold = rssi_threshold;
+
+    return 0;
+}
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
