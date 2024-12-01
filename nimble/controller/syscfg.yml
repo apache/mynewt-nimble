@@ -226,6 +226,11 @@ syscfg.defs:
             Enables LLCP tracing using HCI vendor-specific events.
         value: '0'
 
+    BLE_LL_HCI_NOOP_AFTER_INIT:
+        description: >
+            Enables sending the NO-OP opcode HCI event after LL init.
+        value: '1'
+
     # Configuration for LL supported features.
     #
     # There are a total 8 features that the LL can support. These can be found
@@ -656,6 +661,9 @@ syscfg.vals.BLE_LL_ISO_BROADCASTER:
 # controller code visible when connected to external host
 syscfg.vals.'!BLE_HOST && !BABBLESIM':
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
+
+syscfg.vals.'BLE_TRANSPORT_HS=="ipc"':
+    BLE_LL_HCI_NOOP_AFTER_INIT: 0
 
 syscfg.restrictions:
     - BLE_TRANSPORT_LL == "native"
