@@ -747,6 +747,73 @@
 #define MYNEWT_VAL_XTAL_RC (0)
 #endif
 
+#ifndef MYNEWT_VAL_JLINK_TARGET
+#define MYNEWT_VAL_JLINK_TARGET (NRF52)
+#endif
+
+#ifndef MYNEWT_VAL_MYNEWT_DEBUGGER__jlink
+#define MYNEWT_VAL_MYNEWT_DEBUGGER__jlink (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DEBUGGER__openocd
+#define MYNEWT_VAL_MYNEWT_DEBUGGER__openocd (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DEBUGGER__pyocd
+#define MYNEWT_VAL_MYNEWT_DEBUGGER__pyocd (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DEBUGGER__st_link_gdbserver
+#define MYNEWT_VAL_MYNEWT_DEBUGGER__st_link_gdbserver (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DEBUGGER__stutil
+#define MYNEWT_VAL_MYNEWT_DEBUGGER__stutil (0)
+#endif
+#undef MYNEWT_VAL_MYNEWT_DEBUGGER
+
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__ezflashcli
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__ezflashcli (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__jlink
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__jlink (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__nrfjprog
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__nrfjprog (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__nrfutil
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__nrfutil (1)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__openocd
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__openocd (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__pyocd
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__pyocd (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__stflash
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__stflash (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__stm32_programmer_cli
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER__stm32_programmer_cli (0)
+#endif
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER (1)
+#endif
+
+#ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER_MFG_IMAGE_FLASH_OFFSET
+#define MYNEWT_VAL_MYNEWT_DOWNLOADER_MFG_IMAGE_FLASH_OFFSET (0x0)
+#endif
+
+#undef MYNEWT_VAL_MYNEWT_DOWNLOADER_OPENOCD_BOARD
+
+#undef MYNEWT_VAL_MYNEWT_DOWNLOADER_OPENOCD_CFG
+
+#undef MYNEWT_VAL_MYNEWT_DOWNLOADER_OPENOCD_INTERFACE
+
+#undef MYNEWT_VAL_NRFJPROG_COPROCESSOR
+
+#undef MYNEWT_VAL_NRFUTIL_TRAITS
+
+#ifndef MYNEWT_VAL_PYOCD_TARGET
+#define MYNEWT_VAL_PYOCD_TARGET (nrf52840)
+#endif
+
 #ifndef MYNEWT_VAL_FLOAT_USER
 #define MYNEWT_VAL_FLOAT_USER (0)
 #endif
@@ -2405,6 +2472,7 @@
 #define MYNEWT_PKG_apache_mynewt_core__hw_mcu_nordic 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_mcu_nordic_nrf52xxx 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_mcu_nordic_nrf_common 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_scripts 1
 #define MYNEWT_PKG_apache_mynewt_core__kernel_os 1
 #define MYNEWT_PKG_apache_mynewt_core__libc 1
 #define MYNEWT_PKG_apache_mynewt_core__libc_baselibc 1
