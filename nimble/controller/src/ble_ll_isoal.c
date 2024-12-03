@@ -34,7 +34,7 @@ static struct ble_ll_iso_tx_q ll_isoal_tx_q;
 void
 ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
                       uint32_t iso_interval_us, uint32_t sdu_interval_us,
-                      uint8_t bn, uint8_t pte)
+                      uint8_t bn, uint8_t pte, uint8_t framed)
 {
     memset(mux, 0, sizeof(*mux));
 
@@ -47,6 +47,8 @@ ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
 
     STAILQ_INIT(&mux->sdu_q);
     mux->sdu_q_len = 0;
+
+    mux->framed = framed;
 }
 
 void
@@ -252,6 +254,26 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
     os_mbuf_copydata(om, sdu_offset, pdu_len, dptr);
 
     return pdu_len;
+}
+
+static int
+ble_ll_isoal_mux_framed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
+                            uint8_t *llid, void *dptr)
+{
+
+
+    return 0;
+}
+
+int
+ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
+                         uint8_t *llid, void *dptr)
+{
+    if (mux->framed) {
+        return ble_ll_isoal_mux_framed_get(mux, idx, llid, dptr);
+    } else {
+        return ble_ll_isoal_mux_unframed_get(mux, idx, llid, dptr);
+    }
 }
 
 static void
