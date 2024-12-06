@@ -296,17 +296,18 @@ ble_ll_ctrl_conn_param_pdu_proc(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
     /* Allow to change connection parameters only if conn_itvl can stay unchanged
      * and anchor point change is not requested */
-    if (ble_ll_sched_css_is_enabled() &&
-        connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL &&
-        ((connsm->conn_itvl < le16toh(req->interval_min)) ||
-         (connsm->conn_itvl > le16toh(req->interval_max)) ||
-         (le16toh(req->offset0) != 0xffff))) {
-        ble_err = BLE_ERR_INV_LMP_LL_PARM;
-        goto conn_param_pdu_exit;
-    }
+    if (ble_ll_sched_css_is_enabled()) {
+        if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL &&
+            ((connsm->conn_itvl < le16toh(req->interval_min)) ||
+             (connsm->conn_itvl > le16toh(req->interval_max)) ||
+             (le16toh(req->offset0) != 0xffff))) {
+            ble_err = BLE_ERR_INV_LMP_LL_PARM;
+            goto conn_param_pdu_exit;
+        }
 
-    req->interval_min = connsm->conn_itvl;
-    req->interval_max = connsm->conn_itvl;
+        req->interval_min = connsm->conn_itvl;
+        req->interval_max = connsm->conn_itvl;
+    }
 #endif
 
     /* Check if parameters are valid */
