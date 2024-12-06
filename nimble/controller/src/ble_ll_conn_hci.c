@@ -1099,8 +1099,13 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
-    hcu->conn_itvl_max = connsm->conn_itvl;
-    hcu->conn_itvl_min = connsm->conn_itvl;
+    if (ble_ll_sched_css_is_enabled()) {
+        hcu->conn_itvl_max = connsm->conn_itvl;
+        hcu->conn_itvl_min = connsm->conn_itvl;
+    } else {
+        hcu->conn_itvl_min = le16toh(cmd->conn_itvl_min);
+        hcu->conn_itvl_max = le16toh(cmd->conn_itvl_max);
+    }
 #else
     hcu->conn_itvl_min = le16toh(cmd->conn_itvl_min);
     hcu->conn_itvl_max = le16toh(cmd->conn_itvl_max);
