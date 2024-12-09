@@ -94,16 +94,22 @@ void bt_test_mesh_trans_incomp_timer_exp(void)
 
 int bt_test_mesh_lpn_group_add(uint16_t group)
 {
-	bt_mesh_lpn_group_add(group);
-
-	return 0;
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+    bt_mesh_lpn_group_add(group);
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
 }
 
 int bt_test_mesh_lpn_group_remove(uint16_t *groups, size_t groups_count)
 {
-	bt_mesh_lpn_group_del(groups, groups_count);
-
-	return 0;
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
+    bt_mesh_lpn_group_del(groups, groups_count);
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
 }
 
 int bt_test_mesh_rpl_clear(void)
