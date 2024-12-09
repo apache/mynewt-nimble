@@ -2768,6 +2768,17 @@ int ble_gap_set_path_loss_reporting_param(uint16_t conn_handle, uint8_t high_thr
                                           uint8_t high_hysteresis, uint8_t low_threshold,
                                           uint8_t low_hysteresis, uint16_t min_time_spent);
 #endif
+
+/**
+ * Set Data Related Address Changes Param
+ *
+ * @param adv_handle        Advertising handle
+ * @param change_reason     Reasons for refreshing addresses
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gap_set_data_related_addr_change_param(uint8_t adv_handle, uint8_t change_reason);
+
 #ifdef __cplusplus
 }
 #endif
