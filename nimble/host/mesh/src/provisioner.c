@@ -33,6 +33,10 @@ static struct {
 	uint8_t uuid[16];
 } prov_device;
 
+#if !MYNEWT_VAL(BLE_MESH_CDB)
+static struct bt_mesh_cdb_node prov_node;
+#endif
+
 static void send_pub_key(void);
 static void prov_dh_key_gen(void);
 static void pub_key_ready(const uint8_t *pkey);
@@ -234,6 +238,14 @@ static void prov_capabilities(const uint8_t *data)
 		prov_fail(PROV_ERR_RESOURCES);
 		return;
 	}
+#else
+    prov_device.node = &prov_node;
+    memset(&prov_node, 0, sizeof(struct bt_mesh_cdb_node));
+    memcpy(prov_node.uuid, prov_device.uuid, 16);
+    prov_node.addr = prov_device.addr;
+    prov_node.num_elem = data[0];
+    prov_node.net_idx = prov_device.net_idx;
+    atomic_set(prov_node.flags, 0);
 #endif
 	memcpy(bt_mesh_prov_link.conf_inputs.capabilities, data, PDU_LEN_CAPABILITIES);
 
@@ -454,7 +466,9 @@ static void send_prov_data(void)
 {
 	struct os_mbuf *pdu = PROV_BUF(PDU_LEN_DATA);
 #if MYNEWT_VAL(BLE_MESH_CDB)
-	struct bt_mesh_cdb_subnet *sub;
+    struct bt_mesh_cdb_subnet *sub;
+#else
+    struct bt_mesh_subnet *sub;
 #endif
 	uint8_t session_key[16];
 	uint8_t nonce[13];
@@ -497,6 +511,14 @@ static void send_prov_data(void)
 		prov_fail(PROV_ERR_UNEXP_ERR);
 		return;
 	}
+#else
+    sub = bt_mesh_subnet_get(prov_device.node->net_idx);
+    if (sub == NULL) {
+        BT_ERR("No subnet with net_idx %u",
+                prov_device.node->net_idx);
+        prov_fail(PROV_ERR_UNEXP_ERR);
+        return;
+    }
 #endif
 	bt_mesh_prov_buf_init(pdu, PROV_DATA);
 #if MYNEWT_VAL(BLE_MESH_CDB)
@@ -504,6 +526,11 @@ static void send_prov_data(void)
 	net_buf_simple_add_be16(pdu, prov_device.node->net_idx);
 	net_buf_simple_add_u8(pdu, bt_mesh_cdb_subnet_flags(sub));
 	net_buf_simple_add_be32(pdu, bt_mesh_cdb.iv_index);
+#else
+    net_buf_simple_add_mem(pdu, sub->keys[SUBNET_KEY_TX_IDX(sub)].net, 16);
+    net_buf_simple_add_be16(pdu, prov_device.node->net_idx);
+    net_buf_simple_add_u8(pdu, bt_mesh_net_flags(sub));
+    net_buf_simple_add_be32(pdu, bt_mesh.iv_index);
 #endif
 	net_buf_simple_add_be16(pdu, prov_device.node->addr);
 	net_buf_simple_add(pdu, 8); /* For MIC */
