@@ -240,21 +240,6 @@ ble_ll_iso_big_find_mux_by_handle(uint16_t conn_handle)
     return NULL;
 }
 
-int
-ble_ll_iso_big_last_tx_timestamp_get(struct ble_ll_iso_bis *bis,
-                                     uint16_t *packet_seq_num, uint32_t *timestamp)
-{
-    struct ble_ll_iso_big *big;
-
-    big = bis->big;
-
-    *packet_seq_num = big->bis_counter;
-    *timestamp = (uint64_t)big->event_start * 1000000 / 32768 +
-                 big->event_start_us;
-
-    return 0;
-}
-
 static void
 ble_ll_iso_big_biginfo_chanmap_update(struct ble_ll_iso_big *big)
 {
