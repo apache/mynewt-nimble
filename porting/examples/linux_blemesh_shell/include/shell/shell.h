@@ -131,20 +131,20 @@ struct shell_module {
  * @brief constructs a legacy shell command.
  */
 #define SHELL_CMD(cmd_, func_, help_) {         \
-        .sc_ext = 0,                                \
-        .sc_cmd_func = func_,                       \
-        .sc_cmd = cmd_,                             \
-        .help = SHELL_HELP_(help_),                 \
+            .sc_ext = 0,                                \
+            .sc_cmd_func = func_,                       \
+            .sc_cmd = cmd_,                             \
+            .help = SHELL_HELP_(help_),                 \
 }
 
 /**
  * @brief constructs an extended shell command.
  */
 #define SHELL_CMD_EXT(cmd_, func_, help_) {     \
-        .sc_ext = 1,                                \
-        .sc_cmd_ext_func = func_,                   \
-        .sc_cmd = cmd_,                             \
-        .help = SHELL_HELP_(help_),                 \
+            .sc_ext = 1,                                \
+            .sc_cmd_ext_func = func_,                   \
+            .sc_cmd = cmd_,                             \
+            .help = SHELL_HELP_(help_),                 \
 }
 
 /** @brief Register a shell_module object
