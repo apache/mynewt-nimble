@@ -20,6 +20,10 @@
 #include <host/ble_gap.h>
 #include "rx_stress.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* UUID128 of stress test use cases*/
 static uint8_t rx_stress_uuid128[STRESS_UUIDS_NUM][16];
 
