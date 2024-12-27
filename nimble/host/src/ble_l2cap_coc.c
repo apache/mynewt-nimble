@@ -25,6 +25,10 @@
 #include "ble_l2cap_coc_priv.h"
 #include "ble_l2cap_sig_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0 && NIMBLE_BLE_CONNECT
 
 #define BLE_L2CAP_SDU_SIZE              2

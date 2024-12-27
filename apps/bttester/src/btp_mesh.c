@@ -38,6 +38,10 @@
 
 #include "btp/btp.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 extern uint8_t own_addr_type;
 
 #define CONTROLLER_INDEX 0

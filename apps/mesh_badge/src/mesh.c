@@ -11,6 +11,10 @@
 #include "mesh.h"
 #include "board.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #define BT_COMP_ID_LF 0x05f1
 
 #define MOD_LF            0x0000

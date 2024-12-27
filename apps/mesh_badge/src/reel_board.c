@@ -20,6 +20,10 @@
 
 #define printk console_printf
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 enum font_size {
 	FONT_BIG = 0,
 	FONT_MEDIUM = 1,
