@@ -31,6 +31,44 @@
 #include "sys/queue.h"
 #include "ble_hs_hci_priv.h"
 
+#define BLE_HS_CS_MODE0 (0)
+#define BLE_HS_CS_MODE1 (1)
+#define BLE_HS_CS_MODE2 (2)
+#define BLE_HS_CS_MODE3 (3)
+#define BLE_HS_CS_MODE_UNUSED (0xff)
+#define BLE_HS_CS_SUBMODE_TYPE BLE_HS_CS_MODE_UNUSED
+
+#define BLE_HS_CS_ROLE_INITIATOR (0)
+#define BLE_HS_CS_ROLE_REFLECTOR (1)
+
+#define BLE_HS_CS_RTT_AA_ONLY                  (0x00)
+#define BLE_HS_CS_RTT_32_BIT_SOUNDING_SEQUENCE (0x01)
+#define BLE_HS_CS_RTT_96_BIT_SOUNDING_SEQUENCE (0x02)
+#define BLE_HS_CS_RTT_32_BIT_RANDOM_SEQUENCE   (0x03)
+#define BLE_HS_CS_RTT_64_BIT_RANDOM_SEQUENCE   (0x04)
+#define BLE_HS_CS_RTT_96_BIT_RANDOM_SEQUENCE   (0x05)
+#define BLE_HS_CS_RTT_128_BIT_RANDOM_SEQUENCE  (0x06)
+
+#define BLE_HS_CS_SUBEVENT_DONE_STATUS_COMPLETED (0x0)
+#define BLE_HS_CS_SUBEVENT_DONE_STATUS_PARTIAL   (0x1)
+#define BLE_HS_CS_SUBEVENT_DONE_STATUS_ABORTED   (0xF)
+
+#define BLE_HS_CS_PROC_DONE_STATUS_COMPLETED (0x0)
+#define BLE_HS_CS_PROC_DONE_STATUS_PARTIAL   (0x1)
+#define BLE_HS_CS_PROC_DONE_STATUS_ABORTED   (0xF)
+
+#define TIME_DIFF_NOT_AVAILABLE  (0x00008000)
+
+#define IN_RANGE(_n, _min, _max) (((_n) >= (_min)) && ((_n) <= (_max)))
+#define N_AP_MAX (4)
+
+static uint8_t aci_table[] = {1, 2, 3, 4, 2, 3, 4, 4};
+static uint8_t local_role;
+static uint8_t sounding_pct_estimate;
+static uint8_t rtt_type;
+static int32_t time_diff_sum;
+static uint32_t time_diff_count;
+
 struct ble_cs_rd_rem_supp_cap_cp {
     uint16_t conn_handle;
 } __attribute__((packed));
@@ -115,7 +153,6 @@ struct ble_cs_create_config_cp {
     uint8_t channel_selection_type;
     uint8_t ch3c_shape;
     uint8_t ch3c_jump;
-    uint8_t companion_signal_enable;
 } __attribute__((packed));
 
 struct ble_cs_remove_config_cp {
@@ -189,7 +226,8 @@ ble_cs_call_event_cb(struct ble_cs_event *event)
 }
 
 static void
-ble_cs_call_procedure_complete_cb(uint16_t conn_handle, uint8_t status)
+ble_cs_call_procedure_complete_cb(uint16_t conn_handle, uint8_t status,
+                                  uint32_t time_diff_ns)
 {
     struct ble_cs_event event;
 
@@ -197,6 +235,7 @@ ble_cs_call_procedure_complete_cb(uint16_t conn_handle, uint8_t status)
     event.type = BLE_CS_EVENT_CS_PROCEDURE_COMPLETE;
     event.procedure_complete.conn_handle = conn_handle;
     event.procedure_complete.status = status;
+    event.procedure_complete.time_diff_ns = time_diff_ns;
     ble_cs_call_event_cb(&event);
 }
 
@@ -218,7 +257,8 @@ ble_cs_rd_loc_supp_cap(void)
     rp.optional_t_ip2_times_supported = le16toh(rp.optional_t_ip2_times_supported);
     rp.optional_t_fcs_times_supported = le16toh(rp.optional_t_fcs_times_supported);
     rp.optional_t_pm_times_supported = le16toh(rp.optional_t_pm_times_supported);
-    (void) rp;
+
+    sounding_pct_estimate = (rp.optional_subfeatures_supported >> 3) & 1;
 
     return rc;
 }
@@ -361,7 +401,7 @@ ble_cs_create_config(const struct ble_cs_create_config_cp *cmd)
     cp.channel_selection_type = cmd->channel_selection_type;
     cp.ch3c_shape = cmd->ch3c_shape;
     cp.ch3c_jump = cmd->ch3c_jump;
-    cp.companion_signal_enable = cmd->companion_signal_enable;
+    cp.reserved = 0x00;
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_CS_CREATE_CONFIG),
@@ -505,12 +545,17 @@ ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data,
     /* Measure phase rotations in main mode */
     cmd.main_mode_type = 0x01;
     /* Do not use sub mode for now. */
-    cmd.sub_mode_type = 0xFF;
-    /* Range from which the number of CS main mode steps to execute
-     * will be randomly selected.
-     */
-    cmd.min_main_mode_steps = 0x02;
-    cmd.max_main_mode_steps = 0x06;
+    cmd.sub_mode_type = BLE_HS_CS_SUBMODE_TYPE;
+    if (cmd.sub_mode_type == BLE_HS_CS_MODE_UNUSED) {
+        cmd.min_main_mode_steps = 0;
+        cmd.max_main_mode_steps = 0;
+    } else {
+        /* Range from which the number of CS main mode steps to execute
+         * will be randomly selected.
+         */
+        cmd.min_main_mode_steps = 0x02;
+        cmd.max_main_mode_steps = 0x06;
+    }
     /* The number of main mode steps to be repeated at the beginning of
      * the current CS, irrespectively if there are some overlapping main
      * mode steps from previous CS subevent or not.
@@ -521,18 +566,20 @@ ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data,
      */
     cmd.mode_0_steps = 0x03;
     /* Take the Initiator role */
-    cmd.role = 0x00;
-    cmd.rtt_type = 0x01;
+    local_role = BLE_HS_CS_ROLE_INITIATOR;
+    cmd.role = local_role;
+
+    rtt_type = BLE_HS_CS_RTT_32_BIT_SOUNDING_SEQUENCE;
+    cmd.rtt_type = rtt_type;
+
     cmd.cs_sync_phy = 0x01;
-    memcpy(cmd.channel_map, (uint8_t[10]) {0x0a, 0xfa, 0xcf, 0xac, 0xfa, 0xc0}, 10);
+    memcpy(cmd.channel_map, (uint8_t[10]) {0xFC, 0xFF, 0x0F}, 10);
     cmd.channel_map_repetition = 0x01;
     /* Use Channel Selection Algorithm #3b */
     cmd.channel_selection_type = 0x00;
     /* Ignore these as used only with #3c algorithm */
     cmd.ch3c_shape = 0x00;
     cmd.ch3c_jump = 0x00;
-    /* EDLC/ECLD attack protection not supported */
-    cmd.companion_signal_enable = 0x00;
 
     /* Create CS config */
     rc = ble_cs_create_config(&cmd);
@@ -564,7 +611,7 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
     cmd.conn_handle = le16toh(ev->conn_handle);
     cmd.config_id = 0x00;
     /* The maximum duration of each CS procedure (time = N × 0.625 ms) */
-    cmd.max_procedure_len = 8;
+    cmd.max_procedure_len = 800;
     /* The maximum number of consecutive CS procedures to be scheduled
      * as part of this measurement
      */
@@ -577,8 +624,8 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
     /* Minimum/maximum suggested durations for each CS subevent in microseconds.
      * 1250us and 5000us selected.
      */
-    cmd.min_subevent_len = 1250;
-    cmd.max_subevent_len = 5000;
+    cmd.min_subevent_len = 10000;
+    cmd.max_subevent_len = 10000;
     /* Use ACI 0 as we have only one antenna on each side */
     cmd.tone_antenna_config_selection = 0x00;
     /* Use LE 1M PHY for CS procedures */
@@ -628,7 +675,7 @@ ble_hs_hci_evt_le_cs_config_complete(uint8_t subevent, const void *data,
     rc = ble_cs_sec_enable(&cmd);
     if (rc) {
         BLE_HS_LOG(DEBUG, "Failed to enable CS security");
-        ble_cs_call_procedure_complete_cb(le16toh(ev->conn_handle), ev->status);
+        ble_cs_call_procedure_complete_cb(le16toh(ev->conn_handle), ev->status, 0);
     }
 
     return 0;
@@ -647,14 +694,246 @@ ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent, const void *data,
     return 0;
 }
 
+static int
+ble_cs_add_mode0_result(const uint8_t *data, uint8_t data_len)
+{
+    uint16_t measured_freq_offset;
+    uint8_t packet_quality;
+    uint8_t packet_rssi;
+    uint8_t cs_sync_antenna;
+
+    if (!IN_RANGE(data_len, 3, 5)) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    packet_quality = data[0];
+    packet_rssi = data[1];
+    cs_sync_antenna = data[2];
+
+    if (local_role == BLE_HS_CS_ROLE_INITIATOR) {
+        if (data_len < 5) {
+            /* Ignore invalid formatted results */
+            return 1;
+        }
+
+        measured_freq_offset = get_le16(data + 3);
+    }
+
+    (void)measured_freq_offset;
+    (void)packet_quality;
+    (void)packet_rssi;
+    (void)cs_sync_antenna;
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode1_result(const uint8_t *data, uint8_t data_len)
+{
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint8_t packet_rssi;
+    uint8_t cs_sync_antenna;
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    int16_t time_diff;
+
+    if (!IN_RANGE(data_len, 6, 14)) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    packet_quality = data[0];
+    packet_nadm = data[1];
+    packet_rssi = data[2];
+    time_diff = get_le16(data + 3);
+    cs_sync_antenna = data[5];
+
+    if (data_len == 14) {
+        packet_pct1 = get_le32(data + 6);
+        packet_pct2 = get_le32(data + 10);
+    }
+
+    (void)packet_quality;
+    (void)packet_nadm;
+    (void)packet_rssi;
+    (void)cs_sync_antenna;
+    /* TODO: Extract IQ samples */
+    (void)packet_pct1;
+    (void)packet_pct2;
+
+    if (time_diff != TIME_DIFF_NOT_AVAILABLE) {
+        time_diff_sum += time_diff;
+        ++time_diff_count;
+    }
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode2_result(const uint8_t *data, uint8_t data_len)
+{
+    uint32_t tone_pct[N_AP_MAX + 1];
+    uint8_t tone_quality_ind[N_AP_MAX + 1];
+    uint8_t aci;
+    uint8_t n_ap;
+    uint8_t i;
+
+    aci = *(data++);
+    n_ap = aci_table[aci];
+
+    if (data_len < 1 + n_ap * 4) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        tone_pct[i] = get_le24(data);
+        data += 3;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        tone_quality_ind[i] = *(data++);
+    }
+
+    /* TODO: Extract IQ samples */
+    (void)tone_pct;
+    (void)tone_quality_ind;
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode3_result(const uint8_t *data_buf, uint8_t data_len)
+{
+    const uint8_t *data = data_buf;
+    uint32_t tone_pct[N_AP_MAX + 1];
+    uint8_t tone_quality_ind[N_AP_MAX + 1];
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    int16_t time_diff;
+    uint8_t aci;
+    uint8_t n_ap;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint8_t packet_rssi;
+    uint8_t cs_sync_antenna;
+    uint8_t i;
+
+    packet_quality = data[0];
+    packet_nadm = data[1];
+    packet_rssi = data[2];
+    time_diff = get_le16(data + 3);
+    cs_sync_antenna = data[5];
+    data += 6;
+
+    if (sounding_pct_estimate && rtt_type != BLE_HS_CS_RTT_AA_ONLY) {
+        packet_pct1 = get_le32(data);
+        data += 4;
+        packet_pct2 = get_le32(data + 10);
+        data += 4;
+    }
+
+    aci = *(data++);
+    n_ap = aci_table[aci];
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        tone_pct[i] = get_le24(data);
+        data += 3;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        tone_quality_ind[i] = *(data++);
+    }
+
+    if (data_len < data - data_buf) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    (void)tone_pct;
+    (void)tone_quality_ind;
+    (void)packet_pct1;
+    (void)packet_pct2;
+    (void)aci;
+    (void)n_ap;
+    (void)packet_quality;
+    (void)packet_nadm;
+    (void)packet_rssi;
+    (void)cs_sync_antenna;
+
+    if (time_diff != TIME_DIFF_NOT_AVAILABLE) {
+        time_diff_sum += time_diff;
+        ++time_diff_count;
+    }
+
+    return 0;
+}
+
+static int
+ble_cs_add_steps(const struct cs_steps_data *step_data, uint8_t step_count)
+{
+    int rc = 1;
+    const void *data;
+    uint8_t data_len;
+    uint8_t i;
+
+    for (i = 0; i < step_count; ++i) {
+        data = step_data->data;
+        data_len = step_data->data_len;
+
+        if (data_len == 0) {
+            /* Ignore step with missing results */
+            continue;
+        }
+
+        switch (step_data->mode) {
+        case BLE_HS_CS_MODE0:
+            rc = ble_cs_add_mode0_result(data, data_len);
+            break;
+        case BLE_HS_CS_MODE1:
+            rc = ble_cs_add_mode1_result(data, data_len);
+            break;
+        case BLE_HS_CS_MODE2:
+            rc = ble_cs_add_mode2_result(data, data_len);
+            break;
+        case BLE_HS_CS_MODE3:
+            rc = ble_cs_add_mode3_result(data, data_len);
+            break;
+        default:
+            rc = 1;
+        }
+
+        if (rc) {
+            /* Ignore invalid formatted results */
+            return 0;
+        }
+
+        step_data += step_data->data_len;
+    }
+    return rc;
+}
+
 int
 ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
                                      unsigned int len)
 {
+    int rc;
     const struct ble_hci_ev_le_subev_cs_subevent_result *ev = data;
+    uint32_t time_diff_ns;
 
-    if (len != sizeof(*ev)) {
+    if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
+    }
+
+    rc = ble_cs_add_steps(ev->steps, ev->num_steps_reported);
+
+    if (!rc && time_diff_count && ev->subevent_done_status != BLE_HS_CS_SUBEVENT_DONE_STATUS_PARTIAL) {
+        time_diff_ns = time_diff_sum / time_diff_count * 0.5;
+        time_diff_sum = 0;
+        time_diff_count = 0;
+        ble_cs_call_procedure_complete_cb(le16toh(ev->conn_handle), 0, time_diff_ns);
     }
 
     return 0;
@@ -664,10 +943,21 @@ int
 ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data,
                                               unsigned int len)
 {
+    int rc;
     const struct ble_hci_ev_le_subev_cs_subevent_result_continue *ev = data;
+    uint32_t time_diff_ns;
 
-    if (len != sizeof(*ev)) {
+    if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
+    }
+
+    rc = ble_cs_add_steps(ev->steps, ev->num_steps_reported);
+
+    if (!rc && time_diff_count && ev->subevent_done_status != BLE_HS_CS_SUBEVENT_DONE_STATUS_PARTIAL) {
+        time_diff_ns = time_diff_sum / time_diff_count * 0.5;
+        time_diff_sum = 0;
+        time_diff_count = 0;
+        ble_cs_call_procedure_complete_cb(le16toh(ev->conn_handle), 0, time_diff_ns);
     }
 
     return 0;
@@ -689,7 +979,6 @@ ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data,
 int
 ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_params *params)
 {
-    struct ble_hci_le_cs_rd_loc_supp_cap_rp rsp;
     struct ble_cs_rd_rem_supp_cap_cp cmd;
     int rc;
 
@@ -700,6 +989,12 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
      * 4. Create CS configurations
      * 5. Start the CS Security Start procedure
      */
+
+    (void) ble_cs_set_chan_class;
+    (void) ble_cs_remove_config;
+    (void) ble_cs_wr_cached_rem_fae;
+    (void) ble_cs_wr_cached_rem_supp_cap;
+    (void) ble_cs_rd_loc_supp_cap;
 
     cs_state.cb = params->cb;
     cs_state.cb_arg = params->cb_arg;
