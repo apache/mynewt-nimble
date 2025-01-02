@@ -33,14 +33,17 @@ struct ble_ll_isoal_mux {
 
     /* Max PDU length */
     uint8_t max_pdu;
-    /* Number of expected SDUs per ISO interval */
-    uint8_t sdu_per_interval;
-    /* Number of expected PDUs per SDU */
-    uint8_t pdu_per_sdu;
-    /* Number of SDUs required to fill complete BIG/CIG event (i.e. with pt) */
-    uint8_t sdu_per_event;
-    /* Number of SDUs available for current event */
-    uint8_t sdu_in_event;
+
+    struct {
+        /* Number of expected SDUs per ISO interval */
+        uint8_t sdu_per_interval;
+        /* Number of expected PDUs per SDU */
+        uint8_t pdu_per_sdu;
+        /* Number of SDUs required to fill complete BIG/CIG event (i.e. with pt) */
+        uint8_t sdu_per_event;
+        /* Number of SDUs available for current event */
+        uint8_t sdu_in_event;
+    };
 
     STAILQ_HEAD(, os_mbuf_pkthdr) sdu_q;
     uint16_t sdu_q_len;
@@ -52,21 +55,22 @@ struct ble_ll_isoal_mux {
     uint32_t event_tx_timestamp;
     uint32_t last_tx_timestamp;
     uint16_t last_tx_packet_seq_num;
+
+    uint8_t framed : 1;
 };
 
 void
 ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
                       uint32_t iso_interval_us, uint32_t sdu_interval_us,
-                      uint8_t bn, uint8_t pte);
+                      uint8_t bn, uint8_t pte, uint8_t framed);
 void ble_ll_isoal_mux_free(struct ble_ll_isoal_mux *mux);
 
 int ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux,
                                  uint32_t timestamp);
 int ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux);
 
-int
-ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
-                              uint8_t *llid, void *dptr);
+int ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
+                             uint8_t *llid, void *dptr);
 
 /* HCI command handlers */
 int ble_ll_isoal_hci_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
