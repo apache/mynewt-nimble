@@ -56,6 +56,10 @@
 #include <nrf_erratas.h>
 #include "phy_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
 #if !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840) && \
     !MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52811) && \

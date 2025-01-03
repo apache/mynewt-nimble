@@ -32,6 +32,10 @@
 #include "services/gap/ble_svc_gap.h"
 #include "mesh/glue.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* Company ID */
 #define CID_VENDOR 0x05C3
 #define STANDARD_TEST_ID 0x00

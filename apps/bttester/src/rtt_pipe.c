@@ -19,6 +19,10 @@
 
 #include "syscfg/syscfg.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BTTESTER_PIPE_RTT)
 
 #include "os/mynewt.h"

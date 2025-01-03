@@ -24,6 +24,10 @@
 #include <controller/ble_ll_isoal.h>
 #include <controller/ble_ll_iso_big.h>
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_LL_ISO)
 
 STAILQ_HEAD(ble_ll_iso_tx_q, os_mbuf_pkthdr);

@@ -30,6 +30,10 @@
 #include "ble_hs_hci_priv.h"
 #include "ble_hs_mbuf_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #define ble_iso_big_conn_handles_init(_big, _handles, _num_handles)         \
     do {                                                                    \
         struct ble_iso_conn *conn = SLIST_FIRST(&ble_iso_conns);            \

@@ -21,6 +21,7 @@
 #define _NIMBLE_NPL_OS_LOG_H_
 
 #include <stdarg.h>
+#include <stdio.h>
 
 /* Example on how to use macro to generate module logging functions */
 #define BLE_NPL_LOG_IMPL(lvl) \

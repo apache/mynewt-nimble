@@ -35,6 +35,10 @@
 #include "bttester_pipe.h"
 #include "btp/btp.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #define CMD_QUEUED 2
 
 static struct os_eventq avail_queue;

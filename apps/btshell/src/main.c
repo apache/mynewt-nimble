@@ -58,6 +58,10 @@
 #include "../src/ble_hs_atomic_priv.h"
 #include "../src/ble_hs_priv.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
 #define BTSHELL_MAX_SVCS               32
 #define BTSHELL_MAX_CHRS               64

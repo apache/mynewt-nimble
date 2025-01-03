@@ -28,6 +28,10 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_ll.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* BLE PHY data structure */
 struct ble_phy_obj
 {

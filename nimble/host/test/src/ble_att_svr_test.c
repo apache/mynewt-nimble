@@ -27,6 +27,10 @@
 #include "host/ble_l2cap.h"
 #include "ble_hs_test_util.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 static uint8_t *ble_att_svr_test_attr_r_1;
 static uint16_t ble_att_svr_test_attr_r_1_len;
 static uint8_t *ble_att_svr_test_attr_r_2;

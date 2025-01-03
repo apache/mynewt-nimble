@@ -39,6 +39,10 @@
 #error LE Coded PHY cannot be enabled on DA1469x
 #endif
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* Statistics */
 STATS_SECT_START(ble_phy_stats)
     STATS_SECT_ENTRY(phy_isrs)
