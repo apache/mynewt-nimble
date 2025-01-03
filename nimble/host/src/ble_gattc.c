@@ -4444,7 +4444,7 @@ ble_gatts_notify_multiple_custom(uint16_t conn_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        return ENOTCONN;
+        return BLE_HS_ENOTCONN;
     }
 
     /* Read missing values */
@@ -4527,7 +4527,7 @@ ble_gatts_notify_multiple(uint16_t conn_handle,
     BLE_HS_LOG_DEBUG("conn_handle %d\n", conn_handle);
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        return ENOTCONN;
+        return BLE_HS_ENOTCONN;
     }
 
     /** Skip sending to client that doesn't support this feature */
