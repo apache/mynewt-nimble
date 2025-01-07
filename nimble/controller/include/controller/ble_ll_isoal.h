@@ -20,6 +20,8 @@
 #ifndef H_BLE_LL_ISOAL_
 #define H_BLE_LL_ISOAL_
 
+#include <syscfg/syscfg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
