@@ -27,7 +27,7 @@
 #include <controller/ble_ll_adv.h>
 #include <controller/ble_ll_crypto.h>
 #include <controller/ble_ll_hci.h>
-#include <controller/ble_ll_isoal.h>
+#include <controller/ble_ll_iso.h>
 #include <controller/ble_ll_iso_big.h>
 #include <controller/ble_ll_pdu.h>
 #include <controller/ble_ll_sched.h>
@@ -53,7 +53,6 @@ struct ble_ll_iso_big;
 struct ble_ll_iso_bis {
     struct ble_ll_iso_big *big;
     uint8_t num;
-    uint16_t conn_handle;
 
     uint32_t aa;
     uint32_t crc_init;
@@ -69,8 +68,7 @@ struct ble_ll_iso_bis {
         uint8_t g;
     } tx;
 
-    struct ble_ll_isoal_mux mux;
-    uint16_t num_completed_pkt;
+    struct ble_ll_iso_conn conn;
 
     STAILQ_ENTRY(ble_ll_iso_bis) bis_q_next;
 };
@@ -200,43 +198,6 @@ big_sched_set(struct ble_ll_iso_big *big)
         /* XXX calculate proper time */
         big->sch.end_time += 10;
     }
-}
-
-struct ble_ll_iso_bis *
-ble_ll_iso_big_find_bis_by_handle(uint16_t conn_handle)
-{
-    struct ble_ll_iso_bis *bis;
-    uint8_t bis_idx;
-
-    if (!BLE_LL_CONN_HANDLE_IS_BIS(conn_handle)) {
-        return NULL;
-    }
-
-    bis_idx = BLE_LL_CONN_HANDLE_IDX(conn_handle);
-
-    if (bis_idx >= BIS_POOL_SIZE) {
-        return NULL;
-    }
-
-    bis = &bis_pool[bis_idx];
-    if (!bis->big) {
-        return NULL;
-    }
-
-    return bis;
-}
-
-struct ble_ll_isoal_mux *
-ble_ll_iso_big_find_mux_by_handle(uint16_t conn_handle)
-{
-    struct ble_ll_iso_bis *bis;
-
-    bis = ble_ll_iso_big_find_bis_by_handle(conn_handle);
-    if (bis) {
-        return &bis->mux;
-    }
-
-    return NULL;
 }
 
 static void
@@ -378,7 +339,7 @@ ble_ll_iso_big_free(struct ble_ll_iso_big *big)
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &big->event_done);
 
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        ble_ll_isoal_mux_free(&bis->mux);
+        ble_ll_iso_conn_free(&bis->conn);
         bis->big = NULL;
         bis_pool_free++;
     }
@@ -484,15 +445,12 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 #endif
 
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        num_completed_pkt = ble_ll_isoal_mux_event_done(&bis->mux);
+        num_completed_pkt = ble_ll_iso_conn_event_done(&bis->conn);
         if (hci_ev && num_completed_pkt) {
             idx = hci_ev_ncp->count++;
-            hci_ev_ncp->completed[idx].handle = htole16(bis->conn_handle);
-            hci_ev_ncp->completed[idx].packets = htole16(num_completed_pkt +
-                                                         bis->num_completed_pkt);
-            bis->num_completed_pkt = 0;
-        } else {
-            bis->num_completed_pkt += num_completed_pkt;
+            hci_ev_ncp->completed[idx].handle = htole16(bis->conn.handle);
+            hci_ev_ncp->completed[idx].packets = htole16(num_completed_pkt);
+            bis->conn.num_completed_pkt = 0;
         }
 
 #if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
@@ -504,7 +462,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
              */
             exp = bis->mux.sdu_per_event - bis->mux.sdu_per_interval;
             idx = fb_hci_subev->count++;
-            fb_hci_subev->feedback[idx].handle = htole16(bis->conn_handle);
+            fb_hci_subev->feedback[idx].handle = htole16(bis->conn.handle);
             fb_hci_subev->feedback[idx].sdu_per_interval = bis->mux.sdu_per_interval;
             fb_hci_subev->feedback[idx].diff = (int8_t)(bis->mux.sdu_q_len - exp);
         }
@@ -704,7 +662,7 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
     }
 
 #if 1
-    pdu_len = ble_ll_isoal_mux_unframed_get(&bis->mux, idx, &llid, dptr);
+    pdu_len = ble_ll_iso_pdu_get(&bis->conn, idx, &llid, dptr);
 #else
     llid = 0;
     pdu_len = big->max_pdu;
@@ -846,7 +804,7 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     /* XXX calculate this in advance at the end of previous event? */
     big->tx.subevents_rem = big->num_bis * big->nse;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        ble_ll_isoal_mux_event_start(&bis->mux, (uint64_t)big->event_start *
+        ble_ll_iso_conn_event_start(&bis->conn, (uint64_t)big->event_start *
                                                 1000000 / 32768 +
                                                 big->event_start_us);
 
@@ -950,6 +908,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     struct ble_ll_iso_bis *bis;
     struct ble_ll_adv_sm *advsm;
     uint32_t seed_aa;
+    uint16_t conn_handle;
     uint8_t pte;
     uint8_t gc;
     uint8_t idx;
@@ -1025,8 +984,11 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
         BLE_LL_ASSERT(!big->framed);
 
-        ble_ll_isoal_mux_init(&bis->mux, bp->max_pdu, bp->iso_interval * 1250,
-                              bp->sdu_interval, bp->bn, pte);
+        conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
+
+        ble_ll_iso_conn_init(&bis->conn, conn_handle, bp->max_pdu,
+                             bp->iso_interval * 1250, bp->sdu_interval,
+                             bp->bn, pte);
     }
 
     big_pool_free--;
@@ -1253,7 +1215,7 @@ ble_ll_iso_big_hci_evt_complete(void)
 
     idx = 0;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        evt->conn_handle[idx] = htole16(bis->conn_handle);
+        evt->conn_handle[idx] = htole16(bis->conn.handle);
         idx++;
     }
 
@@ -1434,7 +1396,6 @@ void
 ble_ll_iso_big_init(void)
 {
     struct ble_ll_iso_big *big;
-    struct ble_ll_iso_bis *bis;
     uint8_t idx;
 
     memset(big_pool, 0, sizeof(big_pool));
@@ -1450,11 +1411,6 @@ ble_ll_iso_big_init(void)
         big->sch.cb_arg = big;
 
         ble_npl_event_init(&big->event_done, ble_ll_iso_big_event_done_ev, big);
-    }
-
-    for (idx = 0; idx < BIS_POOL_SIZE; idx++) {
-        bis = &bis_pool[idx];
-        bis->conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
     }
 
     big_pool_free = ARRAY_SIZE(big_pool);

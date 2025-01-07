@@ -21,10 +21,27 @@
 #define H_BLE_LL_ISO
 
 #include <stdint.h>
+#include <controller/ble_ll_isoal.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct ble_ll_iso_conn {
+    /* Connection handle */
+    uint16_t handle;
+
+    /* ISOAL Multiplexer */
+    struct ble_ll_isoal_mux mux;
+
+    /* HCI SDU Fragment */
+    struct os_mbuf *frag;
+
+    /* Number of Completed Packets */
+    uint16_t num_completed_pkt;
+
+    STAILQ_ENTRY(ble_ll_iso_conn) iso_conn_q_next;
+};
 
 /* HCI command handlers */
 int ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
@@ -47,7 +64,23 @@ int ble_ll_iso_receive_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_read_counters_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t len);
 
-struct ble_ll_isoal_mux *ble_ll_iso_find_mux_by_handle(uint16_t conn_handle);
+void ble_ll_iso_init(void);
+void ble_ll_iso_reset(void);
+
+/* ISO Data handler */
+int ble_ll_iso_data_in(struct os_mbuf *om);
+
+int ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint8_t *llid, void *dptr);
+
+void ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, uint16_t conn_handle,
+                          uint8_t max_pdu, uint32_t iso_interval_us,
+                          uint32_t sdu_interval_us, uint8_t bn, uint8_t pte);
+void ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn);
+
+int ble_ll_iso_conn_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp);
+int ble_ll_iso_conn_event_done(struct ble_ll_iso_conn *conn);
+
+struct ble_ll_iso_conn *ble_ll_iso_conn_find_by_handle(uint16_t conn_handle);
 
 #ifdef __cplusplus
 }
