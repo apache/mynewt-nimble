@@ -30,7 +30,16 @@ pkg.deps:
     - nimble
     - nimble/controller
 
-pkg.ign_dirs.'MCU_TARGET=="nRF5340_NET"':
-    - nrf52
-pkg.ign_dirs.'MCU_TARGET!="nRF5340_NET"':
-    - nrf53
+pkg.source_files:
+    - "src/ble_hw.c"
+    - "src/ble_phy.c"
+    - "src/ble_phy_trace.c"
+
+pkg.source_files.'MCU_TARGET=="nRF52810" || MCU_TARGET=="nRF52811" || MCU_TARGET=="nRF52832" || MCU_TARGET=="nRF52840"':
+    - "src/nrf52/phy.c"
+
+pkg.source_files.'MCU_TARGET=="nRF5340_NET"':
+    - "src/nrf53/phy.c"
+
+pkg.source_files.'MCU_TARGET=="nRF54L15"':
+    - "src/nrf54l15/phy.c"
