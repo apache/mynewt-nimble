@@ -47,7 +47,7 @@
 #include "controller/ble_ll_sync.h"
 #include "controller/ble_fem.h"
 #if MYNEWT_VAL(BLE_LL_ISO)
-#include "controller/ble_ll_isoal.h"
+#include "controller/ble_ll_iso.h"
 #endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 #include "controller/ble_ll_iso_big.h"
@@ -1685,11 +1685,12 @@ ble_ll_reset(void)
     ble_fem_lna_init();
 #endif
 
-#if MYNEWT_VAL(BLE_LL_ISO)
-    ble_ll_isoal_reset();
-#endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     ble_ll_iso_big_reset();
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO)
+    ble_ll_iso_reset();
 #endif
 
     /* Re-initialize the PHY */
@@ -1968,7 +1969,7 @@ ble_ll_init(void)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_ISO)
-    ble_ll_isoal_init();
+    ble_ll_iso_init();
 #endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     ble_ll_iso_big_init();
