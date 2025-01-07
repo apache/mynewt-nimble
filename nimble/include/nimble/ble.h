@@ -128,6 +128,8 @@ struct ble_mbuf_hdr_txinfo
 
 struct ble_mbuf_hdr_txiso {
     uint16_t packet_seq_num;
+    uint32_t cpu_timestamp;
+    uint32_t hci_timestamp;
 };
 
 /**
