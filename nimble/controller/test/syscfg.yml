@@ -18,8 +18,12 @@
 
 syscfg.vals:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
+    BLE_LL_ISO: 1
+    BLE_VERSION: 54
 
     # Prevent priority conflict with controller task.
     MCU_TIMER_POLLER_PRIO: 1
     MCU_UART_POLLER_PRIO: 2
     NATIVE_SOCKETS_PRIO: 3
+
+    BLE_TRANSPORT_ISO_SIZE: 255
