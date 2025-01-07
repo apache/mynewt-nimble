@@ -53,6 +53,7 @@
 #define PHY_GPIOTE_FEM_LNA  (PHY_GPIOTE_FEM_PA - PHY_USE_FEM_LNA)
 #endif
 
+#ifndef NRF54L_SERIES
 static inline void
 phy_gpiote_configure(int idx, int pin)
 {
@@ -61,6 +62,7 @@ phy_gpiote_configure(int idx, int pin)
                               NRF_GPIOTE_INITIAL_VALUE_LOW);
     nrf_gpiote_task_enable(NRF_GPIOTE, idx);
 }
+#endif
 
 #if PHY_USE_DEBUG
 void phy_debug_init(void);
@@ -91,6 +93,26 @@ int8_t phy_txpower_round(int8_t dbm);
 #endif
 #ifdef NRF53_SERIES
 #include "nrf53/phy_ppi.h"
+#endif
+#ifdef NRF54L_SERIES
+#define NRF_TIMER0 NRF_TIMER10
+#define TIMER0_IRQn TIMER10_IRQn
+#define NRF_DPPIC NRF_DPPIC10
+#define NRF_RTC0 NRF_RTC10
+#define NRF_AAR NRF_AAR00
+#define NRF_CCM NRF_CCM00
+#define NRF_AAR NRF_AAR00
+#define NRF_GPIOTE NRF_GPIOTE20
+#define RADIO_IRQn RADIO_0_IRQn
+#define RADIO_INTENCLR_ADDRESS_Msk RADIO_INTENCLR00_ADDRESS_Msk
+#define RADIO_INTENSET_DISABLED_Msk RADIO_INTENSET00_DISABLED_Msk
+#define RADIO_INTENCLR_DISABLED_Msk RADIO_INTENCLR00_DISABLED_Msk
+#define RADIO_INTENSET_END_Msk RADIO_INTENSET00_END_Msk
+#define RADIO_INTENCLR_END_Msk RADIO_INTENCLR00_END_Msk
+#define RADIO_INTENCLR_PHYEND_Msk RADIO_INTENCLR00_PHYEND_Msk
+#define RADIO_INTENSET_ADDRESS_Msk RADIO_INTENSET00_ADDRESS_Msk
+#define RADIO_INTENSET_READY_Msk RADIO_INTENSET00_READY_Msk
+#include "nrf54l/phy_ppi.h"
 #endif
 
 #endif /* H_PHY_PRIV_ */

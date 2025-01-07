@@ -36,8 +36,26 @@
 #include <nimble/nimble_npl_os.h>
 #endif
 #include "os/os_trace_api.h"
+#ifndef NRF54L_SERIES
 #include <hal/nrf_rng.h>
+#endif
 #include "hal/nrf_ecb.h"
+
+#ifdef NRF54L_SERIES
+#include <hal/nrf_cracen.h>
+
+#define NRF_ECB NRF_ECB00
+#define NRF_AAR NRF_AAR00
+
+/* ECB data structure */
+struct ecb_job_entry {
+    uint8_t *ptr;
+    uint32_t attr_and_length;
+};
+
+static struct ecb_job_entry ecb_input_job_list[2];
+static struct ecb_job_entry ecb_output_job_list[2];
+#endif
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -276,6 +294,43 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     uint32_t end;
     uint32_t err;
 
+#ifdef NRF54L_SERIES
+    /* Stop ECB */
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOP);
+
+    ecb_input_job_list[0].ptr = ecb->plain_text;
+    ecb_input_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+    ecb_output_job_list[0].ptr = ecb->cipher_text;
+    ecb_output_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+
+    /* The end of a job list shall be 0 */
+    ecb_input_job_list[1].ptr = 0;
+    ecb_input_job_list[1].attr_and_length = 0;
+    ecb_output_job_list[1].ptr = 0;
+    ecb_output_job_list[1].attr_and_length = 0;
+
+    NRF_ECB->EVENTS_END = 0;
+    NRF_ECB->EVENTS_ERROR = 0;
+    NRF_ECB->IN.PTR = (uint32_t)ecb_input_job_list;
+    NRF_ECB->OUT.PTR = (uint32_t)ecb_output_job_list;
+    memcpy((void *)NRF_ECB->KEY.VALUE, ecb->key, sizeof(uint32_t) * 4);
+
+    /* Start ECB */
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_START);
+
+    /* Wait till error or done */
+    rc = 0;
+    while (1) {
+        end = NRF_ECB->EVENTS_END;
+        err = NRF_ECB->EVENTS_ERROR;
+        if (end || err) {
+            if (err) {
+                rc = -1;
+            }
+            break;
+        }
+    }
+#else
     /* Stop ECB */
     nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOPECB);
     /* XXX: does task stop clear these counters? Anyway to do this quicker? */
@@ -301,7 +356,7 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
         tm_tick();
 #endif
     }
-
+#endif
     return rc;
 }
 
@@ -314,7 +369,25 @@ ble_rng_isr(void)
     uint8_t rnum;
 
     os_trace_isr_enter();
+#ifdef NRF54L_SERIES
+    /* No callback? Clear and disable interrupts */
+    if (g_ble_rng_isr_cb == NULL) {
+        nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+        NRF_CRACENCORE->RNGCONTROL.CONTROL &= ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        NRF_CRACEN->EVENTS_RNG = 0;
+        os_trace_isr_exit();
+        return;
+    }
 
+    if (g_ble_rng_isr_cb) {
+        /* If there is a value ready in the queue grab it */
+        while ((NRF_CRACENCORE->RNGCONTROL.CONTROL &
+                CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk) &&
+               (NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL > 0)) {
+            g_ble_rng_isr_cb(ble_hw_rng_read());
+        }
+    }
+#else
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
         nrf_rng_int_disable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
@@ -330,7 +403,7 @@ ble_rng_isr(void)
         rnum = (uint8_t)NRF_RNG->VALUE;
         (*g_ble_rng_isr_cb)(rnum);
     }
-
+#endif
     os_trace_isr_exit();
 }
 
@@ -345,6 +418,24 @@ ble_rng_isr(void)
 int
 ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
 {
+#ifdef NRF54L_SERIES
+    NRF_CRACEN->ENABLE = CRACEN_ENABLE_CRYPTOMASTER_Msk |
+                         CRACEN_ENABLE_RNG_Msk |
+                         CRACEN_ENABLE_PKEIKG_Msk;
+
+    while (NRF_CRACENCORE->PK.STATUS & CRACENCORE_PK_STATUS_PKBUSY_Msk);
+    NRF_CRACENCORE->PK.CONTROL &= ~CRACENCORE_IKG_PKECONTROL_CLEARIRQ_Msk;
+
+    NRF_CRACENCORE->RNGCONTROL.CONTROL = CRACENCORE_RNGCONTROL_CONTROL_ResetValue |
+                                         CRACENCORE_RNGCONTROL_CONTROL_ENABLE_Msk;
+
+    /* If we were passed a function pointer we need to enable the interrupt */
+    if (cb != NULL) {
+        NVIC_SetVector(CRACEN_IRQn, (uint32_t)ble_rng_isr);
+        NVIC_EnableIRQ(CRACEN_IRQn);
+        g_ble_rng_isr_cb = cb;
+    }
+#else
     /* Set bias */
     if (bias) {
         NRF_RNG->CONFIG = 1;
@@ -365,6 +456,7 @@ ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
         NVIC_EnableIRQ(RNG_IRQn);
         g_ble_rng_isr_cb = cb;
     }
+#endif
 
     return 0;
 }
@@ -381,12 +473,23 @@ ble_hw_rng_start(void)
 
     /* No need for interrupt if there is no callback */
     OS_ENTER_CRITICAL(sr);
+#ifdef NRF54L_SERIES
+    NRF_CRACEN->EVENTS_RNG = 0;
+
+    if (g_ble_rng_isr_cb) {
+        nrf_cracen_int_enable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+        NRF_CRACENCORE->RNGCONTROL.CONTROL |= CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        /* Force regeneration of the samples */
+        NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL = 0;
+    }
+#else
     NRF_RNG->EVENTS_VALRDY = 0;
 
     if (g_ble_rng_isr_cb) {
         nrf_rng_int_enable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
     }
     nrf_rng_task_trigger(NRF_RNG, NRF_RNG_TASK_START);
+#endif
     OS_EXIT_CRITICAL(sr);
 
     return 0;
@@ -404,9 +507,15 @@ ble_hw_rng_stop(void)
 
     /* No need for interrupt if there is no callback */
     OS_ENTER_CRITICAL(sr);
+#ifdef NRF54L_SERIES
+    nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+    NRF_CRACENCORE->RNGCONTROL.CONTROL &= ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+    NRF_CRACEN->EVENTS_RNG = 0;
+#else
     nrf_rng_int_disable(NRF_RNG, NRF_RNG_INT_VALRDY_MASK);
     nrf_rng_task_trigger(NRF_RNG, NRF_RNG_TASK_STOP);
     NRF_RNG->EVENTS_VALRDY = 0;
+#endif
     OS_EXIT_CRITICAL(sr);
 
     return 0;
@@ -421,14 +530,28 @@ uint8_t
 ble_hw_rng_read(void)
 {
     uint8_t rnum;
+#ifdef NRF54L_SERIES
+    uint8_t slot_id;
 
+    /* Wait for a sample */
+    while (NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL == 0) {
+        assert((NRF_CRACENCORE->RNGCONTROL.STATUS &
+                CRACENCORE_RNGCONTROL_STATUS_STATE_Msk) !=
+               (CRACENCORE_RNGCONTROL_STATUS_STATE_ERROR <<
+                CRACENCORE_RNGCONTROL_STATUS_STATE_Pos));
+    }
+
+    NRF_CRACEN->EVENTS_RNG = 0;
+    slot_id = NRF_CRACENCORE->RNGCONTROL.FIFODEPTH - NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL;
+    rnum = (uint8_t)NRF_CRACENCORE->RNGCONTROL.FIFO[slot_id];
+#else
     /* Wait for a sample */
     while (NRF_RNG->EVENTS_VALRDY == 0) {
     }
 
     NRF_RNG->EVENTS_VALRDY = 0;
     rnum = (uint8_t)NRF_RNG->VALUE;
-
+#endif
     return rnum;
 }
 
@@ -511,7 +634,11 @@ int
 ble_hw_resolv_list_match(void)
 {
     if (NRF_AAR->ENABLE && NRF_AAR->EVENTS_END && NRF_AAR->EVENTS_RESOLVED) {
+#ifdef NRF54L_SERIES
+        return (int)NRF_AAR->ERRORSTATUS;
+#else
         return (int)NRF_AAR->STATUS;
+#endif
     }
 
     return -1;
