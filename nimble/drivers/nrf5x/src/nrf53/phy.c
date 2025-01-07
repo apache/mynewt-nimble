@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <nrfx.h>
 #include <controller/ble_fem.h>
-#include "../phy_priv.h"
+#include "phy_ppi.h"
 
 /*
  * When the radio is operated on high voltage (see VREQCTRL - Voltage request
