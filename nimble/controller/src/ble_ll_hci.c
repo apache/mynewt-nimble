@@ -1990,7 +1990,7 @@ int
 ble_ll_hci_iso_rx(struct os_mbuf *om)
 {
 #if MYNEWT_VAL(BLE_LL_ISO)
-    ble_ll_isoal_data_in(om);
+    ble_ll_iso_data_in(om);
 #else
     os_mbuf_free_chain(om);
 #endif
