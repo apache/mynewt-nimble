@@ -27,6 +27,14 @@
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0 && NIMBLE_BLE_CONNECT
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #define BLE_L2CAP_SDU_SIZE              2
 
 STAILQ_HEAD(ble_l2cap_coc_srv_list, ble_l2cap_coc_srv);
