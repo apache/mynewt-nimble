@@ -70,14 +70,6 @@ int
 ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
                               uint8_t *llid, void *dptr);
 
-/* HCI command handlers */
-int ble_ll_isoal_hci_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
-                                         uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_isoal_hci_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
-                                          uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_isoal_hci_read_tx_sync(const uint8_t *cmdbuf, uint8_t cmdlen,
-                                  uint8_t *rspbuf, uint8_t *rsplen);
-
 void ble_ll_isoal_init(void);
 void ble_ll_isoal_reset(void);
 int ble_ll_isoal_data_in(struct os_mbuf *om);
