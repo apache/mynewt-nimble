@@ -1287,13 +1287,13 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
 #endif /* BLE_LL_ISO_BROADCASTER */
 #if MYNEWT_VAL(BLE_LL_ISO)
     case BLE_HCI_OCF_LE_SETUP_ISO_DATA_PATH:
-        rc = ble_ll_isoal_hci_setup_iso_data_path(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_setup_iso_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH:
-        rc = ble_ll_isoal_hci_remove_iso_data_path(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
-        rc = ble_ll_isoal_hci_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
         if (len == 0) {
