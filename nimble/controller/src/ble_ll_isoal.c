@@ -22,7 +22,7 @@
 #include <nimble/hci_common.h>
 #include <controller/ble_ll.h>
 #include <controller/ble_ll_isoal.h>
-#include <controller/ble_ll_iso_big.h>
+#include <controller/ble_ll_iso.h>
 
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -309,97 +309,14 @@ ble_ll_isoal_tx_pkt_in(struct ble_npl_event *ev)
             continue;
         }
 
-        switch (BLE_LL_CONN_HANDLE_TYPE(conn_handle)) {
-        case BLE_LL_CONN_HANDLE_TYPE_BIS:
-            mux = ble_ll_iso_big_find_mux_by_handle(conn_handle);
-            ble_ll_isoal_mux_tx_pkt_in(mux, om, pb_flag, timestamp);
-            break;
-        default:
-            os_mbuf_free_chain(om);
-            break;
-        }
-    }
-}
-
-int
-ble_ll_isoal_hci_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
-                                     uint8_t *rspbuf, uint8_t *rsplen)
-{
-    const struct ble_hci_le_setup_iso_data_path_cp *cmd = (const void *)cmdbuf;
-    struct ble_hci_le_setup_iso_data_path_rp *rsp = (void *)rspbuf;
-    struct ble_ll_iso_bis *bis;
-    uint16_t conn_handle;
-
-    conn_handle = le16toh(cmd->conn_handle);
-    switch (BLE_LL_CONN_HANDLE_TYPE(conn_handle)) {
-    case BLE_LL_CONN_HANDLE_TYPE_BIS:
-        bis = ble_ll_iso_big_find_bis_by_handle(conn_handle);
-        if (bis) {
-            break;
-        }
-    default:
-        return BLE_ERR_UNK_CONN_ID;
-    }
-
-    /* Only input for now since we only support BIS */
-    if (cmd->data_path_dir) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    /* We do not (yet) support any vendor-specific data path */
-    if (cmd->data_path_id) {
-        return BLE_ERR_CMD_DISALLOWED;
-    }
-
-    rsp->conn_handle = cmd->conn_handle;
-    *rsplen = sizeof(*rsp);
-
-    return 0;
-}
-
-int
-ble_ll_isoal_hci_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
-                                      uint8_t *rspbuf, uint8_t *rsplen)
-{
-    const struct ble_hci_le_remove_iso_data_path_cp *cmd = (const void *)cmdbuf;
-    struct ble_hci_le_remove_iso_data_path_rp *rsp = (void *)rspbuf;
-
-    /* XXX accepts anything for now */
-    rsp->conn_handle = cmd->conn_handle;
-    *rsplen = sizeof(*rsp);
-
-    return 0;
-}
-
-int
-ble_ll_isoal_hci_read_tx_sync(const uint8_t *cmdbuf, uint8_t cmdlen,
-                              uint8_t *rspbuf, uint8_t *rsplen)
-{
-    const struct ble_hci_le_read_iso_tx_sync_cp *cmd = (const void *)cmdbuf;
-    struct ble_hci_le_read_iso_tx_sync_rp *rsp = (void *)rspbuf;
-    struct ble_ll_isoal_mux *mux;
-    uint16_t handle;
-
-    handle = le16toh(cmd->conn_handle);
-    switch (BLE_LL_CONN_HANDLE_TYPE(handle)) {
-    case BLE_LL_CONN_HANDLE_TYPE_BIS:
-        mux = ble_ll_iso_big_find_mux_by_handle(handle);
+        mux = ble_ll_iso_find_mux_by_handle(conn_handle);
         if (!mux) {
-            return BLE_ERR_UNK_CONN_ID;
+            os_mbuf_free_chain(om);
+            continue;
         }
-        break;
-    default:
-        return BLE_ERR_UNK_CONN_ID;
+
+        ble_ll_isoal_mux_tx_pkt_in(mux, om, pb_flag, timestamp);
     }
-
-    rsp->conn_handle = cmd->conn_handle;
-    rsp->packet_seq_num = htole16(mux->last_tx_packet_seq_num);
-    rsp->tx_timestamp = htole32(mux->last_tx_timestamp);
-    put_le24(rsp->time_offset, 0);
-
-    *rsplen = sizeof(*rsp);
-
-    return 0;
 }
 
 void

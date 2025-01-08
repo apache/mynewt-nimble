@@ -26,7 +26,8 @@
 extern "C" {
 #endif
 
-int ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t len);
+/* HCI command handlers */
+int ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_set_cig_param(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_set_cig_param_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_create_cis(const uint8_t *cmdbuf, uint8_t len);
@@ -39,12 +40,14 @@ int ble_ll_iso_create_big_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_terminate_big(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_big_create_sync(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_big_terminate_sync(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_receive_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_read_counters_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t len);
+
+struct ble_ll_isoal_mux *ble_ll_iso_find_mux_by_handle(uint16_t conn_handle);
 
 #ifdef __cplusplus
 }
