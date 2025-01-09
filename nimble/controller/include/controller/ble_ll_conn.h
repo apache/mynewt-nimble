@@ -131,6 +131,9 @@ struct ble_ll_conn_sm_flags {
 #if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
     uint32_t pending_initiate_dle : 1;
 #endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+    uint32_t power_request_host_w4event : 1;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     uint8_t subrate_trans : 1;
     uint8_t subrate_ind_txd : 1;
@@ -200,6 +203,38 @@ struct ble_ll_conn_subrate_req_params {
     uint16_t cont_num;
     uint16_t supervision_tmo;
 };
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+struct ble_ll_conn_power_control_data {
+    /*
+     * Current local TxPower.
+     * Updated when PHY is changed or when current PHY's TxPower is changed
+     */
+    int8_t curr_local_tx_power;
+
+    /*
+     * Stores remote TxPower for each PHY mode.
+     * Updated when power control response PDU or power change IND is received
+     */
+    int8_t remote_tx_power[BLE_PHY_NUM_MODE];
+
+    /* Stores local TxPower for each PHY mode */
+    int8_t local_tx_power[BLE_PHY_NUM_MODE];
+
+    /* Stores min max flags for each PHY mode */
+    int8_t local_min_max[BLE_PHY_NUM_MODE];
+
+    /* Indicates on which PHY we requested Power Control Request Procedure */
+    uint8_t req_phy_mode;
+
+    /* Stores delta for Power Control Request */
+    int8_t req_delta;
+
+    /* Flags that indicate if reports are enabled */
+    uint8_t local_reports_enabled : 1;
+    uint8_t remote_reports_enabled : 1;
+};
+#endif
 
 /* Connection state machine */
 struct ble_ll_conn_sm
@@ -396,6 +431,10 @@ struct ble_ll_conn_sm
     uint16_t css_slot_idx;
     uint16_t css_slot_idx_pending;
     uint8_t css_period_idx;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+    struct ble_ll_conn_power_control_data pwr_ctrl;
 #endif
 };
 

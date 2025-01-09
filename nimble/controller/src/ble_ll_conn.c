@@ -1526,8 +1526,12 @@ ble_ll_conn_event_start_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(connsm->phy_data.tx_phy_mode, connsm->phy_data.rx_phy_mode);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+    ble_ll_tx_power_set(connsm->pwr_ctrl.curr_local_tx_power);
+#else
     /* Set the power */
     ble_ll_tx_power_set(g_ble_ll_tx_power);
+#endif
 
     switch (connsm->conn_role) {
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -1743,6 +1747,21 @@ ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
     /* Timeout in is in 10 msec units */
     tmo = (int32_t)BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
     ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo);
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+static void
+ble_ll_conn_init_tx_power(struct ble_ll_conn_sm *connsm)
+{
+    int i;
+
+    for (i = 0; i < BLE_PHY_NUM_MODE; i++) {
+        connsm->pwr_ctrl.local_tx_power[i] = g_ble_ll_tx_power;
+        connsm->pwr_ctrl.remote_tx_power[i] = 127;
+    }
+
+    connsm->pwr_ctrl.curr_local_tx_power = g_ble_ll_tx_power;
 }
 #endif
 
@@ -2016,6 +2035,10 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
     connsm->phy_data.pref_mask_rx = g_ble_ll_data.ll_pref_rx_phys;
     connsm->phy_data.pref_opts = 0;
     connsm->phy_tx_transition = 0;
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+    ble_ll_conn_init_tx_power(connsm);
 #endif
 
     /* Reset current control procedure */
@@ -2322,6 +2345,38 @@ ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE, NULL);
 
     return 0;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+void
+ble_ll_conn_update_current_local_tx_power(struct ble_ll_conn_sm *connsm)
+{
+    uint8_t curr_phy_mode;
+    int8_t new_tx_power;
+    int8_t delta;
+
+#if MYNEWT_VAL(BLE_LL_PHY)
+    curr_phy_mode = connsm->phy_data.tx_phy_mode;
+#else
+    curr_phy_mode = BLE_PHY_MODE_1M;
+#endif
+
+    new_tx_power = connsm->pwr_ctrl.local_tx_power[curr_phy_mode];
+    if (connsm->pwr_ctrl.curr_local_tx_power == new_tx_power) {
+        return;
+    }
+
+    delta = new_tx_power - connsm->pwr_ctrl.curr_local_tx_power;
+    connsm->pwr_ctrl.curr_local_tx_power = new_tx_power;
+
+    if (connsm->pwr_ctrl.local_reports_enabled) {
+        ble_ll_hci_ev_transmit_power_report(connsm, BLE_ERR_SUCCESS, 0x00,
+                                            curr_phy_mode,
+                                            connsm->pwr_ctrl.curr_local_tx_power,
+                                            connsm->pwr_ctrl.local_min_max[curr_phy_mode],
+                                            delta);
+    }
 }
 #endif
 
@@ -2659,6 +2714,9 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
             connsm->phy_data.tx_phy_mode =
                                 ble_ll_phy_to_phy_mode(connsm->phy_data.cur_tx_phy,
                                                    connsm->phy_data.pref_opts);
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+            ble_ll_conn_update_current_local_tx_power(connsm);
+#endif
         }
 
         if (connsm->phy_data.new_rx_phy) {
