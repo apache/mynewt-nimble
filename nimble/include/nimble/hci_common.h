@@ -1396,6 +1396,16 @@ struct ble_hci_vs_set_local_irk_cp {
     uint8_t irk[16];
 } __attribute__((packed));
 
+#define BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_LEGACY               (0x00000001)
+#define BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_EXT                  (0x00000002)
+#define BLE_HCI_VS_SET_SCAN_CFG_FLAG_RSSI_FILTER             (0x00000004)
+
+#define BLE_HCI_OCF_VS_SET_SCAN_CFG                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x000B))
+struct ble_hci_vs_set_scan_cfg_cp {
+    uint32_t flags;
+    int8_t rssi_threshold;
+} __attribute__((packed));
+
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
 #define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)
