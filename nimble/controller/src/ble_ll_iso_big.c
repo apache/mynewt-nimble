@@ -86,8 +86,8 @@ struct big_params {
     uint16_t max_sdu;
     uint8_t max_pdu;
     uint8_t phy;
+    uint8_t framing;
     uint8_t interleaved : 1;
-    uint8_t framed : 1;
     uint8_t encrypted : 1;
     uint8_t broadcast_code[16];
 };
@@ -110,6 +110,7 @@ struct ble_ll_iso_big {
     uint8_t nse; /* 1-31 */
     uint8_t interleaved : 1;
     uint8_t framed : 1;
+    uint8_t framing_mode : 1;
     uint8_t encrypted : 1;
     uint8_t giv[8];
     uint8_t gskd[16];
@@ -223,8 +224,8 @@ ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
     put_le24(buf, (big->irc << 20) | (big->bis_spacing));
     buf += 3;
 
-    /* max_pdu, rfu */
-    put_le16(buf, big->max_pdu);
+    /* max_pdu, rfu, framing_mode */
+    put_le16(buf, big->max_pdu | (big->framing_mode) << 15);
     buf += 2;
 
     /* seed_access_address */
@@ -245,7 +246,8 @@ ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
     buf += 5;
 
     /* bis_payload_cnt, framing */
-    memset(buf, 0x00, 5);
+    memset(buf, 0x01, 5);
+    buf[4] |= (big->framed << 7) & 0x80;
 }
 
 int
@@ -306,7 +308,7 @@ ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
     *dptr++ = (counter >> 8) & 0xff;
     *dptr++ = (counter >> 16) & 0xff;
     *dptr++ = (counter >> 24) & 0xff;
-    *dptr++ = (counter >> 32) & 0xff;
+    *dptr++ = ((counter >> 32) & 0x7f) | ((big->framed << 7) & 0x80);
 
     if (big->encrypted) {
         memcpy(dptr, big->giv, 8);
@@ -799,8 +801,6 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
 
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
-    BLE_LL_ASSERT(!big->framed);
-
     /* XXX calculate this in advance at the end of previous event? */
     big->tx.subevents_rem = big->num_bis * big->nse;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
@@ -982,13 +982,11 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         bis->num = big->num_bis;
         bis->crc_init = (big->crc_init << 8) | (big->num_bis);
 
-        BLE_LL_ASSERT(!big->framed);
-
         conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
 
         ble_ll_iso_conn_init(&bis->conn, conn_handle, bp->max_pdu,
                              bp->iso_interval * 1250, bp->sdu_interval,
-                             bp->bn, pte);
+                             bp->bn, pte, bp->framing);
     }
 
     big_pool_free--;
@@ -1024,7 +1022,8 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     big->irc = bp->irc;
     big->nse = bp->nse;
     big->interleaved = bp->interleaved;
-    big->framed = bp->framed;
+    big->framed = bp->framing != BLE_HCI_ISO_FRAMING_UNFRAMED;
+    big->framing_mode = bp->framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED;
     big->encrypted = bp->encrypted;
     big->sdu_interval = bp->sdu_interval;
     big->iso_interval = bp->iso_interval;
@@ -1240,7 +1239,7 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         !IN_RANGE(le16toh(cmd->max_sdu), 0x0001, 0x0fff) ||
         !IN_RANGE(le16toh(cmd->max_transport_latency), 0x0005, 0x0fa0) ||
         !IN_RANGE(cmd->rtn, 0x00, 0x1e) ||
-        (cmd->packing > 1) || (cmd->framing > 1) || (cmd->encryption) > 1) {
+        (cmd->packing > 1) || (cmd->framing > 2) || (cmd->encryption) > 1) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1255,7 +1254,7 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         bp.phy = BLE_PHY_CODED;
     }
     bp.interleaved = cmd->packing;
-    bp.framed = cmd->framing;
+    bp.framing = cmd->framing;
     bp.encrypted = cmd->encryption;
     memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
 
@@ -1333,7 +1332,7 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
         bp.phy = BLE_PHY_CODED;
     }
     bp.interleaved = cmd->packing;
-    bp.framed = cmd->framing;
+    bp.framing = cmd->framing;
     bp.encrypted = cmd->encryption;
     memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
 
@@ -1343,7 +1342,7 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
 
     iso_interval_us = bp.iso_interval * 1250;
 
-    if (!bp.framed) {
+    if (bp.framing == BLE_HCI_ISO_FRAMING_UNFRAMED) {
         /* sdu_interval shall be an integer multiple of iso_interval */
         if (iso_interval_us % bp.sdu_interval) {
             return BLE_ERR_INV_HCI_CMD_PARMS;

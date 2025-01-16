@@ -23,6 +23,7 @@
 #include <controller/ble_ll.h>
 #include <controller/ble_ll_isoal.h>
 #include <controller/ble_ll_iso.h>
+#include <controller/ble_ll_tmr.h>
 
 #if MYNEWT_VAL(BLE_LL_ISO)
 
@@ -129,11 +130,12 @@ ble_ll_iso_reset(void)
 }
 
 int
-ble_ll_iso_data_handle(struct os_mbuf *om)
+ble_ll_iso_data_in(struct os_mbuf *om)
 {
     struct ble_hci_iso *hci_iso;
     struct ble_hci_iso_data *hci_iso_data;
     struct ble_ll_iso_conn *conn;
+    struct ble_mbuf_hdr *blehdr;
     uint16_t data_hdr_len;
     uint16_t handle;
     uint16_t conn_handle;
@@ -150,13 +152,24 @@ ble_ll_iso_data_handle(struct os_mbuf *om)
     ts_flag = BLE_HCI_ISO_TS_FLAG(handle);
     length = BLE_HCI_ISO_LENGTH(le16toh(hci_iso->length));
 
+    conn = ble_ll_iso_conn_find_by_handle(conn_handle);
+    if (!conn) {
+        os_mbuf_free_chain(om);
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
     data_hdr_len = 0;
     if ((pb_flag == BLE_HCI_ISO_PB_FIRST) ||
         (pb_flag == BLE_HCI_ISO_PB_COMPLETE)) {
+        blehdr = BLE_MBUF_HDR_PTR(om);
+        blehdr->txiso.packet_seq_num = ++conn->mux.sdu_counter;
+        blehdr->txiso.cpu_timestamp = ble_ll_tmr_get();
+
         if (ts_flag) {
             timestamp = get_le32(om->om_data + sizeof(*hci_iso));
             data_hdr_len += sizeof(uint32_t);
         }
+        blehdr->txiso.hci_timestamp = timestamp;
 
         hci_iso_data = (void *)(om->om_data + sizeof(*hci_iso) + data_hdr_len);
         data_hdr_len += sizeof(*hci_iso_data);
@@ -166,12 +179,6 @@ ble_ll_iso_data_handle(struct os_mbuf *om)
     if (OS_MBUF_PKTLEN(om) != length - data_hdr_len) {
         os_mbuf_free_chain(om);
         return BLE_ERR_MEM_CAPACITY;
-    }
-
-    conn = ble_ll_iso_conn_find_by_handle(conn_handle);
-    if (!conn) {
-        os_mbuf_free_chain(om);
-        return BLE_ERR_UNK_CONN_ID;
     }
 
     switch (pb_flag) {
@@ -200,7 +207,7 @@ ble_ll_iso_data_handle(struct os_mbuf *om)
     }
 
     if (om) {
-    	ble_ll_isoal_mux_sdu_enqueue(&conn->mux, om, timestamp);
+        ble_ll_isoal_mux_sdu_enqueue(&conn->mux, om);
     }
 
     return 0;
@@ -215,14 +222,17 @@ ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint8_t *llid, voi
 void
 ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, uint16_t conn_handle,
                      uint8_t max_pdu, uint32_t iso_interval_us,
-                     uint32_t sdu_interval_us, uint8_t bn, uint8_t pte)
+                     uint32_t sdu_interval_us, uint8_t bn, uint8_t pte,
+                     uint8_t framing)
 {
     os_sr_t sr;
 
     memset(conn, 0, sizeof(*conn));
 
     conn->handle = conn_handle;
-    ble_ll_isoal_mux_init(&conn->mux, max_pdu, iso_interval_us, sdu_interval_us, bn, pte);
+    ble_ll_isoal_mux_init(&conn->mux, max_pdu, iso_interval_us, sdu_interval_us,
+                          bn, pte, BLE_LL_ISOAL_MUX_IS_FRAMED(framing),
+                          framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED);
 
     OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&ll_iso_conn_q, conn, iso_conn_q_next);
@@ -242,13 +252,14 @@ ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn)
 }
 
 int
-ble_ll_iso_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp)
+ble_ll_iso_conn_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp)
 {
-    return ble_ll_isoal_mux_event_start(&conn->mux, timestamp);
+    ble_ll_isoal_mux_event_start(&conn->mux, timestamp);
+    return 0;
 }
 
 int
-ble_ll_iso_event_done(struct ble_ll_iso_conn *conn)
+ble_ll_iso_conn_event_done(struct ble_ll_iso_conn *conn)
 {
     conn->num_completed_pkt += ble_ll_isoal_mux_event_done(&conn->mux);
     return conn->num_completed_pkt;

@@ -74,7 +74,7 @@ int ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint8_t *llid,
 
 void ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, uint16_t conn_handle,
                           uint8_t max_pdu, uint32_t iso_interval_us,
-                          uint32_t sdu_interval_us, uint8_t bn, uint8_t pte);
+                          uint32_t sdu_interval_us, uint8_t bn, uint8_t pte, uint8_t framing);
 void ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn);
 
 int ble_ll_iso_conn_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp);
