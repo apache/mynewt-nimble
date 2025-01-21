@@ -204,10 +204,10 @@ extern "C" {
  */
 
 /** SM Key Size: Minimum supported encryption key size in octets */
-#define BLE_SM_PAIR_KEY_SZ_MIN                  7
+#define BLE_SM_PAIR_KEY_SZ_MIN                  MYNEWT_VAL(BLE_SM_PAIR_KEY_MIN_SIZE)
 
 /** SM Key Size: Maximum supported encryption key size in octets */
-#define BLE_SM_PAIR_KEY_SZ_MAX                  16
+#define BLE_SM_PAIR_KEY_SZ_MAX                  MYNEWT_VAL(BLE_SM_PAIR_KEY_MAX_SIZE)
 
 /** @} */
 
