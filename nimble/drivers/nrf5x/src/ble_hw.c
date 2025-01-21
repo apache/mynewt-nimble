@@ -47,14 +47,12 @@
 #define NRF_ECB NRF_ECB00
 #define NRF_AAR NRF_AAR00
 
-/* ECB data structure */
-struct ecb_job_entry {
-    uint8_t *ptr;
-    uint32_t attr_and_length;
+struct nrf_ecb_job_list {
+    nrf_vdma_job_t in[2];
+    nrf_vdma_job_t out[2];
 };
 
-static struct ecb_job_entry ecb_input_job_list[2];
-static struct ecb_job_entry ecb_output_job_list[2];
+static struct nrf_ecb_job_list g_ecb_job_list;
 #endif
 
 /* Total number of resolving list elements */
@@ -298,22 +296,26 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     /* Stop ECB */
     nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOP);
 
-    ecb_input_job_list[0].ptr = ecb->plain_text;
-    ecb_input_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
-    ecb_output_job_list[0].ptr = ecb->cipher_text;
-    ecb_output_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+    /* Init job lists */
+    g_ecb_job_list.in[0].p_buffer = ecb->plain_text;
+    g_ecb_job_list.in[0].attributes = NRF_VDMA_ATTRIBUTE_CRC;
+    g_ecb_job_list.in[0].size = BLE_ENC_BLOCK_SIZE;
+    memset(&g_ecb_job_list.in[1], 0, sizeof(g_ecb_job_list.in[1]));
 
-    /* The end of a job list shall be 0 */
-    ecb_input_job_list[1].ptr = 0;
-    ecb_input_job_list[1].attr_and_length = 0;
-    ecb_output_job_list[1].ptr = 0;
-    ecb_output_job_list[1].attr_and_length = 0;
+    g_ecb_job_list.out[0].p_buffer = ecb->cipher_text;
+    g_ecb_job_list.out[0].attributes = NRF_VDMA_ATTRIBUTE_CRC;
+    g_ecb_job_list.out[0].size = BLE_ENC_BLOCK_SIZE;
+    memset(&g_ecb_job_list.out[1], 0, sizeof(g_ecb_job_list.out[1]));
+
+    NRF_ECB->KEY.VALUE[3] = get_be32(&ecb->key[0]);
+    NRF_ECB->KEY.VALUE[2] = get_be32(&ecb->key[4]);
+    NRF_ECB->KEY.VALUE[1] = get_be32(&ecb->key[8]);
+    NRF_ECB->KEY.VALUE[0] = get_be32(&ecb->key[12]);
 
     NRF_ECB->EVENTS_END = 0;
     NRF_ECB->EVENTS_ERROR = 0;
-    NRF_ECB->IN.PTR = (uint32_t)ecb_input_job_list;
-    NRF_ECB->OUT.PTR = (uint32_t)ecb_output_job_list;
-    memcpy((void *)NRF_ECB->KEY.VALUE, ecb->key, sizeof(uint32_t) * 4);
+    NRF_ECB->IN.PTR = (uint32_t)g_ecb_job_list.in;
+    NRF_ECB->OUT.PTR = (uint32_t)g_ecb_job_list.out;
 
     /* Start ECB */
     nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_START);
@@ -370,6 +372,8 @@ ble_rng_isr(void)
 
     os_trace_isr_enter();
 #ifdef NRF54L_SERIES
+    (void)rnum;
+
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
         nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
