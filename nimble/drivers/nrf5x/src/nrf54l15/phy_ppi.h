@@ -36,6 +36,7 @@
 #define DPPI_CH_RADIO_EVENTS_DISABLED           7
 #define DPPI_CH_RADIO_EVENTS_READY              8
 #define DPPI_CH_RADIO_EVENTS_RXREADY            9
+#define DPPI_CH_RADIO_EVENTS_PAYLOAD_RADIO      10
 
 /* DPPIC20 [0:15] */
 #define DPPI_CH_GPIOTE20_TASKS_SET_0            0
@@ -45,7 +46,8 @@
 
 #define DPPI_CH_ENABLE_ALL  (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | \
                              DPPIC_CHEN_CH2_Msk | DPPIC_CHEN_CH3_Msk | \
-                             DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk)
+                             DPPIC_CHEN_CH4_Msk | DPPIC_CHEN_CH5_Msk | \
+                             DPPIC_CHEN_CH10_Msk)
 
 #define DPPI_CH_MASK_FEM    (DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_2) | \
                              DPPI_CH_MASK(RADIO_EVENTS_DISABLED))
@@ -103,13 +105,13 @@ phy_ppi_timer0_compare0_to_radio_start_disable(void)
 static inline void
 phy_ppi_radio_address_to_ccm_crypt_enable(void)
 {
-    NRF_CCM->SUBSCRIBE_START = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_SUB(DPPIC00_RADIO_EVENTS_PAYLOAD_CCM);
 }
 
 static inline void
 phy_ppi_radio_address_to_ccm_crypt_disable(void)
 {
-    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RADIO_EVENTS_PAYLOAD_CCM);
 }
 
 static inline void
@@ -167,7 +169,7 @@ phy_ppi_disable(void)
     NRF_RADIO->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_RADIO->SUBSCRIBE_START = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_AAR->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
-    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RADIO_EVENTS_PAYLOAD_CCM);
 
     phy_ppi_fem_disable();
 }
