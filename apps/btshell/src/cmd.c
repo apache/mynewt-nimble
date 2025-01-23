@@ -45,6 +45,10 @@
 #include "cmd_l2cap.h"
 #include "cmd_leaudio.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #define BTSHELL_MODULE "btshell"
 
 int
