@@ -1840,15 +1840,19 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         if (conn->bhc_flags & BLE_HS_CONN_F_MASTER) {
             res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
+            res->enc_cb = 1;
         } else if (MYNEWT_VAL(BLE_SM_LVL) == 1) {
             res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
+            res->enc_cb = 1;
         } else if (req->max_enc_key_size < BLE_SM_PAIR_KEY_SZ_MIN) {
             res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
+            res->enc_cb = 1;
         } else if (req->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+            res->enc_cb = 1;
         } else if (MYNEWT_VAL(BLE_SM_SC_ONLY)) {
             /* Fail if Secure Connections Only mode is on and remote does not
              * meet key size requirements - MITM was checked in last step.
@@ -1857,13 +1861,16 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
             if (!(req->authreq & BLE_SM_PAIR_AUTHREQ_SC)) {
                 res->sm_err = BLE_SM_ERR_AUTHREQ;
                 res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
+                res->enc_cb = 1;
             } else if (req->max_enc_key_size != BLE_SM_PAIR_KEY_SZ_MAX) {
                 res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
                 res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
+                res->enc_cb = 1;
             }
         } else if (!ble_sm_verify_auth_requirements(req->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
+            res->enc_cb = 1;
         } else {
             /* The request looks good.  Precalculate our pairing response and
              * determine some properties of the imminent link.  We need this
