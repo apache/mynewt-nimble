@@ -2449,6 +2449,10 @@ struct hci_data_hdr
 
 #define BLE_HCI_ISO_DATA_PATH_ID_HCI            0x00
 
+#define BLE_HCI_ISO_FRAMING_UNFRAMED            0x00
+#define BLE_HCI_ISO_FRAMING_FRAMED_SEGMENTABLE  0x01
+#define BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED  0x02
+
 struct ble_hci_iso {
     uint16_t handle;
     uint16_t length;
