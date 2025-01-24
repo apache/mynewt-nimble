@@ -1849,18 +1849,18 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         } else if (req->max_enc_key_size > BLE_SM_PAIR_KEY_SZ_MAX) {
             res->sm_err = BLE_SM_ERR_INVAL;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
-        } else if (MYNEWT_VAL(BLE_SM_SC_ONLY)) {
-            /* Fail if Secure Connections Only mode is on and remote does not
-             * meet key size requirements - MITM was checked in last step.
-             * Fail if SC is not supported by peer or key size is too small
+        } else if (MYNEWT_VAL(BLE_SM_SC_ONLY) && !(req->authreq & BLE_SM_PAIR_AUTHREQ_SC)) {
+            /* Fail if Secure Connections Only mode is on and SC is not supported by peer
              */
-            if (!(req->authreq & BLE_SM_PAIR_AUTHREQ_SC)) {
-                res->sm_err = BLE_SM_ERR_AUTHREQ;
-                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
-            } else if (req->max_enc_key_size != BLE_SM_PAIR_KEY_SZ_MAX) {
-                res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
-                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
-            }
+            res->sm_err = BLE_SM_ERR_AUTHREQ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
+            res->enc_cb = 1;
+        } else if (MYNEWT_VAL(BLE_SM_SC_ONLY) && (req->max_enc_key_size != BLE_SM_PAIR_KEY_SZ_MAX)) {
+            /* Fail if Secure Connections Only mode is on and key size is too small
+             */
+            res->sm_err = BLE_SM_ERR_ENC_KEY_SZ;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_ENC_KEY_SZ);
+            res->enc_cb = 1;
         } else if (!ble_sm_verify_auth_requirements(req->authreq)) {
             res->sm_err = BLE_SM_ERR_AUTHREQ;
             res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
