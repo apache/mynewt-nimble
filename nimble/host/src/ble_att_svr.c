@@ -496,7 +496,7 @@ ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 int
-ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om)
+ble_att_svr_read_local_with_perms(uint16_t conn_handle, uint16_t attr_handle, struct os_mbuf **out_om)
 {
     struct os_mbuf *om;
     int rc;
@@ -507,18 +507,24 @@ ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om)
         goto err;
     }
 
-    rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, attr_handle, 0, om,
-                                 NULL);
+    rc = ble_att_svr_read_handle(conn_handle, attr_handle, 0, om, NULL);
     if (rc != 0) {
         goto err;
     }
 
     *out_om = om;
+
     return 0;
 
 err:
     os_mbuf_free_chain(om);
     return rc;
+}
+
+int
+ble_att_svr_read_local(uint16_t attr_handle, struct os_mbuf **out_om)
+{
+    return ble_att_svr_read_local_with_perms(BLE_HS_CONN_HANDLE_NONE, attr_handle, out_om);
 }
 
 static int
