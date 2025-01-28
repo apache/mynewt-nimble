@@ -95,7 +95,7 @@ struct find_attr_data {
 
 struct notify_mult_cb_data {
     size_t tuple_cnt;
-    uint16_t handles[0];
+    uint16_t handles[8];
 };
 
 static int
@@ -1951,6 +1951,38 @@ done:
 }
 
 static uint8_t
+notify_mult(const void *cmd, uint16_t cmd_len,
+            void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gatt_notify_mult_val_cmd *cp = cmd;
+    struct notify_mult_cb_data cb_data;
+    int i;
+
+
+    if (cmd_len < sizeof(*cp) ||
+        (cmd_len != (sizeof(*cp) +
+        (le16toh(cp->count) * sizeof(cp->handles[0]))))) {
+
+        return BTP_STATUS_FAILED;
+    }
+
+    if (le16toh(cp->count) > sizeof(cb_data.handles)) {
+        SYS_LOG_ERR("Too many handles to notify");
+        return BTP_STATUS_FAILED;
+    }
+
+    for (i = 0; i < cp->count; i++) {
+        cb_data.handles[i] = le16toh(cp->handles[i]);
+    }
+
+    cb_data.tuple_cnt = cp->count;
+
+    ble_gap_conn_foreach_handle(notify_multiple, (void *)&cb_data);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
@@ -2136,6 +2168,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATT_SET_MULT_VALUE,
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_mult,
+    },
+    {
+        .opcode = BTP_GATT_NOTIFY_MULTIPLE,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+        .func = notify_mult,
     },
 };
 
