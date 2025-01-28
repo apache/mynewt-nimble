@@ -1178,6 +1178,7 @@ struct ble_hci_le_cs_rd_loc_supp_cap_rp {
     uint16_t optional_t_fcs_times_supported;
     uint16_t optional_t_pm_times_supported;
     uint8_t t_sw_time_supported;
+    uint8_t optional_tx_snr_capability;
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_CS_RD_REM_SUPP_CAP                (0x008A)
@@ -1207,6 +1208,7 @@ struct ble_hci_le_cs_wr_cached_rem_supp_cap_cp {
     uint16_t optional_t_fcs_times_supported;
     uint16_t optional_t_pm_times_supported;
     uint8_t t_sw_time_supported;
+    uint8_t optional_tx_snr_capability;
 } __attribute__((packed));
 struct ble_hci_le_cs_wr_cached_rem_supp_cap_rp {
     uint16_t conn_handle;
@@ -1261,7 +1263,7 @@ struct ble_hci_le_cs_create_config_cp {
     uint8_t channel_selection_type;
     uint8_t ch3c_shape;
     uint8_t ch3c_jump;
-    uint8_t companion_signal_enable;
+    uint8_t reserved;
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_CS_REMOVE_CONFIG                  (0x0091)
@@ -1322,7 +1324,7 @@ struct ble_hci_le_cs_test_cp {
     uint8_t t_pm_time;
     uint8_t t_sw_time;
     uint8_t tone_antenna_config_selection;
-    uint8_t companion_signal_enable;
+    uint8_t reserved;
     uint16_t drbg_nonce;
     uint16_t override_config;
     uint8_t override_parameters_length;
@@ -2225,6 +2227,7 @@ struct ble_hci_ev_le_subev_cs_rd_rem_supp_cap_complete {
     uint16_t optional_t_fcs_times_supported;
     uint16_t optional_t_pm_times_supported;
     uint8_t t_sw_time_supported;
+    uint8_t optional_tx_snr_capability;
 } __attribute__((packed));
 
 #define BLE_HCI_LE_SUBEV_CS_RD_REM_FAE_COMPLETE        (0x2D)
@@ -2263,7 +2266,7 @@ struct ble_hci_ev_le_subev_cs_config_complete {
     uint8_t channel_selection_type;
     uint8_t ch3c_shape;
     uint8_t ch3c_jump;
-    uint8_t companion_signal_enable;
+    uint8_t reserved;
     uint8_t t_ip1_time;
     uint8_t t_ip2_time;
     uint8_t t_fcs_time;
@@ -2373,6 +2376,7 @@ struct ble_hci_ev_le_subev_cs_test_end_complete {
 #define BLE_HCI_VER_BCS_5_2                 (11)
 #define BLE_HCI_VER_BCS_5_3                 (12)
 #define BLE_HCI_VER_BCS_5_4                 (13)
+#define BLE_HCI_VER_BCS_6_0                 (14)
 
 #define BLE_LMP_VER_BCS_1_0b                (0)
 #define BLE_LMP_VER_BCS_1_1                 (1)
@@ -2388,6 +2392,7 @@ struct ble_hci_ev_le_subev_cs_test_end_complete {
 #define BLE_LMP_VER_BCS_5_2                 (11)
 #define BLE_LMP_VER_BCS_5_3                 (12)
 #define BLE_LMP_VER_BCS_5_4                 (13)
+#define BLE_LMP_VER_BCS_6_0                 (14)
 
 /* selected HCI and LMP version */
 #if MYNEWT_VAL(BLE_VERSION) == 50
@@ -2405,6 +2410,9 @@ struct ble_hci_ev_le_subev_cs_test_end_complete {
 #elif MYNEWT_VAL(BLE_VERSION) == 54
 #define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_5_4
 #define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_5_4
+#elif MYNEWT_VAL(BLE_VERSION) == 60
+#define BLE_HCI_VER_BCS BLE_HCI_VER_BCS_6_0
+#define BLE_LMP_VER_BCS BLE_LMP_VER_BCS_6_0
 #endif
 
 #define BLE_HCI_DATA_HDR_SZ                 4
