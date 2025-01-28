@@ -274,6 +274,15 @@ int ble_ll_set_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len,
 int ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+int ble_ll_conn_hci_enhanced_read_tx_power_level(const uint8_t *cmdbuf, uint8_t len,
+                                                 uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_read_remote_tx_power_level(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_conn_hci_set_tx_power_report_enable(const uint8_t *cmdbuf, uint8_t len,
+                                               uint8_t *rspbuf, uint8_t *rsplen);
+void ble_ll_conn_update_current_local_tx_power(struct ble_ll_conn_sm *connsm);
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
 void ble_ll_conn_css_set_next_slot(uint16_t slot_idx);
 uint16_t ble_ll_conn_css_get_next_slot(void);
