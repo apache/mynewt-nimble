@@ -2190,4 +2190,228 @@ ble_ll_set_default_sync_transfer_params(const uint8_t *cmdbuf, uint8_t len)
     return BLE_ERR_SUCCESS;
 }
 #endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_POWER_CONTROL)
+int
+ble_ll_conn_hci_enhanced_read_tx_power_level(const uint8_t *cmdbuf, uint8_t len,
+                                             uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_enh_read_transmit_power_level_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_enh_read_transmit_power_level_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint8_t phy_mode;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    switch (cmd->phy) {
+    case 0x1:
+        phy_mode = BLE_PHY_MODE_1M;
+        break;
+#if MYNEWT_VAL(BLE_PHY_2M)
+    case 0x2:
+        phy_mode = BLE_PHY_MODE_2M;
+        break;
+#endif
+#if MYNEWT_VAL(BLE_PHY_CODED)
+    case 0x3:
+        phy_mode = BLE_PHY_MODE_CODED_500KBPS;
+        break;
+    case 0x4:
+        phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+        break;
+#endif
+    default:
+        rc = BLE_ERR_UNSUPPORTED;
+        goto done;
+    }
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
+    }
+
+    rsp->phy = cmd->phy;
+    rsp->curr_tx_power_level = connsm->pwr_ctrl.local_tx_power[phy_mode];
+    rsp->max_tx_power_level = ble_phy_tx_power_round(INT8_MAX);
+
+    connsm->flags.power_request_host_w4event = 1;
+
+    rc = BLE_ERR_SUCCESS;
+done:
+    *rsplen = sizeof(*rsp);
+    rsp->conn_handle = cmd->conn_handle;
+    return rc;
+}
+
+int
+ble_ll_conn_hci_read_remote_tx_power_level(const uint8_t *cmdbuf, uint8_t len)
+{
+    const struct ble_hci_le_read_remote_transmit_power_level_cp *cmd = (const void *) cmdbuf;
+    struct ble_ll_conn_sm *connsm;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    switch (cmd->phy) {
+    case 0x1:
+        connsm->pwr_ctrl.req_phy_mode = BLE_PHY_MODE_1M;
+        break;
+#if MYNEWT_VAL(BLE_PHY_2M)
+    case 0x2:
+        connsm->pwr_ctrl.req_phy_mode = BLE_PHY_MODE_2M;
+        break;
+#endif
+#if MYNEWT_VAL(BLE_PHY_CODED)
+    case 0x3:
+        connsm->pwr_ctrl.req_phy_mode = BLE_PHY_MODE_CODED_500KBPS;
+        break;
+    case 0x4:
+        connsm->pwr_ctrl.req_phy_mode = BLE_PHY_MODE_CODED_125KBPS;
+        break;
+#endif
+    default:
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_POWER_CTRL_REQ, NULL);
+
+    return BLE_ERR_SUCCESS;
+}
+
+int
+ble_ll_conn_hci_set_trans_pwr_report_enable(const uint8_t *cmdbuf, uint8_t len,
+                                            uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_set_transmit_power_report_enable_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_set_transmit_power_report_enable_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
+    }
+
+    connsm->pwr_ctrl.local_reports_enabled = cmd->local_enable;
+    connsm->pwr_ctrl.remote_reports_enabled = cmd->remote_enable;
+
+    rc = BLE_ERR_SUCCESS;
+
+done:
+    *rsplen = sizeof(*rsp);
+    rsp->conn_handle = cmd->conn_handle;
+    return rc;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PATH_LOSS_MON)
+int ble_ll_conn_hci_set_path_loss_report_param(const uint8_t *cmdbuf, uint8_t len,
+                                                uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_set_path_loss_report_param_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_set_path_loss_report_param_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t sum;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
+    }
+
+    if ((cmd->low_threshold < cmd->low_hysteresis) ||
+        (cmd->low_threshold > cmd->high_threshold)){
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    sum = cmd->high_threshold + cmd->high_hysteresis;
+    if (sum > 0xff) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    sum = cmd->low_threshold + cmd->low_hysteresis;
+    if (sum > (cmd->high_threshold - cmd->high_hysteresis)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    connsm->path_loss.high_threshold = cmd->high_threshold;
+    connsm->path_loss.high_hysteresis = cmd->high_hysteresis;
+    connsm->path_loss.low_threshold = cmd->low_threshold;
+    connsm->path_loss.low_hysteresis = cmd->low_hysteresis;
+    connsm->path_loss.min_time_spent = cmd->min_time_spent;
+    connsm->flags.path_loss_configured = 1;
+
+    rc = BLE_ERR_SUCCESS;
+
+done:
+    *rsplen = sizeof(*rsp);
+    rsp->conn_handle = cmd->conn_handle;
+    return rc;
+}
+
+int ble_ll_conn_hci_set_path_loss_report_enable(const uint8_t *cmdbuf, uint8_t len,
+                                               uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_set_path_loss_report_enable_cp *cmd = (const void *) cmdbuf;
+    struct ble_hci_le_set_path_loss_report_enable_rp *rsp = (void *) rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    int rc;
+
+    if (len != sizeof(*cmd)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    connsm = ble_ll_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (!connsm) {
+        rc = BLE_ERR_UNK_CONN_ID;
+        goto done;
+    }
+
+    if (!connsm->flags.path_loss_configured) {
+        rc = BLE_ERR_CMD_DISALLOWED;
+        goto done;
+    }
+
+    if ((cmd->enable != 0) && (cmd->enable != 1)) {
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+        goto done;
+    }
+
+    connsm->path_loss.reports_enabled = cmd->enable;
+
+    rc = BLE_ERR_SUCCESS;
+
+done:
+    *rsplen = sizeof(*rsp);
+    rsp->conn_handle = cmd->conn_handle;
+    return rc;
+}
+#endif
 #endif

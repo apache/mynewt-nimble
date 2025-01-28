@@ -1117,11 +1117,17 @@ struct ble_hci_le_set_path_loss_report_param_cp {
     uint8_t low_hysteresis;
     uint16_t min_time_spent;
 } __attribute__((packed));
+struct ble_hci_le_set_path_loss_report_param_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_SET_PATH_LOSS_REPORT_ENABLE       (0x0079)
 struct ble_hci_le_set_path_loss_report_enable_cp {
     uint16_t conn_handle;
     uint8_t enable;
+} __attribute__((packed));
+struct ble_hci_le_set_path_loss_report_enable_rp {
+    uint16_t conn_handle;
 } __attribute__((packed));
 
 #define BLE_HCI_OCF_LE_SET_TRANS_PWR_REPORT_ENABLE       (0x007A)
@@ -1130,6 +1136,10 @@ struct ble_hci_le_set_transmit_power_report_enable_cp {
     uint8_t local_enable;
     uint8_t remote_enable;
 } __attribute__((packed));
+struct ble_hci_le_set_transmit_power_report_enable_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 
 #define BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE               (0x007D)
 struct ble_hci_le_set_default_subrate_cp {
