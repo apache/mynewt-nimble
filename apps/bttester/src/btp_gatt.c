@@ -1908,49 +1908,6 @@ notify_multiple(uint16_t conn_handle, void *arg)
 }
 
 static uint8_t
-set_mult(const void *cmd, uint16_t cmd_len,
-         void *rsp, uint16_t *rsp_len)
-{
-    const struct btp_gatt_set_mult_val_cmd *cp = cmd;
-    struct ble_gatt_notif tuples[16];
-    int i;
-    int rc = 0;
-    int data_idx = 0;
-    uint16_t data_len;
-    struct notify_mult_cb_data cb_data;
-
-    for (i = 0; i < cp->count; i++) {
-        tuples[i].handle = get_le16(cp->data + data_idx);
-        data_idx += 2;
-        tuples[i].value = ble_hs_mbuf_att_pkt();
-        if (tuples[i].value == NULL) {
-            rc = ENOMEM;
-            goto done;
-        }
-
-        data_len = get_le16(cp->data + data_idx);
-        data_idx += 2;
-
-        os_mbuf_append(tuples[i].value, cp->data + data_idx, data_len);
-        data_idx += data_len;
-    }
-
-    for (i = 0; i < cp->count; i++) {
-        ble_att_svr_write_local(tuples[i].handle, tuples[i].value);
-        cb_data.handles[i] = tuples[i].handle;
-    }
-
-    cb_data.tuple_cnt = cp->count;
-    ble_gap_conn_foreach_handle(notify_multiple, (void *)&cb_data);
-done:
-    if (rc != 0) {
-        return BTP_STATUS_FAILED;
-    }
-
-    return BTP_STATUS_SUCCESS;
-}
-
-static uint8_t
 notify_mult(const void *cmd, uint16_t cmd_len,
             void *rsp, uint16_t *rsp_len)
 {
@@ -2163,11 +2120,6 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATT_GET_ATTRIBUTE_VALUE,
         .expect_len = sizeof(struct btp_gatt_get_attribute_value_cmd),
         .func = get_attr_val,
-    },
-    {
-        .opcode = BTP_GATT_SET_MULT_VALUE,
-        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
-        .func = set_mult,
     },
     {
         .opcode = BTP_GATT_NOTIFY_MULTIPLE,
