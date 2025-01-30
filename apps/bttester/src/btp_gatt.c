@@ -1938,6 +1938,39 @@ notify_mult(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
+set_val(const void *cmd, uint16_t cmd_len,
+        void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gatt_set_value_cmd *cp = cmd;
+    struct os_mbuf *value;
+    uint16_t handle;
+    int rc = 0;
+
+    handle = cp->attr_id;
+    value = ble_hs_mbuf_att_pkt();
+    if (value == NULL) {
+        return BTP_STATUS_FAILED;
+    }
+    os_mbuf_append(value, cp->value, cp->len);
+
+    ble_att_svr_write_local(handle, value);
+
+    if (notify_state) {
+        rc = ble_gatts_notify_custom(myconn_handle, handle, value);
+    }
+
+    if (indicate_state) {
+        rc = ble_gatts_indicate_custom(myconn_handle, notify_handle, value);
+    }
+
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
@@ -1961,6 +1994,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     /* octet 0 */
     tester_set_bit(rp->data, BTP_GATT_READ_SUPPORTED_COMMANDS);
     tester_set_bit(rp->data, BTP_GATT_START_SERVER);
+    tester_set_bit(rp->data, BTP_GATT_SET_VALUE);
 
     /* octet 1 */
     tester_set_bit(rp->data, BTP_GATT_EXCHANGE_MTU);
@@ -2016,6 +2050,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATT_EXCHANGE_MTU,
         .expect_len = sizeof(struct btp_gatt_exchange_mtu_cmd),
         .func = exchange_mtu,
+    },
+    {
+        .opcode = BTP_GATT_SET_VALUE,
+        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+        .func = set_val,
     },
     {
         .opcode = BTP_GATT_DISC_ALL_PRIM_SVCS,
