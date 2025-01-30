@@ -1928,6 +1928,51 @@ notify_mult(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
+set_val(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gatt_set_value_cmd *cp = cmd;
+    struct os_mbuf *om;
+    uint8_t cccd_value;
+    uint16_t handle;
+    int rc = 0;
+
+    SYS_LOG_DBG("");
+
+    if ((cmd_len < sizeof(*cp)) || (cmd_len != sizeof(*cp) + htole16(cp->len))) {
+        return BTP_STATUS_FAILED;
+    }
+
+    handle = cp->attr_id;
+    om = ble_hs_mbuf_from_flat(cp->value, cp->len);
+    if (!om) {
+        return BTP_STATUS_FAILED;
+    }
+
+    ble_att_svr_write_local(handle, om);
+
+    rc = ble_gatts_read_cccd(myconn_handle, handle, &cccd_value);
+
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    /* Indications take precedence over notifications if both are enabled */
+    if (cccd_value & BLE_GATT_CCCD_INDICATE) {
+        /* Handles 0x02 (Indicate) and 0x03 (Notify & Indicate) */
+        rc = ble_gatts_indicate(myconn_handle, handle);
+    } else if (cccd_value & BLE_GATT_CCCD_NOTIFY) {
+        /* Handles 0x01 (Notify only) */
+        rc = ble_gatts_notify(myconn_handle, handle);
+    }
+
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
@@ -1976,6 +2021,11 @@ static const struct btp_handler handlers[] = {
      .opcode = BTP_GATT_EXCHANGE_MTU,
      .expect_len = sizeof(struct btp_gatt_exchange_mtu_cmd),
      .func = exchange_mtu,
+     },
+    {
+     .opcode = BTP_GATT_SET_VALUE,
+     .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+     .func = set_val,
      },
     {
      .opcode = BTP_GATT_DISC_ALL_PRIM_SVCS,
