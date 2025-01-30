@@ -81,10 +81,8 @@ static uint8_t gatt_svr_pts_static_short_val;
 static uint8_t notify_state;
 static uint8_t indicate_state;
 static uint16_t myconn_handle;
-static struct os_callout notify_tx_timer;
 uint16_t notify_handle;
 uint16_t notify_handle_alt;
-uint8_t notify_value = 90;
 
 struct find_attr_data {
     ble_uuid_any_t *uuid;
@@ -2168,54 +2166,6 @@ fail:
     return 0;
 }
 
-void
-notify_test_stop(void)
-{
-    os_callout_stop(&notify_tx_timer);
-}
-
-void
-notify_test_reset(void)
-{
-    int rc;
-
-    rc = os_callout_reset(&notify_tx_timer, OS_TICKS_PER_SEC);
-    assert(rc == 0);
-}
-
-void
-notify_test(struct os_event *ev)
-{
-    static uint8_t ntf[1];
-    struct os_mbuf *om;
-    int rc;
-
-    if (!notify_state && !indicate_state) {
-        notify_test_stop();
-        notify_value = 90;
-        return;
-    }
-
-    ntf[0] = notify_value;
-
-    notify_value++;
-    if (notify_value == 160) {
-        notify_value = 90;
-    }
-
-    om = ble_hs_mbuf_from_flat(ntf, sizeof(ntf));
-
-    if (notify_state) {
-        rc = ble_gatts_notify_custom(myconn_handle, notify_handle, om);
-        assert(rc == 0);
-    }
-
-    if (indicate_state) {
-        rc = ble_gatts_indicate_custom(myconn_handle, notify_handle, om);
-        assert(rc == 0);
-    }
-}
-
 int
 tester_gatt_subscribe_ev(uint16_t conn_handle,
                          uint16_t attr_handle,
@@ -2246,12 +2196,6 @@ tester_gatt_subscribe_ev(uint16_t conn_handle,
         if (attr_handle == notify_handle) {
             indicate_state = cur_indicate;
         }
-    }
-
-    if (notify_state || indicate_state) {
-        notify_test_reset();
-    } else {
-        notify_test_stop();
     }
 
     return 0;
@@ -2329,9 +2273,6 @@ gatt_svr_init(void)
 uint8_t
 tester_init_gatt(void)
 {
-    os_callout_init(&notify_tx_timer, os_eventq_dflt_get(),
-                    notify_test, NULL);
-
     tester_register_command_handlers(BTP_SERVICE_ID_GATT, handlers,
                                      ARRAY_SIZE(handlers));
 
