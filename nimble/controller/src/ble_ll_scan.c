@@ -288,8 +288,12 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm,
             ble_ll_resolv_get_priv_addr(rl, 1, rpa);
             scana = rpa;
         } else {
-            ble_ll_scan_refresh_nrpa(scansm);
-            scana = scansm->scan_nrpa;
+            if (ble_ll_resolv_local_rpa_get(scansm->own_addr_type & 0x01, rpa) == 0) {
+                scana = rpa;
+            } else {
+                ble_ll_scan_refresh_nrpa(scansm);
+                scana = scansm->scan_nrpa;
+            }
         }
 
         hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
