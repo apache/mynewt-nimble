@@ -114,6 +114,16 @@ preempt_any_except_conn(struct ble_ll_sched_item *sch,
     return ble_ll_conn_is_lru(sch->cb_arg, item->cb_arg);
 }
 
+static int
+preempt_any_except_big(struct ble_ll_sched_item *sch, struct ble_ll_sched_item *item)
+{
+    if (item->sched_type == BLE_LL_SCHED_TYPE_BIG) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static inline int
 ble_ll_sched_check_overlap(struct ble_ll_sched_item *sch1,
                            struct ble_ll_sched_item *sch2)
@@ -746,7 +756,7 @@ ble_ll_sched_periodic_adv(struct ble_ll_sched_item *sch, bool first_event)
         rc = ble_ll_sched_insert(sch, BLE_LL_SCHED_MAX_DELAY_ANY,
                                  preempt_none);
     } else {
-        rc = ble_ll_sched_insert(sch, 0, preempt_any);
+        rc = ble_ll_sched_insert(sch, 0, preempt_any_except_big);
     }
 
     OS_EXIT_CRITICAL(sr);
