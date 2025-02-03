@@ -177,7 +177,7 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
         }
 
         os_mbuf_append(h4sm->om, h4sm->hdr, h4sm->len);
-        h4sm->exp_len = (get_le16(&h4sm->hdr[2]) & 0x7fff) + 4;
+        h4sm->exp_len = BLE_HCI_ISO_LENGTH(get_le16(&h4sm->hdr[2])) + 4;
         break;
     default:
         assert(0);
