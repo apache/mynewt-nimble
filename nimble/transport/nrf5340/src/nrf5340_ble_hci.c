@@ -23,6 +23,7 @@
 #include <sysinit/sysinit.h>
 #include <nimble/ble.h>
 #include <ipc_nrf5340/ipc_nrf5340.h>
+#include <nimble/hci_common.h>
 #include <nimble/transport.h>
 #include <nimble/transport/hci_ipc.h>
 
@@ -86,7 +87,7 @@ nrf5340_ble_hci_iso_tx(struct os_mbuf *om)
     int rc;
 
     hdr.type = HCI_IPC_TYPE_ISO;
-    hdr.length = 4 + get_le16(&om->om_data[2]);
+    hdr.length = 4 + BLE_HCI_ISO_LENGTH(get_le16(&om->om_data[2]));
 
     rc = ipc_nrf5340_write(IPC_TX_CHANNEL, &hdr, sizeof(hdr), false);
     if (rc == 0) {
