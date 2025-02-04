@@ -1280,6 +1280,7 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_create_big_cp *cmd = (void *)cmdbuf;
     struct big_params bp;
+    uint8_t valid_phys;
     int rc;
 
     if (len != sizeof(*cmd)) {
@@ -1295,6 +1296,18 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         !IN_RANGE(cmd->rtn, 0x00, 0x1e) ||
         (cmd->packing > 1) || (cmd->framing > 1) || (cmd->encryption) > 1) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    valid_phys = BLE_HCI_LE_PHY_1M_PREF_MASK;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    valid_phys |= BLE_HCI_LE_PHY_2M_PREF_MASK;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    valid_phys |= BLE_HCI_LE_PHY_CODED_PREF_MASK;
+#endif
+
+    if (cmd->phy & ~valid_phys) {
+        return BLE_ERR_UNSUPPORTED;
     }
 
     bp.sdu_interval = get_le24(cmd->sdu_interval);
