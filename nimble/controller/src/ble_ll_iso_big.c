@@ -84,7 +84,7 @@ struct big_params {
     uint8_t pto; /* 0-15, mandatory 0 */
     uint32_t sdu_interval;
     uint16_t iso_interval;
-    uint16_t max_transport_latency;
+    uint16_t max_transport_latency_ms;
     uint16_t max_sdu;
     uint8_t max_pdu;
     uint8_t phy;
@@ -132,6 +132,7 @@ struct ble_ll_iso_big {
     uint64_t bis_counter;
 
     uint32_t sync_delay;
+    uint32_t transport_latency_us;
     uint32_t event_start;
     uint8_t event_start_us;
     uint32_t anchor_base_ticks;
@@ -986,12 +987,16 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
     BLE_LL_ASSERT(big);
 
+    big_pool_free--;
+
     advsm = ble_ll_adv_sync_get(adv_handle);
     if (!advsm) {
+        ble_ll_iso_big_free(big);
         return -ENOENT;
     }
 
     if (ble_ll_adv_sync_big_add(advsm, big) < 0) {
+        ble_ll_iso_big_free(big);
         return -ENOENT;
     }
 
@@ -1044,33 +1049,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
                               bp->sdu_interval, bp->bn, pte);
     }
 
-    big_pool_free--;
     bis_pool_free -= num_bis;
-
-    /* Calculate AA for each BIS and BIG Control. We have to repeat this process
-     * until all AAs are valid.
-     */
-    do {
-        rc = 0;
-
-        seed_aa = ble_ll_utils_calc_seed_aa();
-        big->ctrl_aa = ble_ll_utils_calc_big_aa(seed_aa, 0);
-
-        if (!ble_ll_utils_verify_aa(big->ctrl_aa)) {
-            continue;
-        }
-
-        rc = 1;
-
-        STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-            bis->aa = ble_ll_utils_calc_big_aa(seed_aa, bis->num);
-            if (!ble_ll_utils_verify_aa(bis->aa)) {
-                rc = 0;
-                break;
-            }
-            bis->chan_id = bis->aa ^ (bis->aa >> 16);
-        }
-    } while (rc == 0);
 
     big->bn = bp->bn;
     big->pto = bp->pto;
@@ -1107,12 +1086,53 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         big->pto = 0;
     }
 
+    /* Core 6.0, Vol 6, Part G, 3.2.1 and 3.2.2 */
+    if (big->framed) {
+        big->transport_latency_us = big->sync_delay +
+                                    (big->pto * (big->nse / big->bn - big->irc) + 1) *
+                                    big->iso_interval * 1250 + big->sdu_interval;
+    } else {
+        big->transport_latency_us = big->sync_delay +
+                                    (big->pto * (big->nse / big->bn - big->irc) + 1) *
+                                    big->iso_interval * 1250 - big->sdu_interval;
+    }
+
+    if (big->transport_latency_us > bp->max_transport_latency_ms * 1000) {
+        ble_ll_iso_big_free(big);
+        return -ERANGE;
+    }
+
+    /* Calculate AA for each BIS and BIG Control. We have to repeat this process
+     * until all AAs are valid.
+     */
+    do {
+        rc = 0;
+
+        seed_aa = ble_ll_utils_calc_seed_aa();
+        big->ctrl_aa = ble_ll_utils_calc_big_aa(seed_aa, 0);
+
+        if (!ble_ll_utils_verify_aa(big->ctrl_aa)) {
+            continue;
+        }
+
+        rc = 1;
+
+        STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
+            bis->aa = ble_ll_utils_calc_big_aa(seed_aa, bis->num);
+            if (!ble_ll_utils_verify_aa(bis->aa)) {
+                rc = 0;
+                break;
+            }
+            bis->chan_id = bis->aa ^ (bis->aa >> 16);
+        }
+    } while (rc == 0);
+
+    ble_ll_iso_big_biginfo_calc(big, seed_aa);
+
     if (big->encrypted) {
         ble_ll_iso_big_calculate_gsk(big, bp->broadcast_code);
         ble_ll_iso_big_calculate_iv(big);
     }
-
-    ble_ll_iso_big_biginfo_calc(big, seed_aa);
 
     /* For now we will schedule complete event as single item. This allows for
      * shortest possible subevent space (150us) but can create sequence of long
@@ -1253,10 +1273,7 @@ ble_ll_iso_big_hci_evt_complete(void)
     evt->big_handle = big->handle;
     put_le24(evt->big_sync_delay, big->sync_delay);
     /* Core 5.3, Vol 6, Part G, 3.2.2 */
-    put_le24(evt->transport_latency_big,
-             big->sync_delay +
-             (big->pto * (big->nse / big->bn - big->irc) + 1) * big->iso_interval * 1250 -
-             big->sdu_interval);
+    put_le24(evt->transport_latency_big, big->transport_latency_us);
     evt->phy = big->phy;
     evt->nse = big->nse;
     evt->bn = big->bn;
@@ -1311,7 +1328,7 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
     }
 
     bp.sdu_interval = get_le24(cmd->sdu_interval);
-    bp.max_transport_latency = le16toh(cmd->max_transport_latency);
+    bp.max_transport_latency_ms = le16toh(cmd->max_transport_latency);
     bp.max_sdu = le16toh(cmd->max_sdu);
     if (cmd->phy & BLE_HCI_LE_PHY_2M_PREF_MASK) {
         bp.phy = BLE_PHY_2M;
@@ -1346,6 +1363,8 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CONN_REJ_RESOURCES;
     case -ENOENT:
         return BLE_ERR_UNK_ADV_INDENT;
+    case -ERANGE:
+        return BLE_ERR_UNSUPPORTED;
     default:
         return BLE_ERR_UNSPECIFIED;
     }
@@ -1388,6 +1407,7 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
     bp.pto = cmd->pto;
     bp.sdu_interval = get_le24(cmd->sdu_interval);
     bp.iso_interval = le16toh(cmd->iso_interval);
+    bp.max_transport_latency_ms = 0x0fa0; /* max_transport_latency for HCI LE Create BIG */
     bp.max_sdu = le16toh(cmd->max_sdu);
     bp.max_pdu = le16toh(cmd->max_pdu);
     /* TODO verify phy */
@@ -1432,6 +1452,8 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_CONN_REJ_RESOURCES;
     case -ENOENT:
         return BLE_ERR_UNK_ADV_INDENT;
+    case -ERANGE:
+        return BLE_ERR_UNSUPPORTED;
     default:
         return BLE_ERR_UNSPECIFIED;
     }
