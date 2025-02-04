@@ -58,6 +58,7 @@ supported_services(const void *cmd, uint16_t cmd_len,
     tester_set_bit(rp->data, BTP_SERVICE_ID_MESH);
 #endif /* MYNEWT_VAL(BLE_MESH) */
     tester_set_bit(rp->data, BTP_SERVICE_ID_GATTC);
+    tester_set_bit(rp->data, BTP_SERVICE_ID_GATTS);
 
     *rsp_len = sizeof(*rp) + 2;
 
@@ -70,6 +71,7 @@ register_service(const void *cmd, uint16_t cmd_len,
 {
     const struct btp_core_register_service_cmd *cp = cmd;
     uint8_t status;
+    int rc;
 
     /* invalid service */
     if ((cp->id == BTP_SERVICE_ID_CORE) || (cp->id > BTP_SERVICE_ID_MAX)) {
@@ -110,6 +112,14 @@ register_service(const void *cmd, uint16_t cmd_len,
 #endif /* MYNEWT(BLE_AUDIO) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
+        break;
+    case BTP_SERVICE_ID_GATTS:
+        rc = register_database();
+        if (rc != 0) {
+            status = rc;
+            break;
+        }
+        status = tester_init_gatts();
         break;
     default:
         status = BTP_STATUS_FAILED;
@@ -159,6 +169,9 @@ unregister_service(const void *cmd, uint16_t cmd_len,
 #endif /* MYNEWT_VAL(BLE_MESH) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_unregister_gatt_cl();
+        break;
+    case BTP_SERVICE_ID_GATTS:
+        status = tester_unregister_gatts();
         break;
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     case BTP_SERVICE_ID_BAP:

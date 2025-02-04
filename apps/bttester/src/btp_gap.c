@@ -1436,13 +1436,13 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                        event->subscribe.cur_notify,
                        event->subscribe.prev_indicate,
                        event->subscribe.cur_indicate);
-        tester_gatt_subscribe_ev(event->subscribe.conn_handle,
-                                 event->subscribe.attr_handle,
-                                 event->subscribe.reason,
-                                 event->subscribe.prev_notify,
-                                 event->subscribe.cur_notify,
-                                 event->subscribe.prev_indicate,
-                                 event->subscribe.cur_indicate);
+        tester_gatts_subscribe_ev(event->subscribe.conn_handle,
+                                  event->subscribe.attr_handle,
+                                  event->subscribe.reason,
+                                  event->subscribe.prev_notify,
+                                  event->subscribe.cur_notify,
+                                  event->subscribe.prev_indicate,
+                                  event->subscribe.cur_indicate);
         break;
     case BLE_GAP_EVENT_REPEAT_PAIRING:
         console_printf("repeat pairing event; conn_handle=%d "
