@@ -3461,10 +3461,8 @@ ble_ll_adv_ext_set_param(const uint8_t *cmdbuf, uint8_t len,
     }
 #endif
 
-    adv_itvl_min = cmd->pri_itvl_min[2] << 16 | cmd->pri_itvl_min[1] << 8 |
-                   cmd->pri_itvl_min[0];
-    adv_itvl_max = cmd->pri_itvl_max[2] << 16 | cmd->pri_itvl_max[1] << 8 |
-                   cmd->pri_itvl_max[0];
+    adv_itvl_min = get_le24(cmd->pri_itvl_min);
+    adv_itvl_max = get_le24(cmd->pri_itvl_max);
 
     if (props & ~BLE_HCI_LE_SET_EXT_ADV_PROP_MASK) {
         rc = BLE_ERR_INV_HCI_CMD_PARMS;
