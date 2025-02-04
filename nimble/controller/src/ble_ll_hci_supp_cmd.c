@@ -273,6 +273,10 @@ static const uint8_t octet_43 = OCTET(
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     BIT(2) /* HCI LE Request Peer SCA */
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO)
+    BIT(3) /* HCI LE Setup ISO Data Path */
+    BIT(4) /* HCI LE Remove ISO Data Path */
+#endif
 );
 
 static const uint8_t octet_44 = OCTET(
