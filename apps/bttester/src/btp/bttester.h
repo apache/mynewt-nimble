@@ -113,14 +113,15 @@ tester_unregister_gatt(void);
 int
 tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
                           uint8_t indication, struct os_mbuf *om);
+
 int
-tester_gatt_subscribe_ev(uint16_t conn_handle,
-                         uint16_t attr_handle,
-                         uint8_t reason,
-                         uint8_t prev_notify,
-                         uint8_t cur_notify,
-                         uint8_t prev_indicate,
-                         uint8_t cur_indicate);
+tester_gatts_subscribe_ev(uint16_t conn_handle,
+                          uint16_t attr_handle,
+                          uint8_t reason,
+                          uint8_t prev_notify,
+                          uint8_t cur_notify,
+                          uint8_t prev_indicate,
+                          uint8_t cur_indicate);
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 uint8_t
@@ -139,11 +140,17 @@ uint8_t
 tester_init_gatt_cl(void);
 uint8_t
 tester_unregister_gatt_cl(void);
+uint8_t
+tester_init_gatts(void);
+uint8_t
+tester_unregister_gatts(void);
+uint8_t
+register_database(void);
 void
-gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
+gatts_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
 int
-gatt_svr_init(void);
+gatts_svr_init(void);
 
 #if MYNEWT_VAL(BLE_AUDIO)
 uint8_t

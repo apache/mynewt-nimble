@@ -31,6 +31,7 @@
 #include "btp_gap.h"
 #include "btp_gatt.h"
 #include "btp_gattc.h"
+#include "btp_gatts.h"
 #include "btp_l2cap.h"
 #include "btp_mesh.h"
 #include "btp_pacs.h"
@@ -48,6 +49,7 @@
 #define BTP_SERVICE_ID_L2CAP    3
 #define BTP_SERVICE_ID_MESH    4
 #define BTP_SERVICE_ID_GATTC    6
+#define BTP_SERVICE_ID_GATTS    7
 #define BTP_SERVICE_ID_PACS     12
 #define BTP_SERVICE_ID_BAP     14
 
