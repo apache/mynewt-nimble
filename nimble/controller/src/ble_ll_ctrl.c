@@ -650,6 +650,11 @@ ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask)
 {
     uint8_t phy;
 
+    /* One and only one bit shall be set */
+    if (__builtin_popcount(phy_mask) != 1) {
+        return 0;
+    }
+
     /*
      * NOTE: wipe out unsupported PHYs. There should not be an unsupported
      * in this mask if the other side is working correctly.
