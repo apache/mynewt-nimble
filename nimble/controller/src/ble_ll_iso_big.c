@@ -1357,6 +1357,8 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
     switch (rc) {
     case 0:
         break;
+    case -EALREADY:
+        return BLE_ERR_CMD_DISALLOWED;
     case -EINVAL:
         return BLE_ERR_INV_HCI_CMD_PARMS;
     case -ENOMEM:
@@ -1446,6 +1448,8 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
     switch (rc) {
     case 0:
         break;
+    case -EALREADY:
+        return BLE_ERR_CMD_DISALLOWED;
     case -EINVAL:
         return BLE_ERR_INV_HCI_CMD_PARMS;
     case -ENOMEM:
