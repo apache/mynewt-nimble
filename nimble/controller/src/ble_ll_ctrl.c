@@ -3229,6 +3229,11 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
             connsm->flags.pending_encrypt_restart = 1;
         }
         break;
+#else
+    case BLE_LL_CTRL_PAUSE_ENC_RSP:
+        BLE_LL_ASSERT(connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL);
+        connsm->flags.pending_encrypt_restart = 1;
+        break;
 #endif
 #endif
 #if MYNEWT_VAL(BLE_LL_PHY)
