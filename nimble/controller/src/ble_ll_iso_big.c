@@ -326,7 +326,7 @@ ble_ll_iso_big_biginfo_copy(struct ble_ll_iso_big *big, uint8_t *dptr,
      */
     if (event_start <= base_ticks) {
         ble_ll_tmr_add(&event_start, &event_start_us, big->iso_interval * 1250);
-        counter++;
+        counter += big->bn;
     }
 
     /* Drop BIGInfo if BIG event is still before AUX_SYNC_IND. This should not
@@ -440,13 +440,17 @@ ble_ll_iso_big_chan_map_update_complete(struct ble_ll_iso_big *big)
 }
 
 static void
-ble_ll_iso_big_update_event_start(struct ble_ll_iso_big *big)
+ble_ll_iso_big_update_event_start(struct ble_ll_iso_big *big,
+                                  uint64_t new_big_counter)
 {
     os_sr_t sr;
 
     OS_ENTER_CRITICAL(sr);
+    /* This has to be updated atomically to avoid races when copying to BIGInfo */
     big->event_start = big->sch.start_time + g_ble_ll_sched_offset_ticks;
     big->event_start_us = big->sch.remainder;
+    big->bis_counter += (new_big_counter - big->big_counter) * big->bn;
+    big->big_counter = new_big_counter;
     OS_EXIT_CRITICAL(sr);
 }
 
@@ -462,6 +466,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
     uint16_t exp;
     uint32_t now;
 #endif
+    uint64_t big_counter;
     struct ble_hci_ev_num_comp_pkts *hci_ev_ncp = NULL;
     int num_completed_pkt;
     int idx;
@@ -548,13 +553,13 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 
     big->sch.start_time = big->event_start;
     big->sch.remainder = big->event_start_us;
+    big_counter = big->big_counter;
 
     do {
-        big->big_counter++;
-        big->bis_counter += big->bn;
+        big_counter++;
 
         if (big->control_active &&
-            (big->control_instant == (uint16_t)big->big_counter)) {
+            (big->control_instant == (uint16_t)big_counter)) {
             switch (big->control_active) {
             case BIG_CONTROL_ACTIVE_TERM:
                 ble_ll_iso_big_terminate_complete(big);
@@ -583,7 +588,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
             }
 
             if (big->control_active) {
-                big->control_instant = big->big_counter + 6;
+                big->control_instant = big_counter + 6;
                 big->cstf = 1;
                 big->cssn += 1;
             }
@@ -597,7 +602,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         assert(rc == 0);
     } while (rc < 0);
 
-    ble_ll_iso_big_update_event_start(big);
+    ble_ll_iso_big_update_event_start(big, big_counter);
 }
 
 static void
@@ -1180,7 +1185,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         }
     } while (rc < 0);
 
-    ble_ll_iso_big_update_event_start(big);
+    ble_ll_iso_big_update_event_start(big, big->big_counter);
 
     big_pending = big;
 
