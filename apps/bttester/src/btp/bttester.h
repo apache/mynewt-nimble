@@ -136,6 +136,10 @@ uint8_t
 tester_init_gatt_cl(void);
 uint8_t
 tester_unregister_gatt_cl(void);
+uint8_t
+tester_init_gatts(void);
+uint8_t
+tester_unregister_gatts(void);
 void
 gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
