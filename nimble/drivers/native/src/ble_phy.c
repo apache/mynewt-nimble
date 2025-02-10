@@ -427,9 +427,8 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     return 0;
 }
 
-
 int
-ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg)
 {
     uint8_t hdr_byte;
     int rc;
@@ -446,9 +445,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         assert(0);
     } else {
     }
-
-    /* Set the PHY transition */
-    g_ble_phy_data.phy_transition = end_trans;
 
     /* Set phy state to transmitting and count packet statistics */
     g_ble_phy_data.phy_state = BLE_PHY_STATE_TX;
@@ -663,6 +659,7 @@ ble_phy_rfclk_disable(void)
 }
 
 void
-ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
+ble_phy_transition_set(uint8_t trans, uint16_t usecs)
 {
+    g_ble_phy_data.phy_transition = trans;
 }

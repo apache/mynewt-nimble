@@ -2218,10 +2218,6 @@
 #define MYNEWT_VAL_BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR 0
 #endif
 
-#ifndef MYNEWT_VAL_BLE_PHY_VARIABLE_TIFS
-#define MYNEWT_VAL_BLE_PHY_VARIABLE_TIFS 0
-#endif
-
 #ifndef MYNEWT_VAL_PKG_nimble_drivers_nrf5x
 #define MYNEWT_VAL_PKG_nimble_drivers_nrf5x 1
 #endif
