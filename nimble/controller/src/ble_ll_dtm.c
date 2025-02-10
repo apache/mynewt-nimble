@@ -244,7 +244,8 @@ ble_ll_dtm_tx_sched_cb(struct ble_ll_sched_item *sch)
         goto resched;
     }
 
-    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, ctx->om, BLE_PHY_TRANSITION_NONE);
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, ctx->om);
     if (rc) {
         goto resched;
     }
