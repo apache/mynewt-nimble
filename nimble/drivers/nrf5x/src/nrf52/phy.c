@@ -177,6 +177,9 @@ phy_ppi_init(void)
     nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL5,
                                    (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
                                    (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
+    nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL8,
+                                   (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[0]),
+                                   (uint32_t)&(NRF_RADIO->TASKS_START));
 }
 
 void
