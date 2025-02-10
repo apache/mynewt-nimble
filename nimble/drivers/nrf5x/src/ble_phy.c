@@ -133,6 +133,10 @@ extern uint32_t g_nrf_irk_list[];
                                 (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) | \
                                 (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos)
 
+#define PHY_TRANS_NONE         (0)
+#define PHY_TRANS_TO_TX        (1)
+#define PHY_TRANS_TO_RX        (2)
+
 #define PHY_TRANS_ANCHOR_START (0)
 #define PHY_TRANS_ANCHOR_END   (1)
 
@@ -163,12 +167,9 @@ struct ble_phy_obj
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
     uint32_t phy_start_cputime;
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    uint16_t tifs;
-#endif
-
-    uint16_t txtx_time_us;
-    uint8_t txtx_time_anchor;
+    uint16_t wfr_usecs;
+    uint16_t tifs_usecs;
+    uint8_t tifs_anchor;
 };
 static struct ble_phy_obj g_ble_phy_data;
 
@@ -638,14 +639,6 @@ nrf_wait_disabled(void)
     }
 }
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-void
-ble_phy_tifs_set(uint16_t tifs)
-{
-    g_ble_phy_data.tifs = tifs;
-}
-#endif
-
 /**
  *
  *
@@ -878,17 +871,12 @@ ble_phy_wfr_enable_at(uint32_t end_time)
 
 /**
  * Function is used to set PPI so that we can time out waiting for a reception
- * to occur. This happens for two reasons: we have sent a packet and we are
- * waiting for a response (txrx should be set to ENABLE_TXRX) or we are
- * starting a connection event and we are a slave and we are waiting for the
- * master to send us a packet (txrx should be set to ENABLE_RX).
+ * to occur, e.g. when we are starting a connection event and we are a slave
+ * and we are waiting for the master to send us a packet. The wfr of a
+ * transition to RX is set up by the transition.
  *
- * NOTE: when waiting for a txrx turn-around, wfr_usecs is not used as there
- * is no additional time to wait; we know when we should receive the address of
- * the received frame.
- *
- * @param txrx Flag denoting if this wfr is a txrx turn-around or not.
- * @param tx_phy_mode phy mode for last TX (only valid for TX->RX)
+ * @param txrx Shall be BLE_PHY_WFR_ENABLE_RX.
+ * @param tx_phy_mode Not used.
  * @param wfr_usecs Amount of usecs to wait.
  */
 void
@@ -896,40 +884,17 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
     uint32_t end_time;
     uint8_t phy;
-    uint16_t tifs;
+
+    assert(txrx == BLE_PHY_WFR_ENABLE_RX);
 
     phy = g_ble_phy_data.phy_cur_phy_mode;
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-#else
-    tifs = BLE_LL_IFS;
-#endif
-
-    if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
-        /* RX shall start exactly T_IFS after TX end captured in CC[2] */
-        end_time = NRF_TIMER0->CC[2] + tifs;
-        /* Adjust for delay between EVENT_END and actual TX end time */
-        end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
-        /* Wait a bit longer due to allowed active clock accuracy */
-        end_time += 2;
-        /*
-         * It's possible that we'll capture PDU start time at the end of timer
-         * cycle and since wfr expires at the beginning of calculated timer
-         * cycle it can be almost 1 usec too early. Let's compensate for this
-         * by waiting 1 usec more.
-         */
-        end_time += 1;
-
-        end_time += MYNEWT_VAL(BLE_PHY_EXTENDED_TIFS);
-    } else {
-        /*
-         * RX shall start no later than wfr_usecs after RX enabled.
-         * CC[0] is the time of RXEN so adjust for radio ram-up.
-         * Do not add jitter since this is already covered by LL.
-         */
-        end_time = NRF_TIMER0->CC[0] + BLE_PHY_T_RXENFAST + wfr_usecs;
-    }
+    /*
+     * RX shall start no later than wfr_usecs after RX enabled.
+     * CC[0] is the time of RXEN so adjust for radio ram-up.
+     * Do not add jitter since this is already covered by LL.
+     */
+    end_time = NRF_TIMER0->CC[0] + BLE_PHY_T_RXENFAST + wfr_usecs;
 
     /*
      * Note: on LE Coded EVENT_ADDRESS is fired after TERM1 is received, so
@@ -1135,24 +1100,25 @@ ble_transition_to_tx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state
      */
     is_late = timer0_did_miss(0, 3);
 #if PHY_USE_FEM_PA
-    if (phy_state == BLE_PHY_STATE_RX) {
-        is_late = is_late || timer0_did_miss(2, 3);
-    }
+    is_late = is_late || timer0_did_miss(2, 3);
 #endif
     if (is_late) {
-        phy_ppi_timer0_compare0_to_radio_txen_disable();
         g_ble_phy_data.phy_transition_late = 1;
+
+        return 1;
     }
 
     return 0;
 }
 
 static int
-ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state)
+ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs,
+                     uint16_t wfr_usecs, uint8_t phy_state)
 {
     uint32_t anchor_time;
     uint32_t radio_time;
     uint32_t start_time;
+    uint32_t wfr_time;
 #if PHY_USE_FEM
     uint32_t fem_time;
 #endif
@@ -1167,8 +1133,6 @@ ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state
 
     /* Packet pointer needs to be reset. */
     ble_phy_rx_xcvr_setup();
-
-    ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, phy_mode, 0);
 
     anchor_time = ble_phy_transition_anchor_get(tifs_anchor, phy_state, phy_mode);
     start_time = anchor_time + tifs_usecs;
@@ -1185,6 +1149,27 @@ ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state
 
     /* Adjust for RX rump-up */
     radio_time -= BLE_PHY_T_RXENFAST;
+
+    /* Setup wfr relative to expected radio/PDU start */
+    wfr_time = start_time;
+    /* Add amount of usecs to wait */
+    wfr_time += wfr_usecs;
+    /* Adjust for receiving access address since this triggers EVENT_ADDRESS */
+    wfr_time += ble_phy_mode_pdu_start_off(g_ble_phy_data.phy_cur_phy_mode);
+    /* Adjust for delay between actual access address RX and EVENT_ADDRESS */
+    wfr_time += g_ble_phy_t_rxaddrdelay[g_ble_phy_data.phy_cur_phy_mode];
+    /* Wait a bit longer due to allowed active clock accuracy */
+    wfr_time += 2;
+    /*
+     * It's possible that we'll capture PDU start time at the end of timer
+     * cycle and since wfr expires at the beginning of calculated timer
+     * cycle it can be almost 1 usec too early. Let's compensate for this
+     * by waiting 1 usec more.
+     */
+    wfr_time += 1;
+    wfr_time += MYNEWT_VAL(BLE_PHY_EXTENDED_TIFS);
+
+    ble_phy_wfr_enable_at(wfr_time);
 
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
     phy_ppi_timer0_compare0_to_radio_rxen_enable();
@@ -1221,14 +1206,14 @@ ble_transition_to_none(void)
 
 static int
 ble_phy_transition(uint8_t transition, uint8_t tifs_anchor,
-                   uint16_t tifs_usecs, uint8_t phy_state)
+                   uint16_t tifs_usecs, uint16_t wfr_usecs, uint8_t phy_state)
 {
     int rc = 1;
 
-    if (transition == BLE_PHY_TRANSITION_TO_TX) {
+    if (transition == PHY_TRANS_TO_TX) {
         rc = ble_transition_to_tx(tifs_anchor, tifs_usecs, phy_state);
-    } else if (transition == BLE_PHY_TRANSITION_TO_RX) {
-        rc = ble_transition_to_rx(tifs_anchor, tifs_usecs, phy_state);
+    } else if (transition == PHY_TRANS_TO_RX) {
+        rc = ble_transition_to_rx(tifs_anchor, tifs_usecs, wfr_usecs, phy_state);
     }
 
     if (rc) {
@@ -1247,7 +1232,8 @@ ble_phy_tx_end_isr(void)
 {
     uint8_t was_encrypted;
     uint8_t transition;
-    uint16_t tifs;
+    uint16_t wfr_usecs;
+    uint16_t tifs_usecs;
     uint8_t tifs_anchor;
 
     /* If this transmission was encrypted we need to remember it */
@@ -1270,25 +1256,18 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#else
-    tifs = BLE_LL_IFS;
-#endif
     transition = g_ble_phy_data.phy_transition;
-    if (transition == BLE_PHY_TRANSITION_TO_RX) {
-        tifs_anchor = PHY_TRANS_ANCHOR_END;
-    } else {
-        tifs_anchor = g_ble_phy_data.txtx_time_anchor;
-        tifs = g_ble_phy_data.txtx_time_us;
-    }
+    wfr_usecs = g_ble_phy_data.wfr_usecs;
+    tifs_usecs = g_ble_phy_data.tifs_usecs;
+    tifs_anchor = g_ble_phy_data.tifs_anchor;
+
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
     if (g_ble_phy_data.txend_cb) {
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
 
-    ble_phy_transition(transition, tifs_anchor, tifs, BLE_PHY_STATE_TX);
+    ble_phy_transition(transition, tifs_anchor, tifs_usecs, wfr_usecs, BLE_PHY_STATE_TX);
 }
 
 static inline uint8_t
@@ -1322,7 +1301,6 @@ ble_phy_rx_end_isr(void)
     int rc;
     uint8_t *dptr;
     uint8_t crcok;
-    uint16_t tifs;
     struct ble_mbuf_hdr *ble_hdr;
 
     /* Disable automatic RXEN */
@@ -1382,15 +1360,16 @@ ble_phy_rx_end_isr(void)
      * enough.
      */
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#else
-    tifs = BLE_LL_IFS;
-#endif
+    if (g_ble_phy_data.phy_transition == PHY_TRANS_NONE) {
+        /* XXX: Should be removed after finding all missing uses of ble_phy_transition_set */
+        g_ble_phy_data.phy_transition = PHY_TRANS_TO_TX;
+    }
 
-    ble_phy_transition(BLE_PHY_TRANSITION_TO_TX, PHY_TRANS_ANCHOR_END, tifs,
-                       BLE_PHY_STATE_RX);
+    ble_phy_transition(g_ble_phy_data.phy_transition,
+                       g_ble_phy_data.tifs_anchor, g_ble_phy_data.tifs_usecs,
+                       g_ble_phy_data.wfr_usecs, BLE_PHY_STATE_RX);
+
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
     /*
      * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
@@ -1644,9 +1623,7 @@ ble_phy_init(void)
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#endif
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
     /* Toggle peripheral power to reset (just in case) */
     nrf_radio_power_set(NRF_RADIO, false);
@@ -1972,7 +1949,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 }
 
 int
-ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg)
 {
     int rc;
     uint8_t *dptr;
@@ -1981,12 +1958,15 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     uint8_t hdr_byte;
     uint32_t state;
     uint32_t shortcuts;
+    uint8_t end_trans;
 
     if (g_ble_phy_data.phy_transition_late) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, tx_late);
         return BLE_PHY_ERR_TX_LATE;
     }
+
+    end_trans = g_ble_phy_data.phy_transition;
 
     /*
      * This check is to make sure that the radio is not in a state where
@@ -2282,6 +2262,7 @@ ble_phy_disable(void)
     ble_phy_disable_irq_and_ppi();
 
     g_ble_phy_data.phy_transition_late = 0;
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
 #if PHY_USE_FEM
     phy_fem_disable();
@@ -2422,8 +2403,36 @@ ble_phy_rfclk_disable(void)
 #endif
 
 void
-ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
+ble_phy_transition_set(uint8_t trans, uint16_t usecs)
 {
-    g_ble_phy_data.txtx_time_us = usecs;
-    g_ble_phy_data.txtx_time_anchor = anchor;
+    uint8_t transition;
+    uint8_t anchor;
+
+    if (trans == BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT ||
+        trans == BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT) {
+        anchor = PHY_TRANS_ANCHOR_START;
+    } else {
+        anchor = PHY_TRANS_ANCHOR_END;
+    }
+
+    if (trans == BLE_PHY_TRANSITION_TO_RX ||
+        trans == BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT) {
+        transition = PHY_TRANS_TO_RX;
+    } else if (trans == BLE_PHY_TRANSITION_TO_TX ||
+               trans == BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT) {
+        transition = PHY_TRANS_TO_TX;
+    } else {
+        transition = PHY_TRANS_NONE;
+    }
+
+    if (trans == BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT) {
+        usecs -= BLE_LL_JITTER_USECS;
+        g_ble_phy_data.wfr_usecs = 2 * BLE_LL_JITTER_USECS;
+    } else {
+        g_ble_phy_data.wfr_usecs = 0;
+    }
+
+    g_ble_phy_data.phy_transition = transition;
+    g_ble_phy_data.tifs_anchor = anchor;
+    g_ble_phy_data.tifs_usecs = usecs ? usecs : BLE_LL_IFS;
 }
