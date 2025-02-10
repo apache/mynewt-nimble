@@ -19,15 +19,16 @@
 
 /* btp_pacs.c - Bluetooth Published Audio Capacity Service Tester */
 
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_AUDIO)
+
 #include "audio/ble_audio.h"
 #include "audio/ble_audio_codec.h"
 #include "btp/bttester.h"
 #include "host/ble_gap.h"
 #include "os/util.h"
-#include "syscfg/syscfg.h"
 #include <stdint.h>
-
-#if MYNEWT_VAL(BLE_AUDIO)
 
 #include "btp/btp.h"
 #include "btp/btp_pacs.h"
