@@ -82,6 +82,7 @@ static uint8_t indicate_state;
 static uint16_t myconn_handle;
 static struct os_callout notify_tx_timer;
 uint16_t notify_handle;
+uint16_t notify_handle_alt;
 uint8_t notify_value = 90;
 
 struct find_attr_data {
@@ -243,7 +244,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             }, {
                 .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY_ALT),
                 .access_cb = gatt_svr_read_write_test,
-                .val_handle = &notify_handle,
+                .val_handle = &notify_handle_alt,
                 .flags = BLE_GATT_CHR_F_READ |
                          BLE_GATT_CHR_F_WRITE |
                          BLE_GATT_CHR_F_NOTIFY |
