@@ -119,12 +119,10 @@ tester_gatt_subscribe_ev(uint16_t conn_handle,
                          uint8_t prev_indicate,
                          uint8_t cur_indicate);
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 uint8_t
 tester_init_l2cap(void);
 uint8_t
 tester_unregister_l2cap(void);
-#endif
 
 #if MYNEWT_VAL(BLE_MESH)
 uint8_t

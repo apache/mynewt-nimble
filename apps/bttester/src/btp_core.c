@@ -92,11 +92,9 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATT:
         status = tester_init_gatt();
         break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     case BTP_SERVICE_ID_L2CAP:
         status = tester_init_l2cap();
         break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
 #if MYNEWT_VAL(BLE_MESH)
     case BTP_SERVICE_ID_MESH:
         status = tester_init_mesh();

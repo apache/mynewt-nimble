@@ -26,6 +26,7 @@
  */
 
 #include "syscfg/syscfg.h"
+#include "btp/btp.h"
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 
@@ -34,8 +35,6 @@
 #include "host/ble_l2cap.h"
 
 #include "../../../nimble/host/src/ble_l2cap_priv.h"
-
-#include "btp/btp.h"
 
 #define CONTROLLER_INDEX             0
 #define CHANNELS                     MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
@@ -729,10 +728,12 @@ static const struct btp_handler handlers[] = {
         .func = credits,
     },
 };
+#endif
 
 uint8_t
 tester_init_l2cap(void)
 {
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     int rc;
 
     /* For testing we want to support all the available channels */
@@ -748,6 +749,8 @@ tester_init_l2cap(void)
     tester_register_command_handlers(BTP_SERVICE_ID_L2CAP, handlers,
                                      ARRAY_SIZE(handlers));
 
+#endif
+
     return BTP_STATUS_SUCCESS;
 }
 
@@ -756,5 +759,3 @@ tester_unregister_l2cap(void)
 {
     return BTP_STATUS_SUCCESS;
 }
-
-#endif
