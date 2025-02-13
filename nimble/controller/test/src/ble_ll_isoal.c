@@ -482,18 +482,15 @@ test_ial_broadcast_large_sdu_bis(
     struct ble_ll_isoal_mux mux;
     const uint16_t Max_SDU = 503;
     const uint8_t Max_PDU = 251;
-    const uint8_t LLID = 0b10;
     int pdu_len;
     uint8_t pdu[Max_PDU];
     uint32_t timestamp;
-    uint32_t timeoffset;
     uint16_t seg_hdr;
     uint16_t sdu_len;
     uint8_t llid = 0xff;
     uint8_t sc_packets_num;
     uint8_t seg_len;
-
-    TEST_ASSERT(cfg->Framed, "TODO: Add unframed PDU support for this test");
+    uint8_t idx;
 
     TEST_ASSERT(Max_SDU <= sizeof(os_mbuf_test_data),
                 "incorrect sdu length");
@@ -512,47 +509,115 @@ test_ial_broadcast_large_sdu_bis(
 
         ble_ll_isoal_mux_event_start(&mux, timestamp + 100);
 
-        for (uint8_t idx = 0; idx < cfg->BN; idx++) {
+        for (idx = 0; idx < cfg->BN; idx++) {
             pdu_len = ble_ll_isoal_mux_pdu_get(&mux, idx, &llid, pdu);
-            TEST_ASSERT(llid == LLID, "LLID is incorrect %d", llid);
-            TEST_ASSERT(pdu_len > 2 /* Segmentation Header */,
-                        "PDU length is incorrect %d", pdu_len);
-            seg_hdr = get_le16(&pdu[0]);
-            seg_len = BLE_LL_ISOAL_SEGHDR_LEN(seg_hdr);
-            TEST_ASSERT(pdu_len == 2 /* Segmentation Header */ + seg_len,
-                        "PDU length is incorrect %d", pdu_len);
+            if (pdu_len == 0) {
+                break;
+            }
 
-            if (BLE_LL_ISOAL_SEGHDR_SC(seg_hdr)) {
-                if (sc_packets_num == 0) {
-                    /* Payload Data every 251 bytes offset in step 1 */
-                    TEST_ASSERT(seg_len == 249, "Length is incorrect %d", seg_len);
+            /* The IUT sends the specified number of Start/Continuation
+             * packets specified in Table 4.29 of ISO Data PDUs to the
+             * Lower Tester with the LLID=0b01 for unframed payloads and
+             * LLID=0b10 for framed payloads, and Payload Data every 251
+             * bytes offset in step 1.
+             */
+            if (sc_packets_num < rounds[round].sc_packets_num) {
+                TEST_ASSERT(pdu_len == 251, "Length is incorrect %d", seg_len);
+
+                if (cfg->Framed) {
+                    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+
+                    seg_hdr = get_le16(&pdu[0]);
+                    seg_len = BLE_LL_ISOAL_SEGHDR_LEN(seg_hdr);
+                    if (idx == 0) {
+                        TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr) == 0,
+                                    "SC is incorrect %d",
+                                    BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
+                        sdu_len += seg_len - 3;
+                    } else {
+                        TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr) == 1,
+                                    "SC is incorrect %d",
+                                    BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
+                        sdu_len += seg_len;
+                    }
+                } else {
+                    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+                    sdu_len += pdu_len;
                 }
 
                 sc_packets_num++;
-                sdu_len += seg_len;
             } else {
-                timeoffset = get_le24(&pdu[2]);
-                TEST_ASSERT(timeoffset == 100, "Time offset is incorrect %d", timeoffset);
+                /* The IUT sends the last ISO Data PDU to the Lower Tester
+                 * with the LLID=0b00 for unframed payloads and LLID=0b10
+                 * for framed payloads, with the remaining Payload Data.
+                 */
+                if (cfg->Framed) {
+                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_len + 2,
+                                "PDU length is incorrect %d", pdu_len);
+                    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
 
-                sdu_len += seg_len - 3;
-            }
-
-            if (BLE_LL_ISOAL_SEGHDR_CMPLT(seg_hdr)) {
-                break;
+                    seg_hdr = get_le16(&pdu[0]);
+                    TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr),
+                                "SC is incorrect %d",
+                                BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
+                    TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_CMPLT(seg_hdr),
+                                "CMPLT is incorrect %d",
+                                BLE_LL_ISOAL_SEGHDR_CMPLT(seg_hdr));
+                    seg_len = BLE_LL_ISOAL_SEGHDR_LEN(seg_hdr);
+                } else {
+                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_len,
+                                "PDU length is incorrect %d", pdu_len);
+                    TEST_ASSERT(llid == 0b00, "LLID is incorrect %d", llid);
+                }
             }
         }
-
-        TEST_ASSERT(rounds[round].sdu_len == sdu_len,
-                    "Incorrect sdu length %d != %d",
-                    rounds[round].sdu_len, sdu_len);
-        TEST_ASSERT(rounds[round].sc_packets_num == sc_packets_num,
-                    "Incorrect sc_packets_num %d != %d",
-                    rounds[round].sc_packets_num, sc_packets_num);
 
         (void)ble_ll_isoal_mux_event_done(&mux);
     }
 
     ble_ll_isoal_mux_free(&mux);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_09_c)
+{
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 12,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 6,
+        .SDU_Interval = 20000,
+        .ISO_Interval = 40000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_10_c)
+{
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 4,
+        .SDU_Interval = 20000,
+        .ISO_Interval = 20000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_11_c)
+{
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 4,
+        .SDU_Interval = 25000,
+        .ISO_Interval = 25000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
 }
 
 TEST_CASE_SELF(test_ial_bis_fra_brd_bv_13_c)
@@ -1022,6 +1087,9 @@ TEST_SUITE(ble_ll_isoal_test_suite)
     test_ial_bis_fra_brd_bv_29_c();
 
     /* Broadcast Large SDU, BIS */
+    test_ial_bis_unf_brd_bv_09_c();
+    test_ial_bis_unf_brd_bv_10_c();
+    test_ial_bis_unf_brd_bv_11_c();
     test_ial_bis_fra_brd_bv_13_c();
     test_ial_bis_fra_brd_bv_15_c();
 
