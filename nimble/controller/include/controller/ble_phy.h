@@ -63,9 +63,12 @@ struct os_mbuf;
 
 /* BLE PHY transitions */
 #define BLE_PHY_TRANSITION_NONE     (0)
-#define BLE_PHY_TRANSITION_RX_TX    (1)
-#define BLE_PHY_TRANSITION_TX_RX    (2)
-#define BLE_PHY_TRANSITION_TX_TX    (3)
+#define BLE_PHY_TRANSITION_TO_TX    (1)
+#define BLE_PHY_TRANSITION_TO_RX    (2)
+
+/* TIFS anchor point */
+#define BLE_PHY_TIFS_ANCHOR_START   (0)
+#define BLE_PHY_TIFS_ANCHOR_END     (1)
 
 /* PHY error codes */
 #define BLE_PHY_ERR_RADIO_STATE     (1)
@@ -80,6 +83,7 @@ struct os_mbuf;
 
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
+typedef void (*ble_phy_rx_end_func)(void *arg);
 
 /* Initialize the PHY */
 int ble_phy_init(void);
@@ -88,14 +92,11 @@ int ble_phy_init(void);
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 uint8_t ble_phy_chan_get(void);
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-/* Set T_ifs time for next transition */
-void ble_phy_tifs_set(uint16_t tifs);
-#endif
+/* Set T_ifs for the next transition */
+void ble_phy_tifs_set(uint16_t usecs, uint8_t anchor);
 
-/* Set T_ifs for tx-tx transitions. Anchor is 0 for start of previous PDU,
- * non-zero for end of PDU */
-void ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor);
+/* Set direction of the next transition */
+void ble_phy_transition_set(uint8_t trans, uint8_t anchor, uint16_t usecs);
 
 /* Set transmit start time */
 int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
@@ -110,7 +111,7 @@ typedef uint8_t (*ble_phy_tx_pducb_t)(uint8_t *dptr, void *pducb_arg,
                                       uint8_t *hdr_byte);
 
 /* Place the PHY into transmit mode */
-int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans);
+int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg);
 
 /* Copies the received PHY buffer into the allocated pdu */
 void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);
