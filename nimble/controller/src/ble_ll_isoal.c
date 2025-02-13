@@ -297,10 +297,10 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
 {
     struct os_mbuf_pkthdr *pkthdr;
     struct os_mbuf *om;
+    int32_t rem_len;
     uint8_t sdu_idx;
     uint8_t pdu_idx;
     uint16_t sdu_offset;
-    uint16_t rem_len;
     uint8_t pdu_len;
 
     sdu_idx = idx / mux->pdu_per_sdu;
@@ -325,7 +325,12 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
     sdu_offset = pdu_idx * mux->max_pdu;
     rem_len = OS_MBUF_PKTLEN(om) - sdu_offset;
 
-    if ((int32_t)rem_len <= 0) {
+    if (OS_MBUF_PKTLEN(om) == 0) {
+        /* LLID = 0b00: Zero-Length SDU (complete SDU) */
+        *llid = 0;
+        pdu_len = 0;
+    } else if (rem_len <= 0) {
+        /* LLID = 0b01: ISO Data PDU used as padding */
         *llid = 1;
         pdu_len = 0;
     } else {
