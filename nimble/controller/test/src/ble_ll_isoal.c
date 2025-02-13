@@ -850,6 +850,54 @@ test_ial_broadcast_zero_length_sdu_bis(const struct test_ial_broadcast_zero_leng
     test_ial_teardown(&mux);
 }
 
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_21_c) {
+    const struct test_ial_broadcast_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 4,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 2,
+    };
+
+    test_ial_broadcast_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_22_c) {
+    const struct test_ial_broadcast_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 3,
+    };
+
+    test_ial_broadcast_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_23_c) {
+    const struct test_ial_broadcast_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 1,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 1,
+    };
+
+    test_ial_broadcast_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_24_c) {
+    const struct test_ial_broadcast_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 2,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 1,
+    };
+
+    test_ial_broadcast_zero_length_sdu_bis(&cfg);
+}
+
 TEST_CASE_SELF(test_ial_bis_fra_brd_bv_25_c) {
     const struct test_ial_broadcast_zero_length_sdu_bis_cfg cfg = {
         .NSE = 6,
@@ -930,6 +978,76 @@ TEST_CASE_SELF(test_ial_bis_fra_brd_bv_30_c) {
     test_ial_broadcast_zero_length_sdu_bis(&cfg);
 }
 
+struct test_ial_unframed_empty_pdus_with_llid_0b01_cfg {
+    uint32_t sdu_int;
+    uint32_t iso_int;
+    uint8_t nse;
+    uint16_t mx_sdu;
+    uint8_t mx_pdu;
+    uint8_t bn;
+    uint8_t irc;
+    uint8_t pto;
+};
+
+static void
+test_ial_unframed_empty_pdus_with_llid_0b01(const struct test_ial_unframed_empty_pdus_with_llid_0b01_cfg *cfg)
+{
+    struct ble_ll_isoal_mux mux;
+    int pdu_len;
+    uint8_t pdu[cfg->mx_pdu];
+    uint32_t timestamp;
+    uint8_t llid = 0xff;
+
+    ble_ll_isoal_mux_init(&mux, cfg->mx_pdu, cfg->iso_int, cfg->sdu_int,
+                          cfg->bn, 0, false, 0);
+
+    for (uint16_t sdu_len = 4; sdu_len < cfg->mx_sdu; sdu_len++) {
+        timestamp = sdu_len * cfg->sdu_int;
+        test_sdu_enqueue(&mux, sdu_len, sdu_len, timestamp);
+
+        ble_ll_isoal_mux_event_start(&mux, timestamp + 50);
+
+        /* As the mx_sdu == mx_pdu, the data will always fit the single PDU */
+        TEST_ASSERT(cfg->mx_sdu == cfg->mx_pdu,
+                    "#%d: SDU and PDU length should be same", sdu_len);
+
+        pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+        TEST_ASSERT(llid == 0b00,
+                    "#%d: LLID is incorrect %d", sdu_len, llid);
+        TEST_ASSERT(pdu_len == sdu_len,
+                    "#%d: PDU length is incorrect %d", sdu_len, pdu_len);
+
+        /* Padding */
+        for (uint8_t idx = 1; idx < cfg->bn; idx++) {
+            pdu_len = ble_ll_isoal_mux_pdu_get(&mux, idx, &llid, pdu);
+            TEST_ASSERT(llid == 0b01,
+                        "#%d #%d: LLID is incorrect %d", sdu_len, idx, llid);
+            TEST_ASSERT(pdu_len == 0,
+                        "#%d #%d: PDU length is incorrect %d",
+                        sdu_len, idx, pdu_len);
+        }
+
+        (void)ble_ll_isoal_mux_event_done(&mux);
+    }
+
+    ble_ll_isoal_mux_free(&mux);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_29_c) {
+    const struct test_ial_unframed_empty_pdus_with_llid_0b01_cfg cfg = {
+        .sdu_int = 100,
+        .iso_int = 100,
+        .nse = 12,
+        .mx_sdu = 128,
+        .mx_pdu = 128,
+        .bn = 4,
+        .irc = 3,
+        .pto = 0,
+    };
+
+    test_ial_unframed_empty_pdus_with_llid_0b01(&cfg);
+}
+
 TEST_SUITE(ble_ll_isoal_test_suite) {
     os_mbuf_test_setup();
 
@@ -956,11 +1074,21 @@ TEST_SUITE(ble_ll_isoal_test_suite) {
     test_ial_bis_fra_brd_bv_20_c();
 
     /* Broadcast a Zero-Length SDU, BIS */
+    test_ial_bis_unf_brd_bv_21_c();
+    test_ial_bis_unf_brd_bv_22_c();
+    test_ial_bis_unf_brd_bv_23_c();
+    test_ial_bis_unf_brd_bv_24_c();
     test_ial_bis_fra_brd_bv_25_c();
     test_ial_bis_fra_brd_bv_26_c();
     test_ial_bis_fra_brd_bv_27_c();
     test_ial_bis_fra_brd_bv_28_c();
     test_ial_bis_fra_brd_bv_30_c();
+
+    /* Broadcasting Unframed Empty PDUs with LLID=0b01, BIS */
+    test_ial_bis_unf_brd_bv_29_c();
+    /* test_ial_bis_unf_brd_bv_30_c();
+     * Same as test_ial_bis_unf_brd_bv_29_c except encryption is required.
+     */
 
     ble_ll_isoal_reset();
 }
