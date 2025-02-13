@@ -303,6 +303,13 @@ test_sdu_enqueue(struct ble_ll_isoal_mux *mux, uint16_t sdu_len,
     return rc;
 }
 
+static void
+test_pdu_verify(uint8_t *pdu, int pdu_len, uint16_t offset)
+{
+    TEST_ASSERT(memcmp(os_mbuf_test_data + offset, pdu, pdu_len) == 0,
+                "PDU verify failed");
+}
+
 struct test_ial_broadcast_single_sdu_bis_cfg {
     uint8_t NSE;
     uint8_t Framed;
@@ -359,15 +366,13 @@ test_ial_broadcast_single_sdu_bis(
         timeoffset = get_le24(&pdu[2]);
         TEST_ASSERT(timeoffset == 10500,
                     "Time offset is incorrect %d", timeoffset);
+
+        test_pdu_verify(&pdu[5], Max_SDU, 0);
     } else {
         TEST_ASSERT(pdu_len == Max_SDU,
                     "PDU length is incorrect %d", pdu_len);
-    }
 
-    if (cfg->BN > 1) {
-        /* PDU #2 (shall be empty) */
-        TEST_ASSERT(ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu) == 0,
-                    "2nd PDU non empty");
+        test_pdu_verify(&pdu[0], Max_SDU, 0);
     }
 
     num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
@@ -486,7 +491,7 @@ test_ial_broadcast_large_sdu_bis(
     uint8_t pdu[Max_PDU];
     uint32_t timestamp;
     uint16_t seg_hdr;
-    uint16_t sdu_len;
+    uint16_t sdu_offset;
     uint8_t llid = 0xff;
     uint8_t sc_packets_num;
     uint8_t seg_len;
@@ -501,7 +506,7 @@ test_ial_broadcast_large_sdu_bis(
 
     for (size_t round = 0; round < ARRAY_SIZE(rounds); round++) {
         sc_packets_num = 0;
-        sdu_len = 0;
+        sdu_offset = 0;
 
         timestamp = (round + 1) * cfg->SDU_Interval;
 
@@ -533,16 +538,22 @@ test_ial_broadcast_large_sdu_bis(
                         TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr) == 0,
                                     "SC is incorrect %d",
                                     BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
-                        sdu_len += seg_len - 3;
+
+                        test_pdu_verify(&pdu[5], seg_len - 3, 0);
+                        sdu_offset += seg_len - 3;
                     } else {
                         TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr) == 1,
                                     "SC is incorrect %d",
                                     BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
-                        sdu_len += seg_len;
+
+                        test_pdu_verify(&pdu[2], seg_len, sdu_offset);
+                        sdu_offset += seg_len;
                     }
                 } else {
                     TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
-                    sdu_len += pdu_len;
+
+                    test_pdu_verify(&pdu[0], pdu_len, sdu_offset);
+                    sdu_offset += pdu_len;
                 }
 
                 sc_packets_num++;
@@ -552,7 +563,7 @@ test_ial_broadcast_large_sdu_bis(
                  * for framed payloads, with the remaining Payload Data.
                  */
                 if (cfg->Framed) {
-                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_len + 2,
+                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_offset + 2,
                                 "PDU length is incorrect %d", pdu_len);
                     TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
 
@@ -564,10 +575,14 @@ test_ial_broadcast_large_sdu_bis(
                                 "CMPLT is incorrect %d",
                                 BLE_LL_ISOAL_SEGHDR_CMPLT(seg_hdr));
                     seg_len = BLE_LL_ISOAL_SEGHDR_LEN(seg_hdr);
+
+                    test_pdu_verify(&pdu[2], seg_len, sdu_offset);
                 } else {
-                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_len,
+                    TEST_ASSERT(pdu_len == rounds[round].sdu_len - sdu_offset,
                                 "PDU length is incorrect %d", pdu_len);
                     TEST_ASSERT(llid == 0b00, "LLID is incorrect %d", llid);
+
+                    test_pdu_verify(&pdu[0], pdu_len, sdu_offset);
                 }
             }
         }
