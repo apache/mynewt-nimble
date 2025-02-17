@@ -2542,15 +2542,16 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
     if (connsm->flags.conn_update_sched &&
         (connsm->event_cntr == connsm->conn_update_req.instant)) {
 
-        /* Set flag so we send connection update event */
+        /* Set flag to send event to host if request was issued by host or
+         * any of parameters changed (i.e. skip on anchor moves)
+         */
         upd = &connsm->conn_update_req;
-        if (CONN_IS_CENTRAL(connsm) ||
-            (CONN_IS_PERIPHERAL(connsm) &&
-             IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) ||
+        if (connsm->flags.conn_update_host_initd ||
             (connsm->conn_itvl != upd->interval) ||
             (connsm->periph_latency != upd->latency) ||
             (connsm->supervision_tmo != upd->timeout)) {
             connsm->flags.conn_update_host_w4event = 1;
+            connsm->flags.conn_update_host_initd = 0;
         }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)

@@ -119,6 +119,7 @@ struct ble_ll_conn_sm_flags {
     uint32_t terminate_ind_rxd_acked : 1;
     uint32_t conn_update_sched : 1;
     uint32_t conn_update_use_cp : 1;
+    uint32_t conn_update_host_initd : 1;
     uint32_t conn_update_host_w4reply : 1;
     uint32_t conn_update_host_w4event : 1;
     uint32_t chanmap_update_sched : 1;
