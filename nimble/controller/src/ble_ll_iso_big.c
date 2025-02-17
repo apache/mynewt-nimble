@@ -307,8 +307,8 @@ ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
     buf += 2;
 
     /* chm, phy */
-    memcpy(buf, big->chan_map, 5);
     ble_ll_iso_big_biginfo_chanmap_update(big);
+    buf += 5;
 
     /* bis_payload_cnt, framing */
     memset(buf, 0x00, 5);
