@@ -1130,6 +1130,9 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
         connsm->css_slot_idx_pending = connsm->css_slot_idx;
 #endif
 
+        /* Mark procedure as host initiated */
+        connsm->flags.conn_update_host_initd = 1;
+
         /* Start the control procedure */
         ble_ll_ctrl_proc_start(connsm, ctrl_proc, NULL);
     }
