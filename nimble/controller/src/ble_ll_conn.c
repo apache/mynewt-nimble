@@ -1838,6 +1838,9 @@ ble_ll_conn_set_data_len(struct ble_ll_conn_sm *connsm,
         tx_time = MIN(tx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
         rx_time = MIN(rx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
     }
+#else
+    tx_time = MIN(tx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
+    rx_time = MIN(rx_time, BLE_LL_CONN_SUPP_TIME_MAX_UNCODED);
 #endif
 
     if (connsm->max_tx_time != tx_time) {
