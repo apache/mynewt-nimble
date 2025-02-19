@@ -1302,7 +1302,6 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         bp.phy = BLE_PHY_CODED;
     }
     bp.interleaved = cmd->packing;
-    bp.framing = cmd->framing;
     bp.encrypted = cmd->encryption;
     memcpy(bp.broadcast_code, cmd->broadcast_code, 16);
 
@@ -1310,11 +1309,22 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
      * to RTN
      */
     bp.nse = MIN(cmd->rtn + 1, 0x0f);;
-    bp.bn = 1;
     bp.irc = MIN(cmd->rtn + 1, 0x0f);
     bp.pto = 0;
-    bp.iso_interval = bp.sdu_interval / 1250;
-    bp.max_pdu = bp.max_sdu;
+
+    uint32_t iso_interval = bp.sdu_interval / 1250;
+    if (bp.sdu_interval > iso_interval * 1250) {
+        /* The requirements for using Unframed PDUs are not met */
+        bp.framing = BLE_HCI_ISO_FRAMING_FRAMED_SEGMENTABLE;
+        bp.iso_interval = iso_interval + 1;
+        bp.bn = 2;
+        bp.max_pdu = bp.max_sdu + 5;
+    } else {
+        bp.framing = cmd->framing;
+        bp.iso_interval = iso_interval;
+        bp.bn = 1;
+        bp.max_pdu = bp.max_sdu;
+    }
 
     rc = ble_ll_iso_big_create(cmd->big_handle, cmd->adv_handle, cmd->num_bis,
                                &bp);
