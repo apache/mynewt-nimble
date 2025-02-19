@@ -1087,6 +1087,199 @@ TEST_CASE_SELF(test_ial_bis_unf_brd_bv_29_c) {
     test_ial_unframed_empty_pdus_with_llid_0b01(&cfg);
 }
 
+TEST_CASE_SELF(test_ial_bis_unf_early_sdus) {
+    struct ble_ll_isoal_mux mux;
+    const uint32_t sdu_int = 7500;
+    const uint32_t iso_int = 7500;
+    /* const uint16_t mx_sdu = 40; */
+    const uint8_t mx_pdu = 40;
+    const uint8_t bn = 4;
+    int num_completed_pkt;
+    int pdu_len;
+    uint8_t pdu[mx_pdu];
+    uint32_t timestamp = 0;
+    uint8_t llid = 0xff;
+
+    test_ial_setup(&mux, mx_pdu, iso_int, sdu_int, bn, 0, false, 0);
+
+    test_sdu_enqueue(&mux, 21, 0, timestamp++);
+    test_sdu_enqueue(&mux, 32, 0, timestamp++);
+    test_sdu_enqueue(&mux, 40, 0, timestamp++);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp + 50);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b00, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 21, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(pdu, pdu_len, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 2, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 3, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 1,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp + 50 + iso_int);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b00, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 32, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(pdu, pdu_len, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 2, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 3, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 1,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp + 50 + 2 * iso_int);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b00, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 40, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(pdu, pdu_len, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 2, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 3, &llid, pdu);
+    TEST_ASSERT(llid == 0b01, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 1,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    test_ial_teardown(&mux);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_early_sdus) {
+    struct ble_ll_isoal_mux mux;
+    const uint32_t sdu_int = 87072;
+    const uint32_t iso_int = 87500;
+    const uint16_t mx_sdu = 32;
+    const uint8_t mx_pdu = 37;
+    const uint8_t bn = 2;
+    int num_completed_pkt;
+    int pdu_len;
+    uint8_t pdu[mx_pdu];
+    uint32_t timestamp = 0;
+    uint8_t llid = 0xff;
+
+    test_ial_setup(&mux, mx_pdu, iso_int, sdu_int, bn, 0, true, 0);
+
+    for (int seq_num = 0; seq_num < 10; seq_num++) {
+        test_sdu_enqueue(&mux, mx_sdu, seq_num, timestamp++);
+    }
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 2,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 2,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 2,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 2,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(&mux, timestamp);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 0, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(&mux, 1, &llid, pdu);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+    TEST_ASSERT(pdu_len == mx_pdu, "PDU length is incorrect %d", pdu_len);
+    test_pdu_verify(&pdu[5], mx_sdu, 0);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(&mux);
+    TEST_ASSERT(num_completed_pkt == 2,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    test_ial_teardown(&mux);
+}
+
 TEST_SUITE(ble_ll_isoal_test_suite) {
     os_mbuf_test_setup();
 
@@ -1131,6 +1324,9 @@ TEST_SUITE(ble_ll_isoal_test_suite) {
     /* test_ial_bis_unf_brd_bv_30_c();
      * Same as test_ial_bis_unf_brd_bv_29_c except encryption is required.
      */
+
+    test_ial_bis_unf_early_sdus();
+    test_ial_bis_fra_early_sdus();
 
     ble_ll_isoal_reset();
 }
