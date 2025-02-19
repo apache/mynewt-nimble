@@ -2208,11 +2208,13 @@ ble_ll_scan_hci_set_ext_params(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    /* Check if no reserved bits in PHYS are set and that at least one valid PHY
-     * is set.
-     */
-    if (!(cmd->phys & SCAN_VALID_PHY_MASK) ||
-        (cmd->phys & ~SCAN_VALID_PHY_MASK)) {
+    /* Check if valid phy is specified */
+    if (cmd->phys & ~SCAN_VALID_PHY_MASK) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    /* Check if at least one valid phy is specified */
+    if (!(cmd->phys & SCAN_VALID_PHY_MASK)) {
          return BLE_ERR_INV_HCI_CMD_PARMS;
      }
 
