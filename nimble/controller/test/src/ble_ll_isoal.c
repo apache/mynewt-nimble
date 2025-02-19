@@ -634,6 +634,45 @@ test_ial_broadcast_large_sdu_bis(const struct test_ial_broadcast_large_sdu_bis_c
     test_ial_teardown(&mux);
 }
 
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_09_c) {
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 12,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 6,
+        .SDU_Interval = 20000,
+        .ISO_Interval = 40000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_10_c) {
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 4,
+        .SDU_Interval = 20000,
+        .ISO_Interval = 20000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_brd_bv_11_c) {
+    const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .BN = 4,
+        .SDU_Interval = 25000,
+        .ISO_Interval = 25000,
+    };
+
+    test_ial_broadcast_large_sdu_bis(&cfg);
+}
+
 TEST_CASE_SELF(test_ial_bis_fra_brd_bv_13_c) {
     const struct test_ial_broadcast_large_sdu_bis_cfg cfg = {
         .NSE = 10,
@@ -1065,6 +1104,9 @@ TEST_SUITE(ble_ll_isoal_test_suite) {
     test_ial_bis_fra_brd_bv_29_c();
 
     /* Broadcast Large SDU, BIS */
+    test_ial_bis_unf_brd_bv_09_c();
+    test_ial_bis_unf_brd_bv_10_c();
+    test_ial_bis_unf_brd_bv_11_c();
     test_ial_bis_fra_brd_bv_13_c();
     test_ial_bis_fra_brd_bv_15_c();
 

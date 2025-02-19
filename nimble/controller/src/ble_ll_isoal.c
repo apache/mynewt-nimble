@@ -334,7 +334,12 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
         *llid = 1;
         pdu_len = 0;
     } else {
-        *llid = (pdu_idx < mux->pdu_per_sdu - 1);
+        /* LLID = 0b00: Data remaining fits the ISO Data PDU size,
+         *              it's end fragment of an SDU or complete SDU.
+         * LLID = 0b01: Data remaining exceeds the ISO Data PDU size,
+         *              it's start or continuation fragment of an SDU.
+         */
+        *llid = rem_len > mux->max_pdu;
         pdu_len = min(mux->max_pdu, rem_len);
     }
 
