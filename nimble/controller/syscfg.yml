@@ -671,7 +671,7 @@ syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
 
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
     BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
-    BLE_LL_STACK_SIZE: 180
+    BLE_LL_STACK_SIZE: 200
 
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host
