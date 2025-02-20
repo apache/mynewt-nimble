@@ -388,7 +388,6 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
 #endif
     uint8_t pdu_hdr;
     uint8_t adv_mode;
-    uint8_t eh_len;
     uint8_t eh_flags;
     uint8_t *eh_data;
     uint8_t *rxbuf;
@@ -397,7 +396,6 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
 
     pdu_hdr = rxbuf[0];
     adv_mode = rxbuf[2] >> 6;
-    eh_len = rxbuf[2] & 0x3f;
     eh_flags = rxbuf[3];
     eh_data = &rxbuf[4];
 
@@ -484,8 +482,10 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
         report->tx_power = 0x7f;
     }
 
-    /* Strip PDU header and ext header, leave only AD */
-    os_mbuf_adj(rxpdu, 3 + eh_len);
+    /* AdvData in ADV_EXT_IND is RFU so we should ignore it, i.e. we can just
+     * remove any data left in mbuf
+     */
+    os_mbuf_adj(rxpdu, os_mbuf_len(rxpdu));
 
 }
 
@@ -851,9 +851,10 @@ ble_ll_scan_aux_parse_to_aux_data(struct ble_ll_scan_aux_data *aux,
 
     /* Now parse extended header... */
 
-    /* AdvA is only valid in 1st PDU, ignore in AUX_CHAIN_IND */
+    /* AdvA is only valid in AUX_ADV_IND if not already present in ADV_EXT_IND */
     if (eh_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
-        if (!(aux->flags & BLE_LL_SCAN_AUX_F_AUX_CHAIN)) {
+        if (!(aux->flags & BLE_LL_SCAN_AUX_F_HAS_ADVA) &&
+            !(aux->flags & BLE_LL_SCAN_AUX_F_AUX_CHAIN)) {
             memcpy(aux->adva, eh_data, 6);
             aux->adva_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_TXADD_MASK);
             aux->flags |= BLE_LL_SCAN_AUX_F_HAS_ADVA;
@@ -864,9 +865,10 @@ ble_ll_scan_aux_parse_to_aux_data(struct ble_ll_scan_aux_data *aux,
         eh_data += BLE_LL_EXT_ADV_ADVA_SIZE;
     }
 
-    /* TargetA is only valid in 1st PDU, ignore in AUX_CHAIN_IND */
+    /* TargetA is only valid in AUX_ADV_IND if not already present in ADV_EXT_IND */
     if (eh_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
-        if (!(aux->flags & BLE_LL_SCAN_AUX_F_AUX_CHAIN)) {
+        if (!(aux->flags & BLE_LL_SCAN_AUX_F_HAS_TARGETA) &&
+            !(aux->flags & BLE_LL_SCAN_AUX_F_AUX_CHAIN)) {
             memcpy(aux->targeta, eh_data, 6);
             aux->targeta_type = !!(pdu_hdr & BLE_ADV_PDU_HDR_RXADD_MASK);
             aux->flags |= BLE_LL_SCAN_AUX_F_HAS_TARGETA;
@@ -901,7 +903,8 @@ ble_ll_scan_aux_parse_to_aux_data(struct ble_ll_scan_aux_data *aux,
         }
     }
 
-    if (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+    /* AuxPtr is RFU if AdvMode!=0 so ignore in such case */
+    if ((adv_mode == 0) && (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT))) {
         aux->aux_ptr = get_le24(eh_data);
         rxhdr->rxinfo.flags |= BLE_MBUF_HDR_F_AUX_PTR_WAIT;
     }
