@@ -175,7 +175,7 @@ ble_ll_scan_req_backoff(struct ble_ll_scan_sm *scansm, int success)
     BLE_LL_ASSERT(scansm->backoff_count <= 256);
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+#if MYNEWT_VAL(BLE_LL_SCAN_ACTIVE_SCAN_NRPA)
 static void
 ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
 {
@@ -191,17 +191,13 @@ ble_ll_scan_refresh_nrpa(struct ble_ll_scan_sm *scansm)
         scansm->scan_nrpa_timer = now + ble_ll_resolv_get_rpa_tmo();
     }
 }
-
-uint8_t *
-ble_ll_get_scan_nrpa(void)
-{
-    struct ble_ll_scan_sm *scansm = &g_ble_ll_scan_sm;
-
-    ble_ll_scan_refresh_nrpa(scansm);
-
-    return scansm->scan_nrpa;
-}
 #endif
+
+struct ble_ll_scan_sm *
+ble_ll_scan_sm_get(void)
+{
+    return &g_ble_ll_scan_sm;
+}
 
 uint8_t
 ble_ll_scan_get_own_addr_type(void)
@@ -241,30 +237,26 @@ ble_ll_scan_backoff_update(int success)
     ble_ll_scan_req_backoff(scansm, success);
 }
 
-static void
-ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm,
-                            const uint8_t *adv_addr, uint8_t adv_addr_type,
-                            int8_t rpa_index)
+void
+ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
+                         uint8_t *hdr_byte, uint8_t adva_type,
+                         const uint8_t *adva, int rpa_index)
 {
-    uint8_t hdr_byte;
-    struct ble_ll_scan_pdu_data *pdu_data;
     uint8_t *scana;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
     uint8_t rpa[BLE_DEV_ADDR_LEN];
 #endif
 
-    pdu_data = &scansm->pdu_data;
-
     /* Construct first PDU header byte */
-    hdr_byte = BLE_ADV_PDU_TYPE_SCAN_REQ;
-    if (adv_addr_type) {
-        hdr_byte |= BLE_ADV_PDU_HDR_RXADD_RAND;
+    *hdr_byte = BLE_ADV_PDU_TYPE_SCAN_REQ;
+    if (adva_type) {
+        *hdr_byte |= BLE_ADV_PDU_HDR_RXADD_RAND;
     }
 
     /* Determine ScanA */
     if (scansm->own_addr_type & 0x01) {
-        hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        *hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
         scana = g_random_addr;
     } else {
         scana = g_dev_addr;
@@ -278,12 +270,12 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm,
             rl = NULL;
         }
 
-        /*
-         * If device is on RL and we have local IRK, we use RPA generated using
-         * that IRK as ScanA. Otherwise we use NRPA as ScanA to prevent our
-         * device from being tracked when doing an active scan (Core 5.1, Vol 6,
-         * Part B, section 6.3)
-         */
+        /* Check if we should use RPA/NRPA instead of public/random address:
+         * - use RPA if device is on RL and has local IRK set
+         * - use RPA generated from local IRK if set
+         * - use NRPA if allowed by configuration
+         * */
+
         if (rl && rl->rl_has_local) {
             ble_ll_resolv_get_priv_addr(rl, 1, rpa);
             scana = rpa;
@@ -291,19 +283,29 @@ ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm,
             if (ble_ll_resolv_local_rpa_get(scansm->own_addr_type & 0x01, rpa) == 0) {
                 scana = rpa;
             } else {
+#if MYNEWT_VAL(BLE_LL_SCAN_ACTIVE_SCAN_NRPA)
                 ble_ll_scan_refresh_nrpa(scansm);
                 scana = scansm->scan_nrpa;
+#endif
             }
         }
 
-        hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
+        *hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 #endif
 
-    /* Save scan request data */
-    pdu_data->hdr_byte = hdr_byte;
-    memcpy(pdu_data->scana, scana, BLE_DEV_ADDR_LEN);
-    memcpy(pdu_data->adva, adv_addr, BLE_DEV_ADDR_LEN);
+    memcpy(pdu, scana, BLE_DEV_ADDR_LEN);
+    memcpy(pdu + 6, adva, BLE_DEV_ADDR_LEN);
+}
+
+static void
+ble_ll_scan_req_pdu_prepare(struct ble_ll_scan_sm *scansm,
+                            const uint8_t *adv_addr, uint8_t adv_addr_type,
+                            int8_t rpa_index)
+{
+    ble_ll_scan_make_req_pdu(scansm, scansm->pdu_data.scana,
+                             &scansm->pdu_data.hdr_byte, adv_addr_type, adv_addr,
+                             rpa_index);
 }
 
 static uint8_t
@@ -2751,7 +2753,7 @@ ble_ll_scan_common_init(void)
     scansm->scan_phys[PHY_CODED].phy = BLE_PHY_CODED;
 #endif
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+#if MYNEWT_VAL(BLE_LL_SCAN_ACTIVE_SCAN_NRPA)
     /* Make sure we'll generate new NRPA if necessary */
     scansm->scan_nrpa_timer = ble_npl_time_get();
 #endif
