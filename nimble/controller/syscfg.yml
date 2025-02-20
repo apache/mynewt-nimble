@@ -370,6 +370,16 @@ syscfg.defs:
             concurrently (Core 5.2, Vol 6, Part B, 4.4.2.2.2).
          value: MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT)
 
+    BLE_LL_SCAN_ACTIVE_SCAN_NRPA:
+        description: >
+            The controller will automatically generate NRPA for scan requests
+            if host requested to use privacy (i.e. 0x02 or 0x03 own address
+            type) but the peer is not on the resolving list.
+            If disabled, public or random address will be used.
+        value: 1
+        restrictions:
+            - BLE_LL_CFG_FEAT_LL_PRIVACY if 1
+
     BLE_LL_PUBLIC_DEV_ADDR:
         description: >
             Set public device address. Address is specified as 48-bit number.

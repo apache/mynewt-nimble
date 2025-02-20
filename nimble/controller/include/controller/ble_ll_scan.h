@@ -132,7 +132,7 @@ struct ble_ll_scan_sm
     uint8_t scan_rsp_cons_fails;
     uint8_t scan_rsp_cons_ok;
     uint8_t scan_peer_rpa[BLE_DEV_ADDR_LEN];
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+#if MYNEWT_VAL(BLE_LL_SCAN_ACTIVE_SCAN_NRPA)
     ble_npl_time_t scan_nrpa_timer;
     uint8_t scan_nrpa[BLE_DEV_ADDR_LEN];
 #endif
@@ -250,7 +250,6 @@ void ble_ll_scan_interrupted(struct ble_ll_scan_sm *scansm);
 /* Called to halt currently running scan */
 void ble_ll_scan_halt(void);
 
-uint8_t *ble_ll_get_scan_nrpa(void);
 uint8_t ble_ll_scan_get_own_addr_type(void);
 uint8_t ble_ll_scan_get_filt_policy(void);
 uint8_t ble_ll_scan_get_filt_dups(void);
@@ -265,6 +264,12 @@ int ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
                                   uint16_t adi);
 void ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
                                   uint16_t adi);
+
+struct ble_ll_scan_sm *ble_ll_scan_sm_get(void);
+
+void ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
+                              uint8_t *hdr_byte, uint8_t adva_type,
+                              const uint8_t *adva, int rpa_index);
 
 int
 ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,

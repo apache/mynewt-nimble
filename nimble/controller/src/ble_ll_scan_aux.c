@@ -1144,62 +1144,9 @@ static uint8_t
 ble_ll_scan_aux_scan_req_tx_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
 {
     struct ble_ll_scan_aux_data *aux = arg;
-    uint8_t *scana;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    struct ble_ll_resolv_entry *rl;
-    uint8_t rpa[BLE_DEV_ADDR_LEN];
-#endif
-    uint8_t hb;
-    uint8_t own_addr_type = ble_ll_scan_get_own_addr_type();
 
-    hb = BLE_ADV_PDU_TYPE_SCAN_REQ;
-
-    /* ScanA */
-    if (own_addr_type & 0x01) {
-        hb |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        scana = g_random_addr;
-    } else {
-        scana = g_dev_addr;
-    }
-
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    if (own_addr_type & 0x02) {
-        if (aux->rpa_index >=0) {
-            rl = &g_ble_ll_resolv_list[aux->rpa_index];
-        } else {
-            rl = NULL;
-        }
-
-        /*
-         * If device is on RL and we have local IRK, we use RPA generated using
-         * that IRK as ScanA. Otherwise we use NRPA or RPA from global local IRK
-         * as ScanA to prevent our device from being tracked when doing
-         * an active scan
-         * ref: Core 5.2, Vol 6, Part B, section 6.3)
-         */
-        if (rl && rl->rl_has_local) {
-            ble_ll_resolv_get_priv_addr(rl, 1, rpa);
-            scana = rpa;
-        } else {
-            if (ble_ll_resolv_local_rpa_get(own_addr_type & 0x01, rpa) == 0) {
-                scana = rpa;
-            } else {
-                scana = ble_ll_get_scan_nrpa();
-            }
-        }
-
-        hb |= BLE_ADV_PDU_HDR_TXADD_RAND;
-    }
-#endif
-    memcpy(dptr, scana, BLE_DEV_ADDR_LEN);
-
-    /* AdvA */
-    if (aux->adva_type) {
-        hb |= BLE_ADV_PDU_HDR_RXADD_RAND;
-    }
-    memcpy(dptr + BLE_DEV_ADDR_LEN, aux->adva, BLE_DEV_ADDR_LEN);
-
-    *hdr_byte = hb;
+    ble_ll_scan_make_req_pdu(ble_ll_scan_sm_get(), dptr, hdr_byte,
+                             aux->adva_type, aux->adva, aux->rpa_index);
 
     return BLE_DEV_ADDR_LEN * 2;
 }
