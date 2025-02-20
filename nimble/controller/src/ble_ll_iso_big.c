@@ -256,6 +256,18 @@ ble_ll_iso_big_last_tx_timestamp_get(struct ble_ll_iso_bis *bis,
 }
 
 static void
+ble_ll_iso_big_biginfo_chanmap_update(struct ble_ll_iso_big *big)
+{
+    uint8_t *buf;
+
+    buf = &big->biginfo[23];
+
+    /* chm, phy */
+    memcpy(buf, big->chan_map, 5);
+    buf[4] |= (big->phy - 1) << 5;
+}
+
+static void
 ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
 {
     uint8_t *buf;
@@ -296,8 +308,7 @@ ble_ll_iso_big_biginfo_calc(struct ble_ll_iso_big *big, uint32_t seed_aa)
 
     /* chm, phy */
     memcpy(buf, big->chan_map, 5);
-    buf[4] |= (big->phy - 1) << 5;
-    buf += 5;
+    ble_ll_iso_big_biginfo_chanmap_update(big);
 
     /* bis_payload_cnt, framing */
     memset(buf, 0x00, 5);
@@ -437,6 +448,8 @@ ble_ll_iso_big_chan_map_update_complete(struct ble_ll_iso_big *big)
 {
     memcpy(big->chan_map, big->chan_map_new, BLE_LL_CHAN_MAP_LEN);
     big->chan_map_used = ble_ll_utils_chan_map_used_get(big->chan_map);
+
+    ble_ll_iso_big_biginfo_chanmap_update(big);
 }
 
 static void
