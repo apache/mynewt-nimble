@@ -132,6 +132,14 @@ static const uint8_t octet_28 = OCTET(
 #endif
 );
 
+static const uint8_t octet_32 = OCTET(
+#if (MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)) && \
+    MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
+    BIT(4) /* HCI Read Authenticated Payload Timeout */
+    BIT(5) /* HCI Write Authenticated Payload Timeout */
+#endif
+);
+
 static const uint8_t octet_33 = OCTET(
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     BIT(4) /* HCI LE Remote Connection Parameter Request Reply */
@@ -328,7 +336,7 @@ static const uint8_t g_ble_ll_hci_supp_cmds[64] = {
     0,
     0,
     0,
-    0,
+    octet_32,
     octet_33,
     octet_34,
     octet_35,
