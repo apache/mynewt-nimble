@@ -1301,7 +1301,7 @@ conn_tx_pdu:
         m->om_data = (uint8_t *)&empty_pdu;
         m->om_data += BLE_MBUF_MEMBLOCK_OVERHEAD;
         ble_hdr = &empty_pdu.ble_hdr;
-        ble_hdr->txinfo.flags = 0;
+        ble_hdr->txinfo.num_data_pkt = 0;
         ble_hdr->txinfo.offset = 0;
         ble_hdr->txinfo.pyld_len = 0;
     }
@@ -2034,6 +2034,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 
     /* Initialize transmit queue and ack/flow control elements */
     STAILQ_INIT(&connsm->conn_txq);
+    connsm->conn_txq_num_zero_pkt = 0;
     connsm->cur_tx_pdu = NULL;
     connsm->tx_seqnum = 0;
     connsm->next_exp_seqnum = 0;
@@ -3845,7 +3846,8 @@ ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
 #if (BLETEST_THROUGHPUT_TEST == 1)
                             bletest_completed_pkt(connsm->conn_handle);
 #endif
-                            ++connsm->completed_pkts;
+                            BLE_LL_ASSERT(txhdr->txinfo.num_data_pkt >= 1);
+                            connsm->completed_pkts += txhdr->txinfo.num_data_pkt;
                             if (connsm->completed_pkts > 2) {
                                 ble_ll_event_add(&g_ble_ll_data.ll_comp_pkt_ev);
                             }
@@ -3946,17 +3948,46 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     os_sr_t sr;
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *ble_hdr;
+    uint8_t num_pkt;
     int lifo;
+
+    /* We cannot send empty payload with LLID=0b10. Instead, we need to wait for
+     * non-empty payload and combine it together. Since we don't really recombine
+     * fragments we just count number of consecutive empty payloads and use 1st
+     * non-empty as a start packet. Empty payloads can be freed immediately as
+     * we don't need to enqueue them.
+     *
+     * Reference: Core 6.0, Vol 6, Part B, 2.4.1
+     */
+    if ((length == 0) &&
+        ((hdr_byte == BLE_LL_LLID_DATA_START) || (connsm->conn_txq_num_zero_pkt > 0))) {
+        connsm->conn_txq_num_zero_pkt++;
+        os_mbuf_free_chain(om);
+        return;
+    }
 
     /* Set mbuf length and packet length if a control PDU */
     if (hdr_byte == BLE_LL_LLID_CTRL) {
         om->om_len = length;
         OS_MBUF_PKTHDR(om)->omp_len = length;
+        num_pkt = 0;
+    } else {
+        num_pkt = 1;
+
+        /* This is the 1st non-empty data fragment so adjust LLID accordingly.
+         * num_pkt is updated to make sure we send back proper numbber of
+         * completed packets back to host.
+         */
+        if (connsm->conn_txq_num_zero_pkt) {
+            hdr_byte = BLE_LL_LLID_DATA_START;
+            num_pkt += connsm->conn_txq_num_zero_pkt;
+            connsm->conn_txq_num_zero_pkt = 0;
+        }
     }
 
     /* Set BLE transmit header */
     ble_hdr = BLE_MBUF_HDR_PTR(om);
-    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.num_data_pkt = num_pkt;
     ble_hdr->txinfo.offset = 0;
     ble_hdr->txinfo.hdr_byte = hdr_byte;
 

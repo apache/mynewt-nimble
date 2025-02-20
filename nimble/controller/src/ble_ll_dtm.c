@@ -308,7 +308,7 @@ ble_ll_dtm_tx_create_ctx(uint8_t packet_payload, uint8_t len,
 
     /* Set BLE transmit header */
     ble_hdr = BLE_MBUF_HDR_PTR(m);
-    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.num_data_pkt = 0;
     ble_hdr->txinfo.offset = 0;
     ble_hdr->txinfo.pyld_len = len;
     ble_hdr->txinfo.hdr_byte = packet_payload;

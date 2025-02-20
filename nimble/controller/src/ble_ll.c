@@ -847,7 +847,7 @@ ble_ll_tx_pkt_in(void)
 
         /* Do some basic error checking */
         pb = handle & 0x3000;
-        if ((pkthdr->omp_len != length) || (pb > 0x1000) || (length == 0)) {
+        if ((pkthdr->omp_len != length) || (pb > 0x1000)) {
             /* This is a bad ACL packet. Count a stat and free it */
             STATS_INC(ble_ll_stats, bad_acl_hdr);
             os_mbuf_free_chain(om);
@@ -1548,7 +1548,7 @@ ble_ll_mbuf_init(struct os_mbuf *m, uint8_t pdulen, uint8_t hdr)
 
     /* Set BLE transmit header */
     ble_hdr = BLE_MBUF_HDR_PTR(m);
-    ble_hdr->txinfo.flags = 0;
+    ble_hdr->txinfo.num_data_pkt = 0;
     ble_hdr->txinfo.offset = 0;
     ble_hdr->txinfo.pyld_len = pdulen;
     ble_hdr->txinfo.hdr_byte = hdr;
