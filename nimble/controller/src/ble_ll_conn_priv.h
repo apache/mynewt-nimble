@@ -227,6 +227,9 @@ int ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
                                      uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_conn_hci_rd_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
                                      uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_conn_hci_cb_read_tx_pwr(const uint8_t *cmdbuf, uint8_t len,
+                                   uint8_t *rspbuf, uint8_t *rsplen);
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
 int ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
                              uint8_t *rspbuf, uint8_t *rsplen);
