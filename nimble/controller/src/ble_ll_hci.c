@@ -1292,6 +1292,12 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH:
         rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
+    case BLE_HCI_OCF_LE_ISO_TRANSMIT_TEST:
+        rc = ble_ll_iso_transmit_test(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_ISO_TEST_END:
+        rc = ble_ll_iso_end_test(cmdbuf, len, rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
         rc = ble_ll_iso_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
         break;

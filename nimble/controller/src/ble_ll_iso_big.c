@@ -683,7 +683,7 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
     }
 
 #if 1
-    pdu_len = ble_ll_iso_pdu_get(&bis->conn, idx, &llid, dptr);
+    pdu_len = ble_ll_iso_pdu_get(&bis->conn, idx, big->bis_counter + idx, &llid, dptr);
 #else
     llid = 0;
     pdu_len = big->max_pdu;
@@ -923,12 +923,18 @@ static int
 ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
                       struct big_params *bp)
 {
+    struct ble_ll_iso_conn_init_param conn_init_param = {
+        .iso_interval_us = bp->iso_interval * 1250,
+        .sdu_interval_us = bp->sdu_interval,
+        .max_sdu = bp->max_sdu,
+        .max_pdu = bp->max_pdu,
+        .framing = bp->framing,
+        .bn = bp->bn,
+    };
     struct ble_ll_iso_big *big = NULL;
     struct ble_ll_iso_bis *bis;
     struct ble_ll_adv_sm *advsm;
     uint32_t seed_aa;
-    uint16_t conn_handle;
-    uint8_t pte;
     uint8_t gc;
     uint8_t idx;
     int rc;
@@ -984,9 +990,9 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     /* Core 5.3, Vol 6, Part B, 4.4.6.6 */
     gc = bp->nse / bp->bn;
     if (bp->irc == gc) {
-        pte = 0;
+        conn_init_param.pte = 0;
     } else {
-        pte = bp->pto * (gc - bp->irc);
+        conn_init_param.pte = bp->pto * (gc - bp->irc);
     }
 
     /* Allocate BISes */
@@ -1005,11 +1011,9 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         bis->num = big->num_bis;
         bis->crc_init = (big->crc_init << 8) | (big->num_bis);
 
-        conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
+        conn_init_param.conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
 
-        ble_ll_iso_conn_init(&bis->conn, conn_handle, bp->max_pdu,
-                             bp->iso_interval * 1250, bp->sdu_interval,
-                             bp->bn, pte, bp->framing);
+        ble_ll_iso_conn_init(&bis->conn, &conn_init_param);
     }
 
     bis_pool_free -= num_bis;
