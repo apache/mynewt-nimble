@@ -2585,7 +2585,7 @@ ble_ll_adv_periodic_schedule_next(struct ble_ll_adv_sm *advsm)
      */
     if (sync->auxptr_zero ||
         (LL_TMR_GT(sch->end_time, advsm->padv_event_start +
-                                  advsm->periodic_adv_itvl))) {
+                   ble_ll_tmr_u2t(advsm->padv_itvl_us)))) {
         STATS_INC(ble_ll_stats, periodic_chain_drop_event);
         ble_ll_sched_rmv_elem(&sync->sch);
     }
