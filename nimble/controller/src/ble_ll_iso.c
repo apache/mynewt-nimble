@@ -46,6 +46,14 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_UNK_CONN_ID;
     }
 
+    if (conn->mux.bn == 0) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    if (conn->data_path.enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
     /* Only input for now since we only support BIS */
     if (cmd->data_path_dir) {
         return BLE_ERR_CMD_DISALLOWED;
@@ -55,6 +63,9 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
     if (cmd->data_path_id) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+
+    conn->data_path.enabled = 1;
+    conn->data_path.data_path_id = cmd->data_path_id;
 
     rsp->conn_handle = cmd->conn_handle;
     *rsplen = sizeof(*rsp);
@@ -68,8 +79,23 @@ ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
 {
     const struct ble_hci_le_remove_iso_data_path_cp *cmd = (const void *)cmdbuf;
     struct ble_hci_le_remove_iso_data_path_rp *rsp = (void *)rspbuf;
+    struct ble_ll_iso_conn *conn;
+    uint16_t conn_handle;
 
-    /* XXX accepts anything for now */
+    conn_handle = le16toh(cmd->conn_handle);
+
+    conn = ble_ll_iso_conn_find_by_handle(conn_handle);
+    if (!conn) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    /* Only input for now since we only support BIS */
+    if (cmd->data_path_dir) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    conn->data_path.enabled = 0;
+
     rsp->conn_handle = cmd->conn_handle;
     *rsplen = sizeof(*rsp);
 
@@ -95,6 +121,76 @@ ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t cmdlen,
     rsp->packet_seq_num = htole16(iso_conn->mux.last_tx_packet_seq_num);
     rsp->tx_timestamp = htole32(iso_conn->mux.last_tx_timestamp);
     put_le24(rsp->time_offset, 0);
+
+    *rsplen = sizeof(*rsp);
+
+    return 0;
+}
+
+int
+ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_iso_transmit_test_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_iso_transmit_test_rp *rsp = (void *)rspbuf;
+    struct ble_ll_iso_conn *conn;
+    uint16_t handle;
+
+    handle = le16toh(cmd->conn_handle);
+
+    conn = ble_ll_iso_conn_find_by_handle(handle);
+    if (!conn) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (conn->mux.bn == 0) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    if (conn->data_path.enabled) {
+        return BLE_ERR_CMD_DISALLOWED;
+    }
+
+    if (cmd->payload_type > BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH) {
+        return BLE_ERR_INV_LMP_LL_PARM;
+    }
+
+    conn->data_path.enabled = 1;
+    conn->data_path.data_path_id = BLE_HCI_ISO_DATA_PATH_ID_HCI;
+    conn->test_mode.transmit.enabled = 1;
+    conn->test_mode.transmit.payload_type = cmd->payload_type;
+
+    rsp->conn_handle = cmd->conn_handle;
+
+    *rsplen = sizeof(*rsp);
+
+    return 0;
+}
+
+int
+ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_iso_test_end_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_iso_test_end_rp *rsp = (void *)rspbuf;
+    struct ble_ll_iso_conn *iso_conn;
+    uint16_t handle;
+
+    handle = le16toh(cmd->conn_handle);
+    iso_conn = ble_ll_iso_conn_find_by_handle(handle);
+    if (!iso_conn) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    if (!iso_conn->test_mode.transmit.enabled) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
+    iso_conn->data_path.enabled = 0;
+    iso_conn->test_mode.transmit.enabled = 0;
+
+    rsp->conn_handle = cmd->conn_handle;
+    rsp->received_sdu_count = 0;
+    rsp->missed_sdu_count = 0;
+    rsp->failed_sdu_count = 0;
 
     *rsplen = sizeof(*rsp);
 
@@ -213,26 +309,93 @@ ble_ll_iso_data_in(struct os_mbuf *om)
     return 0;
 }
 
-int
-ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint8_t *llid, void *dptr)
+static int
+ble_ll_iso_test_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_counter, uint8_t *llid, uint8_t *dptr)
 {
+    uint32_t payload_len;
+    uint16_t rem_len;
+    uint8_t sdu_idx;
+    uint8_t pdu_idx;
+    int pdu_len;
+
+    BLE_LL_ASSERT(!conn->mux.framed);
+
+    sdu_idx = idx / conn->mux.pdu_per_sdu;
+    pdu_idx = idx - sdu_idx * conn->mux.pdu_per_sdu;
+
+    switch (conn->test_mode.transmit.payload_type) {
+    case BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH:
+        *llid = 0b00;
+        pdu_len = 0;
+        break;
+    case BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH:
+        payload_len = max(conn->test_mode.transmit.rand + (sdu_idx * pdu_idx), 4);
+
+        rem_len = payload_len - pdu_idx * conn->mux.max_pdu;
+        if (rem_len == 0) {
+            *llid = 0b01;
+            pdu_len = 0;
+        } else {
+            *llid = rem_len > conn->mux.max_pdu;
+            pdu_len = min(conn->mux.max_pdu, rem_len);
+        }
+
+        memset(dptr, 0, pdu_len);
+
+        if (payload_len == rem_len) {
+            put_le32(dptr, pkt_counter);
+        }
+
+        break;
+    case BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH:
+        payload_len = conn->max_sdu;
+
+        rem_len = payload_len - pdu_idx * conn->mux.max_pdu;
+        if (rem_len == 0) {
+            *llid = 0b01;
+            pdu_len = 0;
+        } else {
+            *llid = rem_len > conn->mux.max_pdu;
+            pdu_len = min(conn->mux.max_pdu, rem_len);
+        }
+
+        memset(dptr, 0, pdu_len);
+
+        if (payload_len == rem_len) {
+            put_le32(dptr, pkt_counter);
+        }
+
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    return pdu_len;
+}
+
+int
+ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_counter, uint8_t *llid, void *dptr)
+{
+    if (conn->test_mode.transmit.enabled) {
+        return ble_ll_iso_test_pdu_get(conn, idx, pkt_counter, llid, dptr);
+    }
+
     return ble_ll_isoal_mux_pdu_get(&conn->mux, idx, llid, dptr);
 }
 
 void
-ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, uint16_t conn_handle,
-                     uint8_t max_pdu, uint32_t iso_interval_us,
-                     uint32_t sdu_interval_us, uint8_t bn, uint8_t pte,
-                     uint8_t framing)
+ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, struct ble_ll_iso_conn_init_param *param)
 {
     os_sr_t sr;
 
     memset(conn, 0, sizeof(*conn));
 
-    conn->handle = conn_handle;
-    ble_ll_isoal_mux_init(&conn->mux, max_pdu, iso_interval_us, sdu_interval_us,
-                          bn, pte, BLE_LL_ISOAL_MUX_IS_FRAMED(framing),
-                          framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED);
+    conn->handle = param->conn_handle;
+    conn->max_sdu = param->max_sdu;
+
+    ble_ll_isoal_mux_init(&conn->mux, param->max_pdu, param->iso_interval_us, param->sdu_interval_us,
+                          param->bn, param->pte, BLE_LL_ISOAL_MUX_IS_FRAMED(param->framing),
+                          param->framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED);
 
     OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&ll_iso_conn_q, conn, iso_conn_q_next);
@@ -254,6 +417,10 @@ ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn)
 int
 ble_ll_iso_conn_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp)
 {
+    if (conn->test_mode.transmit.enabled) {
+        conn->test_mode.transmit.rand = ble_ll_rand() % conn->max_sdu;
+    }
+
     ble_ll_isoal_mux_event_start(&conn->mux, timestamp);
 
     return 0;

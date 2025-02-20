@@ -288,9 +288,15 @@ static const uint8_t octet_43 = OCTET(
     BIT(3) /* HCI LE Setup ISO Data Path */
     BIT(4) /* HCI LE Remove ISO Data Path */
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    BIT(5) /* HCI LE ISO Transmit Test */
+#endif
 );
 
 static const uint8_t octet_44 = OCTET(
+#if MYNEWT_VAL(BLE_LL_ISO)
+    BIT(0) /* HCI LE ISO Test End */
+#endif
 #if BLE_LL_HOST_CONTROLLED_FEATURES
     BIT(1) /* HCI LE Set Host Feature */
 #endif
