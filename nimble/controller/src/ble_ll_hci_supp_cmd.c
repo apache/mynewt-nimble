@@ -45,6 +45,9 @@ static const uint8_t octet_5 = OCTET(
 );
 
 static const uint8_t octet_10 = OCTET(
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    BIT(2) /* HCI Read Transmit Power Level */
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     BIT(5) /* HCI Set Controller To Host Flow Control */
     BIT(6) /* HCI Host Buffer Size */

@@ -32,6 +32,7 @@
 #include "controller/ble_ll_ctrl.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_adv.h"
+#include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL) || MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -1929,6 +1930,39 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
     rsp->conn_handle = htole16(handle);
     *rsplen = sizeof(*rsp);
     return rc;
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+int
+ble_ll_conn_hci_cb_read_tx_pwr(const uint8_t *cmdbuf, uint8_t len,
+                               uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_cb_read_tx_pwr_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_cb_read_tx_pwr_rp *rsp = (void *)rspbuf;
+    struct ble_ll_conn_sm *connsm;
+    uint16_t handle;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (cmd->type != 0x01) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    handle = le16toh(cmd->conn_handle);
+    connsm = ble_ll_conn_find_by_handle(handle);
+    if (!connsm) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    rsp->conn_handle = cmd->conn_handle;
+    rsp->tx_level = g_ble_ll_tx_power;
+
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
 }
 #endif
 

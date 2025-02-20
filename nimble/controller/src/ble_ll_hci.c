@@ -1541,6 +1541,11 @@ ble_ll_hci_ctlr_bb_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
             rc = ble_ll_reset();
         }
         break;
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    case BLE_HCI_OCF_CB_READ_TX_PWR:
+        rc = ble_ll_conn_hci_cb_read_tx_pwr(cmdbuf, len, rspbuf, rsplen);
+        break;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_CTRL_TO_HOST_FLOW_CONTROL)
     case BLE_HCI_OCF_CB_SET_CTLR_TO_HOST_FC:
         rc = ble_ll_hci_cb_set_ctrlr_to_host_fc(cmdbuf, len);
