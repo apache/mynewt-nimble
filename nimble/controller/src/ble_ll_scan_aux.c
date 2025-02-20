@@ -425,7 +425,7 @@ ble_ll_hci_ev_update_ext_adv_report_from_ext(struct ble_hci_ev *hci_ev,
 
     if (eh_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        if (rxinfo->rpa_index >= 0) {
+        if (rxinfo->flags & BLE_MBUF_HDR_F_RESOLVED) {
             rl = &g_ble_ll_resolv_list[rxinfo->rpa_index];
             report->addr_type = rl->rl_addr_type + 2;
             memcpy(report->addr, rl->rl_identity_addr, 6);
