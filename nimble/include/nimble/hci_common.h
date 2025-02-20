@@ -1647,6 +1647,11 @@ struct ble_hci_vs_set_scan_cfg_cp {
 #define BLE_HCI_PRIVACY_NETWORK                     (0)
 #define BLE_HCI_PRIVACY_DEVICE                      (1)
 
+/* --- LE iso transmit test  payload type options (OCF 0x0070) */
+#define BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH        (0x00)
+#define BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH    (0x01)
+#define BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH     (0x02)
+
 /* --- LE set advertising coded PHY options (OCF 0x007F) */
 #define BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF      0x0
 #define BLE_HCI_ADVERTISING_PHY_OPT_S2_PREF      0x1
