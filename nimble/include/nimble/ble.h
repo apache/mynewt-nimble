@@ -120,7 +120,7 @@ struct ble_mbuf_hdr_rxinfo
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
 {
-    uint8_t flags;
+    uint8_t num_data_pkt;
     uint8_t hdr_byte;
     uint16_t offset;
     uint16_t pyld_len;
