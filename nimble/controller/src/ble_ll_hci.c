@@ -1301,7 +1301,7 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         }
         break;
 #endif /* BLE_LL_ISO */
-#if MYNEWT_VAL(BLE_VERSION) >= 52
+#if BLE_LL_HOST_CONTROLLED_FEATURES
     case BLE_HCI_OCF_LE_SET_HOST_FEATURE:
         rc = ble_ll_set_host_feat(cmdbuf, len);
         break;

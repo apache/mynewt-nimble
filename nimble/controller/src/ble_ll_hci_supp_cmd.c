@@ -280,7 +280,7 @@ static const uint8_t octet_43 = OCTET(
 );
 
 static const uint8_t octet_44 = OCTET(
-#if MYNEWT_VAL(BLE_VERSION) >= 52
+#if BLE_LL_HOST_CONTROLLED_FEATURES
     BIT(1) /* HCI LE Set Host Feature */
 #endif
 );
