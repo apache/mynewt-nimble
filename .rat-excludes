@@ -8,12 +8,6 @@ docs
 RELEASE_NOTES.md
 .gitignore
 README.md
-pts-gap.txt
-pts-gatt.txt
-pts-l2cap.txt
-pts-sm.txt
-94654-20170317-085122560.tpg
-94654-20170317-085441153.pts
 uncrustify.cfg
 .style_ignored_dirs
 .mailmap
