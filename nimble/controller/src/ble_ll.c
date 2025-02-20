@@ -1464,6 +1464,7 @@ ble_ll_read_supp_features(void)
     return g_ble_ll_data.ll_supp_features;
 }
 
+#if BLE_LL_HOST_CONTROLLED_FEATURES
 /**
  * Sets the features controlled by the host.
  *
@@ -1502,6 +1503,8 @@ ble_ll_set_host_feat(const uint8_t *cmdbuf, uint8_t len)
 
     return BLE_ERR_SUCCESS;
 }
+#endif
+
 /**
  * Flush a link layer packet queue.
  *
