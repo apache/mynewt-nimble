@@ -36,8 +36,8 @@
 #include <nimble/nimble_npl_os.h>
 #endif
 #include "os/os_trace_api.h"
-#include <hal/nrf_rng.h>
 #include "hal/nrf_ecb.h"
+#include "phy_hw.h"
 
 /* Total number of resolving list elements */
 #define BLE_HW_RESOLV_LIST_SIZE     (16)
@@ -269,6 +269,7 @@ ble_hw_whitelist_match(void)
 }
 
 /* Encrypt data */
+#if NRF_ECB_HAS_ECBDATAPTR
 int
 ble_hw_encrypt_block(struct ble_encryption_block *ecb)
 {
@@ -304,6 +305,68 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
 
     return rc;
 }
+#else
+#define NRF_ECB NRF_ECB00
+#define NRF_AAR NRF_AAR00
+
+/* ECB data structure */
+struct ecb_job_entry {
+    uint8_t *ptr;
+    uint32_t attr_and_length;
+};
+
+static struct ecb_job_entry ecb_input_job_list[2];
+static struct ecb_job_entry ecb_output_job_list[2];
+
+int
+ble_hw_encrypt_block(struct ble_encryption_block *ecb)
+{
+    int rc;
+    uint32_t end;
+    uint32_t err;
+
+    /* Stop ECB */
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOP);
+
+    ecb_input_job_list[0].ptr = ecb->plain_text;
+    ecb_input_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+    ecb_output_job_list[0].ptr = ecb->cipher_text;
+    ecb_output_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+
+    /* The end of a job list shall be 0 */
+    ecb_input_job_list[1].ptr = 0;
+    ecb_input_job_list[1].attr_and_length = 0;
+    ecb_output_job_list[1].ptr = 0;
+    ecb_output_job_list[1].attr_and_length = 0;
+
+    NRF_ECB->EVENTS_END = 0;
+    NRF_ECB->EVENTS_ERROR = 0;
+    NRF_ECB->IN.PTR = (uint32_t)ecb_input_job_list;
+    NRF_ECB->OUT.PTR = (uint32_t)ecb_output_job_list;
+    memcpy((void *)NRF_ECB->KEY.VALUE, ecb->key, sizeof(uint32_t) * 4);
+
+    /* Start ECB */
+    nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_START);
+
+    /* Wait till error or done */
+    rc = 0;
+    while (1) {
+        end = NRF_ECB->EVENTS_END;
+        err = NRF_ECB->EVENTS_ERROR;
+        if (end || err) {
+            if (err) {
+                rc = -1;
+            }
+            break;
+        }
+    }
+
+    return rc;
+}
+#endif
+
+#ifdef RNG_PRESENT
+#include <hal/nrf_rng.h>
 
 /**
  * Random number generator ISR.
@@ -431,6 +494,140 @@ ble_hw_rng_read(void)
 
     return rnum;
 }
+#else
+#include <hal/nrf_cracen.h>
+
+/**
+ * Random number generator ISR.
+ */
+static void
+ble_rng_isr(void)
+{
+    os_trace_isr_enter();
+
+    /* No callback? Clear and disable interrupts */
+    if (g_ble_rng_isr_cb == NULL) {
+        nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+        NRF_CRACENCORE->RNGCONTROL.CONTROL &= ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        NRF_CRACEN->EVENTS_RNG = 0;
+        os_trace_isr_exit();
+        return;
+    }
+
+    if (g_ble_rng_isr_cb) {
+        /* If there is a value ready in the queue grab it */
+        while ((NRF_CRACENCORE->RNGCONTROL.CONTROL &
+                CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk) &&
+               (NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL > 0)) {
+            g_ble_rng_isr_cb(ble_hw_rng_read());
+        }
+    }
+
+    os_trace_isr_exit();
+}
+
+/**
+ * Initialize the random number generator
+ *
+ * @param cb
+ * @param bias
+ *
+ * @return int
+ */
+int
+ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
+{
+    NRF_CRACEN->ENABLE = CRACEN_ENABLE_CRYPTOMASTER_Msk |
+                         CRACEN_ENABLE_RNG_Msk |
+                         CRACEN_ENABLE_PKEIKG_Msk;
+
+    while (NRF_CRACENCORE->PK.STATUS & CRACENCORE_PK_STATUS_PKBUSY_Msk);
+    NRF_CRACENCORE->PK.CONTROL &= ~CRACENCORE_IKG_PKECONTROL_CLEARIRQ_Msk;
+
+    NRF_CRACENCORE->RNGCONTROL.CONTROL = CRACENCORE_RNGCONTROL_CONTROL_ResetValue |
+                                         CRACENCORE_RNGCONTROL_CONTROL_ENABLE_Msk;
+
+    /* If we were passed a function pointer we need to enable the interrupt */
+    if (cb != NULL) {
+        NVIC_SetVector(CRACEN_IRQn, (uint32_t)ble_rng_isr);
+        NVIC_EnableIRQ(CRACEN_IRQn);
+        g_ble_rng_isr_cb = cb;
+    }
+
+    return 0;
+}
+
+/**
+ * Start the random number generator
+ *
+ * @return int
+ */
+int
+ble_hw_rng_start(void)
+{
+    os_sr_t sr;
+
+    /* No need for interrupt if there is no callback */
+    OS_ENTER_CRITICAL(sr);
+    NRF_CRACEN->EVENTS_RNG = 0;
+
+    if (g_ble_rng_isr_cb) {
+        nrf_cracen_int_enable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+        NRF_CRACENCORE->RNGCONTROL.CONTROL |= CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        /* Force regeneration of the samples */
+        NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL = 0;
+    }
+    OS_EXIT_CRITICAL(sr);
+
+    return 0;
+}
+
+/**
+ * Stop the random generator
+ *
+ * @return int
+ */
+int
+ble_hw_rng_stop(void)
+{
+    os_sr_t sr;
+
+    /* No need for interrupt if there is no callback */
+    OS_ENTER_CRITICAL(sr);
+    nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
+    NRF_CRACENCORE->RNGCONTROL.CONTROL &= ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+    NRF_CRACEN->EVENTS_RNG = 0;
+    OS_EXIT_CRITICAL(sr);
+
+    return 0;
+}
+
+/**
+ * Read the random number generator.
+ *
+ * @return uint8_t
+ */
+uint8_t
+ble_hw_rng_read(void)
+{
+    uint8_t rnum;
+    uint8_t slot_id;
+
+    /* Wait for a sample */
+    while (NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL == 0) {
+        assert((NRF_CRACENCORE->RNGCONTROL.STATUS &
+                CRACENCORE_RNGCONTROL_STATUS_STATE_Msk) !=
+               (CRACENCORE_RNGCONTROL_STATUS_STATE_ERROR <<
+                CRACENCORE_RNGCONTROL_STATUS_STATE_Pos));
+    }
+
+    NRF_CRACEN->EVENTS_RNG = 0;
+    slot_id = NRF_CRACENCORE->RNGCONTROL.FIFODEPTH - NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL;
+    rnum = (uint8_t)NRF_CRACENCORE->RNGCONTROL.FIFO[slot_id];
+
+    return rnum;
+}
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
 /**
@@ -511,7 +708,7 @@ int
 ble_hw_resolv_list_match(void)
 {
     if (NRF_AAR->ENABLE && NRF_AAR->EVENTS_END && NRF_AAR->EVENTS_RESOLVED) {
-        return (int)NRF_AAR->STATUS;
+        return (int)NRF_AAR_STATUS;
     }
 
     return -1;
