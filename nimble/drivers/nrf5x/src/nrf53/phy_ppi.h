@@ -87,6 +87,18 @@ phy_ppi_timer0_compare0_to_radio_rxen_disable(void)
 }
 
 static inline void
+phy_ppi_timer0_compare0_to_radio_start_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+}
+
+static inline void
+phy_ppi_timer0_compare0_to_radio_start_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+}
+
+static inline void
 phy_ppi_radio_address_to_ccm_crypt_enable(void)
 {
     NRF_CCM->SUBSCRIBE_CRYPT = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);

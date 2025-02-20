@@ -59,6 +59,18 @@ phy_ppi_timer0_compare0_to_radio_rxen_disable(void)
 }
 
 static inline void
+phy_ppi_timer0_compare0_to_radio_start_enable(void)
+{
+    nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH8_Msk);
+}
+
+static inline void
+phy_ppi_timer0_compare0_to_radio_start_disable(void)
+{
+    nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH8_Msk);
+}
+
+static inline void
 phy_ppi_radio_bcmatch_to_aar_start_enable(void)
 {
     nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH23_Msk);
@@ -105,6 +117,7 @@ phy_ppi_disable(void)
 {
     nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk |
                                       PPI_CHEN_CH6_Msk | PPI_CHEN_CH7_Msk |
+                                      PPI_CHEN_CH8_Msk |
                                       PPI_CHEN_CH20_Msk | PPI_CHEN_CH21_Msk |
                                       PPI_CHEN_CH23_Msk | PPI_CHEN_CH25_Msk |
                                       PPI_CHEN_CH31_Msk);
