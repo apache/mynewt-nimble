@@ -344,6 +344,7 @@ struct ble_ll_conn_sm
     /* Packet transmit queue */
     struct os_mbuf *cur_tx_pdu;
     STAILQ_HEAD(conn_txq_head, os_mbuf_pkthdr) conn_txq;
+    uint8_t conn_txq_num_data_pkt;
     uint8_t conn_txq_num_zero_pkt;
 
     /* List entry for active/free connection pools */

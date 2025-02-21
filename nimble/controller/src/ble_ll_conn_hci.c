@@ -310,6 +310,8 @@ ble_ll_conn_num_comp_pkts_event_send(struct ble_ll_conn_sm *connsm)
                 ev->completed[0].packets = htole16(connsm->completed_pkts);
                 hci_ev->length += sizeof(ev->completed[0]);
 
+                BLE_LL_ASSERT(connsm->conn_txq_num_data_pkt >= connsm->completed_pkts);
+                connsm->conn_txq_num_data_pkt -= connsm->completed_pkts;
                 connsm->completed_pkts = 0;
 
                 ble_ll_hci_event_send(hci_ev);
@@ -330,7 +332,7 @@ skip_conn:
          * event and that either has packets enqueued or has completed packets.
          */
         if ((connsm->conn_state != BLE_LL_CONN_STATE_IDLE) &&
-            (connsm->completed_pkts || !STAILQ_EMPTY(&connsm->conn_txq))) {
+            (connsm->completed_pkts || connsm->conn_txq_num_data_pkt)) {
             /* If no buffer, get one, If cant get one, leave. */
             if (!hci_ev) {
                 hci_ev = ble_transport_alloc_evt(0);
@@ -351,6 +353,8 @@ skip_conn:
             hci_ev->length += sizeof(ev->completed[ev->count]);
             ev->count++;
 
+            BLE_LL_ASSERT(connsm->conn_txq_num_data_pkt >= connsm->completed_pkts);
+            connsm->conn_txq_num_data_pkt -= connsm->completed_pkts;
             connsm->completed_pkts = 0;
 
             /* Send now if the buffer is full. */

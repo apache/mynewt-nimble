@@ -2034,6 +2034,7 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 
     /* Initialize transmit queue and ack/flow control elements */
     STAILQ_INIT(&connsm->conn_txq);
+    connsm->conn_txq_num_data_pkt = 0;
     connsm->conn_txq_num_zero_pkt = 0;
     connsm->cur_tx_pdu = NULL;
     connsm->tx_seqnum = 0;
@@ -4046,6 +4047,7 @@ ble_ll_conn_enqueue_pkt(struct ble_ll_conn_sm *connsm, struct os_mbuf *om,
     } else {
         STAILQ_INSERT_TAIL(&connsm->conn_txq, pkthdr, omp_next);
     }
+    connsm->conn_txq_num_data_pkt += num_pkt;
     OS_EXIT_CRITICAL(sr);
 }
 
