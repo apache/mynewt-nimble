@@ -1006,6 +1006,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     BLE_LL_ASSERT(big);
 
     big_pool_free--;
+    big->handle = big_handle;
 
     advsm = ble_ll_adv_sync_get(adv_handle);
     if (!advsm) {
@@ -1019,7 +1020,6 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     }
 
     big->advsm = advsm;
-    big->handle = big_handle;
 
     big->crc_init = ble_ll_rand();
     memcpy(big->chan_map, g_ble_ll_data.chan_map, BLE_LL_CHAN_MAP_LEN);
