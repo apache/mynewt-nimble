@@ -1647,6 +1647,11 @@ struct ble_hci_vs_set_scan_cfg_cp {
 #define BLE_HCI_PRIVACY_NETWORK                     (0)
 #define BLE_HCI_PRIVACY_DEVICE                      (1)
 
+/* --- LE iso transmit test  payload type options (OCF 0x0070) */
+#define BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH        (0x00)
+#define BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH    (0x01)
+#define BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH     (0x02)
+
 /* --- LE set advertising coded PHY options (OCF 0x007F) */
 #define BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF      0x0
 #define BLE_HCI_ADVERTISING_PHY_OPT_S2_PREF      0x1
@@ -2465,6 +2470,10 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT        0x01
 
 #define BLE_HCI_ISO_DATA_PATH_ID_HCI            0x00
+
+#define BLE_HCI_ISO_FRAMING_UNFRAMED            0x00
+#define BLE_HCI_ISO_FRAMING_FRAMED_SEGMENTABLE  0x01
+#define BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED  0x02
 
 struct ble_hci_iso {
     uint16_t handle;
