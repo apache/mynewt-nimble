@@ -1412,8 +1412,8 @@ ble_ll_scan_aux_sync_check(struct os_mbuf *rxpdu,
     eh_data = &rxbuf[4];
 
     /* Need ADI and SyncInfo */
-    if (!(eh_flags & ((1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT) |
-                      (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)))) {
+    if (!(eh_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) ||
+        !(eh_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT))) {
         return;
     }
 
