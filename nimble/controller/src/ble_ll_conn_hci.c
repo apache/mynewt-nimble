@@ -457,7 +457,7 @@ ble_ll_conn_hci_create_check_scan(struct ble_ll_conn_create_scan *p)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     if (p->init_phy_mask & ~ble_ll_conn_create_valid_phy_mask) {
-        return BLE_ERR_INV_HCI_CMD_PARMS;
+        return BLE_ERR_UNSUPPORTED;
     }
 
     if (!(p->init_phy_mask & ble_ll_conn_create_required_phy_mask)) {
