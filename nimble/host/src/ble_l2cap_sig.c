@@ -1574,6 +1574,8 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
     int rc;
+    uint16_t scid;
+    uint16_t dcid;
 
     rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
     if (rc != 0) {
@@ -1593,18 +1595,34 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     conn = ble_hs_conn_find_assert(conn_handle);
 
     req = (struct ble_l2cap_sig_disc_req *) (*om)->om_data;
+    scid = le16toh(req->scid);
+    dcid = le16toh(req->dcid);
 
-    /* Let's find matching channel. Note that destination CID in the request
-     * is from peer perspective. It is source CID from nimble perspective
-     */
-    chan = ble_hs_conn_chan_find_by_scid(conn, le16toh(req->dcid));
+    if (scid < BLE_L2CAP_COC_CID_START || scid > BLE_L2CAP_COC_CID_END ||
+        dcid < BLE_L2CAP_COC_CID_START || dcid > BLE_L2CAP_COC_CID_END) {
+        /* Don't bother with look-up if it is not for connection oriented
+         * channel
+         */
+        chan = NULL;
+    } else {
+        /* Let's find matching channel. Note that destination CID in the request
+         * is from peer perspective. It is source CID from nimble perspective
+         */
+        chan = ble_hs_conn_chan_find_by_scid(conn, dcid);
+    }
+
     if (!chan) {
         os_mbuf_free_chain(txom);
         ble_hs_unlock();
         ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, hdr->identifier, req->dcid, req->scid);
         return 0;
     }
-    if (le16toh(req->scid) != chan->dcid) {
+
+    /* Core Spec 6.0 Vol3 PartA 4.6
+     * If the receiver finds a DCID match but the SCID fails to find the same
+     * match, the request should be silently discarded.
+     */
+    if (scid != chan->dcid) {
         os_mbuf_free_chain(txom);
         ble_hs_unlock();
         return 0;
@@ -1703,6 +1721,11 @@ ble_l2cap_sig_disconnect(struct ble_l2cap_chan *chan)
     struct ble_l2cap_sig_disc_req *req;
     struct ble_l2cap_sig_proc *proc;
     int rc;
+
+    /* this is allowed only for connection oriented channels */
+    if (chan->scid < BLE_L2CAP_COC_CID_START || chan->scid > BLE_L2CAP_COC_CID_END) {
+        return BLE_HS_EREJECT;
+    }
 
     if (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING) {
         return 0;
