@@ -30,9 +30,6 @@
 extern "C" {
 #endif
 
-#define BLE_L2CAP_COC_CID_START                 0x0040
-#define BLE_L2CAP_COC_CID_END                   0x007F
-
 struct ble_l2cap_chan;
 
 #define BLE_L2CAP_COC_FLAG_STALLED              0x01
