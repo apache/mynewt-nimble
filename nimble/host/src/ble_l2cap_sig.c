@@ -1181,7 +1181,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_hs_conn *conn;
     uint16_t scid;
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(req));
+    rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
     if (rc != 0) {
         return rc;
     }
