@@ -376,7 +376,7 @@ syscfg.defs:
             if host requested to use privacy (i.e. 0x02 or 0x03 own address
             type) but the peer is not on the resolving list.
             If disabled, public or random address will be used.
-        value: 1
+        value: MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
         restrictions:
             - BLE_LL_CFG_FEAT_LL_PRIVACY if 1
 
