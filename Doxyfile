@@ -1,7 +1,8 @@
 WARN_NO_PARAMDOC       = YES
 WARN_LOGFILE           = /tmp/doxygen_check/warnings.log
 INPUT                  = $(DOXYGEN_INPUT)
-GENERATE_HTML          = NO
+GENERATE_HTML          = YES
+HTML_OUTPUT            = /tmp/doxygen_check/html
 GENERATE_LATEX         = NO
 MACRO_EXPANSION        = YES
 WARN_FORMAT            = $line: $text
