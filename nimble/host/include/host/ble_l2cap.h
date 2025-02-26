@@ -571,7 +571,7 @@ int ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 /**
  * @brief Disconnect an L2CAP channel.
  *
- * This function disconnects the specified L2CAP channel by sending a disconnect signal.
+ * This function disconnects the specified L2CAP connection oriented channel by sending a disconnect signal.
  *
  * @param chan          Pointer to the L2CAP channel structure representing the channel to disconnect.
  *
