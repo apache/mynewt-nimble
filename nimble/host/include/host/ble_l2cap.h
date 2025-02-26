@@ -66,6 +66,12 @@ struct ble_hs_conn;
 /** Security Manager (SM) CID. */
 #define BLE_L2CAP_CID_SM            6
 
+/** Start range for connection oriented channel CID. */
+#define BLE_L2CAP_COC_CID_START     0x0040
+
+/** End range for connection oriented channel CID. */
+#define BLE_L2CAP_COC_CID_END       0x007F
+
 /** @} */
 
 /**
