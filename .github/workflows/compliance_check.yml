@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
              sudo apt-get update
-             sudo apt-get install -y doxygen
+             sudo apt-get install -y doxygen graphviz
       - name: Check Doxygen
         shell: bash
         run: |
