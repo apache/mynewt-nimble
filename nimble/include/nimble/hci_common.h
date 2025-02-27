@@ -1349,24 +1349,60 @@ struct ble_hci_vs_set_tx_pwr_rp {
     int8_t tx_power;
 } __attribute__((packed));
 
+/*
+ * Connection strict scheduling configure
+ *
+ * @slot_us - Slot time in microseconds
+ * @period_slots - Number of slots
+ */
 #define BLE_HCI_OCF_VS_CSS_CONFIGURE                    (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0003))
 struct ble_hci_vs_css_configure_cp {
     uint32_t slot_us;
     uint32_t period_slots;
 } __attribute__((packed));
+
+/*
+ * Connection strict scheduling enable
+ *
+ * @enable - enable/disable CSS
+ */
 #define BLE_HCI_OCF_VS_CSS_ENABLE                       (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0004))
 struct ble_hci_vs_css_enable_cp {
     uint8_t enable;
 } __attribute__((packed));
+
+/*
+ * Set next CSS slot
+ *
+ * @slot_idx - ID of the slot to select
+ */
 #define BLE_HCI_OCF_VS_CSS_SET_NEXT_SLOT                (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0005))
 struct ble_hci_vs_css_set_next_slot_cp {
     uint16_t slot_idx;
 } __attribute__((packed));
+
+/*
+ * Set next CSS slot for specific connection
+ *
+ * @conn_handle - Connection handle
+ * @slot_idx - ID of the slot to select
+ */
 #define BLE_HCI_OCF_VS_CSS_SET_CONN_SLOT                (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0006))
 struct ble_hci_vs_css_set_conn_slot_cp {
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
+
+/*
+ * Read connection slot
+ *
+ * Request:
+ * @conn_handle - connection handle
+ *
+ * Response:
+ * @conn_handle - connection handle
+ * @slot_idx - ID of the read slot
+ */
 #define BLE_HCI_OCF_VS_CSS_READ_CONN_SLOT               (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0007))
 struct ble_hci_vs_css_read_conn_slot_cp {
     uint16_t conn_handle;
@@ -1375,6 +1411,20 @@ struct ble_hci_vs_css_read_conn_slot_rp {
     uint16_t conn_handle;
     uint16_t slot_idx;
 } __attribute__((packed));
+
+/*
+ * Set data length
+ *
+ * Request:
+ * @conn_handle - connection handle
+ * @tx_octets - transmitter octets
+ * @tx_time - transmitter time
+ * @rx_octets - receiver octets
+ * @rx_time - receiver time
+ *
+ * Response:
+ * @conn_handle - connection handle
+ */
 #define BLE_HCI_OCF_VS_SET_DATA_LEN                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0008))
 struct ble_hci_vs_set_data_len_cp {
     uint16_t conn_handle;
@@ -1386,20 +1436,50 @@ struct ble_hci_vs_set_data_len_cp {
 struct ble_hci_vs_set_data_len_rp {
     uint16_t conn_handle;
 } __attribute__((packed));
+
+/*
+ * Set antenna
+ *
+ * @antenna - Antenna location
+ */
 #define BLE_HCI_OCF_VS_SET_ANTENNA                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0009))
 struct ble_hci_vs_set_antenna_cp {
     uint8_t antenna;
 } __attribute__((packed));
+
+/*
+ * Set local Identity Resolving Key
+ *
+ * @own_addr_type - Local address type
+ * @irk - Identity Resolving Key
+ */
 #define BLE_HCI_OCF_VS_SET_LOCAL_IRK                   (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x000A))
 struct ble_hci_vs_set_local_irk_cp {
     uint8_t own_addr_type;
     uint8_t irk[16];
 } __attribute__((packed));
 
+/*
+ * Disable legacy advertising
+ */
 #define BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_LEGACY               (0x00000001)
+
+/*
+ * Disable extended advertising
+ */
 #define BLE_HCI_VS_SET_SCAN_CFG_FLAG_NO_EXT                  (0x00000002)
+
+/*
+ * Set scanning RSSI filter
+ */
 #define BLE_HCI_VS_SET_SCAN_CFG_FLAG_RSSI_FILTER             (0x00000004)
 
+/*
+ * Set scan configuration
+ *
+ * @flags - Scan flags
+ * @rssi_treshold - RSSI power level treshold
+ */
 #define BLE_HCI_OCF_VS_SET_SCAN_CFG                     (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x000B))
 struct ble_hci_vs_set_scan_cfg_cp {
     uint32_t flags;
