@@ -707,7 +707,8 @@ ble_ll_iso_big_control_tx(struct ble_ll_iso_big *big)
     ble_phy_set_txend_cb(ble_ll_iso_big_control_txend_cb, big);
     ble_phy_setchan(chan_idx, big->ctrl_aa, big->crc_init << 8);
 
-    rc = ble_phy_tx(ble_ll_iso_big_control_pdu_cb, big, BLE_PHY_TRANSITION_NONE);
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    rc = ble_phy_tx(ble_ll_iso_big_control_pdu_cb, big);
 
     return rc;
 }
@@ -792,9 +793,12 @@ ble_ll_iso_big_subevent_tx(struct ble_ll_iso_big *big)
 
     to_tx = (big->tx.subevents_rem > 1) || big->cstf;
 
-    rc = ble_phy_tx(ble_ll_iso_big_subevent_pdu_cb, big,
-                    to_tx ? BLE_PHY_TRANSITION_TX_TX
-                          : BLE_PHY_TRANSITION_NONE);
+    ble_phy_transition_set(to_tx ? BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT :
+                                   BLE_PHY_TRANSITION_NONE,
+                           big->interleaved ? big->bis_spacing :
+                                              big->sub_interval);
+
+    rc = ble_phy_tx(ble_ll_iso_big_subevent_pdu_cb, big);
     return rc;
 }
 
@@ -892,12 +896,6 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     /* Select 1st BIS for transmission */
     big->tx.bis = STAILQ_FIRST(&big->bis_q);
     big->tx.bis->tx.subevent_num = 1;
-
-    if (big->interleaved) {
-        ble_phy_tifs_txtx_set(big->bis_spacing, 0);
-    } else {
-        ble_phy_tifs_txtx_set(big->sub_interval, 0);
-    }
 
     rc = ble_phy_tx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
                                    sch->remainder);

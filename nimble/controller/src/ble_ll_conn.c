@@ -1347,7 +1347,7 @@ conn_tx_pdu:
         txend_func = ble_ll_conn_wait_txend;
     } else {
         /* Wait for a response here */
-        end_transition = BLE_PHY_TRANSITION_TX_RX;
+        end_transition = BLE_PHY_TRANSITION_TO_RX;
         txend_func = NULL;
     }
 
@@ -1435,9 +1435,11 @@ conn_tx_pdu:
     }
 #endif
 
+    ble_phy_transition_set(end_transition, BLE_LL_IFS);
+
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
-    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m, end_transition);
+    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m);
     if (!rc) {
         /* Log transmit on connection state */
         cur_txlen = ble_hdr->txinfo.pyld_len;
@@ -3275,9 +3277,11 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
     ble_ll_conn_prepare_connect_ind(connsm, ble_ll_scan_get_pdu_data(), addrd,
                                     rxhdr->rxinfo.channel);
 
+    ble_phy_transition_set(ext ? BLE_PHY_TRANSITION_TO_RX :
+                                 BLE_PHY_TRANSITION_NONE,
+                           BLE_LL_IFS);
     ble_phy_set_txend_cb(NULL, NULL);
-    rc = ble_phy_tx(ble_ll_conn_tx_connect_ind_pducb, connsm,
-                    ext ? BLE_PHY_TRANSITION_TX_RX : BLE_PHY_TRANSITION_NONE);
+    rc = ble_phy_tx(ble_ll_conn_tx_connect_ind_pducb, connsm);
     if (rc) {
         ble_ll_conn_send_connect_req_cancel();
         return -1;

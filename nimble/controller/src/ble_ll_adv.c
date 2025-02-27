@@ -1121,7 +1121,6 @@ static int
 ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
-    uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
 
@@ -1183,18 +1182,18 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
             ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
              (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE))) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        ble_phy_transition_set(BLE_PHY_TRANSITION_TO_RX, BLE_LL_IFS);
         ble_phy_set_txend_cb(NULL, NULL);
     } else {
-        end_trans = BLE_PHY_TRANSITION_NONE;
+        ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
     }
 
     /* Transmit advertisement */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    rc = ble_phy_tx(ble_ll_adv_pdu_make, advsm, end_trans);
+    rc = ble_phy_tx(ble_ll_adv_pdu_make, advsm);
 #else
-    rc = ble_phy_tx(ble_ll_adv_legacy_pdu_make, advsm, end_trans);
+    rc = ble_phy_tx(ble_ll_adv_legacy_pdu_make, advsm);
 #endif
     if (rc) {
         goto adv_tx_done;
@@ -1268,7 +1267,6 @@ static int
 ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
 {
     int rc;
-    uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
     ble_phy_tx_pducb_t pducb;
@@ -1319,22 +1317,22 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
 
     /* Set phy mode based on type of advertisement */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        ble_phy_transition_set(BLE_PHY_TRANSITION_TO_RX, BLE_LL_IFS);
         ble_phy_set_txend_cb(NULL, NULL);
         pducb = ble_ll_adv_aux_pdu_make;
     } else if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
                advsm->aux_first_pdu) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        ble_phy_transition_set(BLE_PHY_TRANSITION_TO_RX, BLE_LL_IFS);
         ble_phy_set_txend_cb(NULL, NULL);
         pducb = ble_ll_adv_aux_scannable_pdu_make;
     } else {
-        end_trans = BLE_PHY_TRANSITION_NONE;
+        ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
         pducb = ble_ll_adv_aux_pdu_make;
     }
 
     /* Transmit advertisement */
-    rc = ble_phy_tx(pducb, advsm, end_trans);
+    rc = ble_phy_tx(pducb, advsm);
     if (rc) {
         goto adv_aux_dropped;
     }
@@ -2322,8 +2320,9 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
 #endif
 
     /* Transmit advertisement */
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
     ble_phy_set_txend_cb(ble_ll_adv_sync_tx_end, advsm);
-    rc = ble_phy_tx(ble_ll_adv_sync_pdu_make, advsm, BLE_PHY_TRANSITION_NONE);
+    rc = ble_phy_tx(ble_ll_adv_sync_pdu_make, advsm);
     if (rc) {
         goto adv_tx_done;
     }
@@ -4545,6 +4544,8 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
          */
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
 
+        ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
         if (advsm->flags & BLE_LL_ADV_SM_FLAG_SCAN_REQ_NOTIF) {
             ble_ll_hci_ev_send_scan_req_recv(advsm->adv_instance, peer,
@@ -4558,12 +4559,10 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
          */
 
         advsm->rx_ble_hdr = ble_hdr;
-        rc = ble_phy_tx(ble_ll_adv_scan_rsp_pdu_make, advsm,
-                        BLE_PHY_TRANSITION_NONE);
+        rc = ble_phy_tx(ble_ll_adv_scan_rsp_pdu_make, advsm);
         advsm->rx_ble_hdr = NULL;
 #else
-        rc = ble_phy_tx(ble_ll_adv_scan_rsp_legacy_pdu_make, advsm,
-                        BLE_PHY_TRANSITION_NONE);
+        rc = ble_phy_tx(ble_ll_adv_scan_rsp_legacy_pdu_make, advsm);
 #endif
 
         if (!rc) {
@@ -4597,9 +4596,9 @@ ble_ll_adv_rx_req(uint8_t pdu_type, struct os_mbuf *rxpdu)
         rsp_data.peer = rxbuf + BLE_LL_PDU_HDR_LEN;
         rsp_data.rxadd = rxbuf[0] & BLE_ADV_PDU_HDR_TXADD_MASK;
 
+        ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
         ble_phy_set_txend_cb(ble_ll_adv_tx_done, advsm);
-        rc = ble_phy_tx(ble_ll_adv_aux_conn_rsp_pdu_make, &rsp_data,
-                        BLE_PHY_TRANSITION_NONE);
+        rc = ble_phy_tx(ble_ll_adv_aux_conn_rsp_pdu_make, &rsp_data);
         if (!rc) {
             ble_ll_adv_flags_set(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD);
             STATS_INC(ble_ll_stats, aux_conn_rsp_tx);
@@ -4890,6 +4889,8 @@ ble_ll_adv_rx_isr_start(uint8_t pdu_type)
      */
     if (rc < 0) {
         ble_ll_adv_tx_done(advsm);
+    } else if (rc > 0){
+        ble_phy_transition_set(BLE_PHY_TRANSITION_TO_TX, BLE_LL_IFS);
     }
 
     return rc;
