@@ -37,6 +37,8 @@ struct ble_eatt {
     uint16_t conn_handle;
     struct ble_l2cap_chan *chan;
     uint8_t client_op;
+    uint8_t retry_cnt;
+    bool collision;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
@@ -214,6 +216,31 @@ ble_eatt_free(struct ble_eatt *eatt)
     os_memblock_put(&ble_eatt_conn_pool, eatt);
 }
 
+static void
+ble_eatt_retry(uint16_t conn_handle, struct ble_eatt *eatt)
+{
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    /* 5.3 Vol 3, Part G, Sec. 5.4 L2CAP collision mitigation
+     * Peripheral shall wait some time before retrying connection
+     * Waiting here for 500 ms
+     */
+    if (desc.role == BLE_GAP_ROLE_SLAVE) {
+        os_time_delay(500 * OS_TICKS_PER_SEC / 1000);
+    }
+
+    eatt->conn_handle = conn_handle;
+
+    eatt->retry_cnt++;
+
+    /* Setup EATT  */
+    ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
+}
+
 static int
 ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
@@ -226,7 +253,15 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_CONNECTED:
         BLE_EATT_LOG_DEBUG("eatt: Connected \n");
         if (event->connect.status) {
-            ble_eatt_free(eatt);
+            if (event->connect.status == BLE_L2CAP_COC_ERR_NO_RESOURCES) {
+                eatt->collision = true;
+                if (eatt->retry_cnt < 2) {
+                    ble_eatt_retry(desc.conn_handle, eatt);
+                }
+            }
+            if (eatt->retry_cnt > 2) {
+                ble_eatt_free(eatt);
+            }
             return 0;
         }
         eatt->chan = event->connect.chan;
@@ -238,6 +273,11 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_ACCEPT:
         BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
         eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
+
+        if (eatt->collision) {
+            ble_eatt_retry(event->accept.conn_handle, eatt);
+        }
+
         if (eatt) {
             /* For now we accept only one additional coc channel per ACL
              * TODO: improve it
