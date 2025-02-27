@@ -1951,6 +1951,21 @@ done:
 }
 
 static uint8_t
+eatt_conn(const void *cmd, uint16_t cmd_len,
+          void *rsp, uint16_t *rsp_len)
+{
+    uint16_t conn_handle;
+    const struct btp_gatt_eatt_conn_cmd *cp = cmd;
+
+    ble_gap_conn_find_handle_by_addr(&cp->address, &conn_handle);
+
+    ble_eatt_connect(conn_handle, cp->num_channels);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+
+static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
@@ -2001,6 +2016,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     tester_set_bit(rp->data, BTP_GATT_GET_ATTRIBUTES);
     tester_set_bit(rp->data, BTP_GATT_GET_ATTRIBUTE_VALUE);
     tester_set_bit(rp->data, BTP_GATT_CHANGE_DATABASE);
+    tester_set_bit(rp->data, BTP_GATT_EATT_CONNECT);
 
     *rsp_len = sizeof(*rp) + 4;
 
@@ -2137,6 +2153,11 @@ static const struct btp_handler handlers[] = {
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = set_mult,
     },
+    {
+        .opcode = BTP_GATT_EATT_CONNECT,
+        .expect_len = sizeof(struct btp_gatt_eatt_conn_cmd),
+        .func = eatt_conn,
+    }
 };
 
 int

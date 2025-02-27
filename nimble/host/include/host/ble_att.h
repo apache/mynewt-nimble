@@ -355,6 +355,8 @@ uint16_t ble_att_preferred_mtu(void);
  */
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
+void ble_eatt_connect(uint16_t conn_handle, uint16_t num_channels);
+
 #ifdef __cplusplus
 }
 #endif
