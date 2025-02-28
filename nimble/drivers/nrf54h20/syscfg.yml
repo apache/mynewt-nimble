@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.defs:
+    BLE_PHY_VARIABLE_TIFS:
+        description: >
+            Enables API to set custom T_ifs (inter-frame spacing) for each
+            transition. T_ifs is reset to default value after each transition.
+            When disabled, 150us is always used which enables some build-time
+            optimizations by compiler.
+        experimental: 1
+        value: 0
+
+    BLE_PHY_EXTENDED_TIFS:
+        description: >
+            This allows to extend T_ifs (inter-frame spacing) by additional
+            microseconds to improve interoperability with peripherals that
+            send packets too late (eg 153us). This prolongs reception time by
+            additional microseconds. Defaults to 2us to improve operations with
+            devices already on the market.
+        range: 0..4
+        value: 2
+
+    BLE_PHY_SYSVIEW:
+        description: >
+            Enable SystemView tracing module for radio driver.
+        value: 0
+
+    BLE_PHY_DBG_TIME_TXRXEN_READY_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state when radio is enabled using PPI channels
+            20 or 21 and back to low state on radio EVENTS_READY.
+            This can be used to measure radio ram-up time.
+        value: -1
+
+    BLE_PHY_DBG_TIME_ADDRESS_END_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state on radio EVENTS_ADDRESS and back to low state
+            on radio EVENTS_END.
+            This can be used to measure radio pipeline delays.
+        value: -1
+
+    BLE_PHY_DBG_TIME_WFR_PIN:
+        description: >
+            When set to proper GPIO pin number, this pin will be set
+            to high state on radio EVENTS_RXREADY and back to low
+            state when wfr timer expires.
+            This can be used to check if wfr is calculated properly.
+        value: -1
+
+    BLE_PHY_NRF52_HEADERMASK_WORKAROUND:
+        description: >
+            This enables workaround for lack of HEADERMASK register on some
+            nRF52 family MCUs (notably nRF52840) which is required for enabling
+            encryption for ISO PDUs.
+            Note: this requires exclusive access to CCM_AAR interrupt and only
+                   works for TX (i.e. ISO Broadcaster).
+        value: 0
+
+    BLE_PHY_NRF5340_VDDH:
+       description: >
+            This indicates if VDDH pin of nRF5340 is connected to external
+            power source. If connected PHY driver will make use of high voltage
+            operation mode for additional TX power levels (+3, +2, +1, -9, -13,
+            -17, -37).
+       value: 0
+
+    BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
+        description: >
+            Ublox BMD-345 modules come with public address preprogrammed
+            in UICR register. If enabled public address will be read from
+            custom UICR instead of FICR register.
+        value: 0
+
+syscfg.restrictions:
+    # code supports turn on times up to 90us due to some optimizations, but it
+    # should be enough for most (all?) cases
+    - "!BLE_FEM_PA || BLE_FEM_PA_TURN_ON_US <= 90"
+    - "!BLE_FEM_LNA || BLE_FEM_LNA_TURN_ON_US <= 90"
