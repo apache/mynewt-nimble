@@ -465,7 +465,7 @@ static int mod_member_list_handle(struct bt_mesh_msg_ctx *ctx,
 				  struct os_mbuf *buf, bool vnd,
 				  struct mod_member_list_param *param)
 {
-	uint16_t elem_addr, mod_id, cid;
+	uint16_t elem_addr, mod_id, cid = 0;
 	uint8_t status;
 	int i;
 
