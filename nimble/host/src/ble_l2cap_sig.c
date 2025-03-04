@@ -407,6 +407,38 @@ ble_l2cap_sig_check_conn_params(const struct ble_gap_upd_params *params)
     return 0;
 }
 
+/* This helper does validation of sizes and (if requested) CIDs sizes */
+static int
+ble_l2cap_sig_mbuf_pullup_base(struct os_mbuf **om, int base_len, unsigned int *cids_count)
+{
+    if (cids_count) {
+        if (OS_MBUF_PKTLEN(*om) < base_len) {
+            return BLE_HS_EBADDATA;
+        }
+
+        if ((OS_MBUF_PKTLEN(*om) - base_len) % sizeof(uint16_t)) {
+            return BLE_HS_EBADDATA;
+        }
+
+        *cids_count = (OS_MBUF_PKTLEN(*om) - base_len) / sizeof(uint16_t);
+        if (*cids_count == 0 || *cids_count > BLE_L2CAP_MAX_COC_CONN_REQ) {
+            return BLE_HS_EBADDATA;
+        }
+    } else {
+        if (OS_MBUF_PKTLEN(*om) != base_len) {
+            return BLE_HS_EBADDATA;
+        }
+    }
+
+    /* data sizes validated, just pullup all */
+    *om = os_mbuf_pullup(*om, OS_MBUF_PKTLEN(*om));
+    if (*om == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    return 0;
+}
+
 int
 ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
                             struct ble_l2cap_sig_hdr *hdr,
@@ -423,7 +455,7 @@ ble_l2cap_sig_update_req_rx(uint16_t conn_handle,
 
     l2cap_result = 0; /* Silence spurious gcc warning. */
 
-    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_REQ_SZ);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), NULL);
     if (rc != 0) {
         return rc;
     }
@@ -500,7 +532,7 @@ ble_l2cap_sig_update_rsp_rx(uint16_t conn_handle,
         return 0;
     }
 
-    rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SIG_UPDATE_RSP_SZ);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*rsp), NULL);
     if (rc != 0) {
         cb_status = rc;
         goto done;
@@ -766,12 +798,12 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
     struct ble_l2cap_sig_credit_base_reconfig_rsp *rsp;
     struct ble_hs_conn *conn;
     struct os_mbuf *txom;
-    int i;
+    unsigned int i;
     int rc;
-    uint8_t cid_cnt;
+    unsigned int cid_cnt;
     uint8_t reduction_mps = 0;
 
-    rc = ble_hs_mbuf_pullup_base(om, hdr->length);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), &cid_cnt);
     if (rc != 0) {
         return rc;
     }
@@ -794,11 +826,6 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
         return 0;
     }
 
-    if (hdr->length <= sizeof(*req)) {
-        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCEPTED_PARAM);
-        goto failed;
-    }
-
     req = (struct ble_l2cap_sig_credit_base_reconfig_req *)(*om)->om_data;
 
     if ((req->mps < BLE_L2CAP_ECOC_MIN_MTU) || (req->mtu < BLE_L2CAP_ECOC_MIN_MTU)) {
@@ -808,12 +835,6 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
 
     /* Assume request will succeed. If not, result will be updated */
     rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_SUCCEED);
-
-    cid_cnt = (hdr->length - sizeof(*req)) / sizeof(uint16_t);
-    if (cid_cnt > BLE_L2CAP_MAX_COC_CONN_REQ) {
-        rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_UNACCEPTED_PARAM);
-        goto failed;
-    }
 
     for (i = 0; i < cid_cnt; i++) {
         chan[i] = ble_hs_conn_chan_find_by_dcid(conn, req->dcids[i]);
@@ -899,7 +920,7 @@ ble_l2cap_sig_credit_base_reconfig_rsp_rx(uint16_t conn_handle,
         return 0;
     }
 
-    rc = ble_hs_mbuf_pullup_base(om, hdr->length);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*rsp), NULL);
     if (rc != 0) {
         return rc;
     }
@@ -923,17 +944,17 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
     struct ble_l2cap_chan *chans[5] = { 0 };
     struct ble_hs_conn *conn;
     uint16_t scid;
-    uint8_t num_of_scids;
+    unsigned int num_of_scids;
     uint8_t chan_created = 0;
     int i;
-    uint8_t len;
+    unsigned int len;
 
-    rc = ble_hs_mbuf_pullup_base(om, hdr->length);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), &num_of_scids);
     if (rc != 0) {
         return rc;
     }
 
-    len = (hdr->length > sizeof(*req)) ? hdr->length : sizeof(*req);
+    len = sizeof(*rsp) + (num_of_scids * sizeof(rsp->dcids[0]));
 
     rsp = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_CREDIT_CONNECT_RSP,
                                 hdr->identifier, len , &txom);
@@ -959,12 +980,6 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
     }
 
     req = (struct ble_l2cap_sig_credit_base_connect_req *)(*om)->om_data;
-
-    num_of_scids = (hdr->length - sizeof(*req)) / sizeof(uint16_t);
-    if (num_of_scids > 5) {
-        rsp->result = htole16(BLE_L2CAP_COC_ERR_INVALID_PARAMETERS);
-        goto failed;
-    }
 
     if ((req->mtu < BLE_L2CAP_ECOC_MIN_MTU) || (req->mps < BLE_L2CAP_ECOC_MIN_MTU)) {
         rsp->result = htole16(BLE_L2CAP_COC_ERR_INVALID_PARAMETERS);
@@ -1089,6 +1104,7 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     int rc;
     int i;
     uint16_t duplicated_cids[5] = {};
+    unsigned int num_of_dcids;
 
 #if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
@@ -1101,8 +1117,13 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
         return 0;
     }
 
-    rc = ble_hs_mbuf_pullup_base(om, hdr->length);
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*rsp), &num_of_dcids);
     if (rc != 0) {
+        goto done;
+    }
+
+    /* spec doesn't say what to do in that case so just fail */
+    if (proc->connect.chan_cnt != num_of_dcids) {
         goto done;
     }
 
@@ -1181,7 +1202,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_hs_conn *conn;
     uint16_t scid;
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), NULL);
     if (rc != 0) {
         return rc;
     }
@@ -1295,7 +1316,7 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         return 0;
     }
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*rsp), NULL);
     if (rc != 0) {
         goto done;
     }
@@ -1577,7 +1598,7 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     uint16_t scid;
     uint16_t dcid;
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), NULL);
     if (rc != 0) {
         return rc;
     }
@@ -1690,7 +1711,7 @@ ble_l2cap_sig_disc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         return 0;
     }
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(*rsp));
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*rsp), NULL);
     if (rc != 0) {
         goto done;
     }
@@ -1770,7 +1791,7 @@ ble_l2cap_sig_le_credits_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_l2cap_sig_le_credits *req;
     int rc;
 
-    rc = ble_hs_mbuf_pullup_base(om, sizeof(*req));
+    rc = ble_l2cap_sig_mbuf_pullup_base(om, sizeof(*req), NULL);
     if (rc != 0) {
         return 0;
     }
