@@ -1854,7 +1854,7 @@ free:
     return status;
 }
 
-int
+static int
 notify_multiple(uint16_t conn_handle, void *arg)
 {
     struct notify_mult_cb_data *notify_data =
