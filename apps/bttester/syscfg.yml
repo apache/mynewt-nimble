@@ -74,10 +74,6 @@ syscfg.defs:
         description: Maximum BTP payload
         value: 2048
 
-    BTTESTER_CONN_PARAM_UPDATE:
-        description: Trigger conn param update after connection establish
-        value: 0
-
     BTTESTER_DEBUG:
         description: Enable debug logging
         value: 0
