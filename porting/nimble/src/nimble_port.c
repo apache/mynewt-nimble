@@ -31,10 +31,12 @@ static struct ble_npl_eventq g_eventq_dflt;
 
 extern void os_msys_init(void);
 extern void os_mempool_module_init(void);
+extern void ble_ll_init(void);
 
 void
 nimble_port_init(void)
 {
+    ble_ll_init();
     /* Initialize default event queue */
     ble_npl_eventq_init(&g_eventq_dflt);
     /* Initialize the global memory pool */
