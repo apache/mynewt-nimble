@@ -611,7 +611,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
         big_sched_set(big);
 
         /* XXX this should always succeed since we preempt anything for now */
-        rc = ble_ll_sched_iso_big(&big->sch, 0, 0);
+        rc = ble_ll_sched_iso_big(&big->sch, 0, 1);
         assert(rc == 0);
     } while (rc < 0);
 
