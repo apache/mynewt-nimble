@@ -1460,6 +1460,7 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                        event->subscribe.cur_notify,
                        event->subscribe.prev_indicate,
                        event->subscribe.cur_indicate);
+/* TODO: implement tester_gatts_subscribe_ev */
         tester_gatt_subscribe_ev(event->subscribe.conn_handle,
                                  event->subscribe.attr_handle,
                                  event->subscribe.reason,
