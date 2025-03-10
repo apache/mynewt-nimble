@@ -24,6 +24,7 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "os/os.h"
+#include "os/util.h"
 #include "ble/xcvr.h"
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
