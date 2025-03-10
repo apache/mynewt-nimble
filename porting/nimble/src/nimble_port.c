@@ -25,6 +25,7 @@
 #include "nimble/transport.h"
 #if NIMBLE_CFG_CONTROLLER
 #include "controller/ble_ll.h"
+#include "os/os_cputime.h"
 #endif
 
 static struct ble_npl_eventq g_eventq_dflt;
