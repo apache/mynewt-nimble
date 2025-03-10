@@ -1284,16 +1284,22 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_TERMINATE_BIG:
         rc = ble_ll_iso_big_hci_terminate(cmdbuf, len);
         break;
+    case BLE_HCI_OCF_LE_ISO_TRANSMIT_TEST:
+        rc = ble_ll_iso_transmit_test(cmdbuf, len, rspbuf, rsplen);
+        break;
 #endif /* BLE_LL_ISO_BROADCASTER */
 #if MYNEWT_VAL(BLE_LL_ISO)
     case BLE_HCI_OCF_LE_SETUP_ISO_DATA_PATH:
-        rc = ble_ll_isoal_hci_setup_iso_data_path(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_setup_iso_data_path(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_REMOVE_ISO_DATA_PATH:
-        rc = ble_ll_isoal_hci_remove_iso_data_path(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_remove_iso_data_path(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_ISO_TEST_END:
+        rc = ble_ll_iso_end_test(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
-        rc = ble_ll_isoal_hci_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
+        rc = ble_ll_iso_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
         break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
         if (len == 0) {
@@ -1995,7 +2001,7 @@ int
 ble_ll_hci_iso_rx(struct os_mbuf *om)
 {
 #if MYNEWT_VAL(BLE_LL_ISO)
-    ble_ll_isoal_data_in(om);
+    ble_ll_iso_data_in(om);
 #else
     os_mbuf_free_chain(om);
 #endif
