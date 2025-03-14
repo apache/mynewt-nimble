@@ -133,6 +133,8 @@ ble_hs_locked_by_cur_task(void)
 
     owner = ble_hs_mutex.mu.mu_owner;
     return owner != NULL && owner == os_sched_get_current_task();
+#elif defined(ble_npl_mutex_locked_by_cur_task)
+    return ble_npl_mutex_locked_by_cur_task(&ble_hs_mutex);
 #else
     return 1;
 #endif
