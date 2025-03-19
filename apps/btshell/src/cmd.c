@@ -176,6 +176,71 @@ cmd_parse_addr(const char *prefix, ble_addr_t *addr)
     return parse_dev_addr(prefix, cmd_addr_type, addr);
 }
 
+static int
+pending_operation_authorize(int argc, char **argv)
+{
+    uint16_t conn_handle;
+    uint16_t attr_handle;
+    bool auth;
+    int rc;
+
+    rc = parse_arg_init(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    attr_handle = parse_arg_uint16("attr", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'attr' parameter\n");
+        return rc;
+    }
+
+    auth = parse_arg_bool_dflt("auth", 1, &rc);
+    if (rc != 0) {
+        console_printf("invalid 'auth' parameter\n");
+        return rc;
+    }
+
+    if (auth) {
+        for (int i = 0; i < PENDING_ATTR_MAX; i++) {
+            if (authorized_attrs[i].conn_handle == 0 &&
+                authorized_attrs[i].attr_handle == 0) {
+                authorized_attrs[i].conn_handle = conn_handle;
+                authorized_attrs[i].attr_handle = attr_handle;
+                break;
+            }
+        }
+        attr_handle = 0;
+    } else {
+        attr_handle = pending_attr.attr_handle;
+    }
+
+    ble_gatts_pending_req_auth(conn_handle, attr_handle, pending_attr.cid);
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param authorize_params[] = {
+    {"conn",  "connection handle parameter, usage: =<UINT16>"            },
+    { "attr", "attribute handle parameter to authorize, usage: =<UINT16>"},
+    { "auth", "whether to authorize access, usage: =[0-1], default=1"    },
+    { NULL,    NULL                                                      }
+};
+
+static const struct shell_cmd_help authorize_help = {
+    .summary = "authorize command",
+    .usage = NULL,
+    .params = authorize_params,
+};
+#endif
+
 /*****************************************************************************
  * $advertise                                                                *
  *****************************************************************************/
@@ -4374,6 +4439,11 @@ static const struct shell_cmd_help leaudio_broadcast_stop_help = {
 #endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 
 static const struct shell_cmd btshell_commands[] = {
+    {
+     .sc_cmd = "authorize",
+     .sc_cmd_func = pending_operation_authorize,
+     .help = &authorize_help,
+     },
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
         .sc_cmd = "advertise-configure",
