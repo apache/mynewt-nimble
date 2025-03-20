@@ -977,6 +977,16 @@ ble_gattc_proc_matches_conn_rx_entry(struct ble_gattc_proc *proc, void *arg)
     return (criteria->matching_rx_entry != NULL);
 }
 
+static int
+ble_gattc_proc_equals(struct ble_gattc_proc *proc, void *arg)
+{
+    struct ble_gattc_proc *criteria;
+
+    criteria = arg;
+
+    return proc == criteria;
+}
+
 static void
 ble_gattc_extract(ble_gattc_match_fn *cb, void *arg, int max_procs,
                   struct ble_gattc_proc_list *dst_list)
@@ -4687,12 +4697,6 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         }
     }
 
-    rc = ble_att_clt_tx_indicate(conn_handle, proc->cid, chr_val_handle, txom);
-    txom = NULL;
-    if (rc != 0) {
-        goto done;
-    }
-
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn != NULL) {
@@ -4700,6 +4704,14 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
         conn->bhc_gatt_svr.indicate_val_handle = chr_val_handle;
     }
     ble_hs_unlock();
+
+    ble_gattc_process_status(proc, 0);
+
+    rc = ble_att_clt_tx_indicate(conn_handle, proc->cid, chr_val_handle, txom);
+    txom = NULL;
+    if (rc != 0) {
+        goto done;
+    }
 
 done:
     if (rc != 0) {
@@ -4709,7 +4721,13 @@ done:
     /* Tell the application that an indication transmission was attempted. */
     ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 1);
 
-    ble_gattc_process_status(proc, rc);
+    if (rc != 0) {
+        //remove the proc if tx failed
+        ble_gattc_extract_one(ble_gattc_proc_equals, proc);
+        if (proc != NULL) {
+            ble_gattc_process_status(proc, rc);
+        }
+    }
     os_mbuf_free_chain(txom);
     return rc;
 }
