@@ -4721,10 +4721,10 @@ done:
     /* Tell the application that an indication transmission was attempted. */
     ble_gap_notify_tx_event(rc, conn_handle, chr_val_handle, 1);
 
-    if(rc != 0) {
+    if (rc != 0) {
         //remove the proc if tx failed
         ble_gattc_extract_one(ble_gattc_proc_equals, proc);
-        if(proc != NULL) {
+        if (proc != NULL) {
             ble_gattc_process_status(proc, rc);
         }
     }
