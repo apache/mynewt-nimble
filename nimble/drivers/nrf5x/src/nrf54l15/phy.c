@@ -38,6 +38,18 @@
 #define PPIB_RADIO_PERI_2(_src, _dst) PPIB_RADIO_PERI(2, _src, _dst)
 #define PPIB_RADIO_PERI_3(_src, _dst) PPIB_RADIO_PERI(3, _src, _dst)
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+/* Create PPIB link from RADIO to MCU power domain. */
+#define PPIB_RADIO_MCU(_ch, _src, _dst)                   \
+    NRF_PPIB10->SUBSCRIBE_SEND[_ch] = DPPI_CH_SUB(_src);  \
+    NRF_PPIB00->PUBLISH_RECEIVE[_ch] = DPPI_CH_PUB(_dst); \
+    NRF_DPPIC10->CHENSET |= 1 << DPPI_CH_ ## _src;        \
+    NRF_DPPIC00->CHENSET |= 1 << DPPI_CH_ ## _dst;
+
+#define PPIB_RADIO_MCU_0(_src, _dst) PPIB_RADIO_MCU(0, _src, _dst)
+#define PPIB_RADIO_MCU_1(_src, _dst) PPIB_RADIO_MCU(1, _src, _dst)
+#endif
+
 #if PHY_USE_DEBUG
 void
 phy_debug_init(void)
@@ -87,6 +99,14 @@ phy_ppi_init(void)
     NRF_TIMER0->PUBLISH_COMPARE[3] = DPPI_CH_PUB(TIMER0_EVENTS_COMPARE_3);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[1] = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[2] = DPPI_CH_SUB(RADIO_EVENTS_END);
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    /* Use TIMER00 for ToF measurements */
+    NRF_RADIO->PUBLISH_PHYEND = DPPI_CH_PUB(RADIO_EVENTS_PHYEND);
+    PPIB_RADIO_MCU_0(RADIO_EVENTS_PHYEND, DPPIC00_RADIO_EVENTS_PHYEND);
+    PPIB_RADIO_MCU_1(RTC0_EVENTS_COMPARE_0, DPPIC00_RTC0_EVENTS_COMPARE_0);
+    NRF_TIMER00->SUBSCRIBE_CAPTURE[4] = DPPI_CH_SUB(DPPIC00_RADIO_EVENTS_PHYEND);
+#endif
 
     /* Enable channels we publish on */
     NRF_DPPIC10->CHENSET = DPPI_CH_ENABLE_ALL;

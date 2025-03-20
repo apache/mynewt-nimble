@@ -136,6 +136,32 @@ phy_ppi_wfr_disable(void)
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 }
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_STOP = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_STOP = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+}
+#endif
+
 static inline void
 phy_ppi_fem_disable(void)
 {

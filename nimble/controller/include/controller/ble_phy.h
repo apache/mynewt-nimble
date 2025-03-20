@@ -60,6 +60,8 @@ struct os_mbuf;
 #define BLE_PHY_STATE_IDLE          (0)
 #define BLE_PHY_STATE_RX            (1)
 #define BLE_PHY_STATE_TX            (2)
+#define BLE_PHY_STATE_TX_CS_TONE    (3)
+#define BLE_PHY_STATE_RX_CS_TONE    (4)
 
 /* BLE PHY transitions */
 #define BLE_PHY_TRANSITION_NONE                (0)
@@ -67,6 +69,10 @@ struct os_mbuf;
 #define BLE_PHY_TRANSITION_TO_RX               (2)
 #define BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT  (3)
 #define BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT  (4)
+#define BLE_PHY_TRANSITION_TO_TX_CS_SYNC       (5)
+#define BLE_PHY_TRANSITION_TO_RX_CS_SYNC       (6)
+#define BLE_PHY_TRANSITION_TO_TX_CS_TONE       (7)
+#define BLE_PHY_TRANSITION_TO_RX_CS_TONE       (8)
 
 /* PHY error codes */
 #define BLE_PHY_ERR_RADIO_STATE     (1)
@@ -78,6 +84,16 @@ struct os_mbuf;
 
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_CS_TIMER_NONE       (0)
+#define BLE_PHY_CS_TIMER_START      (1)
+#define BLE_PHY_CS_TIMER_CAPTURE    (2)
+
+#define BLE_PHY_CS_TONE_MODE_PM    (0)
+#define BLE_PHY_CS_TONE_MODE_FM    (1)
+#define BLE_PHY_CS_TONE_MODE_PM_FM (2)
+#endif
 
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
@@ -231,6 +247,17 @@ static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
 
     return phy_mode;
 }
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+/* Get time of the last bit sent, for ToF measurement */
+void ble_phy_get_txend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns);
+/* Get time of the last bit received, for ToF measurement */
+void ble_phy_get_rxend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns);
+/* Configure the PHY for CS_SYNC transmission/reception */
+int ble_phy_cs_sync_configure(uint8_t chan, uint32_t access_addr);
+/* Configure the PHY for CS tone transmission/reception */
+int ble_phy_cs_tone_configure(uint8_t chan, uint8_t tone_mode, uint32_t duration_usecs);
+#endif
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 void ble_phy_enable_dtm(void);

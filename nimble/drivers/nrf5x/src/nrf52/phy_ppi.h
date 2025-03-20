@@ -106,6 +106,32 @@ phy_ppi_wfr_disable(void)
     nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH4_Msk | PPI_CHEN_CH5_Msk);
 }
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_enable(void)
+{
+    nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH9_Msk);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_disable(void)
+{
+    nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH9_Msk);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_enable(void)
+{
+    nrf_ppi_channels_enable(NRF_PPI, PPI_CHEN_CH5_Msk);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_disable(void)
+{
+    nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH5_Msk);
+}
+#endif
+
 static inline void
 phy_ppi_fem_disable(void)
 {
@@ -121,6 +147,10 @@ phy_ppi_disable(void)
                                       PPI_CHEN_CH20_Msk | PPI_CHEN_CH21_Msk |
                                       PPI_CHEN_CH23_Msk | PPI_CHEN_CH25_Msk |
                                       PPI_CHEN_CH31_Msk);
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH9_Msk);
+#endif
 }
 
 #endif /* H_PHY_PPI_ */
