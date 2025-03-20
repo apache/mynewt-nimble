@@ -1214,6 +1214,23 @@ int ble_gatts_start(void);
  */
 int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat, uint8_t len);
 
+/**
+ * Prepares and sends a response for pending ATT request.
+ *
+ * @param conn_handle           The connection over which to authorize a
+ *                                  pending ATT procedure
+ * @param attr_handle           The Handle of characteristic to perform att
+ *                                  procedure on.
+ * @param cid                   L2CAP channel ID on which request has been
+ *                                  received
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EAUTHOR if no matching attribute is
+ *                              found on pending_attr_list.
+ */
+int ble_gatts_pending_req_auth(uint16_t conn_handle, uint16_t attr_handle,
+                               uint16_t cid);
+
 #ifdef __cplusplus
 }
 #endif
