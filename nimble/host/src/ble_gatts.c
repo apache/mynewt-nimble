@@ -2062,6 +2062,119 @@ ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
 }
 
 int
+ble_gatts_pending_req_auth(uint16_t conn_handle, uint16_t attr_handle, uint16_t cid)
+{
+    struct ble_att_prep_write_cmd *prep_req;
+    struct ble_att_write_req *write_req;
+    struct pending_attr *pend_attr;
+    struct pending_attr *attr;
+    uint8_t att_err;
+    int rc;
+
+    /* Silence warnings */
+    rc = 0;
+    att_err = 0;
+    pend_attr = NULL;
+
+    ble_hs_lock();
+    SLIST_FOREACH(attr, &pending_attr_list, next) {
+        if (attr->conn_handle == conn_handle && attr->cid == cid) {
+            pend_attr = attr;
+        }
+    }
+    ble_hs_unlock();
+
+    if (!pend_attr) {
+        /* No matching attribute was found on pending_attr_list */
+        return BLE_HS_ENOENT;
+    }
+
+    if (attr_handle != 0) {
+        att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+        rc = BLE_HS_EAUTHOR;
+        ble_att_svr_tx_rsp(conn_handle, cid, rc, pend_attr->om,
+                           pend_attr->att_opcode, att_err, attr_handle);
+        goto done;
+    }
+
+    switch (pend_attr->att_opcode) {
+    case BLE_ATT_OP_READ_REQ:
+        rc = ble_att_svr_create_read_rsp(conn_handle, cid, pend_attr->om, rc,
+                                         BLE_ATT_OP_READ_REQ, pend_attr->attr_handle,
+                                         pend_attr->offset, &att_err);
+        goto done;
+
+    case BLE_ATT_OP_READ_BLOB_REQ:
+        rc = ble_att_svr_create_read_rsp(
+            conn_handle, cid, pend_attr->om, rc, BLE_ATT_OP_READ_BLOB_REQ,
+            pend_attr->attr_handle, pend_attr->offset, &att_err);
+        goto done;
+
+    case BLE_ATT_OP_WRITE_REQ:
+        write_req = (struct ble_att_write_req *)(pend_attr)->om->om_data;
+        rc = ble_att_svr_create_write_rsp(conn_handle, cid, &pend_attr->om, rc,
+                                          write_req, pend_attr->offset,
+                                          pend_attr->attr_handle, &att_err);
+        goto done;
+
+    case BLE_ATT_OP_READ_MULT_REQ:
+        /* iterate through remaining requested handles */
+        while ((OS_MBUF_PKTLEN(pend_attr->om) - pend_attr->offset) >= 2) {
+            os_mbuf_copydata(pend_attr->om, pend_attr->offset, 2, &attr_handle);
+            pend_attr->offset += 2;
+            rc = ble_att_svr_check_author_perm(conn_handle, attr_handle, &att_err,
+                                               BLE_ATT_ACCESS_OP_WRITE, cid);
+            if (rc == BLE_HS_EPENDING) {
+                return rc;
+            }
+            if (rc != 0) {
+                break;
+            }
+        }
+
+        rc = ble_att_svr_create_read_mult_rsp(conn_handle, cid, &pend_attr->om,
+                                              rc, &att_err, &attr_handle);
+        goto done;
+
+    case BLE_ATT_OP_READ_MULT_VAR_REQ:
+        /* iterate through remaining requested handles */
+        while ((OS_MBUF_PKTLEN(pend_attr->om) - pend_attr->offset) >= 2) {
+            os_mbuf_copydata(pend_attr->om, pend_attr->offset, 2, &attr_handle);
+            pend_attr->offset += 2;
+            rc = ble_att_svr_check_author_perm(conn_handle, attr_handle, &att_err,
+                                               BLE_ATT_ACCESS_OP_WRITE, cid);
+            if (rc == BLE_HS_EPENDING) {
+                return rc;
+            }
+            if (rc != 0) {
+                break;
+            }
+        }
+
+        rc = ble_att_svr_create_read_mult_var_len_rsp(
+            conn_handle, cid, &pend_attr->om, rc, &att_err, &attr_handle);
+        goto done;
+
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+        prep_req = (struct ble_att_prep_write_cmd *)(pend_attr)->om->om_data;
+        rc = ble_att_svr_create_prep_write_rsp(conn_handle, cid, &pend_attr->om,
+                                               prep_req, rc, att_err, attr_handle);
+        return rc;
+    }
+
+done:
+    ble_hs_lock();
+    SLIST_FOREACH(attr, &pending_attr_list, next) {
+        if (attr->conn_handle == conn_handle && attr->cid == cid) {
+            SLIST_REMOVE(&pending_attr_list, attr, pending_attr, next);
+        }
+    }
+    ble_hs_unlock();
+
+    return rc;
+}
+
+int
 ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
 {
     void *p;
