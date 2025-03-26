@@ -155,6 +155,10 @@ struct ble_ll_adv_sm
     uint8_t events;
     uint8_t pri_phy;
     uint8_t sec_phy;
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+    uint8_t pri_phy_opt;
+    uint8_t sec_phy_opt;
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV)
     struct os_mbuf *periodic_adv_data;
     struct os_mbuf *periodic_new_data;
@@ -1125,6 +1129,9 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
+#if MYNEWT_VAL(BLE_LL_PHY) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+    uint8_t phy_mode;
+#endif
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -1146,10 +1153,15 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
 #if MYNEWT_VAL(BLE_LL_PHY)
     /* Set phy mode */
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+    phy_mode = ble_ll_phy_to_phy_mode(advsm->pri_phy, advsm->pri_phy_opt);
+#else
+    phy_mode = ble_ll_phy_to_phy_mode(advsm->pri_phy, BLE_HCI_LE_PHY_CODED_ANY);
+#endif
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
         ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
     } else {
-        ble_phy_mode_set(advsm->pri_phy, advsm->pri_phy);
+        ble_phy_mode_set(phy_mode, phy_mode);
     }
 #else
     ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
@@ -1274,6 +1286,9 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     struct ble_ll_adv_sm *advsm;
     ble_phy_tx_pducb_t pducb;
     struct ble_ll_adv_aux *aux;
+#if MYNEWT_VAL(BLE_LL_PHY)
+    uint8_t phy_mode;
+#endif
 
     /* Get the state machine for the event */
     advsm = (struct ble_ll_adv_sm *)sch->cb_arg;
@@ -1290,8 +1305,13 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
     BLE_LL_ASSERT(rc == 0);
 
 #if MYNEWT_VAL(BLE_LL_PHY)
+#if MYNEWT_VAL(BLE_VERSION) >= 54
+    phy_mode = ble_ll_phy_to_phy_mode(advsm->sec_phy, advsm->sec_phy_opt);
+#else
+    phy_mode = ble_ll_phy_to_phy_mode(advsm->sec_phy, BLE_HCI_LE_PHY_CODED_ANY);
+#endif
     /* Set phy mode */
-     ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
+    ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
     /* Set the power */
@@ -3695,21 +3715,18 @@ done:
 }
 
 #if MYNEWT_VAL(BLE_VERSION) >= 54
-static uint8_t
-ble_ll_adv_ext_phy_mode_get(uint8_t phy, uint8_t phy_opt)
+static inline uint8_t
+ble_ll_adv_convert_phy_opt(uint8_t cmd_phy_opt)
 {
-    if (phy != BLE_HCI_LE_PHY_CODED) {
-        return phy;
-    }
-
-    switch (phy_opt) {
+    switch (cmd_phy_opt) {
+    case BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF:
+        return BLE_HCI_LE_PHY_CODED_ANY;
     case BLE_HCI_ADVERTISING_PHY_OPT_S2_PREF:
     case BLE_HCI_ADVERTISING_PHY_OPT_S2_REQ:
-        return BLE_PHY_MODE_CODED_500KBPS;
-    case BLE_HCI_ADVERTISING_PHY_OPT_NO_PREF:
+        return BLE_HCI_LE_PHY_CODED_S2_PREF;
     case BLE_HCI_ADVERTISING_PHY_OPT_S8_PREF:
     case BLE_HCI_ADVERTISING_PHY_OPT_S8_REQ:
-        return BLE_PHY_MODE_CODED_125KBPS;
+        return BLE_HCI_LE_PHY_CODED_S8_PREF;
     default:
         BLE_LL_ASSERT(0);
     }
@@ -3727,7 +3744,8 @@ ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if ((cmd->pri_phy_opt > 4) || (cmd->sec_phy_opt > 4)) {
+    if ((cmd->pri_phy_opt > BLE_HCI_ADVERTISING_PHY_OPT_S8_REQ) ||
+        (cmd->sec_phy_opt > BLE_HCI_ADVERTISING_PHY_OPT_S8_REQ)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -3738,8 +3756,12 @@ ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
 
     advsm = ble_ll_adv_sm_get(cmd->params_v1.adv_handle);
 
-    advsm->pri_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.pri_phy, cmd->pri_phy_opt);
-    advsm->sec_phy = ble_ll_adv_ext_phy_mode_get(cmd->params_v1.sec_phy, cmd->sec_phy_opt);
+    if (advsm->pri_phy == BLE_HCI_LE_PHY_CODED) {
+        advsm->pri_phy_opt = ble_ll_adv_convert_phy_opt(cmd->pri_phy_opt);
+    }
+    if (advsm->sec_phy == BLE_HCI_LE_PHY_CODED) {
+        advsm->sec_phy_opt = ble_ll_adv_convert_phy_opt(cmd->sec_phy_opt);
+    }
 
     return rc;
 }
