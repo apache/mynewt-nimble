@@ -22,13 +22,11 @@
 #include <controller/ble_ll.h>
 #include <controller/ble_ll_addr.h>
 
-/* FIXME: both should be static and accessible only via dedicated set/get APIs;
- *        extern declared in nimble/ble.h should be removed
- */
-uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
-uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
-
-static uint8_t g_dev_addr_hci[BLE_DEV_ADDR_LEN];
+static struct {
+    uint8_t public_addr[BLE_DEV_ADDR_LEN];
+    uint8_t random_addr[BLE_DEV_ADDR_LEN];
+    uint8_t public_addr_hci[BLE_DEV_ADDR_LEN];
+} g_ble_ll_addr;
 
 static bool
 is_addr_empty(const uint8_t *addr)
@@ -39,9 +37,80 @@ is_addr_empty(const uint8_t *addr)
 int
 ble_ll_addr_public_set(const uint8_t *addr)
 {
-    memcpy(g_dev_addr_hci, addr, BLE_DEV_ADDR_LEN);
+    memcpy(g_ble_ll_addr.public_addr_hci, addr, BLE_DEV_ADDR_LEN);
 
     return 0;
+}
+
+const uint8_t *
+ble_ll_addr_get(uint8_t addr_type)
+{
+    const uint8_t *addr;
+
+    if (addr_type) {
+        addr = g_ble_ll_addr.random_addr;
+    } else {
+        addr = g_ble_ll_addr.public_addr;
+    }
+
+    return addr;
+}
+
+const uint8_t *
+ble_ll_addr_public_get(void)
+{
+    return g_ble_ll_addr.public_addr;
+}
+
+
+const uint8_t *
+ble_ll_addr_random_get(void)
+{
+    return g_ble_ll_addr.random_addr;
+}
+
+int
+ble_ll_addr_random_set(const uint8_t *addr)
+{
+    memcpy(g_ble_ll_addr.random_addr, addr, BLE_DEV_ADDR_LEN);
+
+    return 0;
+}
+
+bool
+ble_ll_addr_is_our(int addr_type, const uint8_t *addr)
+{
+    const uint8_t *our_addr;
+
+    our_addr = ble_ll_addr_get(addr_type);
+
+    return memcmp(our_addr, addr, BLE_DEV_ADDR_LEN) == 0;
+}
+
+bool
+ble_ll_addr_is_valid_own_addr_type(uint8_t addr_type,
+                                   const uint8_t *random_addr)
+{
+    const uint8_t *addr;
+
+    switch (addr_type) {
+    case BLE_HCI_ADV_OWN_ADDR_PUBLIC:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    case BLE_HCI_ADV_OWN_ADDR_PRIV_PUB:
+#endif
+        addr = ble_ll_addr_public_get();
+        break;
+    case BLE_HCI_ADV_OWN_ADDR_RANDOM:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+    case BLE_HCI_ADV_OWN_ADDR_PRIV_RAND:
+#endif
+        addr = random_addr ? random_addr : ble_ll_addr_random_get();
+        break;
+    default:
+        return false;
+    }
+
+    return !is_addr_empty(addr);
 }
 
 int
@@ -55,24 +124,24 @@ ble_ll_addr_init(void)
      */
     pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
     for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
-        g_dev_addr[i] = pub_dev_addr & 0xff;
+        g_ble_ll_addr.public_addr[i] = pub_dev_addr & 0xff;
         pub_dev_addr >>= 8;
     }
 
-    if (!is_addr_empty(g_dev_addr_hci)) {
+    if (!is_addr_empty(g_ble_ll_addr.public_addr_hci)) {
         /* Use public address set externally */
-        memcpy(g_dev_addr, g_dev_addr_hci, BLE_DEV_ADDR_LEN);
+        memcpy(g_ble_ll_addr.public_addr, g_ble_ll_addr.public_addr_hci, BLE_DEV_ADDR_LEN);
     } else {
         /* Set public address from provider API, if available */
 #if MYNEWT_API_ble_addr_provider_public
-        ble_ll_addr_provide_public(g_dev_addr);
+        ble_ll_addr_provide_public(g_ble_ll_addr.public_addr);
 #endif
     }
 
 #if MYNEWT_VAL(BLE_LL_ADDR_INIT_RANDOM)
     /* Set random address from provider API, if available */
 #if MYNEWT_API_ble_addr_provider_random
-    ble_ll_addr_provide_static(g_random_addr);
+    ble_ll_addr_provide_static(g_ble_ll_addr.random_addr);
 #endif
 #endif
 

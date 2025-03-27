@@ -33,6 +33,7 @@
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #include "controller/ble_ll_scan_aux.h"
 #endif
+#include <controller/ble_ll_addr.h>
 #include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
@@ -242,7 +243,7 @@ ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
                          uint8_t *hdr_byte, uint8_t adva_type,
                          const uint8_t *adva, int rpa_index)
 {
-    uint8_t *scana;
+    const uint8_t *scana;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
     uint8_t rpa[BLE_DEV_ADDR_LEN];
@@ -257,9 +258,9 @@ ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
     /* Determine ScanA */
     if (scansm->own_addr_type & 0x01) {
         *hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        scana = g_random_addr;
+        scana = ble_ll_addr_random_get();
     } else {
-        scana = g_dev_addr;
+        scana = ble_ll_addr_public_get();
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -936,7 +937,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     struct ble_ll_scan_phy *scanp;
     struct ble_ll_scan_phy *scanp_next;
 
-    if (!ble_ll_is_valid_own_addr_type(scansm->own_addr_type, g_random_addr)) {
+    if (!ble_ll_addr_is_valid_own_addr_type(scansm->own_addr_type, NULL)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1354,7 +1355,7 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
 
             /* Ignore if not directed to us */
             if ((addrd->targeta_type != (own_addr_type & 0x01)) ||
-                !ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type)) {
+                !ble_ll_addr_is_our(addrd->targeta_type, addrd->targeta)) {
                 return -1;
             }
             break;
@@ -1943,7 +1944,7 @@ ble_ll_scan_rx_pkt_in_restore_addr_data(struct ble_mbuf_hdr *hdr,
     }
 
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED) {
-        addrd->targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+        addrd->targeta = ble_ll_addr_get(scansm->own_addr_type & 1);
         addrd->targeta_type = scansm->own_addr_type & 1;
         addrd->targeta_resolved = 1;
     } else {

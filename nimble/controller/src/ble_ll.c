@@ -557,93 +557,11 @@ ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type)
     }
 }
 
-static int
-ble_ll_is_valid_addr(const uint8_t *addr)
-{
-    int i;
-
-    for (i = 0; i < BLE_DEV_ADDR_LEN; ++i) {
-        if (addr[i]) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-/* Checks to see that the device is a valid random address */
-int
-ble_ll_is_valid_random_addr(const uint8_t *addr)
-{
-    int i;
-    int rc;
-    uint16_t sum;
-    uint8_t addr_type;
-
-    /* Make sure all bits are neither one nor zero */
-    sum = 0;
-    for (i = 0; i < (BLE_DEV_ADDR_LEN -1); ++i) {
-        sum += addr[i];
-    }
-    sum += addr[5] & 0x3f;
-
-    if ((sum == 0) || (sum == ((5*255) + 0x3f))) {
-        return 0;
-    }
-
-    /* Get the upper two bits of the address */
-    rc = 1;
-    addr_type = addr[5] & 0xc0;
-    if (addr_type == 0xc0) {
-        /* Static random address. No other checks needed */
-    } else if (addr_type == 0x40) {
-        /* Resolvable */
-        sum = addr[3] + addr[4] + (addr[5] & 0x3f);
-        if ((sum == 0) || (sum == (255 + 255 + 0x3f))) {
-            rc = 0;
-        }
-    } else if (addr_type == 0) {
-        /* non-resolvable. Cant be equal to public */
-        if (!memcmp(g_dev_addr, addr, BLE_DEV_ADDR_LEN)) {
-            rc = 0;
-        }
-    } else {
-        /* Invalid upper two bits */
-        rc = 0;
-    }
-
-    return rc;
-}
-int
-ble_ll_is_valid_own_addr_type(uint8_t own_addr_type, const uint8_t *random_addr)
-{
-    int rc;
-
-    switch (own_addr_type) {
-    case BLE_HCI_ADV_OWN_ADDR_PUBLIC:
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    case BLE_HCI_ADV_OWN_ADDR_PRIV_PUB:
-#endif
-        rc = ble_ll_is_valid_addr(g_dev_addr);
-        break;
-    case BLE_HCI_ADV_OWN_ADDR_RANDOM:
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-    case BLE_HCI_ADV_OWN_ADDR_PRIV_RAND:
-#endif
-        rc = ble_ll_is_valid_addr(random_addr);
-        break;
-    default:
-        rc = 0;
-        break;
-    }
-
-    return rc;
-}
-
+/* FIXME: remove callers */
 int
 ble_ll_set_public_addr(const uint8_t *addr)
 {
-    memcpy(g_dev_addr, addr, BLE_DEV_ADDR_LEN);
+    ble_ll_addr_public_set(addr);
 
     return BLE_ERR_SUCCESS;
 }
@@ -691,7 +609,7 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
     }
 #endif
 
-    memcpy(g_random_addr, cmd->addr, BLE_DEV_ADDR_LEN);
+    ble_ll_addr_random_set(cmd->addr);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #if MYNEWT_VAL(BLE_LL_ROLE_BROADCASTER)
@@ -705,52 +623,6 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
 #endif
 
     return BLE_ERR_SUCCESS;
-}
-
-/**
- * Checks to see if an address is our device address (either public or
- * random)
- *
- * @param addr
- * @param addr_type
- *
- * @return int 0: not our device address. 1: is our device address
- */
-int
-ble_ll_is_our_devaddr(const uint8_t* addr, int addr_type)
-{
-    int rc;
-    uint8_t *our_addr;
-
-    if (addr_type) {
-        our_addr = g_random_addr;
-    } else {
-        our_addr = g_dev_addr;
-    }
-
-    rc = 0;
-    if (!memcmp(our_addr, addr, BLE_DEV_ADDR_LEN)) {
-        rc = 1;
-    }
-
-    return rc;
-}
-
-/**
- * Get identity address
- *
- * @param addr_type Random (1). Public(0)
- *
- * @return pointer to identity address of given type.
- */
-uint8_t*
-ble_ll_get_our_devaddr(uint8_t addr_type)
-{
-    if (addr_type) {
-        return g_random_addr;
-    }
-
-    return g_dev_addr;
 }
 
 /**

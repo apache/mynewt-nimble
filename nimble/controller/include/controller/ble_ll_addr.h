@@ -20,12 +20,24 @@
 #ifndef H_BLE_LL_ADDR_
 #define H_BLE_LL_ADDR_
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 int ble_ll_addr_init(void);
 int ble_ll_addr_public_set(const uint8_t *addr);
+
+const uint8_t *ble_ll_addr_get(uint8_t addr_type);
+const uint8_t *ble_ll_addr_public_get(void);
+const uint8_t *ble_ll_addr_random_get(void);
+int ble_ll_addr_random_set(const uint8_t *addr);
+
+bool ble_ll_addr_is_our(int addr_type, const uint8_t *addr);
+bool ble_ll_addr_is_valid_own_addr_type(uint8_t addr_type,
+                                        const uint8_t *random_addr);
 
 /* Address provider APIs - should be implemented by packages supporting
  * relevant APIs
