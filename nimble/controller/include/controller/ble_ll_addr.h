@@ -26,6 +26,12 @@ extern "C" {
 
 int ble_ll_addr_init(void);
 
+/* Address provider APIs - should be implemented by packages supporting
+ * relevant APIs
+ */
+int ble_ll_addr_provide_public(uint8_t *addr);
+int ble_ll_addr_provide_static(uint8_t *addr);
+
 #ifdef __cplusplus
 }
 #endif

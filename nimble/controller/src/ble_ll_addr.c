@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <syscfg/syscfg.h>
 #include <controller/ble_ll.h>
-#include <controller/ble_hw.h>
+#include <controller/ble_ll_addr.h>
 
 /* FIXME: both should be static and accessible only via dedicated set/get APIs;
  *        extern declared in nimble/ble.h should be removed
@@ -28,41 +28,25 @@
 uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
 uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
-static bool
-ble_ll_addr_is_empty(const uint8_t *addr)
-{
-    return memcmp(addr, BLE_ADDR_ANY, BLE_DEV_ADDR_LEN) == 0;
-}
-
 int
 ble_ll_addr_init(void)
 {
-#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
     uint64_t pub_dev_addr;
     int i;
-#endif
-    ble_addr_t addr;
-    int rc;
 
-    /* Set public device address if not already set */
-    if (ble_ll_addr_is_empty(g_dev_addr)) {
-#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
-        pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
-
-        for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
-            g_dev_addr[i] = pub_dev_addr & 0xff;
-            pub_dev_addr >>= 8;
-        }
-#else
-        memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
-#endif
-        if (ble_ll_addr_is_empty(g_dev_addr)) {
-            rc = ble_hw_get_public_addr(&addr);
-            if (!rc) {
-                memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
-            }
-        }
+    /* Set public device address from syscfg. It should be all-zero in normal
+     * build so no need to add special check for that.
+     */
+    pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
+    for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
+        g_dev_addr[i] = pub_dev_addr & 0xff;
+        pub_dev_addr >>= 8;
     }
+
+    /* Set public address from provider API, if available */
+#if MYNEWT_API_ble_addr_provider_public
+    ble_ll_addr_provide_public(g_dev_addr);
+#endif
 
     return 0;
 }

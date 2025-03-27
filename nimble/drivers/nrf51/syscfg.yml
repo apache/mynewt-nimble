@@ -16,6 +16,13 @@
 # under the License.
 #
 
+syscfg.defs:
+    BLE_PHY_ADDR_PROVIDER_PUBLIC:
+        description: Enables public address provider API
+        value: 0
+    BLE_PHY_ADDR_PROVIDER_STATIC:
+        description: Enables static address provider API
+        value: 1
 
 syscfg.vals.!BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_STACK_SIZE: 96

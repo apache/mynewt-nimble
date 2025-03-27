@@ -34,10 +34,6 @@ syscfg.defs:
         description: use BLE_LL_HCI_VS_EVENT_ON_ASSERT
         value: 0
         deprecated: 1
-    BLE_PUBLIC_DEV_ADDR:
-        description: use BLE_LL_PUBLIC_DEV_ADDR
-        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
-        deprecated: 1
     BLE_LL_EXT_ADV_AUX_PTR_CNT:
         description: use BLE_LL_SCAN_AUX_SEGMENT_CNT
         value: 0
@@ -103,4 +99,8 @@ syscfg.defs:
     BLE_LL_USECS_PER_PERIOD:
         description: Superseded by BLE_LL_CONN_STRICT_SCHED
         value: 0
+        defunct: 1
+    BLE_PUBLIC_DEV_ADDR:
+        description: use BLE_LL_PUBLIC_DEV_ADDR
+        value: "(uint8_t[6]){0x00, 0x00, 0x00, 0x00, 0x00, 0x00}"
         defunct: 1

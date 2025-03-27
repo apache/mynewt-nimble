@@ -25,10 +25,16 @@ pkg.keywords:
     - ble
     - bluetooth
 
-pkg.apis: ble_driver
 pkg.deps:
     - nimble
     - nimble/controller
+
+pkg.apis:
+    - ble_driver
+pkg.apis.BLE_PHY_ADDR_PROVIDER_PUBLIC:
+    - ble_addr_provider_public
+pkg.apis.BLE_PHY_ADDR_PROVIDER_STATIC:
+    - ble_addr_provider_static
 
 pkg.ign_dirs.'MCU_TARGET=="nRF5340_NET"':
     - nrf52

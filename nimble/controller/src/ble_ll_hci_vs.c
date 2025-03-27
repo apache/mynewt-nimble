@@ -18,6 +18,8 @@
  */
 
 #include <stdint.h>
+#include <controller/ble_ll_addr.h>
+
 #include "syscfg/syscfg.h"
 #include "controller/ble_ll_utils.h"
 #include "controller/ble_ll.h"
@@ -42,17 +44,18 @@ ble_ll_hci_vs_rd_static_addr(uint16_t ocf,
                              uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_vs_rd_static_addr_rp *rsp = (void *) rspbuf;
-    ble_addr_t addr;
 
     if (cmdlen != 0) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_hw_get_static_addr(&addr) < 0) {
+#if MYNEWT_API_ble_addr_provider_static
+    if (ble_ll_addr_provide_static(rsp->addr) < 0) {
         return BLE_ERR_UNSPECIFIED;
     }
-
-    memcpy(rsp->addr, addr.val, sizeof(rsp->addr));
+#else
+    return BLE_ERR_UNSUPPORTED;
+#endif
 
     *rsplen = sizeof(*rsp);
 
