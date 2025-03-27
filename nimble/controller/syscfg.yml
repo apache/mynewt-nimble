@@ -395,6 +395,12 @@ syscfg.defs:
                   not intended for production builds.
         value: 0x000000000000
 
+    BLE_LL_ADDR_INIT_RANDOM:
+        description: >
+            Initializes default random address with a static random address
+            retrieved from an address provider, if available.
+        value: 0
+
     BLE_LL_DTM:
         description: >
              Enables HCI Test commands needed for Bluetooth SIG certification

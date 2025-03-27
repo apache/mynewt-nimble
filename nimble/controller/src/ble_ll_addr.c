@@ -48,5 +48,12 @@ ble_ll_addr_init(void)
     ble_ll_addr_provide_public(g_dev_addr);
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ADDR_INIT_RANDOM)
+    /* Set random address from provider API, if available */
+#if MYNEWT_API_ble_addr_provider_random
+    ble_ll_addr_provide_static(g_random_addr);
+#endif
+#endif
+
     return 0;
 }
