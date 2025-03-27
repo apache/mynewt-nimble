@@ -25,6 +25,7 @@ extern "C" {
 #endif
 
 int ble_ll_addr_init(void);
+int ble_ll_addr_public_set(const uint8_t *addr);
 
 /* Address provider APIs - should be implemented by packages supporting
  * relevant APIs
