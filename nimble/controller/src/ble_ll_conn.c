@@ -3304,7 +3304,8 @@ ble_ll_conn_send_connect_req_cancel(void)
 
 static void
 ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
-                          struct ble_ll_scan_addr_data *addrd, uint8_t *targeta)
+                          struct ble_ll_scan_addr_data *addrd,
+                          const uint8_t *targeta)
 {
     struct ble_ll_conn_sm *connsm;
 
@@ -3340,7 +3341,7 @@ ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
 void
 ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
                               struct ble_ll_scan_addr_data *addrd,
-                              uint8_t *targeta)
+                              const uint8_t *targeta)
 {
     uint8_t *rxbuf;
     uint8_t csa;

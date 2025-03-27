@@ -164,7 +164,7 @@ ble_ll_whitelist_search(const uint8_t *addr, uint8_t addr_type)
  * @return int
  */
 int
-ble_ll_whitelist_match(uint8_t *addr, uint8_t addr_type, int is_ident)
+ble_ll_whitelist_match(const uint8_t *addr, uint8_t addr_type, int is_ident)
 {
     int rc;
 #if (BLE_USES_HW_WHITELIST == 1)

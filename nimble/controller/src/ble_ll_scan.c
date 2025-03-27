@@ -391,7 +391,7 @@ ble_ll_scan_halt(void)
  * @return int 0: have not received a scan response; 1 otherwise.
  */
 int
-ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd,
+ble_ll_scan_have_rxd_scan_rsp(const uint8_t *addr, uint8_t txadd,
                               uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
@@ -435,7 +435,7 @@ next:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void
-ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
+ble_ll_scan_add_scan_rsp_adv(const uint8_t *addr, uint8_t txadd,
                              uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
@@ -1800,7 +1800,8 @@ ble_ll_scan_dup_new(void)
 }
 
 static int
-ble_ll_scan_dup_check_legacy(uint8_t addr_type, uint8_t *addr, uint8_t pdu_type)
+ble_ll_scan_dup_check_legacy(uint8_t addr_type, const uint8_t *addr,
+                             uint8_t pdu_type)
 {
     struct ble_ll_scan_dup_entry *e;
     uint8_t type;
@@ -1840,7 +1841,7 @@ ble_ll_scan_dup_check_legacy(uint8_t addr_type, uint8_t *addr, uint8_t pdu_type)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
-ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+ble_ll_scan_dup_check_ext(uint8_t addr_type, const uint8_t *addr, bool has_aux,
                           uint16_t adi)
 {
     struct ble_ll_scan_dup_entry *e;
@@ -1889,7 +1890,7 @@ ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
 }
 
 int
-ble_ll_scan_dup_update_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+ble_ll_scan_dup_update_ext(uint8_t addr_type, const uint8_t *addr, bool has_aux,
                            uint16_t adi)
 {
     struct ble_ll_scan_dup_entry *e;
@@ -2010,7 +2011,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     struct ble_mbuf_hdr_rxinfo *rxinfo = &hdr->rxinfo;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    uint8_t *targeta;
+    const uint8_t *targeta;
 #endif
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_addr_data addrd;
@@ -2710,7 +2711,7 @@ ble_ll_scan_get_local_rpa(void)
  * @param rpa
  */
 void
-ble_ll_scan_set_peer_rpa(uint8_t *rpa)
+ble_ll_scan_set_peer_rpa(const uint8_t *rpa)
 {
     struct ble_ll_scan_sm *scansm;
 

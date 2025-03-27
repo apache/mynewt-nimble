@@ -540,7 +540,7 @@ int ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type);
 int ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type);
 
 /* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
-int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
+int ble_ll_is_our_devaddr(const uint8_t* addr, int addr_type);
 
 /* Get identity address 'addr_type' is public (0) or random (!=0) */
 uint8_t *ble_ll_get_our_devaddr(uint8_t addr_type);

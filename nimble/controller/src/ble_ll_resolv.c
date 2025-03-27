@@ -621,7 +621,7 @@ ble_ll_resolv_get_priv_addr(struct ble_ll_resolv_entry *rl, int local,
 }
 
 void
-ble_ll_resolv_set_peer_rpa(int index, uint8_t *rpa)
+ble_ll_resolv_set_peer_rpa(int index, const uint8_t *rpa)
 {
     os_sr_t sr;
     struct ble_ll_resolv_entry *rl;
@@ -633,7 +633,7 @@ ble_ll_resolv_set_peer_rpa(int index, uint8_t *rpa)
 }
 
 void
-ble_ll_resolv_set_local_rpa(int index, uint8_t *rpa)
+ble_ll_resolv_set_local_rpa(int index, const uint8_t *rpa)
 {
     os_sr_t sr;
     struct ble_ll_resolv_entry *rl;

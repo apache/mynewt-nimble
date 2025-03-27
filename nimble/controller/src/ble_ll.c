@@ -717,7 +717,7 @@ ble_ll_set_random_addr(const uint8_t *cmdbuf, uint8_t len, bool hci_adv_ext)
  * @return int 0: not our device address. 1: is our device address
  */
 int
-ble_ll_is_our_devaddr(uint8_t *addr, int addr_type)
+ble_ll_is_our_devaddr(const uint8_t* addr, int addr_type)
 {
     int rc;
     uint8_t *our_addr;
