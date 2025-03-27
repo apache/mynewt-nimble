@@ -45,6 +45,7 @@
 #include "controller/ble_ll_rfmgmt.h"
 #include "controller/ble_ll_trace.h"
 #include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_addr.h"
 #include "controller/ble_fem.h"
 #if MYNEWT_VAL(BLE_LL_ISO)
 #include "controller/ble_ll_iso.h"
@@ -391,12 +392,6 @@ struct os_task g_ble_ll_task;
 OS_TASK_STACK_DEFINE(g_ble_ll_stack, MYNEWT_VAL(BLE_LL_STACK_SIZE));
 
 #endif /* MYNEWT */
-
-/** Our global device address (public) */
-uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
-
-/** Our random address */
-uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
 
 /**
  * Counts the number of advertising PDU's received, by type. For advertising
@@ -1677,8 +1672,8 @@ ble_ll_reset(void)
     /* Set state to standby */
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
-    /* Reset our random address */
-    memset(g_random_addr, 0, BLE_DEV_ADDR_LEN);
+    /* Initialize addresses */
+    ble_ll_addr_init();
 
     /* Clear the whitelist */
     ble_ll_whitelist_clear();
@@ -1758,12 +1753,6 @@ ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode)
     return MAX(27, octets);
 }
 
-static inline bool
-ble_ll_is_addr_empty(const uint8_t *addr)
-{
-    return memcmp(addr, BLE_ADDR_ANY, BLE_DEV_ADDR_LEN) == 0;
-}
-
 #if MYNEWT_VAL(BLE_LL_HCI_VS_EVENT_ON_ASSERT)
 void
 ble_ll_assert(const char *file, unsigned line)
@@ -1788,11 +1777,6 @@ ble_ll_init(void)
 {
     int rc;
     uint64_t features;
-#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
-    uint64_t pub_dev_addr;
-    int i;
-#endif
-    ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
     /* Ensure this function only gets called by sysinit. */
@@ -1801,25 +1785,7 @@ ble_ll_init(void)
     ble_ll_trace_init();
     ble_phy_trace_init();
 
-    /* Set public device address if not already set */
-    if (ble_ll_is_addr_empty(g_dev_addr)) {
-#if MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR)
-        pub_dev_addr = MYNEWT_VAL(BLE_LL_PUBLIC_DEV_ADDR);
-
-        for (i = 0; i < BLE_DEV_ADDR_LEN; i++) {
-            g_dev_addr[i] = pub_dev_addr & 0xff;
-            pub_dev_addr >>= 8;
-        }
-#else
-        memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
-#endif
-        if (ble_ll_is_addr_empty(g_dev_addr)) {
-            rc = ble_hw_get_public_addr(&addr);
-            if (!rc) {
-                memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
-            }
-        }
-    }
+    ble_ll_addr_init();
 
     ble_ll_rfmgmt_init();
 
