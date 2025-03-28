@@ -320,6 +320,12 @@ struct btp_gatt_set_mult_val_cmd {
     uint8_t data[0];
 } __packed;
 
+#define BTP_GATT_EATT_CONNECT       0x1f
+struct btp_gatt_eatt_conn_cmd {
+    ble_addr_t address;
+    uint8_t num_channels;
+} __packed;
+
 /* GATT events */
 #define BTP_GATT_EV_NOTIFICATION        0x80
 struct btp_gatt_notification_ev {
