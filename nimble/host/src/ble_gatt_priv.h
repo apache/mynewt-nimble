@@ -183,6 +183,18 @@ struct ble_gatt_resources {
      */
     uint16_t cccds;
 
+    /**
+     * Number of client presentation format descriptors. Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t cpfds;
+
+    /**
+     * Number of aggregate presentation foramt descriptors. Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t cafds;
+
     /** Total number of ATT attributes. */
     uint16_t attrs;
 };
