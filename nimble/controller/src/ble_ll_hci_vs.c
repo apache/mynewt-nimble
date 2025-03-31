@@ -27,6 +27,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_fem.h"
+#include "os/util.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_priv.h"
 #include "controller/ble_ll_resolv.h"
