@@ -655,7 +655,8 @@ ble_ll_cs_setup_next_procedure(struct ble_ll_cs_sm *cssm)
 {
     const struct ble_ll_cs_config *conf = cssm->active_config;
 
-    if (cssm->procedure_count + 1 >= conf->proc_params.max_procedure_count) {
+    if (cssm->procedure_count + 1 >= conf->proc_params.max_procedure_count ||
+        cssm->terminate_measurement) {
         return 1;
     }
 

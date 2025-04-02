@@ -48,7 +48,8 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_CS_CONF        (16)
 #define BLE_LL_CTRL_PROC_CS_SEC_START   (17)
 #define BLE_LL_CTRL_PROC_CS_START       (18)
-#define BLE_LL_CTRL_PROC_NUM            (19)
+#define BLE_LL_CTRL_PROC_CS_TERMINATE   (19)
+#define BLE_LL_CTRL_PROC_NUM            (20)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -116,14 +117,15 @@ extern "C" {
 #define BLE_LL_CTRL_CS_REQ              (0x32)
 #define BLE_LL_CTRL_CS_RSP              (0x33)
 #define BLE_LL_CTRL_CS_IND              (0x34)
-#define BLE_LL_CTRL_CS_TERMINATE_IND    (0x35)
+#define BLE_LL_CTRL_CS_TERMINATE_REQ    (0x35)
 #define BLE_LL_CTRL_CS_FAE_REQ          (0x36)
 #define BLE_LL_CTRL_CS_FAE_RSP          (0x37)
 #define BLE_LL_CTRL_CS_CHANNEL_MAP_IND  (0x38)
 #define BLE_LL_CTRL_CS_SEC_REQ          (0x39)
+#define BLE_LL_CTRL_CS_TERMINATE_RSP    (0x3A)
 
 /* Maximum opcode value */
-#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_CS_SEC_REQ + 1)
+#define BLE_LL_CTRL_OPCODES             (BLE_LL_CTRL_CS_TERMINATE_RSP + 1)
 
 extern const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES];
 
@@ -329,11 +331,12 @@ struct ble_ll_len_req
 #define BLE_LL_CTRL_CS_REQ_LEN                (28)
 #define BLE_LL_CTRL_CS_RSP_LEN                (21)
 #define BLE_LL_CTRL_CS_IND_LEN                (18)
-#define BLE_LL_CTRL_CS_TERMINATE_IND_LEN      (4)
+#define BLE_LL_CTRL_CS_TERMINATE_REQ_LEN      (4)
 #define BLE_LL_CTRL_CS_FAE_REQ_LEN            (0)
 #define BLE_LL_CTRL_CS_FAE_RSP_LEN            (72)
 #define BLE_LL_CTRL_CS_CHANNEL_MAP_IND_LEN    (12)
 #define BLE_LL_CTRL_CS_SEC_REQ_LEN            (20)
+#define BLE_LL_CTRL_CS_TERMINATE_RSP_LEN      (4)
 
 /* API */
 struct ble_ll_conn_sm;

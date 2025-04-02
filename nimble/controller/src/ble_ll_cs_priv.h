@@ -245,10 +245,16 @@ struct ble_ll_cs_sm {
     uint8_t config_req_action;
     struct ble_ll_cs_config tmp_config;
 
+    /* Arguments for ble_ll_cs_hci_proc_enable */
+    uint8_t terminate_config_id;
+    uint8_t terminate_error_code;
+
     /* DRBG context, initialized onece per LE Connection */
     struct ble_ll_cs_drbg_ctx drbg_ctx;
 
+    /* Helper flags */
     uint8_t measurement_enabled;
+    uint8_t terminate_measurement;
 
     /* Scheduling data for current CS procedure */
     struct ble_ll_sched_item sch;
