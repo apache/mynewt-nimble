@@ -304,6 +304,9 @@ struct ble_ll_cs_sm {
     uint8_t non_mode0_channels[72];
     uint8_t mode0_next_chan_id;
     uint8_t non_mode0_next_chan_id;
+
+    /* Procedure counter for backtracking resistance */
+    uint16_t start_procedure_count;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);

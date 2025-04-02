@@ -94,6 +94,14 @@ ble_ll_cs_generate_channel(struct ble_ll_cs_sm *cssm, struct ble_ll_cs_step *ste
     return 0;
 }
 
+static int
+ble_ll_cs_backtracking_resistance(struct ble_ll_cs_sm *cssm)
+{
+    cssm->drbg_ctx.nonce_v[1] += BLE_LL_CS_DRBG_BACKTRACKING_RESISTANCE;
+
+    return ble_ll_cs_drbg_f9(0, cssm->drbg_ctx.key, cssm->drbg_ctx.nonce_v);
+}
+
 /**
  * Called when scheduled event needs to be halted. This normally should not be called
  * and is only called when a scheduled item executes but scanning for sync/chain
@@ -673,7 +681,7 @@ ble_ll_cs_setup_next_procedure(struct ble_ll_cs_sm *cssm)
     cssm->subevent_anchor_usecs = cssm->step_anchor_usecs;
     cssm->anchor_usecs = cssm->step_anchor_usecs;
 
-    return 0;
+    return ble_ll_cs_backtracking_resistance(cssm);
 }
 
 static int
