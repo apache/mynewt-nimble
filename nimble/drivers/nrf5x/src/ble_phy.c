@@ -68,6 +68,17 @@
 #endif
 #endif
 
+#ifdef NRF54L_SERIES
+#define RADIO_IRQn RADIO_0_IRQn
+#define RADIO_INTENCLR_ADDRESS_Msk RADIO_INTENCLR00_ADDRESS_Msk
+#define RADIO_INTENSET_DISABLED_Msk RADIO_INTENSET00_DISABLED_Msk
+#define RADIO_INTENCLR_DISABLED_Msk RADIO_INTENCLR00_DISABLED_Msk
+#define RADIO_INTENSET_END_Msk RADIO_INTENSET00_END_Msk
+#define RADIO_INTENCLR_END_Msk RADIO_INTENCLR00_END_Msk
+#define RADIO_INTENCLR_PHYEND_Msk RADIO_INTENCLR00_PHYEND_Msk
+#define RADIO_INTENSET_ADDRESS_Msk RADIO_INTENSET00_ADDRESS_Msk
+#endif
+
 #if BABBLESIM
 extern void tm_tick(void);
 #endif
@@ -103,8 +114,21 @@ extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
 
 /* To disable all radio interrupts */
+#ifdef NRF54L_SERIES
+#define NRF_RADIO_IRQ_MASK_ALL  (RADIO_INTENSET00_READY_Msk    | \
+                                 RADIO_INTENSET00_ADDRESS_Msk  | \
+                                 RADIO_INTENSET00_PAYLOAD_Msk  | \
+                                 RADIO_INTENSET00_END_Msk      | \
+                                 RADIO_INTENSET00_PHYEND_Msk   | \
+                                 RADIO_INTENSET00_DISABLED_Msk | \
+                                 RADIO_INTENSET00_DEVMATCH_Msk | \
+                                 RADIO_INTENSET00_DEVMISS_Msk  | \
+                                 RADIO_INTENSET00_BCMATCH_Msk  | \
+                                 RADIO_INTENSET00_CRCOK_Msk    | \
+                                 RADIO_INTENSET00_CRCERROR_Msk)
+#else
 #define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
-
+#endif
 /*
  * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
@@ -121,7 +145,7 @@ extern uint32_t g_nrf_irk_list[];
 
 /* NRF_RADIO->PCNF0 configuration values */
 #define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
-                                (RADIO_PCNF0_S1INCL_Msk) | \
+                                (RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos) | \
                                 (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos) | \
                                 (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos)
 #define NRF_PCNF0_1M            (NRF_PCNF0) | \
@@ -132,6 +156,23 @@ extern uint32_t g_nrf_irk_list[];
                                 (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) | \
                                 (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) | \
                                 (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos)
+
+#define PHY_TRANS_NONE  (0)
+#define PHY_TRANS_TO_TX (1)
+#define PHY_TRANS_TO_RX (2)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define PHY_TRANS_TO_TX_CS_TONE (3)
+#define PHY_TRANS_TO_RX_CS_TONE (4)
+#endif
+
+#define PHY_TRANS_ANCHOR_START   (0)
+#define PHY_TRANS_ANCHOR_END     (1)
+
+#define PHY_FEAT_MODE_BLE_LL               (0)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define PHY_FEAT_MODE_BLE_CS_SYNC          (1)
+#define PHY_FEAT_MODE_BLE_CS_TONE          (2)
+#endif
 
 /* BLE PHY data structure */
 struct ble_phy_obj
@@ -153,19 +194,25 @@ struct ble_phy_obj
     uint8_t phy_cur_phy_mode;
     uint8_t phy_tx_phy_mode;
     uint8_t phy_rx_phy_mode;
+    uint8_t phy_feature_mode;
+    uint8_t next_phy_feature_mode;
     uint8_t phy_bcc_offset;
+    uint8_t phy_bcc;
     uint32_t phy_aar_scratch;
     uint32_t phy_access_address;
     struct ble_mbuf_hdr rxhdr;
     void *txend_arg;
     ble_phy_tx_end_func txend_cb;
     uint32_t phy_start_cputime;
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    uint16_t tifs;
+    uint32_t phy_start_time;
+    uint16_t wfr_usecs;
+    uint16_t tifs_usecs;
+    uint8_t tifs_anchor;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    uint32_t txend_time_ticks;
+    uint32_t rxend_time_ticks;
+    uint32_t cs_tone_duration_usecs;
 #endif
-
-    uint16_t txtx_time_us;
-    uint8_t txtx_time_anchor;
 };
 static struct ble_phy_obj g_ble_phy_data;
 
@@ -222,6 +269,42 @@ static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
 static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9,
     [BLE_PHY_MODE_2M] = 5,
+};
+#elif defined(NRF54L_SERIES)
+/* delay between EVENTS_READY and start of tx */
+static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 2, /* ~1.6us */
+    [BLE_PHY_MODE_2M] = 5,
+    [BLE_PHY_MODE_CODED_125KBPS] = 5,
+    [BLE_PHY_MODE_CODED_500KBPS] = 5
+};
+/* delay between EVENTS_ADDRESS and txd access address  */
+static const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 3, /* ~3.2us */
+    [BLE_PHY_MODE_2M] = 5,
+    [BLE_PHY_MODE_CODED_125KBPS] = 17,
+    [BLE_PHY_MODE_CODED_500KBPS] = 17
+};
+/* delay between EVENTS_END and end of txd packet */
+static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 2, /* ~2.3us */
+    [BLE_PHY_MODE_2M] = 4,
+    [BLE_PHY_MODE_CODED_125KBPS] = 9,
+    [BLE_PHY_MODE_CODED_500KBPS] = 3
+};
+/* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
+static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 9, /* ~9.2us */
+    [BLE_PHY_MODE_2M] = 2,
+    [BLE_PHY_MODE_CODED_125KBPS] = 17,
+    [BLE_PHY_MODE_CODED_500KBPS] = 17
+};
+/* delay between end of rxd packet and EVENTS_END */
+static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 9, /* ~9.1us */
+    [BLE_PHY_MODE_2M] = 1,
+    [BLE_PHY_MODE_CODED_125KBPS] = 27,
+    [BLE_PHY_MODE_CODED_500KBPS] = 22
 };
 #else
 /* delay between EVENTS_READY and start of tx */
@@ -609,14 +692,6 @@ nrf_wait_disabled(void)
     }
 }
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-void
-ble_phy_tifs_set(uint16_t tifs)
-{
-    g_ble_phy_data.tifs = tifs;
-}
-#endif
-
 /**
  *
  *
@@ -708,6 +783,9 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
 
     /* Clear and set TIMER0 to fire off at proper time */
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING) && defined(NRF54L_SERIES)
+    nrf_timer_task_trigger(NRF_TIMER00, NRF_TIMER_TASK_CLEAR);
+#endif
     nrf_timer_cc_set(NRF_TIMER0, 0, radio_rem_us + rem_us_corr);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
 #if PHY_USE_FEM
@@ -740,6 +818,7 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
 
     /* Store the cputime at which we set the RTC */
     g_ble_phy_data.phy_start_cputime = cputime;
+    g_ble_phy_data.phy_start_time = rem_us + rem_us_corr;
 
     return 0;
 }
@@ -778,6 +857,9 @@ ble_phy_set_start_now(void)
 #endif
 
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING) && defined(NRF54L_SERIES)
+    nrf_timer_task_trigger(NRF_TIMER00, NRF_TIMER_TASK_CLEAR);
+#endif
     nrf_timer_cc_set(NRF_TIMER0, 0, radio_rem_us);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
 #if PHY_USE_FEM_LNA
@@ -813,11 +895,54 @@ ble_phy_set_start_now(void)
      * for now.
      */
     g_ble_phy_data.phy_start_cputime = now + 3;
+    g_ble_phy_data.phy_start_time = radio_rem_us;
 
     OS_EXIT_CRITICAL(sr);
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+static void
+ble_phy_stop_time_set(uint32_t end_time)
+{
+    nrf_timer_cc_set(NRF_TIMER0, 3, end_time);
+    NRF_TIMER0->EVENTS_COMPARE[3] = 0;
+
+    nrf_timer_int_enable(NRF_TIMER0, TIMER_INTENSET_COMPARE3_Msk);
+    if (g_ble_phy_data.tifs_usecs >= BLE_LL_IFS) {
+        phy_ppi_timer0_compare3_to_radio_disable_enable();
+    } else {
+        phy_ppi_timer0_compare3_to_radio_stop_enable();
+    }
+
+    /* CC[1] is only used as a reference on RX start, we do not need it here so
+     * it can be used to read TIMER0 counter.
+     */
+    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE1);
+    if (NRF_TIMER0->CC[1] > NRF_TIMER0->CC[3]) {
+        nrf_timer_int_disable(NRF_TIMER0, TIMER_INTENCLR_COMPARE3_Msk);
+        phy_ppi_timer0_compare3_to_radio_disable_disable();
+        phy_ppi_timer0_compare3_to_radio_stop_disable();
+        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
+    }
+}
+
+static int
+ble_phy_end_set(uint32_t duration_usecs)
+{
+    uint32_t end_time = g_ble_phy_data.phy_start_time;
+
+    end_time += duration_usecs;
+    if (g_ble_phy_data.phy_state == BLE_PHY_STATE_TX) {
+        end_time += g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
+    }
+
+    ble_phy_stop_time_set(end_time);
+
+    return 0;
+}
+#endif
 
 /**
  * Function is used to set PPI so that we can time out waiting for a reception
@@ -839,21 +964,12 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 {
     uint32_t end_time;
     uint8_t phy;
-    uint16_t tifs;
 
     phy = g_ble_phy_data.phy_cur_phy_mode;
+    end_time = g_ble_phy_data.phy_start_time;
+    end_time += wfr_usecs;
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-#else
-    tifs = BLE_LL_IFS;
-#endif
-
-    if (txrx == BLE_PHY_WFR_ENABLE_TXRX) {
-        /* RX shall start exactly T_IFS after TX end captured in CC[2] */
-        end_time = NRF_TIMER0->CC[2] + tifs;
-        /* Adjust for delay between EVENT_END and actual TX end time */
-        end_time += g_ble_phy_t_txenddelay[tx_phy_mode];
+    if (txrx == BLE_PHY_WFR_ENABLE_TXRX || txrx == BLE_PHY_WFR_ENABLE_RXRX) {
         /* Wait a bit longer due to allowed active clock accuracy */
         end_time += 2;
         /*
@@ -865,25 +981,24 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
         end_time += 1;
 
         end_time += MYNEWT_VAL(BLE_PHY_EXTENDED_TIFS);
-    } else {
-        /*
-         * RX shall start no later than wfr_usecs after RX enabled.
-         * CC[0] is the time of RXEN so adjust for radio ram-up.
-         * Do not add jitter since this is already covered by LL.
-         */
-        end_time = NRF_TIMER0->CC[0] + BLE_PHY_T_RXENFAST + wfr_usecs;
     }
 
-    /*
-     * Note: on LE Coded EVENT_ADDRESS is fired after TERM1 is received, so
-     *       we are actually calculating relative to start of packet payload
-     *       which is fine.
-     */
+    if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_LL
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+        || g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_SYNC
+#endif
+        ) {
+        /*
+         * Note: on LE Coded EVENT_ADDRESS is fired after TERM1 is received, so
+         *       we are actually calculating relative to start of packet payload
+         *       which is fine.
+         */
 
-    /* Adjust for receiving access address since this triggers EVENT_ADDRESS */
-    end_time += ble_phy_mode_pdu_start_off(phy);
-    /* Adjust for delay between actual access address RX and EVENT_ADDRESS */
-    end_time += g_ble_phy_t_rxaddrdelay[phy];
+        /* Adjust for receiving access address since this triggers EVENT_ADDRESS */
+        end_time += ble_phy_mode_pdu_start_off(phy);
+        /* Adjust for delay between actual access address RX and EVENT_ADDRESS */
+        end_time += g_ble_phy_t_rxaddrdelay[phy];
+    }
 
     /* wfr_secs is the time from rxen until timeout */
     nrf_timer_cc_set(NRF_TIMER0, 3, end_time);
@@ -923,9 +1038,17 @@ ble_phy_get_ccm_datarate(void)
         return CCM_MODE_DATARATE_2Mbit << CCM_MODE_DATARATE_Pos;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
     case BLE_PHY_MODE_CODED_125KBPS:
+#ifdef NRF54L_SERIES
+        return CCM_MODE_DATARATE_125Kbit << CCM_MODE_DATARATE_Pos;
+#else
         return CCM_MODE_DATARATE_125Kbps << CCM_MODE_DATARATE_Pos;
+#endif
     case BLE_PHY_MODE_CODED_500KBPS:
+#ifdef NRF54L_SERIES
+        return CCM_MODE_DATARATE_500Kbit << CCM_MODE_DATARATE_Pos;
+#else
         return CCM_MODE_DATARATE_500Kbps << CCM_MODE_DATARATE_Pos;
+#endif
 #endif
     }
 
@@ -936,6 +1059,23 @@ ble_phy_get_ccm_datarate(void)
 #endif
 }
 #endif
+
+static void
+ble_phy_end_handling_setup(void)
+{
+    if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+        NRF_RADIO->SHORTS = 0;
+    } else if (g_ble_phy_data.tifs_usecs >= BLE_LL_IFS) {
+#ifdef NRF54L_SERIES
+        NRF_RADIO->SHORTS |= RADIO_SHORTS_PHYEND_DISABLE_Msk;
+#else
+        NRF_RADIO->SHORTS |= RADIO_SHORTS_END_DISABLE_Msk;
+#endif
+        nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_DISABLED_Msk);
+    } else {
+        nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_END_Msk);
+    }
+};
 
 /**
  * Setup transceiver for receive.
@@ -951,6 +1091,19 @@ ble_phy_rx_xcvr_setup(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (g_ble_phy_data.phy_encrypted) {
         NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
+#ifdef NRF54L_SERIES
+        NRF_CCM->IN.PTR = (uint32_t)&g_ble_phy_enc_buf[0];
+        NRF_CCM->OUT.PTR = (uint32_t)dptr;
+        /* TODO: Find replacement for removed registers like this one
+         * NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
+         */
+        NRF_CCM->MODE = CCM_MODE_MACLEN_Pos | CCM_MODE_MODE_Decryption |
+                        ble_phy_get_ccm_datarate();
+        memcpy((uint8_t *)NRF_CCM->KEY.VALUE, &g_nrf_ccm_data.key, sizeof(g_nrf_ccm_data.key));
+        NRF_CCM->EVENTS_ERROR = 0;
+        NRF_CCM->EVENTS_END = 0;
+        nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_START);
+#else
         NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
         NRF_CCM->OUTPTR = (uint32_t)dptr;
         NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
@@ -961,6 +1114,7 @@ ble_phy_rx_xcvr_setup(void)
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->EVENTS_ENDCRYPT = 0;
         nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
+#endif
         phy_ppi_radio_address_to_ccm_crypt_enable();
     } else {
         NRF_RADIO->PACKETPTR = (uint32_t)dptr;
@@ -972,8 +1126,13 @@ ble_phy_rx_xcvr_setup(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (g_ble_phy_data.phy_privacy) {
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
+#ifdef NRF54L_SERIES
+        NRF_AAR->IN.PTR = (uint32_t)&g_nrf_irk_list[0];
+        /* TODO: Find replacement for NRF_AAR->SCRATCHPTR */
+#else
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
         NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
+#endif
         NRF_AAR->EVENTS_END = 0;
         NRF_AAR->EVENTS_RESOLVED = 0;
         NRF_AAR->EVENTS_NOTRESOLVED = 0;
@@ -986,6 +1145,7 @@ ble_phy_rx_xcvr_setup(void)
 
     /* Turn off trigger TXEN on output compare match and AAR on bcmatch */
     phy_ppi_timer0_compare0_to_radio_txen_disable();
+    phy_ppi_timer0_compare0_to_radio_start_disable();
     phy_ppi_radio_bcmatch_to_aar_start_disable();
 
     /* Reset the rx started flag. Used for the wait for response */
@@ -1008,20 +1168,275 @@ ble_phy_rx_xcvr_setup(void)
 #endif
 
     /* I want to know when 1st byte received (after address) */
-    nrf_radio_bcc_set(NRF_RADIO, 8 + g_ble_phy_data.phy_bcc_offset); /* in bits */
+    nrf_radio_bcc_set(NRF_RADIO, g_ble_phy_data.phy_bcc + g_ble_phy_data.phy_bcc_offset); /* in bits */
     NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_DEVMATCH = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
+#ifndef NRF54L_SERIES
     NRF_RADIO->EVENTS_RSSIEND = 0;
+#endif
     NRF_RADIO->EVENTS_CRCOK = 0;
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                        RADIO_SHORTS_READY_START_Msk |
+    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk |
                         RADIO_SHORTS_ADDRESS_BCSTART_Msk |
-                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
-                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
+#ifndef NRF54L_SERIES
+    NRF_RADIO->SHORTS |= RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+#endif
+    nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_ADDRESS_Msk);
+}
 
-    nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_ADDRESS_Msk |
-                         RADIO_INTENSET_DISABLED_Msk);
+static void
+ble_phy_feat_mode_set(uint8_t phy_feat_mode)
+{
+    g_ble_phy_data.phy_feature_mode = phy_feat_mode;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING) && !BABBLESIM
+    NRF_RADIO->CSTONES.MODE = 0;
+    NRF_RADIO->RTT.CONFIG = 0;
+#endif
+    if (phy_feat_mode == PHY_FEAT_MODE_BLE_LL) {
+        /* Configure back the registers */
+        NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos) | RADIO_CRCCNF_LEN_Three;
+        NRF_RADIO->PCNF0 = NRF_PCNF0;
+        NRF_RADIO->PCNF1 = NRF_MAXLEN |
+                           (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
+                           (NRF_BALEN << RADIO_PCNF1_BALEN_Pos) |
+                           RADIO_PCNF1_WHITEEN_Msk;
+
+        g_ble_phy_data.phy_bcc = 8;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#if !BABBLESIM
+        } else if (phy_feat_mode == PHY_FEAT_MODE_BLE_CS_SYNC) {
+        /* CS SYNC packet has no PDU or CRC */
+        NRF_RADIO->CRCCNF = (RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos);
+        /* CS_SYNC needs only PAYLOAD field, so do not transmit S0, LENGTH and S1 fields. */
+        NRF_RADIO->PCNF0 = RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos;
+        /* Disable whitening */
+        NRF_RADIO->PCNF1 = (RADIO_PCNF1_ENDIAN_Little <<  RADIO_PCNF1_ENDIAN_Pos) |
+                           (NRF_BALEN << RADIO_PCNF1_BALEN_Pos);
+
+        g_ble_phy_data.phy_bcc = 0;
+//        NRF_RADIO->RTT.CONFIG = RADIO_RTT_CONFIG_EN_Enabled << RADIO_RTT_CONFIG_EN_Pos |
+//                                RADIO_RTT_CONFIG_ENFULLAA_Enabled << RADIO_RTT_CONFIG_ENFULLAA_Pos |
+//                                RADIO_RTT_CONFIG_ROLE_Reflector << RADIO_RTT_CONFIG_ROLE_Pos |
+//                                (256UL) << RADIO_RTT_CONFIG_EFSDELAY_Pos;
+    } else if (phy_feat_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+#endif
+#endif
+    }
+}
+
+static uint32_t
+ble_phy_transition_anchor_get(uint8_t tifs_anchor, uint8_t phy_state, uint8_t phy_mode)
+{
+    uint32_t time;
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+        return NRF_TIMER0->CC[2];
+    }
+#endif
+
+    if (tifs_anchor == PHY_TRANS_ANCHOR_END) {
+        /* END timestamp is captured in CC[2] */
+        time = NRF_TIMER0->CC[2];
+
+        /* Adjust for delay between EVENT_END and actual TX/RX end time */
+        time += (phy_state == BLE_PHY_STATE_TX)
+                ? g_ble_phy_t_txenddelay[phy_mode]
+                : -g_ble_phy_t_rxenddelay[phy_mode];
+
+    } else {
+        /* ADDRESS timestamp is captured in CC[1] */
+        time = NRF_TIMER0->CC[1];
+
+        /* Adjust for delay between EVENT_ADDRESS and actual AA time ota */
+        time += (phy_state == BLE_PHY_STATE_TX)
+                ? g_ble_phy_t_txaddrdelay[phy_mode]
+                : -g_ble_phy_t_rxaddrdelay[phy_mode];
+
+        /* Adjust by sync word length to get TX/RX start time */
+        time -= ble_ll_pdu_syncword_us(phy_mode);
+    }
+
+    return time;
+}
+
+static int
+ble_transition_to_tx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state)
+{
+    uint32_t anchor_time;
+    uint32_t radio_time;
+    uint32_t start_time;
+    bool is_late;
+    uint8_t next_phy_mode;
+    uint8_t prev_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
+
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_RxIdle) {
+        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
+        nrf_wait_disabled();
+    }
+
+#if MYNEWT_VAL(BLE_LL_PHY)
+    ble_phy_mode_apply(g_ble_phy_data.phy_tx_phy_mode);
+#endif
+    next_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
+
+    anchor_time = ble_phy_transition_anchor_get(tifs_anchor, phy_state, prev_phy_mode);
+    start_time = anchor_time + tifs_usecs;
+    radio_time = start_time;
+    g_ble_phy_data.phy_start_time = start_time;
+
+#if PHY_USE_FEM_PA
+    fem_time = anchor_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
+    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
+    NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+    phy_fem_enable_pa();
+#endif
+
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_Disabled) {
+        /* Adjust for TX rump-up */
+        radio_time -= BLE_PHY_T_TXENFAST;
+        /* Adjust for delay between EVENT_READY and actual TX start time */
+        radio_time -= g_ble_phy_t_txdelay[next_phy_mode];
+        phy_ppi_timer0_compare0_to_radio_txen_enable();
+    } else {
+        /* Fast TX_TX transition */
+        BLE_LL_ASSERT(NRF_RADIO->STATE == RADIO_STATE_STATE_TxIdle);
+        /* TODO: Adjust for delay between TASK_START and actual TX start time */
+        radio_time -= g_ble_phy_t_txdelay[next_phy_mode];
+        phy_ppi_timer0_compare0_to_radio_start_enable();
+    }
+
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
+    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+
+    /* Need to check if TIMER0 did not already count past CC[0] and/or CC[2], so
+     * we're not stuck waiting for events in case radio and/or PA was not
+     * started. If event was triggered we're fine regardless of timer value.
+     *
+     * Note: CC[3] is used only for wfr which we do not need here.
+     */
+    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
+    is_late = (NRF_TIMER0->CC[3] > radio_time) && !NRF_TIMER0->EVENTS_COMPARE[0];
+#if PHY_USE_FEM_PA
+    is_late = is_late || ((NRF_TIMER0->CC[3] > NRF_TIMER0->CC[2]) &&
+                          !NRF_TIMER0->EVENTS_COMPARE[2]);
+#endif
+    if (is_late) {
+        g_ble_phy_data.phy_transition_late = 1;
+
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
+ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs, uint8_t phy_state)
+{
+    uint32_t anchor_time;
+    uint32_t radio_time;
+    uint32_t start_time;
+
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_TxIdle) {
+        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
+        nrf_wait_disabled();
+    }
+
+#if MYNEWT_VAL(BLE_LL_PHY)
+    ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
+#endif
+    /* Packet pointer needs to be reset. */
+    ble_phy_rx_xcvr_setup();
+
+    anchor_time = ble_phy_transition_anchor_get(tifs_anchor, phy_state,
+                                                g_ble_phy_data.phy_cur_phy_mode);
+    start_time = anchor_time + tifs_usecs;
+    radio_time = start_time;
+
+#if PHY_USE_FEM_LNA
+    fem_time = anchor_time - MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
+    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
+    NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+    phy_fem_enable_lna();
+#endif
+
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_Disabled) {
+        /* Adjust for RX rump-up */
+        radio_time -= BLE_PHY_T_RXENFAST;
+        /* Start listening a bit earlier due to allowed active clock accuracy */
+        radio_time -= 2;
+        phy_ppi_timer0_compare0_to_radio_rxen_enable();
+    } else {
+        /* Fast RX_RX transition */
+        BLE_LL_ASSERT(NRF_RADIO->STATE == RADIO_STATE_STATE_RxIdle);
+        /* Start listening a bit earlier due to allowed active clock accuracy */
+        radio_time -= 2;
+        phy_ppi_timer0_compare0_to_radio_start_enable();
+    }
+
+    /* Setup wfr relative to expected radio/PDU start */
+    g_ble_phy_data.phy_start_time = start_time;
+
+    /* In case TIMER0 did already count past CC[0] and/or CC[2], radio
+     * and/or LNA may not be enabled. In any case we won't be stuck since
+     * wfr will cancel rx if needed.
+     *
+     * FIXME failing to enable LNA may result in unexpected RSSI drop in
+     *       case we still rxd something, so perhaps we could check it here
+     */
+
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
+    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+
+    return 0;
+}
+
+static int
+ble_transition_to_none(void)
+{
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#ifdef NRF54L_SERIES
+    nrf_timer_task_trigger(NRF_TIMER00, NRF_TIMER_TASK_STOP);
+#endif
+    phy_ppi_timer0_compare3_to_radio_disable_disable();
+    phy_ppi_timer0_compare3_to_radio_stop_disable();
+#endif
+    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
+#ifndef NRF54L_SERIES
+    NRF_TIMER0->TASKS_SHUTDOWN = 1;
+#endif
+    phy_ppi_wfr_disable();
+    phy_ppi_timer0_compare0_to_radio_start_disable();
+    phy_ppi_timer0_compare0_to_radio_txen_disable();
+    phy_ppi_rtc0_compare0_to_timer0_start_disable();
+    ble_phy_disable();
+    phy_ppi_fem_disable();
+
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+
+    return 0;
+}
+
+static int
+ble_phy_transition(uint8_t transition, uint8_t tifs_anchor, uint16_t tifs_usecs,
+                   uint8_t phy_state)
+{
+    int rc = 1;
+
+    if (ble_ll_state_get() == BLE_LL_STATE_STANDBY) {
+        rc = 1;
+    } else if (transition == PHY_TRANS_TO_TX) {
+        rc = ble_transition_to_tx(tifs_anchor, tifs_usecs, phy_state);
+    } else if (transition == PHY_TRANS_TO_RX) {
+        rc = ble_transition_to_rx(tifs_anchor, tifs_usecs, phy_state);
+    }
+
+    if (rc) {
+        ble_transition_to_none();
+    }
+
+    return 0;
 }
 
 /**
@@ -1031,19 +1446,16 @@ ble_phy_rx_xcvr_setup(void)
 static void
 ble_phy_tx_end_isr(void)
 {
-    uint8_t tx_phy_mode;
     uint8_t was_encrypted;
     uint8_t transition;
-    uint32_t rx_time;
-    uint32_t tx_time;
-#if PHY_USE_FEM
-    uint32_t fem_time;
-#endif
-    uint32_t radio_time;
-    uint16_t tifs;
+    uint16_t tifs_usecs;
+    uint8_t tifs_anchor;
+    uint8_t next_feat_mode;
 
-    /* Store PHY on which we've just transmitted smth */
-    tx_phy_mode = g_ble_phy_data.phy_cur_phy_mode;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    g_ble_phy_data.txend_time_ticks = NRF_TIMER0->CC[2] +
+            g_ble_phy_t_txenddelay[g_ble_phy_data.phy_cur_phy_mode];
+#endif
 
     /* If this transmission was encrypted we need to remember it */
     was_encrypted = g_ble_phy_data.phy_encrypted;
@@ -1065,109 +1477,35 @@ ble_phy_tx_end_isr(void)
     }
 #endif
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#else
-    tifs = BLE_LL_IFS;
-#endif
     transition = g_ble_phy_data.phy_transition;
+    tifs_usecs = g_ble_phy_data.tifs_usecs;
+    tifs_anchor = g_ble_phy_data.tifs_anchor;
+    next_feat_mode = g_ble_phy_data.next_phy_feature_mode;
+
+    /* Clear transition related variables here in case they
+     * are not overwritten in txend_cb.
+     */
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
     if (g_ble_phy_data.txend_cb) {
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
 
-    if (transition == BLE_PHY_TRANSITION_TX_RX) {
-#if MYNEWT_VAL(BLE_LL_PHY)
-        ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
+    ble_phy_transition(transition, tifs_anchor, tifs_usecs, BLE_PHY_STATE_TX);
+
+    ble_phy_feat_mode_set(next_feat_mode);
+
+    if (g_ble_phy_data.phy_state != BLE_PHY_STATE_IDLE) {
+        ble_phy_end_handling_setup();
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+        if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+            ble_phy_end_set(g_ble_phy_data.cs_tone_duration_usecs);
+        } else
 #endif
-
-        /* Packet pointer needs to be reset. */
-        ble_phy_rx_xcvr_setup();
-
-        ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, tx_phy_mode, 0);
-
-        /* Schedule RX exactly T_IFS after TX end captured in CC[2] */
-        rx_time = NRF_TIMER0->CC[2] + tifs;
-        /* Adjust for delay between EVENT_END and actual TX end time */
-        rx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
-        /* Start listening a bit earlier due to allowed active clock accuracy */
-        rx_time -= 2;
-
-#if PHY_USE_FEM_LNA
-        fem_time = rx_time - MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
-        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
-        NRF_TIMER0->EVENTS_COMPARE[2] = 0;
-        phy_fem_enable_lna();
-#endif
-
-        radio_time = rx_time - BLE_PHY_T_RXENFAST;
-        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
-        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-        phy_ppi_timer0_compare0_to_radio_rxen_enable();
-
-        /* In case TIMER0 did already count past CC[0] and/or CC[2], radio
-         * and/or LNA may not be enabled. In any case we won't be stuck since
-         * wfr will cancel rx if needed.
-         *
-         * FIXME failing to enable LNA may result in unexpected RSSI drop in
-         *       case we still rxd something, so perhaps we could check it here
-         */
-    } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
-        if (g_ble_phy_data.txtx_time_anchor) {
-            /* Calculate TX anchor relative to current TX end */
-
-            /* TX end timestamp is captured in CC[2] */
-            tx_time = NRF_TIMER0->CC[2];
-            /* Adjust for delay between EVENT_END and actual TX end time */
-            tx_time += g_ble_phy_t_txenddelay[tx_phy_mode];
-        } else {
-            /* Calculate TX anchor relative to current TX start */
-
-            /* AA timestamp is captured in CC[1] */
-            tx_time = NRF_TIMER0->CC[1];
-            /* Adjust for delay between EVENT_ADDRESS and actual AA time ota */
-            tx_time += g_ble_phy_t_txaddrdelay[tx_phy_mode];
-            /* Adjust by sync word length to get TX start time */
-            tx_time -= ble_ll_pdu_syncword_us(tx_phy_mode);
+        if (transition == BLE_PHY_TRANSITION_TO_RX) {
+            ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_TXRX, 0, g_ble_phy_data.wfr_usecs);
         }
-
-        tx_time += g_ble_phy_data.txtx_time_us;
-
-#if PHY_USE_FEM_PA
-        fem_time = tx_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
-#endif
-
-        /* Adjust for delay between EVENT_READY and actual TX start time */
-        tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
-
-        radio_time = tx_time - BLE_PHY_T_TXENFAST;
-        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
-        NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-        phy_ppi_timer0_compare0_to_radio_txen_enable();
-
-#if PHY_USE_FEM_PA
-        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
-        NRF_TIMER0->EVENTS_COMPARE[2] = 0;
-        phy_fem_enable_pa();
-#endif
-
-        nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
-        if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
-            phy_ppi_timer0_compare0_to_radio_txen_disable();
-            g_ble_phy_data.phy_transition_late = 1;
-        }
-    } else {
-        /*
-         * XXX: not sure we need to stop the timer here all the time. Or that
-         * it should be stopped here.
-         */
-        nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
-        NRF_TIMER0->TASKS_SHUTDOWN = 1;
-        phy_ppi_wfr_disable();
-        phy_ppi_timer0_compare0_to_radio_txen_disable();
-        phy_ppi_rtc0_compare0_to_timer0_start_disable();
-        assert(transition == BLE_PHY_TRANSITION_NONE);
     }
 }
 
@@ -1201,22 +1539,27 @@ ble_phy_rx_end_isr(void)
 {
     int rc;
     uint8_t *dptr;
-    uint8_t crcok;
-    uint32_t tx_time;
-#if PHY_USE_FEM_PA
-    uint32_t fem_time;
-#endif
-    uint32_t radio_time;
-    uint16_t tifs;
     struct ble_mbuf_hdr *ble_hdr;
-    bool is_late;
+    uint8_t crcok;
+    uint8_t transition;
+    uint16_t tifs_usecs;
+    uint8_t feat_mode;
 
     /* Disable automatic RXEN */
     phy_ppi_timer0_compare0_to_radio_rxen_disable();
+    /* Disable automatic RX START */
+    phy_ppi_timer0_compare0_to_radio_start_disable();
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    g_ble_phy_data.rxend_time_ticks = NRF_TIMER0->CC[2] -
+            g_ble_phy_t_rxenddelay[g_ble_phy_data.phy_rx_phy_mode];
+#endif
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
+#ifndef NRF54L_SERIES
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
+#endif
     ble_hdr->rxinfo.rssi = (-1 * NRF_RADIO->RSSISAMPLE);
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
@@ -1224,6 +1567,11 @@ ble_phy_rx_end_isr(void)
 
     /* Count PHY crc errors and valid packets */
     crcok = NRF_RADIO->EVENTS_CRCOK;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    if ((NRF_RADIO->CRCCNF & RADIO_CRCCNF_LEN_Msk) == 0) {
+        /* CRC disabled */
+    } else
+#endif
     if (!crcok) {
         STATS_INC(ble_phy_stats, rx_crc_err);
     } else {
@@ -1231,12 +1579,21 @@ ble_phy_rx_end_isr(void)
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (g_ble_phy_data.phy_encrypted) {
+#ifdef NRF54L_SERIES
+            while (NRF_CCM->EVENTS_END == 0) {
+#else
             while (NRF_CCM->EVENTS_ENDCRYPT == 0) {
+#endif
                 /* Make sure CCM finished */
             };
 
             /* Only set MIC failure flag if frame is not zero length */
-            if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
+            if ((dptr[1] != 0) &&
+#ifdef NRF54L_SERIES
+                (NRF_CCM->MACSTATUS == 0)) {
+#else
+                (NRF_CCM->MICSTATUS == 0)) {
+#endif
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
             }
 
@@ -1254,10 +1611,6 @@ ble_phy_rx_end_isr(void)
 #endif
     }
 
-#if MYNEWT_VAL(BLE_LL_PHY)
-    ble_phy_mode_apply(g_ble_phy_data.phy_tx_phy_mode);
-#endif
-
     /*
      * Let's schedule TX now and we will just cancel it after processing RXed
      * packet if we don't need TX.
@@ -1271,53 +1624,23 @@ ble_phy_rx_end_isr(void)
      * during radio ramp-up - this gives us extra 40 usecs which is more than
      * enough.
      */
-
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    tifs = g_ble_phy_data.tifs;
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#else
-    tifs = BLE_LL_IFS;
-#endif
-
-    /* Schedule TX exactly T_IFS after RX end captured in CC[2] */
-    tx_time = NRF_TIMER0->CC[2] + tifs;
-    /* Adjust for delay between actual RX end time and EVENT_END */
-    tx_time -= g_ble_phy_t_rxenddelay[ble_hdr->rxinfo.phy_mode];
-
-#if PHY_USE_FEM_PA
-    fem_time = tx_time - MYNEWT_VAL(BLE_FEM_PA_TURN_ON_US);
-#endif
-
-    /* Adjust for delay between EVENT_READY and actual TX start time */
-    tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
-
-    radio_time = tx_time - BLE_PHY_T_TXENFAST;
-    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
-    NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-    phy_ppi_timer0_compare0_to_radio_txen_enable();
-
-#if PHY_USE_FEM_PA
-    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
-    NRF_TIMER0->EVENTS_COMPARE[2] = 0;
-    phy_fem_enable_pa();
-#endif
-
-    /* Need to check if TIMER0 did not already count past CC[0] and/or CC[2], so
-     * we're not stuck waiting for events in case radio and/or PA was not
-     * started. If event was triggered we're fine regardless of timer value.
-     *
-     * Note: CC[3] is used only for wfr which we do not need here.
-     */
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
-    is_late = (NRF_TIMER0->CC[3] > radio_time) && !NRF_TIMER0->EVENTS_COMPARE[0];
-#if PHY_USE_FEM_PA
-    is_late = is_late ||
-              ((NRF_TIMER0->CC[3] > fem_time) && !NRF_TIMER0->EVENTS_COMPARE[2]);
-#endif
-    if (is_late) {
-        phy_ppi_timer0_compare0_to_radio_txen_disable();
-        g_ble_phy_data.phy_transition_late = 1;
+    if (g_ble_phy_data.phy_transition == PHY_TRANS_NONE) {
+        /* XXX: Should be removed after finding all missing uses of ble_phy_transition_set */
+        g_ble_phy_data.phy_transition = PHY_TRANS_TO_TX;
     }
+
+    transition = g_ble_phy_data.phy_transition;
+    tifs_usecs = g_ble_phy_data.tifs_usecs,
+
+    ble_phy_transition(transition, g_ble_phy_data.tifs_anchor,
+                       tifs_usecs, BLE_PHY_STATE_RX);
+
+    ble_phy_feat_mode_set(g_ble_phy_data.next_phy_feature_mode);
+
+    /* Clear transition related variables here in case they
+     * are not overwritten in ble_ll_rx_end.
+     */
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
     /*
      * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
@@ -1329,6 +1652,20 @@ ble_phy_rx_end_isr(void)
     rc = ble_ll_rx_end(dptr + 1, ble_hdr);
     if (rc < 0) {
         ble_phy_disable();
+        return;
+    }
+
+    if (g_ble_phy_data.phy_state != BLE_PHY_STATE_IDLE) {
+        ble_phy_end_handling_setup();
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+        if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+            ble_phy_end_set(g_ble_phy_data.cs_tone_duration_usecs);
+        } else
+#endif
+        if (transition == BLE_PHY_TRANSITION_TO_RX) {
+            ble_phy_wfr_enable(BLE_PHY_WFR_ENABLE_RXRX, 0, g_ble_phy_data.wfr_usecs);
+        }
     }
 }
 
@@ -1354,6 +1691,10 @@ ble_phy_rx_start_isr(void)
 
     /* Clear wfr timer channels */
     phy_ppi_wfr_disable();
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    phy_ppi_timer0_compare3_to_radio_disable_disable();
+    phy_ppi_timer0_compare3_to_radio_stop_disable();
+#endif
 
     /* Initialize the ble mbuf header */
     ble_hdr = &g_ble_phy_data.rxhdr;
@@ -1400,7 +1741,7 @@ ble_phy_rx_start_isr(void)
     /* Wait to get 1st byte of frame */
     while (1) {
         state = NRF_RADIO->STATE;
-        if (NRF_RADIO->EVENTS_BCMATCH != 0) {
+        if (NRF_RADIO->BCC == 0 || NRF_RADIO->EVENTS_BCMATCH != 0) {
             break;
         }
 
@@ -1431,7 +1772,11 @@ ble_phy_rx_start_isr(void)
          * octets for extended header.
          */
         adva_offset = (dptr[3] & 0x0f) == 0x07 ? 2 : 0;
+#ifdef NRF54L_SERIES
+        NRF_AAR->IN.PTR = (uint32_t)(dptr + 3 + adva_offset);
+#else
         NRF_AAR->ADDRPTR = (uint32_t)(dptr + 3 + adva_offset);
+#endif
 
         /* Trigger AAR after last bit of AdvA is received */
         NRF_RADIO->EVENTS_BCMATCH = 0;
@@ -1468,7 +1813,11 @@ ble_phy_isr(void)
     os_trace_isr_enter();
 
     /* Read irq register to determine which interrupts are enabled */
+#ifdef NRF54L_SERIES
+    irq_en = NRF_RADIO->INTENSET00;
+#else
     irq_en = NRF_RADIO->INTENSET;
+#endif
 
     /*
      * NOTE: order of checking is important! Possible, if things get delayed,
@@ -1497,13 +1846,22 @@ ble_phy_isr(void)
      * need to check phy_rx_started flag to make sure we actually were receiving
      * a PDU, otherwise this is due to wfr.
      */
-    if ((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) {
+    if (((irq_en & RADIO_INTENCLR_DISABLED_Msk) && NRF_RADIO->EVENTS_DISABLED) ||
+        ((irq_en & RADIO_INTENCLR_END_Msk) && NRF_RADIO->EVENTS_END)) {
+
         BLE_LL_ASSERT(NRF_RADIO->EVENTS_END ||
                       ((g_ble_phy_data.phy_state == BLE_PHY_STATE_RX) &&
                        !g_ble_phy_data.phy_rx_started));
+#ifdef NRF54L_SERIES
+        NRF_RADIO->EVENTS_PHYEND = 0;
+#endif
         NRF_RADIO->EVENTS_END = 0;
         NRF_RADIO->EVENTS_DISABLED = 0;
-        nrf_radio_int_disable(NRF_RADIO, RADIO_INTENCLR_DISABLED_Msk);
+        nrf_radio_int_disable(NRF_RADIO,
+                              RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_END_Msk);
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+        nrf_timer_int_disable(NRF_TIMER0, TIMER_INTENCLR_COMPARE3_Msk);
+#endif
 
         switch (g_ble_phy_data.phy_state) {
         case BLE_PHY_STATE_RX:
@@ -1551,6 +1909,44 @@ ble_phy_ccm_isr(void)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+static void
+ble_phy_radio_timer_isr(void)
+{
+    os_trace_isr_enter();
+
+    nrf_timer_int_disable(NRF_TIMER0, TIMER_INTENCLR_COMPARE3_Msk);
+    phy_ppi_timer0_compare3_to_radio_disable_disable();
+    phy_ppi_timer0_compare3_to_radio_stop_disable();
+
+    switch (g_ble_phy_data.phy_state) {
+        case BLE_PHY_STATE_RX:
+#if MYNEWT_VAL(BLE_FEM_LNA)
+            phy_ppi_fem_disable();
+            ble_fem_lna_disable();
+#endif
+            ble_phy_rx_end_isr();
+            break;
+        case BLE_PHY_STATE_TX:
+#if MYNEWT_VAL(BLE_FEM_PA)
+            phy_ppi_fem_disable();
+            ble_fem_pa_disable();
+#endif
+            ble_phy_tx_end_isr();
+            break;
+        default:
+            BLE_LL_ASSERT(0);
+    }
+
+    g_ble_phy_data.phy_transition_late = 0;
+
+    /* Count # of interrupts */
+    STATS_INC(ble_phy_stats, phy_isrs);
+
+    os_trace_isr_exit();
+}
+#endif
+
 /**
  * ble phy init
  *
@@ -1567,17 +1963,21 @@ ble_phy_init(void)
     g_ble_phy_data.phy_cur_phy_mode = BLE_PHY_MODE_1M;
     g_ble_phy_data.phy_tx_phy_mode = BLE_PHY_MODE_1M;
     g_ble_phy_data.phy_rx_phy_mode = BLE_PHY_MODE_1M;
+    ble_phy_feat_mode_set(PHY_FEAT_MODE_BLE_LL);
 
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-    g_ble_phy_data.tifs = BLE_LL_IFS;
-#endif
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
+    /* Set default base value for BCC */
+    g_ble_phy_data.phy_bcc = 8;
+
+#ifndef NRF54L_SERIES
     /* Toggle peripheral power to reset (just in case) */
     nrf_radio_power_set(NRF_RADIO, false);
     nrf_radio_power_set(NRF_RADIO, true);
+#endif
 
 #ifdef NRF53_SERIES
     /* Errata 158: load trim values after toggling power */
@@ -1614,8 +2014,13 @@ ble_phy_init(void)
                        RADIO_PCNF1_WHITEEN_Msk;
 
     /* Enable radio fast ramp-up */
+#ifdef NRF54L_SERIES
+    NRF_RADIO->TIMING = (RADIO_TIMING_RU_Fast << RADIO_TIMING_RU_Pos) &
+                        RADIO_TIMING_RU_Msk;
+#else
     NRF_RADIO->MODECNF0 |= (RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos) &
                             RADIO_MODECNF0_RU_Msk;
+#endif
 
     /* Set logical address 1 for TX and RX */
     NRF_RADIO->TXADDRESS  = 0;
@@ -1632,7 +2037,9 @@ ble_phy_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     nrf_ccm_int_disable(NRF_CCM, 0xffffffff);
+#ifndef NRF54L_SERIES
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
+#endif
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
 
@@ -1645,20 +2052,48 @@ ble_phy_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     g_ble_phy_data.phy_aar_scratch = 0;
+#ifdef NRF54L_SERIES
+    NRF_AAR->IN.PTR = (uint32_t)&g_nrf_irk_list[0];
+#else
     NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+#endif
     nrf_aar_int_disable(NRF_AAR, 0xffffffff);
     NRF_AAR->EVENTS_END = 0;
     NRF_AAR->EVENTS_RESOLVED = 0;
     NRF_AAR->EVENTS_NOTRESOLVED = 0;
+#ifdef NRF54L_SERIES
+    NRF_AAR->MAXRESOLVED = 0;
+#else
     NRF_AAR->NIRK = 0;
+#endif
 #endif
 
     /* TIMER0 setup for PHY when using RTC */
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
+#ifndef NRF54L_SERIES
     NRF_TIMER0->TASKS_SHUTDOWN = 1;
+#endif
     NRF_TIMER0->BITMODE = 3;    /* 32-bit timer */
     NRF_TIMER0->MODE = 0;       /* Timer mode */
+#ifdef NRF54L_SERIES
+    NRF_TIMER0->PRESCALER = 5;  /* gives us 1 MHz */
+#else
     NRF_TIMER0->PRESCALER = 4;  /* gives us 1 MHz */
+#endif
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    nrf_timer_int_disable(NRF_TIMER0, 0xFFFFFFFF);
+    NVIC_SetPriority(TIMER0_IRQn, 0);
+    NVIC_SetVector(TIMER0_IRQn, (uint32_t)ble_phy_radio_timer_isr);
+    NVIC_EnableIRQ(TIMER0_IRQn);
+
+#ifdef NRF54L_SERIES
+    nrf_timer_task_trigger(NRF_TIMER00, NRF_TIMER_TASK_STOP);
+    NRF_TIMER00->BITMODE = 3;    /* 32-bit timer */
+    NRF_TIMER00->MODE = 0;       /* Timer mode */
+    NRF_TIMER00->PRESCALER = 0;  /* gives us 128 MHz */
+#endif
+#endif
 
     phy_ppi_init();
 
@@ -1719,7 +2154,7 @@ ble_phy_rx(void)
      */
     nrf_wait_disabled();
     if ((NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) &&
-            ((NRF_RADIO->STATE & 0x07) != RADIO_STATE_STATE_RxIdle)) {
+        ((NRF_RADIO->STATE & 0x07) != RADIO_STATE_STATE_RxIdle)) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
@@ -1731,9 +2166,14 @@ ble_phy_rx(void)
     /* Clear events prior to enabling receive */
     NRF_RADIO->EVENTS_END = 0;
     NRF_RADIO->EVENTS_DISABLED = 0;
+#ifdef NRF54L_SERIES
+    NRF_RADIO->EVENTS_PHYEND = 0;
+#endif
 
     /* Setup for rx */
     ble_phy_rx_xcvr_setup();
+
+    ble_phy_end_handling_setup();
 
     return 0;
 }
@@ -1829,6 +2269,7 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to RXEN since we are transmitting */
     phy_ppi_timer0_compare0_to_radio_rxen_disable();
+    phy_ppi_timer0_compare0_to_radio_start_disable();
 
     if (ble_phy_set_start_time(cputime, rem_usecs, true) != 0) {
         STATS_INC(ble_phy_stats, tx_late);
@@ -1838,6 +2279,10 @@ ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
         /* Enable PPI to automatically start TXEN */
         phy_ppi_timer0_compare0_to_radio_txen_enable();
         rc = 0;
+
+        if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+            ble_phy_end_set(g_ble_phy_data.cs_tone_duration_usecs);
+        }
     }
 
     return rc;
@@ -1871,6 +2316,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* XXX: This should not be necessary, but paranoia is good! */
     /* Clear timer0 compare to TXEN since we are transmitting */
     phy_ppi_timer0_compare0_to_radio_txen_disable();
+    phy_ppi_timer0_compare0_to_radio_start_disable();
 
     if (ble_phy_set_start_time(cputime, rem_usecs, false) != 0) {
         STATS_INC(ble_phy_stats, rx_late);
@@ -1887,6 +2333,10 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     /* Start rx */
     rc = ble_phy_rx();
 
+    if (g_ble_phy_data.phy_feature_mode == PHY_FEAT_MODE_BLE_CS_TONE) {
+        ble_phy_end_set(g_ble_phy_data.cs_tone_duration_usecs);
+    }
+
     /*
      * If we enabled receiver but were late, let's return proper error code so
      * caller can handle this.
@@ -1899,7 +2349,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 }
 
 int
-ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg)
 {
     int rc;
     uint8_t *dptr;
@@ -1907,13 +2357,15 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     uint8_t payload_len;
     uint8_t hdr_byte;
     uint32_t state;
-    uint32_t shortcuts;
+    uint8_t end_trans;
 
     if (g_ble_phy_data.phy_transition_late) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, tx_late);
         return BLE_PHY_ERR_TX_LATE;
     }
+
+    end_trans = g_ble_phy_data.phy_transition;
 
     /*
      * This check is to make sure that the radio is not in a state where
@@ -1931,11 +2383,23 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     phy_ppi_wfr_disable();
     phy_ppi_radio_bcmatch_to_aar_start_disable();
     phy_ppi_radio_address_to_ccm_crypt_disable();
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    phy_ppi_timer0_compare3_to_radio_disable_disable();
+    phy_ppi_timer0_compare3_to_radio_stop_disable();
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (g_ble_phy_data.phy_encrypted) {
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
         pktptr = (uint8_t *)&g_ble_phy_tx_buf[0];
+#ifdef NRF54L_SERIES
+        NRF_CCM->IN.PTR = (uint32_t)dptr;
+        NRF_CCM->OUT.PTR = (uint32_t)pktptr;
+        /* NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0]; */
+        NRF_CCM->EVENTS_ERROR = 0;
+        NRF_CCM->MODE = CCM_MODE_MACLEN_Pos | ble_phy_get_ccm_datarate();
+        memcpy((uint8_t *)NRF_CCM->KEY.VALUE, &g_nrf_ccm_data.key, sizeof(g_nrf_ccm_data.key));
+#else
         NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
         NRF_CCM->INPTR = (uint32_t)dptr;
         NRF_CCM->OUTPTR = (uint32_t)pktptr;
@@ -1943,9 +2407,14 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
         NRF_CCM->EVENTS_ERROR = 0;
         NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | ble_phy_get_ccm_datarate();
         NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+#endif
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
+#ifdef NRF54L_SERIES
+        NRF_AAR->IN.PTR = (uint32_t)&g_nrf_irk_list[0];
+#else
         NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+#endif
 #endif
         dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
         pktptr = dptr;
@@ -1975,21 +2444,28 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
             NRF_CCM->INTENSET = CCM_INTENSET_ENDKSGEN_Msk;
         }
 #endif
+#ifdef NRF54L_SERIES
+        nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_START);
+#else
         nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
+#endif
     }
 #endif
 
     NRF_RADIO->PACKETPTR = (uint32_t)pktptr;
 
     /* Clear the ready, end and disabled events */
+#ifdef NRF54L_SERIES
+    NRF_RADIO->EVENTS_PHYEND = 0;
+#endif
     NRF_RADIO->EVENTS_READY = 0;
+    NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_END = 0;
     NRF_RADIO->EVENTS_DISABLED = 0;
 
     /* Enable shortcuts for transmit start/end. */
-    shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
-    NRF_RADIO->SHORTS = shortcuts;
-    nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_DISABLED_Msk);
+    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk;
+    ble_phy_end_handling_setup();
 
     /* Set the PHY transition */
     g_ble_phy_data.phy_transition = end_trans;
@@ -2135,7 +2611,12 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     /* Set the frequency and the data whitening initial value */
     g_ble_phy_data.phy_chan = chan;
     NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[chan];
+
+#ifdef NRF54L_SERIES
+    NRF_RADIO->DATAWHITE = RADIO_DATAWHITE_ResetValue | chan;
+#else
     NRF_RADIO->DATAWHITEIV = chan;
+#endif
 
     return 0;
 }
@@ -2153,7 +2634,12 @@ static void
 ble_phy_stop_usec_timer(void)
 {
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
+#ifdef NRF54L_SERIES
+    nrf_timer_task_trigger(NRF_TIMER00, NRF_TIMER_TASK_STOP);
+#endif
+#ifndef NRF54L_SERIES
     NRF_TIMER0->TASKS_SHUTDOWN = 1;
+#endif
     nrf_rtc_event_disable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 }
 
@@ -2209,6 +2695,8 @@ ble_phy_disable(void)
     ble_phy_disable_irq_and_ppi();
 
     g_ble_phy_data.phy_transition_late = 0;
+    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    ble_phy_feat_mode_set(PHY_FEAT_MODE_BLE_LL);
 
 #if PHY_USE_FEM
     phy_fem_disable();
@@ -2273,7 +2761,12 @@ ble_phy_max_data_pdu_pyld(void)
 void
 ble_phy_resolv_list_enable(void)
 {
+#ifdef NRF54L_SERIES
+    /* TODO: Is this the right replacement? */
+    NRF_AAR->MAXRESOLVED = (uint32_t)g_nrf_num_irks;
+#else
     NRF_AAR->NIRK = (uint32_t)g_nrf_num_irks;
+#endif
     g_ble_phy_data.phy_privacy = 1;
 }
 
@@ -2347,8 +2840,140 @@ ble_phy_rfclk_disable(void)
 }
 
 void
-ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
+ble_phy_transition_set(uint8_t trans, uint16_t usecs)
 {
-    g_ble_phy_data.txtx_time_us = usecs;
-    g_ble_phy_data.txtx_time_anchor = anchor;
+    uint8_t transition;
+    uint8_t anchor;
+    uint8_t feat_mode;
+
+    if (trans == BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT ||
+        trans == BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT) {
+        anchor = PHY_TRANS_ANCHOR_START;
+    } else {
+        anchor = PHY_TRANS_ANCHOR_END;
+    }
+
+    if (trans == BLE_PHY_TRANSITION_TO_RX ||
+        trans == BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT) {
+        transition = PHY_TRANS_TO_RX;
+        feat_mode = PHY_FEAT_MODE_BLE_LL;
+    } else if (trans == BLE_PHY_TRANSITION_TO_TX ||
+               trans == BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT) {
+        transition = PHY_TRANS_TO_TX;
+        feat_mode = PHY_FEAT_MODE_BLE_LL;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    } else if (trans == BLE_PHY_TRANSITION_TO_TX_CS_SYNC) {
+        transition = PHY_TRANS_TO_TX;
+        feat_mode = PHY_FEAT_MODE_BLE_CS_SYNC;
+    } else if (trans == BLE_PHY_TRANSITION_TO_RX_CS_SYNC) {
+        transition = PHY_TRANS_TO_RX;
+        feat_mode = PHY_FEAT_MODE_BLE_CS_SYNC;
+    } else if (trans == BLE_PHY_TRANSITION_TO_TX_CS_TONE) {
+        transition = PHY_TRANS_TO_TX;
+        feat_mode = PHY_FEAT_MODE_BLE_CS_TONE;
+    } else if (trans == BLE_PHY_TRANSITION_TO_RX_CS_TONE) {
+        transition = PHY_TRANS_TO_RX;
+        feat_mode = PHY_FEAT_MODE_BLE_CS_TONE;
+#endif
+    } else {
+        transition = PHY_TRANS_NONE;
+        feat_mode = PHY_FEAT_MODE_BLE_LL;
+    }
+
+    g_ble_phy_data.phy_transition = transition;
+    g_ble_phy_data.tifs_anchor = anchor;
+    g_ble_phy_data.tifs_usecs = usecs ? usecs : BLE_LL_IFS;
+    g_ble_phy_data.next_phy_feature_mode = feat_mode;
 }
+
+void
+ble_phy_transition_wfr_set(uint16_t usecs)
+{
+    g_ble_phy_data.wfr_usecs = usecs;
+}
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+void
+ble_phy_get_txend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns)
+{
+    *cputime = g_ble_phy_data.phy_start_cputime;
+    *rem_us = g_ble_phy_data.txend_time_ticks;
+    *rem_ns = 0;
+}
+
+void
+ble_phy_get_rxend_time(uint32_t *cputime, uint32_t *rem_us, uint32_t *rem_ns)
+{
+    *cputime = g_ble_phy_data.phy_start_cputime;
+    *rem_us = g_ble_phy_data.rxend_time_ticks;
+    *rem_ns = 0;
+}
+
+int
+ble_phy_cs_sync_configure(uint8_t chan, uint32_t access_addr)
+{
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_Disabled) {
+        ble_phy_feat_mode_set(PHY_FEAT_MODE_BLE_CS_SYNC);
+    }
+
+#if BABBLESIM
+    ble_phy_setchan(chan % 40, access_addr, 0);
+#else
+    assert(!(chan <= 1 || (23 <= chan && chan <= 25) || 77 <= chan));
+
+    /* Check for valid channel range */
+    if (chan <= 1 || (23 <= chan && chan <= 25) || 77 <= chan) {
+        return BLE_PHY_ERR_INV_PARAM;
+    }
+
+    /* Set current access address */
+    ble_phy_set_access_addr(access_addr);
+
+    /* Set the frequency and the data whitening initial value */
+    g_ble_phy_data.phy_chan = chan;
+    NRF_RADIO->FREQUENCY = 2 + chan;
+#endif
+
+    return 0;
+}
+
+int
+ble_phy_cs_tone_configure(uint8_t chan, uint8_t tone_mode, uint32_t duration_usecs)
+{
+    if (NRF_RADIO->STATE == RADIO_STATE_STATE_Disabled) {
+        ble_phy_feat_mode_set(PHY_FEAT_MODE_BLE_CS_TONE);
+    }
+
+    g_ble_phy_data.cs_tone_duration_usecs = duration_usecs;
+
+#if BABBLESIM
+#else
+    assert(!(chan <= 1 || (23 <= chan && chan <= 25) || 77 <= chan));
+
+    /* Check for valid channel range */
+    if (chan <= 1 || (23 <= chan && chan <= 25) || 77 <= chan) {
+        return BLE_PHY_ERR_INV_PARAM;
+    }
+
+    /* Set the frequency and the data whitening initial value */
+    g_ble_phy_data.phy_chan = chan;
+    NRF_RADIO->FREQUENCY = 2 + chan;
+    NRF_RADIO->CSTONES.NEXTFREQUENCY = 2 + chan;
+    NRF_RADIO->CSTONES.PHASESHIFT = 0;
+    NRF_RADIO->CSTONES.FFOIN = 1;
+    NRF_RADIO->CSTONES.FFOSOURCE = 0;
+    NRF_RADIO->CSTONES.NUMSAMPLES = 160;
+    NRF_RADIO->CSTONES.DOWNSAMPLE = 0;
+
+    if (tone_mode == BLE_PHY_CS_TONE_MODE_PM) {
+        NRF_RADIO->CSTONES.MODE = RADIO_CSTONES_MODE_TPM_Msk;
+    } else if (tone_mode == BLE_PHY_CS_TONE_MODE_FM) {
+        NRF_RADIO->CSTONES.MODE = RADIO_CSTONES_MODE_TFM_Msk;
+    } else {
+        NRF_RADIO->CSTONES.MODE = RADIO_CSTONES_MODE_TPM_Msk | RADIO_CSTONES_MODE_TFM_Msk;
+    }
+#endif
+
+    return 0;
+}
+#endif

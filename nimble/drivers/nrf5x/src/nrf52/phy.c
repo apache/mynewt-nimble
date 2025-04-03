@@ -169,7 +169,9 @@ phy_ppi_init(void)
      * Channel 4: Captures TIMER0 in CC[3] when EVENTS_ADDRESS occurs. Used
      *            to cancel the wait for response timer.
      * Channel 5: TIMER0 CC[3] to TASKS_DISABLE on radio. This is the wait
-     *            for response timer.
+     *            for response timer (or measurement timer)
+     * Channel 8: TIMER0 CC[0] to TASKS_START on radio.
+     * Channel 9: TIMER0 CC[3] to TASKS_STOP on radio. This is the ToF measurement timer.
      */
     nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL4,
                                    (uint32_t)&(NRF_RADIO->EVENTS_ADDRESS),
@@ -177,6 +179,14 @@ phy_ppi_init(void)
     nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL5,
                                    (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
                                    (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
+    nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL8,
+                                   (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[0]),
+                                   (uint32_t)&(NRF_RADIO->TASKS_START));
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL9,
+                                   (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
+                                   (uint32_t)&(NRF_RADIO->TASKS_STOP));
+#endif
 }
 
 void
