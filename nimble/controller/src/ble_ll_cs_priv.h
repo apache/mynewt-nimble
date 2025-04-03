@@ -223,6 +223,28 @@ struct ble_ll_cs_config {
     struct ble_ll_cs_proc_params proc_params;
 };
 
+struct ble_ll_cs_step_result {
+    uint8_t sounding_pct_estimate;
+    uint8_t packet_rssi;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint32_t time_of_departure_us;
+    uint32_t time_of_departure_ns;
+    uint32_t time_of_arrival_us;
+    uint32_t time_of_arrival_ns;
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    uint16_t measured_freq_offset;
+    uint32_t tone_pct[5];
+    uint8_t tone_quality_ind[5];
+};
+
+struct ble_ll_cs_subevent {
+    struct ble_hci_ev *hci_ev;
+    unsigned int subev;
+    uint8_t num_steps_reported;
+};
+
 struct ble_ll_cs_sm {
     struct ble_ll_conn_sm *connsm;
     struct ble_ll_cs_supp_cap remote_cap;
@@ -299,6 +321,15 @@ struct ble_ll_cs_sm {
     uint8_t t_sy;
     /* Time of CS_SYNC sequence only */
     uint8_t t_sy_seq;
+    uint8_t cs_sync_antenna;
+
+    /* Cache for HCI Subevent Result event */
+    struct ble_ll_cs_subevent buffered_subevent;
+    struct ble_ll_cs_step_result step_result;
+    uint8_t cs_schedule_status;
+    uint8_t proc_abort_reason;
+    uint8_t subev_abort_reason;
+
     /* Channel selection stuff */
     uint8_t mode0_channels[72];
     uint8_t non_mode0_channels[72];

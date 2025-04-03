@@ -30,9 +30,40 @@
 #include "ble_ll_priv.h"
 #include "ble_ll_cs_priv.h"
 
+extern struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 extern struct ble_ll_cs_sm g_ble_ll_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 extern struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 extern int8_t g_ble_ll_tx_power;
+
+static uint8_t
+ble_ll_cs_sync_calc_seq_quality(struct ble_ll_cs_sm *cssm, uint8_t *rxpdu,
+                                struct ble_mbuf_hdr *hdr)
+{
+    /* TODO: Check if all bits match the expected sequence.
+     * For now returns "all bits match".
+     */
+    return 0;
+}
+
+static uint8_t
+ble_ll_cs_sync_calc_nadm(struct ble_ll_cs_sm *cssm, uint8_t *rxpdu,
+                         struct ble_mbuf_hdr *hdr)
+{
+    uint8_t nadm;
+
+    if (cssm->active_config->rtt_type == 0x00) {
+        /* No sequence, so NADM unknown. */
+        nadm = 0xFF;
+    } else {
+        /* TODO: Estimate how much a received GFSK modulated packet signal
+         * differs from the expected packet signal. Use the normalized attack
+         * detector metric (NADM). For now return "Attack extremely unlikely".
+         */
+        nadm = 0x00;
+    }
+
+    return nadm;
+}
 
 static uint8_t
 ble_ll_cs_sync_make(struct ble_ll_cs_sm *cssm, uint8_t *buf)
@@ -98,6 +129,9 @@ ble_ll_cs_sync_tx_end_cb(void *arg)
 
     ble_phy_get_txend_time(&cputime, &rem_us, &rem_ns);
     end_anchor_usecs = ble_ll_tmr_t2u(cputime) + rem_us;
+
+    cssm->step_result.time_of_departure_us = end_anchor_usecs;
+    cssm->step_result.time_of_departure_ns = rem_ns;
 
     cssm->anchor_usecs = end_anchor_usecs + transm->end_tifs;
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
@@ -258,6 +292,23 @@ ble_ll_cs_sync_rx_end(struct ble_ll_cs_sm *cssm, uint8_t *rxbuf, struct ble_mbuf
 
     ble_phy_get_rxend_time(&cputime, &rem_us, &rem_ns);
     end_anchor_usecs = ble_ll_tmr_t2u(cputime) + rem_us;
+
+    cssm->step_result.time_of_arrival_us = end_anchor_usecs;
+    cssm->step_result.time_of_arrival_ns = rem_ns;
+    cssm->step_result.packet_rssi = rxhdr->rxinfo.rssi;
+    cssm->step_result.packet_quality =
+        ble_ll_cs_sync_calc_seq_quality(cssm, rxbuf, rxhdr);
+    cssm->step_result.packet_nadm =
+        ble_ll_cs_sync_calc_nadm(cssm, rxbuf, rxhdr);
+
+    if (g_ble_ll_cs_local_cap.sounding_pct_estimate &&
+        cssm->active_config->rtt_type != BLE_LL_CS_RTT_AA_ONLY) {
+        /* TODO: Read PCT estimates from sounding sequence.
+         * For now set "Phase Correction Term is not available".
+         */
+        cssm->step_result.packet_pct1 = 0xFFFFFFFF;
+        cssm->step_result.packet_pct2 = 0xFFFFFFFF;
+    }
 
     cssm->anchor_usecs = end_anchor_usecs + transm->end_tifs;
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);

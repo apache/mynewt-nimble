@@ -42,11 +42,26 @@ ble_ll_cs_tone_tx_end_cb(void *arg)
     struct ble_ll_cs_sm *cssm = (struct ble_ll_cs_sm *)arg;
     struct ble_ll_cs_step *step;
     struct ble_ll_cs_step_transmission *transm;
+    uint8_t i;
 
     BLE_LL_ASSERT(cssm != NULL);
 
     step = cssm->current_step;
     transm = step->next_transm;
+
+    if (step->mode == BLE_LL_CS_MODE0) {
+        /* TODO: Read measured frequency offset.
+         * For now set "Frequency offset is not available".
+         */
+        cssm->step_result.measured_freq_offset = 0xC000;
+    } else if (step->mode == BLE_LL_CS_MODE2 ||
+               step->mode == BLE_LL_CS_MODE3) {
+        for (i = 0; i < cssm->n_ap; ++i) {
+            cssm->step_result.tone_pct[i] = 0;
+            cssm->step_result.tone_quality_ind[i] = 0;
+        }
+    }
+
     cssm->anchor_usecs += transm->duration_usecs + transm->end_tifs;
     ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
 }
