@@ -70,6 +70,11 @@
 
 #if BABBLESIM
 extern void tm_tick(void);
+#undef RADIO_STATE_STATE_Tx
+#undef RADIO_STATE_STATE_TxDisable
+#define RADIO_STATE_STATE_TxStarting (11UL) /* An additional state used in bsim */
+#define RADIO_STATE_STATE_Tx (12UL) /* RADIO is in the TX state */
+#define RADIO_STATE_STATE_TxDisable (13UL) /* RADIO is in the TXDISABLED state */
 #endif
 
 #include <controller/ble_ll_pdu.h>
