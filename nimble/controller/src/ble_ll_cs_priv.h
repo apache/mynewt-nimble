@@ -65,6 +65,12 @@ extern "C" {
 #define BLE_LL_CS_STEPS_PER_SUBEVENT_MAX  (160)
 #define BLE_LL_CS_STEPS_PER_PROCEDURE_MAX (256)
 
+#define BLE_LL_CS_SYNC_PHY_1M (0x01)
+#define BLE_LL_CS_SYNC_PHY_2M (0x02)
+/* The duration of the CS_SYNC (T_SY) without sequence in usec */
+#define BLE_LL_CS_SYNC_TIME_1M (44)
+#define BLE_LL_CS_SYNC_TIME_2M (26)
+
 typedef int (*ble_ll_cs_sched_cb_func)(struct ble_ll_cs_sm *cssm);
 
 struct ble_ll_cs_step_transmission {
@@ -279,6 +285,14 @@ struct ble_ll_cs_sm {
     uint32_t event_interval_usecs;
     uint32_t subevent_interval_usecs;
     uint32_t procedure_interval_usecs;
+    /* Estimated time of step modes (ToF not included) */
+    uint32_t mode_duration_usecs[4];
+    /* Time of antenna swith */
+    uint8_t t_sw;
+    /* Time of CS_SYNC packet without sequence */
+    uint8_t t_sy;
+    /* Time of CS_SYNC sequence only */
+    uint8_t t_sy_seq;
 };
 
 int ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id);

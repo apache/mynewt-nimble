@@ -20,11 +20,13 @@
 #include <syscfg/syscfg.h>
 #if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
 #include <stdint.h>
+#include "controller/ble_ll_utils.h"
 #include "controller/ble_ll_conn.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_tmr.h"
 #include "ble_ll_cs_priv.h"
 
+extern struct ble_ll_cs_supp_cap g_ble_ll_cs_local_cap;
 struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 
 #define SUBEVENT_STATE_MODE0_STEP      (0)
@@ -32,10 +34,21 @@ struct ble_ll_cs_sm *g_ble_ll_cs_sm_current;
 #define SUBEVENT_STATE_SUBMODE_STEP    (2)
 #define SUBEVENT_STATE_MAINMODE_STEP   (3)
 
+#define BLE_LL_CONN_ITVL_USECS    (1250)
+
+/* The ramp-down window in µs */
+#define T_RD (5)
+/* The guard time duration in µs */
+#define T_GD (10)
+/* The requency measurement period in µs */
+#define T_FM (80)
+
 static struct ble_ll_cs_aci aci_table[] = {
     {1, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 4, 1},
     {2, 1, 2}, {3, 1, 3}, {4, 1, 4}, {4, 2, 2}
 };
+static const uint8_t rtt_seq_len[] = {0, 4, 12, 4, 8, 12, 16};
+static uint32_t tifs_table[6][6];
 
 /* A pattern containing the states and transitions of the current step */
 static struct ble_ll_cs_step_transmission transmission_pattern[100];
@@ -70,6 +83,161 @@ ble_ll_cs_proc_halt(void)
 void
 ble_ll_cs_proc_rm_from_sched(void *cb_args)
 {
+}
+
+static uint8_t
+ble_ll_cs_proc_set_t_sw(struct ble_ll_cs_sm *cssm)
+{
+    uint8_t t_sw;
+    uint8_t t_sw_i;
+    uint8_t t_sw_r;
+    uint8_t aci = cssm->active_config->proc_params.aci;
+
+    if (cssm->active_config->role == BLE_LL_CS_ROLE_INITIATOR) {
+        t_sw_i = g_ble_ll_cs_local_cap.t_sw;
+        t_sw_r = cssm->remote_cap.t_sw;
+    } else { /* BLE_LL_CS_ROLE_REFLECTOR */
+        t_sw_i = cssm->remote_cap.t_sw;
+        t_sw_r = g_ble_ll_cs_local_cap.t_sw;
+    }
+
+    if (aci == 0) {
+        t_sw = 0;
+    } else if (IN_RANGE(aci, 1, 3)) {
+        t_sw = t_sw_i;
+    } else if (IN_RANGE(aci, 4, 6)) {
+        t_sw = t_sw_r;
+    } else { /* ACI == 7 */
+        if (g_ble_ll_cs_local_cap.t_sw > cssm->remote_cap.t_sw) {
+            t_sw = g_ble_ll_cs_local_cap.t_sw;
+        } else {
+            t_sw = cssm->remote_cap.t_sw;
+        }
+    }
+
+    cssm->t_sw = t_sw;
+
+    return t_sw;
+}
+
+static void
+ble_ll_cs_proc_tifs_init(uint32_t t_ip1, uint32_t t_ip2, uint32_t t_sw, uint32_t t_fcs)
+{
+    memset(tifs_table, 0, sizeof(tifs_table));
+
+    tifs_table[STEP_STATE_CS_SYNC_I][STEP_STATE_CS_SYNC_R] = T_RD + t_ip1;
+    tifs_table[STEP_STATE_CS_SYNC_I][STEP_STATE_CS_TONE_I] = T_GD;
+
+    tifs_table[STEP_STATE_CS_SYNC_R][STEP_STATE_CS_TONE_R] = T_GD;
+    tifs_table[STEP_STATE_CS_SYNC_R][STEP_STATE_COMPLETE] = T_RD + t_fcs;
+
+    tifs_table[STEP_STATE_CS_TONE_I][STEP_STATE_CS_TONE_I] = t_sw;
+    tifs_table[STEP_STATE_CS_TONE_I][STEP_STATE_CS_TONE_R] = T_RD + t_ip2;
+
+    tifs_table[STEP_STATE_CS_TONE_R][STEP_STATE_CS_SYNC_R] = T_GD;
+    tifs_table[STEP_STATE_CS_TONE_R][STEP_STATE_CS_TONE_R] = t_sw;
+    tifs_table[STEP_STATE_CS_TONE_R][STEP_STATE_COMPLETE] = T_RD + t_fcs;
+}
+
+static uint32_t
+ble_ll_cs_proc_tifs_get(uint8_t old_state, uint8_t new_state)
+{
+    BLE_LL_ASSERT(old_state < 6 && new_state < 6);
+    return tifs_table[old_state][new_state];
+}
+
+static int
+ble_ll_cs_proc_calculate_timing(struct ble_ll_cs_sm *cssm)
+{
+    struct ble_ll_cs_config *conf = cssm->active_config;
+    const struct ble_ll_cs_proc_params *params = &conf->proc_params;
+    uint8_t t_fcs = conf->t_fcs;
+    uint8_t t_ip1 = conf->t_ip1;
+    uint8_t t_ip2 = conf->t_ip2;
+    uint8_t t_pm = conf->t_pm;
+    uint8_t t_sw;
+    uint8_t n_ap = cssm->n_ap;
+    uint8_t t_sy;
+    uint8_t t_sy_seq;
+    uint8_t sequence_len;
+
+    t_sw = ble_ll_cs_proc_set_t_sw(cssm);
+
+    /* CS packets with no Sounding Sequence or Random Sequence fields take 44 µs
+     * to transmit when sent using the LE 1M PHY and 26 µs to transmit when using
+     * the LE 2M and the LE 2M 2BT PHYs. CS packets that include a Sounding Sequence
+     * or Random Sequence field take proportionally longer to transmit based on
+     * the length of the field and the PHY selection.
+     */
+
+    sequence_len = rtt_seq_len[conf->rtt_type];
+
+    switch (conf->cs_sync_phy) {
+    case BLE_LL_CS_SYNC_PHY_1M:
+        t_sy = BLE_LL_CS_SYNC_TIME_1M;
+        t_sy_seq = sequence_len;
+        break;
+    case BLE_LL_CS_SYNC_PHY_2M:
+        t_sy = BLE_LL_CS_SYNC_TIME_2M;
+        t_sy_seq = sequence_len / 2;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE0] =
+            t_ip1 + T_GD + T_FM + 2 * (t_sy + T_RD) + t_fcs;
+
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE1] =
+            t_ip1 + 2 * (t_sy + t_sy_seq + T_RD) + t_fcs;
+
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE2] =
+            t_ip2 + 2 * ((t_sw + t_pm) * (n_ap + 1) + T_RD) + t_fcs;
+
+    cssm->mode_duration_usecs[BLE_LL_CS_MODE3] =
+            t_ip2 + 2 * ((t_sy + t_sy_seq + T_GD + T_RD) +
+            (t_sw + t_pm) * (n_ap + 1)) + t_fcs;
+
+    cssm->t_sy = t_sy;
+    cssm->t_sy_seq = t_sy_seq;
+
+    cssm->subevent_interval_usecs = params->subevent_interval * BLE_LL_CS_SUBEVENTS_INTERVAL_UNIT_US;
+
+    cssm->event_interval_usecs = params->event_interval * cssm->connsm->conn_itvl *
+                                 BLE_LL_CONN_ITVL_USECS;
+
+    cssm->procedure_interval_usecs = params->procedure_interval * cssm->connsm->conn_itvl *
+                                     BLE_LL_CONN_ITVL_USECS;
+    return 0;
+}
+
+static uint32_t
+ble_ll_cs_proc_step_state_duration_get(uint8_t state, uint8_t mode,
+                                       uint8_t t_sy, uint8_t t_sy_seq)
+{
+    uint32_t duration = 0;
+
+    switch (state) {
+    case STEP_STATE_CS_SYNC_I:
+    case STEP_STATE_CS_SYNC_R:
+        duration = t_sy;
+        if (mode != BLE_LL_CS_MODE0) {
+            duration += t_sy_seq;
+        }
+        break;
+    case STEP_STATE_CS_TONE_I:
+    case STEP_STATE_CS_TONE_R:
+        duration = T_FM;
+        break;
+    case STEP_STATE_INIT:
+    case STEP_STATE_COMPLETE:
+        duration = 0;
+        break;
+    default:
+        BLE_LL_ASSERT(0);
+    }
+
+    return duration;
 }
 
 static uint8_t
@@ -764,6 +932,13 @@ ble_ll_cs_proc_scheduling_start(struct ble_ll_conn_sm *connsm, uint8_t config_id
     cssm->step_anchor_usecs = cssm->anchor_usecs;
     cssm->current_step = NULL;
     cssm->last_step = NULL;
+
+    ble_ll_cs_proc_tifs_init(cssm->active_config->t_ip1,
+                             cssm->active_config->t_ip2,
+                             cssm->t_sw,
+                             cssm->active_config->t_fcs);
+
+    ble_ll_cs_proc_calculate_timing(cssm);
 
     rc = ble_ll_cs_proc_schedule_next_tx_or_rx(cssm);
     if (rc) {
