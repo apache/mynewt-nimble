@@ -77,6 +77,7 @@ static struct ble_npl_event g_read_sup_cl_feat_ev;
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
 static void ble_eatt_start(uint16_t conn_handle);
 
+static void ble_eatt_retry(uint16_t conn_handle);
 struct os_callout eatt_conn_timer;
 
 struct conn_cb_arg {
@@ -546,6 +547,34 @@ error:
     os_mbuf_free_chain(txom);
 
     return rc;
+}
+
+static void
+ble_eatt_retry(uint16_t conn_handle)
+{
+    struct ble_gap_conn_desc desc;
+    uint16_t time_delay;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    /* Calculate delay time for peripheral collision avoidance */
+    time_delay = (rand() % 11) * 2 * (desc.conn_latency + 1) * desc.conn_itvl;
+
+    /*
+     * 5.3 Vol 3, Part G, Sec. 5.4 L2CAP collision mitigation
+     * Peripheral shall wait some time before retrying connection
+     * Peripheral is supposed to wait before reconnecting, master
+     * can initiate retry right away.
+     */
+
+    if (desc.role == BLE_GAP_ROLE_SLAVE) {
+        BLE_EATT_LOG_DEBUG("eatt: Connection collision\n");
+        os_callout_reset(&eatt_conn_timer, time_delay);
+    } else {
+        ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+    }
 }
 
 void
