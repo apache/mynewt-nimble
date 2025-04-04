@@ -135,6 +135,21 @@ ble_eatt_find(uint16_t conn_handle, uint16_t cid)
     return NULL;
 }
 
+static size_t
+ble_eatt_slist_size(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+    size_t size;
+
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if (eatt->conn_handle == conn_handle) {
+            size++;
+        }
+    }
+
+    return size;
+}
+
 static int
 ble_eatt_prepare_rx_sdu(struct ble_l2cap_chan *chan)
 {
