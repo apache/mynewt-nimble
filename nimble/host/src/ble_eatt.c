@@ -87,6 +87,7 @@ ble_eatt_find_not_busy(uint16_t conn_handle)
             return eatt;
         }
     }
+
     return NULL;
 }
 
@@ -100,8 +101,8 @@ ble_eatt_find_by_conn_handle(uint16_t conn_handle)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
 }
 
 static struct ble_eatt *
@@ -114,8 +115,8 @@ ble_eatt_find_by_conn_handle_and_busy_op(uint16_t conn_handle, uint8_t op)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
 }
 
 static struct ble_eatt *
@@ -130,8 +131,8 @@ ble_eatt_find(uint16_t conn_handle, uint16_t cid)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
 }
 
 static int
@@ -197,6 +198,7 @@ ble_eatt_alloc(void)
     STAILQ_INIT(&eatt->eatt_tx_q);
     ble_npl_event_init(&eatt->setup_ev, ble_eatt_setup_cb, eatt);
     ble_npl_event_init(&eatt->wakeup_ev, ble_eatt_wakeup_cb, eatt);
+
     return eatt;
 }
 
@@ -356,6 +358,7 @@ ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
     }
 
     ble_eatt_start(conn_handle);
+
     return 0;
 }
 
@@ -431,6 +434,7 @@ ble_eatt_gap_event(struct ble_gap_event *event, void *arg)
     default:
         break;
     }
+
     return 0;
 }
 
@@ -445,6 +449,7 @@ ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op)
     }
 
     eatt->client_op = op;
+
     return eatt->chan->scid;
 }
 
@@ -497,6 +502,7 @@ done:
 
 error:
     os_mbuf_free_chain(txom);
+
     return rc;
 }
 
