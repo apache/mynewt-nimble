@@ -37,6 +37,8 @@ struct ble_eatt {
     uint16_t conn_handle;
     struct ble_l2cap_chan *chan;
     uint8_t client_op;
+    uint8_t chan_num;
+    uint8_t used_channels;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
@@ -133,6 +135,21 @@ ble_eatt_find(uint16_t conn_handle, uint16_t cid)
     }
 
     return NULL;
+}
+
+static size_t
+ble_eatt_used_channels(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+    size_t used_channels = 0;
+
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if (eatt->conn_handle == conn_handle) {
+            used_channels += eatt->used_channels;
+        }
+    }
+
+    return used_channels;
 }
 
 static int
@@ -232,6 +249,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
             return 0;
         }
         eatt->chan = event->connect.chan;
+        eatt->used_channels++;
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
         BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
@@ -504,6 +522,53 @@ error:
     os_mbuf_free_chain(txom);
 
     return rc;
+}
+
+int
+ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
+{
+    struct ble_eatt *eatt;
+    struct ble_gap_conn_desc desc;
+    uint8_t free_channels;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    eatt = ble_eatt_find_by_conn_handle(conn_handle);
+    if (!eatt) {
+        eatt = ble_eatt_alloc();
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("ble_eatt_connect: Can't allocate EATT\n");
+            return BLE_HS_ENOMEM;
+        }
+    }
+
+    /*
+        return BLE_HS_EALREADY;
+     * Warn about exceeding the number
+     * of maximum per-conn EATT connections.
+     */
+    if (chan_num == 0 || chan_num > MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        BLE_EATT_LOG_WARN("ble_eatt_connect | Invalid channel number\n");
+        return BLE_HS_EREJECT;
+    }
+
+    /* Get number of free channels for this connection */
+    free_channels = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - ble_eatt_used_channels(conn_handle);
+
+    if (free_channels == 0) {
+        BLE_EATT_LOG_ERROR("ble_eatt_connect | No free channel slots\n");
+        return BLE_HS_ENOMEM;
+    }
+
+    eatt->conn_handle = conn_handle;
+    eatt->chan_num = (free_channels > chan_num) ? chan_num : free_channels;
+
+    /* Setup EATT */
+    ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
+
+    return 0;
 }
 
 static void
