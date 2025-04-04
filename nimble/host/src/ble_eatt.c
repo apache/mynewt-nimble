@@ -75,7 +75,6 @@ static struct ble_gap_event_listener ble_eatt_listener;
 static struct ble_npl_event g_read_sup_cl_feat_ev;
 
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
-static void ble_eatt_start(uint16_t conn_handle);
 
 static void ble_eatt_retry(uint16_t conn_handle);
 struct os_callout eatt_conn_timer;
@@ -620,33 +619,6 @@ ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
     for (i = 0; i < chan_num; i++) {
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt[i]->setup_ev);
     }
-}
-
-static void
-ble_eatt_start(uint16_t conn_handle)
-{
-    struct ble_gap_conn_desc desc;
-    struct ble_eatt *eatt;
-    int rc;
-
-    rc = ble_gap_conn_find(conn_handle, &desc);
-    assert(rc == 0);
-    if (desc.role != BLE_GAP_ROLE_MASTER) {
-        /* Let master to create ecoc.
-         * TODO: Slave could setup after some timeout
-         */
-        return;
-    }
-
-    eatt = ble_eatt_alloc();
-    if (!eatt) {
-        return;
-    }
-
-    eatt->conn_handle = conn_handle;
-
-    /* Setup EATT  */
-    ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
 }
 
 void
