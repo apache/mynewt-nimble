@@ -77,11 +77,15 @@ static struct ble_npl_event g_read_sup_cl_feat_ev;
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
 
 static void ble_eatt_retry(uint16_t conn_handle);
+
 struct os_callout eatt_conn_timer;
 
 struct conn_cb_arg {
     uint16_t conn_handle;
 };
+
+static uint8_t collision_error;
+static uint8_t collision_retries;
 
 static struct ble_eatt *
 ble_eatt_find_not_busy(uint16_t conn_handle)
@@ -249,7 +253,10 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
-        if (event->connect.status) {
+        if (event->connect.status == BLE_HS_ENOMEM &&
+            collision_error == BLE_L2CAP_COC_ERR_NO_RESOURCES) {
+            ble_eatt_retry(conn_handle);
+        } else if (event->connect.status) {
             ble_eatt_free(eatt);
             return 0;
         }
@@ -297,6 +304,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
                             conn_handle, cid);
 
         if (ble_eatt_slist_size(conn_handle) == MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+            collision_error = BLE_L2CAP_COC_ERR_NO_RESOURCES;
             return BLE_HS_ENOMEM;
         }
 
@@ -606,6 +614,12 @@ ble_eatt_retry(uint16_t conn_handle)
     rc = ble_gap_conn_find(conn_handle, &desc);
     assert(rc == 0);
 
+    if (collision_retries > 2) {
+        BLE_EATT_LOG_ERROR("ble_eatt_retry: Too many collision retries\n");
+        ble_eatt_free(ble_eatt_find_by_conn_handle(conn_handle));
+        return;
+    }
+
     /* Calculate delay time for peripheral collision avoidance */
     time_delay = (rand() % 11) * 2 * (desc.conn_latency + 1) * desc.conn_itvl;
 
@@ -622,6 +636,8 @@ ble_eatt_retry(uint16_t conn_handle)
     } else {
         ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
     }
+
+    collision_retries++;
 }
 
 void
