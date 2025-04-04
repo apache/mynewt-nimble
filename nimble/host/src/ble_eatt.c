@@ -77,6 +77,12 @@ static struct ble_npl_event g_read_sup_cl_feat_ev;
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
 static void ble_eatt_start(uint16_t conn_handle);
 
+struct os_callout eatt_conn_timer;
+
+struct conn_cb_arg {
+    uint16_t conn_handle;
+};
+
 static struct ble_eatt *
 ble_eatt_find_not_busy(uint16_t conn_handle)
 {
@@ -362,6 +368,14 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     }
 }
 
+void
+ble_eatt_conn_cb(struct os_event *ev)
+{
+    struct conn_cb_arg *arg = (struct conn_cb_arg *)ev->ev_arg;
+
+    ble_eatt_connect(arg->conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+}
+
 static int
 ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
                           const struct ble_gatt_error *error,
@@ -372,7 +386,20 @@ ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
         return 0;
     }
 
-    ble_eatt_start(conn_handle);
+#if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
+    struct ble_gap_conn_desc desc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    if (desc == BLE_GAP_ROLE_SLAVE) {
+        /* Add initial delay as peripheral to avoid collision */
+        conn_cb_arg.conn_handle = conn_handle;
+        os_callout_reset(&eatt_conn_timer, 500 * OS_TICKS_PER_SEC / 1000);
+    } else {
+        ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+    }
+#endif
 
     return 0;
 }
@@ -610,6 +637,9 @@ ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
                          sizeof (struct ble_eatt),
                          ble_eatt_conn_mem, "ble_eatt_conn_pool");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+    os_callout_init(&eatt_conn_timer, os_eventq_dflt_get(),
+                    ble_eatt_conn_cb, &conn_cb_arg);
 
     ble_gap_event_listener_register(&ble_eatt_listener, ble_eatt_gap_event, NULL);
     ble_l2cap_create_server(BLE_EATT_PSM, MYNEWT_VAL(BLE_EATT_MTU), ble_eatt_l2cap_event_fn, NULL);
