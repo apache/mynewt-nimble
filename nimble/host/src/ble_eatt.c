@@ -242,29 +242,61 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    uint16_t conn_handle;
     uint8_t opcode;
+    uint16_t cid;
     int rc;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Connected \n");
         if (event->connect.status) {
             ble_eatt_free(eatt);
             return 0;
         }
+
+        conn_handle = event->connect.conn_handle;
+        cid = event->connect.chan->dcid;
+
+        BLE_EATT_LOG_DEBUG("eatt: Connected | conn_handle: %d | cid: %d\n",
+                            conn_handle, cid);
+
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (connect event)\n");
+            return 0;
+        }
+
         eatt->chan = event->connect.chan;
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
+
+        conn_handle = event->disconnect.conn_handle;
+        cid = event->disconnect.chan->dcid;
+
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (disconnect event)\n");
+            return 0;
+        }
+
+        BLE_EATT_LOG_DEBUG("eatt: Disconnected | conn_handle: %d | cid: %d\n",
+                           conn_handle, cid);
+
         ble_eatt_free(eatt);
         break;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
-        BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
-        eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
-        if (eatt) {
-            /* For now we accept only one additional coc channel per ACL
-             * TODO: improve it
-             */
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (accept event)\n");
+            return 0;
+        }
+
+        BLE_EATT_LOG_DEBUG("eatt: Accept | conn_handle: %d | cid: %d\n",
+                            conn_handle, cid);
+
+        if (ble_eatt_slist_size(conn_handle) == MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
             return BLE_HS_ENOMEM;
         }
 
@@ -284,9 +316,25 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 
         break;
     case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (unstalled event)\n");
+            return 0;
+        }
+
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
         break;
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (data rx event)\n");
+            return 0;
+        }
+
         assert(eatt->chan == event->receive.chan);
         opcode = event->receive.sdu_rx->om_data[0];
         if (ble_eatt_supported_rsp(opcode)) {
