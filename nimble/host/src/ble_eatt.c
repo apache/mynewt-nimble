@@ -521,6 +521,51 @@ error:
     return rc;
 }
 
+void
+ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
+{
+    struct ble_eatt *eatt[chan_num];
+    struct ble_gap_conn_desc desc;
+    uint8_t used_slots;
+    uint8_t free_slots;
+    int rc;
+    int i;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    /*
+     * Warn about exceeding the number
+     * of maximum per-conn EATT connections.
+     * Connect will perform as many as possible anyway.
+     */
+    if (chan_num > MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        BLE_EATT_LOG_WARN("eatt: Too many EATT channels per conn requested\n");
+    }
+
+    used_slots = ble_eatt_slist_size(conn_handle);
+
+    free_slots = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - used_slots;
+
+    if (free_slots < chan_num) {
+        chan_num = free_slots;
+    }
+
+    for (i = 0; i < chan_num; i++) {
+        eatt[i] = ble_eatt_alloc();
+        if (!eatt[i]) {
+            BLE_EATT_LOG_ERROR("eatt: Can't alloc EATT on channel: %d\n", i);
+            return;
+        }
+        eatt[i]->conn_handle = conn_handle;
+    }
+
+    /* Setup multiple EATT */
+    for (i = 0; i < chan_num; i++) {
+        ble_npl_eventq_put(ble_hs_evq_get(), &eatt[i]->setup_ev);
+    }
+}
+
 static void
 ble_eatt_start(uint16_t conn_handle)
 {
