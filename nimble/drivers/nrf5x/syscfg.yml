@@ -89,6 +89,36 @@ syscfg.defs:
             custom UICR instead of FICR register.
         value: 0
 
+    BLE_PHY_CS_FREQFINETUNE:
+        description: >
+            Fine tuning of the RF frequency.
+        value: 0
+
+    BLE_PHY_CS_USE_PCT_CORRECTION:
+        description: Apply the PCT corrections.
+        value: 0
+    BLE_PHY_CS_PCT_CORRECTION_PER_CHANNEL:
+        description: >
+            The list of PCT angle corrections per channel.
+            Channels 0, 1, 23, 24, 25, 77, 78, and the bit 79 (non-channel) are RFU,
+            its values will be ignored.
+        value: "(int16_t[80]){0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}"
+    BLE_PHY_CS_TEST_MODE_CONTINUES_TONE:
+        description: >
+            Configure the device to transmit a continuous tone on one channel.
+        value: 0
+    BLE_PHY_CS_TEST_MODE_CONTINUES_TONE_CHANNEL:
+        description: >
+            The channel number on which the continuous tone will be transmitted.
+        value: 0
+
 syscfg.restrictions:
     # code supports turn on times up to 90us due to some optimizations, but it
     # should be enough for most (all?) cases

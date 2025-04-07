@@ -98,6 +98,13 @@ phy_ppi_init(void)
 
     /* Enable channels we publish on */
     NRF_DPPIC10->CHENSET = DPPI_CH_ENABLE_ALL;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    RADIO_PUBLISH_CSTONESEND = DPPI_CH_PUB(RADIO_EVENTS_CSTONES_END);
+    NRF_DPPIC10->CHENSET = DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_1) |
+                           DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_2) |
+                           DPPI_CH_MASK(TIMER0_EVENTS_COMPARE_4) |
+                           DPPI_CH_MASK(RADIO_EVENTS_CSTONES_END);
+#endif
 }
 
 void
