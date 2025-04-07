@@ -60,6 +60,10 @@ struct os_mbuf;
 #define BLE_PHY_STATE_IDLE          (0)
 #define BLE_PHY_STATE_RX            (1)
 #define BLE_PHY_STATE_TX            (2)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_STATE_TX_CS_TONE    (3)
+#define BLE_PHY_STATE_RX_CS_TONE    (4)
+#endif
 
 /* BLE PHY transitions */
 #define BLE_PHY_TRANSITION_NONE                (0)
@@ -67,6 +71,12 @@ struct os_mbuf;
 #define BLE_PHY_TRANSITION_TO_RX               (2)
 #define BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT  (3)
 #define BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT  (4)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_TRANSITION_TO_TX_CS_SYNC       (5)
+#define BLE_PHY_TRANSITION_TO_RX_CS_SYNC       (6)
+#define BLE_PHY_TRANSITION_TO_TX_CS_TONE       (7)
+#define BLE_PHY_TRANSITION_TO_RX_CS_TONE       (8)
+#endif
 
 /* PHY error codes */
 #define BLE_PHY_ERR_RADIO_STATE     (1)
@@ -78,6 +88,51 @@ struct os_mbuf;
 
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_CS_TRANSM_MODE_SYNC    (0)
+#define BLE_PHY_CS_TRANSM_MODE_TONE    (1)
+
+#define BLE_PHY_CS_TONE_MODE_FM    (0)
+#define BLE_PHY_CS_TONE_MODE_PM    (1)
+
+#define BLE_PHY_CS_STATUS_CONTINUE   (0)
+#define BLE_PHY_CS_STATUS_COMPLETE   (1)
+#define BLE_PHY_CS_STATUS_SYNC_LOST  (2)
+
+struct ble_phy_cs_transmission {
+    struct ble_phy_cs_transmission *next;
+    uint32_t duration_usecs;
+    uint32_t aa;
+    uint16_t end_tifs;
+    uint8_t channel;
+    uint8_t mode;
+    uint8_t is_tx;
+    uint8_t tone_mode;
+};
+
+struct ble_phy_cs_sync_results {
+    uint64_t rem_ns;
+    uint32_t cputime;
+    int16_t rssi;
+};
+
+struct ble_phy_cs_tone_results {
+    int16_t measured_freq_offset;
+    int16_t I16;
+    int16_t Q16;
+    uint16_t PHASE;
+};
+
+struct ble_phy_cs_subevent_results {
+    uint64_t rem_ns;
+    uint32_t cputime;
+    uint8_t status;
+};
+
+/* Configure the PHY for CS subevent sequence */
+int ble_phy_cs_subevent_start(struct ble_phy_cs_transmission *transm, uint32_t cputime, uint8_t rem_usecs);
+#endif
 
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);

@@ -120,57 +120,6 @@ extern void tm_tick(void);
 extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
 
-/* To disable all radio interrupts */
-#ifdef NRF54L_SERIES
-#define NRF_RADIO_IRQ_MASK_ALL  (RADIO_INTENSET00_READY_Msk    | \
-                                 RADIO_INTENSET00_ADDRESS_Msk  | \
-                                 RADIO_INTENSET00_PAYLOAD_Msk  | \
-                                 RADIO_INTENSET00_END_Msk      | \
-                                 RADIO_INTENSET00_PHYEND_Msk   | \
-                                 RADIO_INTENSET00_DISABLED_Msk | \
-                                 RADIO_INTENSET00_DEVMATCH_Msk | \
-                                 RADIO_INTENSET00_DEVMISS_Msk  | \
-                                 RADIO_INTENSET00_BCMATCH_Msk  | \
-                                 RADIO_INTENSET00_CRCOK_Msk    | \
-                                 RADIO_INTENSET00_CRCERROR_Msk)
-#else
-#define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
-#endif
-/*
- * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
- * zero bit S1 field. The preamble is 8 bits long.
- */
-#define NRF_LFLEN_BITS          (8)
-#define NRF_S0LEN               (1)
-#define NRF_S1LEN_BITS          (0)
-#define NRF_CILEN_BITS          (2)
-#define NRF_TERMLEN_BITS        (3)
-
-/* Maximum length of frames */
-#define NRF_MAXLEN              (255)
-#define NRF_BALEN               (3)     /* For base address of 3 bytes */
-
-/* NRF_RADIO->PCNF0 configuration values */
-#define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
-                                (RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos) | \
-                                (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos) | \
-                                (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos)
-#define NRF_PCNF0_1M            (NRF_PCNF0) | \
-                                (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos)
-#define NRF_PCNF0_2M            (NRF_PCNF0) | \
-                                (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos)
-#define NRF_PCNF0_CODED         (NRF_PCNF0) | \
-                                (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) | \
-                                (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) | \
-                                (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos)
-
-#define PHY_TRANS_NONE  (0)
-#define PHY_TRANS_TO_TX (1)
-#define PHY_TRANS_TO_RX (2)
-
-#define PHY_TRANS_ANCHOR_START   (0)
-#define PHY_TRANS_ANCHOR_END     (1)
-
 /* BLE PHY data structure */
 struct ble_phy_obj
 {
@@ -239,56 +188,63 @@ static const uint16_t g_ble_phy_mode_pkt_start_off[BLE_PHY_NUM_MODE] = {
 
 #if BABBLESIM
 /* delay between EVENTS_READY and start of tx */
-static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 1,
     [BLE_PHY_MODE_2M] = 1,
 };
+/* delay between EVENTS_ADDRESS and txd access address  */
+const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 1,
+    [BLE_PHY_MODE_2M] = 1,
+    [BLE_PHY_MODE_CODED_125KBPS] = 1,
+    [BLE_PHY_MODE_CODED_500KBPS] = 1,
+};
 /* delay between EVENTS_END and end of txd packet */
-static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 1,
     [BLE_PHY_MODE_2M] = 1,
 };
 /* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
-static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9,
     [BLE_PHY_MODE_2M] = 5,
 };
 /* delay between end of rxd packet and EVENTS_END */
-static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9,
     [BLE_PHY_MODE_2M] = 5,
 };
 #elif defined(NRF54L_SERIES)
 /* delay between EVENTS_READY and start of tx */
-static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 2, /* ~1.6us */
     [BLE_PHY_MODE_2M] = 5,
     [BLE_PHY_MODE_CODED_125KBPS] = 5,
     [BLE_PHY_MODE_CODED_500KBPS] = 5
 };
 /* delay between EVENTS_ADDRESS and txd access address  */
-static const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 3, /* ~3.2us */
     [BLE_PHY_MODE_2M] = 5,
     [BLE_PHY_MODE_CODED_125KBPS] = 17,
     [BLE_PHY_MODE_CODED_500KBPS] = 17
 };
 /* delay between EVENTS_END and end of txd packet */
-static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 2, /* ~2.3us */
     [BLE_PHY_MODE_2M] = 4,
     [BLE_PHY_MODE_CODED_125KBPS] = 9,
     [BLE_PHY_MODE_CODED_500KBPS] = 3
 };
 /* delay between rxd access address (w/ TERM1 for coded) and EVENTS_ADDRESS */
-static const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_rxaddrdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9, /* ~9.2us */
     [BLE_PHY_MODE_2M] = 2,
     [BLE_PHY_MODE_CODED_125KBPS] = 17,
     [BLE_PHY_MODE_CODED_500KBPS] = 17
 };
 /* delay between end of rxd packet and EVENTS_END */
-static const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
+const uint8_t g_ble_phy_t_rxenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 9, /* ~9.1us */
     [BLE_PHY_MODE_2M] = 1,
     [BLE_PHY_MODE_CODED_125KBPS] = 27,
@@ -672,7 +628,7 @@ ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu)
  * disable states. We want to wait until that state is over before doing
  * anything to the radio
  */
-static void
+void
 nrf_wait_disabled(void)
 {
     uint32_t state;
@@ -697,7 +653,7 @@ nrf_wait_disabled(void)
  *
  *
  */
-static int
+int
 ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
 {
     uint32_t next_cc;
@@ -895,7 +851,7 @@ ble_phy_set_start_now(void)
     return 0;
 }
 
-static void
+void
 ble_phy_wfr_enable_at(uint32_t end_time)
 {
     /* wfr_secs is the time from rxen until timeout */
@@ -1189,7 +1145,7 @@ ble_phy_rx_xcvr_setup(void)
                                     RADIO_INTENSET_DISABLED_Msk);
 }
 
-static uint32_t
+uint32_t
 ble_phy_transition_anchor_get(uint8_t tifs_anchor, uint8_t phy_state, uint8_t phy_mode)
 {
     uint32_t time;
