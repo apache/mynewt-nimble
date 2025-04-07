@@ -1327,7 +1327,15 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         bp.framing = cmd->framing;
         bp.iso_interval = iso_interval;
         bp.bn = 1;
-        bp.max_pdu = bp.max_sdu;
+        if (cmd->framing == BLE_HCI_ISO_FRAMING_UNFRAMED) {
+            bp.max_pdu = bp.max_sdu;
+        } else {
+            /**
+             * XXX: The requirements for using Unframed PDUs are met but the user
+             * requested Framed PDUs explicitly. Ensure the PDU fits the Segmentation Header.
+             */
+            bp.max_pdu = bp.max_sdu + 5;
+        }
     }
 
     rc = ble_ll_iso_big_create(cmd->big_handle, cmd->adv_handle, cmd->num_bis,
