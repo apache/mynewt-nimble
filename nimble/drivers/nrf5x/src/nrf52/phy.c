@@ -177,6 +177,17 @@ phy_ppi_init(void)
     nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL5,
                                    (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
                                    (uint32_t)&(NRF_RADIO->TASKS_DISABLE));
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    /* Channel 8: TIMER0 CC[0] to TASKS_START on radio.
+     * Channel 9: TIMER0 CC[3] to TASKS_STOP on radio. This is the ToF measurement timer.
+     */
+    nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL8,
+                                   (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[0]),
+                                   (uint32_t)&(NRF_RADIO->TASKS_START));
+    nrf_ppi_channel_endpoint_setup(NRF_PPI, NRF_PPI_CHANNEL9,
+                                   (uint32_t)&(NRF_TIMER0->EVENTS_COMPARE[3]),
+                                   (uint32_t)&(NRF_RADIO->TASKS_STOP));
+#endif
 }
 
 void

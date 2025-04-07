@@ -43,3 +43,6 @@ pkg.source_files.'MCU_TARGET=="nRF5340_NET"':
 
 pkg.source_files.'MCU_TARGET=="nRF54L15"':
     - "src/nrf54l15/phy.c"
+
+pkg.source_files.'BLE_CHANNEL_SOUNDING':
+    - "src/ble_phy_cs.c"

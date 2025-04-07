@@ -108,6 +108,10 @@ phy_ppi_disable(void)
                                       PPI_CHEN_CH20_Msk | PPI_CHEN_CH21_Msk |
                                       PPI_CHEN_CH23_Msk | PPI_CHEN_CH25_Msk |
                                       PPI_CHEN_CH31_Msk);
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    nrf_ppi_channels_disable(NRF_PPI, PPI_CHEN_CH8_Msk | PPI_CHEN_CH9_Msk);
+#endif
 }
 
 #endif /* H_PHY_PPI_ */
