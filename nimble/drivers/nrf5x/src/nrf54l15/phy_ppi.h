@@ -25,6 +25,12 @@
 #define DPPI_CH_UNSUB(_ch)      (((DPPI_CH_ ## _ch) & 0xff) | (0 << 31))
 #define DPPI_CH_MASK(_ch)       (1 << (DPPI_CH_ ## _ch))
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+/* DPPIC00 [0:7] */
+#define DPPI_CH_DPPIC00_RADIO_EVENTS_PHYEND       0
+#define DPPI_CH_DPPIC00_RTC0_EVENTS_COMPARE_0     1
+#endif
+
 /* DPPIC10 [0:23] */
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_0         0
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_3         1
@@ -36,6 +42,9 @@
 #define DPPI_CH_RADIO_EVENTS_DISABLED           7
 #define DPPI_CH_RADIO_EVENTS_READY              8
 #define DPPI_CH_RADIO_EVENTS_RXREADY            9
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define DPPI_CH_RADIO_EVENTS_PHYEND             10
+#endif
 
 /* DPPIC20 [0:15] */
 #define DPPI_CH_GPIOTE20_TASKS_SET_0            0
@@ -53,12 +62,18 @@
 static inline void
 phy_ppi_rtc0_compare0_to_timer0_start_enable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_SUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_SUB(RTC0_EVENTS_COMPARE_0);
 }
 
 static inline void
 phy_ppi_rtc0_compare0_to_timer0_start_disable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
@@ -138,6 +153,32 @@ phy_ppi_wfr_disable(void)
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 }
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_STOP = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_stop_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_STOP = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_3);
+}
+
+static inline void
+phy_ppi_timer0_compare3_to_radio_disable_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+}
+#endif
+
 static inline void
 phy_ppi_fem_disable(void)
 {
@@ -159,6 +200,9 @@ phy_ppi_fem_disable(void)
 static inline void
 phy_ppi_disable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
