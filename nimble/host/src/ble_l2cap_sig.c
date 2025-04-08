@@ -1860,16 +1860,14 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
  *****************************************************************************/
 
 static int
-ble_l2cap_sig_rx(struct ble_l2cap_chan *chan)
+ble_l2cap_sig_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_l2cap_sig_hdr hdr;
     ble_l2cap_sig_rx_fn *rx_cb;
     uint16_t conn_handle;
-    struct os_mbuf **om;
     int rc;
 
     conn_handle = chan->conn_handle;
-    om = &chan->rx_buf;
 
     STATS_INC(ble_l2cap_stats, sig_rx);
 
