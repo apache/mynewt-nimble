@@ -104,7 +104,7 @@ ble_hs_test_util_prev_tx_dequeue(void)
         pb = BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc);
         TEST_ASSERT_FATAL(pb == BLE_HCI_PB_FIRST_NON_FLUSH);
 
-        rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
+        rc = ble_l2cap_parse_hdr(om, &l2cap_hdr);
         TEST_ASSERT_FATAL(rc == 0);
 
         os_mbuf_adj(om, BLE_L2CAP_HDR_SZ);
@@ -670,36 +670,13 @@ ble_hs_test_util_l2cap_rx(uint16_t conn_handle,
                           struct hci_data_hdr *hci_hdr,
                           struct os_mbuf *om)
 {
-    struct ble_hs_conn *conn;
-    ble_l2cap_rx_fn *rx_cb;
-    int reject_cid;
+    uint8_t pb;
     int rc;
 
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn != NULL) {
-        rc = ble_l2cap_rx(conn, hci_hdr, om, &rx_cb, &reject_cid);
-    } else {
-        rc = os_mbuf_free_chain(om);
-        TEST_ASSERT_FATAL(rc == 0);
-    }
-
-    ble_hs_unlock();
-
-    if (conn == NULL) {
-        rc = BLE_HS_ENOTCONN;
-    } else if (rc == 0) {
-        TEST_ASSERT_FATAL(rx_cb != NULL);
-        rc = rx_cb(conn->bhc_rx_chan);
-        ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
-    } else if (rc == BLE_HS_EAGAIN) {
-        /* More fragments on the way. */
+    pb = BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc);
+    rc = ble_l2cap_rx(conn_handle, pb, om);
+    if (rc == BLE_HS_EAGAIN) {
         rc = 0;
-    } else {
-        if (reject_cid != -1) {
-            ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, 0, 0, reject_cid);
-        }
     }
 
     return rc;
@@ -1787,7 +1764,6 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
 {
     const struct ble_att_prep_entry *prep;
     const struct os_mbuf_pkthdr *omp;
-    const struct ble_l2cap_chan *chan;
     const struct ble_hs_conn *conn;
     const struct os_mbuf *om;
     int count;
@@ -1813,9 +1789,7 @@ ble_hs_test_util_mbuf_count(const struct ble_hs_test_util_mbuf_params *params)
         }
 
         if (params->rx_queue) {
-            SLIST_FOREACH(chan, &conn->bhc_channels, next) {
-                count += ble_hs_test_util_mbuf_chain_len(chan->rx_buf);
-            }
+            count += ble_hs_test_util_mbuf_chain_len(conn->rx_frags);
         }
 
         if (params->prep_list) {
