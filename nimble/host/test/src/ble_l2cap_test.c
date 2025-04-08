@@ -124,7 +124,7 @@ ble_l2cap_test_util_verify_tx_update_conn(
 }
 
 static int
-ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan)
+ble_l2cap_test_util_dummy_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     return 0;
 }
@@ -220,8 +220,7 @@ ble_l2cap_test_util_verify_first_frag(uint16_t conn_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
-    TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
+    TEST_ASSERT(conn->rx_len && conn->rx_cid == BLE_L2CAP_TEST_CID);
 
     ble_hs_unlock();
 }
@@ -240,8 +239,7 @@ ble_l2cap_test_util_verify_middle_frag(uint16_t conn_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
-    TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
+    TEST_ASSERT(conn->rx_len && conn->rx_cid == BLE_L2CAP_TEST_CID);
 
     ble_hs_unlock();
 }
@@ -260,7 +258,7 @@ ble_l2cap_test_util_verify_last_frag(uint16_t conn_handle,
 
     conn = ble_hs_conn_find(conn_handle);
     TEST_ASSERT_FATAL(conn != NULL);
-    TEST_ASSERT(conn->bhc_rx_chan == NULL);
+    TEST_ASSERT(conn->rx_len == 0);
 
     ble_hs_unlock();
 }
@@ -279,7 +277,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_bad_header)
                                     NULL, NULL);
 
     rc = ble_l2cap_test_util_rx_first_frag(2, 14, 1234, 10);
-    TEST_ASSERT(rc == BLE_HS_ENOENT);
+    TEST_ASSERT(rc == BLE_HS_EBADDATA);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -386,8 +384,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_channels)
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
-    TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->scid == BLE_L2CAP_TEST_CID);
+    TEST_ASSERT(conn->rx_len && conn->rx_cid == BLE_L2CAP_TEST_CID);
     ble_hs_unlock();
 
     /* Receive a starting fragment on a different channel.  The first fragment
@@ -400,8 +397,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_channels)
     ble_hs_lock();
     conn = ble_hs_conn_find(2);
     TEST_ASSERT_FATAL(conn != NULL);
-    TEST_ASSERT(conn->bhc_rx_chan != NULL &&
-                conn->bhc_rx_chan->scid == BLE_L2CAP_CID_ATT);
+    TEST_ASSERT(conn->rx_len && conn->rx_cid == BLE_L2CAP_CID_ATT);
     ble_hs_unlock();
 
     /* Terminate the connection.  The received fragments should get freed.
