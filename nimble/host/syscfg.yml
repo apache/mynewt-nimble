@@ -331,6 +331,19 @@ syscfg.defs:
         description: >
             MTU used for EATT channels.
         value: 128
+    BLE_EATT_AUTO_CONNECT:
+        description: >
+            Enable auto connect for EATT
+        value: 1
+        restrictions:
+            - BLE_L2CAP_ENHANCED_COC
+    BLE_EATT_CHAN_PER_CONN:
+        description: >
+            Maximum number of supported EATT channels per connection
+        value: 5
+        restrictions:
+            - BLE_L2CAP_ENHANCED_COC
+            - 'BLE_EATT_CHAN_NUM >= BLE_EATT_CHAN_PER_CONN'
 
     # Supported server ATT commands. (0/1)
     BLE_ATT_SVR_FIND_INFO:

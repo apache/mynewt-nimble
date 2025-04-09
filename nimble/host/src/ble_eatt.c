@@ -75,7 +75,17 @@ static struct ble_gap_event_listener ble_eatt_listener;
 static struct ble_npl_event g_read_sup_cl_feat_ev;
 
 static void ble_eatt_setup_cb(struct ble_npl_event *ev);
-static void ble_eatt_start(uint16_t conn_handle);
+
+static void ble_eatt_retry(uint16_t conn_handle);
+
+struct os_callout eatt_conn_timer;
+
+struct conn_cb_arg {
+    uint16_t conn_handle;
+};
+
+static uint8_t collision_error;
+static uint8_t collision_retries;
 
 static struct ble_eatt *
 ble_eatt_find_not_busy(uint16_t conn_handle)
@@ -87,6 +97,7 @@ ble_eatt_find_not_busy(uint16_t conn_handle)
             return eatt;
         }
     }
+
     return NULL;
 }
 
@@ -100,8 +111,8 @@ ble_eatt_find_by_conn_handle(uint16_t conn_handle)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
 }
 
 static struct ble_eatt *
@@ -114,8 +125,8 @@ ble_eatt_find_by_conn_handle_and_busy_op(uint16_t conn_handle, uint8_t op)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
 }
 
 static struct ble_eatt *
@@ -130,8 +141,23 @@ ble_eatt_find(uint16_t conn_handle, uint16_t cid)
             return eatt;
         }
     }
-    return NULL;
 
+    return NULL;
+}
+
+static size_t
+ble_eatt_slist_size(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+    size_t size;
+
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if (eatt->conn_handle == conn_handle) {
+            size++;
+        }
+    }
+
+    return size;
 }
 
 static int
@@ -197,6 +223,7 @@ ble_eatt_alloc(void)
     STAILQ_INIT(&eatt->eatt_tx_q);
     ble_npl_event_init(&eatt->setup_ev, ble_eatt_setup_cb, eatt);
     ble_npl_event_init(&eatt->wakeup_ev, ble_eatt_wakeup_cb, eatt);
+
     return eatt;
 }
 
@@ -219,29 +246,65 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    uint16_t conn_handle;
     uint8_t opcode;
+    uint16_t cid;
     int rc;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Connected \n");
-        if (event->connect.status) {
+        if (event->connect.status == BLE_HS_ENOMEM &&
+            collision_error == BLE_L2CAP_COC_ERR_NO_RESOURCES) {
+            ble_eatt_retry(conn_handle);
+        } else if (event->connect.status) {
             ble_eatt_free(eatt);
             return 0;
         }
+
+        conn_handle = event->connect.conn_handle;
+        cid = event->connect.chan->dcid;
+
+        BLE_EATT_LOG_DEBUG("eatt: Connected | conn_handle: %d | cid: %d\n",
+                            conn_handle, cid);
+
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (connect event)\n");
+            return 0;
+        }
+
         eatt->chan = event->connect.chan;
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
+
+        conn_handle = event->disconnect.conn_handle;
+        cid = event->disconnect.chan->dcid;
+
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (disconnect event)\n");
+            return 0;
+        }
+
+        BLE_EATT_LOG_DEBUG("eatt: Disconnected | conn_handle: %d | cid: %d\n",
+                           conn_handle, cid);
+
         ble_eatt_free(eatt);
         break;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
-        BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
-        eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
-        if (eatt) {
-            /* For now we accept only one additional coc channel per ACL
-             * TODO: improve it
-             */
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (accept event)\n");
+            return 0;
+        }
+
+        BLE_EATT_LOG_DEBUG("eatt: Accept | conn_handle: %d | cid: %d\n",
+                            conn_handle, cid);
+
+        if (ble_eatt_slist_size(conn_handle) == MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+            collision_error = BLE_L2CAP_COC_ERR_NO_RESOURCES;
             return BLE_HS_ENOMEM;
         }
 
@@ -261,9 +324,25 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 
         break;
     case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (unstalled event)\n");
+            return 0;
+        }
+
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
         break;
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
+        conn_handle = event->accept.conn_handle;
+        cid = event->accept.chan->dcid;
+        eatt = ble_eatt_find(conn_handle, cid);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: EATT not found (data rx event)\n");
+            return 0;
+        }
+
         assert(eatt->chan == event->receive.chan);
         opcode = event->receive.sdu_rx->om_data[0];
         if (ble_eatt_supported_rsp(opcode)) {
@@ -345,6 +424,14 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     }
 }
 
+void
+ble_eatt_conn_cb(struct os_event *ev)
+{
+    struct conn_cb_arg *arg = (struct conn_cb_arg *)ev->ev_arg;
+
+    ble_eatt_connect(arg->conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+}
+
 static int
 ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
                           const struct ble_gatt_error *error,
@@ -355,7 +442,21 @@ ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
         return 0;
     }
 
-    ble_eatt_start(conn_handle);
+#if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
+    struct ble_gap_conn_desc desc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    if (desc == BLE_GAP_ROLE_SLAVE) {
+        /* Add initial delay as peripheral to avoid collision */
+        conn_cb_arg.conn_handle = conn_handle;
+        os_callout_reset(&eatt_conn_timer, 500 * OS_TICKS_PER_SEC / 1000);
+    } else {
+        ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+    }
+#endif
+
     return 0;
 }
 
@@ -431,6 +532,7 @@ ble_eatt_gap_event(struct ble_gap_event *event, void *arg)
     default:
         break;
     }
+
     return 0;
 }
 
@@ -445,6 +547,7 @@ ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op)
     }
 
     eatt->client_op = op;
+
     return eatt->chan->scid;
 }
 
@@ -497,34 +600,89 @@ done:
 
 error:
     os_mbuf_free_chain(txom);
+
     return rc;
 }
 
 static void
-ble_eatt_start(uint16_t conn_handle)
+ble_eatt_retry(uint16_t conn_handle)
 {
     struct ble_gap_conn_desc desc;
-    struct ble_eatt *eatt;
+    uint16_t time_delay;
     int rc;
 
     rc = ble_gap_conn_find(conn_handle, &desc);
     assert(rc == 0);
-    if (desc.role != BLE_GAP_ROLE_MASTER) {
-        /* Let master to create ecoc.
-         * TODO: Slave could setup after some timeout
-         */
+
+    if (collision_retries > 2) {
+        BLE_EATT_LOG_ERROR("ble_eatt_retry: Too many collision retries\n");
+        ble_eatt_free(ble_eatt_find_by_conn_handle(conn_handle));
         return;
     }
 
-    eatt = ble_eatt_alloc();
-    if (!eatt) {
-        return;
+    /* Calculate delay time for peripheral collision avoidance */
+    time_delay = (rand() % 11) * 2 * (desc.conn_latency + 1) * desc.conn_itvl;
+
+    /*
+     * 5.3 Vol 3, Part G, Sec. 5.4 L2CAP collision mitigation
+     * Peripheral shall wait some time before retrying connection
+     * Peripheral is supposed to wait before reconnecting, master
+     * can initiate retry right away.
+     */
+
+    if (desc.role == BLE_GAP_ROLE_SLAVE) {
+        BLE_EATT_LOG_DEBUG("eatt: Connection collision\n");
+        os_callout_reset(&eatt_conn_timer, time_delay);
+    } else {
+        ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
     }
 
-    eatt->conn_handle = conn_handle;
+    collision_retries++;
+}
 
-    /* Setup EATT  */
-    ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
+void
+ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
+{
+    struct ble_eatt *eatt[chan_num];
+    struct ble_gap_conn_desc desc;
+    uint8_t used_slots;
+    uint8_t free_slots;
+    int rc;
+    int i;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    /*
+     * Warn about exceeding the number
+     * of maximum per-conn EATT connections.
+     * Connect will perform as many as possible anyway.
+     */
+    if (chan_num > MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        BLE_EATT_LOG_WARN("eatt: Too many EATT channels per conn requested\n");
+    }
+
+    used_slots = ble_eatt_slist_size(conn_handle);
+
+    free_slots = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - used_slots;
+
+    if (free_slots < chan_num) {
+        chan_num = free_slots;
+    }
+
+    for (i = 0; i < chan_num; i++) {
+        eatt[i] = ble_eatt_alloc();
+        if (!eatt[i]) {
+            BLE_EATT_LOG_ERROR("eatt: Can't alloc EATT on channel: %d\n", i);
+            return;
+        }
+        eatt[i]->conn_handle = conn_handle;
+    }
+
+    /* Setup multiple EATT */
+    for (i = 0; i < chan_num; i++) {
+        ble_npl_eventq_put(ble_hs_evq_get(), &eatt[i]->setup_ev);
+    }
 }
 
 void
@@ -544,6 +702,9 @@ ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
                          sizeof (struct ble_eatt),
                          ble_eatt_conn_mem, "ble_eatt_conn_pool");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+
+    os_callout_init(&eatt_conn_timer, os_eventq_dflt_get(),
+                    ble_eatt_conn_cb, &conn_cb_arg);
 
     ble_gap_event_listener_register(&ble_eatt_listener, ble_eatt_gap_event, NULL);
     ble_l2cap_create_server(BLE_EATT_PSM, MYNEWT_VAL(BLE_EATT_MTU), ble_eatt_l2cap_event_fn, NULL);
