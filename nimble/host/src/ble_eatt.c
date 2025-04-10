@@ -355,7 +355,8 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     BLE_EATT_LOG_DEBUG("eatt: connecting eatt on conn_handle 0x%04x\n", eatt->conn_handle);
 
     rc = ble_l2cap_enhanced_connect(eatt->conn_handle, BLE_EATT_PSM,
-                                    MYNEWT_VAL(BLE_EATT_MTU), 1, &om,
+                                    MYNEWT_VAL(BLE_EATT_MTU),
+                                    eatt->chan_num, &om,
                                     ble_eatt_l2cap_event_fn, eatt);
     if (rc) {
         BLE_EATT_LOG_ERROR("eatt: Failed to connect EATT on conn_handle 0x%04x (status=%d)\n",
