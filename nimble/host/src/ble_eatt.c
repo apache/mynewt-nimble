@@ -39,6 +39,7 @@ struct ble_eatt {
     uint8_t client_op;
     uint8_t chan_num;
     uint8_t used_channels;
+    uint8_t accept_channels;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
@@ -225,6 +226,8 @@ ble_eatt_alloc(void)
     eatt->conn_handle = BLE_HS_CONN_HANDLE_NONE;
     eatt->chan = NULL;
     eatt->client_op = 0;
+    eatt->accept_channels = 0;
+    eatt->used_channels = 0;
 
     STAILQ_INIT(&eatt->eatt_tx_q);
 
@@ -257,47 +260,89 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    uint8_t free_channels;
     uint8_t opcode;
     int rc;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Connected \n");
+        BLE_EATT_LOG_DEBUG("eatt: Connected event | conn_handle: %d |"
+                           " scid: %d | dcid: %d | status: %d\n",
+                           event->connect.conn_handle, event->connect.chan->scid,
+                           event->connect.chan->dcid, event->connect.status);
+
         if (event->connect.status) {
             ble_eatt_free(eatt);
             return 0;
         }
         eatt->chan = event->connect.chan;
+        eatt->conn_handle = event->connect.conn_handle;
+
         eatt->used_channels++;
+        BLE_EATT_LOG_DEBUG("eatt: Channels already used for this connection %d\n",
+                           eatt->used_channels);
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-        BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
-        ble_eatt_free(eatt);
-        break;
-    case BLE_L2CAP_EVENT_COC_ACCEPT:
-        BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
-        eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
-        if (eatt) {
-            /* For now we accept only one additional coc channel per ACL
-             * TODO: improve it
-             */
-            return BLE_HS_ENOMEM;
+        BLE_EATT_LOG_DEBUG("eatt: Disconnected event | conn_handle: %d | "
+                           "scid: %d | dcid: %d\n", event->disconnect.conn_handle,
+                           event->disconnect.chan->scid,
+                           event->disconnect.chan->dcid);
+
+        eatt = ble_eatt_find_by_conn_handle(event->disconnect.conn_handle);
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("eatt: Disconnected event | No EATT for conn_handle: %d\n",
+                               event->disconnect.conn_handle);
+            return 0;
         }
 
-        eatt = ble_eatt_alloc();
+        /* Decrease number of channels on disconnect event
+         * If no channels are left - free the resources
+         */
+        eatt->used_channels--;
+        eatt->accept_channels--;
+
+        if (eatt->used_channels == 0) {
+            ble_eatt_free(eatt);
+        }
+        break;
+    case BLE_L2CAP_EVENT_COC_ACCEPT:
+        /* Lookup if EATT already exsits for this connection */
+        eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
         if (!eatt) {
-            return BLE_HS_ENOMEM;
+            eatt = ble_eatt_alloc();
+            if (!eatt) {
+                BLE_EATT_LOG_DEBUG("eatt: Can't allocate EATT for conn_handle: %d\n",
+                                   event->accept.conn_handle);
+                return 0;
+            }
+        } else {
+            free_channels = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - ble_eatt_used_channels(eatt->conn_handle);
+
+            if (free_channels == 0) {
+                BLE_EATT_LOG_ERROR("eatt: Accept event | No free channels for "
+                                   "conn_handle: %d\n", event->accept.conn_handle);
+                return BLE_HS_ENOMEM;
+            }
         }
 
         eatt->conn_handle = event->accept.conn_handle;
         event->accept.chan->cb_arg = eatt;
+
+        /* Do not increase number of used channels here.
+         * Only do it on succesfull connected event &
+         * while initiating connection.
+         * Instead increase accept channels - yet to be connected */
+        eatt->accept_channels++;
 
         rc = ble_eatt_prepare_rx_sdu(event->accept.chan);
         if (rc) {
             ble_eatt_free(eatt);
             return rc;
         }
-
+        BLE_EATT_LOG_DEBUG("eatt | Accept event | conn_handle: %d"
+                           "| scid: %d | dcid: %d\n",
+                           event->accept.conn_handle, event->accept.chan->scid,
+                           event->accept.chan->dcid);
         break;
     case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
