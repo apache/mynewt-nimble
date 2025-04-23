@@ -45,6 +45,10 @@ struct ble_eatt {
 
     struct ble_npl_event setup_ev;
     struct ble_npl_event wakeup_ev;
+
+#if MYNEWT_VAL(BLE_EATT_AUTO_CONNECT)
+    struct os_callout auto_conn_delay;
+#endif
 };
 
 SLIST_HEAD(ble_eatt_list, ble_eatt);
@@ -194,6 +198,17 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
     }
 }
 
+#if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
+void
+ble_eatt_auto_conn_cb(struct os_event *ev)
+{
+    struct os_callout *co = (struct os_callout *)ev;
+    struct ble_eatt *eatt = CONTAINER_OF(co, struct ble_eatt, auto_conn_delay);
+
+    ble_eatt_connect(eatt->conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+}
+#endif
+
 static struct ble_eatt *
 ble_eatt_alloc(void)
 {
@@ -212,6 +227,11 @@ ble_eatt_alloc(void)
     eatt->client_op = 0;
 
     STAILQ_INIT(&eatt->eatt_tx_q);
+
+#if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
+    os_callout_init(&eatt->auto_conn_delay, os_eventq_dflt_get(),
+                    ble_eatt_auto_conn_cb, NULL);
+#endif
     ble_npl_event_init(&eatt->setup_ev, ble_eatt_setup_cb, eatt);
     ble_npl_event_init(&eatt->wakeup_ev, ble_eatt_wakeup_cb, eatt);
 
@@ -374,6 +394,50 @@ ble_gatt_eatt_write_cl_cb(uint16_t conn_handle,
         BLE_EATT_LOG_DEBUG("eatt: Cannot write to Client Supported features on peer device\n");
         return 0;
     }
+
+#if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
+    struct ble_gap_conn_desc desc;
+    struct ble_eatt *eatt;
+    uint8_t delay_rand;
+    uint8_t delay;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    eatt = ble_eatt_find_by_conn_handle(conn_handle);
+    if (eatt && eatt->used_channels != 0) {
+        BLE_EATT_LOG_DEBUG("eatt: EATT channels already established"
+                           " for this connection\n");
+        return 0;
+    } else {
+        eatt = ble_eatt_alloc();
+        if (!eatt) {
+            return 0;
+        }
+    }
+
+    /* Add initial delay as peripheral to avoid collision.
+     * Central is allowed to connect instantly.
+     * If there is at least one active connection - ommitt.
+     */
+    if (desc.role == BLE_GAP_ROLE_SLAVE && eatt->used_channels == 0) {
+        rc = ble_hs_hci_rand(&delay_rand, 1);
+        if (rc != 0) {
+            return rc;
+        }
+
+        delay = (delay_rand % 5) + 2 * (desc.conn_latency + 1) * desc.conn_itvl;
+        eatt->conn_handle = conn_handle;
+        os_callout_reset(&eatt->auto_conn_delay, OS_TICKS_PER_SEC / 1000 * delay);
+    } else if (desc.role == BLE_GAP_ROLE_MASTER && eatt->used_channels == 0) {
+        rc = ble_eatt_connect(conn_handle, MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN));
+        if (rc) {
+            BLE_EATT_LOG_DEBUG("eatt: EATT connect failed for conn_handle: %d\n",
+                               conn_handle);
+        }
+    }
+#endif
 
 
     return 0;
