@@ -65,6 +65,8 @@ struct ble_npl_sem {
     SemaphoreHandle_t handle;
 };
 
+extern volatile uint32_t s_critical_nesting;
+
 /*
  * Simple APIs are just defined as static inline below, but some are a bit more
  * complex or require some global state variables and thus are defined in .c
@@ -282,14 +284,23 @@ static inline uint32_t
 ble_npl_hw_enter_critical(void)
 {
     vPortEnterCritical();
+    s_critical_nesting++;
     return 0;
 }
 
 static inline void
 ble_npl_hw_exit_critical(uint32_t ctx)
 {
+    if (s_critical_nesting > 0) {
+        s_critical_nesting--;
+    }
     vPortExitCritical();
+}
 
+static inline bool
+ble_npl_hw_is_in_critical(void)
+{
+    return (s_critical_nesting > 0);
 }
 
 #ifdef __cplusplus
