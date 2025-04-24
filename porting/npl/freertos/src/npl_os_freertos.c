@@ -27,6 +27,8 @@
 #include NIMBLE_NPL_OS_EXTRA_INCLUDE
 #endif
 
+volatile uint32_t s_critical_nesting = 0;
+
 static inline bool
 in_isr(void)
 {
