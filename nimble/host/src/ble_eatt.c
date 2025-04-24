@@ -40,10 +40,13 @@ struct ble_eatt {
     uint8_t chan_num;
     uint8_t used_channels;
     uint8_t accept_channels;
+    uint8_t collision_ctrl;
+    uint8_t retry_count;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
 
+    struct os_callout collision_co;
     struct ble_npl_event setup_ev;
     struct ble_npl_event wakeup_ev;
 
@@ -199,6 +202,17 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
     }
 }
 
+static void
+ble_eatt_collision_ev(struct os_event *ev)
+{
+    struct os_callout *co = (struct os_callout *)ev;
+    struct ble_eatt *eatt = CONTAINER_OF(co, struct ble_eatt, collision_co);
+
+    if (eatt->retry_count < 2) {
+        ble_eatt_connect(eatt->conn_handle, eatt->chan_num);
+    }
+}
+
 #if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
 void
 ble_eatt_auto_conn_cb(struct os_event *ev)
@@ -231,6 +245,9 @@ ble_eatt_alloc(void)
 
     STAILQ_INIT(&eatt->eatt_tx_q);
 
+    os_callout_init(&eatt->collision_co, os_eventq_dflt_get(),
+                    ble_eatt_collision_ev, NULL);
+
 #if (MYNEWT_VAL(BLE_EATT_AUTO_CONNECT))
     os_callout_init(&eatt->auto_conn_delay, os_eventq_dflt_get(),
                     ble_eatt_auto_conn_cb, NULL);
@@ -261,6 +278,8 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
     uint8_t free_channels;
+    uint8_t collision_delay;
+    uint8_t collision_rand_time;
     uint8_t opcode;
     int rc;
 
@@ -271,12 +290,38 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
                            event->connect.conn_handle, event->connect.chan->scid,
                            event->connect.chan->dcid, event->connect.status);
 
+        if (event->connect.status == BLE_HS_ENOMEM && eatt->collision_ctrl) {
+            BLE_EATT_LOG_DEBUG("eatt: Connect collision handle: %d\n",
+                               event->connect.conn_handle);
+
+            rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+            assert(rc == 0);
+
+            rc = ble_hs_hci_rand(&collision_rand_time, 1);
+            if (rc != 0) {
+                return rc;
+            }
+
+            collision_delay = (collision_rand_time % 5) + 2 * (desc.conn_latency + 1) * desc.conn_itvl;
+
+            os_callout_reset(&eatt->collision_co, collision_delay);
+
+            eatt->retry_count++;
+            eatt->used_channels--;
+
+            return 0;
+        }
+
         if (event->connect.status) {
-            ble_eatt_free(eatt);
+            eatt->used_channels--;
             return 0;
         }
         eatt->chan = event->connect.chan;
         eatt->conn_handle = event->connect.conn_handle;
+
+        /* Delete collision callout on successful connection */
+        os_callout_stop(&eatt->collision_co);
+        eatt->collision_ctrl = false;
 
         eatt->used_channels++;
         BLE_EATT_LOG_DEBUG("eatt: Channels already used for this connection %d\n",
@@ -319,6 +364,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
             free_channels = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - ble_eatt_used_channels(eatt->conn_handle);
 
             if (free_channels == 0) {
+                eatt->collision_ctrl = true;
                 BLE_EATT_LOG_ERROR("eatt: Accept event | No free channels for "
                                    "conn_handle: %d\n", event->accept.conn_handle);
                 return BLE_HS_ENOMEM;
@@ -417,6 +463,8 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     }
 
     BLE_EATT_LOG_DEBUG("eatt: connecting eatt on conn_handle 0x%04x\n", eatt->conn_handle);
+
+    eatt->used_channels += eatt->chan_num;
 
     rc = ble_l2cap_enhanced_connect(eatt->conn_handle, BLE_EATT_PSM,
                                     MYNEWT_VAL(BLE_EATT_MTU),
@@ -653,7 +701,18 @@ ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
     }
 
     /*
+     * 5.3 Vol 3, Part G, Sec. 5.4 L2CAP collision mitigation
+     * Peripheral shall wait some time before retrying connection.
+     * Central may reconnect without any delay.
+     * To reconnect user has to call ble_eatt_connect again.
+     */
+    if (desc.role == BLE_GAP_ROLE_SLAVE && os_callout_queued(&eatt->collision_co)) {
+        BLE_EATT_LOG_WARN("ble_eatt_connect: Connection collision for handle %d\n",
+                          conn_handle);
         return BLE_HS_EALREADY;
+    }
+
+    /*
      * Warn about exceeding the number
      * of maximum per-conn EATT connections.
      */
