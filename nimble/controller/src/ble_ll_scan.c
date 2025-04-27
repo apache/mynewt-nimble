@@ -33,6 +33,7 @@
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 #include "controller/ble_ll_scan_aux.h"
 #endif
+#include <controller/ble_ll_addr.h>
 #include "controller/ble_ll_tmr.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_whitelist.h"
@@ -242,7 +243,7 @@ ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
                          uint8_t *hdr_byte, uint8_t adva_type,
                          const uint8_t *adva, int rpa_index)
 {
-    uint8_t *scana;
+    const uint8_t *scana;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
     uint8_t rpa[BLE_DEV_ADDR_LEN];
@@ -257,9 +258,9 @@ ble_ll_scan_make_req_pdu(struct ble_ll_scan_sm *scansm, uint8_t *pdu,
     /* Determine ScanA */
     if (scansm->own_addr_type & 0x01) {
         *hdr_byte |= BLE_ADV_PDU_HDR_TXADD_RAND;
-        scana = g_random_addr;
+        scana = ble_ll_addr_random_get();
     } else {
-        scana = g_dev_addr;
+        scana = ble_ll_addr_public_get();
     }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -391,7 +392,7 @@ ble_ll_scan_halt(void)
  * @return int 0: have not received a scan response; 1 otherwise.
  */
 int
-ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd,
+ble_ll_scan_have_rxd_scan_rsp(const uint8_t *addr, uint8_t txadd,
                               uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
@@ -435,7 +436,7 @@ next:
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 void
-ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
+ble_ll_scan_add_scan_rsp_adv(const uint8_t *addr, uint8_t txadd,
                              uint8_t ext_adv, uint16_t adi)
 {
     uint8_t num_advs;
@@ -936,7 +937,7 @@ ble_ll_scan_sm_start(struct ble_ll_scan_sm *scansm)
     struct ble_ll_scan_phy *scanp;
     struct ble_ll_scan_phy *scanp_next;
 
-    if (!ble_ll_is_valid_own_addr_type(scansm->own_addr_type, g_random_addr)) {
+    if (!ble_ll_addr_is_valid_own_addr_type(scansm->own_addr_type, NULL)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -1354,7 +1355,7 @@ ble_ll_scan_rx_filter(uint8_t own_addr_type, uint8_t scan_filt_policy,
 
             /* Ignore if not directed to us */
             if ((addrd->targeta_type != (own_addr_type & 0x01)) ||
-                !ble_ll_is_our_devaddr(addrd->targeta, addrd->targeta_type)) {
+                !ble_ll_addr_is_our(addrd->targeta_type, addrd->targeta)) {
                 return -1;
             }
             break;
@@ -1800,7 +1801,8 @@ ble_ll_scan_dup_new(void)
 }
 
 static int
-ble_ll_scan_dup_check_legacy(uint8_t addr_type, uint8_t *addr, uint8_t pdu_type)
+ble_ll_scan_dup_check_legacy(uint8_t addr_type, const uint8_t *addr,
+                             uint8_t pdu_type)
 {
     struct ble_ll_scan_dup_entry *e;
     uint8_t type;
@@ -1840,7 +1842,7 @@ ble_ll_scan_dup_check_legacy(uint8_t addr_type, uint8_t *addr, uint8_t pdu_type)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 int
-ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+ble_ll_scan_dup_check_ext(uint8_t addr_type, const uint8_t *addr, bool has_aux,
                           uint16_t adi)
 {
     struct ble_ll_scan_dup_entry *e;
@@ -1889,7 +1891,7 @@ ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
 }
 
 int
-ble_ll_scan_dup_update_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
+ble_ll_scan_dup_update_ext(uint8_t addr_type, const uint8_t *addr, bool has_aux,
                            uint16_t adi)
 {
     struct ble_ll_scan_dup_entry *e;
@@ -1942,7 +1944,7 @@ ble_ll_scan_rx_pkt_in_restore_addr_data(struct ble_mbuf_hdr *hdr,
     }
 
     if (hdr->rxinfo.flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED) {
-        addrd->targeta = ble_ll_get_our_devaddr(scansm->own_addr_type & 1);
+        addrd->targeta = ble_ll_addr_get(scansm->own_addr_type & 1);
         addrd->targeta_type = scansm->own_addr_type & 1;
         addrd->targeta_resolved = 1;
     } else {
@@ -2010,7 +2012,7 @@ ble_ll_scan_rx_pkt_in(uint8_t ptype, struct os_mbuf *om, struct ble_mbuf_hdr *hd
     struct ble_mbuf_hdr_rxinfo *rxinfo = &hdr->rxinfo;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
-    uint8_t *targeta;
+    const uint8_t *targeta;
 #endif
     struct ble_ll_scan_sm *scansm;
     struct ble_ll_scan_addr_data addrd;
@@ -2710,7 +2712,7 @@ ble_ll_scan_get_local_rpa(void)
  * @param rpa
  */
 void
-ble_ll_scan_set_peer_rpa(uint8_t *rpa)
+ble_ll_scan_set_peer_rpa(const uint8_t *rpa)
 {
     struct ble_ll_scan_sm *scansm;
 
