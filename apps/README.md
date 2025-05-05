@@ -52,3 +52,11 @@ data is split in advertising data and response data.
 This application works in pair with peripheral. It's based on scanner
 application - the difference is, that if there was detected device with UUID
 fitting to the one predefined in central application, connection is initiated.
+
+## privacy_cent and privacy_periph
+
+Pair of applications presenting basic privacy operation. They operate like
+peripheral-central apps pair whith small difference: after disconnect,
+they wait until RPA timeout expires before reconnecting. During connection,
+security protocol is initiaded: devices are paired, exchange keys and store
+them. These credentials are used during reconnection.
