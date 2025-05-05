@@ -115,7 +115,7 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
 #define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x000f)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
@@ -300,6 +300,9 @@ enum ble_error_codes
     BLE_ERR_LIMIT_REACHED       = 0x43,
     BLE_ERR_OPERATION_CANCELLED = 0x44,
     BLE_ERR_PACKET_TOO_LONG     = 0x45,
+    BLE_ERR_TOO_LATE            = 0x46,
+    BLE_ERR_TOO_EARLY           = 0x47,
+    BLE_ERR_INSUFFICIENT_CHAN   = 0x48,
     BLE_ERR_MAX                 = 0xff
 };
 
