@@ -404,11 +404,19 @@ ble_att_svr_read(uint16_t conn_handle,
 
     att_err = 0;    /* Silence gcc warning. */
 
-    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+    /* if conn_handle is BLE_HS_CONN_HANDLE_NONE or has
+     * BLE_ATT_SVR_CHECK_PERMS_MASK set, then no permission check is done */
+    if (!(conn_handle & BLE_ATT_SVR_CHECK_PERMS_MASK)) {
         rc = ble_att_svr_check_perms(conn_handle, 1, entry, &att_err);
         if (rc != 0) {
             goto err;
         }
+    }
+
+    /* if conn_handle has BLE_ATT_SVR_CHECK_PERMS_MASK byte set,
+     * then remove it and send right connection handle only */
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        conn_handle &= ~BLE_ATT_SVR_CHECK_PERMS_MASK;
     }
 
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
