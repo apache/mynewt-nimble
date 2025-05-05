@@ -407,11 +407,9 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t att_op, uint16_t offset,
                          struct os_mbuf **om, void *arg)
 {
-    const struct ble_gatt_chr_def *chr_def;
     struct ble_gatt_access_ctxt gatt_ctxt;
-    int rc;
 
-    chr_def = arg;
+    const struct ble_gatt_chr_def *chr_def = arg;
     BLE_HS_DBG_ASSERT(chr_def != NULL && chr_def->access_cb != NULL);
 
     gatt_ctxt.op = ble_gatts_chr_op(att_op);
@@ -419,10 +417,9 @@ ble_gatts_chr_val_access(uint16_t conn_handle, uint16_t attr_handle,
     gatt_ctxt.offset = offset;
 
     ble_gatts_chr_inc_val_stat(gatt_ctxt.op);
-    rc = ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt, om,
-                              chr_def->access_cb, chr_def->arg);
 
-    return rc;
+    return ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt, om,
+                              chr_def->access_cb, chr_def->arg);
 }
 
 static int
