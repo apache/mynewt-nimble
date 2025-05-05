@@ -115,7 +115,6 @@ struct ble_cs_create_config_cp {
     uint8_t channel_selection_type;
     uint8_t ch3c_shape;
     uint8_t ch3c_jump;
-    uint8_t companion_signal_enable;
 } __attribute__((packed));
 
 struct ble_cs_remove_config_cp {
@@ -361,7 +360,7 @@ ble_cs_create_config(const struct ble_cs_create_config_cp *cmd)
     cp.channel_selection_type = cmd->channel_selection_type;
     cp.ch3c_shape = cmd->ch3c_shape;
     cp.ch3c_jump = cmd->ch3c_jump;
-    cp.companion_signal_enable = cmd->companion_signal_enable;
+    cp.reserved = 0x00;
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_CS_CREATE_CONFIG),
@@ -531,8 +530,6 @@ ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data,
     /* Ignore these as used only with #3c algorithm */
     cmd.ch3c_shape = 0x00;
     cmd.ch3c_jump = 0x00;
-    /* EDLC/ECLD attack protection not supported */
-    cmd.companion_signal_enable = 0x00;
 
     /* Create CS config */
     rc = ble_cs_create_config(&cmd);
@@ -689,7 +686,6 @@ ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data,
 int
 ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_params *params)
 {
-    struct ble_hci_le_cs_rd_loc_supp_cap_rp rsp;
     struct ble_cs_rd_rem_supp_cap_cp cmd;
     int rc;
 
@@ -700,6 +696,12 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
      * 4. Create CS configurations
      * 5. Start the CS Security Start procedure
      */
+
+    (void) ble_cs_set_chan_class;
+    (void) ble_cs_remove_config;
+    (void) ble_cs_wr_cached_rem_fae;
+    (void) ble_cs_wr_cached_rem_supp_cap;
+    (void) ble_cs_rd_loc_supp_cap;
 
     cs_state.cb = params->cb;
     cs_state.cb_arg = params->cb_arg;

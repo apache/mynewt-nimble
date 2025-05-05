@@ -42,7 +42,14 @@ pkg.deps:
     - nimble
     - nimble/transport
 
+pkg.deps.TEST:
+    - "@apache-mynewt-core/crypto/mbedtls"
+
 pkg.init:
     ble_ll_init:
         - $before:ble_transport_hs_init
         - $before:ble_transport_ll_init
+
+pkg.cflags.TEST:
+    - -Irepos/mbedtls/include
+    - -Irepos/include/mbedtls
