@@ -364,6 +364,14 @@ syscfg.defs:
         restrictions:
             - '(BLE_VERSION >= 54) if 1'
 
+    BLE_LL_POWER_CONTROL_REQ:
+        description: >
+            This option is used to enable/disable support for LE Power
+            Control Request.
+        value: MYNEWT_VAL(BLE_POWER_CONTROL)
+        restrictions:
+            - '(BLE_VERSION >= 52) if 1'
+
     BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS:
         description: >
             This option is used to enable/disable support for
