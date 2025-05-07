@@ -359,6 +359,12 @@ enum ble_error_codes
  */
 #define BLE_ADDR_RANDOM_ID   (0x03)
 
+/**
+ * Bluetooth Device Address Type: Anonymous
+ * (Corresponds to devices sending anonymous advertisements).
+ */
+#define BLE_ADDR_ANONYMOUS   (0xFF)
+
 /** @} */
 
 /**
