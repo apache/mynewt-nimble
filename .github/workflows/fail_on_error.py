@@ -11,7 +11,10 @@ def codeql_sarif_contain_error(filename):
     for run in s.get('runs', []):
         rules_metadata = run['tool']['driver']['rules']
         if not rules_metadata:
-            rules_metadata = run['tool']['extensions'][0]['rules']
+            for extension in run['tool']['extensions']:
+                if 'rules' in extension:
+                    rules_metadata = extension['rules']
+                    break
 
         for res in run.get('results', []):
             if 'ruleIndex' in res:
