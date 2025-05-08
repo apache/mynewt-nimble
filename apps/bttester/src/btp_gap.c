@@ -531,6 +531,10 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 #else
     err = ble_gap_adv_set_data(buf, buf_len);
 #endif
+    if (err) {
+        SYS_LOG_ERR("Failed to set advertising data; rc=%d", err);
+        return BTP_STATUS_FAILED;
+    }
 
     if (sd_len) {
         buf_len = 0;
