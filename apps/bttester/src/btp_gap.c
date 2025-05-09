@@ -517,8 +517,10 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     adv_params.own_addr_type = own_addr_type;
+
     if (use_filter_policy) {
         adv_params.filter_policy = BLE_HCI_ADV_FILT_BOTH;
+        adv_params.scannable = sd_len != 0;
     }
 
     err = ble_gap_ext_adv_configure(0, &adv_params, NULL, gap_event_cb, NULL);
