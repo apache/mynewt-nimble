@@ -496,7 +496,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         i += ad[adv_len].data_len;
     }
 
-    for (sd_len = 0U; i < cp->scan_rsp_len; sd_len++) {
+    for (sd_len = 0U; i < (cp->adv_data_len + cp->scan_rsp_len); sd_len++) {
         if (sd_len >= ARRAY_SIZE(sd)) {
             SYS_LOG_ERR("sd[] Out of memory");
             return BTP_STATUS_FAILED;
