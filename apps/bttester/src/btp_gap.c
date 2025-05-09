@@ -455,7 +455,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     struct btp_gap_start_advertising_rp *rp = rsp;
     uint8_t buf[BLE_HS_ADV_MAX_SZ];
     uint8_t buf_len = 0;
-    uint8_t adv_len, sd_len;
+    uint8_t adv_len, sd_len = 0;
     uint8_t addr_type;
     uint32_t duration;
     int err;
@@ -517,6 +517,11 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     adv_params.own_addr_type = own_addr_type;
+
+    if (sd_len != 0 && adv_params.legacy_pdu) {
+        adv_params.scannable = 1;
+    }
+
     if (use_filter_policy) {
         adv_params.filter_policy = BLE_HCI_ADV_FILT_BOTH;
     }
