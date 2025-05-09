@@ -115,6 +115,9 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
         break;
+    case BTP_SERVICE_ID_GATTS:
+        status = tester_init_gatts();
+        break;
     default:
         status = BTP_STATUS_FAILED;
         break;
@@ -163,6 +166,9 @@ unregister_service(const void *cmd, uint16_t cmd_len,
 #endif /* MYNEWT_VAL(BLE_MESH) */
     case BTP_SERVICE_ID_GATTC:
         status = tester_unregister_gatt_cl();
+        break;
+    case BTP_SERVICE_ID_GATTS:
+        status = tester_unregister_gatts();
         break;
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     case BTP_SERVICE_ID_BAP:
