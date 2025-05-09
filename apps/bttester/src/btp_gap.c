@@ -64,6 +64,8 @@ static ble_addr_t peer_id_addr;
 static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
 
+static bool use_filter_policy = false;
+
 static struct os_callout                    update_params_co;
 static struct btp_gap_conn_param_update_cmd update_params;
 
@@ -496,7 +498,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         i += ad[adv_len].data_len;
     }
 
-    for (sd_len = 0U; i < cp->scan_rsp_len; sd_len++) {
+    for (sd_len = 0U; i < (cp->adv_data_len + cp->scan_rsp_len); sd_len++) {
         if (sd_len >= ARRAY_SIZE(sd)) {
             SYS_LOG_ERR("sd[] Out of memory");
             return BTP_STATUS_FAILED;
@@ -515,6 +517,12 @@ start_advertising(const void *cmd, uint16_t cmd_len,
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     adv_params.own_addr_type = own_addr_type;
+
+    if (use_filter_policy) {
+        adv_params.filter_policy = BLE_HCI_ADV_FILT_BOTH;
+        adv_params.scannable = sd_len != 0;
+    }
+
     err = ble_gap_ext_adv_configure(0, &adv_params, NULL, gap_event_cb, NULL);
     if (err) {
         SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", err);
@@ -1987,6 +1995,8 @@ set_filter_accept_list(const void *cmd, uint16_t cmd_len,
     int err;
 
     SYS_LOG_DBG("");
+
+    use_filter_policy = cp->list_len != 0;
 
     /*
      * Check if the nb of bytes received matches the len of addrs list.
