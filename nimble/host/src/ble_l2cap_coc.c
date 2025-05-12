@@ -183,17 +183,12 @@ ble_l2cap_event_coc_received_data(struct ble_l2cap_chan *chan,
 }
 
 static int
-ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan)
+ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     int rc;
-    struct os_mbuf **om;
     struct os_mbuf *rx_sdu;
     struct ble_l2cap_coc_endpoint *rx;
     uint16_t om_total;
-
-    /* Create a shortcut to rx_buf */
-    om = &chan->rx_buf;
-    BLE_HS_DBG_ASSERT(*om != NULL);
 
     /* Create a shortcut to rx endpoint */
     rx = &chan->coc_rx;

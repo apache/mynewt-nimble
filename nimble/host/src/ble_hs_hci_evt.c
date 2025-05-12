@@ -1098,15 +1098,14 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 {
 #if NIMBLE_BLE_CONNECT
     struct hci_data_hdr hci_hdr;
-    struct ble_hs_conn *conn;
-    ble_l2cap_rx_fn *rx_cb;
     uint16_t conn_handle;
-    int reject_cid;
+    uint8_t pb;
     int rc;
 
     rc = ble_hs_hci_util_data_hdr_strip(om, &hci_hdr);
     if (rc != 0) {
-        goto err;
+        os_mbuf_free_chain(om);
+        return rc;
     }
 
 #if (BLETEST_THROUGHPUT_TEST == 0)
@@ -1122,50 +1121,14 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 #endif
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
-        rc = BLE_HS_EBADDATA;
-        goto err;
+        os_mbuf_free_chain(om);
+        return BLE_HS_EBADDATA;
     }
 
     conn_handle = BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc);
+    pb = BLE_HCI_DATA_PB(hci_hdr.hdh_handle_pb_bc);
+    rc = ble_l2cap_rx(conn_handle, pb, om);
 
-    ble_hs_lock();
-
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        /* Peer not connected; quietly discard packet. */
-        rc = BLE_HS_ENOTCONN;
-        reject_cid = -1;
-    } else {
-        /* Forward ACL data to L2CAP. */
-        rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &reject_cid);
-        om = NULL;
-    }
-
-    ble_hs_unlock();
-
-    switch (rc) {
-    case 0:
-        /* Final fragment received. */
-        BLE_HS_DBG_ASSERT(rx_cb != NULL);
-        rc = rx_cb(conn->bhc_rx_chan);
-        ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
-        break;
-
-    case BLE_HS_EAGAIN:
-        /* More fragments on the way. */
-        break;
-
-    default:
-        if (reject_cid != -1) {
-            ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, 0, 0, reject_cid);
-        }
-        goto err;
-    }
-
-    return 0;
-
-err:
-    os_mbuf_free_chain(om);
     return rc;
 #else
     return BLE_HS_ENOTSUP;
