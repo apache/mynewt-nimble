@@ -25,11 +25,13 @@
 #define DPPI_CH_UNSUB(_ch)      (((DPPI_CH_ ## _ch) & 0xff) | (0 << 31))
 #define DPPI_CH_MASK(_ch)       (1 << (DPPI_CH_ ## _ch))
 
-/* Channels 0..5 are always used.
- * Channels 6 and 7 are used for PA/LNA (optionally).
- * Channels 7..9 are used for GPIO debugging (optionally).
- */
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+/* DPPIC00 [0:7] */
+#define DPPI_CH_DPPIC00_RADIO_EVENTS_PHYEND       0
+#define DPPI_CH_DPPIC00_RTC0_EVENTS_COMPARE_0     1
+#endif
 
+/* DPPIC10 [0:23] */
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_0         0
 #define DPPI_CH_TIMER0_EVENTS_COMPARE_3         1
 #define DPPI_CH_RADIO_EVENTS_END                2
@@ -40,6 +42,15 @@
 #define DPPI_CH_RADIO_EVENTS_DISABLED           7
 #define DPPI_CH_RADIO_EVENTS_READY              8
 #define DPPI_CH_RADIO_EVENTS_RXREADY            9
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define DPPI_CH_RADIO_EVENTS_PHYEND             10
+#endif
+
+/* DPPIC20 [0:15] */
+#define DPPI_CH_GPIOTE20_TASKS_SET_0            0
+#define DPPI_CH_GPIOTE20_TASKS_CLR_0            1
+#define DPPI_CH_GPIOTE20_TASKS_SET_1            2
+#define DPPI_CH_GPIOTE20_TASKS_CLR_1            3
 
 #define DPPI_CH_ENABLE_ALL  (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | \
                              DPPIC_CHEN_CH2_Msk | DPPIC_CHEN_CH3_Msk | \
@@ -51,12 +62,18 @@
 static inline void
 phy_ppi_rtc0_compare0_to_timer0_start_enable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_SUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_SUB(RTC0_EVENTS_COMPARE_0);
 }
 
 static inline void
 phy_ppi_rtc0_compare0_to_timer0_start_disable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
@@ -87,15 +104,27 @@ phy_ppi_timer0_compare0_to_radio_rxen_disable(void)
 }
 
 static inline void
+phy_ppi_timer0_compare0_to_radio_start_enable(void)
+{
+    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
+}
+
+static inline void
+phy_ppi_timer0_compare0_to_radio_start_disable(void)
+{
+    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+}
+
+static inline void
 phy_ppi_radio_address_to_ccm_crypt_enable(void)
 {
-    NRF_CCM->SUBSCRIBE_CRYPT = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_SUB(RADIO_EVENTS_ADDRESS);
 }
 
 static inline void
 phy_ppi_radio_address_to_ccm_crypt_disable(void)
 {
-    NRF_CCM->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
 }
 
 static inline void
@@ -124,37 +153,7 @@ phy_ppi_wfr_disable(void)
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
 }
 
-static inline void
-phy_ppi_fem_disable(void)
-{
-#if PHY_USE_FEM_SINGLE_GPIO
-    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM] =
-        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
-#else
-#if PHY_USE_FEM_PA
-    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM_PA] =
-        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_2);
-#endif
-#if PHY_USE_FEM_LNA
-    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM_LNA] =
-        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_2);
-#endif
-#endif
-}
-
 #if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
-static inline void
-phy_ppi_timer0_compare0_to_radio_start_enable(void)
-{
-    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_SUB(TIMER0_EVENTS_COMPARE_0);
-}
-
-static inline void
-phy_ppi_timer0_compare0_to_radio_start_disable(void)
-{
-    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
-}
-
 static inline void
 phy_ppi_timer0_compare3_to_radio_stop_enable(void)
 {
@@ -181,15 +180,38 @@ phy_ppi_timer0_compare3_to_radio_disable_disable(void)
 #endif
 
 static inline void
+phy_ppi_fem_disable(void)
+{
+#if PHY_USE_FEM_SINGLE_GPIO
+    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM] =
+        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+#else
+#if PHY_USE_FEM_PA
+    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM_PA] =
+        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_2);
+#endif
+#if PHY_USE_FEM_LNA
+    NRF_GPIOTE->SUBSCRIBE_SET[PHY_GPIOTE_FEM_LNA] =
+        DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_2);
+#endif
+#endif
+}
+
+static inline void
 phy_ppi_disable(void)
 {
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    NRF_TIMER00->SUBSCRIBE_START = DPPI_CH_UNSUB(DPPIC00_RTC0_EVENTS_COMPARE_0);
+#endif
     NRF_TIMER0->SUBSCRIBE_START = DPPI_CH_UNSUB(RTC0_EVENTS_COMPARE_0);
     NRF_TIMER0->SUBSCRIBE_CAPTURE[3] = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
     NRF_RADIO->SUBSCRIBE_DISABLE = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
+    NRF_RADIO->SUBSCRIBE_STOP = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_3);
     NRF_RADIO->SUBSCRIBE_TXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_RADIO->SUBSCRIBE_RXEN = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
+    NRF_RADIO->SUBSCRIBE_START = DPPI_CH_UNSUB(TIMER0_EVENTS_COMPARE_0);
     NRF_AAR->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_BCMATCH);
-    NRF_CCM->SUBSCRIBE_CRYPT = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
+    NRF_CCM->SUBSCRIBE_START = DPPI_CH_UNSUB(RADIO_EVENTS_ADDRESS);
 
     phy_ppi_fem_disable();
 }
