@@ -377,3 +377,22 @@ tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
     os_eventq_put(&avail_queue,
                   CONTAINER_OF(cmd, struct btp_buf, data)->ev);
 }
+
+uint16_t
+tester_supported_commands(uint8_t service, uint8_t *cmds)
+{
+    uint8_t opcode_max = 0;
+
+    assert(service <= BTP_SERVICE_ID_MAX);
+
+    for (size_t i = 0; i < service_handler[service].num; i++) {
+        const struct btp_handler *handler = &service_handler[service].handlers[i];
+        tester_set_bit(cmds, handler->opcode);
+
+        if (handler->opcode > opcode_max) {
+            opcode_max = handler->opcode;
+        }
+    }
+
+    return (opcode_max / 8) + 1;
+}

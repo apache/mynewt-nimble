@@ -1960,38 +1960,8 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 {
     struct btp_gatt_read_supported_commands_rp *rp = rsp;
 
-    /* octet 0 */
-    tester_set_bit(rp->data, BTP_GATT_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(rp->data, BTP_GATT_START_SERVER);
-
-    /* octet 1 */
-    tester_set_bit(rp->data, BTP_GATT_EXCHANGE_MTU);
-    tester_set_bit(rp->data, BTP_GATT_DISC_ALL_PRIM_SVCS);
-    tester_set_bit(rp->data, BTP_GATT_DISC_PRIM_UUID);
-    tester_set_bit(rp->data, BTP_GATT_FIND_INCLUDED);
-    tester_set_bit(rp->data, BTP_GATT_DISC_ALL_CHRC);
-    tester_set_bit(rp->data, BTP_GATT_DISC_CHRC_UUID);
-
-    /* octet 2 */
-    tester_set_bit(rp->data, BTP_GATT_DISC_ALL_DESC);
-    tester_set_bit(rp->data, BTP_GATT_READ);
-    tester_set_bit(rp->data, BTP_GATT_READ_LONG);
-    tester_set_bit(rp->data, BTP_GATT_READ_MULTIPLE);
-    tester_set_bit(rp->data, BTP_GATT_WRITE_WITHOUT_RSP);
-#if 0
-    tester_set_bit(rp->data, BTP_GATT_SIGNED_WRITE_WITHOUT_RSP);
-#endif
-    tester_set_bit(rp->data, BTP_GATT_WRITE);
-
-    /* octet 3 */
-    tester_set_bit(rp->data, BTP_GATT_WRITE_LONG);
-    tester_set_bit(rp->data, BTP_GATT_CFG_NOTIFY);
-    tester_set_bit(rp->data, BTP_GATT_CFG_INDICATE);
-    tester_set_bit(rp->data, BTP_GATT_GET_ATTRIBUTES);
-    tester_set_bit(rp->data, BTP_GATT_GET_ATTRIBUTE_VALUE);
-    tester_set_bit(rp->data, BTP_GATT_CHANGE_DATABASE);
-
-    *rsp_len = sizeof(*rp) + 4;
+    *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GATT, rp->data);
+    *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }
