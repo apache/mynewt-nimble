@@ -94,32 +94,8 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 {
     struct btp_mesh_read_supported_commands_rp *rp = rsp;
 
-    /* octet 0 */
-    tester_set_bit(rp->data, BTP_MESH_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(rp->data, BTP_MESH_CONFIG_PROVISIONING);
-    tester_set_bit(rp->data, BTP_MESH_PROVISION_NODE);
-    tester_set_bit(rp->data, BTP_MESH_INIT);
-    tester_set_bit(rp->data, BTP_MESH_RESET);
-    tester_set_bit(rp->data, BTP_MESH_INPUT_NUMBER);
-    tester_set_bit(rp->data, BTP_MESH_INPUT_STRING);
-    /* octet 1 */
-    tester_set_bit(rp->data, BTP_MESH_IVU_TEST_MODE);
-    tester_set_bit(rp->data, BTP_MESH_IVU_TOGGLE_STATE);
-    tester_set_bit(rp->data, BTP_MESH_NET_SEND);
-    tester_set_bit(rp->data, BTP_MESH_HEALTH_GENERATE_FAULTS);
-    tester_set_bit(rp->data, BTP_MESH_HEALTH_CLEAR_FAULTS);
-    tester_set_bit(rp->data, BTP_MESH_LPN);
-    tester_set_bit(rp->data, BTP_MESH_LPN_POLL);
-    tester_set_bit(rp->data, BTP_MESH_MODEL_SEND);
-    /* octet 2 */
-#if MYNEWT_VAL(BLE_MESH_TESTING)
-    tester_set_bit(rp->data, BTP_MESH_LPN_SUBSCRIBE);
-    tester_set_bit(rp->data, BTP_MESH_LPN_UNSUBSCRIBE);
-    tester_set_bit(rp->data, BTP_MESH_RPL_CLEAR);
-#endif /* CONFIG_BT_TESTING */
-    tester_set_bit(rp->data, BTP_MESH_PROXY_IDENTITY);
-
-    *rsp_len = sizeof(*rp) + 3;
+    *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GAP, rp->data);
+    *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }
