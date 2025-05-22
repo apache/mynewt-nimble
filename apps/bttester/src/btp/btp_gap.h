@@ -439,13 +439,8 @@ struct gap_periodic_report_ev {
 
 #define GAP_EV_PERIODIC_TRANSFER_RECEIVED   0x90
 struct gap_periodic_transfer_recieved_ev {
-    uint8_t status;
-    uint16_t sync_handle;
-    uint16_t conn_handle;
-    uint16_t service_data;
-    uint8_t sid;
     ble_addr_t adv_addr;
-    uint8_t adv_phy;
-    uint16_t per_adv_itvl;
-    uint8_t adv_clk_accuracy;
+    uint16_t sync_handle;
+    uint8_t status;
+    ble_addr_t peer_addr;
 } __packed;

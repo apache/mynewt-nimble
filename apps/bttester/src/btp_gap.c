@@ -1246,17 +1246,18 @@ periodic_report(struct ble_gap_event *event)
 static void
 periodic_transfer_received(struct ble_gap_event *event)
 {
+    int rc;
+    struct ble_gap_conn_desc desc;
     struct gap_periodic_transfer_recieved_ev ev;
 
-    ev.status = event->periodic_transfer.status;
-    ev.sync_handle = event->periodic_transfer.sync_handle;
-    ev.conn_handle = event->periodic_transfer.conn_handle;
-    ev.service_data = event->periodic_transfer.service_data;
-    ev.sid = event->periodic_transfer.sid;
     ev.adv_addr = event->periodic_transfer.adv_addr;
-    ev.adv_phy = event->periodic_transfer.adv_phy;
-    ev.per_adv_itvl = event->periodic_transfer.per_adv_itvl;
-    ev.adv_clk_accuracy = event->periodic_transfer.adv_clk_accuracy;
+    ev.sync_handle = event->periodic_transfer.sync_handle;
+    ev.status = event->periodic_transfer.status;
+
+    rc = ble_gap_conn_find(ev.sync_handle, &desc);
+    assert(rc == 0);
+
+    ev.peer_addr = desc.peer_id_addr;
 
     tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_TRANSFER_RECEIVED,
                  (uint8_t *) &ev, sizeof(ev));
