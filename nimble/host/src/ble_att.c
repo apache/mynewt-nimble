@@ -563,7 +563,7 @@ ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 }
 
 static int
-ble_att_rx(struct ble_l2cap_chan *chan)
+ble_att_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     uint16_t conn_handle;
 
@@ -572,7 +572,7 @@ ble_att_rx(struct ble_l2cap_chan *chan)
         return BLE_HS_ENOTCONN;
     }
 
-    return ble_att_rx_extended(conn_handle, chan->scid, &chan->rx_buf);
+    return ble_att_rx_extended(conn_handle, chan->scid, om);
 }
 
 uint16_t
