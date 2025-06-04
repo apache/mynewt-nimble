@@ -188,6 +188,11 @@ syscfg.defs:
                 0x04: BLE_SM_PAIR_KEY_DIST_SIGN
                 0x08: BLE_SM_PAIR_KEY_DIST_LINK
         value: 0
+    BLE_SM_MIN_KEY_SIZE:
+        description: >
+            Minimum encryption key size accepted during pairing.
+        value: 7
+        range: 7..16
     BLE_SM_SC_DEBUG_KEYS:
         description: >
             Enable SM debug mode. In this mode SM uses predefined DH key pair as
