@@ -1,0 +1,93 @@
+name: Clang-Tidy Lint
+
+on: [push, pull_request]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
+      with:
+        go-version: 'stable'
+    - uses: carlosperate/arm-none-eabi-gcc-action@v1.8.1
+      with:
+          release: ${{ matrix.gcc }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+        sudo apt-get install -y clang-tidy cmake build-essential ninja-build
+
+    - name: Install newt
+      shell: bash
+      run: |
+           go version
+           go install mynewt.apache.org/newt/newt@latest
+
+    - name: Setup project
+      shell: bash
+      run: |
+           newt new build
+           cp -f .github/project.yml build/project.yml
+           cd build
+           newt upgrade --shallow=1
+           rm -rf repos/apache-mynewt-nimble
+           git clone .. repos/apache-mynewt-nimble
+           cd ..
+
+    - name: Configure CMake project
+      shell: bash
+      run: |
+           cd build
+           newt target create cc_test
+           newt target set cc_test bsp="@apache-mynewt-core/hw/bsp/nordic_pca10056"
+           newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
+           cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
+           newt target cmake cc_test
+           cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+           cp build/compile_commands.json .
+
+    - name: Clean Compile Commands
+      shell: bash
+      run: |
+           COMPILE_COMMANDS="compile_commands.json"
+           if command -v jq >/dev/null 2>&1; then
+             echo "Cleaning compile_commands.json: removing -mthumb-interwork flag..."
+             jq 'map(.command |= gsub("-mthumb-interwork"; ""))' "$COMPILE_COMMANDS" > "${COMPILE_COMMANDS}.clean"
+             mv "${COMPILE_COMMANDS}.clean" "$COMPILE_COMMANDS"
+           else
+             echo "Error: jq is not installed. Please install jq to clean compile_commands.json"
+             exit 1
+           fi
+
+    - name: Download clang-tidy-diff.py
+      run: |
+          curl -sSL -o clang-tidy-diff.py https://raw.githubusercontent.com/llvm/llvm-project/main/clang-tools-extra/clang-tidy/tool/clang-tidy-diff.py
+          chmod +x clang-tidy-diff.py
+
+    - name: Generate patch from base branch
+      shell: bash
+      run: |
+           git diff -U0 origin/master...HEAD > diff.patch || true
+
+    - name: Run clang-tidy-diff
+      run: |
+           python3 clang-tidy-diff.py \
+                 -p1 \
+                 -path build \
+                 -config-file=.clang-tidy \
+                 < diff.patch | tee tidy-output.txt
+
+               # Check for warnings or errors
+               if grep -q -E 'warning:|error:' tidy-output.txt; then
+                 echo "::error ::clang-tidy found issues in changed lines"
+                 exit 1
+               else
+                 echo "✅ clang-tidy passed on changed lines"
+               fi
+             else
+               echo "✅ No diff to analyze. Skipping clang-tidy."
+             fi
