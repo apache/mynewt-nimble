@@ -355,6 +355,18 @@ uint16_t ble_att_preferred_mtu(void);
  */
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
+/**
+ * Manually establish L2CAP Enhanced Connection
+ *
+ * @param conn_handle           ACL connection handle
+ * @param chan_num              Number of channels to establish
+ *
+ * @return                      0 on success;
+ *                              NimBLE host core return code on unexpected
+ *                              error.
+ */
+int ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num);
+
 #ifdef __cplusplus
 }
 #endif
