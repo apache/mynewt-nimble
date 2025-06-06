@@ -1,0 +1,29 @@
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  misc-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-owning-memory,
+  -modernize-*,
+  -readability-implicit-bool-conversion
+
+WarningsAsErrors: ''
+
+FormatStyle: file
+
+CheckOptions:
+  - key:             readability-magic-numbers.IgnoredValues
+    value:           '0, 1, -1, 255'
+  - key:             readability-identifier-naming.VariableCase
+    value:           lower_case
+  - key:             readability-identifier-naming.FunctionCase
+    value:           lower_case
+  - key:             readability-identifier-naming.MacroDefinitionCase
+    value:           UPPER_CASE
+  - key:             cppcoreguidelines-pro-type-member-init.HaltOnMissingInitializers
+    value:           'false'
