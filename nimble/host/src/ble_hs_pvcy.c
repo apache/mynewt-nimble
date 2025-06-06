@@ -230,6 +230,12 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
         if (rc != 0) {
             return rc;
         }
+    } else {
+        /* Enable the address resolution if this is same IRK. */
+        rc = ble_hs_pvcy_set_resolve_enabled(1);
+        if (rc != 0) {
+            return rc;
+        }
     }
 
     return 0;
