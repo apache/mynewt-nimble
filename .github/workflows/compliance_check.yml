@@ -33,13 +33,30 @@ jobs:
         shell: bash
         run: |
              sudo apt-get update
-             sudo apt-get install -y uncrustify
-             mkdir repos
-             git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
+             sudo apt-get install -y clang-format
       - name: check style
         shell: bash
         run: |
-             ./repos/apache-mynewt-core/.github/check_style.py
+          wget -O .clang-format-core https://raw.githubusercontent.com/apache/mynewt-core/refs/heads/master/.clang-format
+          if ! cmp -s ".clang-format-core" ".clang-format"; then
+            echo "Mismatched clang-format configurations!"
+            exit 1
+          fi
+
+          set +e
+          INFO_URL="https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
+          git diff -U0 origin/master...HEAD > diff.patch
+          clang-format-diff -p1 -style=file < diff.patch > clang-fmt.patch
+          if [ -s clang-fmt.patch ]; then
+            echo "Code formatting issues found:"
+            cat clang-fmt.patch
+            echo ""
+            echo "For formatting guidelines, see:"
+            echo "  $INFO_URL"
+            exit 1
+          else
+            echo "All good, no formatting issues."
+          fi
 
   style_license:
     name: Licensing
