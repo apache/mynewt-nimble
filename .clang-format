@@ -1,0 +1,86 @@
+# Use LLVM style as a base
+BasedOnStyle: LLVM
+
+# Indentation settings
+IndentWidth: 4
+UseTab: Never
+TabWidth: 10
+
+# Line length
+ColumnLimit: 79
+PenaltyExcessCharacter: 2
+
+# Braces placement
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+MacroBlockBegin: '(STATS_NAME_START|STATS_SECT_START)'
+MacroBlockEnd: '(STATS_NAME_END|STATS_SECT_END)'
+StatementMacros: ['SLIST_HEAD']
+
+ForEachMacros:
+  - 'SLIST_FOREACH'
+  - 'SLIST_FOREACH_FROM'
+  - 'SLIST_FOREACH_SAFE'
+  - 'SLIST_FOREACH_FROM_SAFE'
+  - 'SLIST_FOREACH_PREVPTR'
+  - 'STAILQ_FOREACH'
+  - 'STAILQ_FOREACH_FROM'
+  - 'STAILQ_FOREACH_SAFE'
+  - 'STAILQ_FOREACH_FROM_SAFE'
+  - 'LIST_FOREACH'
+  - 'LIST_FOREACH_FROM'
+  - 'LIST_FOREACH_SAFE'
+  - 'LIST_FOREACH_FROM_SAFE'
+  - 'TAILQ_FOREACH'
+  - 'TAILQ_FOREACH_FROM'
+  - 'TAILQ_FOREACH_SAFE'
+  - 'TAILQ_FOREACH_FROM_SAFE'
+  - 'TAILQ_FOREACH_REVERSE'
+  - 'TAILQ_FOREACH_REVERSE_FROM'
+  - 'TAILQ_FOREACH_REVERSE_SAFE'
+  - 'TAILQ_FOREACH_REVERSE_FROM_SAFE'
+
+# Pointer and reference alignment
+PointerAlignment: Right
+
+# Function declaration formatting
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: true
+BinPackArguments: true
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: true
+
+# Control statements
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+Cpp11BracedListStyle: false
+SpacesInParentheses: false
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SpaceInEmptyParentheses: false
+
+AlignArrayOfStructures: Left
+SortIncludes: false
+DisableFormat: false
+InsertNewlineAtEOF: true
