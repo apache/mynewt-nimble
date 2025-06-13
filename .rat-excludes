@@ -8,7 +8,7 @@ docs
 RELEASE_NOTES.md
 .gitignore
 README.md
-uncrustify.cfg
+.clang-format
 .style_ignored_dirs
 .mailmap
 requirements.txt
