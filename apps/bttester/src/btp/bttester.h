@@ -106,10 +106,6 @@ uint8_t
 tester_unregister_gap(void);
 void
 tester_init_core(void);
-uint8_t
-tester_init_gatt(void);
-uint8_t
-tester_unregister_gatt(void);
 int
 tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
                           uint8_t indication, struct os_mbuf *om);
