@@ -50,7 +50,6 @@ supported_services(const void *cmd, uint16_t cmd_len,
     /* octet 0 */
     tester_set_bit(rp->data, BTP_SERVICE_ID_CORE);
     tester_set_bit(rp->data, BTP_SERVICE_ID_GAP);
-    tester_set_bit(rp->data, BTP_SERVICE_ID_GATT);
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     tester_set_bit(rp->data, BTP_SERVICE_ID_L2CAP);
 #endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
@@ -86,9 +85,6 @@ register_service(const void *cmd, uint16_t cmd_len,
     switch (cp->id) {
     case BTP_SERVICE_ID_GAP:
         status = tester_init_gap();
-        break;
-    case BTP_SERVICE_ID_GATT:
-        status = tester_init_gatt();
         break;
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     case BTP_SERVICE_ID_L2CAP:
@@ -153,9 +149,6 @@ unregister_service(const void *cmd, uint16_t cmd_len,
     switch (cp->id) {
     case BTP_SERVICE_ID_GAP:
         status = tester_unregister_gap();
-        break;
-    case BTP_SERVICE_ID_GATT:
-        status = tester_unregister_gatt();
         break;
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     case BTP_SERVICE_ID_L2CAP:
