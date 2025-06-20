@@ -27,7 +27,7 @@ static STAILQ_HEAD(, os_mbuf_pool) g_msys_pool_list =
 
 #if MYNEWT_VAL(MSYS_1_BLOCK_COUNT) > 0
 #define SYSINIT_MSYS_1_MEMBLOCK_SIZE                \
-    OS_ALIGN(MYNEWT_VAL(MSYS_1_BLOCK_SIZE), 4)
+    OS_ALIGN(MYNEWT_VAL(MSYS_1_BLOCK_SIZE), OS_ALIGNMENT)
 #define SYSINIT_MSYS_1_MEMPOOL_SIZE                 \
     OS_MEMPOOL_SIZE(MYNEWT_VAL(MSYS_1_BLOCK_COUNT),  \
                     SYSINIT_MSYS_1_MEMBLOCK_SIZE)
@@ -38,7 +38,7 @@ static struct os_mempool os_msys_1_mempool;
 
 #if MYNEWT_VAL(MSYS_2_BLOCK_COUNT) > 0
 #define SYSINIT_MSYS_2_MEMBLOCK_SIZE                \
-    OS_ALIGN(MYNEWT_VAL(MSYS_2_BLOCK_SIZE), 4)
+    OS_ALIGN(MYNEWT_VAL(MSYS_2_BLOCK_SIZE), OS_ALIGNMENT)
 #define SYSINIT_MSYS_2_MEMPOOL_SIZE                 \
     OS_MEMPOOL_SIZE(MYNEWT_VAL(MSYS_2_BLOCK_COUNT),  \
                     SYSINIT_MSYS_2_MEMBLOCK_SIZE)
