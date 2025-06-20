@@ -60,12 +60,23 @@ struct os_mbuf;
 #define BLE_PHY_STATE_IDLE          (0)
 #define BLE_PHY_STATE_RX            (1)
 #define BLE_PHY_STATE_TX            (2)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_STATE_TX_CS_TONE    (3)
+#define BLE_PHY_STATE_RX_CS_TONE    (4)
+#endif
 
 /* BLE PHY transitions */
-#define BLE_PHY_TRANSITION_NONE     (0)
-#define BLE_PHY_TRANSITION_RX_TX    (1)
-#define BLE_PHY_TRANSITION_TX_RX    (2)
-#define BLE_PHY_TRANSITION_TX_TX    (3)
+#define BLE_PHY_TRANSITION_NONE                (0)
+#define BLE_PHY_TRANSITION_TO_TX               (1)
+#define BLE_PHY_TRANSITION_TO_RX               (2)
+#define BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT  (3)
+#define BLE_PHY_TRANSITION_TO_RX_ISO_SUBEVENT  (4)
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_TRANSITION_TO_TX_CS_SYNC       (5)
+#define BLE_PHY_TRANSITION_TO_RX_CS_SYNC       (6)
+#define BLE_PHY_TRANSITION_TO_TX_CS_TONE       (7)
+#define BLE_PHY_TRANSITION_TO_RX_CS_TONE       (8)
+#endif
 
 /* PHY error codes */
 #define BLE_PHY_ERR_RADIO_STATE     (1)
@@ -78,6 +89,39 @@ struct os_mbuf;
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_CS_TRANSM_MODE_SYNC    (0)
+#define BLE_PHY_CS_TRANSM_MODE_TONE    (2)
+
+#define BLE_PHY_CS_TONE_MODE_FM    (0)
+#define BLE_PHY_CS_TONE_MODE_PM    (1)
+
+struct ble_phy_cs_transmission {
+    struct ble_phy_cs_transmission *next;
+    uint32_t duration_usecs;
+    uint32_t aa;
+    uint16_t end_tifs;
+    uint8_t channel;
+    uint8_t mode;
+    uint8_t is_tx;
+    uint8_t tone_mode;
+};
+
+struct ble_phy_cs_sync_results {
+    uint32_t cputime;
+    uint32_t rem_us;
+    uint32_t rem_ns;
+    int16_t rssi;
+};
+
+struct ble_phy_cs_tone_results {
+    /* TODO */
+};
+
+/* Configure the PHY for CS subevent sequence */
+int ble_phy_cs_subevent_start(struct ble_phy_cs_transmission *transm, uint32_t cputime, uint8_t rem_usecs);
+#endif
+
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
 
@@ -88,14 +132,8 @@ int ble_phy_init(void);
 int ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit);
 uint8_t ble_phy_chan_get(void);
 
-#if MYNEWT_VAL(BLE_PHY_VARIABLE_TIFS)
-/* Set T_ifs time for next transition */
-void ble_phy_tifs_set(uint16_t tifs);
-#endif
-
-/* Set T_ifs for tx-tx transitions. Anchor is 0 for start of previous PDU,
- * non-zero for end of PDU */
-void ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor);
+/* Set direction of the next transition */
+void ble_phy_transition_set(uint8_t trans, uint16_t usecs);
 
 /* Set transmit start time */
 int ble_phy_tx_set_start_time(uint32_t cputime, uint8_t rem_usecs);
@@ -110,7 +148,7 @@ typedef uint8_t (*ble_phy_tx_pducb_t)(uint8_t *dptr, void *pducb_arg,
                                       uint8_t *hdr_byte);
 
 /* Place the PHY into transmit mode */
-int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans);
+int ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg);
 
 /* Copies the received PHY buffer into the allocated pdu */
 void ble_phy_rxpdu_copy(uint8_t *dptr, struct os_mbuf *rxpdu);

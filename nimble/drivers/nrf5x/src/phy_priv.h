@@ -25,6 +25,58 @@
 #include <nrf_gpiote.h>
 
 
+/* To disable all radio interrupts */
+#ifdef NRF54L_SERIES
+#define NRF_RADIO_IRQ_MASK_ALL  (RADIO_INTENSET00_READY_Msk    | \
+                                 RADIO_INTENSET00_ADDRESS_Msk  | \
+                                 RADIO_INTENSET00_PAYLOAD_Msk  | \
+                                 RADIO_INTENSET00_END_Msk      | \
+                                 RADIO_INTENSET00_PHYEND_Msk   | \
+                                 RADIO_INTENSET00_DISABLED_Msk | \
+                                 RADIO_INTENSET00_DEVMATCH_Msk | \
+                                 RADIO_INTENSET00_DEVMISS_Msk  | \
+                                 RADIO_INTENSET00_BCMATCH_Msk  | \
+                                 RADIO_INTENSET00_CRCOK_Msk    | \
+                                 RADIO_INTENSET00_CRCERROR_Msk)
+#else
+#define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
+#endif
+
+/*
+ * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
+ * zero bit S1 field. The preamble is 8 bits long.
+ */
+#define NRF_LFLEN_BITS          (8)
+#define NRF_S0LEN               (1)
+#define NRF_S1LEN_BITS          (0)
+#define NRF_CILEN_BITS          (2)
+#define NRF_TERMLEN_BITS        (3)
+
+/* Maximum length of frames */
+#define NRF_MAXLEN              (255)
+#define NRF_BALEN               (3)     /* For base address of 3 bytes */
+
+/* NRF_RADIO->PCNF0 configuration values */
+#define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
+                                (RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos) | \
+                                (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos) | \
+                                (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos)
+#define NRF_PCNF0_1M            (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_8bit << RADIO_PCNF0_PLEN_Pos)
+#define NRF_PCNF0_2M            (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_16bit << RADIO_PCNF0_PLEN_Pos)
+#define NRF_PCNF0_CODED         (NRF_PCNF0) | \
+                                (RADIO_PCNF0_PLEN_LongRange << RADIO_PCNF0_PLEN_Pos) | \
+                                (NRF_CILEN_BITS << RADIO_PCNF0_CILEN_Pos) | \
+                                (NRF_TERMLEN_BITS << RADIO_PCNF0_TERMLEN_Pos)
+
+#define PHY_TRANS_NONE  (0)
+#define PHY_TRANS_TO_TX (1)
+#define PHY_TRANS_TO_RX (2)
+
+#define PHY_TRANS_ANCHOR_START   (0)
+#define PHY_TRANS_ANCHOR_END     (1)
+
 #if defined(NRF52840_XXAA) && MYNEWT_VAL(BLE_PHY_NRF52_HEADERMASK_WORKAROUND)
 #define PHY_USE_HEADERMASK_WORKAROUND 1
 #endif
@@ -53,6 +105,7 @@
 #define PHY_GPIOTE_FEM_LNA  (PHY_GPIOTE_FEM_PA - PHY_USE_FEM_LNA)
 #endif
 
+#ifndef NRF54L_SERIES
 static inline void
 phy_gpiote_configure(int idx, int pin)
 {
@@ -61,6 +114,7 @@ phy_gpiote_configure(int idx, int pin)
                               NRF_GPIOTE_INITIAL_VALUE_LOW);
     nrf_gpiote_task_enable(NRF_GPIOTE, idx);
 }
+#endif
 
 #if PHY_USE_DEBUG
 void phy_debug_init(void);
@@ -91,6 +145,39 @@ int8_t phy_txpower_round(int8_t dbm);
 #endif
 #ifdef NRF53_SERIES
 #include "nrf53/phy_ppi.h"
+#endif
+#ifdef NRF54L_SERIES
+#define NRF_TIMER0 NRF_TIMER10
+#define TIMER0_IRQn TIMER10_IRQn
+#define NRF_DPPIC NRF_DPPIC10
+#define NRF_RTC0 NRF_RTC10
+#define NRF_AAR NRF_AAR00
+#define NRF_CCM NRF_CCM00
+#define NRF_AAR NRF_AAR00
+#define NRF_GPIOTE NRF_GPIOTE20
+#define RADIO_IRQn RADIO_0_IRQn
+#define RADIO_INTENCLR_ADDRESS_Msk RADIO_INTENCLR00_ADDRESS_Msk
+#define RADIO_INTENSET_DISABLED_Msk RADIO_INTENSET00_DISABLED_Msk
+#define RADIO_INTENCLR_DISABLED_Msk RADIO_INTENCLR00_DISABLED_Msk
+#define RADIO_INTENSET_END_Msk RADIO_INTENSET00_END_Msk
+#define RADIO_INTENCLR_END_Msk RADIO_INTENCLR00_END_Msk
+#define RADIO_INTENCLR_PHYEND_Msk RADIO_INTENCLR00_PHYEND_Msk
+#define RADIO_INTENSET_ADDRESS_Msk RADIO_INTENSET00_ADDRESS_Msk
+#include "nrf54l15/phy_ppi.h"
+#endif
+
+#if BABBLESIM
+extern void tm_tick(void);
+#undef RADIO_STATE_STATE_Tx
+#undef RADIO_STATE_STATE_TxDisable
+#define RADIO_STATE_STATE_TxStarting (11UL) /* An additional state used in bsim */
+#define RADIO_STATE_STATE_Tx (12UL) /* RADIO is in the TX state */
+#define RADIO_STATE_STATE_TxDisable (13UL) /* RADIO is in the TXDISABLED state */
+static inline uint32_t
+ble_ll_tmr_t2u(uint32_t ticks)
+{
+    return ticks * (1000000.0 / 32768);
+}
 #endif
 
 #endif /* H_PHY_PRIV_ */
