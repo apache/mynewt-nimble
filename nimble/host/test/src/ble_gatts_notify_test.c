@@ -474,9 +474,9 @@ static void
 ble_gatts_notify_test_misc_verify_tx_gen(uint16_t conn_handle, int attr_idx,
                                          uint8_t chr_flags)
 {
-    uint16_t attr_handle;
-    uint16_t attr_len;
-    void *attr_val;
+    uint16_t attr_handle = 0;
+    uint16_t attr_len = 0;
+    void *attr_val = NULL;
 
     switch (attr_idx) {
     case 1:
