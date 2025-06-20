@@ -231,6 +231,7 @@ struct ble_sm_keys {
     unsigned irk_valid:1;
     unsigned csrk_valid:1;
     unsigned addr_valid:1;
+    uint32_t sign_counter;
     uint16_t ediv;
     uint64_t rand_val;
     uint8_t addr_type;
@@ -401,6 +402,10 @@ void ble_sm_ia_ra(struct ble_sm_proc *proc,
                   uint8_t *out_iat, uint8_t *out_ia,
                   uint8_t *out_rat, uint8_t *out_ra);
 
+int ble_sm_incr_our_sign_counter(uint16_t conn_handle);
+int ble_sm_incr_peer_sign_counter(uint16_t conn_handle);
+int ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
+                        uint8_t *out);
 int32_t ble_sm_timer(void);
 void ble_sm_connection_broken(uint16_t conn_handle);
 int ble_sm_pair_initiate(uint16_t conn_handle);
@@ -411,6 +416,10 @@ int ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
 int ble_sm_init(void);
 #else
 
+#define ble_sm_incr_our_sign_counter(uint16_t conn_handle) BLE_HS_ENOTSUP
+#define ble_sm_incr_peer_sign_counter(uint16_t conn_handle) BLE_HS_ENOTSUP
+#define ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len, \
+                            uint8_t *out) BLE_HS_ENOTSUP
 #define ble_sm_enc_change_rx(evt) ((void)(evt))
 #define ble_sm_ltk_req_rx(evt) ((void)(evt))
 #define ble_sm_enc_key_refresh_rx(evt) ((void)(evt))
