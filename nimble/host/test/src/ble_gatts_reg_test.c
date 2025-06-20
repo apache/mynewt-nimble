@@ -261,7 +261,7 @@ ble_gatts_reg_test_misc_lookup_bad(struct ble_gatts_reg_test_entry *entry)
 static void
 ble_gatts_reg_test_misc_verify_entry(uint8_t op, const ble_uuid_t *uuid)
 {
-    struct ble_gatts_reg_test_entry *entry;
+    struct ble_gatts_reg_test_entry *entry = NULL;
     int i;
 
     for (i = 0; i < ble_gatts_reg_test_num_entries; i++) {
