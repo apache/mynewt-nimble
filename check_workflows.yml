@@ -1,0 +1,71 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Check workflows status
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  check-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out master branch (base)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: master_branch
+
+      - name: Check out PR branch (head)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr_branch
+
+      - name: Check for label override
+        id: label_check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labelName = 'workflows-update';
+            const labels = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            const hasLabel = labels.data.some(label => label.name === labelName);
+            core.setOutput('skip', hasLabel);
+
+      - name: Compare workflows between master and PR
+        if: steps.label_check.outputs.skip != 'true'
+        run: |
+          echo "Checking if .github/workflows/ differs from master..."
+          diff -r master_branch/.github/workflows pr_branch/.github/workflows || {
+            echo "::error::Workflows differ from master. Please rebase or apply 'workflows-update' label to bypass.";
+            exit 1;
+          }
+
+      - name: Skip message if label present
+        if: steps.label_check.outputs.skip == 'true'
+        run: echo "Skipping workflows check because 'workflows-update' label is present."
