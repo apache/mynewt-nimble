@@ -22,6 +22,7 @@
 #include "host/ble_hs.h"
 #include "host/ble_hs_hci.h"
 #include "ble_hs_priv.h"
+#include "ble_hs_id_priv.h"
 
 #if !MYNEWT_VAL(BLE_CONTROLLER)
 static int
@@ -407,6 +408,8 @@ ble_hs_startup_go(void)
     if (rc != 0) {
         return rc;
     }
+
+    ble_hs_id_rnd_reset();
 
     rc = ble_hs_startup_read_local_ver_tx();
     if (rc != 0) {
