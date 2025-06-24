@@ -78,3 +78,8 @@ void NVIC_SetVector(IRQn_Type IRQn, uint32_t vector)
 {
 	systemVectors[(int32_t)IRQn + 16] = (void(*)(void))vector;
 }
+
+uint32_t NVIC_GetVector(IRQn_Type IRQn)
+{
+    return (uint32_t)systemVectors[(int32_t)IRQn + 16];
+}

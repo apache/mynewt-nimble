@@ -580,7 +580,7 @@ ble_phy_irq_field_tx_exc_bs_start_4this(void)
 {
     CMAC->CM_EXC_STAT_REG = CMAC_CM_EXC_STAT_REG_EXC_BS_START_4THIS_Msk;
 
-    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TX_RX) {
+    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TO_RX) {
         /*
          * Setup 2nd frame that will start after current one.
          * -2us offset to adjust for allowed active clock accuracy.
@@ -642,7 +642,7 @@ ble_phy_irq_frame_tx_exc_bs_stop(void)
     /* Clear latched timestamp so we do not have error on next frame */
     (void)CMAC->CM_TS1_REG;
 
-    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TX_RX) {
+    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TO_RX) {
 #if MYNEWT_VAL(BLE_LL_PHY)
         ble_phy_mode_apply(g_ble_phy_data.phy_mode_rx);
 #endif
@@ -665,7 +665,7 @@ ble_phy_irq_frame_tx_exc_phy_to_idle_4this(void)
 {
     CMAC->CM_EXC_STAT_REG = CMAC_CM_EXC_STAT_REG_EXC_PHY_TO_IDLE_4THIS_Msk;
 
-    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TX_RX) {
+    if (g_ble_phy_data.end_transition == BLE_PHY_TRANSITION_TO_RX) {
         ble_phy_rx_setup_xcvr();
 
         g_ble_phy_data.phy_state = BLE_PHY_STATE_RX;
@@ -1403,7 +1403,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 }
 
 int
-ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg)
 {
     uint8_t *txbuf = g_ble_phy_tx_buf;
     int rc;
@@ -1411,8 +1411,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     MCU_DIAG_SER('T');
 
     assert(CMAC->CM_FRAME_1_REG & CMAC_CM_FRAME_1_REG_FRAME_TX_Msk);
-
-    g_ble_phy_data.end_transition = end_trans;
 
     /*
      * Program required fields now so in worst case TX can continue while we
@@ -1829,3 +1827,9 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
 }
 #endif
 #endif
+
+void
+ble_phy_transition_set(uint8_t trans, uint16_t usecs)
+{
+    g_ble_phy_data.end_transition = trans;
+}
