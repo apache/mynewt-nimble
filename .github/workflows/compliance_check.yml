@@ -32,8 +32,7 @@ jobs:
       - name: Install Dependencies
         shell: bash
         run: |
-             sudo apt-get update
-             sudo apt-get install -y clang-format
+             python -m pip install clang-format
       - name: check style
         shell: bash
         run: |
@@ -45,8 +44,9 @@ jobs:
 
           set +e
           INFO_URL="https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
-          git diff -U0 origin/master...HEAD > diff.patch
-          clang-format-diff -p1 -style=file < diff.patch > clang-fmt.patch
+          GIT_BASE=$(git merge-base origin/master HEAD)
+          git diff -U0 "$GIT_BASE"...HEAD > diff.patch
+          clang-format-diff.py -p1 -style=file < diff.patch > clang-fmt.patch
           if [ -s clang-fmt.patch ]; then
             echo "Code formatting issues found:"
             cat clang-fmt.patch
