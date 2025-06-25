@@ -42,6 +42,13 @@ static uint8_t ble_hs_stop_conn_cnt;
 
 static struct ble_npl_callout ble_hs_stop_terminate_tmo;
 
+static int
+ble_hs_stop_hci_reset(void)
+{
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_CTLR_BASEBAND, BLE_HCI_OCF_CB_RESET),
+                             NULL, 0, NULL, 0);
+}
+
 /**
  * Called when a stop procedure has completed.
  */
@@ -61,6 +68,14 @@ ble_hs_stop_done(int status)
     SLIST_INIT(&ble_hs_stop_listeners);
 
     ble_hs_enabled_state = BLE_HS_ENABLED_STATE_OFF;
+
+    ble_hs_stop_hci_reset();
+
+    /* After LL reset the controller loses its random address */
+    ble_hs_id_reset();
+
+    /* Clear advertising, scanning and connection states. */
+    ble_gap_reset_state(0);
 
     ble_hs_unlock();
 
@@ -114,7 +129,7 @@ ble_hs_stop_terminate_conn(struct ble_hs_conn *conn, void *arg)
     int rc;
 
     rc = ble_gap_terminate_with_conn(conn, BLE_ERR_REM_USER_CONN_TERM);
-    if (rc == 0) {
+    if (rc == 0 || rc == BLE_HS_EALREADY) {
         /* Terminate procedure successfully initiated.  Let the GAP event
          * handler deal with the result.
          */
@@ -255,6 +270,8 @@ ble_hs_stop(struct ble_hs_stop_listener *listener,
     if (rc != 0) {
         return rc;
     }
+
+    ble_hs_stop_conn_cnt = 0;
 
     ble_hs_lock();
     ble_hs_conn_foreach(ble_hs_stop_terminate_conn, NULL);
