@@ -35,8 +35,9 @@
 struct ble_eatt {
     SLIST_ENTRY(ble_eatt) next;
     uint16_t conn_handle;
-    struct ble_l2cap_chan *chan;
+    struct ble_l2cap_chan *chan[MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)];
     uint8_t client_op;
+    uint8_t channels_to_connect;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
@@ -122,16 +123,79 @@ ble_eatt_find_by_conn_handle_and_busy_op(uint16_t conn_handle, uint8_t op)
 static struct ble_eatt *
 ble_eatt_find(uint16_t conn_handle, uint16_t cid)
 {
+    int i;
     struct ble_eatt *eatt;
 
     SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
-        if ((eatt->conn_handle == conn_handle) &&
-            (eatt->chan) &&
-            (eatt->chan->scid == cid)) {
+        if (eatt->conn_handle == conn_handle) {
+            for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+                if (eatt->chan[i] && eatt->chan[i]->scid == cid) {
             return eatt;
         }
     }
+        }
+    }
+    return NULL;
+}
 
+static size_t
+ble_eatt_used_channels(uint16_t conn_handle)
+{
+    int i;
+    size_t used_chans = 0;
+    struct ble_eatt *eatt;
+
+    eatt = ble_eatt_find_by_conn_handle(conn_handle);
+    if (!eatt) {
+        BLE_EATT_LOG_ERROR(
+            "ble_eatt_used_channels: No eatt for given conn handle\n");
+    }
+
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        if (eatt->chan[i] != NULL) {
+            used_chans++;
+        }
+    }
+
+    return used_chans;
+}
+
+static int
+ble_eatt_free_channel_idx(struct ble_eatt *eatt)
+{
+    int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        if (eatt->chan[i] == NULL)
+            return i;
+    }
+
+    return -1;
+}
+
+static struct ble_l2cap_chan *
+ble_eatt_find_chan(struct ble_eatt *eatt, struct ble_l2cap_chan *chan)
+{
+    int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        if (eatt->chan[i] == chan) {
+            return eatt->chan[i];
+        }
+    }
+    return NULL;
+}
+
+static struct ble_l2cap_chan *
+ble_eatt_channel_find_by_cid(struct ble_eatt *eatt, uint16_t cid)
+{
+    int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        if (eatt->chan[i] && eatt->chan[i]->scid == cid) {
+            return eatt->chan[i];
+        }
+    }
     return NULL;
 }
 
@@ -160,6 +224,7 @@ ble_eatt_prepare_rx_sdu(struct ble_l2cap_chan *chan)
 static void
 ble_eatt_wakeup_cb(struct ble_npl_event *ev)
 {
+    int i;
     struct ble_eatt *eatt;
     struct os_mbuf *txom;
     struct os_mbuf_pkthdr *omp;
@@ -173,14 +238,24 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
         STAILQ_REMOVE_HEAD(&eatt->eatt_tx_q, omp_next);
 
         txom = OS_MBUF_PKTHDR_TO_MBUF(omp);
-        ble_l2cap_get_chan_info(eatt->chan, &info);
+
+        /* Look for the already established channel.
+         * Send necessary data, then break.
+         */
+        for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+            if (eatt->chan[i] != NULL) {
+                ble_l2cap_get_chan_info(eatt->chan[i], &info);
         ble_eatt_tx(eatt->conn_handle, info.dcid, txom);
+                break;
+            }
+        }
     }
 }
 
 static struct ble_eatt *
 ble_eatt_alloc(void)
 {
+    int i;
     struct ble_eatt *eatt;
 
     eatt = os_memblock_get(&ble_eatt_conn_pool);
@@ -192,7 +267,9 @@ ble_eatt_alloc(void)
     SLIST_INSERT_HEAD(&g_ble_eatt_list, eatt, next);
 
     eatt->conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    eatt->chan = NULL;
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        eatt->chan[i] = NULL;
+    }
     eatt->client_op = 0;
 
     STAILQ_INIT(&eatt->eatt_tx_q);
@@ -221,7 +298,9 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    struct ble_l2cap_chan *channel;
     uint8_t opcode;
+    int chan_idx;
     int rc;
 
     switch (event->type) {
@@ -231,7 +310,15 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
             ble_eatt_free(eatt);
             return 0;
         }
-        eatt->chan = event->connect.chan;
+        chan_idx = ble_eatt_free_channel_idx(eatt);
+        if (chan_idx > 0) {
+            eatt->chan[chan_idx] = event->connect.chan;
+        } else {
+            BLE_EATT_LOG_ERROR("eatt: Connect event: No free channels\n");
+            ble_eatt_free(eatt);
+            return 0;
+        }
+
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
         BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
@@ -266,7 +353,11 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
         break;
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
-        assert(eatt->chan == event->receive.chan);
+        channel = ble_eatt_find_chan(eatt, event->receive.chan);
+        if (channel == NULL) {
+            BLE_EATT_LOG_ERROR("eatt: receive: Invalid channel\n");
+            ble_eatt_free(eatt);
+        }
         opcode = event->receive.sdu_rx->om_data[0];
         if (ble_eatt_supported_rsp(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
@@ -279,7 +370,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
              *  • The Signed Write Without Response sub-procedure shall only be
              *  supported on the LE Fixed Channel Unenhanced ATT bearer.
              */
-            ble_l2cap_disconnect(eatt->chan);
+            ble_l2cap_disconnect(channel);
             return BLE_HS_EREJECT;
         }
 
@@ -293,11 +384,12 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
          * encryption.
          */
         if (!desc.sec_state.encrypted) {
-            ble_l2cap_disconnect(eatt->chan);
+            ble_l2cap_disconnect(channel);
             return BLE_HS_EREJECT;
         }
 
-        ble_eatt_att_rx_cb(event->receive.conn_handle, eatt->chan->scid, &event->receive.sdu_rx);
+        ble_eatt_att_rx_cb(event->receive.conn_handle, channel->scid,
+                           &event->receive.sdu_rx);
         if (event->receive.sdu_rx) {
             os_mbuf_free_chain(event->receive.sdu_rx);
             event->receive.sdu_rx = NULL;
@@ -306,7 +398,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         /* Receiving L2CAP data is no longer possible, terminate connection */
         rc = ble_eatt_prepare_rx_sdu(event->receive.chan);
         if (rc) {
-            ble_l2cap_disconnect(eatt->chan);
+            ble_l2cap_disconnect(channel);
             return BLE_HS_ENOMEM;
         }
         break;
@@ -336,9 +428,10 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
 
     BLE_EATT_LOG_DEBUG("eatt: connecting eatt on conn_handle 0x%04x\n", eatt->conn_handle);
 
-    rc = ble_l2cap_enhanced_connect(eatt->conn_handle, BLE_EATT_PSM,
-                                    MYNEWT_VAL(BLE_EATT_MTU), 1, &om,
-                                    ble_eatt_l2cap_event_fn, eatt);
+    rc = ble_l2cap_enhanced_connect(
+        eatt->conn_handle, BLE_EATT_PSM, MYNEWT_VAL(BLE_EATT_MTU),
+        eatt->channels_to_connect, &om, ble_eatt_l2cap_event_fn, eatt);
+
     if (rc) {
         BLE_EATT_LOG_ERROR("eatt: Failed to connect EATT on conn_handle 0x%04x (status=%d)\n",
                             eatt->conn_handle, rc);
@@ -441,6 +534,7 @@ ble_eatt_gap_event(struct ble_gap_event *event, void *arg)
 uint16_t
 ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op)
 {
+    int i;
     struct ble_eatt * eatt;
 
     eatt = ble_eatt_find_not_busy(conn_handle);
@@ -450,7 +544,13 @@ ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op)
 
     eatt->client_op = op;
 
-    return eatt->chan->scid;
+    for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
+        if (eatt->chan[i] != NULL) {
+            return eatt->chan[i]->scid;
+        }
+    }
+
+    return BLE_L2CAP_CID_ATT;
 }
 
 void
@@ -472,17 +572,25 @@ int
 ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
 {
     struct ble_eatt *eatt;
+    static struct ble_l2cap_chan *channel;
     int rc;
 
     BLE_EATT_LOG_DEBUG("eatt: %s, size %d ", __func__, OS_MBUF_PKTLEN(txom));
     eatt = ble_eatt_find(conn_handle, cid);
-    if (!eatt || !eatt->chan) {
+    if (!eatt) {
         BLE_EATT_LOG_ERROR("Eatt not available");
         rc = BLE_HS_ENOENT;
         goto error;
     }
 
-    rc = ble_l2cap_send(eatt->chan, txom);
+    channel = ble_eatt_channel_find_by_cid(eatt, cid);
+    if (!channel) {
+        BLE_EATT_LOG_ERROR("Eatt not available");
+        rc = BLE_HS_ENOENT;
+        goto error;
+    }
+
+    rc = ble_l2cap_send(channel, txom);
     if (rc == 0) {
         goto done;
     }
