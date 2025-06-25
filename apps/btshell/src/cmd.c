@@ -51,6 +51,8 @@
 
 #define BTSHELL_MODULE "btshell"
 
+// clang-format off
+
 int
 cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
                          uint16_t *out_end)
@@ -5067,6 +5069,7 @@ static const struct shell_cmd btshell_commands[] = {
     { 0 },
 };
 
+// clang-format on
 
 void
 cmd_init(void)
