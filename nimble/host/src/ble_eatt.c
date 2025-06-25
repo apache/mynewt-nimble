@@ -130,9 +130,9 @@ ble_eatt_find(uint16_t conn_handle, uint16_t cid)
         if (eatt->conn_handle == conn_handle) {
             for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
                 if (eatt->chan[i] && eatt->chan[i]->scid == cid) {
-            return eatt;
-        }
-    }
+                    return eatt;
+                }
+            }
         }
     }
     return NULL;
@@ -245,7 +245,7 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
         for (i = 0; i < MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN); i++) {
             if (eatt->chan[i] != NULL) {
                 ble_l2cap_get_chan_info(eatt->chan[i], &info);
-        ble_eatt_tx(eatt->conn_handle, info.dcid, txom);
+                ble_eatt_tx(eatt->conn_handle, info.dcid, txom);
                 break;
             }
         }
@@ -639,6 +639,52 @@ ble_eatt_start(uint16_t conn_handle)
 
     /* Setup EATT  */
     ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
+}
+
+int
+ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
+{
+    int rc;
+    uint8_t free_channels;
+    struct ble_eatt *eatt;
+    struct ble_gap_conn_desc desc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    eatt = ble_eatt_find_by_conn_handle(conn_handle);
+    if (!eatt) {
+        eatt = ble_eatt_alloc();
+        if (!eatt) {
+            BLE_EATT_LOG_ERROR("ble_eatt_connect: Can't allocate EATT\n");
+            return BLE_HS_ENOMEM;
+        }
+        eatt->conn_handle = conn_handle;
+    }
+
+    if (chan_num > MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        BLE_EATT_LOG_WARN("ble_eatt_connect: Invalid channel number\n");
+        return BLE_HS_EREJECT;
+    }
+
+    /* Get number of free channels for this connection */
+    free_channels =
+        MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN) - ble_eatt_used_channels(conn_handle);
+
+    /* Connect all channels if invoked with 0 & all channels are free */
+    if (chan_num == 0 && free_channels == MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        eatt->channels_to_connect = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN);
+    } else if (chan_num < free_channels) {
+        eatt->channels_to_connect = chan_num;
+    } else {
+        BLE_EATT_LOG_ERROR("ble_eatt_connect: Invalid channel number\n");
+        return BLE_HS_ENOMEM;
+    }
+
+    /* Setup EATT */
+    ble_npl_eventq_put(ble_hs_evq_get(), &eatt->setup_ev);
+
+    return 0;
 }
 
 void
