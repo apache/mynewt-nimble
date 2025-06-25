@@ -664,3 +664,38 @@ cmd_gatt_clear_pending_notif(int argc, char **argv)
     return ENOTSUP;
 #endif
 }
+
+/*****************************************************************************
+ * $gatt-eatt-connect                                                        *
+ *****************************************************************************/
+
+int
+cmd_gatt_eatt_connect(int argc, char **argv)
+{
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM)
+    uint16_t conn_handle;
+    uint16_t chan_num;
+    int rc;
+
+    rc = parse_arg_init(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    chan_num = parse_arg_uint16("chan_num", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'chan_num' parameter\n");
+        return rc;
+    }
+    return ble_eatt_connect(conn_handle, chan_num);
+#else
+    console_printf("To enable this features set BLE_EATT_CHAN_NUM\n");
+    return ENOTSUP;
+#endif
+}

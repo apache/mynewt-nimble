@@ -38,5 +38,6 @@ int cmd_gatt_write(int argc, char **argv);
 int cmd_gatt_enqueue_notif(int argc, char **argv);
 int cmd_gatt_send_pending_notif(int argc, char **argv);
 int cmd_gatt_clear_pending_notif(int argc, char **argv);
+int cmd_gatt_eatt_connect(int argc, char **argv);
 
 #endif
