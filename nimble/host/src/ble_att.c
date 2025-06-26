@@ -515,6 +515,7 @@ ble_att_send_outstanding_after_response(uint16_t conn_handle)
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
                                          &chan);
     if (rc) {
+        ble_hs_unlock();
         return;
     }
     conn->client_att_busy = false;
