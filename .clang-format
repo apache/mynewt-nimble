@@ -79,6 +79,7 @@ SpacesInParentheses: false
 SpaceAfterCStyleCast: false
 SpaceBeforeParens: ControlStatementsExceptControlMacros
 SpaceInEmptyParentheses: false
+BreakStringLiterals: false
 
 AlignArrayOfStructures: Left
 SortIncludes: false
