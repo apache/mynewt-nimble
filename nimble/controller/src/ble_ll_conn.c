@@ -1341,7 +1341,8 @@ conn_tx_pdu:
         (CONN_IS_PERIPHERAL(connsm) && (md == 0) &&
          (connsm->cons_rxd_bad_crc == 0) &&
          ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
-         !ble_ll_ctrl_is_terminate_ind(hdr_byte, m->om_data[0]))) {
+         ((connsm->flags.empty_pdu_txd) ||
+          !ble_ll_ctrl_is_terminate_ind(hdr_byte, m->om_data[0])))) {
         /* We will end the connection event */
         end_transition = BLE_PHY_TRANSITION_NONE;
         txend_func = ble_ll_conn_wait_txend;
