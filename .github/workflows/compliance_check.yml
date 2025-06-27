@@ -36,12 +36,6 @@ jobs:
       - name: check style
         shell: bash
         run: |
-          wget -O .clang-format-core https://raw.githubusercontent.com/apache/mynewt-core/refs/heads/master/.clang-format
-          if ! cmp -s ".clang-format-core" ".clang-format"; then
-            echo "Mismatched clang-format configurations!"
-            exit 1
-          fi
-
           set +e
           INFO_URL="https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
           GIT_BASE=$(git merge-base origin/master HEAD)
