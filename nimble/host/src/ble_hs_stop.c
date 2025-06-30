@@ -74,6 +74,8 @@ ble_hs_stop_done(int status)
     /* After LL reset the controller loses its random address */
     ble_hs_id_reset();
 
+    ble_hs_pvcy_reset();
+
     /* Clear advertising, scanning and connection states. */
     ble_gap_reset_state(0);
 

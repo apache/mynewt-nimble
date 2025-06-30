@@ -261,3 +261,10 @@ ble_hs_pvcy_set_mode(const ble_addr_t *addr, uint8_t priv_mode)
                                         BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
                              &cmd, sizeof(cmd), NULL, 0);
 }
+
+void
+ble_hs_pvcy_reset(void)
+{
+    ble_hs_pvcy_started = 0;
+    memset(ble_hs_pvcy_irk, 0, sizeof(ble_hs_pvcy_irk));
+}
