@@ -51,6 +51,9 @@ ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
 
     cmd = ble_transport_alloc_cmd();
     BLE_HS_DBG_ASSERT(cmd != NULL);
+    if (cmd == NULL) {
+        return BLE_HS_ENOMEM;
+    }
 
     cmd->opcode = htole16(opcode);
     cmd->length = len;
