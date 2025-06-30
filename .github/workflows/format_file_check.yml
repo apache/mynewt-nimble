@@ -42,6 +42,7 @@ jobs:
       - name: Check for changes & replace
         id: changed
         run: |
+          set +e
           if ! cmp -s ".clang-format-core" ".clang-format"; then
             echo "🔄 .clang-format has changed, updating..."
             diff -u .clang-format .clang-format-core
