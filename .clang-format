@@ -32,6 +32,7 @@ MacroBlockEnd: '(STATS_NAME_END|STATS_SECT_END)'
 StatementMacros: ['SLIST_HEAD']
 
 ForEachMacros:
+  - 'LINK_TABLE_FOREACH'
   - 'SLIST_FOREACH'
   - 'SLIST_FOREACH_FROM'
   - 'SLIST_FOREACH_SAFE'
