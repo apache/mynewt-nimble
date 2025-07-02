@@ -185,6 +185,19 @@ struct ble_hs_cfg;
 
 /** @} */
 
+/**
+ * @defgroup ble_gatts_clt_cfg Client Characteristic Configuration Descriptor (CCCD) Flags Types
+ * @{
+ */
+
+/** GATT Client Charactaristic Configuration Flag: Notify. */
+#define BLE_GATT_CCCD_NOTIFY                       0x01
+
+/** GATT Client Charactaristic Configuration Flag: Indicate. */
+#define BLE_GATT_CCCD_INDICATE                     0x02
+
+/** @} */
+
 /*** @client. */
 /** Represents a GATT error. */
 struct ble_gatt_error {
@@ -1213,6 +1226,24 @@ int ble_gatts_start(void);
  *
  */
 int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat, uint8_t len);
+
+/**
+ * Reads configuration values from Client Characteristic Configuration
+ * Descriptor for specified characteristic.
+ *
+ * @param conn_handle           Connection handle identifying the connection
+ *                                  to which CCC instance is related.
+ * @param chr_val_handle        The value handle of characteristic.
+ * @param cccd_value            Configuration value of CCC.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if no matching connection
+ *                                  was found
+ *                              BLE_HS_ENOENT if descriptor could not be found.
+ *
+ */
+int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
+                        uint8_t *cccd_value);
 
 #ifdef __cplusplus
 }
