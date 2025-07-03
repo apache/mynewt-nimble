@@ -110,3 +110,73 @@ jobs:
         shell: bash
         run: |
              .github/check_doxygen.py
+
+  commits-check:
+    name: Check commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit message style
+        shell: bash
+        run: |
+          set -e
+          has_errors=0
+          COMMIT_URL="https://cwiki.apache.org/confluence/display/MYNEWT/Contributing+to+Apache+Mynewt"
+
+          # Determine commit range for PR or fallback to origin/master
+          if [ -n "${GITHUB_BASE_REF}" ]; then
+            base_ref="origin/${GITHUB_BASE_REF}"
+          else
+            base_ref="origin/master"
+          fi
+
+          base_commit=$(git merge-base HEAD ${base_ref})
+
+          echo "Checking commits from ${base_commit} to HEAD"
+
+          for commit in $(git rev-list --no-merges ${base_commit}..HEAD); do
+            short_sha=$(git rev-parse --short=7 $commit)
+            subject=$(git log -1 --pretty=format:%s $commit)
+            body=$(git log -1 --pretty=format:%b $commit)
+
+            if [ ${#subject} -gt 72 ]; then
+              echo "Commit $short_sha subject too long (${#subject} > 72):"
+              echo "$subject"
+              has_errors=1
+            fi
+
+            if [[ "$subject" != *:* ]]; then
+              echo "Commit $short_sha subject missing colon (e.g. 'subsystem: msg')"
+              echo "$subject"
+              has_errors=1
+            fi
+
+            if [ -z "$body" ]; then
+              echo "Commit $short_sha body is missing"
+              has_errors=1
+            else
+              line_num=0
+              while IFS= read -r line; do
+                line_num=$((line_num + 1))
+                if [ ${#line} -gt 72 ]; then
+                  echo "Commit $short_sha body line $line_num too long (${#line} > 72):"
+                  echo "$line"
+                  has_errors=1
+                fi
+              done <<< "$body"
+            fi
+
+            echo ""
+          done
+
+          if [ "$has_errors" -eq 1 ]; then
+            echo "::error::Commit message check failed."
+            echo "For contributing guidelines, see:"
+            echo "  $COMMIT_URL"
+            exit 1
+          else
+            echo "All commit messages pass style rules."
+          fi
