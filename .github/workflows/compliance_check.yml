@@ -70,6 +70,10 @@ jobs:
             echo "All good, no formatting issues."
           fi
 
+      - name: Skip style-check if label present
+        if: steps.label_check.outputs.skip == 'true'
+        run: echo "Skipping style check because 'skip-style-check' label is present."
+
   style_license:
     name: Licensing
     runs-on: ubuntu-24.04
