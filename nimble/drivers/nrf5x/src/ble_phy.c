@@ -2319,7 +2319,7 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
 void
 ble_phy_rfclk_enable(void)
 {
-#if MYNEWT || defined(RIOT_VERSION)
+#if MYNEWT || defined(RIOT_VERSION) || defined(PEBBLEOS)
 #ifdef NRF52_SERIES
     nrf52_clock_hfxo_request();
 #endif
@@ -2334,7 +2334,7 @@ ble_phy_rfclk_enable(void)
 void
 ble_phy_rfclk_disable(void)
 {
-#if MYNEWT || defined(RIOT_VERSION)
+#if MYNEWT || defined(RIOT_VERSION) || defined(PEBBLEOS)
 #ifdef NRF52_SERIES
     nrf52_clock_hfxo_release();
 #endif
