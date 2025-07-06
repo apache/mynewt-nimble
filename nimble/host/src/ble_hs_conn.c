@@ -207,10 +207,6 @@ err:
 void
 ble_hs_conn_delete_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
-    if (conn->bhc_rx_chan == chan) {
-        conn->bhc_rx_chan = NULL;
-    }
-
     SLIST_REMOVE(&conn->bhc_channels, chan, ble_l2cap_chan, next);
     ble_l2cap_chan_free(conn, chan);
 }
@@ -243,6 +239,9 @@ ble_hs_conn_free(struct ble_hs_conn *conn)
     if (conn == NULL) {
         return;
     }
+
+    os_mbuf_free_chain(conn->rx_frags);
+    conn->rx_frags = NULL;
 
     ble_att_svr_prep_clear(&conn->bhc_att_svr.basc_prep_list);
 
@@ -504,8 +503,8 @@ ble_hs_conn_timer(void)
              * passes after a partial packet is received, the connection is
              * terminated.
              */
-            if (conn->bhc_rx_chan != NULL) {
-                time_diff = conn->bhc_rx_timeout - now;
+            if (conn->rx_len) {
+                time_diff = conn->rx_frag_tmo - now;
 
                 if (time_diff <= 0) {
                     /* ACL reassembly has timed out.*/
