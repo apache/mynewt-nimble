@@ -1265,6 +1265,30 @@ periodic_transfer_received(struct ble_gap_event *event)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+static void
+subrate_change_received(struct ble_gap_event *event)
+{
+    int rc;
+    struct ble_gap_conn_desc desc;
+    struct gap_subrate_change_ev ev;
+
+    rc = ble_gap_conn_find(event->subrate_change.conn_handle, &desc);
+    assert(rc == 0);
+
+    ev.addr = desc.peer_ota_addr;
+    ev.status = event->subrate_change.status;
+    ev.conn_handle = event->subrate_change.conn_handle;
+    ev.subrate_factor = event->subrate_change.subrate_factor;
+    ev.periph_latency = event->subrate_change.periph_latency;
+    ev.cont_num = event->subrate_change.cont_num;
+    ev.supervision_tmo = event->subrate_change.supervision_tmo;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_SUBRATE_CHANGE, (uint8_t *)&ev,
+                 sizeof(ev));
+}
+#endif
+
 static void
 print_bytes(const uint8_t *bytes, int len)
 {
@@ -1562,6 +1586,19 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                        event->periodic_transfer.per_adv_itvl,
                        event->periodic_transfer.adv_clk_accuracy);
         periodic_transfer_received(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    case BLE_GAP_EVENT_SUBRATE_CHANGE:
+        console_printf(
+            "Subrate change received:"
+            "status=%d, conn_handle=%d, subrate_factor=%d, perpih_latency=%d,"
+            "cont_num=%d supervision_tmo=%d",
+            event->subrate_change.status, event->subrate_change.conn_handle,
+            event->subrate_change.subrate_factor,
+            event->subrate_change.periph_latency, event->subrate_change.cont_num,
+            event->subrate_change.supervision_tmo);
+        subrate_change_received(event);
         break;
 #endif
     default:
