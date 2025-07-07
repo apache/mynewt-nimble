@@ -455,3 +455,14 @@ struct gap_periodic_transfer_recieved_ev {
     uint8_t status;
     ble_addr_t peer_addr;
 } __packed;
+
+#define GAP_EV_SUBRATE_CHANGE 0x92
+struct gap_subrate_change_ev {
+    ble_addr_t addr;
+    uint8_t status;
+    uint16_t conn_handle;
+    uint16_t subrate_factor;
+    uint16_t periph_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
+} __packed;
