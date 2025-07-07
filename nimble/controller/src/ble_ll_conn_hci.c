@@ -943,7 +943,7 @@ ble_ll_conn_hci_read_rem_features(const uint8_t *cmdbuf, uint8_t len)
         }
 #endif
 
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG, NULL);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
     }
 
     connsm->flags.features_host_req = 1;
@@ -1139,7 +1139,7 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
         connsm->flags.conn_update_host_initd = 1;
 
         /* Start the control procedure */
-        ble_ll_ctrl_proc_start(connsm, ctrl_proc, NULL);
+        ble_ll_ctrl_proc_start(connsm, ctrl_proc);
     }
 
     return rc;
@@ -1416,7 +1416,7 @@ ble_ll_conn_hci_rd_rem_ver_cmd(const uint8_t *cmdbuf, uint8_t len)
      * be queued before the command status.
      */
     if (!connsm->flags.version_ind_txd) {
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG, NULL);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_VERSION_XCHG);
     } else {
         connsm->pending_ctrl_procs |= (1 << BLE_LL_CTRL_PROC_VERSION_XCHG);
     }
@@ -1588,7 +1588,7 @@ ble_ll_conn_hci_le_start_encrypt(const uint8_t *cmdbuf, uint8_t len)
         connsm->enc_data.host_rand_num = le64toh(cmd->rand);
         connsm->enc_data.enc_div = le16toh(cmd->div);
         swap_buf(connsm->enc_data.enc_block.key, cmd->ltk, 16);
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_ENCRYPT, NULL);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
         rc = BLE_ERR_SUCCESS;
     }
 
@@ -1738,7 +1738,7 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
         return BLE_ERR_CTLR_BUSY;
     }
 
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SCA_UPDATE);
 
     return 0;
 }
