@@ -353,7 +353,7 @@ syscfg.defs:
             Enables support LE Enhanced Connection Update.
             This allows to use Conenction Subrate Update and Connection Subrate
             Request procedures to modify subrate paramters for a connection.
-        value: 0
+        value: MYNEWT_VAL(BLE_CONN_SUBRATING)
         restrictions:
             - '(BLE_VERSION >= 53) if 1'
 
