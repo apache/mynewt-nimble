@@ -1202,17 +1202,11 @@ bond_lost(uint16_t conn_handle)
 static void
 sync_established(struct ble_gap_event *event)
 {
-    int rc;
-    struct ble_gap_conn_desc desc;
     struct gap_periodic_sync_est_ev ev;
 
     ev.status = event->periodic_sync.status;
     ev.sync_handle = event->periodic_sync.sync_handle;
-
-    rc = ble_gap_conn_find(ev.sync_handle, &desc);
-    assert(rc == 0);
-
-    ev.peer_addr = desc.peer_id_addr;
+    ev.peer_addr = event->periodic_sync.adv_addr;
 
     tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_SYNC_ESTABLISHED,
                  (uint8_t *) &ev, sizeof(ev));
@@ -1261,7 +1255,7 @@ periodic_transfer_received(struct ble_gap_event *event)
     ev.sync_handle = event->periodic_transfer.sync_handle;
     ev.status = event->periodic_transfer.status;
 
-    rc = ble_gap_conn_find(ev.sync_handle, &desc);
+    rc = ble_gap_conn_find(event->periodic_transfer.conn_handle, &desc);
     assert(rc == 0);
 
     ev.peer_addr = desc.peer_id_addr;
