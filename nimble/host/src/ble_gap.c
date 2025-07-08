@@ -1993,6 +1993,7 @@ ble_gap_rx_subrate_change(const struct ble_hci_ev_le_subev_subrate_change *ev)
     event.subrate_change.supervision_tmo = le16toh(ev->supervision_tmo);
 
     ble_gap_event_listener_call(&event);
+    ble_gap_call_conn_event_cb(&event, ev->conn_handle);
 }
 #endif
 
