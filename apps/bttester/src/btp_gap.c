@@ -1265,6 +1265,30 @@ periodic_transfer_received(struct ble_gap_event *event)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+static void
+subrate_change_received(struct ble_gap_event *event)
+{
+    int rc;
+    struct ble_gap_conn_desc desc;
+    struct gap_subrate_change_ev ev;
+
+    rc = ble_gap_conn_find(event->subrate_change.conn_handle, &desc);
+    assert(rc == 0);
+
+    ev.addr = desc.peer_ota_addr;
+    ev.status = event->subrate_change.status;
+    ev.conn_handle = event->subrate_change.conn_handle;
+    ev.subrate_factor = event->subrate_change.subrate_factor;
+    ev.periph_latency = event->subrate_change.periph_latency;
+    ev.cont_num = event->subrate_change.cont_num;
+    ev.supervision_tmo = event->subrate_change.supervision_tmo;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_SUBRATE_CHANGE, (uint8_t *)&ev,
+                 sizeof(ev));
+}
+#endif
+
 static void
 print_bytes(const uint8_t *bytes, int len)
 {
@@ -1562,6 +1586,19 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                        event->periodic_transfer.per_adv_itvl,
                        event->periodic_transfer.adv_clk_accuracy);
         periodic_transfer_received(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    case BLE_GAP_EVENT_SUBRATE_CHANGE:
+        console_printf(
+            "Subrate change received:"
+            "status=%d, conn_handle=%d, subrate_factor=%d, perpih_latency=%d,"
+            "cont_num=%d supervision_tmo=%d",
+            event->subrate_change.status, event->subrate_change.conn_handle,
+            event->subrate_change.subrate_factor,
+            event->subrate_change.periph_latency, event->subrate_change.cont_num,
+            event->subrate_change.supervision_tmo);
+        subrate_change_received(event);
         break;
 #endif
     default:
@@ -2210,6 +2247,29 @@ periodic_adv_sync_transfer_set_info(const void *cmd, uint16_t cmd_len,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+static uint8_t
+subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_subrate_request_cmd *cp = cmd;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_subrate_req(desc.conn_handle, cp->subrate_min, cp->subrate_max,
+                             cp->max_latency, cp->cont_num, cp->supervision_timeout);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+#endif
+
 static const struct btp_handler handlers[] = {
     {
         .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -2378,6 +2438,13 @@ static const struct btp_handler handlers[] = {
         .opcode = GAP_PADV_SYNC_TRANSFER_RECV,
         .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_recv_cmd),
         .func = periodic_adv_sync_transfer_recv,
+    },
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    {
+        .opcode = GAP_SUBRATE_REQUEST,
+        .expect_len = sizeof(struct gap_subrate_request_cmd),
+        .func = subrate_request,
     },
 #endif
 };
