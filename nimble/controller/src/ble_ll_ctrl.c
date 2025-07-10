@@ -2135,7 +2135,7 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm, bool initial)
         }
     }
 
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
 }
 
 static void
@@ -2467,7 +2467,7 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  * @param ctrl_proc
  */
 static struct os_mbuf *
-ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
+ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     uint8_t len;
     uint8_t opcode = 0;
@@ -2486,7 +2486,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
             opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
-            ble_ll_ctrl_conn_update_init_proc(connsm, data);
+            ble_ll_ctrl_conn_update_init_proc(connsm, NULL);
             break;
         case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
             opcode = BLE_LL_CTRL_CHANNEL_MAP_REQ;
@@ -2644,7 +2644,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     BLE_LL_ASSERT(connsm->disconnect_reason != 0);
 
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
-    om = ble_ll_ctrl_proc_init(connsm, ctrl_proc, NULL);
+    om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
     if (om) {
         connsm->flags.terminate_started = 1;
 
@@ -2664,8 +2664,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
  * @param connsm Pointer to connection state machine.
  */
 void
-ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc,
-                       void *data)
+ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     struct os_mbuf *om;
 
@@ -2674,7 +2673,7 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc,
     om = NULL;
     if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
         /* Initiate the control procedure. */
-        om = ble_ll_ctrl_proc_init(connsm, ctrl_proc, data);
+        om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
         if (om) {
             /* Set the current control procedure */
             connsm->cur_ctrl_proc = ctrl_proc;
@@ -2735,7 +2734,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
         BLE_LL_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT);
         BLE_LL_ASSERT(IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_ENCRYPT));
 
-        om = ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT, NULL);
+        om = ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
         if (om) {
             connsm->flags.pending_encrypt_restart = 0;
         }
@@ -2760,7 +2759,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
                     ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
                     CLR_PENDING_CTRL_PROC(connsm, i);
                 } else {
-                    ble_ll_ctrl_proc_start(connsm, i, NULL);
+                    ble_ll_ctrl_proc_start(connsm, i);
                     break;
                 }
             }
