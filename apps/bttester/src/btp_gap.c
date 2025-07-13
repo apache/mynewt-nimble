@@ -1564,6 +1564,10 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
         periodic_transfer_received(event);
         break;
 #endif
+    case BLE_GAP_EVENT_AUTHORIZE:
+        console_printf("Authorize event: conn_handle=%d",
+                       event->authorize.conn_handle);
+        return BLE_GAP_AUTHORIZE_REJECT;
     default:
         break;
     }
