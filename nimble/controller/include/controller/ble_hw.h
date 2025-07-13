@@ -97,12 +97,6 @@ uint8_t ble_hw_resolv_list_size(void);
 /* Returns index of resolved address; -1 if not resolved */
 int ble_hw_resolv_list_match(void);
 
-/* Returns public device address or -1 if not present */
-int ble_hw_get_public_addr(ble_addr_t *addr);
-
-/* Returns random static address or -1 if not present */
-int ble_hw_get_static_addr(ble_addr_t *addr);
-
 #ifdef __cplusplus
 }
 #endif
