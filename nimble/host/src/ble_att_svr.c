@@ -157,11 +157,7 @@ struct ble_att_svr_entry *
 ble_att_svr_find_by_handle(uint16_t handle_id)
 {
     struct ble_att_svr_entry *entry;
-
-    for (entry = STAILQ_FIRST(&ble_att_svr_list);
-         entry != NULL;
-         entry = STAILQ_NEXT(entry, ha_next)) {
-
+    STAILQ_FOREACH(entry, &ble_att_svr_list, ha_next) {
         if (entry->ha_handle_id == handle_id) {
             return entry;
         }
@@ -1470,16 +1466,12 @@ ble_att_svr_rx_read(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct ble_att_read_req *req;
-    struct os_mbuf *txom;
-    uint16_t err_handle;
-    uint8_t att_err;
     int rc;
-
+    struct ble_att_read_req *req;
     /* Initialize some values in case of early error. */
-    txom = NULL;
-    att_err = 0;
-    err_handle = 0;
+    struct os_mbuf *txom = NULL;
+    uint16_t err_handle = 0;
+    uint8_t att_err = 0;
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
