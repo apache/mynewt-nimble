@@ -738,6 +738,35 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
 }
 
 int
+ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
+                    uint8_t *cccd_value)
+{
+    struct ble_gatts_clt_cfg *clt_cfg;
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn == NULL) {
+        ble_hs_lock();
+        return BLE_HS_ENOTCONN;
+    }
+
+    clt_cfg = ble_gatts_clt_cfg_find(conn->bhc_gatt_svr.clt_cfgs,
+                                     chr_val_handle);
+    if (clt_cfg == NULL) {
+        ble_hs_lock();
+        return BLE_HS_ENOENT;
+    }
+
+    *cccd_value = clt_cfg->flags & ~BLE_GATTS_CLT_CFG_F_RESERVED;
+
+    ble_hs_unlock();
+
+    return 0;
+}
+
+int
 ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
                          uint8_t op, uint16_t offset, struct os_mbuf **om,
                          void *arg)
