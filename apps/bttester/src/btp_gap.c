@@ -313,6 +313,34 @@ set_connectable(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
+set_scannable(const void *cmd, uint16_t cmd_len,
+              void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gap_set_scannable_cmd *cp = cmd;
+    struct btp_gap_set_scannable_rp *rp = rsp;
+
+    SYS_LOG_DBG("")
+
+    if (cp->scannable) {
+        current_settings |= BIT(BTP_GAP_SETTINGS_SCANNABLE);
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        adv_params.scannable = 0;
+#endif
+    } else {
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_SCANNABLE);
+#if MYNEWT_VAL(BLE_EXT_ADV)
+        adv_params.scannable = 0;
+#endif
+    }
+
+    rp->current_settings = htole32(current_settings);
+
+    *rsp_len = sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 set_discoverable(const void *cmd, uint16_t cmd_len,
                  void *rsp, uint16_t *rsp_len)
 {
@@ -2232,6 +2260,11 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GAP_SET_CONNECTABLE,
         .expect_len = sizeof(struct btp_gap_set_connectable_cmd),
         .func = set_connectable,
+    },
+    {
+        .opcode = BTP_GAP_SET_SCANNABLE,
+        .expect_len = sizeof(struct btp_gap_set_scannable_cmd),
+        .func = set_scannable,
     },
     {
         .opcode = BTP_GAP_SET_DISCOVERABLE,
