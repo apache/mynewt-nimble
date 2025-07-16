@@ -1800,7 +1800,7 @@ ble_l2cap_sig_le_credits_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     /* Ignore when peer sends zero credits */
     if (req->credits == 0) {
-            return 0;
+        return BLE_HS_EINVAL;
     }
 
     ble_l2cap_coc_le_credits_update(conn_handle, le16toh(req->scid),
