@@ -930,9 +930,12 @@ ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
     OS_ENTER_CRITICAL(sr);
 
     first = TAILQ_FIRST(&g_ble_ll_sched_q);
-    if (first->sched_type == type) {
-        first_removed = 1;
+    if (!first) {
+        OS_EXIT_CRITICAL(sr);
+        return;
     }
+
+    first_removed = first->sched_type == type;
 
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         if (entry->sched_type != type) {
