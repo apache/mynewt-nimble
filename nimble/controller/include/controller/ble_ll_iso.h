@@ -27,29 +27,55 @@
 extern "C" {
 #endif
 
-struct ble_ll_iso_data_path {
-    uint8_t data_path_id;
-    uint8_t enabled : 1;
+/**
+ * @struct ble_ll_iso_data_path_cb
+ *
+ * Interface structure for ISO data path callbacks.
+ */
+struct ble_ll_iso_data_path_cb {
+    /**
+     * @brief Callback function for sending an ISO SDU (Service Data Unit).
+     *
+     * @param conn_handle The connection handle associated with the received SDU.
+     * @param om Pointer to the `os_mbuf` structure containing the SDU data.
+     *           Can be `NULL` if the SDU is considered as lost.
+     * @param timestamp Timestamp associated with the received SDU.
+     * @param seq_num Sequence number of the SDU.
+     * @param valid Status of the SDU reception.
+     *              - `true`: SDU was received successfully, and `om` contains valid data.
+     *              - `false`: An error occurred during processing, but partial or corrupted
+     *                         SDU data may be available in `om`.
+     */
+    void (*sdu_send)(uint16_t conn_handle, const struct os_mbuf *om, uint32_t timestamp,
+                     uint16_t seq_num, bool valid);
 };
-struct ble_ll_iso_test_mode {
+struct ble_ll_iso_rx {
     struct {
-        uint32_t rand;
         uint8_t payload_type;
-        uint8_t enabled : 1;
-    } transmit;
+        uint32_t received_sdu_count;
+        uint32_t missed_sdu_count;
+        uint32_t failed_sdu_count;
+    } test;
+
+    const struct ble_ll_iso_data_path_cb *data_path;
+};
+struct ble_ll_iso_tx {
+    struct {
+        uint8_t payload_type;
+        uint32_t rand;
+    } test;
+
+    const struct ble_ll_iso_data_path_cb *data_path;
 };
 struct ble_ll_iso_conn {
     /* Connection handle */
     uint16_t handle;
 
-    /* Maximum SDU size */
-    uint16_t max_sdu;
+    /* ISO Rx */
+    struct ble_ll_iso_rx *rx;
 
-    /* ISO Data Path */
-    struct ble_ll_iso_data_path data_path;
-
-    /* ISO Test Mode */
-    struct ble_ll_iso_test_mode test_mode;
+    /* ISO Tx */
+    struct ble_ll_iso_tx *tx;
 
     /* ISOAL Multiplexer */
     struct ble_ll_isoal_mux mux;
@@ -74,36 +100,28 @@ int ble_ll_iso_reject_cis_req(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_create_big(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_create_big_test(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_terminate_big(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_iso_big_create_sync(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_iso_big_create_sync(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_big_terminate_sync(const uint8_t *cmdbuf, uint8_t len);
 int ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
-int ble_ll_iso_receive_test(const uint8_t *cmdbuf, uint8_t len);
-int ble_ll_iso_read_counters_test(const uint8_t *cmdbuf, uint8_t len);
+int ble_ll_iso_receive_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_iso_read_counters_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 
 void ble_ll_iso_init(void);
 void ble_ll_iso_reset(void);
 
-/* ISO Data handler */
+/* ISO Data SDU handler */
 int ble_ll_iso_data_in(struct os_mbuf *om);
 
 int ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_counter, uint8_t *llid, void *dptr);
 
-struct ble_ll_iso_conn_init_param {
-    uint32_t iso_interval_us;
-    uint32_t sdu_interval_us;
-    uint16_t conn_handle;
-    uint16_t max_sdu;
-    uint8_t max_pdu;
-    uint8_t framing;
-    uint8_t pte;
-    uint8_t bn;
-};
+/* ISO Data PDU handler */
+int ble_ll_iso_data_pdu_in(struct ble_ll_iso_conn *conn, uint8_t idx, struct os_mbuf *om);
 
-void ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, struct ble_ll_iso_conn_init_param *param);
-void ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn);
+void ble_ll_iso_conn_add(struct ble_ll_iso_conn *conn);
+void ble_ll_iso_conn_rem(struct ble_ll_iso_conn *conn);
 
 int ble_ll_iso_conn_event_start(struct ble_ll_iso_conn *conn, uint32_t timestamp);
 int ble_ll_iso_conn_event_done(struct ble_ll_iso_conn *conn);

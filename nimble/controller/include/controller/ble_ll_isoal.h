@@ -27,11 +27,26 @@
 extern "C" {
 #endif
 
+/* Forward declaration */
+struct ble_ll_isoal_mux;
+
+struct ble_ll_isoal_mux_cb {
+    void (*sdu_send)(struct ble_ll_isoal_mux *mux, const struct os_mbuf *om, uint32_t timestamp,
+                     uint16_t seq_num, bool valid);
+};
+
 struct ble_ll_isoal_mux {
 #if MYNEWT_VAL(BLE_LL_ISOAL_MUX_PREFILL)
     uint8_t active;
 #endif
 
+    /* ISO Interval */
+    uint32_t iso_interval_us;
+    /* SDU Interval */
+    uint32_t sdu_interval_us;
+
+    /* Maximum SDU size */
+    uint16_t max_sdu;
     /* Max PDU length */
     uint8_t max_pdu;
     /* Number of expected SDUs per ISO interval */
@@ -43,13 +58,26 @@ struct ble_ll_isoal_mux {
     /* Number of SDUs available for current event */
     uint8_t sdu_in_event;
 
+    struct {
+        /* Number of expected SDUs per ISO interval */
+        uint8_t sdu_per_interval;
+        /* Number of SDUs available for current event */
+        uint8_t sdu_in_event;
+    } rx;
+
     /* Burst Number */
     uint8_t bn;
 
     STAILQ_HEAD(, os_mbuf_pkthdr) sdu_q;
     uint16_t sdu_q_len;
 
+    /* ISO Data PDUs */
+    STAILQ_HEAD(, os_mbuf_pkthdr) pdu_q;
+
     uint32_t sdu_counter;
+
+    /* HCI SDU Fragment */
+    struct os_mbuf *frag;
 
     uint32_t event_tx_timestamp;
     uint32_t last_tx_timestamp;
@@ -59,6 +87,9 @@ struct ble_ll_isoal_mux {
     uint8_t sc : 1;
     uint8_t framed : 1;
     uint8_t framing_mode : 1;
+
+    /* Callback structure */
+    const struct ble_ll_isoal_mux_cb *cb;
 };
 
 #define BLE_LL_ISOAL_SEGHDR(sc, cmplt, len) \
@@ -72,10 +103,19 @@ struct ble_ll_isoal_mux {
         ((framing) == BLE_HCI_ISO_FRAMING_FRAMED_SEGMENTABLE || \
          (framing) == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED)
 
-void ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
-                           uint32_t iso_interval_us, uint32_t sdu_interval_us,
-                           uint8_t bn, uint8_t pte, bool framed,
-                           uint8_t framing_mode);
+struct ble_ll_isoal_mux_init_param {
+    uint32_t iso_interval_us;
+    uint32_t sdu_interval_us;
+    uint16_t max_sdu;
+    uint8_t max_pdu;
+    uint8_t bn;
+    uint8_t pte;
+    uint8_t framed;
+    uint8_t framing_mode;
+};
+
+void ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux,
+                           const struct ble_ll_isoal_mux_init_param *param);
 void ble_ll_isoal_mux_free(struct ble_ll_isoal_mux *mux);
 
 int ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux,
@@ -87,6 +127,12 @@ int ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
 
 void ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux,
                                   struct os_mbuf *om);
+
+void ble_ll_isoal_mux_pdu_enqueue(struct ble_ll_isoal_mux *mux, uint8_t idx,
+                                  struct os_mbuf *om);
+
+int ble_ll_isoal_mux_cb_set(struct ble_ll_isoal_mux *mux,
+                            const struct ble_ll_isoal_mux_cb *cb);
 
 void ble_ll_isoal_init(void);
 void ble_ll_isoal_reset(void);
