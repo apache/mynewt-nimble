@@ -527,7 +527,28 @@ syscfg.defs:
             - BLE_LL_ISO if 1
         value: 0
         state: experimental
-
+    BLE_LL_ISO_BROADCAST_SYNC:
+        description: >
+            Enable support for Isochronous Broadcast Streams Synchronization state.
+        restrictions:
+            - BLE_LL_ISO if 1
+        value: 0
+        state: experimental
+    BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG:
+        description: >
+            Maximum number of concurrent broadcast isochronous groups sync.
+        value: 1
+        experimental: 1
+    BLE_LL_ISO_BROADCAST_SYNC_MAX_BIS:
+        description: >
+            Maximum number of concurrent broadcast isochronous streams per group.
+        value: 2
+        experimental: 1
+    BLE_LL_ISO_BROADCAST_SYNC_MAX_BN:
+        description: >
+            Maximum number of bursts that can be received per broadcast isochronous stream event.
+        value: 2
+        experimental: 1
     BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS:
         description: >
             Enables ISO synchronization feedback using vendor-specific HCI event.
@@ -684,6 +705,9 @@ syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
     BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
     BLE_LL_STACK_SIZE: 200
+
+syscfg.vals.BLE_LL_ISO_BROADCAST_SYNC:
+    BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS: 1
 
 # Enable vendor event on assert in standalone build to make failed assertions in
 # controller code visible when connected to external host

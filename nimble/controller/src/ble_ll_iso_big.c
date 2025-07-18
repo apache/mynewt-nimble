@@ -36,6 +36,7 @@
 #include <controller/ble_ll_utils.h>
 #include <controller/ble_ll_whitelist.h>
 #include "ble_ll_priv.h"
+#include "ble_ll_iso_big_priv.h"
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 
@@ -47,33 +48,6 @@
 
 #define BIG_CONTROL_ACTIVE_CHAN_MAP     1
 #define BIG_CONTROL_ACTIVE_TERM         2
-
-struct ble_ll_iso_big;
-
-struct ble_ll_iso_bis {
-    struct ble_ll_iso_big *big;
-    uint8_t num;
-
-    uint32_t aa;
-    uint32_t crc_init;
-    uint16_t chan_id;
-    uint8_t iv[8];
-
-    struct {
-        uint16_t prn_sub_lu;
-        uint16_t remap_idx;
-
-        uint8_t subevent_num;
-        uint8_t n;
-        uint8_t g;
-    } tx;
-
-    struct ble_ll_iso_conn conn;
-
-    STAILQ_ENTRY(ble_ll_iso_bis) bis_q_next;
-};
-
-STAILQ_HEAD(ble_ll_iso_bis_q, ble_ll_iso_bis);
 
 struct big_params {
     uint8_t nse; /* 1-31 */
@@ -92,84 +66,13 @@ struct big_params {
     uint8_t broadcast_code[16];
 };
 
-struct ble_ll_iso_big {
-    struct ble_ll_adv_sm *advsm;
-
-    uint8_t handle;
-    uint8_t num_bis;
-    uint16_t iso_interval;
-    uint16_t bis_spacing;
-    uint16_t sub_interval;
-    uint8_t phy;
-    uint8_t max_pdu;
-    uint16_t max_sdu;
-    uint16_t mpt;
-    uint8_t bn; /* 1-7, mandatory 1 */
-    uint8_t pto; /* 0-15, mandatory 0 */
-    uint8_t irc; /* 1-15  */
-    uint8_t nse; /* 1-31 */
-    uint8_t interleaved : 1;
-    uint8_t framed : 1;
-    uint8_t framing_mode : 1;
-    uint8_t encrypted : 1;
-    uint8_t giv[8];
-    uint8_t gskd[16];
-    uint8_t gsk[16];
-    uint8_t iv[8];
-    uint8_t gc;
-
-    uint32_t sdu_interval;
-
-    uint32_t ctrl_aa;
-    uint16_t crc_init;
-    uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
-    uint8_t chan_map_used;
-
-    uint8_t biginfo[33];
-
-    uint64_t big_counter;
-    uint64_t bis_counter;
-
-    uint32_t sync_delay;
-    uint32_t transport_latency_us;
-    uint32_t event_start;
-    uint8_t event_start_us;
-    uint32_t anchor_base_ticks;
-    uint8_t anchor_base_rem_us;
-    uint16_t anchor_offset;
-    struct ble_ll_sched_item sch;
-    struct ble_npl_event event_done;
-
-    struct {
-        uint16_t subevents_rem;
-        struct ble_ll_iso_bis *bis;
-    } tx;
-
-    struct ble_ll_iso_bis_q bis_q;
-
-#if MYNEWT_VAL(BLE_LL_ISO_HCI_FEEDBACK_INTERVAL_MS)
-    uint32_t last_feedback;
-#endif
-
-    uint8_t cstf : 1;
-    uint8_t cssn : 4;
-    uint8_t control_active : 3;
-    uint16_t control_instant;
-
-    uint8_t chan_map_new_pending : 1;
-    uint8_t chan_map_new[BLE_LL_CHAN_MAP_LEN];
-
-    uint8_t term_pending : 1;
-    uint8_t term_reason : 7;
-};
-
 static struct ble_ll_iso_big big_pool[BIG_POOL_SIZE];
 static struct ble_ll_iso_bis bis_pool[BIS_POOL_SIZE];
 static uint8_t big_pool_free = BIG_POOL_SIZE;
 static uint8_t bis_pool_free = BIS_POOL_SIZE;
 
 static struct ble_ll_iso_big *big_pending;
-static struct ble_ll_iso_big *big_active;
+static struct ble_ll_iso_big *g_ble_ll_iso_big_curr;
 
 static void
 big_sched_set(struct ble_ll_iso_big *big)
@@ -353,7 +256,7 @@ ble_ll_iso_big_free(struct ble_ll_iso_big *big)
     ble_npl_eventq_remove(&g_ble_ll_data.ll_evq, &big->event_done);
 
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        ble_ll_iso_conn_free(&bis->conn);
+        ble_ll_iso_conn_reset(&bis->conn);
         bis->big = NULL;
         bis_pool_free++;
     }
@@ -466,7 +369,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
 #endif
 
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        num_completed_pkt = ble_ll_iso_conn_event_done(&bis->conn);
+        num_completed_pkt = ble_ll_iso_tx_event_done(&bis->tx);
         if (hci_ev && num_completed_pkt) {
             idx = hci_ev_ncp->count++;
             hci_ev_ncp->completed[idx].handle = htole16(bis->conn.handle);
@@ -576,7 +479,7 @@ ble_ll_iso_big_event_done_ev(struct ble_npl_event *ev)
 static void
 ble_ll_iso_big_event_done_to_ll(struct ble_ll_iso_big *big)
 {
-    big_active = NULL;
+    g_ble_ll_iso_big_curr = NULL;
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
     ble_npl_eventq_put(&g_ble_ll_data.ll_evq, &big->event_done);
 }
@@ -668,13 +571,13 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
     uint8_t pdu_len;
 
     big = arg;
-    bis = big->tx.bis;
+    bis = big->bis;
 
     /* Core 5.3, Vol 6, Part B, 4.4.6.6 */
-    if (bis->tx.g < big->irc) {
-        idx = bis->tx.n;
+    if (bis->g < big->irc) {
+        idx = bis->n;
     } else {
-        idx = big->bn * big->pto * (bis->tx.g - big->irc + 1) + bis->tx.n;
+        idx = big->bn * big->pto * (bis->g - big->irc + 1) + bis->n;
     }
 
     if (big->encrypted) {
@@ -684,7 +587,8 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
     }
 
 #if 1
-    pdu_len = ble_ll_iso_pdu_get(&bis->conn, idx, big->bis_counter + idx, &llid, dptr);
+    pdu_len =
+        ble_ll_iso_tx_pdu_get(&bis->tx, idx, big->bis_counter + idx, &llid, dptr);
 #else
     llid = 0;
     pdu_len = big->max_pdu;
@@ -692,12 +596,12 @@ ble_ll_iso_big_subevent_pdu_cb(uint8_t *dptr, void *arg, uint8_t *hdr_byte)
     memset(dptr, bis->num | (bis->num << 4), pdu_len);
     put_be32(dptr, big->big_counter);
     put_be32(&dptr[4], big->bis_counter + idx);
-    dptr[8] = bis->tx.subevent_num;
-    dptr[9] = bis->tx.g;
-    dptr[10] = bis->tx.n;
-    if (bis->tx.g == 0) {
+    dptr[8] = bis->subevent_num;
+    dptr[9] = bis->g;
+    dptr[10] = bis->n;
+    if (bis->g == 0) {
         dptr[11] = 'B';
-    } else if (bis->tx.g < big->irc) {
+    } else if (bis->g < big->irc) {
         dptr[11] = 'R';
     } else {
         dptr[11] = 'P';
@@ -718,25 +622,21 @@ ble_ll_iso_big_subevent_tx(struct ble_ll_iso_big *big)
     int to_tx;
     int rc;
 
-    bis = big->tx.bis;
+    bis = big->bis;
 
-    if (bis->tx.subevent_num == 1) {
+    if (bis->subevent_num == 1) {
         chan_idx = ble_ll_utils_dci_iso_event(big->big_counter, bis->chan_id,
-                                              &bis->tx.prn_sub_lu,
-                                              big->chan_map_used,
-                                              big->chan_map,
-                                              &bis->tx.remap_idx);
+                                              &bis->prn_sub_lu, big->chan_map_used,
+                                              big->chan_map, &bis->remap_idx);
     } else {
-        chan_idx = ble_ll_utils_dci_iso_subevent(bis->chan_id,
-                                                 &bis->tx.prn_sub_lu,
+        chan_idx = ble_ll_utils_dci_iso_subevent(bis->chan_id, &bis->prn_sub_lu,
                                                  big->chan_map_used,
-                                                 big->chan_map,
-                                                 &bis->tx.remap_idx);
+                                                 big->chan_map, &bis->remap_idx);
     }
 
     ble_phy_setchan(chan_idx, bis->aa, bis->crc_init);
 
-    to_tx = (big->tx.subevents_rem > 1) || big->cstf;
+    to_tx = (big->subevents_rem > 1) || big->cstf;
 
     ble_phy_transition_set(
         to_tx ? BLE_PHY_TRANSITION_TO_TX_ISO_SUBEVENT : BLE_PHY_TRANSITION_NONE,
@@ -754,29 +654,29 @@ ble_ll_iso_big_subevent_txend_cb(void *arg)
     int rc;
 
     big = arg;
-    bis = big->tx.bis;
+    bis = big->bis;
 
-    bis->tx.n++;
-    if (bis->tx.n == big->bn) {
-        bis->tx.n = 0;
-        bis->tx.g++;
+    bis->n++;
+    if (bis->n == big->bn) {
+        bis->n = 0;
+        bis->g++;
     }
 
     /* Switch to next BIS if interleaved or all subevents for current BIS were
      * transmitted.
      */
-    if (big->interleaved || (bis->tx.subevent_num == big->nse)) {
+    if (big->interleaved || (bis->subevent_num == big->nse)) {
         bis = STAILQ_NEXT(bis, bis_q_next);
         if (!bis) {
             bis = STAILQ_FIRST(&big->bis_q);
         }
-        big->tx.bis = bis;
+        big->bis = bis;
     }
 
-    bis->tx.subevent_num++;
-    big->tx.subevents_rem--;
+    bis->subevent_num++;
+    big->subevents_rem--;
 
-    if (big->tx.subevents_rem > 0) {
+    if (big->subevents_rem > 0) {
         rc = ble_ll_iso_big_subevent_tx(big);
         if (rc) {
             ble_phy_disable();
@@ -810,7 +710,7 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     big = sch->cb_arg;
 
     ble_ll_state_set(BLE_LL_STATE_BIG);
-    big_active = big;
+    g_ble_ll_iso_big_curr = big;
 
     ble_ll_whitelist_disable();
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
@@ -824,20 +724,19 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
     /* XXX calculate this in advance at the end of previous event? */
-    big->tx.subevents_rem = big->num_bis * big->nse;
+    big->subevents_rem = big->num_bis * big->nse;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        ble_ll_iso_conn_event_start(&bis->conn, (uint64_t)big->event_start *
-                                                1000000 / 32768 +
+        ble_ll_iso_tx_event_start(&bis->tx, ble_ll_tmr_t2u(big->event_start) +
                                                 big->event_start_us);
 
-        bis->tx.subevent_num = 0;
-        bis->tx.n = 0;
-        bis->tx.g = 0;
+        bis->subevent_num = 0;
+        bis->n = 0;
+        bis->g = 0;
     }
 
     /* Select 1st BIS for transmission */
-    big->tx.bis = STAILQ_FIRST(&big->bis_q);
-    big->tx.bis->tx.subevent_num = 1;
+    big->bis = STAILQ_FIRST(&big->bis_q);
+    big->bis->subevent_num = 1;
 
     rc = ble_phy_tx_set_start_time(sch->start_time + g_ble_ll_sched_offset_ticks,
                                    sch->remainder);
@@ -865,75 +764,19 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     return BLE_LL_SCHED_STATE_RUNNING;
 }
 
-static void
-ble_ll_iso_big_calculate_gsk(struct ble_ll_iso_big *big,
-                             const uint8_t *broadcast_code)
-{
-    static const uint8_t big1[16] = {0x00, 0x00, 0x00, 0x00,
-                                     0x00, 0x00, 0x00, 0x00,
-                                     0x00, 0x00, 0x00, 0x00,
-                                     0x42, 0x49, 0x47, 0x31};
-    static const uint8_t big2[4] = {0x42, 0x49, 0x47, 0x32};
-    static const uint8_t big3[4] = {0x42, 0x49, 0x47, 0x33};
-    uint8_t code[16];
-    uint8_t igltk[16];
-    uint8_t gltk[16];
-
-    /* broadcast code is lsb-first in hci, we need msb-first */
-    swap_buf(code, broadcast_code, 16);
-
-    ble_ll_rand_data_get(big->gskd, sizeof(big->gskd));
-
-    ble_ll_crypto_h7(big1, code, igltk);
-    ble_ll_crypto_h6(igltk, big2, gltk);
-    ble_ll_crypto_h8(gltk, big->gskd, big3, big->gsk);
-
-    /* need gskd for biginfo, i.e. lsb-first */
-    swap_in_place(big->gskd, 16);
-}
-
-static void
-ble_ll_iso_big_calculate_iv(struct ble_ll_iso_big *big)
-{
-    struct ble_ll_iso_bis *bis;
-    uint8_t *aa;
-
-    ble_ll_rand_data_get(big->giv, sizeof(big->giv));
-    STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        memcpy(&bis->iv[4], &big->giv[4], 4);
-        aa = (uint8_t *)&bis->aa;
-        bis->iv[0] = big->giv[0] ^ aa[0];
-        bis->iv[1] = big->giv[1] ^ aa[1];
-        bis->iv[2] = big->giv[2] ^ aa[2];
-        bis->iv[3] = big->giv[3] ^ aa[3];
-    }
-
-    memcpy(&big->iv[4], &big->giv[4], 4);
-    aa = (uint8_t *)&big->ctrl_aa;
-    big->iv[0] = big->giv[0] ^ aa[0];
-    big->iv[1] = big->giv[1] ^ aa[1];
-    big->iv[2] = big->giv[2] ^ aa[2];
-    big->iv[3] = big->giv[3] ^ aa[3];
-}
-
 static int
 ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
                       struct big_params *bp)
 {
-    struct ble_ll_iso_conn_init_param conn_init_param = {
-        .iso_interval_us = bp->iso_interval * 1250,
-        .sdu_interval_us = bp->sdu_interval,
-        .max_sdu = bp->max_sdu,
-        .max_pdu = bp->max_pdu,
-        .framing = bp->framing,
-        .bn = bp->bn,
-    };
+    struct ble_ll_iso_params *iso_params;
     struct ble_ll_iso_big *big = NULL;
     struct ble_ll_iso_bis *bis;
     struct ble_ll_adv_sm *advsm;
     uint32_t seed_aa;
+    uint16_t conn_handle;
     uint8_t gc;
     uint8_t idx;
+    uint8_t pte;
     int rc;
 
     if ((big_pool_free == 0) || (bis_pool_free < num_bis)) {
@@ -987,10 +830,35 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     /* Core 5.3, Vol 6, Part B, 4.4.6.6 */
     gc = bp->nse / bp->bn;
     if (bp->irc == gc) {
-        conn_init_param.pte = 0;
+        pte = 0;
     } else {
-        conn_init_param.pte = bp->pto * (gc - bp->irc);
+        pte = bp->pto * (gc - bp->irc);
     }
+
+    big->bn = bp->bn;
+    big->pto = bp->pto;
+    big->irc = bp->irc;
+    big->nse = bp->nse;
+    big->interleaved = bp->interleaved;
+    big->framed = bp->framing != BLE_HCI_ISO_FRAMING_UNFRAMED;
+    big->framing_mode = bp->framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED;
+    big->encrypted = bp->encrypted;
+    big->sdu_interval = bp->sdu_interval;
+    big->iso_interval = bp->iso_interval;
+    big->phy = bp->phy;
+    big->max_pdu = bp->max_pdu;
+    big->max_sdu = bp->max_sdu;
+
+    /* TODO: Fix duplicated data */
+    iso_params = &big->params;
+    iso_params->iso_interval = big->iso_interval;
+    iso_params->sdu_interval = big->sdu_interval;
+    iso_params->max_sdu = big->max_sdu;
+    iso_params->max_pdu = big->max_pdu;
+    iso_params->bn = big->bn;
+    iso_params->pte = pte;
+    iso_params->framed = big->framed;
+    iso_params->framing_mode = big->framing_mode;
 
     /* Allocate BISes */
     STAILQ_INIT(&big->bis_q);
@@ -1008,26 +876,14 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         bis->num = big->num_bis;
         bis->crc_init = (big->crc_init << 8) | (big->num_bis);
 
-        conn_init_param.conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
+        conn_handle = BLE_LL_CONN_HANDLE(BLE_LL_CONN_HANDLE_TYPE_BIS, idx);
 
-        ble_ll_iso_conn_init(&bis->conn, &conn_init_param);
+        ble_ll_iso_conn_init(&bis->conn, conn_handle, NULL, &bis->tx);
+        ble_ll_iso_tx_init(&bis->tx, &bis->conn, &big->params);
     }
 
     bis_pool_free -= num_bis;
 
-    big->bn = bp->bn;
-    big->pto = bp->pto;
-    big->irc = bp->irc;
-    big->nse = bp->nse;
-    big->interleaved = bp->interleaved;
-    big->framed = bp->framing != BLE_HCI_ISO_FRAMING_UNFRAMED;
-    big->framing_mode = bp->framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED;
-    big->encrypted = bp->encrypted;
-    big->sdu_interval = bp->sdu_interval;
-    big->iso_interval = bp->iso_interval;
-    big->phy = bp->phy;
-    big->max_pdu = bp->max_pdu;
-    big->max_sdu = bp->max_sdu;
     /* Core 5.3, Vol 6, Part B, 4.4.6.3 */
     big->mpt = ble_ll_pdu_us(big->max_pdu + (big->encrypted ? 4 : 0),
                              ble_ll_phy_to_phy_mode(big->phy,
@@ -1095,7 +951,10 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
     ble_ll_iso_big_biginfo_calc(big, seed_aa);
 
     if (big->encrypted) {
+        ble_ll_rand_data_get(big->gskd, sizeof(big->gskd));
         ble_ll_iso_big_calculate_gsk(big, bp->broadcast_code);
+
+        ble_ll_rand_data_get(big->giv, sizeof(big->giv));
         ble_ll_iso_big_calculate_iv(big);
     }
 
@@ -1200,8 +1059,8 @@ ble_ll_iso_big_chan_map_update(void)
 void
 ble_ll_iso_big_halt(void)
 {
-    if (big_active) {
-        ble_ll_iso_big_event_done_to_ll(big_active);
+    if (g_ble_ll_iso_big_curr) {
+        ble_ll_iso_big_event_done_to_ll(g_ble_ll_iso_big_curr);
     }
 }
 
@@ -1507,3 +1366,50 @@ ble_ll_iso_big_reset(void)
 }
 
 #endif /* BLE_LL_ISO_BROADCASTER */
+
+void
+ble_ll_iso_big_calculate_gsk(struct ble_ll_iso_big *big, const uint8_t *broadcast_code)
+{
+    static const uint8_t big1[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                      0x42, 0x49, 0x47, 0x31 };
+    static const uint8_t big2[4] = { 0x42, 0x49, 0x47, 0x32 };
+    static const uint8_t big3[4] = { 0x42, 0x49, 0x47, 0x33 };
+    uint8_t code[16];
+    uint8_t igltk[16];
+    uint8_t gltk[16];
+    uint8_t gskd[16];
+
+    /* broadcast code is lsb-first in hci, we need msb-first */
+    swap_buf(code, broadcast_code, 16);
+
+    /* gskd is lsb-first in BigInfo, we need msb-first */
+    swap_buf(gskd, big->gskd, 16);
+
+    ble_ll_crypto_h7(big1, code, igltk);
+    ble_ll_crypto_h6(igltk, big2, gltk);
+    ble_ll_crypto_h8(gltk, gskd, big3, big->gsk);
+}
+
+void
+ble_ll_iso_big_calculate_iv(struct ble_ll_iso_big *big)
+{
+    struct ble_ll_iso_bis *bis;
+    uint8_t *aa;
+
+    STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
+        memcpy(&bis->iv[4], &big->giv[4], 4);
+        aa = (uint8_t *)&bis->aa;
+        bis->iv[0] = big->giv[0] ^ aa[0];
+        bis->iv[1] = big->giv[1] ^ aa[1];
+        bis->iv[2] = big->giv[2] ^ aa[2];
+        bis->iv[3] = big->giv[3] ^ aa[3];
+    }
+
+    memcpy(&big->iv[4], &big->giv[4], 4);
+    aa = (uint8_t *)&big->ctrl_aa;
+    big->iv[0] = big->giv[0] ^ aa[0];
+    big->iv[1] = big->giv[1] ^ aa[1];
+    big->iv[2] = big->giv[2] ^ aa[2];
+    big->iv[3] = big->giv[3] ^ aa[3];
+}
