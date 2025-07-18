@@ -126,6 +126,11 @@ struct ble_ll_sync_sm {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
     uint16_t prev_adi;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    ble_ll_sync_biginfo_cb_t biginfo_cb;
+    void *biginfo_cb_arg;
+#endif
 };
 
 static struct ble_ll_sync_sm g_ble_ll_sync_sm[BLE_LL_SYNC_CNT];
@@ -673,11 +678,37 @@ ble_ll_sync_send_truncated_per_adv_rpt(struct ble_ll_sync_sm *sm, uint8_t *evbuf
 }
 
 #if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+static uint8_t
+ble_ll_sync_biginfo_phy_get(const uint8_t *biginfo)
+{
+    uint8_t phy;
+
+    phy = (biginfo[27] >> 5) & 0x07;
+    switch (phy) {
+    case 0:
+        return BLE_PHY_1M;
+    case 1:
+        return BLE_PHY_2M;
+    case 2:
+        return BLE_PHY_CODED;
+    default:
+        return 0x00;
+    }
+}
+
+static uint8_t
+ble_ll_sync_biginfo_bn_get(const uint8_t *biginfo)
+{
+    return (biginfo[4] >> 5) & 0x07;
+}
+
 static void
 ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *ev,
                                 const uint8_t *biginfo, uint8_t biginfo_len)
 {
     uint32_t fields_buf;
+    uint8_t framing_mode;
+    uint8_t framed;
 
     fields_buf = get_le32(&biginfo[0]);
     ev->iso_interval = (fields_buf >> 15) & 0x0FFF;
@@ -685,7 +716,7 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
 
     fields_buf = get_le32(&biginfo[4]);
     ev->nse = fields_buf & 0x1F;
-    ev->bn = (fields_buf >> 5) & 0x07;
+    ev->bn = ble_ll_sync_biginfo_bn_get(biginfo);
     ev->pto = (fields_buf >> 28) & 0x0F;
 
     fields_buf = get_le32(&biginfo[8]);
@@ -693,14 +724,20 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
     ev->max_pdu = (fields_buf >> 24) & 0xFF;
 
     fields_buf = get_le32(&biginfo[17]);
-    ev->sdu_interval[0] = fields_buf & 0xFF;
-    ev->sdu_interval[1] = (fields_buf >> 8) & 0xFF;
-    ev->sdu_interval[2] = (fields_buf >> 16) & 0x0F;
+    put_le24(ev->sdu_interval, fields_buf & 0x0FFFFF);
     ev->max_sdu = (fields_buf >> 20) & 0x0FFF;
 
-    ev->phy = (biginfo[27] >> 5) & 0x07;
+    ev->phy = ble_ll_sync_biginfo_phy_get(biginfo);
 
-    ev->framing = (biginfo[32] >> 7) & 0x01;
+    framed = (biginfo[32] >> 7) & 0x01;
+    framing_mode = (biginfo[12] >> 7) & 0x01;
+    if (framed && framing_mode) {
+        ev->framing = BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED;
+    } else if (framed) {
+        ev->framing = BLE_HCI_ISO_FRAMING_FRAMED_SEGMENTABLE;
+    } else {
+        ev->framing = BLE_HCI_ISO_FRAMING_UNFRAMED;
+    }
 
     if (biginfo_len == BLE_LL_SYNC_BIGINFO_LEN_ENC) {
         ev->encryption = 1;
@@ -714,10 +751,6 @@ ble_ll_sync_send_biginfo_adv_rpt(struct ble_ll_sync_sm *sm, const uint8_t *bigin
 {
     struct ble_hci_ev_le_subev_biginfo_adv_report *ev;
     struct ble_hci_ev *hci_ev;
-
-    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT)) {
-        return;
-    }
 
     hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
@@ -1135,6 +1168,66 @@ ble_ll_sync_check_acad(struct ble_ll_sync_sm *sm,
     return true;
 }
 
+#if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+void
+ble_ll_sync_biginfo_cb_set(struct ble_ll_sync_sm *syncsm,
+                           ble_ll_sync_biginfo_cb_t cb, void *cb_arg)
+{
+    syncsm->biginfo_cb = cb;
+    syncsm->biginfo_cb_arg = cb_arg;
+}
+#endif
+
+static void
+ble_ll_sync_biginfo_handle(struct ble_ll_sync_sm *sm, struct ble_mbuf_hdr *hdr,
+                           const uint8_t *biginfo, uint8_t biginfo_len,
+                           bool is_duplicate)
+{
+    bool reports_enabled;
+    uint8_t phy;
+
+    /* The BIGInfo length is 33 octets for an unencrypted BIG and 57 octets for an encrypted BIG. */
+    if (biginfo_len != BLE_LL_SYNC_BIGINFO_LEN &&
+        biginfo_len != BLE_LL_SYNC_BIGINFO_LEN_ENC) {
+        return;
+    }
+
+    phy = ble_ll_sync_biginfo_phy_get(biginfo);
+    if (!ble_ll_phy_is_supported(phy)) {
+        /* Core 6.0 | Vol 6, Part B, 4.4.5.2
+         * If the PHY field of the BIGInfo specifies a PHY that the Link Layer does not support or is
+         * reserved for future use, the Link Layer shall ignore the BIGInfo, shall not report the
+         * BIGInfo to the Host, and shall not enter the Synchronization state for the BIG specified
+         * in the BIGinfo.
+         */
+        return;
+    }
+
+    reports_enabled =
+        ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT) &&
+        !is_duplicate;
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    uint8_t bn;
+
+    bn = ble_ll_sync_biginfo_bn_get(biginfo);
+    reports_enabled &= bn <= MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BN);
+#endif
+
+    if (reports_enabled) {
+        ble_ll_sync_send_biginfo_adv_rpt(sm, biginfo, biginfo_len);
+    }
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    if (sm->biginfo_cb) {
+        sm->biginfo_cb(sm, sm->sca, hdr->beg_cputime, hdr->rem_usecs, biginfo,
+                       biginfo_len, sm->biginfo_cb_arg);
+    }
+#endif
+}
+#endif
+
 void
 ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 {
@@ -1239,13 +1332,13 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         /* send reports from this PDU */
         ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr->rxinfo.rssi, tx_power,
                                      datalen, aux, aux_scheduled);
+    }
 
 #if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
-        if (biginfo) {
-            ble_ll_sync_send_biginfo_adv_rpt(sm, biginfo, biginfo_len);
-        }
-#endif
+    if (biginfo && !(sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED)) {
+        ble_ll_sync_biginfo_handle(sm, hdr, biginfo, biginfo_len, is_duplicate);
     }
+#endif
 
     /* if chain was scheduled we don't end event yet */
     /* TODO should we check resume only if offset is high? */
@@ -2382,6 +2475,24 @@ void
 ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
 {
     ble_ll_event_add(&sm->sync_ev_end);
+}
+
+struct ble_ll_sync_sm *
+ble_ll_sync_get(uint8_t handle)
+{
+    struct ble_ll_sync_sm *syncsm;
+
+    if (handle >= BLE_LL_SYNC_CNT) {
+        return NULL;
+    }
+
+    syncsm = &g_ble_ll_sync_sm[handle];
+
+    if (!syncsm->flags) {
+        return NULL;
+    }
+
+    return syncsm;
 }
 
 bool
