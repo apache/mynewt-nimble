@@ -62,6 +62,15 @@ void ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm);
 
 uint32_t ble_ll_sync_get_event_end_time(void);
 
+typedef void (*ble_ll_sync_biginfo_cb_t)(struct ble_ll_sync_sm *syncsm,
+                                         uint8_t sca, uint32_t sync_ticks,
+                                         uint8_t sync_rem_us, const uint8_t *data,
+                                         uint8_t len, void *arg);
+
+struct ble_ll_sync_sm *ble_ll_sync_get(uint8_t handle);
+void ble_ll_sync_biginfo_cb_set(struct ble_ll_sync_sm *syncsm,
+                                ble_ll_sync_biginfo_cb_t cb, void *cb_arg);
+
 bool ble_ll_sync_enabled(void);
 
 void ble_ll_sync_reset(void);

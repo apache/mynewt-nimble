@@ -78,13 +78,11 @@ icbmsg_ble_hci_acl_tx(struct os_mbuf *om)
     return icbmsg_ble_hci_send_mbuf(HCI_IPC_TYPE_ACL, om);
 }
 
-#if !MYNEWT_VAL(BLE_CONTROLLER)
 static int
 icbmsg_ble_hci_iso_tx(struct os_mbuf *om)
 {
     return icbmsg_ble_hci_send_mbuf(HCI_IPC_TYPE_ISO, om);
 }
-#endif
 
 static void
 ble_hci_trans_rx(const void *data, size_t len, void *user_data)
@@ -145,6 +143,12 @@ int
 ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return icbmsg_ble_hci_acl_tx(om);
+}
+
+int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    return icbmsg_ble_hci_iso_tx(om);
 }
 
 void

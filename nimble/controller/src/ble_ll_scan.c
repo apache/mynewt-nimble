@@ -1145,6 +1145,11 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
         start_scan = false;
         break;
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    case BLE_LL_STATE_BIG_SYNC:
+        start_scan = false;
+        break;
+#endif
     case BLE_LL_STATE_STANDBY:
         break;
     default:
