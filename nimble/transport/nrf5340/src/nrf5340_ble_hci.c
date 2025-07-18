@@ -78,7 +78,6 @@ nrf5340_ble_hci_acl_tx(struct os_mbuf *om)
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
 
-#if !MYNEWT_VAL(BLE_CONTROLLER)
 static int
 nrf5340_ble_hci_iso_tx(struct os_mbuf *om)
 {
@@ -105,7 +104,6 @@ nrf5340_ble_hci_iso_tx(struct os_mbuf *om)
 
     return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
 }
-#endif
 
 static void
 nrf5340_ble_hci_trans_rx(int channel, void *user_data)
@@ -161,6 +159,12 @@ int
 ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return nrf5340_ble_hci_acl_tx(om);
+}
+
+int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    return nrf5340_ble_hci_iso_tx(om);
 }
 
 void

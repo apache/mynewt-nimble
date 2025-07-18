@@ -242,6 +242,14 @@ ble_hci_trans_ll_evt_tx(void *buf)
 }
 
 int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    /* TODO */
+    os_mbuf_free_chain(om);
+    return 0;
+}
+
+int
 ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 {
     return ble_hci_trans_ll_tx(&ble_hci_tx_acl_queue, om);

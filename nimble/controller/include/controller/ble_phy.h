@@ -230,6 +230,23 @@ static inline int ble_ll_phy_to_phy_mode(int phy, int phy_options)
     return phy_mode;
 }
 
+static inline bool
+ble_ll_phy_is_supported(uint8_t phy)
+{
+    switch (phy) {
+    case BLE_PHY_1M:
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    case BLE_PHY_2M:
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    case BLE_PHY_CODED:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
 #if MYNEWT_VAL(BLE_LL_DTM)
 void ble_phy_enable_dtm(void);
 void ble_phy_disable_dtm(void);
