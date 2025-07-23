@@ -21,6 +21,7 @@
 
 #include "sysinit/sysinit.h"
 #include "host/ble_hs.h"
+#include "../src/ble_hs_priv.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "../src/ble_gatt_priv.h"
 
@@ -32,7 +33,7 @@ static uint16_t ble_svc_gatt_end_handle;
 #define BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT      (0x00)
 
 /* Client supported features */
-#define BLE_SVC_GATT_CLI_SUP_FEAT_ROBUST_CATCHING_BIT   (0x00)
+#define BLE_SVC_GATT_CLI_SUP_FEAT_ROBUST_CACHING_BIT   (0x00)
 #define BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT              (0x01)
 #define BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT          (0x02)
 
@@ -50,6 +51,10 @@ ble_svc_gatt_srv_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
 static int
 ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
     {
@@ -73,6 +78,13 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
                 .access_cb = ble_svc_gatt_cl_sup_feat_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
             },
+#if MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+            {
+                .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16),
+                .access_cb = ble_svc_gatt_db_hash_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+#endif
             {
                 0, /* No more characteristics in this service. */
             }
@@ -119,6 +131,21 @@ ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     return 0;
+}
+
+static int
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    int rc;
+
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    rc = os_mbuf_append(ctxt->om, db_hash, sizeof(db_hash));
+
+    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
 static int
@@ -192,5 +219,9 @@ ble_svc_gatt_init(void)
 
     if (MYNEWT_VAL(BLE_ATT_SVR_NOTIFY_MULTI) > 0) {
         ble_svc_gatt_local_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_MULT_NTF_BIT);
+    }
+
+    if (MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE) > 0) {
+        ble_svc_gatt_local_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_ROBUST_CACHING_BIT);
     }
 }

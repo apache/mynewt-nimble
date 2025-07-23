@@ -25,6 +25,9 @@
 #include "host/ble_uuid.h"
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
+#include "tinycrypt/aes.h"
+#include "tinycrypt/cmac_mode.h"
+#include "tinycrypt/constants.h"
 
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
@@ -64,6 +67,10 @@ struct ble_gatts_clt_cfg {
 /** A cached array of handles for the configurable characteristics. */
 static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
+
+#if MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+uint8_t db_hash[16];
+#endif
 
 STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 STATS_NAME_START(ble_gatts_stats)
@@ -1061,6 +1068,8 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     int rc;
     int i;
 
+    num_svcs = 0;
+
     for (i = 0; svcs[i].type != BLE_GATT_SVC_TYPE_END; i++) {
         idx = ble_gatts_num_svc_entries + i;
         if (idx >= ble_hs_max_services) {
@@ -1226,6 +1235,13 @@ ble_gatts_start(void)
         }
     }
     ble_gatts_free_svc_defs();
+
+#if MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+    rc = ble_gatts_calculate_db_hash(db_hash);
+    if (rc != 0) {
+        goto done;
+    }
+#endif
 
     if (ble_gatts_num_cfgable_chrs == 0) {
         rc = 0;
@@ -2224,6 +2240,87 @@ ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb, void *arg)
            ble_gatts_svc_entries[i].handle,
            ble_gatts_svc_entries[i].end_group_handle, arg);
     }
+}
+
+/* Helpers to append data to buf */
+#define BUF_PUT_LE16(buf, buf_len, val)      \
+    do {                                     \
+        put_le16((buf) + (buf_len), (val));  \
+        (buf_len) += 2;                      \
+    } while (0)
+
+int ble_gatt_foreach_hash_append(struct ble_att_svr_entry *entry, void *arg)
+{
+    uint16_t uuid;
+    struct os_mbuf *om;
+    uint8_t buf[24];
+    uint16_t buf_len;
+    int rc;
+
+    uuid = ble_uuid_u16(entry->ha_uuid);
+    buf_len = 0;
+    switch (uuid) {
+    case BLE_ATT_UUID_PRIMARY_SERVICE:
+    case BLE_ATT_UUID_SECONDARY_SERVICE:
+    case BLE_ATT_UUID_INCLUDE:
+    case BLE_ATT_UUID_CHARACTERISTIC:
+    case BLE_GATT_DSC_EXT_PROP_UUID16:
+        /* attr handle */
+        BUF_PUT_LE16(buf, buf_len, entry->ha_handle_id);
+        /* attr type */
+        BUF_PUT_LE16(buf, buf_len, uuid);
+        rc = ble_att_svr_read_local(entry->ha_handle_id, &om);
+        if (rc != 0) {
+            return rc;
+        }
+        os_mbuf_copydata(om, 0, os_mbuf_len(om), buf + buf_len);
+        buf_len += os_mbuf_len(om);
+        break;
+
+    case BLE_GATT_DSC_CLT_CFG_UUID16:
+        BUF_PUT_LE16(buf, buf_len, entry->ha_handle_id);
+        BUF_PUT_LE16(buf, buf_len, uuid);
+        break;
+    default:
+        return 0;
+    }
+    if (tc_cmac_update(arg, buf, buf_len) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    return 0;
+}
+
+/**
+ * Calculate db_hash
+ * @param hash
+ * @return
+ */
+
+int ble_gatts_calculate_db_hash(uint8_t *hash)
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+    return BLE_HS_ENOTSUP;
+#endif
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+
+    /* k is the 128-bit key, which shall be all zero (7.3.1 Core spec) */
+    const uint8_t key[16] = {0};
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    ble_att_svr_foreach(0x0001, 0xFFFF, ble_gatt_foreach_hash_append, &state);
+
+    if (tc_cmac_final(hash, &state) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    swap_in_place(hash, 16);
+
+    return 0;
 }
 
 int

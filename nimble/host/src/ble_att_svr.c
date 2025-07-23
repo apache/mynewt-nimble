@@ -209,6 +209,26 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, const ble_uuid_t *uuid,
     return NULL;
 }
 
+void ble_att_svr_foreach(uint16_t start_handle, uint16_t end_handle,
+                         ble_gatts_entry_foreach cb, void *arg)
+{
+    int rc;
+    struct ble_att_svr_entry *entry;
+
+    for (entry = STAILQ_FIRST(&ble_att_svr_list);
+         entry != NULL || entry->ha_handle_id == end_handle;
+         entry = STAILQ_NEXT(entry, ha_next)) {
+
+        if (entry->ha_handle_id == start_handle) {
+            rc = cb(entry, arg);
+            if (rc != 0) {
+                break;
+            }
+        }
+        start_handle++;
+    }
+}
+
 static int
 ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
                             uint8_t *out_att_err)

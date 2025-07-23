@@ -24,6 +24,9 @@
 #include "host/ble_uuid.h"
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
+#include "tinycrypt/aes.h"
+#include "tinycrypt/cmac_mode.h"
+#include "tinycrypt/constants.h"
 
 #define BLE_GATTS_REG_TEST_MAX_ENTRIES  256
 
@@ -295,6 +298,213 @@ ble_gatts_reg_test_misc_dummy_access(uint16_t conn_handle,
                                      void *arg)
 {
     return 0;
+}
+
+#define BUF_PUT_LE16(buf, buf_len, val)      \
+    do {                                     \
+        put_le16((buf) + (buf_len), (val));  \
+        (buf_len) += 2;                      \
+    } while (0)
+
+#define BUF_APPEND(buf, buf_len, src, n)     \
+    do {                                     \
+        memcpy((buf) + (buf_len), (src), (n)); \
+        (buf_len) += (n);                    \
+    } while (0)
+
+TEST_CASE_SELF(ble_gatts_reg_test_db_hash_calc)
+{
+    int i, j;
+    uint8_t buf_len;
+    uint8_t db_hash[16];
+    uint8_t buf[24];
+    uint16_t val_handles[16];
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+    uint16_t handle = 1;
+
+    /* 128-bit key, which shall be all zero (7.3.1 Core spec) */
+    const uint8_t key[16] = {0};
+
+    ble_gatts_reg_test_init();
+
+    struct ble_gatt_svc_def svc_db_hash_test [] = {
+        {
+            .type = BLE_GATT_SVC_TYPE_PRIMARY,
+            .uuid = BLE_UUID16_DECLARE(0x1800),
+            .characteristics = (struct ble_gatt_chr_def[]) {
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A00),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                    .val_handle = val_handles + 0,
+                }, {
+                    .uuid = BLE_UUID16_DECLARE(0x2A01),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                    .val_handle = val_handles + 1,
+                }, {
+                    0, /* No more characteristics in this service */
+                }
+            },
+        }, {
+            .type = BLE_GATT_SVC_TYPE_PRIMARY,
+            .uuid = BLE_UUID16_DECLARE(0x1801),
+            .characteristics = (struct ble_gatt_chr_def[]) {
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A05),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_INDICATE,
+                    .val_handle = val_handles + 2,
+                }, {
+                    .uuid = BLE_UUID16_DECLARE(0x2B29),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                    .val_handle = val_handles + 3,
+                }, {
+                    .uuid = BLE_UUID16_DECLARE(0x2B2A),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                    .val_handle = val_handles + 4,
+                }, {
+                    0, /* No more characteristics in this service */
+                }
+            }
+        }, {
+            /* Glucose service */
+            .type = BLE_GATT_SVC_TYPE_PRIMARY,
+            .uuid = BLE_UUID16_DECLARE(0x1808),
+            .includes = (const struct ble_gatt_svc_def *[]) {svc_db_hash_test + 3,
+                                                             NULL},
+            .characteristics = (struct ble_gatt_chr_def[]) {
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A18),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE |
+                        BLE_GATT_CHR_F_RELIABLE_WRITE | BLE_GATT_CHR_F_AUX_WRITE,
+                    .val_handle = val_handles + 5,
+                    .descriptors = (struct ble_gatt_dsc_def[]) {
+                        {
+                            .uuid = BLE_UUID16_DECLARE(0x2A1A),
+                            .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                            .att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE
+                        }, {
+                            .uuid = BLE_UUID16_DECLARE(0x2A1B),
+                            .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                            .att_flags = BLE_ATT_F_READ
+                        }, {
+                            0, /* no more descriptors */
+                        }
+                    }
+                }, {
+                    0,
+                }
+            },
+        }, {
+            /* Included service */
+            .type = BLE_GATT_SVC_TYPE_SECONDARY,
+            .uuid = BLE_UUID16_DECLARE(0x180F),
+            .characteristics = (struct ble_gatt_chr_def[]) {
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A19),
+                    .access_cb = ble_gatts_reg_test_misc_dummy_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                    .val_handle = val_handles + 6,
+                }, {
+                    0,
+                },
+            },
+        }, {
+            0, /* No more services. */
+        },
+    };
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
+        TEST_ASSERT(0);
+    }
+
+    /* Services */
+    for (i = 0; svc_db_hash_test[i].type != BLE_GATT_SVC_TYPE_END; i++) {
+        buf_len = 0;
+        BUF_PUT_LE16(buf, buf_len, handle);
+        handle++;
+        switch (svc_db_hash_test[i].type) {
+        case BLE_GATT_SVC_TYPE_PRIMARY:
+            BUF_PUT_LE16(buf, buf_len, BLE_ATT_UUID_PRIMARY_SERVICE);
+            break;
+        case BLE_GATT_SVC_TYPE_SECONDARY:
+            BUF_PUT_LE16(buf, buf_len, BLE_ATT_UUID_SECONDARY_SERVICE);
+            break;
+        }
+        BUF_PUT_LE16(buf, buf_len, ble_uuid_u16(svc_db_hash_test[i].uuid));
+        if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+            TEST_ASSERT(0);
+        }
+        buf_len = 0;
+        /* Includes */
+        if (svc_db_hash_test[i].includes != NULL) {
+            for (j = 0; svc_db_hash_test[i].includes[j] != NULL; j++) {
+                BUF_PUT_LE16(buf, buf_len, handle);
+                handle++;
+                BUF_PUT_LE16(buf, buf_len, BLE_ATT_UUID_INCLUDE);
+                BUF_PUT_LE16(buf, buf_len, 0x0014);
+                BUF_PUT_LE16(buf, buf_len, 0x0016);
+                BUF_PUT_LE16(buf, buf_len, 0x180F);
+                if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                    TEST_ASSERT(0);
+                }
+                buf_len = 0;
+            }
+        }
+        /* Characteristics */
+        if (svc_db_hash_test[i].characteristics != NULL) {
+            for (j = 0; svc_db_hash_test[i].characteristics[j].uuid != NULL; j++) {
+                BUF_PUT_LE16(buf, buf_len, handle);
+                handle++;
+                BUF_PUT_LE16(buf, buf_len, BLE_ATT_UUID_CHARACTERISTIC);
+                BUF_PUT_LE16(buf, buf_len, svc_db_hash_test[i].characteristics[j].flags);
+                buf_len--;
+                BUF_PUT_LE16(buf, buf_len, handle);
+                handle++;
+                BUF_PUT_LE16(buf, buf_len,
+                             ble_uuid_u16(svc_db_hash_test[i].characteristics[j].uuid));
+
+                if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                    TEST_ASSERT(0);
+                }
+                /* CCCD */
+                buf_len = 0;
+                if (svc_db_hash_test[i].characteristics[j].flags & BLE_GATT_CHR_F_NOTIFY
+                || svc_db_hash_test[i].characteristics[j].flags &
+                BLE_GATT_CHR_F_INDICATE) {
+                    BUF_PUT_LE16(buf, buf_len, handle);
+                    handle++;
+                    BUF_PUT_LE16(buf, buf_len, BLE_GATT_DSC_CLT_CFG_UUID16);
+                    if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                        TEST_ASSERT(0);
+                    }
+                    buf_len = 0;
+                }
+                /* Characteristic Extended Properties */
+                if (svc_db_hash_test[i].characteristics[j].flags &
+                BLE_GATT_CHR_F_RELIABLE_WRITE || svc_db_hash_test[i].characteristics[j].flags &
+                    BLE_GATT_CHR_F_AUX_WRITE) {
+                    BUF_PUT_LE16(buf, buf_len, handle);
+                    handle++;
+                    BUF_PUT_LE16(buf, buf_len, BLE_GATT_DSC_EXT_PROP_UUID16);
+                    BUF_PUT_LE16(buf, buf_len, 0x0000);
+                }
+                if (tc_cmac_update(&state, buf, buf_len) == TC_CRYPTO_FAIL) {
+                    TEST_ASSERT(0);
+                }
+                buf_len = 0;
+            }
+        }
+
+    }
+
+    tc_cmac_final(db_hash, &state);
+    TEST_ASSERT(0);
 }
 
 TEST_CASE_SELF(ble_gatts_reg_test_svc_return)
@@ -709,6 +919,7 @@ TEST_CASE_SELF(ble_gatts_reg_test_dsc_cb)
 
 TEST_SUITE(ble_gatts_reg_suite)
 {
+    ble_gatts_reg_test_db_hash_calc();
     ble_gatts_reg_test_svc_return();
     ble_gatts_reg_test_chr_return();
     ble_gatts_reg_test_dsc_return();
