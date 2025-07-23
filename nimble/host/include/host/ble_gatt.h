@@ -1253,6 +1253,16 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Calculates Database Hash characteristic value based on service definitions
+ * in the GATT database.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_EUNKNOWN if initializing CMAC session
+ *                                  or computing CMAC tag value fails.
+ *
+ */
+int ble_gatts_calculate_db_hash(void);
 #ifdef __cplusplus
 }
 #endif

@@ -294,6 +294,50 @@ ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
     out_key->idx = 0;
 }
 
+int
+ble_store_read_db_hash(const struct ble_store_key_db_hash *key,
+                       struct ble_store_value_db_hash *out_value)
+{
+    union ble_store_value *store_value;
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key;
+    store_value = (void *)out_value;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_DB_HASH, store_key, store_value);
+    return rc;
+}
+
+int
+ble_store_write_db_hash(const struct ble_store_value_db_hash *value)
+{
+    union ble_store_value *store_value;
+    int rc;
+
+    store_value = (void *)value;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_DB_HASH, store_value);
+    return rc;
+}
+
+int
+ble_store_delete_db_hash(const struct ble_store_value_db_hash *key)
+{
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key;
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_DB_HASH, store_key);
+    return rc;
+}
+
+void
+ble_store_key_from_value_db_hash(struct ble_store_key_db_hash *out_key,
+                                 const struct ble_store_value_db_hash *value)
+{
+    out_key->peer_addr = value->peer_addr;
+    out_key->idx = 0;
+}
+
 void
 ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
                              const struct ble_store_value_sec *value)
@@ -315,6 +359,10 @@ ble_store_key_from_value(int obj_type,
 
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_store_key_from_value_cccd(&out_key->cccd, &value->cccd);
+        break;
+
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        ble_store_key_from_value_db_hash(&out_key->db_hash, &value->db_hash);
         break;
 
     default:
@@ -345,6 +393,14 @@ ble_store_iterate(int obj_type,
     case BLE_STORE_OBJ_TYPE_CCCD:
         key.cccd.peer_addr = *BLE_ADDR_ANY;
         pidx = &key.cccd.idx;
+        break;
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        key.feat.peer_addr = *BLE_ADDR_ANY;
+        pidx = &key.feat.idx;
+        break;
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        key.db_hash.peer_addr = *BLE_ADDR_ANY;
+        pidx = &key.db_hash.idx;
         break;
     default:
         BLE_HS_DBG_ASSERT(0);
@@ -390,6 +446,7 @@ ble_store_clear(void)
         BLE_STORE_OBJ_TYPE_OUR_SEC,
         BLE_STORE_OBJ_TYPE_PEER_SEC,
         BLE_STORE_OBJ_TYPE_CCCD,
+        BLE_STORE_OBJ_TYPE_DB_HASH,
     };
     union ble_store_key key;
     int obj_type;

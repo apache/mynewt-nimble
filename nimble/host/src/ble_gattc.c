@@ -4357,6 +4357,14 @@ ble_gatts_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
 
     STATS_INC(ble_gattc_stats, notify);
 
+    /* Except for a Handle Value Indication for the Service Changed
+     * characteristic, the server shall not send notifications and indications
+     * to such a client until it becomes change-aware */
+    if (!is_change_aware(conn_handle)) {
+        rc = BLE_HS_EREJECT;
+        goto done;
+    }
+
     ble_gattc_log_notify(chr_val_handle);
 
     if (txom == NULL) {
@@ -4530,6 +4538,13 @@ ble_gatts_notify_multiple(uint16_t conn_handle,
         return BLE_HS_ENOTCONN;
     }
 
+    /* Except for a Handle Value Indication for the Service Changed
+     * characteristic, the server shall not send notifications and indications
+     * to such a client until it becomes change-aware */
+    if (!is_change_aware(conn_handle)) {
+        return BLE_HS_EREJECT;
+    }
+
     /** Skip sending to client that doesn't support this feature */
     BLE_HS_LOG_DEBUG("ble_gatts_notify_multiple: peer_cl_sup_feat %d\n",
                      conn->bhc_gatt_svr.peer_cl_sup_feat[0]);
@@ -4651,6 +4666,9 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
 
     struct ble_gattc_proc *proc;
     struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    ble_uuid_any_t uuid;
+    static const ble_uuid16_t uuid_service_changed = BLE_UUID16_INIT(0x2A05);
     int rc;
 
     STATS_INC(ble_gattc_stats, indicate);
@@ -4659,6 +4677,25 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
     if (proc == NULL) {
         rc = BLE_HS_ENOMEM;
         goto done;
+    }
+
+    om = NULL;
+
+    /* Except for a Handle Value Indication for the Service Changed
+     * characteristic, the server shall not send notifications and indications
+     * to such a client until it becomes change-aware */
+    if (!is_change_aware(conn_handle)) {
+        rc = ble_att_svr_read_local(chr_val_handle - 1, &om);
+        if (rc != 0) {
+            return rc;
+        }
+        ble_uuid_init_from_att_mbuf(&uuid, om, 3, 2);
+        if (ble_uuid_cmp(&uuid.u, &uuid_service_changed.u) != 0) {
+            os_mbuf_free_chain(om);
+            rc = BLE_HS_EREJECT;
+            goto done;
+        }
+        os_mbuf_free_chain(om);
     }
 
     ble_gattc_proc_prepare(proc, conn_handle, BLE_GATT_OP_INDICATE);

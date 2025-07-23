@@ -25,6 +25,9 @@
 #include "host/ble_uuid.h"
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
+#include "tinycrypt/aes.h"
+#include "tinycrypt/cmac_mode.h"
+#include "tinycrypt/constants.h"
 
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
@@ -61,6 +64,10 @@ struct ble_gatts_clt_cfg {
 /** A cached array of handles for the configurable characteristics. */
 static struct ble_gatts_clt_cfg *ble_gatts_clt_cfgs;
 static int ble_gatts_num_cfgable_chrs;
+
+#if MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+uint8_t db_hash[BLE_GATT_DB_HASH_SZ];
+#endif
 
 STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 STATS_NAME_START(ble_gatts_stats)
@@ -1159,6 +1166,8 @@ ble_gatts_register_svcs(const struct ble_gatt_svc_def *svcs,
     int rc;
     int i;
 
+    num_svcs = 0;
+
     for (i = 0; svcs[i].type != BLE_GATT_SVC_TYPE_END; i++) {
         idx = ble_gatts_num_svc_entries + i;
         if (idx >= ble_hs_max_services) {
@@ -1324,6 +1333,14 @@ ble_gatts_start(void)
         }
     }
     ble_gatts_free_svc_defs();
+
+#if MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+    rc = ble_gatts_calculate_db_hash();
+    if (rc != 0) {
+        /* Hash needs to be recalculated */
+        goto done;
+    }
+#endif
 
     if (ble_gatts_num_cfgable_chrs == 0) {
         rc = 0;
@@ -1508,8 +1525,11 @@ int
 ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
 {
     struct ble_store_value_cccd cccd_value;
+    static const ble_uuid16_t uuid_service_chagned = BLE_UUID16_INIT(0x2A05);
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    ble_uuid_any_t uuid;
     int clt_cfg_idx;
     int persist;
     int rc;
@@ -1534,6 +1554,21 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
     if (conn->bhc_gatt_svr.indicate_val_handle == chr_val_handle) {
         /* This acknowledgement is expected. */
         rc = 0;
+
+        /* If this is service changed confirmation, we have to set
+         * peer as change-aware */
+        rc = ble_att_svr_read_local(chr_val_handle - 1, &om);
+        if (rc != 0) {
+            return rc;
+        }
+        ble_uuid_init_from_att_mbuf(&uuid, om, 3, 2);
+        if (ble_uuid_cmp(&uuid.u, &uuid_service_chagned.u) == 0) {
+            if (!is_change_aware(conn_handle)) {
+                set_change_aware(conn_handle, BLE_GATTS_CHANGE_AWARE);
+            }
+        }
+
+        os_mbuf_free_chain(om);
 
         /* Mark that there is no longer an outstanding txed indicate. */
         conn->bhc_gatt_svr.indicate_val_handle = 0;
@@ -1757,6 +1792,32 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 
     memcpy(conn->bhc_gatt_svr.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
 
+    if (conn->bhc_sec_state.bonded) {
+        feat_key.peer_addr = conn->bhc_peer_addr;
+        rc = ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val);
+        if (rc == BLE_HS_ENOENT) {
+            /* Assume the values were not stored yet */
+            store_feat.peer_addr = conn->bhc_peer_addr;
+            memcpy(store_feat.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+            if (ble_store_write_peer_cl_sup_feat(&store_feat)) {
+                /* XXX: How to report an error? */
+            }
+            rc = 0;
+            goto done;
+        }
+        if (rc == 0) {
+            /* Found cl_sup_feat for this peer, check for disabling already
+             * enabled features */
+            for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
+                if ((feat_val.peer_cl_sup_feat[i] & feat[i]) !=
+                    feat_val.peer_cl_sup_feat[i]) {
+                    rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+                    goto done;
+                }
+            }
+        }
+    }
+
 done:
     ble_hs_unlock();
     return rc;
@@ -1896,12 +1957,17 @@ ble_gatts_bonding_established(uint16_t conn_handle)
  *     o Sends all pending notifications to the connected peer.
  *     o Sends up to one pending indication to the connected peer; schedules
  *       any remaining pending indications.
+ *     o Sets change (un)aware state and stores database hash if needed.
  */
 void
 ble_gatts_bonding_restored(uint16_t conn_handle)
 {
     struct ble_store_value_cccd cccd_value;
     struct ble_store_key_cccd cccd_key;
+    struct ble_store_key_db_hash db_hash_key;
+    struct ble_store_value_db_hash db_hash_value;
+    struct ble_store_key_cl_sup_feat feat_key;
+    struct ble_store_value_cl_sup_feat feat_val;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
     uint8_t att_op;
@@ -1913,13 +1979,36 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
     BLE_HS_DBG_ASSERT(conn != NULL);
     BLE_HS_DBG_ASSERT(conn->bhc_sec_state.bonded);
 
-    cccd_key.peer_addr = conn->bhc_peer_addr;
-    cccd_key.peer_addr.type =
+    cccd_key.peer_addr = db_hash_key.peer_addr = feat_key.peer_addr =
+        conn->bhc_peer_addr;
+    cccd_key.peer_addr.type = db_hash_key.peer_addr.type = feat_key.peer_addr.type =
         ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     cccd_key.chr_val_handle = 0;
-    cccd_key.idx = 0;
+    cccd_key.idx = db_hash_key.idx = feat_key.idx = 0;
 
     ble_hs_unlock();
+
+    /* The initial state of a client with a trusted relationship is unchanged
+     * from the previous connection unless the database has been updated since
+     * the last connection, in which case the initial state is change-unaware.
+     * */
+    if (!ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val)) {
+        /* Check if peer supports robust caching */
+        if ((feat_val.peer_cl_sup_feat[0] & (1 << 0)) != 0) {
+            if (conn->bhc_gatt_svr.awareness == BLE_GATTS_HASH_READ_PENDING) {
+                /* Peer has probably read hash before bonding was restored,
+                 * we can now write current hash to the storage */
+                db_hash_store(conn_handle);
+            } else if (ble_store_read_db_hash(&db_hash_key, &db_hash_value) ==
+                       BLE_HS_ENOENT) {
+                /* XXX: ? */
+            } else {
+                if (!db_hash_cmp(db_hash_value.db_hash)) {
+                    set_change_unaware(conn_handle, NULL);
+                }
+            }
+        }
+    }
 
     while (1) {
         rc = ble_store_read_cccd(&cccd_key, &cccd_value);
@@ -2337,6 +2426,211 @@ ble_gatts_lcl_svc_foreach(ble_gatt_svc_foreach_fn cb, void *arg)
            ble_gatts_svc_entries[i].handle,
            ble_gatts_svc_entries[i].end_group_handle, arg);
     }
+}
+
+#define BUF_PUT_LE16(buf, buf_len, val)                                       \
+    do {                                                                      \
+        put_le16((buf) + (buf_len), (val));                                   \
+        (buf_len) += 2;                                                       \
+    } while (0)
+
+int
+ble_gatts_foreach_hash_append(struct ble_att_svr_entry *entry, void *arg)
+{
+    uint16_t uuid;
+    struct os_mbuf *om;
+    uint8_t buf[24];
+    uint16_t buf_len;
+    int rc;
+
+    uuid = ble_uuid_u16(entry->ha_uuid);
+    buf_len = 0;
+    om = NULL;
+
+    switch (uuid) {
+    case BLE_ATT_UUID_PRIMARY_SERVICE:
+    case BLE_ATT_UUID_SECONDARY_SERVICE:
+    case BLE_ATT_UUID_INCLUDE:
+    case BLE_ATT_UUID_CHARACTERISTIC:
+    case BLE_GATT_DSC_EXT_PROP_UUID16:
+        /* attr handle */
+        BUF_PUT_LE16(buf, buf_len, entry->ha_handle_id);
+        /* attr type */
+        BUF_PUT_LE16(buf, buf_len, uuid);
+        rc = ble_att_svr_read_local(entry->ha_handle_id, &om);
+        if (rc != 0) {
+            return rc;
+        }
+        /* attr value */
+        os_mbuf_copydata(om, 0, os_mbuf_len(om), buf + buf_len);
+        buf_len += os_mbuf_len(om);
+        os_mbuf_free_chain(om);
+        break;
+
+    case BLE_GATT_DSC_CLT_CFG_UUID16:
+        /* attr handle */
+        BUF_PUT_LE16(buf, buf_len, entry->ha_handle_id);
+        /* attr type */
+        BUF_PUT_LE16(buf, buf_len, uuid);
+        break;
+    default:
+        return 0;
+    }
+
+    if (tc_cmac_update(arg, buf, buf_len) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    return 0;
+}
+
+int
+ble_gatts_calculate_db_hash()
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_ROBUST_CACHE)
+    return BLE_HS_ENOTSUP;
+#endif
+    struct tc_aes_key_sched_struct sched;
+    struct tc_cmac_struct state;
+
+    /* 128-bit key shall be all zero (7.3.1 Core spec) */
+    const uint8_t key[16] = { 0 };
+
+    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    ble_att_svr_foreach(ble_gatts_foreach_hash_append, &state);
+
+    if (tc_cmac_final(db_hash, &state) == TC_CRYPTO_FAIL) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    /* Endianness of the hash is not indicated in Core spec;
+     * PTS expects hash to be in little endian */
+    swap_in_place(db_hash, BLE_GATT_DB_HASH_SZ);
+
+    return 0;
+}
+
+void
+set_change_aware(uint16_t conn_handle, enum ble_gatts_change_aware_state state)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+    ble_hs_unlock();
+
+    conn->bhc_gatt_svr.awareness = state;
+}
+
+int
+set_change_unaware(uint16_t conn_handle, void *arg)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+    ble_hs_unlock();
+
+    conn->bhc_gatt_svr.awareness = BLE_GATTS_CHANGE_UNAWARE;
+
+    return 0;
+}
+
+void
+set_all_change_aware_action(ble_gap_conn_foreach_handle_fn *cb, void *arg)
+{
+    ble_gap_conn_foreach_handle(cb, arg);
+}
+
+const uint8_t *
+ble_gatts_get_db_hash()
+{
+    return db_hash;
+}
+
+bool
+is_out_of_sync_sent(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+    ble_hs_unlock();
+
+    return conn->bhc_gatt_svr.awareness == BLE_GATTS_OUT_OF_SYNC_SENT;
+}
+
+bool
+is_change_aware(uint16_t conn_handle)
+{
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+    ble_hs_unlock();
+
+    if ((conn->bhc_gatt_svr.peer_cl_sup_feat[0] & (1 << 0)) == 0) {
+        return true;
+    }
+
+    if (conn->bhc_gatt_svr.awareness == BLE_GATTS_CHANGE_AWARE) {
+        return true;
+    }
+
+    if (conn->bhc_gatt_svr.awareness == BLE_GATTS_HASH_READ_PENDING) {
+        set_change_aware(conn_handle, BLE_GATTS_CHANGE_AWARE);
+        return true;
+    }
+
+    if (conn->bhc_gatt_svr.awareness == BLE_GATTS_OUT_OF_SYNC_SENT) {
+        /* TODO: set change_aware only for specific ATT bearer. */
+        set_change_aware(conn_handle, BLE_GATTS_CHANGE_AWARE);
+        return true;
+    }
+
+    return false;
+}
+
+void
+db_hash_store(uint16_t conn_handle)
+{
+    struct ble_store_value_db_hash store_hash;
+    struct ble_hs_conn *conn;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    BLE_HS_DBG_ASSERT(conn != NULL);
+
+    store_hash.peer_addr = conn->bhc_peer_addr;
+    store_hash.peer_addr.type =
+        ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
+    store_hash.db_hash = ble_gatts_get_db_hash();
+
+    ble_hs_unlock();
+
+    ble_store_write_db_hash(&store_hash);
+}
+
+bool
+db_hash_cmp(const uint8_t *peer_hash)
+{
+    uint8_t diff;
+    const uint8_t *global_hash = ble_gatts_get_db_hash();
+
+    if (global_hash == NULL || peer_hash == NULL) {
+        return false;
+    }
+
+    diff = 0;
+    for (size_t i = 0; i < BLE_GATT_DB_HASH_SZ; ++i) {
+        diff |= global_hash[i] ^ peer_hash[i];
+    }
+
+    return diff == 0;
 }
 
 int

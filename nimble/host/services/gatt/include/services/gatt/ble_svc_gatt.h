@@ -31,6 +31,7 @@ struct ble_hs_cfg;
 #define BLE_SVC_GATT_CHR_SERVICE_CHANGED_UUID16         0x2a05
 #define BLE_SVC_GATT_CHR_SERVER_SUPPORTED_FEAT_UUID16   0x2b3a
 #define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEAT_UUID16   0x2b29
+#define BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16           0x2b2a
 
 uint8_t ble_svc_gatt_get_local_cl_supported_feat(void);
 void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);

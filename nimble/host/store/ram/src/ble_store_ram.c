@@ -57,6 +57,12 @@ static struct ble_store_value_cccd
 
 static int ble_store_ram_num_cccds;
 
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static struct ble_store_value_db_hash ble_store_ram_db_hashes[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+#endif
+
+static int ble_store_ram_num_db_hashes;
+
 /*****************************************************************************
  * $sec                                                                      *
  *****************************************************************************/
@@ -427,6 +433,109 @@ ble_store_ram_write_cccd(const struct ble_store_value_cccd *value_cccd)
 }
 
 /*****************************************************************************
+ * hash                                                                     *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static int
+ble_store_ram_find_hash(const struct ble_store_key_db_hash *key_hash)
+{
+    struct ble_store_value_db_hash *hash;
+    int skipped;
+    int i;
+
+    skipped = 0;
+    for (i = 0; i < ble_store_ram_num_db_hashes; i++) {
+        hash = ble_store_ram_db_hashes + i;
+
+        if (ble_addr_cmp(&key_hash->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&hash->peer_addr, &key_hash->peer_addr)) {
+                continue;
+            }
+        }
+
+        if (key_hash->idx > skipped) {
+            skipped++;
+            continue;
+        }
+
+        return i;
+    }
+
+    return -1;
+}
+#endif
+
+static int
+ble_store_ram_delete_hash(const struct ble_store_key_db_hash *key_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+    int rc;
+
+    idx = ble_store_ram_find_hash(key_hash);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_ram_delete_obj(ble_store_ram_db_hashes,
+                                  sizeof *ble_store_ram_db_hashes, idx,
+                                  &ble_store_ram_num_db_hashes);
+    if (rc != 0) {
+        return rc;
+    }
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_ram_read_db_hash(const struct ble_store_key_db_hash *key_hash,
+                           struct ble_store_value_db_hash *value_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+
+    idx = ble_store_ram_find_hash(key_hash);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    *value_hash = ble_store_ram_db_hashes[idx];
+
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_ram_write_db_hash(const struct ble_store_value_db_hash *value_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    struct ble_store_key_db_hash key_hash;
+    int idx;
+
+    ble_store_key_from_value_db_hash(&key_hash, value_hash);
+    idx = ble_store_ram_find_hash(&key_hash);
+    if (idx == -1) {
+        if (ble_store_ram_num_db_hashes >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_ram_num_db_hashes;
+        ble_store_ram_num_db_hashes++;
+    }
+
+    ble_store_ram_db_hashes[idx] = *value_hash;
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+/*****************************************************************************
  * $api                                                                      *
  *****************************************************************************/
 
@@ -468,6 +577,10 @@ ble_store_ram_read(int obj_type, const union ble_store_key *key,
         rc = ble_store_ram_read_cccd(&key->cccd, &value->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_ram_read_db_hash(&key->db_hash, &value->db_hash);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -497,6 +610,10 @@ ble_store_ram_write(int obj_type, const union ble_store_value *val)
         rc = ble_store_ram_write_cccd(&val->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_ram_write_db_hash(&val->db_hash);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -520,6 +637,10 @@ ble_store_ram_delete(int obj_type, const union ble_store_key *key)
         rc = ble_store_ram_delete_cccd(&key->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_ram_delete_hash(&key->db_hash);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -539,4 +660,5 @@ ble_store_ram_init(void)
     ble_store_ram_num_our_secs = 0;
     ble_store_ram_num_peer_secs = 0;
     ble_store_ram_num_cccds = 0;
+    ble_store_ram_num_db_hashes = 0;
 }
