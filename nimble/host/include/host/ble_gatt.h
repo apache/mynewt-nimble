@@ -1253,6 +1253,11 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Calculates database hash value
+ * @return
+ */
+int ble_gatts_calculate_db_hash(void);
 #ifdef __cplusplus
 }
 #endif

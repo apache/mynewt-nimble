@@ -48,6 +48,9 @@ extern "C" {
 /** Object type: Client Characteristic Configuration Descriptor. */
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
+/** Object type: Peer last known database hash. */
+#define BLE_STORE_OBJ_TYPE_DB_HASH      4
+
 /** @} */
 
 /**
@@ -155,6 +158,34 @@ struct ble_store_value_cccd {
 };
 
 /**
+ * Used as key for lookups of stored database hash.
+ * This struct corresponds to the BLE_STORE_OBJ_TYPE_DB_HASH store object
+ * type.
+ */
+struct ble_store_key_db_hash {
+    /**
+     * Key by peer identity address;
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
+     */
+    ble_addr_t peer_addr;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Represents a stored database hash of a peer. This struct
+ * corresponds to the BLE_STORE_OBJ_TYPE_DB_HASH store object type.
+ */
+struct ble_store_value_db_hash {
+    /** The peer address associated with the stored database hash. */
+    ble_addr_t peer_addr;
+    /** Database hash; can be used to determine whether the peer
+     * is change aware/unaware. */
+    const uint8_t *db_hash;
+ };
+
+/**
  * Used as a key for store lookups.  This union must be accompanied by an
  * object type code to indicate which field is valid.
  */
@@ -163,6 +194,8 @@ union ble_store_key {
     struct ble_store_key_sec sec;
     /** Key for Client Characteristic Configuration Descriptor store lookups. */
     struct ble_store_key_cccd cccd;
+    /** Key for database hash store lookups */
+    struct ble_store_key_db_hash db_hash;
 };
 
 /**
@@ -174,6 +207,8 @@ union ble_store_value {
     struct ble_store_value_sec sec;
     /** Stored Client Characteristic Configuration Descriptor. */
     struct ble_store_value_cccd cccd;
+    /** Stored database hash. */
+    struct ble_store_value_db_hash db_hash;
 };
 
 /** Represents an event associated with the BLE Store. */
@@ -556,6 +591,73 @@ int ble_store_write_cccd(const struct ble_store_value_cccd *value);
  */
 int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
+/**
+ * @brief Writes a database hash to a storage.
+ *
+ * This function writes database hash value to a storage based on the
+ * provided value.
+ *
+ * @param value                 A pointer to a `ble_store_value_db_hash`
+ *                                  structure representing the database hash
+ *                                  to be written to a storage.
+ *
+ * @return                      0 if the database hash was successfully
+ *                                  written to a storage;
+ *                              Non-zero on error.
+ */
+int ble_store_write_db_hash(const struct ble_store_value_db_hash *value);
+
+/**
+ * @brief Reads a database hash from a storage.
+ *
+ * This function reads a database hash from a storage based on the provided key
+ * and stores the retrieved value in the specified output structure.
+ *
+ * @param key                   A pointer to a `ble_store_key_db_hash`
+ *                                  structure representing the key to identify
+ *                                  the database hash to be read.
+ * @param out_value             A pointer to a `ble_store_value_db_hash`
+ *                                  structure to store the database hash value
+ *                                  read from a storage.
+ *
+ * @return                      0 if the database hash was successfully read
+ *                                  and stored in the `out_value` structure;
+ *                              Non-zero on error.
+ */
+int ble_store_read_db_hash(const struct ble_store_key_db_hash *key,
+                           struct ble_store_value_db_hash *out_value);
+
+/**
+ * @brief Deletes a database hash from a storage.
+ *
+ * This function deletes a database hash from a storage based on the provided
+ * key.
+ *
+ * @param key                   A pointer to a `ble_store_key_db_hash`
+ *                                  structure identifying the database hash to
+ *                                  be deleted from a storage.
+ *
+ * @return                      0 if the database hash was successfully deleted
+ *                                  from a storage;
+ *                              Non-zero on error.
+ */
+int ble_store_delete_db_hash(const struct ble_store_value_db_hash *key);
+
+/**
+ * @brief Generates a storage key for a database hash entry from its value.
+ *
+ * This function generates a storage key for a database hash entry based on
+ * the provided database hash value.
+ *
+ * @param out_key               A pointer to a `ble_store_key_db_hash`
+ *                                  structure where the generated key will be
+ *                                  stored.
+ * @param value                 A pointer to a `ble_store_value_db_hash`
+ *                                  structure containing the security material
+ *                                  value from which the key will be generated.
+ */
+void ble_store_key_from_value_db_hash(struct ble_store_key_db_hash *out_key,
+                                      const struct ble_store_value_db_hash *value);
 
 /**
  * @brief Generates a storage key for a security material entry from its value.
