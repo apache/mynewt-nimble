@@ -939,8 +939,8 @@ ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
             continue;
         }
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
-        remove_cb(entry);
         entry->enqueued = 0;
+        remove_cb(entry);
     }
 
     if (first_removed) {
