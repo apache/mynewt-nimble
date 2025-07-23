@@ -87,7 +87,7 @@ syscfg.defs:
             This allows to configure supported Bluetooth Core version. Some
             features may not be available if version is too low. Version is
             integer for easy comparison.
-        range: 50, 51, 52, 53, 54, 60
+        range: 50, 51, 52, 53, 54, 60, 61
         value: 50
     BLE_ISO:
         description: >
