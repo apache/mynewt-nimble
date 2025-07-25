@@ -159,6 +159,9 @@ int ble_gattc_init(void);
 #define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
 #define BLE_GATTS_INC_SVC_LEN_UUID              6
 
+#define BLE_GATTS_CEP_F_RELIABLE_WRITE 0x0001
+#define BLE_GATTS_CEP_F_AUX_WRITE      0x0002
+
 /**
  * Contains counts of resources required by the GATT server.  The contents of
  * this struct are generally used to populate a configuration struct before
@@ -182,6 +185,12 @@ struct ble_gatt_resources {
      * these also contributes to the total descriptor count.
      */
     uint16_t cccds;
+
+    /**
+     * Number of characteristic extended properties descriptors. Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t ceps;
 
     /** Total number of ATT attributes. */
     uint16_t attrs;
