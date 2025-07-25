@@ -43,6 +43,7 @@ extern "C" {
  * caller.
  */
 struct os_memblock {
+    /** Next memory block in the list. */
     SLIST_ENTRY(os_memblock) mb_next;
 };
 
@@ -66,8 +67,10 @@ struct os_mempool {
     /** Bitmap of OS_MEMPOOL_F_[...] values. */
     uint8_t mp_flags;
     /** Address of memory buffer used by pool */
-    uint32_t mp_membuf_addr;
+    uintptr_t mp_membuf_addr;
+    /** Next memory pool in the list. */
     STAILQ_ENTRY(os_mempool) mp_list;
+    /** Head of the list of memory blocks. */
     SLIST_HEAD(,os_memblock);
     /** Name for memory block */
     char *name;
@@ -102,14 +105,19 @@ struct os_mempool_ext;
 typedef os_error_t os_mempool_put_fn(struct os_mempool_ext *ome, void *data,
                                      void *arg);
 
+/** Extended memory pool. */
 struct os_mempool_ext {
+    /** Standard memory pool. */
     struct os_mempool mpe_mp;
 
-    /* Callback that is executed immediately when a block is freed. */
+    /** Callback that is executed immediately when a block is freed. */
     os_mempool_put_fn *mpe_put_cb;
+
+    /** Optional argument passed to the callback function. */
     void *mpe_put_arg;
 };
 
+/** Length of the name of memory pool */
 #define OS_MEMPOOL_INFO_NAME_LEN (32)
 
 /**
@@ -132,15 +140,30 @@ struct os_mempool_info {
 /**
  * Get information about the next system memory pool.
  *
- * @param mempool The current memory pool, or NULL if starting iteration.
- * @param info    A pointer to the structure to return memory pool information
- *                into.
+ * @param mp                    The current memory pool, or NULL if starting
+ *                                  iteration.
+ * @param omi                   A pointer to the structure to return memory pool
+ *                                  information into.
  *
- * @return The next memory pool in the list to get information about, or NULL
- *         when at the last memory pool.
+ * @return                      The next memory pool in the list to get
+ *                                  information about;
+ *                              NULL when at the last memory pool.
  */
-struct os_mempool *os_mempool_info_get_next(struct os_mempool *,
-                                            struct os_mempool_info *);
+struct os_mempool *os_mempool_info_get_next(struct os_mempool *mp,
+                                            struct os_mempool_info *omi);
+
+/**
+ * Get information system memory pool by name.
+ *
+ * @param mempool_name          The name of mempool.
+ * @param info                  A pointer to the structure to return memory pool
+ *                                  information into, can be NULL.
+ *
+ * @return                      The memory pool found;
+ *                              NULL when there is no such memory pool.
+ */
+struct os_mempool *os_mempool_get(const char *mempool_name,
+                                  struct os_mempool_info *info);
 
 /*
  * To calculate size of the memory buffer needed for the pool. NOTE: This size
@@ -148,11 +171,10 @@ struct os_mempool *os_mempool_info_get_next(struct os_mempool *,
  * the memory pool.
  */
 #if MYNEWT_VAL(OS_MEMPOOL_GUARD)
-/*
- * Leave extra 4 bytes of guard area at the end.
- */
+/** Leave extra 4 bytes of guard area at the end. */
 #define OS_MEMPOOL_BLOCK_SZ(sz) ((sz) + sizeof(os_membuf_t))
 #else
+/** Size of a memory pool block. */
 #define OS_MEMPOOL_BLOCK_SZ(sz) (sz)
 #endif
 #if (OS_ALIGNMENT == 4)
@@ -164,6 +186,8 @@ typedef __uint128_t os_membuf_t;
 #else
 #error "Unhandled `OS_ALIGNMENT` for `os_membuf_t`"
 #endif /* OS_ALIGNMENT == * */
+
+/** The total size of a memory pool, including alignment. */
 #define OS_MEMPOOL_SIZE(n,blksize)      (((OS_MEMPOOL_BLOCK_SZ(blksize) + ((OS_ALIGNMENT)-1)) / (OS_ALIGNMENT)) * (n))
 
 /** Calculates the number of bytes required to initialize a memory pool. */
@@ -173,13 +197,14 @@ typedef __uint128_t os_membuf_t;
 /**
  * Initialize a memory pool.
  *
- * @param mp            Pointer to a pointer to a mempool
- * @param blocks        The number of blocks in the pool
- * @param blocks_size   The size of the block, in bytes.
- * @param membuf        Pointer to memory to contain blocks.
- * @param name          Name of the pool.
+ * @param mp                    Pointer to a pointer to a mempool
+ * @param blocks                The number of blocks in the pool
+ * @param block_size            The size of the block, in bytes.
+ * @param membuf                Pointer to memory to contain blocks.
+ * @param name                  Name of the pool.
  *
- * @return os_error_t
+ * @return                      0 on success;
+ *                              Non-zero error code on failure.
  */
 os_error_t os_mempool_init(struct os_mempool *mp, uint16_t blocks,
                            uint32_t block_size, void *membuf, char *name);
@@ -189,13 +214,14 @@ os_error_t os_mempool_init(struct os_mempool *mp, uint16_t blocks,
  * are not specified when this function is called; they are assigned manually
  * after initialization.
  *
- * @param mpe           The extended memory pool to initialize.
- * @param blocks        The number of blocks in the pool.
- * @param block_size    The size of each block, in bytes.
- * @param membuf        Pointer to memory to contain blocks.
- * @param name          Name of the pool.
+ * @param mpe                   The extended memory pool to initialize.
+ * @param blocks                The number of blocks in the pool.
+ * @param block_size            The size of each block, in bytes.
+ * @param membuf                Pointer to memory to contain blocks.
+ * @param name                  Name of the pool.
  *
- * @return os_error_t
+ * @return                      0 on success;
+ *                              Non-zero error code on failure.
  */
 os_error_t os_mempool_ext_init(struct os_mempool_ext *mpe, uint16_t blocks,
                                uint32_t block_size, void *membuf, char *name);
@@ -214,9 +240,10 @@ os_error_t os_mempool_unregister(struct os_mempool *mp);
 /**
  * Clears a memory pool.
  *
- * @param mp            The mempool to clear.
+ * @param mp                    The mempool to clear.
  *
- * @return os_error_t
+ * @return                      0 on success;
+ *                              Non-zero error code on failure.
  */
 os_error_t os_mempool_clear(struct os_mempool *mp);
 
@@ -246,9 +273,10 @@ int os_memblock_from(const struct os_mempool *mp, const void *block_addr);
 /**
  * Get a memory block from a memory pool
  *
- * @param mp Pointer to the memory pool
+ * @param mp                    Pointer to the memory pool
  *
- * @return void* Pointer to block if available; NULL otherwise
+ * @return                      Pointer to block if available;
+ *                              NULL otherwise
  */
 void *os_memblock_get(struct os_mempool *mp);
 
@@ -257,20 +285,22 @@ void *os_memblock_get(struct os_mempool *mp);
  * This function should only be called from a put callback to free a block
  * without causing infinite recursion.
  *
- * @param mp Pointer to memory pool
- * @param block_addr Pointer to memory block
+ * @param mp                    Pointer to memory pool
+ * @param block_addr            Pointer to memory block
  *
- * @return os_error_t
+ * @return                      0 on success;
+ *                              Non-zero error code on failure.
  */
 os_error_t os_memblock_put_from_cb(struct os_mempool *mp, void *block_addr);
 
 /**
  * Puts the memory block back into the pool
  *
- * @param mp Pointer to memory pool
- * @param block_addr Pointer to memory block
+ * @param mp                    Pointer to memory pool
+ * @param block_addr            Pointer to memory block
  *
- * @return os_error_t
+ * @return                      0 on success;
+ *                              Non-zero error code on failure.
  */
 os_error_t os_memblock_put(struct os_mempool *mp, void *block_addr);
 
