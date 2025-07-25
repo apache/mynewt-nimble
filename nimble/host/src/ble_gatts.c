@@ -39,6 +39,8 @@ static const ble_uuid_t *uuid_chr =
     BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
 static const ble_uuid_t *uuid_ccc =
     BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
+static const ble_uuid_t *uuid_cep =
+    BLE_UUID16_DECLARE(BLE_GATT_DSC_EXT_PROP_UUID16);
 
 static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
 static int ble_gatts_num_svc_defs;
@@ -149,6 +151,20 @@ ble_gatts_chr_clt_cfg_allowed(const struct ble_gatt_chr_def *chr)
     }
     if (chr->flags & BLE_GATT_CHR_F_INDICATE) {
         flags |= BLE_GATTS_CLT_CFG_F_INDICATE;
+    }
+
+    return flags;
+}
+
+static uint16_t
+ble_gatts_chr_ext_prop_allowed(const struct ble_gatt_chr_def *chr)
+{
+    uint16_t flags;
+
+    flags = 0;
+    if (chr->flags & (BLE_GATT_CHR_F_RELIABLE_WRITE |
+                      BLE_GATT_CHR_F_AUX_WRITE)) {
+        flags = 1;
     }
 
     return flags;
@@ -805,6 +821,64 @@ ble_gatts_register_clt_cfg_dsc(uint16_t *att_handle)
 }
 
 static int
+ble_gatts_cep_access_cb(uint16_t conn_handle, uint16_t attr_handle,
+                        struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    uint16_t prop = POINTER_TO_UINT(arg);
+
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_DSC) {
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    os_mbuf_append(ctxt->om, &prop, sizeof(prop));
+
+    return 0;
+}
+
+static int
+ble_gatts_cep_access(uint16_t conn_handle, uint16_t attr_handle,
+                     uint8_t att_op, uint16_t offset, struct os_mbuf **om,
+                     void *arg)
+{
+    struct ble_gatt_access_ctxt gatt_ctxt;
+    int rc;
+
+    gatt_ctxt.op = ble_gatts_dsc_op(att_op);
+
+    ble_gatts_dsc_inc_stat(gatt_ctxt.op);
+    rc = ble_gatts_val_access(conn_handle, attr_handle, offset, &gatt_ctxt,
+                              om, ble_gatts_cep_access_cb, arg);
+
+    return rc;
+}
+
+static int
+ble_gatts_register_cep_dsc(uint16_t *att_handle, ble_gatt_chr_flags flags)
+{
+    struct ble_gatt_cep_dsc cep;
+    int rc;
+
+    if (flags & BLE_GATT_CHR_F_RELIABLE_WRITE) {
+        cep.properties |= BLE_GATTS_CEP_F_RELIABLE_WRITE;
+    }
+    if (flags & BLE_GATT_CHR_F_AUX_WRITE) {
+        /* TODO: Implement Characteristic User Description (section 3.3.3.2)*/
+        cep.properties |= BLE_GATTS_CEP_F_AUX_WRITE;
+    }
+
+    rc = ble_att_svr_register(uuid_cep, BLE_ATT_F_READ, 0,
+                              att_handle, ble_gatts_cep_access,
+                              UINT_TO_POINTER(cep.properties));
+    if (rc != 0) {
+        return rc;
+    }
+
+    STATS_INC(ble_gatts_stats, dscs);
+
+    return 0;
+}
+
+static int
 ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
                        const struct ble_gatt_chr_def *chr,
                        ble_gatt_register_fn *register_cb, void *cb_arg)
@@ -814,6 +888,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     uint16_t def_handle;
     uint16_t val_handle;
     uint16_t dsc_handle;
+    uint16_t cep_handle;
     uint8_t att_flags;
     int rc;
 
@@ -822,6 +897,14 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     }
 
     if (ble_gatts_chr_clt_cfg_allowed(chr) != 0) {
+        if (ble_gatts_num_cfgable_chrs > ble_hs_max_client_configs) {
+            return BLE_HS_ENOMEM;
+        }
+        ble_gatts_num_cfgable_chrs++;
+    }
+
+    if (ble_gatts_chr_ext_prop_allowed(chr) != 0) {
+        /* TODO */
         if (ble_gatts_num_cfgable_chrs > ble_hs_max_client_configs) {
             return BLE_HS_ENOMEM;
         }
@@ -868,6 +951,14 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
             return rc;
         }
         BLE_HS_DBG_ASSERT(dsc_handle == def_handle + 2);
+    }
+
+    if (ble_gatts_chr_ext_prop_allowed(chr) != 0) {
+        rc = ble_gatts_register_cep_dsc(&cep_handle, chr->flags);
+        if (rc != 0) {
+            return rc;
+        }
+        BLE_HS_DBG_ASSERT(cep_handle == def_handle + 3);
     }
 
     /* Register each descriptor. */
@@ -2169,6 +2260,22 @@ ble_gatts_count_resources(const struct ble_gatt_svc_def *svcs,
                      */
                     res->dscs++;
                     res->cccds++;
+                    res->attrs++;
+                }
+
+                /* If the characteristic permits reliable writes or auxiliary
+                 * writes, it has an Extended Properties descriptor.
+                 */
+                if (chr->flags & BLE_GATT_CHR_F_AUX_WRITE ||
+                    chr->flags & BLE_GATT_CHR_F_RELIABLE_WRITE) {
+
+                    /* Each CEP requires:
+                     *     o 1 descriptor
+                     *     o 1 CCCD
+                     *     o 1 attribute
+                     */
+                    res->dscs++;
+                    res->ceps++;
                     res->attrs++;
                 }
 
