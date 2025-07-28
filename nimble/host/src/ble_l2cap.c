@@ -289,7 +289,8 @@ ble_l2cap_rx_payload(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
         /* More fragments remain. */
 #if MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT) != 0
         conn->bhc_rx_timeout =
-            ble_npl_time_get() + MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT);
+            ble_npl_time_get() +
+            ble_npl_time_ms_to_ticks32(MYNEWT_VAL(BLE_L2CAP_RX_FRAG_TIMEOUT));
 
         ble_hs_timer_resched();
 #endif
