@@ -2425,7 +2425,7 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
 
 #if BLE_HS_ATT_SVR_QUEUED_WRITE_TMO != 0
     conn->bhc_att_svr.basc_prep_timeout_at =
-        ble_npl_time_get() + BLE_HS_ATT_SVR_QUEUED_WRITE_TMO;
+        ble_npl_time_get() + ble_npl_time_ms_to_ticks32(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
 
     ble_hs_timer_resched();
 #endif
