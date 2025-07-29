@@ -35,6 +35,9 @@ extern "C" {
 
 #define BLE_NPL_TIME_FOREVER    INT32_MAX
 
+struct ble_npl_eventq * ble_npl_eventq_dflt_get(void);
+void ble_npl_eventq_run(struct ble_npl_eventq *evq);
+
 #ifdef __cplusplus
 }
 #endif
