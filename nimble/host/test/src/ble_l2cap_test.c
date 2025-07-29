@@ -786,8 +786,8 @@ ble_l2cap_test_coc_connect_multi(struct test_data *t)
         assert(sdu_rx[i] != NULL);
     }
 
-    rc = ble_l2cap_sig_ecoc_connect(2, t->psm, t->mtu, t->num, sdu_rx,
-                                   ble_l2cap_test_event, t);
+    rc = ble_l2cap_enhanced_connect(2, t->psm, t->mtu, t->num, sdu_rx,
+                                    ble_l2cap_test_event, t);
     TEST_ASSERT_FATAL(rc == ev->early_error);
 
     if (rc != 0) {
@@ -851,8 +851,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
     assert(sdu_rx != NULL);
 
-    rc = ble_l2cap_sig_coc_connect(2, t->psm, t->mtu, sdu_rx,
-                                   ble_l2cap_test_event, t);
+    rc = ble_l2cap_connect(2, t->psm, t->mtu, sdu_rx, ble_l2cap_test_event, t);
     TEST_ASSERT_FATAL(rc == ev->early_error);
 
     if (rc != 0) {
@@ -955,7 +954,7 @@ ble_l2cap_test_coc_disc(struct test_data *t)
     uint8_t id;
     int rc;
 
-    rc = ble_l2cap_sig_disconnect(t->chan[0]);
+    rc = ble_l2cap_disconnect(t->chan[0]);
     TEST_ASSERT_FATAL(rc == 0);
 
     req.dcid = htole16(t->chan[0]->dcid);

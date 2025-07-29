@@ -599,8 +599,8 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
 
     if (chan->coc_tx.credits + credits > 0xFFFF) {
         BLE_HS_LOG(INFO, "LE CoC credits overflow...disconnecting\n");
+        ble_l2cap_sig_disconnect_nolock(chan);
         ble_hs_unlock();
-        ble_l2cap_sig_disconnect(chan);
         return;
     }
 
@@ -648,10 +648,8 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
      * to be able to send complete SDU.
      */
     if (chan->coc_rx.credits < c->initial_credits) {
-        ble_hs_unlock();
-        ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid,
-                                 c->initial_credits - chan->coc_rx.credits);
-        ble_hs_lock();
+        ble_l2cap_sig_le_credits_nolock(chan->conn_handle, chan->scid,
+                                        c->initial_credits - chan->coc_rx.credits);
         chan->coc_rx.credits = c->initial_credits;
     }
 

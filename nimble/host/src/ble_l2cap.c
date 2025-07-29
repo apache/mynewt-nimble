@@ -152,7 +152,13 @@ int
 ble_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                   struct os_mbuf *sdu_rx, ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    return ble_l2cap_sig_coc_connect(conn_handle, psm, mtu, sdu_rx, cb, cb_arg);
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_l2cap_sig_connect_nolock(conn_handle, psm, mtu, sdu_rx, cb, cb_arg);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
@@ -183,8 +189,14 @@ ble_l2cap_enhanced_connect(uint16_t conn_handle,
                                uint8_t num, struct os_mbuf *sdu_rx[],
                                ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    return ble_l2cap_sig_ecoc_connect(conn_handle, psm, mtu,
-                                      num, sdu_rx, cb, cb_arg);
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_l2cap_sig_ecoc_connect_nolock(conn_handle, psm, mtu, num, sdu_rx,
+                                           cb, cb_arg);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
@@ -192,6 +204,7 @@ ble_l2cap_reconfig(struct ble_l2cap_chan *chans[], uint8_t num, uint16_t new_mtu
 {
     int i;
     uint16_t conn_handle;
+    int rc;
 
     if (num == 0 || !chans) {
         return BLE_HS_EINVAL;
@@ -206,13 +219,23 @@ ble_l2cap_reconfig(struct ble_l2cap_chan *chans[], uint8_t num, uint16_t new_mtu
         }
     }
 
-    return ble_l2cap_sig_coc_reconfig(conn_handle, chans, num, new_mtu);
+    ble_hs_lock();
+    rc = ble_l2cap_sig_coc_reconfig_nolock(conn_handle, chans, num, new_mtu);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int
 ble_l2cap_disconnect(struct ble_l2cap_chan *chan)
 {
-    return ble_l2cap_sig_disconnect(chan);
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_l2cap_sig_disconnect_nolock(chan);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 /**
