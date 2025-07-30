@@ -213,7 +213,7 @@ ble_hs_hci_evt_disconn_complete(uint8_t event_code, const void *data,
                                 unsigned int len)
 {
     const struct ble_hci_ev_disconn_cmp *ev = data;
-    const struct ble_hs_conn *conn;
+    struct ble_hs_conn *conn;
 
     if (len != sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
@@ -223,6 +223,7 @@ ble_hs_hci_evt_disconn_complete(uint8_t event_code, const void *data,
     conn = ble_hs_conn_find(le16toh(ev->conn_handle));
     if (conn != NULL) {
         ble_hs_hci_add_avail_pkts(conn->bhc_outstanding_pkts);
+        conn->bhc_flags |= BLE_HS_CONN_F_TERMINATED;
     }
     ble_hs_unlock();
 

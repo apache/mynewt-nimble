@@ -37,6 +37,7 @@ typedef uint8_t ble_hs_conn_flags_t;
 #define BLE_HS_CONN_F_MASTER        0x01
 #define BLE_HS_CONN_F_TERMINATING   0x02
 #define BLE_HS_CONN_F_TX_FRAG       0x04 /* Cur ACL packet partially txed. */
+#define BLE_HS_CONN_F_TERMINATED    0x08
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 #define BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN_REM \
