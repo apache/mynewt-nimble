@@ -1842,7 +1842,7 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
        return 0;
    }
 
-   switch (proc->id) {
+   switch (proc->op) {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
        case BLE_L2CAP_SIG_PROC_OP_CONNECT:
            ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
