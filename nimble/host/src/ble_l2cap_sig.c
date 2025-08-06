@@ -1666,25 +1666,15 @@ static void
 ble_l2cap_sig_coc_disconnect_cb(struct ble_l2cap_sig_proc *proc, int status)
 {
     struct ble_l2cap_chan *chan;
-    struct ble_l2cap_event event;
     struct ble_hs_conn *conn;
 
-    if (!proc) {
-        return;
-    }
+    assert(proc);
 
-    memset(&event, 0, sizeof(event));
     chan = proc->disconnect.chan;
-
     if (!chan) {
         return;
     }
 
-    if (!chan->cb) {
-        goto done;
-    }
-
-done:
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(chan->conn_handle);
     if (conn) {
