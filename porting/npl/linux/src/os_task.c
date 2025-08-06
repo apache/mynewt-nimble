@@ -34,23 +34,22 @@ extern "C" {
  * and sets the task as ready to run, and inserts it into the operating
  * system scheduler.
  *
- * @param t The task to initialize
- * @param name The name of the task to initialize
- * @param func The task function to call
- * @param arg The argument to pass to this task function
- * @param prio The priority at which to run this task
- * @param sanity_itvl The time at which this task should check in with the
- *                    sanity task.  OS_WAIT_FOREVER means never check in
- *                    here.
- * @param stack_bottom A pointer to the bottom of a task's stack
- * @param stack_size The overall size of the task's stack.
+ * @param t             The task to initialize
+ * @param name          The name of the task to initialize
+ * @param func          The task function to call
+ * @param arg           The argument to pass to this task function
+ * @param prio          The priority at which to run this task
+ * @param sanity_itvl   The time at which this task should check in with the
+ *                      sanity task.  OS_WAIT_FOREVER means never check in here.
+ * @param stack_bottom  A pointer to the bottom of a task's stack
+ * @param stack_size    The overall size of the task's stack.
  *
  * @return 0 on success, non-zero on failure.
  */
 int
 ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_func_t func,
-        void *arg, uint8_t prio, ble_npl_time_t sanity_itvl,
-        ble_npl_stack_t *stack_bottom, uint16_t stack_size)
+                  void *arg, uint8_t prio, ble_npl_time_t sanity_itvl,
+                  ble_npl_stack_t *stack_bottom, uint16_t stack_size)
 {
     int err;
     if ((t == NULL) || (func == NULL)) {
@@ -58,14 +57,21 @@ ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_func_t 
     }
 
     err = pthread_attr_init(&t->attr);
-    if (err) return err;
-    err = pthread_attr_getschedparam (&t->attr, &t->param);
-    if (err) return err;
+    if (err)
+        return err;
+
+    err = pthread_attr_getschedparam(&t->attr, &t->param);
+    if (err)
+        return err;
+
     err = pthread_attr_setschedpolicy(&t->attr, SCHED_RR);
-    if (err) return err;
+    if (err)
+        return err;
+
     t->param.sched_priority = prio;
-    err = pthread_attr_setschedparam (&t->attr, &t->param);
-    if (err) return err;
+    err = pthread_attr_setschedparam(&t->attr, &t->param);
+    if (err)
+        return err;
 
     t->name = name;
     err = pthread_create(&t->handle, &t->attr, func, arg);
@@ -101,12 +107,14 @@ ble_npl_get_current_task_id(void)
     return (void *)pthread_self();
 }
 
-bool ble_npl_os_started(void)
+bool
+ble_npl_os_started(void)
 {
     return true;
 }
 
-void ble_npl_task_yield(void)
+void
+ble_npl_task_yield(void)
 {
     sched_yield();
 }
