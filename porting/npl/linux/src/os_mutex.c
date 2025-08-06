@@ -71,6 +71,14 @@ ble_npl_mutex_pend(struct ble_npl_mutex *mu, uint32_t timeout)
         mu->wait.tv_sec  += timeout / 1000;
         mu->wait.tv_nsec += (timeout % 1000) * 1000000;
 
+        /* struct timespec tv_nsec holds nanosecond and allowed range is
+         * 0 - 999999999, otherwise pthread_mutex_timedlock returns EINVAL
+         */
+        if (mu->wait.tv_nsec >= 1000000000) {
+            mu->wait.tv_sec += mu->wait.tv_nsec / 1000000000;
+            mu->wait.tv_nsec = mu->wait.tv_nsec % 1000000000;
+        }
+
         err = pthread_mutex_timedlock(&mu->lock, &mu->wait);
         if (err == ETIMEDOUT) {
             return BLE_NPL_TIMEOUT;
