@@ -1983,31 +1983,37 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_l2cap_sig_proc *proc;
 
-    /* Report a failure for each timed out procedure. */
-    while ((proc = STAILQ_FIRST(&ble_l2cap_sig_procs)) != NULL) {
-        switch(proc->op) {
-        case BLE_L2CAP_SIG_PROC_OP_UPDATE:
-            ble_l2cap_sig_update_call_cb(proc, reason);
-            break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-        case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-            ble_l2cap_sig_coc_connect_cb(proc, reason);
-            break;
-        case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
-            ble_l2cap_sig_coc_disconnect_cb(proc, reason);
-            break;
-#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
-        case BLE_L2CAP_SIG_PROC_OP_RECONFIG:
-            ble_l2cap_sig_coc_reconfig_cb(proc, reason);
-            break;
-#endif
-#endif
-        }
-
-            STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
-            ble_l2cap_sig_proc_free(proc);
+    /* If there were any pending procedure, indicate to the application that it
+     * did not complete.
+     */
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_update_call_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
     }
 
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_connect_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+
+    proc = ble_l2cap_sig_proc_extract(conn_handle,
+                                      BLE_L2CAP_SIG_PROC_OP_DISCONNECT, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_disconnect_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_reconfig_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+#endif
+#endif
 }
 
 /**
