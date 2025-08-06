@@ -1844,12 +1844,12 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
 
    switch (proc->op) {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-       case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-           ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
-           break;
+   case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+       ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
+       break;
 #endif
-       default:
-           break;
+   default:
+       break;
    }
 
    ble_l2cap_sig_proc_free(proc);
@@ -1986,23 +1986,23 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
     /* Report a failure for each timed out procedure. */
     while ((proc = STAILQ_FIRST(&ble_l2cap_sig_procs)) != NULL) {
         switch(proc->op) {
-            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
-                ble_l2cap_sig_update_call_cb(proc, reason);
-                break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-                ble_l2cap_sig_coc_connect_cb(proc, reason);
+        case BLE_L2CAP_SIG_PROC_OP_UPDATE:
+            ble_l2cap_sig_update_call_cb(proc, reason);
             break;
-            case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
-                ble_l2cap_sig_coc_disconnect_cb(proc, reason);
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+        case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+            ble_l2cap_sig_coc_connect_cb(proc, reason);
+            break;
+        case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
+            ble_l2cap_sig_coc_disconnect_cb(proc, reason);
             break;
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
-            case BLE_L2CAP_SIG_PROC_OP_RECONFIG:
-                ble_l2cap_sig_coc_reconfig_cb(proc, reason);
+        case BLE_L2CAP_SIG_PROC_OP_RECONFIG:
+            ble_l2cap_sig_coc_reconfig_cb(proc, reason);
             break;
 #endif
 #endif
-            }
+        }
 
             STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
             ble_l2cap_sig_proc_free(proc);
@@ -2033,15 +2033,15 @@ ble_l2cap_sig_timer(void)
     while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
         switch(proc->op) {
-            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
-                ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
-                break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-                ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
+        case BLE_L2CAP_SIG_PROC_OP_UPDATE:
+            ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
             break;
-            case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
-                ble_l2cap_sig_coc_disconnect_cb(proc, BLE_HS_ETIMEOUT);
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+        case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+            ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
+            break;
+        case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
+            ble_l2cap_sig_coc_disconnect_cb(proc, BLE_HS_ETIMEOUT);
             break;
 #endif
         }
