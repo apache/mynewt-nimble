@@ -164,7 +164,7 @@ ble_hs_lock_nested(void)
     }
 #endif
 
-    rc = ble_npl_mutex_pend(&ble_hs_mutex, 0xffffffff);
+    rc = ble_npl_mutex_pend(&ble_hs_mutex, BLE_NPL_TIME_FOREVER);
     BLE_HS_DBG_ASSERT_EVAL(rc == 0 || rc == OS_NOT_STARTED);
 }
 
