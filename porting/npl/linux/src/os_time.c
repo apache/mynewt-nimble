@@ -33,9 +33,11 @@ ble_npl_time_t
 ble_npl_time_get(void)
 {
     struct timespec now;
+
     if (clock_gettime(CLOCK_MONOTONIC, &now)) {
         return 0;
     }
+
     return now.tv_sec * 1000.0 + now.tv_nsec / 1000000.0;
 }
 
