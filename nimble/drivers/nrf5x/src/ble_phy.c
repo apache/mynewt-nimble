@@ -1362,6 +1362,19 @@ ble_phy_rx_end_isr(void)
     }
 
     /*
+     * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
+     * that is not sent over the air but is present here. Simply move the
+     * data pointer to deal with it. Fix this later.
+     */
+    dptr[2] = dptr[1];
+    dptr[1] = dptr[0];
+    rc = ble_ll_rx_early_end(dptr + 1, ble_hdr);
+    if (rc < 0) {
+        ble_phy_disable();
+        return;
+    }
+
+    /*
      * Let's schedule TX now and we will just cancel it after processing RXed
      * packet if we don't need TX.
      *
@@ -1385,13 +1398,6 @@ ble_phy_rx_end_isr(void)
 
     ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
 
-    /*
-     * XXX: This is a horrible ugly hack to deal with the RAM S1 byte
-     * that is not sent over the air but is present here. Simply move the
-     * data pointer to deal with it. Fix this later.
-     */
-    dptr[2] = dptr[1];
-    dptr[1] = dptr[0];
     rc = ble_ll_rx_end(dptr + 1, ble_hdr);
     if (rc < 0) {
         ble_phy_disable();
