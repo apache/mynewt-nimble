@@ -1305,6 +1305,30 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     return rc;
 }
 
+/**
+ * Early callback called by the PHY when a packet reception has ended.
+ *
+ * NOTE: Called from interrupt context!
+ *       Avoid time-consuming operations, such as buffer copying or memory allocation.
+ *
+ * @param rxbuf Pointer to received PDU data
+ *        rxhdr Pointer to BLE header of received mbuf
+ *
+ * @return int
+ *       < 0: Disable the phy after reception.
+ *      == 0: Success. Do not disable the PHY.
+ *       > 0: Do not disable PHY as that has already been done.
+ */
+int
+ble_ll_rx_early_end(const uint8_t *rxbuf, const struct ble_mbuf_hdr *rxhdr)
+{
+    int rc = 0;
+
+    /* TODO */
+
+    return rc;
+}
+
 uint8_t
 ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
