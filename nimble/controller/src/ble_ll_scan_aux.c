@@ -682,10 +682,8 @@ ble_ll_hci_ev_send_ext_adv_report_for_ext(struct os_mbuf *rxpdu,
 }
 
 static void
-ble_ll_scan_aux_break_ev(struct ble_npl_event *ev)
+scan_aux_break(struct ble_ll_scan_aux_data *aux)
 {
-    struct ble_ll_scan_aux_data *aux = ble_npl_event_get_arg(ev);
-
     BLE_LL_ASSERT(aux);
 
     if (ble_ll_scan_aux_need_truncation(aux)) {
@@ -701,6 +699,21 @@ ble_ll_scan_aux_break_ev(struct ble_npl_event *ev)
     ble_ll_scan_chk_resume();
 }
 
+static void
+scan_aux_break_ev(struct ble_npl_event *ev)
+{
+    struct ble_ll_scan_aux_data *aux = ble_npl_event_get_arg(ev);
+
+    scan_aux_break(aux);
+}
+
+static void
+scan_aux_break_to_ll(struct ble_ll_scan_aux_data *aux)
+{
+    ble_npl_event_init(&aux->break_ev, scan_aux_break_ev, aux);
+    ble_ll_event_add(&aux->break_ev);
+}
+
 void
 ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
 {
@@ -710,8 +723,7 @@ ble_ll_scan_aux_break(struct ble_ll_scan_aux_data *aux)
     }
 #endif
 
-    ble_npl_event_init(&aux->break_ev, ble_ll_scan_aux_break_ev, aux);
-    ble_ll_event_add(&aux->break_ev);
+    scan_aux_break_to_ll(aux);
 }
 
 static int
@@ -1206,8 +1218,8 @@ ble_ll_scan_aux_send_scan_req(struct ble_ll_scan_aux_data *aux,
      *      interrupted if scheduler kicks in.
      */
 
-    rc = ble_phy_tx(ble_ll_scan_aux_scan_req_tx_pdu_cb, aux,
-                    BLE_PHY_TRANSITION_TX_RX);
+    ble_phy_transition_set(BLE_PHY_TRANSITION_TO_RX, BLE_LL_IFS);
+    rc = ble_phy_tx(ble_ll_scan_aux_scan_req_tx_pdu_cb, aux);
     if (rc) {
         return false;
     }
@@ -1766,7 +1778,19 @@ ble_ll_scan_aux_halt(void)
 void
 ble_ll_scan_aux_sched_remove(struct ble_ll_sched_item *sch)
 {
-    ble_ll_scan_aux_break(sch->cb_arg);
+    struct ble_ll_scan_aux_data *aux = sch->cb_arg;
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    if (aux->flags & BLE_LL_SCAN_AUX_F_W4_CONNECT_RSP) {
+        ble_ll_conn_send_connect_req_cancel();
+    }
+#endif
+
+    if (ble_npl_event_is_queued(&aux->break_ev)) {
+        ble_ll_event_remove(&aux->break_ev);
+    }
+
+    scan_aux_break(aux);
 }
 
 void
