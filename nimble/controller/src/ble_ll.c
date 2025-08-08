@@ -1309,6 +1309,23 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     return rc;
 }
 
+/**
+ * Early callback called by the PHY when a packet reception has ended, before
+ * the PHY sets up the next transition and before ble_ll_rx_end(). It may set
+ * the next transition with ble_phy_transition_set(). It is called also for
+ * a PDU received with a CRC error.
+ *
+ * NOTE: Called from interrupt context!
+ *       Avoid time-consuming operations, such as buffer copying or memory allocation.
+ *
+ * @param rxbuf Pointer to received PDU data
+ *        rxhdr Pointer to BLE header of received mbuf
+ */
+void
+ble_ll_rx_early_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
+{
+}
+
 uint8_t
 ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte)
 {
