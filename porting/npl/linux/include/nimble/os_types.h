@@ -32,50 +32,49 @@
 typedef uint32_t ble_npl_time_t;
 typedef int32_t ble_npl_stime_t;
 
-//typedef int os_sr_t;
 typedef int ble_npl_stack_t;
 
-
 struct ble_npl_event {
-    uint8_t                 ev_queued;
-    ble_npl_event_fn       *ev_cb;
-    void                   *ev_arg;
+    uint8_t ev_queued;
+    ble_npl_event_fn *ev_cb;
+    void *ev_arg;
 };
 
 struct ble_npl_eventq {
-    void               *q;
+    void *q;
 };
 
 struct ble_npl_callout {
-    struct ble_npl_event    c_ev;
-    struct ble_npl_eventq  *c_evq;
-    uint32_t                c_ticks;
-    timer_t                 c_timer;
-    bool                    c_active;
+    struct ble_npl_event c_ev;
+    struct ble_npl_eventq *c_evq;
+    uint32_t c_ticks;
+    timer_t c_timer;
+    bool c_active;
 };
 
 struct ble_npl_mutex {
-    pthread_mutex_t         lock;
-    pthread_mutexattr_t     attr;
-    struct timespec         wait;
+    pthread_mutex_t lock;
+    pthread_mutexattr_t attr;
+    struct timespec wait;
 };
 
 struct ble_npl_sem {
-    sem_t                   lock;
+    sem_t lock;
 };
 
 struct ble_npl_task {
-    pthread_t               handle;
-    pthread_attr_t          attr;
-    struct sched_param      param;
-    const char*             name;
+    pthread_t handle;
+    pthread_attr_t attr;
+    struct sched_param param;
+    const char *name;
 };
 
 typedef void *(*ble_npl_task_func_t)(void *);
 
-int ble_npl_task_init(struct ble_npl_task *t, const char *name, ble_npl_task_func_t func,
-		 void *arg, uint8_t prio, ble_npl_time_t sanity_itvl,
-		 ble_npl_stack_t *stack_bottom, uint16_t stack_size);
+int ble_npl_task_init(struct ble_npl_task *t, const char *name,
+                      ble_npl_task_func_t func, void *arg, uint8_t prio,
+                      ble_npl_time_t sanity_itvl,
+                      ble_npl_stack_t *stack_bottom, uint16_t stack_size);
 
 int ble_npl_task_remove(struct ble_npl_task *t);
 
@@ -83,4 +82,4 @@ uint8_t ble_npl_task_count(void);
 
 void ble_npl_task_yield(void);
 
-#endif // _NPL_OS_TYPES_H
+#endif /* _NPL_OS_TYPES_H */
