@@ -54,6 +54,7 @@ static struct channel {
     uint8_t chan_id; /* Internal number that identifies L2CAP channel. */
     uint8_t state;
     struct ble_l2cap_chan *chan;
+    struct os_mbuf *queued_sdu_tx;
 } channels[CHANNELS];
 
 static uint8_t
@@ -100,6 +101,16 @@ get_channel(uint8_t chan_id)
     }
 
     return &channels[chan_id];
+}
+
+static void
+free_channel(struct channel *chan)
+{
+    if (chan->queued_sdu_tx) {
+        os_mbuf_free_chain(chan->queued_sdu_tx);
+    }
+
+    memset(chan, 0, sizeof(*chan));
 }
 
 static void
@@ -207,10 +218,10 @@ disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     channel = find_channel(chan);
     assert(channel != NULL);
 
-    channel->state = 0;
-    channel->chan = chan;
     ev.chan_id = channel->chan_id;
     ev.psm = chan_info->psm;
+
+    free_channel(channel);
 
     if (!ble_gap_conn_find(conn_handle, &desc)) {
         memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
@@ -244,6 +255,8 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_l2cap_chan_info chan_info;
     struct ble_gap_conn_desc conn;
+    struct channel *chan;
+    int rc;
 
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
@@ -336,6 +349,19 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
             (uint32_t) event->tx_unstalled.chan,
             event->tx_unstalled.conn_handle,
             event->tx_unstalled.status);
+
+        chan = find_channel(event->tx_unstalled.chan);
+        assert(chan != NULL);
+
+        if (chan->queued_sdu_tx) {
+            rc = ble_l2cap_send(event->tx_unstalled.chan, chan->queued_sdu_tx);
+            if (rc != 0 && rc != BLE_HS_ESTALLED) {
+                os_mbuf_free_chain(chan->queued_sdu_tx);
+            }
+
+            chan->queued_sdu_tx = NULL;
+        }
+
         return 0;
     case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
         if (ble_l2cap_get_chan_info(event->reconfigured.chan,
@@ -527,7 +553,8 @@ send_data(const void *cmd, uint16_t cmd_len,
 
     /* FIXME: For now, fail if data length exceeds buffer length */
     if (data_len > TESTER_COC_MTU) {
-        SYS_LOG_ERR("Data length exceeds buffer length");
+        SYS_LOG_ERR("Data length exceeds buffer length (%u > %u)", data_len,
+                    TESTER_COC_MTU);
         return BTP_STATUS_FAILED;
     }
 
@@ -543,6 +570,12 @@ send_data(const void *cmd, uint16_t cmd_len,
     /* ble_l2cap_send takes ownership of the sdu */
     rc = ble_l2cap_send(chan->chan, sdu_tx);
     if (rc == 0 || rc == BLE_HS_ESTALLED) {
+        return BTP_STATUS_SUCCESS;
+    }
+
+    /* autopts may queue more SDUs, for now support at least one queued*/
+    if (rc == BLE_HS_EBUSY && chan->queued_sdu_tx == NULL) {
+        chan->queued_sdu_tx = sdu_tx;
         return BTP_STATUS_SUCCESS;
     }
 
