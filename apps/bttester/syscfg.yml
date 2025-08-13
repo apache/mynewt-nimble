@@ -87,7 +87,7 @@ syscfg.defs:
 
     BTTESTER_L2CAP_COC_MTU:
         description: Maximum MTU size the application can handle
-        value: 230
+        value: 260
 
     BTTESTER_NRPA_TIMEOUT:
         description: NRPA rotation timeout in seconds
