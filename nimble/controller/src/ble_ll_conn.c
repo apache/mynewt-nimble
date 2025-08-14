@@ -972,11 +972,21 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
     if (connsm->flags.encrypt_ltk_req) {
         /*
          * Send Long term key request event to host. If masked, we need to
-         * send a REJECT_IND.
+         * send a REJECT_IND or TERMINATE_IND.
          */
         if (ble_ll_hci_ev_ltk_req(connsm)) {
-            ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
-                                        BLE_ERR_PINKEY_MISSING);
+            /* Core 6.1 | Vol 6, Part B | 5.1.3.1
+             * If this procedure is being performed after a Pause Encryption procedure, and the
+             * Peripheral's Host does not provide a Long Term Key, the Peripheral shall perform the
+             * ACL Termination procedure with the error code PIN or Key Missing (0x06).
+             */
+            if (connsm->flags.encrypt_paused) {
+                connsm->disconnect_reason = BLE_ERR_PINKEY_MISSING;
+                ble_ll_ctrl_terminate_start(connsm);
+            } else {
+                ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
+                                            BLE_ERR_PINKEY_MISSING);
+            }
         }
         connsm->flags.encrypt_ltk_req = 0;
     }
