@@ -1845,6 +1845,7 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
 
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+        connsm->flags.encrypt_paused = 0;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
         ble_ll_conn_auth_pyld_timer_start(connsm);
 #endif
@@ -3246,6 +3247,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        connsm->flags.encrypt_paused = 1;
         /* note: fall-through intentional */
     case BLE_LL_CTRL_ENC_REQ:
         connsm->enc_data.enc_state = CONN_ENC_S_ENC_RSP_WAIT;
@@ -3258,6 +3260,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_START_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+            connsm->flags.encrypt_paused = 0;
             if (connsm->flags.le_ping_supp) {
                 ble_ll_conn_auth_pyld_timer_start(connsm);
             }
@@ -3266,6 +3269,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+            connsm->flags.encrypt_paused = 1;
         } else {
             connsm->flags.pending_encrypt_restart = 1;
         }
