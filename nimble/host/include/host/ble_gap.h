@@ -546,6 +546,7 @@ struct ble_gap_ext_disc_desc {
      */
     ble_addr_t direct_addr;
 };
+
 #endif
 
 /** @brief Advertising report */
@@ -872,7 +873,7 @@ struct ble_gap_event {
              *     o 0: Notification;
              *     o 1: Indication.
              */
-            uint8_t indication:1;
+            uint8_t indication : 1;
         } notify_rx;
 
         /**
@@ -888,7 +889,7 @@ struct ble_gap_event {
              *     o 0:                 Command successfully sent;
              *     o BLE_HS_EDONE:      Confirmation (indication ack) received;
              *     o BLE_HS_ETIMEOUT:   Confirmation (indication ack) never
-             *                              received;
+             *                          received;
              *     o Other return code: Error.
              */
             int status;
@@ -905,7 +906,7 @@ struct ble_gap_event {
              *     o 0: Notification;
              *     o 1: Indication.
              */
-            uint8_t indication:1;
+            uint8_t indication : 1;
         } notify_tx;
 
         /**
@@ -933,16 +934,16 @@ struct ble_gap_event {
             uint8_t reason;
 
             /** Whether the peer was previously subscribed to notifications. */
-            uint8_t prev_notify:1;
+            uint8_t prev_notify : 1;
 
             /** Whether the peer is currently subscribed to notifications. */
-            uint8_t cur_notify:1;
+            uint8_t cur_notify : 1;
 
             /** Whether the peer was previously subscribed to indications. */
-            uint8_t prev_indicate:1;
+            uint8_t prev_indicate : 1;
 
             /** Whether the peer is currently subscribed to indications. */
-            uint8_t cur_indicate:1;
+            uint8_t cur_indicate : 1;
         } subscribe;
 
         /**
@@ -1036,7 +1037,7 @@ struct ble_gap_event {
              *  - BLE_HCI_LE_PHY_1M
              *  - LE_HCI_LE_PHY_2M
              *  - BLE_HCI_LE_PHY_CODED
-            */
+             */
             uint8_t adv_phy;
 
             /** Periodic advertising interval */
@@ -1103,6 +1104,7 @@ struct ble_gap_event {
         struct {
             /** Extended advertising instance */
             uint8_t instance;
+
             /** Address of scanner */
             ble_addr_t scan_addr;
         } scan_req_rcvd;
@@ -1138,7 +1140,7 @@ struct ble_gap_event {
              *  - BLE_HCI_LE_PHY_1M
              *  - LE_HCI_LE_PHY_2M
              *  - BLE_HCI_LE_PHY_CODED
-            */
+             */
             uint8_t adv_phy;
 
             /** Periodic advertising interval */
@@ -1204,16 +1206,16 @@ struct ble_gap_event {
          *     o BLE_GAP_EVENT_PATHLOSS_THRESHOLD
          */
 
-	struct {
-	    /** Connection handle */
-	    uint16_t conn_handle;
+        struct {
+            /** Connection handle */
+            uint16_t conn_handle;
 
-	    /** Current Path Loss */
-	    uint8_t current_path_loss;
+            /** Current Path Loss */
+            uint8_t current_path_loss;
 
-	    /** Entered Zone */
-	    uint8_t zone_entered;
-	} pathloss_threshold;
+            /** Entered Zone */
+            uint8_t zone_entered;
+        } pathloss_threshold;
 
         /**
          * Represents crossing of path loss threshold set via LE Set Path Loss
@@ -1221,28 +1223,28 @@ struct ble_gap_event {
          *     o BLE_GAP_EVENT_TRANSMIT_POWER
          */
 
-	struct {
-	    /** BLE_ERR_SUCCESS on success or error code on failure */
-	    uint8_t status;
+        struct {
+            /** BLE_ERR_SUCCESS on success or error code on failure */
+            uint8_t status;
 
-	    /** Connection Handle */
-	    uint16_t conn_handle;
+            /** Connection Handle */
+            uint16_t conn_handle;
 
-	    /** Reason indicating why event was sent */
-	    uint8_t reason;
+            /** Reason indicating why event was sent */
+            uint8_t reason;
 
-	    /** Advertising PHY */
-	    uint8_t phy;
+            /** Advertising PHY */
+            uint8_t phy;
 
             /** Transmit power Level */
             int8_t transmit_power_level;
 
-	    /** Transmit Power Level Flag */
-	    uint8_t transmit_power_level_flag;
+            /** Transmit Power Level Flag */
+            uint8_t transmit_power_level_flag;
 
             /** Delta indicating change in transmit Power Level */
             int8_t delta;
-	} transmit_power;
+        } transmit_power;
 #endif
         /**
          * Represents a received Pairing Complete message
@@ -1712,6 +1714,7 @@ int ble_gap_ext_adv_active(uint8_t instance);
  *
  */
 int ble_gap_adv_get_free_instance(uint8_t *out_adv_instance);
+
 #endif
 
 /* Periodic Advertising */
@@ -1720,7 +1723,7 @@ int ble_gap_adv_get_free_instance(uint8_t *out_adv_instance);
 /** @brief Periodic advertising parameters  */
 struct ble_gap_periodic_adv_params {
     /** If include TX power in advertising PDU */
-    unsigned int include_tx_power : 1;
+    unsigned int include_tx_power:1;
 
     /** Minimum advertising interval in 1.25ms units, if 0 stack use sane
      *  defaults
@@ -1737,7 +1740,7 @@ struct ble_gap_periodic_adv_params {
 struct ble_gap_periodic_adv_start_params {
 #if MYNEWT_VAL(BLE_VERSION) >= 53
     /** If include adi in aux_sync_ind PDU */
-    unsigned int include_adi : 1;
+    unsigned int include_adi:1;
 #endif
 };
 
@@ -1745,7 +1748,7 @@ struct ble_gap_periodic_adv_start_params {
 struct ble_gap_periodic_adv_sync_reporting_params {
 #if MYNEWT_VAL(BLE_VERSION) >= 53
     /** If filter duplicates */
-    unsigned int filter_duplicates : 1;
+    unsigned int filter_duplicates:1;
 #endif
 };
 
@@ -1753,7 +1756,7 @@ struct ble_gap_periodic_adv_sync_reporting_params {
 struct ble_gap_periodic_adv_set_data_params {
 #if MYNEWT_VAL(BLE_VERSION) >= 53
     /** If include adi in aux_sync_ind PDU */
-    unsigned int update_did : 1;
+    unsigned int update_did:1;
 #endif
 };
 
@@ -1769,12 +1772,12 @@ struct ble_gap_periodic_sync_params {
     uint16_t sync_timeout;
 
     /** If reports should be initially disabled when sync is created */
-    unsigned int reports_disabled : 1;
+    unsigned int reports_disabled:1;
 
 #if MYNEWT_VAL(BLE_VERSION) >= 53
     /** If duplicate filtering should be should be initially enabled when sync is
         created */
-    unsigned int filter_duplicates : 1;
+    unsigned int filter_duplicates:1;
 #endif
 };
 
@@ -1800,7 +1803,7 @@ int ble_gap_periodic_adv_configure(uint8_t instance,
  * @param params              Additional arguments specifying the particulars
  *                            of periodic advertising.
  *
- * @return              0 on success, error code on failure.
+ * @return                    0 on success, error code on failure.
  */
 int
 ble_gap_periodic_adv_start(uint8_t instance,
@@ -1812,7 +1815,7 @@ ble_gap_periodic_adv_start(uint8_t instance,
  *
  * @param instance            Instance ID
  *
- * @return              0 on success, error code on failure.
+ * @return                    0 on success, error code on failure.
  */
 int ble_gap_periodic_adv_stop(uint8_t instance);
 
@@ -1823,9 +1826,9 @@ int ble_gap_periodic_adv_stop(uint8_t instance);
  * @param instance            Instance ID
  * @param data                Chain containing the periodic advertising data.
  * @param params              Additional arguments specifying the particulars
-                             of periodic advertising data.
+                              of periodic advertising data.
  *
- * @return          0 on success or error code on failure.
+ * @return                  0 on success or error code on failure.
  */
 int ble_gap_periodic_adv_set_data(uint8_t instance,
                                   struct os_mbuf *data,
@@ -1876,13 +1879,12 @@ int ble_gap_periodic_adv_sync_terminate(uint16_t sync_handle);
  *
  * @param sync_handle        Handle identifying synchronization.
  * @param enable             If reports should be enabled.
- * @param params              Additional arguments specifying the particulars
- *                            of periodic reports.
+ * @param params             Additional arguments specifying the particulars
+ *                           of periodic reports.
  *
  * @return                   0 on success; nonzero on failure.
  */
-int ble_gap_periodic_adv_sync_reporting(uint16_t sync_handle,
-                                        bool enable,
+int ble_gap_periodic_adv_sync_reporting(uint16_t sync_handle, bool enable,
                                         const struct ble_gap_periodic_adv_sync_reporting_params *params);
 
 /**
@@ -1991,7 +1993,6 @@ int ble_gap_clear_periodic_adv_list(void);
 int ble_gap_read_periodic_adv_list_size(uint8_t *per_adv_list_size);
 #endif
 
-
 /**
  * Performs the Limited or General Discovery Procedures.
  *
@@ -2062,7 +2063,7 @@ int ble_gap_disc(uint8_t own_addr_type, int32_t duration_ms,
  *                              of the discovery procedure for uncoded PHY.
  *                              If NULL is provided no scan is performed for
  *                              this PHY.
-  * @param coded_params         Additional arguments specifying the particulars
+ * @param coded_params         Additional arguments specifying the particulars
  *                              of the discovery procedure for coded PHY.
  *                              If NULL is provided no scan is performed for
  *                              this PHY.
@@ -2628,6 +2629,7 @@ int
 ble_gap_subrate_req(uint16_t conn_handle, uint16_t subrate_min, uint16_t subrate_max,
                     uint16_t max_latency, uint16_t cont_num,
                     uint16_t supervision_timeout);
+
 #endif
 /**
  * Event listener structure
@@ -2698,9 +2700,9 @@ int ble_gap_conn_find_handle_by_addr(const ble_addr_t *addr, uint16_t *out_conn_
  *
  * @param conn_handle       Connection handle
  * @params enable           1: Enable
- * 			    0: Disable
+ *                          0: Disable
  *
- * @return                   0 on success; nonzero on failure.
+ * @return                  0 on success; nonzero on failure.
  */
 
 int ble_gap_set_path_loss_reporting_enable(uint16_t conn_handle, uint8_t enable);
@@ -2729,7 +2731,7 @@ int ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
  *
  * @params status                0 on success; nonzero on failure.
  * @params conn_handle           Connection handle
- * @params phy	                 Advertising Phy
+ * @params phy                   Advertising Phy
  *
  * @params curr_tx_power_level   Current trasnmit Power Level
  *
@@ -2739,8 +2741,8 @@ int ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
  */
 int ble_gap_enh_read_transmit_power_level(uint16_t conn_handle, uint8_t phy,
                                           uint8_t *out_status, uint8_t *out_phy,
-					  uint8_t *out_curr_tx_power_level,
-					  uint8_t *out_max_tx_power_level);
+                                          uint8_t *out_curr_tx_power_level,
+                                          uint8_t *out_max_tx_power_level);
 
 /**
  * Read Remote Transmit Power Level
