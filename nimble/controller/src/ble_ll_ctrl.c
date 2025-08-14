@@ -1451,11 +1451,13 @@ ble_ll_ctrl_enc_allowed_pdu(uint8_t llid, uint8_t len, uint8_t opcode)
 }
 
 int
-ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu)
+ble_ll_ctrl_enc_allowed_pdu_rx(struct ble_ll_conn_sm *connsm, struct os_mbuf *rxpdu)
 {
     uint8_t llid;
     uint8_t len;
     uint8_t opcode;
+    uint8_t state;
+    int allowed;
 
     llid = rxpdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK;
     len = rxpdu->om_data[1];
@@ -1465,7 +1467,47 @@ ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu)
         opcode = 0;
     }
 
-    return ble_ll_ctrl_enc_allowed_pdu(llid, len, opcode);
+    allowed = 0;
+    state = connsm->enc_data.enc_state;
+
+    switch (llid) {
+    case BLE_LL_LLID_CTRL:
+        switch (opcode) {
+        case BLE_LL_CTRL_REJECT_IND:
+        case BLE_LL_CTRL_REJECT_IND_EXT:
+            allowed = state == CONN_ENC_S_ENC_RSP_WAIT ||
+                      state == CONN_ENC_S_START_ENC_REQ_WAIT;
+            break;
+        case BLE_LL_CTRL_START_ENC_RSP:
+            allowed = state == CONN_ENC_S_START_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_START_ENC_REQ:
+            allowed = state == CONN_ENC_S_START_ENC_REQ_WAIT;
+            break;
+        case BLE_LL_CTRL_ENC_REQ:
+            allowed = state == CONN_ENC_S_ENCRYPTED || state == CONN_ENC_S_PAUSED;
+            break;
+        case BLE_LL_CTRL_ENC_RSP:
+            allowed = state == CONN_ENC_S_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_PAUSE_ENC_REQ:
+            allowed = state == CONN_ENC_S_ENCRYPTED;
+            break;
+        case BLE_LL_CTRL_PAUSE_ENC_RSP:
+            allowed = state == CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_TERMINATE_IND:
+            allowed = 1;
+            break;
+        }
+        break;
+    case BLE_LL_LLID_DATA_FRAG:
+        /* Empty PDUs are allowed */
+        allowed = len == 0;
+        break;
+    }
+
+    return allowed;
 }
 
 int

@@ -3533,7 +3533,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
          CONN_IS_CENTRAL(connsm)) ||
         (connsm->enc_data.enc_state >= CONN_ENC_S_ENC_RSP_TO_BE_SENT &&
          CONN_IS_PERIPHERAL(connsm))) {
-        if (!ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
+        if (!ble_ll_ctrl_enc_allowed_pdu_rx(connsm, rxpdu)) {
             ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
             goto conn_rx_data_pdu_end;
         }
