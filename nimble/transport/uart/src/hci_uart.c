@@ -111,6 +111,7 @@ hci_uart_tx_char(void *arg)
         }
         break;
     case HCI_H4_ACL:
+    case HCI_H4_ISO:
         os_mbuf_copydata(tx->om, 0, 1, &ch);
         os_mbuf_adj(tx->om, 1);
         tx->len--;
