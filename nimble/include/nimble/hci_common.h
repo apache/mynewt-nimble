@@ -1131,6 +1131,12 @@ struct ble_hci_le_set_transmit_power_report_enable_cp {
     uint8_t remote_enable;
 } __attribute__((packed));
 
+#define BLE_HCI_OCF_LE_SET_DATA_ADDR_CHANGE          (0x007C)
+struct ble_hci_le_set_data_addr_change_cp {
+    uint8_t adv_handle;
+    uint8_t change_reason;
+} __attribute__((packed));
+
 #define BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE               (0x007D)
 struct ble_hci_le_set_default_subrate_cp {
     uint16_t subrate_min;
