@@ -1097,7 +1097,10 @@ ble_hs_hci_evt_process(struct ble_hci_ev *ev)
 int
 ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 {
-#if NIMBLE_BLE_CONNECT
+#if !NIMBLE_BLE_CONNECT
+    return BLE_HS_ENOTSUP;
+#endif
+
     struct hci_data_hdr hci_hdr;
     struct ble_hs_conn *conn;
     ble_l2cap_rx_fn *rx_cb;
@@ -1110,8 +1113,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         goto err;
     }
 
-#if (BLETEST_THROUGHPUT_TEST == 0)
-#if !BLE_MONITOR
+#if (BLETEST_THROUGHPUT_TEST == 0) && !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "ble_hs_hci_evt_acl_process(): conn_handle=%u pb=%x "
                       "len=%u data=",
                BLE_HCI_DATA_HANDLE(hci_hdr.hdh_handle_pb_bc),
@@ -1119,7 +1121,6 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
                hci_hdr.hdh_len);
     ble_hs_log_mbuf(om);
     BLE_HS_LOG(DEBUG, "\n");
-#endif
 #endif
 
     if (hci_hdr.hdh_len != OS_MBUF_PKTHDR(om)->omp_len) {
@@ -1132,14 +1133,14 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        /* Peer not connected; quietly discard packet. */
-        rc = BLE_HS_ENOTCONN;
-        reject_cid = -1;
-    } else {
+    if (conn) {
         /* Forward ACL data to L2CAP. */
         rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &reject_cid);
         om = NULL;
+    } else {
+        /* Peer not connected; quietly discard packet. */
+        rc = BLE_HS_ENOTCONN;
+        reject_cid = -1;
     }
 
     ble_hs_unlock();
@@ -1168,7 +1169,4 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
 err:
     os_mbuf_free_chain(om);
     return rc;
-#else
-    return BLE_HS_ENOTSUP;
-#endif
 }
