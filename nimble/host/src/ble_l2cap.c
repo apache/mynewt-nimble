@@ -357,10 +357,12 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
 
     *out_reject_cid = -1;
 
+    // REVIEW: The function is dependent only on PB, this could be passed instead of the whole struct. Could we change this?
     pb = BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc);
     switch (pb) {
     case BLE_HCI_PB_FIRST_FLUSH:
         /* First fragment. */
+        // REVIEW: Could change this to ble_l2cap_strip_hdr (parse + strip) in analogy to ble_hs_hci_util_data_hdr_strip.
         rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
         if (rc != 0) {
             goto err;
@@ -430,7 +432,10 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         goto err;
     }
 
+    // REVIEW: It would be nice not to pass conn to decrease number of arguments, timer reschedule could be processed here. Actually it could be hoisted to the caller as it already processes the return value and knows about l2cap fragments existence. So just return ble_l2cap_rx_payload(chan, om, out_rx_cb);
     rc = ble_l2cap_rx_payload(conn, chan, om, out_rx_cb);
+    // REVIEW: There is no need to nullify the pointer, it's nullified in the caller.
+    //  Also I believe this function shouldn't own the buffer and try to free it, it's the caller duty, just return the error from this function, and caller decides what to do. It'll simplify the code in this function a bit.
     om = NULL;
     if (rc != 0) {
         goto err;

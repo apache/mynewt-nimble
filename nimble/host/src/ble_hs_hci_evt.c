@@ -1149,6 +1149,7 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         /* Final fragment received. */
         BLE_HS_DBG_ASSERT(rx_cb != NULL);
         rc = rx_cb(conn->bhc_rx_chan);
+        // REVIEW: Seems like the function ble_l2cap_remove_rx could use only one argument conn, it could take chan from the conn. ble_l2cap_rx uses it. It's called if channel for recieved packet has rx_buf. Will conn->bhc_rx_chan be equal to chan->rx_buf in this case?
         ble_l2cap_remove_rx(conn, conn->bhc_rx_chan);
         break;
 
