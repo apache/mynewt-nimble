@@ -1132,6 +1132,9 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
     ble_hs_lock();
 
     conn = ble_hs_conn_find(conn_handle);
+
+    ble_hs_unlock();
+
     if (conn == NULL) {
         /* Peer not connected; quietly discard packet. */
         rc = BLE_HS_ENOTCONN;
@@ -1141,8 +1144,6 @@ ble_hs_hci_evt_acl_process(struct os_mbuf *om)
         rc = ble_l2cap_rx(conn, &hci_hdr, om, &rx_cb, &reject_cid);
         om = NULL;
     }
-
-    ble_hs_unlock();
 
     switch (rc) {
     case 0:

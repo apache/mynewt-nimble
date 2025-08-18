@@ -355,6 +355,8 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
     uint8_t pb;
     int rc;
 
+    ble_hs_lock();
+  
     *out_reject_cid = -1;
 
     pb = BLE_HCI_DATA_PB(hci_hdr->hdh_handle_pb_bc);
@@ -363,6 +365,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         /* First fragment. */
         rc = ble_l2cap_parse_hdr(om, 0, &l2cap_hdr);
         if (rc != 0) {
+            ble_hs_unlock();
             goto err;
         }
 
@@ -382,6 +385,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
                            l2cap_hdr.cid);
                 *out_reject_cid = l2cap_hdr.cid;
             }
+            ble_hs_unlock();
             goto err;
         }
 
@@ -392,8 +396,9 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
             /* Data exceeds MPS */
             BLE_HS_LOG(ERROR, "error: sdu_len > chan->my_coc_mps (%d>%d)\n",
                        l2cap_hdr.len, chan->my_coc_mps);
-            ble_l2cap_disconnect(chan);
             rc = BLE_HS_EBADDATA;
+            ble_hs_unlock();
+            ble_l2cap_disconnect(chan);
             goto err;
         }
 
@@ -407,6 +412,7 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
              * Disconnect peer with invalid behaviour
              */
             rc = BLE_HS_EBADDATA;
+            ble_hs_unlock();
             ble_l2cap_disconnect(chan);
             goto err;
         }
@@ -421,21 +427,25 @@ ble_l2cap_rx(struct ble_hs_conn *conn,
         if (chan == NULL || chan->rx_buf == NULL) {
             /* Middle fragment without the start.  Discard new packet. */
             rc = BLE_HS_EBADDATA;
+            ble_hs_unlock();
             goto err;
         }
         break;
 
     default:
         rc = BLE_HS_EBADDATA;
+        ble_hs_unlock();
         goto err;
     }
 
     rc = ble_l2cap_rx_payload(conn, chan, om, out_rx_cb);
     om = NULL;
     if (rc != 0) {
+        ble_hs_unlock();
         goto err;
     }
 
+    ble_hs_unlock();
     return 0;
 
 err:
