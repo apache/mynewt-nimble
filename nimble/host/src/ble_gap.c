@@ -3762,6 +3762,7 @@ ble_gap_ext_adv_set_data(uint8_t instance, struct os_mbuf *data)
 
 done:
     os_mbuf_free_chain(data);
+    data = NULL;
     return rc;
 }
 
