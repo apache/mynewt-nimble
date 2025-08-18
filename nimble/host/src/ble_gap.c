@@ -6564,7 +6564,7 @@ int
 ble_gap_unpair_oldest_peer(void)
 {
 #if NIMBLE_BLE_SM
-    ble_addr_t oldest_peer_id_addr;
+    ble_addr_t oldest_peer_id_addr[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
     int num_peers;
     int rc;
 
@@ -6573,7 +6573,7 @@ ble_gap_unpair_oldest_peer(void)
     }
 
     rc = ble_store_util_bonded_peers(
-            &oldest_peer_id_addr, &num_peers, 1);
+            &oldest_peer_id_addr[0], &num_peers, MYNEWT_VAL(BLE_STORE_MAX_BONDS));
     if (rc != 0) {
         return rc;
     }
@@ -6582,7 +6582,7 @@ ble_gap_unpair_oldest_peer(void)
         return BLE_HS_ENOENT;
     }
 
-    rc = ble_gap_unpair(&oldest_peer_id_addr);
+    rc = ble_gap_unpair(&oldest_peer_id_addr[0]);
     if (rc != 0) {
         return rc;
     }
