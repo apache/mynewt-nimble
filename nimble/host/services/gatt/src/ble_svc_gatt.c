@@ -113,8 +113,9 @@ ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
         return 0;
     }
     if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-        if (ble_gatts_peer_cl_sup_feat_update(conn_handle, ctxt->om)) {
-            return BLE_ATT_ERR_UNLIKELY;
+        rc = ble_gatts_peer_cl_sup_feat_update(conn_handle, ctxt->om);
+        if (rc != 0) {
+            return rc;
         }
     }
 
