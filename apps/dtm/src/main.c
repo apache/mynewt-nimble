@@ -24,6 +24,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_hs.h"
+#include "host/ble_hs_hci.h"
 #include "host/ble_dtm.h"
 #include <img_mgmt/img_mgmt.h>
 #include <bootutil/image.h>
