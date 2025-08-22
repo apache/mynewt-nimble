@@ -17,36 +17,36 @@
  * under the License.
  */
 
-#ifndef H_BLE_LL_WHITELIST_
-#define H_BLE_LL_WHITELIST_
+#ifndef H_BLE_LL_ADDR_
+#define H_BLE_LL_ADDR_
+
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Clear the whitelist */
-int ble_ll_whitelist_clear(void);
+int ble_ll_addr_init(void);
+int ble_ll_addr_public_set(const uint8_t *addr);
 
-/* Read the size of the whitelist */
-int ble_ll_whitelist_read_size(uint8_t *rspbuf, uint8_t *rsplen);
+const uint8_t *ble_ll_addr_get(uint8_t addr_type);
+const uint8_t *ble_ll_addr_public_get(void);
+const uint8_t *ble_ll_addr_random_get(void);
+int ble_ll_addr_random_set(const uint8_t *addr);
 
-/* Add a device to the whitelist */
-int ble_ll_whitelist_add(const uint8_t *cmdbuf, uint8_t len);
+bool ble_ll_addr_is_our(int addr_type, const uint8_t *addr);
+bool ble_ll_addr_is_valid_own_addr_type(uint8_t addr_type,
+                                        const uint8_t *random_addr);
 
-/* Remove a device fromthe whitelist */
-int ble_ll_whitelist_rmv(const uint8_t *cmdbuf, uint8_t len);
-
-/* Enable whitelisting */
-void ble_ll_whitelist_enable(void);
-
-/* Disable whitelisting */
-void ble_ll_whitelist_disable(void);
-
-/* Boolean function returning true if address matches a whitelist entry */
-int ble_ll_whitelist_match(const uint8_t *addr, uint8_t addr_type, int is_ident);
+/* Address provider APIs - should be implemented by packages supporting
+ * relevant APIs
+ */
+int ble_ll_addr_provide_public(uint8_t *addr);
+int ble_ll_addr_provide_static(uint8_t *addr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* H_BLE_LL_WHITELIST_ */
+#endif /* H_BLE_LL_ADDR_ */
