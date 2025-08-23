@@ -20,18 +20,45 @@
 #ifndef _NIMBLE_NPL_OS_LOG_H_
 #define _NIMBLE_NPL_OS_LOG_H_
 
-#include <stdarg.h>
-#include <stdio.h>
+#include <nuttx/config.h>
+#include <debug.h>
 
-/* Example on how to use macro to generate module logging functions */
-#define BLE_NPL_LOG_IMPL(lvl) \
-        static inline void _BLE_NPL_LOG_CAT(BLE_NPL_LOG_MODULE, \
-                _BLE_NPL_LOG_CAT(_, lvl))(const char *fmt, ...)\
-        {                               \
-            va_list args;               \
-            va_start(args, fmt);        \
-            vprintf(fmt, args);          \
-            va_end(args);               \
-        }
+/* Debug log level configurable from Kconfig */
+
+#ifdef CONFIG_NIMBLE_DEBUG_ERROR
+#define nimble_err _err
+#else
+#define nimble_err _none
+#endif
+
+#ifdef CONFIG_NIMBLE_DEBUG_WARN
+#define nimble_warn _warn
+#else
+#define nimble_warn _none
+#endif
+
+#ifdef CONFIG_NIMBLE_DEBUG_INFO
+#define nimble_info _info
+#else
+#define nimble_info _none
+#endif
+
+#define DFLT_LOG_DEBUG(msg, ...)    nimble_info(msg, ##__VA_ARGS__)
+#define DFLT_LOG_INFO(msg, ...)     nimble_info(msg, ##__VA_ARGS__)
+#define DFLT_LOG_WARN(msg, ...)     nimble_warn(msg, ##__VA_ARGS__)
+#define DFLT_LOG_ERROR(msg, ...)    nimble_err(msg, ##__VA_ARGS__)
+#define DFLT_LOG_CRITICAL(msg, ...) nimble_err(msg, ##__VA_ARGS__)
+
+#define BLE_HS_LOG_DEBUG(msg, ...)    nimble_info(msg, ##__VA_ARGS__)
+#define BLE_HS_LOG_INFO(msg, ...)     nimble_info(msg, ##__VA_ARGS__)
+#define BLE_HS_LOG_WARN(msg, ...)     nimble_warn(msg, ##__VA_ARGS__)
+#define BLE_HS_LOG_ERROR(msg, ...)    nimble_err(msg, ##__VA_ARGS__)
+#define BLE_HS_LOG_CRITICAL(msg, ...) nimble_err(msg, ##__VA_ARGS__)
+
+#define BLE_EATT_LOG_DEBUG(msg, ...)    nimble_info(msg, ##__VA_ARGS__)
+#define BLE_EATT_LOG_INFO(msg, ...)     nimble_info(msg, ##__VA_ARGS__)
+#define BLE_EATT_LOG_WARN(msg, ...)     nimble_warn(msg, ##__VA_ARGS__)
+#define BLE_EATT_LOG_ERROR(msg, ...)    nimble_err(msg, ##__VA_ARGS__)
+#define BLE_EATT_LOG_CRITICAL(msg, ...) nimble_err(msg, ##__VA_ARGS__)
 
 #endif  /* _NIMBLE_NPL_OS_LOG_H_ */
