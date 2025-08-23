@@ -915,11 +915,13 @@ ble_hci_sock_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
 
+#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
 int
 ble_transport_to_ll_iso_impl(struct os_mbuf *om)
 {
     return ble_hci_sock_iso_tx(om);
 }
+#endif
 
 void
 ble_transport_ll_init(void)
