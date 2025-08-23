@@ -45,6 +45,7 @@ rx_event_func(struct ble_npl_event *ev)
     rx_func(rx_func_arg);
 }
 
+#ifdef MYNEWT
 static void
 rx_task_func(void *arg)
 {
@@ -57,6 +58,7 @@ rx_task_func(void *arg)
         ble_npl_event_run(ev);
     }
 }
+#endif
 
 void
 ble_transport_rx_register(ble_transport_rx_func_t *func, void *arg)
