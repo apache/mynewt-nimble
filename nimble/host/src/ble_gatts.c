@@ -1717,6 +1717,9 @@ int
 ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 {
     struct ble_hs_conn *conn;
+    struct ble_store_value_cl_sup_feat store_feat;
+    struct ble_store_key_cl_sup_feat feat_key;
+    struct ble_store_value_cl_sup_feat feat_val;
     uint8_t feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ] = {};
     uint16_t len;
     int rc = 0;
@@ -1744,8 +1747,8 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
-        rc = BLE_ATT_ERR_UNLIKELY;
-        goto done;
+        ble_hs_unlock();
+        return BLE_ATT_ERR_UNLIKELY;
     }
 
     /**
@@ -1755,15 +1758,44 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
     for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
         if ((conn->bhc_gatt_svr.peer_cl_sup_feat[i] & feat[i]) !=
             conn->bhc_gatt_svr.peer_cl_sup_feat[i]) {
-            rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
-            goto done;
+            ble_hs_unlock();
+            return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
         }
     }
 
     memcpy(conn->bhc_gatt_svr.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
 
-done:
     ble_hs_unlock();
+
+    if (conn->bhc_sec_state.bonded) {
+        feat_key.peer_addr = conn->bhc_peer_addr;
+        feat_key.idx = 0;
+
+        rc = ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val);
+
+        if (rc == BLE_HS_ENOENT) {
+            /* Assume the values were not stored yet */
+            store_feat.peer_addr = conn->bhc_peer_addr;
+            memcpy(store_feat.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+            ble_store_write_peer_cl_sup_feat(&store_feat);
+            rc = 0;
+        } else if (rc == 0) {
+            /* Found cl_sup_feat for this peer, check for disabling already
+             * enabled features */
+            for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
+                if ((feat_val.peer_cl_sup_feat[i] & feat[i]) !=
+                    feat_val.peer_cl_sup_feat[i]) {
+                    return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+                }
+            }
+            /* The peer is only adding new features. Add it's cl_sup_feat to
+             * storage. */
+            store_feat.peer_addr = conn->bhc_peer_addr;
+            memcpy(store_feat.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+            ble_store_write_peer_cl_sup_feat(&store_feat);
+        }
+    }
+
     return rc;
 }
 
@@ -1856,11 +1888,13 @@ ble_gatts_tx_notifications(void)
 void
 ble_gatts_bonding_established(uint16_t conn_handle)
 {
+    struct ble_store_value_cl_sup_feat feat_value;
     struct ble_store_value_cccd cccd_value;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_gatts_conn *gatt_srv;
     struct ble_hs_conn *conn;
     int i;
+    int rc;
 
     ble_hs_lock();
 
@@ -1872,6 +1906,20 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     cccd_value.peer_addr.type =
         ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
     gatt_srv = &conn->bhc_gatt_svr;
+
+    feat_value.peer_addr = conn->bhc_peer_addr;
+    feat_value.peer_addr.type =
+        ble_hs_misc_peer_addr_type_to_id(conn->bhc_peer_addr.type);
+
+    memcpy(feat_value.peer_cl_sup_feat, gatt_srv->peer_cl_sup_feat,
+           BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+
+    ble_hs_unlock();
+    rc = ble_store_write_peer_cl_sup_feat(&feat_value);
+    if (rc != 0) {
+        BLE_HS_LOG(ERROR, "Failed to persist client supported features, rc=%d\n", rc);
+    }
+    ble_hs_lock();
 
     for (i = 0; i < gatt_srv->num_clt_cfgs; ++i) {
         clt_cfg = &gatt_srv->clt_cfgs[i];
@@ -1898,6 +1946,7 @@ ble_gatts_bonding_established(uint16_t conn_handle)
  * Called when bonding has been restored via the encryption procedure.  This
  * function:
  *     o Restores persisted CCCD entries for the connected peer.
+ *     o Restores persisted Client Supported Features for the connected peer.
  *     o Sends all pending notifications to the connected peer.
  *     o Sends up to one pending indication to the connected peer; schedules
  *       any remaining pending indications.
@@ -1907,6 +1956,8 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
 {
     struct ble_store_value_cccd cccd_value;
     struct ble_store_key_cccd cccd_key;
+    struct ble_store_key_cl_sup_feat feat_key;
+    struct ble_store_value_cl_sup_feat feat_val;
     struct ble_gatts_clt_cfg *clt_cfg;
     struct ble_hs_conn *conn;
     uint8_t att_op;
@@ -1924,7 +1975,31 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
     cccd_key.chr_val_handle = 0;
     cccd_key.idx = 0;
 
+    feat_key.peer_addr = conn->bhc_peer_addr;
+    feat_key.idx = 0;
+
     ble_hs_unlock();
+
+    rc = ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val);
+    if (rc != 0) {
+        /* Entry not found or storage error:
+         * Set Peer Client Supported Featured to a safe default (0x00). */
+        ble_hs_lock();
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn != NULL) {
+            memset(conn->bhc_gatt_svr.peer_cl_sup_feat, 0, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+        }
+        ble_hs_unlock();
+    } else {
+        /* success reading stored Client Supported Features for this peer */
+        ble_hs_lock();
+        conn = ble_hs_conn_find(conn_handle);
+        if (conn != NULL) {
+            memcpy(conn->bhc_gatt_svr.peer_cl_sup_feat,
+                   feat_val.peer_cl_sup_feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+        }
+        ble_hs_unlock();
+    }
 
     while (1) {
         rc = ble_store_read_cccd(&cccd_key, &cccd_value);
