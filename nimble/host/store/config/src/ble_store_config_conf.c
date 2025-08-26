@@ -57,11 +57,11 @@ static struct conf_handler ble_store_config_conf_handler = {
 #define BLE_STORE_CONFIG_CCCD_SET_ENCODE_SZ \
     (MYNEWT_VAL(BLE_STORE_MAX_CCCDS) * BLE_STORE_CONFIG_CCCD_ENCODE_SZ + 1)
 
-#define BLE_STORE_CONFIG_DB_HASH_ENCODE_SZ     \
-    BASE64_ENCODE_SIZE(sizeof (struct ble_store_value_db_hash))
+#define BLE_STORE_CONFIG_CL_SUP_FEAT_ENCODE_SZ \
+    BASE64_ENCODE_SIZE(sizeof (struct ble_store_value_cl_sup_feat))
 
-#define BLE_STORE_CONFIG_DB_HASH_SET_ENCODE_SZ \
-    (MYNEWT_VAL(BLE_STORE_MAX_BONDS) * BLE_STORE_CONFIG_DB_HASH_ENCODE_SZ + 1)
+#define BLE_STORE_CONFIG_CL_SUP_FEAT_SET_ENCODE_SZ \
+    (MYNEWT_VAL(BLE_STORE_MAX_BONDS) * BLE_STORE_CONFIG_CL_SUP_FEAT_ENCODE_SZ + 1)
 
 static void
 ble_store_config_serialize_arr(const void *arr, int obj_sz, int num_objs,
@@ -124,12 +124,13 @@ ble_store_config_conf_set(int argc, char **argv, char *val)
                     sizeof *ble_store_config_cccds,
                     &ble_store_config_num_cccds);
             return rc;
-        } else if (strcmp(argv[0], "db_hash") == 0) {
+        } else if (strcmp(argv[0], "feat") == 0) {
             rc = ble_store_config_deserialize_arr(
                     val,
-                    ble_store_config_db_hashes,
-                    sizeof *ble_store_config_db_hashes,
-                    &ble_store_config_num_db_hashes);
+                    ble_store_config_feats,
+                    sizeof *ble_store_config_feats,
+                    &ble_store_config_num_feats);
+            return rc;
         }
     }
     return OS_ENOENT;
@@ -142,7 +143,7 @@ ble_store_config_conf_export(void (*func)(char *name, char *val),
     union {
         char sec[BLE_STORE_CONFIG_SEC_SET_ENCODE_SZ];
         char cccd[BLE_STORE_CONFIG_CCCD_SET_ENCODE_SZ];
-        char db_hash[BLE_STORE_CONFIG_DB_HASH_SET_ENCODE_SZ];
+        char feat[BLE_STORE_CONFIG_CL_SUP_FEAT_SET_ENCODE_SZ];
     } buf;
 
     ble_store_config_serialize_arr(ble_store_config_our_secs,
@@ -166,12 +167,12 @@ ble_store_config_conf_export(void (*func)(char *name, char *val),
                                    sizeof buf.cccd);
     func("ble_hs/cccd", buf.cccd);
 
-    ble_store_config_serialize_arr(ble_store_config_db_hashes,
-                                   sizeof *ble_store_config_db_hashes,
-                                   ble_store_config_num_db_hashes,
-                                   buf.db_hash,
-                                   sizeof buf.db_hash);
-    func("ble_hs/db_hash", buf.db_hash);
+    ble_store_config_serialize_arr(ble_store_config_feats,
+                                   sizeof *ble_store_config_feats,
+                                   ble_store_config_num_feats,
+                                   buf.feat,
+                                   sizeof buf.feat);
+    func("ble_hs/feat", buf.feat);
 
     return 0;
 }
@@ -236,6 +237,25 @@ ble_store_config_persist_cccds(void)
                                    buf,
                                    sizeof buf);
     rc = conf_save_one("ble_hs/cccd", buf);
+    if (rc != 0) {
+        return BLE_HS_ESTORE_FAIL;
+    }
+
+    return 0;
+}
+
+int
+ble_store_config_persist_feats(void)
+{
+    char buf[BLE_STORE_CONFIG_CL_SUP_FEAT_SET_ENCODE_SZ];
+    int rc;
+
+    ble_store_config_serialize_arr(ble_store_config_feats,
+                                   sizeof *ble_store_config_feats,
+                                   ble_store_config_num_feats,
+                                   buf,
+                                   sizeof buf);
+    rc = conf_save_one("ble_hs/feat", buf);
     if (rc != 0) {
         return BLE_HS_ESTORE_FAIL;
     }
