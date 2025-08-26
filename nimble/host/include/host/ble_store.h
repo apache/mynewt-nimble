@@ -29,6 +29,7 @@
 
 #include <inttypes.h>
 #include "nimble/ble.h"
+#include "../../host/src/ble_gatt_priv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,13 +41,16 @@ extern "C" {
  * @{
  */
 /** Object type: Our security material. */
-#define BLE_STORE_OBJ_TYPE_OUR_SEC      1
+#define BLE_STORE_OBJ_TYPE_OUR_SEC                 1
 
 /** Object type: Peer security material. */
-#define BLE_STORE_OBJ_TYPE_PEER_SEC     2
+#define BLE_STORE_OBJ_TYPE_PEER_SEC                2
 
 /** Object type: Client Characteristic Configuration Descriptor. */
-#define BLE_STORE_OBJ_TYPE_CCCD         3
+#define BLE_STORE_OBJ_TYPE_CCCD                    3
+
+/** Object type: Peer Client Supported Features. */
+#define BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT 4
 
 /** @} */
 
@@ -155,6 +159,33 @@ struct ble_store_value_cccd {
 };
 
 /**
+ * Used as a key for lookups of stored client supported features of specific
+ * peer. This struct corresponds to the BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT
+ * store object type.
+ */
+struct ble_store_key_cl_sup_feat {
+    /**
+     * Key by peer identity address;
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
+     */
+    ble_addr_t peer_addr;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Represents a stored client supported features of specific peer. This struct
+ * corresponds to the BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT store object type.
+ */
+struct ble_store_value_cl_sup_feat {
+    /** The peer address associated with the stored supported features. */
+    ble_addr_t peer_addr;
+    /** Client supported features of a specific peer. */
+    uint8_t peer_cl_sup_feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ];
+};
+
+/**
  * Used as a key for store lookups.  This union must be accompanied by an
  * object type code to indicate which field is valid.
  */
@@ -163,6 +194,8 @@ union ble_store_key {
     struct ble_store_key_sec sec;
     /** Key for Client Characteristic Configuration Descriptor store lookups. */
     struct ble_store_key_cccd cccd;
+    /** Key for Peer Client Supported Features store lookpus. */
+    struct ble_store_key_cl_sup_feat feat;
 };
 
 /**
@@ -174,6 +207,8 @@ union ble_store_value {
     struct ble_store_value_sec sec;
     /** Stored Client Characteristic Configuration Descriptor. */
     struct ble_store_value_cccd cccd;
+    /** Stored Client Supported Features. */
+    struct ble_store_value_cl_sup_feat feat;
 };
 
 /** Represents an event associated with the BLE Store. */
@@ -556,6 +591,60 @@ int ble_store_write_cccd(const struct ble_store_value_cccd *value);
  */
 int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
+/**
+ * @brief Reads Client Supported Features value from a storage
+ *
+ * This function reads client supported features value from a storage based
+ * on the provied key and stores the retrieved value in the specified output
+ * structure.
+ *
+ * @param key                   A pointer to a 'ble_store_key_cl_sup_feat'
+ *                                  struct representing the key to identify
+ *                                  Client Supported Features value to be read.
+ * @param out_value             A pointer to a 'ble_store_value_cl_sup_feat'
+ *                                  struct to store the Client Supported
+ *                                  Features value read from a storage
+ *
+ * @return                      0 if the Client Supported Features values was
+ *                                  successfully read and stored in the
+ *                                  'out_value' structure;
+ *                              Non-zero on error
+ */
+int ble_store_read_peer_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key,
+                                    struct ble_store_value_cl_sup_feat *out_value);
+
+/**
+ * @brief Writes a Client Supported Features value to a storage.
+ *
+ * This function writes a Client Supported Features value to a storage based on
+ * the provided value
+ *
+ * @param value                 A pointer to a 'ble_store_value_cl_sup_feat'
+ *                                  structure representing the Client Supported
+ *                                  Features value to be written to a storage.
+ *
+ * @return                      0 if the value was successfully written to
+ *                                  a storage;
+ *                              Non-zero on error.
+ */
+int ble_store_write_peer_cl_sup_feat(const struct ble_store_value_cl_sup_feat *value);
+
+/**
+ * @brief Deletes a Client Supported Features value from a storage.
+ *
+ * This function deletes a Client Supported Features value from a storage based
+ * on the provided key.
+ *
+ * @param key                   A pointer to a 'ble_store_key_cl_sup_feat'
+ *                                  structure identifying the Client Supported
+ *                                  Features value to be deleted from
+ *                                  a storage.
+ *
+ * @return                      0 if the Client Supported Features value was
+ *                                  successfully written to a storage;
+ *                              Non-zero on error.
+ */
+int ble_store_delete_peer_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key);
 
 /**
  * @brief Generates a storage key for a security material entry from its value.
@@ -587,6 +676,24 @@ void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    const struct ble_store_value_cccd *value);
 
+/**
+ * @brief Generates a storage key for a Client Supported Features entry from
+ * its value
+ *
+ * This function generates a storage key for a Client Supported Features value
+ * entry based on the provided value.
+ *
+ * @param out_key               A pointer to a 'ble_store_key_cl_sup_feat'
+ *                                  structure where the generated key will be
+ *                                  stored.
+ * @param value                 A pointer to a 'ble_store_value_cl_sup_feat'
+ *                                  structure containing the Client Supported
+ *                                  Features value from which the key will be
+ *                                  generated.
+ */
+void ble_store_key_from_value_peer_cl_sup_feat(
+    struct ble_store_key_cl_sup_feat *out_key,
+    const struct ble_store_value_cl_sup_feat *value);
 
 /**
  * @brief Generates a storage key from a value based on the object type.
