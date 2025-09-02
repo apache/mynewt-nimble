@@ -776,6 +776,8 @@
 #endif
 #undef MYNEWT_VAL_MYNEWT_DEBUGGER
 
+#undef MYNEWT_VAL_MYNEWT_DEBUGGER_SN
+
 #ifndef MYNEWT_VAL_MYNEWT_DOWNLOADER__ezflashcli
 #define MYNEWT_VAL_MYNEWT_DOWNLOADER__ezflashcli (0)
 #endif
