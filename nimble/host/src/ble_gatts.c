@@ -29,16 +29,12 @@
 #define BLE_GATTS_INCLUDE_SZ    6
 #define BLE_GATTS_CHR_MAX_SZ    19
 
-static const ble_uuid_t *uuid_pri =
-    BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE);
+static const ble_uuid_t *uuid_pri = BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE);
 static const ble_uuid_t *uuid_sec =
     BLE_UUID16_DECLARE(BLE_ATT_UUID_SECONDARY_SERVICE);
-static const ble_uuid_t *uuid_inc =
-    BLE_UUID16_DECLARE(BLE_ATT_UUID_INCLUDE);
-static const ble_uuid_t *uuid_chr =
-    BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
-static const ble_uuid_t *uuid_ccc =
-    BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
+static const ble_uuid_t *uuid_inc = BLE_UUID16_DECLARE(BLE_ATT_UUID_INCLUDE);
+static const ble_uuid_t *uuid_chr = BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC);
+static const ble_uuid_t *uuid_ccc = BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16);
 static const ble_uuid_t *uuid_cep = BLE_UUID16_DECLARE(BLE_GATT_DSC_EXT_PROP_UUID16);
 
 static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
