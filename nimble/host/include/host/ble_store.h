@@ -41,13 +41,13 @@ extern "C" {
  * @{
  */
 /** Object type: Our security material. */
-#define BLE_STORE_OBJ_TYPE_OUR_SEC                 1
+#define BLE_STORE_OBJ_TYPE_OUR_SEC 1
 
 /** Object type: Peer security material. */
-#define BLE_STORE_OBJ_TYPE_PEER_SEC                2
+#define BLE_STORE_OBJ_TYPE_PEER_SEC 2
 
 /** Object type: Client Characteristic Configuration Descriptor. */
-#define BLE_STORE_OBJ_TYPE_CCCD                    3
+#define BLE_STORE_OBJ_TYPE_CCCD 3
 
 /** Object type: Peer Client Supported Features. */
 #define BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT 4
