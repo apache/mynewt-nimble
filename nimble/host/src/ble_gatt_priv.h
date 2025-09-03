@@ -88,11 +88,6 @@ extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 
 #define BLE_GATT_CHR_DECL_SZ_16         5
 #define BLE_GATT_CHR_DECL_SZ_128        19
-#define BLE_GATT_CHR_CLI_SUP_FEAT_SZ    1
-/**
- * For now only 3 bits in first octet are defined
- *
- */
 #define BLE_GATT_CHR_CLI_SUP_FEAT_MASK  7
 #define BLE_GATT_DB_HASH_SZ             16
 
