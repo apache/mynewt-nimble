@@ -201,6 +201,9 @@ struct ble_hs_cfg;
 
 /** @} */
 
+/** Client supported features size */
+#define BLE_GATT_CHR_CLI_SUP_FEAT_SZ 1
+
 /*** @client. */
 /** Represents a GATT error. */
 struct ble_gatt_error {
