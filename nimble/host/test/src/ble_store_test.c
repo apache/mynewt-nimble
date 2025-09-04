@@ -22,6 +22,8 @@
 #include "ble_hs_test_util.h"
 
 static struct ble_store_status_event ble_store_test_status_event;
+uint8_t database_hash[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                              0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 static void
 ble_store_test_util_verify_peer_deleted(const ble_addr_t *addr)
@@ -48,6 +50,11 @@ ble_store_test_util_verify_peer_deleted(const ble_addr_t *addr)
     memset(&key, 0, sizeof key);
     key.feat.peer_addr = *addr;
     rc = ble_store_read(BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT, &key, &value);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    memset(&key, 0, sizeof key);
+    key.feat.peer_addr = *addr;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_DB_HASH, &key, &value);
     TEST_ASSERT(rc == BLE_HS_ENOENT);
 
     rc = ble_store_util_bonded_peers(addrs, &num_addrs,
@@ -213,6 +220,16 @@ TEST_CASE_SELF(ble_store_test_delete_peer)
          .peer_cl_sup_feat[0] = 0,
          },
     };
+    struct ble_store_value_db_hash hashes[2] = {
+        {
+         .peer_addr = secs[0].peer_addr,
+         .db_hash = database_hash,
+         },
+        {
+         .peer_addr = secs[1].peer_addr,
+         .db_hash = database_hash,
+         },
+    };
     union ble_store_value value;
     union ble_store_key key;
     int count;
@@ -235,6 +252,11 @@ TEST_CASE_SELF(ble_store_test_delete_peer)
 
     for (i = 0; i < sizeof feats / sizeof feats[0]; i++) {
         rc = ble_store_write_peer_cl_sup_feat(feats + i);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    for (i = 0; i < sizeof hashes / sizeof hashes[0]; i++) {
+        rc = ble_store_write_db_hash(hashes + i);
         TEST_ASSERT_FATAL(rc == 0);
     }
 
@@ -283,6 +305,16 @@ TEST_CASE_SELF(ble_store_test_delete_peer)
     rc = ble_store_read_peer_cl_sup_feat(&key.feat, &value.feat);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(memcmp(&value.feat, feats + 1, sizeof value.feat) == 0);
+
+    ble_store_key_from_value_db_hash(&key.db_hash, hashes + 1);
+
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_DB_HASH, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 1);
+
+    rc = ble_store_read_db_hash(&key.db_hash, &value.db_hash);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(memcmp(&value.db_hash, hashes + 1, sizeof value.db_hash) == 0);
 
     /* Delete second peer. */
     rc = ble_store_util_delete_peer(&secs[1].peer_addr);
@@ -334,6 +366,16 @@ TEST_CASE_SELF(ble_store_test_count)
          .peer_cl_sup_feat[0] = 0,
          },
     };
+    struct ble_store_value_db_hash hashes[2] = {
+        {
+         .peer_addr = secs[0].peer_addr,
+         .db_hash = database_hash,
+         },
+        {
+         .peer_addr = secs[1].peer_addr,
+         .db_hash = database_hash,
+         },
+    };
     int count;
     int rc;
     int i;
@@ -358,6 +400,10 @@ TEST_CASE_SELF(ble_store_test_count)
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(count == 0);
 
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_DB_HASH, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 0);
+
     /* Write some test data. */
 
     for (i = 0; i < 3; i++) {
@@ -376,6 +422,10 @@ TEST_CASE_SELF(ble_store_test_count)
         rc = ble_store_write_peer_cl_sup_feat(feats + i);
         TEST_ASSERT_FATAL(rc == 0);
     }
+    for (i = 0; i < 1; i++) {
+        rc = ble_store_write_db_hash(hashes + i);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
 
     /*** Verify counts after populating store. */
     rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count);
@@ -391,6 +441,10 @@ TEST_CASE_SELF(ble_store_test_count)
     TEST_ASSERT(count == 1);
 
     rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT, &count);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(count == 1);
+
+    rc = ble_store_util_count(BLE_STORE_OBJ_TYPE_DB_HASH, &count);
     TEST_ASSERT_FATAL(rc == 0);
     TEST_ASSERT(count == 1);
 
@@ -445,6 +499,16 @@ TEST_CASE_SELF(ble_store_test_clear)
          .peer_cl_sup_feat[0] = 0,
          },
     };
+    struct ble_store_value_db_hash hashes[2] = {
+        {
+         .peer_addr = secs[0].peer_addr,
+         .db_hash = database_hash,
+         },
+        {
+         .peer_addr = secs[1].peer_addr,
+         .db_hash = database_hash,
+         },
+    };
     int rc;
     int i;
 
@@ -467,6 +531,11 @@ TEST_CASE_SELF(ble_store_test_clear)
         TEST_ASSERT_FATAL(rc == 0);
     }
 
+    for (i = 0; i < sizeof hashes / sizeof hashes[0]; i++) {
+        rc = ble_store_write_db_hash(hashes + i);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
     /* Sanity check. */
     TEST_ASSERT_FATAL(
         ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 2);
@@ -476,6 +545,7 @@ TEST_CASE_SELF(ble_store_test_clear)
         ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 3);
     TEST_ASSERT_FATAL(
         ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT) == 2);
+    TEST_ASSERT_FATAL(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_DB_HASH) == 2);
 
     /* Ensure store is empty after clear gets called. */
     rc = ble_store_clear();
@@ -484,6 +554,7 @@ TEST_CASE_SELF(ble_store_test_clear)
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 0);
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 0);
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_DB_HASH) == 0);
 
     /* Ensure second clear succeeds with no effect. */
     rc = ble_store_clear();
@@ -492,6 +563,7 @@ TEST_CASE_SELF(ble_store_test_clear)
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 0);
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 0);
     TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT) == 0);
+    TEST_ASSERT(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_DB_HASH) == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
