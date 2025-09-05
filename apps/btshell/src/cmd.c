@@ -231,7 +231,7 @@ static const struct shell_param authorize_params[] = {
     {"conn",  "connection handle parameter, usage: =<UINT16>"            },
     { "attr", "attribute handle parameter to authorize, usage: =<UINT16>"},
     { "auth", "whether to authorize access, usage: =[0-1], default=1"    },
-    { NULL,    NULL                                                      }
+    { NULL,   NULL                                                       }
 };
 
 static const struct shell_cmd_help authorize_help = {
@@ -4446,54 +4446,54 @@ static const struct shell_cmd btshell_commands[] = {
      },
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
-        .sc_cmd = "advertise-configure",
-        .sc_cmd_func = cmd_advertise_configure,
+     .sc_cmd = "advertise-configure",
+     .sc_cmd_func = cmd_advertise_configure,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_configure_help,
+     .help = &advertise_configure_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-set-addr",
-        .sc_cmd_func = cmd_advertise_set_addr,
+     .sc_cmd = "advertise-set-addr",
+     .sc_cmd_func = cmd_advertise_set_addr,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_set_addr_help,
+     .help = &advertise_set_addr_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-set-adv-data",
-        .sc_cmd_func = cmd_set_adv_data,
+     .sc_cmd = "advertise-set-adv-data",
+     .sc_cmd_func = cmd_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+     .help = &set_adv_data_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-set-scan-rsp",
-        .sc_cmd_func = cmd_set_scan_rsp,
+     .sc_cmd = "advertise-set-scan-rsp",
+     .sc_cmd_func = cmd_set_scan_rsp,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_rsp_help,
+     .help = &set_scan_rsp_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-start",
-        .sc_cmd_func = cmd_advertise_start,
+     .sc_cmd = "advertise-start",
+     .sc_cmd_func = cmd_advertise_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_start_help,
+     .help = &advertise_start_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-stop",
-        .sc_cmd_func = cmd_advertise_stop,
+     .sc_cmd = "advertise-stop",
+     .sc_cmd_func = cmd_advertise_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_stop_help,
+     .help = &advertise_stop_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "advertise-remove",
-        .sc_cmd_func = cmd_advertise_remove,
+     .sc_cmd = "advertise-remove",
+     .sc_cmd_func = cmd_advertise_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_remove_help,
+     .help = &advertise_remove_help,
 #endif
-    },
+     },
 #else
     {
         .sc_cmd = "advertise",
@@ -4504,635 +4504,635 @@ static const struct shell_cmd btshell_commands[] = {
     },
 #endif
     {
-        .sc_cmd = "connect",
-        .sc_cmd_func = cmd_connect,
+     .sc_cmd = "connect",
+     .sc_cmd_func = cmd_connect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &connect_help,
+     .help = &connect_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "disconnect",
-        .sc_cmd_func = cmd_disconnect,
+     .sc_cmd = "disconnect",
+     .sc_cmd_func = cmd_disconnect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &disconnect_help,
+     .help = &disconnect_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "show-addr",
-        .sc_cmd_func = cmd_show_addr,
+     .sc_cmd = "show-addr",
+     .sc_cmd_func = cmd_show_addr,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_addr_help,
+     .help = &gatt_show_addr_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "show-conn",
-        .sc_cmd_func = cmd_show_conn,
+     .sc_cmd = "show-conn",
+     .sc_cmd_func = cmd_show_conn,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_conn_help,
+     .help = &gatt_show_conn_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "set-scan-opts",
-        .sc_cmd_func = cmd_set_scan_opts,
+     .sc_cmd = "set-scan-opts",
+     .sc_cmd_func = cmd_set_scan_opts,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_opts_help,
+     .help = &set_scan_opts_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "scan",
-        .sc_cmd_func = cmd_scan,
+     .sc_cmd = "scan",
+     .sc_cmd_func = cmd_scan,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &scan_help,
+     .help = &scan_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "set",
-        .sc_cmd_func = cmd_set,
+     .sc_cmd = "set",
+     .sc_cmd_func = cmd_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_help,
+     .help = &set_help,
 #endif
-    },
+     },
 #if !MYNEWT_VAL(BLE_EXT_ADV)
     {
-        .sc_cmd = "set-adv-data",
-        .sc_cmd_func = cmd_set_adv_data,
+     .sc_cmd = "set-adv-data",
+     .sc_cmd_func = cmd_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+     .help = &set_adv_data_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "set-scan-rsp",
-        .sc_cmd_func = cmd_set_scan_rsp,
+     .sc_cmd = "set-scan-rsp",
+     .sc_cmd_func = cmd_set_scan_rsp,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_rsp_help,
+     .help = &set_scan_rsp_help,
 #endif
-    },
+     },
 #endif
     {
-        .sc_cmd = "set-priv-mode",
-        .sc_cmd_func = cmd_set_priv_mode,
+     .sc_cmd = "set-priv-mode",
+     .sc_cmd_func = cmd_set_priv_mode,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_priv_mode_help,
+     .help = &set_priv_mode_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "white-list",
-        .sc_cmd_func = cmd_white_list,
+     .sc_cmd = "white-list",
+     .sc_cmd_func = cmd_white_list,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &white_list_help,
+     .help = &white_list_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "conn-rssi",
-        .sc_cmd_func = cmd_conn_rssi,
+     .sc_cmd = "conn-rssi",
+     .sc_cmd_func = cmd_conn_rssi,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_rssi_help,
+     .help = &conn_rssi_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "conn-update-params",
-        .sc_cmd_func = cmd_conn_update_params,
+     .sc_cmd = "conn-update-params",
+     .sc_cmd_func = cmd_conn_update_params,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_update_params_help,
+     .help = &conn_update_params_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "conn-datalen",
-        .sc_cmd_func = cmd_conn_datalen,
+     .sc_cmd = "conn-datalen",
+     .sc_cmd_func = cmd_conn_datalen,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_datalen_help,
+     .help = &conn_datalen_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-discover-characteristic",
-        .sc_cmd_func = cmd_gatt_discover_characteristic,
+     .sc_cmd = "gatt-discover-characteristic",
+     .sc_cmd_func = cmd_gatt_discover_characteristic,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_characteristic_help,
+     .help = &gatt_discover_characteristic_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-discover-descriptor",
-        .sc_cmd_func = cmd_gatt_discover_descriptor,
+     .sc_cmd = "gatt-discover-descriptor",
+     .sc_cmd_func = cmd_gatt_discover_descriptor,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_descriptor_help,
+     .help = &gatt_discover_descriptor_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-discover-service",
-        .sc_cmd_func = cmd_gatt_discover_service,
+     .sc_cmd = "gatt-discover-service",
+     .sc_cmd_func = cmd_gatt_discover_service,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_service_help,
+     .help = &gatt_discover_service_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-discover-full",
-        .sc_cmd_func = cmd_gatt_discover_full,
+     .sc_cmd = "gatt-discover-full",
+     .sc_cmd_func = cmd_gatt_discover_full,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_full_help,
+     .help = &gatt_discover_full_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-find-included-services",
-        .sc_cmd_func = cmd_gatt_find_included_services,
+     .sc_cmd = "gatt-find-included-services",
+     .sc_cmd_func = cmd_gatt_find_included_services,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_find_included_services_help,
+     .help = &gatt_find_included_services_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-exchange-mtu",
-        .sc_cmd_func = cmd_gatt_exchange_mtu,
+     .sc_cmd = "gatt-exchange-mtu",
+     .sc_cmd_func = cmd_gatt_exchange_mtu,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_exchange_mtu_help,
+     .help = &gatt_exchange_mtu_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-read",
-        .sc_cmd_func = cmd_gatt_read,
+     .sc_cmd = "gatt-read",
+     .sc_cmd_func = cmd_gatt_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_read_help,
+     .help = &gatt_read_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-notify",
-        .sc_cmd_func = cmd_gatt_notify,
+     .sc_cmd = "gatt-notify",
+     .sc_cmd_func = cmd_gatt_notify,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_notify_help,
+     .help = &gatt_notify_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-service-changed",
-        .sc_cmd_func = cmd_gatt_service_changed,
+     .sc_cmd = "gatt-service-changed",
+     .sc_cmd_func = cmd_gatt_service_changed,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_service_changed_help,
+     .help = &gatt_service_changed_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-service-visibility",
-        .sc_cmd_func = cmd_gatt_service_visibility,
+     .sc_cmd = "gatt-service-visibility",
+     .sc_cmd_func = cmd_gatt_service_visibility,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_service_visibility_help,
+     .help = &gatt_service_visibility_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-show",
-        .sc_cmd_func = cmd_gatt_show,
+     .sc_cmd = "gatt-show",
+     .sc_cmd_func = cmd_gatt_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_help,
+     .help = &gatt_show_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-show-local",
-        .sc_cmd_func = cmd_gatt_show_local,
+     .sc_cmd = "gatt-show-local",
+     .sc_cmd_func = cmd_gatt_show_local,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_local_help,
+     .help = &gatt_show_local_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-write",
-        .sc_cmd_func = cmd_gatt_write,
+     .sc_cmd = "gatt-write",
+     .sc_cmd_func = cmd_gatt_write,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_write_help,
+     .help = &gatt_write_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-enqueue-notif",
-        .sc_cmd_func = cmd_gatt_enqueue_notif,
+     .sc_cmd = "gatt-enqueue-notif",
+     .sc_cmd_func = cmd_gatt_enqueue_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_enqueue_notif_help,
+     .help = &gatt_enqueue_notif_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-send-queued-notif",
-        .sc_cmd_func = cmd_gatt_send_pending_notif,
+     .sc_cmd = "gatt-send-queued-notif",
+     .sc_cmd_func = cmd_gatt_send_pending_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_send_pending_notif_help,
+     .help = &gatt_send_pending_notif_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "gatt-clear-queued-notif",
-        .sc_cmd_func = cmd_gatt_clear_pending_notif,
+     .sc_cmd = "gatt-clear-queued-notif",
+     .sc_cmd_func = cmd_gatt_clear_pending_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_clear_pending_notif_help,
+     .help = &gatt_clear_pending_notif_help,
 #endif
-    },
+     },
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     {
-        .sc_cmd = "l2cap-update",
-        .sc_cmd_func = cmd_l2cap_update,
+     .sc_cmd = "l2cap-update",
+     .sc_cmd_func = cmd_l2cap_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_update_help,
+     .help = &l2cap_update_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-create-server",
-        .sc_cmd_func = cmd_l2cap_create_server,
+     .sc_cmd = "l2cap-create-server",
+     .sc_cmd_func = cmd_l2cap_create_server,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_create_server_help,
+     .help = &l2cap_create_server_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-connect",
-        .sc_cmd_func = cmd_l2cap_connect,
+     .sc_cmd = "l2cap-connect",
+     .sc_cmd_func = cmd_l2cap_connect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_connect_help,
+     .help = &l2cap_connect_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-reconfig",
-        .sc_cmd_func = cmd_l2cap_reconfig,
+     .sc_cmd = "l2cap-reconfig",
+     .sc_cmd_func = cmd_l2cap_reconfig,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_reconfig_help,
+     .help = &l2cap_reconfig_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-disconnect",
-        .sc_cmd_func = cmd_l2cap_disconnect,
+     .sc_cmd = "l2cap-disconnect",
+     .sc_cmd_func = cmd_l2cap_disconnect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_disconnect_help,
+     .help = &l2cap_disconnect_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-send",
-        .sc_cmd_func = cmd_l2cap_send,
+     .sc_cmd = "l2cap-send",
+     .sc_cmd_func = cmd_l2cap_send,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_send_help,
+     .help = &l2cap_send_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "l2cap-show-coc",
-        .sc_cmd_func = cmd_l2cap_show_coc,
+     .sc_cmd = "l2cap-show-coc",
+     .sc_cmd_func = cmd_l2cap_show_coc,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_show_coc_help,
+     .help = &l2cap_show_coc_help,
 #endif
-    },
+     },
 #endif
     {
-        .sc_cmd = "keystore-add",
-        .sc_cmd_func = cmd_keystore_add,
+     .sc_cmd = "keystore-add",
+     .sc_cmd_func = cmd_keystore_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_add_help,
+     .help = &keystore_add_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "keystore-del",
-        .sc_cmd_func = cmd_keystore_del,
+     .sc_cmd = "keystore-del",
+     .sc_cmd_func = cmd_keystore_del,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_del_help,
+     .help = &keystore_del_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "keystore-show",
-        .sc_cmd_func = cmd_keystore_show,
+     .sc_cmd = "keystore-show",
+     .sc_cmd_func = cmd_keystore_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_show_help,
+     .help = &keystore_show_help,
 #endif
-    },
+     },
 #if NIMBLE_BLE_SM
     {
-        .sc_cmd = "show-oob-sc",
-        .sc_cmd_func = cmd_show_oob_sc,
+     .sc_cmd = "show-oob-sc",
+     .sc_cmd_func = cmd_show_oob_sc,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = NULL,
+     .help = NULL,
 #endif
-    },
+     },
     {
-        .sc_cmd = "auth-passkey",
-        .sc_cmd_func = cmd_auth_passkey,
+     .sc_cmd = "auth-passkey",
+     .sc_cmd_func = cmd_auth_passkey,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &auth_passkey_help,
+     .help = &auth_passkey_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "security-pair",
-        .sc_cmd_func = cmd_security_pair,
+     .sc_cmd = "security-pair",
+     .sc_cmd_func = cmd_security_pair,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_pair_help,
+     .help = &security_pair_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "security-unpair",
-        .sc_cmd_func = cmd_security_unpair,
+     .sc_cmd = "security-unpair",
+     .sc_cmd_func = cmd_security_unpair,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_unpair_help,
+     .help = &security_unpair_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "security-start",
-        .sc_cmd_func = cmd_security_start,
+     .sc_cmd = "security-start",
+     .sc_cmd_func = cmd_security_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_start_help,
+     .help = &security_start_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "security-encryption",
-        .sc_cmd_func = cmd_security_encryption,
+     .sc_cmd = "security-encryption",
+     .sc_cmd_func = cmd_security_encryption,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_encryption_help,
+     .help = &security_encryption_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "security-set-data",
-        .sc_cmd_func = cmd_security_set_data,
+     .sc_cmd = "security-set-data",
+     .sc_cmd_func = cmd_security_set_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_set_data_help,
+     .help = &security_set_data_help,
 #endif
-    },
+     },
 #endif
     {
-        .sc_cmd = "test-tx",
-        .sc_cmd_func = cmd_test_tx,
+     .sc_cmd = "test-tx",
+     .sc_cmd_func = cmd_test_tx,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &test_tx_help,
+     .help = &test_tx_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "phy-set",
-        .sc_cmd_func = cmd_phy_set,
+     .sc_cmd = "phy-set",
+     .sc_cmd_func = cmd_phy_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_set_help,
+     .help = &phy_set_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "phy-set-default",
-        .sc_cmd_func = cmd_phy_set_default,
+     .sc_cmd = "phy-set-default",
+     .sc_cmd_func = cmd_phy_set_default,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_set_default_help,
+     .help = &phy_set_default_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "phy-read",
-        .sc_cmd_func = cmd_phy_read,
+     .sc_cmd = "phy-read",
+     .sc_cmd_func = cmd_phy_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_read_help,
+     .help = &phy_read_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "host-enable",
-        .sc_cmd_func = cmd_host_enable,
+     .sc_cmd = "host-enable",
+     .sc_cmd_func = cmd_host_enable,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &host_enable_help,
+     .help = &host_enable_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "host-disable",
-        .sc_cmd_func = cmd_host_disable,
+     .sc_cmd = "host-disable",
+     .sc_cmd_func = cmd_host_disable,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &host_disable_help,
+     .help = &host_disable_help,
 #endif
-    },
+     },
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     {
-        .sc_cmd = "periodic-configure",
-        .sc_cmd_func = cmd_periodic_configure,
+     .sc_cmd = "periodic-configure",
+     .sc_cmd_func = cmd_periodic_configure,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_configure_help,
+     .help = &periodic_configure_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "periodic-set-adv-data",
-        .sc_cmd_func = cmd_periodic_set_adv_data,
+     .sc_cmd = "periodic-set-adv-data",
+     .sc_cmd_func = cmd_periodic_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+     .help = &set_adv_data_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "periodic-start",
-        .sc_cmd_func = cmd_periodic_start,
+     .sc_cmd = "periodic-start",
+     .sc_cmd_func = cmd_periodic_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_start_help,
+     .help = &periodic_start_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "periodic-stop",
-        .sc_cmd_func = cmd_periodic_stop,
+     .sc_cmd = "periodic-stop",
+     .sc_cmd_func = cmd_periodic_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_stop_help,
+     .help = &periodic_stop_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "sync-create",
-        .sc_cmd_func = cmd_sync_create,
+     .sc_cmd = "sync-create",
+     .sc_cmd_func = cmd_sync_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_create_help,
+     .help = &sync_create_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "sync-terminate",
-        .sc_cmd_func = cmd_sync_terminate,
+     .sc_cmd = "sync-terminate",
+     .sc_cmd_func = cmd_sync_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_terminate_help,
+     .help = &sync_terminate_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "sync-stats",
-        .sc_cmd_func = cmd_sync_stats,
+     .sc_cmd = "sync-stats",
+     .sc_cmd_func = cmd_sync_stats,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_stats_help,
+     .help = &sync_stats_help,
 #endif
-    },
+     },
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
     {
-        .sc_cmd = "sync-transfer",
-        .sc_cmd_func = cmd_sync_transfer,
+     .sc_cmd = "sync-transfer",
+     .sc_cmd_func = cmd_sync_transfer,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_help,
+     .help = &sync_transfer_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "sync-transfer-set-info",
-        .sc_cmd_func = cmd_sync_transfer_set_info,
+     .sc_cmd = "sync-transfer-set-info",
+     .sc_cmd_func = cmd_sync_transfer_set_info,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_set_info_help,
+     .help = &sync_transfer_set_info_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "sync-transfer-receive",
-        .sc_cmd_func = cmd_sync_transfer_receive,
+     .sc_cmd = "sync-transfer-receive",
+     .sc_cmd_func = cmd_sync_transfer_receive,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_receive_help,
+     .help = &sync_transfer_receive_help,
 #endif
-    },
+     },
     {
-       .sc_cmd = "sync-reporting",
-       .sc_cmd_func = cmd_sync_reporting,
+     .sc_cmd = "sync-reporting",
+     .sc_cmd_func = cmd_sync_reporting,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-       .help = &sync_reporting_help,
+     .help = &sync_reporting_help,
 #endif
-    },
+     },
 #endif
 #endif
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
-        .sc_cmd = "base_add",
-        .sc_cmd_func = cmd_leaudio_base_add,
+     .sc_cmd = "base_add",
+     .sc_cmd_func = cmd_leaudio_base_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_base_add_help,
+     .help = &leaudio_base_add_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "big_sub_add",
-        .sc_cmd_func = cmd_leaudio_big_sub_add,
+     .sc_cmd = "big_sub_add",
+     .sc_cmd_func = cmd_leaudio_big_sub_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_big_sub_add_help,
+     .help = &leaudio_big_sub_add_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "bis_add",
-        .sc_cmd_func = cmd_leaudio_bis_add,
+     .sc_cmd = "bis_add",
+     .sc_cmd_func = cmd_leaudio_bis_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_bis_add_help,
+     .help = &leaudio_bis_add_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast_create",
-        .sc_cmd_func = cmd_leaudio_broadcast_create,
+     .sc_cmd = "broadcast_create",
+     .sc_cmd_func = cmd_leaudio_broadcast_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_create_help,
+     .help = &leaudio_broadcast_create_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast_destroy",
-        .sc_cmd_func = cmd_leaudio_broadcast_destroy,
+     .sc_cmd = "broadcast_destroy",
+     .sc_cmd_func = cmd_leaudio_broadcast_destroy,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_destroy_help,
+     .help = &leaudio_broadcast_destroy_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast_update",
-        .sc_cmd_func = cmd_leaudio_broadcast_update,
+     .sc_cmd = "broadcast_update",
+     .sc_cmd_func = cmd_leaudio_broadcast_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_update_help,
+     .help = &leaudio_broadcast_update_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast_start",
-        .sc_cmd_func = cmd_leaudio_broadcast_start,
+     .sc_cmd = "broadcast_start",
+     .sc_cmd_func = cmd_leaudio_broadcast_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_start_help,
+     .help = &leaudio_broadcast_start_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast_stop",
-        .sc_cmd_func = cmd_leaudio_broadcast_stop,
+     .sc_cmd = "broadcast_stop",
+     .sc_cmd_func = cmd_leaudio_broadcast_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_stop_help,
+     .help = &leaudio_broadcast_stop_help,
 #endif
-    },
+     },
 #endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
     {
-        .sc_cmd = "broadcast-sink-start",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_start,
+     .sc_cmd = "broadcast-sink-start",
+     .sc_cmd_func = cmd_leaudio_broadcast_sink_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_start_help,
+     .help = &cmd_leaudio_broadcast_sink_start_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast-sink-stop",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_stop,
+     .sc_cmd = "broadcast-sink-stop",
+     .sc_cmd_func = cmd_leaudio_broadcast_sink_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_stop_help,
+     .help = &cmd_leaudio_broadcast_sink_stop_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast-sink-metadata",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_metadata_update,
+     .sc_cmd = "broadcast-sink-metadata",
+     .sc_cmd_func = cmd_leaudio_broadcast_sink_metadata_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
+     .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "broadcast-sink-set-sync-params",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_sync_params_set,
+     .sc_cmd = "broadcast-sink-set-sync-params",
+     .sc_cmd_func = cmd_leaudio_broadcast_sink_sync_params_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_sync_params_set_help,
+     .help = &cmd_leaudio_broadcast_sink_sync_params_set_help,
 #endif
-    },
+     },
 #endif /* BLE_AUDIO_BROADCAST_SINK */
 #if MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR)
     {
-        .sc_cmd = "scan-delegator-add",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_add,
+     .sc_cmd = "scan-delegator-add",
+     .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_add_help,
+     .help = &cmd_leaudio_scan_delegator_receive_state_add_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "scan-delegator-remove",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_remove,
+     .sc_cmd = "scan-delegator-remove",
+     .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_remove_help,
+     .help = &cmd_leaudio_scan_delegator_receive_state_remove_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "scan-delegator-set",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_set,
+     .sc_cmd = "scan-delegator-set",
+     .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_set_help,
+     .help = &cmd_leaudio_scan_delegator_receive_state_set_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "scan-delegator-get",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_get,
+     .sc_cmd = "scan-delegator-get",
+     .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_get,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_get_help,
+     .help = &cmd_leaudio_scan_delegator_receive_state_get_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "scan-delegator-show",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_show,
+     .sc_cmd = "scan-delegator-show",
+     .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_show_help,
+     .help = &cmd_leaudio_scan_delegator_receive_state_show_help,
 #endif
-    },
+     },
 #endif /* BLE_AUDIO_SCAN_DELEGATOR */
 #if MYNEWT_VAL(BLE_ISO)
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
-        .sc_cmd = "big-create",
-        .sc_cmd_func = cmd_iso_big_create,
+     .sc_cmd = "big-create",
+     .sc_cmd_func = cmd_iso_big_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_create_help,
+     .help = &cmd_iso_big_create_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "big-terminate",
-        .sc_cmd_func = cmd_iso_big_terminate,
+     .sc_cmd = "big-terminate",
+     .sc_cmd_func = cmd_iso_big_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_terminate_help,
+     .help = &cmd_iso_big_terminate_help,
 #endif
-    },
+     },
 #endif /* BLE_ISO_BROADCAST_SOURCE */
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
     {
-        .sc_cmd = "big-sync-create",
-        .sc_cmd_func = cmd_iso_big_sync_create,
+     .sc_cmd = "big-sync-create",
+     .sc_cmd_func = cmd_iso_big_sync_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_sync_create_help,
+     .help = &cmd_iso_big_sync_create_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "big-sync-terminate",
-        .sc_cmd_func = cmd_iso_big_sync_terminate,
+     .sc_cmd = "big-sync-terminate",
+     .sc_cmd_func = cmd_iso_big_sync_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_sync_terminate_help,
+     .help = &cmd_iso_big_sync_terminate_help,
 #endif
-    },
+     },
 #endif /* BLE_ISO_BROADCAST_SINK */
     {
-        .sc_cmd = "iso-data-path-setup",
-        .sc_cmd_func = cmd_iso_data_path_setup,
+     .sc_cmd = "iso-data-path-setup",
+     .sc_cmd_func = cmd_iso_data_path_setup,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_data_path_setup_help,
+     .help = &cmd_iso_data_path_setup_help,
 #endif
-    },
+     },
     {
-        .sc_cmd = "iso-data-path-remove",
-        .sc_cmd_func = cmd_iso_data_path_remove,
+     .sc_cmd = "iso-data-path-remove",
+     .sc_cmd_func = cmd_iso_data_path_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_data_path_remove_help,
+     .help = &cmd_iso_data_path_remove_help,
 #endif
-    },
+     },
 #endif /* BLE_ISO */
     { 0 },
 };
