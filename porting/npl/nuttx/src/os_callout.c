@@ -122,7 +122,7 @@ ble_npl_callout_is_active(struct ble_npl_callout *c)
 int
 ble_npl_callout_inited(struct ble_npl_callout *c)
 {
-    return (c->c_timer != NULL);
+    return (c->c_timer != 0);
 }
 
 ble_npl_error_t
