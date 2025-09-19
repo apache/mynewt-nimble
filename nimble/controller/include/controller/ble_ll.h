@@ -581,6 +581,9 @@ int ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *hdr);
 /* Called by the PHY when a packet reception ends */
 int ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 
+/* Called by the PHY when a packet reception ends */
+int ble_ll_rx_early_end(const uint8_t *rxbuf, const struct ble_mbuf_hdr *rxhdr);
+
 /* Helper callback to tx mbuf using ble_phy_tx() */
 uint8_t ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte);
 uint8_t ble_ll_tx_flat_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte);
