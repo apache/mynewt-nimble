@@ -65,6 +65,9 @@ struct ble_hs_cfg;
 /** GATT Client Characteristic Configuration descriptor 16-bit UUID. */
 #define BLE_GATT_DSC_CLT_CFG_UUID16                     0x2902
 
+/** GATT Characteristic Extended Porperties descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_EXT_PROP_UUID16                    0x2900
+
 /** @} */
 
 /**
@@ -198,6 +201,9 @@ struct ble_hs_cfg;
 
 /** @} */
 
+/** Client supported features size */
+#define BLE_GATT_CHR_CLI_SUP_FEAT_SZ 1
+
 /*** @client. */
 /** Represents a GATT error. */
 struct ble_gatt_error {
@@ -259,6 +265,11 @@ struct ble_gatt_dsc {
     ble_uuid_any_t uuid;
 };
 
+/** Represents a Characteristic Extended Properties descriptor */
+struct ble_gatt_cep_dsc {
+    /** Characteristic Extended properties **/
+    uint16_t properties;
+};
 
 /** Represents a handle-value tuple for multiple handle notifications. */
 struct ble_gatt_notif {
@@ -1245,6 +1256,11 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Calculates database hash value
+ * @return
+ */
+int ble_gatts_calculate_db_hash(void);
 #ifdef __cplusplus
 }
 #endif
