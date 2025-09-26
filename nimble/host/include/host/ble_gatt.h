@@ -60,10 +60,13 @@ struct ble_hs_cfg;
  */
 
 /** GATT service 16-bit UUID. */
-#define BLE_GATT_SVC_UUID16                             0x1801
+#define BLE_GATT_SVC_UUID16 0x1801
 
 /** GATT Client Characteristic Configuration descriptor 16-bit UUID. */
-#define BLE_GATT_DSC_CLT_CFG_UUID16                     0x2902
+#define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
+
+/** GATT Characteristic Extended Porperties descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_EXT_PROP_UUID16 0x2900
 
 /** @} */
 
@@ -259,6 +262,11 @@ struct ble_gatt_dsc {
     ble_uuid_any_t uuid;
 };
 
+/** Represents a Characteristic Extended Properties descriptor */
+struct ble_gatt_cep_dsc {
+    /** Characteristic Extended properties **/
+    uint16_t properties;
+};
 
 /** Represents a handle-value tuple for multiple handle notifications. */
 struct ble_gatt_notif {

@@ -151,13 +151,16 @@ int ble_gattc_any_jobs(void);
 int ble_gattc_init(void);
 
 /*** @server. */
-#define BLE_GATTS_CLT_CFG_F_NOTIFY              0x0001
-#define BLE_GATTS_CLT_CFG_F_INDICATE            0x0002
-#define BLE_GATTS_CLT_CFG_F_MODIFIED            0x0080 /* Internal only. */
-#define BLE_GATTS_CLT_CFG_F_RESERVED            0xfffc
+#define BLE_GATTS_CLT_CFG_F_NOTIFY   0x0001
+#define BLE_GATTS_CLT_CFG_F_INDICATE 0x0002
+#define BLE_GATTS_CLT_CFG_F_MODIFIED 0x0080 /* Internal only. */
+#define BLE_GATTS_CLT_CFG_F_RESERVED 0xfffc
 
-#define BLE_GATTS_INC_SVC_LEN_NO_UUID           4
-#define BLE_GATTS_INC_SVC_LEN_UUID              6
+#define BLE_GATTS_INC_SVC_LEN_NO_UUID 4
+#define BLE_GATTS_INC_SVC_LEN_UUID    6
+
+#define BLE_GATTS_CEP_F_RELIABLE_WRITE 0x0001
+#define BLE_GATTS_CEP_F_AUX_WRITE      0x0002
 
 /**
  * Contains counts of resources required by the GATT server.  The contents of
@@ -182,6 +185,12 @@ struct ble_gatt_resources {
      * these also contributes to the total descriptor count.
      */
     uint16_t cccds;
+
+    /**
+     * Number of characteristic extended properties descriptors. Each of
+     * these also contributes to the total descriptor count.
+     */
+    uint16_t ceps;
 
     /** Total number of ATT attributes. */
     uint16_t attrs;
