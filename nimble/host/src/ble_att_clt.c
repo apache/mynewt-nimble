@@ -431,13 +431,20 @@ ble_att_clt_rx_read_type(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
         adata.value_len = data_len - sizeof(*data);
         adata.value = data->value;
 
-        ble_gattc_rx_read_type_adata(conn_handle, cid, &adata);
+        rc = ble_gattc_rx_read_type_adata(conn_handle, cid, &adata);
+        if (rc != 0) {
+            /* We should not call complete callback if this returned an error
+             * since proc is not added to the proc list.
+             */
+            return 0;
+        }
         os_mbuf_adj(*rxom, data_len);
     }
 
 done:
     /* Notify GATT that the response is done being parsed. */
     ble_gattc_rx_read_type_complete(conn_handle, cid, rc);
+
     return rc;
 
 }
