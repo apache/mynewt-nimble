@@ -119,8 +119,8 @@ void ble_gatts_indicate_fail_notconn(uint16_t conn_handle);
 
 void ble_gattc_rx_err(uint16_t conn_handle, uint16_t cid, uint16_t handle, uint16_t status);
 void ble_gattc_rx_mtu(uint16_t conn_handle, uint16_t cid, int status, uint16_t chan_mtu);
-void ble_gattc_rx_read_type_adata(uint16_t conn_handle, uint16_t cid,
-                                  struct ble_att_read_type_adata *adata);
+int ble_gattc_rx_read_type_adata(uint16_t conn_handle, uint16_t cid,
+                                 struct ble_att_read_type_adata *adata);
 void ble_gattc_rx_read_type_complete(uint16_t conn_handle, uint16_t cid, int status);
 void ble_gattc_rx_read_rsp(uint16_t conn_handle, uint16_t cid, int status,
                            struct os_mbuf **rxom);
