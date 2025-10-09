@@ -384,12 +384,13 @@ os_mbuf_dup(struct os_mbuf *om)
     struct os_mbuf *head;
     struct os_mbuf *copy;
 
-    omp = om->om_omp;
-
     head = NULL;
     copy = NULL;
 
     for (; om != NULL; om = SLIST_NEXT(om, om_next)) {
+
+        omp = om->om_omp;
+
         if (head) {
             SLIST_NEXT(copy, om_next) = os_mbuf_get(omp,
                     OS_MBUF_LEADINGSPACE(om));
