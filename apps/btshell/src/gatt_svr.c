@@ -46,6 +46,7 @@
 #define  PTS_DSC_READ_WRITE              0x000b
 #define  PTS_DSC_READ_WRITE_ENC          0x000c
 #define  PTS_DSC_READ_WRITE_AUTHEN       0x000d
+#define PTS_CHR_READ_WRITE_AUTHOR        0x000e
 
 #define  PTS_LONG_SVC                    0x0011
 #define  PTS_LONG_CHR_READ               0x0012
@@ -60,6 +61,7 @@
 #define  PTS_LONG_DSC_READ_WRITE         0x001b
 #define  PTS_LONG_DSC_READ_WRITE_ENC     0x001c
 #define  PTS_LONG_DSC_READ_WRITE_AUTHEN  0x001d
+#define PTS_LONG_CHR_READ_WRITE_AUTHOR   0x0020
 
 #define  PTS_INC_SVC                     0x001e
 #define  PTS_CHR_READ_WRITE_ALT          0x001f
@@ -178,8 +180,14 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                         0, /* No more descriptors in this characteristic. */
                     } }
             }, {
-                0, /* No more characteristics in this service. */
-            } },
+                .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHOR),
+                .access_cb = gatt_svr_access_test,
+                .flags = BLE_GATT_CHR_F_READ_AUTHOR | BLE_GATT_CHR_F_READ |
+                         BLE_GATT_CHR_F_WRITE_AUTHOR | BLE_GATT_CHR_F_WRITE
+            }, {
+                0,  /* No more characteristics in this service. */
+            }
+        },
     },
 
     {
@@ -206,6 +214,11 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE_ALT),
                 .access_cb = gatt_svr_long_access_test,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+            },{
+                .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE_AUTHOR),
+                .access_cb = gatt_svr_long_access_test,
+                .flags = BLE_GATT_CHR_F_READ_AUTHOR | BLE_GATT_CHR_F_READ |
+                         BLE_GATT_CHR_F_WRITE_AUTHOR | BLE_GATT_CHR_F_WRITE
             }, {
                 .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE_ENC),
                 .access_cb = gatt_svr_long_access_test,
@@ -427,6 +440,7 @@ gatt_svr_access_test(uint16_t conn_handle, uint16_t attr_handle,
     case PTS_CHR_READ_WRITE_ENC:
     case PTS_CHR_READ_WRITE_AUTHEN:
     case PTS_CHR_READ_WRITE_ALT:
+    case PTS_CHR_READ_WRITE_AUTHOR:
         if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
             rc = gatt_svr_chr_write(ctxt->om,0,
                                     sizeof gatt_svr_pts_static_val,
@@ -531,6 +545,7 @@ gatt_svr_long_access_test(uint16_t conn_handle, uint16_t attr_handle,
 
     case PTS_LONG_CHR_READ_WRITE_ENC:
     case PTS_LONG_CHR_READ_WRITE_AUTHEN:
+    case PTS_LONG_CHR_READ_WRITE_AUTHOR:
         if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
             rc = gatt_svr_chr_write(ctxt->om,0,
                                     sizeof gatt_svr_pts_static_long_val,
