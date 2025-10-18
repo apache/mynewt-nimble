@@ -692,6 +692,10 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
     struct ble_hci_le_cs_rd_loc_supp_cap_rp rsp;
     struct ble_cs_rd_rem_supp_cap_cp cmd;
     int rc;
+    if (params==NULL) return BLE_HS_EINVAL;
+    if (!ble_hs_conn_exists(params->conn_handle)){
+        return BLE_HS_ENOTCONN;
+    }
 
     /* Channel Sounding setup phase:
      * 1. Set local default CS settings
@@ -717,12 +721,21 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
 int
 ble_cs_initiator_procedure_terminate(uint16_t conn_handle)
 {
-    return 0;
+    struct ble_cs_proc_enable_cp cmd;
+    if (!ble_hs_conn_exists(conn_handle)){
+        return BLE_HS_ENOTCONN;
+    }
+    cmd.conn_handle = conn_handle;
+    cmd.config_id = 0x00;
+    cmd.enable=0x00;
+
+    return ble_cs_proc_enable(&cmd);
 }
 
 int
 ble_cs_reflector_setup(struct ble_cs_reflector_setup_params *params)
 {
+    /* null deference check can be added here*/
     cs_state.cb = params->cb;
     cs_state.cb_arg = params->cb_arg;
 
