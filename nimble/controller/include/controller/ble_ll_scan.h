@@ -108,9 +108,9 @@ struct ble_ll_scan_vs_config {
 };
 
 struct ble_ll_scan_addr_data {
-    uint8_t *adva;
-    uint8_t *targeta;
-    uint8_t *adv_addr;
+    const uint8_t *adva;
+    const uint8_t *targeta;
+    const uint8_t *adv_addr;
     uint8_t adva_type : 1;
     uint8_t targeta_type : 1;
     uint8_t adv_addr_type : 1;
@@ -223,7 +223,7 @@ ble_ll_scan_initiator_start(struct ble_ll_conn_sm *connsm, uint8_t ext,
 struct ble_ll_scan_pdu_data *ble_ll_scan_get_pdu_data(void);
 
 /* Called to set the resolvable private address of the last connected peer */
-void ble_ll_scan_set_peer_rpa(uint8_t *rpa);
+void ble_ll_scan_set_peer_rpa(const uint8_t *rpa);
 
 /* Returns peer RPA of last connection made */
 uint8_t *ble_ll_scan_get_peer_rpa(void);
@@ -256,14 +256,14 @@ uint8_t ble_ll_scan_get_filt_dups(void);
 uint8_t ble_ll_scan_backoff_kick(void);
 void ble_ll_scan_backoff_update(int success);
 
-int ble_ll_scan_dup_check_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
-                              uint16_t adi);
-int ble_ll_scan_dup_update_ext(uint8_t addr_type, uint8_t *addr, bool has_aux,
-                               uint16_t adi);
-int ble_ll_scan_have_rxd_scan_rsp(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
-                                  uint16_t adi);
-void ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd, uint8_t ext_adv,
-                                  uint16_t adi);
+int ble_ll_scan_dup_check_ext(uint8_t addr_type, const uint8_t *addr,
+                              bool has_aux, uint16_t adi);
+int ble_ll_scan_dup_update_ext(uint8_t addr_type, const uint8_t *addr,
+                               bool has_aux, uint16_t adi);
+int ble_ll_scan_have_rxd_scan_rsp(const uint8_t *addr, uint8_t txadd,
+                                  uint8_t ext_adv, uint16_t adi);
+void ble_ll_scan_add_scan_rsp_adv(const uint8_t *addr, uint8_t txadd,
+                                  uint8_t ext_adv, uint16_t adi);
 
 struct ble_ll_scan_sm *ble_ll_scan_sm_get(void);
 
