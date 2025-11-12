@@ -59,4 +59,4 @@ jobs:
         shell: bash
         run: |
              cd build
-             newt test all
+             sudo `which newt` test all
