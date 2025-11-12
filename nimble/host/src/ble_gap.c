@@ -20,7 +20,6 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include <inttypes.h>
 #include "nimble/nimble_opt.h"
 #include "host/ble_gap.h"
 #include "host/ble_hs_adv.h"
@@ -321,7 +320,7 @@ ble_gap_log_duration(int32_t duration_ms)
     if (duration_ms == BLE_HS_FOREVER) {
         BLE_HS_LOG(INFO, "duration=forever");
     } else {
-        BLE_HS_LOG(INFO, "duration=%" PRId32 "ms", duration_ms);
+        BLE_HS_LOG(INFO, "duration=%dms", (int)duration_ms);
     }
 }
 #endif
