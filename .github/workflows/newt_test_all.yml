@@ -59,4 +59,6 @@ jobs:
         shell: bash
         run: |
              cd build
-             newt test all
+             # sudo is required for macos-15+ runners
+             # see https://github.com/actions/runner-images/issues/10924
+             sudo `which newt` test all
