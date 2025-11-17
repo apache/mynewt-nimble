@@ -468,8 +468,6 @@ int ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset);
 struct ble_ll_scan_addr_data;
 struct ble_ll_scan_pdu_data;
 
-uint8_t ble_ll_conn_tx_connect_ind_pducb(uint8_t *dptr, void *pducb_arg,
-                                         uint8_t *hdr_byte);
 void ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
                                      struct ble_ll_scan_pdu_data *pdu_data,
                                      struct ble_ll_scan_addr_data *addrd,
