@@ -42,7 +42,6 @@
  * event to the host. This is the os time at which we can send an event.
  */
 static ble_npl_time_t g_ble_ll_last_num_comp_pkt_evt;
-extern uint8_t *g_ble_ll_conn_comp_ev;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static const uint8_t ble_ll_conn_create_valid_phy_mask = (
@@ -62,6 +61,9 @@ static const uint8_t ble_ll_conn_create_required_phy_mask = (
 #endif
         0);
 #endif
+
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+extern uint8_t *g_ble_ll_conn_comp_ev;
 
 /**
  * Allocate an event to send a connection complete event when initiating
@@ -87,6 +89,7 @@ ble_ll_init_alloc_conn_comp_ev(void)
 
     return rc;
 }
+#endif
 
 /**
  * Called to check that the connection parameters are within range
@@ -468,6 +471,7 @@ ble_ll_conn_hci_create_check_scan(struct ble_ll_conn_create_scan *p)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 static int
 ble_ll_conn_hci_create_check_params(struct ble_ll_conn_create_params *cc_params)
 {
@@ -640,6 +644,7 @@ ble_ll_conn_hci_create(const uint8_t *cmdbuf, uint8_t len)
 
     return rc;
 }
+#endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 static void
@@ -663,6 +668,7 @@ ble_ll_conn_hci_ext_create_set_fb_params(uint8_t init_phy_mask,
 #endif
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 static int
 ble_ll_conn_hci_ext_create_parse_params(const struct conn_params *params,
                                         uint8_t phy,
@@ -867,6 +873,7 @@ ble_ll_conn_hci_ext_create(const uint8_t *cmdbuf, uint8_t len)
 
     return rc;
 }
+#endif
 #endif
 
 static int
@@ -1265,6 +1272,7 @@ done:
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
 /* this is called from same context after cmd complete is send so it is
  * safe to use g_ble_ll_conn_comp_ev
  */
@@ -1318,6 +1326,7 @@ ble_ll_conn_create_cancel(void)
 
     return rc;
 }
+#endif
 
 /**
  * Called to process a HCI disconnect command
