@@ -47,7 +47,7 @@ TEST_CASE_SELF(ble_hs_hci_test_event_bad)
 
 TEST_CASE_SELF(ble_hs_hci_test_rssi)
 {
-    uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
+    uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN + 1];
     uint16_t opcode;
     int8_t rssi;
     int rc;
@@ -62,7 +62,8 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi)
     /* RSSI. */
     params[2] = -8;
 
-    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
+                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN);
 
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT_FATAL(rc == 0);
@@ -71,18 +72,21 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi)
     /*** Failure: incorrect connection handle. */
     put_le16(params + 0, 99);
 
-    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
+                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN);
 
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too short. */
-    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params - 1);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
+                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN - 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
     /*** Failure: params too long. */
-    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof params + 1);
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
+                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN + 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 

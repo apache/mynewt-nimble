@@ -1914,10 +1914,33 @@ ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
     int rc;
 
     ble_sm_test_store_obj_type = obj_type;
-    ble_sm_test_store_key = *key;
+
+    switch (ble_sm_test_store_obj_type) {
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        ble_sm_test_store_key.sec = key->sec;
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_sm_test_store_key.cccd = key->cccd;
+        break;
+    default:
+        return BLE_HS_ENOTSUP;
+    }
 
     rc = ble_store_config_read(obj_type, key, value);
-    ble_sm_test_store_value = *value;
+
+    switch (ble_sm_test_store_obj_type) {
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        ble_sm_test_store_value.sec = value->sec;
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_sm_test_store_value.cccd = value->cccd;
+        break;
+    default:
+        rc = BLE_HS_ENOTSUP;
+        break;
+    }
 
     return rc;
 }
@@ -1930,7 +1953,19 @@ ble_hs_test_util_store_write(int obj_type, const union ble_store_value *value)
     ble_sm_test_store_obj_type = obj_type;
 
     rc = ble_store_config_write(obj_type, value);
-    ble_sm_test_store_value = *value;
+
+    switch (ble_sm_test_store_obj_type) {
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        ble_sm_test_store_value.sec = value->sec;
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_sm_test_store_value.cccd = value->cccd;
+        break;
+    default:
+        rc = BLE_HS_ENOTSUP;
+        break;
+    }
 
     return rc;
 }
@@ -1941,7 +1976,18 @@ ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
     int rc;
 
     ble_sm_test_store_obj_type = obj_type;
-    ble_sm_test_store_key = *key;
+
+    switch (ble_sm_test_store_obj_type) {
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        ble_sm_test_store_key.sec = key->sec;
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        ble_sm_test_store_key.cccd = key->cccd;
+        break;
+    default:
+        return BLE_HS_ENOTSUP;
+    }
 
     rc = ble_store_config_delete(obj_type, key);
     return rc;

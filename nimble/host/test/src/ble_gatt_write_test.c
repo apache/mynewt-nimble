@@ -29,7 +29,8 @@
 
 static int ble_gatt_write_test_cb_called;
 
-static uint8_t ble_gatt_write_test_attr_value[BLE_ATT_ATTR_MAX_LEN];
+/* This is used for invalid tests too so must be bigger than max value len */
+static uint8_t ble_gatt_write_test_attr_value[BLE_ATT_ATTR_MAX_LEN * 2];
 static struct ble_gatt_error ble_gatt_write_test_error;
 
 static struct ble_hs_test_util_flat_attr
@@ -92,7 +93,7 @@ ble_gatt_write_test_rx_prep_rsp(uint16_t conn_handle, uint16_t cid,
                                 const void *attr_data, uint16_t attr_data_len)
 {
     struct ble_att_prep_write_cmd rsp;
-    uint8_t buf[512];
+    uint8_t buf[517];
     int rc;
 
     rsp.bapc_handle = attr_handle;
