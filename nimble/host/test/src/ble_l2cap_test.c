@@ -765,14 +765,16 @@ ble_l2cap_test_coc_connect_multi(struct test_data *t)
 {
     struct ble_l2cap_sig_credit_base_connect_req *req;
     struct ble_l2cap_sig_credit_base_connect_rsp *rsp;
+    uint8_t req_buf[sizeof(*req) + (sizeof(uint16_t) * t->num)];
+    uint8_t rsp_buf[sizeof(*rsp) + (sizeof(uint16_t) * t->num)];
     struct os_mbuf *sdu_rx[t->num];
     struct event *ev = &t->event[t->event_iter++];
     uint8_t id;
     int rc;
     int i;
 
-    req = malloc(sizeof(*req) + (sizeof(uint16_t) * t->num));
-    rsp = malloc(sizeof(*rsp) + (sizeof(uint16_t) * t->num));
+    req = (void *)req_buf;
+    rsp = (void *)rsp_buf;
 
     ble_l2cap_test_util_init();
 
