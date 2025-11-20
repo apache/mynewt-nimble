@@ -128,55 +128,8 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 {
     struct btp_gap_read_supported_commands_rp *rp = rsp;
 
-    /* octet 0 */
-    tester_set_bit(rp->data, BTP_GAP_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(rp->data, BTP_GAP_READ_CONTROLLER_INDEX_LIST);
-    tester_set_bit(rp->data, BTP_GAP_READ_CONTROLLER_INFO);
-    tester_set_bit(rp->data, BTP_GAP_SET_CONNECTABLE);
-
-    /* octet 1 */
-    tester_set_bit(rp->data, BTP_GAP_SET_DISCOVERABLE);
-    tester_set_bit(rp->data, BTP_GAP_SET_BONDABLE);
-    tester_set_bit(rp->data, BTP_GAP_START_ADVERTISING);
-    tester_set_bit(rp->data, BTP_GAP_STOP_ADVERTISING);
-    tester_set_bit(rp->data, BTP_GAP_START_DISCOVERY);
-    tester_set_bit(rp->data, BTP_GAP_STOP_DISCOVERY);
-    tester_set_bit(rp->data, BTP_GAP_CONNECT);
-    tester_set_bit(rp->data, BTP_GAP_DISCONNECT);
-
-    /* octet 2 */
-    tester_set_bit(rp->data, BTP_GAP_SET_IO_CAP);
-    tester_set_bit(rp->data, BTP_GAP_PAIR);
-    tester_set_bit(rp->data, BTP_GAP_UNPAIR);
-    tester_set_bit(rp->data, BTP_GAP_PASSKEY_ENTRY);
-    tester_set_bit(rp->data, BTP_GAP_PASSKEY_CONFIRM);
-    tester_set_bit(rp->data, BTP_GAP_START_DIRECT_ADV);
-    tester_set_bit(rp->data, BTP_GAP_CONN_PARAM_UPDATE);
-
-    /* octet 3 */
-    tester_set_bit(rp->data, BTP_GAP_OOB_LEGACY_SET_DATA);
-    tester_set_bit(rp->data, BTP_GAP_OOB_SC_GET_LOCAL_DATA);
-    tester_set_bit(rp->data, BTP_GAP_OOB_SC_SET_REMOTE_DATA);
-    tester_set_bit(rp->data, BTP_GAP_SET_MITM);
-    tester_set_bit(rp->data, BTP_GAP_SET_FILTER_ACCEPT_LIST);
-
-    /* octet 4 */
-#if MYNEWT_VAL(BLE_PERIODIC_ADV)
-    tester_set_bit(rp->data, GAP_SET_EXT_ADV);
-    tester_set_bit(rp->data, GAP_PADV_CONFIGURE);
-    tester_set_bit(rp->data, GAP_PADV_START);
-    tester_set_bit(rp->data, GAP_PADV_SET_DATA);
-    tester_set_bit(rp->data, GAP_PADV_CREATE_SYNC);
-#endif
-#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
-    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_SET_INFO);
-    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_START);
-    tester_set_bit(rp->data, GAP_PADV_SYNC_TRANSFER_START);
-#endif
-
-    *rsp_len = sizeof(*rp) + 4 +
-               (MYNEWT_VAL(BLE_PERIODIC_ADV) ||
-                MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER) ? 1 : 0);
+    *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GAP, rp->data);
+    *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }
@@ -1253,6 +1206,7 @@ sync_established(struct ble_gap_event *event)
 
     ev.status = event->periodic_sync.status;
     ev.sync_handle = event->periodic_sync.sync_handle;
+    ev.peer_addr = event->periodic_sync.adv_addr;
 
     tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_SYNC_ESTABLISHED,
                  (uint8_t *) &ev, sizeof(ev));
@@ -1293,20 +1247,45 @@ periodic_report(struct ble_gap_event *event)
 static void
 periodic_transfer_received(struct ble_gap_event *event)
 {
+    int rc;
+    struct ble_gap_conn_desc desc;
     struct gap_periodic_transfer_recieved_ev ev;
 
-    ev.status = event->periodic_transfer.status;
-    ev.sync_handle = event->periodic_transfer.sync_handle;
-    ev.conn_handle = event->periodic_transfer.conn_handle;
-    ev.service_data = event->periodic_transfer.service_data;
-    ev.sid = event->periodic_transfer.sid;
     ev.adv_addr = event->periodic_transfer.adv_addr;
-    ev.adv_phy = event->periodic_transfer.adv_phy;
-    ev.per_adv_itvl = event->periodic_transfer.per_adv_itvl;
-    ev.adv_clk_accuracy = event->periodic_transfer.adv_clk_accuracy;
+    ev.sync_handle = event->periodic_transfer.sync_handle;
+    ev.status = event->periodic_transfer.status;
+
+    rc = ble_gap_conn_find(event->periodic_transfer.conn_handle, &desc);
+    assert(rc == 0);
+
+    ev.peer_addr = desc.peer_id_addr;
 
     tester_event(BTP_SERVICE_ID_GAP, GAP_EV_PERIODIC_TRANSFER_RECEIVED,
                  (uint8_t *) &ev, sizeof(ev));
+}
+#endif
+
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+static void
+subrate_change_received(struct ble_gap_event *event)
+{
+    int rc;
+    struct ble_gap_conn_desc desc;
+    struct gap_subrate_change_ev ev;
+
+    rc = ble_gap_conn_find(event->subrate_change.conn_handle, &desc);
+    assert(rc == 0);
+
+    ev.addr = desc.peer_ota_addr;
+    ev.status = event->subrate_change.status;
+    ev.conn_handle = event->subrate_change.conn_handle;
+    ev.subrate_factor = event->subrate_change.subrate_factor;
+    ev.periph_latency = event->subrate_change.periph_latency;
+    ev.cont_num = event->subrate_change.cont_num;
+    ev.supervision_tmo = event->subrate_change.supervision_tmo;
+
+    tester_event(BTP_SERVICE_ID_GAP, GAP_EV_SUBRATE_CHANGE, (uint8_t *)&ev,
+                 sizeof(ev));
 }
 #endif
 
@@ -1607,6 +1586,19 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
                        event->periodic_transfer.per_adv_itvl,
                        event->periodic_transfer.adv_clk_accuracy);
         periodic_transfer_received(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    case BLE_GAP_EVENT_SUBRATE_CHANGE:
+        console_printf(
+            "Subrate change received:"
+            "status=%d, conn_handle=%d, subrate_factor=%d, perpih_latency=%d,"
+            "cont_num=%d supervision_tmo=%d",
+            event->subrate_change.status, event->subrate_change.conn_handle,
+            event->subrate_change.subrate_factor,
+            event->subrate_change.periph_latency, event->subrate_change.cont_num,
+            event->subrate_change.supervision_tmo);
+        subrate_change_received(event);
         break;
 #endif
     default:
@@ -2255,6 +2247,29 @@ periodic_adv_sync_transfer_set_info(const void *cmd, uint16_t cmd_len,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+static uint8_t
+subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_subrate_request_cmd *cp = cmd;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = gap_conn_find_by_addr(&cp->address, &desc);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    rc = ble_gap_subrate_req(desc.conn_handle, cp->subrate_min, cp->subrate_max,
+                             cp->max_latency, cp->cont_num, cp->supervision_timeout);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+#endif
+
 static const struct btp_handler handlers[] = {
     {
         .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -2423,6 +2438,13 @@ static const struct btp_handler handlers[] = {
         .opcode = GAP_PADV_SYNC_TRANSFER_RECV,
         .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_recv_cmd),
         .func = periodic_adv_sync_transfer_recv,
+    },
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    {
+        .opcode = GAP_SUBRATE_REQUEST,
+        .expect_len = sizeof(struct gap_subrate_request_cmd),
+        .func = subrate_request,
     },
 #endif
 };

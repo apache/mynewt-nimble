@@ -281,7 +281,7 @@ static FILE *btmon = (FILE *) &(struct File) {
 static void
 drops_tmp_cb(struct ble_npl_event *ev)
 {
-    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, BLE_NPL_TIME_FOREVER);
 
     /*
      * There's no "nop" in btsnoop protocol so we just send empty system note
@@ -352,7 +352,7 @@ ble_monitor_init(void)
 int
 ble_monitor_send(uint16_t opcode, const void *data, size_t len)
 {
-    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, BLE_NPL_TIME_FOREVER);
 
     monitor_write_header(opcode, len);
     monitor_write(data, len);
@@ -374,7 +374,7 @@ ble_monitor_send_om(uint16_t opcode, const struct os_mbuf *om)
         om_tmp = SLIST_NEXT(om_tmp, om_next);
     }
 
-    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, BLE_NPL_TIME_FOREVER);
 
     monitor_write_header(opcode, length);
 
@@ -436,7 +436,7 @@ ble_monitor_log(int level, const char *fmt, ...)
 
     ulog.ident_len = sizeof(id);
 
-    ble_npl_mutex_pend(&lock, OS_TIMEOUT_NEVER);
+    ble_npl_mutex_pend(&lock, BLE_NPL_TIME_FOREVER);
 
     monitor_write_header(BLE_MONITOR_OPCODE_USER_LOGGING,
                          sizeof(ulog) + sizeof(id) + len + 1);

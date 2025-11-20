@@ -515,6 +515,7 @@ ble_att_send_outstanding_after_response(uint16_t conn_handle)
     rc = ble_hs_misc_conn_chan_find_reqd(conn_handle, BLE_L2CAP_CID_ATT, &conn,
                                          &chan);
     if (rc) {
+        ble_hs_unlock();
         return;
     }
     conn->client_att_busy = false;
@@ -563,7 +564,7 @@ ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 }
 
 static int
-ble_att_rx(struct ble_l2cap_chan *chan)
+ble_att_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     uint16_t conn_handle;
 
@@ -572,7 +573,7 @@ ble_att_rx(struct ble_l2cap_chan *chan)
         return BLE_HS_ENOTCONN;
     }
 
-    return ble_att_rx_extended(conn_handle, chan->scid, &chan->rx_buf);
+    return ble_att_rx_extended(conn_handle, chan->scid, om);
 }
 
 uint16_t

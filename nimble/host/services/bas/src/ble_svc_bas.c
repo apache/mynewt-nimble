@@ -32,7 +32,7 @@ static uint16_t ble_svc_bas_battery_handle;
 #endif
 
 /* Battery level */
-uint8_t ble_svc_bas_battery_level;
+static uint8_t ble_svc_bas_battery_level;
 
 /* Access function */
 static int
@@ -98,9 +98,9 @@ ble_svc_bas_access(uint16_t conn_handle, uint16_t attr_handle,
 int
 ble_svc_bas_battery_level_set(uint8_t level) {
     if (level > 100)
-	level = 100;
+        level = 100;
     if (ble_svc_bas_battery_level != level) {
-	ble_svc_bas_battery_level = level;
+        ble_svc_bas_battery_level = level;
 #if MYNEWT_VAL(BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE) > 0
         ble_gatts_chr_updated(ble_svc_bas_battery_handle);
 #endif
@@ -118,6 +118,8 @@ ble_svc_bas_init(void)
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
+
+    ble_svc_bas_battery_level = 0;
 
     rc = ble_gatts_count_cfg(ble_svc_bas_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);

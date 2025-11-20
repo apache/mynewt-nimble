@@ -1986,12 +1986,15 @@ static void
 ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
                   struct ble_sm_result *res)
 {
+    struct ble_gap_sec_state bhc_sec_state;
     struct ble_store_value_sec value_sec;
     struct ble_store_key_sec key_sec;
     struct ble_hs_conn_addrs addrs;
     struct ble_sm_sec_req *cmd;
     struct ble_hs_conn *conn;
-    int authreq_mitm;
+    bool start_pairing = false;
+    bool authreq_mitm;
+    bool authreq_lesc;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
@@ -2015,50 +2018,63 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
         return;
     }
 
+    /* Allowed only when central */
     if (!(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+        ble_hs_unlock();
         res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP);
         res->sm_err = BLE_SM_ERR_CMD_NOT_SUPP;
-    } else {
-        /* We will be querying the SM database for a key corresponding to the
-         * sender; remember the sender's address while the connection list is
-         * locked.
-         */
-        ble_hs_conn_addrs(conn, &addrs);
-        memset(&key_sec, 0, sizeof key_sec);
-        key_sec.peer_addr = addrs.peer_id_addr;
+        return;
     }
+
+    /* We will be querying the SM database for a key corresponding to the
+     * sender; remember the sender's address while the connection list is
+     * locked.
+     */
+    ble_hs_conn_addrs(conn, &addrs);
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = addrs.peer_id_addr;
+
+    bhc_sec_state = conn->bhc_sec_state;
 
     ble_hs_unlock();
 
+    /* always check if we have keys for this peer */
+    res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
     if (res->app_status == 0) {
-        /* If the peer is requesting a bonded connection, query database for an
-         * LTK corresponding to the sender.
+        /* if keys are present and link is already encrypted check if
+         * pairing should be started for security level elevation.
+         * Otherwise we first require link encryption.
          */
-        if (cmd->authreq & BLE_SM_PAIR_AUTHREQ_BOND) {
-            res->app_status = ble_store_read_peer_sec(&key_sec, &value_sec);
-        } else {
-            res->app_status = BLE_HS_ENOENT;
-        }
-        if (res->app_status == 0) {
-            /* Found a key corresponding to this peer.  Make sure it meets the
-             * requested minimum authreq.
+        if (bhc_sec_state.encrypted) {
+            /* we don't care about bond flag here as peer is already
+             * authenticated and thus we allow any configuration in new pairing
              */
-            authreq_mitm = cmd->authreq & BLE_SM_PAIR_AUTHREQ_MITM;
+            authreq_mitm = !!(cmd->authreq & BLE_SM_PAIR_AUTHREQ_MITM);
+            authreq_lesc = !!(cmd->authreq & BLE_SM_PAIR_AUTHREQ_SC);
+
+            /* start new pairing if security is to be elevated, otherwise
+             * only refresh encryption
+             */
             if (authreq_mitm && !value_sec.authenticated) {
-                res->app_status = BLE_HS_EREJECT;
+                start_pairing = true;
+            } else if (authreq_lesc && !value_sec.sc) {
+                start_pairing = true;
             }
         }
+    } else {
+        /* no keys present, start pairing */
+        start_pairing = true;
+    }
 
-        if (res->app_status == 0) {
-            res->app_status = ble_sm_enc_initiate(conn_handle,
-                                                  value_sec.key_size,
-                                                  value_sec.ltk,
-                                                  value_sec.ediv,
-                                                  value_sec.rand_num,
-                                                  value_sec.authenticated);
-        } else {
-            res->app_status = ble_sm_pair_initiate(conn_handle);
-        }
+    if (start_pairing) {
+        res->app_status = ble_sm_pair_initiate(conn_handle);
+    } else {
+        res->app_status = ble_sm_enc_initiate(conn_handle,
+                                              value_sec.key_size,
+                                              value_sec.ltk,
+                                              value_sec.ediv,
+                                              value_sec.rand_num,
+                                              value_sec.authenticated);
     }
 }
 
@@ -2684,13 +2700,12 @@ ble_sm_enc_initiate(uint16_t conn_handle, uint8_t key_size,
 }
 
 static int
-ble_sm_rx(struct ble_l2cap_chan *chan)
+ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_sm_result res;
     ble_sm_rx_fn *rx_cb;
     uint8_t op;
     uint16_t conn_handle;
-    struct os_mbuf **om;
     int rc;
 
     STATS_INC(ble_l2cap_stats, sm_rx);
@@ -2699,9 +2714,6 @@ ble_sm_rx(struct ble_l2cap_chan *chan)
     if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         return BLE_HS_ENOTCONN;
     }
-
-    om = &chan->rx_buf;
-    BLE_HS_DBG_ASSERT(*om != NULL);
 
     rc = os_mbuf_copydata(*om, 0, 1, &op);
     if (rc != 0) {
@@ -2873,7 +2885,7 @@ ble_sm_init(void)
  * simple
  */
 static int
-ble_sm_rx(struct ble_l2cap_chan *chan)
+ble_sm_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_sm_pair_fail *cmd;
     struct os_mbuf *txom;

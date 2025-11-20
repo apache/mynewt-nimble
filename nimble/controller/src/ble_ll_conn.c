@@ -586,7 +586,7 @@ ble_ll_conn_phy_update_if_needed(struct ble_ll_conn_sm *connsm)
     connsm->phy_data.pref_mask_tx_req = connsm->phy_data.pref_mask_tx;
     connsm->phy_data.pref_mask_rx_req = connsm->phy_data.pref_mask_rx;
 
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_PHY_UPDATE);
 
     return 0;
 }
@@ -972,11 +972,21 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
     if (connsm->flags.encrypt_ltk_req) {
         /*
          * Send Long term key request event to host. If masked, we need to
-         * send a REJECT_IND.
+         * send a REJECT_IND or TERMINATE_IND.
          */
         if (ble_ll_hci_ev_ltk_req(connsm)) {
-            ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
-                                        BLE_ERR_PINKEY_MISSING);
+            /* Core 6.1 | Vol 6, Part B | 5.1.3.1
+             * If this procedure is being performed after a Pause Encryption procedure, and the
+             * Peripheral's Host does not provide a Long Term Key, the Peripheral shall perform the
+             * ACL Termination procedure with the error code PIN or Key Missing (0x06).
+             */
+            if (connsm->flags.encrypt_paused) {
+                connsm->disconnect_reason = BLE_ERR_PINKEY_MISSING;
+                ble_ll_ctrl_terminate_start(connsm);
+            } else {
+                ble_ll_ctrl_reject_ind_send(connsm, BLE_LL_CTRL_ENC_REQ,
+                                            BLE_ERR_PINKEY_MISSING);
+            }
         }
         connsm->flags.encrypt_ltk_req = 0;
     }
@@ -1341,7 +1351,8 @@ conn_tx_pdu:
         (CONN_IS_PERIPHERAL(connsm) && (md == 0) &&
          (connsm->cons_rxd_bad_crc == 0) &&
          ((connsm->last_rxd_hdr_byte & BLE_LL_DATA_HDR_MD_MASK) == 0) &&
-         !ble_ll_ctrl_is_terminate_ind(hdr_byte, m->om_data[0]))) {
+         ((connsm->flags.empty_pdu_txd) ||
+          !ble_ll_ctrl_is_terminate_ind(hdr_byte, m->om_data[0])))) {
         /* We will end the connection event */
         end_transition = BLE_PHY_TRANSITION_NONE;
         txend_func = ble_ll_conn_wait_txend;
@@ -1726,7 +1737,7 @@ ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
     ble_ll_auth_pyld_tmo_event_send(connsm);
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
@@ -2324,7 +2335,7 @@ ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
     }
 
     connsm->conn_update_anchor_offset_req = offset;
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
 
     return 0;
 }
@@ -2899,8 +2910,7 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
              * models; for peripheral just assume central will initiate features xchg
              * if it has some additional features to use.
              */
-            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG,
-                                   NULL);
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_FEATURE_XCHG);
             break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
@@ -3533,7 +3543,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
          CONN_IS_CENTRAL(connsm)) ||
         (connsm->enc_data.enc_state >= CONN_ENC_S_ENC_RSP_TO_BE_SENT &&
          CONN_IS_PERIPHERAL(connsm))) {
-        if (!ble_ll_ctrl_enc_allowed_pdu_rx(rxpdu)) {
+        if (!ble_ll_ctrl_enc_allowed_pdu_rx(connsm, rxpdu)) {
             ble_ll_conn_timeout(connsm, BLE_ERR_CONN_TERM_MIC);
             goto conn_rx_data_pdu_end;
         }
@@ -4108,7 +4118,7 @@ ble_ll_conn_chan_map_update(void)
     /* Perform channel map update */
     SLIST_FOREACH(connsm, &g_ble_ll_conn_active_list, act_sle) {
         if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
-            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD, NULL);
+            ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_CHAN_MAP_UPD);
         }
     }
 #endif
@@ -4304,14 +4314,14 @@ ble_ll_conn_subrate_req_hci(struct ble_ll_conn_sm *connsm,
         connsm->subrate_trans.cont_num = srp->cont_num;
         connsm->subrate_trans.supervision_tmo = srp->supervision_tmo;
         connsm->flags.subrate_host_req = 1;
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
     case BLE_LL_CONN_ROLE_PERIPHERAL:
         connsm->subrate_req = *srp;
         connsm->flags.subrate_host_req = 1;
-        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ, NULL);
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ);
         break;
 #endif
     default:
@@ -4360,7 +4370,7 @@ ble_ll_conn_subrate_req_llcp(struct ble_ll_conn_sm *connsm,
     connsm->subrate_trans.supervision_tmo = MIN(connsm->supervision_tmo,
                                                 srp->supervision_tmo);
 
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
 
     return 0;
 }

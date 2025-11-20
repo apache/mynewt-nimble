@@ -87,7 +87,7 @@ syscfg.defs:
 
     BTTESTER_L2CAP_COC_MTU:
         description: Maximum MTU size the application can handle
-        value: 230
+        value: 260
 
     BTTESTER_NRPA_TIMEOUT:
         description: NRPA rotation timeout in seconds
@@ -189,3 +189,4 @@ syscfg.vals.!BTTESTER_NODEFAULT:
     BLE_MESH_RX_SEG_MAX: 13
     BLE_MESH_TX_SEG_MSG_COUNT: 2
     BLE_MAX_CONNECTIONS: 8
+    BLE_CONN_SUBRATING: 1

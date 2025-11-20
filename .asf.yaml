@@ -21,3 +21,9 @@ notifications:
   commits: commits@mynewt.apache.org
   issues: notifications@mynewt.apache.org
   pullrequests: notifications@mynewt.apache.org
+
+github:
+  enabled_merge_buttons:
+    squash:  true
+    merge:   false
+    rebase:  true

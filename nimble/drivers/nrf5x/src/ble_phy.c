@@ -349,6 +349,32 @@ struct nrf_ccm_data
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 
+static void
+timer0_reset(void)
+{
+    /* Reset CC registers to avoid triggering spurious COMPARE events */
+    NRF_TIMER0->CC[0] = 0;
+    NRF_TIMER0->CC[1] = 0;
+    NRF_TIMER0->CC[2] = 0;
+    NRF_TIMER0->CC[3] = 0;
+}
+
+static bool
+timer0_did_miss(int cc, int cc_scratch)
+{
+    uint32_t now, target;
+
+    nrf_timer_task_trigger(NRF_TIMER0, nrf_timer_capture_task_get(cc_scratch));
+    target = NRF_TIMER0->CC[cc];
+    now = NRF_TIMER0->CC[cc_scratch];
+
+    /* COMPARE event is not triggered when CC is set to the current value of
+     * TIMER0 (at the time it was set), so the case of equal CC values without
+     * a COMPARE event should be also considered a miss here.
+     */
+    return (now >= target) && !NRF_TIMER0->EVENTS_COMPARE[cc];
+}
+
 #if MYNEWT_VAL(BLE_LL_PHY)
 
 /* Packet start offset (in usecs). This is the preamble plus access address.
@@ -706,6 +732,8 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
         return -1;
     }
 
+    timer0_reset();
+
     /* Clear and set TIMER0 to fire off at proper time */
     nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
     nrf_timer_cc_set(NRF_TIMER0, 0, radio_rem_us + rem_us_corr);
@@ -885,27 +913,24 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
     /* Adjust for delay between actual access address RX and EVENT_ADDRESS */
     end_time += g_ble_phy_t_rxaddrdelay[phy];
 
-    /* wfr_secs is the time from rxen until timeout */
-    nrf_timer_cc_set(NRF_TIMER0, 3, end_time);
-    NRF_TIMER0->EVENTS_COMPARE[3] = 0;
-
     /* Enable wait for response PPI */
+    NRF_TIMER0->EVENTS_COMPARE[3] = 0;
     phy_ppi_wfr_enable();
+    nrf_timer_cc_set(NRF_TIMER0, 3, end_time);
 
     /*
-     * It may happen that if CPU is halted for a brief moment (e.g. during flash
-     * erase or write), TIMER0 already counted past CC[3] and thus wfr will not
-     * fire as expected. In case this happened, let's just disable PPIs for wfr
-     * and trigger wfr manually (i.e. disable radio).
+     * It may happen that if CPU is halted for a brief moment (e.g. during
+     * flash, erase or write), TIMER0 already counted past CC[3] and thus wfr
+     * will not fire as expected. In case this happened, let's just disable
+     * PPIs for wfr and trigger wfr manually (i.e. disable radio).
      *
      * Note that the same applies to RX start time set in CC[0] but since it
      * should fire earlier than wfr, fixing wfr is enough.
      *
-     * CC[1] is only used as a reference on RX start, we do not need it here so
-     * it can be used to read TIMER0 counter.
+     * CC[1] is only used as a reference on RX start. We do not need it here,
+     * so we can use it as a scratch register.
      */
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE1);
-    if (NRF_TIMER0->CC[1] > NRF_TIMER0->CC[3]) {
+    if (timer0_did_miss(3, 1)) {
         phy_ppi_wfr_disable();
         nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
     }
@@ -1096,15 +1121,15 @@ ble_phy_tx_end_isr(void)
 
 #if PHY_USE_FEM_LNA
         fem_time = rx_time - MYNEWT_VAL(BLE_FEM_LNA_TURN_ON_US);
-        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
         NRF_TIMER0->EVENTS_COMPARE[2] = 0;
         phy_fem_enable_lna();
+        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
 #endif
 
         radio_time = rx_time - BLE_PHY_T_RXENFAST;
-        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_rxen_enable();
+        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
 
         /* In case TIMER0 did already count past CC[0] and/or CC[2], radio
          * and/or LNA may not be enabled. In any case we won't be stuck since
@@ -1142,18 +1167,17 @@ ble_phy_tx_end_isr(void)
         tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
         radio_time = tx_time - BLE_PHY_T_TXENFAST;
-        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
         NRF_TIMER0->EVENTS_COMPARE[0] = 0;
         phy_ppi_timer0_compare0_to_radio_txen_enable();
+        nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
 
 #if PHY_USE_FEM_PA
-        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
         NRF_TIMER0->EVENTS_COMPARE[2] = 0;
         phy_fem_enable_pa();
+        nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
 #endif
 
-        nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
-        if (NRF_TIMER0->CC[3] > NRF_TIMER0->CC[0]) {
+        if (timer0_did_miss(0, 3)) {
             phy_ppi_timer0_compare0_to_radio_txen_disable();
             g_ble_phy_data.phy_transition_late = 1;
         }
@@ -1292,14 +1316,14 @@ ble_phy_rx_end_isr(void)
     tx_time -= g_ble_phy_t_txdelay[g_ble_phy_data.phy_cur_phy_mode];
 
     radio_time = tx_time - BLE_PHY_T_TXENFAST;
-    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
     NRF_TIMER0->EVENTS_COMPARE[0] = 0;
     phy_ppi_timer0_compare0_to_radio_txen_enable();
+    nrf_timer_cc_set(NRF_TIMER0, 0, radio_time);
 
 #if PHY_USE_FEM_PA
-    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
     NRF_TIMER0->EVENTS_COMPARE[2] = 0;
     phy_fem_enable_pa();
+    nrf_timer_cc_set(NRF_TIMER0, 2, fem_time);
 #endif
 
     /* Need to check if TIMER0 did not already count past CC[0] and/or CC[2], so
@@ -1308,11 +1332,9 @@ ble_phy_rx_end_isr(void)
      *
      * Note: CC[3] is used only for wfr which we do not need here.
      */
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3);
-    is_late = (NRF_TIMER0->CC[3] > radio_time) && !NRF_TIMER0->EVENTS_COMPARE[0];
+    is_late = timer0_did_miss(0, 3);
 #if PHY_USE_FEM_PA
-    is_late = is_late ||
-              ((NRF_TIMER0->CC[3] > fem_time) && !NRF_TIMER0->EVENTS_COMPARE[2]);
+    is_late = is_late || timer0_did_miss(2, 3);
 #endif
     if (is_late) {
         phy_ppi_timer0_compare0_to_radio_txen_disable();
@@ -2319,7 +2341,7 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
 void
 ble_phy_rfclk_enable(void)
 {
-#if MYNEWT || defined(RIOT_VERSION)
+#if MYNEWT || defined(RIOT_VERSION) || defined(PEBBLEOS)
 #ifdef NRF52_SERIES
     nrf52_clock_hfxo_request();
 #endif
@@ -2334,7 +2356,7 @@ ble_phy_rfclk_enable(void)
 void
 ble_phy_rfclk_disable(void)
 {
-#if MYNEWT || defined(RIOT_VERSION)
+#if MYNEWT || defined(RIOT_VERSION) || defined(PEBBLEOS)
 #ifdef NRF52_SERIES
     nrf52_clock_hfxo_release();
 #endif

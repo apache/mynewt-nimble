@@ -1,5 +1,7 @@
 # Dummy NPL build
 *.o
-/porting/examples/dummy/dummy
-/porting/examples/linux/nimble-linux
-/porting/examples/linux_blemesh/nimble-linux-blemesh
+porting/examples/dummy/dummy
+porting/examples/linux/nimble-linux
+porting/examples/linux_blemesh/nimble-linux-blemesh
+porting/npl/linux/test/.depend
+porting/npl/linux/test/*.exe

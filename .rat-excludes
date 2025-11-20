@@ -1,33 +1,30 @@
 # Can't easily add license to rat-excludes file.
 .rat-excludes
+repos
+
+# Non-source files
+RELEASE_NOTES.md
+**/README.md
+Doxyfile
+.clang-format
+.mailmap
+.style_ignored_dirs
+**/requirements.txt
 
 # Ignore documentation folder
 docs
 
-# Non-source files
-RELEASE_NOTES.md
-.gitignore
-README.md
-uncrustify.cfg
-.style_ignored_dirs
-.mailmap
-requirements.txt
-Doxyfile
-
 # tinycrypt - BSD License.
-tinycrypt
-
-# Queue implementation - BSD License
-queue.h
+ext/tinycrypt
 
 # mbuf implementation - BSD License
-os_mbuf.c
+porting/nimble/src/os_mbuf.c
 
 # Nordic nRF5 SDK - BSD License
-system_nrf52.c
+babblesim/hw/mcu/nordic/nrf52_bsim/src/system_nrf52.c
 
 # CMSIS-CORE - BSD License.
-cmsis_nvic.h
+babblesim/hw/mcu/nordic/nrf52_bsim/include/mcu/cmsis_nvic.h
 
 # Linker scripts for Nordics nRF5X - TCL license
-nrf5340-mcu.ld
+targets/auracast_usb/nrf5340-mcu.ld

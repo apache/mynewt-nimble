@@ -27,3 +27,5 @@ syscfg.vals:
 
     BLE_LL_DTM: 1
     BLE_LL_DTM_EXTENSIONS: 1
+
+    BLE_HCI_VS: 1

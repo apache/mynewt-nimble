@@ -515,6 +515,17 @@ ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
 
     BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
 
+    /* conn may be already disconnected but GAP events were not yet
+     * processed and thus connection object is stil on list, just ignore it
+     * in such case as ACL handle is not valid anymore and conn object will
+     * be removed shortly.
+     */
+    if (conn->bhc_flags & BLE_HS_CONN_F_TERMINATED) {
+        os_mbuf_free_chain(*om);
+        *om = NULL;
+        return 0;
+    }
+
     txom = *om;
     *om = NULL;
 

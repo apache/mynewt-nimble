@@ -52,7 +52,7 @@ update_ad(void)
     uint8_t ad_flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
 
     put_ad(BLE_HS_ADV_TYPE_FLAGS, 1, &ad_flags, ad, &ad_len);
-    put_ad(BLE_HS_ADV_TYPE_COMP_NAME, sizeof(gap_name), gap_name, ad, &ad_len);
+    put_ad(BLE_HS_ADV_TYPE_COMP_NAME, strlen(gap_name), gap_name, ad, &ad_len);
 
     ble_gap_adv_set_data(ad, ad_len);
 }

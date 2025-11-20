@@ -1026,7 +1026,7 @@ TEST_CASE_SELF(ble_att_svr_test_read_mult)
     attrs[1].value_len = 20;
     memcpy(attrs[1].value,
            ((uint8_t[]){
-                22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39
+                20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39
            }),
            attrs[1].value_len);
     ble_att_svr_test_attr_r_2_len = attrs[1].value_len;
@@ -1832,11 +1832,14 @@ TEST_CASE_SELF(ble_att_svr_test_notify)
 TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
 {
     int32_t ticks_from_now;
+    uint32_t timeout_ticks;
     uint16_t conn_handle;
     int rc;
     int i;
 
     static uint8_t data[1024];
+
+    timeout_ticks = ble_npl_time_ms_to_ticks32(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
 
     conn_handle = ble_att_svr_test_misc_init(205);
 
@@ -1859,10 +1862,10 @@ TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
 
     /* Ensure timer will expire in 30 seconds. */
     ticks_from_now = ble_hs_conn_timer();
-    TEST_ASSERT(ticks_from_now == BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+    TEST_ASSERT(ticks_from_now == timeout_ticks);
 
     /* Almost let the timer expire. */
-    os_time_advance(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO - 1);
+    os_time_advance(timeout_ticks - 1);
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == 1);
 
@@ -1871,11 +1874,11 @@ TEST_CASE_SELF(ble_att_svr_test_prep_write_tmo)
 
     /* Ensure timer got reset. */
     ticks_from_now = ble_hs_conn_timer();
-    TEST_ASSERT(ticks_from_now == BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+    TEST_ASSERT(ticks_from_now == timeout_ticks);
 
     /* Allow the timer to expire. */
     ble_hs_test_util_hci_ack_set_disconnect(0);
-    os_time_advance(BLE_HS_ATT_SVR_QUEUED_WRITE_TMO);
+    os_time_advance(timeout_ticks);
     ticks_from_now = ble_hs_conn_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 

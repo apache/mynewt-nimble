@@ -1666,25 +1666,15 @@ static void
 ble_l2cap_sig_coc_disconnect_cb(struct ble_l2cap_sig_proc *proc, int status)
 {
     struct ble_l2cap_chan *chan;
-    struct ble_l2cap_event event;
     struct ble_hs_conn *conn;
 
-    if (!proc) {
-        return;
-    }
+    assert(proc);
 
-    memset(&event, 0, sizeof(event));
     chan = proc->disconnect.chan;
-
     if (!chan) {
         return;
     }
 
-    if (!chan->cb) {
-        goto done;
-    }
-
-done:
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(chan->conn_handle);
     if (conn) {
@@ -1842,14 +1832,14 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
        return 0;
    }
 
-   switch (proc->id) {
+   switch (proc->op) {
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-       case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-           ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
-           break;
+   case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+       ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
+       break;
 #endif
-       default:
-           break;
+   default:
+       break;
    }
 
    ble_l2cap_sig_proc_free(proc);
@@ -1860,16 +1850,14 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
  *****************************************************************************/
 
 static int
-ble_l2cap_sig_rx(struct ble_l2cap_chan *chan)
+ble_l2cap_sig_rx(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
     struct ble_l2cap_sig_hdr hdr;
     ble_l2cap_sig_rx_fn *rx_cb;
     uint16_t conn_handle;
-    struct os_mbuf **om;
     int rc;
 
     conn_handle = chan->conn_handle;
-    om = &chan->rx_buf;
 
     STATS_INC(ble_l2cap_stats, sig_rx);
 
@@ -1983,31 +1971,37 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_l2cap_sig_proc *proc;
 
-    /* Report a failure for each timed out procedure. */
-    while ((proc = STAILQ_FIRST(&ble_l2cap_sig_procs)) != NULL) {
-        switch(proc->op) {
-            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
-                ble_l2cap_sig_update_call_cb(proc, reason);
-                break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-                ble_l2cap_sig_coc_connect_cb(proc, reason);
-            break;
-            case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
-                ble_l2cap_sig_coc_disconnect_cb(proc, reason);
-            break;
-#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
-            case BLE_L2CAP_SIG_PROC_OP_RECONFIG:
-                ble_l2cap_sig_coc_reconfig_cb(proc, reason);
-            break;
-#endif
-#endif
-            }
-
-            STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
-            ble_l2cap_sig_proc_free(proc);
+    /* If there were any pending procedure, indicate to the application that it
+     * did not complete.
+     */
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_update_call_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
     }
 
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_connect_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+
+    proc = ble_l2cap_sig_proc_extract(conn_handle,
+                                      BLE_L2CAP_SIG_PROC_OP_DISCONNECT, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_disconnect_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG, 0);
+    if (proc != NULL) {
+        ble_l2cap_sig_coc_reconfig_cb(proc, reason);
+        ble_l2cap_sig_proc_free(proc);
+    }
+#endif
+#endif
 }
 
 /**
@@ -2033,15 +2027,15 @@ ble_l2cap_sig_timer(void)
     while ((proc = STAILQ_FIRST(&temp_list)) != NULL) {
         STATS_INC(ble_l2cap_stats, proc_timeout);
         switch(proc->op) {
-            case BLE_L2CAP_SIG_PROC_OP_UPDATE:
-                ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
-                break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-            case BLE_L2CAP_SIG_PROC_OP_CONNECT:
-                ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
+        case BLE_L2CAP_SIG_PROC_OP_UPDATE:
+            ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
             break;
-            case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
-                ble_l2cap_sig_coc_disconnect_cb(proc, BLE_HS_ETIMEOUT);
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+        case BLE_L2CAP_SIG_PROC_OP_CONNECT:
+            ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
+            break;
+        case BLE_L2CAP_SIG_PROC_OP_DISCONNECT:
+            ble_l2cap_sig_coc_disconnect_cb(proc, BLE_HS_ETIMEOUT);
             break;
 #endif
         }

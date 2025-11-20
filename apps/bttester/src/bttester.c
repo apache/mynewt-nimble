@@ -148,10 +148,8 @@ cmd_handler(struct os_event *ev)
 
     len = le16toh(cmd->hdr.len);
     if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
-        console_printf("[DBG] received %d bytes: %s\n",
-                       sizeof(cmd->hdr) + len,
-                       string_from_bytes(cmd->data,
-                                         sizeof(cmd->hdr) + len));
+        console_printf("[DBG] BTP received %d bytes: %s\n", sizeof(cmd->hdr) + len,
+                       string_from_bytes(cmd->data, sizeof(cmd->hdr) + len));
     }
 
     btp = find_btp_handler(cmd->hdr.service, cmd->hdr.opcode);
@@ -293,11 +291,11 @@ tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
     }
 
     if (MYNEWT_VAL(BTTESTER_BTP_LOG)) {
-        console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
-                       string_from_bytes((char *) &msg, sizeof(msg)));
+        console_printf("[DBG] BTP send %d bytes hdr: %s\n", sizeof(msg),
+                       string_from_bytes((char *)&msg, sizeof(msg)));
         if (data && len) {
-            console_printf("[DBG] send %d bytes data: %s\n", len,
-                           string_from_bytes((char *) data, len));
+            console_printf("[DBG] BTP send %d bytes data: %s\n", len,
+                           string_from_bytes((char *)data, len));
         }
     }
 }
@@ -376,4 +374,23 @@ tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
     (void)memset(cmd, 0, sizeof(*cmd));
     os_eventq_put(&avail_queue,
                   CONTAINER_OF(cmd, struct btp_buf, data)->ev);
+}
+
+uint16_t
+tester_supported_commands(uint8_t service, uint8_t *cmds)
+{
+    uint8_t opcode_max = 0;
+
+    assert(service <= BTP_SERVICE_ID_MAX);
+
+    for (size_t i = 0; i < service_handler[service].num; i++) {
+        const struct btp_handler *handler = &service_handler[service].handlers[i];
+        tester_set_bit(cmds, handler->opcode);
+
+        if (handler->opcode > opcode_max) {
+            opcode_max = handler->opcode;
+        }
+    }
+
+    return (opcode_max / 8) + 1;
 }

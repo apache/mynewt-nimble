@@ -1365,8 +1365,6 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
     ble_phy_mode_apply(g_ble_phy_data.phy_mode_rx);
 #endif
 
-    assert(ble_rf_is_enabled());
-
     ble_phy_rx();
 
     /* Store LLT value at RX start, we'll need this to set wfr */

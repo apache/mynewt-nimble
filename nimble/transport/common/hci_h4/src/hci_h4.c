@@ -168,6 +168,9 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
         }
 
         h4sm->exp_len = h4sm->hdr[1] + 2;
+        if (h4sm->exp_len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
+            return -1;
+        }
         break;
     case HCI_H4_ISO:
         assert(h4sm->allocs && h4sm->allocs->iso);

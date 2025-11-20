@@ -31,12 +31,15 @@
 extern "C" {
 #endif
 
-#define BLE_NPL_OS_ALIGNMENT    (__WORDSIZE / 8)
+#define BLE_NPL_OS_ALIGNMENT (__WORDSIZE / 8)
 
-#define BLE_NPL_TIME_FOREVER    INT32_MAX
+#define BLE_NPL_TIME_FOREVER UINT32_MAX
+
+struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
+void ble_npl_eventq_run(struct ble_npl_eventq *evq);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* _NPL_H_ */
+#endif /* _NPL_H_ */

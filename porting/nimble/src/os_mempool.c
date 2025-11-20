@@ -32,8 +32,8 @@
 #if MYNEWT_VAL(OS_MEMPOOL_GUARD)
 #define OS_MEMPOOL_TRUE_BLOCK_SIZE(mp)                                  \
     (((mp)->mp_flags & OS_MEMPOOL_F_EXT) ?                              \
-     OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size) :                       \
-     (OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size) + sizeof(os_membuf_t)))
+      OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size) :                       \
+      (OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size) + sizeof(os_membuf_t)))
 #else
 #define OS_MEMPOOL_TRUE_BLOCK_SIZE(mp) OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size)
 #endif
@@ -95,7 +95,7 @@ os_mempool_guard(const struct os_mempool *mp, void *start)
 
     if ((mp->mp_flags & OS_MEMPOOL_F_EXT) == 0) {
         tgt = (uint32_t *)((uintptr_t)start +
-                           OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size));
+                                     OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size));
         *tgt = OS_MEMPOOL_GUARD_PATTERN;
     }
 }
@@ -107,7 +107,7 @@ os_mempool_guard_check(const struct os_mempool *mp, void *start)
 
     if ((mp->mp_flags & OS_MEMPOOL_F_EXT) == 0) {
         tgt = (uint32_t *)((uintptr_t)start +
-                           OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size));
+                                     OS_MEM_TRUE_BLOCK_SIZE(mp->mp_block_size));
         assert(*tgt == OS_MEMPOOL_GUARD_PATTERN);
     }
 }
@@ -139,7 +139,7 @@ os_mempool_init_internal(struct os_mempool *mp, uint16_t blocks,
         /* Blocks need to be sized properly and memory buffer should be
          * aligned
          */
-        if (((uint32_t)(uintptr_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
+        if (((uintptr_t)membuf & (OS_ALIGNMENT - 1)) != 0) {
             return OS_MEM_NOT_ALIGNED;
         }
     }
@@ -150,7 +150,7 @@ os_mempool_init_internal(struct os_mempool *mp, uint16_t blocks,
     mp->mp_min_free = blocks;
     mp->mp_flags = flags;
     mp->mp_num_blocks = blocks;
-    mp->mp_membuf_addr = (uint32_t)(uintptr_t)membuf;
+    mp->mp_membuf_addr = (uintptr_t)membuf;
     mp->name = name;
     SLIST_FIRST(mp) = membuf;
 
@@ -261,10 +261,10 @@ os_mempool_clear(struct os_mempool *mp)
     mp->mp_min_free = mp->mp_num_blocks;
     os_mempool_poison(mp, (void *)mp->mp_membuf_addr);
     os_mempool_guard(mp, (void *)mp->mp_membuf_addr);
-    SLIST_FIRST(mp) = (void *)(uintptr_t)mp->mp_membuf_addr;
+    SLIST_FIRST(mp) = (void *)mp->mp_membuf_addr;
 
     /* Chain the memory blocks to the free list */
-    block_addr = (uint8_t *)(uintptr_t)mp->mp_membuf_addr;
+    block_addr = (uint8_t *)mp->mp_membuf_addr;
     block_ptr = (struct os_memblock *)block_addr;
     blocks = mp->mp_num_blocks;
 
@@ -304,23 +304,20 @@ int
 os_memblock_from(const struct os_mempool *mp, const void *block_addr)
 {
     uint32_t true_block_size;
-    uintptr_t baddr32;
-    uint32_t end;
+    uintptr_t baddr;
+    uintptr_t end;
 
-    static_assert(sizeof block_addr == sizeof baddr32,
-                  "Pointer to void must be 32-bits.");
-
-    baddr32 = (uint32_t)(uintptr_t)block_addr;
+    baddr = (uintptr_t)block_addr;
     true_block_size = OS_MEMPOOL_TRUE_BLOCK_SIZE(mp);
     end = mp->mp_membuf_addr + (mp->mp_num_blocks * true_block_size);
 
     /* Check that the block is in the memory buffer range. */
-    if ((baddr32 < mp->mp_membuf_addr) || (baddr32 >= end)) {
+    if ((baddr < mp->mp_membuf_addr) || (baddr >= end)) {
         return 0;
     }
 
     /* All freed blocks should be on true block size boundaries! */
-    if (((baddr32 - mp->mp_membuf_addr) % true_block_size) != 0) {
+    if (((baddr - mp->mp_membuf_addr) % true_block_size) != 0) {
         return 0;
     }
 
@@ -333,7 +330,7 @@ os_memblock_get(struct os_mempool *mp)
     os_sr_t sr;
     struct os_memblock *block;
 
-    os_trace_api_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)(uintptr_t)mp);
+    os_trace_api_u32(OS_TRACE_ID_MEMBLOCK_GET, (uintptr_t)mp);
 
     /* Check to make sure they passed in a memory pool (or something) */
     block = NULL;
@@ -361,7 +358,7 @@ os_memblock_get(struct os_mempool *mp)
         }
     }
 
-    os_trace_api_ret_u32(OS_TRACE_ID_MEMBLOCK_GET, (uint32_t)(uintptr_t)block);
+    os_trace_api_ret_u32(OS_TRACE_ID_MEMBLOCK_GET, (uintptr_t)block);
 
     return (void *)block;
 }
@@ -372,8 +369,8 @@ os_memblock_put_from_cb(struct os_mempool *mp, void *block_addr)
     os_sr_t sr;
     struct os_memblock *block;
 
-    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT_FROM_CB, (uint32_t)(uintptr_t)mp,
-                       (uint32_t)(uintptr_t)block_addr);
+    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT_FROM_CB, (uintptr_t)mp,
+                       (uintptr_t)block_addr);
 
     os_mempool_guard_check(mp, block_addr);
     os_mempool_poison(mp, block_addr);
@@ -403,10 +400,11 @@ os_memblock_put(struct os_mempool *mp, void *block_addr)
     os_error_t ret;
 #if MYNEWT_VAL(OS_MEMPOOL_CHECK)
     struct os_memblock *block;
+    int sr;
 #endif
 
-    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT, (uint32_t)(uintptr_t)mp,
-                       (uint32_t)(uintptr_t)block_addr);
+    os_trace_api_u32x2(OS_TRACE_ID_MEMBLOCK_PUT, (uintptr_t)mp,
+                       (uintptr_t)block_addr);
 
     /* Make sure parameters are valid */
     if ((mp == NULL) || (block_addr == NULL)) {
@@ -421,9 +419,12 @@ os_memblock_put(struct os_mempool *mp, void *block_addr)
     /*
      * Check for duplicate free.
      */
+    OS_ENTER_CRITICAL(sr);
     SLIST_FOREACH(block, mp, mb_next) {
         assert(block != (struct os_memblock *)block_addr);
     }
+    OS_EXIT_CRITICAL(sr);
+
 #endif
     /* If this is an extended mempool with a put callback, call the callback
      * instead of freeing the block directly.
@@ -469,8 +470,34 @@ os_mempool_info_get_next(struct os_mempool *mp, struct os_mempool_info *omi)
     return (cur);
 }
 
+struct os_mempool *
+os_mempool_get(const char *mempool_name, struct os_mempool_info *info)
+{
+    struct os_mempool *mp;
+
+    mp = STAILQ_FIRST(&g_os_mempool_list);
+    while (mp) {
+        if (strcmp(mempool_name, mp->name) == 0) {
+            break;
+        }
+        mp = STAILQ_NEXT(mp, mp_list);
+    }
+
+    if (mp != NULL && info != NULL) {
+        info->omi_block_size = mp->mp_block_size;
+        info->omi_num_blocks = mp->mp_num_blocks;
+        info->omi_num_free = mp->mp_num_free;
+        info->omi_min_free = mp->mp_min_free;
+        info->omi_name[0] = '\0';
+        strncat(info->omi_name, mp->name, sizeof(info->omi_name) - 1);
+    }
+
+    return mp;
+}
+
 void
 os_mempool_module_init(void)
 {
     STAILQ_INIT(&g_os_mempool_list);
 }
+

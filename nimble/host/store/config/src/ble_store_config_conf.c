@@ -91,6 +91,11 @@ ble_store_config_conf_set(int argc, char **argv, char *val)
 {
     int rc;
 
+    /* Config returns NULL pointer if it reads an empty string. We change this back into an empty string. */
+    if (!val) {
+        val = "";
+    }
+
     if (argc == 1) {
         if (strcmp(argv[0], "our_sec") == 0) {
             rc = ble_store_config_deserialize_arr(

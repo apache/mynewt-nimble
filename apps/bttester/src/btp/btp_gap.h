@@ -328,6 +328,17 @@ struct gap_periodic_adv_sync_transfer_recv_cmd {
     uint16_t sync_timeout;
     uint8_t flags;
 } __packed;
+
+#define GAP_SUBRATE_REQUEST 0x2b
+struct gap_subrate_request_cmd {
+    ble_addr_t address;
+    uint16_t subrate_min;
+    uint16_t subrate_max;
+    uint16_t max_latency;
+    uint16_t cont_num;
+    uint16_t supervision_timeout;
+} __packed;
+
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
@@ -439,13 +450,19 @@ struct gap_periodic_report_ev {
 
 #define GAP_EV_PERIODIC_TRANSFER_RECEIVED   0x90
 struct gap_periodic_transfer_recieved_ev {
-    uint8_t status;
-    uint16_t sync_handle;
-    uint16_t conn_handle;
-    uint16_t service_data;
-    uint8_t sid;
     ble_addr_t adv_addr;
-    uint8_t adv_phy;
-    uint16_t per_adv_itvl;
-    uint8_t adv_clk_accuracy;
+    uint16_t sync_handle;
+    uint8_t status;
+    ble_addr_t peer_addr;
+} __packed;
+
+#define GAP_EV_SUBRATE_CHANGE 0x92
+struct gap_subrate_change_ev {
+    ble_addr_t addr;
+    uint8_t status;
+    uint16_t conn_handle;
+    uint16_t subrate_factor;
+    uint16_t periph_latency;
+    uint16_t cont_num;
+    uint16_t supervision_tmo;
 } __packed;

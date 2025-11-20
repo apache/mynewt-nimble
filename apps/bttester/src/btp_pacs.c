@@ -266,13 +266,8 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 {
     struct btp_pacs_read_supported_commands_rp *rp = rsp;
 
-    /* octet 0 */
-    tester_set_bit(rp->data, BTP_PACS_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(rp->data, BTP_PACS_UPDATE_CHARACTERISTIC);
-    tester_set_bit(rp->data, BTP_PACS_SET_AVAILABLE_CONTEXTS);
-    tester_set_bit(rp->data, BTP_PACS_SET_SUPPORTED_CONTEXTS);
-
-    *rsp_len = sizeof(*rp) + 1;
+    *rsp_len = tester_supported_commands(BTP_SERVICE_ID_PACS, rp->data);
+    *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }

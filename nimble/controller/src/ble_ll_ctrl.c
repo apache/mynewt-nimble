@@ -1451,11 +1451,13 @@ ble_ll_ctrl_enc_allowed_pdu(uint8_t llid, uint8_t len, uint8_t opcode)
 }
 
 int
-ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu)
+ble_ll_ctrl_enc_allowed_pdu_rx(struct ble_ll_conn_sm *connsm, struct os_mbuf *rxpdu)
 {
     uint8_t llid;
     uint8_t len;
     uint8_t opcode;
+    uint8_t state;
+    int allowed;
 
     llid = rxpdu->om_data[0] & BLE_LL_DATA_HDR_LLID_MASK;
     len = rxpdu->om_data[1];
@@ -1465,7 +1467,47 @@ ble_ll_ctrl_enc_allowed_pdu_rx(struct os_mbuf *rxpdu)
         opcode = 0;
     }
 
-    return ble_ll_ctrl_enc_allowed_pdu(llid, len, opcode);
+    allowed = 0;
+    state = connsm->enc_data.enc_state;
+
+    switch (llid) {
+    case BLE_LL_LLID_CTRL:
+        switch (opcode) {
+        case BLE_LL_CTRL_REJECT_IND:
+        case BLE_LL_CTRL_REJECT_IND_EXT:
+            allowed = state == CONN_ENC_S_ENC_RSP_WAIT ||
+                      state == CONN_ENC_S_START_ENC_REQ_WAIT;
+            break;
+        case BLE_LL_CTRL_START_ENC_RSP:
+            allowed = state == CONN_ENC_S_START_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_START_ENC_REQ:
+            allowed = state == CONN_ENC_S_START_ENC_REQ_WAIT;
+            break;
+        case BLE_LL_CTRL_ENC_REQ:
+            allowed = state == CONN_ENC_S_ENCRYPTED || state == CONN_ENC_S_PAUSED;
+            break;
+        case BLE_LL_CTRL_ENC_RSP:
+            allowed = state == CONN_ENC_S_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_PAUSE_ENC_REQ:
+            allowed = state == CONN_ENC_S_ENCRYPTED;
+            break;
+        case BLE_LL_CTRL_PAUSE_ENC_RSP:
+            allowed = state == CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+            break;
+        case BLE_LL_CTRL_TERMINATE_IND:
+            allowed = 1;
+            break;
+        }
+        break;
+    case BLE_LL_LLID_DATA_FRAG:
+        /* Empty PDUs are allowed */
+        allowed = len == 0;
+        break;
+    }
+
+    return allowed;
 }
 
 int
@@ -1803,6 +1845,7 @@ ble_ll_ctrl_rx_start_enc_rsp(struct ble_ll_conn_sm *connsm)
 
         /* We are encrypted */
         connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+        connsm->flags.encrypt_paused = 0;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
         ble_ll_conn_auth_pyld_timer_start(connsm);
 #endif
@@ -2135,7 +2178,7 @@ ble_ll_ctrl_initiate_dle(struct ble_ll_conn_sm *connsm, bool initial)
         }
     }
 
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD, NULL);
+    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_DATA_LEN_UPD);
 }
 
 static void
@@ -2467,7 +2510,7 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
  * @param ctrl_proc
  */
 static struct os_mbuf *
-ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
+ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     uint8_t len;
     uint8_t opcode = 0;
@@ -2486,7 +2529,7 @@ ble_ll_ctrl_proc_init(struct ble_ll_conn_sm *connsm, int ctrl_proc, void *data)
         switch (ctrl_proc) {
         case BLE_LL_CTRL_PROC_CONN_UPDATE:
             opcode = BLE_LL_CTRL_CONN_UPDATE_IND;
-            ble_ll_ctrl_conn_update_init_proc(connsm, data);
+            ble_ll_ctrl_conn_update_init_proc(connsm, NULL);
             break;
         case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
             opcode = BLE_LL_CTRL_CHANNEL_MAP_REQ;
@@ -2644,7 +2687,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
     BLE_LL_ASSERT(connsm->disconnect_reason != 0);
 
     ctrl_proc = BLE_LL_CTRL_PROC_TERMINATE;
-    om = ble_ll_ctrl_proc_init(connsm, ctrl_proc, NULL);
+    om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
     if (om) {
         connsm->flags.terminate_started = 1;
 
@@ -2664,8 +2707,7 @@ ble_ll_ctrl_terminate_start(struct ble_ll_conn_sm *connsm)
  * @param connsm Pointer to connection state machine.
  */
 void
-ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc,
-                       void *data)
+ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
 {
     struct os_mbuf *om;
 
@@ -2674,7 +2716,7 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc,
     om = NULL;
     if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
         /* Initiate the control procedure. */
-        om = ble_ll_ctrl_proc_init(connsm, ctrl_proc, data);
+        om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
         if (om) {
             /* Set the current control procedure */
             connsm->cur_ctrl_proc = ctrl_proc;
@@ -2735,7 +2777,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
         BLE_LL_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_ENCRYPT);
         BLE_LL_ASSERT(IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_ENCRYPT));
 
-        om = ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT, NULL);
+        om = ble_ll_ctrl_proc_init(connsm, BLE_LL_CTRL_PROC_ENCRYPT);
         if (om) {
             connsm->flags.pending_encrypt_restart = 0;
         }
@@ -2760,7 +2802,7 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
                     ble_ll_hci_ev_rd_rem_ver(connsm, BLE_ERR_SUCCESS);
                     CLR_PENDING_CTRL_PROC(connsm, i);
                 } else {
-                    ble_ll_ctrl_proc_start(connsm, i, NULL);
+                    ble_ll_ctrl_proc_start(connsm, i);
                     break;
                 }
             }
@@ -3205,6 +3247,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         break;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     case BLE_LL_CTRL_PAUSE_ENC_REQ:
+        connsm->flags.encrypt_paused = 1;
         /* note: fall-through intentional */
     case BLE_LL_CTRL_ENC_REQ:
         connsm->enc_data.enc_state = CONN_ENC_S_ENC_RSP_WAIT;
@@ -3217,6 +3260,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_START_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
+            connsm->flags.encrypt_paused = 0;
             if (connsm->flags.le_ping_supp) {
                 ble_ll_conn_auth_pyld_timer_start(connsm);
             }
@@ -3225,6 +3269,7 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_PAUSE_ENC_RSP_WAIT;
+            connsm->flags.encrypt_paused = 1;
         } else {
             connsm->flags.pending_encrypt_restart = 1;
         }

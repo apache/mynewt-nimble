@@ -139,18 +139,8 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 {
     struct btp_bap_read_supported_commands_rp *rp = rsp;
 
-    /* octet 0 */
-    tester_set_bit(rp->data, BTP_BAP_READ_SUPPORTED_COMMANDS);
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_SOURCE_SETUP);
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_SOURCE_RELEASE);
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_ADV_START);
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_ADV_STOP);
-
-    /* octet 1 */
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_SOURCE_START);
-    tester_set_bit(rp->data, BTP_BAP_BROADCAST_SOURCE_STOP);
-
-    *rsp_len = sizeof(*rp) + 2;
+    *rsp_len = tester_supported_commands(BTP_SERVICE_ID_BAP, rp->data);
+    *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }
