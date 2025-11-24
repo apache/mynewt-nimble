@@ -27,11 +27,15 @@
 #include "host/ble_hs_log.h"
 #include "host/ble_hs.h"
 #include "host/ble_cs.h"
+#include "host/ble_peer.h"
 #include "nimble/hci_common.h"
 #include "sys/queue.h"
 #include "ble_hs_hci_priv.h"
 #include "ble_hs_priv.h"
 #include "ble_cs_priv.h"
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT) || MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+#include "services/ras/ble_svc_ras.h"
+#endif
 
 #define IN_RANGE(_n, _min, _max)              (((_n) >= (_min)) && ((_n) <= (_max)))
 #define N_AP_MAX                              (4)
@@ -65,6 +69,10 @@ static const uint8_t antenna_path_permutations[24][4] = {
     { 2, 3, 4, 1 }
 };
 static uint8_t aci_to_num_of_paths[] = { 1, 2, 3, 4, 2, 3, 4, 4 };
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT) || MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+static uint8_t aci_to_antenna_paths_mask[] = { 0b1,  0b11,  0b111,  0b1111,
+                                               0b11, 0b111, 0b1111, 0b1111 };
+#endif
 
 struct ble_cs_rd_rem_supp_cap_cp {
     uint16_t conn_handle;
@@ -278,6 +286,7 @@ ble_cs_call_procedure_complete_cb(struct ble_cs_sm *cssm, uint8_t status)
     cssm->current_remote_subevent_info_id = 0;
 }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
 static void
 ble_cs_call_subevent_data_cb(struct ble_cs_sm *cssm, uint8_t status, uint8_t subevent_id)
 {
@@ -293,6 +302,104 @@ ble_cs_call_subevent_data_cb(struct ble_cs_sm *cssm, uint8_t status, uint8_t sub
     event.subevent_data.remote_subevent_info = &cssm->remote_subevent_info[subevent_id];
     ble_cs_call_event_cb(cssm, &event);
 }
+
+static void
+ble_cs_ras_clt_ranging_header_received_cb(struct ble_svc_ras_clt_ranging_header *ranging_header,
+                                          uint16_t conn_handle)
+{
+}
+
+static void
+ble_cs_ras_clt_subevent_header_received_cb(struct ble_svc_ras_clt_subevent_header *sub_header,
+                                           uint16_t conn_handle)
+{
+    struct ble_cs_sm *cssm = ble_cs_sm_get(conn_handle);
+    struct ble_cs_subevent_info *subevent_info;
+
+    assert(sub_header != NULL);
+
+    if (cssm == NULL) {
+        return;
+    }
+
+    assert(cssm->current_remote_subevent_info_id < ARRAY_SIZE(cssm->remote_subevent_info));
+
+    subevent_info = &cssm->remote_subevent_info[cssm->current_remote_subevent_info_id];
+    if (subevent_info->num_steps_reported != 0) {
+        ble_cs_call_subevent_data_cb(cssm, 0, cssm->current_remote_subevent_info_id);
+        ++cssm->current_remote_subevent_info_id;
+    }
+}
+
+static void
+ble_cs_ras_clt_step_data_received_cb(void *data, uint16_t conn_handle, uint8_t step_mode)
+{
+    struct ble_cs_sm *cssm = ble_cs_sm_get(conn_handle);
+    struct ble_cs_subevent_info *subevent_info;
+
+    assert(data != NULL);
+
+    if (cssm == NULL) {
+        return;
+    }
+
+    subevent_info = &cssm->remote_subevent_info[cssm->current_remote_subevent_info_id];
+    ++subevent_info->num_steps_reported;
+
+    switch (step_mode) {
+    case BLE_HS_CS_MODE0:
+        if (subevent_info->mode0_results_count >= ARRAY_SIZE(subevent_info->mode0_results)) {
+            break;
+        }
+        subevent_info->mode0_results[subevent_info->mode0_results_count++] =
+                *(struct ble_cs_mode0_result*)data;
+        break;
+    case BLE_HS_CS_MODE1:
+        if (subevent_info->mode1_results_count >= ARRAY_SIZE(subevent_info->mode1_results)) {
+            break;
+        }
+        subevent_info->mode1_results[subevent_info->mode1_results_count++] =
+                *(struct ble_cs_mode1_result*)data;
+        break;
+    case BLE_HS_CS_MODE2:
+        if (subevent_info->mode2_results_count >= ARRAY_SIZE(subevent_info->mode2_results)) {
+            break;
+        }
+        subevent_info->mode2_results[subevent_info->mode2_results_count++] =
+                *(struct ble_cs_mode2_result*)data;
+        break;
+    case BLE_HS_CS_MODE3:
+        if (subevent_info->mode3_results_count >= ARRAY_SIZE(subevent_info->mode3_results)) {
+            break;
+        }
+        subevent_info->mode3_results[subevent_info->mode3_results_count++] =
+                *(struct ble_cs_mode3_result*)data;
+        break;
+    default:
+        assert(0);
+    }
+}
+
+static void
+ble_cs_ras_clt_ranging_data_complete_cb(uint16_t conn_handle)
+{
+    struct ble_cs_sm *cssm = ble_cs_sm_get(conn_handle);
+    struct ble_cs_subevent_info *subevent_info;
+
+    if (cssm == NULL) {
+        return;
+    }
+
+    assert(cssm->current_remote_subevent_info_id < ARRAY_SIZE(cssm->remote_subevent_info));
+
+    subevent_info = &cssm->remote_subevent_info[cssm->current_remote_subevent_info_id];
+    if (subevent_info->num_steps_reported != 0) {
+        ble_cs_call_subevent_data_cb(cssm, 0, cssm->current_remote_subevent_info_id);
+    }
+
+    ble_cs_call_procedure_complete_cb(cssm, BLE_CS_EVENT_CS_PROCEDURE_ERR_SUCCESS);
+}
+#endif
 
 static int
 ble_cs_rd_loc_supp_cap(struct ble_cs_sm *cssm)
@@ -776,6 +883,12 @@ ble_hs_hci_evt_le_cs_config_complete(uint8_t subevent, const void *data,
         config->rtt_pct_included = 1;
     }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+    ble_svc_ras_clt_config_set(cssm->conn_handle, config->rtt_pct_included,
+                               aci_to_num_of_paths[config->antenna_config_id],
+                               config->local_role);
+#endif
+
     if (!cssm->pending_procedure) {
         config->local_role = ev->role;
 
@@ -802,6 +915,10 @@ ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent, const void *data,
     const struct ble_hci_ev_le_subev_cs_proc_enable_complete *ev = data;
     struct ble_cs_proc_enable_cp enable_cmd;
     struct ble_cs_sm *cssm;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    struct ble_cs_config *config;
+    uint8_t antenna_paths_mask;
+#endif
 
     if (len != sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
@@ -836,6 +953,14 @@ ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent, const void *data,
     }
 
     cssm->retry_counter = BLE_CS_ENABLE_RETRY_COUNTER_RESET_VAL;
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    config = &cssm->config[cssm->active_config_id];
+    antenna_paths_mask = aci_to_antenna_paths_mask[config->antenna_config_id];
+    ble_svc_ras_ranging_data_body_init(cssm->conn_handle, ev->procedure_count,
+                                       ev->config_id, ev->selected_tx_power,
+                                       antenna_paths_mask);
+#endif
 
     return 0;
 }
@@ -872,6 +997,10 @@ ble_cs_add_mode0_result(struct ble_cs_sm *cssm, const uint8_t *data,
         result->measured_freq_offset = get_le16(data + 3);
     }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode0_result(result, cssm->conn_handle, config->local_role);
+#endif
+
     ++subevent_info->mode0_results_count;
 
     return 0;
@@ -906,6 +1035,10 @@ ble_cs_add_mode1_result(struct ble_cs_sm *cssm, const uint8_t *data,
         result->packet_pct1 = get_le32(data + 6);
         result->packet_pct2 = get_le32(data + 10);
     }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode1_result(result, cssm->conn_handle, config->rtt_pct_included);
+#endif
 
     ++subevent_info->mode1_results_count;
 
@@ -948,6 +1081,10 @@ ble_cs_add_mode2_result(struct ble_cs_sm *cssm, const uint8_t *data,
         result->tone_quality_ind[i] = *data;
         data += 1;
     }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode2_result(result, cssm->conn_handle, n_ap);
+#endif
 
     ++subevent_info->mode2_results_count;
 
@@ -1003,6 +1140,11 @@ ble_cs_add_mode3_result(struct ble_cs_sm *cssm, const uint8_t *data_buf,
         return 1;
     }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode3_result(result, cssm->conn_handle, n_ap,
+                                 config->rtt_pct_included);
+#endif
+
     ++subevent_info->mode3_results_count;
 
     return 0;
@@ -1021,6 +1163,10 @@ ble_cs_add_local_steps_results(struct ble_cs_sm *cssm, const struct cs_steps_dat
         data = step_data->data;
         data_len = step_data->data_len;
         assert(data_len <= BLE_HCI_MAX_DATA_LEN);
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        ble_svc_ras_add_step_mode(cssm->conn_handle, step_data->mode, data_len == 0);
+#endif
 
         if (data_len == 0) {
             /* Ignore step with missing results */
@@ -1062,6 +1208,10 @@ ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
     int rc;
     const struct ble_hci_ev_le_subev_cs_subevent_result *ev = data;
     struct ble_cs_sm *cssm = NULL;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    uint8_t ranging_abort_reason;
+    uint8_t subevent_abort_reason;
+#endif
 
     if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
@@ -1070,6 +1220,17 @@ ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
     cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
     assert(cssm != NULL);
 
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ranging_abort_reason = ev->abort_reason & 0xF;
+    subevent_abort_reason = ev->abort_reason >> 4;
+
+    ble_svc_ras_ranging_subevent_init(
+        cssm->conn_handle, le16toh(ev->start_acl_conn_event_counter),
+        le16toh(ev->frequency_compensation), ev->procedure_done_status,
+        ev->subevent_done_status, ranging_abort_reason, subevent_abort_reason,
+        ev->reference_power_level, ev->num_steps_reported);
+#endif
+
     rc = ble_cs_add_local_steps_results(cssm, ev->steps, ev->num_steps_reported);
 
     if (ev->subevent_done_status == BLE_HS_CS_SUBEVENT_DONE_STATUS_COMPLETED) {
@@ -1077,9 +1238,15 @@ ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
     }
 
     if (rc || ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_ABORTED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
         ble_cs_call_procedure_complete_cb(cssm, BLE_CS_EVENT_CS_PROCEDURE_ERR_ABORTED);
+#endif
     } else if (ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_COMPLETED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
         ble_cs_call_procedure_complete_cb(cssm, BLE_CS_EVENT_CS_PROCEDURE_ERR_SUCCESS);
+#endif
     }
 
     return 0;
@@ -1092,6 +1259,10 @@ ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data
     int rc;
     struct ble_cs_sm *cssm = NULL;
     const struct ble_hci_ev_le_subev_cs_subevent_result_continue *ev = data;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    uint8_t ranging_abort_reason;
+    uint8_t subevent_abort_reason;
+#endif
 
     if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
@@ -1100,6 +1271,15 @@ ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data
     cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
     assert(cssm != NULL);
 
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ranging_abort_reason = ev->abort_reason & 0xF;
+    subevent_abort_reason = ev->abort_reason >> 4;
+
+    ble_svc_ras_ranging_subevent_update_status(
+        cssm->conn_handle, ev->num_steps_reported, ev->procedure_done_status,
+        ev->subevent_done_status, ranging_abort_reason, subevent_abort_reason);
+#endif
+
     rc = ble_cs_add_local_steps_results(cssm, ev->steps, ev->num_steps_reported);
 
     if (ev->subevent_done_status == BLE_HS_CS_SUBEVENT_DONE_STATUS_COMPLETED) {
@@ -1107,9 +1287,15 @@ ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data
     }
 
     if (rc || ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_ABORTED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
         ble_cs_call_procedure_complete_cb(cssm, BLE_CS_EVENT_CS_PROCEDURE_ERR_ABORTED);
+#endif
     } else if (ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_COMPLETED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
         ble_cs_call_procedure_complete_cb(cssm, BLE_CS_EVENT_CS_PROCEDURE_ERR_SUCCESS);
+#endif
     }
 
     return 0;
@@ -1185,6 +1371,14 @@ ble_cs_setup_phase_start(uint16_t conn_handle)
     return ble_cs_rd_rem_supp_cap(&cmd);
 }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+static void
+ble_cs_initiator_config_cb(uint16_t conn_handle)
+{
+    ble_cs_setup_phase_start(conn_handle);
+}
+#endif
+
 int
 ble_cs_procedure_start(const struct ble_cs_procedure_start_params *params,
                        uint16_t conn_handle)
@@ -1236,8 +1430,16 @@ ble_cs_procedure_start(const struct ble_cs_procedure_start_params *params,
 
         return rc;
     }
-
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+    return ble_svc_ras_clt_subscribe(ble_cs_initiator_config_cb,
+                                     ble_cs_ras_clt_ranging_header_received_cb,
+                                     ble_cs_ras_clt_subevent_header_received_cb,
+                                     ble_cs_ras_clt_step_data_received_cb,
+                                     ble_cs_ras_clt_ranging_data_complete_cb,
+                                     cssm->conn_handle, BLE_SVC_RAS_MODE_ON_DEMAND);
+#else
     return ble_cs_setup_phase_start(cssm->conn_handle);
+#endif
 }
 
 int
