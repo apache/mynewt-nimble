@@ -33,38 +33,6 @@
  * @{
  */
 
-/**
- * @cond
- * Helper macros for BLE_AUDIO_BUILD_CODEC_CONFIG
- * @private @{
- */
-#define FIELD_LEN_2(_len, _type, _field)     _len, _type, _field,
-#define FIELD_LEN_5(_len, _type, _field)     _len, _type, _field,       \
-    _field >> 8, _field >> 16, \
-    _field >> 24,
-
-#define FIELD_TESTED_0(_len, _type, _field)
-#define FIELD_TESTED_1(_len, _type, _field)     FIELD_LEN_ ## _len(_len,  \
-                                                                   _type, \
-                                                                   _field)
-#define EMPTY()         FIELD_TESTED_0
-#define PRESENT(X)      FIELD_TESTED_1
-#define TEST(x, A, FUNC, ...)    FUNC
-#define TEST_FIELD(...)              TEST(, ## __VA_ARGS__,     \
-                                          PRESENT(__VA_ARGS__), \
-                                          EMPTY(__VA_ARGS__))
-#define FIELD_TESTED(_test, _len, _type, _field)    _test(_len, _type, _field)
-#define OPTIONAL_FIELD(_len, _type, ...) FIELD_TESTED(TEST_FIELD     \
-                                                      (__VA_ARGS__), \
-                                                      _len,          \
-                                                      _type,         \
-                                                      __VA_ARGS__)
-
-/**
- * @}
- * @endcond
- */
-
 /** Broadcast Audio Broadcast Code Size. */
 #define BLE_AUDIO_BROADCAST_CODE_SIZE                             16
 
@@ -440,6 +408,22 @@
 /** @} */
 
 /**
+ * @cond
+ * Helper macros for BLE_AUDIO_BUILD_CODEC_CONFIG and BLE_AUDIO_BUILD_CODEC_CAPS
+ * @private @{
+ */
+#define _BLE_AUDIO_FIELD_LEN_2(_len, _type, _field) _len, _type, _field,
+#define _BLE_AUDIO_FIELD_LEN_5(_len, _type, _field)                           \
+    _len, _type, _field, _field >> 8, _field >> 16, _field >> 24,
+
+#define _BLE_AUDIO_OPTIONAL_FIELD(_len, _type, ...)                           \
+    __VA_OPT__(_BLE_AUDIO_FIELD_LEN_ ## _len(_len, _type, __VA_ARGS__))
+/**
+ * @}
+ * @endcond
+ */
+
+/**
  * @brief Helper macro used to build LTV array of Codec_Specific_Configuration.
  *
  * @param _sampling_freq               Sampling_Frequency - single octet value
@@ -453,20 +437,20 @@
  *
  * @return          Pointer to a `ble_uuid16_t` structure.
  */
-#define BLE_AUDIO_BUILD_CODEC_CONFIG(_sampling_freq,                          \
-                                     _frame_duration,                         \
-                                     _audio_channel_alloc,                    \
-                                     _octets_per_codec_frame,                 \
-                                     _codec_frame_blocks_per_sdu)             \
-    {                                                                         \
-        2, BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE, _sampling_freq,          \
-        2, BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE, _frame_duration,        \
-        OPTIONAL_FIELD(5, BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE, \
-                       _audio_channel_alloc)                                  \
-        3, BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE,                  \
-        (_octets_per_codec_frame), ((_octets_per_codec_frame) >> 8),          \
-        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE,     \
-                       _codec_frame_blocks_per_sdu)                           \
+#define BLE_AUDIO_BUILD_CODEC_CONFIG(_sampling_freq,                                     \
+                                     _frame_duration,                                    \
+                                     _audio_channel_alloc,                               \
+                                     _octets_per_codec_frame,                            \
+                                     _codec_frame_blocks_per_sdu)                        \
+    {                                                                                    \
+        2, BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE, _sampling_freq,                      \
+        2, BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE, _frame_duration,                    \
+        _BLE_AUDIO_OPTIONAL_FIELD(5, BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE, \
+                                  _audio_channel_alloc)                                  \
+        3, BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE,                             \
+        (_octets_per_codec_frame), ((_octets_per_codec_frame) >> 8),                     \
+        _BLE_AUDIO_OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE,     \
+                                  _codec_frame_blocks_per_sdu)                           \
     }
 
 /**
@@ -489,23 +473,22 @@
  *
  * @return          Pointer to a `ble_uuid16_t` structure.
  */
-#define BLE_AUDIO_BUILD_CODEC_CAPS(_sampling_freq,                            \
-                                   _frame_duration,                           \
-                                   _audio_channel_counts,                     \
-                                   _min_octets_per_codec_frame,               \
-                                   _max_octets_per_codec_frame,               \
-                                   _codec_frames_per_sdu)                     \
-    {                                                                         \
-        3, BLE_AUDIO_CODEC_CAPS_SAMPLING_FREQ_TYPE,                           \
-        (_sampling_freq), ((_sampling_freq) >> 8),                            \
-        2, BLE_AUDIO_CODEC_CAPS_FRAME_DURATION_TYPE, _frame_duration,         \
-        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_SUP_AUDIO_CHANNEL_COUNTS_TYPE, \
-                       _audio_channel_counts)                                 \
-        5, BLE_AUDIO_CODEC_CAPS_OCTETS_PER_CODEC_FRAME_TYPE,                  \
-        (_min_octets_per_codec_frame), ((_min_octets_per_codec_frame) >> 8),  \
-        (_max_octets_per_codec_frame), ((_max_octets_per_codec_frame) >> 8),  \
-        OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_FRAMES_PER_SDU_TYPE,           \
-                       _codec_frames_per_sdu)                                 \
+#define BLE_AUDIO_BUILD_CODEC_CAPS(_sampling_freq,                                             \
+                                   _frame_duration,                                            \
+                                   _audio_channel_counts,                                      \
+                                   _min_octets_per_codec_frame,                                \
+                                   _max_octets_per_codec_frame,                                \
+                                   _codec_frames_per_sdu)                                      \
+    {                                                                                          \
+        3, BLE_AUDIO_CODEC_CAPS_SAMPLING_FREQ_TYPE, (_sampling_freq), ((_sampling_freq) >> 8), \
+        2, BLE_AUDIO_CODEC_CAPS_FRAME_DURATION_TYPE, _frame_duration,                          \
+        _BLE_AUDIO_OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_SUP_AUDIO_CHANNEL_COUNTS_TYPE,       \
+                                  _audio_channel_counts)                                       \
+        5, BLE_AUDIO_CODEC_CAPS_OCTETS_PER_CODEC_FRAME_TYPE,                                   \
+        (_min_octets_per_codec_frame), ((_min_octets_per_codec_frame) >> 8),                   \
+        (_max_octets_per_codec_frame), ((_max_octets_per_codec_frame) >> 8),                   \
+        _BLE_AUDIO_OPTIONAL_FIELD(2, BLE_AUDIO_CODEC_CAPS_FRAMES_PER_SDU_TYPE,                 \
+                                  _codec_frames_per_sdu)                                       \
     }
 
 /** Codec Information */
