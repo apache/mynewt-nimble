@@ -60,24 +60,19 @@ void
 ble_ll_isoal_mux_free(struct ble_ll_isoal_mux *mux)
 {
     struct os_mbuf_pkthdr *pkthdr;
-    struct os_mbuf *om;
-    struct os_mbuf *om_next;
 
     pkthdr = STAILQ_FIRST(&mux->sdu_q);
     while (pkthdr) {
-        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-
-        while (om) {
-            om_next = SLIST_NEXT(om, om_next);
-            os_mbuf_free(om);
-            om = om_next;
-        }
-
+        /* remove from list before freeing om */
         STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
+
+        os_mbuf_free_chain(OS_MBUF_PKTHDR_TO_MBUF(pkthdr));
+
         pkthdr = STAILQ_FIRST(&mux->sdu_q);
     }
 
     STAILQ_INIT(&mux->sdu_q);
+    mux->sdu_q_len = 0;
 }
 
 void
