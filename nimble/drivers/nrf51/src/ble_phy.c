@@ -585,7 +585,7 @@ ble_phy_tx_end_isr(void)
     }
 
     transition = g_ble_phy_data.phy_transition;
-    if (transition == BLE_PHY_TRANSITION_TX_RX) {
+    if (transition == BLE_PHY_TRANSITION_TO_RX) {
         /* Packet pointer needs to be reset. */
         ble_phy_rx_xcvr_setup();
 
@@ -1127,7 +1127,7 @@ ble_phy_rx_set_start_time(uint32_t cputime, uint8_t rem_usecs)
 }
 
 int
-ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
+ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg)
 {
     int rc;
     uint8_t *dptr;
@@ -1200,7 +1200,7 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
 
     /* Enable shortcuts for transmit start/end. */
     shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
-    if (end_trans == BLE_PHY_TRANSITION_TX_RX) {
+    if (g_ble_phy_data.phy_transition == BLE_PHY_TRANSITION_TO_RX) {
         shortcuts |= RADIO_SHORTS_DISABLED_RXEN_Msk;
     }
     NRF_RADIO->SHORTS = shortcuts;
@@ -1215,9 +1215,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     if (payload_off > 2) {
         dptr[2] = 0;
     }
-
-    /* Set the PHY transition */
-    g_ble_phy_data.phy_transition = end_trans;
 
     /* Set transmitted payload length */
     g_ble_phy_data.phy_tx_pyld_len = payload_len;
@@ -1522,4 +1519,10 @@ ble_phy_rfclk_disable(void)
 #else
     NRF_CLOCK->TASKS_HFCLKSTOP = 1;
 #endif
+}
+
+void
+ble_phy_transition_set(uint8_t trans, uint16_t usecs)
+{
+    g_ble_phy_data.phy_transition = trans;
 }

@@ -38,6 +38,7 @@
 #endif
 #include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
+#include "controller/ble_ll_iso_big_sync.h"
 
 #define BLE_LL_SCHED_MAX_DELAY_ANY      (0x7fffffff)
 
@@ -191,6 +192,12 @@ ble_ll_sched_preempt(struct ble_ll_sched_item *sch,
 #if MYNEWT_VAL(BLE_LL_EXT)
             case BLE_LL_SCHED_TYPE_EXTERNAL:
                 ble_ll_ext_sched_removed(entry);
+                break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+            case BLE_LL_SCHED_TYPE_BIG_SYNC:
+                /* FIXME sometimes it may be useful to preempt... */
+                BLE_LL_ASSERT(0);
                 break;
 #endif
             default:
@@ -875,6 +882,25 @@ ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first, int fixed)
 }
 #endif /* BLE_LL_ISO_BROADCASTER */
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+int
+ble_ll_sched_iso_big_sync(struct ble_ll_sched_item *sch)
+{
+    os_sr_t sr;
+    int rc;
+
+    OS_ENTER_CRITICAL(sr);
+
+    rc = ble_ll_sched_insert(sch, 0, preempt_any);
+
+    OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sched_restart();
+
+    return rc;
+}
+#endif
+
 /**
  * Remove a schedule element
  *
@@ -930,17 +956,20 @@ ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
     OS_ENTER_CRITICAL(sr);
 
     first = TAILQ_FIRST(&g_ble_ll_sched_q);
-    if (first->sched_type == type) {
-        first_removed = 1;
+    if (!first) {
+        OS_EXIT_CRITICAL(sr);
+        return;
     }
+
+    first_removed = first->sched_type == type;
 
     TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
         if (entry->sched_type != type) {
             continue;
         }
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
-        remove_cb(entry);
         entry->enqueued = 0;
+        remove_cb(entry);
     }
 
     if (first_removed) {
@@ -1018,6 +1047,11 @@ ble_ll_sched_execute_item(struct ble_ll_sched_item *sch)
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     case BLE_LL_STATE_BIG:
         ble_ll_iso_big_halt();
+        break;
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    case BLE_LL_STATE_BIG_SYNC:
+        ble_ll_iso_big_sync_halt();
         break;
 #endif
 #if MYNEWT_VAL(BLE_LL_EXT)
@@ -1115,6 +1149,17 @@ ble_ll_sched_next_time(uint32_t *next_event_time)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+static int
+preempt_any_except_big_sync(struct ble_ll_sched_item *sch,
+                            struct ble_ll_sched_item *item)
+{
+    if (item->sched_type != BLE_LL_SCHED_TYPE_BIG_SYNC) {
+        return 1;
+    }
+
+    return 0;
+}
+
 int
 ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch)
 {
@@ -1123,7 +1168,7 @@ ble_ll_sched_scan_aux(struct ble_ll_sched_item *sch)
 
     OS_ENTER_CRITICAL(sr);
 
-    rc = ble_ll_sched_insert(sch, 0, preempt_none);
+    rc = ble_ll_sched_insert(sch, 0, preempt_any_except_big_sync);
 
     OS_EXIT_CRITICAL(sr);
 

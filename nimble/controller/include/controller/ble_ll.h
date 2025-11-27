@@ -243,6 +243,9 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 #define BLE_LL_STATE_BIG            (9)
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+#define BLE_LL_STATE_BIG_SYNC (10)
+#endif
 
 /* LL Features */
 #define BLE_LL_FEAT_LE_ENCRYPTION       (0x0000000000001)
@@ -300,8 +303,8 @@ extern STATS_SECT_DECL(ble_ll_stats) ble_ll_stats;
 #define BLE_LL_CONN_CLEAR_FEATURE(connsm, feature)   (connsm->conn_features &= ~(feature))
 
 /* All the features which can be controlled by the Host */
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE) | \
-    MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE) |                     \
+    MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION) | MYNEWT_VAL(BLE_LL_ISO)
 #define BLE_LL_HOST_CONTROLLED_FEATURES (1)
 #else
 #define BLE_LL_HOST_CONTROLLED_FEATURES (0)
@@ -463,6 +466,54 @@ struct ble_dev_addr
      (((hdr) & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_DATA_FRAG))
 
 /*
+ * Broadcast Isochronous Data Channel format
+ *
+ *  -> Header (2 bytes)
+ *      -> LSB contains llid, cssn and cstf
+ *      -> MSB contains length (8 bits)
+ *  -> Payload (0 to 251)
+ *  -> MIC (0 or 4 bytes)
+ */
+#define BLE_LL_BIS_PDU_HDR_LLID_MASK (0x03)
+#define BLE_LL_BIS_PDU_HDR_CSSN_MASK (0x1C)
+#define BLE_LL_BIS_PDU_HDR_CSTF_MASK (0x20)
+#define BLE_LL_BIS_PDU_HDR_RFU_MASK  (0xC0)
+#define BLE_LL_ISO_DATA_PAYLOAD_MAX  (251)
+#define BLE_LL_ISO_DATA_MIC_LEN      (4)
+
+/* Broadcast Isochronous PDU header LLID definitions */
+#define BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_CMPLT (0b00)
+#define BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_SC    (0b01)
+#define BLE_LL_BIS_LLID_DATA_PDU_FRAMED         (0b10)
+#define BLE_LL_BIS_LLID_CTRL_PDU                (0b11)
+
+#define BLE_LL_BIS_PDU_HDR_LLID(hdr)                                          \
+    (((hdr) & BLE_LL_BIS_PDU_HDR_LLID_MASK) >> 0)
+#define BLE_LL_BIS_PDU_HDR_CSSN(hdr)                                          \
+    (((hdr) & BLE_LL_BIS_PDU_HDR_CSSN_MASK) >> 2)
+#define BLE_LL_BIS_PDU_HDR_CSTF(hdr)                                          \
+    (((hdr) & BLE_LL_BIS_PDU_HDR_CSTF_MASK) >> 5)
+
+#define BLE_LL_BIS_LLID_IS_CTRL(hdr)                                          \
+    (BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_CTRL_PDU)
+#define BLE_LL_BIS_LLID_IS_DATA(hdr)                                              \
+    ((BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_CMPLT) || \
+     (BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_SC) ||    \
+     (BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_FRAMED))
+
+#define BLE_LL_BIG_CTRL_CHAN_MAP_IND (0x00)
+struct ble_ll_big_ctrl_chan_map_ind {
+    uint8_t chan_map[BLE_LL_CHAN_MAP_LEN];
+    uint16_t instant;
+} __attribute__((packed));
+
+#define BLE_LL_BIG_CTRL_TERM_IND (0x01)
+struct ble_ll_big_ctrl_term_ind {
+    uint8_t reason;
+    uint16_t instant;
+} __attribute__((packed));
+
+/*
  * CONNECT_REQ
  *      -> InitA        (6 bytes)
  *      -> AdvA         (6 bytes)
@@ -580,6 +631,9 @@ int ble_ll_rx_start(uint8_t *rxbuf, uint8_t chan, struct ble_mbuf_hdr *hdr);
 
 /* Called by the PHY when a packet reception ends */
 int ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
+
+/* Called by the PHY when a packet reception ends */
+int ble_ll_rx_early_end(const uint8_t *rxbuf, const struct ble_mbuf_hdr *rxhdr);
 
 /* Helper callback to tx mbuf using ble_phy_tx() */
 uint8_t ble_ll_tx_mbuf_pducb(uint8_t *dptr, void *pducb_arg, uint8_t *hdr_byte);
