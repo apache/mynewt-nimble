@@ -599,8 +599,8 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
 
     if (chan->coc_tx.credits + credits > 0xFFFF) {
         BLE_HS_LOG(INFO, "LE CoC credits overflow...disconnecting\n");
+        ble_l2cap_sig_disconnect_nolock(chan);
         ble_hs_unlock();
-        ble_l2cap_sig_disconnect(chan);
         return;
     }
 
