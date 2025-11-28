@@ -174,20 +174,31 @@ ble_ll_isoal_mux_unframed_event_done(struct ble_ll_isoal_mux *mux)
     return pkt_freed;
 }
 
+static struct os_mbuf *
+ble_ll_isoal_sdu_trim(struct os_mbuf *om, int *pkt_freed)
+{
+    /* Count the number of packets that will be freed. */
+    for (struct os_mbuf *mbuf = om; mbuf; mbuf = SLIST_NEXT(mbuf, om_next)) {
+        if (mbuf->om_len == 0) {
+            (*pkt_freed)++;
+        }
+    }
+
+    return os_mbuf_trim_front(om);
+}
+
 static int
 ble_ll_isoal_mux_framed_event_done(struct ble_ll_isoal_mux *mux)
 {
     struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf_pkthdr *pkthdr_temp;
     struct os_mbuf *om;
-    struct os_mbuf *om_next;
     uint8_t num_sdu;
     uint8_t num_pdu;
-    uint8_t pdu_offset = 0;
+    uint8_t pdu_len = 0;
     uint8_t frag_len = 0;
-    uint8_t rem_len = 0;
     uint8_t hdr_len = 0;
     int pkt_freed = 0;
-    bool sc = mux->sc;
     os_sr_t sr;
 
     num_sdu = mux->sdu_in_event;
@@ -211,55 +222,74 @@ ble_ll_isoal_mux_framed_event_done(struct ble_ll_isoal_mux *mux)
     }
 #endif
 
-    /* Drop num_pdu PDUs */
-    pkthdr = STAILQ_FIRST(&mux->sdu_q);
-    while (pkthdr && num_sdu--) {
+    /* Iterate over all queued SDUs. */
+    STAILQ_FOREACH_SAFE(pkthdr, &mux->sdu_q, omp_next, pkthdr_temp) {
+        if (num_sdu == 0) {
+            break;
+        }
+
+        BLE_LL_ASSERT(mux->sdu_q_len > 0);
+
+        /* Remove the SDU from the queue, as we are about to free some buffers from a chain.
+         * Otherwise, it will result in invalid head pointed by sdu_q entry.
+         */
+        OS_ENTER_CRITICAL(sr);
+        STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
+        mux->sdu_q_len--;
+        OS_EXIT_CRITICAL(sr);
+
         om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
 
-        while (om && num_pdu > 0) {
-            rem_len = om->om_len;
-            hdr_len = sc ? 2 /* Segmentation Header */
-                         : 5 /* Segmentation Header + TimeOffset */;
+        /* Iterate over all buffers in the SDU chain. */
+        while (num_pdu > 0 && OS_MBUF_PKTLEN(om) > 0) {
+            hdr_len = mux->sc ? 2 /* Segmentation Header */
+                              : 5 /* Segmentation Header + TimeOffset */;
 
-            if (mux->max_pdu <= hdr_len + pdu_offset) {
-                /* Advance to next PDU */
-                pdu_offset = 0;
+            /* If the next SDU fragment header size exceeds remaining space in the PDU, advance to next PDU. */
+            if (mux->max_pdu <= hdr_len + pdu_len) {
+                pdu_len = 0;
                 num_pdu--;
                 continue;
             }
 
-            frag_len = min(rem_len, mux->max_pdu - hdr_len - pdu_offset);
+            /* "Put" the header in the PDU. */
+            pdu_len += hdr_len;
 
-            pdu_offset += hdr_len + frag_len;
+            /* SDU fragment length that can be fit in the PDU. */
+            frag_len = min(OS_MBUF_PKTLEN(om), mux->max_pdu - pdu_len);
+
+            /* Increase PDU length by the length of the SDU fragment. */
+            pdu_len += frag_len;
 
             os_mbuf_adj(om, frag_len);
 
-            if (frag_len == rem_len) {
-                om_next = SLIST_NEXT(om, om_next);
-                os_mbuf_free(om);
-                pkt_freed++;
-                om = om_next;
+            /* If the SDU fragment does not fit in the PDU, set the SC flag. */
+            if (OS_MBUF_PKTLEN(om) > frag_len) {
+                mux->sc = 1;
             } else {
-                sc = 1;
+                mux->sc = 0;
             }
+        }
+
+        om = ble_ll_isoal_sdu_trim(om, &pkt_freed);
+        if (OS_MBUF_PKTLEN(om) > 0) {
+            /* If there is still data in the SDU chain, place the SDU back in the queue. */
+            OS_ENTER_CRITICAL(sr);
+            STAILQ_INSERT_HEAD(&mux->sdu_q, pkthdr, omp_next);
+            mux->sdu_q_len++;
+            OS_EXIT_CRITICAL(sr);
+        } else {
+            /* If there are no more data in the SDU chain, free the SDU chain. */
+            os_mbuf_free_chain(om);
+            num_sdu--;
         }
 
         if (num_pdu == 0) {
             break;
         }
-
-        OS_ENTER_CRITICAL(sr);
-        STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
-        BLE_LL_ASSERT(mux->sdu_q_len > 0);
-        mux->sdu_q_len--;
-        OS_EXIT_CRITICAL(sr);
-
-        sc = 0;
-        pkthdr = STAILQ_FIRST(&mux->sdu_q);
     }
 
     mux->sdu_in_event = 0;
-    mux->sc = sc;
 
     return pkt_freed;
 }
