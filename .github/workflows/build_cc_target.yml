@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 'stable'
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.11.0
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.11.1
         with:
           release: ${{ matrix.gcc }}
       - name: Install newt
