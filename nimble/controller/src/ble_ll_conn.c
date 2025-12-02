@@ -3310,6 +3310,9 @@ ble_ll_conn_send_connect_req_cancel(void)
     struct ble_ll_conn_sm *connsm;
 
     connsm = g_ble_ll_conn_create_sm.connsm;
+    if (connsm == NULL) {
+        return;
+    }
 
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
 }
