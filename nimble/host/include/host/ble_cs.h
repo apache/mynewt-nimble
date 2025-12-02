@@ -23,35 +23,91 @@
 #define H_BLE_CS_
 #include "syscfg/syscfg.h"
 
+#define BLE_HS_CS_MODE0 (0)
+#define BLE_HS_CS_MODE1 (1)
+#define BLE_HS_CS_MODE2 (2)
+#define BLE_HS_CS_MODE3 (3)
+#define BLE_HS_CS_MODE_UNUSED (0xff)
+#define BLE_HS_CS_SUBMODE_TYPE BLE_HS_CS_MODE_UNUSED
+
+#define BLE_HS_CS_ROLE_INITIATOR (0)
+#define BLE_HS_CS_ROLE_REFLECTOR (1)
+
 #define BLE_CS_EVENT_CS_PROCEDURE_COMPLETE (0)
+#define BLE_CS_EVENT_CS_STEP_DATA          (1)
+
+#define BLE_HS_CS_TOA_TOD_NOT_AVAILABLE  (0x00008000)
+#define BLE_HS_CS_N_AP_MAX (4)
+
+struct ble_cs_mode0_result {
+    uint16_t measured_freq_offset;
+    uint8_t packet_quality;
+    uint8_t packet_rssi;
+    uint8_t packet_antenna;
+    uint8_t step_channel;
+};
+
+struct ble_cs_mode1_result {
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    int16_t toa_tod;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint8_t packet_rssi;
+    uint8_t packet_antenna;
+    uint8_t step_channel;
+};
+
+struct ble_cs_mode2_result {
+    uint32_t tone_pct[BLE_HS_CS_N_AP_MAX + 1];
+    uint8_t tone_quality_ind[BLE_HS_CS_N_AP_MAX + 1];
+    uint8_t antenna_paths[4];
+    uint8_t antenna_path_permutation_id;
+    uint8_t step_channel;
+};
+
+struct ble_cs_mode3_result {
+    uint32_t packet_pct1;
+    uint32_t packet_pct2;
+    uint32_t tone_pct[BLE_HS_CS_N_AP_MAX + 1];
+    uint8_t tone_quality_ind[BLE_HS_CS_N_AP_MAX + 1];
+    uint8_t antenna_paths[4];
+    int16_t toa_tod;
+    uint8_t antenna_path_permutation_id;
+    uint8_t packet_quality;
+    uint8_t packet_nadm;
+    uint8_t packet_rssi;
+    uint8_t packet_antenna;
+    uint8_t step_channel;
+};
 
 struct ble_cs_event {
+    uint16_t conn_handle;
+    uint8_t status;
     uint8_t type;
-    union
-    {
-        struct
-        {
-            uint16_t conn_handle;
-            uint8_t status;
-        } procedure_complete;
+    union {
+        struct {
+            uint8_t role;
+            uint8_t mode;
+            uint8_t *data;
+        } step_data;
     };
-    
 };
 
 typedef int ble_cs_event_fn(struct ble_cs_event *event, void *arg);
 
-struct ble_cs_initiator_procedure_start_params {
+struct ble_cs_procedure_start_params {
+    uint16_t conn_handle;
+};
+
+struct ble_cs_setup_params {
     uint16_t conn_handle;
     ble_cs_event_fn *cb;
     void *cb_arg;
+    uint8_t local_role;
 };
 
-struct ble_cs_reflector_setup_params {
-    ble_cs_event_fn *cb;
-    void *cb_arg;
-};
-
-int ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_params *params);
-int ble_cs_initiator_procedure_terminate(uint16_t conn_handle);
-int ble_cs_reflector_setup(struct ble_cs_reflector_setup_params *params);
+int ble_cs_procedure_start(const struct ble_cs_procedure_start_params *params);
+int ble_cs_procedure_terminate(uint16_t conn_handle);
+int ble_cs_setup(struct ble_cs_setup_params *params);
 #endif
