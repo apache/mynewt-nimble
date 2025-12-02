@@ -52,6 +52,9 @@
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 #include "controller/ble_ll_iso_big.h"
 #endif
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+#include "controller/ble_ll_cs.h"
+#endif
 #if MYNEWT_VAL(BLE_LL_EXT)
 #include "controller/ble_ll_ext.h"
 #endif
@@ -1704,6 +1707,10 @@ ble_ll_reset(void)
     ble_ll_iso_reset();
 #endif
 
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_reset();
+#endif
+
     /* Re-initialize the PHY */
     rc = ble_phy_init();
 
@@ -1988,6 +1995,10 @@ ble_ll_init(void)
 #endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     ble_ll_iso_big_init();
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CHANNEL_SOUNDING)
+    ble_ll_cs_init();
 #endif
 
 #if MYNEWT_VAL(BLE_LL_EXT)
