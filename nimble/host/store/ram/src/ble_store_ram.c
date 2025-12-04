@@ -24,8 +24,8 @@
  */
 
 /* This package has been deprecated and you should
- * use the store/config package. For a RAM-only BLE store,
- * use store/config and set BLE_STORE_CONFIG_PERSIST to 0.
+ * use the store/ram package. For a RAM-only BLE store,
+ * use store/ram and set BLE_STORE_ram_PERSIST to 0.
  */
 
 #include <inttypes.h>
@@ -56,6 +56,12 @@ static struct ble_store_value_cccd
 #endif
 
 static int ble_store_ram_num_cccds;
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static struct ble_store_value_cl_sup_feat ble_store_ram_feats[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+#endif
+
+static int ble_store_ram_num_feats;
 
 /*****************************************************************************
  * $sec                                                                      *
@@ -427,6 +433,107 @@ ble_store_ram_write_cccd(const struct ble_store_value_cccd *value_cccd)
 }
 
 /*****************************************************************************
+ * $cl_sup_feat      *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static int
+ble_store_ram_find_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key)
+{
+    struct ble_store_value_cl_sup_feat *feat;
+    int skipped;
+    int i;
+
+    skipped = 0;
+    for (i = 0; i < ble_store_ram_num_feats; i++) {
+        feat = ble_store_ram_feats + i;
+
+        if (ble_addr_cmp(&key->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&feat->peer_addr, &key->peer_addr)) {
+                continue;
+            }
+        }
+
+        if (key->idx > skipped) {
+            skipped++;
+            continue;
+        }
+
+        return i;
+    }
+    return -1;
+}
+#endif
+
+static int
+ble_store_ram_delete_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+    int rc;
+
+    idx = ble_store_ram_find_cl_sup_feat(key_feat);
+    if (idx < 0) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_ram_delete_obj(ble_store_ram_feats, sizeof *ble_store_ram_feats,
+                                  idx, &ble_store_ram_num_feats);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_ram_read_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key_feat,
+                               struct ble_store_value_cl_sup_feat *value_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+
+    idx = ble_store_ram_find_cl_sup_feat(key_feat);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    *value_feat = ble_store_ram_feats[idx];
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_ram_write_cl_sup(const struct ble_store_value_cl_sup_feat *value_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    struct ble_store_key_cl_sup_feat key_feat;
+    int idx;
+
+    ble_store_key_from_value_peer_cl_sup_feat(&key_feat, value_feat);
+    idx = ble_store_ram_find_cl_sup_feat(&key_feat);
+    if (idx == -1) {
+        if (ble_store_ram_num_feats >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_ram_num_feats;
+        ble_store_ram_num_feats++;
+    }
+
+    ble_store_ram_feats[idx] = *value_feat;
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+/*****************************************************************************
  * $api                                                                      *
  *****************************************************************************/
 
@@ -468,6 +575,9 @@ ble_store_ram_read(int obj_type, const union ble_store_key *key,
         rc = ble_store_ram_read_cccd(&key->cccd, &value->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_ram_read_cl_sup_feat(&key->feat, &value->feat);
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -497,6 +607,10 @@ ble_store_ram_write(int obj_type, const union ble_store_value *val)
         rc = ble_store_ram_write_cccd(&val->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_ram_write_cl_sup(&val->feat);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -520,6 +634,10 @@ ble_store_ram_delete(int obj_type, const union ble_store_key *key)
         rc = ble_store_ram_delete_cccd(&key->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_ram_delete_cl_sup_feat(&key->feat);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -539,4 +657,5 @@ ble_store_ram_init(void)
     ble_store_ram_num_our_secs = 0;
     ble_store_ram_num_peer_secs = 0;
     ble_store_ram_num_cccds = 0;
+    ble_store_ram_num_feats = 0;
 }
