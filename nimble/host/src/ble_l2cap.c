@@ -397,6 +397,12 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
         return BLE_HS_ENOENT;
     }
 
+    /* disconnect pending, drop data */
+    if (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING) {
+        os_mbuf_free_chain(rx_frags);
+        return 0;
+    }
+
     if (chan->dcid >= BLE_L2CAP_COC_CID_START &&
         chan->dcid <= BLE_L2CAP_COC_CID_END && rx_len > chan->my_coc_mps) {
         ble_l2cap_disconnect(chan);
