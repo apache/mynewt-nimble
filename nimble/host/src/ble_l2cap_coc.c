@@ -185,22 +185,19 @@ ble_l2cap_event_coc_received_data(struct ble_l2cap_chan *chan,
 static int
 ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 {
-    int rc;
+    struct ble_l2cap_coc_endpoint *rx = &chan->coc_rx;
     struct os_mbuf *rx_sdu;
-    struct ble_l2cap_coc_endpoint *rx;
+    uint16_t sdu_idx;
     uint16_t om_total;
+    int rc;
 
-    /* Create a shortcut to rx endpoint */
-    rx = &chan->coc_rx;
-    BLE_HS_DBG_ASSERT(rx != NULL);
-
-    rx_sdu = rx->sdus[chan->coc_rx.current_sdu_idx];
-    BLE_HS_DBG_ASSERT(rx_sdu != NULL);
+    sdu_idx = chan->coc_rx.current_sdu_idx;
+    BLE_HS_DBG_ASSERT(rx->sdus[sdu_idx] != NULL);
 
     om_total = OS_MBUF_PKTLEN(*om);
 
     /* First LE frame */
-    if (OS_MBUF_PKTLEN(rx_sdu) == 0) {
+    if (OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) == 0) {
         uint16_t sdu_len;
 
         rc = ble_hs_mbuf_pullup_base(om, BLE_L2CAP_SDU_SIZE);
@@ -218,7 +215,6 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
             BLE_HS_LOG(ERROR, "Payload larger than expected (%d>%d)\n",
                        om_total, sdu_len + 2);
             /* Disconnect peer with invalid behaviour */
-            rx_sdu = NULL;
             rx->data_offset = 0;
             ble_l2cap_disconnect(chan);
             return BLE_HS_EBADDATA;
@@ -238,12 +234,13 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 
         os_mbuf_adj(*om, BLE_L2CAP_SDU_SIZE);
 
-        rc = os_mbuf_appendfrom(rx_sdu, *om, 0, om_total - BLE_L2CAP_SDU_SIZE);
+        rc = os_mbuf_appendfrom(rx->sdus[sdu_idx], *om, 0,
+                                om_total - BLE_L2CAP_SDU_SIZE);
         if (rc != 0) {
             /* FIXME: User shall give us big enough buffer.
              * need to handle it better
              */
-            BLE_HS_LOG(INFO, "Could not append data rc=%d\n", rc);
+            BLE_HS_LOG(ERROR, "Could not append data rc=%d\n", rc);
             assert(0);
         }
 
@@ -253,16 +250,16 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
     } else {
         BLE_HS_LOG(DEBUG, "Continuation...received %d\n", (*om)->om_len);
 
-        if (OS_MBUF_PKTLEN(rx_sdu) + (*om)->om_len > rx->data_offset) {
+        if (OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + (*om)->om_len > rx->data_offset) {
             /* Disconnect peer with invalid behaviour */
             BLE_HS_LOG(ERROR, "Payload larger than expected (%d>%d)\n",
-                       OS_MBUF_PKTLEN(rx_sdu) + (*om)->om_len, rx->data_offset);
-            rx_sdu = NULL;
+                       OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + (*om)->om_len,
+                       rx->data_offset);
             rx->data_offset = 0;
             ble_l2cap_disconnect(chan);
             return BLE_HS_EBADDATA;
         }
-        rc = os_mbuf_appendfrom(rx_sdu, *om, 0, om_total);
+        rc = os_mbuf_appendfrom(rx->sdus[sdu_idx], *om, 0, om_total);
         if (rc != 0) {
             /* FIXME: need to handle it better */
             BLE_HS_LOG(DEBUG, "Could not append data rc=%d\n", rc);
@@ -272,22 +269,22 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
 
     rx->credits--;
 
-    if (OS_MBUF_PKTLEN(rx_sdu) == rx->data_offset) {
-        struct os_mbuf *sdu_rx = rx_sdu;
-
+    if (OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) == rx->data_offset) {
         BLE_HS_LOG(DEBUG, "Received sdu_len=%d, credits left=%d\n",
-                   OS_MBUF_PKTLEN(rx_sdu), rx->credits);
+                   OS_MBUF_PKTLEN(rx->sdus[sdu_idx]), rx->credits);
 
-        /* Lets get back control to os_mbuf to application.
-         * Since it this callback application might want to set new sdu
-         * we need to prepare space for this. Therefore we need sdu_rx
-         */
-        rx_sdu = NULL;
         chan->coc_rx.current_sdu_idx =
             (chan->coc_rx.current_sdu_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
         rx->data_offset = 0;
 
-        ble_l2cap_event_coc_received_data(chan, sdu_rx);
+        /* Lets give os_mbuf control to back application.
+         * Since it this callback application might want to set new sdu
+         * we need to prepare space for this.
+         */
+        rx_sdu = rx->sdus[sdu_idx];
+        rx->sdus[sdu_idx] = NULL;
+
+        ble_l2cap_event_coc_received_data(chan, rx_sdu);
 
         return 0;
     }
@@ -305,9 +302,9 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
         ble_l2cap_sig_le_credits(chan->conn_handle, chan->scid, rx->credits);
     }
 
-    BLE_HS_LOG(DEBUG,
-               "Received partial sdu_len=%d, credits left=%d, current_sdu_idx=%d\n",
-               OS_MBUF_PKTLEN(rx_sdu), rx->credits, chan->coc_rx.current_sdu_idx);
+    BLE_HS_LOG(DEBUG, "Received partial sdu_len=%d, credits left=%d, current_sdu_idx=%d\n",
+               OS_MBUF_PKTLEN(rx->sdus[sdu_idx]), rx->credits,
+               chan->coc_rx.current_sdu_idx);
 
     return 0;
 }
