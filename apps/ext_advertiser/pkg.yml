@@ -16,20 +16,20 @@
 # under the License.
 #
 
-pkg.name: apps/ext_advertiser
+pkg.name: "apps/ext_advertiser"
 pkg.type: app
-pkg.description: Extended Advertising sample application.
+pkg.description: "Extended Advertising sample application"
 pkg.author: "Szymon Janc"
 pkg.email: "szymon.janc@codecoup.pl"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - nimble/host
-    - nimble/host/util
-    - nimble/host/services/gap
-    - nimble/host/services/gatt
-    - nimble/host/store/config
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/util"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/services/gatt"
+    - "@apache-mynewt-nimble/nimble/host/store/config"
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/log"

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-pkg.name: apps/dtm
+pkg.name: "apps/dtm"
 pkg.type: app
 pkg.description: "Bluetooth DTM shell application"
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"

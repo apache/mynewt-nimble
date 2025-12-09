@@ -16,21 +16,20 @@
 # under the License.
 #
 
-pkg.name: apps/auracast
+pkg.name: "apps/auracast"
 pkg.type: app
-pkg.description: Auracast sample application.
-
+pkg.description: "Auracast sample application."
 pkg.author: "Krzysztof Kopyściński"
 pkg.email: "krzysztof.kopyscinski@codecoup.pl"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
 
 pkg.deps:
-    - nimble/host
-    - nimble/host/util
-    - nimble/host/services/gap
-    - nimble/host/store/config
-    - nimble/host/audio/services/auracast
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/util"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/store/config"
+    - "@apache-mynewt-nimble/nimble/host/audio/services/auracast"
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/config"
     - "@apache-mynewt-core/sys/console"
@@ -40,8 +39,8 @@ pkg.deps:
     - "@apache-mynewt-core/sys/id"
 
 pkg.deps.AUDIO_USB:
-    - ext/liblc3
-    - ext/libsamplerate
+    - "@apache-mynewt-nimble/ext/liblc3"
+    - "@apache-mynewt-nimble/ext/libsamplerate"
     - "@apache-mynewt-core/hw/usb/tinyusb"
 
 pkg.init:

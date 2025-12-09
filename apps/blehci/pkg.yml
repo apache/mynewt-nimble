@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-pkg.name: apps/blehci
+
+pkg.name: "apps/blehci"
 pkg.type: app
-pkg.description: BLE controller application exposing HCI over external interface
+pkg.description: "BLE controller application exposing HCI over external interface"
 pkg.author: "Johan Hedberg <johan.hedberg@intel.com>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -27,7 +28,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log"
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/kernel/os"
-    - nimble/transport
+    - "@apache-mynewt-nimble/nimble/transport"
 
 pkg.req_apis:
     - ble_transport

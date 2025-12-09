@@ -17,9 +17,9 @@
 # under the License.
 #
 
-pkg.name: apps/bttester
+pkg.name: "apps/bttester"
 pkg.type: app
-pkg.description: Bluetooth tester application
+pkg.description: "Bluetooth tester application"
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
