@@ -34,3 +34,5 @@ repository.apache-mynewt-core:
 project.repositories.ignored:
        - stm-*
        - atmel-samd21xx
+       - nxp-mcux-sdk
+       - cirruslogic-mcu-drivers
