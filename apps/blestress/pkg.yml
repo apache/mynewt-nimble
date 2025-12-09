@@ -19,7 +19,7 @@
 
 pkg.name: "apps/blestress"
 pkg.type: app
-pkg.description: "Stress tests sample application."
+pkg.description: "Stress tests sample application"
 pkg.keywords:
 
 pkg.deps:

@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-pkg.name: apps/blemesh
+
+pkg.name: "apps/blemesh"
 pkg.type: app
-pkg.description: Sample application for BLE Mesh node with on/off model
+pkg.description: "Sample application for BLE Mesh node with on/off model"
 pkg.author: "Łukasz Rymanowski <lukasz.rymanowski@codecoup.pl>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -29,7 +30,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/sys/shell"
-    - nimble/host
-    - nimble/host/services/gap
-    - nimble/host/services/gatt
-    - nimble/host/store/config
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/services/gatt"
+    - "@apache-mynewt-nimble/nimble/host/store/config"

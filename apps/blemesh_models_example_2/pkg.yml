@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-pkg.name: apps/blemesh_models_example_2
+
+pkg.name: "apps/blemesh_models_example_2"
 pkg.type: app
-pkg.description: Sample application for BLE Mesh node with on/off, level, light and vendor models on nRF52840pdk
+pkg.description: "Sample application for BLE Mesh node with on/off, level, light and vendor models on nRF52840dk"
 pkg.author: "Michał Narajowski <michal.narajowski@codecoup.pl>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -29,9 +30,9 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/encoding/base64"
     - "@apache-mynewt-core/sys/config"
-    - nimble/host
-    - nimble/host/services/gap
-    - nimble/host/services/gatt
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/services/gatt"
 
 pkg.lflags:
     - -DFLOAT_SUPPORT

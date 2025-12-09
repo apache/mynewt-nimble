@@ -22,7 +22,6 @@ pkg.type: app
 pkg.description: "Basic scanning application"
 pkg.author: "Krzysztof Kopyściński <krzysztof.kopyscinski@codecoup.pl>"
 
-
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/sys/console"

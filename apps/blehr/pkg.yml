@@ -16,9 +16,9 @@
 # under the License.
 #
 
-pkg.name: apps/blehr
+pkg.name: "apps/blehr"
 pkg.type: app
-pkg.description: BLE peripheral heartrate sensor.
+pkg.description: "BLE peripheral heartrate sensor"
 pkg.author: "Szymon Czapracki"
 pkg.email: "szymon.czapracki@codecoup.pl"
 pkg.homepage: "http://mynewt.apache.org/"
@@ -32,7 +32,7 @@ pkg.deps:
     - "@apache-mynewt-core/sys/stats"
     - "@apache-mynewt-core/sys/sysinit"
     - "@apache-mynewt-core/sys/id"
-    - nimble/host
-    - nimble/host/services/gap
-    - nimble/host/services/gatt
-    - nimble/host/store/config
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/services/gatt"
+    - "@apache-mynewt-nimble/nimble/host/store/config"

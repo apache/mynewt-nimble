@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-pkg.name: apps/btshell
+
+pkg.name: "apps/btshell"
 pkg.type: app
-pkg.description: Shell application exposing the nimble GAP and GATT.
+pkg.description: "Shell application exposing the nimble GAP and GATT"
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
@@ -30,14 +31,14 @@ pkg.deps:
     - "@apache-mynewt-core/sys/console"
     - "@apache-mynewt-core/sys/shell"
     - "@apache-mynewt-core/util/parse_arg"
-    - nimble/host
-    - nimble/host/services/gap
-    - nimble/host/services/gatt
-    - nimble/host/store/config
-    - nimble/host/util
+    - "@apache-mynewt-nimble/nimble/host"
+    - "@apache-mynewt-nimble/nimble/host/services/gap"
+    - "@apache-mynewt-nimble/nimble/host/services/gatt"
+    - "@apache-mynewt-nimble/nimble/host/store/config"
+    - "@apache-mynewt-nimble/nimble/host/util"
 
 pkg.deps.BTSHELL_ANS:
-    - nimble/host/services/ans
+    - "@apache-mynewt-nimble/nimble/host/services/ans"
 
 pkg.deps.BLE_AUDIO:
-    - nimble/host/audio
+    - "@apache-mynewt-nimble/nimble/host/audio"
