@@ -58,8 +58,9 @@ struct ble_l2cap_coc_srv {
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 int ble_l2cap_coc_init(void);
-int ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
-                                ble_l2cap_event_fn *cb, void *cb_arg);
+int ble_l2cap_coc_create_server_nolock(uint16_t psm, uint16_t mtu,
+                                       ble_l2cap_event_fn *cb, void *cb_arg);
+int ble_l2cap_coc_remove_server_nolock(uint16_t psm);
 int ble_l2cap_coc_create_srv_chan(struct ble_hs_conn *conn, uint16_t psm,
                                   struct ble_l2cap_chan **chan);
 struct ble_l2cap_chan * ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn,
@@ -81,8 +82,15 @@ ble_l2cap_coc_init(void) {
 }
 
 static inline int
-ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
-                            ble_l2cap_event_fn *cb, void *cb_arg) {
+ble_l2cap_coc_create_server_nolock(uint16_t psm, uint16_t mtu,
+                                   ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    return BLE_HS_ENOTSUP;
+}
+
+static inline int
+ble_l2cap_coc_remove_server_nolock(uint16_t psm)
+{
     return BLE_HS_ENOTSUP;
 }
 

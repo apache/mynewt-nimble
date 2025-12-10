@@ -547,6 +547,19 @@ int ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
                             ble_l2cap_event_fn *cb, void *cb_arg);
 
 /**
+ * @brief Removes an L2CAP server.
+ *
+ * This function removes an L2CAP server with the specified Protocol/Service
+ * Multiplexer (PSM). Existing connections for this PSM are not removed.
+ *
+ * @param psm       The Protocol/Service Multiplexer (PSM) for the server.
+ *
+ * @return          0 on success;
+ *                  A non-zero value on failure.
+ */
+int ble_l2cap_remove_server(uint16_t psm);
+
+/**
  * @brief Initiate an L2CAP connection.
  *
  * This function initiates an L2CAP connection to a remote device with the specified connection handle,
