@@ -52,18 +52,6 @@ static os_membuf_t ble_l2cap_coc_srv_mem[
 
 static struct os_mempool ble_l2cap_coc_srv_pool;
 
-static void
-ble_l2cap_coc_dbg_assert_srv_not_inserted(struct ble_l2cap_coc_srv *srv)
-{
-#if MYNEWT_VAL(BLE_HS_DEBUG)
-    struct ble_l2cap_coc_srv *cur;
-
-    STAILQ_FOREACH(cur, &ble_l2cap_coc_srvs, next) {
-        BLE_HS_DBG_ASSERT(cur != srv);
-    }
-#endif
-}
-
 static struct ble_l2cap_coc_srv *
 ble_l2cap_coc_srv_alloc(void)
 {
@@ -77,11 +65,30 @@ ble_l2cap_coc_srv_alloc(void)
     return srv;
 }
 
-int
-ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
-                            ble_l2cap_event_fn *cb, void *cb_arg)
+static struct ble_l2cap_coc_srv *
+ble_l2cap_coc_srv_find(uint16_t psm)
 {
     struct ble_l2cap_coc_srv *srv;
+
+    STAILQ_FOREACH(srv, &ble_l2cap_coc_srvs, next) {
+        if (srv->psm == psm) {
+            return srv;
+        }
+    }
+
+    return NULL;
+}
+
+int
+ble_l2cap_coc_create_server_nolock(uint16_t psm, uint16_t mtu,
+                                   ble_l2cap_event_fn *cb, void *cb_arg)
+{
+    struct ble_l2cap_coc_srv *srv;
+
+    srv = ble_l2cap_coc_srv_find(psm);
+    if (srv) {
+        return BLE_HS_EALREADY;
+    }
 
     srv = ble_l2cap_coc_srv_alloc();
     if (!srv) {
@@ -93,10 +100,24 @@ ble_l2cap_coc_create_server(uint16_t psm, uint16_t mtu,
     srv->cb = cb;
     srv->cb_arg = cb_arg;
 
-    ble_l2cap_coc_dbg_assert_srv_not_inserted(srv);
-
     STAILQ_INSERT_HEAD(&ble_l2cap_coc_srvs, srv, next);
 
+    return 0;
+}
+
+int
+ble_l2cap_coc_remove_server_nolock(uint16_t psm)
+{
+    struct ble_l2cap_coc_srv *srv;
+
+    srv = ble_l2cap_coc_srv_find(psm);
+    if (!srv) {
+        return BLE_HS_ENOENT;
+    }
+
+    STAILQ_REMOVE(&ble_l2cap_coc_srvs, srv, ble_l2cap_coc_srv, next);
+
+    os_memblock_put(&ble_l2cap_coc_srv_pool, srv);
     return 0;
 }
 
@@ -150,22 +171,6 @@ ble_l2cap_coc_get_cid(uint32_t *cid_mask)
 
     ble_l2cap_set_used_cid(cid_mask, bit);
     return BLE_L2CAP_COC_CID_START + bit;
-}
-
-static struct ble_l2cap_coc_srv *
-ble_l2cap_coc_srv_find(uint16_t psm)
-{
-    struct ble_l2cap_coc_srv *cur, *srv;
-
-    srv = NULL;
-    STAILQ_FOREACH(cur, &ble_l2cap_coc_srvs, next) {
-        if (cur->psm == psm) {
-            srv = cur;
-            break;
-        }
-    }
-
-    return srv;
 }
 
 static void

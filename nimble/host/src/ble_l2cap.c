@@ -145,7 +145,25 @@ int
 ble_l2cap_create_server(uint16_t psm, uint16_t mtu,
                         ble_l2cap_event_fn *cb, void *cb_arg)
 {
-    return ble_l2cap_coc_create_server(psm, mtu, cb, cb_arg);
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_l2cap_coc_create_server_nolock(psm, mtu, cb, cb_arg);
+    ble_hs_unlock();
+
+    return rc;
+}
+
+int
+ble_l2cap_remove_server(uint16_t psm)
+{
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_l2cap_coc_remove_server_nolock(psm);
+    ble_hs_unlock();
+
+    return rc;
 }
 
 int

@@ -1531,6 +1531,29 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_server_create_remove)
+{
+    int rc;
+
+    /* Register server */
+    rc = ble_l2cap_create_server(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU,
+                                 ble_l2cap_test_event, NULL);
+    TEST_ASSERT(rc == 0);
+
+    /* Register second server with same PSM */
+    rc = ble_l2cap_create_server(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU,
+                                 ble_l2cap_test_event, NULL);
+    TEST_ASSERT(rc == BLE_HS_EALREADY);
+
+    /* remove success */
+    rc = ble_l2cap_remove_server(BLE_L2CAP_TEST_PSM);
+    TEST_ASSERT(rc == 0);
+
+    /* second remove shall fail */
+    rc = ble_l2cap_remove_server(BLE_L2CAP_TEST_PSM);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+}
+
 TEST_SUITE(ble_l2cap_test_suite)
 {
     ble_l2cap_test_case_bad_header();
@@ -1562,4 +1585,5 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
     ble_l2cap_test_case_sig_coc_conn_multi();
+    ble_l2cap_test_case_server_create_remove();
 }
