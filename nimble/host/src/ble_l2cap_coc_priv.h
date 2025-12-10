@@ -77,7 +77,8 @@ int ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
 void ble_l2cap_coc_set_new_mtu_mps(struct ble_l2cap_chan *chan, uint16_t mtu, uint16_t mps);
 #else
 static inline int
-ble_l2cap_coc_init(void) {
+ble_l2cap_coc_init(void)
+{
     return 0;
 }
 
@@ -95,17 +96,18 @@ ble_l2cap_coc_remove_server_nolock(uint16_t psm)
 }
 
 static inline int
-ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan,
-                         struct os_mbuf *sdu_rx) {
+ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
+{
     return BLE_HS_ENOTSUP;
 }
 
 static inline void
-ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan) {
-}
+ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{}
 
 static inline int
-ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx) {
+ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
+{
     return BLE_HS_ENOTSUP;
 }
 #endif
