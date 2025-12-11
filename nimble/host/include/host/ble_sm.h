@@ -278,13 +278,13 @@ struct ble_sm_io {
          *  Valid for the following actions:
          *      o BLE_SM_IOACT_OOB
          */
-        uint8_t  oob[16];
+        uint8_t oob[16];
 
         /** Numeric Comparison acceptance indicator.
          *  Valid for the following actions:
          *      o BLE_SM_IOACT_NUMCMP
          */
-        uint8_t  numcmp_accept;
+        uint8_t numcmp_accept;
 
         /** Out Of Band (OOB) data used in Secure Connections.
          *  Valid for the following actions:
