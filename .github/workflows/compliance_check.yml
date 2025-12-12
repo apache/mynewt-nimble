@@ -20,8 +20,8 @@
 name: Compliance check
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+  pull_request_target:
+    types: [opened, synchronize, reopened, synchronize, labeled, unlabeled]
 
 jobs:
   style_check:
