@@ -904,6 +904,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     uint16_t val_handle;
     uint16_t dsc_handle;
     uint16_t cep_handle;
+    uint16_t expected_handle;
     uint8_t att_flags;
     int rc;
 
@@ -927,6 +928,9 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         return rc;
     }
 
+    expected_handle = def_handle;
+    (void)expected_handle;
+
     /* Register characteristic value attribute (cast away const on callback
      * arg).
      */
@@ -937,7 +941,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     if (rc != 0) {
         return rc;
     }
-    BLE_HS_DBG_ASSERT(val_handle == def_handle + 1);
+    BLE_HS_DBG_ASSERT(val_handle == ++expected_handle);
 
     if (chr->val_handle != NULL) {
         *chr->val_handle = val_handle;
@@ -957,7 +961,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         if (rc != 0) {
             return rc;
         }
-        BLE_HS_DBG_ASSERT(dsc_handle == def_handle + 2);
+        BLE_HS_DBG_ASSERT(dsc_handle == ++expected_handle);
     }
 
     if (ble_gatts_chr_ext_prop_allowed(chr) != 0) {
@@ -965,7 +969,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
         if (rc != 0) {
             return rc;
         }
-        BLE_HS_DBG_ASSERT(cep_handle == def_handle + 3);
+        BLE_HS_DBG_ASSERT(cep_handle == ++expected_handle);
     }
 
     /* Register each descriptor. */
