@@ -22,8 +22,8 @@ repo.versions:
     "0.0.0": "master"
 
     "0-dev": "0.0.0"
-    "0-latest": "1.8.0"
-    "1-latest": "1.8.0"
+    "0-latest": "1.9.0"
+    "1-latest": "1.9.0"
 
     "1.0.0": "nimble_1_0_0_tag"
     "1.1.0": "nimble_1_1_0_tag"
