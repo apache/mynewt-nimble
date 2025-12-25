@@ -402,6 +402,10 @@ syscfg.defs:
             commands.  (0/1)
         value: 1
 
+    BLE_ATT_SVR_ROBUST_CACHE:
+        description: dupa
+        value: 1
+
     # ATT options.
     BLE_ATT_PREFERRED_MTU:
         description: The preferred MTU to indicate in MTU exchange commands.
