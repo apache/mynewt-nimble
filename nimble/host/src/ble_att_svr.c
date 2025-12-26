@@ -68,6 +68,12 @@ ble_att_svr_entry_alloc(void)
     struct ble_att_svr_entry *entry;
 
     entry = os_memblock_get(&ble_att_svr_entry_pool);
+#if MYNEWT_VAL(BLE_DYNAMIC_SERVICE)
+    /* if dynamic services are enabled, try to allocate from heap */
+    if(entry == NULL) {
+        entry = malloc(sizeof *entry);
+    }
+#endif
     if (entry != NULL) {
         memset(entry, 0, sizeof *entry);
     }
@@ -78,7 +84,16 @@ ble_att_svr_entry_alloc(void)
 static void
 ble_att_svr_entry_free(struct ble_att_svr_entry *entry)
 {
+#if MYNEWT_VAL(BLE_DYNAMIC_SERVICE)
+    if(os_memblock_from(&ble_att_svr_entry_pool, entry)) {
+        os_memblock_put(&ble_att_svr_entry_pool, entry);
+    }
+    else {
+        free(entry);
+    }
+#else
     os_memblock_put(&ble_att_svr_entry_pool, entry);
+#endif
 }
 
 /**
@@ -132,6 +147,27 @@ ble_att_svr_register(const ble_uuid_t *uuid, uint8_t flags,
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_DYNAMIC_SERVICE)
+/**
+ * Deregister a host attribute with the BLE stack.
+ *
+ * @param start_handle          Start handle of the service entry
+ * @param end_group_handle      End group handle of the service entry
+ *
+ * @return 0 on success, non-zero error code on failure.
+ */
+int ble_att_svr_deregister(uint16_t start_handle, uint16_t end_group_handle) {
+    uint16_t idx;
+    struct ble_att_svr_entry *entry;
+    for(idx = start_handle; idx <= end_group_handle; idx++) {
+        entry = ble_att_svr_find_by_handle(idx);
+        STAILQ_REMOVE(&ble_att_svr_list, entry, ble_att_svr_entry, ha_next);
+        ble_att_svr_entry_free(entry);
+    }
+    return 0;
+}
+#endif
 
 uint16_t
 ble_att_svr_prev_handle(void)
