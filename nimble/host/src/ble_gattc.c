@@ -4372,11 +4372,27 @@ ble_gatts_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
             rc = BLE_HS_ENOMEM;
             goto done;
         }
-        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
-                                     chr_val_handle, 0, txom, NULL);
+
+        rc = ble_att_svr_read_handle(conn_handle, chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
-            /* Fatal error; application disallowed attribute read. */
-            rc = BLE_HS_EAPP;
+            switch (rc) {
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_ENC):
+                    rc = BLE_HS_EENCRYPT;
+                    break;
+
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN):
+                    rc = BLE_HS_EAUTHEN;
+                    break;
+
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHOR):
+                    rc = BLE_HS_EAUTHOR;
+                    break;
+
+                default:
+                    /* Fatal error; application disallowed attribute read. */
+                    rc = BLE_HS_EAPP;
+                    break;
+            }
             goto done;
         }
     }
@@ -4441,43 +4457,41 @@ ble_gatts_notify_multiple_custom(uint16_t conn_handle,
     struct os_mbuf *txom;
     struct ble_hs_conn *conn;
 
-    txom = ble_hs_mbuf_att_pkt();
-    if (txom == NULL) {
-        return BLE_HS_ENOMEM;
-    }
+    BLE_HS_LOG_DEBUG("conn_handle %d\n", conn_handle);
 
     conn = ble_hs_conn_find(conn_handle);
     if (conn == NULL) {
         return BLE_HS_ENOTCONN;
     }
 
-    /* Read missing values */
-    for (i = 0; i < chr_count; i++) {
-        if (tuples->handle == 0) {
-            rc = BLE_HS_EINVAL;
-            goto done;
-        }
-        if (tuples[i].value == NULL) {
-            rc = ble_att_svr_read_local(tuples[i].handle, &tuples[i].value);
-            if (rc != 0) {
-                goto done;
-            }
-        }
-    }
+    BLE_HS_LOG_DEBUG("ble_gatts_notify_multiple: peer_cl_sup_feat %d\n",
+                     conn->bhc_gatt_svr.peer_cl_sup_feat[0]);
 
-    /* If peer does not support fall back to multiple single value
-     * Notifications */
+    /* If peer does not support fall back to multiple single value Notifications */
     if ((conn->bhc_gatt_svr.peer_cl_sup_feat[0] & 0x04) == 0) {
         for (i = 0; i < chr_count; i++) {
-            rc = ble_att_clt_tx_notify(conn_handle, tuples[chr_count].handle,
-                               tuples[chr_count].value);
+            rc = ble_gatts_notify(conn_handle, tuples[i].handle);
             if (rc != 0) {
                 goto done;
             }
         }
+
+        return 0;
+    }
+
+    txom = ble_hs_mbuf_att_pkt();
+    if (txom == NULL) {
+        return BLE_HS_ENOMEM;
     }
 
     for (i = 0; i < chr_count; i++) {
+        if (tuples[i].value == NULL) {
+            rc = ble_att_svr_read_local_with_perms(conn_handle, tuples[i].handle, &tuples[i].value);
+            if (rc != 0) {
+                goto done;
+            }
+        }
+
         if (txom->om_len + tuples[i].value->om_len > mtu && cur_chr_cnt < 2) {
             rc = ble_att_clt_tx_notify(conn_handle, tuples[i].handle,
                                        tuples[i].value);
@@ -4524,28 +4538,9 @@ ble_gatts_notify_multiple(uint16_t conn_handle,
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
     return BLE_HS_ENOTSUP;
 #endif
-    int rc, i;
+
+    int i;
     struct ble_gatt_notif tuples[num_handles];
-    struct ble_hs_conn *conn;
-
-    BLE_HS_LOG_DEBUG("conn_handle %d\n", conn_handle);
-    conn = ble_hs_conn_find(conn_handle);
-    if (conn == NULL) {
-        return BLE_HS_ENOTCONN;
-    }
-
-    /** Skip sending to client that doesn't support this feature */
-    BLE_HS_LOG_DEBUG("ble_gatts_notify_multiple: peer_cl_sup_feat %d\n",
-                     conn->bhc_gatt_svr.peer_cl_sup_feat[0]);
-    if ((conn->bhc_gatt_svr.peer_cl_sup_feat[0] & 0x04) == 0) {
-        for (i = 0; i < num_handles; i++) {
-            rc = ble_gatts_notify(conn_handle, chr_val_handles[i]);
-            if (rc != 0) {
-                return rc;
-            }
-        }
-        return 0;
-    }
 
     for (i = 0; i < num_handles; i++) {
         tuples[i].handle = chr_val_handles[i];
@@ -4553,8 +4548,7 @@ ble_gatts_notify_multiple(uint16_t conn_handle,
         BLE_HS_LOG(DEBUG, "handle 0x%02x\n", tuples[i].handle);
     }
 
-    rc = ble_gatts_notify_multiple_custom(conn_handle, num_handles, tuples);
-    return rc;
+    return ble_gatts_notify_multiple_custom(conn_handle, num_handles, tuples);
 }
 
 /**
@@ -4681,12 +4675,26 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
             goto done;
         }
 
-        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle,
-                                     0, txom, NULL);
+        rc = ble_att_svr_read_handle(conn_handle, chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
-            /* Fatal error; application disallowed attribute read. */
-            BLE_HS_DBG_ASSERT(0);
-            rc = BLE_HS_EAPP;
+            switch (rc) {
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_ENC):
+                    rc = BLE_HS_EENCRYPT;
+                    break;
+
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHEN):
+                    rc = BLE_HS_EAUTHEN;
+                    break;
+
+                case BLE_HS_ATT_ERR(BLE_ATT_ERR_INSUFFICIENT_AUTHOR):
+                    rc = BLE_HS_EAUTHOR;
+                    break;
+
+                default:
+                    /* Fatal error; application disallowed attribute read. */
+                    rc = BLE_HS_EAPP;
+                    break;
+            }
             goto done;
         }
     }
