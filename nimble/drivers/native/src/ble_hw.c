@@ -37,20 +37,6 @@ static uint8_t g_ble_hw_whitelist_mask;
 static ble_rng_isr_cb_t rng_cb;
 static bool rng_started;
 
-/* Returns public device address or -1 if not present */
-int
-ble_hw_get_public_addr(ble_addr_t *addr)
-{
-    return -1;
-}
-
-/* Returns random static address or -1 if not present */
-int
-ble_hw_get_static_addr(ble_addr_t *addr)
-{
-    return -1;
-}
-
 /**
  * Clear the whitelist
  *
