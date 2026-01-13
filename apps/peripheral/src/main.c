@@ -105,7 +105,7 @@ advertise(void)
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
         0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff));
     fields.num_uuids128 = 1;
-    fields.uuids128_is_complete = 0;;
+    fields.uuids128_is_complete = 0;
     fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
     rsp_fields.name = (uint8_t *)device_name;

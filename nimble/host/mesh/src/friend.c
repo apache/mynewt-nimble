@@ -399,7 +399,7 @@ static int unseg_app_sdu_decrypt(struct bt_mesh_friend *frnd,
 	net_buf_simple_clone(buf, in);
 	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);
 	net_buf_simple_pull(buf, 1);
-	in->om_len -= BT_MESH_MIC_SHORT;;
+	in->om_len -= BT_MESH_MIC_SHORT;
 
 	net_buf_simple_clone(in, out);
 	err = bt_mesh_app_decrypt(meta->key, &meta->crypto, in, out);
