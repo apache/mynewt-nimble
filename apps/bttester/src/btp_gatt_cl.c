@@ -871,7 +871,7 @@ read_long_cb(uint16_t conn_handle,
              struct ble_gatt_attr *attr,
              void *arg)
 {
-    struct btp_gattc_read_rp *rp;;
+    struct btp_gattc_read_rp *rp;
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);

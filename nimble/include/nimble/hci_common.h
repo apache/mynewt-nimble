@@ -1724,7 +1724,7 @@ struct ble_hci_ev_hw_error {
 struct comp_pkt {
     uint16_t handle;
     uint16_t packets;
-} __attribute__((packed));;
+} __attribute__((packed));
 struct ble_hci_ev_num_comp_pkts {
     uint8_t count;
     struct comp_pkt completed[0];
