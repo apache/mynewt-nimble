@@ -1189,6 +1189,9 @@ ble_ll_rx_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     ble_ll_trace_u32x3(BLE_LL_TRACE_ID_RX_END, pdu_type, len,
                        rxhdr->rxinfo.flags);
 
+    /* Update RSSI */
+    rxhdr->rxinfo.rssi -= ble_ll_rx_gain();
+
 #if MYNEWT_VAL(BLE_LL_EXT)
     if (BLE_MBUF_HDR_RX_STATE(rxhdr) == BLE_LL_STATE_EXTERNAL) {
         rc = ble_ll_ext_rx_isr_end(rxbuf, rxhdr);
