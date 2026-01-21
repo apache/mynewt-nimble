@@ -77,18 +77,6 @@ struct ble_hw_resolv_proc {
 static struct ble_hw_resolv_list g_ble_hw_resolv_list;
 static struct ble_hw_resolv_proc g_ble_hw_resolv_proc;
 
-int
-ble_hw_get_public_addr(ble_addr_t *addr)
-{
-    return -1;
-}
-
-int
-ble_hw_get_static_addr(ble_addr_t *addr)
-{
-    return -1;
-}
-
 void
 ble_hw_whitelist_clear(void)
 {

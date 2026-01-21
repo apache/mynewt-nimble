@@ -30,6 +30,7 @@
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
+#include <controller/ble_ll_addr.h>
 #include "controller/ble_ll_whitelist.h"
 #include "controller/ble_ll_resolv.h"
 #include "controller/ble_ll_sync.h"
@@ -283,9 +284,10 @@ ble_ll_hci_rd_bd_addr(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_ip_rd_bd_addr_rp *rsp = (void *) rspbuf;
 
-    memcpy(rsp->addr, g_dev_addr, BLE_DEV_ADDR_LEN);
+    memcpy(rsp->addr, ble_ll_addr_public_get(), BLE_DEV_ADDR_LEN);
 
     *rsplen = sizeof(*rsp);
+
     return BLE_ERR_SUCCESS;
 }
 
