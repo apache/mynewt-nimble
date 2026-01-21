@@ -1687,6 +1687,8 @@ int
 ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat, uint8_t len)
 {
     struct ble_hs_conn *conn;
+    struct ble_store_key_cl_sup_feat feat_key;
+    struct ble_store_value_cl_sup_feat feat_val;
     int rc = 0;
 
     if (out_supported_feat == NULL) {
@@ -1704,8 +1706,15 @@ ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_feat
         len = BLE_GATT_CHR_CLI_SUP_FEAT_SZ;
     }
 
-    memcpy(out_supported_feat, conn->bhc_gatt_svr.peer_cl_sup_feat,
-           sizeof(uint8_t) * len);
+    if (conn->bhc_sec_state.bonded) {
+        feat_key.peer_addr = conn->bhc_peer_addr;
+        feat_key.idx = 0;
+        ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val);
+        memcpy(out_supported_feat, feat_val.peer_cl_sup_feat, sizeof(uint8_t) * len);
+    } else {
+        memcpy(out_supported_feat, conn->bhc_gatt_svr.peer_cl_sup_feat,
+               sizeof(uint8_t) * len);
+    }
 
 done:
     ble_hs_unlock();
@@ -1716,6 +1725,9 @@ int
 ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 {
     struct ble_hs_conn *conn;
+    struct ble_store_value_cl_sup_feat store_feat;
+    struct ble_store_key_cl_sup_feat feat_key;
+    struct ble_store_value_cl_sup_feat feat_val;
     uint8_t feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ] = {};
     uint16_t len;
     int rc = 0;
@@ -1760,6 +1772,32 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
     }
 
     memcpy(conn->bhc_gatt_svr.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+
+    if (conn->bhc_sec_state.bonded) {
+        feat_key.peer_addr = conn->bhc_peer_addr;
+        rc = ble_store_read_peer_cl_sup_feat(&feat_key, &feat_val);
+        if (rc == BLE_HS_ENOENT) {
+            /* Assume the values were not stored yet */
+            store_feat.peer_addr = conn->bhc_peer_addr;
+            memcpy(store_feat.peer_cl_sup_feat, feat, BLE_GATT_CHR_CLI_SUP_FEAT_SZ);
+            if (ble_store_write_peer_cl_sup_feat(&store_feat)) {
+                /* XXX: Should error get reported? */
+            }
+            rc = 0;
+            goto done;
+        }
+        if (rc == 0) {
+            /* Found cl_sup_feat for this peer, check for disabling already
+             * enabled features */
+            for (i = 0; i < BLE_GATT_CHR_CLI_SUP_FEAT_SZ; i++) {
+                if ((feat_val.peer_cl_sup_feat[i] & feat[i]) !=
+                    feat_val.peer_cl_sup_feat[i]) {
+                    rc = BLE_ATT_ERR_VALUE_NOT_ALLOWED;
+                    goto done;
+                }
+            }
+        }
+    }
 
 done:
     ble_hs_unlock();
