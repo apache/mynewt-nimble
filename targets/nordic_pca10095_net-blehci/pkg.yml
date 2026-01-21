@@ -22,3 +22,6 @@ pkg.type: target
 pkg.description: Sample target for BLE controller on NRF5340
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
+
+pkg.deps.OS_COREDUMP:
+    - "@mcuboot/boot/bootutil"
