@@ -30,6 +30,7 @@
 #include <inttypes.h>
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
+#include "syscfg/syscfg.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1070,6 +1071,16 @@ struct ble_gatt_register_ctxt {
 typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
                                   void *arg);
 
+struct ble_gatts_clt_cfg {
+    STAILQ_ENTRY(ble_gatts_clt_cfg) next;
+    uint16_t chr_val_handle;
+    uint8_t flags;
+    uint8_t allowed;
+};
+
+/** A cached array of handles for the configurable characteristics. */
+STAILQ_HEAD(ble_gatts_clt_cfg_list, ble_gatts_clt_cfg);
+
 /**
  * Queues a set of service definitions for registration.  All services queued
  * in this manner get registered when ble_gatts_start() is called.
@@ -1084,6 +1095,31 @@ typedef void ble_gatt_register_fn(struct ble_gatt_register_ctxt *ctxt,
  */
 int ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs);
 
+#if MYNEWT_VAL(BLE_DYNAMIC_SERVICE)
+/**
+ * Adds a set of services for registration.  All services added
+ * in this manner get registered immidietely.
+ *
+ * @param svcs                  An array of service definitions to queue for
+ *                                  registration.  This array must be
+ *                                  terminated with an entry whose 'type'
+ *                                  equals 0.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOMEM on heap exhaustion.
+ */
+int ble_gatts_add_dynamic_svcs(const struct ble_gatt_svc_def *svcs);
+/**
+ * Deletes a service with corresponding uuid.  All services deleted
+ * in this manner will be deleted immidietely.
+ *
+ * @param uuid                  uuid of the service to be deleted.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT on invalid uuid.
+ */
+int ble_gatts_delete_svc(const ble_uuid_t *uuid);
+#endif
 /**
  * Set visibility of local GATT service. Invisible services are not removed
  * from database but are not discoverable by peer devices. Service Changed
