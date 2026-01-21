@@ -26,7 +26,6 @@ pkg.homepage: "https://mynewt.apache.org/"
 pkg.cflags: -std=gnu99
 
 pkg.include_dirs:
-  - components/ext_NRF52_hw_models/src/nrfx_config
   - components/ext_NRF52_hw_models/src/nrfx/nrfx_replacements
   - components/ext_NRF52_hw_models/src/nrfx/mdk_replacements
   - components/ext_NRF52_hw_models/src/HW_models
