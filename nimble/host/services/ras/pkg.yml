@@ -17,46 +17,27 @@
 # under the License.
 #
 
-pkg.name: nimble/host
-pkg.description: Host side of the nimble Bluetooth Smart stack.
+pkg.name: nimble/host/services/ras
+pkg.description: Implements the RAS Service.
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "http://mynewt.apache.org/"
 pkg.keywords:
     - ble
     - bluetooth
+    - nimble
+    - ras
 
 pkg.deps:
-    - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/sys/log/modlog"
-    - "@apache-mynewt-core/util/mem"
-    - nimble
-    - nimble/transport
+    - nimble/host
 
-pkg.deps.BLE_AUDIO:
-    - nimble/host/audio
+pkg.init.'BLE_SVC_RAS_SERVER':
+    ble_svc_ras_init: 'MYNEWT_VAL(BLE_SVC_RAS_SYSINIT_STAGE)'
 
-pkg.deps.BLE_SM_LEGACY:
-    - "@apache-mynewt-core/crypto/tinycrypt"
+pkg.init.'BLE_SVC_RAS_CLIENT':
+    ble_svc_ras_clt_init: 'MYNEWT_VAL(BLE_SVC_RAS_SYSINIT_STAGE)'
 
-pkg.deps.BLE_SM_SC:
-    - "@apache-mynewt-core/crypto/tinycrypt"
+pkg.source_files.'BLE_SVC_RAS_SERVER':
+    - "src/ble_svc_ras.c"
 
-pkg.deps.BLE_MESH:
-    - nimble/host/mesh
-
-pkg.deps.BLE_EATT_CHAN_NUM:
-    - nimble/host/services/gatt
-
-pkg.req_apis:
-    - ble_transport
-    - console
-    - stats
-
-pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
-    ble_hs_shutdown: 200
-
-pkg.init.'BLE_PEER':
-    ble_peer_init: $after:ble_transport_hs_init
-
-pkg.init.'BLE_CHANNEL_SOUNDING':
-    ble_cs_init: $after:ble_transport_hs_init
+pkg.source_files.'BLE_SVC_RAS_CLIENT':
+    - "src/ble_svc_ras_clt.c"
