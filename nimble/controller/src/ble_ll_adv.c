@@ -1129,7 +1129,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     uint8_t end_trans;
     uint32_t txstart;
     struct ble_ll_adv_sm *advsm;
-#if MYNEWT_VAL(BLE_LL_PHY) && MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_LL_PHY)
     uint8_t phy_mode;
 #endif
 
@@ -1159,13 +1159,12 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     phy_mode = ble_ll_phy_to_phy_mode(advsm->pri_phy, BLE_HCI_LE_PHY_CODED_ANY);
 #endif
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
-    } else {
-        ble_phy_mode_set(phy_mode, phy_mode);
+        phy_mode = BLE_PHY_MODE_1M;
     }
 #else
-    ble_phy_mode_set(BLE_PHY_MODE_1M, BLE_PHY_MODE_1M);
+    phy_mode = BLE_PHY_MODE_1M;
 #endif
+    ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
     /* Set the power */
