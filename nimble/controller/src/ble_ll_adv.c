@@ -2320,7 +2320,7 @@ ble_ll_adv_sync_tx_start_cb(struct ble_ll_sched_item *sch)
 
 #if MYNEWT_VAL(BLE_LL_PHY)
     /* Set phy mode */
-     ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
+    ble_phy_mode_set(advsm->sec_phy, advsm->sec_phy);
 #endif
 
     /* Set the power */
