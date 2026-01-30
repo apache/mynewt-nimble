@@ -31,6 +31,7 @@
 #include <controller/ble_ll_iso_big.h>
 #include <controller/ble_ll_pdu.h>
 #include <controller/ble_ll_sched.h>
+#include <controller/ble_ll_scan.h>
 #include <controller/ble_ll_rfmgmt.h>
 #include <controller/ble_ll_tmr.h>
 #include <controller/ble_ll_utils.h>
@@ -434,6 +435,8 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
     int rc;
 
     ble_ll_rfmgmt_release();
+
+    ble_ll_scan_chk_resume();
 
     if (big->big_counter == 0) {
         BLE_LL_ASSERT(big == big_pending);
