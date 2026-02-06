@@ -357,6 +357,15 @@ syscfg.defs:
         restrictions:
             - '(BLE_VERSION >= 53) if 1'
 
+    BLE_LL_HOST_CONTROLLED_FEATURES:
+        description: >
+            Enables support for Host Controlled Features.
+            This allows to enable/disable features which can be controlled by the Host.
+        value: (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE) || MYNEWT_VAL(BLE_LL_ADV_CODING_SELECTION))
+        restrictions:
+            - '!BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE if 0'
+            - '!BLE_LL_ADV_CODING_SELECTION if 0'
+
     BLE_LL_ADV_CODING_SELECTION:
         description: >
             Enables support Advertising Coding Selection.
