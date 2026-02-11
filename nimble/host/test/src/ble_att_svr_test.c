@@ -2126,6 +2126,142 @@ TEST_CASE_SELF(ble_att_svr_test_unsupported_req)
     ble_att_svr_test_assert_mbufs_freed();
 }
 
+/**
+ * Tests that Read By Type and Find By Type Value work correctly with attribute
+ * values larger than the old hardcoded buffer limits (19 and 16 bytes
+ * respectively). Verifies proper truncation per Core Spec 3.4.4.2:
+ * max value length = min(ATT_MTU - 4, 253).
+ */
+TEST_CASE_SELF(ble_att_svr_test_large_value)
+{
+    static uint8_t large_val[128];
+    uint16_t conn_handle;
+    uint16_t mtu;
+    uint16_t expected_len;
+    int rc;
+    int i;
+
+    /* Fill test buffer with a recognizable pattern. */
+    for (i = 0; i < (int)sizeof(large_val); i++) {
+        large_val[i] = i;
+    }
+
+    /***
+     * Read By Type with large attribute value (MTU = 260).
+     * max value = min(260 - 4, 253) = 253, but our value is 128 bytes so
+     * the full value should be returned without truncation.
+     */
+    mtu = 260;
+    conn_handle = ble_att_svr_test_misc_init(mtu);
+
+    ble_att_svr_test_attr_r_1 = large_val;
+    ble_att_svr_test_attr_r_1_len = sizeof(large_val);
+
+    /* Register a primary service attribute with the r_1 access callback. */
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE),
+        HA_FLAG_PERM_RW, 1, ble_att_svr_test_misc_attr_fn_r_1);
+
+    /* Read by type: value is 128 bytes, fits within min(256, 253) = 253. */
+    rc = ble_hs_test_util_rx_att_read_type_req16(conn_handle, 1, 0xffff,
+                                                 BLE_ATT_UUID_PRIMARY_SERVICE);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_read_type_rsp(
+        ((struct ble_att_svr_test_type_entry[]) { {
+            .handle = 1,
+            .value = large_val,
+            .value_len = sizeof(large_val),
+        }, {
+            .handle = 0,
+        } }));
+
+    /***
+     * Read By Type with value truncated by MTU.
+     * MTU = 64, max value = min(64 - 4, 253) = 60. Value is 128 bytes,
+     * so response should contain only the first 60 bytes.
+     */
+    mtu = 64;
+    conn_handle = ble_att_svr_test_misc_init(mtu);
+
+    ble_att_svr_test_attr_r_1 = large_val;
+    ble_att_svr_test_attr_r_1_len = sizeof(large_val);
+
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE),
+        HA_FLAG_PERM_RW, 1, ble_att_svr_test_misc_attr_fn_r_1);
+
+    expected_len = mtu - 4;  /* 60 */
+
+    rc = ble_hs_test_util_rx_att_read_type_req16(conn_handle, 1, 0xffff,
+                                                 BLE_ATT_UUID_PRIMARY_SERVICE);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_read_type_rsp(
+        ((struct ble_att_svr_test_type_entry[]) { {
+            .handle = 1,
+            .value = large_val,
+            .value_len = expected_len,
+        }, {
+            .handle = 0,
+        } }));
+
+    /***
+     * Find By Type Value with large attribute value (> 16 bytes).
+     * The request value must match the full attribute value for a hit.
+     */
+    mtu = 260;
+    conn_handle = ble_att_svr_test_misc_init(mtu);
+
+    ble_att_svr_test_attr_r_1 = large_val;
+    ble_att_svr_test_attr_r_1_len = sizeof(large_val);
+
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE),
+        HA_FLAG_PERM_RW, 1, ble_att_svr_test_misc_attr_fn_r_1);
+
+    /* Search with the correct 128-byte value: should match. */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+        large_val, sizeof(large_val));
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]) { {
+            .first = 1,
+            .last = 1,
+        }, {
+            .first = 0,
+        } }));
+
+    /***
+     * Find By Type Value with wrong large value: should not match.
+     */
+    {
+        uint8_t wrong_val[128];
+        memcpy(wrong_val, large_val, sizeof(wrong_val));
+        wrong_val[64] ^= 0xff;  /* Flip one byte in the middle. */
+
+        rc = ble_hs_test_util_rx_att_find_type_value_req(
+            conn_handle, 1, 0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+            wrong_val, sizeof(wrong_val));
+        TEST_ASSERT(rc != 0);
+        ble_hs_test_util_verify_tx_err_rsp(
+            BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 1,
+            BLE_ATT_ERR_ATTR_NOT_FOUND);
+    }
+
+    /***
+     * Find By Type Value with length mismatch: should not match.
+     */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+        large_val, 64);
+    TEST_ASSERT(rc != 0);
+    ble_hs_test_util_verify_tx_err_rsp(
+        BLE_ATT_OP_FIND_TYPE_VALUE_REQ, 1,
+        BLE_ATT_ERR_ATTR_NOT_FOUND);
+
+    ble_att_svr_test_assert_mbufs_freed();
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     ble_att_svr_test_mtu();
@@ -2143,4 +2279,5 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();
     ble_att_svr_test_unsupported_req();
+    ble_att_svr_test_large_value();
 }

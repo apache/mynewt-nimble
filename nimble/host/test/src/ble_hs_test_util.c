@@ -777,10 +777,10 @@ ble_hs_test_util_rx_att_find_type_value_req(uint16_t conn_handle,
                                             uint16_t attr_len)
 {
     struct ble_att_find_type_value_req req;
-    uint8_t buf[BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + 16];
+    uint8_t buf[BLE_ATT_FIND_TYPE_VALUE_REQ_BASE_SZ + BLE_ATT_ATTR_MAX_LEN];
     int rc;
 
-    TEST_ASSERT(attr_len <= 16);
+    TEST_ASSERT(attr_len <= BLE_ATT_ATTR_MAX_LEN);
 
     req.bavq_start_handle = start_handle;
     req.bavq_end_handle = end_handle;
