@@ -1932,23 +1932,6 @@ notify_mult(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-eatt_conn(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
-{
-    uint16_t conn_handle;
-    const struct btp_gatt_eatt_conn_cmd *cp = cmd;
-    int rc;
-
-    ble_gap_conn_find_handle_by_addr(&cp->address, &conn_handle);
-
-    rc = ble_eatt_connect(conn_handle, cp->num_channels);
-    if (rc == 0 || rc == BLE_HS_EALREADY) {
-        return BTP_STATUS_SUCCESS;
-    }
-
-    return BTP_STATUS_FAILED;
-}
-
-static uint8_t
 change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
@@ -2104,11 +2087,6 @@ static const struct btp_handler handlers[] = {
         .opcode = BTP_GATT_NOTIFY_MULTIPLE,
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = notify_mult,
-    },
-    {
-        .opcode = BTP_GATT_EATT_CONNECT,
-        .expect_len = sizeof(struct btp_gatt_eatt_conn_cmd),
-        .func = eatt_conn,
     },
 };
 
