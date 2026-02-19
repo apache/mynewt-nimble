@@ -181,6 +181,7 @@ ble_transport_to_ll_cmd_impl(void *buf)
         return -ENOMEM;
     }
 
+    memset(txe, 0, sizeof(*txe));
     txe->type = HCI_H4_CMD;
     txe->sent_type = 0;
     txe->len = 3 + ((uint8_t *)buf)[2];
@@ -209,6 +210,7 @@ ble_transport_to_ll_acl_impl(struct os_mbuf *om)
         return -ENOMEM;
     }
 
+    memset(txe, 0, sizeof(*txe));
     txe->type = HCI_H4_ACL;
     txe->sent_type = 0;
     txe->len = OS_MBUF_PKTLEN(om);
