@@ -261,6 +261,9 @@ struct hci_conn_update;
 /** GAP event: BIG (Broadcast Isochronous Group) information report */
 #define BLE_GAP_EVENT_BIGINFO_REPORT        30
 
+/** GAP event: Authorization request for GATT operations */
+#define BLE_GAP_EVENT_AUTHORIZE 31
+
 /** @} */
 
 /**
@@ -292,6 +295,22 @@ struct hci_conn_update;
 
 /** GAP repeat pairing option: Ignore the pairing procedure. */
 #define BLE_GAP_REPEAT_PAIRING_IGNORE       2
+
+/** @} */
+
+/**
+ * @defgroup GAP Authorize event possible responses.
+ * @{
+ */
+
+/** GAP Authorize event response: reject */
+#define BLE_GAP_AUTHORIZE_REJECT 0
+
+/** GAP Authorize event response: accept */
+#define BLE_GAP_AUTHORIZE_ACCEPT 1
+
+/** GAP Authorize event response: pending */
+#define BLE_GAP_AUTHORIZE_PENDING 2
 
 /** @} */
 
@@ -1308,6 +1327,32 @@ struct ble_gap_event {
             uint8_t length;
         } unhandled_hci;
 #endif
+
+        /**
+         * GATT Authorization Event. Ask the user to authorize a GATT
+         * read/write operation.
+         *
+         * Valid for the following event types:
+         * o BLE_GAP_EVENT_AUTHORIZE
+         *
+         * Valid responses from user:
+         * o BLE_GAP_AUTHORIZE_ACCEPT
+         * o BLE_GAP_AUTHORIZE_REJECT
+         * o BLE_GAP_AUTHORIZE_PENDING
+         */
+        struct {
+            /* Connection Handle */
+            uint16_t conn_handle;
+
+            /* Attribute handle of the attribute being accessed. */
+            uint16_t attr_handle;
+
+            /* ATT access opcode. */
+            uint8_t access_opcode;
+
+            /* Channel ID on which request has been received */
+            uint16_t cid;
+        } authorize;
     };
 };
 
