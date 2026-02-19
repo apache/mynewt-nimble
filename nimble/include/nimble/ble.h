@@ -220,12 +220,6 @@ struct ble_mbuf_hdr
 /** Length of a Bluetooth Device Address. */
 #define BLE_DEV_ADDR_LEN        (6)
 
-/**
- * @cond INTERNAL_DOCS
- */
-extern uint8_t g_dev_addr[BLE_DEV_ADDR_LEN];
-extern uint8_t g_random_addr[BLE_DEV_ADDR_LEN];
-
 /* BLE Error Codes (Core v4.2 Vol 2 part D) */
 enum ble_error_codes
 {

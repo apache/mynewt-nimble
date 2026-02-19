@@ -18,6 +18,8 @@
  */
 
 #include <stdint.h>
+#include <controller/ble_ll_addr.h>
+
 #include "syscfg/syscfg.h"
 #include "controller/ble_ll_utils.h"
 #include "controller/ble_ll.h"
@@ -43,17 +45,18 @@ ble_ll_hci_vs_rd_static_addr(uint16_t ocf,
                              uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_vs_rd_static_addr_rp *rsp = (void *) rspbuf;
-    ble_addr_t addr;
 
     if (cmdlen != 0) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (ble_hw_get_static_addr(&addr) < 0) {
+#if MYNEWT_API_ble_addr_provider_static
+    if (ble_ll_addr_provide_static(rsp->addr) < 0) {
         return BLE_ERR_UNSPECIFIED;
     }
-
-    memcpy(rsp->addr, addr.val, sizeof(rsp->addr));
+#else
+    return BLE_ERR_UNSUPPORTED;
+#endif
 
     *rsplen = sizeof(*rsp);
 
@@ -388,6 +391,26 @@ ble_ll_hci_vs_set_scan_cfg(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_HCI_VS_WR_PUBLIC_ADDR)
+static int
+ble_ll_hci_vs_wr_public_addr(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
+                             uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_vs_wr_public_addr_cp *cp = (const void *)cmdbuf;
+    int rc;
+
+    if (cmdlen != sizeof(*cp)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    if (ble_ll_addr_wr_public_addr(cp->addr)) {
+        return BLE_ERR_UNSPECIFIED;
+    }
+
+    return 0;
+}
+#endif
+
 static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_RD_STATIC_ADDR,
                       ble_ll_hci_vs_rd_static_addr),
@@ -421,6 +444,10 @@ static struct ble_ll_hci_vs_cmd g_ble_ll_hci_vs_cmds[] = {
 #if MYNEWT_VAL(BLE_LL_HCI_VS_SET_SCAN_CFG)
     BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_SET_SCAN_CFG,
                       ble_ll_hci_vs_set_scan_cfg)
+#endif
+#if MYNEWT_VAL(BLE_LL_HCI_VS_WR_PUBLIC_ADDR)
+    BLE_LL_HCI_VS_CMD(BLE_HCI_OCF_VS_WR_PUBLIC_ADDR,
+                      ble_ll_hci_vs_wr_public_addr)
 #endif
 };
 

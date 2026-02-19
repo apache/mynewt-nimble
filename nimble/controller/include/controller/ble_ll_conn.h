@@ -482,7 +482,7 @@ void ble_ll_conn_send_connect_req_cancel(void);
 /* Signal connection created via CONNECT_IND */
 void ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
                                    struct ble_ll_scan_addr_data *addrd,
-                                   uint8_t *targeta);
+                                   const uint8_t *targeta);
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
 /* Signal connection created via AUX_CONNECT_REQ */
 void ble_ll_conn_created_on_aux(struct os_mbuf *rxpdu,

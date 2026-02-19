@@ -83,11 +83,16 @@ syscfg.defs:
        value: 0
 
     BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
-        description: >
-            Ublox BMD-345 modules come with public address preprogrammed
-            in UICR register. If enabled public address will be read from
-            custom UICR instead of FICR register.
+        description: use nimble/util/addr_ublox package instead
         value: 0
+        defunct: 1
+
+    BLE_PHY_ADDR_PROVIDER_PUBLIC:
+        description: Enables public address provider API
+        value: 0
+    BLE_PHY_ADDR_PROVIDER_STATIC:
+        description: Enables static address provider API
+        value: 1
 
 syscfg.restrictions:
     # code supports turn on times up to 90us due to some optimizations, but it

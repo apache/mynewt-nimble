@@ -517,16 +517,6 @@ struct ble_ll_acad_channel_map_update_ind {
 /* Reset the Link Layer */
 int ble_ll_reset(void);
 
-/* 'Boolean' function returning true if address is a valid random address */
-int ble_ll_is_valid_random_addr(const uint8_t *addr);
-
-/*
- * Check if given own_addr_type is valid for current controller configuration
- * given the random address provided (when applicable)
- */
-int ble_ll_is_valid_own_addr_type(uint8_t own_addr_type,
-                                  const uint8_t *random_addr);
-
 /* Calculate maximum octets of PDU payload which can be transmitted during
  * 'usecs' on a PHY 'phy_mode'. */
 uint16_t ble_ll_pdu_max_tx_octets_get(uint32_t usecs, int phy_mode);
@@ -538,12 +528,6 @@ int ble_ll_addr_subtype(const uint8_t *addr, uint8_t addr_type);
 
 /* Is this address an identity address? */
 int ble_ll_addr_is_id(uint8_t *addr, uint8_t addr_type);
-
-/* Is 'addr' our device address? 'addr_type' is public (0) or random (!=0) */
-int ble_ll_is_our_devaddr(uint8_t *addr, int addr_type);
-
-/* Get identity address 'addr_type' is public (0) or random (!=0) */
-uint8_t *ble_ll_get_our_devaddr(uint8_t addr_type);
 
 /**
  * Called to put a packet on the Link Layer transmit packet queue.

@@ -1406,6 +1406,12 @@ struct ble_hci_vs_set_scan_cfg_cp {
     int8_t rssi_threshold;
 } __attribute__((packed));
 
+/* Set Public Bluetooth Address */
+#define BLE_HCI_OCF_VS_WR_PUBLIC_ADDR                   (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x000C))
+struct ble_hci_vs_wr_public_addr_cp {
+    uint8_t addr[6];
+} __attribute__((packed));
+
 /* Command Specific Definitions */
 /* --- Set controller to host flow control (OGF 0x03, OCF 0x0031) --- */
 #define BLE_HCI_CTLR_TO_HOST_FC_OFF         (0)

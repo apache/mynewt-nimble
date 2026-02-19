@@ -35,6 +35,7 @@
 #include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_adv.h"
+#include <controller/ble_ll_addr.h>
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
@@ -2811,12 +2812,12 @@ static int
 ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 {
     uint8_t adv_chan;
-    uint8_t *addr;
+    const uint8_t *adva;
+    const uint8_t *random_addr;
     uint32_t start_delay_us;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
     uint32_t access_addr;
 #endif
-    const uint8_t *random_addr;
     uint32_t earliest_start_time;
     int32_t delta;
 
@@ -2828,10 +2829,10 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
     random_addr = advsm->adv_random_addr;
 #else
-    random_addr = g_random_addr;
+    random_addr = ble_ll_addr_random_get();
 #endif
 
-    if (!ble_ll_is_valid_own_addr_type(advsm->own_addr_type, random_addr)) {
+    if (!ble_ll_addr_is_valid_own_addr_type(advsm->own_addr_type, random_addr)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -2853,16 +2854,16 @@ ble_ll_adv_sm_start(struct ble_ll_adv_sm *advsm)
 
     /* Set advertising address */
     if ((advsm->own_addr_type & 1) == 0) {
-        addr = g_dev_addr;
+        adva = ble_ll_addr_public_get();
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-        addr = advsm->adv_random_addr;
+        adva = advsm->adv_random_addr;
 #else
-        addr = g_random_addr;
+        adva = ble_ll_addr_random_get();
 #endif
         advsm->flags |= BLE_LL_ADV_SM_FLAG_TX_ADD;
     }
-    memcpy(advsm->adva, addr, BLE_DEV_ADDR_LEN);
+    memcpy(advsm->adva, adva, BLE_DEV_ADDR_LEN);
 
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_DIRECTED) {
         memcpy(advsm->initiator_addr, advsm->peer_addr, BLE_DEV_ADDR_LEN);

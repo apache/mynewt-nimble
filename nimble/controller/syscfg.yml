@@ -395,6 +395,12 @@ syscfg.defs:
                   not intended for production builds.
         value: 0x000000000000
 
+    BLE_LL_ADDR_INIT_RANDOM:
+        description: >
+            Initializes default random address with a static random address
+            retrieved from an address provider, if available.
+        value: 0
+
     BLE_LL_DTM:
         description: >
              Enables HCI Test commands needed for Bluetooth SIG certification
@@ -450,7 +456,14 @@ syscfg.defs:
             - BLE_LL_HCI_VS if 1
             - BLE_LL_CFG_FEAT_LL_EXT_ADV if 1
             - BLE_LL_ROLE_OBSERVER if 1
-
+    BLE_LL_HCI_VS_WR_PUBLIC_ADDR:
+        description: >
+            Enables HCI command to set public device address.
+            The new address is applied after HCI Reset. To revert back to the
+            default public address, set address to 0x000000000000.
+        value: 0
+        restrictions:
+            - BLE_LL_HCI_VS if 1
 
     BLE_LL_HCI_VS_EVENT_ON_ASSERT:
         description: >
