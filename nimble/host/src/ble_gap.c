@@ -7251,3 +7251,9 @@ ble_gap_set_transmit_power_reporting_enable(uint16_t conn_handle,
     return BLE_HS_ENOTSUP;
 #endif
 }
+
+int
+ble_gap_set_data_related_addr_change_param(uint8_t adv_handle, uint8_t change_reason)
+{
+    return ble_hs_hci_util_set_data_addr_change(adv_handle, change_reason);
+}
