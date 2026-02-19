@@ -110,6 +110,8 @@ struct ble_store_value_sec {
     uint8_t csrk[16];
     /** Flag indicating if Connection Signature Resolving Key is present. */
     uint8_t csrk_present:1;
+    /** Sign Counter */
+    uint32_t sign_counter;
 
     /** Flag indicating whether the connection is authenticated. */
     unsigned authenticated:1;
