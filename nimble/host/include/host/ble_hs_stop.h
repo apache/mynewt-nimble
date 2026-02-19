@@ -80,7 +80,7 @@ int ble_hs_stop(struct ble_hs_stop_listener *listener,
                 ble_hs_stop_fn *fn, void *arg);
 
 /**
-* @}
-*/
+ * @}
+ */
 
 #endif
