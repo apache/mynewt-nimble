@@ -185,7 +185,7 @@ ble_store_ram_delete_obj(void *values, int value_size, int idx,
 {
     uint8_t *dst;
     uint8_t *src;
-    int move_count;
+    uint8_t move_count;
 
     (*num_values)--;
     if (idx < *num_values) {
