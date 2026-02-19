@@ -3443,6 +3443,10 @@ ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
         return BLE_HS_EDISABLED;
     }
 
+    if (!(ble_hs_id_is_rpa(addr))) {
+        return BLE_HS_EINVAL;
+    }
+
     ble_hs_lock();
     rc = ble_gap_ext_adv_set_addr_no_lock(instance, addr->val);
     ble_hs_unlock();
