@@ -2033,7 +2033,9 @@ void
 ble_transport_ll_init(void)
 {
     /* Tell the host that we are ready to receive packets */
+#if MYNEWT_VAL(BLE_LL_HCI_NOOP_AFTER_INIT)
     ble_ll_hci_send_noop();
+#endif
 }
 
 int
