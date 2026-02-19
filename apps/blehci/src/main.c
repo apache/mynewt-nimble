@@ -18,6 +18,17 @@
  */
 
 #include "os/mynewt.h"
+#if MYNEWT_VAL(BLE_CONTROLLER)
+#include "controller/ble_ll.h"
+#endif
+
+#if MYNEWT_VAL(OS_ASSERT_CB)
+void
+os_assert_cb(const char *file, int line, const char *func, const char *e)
+{
+    ble_ll_assert(file, line);
+}
+#endif
 
 int
 mynewt_main(int argc, char **argv)
