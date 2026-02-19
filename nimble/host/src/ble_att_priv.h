@@ -25,6 +25,7 @@
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
 #include "nimble/nimble_npl.h"
+#include "syscfg/syscfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -144,6 +145,10 @@ typedef int ble_att_svr_access_fn(uint16_t conn_handle, uint16_t attr_handle,
 int ble_att_svr_register(const ble_uuid_t *uuid, uint8_t flags,
                          uint8_t min_key_size, uint16_t *handle_id,
                          ble_att_svr_access_fn *cb, void *cb_arg);
+
+#if MYNEWT_VAL(BLE_DYNAMIC_SERVICE)
+int ble_att_svr_deregister(uint16_t start_handle, uint16_t end_group_handle);
+#endif
 
 struct ble_att_svr_entry {
     STAILQ_ENTRY(ble_att_svr_entry) ha_next;
