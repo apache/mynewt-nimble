@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# This servomotor works with 50 Hz PWM signal and accept pulse duration from
+# around 1000us minimum (0-degree rotation) to 2000us maximum (180-degree rotation).
+# If you have to adjust these parameters for your servo, this is the place to do so.
+syscfg.defs:
+    SERVO_MAX_PULSE_DURATION_US:
+        value: 2000
+    SERVO_MIN_PULSE_DURATION_US:
+        value: 1000
+    SERVO_PWM_FREQ:
+        value: 50
+    SERVO_PWM_FULL_CYCLE_DURATION:
+        value: 20000
+    SERVO_MAX_ANGLE_VAL:
+        value: 180
+    SERVO_MIN_ANGLE_VAL:
+        value: 0
+
+syscfg.vals:
+    # Disable central and observer roles.
+    BLE_ROLE_BROADCASTER: 1
+    BLE_ROLE_CENTRAL: 0
+    BLE_ROLE_OBSERVER: 0
+    BLE_ROLE_PERIPHERAL: 1
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
+    # Enable PWM channel 0.
+    PWM_0: 1
