@@ -415,43 +415,6 @@ syscfg.defs:
         description: 'Enable pin reset'
         value: 0
 
-# Deprecated settings
-
-    MCU_NRF52832:
-        description: Use MCU_TARGET instead
-        value: 0
-        restrictions:
-            - "!MCU_NRF52840"
-        deprecated: 1
-    MCU_NRF52840:
-        description: Use MCU_TARGET instead
-        value: 0
-        restrictions:
-            - "!MCU_NRF52832"
-        deprecated: 1
-
-    XTAL_32768:
-        description: Use MCU_LFCLK_SOURCE instead
-        value: 0
-        restrictions:
-            - "!XTAL_RC"
-            - "!XTAL_32768_SYNTH"
-        deprecated: 1
-    XTAL_RC:
-        description: Use MCU_LFCLK_SOURCE instead
-        value: 0
-        restrictions:
-            - "!XTAL_32768"
-            - "!XTAL_32768_SYNTH"
-        deprecated: 1
-    XTAL_32768_SYNTH:
-        description: Use MCU_LFCLK_SOURCE instead
-        value: 0
-        restrictions:
-            - "!XTAL_32768"
-            - "!XTAL_RC"
-        deprecated: 1
-
     MCU_NATIVE_USE_SIGNALS:
         description: >
             Whether to use POSIX signals to implement context switches.  Valid
@@ -498,18 +461,6 @@ syscfg.defs:
 
 syscfg.vals:
     OS_TICKS_PER_SEC: 128
-
-syscfg.vals.MCU_NRF52832:
-    MCU_TARGET: nRF52832
-syscfg.vals.MCU_NRF52840:
-    MCU_TARGET: nRF52840
-
-syscfg.vals.XTAL_32768:
-    MCU_LFCLK_SOURCE: LFXO
-syscfg.vals.XTAL_RC:
-    MCU_LFCLK_SOURCE: LFRC
-syscfg.vals.XTAL_32768_SYNTH:
-    MCU_LFCLK_SOURCE: LFSYNTH
 
 syscfg.restrictions:
     - "!I2C_0 || (I2C_0_PIN_SCL && I2C_0_PIN_SDA)"

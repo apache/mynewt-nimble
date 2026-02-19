@@ -124,10 +124,9 @@ syscfg.defs.BLE_TRANSPORT_RX_TASK_STACK_SIZE:
         restrictions: $notnull
         value:
 
-# import monitor and defunct settings from separate file to reduce clutter in main file
+# import monitor settings from separate file to reduce clutter in main file
 $import:
     - "@apache-mynewt-nimble/nimble/transport/syscfg.monitor.yml"
-    - "@apache-mynewt-nimble/nimble/transport/syscfg.defunct.yml"
 
 syscfg.vals.'BLE_EXT_ADV || BLE_LL_CFG_FEAT_LL_EXT_ADV':
     BLE_TRANSPORT_EVT_SIZE: 257
