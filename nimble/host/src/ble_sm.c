@@ -944,7 +944,7 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res,
 
         ble_hs_unlock();
 
-        if (res->enc_cb &&
+        if (proc && (proc->flags & BLE_SM_PROC_F_PAIRING) && res->enc_cb &&
             res->app_status != BLE_HS_ENOTCONN) {
             /* Do not send this event on broken connection */
             ble_gap_pairing_complete_event(conn_handle, res->sm_err);
@@ -1831,6 +1831,7 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc != NULL) {
         proc->conn_handle = conn_handle;
         proc->state = BLE_SM_PROC_STATE_PAIR;
+        proc->flags = BLE_SM_PROC_F_PAIRING;
         ble_sm_insert(proc);
 
         proc->pair_req[0] = BLE_SM_OP_PAIR_REQ;
@@ -2591,7 +2592,7 @@ ble_sm_pair_initiate(uint16_t conn_handle)
     } else {
         proc->conn_handle = conn_handle;
         proc->state = BLE_SM_PROC_STATE_PAIR;
-        proc->flags |= BLE_SM_PROC_F_INITIATOR;
+        proc->flags |= BLE_SM_PROC_F_INITIATOR | BLE_SM_PROC_F_PAIRING;
 
         ble_hs_lock();
         ble_sm_insert(proc);
