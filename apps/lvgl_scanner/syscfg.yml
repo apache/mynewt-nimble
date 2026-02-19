@@ -1,0 +1,111 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+syscfg.defs:
+    MAX_DEVICES:
+        value: 30
+
+syscfg.vals:
+    # Configure application roles
+    BLE_ROLE_BROADCASTER: 0
+    BLE_ROLE_CENTRAL: 1
+    BLE_ROLE_OBSERVER: 1
+    BLE_ROLE_PERIPHERAL: 0
+
+    # Whether to save data to sys/config, or just keep it in RAM.
+    BLE_STORE_CONFIG_PERSIST: 0
+
+    # Enable extended advertising
+    BLE_EXT_ADV: 1
+
+    # Enable coded PHY
+    BLE_LL_CFG_FEAT_LE_CODED_PHY: 1
+
+    CONSOLE_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+
+    LVGL_TOUCH_HANDLER_IN_LV_TIMER: 0
+
+    SPI_1_MASTER: 1
+    SPI_1_MASTER_PIN_MOSI: ARDUINO_PIN_MOSI
+    SPI_1_MASTER_PIN_MISO: ARDUINO_PIN_MISO
+    SPI_1_MASTER_PIN_SCK: ARDUINO_PIN_SCK
+
+    LVGL_ILI9341: 1
+    LVGL_ILI9486: 0
+    LVGL_ST7735S: 0
+    LVGL_ST7789: 0
+    LVGL_STMPE610: 1
+    LVGL_XPT2046: 0
+
+syscfg.vals.LVGL_ST7735S:
+    LCD_ITF: spi
+    LCD_SPI_DEV_NAME: '"spi1"'
+    LCD_CS_PIN: 51
+    LCD_RESET_PIN: 0
+    LCD_DC_PIN: 1
+    LCD_BL_PIN: 4
+    LCD_SPI_FREQ: 8000
+    LCD_USE_BGR: 1
+
+syscfg.vals.LVGL_ST7789:
+    LCD_ITF: spi
+    LCD_SPI_DEV_NAME: '"spi1"'
+    LCD_SPI_MODE: BUS_SPI_MODE_0
+    LCD_CS_PIN: ARDUINO_PIN_D10
+    LCD_RESET_PIN: ARDUINO_PIN_D4
+    LCD_DC_PIN: ARDUINO_PIN_D7
+    LCD_BL_PIN: ARDUINO_PIN_D6
+    LCD_SPI_FREQ: 8000
+    LVGL_DISPLAY_HORIZONTAL_RESOLUTION: 240
+    LVGL_DISPLAY_VERTICAL_RESOLUTION: 240
+
+syscfg.vals.LVGL_ILI9341:
+    LCD_ITF: spi
+    LCD_SPI_DEV_NAME: '"spi1"'
+    LCD_CS_PIN: ARDUINO_PIN_D10
+    LCD_DC_PIN: ARDUINO_PIN_D9
+    LCD_SPI_FREQ: 8000
+    LCD_USE_BGR: 1
+
+syscfg.vals.LVGL_ILI9486:
+    LCD_ITF: spi
+    LCD_SPI_DEV_NAME: '"spi1"'
+    LCD_CS_PIN: ARDUINO_PIN_D10
+    LCD_DC_PIN: ARDUINO_PIN_D7
+    LCD_BL_PIN: ARDUINO_PIN_D9
+    LCD_RESET_PIN: ARDUINO_PIN_D8
+    LCD_SPI_FREQ: 8000
+    LCD_SPI_WITH_SHIFT_REGISTER: 1
+    LVGL_DISPLAY_HORIZONTAL_RESOLUTION: 320
+    LVGL_DISPLAY_VERTICAL_RESOLUTION: 480
+
+syscfg.vals.LVGL_STMPE610:
+    STMPE610_SPI_DEV_NAME: '"spi1"'
+    STMPE610_SPI_CS_PIN: ARDUINO_PIN_D8
+    STMPE610_SPI_FREQ: 1000
+    STMPE610_INT_PIN: ARDUINO_PIN_D7
+
+syscfg.vals.LVGL_XPT2046:
+    XPT2046_SPI_DEV_NAME: '"spi1"'
+    XPT2046_SPI_CS_PIN: ARDUINO_PIN_D4
+    XPT2046_SPI_FREQ: 1000
+    XPT2046_INT_PIN: ARDUINO_PIN_D3
+    XPT2046_XY_SWAP: 1
+    XPT2046_X_INV: 1
+    XPT2046_Y_INV: 1
