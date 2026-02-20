@@ -60,7 +60,7 @@ syscfg.defs:
 
     BLE_LL_SCA:
         description: Sleep clock accuracy of our device (in ppm)
-        value: MYNEWT_VAL(BLE_LL_OUR_SCA)
+        value: 60
         range: 0..500
 
     BLE_LL_TX_PWR_DBM:
@@ -86,7 +86,7 @@ syscfg.defs:
     BLE_LL_MANUFACTURER_ID:
         description: >
             Manufacturer ID, as assigned by Bluetooth SIG
-        value: MYNEWT_VAL(BLE_LL_MFRG_ID)
+        value: 0x0B65
 
     # Configuration items for the number of duplicate advertisers and the
     # number of advertisers from which we have heard a scan response.
@@ -219,7 +219,7 @@ syscfg.defs:
             - nrf52 - time required for XTAL to settle
             Value is specified in microseconds. If set to 0, rfmgmt keeps
             PHY enabled all the time.
-        value: MYNEWT_VAL(BLE_XTAL_SETTLE_TIME)
+        value: 0
 
     BLE_LL_HCI_LLCP_TRACE:
         description: >
@@ -375,7 +375,7 @@ syscfg.defs:
          description: >
             Number of auxiliary advertising segments that can be scanned
             concurrently (Core 5.2, Vol 6, Part B, 4.4.2.2.2).
-         value: MYNEWT_VAL(BLE_LL_EXT_ADV_AUX_PTR_CNT)
+         value: 0
 
     BLE_LL_SCAN_ACTIVE_SCAN_NRPA:
         description: >
@@ -398,7 +398,7 @@ syscfg.defs:
     BLE_LL_DTM:
         description: >
              Enables HCI Test commands needed for Bluetooth SIG certification
-        value: MYNEWT_VAL(BLE_LL_DIRECT_TEST_MODE)
+        value: 0
     BLE_LL_DTM_EXTENSIONS:
         description: >
              Enables non-standard extensions to HCI test commands. Once enabled,
@@ -457,11 +457,11 @@ syscfg.defs:
             This options enables controller to send a vendor-specific event on
             an assertion in controller code. The event contains file name and
             line number where assertion occured.
-        value: MYNEWT_VAL(BLE_LL_VND_EVENT_ON_ASSERT)
+        value: 0
 
     BLE_FEM_PA:
         description: Enable FEM PA support
-        value: MYNEWT_VAL(BLE_LL_PA)
+        value: 0
     BLE_FEM_PA_GAIN:
         description: PA fixed TX gain (in dBm).
         value: 0
@@ -475,14 +475,14 @@ syscfg.defs:
         description: >
             GPIO pin number to control PA. Pin is set to high state when PA
             should be enabled.
-        value: MYNEWT_VAL(BLE_LL_PA_GPIO)
+        value: -1
     BLE_FEM_PA_TURN_ON_US:
         description: >
             Time required for PA to turn on, in microseconds.
-        value: MYNEWT_VAL(BLE_LL_PA_TURN_ON_US)
+        value: 1
     BLE_FEM_LNA:
         description: Enable LNA support
-        value: MYNEWT_VAL(BLE_LL_LNA)
+        value: 0
     BLE_FEM_LNA_GAIN:
         description: LNA fixed RX gain (in dBm).
         value: 0
@@ -496,11 +496,11 @@ syscfg.defs:
         description: >
             GPIO pin number to control LNA. Pin is set to high state when LNA
             should be enabled.
-        value: MYNEWT_VAL(BLE_LL_LNA_GPIO)
+        value: -1
     BLE_FEM_LNA_TURN_ON_US:
         description: >
             Time required for LNA to turn on, in microseconds.
-        value: MYNEWT_VAL(BLE_LL_LNA_TURN_ON_US)
+        value: 1
     BLE_FEM_ANTENNA:
         description: >
             Enable support for runtime antenna selection in FEM.
@@ -692,7 +692,5 @@ syscfg.restrictions:
     - BLE_FEM_LNA == 0 || BLE_FEM_LNA_GPIO >= 0
 
 $import:
-    # defunct and deprecated settings
-    - "@apache-mynewt-nimble/nimble/controller/syscfg.defunct.yml"
     # "Here be dragons" settings
     - "@apache-mynewt-nimble/nimble/controller/syscfg.hbd.yml"

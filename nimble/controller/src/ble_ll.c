@@ -1810,8 +1810,6 @@ ble_ll_init(void)
             g_dev_addr[i] = pub_dev_addr & 0xff;
             pub_dev_addr >>= 8;
         }
-#else
-        memcpy(g_dev_addr, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR), BLE_DEV_ADDR_LEN);
 #endif
         if (ble_ll_is_addr_empty(g_dev_addr)) {
             rc = ble_hw_get_public_addr(&addr);
