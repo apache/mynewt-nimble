@@ -27,9 +27,52 @@
 #include "host/ble_hs_log.h"
 #include "host/ble_hs.h"
 #include "host/ble_cs.h"
+#include "host/ble_peer.h"
 #include "nimble/hci_common.h"
 #include "sys/queue.h"
 #include "ble_hs_hci_priv.h"
+#include "ble_hs_priv.h"
+#include "ble_cs_priv.h"
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT) || MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+#include "services/ras/ble_svc_ras.h"
+#endif
+
+#define IN_RANGE(_n, _min, _max)              (((_n) >= (_min)) && ((_n) <= (_max)))
+#define N_AP_MAX                              (4)
+#define BLE_CS_ENABLE_RETRY_COUNTER_RESET_VAL 10
+
+#define BLE_CS_CONFIG_MAX_NUM 4
+static const uint8_t antenna_path_permutations[24][4] = {
+    { 1, 2, 3, 4 },
+    { 2, 1, 3, 4 },
+    { 1, 3, 2, 4 },
+    { 3, 1, 2, 4 },
+    { 3, 2, 1, 4 },
+    { 2, 3, 1, 4 },
+    { 1, 2, 4, 3 },
+    { 2, 1, 4, 3 },
+    { 1, 4, 2, 3 },
+    { 4, 1, 2, 3 },
+    { 4, 2, 1, 3 },
+    { 2, 4, 1, 3 },
+    { 1, 4, 3, 2 },
+    { 4, 1, 3, 2 },
+    { 1, 3, 4, 2 },
+    { 3, 1, 4, 2 },
+    { 3, 4, 1, 2 },
+    { 4, 3, 1, 2 },
+    { 4, 2, 3, 1 },
+    { 2, 4, 3, 1 },
+    { 4, 3, 2, 1 },
+    { 3, 4, 2, 1 },
+    { 3, 2, 4, 1 },
+    { 2, 3, 4, 1 }
+};
+static uint8_t aci_to_num_of_paths[] = { 1, 2, 3, 4, 2, 3, 4, 4 };
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT) || MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+static uint8_t aci_to_antenna_paths_mask[] = { 0b1,  0b11,  0b111,  0b1111,
+                                               0b11, 0b111, 0b1111, 0b1111 };
+#endif
 
 struct ble_cs_rd_rem_supp_cap_cp {
     uint16_t conn_handle;
@@ -115,7 +158,6 @@ struct ble_cs_create_config_cp {
     uint8_t channel_selection_type;
     uint8_t ch3c_shape;
     uint8_t ch3c_jump;
-    uint8_t companion_signal_enable;
 } __attribute__((packed));
 
 struct ble_cs_remove_config_cp {
@@ -166,21 +208,54 @@ struct ble_cs_proc_enable_cp {
     uint8_t enable;
 } __attribute__((packed));
 
-struct ble_cs_state {
-    uint8_t op;
-    ble_cs_event_fn *cb;
-    void *cb_arg;
+struct ble_cs_config {
+    uint8_t local_role;
+    uint8_t rtt_type;
+    uint8_t rtt_pct_included;
+    uint8_t sounding_pct_estimate;
+    uint8_t antenna_config_id;
 };
 
-static struct ble_cs_state cs_state;
+struct ble_cs_sm {
+    ble_cs_event_fn *event_cb;
+    void *event_cb_arg;
+    uint16_t conn_handle;
+    struct ble_cs_config config[BLE_CS_CONFIG_MAX_NUM];
+    uint8_t active_config_id;
+    uint8_t pending_procedure;
+    uint8_t retry_counter;
+    uint8_t ready_to_enable;
+};
+static struct ble_cs_sm g_ble_cs_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
+
+struct ble_cs_loc_supp_cap {
+    uint8_t rtt_pct;
+};
+static struct ble_cs_loc_supp_cap g_loc_supp_cap;
+
+static struct ble_cs_sm *
+ble_cs_sm_get(uint16_t conn_handle)
+{
+    struct ble_cs_sm *cssm = NULL;
+    uint8_t i;
+
+    for (i = 0; i < ARRAY_SIZE(g_ble_cs_sm); i++) {
+        if (g_ble_cs_sm[i].conn_handle == conn_handle) {
+            cssm = &g_ble_cs_sm[i];
+            break;
+        }
+    }
+
+    return cssm;
+}
 
 static int
-ble_cs_call_event_cb(struct ble_cs_event *event)
+ble_cs_call_event_cb(struct ble_cs_sm *cssm, struct ble_cs_event *event)
 {
     int rc;
 
-    if (cs_state.cb != NULL) {
-        rc = cs_state.cb(event, cs_state.cb_arg);
+    if (cssm->event_cb != NULL) {
+        rc = cssm->event_cb(event, cssm->event_cb_arg, cssm->conn_handle);
     } else {
         rc = 0;
     }
@@ -189,19 +264,57 @@ ble_cs_call_event_cb(struct ble_cs_event *event)
 }
 
 static void
-ble_cs_call_procedure_complete_cb(uint16_t conn_handle, uint8_t status)
+ble_cs_call_procedure_complete_cb(struct ble_cs_sm *cssm, uint8_t status)
+{
+    struct ble_cs_event event;
+
+    cssm->pending_procedure = 0;
+    memset(&event, 0, sizeof event);
+    event.type = BLE_CS_EVENT_CS_PROCEDURE_COMPLETE;
+    event.procedure_complete.status = status;
+    ble_cs_call_event_cb(cssm, &event);
+}
+
+static void
+ble_cs_call_step_data_cb(struct ble_cs_sm *cssm, void *step_data,
+                         uint8_t status, uint8_t step_mode, uint8_t role)
 {
     struct ble_cs_event event;
 
     memset(&event, 0, sizeof event);
-    event.type = BLE_CS_EVENT_CS_PROCEDURE_COMPLETE;
-    event.procedure_complete.conn_handle = conn_handle;
-    event.procedure_complete.status = status;
-    ble_cs_call_event_cb(&event);
+    event.type = BLE_CS_EVENT_CS_STEP_DATA;
+    event.step_data.status = status;
+    event.step_data.role = role;
+    event.step_data.mode = step_mode;
+    event.step_data.data = step_data;
+    ble_cs_call_event_cb(cssm, &event);
 }
 
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+static void
+ble_cs_step_data_received_cb(void *data, uint16_t conn_handle, uint8_t step_mode)
+{
+    struct ble_cs_sm *cssm = NULL;
+    struct ble_cs_config *config;
+    uint8_t remote_role;
+
+    if (data == NULL) {
+        return;
+    }
+
+    cssm = ble_cs_sm_get(conn_handle);
+    config = &cssm->config[cssm->active_config_id];
+
+    remote_role = config->local_role == BLE_HS_CS_ROLE_INITIATOR
+                      ? BLE_HS_CS_ROLE_REFLECTOR
+                      : BLE_HS_CS_ROLE_INITIATOR;
+
+    ble_cs_call_step_data_cb(cssm, data, 0, step_mode, remote_role);
+}
+#endif
+
 static int
-ble_cs_rd_loc_supp_cap(void)
+ble_cs_rd_loc_supp_cap(struct ble_cs_sm *cssm)
 {
     int rc;
     struct ble_hci_le_cs_rd_loc_supp_cap_rp rp;
@@ -218,7 +331,8 @@ ble_cs_rd_loc_supp_cap(void)
     rp.optional_t_ip2_times_supported = le16toh(rp.optional_t_ip2_times_supported);
     rp.optional_t_fcs_times_supported = le16toh(rp.optional_t_fcs_times_supported);
     rp.optional_t_pm_times_supported = le16toh(rp.optional_t_pm_times_supported);
-    (void) rp;
+
+    g_loc_supp_cap.rtt_pct = (rp.optional_subfeatures_supported >> 3) & 1;
 
     return rc;
 }
@@ -361,7 +475,7 @@ ble_cs_create_config(const struct ble_cs_create_config_cp *cmd)
     cp.channel_selection_type = cmd->channel_selection_type;
     cp.ch3c_shape = cmd->ch3c_shape;
     cp.ch3c_jump = cmd->ch3c_jump;
-    cp.companion_signal_enable = cmd->companion_signal_enable;
+    cp.reserved = 0x00;
 
     return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
                                         BLE_HCI_OCF_LE_CS_CREATE_CONFIG),
@@ -447,6 +561,7 @@ ble_hs_hci_evt_le_cs_rd_rem_supp_cap_complete(uint8_t subevent, const void *data
                                               unsigned int len)
 {
     int rc;
+    struct ble_cs_sm *cssm = NULL;
     const struct ble_hci_ev_le_subev_cs_rd_rem_supp_cap_complete *ev = data;
     struct ble_cs_set_def_settings_cp set_cmd;
     struct ble_cs_set_def_settings_rp set_rsp;
@@ -456,11 +571,18 @@ ble_hs_hci_evt_le_cs_rd_rem_supp_cap_complete(uint8_t subevent, const void *data
         return BLE_HS_ECONTROLLER;
     }
 
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+    if (!cssm->pending_procedure) {
+        return 0;
+    }
+
     BLE_HS_LOG(DEBUG, "CS capabilities exchanged");
 
     /* TODO: Save the remote capabilities somewhere */
 
-    set_cmd.conn_handle = le16toh(ev->conn_handle);
+    set_cmd.conn_handle = cssm->conn_handle;
     /* Only initiator role is enabled */
     set_cmd.role_enable = 0x01;
     /* Use antenna with ID 0x01 */
@@ -476,7 +598,7 @@ ble_hs_hci_evt_le_cs_rd_rem_supp_cap_complete(uint8_t subevent, const void *data
     }
 
     /* Read the mode 0 Frequency Actuation Error table */
-    fae_cmd.conn_handle = le16toh(ev->conn_handle);
+    fae_cmd.conn_handle = cssm->conn_handle;
     rc = ble_cs_rd_rem_fae(&fae_cmd);
     if (rc) {
         BLE_HS_LOG(DEBUG, "Failed to read FAE table");
@@ -490,27 +612,44 @@ ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data,
                                          unsigned int len)
 {
     const struct ble_hci_ev_le_subev_cs_rd_rem_fae_complete *ev = data;
+    struct ble_cs_sm *cssm;
+    struct ble_cs_config *config;
     struct ble_cs_create_config_cp cmd;
     int rc;
 
-    if (len != sizeof(*ev) || ev->status) {
+    if (len != sizeof(*ev) ||
+        (ev->status != BLE_ERR_SUCCESS && ev->status != BLE_ERR_UNSUPPORTED)) {
         return BLE_HS_ECONTROLLER;
     }
 
-    cmd.conn_handle = le16toh(ev->conn_handle);
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+    if (!cssm->pending_procedure) {
+        return 0;
+    }
+
+    config = &cssm->config[cssm->active_config_id];
+
+    cmd.conn_handle = cssm->conn_handle;
     /* The config will use ID 0x00 */
     cmd.config_id = 0x00;
     /* Create the config on the remote controller too */
     cmd.create_context = 0x01;
     /* Measure phase rotations in main mode */
-    cmd.main_mode_type = 0x01;
+    cmd.main_mode_type = 0x02;
     /* Do not use sub mode for now. */
-    cmd.sub_mode_type = 0xFF;
-    /* Range from which the number of CS main mode steps to execute
-     * will be randomly selected.
-     */
-    cmd.min_main_mode_steps = 0x02;
-    cmd.max_main_mode_steps = 0x06;
+    cmd.sub_mode_type = BLE_HS_CS_SUBMODE_TYPE;
+    if (cmd.sub_mode_type == BLE_HS_CS_MODE_UNUSED) {
+        cmd.min_main_mode_steps = 0;
+        cmd.max_main_mode_steps = 0;
+    } else {
+        /* Range from which the number of CS main mode steps to execute
+         * will be randomly selected.
+         */
+        cmd.min_main_mode_steps = 0x02;
+        cmd.max_main_mode_steps = 0x06;
+    }
     /* The number of main mode steps to be repeated at the beginning of
      * the current CS, irrespectively if there are some overlapping main
      * mode steps from previous CS subevent or not.
@@ -520,19 +659,17 @@ ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data,
      * each CS subevent
      */
     cmd.mode_0_steps = 0x03;
-    /* Take the Initiator role */
-    cmd.role = 0x00;
-    cmd.rtt_type = 0x01;
+    cmd.role = config->local_role;
+    cmd.rtt_type = config->rtt_type;
+
     cmd.cs_sync_phy = 0x01;
-    memcpy(cmd.channel_map, (uint8_t[10]) {0x0a, 0xfa, 0xcf, 0xac, 0xfa, 0xc0}, 10);
+    memcpy(cmd.channel_map, (uint8_t[10]){ 0xFC, 0xFF, 0x0F }, 10);
     cmd.channel_map_repetition = 0x01;
     /* Use Channel Selection Algorithm #3b */
     cmd.channel_selection_type = 0x00;
     /* Ignore these as used only with #3c algorithm */
     cmd.ch3c_shape = 0x00;
     cmd.ch3c_jump = 0x00;
-    /* EDLC/ECLD attack protection not supported */
-    cmd.companion_signal_enable = 0x00;
 
     /* Create CS config */
     rc = ble_cs_create_config(&cmd);
@@ -548,6 +685,8 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
                                          unsigned int len)
 {
     int rc;
+    struct ble_cs_sm *cssm;
+    struct ble_cs_config *config;
     struct ble_cs_set_proc_params_cp cmd;
     struct ble_cs_set_proc_params_rp rsp;
     struct ble_cs_proc_enable_cp enable_cmd;
@@ -561,10 +700,19 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
 
     BLE_HS_LOG(DEBUG, "CS setup phase completed");
 
-    cmd.conn_handle = le16toh(ev->conn_handle);
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+    if (!cssm->pending_procedure) {
+        return 0;
+    }
+
+    config = &cssm->config[cssm->active_config_id];
+
+    cmd.conn_handle = cssm->conn_handle;
     cmd.config_id = 0x00;
     /* The maximum duration of each CS procedure (time = N × 0.625 ms) */
-    cmd.max_procedure_len = 8;
+    cmd.max_procedure_len = 800;
     /* The maximum number of consecutive CS procedures to be scheduled
      * as part of this measurement
      */
@@ -575,12 +723,10 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
     cmd.min_procedure_interval = 0x0000;
     cmd.max_procedure_interval = 0x0000;
     /* Minimum/maximum suggested durations for each CS subevent in microseconds.
-     * 1250us and 5000us selected.
      */
-    cmd.min_subevent_len = 1250;
+    cmd.min_subevent_len = 5000;
     cmd.max_subevent_len = 5000;
-    /* Use ACI 0 as we have only one antenna on each side */
-    cmd.tone_antenna_config_selection = 0x00;
+    cmd.tone_antenna_config_selection = config->antenna_config_id;
     /* Use LE 1M PHY for CS procedures */
     cmd.phy = 0x01;
     /* Transmit power delta set to 0x80 means Host does not have a recommendation. */
@@ -598,7 +744,8 @@ ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data,
         BLE_HS_LOG(DEBUG, "Failed to set CS procedure parameters");
     }
 
-    enable_cmd.conn_handle = le16toh(ev->conn_handle);
+    cssm->ready_to_enable = 1;
+    enable_cmd.conn_handle = cssm->conn_handle;
     enable_cmd.config_id = 0x00;
     enable_cmd.enable = 0x01;
 
@@ -616,19 +763,43 @@ ble_hs_hci_evt_le_cs_config_complete(uint8_t subevent, const void *data,
 {
     int rc;
     const struct ble_hci_ev_le_subev_cs_config_complete *ev = data;
+    struct ble_cs_config *config;
+    struct ble_cs_sm *cssm;
     struct ble_cs_sec_enable_cp cmd;
 
     if (len != sizeof(*ev) || ev->status) {
         return BLE_HS_ECONTROLLER;
     }
 
-    cmd.conn_handle = le16toh(ev->conn_handle);
+    BLE_HS_LOG(DEBUG, "CS config completed");
+
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    config = &cssm->config[ev->config_id];
+    config->rtt_type = ev->rtt_type;
+
+    if (g_loc_supp_cap.rtt_pct && config->rtt_type != BLE_HS_CS_RTT_AA_ONLY) {
+        config->rtt_pct_included = 1;
+    }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+    ble_svc_ras_clt_config_set(cssm->conn_handle, config->rtt_pct_included,
+                               aci_to_num_of_paths[config->antenna_config_id],
+                               config->local_role);
+#endif
+
+    if (!cssm->pending_procedure) {
+        config->local_role = ev->role;
+
+        return 0;
+    }
+
+    cmd.conn_handle = cssm->conn_handle;
 
     /* Exchange CS security keys */
     rc = ble_cs_sec_enable(&cmd);
     if (rc) {
         BLE_HS_LOG(DEBUG, "Failed to enable CS security");
-        ble_cs_call_procedure_complete_cb(le16toh(ev->conn_handle), ev->status);
+        ble_cs_call_procedure_complete_cb(cssm, ev->status);
     }
 
     return 0;
@@ -638,23 +809,320 @@ int
 ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent, const void *data,
                                           unsigned int len)
 {
+    int rc;
     const struct ble_hci_ev_le_subev_cs_proc_enable_complete *ev = data;
+    struct ble_cs_proc_enable_cp enable_cmd;
+    struct ble_cs_sm *cssm;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    struct ble_cs_config *config;
+    uint8_t antenna_paths_mask;
+#endif
 
-    if (len != sizeof(*ev) || ev->status) {
+    if (len != sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
     }
 
+    BLE_HS_LOG(DEBUG, "Received CS procedure enable completed, status %d\n",
+               ev->status);
+
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+    if (ev->status == BLE_ERR_DIFF_TRANS_COLL) {
+        if (cssm->retry_counter == 0) {
+            BLE_HS_LOG(DEBUG, "Failed to enable CS procedure\n");
+            return 0;
+        }
+
+        BLE_HS_LOG(DEBUG, "Retrying CS procedure enable...\n");
+        --cssm->retry_counter;
+        enable_cmd.conn_handle = cssm->conn_handle;
+        enable_cmd.config_id = 0x00;
+        enable_cmd.enable = 0x01;
+
+        rc = ble_cs_proc_enable(&enable_cmd);
+        if (rc) {
+            BLE_HS_LOG(DEBUG, "Failed to enable CS procedure");
+        }
+        return 0;
+    } else if (ev->status != 0) {
+        BLE_HS_LOG(DEBUG, "Failed to enable CS procedure\n");
+        return 0;
+    }
+
+    cssm->retry_counter = BLE_CS_ENABLE_RETRY_COUNTER_RESET_VAL;
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    config = &cssm->config[cssm->active_config_id];
+    antenna_paths_mask = aci_to_antenna_paths_mask[config->antenna_config_id];
+    ble_svc_ras_ranging_data_body_init(cssm->conn_handle, ev->procedure_count,
+                                       ev->config_id, ev->selected_tx_power,
+                                       antenna_paths_mask);
+#endif
+
     return 0;
+}
+
+static int
+ble_cs_add_mode0_result(struct ble_cs_sm *cssm, const uint8_t *data,
+                        uint8_t data_len, uint8_t channel)
+{
+    struct ble_cs_mode0_result result;
+    struct ble_cs_config *config = &cssm->config[cssm->active_config_id];
+
+    if (!IN_RANGE(data_len, 3, 5)) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    memset(&result, 0, sizeof(result));
+    result.step_channel = channel;
+    result.packet_quality = data[0];
+    result.packet_rssi = data[1];
+    result.packet_antenna = data[2];
+
+    if (config->local_role == BLE_HS_CS_ROLE_INITIATOR) {
+        if (data_len < 5) {
+            /* Ignore invalid formatted results */
+            return 1;
+        }
+
+        result.measured_freq_offset = get_le16(data + 3);
+    }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode0_result(&result, cssm->conn_handle, config->local_role);
+#else
+    ble_cs_call_step_data_cb(cssm, (void *)&result, 0, BLE_HS_CS_MODE0,
+                             config->local_role);
+#endif
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode1_result(struct ble_cs_sm *cssm, const uint8_t *data,
+                        uint8_t data_len, uint8_t channel)
+{
+    struct ble_cs_mode1_result result;
+    struct ble_cs_config *config = &cssm->config[cssm->active_config_id];
+
+    if (!IN_RANGE(data_len, 6, 14)) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    memset(&result, 0, sizeof(result));
+    result.step_channel = channel;
+    result.packet_quality = data[0];
+    result.packet_nadm = data[1];
+    result.packet_rssi = data[2];
+    result.toa_tod = get_le16(data + 3);
+    result.packet_antenna = data[5];
+
+    if (config->rtt_pct_included) {
+        result.packet_pct1 = get_le32(data + 6);
+        result.packet_pct2 = get_le32(data + 10);
+    }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode1_result(&result, cssm->conn_handle, config->rtt_pct_included);
+#else
+    ble_cs_call_step_data_cb(cssm, (void *)&result, 0, BLE_HS_CS_MODE1,
+                             config->local_role);
+#endif
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode2_result(struct ble_cs_sm *cssm, const uint8_t *data,
+                        uint8_t data_len, uint8_t channel)
+{
+    struct ble_cs_mode2_result result;
+    struct ble_cs_config *config = &cssm->config[cssm->active_config_id];
+    uint8_t n_ap;
+    uint8_t i;
+
+    memset(&result, 0, sizeof(result));
+    result.step_channel = channel;
+
+    n_ap = aci_to_num_of_paths[config->antenna_config_id];
+    result.antenna_path_permutation_id = *(data++);
+
+    for (i = 0; i < n_ap; ++i) {
+        result.antenna_paths[i] =
+            antenna_path_permutations[result.antenna_path_permutation_id][i];
+    }
+
+    if (data_len < (n_ap + 1) * 4) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        result.tone_pct[i] = get_le24(data);
+        data += 3;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        result.tone_quality_ind[i] = *(data++);
+    }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode2_result(&result, cssm->conn_handle, n_ap);
+#else
+    ble_cs_call_step_data_cb(cssm, (void *)&result, 0, BLE_HS_CS_MODE2,
+                             config->local_role);
+#endif
+
+    return 0;
+}
+
+static int
+ble_cs_add_mode3_result(struct ble_cs_sm *cssm, const uint8_t *data_buf,
+                        uint8_t data_len, uint8_t channel)
+{
+    const uint8_t *data = data_buf;
+    struct ble_cs_mode3_result result;
+    struct ble_cs_config *config = &cssm->config[cssm->active_config_id];
+    uint8_t n_ap;
+    uint8_t i;
+
+    memset(&result, 0, sizeof(result));
+    result.step_channel = channel;
+    result.packet_quality = data[0];
+    result.packet_nadm = data[1];
+    result.packet_rssi = data[2];
+    result.toa_tod = get_le16(data + 3);
+    result.packet_antenna = data[5];
+    data += 6;
+
+    if (config->rtt_pct_included) {
+        result.packet_pct1 = get_le32(data);
+        data += 4;
+        result.packet_pct2 = get_le32(data + 10);
+        data += 4;
+    }
+
+    result.antenna_path_permutation_id = *(data++);
+    memcpy(result.antenna_paths,
+           antenna_path_permutations[result.antenna_path_permutation_id],
+           sizeof(result.antenna_paths));
+    n_ap = aci_to_num_of_paths[config->antenna_config_id];
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        result.tone_pct[i] = get_le24(data);
+        data += 3;
+    }
+
+    for (i = 0; i < n_ap + 1; ++i) {
+        result.tone_quality_ind[i] = *(data++);
+    }
+
+    if (data_len < data - data_buf) {
+        /* Ignore invalid formatted results */
+        return 1;
+    }
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ble_svc_ras_add_mode3_result(&result, cssm->conn_handle, n_ap,
+                                 config->rtt_pct_included);
+#else
+    ble_cs_call_step_data_cb(cssm, (void *)&result, 0, BLE_HS_CS_MODE3,
+                             config->local_role);
+#endif
+
+    return 0;
+}
+
+static int
+ble_cs_add_steps(struct ble_cs_sm *cssm, const struct cs_steps_data *step_data,
+                 uint8_t step_count)
+{
+    int rc = 1;
+    const void *data;
+    uint8_t data_len;
+    uint8_t i;
+
+    for (i = 0; i < step_count; ++i) {
+        data = step_data->data;
+        data_len = step_data->data_len;
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        ble_svc_ras_add_step_mode(cssm->conn_handle, step_data->mode, data_len == 0);
+#endif
+
+        if (data_len == 0) {
+            /* Ignore step with missing results */
+            continue;
+        }
+
+        switch (step_data->mode) {
+        case BLE_HS_CS_MODE0:
+            rc = ble_cs_add_mode0_result(cssm, data, data_len, step_data->channel);
+            break;
+        case BLE_HS_CS_MODE1:
+            rc = ble_cs_add_mode1_result(cssm, data, data_len, step_data->channel);
+            break;
+        case BLE_HS_CS_MODE2:
+            rc = ble_cs_add_mode2_result(cssm, data, data_len, step_data->channel);
+            break;
+        case BLE_HS_CS_MODE3:
+            rc = ble_cs_add_mode3_result(cssm, data, data_len, step_data->channel);
+            break;
+        default:
+            rc = 1;
+        }
+
+        if (rc) {
+            /* Ignore invalid formatted results */
+            return 0;
+        }
+
+        step_data = data + step_data->data_len;
+    }
+    return rc;
 }
 
 int
 ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
                                      unsigned int len)
 {
+    int rc;
     const struct ble_hci_ev_le_subev_cs_subevent_result *ev = data;
+    struct ble_cs_sm *cssm = NULL;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    uint8_t ranging_abort_reason;
+    uint8_t subevent_abort_reason;
+#endif
 
-    if (len != sizeof(*ev)) {
+    if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
+    }
+
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ranging_abort_reason = ev->abort_reason & 0xF;
+    subevent_abort_reason = ev->abort_reason >> 4;
+
+    ble_svc_ras_ranging_subevent_init(
+        cssm->conn_handle, le16toh(ev->start_acl_conn_event_counter),
+        le16toh(ev->frequency_compensation), ev->procedure_done_status,
+        ev->subevent_done_status, ranging_abort_reason, subevent_abort_reason,
+        ev->reference_power_level, ev->num_steps_reported);
+#endif
+
+    rc = ble_cs_add_steps(cssm, ev->steps, ev->num_steps_reported);
+
+    if (ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_COMPLETED ||
+        ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_ABORTED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
+#endif
+        ble_cs_call_procedure_complete_cb(cssm, rc);
     }
 
     return 0;
@@ -664,10 +1132,38 @@ int
 ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data,
                                               unsigned int len)
 {
+    int rc;
+    struct ble_cs_sm *cssm = NULL;
     const struct ble_hci_ev_le_subev_cs_subevent_result_continue *ev = data;
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    uint8_t ranging_abort_reason;
+    uint8_t subevent_abort_reason;
+#endif
 
-    if (len != sizeof(*ev)) {
+    if (len < sizeof(*ev)) {
         return BLE_HS_ECONTROLLER;
+    }
+
+    cssm = ble_cs_sm_get(le16toh(ev->conn_handle));
+    assert(cssm != NULL);
+
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+    ranging_abort_reason = ev->abort_reason & 0xF;
+    subevent_abort_reason = ev->abort_reason >> 4;
+
+    ble_svc_ras_ranging_subevent_update_status(
+        cssm->conn_handle, ev->num_steps_reported, ev->procedure_done_status,
+        ev->subevent_done_status, ranging_abort_reason, subevent_abort_reason);
+#endif
+
+    rc = ble_cs_add_steps(cssm, ev->steps, ev->num_steps_reported);
+
+    if (ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_COMPLETED ||
+        ev->procedure_done_status == BLE_HS_CS_PROC_DONE_STATUS_ABORTED) {
+#if MYNEWT_VAL(BLE_SVC_RAS_SERVER)
+        rc = ble_svc_ras_ranging_data_ready(cssm->conn_handle);
+#endif
+        ble_cs_call_procedure_complete_cb(cssm, rc);
     }
 
     return 0;
@@ -687,10 +1183,46 @@ ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data,
 }
 
 int
-ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_params *params)
+ble_cs_init(void)
+{
+    uint8_t i;
+
+    for (i = 0; i < ARRAY_SIZE(g_ble_cs_sm); i++) {
+        g_ble_cs_sm[i].conn_handle = BLE_CONN_HANDLE_INVALID;
+    }
+
+    return 0;
+}
+
+static int
+ble_cs_setup_phase_start(uint16_t conn_handle)
 {
     struct ble_cs_rd_rem_supp_cap_cp cmd;
+    struct ble_cs_sm *cssm = NULL;
+
+    cssm = ble_cs_sm_get(conn_handle);
+    assert(cssm != NULL);
+    ble_cs_rd_loc_supp_cap(cssm);
+
+    cmd.conn_handle = cssm->conn_handle;
+    return ble_cs_rd_rem_supp_cap(&cmd);
+}
+
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+static void
+ble_cs_initiator_config_cb(uint16_t conn_handle)
+{
+    ble_cs_setup_phase_start(conn_handle);
+}
+#endif
+
+int
+ble_cs_procedure_start(const struct ble_cs_procedure_start_params *params,
+                       uint16_t conn_handle)
+{
     int rc;
+    struct ble_cs_sm *cssm = NULL;
+    struct ble_cs_proc_enable_cp enable_cmd;
 
     /* Channel Sounding setup phase:
      * 1. Set local default CS settings
@@ -706,30 +1238,70 @@ ble_cs_initiator_procedure_start(const struct ble_cs_initiator_procedure_start_p
     (void)ble_cs_wr_cached_rem_supp_cap;
     (void)ble_cs_rd_loc_supp_cap;
 
-    cs_state.cb = params->cb;
-    cs_state.cb_arg = params->cb_arg;
+    cssm = ble_cs_sm_get(conn_handle);
+    assert(cssm != NULL);
 
-    cmd.conn_handle = params->conn_handle;
-    rc = ble_cs_rd_rem_supp_cap(&cmd);
-    if (rc) {
-        BLE_HS_LOG(DEBUG, "Failed to read local supported CS capabilities,"
-                   "err %dt", rc);
+    if (cssm->pending_procedure) {
+        return BLE_HS_EALREADY;
     }
 
-    return rc;
+    cssm->pending_procedure = 1;
+
+    if (cssm->ready_to_enable) {
+        cssm->retry_counter = BLE_CS_ENABLE_RETRY_COUNTER_RESET_VAL;
+
+        enable_cmd.conn_handle = cssm->conn_handle;
+        enable_cmd.config_id = 0x00;
+        enable_cmd.enable = 0x01;
+
+        rc = ble_cs_proc_enable(&enable_cmd);
+        if (rc) {
+            BLE_HS_LOG(DEBUG, "Failed to enable CS procedure");
+        }
+
+        return rc;
+    }
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+    return ble_svc_ras_clt_subscribe(ble_cs_initiator_config_cb,
+                                     ble_cs_step_data_received_cb, cssm->conn_handle,
+                                     BLE_SVC_RAS_MODE_ON_DEMAND);
+#else
+    return ble_cs_setup_phase_start(cssm->conn_handle);
+#endif
 }
 
 int
-ble_cs_initiator_procedure_terminate(uint16_t conn_handle)
+ble_cs_procedure_terminate(const struct ble_cs_procedure_terminate_params *params,
+                           uint16_t conn_handle)
 {
     return 0;
 }
 
 int
-ble_cs_reflector_setup(struct ble_cs_reflector_setup_params *params)
+ble_cs_setup(const struct ble_cs_setup_params *params, uint16_t conn_handle)
 {
-    cs_state.cb = params->cb;
-    cs_state.cb_arg = params->cb_arg;
+    struct ble_cs_sm *cssm = NULL;
+    struct ble_cs_config *config;
+
+    cssm = ble_cs_sm_get(conn_handle);
+    if (cssm == NULL) {
+        cssm = ble_cs_sm_get(BLE_CONN_HANDLE_INVALID);
+        memset(cssm, 0, sizeof(*cssm));
+        if (cssm == NULL) {
+            return BLE_HS_ENOMEM;
+        }
+    }
+
+    if (cssm->pending_procedure) {
+        return BLE_HS_EALREADY;
+    }
+
+    cssm->conn_handle = conn_handle;
+    cssm->event_cb = params->cb;
+    cssm->event_cb_arg = params->cb_arg;
+    cssm->active_config_id = 0;
+    config = &cssm->config[cssm->active_config_id];
+    config->local_role = params->local_role;
 
     return 0;
 }
