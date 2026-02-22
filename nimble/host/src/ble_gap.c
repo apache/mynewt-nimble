@@ -3434,6 +3434,7 @@ int
 ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
 {
     int rc;
+    ble_addr_t invalid_non_rpa_addr, invalid_static_rand_addr;
 
     if (instance >= BLE_ADV_INSTANCES || addr->type != BLE_ADDR_RANDOM) {
         return BLE_HS_EINVAL;
@@ -3441,6 +3442,36 @@ ble_gap_ext_adv_set_addr(uint8_t instance, const ble_addr_t *addr)
 
     if (!ble_hs_is_enabled()) {
         return BLE_HS_EDISABLED;
+    }
+
+    /*
+       A static address is a 48-bit randomly generated address and shall meet the following requirements:
+       The two most significant bits of the address shall be equal to 1
+       All bits of the random part of the address shall not be equal to 1
+       All bits of the random part of the address shall not be equal to 0
+     */
+
+    memset(&invalid_non_rpa_addr.val, 0xff, BLE_DEV_ADDR_LEN);
+    memset(&invalid_static_rand_addr.val, 0x00, BLE_DEV_ADDR_LEN);
+
+    if ((addr->val[5] & BLE_STATIC_RAND_ADDR_MASK) == BLE_STATIC_RAND_ADDR_MASK) {
+        invalid_static_rand_addr.val[5] =
+            invalid_static_rand_addr.val[5] | BLE_STATIC_RAND_ADDR_MASK;
+
+        if (memcmp(invalid_non_rpa_addr.val, addr->val, BLE_DEV_ADDR_LEN) == 0 ||
+            memcmp(invalid_static_rand_addr.val, addr->val, BLE_DEV_ADDR_LEN) == 0) {
+            return BLE_HS_EINVAL;
+        }
+
+    } else if ((addr->val[5] | BLE_NON_RPA_MASK) == BLE_NON_RPA_MASK) {
+        invalid_non_rpa_addr.val[5] = invalid_non_rpa_addr.val[5] & BLE_NON_RPA_MASK;
+        if (memcmp(invalid_non_rpa_addr.val, addr->val, BLE_DEV_ADDR_LEN) == 0 ||
+            memcmp(invalid_static_rand_addr.val, addr->val, BLE_DEV_ADDR_LEN) == 0) {
+            return BLE_HS_EINVAL;
+        }
+    } else {
+        BLE_HS_LOG(ERROR, "Invalid random address \n");
+        return BLE_HS_EINVAL;
     }
 
     ble_hs_lock();
