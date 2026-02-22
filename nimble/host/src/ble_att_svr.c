@@ -209,6 +209,21 @@ ble_att_svr_find_by_uuid(struct ble_att_svr_entry *prev, const ble_uuid_t *uuid,
     return NULL;
 }
 
+void
+ble_att_svr_foreach(ble_gatts_entry_foreach cb, void *arg)
+{
+    int rc;
+    struct ble_att_svr_entry *entry;
+
+    for (entry = STAILQ_FIRST(&ble_att_svr_list); entry != NULL;
+         entry = STAILQ_NEXT(entry, ha_next)) {
+        rc = cb(entry, arg);
+        if (rc != 0) {
+            break;
+        }
+    }
+}
+
 static int
 ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
                             uint8_t *out_att_err)
@@ -230,9 +245,8 @@ ble_att_svr_pullup_req_base(struct os_mbuf **om, int base_len,
     return rc;
 }
 
-static void
-ble_att_svr_get_sec_state(uint16_t conn_handle,
-                          struct ble_gap_sec_state *out_sec_state)
+void
+ble_att_svr_get_sec_state(uint16_t conn_handle, struct ble_gap_sec_state *out_sec_state)
 {
     struct ble_hs_conn *conn;
 
@@ -1496,6 +1510,30 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
         goto done;
     }
 
+    /* If a client that has indicated support for robust caching (by setting the Robust
+     * Caching bit in the Client Supported Features characteristic) is change-unaware
+     * then the server shall send an ATT_ERROR_RSP PDU with the Error Code
+     * parameter set to Database Out Of Sync (0x12) when either of the following happen:
+     * • That client sends an ATT_READ_BY_TYPE_REQ PDU with Attribute Type
+     *   other than «Include» or «Characteristic» and an Attribute Handle range
+     *   other than 0x0001 to 0xFFFF.
+     * (Core Specification 6.1 Vol 3. Part G. 2.5.2.1 Robust Caching).
+     */
+    if (!is_change_aware(conn_handle)) {
+        if ((ble_uuid_u16(&uuid.u) != BLE_ATT_UUID_CHARACTERISTIC) &&
+            (ble_uuid_u16(&uuid.u) != BLE_ATT_UUID_INCLUDE) &&
+            (start_handle != 0x0001 || end_handle != 0xFFFF)) {
+            if (!is_out_of_sync_sent(conn_handle)) {
+                att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+                rc = BLE_HS_EREJECT;
+                set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+                goto done;
+            } else {
+                return 0;
+            }
+        }
+    }
+
     rc = ble_att_svr_build_read_type_rsp(conn_handle, cid, start_handle, end_handle,
                                          &uuid.u, rxom, &txom, &att_err,
                                          &err_handle);
@@ -1542,6 +1580,17 @@ ble_att_svr_rx_read(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
     txom = *rxom;
     *rxom = NULL;
     os_mbuf_adj(txom, OS_MBUF_PKTLEN(txom));
+
+    if (!is_change_aware(conn_handle)) {
+        if (!is_out_of_sync_sent(conn_handle)) {
+            att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+            rc = BLE_HS_EREJECT;
+            set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+            goto done;
+        } else {
+            return 0;
+        }
+    }
 
     if (ble_att_cmd_prepare(BLE_ATT_OP_READ_RSP, 0, txom) == NULL) {
         att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -1691,9 +1740,21 @@ ble_att_svr_rx_read_mult(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
     err_handle = 0;
     att_err = 0;
 
+    if (!is_change_aware(conn_handle)) {
+        if (!is_out_of_sync_sent(conn_handle)) {
+            att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+            rc = BLE_HS_EREJECT;
+            set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+            goto done;
+        } else {
+            return 0;
+        }
+    }
+
     rc = ble_att_svr_build_read_mult_rsp(conn_handle, cid, rxom, &txom, &att_err,
                                          &err_handle);
 
+done:
     return ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
                               att_err, err_handle);
 }
@@ -1705,7 +1766,7 @@ ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
                                     uint8_t *att_err,
                                     uint16_t *err_handle)
 {
-    struct os_mbuf *txom;
+    struct os_mbuf *txom = NULL;
     uint16_t handle;
     uint16_t mtu;
     uint16_t tuple_len;
@@ -1713,6 +1774,17 @@ ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
     int rc;
 
     mtu = ble_att_mtu_by_cid(conn_handle, cid);
+
+    if (!is_change_aware(conn_handle)) {
+        if (!is_out_of_sync_sent(conn_handle)) {
+            *att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+            rc = BLE_HS_EREJECT;
+            set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+            goto done;
+        } else {
+            return 0;
+        }
+    }
 
     rc = ble_att_svr_pkt(rxom, &txom, att_err);
     if (rc != 0) {
@@ -2162,6 +2234,17 @@ ble_att_svr_rx_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
     att_err = 0;
     handle = 0;
 
+    if (!is_change_aware(conn_handle)) {
+        if (!is_out_of_sync_sent(conn_handle)) {
+            att_err = BLE_ATT_ERR_DB_OUT_OF_SYNC;
+            rc = BLE_HS_EREJECT;
+            set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+            goto done;
+        } else {
+            return 0;
+        }
+    }
+
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         goto done;
@@ -2210,6 +2293,12 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
         return rc;
+    }
+
+    /* If a change-unaware client sends an ATT command, the server shall
+     * ignore it. */
+    if (!is_change_aware(conn_handle)) {
+        return 0;
     }
 
     req = (struct ble_att_write_req *)(*rxom)->om_data;
@@ -2396,6 +2485,15 @@ ble_att_svr_prep_write(uint16_t conn_handle,
     int rc;
 
     *err_handle = 0; /* Silence unnecessary warning. */
+
+    if (!is_change_aware(conn_handle)) {
+        if (!is_out_of_sync_sent(conn_handle)) {
+            set_change_aware(conn_handle, BLE_GATTS_OUT_OF_SYNC_SENT);
+            return BLE_ATT_ERR_DB_OUT_OF_SYNC;
+        } else {
+            return 0;
+        }
+    }
 
     /* First, validate the contents of the prepare queue. */
     rc = ble_att_svr_prep_validate(prep_list, err_handle);

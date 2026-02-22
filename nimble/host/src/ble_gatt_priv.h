@@ -88,17 +88,22 @@ extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 
 #define BLE_GATT_CHR_DECL_SZ_16         5
 #define BLE_GATT_CHR_DECL_SZ_128        19
-#define BLE_GATT_CHR_CLI_SUP_FEAT_SZ    1
-/**
- * For now only 3 bits in first octet are defined
- *
- */
 #define BLE_GATT_CHR_CLI_SUP_FEAT_MASK  7
+#define BLE_GATT_DB_HASH_SZ             16
 
 typedef uint8_t ble_gatts_conn_flags;
 
+enum ble_gatts_change_aware_state {
+    BLE_GATTS_CHANGE_AWARE,
+    BLE_GATTS_CHANGE_UNAWARE,
+    BLE_GATTS_HASH_READ_PENDING,
+    BLE_GATTS_OUT_OF_SYNC_SENT,
+};
+
 struct ble_gatts_conn {
     struct ble_gatts_clt_cfg *clt_cfgs;
+    enum ble_gatts_change_aware_state awareness;
+    uint8_t *db_hash;
     int num_clt_cfgs;
 
     uint16_t indicate_val_handle;
@@ -216,6 +221,14 @@ int ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle,
 int ble_gatts_conn_can_alloc(void);
 int ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn);
 int ble_gatts_init(void);
+const uint8_t *ble_gatts_get_db_hash(void);
+bool is_change_aware(uint16_t conn_handle);
+bool is_out_of_sync_sent(uint16_t conn_handle);
+void set_all_change_aware_action(ble_gap_conn_foreach_handle_fn *cb, void *arg);
+void set_change_aware(uint16_t, enum ble_gatts_change_aware_state);
+int set_change_unaware(uint16_t conn_handle, void *arg);
+void db_hash_store(uint16_t conn_handle);
+bool db_hash_cmp(const uint8_t *peer_hash);
 
 #ifdef __cplusplus
 }

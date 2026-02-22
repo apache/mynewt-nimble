@@ -110,6 +110,9 @@ struct os_mbuf;
 /**Insufficient Resources to complete the request. */
 #define BLE_ATT_ERR_INSUFFICIENT_RES        0x11
 
+/** The server requests the client to rediscover the database. */
+#define BLE_ATT_ERR_DB_OUT_OF_SYNC          0x12
+
 /**Requested value is not allowed. */
 #define BLE_ATT_ERR_VALUE_NOT_ALLOWED       0x13
 

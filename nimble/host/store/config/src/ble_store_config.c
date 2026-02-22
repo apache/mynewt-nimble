@@ -47,6 +47,19 @@ struct ble_store_value_cccd
 
 int ble_store_config_num_cccds;
 
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+struct ble_store_value_db_hash ble_store_config_db_hashes[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+#endif
+
+int ble_store_config_num_db_hashes;
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+struct ble_store_value_cl_sup_feat
+    ble_store_config_feats[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+#endif
+
+int ble_store_config_num_feats;
+
 /*****************************************************************************
  * $sec                                                                      *
  *****************************************************************************/
@@ -448,6 +461,228 @@ ble_store_config_write_cccd(const struct ble_store_value_cccd *value_cccd)
 }
 
 /*****************************************************************************
+ * hash                                                                     *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static int
+ble_store_config_find_hash(const struct ble_store_key_db_hash *key_hash)
+{
+    struct ble_store_value_db_hash *hash;
+    int skipped;
+    int i;
+
+    skipped = 0;
+    for (i = 0; i < ble_store_config_num_db_hashes; i++) {
+        hash = ble_store_config_db_hashes + i;
+
+        if (ble_addr_cmp(&key_hash->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&hash->peer_addr, &key_hash->peer_addr)) {
+                continue;
+            }
+        }
+
+        if (key_hash->idx > skipped) {
+            skipped++;
+            continue;
+        }
+
+        return i;
+    }
+
+    return -1;
+}
+#endif
+
+static int
+ble_store_config_delete_hash(const struct ble_store_key_db_hash *key_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+    int rc;
+
+    idx = ble_store_config_find_hash(key_hash);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_config_delete_obj(ble_store_config_db_hashes,
+                                     sizeof *ble_store_config_db_hashes, idx,
+                                     &ble_store_config_num_db_hashes);
+    if (rc != 0) {
+        return rc;
+    }
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_config_read_db_hash(const struct ble_store_key_db_hash *key_hash,
+                              struct ble_store_value_db_hash *value_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+
+    idx = ble_store_config_find_hash(key_hash);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    *value_hash = ble_store_config_db_hashes[idx];
+
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_config_write_db_hash(const struct ble_store_value_db_hash *value_hash)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    struct ble_store_key_db_hash key_hash;
+    int idx;
+
+    ble_store_key_from_value_db_hash(&key_hash, value_hash);
+    idx = ble_store_config_find_hash(&key_hash);
+    if (idx == -1) {
+        if (ble_store_config_num_db_hashes >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_config_num_db_hashes;
+        ble_store_config_num_db_hashes++;
+    }
+
+    ble_store_config_db_hashes[idx] = *value_hash;
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+/*****************************************************************************
+ * $cl_sup_feat                                                                     *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static int
+ble_store_config_find_cl_sup_feat(const struct ble_store_key_cl_sup_feat *key)
+{
+    struct ble_store_value_cl_sup_feat *feat;
+    int skipped;
+    int i;
+
+    skipped = 0;
+    for (i = 0; i < ble_store_config_num_feats; i++) {
+        feat = ble_store_config_feats + i;
+
+        if (ble_addr_cmp(&key->peer_addr, BLE_ADDR_ANY)) {
+            if (ble_addr_cmp(&feat->peer_addr, &key->peer_addr)) {
+                continue;
+            }
+        }
+
+        if (key->idx > skipped) {
+            skipped++;
+            continue;
+        }
+
+        return i;
+    }
+    return -1;
+}
+#endif
+
+static int
+ble_store_config_delete_cl_sup_feat(const struct ble_store_key_cl_sup_feat
+                                        *key_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+    int rc;
+
+    idx = ble_store_config_find_cl_sup_feat(key_feat);
+    if (idx < 0) {
+        return BLE_HS_ENOENT;
+    }
+
+    assert(ble_store_config_num_feats < ARRAY_SIZE(ble_store_config_feats));
+    rc = ble_store_config_delete_obj(ble_store_config_feats,
+                                     sizeof *ble_store_config_feats,
+                                     idx,
+                                     &ble_store_config_num_feats);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_store_config_persist_feats();
+    if (rc != 0) {
+        return rc;
+    }
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_config_read_cl_sup_feat(const struct ble_store_key_cl_sup_feat
+                                      *key_feat,
+                                  struct ble_store_value_cl_sup_feat
+                                      *value_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    int idx;
+
+    idx = ble_store_config_find_cl_sup_feat(key_feat);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    *value_feat = ble_store_config_feats[idx];
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+static int
+ble_store_config_write_cl_sup(const struct ble_store_value_cl_sup_feat
+                                  *value_feat)
+{
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    struct ble_store_key_cl_sup_feat key_feat;
+    int idx;
+    int rc;
+
+    ble_store_key_from_value_peer_cl_sup_feat(&key_feat, value_feat);
+    idx = ble_store_config_find_cl_sup_feat(&key_feat);
+    if (idx == -1) {
+        if (ble_store_config_num_feats >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_config_num_feats;
+        ble_store_config_num_feats++;
+    }
+
+    ble_store_config_feats[idx] = *value_feat;
+
+    rc = ble_store_config_persist_feats();
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+#else
+    return BLE_HS_ENOENT;
+#endif
+}
+
+/*****************************************************************************
  * $api                                                                      *
  *****************************************************************************/
 
@@ -489,6 +724,14 @@ ble_store_config_read(int obj_type, const union ble_store_key *key,
         rc = ble_store_config_read_cccd(&key->cccd, &value->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_config_read_db_hash(&key->db_hash, &value->db_hash);
+        return rc;
+        
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_config_read_cl_sup_feat(&key->feat, &value->feat);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -518,6 +761,14 @@ ble_store_config_write(int obj_type, const union ble_store_value *val)
         rc = ble_store_config_write_cccd(&val->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_config_write_db_hash(&val->db_hash);
+        return rc;
+        
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_config_write_cl_sup(&val->feat);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -541,6 +792,14 @@ ble_store_config_delete(int obj_type, const union ble_store_key *key)
         rc = ble_store_config_delete_cccd(&key->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_DB_HASH:
+        rc = ble_store_config_delete_hash(&key->db_hash);
+        return rc;
+        
+    case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+        rc = ble_store_config_delete_cl_sup_feat(&key->feat);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -560,6 +819,8 @@ ble_store_config_init(void)
     ble_store_config_num_our_secs = 0;
     ble_store_config_num_peer_secs = 0;
     ble_store_config_num_cccds = 0;
+    ble_store_config_num_db_hashes = 0;
+    ble_store_config_num_feats = 0;
 
     ble_store_config_conf_init();
 }
