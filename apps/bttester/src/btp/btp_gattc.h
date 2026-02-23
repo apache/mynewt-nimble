@@ -250,3 +250,7 @@ struct btp_gattc_notification_ev {
 } __packed;
 
 #define BTP_GATTC_READ_MULTIPLE_VAR_RP    0x91
+#define BTP_GATTC_EV_ATT_TIMEOUT          0x92
+struct btp_gattc_ev_att_timeout {
+    ble_addr_t address;
+} __packed;
