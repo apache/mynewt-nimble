@@ -1165,9 +1165,9 @@ btshell_restart_adv(struct ble_gap_event *event)
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
     for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
-        if (ext_adv_restart[i].restart &&
-            (ext_adv_restart[i].conn_handle ==
-             event->disconnect.conn.conn_handle)) {
+        if (ext_adv_restart[i].restart && (ext_adv_restart[i].conn_handle ==
+                                           event->disconnect.conn.conn_handle)) {
+            ext_adv_restart[i].conn_handle = BLE_HS_CONN_HANDLE_NONE;
             rc = ble_gap_ext_adv_start(i, 0, 0);
             break;
         }
