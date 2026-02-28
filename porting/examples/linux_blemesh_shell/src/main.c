@@ -39,7 +39,7 @@ void nimble_host_task(void *param);
 void ble_hci_sock_ack_handler(void *param);
 void ble_hci_sock_init(void);
 void ble_hci_sock_set_device(int dev);
-void ble_store_ram_init(void);
+void ble_store_config_init(void);
 
 #define TASK_DEFAULT_PRIORITY       1
 #define TASK_DEFAULT_STACK          NULL
@@ -91,7 +91,7 @@ main(int argc, char *argv[])
     bt_mesh_register_gatt();
 
     /* XXX Need to have template for store */
-    ble_store_ram_init();
+    ble_store_config_init();
 
     ble_npl_task_init(&s_task_hci, "hci_sock", ble_hci_sock_task,
                       NULL, TASK_DEFAULT_PRIORITY, BLE_NPL_TIME_FOREVER,
