@@ -106,6 +106,8 @@ STATS_SECT_START(ble_att_stats)
 STATS_SECT_END
 extern STATS_SECT_DECL(ble_att_stats) ble_att_stats;
 
+#define BLE_ATT_SVR_CHECK_PERMS_MASK     0xF000
+
 struct ble_att_prep_entry {
     SLIST_ENTRY(ble_att_prep_entry) bape_next;
     uint16_t bape_handle;

@@ -4372,8 +4372,8 @@ ble_gatts_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
             rc = BLE_HS_ENOMEM;
             goto done;
         }
-        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
-                                     chr_val_handle, 0, txom, NULL);
+        rc = ble_att_svr_read_handle(conn_handle |
+                BLE_ATT_SVR_CHECK_PERMS_MASK, chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             rc = BLE_HS_EAPP;
@@ -4681,8 +4681,8 @@ ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
             goto done;
         }
 
-        rc = ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, chr_val_handle,
-                                     0, txom, NULL);
+        rc = ble_att_svr_read_handle(conn_handle |
+                BLE_ATT_SVR_CHECK_PERMS_MASK, chr_val_handle, 0, txom, NULL);
         if (rc != 0) {
             /* Fatal error; application disallowed attribute read. */
             BLE_HS_DBG_ASSERT(0);
