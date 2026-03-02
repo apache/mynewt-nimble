@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.vals:
+    CONSOLE_IMPLEMENTATION: full
+    LOG_IMPLEMENTATION: full
+    STATS_IMPLEMENTATION: full
+
+    # DEBUG logging is a bit noisy; use INFO.
+    LOG_LEVEL: 1
+
+    # Default task settings
+    OS_MAIN_STACK_SIZE: 2024
+
+# Disable peripheral and broadcaster roles.
+    BLE_ROLE_BROADCASTER: 1
+    BLE_ROLE_CENTRAL: 1
+    BLE_ROLE_OBSERVER: 1
+    BLE_ROLE_PERIPHERAL: 1
+
+    BLE_VERSION: 60
+    BLE_CHANNEL_SOUNDING: 1
+    BLE_SVC_RAS_CLIENT: 1
+    BLE_PEER: 1
+    # MBEDTLS_CTR_DRBG_C: 1
+
+    BLE_EXT_ADV: 1
+    BLE_EXT_ADV_MAX_SIZE: 251
+    BLE_PHY_2M: 1
+    BLE_SM_SC: 1
+    BLE_SM_LVL: 2
