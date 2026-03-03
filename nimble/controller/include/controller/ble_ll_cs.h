@@ -28,6 +28,35 @@
 extern "C" {
 #endif
 
+void ble_ll_cs_init(void);
+void ble_ll_cs_reset(void);
+
+void ble_ll_cs_capabilities_pdu_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_config_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_security_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_start_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_terminate_req_make(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+
+int ble_ll_cs_rx_capabilities_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_capabilities_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_capabilities_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_fae_req(struct ble_ll_conn_sm *connsm, struct os_mbuf *om);
+void ble_ll_cs_rx_fae_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_fae_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_config_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_config_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_config_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_security_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_security_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_security_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_cs_start_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+int ble_ll_cs_rx_cs_start_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+int ble_ll_cs_rx_cs_start_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_cs_start_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+int ble_ll_cs_rx_cs_terminate_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr, uint8_t *rspbuf);
+void ble_ll_cs_rx_cs_terminate_rsp(struct ble_ll_conn_sm *connsm, uint8_t *dptr);
+void ble_ll_cs_rx_cs_terminate_req_rejected(struct ble_ll_conn_sm *connsm, uint8_t ble_error);
+
 /* HCI handlers */
 int ble_ll_cs_hci_rd_loc_supp_cap(uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_cs_hci_rd_rem_supp_cap(const uint8_t *cmdbuf, uint8_t cmdlen);
@@ -43,6 +72,15 @@ int ble_ll_cs_hci_set_proc_params(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t
 int ble_ll_cs_hci_proc_enable(const uint8_t *cmdbuf, uint8_t cmdlen);
 int ble_ll_cs_hci_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_cs_hci_test_end(void);
+
+uint8_t ble_ll_cs_rtt_tx_make(uint8_t *dptr, uint8_t *hdr_byte);
+void ble_ll_cs_sync_tx_end(struct ble_phy_cs_transmission *transm, struct ble_phy_cs_sync_results *results);
+void ble_ll_cs_sync_rx_end(struct ble_phy_cs_transmission *transm, struct ble_phy_cs_sync_results *results);
+void ble_ll_cs_tone_tx_end(struct ble_phy_cs_transmission *transm, struct ble_phy_cs_tone_results *results);
+void ble_ll_cs_tone_rx_end(struct ble_phy_cs_transmission *transm, struct ble_phy_cs_tone_results *results);
+void ble_ll_cs_subevent_end(struct ble_phy_cs_subevent_results *results);
+void ble_ll_cs_proc_rm_from_sched(void *cb_arg);
+void ble_ll_cs_proc_halt(void);
 
 #ifdef __cplusplus
 }
