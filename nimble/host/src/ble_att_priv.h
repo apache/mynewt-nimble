@@ -47,6 +47,7 @@ struct ble_att_prep_write_cmd;
 struct ble_att_exec_write_req;
 struct ble_att_notify_req;
 struct ble_att_indicate_req;
+struct ble_gap_sec_state;
 
 STATS_SECT_START(ble_att_stats)
     STATS_SECT_ENTRY(error_rsp_rx)
@@ -173,6 +174,8 @@ uint16_t ble_att_mtu_by_cid(uint16_t conn_handle, uint16_t cid);
 int ble_att_init(void);
 
 /*** @svr */
+/** Type definition for ATT svr entry interation callback. */
+typedef int (*ble_gatts_entry_foreach)(struct ble_att_svr_entry *entry, void *arg);
 
 int ble_att_svr_start(void);
 
@@ -217,6 +220,7 @@ void ble_att_svr_prep_clear(struct ble_att_prep_entry_list *prep_list);
 int ble_att_svr_read_handle(uint16_t conn_handle, uint16_t attr_handle,
                             uint16_t offset, struct os_mbuf *om,
                             uint8_t *out_att_err);
+void ble_att_svr_foreach(ble_gatts_entry_foreach cb, void *arg);
 void ble_att_svr_reset(void);
 int ble_att_svr_init(void);
 
@@ -226,6 +230,8 @@ void ble_att_svr_restore_range(uint16_t start_handle, uint16_t end_handle);
 int ble_att_svr_tx_error_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom,
                              uint8_t req_op, uint16_t handle,
                              uint8_t error_code);
+void ble_att_svr_get_sec_state(uint16_t conn_handle,
+                               struct ble_gap_sec_state *out_sec_state);
 /*** $clt */
 
 /** An information-data entry in a find information response. */
