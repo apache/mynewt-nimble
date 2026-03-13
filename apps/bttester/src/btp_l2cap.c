@@ -207,7 +207,7 @@ connected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
 
 static void
 disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
-                struct ble_l2cap_chan_info *chan_info, void *arg)
+                struct ble_l2cap_chan_info *chan_info, int status, void *arg)
 {
     struct btp_l2cap_disconnected_ev ev;
     struct ble_gap_conn_desc desc;
@@ -215,9 +215,15 @@ disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
 
     memset(&ev, 0, sizeof(struct btp_l2cap_disconnected_ev));
 
-    channel = find_channel(chan);
-    assert(channel != NULL);
+    if (status != 0 && status != BLE_L2CAP_EVENT_COC_DISCONNECTED) {
+        /* Conection request failed */
+        channel = get_free_channel();
+    } else {
+        channel = find_channel(chan);
+        assert(channel != NULL);
+    }
 
+    ev.result = status;
     ev.chan_id = channel->chan_id;
     ev.psm = chan_info->psm;
 
@@ -266,6 +272,8 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
         if (event->connect.status) {
             console_printf("LE COC error: %d\n", event->connect.status);
+            disconnected_cb(event->connect.conn_handle, event->connect.chan,
+                            &chan_info, (uint8_t)event->connect.status, arg);
             return 0;
         }
 
@@ -290,8 +298,8 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
         console_printf("LE CoC disconnected, chan: 0x%08lx\n",
                        (uint32_t) event->disconnect.chan);
 
-        disconnected_cb(event->disconnect.conn_handle,
-                        event->disconnect.chan, &chan_info, arg);
+        disconnected_cb(event->disconnect.conn_handle, event->disconnect.chan,
+                        &chan_info, (uint8_t)event->connect.status, arg);
         return 0;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
         ble_l2cap_get_chan_info(event->accept.chan,
