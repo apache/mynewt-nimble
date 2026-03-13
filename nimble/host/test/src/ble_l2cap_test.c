@@ -700,7 +700,7 @@ ble_l2cap_test_event(struct ble_l2cap_event *event, void *arg)
     ev->handled = 1;
     switch (event->type) {
     case BLE_L2CAP_EVENT_COC_CONNECTED:
-        assert(ev->app_status == event->connect.status);
+        assert(ev->app_status == (uint8_t)event->connect.status);
         t->chan[0] = event->connect.chan;
         return 0;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
@@ -1125,7 +1125,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
     t.expected_num_iters = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
-    t.event[0].app_status = BLE_HS_ENOTSUP;
+    t.event[0].app_status = BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM;
 
     ble_l2cap_test_coc_connect(&t);
@@ -1147,7 +1147,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_out_of_resource)
     t.expected_num_iters = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
-    t.event[0].app_status = BLE_HS_ENOMEM;
+    t.event[0].app_status = BLE_L2CAP_COC_ERR_NO_RESOURCES;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_NO_RESOURCES;
 
     ble_l2cap_test_coc_connect(&t);
@@ -1168,7 +1168,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
     t.expected_num_of_ev = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
-    t.event[0].app_status = BLE_HS_EREJECT;
+    t.event[0].app_status = BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID;
 
     ble_l2cap_test_coc_connect(&t);
@@ -1188,7 +1188,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
     t.expected_num_of_ev = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
-    t.event[0].app_status = BLE_HS_EAUTHEN;
+    t.event[0].app_status = BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN;
 
     ble_l2cap_test_coc_connect(&t);
@@ -1208,7 +1208,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_author)
     t.expected_num_of_ev = 1;
 
     t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
-    t.event[0].app_status = BLE_HS_EAUTHOR;
+    t.event[0].app_status = BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR;
     t.event[0].l2cap_status = BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR;
 
     ble_l2cap_test_coc_connect(&t);
