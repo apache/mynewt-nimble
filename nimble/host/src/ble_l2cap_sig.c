@@ -647,35 +647,6 @@ ble_l2cap_sig_update(uint16_t conn_handle, struct ble_l2cap_sig_update_params *p
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
 
 static int
-ble_l2cap_sig_coc_err2ble_hs_err(uint16_t l2cap_coc_err)
-{
-    switch (l2cap_coc_err) {
-    case BLE_L2CAP_COC_ERR_CONNECTION_SUCCESS:
-        return 0;
-    case BLE_L2CAP_COC_ERR_UNKNOWN_LE_PSM:
-        return BLE_HS_ENOTSUP;
-    case BLE_L2CAP_COC_ERR_NO_RESOURCES:
-        return BLE_HS_ENOMEM;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHEN:
-        return BLE_HS_EAUTHEN;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_AUTHOR:
-        return BLE_HS_EAUTHOR;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_KEY_SZ:
-        return BLE_HS_EENCRYPT_KEY_SZ;
-    case BLE_L2CAP_COC_ERR_INSUFFICIENT_ENC:
-        return BLE_HS_EENCRYPT;
-    case BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID:
-        return BLE_HS_EREJECT;
-    case BLE_L2CAP_COC_ERR_SOURCE_CID_ALREADY_USED:
-        return BLE_HS_EALREADY;
-    case BLE_L2CAP_COC_ERR_UNACCEPTABLE_PARAMETERS:
-        return BLE_HS_EINVAL;
-    default:
-        return BLE_HS_EUNKNOWN;
-    }
-}
-
-static int
 ble_l2cap_sig_ble_hs_err2coc_err(uint16_t ble_hs_err)
 {
     switch (ble_hs_err) {
@@ -1153,7 +1124,7 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     rsp = (struct ble_l2cap_sig_credit_base_connect_rsp *)(*om)->om_data;
 
     if (rsp->result) {
-        rc = ble_l2cap_sig_coc_err2ble_hs_err(le16toh(rsp->result));
+        rc = BLE_HS_L2C_ERR(le16toh(rsp->result));
         /* Below results means that some of the channels has not been created
          * and we have to look closer into the response.
          * Any other results means that all the connections has been refused.
@@ -1346,7 +1317,7 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     chan = proc->connect.chan[0];
 
     if (rsp->result) {
-        rc = ble_l2cap_sig_coc_err2ble_hs_err(le16toh(rsp->result));
+        rc = BLE_HS_L2C_ERR(le16toh(rsp->result));
         goto done;
     }
 
