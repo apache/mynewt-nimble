@@ -944,6 +944,16 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res,
 
         ble_hs_unlock();
 
+        /* Persist keys if bonding has successfully completed.
+         * This must happen before firing the pairing complete callback
+         * so that applications can read the persisted keys from the store.
+         */
+        if (res->app_status == 0 && rm && proc != NULL &&
+            proc->flags & BLE_SM_PROC_F_BONDING) {
+
+            ble_sm_persist_keys(proc);
+        }
+
         if (res->enc_cb &&
             res->app_status != BLE_HS_ENOTCONN) {
             /* Do not send this event on broken connection */
@@ -963,14 +973,6 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res,
             res->passkey_params.action != BLE_SM_IOACT_NONE) {
 
             ble_gap_passkey_event(conn_handle, &res->passkey_params);
-        }
-
-        /* Persist keys if bonding has successfully completed. */
-        if (res->app_status == 0    &&
-            rm                      &&
-            proc->flags & BLE_SM_PROC_F_BONDING) {
-
-            ble_sm_persist_keys(proc);
         }
 
         if (rm) {
