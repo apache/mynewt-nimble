@@ -202,7 +202,7 @@ ble_sm_alg_log_buf(const char *name, const uint8_t *buf, int len)
  * @param len                   Length of the message in octets.
  * @param out                   Output; message authentication code.
  */
-static int
+int
 ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
                     uint8_t *out)
 {
