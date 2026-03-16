@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,13 +17,10 @@
 # under the License.
 #
 
-syscfg.defs:
-    BLE_PHY_ADDR_PROVIDER_PUBLIC:
-        description: Enables public address provider API
-        value: 0
-    BLE_PHY_ADDR_PROVIDER_STATIC:
-        description: Enables static address provider API
-        value: 1
+pkg.name: nimble/util/addr_ublox
+pkg.description: Public address provider for u-blox modules
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://mynewt.apache.org/"
 
-syscfg.vals.!BLE_LL_CFG_FEAT_LL_EXT_ADV:
-    BLE_LL_STACK_SIZE: 96
+pkg.apis:
+    - ble_addr_provider_public

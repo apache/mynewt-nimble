@@ -62,52 +62,47 @@ uint8_t g_nrf_num_irks;
 
 #endif
 
-/* Returns public device address or -1 if not present */
+#if MYNEWT_VAL(BLE_PHY_ADDR_PROVIDER_PUBLIC)
 int
-ble_hw_get_public_addr(ble_addr_t *addr)
+ble_ll_addr_provide_public(uint8_t *addr)
 {
     uint32_t addr_high;
     uint32_t addr_low;
 
-    /* Does FICR have a public address */
     if ((NRF_FICR->DEVICEADDRTYPE & 1) != 0) {
         return -1;
     }
 
-    /* Copy into device address. We can do this because we know platform */
     addr_low = NRF_FICR->DEVICEADDR[0];
     addr_high = NRF_FICR->DEVICEADDR[1];
-    memcpy(addr->val, &addr_low, 4);
-    memcpy(&addr->val[4], &addr_high, 2);
-    addr->type = BLE_ADDR_PUBLIC;
+
+    memcpy(&addr[0], &addr_low, 4);
+    memcpy(&addr[4], &addr_high, 2);
 
     return 0;
 }
+#endif
 
-/* Returns random static address or -1 if not present */
+#if MYNEWT_VAL(BLE_PHY_ADDR_PROVIDER_STATIC)
 int
-ble_hw_get_static_addr(ble_addr_t *addr)
+ble_ll_addr_provide_static(uint8_t *addr)
 {
     uint32_t addr_high;
     uint32_t addr_low;
-    int rc;
 
-    if ((NRF_FICR->DEVICEADDRTYPE & 1) == 1) {
-        addr_low = NRF_FICR->DEVICEADDR[0];
-        addr_high = NRF_FICR->DEVICEADDR[1];
-
-        memcpy(addr->val, &addr_low, 4);
-        memcpy(&addr->val[4], &addr_high, 2);
-
-        addr->val[5] |= 0xc0;
-        addr->type = BLE_ADDR_RANDOM;
-        rc = 0;
-    } else {
-        rc = -1;
+    if ((NRF_FICR->DEVICEADDRTYPE & 1) == 0) {
+        return -1;
     }
 
-    return rc;
+    addr_low = NRF_FICR->DEVICEADDR[0];
+    addr_high = NRF_FICR->DEVICEADDR[1];
+
+    memcpy(&addr[0], &addr_low, 4);
+    memcpy(&addr[4], &addr_high, 2);
+
+    return 0;
 }
+#endif
 
 /**
  * Clear the whitelist

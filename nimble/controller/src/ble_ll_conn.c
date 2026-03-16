@@ -30,6 +30,7 @@
 #include "controller/ble_ll.h"
 #include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_conn.h"
+#include <controller/ble_ll_addr.h>
 #include "controller/ble_ll_hci.h"
 #include "controller/ble_ll_scan.h"
 #include "controller/ble_ll_whitelist.h"
@@ -3094,7 +3095,8 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
                                 uint8_t channel)
 {
     uint8_t hdr;
-    uint8_t *addr;
+    const uint8_t *inita;
+    bool inita_rnd = false;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     struct ble_ll_resolv_entry *rl;
 #endif
@@ -3122,36 +3124,37 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
                  */
                 BLE_LL_ASSERT(addrd->rpa_index >= 0);
                 rl = &g_ble_ll_resolv_list[addrd->rpa_index];
-                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
                 ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
+                inita = NULL;
+                inita_rnd = true;
             } else {
                 /* Host does not want us to use RPA so use identity */
                 if ((connsm->own_addr_type & 1) == 0) {
-                    memcpy(pdu_data->inita, g_dev_addr, BLE_DEV_ADDR_LEN);
+                    inita = ble_ll_addr_public_get();
                 } else {
-                    hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-                    memcpy(pdu_data->inita, g_random_addr, BLE_DEV_ADDR_LEN);
+                    inita = ble_ll_addr_random_get();
+                    inita_rnd = true;
                 }
             }
         } else {
-            memcpy(pdu_data->inita, addrd->targeta, BLE_DEV_ADDR_LEN);
+            inita = addrd->targeta;
             if (addrd->targeta_type) {
-                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+                inita_rnd = true;
             }
         }
 #else
-        memcpy(pdu_data->inita, addrd->targeta, BLE_DEV_ADDR_LEN);
+        inita = addrd->targeta;
         if (addrd->targeta_type) {
-            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
+            inita_rnd = true;
         }
 #endif
     } else {
         /* Get pointer to our device address */
         if ((connsm->own_addr_type & 1) == 0) {
-            addr = g_dev_addr;
+            inita = ble_ll_addr_public_get();
         } else {
-            hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-            addr = g_random_addr;
+            inita = ble_ll_addr_random_get();
+            inita_rnd = true;
         }
 
     /* XXX: do this ahead of time? Calculate the local rpa I mean */
@@ -3163,23 +3166,30 @@ ble_ll_conn_prepare_connect_ind(struct ble_ll_conn_sm *connsm,
                  */
                 rl = &g_ble_ll_resolv_list[addrd->rpa_index];
                 if (rl->rl_has_local) {
-                    hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
                     ble_ll_resolv_get_priv_addr(rl, 1, pdu_data->inita);
-                    addr = NULL;
+                    inita = NULL;
+                    inita_rnd = true;
                 }
             } else if (ble_ll_resolv_local_rpa_get(connsm->own_addr_type & 1,
                                                    pdu_data->inita) == 0) {
-                hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
-                addr = NULL;
+                inita = NULL;
+                inita_rnd = true;
             }
         }
 #endif
 
-        if (addr) {
-            memcpy(pdu_data->inita, addr, BLE_DEV_ADDR_LEN);
+        if (inita) {
             /* Identity address used */
             connsm->inita_identity_used = 1;
         }
+    }
+
+    if (inita) {
+        memcpy(pdu_data->inita, inita, BLE_DEV_ADDR_LEN);
+    }
+
+    if (inita_rnd) {
+        hdr |= BLE_ADV_PDU_HDR_TXADD_RAND;
     }
 
     memcpy(pdu_data->adva, addrd->adva, BLE_DEV_ADDR_LEN);
@@ -3331,7 +3341,8 @@ ble_ll_conn_send_connect_req_cancel(void)
 
 static void
 ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
-                          struct ble_ll_scan_addr_data *addrd, uint8_t *targeta)
+                          struct ble_ll_scan_addr_data *addrd,
+                          const uint8_t *targeta)
 {
     struct ble_ll_conn_sm *connsm;
 
@@ -3367,7 +3378,7 @@ ble_ll_conn_central_start(uint8_t phy, uint8_t csa,
 void
 ble_ll_conn_created_on_legacy(struct os_mbuf *rxpdu,
                               struct ble_ll_scan_addr_data *addrd,
-                              uint8_t *targeta)
+                              const uint8_t *targeta)
 {
     uint8_t *rxbuf;
     uint8_t csa;

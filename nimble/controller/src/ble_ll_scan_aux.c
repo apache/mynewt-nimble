@@ -32,6 +32,7 @@
 #include "controller/ble_phy.h"
 #include "controller/ble_hw.h"
 #include "controller/ble_ll.h"
+#include "controller/ble_ll_addr.h"
 #include "controller/ble_ll_pdu.h"
 #include "controller/ble_ll_sched.h"
 #include "controller/ble_ll_scan.h"
@@ -100,14 +101,14 @@ static struct ble_ll_scan_aux_data *aux_data_current;
 
 static void ble_ll_hci_ev_send_ext_adv_truncated_report(struct ble_ll_scan_aux_data *aux);
 
-static inline uint8_t *
+static const uint8_t *
 ble_ll_scan_aux_get_own_addr(void)
 {
     uint8_t own_addr_type;
 
     own_addr_type = ble_ll_scan_get_own_addr_type() & 1;
 
-    return ble_ll_get_our_devaddr(own_addr_type);
+    return ble_ll_addr_get(own_addr_type);
 }
 
 static int
