@@ -39,7 +39,7 @@ target used.
 Target for M33 should be set and configured as any other BLE application. In
 order to use NimBLE controller on CMAC, set proper HCI transport via syscfg:
 
-    BLE_HCI_TRANSPORT: dialog_cmac
+    BLE_TRANSPORT_HS: dialog_cmac
 
 This will include proper transport, driver and add M0+ target to build process.
 

@@ -28,7 +28,7 @@ Method 2: Hardcode a public address in the Mynewt target
 
 The NimBLE controller package exports a
 :doc:`syscfg <../../../os/modules/sysinitconfig/sysinitconfig>` setting
-called ``BLE_PUBLIC_DEV_ADDR``. This setting can be overridden at the
+called ``BLE_LL_PUBLIC_DEV_ADDRR``. This setting can be overridden at the
 application or target level to configure a public Bluetooth address. For
 example, a target can assign the public address *11:22:33:44:55:66* as
 follows:
@@ -36,7 +36,7 @@ follows:
 ::
 
     syscfg.vals:
-        BLE_PUBLIC_DEV_ADDR: '(uint8_t[6]){0x66, 0x55, 0x44, 0x33, 0x22, 0x11}'
+        BLE_LL_PUBLIC_DEV_ADDRR: 0x112233445566
 
 This setting takes the form of a C expression. Specifically, the value
 is a designated initializer expressing a six-byte array. Also note that
@@ -44,7 +44,7 @@ the bytes are reversed, as an array is inherently little-endian, while
 addresses are generally expressed in big-endian.
 
 Note: this method takes precedence over method 1. Whatever is written to
-the ``BLE_PUBLIC_DEV_ADDR`` setting is the address that gets used.
+the ``BLE_LL_PUBLIC_DEV_ADDRR`` setting is the address that gets used.
 
 Method 3: Configure a random address at runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
