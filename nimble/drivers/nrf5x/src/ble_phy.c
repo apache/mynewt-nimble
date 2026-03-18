@@ -55,6 +55,8 @@
 #endif
 #include <nrf_erratas.h>
 #include "phy_priv.h"
+#include "phy_hw.h"
+#include "phy_ppi.h"
 
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -102,9 +104,6 @@ extern void tm_tick(void);
 extern uint8_t g_nrf_num_irks;
 extern uint32_t g_nrf_irk_list[];
 
-/* To disable all radio interrupts */
-#define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
-
 /*
  * We configure the nrf with a 1 byte S0 field, 8 bit length field, and
  * zero bit S1 field. The preamble is 8 bits long.
@@ -121,7 +120,7 @@ extern uint32_t g_nrf_irk_list[];
 
 /* NRF_RADIO->PCNF0 configuration values */
 #define NRF_PCNF0               (NRF_LFLEN_BITS << RADIO_PCNF0_LFLEN_Pos) | \
-                                (RADIO_PCNF0_S1INCL_Msk) | \
+                                (RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos) | \
                                 (NRF_S0LEN << RADIO_PCNF0_S0LEN_Pos) | \
                                 (NRF_S1LEN_BITS << RADIO_PCNF0_S1LEN_Pos)
 #define NRF_PCNF0_1M            (NRF_PCNF0) | \
@@ -337,14 +336,6 @@ STATS_NAME_END(ble_phy_stats)
 #define NRF_ENC_SCRATCH_WORDS   (67)
 
 static uint32_t g_nrf_encrypt_scratchpad[NRF_ENC_SCRATCH_WORDS];
-
-struct nrf_ccm_data
-{
-    uint8_t key[16];
-    uint64_t pkt_counter;
-    uint8_t dir_bit;
-    uint8_t iv[8];
-} __attribute__((packed));
 
 struct nrf_ccm_data g_nrf_ccm_data;
 #endif
@@ -937,7 +928,7 @@ ble_phy_wfr_enable(int txrx, uint8_t tx_phy_mode, uint32_t wfr_usecs)
 }
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
-static uint32_t
+uint32_t
 ble_phy_get_ccm_datarate(void)
 {
 #if MYNEWT_VAL(BLE_LL_PHY)
@@ -976,16 +967,11 @@ ble_phy_rx_xcvr_setup(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     if (g_ble_phy_data.phy_encrypted) {
         NRF_RADIO->PACKETPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-        NRF_CCM->INPTR = (uint32_t)&g_ble_phy_enc_buf[0];
-        NRF_CCM->OUTPTR = (uint32_t)dptr;
-        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
-        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | CCM_MODE_MODE_Decryption |
-                                                    ble_phy_get_ccm_datarate();
-        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
-        NRF_CCM->SHORTS = 0;
-        NRF_CCM->EVENTS_ERROR = 0;
-        NRF_CCM->EVENTS_ENDCRYPT = 0;
-        nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
+        phy_hw_ccm_setup_rx((uint8_t *)&g_ble_phy_enc_buf[0],
+                            (uint8_t *)&g_ble_phy_enc_buf[3],
+                            (uint8_t *)&g_nrf_encrypt_scratchpad[0],
+                            &g_nrf_ccm_data);
+        phy_hw_ccm_start();
         phy_ppi_radio_address_to_ccm_crypt_enable();
     } else {
         NRF_RADIO->PACKETPTR = (uint32_t)dptr;
@@ -997,8 +983,7 @@ ble_phy_rx_xcvr_setup(void)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (g_ble_phy_data.phy_privacy) {
         NRF_AAR->ENABLE = AAR_ENABLE_ENABLE_Enabled;
-        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
-        NRF_AAR->SCRATCHPTR = (uint32_t)&g_ble_phy_data.phy_aar_scratch;
+        phy_hw_aar_irk_setup(&g_nrf_irk_list[0], &g_ble_phy_data.phy_aar_scratch);
         NRF_AAR->EVENTS_END = 0;
         NRF_AAR->EVENTS_RESOLVED = 0;
         NRF_AAR->EVENTS_NOTRESOLVED = 0;
@@ -1037,13 +1022,11 @@ ble_phy_rx_xcvr_setup(void)
     NRF_RADIO->EVENTS_ADDRESS = 0;
     NRF_RADIO->EVENTS_DEVMATCH = 0;
     NRF_RADIO->EVENTS_BCMATCH = 0;
+#if defined(RADIO_INTENSET_RSSIEND_Msk)
     NRF_RADIO->EVENTS_RSSIEND = 0;
+#endif
     NRF_RADIO->EVENTS_CRCOK = 0;
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                        RADIO_SHORTS_READY_START_Msk |
-                        RADIO_SHORTS_ADDRESS_BCSTART_Msk |
-                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
-                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+    phy_hw_radio_shorts_setup_rx();
 
     nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_ADDRESS_Msk |
                          RADIO_INTENSET_DISABLED_Msk);
@@ -1186,8 +1169,7 @@ ble_phy_tx_end_isr(void)
          * XXX: not sure we need to stop the timer here all the time. Or that
          * it should be stopped here.
          */
-        nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
-        NRF_TIMER0->TASKS_SHUTDOWN = 1;
+        phy_hw_radio_timer_task_stop();
         phy_ppi_wfr_disable();
         phy_ppi_timer0_compare0_to_radio_txen_disable();
         phy_ppi_rtc0_compare0_to_timer0_start_disable();
@@ -1240,7 +1222,9 @@ ble_phy_rx_end_isr(void)
 
     /* Set RSSI and CRC status flag in header */
     ble_hdr = &g_ble_phy_data.rxhdr;
+#if defined(RADIO_INTENSET_RSSIEND_Msk)
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
+#endif
     ble_hdr->rxinfo.rssi = (-1 * NRF_RADIO->RSSISAMPLE);
 
     dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
@@ -1255,12 +1239,12 @@ ble_phy_rx_end_isr(void)
         ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_CRC_OK;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
         if (g_ble_phy_data.phy_encrypted) {
-            while (NRF_CCM->EVENTS_ENDCRYPT == 0) {
+            while (NRF_CCM_EVENTS_END == 0) {
                 /* Make sure CCM finished */
             };
 
             /* Only set MIC failure flag if frame is not zero length */
-            if ((dptr[1] != 0) && (NRF_CCM->MICSTATUS == 0)) {
+            if ((dptr[1] != 0) && (NRF_CCM_STATUS == 0)) {
                 ble_hdr->rxinfo.flags |= BLE_MBUF_HDR_F_MIC_FAILURE;
             }
 
@@ -1453,7 +1437,7 @@ ble_phy_rx_start_isr(void)
          * octets for extended header.
          */
         adva_offset = (dptr[3] & 0x0f) == 0x07 ? 2 : 0;
-        NRF_AAR->ADDRPTR = (uint32_t)(dptr + 3 + adva_offset);
+        phy_hw_aar_addrptr_set(dptr + 3 + adva_offset);
 
         /* Trigger AAR after last bit of AdvA is received */
         NRF_RADIO->EVENTS_BCMATCH = 0;
@@ -1490,7 +1474,7 @@ ble_phy_isr(void)
     os_trace_isr_enter();
 
     /* Read irq register to determine which interrupts are enabled */
-    irq_en = NRF_RADIO->INTENSET;
+    irq_en = NRF_RADIO_INTENSET;
 
     /*
      * NOTE: order of checking is important! Possible, if things get delayed,
@@ -1597,9 +1581,11 @@ ble_phy_init(void)
     g_ble_phy_data.tifs = BLE_LL_IFS;
 #endif
 
+#if defined(RADIO_POWER_POWER_Msk)
     /* Toggle peripheral power to reset (just in case) */
     nrf_radio_power_set(NRF_RADIO, false);
     nrf_radio_power_set(NRF_RADIO, true);
+#endif
 
 #ifdef NRF53_SERIES
     /* Errata 158: load trim values after toggling power */
@@ -1636,8 +1622,7 @@ ble_phy_init(void)
                        RADIO_PCNF1_WHITEEN_Msk;
 
     /* Enable radio fast ramp-up */
-    NRF_RADIO->MODECNF0 |= (RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos) &
-                            RADIO_MODECNF0_RU_Msk;
+    phy_hw_radio_fast_ru_setup();
 
     /* Set logical address 1 for TX and RX */
     NRF_RADIO->TXADDRESS  = 0;
@@ -1654,7 +1639,7 @@ ble_phy_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
     nrf_ccm_int_disable(NRF_CCM, 0xffffffff);
-    NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
+    phy_hw_ccm_init();
     NRF_CCM->EVENTS_ERROR = 0;
     memset(g_nrf_encrypt_scratchpad, 0, sizeof(g_nrf_encrypt_scratchpad));
 
@@ -1667,20 +1652,19 @@ ble_phy_init(void)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     g_ble_phy_data.phy_aar_scratch = 0;
-    NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+    phy_hw_aar_irk_setup(&g_nrf_irk_list[0], &g_ble_phy_data.phy_aar_scratch);
     nrf_aar_int_disable(NRF_AAR, 0xffffffff);
     NRF_AAR->EVENTS_END = 0;
     NRF_AAR->EVENTS_RESOLVED = 0;
     NRF_AAR->EVENTS_NOTRESOLVED = 0;
-    NRF_AAR->NIRK = 0;
+    NRF_AAR_NIRK = 0;
 #endif
 
     /* TIMER0 setup for PHY when using RTC */
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
-    NRF_TIMER0->TASKS_SHUTDOWN = 1;
+    phy_hw_radio_timer_task_stop();
     NRF_TIMER0->BITMODE = 3;    /* 32-bit timer */
     NRF_TIMER0->MODE = 0;       /* Timer mode */
-    NRF_TIMER0->PRESCALER = 4;  /* gives us 1 MHz */
+    phy_hw_timer_configure();
 
     phy_ppi_init();
 
@@ -1741,7 +1725,7 @@ ble_phy_rx(void)
      */
     nrf_wait_disabled();
     if ((NRF_RADIO->STATE != RADIO_STATE_STATE_Disabled) &&
-            ((NRF_RADIO->STATE & 0x07) != RADIO_STATE_STATE_RxIdle)) {
+        ((NRF_RADIO->STATE & 0x07) != RADIO_STATE_STATE_RxIdle)) {
         ble_phy_disable();
         STATS_INC(ble_phy_stats, radio_state_errs);
         return BLE_PHY_ERR_RADIO_STATE;
@@ -1929,7 +1913,6 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     uint8_t payload_len;
     uint8_t hdr_byte;
     uint32_t state;
-    uint32_t shortcuts;
 
     if (g_ble_phy_data.phy_transition_late) {
         ble_phy_disable();
@@ -1958,16 +1941,12 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
     if (g_ble_phy_data.phy_encrypted) {
         dptr = (uint8_t *)&g_ble_phy_enc_buf[0];
         pktptr = (uint8_t *)&g_ble_phy_tx_buf[0];
-        NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
-        NRF_CCM->INPTR = (uint32_t)dptr;
-        NRF_CCM->OUTPTR = (uint32_t)pktptr;
-        NRF_CCM->SCRATCHPTR = (uint32_t)&g_nrf_encrypt_scratchpad[0];
-        NRF_CCM->EVENTS_ERROR = 0;
-        NRF_CCM->MODE = CCM_MODE_LENGTH_Msk | ble_phy_get_ccm_datarate();
-        NRF_CCM->CNFPTR = (uint32_t)&g_nrf_ccm_data;
+        phy_hw_ccm_setup_tx(dptr, pktptr,
+                            (uint8_t *)&g_nrf_encrypt_scratchpad[0],
+                            &g_nrf_ccm_data);
     } else {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
-        NRF_AAR->IRKPTR = (uint32_t)&g_nrf_irk_list[0];
+        phy_hw_aar_irk_setup(&g_nrf_irk_list[0], &g_ble_phy_data.phy_aar_scratch);
 #endif
         dptr = (uint8_t *)&g_ble_phy_tx_buf[0];
         pktptr = dptr;
@@ -1997,20 +1976,17 @@ ble_phy_tx(ble_phy_tx_pducb_t pducb, void *pducb_arg, uint8_t end_trans)
             NRF_CCM->INTENSET = CCM_INTENSET_ENDKSGEN_Msk;
         }
 #endif
-        nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
+        phy_hw_ccm_start();
     }
 #endif
 
     NRF_RADIO->PACKETPTR = (uint32_t)pktptr;
 
     /* Clear the ready, end and disabled events */
-    NRF_RADIO->EVENTS_READY = 0;
-    NRF_RADIO->EVENTS_END = 0;
-    NRF_RADIO->EVENTS_DISABLED = 0;
+    phy_hw_radio_events_clear();
 
     /* Enable shortcuts for transmit start/end. */
-    shortcuts = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
-    NRF_RADIO->SHORTS = shortcuts;
+    phy_hw_radio_shorts_setup_tx();
     nrf_radio_int_enable(NRF_RADIO, RADIO_INTENSET_DISABLED_Msk);
 
     /* Set the PHY transition */
@@ -2157,7 +2133,8 @@ ble_phy_setchan(uint8_t chan, uint32_t access_addr, uint32_t crcinit)
     /* Set the frequency and the data whitening initial value */
     g_ble_phy_data.phy_chan = chan;
     NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[chan];
-    NRF_RADIO->DATAWHITEIV = chan;
+
+    phy_hw_radio_datawhite_set(chan);
 
     return 0;
 }
@@ -2174,8 +2151,7 @@ ble_phy_chan_get(void)
 static void
 ble_phy_stop_usec_timer(void)
 {
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
-    NRF_TIMER0->TASKS_SHUTDOWN = 1;
+    phy_hw_radio_timer_task_stop();
     nrf_rtc_event_disable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 }
 
@@ -2295,7 +2271,7 @@ ble_phy_max_data_pdu_pyld(void)
 void
 ble_phy_resolv_list_enable(void)
 {
-    NRF_AAR->NIRK = (uint32_t)g_nrf_num_irks;
+    NRF_AAR_NIRK = (uint32_t)g_nrf_num_irks;
     g_ble_phy_data.phy_privacy = 1;
 }
 
