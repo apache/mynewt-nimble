@@ -326,11 +326,26 @@ syscfg.defs:
         restrictions:
             - BLE_GATT_NOTIFY_MULTIPLE
             - BLE_L2CAP_ENHANCED_COC
+            - '(BLE_L2CAP_COC_MAX_NUM > 0) if (BLE_EATT_CHAN_NUM > 0)'
             - 'BLE_L2CAP_COC_MAX_NUM >= BLE_EATT_CHAN_NUM'
     BLE_EATT_MTU:
         description: >
             MTU used for EATT channels.
         value: 128
+    BLE_EATT_AUTO_CONNECT:
+        description: >
+            Enable auto connect for EATT after encryption
+        value: 0
+        restrictions:
+            - '(BLE_EATT_CHAN_NUM >= 1) if 1'
+    BLE_EATT_CHAN_PER_CONN:
+        description: >
+            Maximum number of supported EATT channels per connection
+        value: 0
+        restrictions:
+            - '(BLE_EATT_CHAN_PER_CONN >= 1) if 1'
+            - '(BLE_EATT_CHAN_PER_CONN <= 5) if 1'
+            - '(BLE_EATT_CHAN_PER_CONN <= BLE_EATT_CHAN_NUM) if 1'
 
     # Supported server ATT commands. (0/1)
     BLE_ATT_SVR_FIND_INFO:
