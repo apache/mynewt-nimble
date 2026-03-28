@@ -428,6 +428,7 @@ syscfg.defs:
         value: 0
         restrictions:
             - BLE_LL_HCI_VS if 1
+            - BLE_LL_CONN_STRICT_SCHED if 1
     BLE_LL_HCI_VS_LOCAL_IRK:
         description: >
             Enables HCI command to set local IRK.
