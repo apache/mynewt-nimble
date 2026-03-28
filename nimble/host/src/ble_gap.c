@@ -6870,6 +6870,27 @@ ble_gap_unhandled_hci_event(bool is_le_meta, bool is_vs, const void *buf,
 }
 #endif
 
+int
+ble_gap_authorize_event(uint16_t conn_handle, uint16_t attr_handle,
+                        uint16_t access_opcode, uint16_t cid)
+{
+#if MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+    struct ble_gap_event event;
+    int rc;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_AUTHORIZE;
+    event.authorize.conn_handle = conn_handle;
+    event.authorize.attr_handle = attr_handle;
+    event.authorize.access_opcode = access_opcode;
+    event.authorize.cid = cid;
+
+    rc = ble_gap_call_conn_event_cb(&event, conn_handle);
+    return rc;
+#endif
+    return BLE_GAP_AUTHORIZE_REJECT;
+}
+
 /*****************************************************************************
  * $preempt                                                                  *
  *****************************************************************************/
