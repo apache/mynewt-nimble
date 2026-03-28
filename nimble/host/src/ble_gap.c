@@ -6525,6 +6525,7 @@ ble_gap_unpair(const ble_addr_t *peer_addr)
 #if NIMBLE_BLE_SM
     int rc;
     struct ble_hs_conn *conn;
+    int rc;
 
     if (!ble_hs_is_enabled()) {
         return BLE_HS_EDISABLED;
@@ -6545,6 +6546,9 @@ ble_gap_unpair(const ble_addr_t *peer_addr)
 
     rc = ble_hs_pvcy_remove_entry(peer_addr->type,
                              peer_addr->val);
+    if (rc != 0 && rc != BLE_HS_HCI_ERR(BLE_ERR_UNK_CONN_ID)) {
+        return rc;
+    }
 
     /* We allow BLE_ERR_UNK_CONN_ID as the IRK of the peer might not be
      * present on the resolving list, but we still should be able to
