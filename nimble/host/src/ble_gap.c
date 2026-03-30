@@ -6344,6 +6344,18 @@ ble_gap_update_params(uint16_t conn_handle,
         rc = 0;
     } else {
         rc = ble_gap_update_tx(conn_handle, params);
+
+        /*
+         * If the controller rejects the LL update with "Unsupported Remote
+         * Feature" and we are the slave, fall back to L2CAP signaling.  This
+         * happens when the local controller supports the Connection Parameters
+         * Request procedure but the peer's controller does not.
+         */
+        if (rc == BLE_HS_HCI_ERR(BLE_ERR_UNSUPP_REM_FEATURE) &&
+            !(conn->bhc_flags & BLE_HS_CONN_F_MASTER)) {
+            l2cap_update = 1;
+            rc = 0;
+        }
     }
 
 done:
