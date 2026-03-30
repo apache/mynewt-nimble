@@ -186,6 +186,8 @@ struct ble_gap_slave_state {
     unsigned int high_duty_directed:1;
     unsigned int legacy_pdu:1;
     unsigned int rnd_addr_set:1;
+    uint16_t nrpa_duration;
+    uint8_t nrpa_max_events;
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     unsigned int periodic_configured:1;
     uint8_t      periodic_op;
@@ -195,6 +197,10 @@ struct ble_gap_slave_state {
 /* timer is used only with legacy advertising */
     unsigned int exp_set:1;
     ble_npl_time_t exp_os_ticks;
+    ble_addr_t direct_addr;
+    uint8_t direct_addr_set:1;
+    int32_t duration_ms;
+    struct ble_gap_adv_params adv_params;
 #endif
 
     ble_gap_event_fn *cb;
@@ -254,6 +260,9 @@ static int ble_gap_conn_cancel_tx(void);
 
 #if NIMBLE_BLE_SCAN && !MYNEWT_VAL(BLE_EXT_ADV)
 static int ble_gap_disc_enable_tx(int enable, int filter_duplicates);
+#endif
+#if NIMBLE_BLE_ADVERTISE
+static int32_t ble_gap_nrpa_timer(void);
 #endif
 
 STATS_SECT_DECL(ble_gap_stats) ble_gap_stats;
@@ -1188,6 +1197,44 @@ ble_gap_slave_set_timer(uint32_t ticks_from_now)
     ble_hs_timer_resched();
 }
 #endif
+#if NIMBLE_BLE_ADVERTISE
+static bool
+ble_gap_nrpa_addr_is_nrpa(const uint8_t *addr)
+{
+    return (addr[5] & 0xc0) == 0;
+}
+
+int
+ble_gap_nrpa_rotation_active(void)
+{
+    int i;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_slave[i].op == BLE_GAP_OP_S_ADV &&
+            ble_gap_slave[i].rnd_addr_set &&
+            ble_gap_nrpa_addr_is_nrpa(ble_gap_slave[i].rnd_addr)) {
+            return 1;
+        }
+    }
+#else
+    int rc;
+    int nrpa;
+    if (ble_gap_slave[0].op == BLE_GAP_OP_S_ADV &&
+        ble_gap_slave[0].our_addr_type == BLE_OWN_ADDR_RANDOM) {
+        rc = ble_hs_id_addr(BLE_ADDR_RANDOM, NULL, &nrpa);
+        if (rc == 0 && nrpa) {
+            return 1;
+        }
+    }
+#endif
+
+    return 0;
+}
+#endif
+
 
 #if (NIMBLE_BLE_CONNECT || NIMBLE_BLE_SCAN)
 /**
@@ -2279,6 +2326,58 @@ ble_gap_master_timer(void)
 }
 
 #if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
+static int
+ble_gap_adv_nrpa_refresh(void)
+{
+    ble_addr_t addr;
+    int nrpa;
+    int rc;
+
+    if (ble_gap_slave[0].op != BLE_GAP_OP_S_ADV ||
+        ble_gap_slave[0].our_addr_type != BLE_OWN_ADDR_RANDOM ||
+        ble_gap_slave[0].connectable) {
+        return 0;
+    }
+
+    rc = ble_hs_id_addr(BLE_ADDR_RANDOM, NULL, &nrpa);
+    if (rc != 0 || !nrpa) {
+        return rc;
+    }
+
+    rc = ble_gap_adv_enable_tx(0);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_id_gen_rnd(1, &addr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_id_set_rnd(addr.val);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gap_adv_params_tx(ble_gap_slave[0].our_addr_type,
+                               ble_gap_slave[0].direct_addr_set ?
+                                   &ble_gap_slave[0].direct_addr : NULL,
+                               &ble_gap_slave[0].adv_params);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gap_adv_enable_tx(1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+#endif
+
+#if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
 static int32_t
 ble_gap_slave_timer(void)
 {
@@ -2383,6 +2482,10 @@ ble_gap_timer(void)
 
 #if NIMBLE_BLE_ADVERTISE && !MYNEWT_VAL(BLE_EXT_ADV)
     min_ticks = min(min_ticks, ble_gap_slave_timer());
+#endif
+
+#if NIMBLE_BLE_ADVERTISE
+    min_ticks = min(min_ticks, ble_gap_nrpa_timer());
 #endif
 
     return min_ticks;
@@ -2888,6 +2991,14 @@ ble_gap_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
     ble_gap_slave[0].cb = cb;
     ble_gap_slave[0].cb_arg = cb_arg;
     ble_gap_slave[0].our_addr_type = own_addr_type;
+    ble_gap_slave[0].adv_params = *adv_params;
+    ble_gap_slave[0].duration_ms = duration_ms;
+    if (direct_addr != NULL) {
+        ble_gap_slave[0].direct_addr = *direct_addr;
+        ble_gap_slave[0].direct_addr_set = 1;
+    } else {
+        ble_gap_slave[0].direct_addr_set = 0;
+    }
 
     if (adv_params->conn_mode != BLE_GAP_CONN_MODE_NON) {
         ble_gap_slave[0].connectable = 1;
@@ -3547,10 +3658,118 @@ ble_gap_ext_adv_start(uint8_t instance, int duration, int max_events)
         return rc;
     }
 
+    ble_gap_slave[instance].nrpa_duration = duration;
+    ble_gap_slave[instance].nrpa_max_events = max_events;
     ble_gap_slave[instance].op = BLE_GAP_OP_S_ADV;
 
     ble_hs_unlock();
     return 0;
+}
+
+static int
+ble_gap_ext_adv_nrpa_refresh(uint8_t instance)
+{
+    struct ble_hci_le_set_ext_adv_enable_cp *cmd;
+    uint8_t buf[sizeof(*cmd) + sizeof(cmd->sets[0])];
+    ble_addr_t addr;
+    uint16_t opcode;
+    int rc;
+
+    if (ble_gap_slave[instance].op != BLE_GAP_OP_S_ADV ||
+        !ble_gap_slave[instance].rnd_addr_set ||
+        ble_gap_slave[instance].connectable ||
+        !ble_gap_nrpa_addr_is_nrpa(ble_gap_slave[instance].rnd_addr)) {
+        return 0;
+    }
+
+    cmd = (void *) buf;
+    cmd->enable = 0x00;
+    cmd->num_sets = 1;
+    cmd->sets[0].adv_handle = instance;
+    cmd->sets[0].duration = 0x0000;
+    cmd->sets[0].max_events = 0x00;
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_EXT_ADV_ENABLE);
+    rc = ble_hs_hci_cmd_tx(opcode, cmd, sizeof(buf), NULL, 0);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_hs_id_gen_rnd(1, &addr);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_gap_ext_adv_set_addr_no_lock(instance, addr.val);
+    if (rc != 0) {
+        return rc;
+    }
+
+    cmd->enable = 0x01;
+    cmd->sets[0].duration = htole16(ble_gap_slave[instance].nrpa_duration);
+    cmd->sets[0].max_events = ble_gap_slave[instance].nrpa_max_events;
+
+    rc = ble_hs_hci_cmd_tx(opcode, cmd, sizeof(buf), NULL, 0);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int32_t
+ble_gap_nrpa_timer(void)
+{
+    int32_t ticks_until_exp;
+    int active;
+    int rc;
+    int i;
+
+    ble_hs_lock();
+
+    ticks_until_exp = ble_hs_pvcy_nrpa_ticks_until_exp();
+    if (ticks_until_exp != 0) {
+        ble_hs_unlock();
+        return ticks_until_exp;
+    }
+
+    active = 0;
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        if (ble_gap_slave[i].op == BLE_GAP_OP_S_ADV &&
+            ble_gap_slave[i].rnd_addr_set &&
+            ble_gap_nrpa_addr_is_nrpa(ble_gap_slave[i].rnd_addr) &&
+            !ble_gap_slave[i].connectable) {
+            active = 1;
+            rc = ble_gap_ext_adv_nrpa_refresh(i);
+            if (rc != 0) {
+                ble_hs_unlock();
+                return ble_npl_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
+            }
+        }
+    }
+#else
+    if (ble_gap_slave[0].op == BLE_GAP_OP_S_ADV &&
+        ble_gap_slave[0].our_addr_type == BLE_OWN_ADDR_RANDOM &&
+        !ble_gap_slave[0].connectable) {
+        active = 1;
+        rc = ble_gap_adv_nrpa_refresh();
+        if (rc != 0) {
+            ble_hs_unlock();
+            return ble_npl_time_ms_to_ticks32(BLE_GAP_CANCEL_RETRY_TIMEOUT_MS);
+        }
+    }
+#endif
+
+    if (active) {
+        ble_hs_pvcy_nrpa_rotated();
+        ticks_until_exp = ble_hs_pvcy_nrpa_ticks_until_exp();
+    } else {
+        ticks_until_exp = BLE_HS_FOREVER;
+    }
+
+    ble_hs_unlock();
+    return ticks_until_exp;
 }
 
 static int

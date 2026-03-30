@@ -34,6 +34,10 @@ int ble_hs_pvcy_remove_entry(uint8_t addr_type, const uint8_t *addr);
 int ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addrtype,
                           const uint8_t *irk);
 int ble_hs_pvcy_ensure_started(void);
+int ble_hs_pvcy_nrpa_configured(int nrpa);
+int ble_hs_pvcy_nrpa_is_expired(void);
+void ble_hs_pvcy_nrpa_rotated(void);
+int32_t ble_hs_pvcy_nrpa_ticks_until_exp(void);
 int ble_hs_pvcy_set_mode(const ble_addr_t *addr, uint8_t priv_mode);
 void ble_hs_pvcy_reset(void);
 

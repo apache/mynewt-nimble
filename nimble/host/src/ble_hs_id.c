@@ -20,6 +20,7 @@
 #include <string.h>
 #include "host/ble_hs_id.h"
 #include "ble_hs_priv.h"
+#include "ble_gap_priv.h"
 
 static uint8_t ble_hs_id_pub[6];
 static uint8_t ble_hs_id_rnd[6];
@@ -88,6 +89,7 @@ ble_hs_id_set_rnd(const uint8_t *rnd_addr)
     }
 
     memcpy(ble_hs_id_rnd, rnd_addr, 6);
+    ble_hs_pvcy_nrpa_configured(addr_type_byte == 0x00);
 
 done:
     ble_hs_unlock();
@@ -215,6 +217,7 @@ ble_hs_id_addr_type_usable(uint8_t own_addr_type)
 int
 ble_hs_id_use_addr(uint8_t own_addr_type)
 {
+    int nrpa;
     int rc;
 
     rc = ble_hs_id_addr_type_usable(own_addr_type);
@@ -224,11 +227,35 @@ ble_hs_id_use_addr(uint8_t own_addr_type)
 
     /* If privacy is being used, make sure RPA rotation is in effect. */
     if (own_addr_type == BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT ||
-        own_addr_type == BLE_OWN_ADDR_RPA_RANDOM_DEFAULT) {
+        own_addr_type == BLE_OWN_ADDR_RPA_RANDOM_DEFAULT ||
+        own_addr_type == BLE_OWN_ADDR_RANDOM) {
 
         rc = ble_hs_pvcy_ensure_started();
         if (rc != 0) {
             return rc;
+        }
+    }
+
+    if (own_addr_type == BLE_OWN_ADDR_RANDOM) {
+        rc = ble_hs_id_addr(BLE_ADDR_RANDOM, NULL, &nrpa);
+        if (rc != 0) {
+            return rc;
+        }
+
+        if (nrpa && ble_hs_pvcy_nrpa_is_expired() &&
+            !ble_gap_nrpa_rotation_active()) {
+            ble_addr_t addr;
+
+            rc = ble_hs_id_gen_rnd(1, &addr);
+            if (rc != 0) {
+                return rc;
+            }
+
+            rc = ble_hs_id_set_rnd(addr.val);
+            if (rc != 0) {
+                return rc;
+            }
+
         }
     }
 

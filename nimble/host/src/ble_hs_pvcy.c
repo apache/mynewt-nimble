@@ -25,6 +25,19 @@
 static uint8_t ble_hs_pvcy_started;
 static uint8_t ble_hs_pvcy_irk[16];
 
+static uint8_t ble_hs_pvcy_nrpa_started;
+static ble_npl_time_t ble_hs_pvcy_nrpa_exp_os_ticks;
+static uint32_t ble_hs_pvcy_nrpa_timeout_ticks;
+
+static void
+ble_hs_pvcy_nrpa_set_next_exp(void)
+{
+    ble_hs_pvcy_nrpa_exp_os_ticks = ble_npl_time_get() +
+                                    ble_hs_pvcy_nrpa_timeout_ticks;
+    ble_hs_pvcy_nrpa_started = 1;
+    ble_hs_timer_resched();
+}
+
 /** Use this as a default IRK if none gets set. */
 const uint8_t ble_hs_pvcy_default_irk[16] = {
     0xef, 0x8d, 0xe2, 0x16, 0x4f, 0xec, 0x43, 0x0d,
@@ -180,6 +193,12 @@ ble_hs_pvcy_ensure_started(void)
         return rc;
     }
 
+    rc = ble_npl_time_ms_to_ticks(MYNEWT_VAL(BLE_RPA_TIMEOUT) * 1000,
+                                  &ble_hs_pvcy_nrpa_timeout_ticks);
+    if (rc != 0) {
+        return rc;
+    }
+
     ble_hs_pvcy_started = 1;
 
     return 0;
@@ -230,6 +249,52 @@ ble_hs_pvcy_set_our_irk(const uint8_t *irk)
         if (rc != 0) {
             return rc;
         }
+    }
+
+    return 0;
+}
+
+int
+ble_hs_pvcy_nrpa_configured(int nrpa)
+{
+    if (nrpa) {
+        ble_hs_pvcy_nrpa_set_next_exp();
+    } else {
+        ble_hs_pvcy_nrpa_started = 0;
+    }
+
+    return 0;
+}
+
+int
+ble_hs_pvcy_nrpa_is_expired(void)
+{
+    if (!ble_hs_pvcy_nrpa_started) {
+        return 0;
+    }
+
+    return (ble_npl_stime_t)(ble_hs_pvcy_nrpa_exp_os_ticks -
+                             ble_npl_time_get()) <= 0;
+}
+
+void
+ble_hs_pvcy_nrpa_rotated(void)
+{
+    ble_hs_pvcy_nrpa_set_next_exp();
+}
+
+int32_t
+ble_hs_pvcy_nrpa_ticks_until_exp(void)
+{
+    ble_npl_stime_t ticks;
+
+    if (!ble_hs_pvcy_nrpa_started) {
+        return BLE_HS_FOREVER;
+    }
+
+    ticks = ble_hs_pvcy_nrpa_exp_os_ticks - ble_npl_time_get();
+    if (ticks > 0) {
+        return ticks;
     }
 
     return 0;
