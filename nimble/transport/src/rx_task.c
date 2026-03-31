@@ -19,7 +19,7 @@
 
 #include <assert.h>
 #include <syscfg/syscfg.h>
-#if MYNEWT
+#ifdef MYNEWT
 #include <os/os_task.h>
 #endif
 #include <os/os_mbuf.h>
@@ -31,7 +31,7 @@
 static ble_transport_rx_func_t *rx_func;
 static void *rx_func_arg;
 
-#if MYNEWT
+#ifdef MYNEWT
 OS_TASK_STACK_DEFINE(rx_stack, MYNEWT_VAL(BLE_TRANSPORT_RX_TASK_STACK_SIZE));
 static struct os_task rx_task;
 #endif
