@@ -83,10 +83,6 @@ ble_npl_callout_reset(struct ble_npl_callout *c, ble_npl_time_t ticks)
 {
     struct itimerspec its;
 
-    if (ticks < 0) {
-        return BLE_NPL_EINVAL;
-    }
-
     if (ticks == 0) {
         ticks = 1;
     }
