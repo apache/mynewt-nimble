@@ -4424,7 +4424,7 @@ ble_gatts_notify_multiple_custom(uint16_t conn_handle,
 #endif
 
     int rc;
-    int i = 0;
+    size_t i = 0;
     uint16_t cur_chr_cnt = 0;
     /* mtu = MTU - 1 octet (OP code) */
     uint16_t mtu = ble_att_mtu(conn_handle) - 1;
@@ -4514,7 +4514,8 @@ ble_gatts_notify_multiple(uint16_t conn_handle,
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
     return BLE_HS_ENOTSUP;
 #endif
-    int rc, i;
+    int rc;
+    size_t i;
     struct ble_gatt_notif tuples[num_handles];
     struct ble_hs_conn *conn;
 
