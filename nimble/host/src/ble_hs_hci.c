@@ -560,8 +560,17 @@ ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
         BLE_HS_LOG(DEBUG, "\n");
 #endif
 
+        /* Account for the controller buf that will hold the txed fragment.
+         * Do this before ble_hs_tx_data() to avoid a race with the Number of
+         * Completed Packets event that may arrive before tx returns.
+         */
+        conn->bhc_outstanding_pkts++;
+        ble_hs_hci_avail_pkts--;
+
         rc = ble_hs_tx_data(frag);
         if (rc != 0) {
+            conn->bhc_outstanding_pkts--;
+            ble_hs_hci_avail_pkts++;
             goto err;
         }
 
@@ -570,10 +579,6 @@ ble_hs_hci_acl_tx_now(struct ble_hs_conn *conn, struct os_mbuf **om)
          */
         conn->bhc_flags |= BLE_HS_CONN_F_TX_FRAG;
         pb = BLE_HCI_PB_MIDDLE;
-
-        /* Account for the controller buf that will hold the txed fragment. */
-        conn->bhc_outstanding_pkts++;
-        ble_hs_hci_avail_pkts--;
     }
 
     if (txom != NULL) {
