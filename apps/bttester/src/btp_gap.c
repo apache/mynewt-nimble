@@ -2270,6 +2270,38 @@ subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 }
 #endif
 
+static uint8_t
+configure_security_mode(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_configure_security_mode_cmd *cp = cmd;
+
+    switch (cp->mode) {
+    case 1:
+        if (cp->level != MYNEWT_VAL(BLE_SM_LVL)) {
+            return BTP_STATUS_FAILED;
+        }
+        if (cp->flags & BIT(0)) {
+            /* TODO: LE SC Only bit is set. */
+        }
+        break;
+
+    case 2:
+        /* Data signing is not supported */
+        return BTP_STATUS_FAILED;
+
+    case 3:
+        if (cp->level != 1) {
+            /* Broadcast code encryption (lvl 2,3) is not supported */
+            return BTP_STATUS_FAILED;
+        }
+        break;
+    }
+
+    SYS_LOG_DBG("");
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static const struct btp_handler handlers[] = {
     {
         .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -2447,6 +2479,11 @@ static const struct btp_handler handlers[] = {
         .func = subrate_request,
     },
 #endif
+    {
+     .opcode = GAP_CONFIGURE_SECURITY_MODE,
+     .expect_len = sizeof(struct gap_configure_security_mode_cmd),
+     .func = configure_security_mode,
+     },
 };
 
 static void
