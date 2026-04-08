@@ -547,7 +547,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         break;
     case 0x02:
         /* NRPA is used only for non-connectable advertising */
-        if (!(current_settings & BIT(BTP_GAP_SETTINGS_CONNECTABLE))) {
+        if ((current_settings & BIT(BTP_GAP_SETTINGS_CONNECTABLE))) {
             return BTP_STATUS_FAILED;
         }
         break;
