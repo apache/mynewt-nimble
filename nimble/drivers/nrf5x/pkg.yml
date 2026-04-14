@@ -46,3 +46,6 @@ pkg.source_files.'MCU_TARGET=="nRF54L15"':
 
 pkg.source_files.'BLE_CHANNEL_SOUNDING':
     - "src/ble_phy_cs.c"
+
+pkg.init.'BLE_PHY_CS_TEST_MODE_CONTINUES_TONE':
+    ble_phy_cs_tx_continuous_tone: $after:ble_transport_ll_init
