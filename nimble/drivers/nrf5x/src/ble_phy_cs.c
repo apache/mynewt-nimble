@@ -727,4 +727,35 @@ ble_phy_cs_subevent_start(struct ble_phy_cs_transmission *transm,
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_PHY_CS_TEST_MODE_CONTINUES_TONE)
+void
+ble_phy_cs_tx_continuous_tone(void)
+{
+    int rc = 0;
+
+    os_trace_isr_enter();
+
+    ble_phy_rfclk_enable();
+
+    phy_ppi_cs_mode_enable();
+    ble_phy_cs_radio_events_clear();
+
+    nrf_radio_int_disable(NRF_RADIO, NRF_RADIO_IRQ_MASK_ALL);
+
+    NRF_RADIO->SHORTS = 0;
+    ble_phy_cs_rtt_set(NULL);
+    ble_phy_cs_channel_set(MYNEWT_VAL(BLE_PHY_CS_TEST_MODE_CONTINUES_TONE_CHANNEL));
+    ble_phy_cs_tone_configure(80, BLE_PHY_CS_TONE_MODE_FM);
+    ble_phy_cs_tune_set();
+
+    NRF_RADIO->TASKS_TXEN = 1;
+
+    while (1);
+
+    os_trace_isr_exit();
+
+    return;
+}
+#endif
 #endif
