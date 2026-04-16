@@ -42,6 +42,38 @@
 #define TESTER_COC_MTU               MYNEWT_VAL(BTTESTER_L2CAP_COC_MTU)
 #define TESTER_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_L2CAP_EV_MAX BTP_L2CAP_EV_RECONFIGURED
+
+#define L2CAP_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_L2CAP_EV_MAX)
+
+static uint8_t l2cap_supported_events[L2CAP_SUPPORTED_EVENTS_LEN];
+
+static void
+l2cap_init_supported_events(void)
+{
+    memset(l2cap_supported_events, 0, sizeof(l2cap_supported_events));
+
+    tester_set_bit(l2cap_supported_events, BTP_EVENT_BIT(BTP_L2CAP_EV_CONNECTION_REQ));
+    tester_set_bit(l2cap_supported_events, BTP_EVENT_BIT(BTP_L2CAP_EV_CONNECTED));
+    tester_set_bit(l2cap_supported_events, BTP_EVENT_BIT(BTP_L2CAP_EV_DISCONNECTED));
+    tester_set_bit(l2cap_supported_events, BTP_EVENT_BIT(BTP_L2CAP_EV_DATA_RECEIVED));
+    tester_set_bit(l2cap_supported_events, BTP_EVENT_BIT(BTP_L2CAP_EV_RECONFIGURED));
+}
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_l2cap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_L2CAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static os_membuf_t tester_sdu_coc_mem[
     OS_MEMPOOL_SIZE(TESTER_COC_BUF_COUNT, TESTER_COC_MTU)
 ];
@@ -725,6 +757,12 @@ static const struct btp_handler handlers[] = {
         .func = supported_commands,
     },
     {
+        .opcode = BTP_L2CAP_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
+    },
+    {
         .opcode = BTP_L2CAP_CONNECT,
         .expect_len = sizeof(struct btp_l2cap_connect_cmd),
         .func = connect,
@@ -771,8 +809,13 @@ tester_init_l2cap(void)
                            TESTER_COC_MTU, TESTER_COC_BUF_COUNT);
     assert(rc == 0);
 
+    l2cap_init_supported_events();
+
     tester_register_command_handlers(BTP_SERVICE_ID_L2CAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_L2CAP,
+                                     l2cap_supported_events,
+                                     sizeof(l2cap_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

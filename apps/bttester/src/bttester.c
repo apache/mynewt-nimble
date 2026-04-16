@@ -62,6 +62,10 @@ static struct {
     uint8_t num;
 } service_handler[BTP_SERVICE_ID_MAX + 1];
 
+static struct {
+    const uint8_t *events;
+    uint8_t len;
+} service_events[BTP_SERVICE_ID_MAX + 1];
 
 void
 tester_mbuf_reset(struct os_mbuf *buf)
@@ -87,6 +91,17 @@ tester_register_command_handlers(uint8_t service,
 
     service_handler[service].handlers = handlers;
     service_handler[service].num = num;
+}
+
+void
+tester_register_supported_events(uint8_t service, const uint8_t *events,
+                                 uint8_t len)
+{
+    assert(service <= BTP_SERVICE_ID_MAX);
+    assert(service_events[service].events == NULL);
+
+    service_events[service].events = events;
+    service_events[service].len = len;
 }
 
 const char *
@@ -393,4 +408,18 @@ tester_supported_commands(uint8_t service, uint8_t *cmds)
     }
 
     return (opcode_max / 8) + 1;
+}
+
+uint16_t
+tester_supported_events(uint8_t service, uint8_t *events)
+{
+    assert(service <= BTP_SERVICE_ID_MAX);
+
+    if (!service_events[service].events ||  !service_events[service].len) {
+        return 0;
+    }
+
+    memcpy(events, service_events[service].events, service_events[service].len);
+
+    return service_events[service].len;
 }

@@ -92,6 +92,11 @@ struct btp_l2cap_credits_cmd {
     uint8_t chan_id;
 } __packed;
 
+#define BTP_L2CAP_READ_SUPPORTED_EVENTS    0x0e
+struct btp_l2cap_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
 /* events */
 #define BTP_L2CAP_EV_CONNECTION_REQ        0x80
 struct btp_l2cap_connection_req_ev {

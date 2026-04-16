@@ -339,6 +339,11 @@ struct gap_subrate_request_cmd {
     uint16_t supervision_timeout;
 } __packed;
 
+#define BTP_GAP_READ_SUPPORTED_EVENTS    0x34
+struct btp_gap_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
