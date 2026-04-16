@@ -75,6 +75,11 @@
 #define  PTS_INC_SVC                       0x001e
 #define  PTS_CHR_READ_WRITE_ALT            0x001f
 
+static const uint8_t gatt_events[] = {
+    BTP_GATT_EV_NOTIFICATION,
+    BTP_GATT_EV_ATTR_VALUE_CHANGED,
+};
+
 static uint8_t gatt_svr_pts_static_long_val[300];
 static uint8_t gatt_svr_pts_static_val[30];
 static uint8_t gatt_svr_pts_static_short_val;
@@ -1967,6 +1972,17 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gatt_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_GATT, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 enum attr_type {
     BLE_GATT_ATTR_SVC = 0,
     BLE_GATT_ATTR_CHR,
@@ -1979,6 +1995,12 @@ static const struct btp_handler handlers[] = {
      .index = BTP_INDEX_NONE,
      .expect_len = 0,
      .func = supported_commands,
+     },
+    {
+     .opcode = BTP_GATT_READ_SUPPORTED_EVENTS,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = supported_events,
      },
     {
      .opcode = BTP_GATT_START_SERVER,
@@ -2242,6 +2264,8 @@ tester_init_gatt(void)
 {
     tester_register_command_handlers(BTP_SERVICE_ID_GATT, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_GATT, gatt_events,
+                                     ARRAY_SIZE(gatt_events));
 
     return BTP_STATUS_SUCCESS;
 }
