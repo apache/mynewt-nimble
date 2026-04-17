@@ -241,7 +241,7 @@ ble_phy_isr(void)
         ble_xcvr_clear_irq(BLE_XCVR_IRQ_F_TX_END);
 
         transition = g_ble_phy_data.phy_transition;
-        if (transition == BLE_PHY_TRANSITION_TX_RX) {
+        if (transition == BLE_PHY_TRANSITION_TO_RX) {
             /* Disable the phy */
             /* XXX: count no bufs? */
             ble_phy_disable();

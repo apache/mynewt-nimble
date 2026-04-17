@@ -1206,8 +1206,7 @@ ble_ll_scan_aux_send_scan_req(struct ble_ll_scan_aux_data *aux,
      *      interrupted if scheduler kicks in.
      */
 
-    rc = ble_phy_tx(ble_ll_scan_aux_scan_req_tx_pdu_cb, aux,
-                    BLE_PHY_TRANSITION_TX_RX);
+    rc = ble_phy_tx(ble_ll_scan_aux_scan_req_tx_pdu_cb, aux, BLE_PHY_TRANSITION_TO_RX);
     if (rc) {
         return false;
     }
