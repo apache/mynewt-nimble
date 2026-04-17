@@ -63,9 +63,8 @@ struct os_mbuf;
 
 /* BLE PHY transitions */
 #define BLE_PHY_TRANSITION_NONE     (0)
-#define BLE_PHY_TRANSITION_RX_TX    (1)
-#define BLE_PHY_TRANSITION_TX_RX    (2)
-#define BLE_PHY_TRANSITION_TX_TX    (3)
+#define BLE_PHY_TRANSITION_TX_RX    (1)
+#define BLE_PHY_TRANSITION_TX_TX    (2)
 
 /* PHY error codes */
 #define BLE_PHY_ERR_RADIO_STATE     (1)
