@@ -1198,6 +1198,9 @@ static void
 ble_gap_master_failed(int status)
 {
     switch (ble_gap_master.op) {
+    case BLE_GAP_OP_NULL:
+        break;
+
 #if NIMBLE_BLE_CONNECT
     case BLE_GAP_OP_M_CONN:
         STATS_INC(ble_gap_stats, initiate_fail);
