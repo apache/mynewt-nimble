@@ -1102,7 +1102,7 @@ ble_phy_tx_end_isr(void)
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
     }
 
-    if (transition == BLE_PHY_TRANSITION_TX_RX) {
+    if (transition == BLE_PHY_TRANSITION_TO_RX) {
 #if MYNEWT_VAL(BLE_LL_PHY)
         ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
 #endif
@@ -1138,7 +1138,7 @@ ble_phy_tx_end_isr(void)
          * FIXME failing to enable LNA may result in unexpected RSSI drop in
          *       case we still rxd something, so perhaps we could check it here
          */
-    } else if (transition == BLE_PHY_TRANSITION_TX_TX) {
+    } else if (transition == BLE_PHY_TRANSITION_TO_TX) {
         if (g_ble_phy_data.txtx_time_anchor) {
             /* Calculate TX anchor relative to current TX end */
 

@@ -1195,7 +1195,7 @@ ble_ll_adv_tx_start_cb(struct ble_ll_sched_item *sch)
     if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) &&
             ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) ||
              (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE))) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        end_trans = BLE_PHY_TRANSITION_TO_RX;
         ble_phy_set_txend_cb(NULL, NULL);
     } else {
         end_trans = BLE_PHY_TRANSITION_NONE;
@@ -1339,12 +1339,12 @@ ble_ll_adv_secondary_tx_start_cb(struct ble_ll_sched_item *sch)
 
     /* Set phy mode based on type of advertisement */
     if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_CONNECTABLE) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        end_trans = BLE_PHY_TRANSITION_TO_RX;
         ble_phy_set_txend_cb(NULL, NULL);
         pducb = ble_ll_adv_aux_pdu_make;
     } else if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_SCANNABLE) &&
                advsm->aux_first_pdu) {
-        end_trans = BLE_PHY_TRANSITION_TX_RX;
+        end_trans = BLE_PHY_TRANSITION_TO_RX;
         ble_phy_set_txend_cb(NULL, NULL);
         pducb = ble_ll_adv_aux_scannable_pdu_make;
     } else {
