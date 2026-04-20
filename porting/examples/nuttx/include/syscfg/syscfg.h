@@ -1194,12 +1194,25 @@
 #define MYNEWT_VAL_BLE_SOCK_TCP_PORT (14433)
 #endif
 
+#ifndef MYNEWT_VAL_BLE_SOCK_TYPE__linux_blue
+#define MYNEWT_VAL_BLE_SOCK_TYPE__linux_blue (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_SOCK_TYPE__linux_tcp
+#define MYNEWT_VAL_BLE_SOCK_TYPE__linux_tcp (0)
+#endif
+#ifndef MYNEWT_VAL_BLE_SOCK_TYPE__nuttx
+#define MYNEWT_VAL_BLE_SOCK_TYPE__nuttx (1)
+#endif
+#ifndef MYNEWT_VAL_BLE_SOCK_TYPE
+#define MYNEWT_VAL_BLE_SOCK_TYPE (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SOCK_USE_LINUX_BLUE
 #define MYNEWT_VAL_BLE_SOCK_USE_LINUX_BLUE (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SOCK_USE_NUTTX
-#define MYNEWT_VAL_BLE_SOCK_USE_NUTTX (1)
+#define MYNEWT_VAL_BLE_SOCK_USE_NUTTX (0)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SOCK_USE_TCP
