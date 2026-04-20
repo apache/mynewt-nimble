@@ -19,17 +19,17 @@
 
 /*
  * Provides HCI transport over sockets. Either over
- * TCP sockets, or Linux bluetooth socket.
+ * TCP sockets, or Linux Bluetooth socket or NuttX.
  *
  * E.g. to connect to TCP target, start in another window
  * socat -x PIPE:/dev/ttyACM1 TCP4-LISTEN:14433,fork,reuseaddr
- * When building this package, set BLE_SOCK_USE_TCP=1 and
+ * When building this package, set BLE_SOCK_TYPE=linux_tcp and
  * BLE_SOCK_TCP_PORT controls the target port this transport
  * connects to.
  *
  * To use Linux Bluetooth sockets, create an interface:
  * sudo hciattach -r -n /dev/ttyUSB0 any 57600
- * And build this package with BLE_SOCK_USE_LINUX_BLUE=1,
+ * And build this package with BLE_SOCK_TYPE=linux_blue,
  * BLE_SOCK_LINUX_DEV=<interface index of the target interface>
  *
  */
@@ -45,13 +45,13 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-#if MYNEWT_VAL(BLE_SOCK_USE_TCP)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_tcp)
 #include <sys/errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue)
 #include <sys/errno.h>
 #define BTPROTO_HCI       1
 #define HCI_CHANNEL_RAW	  0
@@ -66,7 +66,9 @@ struct sockaddr_hci {
     unsigned short hci_dev;
     unsigned short hci_channel;
 };
-#elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
+#endif
+
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
 #include <errno.h>
 #include <netpacket/bluetooth.h>
 #endif
@@ -170,15 +172,20 @@ static struct ble_hci_sock_state {
     uint8_t rx_data[512];
 } ble_hci_sock_state;
 
-#if MYNEWT_VAL(BLE_SOCK_USE_TCP)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_tcp)
 static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_TCP_PORT);
-#elif MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+#endif
+
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue)
 static int s_ble_hci_device = MYNEWT_VAL(BLE_SOCK_LINUX_DEV);
-#elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
+#endif
+
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
 static int s_ble_hci_device = 0;
 #endif
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue) ||                           \
+    MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_tcp)
 static int
 ble_hci_sock_acl_tx(struct os_mbuf *om)
 {
@@ -220,62 +227,7 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
     }
     return 0;
 }
-#elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
-static int
-ble_hci_sock_acl_tx(struct os_mbuf *om)
-{
-    size_t len;
-    uint8_t *buf;
-    int i;
-    struct os_mbuf *m;
-    struct sockaddr_hci addr;
 
-    addr.hci_family = AF_BLUETOOTH;
-    addr.hci_channel = HCI_CHANNEL_RAW;
-    addr.hci_dev = 0;
-
-    memcpy(&addr, &addr, sizeof(struct sockaddr_hci));
-
-    len = 1;
-
-    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
-        len += m->om_len;
-    }
-
-    buf = (uint8_t *)malloc(len);
-
-    buf[0] = BLE_HCI_UART_H4_ACL;
-
-    i = 1;
-    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
-        memcpy(&buf[i], m->om_data, m->om_len);
-        i += m->om_len;
-    }
-
-    STATS_INC(hci_sock_stats, omsg);
-    STATS_INC(hci_sock_stats, oacl);
-    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
-
-    i = sendto(ble_hci_sock_state.sock, buf, len, 0,
-               (struct sockaddr *)&addr, sizeof(struct sockaddr_hci));
-
-    free(buf);
-
-    os_mbuf_free_chain(om);
-    if (i != OS_MBUF_PKTLEN(om) + 1) {
-        if (i < 0) {
-            dprintf(1, "sendto() failed : %d\n", errno);
-        } else {
-            dprintf(1, "sendto() partial write: %d\n", i);
-        }
-        STATS_INC(hci_sock_stats, oerr);
-        return BLE_ERR_MEM_CAPACITY;
-    }
-    return 0;
-}
-#endif
-
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
 static int
 ble_hci_sock_iso_tx(struct os_mbuf *om)
 {
@@ -317,9 +269,7 @@ ble_hci_sock_iso_tx(struct os_mbuf *om)
     }
     return 0;
 }
-#endif /* BLE_SOCK_USE_LINUX_BLUE */
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
 static int
 ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 {
@@ -368,7 +318,62 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 
     return 0;
 }
-#elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
+#endif
+
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_nuttx)
+static int
+ble_hci_sock_acl_tx(struct os_mbuf *om)
+{
+    size_t len;
+    uint8_t *buf;
+    int i;
+    struct os_mbuf *m;
+    struct sockaddr_hci addr;
+
+    addr.hci_family = AF_BLUETOOTH;
+    addr.hci_channel = HCI_CHANNEL_RAW;
+    addr.hci_dev = 0;
+
+    memcpy(&addr, &addr, sizeof(struct sockaddr_hci));
+
+    len = 1;
+
+    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
+        len += m->om_len;
+    }
+
+    buf = (uint8_t *)malloc(len);
+
+    buf[0] = BLE_HCI_UART_H4_ACL;
+
+    i = 1;
+    for (m = om; m; m = SLIST_NEXT(m, om_next)) {
+        memcpy(&buf[i], m->om_data, m->om_len);
+        i += m->om_len;
+    }
+
+    STATS_INC(hci_sock_stats, omsg);
+    STATS_INC(hci_sock_stats, oacl);
+    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
+
+    i = sendto(ble_hci_sock_state.sock, buf, len, 0, (struct sockaddr *)&addr,
+               sizeof(struct sockaddr_hci));
+
+    free(buf);
+
+    os_mbuf_free_chain(om);
+    if (i != OS_MBUF_PKTLEN(om) + 1) {
+        if (i < 0) {
+            dprintf(1, "sendto() failed : %d\n", errno);
+        } else {
+            dprintf(1, "sendto() partial write: %d\n", i);
+        }
+        STATS_INC(hci_sock_stats, oerr);
+        return BLE_ERR_MEM_CAPACITY;
+    }
+    return 0;
+}
+
 static int
 ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 {
@@ -594,7 +599,7 @@ ble_hci_sock_rx_ev(struct ble_npl_event *ev)
     }
 }
 
-#if MYNEWT_VAL(BLE_SOCK_USE_TCP)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_tcp)
 static int
 ble_hci_sock_config(void)
 {
@@ -653,7 +658,7 @@ err:
 }
 #endif
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue)
 static int
 ble_hci_sock_config(void)
 {
@@ -711,7 +716,9 @@ err:
     }
     return BLE_ERR_HW_FAIL;
 }
-#elif MYNEWT_VAL(BLE_SOCK_USE_NUTTX)
+#endif
+
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_nuttx)
 static int
 ble_hci_sock_config(void)
 {
@@ -915,7 +922,8 @@ ble_hci_sock_init(void)
     SYSINIT_PANIC_ASSERT(rc == 0);
 }
 
-#if MYNEWT_VAL(BLE_SOCK_USE_LINUX_BLUE) || MYNEWT_VAL(BLE_SOCK_USE_TCP)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue) ||                           \
+    MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_tcp)
 int
 ble_transport_to_ll_iso_impl(struct os_mbuf *om)
 {
