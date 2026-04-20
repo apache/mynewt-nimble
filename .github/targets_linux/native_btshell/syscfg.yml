@@ -19,7 +19,5 @@
 
 syscfg.vals:
     BLE_TRANSPORT_LL: socket
-    BLE_SOCK_USE_LINUX_BLUE: 1
-    BLE_SOCK_LINUX_DEV: 0
-    BLE_SOCK_USE_TCP: 0
+    BLE_SOCK_TYPE: linux_blue
 

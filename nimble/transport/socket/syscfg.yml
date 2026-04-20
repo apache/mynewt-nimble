@@ -17,24 +17,21 @@
 #
 
 syscfg.defs:
-    BLE_SOCK_USE_TCP:
-        description: 'Use TCP socket, connects to BLE_SOCK_TCP_PORT'
-        value: 1
+    BLE_SOCK_TYPE:
+        description: >
+            Select type of socket to be used.
+        value: linux_tcp
+        choices:
+            - linux_blue
+            - linux_tcp
+            - nuttx
 
     BLE_SOCK_TCP_PORT:
         description: 'ipv4 tcp port to connect to'
         value: 14433
 
-    BLE_SOCK_USE_LINUX_BLUE:
-        description: 'Use Linux bluetooth raw socket'
-        value: 0
-
     BLE_SOCK_LINUX_DEV:
         description: 'linux kernel device'
-        value: 0
-
-    BLE_SOCK_USE_NUTTX:
-        description: 'Use NuttX socket'
         value: 0
 
     BLE_SOCK_TASK_PRIO:
@@ -50,3 +47,28 @@ syscfg.defs:
         description: >
             Sysinit stage for the socket BLE transport.
         value: 500
+
+# Deprecated settings
+    BLE_SOCK_USE_TCP:
+        description: 'Use BLE_SOCK_TYPE:linux_tcp'
+        value: 0
+        deprecated: 1
+
+    BLE_SOCK_USE_LINUX_BLUE:
+        description: 'Use BLE_SOCK_TYPE:linux_bluez'
+        value: 0
+        deprecated: 1
+
+    BLE_SOCK_USE_NUTTX:
+        description: 'Use BLE_SOCK_TYPE:nuttx'
+        value: 0
+        deprecated: 1
+
+syscfg.vals.BLE_SOCK_USE_TCP:
+    BLE_SOCK_TYPE: linux_tcp
+
+syscfg.vals.BLE_SOCK_USE_LINUX_BLUE:
+    BLE_SOCK_TYPE: linux_blue
+
+syscfg.vals.BLE_SOCK_USE_NUTTX:
+    BLE_SOCK_TYPE: nuttx

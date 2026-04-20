@@ -18,8 +18,7 @@
 
 syscfg.vals:
     BLE_TRANSPORT_LL: socket
-    BLE_SOCK_USE_TCP: 0
-    BLE_SOCK_USE_LINUX_BLUE: 1
+    BLE_SOCK_TYPE: linux_blue
     BLE_SOCK_TASK_PRIO: 3
     BLE_SOCK_STACK_SIZE: 1028
 
