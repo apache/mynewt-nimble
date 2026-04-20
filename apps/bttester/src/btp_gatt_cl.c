@@ -118,6 +118,21 @@ read_destroy()
     gatt_buf_clear();
 }
 
+static void
+att_timeout(uint16_t conn_handle)
+{
+    struct btp_gattc_ev_att_timeout ev;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    assert(rc == 0);
+
+    memcpy(&ev.address, &desc.peer_id_addr, sizeof(ev.address));
+    tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_EV_ATT_TIMEOUT,
+                 (uint8_t *)&ev, sizeof(ev));
+}
+
 static int
 tester_mtu_exchanged_ev(uint16_t conn_handle,
                         const struct ble_gatt_error *error,
@@ -185,10 +200,21 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     uint8_t uuid_length;
     struct os_mbuf *buf = os_msys_get(0, 0);
     uint8_t opcode = (uint8_t) (int) arg;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     int rc = 0;
 
     SYS_LOG_DBG("");
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         goto free;
@@ -314,12 +340,23 @@ find_included_cb(uint16_t conn_handle,
     const ble_uuid_any_t *uuid;
     int service_handle = (int) arg;
     uint8_t uuid_length;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
     SYS_LOG_DBG("");
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -427,12 +464,24 @@ disc_chrc_cb(uint16_t conn_handle,
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
     uint8_t opcode = (uint8_t) (int) arg;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
-    SYS_LOG_DBG("");
+    SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
+
     if (ble_gap_conn_find(conn_handle, &conn)) {
         goto free;
     }
@@ -578,12 +627,23 @@ disc_all_desc_cb(uint16_t conn_handle,
     struct btp_gatt_descriptor *dsc;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
-    SYS_LOG_DBG("");
+    SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -691,6 +751,18 @@ read_cb(uint16_t conn_handle,
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
+    uint8_t err = 0;
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -708,7 +780,7 @@ read_cb(uint16_t conn_handle,
     SYS_LOG_DBG("status=%d", error->status);
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        rp->status = (uint8_t) BLE_HS_ATT_ERR(error->status);
+        rp->status = err;
         rp->data_length = 0;
         tester_event(BTP_SERVICE_ID_GATTC, opcode,
                      buf->om_data, buf->om_len);
@@ -769,13 +841,24 @@ read_uuid_cb(uint16_t conn_handle,
     struct btp_gattc_read_uuid_rp *rp;
     struct btp_gatt_read_uuid_chr *chr;
     uint8_t opcode = (uint8_t) (int) arg;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
     static uint16_t attr_len;
 
     SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -873,12 +956,23 @@ read_long_cb(uint16_t conn_handle,
 {
     struct btp_gattc_read_rp *rp;
     uint8_t opcode = (uint8_t) (int) arg;
-    uint8_t err = (uint8_t) error->status;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
+    uint8_t err = 0;
 
     SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -1025,13 +1119,24 @@ write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
          void *arg)
 {
     struct btp_gattc_write_rp *rp;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     uint8_t opcode = (uint8_t) (int) arg;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
     SYS_LOG_DBG("");
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -1133,12 +1238,23 @@ reliable_write_cb(uint16_t conn_handle,
                   void *arg)
 {
     struct btp_gattc_write_rp *rp;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
     SYS_LOG_DBG("");
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -1210,13 +1326,24 @@ subscribe_cb(uint16_t conn_handle,
              void *arg)
 {
     struct btp_subscribe_rp *rp;
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = 0;
     uint8_t opcode = (uint8_t) (int) arg;
     struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
     SYS_LOG_DBG("");
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            goto free;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         rc = BLE_HS_EINVAL;
@@ -1375,8 +1502,20 @@ read_var_cb(uint16_t conn_handle,
     struct ble_gap_conn_desc conn;
     uint8_t rp_data_off = 0;
     struct ble_gatt_attr attrs[num_attrs];
+    uint8_t err = 0;
 
     SYS_LOG_DBG("status=%d", error->status);
+
+    if (error->status != 0) {
+        if ((error->status & 0xFF00) == BLE_HS_ERR_ATT_BASE) {
+            err = (uint8_t)error->status;
+        } else if (error->status == BLE_HS_ETIMEOUT) {
+            att_timeout(conn_handle);
+            return 0;
+        } else {
+            err = BLE_ATT_ERR_UNLIKELY;
+        }
+    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         return BTP_STATUS_FAILED;
@@ -1386,7 +1525,7 @@ read_var_cb(uint16_t conn_handle,
 
     memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
 
-    rp->status = (uint8_t) BLE_HS_ATT_ERR(error->status);
+    rp->status = err;
 
     if (error->status != 0) {
         rp->data_length = 0;
