@@ -27,9 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.11.1
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.12.3
         with:
-          release: '12.2.Rel1'
+          release: '15.2.Rel1'
       - name: Install Dependencies
         shell: bash
         run: |
