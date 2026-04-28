@@ -18,7 +18,7 @@
 #
 
 pkg.name: nimble/drivers/nrf5x
-pkg.description: PHY for nRF52 and nRF53 series
+pkg.description: PHY for nRF52, nRF53 and nRF54L series
 pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
 pkg.homepage: "https://mynewt.apache.org/"
 pkg.keywords:
@@ -30,7 +30,21 @@ pkg.deps:
     - nimble
     - nimble/controller
 
-pkg.ign_dirs.'MCU_TARGET=="nRF5340_NET"':
-    - nrf52
-pkg.ign_dirs.'MCU_TARGET!="nRF5340_NET"':
-    - nrf53
+pkg.source_files:
+    - "src/ble_hw.c"
+    - "src/ble_phy.c"
+    - "src/ble_phy_trace.c"
+
+pkg.source_files.'MCU_TARGET=="nRF52810" || MCU_TARGET=="nRF52811" || MCU_TARGET=="nRF52832" || MCU_TARGET=="nRF52840"':
+    - "src/nrf52/phy.c"
+pkg.source_files.'MCU_TARGET=="nRF5340_NET"':
+    - "src/nrf53/phy.c"
+pkg.source_files.'MCU_TARGET=="nRF54L15" || MCU_TARGET=="nRF54L10" || MCU_TARGET=="nRF54L05"':
+    - "src/nrf54l/phy.c"
+
+pkg.include_dirs.'MCU_TARGET=="nRF52810" || MCU_TARGET=="nRF52811" || MCU_TARGET=="nRF52832" || MCU_TARGET=="nRF52840"':
+    - "src/nrf52/"
+pkg.include_dirs.'MCU_TARGET=="nRF5340_NET"':
+    - "src/nrf53/"
+pkg.include_dirs.'MCU_TARGET=="nRF54L15" || MCU_TARGET=="nRF54L10" || MCU_TARGET=="nRF54L05"':
+    - "src/nrf54l/"
