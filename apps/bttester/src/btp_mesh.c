@@ -88,6 +88,33 @@ static struct {
     .dst = BT_MESH_ADDR_UNASSIGNED,
 };
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_MESH_EV_MAX BTP_MESH_EV_LPN_POLLED
+
+#define MESH_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_MESH_EV_MAX)
+
+static uint8_t mesh_supported_events[MESH_SUPPORTED_EVENTS_LEN];
+
+static void
+mesh_init_supported_events(void)
+{
+    memset(mesh_supported_events, 0, sizeof(mesh_supported_events));
+
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_OUT_NUMBER_ACTION));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_OUT_STRING_ACTION));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_IN_ACTION));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_PROVISIONED));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_PROV_LINK_OPEN));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_PROV_LINK_CLOSED));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_NET_RECV));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_INVALID_BEARER));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_INCOMP_TIMER_EXP));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_LPN_ESTABLISHED));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_LPN_TERMINATED));
+    tester_set_bit(mesh_supported_events, BTP_EVENT_BIT(BTP_MESH_EV_LPN_POLLED));
+}
+
 static uint8_t
 supported_commands(const void *cmd, uint16_t cmd_len,
                    void *rsp, uint16_t *rsp_len)
@@ -95,6 +122,18 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     struct btp_mesh_read_supported_commands_rp *rp = rsp;
 
     *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_mesh_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_MESH, rp->data);
     *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
@@ -832,6 +871,12 @@ static const struct btp_handler handlers[] = {
         .func = supported_commands,
     },
     {
+        .opcode = BTP_MESH_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
+    },
+    {
         .opcode = BTP_MESH_CONFIG_PROVISIONING,
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
         .func = config_prov,
@@ -1083,9 +1128,13 @@ tester_init_mesh(void)
         bt_mesh_lpn_set_cb(lpn_cb);
         bt_test_cb_register(&bt_test_cb);
     }
+    mesh_init_supported_events();
 
     tester_register_command_handlers(BTP_SERVICE_ID_MESH, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_MESH,
+                                     mesh_supported_events,
+                                     sizeof(mesh_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

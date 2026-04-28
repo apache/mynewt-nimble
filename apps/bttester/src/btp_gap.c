@@ -34,6 +34,7 @@
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
 #include "btp/btp.h"
+#include "btp/bttester.h"
 
 #include <errno.h>
 
@@ -89,6 +90,44 @@ static const struct ble_gap_conn_params dflt_conn_params = {
     .max_ce_len = 0x0300,
 };
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_GAP_EV_MAX GAP_EV_SUBRATE_CHANGE
+
+#define GAP_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_GAP_EV_MAX)
+
+static uint8_t gap_supported_events[GAP_SUPPORTED_EVENTS_LEN];
+
+static void
+gap_init_supported_events(void)
+{
+    memset(gap_supported_events, 0, sizeof(gap_supported_events));
+
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_NEW_SETTINGS));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_DEVICE_FOUND));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_DEVICE_CONNECTED));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_DEVICE_DISCONNECTED));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_PASSKEY_DISPLAY));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_PASSKEY_ENTRY_REQ));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_PASSKEY_CONFIRM_REQ));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_IDENTITY_RESOLVED));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_CONN_PARAM_UPDATE));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_SEC_LEVEL_CHANGED));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_BOND_LOST));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(BTP_GAP_EV_SEC_PAIRING_FAILED));
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(GAP_EV_PERIODIC_SYNC_ESTABLISHED));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(GAP_EV_PERIODIC_SYNC_LOST));
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(GAP_EV_PERIODIC_REPORT));
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(GAP_EV_PERIODIC_TRANSFER_RECEIVED));
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    tester_set_bit(gap_supported_events, BTP_EVENT_BIT(GAP_EV_SUBRATE_CHANGE));
+#endif
+}
+
 static int
 gap_conn_find_by_addr(const ble_addr_t *dev_addr,
                       struct ble_gap_conn_desc *out_desc)
@@ -129,6 +168,18 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     struct btp_gap_read_supported_commands_rp *rp = rsp;
 
     *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_GAP, rp->data);
     *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
@@ -2278,6 +2329,12 @@ static const struct btp_handler handlers[] = {
         .func = supported_commands,
     },
     {
+        .opcode = BTP_GAP_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
+    },
+    {
         .opcode = BTP_GAP_READ_CONTROLLER_INDEX_LIST,
         .index = BTP_INDEX_NONE,
         .expect_len = 0,
@@ -2483,9 +2540,13 @@ tester_init_gap(void)
     assert(adv_buf);
 
     tester_init_gap_cb();
+    gap_init_supported_events();
 
     tester_register_command_handlers(BTP_SERVICE_ID_GAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_GAP,
+                                     gap_supported_events,
+                                     sizeof(gap_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

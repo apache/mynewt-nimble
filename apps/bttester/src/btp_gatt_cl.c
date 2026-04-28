@@ -33,6 +33,38 @@
 #define CONTROLLER_INDEX 0
 #define MAX_BUFFER_SIZE 2048
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_GATTC_EV_MAX BTP_GATTC_READ_MULTIPLE_VAR_RP
+
+#define GATTC_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_GATTC_EV_MAX)
+
+static uint8_t gattc_supported_events[GATTC_SUPPORTED_EVENTS_LEN];
+
+static void
+gattc_init_supported_events(void)
+{
+    memset(gattc_supported_events, 0, sizeof(gattc_supported_events));
+
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_EV_MTU_EXCHANGED));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_DISC_ALL_PRIM_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_DISC_PRIM_UUID_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_FIND_INCLUDED_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_DISC_ALL_CHRC_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_DISC_CHRC_UUID_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_DISC_ALL_DESC_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_READ_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_READ_UUID_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_READ_LONG_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_READ_MULTIPLE_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_WRITE_LONG_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_RELIABLE_WRITE_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_CFG_NOTIFY_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_CFG_INDICATE_RP));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_EV_NOTIFICATION_RXED));
+    tester_set_bit(gattc_supported_events, BTP_EVENT_BIT(BTP_GATTC_READ_MULTIPLE_VAR_RP));
+}
+
 /* Convert UUID from BTP command to bt_uuid */
 static uint8_t
 btp2bt_uuid(const uint8_t *uuid, uint8_t len,
@@ -1497,6 +1529,17 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gattc_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_GATTC, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
 
 static const struct btp_handler handlers[] = {
     {
@@ -1504,6 +1547,12 @@ static const struct btp_handler handlers[] = {
         .index = BTP_INDEX_NONE,
         .expect_len = 0,
         .func = supported_commands,
+    },
+    {
+        .opcode = BTP_GATTC_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
     },
     {
         .opcode = BTP_GATTC_EXCHANGE_MTU,
@@ -1607,8 +1656,12 @@ static const struct btp_handler handlers[] = {
 uint8_t
 tester_init_gatt_cl(void)
 {
+    gattc_init_supported_events();
     tester_register_command_handlers(BTP_SERVICE_ID_GATTC, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_GATTC,
+                                     gattc_supported_events,
+                                     sizeof(gattc_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

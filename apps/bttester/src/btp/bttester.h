@@ -94,7 +94,11 @@ void tester_register_command_handlers(uint8_t service,
                                       const struct btp_handler *handlers,
                                       size_t num);
 
+void tester_register_supported_events(uint8_t service, const uint8_t *events,
+                                      uint8_t len);
+
 uint16_t tester_supported_commands(uint8_t service, uint8_t *cmds);
+uint16_t tester_supported_events(uint8_t service, uint8_t *events);
 
 void
 tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index,

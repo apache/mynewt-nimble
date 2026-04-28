@@ -140,6 +140,11 @@ struct btp_mesh_lpn_unsubscribe_cmd {
 #define BTP_MESH_PROXY_IDENTITY        0x13
 #define BTP_MESH_START                  0x78
 
+#define BTP_MESH_READ_SUPPORTED_EVENTS    0x79
+struct btp_mesh_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
 /* events */
 #define BTP_MESH_EV_OUT_NUMBER_ACTION    0x80
 struct btp_mesh_out_number_action_ev {
