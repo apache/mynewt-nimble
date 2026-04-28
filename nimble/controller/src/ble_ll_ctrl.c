@@ -2483,6 +2483,17 @@ ble_ll_ctrl_rx_chanmap_req(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
     }
 #endif
 
+    /* Minimum number of channels is 2.
+     * If invalid map was provided we have to end the connection.
+     */
+    if (ble_ll_utils_chan_map_used_get(dptr) < 2) {
+        ble_ll_conn_timeout(connsm, BLE_ERR_INV_LMP_LL_PARM);
+        return BLE_ERR_MAX;
+    }
+
+    /* The bits in positions 37, 38 and 39 are reserved for future use */
+    dptr[4] &= 0x1f;
+
     /* If instant is in the past, we have to end the connection */
     instant = get_le16(dptr + BLE_LL_CHAN_MAP_LEN);
     conn_events = (instant - connsm->event_cntr) & 0xFFFF;
