@@ -34,28 +34,6 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define ble_iso_big_conn_handles_init(_big, _handles, _num_handles)         \
-    do {                                                                    \
-        struct ble_iso_conn *conn = SLIST_FIRST(&ble_iso_conns);            \
-                                                                            \
-        for (uint8_t i = 0; i < (_num_handles); i++) {                      \
-            while (conn != NULL) {                                          \
-                if (conn->type == BLE_ISO_CONN_BIS) {                       \
-                    struct ble_iso_bis *bis;                                \
-                                                                            \
-                    bis = CONTAINER_OF(conn, struct ble_iso_bis, conn);     \
-                    if (bis->big == (_big)) {                               \
-                        conn->handle = le16toh((_handles)[i]);              \
-                        conn = SLIST_NEXT(conn, next);                      \
-                        break;                                              \
-                    }                                                       \
-                }                                                           \
-                                                                            \
-                conn = SLIST_NEXT(conn, next);                              \
-            }                                                               \
-        }                                                                   \
-    } while (0);
-
 enum ble_iso_conn_type {
     BLE_ISO_CONN_BIS,
 };
@@ -95,6 +73,47 @@ static os_membuf_t ble_iso_big_mem[
 static struct os_mempool ble_iso_bis_pool;
 static os_membuf_t ble_iso_bis_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES), sizeof (struct ble_iso_bis))];
+
+static int
+ble_iso_big_conn_handles_init(struct ble_iso_big *big, const void *data, uint8_t num_handles)
+{
+    const uint8_t *handles = data;
+    struct ble_iso_conn *conn;
+    struct ble_iso_bis *bis;
+    uint8_t num_bis;
+
+    BLE_HS_DBG_ASSERT(big != NULL);
+    BLE_HS_DBG_ASSERT(handles != NULL);
+    BLE_HS_DBG_ASSERT(num_handles > 0);
+
+    num_bis = 0;
+
+    SLIST_FOREACH(conn, &ble_iso_conns, next) {
+        if (conn->type != BLE_ISO_CONN_BIS) {
+            continue;
+        }
+
+        bis = CONTAINER_OF(conn, struct ble_iso_bis, conn);
+        if (bis->big != big) {
+            continue;
+        }
+
+        BLE_HS_DBG_ASSERT(conn->handle == BLE_HS_CONN_HANDLE_NONE);
+
+        conn->handle = get_le16(&handles[num_bis * sizeof(uint16_t)]);
+
+        if (++num_bis == num_handles) {
+            break;
+        }
+    }
+
+    if (num_bis != num_handles) {
+        BLE_HS_LOG_ERROR("Not enough handles for BIG\n");
+        return BLE_HS_EINVAL;
+    }
+
+    return 0;
+}
 
 static void
 ble_iso_conn_append(struct ble_iso_conn *conn)
