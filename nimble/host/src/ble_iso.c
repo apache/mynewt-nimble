@@ -184,6 +184,7 @@ ble_iso_bis_alloc(struct ble_iso_big *big)
 
     memset(new_bis, 0, sizeof *new_bis);
     new_bis->conn.type = BLE_ISO_CONN_BIS;
+    new_bis->conn.handle = BLE_HS_CONN_HANDLE_NONE;
     new_bis->big = big;
 
     ble_iso_conn_append(&new_bis->conn);
