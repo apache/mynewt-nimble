@@ -73,7 +73,7 @@ struct ble_iso_big {
 struct ble_iso_conn {
     SLIST_ENTRY(ble_iso_conn) next;
     enum ble_iso_conn_type type;
-    uint8_t handle;
+    uint16_t handle;
 
     struct ble_iso_rx_data_info rx_info;
     struct os_mbuf *rx_buf;
