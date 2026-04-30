@@ -8,7 +8,7 @@ RELEASE_NOTES.md
 Doxyfile
 .clang-format
 .mailmap
-.style_ignored_dirs
+.clang-format-ignore
 **/requirements.txt
 
 # Ignore documentation folder
