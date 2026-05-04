@@ -55,7 +55,7 @@ syscfg.defs:
         deprecated: 1
 
     BLE_SOCK_USE_LINUX_BLUE:
-        description: 'Use BLE_SOCK_TYPE:linux_bluez'
+        description: 'Use BLE_SOCK_TYPE:linux_blue'
         value: 0
         deprecated: 1
 
