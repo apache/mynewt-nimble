@@ -1821,7 +1821,7 @@ ble_att_svr_service_uuid(struct ble_att_svr_entry *entry,
                          ble_uuid_any_t *uuid, uint8_t *out_att_err)
 {
     uint8_t val[16];
-    uint16_t attr_len;
+    uint16_t attr_len = 0;
     int rc;
 
     rc = ble_att_svr_read_flat(BLE_HS_CONN_HANDLE_NONE, entry, 0, sizeof(val), val,
