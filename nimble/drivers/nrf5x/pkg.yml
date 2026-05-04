@@ -40,11 +40,11 @@ pkg.source_files.'MCU_TARGET=="nRF52810" || MCU_TARGET=="nRF52811" || MCU_TARGET
 pkg.source_files.'MCU_TARGET=="nRF5340_NET"':
     - "src/nrf53/phy.c"
 pkg.source_files.'MCU_TARGET=="nRF54L15"':
-    - "src/nrf54l15/phy.c"
+    - "src/nrf54l/phy.c"
 
 pkg.include_dirs.'MCU_TARGET=="nRF52810" || MCU_TARGET=="nRF52811" || MCU_TARGET=="nRF52832" || MCU_TARGET=="nRF52840"':
     - "src/nrf52/"
 pkg.include_dirs.'MCU_TARGET=="nRF5340_NET"':
     - "src/nrf53/"
 pkg.include_dirs.'MCU_TARGET=="nRF54L15"':
-    - "src/nrf54l15/"
+    - "src/nrf54l/"
