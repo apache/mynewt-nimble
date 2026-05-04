@@ -49,9 +49,7 @@
 #include <sys/errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
-
-#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue)
+#elif MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_blue)
 #include <sys/errno.h>
 #define BTPROTO_HCI       1
 #define HCI_CHANNEL_RAW	  0
@@ -66,11 +64,11 @@ struct sockaddr_hci {
     unsigned short hci_dev;
     unsigned short hci_channel;
 };
-#endif
-
-#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
+#elif MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
 #include <errno.h>
 #include <netpacket/bluetooth.h>
+#else
+#error "Invalid HCI socket type"
 #endif
 
 #include <fcntl.h>
