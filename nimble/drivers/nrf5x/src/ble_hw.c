@@ -306,9 +306,6 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     return rc;
 }
 #else
-#define NRF_ECB NRF_ECB00
-#define NRF_AAR NRF_AAR00
-
 /* ECB data structure */
 struct ecb_job_entry {
     uint8_t *ptr;
@@ -329,9 +326,9 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_STOP);
 
     ecb_input_job_list[0].ptr = ecb->plain_text;
-    ecb_input_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+    ecb_input_job_list[0].attr_and_length = (ECB_ATTR_DATA << 24) | 16;
     ecb_output_job_list[0].ptr = ecb->cipher_text;
-    ecb_output_job_list[0].attr_and_length = (11 << 24) | (16 & 0x00ffffff);
+    ecb_output_job_list[0].attr_and_length = (ECB_ATTR_DATA << 24) | 16;
 
     /* The end of a job list shall be 0 */
     ecb_input_job_list[1].ptr = 0;
@@ -343,7 +340,14 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
     NRF_ECB->EVENTS_ERROR = 0;
     NRF_ECB->IN.PTR = (uint32_t)ecb_input_job_list;
     NRF_ECB->OUT.PTR = (uint32_t)ecb_output_job_list;
-    memcpy((void *)NRF_ECB->KEY.VALUE, ecb->key, sizeof(uint32_t) * 4);
+    /* nRF54L KEY.VALUE uses reversed byte order (same as CCM) */
+    {
+        const uint32_t *kp = (const uint32_t *)ecb->key;
+        NRF_ECB->KEY.VALUE[0] = __builtin_bswap32(kp[3]);
+        NRF_ECB->KEY.VALUE[1] = __builtin_bswap32(kp[2]);
+        NRF_ECB->KEY.VALUE[2] = __builtin_bswap32(kp[1]);
+        NRF_ECB->KEY.VALUE[3] = __builtin_bswap32(kp[0]);
+    }
 
     /* Start ECB */
     nrf_ecb_task_trigger(NRF_ECB, NRF_ECB_TASK_START);
@@ -508,7 +512,8 @@ ble_rng_isr(void)
     /* No callback? Clear and disable interrupts */
     if (g_ble_rng_isr_cb == NULL) {
         nrf_cracen_int_disable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
-        NRF_CRACENCORE->RNGCONTROL.CONTROL &= ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        NRF_CRACENCORE->RNGCONTROL.CONTROL &=
+            ~CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
         NRF_CRACEN->EVENTS_RNG = 0;
         os_trace_isr_exit();
         return;
@@ -538,10 +543,10 @@ int
 ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
 {
     NRF_CRACEN->ENABLE = CRACEN_ENABLE_CRYPTOMASTER_Msk |
-                         CRACEN_ENABLE_RNG_Msk |
-                         CRACEN_ENABLE_PKEIKG_Msk;
+                         CRACEN_ENABLE_RNG_Msk | CRACEN_ENABLE_PKEIKG_Msk;
 
-    while (NRF_CRACENCORE->PK.STATUS & CRACENCORE_PK_STATUS_PKBUSY_Msk);
+    while (NRF_CRACENCORE->PK.STATUS & CRACENCORE_PK_STATUS_PKBUSY_Msk)
+        ;
     NRF_CRACENCORE->PK.CONTROL &= ~CRACENCORE_IKG_PKECONTROL_CLEARIRQ_Msk;
 
     NRF_CRACENCORE->RNGCONTROL.CONTROL = CRACENCORE_RNGCONTROL_CONTROL_ResetValue |
@@ -573,7 +578,8 @@ ble_hw_rng_start(void)
 
     if (g_ble_rng_isr_cb) {
         nrf_cracen_int_enable(NRF_CRACEN, NRF_CRACEN_INT_RNG_MASK);
-        NRF_CRACENCORE->RNGCONTROL.CONTROL |= CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
+        NRF_CRACENCORE->RNGCONTROL.CONTROL |=
+            CRACENCORE_RNGCONTROL_CONTROL_INTENFULL_Msk;
         /* Force regeneration of the samples */
         NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL = 0;
     }
@@ -615,10 +621,9 @@ ble_hw_rng_read(void)
 
     /* Wait for a sample */
     while (NRF_CRACENCORE->RNGCONTROL.FIFOLEVEL == 0) {
-        assert((NRF_CRACENCORE->RNGCONTROL.STATUS &
-                CRACENCORE_RNGCONTROL_STATUS_STATE_Msk) !=
-               (CRACENCORE_RNGCONTROL_STATUS_STATE_ERROR <<
-                CRACENCORE_RNGCONTROL_STATUS_STATE_Pos));
+        assert((NRF_CRACENCORE->RNGCONTROL.STATUS & CRACENCORE_RNGCONTROL_STATUS_STATE_Msk) !=
+               (CRACENCORE_RNGCONTROL_STATUS_STATE_ERROR
+                << CRACENCORE_RNGCONTROL_STATUS_STATE_Pos));
     }
 
     NRF_CRACEN->EVENTS_RNG = 0;

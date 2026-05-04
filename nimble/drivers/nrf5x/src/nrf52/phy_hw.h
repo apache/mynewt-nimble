@@ -23,6 +23,7 @@
 #include <nrf_gpio.h>
 #include <nrf_gpiote.h>
 #include <hal/nrf_ccm.h>
+#include <hal/nrf_rtc.h>
 #include <hal/nrf_timer.h>
 
 struct nrf_ccm_data {
@@ -33,16 +34,18 @@ struct nrf_ccm_data {
 } __attribute__((packed));
 
 /* To disable all radio interrupts */
-#define NRF_RADIO_IRQ_MASK_ALL  (0x34FF)
+#define NRF_RADIO_IRQ_MASK_ALL (0x34FF)
 
 #define NRF_RADIO_INTENSET NRF_RADIO->INTENSET
 
-#define NRF_AAR_NIRK NRF_AAR->NIRK
-#define NRF_AAR_IRKPTR NRF_AAR->IRKPTR
-#define NRF_AAR_ADDRPTR NRF_AAR->ADDRPTR
-#define NRF_AAR_STATUS NRF_AAR->STATUS
+extern uint8_t g_nrf_num_irks;
 
-#define NRF_CCM_STATUS NRF_CCM->MICSTATUS
+#define NRF_AAR_NIRK    NRF_AAR->NIRK
+#define NRF_AAR_IRKPTR  NRF_AAR->IRKPTR
+#define NRF_AAR_ADDRPTR NRF_AAR->ADDRPTR
+#define NRF_AAR_STATUS  NRF_AAR->STATUS
+
+#define NRF_CCM_STATUS     NRF_CCM->MICSTATUS
 #define NRF_CCM_EVENTS_END NRF_CCM->EVENTS_ENDCRYPT
 
 uint32_t ble_phy_get_ccm_datarate(void);
@@ -54,8 +57,8 @@ phy_hw_ccm_init(void)
 }
 
 static inline void
-phy_hw_ccm_setup_tx(uint8_t *in_ptr, uint8_t *out_ptr,
-                    uint8_t *scratch_ptr, struct nrf_ccm_data *ccm_data)
+phy_hw_ccm_setup_tx(uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *scratch_ptr,
+                    struct nrf_ccm_data *ccm_data)
 {
     NRF_CCM->SHORTS = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
     NRF_CCM->INPTR = (uint32_t)in_ptr;
@@ -67,8 +70,8 @@ phy_hw_ccm_setup_tx(uint8_t *in_ptr, uint8_t *out_ptr,
 }
 
 static inline void
-phy_hw_ccm_setup_rx(uint8_t *in_ptr, uint8_t *out_ptr,
-                    uint8_t *scratch_ptr, struct nrf_ccm_data *ccm_data)
+phy_hw_ccm_setup_rx(uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *scratch_ptr,
+                    struct nrf_ccm_data *ccm_data)
 {
     NRF_CCM->INPTR = (uint32_t)in_ptr;
     NRF_CCM->OUTPTR = (uint32_t)out_ptr;
@@ -85,6 +88,28 @@ static inline void
 phy_hw_ccm_start(void)
 {
     nrf_ccm_task_trigger(NRF_CCM, NRF_CCM_TASK_KSGEN);
+}
+
+static inline int
+phy_hw_ccm_tx_wait_complete(void)
+{
+    /* nRF52/53 encrypts on-the-fly via KSGEN->CRYPT; no pre-TX wait needed. */
+    return 0;
+}
+
+/* Returns 1 if the LL should treat this as a MIC failure, else 0. */
+static inline int
+phy_hw_ccm_finish_rx_decrypt(uint8_t *enc_buf, uint8_t *out_buf, uint8_t enc_len)
+{
+    (void)enc_buf;
+    (void)enc_len;
+    /* nRF52/53: decryption was triggered by ADDRESS->CCM_START PPI; the
+     * KSGEN->CRYPT short produced plaintext into out_buf in parallel
+     * with reception. Just wait for completion. */
+    while (NRF_CCM_EVENTS_END == 0) {
+        /* spin */
+    }
+    return ((out_buf[1] != 0) && (NRF_CCM_STATUS == 0)) ? 1 : 0;
 }
 
 static inline void
@@ -105,19 +130,17 @@ phy_hw_radio_events_clear(void)
 static inline void
 phy_hw_radio_shorts_setup_tx(void)
 {
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                        RADIO_SHORTS_READY_START_Msk;
+    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk;
 }
 
 static inline void
 phy_hw_radio_shorts_setup_rx(void)
 {
     NRF_RADIO->EVENTS_RSSIEND = 0;
-    NRF_RADIO->SHORTS = RADIO_SHORTS_END_DISABLE_Msk |
-                        RADIO_SHORTS_READY_START_Msk |
-                        RADIO_SHORTS_ADDRESS_BCSTART_Msk |
-                        RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
-                        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
+    NRF_RADIO->SHORTS =
+        RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_READY_START_Msk |
+        RADIO_SHORTS_ADDRESS_BCSTART_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk |
+        RADIO_SHORTS_DISABLED_RSSISTOP_Msk;
 }
 
 static inline void
@@ -153,12 +176,65 @@ phy_hw_aar_addrptr_set(uint8_t *dptr)
 }
 
 static inline void
+phy_hw_aar_resolv_enable(void)
+{
+    NRF_AAR->NIRK = (uint32_t)g_nrf_num_irks;
+}
+
+static inline void
+phy_hw_aar_resolv_disable(void)
+{
+    NRF_AAR->NIRK = 0;
+}
+
+static inline void
 phy_gpiote_configure(int idx, int pin)
 {
     nrf_gpio_cfg_output(pin);
     nrf_gpiote_task_configure(NRF_GPIOTE, idx, pin, NRF_GPIOTE_POLARITY_NONE,
                               NRF_GPIOTE_INITIAL_VALUE_LOW);
     nrf_gpiote_task_enable(NRF_GPIOTE, idx);
+}
+
+static inline void
+phy_hw_timer_start_trigger_set(uint32_t cputime)
+{
+    NRF_RTC0->EVENTS_COMPARE[0] = 0;
+    nrf_rtc_cc_set(NRF_RTC0, 0, cputime & 0xffffff);
+    nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
+}
+
+static inline int
+phy_hw_timer_start_trigger_configure(uint32_t cputime)
+{
+    uint32_t next_cc;
+    uint32_t cur_cc;
+    uint32_t cntr;
+    uint32_t delta;
+
+    next_cc = cputime & 0xffffff;
+    cur_cc = NRF_RTC0->CC[0];
+    cntr = NRF_RTC0->COUNTER;
+
+    delta = (cur_cc - cntr) & 0xffffff;
+    if ((delta <= 3) && (delta != 0)) {
+        return -1;
+    }
+
+    delta = (next_cc - cntr) & 0xffffff;
+    if ((delta & 0x800000) || (delta < 3)) {
+        return -1;
+    }
+
+    phy_hw_timer_start_trigger_set(cputime);
+
+    return 0;
+}
+
+static inline void
+phy_hw_timer_start_trigger_disable(void)
+{
+    nrf_rtc_event_disable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
 }
 
 #endif /* H_PHY_HW_ */
