@@ -479,7 +479,7 @@ ble_ll_cs_drbg_rand_marker_selection(struct ble_ll_cs_drbg_ctx *drbg_ctx,
         drbg_ctx->marker_selection_free_bits = 8;
     }
 
-    *marker_selection = drbg_ctx->marker_selection_cache & 0x80;
+    *marker_selection = (drbg_ctx->marker_selection_cache & 0x80) != 0;
     drbg_ctx->marker_selection_cache <<= 1;
     --drbg_ctx->marker_selection_free_bits;
 
@@ -513,7 +513,7 @@ ble_ll_cs_drbg_apply_marker_signal(struct ble_ll_cs_drbg_ctx *drbg_ctx,
                                    uint8_t step_count, uint8_t *buf, uint8_t position)
 {
     int rc;
-    uint16_t *byte_ptr;
+    uint16_t val;
     uint16_t marker_signal;
     uint8_t marker_selection;
     uint8_t byte_id = 0;
@@ -533,10 +533,14 @@ ble_ll_cs_drbg_apply_marker_signal(struct ble_ll_cs_drbg_ctx *drbg_ctx,
     }
 
     byte_id = position / 8;
-    byte_ptr = (uint16_t *)&buf[byte_id];
     bit_offset = position % 8;
-    *byte_ptr &= ~(0xF << bit_offset);
-    *byte_ptr |= ~(marker_signal << bit_offset);
+
+    val = get_le16(buf + byte_id);
+
+    val &= ~(0xF << bit_offset);
+    val |= marker_signal << bit_offset;
+
+    put_le16(buf + byte_id, val);
 
     return 0;
 }
