@@ -80,6 +80,41 @@ const struct test_ll_common_params test_ll_common_params_bn_1 = {
     .Sync_Timeout = 100,
 };
 
+struct test_ll_iso_fixture {
+    struct ble_ll_iso_conn conn;
+};
+
+static void
+test_ll_iso_setup(struct test_ll_iso_fixture *fixture,
+                  const struct test_ll_common_params *params)
+{
+    struct ble_ll_iso_conn_init_param conn_param = {
+        .iso_interval_us = params->SDU_Interval * 1000,
+        .sdu_interval_us = params->SDU_Interval * 1000,
+        .conn_handle = 0x0001,
+        .max_sdu = TSPX_max_tx_payload,
+        .max_pdu = TSPX_max_tx_payload,
+        .framing = params->Framing,
+        .bn = params->BN
+    };
+    struct ble_ll_iso_conn *conn;
+
+    memset(fixture, 0, sizeof(*fixture));
+    conn = &fixture->conn;
+
+    ble_ll_iso_conn_init(conn, &conn_param);
+}
+
+static void
+test_ll_iso_teardown(struct test_ll_iso_fixture *fixture)
+{
+    struct ble_ll_iso_conn *conn;
+
+    conn = &fixture->conn;
+
+    ble_ll_iso_conn_free(conn);
+}
+
 TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
     const uint8_t payload_types[] = {
         BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH,
@@ -93,23 +128,17 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
     struct ble_hci_le_iso_transmit_test_rp iso_transmit_test_rp;
     struct ble_hci_le_iso_test_end_cp iso_test_end_cp;
     struct ble_hci_le_iso_test_end_rp iso_test_end_rp;
-    struct ble_ll_iso_conn_init_param conn_param = {
-        .iso_interval_us = params->SDU_Interval * 1000,
-        .sdu_interval_us = params->SDU_Interval * 1000,
-        .conn_handle = 0x0001,
-        .max_sdu = TSPX_max_tx_payload,
-        .max_pdu = TSPX_max_tx_payload,
-        .framing = params->Framing,
-        .bn = params->BN
-    };
-    struct ble_ll_iso_conn conn;
+    struct test_ll_iso_fixture fixture;
+    struct ble_ll_iso_conn *conn;
     uint8_t payload_type;
     uint8_t pdu[100];
     uint8_t llid;
     uint8_t rsplen = 0;
     int rc;
 
-    ble_ll_iso_conn_init(&conn, &conn_param);
+    test_ll_iso_setup(&fixture, params);
+
+    conn = &fixture.conn;
 
     for (uint8_t i = 0; i < ARRAY_SIZE(payload_types); i++) {
         payload_type = payload_types[i];
@@ -118,7 +147,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
          *    specified in Table 4.12-2 and receives a successful HCI_Command_Complete event from the IUT in response.
          */
         rsplen = 0xFF;
-        iso_transmit_test_cp.conn_handle = htole16(conn.handle);
+        iso_transmit_test_cp.conn_handle = htole16(conn->handle);
         iso_transmit_test_cp.payload_type = payload_type;
         rc = ble_ll_iso_transmit_test((uint8_t *)&iso_transmit_test_cp, sizeof(iso_transmit_test_cp),
                                       (uint8_t *)&iso_transmit_test_rp, &rsplen);
@@ -131,12 +160,12 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
          * 4. Repeat step 3 for a total of 5 payloads.
          */
         for (uint8_t j = 0; j < 5; j++) {
-            rc = ble_ll_iso_conn_event_start(&conn, 30000);
+            rc = ble_ll_iso_conn_event_start(conn, 30000);
             TEST_ASSERT(rc == 0);
 
-            for (uint8_t k = 0; k < conn_param.bn; k++) {
+            for (uint8_t k = 0; k < conn->mux.bn; k++) {
                 llid = 0xFF;
-                rc = ble_ll_iso_pdu_get(&conn, k, k, &llid, pdu);
+                rc = ble_ll_iso_pdu_get(conn, k, k, &llid, pdu);
                 if (payload_type == BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH) {
                     TEST_ASSERT(rc == 0);
                     TEST_ASSERT(llid == 0b00);
@@ -144,19 +173,19 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
                     TEST_ASSERT(rc >= 4);
                     TEST_ASSERT(llid == 0b00);
                 } else if (payload_type == BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH) {
-                    TEST_ASSERT(rc == conn_param.max_pdu);
+                    TEST_ASSERT(rc == conn->mux.max_pdu);
                     TEST_ASSERT(llid == 0b00);
                 }
             }
 
-            rc = ble_ll_iso_conn_event_done(&conn);
+            rc = ble_ll_iso_conn_event_done(conn);
             TEST_ASSERT(rc == 0);
         }
 
         /* 5. The Upper Tester sends an HCI_LE_Setup_ISO_Data_Path command to the IUT.
          * 6. The IUT sends an HCI_Command_Complete event to the Upper Tester with Status set to 0x0C.
          */
-        setup_iso_data_path_cp.conn_handle = htole16(conn.handle);
+        setup_iso_data_path_cp.conn_handle = htole16(conn->handle);
         setup_iso_data_path_cp.data_path_dir = 0x00;
         setup_iso_data_path_cp.data_path_id = 0x00;
         rc = ble_ll_iso_setup_iso_data_path((uint8_t *)&setup_iso_data_path_cp, sizeof(setup_iso_data_path_cp),
@@ -168,7 +197,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
          *    Received_SDU_Count, Missed_SDU_Count, and Failed_SDU_Count are all zero.
          */
         rsplen = 0xFF;
-        iso_test_end_cp.conn_handle = htole16(conn.handle);
+        iso_test_end_cp.conn_handle = htole16(conn->handle);
         rc = ble_ll_iso_end_test((uint8_t *)&iso_test_end_cp, sizeof(iso_test_end_cp),
                                  (uint8_t *)&iso_test_end_rp, &rsplen);
         TEST_ASSERT(rc == 0);
@@ -179,7 +208,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
         TEST_ASSERT(iso_test_end_rp.failed_sdu_count == 0);
     }
 
-    ble_ll_iso_conn_free(&conn);
+    test_ll_iso_teardown(&fixture);
 }
 
 TEST_SUITE(ble_ll_iso_test_suite) {
