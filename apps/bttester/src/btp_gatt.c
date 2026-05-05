@@ -75,6 +75,23 @@
 #define  PTS_INC_SVC                       0x001e
 #define  PTS_CHR_READ_WRITE_ALT            0x001f
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_GATT_EV_MAX BTP_GATT_EV_ATTR_VALUE_CHANGED
+
+#define GATT_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_GATT_EV_MAX)
+
+static uint8_t gatt_supported_events[GATT_SUPPORTED_EVENTS_LEN];
+
+static void
+gatt_init_supported_events(void)
+{
+    memset(gatt_supported_events, 0, sizeof(gatt_supported_events));
+
+    tester_set_bit(gatt_supported_events, BTP_EVENT_BIT(BTP_GATT_EV_NOTIFICATION));
+    tester_set_bit(gatt_supported_events, BTP_EVENT_BIT(BTP_GATT_EV_ATTR_VALUE_CHANGED));
+}
+
 static uint8_t gatt_svr_pts_static_long_val[300];
 static uint8_t gatt_svr_pts_static_val[30];
 static uint8_t gatt_svr_pts_static_short_val;
@@ -1958,6 +1975,18 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gatt_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_GATT, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 enum attr_type {
     BLE_GATT_ATTR_SVC = 0,
     BLE_GATT_ATTR_CHR,
@@ -1970,6 +1999,12 @@ static const struct btp_handler handlers[] = {
         .index = BTP_INDEX_NONE,
         .expect_len = 0,
         .func = supported_commands,
+    },
+    {
+        .opcode = BTP_GATT_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
     },
     {
         .opcode = BTP_GATT_START_SERVER,
@@ -2294,8 +2329,13 @@ tester_init_gatt(void)
     os_callout_init(&notify_tx_timer, os_eventq_dflt_get(),
                     notify_test, NULL);
 
+    gatt_init_supported_events();
+
     tester_register_command_handlers(BTP_SERVICE_ID_GATT, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_GATT,
+                                     gatt_supported_events,
+                                     sizeof(gatt_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

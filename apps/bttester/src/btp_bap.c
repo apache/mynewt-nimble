@@ -58,6 +58,33 @@ static uint32_t sdu_interval;
 
 static struct ble_audio_base tester_base;
 
+/* Important: Remember to update this if new events are introduced */
+#define BTP_BAP_EV_MAX BTP_BAP_EV_PA_SYNC_REQ
+
+#define BAP_SUPPORTED_EVENTS_LEN \
+    BTP_EVENT_BITMAP_LEN(BTP_BAP_EV_MAX)
+
+static uint8_t bap_supported_events[BAP_SUPPORTED_EVENTS_LEN];
+
+static void
+bap_init_supported_events(void)
+{
+    memset(bap_supported_events, 0, sizeof(bap_supported_events));
+
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_DISCOVERY_COMPLETED));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_CODEC_CAP_FOUND));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_ASE_FOUND));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_STREAM_RECEIVED));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_BAA_FOUND));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_BIS_FOUND));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_BIS_SYNCED));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_BIS_STREAM_RECEIVED));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_SCAN_DELEGATOR_FOUND));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_BROADCAST_RECEIVE_STATE));
+    tester_set_bit(bap_supported_events, BTP_EVENT_BIT(BTP_BAP_EV_PA_SYNC_REQ));
+}
+
+
 static os_membuf_t bis_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
                     sizeof(struct ble_audio_bis))
@@ -140,6 +167,18 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     struct btp_bap_read_supported_commands_rp *rp = rsp;
 
     *rsp_len = tester_supported_commands(BTP_SERVICE_ID_BAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len,
+                   void *rsp, uint16_t *rsp_len)
+{
+    struct btp_bap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_BAP, rp->data);
     *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
@@ -403,6 +442,12 @@ static const struct btp_handler handlers[] = {
         .func = supported_commands,
     },
     {
+        .opcode = BTP_BAP_READ_SUPPORTED_EVENTS,
+        .index = BTP_INDEX_NONE,
+        .expect_len = 0,
+        .func = supported_events,
+    },
+    {
         .opcode = BTP_BAP_BROADCAST_SOURCE_SETUP,
         .index = BTP_INDEX,
         .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
@@ -653,8 +698,13 @@ tester_init_bap(void)
                                            scan_delegator_audio_event_handler, NULL);
     assert(rc == 0);
 
+    bap_init_supported_events();
+
     tester_register_command_handlers(BTP_SERVICE_ID_BAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_BAP,
+                                     bap_supported_events,
+                                     sizeof(bap_supported_events));
 
     return BTP_STATUS_SUCCESS;
 }

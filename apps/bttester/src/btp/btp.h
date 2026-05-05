@@ -58,6 +58,10 @@
 #define BTP_STATUS_UNKNOWN_CMD    0x02
 #define BTP_STATUS_NOT_READY    0x03
 
+#define BTP_EVENT_OPCODE_BASE 0x80
+#define BTP_EVENT_BIT(ev) ((uint8_t)(ev) - BTP_EVENT_OPCODE_BASE)
+#define BTP_EVENT_BITMAP_LEN(last_ev) (BTP_EVENT_BIT(last_ev) / 8 + 1)
+
 /* TODO indicate delay response, should be removed when all commands are
  * converted to cmd+status+ev pattern
  */
