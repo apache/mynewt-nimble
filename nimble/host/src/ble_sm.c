@@ -1367,6 +1367,13 @@ ble_sm_ltk_req_rx(const struct ble_hci_ev_le_subev_lt_key_req *ev)
     memset(&res, 0, sizeof res);
 
     ble_hs_lock();
+
+    conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        return BLE_HS_ENOENT;
+    }
+
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, 0, NULL);
     if (proc == NULL) {
         /* The peer is attempting to restore a encrypted connection via the
@@ -1406,7 +1413,6 @@ ble_sm_ltk_req_rx(const struct ble_hci_ev_le_subev_lt_key_req *ev)
     }
 
     if (restore) {
-        conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_addrs(conn, &addrs);
         memcpy(peer_id_addr, addrs.peer_id_addr.val, 6);
     }
