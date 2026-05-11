@@ -55,6 +55,13 @@ jobs:
              rm -rf repos/apache-mynewt-nimble
              git clone .. repos/apache-mynewt-nimble
              cd ..
+      - name: Switch to main mcuboot
+        # This is temporary until next mcuboot release is available
+        shell: bash
+        run: |
+             cd build/repos/mcuboot
+             git fetch origin main:main
+             git checkout main
       - name: newt test all
         shell: bash
         run: |
