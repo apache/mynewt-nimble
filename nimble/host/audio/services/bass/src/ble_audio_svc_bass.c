@@ -372,14 +372,15 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
      */
     data_len -= offset;
     for (i = 0; i < operation.add_source.num_subgroups; i++) {
-        if (data_len < sizeof(uint32_t)) {
+        /* bis_sync + metadata len */
+        if (data_len < (sizeof(uint32_t) + sizeof(uint8_t))) {
             rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
             ev.bass_operation_status.status = BLE_HS_EREJECT;
             goto done;
         }
         operation.add_source.subgroups[i].bis_sync_state = get_le32(&data[offset]);
-        offset += 4;
-        operation.add_source.subgroups[i].metadata_length = data[offset++];
+        operation.add_source.subgroups[i].metadata_length = data[offset + 4];
+        offset += 5;
         data_len -= 5;
         if (data_len < operation.add_source.subgroups[i].metadata_length) {
             rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
@@ -389,13 +390,13 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
         operation.add_source.subgroups[i].metadata = &data[offset];
         offset += operation.add_source.subgroups[i].metadata_length;
         data_len -= operation.add_source.subgroups[i].metadata_length;
+    }
 
-        if (check_bis_sync(operation.add_source.num_subgroups,
-                           operation.add_source.subgroups)) {
-            rc = BLE_HS_EINVAL;
-            ev.bass_operation_status.status = BLE_HS_EREJECT;
-            goto done;
-        }
+    if (check_bis_sync(operation.add_source.num_subgroups,
+                       operation.add_source.subgroups)) {
+        rc = BLE_HS_EINVAL;
+        ev.bass_operation_status.status = BLE_HS_EREJECT;
+        goto done;
     }
 
     source_id_new = ble_svc_audio_bass_get_new_source_id();
