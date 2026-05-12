@@ -253,6 +253,14 @@ ble_transport_to_hs_evt_impl(void *buf)
     return ble_hci_trans_ll_evt_tx(buf);
 }
 
+int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    os_mbuf_free_chain(om);
+
+    return 0;
+}
+
 void
 ble_transport_hs_init(void)
 {
