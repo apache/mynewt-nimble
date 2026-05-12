@@ -2448,6 +2448,7 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_PKT_STATUS_FLAG_MASK    (0xC000)
 
 #define BLE_HCI_ISO_HANDLE(ch, pb, ts)  ((ch) | ((pb) << 12) | ((ts) << 14))
+#define BLE_HCI_ISO_SDU_LENGTH_DEFINE(l, psf) ((l) | ((psf) << 14))
 
 #define BLE_HCI_ISO_CONN_HANDLE(h)      ((h) & BLE_HCI_ISO_CONN_HANDLE_MASK)
 #define BLE_HCI_ISO_PB_FLAG(h)          (((h) & BLE_HCI_ISO_PB_FLAG_MASK) >> 12)
@@ -2461,9 +2462,9 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_PB_COMPLETE         (2)
 #define BLE_HCI_ISO_PB_LAST             (3)
 
-#define BLE_HCI_ISO_PKT_STATUS_VALID    0x00
-#define BLE_HCI_ISO_PKT_STATUS_INVALID  0x01
-#define BLE_HCI_ISO_PKT_STATUS_LOST     0x10
+#define BLE_HCI_ISO_PKT_STATUS_VALID   0b00
+#define BLE_HCI_ISO_PKT_STATUS_INVALID 0b01
+#define BLE_HCI_ISO_PKT_STATUS_LOST    0b10
 
 #define BLE_HCI_ISO_BIG_HANDLE_MIN      0x00
 #define BLE_HCI_ISO_BIG_HANDLE_MAX      0xEF

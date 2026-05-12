@@ -71,6 +71,7 @@ extern uint8_t g_ble_ll_sched_offset_ticks;
 #define BLE_LL_SCHED_TYPE_SYNC      (7)
 #define BLE_LL_SCHED_TYPE_SCAN_AUX  (8)
 #define BLE_LL_SCHED_TYPE_BIG       (9)
+#define BLE_LL_SCHED_TYPE_BIG_SYNC  (10)
 #if MYNEWT_VAL(BLE_LL_EXT)
 #define BLE_LL_SCHED_TYPE_EXTERNAL  (255)
 #endif
@@ -221,6 +222,10 @@ uint32_t ble_ll_sched_css_get_conn_interval_us(void);
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 int ble_ll_sched_iso_big(struct ble_ll_sched_item *sch, int first, int fixed);
 #endif /* BLE_LL_ISO_BROADCASTER */
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+int ble_ll_sched_iso_big_sync(struct ble_ll_sched_item *sch);
+#endif /* BLE_LL_ISO_BROADCAST_SYNC */
 
 #ifdef __cplusplus
 }

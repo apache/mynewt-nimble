@@ -75,8 +75,8 @@ struct ble_encryption_block
 struct ble_mbuf_hdr_rxinfo
 {
     uint16_t flags;
+    uint16_t handle;
     uint8_t channel;
-    uint8_t handle;
     int8_t  rssi;
     /* XXX: we could just use single phy_mode field */
     int8_t  phy;
@@ -84,7 +84,7 @@ struct ble_mbuf_hdr_rxinfo
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     int8_t  rpa_index;
 #endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV) || MYNEWT_VAL(BLE_LL_ISO)
     void *user_data;
 #endif
 };
@@ -96,26 +96,26 @@ struct ble_mbuf_hdr_rxinfo
  *       set for the same PDU (e.g. one use by scanner, other one used by
  *       connection)
  */
-#define BLE_MBUF_HDR_F_CONNECT_IND_TXD  (0x4000)
-#define BLE_MBUF_HDR_F_CONNECT_REQ_TXD  (0x4000)
-#define BLE_MBUF_HDR_F_CONNECT_RSP_RXD  (0x0008)
-#define BLE_MBUF_HDR_F_CONN_CREDIT      (0x8000)
-#define BLE_MBUF_HDR_F_IGNORED          (0x8000)
-#define BLE_MBUF_HDR_F_CONN_CREDIT_INT  (0x4000)
-#define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000)
-#define BLE_MBUF_HDR_F_INITA_RESOLVED   (0x2000)
-#define BLE_MBUF_HDR_F_TARGETA_RESOLVED (0x2000)
-#define BLE_MBUF_HDR_F_EXT_ADV_SEC      (0x1000)
-#define BLE_MBUF_HDR_F_EXT_ADV          (0x0800)
-#define BLE_MBUF_HDR_F_RESOLVED         (0x0400)
-#define BLE_MBUF_HDR_F_AUX_PTR_WAIT     (0x0200)
-#define BLE_MBUF_HDR_F_AUX_PTR_FAILED   (0x0100)
-#define BLE_MBUF_HDR_F_CRC_OK           (0x0080)
-#define BLE_MBUF_HDR_F_DEVMATCH         (0x0040)
-#define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
-#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
-#define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
+#define BLE_MBUF_HDR_F_CONNECT_IND_TXD  (0x4000 << 1)
+#define BLE_MBUF_HDR_F_CONNECT_REQ_TXD  (0x4000 << 1)
+#define BLE_MBUF_HDR_F_CONNECT_RSP_RXD  (0x0008 << 1)
+#define BLE_MBUF_HDR_F_CONN_CREDIT      (0x8000 << 1)
+#define BLE_MBUF_HDR_F_IGNORED          (0x8000 << 1)
+#define BLE_MBUF_HDR_F_CONN_CREDIT_INT  (0x4000 << 1)
+#define BLE_MBUF_HDR_F_SCAN_REQ_TXD     (0x4000 << 1)
+#define BLE_MBUF_HDR_F_INITA_RESOLVED   (0x2000 << 1)
+#define BLE_MBUF_HDR_F_TARGETA_RESOLVED (0x2000 << 1)
+#define BLE_MBUF_HDR_F_EXT_ADV_SEC      (0x1000 << 1)
+#define BLE_MBUF_HDR_F_EXT_ADV          (0x0800 << 1)
+#define BLE_MBUF_HDR_F_RESOLVED         (0x0400 << 1)
+#define BLE_MBUF_HDR_F_AUX_PTR_WAIT     (0x0200 << 1)
+#define BLE_MBUF_HDR_F_AUX_PTR_FAILED   (0x0100 << 1)
+#define BLE_MBUF_HDR_F_CRC_OK           (0x0080 << 1)
+#define BLE_MBUF_HDR_F_DEVMATCH         (0x0040 << 1)
+#define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020 << 1)
+#define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010 << 1)
+#define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008 << 1)
+#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x000F)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
