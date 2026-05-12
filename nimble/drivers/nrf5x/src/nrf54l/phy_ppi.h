@@ -48,6 +48,7 @@
 #define DPPI_CH_GPIOTE20_TASKS_CLR_1            3
 #define DPPI_CH_GPIOTE20_TASKS_SET_2            4
 #define DPPI_CH_GPIOTE20_TASKS_CLR_2            5
+#define DPPI_CH_DPPI20_GRTC_EVENTS_COMPARE_3    6
 
 #define DPPI_CH_ENABLE_ALL  (DPPIC_CHEN_CH0_Msk | DPPIC_CHEN_CH1_Msk | \
                              DPPIC_CHEN_CH2_Msk | DPPIC_CHEN_CH3_Msk | \
@@ -70,6 +71,15 @@
 #define PPIB_RADIO_PERI_3(_src, _dst) PPIB_RADIO_PERI(3, _src, _dst)
 #define PPIB_RADIO_PERI_4(_src, _dst) PPIB_RADIO_PERI(4, _src, _dst)
 #define PPIB_RADIO_PERI_5(_src, _dst) PPIB_RADIO_PERI(5, _src, _dst)
+
+/* Create PPIB links between PERI and RADIO power domain. */
+#define PPIB_PERI_RADIO(_ch, _src, _dst)                  \
+    NRF_PPIB21->SUBSCRIBE_SEND[_ch] = DPPI_CH_SUB(_src);  \
+    NRF_PPIB11->PUBLISH_RECEIVE[_ch] = DPPI_CH_PUB(_dst); \
+    NRF_DPPIC20->CHENSET |= 1 << DPPI_CH_ ## _src;        \
+    NRF_DPPIC10->CHENSET |= 1 << DPPI_CH_ ## _dst;
+
+#define PPIB_PERI_RADIO_0(_src, _dst) PPIB_PERI_RADIO(0, _src, _dst)
 
 /* Create PPIB link from RADIO to MCU power domain. */
 #define PPIB_RADIO_MCU(_ch, _src, _dst)                   \

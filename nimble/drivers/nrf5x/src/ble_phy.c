@@ -27,6 +27,9 @@
 #include <hal/nrf_timer.h>
 #include <hal/nrf_rtc.h>
 #include "syscfg/syscfg.h"
+#ifdef GRTC_AS_RADIO_TIMER
+#include <nrf_grtc.h>
+#endif
 #include "os/os.h"
 /* Keep os_cputime explicitly to enable build on non-Mynewt platforms */
 #include "os/os_cputime.h"
@@ -421,6 +424,10 @@ struct nrf_ccm_data g_nrf_ccm_data;
 #endif
 #endif
 
+#ifdef GRTC_AS_RADIO_TIMER
+uint64_t hal_grtc_counter_get(void);
+#endif
+
 static void
 timer0_reset(void)
 {
@@ -722,6 +729,10 @@ ble_phy_tifs_set(uint16_t tifs)
 static int
 ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
 {
+#ifdef GRTC_AS_RADIO_TIMER
+    uint64_t now_grtc;
+    uint64_t start_us;
+#endif
     uint32_t next_cc;
     uint32_t cur_cc;
     uint32_t cntr;
@@ -792,8 +803,14 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
      * need to account for it.
      */
     next_cc = cputime & 0xffffff;
+#ifdef GRTC_AS_RADIO_TIMER
+    cur_cc = (NRF_GRTC->CC[3].CCL >> 5) & 0xffffff;
+    now_grtc = hal_grtc_counter_get();
+    cntr = (now_grtc >> 5) & 0xffffff;
+#else
     cur_cc = NRF_RTC0->CC[0];
     cntr = NRF_RTC0->COUNTER;
+#endif
 
     delta = (cur_cc - cntr) & 0xffffff;
     if ((delta <= 3) && (delta != 0)) {
@@ -817,10 +834,17 @@ ble_phy_set_start_time(uint32_t cputime, uint8_t rem_us, bool tx)
     }
 #endif
 
+#ifdef GRTC_AS_RADIO_TIMER
+    start_us = now_grtc + (delta << 5);
+    nrf_grtc_sys_counter_cc_set(NRF_GRTC, 3, start_us);
+    NRF_GRTC->EVENTS_COMPARE[3] = 0;
+    nrf_grtc_sys_counter_compare_event_enable(NRF_GRTC, 3);
+#else
     /* Set RTC compare to start TIMER0 */
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
     nrf_rtc_cc_set(NRF_RTC0, 0, next_cc);
     nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
+#endif
 
     /* Enable PPI */
 #if PHY_USE_FEM
@@ -848,6 +872,9 @@ static int
 ble_phy_set_start_now(void)
 {
     os_sr_t sr;
+#ifdef GRTC_AS_RADIO_TIMER
+    uint64_t now_grtc;
+#endif
     uint32_t now;
     uint32_t radio_rem_us;
 #if PHY_USE_FEM_LNA
@@ -885,6 +912,13 @@ ble_phy_set_start_now(void)
     NRF_TIMER0->EVENTS_COMPARE[2] = 0;
 #endif
 
+#ifdef GRTC_AS_RADIO_TIMER
+    now_grtc = hal_grtc_counter_get();
+    nrf_grtc_sys_counter_cc_set(NRF_GRTC, 3, now_grtc + 91);
+    NRF_GRTC->EVENTS_COMPARE[3] = 0;
+    nrf_grtc_sys_counter_compare_event_enable(NRF_GRTC, 3);
+    now = (now_grtc >> 5) & 0xffffff;
+#else
     /*
      * Set RTC compare to start TIMER0. We need to set it to at least N+2 ticks
      * from current value to guarantee triggering compare event, but let's set
@@ -895,6 +929,7 @@ ble_phy_set_start_now(void)
     NRF_RTC0->EVENTS_COMPARE[0] = 0;
     nrf_rtc_cc_set(NRF_RTC0, 0, (now + 3) & 0xffffff);
     nrf_rtc_event_enable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
+#endif
 
 #if PHY_USE_FEM_LNA
     phy_fem_enable_lna();
@@ -2464,7 +2499,9 @@ ble_phy_stop_usec_timer(void)
 #ifndef NRF54L_SERIES
     NRF_TIMER0->TASKS_SHUTDOWN = 1;
 #endif
+#ifndef GRTC_AS_RADIO_TIMER
     nrf_rtc_event_disable(NRF_RTC0, RTC_EVTENSET_COMPARE0_Msk);
+#endif
 }
 
 /**
