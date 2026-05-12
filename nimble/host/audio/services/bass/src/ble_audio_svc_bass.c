@@ -360,6 +360,12 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
     offset += 2;
     operation.add_source.num_subgroups = data[offset++];
 
+    if (operation.add_source.num_subgroups > BLE_SVC_AUDIO_BASS_SUB_NUM_MAX) {
+        rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
+        ev.bass_operation_status.status = BLE_HS_EREJECT;
+        goto done;
+    }
+
     /**
      * Previous data was checked for it's size in `ble_svc_audio_bass_ctrl_point_write_access`.
      * As bis_sync_state array may be of variable length, we need to check it separately
