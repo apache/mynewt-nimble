@@ -325,7 +325,7 @@ struct ble_svc_audio_bass_operation {
             uint16_t pa_interval;
 
             /** Number of subgroups */
-            uint16_t num_subgroups;
+            uint8_t num_subgroups;
 
             /** Subgroup entries */
             struct ble_svc_audio_bass_subgroup
