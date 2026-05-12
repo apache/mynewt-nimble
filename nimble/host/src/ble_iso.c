@@ -34,28 +34,6 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define ble_iso_big_conn_handles_init(_big, _handles, _num_handles)         \
-    do {                                                                    \
-        struct ble_iso_conn *conn = SLIST_FIRST(&ble_iso_conns);            \
-                                                                            \
-        for (uint8_t i = 0; i < (_num_handles); i++) {                      \
-            while (conn != NULL) {                                          \
-                if (conn->type == BLE_ISO_CONN_BIS) {                       \
-                    struct ble_iso_bis *bis;                                \
-                                                                            \
-                    bis = CONTAINER_OF(conn, struct ble_iso_bis, conn);     \
-                    if (bis->big == (_big)) {                               \
-                        conn->handle = le16toh((_handles)[i]);              \
-                        conn = SLIST_NEXT(conn, next);                      \
-                        break;                                              \
-                    }                                                       \
-                }                                                           \
-                                                                            \
-                conn = SLIST_NEXT(conn, next);                              \
-            }                                                               \
-        }                                                                   \
-    } while (0);
-
 enum ble_iso_conn_type {
     BLE_ISO_CONN_BIS,
 };
@@ -73,7 +51,7 @@ struct ble_iso_big {
 struct ble_iso_conn {
     SLIST_ENTRY(ble_iso_conn) next;
     enum ble_iso_conn_type type;
-    uint8_t handle;
+    uint16_t handle;
 
     struct ble_iso_rx_data_info rx_info;
     struct os_mbuf *rx_buf;
@@ -95,6 +73,43 @@ static os_membuf_t ble_iso_big_mem[
 static struct os_mempool ble_iso_bis_pool;
 static os_membuf_t ble_iso_bis_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES), sizeof (struct ble_iso_bis))];
+
+static int
+ble_iso_big_conn_handles_set(struct ble_iso_big *big, const uint8_t *handles,
+                             uint8_t num_handles)
+{
+    struct ble_iso_conn *conn;
+    uint8_t assigned = 0;
+
+    assert(big != NULL);
+    assert(handles != NULL);
+    assert(num_handles > 0);
+
+    SLIST_FOREACH(conn, &ble_iso_conns, next) {
+        struct ble_iso_bis *bis;
+
+        if (assigned == num_handles) {
+            break;
+        }
+
+        if (conn->type != BLE_ISO_CONN_BIS) {
+            continue;
+        }
+
+        bis = CONTAINER_OF(conn, struct ble_iso_bis, conn);
+        if (bis->big != big) {
+            continue;
+        }
+
+        assert(conn->handle == BLE_HS_CONN_HANDLE_NONE);
+        conn->handle = get_le16(&handles[assigned * sizeof(uint16_t)]);
+        assigned++;
+    }
+
+    assert(assigned == num_handles);
+
+    return 0;
+}
 
 static void
 ble_iso_conn_append(struct ble_iso_conn *conn)
@@ -184,6 +199,7 @@ ble_iso_bis_alloc(struct ble_iso_big *big)
 
     memset(new_bis, 0, sizeof *new_bis);
     new_bis->conn.type = BLE_ISO_CONN_BIS;
+    new_bis->conn.handle = BLE_HS_CONN_HANDLE_NONE;
     new_bis->big = big;
 
     ble_iso_conn_append(&new_bis->conn);
@@ -359,7 +375,7 @@ ble_iso_rx_create_big_complete(const struct ble_hci_ev_le_subev_create_big_compl
             /* XXX: Should we destroy the group? */
         }
 
-        ble_iso_big_conn_handles_init(big, ev->conn_handle, ev->num_bis);
+        ble_iso_big_conn_handles_set(big, (const uint8_t *)ev->conn_handle, ev->num_bis);
 
         big->max_pdu = ev->max_pdu;
 
@@ -642,7 +658,7 @@ ble_iso_rx_big_sync_established(const struct ble_hci_ev_le_subev_big_sync_establ
             /* XXX: Should we destroy the group? */
         }
 
-        ble_iso_big_conn_handles_init(big, ev->conn_handle, ev->num_bis);
+        ble_iso_big_conn_handles_set(big, (const uint8_t *)ev->conn_handle, ev->num_bis);
 
         event.big_sync_established.desc.big_handle = ev->big_handle;
         event.big_sync_established.desc.transport_latency_big =
