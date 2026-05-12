@@ -200,6 +200,12 @@ struct btp_bap_broadcast_source_setup_v2_rp {
     uint32_t gap_settings;
 } __packed;
 
+#define BTP_BAP_READ_SUPPORTED_EVENTS 0x1b
+struct btp_bap_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
+/* events */
 #define BTP_BAP_EV_DISCOVERY_COMPLETED 0x80
 struct btp_bap_discovery_completed_ev {
     ble_addr_t address;
