@@ -489,6 +489,15 @@ ble_hci_sock_rx_msg(void)
             }
             STATS_INC(hci_sock_stats, imsg);
             STATS_INC(hci_sock_stats, ievt);
+
+            /* There isn't much we can do if received event is too big */
+            if (len - 1 > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
+                STATS_INC(hci_sock_stats, ierr);
+                dprintf(1, "Too big HCI event (%d > %d), ignoring\n", len - 1,
+                        MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE));
+                return -1;
+            }
+
             data = ble_transport_alloc_evt(0);
             if (!data) {
                 STATS_INC(hci_sock_stats, ierr);
