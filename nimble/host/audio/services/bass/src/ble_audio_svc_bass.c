@@ -516,20 +516,29 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
 
     operation.modify_source.pa_interval = get_le16(&data[offset]);
     offset += 2;
-    operation.modify_source.num_subgroups = get_le16(&data[offset]);
-    offset += 2;
+    operation.modify_source.num_subgroups = data[offset++];
 
-    data_len -= offset;
-    if (data_len < operation.modify_source.num_subgroups * sizeof(uint32_t)) {
+    if (operation.modify_source.num_subgroups > BLE_SVC_AUDIO_BASS_SUB_NUM_MAX) {
         rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
         ev.bass_operation_status.status = BLE_HS_EREJECT;
         goto done;
     }
 
+    data_len -= offset;
+    /**
+     * Previous data was checked for it's size in `ble_svc_audio_bass_ctrl_point_write_access`.
+     * As bis_sync_state array may be of variable length, we need to check it separately
+     */
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
+        /* bis_sync + metadata len */
+        if (data_len < (sizeof(uint32_t) + sizeof(uint8_t))) {
+            rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
+            ev.bass_operation_status.status = BLE_HS_EREJECT;
+            goto done;
+        }
         operation.modify_source.subgroups[i].bis_sync_state = get_le32(&data[offset]);
-        offset += 4;
-        operation.modify_source.subgroups[i].metadata_length = data[offset++];
+        operation.modify_source.subgroups[i].metadata_length = data[offset + 4];
+        offset += 5;
         data_len -= 5;
         if (data_len < operation.modify_source.subgroups[i].metadata_length) {
             rc = BLE_ATT_ERR_WRITE_REQ_REJECTED;
