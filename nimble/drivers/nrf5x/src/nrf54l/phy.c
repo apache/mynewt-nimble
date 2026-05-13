@@ -25,6 +25,7 @@
 #include <nrfx.h>
 #include <controller/ble_fem.h>
 #include "phy_priv.h"
+#include <mcu/nrf54l15_rtc.h>
 
 #if PHY_USE_DEBUG
 void
