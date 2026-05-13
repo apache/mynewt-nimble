@@ -95,6 +95,7 @@ int8_t phy_txpower_round(int8_t dbm);
 #include "nrf53/phy_ppi.h"
 #endif
 #ifdef NRF54L_SERIES
+#include <mcu/nrf54l15_rtc.h>
 #define NRF_TIMER0 NRF_TIMER10
 #define TIMER0_IRQn TIMER10_IRQn
 #define NRF_DPPIC NRF_DPPIC10
