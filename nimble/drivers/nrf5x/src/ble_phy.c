@@ -25,7 +25,9 @@
 #include <hal/nrf_ccm.h>
 #include <hal/nrf_aar.h>
 #include <hal/nrf_timer.h>
+#ifndef NRF54L_SERIES
 #include <hal/nrf_rtc.h>
+#endif
 #include "syscfg/syscfg.h"
 #include "os/os.h"
 /* Keep os_cputime explicitly to enable build on non-Mynewt platforms */
@@ -47,6 +49,7 @@
 #endif
 #ifdef NRF54L_SERIES
 #include <mcu/nrf54l_clock.h>
+#include <mcu/nrf54l15_rtc.h>
 #endif
 #include "mcu/cmsis_nvic.h"
 #include "hal/hal_gpio.h"
