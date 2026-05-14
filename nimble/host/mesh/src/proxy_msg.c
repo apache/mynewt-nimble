@@ -73,6 +73,11 @@ int bt_mesh_proxy_msg_recv(struct bt_mesh_proxy_role *role,
 {
 	const uint8_t *data = buf;
 
+	if (net_buf_simple_tailroom(role->buf) < len - 1) {
+		BT_WARN("Proxy role buffer overflow");
+		return -EINVAL;
+	}
+
 	switch (PDU_SAR(data)) {
 	case SAR_COMPLETE:
 		if (role->buf->om_len) {
