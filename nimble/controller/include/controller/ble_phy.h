@@ -78,6 +78,51 @@ struct os_mbuf;
 /* Maximun PDU length. Includes LL header of 2 bytes and 255 bytes payload. */
 #define BLE_PHY_MAX_PDU_LEN         (257)
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#define BLE_PHY_CS_TRANSM_MODE_SYNC    (0)
+#define BLE_PHY_CS_TRANSM_MODE_TONE    (1)
+
+#define BLE_PHY_CS_TONE_MODE_PM    (0)
+#define BLE_PHY_CS_TONE_MODE_FM    (1)
+
+#define BLE_PHY_CS_STATUS_CONTINUE   (0)
+#define BLE_PHY_CS_STATUS_COMPLETE   (1)
+#define BLE_PHY_CS_STATUS_SYNC_LOST  (2)
+
+struct ble_phy_cs_transmission {
+    struct ble_phy_cs_transmission *next;
+    uint8_t *rtt_sequence;
+    uint32_t duration_usecs;
+    uint32_t aa;
+    uint16_t end_tifs;
+    uint8_t channel;
+    uint8_t mode;
+    uint8_t is_tx;
+    uint8_t tone_mode;
+    uint8_t rtt_sequence_len;
+};
+
+struct ble_phy_cs_sync_results {
+    uint32_t time_of_arrival_ns;
+    uint32_t time_of_departure_ns;
+    int16_t rssi;
+};
+
+struct ble_phy_cs_tone_results {
+    int16_t measured_freq_offset;
+    int16_t I16;
+    int16_t Q16;
+    uint16_t PHASE;
+};
+
+struct ble_phy_cs_subevent_results {
+    uint8_t status;
+};
+
+/* Configure the PHY for CS subevent sequence */
+int ble_phy_cs_subevent_start(struct ble_phy_cs_transmission *transm, uint32_t cputime, uint8_t rem_usecs);
+#endif
+
 /* Wait for response timer */
 typedef void (*ble_phy_tx_end_func)(void *arg);
 
