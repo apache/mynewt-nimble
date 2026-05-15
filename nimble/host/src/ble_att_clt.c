@@ -1022,6 +1022,9 @@ ble_att_clt_tx_notify_mult(uint16_t conn_handle, struct os_mbuf *txom)
         ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
     }
 
+    return rc;
+
 err:
+    os_mbuf_free_chain(txom);
     return rc;
 }

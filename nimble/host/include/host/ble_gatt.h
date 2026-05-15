@@ -692,9 +692,6 @@ int ble_gatts_notify_custom(uint16_t conn_handle, uint16_t att_handle,
  * handle-value pair fits into PDU, or only one characteristic remains in the
  * list, regular characteristic notification is sent.
  *
- * If GATT client doesn't support receiving multiple handle notifications,
- * this will use GATT notification for each characteristic, separately.
- *
  * If value of characteristic is not specified it will be read from local
  * GATT database.
  *
@@ -732,9 +729,6 @@ int ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle);
  * characteristic values, multiple notifications are sent. If only one
  * handle-value pair fits into PDU, or only one characteristic remains in the
  * list, regular characteristic notification is sent.
- *
- * If GATT client doesn't support receiving multiple handle notifications,
- * this will use GATT notification for each characteristic, separately.
  *
  * @param conn_handle           The connection over which to execute the
  *                                  procedure.
