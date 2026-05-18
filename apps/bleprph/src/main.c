@@ -270,6 +270,14 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
         phy_update(event->phy_updated.tx_phy);
         return 0;
 #endif
+
+    case BLE_GAP_EVENT_AUTHORIZE:
+        MODLOG_DFLT(INFO,
+                    "authorize event: conn_handle=%d attr_handle=,"
+                    " is_read=%d\n",
+                    event->authorize.conn_handle, event->authorize.attr_handle,
+                    event->authorize.access_opcode);
+        return BLE_GAP_AUTHORIZE_REJECT;
     }
 
     return 0;

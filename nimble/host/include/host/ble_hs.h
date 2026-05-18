@@ -159,6 +159,9 @@ extern "C" {
 /** Operation stalled. */
 #define BLE_HS_ESTALLED             31
 
+/** Operation pending. */
+#define BLE_HS_EPENDING 32
+
 /** Error base for ATT errors */
 #define BLE_HS_ERR_ATT_BASE         0x100
 
