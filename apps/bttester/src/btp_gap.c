@@ -2270,183 +2270,219 @@ subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 }
 #endif
 
+static uint8_t
+configure_security_mode(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_configure_security_mode_cmd *cp = cmd;
+
+    switch (cp->mode) {
+    case 1:
+        if (cp->level != MYNEWT_VAL(BLE_SM_LVL)) {
+            return BTP_STATUS_FAILED;
+        }
+        if (cp->flags & BIT(0)) {
+            /* TODO: LE SC Only bit is set. */
+        }
+        break;
+
+    case 2:
+        /* Data signing is not supported */
+        return BTP_STATUS_FAILED;
+
+    case 3:
+        if (cp->level != 1) {
+            /* Broadcast code encryption (lvl 2,3) is not supported */
+            return BTP_STATUS_FAILED;
+        }
+        break;
+    }
+
+    SYS_LOG_DBG("");
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static const struct btp_handler handlers[] = {
     {
-        .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
-        .index = BTP_INDEX_NONE,
-        .expect_len = 0,
-        .func = supported_commands,
-    },
+     .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = supported_commands,
+     },
     {
-        .opcode = BTP_GAP_READ_CONTROLLER_INDEX_LIST,
-        .index = BTP_INDEX_NONE,
-        .expect_len = 0,
-        .func = controller_index_list,
-    },
+     .opcode = BTP_GAP_READ_CONTROLLER_INDEX_LIST,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = controller_index_list,
+     },
     {
-        .opcode = BTP_GAP_READ_CONTROLLER_INFO,
-        .expect_len = 0,
-        .func = controller_info,
-    },
+     .opcode = BTP_GAP_READ_CONTROLLER_INFO,
+     .expect_len = 0,
+     .func = controller_info,
+     },
     {
-        .opcode = BTP_GAP_SET_CONNECTABLE,
-        .expect_len = sizeof(struct btp_gap_set_connectable_cmd),
-        .func = set_connectable,
-    },
+     .opcode = BTP_GAP_SET_CONNECTABLE,
+     .expect_len = sizeof(struct btp_gap_set_connectable_cmd),
+     .func = set_connectable,
+     },
     {
-        .opcode = BTP_GAP_SET_DISCOVERABLE,
-        .expect_len = sizeof(struct btp_gap_set_discoverable_cmd),
-        .func = set_discoverable,
-    },
+     .opcode = BTP_GAP_SET_DISCOVERABLE,
+     .expect_len = sizeof(struct btp_gap_set_discoverable_cmd),
+     .func = set_discoverable,
+     },
     {
-        .opcode = BTP_GAP_SET_BONDABLE,
-        .expect_len = sizeof(struct btp_gap_set_bondable_cmd),
-        .func = set_bondable,
-    },
+     .opcode = BTP_GAP_SET_BONDABLE,
+     .expect_len = sizeof(struct btp_gap_set_bondable_cmd),
+     .func = set_bondable,
+     },
     {
-        .opcode = BTP_GAP_START_ADVERTISING,
-        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
-        .func = start_advertising,
-    },
+     .opcode = BTP_GAP_START_ADVERTISING,
+     .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+     .func = start_advertising,
+     },
     {
-        .opcode = BTP_GAP_START_DIRECT_ADV,
-        .expect_len = sizeof(struct btp_gap_start_direct_adv_cmd),
-        .func = start_direct_adv,
-    },
+     .opcode = BTP_GAP_START_DIRECT_ADV,
+     .expect_len = sizeof(struct btp_gap_start_direct_adv_cmd),
+     .func = start_direct_adv,
+     },
     {
-        .opcode = BTP_GAP_STOP_ADVERTISING,
-        .expect_len = 0,
-        .func = stop_advertising,
-    },
+     .opcode = BTP_GAP_STOP_ADVERTISING,
+     .expect_len = 0,
+     .func = stop_advertising,
+     },
     {
-        .opcode = BTP_GAP_START_DISCOVERY,
-        .expect_len = sizeof(struct btp_gap_start_discovery_cmd),
-        .func = start_discovery,
-    },
+     .opcode = BTP_GAP_START_DISCOVERY,
+     .expect_len = sizeof(struct btp_gap_start_discovery_cmd),
+     .func = start_discovery,
+     },
     {
-        .opcode = BTP_GAP_STOP_DISCOVERY,
-        .expect_len = 0,
-        .func = stop_discovery,
-    },
+     .opcode = BTP_GAP_STOP_DISCOVERY,
+     .expect_len = 0,
+     .func = stop_discovery,
+     },
     {
-        .opcode = BTP_GAP_CONNECT,
-        .expect_len = sizeof(struct btp_gap_connect_cmd),
-        .func = connect,
-    },
+     .opcode = BTP_GAP_CONNECT,
+     .expect_len = sizeof(struct btp_gap_connect_cmd),
+     .func = connect,
+     },
     {
-        .opcode = BTP_GAP_DISCONNECT,
-        .expect_len = sizeof(struct btp_gap_disconnect_cmd),
-        .func = disconnect,
-    },
+     .opcode = BTP_GAP_DISCONNECT,
+     .expect_len = sizeof(struct btp_gap_disconnect_cmd),
+     .func = disconnect,
+     },
     {
-        .opcode = BTP_GAP_SET_IO_CAP,
-        .expect_len = sizeof(struct btp_gap_set_io_cap_cmd),
-        .func = set_io_cap,
-    },
+     .opcode = BTP_GAP_SET_IO_CAP,
+     .expect_len = sizeof(struct btp_gap_set_io_cap_cmd),
+     .func = set_io_cap,
+     },
     {
-        .opcode = BTP_GAP_PAIR,
-        .expect_len = sizeof(struct btp_gap_pair_cmd),
-        .func = pair,
-    },
+     .opcode = BTP_GAP_PAIR,
+     .expect_len = sizeof(struct btp_gap_pair_cmd),
+     .func = pair,
+     },
     {
-        .opcode = BTP_GAP_UNPAIR,
-        .expect_len = sizeof(struct btp_gap_unpair_cmd),
-        .func = unpair,
-    },
+     .opcode = BTP_GAP_UNPAIR,
+     .expect_len = sizeof(struct btp_gap_unpair_cmd),
+     .func = unpair,
+     },
     {
-        .opcode = BTP_GAP_PASSKEY_ENTRY,
-        .expect_len = sizeof(struct btp_gap_passkey_entry_cmd),
-        .func = passkey_entry,
-    },
+     .opcode = BTP_GAP_PASSKEY_ENTRY,
+     .expect_len = sizeof(struct btp_gap_passkey_entry_cmd),
+     .func = passkey_entry,
+     },
     {
-        .opcode = BTP_GAP_PASSKEY_CONFIRM,
-        .expect_len = sizeof(struct btp_gap_passkey_confirm_cmd),
-        .func = passkey_confirm,
-    },
+     .opcode = BTP_GAP_PASSKEY_CONFIRM,
+     .expect_len = sizeof(struct btp_gap_passkey_confirm_cmd),
+     .func = passkey_confirm,
+     },
     {
-        .opcode = BTP_GAP_CONN_PARAM_UPDATE,
-        .expect_len = sizeof(struct btp_gap_conn_param_update_cmd),
-        .func = conn_param_update_async,
-    },
+     .opcode = BTP_GAP_CONN_PARAM_UPDATE,
+     .expect_len = sizeof(struct btp_gap_conn_param_update_cmd),
+     .func = conn_param_update_async,
+     },
     {
-        .opcode = BTP_GAP_OOB_LEGACY_SET_DATA,
-        .expect_len = sizeof(struct btp_gap_oob_legacy_set_data_cmd),
-        .func = set_oob_legacy_data,
-    },
+     .opcode = BTP_GAP_OOB_LEGACY_SET_DATA,
+     .expect_len = sizeof(struct btp_gap_oob_legacy_set_data_cmd),
+     .func = set_oob_legacy_data,
+     },
     {
-        .opcode = BTP_GAP_OOB_SC_GET_LOCAL_DATA,
-        .expect_len = 0,
-        .func = get_oob_sc_local_data,
-    },
+     .opcode = BTP_GAP_OOB_SC_GET_LOCAL_DATA,
+     .expect_len = 0,
+     .func = get_oob_sc_local_data,
+     },
     {
-        .opcode = BTP_GAP_OOB_SC_SET_REMOTE_DATA,
-        .expect_len = sizeof(struct btp_gap_oob_sc_set_remote_data_cmd),
-        .func = set_oob_sc_remote_data,
-    },
+     .opcode = BTP_GAP_OOB_SC_SET_REMOTE_DATA,
+     .expect_len = sizeof(struct btp_gap_oob_sc_set_remote_data_cmd),
+     .func = set_oob_sc_remote_data,
+     },
     {
-        .opcode = BTP_GAP_SET_MITM,
-        .expect_len = sizeof(struct btp_gap_set_mitm_cmd),
-        .func = set_mitm,
-    },
+     .opcode = BTP_GAP_SET_MITM,
+     .expect_len = sizeof(struct btp_gap_set_mitm_cmd),
+     .func = set_mitm,
+     },
     {
-        .opcode = BTP_GAP_SET_FILTER_ACCEPT_LIST,
-        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
-        .func = set_filter_accept_list,
-    },
+     .opcode = BTP_GAP_SET_FILTER_ACCEPT_LIST,
+     .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+     .func = set_filter_accept_list,
+     },
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
-        .opcode = GAP_SET_EXT_ADV,
-        .expect_len = sizeof(struct btp_gap_set_ext_advertising_cmd),
-        .func = set_ext_advertising,
-    },
+     .opcode = GAP_SET_EXT_ADV,
+     .expect_len = sizeof(struct btp_gap_set_ext_advertising_cmd),
+     .func = set_ext_advertising,
+     },
 #endif /* BLE_EXT_ADV*/
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     {
-        .opcode = GAP_PADV_CONFIGURE,
-        .expect_len = sizeof(struct gap_periodic_adv_configure_cmd),
-        .func = periodic_adv_configure,
-    },
+     .opcode = GAP_PADV_CONFIGURE,
+     .expect_len = sizeof(struct gap_periodic_adv_configure_cmd),
+     .func = periodic_adv_configure,
+     },
     {
-        .opcode = GAP_PADV_START,
-        .expect_len = sizeof(struct gap_periodic_adv_start_cmd),
-        .func = periodic_adv_start,
-    },
+     .opcode = GAP_PADV_START,
+     .expect_len = sizeof(struct gap_periodic_adv_start_cmd),
+     .func = periodic_adv_start,
+     },
     {
-        .opcode = GAP_PADV_SET_DATA,
-        .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
-        .func = periodic_adv_set_data,
-    },
+     .opcode = GAP_PADV_SET_DATA,
+     .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+     .func = periodic_adv_set_data,
+     },
     {
-        .opcode = GAP_PADV_CREATE_SYNC,
-        .expect_len = sizeof(struct gap_periodic_adv_create_sync_cmd),
-        .func = periodic_adv_create_sync,
-    },
+     .opcode = GAP_PADV_CREATE_SYNC,
+     .expect_len = sizeof(struct gap_periodic_adv_create_sync_cmd),
+     .func = periodic_adv_create_sync,
+     },
 #endif
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
     {
-        .opcode = GAP_PADV_SYNC_TRANSFER_SET_INFO,
-        .expect_len =
-            sizeof(struct gap_periodic_adv_sync_transfer_set_info_cmd),
-        .func = periodic_adv_sync_transfer_set_info,
-    },
+     .opcode = GAP_PADV_SYNC_TRANSFER_SET_INFO,
+     .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_set_info_cmd),
+     .func = periodic_adv_sync_transfer_set_info,
+     },
     {
-        .opcode = GAP_PADV_SYNC_TRANSFER_START,
-        .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_start_cmd),
-        .func = periodic_adv_sync_transfer_start,
-    },
+     .opcode = GAP_PADV_SYNC_TRANSFER_START,
+     .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_start_cmd),
+     .func = periodic_adv_sync_transfer_start,
+     },
     {
-        .opcode = GAP_PADV_SYNC_TRANSFER_RECV,
-        .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_recv_cmd),
-        .func = periodic_adv_sync_transfer_recv,
-    },
+     .opcode = GAP_PADV_SYNC_TRANSFER_RECV,
+     .expect_len = sizeof(struct gap_periodic_adv_sync_transfer_recv_cmd),
+     .func = periodic_adv_sync_transfer_recv,
+     },
 #endif
 #if MYNEWT_VAL(BLE_CONN_SUBRATING)
     {
-        .opcode = GAP_SUBRATE_REQUEST,
-        .expect_len = sizeof(struct gap_subrate_request_cmd),
-        .func = subrate_request,
-    },
+     .opcode = GAP_SUBRATE_REQUEST,
+     .expect_len = sizeof(struct gap_subrate_request_cmd),
+     .func = subrate_request,
+     },
 #endif
+    {
+     .opcode = GAP_CONFIGURE_SECURITY_MODE,
+     .expect_len = sizeof(struct gap_configure_security_mode_cmd),
+     .func = configure_security_mode,
+     },
 };
 
 static void

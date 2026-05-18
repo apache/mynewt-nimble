@@ -339,6 +339,13 @@ struct gap_subrate_request_cmd {
     uint16_t supervision_timeout;
 } __packed;
 
+#define GAP_CONFIGURE_SECURITY_MODE 0x34
+struct gap_configure_security_mode_cmd {
+    uint8_t mode;
+    uint8_t level;
+    uint8_t flags;
+} __packed;
+
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
