@@ -34,6 +34,7 @@
 #ifndef H_BLE_L2CAP_
 #define H_BLE_L2CAP_
 
+#include <inttypes.h>
 #include "nimble/nimble_opt.h"
 #ifdef __cplusplus
 extern "C" {
