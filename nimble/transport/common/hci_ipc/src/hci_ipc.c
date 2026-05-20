@@ -87,7 +87,11 @@ hci_ipc_alloc(struct hci_ipc_sm *sm)
 static bool
 hci_ipc_has_hdr(struct hci_ipc_sm *sm)
 {
+#if MYNEWT_VAL(IPC_ICBMSG)
+    return sm->hdr_len == sizeof(sm->hdr.type);
+#else
     return sm->hdr_len == sizeof(sm->hdr);
+#endif
 }
 
 static void
@@ -137,9 +141,33 @@ hci_ipc_frame(struct hci_ipc_sm *sm)
     sm->buf = NULL;
 }
 
+#if MYNEWT_VAL(IPC_ICBMSG)
+static uint16_t
+hci_ipc_get_pkt_size(const uint8_t *buf, uint8_t type)
+{
+    switch (type) {
+    case HCI_IPC_TYPE_ACL:
+        return sizeof(struct hci_data_hdr) + get_le16(&((struct hci_data_hdr *)buf)->hdh_len);
+    case HCI_IPC_TYPE_EVT:
+        return sizeof(struct ble_hci_ev) + ((struct ble_hci_ev *)buf)->length;
+    case HCI_IPC_TYPE_CMD:
+        return sizeof(struct ble_hci_cmd) + ((struct ble_hci_cmd *)buf)->length;
+    case HCI_IPC_TYPE_ISO:
+        return sizeof(struct ble_hci_iso) + get_le16(&((struct ble_hci_iso *)buf)->length);
+    }
+
+    return 0;
+}
+#endif
+
 static uint16_t
 hci_ipc_copy_to_hdr(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
 {
+#if MYNEWT_VAL(IPC_ICBMSG)
+    len = 1;
+    sm->hdr.type = buf[0];
+    sm->hdr.length = hci_ipc_get_pkt_size(buf + 1, sm->hdr.type);
+#else
     uint16_t rem_hdr_len;
     uint8_t *p;
 
@@ -152,6 +180,7 @@ hci_ipc_copy_to_hdr(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
 
     p = (void *)&sm->hdr;
     memcpy(p + sm->hdr_len, buf, len);
+#endif
 
     sm->hdr_len += len;
 
@@ -225,10 +254,11 @@ hci_ipc_rx(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
 void
 hci_ipc_init(volatile struct hci_ipc_shm *shm, struct hci_ipc_sm *sm)
 {
+    memset(sm, 0, sizeof(*sm));
+#if !MYNEWT_VAL(IPC_ICBMSG)
     assert(g_ipc_shm == NULL);
 
     g_ipc_shm = shm;
-    memset(sm, 0, sizeof(*sm));
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
     while (shm->n2a_num_evt_disc == 0) {
@@ -238,5 +268,6 @@ hci_ipc_init(volatile struct hci_ipc_shm *shm, struct hci_ipc_sm *sm)
     shm->n2a_num_acl = MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_LL_COUNT);
     shm->n2a_num_evt = MYNEWT_VAL(BLE_TRANSPORT_EVT_COUNT);
     shm->n2a_num_evt_disc = MYNEWT_VAL(BLE_TRANSPORT_EVT_DISCARDABLE_COUNT);
+#endif
 #endif
 }
