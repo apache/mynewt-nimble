@@ -274,25 +274,25 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 
 static const struct btp_handler handlers[] = {
     {
-        .opcode = BTP_PACS_READ_SUPPORTED_COMMANDS,
-        .expect_len = 0,
-        .func = supported_commands,
-    },
+     .opcode = BTP_PACS_READ_SUPPORTED_COMMANDS,
+     .expect_len = 0,
+     .func = supported_commands,
+     },
     {
-        .opcode = BTP_PACS_UPDATE_CHARACTERISTIC,
-        .expect_len = sizeof(struct btp_pacs_update_characteristic_cmd),
-        .func = pacs_update_characteristic,
-    },
+     .opcode = BTP_PACS_UPDATE_CHARACTERISTIC,
+     .expect_len = sizeof(struct btp_pacs_update_characteristic_cmd),
+     .func = pacs_update_characteristic,
+     },
     {
-        .opcode = BTP_PACS_SET_AVAILABLE_CONTEXTS,
-        .expect_len = sizeof(struct btp_pacs_set_available_contexts_cmd),
-        .func = pacs_set_available_contexts,
-    },
+     .opcode = BTP_PACS_SET_AVAILABLE_CONTEXTS,
+     .expect_len = sizeof(struct btp_pacs_set_available_contexts_cmd),
+     .func = pacs_set_available_contexts,
+     },
     {
-        .opcode = BTP_PACS_SET_SUPPORTED_CONTEXTS,
-        .expect_len = sizeof(struct btp_pacs_set_supported_contexts_cmd),
-        .func = pacs_set_supported_contexts,
-    },
+     .opcode = BTP_PACS_SET_SUPPORTED_CONTEXTS,
+     .expect_len = sizeof(struct btp_pacs_set_supported_contexts_cmd),
+     .func = pacs_set_supported_contexts,
+     },
 };
 
 uint8_t
