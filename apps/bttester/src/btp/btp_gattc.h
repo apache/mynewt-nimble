@@ -173,6 +173,11 @@ struct btp_gattc_read_multiple_var_cmd {
     uint16_t handles[0];
 } __packed;
 
+#define BTP_GATTC_READ_SUPPORTED_EVENTS 0x15
+struct btp_gattc_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
 /* events */
 #define BTP_GATTC_EV_MTU_EXCHANGED    0x80
 struct btp_gattc_exchange_mtu_ev {
