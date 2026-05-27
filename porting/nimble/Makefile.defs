@@ -63,9 +63,9 @@ ifneq (,$(NIMBLE_CFG_CONTROLLER))
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.controller
 endif
 
-# TinyCrypt (for SM)
-ifneq (,$(NIMBLE_CFG_TINYCRYPT))
-include $(NIMBLE_ROOT)/porting/nimble/Makefile.tinycrypt
+# Mbed TLS (for SM)
+ifneq (,$(NIMBLE_CFG_MBEDTLS))
+include $(NIMBLE_ROOT)/porting/nimble/Makefile.mbedtls
 endif
 
 ifneq (,$(NIMBLE_CFG_MESH))

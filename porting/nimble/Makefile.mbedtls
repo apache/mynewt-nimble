@@ -15,12 +15,4 @@
 # under the License.
 #
 
-TINYCRYPT_CFLAGS := -std=c99
-
-TINYCRYPT_INCLUDE := \
-	$(NIMBLE_ROOT)/ext/tinycrypt/include \
-	$(NULL)
-
-TINYCRYPT_SRC := \
-	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/ext/tinycrypt/src/*.c)) \
-	$(NULL)
+MBEDTLS_LDFLAGS := -lmbedtls -lmbedcrypto

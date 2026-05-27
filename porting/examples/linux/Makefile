@@ -29,7 +29,7 @@ SIZE    := $(CROSS_COMPILE)size
 
 # Configure NimBLE variables
 NIMBLE_ROOT := ../../..
-NIMBLE_CFG_TINYCRYPT := 1
+NIMBLE_CFG_MBEDTLS:= 1
 
 # Skip files that don't build for this port
 NIMBLE_IGNORE := $(NIMBLE_ROOT)/porting/nimble/src/hal_timer.c \
@@ -46,7 +46,6 @@ SRC += \
 	$(wildcard $(NIMBLE_ROOT)/porting/npl/linux/src/*.c) \
 	$(wildcard $(NIMBLE_ROOT)/porting/npl/linux/src/*.cc) \
 	$(wildcard $(NIMBLE_ROOT)/nimble/transport/socket/src/*.c) \
-	$(TINYCRYPT_SRC) \
 	$(NULL)
 
 # Source files for demo app
@@ -61,7 +60,6 @@ INC = \
 	$(NIMBLE_ROOT)/porting/npl/linux/include \
 	$(NIMBLE_ROOT)/nimble/transport/socket/include \
 	$(NIMBLE_INCLUDE) \
-	$(TINYCRYPT_INCLUDE) \
 	$(NULL)
 
 INCLUDES := $(addprefix -I, $(INC))
@@ -72,8 +70,6 @@ SRC_CC = $(filter %.cc, $(SRC))
 OBJ := $(SRC_C:.c=.o)
 OBJ += $(SRC_CC:.cc=.o)
 
-TINYCRYPT_OBJ := $(TINYCRYPT_SRC:.c=.o)
-
 CFLAGS =                    \
     $(NIMBLE_CFLAGS)        \
     $(INCLUDES)             \
@@ -81,7 +77,7 @@ CFLAGS =                    \
     -D_GNU_SOURCE           \
     $(NULL)
 
-LIBS := $(NIMBLE_LDFLAGS) -lrt -lpthread -lstdc++
+LIBS := $(NIMBLE_LDFLAGS) $(MBEDTLS_LDFLAGS) -lrt -lpthread -lstdc++
 
 .PHONY: all clean
 .DEFAULT: all
@@ -92,14 +88,12 @@ clean:
 	rm $(OBJ) -f
 	rm nimble-linux -f
 
-$(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
-
 %.o: %.c
 	$(CC) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
 %.o: %.cc
 	$(CXX) -c $(INCLUDES) $(CFLAGS) -o $@ $<
 
-nimble-linux: $(OBJ) $(TINYCRYPT_OBJ)
+nimble-linux: $(OBJ)
 	$(LD) -o $@ $^ $(LIBS)
 	$(SIZE) $@

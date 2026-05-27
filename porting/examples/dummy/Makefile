@@ -31,7 +31,7 @@ SIZE    := $(CROSS_COMPILE)size
 
 # Configure NimBLE variables
 NIMBLE_ROOT := ../../..
-NIMBLE_CFG_TINYCRYPT := 1
+NIMBLE_CFG_MBEDTLS := 1
 
 # Skip files that don't build for this port
 NIMBLE_IGNORE := $(NIMBLE_ROOT)/nimble/host/src/ble_gatts_lcl.c \
@@ -47,7 +47,6 @@ SRC = \
 	$(wildcard $(NIMBLE_ROOT)/porting/npl/dummy/src/*.c) \
 	$(NIMBLE_SRC) \
 	$(wildcard $(NIMBLE_ROOT)/nimble/transport/socket/src/*.c) \
-	$(TINYCRYPT_SRC) \
 	main.c \
 
 # Add dummy NPL and all NimBLE directories to include paths
@@ -55,14 +54,12 @@ INC = \
 	$(NIMBLE_ROOT)/porting/npl/dummy/include \
 	$(NIMBLE_INCLUDE) \
 	$(NIMBLE_ROOT)/nimble/transport/socket/include \
-	$(TINYCRYPT_INCLUDE) \
 	$(INCLUDE) \
 
 OBJ := $(SRC:.c=.o)
-TINYCRYPT_OBJ := $(TINYCRYPT_SRC:.c=.o)
 
 CFLAGS := $(NIMBLE_CFLAGS)
-LDFLAGS := $(NIMBLE_LDFLAGS)
+LDFLAGS := $(NIMBLE_LDFLAGS) $(MBEDTLS_LDFLAGS)
 
 .PHONY: all clean
 .DEFAULT: all
@@ -73,10 +70,8 @@ clean:
 	rm $(OBJ) -f
 	rm dummy -f
 
-$(TINYCRYPT_OBJ): CFLAGS+=$(TINYCRYPT_CFLAGS)
-
 %.o: %.c
 	$(CC) -c $(addprefix -I, $(INC)) $(CFLAGS) -o $@ $<
 
-dummy: $(OBJ) $(TINYCRYPT_OBJ)
+dummy: $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)
