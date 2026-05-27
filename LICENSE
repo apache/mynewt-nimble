@@ -212,10 +212,6 @@ under the following license:
     COPYRIGHT (C) 1986 Gary S. Brown.  You may use this program, or
     code or tables extracted from it, as desired without restriction.
 
-This product bundles tinycrypt, which is available under the "3-clause BSD"
-license. For details, and bundled files see:
-    * ext/tinycrypt/LICENSE
-
 This product bundles and partly derives from parts of the Nordic nRF52 SDK,
 which are available under a BSD style license.  Relevant files are:
     * babblesim/hw/mcu/nordic/nrf52_bsim/src/system_nrf52.c

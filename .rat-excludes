@@ -14,9 +14,6 @@ Doxyfile
 # Ignore documentation folder
 docs
 
-# tinycrypt - BSD License.
-ext/tinycrypt
-
 # mbuf implementation - BSD License
 porting/nimble/src/os_mbuf.c
 
