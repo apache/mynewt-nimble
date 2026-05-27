@@ -81,6 +81,7 @@ jobs:
               git diff --name-only
               cp porting/examples/linux/include/syscfg/syscfg.h ../../../porting/examples/linux/include/syscfg/syscfg.h
               cp porting/examples/linux_blemesh/include/syscfg/syscfg.h ../../../porting/examples/linux_blemesh/include/syscfg/syscfg.h
+              cp porting/examples/linux_blemesh_shell/include/syscfg/syscfg.h ../../../porting/examples/linux_blemesh_shell/include/syscfg/syscfg.h
               cp porting/examples/nuttx/include/syscfg/syscfg.h ../../../porting/examples/nuttx/include/syscfg/syscfg.h
               cp porting/nimble/include/syscfg/syscfg.h ../../../porting/nimble/include/syscfg/syscfg.h
               cp porting/npl/riot/include/syscfg/syscfg.h ../../../porting/npl/riot/include/syscfg/syscfg.h

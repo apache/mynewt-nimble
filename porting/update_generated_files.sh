@@ -26,6 +26,7 @@ declare -A targets=(
     ["nuttx"]="repos/apache-mynewt-nimble/porting/examples/nuttx/"
     ["linux"]="repos/apache-mynewt-nimble/porting/examples/linux/"
     ["linux_blemesh"]="repos/apache-mynewt-nimble/porting/examples/linux_blemesh/"
+    ["linux_blemesh_shell"]="repos/apache-mynewt-nimble/porting/examples/linux_blemesh_shell/"
     ["porting_default"]="repos/apache-mynewt-nimble/porting/nimble"
     ["riot"]="repos/apache-mynewt-nimble/porting/npl/riot/"
 )
