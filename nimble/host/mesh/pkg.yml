@@ -29,7 +29,7 @@ pkg.keywords:
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/util/mem"
-    - "@apache-mynewt-core/crypto/tinycrypt"
+    - "@apache-mynewt-core/crypto/mbedtls"
     - nimble
     - nimble/host
 

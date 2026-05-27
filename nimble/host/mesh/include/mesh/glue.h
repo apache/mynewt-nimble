@@ -35,12 +35,6 @@
 #include "../src/ble_sm_priv.h"
 #include "../src/ble_hs_hci_priv.h"
 
-#include "tinycrypt/aes.h"
-#include "tinycrypt/constants.h"
-#include "tinycrypt/utils.h"
-#include "tinycrypt/cmac_mode.h"
-#include "tinycrypt/ecc_dh.h"
-
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
 #include "config/config.h"
 #endif

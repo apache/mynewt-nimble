@@ -33,6 +33,8 @@
 #include "base64/base64.h"
 #endif
 
+#include <mbedtls/aes.h>
+
 extern uint8_t g_mesh_addr_type;
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -130,17 +132,21 @@ void net_buf_simple_clone(const struct os_mbuf *original,
 int
 bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data)
 {
-    struct tc_aes_key_sched_struct s;
+	mbedtls_aes_context ctx;
+	int err;
 
-    if (tc_aes128_set_encrypt_key(&s, key) == TC_CRYPTO_FAIL) {
-        return BLE_HS_EUNKNOWN;
-    }
+	mbedtls_aes_init(&ctx);
+	mbedtls_aes_setkey_enc(&ctx, key, 128);
 
-    if (tc_aes_encrypt(enc_data, plaintext, &s) == TC_CRYPTO_FAIL) {
-        return BLE_HS_EUNKNOWN;
-    }
+	err = mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_ENCRYPT, plaintext, enc_data);
 
-    return 0;
+	mbedtls_aes_free(&ctx);
+
+	if (err) {
+		return BLE_HS_EUNKNOWN;
+	}
+
+	return 0;
 }
 
 uint16_t

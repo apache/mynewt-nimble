@@ -24,6 +24,8 @@
 #include "settings.h"
 #include "pb_gatt_srv.h"
 
+#include "mbedtls/ecdh.h"
+
 static void send_pub_key(void);
 static void pub_key_ready(const uint8_t *pkey);
 
@@ -295,6 +297,62 @@ static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
 	dh_key_gen_complete();
 }
 
+static int
+mbedtls_rand(void *arg, unsigned char *buf, size_t size)
+{
+	return bt_rand(arg, size);
+}
+
+int bt_mesh_dhkey_gen(const uint8_t *remote_pk, const uint8_t *private_key_be,
+		      uint8_t *dhkey)
+{
+	int ret;
+	mbedtls_ecp_group group;
+	mbedtls_ecp_point pub_key;
+	mbedtls_mpi priv_key;
+	mbedtls_mpi z;
+	uint8_t uncompressed_pk[65];
+
+	mbedtls_ecp_group_init(&group);
+	mbedtls_ecp_point_init(&pub_key);
+	mbedtls_mpi_init(&priv_key);
+	mbedtls_mpi_init(&z);
+
+	ret = mbedtls_ecp_group_load(&group, MBEDTLS_ECP_DP_SECP256R1);
+	if (ret != 0) {
+		goto done;
+	}
+
+	uncompressed_pk[0] = 0x04;
+	memcpy(&uncompressed_pk[1], remote_pk, 64);
+
+	ret = mbedtls_ecp_point_read_binary(&group, &pub_key, uncompressed_pk, 65);
+	if (ret != 0) {
+		goto done;
+	}
+
+	ret = mbedtls_mpi_read_binary(&priv_key, private_key_be, 32);
+	if (ret != 0) {
+		goto done;
+	}
+
+	ret = mbedtls_ecdh_compute_shared(&group, &z, &pub_key, &priv_key,
+	mbedtls_rand, NULL);
+	if (ret != 0) {
+		goto done;
+	}
+
+	ret = mbedtls_mpi_write_binary(&z, dhkey, 32);
+
+done:
+	mbedtls_mpi_free(&z);
+	mbedtls_mpi_free(&priv_key);
+	mbedtls_ecp_point_free(&pub_key);
+	mbedtls_ecp_group_free(&group);
+
+	return ret;
+}
+
 static void prov_dh_key_gen(void)
 {
 	const uint8_t *remote_pk;
@@ -303,11 +361,9 @@ static void prov_dh_key_gen(void)
 	remote_pk = bt_mesh_prov_link.conf_inputs.pub_key_provisioner;
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
 	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
-		if (uECC_valid_public_key(remote_pk, &curve_secp256r1)) {
-			BT_ERR("Public key is not valid");
-		} else if (uECC_shared_secret(remote_pk, bt_mesh_prov->private_key_be,
-					      bt_mesh_prov_link.dhkey,
-					      &curve_secp256r1) != TC_CRYPTO_SUCCESS) {
+
+		if (bt_mesh_dhkey_gen(remote_pk, bt_mesh_prov->private_key_be,
+				      bt_mesh_prov_link.dhkey)) {
 			BT_ERR("DHKey generation failed");
 		} else {
 			dh_key_gen_complete();

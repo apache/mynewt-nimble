@@ -15,11 +15,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
-#include <tinycrypt/constants.h>
-#include <tinycrypt/utils.h>
-#include <tinycrypt/aes.h>
-#include <tinycrypt/cmac_mode.h>
-#include <tinycrypt/ccm_mode.h>
+#include <mbedtls/cmac.h>
 
 #include "crypto.h"
 
@@ -29,25 +25,35 @@
 int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
 		     size_t sg_len, uint8_t mac[16])
 {
-	struct tc_aes_key_sched_struct sched;
-	struct tc_cmac_struct state;
+	mbedtls_cipher_context_t ctx;
+	int err = -EIO;
 
-	if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
-		return -EIO;
+	mbedtls_cipher_init(&ctx);
+
+	if (mbedtls_cipher_setup(&ctx,
+				 mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB))) {
+		goto done;
+	}
+
+	if (mbedtls_cipher_cmac_starts(&ctx, key, 128)) {
+		goto done;
 	}
 
 	for (; sg_len; sg_len--, sg++) {
-		if (tc_cmac_update(&state, sg->data,
-				   sg->len) == TC_CRYPTO_FAIL) {
-			return -EIO;
+		if (mbedtls_cipher_cmac_update(&ctx, sg->data, sg->len)) {
+			goto done;
 		}
 	}
 
-	if (tc_cmac_final(mac, &state) == TC_CRYPTO_FAIL) {
-		return -EIO;
+	if (mbedtls_cipher_cmac_finish(&ctx, mac)) {
+		goto done;
 	}
 
-	return 0;
+	err = 0;
+
+done:
+	mbedtls_cipher_free(&ctx);
+	return err;
 }
 
 int bt_mesh_k1(const uint8_t *ikm, size_t ikm_len, const uint8_t salt[16],
