@@ -685,6 +685,9 @@ syscfg.vals.BLE_LL_ISO_BROADCASTER:
 syscfg.vals.'!BLE_HOST && !BABBLESIM':
     BLE_LL_HCI_VS_EVENT_ON_ASSERT: 1
 
+syscfg.vals:
+    MBEDTLS_CMAC_C: 1
+
 syscfg.restrictions:
     - BLE_TRANSPORT_LL == "native"
     - BLE_LL_PUBLIC_DEV_ADDR <= 0xffffffffffff

@@ -21,25 +21,14 @@
 #include <nimble/ble.h>
 #include <controller/ble_ll_crypto.h>
 #include <controller/ble_hw.h>
-#include <tinycrypt/constants.h>
-#include <tinycrypt/cmac_mode.h>
+#include <mbedtls/cmac.h>
 
 int
 ble_ll_crypto_cmac(const uint8_t *key, const uint8_t *in, int len,
                    uint8_t *out)
 {
-    struct tc_aes_key_sched_struct sched;
-    struct tc_cmac_struct state;
-
-    if (tc_cmac_setup(&state, key, &sched) == TC_CRYPTO_FAIL) {
-        return -1;
-    }
-
-    if (tc_cmac_update(&state, in, len) == TC_CRYPTO_FAIL) {
-        return -1;
-    }
-
-    if (tc_cmac_final(out, &state) == TC_CRYPTO_FAIL) {
+    if (mbedtls_cipher_cmac(mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB),
+                            key, 128, in, len, out)) {
         return -1;
     }
 
