@@ -24,9 +24,9 @@
 #include "controller/ble_hw.h"
 #include "CMAC.h"
 #include <ipc_cmac/rand.h>
-#include "tinycrypt/aes.h"
+#include <mbedtls/aes.h>
 
-static struct tc_aes_key_sched_struct g_ctx;
+static mbedtls_aes_context g_ctx;
 
 int
 ble_hw_rng_init(ble_rng_isr_cb_t cb, int bias)
@@ -153,8 +153,9 @@ ble_hw_encrypt_block(struct ble_encryption_block *ecb)
      * If so, we use the M0 crypto block. If outside of an ISR, we use the M33
      */
     if (!os_arch_in_isr()) {
-        tc_aes128_set_encrypt_key(&g_ctx, ecb->key);
-        tc_aes_encrypt(ecb->cipher_text, ecb->plain_text, &g_ctx);
+        mbedtls_aes_setkey_enc(&g_ctx, ecb->key, 128);
+        mbedtls_aes_crypt_ecb(&g_ctx, MBEDTLS_AES_ENCRYPT, ecb->plain_text,
+                              ecb->cipher_text);
         return 0;
     }
 
