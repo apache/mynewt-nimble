@@ -910,7 +910,6 @@ ble_sm_sc_oob_generate_data(struct ble_sm_sc_oob_data *oob_data)
 void
 ble_sm_sc_init(void)
 {
-    ble_sm_alg_ecc_init();
     ble_sm_sc_keys_generated = 0;
 }
 

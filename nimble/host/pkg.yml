@@ -36,10 +36,10 @@ pkg.deps.BLE_AUDIO:
     - nimble/host/audio
 
 pkg.deps.BLE_SM_LEGACY:
-    - "@apache-mynewt-core/crypto/tinycrypt"
+    - "@apache-mynewt-core/crypto/mbedtls"
 
 pkg.deps.BLE_SM_SC:
-    - "@apache-mynewt-core/crypto/tinycrypt"
+    - "@apache-mynewt-core/crypto/mbedtls"
 
 pkg.deps.BLE_MESH:
     - nimble/host/mesh

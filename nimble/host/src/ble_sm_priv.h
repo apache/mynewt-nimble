@@ -326,7 +326,6 @@ int ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x,
                          const uint8_t *peer_pub_key_y,
                          const uint8_t *our_priv_key, uint8_t *out_dhkey);
 int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
-void ble_sm_alg_ecc_init(void);
 
 int ble_sm_csis_generate_rsi(const uint8_t *sirk, uint8_t *out);
 int ble_sm_csis_encrypt_sirk(const uint8_t *ltk, const uint8_t *plaintext_sirk,
