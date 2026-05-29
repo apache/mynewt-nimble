@@ -122,7 +122,7 @@
 #endif
 
 #ifndef MYNEWT_VAL_MBEDTLS_CMAC_C
-#define MYNEWT_VAL_MBEDTLS_CMAC_C (0)
+#define MYNEWT_VAL_MBEDTLS_CMAC_C (1)
 #endif
 
 #ifndef MYNEWT_VAL_MBEDTLS_CTR_DRBG_C
@@ -307,18 +307,6 @@
 
 #ifndef MYNEWT_VAL_MBEDTLS_TIMING_C
 #define MYNEWT_VAL_MBEDTLS_TIMING_C (0)
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE
-#define MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE (200)
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME "trng"
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG (0)
 #endif
 
 #ifndef MYNEWT_VAL_BSP_BOOTLOADER_48K
@@ -2380,7 +2368,6 @@
 #define MYNEWT_PKG_apache_mynewt_core__boot_startup 1
 #define MYNEWT_PKG_apache_mynewt_core__compiler_arm_none_eabi_m4 1
 #define MYNEWT_PKG_apache_mynewt_core__crypto_mbedtls 1
-#define MYNEWT_PKG_apache_mynewt_core__crypto_tinycrypt 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_bsp 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_bsp_nordic_pca10056 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_cmsis_core 1
