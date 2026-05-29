@@ -34,7 +34,32 @@ jobs:
         shell: bash
         run: |
              sudo apt-get update
-             sudo apt-get install -y make ccache gcc-multilib g++-multilib kconfig-frontends
+             sudo apt-get install -y make ccache gcc-multilib g++-multilib kconfig-frontends libmbedtls-dev cmake build-essential
+      - name: Cache 32-bit Mbed TLS 3.6
+        id: cache-mbedtls
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/mbedtls_install
+          key: ${{ runner.os }}-mbedtls-3.6.5
+      - name: Compile Mbed TLS 3.6 (On Cache Miss)
+        if: steps.cache-mbedtls.outputs.cache-hit != 'true'
+        run: |
+            git clone --depth 1 --branch mbedtls-3.6.5 --recursive https://github.com/Mbed-TLS/mbedtls.git
+            cd mbedtls
+            cmake -B build \
+              -DCMAKE_C_FLAGS="-m32" \
+              -DCMAKE_SHARED_LINKER_FLAGS="-m32" \
+              -DCMAKE_EXE_LINKER_FLAGS="-m32" \
+              -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/mbedtls_install \
+              -DUSE_SHARED_MBEDTLS_LIBRARY=On \
+              -DENABLE_TESTING=Off
+            cmake --build build --target install
+      - name: Export Mbed TLS Environment Paths
+        run: |
+            echo "CPATH=${{ github.workspace }}/mbedtls_install/include" >> $GITHUB_ENV
+            echo "LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
+            echo "LD_LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
+            echo "MBEDTLS_DIR=${{ github.workspace }}/mbedtls_install" >> $GITHUB_ENV
       - name: Build example ports
         shell: bash
         run: |
