@@ -2131,7 +2131,7 @@ ble_ll_conn_chk_conn_update_req(const struct ble_ll_conn_upd_req *req)
     /* The transmitWindowSize shall be a multiple of 1.25 ms in the range
      * 1.25 ms to the lesser of 10 ms and (connInterval - 1.25 ms).
      */
-    if ((req->winsize < 1) || (req->winsize > min(8, req->interval - 1))) {
+    if ((req->winsize < 1) || (req->winsize > MIN(8, req->interval - 1))) {
         return false;
     }
 
