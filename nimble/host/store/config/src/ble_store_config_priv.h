@@ -56,6 +56,7 @@ void ble_store_config_conf_init(void);
 static inline int ble_store_config_persist_our_secs(void)   { return 0; }
 static inline int ble_store_config_persist_peer_secs(void)  { return 0; }
 static inline int ble_store_config_persist_cccds(void)      { return 0; }
+static inline int ble_store_config_persist_db_hash(void)    { return 0; }
 static inline int ble_store_config_persist_feats(void)      { return 0; }
 static inline void ble_store_config_conf_init(void)         { }
 
