@@ -62,5 +62,9 @@ jobs:
              git clone --depth=1 https://github.com/apache/nuttx.git nuttx-build/nuttx
              git clone --depth=1 https://github.com/apache/nuttx-apps nuttx-build/apps
              ./nuttx-build/nuttx/tools/configure.sh -l nrf52840-dk:sdc_nimble
-             sed -i 's|CONFIG_NIMBLE_REF :=.*|CONFIG_NIMBLE_REF := ${{ github.sha }}|' nuttx-build/apps/wireless/bluetooth/nimble/Makefile
+             kconfig-tweak --file nuttx-build/nuttx/.config --set-str NIMBLE_REF ${{ github.sha }}
+             kconfig-tweak --file nuttx-build/nuttx/.config --enable NIMBLE_PORTING_EXAMPLE
+             echo '#include "../../../../mynewt-nimble/porting/examples/nuttx/include/syscfg/syscfg.h"'\
+               >> nuttx-build/apps/wireless/bluetooth/nimble/include/syscfg/syscfg.h
+             make -C nuttx-build/nuttx olddefconfig
              make -C nuttx-build/nuttx
