@@ -16,31 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <stdint.h>
-#include <assert.h>
-#include <string.h>
-#include "syscfg/syscfg.h"
-#include "os/os.h"
-#include "nimble/ble.h"
-#include "nimble/nimble_opt.h"
-#include "nimble/hci_common.h"
-#include "controller/ble_ll_utils.h"
-#include "controller/ble_hw.h"
-#include "controller/ble_ll_adv.h"
-#include "controller/ble_ll_scan.h"
-#include "controller/ble_ll.h"
 #include "controller/ble_ll_hci.h"
-#include "controller/ble_ll_whitelist.h"
-#include "controller/ble_ll_resolv.h"
-#include "controller/ble_ll_sync.h"
-#include <controller/ble_ll_utils.h>
-#include "controller/ble_ll_isoal.h"
-#include "controller/ble_ll_iso.h"
-#include "controller/ble_ll_iso_big.h"
-#include "controller/ble_ll_cs.h"
-#include "ble_ll_priv.h"
 #include "ble_ll_conn_priv.h"
 #include "ble_ll_hci_priv.h"
+#include "ble_ll_priv.h"
+#include "controller/ble_hw.h"
+#include "controller/ble_ll.h"
+#include "controller/ble_ll_adv.h"
+#include "controller/ble_ll_cs.h"
+#include "controller/ble_ll_iso.h"
+#include "controller/ble_ll_iso_big.h"
+#include "controller/ble_ll_iso_big_sync.h"
+#include "controller/ble_ll_isoal.h"
+#include "controller/ble_ll_resolv.h"
+#include "controller/ble_ll_scan.h"
+#include "controller/ble_ll_sync.h"
+#include "controller/ble_ll_utils.h"
+#include "controller/ble_ll_whitelist.h"
+#include "nimble/ble.h"
+#include "nimble/hci_common.h"
+#include "nimble/nimble_opt.h"
+#include "os/os.h"
+#include "syscfg/syscfg.h"
+#include <assert.h>
+#include <controller/ble_ll_utils.h>
+#include <stdint.h>
+#include <string.h>
 
 #if MYNEWT_VAL(BLE_LL_DTM)
 #include "ble_ll_dtm_priv.h"
@@ -675,6 +676,9 @@ ble_ll_hci_le_cmd_send_cmd_status(uint16_t ocf)
     case BLE_HCI_OCF_LE_CREATE_BIG_TEST:
     case BLE_HCI_OCF_LE_TERMINATE_BIG:
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    case BLE_HCI_OCF_LE_BIG_CREATE_SYNC:
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     case BLE_HCI_OCF_LE_REQ_PEER_SCA:
 #endif
@@ -1288,6 +1292,25 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
         rc = ble_ll_iso_transmit_test(cmdbuf, len, rspbuf, rsplen);
         break;
 #endif /* BLE_LL_ISO_BROADCASTER */
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    case BLE_HCI_OCF_LE_ISO_RECEIVE_TEST:
+        rc = ble_ll_iso_receive_test(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_ISO_READ_TEST_COUNTERS:
+        rc = ble_ll_iso_read_counters_test(cmdbuf, len, rspbuf, rsplen);
+        break;
+    case BLE_HCI_OCF_LE_BIG_CREATE_SYNC:
+        rc = ble_ll_iso_big_sync_hci_create(cmdbuf, len);
+        break;
+    case BLE_HCI_OCF_LE_BIG_TERMINATE_SYNC:
+        rc = ble_ll_iso_big_sync_hci_terminate(cmdbuf, len, rspbuf, rsplen);
+        break;
+#if !MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_HCI_OCF_LE_TERMINATE_BIG:
+        rc = BLE_ERR_CMD_DISALLOWED;
+        break;
+#endif
+#endif /* BLE_LL_ISO_BROADCAST_SYNC */
 #if MYNEWT_VAL(BLE_LL_ISO)
     case BLE_HCI_OCF_LE_SETUP_ISO_DATA_PATH:
         rc = ble_ll_iso_setup_iso_data_path(cmdbuf, len, rspbuf, rsplen);
@@ -2001,7 +2024,7 @@ int
 ble_ll_hci_iso_rx(struct os_mbuf *om)
 {
 #if MYNEWT_VAL(BLE_LL_ISO)
-    ble_ll_iso_data_in(om);
+    ble_ll_hci_iso_data_in(om);
 #else
     os_mbuf_free_chain(om);
 #endif

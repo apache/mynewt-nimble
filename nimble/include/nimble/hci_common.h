@@ -2458,6 +2458,7 @@ struct hci_data_hdr
 #define BLE_HCI_ISO_PKT_STATUS_FLAG_MASK    (0xC000)
 
 #define BLE_HCI_ISO_HANDLE(ch, pb, ts)  ((ch) | ((pb) << 12) | ((ts) << 14))
+#define BLE_HCI_ISO_SDU_LENGTH_DEFINE(l, psf) ((l) | ((psf) << 14))
 
 #define BLE_HCI_ISO_CONN_HANDLE(h)      ((h) & BLE_HCI_ISO_CONN_HANDLE_MASK)
 #define BLE_HCI_ISO_PB_FLAG(h)          (((h) & BLE_HCI_ISO_PB_FLAG_MASK) >> 12)
