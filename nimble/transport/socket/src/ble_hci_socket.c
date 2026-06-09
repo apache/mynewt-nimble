@@ -318,7 +318,7 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
 }
 #endif
 
-#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_nuttx)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
 static int
 ble_hci_sock_acl_tx(struct os_mbuf *om)
 {
@@ -725,7 +725,7 @@ err:
 }
 #endif
 
-#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, linux_nuttx)
+#if MYNEWT_VAL_CHOICE(BLE_SOCK_TYPE, nuttx)
 static int
 ble_hci_sock_config(void)
 {
