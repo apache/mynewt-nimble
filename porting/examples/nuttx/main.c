@@ -73,12 +73,6 @@ int main(int argc, char *argv[])
         ble_hci_sock_set_device(atoi(argv[1]));
     }
 
-#ifndef CONFIG_NSH_ARCHINIT
-    /* Perform architecture-specific initialization */
-
-    boardctl(BOARDIOC_INIT, 0);
-#endif
-
 #ifndef CONFIG_NSH_NETINIT
     /* Bring up the network */
 
