@@ -79,6 +79,13 @@ static const uint8_t ble_sm_sc_resp_ioa[5 /*resp*/ ][5 /*init*/ ] =
       {IOACT_INPUT,   IOACT_NUMCMP, IOACT_DISP,  IOACT_NONE, IOACT_NUMCMP},
 };
 
+static const uint8_t ble_sm_dbg_pub_key_x[32] = {
+    0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+    0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+    0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+    0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20,
+};
+
 #if MYNEWT_VAL(BLE_HS_DEBUG)
 
 static uint8_t ble_sm_dbg_sc_pub_key[64];
@@ -612,9 +619,16 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
     }
 
     cmd = (struct ble_sm_public_key *)(*om)->om_data;
+
+    if (memcmp(cmd, ble_sm_dbg_pub_key_x, 32) == 0){
+#if !MYNEWT_VAL(BLE_SM_SC_DEBUG_KEYS)
+        res->enc_cb = 1;
+        res->sm_err = BLE_SM_ERR_INVAL;
+        return;
+#endif
+    } else if (memcmp(cmd, ble_sm_sc_pub_key, 64) == 0) {
     /* Check if the peer public key is same as our generated public key.
      * Return fail if the public keys match. */
-    if (memcmp(cmd, ble_sm_sc_pub_key, 64) == 0) {
         res->enc_cb = 1;
         res->sm_err = BLE_SM_ERR_AUTHREQ;
         return;
