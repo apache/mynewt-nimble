@@ -787,26 +787,31 @@ ble_ll_cs_verify_config(struct ble_ll_cs_config *conf)
     }
 
     if (conf->chan_map_repetition < 1) {
+        BLE_LL_CS_LOG("chan_map_repetition: %u > 1", conf->chan_map_repetition);
         return 1;
     }
 
     /* Valid combinations of Main_Mode and Sub_Mode selections */
     if (conf->main_mode == 0x01) {
         if (conf->sub_mode != 0xFF) {
+            BLE_LL_CS_LOG("main_mode=0x01; sub_mode=%u", conf->sub_mode);
             return 1;
         }
     } else if (conf->main_mode == 0x02) {
         if (conf->sub_mode != 0x01 &&
             conf->sub_mode != 0x03 &&
             conf->sub_mode != 0xFF) {
+            BLE_LL_CS_LOG("main_mode=0x02; sub_mode=%u", conf->sub_mode);
             return 1;
         }
     } else if (conf->main_mode == 0x03) {
         if (conf->sub_mode != 0x02 &&
             conf->sub_mode != 0xFF) {
+            BLE_LL_CS_LOG("main_mode=0x03; sub_mode=%u", conf->sub_mode);
             return 1;
         }
     } else {
+        BLE_LL_CS_LOG("main_mode: %u, allowed {1,2,3}", conf->main_mode);
         return 1;
     }
 
@@ -817,10 +822,12 @@ ble_ll_cs_verify_config(struct ble_ll_cs_config *conf)
     }
 
     if (conf->main_mode_repetition > 0x03) {
+        BLE_LL_CS_LOG("main_mode_repetition: %u > 3", conf->main_mode_repetition);
         return 1;
     }
 
     if (conf->mode_0_steps < 1 || conf->mode_0_steps > 3) {
+        BLE_LL_CS_LOG("mode_0_steps: %u, allowed {1,2,3}", conf->mode_0_steps);
         return 1;
     }
 
@@ -828,40 +835,49 @@ ble_ll_cs_verify_config(struct ble_ll_cs_config *conf)
         conf->cs_sync_phy != 0b0010 &&
         conf->cs_sync_phy != 0b0100 &&
         conf->cs_sync_phy != 0b1000) {
+        BLE_LL_CS_LOG("cs_sync_phy: %u not allowed", conf->cs_sync_phy);
         return 1;
     }
 
     if (conf->rtt_type > 0x06) {
+        BLE_LL_CS_LOG("rtt_type: %u > 6", conf->rtt_type);
         return 1;
     }
 
     if (conf->chan_sel > 0x01) {
+        BLE_LL_CS_LOG("chan_sel: %u > 1", conf->chan_sel);
         return 1;
     }
 
     if (conf->chan_sel == 0x01) {
         if (conf->ch3cshape > 0x01) {
+            BLE_LL_CS_LOG("ch3cshape: %u > 1", conf->ch3cshape);
             return 1;
         }
 
         if (!IN_RANGE(conf->ch3cjump, 2, 8)) {
+            BLE_LL_CS_LOG("ch3cjump: %u, allowed range <2,8>", conf->ch3cjump);
             return 1;
         }
     }
 
     if (conf->t_ip1_index > 7) {
+        BLE_LL_CS_LOG("t_ip1_index: %u > 7", conf->t_ip1_index);
         return 1;
     }
 
     if (conf->t_ip2_index > 7) {
+        BLE_LL_CS_LOG("t_ip2_index: %u > 7", conf->t_ip2_index);
         return 1;
     }
 
     if (conf->t_fcs_index > 9) {
+        BLE_LL_CS_LOG("t_fcs_index: %u > 9", conf->t_fcs_index);
         return 1;
     }
 
     if (conf->t_pm_index > 2) {
+        BLE_LL_CS_LOG("t_pm_index: %u > 2", conf->t_pm_index);
         return 1;
     }
 

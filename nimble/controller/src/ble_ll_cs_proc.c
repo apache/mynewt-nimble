@@ -1452,6 +1452,9 @@ ble_ll_cs_proc_subevent_schedule(struct ble_ll_cs_sm *cssm)
 
     ble_ll_tx_power_set(g_ble_ll_tx_power);
 
+    BLE_LL_CS_LOG("Scheduling subevent nr %u of CSProcCount=%u",
+                  cssm->subevents_in_procedure_count, cssm->pending_procedure_id);
+
     rc = ble_phy_cs_subevent_start(&transm->phy_transm, cssm->anchor_ticks, cssm->anchor_rem_us,
                                    conf->cs_sync_phy);
     if (rc) {
@@ -1647,6 +1650,11 @@ static void
 ble_ll_cs_proc_sync_lost(struct ble_ll_cs_sm *cssm)
 {
     int rc;
+
+    BLE_LL_CS_LOG("Lost sync, subevent_count=%u CSProcCount=%u step=%u",
+                  cssm->subevents_in_procedure_count, cssm->pending_procedure_id,
+                  cssm->steps_in_subevent_count);
+
     ble_ll_state_set(BLE_LL_STATE_STANDBY);
 
     BLE_LL_ASSERT(cssm->cs_schedule_status != CS_SCHEDULE_COMPLETED);

@@ -377,6 +377,13 @@ int ble_ll_cs_csa3c(struct ble_ll_cs_drbg_ctx *drbg_ctx, uint8_t *channels_out,
                     const uint8_t *filter_mask, uint8_t *start_jitter,
                     uint8_t *csa3c_iter, uint16_t step_count, uint8_t shape,
                     uint8_t chan_jump, uint8_t chan_map_repetition);
+
+#if 0
+#define BLE_LL_CS_LOG(fmt, ...) ble_ll_hci_ev_send_vs_printf(0, fmt, __VA_ARGS__)
+#else
+#define BLE_LL_CS_LOG(fmt, ...)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
