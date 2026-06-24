@@ -283,18 +283,6 @@
 #define MYNEWT_VAL_MBEDTLS_TIMING_C (0)
 #endif
 
-#ifndef MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE
-#define MYNEWT_VAL_TINYCRYPT_SYSINIT_STAGE (200)
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_TRNG_DEV_NAME "trng"
-#endif
-
-#ifndef MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG
-#define MYNEWT_VAL_TINYCRYPT_UECC_RNG_USE_TRNG (0)
-#endif
-
 #ifndef MYNEWT_VAL_BSP_SIMULATED
 #define MYNEWT_VAL_BSP_SIMULATED (1)
 #endif
@@ -2165,12 +2153,11 @@
 
 #define MYNEWT_PKG_apache_mynewt_core__compiler_sim 1
 #define MYNEWT_PKG_apache_mynewt_core__crypto_mbedtls 1
-#define MYNEWT_PKG_apache_mynewt_core__crypto_tinycrypt 1
 #define MYNEWT_PKG_apache_mynewt_core__encoding_base64 1
 #define MYNEWT_PKG_apache_mynewt_core__encoding_tinycbor 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_bsp_native 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_drivers_flash_enc_flash 1
-#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_flash_enc_flash_ef_tinycrypt 1
+#define MYNEWT_PKG_apache_mynewt_core__hw_drivers_flash_enc_flash_ef_mbedtls 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_drivers_trng 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_drivers_trng_trng_sw 1
 #define MYNEWT_PKG_apache_mynewt_core__hw_drivers_uart 1
