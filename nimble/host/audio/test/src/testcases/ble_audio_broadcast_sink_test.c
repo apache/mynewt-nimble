@@ -17,26 +17,21 @@
  * under the License.
  */
 
-#include "sysinit/sysinit.h"
 #include "testutil/testutil.h"
 
-TEST_SUITE_DECL(ble_audio_base_parse_test_suite);
-TEST_CASE_DECL(ble_audio_listener_register_test);
-TEST_CASE_DECL(ble_audio_broadcast_sink_config_test_subgroups_bound);
+#include "host/ble_hs.h"
+#include "audio/ble_audio_scan_delegator.h"
+#include "../../../src/ble_audio_broadcast_sink_priv.h"
 
-TEST_SUITE(ble_audio_test)
+TEST_CASE_SELF(ble_audio_broadcast_sink_config_test_subgroups_bound)
 {
-    ble_audio_base_parse_test_suite();
-    ble_audio_listener_register_test();
-    ble_audio_broadcast_sink_config_test_subgroups_bound();
-}
+    struct ble_audio_scan_delegator_sync_opt sync_opt = { 0 };
+    int rc;
 
-int
-main(int argc, char **argv)
-{
-    sysinit();
+    sync_opt.pa_sync = BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_PAST_NOT_AVAILABLE;
+    sync_opt.num_subgroups = BLE_AUDIO_SCAN_DELEGATOR_SUBGROUP_MAX + 1;
 
-    ble_audio_test();
+    rc = ble_audio_broadcast_sink_config(0, BLE_HS_CONN_HANDLE_NONE, &sync_opt);
 
-    return tu_any_failed;
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
 }
