@@ -352,10 +352,10 @@ tester_rsp_full(uint8_t service, uint8_t opcode, const void *rsp, size_t len)
     cmd = delayed_cmd;
     delayed_cmd = NULL;
 
-    (void)memset(cmd, 0, sizeof(*cmd));
+    (void)memset(cmd->data, 0, sizeof(cmd->data));
+    (void)memset(cmd->rsp, 0, sizeof(cmd->rsp));
 
-    os_eventq_put(&avail_queue,
-                  CONTAINER_OF(cmd, struct btp_buf, data)->ev);
+    os_eventq_put(&avail_queue, cmd->ev);
 }
 
 void
@@ -371,9 +371,10 @@ tester_rsp(uint8_t service, uint8_t opcode, uint8_t status)
     cmd = delayed_cmd;
     delayed_cmd = NULL;
 
-    (void)memset(cmd, 0, sizeof(*cmd));
-    os_eventq_put(&avail_queue,
-                  CONTAINER_OF(cmd, struct btp_buf, data)->ev);
+    (void)memset(cmd->data, 0, sizeof(cmd->data));
+    (void)memset(cmd->rsp, 0, sizeof(cmd->rsp));
+
+    os_eventq_put(&avail_queue, cmd->ev);
 }
 
 uint16_t
