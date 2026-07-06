@@ -37,6 +37,9 @@ pkg.deps.BLE_AUDIO_BROADCAST_SINK:
 pkg.deps.BLE_AUDIO_SCAN_DELEGATOR:
     - nimble/host/audio/services/bass
 
+pkg.init:
+    ble_audio_init: 'MYNEWT_VAL(BLE_AUDIO_SYSINIT_STAGE)'
+
 pkg.init.BLE_AUDIO_BROADCAST_SINK:
     ble_audio_broadcast_sink_init: 'MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK_SYSINIT_STAGE)'
 
