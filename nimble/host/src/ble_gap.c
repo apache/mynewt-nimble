@@ -2140,12 +2140,10 @@ ble_gap_rx_conn_complete(struct ble_gap_conn_complete *evt, uint8_t instance)
     }
 
     ble_hs_lock();
-
-    memset(&event, 0, sizeof event);
     ble_hs_conn_insert(conn);
-
     ble_hs_unlock();
 
+    memset(&event, 0, sizeof(event));
     event.type = BLE_GAP_EVENT_CONNECT;
     event.connect.conn_handle = evt->connection_handle;
     event.connect.status = 0;
