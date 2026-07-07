@@ -1730,10 +1730,9 @@ ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
     tmp = os_msys_get_pkthdr(2, 0);
 
     /* Iterate through requested handles, reading the corresponding attribute
-     * for each.  Stop when there are no more handles to process, or the
-     * response is full.
+     * for each.  Stop when there are no more handles to process.
      */
-    while (OS_MBUF_PKTLEN(*rxom) >= 2 && OS_MBUF_PKTLEN(txom) < mtu) {
+    while (OS_MBUF_PKTLEN(*rxom) >= 2) {
         /* Ensure the full 16-bit handle is contiguous at the start of the
          * mbuf.
          */
@@ -1755,27 +1754,42 @@ ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
             goto done;
         }
         tuple_len = OS_MBUF_PKTLEN(tmp);
-        rc = os_mbuf_append(txom, &tuple_len, sizeof(tuple_len));
-        if (rc != 0) {
-            *err_handle = handle;
-            goto done;
-        }
-        if (tuple_len != 0) {
-            rc = os_mbuf_appendfrom(txom, tmp, 0, tuple_len);
+
+        if (OS_MBUF_PKTLEN(txom) < mtu) {
+            rc = os_mbuf_append(txom, &tuple_len, sizeof(tuple_len));
             if (rc != 0) {
                 *err_handle = handle;
                 goto done;
             }
+            if (tuple_len != 0) {
+                rc = os_mbuf_appendfrom(txom, tmp, 0, tuple_len);
+                if (rc != 0) {
+                    *err_handle = handle;
+                    goto done;
+                }
+            }
+        }
+
+        if (tuple_len != 0) {
             os_mbuf_adj(tmp, tuple_len);
         }
     }
     rc = 0;
 
 done:
-
     if (tmp) {
         os_mbuf_free_chain(tmp);
     }
+
+    /* If an execution error occurred, immediately release the bloated success
+     * buffer back to the memory pool so the error handler has room to generate
+     * an error Response.
+     */
+    if (rc != 0 && txom != NULL) {
+        os_mbuf_free_chain(txom);
+        txom = NULL;
+    }
+
     *out_txom = txom;
     return rc;
 }
