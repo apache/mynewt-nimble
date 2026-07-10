@@ -317,6 +317,14 @@ syscfg.defs:
             due to memory exhaustion. (0/1)  Units are milliseconds. (0/1)
         value: 1000
 
+    # GATT caching options
+    BLE_GATT_CACHING:
+        description: >
+            Enables server support for GATT caching: exposes the Database
+            Hash characteristic in the GATT service so clients can detect
+            attribute database changes.
+        value: 0
+
     # Enhanced ATT bearer options
     BLE_EATT_CHAN_NUM:
         description: >
