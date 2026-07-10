@@ -157,6 +157,8 @@ ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
+    ble_gatts_caching_hash_read(conn_handle);
+
     return 0;
 }
 #endif

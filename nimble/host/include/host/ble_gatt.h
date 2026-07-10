@@ -62,6 +62,9 @@ struct ble_hs_cfg;
 /** GATT service 16-bit UUID. */
 #define BLE_GATT_SVC_UUID16 0x1801
 
+/** GATT Service Changed characteristic 16-bit UUID. */
+#define BLE_GATT_CHR_SVC_CHANGED_UUID16 0x2a05
+
 /** GATT Client Characteristic Configuration descriptor 16-bit UUID. */
 #define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
 
