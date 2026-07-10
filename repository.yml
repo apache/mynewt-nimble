@@ -35,6 +35,7 @@ repo.versions:
     "1.7.0": "nimble_1_7_0_tag"
     "1.8.0": "nimble_1_8_0_tag"
     "1.9.0": "nimble_1_9_0_tag"
+    "1.10.0": "nimble_1_10_0_tag"
 
     "1.0-latest": "1.0.0"
     "1.1-latest": "1.1.0"
@@ -46,6 +47,7 @@ repo.versions:
     "1.7-latest": "1.7.0"
     "1.8-latest": "1.8.0"
     "1.9-latest": "1.9.0"
+    "1.10-latest": "1.10.0"
 
 repo.newt_compatibility:
     0.0.0:
@@ -70,3 +72,5 @@ repo.newt_compatibility:
         1.13.0: good
     1.9.0:
         1.14.0: good
+    1.10.0:
+        1.15.0: good
