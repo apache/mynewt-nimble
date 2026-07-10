@@ -97,6 +97,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
             porting: Update ports syscfg
+
+            Automated update of system configuration files.
+            This commit removes comments and adds missing license headers.
           branch: update-ports-syscfg
           title: "Update ports syscfg"
           body: |
