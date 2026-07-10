@@ -36,11 +36,24 @@ extern struct ble_store_value_cccd
     ble_store_config_cccds[MYNEWT_VAL(BLE_STORE_MAX_CCCDS)];
 extern int ble_store_config_num_cccds;
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+extern struct ble_store_value_csfc
+    ble_store_config_csfcs[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+extern int ble_store_config_num_csfcs;
+
+extern struct ble_store_value_db_hash ble_store_config_db_hash;
+extern int ble_store_config_db_hash_present;
+#endif
+
 #if MYNEWT_VAL(BLE_STORE_CONFIG_PERSIST)
 
 int ble_store_config_persist_our_secs(void);
 int ble_store_config_persist_peer_secs(void);
 int ble_store_config_persist_cccds(void);
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+int ble_store_config_persist_csfcs(void);
+int ble_store_config_persist_db_hash(void);
+#endif
 void ble_store_config_conf_init(void);
 
 #else
@@ -48,6 +61,10 @@ void ble_store_config_conf_init(void);
 static inline int ble_store_config_persist_our_secs(void)   { return 0; }
 static inline int ble_store_config_persist_peer_secs(void)  { return 0; }
 static inline int ble_store_config_persist_cccds(void)      { return 0; }
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+static inline int ble_store_config_persist_csfcs(void)      { return 0; }
+static inline int ble_store_config_persist_db_hash(void)    { return 0; }
+#endif
 static inline void ble_store_config_conf_init(void)         { }
 
 #endif /* MYNEWT_VAL(BLE_STORE_CONFIG_PERSIST) */
