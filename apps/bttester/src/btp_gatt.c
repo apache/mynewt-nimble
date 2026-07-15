@@ -89,11 +89,6 @@ struct find_attr_data {
     uint16_t handle;
 };
 
-struct notify_mult_cb_data {
-    size_t tuple_cnt;
-    uint16_t handles[8];
-};
-
 static int
 gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
                          struct ble_gatt_access_ctxt *ctxt,
@@ -1879,50 +1874,38 @@ free:
     return status;
 }
 
-int
-notify_multiple(uint16_t conn_handle, void *arg)
-{
-    struct notify_mult_cb_data *notify_data =
-        (struct notify_mult_cb_data *) arg;
-    int rc;
-
-    SYS_LOG_DBG("")
-
-    rc = ble_gatts_notify_multiple(conn_handle,
-                                   notify_data->tuple_cnt,
-                                   notify_data->handles);
-
-    return rc;
-}
-
 static uint8_t
 notify_mult(const void *cmd, uint16_t cmd_len,
             void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_notify_mult_val_cmd *cp = cmd;
-    struct notify_mult_cb_data cb_data;
-    int i;
-
+    uint16_t ntf_handles[8];
+    struct ble_gap_conn_desc conn;
+    int rc, i;
 
     if (cmd_len < sizeof(*cp) ||
-        (cmd_len != (sizeof(*cp) +
-        (le16toh(cp->count) * sizeof(cp->handles[0]))))) {
-
+        (cmd_len != (sizeof(*cp) + (le16toh(cp->count) * sizeof(cp->handles[0]))))) {
         return BTP_STATUS_FAILED;
     }
 
-    if (le16toh(cp->count) > sizeof(cb_data.handles)) {
+    if (le16toh(cp->count) > ARRAY_SIZE(ntf_handles)) {
         SYS_LOG_ERR("Too many handles to notify");
         return BTP_STATUS_FAILED;
     }
 
-    for (i = 0; i < cp->count; i++) {
-        cb_data.handles[i] = le16toh(cp->handles[i]);
+    rc = ble_gap_conn_find_by_addr(&cp->addr, &conn);
+    if (rc) {
+        return BTP_STATUS_FAILED;
     }
 
-    cb_data.tuple_cnt = cp->count;
+    for (i = 0; i < cp->count; i++) {
+        ntf_handles[i] = le16toh(cp->handles[i]);
+    }
 
-    ble_gap_conn_foreach_handle(notify_multiple, (void *)&cb_data);
+    rc = ble_gatts_notify_multiple(conn.conn_handle, cp->count, ntf_handles);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
 
     return BTP_STATUS_SUCCESS;
 }
