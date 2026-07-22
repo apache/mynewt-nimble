@@ -42,6 +42,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: pr_branch
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Check for label override
         id: label_check
