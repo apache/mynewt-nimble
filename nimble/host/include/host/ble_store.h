@@ -743,6 +743,7 @@ int ble_store_util_count(int type, int *out_count);
  *                              Non-zero on error.
  */
 int ble_store_util_status_rr(struct ble_store_status_event *event, void *arg);
+int ble_store_util_status_lru(struct ble_store_status_event *event, void *arg);
 
 /** @} */
 
