@@ -17,6 +17,8 @@
  * under the License.
  */
 
+#include <stdbool.h>
+
 #include "host/ble_store.h"
 #include "ble_hs_priv.h"
 
@@ -109,6 +111,14 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
         return rc;
     }
 
+    memset(&key, 0, sizeof key);
+    key.bond_meta.peer_addr = *peer_id_addr;
+
+    rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_BOND_META, &key);
+    if (rc != 0) {
+        return rc;
+    }
+
     return 0;
 }
 
@@ -196,6 +206,150 @@ ble_store_util_status_rr(struct ble_store_status_event *event, void *arg)
         case BLE_STORE_OBJ_TYPE_CCCD:
             /* Try unpairing oldest peer except current peer */
             return ble_gap_unpair_oldest_except(&event->overflow.value->cccd.peer_addr);
+
+        default:
+            return BLE_HS_EUNKNOWN;
+        }
+
+    case BLE_STORE_EVENT_FULL:
+        /* Just proceed with the operation.  If it results in an overflow,
+         * we'll delete a record when the overflow occurs.
+         */
+        return 0;
+
+    default:
+        return BLE_HS_EUNKNOWN;
+    }
+}
+
+struct ble_store_util_lru_peer {
+    ble_addr_t peer_addr;
+    uint16_t bond_count;
+    bool found;
+    const ble_addr_t *except;
+};
+
+static int
+ble_store_util_iter_lru_bond_meta(int obj_type, union ble_store_value *val,
+                                  void *arg)
+{
+    struct ble_store_util_lru_peer *lru;
+
+    BLE_HS_DBG_ASSERT(obj_type == BLE_STORE_OBJ_TYPE_BOND_META);
+
+    lru = arg;
+
+    if (lru->except != NULL &&
+        ble_addr_cmp(lru->except, &val->bond_meta.peer_addr) == 0) {
+        return 0;
+    }
+
+    if (!lru->found || val->bond_meta.bond_count < lru->bond_count) {
+        lru->peer_addr = val->bond_meta.peer_addr;
+        lru->bond_count = val->bond_meta.bond_count;
+        lru->found = true;
+    }
+
+    return 0;
+}
+
+static int
+ble_store_util_iter_lru_fallback(int obj_type, union ble_store_value *val,
+                                 void *arg)
+{
+    struct ble_store_util_lru_peer *lru;
+
+    BLE_HS_DBG_ASSERT(obj_type == BLE_STORE_OBJ_TYPE_OUR_SEC);
+
+    lru = arg;
+
+    if (lru->found) {
+        return 0;
+    }
+
+    if (lru->except != NULL &&
+        ble_addr_cmp(lru->except, &val->sec.peer_addr) == 0) {
+        return 0;
+    }
+
+    lru->peer_addr = val->sec.peer_addr;
+    lru->found = true;
+
+    return 0;
+}
+
+static int
+ble_store_util_find_lru_peer(ble_addr_t *out_peer_addr, const ble_addr_t *except)
+{
+    struct ble_store_util_lru_peer lru = {
+        .found = false,
+        .except = except,
+    };
+    int rc;
+
+    rc = ble_store_iterate(BLE_STORE_OBJ_TYPE_BOND_META,
+                           ble_store_util_iter_lru_bond_meta, &lru);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (!lru.found) {
+        rc = ble_store_iterate(BLE_STORE_OBJ_TYPE_OUR_SEC,
+                               ble_store_util_iter_lru_fallback, &lru);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    if (!lru.found) {
+        return BLE_HS_ENOENT;
+    }
+
+    *out_peer_addr = lru.peer_addr;
+    return 0;
+}
+
+static int
+ble_store_util_unpair_lru_peer(void)
+{
+    ble_addr_t peer_addr;
+    int rc;
+
+    rc = ble_store_util_find_lru_peer(&peer_addr, NULL);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_gap_unpair(&peer_addr);
+}
+
+static int
+ble_store_util_unpair_lru_except(const ble_addr_t *except)
+{
+    ble_addr_t peer_addr;
+    int rc;
+
+    rc = ble_store_util_find_lru_peer(&peer_addr, except);
+    if (rc != 0) {
+        return rc;
+    }
+
+    return ble_gap_unpair(&peer_addr);
+}
+
+int
+ble_store_util_status_lru(struct ble_store_status_event *event, void *arg)
+{
+    switch (event->event_code) {
+    case BLE_STORE_EVENT_OVERFLOW:
+        switch (event->overflow.obj_type) {
+        case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        case BLE_STORE_OBJ_TYPE_PEER_SEC:
+            return ble_store_util_unpair_lru_peer();
+        case BLE_STORE_OBJ_TYPE_CCCD:
+            /* Try unpairing LRU peer except current peer */
+            return ble_store_util_unpair_lru_except(
+                &event->overflow.value->cccd.peer_addr);
 
         default:
             return BLE_HS_EUNKNOWN;

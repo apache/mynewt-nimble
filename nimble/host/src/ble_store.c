@@ -285,6 +285,42 @@ ble_store_delete_cccd(const struct ble_store_key_cccd *key)
     return rc;
 }
 
+int
+ble_store_read_bond_meta(const struct ble_store_key_bond_meta *key,
+                         struct ble_store_value_bond_meta *out_value)
+{
+    union ble_store_value *store_value;
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key;
+    store_value = (void *)out_value;
+    rc = ble_store_read(BLE_STORE_OBJ_TYPE_BOND_META, store_key, store_value);
+    return rc;
+}
+
+int
+ble_store_write_bond_meta(const struct ble_store_value_bond_meta *value)
+{
+    union ble_store_value *store_value;
+    int rc;
+
+    store_value = (void *)value;
+    rc = ble_store_write(BLE_STORE_OBJ_TYPE_BOND_META, store_value);
+    return rc;
+}
+
+int
+ble_store_delete_bond_meta(const struct ble_store_key_bond_meta *key)
+{
+    union ble_store_key *store_key;
+    int rc;
+
+    store_key = (void *)key;
+    rc = ble_store_delete(BLE_STORE_OBJ_TYPE_BOND_META, store_key);
+    return rc;
+}
+
 void
 ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                               const struct ble_store_value_cccd *value)
@@ -303,6 +339,14 @@ ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 }
 
 void
+ble_store_key_from_value_bond_meta(struct ble_store_key_bond_meta *out_key,
+                                   const struct ble_store_value_bond_meta *value)
+{
+    out_key->peer_addr = value->peer_addr;
+    out_key->idx = 0;
+}
+
+void
 ble_store_key_from_value(int obj_type,
                          union ble_store_key *out_key,
                          const union ble_store_value *value)
@@ -315,6 +359,11 @@ ble_store_key_from_value(int obj_type,
 
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_store_key_from_value_cccd(&out_key->cccd, &value->cccd);
+        break;
+
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        ble_store_key_from_value_bond_meta(&out_key->bond_meta,
+                                           &value->bond_meta);
         break;
 
     default:
@@ -345,6 +394,10 @@ ble_store_iterate(int obj_type,
     case BLE_STORE_OBJ_TYPE_CCCD:
         key.cccd.peer_addr = *BLE_ADDR_ANY;
         pidx = &key.cccd.idx;
+        break;
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        key.bond_meta.peer_addr = *BLE_ADDR_ANY;
+        pidx = &key.bond_meta.idx;
         break;
     default:
         BLE_HS_DBG_ASSERT(0);
@@ -390,6 +443,7 @@ ble_store_clear(void)
         BLE_STORE_OBJ_TYPE_OUR_SEC,
         BLE_STORE_OBJ_TYPE_PEER_SEC,
         BLE_STORE_OBJ_TYPE_CCCD,
+        BLE_STORE_OBJ_TYPE_BOND_META,
     };
     union ble_store_key key;
     int obj_type;

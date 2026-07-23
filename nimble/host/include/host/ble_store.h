@@ -48,6 +48,9 @@ extern "C" {
 /** Object type: Client Characteristic Configuration Descriptor. */
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
+/** Object type: Bond recency metadata for LRU store eviction. */
+#define BLE_STORE_OBJ_TYPE_BOND_META    4
+
 /** @} */
 
 /**
@@ -155,6 +158,33 @@ struct ble_store_value_cccd {
 };
 
 /**
+ * Used as a key for bond recency metadata.  This struct corresponds to the
+ * BLE_STORE_OBJ_TYPE_BOND_META store object type.
+ */
+struct ble_store_key_bond_meta {
+    /**
+     * Key by peer identity address;
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
+     */
+    ble_addr_t peer_addr;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Bond recency metadata for LRU store eviction.  This struct corresponds to
+ * the BLE_STORE_OBJ_TYPE_BOND_META store object type.  A lower bond_count
+ * means the peer was used less recently.
+ */
+struct ble_store_value_bond_meta {
+    /** Peer identity address for this bond. */
+    ble_addr_t peer_addr;
+    /** Recency counter maintained by the store implementation. */
+    uint16_t bond_count;
+};
+
+/**
  * Used as a key for store lookups.  This union must be accompanied by an
  * object type code to indicate which field is valid.
  */
@@ -163,6 +193,8 @@ union ble_store_key {
     struct ble_store_key_sec sec;
     /** Key for Client Characteristic Configuration Descriptor store lookups. */
     struct ble_store_key_cccd cccd;
+    /** Key for bond recency metadata store lookups. */
+    struct ble_store_key_bond_meta bond_meta;
 };
 
 /**
@@ -174,6 +206,8 @@ union ble_store_value {
     struct ble_store_value_sec sec;
     /** Stored Client Characteristic Configuration Descriptor. */
     struct ble_store_value_cccd cccd;
+    /** Stored bond recency metadata. */
+    struct ble_store_value_bond_meta bond_meta;
 };
 
 /** Represents an event associated with the BLE Store. */
@@ -556,6 +590,37 @@ int ble_store_write_cccd(const struct ble_store_value_cccd *value);
  */
 int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
+/**
+ * @brief Reads bond recency metadata from a storage.
+ *
+ * @param key                   Key identifying the bond meta record.
+ * @param out_value             On success, the retrieved metadata.
+ *
+ * @return                      0 on success;
+ *                              Non-zero on error.
+ */
+int ble_store_read_bond_meta(const struct ble_store_key_bond_meta *key,
+                             struct ble_store_value_bond_meta *out_value);
+
+/**
+ * @brief Writes bond recency metadata to a storage.
+ *
+ * @param value                 Metadata value to write.
+ *
+ * @return                      0 on success;
+ *                              Non-zero on error.
+ */
+int ble_store_write_bond_meta(const struct ble_store_value_bond_meta *value);
+
+/**
+ * @brief Deletes bond recency metadata from a storage.
+ *
+ * @param key                   Key identifying the record to delete.
+ *
+ * @return                      0 on success;
+ *                              Non-zero on error.
+ */
+int ble_store_delete_bond_meta(const struct ble_store_key_bond_meta *key);
 
 /**
  * @brief Generates a storage key for a security material entry from its value.
@@ -587,6 +652,14 @@ void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    const struct ble_store_value_cccd *value);
 
+/**
+ * @brief Generates a storage key for bond metadata from its value.
+ *
+ * @param out_key               Where the generated key is stored.
+ * @param value                 Bond metadata value.
+ */
+void ble_store_key_from_value_bond_meta(struct ble_store_key_bond_meta *out_key,
+                                        const struct ble_store_value_bond_meta *value);
 
 /**
  * @brief Generates a storage key from a value based on the object type.
@@ -743,6 +816,28 @@ int ble_store_util_count(int type, int *out_count);
  *                              Non-zero on error.
  */
 int ble_store_util_status_rr(struct ble_store_status_event *event, void *arg);
+
+/**
+ * @brief LRU status callback for handling store status events.
+ *
+ * This function handles store status events when there is insufficient storage
+ * capacity for new records. It resolves overflow by deleting the
+ * least-recently-used bond and proceeds with the persist operation.
+ *
+ * Recency is determined from BLE_STORE_OBJ_TYPE_BOND_META when the store
+ * implementation maintains it. Prefer this over ble_store_util_status_rr when
+ * recently used bonds should be retained.
+ *
+ * Register from the application with:
+ *     ble_hs_cfg.store_status_cb = ble_store_util_status_lru;
+ *
+ * @param event                 A pointer to the store status event.
+ * @param arg                   A pointer to additional user-defined arguments.
+ *
+ * @return                      0 on success;
+ *                              Non-zero on error.
+ */
+int ble_store_util_status_lru(struct ble_store_status_event *event, void *arg);
 
 /** @} */
 
