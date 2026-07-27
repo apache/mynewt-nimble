@@ -21,14 +21,15 @@
 
 # Apache NimBLE (mynewt-nimble) Security Threat Model (draft)
 
-> **Status: v0 draft for PMC review.** Drafted by the ASF Security team
+> **Status: v0, reviewed by the PMC.** Drafted by the ASF Security team
 > from public artefacts (the in-repo source layout under `nimble/host`,
 > `nimble/controller`, `nimble/host/services`, and `syscfg.yml`) against
-> the Scovetta rubric, plus general Bluetooth-LE domain knowledge. **No
-> maintainer has reviewed it yet.** Provenance tags: *(documented)* /
-> *(maintainer — none yet)* / *(inferred)*, with every load-bearing
-> *(inferred)* claim routed to a numbered §14 question. This is a
-> starting point to react to, not a finished model.
+> the Scovetta rubric, plus general Bluetooth-LE domain knowledge.
+> **Szymon Janc (Mynewt PMC) reviewed it on 2026-07-24** and answered
+> §14 Q1–Q14; those answers are folded into the body. Provenance tags:
+> *(documented)* / *(maintainer)* / *(inferred)*, with every load-bearing
+> *(inferred)* claim routed to a numbered §14 question. What remains
+> *(inferred)* is noted as still-open in §14.
 
 ## §1 Header
 
@@ -143,11 +144,21 @@ and encrypts the link.
   internal HCI; in a split build, the HCI transport is itself a trust
   boundary and each side must tolerate a malformed/ hostile peer across
   it. *(inferred — §14 Q1)*
-- **The RNG provided by the platform is cryptographically adequate** for
-  pairing nonces / ECDH key generation / RPA. NimBLE consumes it; its
-  quality is the platform's. *(inferred — §14 Q4)*
-- **Bond/key storage provided by the host is confidential and
-  integrity-protected.** *(inferred — §14 Q2)*
+- **The RNG is the Bluetooth controller's**, not NimBLE's. On the host
+  side randomness comes from the HCI `LE Rand` command
+  (`ble_hs_hci_rand()`, `nimble/host/src/ble_hs_hci_util.c`), which the
+  Bluetooth specification requires to be FIPS-compliant; parts of the LE
+  SC algorithm code may use a platform TRNG directly where configured to.
+  On the controller side this typically sources the SoC's hardware RNG.
+  Its quality is therefore **the controller/SoC's** property, backed by
+  the spec — not something NimBLE implements. *(maintainer — §14 Q4)*
+- **Bond/key storage is the integrator's, not NimBLE's.** Persistence
+  happens through callbacks registered in `ble_hs_cfg`, so the backend may
+  keep keys in RAM, flash, PSA, or anywhere else. NimBLE ships one
+  implementation (`nimble/host/store/config`, on Mynewt `sys/config`);
+  applications may substitute their own. Confidentiality and integrity of
+  that store are assumed, and are **outside** core-host.
+  *(maintainer — §14 Q2)*
 
 ## §5a Build-time and configuration variants
 
@@ -156,14 +167,25 @@ and encrypts the link.
 - **Supported pairing methods / SM features** are syscfg-selectable
   (LE Secure Connections vs legacy, bonding, MITM, OOB, key-distribution
   set). The *security posture of the link depends on which are enabled
-  and which the application requests.* *(inferred — §14 Q5)*
+  and which the application requests.* **By default only legacy pairing
+  is enabled** (`nimble/host/syscfg.yml`) — so a build that wants LE
+  Secure Connections must turn it on deliberately.
+  *(maintainer — §14 Q5)*
+- **Crypto backend.** Tinycrypt support was **removed**; the only
+  supported backend is **mbedTLS 3.6**. A move to the PSA crypto API is
+  planned. NimBLE claims no constant-time / side-channel posture of its
+  own — that rests on the crypto library. *(maintainer — §14 Q13)*
 - **Privacy (RPA)** on/off and the resolving-list size. *(documented:
   `ble_hs_pvcy`, `ble_ll_resolv`)*
 - **Maximum MTU / number of connections / L2CAP COC buffers** bound
   reassembly and allocation. *(inferred — §14 Q6)*
-- **Direct Test Mode (`ble_ll_dtm`)** is a certification/test feature;
-  whether it is reachable in production builds matters. *(documented:
-  `ble_ll_dtm`; §14 Q7)*
+- **Direct Test Mode (`ble_ll_dtm`)** is a radio-hardware test feature,
+  typically used in test labs for emission approval. It is a controller
+  feature with a thin host layer for application access. It **can be
+  compiled out, and it can also be reachable in production if the
+  application allows it** — so its presence is a per-build integrator
+  decision rather than something the library forces either way.
+  *(maintainer — §14 Q7)*
 
 ## §6 Assumptions about inputs
 
@@ -174,7 +196,7 @@ question for each surface is only *which tier* it is reachable at.
 
 | Surface | Source code | Reachable by | Must enforce |
 | --- | --- | --- | --- |
-| Advertising / scan-response **data** | `ble_hs_adv`, `ble_ll_adv`, `ble_ll_scan` | anyone in range, no connection | memory-safe parse of arbitrary/truncated/over-length AD structures; no OOB on malformed length fields *(inferred — §14 Q8)* |
+| Advertising / scan-response **data** | `ble_hs_adv`, `ble_ll_adv`, `ble_ll_scan` | anyone in range, no connection | memory-safe parse of arbitrary/truncated/over-length AD structures; no OOB on malformed length fields. **NimBLE ignores/rejects malformed PDUs, but passes advertising data up to the application WITHOUT LTV inspection** — parsing helpers exist, the application is not obliged to use them. So AD-parsing safety is shared with the integrator *(maintainer — §14 Q8)* |
 | `connect-ind` / connection setup | `ble_ll_conn`, `ble_gap` | anyone in range | bounded state allocation; safe handling of malformed connection parameters *(inferred — §14 Q8)* |
 | **LL control PDUs** | `ble_ll_ctrl` | a connected peer (Tier 1, pre-encryption) | safe handling of every control opcode incl. length/feature/PHY-update, version, and **encryption-start** procedures *(inferred — §14 Q9)* |
 | HCI commands/events | `ble_ll_hci*`, `ble_hs_hci*` | the HCI peer (split build) or internal | length/parameter validation on every event/command *(inferred — §14 Q1)* |
@@ -184,10 +206,23 @@ question for each surface is only *which tier* it is reachable at.
 
 ### Size / shape / rate
 
-- Reassembly and allocation are bounded by the configured MTU / buffer
-  counts (§5a); a peer that lies about a length field must not breach
-  those bounds. *(inferred — §14 Q6/Q10)*
-- No rate guarantee against a flooding/jamming peer (§9). *(inferred)*
+- Reassembly and allocation are bounded by the **configured memory pools**
+  — `msys` or a dedicated pool (§5a). **Regardless of configuration, a
+  peer must not be able to write past the provided buffer.** But note the
+  maintainer's caveat: *depending on the layer or protocol, length fields
+  are not guaranteed to stay within bounds and must be checked.* Missing
+  length validation on a radio-reachable path is therefore squarely
+  in-model. *(maintainer — §14 Q6)*
+- **L2CAP COC:** if a peer sends more packets than its credits allow, the
+  channel is terminated. *(maintainer — §14 Q10)*
+- **ATT prepared-write queue:** bounded by a configurable limit and a
+  timeout, after which the connection is terminated and resources freed
+  (`BLE_ATT_SVR_MAX_PREP_ENTRIES`, `BLE_ATT_SVR_QUEUED_WRITE_TMO`).
+  Permissions are enforced **per attribute**. *(maintainer — §14 Q11)*
+- No rate guarantee against a flooding/jamming peer (§9). Connection-flood
+  and resource-exhaustion DoS is **out of scope unless it is an actual
+  resource leak** — it depends on system configuration and application
+  policy. *(maintainer — §14 Q14)*
 
 ## §7 Adversary model
 
@@ -342,53 +377,90 @@ enforcing an app-set permission)**, is VALID.
 
 ## §14 Open questions for the maintainers
 
-**Build / architecture**
-- **Q1.** For split host/controller builds, is the HCI transport treated
-  as a trust boundary (each side hardened against a hostile peer), or are
-  both sides assumed cooperative?
-- **Q2.** Where do bonds/keys persist, and is that store's confidentiality
-  an in-model NimBLE property or the host's?
-- **Q3.** Confirm the single-address-space / no-isolation amplification.
+**Answered by Szymon Janc (Mynewt PMC) on 2026-07-24**, in review of the
+PR that introduced this document. Q1–Q14 are answered below and folded
+into the body above.
 
-**Crypto / Security Manager (highest priority)**
-- **Q4.** What RNG does SM/ECDH/RPA consume, and is its CSPRNG quality an
-  assumption (platform's) or a NimBLE property?
-- **Q5.** Which SM association models and features are enabled by default,
-  and does NimBLE prevent a silent downgrade below the MITM/encryption
-  level the application requested?
-- **Q12.** In LE Secure Connections, does `ble_sm_sc` validate the peer's
-  ECDH public key (reject invalid-curve / zero / known debug keys), and
-  are nonces guaranteed fresh? (This is the single most important crypto
-  question.)
-- **Q13.** Any constant-time / side-channel posture for SM operations?
+**Build / architecture — ANSWERED**
+- **Q1.** Is the HCI transport a trust boundary in split host/controller
+  builds? → **Yes, treat it as a boundary** — a bug on one side should
+  not affect the other. Szymon rates such issues **low severity** in
+  practice, with the notable exception of a controller bug that lets a
+  remote peer crash the host (e.g. during an LL procedure).
+- **Q2.** Where do bonds/keys persist? → **Outside "core-host."**
+  Persistence is done by callbacks registered in `ble_hs_cfg` (the host's
+  main configuration struct), so the backend may store keys anywhere —
+  RAM, flash, PSA. NimBLE ships one implementation in
+  `nimble/host/store/config` (built on Mynewt `sys/config`, RAM or
+  flash); an application may supply its own platform-specific one.
+  **Key-store confidentiality is therefore the integrator's property, not
+  NimBLE's.**
+- **Q3.** Single-address-space / no-isolation amplification. →
+  **Confirmed** in general; it depends on platform configuration.
 
-**Parser robustness**
-- **Q6.** What bounds reassembly/allocation (MTU, COC buffers, connection
-  count), and is a lying length field guaranteed to stay within them?
+**Crypto / Security Manager — ANSWERED**
+- **Q4.** What RNG do SM/ECDH/RPA consume? → **The Bluetooth
+  controller's**, on the host side via the HCI `LE Rand` command
+  (`ble_hs_hci_rand()` in `nimble/host/src/ble_hs_hci_util.c`). The
+  Bluetooth specification requires that command be FIPS-compliant. Parts
+  of the LE SC algorithm code may use a platform TRNG directly where so
+  configured. On the controller side this typically sources the SoC's
+  hardware RNG peripheral, which is spec-compliant. So RNG quality rests
+  on **the controller/SoC and the spec**, not on NimBLE code.
+- **Q5.** Which SM association models are enabled by default, and is
+  silent downgrade prevented? → **Only legacy pairing is enabled by
+  default** (`nimble/host/syscfg.yml`). Szymon was **not certain** about
+  silent security-level-downgrade prevention; he notes the application
+  always receives a proper event when security changes. *(the downgrade
+  question therefore stays partly open — see below)*
+- **Q12.** Does `ble_sm_sc` validate the peer's ECDH public key and are
+  nonces fresh? → **Yes.**
+- **Q13.** Constant-time / side-channel posture for SM operations? →
+  **None claimed by NimBLE — it relies on the crypto library.** Tinycrypt
+  support was **recently removed**; the only supported backend now is
+  **mbedTLS 3.6**. There are plans to move to the PSA crypto API.
+
+**Parser robustness — ANSWERED**
+- **Q6.** What bounds reassembly/allocation? → **Configured memory pools**
+  (`msys` or a dedicated pool). Regardless of configuration, **a peer must
+  not be able to write past the provided buffer**; but depending on the
+  layer or protocol, **length fields are not guaranteed to stay within
+  bounds and must be checked**. That makes length-field validation a
+  first-order review target.
 - **Q8.** Robustness target for malformed advertising data / connection
-  PDUs at Tier 0?
-- **Q9.** Handling of every LL control opcode, especially the
-  encryption-start and length/PHY-update procedures?
-- **Q10.** L2CAP reassembly and COC credit/flow bounds against a lying
-  peer?
-- **Q11.** Does `ble_att_svr` enforce per-attribute encryption/auth
-  permissions, and what bounds the prepared-write queue (a known DoS
-  sink)?
+  PDUs? → **Ignore or reject them.** Note: **advertising data is passed to
+  the application without LTV inspection.** Parsing helpers are provided,
+  but the application is not obliged to use them and may parse on its own
+  — so malformed-AD handling is partly the integrator's.
+- **Q9.** Handling of LL control opcodes? → **Ignore or reject invalid
+  PDUs**, likewise unexpected or out-of-order ones; depending on the
+  spec-defined procedure this may involve link termination.
+- **Q10.** L2CAP reassembly and COC credit/flow bounds? → **If a peer
+  overflows** — sends more packets than its credits allow — **the COC is
+  terminated.**
+- **Q11.** Does `ble_att_svr` enforce per-attribute permissions, and what
+  bounds the prepared-write queue? → **Permissions are per attribute.**
+  The prepared-write queue has a **configurable limit and a timeout**,
+  after which the connection is terminated and resources freed
+  (`BLE_ATT_SVR_MAX_PREP_ENTRIES`, `BLE_ATT_SVR_QUEUED_WRITE_TMO` in
+  `nimble/host/syscfg.yml`).
 
-**Features**
-- **Q7.** Is `ble_ll_dtm` (Direct Test Mode) reachable in production
-  builds, or compile-gated to test?
-- **Q14.** Any intended posture on connection-flood / resource-exhaustion
-  DoS, or wholly out of scope?
+**Features — ANSWERED**
+- **Q7.** Is `ble_ll_dtm` (Direct Test Mode) reachable in production? →
+  **It can be.** It is a radio-HW test mode (used in test labs for
+  emission approvals), a controller feature with a thin host layer for
+  application access. It **may or may not** be enabled in production and
+  **can be compiled out** — reachable in production if the application
+  allows it.
+- **Q14.** Posture on connection-flood / resource-exhaustion DoS? →
+  **Out of scope**, unless there is an actual resource *leak*. It depends
+  wholly on system configuration and application policy.
 
-**Meta**
-- **Q15.** This repo has **no `SECURITY.md`/`AGENTS.md`** today. OK for
-  this `THREAT_MODEL.md` to be the canonical model, reached via a new
-  `AGENTS.md → SECURITY.md → THREAT_MODEL.md` chain (the discoverability
-  PR we will open alongside)?
-- **Q16.** Should the in-tree `host/services/*` profiles be explicitly
-  in or out of this model (we currently treat them as standard/demo,
-  §3.1)?
+**Still open**
+- **Q5a.** Whether NimBLE prevents a *silent* security-level downgrade
+  below what the application requested. Szymon was not certain; the
+  application does get an event on any security change.
+- **Q15 / Q16** (meta / `host/services/*` scoping) — not yet answered.
 
 ## Appendix: existing security-policy artefacts → §x back-map
 
