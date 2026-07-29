@@ -33,6 +33,8 @@
 #define CONTROLLER_INDEX 0
 #define MAX_BUFFER_SIZE 2048
 
+static uint32_t identifier = 0;
+
 /* Convert UUID from BTP command to bt_uuid */
 static uint8_t
 btp2bt_uuid(const uint8_t *uuid, uint8_t len,
@@ -184,7 +186,9 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
     struct os_mbuf *buf = os_msys_get(0, 0);
-    uint8_t opcode = (uint8_t) (int) arg;
+    uint8_t opcode;
+    uint32_t operation_identifier;
+    uintptr_t cb_data = (uintptr_t)arg;
     uint8_t err = (uint8_t) error->status;
     int rc = 0;
 
@@ -201,6 +205,10 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     }
 
     memcpy(&rp->address, &conn.peer_ota_addr, sizeof(rp->address));
+
+    opcode = cb_data & 0xFF;
+    operation_identifier = cb_data >> 8;
+    rp->identifier = operation_identifier;
 
     rp->status = err;
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
@@ -255,7 +263,10 @@ disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
                    void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gattc_disc_all_prim_svcs_cmd *cp = cmd;
+    struct btp_gattc_disc_all_prim_svcs_rp *rp = rsp;
     struct ble_gap_conn_desc conn;
+    uint32_t local_identifier;
+    uint8_t opcode = BTP_GATTC_DISC_ALL_PRIM_RP;
     int rc;
 
     SYS_LOG_DBG("");
@@ -265,11 +276,19 @@ disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_disc_all_svcs(conn.conn_handle, disc_prim_svcs_cb,
-                                (void *) BTP_GATTC_DISC_ALL_PRIM_RP)) {
+    local_identifier = ++identifier;
+
+    uintptr_t packed = ((uintptr_t) local_identifier << 8);
+    packed |= (opcode & 0xFF);
+    void *cb_arg = (void *)packed;
+
+    if (ble_gattc_disc_all_svcs(conn.conn_handle, disc_prim_svcs_cb, cb_arg)) {
         discover_destroy();
         return BTP_STATUS_FAILED;
     }
+
+    rp->identifier = local_identifier;
+    *rsp_len = sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
 }
