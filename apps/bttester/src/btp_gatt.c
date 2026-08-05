@@ -75,6 +75,14 @@
 #define  PTS_INC_SVC                       0x001e
 #define  PTS_CHR_READ_WRITE_ALT            0x001f
 
+#define CONFIGURED_DB_IDX MYNEWT_VAL(BTTESTER_DB_IDX)
+#define PTS_DB_COUNT (sizeof(pts_db) / sizeof(pts_db[0]))
+
+struct bttester_db_entry {
+    const struct ble_gatt_svc_def *inc_svcs;
+    const struct ble_gatt_svc_def *svcs;
+};
+
 static uint8_t gatt_svr_pts_static_long_val[300];
 static uint8_t gatt_svr_pts_static_val[30];
 static uint8_t gatt_svr_pts_static_short_val;
@@ -144,7 +152,8 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
                                   struct ble_gatt_access_ctxt *ctxt,
                                   void *arg);
 
-static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
+/* Database 0 - default PTS database */
+static const struct ble_gatt_svc_def gatt_svr_inc_svcs_db0[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(PTS_INC_SVC),
@@ -164,17 +173,17 @@ static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
     },
 };
 
-static const struct ble_gatt_svc_def *inc_svcs[] = {
-    &gatt_svr_inc_svcs[0],
+static const struct ble_gatt_svc_def *inc_svcs_db0[] = {
+    &gatt_svr_inc_svcs_db0[0],
     NULL,
 };
 
-static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
+static const struct ble_gatt_svc_def gatt_svr_svcs_db0[] = {
     {
         /*** Service: PTS test. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = PTS_UUID_DECLARE(PTS_SVC),
-        .includes = inc_svcs,
+        .includes = inc_svcs_db0,
         .characteristics = (struct ble_gatt_chr_def[]) {
             {
                 .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE),
@@ -275,6 +284,13 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                                                         }},
     }, {
         0, /* No more services. */
+    },
+};
+
+static const struct bttester_db_entry pts_db[] = {
+    [0] = {
+        .inc_svcs = gatt_svr_inc_svcs_db0,
+        .svcs = gatt_svr_svcs_db0,
     },
 };
 
@@ -2250,26 +2266,44 @@ int
 gatt_svr_init(void)
 {
     int rc;
+    uint8_t db_idx = CONFIGURED_DB_IDX;
 
-    rc = ble_gatts_count_cfg(gatt_svr_inc_svcs);
-    if (rc != 0) {
-        return rc;
+    if (db_idx >= PTS_DB_COUNT) {
+        SYS_LOG_ERR("");
+        return 1;
     }
 
-    rc = ble_gatts_add_svcs(gatt_svr_inc_svcs);
-    if (rc != 0) {
-        return rc;
+    const struct bttester_db_entry *entry = &pts_db[db_idx];
+
+    if (entry->inc_svcs != NULL) {
+        rc = ble_gatts_count_cfg(entry->inc_svcs);
+        if (rc != 0) {
+            SYS_LOG_ERR("");
+            return rc;
+        }
+
+        rc = ble_gatts_add_svcs(entry->inc_svcs);
+        if (rc != 0) {
+            SYS_LOG_ERR("");
+            return rc;
+        }
     }
 
-    rc = ble_gatts_count_cfg(gatt_svr_svcs);
-    if (rc != 0) {
-        return rc;
+    if (entry->svcs != NULL) {
+        rc = ble_gatts_count_cfg(entry->svcs);
+        if (rc != 0) {
+            SYS_LOG_ERR("");
+            return rc;
+        }
+
+        rc = ble_gatts_add_svcs(entry->svcs);
+        if (rc != 0) {
+            SYS_LOG_ERR("");
+            return rc;
+        }
     }
 
-    rc = ble_gatts_add_svcs(gatt_svr_svcs);
-    if (rc != 0) {
-        return rc;
-    }
+    SYS_LOG_INF("Successfully initialized tester database [%u]", db_idx);
 
     return 0;
 }
