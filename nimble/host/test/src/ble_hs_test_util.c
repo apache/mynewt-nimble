@@ -619,16 +619,20 @@ ble_hs_test_util_set_our_irk(const uint8_t *irk, int fail_idx,
             ble_hs_test_util_hci_misc_exp_status(3, fail_idx, hci_status),
         },
         {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_RMV_RESOLV_LIST),
             ble_hs_test_util_hci_misc_exp_status(4, fail_idx, hci_status),
         },
         {
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
             ble_hs_test_util_hci_misc_exp_status(5, fail_idx, hci_status),
         },
         {
             BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
             ble_hs_test_util_hci_misc_exp_status(6, fail_idx, hci_status),
+        },
+        {
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_PRIVACY_MODE),
+            ble_hs_test_util_hci_misc_exp_status(7, fail_idx, hci_status),
         },
         {
             0
