@@ -320,6 +320,10 @@ static const struct ble_hs_test_util_hci_ack hci_startup_seq[] = {
     },
     {
         .opcode = ble_hs_hci_util_opcode_join(
+            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RMV_RESOLV_LIST),
+    },
+    {
+        .opcode = ble_hs_hci_util_opcode_join(
             BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST),
     },
     {
