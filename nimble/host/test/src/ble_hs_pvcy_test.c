@@ -111,6 +111,8 @@ ble_hs_pvcy_test_util_add_irk_set_acks(bool scanning, bool connecting)
     }
 
     ble_hs_test_util_hci_ack_append(
+        BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RMV_RESOLV_LIST), 0);
+    ble_hs_test_util_hci_ack_append(
         BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_RESOLV_LIST), 0);
     ble_hs_test_util_hci_ack_append(
         BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_PRIVACY_MODE), 0);
@@ -151,6 +153,9 @@ ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
                                         bool scanning,
                                         bool connecting)
 {
+    uint8_t param_len;
+    uint8_t *param;
+
     ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
                                    BLE_HCI_OCF_LE_SET_ADV_ENABLE,
                                    NULL);
@@ -166,6 +171,12 @@ ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
                                        BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
                                        NULL);
     }
+
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RMV_RESOLV_LIST, &param_len);
+    TEST_ASSERT(param_len == 7);
+    TEST_ASSERT(param[0] == peer_addr->type);
+    TEST_ASSERT(memcmp(param + 1, peer_addr->val, 6) == 0);
 
     ble_hs_test_util_hci_verify_tx_add_irk(peer_addr->type,
                                            peer_addr->val,
@@ -192,7 +203,7 @@ ble_hs_pvcy_test_util_add_irk(const ble_addr_t *peer_addr,
     rc = ble_hs_pvcy_add_entry(peer_addr->val, peer_addr->type, peer_irk);
     TEST_ASSERT_FATAL(rc == 0);
 
-    num_acks = 3;
+    num_acks = 4; /* adv disable, remove, add, privacy mode */
     if (scanning) {
         num_acks++;
     }
