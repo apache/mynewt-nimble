@@ -152,6 +152,19 @@ ble_hs_pvcy_add_entry(const uint8_t *addr, uint8_t addr_type,
      */
     ble_gap_preempt();
 
+    /* Evict any existing entry for this identity first.  Some controllers
+     * reject LE Add Device To Resolving List with Invalid HCI Command
+     * Parameters (0x12) when the identity is already present, which would
+     * leave the OLD IRK resolving after a re-pair.  Removing a non-existent
+     * entry is harmless, so this is safe unconditionally.
+     *
+     * Use the _hci variant, not ble_hs_pvcy_remove_entry(): the latter runs
+     * its own ble_gap_preempt()/ble_gap_preempt_done() pair, and
+     * ble_gap_preempt_done() is not depth-counted, so calling it here would
+     * end the preemption before the add below.
+     */
+    ble_hs_pvcy_remove_entry_hci(addr_type, addr);
+
     /* Try to add the entry now that GAP is halted. */
     rc = ble_hs_pvcy_add_entry_hci(addr, addr_type, irk);
 
