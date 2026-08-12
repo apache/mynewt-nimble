@@ -62,11 +62,26 @@ struct ble_hs_cfg;
 /** GATT service 16-bit UUID. */
 #define BLE_GATT_SVC_UUID16 0x1801
 
+/** GATT Service Changed characteristic 16-bit UUID. */
+#define BLE_GATT_CHR_SVC_CHANGED_UUID16 0x2a05
+
 /** GATT Client Characteristic Configuration descriptor 16-bit UUID. */
 #define BLE_GATT_DSC_CLT_CFG_UUID16 0x2902
 
 /** GATT Characteristic Extended Porperties descriptor 16-bit UUID. */
 #define BLE_GATT_DSC_EXT_PROP_UUID16 0x2900
+
+/** GATT Characteristic User Description descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_USER_DESC_UUID16 0x2901
+
+/** GATT Server Characteristic Configuration descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_SRV_CFG_UUID16 0x2903
+
+/** GATT Characteristic Presentation Format descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_CHR_FMT_UUID16 0x2904
+
+/** GATT Characteristic Aggregate Format descriptor 16-bit UUID. */
+#define BLE_GATT_DSC_AGG_FMT_UUID16 0x2905
 
 /** @} */
 
@@ -1132,6 +1147,18 @@ typedef void (*ble_gatt_svc_foreach_fn)(const struct ble_gatt_svc_def *svc,
  * database in human readable form.
  */
 void ble_gatts_show_local(void);
+
+/**
+ * Calculates the database hash of the local GATT database (AES-CMAC over
+ * the attribute database; Core spec Vol 3, Part G, 7.3.1).  Only available
+ * if the BLE_GATT_CACHING syscfg setting is enabled.
+ *
+ * @param out_hash_key          Buffer to fill with the 16-byte database
+ *                                  hash, in little-endian byte order.
+ *
+ * @return                      0 on success; nonzero on failure.
+ */
+int ble_gatts_calculate_hash(uint8_t *out_hash_key);
 
 /**
  * Resets the GATT server to its initial state.  On success, this function
