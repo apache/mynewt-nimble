@@ -257,10 +257,17 @@ hci_h4_sm_completed(struct hci_h4_sm *h4sm)
     case HCI_H4_ISO:
         if (h4sm->om) {
             assert(h4sm->frame_cb);
-            rc = h4sm->frame_cb(h4sm->pkt_type, h4sm->om);
-            if (rc != 0) {
-                os_mbuf_free_chain(h4sm->om);
-            }
+            /*
+             * Unlike the HCI_H4_CMD/HCI_H4_EVT case above, frame_cb() always
+             * takes ownership of h4sm->om here, regardless of the status it
+             * returns. For the LL->HS direction (e.g. apollo3, dialog_cmac,
+             * uart_ll) frame_cb() forwards to ble_transport_to_hs_acl(),
+             * which reaches ble_hs_rx_data(); that function is documented to
+             * consume the supplied mbuf "regardless of the outcome" and
+             * already frees it on failure. Freeing h4sm->om again here would
+             * be a double free, so just propagate the status instead.
+             */
+            h4sm->frame_cb(h4sm->pkt_type, h4sm->om);
             h4sm->om = NULL;
         }
         break;
