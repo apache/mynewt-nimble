@@ -65,7 +65,7 @@ BinPackArguments: true
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignConsecutiveMacros: true
+AlignConsecutiveMacros: AcrossEmptyLinesAndComments
 
 # Control statements
 AlwaysBreakAfterReturnType: TopLevelDefinitions
