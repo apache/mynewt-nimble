@@ -1127,6 +1127,19 @@ int ble_gatts_find_chr(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
 int ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
                        const ble_uuid_t *dsc_uuid, uint16_t *out_dsc_handle);
 
+/**
+ * Finds the service start and end handles for a given attribute handle.
+ *
+ * @param handle                Attribute handle to search with
+ * @param out_start             Pointer where the service start handle will be stored.
+ * @param out_end               Pointer where the service end handle will be stored.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if no matching service is found.
+ */
+int ble_gatts_find_svc_range_by_handle(uint16_t handle, uint16_t *out_start,
+                                       uint16_t *out_end);
+
 /** Type definition for GATT service iteration callback function. */
 typedef void (*ble_gatt_svc_foreach_fn)(const struct ble_gatt_svc_def *svc,
                                         uint16_t handle,
