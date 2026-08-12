@@ -60,6 +60,7 @@
 #include "host/ble_uuid.h"
 #include "host/ble_gap.h"
 #include "ble_hs_priv.h"
+#include "../services/gatt/include/services/gatt/ble_svc_gatt.h"
 
 #if NIMBLE_BLE_CONNECT
 
@@ -4461,7 +4462,7 @@ ble_gatts_notify_multiple_custom(uint16_t conn_handle,
         goto err;
     }
 
-    if ((supported & 0x04) == 0) {
+    if ((supported & BLE_GATT_CLI_SUP_FEAT_MULT_NTF_MASK) == 0) {
         rc = BLE_HS_EREJECT;
         goto err;
     }
