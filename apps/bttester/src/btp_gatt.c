@@ -81,6 +81,7 @@ static uint8_t gatt_svr_pts_static_short_val;
 static uint16_t myconn_handle;
 uint16_t notify_handle;
 uint16_t notify_handle_alt;
+static bool tester_service_visible = true;
 
 struct find_attr_data {
     ble_uuid_any_t *uuid;
@@ -1977,12 +1978,88 @@ change_database(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_change_database_cmd *cp = cmd;
+    uint16_t start_handle, end_handle;
 
-    SYS_LOG_DBG("")
+    if (cmd_len < sizeof(*cp) || cp->operation > 0x02) {
+        return BTP_STATUS_FAILED;
+    }
 
-    ble_gatts_show_local();
+    start_handle = cp->start_handle;
+    end_handle = cp->end_handle;
 
-    ble_svc_gatt_changed(cp->start_handle, cp->end_handle);
+    /* Branch 1: Auto-select range */
+    if (start_handle == 0 && end_handle == 0) {
+        uint16_t svc_start, svc_end;
+        int visible;
+        /* If provided handles are 0, it is up to IUT to select
+         * range that will be changed. Let's select last registred service. */
+        if (ble_gatts_find_svc_range_by_handle(ble_att_svr_prev_handle(),
+                                               &svc_start, &svc_end) != 0) {
+            return BTP_STATUS_FAILED;
+        }
+
+        /* Operation values are 0x00 = Remove; 0x01 = Add; 0x02 = Any */
+        switch (cp->operation) {
+        case 0x00:
+            visible = 0;
+            break;
+        case 0x01:
+            visible = 1;
+            break;
+        case 0x02:
+            /* Toggle visibility based on cached state to avoid a no-op */
+            visible = tester_service_visible ? 0 : 1;
+            break;
+        default:
+            return BTP_STATUS_FAILED;
+        }
+        if (ble_gatts_svc_set_visibility(svc_start, visible) != 0) {
+            return BTP_STATUS_FAILED;
+        }
+
+        /* Update cached visibility to reflect the actual new state */
+        tester_service_visible = (visible != 0);
+
+        ble_svc_gatt_changed(svc_start, svc_end);
+
+        return BTP_STATUS_SUCCESS;
+    }
+
+    /* Branch 2: Explicit handle range validation */
+    if (start_handle == 0 || end_handle < start_handle) {
+        return BTP_STATUS_FAILED;
+    }
+
+    /* 0x01 = Add (1); 0x00 / 0x02 (Any) = Remove (0) per BTP spec permissions */
+    int visible = (cp->operation == 0x01) ? 1 : 0;
+    uint16_t cur_handle, svc_start, svc_end;
+
+    /* If requested range overlaps multiple services, call
+     * ble_gatts_svc_set_visibility for each overlapping service */
+    for (cur_handle = start_handle; cur_handle <= end_handle;
+         cur_handle = svc_end + 1) {
+        if (ble_gatts_find_svc_range_by_handle(cur_handle, &svc_start, &svc_end) != 0) {
+            return BTP_STATUS_FAILED;
+        }
+
+        /* Per Core Specification 6.3, the Service Changed value contains
+         * the start and end of the affected handle range.*/
+        start_handle = svc_start;
+
+        if (ble_gatts_svc_set_visibility(svc_start, visible) != 0) {
+            return BTP_STATUS_FAILED;
+        }
+
+        if (svc_end == 0xffff) {
+            break;
+        }
+    }
+
+    /* Per Core Specification 6.3, the Service Changed value contains
+     * the start and end of the affected handle range.*/
+    end_handle = svc_end;
+
+    ble_svc_gatt_changed(start_handle, end_handle);
 
     return BTP_STATUS_SUCCESS;
 }
