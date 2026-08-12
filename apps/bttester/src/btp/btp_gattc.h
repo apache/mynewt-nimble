@@ -42,6 +42,9 @@ struct btp_gattc_exchange_mtu_cmd {
 struct btp_gattc_disc_all_prim_svcs_cmd {
     ble_addr_t address;
 } __packed;
+struct btp_gattc_disc_all_prim_svcs_rp {
+    uint32_t identifier;
+};
 
 #define BTP_GATTC_DISC_PRIM_UUID        0x04
 struct btp_gattc_disc_prim_uuid_cmd {
@@ -183,6 +186,7 @@ struct btp_gattc_exchange_mtu_ev {
 #define BTP_GATTC_DISC_ALL_PRIM_RP    0x81
 struct btp_gattc_disc_prim_svcs_rp {
     ble_addr_t address;
+    uint32_t identifier;
     uint8_t status;
     uint8_t services_count;
     uint8_t data[0];
