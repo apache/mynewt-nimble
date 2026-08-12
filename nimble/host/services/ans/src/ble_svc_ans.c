@@ -247,7 +247,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             case BLE_SVC_ANS_CMD_NOT_NEW_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
                     /* If cat_id is 0xff, notify on all enabled categories */
-                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
+                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i >= 0; --i) {
                         if ((ble_svc_ans_new_alert_cat >> i) & 0x01) {
                             ble_svc_ans_new_alert_notify(i, NULL);
                         }
@@ -259,7 +259,7 @@ ble_svc_ans_access(uint16_t conn_handle, uint16_t attr_handle,
             case BLE_SVC_ANS_CMD_NOT_UNR_ALERT_IMMEDIATE:
                 if (cat_id == 0xff) {
                     /* If cat_id is 0xff, notify on all enabled categories */
-                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i > 0; --i) {
+                    for (i = BLE_SVC_ANS_CAT_NUM - 1; i >= 0; --i) {
                         if ((ble_svc_ans_unr_alert_cat >> i) & 0x01) {
                             ble_svc_ans_unr_alert_notify(i);
                         }
