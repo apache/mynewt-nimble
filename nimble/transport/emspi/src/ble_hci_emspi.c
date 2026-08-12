@@ -479,12 +479,13 @@ ble_hci_emspi_rx_acl(void)
     OS_MBUF_PKTLEN(om) = BLE_HCI_DATA_HDR_SZ + len;
     om->om_len = BLE_HCI_DATA_HDR_SZ + len;
 
-    rc = ble_transport_to_hs_acl(om);
-    if (rc != 0) {
-        goto err;
-    }
-
-    return 0;
+    /*
+     * Ownership of `om` is transferred to the host here, regardless of the
+     * return value (see the comment on ble_hs_rx_data() in
+     * nimble/host/src/ble_hs.c). On failure the host has already freed it,
+     * so it must not be freed again via the `err` path below.
+     */
+    return ble_transport_to_hs_acl(om);
 
 err:
     os_mbuf_free_chain(om);
