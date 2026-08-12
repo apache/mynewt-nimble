@@ -66,11 +66,6 @@ static struct {
     uint8_t buf[MAX_BUFFER_SIZE];
     uint16_t cnt;
 } gatt_buf;
-static struct bt_gatt_subscribe_params {
-    uint16_t ccc_handle;
-    uint16_t value;
-    uint16_t value_handle;
-} subscribe_params;
 
 static void *
 gatt_buf_add(const void *data, size_t len)
@@ -1259,8 +1254,6 @@ enable_subscription(uint16_t conn_handle, uint16_t ccc_handle,
         return -EINVAL;
     }
 
-    subscribe_params.ccc_handle = value;
-
     return 0;
 }
 
@@ -1275,12 +1268,6 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
     opcode = (uint32_t) (value == 0x0001 ? BTP_GATTC_CFG_NOTIFY_RP
                                          : BTP_GATTC_CFG_INDICATE_RP);
 
-    /* Fail if CCC handle doesn't match */
-    if (ccc_handle != subscribe_params.ccc_handle) {
-        SYS_LOG_ERR("CCC handle doesn't match");
-        return -EINVAL;
-    }
-
     if (ble_gattc_write_flat(conn_handle,
                              ccc_handle,
                              &value,
@@ -1290,7 +1277,6 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
         return -EINVAL;
     }
 
-    subscribe_params.ccc_handle = 0;
     return 0;
 }
 
@@ -1457,10 +1443,6 @@ tester_gattc_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
     struct os_mbuf *buf = os_msys_get(0, 0);
 
     SYS_LOG_DBG("");
-
-    if (!subscribe_params.ccc_handle) {
-        goto fail;
-    }
 
     if (ble_gap_conn_find(conn_handle, &conn)) {
         goto fail;

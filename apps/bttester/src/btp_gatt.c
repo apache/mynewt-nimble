@@ -1054,12 +1054,6 @@ fail:
     return BTP_STATUS_FAILED;
 }
 
-static struct bt_gatt_subscribe_params {
-    uint16_t ccc_handle;
-    uint16_t value;
-    uint16_t value_handle;
-} subscribe_params;
-
 static uint8_t
 read_uuid(const void *cmd, uint16_t cmd_len,
           void *rsp, uint16_t *rsp_len)
@@ -1589,8 +1583,6 @@ enable_subscription(uint16_t conn_handle, uint16_t ccc_handle,
         return -EINVAL;
     }
 
-    subscribe_params.ccc_handle = value;
-
     tester_rsp(BTP_SERVICE_ID_GATT, op, BTP_STATUS_SUCCESS);
     return 0;
 }
@@ -1602,18 +1594,11 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
 
     SYS_LOG_DBG("");
 
-    /* Fail if CCC handle doesn't match */
-    if (ccc_handle != subscribe_params.ccc_handle) {
-        SYS_LOG_ERR("CCC handle doesn't match");
-        return -EINVAL;
-    }
-
     if (ble_gattc_write_no_rsp_flat(conn_handle, ccc_handle,
                                     &value, sizeof(value))) {
         return -EINVAL;
     }
 
-    subscribe_params.ccc_handle = 0;
     return 0;
 }
 
@@ -2130,10 +2115,6 @@ tester_gatt_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
 
     SYS_LOG_DBG("");
 
-    if (!subscribe_params.ccc_handle) {
-        goto fail;
-    }
-
     if (ble_gap_conn_find(conn_handle, &conn)) {
         goto fail;
     }
@@ -2173,7 +2154,6 @@ tester_gatt_subscribe_ev(uint16_t conn_handle,
 
     if (cur_notify == 0 && cur_indicate == 0) {
         SYS_LOG_INF("Unsubscribed");
-        memset(&subscribe_params, 0, sizeof(subscribe_params));
         return 0;
     }
 
