@@ -119,6 +119,10 @@ syscfg.defs:
         description: >
             This enables Channel Sounding feature
         value: 0
+    BLE_CHANNEL_SOUNDING_FAE_SUPPORTED:
+        description: >
+            This enables FAE table support (NOTE: Not implemented in the controller yet).
+        value: 0
 
     BLE_HCI_VS:
         description: >
