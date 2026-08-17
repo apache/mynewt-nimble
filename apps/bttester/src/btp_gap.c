@@ -60,8 +60,6 @@ static struct ble_sm_sc_oob_data oob_data_remote;
 
 static uint16_t current_settings;
 uint8_t own_addr_type;
-static ble_addr_t peer_id_addr;
-static ble_addr_t peer_ota_addr;
 static bool encrypted = false;
 
 static bool use_filter_policy = false;
@@ -94,29 +92,19 @@ gap_conn_find_by_addr(const ble_addr_t *dev_addr,
                       struct ble_gap_conn_desc *out_desc)
 {
     ble_addr_t addr = *dev_addr;
+    int rc;
 
-    if (memcmp(BLE_ADDR_ANY, &peer_id_addr, 6) == 0) {
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
+    rc = ble_gap_conn_find_by_addr(&addr, out_desc);
+    if (rc == 0) {
+        return 0;
     }
 
-    if (BLE_ADDR_IS_RPA(&addr)) {
-        if (ble_addr_cmp(&peer_ota_addr, &addr) != 0) {
-            return -1;
-        }
-
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
-    } else {
-        if (ble_addr_cmp(&peer_id_addr, &addr) != 0) {
-            return -1;
-        }
-
-        if (BLE_ADDR_IS_RPA(&peer_ota_addr)) {
-            /* Change addr type to ID addr */
-            addr.type |= 2;
-        }
-
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
+    if ((addr.type & BLE_ADDR_PUBLIC_ID) == 0) {
+        addr.type |= BLE_ADDR_PUBLIC_ID;
+        rc = ble_gap_conn_find_by_addr(&addr, out_desc);
     }
+
+    return rc;
 }
 
 static int
@@ -869,9 +857,6 @@ le_connected(uint16_t conn_handle, int status)
         return;
     }
 
-    peer_id_addr = desc.peer_id_addr;
-    peer_ota_addr = desc.peer_ota_addr;
-
     addr = &desc.peer_id_addr;
 
     memcpy(&connected_ev.address, addr, sizeof(connected_ev.address));
@@ -1101,9 +1086,6 @@ le_identity_resolved(uint16_t conn_handle)
         return;
     }
 
-    peer_id_addr = desc.peer_id_addr;
-    peer_ota_addr = desc.peer_ota_addr;
-
     memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
 
     memcpy(&ev.identity_address, &desc.peer_id_addr,
@@ -1126,9 +1108,6 @@ le_pairing_failed(uint16_t conn_handle, int reason)
     if (rc) {
         return;
     }
-
-    peer_id_addr = desc.peer_id_addr;
-    peer_ota_addr = desc.peer_ota_addr;
 
     memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
 
