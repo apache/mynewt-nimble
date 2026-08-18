@@ -52,3 +52,17 @@ data is split in advertising data and response data.
 This application works in pair with peripheral. It's based on scanner
 application - the difference is, that if there was detected device with UUID
 fitting to the one predefined in central application, connection is initiated.
+
+## ext-peripheral
+
+Equivalent of legacy peripheral app, made for extended advertising.
+It also sends packets with 128-bit UUIDs for the central to recognize suitable
+instances and connect to them. There are three advertising instances, each of
+them advertising with different PHYs.
+
+## ext-central
+
+Works in pair with ext-peripheral. It performs in cycle scanning and connecting
+to all three advertising instances of peripheral. When the application discovers
+the advertising packet with matching UUID it connects to the peripheral,
+then disconnects and proceeds to scan for the next instance with different UUID.
