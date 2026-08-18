@@ -29,7 +29,7 @@ BraceWrapping:
 
 MacroBlockBegin: '(STATS_NAME_START|STATS_SECT_START)'
 MacroBlockEnd: '(STATS_NAME_END|STATS_SECT_END)'
-StatementMacros: ['SLIST_HEAD']
+TypenameMacros: ['SLIST_HEAD']
 
 ForEachMacros:
   - 'LINK_TABLE_FOREACH'
