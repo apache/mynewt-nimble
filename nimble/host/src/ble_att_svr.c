@@ -404,11 +404,10 @@ ble_att_svr_read(uint16_t conn_handle,
 
     att_err = 0;    /* Silence gcc warning. */
 
-    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-        rc = ble_att_svr_check_perms(conn_handle, 1, entry, &att_err);
-        if (rc != 0) {
-            goto err;
-        }
+    rc = ble_att_svr_check_perms(conn_handle, 1, entry, &att_err);
+    BLE_HS_LOG(DEBUG, "ble_att_svr_check_perms %f", rc);
+    if (rc != 0) {
+        goto err;
     }
 
     BLE_HS_DBG_ASSERT(entry->ha_cb != NULL);
