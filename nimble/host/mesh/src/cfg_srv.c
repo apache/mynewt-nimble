@@ -490,8 +490,8 @@ static int beacon_get(struct bt_mesh_model *model,
 		BT_ERR("Unable to send Config Beacon Status response");
 	}
 
-	return 0;
 	os_mbuf_free_chain(msg);
+	return 0;
 }
 
 static int beacon_set(struct bt_mesh_model *model,

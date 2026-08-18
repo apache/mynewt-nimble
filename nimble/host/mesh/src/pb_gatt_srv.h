@@ -14,7 +14,7 @@ int bt_mesh_pb_gatt_enable(void);
 int bt_mesh_pb_gatt_disable(void);
 
 int prov_ccc_write(uint16_t conn_handle, uint8_t type);
-void gatt_disconnected_pb_gatt(struct ble_gap_conn_desc conn, uint8_t err);
+void gatt_disconnected_pb_gatt(struct ble_gap_conn_desc conn_desc, uint8_t err);
 void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err);
 void resolve_svc_handles(void);
 
