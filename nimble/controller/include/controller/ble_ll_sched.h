@@ -30,13 +30,13 @@ extern "C" {
 /*
  * Worst case time needed for scheduled advertising item. This is the longest
  * possible time to receive a scan request and send a scan response (with the
- * appropriate IFS time between them). This number is calculated using the
+ * appropriate IFS time between them) on LE Uncoded PHY 1M. This number is calculated using the
  * following formula: IFS + SCAN_REQ + IFS + SCAN_RSP = 150 + 176 + 150 + 376.
  * Note: worst case time to tx adv, rx scan req and send scan rsp is 1228 usecs.
  * This assumes maximum sized advertising PDU and scan response PDU.
  *
  * For connectable advertising events no scan request is allowed. In this case
- * we just need to receive a connect request PDU: IFS + CONNECT_REQ = 150 + 352.
+ * we just need to receive a connect request PDU: IFS + CONNECT_IND = 150 + 352.
  * Note: worst-case is 376 + 150 + 352 = 878 usecs
  *
  * NOTE: The advertising PDU transmit time is NOT included here since we know
