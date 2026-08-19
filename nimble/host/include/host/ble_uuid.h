@@ -178,7 +178,7 @@ typedef union {
  *
  * @return          Pointer to a `ble_uuid_t` structure.
  */
-#define BLE_UUID128_DECLARE(uuid128...) \
+#define BLE_UUID128_DECLARE(uuid128 ...) \
     ((ble_uuid_t *) (&(ble_uuid128_t) BLE_UUID128_INIT(uuid128)))
 
 /**

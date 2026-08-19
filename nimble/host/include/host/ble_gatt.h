@@ -436,8 +436,8 @@ int ble_gattc_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
  * @return                      0 on success; nonzero on failure.
  */
 int ble_gattc_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                               uint16_t end_handle, const ble_uuid_t *uuid,
-                               ble_gatt_chr_fn *cb, void *cb_arg);
+                                uint16_t end_handle, const ble_uuid_t *uuid,
+                                ble_gatt_chr_fn *cb, void *cb_arg);
 
 /**
  * Initiates GATT procedure: Discover All Characteristic Descriptors.
