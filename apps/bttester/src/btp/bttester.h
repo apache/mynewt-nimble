@@ -159,5 +159,12 @@ uint8_t
 tester_unregister_pacs(void);
 #endif /* MYNEWT_VAL(BLE_AUDIO) */
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+uint8_t
+tester_init_rap(void);
+uint8_t
+tester_unregister_rap(void);
+#endif /* MYNEWT_VAL(BLE_CHANNEL_SOUNDING) */
+
 #endif /* __BTTESTER_H__ */
 
