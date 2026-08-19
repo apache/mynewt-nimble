@@ -63,8 +63,8 @@ Feature highlight:
 
 ## Supported hardware
 
-Controller supports Nordic nRF51, nRF52 and nRF5340 chipsets as well as DA1469x (cmac)
-from Renesas. Host runs on any board and architecture
+Controller supports Nordic nRF51, nRF52, nRF5340 and nRF54L chipsets as well as
+DA1469x (cmac) from Renesas. Host runs on any board and architecture
 [supported](https://github.com/apache/mynewt-core#overview) by Apache Mynewt OS.
 
 
