@@ -136,7 +136,7 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 
 		switch (type) {
 		case BLE_HS_ADV_TYPE_MESH_MESSAGE:
-			bt_mesh_net_recv(buf, rssi, BT_MESH_NET_IF_ADV);
+			bt_mesh_net_recv(&buf, rssi, BT_MESH_NET_IF_ADV);
 			break;
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
 		case BLE_HS_ADV_TYPE_MESH_PROV:
