@@ -135,6 +135,8 @@ int btshell_full_disc_prev_chr_val;
 
 struct ble_sm_sc_oob_data oob_data_local;
 struct ble_sm_sc_oob_data oob_data_remote;
+struct auth_attr authorized_attrs[PENDING_ATTR_MAX];
+struct pend_attr pending_attr;
 
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 static struct {struct ble_audio_base *base; uint8_t adv_instance;}
@@ -1292,6 +1294,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     struct ble_gap_conn_desc desc;
     int conn_idx;
     int rc;
+    int i;
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     struct psync *psync;
 #endif
@@ -1318,6 +1321,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         if (conn_idx != -1) {
             btshell_conn_delete_idx(conn_idx);
         }
+        memset(&authorized_attrs, 0, sizeof(authorized_attrs));
 
         return btshell_restart_adv(event);
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -1555,6 +1559,22 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 #endif
 #endif
+    case BLE_GAP_EVENT_AUTHORIZE:
+        for (i = 0; i < PENDING_ATTR_MAX; i++) {
+            if (authorized_attrs[i].conn_handle == event->authorize.conn_handle &&
+                authorized_attrs[i].attr_handle == event->authorize.attr_handle) {
+                console_printf("Access to attribute %d already authorized\n",
+                               event->authorize.attr_handle);
+                return BLE_GAP_AUTHORIZE_ACCEPT;
+            }
+        }
+        console_printf("Authorize access to attribute: conn_handle=%d,"
+                       "access_opcode=%d, cid=%d, attr=%d\n",
+                       event->authorize.conn_handle, event->authorize.access_opcode,
+                       event->authorize.cid, event->authorize.attr_handle);
+        pending_attr.cid = event->authorize.cid;
+        pending_attr.attr_handle = event->authorize.attr_handle;
+        return BLE_GAP_AUTHORIZE_PENDING;
     default:
         return 0;
     }
