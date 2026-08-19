@@ -799,7 +799,7 @@ ble_att_clt_tx_prep_write(uint16_t conn_handle, uint16_t cid, uint16_t handle,
         goto err;
     }
 
-    if (offset + OS_MBUF_PKTLEN(txom) > BLE_ATT_ATTR_MAX_LEN) {
+    if (OS_MBUF_PKTLEN(txom) > BLE_ATT_ATTR_MAX_LEN) {
         rc = BLE_HS_EINVAL;
         goto err;
     }

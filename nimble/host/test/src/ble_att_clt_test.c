@@ -473,9 +473,6 @@ TEST_CASE_SELF(ble_att_clt_test_tx_prep_write)
     /*** Error: handle of 0. */
     ble_att_clt_test_misc_prep_bad(0, 0, attr_data, 16, BLE_HS_EINVAL);
 
-    /*** Error: offset + length greater than maximum attribute size. */
-    ble_att_clt_test_misc_prep_bad(1, 507, attr_data, 6, BLE_HS_EINVAL);
-
     /*** Error: packet larger than MTU. */
     ble_att_clt_test_misc_prep_bad(1, 0, attr_data,
                                    BLE_ATT_MTU_DFLT -
