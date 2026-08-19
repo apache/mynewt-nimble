@@ -94,29 +94,19 @@ gap_conn_find_by_addr(const ble_addr_t *dev_addr,
                       struct ble_gap_conn_desc *out_desc)
 {
     ble_addr_t addr = *dev_addr;
+    int rc;
 
-    if (memcmp(BLE_ADDR_ANY, &peer_id_addr, 6) == 0) {
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
+    rc = ble_gap_conn_find_by_addr(&addr, out_desc);
+    if (rc == 0) {
+        return 0;
     }
 
-    if (BLE_ADDR_IS_RPA(&addr)) {
-        if (ble_addr_cmp(&peer_ota_addr, &addr) != 0) {
-            return -1;
-        }
-
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
-    } else {
-        if (ble_addr_cmp(&peer_id_addr, &addr) != 0) {
-            return -1;
-        }
-
-        if (BLE_ADDR_IS_RPA(&peer_ota_addr)) {
-            /* Change addr type to ID addr */
-            addr.type |= 2;
-        }
-
-        return ble_gap_conn_find_by_addr(&addr, out_desc);
+    if ((addr.type & BLE_ADDR_PUBLIC_ID) == 0) {
+        addr.type |= BLE_ADDR_PUBLIC_ID;
+        rc = ble_gap_conn_find_by_addr(&addr, out_desc);
     }
+
+    return rc;
 }
 
 static int
