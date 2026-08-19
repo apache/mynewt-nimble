@@ -150,6 +150,20 @@ controller_index_list(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+static struct ble_gap_ext_adv_params adv_params = {
+    .primary_phy = BLE_HCI_LE_PHY_1M,
+    .secondary_phy = BLE_HCI_LE_PHY_1M,
+    .sid = 1,
+    .legacy_pdu = 1,
+};
+#else
+static struct ble_gap_adv_params adv_params = {
+    .conn_mode = BLE_GAP_CONN_MODE_NON,
+    .disc_mode = BLE_GAP_DISC_MODE_NON,
+};
+#endif
+
 static uint8_t
 controller_info(const void *cmd, uint16_t cmd_len,
                 void *rsp, uint16_t *rsp_len)
@@ -202,6 +216,20 @@ controller_info(const void *cmd, uint16_t cmd_len,
     supported_settings |= BIT(BTP_GAP_SETTINGS_ADVERTISING);
     supported_settings |= BIT(BTP_GAP_SETTINGS_SC);
 
+#if MYNEWT_VAL(BLE_EXT_ADV)
+    if (adv_params.connectable) {
+        current_settings |= BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+    } else {
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+    }
+#else
+    if (adv_params.conn_mode != BLE_GAP_CONN_MODE_NON) {
+        current_settings |= BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+    } else {
+        current_settings &= ~BIT(BTP_GAP_SETTINGS_CONNECTABLE);
+    }
+#endif
+
     if (ble_hs_cfg.sm_bonding) {
         current_settings |= BIT(BTP_GAP_SETTINGS_BONDABLE);
     }
@@ -218,20 +246,6 @@ controller_info(const void *cmd, uint16_t cmd_len,
 
     return BTP_STATUS_SUCCESS;
 }
-
-#if MYNEWT_VAL(BLE_EXT_ADV)
-static struct ble_gap_ext_adv_params adv_params = {
-    .primary_phy = BLE_HCI_LE_PHY_1M,
-    .secondary_phy = BLE_HCI_LE_PHY_1M,
-    .sid = 1,
-    .legacy_pdu = 1,
-};
-#else
-static struct ble_gap_adv_params adv_params = {
-    .conn_mode = BLE_GAP_CONN_MODE_NON,
-    .disc_mode = BLE_GAP_DISC_MODE_NON,
-};
-#endif
 
 static uint8_t ad_flags = BLE_HS_ADV_F_BREDR_UNSUP;
 
@@ -547,7 +561,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         break;
     case 0x02:
         /* NRPA is used only for non-connectable advertising */
-        if (!(current_settings & BIT(BTP_GAP_SETTINGS_CONNECTABLE))) {
+        if ((current_settings & BIT(BTP_GAP_SETTINGS_CONNECTABLE))) {
             return BTP_STATUS_FAILED;
         }
         break;
