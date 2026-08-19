@@ -204,7 +204,12 @@ struct ble_hs_cfg;
 /*** @client. */
 /** Represents a GATT error. */
 struct ble_gatt_error {
-    /** The GATT status code indicating the type of error. */
+    /**
+     * The NimBLE host status code indicating the type of error.
+     *
+     * Values follow the NimBLE host return-code convention; see:
+     * https://mynewt.apache.org/latest/network/ble_hs/ble_hs_return_codes.html
+     */
     uint16_t status;
 
     /** The attribute handle associated with the error. */
