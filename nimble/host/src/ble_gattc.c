@@ -326,8 +326,7 @@ static ble_gattc_tmo_fn ble_gattc_write_long_tmo;
 static ble_gattc_tmo_fn ble_gattc_write_reliable_tmo;
 static ble_gattc_tmo_fn ble_gatts_indicate_tmo;
 
-static ble_gattc_tmo_fn * const
-ble_gattc_tmo_dispatch[BLE_GATT_OP_CNT] = {
+static ble_gattc_tmo_fn * const ble_gattc_tmo_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_MTU]               = ble_gattc_mtu_tmo,
     [BLE_GATT_OP_DISC_ALL_SVCS]     = ble_gattc_disc_all_svcs_tmo,
     [BLE_GATT_OP_DISC_SVC_UUID]     = ble_gattc_disc_svc_uuid_tmo,
