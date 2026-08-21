@@ -23,6 +23,10 @@
 #define MYNEWT_VAL(_name)                       MYNEWT_VAL_ ## _name
 #define MYNEWT_VAL_CHOICE(_name, _val)          MYNEWT_VAL_ ## _name ## __ ## _val
 
+#ifndef MYNEWT_VAL_PKG_compiler_sim
+#define MYNEWT_VAL_PKG_compiler_sim (1)
+#endif
+
 #ifndef MYNEWT_VAL_MBEDTLS_AES_ALT
 #define MYNEWT_VAL_MBEDTLS_AES_ALT (0)
 #endif
@@ -283,8 +287,40 @@
 #define MYNEWT_VAL_MBEDTLS_TIMING_C (0)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_crypto_mbedtls
+#define MYNEWT_VAL_PKG_crypto_mbedtls (1)
+#endif
+
 #ifndef MYNEWT_VAL_BSP_SIMULATED
 #define MYNEWT_VAL_BSP_SIMULATED (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_bsp_native
+#define MYNEWT_VAL_PKG_hw_bsp_native (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_flash_enc_flash
+#define MYNEWT_VAL_PKG_hw_drivers_flash_enc_flash (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_flash_enc_flash_ef_mbedtls
+#define MYNEWT_VAL_PKG_hw_drivers_flash_enc_flash_ef_mbedtls (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_trng
+#define MYNEWT_VAL_PKG_hw_drivers_trng (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_trng_trng_sw
+#define MYNEWT_VAL_PKG_hw_drivers_trng_trng_sw (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_uart
+#define MYNEWT_VAL_PKG_hw_drivers_uart (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_drivers_uart_uart_hal
+#define MYNEWT_VAL_PKG_hw_drivers_uart_uart_hal (1)
 #endif
 
 #ifndef MYNEWT_VAL_HAL_ENABLE_SOFTWARE_BREAKPOINTS
@@ -313,6 +349,10 @@
 
 #ifndef MYNEWT_VAL_HAL_SYSTEM_RESET_CB
 #define MYNEWT_VAL_HAL_SYSTEM_RESET_CB (0)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_hal
+#define MYNEWT_VAL_PKG_hw_hal (1)
 #endif
 
 #ifndef MYNEWT_VAL_I2C_0
@@ -345,6 +385,10 @@
 
 #ifndef MYNEWT_VAL_MCU_UART_POLLER_PRIO
 #define MYNEWT_VAL_MCU_UART_POLLER_PRIO (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_hw_mcu_native
+#define MYNEWT_VAL_PKG_hw_mcu_native (1)
 #endif
 
 #ifndef MYNEWT_VAL_FLOAT_USER
@@ -527,12 +571,24 @@
 #define MYNEWT_VAL_OS_WATCHDOG_MONITOR (0)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_kernel_os
+#define MYNEWT_VAL_PKG_kernel_os (1)
+#endif
+
 #ifndef MYNEWT_VAL_SANITY_INTERVAL
 #define MYNEWT_VAL_SANITY_INTERVAL (15000)
 #endif
 
 #ifndef MYNEWT_VAL_WATCHDOG_INTERVAL
 #define MYNEWT_VAL_WATCHDOG_INTERVAL (30000)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_kernel_sim
+#define MYNEWT_VAL_PKG_kernel_sim (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_net_ip_mn_socket
+#define MYNEWT_VAL_PKG_net_ip_mn_socket (1)
 #endif
 
 #ifndef MYNEWT_VAL_NATIVE_SOCKETS_MAX
@@ -559,6 +615,10 @@
 #define MYNEWT_VAL_NATIVE_SOCKETS_SYSINIT_STAGE (200)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_net_ip_native_sockets
+#define MYNEWT_VAL_PKG_net_ip_native_sockets (1)
+#endif
+
 #ifndef MYNEWT_VAL_CONSOLE_UART_BAUD
 #define MYNEWT_VAL_CONSOLE_UART_BAUD (115200)
 #endif
@@ -569,6 +629,14 @@
 
 #ifndef MYNEWT_VAL_CONSOLE_UART_FLOW_CONTROL
 #define MYNEWT_VAL_CONSOLE_UART_FLOW_CONTROL (UART_FLOW_CTL_NONE)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_console_stub
+#define MYNEWT_VAL_PKG_sys_console_stub (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_defs
+#define MYNEWT_VAL_PKG_sys_defs (1)
 #endif
 
 #ifndef MYNEWT_VAL_FLASH_MAP_MAX_AREAS
@@ -583,6 +651,10 @@
 #define MYNEWT_VAL_FLASH_MAP_SYSINIT_STAGE (9)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_sys_flash_map
+#define MYNEWT_VAL_PKG_sys_flash_map (1)
+#endif
+
 #ifndef MYNEWT_VAL_DFLT_LOG_LVL
 #define MYNEWT_VAL_DFLT_LOG_LVL (1)
 #endif
@@ -593,6 +665,10 @@
 
 #ifndef MYNEWT_VAL_LOG_GLOBAL_IDX
 #define MYNEWT_VAL_LOG_GLOBAL_IDX (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_log_common
+#define MYNEWT_VAL_PKG_sys_log_common (1)
 #endif
 
 #ifndef MYNEWT_VAL_MODLOG_CONSOLE_DFLT
@@ -619,6 +695,10 @@
 #define MYNEWT_VAL_MODLOG_USE_PRINTF_ATTRIBUTE (0)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_sys_log_modlog
+#define MYNEWT_VAL_PKG_sys_log_modlog (1)
+#endif
+
 #ifndef MYNEWT_VAL_LOG_CONSOLE
 #define MYNEWT_VAL_LOG_CONSOLE (1)
 #endif
@@ -635,8 +715,24 @@
 #define MYNEWT_VAL_LOG_LEVEL (0)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_sys_log_stub
+#define MYNEWT_VAL_PKG_sys_log_stub (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_stats_stub
+#define MYNEWT_VAL_PKG_sys_stats_stub (1)
+#endif
+
 #ifndef MYNEWT_VAL_DEBUG_PANIC_ENABLED
 #define MYNEWT_VAL_DEBUG_PANIC_ENABLED (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_sys
+#define MYNEWT_VAL_PKG_sys_sys (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_sys_sysdown
+#define MYNEWT_VAL_PKG_sys_sysdown (1)
 #endif
 
 #ifndef MYNEWT_VAL_SYSDOWN_CONSTRAIN_DOWN
@@ -655,6 +751,10 @@
 #define MYNEWT_VAL_SYSDOWN_TIMEOUT_MS (10000)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_sys_sysinit
+#define MYNEWT_VAL_PKG_sys_sysinit (1)
+#endif
+
 #ifndef MYNEWT_VAL_SYSINIT_CONSTRAIN_INIT
 #define MYNEWT_VAL_SYSINIT_CONSTRAIN_INIT (1)
 #endif
@@ -665,6 +765,14 @@
 
 #ifndef MYNEWT_VAL_SYSINIT_PANIC_MESSAGE
 #define MYNEWT_VAL_SYSINIT_PANIC_MESSAGE (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_util_mem
+#define MYNEWT_VAL_PKG_util_mem (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_util_rwlock
+#define MYNEWT_VAL_PKG_util_rwlock (1)
 #endif
 
 #ifndef MYNEWT_VAL_RWLOCK_DEBUG
@@ -769,6 +877,10 @@
 
 #ifndef MYNEWT_VAL_BLE_WHITELIST
 #define MYNEWT_VAL_BLE_WHITELIST (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble
+#define MYNEWT_VAL_PKG_nimble (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_ATT_PREFERRED_MTU
@@ -1131,6 +1243,10 @@
 #define MYNEWT_VAL_BLE_STORE_MAX_CCCDS (8)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host
+#define MYNEWT_VAL_PKG_nimble_host (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_ANS_NEW_ALERT_CAT
 #define MYNEWT_VAL_BLE_SVC_ANS_NEW_ALERT_CAT (0)
 #endif
@@ -1143,6 +1259,10 @@
 #define MYNEWT_VAL_BLE_SVC_ANS_UNR_ALERT_CAT (0)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_ans
+#define MYNEWT_VAL_PKG_nimble_host_services_ans (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE
 #define MYNEWT_VAL_BLE_SVC_BAS_BATTERY_LEVEL_NOTIFY_ENABLE (1)
 #endif
@@ -1153,6 +1273,10 @@
 
 #ifndef MYNEWT_VAL_BLE_SVC_BAS_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_BAS_SYSINIT_STAGE (303)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_bas
+#define MYNEWT_VAL_PKG_nimble_host_services_bas (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SVC_DIS_DEFAULT_READ_PERM
@@ -1219,6 +1343,10 @@
 #define MYNEWT_VAL_BLE_SVC_DIS_SYSTEM_ID_READ_PERM (-1)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_dis
+#define MYNEWT_VAL_PKG_nimble_host_services_dis (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_GAP_APPEARANCE
 #define MYNEWT_VAL_BLE_SVC_GAP_APPEARANCE (0)
 #endif
@@ -1263,24 +1391,48 @@
 #define MYNEWT_VAL_BLE_SVC_GAP_SYSINIT_STAGE (301)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_gap
+#define MYNEWT_VAL_PKG_nimble_host_services_gap (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_GATT_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_GATT_SYSINIT_STAGE (302)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_gatt
+#define MYNEWT_VAL_PKG_nimble_host_services_gatt (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SVC_IAS_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_IAS_SYSINIT_STAGE (303)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_ias
+#define MYNEWT_VAL_PKG_nimble_host_services_ias (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_IPSS_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_IPSS_SYSINIT_STAGE (303)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_ipss
+#define MYNEWT_VAL_PKG_nimble_host_services_ipss (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_SVC_LLS_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_LLS_SYSINIT_STAGE (303)
 #endif
 
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_lls
+#define MYNEWT_VAL_PKG_nimble_host_services_lls (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SVC_TPS_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SVC_TPS_SYSINIT_STAGE (303)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble_host_services_tps
+#define MYNEWT_VAL_PKG_nimble_host_services_tps (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_MONITOR_CONSOLE_BUFFER_SIZE
@@ -1422,6 +1574,10 @@
 
 #undef MYNEWT_VAL_BLE_TRANSPORT_RX_TASK_STACK_SIZE
 
+#ifndef MYNEWT_VAL_PKG_nimble_transport
+#define MYNEWT_VAL_PKG_nimble_transport (1)
+#endif
+
 #ifndef MYNEWT_VAL_BLE_SOCK_CLI_SYSINIT_STAGE
 #define MYNEWT_VAL_BLE_SOCK_CLI_SYSINIT_STAGE (500)
 #endif
@@ -1465,6 +1621,22 @@
 
 #ifndef MYNEWT_VAL_BLE_SOCK_USE_TCP
 #define MYNEWT_VAL_BLE_SOCK_USE_TCP (0)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_nimble_transport_socket
+#define MYNEWT_VAL_PKG_nimble_transport_socket (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_porting_npl_mynewt
+#define MYNEWT_VAL_PKG_porting_npl_mynewt (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_porting_targets_dummy_app
+#define MYNEWT_VAL_PKG_porting_targets_dummy_app (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_porting_targets_linux
+#define MYNEWT_VAL_PKG_porting_targets_linux (1)
 #endif
 
 #ifndef MYNEWT_VAL_APP_NAME
