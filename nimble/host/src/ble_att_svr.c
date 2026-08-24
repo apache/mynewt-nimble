@@ -1641,10 +1641,9 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle, uint16_t cid,
     }
 
     /* Iterate through requested handles, reading the corresponding attribute
-     * for each.  Stop when there are no more handles to process, or the
-     * response is full.
+     * for each.  Stop when there are no more handles to process.
      */
-    while (OS_MBUF_PKTLEN(*rxom) >= 2 && OS_MBUF_PKTLEN(txom) < mtu) {
+    while (OS_MBUF_PKTLEN(*rxom) >= 2) {
         /* Ensure the full 16-bit handle is contiguous at the start of the
          * mbuf.
          */
@@ -1667,9 +1666,19 @@ ble_att_svr_build_read_mult_rsp(uint16_t conn_handle, uint16_t cid,
         }
     }
 
+    /* Concatenated values should not exceed ATT_MTU - 1 octets */
+    if (OS_MBUF_PKTLEN(txom) > mtu) {
+        os_mbuf_adj(txom, mtu - OS_MBUF_PKTLEN(txom));
+    }
+
     rc = 0;
 
 done:
+    if (rc != 0 && txom != NULL) {
+        os_mbuf_free_chain(txom);
+        txom = NULL;
+    }
+
     *out_txom = txom;
     return rc;
 }
