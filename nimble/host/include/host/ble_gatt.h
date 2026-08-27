@@ -582,6 +582,21 @@ int ble_gattc_write_no_rsp_flat(uint16_t conn_handle, uint16_t attr_handle,
                                 const void *data, uint16_t data_len);
 
 /**
+ * Initiates GATT procedure: Signed Write. This function consumes the
+ * supplied mbuf regardless of the outcome.
+ *
+ * @param conn_handle       The connection over which to execute the
+ *                              procedure.
+ * @param attr_handle       The handle of the characteristic value to write
+ *                              to.
+ * @param txom              The value to write to the characteristic.
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+int ble_gattc_signed_write(uint16_t conn_handle, uint16_t attr_handle,
+                           struct os_mbuf * txom);
+
+/**
  * Initiates GATT procedure: Write Characteristic Value.  This function
  * consumes the supplied mbuf regardless of the outcome.
  *
