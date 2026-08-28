@@ -34,6 +34,8 @@
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
 #include "btp/btp.h"
+#include "audio/ble_audio.h"
+#include "host/ble_iso.h"
 
 #include <errno.h>
 
@@ -2362,6 +2364,122 @@ subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 }
 #endif
 
+static void
+print_iso_big_desc(const struct ble_iso_big_desc *desc)
+{
+    console_printf(" big_handle=0x%02x, big_sync_delay=%" PRIu32 ","
+                   " transport_latency=%" PRIu32 ", nse=%u, bn=%u, pto=%u,"
+                   " irc=%u, max_pdu=%u, iso_interval=%u num_bis=%u",
+                   desc->big_handle, desc->big_sync_delay,
+                   desc->transport_latency_big, desc->nse, desc->bn, desc->pto,
+                   desc->irc, desc->max_pdu, desc->iso_interval, desc->num_bis);
+
+    if (desc->num_bis > 0) {
+        console_printf(" conn_handles=");
+    }
+
+    for (uint8_t i = 0; i < desc->num_bis; i++) {
+        console_printf("0x%04x,", desc->conn_handle[i]);
+    }
+}
+
+static int
+ble_iso_event_handler(struct ble_iso_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
+        console_printf("BIG Create Completed status: %u", event->big_created.status);
+
+        if (event->big_created.status == 0) {
+            print_iso_big_desc(&event->big_created.desc);
+            console_printf(" phy=0x%02x", event->big_created.phy);
+        }
+
+        console_printf("\n");
+        break;
+
+    case BLE_ISO_EVENT_BIG_SYNC_ESTABLISHED:
+        console_printf("BIG Sync Established status: %u",
+                       event->big_sync_established.status);
+
+        if (event->big_sync_established.status == 0) {
+            print_iso_big_desc(&event->big_sync_established.desc);
+        }
+
+        console_printf("\n");
+        break;
+
+    case BLE_ISO_EVENT_BIG_SYNC_TERMINATED:
+        console_printf("BIG Sync Terminated handle=0x%02x reason: %u\n",
+                       event->big_terminated.big_handle,
+                       event->big_terminated.reason);
+        break;
+
+    case BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE:
+        console_printf("BIG Sync Terminate Complete handle=0x%02x reason: %u\n",
+                       event->big_terminated.big_handle,
+                       event->big_terminated.reason);
+        break;
+
+    case BLE_ISO_EVENT_ISO_RX:
+        os_mbuf_free_chain(event->iso_rx.om);
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+static uint8_t
+create_big(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_create_big_cmd *cp = cmd;
+    struct ble_iso_create_big_params params = { 0 };
+    struct ble_iso_big_params big_params = { 0 };
+    uint8_t big_handle;
+    static uint8_t code_buf[BLE_AUDIO_BROADCAST_CODE_SIZE];
+    int rc;
+
+    if ((cmd_len < sizeof(*cp)) ||
+        (cmd_len != (sizeof(*cp) + sizeof(big_params.broadcast_code) * cp->encryption))) {
+        SYS_LOG_ERR("Invalid BTP command len");
+        return BTP_STATUS_FAILED;
+    }
+
+    if (!(cp->encryption == BTP_GAP_CREATE_BIG_ENC_DISABLE ||
+          cp->encryption == BTP_GAP_CREATE_BIG_ENC_ENABLE)) {
+        SYS_LOG_ERR("Invalid encryption %u", cp->encryption);
+        return BTP_STATUS_FAILED;
+    }
+
+    params.adv_handle = 1;
+    params.bis_cnt = cp->num_bis;
+    params.cb = ble_iso_event_handler;
+    big_params.sdu_interval = le32toh(cp->interval);
+    big_params.max_sdu = 251;
+    big_params.max_transport_latency = le16toh(cp->latency);
+    big_params.rtn = cp->rtn;
+    big_params.phy = cp->phy;
+    big_params.packing = cp->packing;
+    big_params.framing = cp->framing;
+    big_params.encryption = cp->encryption;
+    if (big_params.encryption) {
+        memcpy(code_buf, cp->broadcast_code, BLE_AUDIO_BROADCAST_CODE_SIZE);
+        big_params.broadcast_code = (const char *)code_buf;
+    } else {
+        big_params.broadcast_code = NULL;
+    }
+
+    rc = ble_iso_create_big(&params, &big_params, &big_handle);
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static const struct btp_handler handlers[] = {
     {
      .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -2538,6 +2656,11 @@ static const struct btp_handler handlers[] = {
      .func = subrate_request,
      },
 #endif
+    {
+     .opcode = GAP_CREATE_BIG,
+     .expect_len = sizeof(struct gap_create_big_cmd),
+     .func = create_big,
+     },
 };
 
 static void
