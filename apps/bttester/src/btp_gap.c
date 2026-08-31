@@ -952,6 +952,81 @@ auth_passkey_oob(uint16_t conn_handle)
     assert(rc == 0);
 }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+static void
+periodic_biginfo_cb(struct ble_gap_event *event)
+{
+    struct btp_gap_periodic_biginfo_ev ev;
+
+    ev.address = event->periodic_sync.adv_addr;
+    ev.sync_handle = htole16(event->biginfo_report.sync_handle);
+    ev.sid = event->periodic_sync.sid;
+    ev.num_bis = event->biginfo_report.bis_cnt;
+    ev.nse = event->biginfo_report.nse;
+    ev.iso_interval = htole16(event->biginfo_report.iso_interval);
+    ev.bn = event->biginfo_report.bn;
+    ev.pto = event->biginfo_report.pto;
+    ev.irc = event->biginfo_report.irc;
+    ev.max_pdu = htole16(event->biginfo_report.max_pdu);
+    ev.sdu_interval = htole32(event->biginfo_report.sdu_interval);
+    ev.max_sdu = htole16(event->biginfo_report.max_sdu);
+    ev.phy = event->biginfo_report.phy;
+    ev.framing = event->biginfo_report.framing;
+    ev.encryption = event->biginfo_report.encryption;
+
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PERIODIC_BIGINFO,
+                 (uint8_t *)&ev, sizeof(ev));
+}
+#endif
+
+static uint8_t
+big_create_sync(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    int err;
+    const struct btp_gap_big_create_sync_cmd *cp = cmd;
+    struct ble_iso_big_sync_create_params param;
+
+    if ((cmd_len < sizeof(*cp)) ||
+        (cmd_len != (sizeof(*cp) + sizeof(param.bcode) * cp->encryption))) {
+        LOG_ERR("Invalid cmd len");
+        return BTP_STATUS_FAILED;
+    }
+
+    if (!(cp->encryption == 0x00 || cp->encryption == 0x01)) {
+        LOG_ERR("Invalid encryption %u", cp->encryption);
+        return BTP_STATUS_FAILED;
+    }
+
+    param.sync_handle = 1;
+    param.encryption = cp->encryption;
+    if (big_params.encryption) {
+        memcpy(code_buf, cp->broadcast_code, BLE_AUDIO_BROADCAST_CODE_SIZE);
+        big_params.broadcast_code = (const char *)code_buf;
+    } else {
+        big_params.broadcast_code = NULL;
+    }
+    param.ms = le32toh(cp->mse);
+    param.sync_timeout = le16toh(cp->sync_timeout)
+    param.bis_bitfield = sys_le32_to_cpu(cp->bis_bitfield);
+    param.mse = sys_le32_to_cpu(cp->mse);
+    param.sync_timeout = sys_le16_to_cpu(cp->sync_timeout);
+
+
+
+    err = ble_iso_big_sync_create();
+    if (err != 0) {
+        LOG_ERR("Unable to sync to BIG (err %d)", err);
+        return BTP_STATUS_FAILED;
+    }
+
+    /* PA may be terminated so just store addr here */
+    bt_addr_le_copy(&iso_sync_receiver_addr, &pa_sync->addr);
+
+    LOG_DBG("BIG syncing");
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static void
 auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
 {
@@ -1599,6 +1674,23 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
             event->subrate_change.periph_latency, event->subrate_change.cont_num,
             event->subrate_change.supervision_tmo);
         subrate_change_received(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+    case BLE_GAP_EVENT_BIGINFO_REPORT:
+        console_printf(
+            "BIGInfo report received: "
+            "sync_handle=%d, bis_cnt=%d, nse=%d, iso_interval=%d, bn=%d, pto=%d, "
+            "irc=%d, max_pdu=%d, max_sdu=%d, sdu_interval=%" PRIu32 ", phy=%d, "
+            "framing=%d, encryption=%d\n",
+            event->biginfo_report.sync_handle, event->biginfo_report.bis_cnt,
+            event->biginfo_report.nse, event->biginfo_report.iso_interval,
+            event->biginfo_report.bn, event->biginfo_report.pto,
+            event->biginfo_report.irc, event->biginfo_report.max_pdu,
+            event->biginfo_report.max_sdu, event->biginfo_report.sdu_interval,
+            event->biginfo_report.phy, event->biginfo_report.framing,
+            event->biginfo_report.encryption);
+        periodic_biginfo_cb(event);
         break;
 #endif
     default:

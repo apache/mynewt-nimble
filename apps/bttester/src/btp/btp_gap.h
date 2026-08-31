@@ -339,6 +339,18 @@ struct gap_subrate_request_cmd {
     uint16_t supervision_timeout;
 } __packed;
 
+#define BTP_GAP_BIG_CREATE_SYNC 0x2c
+struct gap_big_create_sync_cmd {
+    ble_addr_t address;
+    uint8_t sid;
+    uint8_t num_bis;
+    uint32_t bis_bitfield;
+    uint32_t mse;
+    uint16_t sync_timeout;
+    uint8_t encryption;
+    uint8_t broadcast_code[];
+} __packed;
+
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
@@ -465,4 +477,23 @@ struct gap_subrate_change_ev {
     uint16_t periph_latency;
     uint16_t cont_num;
     uint16_t supervision_tmo;
+} __packed;
+
+#define BTP_GAP_EV_PERIODIC_BIGINFO 0x97
+struct btp_gap_periodic_biginfo_ev {
+    ble_addr_t address;
+    uint16_t sync_handle;
+    uint8_t sid;
+    uint8_t num_bis;
+    uint8_t nse;
+    uint16_t iso_interval;
+    uint8_t bn;
+    uint8_t pto;
+    uint8_t irc;
+    uint16_t max_pdu;
+    uint32_t sdu_interval;
+    uint16_t max_sdu;
+    uint8_t phy;
+    uint8_t framing;
+    uint8_t encryption;
 } __packed;
