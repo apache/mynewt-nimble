@@ -34,6 +34,8 @@
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
 #include "btp/btp.h"
+#include "audio/ble_audio.h"
+#include "host/ble_iso.h"
 
 #include <errno.h>
 
@@ -952,6 +954,33 @@ auth_passkey_oob(uint16_t conn_handle)
     assert(rc == 0);
 }
 
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+static void
+periodic_biginfo_cb(struct ble_gap_event *event)
+{
+    struct btp_gap_periodic_biginfo_ev ev;
+
+    ev.address = event->periodic_sync.adv_addr;
+    ev.sync_handle = htole16(event->biginfo_report.sync_handle);
+    ev.sid = event->periodic_sync.sid;
+    ev.num_bis = event->biginfo_report.bis_cnt;
+    ev.nse = event->biginfo_report.nse;
+    ev.iso_interval = htole16(event->biginfo_report.iso_interval);
+    ev.bn = event->biginfo_report.bn;
+    ev.pto = event->biginfo_report.pto;
+    ev.irc = event->biginfo_report.irc;
+    ev.max_pdu = htole16(event->biginfo_report.max_pdu);
+    ev.sdu_interval = htole32(event->biginfo_report.sdu_interval);
+    ev.max_sdu = htole16(event->biginfo_report.max_sdu);
+    ev.phy = event->biginfo_report.phy;
+    ev.framing = event->biginfo_report.framing;
+    ev.encryption = event->biginfo_report.encryption;
+
+    tester_event(BTP_SERVICE_ID_GAP, BTP_GAP_EV_PERIODIC_BIGINFO,
+                 (uint8_t *)&ev, sizeof(ev));
+}
+#endif
+
 static void
 auth_passkey_display(uint16_t conn_handle, unsigned int passkey)
 {
@@ -1599,6 +1628,23 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
             event->subrate_change.periph_latency, event->subrate_change.cont_num,
             event->subrate_change.supervision_tmo);
         subrate_change_received(event);
+        break;
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+    case BLE_GAP_EVENT_BIGINFO_REPORT:
+        console_printf(
+            "BIGInfo report received: "
+            "sync_handle=%d, bis_cnt=%d, nse=%d, iso_interval=%d, bn=%d, pto=%d, "
+            "irc=%d, max_pdu=%d, max_sdu=%d, sdu_interval=%" PRIu32 ", phy=%d, "
+            "framing=%d, encryption=%d\n",
+            event->biginfo_report.sync_handle, event->biginfo_report.bis_cnt,
+            event->biginfo_report.nse, event->biginfo_report.iso_interval,
+            event->biginfo_report.bn, event->biginfo_report.pto,
+            event->biginfo_report.irc, event->biginfo_report.max_pdu,
+            event->biginfo_report.max_sdu, event->biginfo_report.sdu_interval,
+            event->biginfo_report.phy, event->biginfo_report.framing,
+            event->biginfo_report.encryption);
+        periodic_biginfo_cb(event);
         break;
 #endif
     default:
@@ -2270,6 +2316,182 @@ subrate_request(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 }
 #endif
 
+static void
+print_iso_big_desc(const struct ble_iso_big_desc *desc)
+{
+    console_printf(" big_handle=0x%02x, big_sync_delay=%" PRIu32 ","
+                   " transport_latency=%" PRIu32 ", nse=%u, bn=%u, pto=%u,"
+                   " irc=%u, max_pdu=%u, iso_interval=%u num_bis=%u",
+                   desc->big_handle, desc->big_sync_delay,
+                   desc->transport_latency_big, desc->nse, desc->bn, desc->pto,
+                   desc->irc, desc->max_pdu, desc->iso_interval, desc->num_bis);
+
+    if (desc->num_bis > 0) {
+        console_printf(" conn_handles=");
+    }
+
+    for (uint8_t i = 0; i < desc->num_bis; i++) {
+        console_printf("0x%04x,", desc->conn_handle[i]);
+    }
+}
+
+static int
+ble_iso_event_handler(struct ble_iso_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
+        console_printf("BIG Create Completed status: %u", event->big_created.status);
+
+        if (event->big_created.status == 0) {
+            print_iso_big_desc(&event->big_created.desc);
+            console_printf(" phy=0x%02x", event->big_created.phy);
+        }
+
+        console_printf("\n");
+        break;
+
+    case BLE_ISO_EVENT_BIG_SYNC_ESTABLISHED:
+        console_printf("BIG Sync Established status: %u",
+                       event->big_sync_established.status);
+
+        if (event->big_sync_established.status == 0) {
+            print_iso_big_desc(&event->big_sync_established.desc);
+        }
+
+        console_printf("\n");
+        break;
+
+    case BLE_ISO_EVENT_BIG_SYNC_TERMINATED:
+        console_printf("BIG Sync Terminated handle=0x%02x reason: %u\n",
+                       event->big_terminated.big_handle,
+                       event->big_terminated.reason);
+        break;
+
+    case BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE:
+        console_printf("BIG Sync Terminate Complete handle=0x%02x reason: %u\n",
+                       event->big_terminated.big_handle,
+                       event->big_terminated.reason);
+        break;
+
+    case BLE_ISO_EVENT_ISO_RX:
+        os_mbuf_free_chain(event->iso_rx.om);
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+static uint8_t
+create_big(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct gap_create_big_cmd *cp = cmd;
+    struct ble_iso_create_big_params params = { 0 };
+    struct ble_iso_big_params big_params = { 0 };
+    uint8_t big_handle;
+    static uint8_t code_buf[BLE_AUDIO_BROADCAST_CODE_SIZE];
+    int rc;
+
+    if ((cmd_len < sizeof(*cp)) ||
+        (cmd_len != (sizeof(*cp) + sizeof(big_params.broadcast_code) * cp->encryption))) {
+        SYS_LOG_ERR("Invalid BTP command len");
+        return BTP_STATUS_FAILED;
+    }
+
+    if (!(cp->encryption == BTP_GAP_CREATE_BIG_ENC_DISABLE ||
+          cp->encryption == BTP_GAP_CREATE_BIG_ENC_ENABLE)) {
+        SYS_LOG_ERR("Invalid encryption %u", cp->encryption);
+        return BTP_STATUS_FAILED;
+    }
+
+    params.adv_handle = 1;
+    params.bis_cnt = cp->num_bis;
+    params.cb = ble_iso_event_handler;
+    big_params.sdu_interval = le32toh(cp->interval);
+    big_params.max_sdu = 251;
+    big_params.max_transport_latency = le16toh(cp->latency);
+    big_params.rtn = cp->rtn;
+    big_params.phy = cp->phy;
+    big_params.packing = cp->packing;
+    big_params.framing = cp->framing;
+    big_params.encryption = cp->encryption;
+    if (big_params.encryption) {
+        memcpy(code_buf, cp->broadcast_code, BLE_AUDIO_BROADCAST_CODE_SIZE);
+        big_params.broadcast_code = (const char *)code_buf;
+    } else {
+        big_params.broadcast_code = NULL;
+    }
+
+    rc = ble_iso_create_big(&params, &big_params, &big_handle);
+    if (rc != 0) {
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+big_create_sync(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    int rc;
+    const struct gap_big_create_sync_cmd *cp = cmd;
+    struct ble_iso_big_sync_create_params param = { 0 };
+    struct ble_iso_bis_params bis_params_arr[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
+    static uint8_t code_buf[BLE_AUDIO_BROADCAST_CODE_SIZE];
+    uint32_t bis_bitfield;
+    uint8_t big_handle;
+    uint8_t bis_cnt = 0;
+
+    if (cmd_len < sizeof(*cp)) {
+        SYS_LOG_ERR("Invalid cmd len");
+        return BTP_STATUS_FAILED;
+    }
+
+    if (!(cp->encryption == BTP_GAP_CREATE_BIG_ENC_DISABLE ||
+          cp->encryption == BTP_GAP_CREATE_BIG_ENC_ENABLE)) {
+        SYS_LOG_ERR("Invalid encryption %u", cp->encryption);
+        return BTP_STATUS_FAILED;
+    }
+
+    param.sync_handle = 1; /*TODO: sync handle*/
+    if (cp->encryption == BTP_GAP_CREATE_BIG_ENC_ENABLE) {
+        memcpy(code_buf, cp->broadcast_code, BLE_AUDIO_BROADCAST_CODE_SIZE);
+        param.broadcast_code = (const char *)code_buf;
+    } else {
+        param.broadcast_code = NULL;
+    }
+    param.mse = le32toh(cp->mse);
+    param.sync_timeout = le16toh(cp->sync_timeout);
+    param.cb = ble_iso_event_handler;
+    param.bis_cnt = cp->num_bis;
+    if (param.bis_cnt == 0 || param.bis_cnt > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
+        SYS_LOG_ERR("Invalid num_bis %u", param.bis_cnt);
+        return BTP_STATUS_FAILED;
+    }
+
+    bis_bitfield = le32toh(cp->bis_bitfield);
+    for (int i = 0; i < 31 && bis_cnt < param.bis_cnt; i++) {
+        if (bis_bitfield & (1U << i)) {
+            bis_params_arr[bis_cnt].bis_index = i + 1;
+            bis_cnt++;
+        }
+    }
+
+    param.bis_params = bis_params_arr;
+
+    rc = ble_iso_big_sync_create(&param, &big_handle);
+    if (rc != 0) {
+        SYS_LOG_ERR("Unable to sync to BIG (err %d)", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    SYS_LOG_DBG("BIG Syncing started, big_handle=%u", big_handle);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static const struct btp_handler handlers[] = {
     {
      .opcode = BTP_GAP_READ_SUPPORTED_COMMANDS,
@@ -2446,6 +2668,17 @@ static const struct btp_handler handlers[] = {
      .func = subrate_request,
      },
 #endif
+    {
+     .opcode = GAP_CREATE_BIG,
+     .expect_len = sizeof(struct gap_create_big_cmd),
+     .func = create_big,
+     },
+    {
+     .opcode = BTP_GAP_BIG_CREATE_SYNC,
+     .expect_len = sizeof(struct gap_big_create_sync_cmd),
+     .func = big_create_sync,
+     },
+
 };
 
 static void
