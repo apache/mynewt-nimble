@@ -23,6 +23,8 @@
 #define __wqueue_h__
 
 #include <pthread.h>
+#include <stdint.h>
+#include <time.h>
 #include <list>
 
 template <typename T> class wqueue
@@ -35,10 +37,15 @@ template <typename T> class wqueue
 public:
     wqueue()
     {
+        pthread_condattr_t cond_attr;
+
         pthread_mutexattr_init(&m_mutex_attr);
         pthread_mutexattr_settype(&m_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
         pthread_mutex_init(&m_mutex, &m_mutex_attr);
-        pthread_cond_init(&m_condv, NULL);
+        pthread_condattr_init(&cond_attr);
+        pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+        pthread_cond_init(&m_condv, &cond_attr);
+        pthread_condattr_destroy(&cond_attr);
     }
 
     ~wqueue() {
@@ -54,10 +61,35 @@ public:
     }
 
     T get(uint32_t tmo) {
+        struct timespec deadline;
+        int rc;
+
         pthread_mutex_lock(&m_mutex);
-        if (tmo) {
-            while (m_queue.size() == 0) {
-                pthread_cond_wait(&m_condv, &m_mutex);
+        if (tmo && tmo != UINT32_MAX && m_queue.empty()) {
+            if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+                pthread_mutex_unlock(&m_mutex);
+                return NULL;
+            }
+
+            /* Linux NPL ticks are milliseconds. Keep one absolute deadline
+             * so spurious wakeups cannot extend the requested timeout.
+             */
+            deadline.tv_sec += tmo / 1000;
+            deadline.tv_nsec += (tmo % 1000) * 1000000;
+            if (deadline.tv_nsec >= 1000000000) {
+                deadline.tv_sec++;
+                deadline.tv_nsec -= 1000000000;
+            }
+        }
+
+        while (tmo && m_queue.empty()) {
+            if (tmo == UINT32_MAX) {
+                rc = pthread_cond_wait(&m_condv, &m_mutex);
+            } else {
+                rc = pthread_cond_timedwait(&m_condv, &m_mutex, &deadline);
+            }
+            if (rc != 0) {
+                break;
             }
         }
 

@@ -73,6 +73,7 @@ all: depend                   \
      test_npl_task.exe        \
      test_npl_callout.exe     \
      test_npl_eventq.exe      \
+     test_npl_eventq_timeout.exe \
      test_npl_sem.exe         \
      $(NULL)
 
@@ -80,6 +81,9 @@ test_npl_task.exe: test_npl_task.o $(OBJS)
 	$(LD) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 test_npl_eventq.exe: test_npl_eventq.o $(OBJS)
+	$(LD) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+test_npl_eventq_timeout.exe: test_npl_eventq_timeout.o $(OBJS)
 	$(LD) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 test_npl_callout.exe: test_npl_callout.o $(OBJS)
@@ -92,6 +96,7 @@ test: all
 	./test_npl_task.exe
 	./test_npl_callout.exe
 	./test_npl_eventq.exe
+	./test_npl_eventq_timeout.exe
 	./test_npl_sem.exe
 
 show_objs:
