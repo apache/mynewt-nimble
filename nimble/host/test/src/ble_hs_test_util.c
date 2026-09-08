@@ -2006,6 +2006,9 @@ ble_hs_test_util_reg_svcs(const struct ble_gatt_svc_def *svcs,
     rc = ble_gatts_reset();
     TEST_ASSERT_FATAL(rc == 0);
 
+    rc = ble_gatts_count_cfg(svcs);
+    TEST_ASSERT_FATAL(rc == 0);
+
     rc = ble_gatts_add_svcs(svcs);
     TEST_ASSERT_FATAL(rc == 0);
 
