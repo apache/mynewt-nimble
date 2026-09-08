@@ -2375,6 +2375,15 @@ ble_gatts_reset(void)
         /* Unregister all ATT attributes. */
         ble_att_svr_reset();
         ble_gatts_num_cfgable_chrs = 0;
+
+        /* Discard services added but not yet started, along with the
+         * resource counts accumulated by ble_gatts_count_cfg(); the next
+         * count/add/start sequence sizes the pools from scratch.
+         */
+        ble_gatts_free_svc_defs();
+        ble_hs_max_services = 0;
+        ble_hs_max_attrs = 0;
+        ble_hs_max_client_configs = 0;
         rc = 0;
 
         /* Note: gatts memory gets freed on next call to ble_gatts_start(). */

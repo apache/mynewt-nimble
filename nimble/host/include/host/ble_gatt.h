@@ -1140,8 +1140,11 @@ void ble_gatts_show_local(void);
 
 /**
  * Resets the GATT server to its initial state.  On success, this function
- * removes all supported services, characteristics, and descriptors.  This
- * function requires that:
+ * removes all supported services, characteristics, and descriptors,
+ * discards services added with ble_gatts_add_svcs() but not yet started, and
+ * clears the resource counts collected by ble_gatts_count_cfg().  Services
+ * must be counted and added again before the next call to ble_gatts_start().
+ * This function requires that:
  *     o No peers are connected, and
  *     o No GAP operations are active (advertise, discover, or connect).
  *
