@@ -2913,6 +2913,10 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, struct ble_mbuf_hdr *rxhdr)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CSA2)
             ble_ll_hci_ev_le_csa(connsm);
 #endif
+#if MYNEWT_VAL(BLE_LL_HCI_VS_CONN_STRICT_SCHED)
+            ble_ll_hci_ev_send_vs_css_slot_changed(connsm->conn_handle,
+                                                   connsm->css_slot_idx);
+#endif
 
             /*
              * Initiate features exchange
