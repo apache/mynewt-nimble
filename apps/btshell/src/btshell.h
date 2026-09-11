@@ -97,6 +97,23 @@ struct btshell_scan_opts {
 extern struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
 extern int btshell_num_conns;
 
+/* BLE_GATT_READ_MAX_ATTRS * (1 ATT + 1 EATT chan) */
+#define PENDING_ATTR_MAX MYNEWT_VAL(BLE_GATT_READ_MAX_ATTRS) * 2
+
+struct auth_attr {
+    uint16_t conn_handle;
+    uint16_t attr_handle;
+};
+
+extern struct auth_attr authorized_attrs[PENDING_ATTR_MAX];
+
+struct pend_attr {
+    uint16_t attr_handle;
+    uint16_t cid;
+};
+
+extern struct pend_attr pending_attr;
+
 int btshell_exchange_mtu(uint16_t conn_handle);
 int btshell_disc_svcs(uint16_t conn_handle);
 int btshell_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid);
