@@ -99,6 +99,9 @@ syscfg.defs:
     BROADCASTER_BROADCAST_NAME:
         description: Broadcast name
         value: '"test_broadcast"'
+    BTTESTER_DB_IDX:
+        description: Index of PTS GATT database to register in gatt_svr_init()
+        value: 0
 
 syscfg.vals:
     CONSOLE_IMPLEMENTATION: full
