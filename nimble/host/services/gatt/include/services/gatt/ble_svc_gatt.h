@@ -32,6 +32,11 @@ struct ble_hs_cfg;
 #define BLE_SVC_GATT_CHR_SERVER_SUPPORTED_FEAT_UUID16   0x2b3a
 #define BLE_SVC_GATT_CHR_CLIENT_SUPPORTED_FEAT_UUID16   0x2b29
 
+/* Client Supported Features masks */
+#define BLE_GATT_CLI_SUP_FEAT_ROBUST_CACHING_MASK 0x01
+#define BLE_GATT_CLI_SUP_FEAT_EATT_MASK           0x02
+#define BLE_GATT_CLI_SUP_FEAT_MULT_NTF_MASK       0x04
+
 uint8_t ble_svc_gatt_get_local_cl_supported_feat(void);
 void ble_svc_gatt_changed(uint16_t start_handle, uint16_t end_handle);
 void ble_svc_gatt_init(void);
