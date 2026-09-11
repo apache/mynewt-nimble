@@ -3568,6 +3568,25 @@ static const struct shell_cmd_help gatt_clear_pending_notif_help = {
     .usage = NULL,
     .params = NULL,
 };
+
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+/*****************************************************************************
+ * $gatt-eatt-connect                                                        *
+ *****************************************************************************/
+
+static const struct shell_param gatt_eatt_connect_params[] = {
+    {"conn",     "connection handle, usage: =<UINT16>"            },
+    {"chan_num", "number of channels to connect, usage =<UINT16>" },
+    {NULL,        NULL                                            }
+};
+
+static const struct shell_cmd_help gatt_eatt_connect_help = {
+    .summary = "Connect EATT channels",
+    .usage = NULL,
+    .params = gatt_eatt_connect_params,
+};
+#endif
+
 #endif
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
@@ -4645,6 +4664,15 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &gatt_clear_pending_notif_help,
 #endif
     },
+#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+    {
+        .sc_cmd = "gatt-eatt-connect",
+        .sc_cmd_func = cmd_gatt_eatt_connect,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &gatt_eatt_connect_help,
+#endif
+    },
+#endif
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     {
         .sc_cmd = "l2cap-update",
