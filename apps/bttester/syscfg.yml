@@ -25,6 +25,12 @@ syscfg.defs:
     BTTESTER_LEAUDIO:
         description: 'Enable NimBLE LE Audio support in bttester app'
         value: 0
+    BTTESTER_MESH:
+        description: 'Enable NimBLE Mesh support in bttester app'
+        value: 0
+    BTTESTER_CHANNEL_SOUNDING:
+        description: 'Enable NimBLE Channel Sounding support in bttester app'
+        value: 0
     BTTESTER_UART_BAUD:
         description: 'Console UART baud rate.'
         value: '115200'
@@ -145,7 +151,7 @@ syscfg.vals.BTTESTER_LEAUDIO:
 syscfg.vals.!BTTESTER_NODEFAULT:
     BLE_VERSION: 54
 
-    BTTESTER_LEAUDIO: 1
+#    BTTESTER_LEAUDIO: 1
     BLE_L2CAP_COC_MAX_NUM: 5
     BLE_L2CAP_SIG_MAX_PROCS: 2
     BLE_L2CAP_ENHANCED_COC: 1
@@ -167,6 +173,7 @@ syscfg.vals.!BTTESTER_NODEFAULT:
     BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM: 0
     BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH: 6
 
+syscfg.vals.BTTESTER_MESH:
     BLE_MESH: 1
     BLE_MESH_SHELL: 0
     BLE_MESH_PROV: 1
@@ -192,3 +199,14 @@ syscfg.vals.!BTTESTER_NODEFAULT:
     BLE_MESH_TX_SEG_MSG_COUNT: 2
     BLE_MAX_CONNECTIONS: 3
     BLE_CONN_SUBRATING: 1
+
+syscfg.vals.BTTESTER_CHANNEL_SOUNDING:
+    BLE_EXT_ADV: 1
+#    BLE_PHY_2M: 1
+    BLE_EXT_ADV_MAX_SIZE: 40
+    BLE_PHY_2M: 1
+    BLE_PERIODIC_ADV: 1
+    BLE_MULTI_ADV_INSTANCES: 2
+    BLE_MAX_CONNECTIONS: 2
+    BLE_SVC_RAS_SERVER: 1
+#    BLE_CONN_SUBRATING: 1
