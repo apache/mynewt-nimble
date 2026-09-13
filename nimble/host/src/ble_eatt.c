@@ -105,6 +105,12 @@ ble_eatt_find_by_conn_handle(uint16_t conn_handle)
     return NULL;
 }
 
+bool
+ble_eatt_has_chan(uint16_t conn_handle)
+{
+    return ble_eatt_find_by_conn_handle(conn_handle) != NULL;
+}
+
 static struct ble_eatt *
 ble_eatt_find_by_conn_handle_and_busy_op(uint16_t conn_handle, uint8_t op)
 {

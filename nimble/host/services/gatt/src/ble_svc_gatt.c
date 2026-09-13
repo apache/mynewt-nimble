@@ -51,6 +51,12 @@ static int
 ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+static int
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg);
+#endif
+
 static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
     {
         /*** Service: GATT */
@@ -73,6 +79,13 @@ static const struct ble_gatt_svc_def ble_svc_gatt_defs[] = {
                 .access_cb = ble_svc_gatt_cl_sup_feat_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
             },
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+            {
+                .uuid = BLE_UUID16_DECLARE(BLE_SVC_GATT_CHR_DATABASE_HASH_UUID16),
+                .access_cb = ble_svc_gatt_db_hash_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+#endif
             {
                 0, /* No more characteristics in this service. */
             }
@@ -121,6 +134,34 @@ ble_svc_gatt_cl_sup_feat_access(uint16_t conn_handle, uint16_t attr_handle,
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+static int
+ble_svc_gatt_db_hash_access(uint16_t conn_handle, uint16_t attr_handle,
+                            struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    uint8_t db_hash[16];
+    int rc;
+
+    if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    rc = ble_gatts_calculate_hash(db_hash);
+    if (rc != 0) {
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    rc = os_mbuf_append(ctxt->om, db_hash, sizeof(db_hash));
+    if (rc != 0) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
+    ble_gatts_caching_hash_read(conn_handle);
+
+    return 0;
+}
+#endif
 
 static int
 ble_svc_gatt_access(uint16_t conn_handle, uint16_t attr_handle,

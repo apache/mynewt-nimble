@@ -95,7 +95,15 @@ extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
  */
 #define BLE_GATT_CHR_CLI_SUP_FEAT_MASK  7
 
+/* Robust Caching bit in the first Client Supported Features octet. */
+#define BLE_GATT_CHR_CLI_SUP_FEAT_ROBUST_CACHING    0x01
+
 typedef uint8_t ble_gatts_conn_flags;
+
+/* GATT caching state flags (Vol 3, Part G, 2.5.2.1 Robust Caching). */
+#define BLE_GATTS_CONN_F_CHANGE_AWARE       0x01
+#define BLE_GATTS_CONN_F_DB_HASH_READ       0x02
+#define BLE_GATTS_CONN_F_OUT_OF_SYNC_SENT   0x04
 
 struct ble_gatts_conn {
     struct ble_gatts_clt_cfg *clt_cfgs;
@@ -110,7 +118,30 @@ struct ble_gatts_conn {
      * (Vol. 3, Part G, 7.2)
      */
     uint8_t peer_cl_sup_feat[BLE_GATT_CHR_CLI_SUP_FEAT_SZ];
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    /** GATT caching state; BLE_GATTS_CONN_F_[...] flags. */
+    uint8_t chg_aware_flags;
+#endif
 };
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+/* Results of ble_gatts_caching_rx_gate(). */
+#define BLE_GATTS_CACHING_GATE_PASS     0
+#define BLE_GATTS_CACHING_GATE_ERROR    1
+#define BLE_GATTS_CACHING_GATE_DROP     2
+
+int ble_gatts_caching_rx_gate(uint16_t conn_handle, uint16_t cid, uint8_t op,
+                              struct os_mbuf *om);
+void ble_gatts_caching_hash_read(uint16_t conn_handle);
+void ble_gatts_caching_cl_sup_feat_updated(uint16_t conn_handle);
+void ble_gatts_caching_indicate_ack(uint16_t conn_handle,
+                                    uint16_t chr_val_handle);
+void ble_gatts_caching_bonding_established(uint16_t conn_handle);
+void ble_gatts_caching_bonding_restored(uint16_t conn_handle);
+void ble_gatts_caching_start(void);
+void ble_gatts_caching_db_changed(void);
+#endif
 
 /*** @client. */
 
