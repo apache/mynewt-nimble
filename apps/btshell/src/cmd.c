@@ -2267,6 +2267,7 @@ static const struct parse_arg_kv_pair cmd_keystore_entry_type[] = {
     { "msec",       BLE_STORE_OBJ_TYPE_PEER_SEC },
     { "ssec",       BLE_STORE_OBJ_TYPE_OUR_SEC },
     { "cccd",       BLE_STORE_OBJ_TYPE_CCCD },
+    { "csf",        BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT },
     { NULL }
 };
 
@@ -2388,6 +2389,9 @@ cmd_keystore_add(int argc, char **argv)
         case BLE_STORE_OBJ_TYPE_CCCD:
             rc = ble_store_write_cccd(&value.cccd);
             break;
+        case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+            rc = ble_store_write_peer_cl_sup_feat(&value.feat);
+            break;
         default:
             rc = ble_store_write(obj_type, &value);
     }
@@ -2396,7 +2400,7 @@ cmd_keystore_add(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_add_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
+    {"type", "entry type, usage: =<msec|ssec|cccd|csf>"},
     {"addr_type", "usage: =<public|random>"},
     {"addr", "usage: =<XX:XX:XX:XX:XX:XX>"},
     {"ediv", "usage: =<UINT16>"},
@@ -2441,7 +2445,7 @@ cmd_keystore_del(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_del_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
+    {"type", "entry type, usage: =<msec|ssec|cccd|csf>"},
     {"addr_type", "usage: =<public|random>"},
     {"addr", "usage: =<XX:XX:XX:XX:XX:XX>"},
     {"ediv", "usage: =<UINT16>"},
@@ -2504,6 +2508,14 @@ cmd_keystore_iterator(int obj_type,
             console_printf("    flags:           0x%02x\n", val->cccd.flags);
             console_printf("    changed:         %d\n", val->cccd.value_changed);
             break;
+        case BLE_STORE_OBJ_TYPE_PEER_CL_SUP_FEAT:
+
+            console_printf("Key: ");
+            console_printf("addr_type=%u ", val->feat.peer_addr.type);
+            print_addr(val->feat.peer_addr.val);
+            console_printf("\n");
+            console_printf("Enabled features: 0x%02x\n", val->feat.peer_cl_sup_feat[0]);
+            break;
     }
     return 0;
 }
@@ -2531,7 +2543,7 @@ cmd_keystore_show(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_show_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
+    {"type", "entry type, usage: =<msec|ssec|cccd|csf>"},
     {NULL, NULL}
 };
 
