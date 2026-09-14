@@ -339,6 +339,23 @@ struct gap_subrate_request_cmd {
     uint16_t supervision_timeout;
 } __packed;
 
+#define BTP_GAP_CREATE_BIG_ENC_DISABLE 0x00
+#define BTP_GAP_CREATE_BIG_ENC_ENABLE  0x01
+
+#define GAP_CREATE_BIG                 0x2d
+struct gap_create_big_cmd {
+    uint8_t id;
+    uint8_t num_bis;
+    uint32_t interval;
+    uint16_t latency;
+    uint8_t rtn;
+    uint8_t phy;
+    uint8_t packing;
+    uint8_t framing;
+    uint8_t encryption;
+    uint8_t broadcast_code[];
+} __packed;
+
 /* events */
 #define BTP_GAP_EV_NEW_SETTINGS        0x80
 struct btp_gap_new_settings_ev {
