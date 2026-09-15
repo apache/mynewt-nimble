@@ -289,15 +289,16 @@ hci_h4_sm_rx(struct hci_h4_sm *h4sm, const uint8_t *buf, uint16_t len)
         /* no break */
         case HCI_H4_SM_W4_HEADER:
             rc = hci_h4_sm_w4_header(h4sm, &ib);
-            assert(rc >= 0);
             if (rc) {
+                /* rc == 1: need more data; rc < 0: alloc failed, propagate
+                 * to caller so it can back off and retry instead of crashing.
+                 */
                 break;
             }
             h4sm->state = HCI_H4_SM_W4_PAYLOAD;
         /* no break */
         case HCI_H4_SM_W4_PAYLOAD:
             rc = hci_h4_sm_w4_payload(h4sm, &ib);
-            assert(rc >= 0);
             if (rc) {
                 break;
             }
