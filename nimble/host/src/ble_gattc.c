@@ -3855,6 +3855,23 @@ ble_gattc_write_long_tx(struct ble_gattc_proc *proc)
                         proc->write_long.attr.offset);
 
     if (write_len <= 0) {
+        if (proc->write_long.attr.offset == 0 &&
+            OS_MBUF_PKTLEN(proc->write_long.attr.om) == 0) {
+
+            proc->write_long.length = 0;
+            om = ble_hs_mbuf_att_pkt();
+            if (om == NULL) {
+                rc = BLE_HS_ENOMEM;
+                goto done;
+            }
+
+            rc = ble_att_clt_tx_prep_write(proc->conn_handle, proc->cid,
+                                           proc->write_long.attr.handle,
+                                           proc->write_long.attr.offset, om);
+            om = NULL;
+            goto done;
+        }
+
         rc = ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
                                        BLE_ATT_EXEC_WRITE_F_EXECUTE);
         goto done;
@@ -3955,6 +3972,26 @@ ble_gattc_write_long_rx_prep(struct ble_gattc_proc *proc,
     /* Verify the response. */
     if (proc->write_long.attr.offset >=
         OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
+
+        if (proc->write_long.attr.offset == 0 &&
+            OS_MBUF_PKTLEN(proc->write_long.attr.om) == 0 &&
+            proc->write_long.length == 0) {
+
+            if (handle != proc->write_long.attr.handle ||
+                offset != proc->write_long.attr.offset) {
+
+                rc = BLE_HS_EBADDATA;
+                goto err;
+            }
+
+            rc = ble_att_clt_tx_exec_write(proc->conn_handle, proc->cid,
+                                           BLE_ATT_EXEC_WRITE_F_EXECUTE);
+            if (rc != 0) {
+                goto err;
+            }
+
+            return 0;
+        }
 
         /* Expecting a prepare write response, not an execute write
          * response.
