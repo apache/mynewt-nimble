@@ -4097,6 +4097,13 @@ ble_gattc_write_long(uint16_t conn_handle, uint16_t attr_handle,
     /* The mbuf is consumed by the procedure. */
     txom = NULL;
 
+    if (proc->write_long.attr.offset >
+        OS_MBUF_PKTLEN(proc->write_long.attr.om)) {
+
+        rc = BLE_HS_EINVAL;
+        goto done;
+    }
+
     ble_gattc_log_write_long(proc);
 
     rc = ble_gattc_write_long_tx(proc);

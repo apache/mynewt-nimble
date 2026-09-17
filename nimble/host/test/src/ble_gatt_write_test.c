@@ -460,6 +460,23 @@ TEST_CASE_SELF(ble_gatt_write_test_long_empty)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_gatt_write_test_long_invalid_initial_offset)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    ble_gatt_write_test_init();
+    ble_hs_test_util_create_conn(2, ((uint8_t[]) {2,3,4,5,6,7,8,9}),
+                                 NULL, NULL);
+
+    om = ble_hs_test_util_om_from_flat(ble_gatt_write_test_attr_value, 1);
+    rc = ble_gattc_write_long(2, 100, 2, om, NULL, NULL);
+    TEST_ASSERT(rc == BLE_HS_EINVAL);
+    TEST_ASSERT(!ble_gattc_any_jobs());
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_gatt_write_test_long_bad_handle)
 {
     /*** 1 prep write req/rsp. */
@@ -851,6 +868,7 @@ TEST_SUITE(ble_gatt_write_test_suite)
     ble_gatt_write_test_rsp();
     ble_gatt_write_test_long_good();
     ble_gatt_write_test_long_empty();
+    ble_gatt_write_test_long_invalid_initial_offset();
     ble_gatt_write_test_long_bad_handle();
     ble_gatt_write_test_long_bad_offset();
     ble_gatt_write_test_long_bad_value();
