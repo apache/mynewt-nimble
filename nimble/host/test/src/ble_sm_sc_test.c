@@ -2296,9 +2296,9 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5)
  * Responder address type: 0
  * Initiator key distribution: 7
  * Responder key distribution: 5
- * Peer responds with same public key
+ * Peer responds with the same public key X coordinate
  */
-TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk) {
+TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk_x) {
     struct ble_sm_test_params params;
 
     params = (struct ble_sm_test_params) {
@@ -2352,7 +2352,7 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk) {
                 0x5a, 0xe8, 0xe7, 0xdd, 0x13, 0x90, 0xeb, 0xd4,
             },
             .y = {
-                0x41, 0xc8, 0x51, 0x1a, 0x25, 0x44, 0x01, 0x53,
+                0x40, 0xc8, 0x51, 0x1a, 0x25, 0x44, 0x01, 0x53,
                 0x42, 0x74, 0x07, 0x9c, 0x18, 0xe6, 0x3b, 0x8a,
                 0xce, 0x7a, 0x37, 0x1f, 0x18, 0x5c, 0x02, 0x7c,
                 0x67, 0x16, 0xf5, 0x30, 0x2b, 0x31, 0xa9, 0xc7,
@@ -5523,6 +5523,7 @@ TEST_SUITE(ble_sm_sc_test_suite)
     /* Us as initiator. */
     ble_sm_sc_us_jw_iio3_rio4_b1_iat0_rat0_ik7_rk5();
     ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5();
+    ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk_x();
     ble_sm_sc_us_pk_iio0_rio4_b1_iat0_rat0_ik7_rk5();
     ble_sm_sc_us_nc_iio1_rio4_b1_iat0_rat0_ik7_rk5();
 
