@@ -2478,7 +2478,13 @@ ble_sm_test_util_us_sc_bad_once_no_init(struct ble_sm_test_params *params,
     /* Receive a wrong public key from the peer. */
     ble_sm_test_util_rx_public_key_bad(2, peer_entity->public_key);
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
-    TEST_ASSERT(ble_sm_num_procs() == 1);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+
+    /* Pairing failed and the application was told so. */
+    ble_sm_test_util_verify_tx_pair_fail(&(struct ble_sm_pair_fail){
+        .reason = BLE_SM_ERR_AUTHREQ,
+    });
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ));
 }
 
 static void
