@@ -90,6 +90,13 @@ struct ble_store_value_sec {
     /** Peer address for which the security material is stored. */
     ble_addr_t peer_addr;
 
+    /**
+     * Optional recency counter for LRU bond eviction. Maintained by the store
+     * implementation if ble_store_util_status_lru is used. A lower value means
+     * the peer was used less recently.
+     */
+    uint16_t bond_count;
+
     /** Encryption key size. */
     uint8_t key_size;
     /** Encrypted Diversifier used for encryption key generation. */
@@ -743,6 +750,28 @@ int ble_store_util_count(int type, int *out_count);
  *                              Non-zero on error.
  */
 int ble_store_util_status_rr(struct ble_store_status_event *event, void *arg);
+
+/**
+ * @brief LRU status callback for handling store status events.
+ *
+ * This function handles store status events when there is insufficient storage
+ * capacity for new records. It resolves overflow by deleting the
+ * least-recently-used bond and proceeds with the persist operation.
+ *
+ * Recency is determined from ble_store_value_sec.bond_count when the store
+ * implementation maintains it. Prefer this over ble_store_util_status_rr when
+ * recently used bonds should be retained.
+ *
+ * Register from the application with:
+ *     ble_hs_cfg.store_status_cb = ble_store_util_status_lru;
+ *
+ * @param event                 A pointer to the store status event.
+ * @param arg                   A pointer to additional user-defined arguments.
+ *
+ * @return                      0 on success;
+ *                              Non-zero on error.
+ */
+int ble_store_util_status_lru(struct ble_store_status_event *event, void *arg);
 
 /** @} */
 
