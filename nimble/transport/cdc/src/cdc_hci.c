@@ -178,6 +178,7 @@ cdc_hci_get_usb_in_packet(void)
 {
     struct usb_in_packet *packet = (struct usb_in_packet *)os_memblock_get(&usb_in_packet_pool);
     if (packet) {
+        memset(packet, 0, sizeof(*packet));
         packet->data = NULL;
     }
     return packet;
