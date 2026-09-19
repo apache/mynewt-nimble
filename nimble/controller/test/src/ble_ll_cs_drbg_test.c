@@ -21,6 +21,7 @@
 #include <controller/ble_ll_utils.h>
 #include <testutil/testutil.h>
 #include "ble_ll_cs_drbg_priv.h"
+#include "ble_ll_cs_priv.h"
 
 static void
 ble_ll_cs_drbg_e_test(void)
@@ -334,19 +335,97 @@ ble_ll_cs_drbg_rand_marker_selection_test(void)
 
     /* Step 9 */
     assert(ble_ll_cs_drbg_rand_marker_selection(&ctx, 0x09, &marker_selection) == 0);
-    assert(marker_selection == 0x00);
+    assert(marker_selection == 0);
 
     assert(ble_ll_cs_drbg_rand_marker_selection(&ctx, 0x09, &marker_selection) == 0);
-    assert(marker_selection == 0x80);
+    assert(marker_selection == 1);
 
     memset(ctx.t_cache, 0, sizeof(ctx.t_cache));
 
     /* Step 14 */
     assert(ble_ll_cs_drbg_rand_marker_selection(&ctx, 14, &marker_selection) == 0);
-    assert(marker_selection == 0x80);
+    assert(marker_selection == 1);
 
     assert(ble_ll_cs_drbg_rand_marker_selection(&ctx, 14, &marker_selection) == 0);
-    assert(marker_selection == 0x80);
+    assert(marker_selection == 1);
+}
+
+static void
+ble_ll_cs_drbg_csa3c(void)
+{
+    uint8_t channels_out[BLE_LL_CS_CSA3C_CHAN_COUNT_MAX] = { 0 };
+    uint8_t expected_channels[BLE_LL_CS_CSA3C_CHAN_COUNT_MAX] = { 0 };
+    uint8_t bit_map[10];
+    struct ble_ll_cs_drbg_ctx ctx;
+    uint16_t step_count;
+    uint8_t shape_selection;
+    uint8_t channel_jump;
+    uint8_t num_repetitions;
+    uint8_t csa3c_iter;
+    uint8_t start_jitter;
+
+    swap_buf(bit_map,
+             (uint8_t[10]){0x1F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC, 0x7F, 0xFF, 0xFC },
+             10);
+
+    /* Test for X shape */
+    shape_selection = BLE_LL_CS_CH3C_SHAPE_X;
+    channel_jump = 2;
+    num_repetitions = 1;
+    step_count = 0;
+    csa3c_iter = 0;
+    start_jitter = 0;
+
+    cs_drbg_init(&ctx);
+
+    memcpy(expected_channels,
+       (uint8_t[113]){64, 26, 9, 70, 68, 7, 74, 13, 70, 32,
+                     38, 76, 66, 15, 22, 14, 28, 72, 44, 29,
+                     5, 45, 3, 57, 11, 33, 48, 62, 75, 52,
+                     35, 21, 31, 7, 60, 17, 46, 18, 29, 27,
+                     36, 15, 41, 60, 54, 33, 65, 76, 42, 19,
+                     50, 58, 56, 11, 44, 48, 55, 32, 34, 12,
+                     71, 49, 45, 4, 30, 57, 28, 26, 40, 41,
+                     39, 8, 43, 51, 53, 69, 36, 22, 9, 17,
+                     38, 47, 37, 6, 16, 18, 10, 63, 4, 14,
+                     8, 20, 65, 2, 46, 37, 61, 27, 40, 69,
+                     75, 73, 12, 59, 52, 20, 47, 10, 42, 71,
+                     6, 67, 39},
+       113);
+
+    assert(ble_ll_cs_csa3c(&ctx, channels_out, bit_map, &start_jitter, &csa3c_iter, step_count,
+                           shape_selection, channel_jump, num_repetitions) == 0);
+
+    assert(memcmp(channels_out, expected_channels, 113) == 0);
+
+    /* Test for HAT shape */
+    shape_selection = BLE_LL_CS_CH3C_SHAPE_HAT;
+    channel_jump = 2;
+    num_repetitions = 1;
+    step_count = 0;
+    csa3c_iter = 0;
+    start_jitter = 0;
+    cs_drbg_init(&ctx);
+
+    memcpy(expected_channels,
+           (uint8_t[118]){46, 33, 48, 52, 21, 58, 9, 31, 17, 37,
+                          15, 7, 65, 35, 49, 5, 19, 13, 11, 3,
+                          64, 29, 15, 42, 27, 53, 68, 61, 32, 55,
+                          41, 19, 37, 10, 75, 67, 76, 39, 71, 12,
+                          53, 43, 59, 26, 16, 21, 49, 51, 73, 8,
+                          57, 45, 38, 63, 69, 61, 47, 65, 42, 39,
+                          18, 13, 50, 74, 60, 56, 40, 36, 6, 9,
+                          56, 70, 46, 2, 48, 44, 52, 64, 72, 68,
+                          62, 38, 58, 66, 4, 54, 33, 59, 72, 18,
+                          51, 31, 14, 40, 4, 62, 2, 10, 20, 43,
+                          6, 16, 7, 66, 30, 22, 32, 60, 27, 11,
+                          57, 26, 28, 12, 8, 34, 47, 67},
+           118);
+
+    assert(ble_ll_cs_csa3c(&ctx, channels_out, bit_map, &start_jitter, &csa3c_iter, step_count,
+                           shape_selection, channel_jump, num_repetitions) == 0);
+
+    assert(memcmp(channels_out, expected_channels, 118) == 0);
 }
 
 TEST_SUITE(ble_ll_cs_drbg_test_suite)
@@ -360,4 +439,5 @@ TEST_SUITE(ble_ll_cs_drbg_test_suite)
     ble_ll_cs_drbg_generate_aa_test();
     ble_ll_cs_drbg_rand_marker_position_test();
     ble_ll_cs_drbg_rand_marker_selection_test();
+    ble_ll_cs_drbg_csa3c();
 }
