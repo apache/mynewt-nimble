@@ -141,6 +141,7 @@ struct ble_ll_iso_big {
     uint8_t ctrl_rx : 1;
     uint8_t control_active : 3;
     uint16_t control_instant;
+    uint16_t control_pdu_us;
 
     uint8_t chan_map_new_pending : 1;
     uint8_t chan_map_new[BLE_LL_CHAN_MAP_LEN];
