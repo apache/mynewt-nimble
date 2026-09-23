@@ -156,6 +156,7 @@ struct ble_ll_iso_big {
     uint8_t cssn : 4;
     uint8_t control_active : 3;
     uint16_t control_instant;
+    uint16_t control_pdu_us;
 
     uint8_t chan_map_new_pending : 1;
     uint8_t chan_map_new[BLE_LL_CHAN_MAP_LEN];
@@ -194,13 +195,8 @@ big_sched_set(struct ble_ll_iso_big *big)
     }
 
     big->sch.end_time = big->sch.start_time +
-                        ble_ll_tmr_u2t_up(big->sync_delay) + 1;
+                        ble_ll_tmr_u2t_up(big->sync_delay + big->control_pdu_us) + 1;
     big->sch.start_time -= g_ble_ll_sched_offset_ticks;
-
-    if (big->control_active) {
-        /* XXX calculate proper time */
-        big->sch.end_time += 10;
-    }
 }
 
 static void
@@ -536,6 +532,7 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
             }
 
             big->control_active = 0;
+            big->control_pdu_us = 0;
             big->cstf = 0;
         }
 
@@ -543,11 +540,17 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
             if (big->term_pending) {
                 big->term_pending = 0;
                 big->control_active = BIG_CONTROL_ACTIVE_TERM;
+                big->control_pdu_us = ble_ll_pdu_us(
+                    4 + (big->encrypted ? 4 : 0),
+                    ble_ll_phy_to_phy_mode(big->phy, BLE_HCI_LE_PHY_CODED_S8_PREF));
             } else if (big->chan_map_new_pending) {
                 memcpy(big->chan_map_new, g_ble_ll_data.chan_map,
                        BLE_LL_CHAN_MAP_LEN);
                 big->chan_map_new_pending = 0;
                 big->control_active = BIG_CONTROL_ACTIVE_CHAN_MAP;
+                big->control_pdu_us = ble_ll_pdu_us(
+                    8 + (big->encrypted ? 4 : 0),
+                    ble_ll_phy_to_phy_mode(big->phy, BLE_HCI_LE_PHY_CODED_S8_PREF));
             }
 
             if (big->control_active) {
