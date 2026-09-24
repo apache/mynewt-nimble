@@ -283,6 +283,15 @@ hci_h4_sm_rx(struct hci_h4_sm *h4sm, const uint8_t *buf, uint16_t len)
         rc = 0;
         switch (h4sm->state) {
         case HCI_H4_SM_W4_PKT_TYPE:
+            if (h4sm->packet_cb) {
+                /* perhaps the chipset / transport driver wants to inspect
+                 * start-of-packet and consume it on its own?  */
+                uint16_t consumed = h4sm->packet_cb(ib.buf, ib.len);
+                if (consumed) {
+                    hci_h4_ib_consume(&ib, consumed);
+                    continue;
+                }
+            }
             hci_h4_frame_start(h4sm, ib.buf[0]);
             hci_h4_ib_consume(&ib, 1);
             h4sm->state = HCI_H4_SM_W4_HEADER;
@@ -336,4 +345,10 @@ hci_h4_sm_init(struct hci_h4_sm *h4sm, const struct hci_h4_allocators *allocs,
     memset(h4sm, 0, sizeof(*h4sm));
     h4sm->allocs = allocs;
     h4sm->frame_cb = frame_cb;
+}
+
+void
+hci_h4_sm_set_packet_cb(struct hci_h4_sm *h4sm, hci_h4_packet_cb *packet_cb)
+{
+    h4sm->packet_cb = packet_cb;
 }
