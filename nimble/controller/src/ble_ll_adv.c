@@ -1108,6 +1108,7 @@ ble_ll_adv_preempted(struct ble_ll_adv_sm *advsm)
 void
 ble_ll_adv_periodic_rmvd_from_sched(struct ble_ll_adv_sm *advsm)
 {
+    STATS_INC(ble_ll_stats, periodic_adv_preempted);
     ble_ll_event_add(&advsm->adv_periodic_txdone_ev);
 }
 #endif
