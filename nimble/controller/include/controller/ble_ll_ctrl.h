@@ -44,6 +44,7 @@ extern "C" {
 #define BLE_LL_CTRL_PROC_SUBRATE_REQ    (12)
 #define BLE_LL_CTRL_PROC_SUBRATE_UPDATE (13)
 #define BLE_LL_CTRL_PROC_NUM            (14)
+#define BLE_LL_CTRL_PROC_POWER_CTRL_REQ (15)
 #define BLE_LL_CTRL_PROC_IDLE           (255)
 
 /* Checks if a particular control procedure is running */
@@ -338,6 +339,9 @@ void ble_ll_hci_ev_send_vs_assert(const char *file, uint32_t line);
 void ble_ll_hci_ev_send_vs_printf(uint8_t id, const char *fmt, ...);
 void ble_ll_hci_ev_send_vs_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
                                       void *pdu, size_t length);
+void ble_ll_hci_ev_transmit_power_report(struct ble_ll_conn_sm *connsm, uint8_t status,
+                                         uint8_t reason, uint8_t phy_mode, int8_t tx_power,
+                                         uint8_t tx_power_flags, int8_t delta);
 
 uint8_t ble_ll_ctrl_phy_tx_transition_get(uint8_t phy_mask);
 uint8_t ble_ll_ctrl_phy_from_phy_mask(uint8_t phy_mask);

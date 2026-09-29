@@ -1130,6 +1130,10 @@ struct ble_hci_le_set_transmit_power_report_enable_cp {
     uint8_t local_enable;
     uint8_t remote_enable;
 } __attribute__((packed));
+struct ble_hci_le_set_transmit_power_report_enable_rp {
+    uint16_t conn_handle;
+} __attribute__((packed));
+
 
 #define BLE_HCI_OCF_LE_SET_DEFAULT_SUBRATE               (0x007D)
 struct ble_hci_le_set_default_subrate_cp {
