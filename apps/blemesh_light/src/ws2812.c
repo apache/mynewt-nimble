@@ -102,11 +102,11 @@ pwm_handler_func(nrfx_pwm_evt_type_t event_type)
 int
 ws2812_init(void)
 {
-    nrfx_err_t err;
+    int err;
 
     err = nrfx_pwm_init(&pwm, &pwm_config, pwm_handler_func);
 
-    return err != NRFX_SUCCESS;
+    return err != 0;
 }
 
 int
