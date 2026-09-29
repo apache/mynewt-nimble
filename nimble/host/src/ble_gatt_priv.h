@@ -98,7 +98,7 @@ extern STATS_SECT_DECL(ble_gatts_stats) ble_gatts_stats;
 typedef uint8_t ble_gatts_conn_flags;
 
 struct ble_gatts_conn {
-    struct ble_gatts_clt_cfg *clt_cfgs;
+    struct ble_gatts_clt_cfg_list clt_cfgs;
     int num_clt_cfgs;
 
     uint16_t indicate_val_handle;
