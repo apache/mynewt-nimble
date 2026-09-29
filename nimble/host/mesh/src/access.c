@@ -944,7 +944,6 @@ static int mod_set_pub(struct bt_mesh_model *mod, char *val)
 		mod->pub->ttl = 0;
 		mod->pub->period = 0;
 		mod->pub->retransmit = 0;
-		mod->pub->period_div = pub.period_div;
 		mod->pub->count = 0;
 
 		BT_DBG("Cleared publication for model");

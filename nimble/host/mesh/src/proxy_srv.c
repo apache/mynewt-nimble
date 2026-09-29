@@ -826,6 +826,10 @@ static void gatt_connected(uint16_t conn_handle)
 	struct ble_hs_conn *conn;
 
 	conn = ble_hs_conn_find(conn_handle);
+	if (conn == NULL) {
+		BT_ERR("Connection not found");
+		return;
+	}
 	bt_conn_get_info(conn, &info);
 	if (info.role != BLE_GAP_ROLE_SLAVE ||
 	    !service_registered) {
@@ -850,11 +854,19 @@ static void gatt_connected(uint16_t conn_handle)
 	}
 }
 
-static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
+static void gatt_disconnected(struct ble_gap_conn_desc conn_desc, uint8_t reason)
 {
 	struct bt_mesh_proxy_client *client;
+    struct ble_gap_conn_desc info;
+    struct ble_hs_conn *conn;
 
-	if (conn.role != BLE_GAP_ROLE_SLAVE) {
+    conn = ble_hs_conn_find(conn_desc.conn_handle);
+	if (conn == NULL) {
+		BT_ERR("Connection not found");
+		return;
+	}
+	bt_conn_get_info(conn, &info);
+	if (info.role != BLE_GAP_ROLE_SLAVE) {
 		return;
 	}
 
@@ -864,7 +876,7 @@ static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
 	}
 
 	conn_count--;
-	client = find_client(conn.conn_handle);
+	client = find_client(conn_desc.conn_handle);
 	if (client->cli) {
 		bt_mesh_proxy_role_cleanup(client->cli);
 		client->cli = NULL;

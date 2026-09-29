@@ -129,18 +129,18 @@ void bt_test_print_credentials(void)
 	console_printf("IV Index: %08lx\n", (long) bt_mesh.iv_index);
 	console_printf("Dev key: %s\n", bt_hex(bt_mesh.dev_key, 16));
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i)
+	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i)
 	{
-		app_key = &bt_mesh_cdb.app_keys[i];
-		if (app_key->net_idx == BT_MESH_KEY_UNUSED) {
+		sub = bt_mesh_cdb_subnet_get(i);
+		if (!sub) {
 			continue;
 		}
-
-		sub = bt_mesh_cdb_subnet_get(i);
 
 		console_printf("Subnet: %d\n", i);
 		console_printf("\tNetKeyIdx: %04x\n",
 			       sub->net_idx);
+		console_printf("\tNetKey: %s\n",
+			       bt_hex(sub->keys[SUBNET_KEY_TX_IDX(sub)].net_key, 16));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i)
@@ -158,28 +158,25 @@ void bt_test_print_credentials(void)
 			       app_key->net_idx);
 		console_printf("\tAppKeyIdx: %04x\n",
 			       app_key->app_idx);
+		console_printf("\tAppKey: %s\n",
+			       bt_hex(app_key->keys[SUBNET_KEY_TX_IDX(sub)].app_key, 16));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i)
 	{
-		sub = bt_mesh_cdb_subnet_get(i);
-		app_key = &bt_mesh_cdb.app_keys[i];
-		if (sub[i].net_idx == BT_MESH_KEY_UNUSED) {
+		subnet = bt_mesh_subnet_get(app_key->net_idx);
+		if (!subnet) {
 			continue;
 		}
-
-		subnet = bt_mesh_subnet_get(app_key->net_idx);
 
 		console_printf("Friend cred: %d\n", i);
 		console_printf("\tNetKeyIdx: %04x\n",
 			       sub[i].net_idx);
-		if (subnet) {
-			console_printf("\tNID: %02x\n", subnet->keys->msg.nid);
-			console_printf("\tEncKey: %s\n",
-				       bt_hex(subnet->keys->msg.enc, 16));
-			console_printf("\tPrivKey: %s\n",
-				       bt_hex(subnet->keys->msg.privacy, 16));
-		}
+		console_printf("\tNID: %02x\n", subnet->keys->msg.nid);
+		console_printf("\tEncKey: %s\n",
+			       bt_hex(subnet->keys->msg.enc, 16));
+		console_printf("\tPrivKey: %s\n",
+			       bt_hex(subnet->keys->msg.privacy, 16));
 	}
 }
 
