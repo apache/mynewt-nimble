@@ -54,3 +54,6 @@ pkg.req_apis:
 
 pkg.down.BLE_HS_STOP_ON_SHUTDOWN:
     ble_hs_shutdown: 200
+
+pkg.init.'BLE_CHANNEL_SOUNDING':
+    ble_cs_init: $after:ble_transport_hs_init
