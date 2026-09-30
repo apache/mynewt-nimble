@@ -45,3 +45,6 @@ pkg.deps.BLE_AUDIO:
     - "@apache-mynewt-nimble/nimble/host/audio/services/bass"
     - "@apache-mynewt-nimble/nimble/host/audio/services/pacs"
     - "@apache-mynewt-nimble/nimble/host/audio/services/pacs/lc3"
+
+pkg.deps.BTTESTER_CHANNEL_SOUNDING:
+    - "@apache-mynewt-nimble/nimble/host/services/ras"
