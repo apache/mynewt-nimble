@@ -26,14 +26,14 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_HCI_SET_SCAN_PARAM_LEN          (7)
-#define BLE_HCI_SET_SCAN_ENABLE_LEN         (2)
-#define BLE_HCI_DISCONNECT_CMD_LEN          (3)
-#define BLE_HCI_SET_ADV_PARAM_LEN           (15)
-#define BLE_HCI_SET_ADV_ENABLE_LEN          (1)
-#define BLE_HCI_CONN_UPDATE_LEN             (14)
-#define BLE_HCI_CONN_PARAM_REPLY_LEN        (14)
-#define BLE_HCI_CONN_PARAM_NEG_REPLY_LEN    (3)
+#define BLE_HCI_SET_SCAN_PARAM_LEN       (7)
+#define BLE_HCI_SET_SCAN_ENABLE_LEN      (2)
+#define BLE_HCI_DISCONNECT_CMD_LEN       (3)
+#define BLE_HCI_SET_ADV_PARAM_LEN        (15)
+#define BLE_HCI_SET_ADV_ENABLE_LEN       (1)
+#define BLE_HCI_CONN_UPDATE_LEN          (14)
+#define BLE_HCI_CONN_PARAM_REPLY_LEN     (14)
+#define BLE_HCI_CONN_PARAM_NEG_REPLY_LEN (3)
 
 static struct ble_gap_event ble_gap_test_event;
 static int ble_gap_test_conn_status;
@@ -96,8 +96,7 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         ble_gap_test_conn_status = event->connect.status;
-        ret = ble_gap_conn_find(event->connect.conn_handle,
-                                &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->connect.conn_handle, &ble_gap_test_conn_desc);
         TEST_ASSERT_FATAL(ble_gap_test_conn_status || ret == 0);
         break;
 
@@ -108,8 +107,7 @@ ble_gap_test_util_connect_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         ble_gap_test_conn_status = event->conn_update.status;
-        ret = ble_gap_conn_find(event->conn_update.conn_handle,
-                               &ble_gap_test_conn_desc);
+        ret = ble_gap_conn_find(event->conn_update.conn_handle, &ble_gap_test_conn_desc);
         TEST_ASSERT_FATAL(ret == 0);
         break;
 
@@ -165,8 +163,7 @@ ble_gap_test_util_verify_tx_clear_wl(void)
     uint8_t param_len;
 
     ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_CLEAR_WHITE_LIST,
-                                   &param_len);
+                                   BLE_HCI_OCF_LE_CLEAR_WHITE_LIST, &param_len);
     TEST_ASSERT(param_len == 0);
 }
 
@@ -177,9 +174,8 @@ ble_gap_test_util_verify_tx_add_wl(ble_addr_t *addr)
     uint8_t *param;
     int i;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_ADD_WHITE_LIST,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_ADD_WHITE_LIST, &param_len);
     TEST_ASSERT(param_len == 7);
     TEST_ASSERT(param[0] == addr->type);
     for (i = 0; i < 6; i++) {
@@ -188,18 +184,15 @@ ble_gap_test_util_verify_tx_add_wl(ble_addr_t *addr)
 }
 
 static void
-ble_gap_test_util_verify_tx_set_scan_params(uint8_t own_addr_type,
-                                            uint8_t scan_type,
-                                            uint16_t itvl,
-                                            uint16_t scan_window,
+ble_gap_test_util_verify_tx_set_scan_params(uint8_t own_addr_type, uint8_t scan_type,
+                                            uint16_t itvl, uint16_t scan_window,
                                             uint8_t filter_policy)
 {
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_SCAN_PARAMS,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_PARAMS, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_SCAN_PARAM_LEN);
     TEST_ASSERT(param[0] == scan_type);
     TEST_ASSERT(get_le16(param + 1) == itvl);
@@ -209,15 +202,13 @@ ble_gap_test_util_verify_tx_set_scan_params(uint8_t own_addr_type,
 }
 
 static void
-ble_gap_test_util_verify_tx_scan_enable(uint8_t enable,
-                                        uint8_t filter_duplicates)
+ble_gap_test_util_verify_tx_scan_enable(uint8_t enable, uint8_t filter_duplicates)
 {
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_SCAN_ENABLE_LEN);
     TEST_ASSERT(param[0] == enable);
     TEST_ASSERT(param[1] == filter_duplicates);
@@ -229,8 +220,7 @@ ble_hs_test_util_hci_verify_tx_create_conn_cancel(void)
     uint8_t param_len;
 
     ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_CREATE_CONN_CANCEL,
-                                   &param_len);
+                                   BLE_HCI_OCF_LE_CREATE_CONN_CANCEL, &param_len);
     TEST_ASSERT(param_len == 0);
 }
 
@@ -241,8 +231,7 @@ ble_gap_test_util_verify_tx_disconnect(void)
     uint8_t *param;
 
     param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LINK_CTRL,
-                                           BLE_HCI_OCF_DISCONNECT_CMD,
-                                           &param_len);
+                                           BLE_HCI_OCF_DISCONNECT_CMD, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_DISCONNECT_CMD_LEN);
     TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(param[2] == BLE_ERR_REM_USER_CONN_TERM);
@@ -254,8 +243,7 @@ ble_gap_test_util_verify_tx_adv_params(void)
     uint8_t param_len;
 
     ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_SET_ADV_PARAMS,
-                                   &param_len);
+                                   BLE_HCI_OCF_LE_SET_ADV_PARAMS, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_ADV_PARAM_LEN);
 
     /* Note: Content of message verified in ble_hs_adv_test.c. */
@@ -266,8 +254,7 @@ ble_gap_test_util_verify_tx_adv_data(void)
 {
     uint8_t param_len;
 
-    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_SET_ADV_DATA,
+    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_DATA,
                                    &param_len);
     /* Note: Content of message verified in ble_hs_adv_test.c. */
 }
@@ -292,9 +279,8 @@ ble_gap_test_util_verify_tx_adv_enable(int enabled)
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_SET_ADV_ENABLE,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_SET_ADV_ENABLE_LEN);
     TEST_ASSERT(param[0] == !!enabled);
 }
@@ -306,8 +292,7 @@ ble_gap_test_util_verify_tx_update_conn(struct ble_gap_upd_params *params)
     uint8_t *param;
 
     param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_CONN_UPDATE,
-                                           &param_len);
+                                           BLE_HCI_OCF_LE_CONN_UPDATE, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_UPDATE_LEN);
     TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(get_le16(param + 2) == params->itvl_min);
@@ -324,20 +309,16 @@ ble_gap_test_util_verify_tx_params_reply_pos(void)
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_REM_CONN_PARAM_RR,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_REM_CONN_PARAM_RR, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_PARAM_REPLY_LEN);
     TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(get_le16(param + 2) == ble_gap_test_conn_self_params.itvl_min);
     TEST_ASSERT(get_le16(param + 4) == ble_gap_test_conn_self_params.itvl_max);
     TEST_ASSERT(get_le16(param + 6) == ble_gap_test_conn_self_params.latency);
-    TEST_ASSERT(get_le16(param + 8) ==
-                ble_gap_test_conn_self_params.supervision_timeout);
-    TEST_ASSERT(get_le16(param + 10) ==
-                ble_gap_test_conn_self_params.min_ce_len);
-    TEST_ASSERT(get_le16(param + 12) ==
-                ble_gap_test_conn_self_params.max_ce_len);
+    TEST_ASSERT(get_le16(param + 8) == ble_gap_test_conn_self_params.supervision_timeout);
+    TEST_ASSERT(get_le16(param + 10) == ble_gap_test_conn_self_params.min_ce_len);
+    TEST_ASSERT(get_le16(param + 12) == ble_gap_test_conn_self_params.max_ce_len);
 }
 
 static void
@@ -346,18 +327,16 @@ ble_gap_test_util_verify_tx_params_reply_neg(uint8_t reason)
     uint8_t param_len;
     uint8_t *param;
 
-    param = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                           BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR,
-                                           &param_len);
+    param = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR, &param_len);
     TEST_ASSERT(param_len == BLE_HCI_CONN_PARAM_NEG_REPLY_LEN);
     TEST_ASSERT(get_le16(param + 0) == 2);
     TEST_ASSERT(param[2] == reason);
 }
 
 static void
-ble_gap_test_util_rx_update_complete(
-    uint8_t status,
-    const struct ble_gap_upd_params *params)
+ble_gap_test_util_rx_update_complete(uint8_t status,
+                                     const struct ble_gap_upd_params *params)
 {
     struct ble_hci_ev_le_subev_conn_upd_complete evt;
 
@@ -373,8 +352,7 @@ ble_gap_test_util_rx_update_complete(
 
 static int
 ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params, int pos,
-                               int *cmd_idx, int cmd_fail_idx,
-                               uint8_t fail_status)
+                               int *cmd_idx, int cmd_fail_idx, uint8_t fail_status)
 {
     struct ble_hci_ev_le_subev_rem_conn_param_req evt;
     uint16_t opcode;
@@ -388,11 +366,11 @@ ble_gap_test_util_rx_param_req(struct ble_gap_upd_params *params, int pos,
     evt.timeout = params->supervision_timeout;
 
     if (pos) {
-        opcode = ble_hs_hci_util_opcode_join(
-            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_REM_CONN_PARAM_RR);
+        opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                             BLE_HCI_OCF_LE_REM_CONN_PARAM_RR);
     } else {
-        opcode = ble_hs_hci_util_opcode_join(
-            BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR);
+        opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
+                                             BLE_HCI_OCF_LE_REM_CONN_PARAM_NRR);
     }
     if (*cmd_idx == cmd_fail_idx) {
         hci_status = fail_status;
@@ -422,8 +400,7 @@ ble_gap_test_util_wl_set(ble_addr_t *addrs, int addrs_count, int cmd_fail_idx,
     ble_gap_test_util_init();
     cmd_idx = 0;
 
-    rc = ble_hs_test_util_wl_set(addrs, addrs_count, cmd_fail_idx,
-                                 fail_status);
+    rc = ble_hs_test_util_wl_set(addrs, addrs_count, cmd_fail_idx, fail_status);
     TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
 
     /* Verify tx of clear white list command. */
@@ -455,11 +432,10 @@ TEST_CASE_SELF(ble_gap_test_case_wl_bad_args)
     TEST_ASSERT(rc == 0);
 
     /*** Invalid address type. */
-    rc = ble_hs_test_util_wl_set(
-        ((ble_addr_t[]) { {
-            5, { 1, 2, 3, 4, 5, 6 }
-        }, }),
-        1, 0, 0);
+    rc = ble_hs_test_util_wl_set(((ble_addr_t[]){
+                                     { 5, { 1, 2, 3, 4, 5, 6 } },
+    }),
+                                 1, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     /*** White-list-using connection in progress. */
@@ -467,11 +443,10 @@ TEST_CASE_SELF(ble_gap_test_case_wl_bad_args)
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_hs_test_util_wl_set(
-        ((ble_addr_t[]) { {
-            BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
-        }, }),
-        1, 0, 0);
+    rc = ble_hs_test_util_wl_set(((ble_addr_t[]){
+                                     { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
+    }),
+                                 1, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -490,8 +465,7 @@ TEST_CASE_SELF(ble_gap_test_case_wl_ctlr_fail)
     int addrs_count = sizeof addrs / sizeof addrs[0];
 
     for (i = 0; i < 5; i++) {
-        ble_gap_test_util_wl_set(addrs, addrs_count, i,
-                                 BLE_ERR_UNSPECIFIED);
+        ble_gap_test_util_wl_set(addrs, addrs_count, i, BLE_ERR_UNSPECIFIED);
     }
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -551,18 +525,13 @@ ble_gap_test_util_disc(uint8_t own_addr_type,
         /* Verify tx of set scan parameters command. */
         ble_gap_test_util_verify_tx_set_scan_params(
             own_addr_type,
-            disc_params->passive ?
-                BLE_HCI_SCAN_TYPE_PASSIVE :
-                BLE_HCI_SCAN_TYPE_ACTIVE,
-            disc_params->itvl,
-            disc_params->window,
-            disc_params->filter_policy);
+            disc_params->passive ? BLE_HCI_SCAN_TYPE_PASSIVE : BLE_HCI_SCAN_TYPE_ACTIVE,
+            disc_params->itvl, disc_params->window, disc_params->filter_policy);
     }
 
     if (cmd_fail_idx > 1) {
         /* Verify tx of scan enable command. */
-        ble_gap_test_util_verify_tx_scan_enable(
-            1, disc_params->filter_duplicates);
+        ble_gap_test_util_verify_tx_scan_enable(1, disc_params->filter_duplicates);
     }
 
     if (rc == 0) {
@@ -588,8 +557,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_bad_args)
 
     /*** Invalid filter policy. */
     params.filter_policy = 6;
-    rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, &params,
-                      ble_gap_test_util_disc_cb, NULL);
+    rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, 0, &params, ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -621,33 +589,29 @@ TEST_CASE_SELF(ble_gap_test_case_disc_good)
     };
 
     flags = BLE_HS_ADV_F_DISC_LTD;
-    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags,
-                             adv_data, &desc.length_data,
-                             sizeof adv_data);
+    rc = ble_hs_adv_set_flat(BLE_HS_ADV_TYPE_FLAGS, 1, &flags, adv_data,
+                             &desc.length_data, sizeof adv_data);
     TEST_ASSERT_FATAL(rc == 0);
 
-    for (own_addr_type = 0;
-         own_addr_type <= BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
+    for (own_addr_type = 0; own_addr_type <= BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
          own_addr_type++)
-    for (passive = 0; passive <= 1; passive++)
-    for (limited = 0; limited <= 1; limited++) {
-        disc_params.passive = passive;
-        disc_params.limited = limited;
-        ble_gap_test_util_disc(own_addr_type, &disc_params, &desc, -1, 0);
+        for (passive = 0; passive <= 1; passive++)
+            for (limited = 0; limited <= 1; limited++) {
+                disc_params.passive = passive;
+                disc_params.limited = limited;
+                ble_gap_test_util_disc(own_addr_type, &disc_params, &desc, -1, 0);
 
-        TEST_ASSERT(ble_gap_master_in_progress());
-        TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC);
-        TEST_ASSERT(ble_gap_test_disc_desc.event_type ==
-                    BLE_HCI_ADV_TYPE_ADV_IND);
-        TEST_ASSERT(ble_gap_test_disc_desc.addr.type ==
-                    BLE_ADDR_PUBLIC);
-        TEST_ASSERT(ble_gap_test_disc_desc.length_data == 3);
-        TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
-        TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr.val, desc.addr.val,
-                    6) == 0);
-        TEST_ASSERT(ble_gap_test_disc_arg == NULL);
-
-    }
+                TEST_ASSERT(ble_gap_master_in_progress());
+                TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC);
+                TEST_ASSERT(ble_gap_test_disc_desc.event_type ==
+                            BLE_HCI_ADV_TYPE_ADV_IND);
+                TEST_ASSERT(ble_gap_test_disc_desc.addr.type == BLE_ADDR_PUBLIC);
+                TEST_ASSERT(ble_gap_test_disc_desc.length_data == 3);
+                TEST_ASSERT(ble_gap_test_disc_desc.rssi == 0);
+                TEST_ASSERT(memcmp(ble_gap_test_disc_desc.addr.val,
+                                   desc.addr.val, 6) == 0);
+                TEST_ASSERT(ble_gap_test_disc_arg == NULL);
+            }
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -659,24 +623,22 @@ TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .length_data = 3,
         .rssi = 0,
-        .addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
-        .data = (uint8_t[BLE_HS_ADV_MAX_SZ]){
-            2,
-            BLE_HS_ADV_TYPE_FLAGS,
-            BLE_HS_ADV_F_DISC_GEN,
-        },
+        .addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }  },
+        .data =
+            (uint8_t[BLE_HS_ADV_MAX_SZ]){
+                 2,                BLE_HS_ADV_TYPE_FLAGS,
+                 BLE_HS_ADV_F_DISC_GEN, },
     };
 
     struct ble_gap_disc_desc desc_lim = {
         .event_type = BLE_HCI_ADV_TYPE_ADV_IND,
         .length_data = 3,
         .rssi = 0,
-        .addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
-        .data = (uint8_t[BLE_HS_ADV_MAX_SZ]){
-            2,
-            BLE_HS_ADV_TYPE_FLAGS,
-            BLE_HS_ADV_F_DISC_LTD,
-        },
+        .addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }  },
+        .data =
+            (uint8_t[BLE_HS_ADV_MAX_SZ]){
+                 2,                BLE_HS_ADV_TYPE_FLAGS,
+                 BLE_HS_ADV_F_DISC_LTD, },
     };
 
     struct ble_gap_disc_params disc_params = {
@@ -688,8 +650,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
         .filter_duplicates = 0,
     };
 
-    rc = ble_gap_test_util_disc(BLE_OWN_ADDR_PUBLIC, &disc_params, &desc_gen,
-                                -1, 0);
+    rc = ble_gap_test_util_disc(BLE_OWN_ADDR_PUBLIC, &disc_params, &desc_gen, -1, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
@@ -701,8 +662,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
     TEST_ASSERT(rc == 0);
 
     disc_params.limited = 0;
-    rc = ble_gap_test_util_disc(BLE_OWN_ADDR_PUBLIC, &disc_params, &desc_lim,
-                                -1, 0);
+    rc = ble_gap_test_util_disc(BLE_OWN_ADDR_PUBLIC, &disc_params, &desc_lim, -1, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
@@ -710,7 +670,6 @@ TEST_CASE_SELF(ble_gap_test_case_disc_ltd_mismatch)
      * hears everything.
      */
     TEST_ASSERT(ble_gap_test_disc_event_type == BLE_GAP_EVENT_DISC);
-
 }
 
 TEST_CASE_SELF(ble_gap_test_case_disc_hci_fail)
@@ -774,10 +733,7 @@ ble_gap_test_util_disc_dflts_once(int limited)
         exp_window = BLE_GAP_SCAN_FAST_WINDOW;
     }
     ble_gap_test_util_verify_tx_set_scan_params(
-        BLE_OWN_ADDR_PUBLIC,
-        BLE_HCI_SCAN_TYPE_ACTIVE,
-        exp_itvl,
-        exp_window,
+        BLE_OWN_ADDR_PUBLIC, BLE_HCI_SCAN_TYPE_ACTIVE, exp_itvl, exp_window,
         BLE_HCI_SCAN_FILT_NO_WL);
 
     ble_gap_test_util_verify_tx_scan_enable(1, 0);
@@ -799,14 +755,13 @@ TEST_CASE_SELF(ble_gap_test_case_disc_already)
     ble_gap_test_util_init();
 
     /* Start a discovery procedure. */
-    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
-                               &disc_params, ble_gap_test_util_disc_cb,
-                               NULL, -1, 0);
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_gap_test_util_disc_cb, NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure host indicates BLE_HS_EALREADY if we try to discover. */
     rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
-                               ble_gap_test_util_disc_cb, NULL);
+                      ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -816,8 +771,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_busy)
 {
     static const struct ble_gap_disc_params disc_params = { 0 };
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 1, 2, 3, 4, 5, 6 }
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
     };
     int rc;
 
@@ -830,7 +784,7 @@ TEST_CASE_SELF(ble_gap_test_case_disc_busy)
 
     /* Ensure host indicates BLE_HS_EBUSY if we try to discover. */
     rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
-                               ble_gap_test_util_disc_cb, NULL);
+                      ble_gap_test_util_disc_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EBUSY);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -857,7 +811,9 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
     struct ble_gap_conn_params params;
     int rc;
 
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
 
     ble_gap_test_util_init();
 
@@ -873,8 +829,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
     params.min_ce_len = 3;
     params.max_ce_len = 4;
 
-    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
-                                  &peer_addr, 0, &params,
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, 0, &params,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
@@ -886,8 +841,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony
      * ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -902,8 +857,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_good)
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr.val, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr.val, 6) == 0);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
 
@@ -920,24 +874,27 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_bad_args)
 
     /*** Invalid address type. */
     rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC,
-                         &((ble_addr_t) { 5, { 1, 2, 3, 4, 5, 6 }}), 0, NULL,
-                         ble_gap_test_util_connect_cb, NULL);
+                         &((ble_addr_t){
+                             5, { 1, 2, 3, 4, 5, 6 }
+    }),
+                         0, NULL, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /*** Connection already in progress. */
-    rc = ble_hs_test_util_connect(
-        BLE_OWN_ADDR_PUBLIC,
-        &((ble_addr_t) { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }}),
-        0, NULL, ble_gap_test_util_connect_cb,
-        NULL, 0);
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                                  &((ble_addr_t){
+                                      BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    }),
+                                  0, NULL, ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_master_in_progress());
 
-    rc = ble_gap_connect(
-        BLE_OWN_ADDR_PUBLIC,
-        &((ble_addr_t) { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }}),
-        0, NULL, ble_gap_test_util_connect_cb, NULL);
+    rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC,
+                         &((ble_addr_t){
+                             BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    }),
+                         0, NULL, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -946,15 +903,13 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_bad_args)
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_dflt_params)
 {
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 2, 3, 8, 6, 6, 1 }
+        BLE_ADDR_PUBLIC, { 2, 3, 8, 6, 6, 1 }
     };
     int rc;
 
     ble_gap_test_util_init();
 
-    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
-                                  &peer_addr, 0, NULL,
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, 0, NULL,
                                   ble_gap_test_util_connect_cb, NULL, 0);
     TEST_ASSERT(rc == 0);
 
@@ -965,8 +920,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_already)
 {
     static const struct ble_gap_conn_params conn_params = { 0 };
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 1, 2, 3, 4, 5, 6 }
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
     };
     int rc;
 
@@ -989,21 +943,19 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_done)
 {
     static const struct ble_gap_conn_params conn_params = { 0 };
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 1, 2, 3, 4, 5, 6 }
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
     };
     int rc;
 
     ble_gap_test_util_init();
 
     /* Successfully connect to the peer. */
-    ble_hs_test_util_create_conn(2, peer_addr.val,
-                                 ble_gap_test_util_connect_cb, NULL);
+    ble_hs_test_util_create_conn(2, peer_addr.val, ble_gap_test_util_connect_cb, NULL);
 
     /* Ensure host indicates BLE_HS_EDONE if we try to connect to the same
      * peer.
      */
-    rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC,  &peer_addr, BLE_HS_FOREVER,
+    rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
                          &conn_params, ble_gap_test_util_connect_cb, NULL);
     TEST_ASSERT(rc == BLE_HS_EDONE);
 
@@ -1015,17 +967,15 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_busy)
     static const struct ble_gap_disc_params disc_params = { 0 };
     static const struct ble_gap_conn_params conn_params = { 0 };
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 1, 2, 3, 4, 5, 6 }
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
     };
     int rc;
 
     ble_gap_test_util_init();
 
     /* Start a discovery procedure. */
-    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
-                               &disc_params, ble_gap_test_util_disc_cb,
-                               NULL, -1, 0);
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_gap_test_util_disc_cb, NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure host indicates BLE_HS_EBUSY if we try to connect. */
@@ -1038,7 +988,9 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_busy)
 
 TEST_CASE_SELF(ble_gap_test_case_conn_gen_fail_evt)
 {
-    static const ble_addr_t peer_addr = {BLE_ADDR_PUBLIC, {1, 2, 3, 4, 5, 6}};
+    static const ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     struct ble_gap_conn_complete evt;
     struct ble_hci_ev_disconn_cmp disc_evt;
     int rc;
@@ -1063,8 +1015,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_gen_fail_evt)
 
     /* Ensure failed connect was reported to application. */
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
-    TEST_ASSERT(ble_gap_test_event.connect.status ==
-                BLE_HS_HCI_ERR(BLE_ERR_SUCCESS));
+    TEST_ASSERT(ble_gap_test_event.connect.status == BLE_HS_HCI_ERR(BLE_ERR_SUCCESS));
 
     memset(&disc_evt, 0, sizeof disc_evt);
     disc_evt.conn_handle = htole16(6);
@@ -1192,8 +1143,8 @@ TEST_CASE_SELF(ble_gap_test_case_conn_cancel_ctlr_fail)
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony
      * ack
      */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Allow connection complete to succeed. */
     memset(&evt, 0, sizeof evt);
@@ -1208,8 +1159,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_cancel_ctlr_fail)
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONNECT);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
 
@@ -1236,8 +1186,7 @@ ble_gap_test_util_terminate(uint8_t *peer_addr, uint8_t hci_status)
     ble_gap_test_util_init();
 
     /* Create a connection. */
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     /* Reset the callback event code; we don't care about the successful
      * connection in this test.
@@ -1281,13 +1230,10 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_good)
     ble_gap_test_util_terminate(peer_addr, 0);
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_DISCONNECT);
-    TEST_ASSERT(ble_gap_test_conn_status ==
-                BLE_HS_HCI_ERR(BLE_ERR_CONN_TERM_LOCAL));
+    TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(BLE_ERR_CONN_TERM_LOCAL));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(ble_gap_test_conn_desc.peer_id_addr.type ==
-                BLE_ADDR_PUBLIC);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(ble_gap_test_conn_desc.peer_id_addr.type == BLE_ADDR_PUBLIC);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
     TEST_ASSERT(ble_gap_test_conn_arg == NULL);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == BLE_HS_ENOTCONN);
@@ -1306,8 +1252,7 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_ctlr_fail)
     ble_gap_test_util_init();
 
     /* Create a connection. */
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     /* Terminate the connection. */
     rc = ble_hs_test_util_conn_terminate(2, 0);
@@ -1324,13 +1269,10 @@ TEST_CASE_SELF(ble_gap_test_case_conn_terminate_ctlr_fail)
     ble_gap_rx_disconn_complete(&evt);
 
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_TERM_FAILURE);
-    TEST_ASSERT(ble_gap_test_conn_status ==
-                BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
+    TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(BLE_ERR_UNSUPPORTED));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(ble_gap_test_conn_desc.peer_id_addr.type ==
-                BLE_ADDR_PUBLIC);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(ble_gap_test_conn_desc.peer_id_addr.type == BLE_ADDR_PUBLIC);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
     TEST_ASSERT(ble_gap_test_conn_arg == NULL);
 
     TEST_ASSERT(ble_hs_atomic_conn_flags(2, NULL) == 0);
@@ -1378,15 +1320,10 @@ TEST_CASE_SELF(ble_gap_test_case_conn_find)
     rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_create_rpa_conn(8,
-                                     BLE_OWN_ADDR_PUBLIC,
-                                     ((uint8_t[6]){0,0,0,0,0,0}),
-                                     BLE_ADDR_PUBLIC,
-                                     ((uint8_t[6]){2,3,4,5,6,7}),
-                                     ((uint8_t[6]){0,0,0,0,0,0}),
-                                     BLE_HS_TEST_CONN_FEAT_ALL,
-                                     ble_gap_test_util_connect_cb,
-                                     NULL);
+    ble_hs_test_util_create_rpa_conn(
+        8, BLE_OWN_ADDR_PUBLIC, ((uint8_t[6]){ 0, 0, 0, 0, 0, 0 }), BLE_ADDR_PUBLIC,
+        ((uint8_t[6]){ 2, 3, 4, 5, 6, 7 }), ((uint8_t[6]){ 0, 0, 0, 0, 0, 0 }),
+        BLE_HS_TEST_CONN_FEAT_ALL, ble_gap_test_util_connect_cb, NULL);
 
     rc = ble_gap_conn_find(8, &desc);
     TEST_ASSERT_FATAL(rc == 0);
@@ -1398,13 +1335,12 @@ TEST_CASE_SELF(ble_gap_test_case_conn_find)
     TEST_ASSERT(memcmp(desc.our_ota_addr.val, pub_addr, 6) == 0);
     TEST_ASSERT(memcmp(desc.our_id_addr.val, pub_addr, 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_ota_addr.val,
-                       ((uint8_t[6]){2,3,4,5,6,7}), 6) == 0);
+                       ((uint8_t[6]){ 2, 3, 4, 5, 6, 7 }), 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_id_addr.val,
-                       ((uint8_t[6]){2,3,4,5,6,7}), 6) == 0);
+                       ((uint8_t[6]){ 2, 3, 4, 5, 6, 7 }), 6) == 0);
     TEST_ASSERT(desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
     TEST_ASSERT(desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
-    TEST_ASSERT(desc.supervision_timeout ==
-                BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
+    TEST_ASSERT(desc.supervision_timeout == BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
     TEST_ASSERT(desc.master_clock_accuracy == 0);
     TEST_ASSERT(!desc.sec_state.encrypted);
     TEST_ASSERT(!desc.sec_state.authenticated);
@@ -1426,15 +1362,11 @@ TEST_CASE_SELF(ble_gap_test_case_conn_find)
     rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, pub_addr, NULL);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_test_util_create_rpa_conn(54,
-                                     BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT,
-                                     ((uint8_t[6]){0x40,1,2,3,4,5}),
-                                     BLE_ADDR_RANDOM_ID,
-                                     ((uint8_t[6]){3,4,5,6,7,8}),
-                                     ((uint8_t[6]){0x50,1,2,3,4,5}),
-                                     BLE_HS_TEST_CONN_FEAT_ALL,
-                                     ble_gap_test_util_connect_cb,
-                                     NULL);
+    ble_hs_test_util_create_rpa_conn(
+        54, BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT,
+        ((uint8_t[6]){ 0x40, 1, 2, 3, 4, 5 }), BLE_ADDR_RANDOM_ID,
+        ((uint8_t[6]){ 3, 4, 5, 6, 7, 8 }), ((uint8_t[6]){ 0x50, 1, 2, 3, 4, 5 }),
+        BLE_HS_TEST_CONN_FEAT_ALL, ble_gap_test_util_connect_cb, NULL);
 
     rc = ble_gap_conn_find(54, &desc);
     TEST_ASSERT_FATAL(rc == 0);
@@ -1444,16 +1376,15 @@ TEST_CASE_SELF(ble_gap_test_case_conn_find)
     TEST_ASSERT(desc.peer_ota_addr.type == BLE_ADDR_RANDOM);
     TEST_ASSERT(desc.role == BLE_GAP_ROLE_MASTER);
     TEST_ASSERT(memcmp(desc.our_ota_addr.val,
-                       ((uint8_t[6]){0x40,1,2,3,4,5}), 6) == 0);
+                       ((uint8_t[6]){ 0x40, 1, 2, 3, 4, 5 }), 6) == 0);
     TEST_ASSERT(memcmp(desc.our_id_addr.val, pub_addr, 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_ota_addr.val,
-                       ((uint8_t[6]){0x50,1,2,3,4,5}), 6) == 0);
+                       ((uint8_t[6]){ 0x50, 1, 2, 3, 4, 5 }), 6) == 0);
     TEST_ASSERT(memcmp(desc.peer_id_addr.val,
-                       ((uint8_t[6]){3,4,5,6,7,8}), 6) == 0);
+                       ((uint8_t[6]){ 3, 4, 5, 6, 7, 8 }), 6) == 0);
     TEST_ASSERT(desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
     TEST_ASSERT(desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
-    TEST_ASSERT(desc.supervision_timeout ==
-                BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
+    TEST_ASSERT(desc.supervision_timeout == BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
     TEST_ASSERT(desc.master_clock_accuracy == 0);
     TEST_ASSERT(!desc.sec_state.encrypted);
     TEST_ASSERT(!desc.sec_state.authenticated);
@@ -1482,9 +1413,8 @@ TEST_SUITE(ble_gap_test_suite_conn_find)
  *****************************************************************************/
 
 static void
-ble_gap_test_util_adv(uint8_t own_addr_type,
-                      const ble_addr_t *peer_addr, uint8_t conn_mode,
-                      uint8_t disc_mode, int connect_status,
+ble_gap_test_util_adv(uint8_t own_addr_type, const ble_addr_t *peer_addr,
+                      uint8_t conn_mode, uint8_t disc_mode, int connect_status,
                       int cmd_fail_idx, uint8_t fail_status)
 {
     struct ble_gap_conn_complete evt;
@@ -1508,8 +1438,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
     adv_fields.tx_pwr_lvl_is_present = 1;
     adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
-    rc = ble_hs_test_util_adv_set_fields(&adv_fields, cmd_fail_idx,
-                                         fail_status);
+    rc = ble_hs_test_util_adv_set_fields(&adv_fields, cmd_fail_idx, fail_status);
     if (cmd_fail_idx < 2) {
         hci_status = fail_status;
     } else {
@@ -1523,10 +1452,9 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
     }
 
     if (fail_status == 0 || cmd_fail_idx >= cmd_idx) {
-        rc = ble_hs_test_util_adv_start(own_addr_type,
-                                        peer_addr, &adv_params, BLE_HS_FOREVER,
-                                        ble_gap_test_util_connect_cb, NULL,
-                                        cmd_fail_idx - cmd_idx, fail_status);
+        rc = ble_hs_test_util_adv_start(own_addr_type, peer_addr, &adv_params,
+                                        BLE_HS_FOREVER, ble_gap_test_util_connect_cb,
+                                        NULL, cmd_fail_idx - cmd_idx, fail_status);
 
         TEST_ASSERT(rc == BLE_HS_HCI_ERR(fail_status));
         cmd_idx++;
@@ -1544,8 +1472,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
     }
     cmd_idx++;
 
-    if (connect_status != -1 &&
-        (fail_status == 0 || cmd_fail_idx >= cmd_idx)) {
+    if (connect_status != -1 && (fail_status == 0 || cmd_fail_idx >= cmd_idx)) {
 
         TEST_ASSERT(ble_gap_adv_active());
 
@@ -1557,8 +1484,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
                  * phony ack
                  */
                 ble_hs_test_util_hci_ack_set(
-                    ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                                BLE_HCI_OCF_LE_RD_REM_FEAT),
+                    ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT),
                     0);
             }
 
@@ -1579,8 +1505,7 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
             rc = ble_gap_rx_conn_complete(&evt, 0);
             TEST_ASSERT(rc == 0);
 
-            if (connect_status == 0 ||
-                connect_status == BLE_ERR_DIR_ADV_TMO) {
+            if (connect_status == 0 || connect_status == BLE_ERR_DIR_ADV_TMO) {
 
                 TEST_ASSERT(!ble_gap_adv_active());
             } else {
@@ -1593,8 +1518,12 @@ ble_gap_test_util_adv(uint8_t own_addr_type,
 TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
 {
     struct ble_gap_adv_params adv_params;
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
-    ble_addr_t peer_addr_inv = { 12, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
+    ble_addr_t peer_addr_inv = {
+        12, { 1, 2, 3, 4, 5, 6 }
+    };
     int rc;
 
     ble_gap_test_util_init();
@@ -1604,8 +1533,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
     /*** Invalid discoverable mode. */
     adv_params = ble_hs_test_util_adv_params;
     adv_params.disc_mode = 43;
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &peer_addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_addr,
+                                    &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
@@ -1613,8 +1542,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
     /*** Invalid connectable mode. */
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = 27;
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &peer_addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_addr,
+                                    &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
@@ -1622,23 +1551,22 @@ TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
     /*** Invalid peer address type with directed advertisable mode. */
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
-    rc = ble_hs_test_util_adv_start(
-        BLE_OWN_ADDR_PUBLIC,
-        &peer_addr_inv, &adv_params, BLE_HS_FOREVER,
-        ble_gap_test_util_connect_cb, NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_addr_inv,
+                                    &adv_params, BLE_HS_FOREVER,
+                                    ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EINVAL);
     TEST_ASSERT(!ble_gap_adv_active());
 
     /*** Advertising already in progress. */
     adv_params = ble_hs_test_util_adv_params;
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &peer_addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_addr,
+                                    &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(ble_gap_adv_active());
 
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &peer_addr, &adv_params, BLE_HS_FOREVER,
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_addr,
+                                    &adv_params, BLE_HS_FOREVER,
                                     ble_gap_test_util_connect_cb, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EALREADY);
     TEST_ASSERT(ble_gap_adv_active());
@@ -1649,8 +1577,7 @@ TEST_CASE_SELF(ble_gap_test_case_adv_bad_args)
 static void
 ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
                                          const ble_addr_t *peer_addr,
-                                         uint8_t conn_mode,
-                                         uint8_t disc_mode)
+                                         uint8_t conn_mode, uint8_t disc_mode)
 {
     struct ble_hci_le_set_adv_params_cp hci_cmd;
     struct ble_gap_adv_params adv_params;
@@ -1679,9 +1606,8 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Ensure default parameters properly filled in. */
-    hci_buf = ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                             BLE_HCI_OCF_LE_SET_ADV_PARAMS,
-                                             &hci_param_len);
+    hci_buf = ble_hs_test_util_hci_verify_tx(
+        BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_PARAMS, &hci_param_len);
     TEST_ASSERT_FATAL(hci_buf != NULL);
     TEST_ASSERT_FATAL(hci_param_len == BLE_HCI_SET_ADV_PARAM_LEN);
 
@@ -1717,15 +1643,17 @@ ble_gap_test_util_adv_verify_dflt_params(uint8_t own_addr_type,
 
 TEST_CASE_SELF(ble_gap_test_case_adv_dflt_params)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
 
     int d;
     int c;
 
     for (c = BLE_GAP_CONN_MODE_NON; c < BLE_GAP_CONN_MODE_MAX; c++) {
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
-            ble_gap_test_util_adv_verify_dflt_params(
-                BLE_OWN_ADDR_PUBLIC, &peer_addr, c, d);
+            ble_gap_test_util_adv_verify_dflt_params(BLE_OWN_ADDR_PUBLIC,
+                                                     &peer_addr, c, d);
         }
     }
 
@@ -1734,14 +1662,16 @@ TEST_CASE_SELF(ble_gap_test_case_adv_dflt_params)
 
 TEST_CASE_SELF(ble_gap_test_case_adv_good)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int d;
     int c;
 
     for (c = BLE_GAP_CONN_MODE_NON; c < BLE_GAP_CONN_MODE_MAX; c++) {
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
-            ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC,
-                                  &peer_addr, c, d, BLE_ERR_SUCCESS, -1, 0);
+            ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC, &peer_addr, c, d,
+                                  BLE_ERR_SUCCESS, -1, 0);
 
             if (c != BLE_GAP_CONN_MODE_NON) {
                 TEST_ASSERT(!ble_gap_adv_active());
@@ -1760,20 +1690,20 @@ TEST_CASE_SELF(ble_gap_test_case_adv_good)
 
 TEST_CASE_SELF(ble_gap_test_case_adv_ctlr_fail)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int d;
     int c;
 
     for (c = BLE_GAP_CONN_MODE_NON + 1; c < BLE_GAP_CONN_MODE_MAX; c++) {
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
-            ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC,
-                                  &peer_addr, c, d, BLE_ERR_DIR_ADV_TMO,
-                                  -1, 0);
+            ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC, &peer_addr, c, d,
+                                  BLE_ERR_DIR_ADV_TMO, -1, 0);
 
             TEST_ASSERT(!ble_gap_adv_active());
             TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_ADV_COMPLETE);
-            TEST_ASSERT(ble_gap_test_conn_desc.conn_handle ==
-                        BLE_HS_CONN_HANDLE_NONE);
+            TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == BLE_HS_CONN_HANDLE_NONE);
             TEST_ASSERT(ble_gap_test_conn_arg == NULL);
         }
     }
@@ -1783,7 +1713,9 @@ TEST_CASE_SELF(ble_gap_test_case_adv_ctlr_fail)
 
 TEST_CASE_SELF(ble_gap_test_case_adv_hci_fail)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int fail_idx;
     int d;
     int c;
@@ -1791,9 +1723,8 @@ TEST_CASE_SELF(ble_gap_test_case_adv_hci_fail)
     for (c = BLE_GAP_CONN_MODE_NON; c < BLE_GAP_CONN_MODE_MAX; c++) {
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
             for (fail_idx = 0; fail_idx < 4; fail_idx++) {
-                ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC,
-                                      &peer_addr,
-                                      c, d, 0, fail_idx, BLE_ERR_UNSUPPORTED);
+                ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC, &peer_addr, c, d, 0,
+                                      fail_idx, BLE_ERR_UNSUPPORTED);
 
                 TEST_ASSERT(!ble_gap_adv_active());
                 TEST_ASSERT(ble_gap_test_event.type == 0xff);
@@ -1818,9 +1749,8 @@ TEST_SUITE(ble_gap_test_suite_adv)
  *****************************************************************************/
 
 static void
-ble_gap_test_util_stop_adv(const ble_addr_t *peer_addr,
-                           uint8_t conn_mode, uint8_t disc_mode,
-                           int cmd_fail_idx, uint8_t fail_status)
+ble_gap_test_util_stop_adv(const ble_addr_t *peer_addr, uint8_t conn_mode,
+                           uint8_t disc_mode, int cmd_fail_idx, uint8_t fail_status)
 {
     uint8_t hci_status;
     int rc;
@@ -1828,8 +1758,8 @@ ble_gap_test_util_stop_adv(const ble_addr_t *peer_addr,
     ble_gap_test_util_init();
 
     /* Start advertising; don't rx a successful connection event. */
-    ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC, peer_addr,
-                          conn_mode, disc_mode, -1, -1, 0);
+    ble_gap_test_util_adv(BLE_OWN_ADDR_PUBLIC, peer_addr, conn_mode, disc_mode,
+                          -1, -1, 0);
 
     TEST_ASSERT(ble_gap_adv_active());
 
@@ -1845,7 +1775,9 @@ ble_gap_test_util_stop_adv(const ble_addr_t *peer_addr,
 
 TEST_CASE_SELF(ble_gap_test_case_stop_adv_good)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int d;
     int c;
 
@@ -1865,14 +1797,15 @@ TEST_CASE_SELF(ble_gap_test_case_stop_adv_good)
 
 TEST_CASE_SELF(ble_gap_test_case_stop_adv_hci_fail)
 {
-    ble_addr_t peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t peer_addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int d;
     int c;
 
     for (c = BLE_GAP_CONN_MODE_NON; c < BLE_GAP_CONN_MODE_MAX; c++) {
         for (d = BLE_GAP_DISC_MODE_NON; d < BLE_GAP_DISC_MODE_MAX; d++) {
-            ble_gap_test_util_stop_adv(&peer_addr, c, d,
-                                       0, BLE_ERR_UNSUPPORTED);
+            ble_gap_test_util_stop_adv(&peer_addr, c, d, 0, BLE_ERR_UNSUPPORTED);
             TEST_ASSERT(ble_gap_adv_active());
             TEST_ASSERT(ble_gap_test_event.type == 0xff);
             TEST_ASSERT(ble_gap_test_conn_status == -1);
@@ -1896,7 +1829,7 @@ TEST_SUITE(ble_gap_test_suite_stop_adv)
 
 static void
 ble_gap_test_util_update_verify_params(struct ble_gap_upd_params *params,
-                                      uint8_t ble_hs_err)
+                                       uint8_t ble_hs_err)
 {
     int rc;
 
@@ -1904,16 +1837,14 @@ ble_gap_test_util_update_verify_params(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     rc = ble_hs_test_util_conn_update(2, params, 0);
     TEST_ASSERT(rc == ble_hs_err);
 }
 
 static void
-ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
-                                  int master,
+ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params, int master,
                                   uint8_t hci_status, int event_status)
 {
     struct ble_hs_conn *conn;
@@ -1923,8 +1854,7 @@ ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     if (!master) {
         ble_hs_lock();
@@ -1973,8 +1903,7 @@ ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
             TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
                                peer_addr, 6) == 0);
             TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == params->itvl_max);
-            TEST_ASSERT(ble_gap_test_conn_desc.conn_latency ==
-                        params->latency);
+            TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == params->latency);
             TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
                         params->supervision_timeout);
         }
@@ -1987,8 +1916,7 @@ ble_gap_test_util_update_no_l2cap(struct ble_gap_upd_params *params,
 }
 
 static void
-ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
-                               uint16_t l2cap_result)
+ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params, uint16_t l2cap_result)
 {
     struct ble_l2cap_sig_update_params l2cap_params;
     struct ble_hs_conn *conn;
@@ -1999,8 +1927,7 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn_feat(2, peer_addr,
-                                      BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
+    ble_hs_test_util_create_conn_feat(2, peer_addr, BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
                                       ble_gap_test_util_connect_cb, NULL);
 
     ble_hs_lock();
@@ -2046,14 +1973,12 @@ ble_gap_test_util_update_l2cap(struct ble_gap_upd_params *params,
     }
 
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
 }
 
 static void
-ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
-                                   uint8_t hci_status, uint8_t event_status,
-                                   int rx_l2cap)
+ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params, uint8_t hci_status,
+                                   uint8_t event_status, int rx_l2cap)
 {
     struct ble_l2cap_sig_update_params l2cap_params;
     struct ble_hs_conn *conn;
@@ -2064,8 +1989,7 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn_feat(2, peer_addr,
-                                      BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
+    ble_hs_test_util_create_conn_feat(2, peer_addr, BLE_HS_TEST_CONN_FEAT_NO_CONN_PARAM,
                                       ble_gap_test_util_connect_cb, NULL);
 
     ble_hs_lock();
@@ -2092,8 +2016,7 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
         id = ble_hs_test_util_verify_tx_l2cap_update_req(&l2cap_params);
 
         /* Receive l2cap connection parameter update response. */
-        ble_hs_test_util_rx_l2cap_update_rsp(
-            2, id, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
+        ble_hs_test_util_rx_l2cap_update_rsp(2, id, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
 
         TEST_ASSERT(!ble_gap_dbg_update_active(2));
     } else {
@@ -2115,24 +2038,23 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
     os_time_advance(1 * OS_TICKS_PER_SEC);
 
     /* If L2CAP response has been received, GAP Timer is removed */
-     if (!rx_l2cap) {
+    if (!rx_l2cap) {
 
-         /* Timeout will result in a terminate HCI command being sent; schedule ack
-          * from controller.
-          */
-         ble_hs_test_util_hci_ack_set_disconnect(0);
+        /* Timeout will result in a terminate HCI command being sent; schedule
+         * ack from controller.
+         */
+        ble_hs_test_util_hci_ack_set_disconnect(0);
 
-         ble_gap_timer();
-         ble_l2cap_sig_timer();
+        ble_gap_timer();
+        ble_l2cap_sig_timer();
 
-         /* Verify terminate was sent. */
-         ble_gap_test_util_verify_tx_disconnect();
+        /* Verify terminate was sent. */
+        ble_gap_test_util_verify_tx_disconnect();
 
         TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
         TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_ETIMEOUT);
         TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-        TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                           peer_addr, 6) == 0);
+        TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
     } else {
         ble_gap_timer();
         ble_l2cap_sig_timer();
@@ -2142,15 +2064,13 @@ ble_gap_test_util_update_l2cap_tmo(struct ble_gap_upd_params *params,
 }
 
 static void
-ble_gap_test_util_update_peer(uint8_t status,
-                              struct ble_gap_upd_params *params)
+ble_gap_test_util_update_peer(uint8_t status, struct ble_gap_upd_params *params)
 {
     uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
 
@@ -2162,8 +2082,7 @@ ble_gap_test_util_update_peer(uint8_t status,
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(status));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
 
     if (status == 0) {
         TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == params->itvl_max);
@@ -2188,8 +2107,7 @@ ble_gap_test_util_update_req_pos(struct ble_gap_upd_params *peer_params,
     ble_gap_test_util_init();
     cmd_idx = 0;
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
 
@@ -2219,8 +2137,7 @@ ble_gap_test_util_update_req_pos(struct ble_gap_upd_params *peer_params,
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == 0);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == self_params->itvl_max);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == self_params->latency);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
@@ -2232,12 +2149,9 @@ hci_fail:
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(hci_status));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl ==
-                BLE_GAP_INITIAL_CONN_ITVL_MAX);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency ==
-                BLE_GAP_INITIAL_CONN_LATENCY);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
                 BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
 }
@@ -2256,8 +2170,7 @@ ble_gap_test_util_update_req_neg(struct ble_gap_upd_params *peer_params,
     cmd_idx = 0;
 
     reason = BLE_ERR_UNSPECIFIED;
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 &reason);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, &reason);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_dbg_update_active(2));
@@ -2282,23 +2195,18 @@ hci_fail:
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(hci_status));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl ==
-                BLE_GAP_INITIAL_CONN_ITVL_MAX);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency ==
-                BLE_GAP_INITIAL_CONN_LATENCY);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
                 BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
 }
 
 static void
-ble_gap_test_util_update_req_concurrent(
-    struct ble_gap_upd_params *init_params,
-    struct ble_gap_upd_params *peer_params,
-    struct ble_gap_upd_params *self_params,
-    int cmd_fail_idx,
-    uint8_t fail_status)
+ble_gap_test_util_update_req_concurrent(struct ble_gap_upd_params *init_params,
+                                        struct ble_gap_upd_params *peer_params,
+                                        struct ble_gap_upd_params *self_params,
+                                        int cmd_fail_idx, uint8_t fail_status)
 {
     uint8_t hci_status;
     int cmd_idx;
@@ -2308,8 +2216,7 @@ ble_gap_test_util_update_req_concurrent(
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(!ble_gap_dbg_update_active(2));
@@ -2358,8 +2265,7 @@ ble_gap_test_util_update_req_concurrent(
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == 0);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == self_params->itvl_max);
     TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == self_params->latency);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
@@ -2371,37 +2277,36 @@ hci_fail:
     TEST_ASSERT(ble_gap_test_event.type == BLE_GAP_EVENT_CONN_UPDATE);
     TEST_ASSERT(ble_gap_test_conn_status == BLE_HS_HCI_ERR(fail_status));
     TEST_ASSERT(ble_gap_test_conn_desc.conn_handle == 2);
-    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val,
-                       peer_addr, 6) == 0);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl ==
-                BLE_GAP_INITIAL_CONN_ITVL_MAX);
-    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency ==
-                BLE_GAP_INITIAL_CONN_LATENCY);
+    TEST_ASSERT(memcmp(ble_gap_test_conn_desc.peer_id_addr.val, peer_addr, 6) == 0);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_itvl == BLE_GAP_INITIAL_CONN_ITVL_MAX);
+    TEST_ASSERT(ble_gap_test_conn_desc.conn_latency == BLE_GAP_INITIAL_CONN_LATENCY);
     TEST_ASSERT(ble_gap_test_conn_desc.supervision_timeout ==
                 BLE_GAP_INITIAL_SUPERVISION_TIMEOUT);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_good)
 {
-    ble_gap_test_util_update_no_l2cap(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        1, 0, 0);
+    ble_gap_test_util_update_no_l2cap(((struct ble_gap_upd_params[]){
+                                          {
+                                           .itvl_min = 10,
+                                           .itvl_max = 100,
+                                           .supervision_timeout = 200,
+                                           .min_ce_len = 123,
+                                           .max_ce_len = 456,
+                                           }
+    }),
+                                      1, 0, 0);
 
-    ble_gap_test_util_update_no_l2cap(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        1, 0, 0);
+    ble_gap_test_util_update_no_l2cap(((struct ble_gap_upd_params[]){
+                                          {
+                                           .itvl_min = 100,
+                                           .itvl_max = 100,
+                                           .supervision_timeout = 200,
+                                           .min_ce_len = 554,
+                                           .max_ce_len = 554,
+                                           }
+    }),
+                                      1, 0, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -2409,98 +2314,106 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_good)
 TEST_CASE_SELF(ble_gap_test_case_update_conn_verify_params)
 {
     /* GOOD */
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        0);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 100,
+                                                .itvl_max = 100,
+                                                .supervision_timeout = 200,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           0);
 
     /* BAD */
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 1,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        BLE_HS_EINVAL);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 1,
+                                                .itvl_max = 100,
+                                                .supervision_timeout = 200,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           BLE_HS_EINVAL);
 
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 0x0C80 + 1,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        BLE_HS_EINVAL);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 0x0C80 + 1,
+                                                .itvl_max = 100,
+                                                .supervision_timeout = 200,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           BLE_HS_EINVAL);
 
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 50,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        BLE_HS_EINVAL);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 100,
+                                                .itvl_max = 50,
+                                                .supervision_timeout = 200,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           BLE_HS_EINVAL);
 
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .latency = 0x01F4,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        BLE_HS_EINVAL);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 100,
+                                                .itvl_max = 100,
+                                                .supervision_timeout = 200,
+                                                .latency = 0x01F4,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           BLE_HS_EINVAL);
 
-    ble_gap_test_util_update_verify_params(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 600,
-            .supervision_timeout = 300,
-            .latency = 1,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        BLE_HS_EINVAL);
+    ble_gap_test_util_update_verify_params(((struct ble_gap_upd_params[]){
+                                               {
+                                                .itvl_min = 100,
+                                                .itvl_max = 600,
+                                                .supervision_timeout = 300,
+                                                .latency = 1,
+                                                .min_ce_len = 554,
+                                                .max_ce_len = 554,
+                                                }
+    }),
+                                           BLE_HS_EINVAL);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_bad)
 {
-    ble_gap_test_util_update_no_l2cap(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        1, 0, BLE_ERR_LMP_COLLISION);
+    ble_gap_test_util_update_no_l2cap(((struct ble_gap_upd_params[]){
+                                          {
+                                           .itvl_min = 10,
+                                           .itvl_max = 100,
+                                           .supervision_timeout = 200,
+                                           .min_ce_len = 123,
+                                           .max_ce_len = 456,
+                                           }
+    }),
+                                      1, 0, BLE_ERR_LMP_COLLISION);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_conn_hci_fail)
 {
-    ble_gap_test_util_update_no_l2cap(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        1, BLE_ERR_UNSUPPORTED, 0);
+    ble_gap_test_util_update_no_l2cap(((struct ble_gap_upd_params[]){
+                                          {
+                                           .itvl_min = 10,
+                                           .itvl_max = 100,
+                                           .supervision_timeout = 200,
+                                           .min_ce_len = 123,
+                                           .max_ce_len = 456,
+                                           }
+    }),
+                                      1, BLE_ERR_UNSUPPORTED, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -2516,227 +2429,236 @@ TEST_CASE_SELF(ble_gap_test_case_update_conn_l2cap)
     };
 
     /* Accepted L2CAP. */
-    ble_gap_test_util_update_l2cap(&params,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
+    ble_gap_test_util_update_l2cap(&params, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_ACCEPT);
 
     /* Rejected L2CAP. */
-    ble_gap_test_util_update_l2cap(&params,
-                                   BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
+    ble_gap_test_util_update_l2cap(&params, BLE_L2CAP_SIG_UPDATE_RSP_RESULT_REJECT);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_peer_good)
 {
-    ble_gap_test_util_update_peer(0,
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 0,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}));
+    ble_gap_test_util_update_peer(0, ((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 10,
+                                          .itvl_max = 100,
+                                          .supervision_timeout = 0,
+                                          .min_ce_len = 123,
+                                          .max_ce_len = 456,
+                                          }
+    }));
 
-    ble_gap_test_util_update_peer(0,
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 100,
-            .supervision_timeout = 100,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}));
+    ble_gap_test_util_update_peer(0, ((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 100,
+                                          .itvl_max = 100,
+                                          .supervision_timeout = 100,
+                                          .min_ce_len = 554,
+                                          .max_ce_len = 554,
+                                          }
+    }));
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_good)
 {
-    ble_gap_test_util_update_req_pos(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_pos(((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 50,
+                                          .itvl_max = 500,
+                                          .supervision_timeout = 800,
+                                          .min_ce_len = 555,
+                                          .max_ce_len = 888,
+                                          }
+    }),
+                                     ((struct ble_gap_upd_params[]){ {
+                                         .itvl_min = 10,
+                                         .itvl_max = 100,
+                                         .supervision_timeout = 200,
+                                         .min_ce_len = 123,
+                                         .max_ce_len = 456,
+                                     } }),
+                                     -1, 0);
 
-    ble_gap_test_util_update_req_pos(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 100,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 554,
-            .max_ce_len = 554,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_pos(((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 50,
+                                          .itvl_max = 500,
+                                          .supervision_timeout = 800,
+                                          .min_ce_len = 555,
+                                          .max_ce_len = 888,
+                                          }
+    }),
+                                     ((struct ble_gap_upd_params[]){ {
+                                         .itvl_min = 100,
+                                         .itvl_max = 100,
+                                         .supervision_timeout = 200,
+                                         .min_ce_len = 554,
+                                         .max_ce_len = 554,
+                                     } }),
+                                     -1, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_hci_fail)
 {
-    ble_gap_test_util_update_req_pos(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        0, BLE_ERR_UNSUPPORTED);
+    ble_gap_test_util_update_req_pos(((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 50,
+                                          .itvl_max = 500,
+                                          .supervision_timeout = 800,
+                                          .min_ce_len = 555,
+                                          .max_ce_len = 888,
+                                          }
+    }),
+                                     ((struct ble_gap_upd_params[]){ {
+                                         .itvl_min = 10,
+                                         .itvl_max = 100,
+                                         .supervision_timeout = 200,
+                                         .min_ce_len = 123,
+                                         .max_ce_len = 456,
+                                     } }),
+                                     0, BLE_ERR_UNSUPPORTED);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_req_reject)
 {
-    ble_gap_test_util_update_req_neg(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_neg(((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 50,
+                                          .itvl_max = 500,
+                                          .supervision_timeout = 800,
+                                          .min_ce_len = 555,
+                                          .max_ce_len = 888,
+                                          }
+    }),
+                                     -1, 0);
 
-    ble_gap_test_util_update_req_neg(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_neg(((struct ble_gap_upd_params[]){
+                                         {
+                                          .itvl_min = 50,
+                                          .itvl_max = 500,
+                                          .supervision_timeout = 800,
+                                          .min_ce_len = 555,
+                                          .max_ce_len = 888,
+                                          }
+    }),
+                                     -1, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_concurrent_good)
 {
-    ble_gap_test_util_update_req_concurrent(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_concurrent(((struct ble_gap_upd_params[]){
+                                                {
+                                                 .itvl_min = 10,
+                                                 .itvl_max = 100,
+                                                 .supervision_timeout = 200,
+                                                 .min_ce_len = 123,
+                                                 .max_ce_len = 456,
+                                                 }
+    }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 50,
+                                                .itvl_max = 500,
+                                                .supervision_timeout = 800,
+                                                .min_ce_len = 555,
+                                                .max_ce_len = 888,
+                                            } }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 10,
+                                                .itvl_max = 100,
+                                                .supervision_timeout = 200,
+                                                .min_ce_len = 123,
+                                                .max_ce_len = 456,
+                                            } }),
+                                            -1, 0);
 
-    ble_gap_test_util_update_req_concurrent(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 20,
-            .itvl_max = 200,
-            .supervision_timeout = 350,
-            .min_ce_len = 111,
-            .max_ce_len = 222,
-        }}),
-        -1, 0);
+    ble_gap_test_util_update_req_concurrent(((struct ble_gap_upd_params[]){
+                                                {
+                                                 .itvl_min = 10,
+                                                 .itvl_max = 100,
+                                                 .supervision_timeout = 200,
+                                                 .min_ce_len = 123,
+                                                 .max_ce_len = 456,
+                                                 }
+    }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 50,
+                                                .itvl_max = 500,
+                                                .supervision_timeout = 800,
+                                                .min_ce_len = 555,
+                                                .max_ce_len = 888,
+                                            } }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 20,
+                                                .itvl_max = 200,
+                                                .supervision_timeout = 350,
+                                                .min_ce_len = 111,
+                                                .max_ce_len = 222,
+                                            } }),
+                                            -1, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
 TEST_CASE_SELF(ble_gap_test_case_update_concurrent_hci_fail)
 {
-    ble_gap_test_util_update_req_concurrent(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 20,
-            .itvl_max = 200,
-            .supervision_timeout = 350,
-            .min_ce_len = 111,
-            .max_ce_len = 222,
-        }}),
-        0, BLE_ERR_UNSUPPORTED);
+    ble_gap_test_util_update_req_concurrent(((struct ble_gap_upd_params[]){
+                                                {
+                                                 .itvl_min = 10,
+                                                 .itvl_max = 100,
+                                                 .supervision_timeout = 200,
+                                                 .min_ce_len = 123,
+                                                 .max_ce_len = 456,
+                                                 }
+    }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 50,
+                                                .itvl_max = 500,
+                                                .supervision_timeout = 800,
+                                                .min_ce_len = 555,
+                                                .max_ce_len = 888,
+                                            } }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 20,
+                                                .itvl_max = 200,
+                                                .supervision_timeout = 350,
+                                                .min_ce_len = 111,
+                                                .max_ce_len = 222,
+                                            } }),
+                                            0, BLE_ERR_UNSUPPORTED);
 
-    ble_gap_test_util_update_req_concurrent(
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 10,
-            .itvl_max = 100,
-            .supervision_timeout = 200,
-            .min_ce_len = 123,
-            .max_ce_len = 456,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 50,
-            .itvl_max = 500,
-            .supervision_timeout = 800,
-            .min_ce_len = 555,
-            .max_ce_len = 888,
-        }}),
-        ((struct ble_gap_upd_params[]) { {
-            .itvl_min = 20,
-            .itvl_max = 200,
-            .supervision_timeout = 350,
-            .min_ce_len = 111,
-            .max_ce_len = 222,
-        }}),
-        1, BLE_ERR_UNSUPPORTED);
+    ble_gap_test_util_update_req_concurrent(((struct ble_gap_upd_params[]){
+                                                {
+                                                 .itvl_min = 10,
+                                                 .itvl_max = 100,
+                                                 .supervision_timeout = 200,
+                                                 .min_ce_len = 123,
+                                                 .max_ce_len = 456,
+                                                 }
+    }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 50,
+                                                .itvl_max = 500,
+                                                .supervision_timeout = 800,
+                                                .min_ce_len = 555,
+                                                .max_ce_len = 888,
+                                            } }),
+                                            ((struct ble_gap_upd_params[]){ {
+                                                .itvl_min = 20,
+                                                .itvl_max = 200,
+                                                .supervision_timeout = 350,
+                                                .min_ce_len = 111,
+                                                .max_ce_len = 222,
+                                            } }),
+                                            1, BLE_ERR_UNSUPPORTED);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -2766,12 +2688,12 @@ ble_gap_test_util_conn_forever(void)
     int32_t ticks_from_now;
 
     /* Initiate a connect procedure with no timeout. */
-    ble_hs_test_util_connect(
-        BLE_OWN_ADDR_PUBLIC,
-        &((ble_addr_t) { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }}),
-        BLE_HS_FOREVER,
-        NULL, ble_gap_test_util_connect_cb,
-        NULL, 0);
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                             &((ble_addr_t){
+                                 BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    }),
+                             BLE_HS_FOREVER, NULL,
+                             ble_gap_test_util_connect_cb, NULL, 0);
 
     /* Ensure no pending GAP event. */
     ticks_from_now = ble_gap_timer();
@@ -2795,12 +2717,12 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
     TEST_ASSERT_FATAL(duration_ms != BLE_HS_FOREVER);
 
     /* Initiate a connect procedure with the specified timeout. */
-    ble_hs_test_util_connect(
-        BLE_OWN_ADDR_PUBLIC,
-        &((ble_addr_t) { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }}),
-        duration_ms,
-        NULL, ble_gap_test_util_connect_cb,
-        NULL, 0);
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
+                             &((ble_addr_t){
+                                 BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    }),
+                             duration_ms, NULL, ble_gap_test_util_connect_cb,
+                             NULL, 0);
 
     /* Ensure next GAP event is at the expected time. */
     rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
@@ -2814,8 +2736,7 @@ ble_gap_test_util_conn_timeout(int32_t duration_ms)
     os_time_advance(duration_ms);
 
     ble_hs_test_util_hci_ack_set(
-        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                    BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
         0);
 
     TEST_ASSERT(ble_gap_test_event.type == 0xff);
@@ -2856,9 +2777,8 @@ ble_gap_test_util_disc_forever(void)
     memset(&params, 0, sizeof params);
 
     /* Initiate a discovery procedure with no timeout. */
-    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC,
-                          BLE_HS_FOREVER, &params, ble_gap_test_util_disc_cb,
-                          NULL, -1, 0);
+    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &params,
+                          ble_gap_test_util_disc_cb, NULL, -1, 0);
 
     /* Ensure no pending GAP event. */
     ticks_from_now = ble_gap_timer();
@@ -2883,9 +2803,8 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
     memset(&params, 0, sizeof params);
 
     /* Initiate a discovery procedure with the specified timeout. */
-    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC,
-                          duration_ms, &params, ble_gap_test_util_disc_cb,
-                          NULL, -1, 0);
+    ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, duration_ms, &params,
+                          ble_gap_test_util_disc_cb, NULL, -1, 0);
 
     /* Ensure next GAP event is at the expected time. */
     rc = os_time_ms_to_ticks(duration_ms, &duration_ticks);
@@ -2897,9 +2816,7 @@ ble_gap_test_util_disc_timeout(int32_t duration_ms)
     os_time_advance(duration_ms);
 
     ble_hs_test_util_hci_ack_set(
-        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                    BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-        0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE), 0);
     ticks_from_now = ble_gap_timer();
     TEST_ASSERT(ticks_from_now == BLE_HS_FOREVER);
 
@@ -2923,12 +2840,10 @@ TEST_CASE_SELF(ble_gap_test_case_update_timeout)
     ble_gap_test_util_update_l2cap_tmo(&params, BLE_ERR_UNKNOWN_HCI_CMD, 0, 0);
 
     /* L2CAP - Remote unsupported; L2CAP timeout. */
-    ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
-                                       0);
+    ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE, 0);
 
     /* L2CAP - Remote unsupported; LL timeout. */
-    ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE,
-                                       1);
+    ble_gap_test_util_update_l2cap_tmo(&params, 0, BLE_ERR_UNSUPP_REM_FEATURE, 1);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -3050,13 +2965,12 @@ TEST_SUITE(ble_gap_test_suite_timeout)
 
 TEST_CASE_SELF(ble_gap_test_case_mtu_us)
 {
-    const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
+    const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     ble_att_set_preferred_mtu(200);
 
@@ -3076,13 +2990,12 @@ TEST_CASE_SELF(ble_gap_test_case_mtu_us)
 
 TEST_CASE_SELF(ble_gap_test_case_mtu_peer)
 {
-    const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
+    const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     int rc;
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     ble_att_set_preferred_mtu(200);
 
@@ -3122,14 +3035,13 @@ ble_gap_test_util_set_cb_event(struct ble_gap_event *event, void *arg)
 
 TEST_CASE_SELF(ble_gap_test_case_set_cb_good)
 {
-    const uint8_t peer_addr[6] = { 1,2,3,4,5,6 };
+    const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
     struct ble_gap_event event;
     int rc;
 
     ble_gap_test_util_init();
 
-    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, peer_addr, ble_gap_test_util_connect_cb, NULL);
 
     /* Reconfigure the callback. */
     rc = ble_gap_set_event_cb(2, ble_gap_test_util_set_cb_event, &event);
@@ -3142,8 +3054,7 @@ TEST_CASE_SELF(ble_gap_test_case_set_cb_good)
     ble_hs_test_util_hci_rx_disconn_complete_event(2, 0, BLE_ERR_REM_USER_CONN_TERM);
 
     TEST_ASSERT(event.type == BLE_GAP_EVENT_DISCONNECT);
-    TEST_ASSERT(event.disconnect.reason ==
-                BLE_HS_HCI_ERR(BLE_ERR_REM_USER_CONN_TERM));
+    TEST_ASSERT(event.disconnect.reason == BLE_HS_HCI_ERR(BLE_ERR_REM_USER_CONN_TERM));
     TEST_ASSERT(event.disconnect.conn.conn_handle == 2);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);

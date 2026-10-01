@@ -27,7 +27,7 @@ extern "C" {
 /* leave this as macro so it may be used for static const initialization */
 #define ble_hs_hci_util_opcode_join(ogf, ocf) (((ogf) << 10) | (ocf))
 
-#define BLE_HS_TEST_UTIL_PHONY_ACK_MAX  64
+#define BLE_HS_TEST_UTIL_PHONY_ACK_MAX        64
 struct ble_hs_test_util_hci_ack {
     uint16_t opcode;
     uint8_t status;
@@ -49,13 +49,10 @@ void ble_hs_test_util_hci_out_clear(void);
 void ble_hs_test_util_hci_acks_clear(void);
 
 /* $build */
-void ble_hs_test_util_hci_build_cmd_complete(uint8_t *dst, int len,
-                                             uint8_t param_len,
-                                             uint8_t num_pkts,
-                                             uint16_t opcode);
-void ble_hs_test_util_hci_build_cmd_status(uint8_t *dst, int len,
-                                           uint8_t status, uint8_t num_pkts,
-                                           uint16_t opcode);
+void ble_hs_test_util_hci_build_cmd_complete(uint8_t *dst, int len, uint8_t param_len,
+                                             uint8_t num_pkts, uint16_t opcode);
+void ble_hs_test_util_hci_build_cmd_status(uint8_t *dst, int len, uint8_t status,
+                                           uint8_t num_pkts, uint16_t opcode);
 
 /* $ack */
 void ble_hs_test_util_hci_ack_set_params(uint16_t opcode, uint8_t status,
@@ -66,24 +63,21 @@ void ble_hs_test_util_hci_ack_append_params(uint16_t opcode, uint8_t status,
 void ble_hs_test_util_hci_ack_append(uint16_t opcode, uint8_t status);
 void ble_hs_test_util_hci_ack_set_seq(const struct ble_hs_test_util_hci_ack *acks);
 void ble_hs_test_util_hci_ack_set_startup(void);
-void ble_hs_test_util_hci_ack_set_disc(uint8_t own_addr_type,
-                                       int fail_idx, uint8_t fail_status);
+void ble_hs_test_util_hci_ack_set_disc(uint8_t own_addr_type, int fail_idx,
+                                       uint8_t fail_status);
 void ble_hs_test_util_hci_ack_set_disconnect(uint8_t hci_status);
 
 int ble_hs_test_util_hci_startup_seq_cnt(void);
 
 /* $verify tx */
-void ble_hs_test_util_hci_verify_tx_add_irk(uint8_t addr_type,
-                                            const uint8_t *addr,
+void ble_hs_test_util_hci_verify_tx_add_irk(uint8_t addr_type, const uint8_t *addr,
                                             const uint8_t *peer_irk,
                                             const uint8_t *local_irk);
 void ble_hs_test_util_hci_verify_tx_set_priv_mode(uint8_t addr_type,
                                                   const uint8_t *addr,
                                                   uint8_t priv_mode);
-void ble_hs_test_util_hci_verify_tx_disconnect(uint16_t handle,
-                                               uint8_t reason);
-void ble_hs_test_util_hci_verify_tx_create_conn(
-    const struct hci_create_conn *exp);
+void ble_hs_test_util_hci_verify_tx_disconnect(uint16_t handle, uint8_t reason);
+void ble_hs_test_util_hci_verify_tx_create_conn(const struct hci_create_conn *exp);
 uint8_t *ble_hs_test_util_hci_verify_tx(uint8_t ogf, uint16_t ocf,
                                         uint8_t *out_param_len);
 
@@ -95,8 +89,7 @@ void ble_hs_test_util_hci_rx_disconn_complete_event(uint16_t conn_handle,
 void ble_hs_test_util_hci_rx_conn_cancel_evt(void);
 
 /* $misc */
-int ble_hs_test_util_hci_misc_exp_status(int cmd_idx, int fail_idx,
-                                         uint8_t fail_status);
+int ble_hs_test_util_hci_misc_exp_status(int cmd_idx, int fail_idx, uint8_t fail_status);
 
 #ifdef __cplusplus
 }

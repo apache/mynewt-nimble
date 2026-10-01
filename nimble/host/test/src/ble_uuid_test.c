@@ -27,50 +27,45 @@
 #define DEBUG 0
 
 #if DEBUG
-#define DEBUG_PRINT(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define DEBUG_PRINT(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
 #define DEBUG_PRINT(fmt, ...)
 #endif
 
 #define TEST_UUID_128_1_STR "0329a25a-c4c4-4923-8039-4bacfa18eb72"
-#define TEST_UUID_128_1                                 \
-    0x72, 0xeb, 0x18, 0xfa, 0xac, 0x4b, 0x39, 0x80,     \
-    0x23, 0x49, 0xc4, 0xc4, 0x5a, 0xa2, 0x29, 0x03
+#define TEST_UUID_128_1                                                       \
+    0x72, 0xeb, 0x18, 0xfa, 0xac, 0x4b, 0x39, 0x80, 0x23, 0x49, 0xc4, 0xc4,   \
+        0x5a, 0xa2, 0x29, 0x03
 
 #define TEST_UUID_128_2_STR "e3ec4966df944981a772985ff8d75dff"
-#define TEST_UUID_128_2                                 \
-    0xff, 0x5d, 0xd7, 0xf8, 0x5f, 0x98, 0x72, 0xa7,     \
-    0x81, 0x49, 0x94, 0xdf, 0x66, 0x49, 0xec, 0xe3
+#define TEST_UUID_128_2                                                       \
+    0xff, 0x5d, 0xd7, 0xf8, 0x5f, 0x98, 0x72, 0xa7, 0x81, 0x49, 0x94, 0xdf,   \
+        0x66, 0x49, 0xec, 0xe3
 
 #define TEST_UUID_128_3_STR "00002a37-0000-1000-8000-00805f9b34fb"
-#define TEST_UUID_128_3                                 \
-    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,     \
-    0x00, 0x10, 0x00, 0x00, 0x37, 0x2a, 0x00, 0x00
-#define TEST_UUID_128_3_AS_16 ((uint16_t) 0x2a37)
+#define TEST_UUID_128_3                                                       \
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00,   \
+        0x37, 0x2a, 0x00, 0x00
+#define TEST_UUID_128_3_AS_16 ((uint16_t)0x2a37)
 
-#define TEST_32UUID1_STR "0x0329a25a"
-#define TEST_32UUID1     ((uint32_t)0x0329a25a)
+#define TEST_32UUID1_STR      "0x0329a25a"
+#define TEST_32UUID1          ((uint32_t)0x0329a25a)
 
-#define TEST_32UUID2_STR "e3ec4966"
-#define TEST_32UUID2     ((uint32_t)0xe3ec4966)
+#define TEST_32UUID2_STR      "e3ec4966"
+#define TEST_32UUID2          ((uint32_t)0xe3ec4966)
 
-#define TEST_16UUID1_STR "0x0329"
-#define TEST_16UUID1     ((uint16_t)0x0329)
+#define TEST_16UUID1_STR      "0x0329"
+#define TEST_16UUID1          ((uint16_t)0x0329)
 
-#define TEST_16UUID2_STR "e3ec"
-#define TEST_16UUID2     ((uint16_t)0xe3ec)
+#define TEST_16UUID2_STR      "e3ec"
+#define TEST_16UUID2          ((uint16_t)0xe3ec)
 
-static const ble_uuid128_t test_uuid128[4] = {
-    BLE_UUID128_INIT(TEST_UUID_128_1),
-    BLE_UUID128_INIT(TEST_UUID_128_2),
-    BLE_UUID128_INIT(TEST_UUID_128_3)
-};
+static const ble_uuid128_t test_uuid128[4] = { BLE_UUID128_INIT(TEST_UUID_128_1),
+                                               BLE_UUID128_INIT(TEST_UUID_128_2),
+                                               BLE_UUID128_INIT(TEST_UUID_128_3) };
 
-static const char test_str128[][100] = {
-    TEST_UUID_128_1_STR,
-    TEST_UUID_128_2_STR,
-    TEST_UUID_128_3_STR
-};
+static const char test_str128[][100] = { TEST_UUID_128_1_STR, TEST_UUID_128_2_STR,
+                                         TEST_UUID_128_3_STR };
 
 static const ble_uuid32_t test_uuid32[3] = {
     BLE_UUID32_INIT(TEST_32UUID1),
@@ -92,7 +87,8 @@ static const char test_str16[][100] = {
     TEST_16UUID2_STR,
 };
 
-TEST_CASE_SELF(ble_uuid_test) {
+TEST_CASE_SELF(ble_uuid_test)
+{
     uint8_t buf_16[2] = { 0x00, 0x18 };
     uint8_t buf_128[16] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
                             0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
@@ -105,7 +101,7 @@ TEST_CASE_SELF(ble_uuid_test) {
                             0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF);
     const ble_uuid_t *uuid128_2 =
         BLE_UUID128_DECLARE(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                                0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xEE);
+                            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xEE);
 
     ble_uuid_any_t uuid;
     int rc;
@@ -137,7 +133,8 @@ TEST_CASE_SELF(ble_uuid_test) {
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_CASE_SELF(ble_uuid_from_string_test) {
+TEST_CASE_SELF(ble_uuid_from_string_test)
+{
     int rc;
     ble_uuid_any_t uuid128[3];
     ble_uuid_any_t uuid32[3];
@@ -145,7 +142,7 @@ TEST_CASE_SELF(ble_uuid_from_string_test) {
 
     for (int i = 0; i < 2; i++) {
         DEBUG_PRINT("Test 128bit: %d\n", i);
-        ble_uuid_from_str((ble_uuid_any_t * ) &uuid128[i], test_str128[i]);
+        ble_uuid_from_str((ble_uuid_any_t *)&uuid128[i], test_str128[i]);
         DEBUG_PRINT("Original:\n");
         for (int j = 0; j < 16; j++) {
             DEBUG_PRINT("%2x, ", test_uuid128[i].value[j]);
@@ -156,11 +153,12 @@ TEST_CASE_SELF(ble_uuid_from_string_test) {
         }
         DEBUG_PRINT("\n");
         DEBUG_PRINT("The same: %s\n",
-                    ble_uuid_cmp((const ble_uuid_t *) &uuid128[i].u128,
-                                 (const ble_uuid_t *) &test_uuid128[i]) == 0
-                    ? "true" : "false");
-        rc = ble_uuid_cmp((const ble_uuid_t *) &uuid128[i].u128,
-                          (const ble_uuid_t *) &test_uuid128[i]);
+                    ble_uuid_cmp((const ble_uuid_t *)&uuid128[i].u128,
+                                 (const ble_uuid_t *)&test_uuid128[i]) == 0
+                        ? "true"
+                        : "false");
+        rc = ble_uuid_cmp((const ble_uuid_t *)&uuid128[i].u128,
+                          (const ble_uuid_t *)&test_uuid128[i]);
         TEST_ASSERT(rc == 0);
     }
 
@@ -169,18 +167,19 @@ TEST_CASE_SELF(ble_uuid_from_string_test) {
 
     for (int i = 0; i < 2; i++) {
         DEBUG_PRINT("Test 32bit: %d\n", i);
-        ble_uuid_from_str((ble_uuid_any_t * ) &uuid32[i], test_str32[i]);
+        ble_uuid_from_str((ble_uuid_any_t *)&uuid32[i], test_str32[i]);
         DEBUG_PRINT("Original:\n");
         DEBUG_PRINT("%x, ", test_uuid32[i].value);
         DEBUG_PRINT("\nConverted:\n");
         DEBUG_PRINT("%x, ", uuid32[i].u32.value);
         DEBUG_PRINT("\n");
         DEBUG_PRINT("The same: %s\n",
-                    ble_uuid_cmp((const ble_uuid_t *) &uuid32[i].u32,
-                                 (const ble_uuid_t *) &test_uuid32[i]) == 0
-                    ? "true" : "false");
-        rc = ble_uuid_cmp((const ble_uuid_t *) &uuid32[i].u32,
-                          (const ble_uuid_t *) &test_uuid32[i]);
+                    ble_uuid_cmp((const ble_uuid_t *)&uuid32[i].u32,
+                                 (const ble_uuid_t *)&test_uuid32[i]) == 0
+                        ? "true"
+                        : "false");
+        rc = ble_uuid_cmp((const ble_uuid_t *)&uuid32[i].u32,
+                          (const ble_uuid_t *)&test_uuid32[i]);
         TEST_ASSERT(rc == 0);
     }
 
@@ -189,25 +188,27 @@ TEST_CASE_SELF(ble_uuid_from_string_test) {
 
     for (int i = 0; i < 2; i++) {
         DEBUG_PRINT("Test 16bit: %d\n", i);
-        ble_uuid_from_str((ble_uuid_any_t * ) &uuid16[i], test_str16[i]);
+        ble_uuid_from_str((ble_uuid_any_t *)&uuid16[i], test_str16[i]);
         DEBUG_PRINT("Original:\n");
         DEBUG_PRINT("%x, ", test_uuid16[i].value);
         DEBUG_PRINT("\nConverted:\n");
         DEBUG_PRINT("%x, ", uuid16[i].u16.value);
         DEBUG_PRINT("\n");
         DEBUG_PRINT("The same: %s\n",
-                    ble_uuid_cmp((const ble_uuid_t *) &uuid16[i].u16,
-                                 (const ble_uuid_t *) &test_uuid16[i]) == 0
-                    ? "true" : "false");
-        rc = ble_uuid_cmp((const ble_uuid_t *) &uuid16[i].u16,
-                          (const ble_uuid_t *) &test_uuid16[i]);
+                    ble_uuid_cmp((const ble_uuid_t *)&uuid16[i].u16,
+                                 (const ble_uuid_t *)&test_uuid16[i]) == 0
+                        ? "true"
+                        : "false");
+        rc = ble_uuid_cmp((const ble_uuid_t *)&uuid16[i].u16,
+                          (const ble_uuid_t *)&test_uuid16[i]);
         TEST_ASSERT(rc == 0);
     }
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_CASE_SELF(ble_uuid_from_string_sig_test) {
+TEST_CASE_SELF(ble_uuid_from_string_sig_test)
+{
     int rc;
     ble_uuid_any_t uuid;
 
@@ -221,18 +222,18 @@ TEST_CASE_SELF(ble_uuid_from_string_sig_test) {
     }
     DEBUG_PRINT("\nConverted:\n");
     DEBUG_PRINT("%x\n", uuid.u16.value);
-    DEBUG_PRINT("The same: %s\n",
-                ble_uuid_cmp((const ble_uuid_t *) &uuid.u16,
-                             (const ble_uuid_t *) &test_uuid) == 0 ? "true"
-                                                                   : "false");
-    rc = ble_uuid_cmp((const ble_uuid_t *)&uuid.u16,
-                      (const ble_uuid_t *)&test_uuid);
+    DEBUG_PRINT("The same: %s\n", ble_uuid_cmp((const ble_uuid_t *)&uuid.u16,
+                                               (const ble_uuid_t *)&test_uuid) == 0
+                                      ? "true"
+                                      : "false");
+    rc = ble_uuid_cmp((const ble_uuid_t *)&uuid.u16, (const ble_uuid_t *)&test_uuid);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_CASE_SELF(ble_uuid_to_str_and_back_test) {
+TEST_CASE_SELF(ble_uuid_to_str_and_back_test)
+{
     int rc;
     ble_uuid128_t uuid = BLE_UUID128_INIT(TEST_UUID_128_1);
     ble_uuid_any_t final_uuid;
@@ -245,13 +246,15 @@ TEST_CASE_SELF(ble_uuid_to_str_and_back_test) {
     rc = ble_uuid_from_str(&final_uuid, (const char *)uuid_str);
     TEST_ASSERT(rc == 0);
 
-    rc = ble_uuid_cmp((const ble_uuid_t *)&uuid, (const ble_uuid_t *)&final_uuid.u128);
+    rc = ble_uuid_cmp((const ble_uuid_t *)&uuid,
+                      (const ble_uuid_t *)&final_uuid.u128);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_CASE_SELF(ble_uuid_to_str_too_short) {
+TEST_CASE_SELF(ble_uuid_to_str_too_short)
+{
     int rc;
     ble_uuid_any_t final_uuid;
     char uuid_str[4] = "012";
@@ -264,7 +267,8 @@ TEST_CASE_SELF(ble_uuid_to_str_too_short) {
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_CASE_SELF(ble_uuid_to_str_sig_to_16_and_32) {
+TEST_CASE_SELF(ble_uuid_to_str_sig_to_16_and_32)
+{
     int rc;
     ble_uuid_any_t final_uuid;
     char uuid_str16[37] = "0000ffff-0000-1000-8000-00805f9b34fb";
@@ -287,7 +291,8 @@ TEST_CASE_SELF(ble_uuid_to_str_sig_to_16_and_32) {
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
-TEST_SUITE(ble_uuid_test_suite) {
+TEST_SUITE(ble_uuid_test_suite)
+{
     ble_uuid_test();
     ble_uuid_from_string_test();
     ble_uuid_from_string_sig_test();

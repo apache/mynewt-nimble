@@ -31,8 +31,8 @@ static uint16_t
 ble_att_clt_test_misc_init(void)
 {
     ble_hs_test_util_init();
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}), NULL,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
+                                 NULL, NULL);
     return 2;
 }
 
@@ -54,8 +54,7 @@ ble_att_clt_test_misc_verify_tx_write(uint16_t handle_id, void *value,
 
     TEST_ASSERT(req.bawq_handle == handle_id);
     TEST_ASSERT(om->om_len == BLE_ATT_WRITE_REQ_BASE_SZ + value_len);
-    TEST_ASSERT(memcmp(om->om_data + BLE_ATT_WRITE_REQ_BASE_SZ, value,
-                       value_len) == 0);
+    TEST_ASSERT(memcmp(om->om_data + BLE_ATT_WRITE_REQ_BASE_SZ, value, value_len) == 0);
 }
 
 static void
@@ -117,7 +116,8 @@ TEST_CASE_SELF(ble_att_clt_test_rx_find_info)
     struct ble_att_find_info_rsp rsp;
     uint16_t conn_handle;
     uint8_t buf[1024];
-    uint8_t uuid128_1[16] = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
+    uint8_t uuid128_1[16] = { 0, 1, 2,  3,  4,  5,  6,  7,
+                              8, 9, 10, 11, 12, 13, 14, 15 };
     int off;
     int rc;
 
@@ -196,8 +196,7 @@ ble_att_clt_test_case_tx_write_req_or_cmd(int is_req)
     /*** 5-byte write. */
     ble_att_clt_test_tx_write_req_or_cmd(conn_handle, 0x1234, value5,
                                          sizeof value5, is_req);
-    ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5,
-                                          is_req);
+    ble_att_clt_test_misc_verify_tx_write(0x1234, value5, sizeof value5, is_req);
 
     /*** Overlong write; verify command truncated to ATT MTU. */
     /** In unit tests we are not receiving response - procedure will
@@ -236,8 +235,7 @@ ble_att_clt_test_misc_prep_good(uint16_t handle, uint16_t offset,
     TEST_ASSERT(req.bapc_handle == handle);
     TEST_ASSERT(req.bapc_offset == offset);
     for (i = 0; i < attr_data_len; i++) {
-        TEST_ASSERT(om->om_data[BLE_ATT_PREP_WRITE_CMD_BASE_SZ + i] ==
-                    attr_data[i]);
+        TEST_ASSERT(om->om_data[BLE_ATT_PREP_WRITE_CMD_BASE_SZ + i] == attr_data[i]);
     }
 }
 
@@ -263,9 +261,8 @@ ble_att_clt_test_misc_exec_good(uint8_t flags)
 }
 
 static void
-ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset,
-                               uint8_t *attr_data, uint16_t attr_data_len,
-                               int status)
+ble_att_clt_test_misc_prep_bad(uint16_t handle, uint16_t offset, uint8_t *attr_data,
+                               uint16_t attr_data_len, int status)
 {
     struct os_mbuf *om;
     uint16_t conn_handle;
@@ -399,7 +396,8 @@ TEST_CASE_SELF(ble_att_clt_test_tx_read_mult)
     conn_handle = ble_att_clt_test_misc_init();
 
     /*** Success. */
-    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT, ((uint16_t[]) { 1, 2 }), 2, false);
+    rc = ble_att_clt_tx_read_mult(conn_handle, BLE_L2CAP_CID_ATT,
+                                  ((uint16_t[]){ 1, 2 }), 2, false);
     TEST_ASSERT(rc == 0);
 
     om = ble_hs_test_util_prev_tx_dequeue_pullup();
@@ -430,8 +428,7 @@ TEST_CASE_SELF(ble_att_clt_test_rx_read_mult)
     put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 0, 12);
 
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf,
-        BLE_ATT_READ_MULT_RSP_BASE_SZ + 2);
+        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 2);
     TEST_ASSERT(rc == 0);
 
     /*** Larger response. */
@@ -439,14 +436,12 @@ TEST_CASE_SELF(ble_att_clt_test_rx_read_mult)
     put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 2, 43);
     put_le16(buf + BLE_ATT_READ_MULT_RSP_BASE_SZ + 4, 91);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf,
-        BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);
+        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 6);
     TEST_ASSERT(rc == 0);
 
     /*** Zero-length response. */
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf,
-        BLE_ATT_READ_MULT_RSP_BASE_SZ + 0);
+        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_READ_MULT_RSP_BASE_SZ + 0);
     TEST_ASSERT(rc == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -465,9 +460,8 @@ TEST_CASE_SELF(ble_att_clt_test_tx_prep_write)
     ble_att_clt_test_misc_prep_good(123, 0, attr_data, 16);
     ble_att_clt_test_misc_prep_good(5432, 100, attr_data, 2);
     ble_att_clt_test_misc_prep_good(0x1234, 400, attr_data, 0);
-    ble_att_clt_test_misc_prep_good(5432, 0, attr_data,
-                                    BLE_ATT_MTU_DFLT -
-                                        BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
+    ble_att_clt_test_misc_prep_good(
+        5432, 0, attr_data, BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ);
     ble_att_clt_test_misc_prep_good(0x1234, 507, attr_data, 5);
 
     /*** Error: handle of 0. */
@@ -477,10 +471,9 @@ TEST_CASE_SELF(ble_att_clt_test_tx_prep_write)
     ble_att_clt_test_misc_prep_bad(1, 507, attr_data, 6, BLE_HS_EINVAL);
 
     /*** Error: packet larger than MTU. */
-    ble_att_clt_test_misc_prep_bad(1, 0, attr_data,
-                                   BLE_ATT_MTU_DFLT -
-                                       BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 1,
-                                   BLE_HS_EINVAL);
+    ble_att_clt_test_misc_prep_bad(
+        1, 0, attr_data, BLE_ATT_MTU_DFLT - BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 1,
+        BLE_HS_EINVAL);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -500,8 +493,7 @@ TEST_CASE_SELF(ble_att_clt_test_rx_prep_write)
     ble_att_prep_write_rsp_write(buf, sizeof buf, &rsp);
     memset(buf + BLE_ATT_PREP_WRITE_CMD_BASE_SZ, 1, 5);
     rc = ble_hs_test_util_l2cap_rx_payload_flat(
-        conn_handle, BLE_L2CAP_CID_ATT, buf,
-        BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 5);
+        conn_handle, BLE_L2CAP_CID_ATT, buf, BLE_ATT_PREP_WRITE_CMD_BASE_SZ + 5);
     TEST_ASSERT(rc == 0);
 
     /*** 0-length write. */
@@ -519,7 +511,6 @@ TEST_CASE_SELF(ble_att_clt_test_tx_exec_write)
 {
     uint16_t conn_handle;
     int rc;
-
 
     /*** Success. */
     ble_att_clt_test_misc_exec_good(BLE_ATT_EXEC_WRITE_F_CANCEL);

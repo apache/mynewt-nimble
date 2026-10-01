@@ -24,43 +24,37 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_GATTS_READ_TEST_CHR_1_UUID    0x1111
-#define BLE_GATTS_READ_TEST_CHR_2_UUID    0x2222
+#define BLE_GATTS_READ_TEST_CHR_1_UUID 0x1111
+#define BLE_GATTS_READ_TEST_CHR_2_UUID 0x2222
 
-static uint8_t ble_gatts_read_test_peer_addr[6] = {2,3,4,5,6,7};
+static uint8_t ble_gatts_read_test_peer_addr[6] = { 2, 3, 4, 5, 6, 7 };
 
-static int
-ble_gatts_read_test_util_access_1(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg);
+static int ble_gatts_read_test_util_access_1(uint16_t conn_handle, uint16_t attr_handle,
+                                             struct ble_gatt_access_ctxt *ctxt,
+                                             void *arg);
 
-static int
-ble_gatts_read_test_util_access_2(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg);
-static void
-ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
-                                void *arg);
+static int ble_gatts_read_test_util_access_2(uint16_t conn_handle, uint16_t attr_handle,
+                                             struct ble_gatt_access_ctxt *ctxt,
+                                             void *arg);
+static void ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
+                                            void *arg);
 
-static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = { {
-    .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid = BLE_UUID16_DECLARE(0x1234),
-    .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_1_UUID),
-        .access_cb = ble_gatts_read_test_util_access_1,
-        .flags = BLE_GATT_CHR_F_READ
-    }, {
-        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_2_UUID),
-        .access_cb = ble_gatts_read_test_util_access_2,
-        .flags = BLE_GATT_CHR_F_READ
-    }, {
-        0
-    } },
-}, {
-    0
-} };
+static const struct ble_gatt_svc_def ble_gatts_read_test_svcs[] = {
+    {
+     .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = BLE_UUID16_DECLARE(0x1234),
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                { .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_1_UUID),
+                  .access_cb = ble_gatts_read_test_util_access_1,
+                  .flags = BLE_GATT_CHR_F_READ },
+                { .uuid = BLE_UUID16_DECLARE(BLE_GATTS_READ_TEST_CHR_2_UUID),
+                  .access_cb = ble_gatts_read_test_util_access_2,
+                  .flags = BLE_GATT_CHR_F_READ },
+                { 0 } },
+     },
+    { 0 }
+};
 
 static uint16_t ble_gatts_read_test_chr_1_def_handle;
 static uint16_t ble_gatts_read_test_chr_1_val_handle;
@@ -75,8 +69,7 @@ ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
     ble_hs_test_util_init();
 
     ble_hs_test_util_reg_svcs(ble_gatts_read_test_svcs,
-                              ble_gatts_read_test_misc_reg_cb,
-                              NULL);
+                              ble_gatts_read_test_misc_reg_cb, NULL);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_def_handle != 0);
     TEST_ASSERT_FATAL(ble_gatts_read_test_chr_1_val_handle ==
                       ble_gatts_read_test_chr_1_def_handle + 1);
@@ -92,8 +85,7 @@ ble_gatts_read_test_misc_init(uint16_t *out_conn_handle)
 }
 
 static void
-ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
-                                void *arg)
+ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
 
@@ -118,18 +110,15 @@ ble_gatts_read_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
 }
 
 static int
-ble_gatts_read_test_util_access_1(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg)
+ble_gatts_read_test_util_access_1(uint16_t conn_handle, uint16_t attr_handle,
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     int rc;
 
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_1_val_handle);
 
-    TEST_ASSERT(ctxt->chr ==
-                &ble_gatts_read_test_svcs[0].characteristics[0]);
+    TEST_ASSERT(ctxt->chr == &ble_gatts_read_test_svcs[0].characteristics[0]);
 
     rc = os_mbuf_append(ctxt->om, ble_gatts_read_test_chr_1_val,
                         ble_gatts_read_test_chr_1_len);
@@ -139,18 +128,15 @@ ble_gatts_read_test_util_access_1(uint16_t conn_handle,
 }
 
 static int
-ble_gatts_read_test_util_access_2(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg)
+ble_gatts_read_test_util_access_2(uint16_t conn_handle, uint16_t attr_handle,
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint8_t *buf;
 
     TEST_ASSERT_FATAL(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
     TEST_ASSERT_FATAL(attr_handle == ble_gatts_read_test_chr_2_def_handle + 1);
 
-    TEST_ASSERT(ctxt->chr ==
-                &ble_gatts_read_test_svcs[0].characteristics[1]);
+    TEST_ASSERT(ctxt->chr == &ble_gatts_read_test_svcs[0].characteristics[1]);
 
     buf = os_mbuf_extend(ctxt->om, 6);
     TEST_ASSERT_FATAL(buf != NULL);
@@ -194,15 +180,13 @@ TEST_CASE_SELF(ble_gatts_read_test_case_basic)
     ble_gatts_read_test_chr_1_val[1] = 2;
     ble_gatts_read_test_chr_1_val[2] = 3;
     ble_gatts_read_test_chr_1_len = 3;
-    ble_gatts_read_test_once(conn_handle,
-                             ble_gatts_read_test_chr_1_val_handle,
+    ble_gatts_read_test_once(conn_handle, ble_gatts_read_test_chr_1_val_handle,
                              ble_gatts_read_test_chr_1_val,
                              ble_gatts_read_test_chr_1_len);
 
     /*** Application uses stack-provided buffer for dynamic attribute. */
-    ble_gatts_read_test_once(conn_handle,
-                             ble_gatts_read_test_chr_2_def_handle + 1,
-                             ((uint8_t[6]){0,10,20,30,40,50}), 6);
+    ble_gatts_read_test_once(conn_handle, ble_gatts_read_test_chr_2_def_handle + 1,
+                             ((uint8_t[6]){ 0, 10, 20, 30, 40, 50 }), 6);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -244,8 +228,7 @@ TEST_CASE_SELF(ble_gatts_read_test_case_long)
     TEST_ASSERT(rc == 0);
 
     /* Ensure response starts at appropriate offset (22). */
-    ble_hs_test_util_verify_tx_read_blob_rsp(
-        ble_gatts_read_test_chr_1_val + 22, 18);
+    ble_hs_test_util_verify_tx_read_blob_rsp(ble_gatts_read_test_chr_1_val + 22, 18);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }

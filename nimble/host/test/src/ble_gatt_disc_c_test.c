@@ -35,9 +35,8 @@ struct ble_gatt_disc_c_test_char {
     const ble_uuid_t *uuid;
 };
 
-#define BLE_GATT_DISC_C_TEST_MAX_CHARS  256
-static struct ble_gatt_chr
-    ble_gatt_disc_c_test_chars[BLE_GATT_DISC_C_TEST_MAX_CHARS];
+#define BLE_GATT_DISC_C_TEST_MAX_CHARS 256
+static struct ble_gatt_chr ble_gatt_disc_c_test_chars[BLE_GATT_DISC_C_TEST_MAX_CHARS];
 static int ble_gatt_disc_c_test_num_chars;
 static int ble_gatt_disc_c_test_rx_complete;
 
@@ -63,17 +62,15 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(uint16_t conn_handle, uint16_t cid,
     /* Send the pending ATT Read By Type Request. */
 
     if (chars[0].uuid->type == BLE_UUID_TYPE_16) {
-       rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ +
-                         BLE_GATT_CHR_DECL_SZ_16;
+        rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + BLE_GATT_CHR_DECL_SZ_16;
     } else {
-       rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ +
-                         BLE_GATT_CHR_DECL_SZ_128;
+        rsp.batp_length = BLE_ATT_READ_TYPE_ADATA_BASE_SZ + BLE_GATT_CHR_DECL_SZ_128;
     }
 
     ble_att_read_type_rsp_write(buf, BLE_ATT_READ_TYPE_RSP_BASE_SZ, &rsp);
 
     off = BLE_ATT_READ_TYPE_RSP_BASE_SZ;
-    for (i = 0; ; i++) {
+    for (i = 0;; i++) {
         if (chars[i].def_handle == 0) {
             /* No more services. */
             break;
@@ -81,7 +78,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(uint16_t conn_handle, uint16_t cid,
 
         /* If the value length is changing, we need a separate response. */
         if (((chars[i].uuid->type == BLE_UUID_TYPE_16) ^
-            (chars[0].uuid->type == BLE_UUID_TYPE_16)) != 0) {
+             (chars[0].uuid->type == BLE_UUID_TYPE_16)) != 0) {
             break;
         }
 
@@ -122,8 +119,7 @@ ble_gatt_disc_c_test_misc_rx_rsp_once(uint16_t conn_handle, uint16_t cid,
 }
 
 static void
-ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle, uint16_t cid,
-                                 uint16_t end_handle,
+ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle, uint16_t cid, uint16_t end_handle,
                                  struct ble_gatt_disc_c_test_char *chars)
 {
     int count;
@@ -131,8 +127,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle, uint16_t cid,
 
     idx = 0;
     while (chars[idx].def_handle != 0) {
-        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle, cid,
-                                                      chars + idx);
+        count = ble_gatt_disc_c_test_misc_rx_rsp_once(conn_handle, cid, chars + idx);
         if (count == 0) {
             break;
         }
@@ -141,8 +136,7 @@ ble_gatt_disc_c_test_misc_rx_rsp(uint16_t conn_handle, uint16_t cid,
 
     if (chars[idx - 1].def_handle != end_handle) {
         /* Send the pending ATT Request. */
-        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid,
-                                        BLE_ATT_OP_READ_TYPE_REQ,
+        ble_hs_test_util_rx_att_err_rsp(conn_handle, cid, BLE_ATT_OP_READ_TYPE_REQ,
                                         BLE_ATT_ERR_ATTR_NOT_FOUND,
                                         chars[idx - 1].def_handle);
     }
@@ -159,10 +153,8 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
     }
 
     for (i = 0; i < stop_after && chars[i].def_handle != 0; i++) {
-        TEST_ASSERT(chars[i].def_handle ==
-                    ble_gatt_disc_c_test_chars[i].def_handle);
-        TEST_ASSERT(chars[i].val_handle ==
-                    ble_gatt_disc_c_test_chars[i].val_handle);
+        TEST_ASSERT(chars[i].def_handle == ble_gatt_disc_c_test_chars[i].def_handle);
+        TEST_ASSERT(chars[i].val_handle == ble_gatt_disc_c_test_chars[i].val_handle);
         TEST_ASSERT(ble_uuid_cmp(chars[i].uuid,
                                  &ble_gatt_disc_c_test_chars[i].uuid.u) == 0);
     }
@@ -172,8 +164,7 @@ ble_gatt_disc_c_test_misc_verify_chars(struct ble_gatt_disc_c_test_char *chars,
 }
 
 static int
-ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle,
-                             const struct ble_gatt_error *error,
+ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
                              const struct ble_gatt_chr *chr, void *arg)
 {
     struct ble_gatt_chr *dst;
@@ -215,15 +206,14 @@ ble_gatt_disc_c_test_misc_cb(uint16_t conn_handle,
 
 static void
 ble_gatt_disc_c_test_misc_all(uint16_t start_handle, uint16_t end_handle,
-                              int stop_after,
-                              struct ble_gatt_disc_c_test_char *chars)
+                              int stop_after, struct ble_gatt_disc_c_test_char *chars)
 {
     int num_left;
     int rc;
 
     ble_gatt_disc_c_test_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  NULL, NULL);
 
     num_left = stop_after;
@@ -245,13 +235,11 @@ ble_gatt_disc_c_test_misc_uuid(uint16_t start_handle, uint16_t end_handle,
 
     ble_gatt_disc_c_test_init();
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  NULL, NULL);
 
-    rc = ble_gattc_disc_chrs_by_uuid(2, start_handle, end_handle,
-                                     uuid,
-                                     ble_gatt_disc_c_test_misc_cb,
-                                     &stop_after);
+    rc = ble_gattc_disc_chrs_by_uuid(2, start_handle, end_handle, uuid,
+                                     ble_gatt_disc_c_test_misc_cb, &stop_after);
     TEST_ASSERT(rc == 0);
 
     ble_gatt_disc_c_test_misc_rx_rsp(2, BLE_L2CAP_CID_ATT, end_handle, rsp_chars);
@@ -262,120 +250,141 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_disc_all)
 {
     /*** One 16-bit characteristic. */
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, { 0 }
+                                  (struct ble_gatt_disc_c_test_char[]){
+                                      {
+                                       .def_handle = 55,
+                                       .val_handle = 56,
+                                       .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                      { 0 }
     });
 
     /*** Two 16-bit characteristics. */
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 57,
-            .val_handle = 58,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, { 0 }
+                                  (struct ble_gatt_disc_c_test_char[]){
+                                      {
+                                       .def_handle = 55,
+                                       .val_handle = 56,
+                                       .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                      {
+                                       .def_handle = 57,
+                                       .val_handle = 58,
+                                       .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                       },
+                                      { 0 }
     });
 
     /*** Five 16-bit characteristics. */
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 57,
-            .val_handle = 58,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, {
-            .def_handle = 59,
-            .val_handle = 60,
-            .uuid = BLE_UUID16_DECLARE(0x5372),
-        }, {
-            .def_handle = 61,
-            .val_handle = 62,
-            .uuid = BLE_UUID16_DECLARE(0xab93),
-        }, {
-            .def_handle = 63,
-            .val_handle = 64,
-            .uuid = BLE_UUID16_DECLARE(0x0023),
-        }, { 0 }
+                                  (struct ble_gatt_disc_c_test_char[]){
+                                      {
+                                       .def_handle = 55,
+                                       .val_handle = 56,
+                                       .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                      {
+                                       .def_handle = 57,
+                                       .val_handle = 58,
+                                       .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                       },
+                                      {
+                                       .def_handle = 59,
+                                       .val_handle = 60,
+                                       .uuid = BLE_UUID16_DECLARE(0x5372),
+                                       },
+                                      {
+                                       .def_handle = 61,
+                                       .val_handle = 62,
+                                       .uuid = BLE_UUID16_DECLARE(0xab93),
+                                       },
+                                      {
+                                       .def_handle = 63,
+                                       .val_handle = 64,
+                                       .uuid = BLE_UUID16_DECLARE(0x0023),
+                                       },
+                                      { 0 }
     });
 
     /*** Interleaved 16-bit and 128-bit characteristics. */
-    ble_gatt_disc_c_test_misc_all(50, 100, 0,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 83,
-            .val_handle = 84,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 87,
-            .val_handle = 88,
-            .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7,
-                                        8, 9, 10, 11, 12, 13, 14, 15),
-        }, {
-            .def_handle = 91,
-            .val_handle = 92,
-            .uuid = BLE_UUID16_DECLARE(0x0003),
-        }, {
-            .def_handle = 93,
-            .val_handle = 94,
-            .uuid = BLE_UUID128_DECLARE(1, 0, 4, 0, 6, 9, 17, 7,
-                                        8, 43, 7, 4, 12, 43, 19, 35),
-        }, {
-            .def_handle = 98,
-            .val_handle = 99,
-            .uuid = BLE_UUID16_DECLARE(0xabfa),
-        }, { 0 }
+    ble_gatt_disc_c_test_misc_all(
+        50, 100, 0,
+        (struct ble_gatt_disc_c_test_char[]){
+            {
+             .def_handle = 83,
+             .val_handle = 84,
+             .uuid = BLE_UUID16_DECLARE(0x2010),
+             },
+            {
+             .def_handle = 87,
+             .val_handle = 88,
+             .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+             11, 12, 13, 14, 15),
+             },
+            {
+             .def_handle = 91,
+             .val_handle = 92,
+             .uuid = BLE_UUID16_DECLARE(0x0003),
+             },
+            {
+             .def_handle = 93,
+             .val_handle = 94,
+             .uuid = BLE_UUID128_DECLARE(1, 0, 4, 0, 6, 9, 17, 7, 8, 43, 7,
+             4, 12, 43, 19, 35),
+             },
+            {
+             .def_handle = 98,
+             .val_handle = 99,
+             .uuid = BLE_UUID16_DECLARE(0xabfa),
+             },
+            { 0 }
     });
 
     /*** Ends with final handle ID. */
     ble_gatt_disc_c_test_misc_all(50, 100, 0,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 99,
-            .val_handle = 100,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, { 0 }
+                                  (struct ble_gatt_disc_c_test_char[]){
+                                      {
+                                       .def_handle = 55,
+                                       .val_handle = 56,
+                                       .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                      {
+                                       .def_handle = 99,
+                                       .val_handle = 100,
+                                       .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                       },
+                                      { 0 }
     });
 
     /*** Stop after two characteristics. */
     ble_gatt_disc_c_test_misc_all(50, 100, 2,
-                                  (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 57,
-            .val_handle = 58,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, {
-            .def_handle = 59,
-            .val_handle = 60,
-            .uuid = BLE_UUID16_DECLARE(0x5372),
-        }, {
-            .def_handle = 61,
-            .val_handle = 62,
-            .uuid = BLE_UUID16_DECLARE(0xab93),
-        }, {
-            .def_handle = 63,
-            .val_handle = 64,
-            .uuid = BLE_UUID16_DECLARE(0x0023),
-        }, { 0 }
+                                  (struct ble_gatt_disc_c_test_char[]){
+                                      {
+                                       .def_handle = 55,
+                                       .val_handle = 56,
+                                       .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                      {
+                                       .def_handle = 57,
+                                       .val_handle = 58,
+                                       .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                       },
+                                      {
+                                       .def_handle = 59,
+                                       .val_handle = 60,
+                                       .uuid = BLE_UUID16_DECLARE(0x5372),
+                                       },
+                                      {
+                                       .def_handle = 61,
+                                       .val_handle = 62,
+                                       .uuid = BLE_UUID16_DECLARE(0xab93),
+                                       },
+                                      {
+                                       .def_handle = 63,
+                                       .val_handle = 64,
+                                       .uuid = BLE_UUID16_DECLARE(0x0023),
+                                       },
+                                      { 0 }
     });
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -385,157 +394,186 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_disc_uuid)
 {
     /*** One 16-bit characteristic. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16_DECLARE(0x2010),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, { 0 } }
-    );
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                        .def_handle = 55,
+                                        .val_handle = 56,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       { 0 }
+    },
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                           .def_handle = 55,
+                                           .val_handle = 56,
+                                           .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                       { 0 } });
 
     /*** No matching characteristics. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16_DECLARE(0x2010),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x1234),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        { 0 } }
-    );
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                        .def_handle = 55,
+                                        .val_handle = 56,
+                                        .uuid = BLE_UUID16_DECLARE(0x1234),
+                                        },
+                                       { 0 }
+    },
+                                   (struct ble_gatt_disc_c_test_char[]){ { 0 } });
 
     /*** 2/5 16-bit characteristics. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16_DECLARE(0x2010),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 57,
-            .val_handle = 58,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, {
-            .def_handle = 59,
-            .val_handle = 60,
-            .uuid = BLE_UUID16_DECLARE(0x5372),
-        }, {
-            .def_handle = 61,
-            .val_handle = 62,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 63,
-            .val_handle = 64,
-            .uuid = BLE_UUID16_DECLARE(0x0023),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 61,
-            .val_handle = 62,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, { 0 } }
-    );
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                        .def_handle = 55,
+                                        .val_handle = 56,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       {
+                                        .def_handle = 57,
+                                        .val_handle = 58,
+                                        .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                        },
+                                       {
+                                        .def_handle = 59,
+                                        .val_handle = 60,
+                                        .uuid = BLE_UUID16_DECLARE(0x5372),
+                                        },
+                                       {
+                                        .def_handle = 61,
+                                        .val_handle = 62,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       {
+                                        .def_handle = 63,
+                                        .val_handle = 64,
+                                        .uuid = BLE_UUID16_DECLARE(0x0023),
+                                        },
+                                       { 0 }
+    },
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                           .def_handle = 55,
+                                           .val_handle = 56,
+                                           .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                       {
+                                           .def_handle = 61,
+                                           .val_handle = 62,
+                                           .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                       { 0 } });
 
     /*** Interleaved 16-bit and 128-bit characteristics. */
     ble_gatt_disc_c_test_misc_uuid(
         50, 100, 0,
-        BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 83,
-            .val_handle = 84,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 87,
-            .val_handle = 88,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        }, {
-            .def_handle = 91,
-            .val_handle = 92,
-            .uuid = BLE_UUID16_DECLARE(0x0003),
-        }, {
-            .def_handle = 93,
-            .val_handle = 94,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        }, {
-            .def_handle = 98,
-            .val_handle = 99,
-            .uuid = BLE_UUID16_DECLARE(0xabfa),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 87,
-            .val_handle = 88,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        }, {
-            .def_handle = 93,
-            .val_handle = 94,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        }, { 0 } }
-    );
+        BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        (struct ble_gatt_disc_c_test_char[]){
+            {
+             .def_handle = 83,
+             .val_handle = 84,
+             .uuid = BLE_UUID16_DECLARE(0x2010),
+             },
+            {
+             .def_handle = 87,
+             .val_handle = 88,
+             .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+             11, 12, 13, 14, 15),
+             },
+            {
+             .def_handle = 91,
+             .val_handle = 92,
+             .uuid = BLE_UUID16_DECLARE(0x0003),
+             },
+            {
+             .def_handle = 93,
+             .val_handle = 94,
+             .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+             11, 12, 13, 14, 15),
+             },
+            {
+             .def_handle = 98,
+             .val_handle = 99,
+             .uuid = BLE_UUID16_DECLARE(0xabfa),
+             },
+            { 0 }
+    },
+        (struct ble_gatt_disc_c_test_char[]){
+            {
+                .def_handle = 87,
+                .val_handle = 88,
+                .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                            11, 12, 13, 14, 15),
+            },
+            {
+                .def_handle = 93,
+                .val_handle = 94,
+                .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                            11, 12, 13, 14, 15),
+            },
+            { 0 } });
 
     /*** Ends with final handle ID. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 0, BLE_UUID16_DECLARE(0x64ba),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 99,
-            .val_handle = 100,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 99,
-            .val_handle = 100,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, { 0 } }
-    );
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                        .def_handle = 55,
+                                        .val_handle = 56,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       {
+                                        .def_handle = 99,
+                                        .val_handle = 100,
+                                        .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                        },
+                                       { 0 }
+    },
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                           .def_handle = 99,
+                                           .val_handle = 100,
+                                           .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                       },
+                                       { 0 } });
 
     /*** Stop after first characteristic. */
     ble_gatt_disc_c_test_misc_uuid(50, 100, 1, BLE_UUID16_DECLARE(0x2010),
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 57,
-            .val_handle = 58,
-            .uuid = BLE_UUID16_DECLARE(0x64ba),
-        }, {
-            .def_handle = 59,
-            .val_handle = 60,
-            .uuid = BLE_UUID16_DECLARE(0x5372),
-        }, {
-            .def_handle = 61,
-            .val_handle = 62,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, {
-            .def_handle = 63,
-            .val_handle = 64,
-            .uuid = BLE_UUID16_DECLARE(0x0023),
-        }, { 0 } },
-        (struct ble_gatt_disc_c_test_char[]) {
-        {
-            .def_handle = 55,
-            .val_handle = 56,
-            .uuid = BLE_UUID16_DECLARE(0x2010),
-        }, { 0 } }
-    );
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                        .def_handle = 55,
+                                        .val_handle = 56,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       {
+                                        .def_handle = 57,
+                                        .val_handle = 58,
+                                        .uuid = BLE_UUID16_DECLARE(0x64ba),
+                                        },
+                                       {
+                                        .def_handle = 59,
+                                        .val_handle = 60,
+                                        .uuid = BLE_UUID16_DECLARE(0x5372),
+                                        },
+                                       {
+                                        .def_handle = 61,
+                                        .val_handle = 62,
+                                        .uuid = BLE_UUID16_DECLARE(0x2010),
+                                        },
+                                       {
+                                        .def_handle = 63,
+                                        .val_handle = 64,
+                                        .uuid = BLE_UUID16_DECLARE(0x0023),
+                                        },
+                                       { 0 }
+    },
+                                   (struct ble_gatt_disc_c_test_char[]){
+                                       {
+                                           .def_handle = 55,
+                                           .val_handle = 56,
+                                           .uuid = BLE_UUID16_DECLARE(0x2010),
+                                       },
+                                       { 0 } });
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -545,15 +583,17 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
     /* Retrieve enough characteristics to require two transactions. */
     struct ble_gatt_disc_c_test_char chrs[] = {
         {
-            .def_handle = 93,
-            .val_handle = 94,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        },
+         .def_handle = 93,
+         .val_handle = 94,
+         .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+         12, 13, 14, 15),
+         },
         {
-            .def_handle = 95,
-            .val_handle = 96,
-            .uuid = BLE_UUID128_DECLARE(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
-        },
+         .def_handle = 95,
+         .val_handle = 96,
+         .uuid = BLE_UUID128_DECLARE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+         13, 14, 15, 16),
+         },
         { 0 }
     };
 
@@ -565,13 +605,13 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 
     ble_gatt_disc_c_test_init();
 
-    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  NULL, NULL);
 
     /* Initiate a discover all characteristics procedure. */
     stop_after = 0;
-    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff,
-                                 ble_gatt_disc_c_test_misc_cb, &stop_after);
+    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff, ble_gatt_disc_c_test_misc_cb,
+                                 &stop_after);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
@@ -589,7 +629,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
+    TEST_ASSERT(ticks_until ==
+                os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify the procedure proceeds after mbufs become available. */
     rc = os_mbuf_free_chain(oms);
@@ -610,7 +651,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
+    TEST_ASSERT(ticks_until ==
+                os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify that procedure completes when mbufs are available. */
     rc = os_mbuf_free_chain(oms);
@@ -619,10 +661,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_all)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
-                                    BLE_ATT_OP_READ_TYPE_REQ,
-                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
-                                    1);
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND, 1);
     ble_gatt_disc_c_test_misc_verify_chars(chrs, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -633,15 +673,17 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
     /* Retrieve enough characteristics to require two transactions. */
     struct ble_gatt_disc_c_test_char chrs[] = {
         {
-            .def_handle = 93,
-            .val_handle = 94,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        },
+         .def_handle = 93,
+         .val_handle = 94,
+         .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+         12, 13, 14, 15),
+         },
         {
-            .def_handle = 95,
-            .val_handle = 96,
-            .uuid = BLE_UUID128_DECLARE(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
-        },
+         .def_handle = 95,
+         .val_handle = 96,
+         .uuid = BLE_UUID128_DECLARE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+         12, 13, 14, 15),
+         },
         { 0 }
     };
 
@@ -653,14 +695,13 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 
     ble_gatt_disc_c_test_init();
 
-    ble_hs_test_util_create_conn(1, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  NULL, NULL);
 
     /* Initiate a discover characteristics by UUID procedure. */
     stop_after = 0;
     rc = ble_gattc_disc_chrs_by_uuid(1, 1, 0xffff, chrs[0].uuid,
-                                     ble_gatt_disc_c_test_misc_cb,
-                                     &stop_after);
+                                     ble_gatt_disc_c_test_misc_cb, &stop_after);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Exhaust the msys pool.  Leave one mbuf for the forthcoming response. */
@@ -678,7 +719,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
+    TEST_ASSERT(ticks_until ==
+                os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify the procedure proceeds after mbufs become available. */
     rc = os_mbuf_free_chain(oms);
@@ -698,7 +740,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
 
     /* Verify that we will resume the stalled GATT procedure in one second. */
     ticks_until = ble_gattc_timer();
-    TEST_ASSERT(ticks_until == os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
+    TEST_ASSERT(ticks_until ==
+                os_time_ms_to_ticks32(MYNEWT_VAL(BLE_GATT_RESUME_RATE)));
 
     /* Verify that procedure completes when mbufs are available. */
     rc = os_mbuf_free_chain(oms);
@@ -706,10 +749,8 @@ TEST_CASE_SELF(ble_gatt_disc_c_test_oom_uuid)
     os_time_advance(ticks_until);
     ble_gattc_timer();
 
-    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT,
-                                    BLE_ATT_OP_READ_TYPE_REQ,
-                                    BLE_ATT_ERR_ATTR_NOT_FOUND,
-                                    1);
+    ble_hs_test_util_rx_att_err_rsp(1, BLE_L2CAP_CID_ATT, BLE_ATT_OP_READ_TYPE_REQ,
+                                    BLE_ATT_ERR_ATTR_NOT_FOUND, 1);
     ble_gatt_disc_c_test_misc_verify_chars(chrs, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);

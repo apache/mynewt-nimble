@@ -25,18 +25,17 @@
 #include "host/ble_gap.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_OS_TEST_STACK_SIZE      256
-#define BLE_OS_TEST_APP_STACK_SIZE  256
+#define BLE_OS_TEST_STACK_SIZE     256
+#define BLE_OS_TEST_APP_STACK_SIZE 256
 
-#define BLE_OS_TEST_APP_PRIO         9
-#define BLE_OS_TEST_TASK_PRIO        10
+#define BLE_OS_TEST_APP_PRIO       9
+#define BLE_OS_TEST_TASK_PRIO      10
 
 static struct os_task ble_os_test_task;
 static struct os_task ble_os_test_app_task;
 static os_stack_t ble_os_test_stack[OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE)];
 
-static os_stack_t
-ble_os_test_app_stack[OS_STACK_ALIGN(BLE_OS_TEST_APP_STACK_SIZE)];
+static os_stack_t ble_os_test_app_stack[OS_STACK_ALIGN(BLE_OS_TEST_APP_STACK_SIZE)];
 
 static uint8_t ble_os_test_peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
@@ -49,11 +48,9 @@ ble_os_test_init_app_task(void)
 {
     int rc;
 
-    rc = os_task_init(&ble_os_test_app_task,
-                      "ble_gap_terminate_test_task",
-                      ble_os_test_app_task_handler, NULL,
-                      BLE_OS_TEST_APP_PRIO, OS_WAIT_FOREVER,
-                      ble_os_test_app_stack,
+    rc = os_task_init(&ble_os_test_app_task, "ble_gap_terminate_test_task",
+                      ble_os_test_app_task_handler, NULL, BLE_OS_TEST_APP_PRIO,
+                      OS_WAIT_FOREVER, ble_os_test_app_stack,
                       OS_STACK_ALIGN(BLE_OS_TEST_APP_STACK_SIZE));
     TEST_ASSERT_FATAL(rc == 0);
 }
@@ -122,7 +119,9 @@ static void
 ble_gap_direct_connect_test_task_handler(void *arg)
 {
     struct ble_gap_conn_complete evt;
-    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int cb_called;
     int rc;
 
@@ -138,14 +137,13 @@ ble_gap_direct_connect_test_task_handler(void *arg)
 
     /* Initiate a direct connection. */
     ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr, 0, NULL,
-                             ble_gap_direct_connect_test_connect_cb,
-                             &cb_called, 0);
+                             ble_gap_direct_connect_test_connect_cb, &cb_called, 0);
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(!cb_called);
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive an HCI connection-complete event. */
     memset(&evt, 0, sizeof evt);
@@ -166,8 +164,7 @@ TEST_CASE_SELF(ble_gap_direct_connect_test_case)
 {
     ble_os_test_misc_init();
 
-    os_task_init(&ble_os_test_task,
-                 "ble_gap_direct_connect_test_task",
+    os_task_init(&ble_os_test_task, "ble_gap_direct_connect_test_task",
                  ble_gap_direct_connect_test_task_handler, NULL,
                  BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
@@ -218,8 +215,7 @@ ble_os_disc_test_task_handler(void *arg)
     /* Initiate the general discovery procedure with a 300 ms timeout. */
     memset(&disc_params, 0, sizeof disc_params);
     rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, 300, &disc_params,
-                               ble_os_disc_test_cb,
-                               &cb_called, 0, 0);
+                               ble_os_disc_test_cb, &cb_called, 0, 0);
     TEST_ASSERT(rc == 0);
     TEST_ASSERT(!ble_os_test_misc_conn_exists(BLE_HS_CONN_HANDLE_NONE));
     TEST_ASSERT(ble_gap_master_in_progress());
@@ -237,9 +233,7 @@ ble_os_disc_test_task_handler(void *arg)
     TEST_ASSERT(!cb_called);
 
     ble_hs_test_util_hci_ack_set(
-        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                    BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-        0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE), 0);
 
     /* Wait 250 more ms; verify scan completed. */
     os_time_delay(250 * OS_TICKS_PER_SEC / 1000);
@@ -254,10 +248,9 @@ TEST_CASE_SELF(ble_os_disc_test_case)
 {
     ble_os_test_misc_init();
 
-    os_task_init(&ble_os_test_task,
-                 "ble_os_disc_test_task",
-                 ble_os_disc_test_task_handler, NULL,
-                 BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
+    os_task_init(&ble_os_test_task, "ble_os_disc_test_task",
+                 ble_os_disc_test_task_handler, NULL, BLE_OS_TEST_TASK_PRIO,
+                 OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
 
     os_start();
@@ -284,8 +277,12 @@ static void
 ble_gap_terminate_test_task_handler(void *arg)
 {
     struct ble_gap_conn_complete conn_evt;
-    ble_addr_t addr1 = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
-    ble_addr_t addr2 = { BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 }};
+    ble_addr_t addr1 = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
+    ble_addr_t addr2 = {
+        BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 }
+    };
     int disconn_handle;
     int rc;
 
@@ -306,12 +303,11 @@ ble_gap_terminate_test_task_handler(void *arg)
     TEST_ASSERT(!ble_gap_master_in_progress());
 
     /* Create two direct connections. */
-    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
-                             &addr1, 0, NULL, ble_gap_terminate_cb,
-                             &disconn_handle, 0);
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr1, 0, NULL,
+                             ble_gap_terminate_cb, &disconn_handle, 0);
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 1;
@@ -319,12 +315,11 @@ ble_gap_terminate_test_task_handler(void *arg)
     rc = ble_gap_rx_conn_complete(&conn_evt, 0);
     TEST_ASSERT(rc == 0);
 
-    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
-                             &addr2, 0, NULL, ble_gap_terminate_cb,
-                             &disconn_handle, 0);
+    ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr2, 0, NULL,
+                             ble_gap_terminate_cb, &disconn_handle, 0);
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
     memset(&conn_evt, 0, sizeof conn_evt);
     conn_evt.status = BLE_ERR_SUCCESS;
     conn_evt.connection_handle = 2;
@@ -368,8 +363,7 @@ TEST_CASE_SELF(ble_gap_terminate_test_case)
 {
     ble_os_test_misc_init();
 
-    os_task_init(&ble_os_test_task,
-                 "ble_gap_terminate_test_task",
+    os_task_init(&ble_os_test_task, "ble_gap_terminate_test_task",
                  ble_gap_terminate_test_task_handler, NULL,
                  BLE_OS_TEST_TASK_PRIO, OS_WAIT_FOREVER, ble_os_test_stack,
                  OS_STACK_ALIGN(BLE_OS_TEST_STACK_SIZE));
